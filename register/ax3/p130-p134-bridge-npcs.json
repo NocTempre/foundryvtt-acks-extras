@@ -1,5 +1,24 @@
 [
   {
+    "id": "ax3.npc58",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 58",
+    "anchor": {
+      "hash": "1mwace",
+      "as": "runin"
+    },
+    "pages": [
+      130
+    ],
+    "meta": {
+      "group": "Bridge District — Notable Residents"
+    },
+    "assists": {
+      "statLabelKey": "1jjhctb"
+    }
+  },
+  {
     "id": "ax3.npc20",
     "kind": "kind.npc",
     "book": "ax3",

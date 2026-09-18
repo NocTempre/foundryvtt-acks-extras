@@ -112,5 +112,24 @@
     "assists": {
       "anchorAtStatline": true
     }
+  },
+  {
+    "id": "ax3.npc63",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 63",
+    "anchor": {
+      "hash": "nrupeb",
+      "as": "label"
+    },
+    "pages": [
+      177
+    ],
+    "meta": {
+      "group": "Temple District — Special Locations"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
   }
 ]

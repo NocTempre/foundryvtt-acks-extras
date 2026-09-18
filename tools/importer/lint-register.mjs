@@ -126,7 +126,7 @@ function capStrings(obj, label, keyPath = "") {
  * vocabulary. Any other word in the block would be a printed name shipping
  * inside the row that exists to avoid it.
  */
-const ORG_KEYS = new Set(["kind", "nameFrom", "seat", "holdings", "leader", "members", "replaces", "controls", "relations", "note"]);
+const ORG_KEYS = new Set(["kind", "nameFrom", "seat", "holdings", "leader", "members", "controls", "relations", "note"]);
 const orgRows = []; // checked against every row once all are read
 const rowShapes = new Map(); // id -> {kind, group}
 function checkOrganisation(e, id, bookId) {
@@ -141,8 +141,17 @@ function checkOrganisation(e, id, bookId) {
   if (!FACTION_KINDS.includes(o.kind)) err(`${id}: organisation.kind ${JSON.stringify(o.kind)} is not a faction kind (${FACTION_KINDS.join("|")})`);
   if (o.nameFrom !== undefined && (o.nameFrom !== "seat" || typeof o.seat !== "string")) err(`${id}: organisation.nameFrom is "seat", beside a seat to take the name from`);
   const idOk = (v) => typeof v === "string" && COMPOSITE_ID.test(v) && v.startsWith(`${bookId}.`);
-  for (const k of ["seat", "leader"]) if (o[k] !== undefined && !idOk(o[k])) err(`${id}: organisation.${k} must be an entry id of this book`);
-  for (const k of ["holdings", "members", "replaces", "controls"]) {
+  // A person's place in a body may be concealed, so leader and members take an
+  // id or `{id, hidden}` — nothing else, or a typo'd key reads as a public tie.
+  const personOk = (v) => idOk(v) || (!!v && typeof v === "object" && idOk(v.id)
+    && typeof v.hidden === "boolean"
+    && Object.keys(v).every((k) => k === "id" || k === "hidden"));
+  for (const k of ["seat"]) if (o[k] !== undefined && !idOk(o[k])) err(`${id}: organisation.${k} must be an entry id of this book`);
+  if (o.leader !== undefined && !personOk(o.leader)) err(`${id}: organisation.leader must be an entry id of this book, or {id, hidden}`);
+  if (o.members !== undefined && (!Array.isArray(o.members) || !o.members.every(personOk))) {
+    err(`${id}: organisation.members must be an array of entry ids of this book, each an id or {id, hidden}`);
+  }
+  for (const k of ["holdings", "controls"]) {
     if (o[k] === undefined) continue;
     if (!Array.isArray(o[k]) || !o[k].every(idOk)) err(`${id}: organisation.${k} must be an array of entry ids of this book`);
   }
@@ -385,11 +394,13 @@ for (const { id, o } of orgRows) {
   const isPlace = (s) => s.kind === "kind.location" && !/ — Overview$/.test(s.group);
   const isPerson = (s) => s.kind === "kind.npc";
   const isQuarter = (s) => s.kind === "kind.location" && / — Overview$/.test(s.group);
+  // A person is an id or `{id, hidden}`; the id is what must resolve either way,
+  // so an id hidden behind a concealed tie is checked like any other.
+  const personId = (v) => (typeof v === "string" ? v : typeof v?.id === "string" ? v.id : "");
   if (typeof o.seat === "string") want("seat", o.seat, isPlace, "a keyed place");
-  if (typeof o.leader === "string") want("leader", o.leader, isPerson, "a person");
+  if (personId(o.leader)) want("leader", personId(o.leader), isPerson, "a person");
   for (const v of Array.isArray(o.holdings) ? o.holdings : []) want("holdings", v, isPlace, "a keyed place");
-  for (const v of Array.isArray(o.members) ? o.members : []) want("members", v, isPerson, "a person");
-  for (const v of Array.isArray(o.replaces) ? o.replaces : []) want("replaces", v, isPerson, "a person");
+  for (const v of Array.isArray(o.members) ? o.members : []) if (personId(v)) want("members", personId(v), isPerson, "a person");
   for (const v of Array.isArray(o.controls) ? o.controls : []) want("controls", v, isQuarter, "a quarter's overview");
   for (const r of Array.isArray(o.relations) ? o.relations : []) {
     if (typeof r?.to === "string") want("relations", r.to, (s) => s.kind === "kind.organisation", "an organisation");

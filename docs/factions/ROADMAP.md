@@ -5,22 +5,34 @@ Work that is designed but absent, deliberately. How the feature behaves now is
 
 ---
 
-- **A group organisation has no name left to read.** Blocking, and the shipped
-  data is wrong today: a group organisation is a heading of the form
-  `<Quarter> — <Organisation>`, so the body's PRINTED name was the second half
-  of the group string — exactly what the aliasing pass took out
-  ([importer DECISIONS](../importer/DECISIONS.md), "A printed proper name is
-  not an identifier either"). The register now writes a neutral bucket there,
-  so `organisationGroupOf` reads three quarters' `— Special Locations` as three
-  bodies called that, and the roaming company, whose head lost its ` — <Name>`
-  suffix entirely, binds to nothing. `tools/importer/test-faction-binding.mjs`
-  fails on the count and is the tripwire: it is left failing on purpose.
+- **A body the page never sets its name apart for.** A row anchors on the
+  `printKey` of a run the book set the name in, so a body named only inside a
+  longer run of prose cannot be anchored at all — a box is geometry over runs,
+  and nothing can cut a name out of the sentence carrying it. Four AX3 bodies
+  are in this position: a labour guild, two patrician houses and a foreign
+  monastic house. They reach a world as prose in another entry's description
+  and never as a faction, and the people tied to them keep only the ties an
+  anchored row can state. The unbuilt part is a Judge-facing way to make such a
+  body by hand and have the import roster it.
 
-  The shape of the answer is to retire the group-derived path — an organisation
-  the book names is an authored `kind.organisation` row anchored by hash, which
-  is what the other twenty already are. What is missing is authoring: 20 of
-  AX3's 57 people are named by no row, the roaming company among them, and who
-  belongs to which body is read off the page rather than derived.
+- **People named only in the room-by-room writeups.** A settlement book runs
+  its keyed places twice: once as a quarter's gazetteer entry and again, later,
+  as a detailed writeup. The register covers the gazetteer everywhere and the
+  writeups only where a quarter's own rows reach into them, so a person whose
+  single statline sits in an unreached stretch has no row and cannot be
+  rostered. Two who lead the packs of one concealed AX3 body are in that
+  position, which is why it ships with a head and no members. Closing it is a
+  reading pass per quarter, not a mechanism.
+
+- **A holding the players should not see.** A roster row carries `hidden`; a
+  holdings row does not. A body that keeps a front and a safehouse has no way
+  to say which of the two a player may be shown, so a concealed place is left
+  off the row entirely and the Judge adds it by hand.
+
+- **A division inside a body.** One AX3 order divides into seven named
+  divisions, each under its own head. The register has no `parent`, so the
+  choice is seven sibling rows that lose the order, or one row that loses the
+  divisions. It ships as one row; the divisions arrive as its description.
 
 - **Heat and laying low.** A `crime` row is recorded and shown as a prior
   record; nothing yet cools it with time spent out of sight, and nothing
@@ -38,14 +50,6 @@ Work that is designed but absent, deliberately. How the feature behaves now is
 - **Standing on the character sheet.** A player has no view of what the
   factions hold about them beyond the reaction card; a read-only panel of the
   non-hidden rows is the obvious surface.
-- **Notable residents who belong to a house.** A resident printed under a
-  quarter's residents group joins no faction on import; the Judge rosters them
-  by hand.
-- **Relations and holdings from the books.** The importer's organisations step
-  writes the seat and the roster; the places an organisation keeps beyond its
-  seat, and whom it deals with, are left to the Judge. Both are printed prose
-  rather than a structured group, so they need the binding to read a body of
-  text and not a table.
 - **A map of who deals with whom.** Relations are read one sheet at a time —
   its own rows, and the reverse view beneath them. Nothing draws the whole web,
   which is the surface a Judge running a city with six organisations wants.

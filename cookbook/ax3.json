@@ -6470,6 +6470,53 @@
         }
       }
     },
+    "ax3.npc59": {
+      "kind": "kind.npc",
+      "name": "NPC 59",
+      "cite": "AX3 p.99",
+      "pages": [
+        101
+      ],
+      "meta": {
+        "group": "Festival District — Notable Residents"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 101,
+          "pattern": "statline",
+          "box": {
+            "x0": 339,
+            "x1": 579.0400000000002,
+            "y0": 192.2699,
+            "y1": 248.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 101,
+          "box": {
+            "x0": 340,
+            "x1": 344,
+            "y0": 193.7699,
+            "y1": 198.7699
+          },
+          "hash": "524qe8"
+        }
+      }
+    },
     "ax3.poi20": {
       "kind": "kind.location",
       "name": "POI 20/20U",
@@ -8335,6 +8382,105 @@
         }
       }
     },
+    "ax3.npc61": {
+      "kind": "kind.npc",
+      "name": "NPC 61",
+      "cite": "AX3 p.107",
+      "pages": [
+        109
+      ],
+      "meta": {
+        "group": "Festival District — Notable Residents"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 109,
+          "pattern": "statline",
+          "box": {
+            "x0": 339.72,
+            "x1": 579.7164,
+            "y0": 75.2699,
+            "y1": 131.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              5
+            ],
+            "mergeHyphen": [
+              4
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 109,
+          "box": {
+            "x0": 340.72,
+            "x1": 344.72,
+            "y0": 76.7699,
+            "y1": 81.7699
+          },
+          "hash": "1eej51x"
+        }
+      }
+    },
+    "ax3.npc62": {
+      "kind": "kind.npc",
+      "name": "NPC 62",
+      "cite": "AX3 p.107",
+      "pages": [
+        109
+      ],
+      "meta": {
+        "group": "Festival District — Notable Residents"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 109,
+          "pattern": "statline",
+          "box": {
+            "x0": 339.72,
+            "x1": 579.7579999999998,
+            "y0": 144.2699,
+            "y1": 212.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "mergeHyphen": [
+              6
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 109,
+          "box": {
+            "x0": 340.72,
+            "x1": 344.72,
+            "y0": 145.7699,
+            "y1": 150.7699
+          },
+          "hash": "1c5swrd"
+        }
+      }
+    },
     "ax3.npc19": {
       "kind": "kind.npc",
       "name": "NPC 19",
@@ -8380,6 +8526,55 @@
             "y1": 231.7699
           },
           "hash": "1j06anr"
+        }
+      }
+    },
+    "ax3.npc60": {
+      "kind": "kind.npc",
+      "name": "NPC 60",
+      "cite": "AX3 p.108",
+      "pages": [
+        110
+      ],
+      "meta": {
+        "group": "Festival District — Notable Residents"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 110,
+          "pattern": "statline",
+          "box": {
+            "x0": 321,
+            "x1": 561.0397000000003,
+            "y0": 411.2699,
+            "y1": 467.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2
+            ],
+            "mergeHyphen": [
+              4,
+              6
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 110,
+          "box": {
+            "x0": 322,
+            "x1": 326,
+            "y0": 412.7699,
+            "y1": 417.7699
+          },
+          "hash": "9l0bpf"
         }
       }
     },
@@ -9471,6 +9666,179 @@
                   1,
                   2,
                   3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ax3.npc58": {
+      "kind": "kind.npc",
+      "name": "NPC 58",
+      "cite": "AX3 p.128",
+      "pages": [
+        130
+      ],
+      "meta": {
+        "group": "Bridge District — Notable Residents"
+      },
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 130,
+          "box": {
+            "x0": 33,
+            "x1": 295,
+            "y0": 198.16989999999998,
+            "y1": 207.16989999999998
+          },
+          "hash": "1mwace",
+          "fixes": {
+            "joinSpace": [
+              4
+            ]
+          },
+          "caps": true
+        },
+        "statline": {
+          "op": "value",
+          "page": 130,
+          "pattern": "statline",
+          "box": {
+            "x0": 321,
+            "x1": 561.0269999999998,
+            "y0": 75.2699,
+            "y1": 227.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              4,
+              5,
+              10,
+              11,
+              12,
+              14,
+              15,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "mergeHyphen": [
+              7,
+              9
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 130,
+          "paras": [
+            {
+              "box": {
+                "x0": 26,
+                "x1": 295,
+                "y0": 212.16989999999998,
+                "y1": 386.1699
+              },
+              "fixes": {
+                "joinSpace": [
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14
+                ],
+                "mergeHyphen": [
+                  0,
+                  2,
+                  16,
+                  18
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 26,
+                "x1": 295,
+                "y0": 401.1699,
+                "y1": 503.1699
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  9,
+                  10,
+                  13
+                ],
+                "mergeHyphen": [
+                  8,
+                  12
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 26,
+                "x1": 295,
+                "y0": 518.1699,
+                "y1": 608.1699
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 26,
+                "x1": 295,
+                "y0": 623.1699,
+                "y1": 737.1699
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  5,
+                  6,
+                  7,
+                  10
+                ],
+                "mergeHyphen": [
+                  4,
+                  9
                 ]
               }
             }
@@ -16914,6 +17282,58 @@
         }
       }
     },
+    "ax3.npc63": {
+      "kind": "kind.npc",
+      "name": "NPC 63",
+      "cite": "AX3 p.175",
+      "pages": [
+        177
+      ],
+      "meta": {
+        "group": "Temple District — Special Locations"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 177,
+          "pattern": "statline",
+          "box": {
+            "x0": 339.72,
+            "x1": 579.7489999999998,
+            "y0": 75.2699,
+            "y1": 155.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              7,
+              9,
+              11,
+              13
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 177,
+          "box": {
+            "x0": 340.72,
+            "x1": 344.72,
+            "y0": 76.7699,
+            "y1": 81.7699
+          },
+          "hash": "nrupeb"
+        }
+      }
+    },
     "ax3.lakeDistrict": {
       "kind": "kind.location",
       "name": "Lake District",
@@ -21517,8 +21937,7 @@
         "kind": "noble",
         "seat": "ax3.poi78",
         "holdings": [
-          "ax3.poi78U",
-          "ax3.poi80"
+          "ax3.poi78U"
         ],
         "leader": "ax3.npc48",
         "members": [
@@ -21587,9 +22006,9 @@
       "organisation": {
         "kind": "noble",
         "members": [
-          "ax3.npc43",
           "ax3.npc44"
-        ]
+        ],
+        "leader": "ax3.npc43"
       },
       "fields": {
         "name": {
@@ -21661,6 +22080,8 @@
         "kind": "watch",
         "seat": "ax3.poi81",
         "holdings": [
+          "ax3.poi79",
+          "ax3.poi80",
           "ax3.poi81U"
         ],
         "leader": "ax3.npc51",
@@ -21741,26 +22162,37 @@
         "kind": "watch",
         "seat": "ax3.poi5",
         "holdings": [
+          "ax3.poi1",
           "ax3.poi2",
           "ax3.poi3",
           "ax3.poi6",
+          "ax3.poi15",
           "ax3.poi16",
           "ax3.poi17",
           "ax3.poi18",
           "ax3.poi19",
           "ax3.poi29",
+          "ax3.poi34",
+          "ax3.poi35",
+          "ax3.poi37",
           "ax3.poi41",
+          "ax3.poi43",
+          "ax3.poi46",
           "ax3.poi47",
           "ax3.poi48",
           "ax3.poi49",
+          "ax3.poi53",
           "ax3.poi54",
           "ax3.poi55",
           "ax3.poi56",
+          "ax3.poi57",
+          "ax3.poi76",
           "ax3.poi77"
         ],
         "leader": "ax3.npc5",
         "members": [
-          "ax3.npc38"
+          "ax3.npc38",
+          "ax3.npc59"
         ],
         "controls": [
           "ax3.oldDistrict",
@@ -21836,11 +22268,15 @@
       "organisation": {
         "kind": "syndicate",
         "seat": "ax3.poi11",
-        "leader": "ax3.npc1",
+        "leader": {
+          "id": "ax3.npc1",
+          "hidden": true
+        },
         "members": [
           "ax3.npc2",
           "ax3.npc3",
-          "ax3.npc4"
+          "ax3.npc4",
+          "ax3.npc22"
         ],
         "relations": [
           {
@@ -21849,6 +22285,11 @@
           },
           {
             "to": "ax3.org8",
+            "stance": "friendly",
+            "hidden": true
+          },
+          {
+            "to": "ax3.org4",
             "stance": "friendly",
             "hidden": true
           }
@@ -21919,13 +22360,19 @@
         "kind": "syndicate",
         "seat": "ax3.poi25",
         "holdings": [
-          "ax3.poi26"
+          "ax3.poi26",
+          "ax3.poi27",
+          "ax3.poi24"
         ],
-        "leader": "ax3.npc8",
+        "leader": {
+          "id": "ax3.npc8",
+          "hidden": true
+        },
         "members": [
           "ax3.npc9",
           "ax3.npc10",
-          "ax3.npc11"
+          "ax3.npc11",
+          "ax3.npc60"
         ],
         "relations": [
           {
@@ -21935,6 +22382,11 @@
           {
             "to": "ax3.org10",
             "stance": "allied",
+            "hidden": true
+          },
+          {
+            "to": "ax3.org4",
+            "stance": "friendly",
             "hidden": true
           }
         ]
@@ -22001,14 +22453,7 @@
       },
       "organisation": {
         "kind": "syndicate",
-        "seat": "ax3.poi14U",
-        "relations": [
-          {
-            "to": "ax3.org20",
-            "stance": "hostile",
-            "hidden": true
-          }
-        ]
+        "seat": "ax3.poi14U"
       },
       "fields": {
         "name": {
@@ -22181,7 +22626,9 @@
         "seat": "ax3.poi21",
         "leader": "ax3.npc17",
         "members": [
-          "ax3.npc18"
+          "ax3.npc18",
+          "ax3.npc61",
+          "ax3.npc62"
         ],
         "relations": [
           {
@@ -22541,15 +22988,13 @@
           "ax3.npc21",
           "ax3.npc23"
         ],
-        "replaces": [
-          "ax3.npc23"
-        ],
         "relations": [
           {
             "to": "ax3.org14",
             "stance": "allied"
           }
-        ]
+        ],
+        "leader": "ax3.npc58"
       },
       "fields": {
         "name": {
@@ -22689,7 +23134,10 @@
           "ax3.poi60",
           "ax3.poi61"
         ],
-        "leader": "ax3.npc30"
+        "leader": "ax3.npc30",
+        "members": [
+          "ax3.npc54"
+        ]
       },
       "fields": {
         "name": {
@@ -22772,7 +23220,9 @@
         "leader": "ax3.npc26",
         "members": [
           "ax3.npc27",
-          "ax3.npc28"
+          "ax3.npc28",
+          "ax3.npc29",
+          "ax3.npc63"
         ]
       },
       "fields": {
@@ -22840,7 +23290,10 @@
       "organisation": {
         "kind": "temple",
         "seat": "ax3.poi13U",
-        "leader": "ax3.npc27"
+        "leader": {
+          "id": "ax3.npc27",
+          "hidden": true
+        }
       },
       "fields": {
         "name": {
@@ -23028,10 +23481,10 @@
       "organisation": {
         "kind": "temple",
         "seat": "ax3.poi69U",
-        "leader": "ax3.npc37",
-        "replaces": [
-          "ax3.npc37"
-        ],
+        "leader": {
+          "id": "ax3.npc37",
+          "hidden": true
+        },
         "relations": [
           {
             "to": "ax3.org7",
@@ -23091,6 +23544,343 @@
                 "mergeHyphen": [
                   3,
                   5
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ax3.org21": {
+      "kind": "kind.organisation",
+      "name": "Organisation 21",
+      "cite": "AX3 p.43",
+      "pages": [
+        45
+      ],
+      "meta": {
+        "group": "Organisations"
+      },
+      "organisation": {
+        "kind": "temple",
+        "seat": "ax3.poi75U",
+        "leader": {
+          "id": "ax3.npc47",
+          "hidden": true
+        },
+        "members": [
+          {
+            "id": "ax3.npc46",
+            "hidden": true
+          }
+        ]
+      },
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 45,
+          "hash": "1gqyii6",
+          "parts": [
+            {
+              "box": {
+                "x0": 206.0452,
+                "x1": 210.0452,
+                "y0": 76.7699,
+                "y1": 81.7699
+              }
+            }
+          ]
+        },
+        "description": {
+          "op": "text",
+          "page": 45,
+          "paras": [
+            {
+              "box": {
+                "x0": 36,
+                "x1": 305,
+                "y0": 76.2699,
+                "y1": 178.2699
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "mergeHyphen": [
+                  3,
+                  9,
+                  11
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ax3.org23": {
+      "kind": "kind.organisation",
+      "name": "Organisation 23",
+      "cite": "AX3 p.168",
+      "pages": [
+        170
+      ],
+      "meta": {
+        "group": "Organisations"
+      },
+      "organisation": {
+        "kind": "temple",
+        "seat": "ax3.poi65",
+        "members": [
+          "ax3.npc31",
+          "ax3.npc33"
+        ]
+      },
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 170,
+          "hash": "1ddr6dq",
+          "parts": [
+            {
+              "box": {
+                "x0": 323.4464,
+                "x1": 327.4464,
+                "y0": 553.9699,
+                "y1": 558.9699
+              }
+            }
+          ]
+        },
+        "description": {
+          "op": "text",
+          "page": 170,
+          "paras": [
+            {
+              "box": {
+                "x0": 296,
+                "x1": 576,
+                "y0": 553.4699,
+                "y1": 631.4699
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "mergeHyphen": [
+                  3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ax3.org24": {
+      "kind": "kind.organisation",
+      "name": "Organisation 24",
+      "cite": "AX3 p.169",
+      "pages": [
+        171
+      ],
+      "meta": {
+        "group": "Organisations"
+      },
+      "organisation": {
+        "kind": "temple",
+        "seat": "ax3.poi64",
+        "members": [
+          "ax3.npc35"
+        ]
+      },
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 171,
+          "hash": "d15gpf",
+          "parts": [
+            {
+              "box": {
+                "x0": 84.1277,
+                "x1": 88.1277,
+                "y0": 260.36990000000003,
+                "y1": 265.36990000000003
+              }
+            }
+          ]
+        },
+        "description": {
+          "op": "text",
+          "page": 171,
+          "paras": [
+            {
+              "box": {
+                "x0": 36,
+                "x1": 305,
+                "y0": 259.86990000000003,
+                "y1": 325.8699
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  6,
+                  7,
+                  8
+                ],
+                "mergeHyphen": [
+                  3,
+                  5
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ax3.org22": {
+      "kind": "kind.organisation",
+      "name": "Organisation 22",
+      "cite": "AX3 p.196",
+      "pages": [
+        198
+      ],
+      "meta": {
+        "group": "Organisations"
+      },
+      "organisation": {
+        "kind": "other",
+        "leader": "ax3.npc52",
+        "members": [
+          "ax3.npc53",
+          "ax3.npc54",
+          "ax3.npc55",
+          "ax3.npc56",
+          "ax3.npc57"
+        ]
+      },
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 198,
+          "box": {
+            "x0": 303,
+            "x1": 572,
+            "y0": 67.59990000000005,
+            "y1": 86.59990000000005
+          },
+          "hash": "mgaema",
+          "caps": true
+        },
+        "description": {
+          "op": "text",
+          "page": 198,
+          "paras": [
+            {
+              "box": {
+                "x0": 296,
+                "x1": 572,
+                "y0": 90.59990000000005,
+                "y1": 228.59990000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ],
+                "mergeHyphen": [
+                  3,
+                  5,
+                  12,
+                  14
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 296,
+                "x1": 572,
+                "y0": 252.79989999999998,
+                "y1": 378.7999
+              },
+              "fixes": {
+                "joinSpace": [
+                  2,
+                  3,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12
+                ],
+                "mergeHyphen": [
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 296,
+                "x1": 572,
+                "y0": 402.9998,
+                "y1": 432.9998
+              },
+              "fixes": {
+                "joinSpace": [
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 296,
+                "x1": 572,
+                "y0": 457.1999,
+                "y1": 499.1999
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  5
+                ],
+                "mergeHyphen": [
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 296,
+                "x1": 572,
+                "y0": 514.1999000000001,
+                "y1": 568.1999000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  2
+                ],
+                "mergeHyphen": [
+                  1,
+                  4,
+                  6
                 ]
               }
             }
@@ -24283,6 +25073,22 @@
       }
     ],
     "194": [
+      {
+        "x0": 0,
+        "x1": 612,
+        "y0": 0,
+        "y1": 60,
+        "reason": "running-head"
+      },
+      {
+        "x0": 0,
+        "x1": 34,
+        "y0": 0,
+        "y1": 792,
+        "reason": "margin-furniture"
+      }
+    ],
+    "198": [
       {
         "x0": 0,
         "x1": 612,

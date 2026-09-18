@@ -17,8 +17,7 @@
       "kind": "noble",
       "seat": "ax3.poi78",
       "holdings": [
-        "ax3.poi78U",
-        "ax3.poi80"
+        "ax3.poi78U"
       ],
       "leader": "ax3.npc48",
       "members": [
@@ -47,9 +46,9 @@
     "organisation": {
       "kind": "noble",
       "members": [
-        "ax3.npc43",
         "ax3.npc44"
-      ]
+      ],
+      "leader": "ax3.npc43"
     }
   },
   {
@@ -70,6 +69,8 @@
       "kind": "watch",
       "seat": "ax3.poi81",
       "holdings": [
+        "ax3.poi79",
+        "ax3.poi80",
         "ax3.poi81U"
       ],
       "leader": "ax3.npc51",
@@ -102,26 +103,37 @@
       "kind": "watch",
       "seat": "ax3.poi5",
       "holdings": [
+        "ax3.poi1",
         "ax3.poi2",
         "ax3.poi3",
         "ax3.poi6",
+        "ax3.poi15",
         "ax3.poi16",
         "ax3.poi17",
         "ax3.poi18",
         "ax3.poi19",
         "ax3.poi29",
+        "ax3.poi34",
+        "ax3.poi35",
+        "ax3.poi37",
         "ax3.poi41",
+        "ax3.poi43",
+        "ax3.poi46",
         "ax3.poi47",
         "ax3.poi48",
         "ax3.poi49",
+        "ax3.poi53",
         "ax3.poi54",
         "ax3.poi55",
         "ax3.poi56",
+        "ax3.poi57",
+        "ax3.poi76",
         "ax3.poi77"
       ],
       "leader": "ax3.npc5",
       "members": [
-        "ax3.npc38"
+        "ax3.npc38",
+        "ax3.npc59"
       ],
       "controls": [
         "ax3.oldDistrict",
@@ -152,11 +164,15 @@
     "organisation": {
       "kind": "syndicate",
       "seat": "ax3.poi11",
-      "leader": "ax3.npc1",
+      "leader": {
+        "id": "ax3.npc1",
+        "hidden": true
+      },
       "members": [
         "ax3.npc2",
         "ax3.npc3",
-        "ax3.npc4"
+        "ax3.npc4",
+        "ax3.npc22"
       ],
       "relations": [
         {
@@ -165,6 +181,11 @@
         },
         {
           "to": "ax3.org8",
+          "stance": "friendly",
+          "hidden": true
+        },
+        {
+          "to": "ax3.org4",
           "stance": "friendly",
           "hidden": true
         }
@@ -189,13 +210,19 @@
       "kind": "syndicate",
       "seat": "ax3.poi25",
       "holdings": [
-        "ax3.poi26"
+        "ax3.poi26",
+        "ax3.poi27",
+        "ax3.poi24"
       ],
-      "leader": "ax3.npc8",
+      "leader": {
+        "id": "ax3.npc8",
+        "hidden": true
+      },
       "members": [
         "ax3.npc9",
         "ax3.npc10",
-        "ax3.npc11"
+        "ax3.npc11",
+        "ax3.npc60"
       ],
       "relations": [
         {
@@ -205,6 +232,11 @@
         {
           "to": "ax3.org10",
           "stance": "allied",
+          "hidden": true
+        },
+        {
+          "to": "ax3.org4",
+          "stance": "friendly",
           "hidden": true
         }
       ]
@@ -226,14 +258,7 @@
     },
     "organisation": {
       "kind": "syndicate",
-      "seat": "ax3.poi14U",
-      "relations": [
-        {
-          "to": "ax3.org20",
-          "stance": "hostile",
-          "hidden": true
-        }
-      ]
+      "seat": "ax3.poi14U"
     }
   },
   {
@@ -298,7 +323,9 @@
       "seat": "ax3.poi21",
       "leader": "ax3.npc17",
       "members": [
-        "ax3.npc18"
+        "ax3.npc18",
+        "ax3.npc61",
+        "ax3.npc62"
       ],
       "relations": [
         {
@@ -426,15 +453,13 @@
         "ax3.npc21",
         "ax3.npc23"
       ],
-      "replaces": [
-        "ax3.npc23"
-      ],
       "relations": [
         {
           "to": "ax3.org14",
           "stance": "allied"
         }
-      ]
+      ],
+      "leader": "ax3.npc58"
     }
   },
   {
@@ -489,7 +514,10 @@
         "ax3.poi60",
         "ax3.poi61"
       ],
-      "leader": "ax3.npc30"
+      "leader": "ax3.npc30",
+      "members": [
+        "ax3.npc54"
+      ]
     }
   },
   {
@@ -512,7 +540,9 @@
       "leader": "ax3.npc26",
       "members": [
         "ax3.npc27",
-        "ax3.npc28"
+        "ax3.npc28",
+        "ax3.npc29",
+        "ax3.npc63"
       ]
     }
   },
@@ -533,7 +563,10 @@
     "organisation": {
       "kind": "temple",
       "seat": "ax3.poi13U",
-      "leader": "ax3.npc27"
+      "leader": {
+        "id": "ax3.npc27",
+        "hidden": true
+      }
     }
   },
   {
@@ -598,10 +631,10 @@
     "organisation": {
       "kind": "temple",
       "seat": "ax3.poi69U",
-      "leader": "ax3.npc37",
-      "replaces": [
-        "ax3.npc37"
-      ],
+      "leader": {
+        "id": "ax3.npc37",
+        "hidden": true
+      },
       "relations": [
         {
           "to": "ax3.org7",
@@ -618,6 +651,107 @@
           "stance": "friendly",
           "hidden": true
         }
+      ]
+    }
+  },
+  {
+    "id": "ax3.org21",
+    "kind": "kind.organisation",
+    "book": "ax3",
+    "name": "Organisation 21",
+    "anchor": {
+      "hash": "1gqyii6"
+    },
+    "pages": [
+      45
+    ],
+    "meta": {
+      "group": "Organisations"
+    },
+    "organisation": {
+      "kind": "temple",
+      "seat": "ax3.poi75U",
+      "leader": {
+        "id": "ax3.npc47",
+        "hidden": true
+      },
+      "members": [
+        {
+          "id": "ax3.npc46",
+          "hidden": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "ax3.org22",
+    "kind": "kind.organisation",
+    "book": "ax3",
+    "name": "Organisation 22",
+    "anchor": {
+      "hash": "mgaema",
+      "as": "display"
+    },
+    "pages": [
+      198
+    ],
+    "meta": {
+      "group": "Organisations"
+    },
+    "organisation": {
+      "kind": "other",
+      "leader": "ax3.npc52",
+      "members": [
+        "ax3.npc53",
+        "ax3.npc54",
+        "ax3.npc55",
+        "ax3.npc56",
+        "ax3.npc57"
+      ]
+    }
+  },
+  {
+    "id": "ax3.org23",
+    "kind": "kind.organisation",
+    "book": "ax3",
+    "name": "Organisation 23",
+    "anchor": {
+      "hash": "1ddr6dq"
+    },
+    "pages": [
+      170
+    ],
+    "meta": {
+      "group": "Organisations"
+    },
+    "organisation": {
+      "kind": "temple",
+      "seat": "ax3.poi65",
+      "members": [
+        "ax3.npc31",
+        "ax3.npc33"
+      ]
+    }
+  },
+  {
+    "id": "ax3.org24",
+    "kind": "kind.organisation",
+    "book": "ax3",
+    "name": "Organisation 24",
+    "anchor": {
+      "hash": "d15gpf"
+    },
+    "pages": [
+      171
+    ],
+    "meta": {
+      "group": "Organisations"
+    },
+    "organisation": {
+      "kind": "temple",
+      "seat": "ax3.poi64",
+      "members": [
+        "ax3.npc35"
       ]
     }
   }

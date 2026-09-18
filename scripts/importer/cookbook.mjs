@@ -17,8 +17,7 @@ import { MODULE_ID, LANG_PREFIX, ITEM_TYPE, DEFAULT_IMG } from "./constants.mjs"
 import { bookText, entryText, entryTable, escapeText, nodeParagraphs, stripBookText } from "./prose.mjs";
 import { isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData } from "./poi-binding.mjs";
 import {
-  isOrganisationEntry, isOrganisationRow, organisationGroupOf, factionId, factionData, organisationData, organisationPlan,
-  replacedFactionIds, owedRelations, controlledRegions,
+  isOrganisationRow, organisationData, organisationPlan, owedRelations, controlledRegions,
 } from "./faction-binding.mjs";
 import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
 import {
@@ -3143,25 +3142,14 @@ export async function cookbookImportPoiPlaces() {
 export async function cookbookImportFactions() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
   const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
-  const groups = new Map();
   const authored = [];
   for (const bookId of openBooks) {
     const entries = data.books.get(bookId).entries;
-    const replaced = replacedFactionIds(bookId, entries);
     for (const [id, e] of Object.entries(entries)) {
-      if (isOrganisationRow(e)) {
-        authored.push({ bookId, id, e, plan: organisationPlan(bookId, e, entries) });
-        continue;
-      }
-      if (!isOrganisationEntry(e)) continue;
-      const org = organisationGroupOf(e.meta.group);
-      const key = factionId(bookId, org);
-      if (replaced.has(key)) continue;
-      if (!groups.has(key)) groups.set(key, { bookId, org, key, memberIds: [] });
-      groups.get(key).memberIds.push(id);
+      if (isOrganisationRow(e)) authored.push({ bookId, id, e, plan: organisationPlan(bookId, e, entries) });
     }
   }
-  if (!groups.size && !authored.length) return ui.notifications.warn(`${MODULE_ID} | no organisations in any open book — connect AX3 first.`);
+  if (!authored.length) return ui.notifications.warn(`${MODULE_ID} | no organisations in any open book — connect AX3 first.`);
   const counts = { made: 0, already: 0, rostered: 0, missing: 0, refused: 0, related: 0 };
 
   // The quarter's own place, made the way the POI step makes it, so whichever
@@ -3175,11 +3163,11 @@ export async function cookbookImportFactions() {
     return claimActorImport(districtPlaceId(bookId, district), () =>
       createDoc(Actor, districtPlaceData({ book: bookId, bookLabel: label, district, parentUuid: city?.uuid ?? "", folderId: placeFolder })));
   };
-  const rosterOnto = async (faction, memberIds) => {
+  const rosterOnto = async (faction, members) => {
     const rows = (faction.system.members ?? []).map((m) => m.toObject?.() ?? m);
     const held = new Set(rows.map((m) => m.uuid));
     let added = 0;
-    for (const id of memberIds) {
+    for (const { id, hidden } of members) {
       const found = await importedActor(id);
       // The lookup may answer with an index row; the roster row wants the
       // document, for its type and its own retainer record.
@@ -3189,7 +3177,7 @@ export async function cookbookImportFactions() {
         continue;
       }
       if (held.has(person.uuid)) continue;
-      rows.push(occupantRow(person));
+      rows.push(occupantRow(person, { hidden }));
       held.add(person.uuid);
       added++;
     }
@@ -3242,24 +3230,6 @@ export async function cookbookImportFactions() {
       }
       await rosterOnto(faction, plan.members);
       built.push({ faction, plan, cite: e.cite });
-    }
-
-    for (const { bookId, org, key, memberIds } of groups.values()) {
-      bar.step(org.name);
-      const label = bookLabel(bookId);
-      const folder = (await ensureFolderPath("Actor", [label, "Factions"], lineOf(bookId)))?.id ?? null;
-      const seat = await seatsOf(bookId, org.district);
-      let fresh = false;
-      const faction = await claimActorImport(key, () => {
-        fresh = true;
-        return createDoc(Actor, factionData({
-          book: bookId, bookLabel: label, name: org.name, district: org.district, seatUuid: seat?.uuid ?? "", folderId: folder,
-        }));
-      });
-      if (!faction) continue;
-      if (fresh) counts.made++;
-      else counts.already++;
-      await rosterOnto(faction, memberIds);
     }
 
     for (const { faction, plan, cite } of built) {

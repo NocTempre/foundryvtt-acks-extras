@@ -1,5 +1,42 @@
 # Changelog
 
+## 8.0.0
+
+**A settlement arrives whole: its quarters, its keyed places, its map, and the
+bodies that run it.**
+
+### Added
+
+- **Factions.** A body from a settlement book arrives as an actor of its own:
+  its seat, the other places it keeps, who leads it, who belongs to it, and how
+  it stands with the other bodies in the city. A tie the city is not supposed to
+  know stays on the Judge's side of the sheet. The party earns a standing with
+  each body, and what a body holds against them is a record with rows rather
+  than a number.
+- **Points of interest and the city map.** A settlement's keyed places arrive as
+  actors grouped by quarter, and its map arrives as a scene with a pin on each
+  one, so a keyed entry opens from the map.
+- **Quarter-scale play.** Hunting a quarter, finding a place in one, working a
+  zone, and spending influence in one are settlement-turn actions now, and a
+  quarter's own overview is the document they read.
+- **The importer brings all of it.** Organisations, keyed places, quarter
+  overviews and the map are shelves of their own; each is built from the
+  connected book and rebuilt on reimport.
+
+### Changed
+
+- **No printed name ships, anywhere.** A person, a place, a body or a people is
+  the book's expression wherever it is written, so the register carries a
+  neutral label (`POI 15`, `NPC 8`, `Organisation 4`), an ordinal id, and a
+  locator that proves a page prints the name without being able to be read back
+  into it. Every name a world shows arrives at import from the Judge's own copy,
+  as the rules text always has.
+- **Entry ids changed with it, which is why this is a major.** Documents
+  imported by an earlier version carry the old, name-derived ids and will not be
+  recognised as the same entries. **Reimport the book** (*Reimport* → pick the
+  book) to rebuild them; nothing else in a world is touched, and a world with no
+  imported settlement content is unaffected.
+
 ## 7.7.4
 
 **A word space survives, and a heading ends the paragraph.**

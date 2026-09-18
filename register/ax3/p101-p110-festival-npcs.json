@@ -228,5 +228,81 @@
     "assists": {
       "anchorAtStatline": true
     }
+  },
+  {
+    "id": "ax3.npc59",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 59",
+    "anchor": {
+      "hash": "524qe8",
+      "as": "label"
+    },
+    "pages": [
+      101
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.npc60",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 60",
+    "anchor": {
+      "hash": "9l0bpf",
+      "as": "label"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.npc61",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 61",
+    "anchor": {
+      "hash": "1eej51x",
+      "as": "label"
+    },
+    "pages": [
+      109
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.npc62",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 62",
+    "anchor": {
+      "hash": "1c5swrd",
+      "as": "label"
+    },
+    "pages": [
+      109
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
   }
 ]

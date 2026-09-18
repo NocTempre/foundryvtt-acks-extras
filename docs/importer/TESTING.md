@@ -1467,10 +1467,12 @@ them, are the world's.
 ## Organisations land as factions
 
 The organisations step (`cookbookImportFactions`, the chain's `stepFactions`)
-binds a settlement book's "<Quarter> — <Organisation>" and "NPC Party —
-<Name>" groups as `acks-extras.faction` actors seated in their quarter's
-place, rostering the group's imported people. The sub-type needs a world
-launched with the module carrying it (`docs/factions/TESTING.md`).
+binds a settlement book's authored `kind.organisation` rows as
+`acks-extras.faction` actors, each seated at the keyed place its row names,
+rostering the people the row names. A person's group heading is NOT read for
+membership — a body's quarry is printed under the same heading as its members
+(importer DECISIONS, "A body becomes a faction one way"). The sub-type needs a
+world launched with the module carrying it (`docs/factions/TESTING.md`).
 
 ### Fixtures
 
@@ -1481,15 +1483,23 @@ launched with the module carrying it (`docs/factions/TESTING.md`).
 ### Steps
 
 1. Run the organisations step.
-   *Observable:* four factions on the book's Factions shelf — the hideout,
-   the cult, the citadel's garrison and the company — each seated in its
-   quarter's place (the company in the city's), each with the group's people
-   on its Members tab, kind `other`; the notification counts them.
-2. Run it again.
+   *Observable:* one faction per authored row on the book's Factions shelf,
+   each named as its page prints it, seated at the place its row names, kind
+   as the row states it (never all `other`); the notification counts them.
+2. Open a body whose row marks a member hidden.
+   *Observable:* that member is on the Members tab marked hidden, and the
+   others are not. Then join as the Player seat: the hidden row is not shown
+   and the rest are. A roster that shows every member alike means `hidden`
+   was dropped between the row and `occupantRow`.
+3. Open a body printed on a page that also lists people it is contracted
+   against.
+   *Observable:* its roster holds its members only. If a target of its
+   contracts is rostered as a member, the group heading is being read again.
+4. Run it again.
    *Observable:* "already held", nothing created, nobody rostered twice.
-3. Delete one faction and run again.
+5. Delete one faction and run again.
    *Observable:* that one is rebuilt with its roster; the others are held.
-4. Run it before the actor step on a fresh world.
+6. Run it before the actor step on a fresh world.
    *Observable:* the factions are made with empty rosters and the
    notification says how many members are not yet imported; the actor step
    and a second run fill them.

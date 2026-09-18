@@ -2790,66 +2790,84 @@ async function compileOrganisation(doc, entry, compiled) {
   };
   const isWord = (it) => !AX_LONE_HYPHEN.test(it.str);
 
-  let found = null;
-  for (let c = 0; c < cols.length && !found; c++) {
-    const lines = toLines(bodyOf(c)).map((ln) => [...ln.items].sort((a, b) => a.x - b.x));
-    for (let i = 0; i < lines.length && !found; i++) {
-      const words = lines[i].filter(isWord);
-      const single = words.find((it) => printKey(it.str) === hash);
-      if (single) {
-        found = { col: c, parts: [{ run: single }] };
-        break;
+  let fields;
+  if (entry.anchor?.as) {
+    const opened = await axOpen(doc, entry);
+    const segs = await axFlow(
+      doc, entry, assists,
+      { page, pd: opened.pd, cols: opened.cols, col: opened.a.col, endY: opened.a.endY },
+      new Set(),
+      { stopKeys: assists.stopKeys ?? [] },
+    );
+    const { paras } = axParas(segs, page, {});
+    if (!paras.length) throw new Error(`no body paragraphs under the organisation's heading on p.${page}`);
+    fields = { name: opened.name, description: { op: "text", page, paras } };
+  } else {
+
+    let found = null;
+    for (let c = 0; c < cols.length && !found; c++) {
+      const lines = toLines(bodyOf(c)).map((ln) => [...ln.items].sort((a, b) => a.x - b.x));
+      for (let i = 0; i < lines.length && !found; i++) {
+        const words = lines[i].filter(isWord);
+        const single = words.find((it) => printKey(it.str) === hash);
+        if (single) {
+          found = { col: c, parts: [{ run: single }] };
+          break;
+        }
+        const last = words[words.length - 1];
+        const next = lines[i + 1]?.find(isWord);
+        if (!last || !next || next.y - last.y > 16 || printKey(`${last.str}${next.str}`) !== hash) continue;
+        const ownHyphen = /[-‐‑]\s*$/u.test(last.str);
+        const hung = lines[i].some((it) => !isWord(it) && it.x > last.x);
+        found = { col: c, parts: [{ run: last, mergeHyphen: ownHyphen }, { run: next, glue: ownHyphen || hung }] };
       }
-      const last = words[words.length - 1];
-      const next = lines[i + 1]?.find(isWord);
-      if (!last || !next || next.y - last.y > 16 || printKey(`${last.str}${next.str}`) !== hash) continue;
-      const ownHyphen = /[-‐‑]\s*$/u.test(last.str);
-      const hung = lines[i].some((it) => !isWord(it) && it.x > last.x);
-      found = { col: c, parts: [{ run: last, mergeHyphen: ownHyphen }, { run: next, glue: ownHyphen || hung }] };
     }
-  }
-  if (!found) throw new Error(`no run on p.${page} answers to the anchor hash`);
+    if (!found) throw new Error(`no run on p.${page} answers to the anchor hash`);
 
-  // A part's box holds the ORIGIN of its one run and nothing else, so the words
-  // beside the name on the same line stay out of it.
-  const parts = found.parts.map(({ run, glue, mergeHyphen }) => {
-    const part = { box: { x0: run.x - 2, x1: run.x + 2, y0: run.y - 2.5, y1: run.y + 2.5 } };
-    const inBox = runsIn(pd, part);
-    if (inBox.length !== 1 || inBox[0] !== run) throw new Error(`the name's box on p.${page} holds ${inBox.length} runs, not the one it was cut for`);
-    if (mergeHyphen) part.fixes = { mergeHyphen: [0] };
-    if (glue) part.glue = true;
-    return part;
-  });
-  const read = parts.reduce((title, part) => {
-    const piece = joinRuns(runsIn(pd, part), part.fixes).replace(/\s+/g, " ").trim();
-    return title && !part.glue ? `${title} ${piece}` : `${title}${piece}`;
-  }, "");
-  if (printKey(read) !== hash) throw new Error(`the name's parts on p.${page} do not read back to the anchor hash`);
-  const fields = { name: { op: "heading", page, hash, parts } };
+    // A part's box holds the ORIGIN of its one run and nothing else, so the words
+    // beside the name on the same line stay out of it.
+    const parts = found.parts.map(({ run, glue, mergeHyphen }) => {
+      const part = { box: { x0: run.x - 2, x1: run.x + 2, y0: run.y - 2.5, y1: run.y + 2.5 } };
+      const inBox = runsIn(pd, part);
+      if (inBox.length !== 1 || inBox[0] !== run) throw new Error(`the name's box on p.${page} holds ${inBox.length} runs, not the one it was cut for`);
+      if (mergeHyphen) part.fixes = { mergeHyphen: [0] };
+      if (glue) part.glue = true;
+      return part;
+    });
+    const read = parts.reduce((title, part) => {
+      const piece = joinRuns(runsIn(pd, part), part.fixes).replace(/\s+/g, " ").trim();
+      return title && !part.glue ? `${title} ${piece}` : `${title}${piece}`;
+    }, "");
+    if (printKey(read) !== hash) throw new Error(`the name's parts on p.${page} do not read back to the anchor hash`);
+    fields = { name: { op: "heading", page, hash, parts } };
 
-  const parasOf = (c) => {
-    const { x0, x1 } = rangeOf(c);
-    return axParas([{ page, pd, x0, x1, items: bodyOf(c) }], page, {}).paras;
-  };
-  const column = parasOf(found.col);
-  const y = found.parts[0].run.y;
-  const at = column.findIndex((p) => y >= p.box.y0 && y <= p.box.y1);
-  if (at < 0) throw new Error(`no paragraph on p.${page} holds the name`);
-  const take = Math.max(1, Number(assists.paras) || 1);
-  const paras = column.slice(at, at + take);
-  // A paragraph the column ends mid-sentence goes on at the top of the next
-  // one. The join is decided here, where the page can be seen, and shipped as
-  // `continues`: the text op's own test for it reads a capital as a new start.
-  const closes = (p) => /[.!?:;…"”’)\]]$/u.test(joinRuns(runsIn(pd, p), p.fixes).trim());
-  if (at + take >= column.length && !closes(paras[paras.length - 1])) {
-    const over = found.col + 1 < cols.length ? parasOf(found.col + 1)[0] : null;
-    if (!over) throw new Error(`the paragraph holding the name runs off p.${page}`);
-    paras.push({ ...over, continues: true });
+    const parasOf = (c) => {
+      const { x0, x1 } = rangeOf(c);
+      return axParas([{ page, pd, x0, x1, items: bodyOf(c) }], page, {}).paras;
+    };
+    const column = parasOf(found.col);
+    const y = found.parts[0].run.y;
+    const at = column.findIndex((p) => y >= p.box.y0 && y <= p.box.y1);
+    if (at < 0) throw new Error(`no paragraph on p.${page} holds the name`);
+    const take = Math.max(1, Number(assists.paras) || 1);
+    const paras = column.slice(at, at + take);
+    // A paragraph the column ends mid-sentence goes on at the top of the next
+    // one. The join is decided here, where the page can be seen, and shipped as
+    // `continues`: the text op's own test for it reads a capital as a new start.
+    const closes = (p) => /[.!?:;…"”’)\]]$/u.test(joinRuns(runsIn(pd, p), p.fixes).trim());
+    if (at + take >= column.length && !closes(paras[paras.length - 1])) {
+      const over = found.col + 1 < cols.length ? parasOf(found.col + 1)[0] : null;
+      if (!over) throw new Error(`the paragraph holding the name runs off p.${page}`);
+      paras.push({ ...over, continues: true });
+    }
+    fields.description = { op: "text", page, paras };
   }
-  fields.description = { op: "text", page, paras };
 
   const { note: _note, ...block } = entry.organisation ?? {};
-  const named = [block.seat, block.leader, ...(block.holdings ?? []), ...(block.members ?? []), ...(block.replaces ?? []), ...(block.controls ?? [])].filter(Boolean);
+  // A person is an id or `{id, hidden}` — a tie the page keeps secret is still
+  // a tie to a row that has to have compiled.
+  const personId = (v) => (typeof v === "string" ? v : typeof v?.id === "string" ? v.id : "");
+  const named = [block.seat, personId(block.leader), ...(block.holdings ?? []), ...(block.members ?? []).map(personId), ...(block.controls ?? [])].filter(Boolean);
   const gone = named.filter((id) => !compiled[id]);
   if (gone.length) throw new Error(`organisation names ${gone.join(", ")}, which did not compile`);
   // Where the prose names the body after a PERSON — a master's school — the
@@ -5110,8 +5128,11 @@ async function main() {
           out.skips[p] = [...have, ...boxes.filter((b) => !seen.has(JSON.stringify(b)))];
         }
         out.entries[entry.id] = ship;
-        const runin = ship.fields.anchor ?? ship.fields.name;
-        console.error(`OK   ${entry.id}: organisation (${ship.fields.description.paras.length} paras, ${runin.parts.length} name part(s)${ship.fields.anchor ? ", named after its seat" : ""})`);
+        // A name found in prose ships its runs as `parts`; one found under a
+        // heading of the body's own ships the heading's single box.
+        const named = ship.fields.anchor ?? ship.fields.name;
+        const where = named.parts ? `${named.parts.length} name part(s)` : "named by its own heading";
+        console.error(`OK   ${entry.id}: organisation (${ship.fields.description.paras.length} paras, ${where}${ship.fields.anchor ? ", named after its seat" : ""})`);
       } catch (err) {
         warn(`${entry.id}: ${err.message}`);
       }

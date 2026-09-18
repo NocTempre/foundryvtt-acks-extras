@@ -4153,9 +4153,9 @@ both. **Cost:** an entry whose block ran past a heading shortens to the heading.
 
 ### A settlement's organisations bind as factions seated in their quarter (2026-09-16)
 
-*Superseded in part 2026-09-17 — "Why `other`" and the rejected stamp hold for
-GROUP organisations only ("An organisation the book introduces by name is an
-authored row").*
+*Superseded 2026-09-17 — the group-derived organisation is retired entirely
+("A body becomes a faction one way: a row that was read"). What follows records
+the mechanism as it stood; the authored row is now the only one.*
 
 **Ruled:** a group of the shape "<Quarter> — <Organisation>" — a quarter's
 group that is neither its points of interest nor its notable residents — or
@@ -4428,3 +4428,140 @@ the old ones. Both carry the stamp, so Remove ALL Imports clears both, and the
 clean-slate path is the answer until an id migration exists
 ([ROADMAP.md](ROADMAP.md)). The entry browser lists `NPC 8` until the book is
 imported.
+
+### A body becomes a faction one way: a row that was read (2026-09-17)
+
+**Ruled.** The group-derived organisation is retired. `organisationGroupOf`,
+`isOrganisationEntry`, `factionId`, `factionData` and `replacedFactionIds` are
+gone with it, `organisation.replaces` with them, and `cookbookImportFactions`
+builds from authored `kind.organisation` rows alone. A person's `meta.group`
+says where in the book they were printed, and is never read for membership.
+
+**The new evidence, two days on.** That ruling's mechanism was to read the
+body's name out of the second half of the group string. Aliasing removed the
+name — it was a printed proper noun sitting in shipped data — and what the
+string now holds is a bucket: three quarters' `— Special Locations` bound as
+three bodies called that, and the roaming company, its ` — <Name>` suffix gone
+entirely, bound to nothing. The mechanism did not degrade; its input ceased to
+exist. Restoring it would mean putting the name back.
+
+**And the concept was wrong before the aliasing took it.** A heading gathers
+everyone printed under it. On AX3 p.175 two headings govern two lists: the
+body's members, and the people it has been contracted to kill. The group path
+rostered all of them as members — a body's quarry filed as its membership, on
+a sheet a Judge reads to decide who helps whom. One of those "members" is an
+officer of the city watch. Only a row that was read tells them apart, which is
+what the authored row is for.
+
+**Membership is what a row says, and a row can say it quietly.** `members` and
+`leader` take an id or `{id, hidden}`: a body that hides its whole membership
+rosters every one of them concealed, and a person may belong openly to one
+body and secretly to another. `hidden` is the flag the roster row and the
+relation row already carry — display gating, never access, so a secret that
+must hold belongs on a GM-owned document.
+
+**Rejected:** a structural `meta.organisationOf: <rowId>` on each person — it
+is membership spelled a second way, in the place the first way already failed,
+and two places to state one fact is how the quarry got rostered.
+**Rejected:** keeping the path for books not yet aliased — it would keep a
+printed name in the register of every book still to come, which is the thing
+being removed.
+
+*Cost:* every body a book names now needs a row, so a quarter's people bind to
+nothing until one is written; the twenty AX3 rows grew to cover the bodies the
+groups used to stand for. A world that imported before this holds the group
+factions under their old ids; they carry the import stamp, so Remove ALL
+Imports clears them, and nothing rewrites them in place.
+
+### A body ships when the page sets its name apart (2026-09-17)
+
+**Ruled.** Every body AX3 names and can anchor now has a row: twenty-four, up
+from twenty. Which bodies those are was not decided by judgement — the book was
+swept for every run that reads like the name of a body, and each was checked
+against what the register already held. Four were free, and four were written.
+
+**Two ways a row finds its name, and the row says which.** `compileOrganisation`
+scans BODY-SIZE runs for one whose `printKey` matches, because the gazetteer
+sets a body's name in bold where a sentence first says it and the PDF gives
+such a name a run of its own. A body the book introduces under a HEADING
+instead — an appendix party rather than a name inside a sentence — says
+`anchor.as`, and is then found by the same search every keyed entry uses, its
+description the flow beneath it. Only a reader can see which shape a page uses,
+so the row declares it rather than the compiler guessing.
+
+**A name printed only inside a longer run cannot ship, and no mechanism fixes
+that.** One AX3 guild is named once, mid-sentence, in a run that also carries
+eleven other words. A box is geometry over runs, so there is no way to cut that
+name out of its sentence; anything that could would have to carry the words
+themselves. The body does not ship, and its guildmaster keeps the one tie that
+a row can state. The same is true of two patrician houses, a foreign monastery
+and a foreign kingdom. This is the name rule biting, and it is the right bite:
+a body whose name the page never sets apart is a body the module can only
+describe by quoting.
+
+**The printed membership table arrives, and twice.** A body whose page carries
+a labelled MEMBERSHIP block gets that block as description text, materialized
+from the Judge's own copy like every other passage — no recipe reads the list.
+What binds people to the faction is the row's own id list, which is the half a
+machine can act on. The table says who; the ids say which documents.
+
+**A head is named in words, never inferred from an honorific.** A row sets
+`leader` only where the page says someone leads the body or is its ranking
+member. The trap is that a settlement book's honorific is usually the class
+LEVEL TITLE the person's own statline gives them — it names a rank inside a
+class, not an office inside a body, and three people in AX3 were nearly rowed
+as heads of orders they are simply senior clerics of. Where the page ranks
+nobody, everyone named goes in `members` and the faction ships headless, which
+is what the page says.
+
+**Rejected:** a `nameFrom` that drops a stated structural prefix so a body
+printed only as "MEMBERS OF <name>" could be anchored — it ships a rule about
+one book's wording. It was not needed: that cult is named as a run of its own
+in the organisations section and anchors like the other twenty.
+
+*Cost:* four bodies AX3 describes reach a world as prose in somebody else's
+entry and never as a faction. A Judge who wants them makes them by hand, which
+is the same cost every unnamed body has always had.
+
+### A tie is concealed when the CITY does not know it (2026-09-17)
+
+A settlement book's organisations overview is the Judge's briefing. It prints
+every tie the Judge needs, including the ones the city is built on not knowing,
+so **where a tie is printed says nothing about whether it is public.** The test
+for `hidden` is the fiction's: does the city know? A syndicate whose head the
+book introduces with "it is secretly under the control of" conceals that head
+even though the overview names him on its first page, and a sect the book calls
+covert conceals its head and every body it deals with.
+
+The consequence is that concealment is read off the WORDS, not off the section.
+Four AX3 bodies conceal their head — two syndicates, a cult inside a scholastic
+order, and a covert sect — and in three of the four the same page names that
+head plainly two sentences earlier. A pass that took "printed in the overview"
+for "public" published all four.
+
+**A holding is a keyed place the body operates out of or runs.** The question a
+settlement book forces is whose holding a garrisoned gate is: the household it
+defends, or the troops based in it. It is the troops'. The city watch holds the
+twenty-six gates and towers its officers are based in; the guard holds the gate
+and bastion that ring a palace it does not live in; a syndicate holds the
+neighbourhood the page says it runs. Ownership is not the test, because a
+settlement book states possession rarely and garrisoning constantly, and a
+roster built on ownership leaves every defensive work in the book unheld.
+
+**A relation is authored on the body the page makes the actor.** Where a page
+says one body pays another to look away, the relation goes on the payer and not
+on the paid; a reader of the other sheet sees it in the reverse view, which is
+what that view is for. Two AX3 syndicates keep watch officers on their payroll
+and a guildmaster turns a blind eye, and all three are one-directional.
+
+**Rejected:** a body-to-body relation inferred from a person-to-person tie. The
+city watch's commander is the son of a councilor and would back his coup — a
+fact about two people, one of whom happens to lead a body and one of whom
+happens to sit on one. Promoting it to a relation between the watch and the
+council states something the page does not: that the watch as a body is the
+council's friend. The tie is the man's, and it reaches a world as his entry's
+prose.
+
+*Cost:* the concealment test needs a reader with the book open, every time. No
+gate can check it, because the sentence that makes a tie secret is prose and
+the row that records it is a boolean.

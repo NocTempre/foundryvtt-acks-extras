@@ -2,100 +2,61 @@
  * Organisations in a settlement book — the Foundry-free half of binding them
  * to FACTIONS.
  *
- * A gazetteer names its organisations two ways, and both become faction actors.
+ * A body becomes a faction ONE way: an authored `kind.organisation` row. The
+ * row ships no word of the body's printed name — the faction is named, and its
+ * notes filled, from the Judge's page when it is built — and says everything
+ * else by id: the keyed place it is seated at, the places it holds, who leads
+ * it and who belongs to it, the quarters it controls and how it stands to the
+ * others, with this module's own words for what sort of body it is
+ * (`FACTION_KINDS`) and for a stance (`RELATION_STANCES`).
  *
- * An AUTHORED organisation (`kind.organisation`) is one the book introduces by
- * name in its own prose. Its row ships no word of that name: the faction is
- * named, and its notes filled, from the Judge's page when it is built. The row's
- * block says the rest by id — the keyed place it is seated at, the places it
- * holds, who leads it and who belongs to it, the quarters it controls and how
- * it stands to the others — with this module's own words for what sort of body
- * it is (`FACTION_KINDS`) and for a stance (`RELATION_STANCES`).
- *
- * A GROUP organisation is one the register only knows as a heading its people
- * are keyed under: "<Quarter> — <Organisation>" for one seated in a quarter,
- * "NPC Party — <Name>" for a company on the move. The people under the group
- * are its members and it is seated in the quarter's own place (the city's, for
- * a party with no quarter). Nothing on the page says what such a group is to
- * the law, so it lands as `other`, for the Judge. Where an authored
- * organisation says it IS such a group (`replaces`, naming one of the group's
- * people), the group makes no faction of its own: a group heading gathers
- * everyone printed under it, the body's quarry beside its members, and only a
- * row that was read can tell them apart.
- *
- * The two group shapes a quarter prints for its places and residents are the
- * place binding's (`poi-binding.mjs`) and are never organisations.
+ * A person's `meta.group` says where in the book they were printed and nothing
+ * more. It is never read for membership: a heading gathers everyone printed
+ * under it, a body's quarry beside its members and a guest beside both, and
+ * only a row that was read can tell them apart.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { FACTION_KINDS, FACTION_TYPE, RELATION_STANCES } from "../factions/constants.mjs";
 import { districtPlaceId, poiGroupOf } from "./poi-binding.mjs";
 
-/** The group head a settlement book prints for a company with no quarter. */
-const PARTY_HEAD = "NPC Party";
-
-const slug = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
-
-/**
- * Which organisation a group names and the quarter it is seated in — "" for
- * a company on the move — or null for a group of any other shape, the
- * quarter's own places and residents included.
- * @returns {{district: string, name: string, roaming: boolean}|null}
- */
-export function organisationGroupOf(group) {
-  const text = String(group ?? "").trim();
-  if (poiGroupOf(text)) return null;
-  const m = /^(.+?)\s+—\s+(.+?)$/u.exec(text);
-  if (!m) return null;
-  const head = m[1].trim();
-  const name = m[2].trim();
-  if (!head || !name) return null;
-  return head === PARTY_HEAD ? { district: "", name, roaming: true } : { district: head, name, roaming: false };
-}
-
-/** Whether a cookbook entry is a PERSON keyed under an organisation: a member. */
-export const isOrganisationEntry = (entry) => entry?.kind === "kind.npc" && !!organisationGroupOf(entry?.meta?.group);
-
 /** Whether a cookbook entry is an authored organisation. */
 export const isOrganisationRow = (entry) => entry?.kind === "kind.organisation" && !!entry?.organisation && typeof entry.organisation === "object";
-
-/** The cookbook id a GROUP organisation is claimed under: one per book, quarter and name. */
-export const factionId = (book, { district = "", name }) => `${book}.faction.${slug([district, name].filter(Boolean).join(" "))}`;
-
-/**
- * The group organisations a book's authored ones stand in for, as the ids they
- * would have been claimed under.
- * @param {string} book
- * @param {Record<string, object>} entries the book's cookbook entries
- * @returns {Set<string>}
- */
-export function replacedFactionIds(book, entries) {
-  const out = new Set();
-  for (const entry of Object.values(entries ?? {})) {
-    if (!isOrganisationRow(entry)) continue;
-    for (const personId of entry.organisation.replaces ?? []) {
-      const org = organisationGroupOf(entries[personId]?.meta?.group);
-      if (org) out.add(factionId(book, org));
-    }
-  }
-  return out;
-}
 
 /**
  * An authored organisation's block, read defensively: the kind and every
  * stance held to this module's vocabulary, every list an array of ids, and
  * each quarter it controls turned into the id of that quarter's own place.
+ *
+ * A member is an id, or `{id, hidden}` where the page says the tie is kept
+ * secret — a body that hides its whole membership rosters every one of them
+ * concealed, and a person may belong openly to one body and secretly to
+ * another. `hidden` gates DISPLAY, never access (`occupantField`), which is
+ * why the roster row and the relation row spell it the same way.
  * @param {string} book
  * @param {object} entry the organisation's cookbook entry
  * @param {Record<string, object>} entries the book's cookbook entries
  * @returns {{kind: string, namedAfterSeat: boolean, seat: string, seatQuarter: string, holdings: string[], leader: string,
- *   members: string[], controls: string[], relations: {to: string, stance: string, hidden: boolean}[]}}
+ *   members: {id: string, hidden: boolean}[], controls: string[], relations: {to: string, stance: string, hidden: boolean}[]}}
  */
 export function organisationPlan(book, entry, entries = {}) {
   const o = entry?.organisation ?? {};
   const ids = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x) : []);
   const quarterOf = (id) => poiGroupOf(entries[id]?.meta?.group)?.district ?? "";
-  const members = ids(o.members);
-  const leader = typeof o.leader === "string" ? o.leader : "";
+  const person = (v) => {
+    const id = typeof v === "string" ? v : typeof v?.id === "string" ? v.id : "";
+    return id ? { id, hidden: (typeof v === "object" && v?.hidden === true) } : null;
+  };
+  const head = person(o.leader);
+  // One row per person, and a tie is concealed when ANY spelling of it says so:
+  // a body that names its head twice, once secretly, keeps the secret.
+  const members = [];
+  for (const p of [head, ...(Array.isArray(o.members) ? o.members : []).map(person)]) {
+    if (!p) continue;
+    const held = members.find((m) => m.id === p.id);
+    if (held) held.hidden ||= p.hidden;
+    else members.push(p);
+  }
+  const leader = head?.id ?? "";
   return {
     kind: FACTION_KINDS.includes(o.kind) ? o.kind : "other",
     // Named after the place it keeps: the entry's name is that place's keyed
@@ -107,32 +68,14 @@ export function organisationPlan(book, entry, entries = {}) {
     seatQuarter: quarterOf(o.seat),
     holdings: ids(o.holdings),
     leader,
-    // Whoever leads it belongs to it, said once.
-    members: leader && !members.includes(leader) ? [leader, ...members] : members,
+    // Whoever leads it belongs to it, said once and first — and a leader the
+    // book keeps secret is rostered secret, which is the one case where the
+    // head of a body does not appear on its public roster.
+    members,
     controls: [...new Set(ids(o.controls).map(quarterOf).filter(Boolean).map((q) => districtPlaceId(book, q)))],
     relations: (Array.isArray(o.relations) ? o.relations : [])
       .filter((r) => typeof r?.to === "string" && r.to && RELATION_STANCES.includes(r?.stance))
       .map((r) => ({ to: r.to, stance: r.stance, hidden: r.hidden === true })),
-  };
-}
-
-/**
- * Actor data for one GROUP organisation. No prose of its own — its people
- * carry the book's text — and no holdings: the Judge draws the quarter it
- * controls, if it controls one, on the sheet.
- */
-export function factionData({ book, bookLabel = "", name, district = "", seatUuid = "", folderId = null }) {
-  return {
-    name,
-    type: FACTION_TYPE,
-    img: "icons/svg/hanging-sign.svg",
-    folder: folderId,
-    system: { kind: "other", seatUuid, notes: "", members: [] },
-    flags: {
-      [MODULE_ID]: {
-        cookbook: { id: factionId(book, { district, name }), book, kind: "kind.faction", unaudited: true, bookLabel },
-      },
-    },
   };
 }
 
