@@ -36,6 +36,12 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   `sheet.constructor.DEFAULT_OPTIONS.actions.generateScores.call(sheet, new
   PointerEvent("click"), null)`. Hunting for the button reads as the app being
   gone.
+- **A GM seat may open the Scores Generator already unlocked.** The Judge
+  override is remembered on the user document (`chargenJudgeUnlock`), so a
+  Gamemaster who ticked it once sees every formula free and the package menu
+  open, and the campaign's rule never binds. To see the rule bind, drive the
+  page from a player seat that owns the actor. Unticking the box instead writes
+  to a world document you did not create. The score buttons key Will as `wis`.
 - **A score roll posts a chat card whose `rolls` array is EMPTY.** `AcksDice`
   renders the total into the message HTML, so the die that was actually thrown
   is read as `.dice-total` out of `message.content` — `message.rolls[0].total`
