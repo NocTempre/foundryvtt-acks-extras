@@ -38,6 +38,9 @@ import { ARMOR_TABLE, extractArmorFromDoc, bindArmorRow } from "./armor-tables.m
 import { extractPriceMapFromDoc, extractPriceRowsFromDoc, priceFor, priceKey, PRICE_TABLES } from "./gear-prices.mjs";
 import { savesForLevel, parseHitDice } from "./stats.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
+
+/** A class or race key: the name with everything but letters and digits gone. */
+const foldKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 import { progressBar } from "./progress.mjs";
 import * as services from "../lib/services.mjs";
 import { libraryPackLabel, judgeLine } from "../lib/library.mjs";
@@ -5645,7 +5648,7 @@ export function bindClass(entry, node, id, { gains = null, commonName = null, ge
     type: CLASS_ITEM_TYPE,
     ...(entry.icon ? { img: entry.icon } : {}),
     system: {
-      key: entry.meta?.key ?? fold(entry.name),
+      key: entry.meta?.key ?? foldKey(entry.name),
       source: { book: entry.book ?? "rr", cite, ref: id },
       description: entryText(node, id, cite),
       requirements,
@@ -6322,7 +6325,6 @@ async function inheritRaceTongues(classDocs) {
 }
 
 async function syncRaceTongues(classDocs) {
-  const foldKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
   const items = await importedDocs("Item");
   const raceOf = (label) => {
     const key = foldKey(label);

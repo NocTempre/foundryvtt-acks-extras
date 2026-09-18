@@ -111,3 +111,14 @@ richer seams — lair chance, supply cost, battle rating — are documented in
 give them somewhere to be spent.
 
 ---
+
+## The free-variable gate, family-wide
+
+`tools/free-variables.mjs` (DECISIONS §17) is repo-owned for now. Every module
+in the family has the same exposure, so once a release has proven the gate on
+the Node version CI runs, it moves to acks-module-template's synced tools. The
+browser/Foundry allowlist becomes the shared base, each repo's additions sit
+beside it, and `validate.mjs` calls the gate instead of each repo's
+`validate-extra`.
+
+---

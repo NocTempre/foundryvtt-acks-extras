@@ -46,12 +46,12 @@ async function convertWorldLanguages() {
   if (!stale.length) return 0;
 
   const have = new Set(
-    libraryItems().filter((i) => i.type === LANGUAGE_TYPE).map((i) => cookbookIdOf(i)).filter(Boolean),
+    libraryItems().filter((i) => i.type === LANGUAGE_TYPE).map((i) => cookbookId(i)).filter(Boolean),
   );
   const creates = [];
   const retire = [];
   for (const old of stale) {
-    const id = cookbookIdOf(old);
+    const id = cookbookId(old);
     if (!have.has(id)) {
       creates.push({
         name: old.name,

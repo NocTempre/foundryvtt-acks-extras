@@ -577,3 +577,38 @@ injects on ownership, not on GM.
 
 **Teardown.** `api.sweepTracked()` — the class Item and both actors are the
 run's own.
+
+## The language upgrade
+
+`language-migration.mjs` retypes a world's imported language abilities to the
+system's `language` type, and turns each character's recorded tongue names into
+documents. It runs once per GM load and does nothing when there is nothing to
+convert, which is why a broken branch in it can go unnoticed for releases. A
+world that is already upgraded never reaches that branch, so build the
+pre-upgrade shape on purpose.
+
+**Fixtures.** One world Item of type `ability` stamped
+`flags["acks-extras"].cookbook.id = "def.language.fixture-<random>"`. The
+random suffix is what finds the converted copy afterwards, because the upgrade
+reports counts and not ids.
+
+**Steps.**
+1. Probe first: the world's `ability` items whose `cookbookId` starts
+   `def.language.` should number 0. A live world has already run the upgrade.
+2. Create the fixture.
+3. Reload the GM seat (`location.reload()`). The trigger is the `ready` hook.
+   A dynamic `import()` of the module in an already-loaded page returns the
+   instance that page loaded, so it runs whatever code was on disk at the last
+   load, not the working tree's.
+4. After `whenReady()`, read back the world items carrying the fixture's id.
+
+**Observable.** The console logs
+`languages now use the system's own type: 1 in the world, 0 on 0 character(s)`.
+The `ability` is gone, and a `language` item carries the same cookbook id, name
+and flags. With language documents already in the world, the pre-fix code throws
+`ReferenceError: cookbookIdOf is not defined` at the first stale item and
+converts nothing. Step 3's caveat makes that failure easy to reproduce: run the
+import in a page loaded before the fix.
+
+**Teardown.** Delete the `language` item by the id read back in step 4. The
+`ability` was already retired by the upgrade, so a sweep reports it missing.

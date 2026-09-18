@@ -191,3 +191,21 @@ console.log(`  ok: every registry read is declared (${declared.size} document(s)
   const { execFileSync } = await import("node:child_process");
   execFileSync(process.execPath, [path.join(ROOT, "docs", "site", "tools", "sync.mjs")], { stdio: "inherit" });
 }
+
+/* --- 7. Free variables in the runtime and the tooling ----------------------
+   An identifier no enclosing scope binds. `node --check` (§1) parses and is
+   satisfied, because a free variable is legal JavaScript that throws only
+   when its line is reached — so the defect ships inside an uncalled branch
+   and dies in a world. Node's bundled acorn is reachable only behind
+   `--expose-internals`, which NODE_OPTIONS refuses, so it arrives by one
+   re-exec per tree. */
+{
+  const { execFileSync } = await import("node:child_process");
+  const scan = (dir, allow) => execFileSync(
+    process.execPath,
+    ["--expose-internals", path.join(ROOT, "tools", "free-variables.mjs"), path.join(ROOT, dir), `--allow=${path.join(ROOT, "tools", allow)}`],
+    { stdio: "inherit", cwd: ROOT },
+  );
+  scan("scripts", "free-variables-browser.json");
+  scan("tools", "free-variables-node.json");
+}

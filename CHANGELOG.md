@@ -40,6 +40,15 @@ bodies that run it.**
   book) to rebuild them; nothing else in a world is touched, and a world with no
   imported settlement content is unaffected.
 
+### Fixed
+
+- **The language upgrade finishes in a world that still holds old imported
+  languages.** A world whose languages were imported before they had a type of
+  their own is upgraded when the Judge loads it, and since 6.0.2 that pass
+  called a helper by a name nothing defined: it failed on every load before
+  converting anything, the characters' own languages included. It runs through
+  now.
+
 ## 7.7.4
 
 **A word space survives, and a heading ends the paragraph.**

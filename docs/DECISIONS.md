@@ -451,3 +451,39 @@ exactly what the migration exists to keep.
 lint, icon ledger, OSE suites, prose boxes, cookbook drift); its 24 suites
 joined `run-tests.mjs`; its authoring scripts are `package.json` scripts under
 `tools/importer/`. `pdfjs-dist` joined the dev dependencies.
+
+## 17. A free variable fails validate (2026-09-17)
+
+**What was found.** The 8.0.0 live walk hit a progress bar counting a
+collection the same release had deleted: a `ReferenceError` on a line nothing
+offline reached, so every suite was green over it. A scan for the whole class
+found two more. The class binder folded its key with a helper declared inside
+another function; that was new in 8.0.0 and never shipped. The language
+upgrade called `cookbookIdOf`, a name its imports never bound. That one shipped
+in 6.0.2 and aborted the whole upgrade, on every load, in any world still
+holding old imported languages (CHANGELOG 8.0.0, Fixed).
+
+**Ruled.** `tools/free-variables.mjs` parses every file under `scripts/` and
+`tools/`, builds the lexical scope tree, and fails validate
+(`validate-extra.mjs` §7) on any identifier that no enclosing scope binds and no
+allowlist names. There are two allowlists because the trees run in two
+runtimes: `free-variables-browser.json` holds the browser's and Foundry's
+globals, and `free-variables-node.json` holds Node's. An entry names a global
+that runtime really supplies. It is never a way to quiet a finding.
+
+**Rejected.**
+
+- *ESLint `no-undef`.* It is the same check, but it brings an install, a config
+  and a globals list that would be these allowlists anyway. The repo has no
+  lint step, and one rule does not justify adding one.
+- *A regex over identifiers.* It cannot tell a bound name from a free one, and
+  scope is the whole question.
+
+**What it costs.** It depends on a private Node path. `internal/deps/acorn/…` is
+not API, it is reachable only behind `--expose-internals`, and it can move
+between Node majors. The release workflow runs Node 20 while this machine runs
+22, so 8.0.0 was dry-run on CI before it was tagged. If the path goes, the gate
+exits 2 and says so rather than skipping, and the remedy is `acorn` as a
+devDependency, which its error message names. The allowlists also need upkeep:
+a new file reading a Foundry global fails validate until the global is listed,
+which is the gate doing its job.
