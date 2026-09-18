@@ -155,3 +155,34 @@ export function placesHeld(record) {
   const held = [record?.seatUuid ?? "", ...(record?.holdings ?? []).map((h) => h?.uuid ?? "")];
   return [...new Set(held.filter((u) => !!u))];
 }
+
+/**
+ * The rows of a list a reader is allowed to read. Concealment is a DISPLAY
+ * rule and never an access one: the Judge holds every row, and a row the city
+ * is not supposed to know is simply left out of everyone else's copy.
+ * @param {object[]} rows stored rows, model-backed or plain
+ * @returns {object[]} plain copies, safe to decorate
+ */
+export function readableRows(rows, isGM) {
+  return (rows ?? []).map((r) => r?.toObject?.() ?? r).filter((row) => isGM || !row?.hidden);
+}
+
+/**
+ * The head a reader is allowed to be told. A secret head is a concealed member
+ * row like any other, so a reader who cannot see the row is not told the office
+ * either — naming the leader beside a roster the leader is missing from
+ * publishes exactly the tie the row conceals.
+ * @param {{leaderUuid?: string, members?: object[]}} sys
+ * @returns {string} the uuid to show, or "" when the office is not this reader's
+ */
+export function readableLeaderUuid(sys, isGM) {
+  const leaderUuid = sys?.leaderUuid ?? "";
+  if (isGM || !leaderUuid) return leaderUuid;
+  const row = (sys.members ?? []).map((r) => r?.toObject?.() ?? r).find((m) => m?.uuid === leaderUuid);
+  return row?.hidden ? "" : leaderUuid;
+}
+
+/** Strength over a set of roster rows: each row is worth its quantity, or one. */
+export function headcountOf(rows) {
+  return (rows ?? []).reduce((sum, row) => sum + (Number(row?.quantity) > 0 ? Number(row.quantity) : 1), 0);
+}

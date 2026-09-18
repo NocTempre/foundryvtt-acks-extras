@@ -4565,3 +4565,35 @@ prose.
 *Cost:* the concealment test needs a reader with the book open, every time. No
 gate can check it, because the sentence that makes a tie secret is prose and
 the row that records it is a boolean.
+
+### An imported body's overview lands on the Judge's side (2026-09-17)
+
+The concealment ruling above gates the structured ties — a roster row, a
+relation, the office itself. It said nothing about the PARAGRAPH the importer
+materializes beside them, and a live player seat read it: the roster concealed
+a head while the description a sentence below named that head and said the
+office was secret. Everything the rows withhold, the prose published.
+
+So the materialized text of a `kind.organisation` row is written to
+`system.gmNotes`, which the sheet renders only for a Judge, and `system.notes`
+arrives empty. A settlement book's organisations section is written to the
+Judge — it is what the city's bodies ACTUALLY are, which is a different
+document from what the city is told about them. The empty public field is the
+affordance for the second one: a Judge who shares a body's sheet writes the
+street's version of it there.
+
+**A keyed PLACE keeps the opposite routing, and deliberately.** A place's
+description is what a party finds when it walks in — the prose is the reveal,
+not the secret behind it — so imported place text stays in `notes` and the
+Judge's private record stays a field the Judge fills. The asymmetry is between
+a document written ABOUT a thing and a document written to be READ OUT, not
+between two kinds of caution.
+
+**Rejected:** gating the field on ownership instead. An imported document is
+owned by nobody, so nothing leaks until a Judge shares the sheet — which makes
+the leak an ambush rather than an impossibility, and arrives exactly when the
+Judge has decided the body is public knowledge.
+
+*Cost:* a Judge who wants the book's paragraph in front of the table copies it
+across. That is one paste, and it is the paste where the Judge decides which
+sentences the city knows.

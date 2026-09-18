@@ -113,7 +113,7 @@ ok("the test's words are the module's", FACTION_KINDS.includes("watch") && !FACT
 
 // --- an authored organisation's actor data -----------------------------------
 const org = organisationData({
-  entryId: "bk.org1", book: "bk", bookLabel: "BK", name: "Wardens of the Mill", kind: "watch", notes: "<p>x</p>",
+  entryId: "bk.org1", book: "bk", bookLabel: "BK", name: "Wardens of the Mill", kind: "watch", gmNotes: "<p>x</p>",
   seatUuid: "Actor.seat", leaderUuid: "Actor.lead", folderId: "f2",
   holdings: [{ uuid: "Actor.h1", name: "Quay Tower" }, { uuid: "" }, null, { uuid: "Actor.h2" }],
   controls: ["bk.district.mill-quarter"],
@@ -122,7 +122,8 @@ check("an authored organisation is the faction sub-type", org.type, FACTION_TYPE
 check("named as it was read", org.name, "Wardens of the Mill");
 check("its kind is the row's", org.system.kind, "watch");
 check("seated and led as asked", [org.system.seatUuid, org.system.leaderUuid], ["Actor.seat", "Actor.lead"]);
-check("its notes are the materialized text", org.system.notes, "<p>x</p>");
+check("the page's own paragraph is the JUDGE's briefing", org.system.gmNotes, "<p>x</p>");
+check("and the players' field is left for what the city is told", org.system.notes, "");
 check("holdings are rows with a uuid, open to the players' eyes", org.system.holdings, [
   { uuid: "Actor.h1", name: "Quay Tower", note: "", hidden: false },
   { uuid: "Actor.h2", name: "", note: "", hidden: false },

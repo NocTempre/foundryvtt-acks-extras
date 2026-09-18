@@ -27,7 +27,7 @@ import {
   addHolding, addStanding, allFactions, isFaction, regardedByFactions, removeHolding, removeRelation, removeStanding,
   setRelation,
 } from "../standing.mjs";
-import { factionRecord, wouldCycleFaction } from "../standing-logic.mjs";
+import { factionRecord, headcountOf, readableLeaderUuid, readableRows, wouldCycleFaction } from "../standing-logic.mjs";
 import { indexPlaces } from "../../lib/place-logic.mjs";
 import { isLocation, occupantRow } from "../../lib/place.mjs";
 import { makeLoc } from "../../lib/util.mjs";
@@ -142,17 +142,8 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
     // What it holds.
     context.seat = refOf(sys.seatUuid);
-    context.leader = refOf(sys.leaderUuid);
-    context.parent = refOf(sys.parentUuid);
-    // The parent picker offers every other faction that would not close a
-    // loop: a chapter cannot belong to its own lodge.
-    const index = indexPlaces(allFactions().map(factionRecord));
-    context.parentOptions = [
-      opt("", loc("sheet.none"), !sys.parentUuid),
-      ...allFactions()
-        .filter((f) => f.uuid !== actor.uuid && !wouldCycleFaction(actor.uuid, f.uuid, index))
-        .map((f) => opt(f.uuid, f.name, f.uuid === sys.parentUuid)),
-    ];
+    context.leader = refOf(readableLeaderUuid(sys, isGM));
+
     const held = new Set(sys.controls ?? []);
     context.controls = (sys.controls ?? []).map((uuid) => {
       const region = fromUuidSync(uuid);
@@ -163,17 +154,13 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
     // The other places it is behind the door of. A hidden holding is a Judge's
     // own — a safehouse is not on the guild's public list.
-    context.holdings = (sys.holdings ?? [])
-      .map((r) => r.toObject?.() ?? r)
-      .filter((row) => isGM || !row.hidden)
+    context.holdings = readableRows(sys.holdings, isGM)
       .map((row) => ({ ...row, name: liveName(row.uuid) || row.name || row.uuid, missing: !docOf(row.uuid) }));
 
     // Relations: its own stance toward each other organisation, then the
     // reverse view. The picker offers every other faction it has no row about.
     const listed = new Set((sys.relations ?? []).map((r) => r.uuid));
-    context.relations = (sys.relations ?? [])
-      .map((r) => r.toObject?.() ?? r)
-      .filter((row) => isGM || !row.hidden)
+    context.relations = readableRows(sys.relations, isGM)
       .map((row) => ({
         ...row,
         name: liveName(row.uuid) || row.name || row.uuid,
@@ -184,20 +171,19 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.relationOptions = allFactions()
       .filter((f) => f.uuid !== actor.uuid && !listed.has(f.uuid))
       .map((f) => ({ uuid: f.uuid, label: f.name }));
-    context.regardedBy = regardedByFactions(actor)
-      .filter((row) => isGM || !row.hidden)
+    context.regardedBy = readableRows(regardedByFactions(actor), isGM)
       .map((row) => ({ ...row, stanceLabel: loc(`stance.${row.stance}`) }));
 
     // Members: the stored rows, with a live check that the actor still exists.
-    context.members = (sys.members ?? [])
-      .map((r) => r.toObject?.() ?? r)
-      .filter((row) => isGM || !row.hidden)
+    context.members = readableRows(sys.members, isGM)
       .map((row) => ({
         ...row,
         missing: !fromUuidSync(row.uuid),
         kindLabel: game.i18n.localize(`ACKS-LOCATION.occupant.kind.${row.kind}`),
       }));
-    context.headcount = sys.headcount;
+    // The tally counts what this reader can see. A total that included the
+    // concealed rows would announce that there are some.
+    context.headcount = isGM ? sys.headcount : headcountOf(context.members);
 
     // The ledger, and the running total per subject.
     const subjectLabel = (subject) => {

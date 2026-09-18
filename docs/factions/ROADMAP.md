@@ -24,10 +24,12 @@ Work that is designed but absent, deliberately. How the feature behaves now is
   position, which is why it ships with a head and no members. Closing it is a
   reading pass per quarter, not a mechanism.
 
-- **A holding the players should not see.** A roster row carries `hidden`; a
-  holdings row does not. A body that keeps a front and a safehouse has no way
-  to say which of the two a player may be shown, so a concealed place is left
-  off the row entirely and the Judge adds it by hand.
+- **A holding the players should not see, authored in a register.** The model
+  and the sheet already conceal a holdings row, and a Judge sets one by hand.
+  What has no spelling is the REGISTER's: an organisation block takes its
+  holdings as bare ids, so a recipe cannot say that the safehouse among a
+  body's three roofs is the one a player is not shown. Giving holdings the
+  `{id, hidden}` shape the roster already takes is the whole of the work.
 
 - **A division inside a body.** One AX3 order divides into seven named
   divisions, each under its own head. The register has no `parent`, so the

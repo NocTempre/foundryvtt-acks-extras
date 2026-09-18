@@ -835,3 +835,24 @@ place a wrong kind can enter, and the counting loop never learns the check
 exists. What the Judge then gets is the declined kinds named beside the count
 of what was already present — the two silences that currently look identical,
 told apart.
+
+## The culture anchors the generator matches on
+
+8.0.0 brought a settlement's register under the name rule: a person, a place or
+a body ships as a neutral label, an ordinal id, and a locator. One shipped
+surface is still outside it. The character generator's culture recipes carry a
+people's printed name three times over — as the `cultureId` a world stores, as
+the `label` a player picks from, and as the `anchor` the compiler matches a page
+on — and the naming tables beneath them are keyed the same way.
+
+The settlement's answer transfers whole: an ordinal id, a locator in place of
+the anchor, and a label the importer reads off the page at import time, exactly
+as a person's name now arrives. What does not transfer is the cost. A
+`cultureId` is stored on every character ever generated, so changing it is a
+migration and not a rename, and the label is a pick a player made rather than a
+document's title — a world whose characters name a people has to keep naming it
+after the change. That is the work: a migration that rewrites stored ids and a
+label that survives having been chosen, on top of the aliasing itself.
+
+Until it lands, the audit that reads the decoder ring reports these sites every
+run, and they are the report's only true positives.

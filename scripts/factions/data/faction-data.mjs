@@ -15,6 +15,7 @@
  * value is what the Judge typed, and the one knob that turns standing into a
  * market shift defaults to off.
  */
+import { headcountOf } from "../standing-logic.mjs";
 import { acksCompatStubs } from "../../lib/actor-compat.mjs";
 import { str, int, occupantField } from "../../lib/fields.mjs";
 import { FACTION_KINDS, RELATION_STANCES, STANDING_SOURCES, SUBJECT_SCOPES } from "../constants.mjs";
@@ -165,6 +166,6 @@ export class FactionData extends foundry.abstract.TypeDataModel {
 
   /** Members counted with their stacks, the way a place counts its roster. */
   get headcount() {
-    return (this.members ?? []).reduce((sum, row) => sum + (Number(row?.quantity) > 0 ? Number(row.quantity) : 1), 0);
+    return headcountOf(this.members);
   }
 }

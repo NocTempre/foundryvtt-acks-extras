@@ -16,6 +16,7 @@
  * Run: npm test
  */
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
 
 // --- the world the Foundry-bound modules load against -------------------------
 class FieldStub {
@@ -43,7 +44,7 @@ globalThis.acksExtras ??= {};
 
 const {
   subjectsOf, matchesSubject, sumStanding, rowsFor, isWanted, huntersAmong, classStepsFor, wouldCycleFaction, factionRecord,
-  relationOf, regardedBy, placesHeld,
+  relationOf, regardedBy, placesHeld, readableRows, readableLeaderUuid, headcountOf,
 } = await import("../scripts/factions/standing-logic.mjs");
 const { applyHunt, freshSettlement } = await import("../scripts/formation/settlement.mjs");
 const { pushFactionModifiers } = await import("../scripts/factions/influence-listener.mjs");
@@ -372,6 +373,64 @@ standingStep = 0;
   assert.equal(overridden.error, "unknown-rarity", "the override answers before the rarity table");
   const byProf = await rollMonthlyPool({ kind: "henchmanByClassProficiency", classKey: "mage" }, 3, roll, Math.random, "default", overrides);
   assert.equal(byProf.error, "unknown-rarity", "a class-proficiency search reads the same override");
+}
+
+// --- what a reader who is not the Judge is told -------------------------------------
+{
+  // Concealment is a DISPLAY rule: the row is stored either way, and a reader
+  // who is not the Judge is simply not handed it. Model-backed rows arrive as
+  // documents, so the copy has to survive `toObject`.
+  const rows = [
+    { uuid: "Actor.open", hidden: false, quantity: 3 },
+    { uuid: "Actor.secret", hidden: true, quantity: 40 },
+    { toObject: () => ({ uuid: "Actor.doc", hidden: false, quantity: 1 }) },
+  ];
+  assert.equal(readableRows(rows, true).length, 3, "the Judge holds every row");
+  assert.deepEqual(readableRows(rows, false).map((r) => r.uuid), ["Actor.open", "Actor.doc"]);
+  assert.deepEqual(readableRows(rows, true).at(-1), { uuid: "Actor.doc", hidden: false, quantity: 1 }, "a document row comes back plain");
+  assert.deepEqual(readableRows(undefined, false), []);
+
+  // A secret head is a concealed member row, and the OFFICE is concealed with
+  // it: naming a leader beside a roster that leader is missing from publishes
+  // the very tie the row hides.
+  const body = { leaderUuid: "Actor.secret", members: rows };
+  assert.equal(readableLeaderUuid(body, true), "Actor.secret", "the Judge is told who runs it");
+  assert.equal(readableLeaderUuid(body, false), "", "a player is not");
+  assert.equal(readableLeaderUuid({ leaderUuid: "Actor.open", members: rows }, false), "Actor.open", "an open head is named to anyone");
+  assert.equal(readableLeaderUuid({ leaderUuid: "Actor.stranger", members: rows }, false), "Actor.stranger", "a head on no roster is not concealed by absence");
+  assert.equal(readableLeaderUuid({ members: rows }, false), "", "a body with no head names none");
+
+  // The tally counts what THIS reader can see. A total carrying the concealed
+  // rows announces that there are some.
+  assert.equal(headcountOf(rows), 44, "the Judge's strength is every row, each worth its quantity");
+  assert.equal(headcountOf(readableRows(rows, false)), 4, "a player counts only what a player can read");
+  assert.equal(headcountOf([{ uuid: "Actor.x" }, { quantity: 0 }, { quantity: -2 }]), 3, "a row with no usable quantity is one body");
+  assert.equal(headcountOf(), 0);
+}
+
+// --- an imported body's overview is the Judge's --------------------------------------
+{
+  const { organisationData } = await import("../scripts/importer/faction-binding.mjs");
+  const built = organisationData({
+    entryId: "book.org1", book: "book", name: "Some Body", kind: "guild",
+    gmNotes: "<p>the page's own paragraph</p>", seatUuid: "Actor.seat",
+  });
+  assert.equal(built.system.gmNotes, "<p>the page's own paragraph</p>", "the briefing lands on the Judge's side of the sheet");
+  assert.equal(built.system.notes, "", "and the public field is left for what the city is told");
+}
+
+// --- a person is named from the page, never from the row's label ----------------------
+{
+  // The register ships a NEUTRAL label, so every path that turns an aliased
+  // entry into a document has to go and read the printed name. A dropped call
+  // here is invisible offline and names a whole book "NPC 1"… "NPC 63".
+  const src = await fs.readFile(new URL("../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  for (const fn of ["async function importAdventureActor", "export async function cookbookImportPoiPlaces", "async function cookbookImportFactions"]) {
+    const at = src.indexOf(fn);
+    assert.ok(at > 0, `${fn} is still the name of the path this pins`);
+    const body = src.slice(at, at + 12000);
+    assert.ok(/name: printedNameOf\(|printedNameOf\(node/.test(body), `${fn} names its document from the page`);
+  }
 }
 
 console.log("test-factions: all checks passed");

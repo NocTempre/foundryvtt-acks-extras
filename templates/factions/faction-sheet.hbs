@@ -51,7 +51,7 @@
           <a data-action="openDoc" data-uuid="{{seat.uuid}}" class="{{#if seat.missing}}is-missing{{/if}}">{{seat.name}}</a>
           {{#if editable}}<a data-action="clearSeat" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.clear'}}"><i class="fas fa-xmark"></i></a>{{/if}}
           {{else}}
-          <span class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.seatDrop"}}</span>
+          {{#if editable}}<span class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.seatDrop"}}</span>{{/if}}
           {{/if}}
         </div>
         <div class="faction-holding" data-drop-zone="leader">
@@ -60,7 +60,7 @@
           <a data-action="openDoc" data-uuid="{{leader.uuid}}" class="{{#if leader.missing}}is-missing{{/if}}">{{leader.name}}</a>
           {{#if editable}}<a data-action="clearLeader" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.clear'}}"><i class="fas fa-xmark"></i></a>{{/if}}
           {{else}}
-          <span class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.leaderDrop"}}</span>
+          {{#if editable}}<span class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.leaderDrop"}}</span>{{/if}}
           {{/if}}
         </div>
         <label class="faction-holding">
@@ -73,7 +73,7 @@
 
       <div class="faction-places">
         <span class="faction-holding-label">{{localize "ACKS-FACTIONS.sheet.places"}}</span>
-        <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.placesHint"}}</p>
+        <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.placesHint"}}{{#if editable}} {{localize "ACKS-FACTIONS.sheet.placesDrop"}}{{/if}}</p>
         {{#if holdings.length}}
         <table class="acks-table acks-extras-faction-table">
           <tbody>
@@ -141,7 +141,7 @@
   <section class="tab faction-tab {{tabs.members.cssClass}}" data-group="primary" data-tab="members">
     <details class="section" open>
       <summary>{{localize "ACKS-FACTIONS.sheet.members"}} ({{members.length}})</summary>
-      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.membersDrop"}}</p>
+      {{#if editable}}<p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.membersDrop"}}</p>{{/if}}
       {{#if members.length}}
       <table class="acks-table acks-extras-faction-table">
         <tbody>
@@ -179,7 +179,7 @@
   <section class="tab faction-tab {{tabs.relations.cssClass}}" data-group="primary" data-tab="relations">
     <details class="section" open>
       <summary>{{localize "ACKS-FACTIONS.sheet.relations"}} ({{relations.length}})</summary>
-      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.relationsHint"}}</p>
+      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.relationsHint"}}{{#if editable}} {{localize "ACKS-FACTIONS.sheet.relationsDrop"}}{{/if}}</p>
       {{#if relations.length}}
       <table class="acks-table acks-extras-faction-table">
         <tbody>

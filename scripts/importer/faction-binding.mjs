@@ -87,12 +87,12 @@ export function organisationPlan(book, entry, entries = {}) {
  * @param {object} p
  * @param {string} p.entryId the organisation's cookbook id
  * @param {string} p.name as read off the page, or the entry's label
- * @param {string} [p.notes] materialized book text
+ * @param {string} [p.gmNotes] materialized book text
  * @param {{uuid: string, name: string}[]} [p.holdings]
  * @param {string[]} [p.controls] ids of the quarters' places
  */
 export function organisationData({
-  entryId, book, bookLabel = "", name, kind = "other", notes = "", seatUuid = "", leaderUuid = "", holdings = [], controls = [], folderId = null,
+  entryId, book, bookLabel = "", name, kind = "other", gmNotes = "", seatUuid = "", leaderUuid = "", holdings = [], controls = [], folderId = null,
 }) {
   return {
     name,
@@ -103,7 +103,12 @@ export function organisationData({
       kind: FACTION_KINDS.includes(kind) ? kind : "other",
       seatUuid,
       leaderUuid,
-      notes,
+      // A body's overview is written for the Judge, so it lands on the Judge's
+      // side of the sheet. The public field is left for what the city is told:
+      // the page states which ties are secret, and the roster's own concealment
+      // counts for nothing beside a description that names the head it hides.
+      notes: "",
+      gmNotes,
       holdings: holdings.filter((h) => h?.uuid).map((h) => ({ uuid: h.uuid, name: h.name ?? "", note: "", hidden: false })),
       members: [],
     },

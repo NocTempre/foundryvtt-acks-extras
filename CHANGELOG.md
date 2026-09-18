@@ -25,12 +25,15 @@ bodies that run it.**
 
 ### Changed
 
-- **No printed name ships, anywhere.** A person, a place, a body or a people is
-  the book's expression wherever it is written, so the register carries a
+- **No printed name ships from a settlement's register.** A person, a place, a
+  body or a people is the book's expression wherever it is written — in a label,
+  in an id, in an anchor a compiler matches on — so the register carries a
   neutral label (`POI 15`, `NPC 8`, `Organisation 4`), an ordinal id, and a
   locator that proves a page prints the name without being able to be read back
   into it. Every name a world shows arrives at import from the Judge's own copy,
-  as the rules text always has.
+  as the rules text always has. The rule is the family's now; the culture
+  anchors the character generator matches on are the one shipped surface still
+  to be brought under it.
 - **Entry ids changed with it, which is why this is a major.** Documents
   imported by an earlier version carry the old, name-derived ids and will not be
   recognised as the same entries. **Reimport the book** (*Reimport* → pick the

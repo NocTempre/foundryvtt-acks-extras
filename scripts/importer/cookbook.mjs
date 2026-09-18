@@ -2858,7 +2858,9 @@ async function importAdventureActor(bookId, id, folderId) {
     if (missing.length) console.log(`${MODULE_ID} | ${id}: unresolved proficiencies ${missing.join(", ")}`);
   }
   const actor = await createDoc(Actor, {
-    name: found.entry.name,
+    // The entry ships an ordinal label; the person is named from the page the
+    // recipe just read, like every other document the book fills.
+    name: printedNameOf(node, found.entry.name),
     type: "monster",
     folder: folderId,
     system: bound.system,
@@ -3186,7 +3188,7 @@ export async function cookbookImportFactions() {
   };
 
   const built = [];
-  const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressFactions`), groups.size + authored.length);
+  const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressFactions`), authored.length);
   try {
     for (const { bookId, id, e, plan } of authored) {
       bar.step(e.name);
@@ -3222,7 +3224,7 @@ export async function cookbookImportFactions() {
         faction = await claimActorImport(id, () =>
           createDoc(Actor, organisationData({
             entryId: id, book: bookId, bookLabel: label, name: plan.namedAfterSeat ? withoutKeyNumber(printed) : printed, kind: plan.kind,
-            notes: entryText(node, id, e.cite), seatUuid: (keyed ?? quarter)?.uuid ?? "", leaderUuid: leader?.uuid ?? "",
+            gmNotes: entryText(node, id, e.cite), seatUuid: (keyed ?? quarter)?.uuid ?? "", leaderUuid: leader?.uuid ?? "",
             holdings, controls: plan.controls, folderId: folder,
           })));
         if (!faction) continue;
