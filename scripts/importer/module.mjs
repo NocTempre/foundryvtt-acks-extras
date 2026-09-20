@@ -77,7 +77,7 @@ import {
   importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
   importWeapons, importArmor,
   importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importVariations, importVehicles,
-  cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks,
+  cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
 } from "./cookbook.mjs";
 import { registerGettingStartedSettings, runImportEverything, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
 import { registerOseSourceSetting } from "./ose-source.mjs";
@@ -2785,7 +2785,7 @@ Hooks.once("ready", async () => {
     importAbility, cookbookDebug, cookbookCount,
     cookbookImportTables,
     cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit,
-    cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks,
+    cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
     /** The whole import chain, in dependency order — the "Import Everything" control. */
     importEverything: () => runImportEverything(),
     importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,

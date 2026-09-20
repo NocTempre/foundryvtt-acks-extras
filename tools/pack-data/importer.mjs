@@ -118,6 +118,18 @@ await api.importEverything();`,
       FOLDERS.import,
     ),
     apiMacro("ackscMacReimport", "Reimport One Shelf (GM)", "icons/svg/regen.svg", "cookbookReimportShelf", 210, FOLDERS.import),
+    /* The fifth control, and it is a debug tool rather than one of the four:
+       a Judge rebuilds a shelf, an author checking one recipe rebuilds one
+       entry. It ships because the thing it addresses — did THIS entry come
+       out right — has no other answer that does not empty a shelf. */
+    apiMacro(
+      "ackscMacReimpEnt",
+      "(Re)import Individual Entries (GM)",
+      "icons/svg/target.svg",
+      "cookbookReimportEntries",
+      215,
+      FOLDERS.import,
+    ),
     apiMacro("ackscMacRemoveAl", "Delete Everything Imported (GM)", "icons/svg/cancel.svg", "cookbookRemoveImports", 220, FOLDERS.import),
   ];
 }

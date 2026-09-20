@@ -1774,6 +1774,270 @@ export async function cookbookReimportBook(bookId) {
   return { book: bookId, removed: doomed.length, shelves: [...shelves].sort(), refill };
 }
 
+/* -------------------------------------------- */
+/*  (Re)import individual entries               */
+/* -------------------------------------------- */
+
+/**
+ * Every importable entry, grouped by the run that rebuilds one.
+ *
+ * `refill` names the api function that re-creates a deleted entry. Every
+ * importer named here is dedup-driven, so running one after deleting exactly
+ * the picked documents rebuilds those and passes over everything else — the
+ * mechanic `cookbookReimportShelf` uses, addressed per ENTRY instead of per
+ * shelf. Monsters name no refill because they need none: `importMany` takes an
+ * explicit id list.
+ *
+ * The list is deliberately the entry-driven importers only. Weapons, armor and
+ * the price list are built from whole printed tables rather than from an entry
+ * apiece, so there is no single row to check; those stay with the shelf
+ * rebuild.
+ */
+const ENTRY_SOURCES = [
+  { key: "Monsters", type: "Actor", refill: null, entries: () => actorEntriesAcrossBooks().rows.map((r) => [r.id, r.entry]) },
+  { key: "Abilities", type: "Item", refill: "cookbookImportAbilities", entries: () => [...abilityEntries()] },
+  { key: "Classes", type: "Item", refill: "importClasses", entries: () => [...classEntries()] },
+  {
+    key: "Equipment",
+    type: "Item",
+    refill: "importAllEquipment",
+    entries: () => cookbookEquipmentIds().map((id) => [id, cookbookEntry(id)?.entry ?? {}]),
+  },
+  { key: "Traps", type: "Item", refill: "importTraps", entries: () => [...trapEntries()] },
+  { key: "Variations", type: "Item", refill: "importVariations", entries: () => [...variationEntries()] },
+  { key: "Vehicles", type: "Actor", refill: "importVehicles", entries: () => [...vehicleEntries()] },
+];
+
+/** The cookbook id an imported document claims, or "" when it claims none. */
+const claimedId = (doc) => String(doc.getFlag(MODULE_ID, "cookbook")?.id ?? "");
+
+/**
+ * Does this document belong to that entry?
+ *
+ * An entry is not always one document. A vehicle entry covers a whole table and
+ * claims per ROW (`<entry id>.<row key>`), so the match is the id itself or
+ * anything filed beneath it.
+ */
+const claimsEntry = (doc, id) => {
+  const claim = claimedId(doc);
+  return claim === id || claim.startsWith(`${id}.`);
+};
+
+/**
+ * Which entry ids this world already holds something for.
+ *
+ * Every dot-ancestor of a claim is recorded beside the claim itself, so a
+ * vehicle entry whose rows are present reads as present without a scan per
+ * entry. An id that is a strict prefix of an unrelated claim would read present
+ * wrongly; the row's own checkbox still imports it, and a mark is not a gate.
+ */
+function claimedEntryIds(docs) {
+  const have = new Set();
+  for (const doc of docs) {
+    const claim = claimedId(doc);
+    if (!claim) continue;
+    const parts = claim.split(".");
+    for (let n = parts.length; n > 0; n--) have.add(parts.slice(0, n).join("."));
+  }
+  return have;
+}
+
+/**
+ * Filter / select-all / count wiring shared by nothing else — the picker below
+ * owns it. Rows carry their own searchable text and present-mark in datasets;
+ * this only reads them.
+ */
+function wireEntryPicker(root, listEl) {
+  const count = root.querySelector(".acks-extras-importer-abil-count");
+  const all = () => [...listEl.querySelectorAll(".acks-extras-importer-browse-row")];
+  const shown = () => all().filter((r) => r.style.display !== "none");
+  const tally = () => {
+    const n = listEl.querySelectorAll('input[name="sel"]:checked').length;
+    count.textContent = game.i18n.format(`${LANG_PREFIX}.ui.abilCount`, { n, shown: shown().length });
+  };
+  const refresh = () => {
+    const q = root.querySelector('[name="filter"]').value.toLowerCase();
+    const hide = root.querySelector('[name="hideHave"]').checked;
+    for (const r of all()) {
+      const ok = r.dataset.name.includes(q) && (!hide || r.dataset.have === "0");
+      r.style.display = ok ? "" : "none";
+      // A hidden row must not stay selected: what the list shows is the only
+      // honest account of what pressing the button will do.
+      if (!ok) r.querySelector('input[name="sel"]').checked = false;
+    }
+    tally();
+  };
+  const check = (rows) => {
+    for (const r of rows) r.querySelector('input[name="sel"]').checked = true;
+    tally();
+  };
+  for (const sel of ['[name="filter"]', '[name="hideHave"]']) root.querySelector(sel).addEventListener("input", refresh);
+  listEl.addEventListener("change", tally);
+  root.querySelector('[data-act="all"]').addEventListener("click", () => {
+    root.querySelector('[name="filter"]').value = "";
+    root.querySelector('[name="hideHave"]').checked = false;
+    refresh();
+    check(all());
+  });
+  root.querySelector('[data-act="shown"]').addEventListener("click", () => check(shown()));
+  root.querySelector('[data-act="none"]').addEventListener("click", () => {
+    for (const el of listEl.querySelectorAll('input[name="sel"]')) el.checked = false;
+    tally();
+  });
+  tally();
+}
+
+/**
+ * GM debug tool: list every importable entry with a checkbox and rebuild the
+ * ones ticked.
+ *
+ * The finest of the rebuild controls. "Import everything" and "rebuild one
+ * shelf" both address a whole category; this addresses a row. It is what a
+ * fixed extraction wants: change one recipe, tick the entry it belongs to, see
+ * the document it produces — without emptying the shelf around it or waiting
+ * for a whole book to read again.
+ *
+ * Ticked entries are DELETED first and imported again. Deleting is what makes
+ * it a re-import: every importer passes over what it already has, so importing
+ * over a present document changes nothing. A document a class template made is
+ * never touched — it carries this module's own stamp and is the Judge's
+ * repairable copy, not the importer's to delete.
+ *
+ * The id is shown beside every row because this is a debug surface: the id is
+ * what a recipe, a register and a console call all name, and it is the only
+ * label that survives a rename on either side.
+ */
+export async function cookbookReimportEntries() {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and creates documents).`);
+  const esc = foundry.utils.escapeHTML ?? ((x) => x);
+  const docs = { Actor: await importedDocs("Actor"), Item: await importedDocs("Item") };
+  const have = claimedEntryIds([...docs.Actor, ...docs.Item]);
+
+  let total = 0;
+  const blocks = ENTRY_SOURCES.map((src) => {
+    const entries = src.entries().sort((a, b) => String(a[1]?.name ?? a[0]).localeCompare(String(b[1]?.name ?? b[0])));
+    if (!entries.length) return "";
+    total += entries.length;
+    const group = game.i18n.localize(`${LANG_PREFIX}.ui.reimportKind${src.key}`);
+    const rows = entries
+      .map(([id, e]) => {
+        const name = e?.name ?? id;
+        const searchable = `${name} ${id} ${group}`.toLowerCase();
+        return `<label class="acks-extras-importer-browse-row" data-name="${esc(searchable)}" data-have="${have.has(id) ? 1 : 0}">
+          <input type="checkbox" name="sel" value="${esc(`${src.key}|${id}`)}">
+          <span>${esc(name)}</span>
+          <span class="acks-extras-importer-marks">${
+            have.has(id)
+              ? `<i class="fa-solid fa-check" data-tooltip="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.cookbookPresent`))}"></i>`
+              : ""
+          }</span>
+          <span class="acks-extras-importer-cite">${esc(id)}</span>
+        </label>`;
+      })
+      .join("");
+    return `<div class="acks-extras-importer-book-head">${esc(group)} (${entries.length})</div>${rows}`;
+  }).join("");
+
+  if (!total) return ui.notifications.warn(`${MODULE_ID} | nothing importable is compiled into this build.`);
+
+  const content = `
+    <p class="notes">${game.i18n.format(`${LANG_PREFIX}.ui.reimportEntriesHint`, { n: total })}</p>
+    <div class="acks-extras-importer-abil-filters">
+      <input type="text" name="filter" placeholder="${game.i18n.localize(`${LANG_PREFIX}.ui.cookbookFilter`)}">
+      <label><input type="checkbox" name="hideHave"> ${game.i18n.localize(`${LANG_PREFIX}.ui.abilHidePresent`)}</label>
+    </div>
+    <div class="acks-extras-importer-abil-actions">
+      <button type="button" data-act="all">${game.i18n.localize(`${LANG_PREFIX}.ui.cookbookSelectAll`)}</button>
+      <button type="button" data-act="shown">${game.i18n.localize(`${LANG_PREFIX}.ui.abilSelectShown`)}</button>
+      <button type="button" data-act="none">${game.i18n.localize(`${LANG_PREFIX}.ui.abilClear`)}</button>
+      <span class="acks-extras-importer-abil-count"></span>
+    </div>
+    <div class="acks-extras-importer-browse-list acks-extras-importer-mon-list">${blocks}</div>`;
+
+  return foundry.applications.api.DialogV2.prompt({
+    window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.reimportEntriesTitle`), resizable: true },
+    classes: ["acks-ui", "acks-extras-importer-dialog"],
+    position: { width: 600, height: 720 },
+    content,
+    render: (event, dialog) => {
+      const root = dialog.element ?? dialog;
+      wireEntryPicker(root, root.querySelector(".acks-extras-importer-mon-list"));
+    },
+    ok: {
+      label: game.i18n.localize(`${LANG_PREFIX}.ui.reimportGo`),
+      callback: async (event, button) => {
+        const picked = [...button.form.querySelectorAll('input[name="sel"]:checked')].map((el) => {
+          const [key, ...rest] = String(el.value).split("|");
+          return { key, id: rest.join("|") };
+        });
+        if (!picked.length) return ui.notifications.warn(`${MODULE_ID} | nothing selected.`);
+        return runEntryReimport(picked);
+      },
+    },
+  });
+}
+
+/**
+ * Delete what the picked entries claim, then run each owning importer once.
+ *
+ * The importers are re-run WHOLE rather than per entry. They are dedup-driven,
+ * so a whole run after a targeted delete rebuilds exactly what was deleted; a
+ * per-entry entry point into each of them does not exist, and inventing six of
+ * them to save a debug tool some seconds would be six more paths to keep in
+ * step with the six that ship.
+ */
+async function runEntryReimport(picked) {
+  // Re-read: the dialog's list was drawn when it opened, and another window may
+  // have imported or deleted since.
+  const docs = { Actor: await importedDocs("Actor"), Item: await importedDocs("Item") };
+  const byKey = new Map();
+  for (const { key, id } of picked) {
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(id);
+  }
+
+  const doomed = { Actor: [], Item: [] };
+  for (const [key, ids] of byKey) {
+    const src = ENTRY_SOURCES.find((s) => s.key === key);
+    if (!src) continue;
+    for (const doc of docs[src.type]) {
+      if (doc.flags?.[MODULE_ID]?.templatePart) continue;
+      if (ids.some((id) => claimsEntry(doc, id))) doomed[src.type].push(doc);
+    }
+  }
+  const removing = doomed.Actor.length + doomed.Item.length;
+
+  const ok = await foundry.applications.api.DialogV2.confirm({
+    window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.reimportEntriesTitle`) },
+    classes: ["acks-ui", "acks-extras-importer-dialog"],
+    content: `<p>${game.i18n.format(`${LANG_PREFIX}.ui.reimportEntriesConfirm`, { n: picked.length, removed: removing })}</p>`,
+  });
+  if (!ok) return null;
+
+  for (const type of ["Actor", "Item"]) if (doomed[type].length) await deleteImported(type, doomed[type]);
+  forgetImportedIndex(); // what it remembers is what was just deleted
+
+  const refill = {};
+  // Monsters first and by id: they are the only source with a per-id import,
+  // and the abilities a monster carries are resolved from the shelves the runs
+  // below rebuild, so a run that rebuilds both wants the shelves rebuilt after.
+  const monsters = byKey.get("Monsters") ?? [];
+  if (monsters.length) refill.Monsters = await importMany(monsters, game.i18n.localize(`${LANG_PREFIX}.ui.cookbookWorking`));
+  const runs = [
+    ...new Set(
+      [...byKey.keys()]
+        .map((key) => ENTRY_SOURCES.find((s) => s.key === key)?.refill)
+        .filter(Boolean),
+    ),
+  ];
+  for (const run of runs) refill[run] = (await api()[run]()) ?? null;
+
+  ui.notifications.info(
+    game.i18n.format(`${LANG_PREFIX}.ui.reimportEntriesDone`, { n: picked.length, removed: removing }),
+  );
+  return { picked: picked.length, removed: removing, refill };
+}
+
 /**
  * GM: delete EVERY document this module imported — the packs it created, the
  * world documents it or its materializers made from them, the folders they

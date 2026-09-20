@@ -363,9 +363,10 @@ The dedup rules, each with a case that used to break it.
 
 ## Three controls, and one shelf at a time
 
-*Observable:* the "ACKS Importer — Macros" compendium holds FOUR macros in two
-folders — your books, import everything, reimport one shelf, delete everything.
-A fifth is a regression.
+*Observable:* the "ACKS Importer — Macros" compendium holds FIVE macros in two
+folders — your books, import everything, reimport one shelf, reimport
+individual entries, delete everything. A sixth is a regression. The four are
+the controls; the entry picker is the debug tool beside them.
 
 Reimport one shelf, e.g. Weapons:
 *Observable:* the confirm names the count; afterwards the shelf holds exactly
@@ -394,6 +395,48 @@ reimport, scan the rebuilt descriptions as well as counting them.
 welded clause), no lowercase run straight into uppercase, and the Earthshooter
 description is one paragraph that ends above the table following it on its
 page. Portable Battering Ram and Personal Automaton read as separate words.
+
+## One entry at a time
+
+**(Re)import Individual Entries (GM)** —
+`acksExtras.importer.cookbookReimportEntries()`. The finest rebuild: it lists
+every entry the build can import, grouped by the run that rebuilds one, each
+row carrying its id.
+
+### Fixtures
+
+An imported world. Note the document id and `img` of ONE imported trap and ONE
+imported proficiency before starting, and `api.track` both so the rebuilt
+copies can be swept — the rebuild mints NEW document ids, so the ids read back
+after the run are the ones to track, read the moment the run resolves.
+
+### Steps
+
+1. Open the picker on a world with nothing imported yet.
+   *Observable:* every group with compiled entries appears (monsters only when
+   a book is open on this seat), the count in each heading matches the group,
+   and no row carries a present tick.
+2. Type a name into the filter, then an id fragment (`def.trap`).
+   *Observable:* both narrow the list; the count beside the buttons reads
+   "n of shown". *Select shown* ticks only what is visible, and clearing the
+   filter afterwards leaves those ticks and no others — a row hidden while
+   ticked is cleared, so what the list shows is what the button will do.
+3. On the imported world, tick the one trap and the one proficiency and press
+   *Reimport*.
+   *Observable:* the confirm names the ticked count and the number of
+   documents they claim (2 and 2). Afterwards both names exist again under new
+   ids, the old ids are gone, and every OTHER trap and proficiency still
+   carries its original document id — the run rebuilt two rows, not two
+   shelves. A class template's documents are never among the deleted.
+4. Tick a vehicle entry, whose one entry covers a whole table.
+   *Observable:* the confirm's removed count is the number of ROWS that entry
+   made, not 1, and every one of them comes back.
+5. Join as a non-GM seat and run the macro.
+   *Observable:* it warns and creates nothing — the GM check is the API's, not
+   the template's.
+
+**Teardown.** `api.sweepTracked()`; quote what it removed, what it could not
+find and what refused.
 
 ## Two books, one item
 

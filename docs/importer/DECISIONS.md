@@ -4597,3 +4597,40 @@ Judge has decided the body is public knowledge.
 *Cost:* a Judge who wants the book's paragraph in front of the table copies it
 across. That is one paste, and it is the paste where the Judge decides which
 sentences the city knows.
+
+---
+
+### The entry picker rebuilds by re-running whole importers (2026-09-20)
+
+**Problem.** "Did *this* entry come out right" had no answer short of emptying
+the shelf around it. A recipe fixed for one trap meant deleting thirteen and
+waiting for all thirteen to build again; a fixed proficiency meant the whole
+Proficiencies shelf. Both are the shelf rebuild being used as a per-entry tool
+it was never shaped to be — and a Judge doing it on a live world loses every
+edit made to the other rows on the way past.
+
+**Ruled.** `cookbookReimportEntries` lists every importable entry with a
+checkbox and, for the ticked ones, deletes exactly what they claim and then
+runs each OWNING importer once, whole. It is the shelf rebuild's mechanic
+addressed at a row: every importer passes over what it already holds, so a
+whole run after a targeted delete rebuilds exactly what was deleted. Monsters
+are the exception and need none of this — `importMany` already takes an id
+list.
+
+**Rejected: a per-entry entry point into each importer.** Six of them build
+from an entry apiece (abilities, classes, equipment, traps, variations,
+vehicles) and each would have taken one, which is six more code paths that
+must stay in step with the six that ship, for a debug surface whose cost is
+measured in seconds. The whole-run refill reuses paths the release already
+gates.
+
+**Rejected: offering weapons, armor and the price list.** They are built from
+whole printed tables rather than from an entry apiece, so there is no row to
+tick; they stay with the shelf rebuild, which is the unit they actually have.
+
+*Cost:* rebuilding one trap re-runs `importTraps` over all of them, and
+rebuilding one class re-runs the class pass including its ladder repair and
+template materialization. Correct and slow, on a surface used by one person at
+a time. The id shown beside every row is the other half of the tool: a rename
+on either side leaves the id as the only label both the recipe and the
+document still answer to.

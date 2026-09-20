@@ -1,5 +1,20 @@
 # Changelog
 
+## 8.0.4
+
+### Added
+
+- **A way to rebuild one imported entry, instead of the shelf it sits on.**
+  *(Re)import Individual Entries (GM)*, in the *Import from your books* folder,
+  lists everything this build can import — monsters and NPCs, proficiencies,
+  powers and skills, classes, equipment, traps, variations, vehicles — each with
+  a checkbox and the id it is known by, and a filter over the lot. Ticked
+  entries are deleted and imported again; nothing else is touched, and
+  documents a class template made are left alone as they are everywhere else.
+  It is a debug tool: the answer to "did *this* entry come out right" used to
+  be emptying a whole shelf. *Import Everything*, *Reimport One Shelf* and
+  *Delete Everything Imported* are unchanged and remain the everyday controls.
+
 ## 8.0.3
 
 ### Fixed
