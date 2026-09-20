@@ -1,5 +1,19 @@
 # Changelog
 
+## 8.0.5
+
+### Added
+
+- **Rules tables can be re-read one at a time.** *(Re)import Individual
+  Entries (GM)* now lists all 22 rules-table documents — encounters, travel,
+  weather, wages, availability, the class builder and the rest — each with the
+  pages its recipes read and a tick when the world already holds it. They are
+  the one thing in that list that is not filed on a shelf: they are read into
+  the world and merge with what is there, so ticking one re-reads it in place
+  and deletes nothing. Re-reading one instead of all of them is the point — a
+  full table run locates pages for 138 recipes and takes minutes; one document
+  is a fraction of that.
+
 ## 8.0.4
 
 ### Added

@@ -434,6 +434,14 @@ after the run are the ones to track, read the moment the run resolves.
 5. Join as a non-GM seat and run the macro.
    *Observable:* it warns and creates nothing — the GM check is the API's, not
    the template's.
+6. Tick ONE rules-table document — `weather`, say — and time the run.
+   *Observable:* the progress bar's denominator is that document's recipe count,
+   not 138; the confirm's removed count is 0, because rules tables merge into
+   the store rather than being deleted and rebuilt; afterwards
+   `acksLib.tables.getDoc("weather")` answers and every other document already
+   in the store still answers. A tick on a table row reflects `hasDoc`, not a
+   document flag, so a world that has the store but no imported items shows
+   ticks here and none above.
 
 **Teardown.** `api.sweepTracked()`; quote what it removed, what it could not
 find and what refused.

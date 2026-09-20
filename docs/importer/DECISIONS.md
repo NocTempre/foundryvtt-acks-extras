@@ -4634,3 +4634,32 @@ template materialization. Correct and slow, on a surface used by one person at
 a time. The id shown beside every row is the other half of the tool: a rename
 on either side leaves the id as the only label both the recipe and the
 document still answer to.
+
+---
+
+### Rules tables join the entry picker as documents, not as tables (2026-09-20)
+
+**Problem.** The entry picker shipped without the ruledata tables, which is
+where a recipe change is most expensive to check: a full table run locates
+pages for 138 recipes across every connected book and takes minutes, so
+verifying one fixed grid meant re-reading all of them.
+
+**Ruled.** `importTables` takes an `only` list of ruledata document ids and the
+picker offers one row per document (22 of them), with the pages its recipes
+read. `tableRecipeCount(only)` narrows the progress denominator to match, so
+the bar counts the work actually being done.
+
+**The unit is the DOCUMENT, not the table.** A merge writes a document's table
+map, and the store layers per document — offering the 138 tables separately
+would let a Judge tick half a document and produce a write the store has no
+shape for.
+
+**They are the one source with no `type` and no delete.** Tables are not
+documents on a shelf: they live in the ruledata store, they merge rather than
+replace, and there is nothing to remove before re-reading one. So the source
+carries `idsRefill` instead of `refill`, the confirm reports 0 removed, and
+presence is `hasDoc` rather than a document flag — which is why a world can
+show ticks on table rows and none on the shelves above them.
+
+*Cost:* a picker row whose behaviour differs from every other row in the list,
+carried by one sentence in the hint and a group label that says so.

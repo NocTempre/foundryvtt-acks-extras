@@ -32,6 +32,8 @@ import { BOOKS, bookIsJudges, bookLine } from "./books.mjs";
 import { OSE_PREFIX, oseSourceLabel, oseSourceLine } from "./ose-source.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
 import { slugLabel } from "./table-extract.mjs";
+import { TABLE_RECIPES } from "./table-recipes.mjs";
+import { hasDoc } from "../lib/tables.mjs";
 import { pageItems, pageArtPlacements } from "./extract.mjs";
 import { WEAPON_TABLE, extractWeaponsFromDoc, bindWeaponRow, bindAmmoRow } from "./weapon-tables.mjs";
 import { ARMOR_TABLE, extractArmorFromDoc, bindArmorRow } from "./armor-tables.mjs";
@@ -1792,6 +1794,13 @@ export async function cookbookReimportBook(bookId) {
  * the price list are built from whole printed tables rather than from an entry
  * apiece, so there is no single row to check; those stay with the shelf
  * rebuild.
+ *
+ * Rules tables are the one source that is not documents at all. They live in
+ * the ruledata store rather than on a shelf, they MERGE rather than replace,
+ * and there is nothing to delete before re-reading one — so they carry no
+ * `type`, and an `idsRefill` (a run handed the picked ids) instead of a
+ * `refill`. Re-reading one ruledata document instead of all of them is the
+ * whole value: a full table run scans pages for every recipe there is.
  */
 const ENTRY_SOURCES = [
   { key: "Monsters", type: "Actor", refill: null, entries: () => actorEntriesAcrossBooks().rows.map((r) => [r.id, r.entry]) },
@@ -1806,6 +1815,20 @@ const ENTRY_SOURCES = [
   { key: "Traps", type: "Item", refill: "importTraps", entries: () => [...trapEntries()] },
   { key: "Variations", type: "Item", refill: "importVariations", entries: () => [...variationEntries()] },
   { key: "Vehicles", type: "Actor", refill: "importVehicles", entries: () => [...vehicleEntries()] },
+  {
+    key: "Tables",
+    type: null,
+    idsRefill: "cookbookImportTables",
+    // A ruledata document's row names the document and cites the pages its
+    // recipes read; the tables under it are not offered separately because the
+    // store's unit is the document, which is what a merge writes.
+    entries: () =>
+      Object.entries(TABLE_RECIPES).map(([docId, rec]) => [
+        docId,
+        { name: docId, cite: rec.source?.pages ?? "" },
+      ]),
+    present: (docId) => hasDoc(docId),
+  },
 ];
 
 /** The cookbook id an imported document claims, or "" when it claims none. */
@@ -1919,19 +1942,23 @@ export async function cookbookReimportEntries() {
     if (!entries.length) return "";
     total += entries.length;
     const group = game.i18n.localize(`${LANG_PREFIX}.ui.reimportKind${src.key}`);
+    // A source that is not documents answers for its own presence — the claim
+    // index is built from document flags and knows nothing about the ruledata
+    // store.
+    const held = (id) => (src.present ? src.present(id) : have.has(id));
     const rows = entries
       .map(([id, e]) => {
         const name = e?.name ?? id;
         const searchable = `${name} ${id} ${group}`.toLowerCase();
-        return `<label class="acks-extras-importer-browse-row" data-name="${esc(searchable)}" data-have="${have.has(id) ? 1 : 0}">
+        return `<label class="acks-extras-importer-browse-row" data-name="${esc(searchable)}" data-have="${held(id) ? 1 : 0}">
           <input type="checkbox" name="sel" value="${esc(`${src.key}|${id}`)}">
           <span>${esc(name)}</span>
           <span class="acks-extras-importer-marks">${
-            have.has(id)
+            held(id)
               ? `<i class="fa-solid fa-check" data-tooltip="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.cookbookPresent`))}"></i>`
               : ""
           }</span>
-          <span class="acks-extras-importer-cite">${esc(id)}</span>
+          <span class="acks-extras-importer-cite">${esc(e?.cite ? `${id} · ${e.cite}` : id)}</span>
         </label>`;
       })
       .join("");
@@ -1999,7 +2026,7 @@ async function runEntryReimport(picked) {
   const doomed = { Actor: [], Item: [] };
   for (const [key, ids] of byKey) {
     const src = ENTRY_SOURCES.find((s) => s.key === key);
-    if (!src) continue;
+    if (!src?.type) continue; // a source that is not documents has nothing to delete
     for (const doc of docs[src.type]) {
       if (doc.flags?.[MODULE_ID]?.templatePart) continue;
       if (ids.some((id) => claimsEntry(doc, id))) doomed[src.type].push(doc);
@@ -2031,6 +2058,15 @@ async function runEntryReimport(picked) {
     ),
   ];
   for (const run of runs) refill[run] = (await api()[run]()) ?? null;
+
+  // Sources whose run takes the picked ids. Rules tables are the only one:
+  // nothing was deleted for them, and re-reading the whole set would scan
+  // pages for every recipe there is.
+  for (const [key, ids] of byKey) {
+    const src = ENTRY_SOURCES.find((s) => s.key === key);
+    if (!src?.idsRefill) continue;
+    refill[src.idsRefill] = (await api()[src.idsRefill](ids)) ?? null;
+  }
 
   ui.notifications.info(
     game.i18n.format(`${LANG_PREFIX}.ui.reimportEntriesDone`, { n: picked.length, removed: removing }),

@@ -1036,8 +1036,12 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
  * books into the world, via the acks-lib ruledata-import contract. GM-only
  * (it writes world data). Sibling modules (acks-henchmen) read the result from
  * acksLib.tables; markets, wages and hiring light up as coverage grows.
+ *
+ * @param {string[]} [only] ruledata document ids to read; omitted, every one.
+ *        A full run locates pages for all 138 recipes, so re-reading ONE
+ *        document is the difference between seconds and minutes.
  */
-async function cookbookImportTables() {
+async function cookbookImportTables(only = null) {
   if (!game.user.isGM) {
     ui.notifications.warn(game.i18n.localize(`${LANG_PREFIX}.tables.gmOnly`));
     return null;
@@ -1047,9 +1051,9 @@ async function cookbookImportTables() {
     return null;
   }
   let report;
-  const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressTables`), tableRecipeCount());
+  const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressTables`), tableRecipeCount(only));
   try {
-    report = await importTables(sessionDocs, { onProgress: (name) => bar.step(name) });
+    report = await importTables(sessionDocs, { onProgress: (name) => bar.step(name), only });
   } catch (err) {
     ui.notifications.error(`${MODULE_ID} | ${err.message}`);
     return null;

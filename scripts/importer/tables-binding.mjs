@@ -43,11 +43,18 @@ async function locatePage(doc, recipe) {
 }
 
 /**
- * How many table recipes a full run works through — the denominator a caller
- * needs to draw a progress bar, without it having to know the recipe shape.
+ * How many table recipes a run works through — the denominator a caller needs
+ * to draw a progress bar, without it having to know the recipe shape.
+ *
+ * @param {string[]|Set<string>} [only] ruledata document ids; omitted, every one.
  */
-export const tableRecipeCount = () =>
-  Object.values(TABLE_RECIPES).reduce((n, doc) => n + Object.keys(doc.tables).length, 0);
+export const tableRecipeCount = (only = null) => {
+  const pick = only ? new Set(only) : null;
+  return Object.entries(TABLE_RECIPES).reduce(
+    (n, [docId, doc]) => (pick && !pick.has(docId) ? n : n + Object.keys(doc.tables).length),
+    0,
+  );
+};
 
 /**
  * @param {Map} sessionDocs - bookId → { doc } for connected books
@@ -56,9 +63,13 @@ export const tableRecipeCount = () =>
  * @param {(name: string) => void} [options.onProgress] - called once per recipe,
  *        found or not: locating a table scans pages until it hits, so a full run
  *        is minutes and the caller is the one holding the progress bar.
+ * @param {string[]|Set<string>} [options.only] - ruledata document ids to read;
+ *        omitted, every one. A subset is what makes re-reading ONE document
+ *        affordable — a full run scans pages for every recipe there is.
  * @returns {Promise<{imported, missingBooks, missingTables}>}
  */
-export async function importTables(sessionDocs, { priority, onProgress } = {}) {
+export async function importTables(sessionDocs, { priority, onProgress, only = null } = {}) {
+  const pick = only ? new Set(only) : null;
   const svc = services.get("ruledata-import");
   if (!svc) {
     throw new Error(`${MODULE_ID}: no ruledata-import provider — enable acks-location (the table host).`);
@@ -121,6 +132,7 @@ export async function importTables(sessionDocs, { priority, onProgress } = {}) {
   };
 
   for (const [docId, docRec] of Object.entries(TABLE_RECIPES)) {
+    if (pick && !pick.has(docId)) continue;
     const fresh = {};
     for (const [tableId, recipe] of Object.entries(docRec.tables)) {
       // Every path out of this body — imported, book missing, page not found,
