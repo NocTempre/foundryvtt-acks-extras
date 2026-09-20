@@ -25,6 +25,7 @@ sibling modules) — never the import path for this module's own features.
 | `util.mjs` | `makeLoc` / `toNum` / `gmIds` / `isPrimaryGM` / `libStorage` / `announceChange` / `ownsSheet` / `typeScale` + `atTypeScale` / `unset` + `isUnset` — the helpers every feature used to copy, the one predicate that tells a sheet this module draws from the system's, the JS twin of `--acks-extras-k` for a window whose opening size is a design-canvas figure, and the one spelling of a forced deletion in an update. |
 | `a11y.mjs` | `associateLabels` — every caption in EVERY rendered window (this module's, the system's, Foundry's) bound to the control it fronts, with an id seeded from that window's own root id. The ONE answer to "a `<label>` that names nothing"; never write a literal `id=` in a `.hbs` instead, two copies of one sheet collide. |
 | `world-time.mjs` | The one switch deciding whether this module writes `game.time`. |
+| `sheet-claim.mjs` | This module's sub-types open on this module's sheets: takes the default back from a stored `core.sheetClasses` pin (which outranks every later `makeDefault`, permanently), clears that pin once as GM, and stands a partial under the name the system's item sheet builds from a type so a foreign sheet degrades to a note instead of a thrown render. Imported LAST from `scripts/module.mjs`. |
 | `module.mjs` | The barrel + patch layer: builds `acksExtras.lib`, registers settings, sub-types and patches. Import FROM the individual files, not from here. |
 
 ## Reading actors & items

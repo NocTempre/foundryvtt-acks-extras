@@ -1,5 +1,29 @@
 # Changelog
 
+## 8.0.2
+
+### Fixed
+
+- **A type this module defines opens on this module's sheet, whatever a world
+  has stored.** Traps, classes, races and variations refused to open in some
+  worlds: the window never appeared and the console reported a missing template
+  named after the type. A world remembers which sheet each type opens on, and a
+  remembered choice outranks every later claim a module makes — so a world that
+  once recorded the system's sheet for one of these types kept opening it, and
+  that sheet has no way to draw a type it does not define. Each of these types
+  now takes its own sheet back when it loads, on every seat, and the remembered
+  choice that cannot work is cleared once. Choosing between sheets still works
+  from any sheet's own configuration, and a single document deliberately set to
+  the system's sheet is left alone — it now opens on a note pointing at its own
+  sheet instead of failing to open at all.
+- **A look setting changes how a window is drawn, never whether it opens.**
+  Choosing the ACKS core interface preset silently handed traps, classes,
+  races, variations and stored attitudes to the system's item sheet, which has
+  no way to draw a type it does not define — so those items stopped opening
+  entirely for as long as the preset was set. These types now stay on their own
+  sheets under every preset; every other type follows the preset exactly as
+  before.
+
 ## 8.0.1
 
 ### Fixed

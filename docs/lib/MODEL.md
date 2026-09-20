@@ -317,7 +317,16 @@ which were all queued at import time — and again on every client when the
 preset changes, closing and forgetting open world sheets the way core does after
 Configure Default Sheets. Two things outrank it, both a Judge's explicit act
 through Foundry's UI: a type pinned in `core.sheetClasses`, and a document's
-`core.sheetClass` flag. Applying a preset — from the prompt, or by changing
+`core.sheetClass` flag.
+
+One kind of type is outside the ladder's reach in the other direction: a
+sub-type this module DEFINES (`acks-extras.*`) tries this module's rung only,
+whatever the preset names. The system registers its item sheet for every Item
+type, but it builds a type's details partial from the type's own name, so it
+throws on a type it does not define — a preset would trade a different look for
+a window that never opens. [sheet-claim.mjs](../../scripts/lib/sheet-claim.mjs)
+holds the other half: the same types take their default back at ready where a
+stored pin has it, since a stored default outranks every later registration. Applying a preset — from the prompt, or by changing
 the setting through Configure Settings, whose `onChange` performs the same
 drop on the primary GM — drops the pins that name a ladder sheet so the
 ladder governs again, and leaves a third-party pin standing; a type whose

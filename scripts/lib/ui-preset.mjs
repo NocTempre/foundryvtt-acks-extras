@@ -88,7 +88,7 @@ export function applySheetLadder(preset = uiPreset()) {
       const sheets = sheetsOf(entries);
       const key = `${doc}:${type}`;
       if (!declared.has(key)) declared.set(key, declaredDefaults(sheets));
-      const id = chooseDefault(sheets, preset, declared.get(key));
+      const id = chooseDefault(sheets, preset, declared.get(key), type);
       if (!id || entries[id].default) continue;
       for (const [eid, e] of Object.entries(entries)) e.default = eid === id;
       moved.add(doc);

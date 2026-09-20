@@ -506,6 +506,7 @@
   "ACKS-LIB.followerCard.slotsUsed": "Spell slots used / max, per level. Memorize, cast, and reset on the full sheet.",
   "ACKS-LIB.followerCard.casterNoSlots": "caster — spell page on the full sheet",
   "ACKS-LIB.followerCard.noFullSheet": "No full sheet is registered for this actor type.",
+  "ACKS-LIB.sheetClaim.foreignDetails": "This type's fields are on its own sheet. Pick it under this window's sheet configuration to edit them.",
   "ACKS-LIB.sheet.useCard": "Use Follower Card sheet",
   "ACKS-LIB.sheet.useFull": "Use full sheet",
   "ACKS-LIB.followerCard.equipToggle": "Equip / unequip",

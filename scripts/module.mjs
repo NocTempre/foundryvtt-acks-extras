@@ -44,6 +44,11 @@
  *              tables registry, the class builder, the sub-types, the ability
  *              model) and nothing consumes it except through the
  *              `ability-provider` service, which is looked up at call time.
+ *
+ * `lib/sheet-claim.mjs` is imported after all of them, and is the one entry
+ * here whose position is load-bearing at RUNTIME rather than at import: it
+ * takes back the default sheet for this module's sub-types, and has to run
+ * after every ready-time sheet registration above it.
  */
 import "./lib/module.mjs";
 import "./abilities/module.mjs";
@@ -61,3 +66,4 @@ import "./vehicles/module.mjs";
 import "./character-sheet/module.mjs";
 import "./bridge/module.mjs";
 import "./importer/module.mjs";
+import "./lib/sheet-claim.mjs";

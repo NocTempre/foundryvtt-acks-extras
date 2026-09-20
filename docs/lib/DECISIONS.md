@@ -7,6 +7,48 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-09-20 — a sub-type reclaims its own sheet at ready, because a stored
+  default outranks `makeDefault` forever.** A field report showed traps,
+  classes, races and variations refusing to open, with
+  `details-acks-extras.<type>.hbs could not be found` thrown out of the
+  system's item sheet. Reproduced exactly by writing
+  `core.sheetClasses.Item["acks-extras.race"] = "acks.G"` into a world and
+  reloading: Foundry's `DocumentSheetConfig.#registerSheet` reads that setting
+  and uses the stored id *instead of* the registration's own `makeDefault`, for
+  that registration and every later one, so re-registering can never win. The
+  system claims every Item type (`registerSheet("acks", …)` with no `types`),
+  which is what a world records when its default sheets are saved while a
+  sub-type resolves to it.
+
+  Ruled: for a sub-type this module defines, a foreign sheet is never a
+  preference — the system builds its details partial from the document's type,
+  and no such file exists outside the module that defines the type, so the
+  render throws and the window never opens. The default is therefore taken back
+  in memory on EVERY seat (a player repairs without waiting for a GM), and the
+  stored pin is deleted once by the primary GM so the configuration window
+  agrees with what opens. Only this module's sub-types, and only where the
+  stored id is not this module's: a GM choosing between two of our sheets keeps
+  that choice.
+
+  Rejected: re-registering the sheet at ready (the setting outranks it — this
+  is the same trap `lib/module.mjs` already works around for the Follower
+  Card), and clearing the whole `core.sheetClasses` setting (it holds every
+  other type's choice too). Cost: a per-document `core.sheetClass` flag is
+  deliberately left standing, so that one route to a foreign sheet remains —
+  which is why a fallback partial is registered under the name the system's
+  sheet asks for, turning the thrown render into a note.
+
+  **The likelier cause needed no stored pin at all**, and was found while
+  writing the above: this module's own default-sheet ladder hands every type to
+  the preferred rung, and under the `acksCore` preset that is the system's
+  sheet — for `acks-extras.*` sub-types too, since the system registers its item
+  sheet with no `types` and so claims all of them. Measured live: applying the
+  core preset moved all five sub-types to `acks.G`, and each then threw on
+  open. So the ladder itself is where the rule belongs — a module-defined
+  sub-type tries this module's rung only, whatever the preset says — and the
+  preset keeps its say over every type this module did not define. A preset
+  chooses a look; it may not choose a window that cannot open.
+
 - **2026-09-19 — the type ratio is a registered property, so a broken chain
   floors at 1 instead of unsizing the window.** A field report showed a
   character sheet whose class emblem and portrait were drawn at their files'

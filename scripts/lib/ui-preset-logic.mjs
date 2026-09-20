@@ -8,7 +8,11 @@
  * extras, then the system, then Foundry — so a type is never left without a
  * sheet. Foundry registers no Actor or Item sheet of its own, so on those the
  * `foundry` rung is empty and the ladder lands on this module's.
+ *
+ * One kind of type is outside the preset's reach: a sub-type this module
+ * DEFINES. The preset moves the look, never the ability to open the window.
  */
+import { MODULE_ID } from "./constants.mjs";
 
 /** The three presets, as the world setting stores them. */
 export const UI_PRESET = Object.freeze({ foundry: "foundry", core: "acksCore", extras: "acksExtras" });
@@ -46,14 +50,19 @@ export function rungOrder(preset) {
  * @param {Record<string, string>} [declared] each rung's own declared default —
  *   the id that carried the flag when the rung registered — so a rung holding
  *   several sheets keeps its own choice after the flag has moved elsewhere.
+ * @param {string} [type] the document sub-type being flagged. A sub-type this
+ *   module defines tries this module's rung ONLY: the system's item sheet
+ *   builds its details partial from the document's type, so it throws on a type
+ *   it does not define, and no preset may choose a sheet that cannot open.
  * @returns {string|null} the id to flag, or null when the ladder has no say: no
  *   ladder sheet is registered, or the current default belongs to a scope
  *   outside the ladder (a third-party sheet that made itself default stands).
  */
-export function chooseDefault(sheets, preset, declared = {}) {
+export function chooseDefault(sheets, preset, declared = {}, type = "") {
   const current = sheets.find((s) => s.default);
   if (current && !current.rung) return null;
-  for (const rung of rungOrder(preset)) {
+  const owned = typeof type === "string" && type.startsWith(`${MODULE_ID}.`);
+  for (const rung of owned ? [RUNG.extras] : rungOrder(preset)) {
     const candidates = sheets.filter((s) => s.rung === rung && s.canBeDefault !== false);
     if (!candidates.length) continue;
     const own = candidates.find((s) => s.id === declared[rung]) ?? candidates.find((s) => s.default);

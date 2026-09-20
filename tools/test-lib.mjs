@@ -1938,6 +1938,22 @@ t("chooseDefault falls through to a rung with a sheet, keeps a rung's own choice
   assert.equal(chooseDefault([], UI_PRESET.extras), null);
 });
 
+t("a sub-type this module defines stays on this module's sheet under every preset", () => {
+  // The system registers its item sheet for EVERY Item type, this module's
+  // sub-types included, so without the type the core preset picks it — and it
+  // throws on a type it has no details partial for, which is a window that
+  // never opens rather than a different-looking one.
+  const trap = [
+    { id: "acks.AcksItemSheetV2", rung: "core", default: false },
+    { id: "acks-extras.TrapSheet", rung: "extras", default: true },
+  ];
+  for (const p of Object.values(UI_PRESET)) {
+    assert.equal(chooseDefault(trap, p, {}, "acks-extras.trap"), "acks-extras.TrapSheet");
+  }
+  // A system type is untouched by the rule and still follows the preset.
+  assert.equal(chooseDefault(trap, UI_PRESET.core, {}, "weapon"), "acks.AcksItemSheetV2");
+});
+
 t("hdFormula writes the rating as core's roll formula, and monsterHd reads it back", () => {
   assert.equal(hdFormula({ count: 2, dieType: 8 }), "2d8");
   assert.equal(hdFormula({ count: 3, dieType: 8, bonus: 1 }), "3d8+1");

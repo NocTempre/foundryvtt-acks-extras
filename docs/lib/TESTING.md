@@ -479,6 +479,43 @@ is replaced rather than only on first render.
 **Teardown.** Sweep the trap, vehicle, location and class items and the actors
 by uuid.
 
+## A sub-type opens on this module's sheet, not the system's
+
+The failure this covers is invisible offline and permanent in a world once it
+starts: a stored default outranks `makeDefault` for every later registration,
+so re-registering the sheet proves nothing about the worlds that are broken.
+
+**Fixtures.** One disposable item of each sub-type this module defines
+(`acks-extras.trap`, `.class`, `.race`, `.variation`, `.attitude`).
+
+1. **Build the broken world on purpose.** As GM, merge a pin into the world's
+   own setting — `core.sheetClasses` — naming the SYSTEM's sheet id for two of
+   the sub-types, then reload the page. Read the id out of
+   `CONFIG.Item.sheetClasses[type]` rather than typing it: the system's classes
+   are minified, so it is `acks.G` in one release and something else in the
+   next. Before the fix, opening either item throws
+   `The partial systems/acks/templates/items/v2/details/details-<type>.hbs
+   could not be found` and no window appears — that throw IS the reproduction.
+2. **Observable after reload:** every `acks-extras.*` entry in
+   `CONFIG.Item.sheetClasses` carries the `default` flag on this module's own
+   sheet, `game.settings.get("core","sheetClasses").Item` no longer holds any
+   `acks-extras.*` key, and each fixture opens on its own sheet class
+   (`TrapSheet`, `ClassSheet`, `RaceSheet`, `VariationSheet`, `AttitudeSheet`).
+   The setting write is its own cleanup: the repair deletes exactly the keys
+   the step added.
+3. **A single document pinned by hand is left standing.**
+   `item.setFlag("core","sheetClass", <system id>)`, null its `_sheet`, and
+   open it. The system's sheet renders — no throw — and its description tab
+   carries one `.hint` line pointing at the type's own sheet. This is the
+   fallback partial; without it this is the same thrown render as step 1.
+4. **A player seat repairs itself.** Join as Player with the pin in place and
+   confirm the same defaults: the reclaim is per client and must not wait for
+   a GM. Only the pin's removal is the GM's.
+
+**Teardown.** Delete the fixture items by id. Confirm
+`game.settings.get("core","sheetClasses").Item` is back to the shape it had
+before step 1.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.
