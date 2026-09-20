@@ -1,5 +1,25 @@
 # Changelog
 
+## 8.0.1
+
+### Fixed
+
+- **A sheet draws at its design size even when the type knob cannot be read.**
+  Opening a henchman's full sheet from their card sometimes gave a window
+  several hundred pixels of portrait: the class emblem filled the title band,
+  the picture filled the sheet, and every ability icon under it was drawn at
+  whatever size its file happened to be. Every figure on the character and item
+  sheets is the design's own measurement times the ACKS font size, and until now
+  a ratio that failed to arrive took the measurement down with it — a box with
+  no size shows a picture at the picture's own dimensions. The ratio now falls
+  back to 1 where it cannot be read, so the worst case is a sheet that ignores
+  the font-size setting rather than one that bursts. The setting itself is
+  unchanged and still scales both sheets.
+- **"Full sheet" raises the sheet it already opened.** Pressing it a second time
+  built a second copy over the same window, and the two then traded the title
+  band between them — one window kept the sheet and the other kept rendering
+  underneath it with no band at all.
+
 ## 8.0.0
 
 **A settlement arrives whole: its quarters, its keyed places, its map, and the

@@ -19,7 +19,24 @@
  * `calc(<length> / 14)` is a length, and multiplying a px by a px yields an
  * area — invalid at computed-value time, which makes the declaration fall back
  * to its inherited value rather than fail visibly.
+ *
+ * The ratio is REGISTERED, and the registration is the load-bearing part: an
+ * unregistered custom property that fails to resolve — the class missing from
+ * a window root, a base size that is not a length — computes to the
+ * guaranteed-invalid value, and every `calc(<px> * var(…))` that reads it is
+ * invalid in turn, so each width and height on a design-canvas sheet falls to
+ * `auto`. A box with no size renders its image at the image's own pixel
+ * dimensions: a 512px portrait draws 512px wide and the window grows around
+ * it. Typed, the same failure lands on `initial-value` instead and the sheet
+ * draws at its design size — the CSS twin of `typeScale()`, which answers 1
+ * before the setting exists.
  */
+@property --acks-extras-k {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
 .acks-extras {
   --acks-extras-k: calc(var(--acks-fs-base, 14px) / 14px);
 }

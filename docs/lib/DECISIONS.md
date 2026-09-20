@@ -7,6 +7,47 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-09-19 — the type ratio is a registered property, so a broken chain
+  floors at 1 instead of unsizing the window.** A field report showed a
+  character sheet whose class emblem and portrait were drawn at their files'
+  own pixel dimensions, the title band grown to match. Reproduced by
+  withholding `--acks-extras-k` from a live sheet root: the art box measured
+  257×257 against a 202px design and the emblem 256×256 against 22px, while
+  type and colour stayed plausible, which is why the failure reads as "the
+  images are wrong" rather than "the sheet lost its geometry". The chain is
+  three deep — `--acks-extras-art` → `--acks-extras-k` → `--acks-fs-base` — and
+  an unregistered custom property that fails anywhere along it computes to the
+  guaranteed-invalid value, so each `calc(<px> * var(…))` is invalid and every
+  width and height on a design-canvas sheet falls to `auto`. `@property` with
+  `syntax: "<number>"` and `initial-value: 1` lands that failure on the initial
+  value instead. Both design-canvas sheets are covered by the one registration:
+  307 sites read the ratio and none of them changed.
+
+  **The trigger was not identified**, and the fix is deliberately independent
+  of it. Not reproduced through the card's expand button, the card's own link,
+  the directory's "Use full sheet", the fold chevron, the followers tab, or any
+  combination of preset, look, theme, density and font size. What is settled is
+  what the symptom IS; a guard that answers the whole class of cause is worth
+  more than continuing to hunt one instance of it.
+
+  **Rejected: publishing the ratio at `:root` as well as on `.acks-extras`.**
+  It answers only the missing-class half. A declaration that is invalid at
+  computed-value time does not fall back to the previous cascade level — it
+  becomes guaranteed-invalid — so a `:root` twin leaves the other half open.
+
+  **Rejected: a literal fallback at each of the 307 sites.** Mechanical, and it
+  restates every design figure a second time inside its own `var()`. The
+  registration states the floor once, where the ratio is defined.
+
+- **2026-09-19 — "Full sheet" raises the window it already opened.** Two
+  instances of one sheet class over one document carry the same frame id, and
+  ApplicationV2 inserts by replacing the node already holding that id. The
+  second press therefore stranded the first instance: it kept rendering into a
+  node nobody sees, and the title band — which the character sheet relocates
+  into the window header after render — ended up in one window while the sheet
+  stayed in the other. Three presses left a band-less window behind the live
+  one. The card now looks through `actor.apps` for that class before building.
+
 - **2026-09-07 — a caption is bound to its control at render, and a summary
   holds nothing clickable.** Chrome's Issues panel reported three classes
   against a running world: a control inside `<summary>`, a form field with

@@ -120,6 +120,13 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
    * Preferring the registry's `default` cannot express that — once the card holds
    * that title for a type, no other entry claims it, and the choice decays to
    * registration order.
+   *
+   * A window already showing that sheet is raised rather than rebuilt. Two
+   * instances of one sheet class over one document carry the same frame id, so
+   * the second render REPLACES the first's element in the DOM and strands the
+   * first: it keeps rendering into a node nobody sees, and the parts each sheet
+   * relocates — the title band into the window header — end up split between
+   * the live window and the stranded one.
    */
   #openFull() {
     const entries = Object.entries(CONFIG.Actor?.sheetClasses?.[this.actor.type] ?? {})
@@ -132,6 +139,12 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       null;
     if (!full) {
       ui.notifications.warn(game.i18n.localize("ACKS-LIB.followerCard.noFullSheet"));
+      return;
+    }
+    const open = Object.values(this.actor.apps ?? {}).find((app) => app.constructor === full);
+    if (open) {
+      open.render(true);
+      open.bringToFront?.();
       return;
     }
     new full({ document: this.actor }).render(true);

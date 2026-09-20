@@ -102,6 +102,25 @@ report the same symptom.
    *Observable:* `FollowerCardSheet` renders as the compact card, and its
    **Full sheet** control (`data-action="fcOpenFull"`) opens `FullMonsterSheet`
    beside it.
+   The card as a RETAINER's own sheet is reached without the context menu:
+   `actor.setFlag("core","sheetClass","acks-extras.FollowerCardSheet")` with
+   `actor._sheet = null` on either side of the write, since `ClientDocument#sheet`
+   memoizes. The expand control is injected into the header at render
+   (`.acks-lib-fc-expand`), not into the card body, so a body query for it finds
+   nothing and reads as a missing feature.
+   *Observable:* pressing it three times leaves **one**
+   `.acks-extras-character-sheet` in the document. A second window is the
+   frame-id collision — both copies answer to one id, and the survivor is the
+   one that rendered last.
+9a. Design-canvas geometry survives a ratio it cannot read. On an open character
+   sheet, `element.classList.remove("acks-extras")` — the one class that
+   publishes `--acks-extras-k`.
+   *Observable:* the art box stays 202×202 and the band emblem 22×22. Before the
+   ratio was registered these measured 257 and 256, the image's own dimensions,
+   and the window header grew to match. Re-add the class and confirm the knob
+   still moves both: `fontScale` 18 with the sheet **reopened** gives 260 and 28.
+   Reopening is the step — the ratio reaches a window at render, so changing the
+   setting under an open sheet leaves it at the size it opened with.
    The build strips are **character-only** — `profileStrips` returns nothing
    for a monster, so a monster card is the wrong fixture for checking pill
    styling and reads as "the strips are broken". Reach the card for a
