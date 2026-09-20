@@ -267,6 +267,54 @@ function companionOwns(actor, place) {
 }
 
 /**
+ * Is this place where the character is standing?
+ *
+ * The presence half of `depositReach` alone, without the claim half: the
+ * place's linked scene is one this character stands on, or its own token is
+ * within reach of where they stand.
+ *
+ * @param {object} [opts]
+ * @param {{mine: Map, placedOn: Map}} [opts.scan] one world token pass
+ *   (`reachScan`) shared across a sweep.
+ */
+export function standingAt(actor, place, { scan } = {}) {
+  if (!actor || !place) return false;
+  const spots = standingSpots(actor, scan);
+  const linked = sceneOfLocation(place);
+  if (linked) return spots.some((spot) => spot.scene.id === linked.id);
+  return spots.some((spot) => placeReachesSpot(place, spot));
+}
+
+/**
+ * Does a place holding nothing of this character's still belong on their list
+ * of places?
+ *
+ * A list needs empty places — otherwise there is nowhere to put the first
+ * thing — but it cannot use the deposit rule to pick them. Deposit answers a
+ * CLAIM as well as a presence ("a place you own is one you may bank at from
+ * anywhere"), and a claim is world-wide: every place a world leaves open to
+ * its players, and every place a companion owns, lands on every sheet at once.
+ * An imported city is dozens of them.
+ *
+ * So an empty place is listed on three grounds that are each about this
+ * character alone: their own vault, which is the bank column's replacement and
+ * has to be reachable before it holds anything; a place they PINNED, which is
+ * what pinning is for; and a place they are standing at right now. Everywhere
+ * they actually keep goods is listed regardless — that list is the character's
+ * own, not the world's.
+ *
+ * @param {object} [opts]
+ * @param {{mine: Map, placedOn: Map}} [opts.scan] one world token pass.
+ * @param {Set<string>} [opts.pinned] this character's pins, read once per sweep.
+ */
+export function listsWhenEmpty(actor, place, { scan, pinned } = {}) {
+  if (!actor || !place) return false;
+  if (storage()?.vaultOwnerUuid?.(place) === actor.uuid) return true;
+  if ((pinned ?? pinnedPlaces(actor)).has(place.uuid)) return true;
+  return standingAt(actor, place, { scan });
+}
+
+/**
  * Can this character leave something at this place, and if not, why not?
  *
  * The REASON is returned rather than a bare false, because the Storage tab

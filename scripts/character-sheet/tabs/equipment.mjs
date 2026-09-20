@@ -29,7 +29,7 @@ import { stoneLabel, gpLabel } from "../../equipment/item-sheet/format.mjs";
 import { isEquippable, isWorn, slotsOf, weight6Of, isGoods, isClothing, slotUse, STONE } from "../../lib/item-model.mjs";
 import { WEAR_SLOT_ORDER, WEAR_SLOTS, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { libStorage } from "../../lib/util.mjs";
-import { depositReach, ownersShare, pinnedPlaces, reachScan } from "../../location/reach.mjs";
+import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan } from "../../location/reach.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -285,14 +285,12 @@ export function buildEquipmentTab(actor) {
   // One token pass for every place on the tab (reach.mjs `reachScan`).
   const scan = reachScan(actor);
   const elsewhere = held.map(({ provider, items, coinGC }) => placeRow(actor, provider, items, coinGC, pinned.has(provider.uuid), scan));
-  // A place with nothing of this character's at it is listed when they can
-  // reach it, when the sheet pins it, or when THIS CHARACTER's owners own it.
-  // Ownership is asked of the actor and never of the client: `p.isOwner` is true
-  // of every document on a Judge's seat, so it would list the whole world on a
-  // player's sheet whenever a Judge opened it.
+  // A place with nothing of this character's at it is listed on the narrow
+  // rule (`reach.mjs` `listsWhenEmpty`): their vault, their pins, and where
+  // they are standing. Anything wider puts a whole imported city on the tab.
   for (const p of storage?.providers?.() ?? []) {
     if (elsewhere.some((e) => e.uuid === p.uuid)) continue;
-    if (ownersShare(actor, p) || pinned.has(p.uuid) || depositReach(actor, p, { scan }).can) {
+    if (listsWhenEmpty(actor, p, { scan, pinned })) {
       elsewhere.push(placeRow(actor, p, [], 0, pinned.has(p.uuid), scan));
     }
   }

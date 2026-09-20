@@ -74,7 +74,7 @@ globalThis.acksExtras.lib = {
   },
 };
 
-const { depositReach, reachablePlaces, reachScan, ownersShare } = await import("../scripts/location/reach.mjs");
+const { depositReach, reachablePlaces, reachScan, ownersShare, standingAt, listsWhenEmpty } = await import("../scripts/location/reach.mjs");
 const { placeUnderParty, placeReachesSpot, placeStandsOn } = await import("../scripts/location/here.mjs");
 const { LOCATION_TYPE, MODULE_ID, SCENE_LINK_FLAG } = await import("../scripts/location/constants.mjs");
 // `coinReach`'s actor-to-actor branch asks the same question these fixtures are
@@ -607,6 +607,65 @@ ok("ownersShare asks the users who own the CHARACTER, and only the place's defau
     "nor does a user who merely observes the character");
   assert.equal(ownersShare(null, makePlace("Mine", owned())), false);
   assert.equal(ownersShare(hero, null), false);
+});
+
+/* -------------------------------------------- */
+/*  What an EMPTY place is listed on            */
+/*  ------------------------------------------  */
+/*  Deposit answers a claim as well as a        */
+/*  presence, and a claim is world-wide: an     */
+/*  imported city listed dozens of empty places */
+/*  on every sheet at once.                     */
+
+ok("an empty place is listed where the character stands, and not merely where they may bank", () => {
+  const town = makeScene("Town Square");
+  const inn = makeScene("The Inn");
+  const hero = makeHero("Balas", owned());
+  const cart = makePlace("The Cart");
+  const mine = makePlace("The Warehouse", owned());
+  const commons = makePlace("The Common Granary", { ownership: { default: 3 } });
+  const innPlace = makePlace("The Inn");
+  linkScene(inn, innPlace);
+  drop(town, cart, { x: 500, y: 500 });
+  march(town, [hero], { x: 600, y: 600 });
+
+  assert.equal(listsWhenEmpty(hero, cart), true, "its token is beside the character");
+  assert.equal(listsWhenEmpty(hero, mine), false, "owning a place is not standing at it");
+  assert.equal(depositReach(hero, mine).can, true, "and deposit still allows it once it is listed");
+  assert.equal(listsWhenEmpty(hero, commons), false, "a place the world left open to everyone is not on every sheet");
+  assert.equal(listsWhenEmpty(hero, innPlace), false, "a linked map the character is not standing on");
+});
+
+ok("an empty place is listed when it is pinned, or when it is the character's own vault", () => {
+  const town = makeScene("Town Square");
+  const pins = [];
+  const hero = makeHero("Balas", { ownership: { [PLAYER]: 3 }, getFlag: (_ns, key) => (key === "places" ? pins : null) });
+  const bank = makePlace("A Rumoured Bank");
+  march(town, [hero]);
+  const vault = makePlace("Balas' Vault");
+  vault.vaultOwner = hero.uuid;
+
+  assert.equal(listsWhenEmpty(hero, bank), false, "nowhere near, unowned, unpinned");
+  pins.push(bank.uuid);
+  assert.equal(listsWhenEmpty(hero, bank), true, "pinning is what pinning is for");
+  assert.equal(listsWhenEmpty(hero, vault), true, "the vault has to be reachable before it holds anything");
+});
+
+ok("standingAt answers presence alone, and a shared scan does not change it", () => {
+  const town = makeScene("Town Square");
+  const hero = makeHero("Balas", owned());
+  const cart = makePlace("The Cart");
+  const far = makePlace("The Far Stall", owned());
+  drop(town, cart, { x: 500, y: 500 });
+  drop(town, far, { x: 3000, y: 3000 });
+  march(town, [hero], { x: 600, y: 600 });
+
+  const scan = reachScan(hero);
+  assert.equal(standingAt(hero, cart, { scan }), true);
+  assert.equal(standingAt(hero, cart), true);
+  assert.equal(standingAt(hero, far, { scan }), false, "the same map is not the same square");
+  assert.equal(standingAt(null, cart), false);
+  assert.equal(standingAt(hero, null), false);
 });
 
 ok("a missing actor or place is gone", () => {

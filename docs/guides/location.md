@@ -95,6 +95,14 @@ A character's own sheet lists the places their goods are, under **Kept
 elsewhere** on the Equipment tab, and each row says whether they can put
 something down there from where they are standing.
 
+The list is deliberately short. It holds **everywhere they actually keep
+something**, whatever else is true of it, plus **wherever they are standing
+right now**, their own vault, and any place they have **pinned**. A world with
+a whole imported city in it holds dozens of places nobody has ever left
+anything at, and none of them belong on a character sheet — so owning a place,
+or marching with someone who owns it, does not put it on the list by itself.
+Pin it while you are there and it stays.
+
 ![](../releases/v7.7.0/storage-reach.png)
 
 *The lockup is a cart in the street beside them, so the deposit arrow is

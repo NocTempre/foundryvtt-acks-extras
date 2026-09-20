@@ -11,6 +11,39 @@ tidy list of only the current answers.
 
 ---
 
+### A sheet LISTS a place it is standing at; reach decides only whether it accepts a deposit (2026-09-20)
+
+Field report: a world with a respectable number of location actors imported —
+an entire city's worth — turned the character sheet's *Kept elsewhere* section
+into dozens of rows holding nothing, and the Storage tab with it. The list of
+empty places was picked with the deposit rule, and that rule answers a CLAIM as
+well as a presence: a place you own, a place open to everyone, a place a
+companion owns. Every one of those is world-wide, so importing places added them
+to every sheet at once.
+
+Ruled (user): list a place the character **has goods at**, or one they are
+**standing at**. `listsWhenEmpty` (`reach.mjs`) is the rule, and it keeps two
+more grounds that are the character's own rather than the world's — their vault,
+which would otherwise vanish the moment it emptied and leave nowhere to bank the
+first coin, and a place they pinned, which is the list's manual control and the
+answer to "can this be edited by hand". Both sheets call the one predicate, so
+they cannot drift.
+
+Rejected: a per-sheet hide list. Pinning already exists and is the same gesture
+from the other end; a second, opposite list would have to be maintained against
+a world that keeps growing.
+
+Cost: a place you own but are nowhere near no longer appears on its own. Deposit
+still allows it — the reach rule is untouched — so pinning it once puts it back
+and keeps it there. That is the trade the report asked for. The pin control
+lives on the row, though, so a place has to be listed before it can be pinned:
+in practice you pin a warehouse while standing in it, and a place never visited
+is pinned through `acksExtras.location.reach.setPinnedPlace(actor, uuid)`. A pin
+control reachable from somewhere other than the row is ROADMAP work, not this
+fix.
+
+---
+
 ### Leaving something at a place needs reach; taking it back does not (2026-08-06)
 
 Storage offered a deposit control at every place the viewing user owned, so a

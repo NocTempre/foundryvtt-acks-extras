@@ -21,7 +21,7 @@
 import { makeLoc, libStorage as storage, ownsSheet } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, STORAGE_TAB_ID } from "../constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
-import { depositReach, ownersShare, pinnedPlaces, reachScan, setPinnedPlace } from "../reach.mjs";
+import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan, setPinnedPlace } from "../reach.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const ANCHOR_CLASS = "acks-location-storage-anchor";
@@ -65,20 +65,14 @@ function collect(actor) {
 
   const places = held.map(({ provider, items, coinGC }) => entry(provider, items, coinGC));
   // Places with nothing of yours at them yet still belong here — otherwise
-  // there is nowhere to put the first thing. Reachable ones, the ones pinned to
-  // this sheet (which is what pinning is FOR), and the ones THIS CHARACTER's
-  // owners own, listed with their refusal where reach says no. Ownership is
-  // asked of the actor and never of the client: `p.isOwner` is true of every
-  // document on a Judge's seat, which would list the whole world on a player's
-  // sheet whenever a Judge opened it.
+  // there is nowhere to put the first thing — but only on the narrow rule
+  // (`reach.mjs` `listsWhenEmpty`): this character's vault, their pins, and
+  // where they are standing. Each is listed with its refusal where reach
+  // says no.
   const pinned = pinnedPlaces(actor);
   const empty = api
     .providers()
-    .filter(
-      (p) =>
-        !places.some((e) => e.uuid === p.uuid) &&
-        (ownersShare(actor, p) || pinned.has(p.uuid) || depositReach(actor, p, { scan }).can),
-    )
+    .filter((p) => !places.some((e) => e.uuid === p.uuid) && listsWhenEmpty(actor, p, { scan, pinned }))
     .map((p) => entry(p, [], 0));
 
   return {

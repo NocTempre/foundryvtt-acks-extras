@@ -1,5 +1,20 @@
 # Changelog
 
+## 8.0.3
+
+### Fixed
+
+- **A character's places are the ones they keep things at and the one they are
+  standing in.** A world with many locations in it — an imported city, say —
+  filled *Kept elsewhere* on the inventory tab, and the Storage tab with it,
+  with dozens of places holding nothing. Anywhere a character actually keeps
+  goods is still listed, always. A place with nothing of theirs at it is now
+  listed only where they are standing right now, plus their own vault and any
+  place pinned to their sheet — the pin is the manual control, and pinning a
+  distant warehouse once keeps it on the list for good. Owning a place, or
+  travelling with someone who owns it, no longer puts it on the sheet by
+  itself; depositing there is unchanged once it is listed.
+
 ## 8.0.2
 
 ### Fixed

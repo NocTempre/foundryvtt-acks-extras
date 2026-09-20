@@ -79,6 +79,19 @@ surfaces that ask about every place at once and handed to each call. The rulings
 these follow, and what each cost, are in [DECISIONS.md](DECISIONS.md)
 (2026-09-12).
 
+## Which places a sheet LISTS
+
+Reach decides whether a place will accept a deposit; it does not decide what a
+sheet shows. Every place holding goods of this character's is listed, always. A
+place holding nothing of theirs is listed on three narrow grounds, each about
+this character alone (`listsWhenEmpty`): their own **vault**, which has to be
+reachable before it holds anything; a place they **pinned**, which is what
+pinning is for and is the list's manual control; and a place they are
+**standing at** right now (`standingAt` — the presence half of reach without
+the claim half). Ownership and a companion's ownership are deliberately not
+grounds: they are world-wide, so a world that leaves its places open puts every
+one of them on every sheet (see [DECISIONS.md](DECISIONS.md), 2026-09-20).
+
 ## A place on the map
 
 A place's own token is a **point of interest**: the shrine in the square, the

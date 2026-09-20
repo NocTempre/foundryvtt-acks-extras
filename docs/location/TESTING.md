@@ -55,6 +55,20 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   `Object.fromEntries(game.users.map((u) => [u.id, 0]))` — when a place is
   meant to be reachable only by standing beside it.
 
+- **What a sheet LISTS is a different question from what reach ALLOWS, and a
+  fixture built from the Judge's seat cannot tell them apart by reading
+  `canReach`.** The listing rule (`listsWhenEmpty`) ignores ownership, so an
+  empty fixture place the Judge created is absent from the list while
+  `depositReach` still says `can: true` about it from the row it is not in.
+  Probe the list itself: `buildEquipmentTab(actor).elsewhere` under
+  `await import("/modules/acks-extras/scripts/character-sheet/tabs/equipment.mjs")`
+  in page context returns exactly what the Equipment tab will draw, which is
+  reachable in a backgrounded pane where the rendered rows are awkward.
+- **`stash(source, provider, spec)` takes a LIST of item ids**
+  (`[item.id]`, or `[{id, quantity}]`), not an options bag. An object is read
+  as an empty iterable and throws `(spec ?? []) is not iterable` from
+  `readSpec` — which reads as a broken storage API rather than a wrong call.
+
 ## Steps
 
 1. Create the location and open it.
