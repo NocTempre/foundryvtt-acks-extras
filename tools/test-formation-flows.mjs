@@ -185,6 +185,9 @@ globalThis.Roll = class {
     this.total = 10;
     return this;
   }
+  async render() {
+    return `<div class="dice-roll">${this.total}</div>`;
+  }
 };
 const notices = [];
 globalThis.ui = {

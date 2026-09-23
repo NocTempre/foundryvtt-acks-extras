@@ -45,6 +45,7 @@ import {
   storageFlagOf,
 } from "./storage-logic.mjs";
 import { isGoods } from "./item-model.mjs";
+import { gmIds } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
 
 // Re-export the Foundry-free half so consumers reach it all through
@@ -512,7 +513,7 @@ export function registerStorageCleanup() {
       const returning = policy === "return";
       await ChatMessage.create({
         content: `<p><b>${loc(returning ? "storage.returnedTitle" : "storage.lostTitle", { place: doc.name })}</b></p><ul>${lines.join("")}</ul>`,
-        whisper: game.users.filter((u) => u.isGM).map((u) => u.id),
+        whisper: gmIds(),
       });
 
       for (const bucket of buckets.values()) {

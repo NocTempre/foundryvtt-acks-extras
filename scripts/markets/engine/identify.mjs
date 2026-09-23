@@ -16,6 +16,7 @@ import { RARITIES } from "../config.mjs";
 import { abilityRanks } from "./trade.mjs";
 import { getLevel } from "../../henchmen/acks-adapter.mjs";
 import { ITEM_TYPE, slug } from "../../lib/vocab.mjs";
+import { judgesAndOwners } from "../../lib/util.mjs";
 
 const flagOf = (item) => item.getFlag(MODULE_ID, ITEM_FLAG) ?? {};
 
@@ -171,10 +172,7 @@ export async function identifyAttempt(item, { identifier, method }) {
       : game.i18n.localize(`${LANG}.identify.failed`),
     spec.risky ? game.i18n.localize(`${LANG}.identify.riskNote`) : null,
   ].filter(Boolean);
-  const whisper = [
-    ...game.users.filter((u) => u.isGM).map((u) => u.id),
-    ...game.users.filter((u) => !u.isGM && item.actor?.testUserPermission(u, "OWNER")).map((u) => u.id),
-  ];
+  const whisper = judgesAndOwners(item.actor);
   await ChatMessage.create({
     content: `<div class="acks-extras-markets-receipt">${lines.join("<br>")}</div>`,
     whisper,

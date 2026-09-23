@@ -21,6 +21,7 @@ import {
 import { toGp } from "../rules/pricing.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
+import { judgesAndOwners } from "../../lib/util.mjs";
 import { optTable } from "../../henchmen/rules/tables.mjs";
 import { now } from "../../henchmen/time.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
@@ -34,10 +35,7 @@ const clone = (rows) => (rows ?? []).map((r) => r.toObject?.() ?? foundry.utils.
 
 /** Whispered card to the GM and an actor's owners. */
 async function postCard(actor, html) {
-  const whisper = [
-    ...game.users.filter((u) => u.isGM).map((u) => u.id),
-    ...game.users.filter((u) => !u.isGM && actor.testUserPermission(u, "OWNER")).map((u) => u.id),
-  ];
+  const whisper = judgesAndOwners(actor);
   await ChatMessage.create({
     content: `<div class="acks-extras-markets-receipt">${html}</div>`,
     whisper,

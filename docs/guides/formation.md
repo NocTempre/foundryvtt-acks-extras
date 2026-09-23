@@ -421,7 +421,8 @@ tokens. Players can never work one from the map at all.
 
 ### What happens when the party walks in
 
-All of it is whispered to you, including the times nothing happened.
+All of it is whispered to you, including the times nothing happened. A
+player's chat shows none of it, not even a line saying dice were rolled.
 
 There is nothing to press. Trap resolution fires on its own the moment the
 **party token** moves, with no prompt and no button — you are never asked to

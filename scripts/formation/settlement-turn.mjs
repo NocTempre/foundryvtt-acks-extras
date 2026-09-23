@@ -1,4 +1,4 @@
-/* global game, foundry, Roll, ChatMessage, fromUuid */
+/* global game, foundry, Roll, fromUuid */
 /**
  * A city turn, actually taken.
  *
@@ -8,7 +8,8 @@
  * tested without a world, and a thin caller that cannot.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
-import { makeLoc, gmIds } from "../lib/util.mjs";
+import { makeLoc } from "../lib/util.mjs";
+import { postToJudges } from "../lib/roll-audience.mjs";
 import { cookbookId } from "../lib/library.mjs";
 import { readFormations, patchFormation, realMembers } from "./formation-model.mjs";
 import { travelOf } from "./travel.mjs";
@@ -488,9 +489,8 @@ async function whisperStay(board, events, rolls, {
     lines.push(loc("settlement.card.undisturbed", { throws: owed.length }));
   }
 
-  await ChatMessage.create({
+  await postToJudges({
     speaker: { alias: loc("settlement.card.speaker") },
-    whisper: gmIds(),
     content: `<div class="acks-extras-settlement-card"><h3>${loc("settlement.card.stayTitle")}</h3>`
       + `<ul>${lines.map((l) => `<li>${l}</li>`).join("")}</ul></div>`,
     rolls,
@@ -629,12 +629,10 @@ async function whisperTurn(
     lines.push(loc("settlement.card.unpriced", { what: gap.what }));
   }
 
-  // The dice ride along, the way the stay card's already do: the totals are in
-  // the text for reading, and the Roll objects are what Dice So Nice and any
-  // roll-inspecting tool reach for.
-  await ChatMessage.create({
+  // The totals are in the text for reading; the dice show to the Judges
+  // through Dice So Nice and stay off the message.
+  await postToJudges({
     speaker: { alias: loc("settlement.card.speaker") },
-    whisper: gmIds(),
     content: `<div class="acks-extras-settlement-card"><h3>${loc("settlement.card.title")}</h3>`
       + `<ul>${lines.map((l) => `<li>${l}</li>`).join("")}</ul></div>`,
     rolls: rolls.filter(Boolean),

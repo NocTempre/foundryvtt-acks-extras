@@ -3,6 +3,7 @@ import { announceChange, makeLoc, gmIds } from "../lib/util.mjs";
 import { announceShift, tableLevel } from "./encounter-scaling.mjs";
 import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
+import { drawForJudges, postToJudges } from "../lib/roll-audience.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import {
   LIGHT_SOURCES,
@@ -185,8 +186,6 @@ export async function encounterCheck(formation, { manual = false, params = null 
 
   const messages = [
     {
-      whisper: gmIds(),
-      blind: false,
       rolls: [roll],
       flavor: content,
       speaker: { alias: formation.name },
@@ -197,7 +196,6 @@ export async function encounterCheck(formation, { manual = false, params = null 
     const distance = await new Roll("2d6*10").evaluate();
     const minute = await new Roll("1d10").evaluate();
     messages.push({
-      whisper: gmIds(),
       rolls: [distance, minute],
       flavor: `<div class="acks-formation-card encounter"><strong>${loc("chat.encounterTriggered")}</strong><br>${loc(
         "chat.encounterDetail",
@@ -215,13 +213,12 @@ export async function encounterCheck(formation, { manual = false, params = null 
     }
   }
 
-  for (const msg of messages) await ChatMessage.create(msg);
+  for (const msg of messages) await postToJudges(msg);
 
   if (encounter) {
     const table = await resolveEncounterTable(formation, zone);
     if (table) {
-      // v14: messageMode string key ("gm" = visible to GMs only)
-      await table.draw({ messageMode: "gm" });
+      await drawForJudges(table);
       // A monster met on the wrong floor comes in different numbers and in a
       // different mood. Only when BOTH levels are known — the zone's and the
       // table's — so nothing is scaled by a number nobody set.

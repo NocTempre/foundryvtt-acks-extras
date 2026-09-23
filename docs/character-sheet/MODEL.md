@@ -118,14 +118,19 @@ retainer); the two attack boxes, every weapon's modes (from the item sheet's
 own roll rows, wielded first and ringed), the unarmed strike when nothing is
 held, and the healing rate; the adventuring throws and every other ability's
 throws (the abilities feature's roller, one row per throw). The Adventuring
-proficiency itself lists no rows: its throws are the adventuring group's. The whole row is
-the button; the pin beside it stars the roll for the folded card. Row ids are
-stable (`save:death`, `wpn:<id>:atk:melee`, `abl:<id>:<key>`), and
-`rollById` dispatches each to the path that owns it: the system's actor
-methods, the item sheet's `rollById`, the abilities feature's `rollAbility`,
+proficiency itself lists no rows: its throws are the adventuring group's. Every
+other ability that makes no throw is a row under *Post to chat*, ending in an
+eye where a throw ends in a d20; clicking it posts the system's item card
+(`item.show()`). The whole row is the button; the pin beside it stars the roll
+for the folded card. Row ids are stable (`save:death`, `wpn:<id>:atk:melee`,
+`abl:<id>:<key>`, `post:<id>`; a post row is its own kind, so a throw added to
+the ability later cannot collide with it), and `rollById` dispatches each to
+the path that owns it: the system's actor methods, the item sheet's
+`rollById`, the abilities feature's `rollAbility`, the system's item card,
 the combat tracker for initiative when the character is a combatant, and a
 plain die with the character's own modifier for initiative outside combat
-and for surprise.
+and for surprise. A row passes its click event on, so the system's skip key
+skips the roll dialog from this tab as it does elsewhere.
 
 **Abilities** files proficiencies, powers and languages by the buckets the
 classes feature already uses for its category tabs, with a filter row when
@@ -258,7 +263,7 @@ The fold hides everything but the band (compact, no XP bar), the portrait and
 the rails, narrows the window to the card once the root carries `is-folded`
 (the open sheet's minimum width would otherwise clamp it), and puts a bar
 under the art row: the unfold chevron, then the starred rolls as quiet roll
-chips (the wielded one ringed), the starred timers as filling chips, the
+chips (the wielded one ringed; a post row's chip carries the eye), the starred timers as filling chips, the
 starred counts with their number. The fold state is a user flag keyed by
 actor id, written as an explicit true or false because `setFlag` merges; the
 pins are the actor's sheet flag for rolls no item owns and for timers and

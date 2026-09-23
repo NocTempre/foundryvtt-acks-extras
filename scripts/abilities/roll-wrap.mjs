@@ -20,7 +20,9 @@ import { rollAbility, rollsOf, keyOf, defaultKeyOf, throwText } from "./ability-
 import { THROW_TAG_CLASS, THROW_DEFAULT_CLASS } from "./sheet-rolls.mjs";
 
 /**
- * Route an ability's roll through the multi-roll roller.
+ * Route an ability's roll through the multi-roll roller, with the gesture that
+ * asked: core's sheet sends `skipDialog`, the chat card's button its `event`,
+ * and `item.use()` neither, which shows the dialog.
  *
  * An ability with no throw shows its card instead of rolling. Core's own
  * "no roll, so show it" branch in `use()` tests `system.roll`, which defaults
@@ -32,7 +34,7 @@ async function onRollFormula(wrapped, options = {}) {
   const rolls = rollsOf(this);
   if (!rolls.length) return this.show();
 
-  return rollAbility(this, options.key);
+  return rollAbility(this, options.key, { event: options.event, skipDialog: options.skipDialog });
 }
 
 /**

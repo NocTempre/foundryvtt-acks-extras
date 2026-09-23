@@ -40,6 +40,7 @@ import * as adapter from "../acks-adapter.mjs";
 import { registerHandler } from "../../lib/sockets.mjs";
 import { now, secondsPerMonth, calendarMonthStart, sameMarketMonth } from "../time.mjs";
 import { postSlaveMarketCard } from "./slavery-market.mjs";
+import { postToJudges } from "../../lib/roll-audience.mjs";
 
 /** Foundry dice bridge for the pure rules functions. */
 export async function rollDice(formula) {
@@ -461,11 +462,10 @@ async function chargeWeeklyFee(location, employer, week = 1) {
   const roll = await new Roll(formula).evaluate();
   const gp = roll.total;
   // Show the fee as an actual roll so it never reads as a flat charge.
-  await ChatMessage.create({
+  await postToJudges({
     flavor: game.i18n.format("ACKS-HENCHMEN.fee.card", { name: location.name, week, formula }),
     rolls: [roll],
     speaker: ChatMessage.getSpeaker({ actor: employer ?? location }),
-    whisper: adapter.gmIds(),
   });
   let paid = false;
   if (employer) {

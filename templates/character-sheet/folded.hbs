@@ -5,8 +5,8 @@
     <i class="fa-solid fa-chevron-right" inert></i>
   </button>
   {{#each pins.rolls}}
-  <button type="button" class="acks-extras-character-sheet__pinchip is-roll{{#if eq}} is-eq{{/if}}" data-action="roll" data-roll="{{id}}" data-tooltip="{{value}}">
-    <i class="fa-solid fa-dice-d20" inert></i><span>{{label}}</span>
+  <button type="button" class="acks-extras-character-sheet__pinchip is-roll{{#if eq}} is-eq{{/if}}" data-action="roll" data-roll="{{id}}" data-tooltip="{{#if post}}{{localize 'ACKS-CHARACTER.rolls.post'}}{{else}}{{value}}{{/if}}">
+    <i class="fa-solid {{#if post}}fa-eye{{else}}fa-dice-d20{{/if}}" inert></i><span>{{label}}</span>
   </button>
   {{/each}}
   {{#each pins.timers}}

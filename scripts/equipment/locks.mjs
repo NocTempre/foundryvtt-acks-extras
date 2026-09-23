@@ -73,7 +73,8 @@ async function rollProficiency(actor, item) {
   const rolls = api.rollsOf?.(item) ?? [];
   if (!rolls.length) return { rolled: false, reason: "noThrow" };
 
-  const result = await api.rollAbility(item, rolls[0].key);
+  // Rolled without the dialog: this path reads the result to open the lock.
+  const result = await api.rollAbility(item, rolls[0].key, { skipDialog: true });
   // `success` is null when the target could not be resolved — a shared item, or
   // a ladder with no character behind it. Unknown is not failure.
   return { rolled: true, success: result?.success ?? null, total: result?.total ?? null };

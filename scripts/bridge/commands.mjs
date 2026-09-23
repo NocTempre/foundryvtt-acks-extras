@@ -34,6 +34,7 @@ import { rollInventory, rollById } from "../character-sheet/rolls.mjs";
 import { snapshotFrame } from "../character-sheet/snapshot.mjs";
 import { coinTotalGC } from "../lib/storage-logic.mjs";
 import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
+import { skipDialogKey } from "../lib/roll-dialog.mjs";
 
 /** The autocomplete cap a client can show at once; `characters` and `rolls` list past it only on request. */
 const LIST_CAP = 25;
@@ -91,14 +92,12 @@ function plain(value, depth = 4) {
   return out;
 }
 
-/** The synthetic event that makes core's rollers skip their dialog. */
+/**
+ * The synthetic event that makes every roller skip its dialog. Without the
+ * system's setting, Shift is core's own default.
+ */
 function skipEvent() {
-  let key = "shiftKey";
-  try {
-    key = game.settings.get("acks", "skip-dialog-key") || key;
-  } catch {
-    /* the setting is core's; without it Shift is core's own default */
-  }
+  const key = skipDialogKey() ?? "shiftKey";
   return { [key]: true, shiftKey: key === "shiftKey" };
 }
 

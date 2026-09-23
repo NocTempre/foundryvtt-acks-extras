@@ -14,6 +14,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
+import { gmIds } from "../lib/util.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.doors";
 
@@ -184,7 +185,7 @@ export function batterPlan(wall) {
 async function announce(wall, key, data) {
   await ChatMessage.create({
     content: `<p>${game.i18n.format(`${LANG_PREFIX}.${key}`, data)}</p>`,
-    whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
+    whisper: gmIds(),
   });
 }
 

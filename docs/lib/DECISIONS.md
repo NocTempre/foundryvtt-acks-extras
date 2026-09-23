@@ -2257,3 +2257,88 @@ and the rest arrive.
 edited, arrives as a second, loose stack instead of topping up the first. A
 bundle embedded before this change stays on its actor, unseen, until something
 opens it (ROADMAP, "Bundles already embedded").
+
+### One roll dialog, and the natural die on the card (2026-09-23)
+
+**Ruled.** Every roll this module asks about goes through one dialog,
+`roll-dialog.mjs` `rollDetailsDialog`: the attack card, which carried a private
+copy, and every ability throw, which asked nothing. The system's skip-dialog
+key skips it on every surface, read in one place (`skipDialogFor`). A
+situational modifier is a whole number written into the FORMULA as its own
+labelled term, and the ability card prints the natural die beside what was
+added to it (`auditLine`). An ability the system marks blind states its mode in
+the dialog instead of offering the select. A caller that acts on the result —
+the lock a throw opens, a bridge command — skips the dialog.
+**Rejected.**
+- *Folding the modifier into the target,* as standing modifiers are
+  (`withModifiers`). A table-side adjustment folded in leaves no trace on the
+  card, so nobody can say afterwards what the die showed and what the table
+  added.
+- *Dice expressions in the field.* A second dice term leaves no single natural
+  die for the audit line to state.
+- *The system's own roll dialog.* It opens inside the system's roll-and-post
+  path (`AcksDice.roll`), which posts the system's card; an ability card here is
+  this module's, and the system's `rollFormula` skips its dialog for abilities
+  regardless.
+
+**What it cost.** An ability throw asks before it rolls where a click used to
+roll at once, and a stored hotbar macro that reaches `rollFormula` asks too —
+the parity the system's own saves have; the skip key restores the single click.
+A throw that succeeds low adds the field to its dice, so a positive entry makes
+it harder; the field's hint says so on those throws.
+
+### Public results, private math (2026-09-23)
+
+**Ruled.** This module's attack card tells every reader whether the attack hit
+and how much damage it does. The throw, the bonuses, the target's Armor Class
+and both dice boxes are Foundry's secret section (`mathSection`), which the
+speaking actor's owners and the GMs read and every other reader's copy of the
+card omits. The player who rolled, or a GM, can reveal it to the table from the
+card. A world setting, `rollMath`, shows the math to every reader instead. This
+builds the minor the 2026-09-22 entry at the top of this file deferred ("hiding
+the breakdown from players"); it reverses nothing.
+
+World scope: who reads a monster's numbers is the Judge's call for the whole
+table, not each viewer's. The default is `owners` — the private math is what
+the ruling asked for — so an upgraded world's next attack card hides its math
+from every reader who does not own the attacker; a world that wants the old
+card chooses Everyone.
+**Rejected.**
+- *Two messages: a public result and a whisper carrying the math.* Twice the
+  chat entries per attack, a second Dice So Nice call and a second apply-damage
+  button, and a whisper that carries rolls puts a placeholder on every other
+  seat (next entry).
+- *A Reveal for every owner.* Revealing rewrites the message, which only its
+  author or a GM may do, so another owner's button would fail;
+  `installMathReveal` offers it to those two alone.
+- *The same split on ability cards.* The system's result template prints the
+  target in brackets beside the verdict, so withholding the target leaves an
+  empty pair on the card.
+
+**What it cost.** The math still travels inside the message every client
+receives, so a reader can find it from the console. This is table privacy, the
+standard of a journal's secret block, not anti-cheat. Cards posted before the
+upgrade keep the shape they were posted with.
+
+### A Judge-only card attaches no rolls (2026-09-23)
+
+**Ruled.** A card meant for the GMs alone goes through `postToJudges`, and a
+table drawn for them through `drawForJudges`: whispered to every GM with no
+rolls attached. Foundry counts a whispered message carrying rolls as visible to
+every seat and shows it there as a line saying its author privately rolled
+dice, so a card that attached its rolls told the table the Judge had just
+thrown for a trap, a search, a wandering monster or a hireling's secret throw.
+The dice go into the card's content where Foundry would have drawn them, and
+Dice So Nice is shown to the GMs explicitly (`showDice`). Every list of GM
+recipients is spelled `gmIds()`, and a receipt for the GMs and a document's
+owners `judgesAndOwners(doc)`.
+**Rejected.**
+- *Foundry's blind mode.* It hides the result from the roller, not the fact of
+  the roll from the table: a blind roll draws the same line on every seat.
+
+**What it cost.** A tool that reads a message's `rolls` finds none on these
+cards; their totals are in their text. The cards: traps, the party's
+listening and searching, obstacles, the encounter shift, the settlement turn
+and stay, the wandering-monster throw and its table draw, a hireling's secret
+throw, the weekly search fee, secret influence, sea throws and the sinking
+clock.

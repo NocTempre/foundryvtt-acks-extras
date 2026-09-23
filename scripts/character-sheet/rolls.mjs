@@ -15,7 +15,9 @@
  * Row ids are stable strings because the pinned rolls are stored by id:
  * `save:death`, `adv:climb`, `init`, `surprise:avoid`, `atk:melee`, `bhr`,
  * `unarmed`, `morale`, `loyalty`, `wpn:<itemId>:atk:<mode>` (the item sheet's
- * own row id after the item id), `abl:<itemId>:<key>`.
+ * own row id after the item id), `abl:<itemId>:<key>`, and `post:<itemId>` —
+ * an ability with no throw, which posts its card instead of rolling. Its own
+ * kind, so a throw added later can never take its id.
  */
 import { LANG, SAVE_KEYS, ADVENTURING_KEYS } from "./constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
@@ -29,17 +31,10 @@ import { damageTypeOf, damageTypeLabel } from "../lib/damage-type.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { saveSystemKey, saveLabel } from "./snapshot.mjs";
 import { isAdventuring } from "../classes/grants.mjs";
+import { skipDialogFor } from "../lib/roll-dialog.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
-const skipFor = (event) => {
-  try {
-    const key = game.settings.get("acks", "skip-dialog-key");
-    return !!(event && key && event[key]);
-  } catch {
-    return false;
-  }
-};
 
 /** Where a weapon is, as the line under its row. */
 function weaponState(actor, item, loadout) {
@@ -146,6 +141,14 @@ export function rollInventory(actor) {
   }
   if (profRows.length) groups.push({ key: "proficiencies", name: loc("rolls.group.proficiencies"), rows: profRows });
 
+  // Every ability with no throw, as a row that posts its card: a starred one
+  // reaches the folded card like any pinned roll, and an unstarred one stays
+  // here rather than vanishing when its star is cleared.
+  const postRows = actor.items
+    .filter((i) => i.type === ITEM_TYPE.ability && !isAdventuring(i) && !rollsOf(i).length)
+    .map((item) => row(`post:${item.id}`, item.name, "", { post: true, pinned: !!item.system?.favorite, item: item.id }));
+  if (postRows.length) groups.push({ key: "post", name: loc("rolls.group.post"), rows: postRows });
+
   if (sys.retainer?.enabled) {
     groups.push({
       key: "retainer",
@@ -199,7 +202,7 @@ export async function rollById(actor, id, { event } = {}) {
       return true;
     case "atk":
       // Core's own attack boxes: the character's throw with no weapon named.
-      await actor.targetAttack({ actor, roll: {} }, a, { type: a, skipDialog: skipFor(event) });
+      await actor.targetAttack({ actor, roll: {} }, a, { type: a, skipDialog: skipDialogFor(event) });
       return true;
     case "init": {
       const combatant = game.combat?.combatants?.find((c) => c.actorId === actor.id) ?? null;
@@ -224,7 +227,13 @@ export async function rollById(actor, id, { event } = {}) {
     case "abl": {
       const item = actor.items.get(a);
       if (!item) return false;
-      await rollAbility(item, rest);
+      await rollAbility(item, rest, { event });
+      return true;
+    }
+    case "post": {
+      const item = actor.items.get(a);
+      if (!item) return false;
+      await item.show();
       return true;
     }
     default:

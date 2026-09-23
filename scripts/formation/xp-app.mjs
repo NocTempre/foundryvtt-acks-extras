@@ -11,6 +11,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { divideXp, awardXp, participantsOf, reasonLabel } from "./xp-shares.mjs";
+import { gmIds } from "../lib/util.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.xp";
 
@@ -66,7 +67,7 @@ export async function dealExperience(formation) {
   await ChatMessage.create({
     flavor: game.i18n.format(`${LANG_PREFIX}.flavor`, { total }),
     content: preview(total),
-    whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
+    whisper: gmIds(),
   });
   return division;
 }

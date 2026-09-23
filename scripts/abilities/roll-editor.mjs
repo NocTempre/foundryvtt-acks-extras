@@ -346,7 +346,7 @@ async function deleteRoll(event, target) {
 }
 
 function rollOne(event, target) {
-  rollAbility(this.item, target.dataset.rollKey);
+  rollAbility(this.item, target.dataset.rollKey, { event });
 }
 
 /**

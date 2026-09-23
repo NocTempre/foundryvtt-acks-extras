@@ -1,11 +1,12 @@
-/* global game, foundry, fromUuid, CONFIG, ChatMessage, Roll, ui */
+/* global game, foundry, fromUuid, CONFIG, Roll, ui */
 import { MODULE_ID, ROLES, TRAP_ITEM_TYPE, TRAP_ZONE_TYPE } from "./constants.mjs";
 import { getPartyToken, isDown, isHurried, marchingOrder, updateFormation } from "./formation-model.mjs";
 import { segmentDistance, setWallTrap, trapWallsCrossed, wallTrap } from "./trap-walls.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
-import { gmIds, makeLoc } from "../lib/util.mjs";
+import { makeLoc } from "../lib/util.mjs";
+import { postToJudges } from "../lib/roll-audience.mjs";
 import { findZone, regionEdges } from "./zones.mjs";
 import {
   CRUDE,
@@ -348,12 +349,11 @@ export function placementNearByUuid(formation, uuid, feet = TRAPBREAK_REACH_FEET
 /*  Cards                                       */
 /* -------------------------------------------- */
 
-/** Whisper one card to the Judges. Traps are secret; nothing here is public. */
+/** Whisper one card to the Judges. Traps are secret; nothing here is public, not even that dice were rolled. */
 async function whisper(html, formation, rolls = []) {
-  return ChatMessage.create({
+  return postToJudges({
     content: html,
     rolls,
-    whisper: gmIds(),
     speaker: { alias: formation?.name ?? game.i18n.localize(`${LANG_PREFIX}.title`) },
   });
 }

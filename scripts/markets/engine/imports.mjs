@@ -16,6 +16,7 @@ import { importPlan, dueImports, hubClass } from "../rules/imports.mjs";
 import { commissionPlan } from "../rules/commissions.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
+import { judgesAndOwners } from "../../lib/util.mjs";
 import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
 import { now, onTimeAdvanced } from "../../henchmen/time.mjs";
 import { getSetting as henchmenSetting } from "../../henchmen/settings.mjs";
@@ -45,10 +46,7 @@ const d100 = async () => (await new Roll("1d100").evaluate()).total;
 
 /** Whispered card to the GM and the buyer's owners. */
 async function postCard(buyer, html) {
-  const whisper = [
-    ...game.users.filter((u) => u.isGM).map((u) => u.id),
-    ...game.users.filter((u) => !u.isGM && buyer.testUserPermission(u, "OWNER")).map((u) => u.id),
-  ];
+  const whisper = judgesAndOwners(buyer);
   await ChatMessage.create({
     content: `<div class="acks-extras-markets-receipt">${html}</div>`,
     whisper,

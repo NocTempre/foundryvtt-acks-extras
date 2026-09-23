@@ -21,7 +21,7 @@
  * zeroes the field, and cleared only once the coin has landed. A resume pass
  * reads the ledger, not the (now zero) field.
  */
-import { makeLoc, libStorage as storage } from "../lib/util.mjs";
+import { makeLoc, gmIds, libStorage as storage } from "../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, FLAG_PENDING_DEPOSIT } from "./constants.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
@@ -150,7 +150,7 @@ export async function runVaultSweep({ announce = true } = {}) {
       .join("");
     await ChatMessage.create({
       content: `<p><b>${loc("sweep.chatTitle")}</b></p><ul>${lines}</ul><p class="notes">${loc("sweep.chatHint")}</p>`,
-      whisper: game.users.filter((u) => u.isGM).map((u) => u.id),
+      whisper: gmIds(),
     });
   }
   return { swept: moved.length, gp };

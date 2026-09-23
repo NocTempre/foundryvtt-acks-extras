@@ -11,6 +11,21 @@ read and write the same fields.
 *Rolls: every throw on the sheet with its target, the wielded weapon ringed,
 and a pin on each row for the folded card.*
 
+## Rolls
+
+Every throw is a row, and the whole row is the button. A proficiency or power
+that makes no throw is a row too, under **Post to chat**, ending in an eye:
+clicking it posts the ability's card, the one the Abilities tab's eye posts.
+The pin on any row keeps it on the folded card; for an ability, the pin is its
+own favourite star. A throw asks for a situational modifier first
+([Proficiencies and powers](abilities.md#what-a-throw-looks-like-in-chat));
+hold Shift to roll at once.
+
+![](../releases/v8.2.0/character-sheet-post-row.png)
+
+*A power with no throw under Post to chat, its eye where a throw's die would
+be.*
+
 ## The band and the rails
 
 The header carries the class glyph, the level title, the name and the XP

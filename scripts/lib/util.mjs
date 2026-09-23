@@ -57,6 +57,12 @@ export const numOrNull = (v) => {
 /** Ids of every GM user — whisper/socket-notify targets. */
 export const gmIds = () => game.users.filter((u) => u.isGM).map((u) => u.id);
 
+/** Ids of every GM user and every other user who owns `doc`: the readers of a receipt about it. */
+export const judgesAndOwners = (doc) => [
+  ...gmIds(),
+  ...game.users.filter((u) => !u.isGM && doc?.testUserPermission?.(u, "OWNER")).map((u) => u.id),
+];
+
 /**
  * True on every client joined as the active GM responsible for automation: one
  * per world, unless that GM has the world open in more than one window.

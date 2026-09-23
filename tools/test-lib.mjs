@@ -51,6 +51,9 @@ import {
 import { brightestLightReaching, emittedLight } from "../scripts/lib/light.mjs";
 import { sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
+import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
+import { mathIsPrivate, mathSection, postToJudges } from "../scripts/lib/roll-audience.mjs";
+import { gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import {
   capacityOf,
@@ -2023,5 +2026,124 @@ t("monsterHitDice reads the rating and its bonus whichever way the field was wri
   assert.deepEqual(read("d8"), { count: 0, bonus: 0 }, "no leading rating is no rating");
   assert.deepEqual(read(""), { count: 0, bonus: 0 });
 });
+
+// --- roll dialog and chat audience ----------------------------------------
+
+const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+/** Stand Foundry globals in; the returned function puts back whatever was there before. */
+const swapGlobals = (globals) => {
+  const prev = Object.fromEntries(Object.keys(globals).map((k) => [k, globalThis[k]]));
+  Object.assign(globalThis, globals);
+  return () => {
+    for (const [k, v] of Object.entries(prev)) {
+      if (v === undefined) delete globalThis[k]; else globalThis[k] = v;
+    }
+  };
+};
+/** Run a synchronous `fn` with Foundry globals stood in. */
+const withGlobals = (globals, fn) => {
+  const restore = swapGlobals(globals);
+  try {
+    return fn();
+  } finally {
+    restore();
+  }
+};
+const i18n = {
+  localize: (k) => lang[k] ?? k,
+  format: (k, data) => (lang[k] ?? k).replace(/\{(\w+)\}/g, (_m, name) => String(data?.[name] ?? "")),
+};
+const d20 = (result) => ({ faces: 20, results: [{ result }], total: result });
+
+t("situationalTerm writes a signed, labelled term, and nothing for no modifier", () =>
+  withGlobals({ game: { i18n } }, () => {
+    assert.equal(situationalTerm(2), " + 2[Situational]");
+    assert.equal(situationalTerm(-3), " - 3[Situational]");
+    assert.equal(situationalTerm(2.7), " + 2[Situational]", "whole numbers only");
+    for (const none of [0, "", null, undefined, "abc"]) assert.equal(situationalTerm(none), "");
+  }));
+
+t("skipDialogFor: the caller's explicit true, or the system's skip key held on the event", () =>
+  withGlobals({ game: { settings: { get: (ns, key) => (ns === "acks" && key === "skip-dialog-key" ? "ctrlKey" : undefined) } } }, () => {
+    assert.equal(skipDialogFor({ ctrlKey: true }), true);
+    assert.equal(skipDialogFor({ shiftKey: true }), false, "only the key the system names");
+    assert.equal(skipDialogFor(null, true), true);
+    assert.equal(skipDialogFor(undefined, undefined), false, "no event and no request shows the dialog");
+    globalThis.game.settings.get = () => { throw new Error("not registered"); };
+    assert.equal(skipDialogFor({ ctrlKey: true, shiftKey: true }), false, "no system setting, no skip key");
+  }));
+
+t("auditOf reads the natural die back out of a plain sum", () => {
+  const roll = { terms: [d20(14), { operator: "+" }, { number: 2, flavor: "Situational" }, { operator: "-" }, { number: 3, options: { flavor: "Str" } }], total: 13 };
+  assert.deepEqual(auditOf(roll), { natural: 14, terms: [{ value: 2, label: "Situational" }, { value: -3, label: "Str" }], total: 13 });
+  assert.equal(auditOf({ terms: [d20(9)], total: 9 }), null, "bare dice have nothing to audit");
+  assert.equal(auditOf({ terms: [d20(9), { operator: "+" }, d20(4)], total: 13 }), null, "two dice terms are not one natural");
+  assert.equal(auditOf({ terms: [d20(9), { operator: "*" }, { number: 2 }], total: 18 }), null, "only a sum");
+  assert.equal(auditOf({ terms: [d20(9), { operator: "+" }, { roll: {} }], total: 9 }), null, "an unknown term");
+  assert.equal(auditOf(null), null);
+});
+
+t("auditLine prints the audit with a true minus sign", () =>
+  withGlobals({ game: { i18n } }, () => {
+    const roll = { terms: [d20(14), { operator: "+" }, { number: 2, flavor: "Situational" }, { operator: "-" }, { number: 3 }], total: 13 };
+    assert.equal(auditLine(roll), "Natural 14 + 2 (Situational) − 3 = 13");
+    assert.equal(auditLine({ terms: [d20(9)], total: 9 }), "");
+  }));
+
+t("mathSection hides an attack card's math in a secret section unless the world shows it to everyone", () => {
+  let value = "owners";
+  let asked = null;
+  const settings = { get: (ns, key) => { asked = `${ns}.${key}`; return value; } };
+  withGlobals({ game: { settings }, foundry: { utils: { randomID: () => "abc123" } } }, () => {
+    assert.equal(mathIsPrivate(), true);
+    assert.equal(asked, "acks-extras.rollMath");
+    assert.equal(mathSection("<p>m</p>"), '<section class="secret" id="abc123"><div class="acks-extras-roll-math"><p>m</p></div></section>');
+    value = "everyone";
+    assert.equal(mathIsPrivate(), false);
+    assert.equal(mathSection("<p>m</p>"), "<p>m</p>");
+    assert.equal(mathSection(""), "");
+    settings.get = () => { throw new Error("not registered"); };
+    assert.equal(mathIsPrivate(), true, "before settings exist the math stays private");
+  });
+});
+
+t("judgesAndOwners: every GM, then each other user who owns the document", () => {
+  const users = [{ id: "g1", isGM: true }, { id: "p1", isGM: false }, { id: "p2", isGM: false }];
+  withGlobals({ game: { users } }, () => {
+    const doc = { testUserPermission: (u, level) => level === "OWNER" && (u.id === "p1" || u.id === "g1") };
+    assert.deepEqual(gmIds(), ["g1"]);
+    assert.deepEqual(judgesAndOwners(doc), ["g1", "p1"], "a GM who owns it is listed once");
+    assert.deepEqual(judgesAndOwners(null), ["g1"], "no document, the GMs alone");
+  });
+});
+
+await (async () => {
+  const shown = [];
+  const created = [];
+  const roll = { render: async () => '<div class="dice-roll">7</div>' };
+  const restore = swapGlobals({
+    game: { users: [{ id: "g1", isGM: true }, { id: "p1", isGM: false }], user: { id: "p1" }, dice3d: { showForRoll: (...args) => shown.push(args) } },
+    ChatMessage: { create: async (data) => { created.push(data); return data; } },
+  });
+  try {
+    await postToJudges({ content: "<p>card</p>", rolls: [roll], speaker: { alias: "X" } });
+    assert.deepEqual(created[0], { content: "<p>card</p>", speaker: { alias: "X" }, whisper: ["g1"], rolls: [] }, "a card with its own markup keeps it, and carries no rolls");
+    assert.deepEqual(shown[0].slice(2), [true, ["g1"], false], "the dice show to the GMs alone");
+    await postToJudges({ flavor: "f", rolls: roll });
+    assert.equal(created[1].content, '<div class="dice-roll">7</div>', "plain content becomes the dice, as Foundry would have drawn them");
+    assert.deepEqual(created[1].rolls, []);
+    delete globalThis.game.dice3d;
+    await postToJudges({ content: "plain" });
+    assert.equal(created[2].content, "plain", "no dice, nothing drawn");
+    await postToJudges({ content: "3 &lt; 4 <!-- note -->", rolls: [roll] });
+    assert.equal(created[3].content, '<div class="dice-roll">7</div>', "text, entities and comments are not markup");
+    await postToJudges({ content: "<br/>", rolls: [roll] });
+    assert.equal(created[4].content, "<br/>", "a self-closing tag is");
+  } finally {
+    restore();
+  }
+  n++;
+  console.log("ok - postToJudges whispers to the GMs with no rolls attached");
+})();
 
 console.log(`\n${n} tests passed (including the location migration)`);

@@ -12,6 +12,7 @@ import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import AbilityExtras from "./ability-extras.mjs";
 import { slug, ATTRIBUTES, isMeasure } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
+import { auditLine, rollDetailsDialog, situationalTerm, skipDialogFor } from "../lib/roll-dialog.mjs";
 // The classes registry, not lib: lib cannot see the world's class documents,
 // so it answers null for the `progression` kind a borrowed ladder uses.
 import { resolveLevelOutcome } from "../classes/registry.mjs";
@@ -426,13 +427,15 @@ function missingTargetText(target, actor) {
 
 /**
  * The card's context in the shape core's template reads. The target rides
- * core's success row; the details slot carries the throw's condition and any
- * unresolved-target reason. A measure is unscored and carries neither.
+ * core's success row; the details slot carries the natural die behind a total
+ * that is more than dice, the throw's condition and any unresolved-target
+ * reason. A measure is unscored and carries no target line.
  */
 async function cardData(item, actor, roll, { target, success, suffix, verdict, evaluated }) {
   const term = scoreTerm(roll, actor);
   const outcome = verdict?.outcome ?? "throw";
   const details = [
+    evaluated ? esc(auditLine(evaluated)) : "",
     // An automatic or unavailable rung prints its cell, not a missing-target line.
     outcome !== "throw"
       ? esc(
@@ -474,8 +477,22 @@ async function cardData(item, actor, roll, { target, success, suffix, verdict, e
  * the result. The one place an ability's throw is posted, so blind applies
  * wherever the roll started. Success is scored only when a target is known; a
  * measure's total is the whole answer.
+ *
+ * A throw asks for a situational modifier first, unless `skipDialog` is true
+ * or the system's skip key is held on `event`; the modifier joins the formula
+ * as its own term, never the target. A rung with nothing to roll asks nothing.
+ *
+ * @param {Item} item
+ * @param {string} [key] the throw; the ability's default when omitted
+ * @param {object} [opts]
+ * @param {Event} [opts.event]          the gesture that asked, read for the skip key
+ * @param {boolean} [opts.skipDialog]   true rolls without asking
+ * @param {number} [opts.bonus]         the situational modifier, or what the dialog opens on
+ * @param {string} [opts.messageMode]   the visibility, or what the dialog opens on; a blind ability overrides it
+ * @returns {Promise<{total: number|null, target: number|null, success: boolean|null, outcome: string}|null>}
+ *   null when the ability has no throw or the dialog was closed
  */
-export async function rollAbility(item, key) {
+export async function rollAbility(item, key, { event, skipDialog, bonus = 0, messageMode } = {}) {
   const rolls = rollsOf(item);
   // No key means the default throw: every route that cannot pass one arrives so.
   const wanted = key ?? defaultKeyOf(item);
@@ -495,15 +512,34 @@ export async function rollAbility(item, key) {
     return { total: null, target: null, success: null, outcome: "none" };
   }
 
+  // A blind ability's mode is the ability's, not the roller's.
+  const forced = messageModeFor(item);
+  let mode = forced ?? messageMode;
+
   // An automatic rung posts its card with no dice.
   if (verdict.outcome === "auto") {
-    await postAutomatic(item, actor, roll, verdict);
+    await postAutomatic(item, actor, roll, verdict, mode);
     return { total: null, target: null, success: true, outcome: "auto" };
   }
 
   const target = verdict.target;
-  const evaluated = await new Roll(measuredFormula(roll, item, actor)).evaluate();
   const type = roll.rollType || "above";
+  const base = measuredFormula(roll, item, actor);
+  let extra = Math.trunc(Number(bonus)) || 0;
+  if (!skipDialogFor(event, skipDialog)) {
+    const asked = await rollDetailsDialog({
+      title: [item.name, roll.label].filter(Boolean).join(" — "),
+      formula: base,
+      messageMode: mode,
+      lockMode: !!forced,
+      bonus: extra,
+      hint: type === "below" ? game.i18n.localize("ACKS-ABILITIES.roll.belowHint") : "",
+    });
+    if (!asked) return null;
+    extra = asked.bonus;
+    mode = asked.messageMode;
+  }
+  const evaluated = await new Roll(`${base}${situationalTerm(extra)}`).evaluate();
   const total = evaluated.total;
   const success = target == null ? null : type === "below" ? total <= target : type === "result" ? total === target : total >= target;
 
@@ -548,7 +584,7 @@ export async function rollAbility(item, key) {
           }),
     },
     // undefined falls through to the seat's own default.
-    { messageMode: messageModeFor(item) },
+    { messageMode: mode },
   );
   return { total, target, success, outcome: "throw" };
 }
@@ -557,7 +593,7 @@ export async function rollAbility(item, key) {
  * The card for a rung that needs no throw — same banner, no dice — posted as a
  * plain message because there is no Roll. Blind applies.
  */
-async function postAutomatic(item, actor, roll, verdict) {
+async function postAutomatic(item, actor, roll, verdict, messageMode) {
   let content = null;
   try {
     content = await foundry.applications.handlebars.renderTemplate(
@@ -579,6 +615,6 @@ async function postAutomatic(item, actor, roll, verdict) {
             )}</strong></p>`,
           }),
     },
-    { messageMode: messageModeFor(item) },
+    { messageMode },
   );
 }

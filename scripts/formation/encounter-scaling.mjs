@@ -1,4 +1,4 @@
-/* global game, ChatMessage, Roll */
+/* global game, Roll */
 /**
  * A wandering monster met on the wrong floor (JJ ch. 2). A random encounter
  * table is written for a monster level; when the dungeon level it is drawn
@@ -6,6 +6,7 @@
  * the difference, in exact opposite amounts, so one subtraction drives
  * both.
  */
+import { postToJudges } from "../lib/roll-audience.mjs";
 import { MODULE_ID } from "./constants.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.scaling";
@@ -59,7 +60,9 @@ export async function announceShift(table, { dungeonLevel, monsterLevel } = {}) 
   // otherwise roll by hand, and its modifier is the whole point of the rule.
   const reaction = await new Roll(`2d6 + ${shift.reaction}`).evaluate();
 
-  await ChatMessage.create({
+  // A card with markup of its own gets no roll box from Foundry, so the
+  // reaction is drawn into the content under the line.
+  await postToJudges({
     speaker: { alias: table?.name ?? game.i18n.localize(`${LANG_PREFIX}.encounter`) },
     flavor: game.i18n.localize(`${LANG_PREFIX}.flavor`),
     content: `<p>${game.i18n.format(`${LANG_PREFIX}.line`, {
@@ -69,9 +72,8 @@ export async function announceShift(table, { dungeonLevel, monsterLevel } = {}) 
       direction: game.i18n.localize(`${LANG_PREFIX}.${shift.steps > 0 ? "deeper" : "shallower"}`),
       multiplier: fraction(shift.multiplier),
       reaction: shift.reaction > 0 ? `+${shift.reaction}` : shift.reaction,
-    })}</p>`,
+    })}</p>${await reaction.render()}`,
     rolls: [reaction],
-    whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
   });
   return { ...shift, reactionTotal: reaction.total };
 }

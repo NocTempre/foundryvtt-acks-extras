@@ -59,6 +59,27 @@ subclass of the system's own, so it keeps every tab core defines — and core's
 plain sheet is still there under **Sheet Configuration** if you want the lean
 view for a particular actor.
 
+## Who reads an attack card
+
+With **Attack roll: throw as target** on, as it is unless you turn it off, an
+attack posts this module's card. Everyone reading chat sees whether it hit and
+the damage it does. The attack throw, every bonus, the target's Armor Class and
+the dice are shown only to the attacker's owners and the Judge, so a monster's
+numbers stay behind the screen while a player's own attacks show them
+everything. The player who rolled, or the Judge, can press **Reveal** on the
+card to show the math to the table. To show it to everyone every time, set
+**Attack card math** to *Everyone* in the module's settings. Applying damage
+from the card works the same either way.
+
+![](../releases/v8.2.0/attack-card-owner.png)
+
+*The attacker's owner reads the throw, every bonus and the dice, with Reveal
+to show them to the table.*
+
+![](../releases/v8.2.0/attack-card-reader.png)
+
+*Everyone else reads the same card as its result and its damage.*
+
 ## Monsters as hirelings
 
 A monster can be hired like any other follower. Core's own `addHenchman` rejects

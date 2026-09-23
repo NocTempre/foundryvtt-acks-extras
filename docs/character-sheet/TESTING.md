@@ -10,10 +10,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   thrown as well as swung (a dagger), a shield `armor` (`system.type`
   "shield"), a suit `armor`, an `item` "Torches (6)" with a quantity, an
   `item` "Backpack" annotated so it declares a capacity, an `item` "Rations"
-  with a quantity, an `ability` carrying at least one throw, and a `money`
-  stack. Set `system.hp` to a wounded value below the maximum. Grant the
-  Adventuring proficiency with `grantAdventuring(actor, [])`
-  (`classes/grants.mjs`), the call chargen and the level-up wizard make.
+  with a quantity, an `ability` carrying at least one throw, an `ability`
+  carrying none, and a `money` stack. Set `system.hp` to a wounded value
+  below the maximum. Grant the Adventuring proficiency with
+  `grantAdventuring(actor, [])` (`classes/grants.mjs`), the call chargen and
+  the level-up wizard make.
 - A second disposable `character` to serve as a hireling (`retainer.enabled`
   with the first as manager, and its id on the first's `henchmenList`).
 - Disposable ActiveEffects on the first: one with a status id from
@@ -132,6 +133,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    whose terms carry Dexterity and no Strength. The pin stores the row id
    `wpn:<itemId>:atk:missile`, and a reader that keeps one segment after the
    item id rolls every weapon row as melee.
+   The throwless ability: *Observable:* it is a row under *Post to chat*,
+   ending in an eye, and no ability with a throw is in that group. Click it:
+   the system's item card posts. Pin it: the item's `system.favorite` is
+   true, and the fold's pin bar shows its chip with the eye, which posts the
+   card too. Unpin it: the favourite clears and the row stays. Click the
+   ability row with a throw: the roll dialog opens (abilities TESTING step
+   15); hold the system's skip key and it does not.
 5. Equipment tab. *Observable:* worn gear sits at its slot, the backpack shows
    a capacity bar and contents, the coin stack lists under Coin & valuables;
    drag the sword onto the Main hand slot — it is drawn (`system.equipped`
@@ -255,7 +263,9 @@ client setting, so a raised value follows you into the next session's test.
 Delete both actors, the monster, the scene, any combat and the chat messages
 the rounds and the save roll posted, and confirm `game.actors`,
 `game.scenes`, `game.combats` and `game.messages` no longer hold them; clear
-the user's `sheetFold` flag of the fixture id.
+the user's `sheetFold` flag of the fixture id
+(`update({"flags.acks-extras.sheetFold.-=<id>": null})`), and unset the flag
+itself when that leaves it empty and the run created it.
 
 ## Training on Stats
 

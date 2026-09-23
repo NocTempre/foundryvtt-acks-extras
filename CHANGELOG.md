@@ -1,5 +1,51 @@
 # Changelog
 
+## 8.2.0
+
+### Fixed
+
+- **A card meant for the Judge leaves nothing in a player's chat.** Traps, the
+  party's listening and searching, obstacles, the wandering-monster throw and
+  its table draw, the settlement turn, a hireling's secret throw, the weekly
+  search fee, secret influence rolls, sea throws and the sinking clock each
+  whispered their card to the Judge with its dice attached. Foundry answers
+  that by showing every other player a line saying the Judge privately rolled
+  some dice, so the table learned whenever a trap or a search was thrown for.
+  These cards now carry their dice in their own text, the 3D dice show to the
+  Judges alone, and a player's chat shows nothing.
+
+### Added
+
+- **An ability's throw asks for a situational modifier, and its card shows the
+  natural die.** Clicking a proficiency's or power's throw — on either
+  character sheet, the ability's own Rolls tab or its card in chat — opens the
+  same small window the attack roll uses: the formula, a situational modifier
+  and who sees the roll, starting from your chat's own setting. The modifier is
+  added to the dice as its own *Situational* term, and the card's first line
+  reads the natural die, what was added and the total. Holding the system's
+  skip key (Shift, unless the world chose another) rolls at once, as before.
+  An ability marked blind still always rolls blind, and the window says so.
+  Picking a lock rolls without asking.
+- **An ability that makes no throw is a row on the Rolls tab that posts its
+  card.** Each proficiency or power with no throw sits under *Post to chat*,
+  ending in an eye; clicking it posts the ability's card, the one the Abilities
+  tab's eye posts. Its pin stars the ability as a throw row's does, and the
+  folded card's chip posts the card too. Nothing new is stored.
+
+### Changed
+
+- **An attack card shows everyone the result, and the math to the attacker's
+  owners and the Judge.** Every reader sees whether the attack hit and the
+  damage it does. The attack throw, the bonuses, the target's Armor Class and
+  the dice are shown to the attacker's owners and the Judge alone, so a
+  monster's numbers no longer reach the players. The player who rolled, or the
+  Judge, can press **Reveal** on the card to show the math to the table. A new
+  world setting, **Attack card math**, shows it to everyone instead — choose
+  *Everyone* to keep the card as it was. Applying damage from the card works as
+  before, and cards posted before the upgrade keep the shape they were posted
+  with. This is this module's attack card only; with **Attack roll: throw as
+  target** off, the system's own card is unchanged.
+
 ## 8.1.0
 
 ### Fixed

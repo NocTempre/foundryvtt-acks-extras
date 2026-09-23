@@ -25,7 +25,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   a target is rollable, and `getExtras(item).rolls` being empty does not mean
   the ability offers nothing — read `rollsOf`, which is what the sheet reads.
 - `rollAbility(item, key)` takes the roll KEY (`"primary"` for the derived
-  one), not the item alone; `defaultKeyOf(item)` supplies it.
+  one), not the item alone; `defaultKeyOf(item)` supplies it. A scripted call
+  passes `{skipDialog: true}`, or it opens the roll dialog and awaits it.
 - `getExtras()` returns the whole `AbilityExtras` model — categories,
   defenses, choice prompts, effects — not just the roll fields. A test that
   diffs the whole object is asserting the schema, not the behaviour.
@@ -39,7 +40,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 2. Read the resolved roll set: `rollsOf(item)`.
    *Observable:* one entry keyed `primary`, whose target matches
    `system.rollTarget`.
-3. Roll it: `rollAbility(item, defaultKeyOf(item))`.
+3. Roll it: `rollAbility(item, defaultKeyOf(item), {skipDialog: true})` — without
+   `skipDialog` the call opens the roll dialog (step 15) and waits on it.
    *Observable:* a chat card naming the ability, **carrying the system's dice
    box** (formula and total, expandable to the die face), and reporting success
    or failure against the target. Read the dice on the card itself — Foundry
@@ -158,6 +160,50 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    real click through the system's effect sheet. *Observable:* the actor's
    `system.aac.value` (re-read from `fromUuid`) moves by one, and disabling the
    effect moves it back.
+
+15. **The roll dialog, from every surface.** Fixture: the character from the
+   fixtures, owned by the Player seat, carrying the ability; for the sub-steps
+   add an ability that succeeds low (`system.rollType` "below"), one with
+   `system.blindroll`, one standing on an automatic rung, one the lock code
+   recognises as lockpicking (by name, `equipment/locks.mjs`), and a locked
+   container (`flags.acks-extras.container = {locked: true}`). **Join as the
+   Player seat.** Click the throw from the character sheet's Rolls tab, the
+   ability sheet's Rolls tab, the system sheet's ability row and — with the
+   row expanded — its throw tag, and the ability card's button in chat.
+   *Observable:* each opens one dialog, titled with the ability (and the
+   throw's label, when it has one), showing the formula, a *Situational
+   modifier* field and a visibility select opened on the chat's own mode.
+   Enter 2 and roll: the card's dice box reads the formula with
+   `+ 2[Situational]` and the total, and the card's first detail line reads
+   *Natural N + 2 (Situational) = N+2* with N the die's face. A negative entry
+   reads `- 1[Situational]` and *Natural N − 1 (Situational)*; 0 adds no term
+   and no audit line.
+   Then, one observable each:
+   - Hold the system's skip key (`game.settings.get("acks", "skip-dialog-key")`,
+     Shift by default) and click: no dialog, the card posts with the bare dice
+     and no audit line.
+   - Close the dialog with its X: `game.messages.size` is unchanged.
+   - A throw that succeeds low: the field's hint says a positive number makes
+     it harder.
+   - Tick the ability's blind checkbox (the system's `blindroll`) and click:
+     the dialog states the visibility as a line with no select, and the card
+     posts blind.
+   - A throw standing on an automatic rung: the card posts with no dialog.
+   - Pick a lock with the ability that opens it (the character sheet's
+     Equipment tab, the container's pick control): no dialog opens, and the
+     lock opens exactly when the card's total (`message.rolls[0].total`) meets
+     the target; a failed pick's notice says the lock holds.
+
+   Drive mechanics: the skip key is read off the click's event, so a scripted
+   click holds it with
+   `el.dispatchEvent(new MouseEvent("click", {bubbles: true, shiftKey: true}))`;
+   `el.click()` never does. The system sheet is not the character's default:
+   construct it from the `acks.` entry of `CONFIG.Actor.sheetClasses.character`
+   with `{document: actor}`. Its ability row rolls from
+   `[data-action="itemUse"]`, and `[data-action="toggleSummary"]` on the name
+   expands the row and writes the throw tags (`[data-acks-throw]`). An
+   automatic rung is a stored roll:
+   `flags.acks-extras.extras.rolls = [{key: "primary", formula: "1d20", rollType: "above", scale: "level", target: {kind: "breakpoints", breakpoints: [{atLevel: 1, value: null, outcome: "auto", text: "Auto"}]}}]`.
 
 ## Teardown
 

@@ -626,6 +626,93 @@ path that embedded bundles whole.
 **Teardown.** `api.sweepTracked()`. Deleting Bundle Hero takes everything the
 drops and purchases delivered with it.
 
+## The attack card: a public result, private math
+
+Covers `patches/attack-roll.mjs`'s outcome/math split, `roll-audience.mjs`
+`mathSection` and `installMathReveal`, the `rollMath` setting, and the damage
+stub the system's apply-damage reads. **Run it from real player seats**: a GM
+owns every actor, so a GM seat sees every secret section and passes every step
+falsely.
+
+**Fixtures (as GM, each id recorded with `api.track`):**
+- "Math Hero", a `character` the Player seat owns, with a melee weapon.
+- "Math Beast", a `monster` only the GM owns, with an attack.
+- A scene holding a token of each, viewed on every seat.
+
+Seat A is the Player seat; seat B is a second player seat that owns neither
+actor. Read what a seat was given with
+`game.messages.get(id).renderHTML()` there, and look for
+`section.secret` / `.acks-extras-roll-math` in the result.
+
+Drive mechanics: a capture profile opens with the sidebar collapsed, so call
+`ui.sidebar.toggleExpanded()` on each seat before reading its chat log. Read
+`revealable` off the `secret-block` in the log's own element for the message
+(`[data-message-id="<id>"] secret-block`). A player seat targets with
+`canvas.tokens.get(id).setTarget(true, {releaseOthers: true})`; the card
+carries the damage stub only on a hit, so attack until one lands.
+
+1. **The owner rolls.** On seat A, attack with Math Hero's weapon; enter 2 in
+   the dialog and roll.
+   **Observable:** seat B's card shows the outcome word and the damage total
+   (on a hit) and holds no `section.secret`. Seat A's card holds the math — the
+   throw, the terms, the dice — inside a `secret-block` whose Reveal button is
+   offered (`block.revealable === true`).
+2. **Reveal.** Seat A presses Reveal.
+   **Observable:** seat B's card now shows the math.
+3. **A monster attacks.** On the GM seat, attack with Math Beast.
+   **Observable:** seats A and B see the outcome and damage total only; the GM
+   seat sees the math with Reveal offered.
+4. **The GM rolls for the Player's character.** On the GM seat, attack with
+   Math Hero.
+   **Observable:** seat A sees the math with NO Reveal (`revealable === false`:
+   A owns the speaker but did not post), seat B sees none.
+5. **Apply damage from the stub.** On seat A, apply a hit's damage from a card
+   posted by step 3 to Math Hero's token with the system's chat-card control.
+   The scene must be active on seat A and the token controlled
+   (`token.control({releaseOthers: true})`): the system applies damage to the
+   controlled tokens.
+   **Observable:** Math Hero's `system.hp.value` drops by the card's damage
+   total.
+6. **Everyone.** As GM, set *Attack card math* to Everyone and repeat step 3.
+   **Observable:** seat B's card shows the math with no secret section.
+   Set it back to the attacker's owners.
+7. **Dice So Nice.** On seat A, stand a stub in:
+   `game.dice3d = {showForRoll: (...a) => (window.__dsn ??= []).push(a)}`, and
+   attack publicly.
+   **Observable:** each call's fourth argument is `null` (every seat), not `[]`.
+   Delete the stub.
+
+**Teardown.** `api.sweepTracked()`; delete the chat messages the steps posted
+by the ids read back from `game.messages`, and the scene.
+
+## A Judge-only card leaves nothing on a player's seat
+
+Covers `roll-audience.mjs` `postToJudges` and `drawForJudges`, through the
+features that post Judge-only cards.
+
+**Fixtures (as GM, each id recorded with `api.track`):**
+- A `RollTable` with two results and formula `1d2`.
+
+1. **A card for the GMs.** On the GM seat, in page context:
+   `const { postToJudges, drawForJudges } = await import("/modules/acks-extras/scripts/lib/roll-audience.mjs")`,
+   then `await postToJudges({content: "<p>test card</p>", rolls: [await new Roll("1d20").evaluate()]})`
+   and `await postToJudges({flavor: "plain", rolls: [await new Roll("1d6").evaluate()]})`.
+   **Observable:** both messages have `rolls.length === 0` and `whisper` equal
+   to the GM ids. On the Player seat, `game.messages.get(id).visible === false`
+   for both, and the chat log holds no "privately rolled" line. On the GM seat
+   the first card reads "test card" and the second shows a d6 dice box.
+2. **A table drawn for the GMs.** `await drawForJudges(table)`.
+   **Observable:** one message, flagged with the table, `rolls.length === 0`,
+   whispered to the GMs, with the table's result and its dice box in the
+   content on the GM seat; `visible === false` on the Player seat.
+3. **A feature's card.** Walk one Judge-only path end to end — a formation's
+   party search (`docs/formation/TESTING.md`) or a trap zone's trigger.
+   **Observable:** the same three facts on its card: no rolls, whispered to the
+   GMs, invisible on the Player seat.
+
+**Teardown.** Delete the messages by the ids the steps read back;
+`api.sweepTracked()` for the table.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

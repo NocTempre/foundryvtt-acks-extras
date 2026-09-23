@@ -133,6 +133,25 @@ against.
 
 *A throw posted on the system's own card: banner, portrait, condition, verdict.*
 
+Clicking a throw asks first. A small window shows the formula, takes a
+situational modifier — a whole number, added to the dice as its own
+*Situational* term — and lets you choose who sees the roll, starting from your
+chat's own setting. The card then opens with the natural die: *Natural 14 + 2
+(Situational) = 16*, so the table can see what the die showed and what was
+added. Hold Shift, or whichever key the system's skip-dialog setting names, to
+roll at once. An ability marked blind always rolls blind, and the window says so
+instead of asking. On a throw that succeeds low, a positive modifier makes it
+harder.
+
+![](../releases/v8.2.0/abilities-roll-dialog.png)
+
+*What a click on a throw asks: a situational modifier and who sees the roll.*
+
+![](../releases/v8.2.0/abilities-roll-card.png)
+
+*The card it posts: the natural die, what was added and the total, above the
+dice.*
+
 ## Selections
 
 Some proficiencies are not finished until you say WHICH: Weapon Focus names a

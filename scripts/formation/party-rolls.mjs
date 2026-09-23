@@ -1,6 +1,7 @@
-/* global game, ChatMessage, Roll, ui */
+/* global game, Roll, ui */
 import { makeLoc } from "../lib/util.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
+import { postToJudges } from "../lib/roll-audience.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
   hasCapability,
@@ -414,12 +415,7 @@ export async function rollPartyCheck(formation, checkKey) {
     footnote: incapable.length ? loc("rolls.notCapable", { names: incapable.join(", ") }) : undefined,
   });
 
-  await ChatMessage.create({
-    content: html,
-    rolls,
-    whisper: game.users.filter((u) => u.isGM).map((u) => u.id),
-    speaker: { alias: formation.name },
-  });
+  await postToJudges({ content: html, rolls, speaker: { alias: formation.name } });
 
   // Time cost: methodical actions occupy a full turn, hasty ones a round.
   if (cfg.consumesTurn) await advanceTurns(formation, 1, { reason: "search" });

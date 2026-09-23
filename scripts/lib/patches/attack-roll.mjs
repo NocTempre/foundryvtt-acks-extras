@@ -12,7 +12,10 @@
  * lifted out as terms of their own rather than folded into the weapon term.
  *
  * The chat card renders core's own template with core's data shape, so damage
- * application and every other chat listener keep working.
+ * application and every other chat listener keep working. Its math — the
+ * throw, the bonuses, the defender's AC and both dice boxes — sits in a
+ * private section (roll-audience.mjs); the outcome and the damage total stay
+ * public, where core's apply-damage reads the total.
  *
  * See docs/lib/DECISIONS.md, "One owner for the attack roll, and one seam for
  * future modifiers".
@@ -20,6 +23,8 @@
 import { MODULE_ID } from "../constants.mjs";
 import { toNum as num } from "../util.mjs";
 import { attackTerms, termTotal, resolveAttack } from "../attack-logic.mjs";
+import { rollDetailsDialog, skipDialogFor, situationalLabel } from "../roll-dialog.mjs";
+import { mathIsPrivate, mathSection, showDice } from "../roll-audience.mjs";
 
 /**
  * Fired before the attack roll, with `(actor, ctx)` — the seam for a combat
@@ -86,7 +91,7 @@ function buildContext(actor, attData, options) {
           ? L("adjustment", "Attack adjustment")
           : attData?.item?.name || L("weapon", "Weapon"),
   }));
-  for (const t of lifted) terms.push({ key: String(t.key ?? "situational"), value: num(t.value), label: t.label || L("situational", "Situational") });
+  for (const t of lifted) terms.push({ key: String(t.key ?? "situational"), value: num(t.value), label: t.label || situationalLabel() });
   const target = attData?.roll?.target ?? null;
   const ctx = {
     actor,
@@ -155,45 +160,8 @@ function damageParts(actor, attData, type) {
   return parts;
 }
 
-/* Modes this dialog offers, in display order. CONFIG.ChatMessage.modes also
- * carries `ic` (in-character styling, not visibility), which is not one of them. */
-const VISIBILITY_MODES = ["public", "gm", "blind", "self"];
-
-/**
- * Minimal situational-bonus + roll-mode dialog (core's getRollDetails shape).
- * It opens on the mode the roller's chat is already set to, as core's does:
- * a Judge whose chat whispers to the GMs never posts an attack in the open by
- * pressing Roll.
- */
-async function rollDetailsDialog(title, formula, messageMode) {
-  const modes = VISIBILITY_MODES.map(
-    (k) =>
-      `<option value="${k}"${k === messageMode ? " selected" : ""}>${game.i18n.localize(CONFIG.ChatMessage.modes[k].label)}</option>`,
-  );
-  const content = `
-    <p class="hint">${formula}</p>
-    <div class="form-group"><label>${L("situational", "Situational bonus")}</label>
-      <input type="number" name="bonus" placeholder="0" step="1" autofocus /></div>
-    <div class="form-group"><label>${game.i18n.localize("CHAT.RollVisibility")}</label>
-      <select name="messageMode">${modes.join("")}</select></div>`;
-  try {
-    return await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
-      window: { title },
-      content,
-      ok: {
-        label: game.i18n.localize("ACKS-LIB.attack.roll"),
-        callback: (_ev, button) => ({
-          bonus: Number(button.form.elements.bonus.value) || 0,
-          messageMode: button.form.elements.messageMode.value,
-        }),
-      },
-      rejectClose: true,
-    });
-  } catch {
-    return null; // cancelled — no roll, like core
-  }
-}
+/** A public stand-in for the damage box: the total alone, where core's apply-damage reads it. */
+const damageTotalOnly = (total) => `<div class="dice-roll"><div class="dice-result"><h4 class="dice-total">${total}</h4></div></div>`;
 
 /* -------------------------------------------- */
 /*  The patched roll                             */
@@ -206,22 +174,16 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   let label = game.i18n.format("ACKS.roll.attacks", { name: actor.name });
   if (attData?.item) label = game.i18n.format("ACKS.roll.attacksWith", { name: attData.item.name });
 
-  // Skip-key on the triggering event, exactly like core.
-  let skipDialog = !!options.skipDialog;
-  try {
-    const skipKey = game.settings.get("acks", "skip-dialog-key");
-    if (options.event && options.event[skipKey]) skipDialog = true;
-  } catch {
-    /* setting absent */
-  }
-
   const attackParts = [exploding ? "1d20x" : "1d20", ...ctx.terms.map(termPart)];
+  // The dialog opens on the mode the roller's chat is already set to, as
+  // core's does: a Judge whose chat whispers to the GMs never posts an attack
+  // in the open by pressing Roll.
   let messageMode = game.settings.get("core", "messageMode");
-  if (!skipDialog) {
-    const details = await rollDetailsDialog(label, attackParts.join(" + "), messageMode);
-    if (!details) return null; // cancelled
+  if (!skipDialogFor(options.event, options.skipDialog)) {
+    const details = await rollDetailsDialog({ title: label, formula: attackParts.join(" + "), messageMode });
+    if (!details) return null; // cancelled — no roll, like core
     if (details.bonus) {
-      ctx.terms.push({ key: "situational", value: details.bonus, label: L("situational", "Situational") });
+      ctx.terms.push({ key: "situational", value: details.bonus, label: situationalLabel() });
       attackParts.push(termPart(ctx.terms.at(-1)));
     }
     messageMode = details.messageMode || messageMode;
@@ -255,11 +217,22 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   const vsAc = acShifts ? game.i18n.format("ACKS-LIB.attack.vsAc", { ac: ctx.targetAc, need: res.effectiveTarget }) : "";
   const stack = `${die}${ctx.terms.map((t) => ` ${t.value >= 0 ? "+" : "−"} ${Math.abs(t.value)} (${t.label})`).join("")} = ${res.total}`;
   let outcome;
-  if (res.isFumble) outcome = game.i18n.localize("ACKS-LIB.attack.fumble");
-  else if (res.isCritical) outcome = game.i18n.localize("ACKS-LIB.attack.critical");
-  else if (res.isSuccess) outcome = game.i18n.format("ACKS-LIB.attack.hitsAc", { ac: res.acHit });
-  else outcome = game.i18n.format("ACKS-LIB.attack.missesAc", { ac: res.acHit });
-  const details = `${game.i18n.format("ACKS-LIB.attack.throwLine", { target: ctx.throwTarget })}${vsAc}<br/>${stack} → <b>${outcome}</b>`;
+  let word;
+  if (res.isFumble) outcome = word = game.i18n.localize("ACKS-LIB.attack.fumble");
+  else if (res.isCritical) outcome = word = game.i18n.localize("ACKS-LIB.attack.critical");
+  else if (res.isSuccess) {
+    outcome = game.i18n.format("ACKS-LIB.attack.hitsAc", { ac: res.acHit });
+    word = game.i18n.localize("ACKS-LIB.attack.hit");
+  } else {
+    outcome = game.i18n.format("ACKS-LIB.attack.missesAc", { ac: res.acHit });
+    word = game.i18n.localize("ACKS-LIB.attack.miss");
+  }
+  const math = `${game.i18n.format("ACKS-LIB.attack.throwLine", { target: ctx.throwTarget })}${vsAc}<br/>${stack} → <b>${outcome}</b>`;
+  const attackBox = await roll.render();
+  const damageBox = await dmgRoll.render();
+  // Private math: every reader gets the outcome word and the damage total;
+  // the speaker's owners and the GMs also get the line and both dice boxes.
+  const hidden = mathIsPrivate();
 
   // Core-shaped chat flow: same template, same data shape, same listeners.
   const rollData = {
@@ -278,9 +251,6 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   // and offers four modes".
   const chatData = { user: game.user.id, speaker: ChatMessage.getSpeaker({ actor }) };
   ChatMessage.applyMode(chatData, messageMode);
-  // The system's roll-attack.hbs reads this to hide the numbers; it is a
-  // template flag of ours, not something applyMode knows about.
-  if (messageMode === "blind") rollData.roll.blindroll = true;
 
   const templateData = {
     title: label,
@@ -293,11 +263,11 @@ async function acksLibRollAttack(actor, attData, options = {}) {
       target: res.effectiveTarget,
       total: res.total,
       victim: ctx.targetName,
-      details,
+      details: hidden ? `<b>${word}</b>${mathSection(`${math}${attackBox}${res.isSuccess ? damageBox : ""}`)}` : math,
       dmg: dmgRoll.total,
     },
-    rollACKS: await roll.render(),
-    rollDamage: await dmgRoll.render(),
+    rollACKS: hidden ? null : attackBox,
+    rollDamage: hidden ? damageTotalOnly(dmgRoll.total) : damageBox,
   };
   chatData.content = await foundry.applications.handlebars.renderTemplate(
     "systems/acks/templates/chat/roll-attack.hbs",
@@ -305,11 +275,7 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   );
 
   if (game.dice3d) {
-    // Dice So Nice reads an empty viewers list as "nobody", not "everyone" —
-    // a public roll's empty whisper list is passed through as null instead.
-    const viewers = chatData.whisper?.length ? chatData.whisper : null;
-    await game.dice3d.showForRoll(roll, game.user, true, viewers, chatData.blind);
-    if (res.isSuccess) await game.dice3d.showForRoll(dmgRoll, game.user, true, viewers, chatData.blind);
+    await showDice(res.isSuccess ? [roll, dmgRoll] : [roll], { whisper: chatData.whisper, blind: chatData.blind });
   } else {
     chatData.sound = CONFIG.sounds.dice;
   }

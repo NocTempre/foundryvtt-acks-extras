@@ -1,4 +1,4 @@
-/* global game, ChatMessage, Roll */
+/* global game, Roll */
 /**
  * Obstacles the party has to get past one member at a time (RR ch. 6, the
  * Spelunking table): a wall to climb, a rope to rappel, a ledge to edge along.
@@ -26,6 +26,7 @@
  * grappling hook, or a mountaineer supervising. All three turn `sheer` into
  * `easy` for everyone who follows, which is what `assisted` means below.
  */
+import { postToJudges } from "../lib/roll-audience.mjs";
 import { MODULE_ID } from "./constants.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.obstacles";
@@ -157,7 +158,7 @@ export async function attemptObstacle(members, { kind, assisted = false, feet = 
     results.push({ name: m.actor?.name, plan, attempts, blocked: false });
   }
 
-  await ChatMessage.create({
+  await postToJudges({
     flavor: game.i18n.format(`${LANG_PREFIX}.flavor`, {
       obstacle: game.i18n.localize(OBSTACLES[kind]?.label ?? `${LANG_PREFIX}.unknown`),
       feet,
@@ -172,7 +173,6 @@ export async function attemptObstacle(members, { kind, assisted = false, feet = 
         ` <span>(${r.attempts.map((a) => a.total).join(", ")})</span></li>`;
     }).join("")}</ul>`,
     rolls: results.flatMap((r) => (r.attempts ?? []).map((a) => a.roll)),
-    whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
   });
 
   return results;

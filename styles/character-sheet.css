@@ -950,6 +950,12 @@ a.acks-extras-character-sheet__gear-name:hover {
   cursor: pointer;
 }
 
+/* A row that posts a card rather than rolling: outlined, not filled. */
+.acks-extras-character-sheet__mini.is-post {
+  background: transparent;
+  color: var(--acks-spot);
+}
+
 .acks-extras-character-sheet__mini.is-eq,
 .acks-extras-character-sheet__row.is-eq .acks-extras-character-sheet__roll {
   box-shadow: 0 0 0 1px var(--acks-paper), 0 0 0 calc(3px * var(--acks-extras-k)) var(--acks-spot);

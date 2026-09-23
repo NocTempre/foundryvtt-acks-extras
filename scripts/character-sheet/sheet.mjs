@@ -44,6 +44,7 @@ import { annotateItem } from "../equipment/api.mjs";
 import { splitOne } from "../equipment/item-sheet/stack.mjs";
 import { isEquippable, isGoods } from "../lib/item-model.mjs";
 import { unpackBundle } from "../lib/bundles.mjs";
+import { skipDialogFor } from "../lib/roll-dialog.mjs";
 import { openClassPicker } from "../classes/assign-app.mjs";
 import { openLevelUp } from "../classes/levelup.mjs";
 import { reopenChargen } from "../classes/reopen-chargen.mjs";
@@ -367,7 +368,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     return [
       [by.saves, by.initiative, by.retainer].filter(Boolean),
       [by.attack, by.recovery].filter(Boolean),
-      [by.adventuring, by.proficiencies].filter(Boolean),
+      [by.adventuring, by.proficiencies, by.post].filter(Boolean),
     ];
   }
 
@@ -469,7 +470,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   #pinBar(rolls, effects) {
     const rows = rolls.groups.flatMap((g) => g.rows).filter((r) => r.pinned);
     return {
-      rolls: rows.map((r) => ({ id: r.id, label: r.label, value: r.value, eq: r.eq })),
+      rolls: rows.map((r) => ({ id: r.id, label: r.label, value: r.value, eq: r.eq, post: !!r.post })),
       timers: effects.timers.filter((t) => t.pinned).map((t) => ({ id: t.id, label: t.name, pct: t.pct, tone: t.tone, icon: t.icon ?? null, img: t.img ?? null })),
       resources: effects.resources.filter((r) => r.pinned).map((r) => ({ id: r.id, label: r.name, count: r.count, icon: r.icon })),
       any: rows.length + effects.timers.filter((t) => t.pinned).length + effects.resources.filter((r) => r.pinned).length > 0,
@@ -1270,13 +1271,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   static #onSpellCast(event, target) {
     const item = this.#itemOf(target);
     if (!item) return;
-    let skip = false;
-    try {
-      skip = !!event[game.settings.get("acks", "skip-dialog-key")];
-    } catch {
-      skip = false;
-    }
-    item.spendSpell?.({ skipDialog: skip });
+    item.spendSpell?.({ skipDialog: skipDialogFor(event) });
   }
 
   static async #onSpellReset() {

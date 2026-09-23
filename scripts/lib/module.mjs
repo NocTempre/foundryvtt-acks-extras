@@ -72,6 +72,7 @@ import { followerCardContext, renderFollowerCard, FOLLOWER_CARD_TEMPLATE } from 
 import * as attackLogic from "./attack-logic.mjs";
 import * as damageType from "./damage-type.mjs";
 import { installAttackRollPatch, wrapRollAttack, PRE_ATTACK_HOOK, POST_ATTACK_HOOK } from "./patches/attack-roll.mjs";
+import { installMathReveal, ROLL_MATH, ROLL_MATH_SETTING } from "./roll-audience.mjs";
 import { installAttackDisplayPatch } from "./patches/attack-display.mjs";
 import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
@@ -333,6 +334,24 @@ Hooks.once("init", () => {
     default: true,
     requiresReload: true,
   });
+
+  // Who reads that attack card's math (roll-audience.mjs; docs/lib/DECISIONS.md,
+  // "Public results, private math"). Read as each card is posted, so a change
+  // takes effect on the next attack with no reload. The Reveal filter is a
+  // render hook: installed here, before the chat log first draws.
+  game.settings.register(MODULE_ID, ROLL_MATH_SETTING, {
+    name: `${LANG_PREFIX}.settings.rollMath.name`,
+    hint: `${LANG_PREFIX}.settings.rollMath.hint`,
+    scope: "world",
+    config: true,
+    type: String,
+    choices: {
+      [ROLL_MATH.owners]: `${LANG_PREFIX}.settings.rollMath.owners`,
+      [ROLL_MATH.everyone]: `${LANG_PREFIX}.settings.rollMath.everyone`,
+    },
+    default: ROLL_MATH.owners,
+  });
+  installMathReveal();
 
   // The Surprise Matrix's results on one card (patches/surprise-card.mjs; docs/lib/DECISIONS.md,
   // "2026-08-11 — Surprise results consolidate onto one card"). Read at click

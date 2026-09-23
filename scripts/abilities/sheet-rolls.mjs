@@ -73,7 +73,7 @@ function bindActions(root, actor) {
         if (next) await setDefaultKey(item, next);
         return;
       }
-      await rollAbility(item, hit.dataset.acksThrow);
+      await rollAbility(item, hit.dataset.acksThrow, { event });
     } catch (err) {
       console.error(`${MODULE_ID} | rolling an ability throw failed`, err);
       ui.notifications?.error(game.i18n.localize("ACKS-ABILITIES.roll.failed"));

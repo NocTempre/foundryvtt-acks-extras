@@ -7,6 +7,7 @@
  */
 import { MODULE_ID } from "../constants.mjs";
 import { gmIds } from "../acks-adapter.mjs";
+import { postToJudges } from "../../lib/roll-audience.mjs";
 
 const T = `modules/${MODULE_ID}/templates/henchmen/chat`;
 
@@ -35,14 +36,14 @@ export async function postThrowCard(o) {
       : null,
     secret: !!o.secret,
   });
-  return ChatMessage.create({
+  const message = {
     content,
     rolls: [o.roll],
     speaker: o.speaker ?? ChatMessage.getSpeaker({ actor: o.actor }),
-    whisper: o.secret ? gmIds() : [],
     style: CONST.CHAT_MESSAGE_STYLES?.OTHER,
     flags: { [MODULE_ID]: { throwCard: true, throwId: o.def.label, outcome: o.outcome, title: o.title } },
-  });
+  };
+  return o.secret ? postToJudges(message) : ChatMessage.create(message);
 }
 
 /** Sanitized public reveal of a secret throw: outcome only, no numbers. */

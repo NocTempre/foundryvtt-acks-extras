@@ -1,5 +1,6 @@
 /* global foundry, game, ChatMessage, CONST, Roll, fromUuid, ui, Hooks */
 import { getSocket } from "../lib/sockets.mjs";
+import { postToJudges } from "../lib/roll-audience.mjs";
 import {
   INFLUENCE_ATTITUDE_LABELS,
   INFLUENCE_BAND_LABELS,
@@ -1141,15 +1142,16 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       `modules/${MODULE_ID}/templates/influence/mode-result.hbs`,
       result
     );
-    ChatMessage.create({
+    const message = {
       user: game.user.id,
       speaker,
       content,
       style: CONST.CHAT_MESSAGE_STYLES.OTHER,
       rolls: [roll],
-      whisper: this.#mode.secret ? ChatMessage.getWhisperRecipients("GM").map((u) => u.id) : [],
       flags: { [MODULE_ID]: { mode: this.#modeId, outcome, rollResult: result } },
-    });
+    };
+    if (this.#mode.secret) await postToJudges(message);
+    else ChatMessage.create(message);
 
     Hooks.callAll("acksExtras.influenceRollComplete", {
       actor: this.#actor,
@@ -1247,13 +1249,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     if (hidden) {
       // Full details to GMs only; a public message reveals just the attitude.
       const full = await foundry.applications.handlebars.renderTemplate(template, result);
-      ChatMessage.create({
+      await postToJudges({
         user: game.user.id,
         speaker,
         content: full,
         style: CONST.CHAT_MESSAGE_STYLES.OTHER,
         rolls: [roll],
-        whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
         flags: { [MODULE_ID]: { influence: true, rollResult: result } },
       });
       const reveal = await foundry.applications.handlebars.renderTemplate(template, { ...result, attitudeOnly: true });

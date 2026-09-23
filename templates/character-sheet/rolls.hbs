@@ -25,6 +25,8 @@
           <span class="acks-extras-character-sheet__row-value acks-nums">{{row.value}}</span>
           {{#if row.big}}
           <span class="acks-extras-character-sheet__roll"><i class="fa-solid fa-dice-d20" inert></i>{{localize "ACKS-CHARACTER.rolls.roll"}}</span>
+          {{else if row.post}}
+          <span class="acks-extras-character-sheet__mini is-post" data-tooltip="{{localize 'ACKS-CHARACTER.rolls.post'}}"><i class="fa-solid fa-eye" inert></i><span class="acks-sr-only">{{localize "ACKS-CHARACTER.rolls.post"}}</span></span>
           {{else}}
           <span class="acks-extras-character-sheet__mini{{#if row.eq}} is-eq{{/if}}"><i class="fa-solid fa-dice-d20" inert></i></span>
           {{/if}}

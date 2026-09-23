@@ -572,3 +572,22 @@ Recorded from the header of `scripts/character-sheet/core-bridge.mjs`.
 `this`, so it opens the very window core's sheet opens: reuse of the system's
 windows through the system's own registry, not a copy of them. If the system
 renames an action, the cell says so rather than opening nothing.
+
+### An ability with no throw is a row that posts its card (2026-09-23)
+
+Reported: a starred ability that makes no throw never reached the folded
+card, because the Rolls tab built rows only from throws and the pin bar lists
+rows.
+
+**Ruled.** Every ability that makes no throw, other than Adventuring, is a row
+in its own *Post to chat* group, and clicking it posts the system's item card —
+the card the Abilities tab's eye already posts. Pinning it is the item's own
+`system.favorite`, as for a throw row, so nothing new is stored.
+**Rejected.**
+- *Rows for starred abilities only.* A row that exists only while pinned
+  vanishes the moment it is unpinned, taking the pin control with it.
+- *The throw row's id shape.* `abl:<id>:<key>` dispatches to the roller with a
+  throw's key, which a post row does not have; it is its own kind, `post:<id>`,
+  dispatched to the item card.
+
+Cost: a character with many passive abilities has a long third column.

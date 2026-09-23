@@ -15,6 +15,7 @@
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { makeLoc, gmIds } from "../lib/util.mjs";
+import { postToJudges } from "../lib/roll-audience.mjs";
 import { abilityRank } from "../lib/capabilities.mjs";
 import { occupantsOf } from "./occupants.mjs";
 import { WATERS, HAZARD_KINDS, navigationThrow, hazardThrow, hazardSpec } from "./navigation.mjs";
@@ -62,9 +63,8 @@ async function whisperThrowCard({ title, parts, target, effective, roll, extra =
         ${loc(success ? "sea.made" : "sea.failed", { total: roll.total })}</p>` : ""}
       ${extra}
     </div>`;
-  await ChatMessage.create({
+  await postToJudges({
     speaker: { alias: loc("sea.speaker") },
-    whisper: gmIds(),
     content,
     rolls: roll ? [roll] : [],
   });
@@ -189,9 +189,8 @@ export async function startSinkingClock(vehicleActor) {
   if (!formula || !isSinking(vehicleActor.system)) return null;
   const roll = await new Roll(formula).evaluate();
   await vehicleActor.setFlag(MODULE_ID, SINKING_FLAG, { rounds: roll.total, rolled: roll.total });
-  await ChatMessage.create({
+  await postToJudges({
     speaker: { alias: loc("sea.speaker") },
-    whisper: gmIds(),
     content: `<div class="acks-extras-sea-throw-card"><header><i class="fa-solid fa-water"></i>
       <strong>${loc("sea.sinkStarted", { name: vehicleActor.name, rounds: roll.total })}</strong></header></div>`,
     rolls: [roll],

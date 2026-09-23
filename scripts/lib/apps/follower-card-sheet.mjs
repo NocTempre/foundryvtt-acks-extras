@@ -18,6 +18,7 @@
 import { toNum as num, unset } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
 import { actorProvides, followerCardContext, FOLLOWER_CARD_TEMPLATE } from "../follower-card.mjs";
+import { skipDialogFor } from "../roll-dialog.mjs";
 
 
 export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplicationMixin(
@@ -277,12 +278,7 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     const type = target.dataset.attack || "melee";
     const itemId = target.dataset.itemId;
     const key = target.closest("[data-attack-key]")?.dataset.attackKey;
-    let skip = false;
-    try {
-      skip = !!event?.[game.settings.get("acks", "skip-dialog-key")];
-    } catch {
-      /* setting absent — show the dialog */
-    }
+    const skip = skipDialogFor(event);
     const ov = key ? ((this.actor.getFlag(MODULE_ID, "fcOverrides") ?? {}).attacks ?? {})[key] : null;
     const item = itemId ? this.actor.items.get(itemId) : null;
 

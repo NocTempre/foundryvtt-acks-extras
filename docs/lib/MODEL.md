@@ -951,6 +951,65 @@ Three details are load-bearing:
 this card is Name and Total — initiative has no verdict to render. The
 `initiativeCard` world setting gates the patch, read per roll.
 
+## The roll dialog
+
+`scripts/lib/roll-dialog.mjs` is the one dialog a roll this module makes asks
+through: the attack card and every ability throw. It shows the formula, a
+situational modifier (whole numbers), and the message's visibility, opening on
+the chat's own mode. Where the visibility is not the roller's to choose — an
+ability the system marks blind — the dialog states the mode instead of offering
+the select. Closing it returns `null` and nothing is rolled.
+
+`skipDialogFor(event, explicit)` is the one read of the system's skip-dialog key
+(`acks.skip-dialog-key`): the dialog is skipped when the caller passes
+`skipDialog: true` or the named key is held on the click. A caller that acts on
+the result instead of showing it (a lock the throw opens, a bridge command)
+passes `skipDialog: true`.
+
+The modifier enters the formula as its own term, `+ 2[Situational]`, so the dice
+box and the card agree. `auditOf(roll)` reads an evaluated plain sum back into
+its single dice term and the numbers added to it, and `auditLine` prints that as
+the ability card's first detail line: "Natural 14 + 2 (Situational) = 16". A
+formula with no added terms, two dice terms, or anything but `+`/`-` has no
+audit and prints nothing. Rulings: DECISIONS, "One roll dialog, and the natural
+die on the card".
+
+## Who reads a roll
+
+`scripts/lib/roll-audience.mjs` decides who sees which part of a roll this
+module posts.
+
+**A card for the GMs alone** goes through `postToJudges(data)`: whispered to
+`gmIds()`, with `rolls` emptied. Foundry's `ChatMessage#visible` is true for any
+whispered message carrying rolls, and a reader outside the whisper then sees a
+"privately rolled some dice" line naming the author; with no rolls, the message
+is invisible to them. Where the card's content has no markup of its own, the
+rolls' boxes become the content, as Foundry would have drawn them; a card with
+markup keeps it, and states or draws its own totals. `drawForJudges(table)` is
+the same for a table draw: it draws without posting, then posts the table's own
+result card whispered to the GMs, with a `preCreateChatMessage` hook — scoped
+to this user and this table's flag, removed in a `finally` — taking the roll
+and the dice sound off it.
+
+**Dice So Nice** is reached through `showDice(rolls, {whisper, blind})` alone. It
+passes the whisper list as the viewers, or `null` when the list is empty,
+because Dice So Nice reads an empty list as nobody.
+
+**An attack card's math** — the throw, the bonuses, the target's Armor Class
+and both dice boxes — is wrapped by `mathSection(html)` in Foundry's own secret
+section, unless the `rollMath` world setting is `everyone`. `ChatMessage#renderHTML`
+enriches the content with `secrets` true only for the speaking actor's owners
+and the GMs, so every other reader gets the card without the section; the
+outcome word and a total-only damage box stay outside it, and the system's
+apply-damage reads that box. The section carries only `class` and `id`
+because Foundry's reveal toggle matches and rewrites the opening tag with those
+two alone; the styling sits on the inner `.acks-extras-roll-math`. Kept
+sections render as a `secret-block` with a Reveal button, which rewrites the
+message so every reader sees the math; `installMathReveal` sets `revealable`
+only for the message's author and the GMs, since a Reveal from anyone else
+fails on update permission. Rulings: DECISIONS, "Public results, private math"
+and "A Judge-only card attaches no rolls".
+
 ## Movement modes
 
 Three speed derivations grew independently — a march, a voyage, a flight — and

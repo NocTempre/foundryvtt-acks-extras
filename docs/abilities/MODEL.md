@@ -73,6 +73,22 @@ point. The chat card and the editor's preview name the term, because a target
 that moved with no visible cause reads as a typo. On a measure the term goes into
 the DICE instead — there is no target to move — and the line says so.
 
+**Rolling a throw asks first.** `rollAbility(item, key, {event, skipDialog,
+bonus, messageMode})` opens lib's roll dialog (`lib/roll-dialog.mjs`) once
+the rung is known to need a throw — a rung with no throw posts without asking,
+and an unavailable rung says why and posts nothing. The dialog's modifier is
+added to the formula as a `Situational` term, and the card's first detail line
+reads the natural die back out of the total. An ability the system marks blind
+fixes the visibility, so the dialog states it instead of offering the choice.
+The system's skip key skips the dialog on every surface that rolls a throw:
+the ability's Rolls tab, the system sheet's throw tags and favourites and the
+character sheet pass their click event; the system sheet's row reads the key
+itself and passes `skipDialog`; the chat card's button passes its event
+through `rollFormula`. The lock roll (`equipment/locks.mjs`) passes
+`skipDialog: true`, because it reads the result to open the lock. Closing the
+dialog returns `null` and posts nothing.
+Rulings: lib DECISIONS, "One roll dialog, and the natural die on the card".
+
 ## A companion is an inventory slot
 
 An ability that confers a creature — a familiar, a totem animal, a summoned
