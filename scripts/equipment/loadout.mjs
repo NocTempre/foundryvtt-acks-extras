@@ -23,7 +23,7 @@ export const VIOLATION = Object.freeze({
   WEAPON_NOT_PROFICIENT: "weaponNotProficient", // weapon unusable by class (advisory; triggers nonProficientUse)
   ARMOR_NOT_PROFICIENT: "armorNotProficient", // worn armour above class proficiency (advisory; triggers nonProficientUse)
   STYLE_NOT_PROFICIENT: "styleNotProficient", // using an untrained fighting style (advisory; triggers nonProficientUse)
-  NON_PROFICIENT_USE: "nonProficientUse", // the full RR p. 106 package: attacks as 0th-level fighter, no attribute bonus to attack/AC, no class powers, no XP
+  NON_PROFICIENT_USE: "nonProficientUse", // the full non-proficient use package (RR p. 15): attacks as a 0th-level fighter, no attribute bonus to attack/AC, no class powers, no XP
   THIEF_SKILL_GATED: "thiefSkillGated", // Backstab/Hide/Pickpocket/Sneak blocked by armour/shield (advisory)
 });
 
@@ -245,7 +245,7 @@ export function getLoadout(actor, opts = {}) {
   for (const w of weapons) if (w.handsMin >= 2) w.wieldTwoHanded = true;
 
   // GRIP resolution. A two-handed grip needs BOTH hands, so only a lone melee
-  // weapon with no in-hand shield can take it (RAW 1d8/1d10). The player's grip
+  // weapon with no in-hand shield can take it. The player's grip
   // choice governs: "1h" forces one hand; "2h" is honoured only when the hands
   // are actually free (else it is BLOCKED and surfaced); "auto" takes the two-
   // handed grip when hands are free and the style is trained, one-handed
@@ -336,11 +336,11 @@ export function getLoadout(actor, opts = {}) {
   if (weapons.length && !styleProficient) {
     violations.push({ type: VIOLATION.STYLE_NOT_PROFICIENT, items: weapons.map((w) => w.item), advisory: true, detail: { style: activeStyle } });
   }
-  // RAW "Non-Proficient Use of Weapons and Armor" (RR p. 106 sidebar): the
-  // condition is the equipped STATE — any unusable weapon, unusable worn
-  // armour, or an untrained fighting style (weapon and style proficiency are
-  // distinct; BOTH are required). Attack/AC land in roll-wrap + the loadout
-  // effect; class powers and XP are Judge-side, surfaced via the violation.
+  // Non-proficient use (RR p. 15): the condition is the equipped STATE — any
+  // unusable weapon, unusable worn armour, or an untrained fighting style
+  // (weapon and style proficiency are distinct; BOTH are required). Attack/AC
+  // land in roll-wrap + the loadout effect; class powers and XP are
+  // Judge-side, surfaced via the violation.
   const nonProficientUse =
     !!(nonProfWeapons.length > 0 || (armor && !armorProficient) || (weapons.length > 0 && !styleProficient));
   if (nonProficientUse) {

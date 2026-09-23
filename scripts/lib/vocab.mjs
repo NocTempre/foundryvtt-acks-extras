@@ -551,13 +551,13 @@ export const PROFICIENCY_BREADTH = {
 /** The typed effect primitives an ability's `effects[]` may hold. */
 export const EFFECT_TYPES = {
   modifier: { label: "Modifier" }, // flat/level-scaling bonus OR penalty to a target
-  // "apply her WIL modifier instead of her STR modifier on any damage roll" —
-  // NOT a modifier. It changes which score feeds a roll, so its size is the
+  // One of the character's scores used in place of another on a roll — NOT a
+  // modifier. It changes which score feeds a roll, so its size is the
   // difference between two of the character's own scores and cannot be written
   // as a number at all. Stored as {attribute, insteadOf, target}.
   attributeSubstitution: { label: "Attribute Substitution" },
   throw: { label: "Proficiency Throw" }, // a target-number roll
-  progressionAs: { label: "Progresses As Class" }, // "as a thief of his level"
+  progressionAs: { label: "Progresses As Class" }, // a skill that advances as another class's
   proficiencyGrant: { label: "Proficiency Grant" }, // weapon/armor/fighting-style proficiency
   limitation: { label: "Limitation / Drawback" }, // a restriction or penalty — attaches to ANY ability
   // "On a roll of X, Y happens" — a consequence keyed to how the throw itself
@@ -584,9 +584,9 @@ export const EFFECT_TYPES = {
   spellcastingMod: { label: "Spellcasting Modifier" },
   resource: { label: "Resource" }, // spend/gain fate points, spell slots, etc.
   conditionGrant: { label: "Condition / Immunity" },
-  // The other direction: an ability that LIFTS a condition already in place
-  // ("if he lays hands on a paralyzed creature, he can cure the paralysis").
-  // Stored as `conditions` + `appliesTo`, the same fields conditionGrant uses.
+  // The other direction: an ability that LIFTS a condition already in place,
+  // such as a touch that cures paralysis. Stored as `conditions` +
+  // `appliesTo`, the same fields conditionGrant uses.
   conditionRemove: { label: "Removes Condition" },
   economic: { label: "Economic / Rate" },
   capability: { label: "Capability" }, // marker; detail lives in the (lazy) description
@@ -1120,8 +1120,8 @@ export const VALUE_KINDS = {
 
 /**
  * How a fractional level-scaled value is rounded. The books always print the
- * rounding beside the fraction ("one-half his class level (round up)"), so it
- * is part of the rule, not a display choice. Absent means no rounding.
+ * rounding beside the fraction, so it is part of the rule, not a display
+ * choice. Absent means no rounding.
  */
 export const VALUE_ROUNDING = {
   up: { label: "Round Up" },

@@ -407,9 +407,11 @@ row carrying its id.
 ### Fixtures
 
 An imported world. Note the document id and `img` of ONE imported trap and ONE
-imported proficiency before starting, and `api.track` both so the rebuilt
-copies can be swept — the rebuild mints NEW document ids, so the ids read back
-after the run are the ones to track, read the moment the run resolves.
+imported proficiency before starting. A rebuild mints NEW ids for what it
+rebuilds, and those documents are the library's, not the run's: never track or
+sweep them, or the shelf is left short of the very entries the step rebuilt.
+Only what the run adds to the world is tracked, as it is made — the copies in
+step 10, the entry step 7 creates.
 
 ### Steps
 
@@ -440,9 +442,11 @@ after the run are the ones to track, read the moment the run resolves.
    not 138; the confirm's removed count is 0, because rules tables merge into
    the store rather than being deleted and rebuilt; afterwards
    `acksLib.tables.getDoc("weather")` answers and every other document already
-   in the store still answers. A tick on a table row reflects `hasDoc`, not a
-   document flag, so a world that has the store but no imported items shows
-   ticks here and none above.
+   in the store still answers. A tick on a table row reflects the store's
+   world layer (`getLayer(docId, PRIORITY.WORLD)`), not a document flag, so a
+   world that has the store but no imported items shows ticks here and none
+   above. `rarity` carries no tick in a world that never read it, although
+   henchmen registers a sample under that id.
 7. Tick ONE entry the world does not hold (no present tick), from a run whose
    shelf the world holds only part of, and press *Reimport*.
    *Observable:* exactly one document is created — `api.track` it from the
@@ -469,6 +473,45 @@ after the run are the ones to track, read the moment the run resolves.
    others as left as they are. Cancel it: Update rewrites every readable class
    in the world, which a shared test world does not want, and the partition is
    what the confirm shows.
+10. **A copy the Judge made survives a rebuild.** Drag one imported trap out
+    of its compendium into the Items sidebar, and one imported monster into the
+    Actors sidebar, and `api.track` both copies. Give the trap copy a
+    description of your own. Tick both entries and press *Reimport*.
+    *Observable:* the confirm's removed count is 2 (the library's two
+    documents, not the copies). Afterwards both copies keep their ids and the
+    trap keeps your description. The compendiums hold the trap and the monster
+    again under new ids, because the refill did not take a copy for the
+    library's own document. Then *Reimport one shelf* for the trap's shelf.
+    *Observable:* the copy is still there, unchanged, and the shelf's count
+    matches the count before the step.
+11. **OSE creatures.** With an authored OSE book open on this seat, open the
+    picker.
+    *Observable:* an "OSE creatures" group lists that book's creatures, and a
+    creature the book prints one block per step for is ONE row, whose id ends
+    `.group.<key>`. Tick one plain creature and one such generator, both
+    imported, and press *Reimport*.
+    *Observable:* the confirm's removed count is 2. Afterwards both exist again
+    under new ids, and the generator still offers every step. With the book
+    closed on this seat (the masking below), the same two ticks are refused and
+    nothing is deleted: the closed-book warning, no confirm. The picker's
+    promise then resolves `"ok"`, the button's action, since the refusal
+    returns nothing for DialogV2 to hand back.
+12. **A Judge's override is never read into the import.** On a world holding
+    the imported `weather` document, with `t = acksExtras.lib.tables`, pick a
+    table of it with no override yet (`t.getLayer("weather", t.PRIORITY
+    .OVERRIDE)?.tables` lacks it; `conditionSpeed`, say) and keep a copy of
+    its world-layer value. Open `acksExtras.location.openRuledataBrowser()`,
+    press Edit on that row and save an invented value no book prints
+    (`{"frigid": 0.123}`).
+    *Observable:* the row reads overridden, and `t.getDoc("weather")` answers
+    the invented value while `t.getLayer("weather", t.PRIORITY.WORLD)` still
+    answers the copy. Now tick `weather` here and press *Reimport*.
+    *Observable:* the world layer answers the book's value again, not the
+    invented one, and `t.getDoc` still answers the invented one, because the
+    override still stands on top. Press Revert on the row.
+    *Observable:* `t.getDoc("weather")` answers the copy. The revert removed the
+    override this step created; nothing else needs sweeping, and the override
+    layer is absent again if it held nothing before.
 
 **Closing a book on one seat.** A world whose books are SHELVED reopens every
 one of them on every seat at join (`restoreShelf`), so a GM seat never holds a
@@ -477,9 +520,11 @@ closed book unless the book is unshelved for the whole world, and
 and 9 are reached by masking one book on this client for the length of one
 evaluation: wrap `Map.prototype.has` to answer false for that book id on the
 map whose values carry `{doc, title}` (the importer's open-book map), and
-restore it in a `finally`. It is a synthetic trigger — it proves the partition
-against the world's real documents, not a seat that never opened the book —
-and the report says so.
+restore it in a `finally`. The rules-table read asks that map with `get`, not
+`has`, so a mask for it wraps `get` too, answering `undefined`, and holds from
+the click until the run resolves. It is a synthetic trigger — it proves the
+partition against the world's real documents, not a seat that never opened the
+book — and the report says so.
 
 **Teardown.** `api.sweepTracked()`; quote what it removed, what it could not
 find and what refused.
@@ -505,6 +550,45 @@ find and what refused.
    mutation. *Observable:* each names Import Everything, Reimport One Shelf or
    the macro folder that holds them, and none names the "ACKS Importer", a
    module that no longer exists to be found.
+
+## Console budget
+
+What an import run writes to the console, and at which level. DevTools with
+every level shown, filtered on `acks-extras |`.
+
+1. **Rules tables with a supplement closed.** Mask one supplement on this client
+   (the technique under *One entry at a time*, "Closing a book on one seat"),
+   and read one table document that uses it (`people`) from the entry picker.
+   *Observable:* an info toast names the supplement and says every other table
+   was read; no warning toast. With nothing masked, neither appears.
+2. **No per-step echo.** Rebuild five monsters from the picker.
+   *Observable:* no info line per step; one debug line when the run starts and
+   one when it finishes. The art directory is asked for at most once in the
+   session, and "art reused" lines appear only at Verbose.
+3. **No stat-block guess for the six shared names.** The same run imports a
+   monster whose proficiencies include climbing or swimming.
+   *Observable:* no "matches several definitions" warning for them; the
+   embedded proficiency is the proficiency, not the class power.
+4. **Update Abilities reports a name once.** Give a tracked character two
+   unflagged abilities named after one proficiency that is also a power
+   (Acrobatics), and run Update Abilities.
+   *Observable:* one debug line naming it with "(2 copies)"; no warning, since
+   the ranking settled it. Both copies carry the proficiency's id afterwards.
+   Update Abilities rewrites every ability in the world, the library's and
+   every actor's, so on a shared world scope it to the fixture for the length
+   of the call: on this client, own-property overrides make `game.packs.filter`
+   leave out the cookbook's Item packs and make `game.actors` and `game.items`
+   iterate the fixture alone, deleted again in a `finally`. An `updateItem`
+   and `createItem` observer for this user proves every write landed on the
+   fixture. The mask does not change the pick: with neither definition
+   present the category ranking chooses, as it does when both are.
+5. **A book nothing reads.** Open a book no entry or recipe cites.
+   *Observable:* its toast says nothing imports from it yet, not "0 entries".
+
+**Teardown.** Restore the masked book in the `finally` that masked it;
+`api.sweepTracked()` for the character, and quote what it removed, what it
+could not find and what refused. The monsters step 2 rebuilt are the library's
+and stay (see *One entry at a time*, Fixtures).
 
 ## Two books, one item
 
@@ -1336,7 +1420,10 @@ only, never pasted into a repo.
    the real book. Every table should report values and none should read
    `__missing`. When a column box is wrong, measure it rather than guessing:
    `node tools/importer/dev-page-runs.mjs <book> <page> [substring]` prints each run's
-   x/y so a `cellColumns` box can be read off the page.
+   x/y so a `cellColumns` box can be read off the page. A new or moved recipe
+   also passes `node tools/importer/test-recipe-pages.mjs`: its `printedPage`
+   is the folio its search lands on, and its document's `source.pages` names
+   that folio.
 2. **Does the binder read what the window caught?**
    `node tools/importer/dev-try-binding.mjs <docId>` runs the recipe and its assembler
    together and prints the engine tables. Check the SHAPES as well as the

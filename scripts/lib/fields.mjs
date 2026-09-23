@@ -238,12 +238,12 @@ export function effectField() {
      * ATTRIBUTES keys, which are the core system's own score paths, so a
      * consumer swaps `system.scores[insteadOf].mod` for
      * `system.scores[attribute].mod` without a translation table. The rule is
-     * always narrowed in prose (Weapon Finesse: tiny/small/medium melee
-     * weapons; the bladedancer's: weapons she is proficient with) — that
-     * narrowing lives in `condition`, as it does for every other effect. */
+     * always narrowed in prose (by weapon size, or to the weapons the
+     * character is proficient with) — that narrowing lives in `condition`, as
+     * it does for every other effect. */
     attribute: choice(ATTRIBUTES),
     insteadOf: choice(ATTRIBUTES),
-    // progressionAs — "climbs as a thief of his class level". A class KEY on
+    // progressionAs — a skill that advances as another class's. A class KEY on
     // the same terms as a progression target's: the four chassis, or any class
     // the world publishes. A closed enum rewrote every non-chassis class to
     // `fighter` on save, so an ability that progressed as a craftpriest stored

@@ -187,7 +187,7 @@ function inheritedGrants(item, actor) {
   }
   if (missile && dex) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.attackMissile")}`, src: loc("itemSheet.src.attribute") });
   // effects.mjs's loadout AE subtracts this same DEX bonus back out under
-  // nonProficientUse (RR p. 106: no attribute bonus to AC while so equipped),
+  // nonProficientUse (RR p. 15: no attribute bonus to AC while so equipped),
   // so the ledger stops claiming a bonus that never reaches the actor's AC.
   if (item.type === ITEM_TYPE.armor && dex && !loadout?.nonProficientUse) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.ac")}`, src: loc("itemSheet.src.attribute") });
   if (item.type === ITEM_TYPE.weapon && loadout) {
@@ -272,7 +272,6 @@ function recordOf(item) {
       ];
     case ITEM_TYPE.item:
       return [
-        { name: "system.subtype", label: loc("itemSheet.field.subtype"), type: "select", value: sys.subtype ?? "item", choices: [{ value: "item", label: loc("itemSheet.field.subtypeItem") }, { value: "clothing", label: loc("itemSheet.field.subtypeClothing") }] },
         { name: "system.quantity.value", label: loc("itemSheet.field.quantity"), type: "number", value: sys.quantity?.value ?? 1, width: "xs" },
         { name: "system.quantity.max", label: loc("itemSheet.field.quantityMax"), type: "number", value: sys.quantity?.max ?? 0, width: "xs" },
         // Silent at 1 on a single item — the ordinary case, and asking every

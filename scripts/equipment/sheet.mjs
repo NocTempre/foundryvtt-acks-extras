@@ -128,9 +128,9 @@ function buildWornSection(actor, tab, loadout) {
     section.append(bucket);
   }
 
-  // Unarmed: an empty-handed character always has a strike (RR p299, 1d3
-  // nonlethal) — a mode, not the absence of one. Shown whenever no weapon is
-  // wielded, so it appears even for a character carrying nothing at all.
+  // Unarmed: an empty-handed character always has a strike (RR p. 299) — a
+  // mode, not the absence of one. Shown whenever no weapon is wielded, so it
+  // appears even for a character carrying nothing at all.
   let unarmed = false;
   if (!loadout.weapons.length) {
     const bucket = el("div", "acks-equipment-wear__bucket acks-equipment-wear__bucket--unarmed");
@@ -157,7 +157,7 @@ function buildWornSection(actor, tab, loadout) {
 }
 
 /** A light source's formation light type from its name, or null. A torch is a
- * WEAPON (RR: 1d4), lanterns/candles are items — so match by name, not type.
+ * WEAPON, lanterns/candles are items — so match by name, not type.
  * The name test is the light model's own — the device's pattern where the
  * source has one (a lantern is named for the lamp, not the oil it burns), the
  * fuel's otherwise — so the controls this gates and the ready step they lead
@@ -355,7 +355,7 @@ function rowControls(li) {
 
 /**
  * "Ready" control on every torch STACK (a light `item` bundle). Pulls one torch
- * out as a wieldable 1d4 light-weapon (prepareTorch) and decrements the bundle.
+ * out as a wieldable light-weapon (prepareTorch) and decrements the bundle.
  * Independent of acks-formation — readying a torch is a pure equipment action —
  * so unlike the light/douse controls it renders whether or not the actor is in a
  * party formation.

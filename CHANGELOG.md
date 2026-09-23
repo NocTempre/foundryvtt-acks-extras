@@ -1,5 +1,110 @@
 # Changelog
 
+## 8.1.0
+
+### Fixed
+
+- **A request relayed to the Judge is checked against the seat that sent it.**
+  The party's declarations, market purchases, sales, searches and ventures,
+  recruitment postings, companion creation, influence's hidden roll and the
+  hiring outcome each trusted an identity the requesting client wrote, and some
+  checked none at all. From the browser console, a player could act as the
+  Judge, spend another character's coin or copy an actor they cannot see into
+  one they own. Every relayed request now carries the sender Foundry's server
+  vouches for, and each checks ownership against it. The lost-party discovery
+  notice now shows only when the Judge sends it. Nothing changes for a player
+  using the module's own windows.
+- **Discover writes the lost party's own scene.** Pressing Discover while
+  viewing another scene wrote the episode's saved fog into that scene. It also
+  deleted the explored fog of every player whose snapshot was empty. An episode
+  now keeps the scene and level it began on, and every fog write goes there. An
+  episode begins only while the Judge is viewing the party's scene. Fog already
+  overwritten can only come back from a world backup.
+- **A lost party's true-position marker goes when the episode ends.**
+  Discovery now leaves the episode open, with the party aware it is lost, until
+  a re-anchor or a retreat closes it. Every ending removes the marker from every
+  scene, and so does dissolving the formation. A marker left by an earlier
+  episode is named on the Lost panel, with controls to move the party onto it
+  or remove it. Moving the party onto its marker moves its journey hex with it.
+  The panel's raw *lost* checkbox is gone; the episode's own controls are the
+  only way in and out.
+- **A lost episode and an anchored map write each player's own fog.** Both read
+  only the fog the Judge's client held, and that never includes a player's own
+  record. The imagined ground went into a second fog record the player's map
+  never loaded, so players never saw it. Ground credited at a landmark, or drawn
+  by an anchored map, became a newer record that hid everything the player had
+  explored before, from their next session on. Both now write the player's own
+  record. The hidden ground was never deleted: view an affected scene and run
+  **Merge Fog Copies on This Scene (GM)** from the macro compendium to fold it
+  back in. An episode already open when you upgrade finishes the way it began;
+  run the macro once it is over.
+- **A bundle dropped on a character sheet arrives as its goods.** It used to be
+  embedded whole, where no sheet lists it. Each row now arrives as items,
+  counted the way core counts a bundle. A row whose item is gone falls back to
+  the library item of the same name and type. A row still unresolved is named
+  in a warning, and the rest arrive. Market purchases arrive the same way, and
+  a purchase now tops up only an identical stack: goods you carry in a
+  container, or have edited, arrive as a new stack. A bundle embedded before
+  this version stays where it is, unseen.
+- **Rebuilding the library leaves your own copies standing.** Rebuilding
+  picked entries, a book or a shelf deleted the documents a Judge had dragged
+  out of the library or duplicated in the sidebar, edits and all. A copy is now
+  the Judge's own: no rebuild deletes it, and the rebuild restores the library's
+  document beside it. *Remove All Imports* still removes copies, on purpose.
+- **A level-scaled ability value counts at the character's level.** Every
+  typed value an ability scaled by level contributed 0 to the character's
+  equipment and rolls. It now resolves at the character's level. With the
+  classes feature turned off, a value that follows a class progression still
+  contributes 0.
+- **OSE creatures can be rebuilt from the entry picker.** The picker never
+  listed them, so a creature read wrong meant deleting it by hand and importing
+  its whole book again. An *OSE creatures* group now lists the creatures of
+  every OSE book open on this seat. A creature printed as one block per step is
+  one row, because its steps are rebuilt together.
+- **Clearing a table override brings the book's figure back.** An override was
+  read into the import the next time the table was read. Clearing it then
+  uncovered the same figure one layer down. An import now merges only into what
+  was imported before. A world where the override was already read in keeps it
+  until that table is read again. The picker's tick on a table document now
+  means it was imported, not that the module supplied a sample.
+- **Clothing weighs as clothing however it was declared.** Clothing declared
+  from the item's rail kept its full weight. The rail and the item's own type
+  now agree on every write, from any sheet or import. The Details tab's *Kind*
+  select is removed, and the rail is the one control. Armor documents no longer
+  offer clothing, because core weighs every armor document as armor. An item
+  that already disagrees keeps its weight until you settle it; *Annotate*
+  settles an item the rail calls clothing.
+- **An import's console holds what a Judge can act on.** The console no longer
+  echoes every step of the progress bar or recreates the art folder for each
+  picture, and the PDF reader reports errors only. Name matches settled by the
+  category ranking no longer warn. A supplement not connected on this seat is reported
+  by name as information, and a missing core book still warns. A table that
+  could not be read from an open book is now a warning toast. A book nothing in
+  the build reads says so when it opens.
+- **A hosteller's occupation comes from its own table.** The hosteller
+  sub-table was never imported, so a hosteller showed the bare category. Read
+  the *people* tables again to import it.
+- **A rules table cites the page a reader turns to.** Several rules tables,
+  the class-builder tables among them, cited the PDF's page instead of the
+  printed one, or left out pages they read. Each table's citation now names the
+  printed pages under the book's short name. An imported table shows the
+  corrected citation without being read again.
+
+### Changed
+
+- **Equipment hints name the field and cite the page.** Hints, labels and roll
+  notes no longer state printed numbers or paraphrase the rule they serve; each
+  cites its page. Non-proficient use cites RR p. 15, and a scribed spell's
+  value RR p. 391. The masterwork choices are named for what each improves. The
+  *Configure Proficiencies* macro no longer lists example weapons beside each
+  size.
+- **Formation hints name the field and cite the page.** The party rolls, the
+  winded and rest warnings, the encounter card and settings, the door window and
+  the pace control state no printed figures. The bash note said a botched heave
+  deals 1d6; it deals 1 point, as the book says, and the note now states no
+  figure. Tracking cites RR p. 120. A crude trap's attack line shows the penalty
+  the trap actually applied.
+
 ## 8.0.7
 
 ### Fixed

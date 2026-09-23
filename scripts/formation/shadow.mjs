@@ -2,16 +2,16 @@
 /**
  * The shadow token: where the party really is, while it believes otherwise.
  *
- * A lost party is an object in space, not a coordinate. The book says so — a
- * searching group finds a lost one "as if it were a point of interest", and
- * every lost group shares the same last known landmark so they can rendezvous
- * there. Both of those are distance questions, and Foundry already answers
- * distance questions about TOKENS.
+ * A lost party is an object in space, not a coordinate. The book says so
+ * (RR p. 285) — a searching group finds a lost one the way it finds a point of
+ * interest, and every lost group shares the same last known landmark so they
+ * can rendezvous there. Both of those are distance questions, and Foundry
+ * already answers distance questions about TOKENS.
  *
  * So the truth is a hidden token: unlinked, vision-less, flagged to its
- * formation, deleted when the episode ends. The players' token stands at the
- * believed hex and is the one they drag; the shadow is what every derivation
- * that asks "where is this party" actually reads.
+ * formation, and deleted from every scene when the episode closes or its
+ * formation is dissolved. The players' token stands at the believed hex and is
+ * the one they drag; the shadow marks where the party really is.
  *
  * The shadow holds no state the ledger does not already own, so losing it
  * costs nothing but a re-place — which is exactly why it can be deleted
@@ -22,6 +22,12 @@ import { MODULE_ID } from "../lib/constants.mjs";
 /** The flag naming which formation a shadow belongs to. */
 export const SHADOW_FLAG = "shadowFor";
 
+/**
+ * The update option on a party token moved onto its shadow: the party was
+ * always there, so the move is not a walk and the movement hook skips it.
+ */
+export const TRUTH_MOVE_OPTION = `${MODULE_ID}.lostTruth`;
+
 /** Every shadow on a scene, newest last. */
 export function shadowsOn(scene) {
   return (scene?.tokens ?? []).filter((t) => t.getFlag(MODULE_ID, SHADOW_FLAG));
@@ -30,6 +36,12 @@ export function shadowsOn(scene) {
 /** This formation's shadow on a scene, or null. */
 export function shadowFor(scene, formationId) {
   return shadowsOn(scene).find((t) => t.getFlag(MODULE_ID, SHADOW_FLAG) === formationId) ?? null;
+}
+
+/** Every shadow of one formation, on every scene. */
+export function shadowsOf(formationId) {
+  if (!formationId) return [];
+  return [...(game.scenes ?? [])].flatMap((scene) => shadowsOn(scene).filter((t) => t.getFlag(MODULE_ID, SHADOW_FLAG) === formationId));
 }
 
 /**
@@ -67,22 +79,42 @@ export async function placeShadow(scene, formation, offset) {
   return made ?? null;
 }
 
-/** Remove a formation's shadow. Total, and safe to call when there is none. */
-export async function clearShadow(scene, formationId) {
-  if (!game.user?.isGM) return false;
-  const token = shadowFor(scene, formationId);
-  if (!token) return false;
-  await token.delete();
-  return true;
+/** Delete shadow tokens, one call per scene. Returns how many went. */
+async function deleteShadows(tokens) {
+  const byScene = new Map();
+  for (const t of tokens) {
+    if (!t.parent) continue;
+    byScene.set(t.parent, [...(byScene.get(t.parent) ?? []), t.id]);
+  }
+  let count = 0;
+  for (const [scene, ids] of byScene) {
+    await scene.deleteEmbeddedDocuments("Token", ids);
+    count += ids.length;
+  }
+  return count;
 }
 
 /**
- * Where a formation REALLY is: its shadow if one stands, else its own token.
- *
- * The one accessor every derivation asks. Routing terrain, encounters and the
- * weather's climate through here is what lets an episode run without any of
- * them knowing one is running.
+ * Remove a formation's shadows from every scene. Total, and safe to call when
+ * there are none. Returns how many were deleted.
  */
+export async function clearShadows(formationId) {
+  if (!game.user?.isGM) return 0;
+  return deleteShadows(shadowsOf(formationId));
+}
+
+/**
+ * Remove every shadow whose formation is not in `liveIds`: a formation that no
+ * longer exists has no episode for its shadow to stand in.
+ */
+export async function clearOrphanShadows(liveIds) {
+  if (!game.user?.isGM) return 0;
+  const orphans = [...(game.scenes ?? [])].flatMap((scene) =>
+    shadowsOn(scene).filter((t) => !liveIds.has(t.getFlag(MODULE_ID, SHADOW_FLAG))));
+  return deleteShadows(orphans);
+}
+
+/** Where a formation REALLY is on a scene: its shadow if one stands, else its own token. */
 export function truePositionToken(scene, formation) {
   return shadowFor(scene, formation?.id) ?? (scene?.tokens ?? []).find((t) => t.actorId === formation?.actorId) ?? null;
 }

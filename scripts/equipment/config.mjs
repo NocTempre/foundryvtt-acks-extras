@@ -1,6 +1,6 @@
 /**
- * RAW equipment data (ACKS II Revised Rulebook, Equipment pp. 126–127; Combat
- * pp. 296–299). All values are Rules-As-Written; no homebrew.
+ * Built-in equipment profiles (ACKS II Revised Rulebook, Equipment pp. 126–127;
+ * Combat pp. 296–299).
  *
  * This is the built-in weapon profile lookup used as the LAST resort by
  * profiles.mjs (after core tags and per-item flags). Keys are normalised weapon
@@ -123,7 +123,7 @@ export const WEAPON_ALIASES = Object.freeze({
   greatax: "greataxe",
   handax: "handaxe",
   // A class's printed weapon list names the hammer without its prefix, and
-  // the narrow category it belongs to is written "flails, hammers, and maces"
+  // the narrow category it belongs to lists hammers beside flails and maces
   // — so a grant read off a class spread says "hammer" and would otherwise
   // match nothing at all.
   hammer: "warhammer",

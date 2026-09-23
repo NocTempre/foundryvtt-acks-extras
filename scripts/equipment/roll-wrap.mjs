@@ -7,17 +7,16 @@
  * fields by the managed loadout Active Effect — no patch needed. What CANNOT be
  * expressed as a static actor modifier is *per-weapon*, so it is injected here:
  *
- *   - RAW non-proficient use (RR p. 106 sidebar): 1st+ level characters attack
- *     as 0th-level fighters (attack throw 11+, i.e. bba −1) while equipped with
- *     any weapon/armour unusable by their class or an untrained fighting style;
- *     0th-level characters take an additional −1 instead; and regardless of
- *     level no attribute BONUS applies to the attack throw (the AC half of that
- *     clause lives in the loadout effect; class powers/XP are Judge-side and
- *     surfaced as a violation)
+ *   - non-proficient use (RR p. 15): 1st+ level characters attack as 0th-level
+ *     fighters while equipped with any weapon/armour unusable by their class or
+ *     an untrained fighting style; 0th-level characters take an additional
+ *     penalty instead; and regardless of level no attribute BONUS applies to
+ *     the attack throw (the AC half of that clause lives in the loadout effect;
+ *     class powers/XP are Judge-side and surfaced as a violation)
  *   - Weapon Finesse: DEX instead of STR on tiny/small/medium melee attacks
  *   - a damage-attribute substitution (Strength of Faith: WIS instead of STR on
  *     the damage rolls Strength would have modified)
- *   - two-handed damage upsize for medium weapons wielded in both hands (1d6→1d8)
+ *   - two-handed damage upsize for medium weapons wielded in both hands
  *
  * Technique (deliberately non-invasive): `AcksItem#rollWeapon` passes
  * `item: this.toObject()` — a plain throwaway object — and `AcksActor#rollAttack`
@@ -104,28 +103,28 @@ export function computeAttackMods(actor, attData, options = {}) {
   let bonusDelta = 0;
   let damage = null;
 
-  // RAW "Non-Proficient Use of Weapons and Armor" (RR p. 106 sidebar): the
-  // trigger is the equipped STATE — any unusable weapon, unusable worn armour,
-  // or an untrained fighting style (weapon AND style proficiency are distinct
-  // and BOTH required) — so it degrades EVERY attack while so equipped, even
-  // one made with a weapon the character could otherwise use. Attacking with
-  // an unequipped weapon counts too ("use any weapons ... desired").
+  // Non-proficient use (RR p. 15): the trigger is the equipped STATE — any
+  // unusable weapon, unusable worn armour, or an untrained fighting style
+  // (weapon AND style proficiency are distinct and BOTH required) — so it
+  // degrades EVERY attack while so equipped, even one made with a weapon the
+  // character could otherwise use. Attacking with an unequipped unusable
+  // weapon counts too.
   const usingNonProfWeapon = item && (entry ? !entry.proficient : !isWeaponProficient(actor, profile));
   if (loadout.nonProficientUse || usingNonProfWeapon) {
     const level = Number(actor.system?.details?.level ?? 1);
     const bba = Number(actor.system?.thac0?.bba ?? 0);
     let penalty = 0;
     if (level >= 1) {
-      // 1st+ level: attacks as a 0th-level fighter — attack throw 11+, bba −1.
-      // Core already pushed the actor's own bba, so contribute the difference.
+      // 1st+ level: attacks as a 0th-level fighter. Core already pushed the
+      // actor's own bba, so contribute the difference to that fighter's.
       if (bba !== -1) {
         penalty += -1 - bba;
-        notes.push("non-proficient use: attacks as a 0th-level fighter (11+)");
+        notes.push("non-proficient use (RR p. 15)");
       }
     } else {
-      // 0th level: still fights as 0th level, but at an additional −1.
+      // 0th level: still fights as 0th level, with an additional penalty.
       penalty -= 1;
-      notes.push("non-proficient 0th-level character (additional −1)");
+      notes.push("non-proficient use at 0th level (RR p. 15)");
     }
     // Regardless of level: no attribute BONUS on the attack throw. Penalties
     // are not bonuses and still apply, so only a positive modifier is
@@ -208,9 +207,8 @@ export function computeAttackMods(actor, attData, options = {}) {
     }
   }
 
-  // Thrown weapons add STRENGTH to DAMAGE (RR p298: "Apply the attribute bonus
-  // or penalty for Strength ... to damage rolls with thrown weapons"), but core's
-  // missile branch pushes no str.mod (correct for bows, wrong for a hurled axe).
+  // Thrown weapons add STRENGTH to DAMAGE (RR p. 298), but core's missile
+  // branch pushes no str.mod (correct for bows, wrong for a hurled axe).
   // So when a thrown weapon is used at range, contribute str.mod to its damage.
   // Splash flasks (burning oil, holy water) are excluded by RAW and already carry
   // `noDamageBonus`, so the strip above owns them and this never doubles up.

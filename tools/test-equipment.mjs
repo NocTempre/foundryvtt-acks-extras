@@ -242,7 +242,7 @@ const attData = (item) => ({ item: { _id: item.id, name: item.name, system: { bo
 let a = rollActor([swordItem, armor("Shield", "shield", { id: "sh" })], { flags: { styles: "weaponShield" }, system: { scores: { str: { mod: 1 }, dex: { mod: 1 } } } });
 check("proficient, trained, no finesse → no per-attack mods", computeAttackMods(a, attData(swordItem), { type: "melee" }) === null);
 
-// --- RAW non-proficient use (RR p. 106 sidebar): the full package ------------
+// --- RAW non-proficient use (RR p. 15): the full package ---------------------
 // 4th-level character (bba +2), STR +2, non-proficient weapon: attacks as a
 // 0th-level fighter (bba −1 → delta −3) with no attribute bonus (−2) = −5.
 const sysL4 = { details: { level: 4 }, thac0: { bba: 2 }, scores: { str: { mod: 2 }, dex: { mod: 1 } } };
@@ -1269,7 +1269,7 @@ check("a helm declared to sit nowhere stays nowhere", isHelmetOf(disownedHelm) =
 // This module infers proficiency from its OWN actor flags. acks-abilities owns
 // a richer model of the same facts, so a character built with it carries none
 // of these flags and would read as non-proficient — triggering the full RR
-// p. 106 package on a legal PC. Enforcement must default OFF while it is active.
+// p. 15 package on a legal PC. Enforcement must default OFF while it is active.
 const { enforcementActive } = await import(new URL("proficiency.mjs", S));
 
 // A bare unconfigured actor with a weapon its (absent) flags don't cover: a
@@ -1458,6 +1458,26 @@ check("typed model: an unresolvable level ladder contributes nothing",
 check("typed model: a flat-shaped value still resolves",
   sumEffectModifiers(withItems([power("Flat", "def.power.flat",
     [{ type: "modifier", target: "initiative", mode: "add", value: { kind: "flat", flat: 3 } }])]), "styleInit") === 3);
+
+// A resolvable ladder resolves at the character's level: lib's resolver, the
+// level read off the actor while no abilities model is live.
+const initLadder = { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 7, value: 2 }] };
+const leveled = (level) => withItems([power("Ladder", "def.power.ladder",
+  [{ type: "modifier", target: "initiative", mode: "add", value: initLadder }])], { system: { details: { level } } });
+const priorAbilitiesApi = globalThis.acksExtras.abilities;
+const priorClassesApi = globalThis.acksExtras.classes;
+globalThis.acksExtras.abilities = undefined;
+globalThis.acksExtras.classes = undefined;
+check("typed model: a level ladder resolves at the character's level",
+  sumEffectModifiers(leveled(3), "styleInit") === 1 && sumEffectModifiers(leveled(7), "styleInit") === 2);
+globalThis.acksExtras.abilities = { scalesFor: () => ({ level: 9, rank: 1 }) };
+check("typed model: the abilities model's scales set the level when live",
+  sumEffectModifiers(leveled(1), "styleInit") === 2);
+globalThis.acksExtras.classes = { resolveLevelValue: () => 5 };
+check("typed model: the classes resolver answers when live",
+  sumEffectModifiers(leveled(1), "styleInit") === 5);
+globalThis.acksExtras.abilities = priorAbilitiesApi;
+globalThis.acksExtras.classes = priorClassesApi;
 
 // The gate is applied where the loadout is known, and it is the SAME clause
 // Swashbuckling is written with: light armour or less, 5 stone or less.

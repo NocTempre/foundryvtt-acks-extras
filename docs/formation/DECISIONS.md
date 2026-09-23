@@ -2026,3 +2026,126 @@ comments now state the guard; the story is here.
   roll that needed it, and three members silently rolled against the wrong
   numbers. A slightly stale ladder costs nothing; an emptied cache downgrades
   every borrowed skill to its sheet target.
+
+### A lost episode belongs to its scene, and discovery leaves it open (2026-09-23)
+
+**Ruled.**
+- The ledger carries a `phase` (`astray`, then `aware`, then closed) and the
+  scene and level the episode began on.
+- Every fog write of the episode goes to that scene and level.
+- An episode begins only while the Judge views the party's own scene.
+- Discovery moves `astray` to `aware` and keeps the anchor, the scene and the
+  shadow, as the 2026-08-29 rulings already said it should. Re-anchor and
+  retreat close either phase, and every ending clears the formation's shadows
+  from every scene. So does dissolving the formation.
+- The panel's raw `lostActive` checkbox and the uncalled `setLost` are gone:
+  the episode transitions are the only writers of the lost state.
+
+**Rejected.**
+- *Deleting every shadow with no open episode at `ready`.* A leftover shadow
+  from an earlier discovery is the only record of where that party really
+  was. The panel names it and offers to move the party onto it or remove it.
+  Only a shadow whose formation is gone is swept automatically, because
+  nothing can want it.
+- *Moving the party token on retreat.* Where a retreating party ends up is
+  the Judge's to place.
+
+**What it cost.**
+- **T-0165: Discover wrote the wrong scene.** The episode resolved "the
+  scene" as whatever the Judge was viewing, and the fog snapshot named no
+  scene. So a Discover pressed while looking at another map wrote the
+  episode's fog bitmaps into that map's FogExploration documents. It also
+  deleted the documents of every user whose snapshot was empty. The overwritten
+  exploration is not recoverable except from a world backup.
+- **T-0058: the shadow outlived every ending.** Discovery closed the ledger
+  outright, and re-anchor refused a closed one, so the only call that cleared
+  the shadow was unreachable after the commonest ending. A hidden token of the
+  party actor then stood on the scene with no path that would ever remove it.
+  The party-token adoption hook also read it as a second party token.
+
+### Formation strings name the field and cite the page (2026-09-23)
+
+**Found.** Party-roll hints and notes, the winded and rest warnings, the
+encounter card, the encounter settings, the door hints and the pace tooltip
+stated printed numbers: targets, bonuses, dice, turn counts and a carried body's
+weight. Others paraphrased the rule they served. Source comments carried the
+same numbers and quoted the book in five places. Three tracked tests used
+printed figures as fixtures, and one of them cast its party from a worked
+example's named characters.
+
+**Ruled.**
+- A string names what its field or control does, or the state the module
+  computed, and keeps the page reference. A comment explains the mechanic
+  without the book's words or numbers.
+- The crude-trap attack line takes its penalty from the trap plan instead of
+  printing one.
+- Tests use invented figures and neutral names.
+- The numbers the code still carries are ROADMAP §6a.
+
+**Kept.**
+- Time units (a turn of ten minutes, ten rounds to a turn) and rank geometry.
+- The round or turn an action marks off. That stays structural until
+  durations are imported (2026-09-02, "What is NOT content").
+- The `(1d6)` on the encounter and district target labels. Each label reports
+  the die the code rolls. The encounter die moves with the encounter values,
+  and the district die is held with the city ruling of 2026-09-12.
+- The signal house rule's hint, which states the module's own figures.
+
+**Corrected citations.**
+- Tracking is RR p. 120, not p. 121.
+- Attunement to Nature is JJ p. 309. The old reference, "p.311", was the PDF
+  page.
+- The bash note said an unmodified 1 deals 1d6. The code deals 1 point, and so
+  does RR p. 267. The rewritten note states no figure.
+
+**Rejected: dropping the page reference with the prose.** That turns a cited
+paraphrase into an uncited one (ip-doctrine, "What a citation does not do").
+
+*Cost:* the hints say less. A Judge who wants a figure turns to the cited page.
+
+### Fog is read from the server, newest record per seat (2026-09-23)
+
+**Found**, walking the Lost recipe with a player whose fog predates the
+Judge's session (T-0192). The Judge's client holds its own FogExploration
+documents and the ones it creates, never a player's. The episode read that
+collection for its snapshot, its faked reveal, its revert and its credit:
+- the snapshot recorded every player as having no fog;
+- each faked reveal created a second, newer document for the player, which the
+  player's client never loaded, so the faked ground never showed;
+- the revert deleted only that copy;
+- the credit at re-anchor created a newer document holding only the credited
+  hexes. Core loads a seat's newest document, so from the player's next
+  session the map showed the credited hexes and hid everything explored
+  before.
+
+`anchorMap` had the same shape. Separately, a truth move left the journey hex
+where the party stood before it, because the movement hook skips a truth move
+entirely (T-0193).
+
+**Ruled.**
+- Every write to another seat's fog reads the server's documents and writes
+  onto each seat's newest (`exploredDocs`, `writeExplored` in `map-items.mjs`).
+- A seat told to reload fog first points its cached copy at the server's
+  newest.
+- An episode records `fogSnapshotComplete`. One opened before the flag existed
+  finishes on the Judge's collection, as it began: its snapshot saw no player,
+  so a server-read revert would delete every player's real document.
+- `mergeFogCopies` and the compendium macro *Merge Fog Copies on This Scene
+  (GM)* are the recovery. The older copies were never deleted; a union of every
+  copy into the newest brings their ground back. The merge refuses while a
+  party is astray on the scene, because the episode's revert would write its
+  snapshot over the merged ground and the older copies would already be gone.
+- A truth move seats the journey hex, and its terrain, at the hex the party
+  token lands in (`seatJourneyHex`).
+
+**Rejected.**
+- *Merging automatically when the Judge views a scene.* It rewrites stored
+  exploration as a side effect of looking at a map. The merge runs when asked.
+- *Deleting the duplicate copies.* The older copy holds the ground the player
+  explored before the episode.
+
+**What it cost.** A world that credited a re-anchor or anchored a map on an
+earlier build holds two or more records for each affected player on that
+scene, and the player sees only the newest. The old revert deleted only
+documents the Judge's client had created, never a player's original, so the
+macro recovers the ground the older copies hold.

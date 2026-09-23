@@ -36,7 +36,7 @@ import {
  * order and for its reasons: anyone searching the ground throws FIRST, because
  * a trap found is a trap not sprung; then the 10' pole, which is an adventurer
  * moving 5' ahead of its bearer; then the party itself, rank by rank, each with
- * its own secret 1d6. The first throw that comes up inside the trigger band
+ * its own secret die. The first throw that comes up inside the trigger band
  * ends the sequence — one trap goes off once.
  *
  * Everything the Judge sees is whispered. A trap the party crossed untouched is
@@ -92,8 +92,8 @@ export class TrapZoneBehavior extends foundry.data.regionBehaviors.RegionBehavio
       state: new fields.StringField({ required: true, initial: STATES.armed, choices: Object.values(STATES) }),
       /**
        * Who has already failed a hasty attempt here, and at what level — the
-       * "cannot repeat until higher level" rule needs to know WHEN, not just
-       * that it happened. Cleared by re-arming.
+       * rule that a failed hasty attempt waits for a higher level needs to know
+       * WHEN, not just that it happened. Cleared by re-arming.
        */
       repeatLock: new fields.ObjectField(),
       /** The same ledger for the automatic hasty SEARCH, which has its own. */
@@ -721,7 +721,7 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
     } else if (plan.resolution === RESOLUTIONS.attack) {
       const ac = Number(actor.system?.aac?.value) || 0;
       // The ACKS attack throw: 1d20 + modifiers against the throw value plus
-      // the target's AC. A crude trap's -2 is already in `attackModifier`.
+      // the target's AC. A crude trap's penalty is already in `attackModifier`.
       const needed = plan.attackThrow + ac;
       const roll = await new Roll(plan.attackModifier ? `1d20 + ${plan.attackModifier}` : "1d20").evaluate();
       rolls.push(roll);
@@ -731,7 +731,11 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
         name,
         total: roll.total,
         target: needed,
-        detail: loc(plan.attackModifier ? "attackDetailCrude" : "attackDetail", { ac, throw: plan.attackThrow }),
+        detail: loc(plan.attackModifier ? "attackDetailCrude" : "attackDetail", {
+          ac,
+          throw: plan.attackThrow,
+          penalty: plan.attackModifier,
+        }),
         outcome: game.i18n.localize(`${LANG_PREFIX}.${hit ? "hit" : "missed"}`),
         emphasis: hit ? "failure" : "success",
       });
@@ -814,7 +818,7 @@ export function disarmRefusal(placement, actor, mode) {
 
   const check = resolveCheck(actor, PARTY_CHECKS[mode === "hasty" ? "trapbreakHasty" : "trapbreakMethodical"]);
   if (!check) return "cannotTry";
-  // "Using Adventuring: not permitted" — a hasty attempt is skill-only.
+  // A hasty attempt is skill-only (RR p. 267).
   if (mode === "hasty" && !check.skilled) return "hastyNeedsSkill";
 
   const level = Number(actor?.system?.details?.level) || 1;
@@ -863,7 +867,7 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
   const check = resolveCheck(actor, PARTY_CHECKS[cfgKey]);
   const plan = disarmPlan({ mode, crude, skilled: check.skilled, extra });
 
-  // `resolveCheck` already carries the methodical +4 and Trapfinding's +2; the
+  // `resolveCheck` already carries the methodical bonus and Trapfinding's; the
   // plan adds what is true of the TRAP rather than of the character.
   const bonus = check.bonus + (crude ? CRUDE.remove : 0) + (Number(extra) || 0);
   const roll = await new Roll(bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20").evaluate();

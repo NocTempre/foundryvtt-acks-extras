@@ -197,14 +197,22 @@ function ownershipLike(owner) {
  * block and embedded items but sheds the library's own marks: the cookbook
  * stamp, so Remove ALL Imports never takes a character's companion with the
  * library it was copied from, and the pack folder, which names nothing in the
- * world. Runs on whichever client holds the permission.
+ * world. Runs on whichever client holds the permission; a relayed call
+ * (`requestUserId`, set by `lib/sockets.mjs`) runs only for a sender who owns
+ * the character and can read the creature copied.
  * @returns {Promise<{uuid: string, name: string}|null>}
  */
-async function createCompanionActor({ ownerUuid, abilityId, index, uuid = "", name = "" }) {
+async function createCompanionActor({ ownerUuid, abilityId, index, uuid = "", name = "", requestUserId = null }) {
   const owner = await fromUuid(ownerUuid);
   if (!owner) return null;
   const source = uuid ? await fromUuid(uuid) : null;
   if (!source && !name) return null;
+  if (requestUserId) {
+    const user = game.users.get(requestUserId);
+    if (!user || !owner.testUserPermission(user, "OWNER")) return null;
+    const readable = source?.compendium ?? source;
+    if (readable && !readable.testUserPermission(user, "OBSERVER")) return null;
+  }
   const data = source ? source.toObject() : { name, type: ACTOR_TYPE.monster };
   for (const key of ["_id", "folder", "sort", "_stats", "ownership"]) delete data[key];
   if (data.flags?.[MODULE_ID]) {

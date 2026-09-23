@@ -43,6 +43,7 @@ import { pickLock, bashOpen } from "../equipment/locks.mjs";
 import { annotateItem } from "../equipment/api.mjs";
 import { splitOne } from "../equipment/item-sheet/stack.mjs";
 import { isEquippable, isGoods } from "../lib/item-model.mjs";
+import { unpackBundle } from "../lib/bundles.mjs";
 import { openClassPicker } from "../classes/assign-app.mjs";
 import { openLevelUp } from "../classes/levelup.mjs";
 import { reopenChargen } from "../classes/reopen-chargen.mjs";
@@ -638,8 +639,10 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   /**
    * An item of this actor's dropped on a zone moves it: onto a place it is
    * worn there, onto a container it is stored, onto the loose column it is
-   * taken off or out. Anything else is the ordinary arrival — coin merging
-   * into the stack of the same name rather than doubling it.
+   * taken off or out. A bundle arrives as the goods it lists (`unpackBundle`),
+   * never as a bundle this sheet cannot show. Anything else is the ordinary
+   * arrival — coin merging into the stack of the same name rather than
+   * doubling it.
    */
   async _onDropItem(event, item) {
     if (!this.actor.isOwner) return null;
@@ -676,6 +679,11 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
         console.error(`${MODULE_ID} | drop move failed`, err);
       }
       return own;
+    }
+    if (item.type === ITEM_TYPE.bundle) {
+      const { created, updated, missing } = await unpackBundle(this.actor, item);
+      if (missing.length) ui.notifications.warn(loc("equipment.bundleMissing", { names: missing.join(", ") }));
+      return [...created, ...updated];
     }
     if (item.type === ITEM_TYPE.money && item.parent?.documentName !== "Actor") {
       const mine = this.actor.items.find((i) => i.type === ITEM_TYPE.money && i.name === item.name);

@@ -1,5 +1,5 @@
 import { CLOTHING_SLOT_PATTERNS, gearProfileFor } from "./config.mjs";
-import { BASE_TYPE } from "./base-types.mjs";
+import { BASE_TYPE, CLOTHING_SUBTYPE } from "./base-types.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /**
@@ -29,6 +29,9 @@ export function inferBaseType(item) {
   }
 
   if (type !== ITEM_TYPE.item) return null;
+
+  // Core's own field again: a subtype of clothing is a declaration, not a guess.
+  if (item?.system?.subtype === CLOTHING_SUBTYPE) return BASE_TYPE.clothing;
 
   // A container or a piece of rigging — the profile table knows these by name.
   if (gearProfileFor(name)) return BASE_TYPE.gear;

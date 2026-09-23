@@ -5,8 +5,8 @@
  *
  * The throw is shown BEFORE it is rolled, broken into its parts, because the
  * interesting decision at a stuck door is whether to heave at all — a party
- * that can see "18+, and you need a 14 with both of you pushing" will spike it
- * and walk away instead of burning six rounds finding out.
+ * that can see what the door needs, alone and with two pushing, will spike it
+ * and walk away instead of burning rounds finding out.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { bashPlan, bashDoor, spikeDoor, unspikeDoor, batterPlan, doorState, isDoor, selectedDoor, DOOR_KINDS, MAX_SPIKES } from "./doors.mjs";

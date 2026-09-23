@@ -24,7 +24,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
-import { hasDoc, getDoc, PRIORITY } from "../lib/tables.mjs";
+import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { parseCount, countFrom } from "./survival-binding.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
@@ -261,8 +261,8 @@ export function assembleCityTravelTables(raw = {}) {
 /** Assemble and register, or report nothing assembled. */
 export async function applyCityTravelImport() {
   const svc = services.get("ruledata-import");
-  if (!svc || !hasDoc(CITY_TRAVEL_DOC_ID)) return { assembled: [] };
-  const doc = getDoc(CITY_TRAVEL_DOC_ID);
+  const doc = getLayer(CITY_TRAVEL_DOC_ID, PRIORITY.WORLD);
+  if (!svc || !doc) return { assembled: [] };
   const engine = assembleCityTravelTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(

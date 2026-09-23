@@ -231,6 +231,12 @@ async function claimResolution(location, payload) {
   return read()?.lastResolutionId === resolutionId; // last claim wins; losers abort
 }
 
+/**
+ * Applies a resolved hiring roll once. Concurrent deliveries for one
+ * candidate collapse, a replayed resolution is refused (`claimResolution`),
+ * and a relayed call (`requestUserId`, set by `lib/sockets.mjs`) applies only
+ * for a sender who owns the employer.
+ */
 export async function handleHiringOutcomePayload(payload) {
   const key = `${payload.locationUuid}:${payload.candidateId ?? payload.specialHireId ?? ""}`;
   if (inFlightOutcomes.has(key)) return;
@@ -239,6 +245,10 @@ export async function handleHiringOutcomePayload(payload) {
     const location = await fromUuid(payload.locationUuid);
     const employer = await fromUuid(payload.employerUuid);
     if (!location || !employer) return;
+    if (payload.requestUserId) {
+      const user = game.users.get(payload.requestUserId);
+      if (!user || !(employer.actor ?? employer).testUserPermission(user, "OWNER")) return;
+    }
     if (!(await claimResolution(location.actor ?? location, payload))) return;
     await handleOutcome({
       location,

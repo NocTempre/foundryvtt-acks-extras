@@ -72,6 +72,19 @@ under Stowed, and every place holding your goods lists under Kept elsewhere.
 Drop a thing on a place to wear or draw it, on a container to store it, on
 the right column to take it off or out.
 
+Drop a bundle — a kit from the Items directory, a class template's package —
+and its goods arrive, each row as the items it names. A stack you already carry
+is topped up when the arriving goods are identical to it; anything else arrives
+as a stack of its own. A row whose item is gone is filled from the library item
+of the same name and type; one that still finds nothing is named in a warning,
+and the rest arrive.
+
+![](../releases/v8.1.0/character-sheet-bundle.png)
+
+*A kit of two swords, six torches and a rope dropped on a character carrying two
+torches: the swords under Weapons, one stack of eight torches and the rope under
+Gear.*
+
 ## Stats
 
 ![](../releases/v6.5.0/character-sheet-stats.png)

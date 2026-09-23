@@ -8,7 +8,7 @@
  */
 import assert from "node:assert/strict";
 import {
-  freshLost, lostOf, hexKey, beginLost, walkBelieving, discoverLost, reanchorLost, driftSummary,
+  freshLost, lostOf, hexKey, beginLost, walkBelieving, discoverLost, reanchorLost, endLost, driftSummary,
 } from "../scripts/formation/lost.mjs";
 
 let passed = 0;
@@ -21,6 +21,7 @@ const SNAP = { userA: "base64-a", userB: "base64-b" };
 
 ok("a fresh ledger is inactive and empty", () => {
   const l = freshLost();
+  assert.equal(l.phase, null);
   assert.equal(l.active, false);
   assert.equal(l.believed, null);
   assert.deepEqual(l.faked, []);
@@ -32,6 +33,21 @@ ok("a junk record normalizes", () => {
   assert.equal(l.active, true);
   assert.deepEqual(l.faked, ["1:1"], "non-string keys are dropped");
   assert.equal(l.fogSnapshot, null, "a non-object snapshot is refused");
+});
+
+ok("a record from before phases reads as astray, with no scene or level", () => {
+  const l = lostOf({ lost: { active: true, sinceDay: 3, fogSnapshot: SNAP } });
+  assert.equal(l.phase, "astray");
+  assert.equal(l.sceneId, null, "the episode code falls back to the party's scene");
+  assert.equal(l.level, undefined, "an unrecorded level matches every level, as the snapshot was taken");
+  assert.equal(lostOf({ lost: { phase: "bogus", active: false } }).phase, null, "an unknown phase is not one");
+});
+
+ok("beginning records the scene and level the fog belongs to", () => {
+  const l = beginLost(freshLost(), { day: 9, anchor: A, fogSnapshot: SNAP, sceneId: "sceneA", level: "lvl1" });
+  assert.equal(l.phase, "astray");
+  assert.equal(l.sceneId, "sceneA");
+  assert.equal(l.level, "lvl1");
 });
 
 ok("beginning an episode anchors the lie and seeds the belief", () => {
@@ -68,13 +84,16 @@ ok("walking does nothing when no episode is running", () => {
   assert.deepEqual(l.faked, []);
 });
 
-ok("discovery clears the ledger and hands back the revert", () => {
-  let l = beginLost(freshLost(), { day: 9, anchor: A, fogSnapshot: SNAP });
+ok("discovery turns the episode aware and hands back the revert", () => {
+  let l = beginLost(freshLost(), { day: 9, anchor: A, fogSnapshot: SNAP, sceneId: "sceneA" });
   l = walkBelieving(l, B);
   l = walkBelieving(l, C);
   const { lost, revert, discovered } = discoverLost(l);
   assert.equal(discovered, true);
-  assert.equal(lost.active, false, "the episode is over");
+  assert.equal(lost.phase, "aware", "the episode stays open: they know, and still do not know where");
+  assert.equal(lost.active, false, "no longer astray");
+  assert.deepEqual(lost.anchor, A, "the landmark a re-anchor looks for is kept");
+  assert.equal(lost.sceneId, "sceneA", "and so is the scene its fog and shadow live on");
   assert.equal(lost.believed, null, "the belief is RETIRED, not moved to the truth");
   assert.deepEqual(lost.faked, []);
   assert.equal(lost.fogSnapshot, null, "the snapshot is spent");
@@ -88,7 +107,14 @@ ok("discovery on the first day has nothing to revert but still discovers", () =>
   const { revert, discovered, lost } = discoverLost(l);
   assert.equal(discovered, true);
   assert.equal(revert, null, "nothing was faked yet");
-  assert.equal(lost.active, false);
+  assert.equal(lost.phase, "aware");
+});
+
+ok("an aware party walks nothing, begins nothing, and discovers nothing twice", () => {
+  const { lost: aware } = discoverLost(beginLost(freshLost(), { day: 9, anchor: A, fogSnapshot: SNAP }));
+  assert.deepEqual(walkBelieving(aware, B).faked, [], "no faked ground once they know");
+  assert.equal(beginLost(aware, { day: 12, anchor: C }).sinceDay, 9, "an open episode is not replaced");
+  assert.equal(discoverLost(aware).discovered, false);
 });
 
 ok("discovering when not lost is a no-op", () => {
@@ -102,9 +128,11 @@ ok("the Judge's drift readout counts days and faked ground", () => {
   l = walkBelieving(l, B);
   l = walkBelieving(l, C);
   const d = driftSummary(l, 12);
+  assert.equal(d.phase, "astray");
   assert.equal(d.days, 3);
   assert.equal(d.fakedHexes, 2);
   assert.deepEqual(d.anchor, A);
+  assert.equal(driftSummary(discoverLost(l).lost, 13).phase, "aware", "an aware episode still reads out");
   assert.equal(driftSummary(freshLost(), 12), null);
 });
 
@@ -178,6 +206,56 @@ ok("re-anchoring when not lost commits nothing", () => {
   const r = reanchorLost(freshLost());
   assert.equal(r.reanchored, false);
   assert.deepEqual(r.commit, []);
+});
+
+ok("re-anchoring an AWARE party closes it with nothing left to credit", () => {
+  let l = beginLost(freshLost(), { day: 9, anchor: A, fogSnapshot: SNAP });
+  l = walkBelieving(l, B, T1);
+  const { lost: aware } = discoverLost(l);
+  const r = reanchorLost(aware);
+  assert.equal(r.reanchored, true, "the ending discovery used to make unreachable");
+  assert.deepEqual(r.commit, [], "discovery already discarded the observations");
+  assert.equal(r.revert, null, "and already closed the faked ground");
+  assert.equal(r.lost.phase, null);
+});
+
+/* --- retreat: the third ending --------------------------------------------- */
+ok("turning back reverts the faked ground and credits nothing", () => {
+  let l = beginLost(freshLost(), { day: 9, anchor: A, fogSnapshot: SNAP, judgeNote: "kept" });
+  l = walkBelieving(l, B, T1);
+  const { lost, revert, ended } = endLost(l);
+  assert.equal(ended, true);
+  assert.equal(lost.phase, null);
+  assert.equal(lost.judgeNote, "kept");
+  assert.deepEqual(revert.faked, [hexKey(B)]);
+  assert.deepEqual(revert.discard.map((o) => o.at), [hexKey(T1)], "what they saw is thrown away");
+});
+
+ok("turning back closes an aware episode, and is a no-op with none open", () => {
+  const { lost: aware } = discoverLost(beginLost(freshLost(), { day: 9, anchor: A, fogSnapshot: SNAP }));
+  const r = endLost(aware);
+  assert.equal(r.ended, true);
+  assert.equal(r.revert, null);
+  assert.equal(endLost(freshLost()).ended, false);
+});
+
+ok("a snapshot read from every seat says so, and its revert carries it", () => {
+  let l = beginLost(freshLost(), { day: 9, anchor: A, fogSnapshot: SNAP, fogSnapshotComplete: true });
+  assert.equal(lostOf({ lost: l }).fogSnapshotComplete, true);
+  l = walkBelieving(l, B, T1);
+  assert.equal(endLost(l).revert.complete, true, "turning back restores it whole");
+  assert.equal(reanchorLost(l).revert.complete, true, "so does finding the landmark");
+  const { lost: aware, revert } = discoverLost(l);
+  assert.equal(revert.complete, true, "and so does discovery");
+  assert.equal(aware.fogSnapshotComplete, false, "the spent snapshot claims nothing");
+});
+
+ok("a snapshot from the Judge's client alone, or a junk flag, is not complete", () => {
+  const older = lostOf({ lost: { phase: "astray", fogSnapshot: SNAP, faked: ["1:1"] } });
+  assert.equal(older.fogSnapshotComplete, false, "a ledger without the field reads as the Judge's client alone");
+  assert.equal(endLost(older).revert.complete, false);
+  assert.equal(lostOf({ lost: { phase: "astray", fogSnapshotComplete: "yes" } }).fogSnapshotComplete, false);
+  assert.equal(beginLost(freshLost(), { day: 1, anchor: A }).fogSnapshotComplete, false, "not claimed unless passed");
 });
 
 ok("lostOf takes the TRAVEL object, not the lost object", () => {

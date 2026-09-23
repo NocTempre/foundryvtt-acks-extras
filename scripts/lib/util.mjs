@@ -57,7 +57,10 @@ export const numOrNull = (v) => {
 /** Ids of every GM user — whisper/socket-notify targets. */
 export const gmIds = () => game.users.filter((u) => u.isGM).map((u) => u.id);
 
-/** True on exactly one client: the active GM responsible for automation. */
+/**
+ * True on every client joined as the active GM responsible for automation: one
+ * per world, unless that GM has the world open in more than one window.
+ */
 export const isPrimaryGM = () => game.users.activeGM?.isSelf ?? false;
 
 /** The lib feature's storage surface (attached at import time). */

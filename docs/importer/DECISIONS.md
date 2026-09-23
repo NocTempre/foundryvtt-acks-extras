@@ -507,6 +507,10 @@ and an initialised ChoiceSpec, and would read as an offer.
 
 ### The library is the packs AND the sidebar this module stamped (2026-08-29)
 
+**Superseded in part (2026-09-23)** by "A copy of an import is the Judge's,
+and a rebuild leaves it standing": a copy keeps the cookbook flag, so the flag
+alone no longer makes a sidebar document an import.
+
 **Problem.** A world that imported before imports moved into compendia keeps
 that library in the sidebar. Every item-side read asked the packs alone and
 took the sidebar only as a fallback for a pack that would not open, so those
@@ -4643,6 +4647,9 @@ document still answer to.
 
 ### Rules tables join the entry picker as documents, not as tables (2026-09-20)
 
+**Superseded in part (2026-09-23)** by "An import merges into its own layer":
+a table row's tick is the import's own layer, not `hasDoc`.
+
 **Problem.** The entry picker shipped without the ruledata tables, which is
 where a recipe change is most expensive to check: a full table run locates
 pages for 138 recipes across every connected book and takes minutes, so
@@ -4814,3 +4821,171 @@ comments now state the guard; the story is here.
 - **A monster's create carries its items, cookbook id and extras in one write.** They were four separate round trips per monster; folding them into the create was measured at about 2.6x on the write phase.
 - **`repairEquipmentAbilities` exists because equipment leaked into the ability import.** Every ability path walks the content cookbooks generically, so a new non-ability kind joins the ability import unless it is excluded; equipment did in v0.26.0, and the ability-typed documents it made fail validation on every sheet render. The category clamp stands behind the register lint for any value the lint never saw.
 - **Equipment once imported as plain `item`.** A sword had no damage and no attack, and nothing could be wielded or worn, because `equipped` lives only on `weapon` and `armor`; the core type now follows from the register's group rather than a name scan.
+
+### A copy of an import is the Judge's, and a rebuild leaves it standing (2026-09-23)
+
+**Reported.** Rebuilding a shelf, a book or picked entries deleted the copies
+a Judge had dragged out of the library into the sidebar, edits and all.
+
+**Ruled.** A world document that is a copy of an import (`isWorldCopy`) is not
+part of the library, so nothing that rebuilds the library deletes it. A copy is
+known by what Foundry or the scene import stamps on it: a scene's `worldCopy`
+flag, a `compendiumSource` into a world compendium (a drag out), or a
+`duplicateSource` (a sidebar duplicate). The importer writes none of these on
+an import, so a sidebar-era import still counts. **Supersedes in part** "The
+library is the packs AND the sidebar this module stamped" (2026-08-29): the
+cookbook flag alone no longer makes a sidebar document an import, because a
+copy keeps the flag it was copied with.
+
+The same test applies to "is this already imported?" (`importedIdsOfType`,
+`importedIndex`, and `importedActor(id, {copies: false})` for animals and
+vehicles). Otherwise a rebuild would delete the library's document, find the
+copy, and never put the library's document back.
+
+**Rejected.**
+- *Filtering only the three delete lists.* The refill then counted the copy as
+  already imported, so a rebuild removed the entry from the compendium and
+  left the Judge's copy standing in for it.
+- *Taking copies out of `importedActor` altogether.* A scene's places and
+  organisations link to one another through their world copies, which is why
+  that read asks the world first.
+- *Any `compendiumSource` marks a copy.* An import built from the system's own
+  compendium would then be mistaken for one, and the next run would mint its
+  twin.
+
+**What it cost.** The passes that rewrite or repair the library in place
+(Update Classes and the one-shot repairs) no longer reach a Judge's copies.
+Remove All Imports still deletes them, on purpose: it enumerates the world by
+the cookbook flag, not through the library.
+
+### OSE creatures are rebuilt from the entry picker, one row per generator (2026-09-23)
+
+**Reported.** The entry picker never listed an OSE creature, so a creature read
+wrong could only be fixed by deleting it by hand and importing its whole book
+again.
+
+**Ruled.** The picker gains an "OSE creatures" group, listing the creatures of
+every authored OSE book open on this seat (`oseEntryRows`). A creature the book
+prints one block per step for is one row, under its generator's id, because its
+steps are rebuilt together or the generator loses options. The rebuild deletes
+what the rows claim, then runs `importOseBook` narrowed to them (`only`).
+**Rejected: adding `kind.oseMonster` to `ACTOR_KINDS`.** That set is also what
+`importOne` dispatches, and `importOne` declines OSE creatures. The picker would
+have deleted each ticked creature and put nothing back. The monster dialog and
+Import Everything would also have listed creatures they cannot import.
+
+*Cost:* the group lists a book's creatures only while that book is open on this
+seat, where the groups above it list everything the build compiles and refuse at
+the rebuild.
+
+---
+
+### An import merges into its own layer (2026-09-23)
+
+**Reported.** A Judge's table override survived its own revert. The override
+was read into the import on the next re-read, so clearing it uncovered the same
+figure one layer down.
+
+**Ruled.** Every import that merges into what it imported before reads its own
+layer, through `getLayer(docId, PRIORITY.WORLD)`: `importTables` and the ten
+`apply*Import` assemblers. `getDoc` merges every layer per table, so reading
+through it carried the override down into the import. It carried a module's
+shipped sample down too: henchmen registers a partial `rarity` document at
+SAMPLE, and reading `rarity` from the book wrote that sample into the world
+layer, where a later version of the sample could no longer show through. An
+assembler with no world layer now does nothing, where it used to run over
+whatever layer it found.
+
+**A copy frozen earlier is shed.** `importTables` drops, from the world layer it
+merges into, any table the layers beneath supply identically (`ownTables`).
+Dropping it changes no read, since the per-table merge shows the identical copy
+beneath, and it lets the sample update again.
+
+**New evidence against the 2026-09-20 presence rule.** That same sample made
+`hasDoc("rarity")` true in every world, so the entry picker ticked a document
+nothing had imported. A table row's tick is now the world layer too.
+
+**Rejected: stripping override values out of the merged read before writing.**
+It needs the override's table list at every write site, and it still carries a
+sample down.
+
+*Cost:* a world whose override was read into its import before this keeps it
+there until the document is read again. A table the import reads comes back
+from the book at that re-read. A table only the override ever supplied stays in
+the world layer, because the merge keeps every table this run did not read, and
+an override's copy cannot be told from an import that happens to match it.
+
+---
+
+### The console carries what a Judge can act on (2026-09-23)
+
+**Reported.** An import run filled the console, and a Judge saw warnings "on
+certain libraries". Most of the volume was core echoing the progress bar, one
+line per step. At Verbose, it was the art directory being created again for
+every picture. The warning was the missing-books toast: a seat without two
+supplements was warned on a run that read 136 of 138 tables.
+
+**Ruled.**
+- The progress bar is not echoed; a run logs its start and finish at debug.
+- pdf.js reports errors only. The fingerprint check already reports a printing
+  that differs from the one a recipe was cut from.
+- The art directory is created once per session, and the per-creature art lines
+  log at debug. "No suitable illustration" stays at log; it is a defect signal.
+- A table recipe or culture block from a supplement is marked `optional`. A
+  missing supplement is reported as information naming it; a missing book a core
+  table needs still warns.
+- A table that could not be read from an open book is a warning toast. It used
+  to reach only the console report.
+- A book nothing in the build reads says so on opening, instead of "0 entries".
+- The six proficiency names a monster's stat block shares with a class power or
+  a skill carry an authored `ref` to the proficiency, so the stat block no
+  longer guesses. A pick the category ranking settles logs at debug; only a tie
+  inside one category warns. The NPC path reports the same way, and Update
+  Abilities reports each name once, with its count of copies.
+- An equipment run logs one line for the items it merged across books and the
+  names it tagged, which it used to do silently.
+
+**Rejected: a verbosity setting.** Debug is what Chrome's Verbose level shows,
+so the lines are there for whoever asks for them, and a setting would be a knob
+over a console.
+
+*Cost:* a hung import no longer leaves a per-step trail; the bar on screen and
+the start and finish lines at debug are what remain. The AX3 statline tokens the
+index cannot resolve are not addressed here (ROADMAP).
+
+### A table recipe cites the folio, and its search converts it (2026-09-23)
+
+**Reported.** The class-builder tables cited pages two past the ones they
+print on.
+
+**Found.** The 2026-08-27 ruling (a citation names the printed folio) never
+reached the table recipes. `locatePage` treated `printedPage` as a PDF page, so
+a recipe that stored the true folio started its search two pages early and the
+search radius found the page anyway. Recipes in seven documents stored the PDF
+page instead, which put the search on the right page and the wrong number in the
+citation: the class builder, flight, survival, foraging, searching, city travel
+and languages. Two culture blocks and the dwarven castes were one page off. The
+entry picker shows `source.pages` as the document's citation. Three of those
+named PDF pages (class builder, flight, languages); four left out pages their
+recipes read (searching, travel, voyages, people); and every single-book
+document showed its pages with no book.
+
+**Ruled.** `printedPage` is the folio, everywhere. Both locators start on
+`pdfGuess`, the PDF page that folio prints on through the book's
+`printedOffset` — the same single conversion the citation composers use. A
+document's `source.pages` names every folio its recipes read, each run of pages
+under the book's short name. `test-recipe-pages` runs every search the import
+makes (`recipeLocates`) against the real books and fails a recipe whose search
+lands on a folio other than the one it cites, a folio its document's citation
+leaves out, or a book whose `printedOffset` disagrees with the PDF's own page
+labels. It is LOCAL-ONLY and skips without the books, like the other suites that
+read them.
+
+**Rejected: reading the page labels at import.** pdf.js exposes them, but a
+printing without labels would still need the offset, and two conversions would
+be one more place for them to disagree. The labels check the offsets in the
+suite instead.
+
+*Cost:* none for a world. The picker reads the recipes, so an upgraded world
+shows the corrected citations without a re-read, and every search lands on the
+page it landed on before.

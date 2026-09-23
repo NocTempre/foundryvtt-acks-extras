@@ -137,7 +137,7 @@ export function buildLoadoutChanges(actor, loadout) {
   add("system.aac.mod", loadout.condAC ?? 0);
   add("system.initiative.mod", loadout.condInit ?? 0);
 
-  // Non-proficient use (RR p.106): bonuses only — an attribute PENALTY
+  // Non-proficient use (RR p. 15): bonuses only — an attribute PENALTY
   // still applies, so cancel max(0, dex.mod).
   if (loadout.nonProficientUse) {
     add("system.aac.mod", -Math.max(0, Number(actor.system?.scores?.dex?.mod ?? 0)));

@@ -3,11 +3,10 @@
  * The day's navigation throw, as a card only the Judge sees.
  *
  * Whispered, always, and never acted on automatically. RAW is explicit that a
- * failed throw leaves the STRAY DIRECTION to the Judge — "based on the
- * landmarks and terrain, or randomly" — so a module that silently walked the
- * party sideways would be taking a decision the rules hand to a person. The
- * card reports, and offers the blind roll for a Judge who would rather not
- * choose.
+ * failed throw leaves the STRAY DIRECTION to the Judge, by the lie of the land
+ * or at random (RR p. 275), so a module that silently walked the party sideways
+ * would be taking a decision the rules hand to a person. The card reports, and
+ * offers the blind roll for a Judge who would rather not choose.
  *
  * The other reason it whispers: a party that has just failed does not know it.
  * A public card would tell the table the one thing the rule spends its whole

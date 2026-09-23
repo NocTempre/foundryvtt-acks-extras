@@ -20,7 +20,7 @@ const LANG_PREFIX = "ACKS-FORMATION.doors";
 /** The door's ACKS state, stored beside Foundry's own door flags. */
 export const DOOR_FLAG = "door";
 
-/** A door holds no more than four spikes (RR ch. 6). */
+/** The most spikes a door holds (RR p. 267). */
 export const MAX_SPIKES = 4;
 
 /** The Dungeonbashing throw a door asks for. */
@@ -129,9 +129,9 @@ export async function unspikeDoor(wall) {
 
 /**
  * Heave at the door. Rolls, applies the RAW outcome — the door opens at once
- * on a success, and an unmodified 1 costs the basher a point — and says what
- * happened. Never consumes the spikes: forcing a spiked door tears it open,
- * so the spikes go with it.
+ * on a success, and an unmodified 1 hurts the basher (RR p. 267) — and says
+ * what happened. Never consumes the spikes: forcing a spiked door tears it
+ * open, so the spikes go with it.
  */
 export async function bashDoor(wall, { actor = null, partner = null, crowbar = false, sizeSteps = 0, extra = 0 } = {}) {
   if (!isDoor(wall)) return { ok: false, reason: "notADoor" };

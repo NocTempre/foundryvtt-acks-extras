@@ -4,8 +4,8 @@
  * Gated by the `overlayScavenged` world setting.
  *
  * Reuse first: every RAW result is expressible in fields core already has —
- * "-1 damage" is a "1d6-1" damage string, "-1 to attacks" is `system.bonus`,
- * "+1 stone encumbrance" is `weight6`, "-1 AC" is `aac.value`. So this is a
+ * "-N damage" is a damage-string modifier, "-N to attacks" is `system.bonus`,
+ * "+N stone encumbrance" is `weight6`, "-N AC" is `aac.value`. So this is a
  * table plus a planner that returns core-field updates; there is no runtime
  * layer and nothing to intercept.
  *
@@ -95,8 +95,8 @@ const signed = (text, re) => {
 /**
  * Translate ONE imported row into the mechanical effects the module applies.
  *
- * The row carries the reader's own printed words ("-1 damage", "Breaks",
- * "+1 stone encumbrance", "-33%"); this reads that small, fixed vocabulary into
+ * The row carries the reader's own printed words ("-N damage", "Breaks",
+ * "+N stone encumbrance", "-N%"); this reads that small, fixed vocabulary into
  * numbers. It is a parse of the page, not an interpretation of intent — an
  * effect phrase it does not recognise is preserved verbatim as a note for the
  * Judge rather than silently dropped.

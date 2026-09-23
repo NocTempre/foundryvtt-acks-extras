@@ -10,7 +10,7 @@
  *     hand, cannot form the Weapon & Shield fighting style, and cannot take that
  *     style's Specialization. Its AC applies only situationally (a back shield
  *     protects against attacks from behind), so it must NOT raise ordinary AC.
- *  2. A **buckler** grants its +1 AC *only* to a character with Fighting Style
+ *  2. A **buckler** grants its AC *only* to a character with Fighting Style
  *     Specialization (Weapon & Shield). Others gain nothing at all.
  *
  * Core's computeAC adds any equipped shield's `aac.value` unconditionally, so
@@ -22,8 +22,8 @@
  * riding what, it is enforced: mounted, that shield grants no ordinary AC.
  *
  * Still not automated, and deliberately:
- *  - "no benefit while vulnerable" — needs per-attack context the system has no
- *    model for;
+ *  - the loss of a shield's benefit while vulnerable — needs per-attack context
+ *    the system has no model for;
  *  - the mounted self-or-mount choice (`mountAlternates`, `mountShares`) — that
  *    is a PLAYER'S choice each round, not a derivable fact, so automating it
  *    would be choosing for them;

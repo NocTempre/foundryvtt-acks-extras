@@ -6079,10 +6079,12 @@
         "key": "listening"
       },
       "climbing": {
-        "key": "climbing"
+        "key": "climbing",
+        "ref": "def.prof.climbing"
       },
       "swimming": {
-        "key": "swimming"
+        "key": "swimming",
+        "ref": "def.prof.swimming"
       },
       "navigation": {
         "key": "navigation"
@@ -6100,7 +6102,8 @@
         "key": "endurance"
       },
       "Loremastery": {
-        "key": "loremastery"
+        "key": "loremastery",
+        "ref": "def.prof.loremastery"
       },
       "Theology": {
         "key": "theology"
@@ -6133,7 +6136,8 @@
         "key": "skirmishing"
       },
       "Ambushing": {
-        "key": "ambushing"
+        "key": "ambushing",
+        "ref": "def.prof.ambushing"
       },
       "By class and level": {
         "key": "byClassAndLevel"
@@ -6166,7 +6170,8 @@
         "key": "weaponFocus"
       },
       "Acrobatics": {
-        "key": "acrobatics"
+        "key": "acrobatics",
+        "ref": "def.prof.acrobatics"
       },
       "seafaring 2": {
         "key": "seafaring2"
@@ -6265,7 +6270,8 @@
         "key": "bargaining"
       },
       "Bribery": {
-        "key": "bribery"
+        "key": "bribery",
+        "ref": "def.prof.bribery"
       },
       "diplomacy": {
         "key": "diplomacy"
@@ -6735,6 +6741,66 @@
     "def.prof.alertness": {
       "role": "definition",
       "name": "Alertness",
+      "editions": {
+        "acks2": {
+          "book": "rr",
+          "pages": []
+        }
+      }
+    },
+    "def.prof.climbing": {
+      "role": "definition",
+      "name": "Climbing",
+      "editions": {
+        "acks2": {
+          "book": "rr",
+          "pages": []
+        }
+      }
+    },
+    "def.prof.swimming": {
+      "role": "definition",
+      "name": "Swimming",
+      "editions": {
+        "acks2": {
+          "book": "rr",
+          "pages": []
+        }
+      }
+    },
+    "def.prof.acrobatics": {
+      "role": "definition",
+      "name": "Acrobatics",
+      "editions": {
+        "acks2": {
+          "book": "rr",
+          "pages": []
+        }
+      }
+    },
+    "def.prof.loremastery": {
+      "role": "definition",
+      "name": "Loremastery",
+      "editions": {
+        "acks2": {
+          "book": "rr",
+          "pages": []
+        }
+      }
+    },
+    "def.prof.ambushing": {
+      "role": "definition",
+      "name": "Ambushing",
+      "editions": {
+        "acks2": {
+          "book": "rr",
+          "pages": []
+        }
+      }
+    },
+    "def.prof.bribery": {
+      "role": "definition",
+      "name": "Bribery",
       "editions": {
         "acks2": {
           "book": "rr",

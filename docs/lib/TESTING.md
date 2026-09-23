@@ -533,6 +533,99 @@ so re-registering the sheet proves nothing about the worlds that are broken.
 `game.settings.get("core","sheetClasses").Item` is back to the shape it had
 before step 1.
 
+## A relayed call acts for the seat that sent it
+
+Covers `sockets.mjs` `runRelayed` and the handlers that authorize against it.
+Every step is a console call from a real PLAYER seat, since that is the attack.
+The module's own UI never forges a sender. The last step is the positive
+control.
+
+**Fixtures (as GM, each id recorded with `api.track`):**
+- "Relay Own", a `character` the Player seat owns.
+- "Relay Other", a `character` only the GM owns, carrying one plain item.
+- A `acks-extras.location` actor with its market switched on, so
+  `system.market.goods` exists.
+- A formation holding "Relay Own", with no mapping kit on it.
+
+The player reaches the transport as
+`const s = socketlib.modules.get("acks-extras")`. `s.executeAsGM` resolves
+with the handler's return value, so every refusal below can be read directly.
+
+1. **A forged GM id buys nothing.** Call `s.executeAsGM("partyRequest",
+   {formationId, type: "role", payload: {actorId: <Relay Own id>, role:
+   "mapper"}, requestUserId: <a GM's user id>})`.
+   **Observable:** the member's `roles` do not gain `mapper`, and no
+   "declared" card is posted, because the kit gate refused a player.
+2. **An omitted id buys nothing.** Call `s.executeAsGM("marketsSale",
+   {locationUuid, sellerUuid: <Relay Other uuid>, itemId: <its item id>,
+   qty: 1})` with no `requestUserId`.
+   **Observable:** it resolves `{error: "notYours"}`, and the item is still on
+   Relay Other.
+3. **Companion creation needs the character and the creature.** Call
+   `s.executeAsGM("companionCreate", {ownerUuid: <Relay Own uuid>, abilityId:
+   "x", index: 0, uuid: <Relay Other uuid>})`.
+   **Observable:** it resolves `null`, and `game.actors.size` on the GM seat
+   is unchanged.
+4. **The hidden influence roll needs the actor.** Call
+   `s.executeAsGM("resolveHiddenRoll", {actorUuid: <Relay Other uuid>, tone:
+   "diplomacy"})`.
+   **Observable:** no chat message is posted (compare `game.messages.size`
+   before and after).
+5. **Only a Judge announces a lost party.** Call
+   `s.executeForOthers("lostDiscovered", {days: 3, fakedHexes: 1})`.
+   **Observable:** no dialog opens on the GM seat.
+6. **Control.** From the party sheet's own controls, the player takes up a
+   role that needs no kit (scout) for Relay Own.
+   **Observable:** the member's `roles` gain it, and the declaration card names
+   the player.
+
+**Teardown.** `api.sweepTracked()` for the actors. The formation is disbanded
+from its sheet, which is its own delete.
+
+## A dropped bundle arrives as its goods
+
+Covers `bundles.mjs` (`unpackBundle`, `deliverItems`), the character sheet's
+drop, and the markets' `deliverGoods`. The drop is a real drag from the Items
+sidebar onto the sheet, made from the PLAYER seat: an owner's gesture is the
+path that embedded bundles whole.
+
+**Fixtures (as GM, each id recorded with `api.track`):**
+- "Bundle Hero", a `character` the Player seat owns, open on this module's
+  sheet. It carries "Bundle Arrows", an `item` with `system.quantity.value` 5.
+- World items the player can see: "Bundle Sword" (`weapon`); "Bundle Arrows"
+  (`item`, quantity 20, identical to the carried stack apart from quantity);
+  "Bundle Coin" (`money`, `coppervalue` 100, quantity 0).
+- "Bundle Kit", a `bundle` world item whose `system.itemList` rows point at
+  those three: the sword ×3, the arrows ×1, the coin ×7. Add a fourth row
+  whose `uuid` points at a fifth world item, "Bundle Ghost", then delete that
+  item, so the row resolves to nothing.
+
+1. **The drop.** As the player, drag "Bundle Kit" from the Items sidebar onto
+   the sheet's inventory.
+   **Observable:** no `bundle` item is on Bundle Hero
+   (`actor.items.filter(i => i.type === "bundle").length === 0`). There are
+   three "Bundle Sword" documents, all unequipped. "Bundle Arrows" is one
+   stack of 25, the carried stack topped up with no second stack created.
+   "Bundle Coin" holds 7. One warning names "Bundle Ghost" and nothing else.
+   "Bundle Kit" is still in the sidebar with its four rows.
+2. **A dead uuid with a living name.** Edit the sword row's `uuid` on "Bundle
+   Kit" to a uuid that does not exist, keeping its `name` and `type`, and drop
+   it again.
+   **Observable:** three more swords arrive, found through the library by name
+   and type. The other rows deliver again too: the arrows stack reads 45 and
+   the coin 14, still one of each, and the ghost warning repeats.
+3. **A purchase.** In page context, `const { deliverGoods } = await
+   import("/modules/acks-extras/scripts/markets/engine/trade.mjs")`, then
+   `await deliverGoods(hero, {entry: {data: <Bundle Arrows>.toObject()}, qty:
+   4})` and `await deliverGoods(hero, {entry: {data: <Bundle Sword>.toObject()},
+   qty: 2})`.
+   **Observable:** the arrows stack reads 49 with no second stack, and there are
+   two more swords. `api.track` every sword id read back from the result's
+   `created`.
+
+**Teardown.** `api.sweepTracked()`. Deleting Bundle Hero takes everything the
+drops and purchases delivered with it.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

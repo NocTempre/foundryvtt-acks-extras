@@ -289,7 +289,7 @@ function strictWeaponKey(name) {
  * The family's EQUIPMENT ROOT — gear is a special class of item, and shares its
  * root. Given only a NAME, say which core item type a piece of gear should
  * become and the stats that type needs — so a
- * torch (a 1d4 light-weapon) and a flask of military oil / holy water (thrown
+ * torch (a light-weapon) and a flask of military oil / holy water (thrown
  * splash flasks) import as WEAPONS, while a lantern/candle stay plain
  * light-bearing items. The importer CONSUMES this rather than re-hardcoding the
  * rules; the WEAPONS config here stays the single source of truth. Uses strict
@@ -304,8 +304,7 @@ export function equipmentClass(name) {
   if (key) {
     const w = WEAPONS[key];
     const special = w.special ?? [];
-    // A THROWN melee weapon is usable as a missile too (RR p296: "weapon
-    // proficiency includes the ability to use it as a missile weapon"), so it
+    // A THROWN melee weapon is usable as a missile too (RR p. 296), so it
     // imports with BOTH melee and missile set — which is exactly what makes core
     // present its melee-vs-thrown range selector (item.mjs rollWeapon gates on
     // `system.missile && system.melee`). A pure-thrown missile (dart, oil) is
@@ -323,7 +322,7 @@ export function equipmentClass(name) {
       consumable: special.includes("consumable"),
     };
     // A TORCH is carried as a STACK — a bundle you keep in a pack — and only
-    // becomes a 1d4 light-WEAPON when one is READIED for use (see prepareTorch in
+    // becomes a light-WEAPON when one is READIED for use (see prepareTorch in
     // actions.mjs). So the root imports it as a light ITEM (quantity-bearing),
     // recording the weapon stats the prepare step needs under `prepareAs`. Torch
     // is the only weapon-table entry tagged `light`.

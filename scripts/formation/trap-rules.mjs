@@ -166,7 +166,7 @@ export const STATES = Object.freeze({
  *
  * One modifier set covers every crude trap, which is why it is a checkbox on
  * the zone rather than a trap kind of its own. (The book also has a crude trap
- * decay without an hour of upkeep a day; that is a Judge's clock, not a throw,
+ * decay without daily upkeep (JJ p. 238); that is a Judge's clock, not a throw,
  * and nothing here pretends to keep it.)
  */
 export const CRUDE = Object.freeze({ find: 4, remove: 4, attack: -2, save: 2 });
@@ -195,7 +195,7 @@ export const BOTCH_BANDS = Object.freeze({ hasty: 3, methodical: 1 });
  *
  * **Within a rank the order is shuffled.** Men marching abreast step onto the
  * same ground at the same moment, and each still throws separately — that much
- * is the book's ("you might secretly roll many times"). What is not the book's
+ * is the book's (RR p. 267). What is not the book's
  * is deciding that the leftmost of them always goes first: the sequence ends at
  * the throw that springs the trap, so a fixed file order makes whoever stands
  * in file 0 spring every trap in the dungeon. The shuffle is per rank, so ranks
@@ -305,7 +305,7 @@ export function triggerFires(die, triggerOn = TRIGGER_DEFAULT) {
  *
  * @param {object} o
  * @param {"hasty"|"methodical"} o.mode
- * @param {boolean} [o.crude] a crudely built trap, +4 to remove
+ * @param {boolean} [o.crude] a crudely built trap, easier to remove
  * @param {boolean} [o.skilled] resolving through a real Trapbreaking skill
  *   rather than through the Adventuring proficiency
  * @param {number} [o.extra] the Judge's own modifier
@@ -318,9 +318,9 @@ export function disarmPlan({ mode = "methodical", crude = false, skilled = true,
   const push = (value, key) => {
     if (value) parts.push({ value, key });
   };
-  // The book's +4 is the SKILL used methodically. A non-thief working through
-  // Adventuring is already being given a target they would not otherwise have,
-  // and does not also collect the skilled thief's bonus.
+  // The methodical bonus is the SKILL's, used methodically. A non-thief working
+  // through Adventuring is already being given a target they would not
+  // otherwise have, and does not also collect the skilled thief's bonus.
   push(methodical && skilled ? 4 : 0, "methodical");
   push(crude ? CRUDE.remove : 0, "crude");
   push(extra, "judge");
@@ -330,7 +330,7 @@ export function disarmPlan({ mode = "methodical", crude = false, skilled = true,
     parts,
     botchBand: methodical ? BOTCH_BANDS.methodical : BOTCH_BANDS.hasty,
     repeatable: methodical,
-    // "Using Adventuring: not permitted" on the hasty column.
+    // No Adventuring on the hasty column (RR p. 267).
     adventuringAllowed: methodical,
   };
 }
@@ -372,8 +372,8 @@ export function lockAfterFailure(lock, actorId, level) {
 /* -------------------------------------------- */
 
 /**
- * The damage a fall into this pit deals: a d6 per 10' fallen, and the spikes at
- * the bottom if it has them (1d4 of them, 1d6 each).
+ * The damage a fall into this pit deals: dice by the depth fallen, and the
+ * spikes at the bottom if it has them, each spike its own damage die.
  *
  * Returns null rather than "0" for a pit with no depth — a trap that is not a
  * pit has no pit damage, which is not the same as a pit that does nothing.
@@ -381,11 +381,11 @@ export function lockAfterFailure(lock, actorId, level) {
 export function pitDamageFormula(depthFeet, spiked = false) {
   const dice = Math.floor(Number(depthFeet) / 10);
   if (!Number.isFinite(dice) || dice < 1) return null;
-  // `(1d4)d6`, not `1d4 * 1d6`: the book impales the victim on 1d4 spikes
-  // dealing 1d6 EACH, which is that many separate dice. Multiplying one d6
-  // instead has a different spread — flatter, and four times as swingy at the
-  // top. Foundry's parser resolves the nested count first, so this is exactly
-  // the rule and not an approximation of it.
+  // A nested count, not a product: the victim lands on a rolled number of
+  // spikes that each deal their own damage, which is that many separate dice.
+  // Multiplying one die by the count instead has a different spread — flatter,
+  // and far swingier at the top. Foundry's parser resolves the nested count
+  // first, so this is exactly the rule and not an approximation of it.
   return spiked ? `${dice}d6 + (1d4)d6` : `${dice}d6`;
 }
 

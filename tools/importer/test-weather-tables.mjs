@@ -5,6 +5,8 @@
  */
 import assert from "node:assert";
 import {
+  WEATHER_DOC_ID,
+  applyWeatherImport,
   assembleBands,
   assembleWeatherTables,
   parseBandCell,
@@ -13,6 +15,9 @@ import {
   parseModifierCell,
   parseSpeedWord,
 } from "../../scripts/importer/weather-binding.mjs";
+import { PRIORITY, getDoc, registerTable, resetTables, unregisterTable } from "../../scripts/lib/tables.mjs";
+import * as services from "../../scripts/lib/services.mjs";
+import { ownTables } from "../../scripts/importer/tables-binding.mjs";
 import { parseFrequencyCell, assembleTravelTables } from "../../scripts/importer/travel-binding.mjs";
 
 let pass = 0;
@@ -131,5 +136,65 @@ check("the frequency grid assembles onto the travel doc",
   trav.encounterFrequency.traveling.civilized.kind === "perHex" &&
   trav.encounterFrequency.restingDay.civilized === null &&
   trav.encounterFrequency.restingDay.unsettled.hours === 18);
+
+/* --- an import rewrites only its own layer --------------------------------- */
+// A Judge's override and a module's sample share the doc id with the import;
+// the assembler reads and writes the WORLD layer alone, so neither is carried
+// into what it writes. Invented cells, as above.
+resetTables();
+services.resetServices();
+const writes = [];
+services.register("ruledata-import", {
+  importDoc: async (doc, opts) => {
+    writes.push({ doc, opts });
+    registerTable(doc, { priority: opts.priority });
+  },
+});
+registerTable(
+  { id: WEATHER_DOC_ID, tables: { sampleOnly: { x: 1 }, conditionProse: { mud: " halved for all purposes" } } },
+  { priority: PRIORITY.SAMPLE },
+);
+check("a sample alone is not an import: nothing is assembled from it",
+  (await applyWeatherImport()).assembled.length === 0 && writes.length === 0);
+registerTable(
+  {
+    id: WEATHER_DOC_ID,
+    source: { book: "jj" },
+    tables: {
+      conditionProse: { frigid: " halved and cannot forage" },
+      dailyWind: [{ min: null, max: null, key: "still" }],
+    },
+  },
+  { priority: PRIORITY.WORLD },
+);
+registerTable({ id: WEATHER_DOC_ID, tables: { dailyWind: [{ min: null, max: null, key: "gale" }] } },
+  { priority: PRIORITY.OVERRIDE });
+check("the override reads above the import", getDoc(WEATHER_DOC_ID).tables.dailyWind[0].key === "gale");
+await applyWeatherImport();
+const written = writes.at(-1);
+check("the assembler writes the WORLD layer", written?.opts.priority === PRIORITY.WORLD);
+check("the assembled table lands", written.doc.tables.conditionSpeed.frigid === 0.5);
+check("the imported table is written back, not the override over it",
+  written.doc.tables.dailyWind[0].key === "still");
+check("no sample table is carried into the import", !("sampleOnly" in written.doc.tables));
+unregisterTable(WEATHER_DOC_ID, { priority: PRIORITY.OVERRIDE });
+check("clearing the override brings the imported value back", getDoc(WEATHER_DOC_ID).tables.dailyWind[0].key === "still");
+
+// A world layer that already froze a sample's table (the merge before this
+// read through every layer) sheds it at the next write, and only it.
+resetTables();
+registerTable({ id: "rarity", tables: { automation: { shift: 1 } } }, { priority: PRIORITY.SAMPLE });
+registerTable(
+  { id: "rarity", tables: { automation: { shift: 1 }, read: [1, 2], edited: { shift: 7 } } },
+  { priority: PRIORITY.WORLD },
+);
+registerTable({ id: "rarity", tables: { edited: { shift: 1 } } }, { priority: PRIORITY.CATALOG });
+const own = ownTables("rarity", PRIORITY.WORLD);
+check("a table identical to the layer beneath is dropped", !("automation" in own));
+check("a table only the import holds is kept", JSON.stringify(own.read) === "[1,2]");
+check("a table that differs from the layer beneath is kept", own.edited?.shift === 7);
+check("no world layer is no tables", Object.keys(ownTables("absent", PRIORITY.WORLD)).length === 0);
+resetTables();
+services.resetServices();
 
 console.log(`test-weather-tables: all ${pass} checks passed`);

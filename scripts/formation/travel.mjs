@@ -14,9 +14,8 @@
  * Two clocks, one paused at a time: journey mode pauses the movement-driven
  * turn tracking (`clock.paused`, the flag the turn engine already
  * honours) and the DAY becomes the unit — one dedicated day-kind plus the
- * four ancillary activity slots the wilderness rules budget (RR ch. 6: a
- * dedicated march is the day's eight hours; a forced march is twelve and
- * spends every ancillary activity to do it). Ending the day advances the
+ * ancillary activity slots the wilderness rules budget (RR ch. 6: a forced
+ * march spends every ancillary activity). Ending the day advances the
  * world clock a full day through the module's one world-time switch, appends
  * the day to an append-only log, and hands the entry back for the panel to
  * show.
@@ -97,6 +96,7 @@ import { runProvisionDay } from "./provision-day.mjs";
 import { postNavigationThrow } from "./navigation-card.mjs";
 import { isMode } from "../lib/movement-modes.mjs";
 import { FLIGHT_LOADS } from "./flight.mjs";
+import { lostOf } from "./lost.mjs";
 
 /**
  * The three things a formation can be doing, re-exported so this feature's
@@ -110,7 +110,7 @@ export { TRAVEL_MODES };
 /**
  * A route the party is following, which spares it the navigation throw.
  *
- * RAW exempts navigable rivers, roads, and "other well-established routes".
+ * RAW exempts navigable rivers, roads and other established routes (RR p. 275).
  * Roads are already the road picker's business, so this carries the other two —
  * and `knownRoute` is deliberately vague because the book is: it is the Judge's
  * call what counts as well-established.
@@ -210,7 +210,7 @@ export function travelOf(formation) {
     hex: { label: "", note: "", i: null, j: null, ...(t.hex ?? {}) },
     day: t.day ?? freshDay(),
     dayCount: Number(t.dayCount) || 0,
-    lost: { active: false, sinceDay: null, judgeNote: "", ...(t.lost ?? {}) },
+    lost: lostOf(t),
     // HOW the order moves, which decides which factors it meets at all. Named
     // `movement` rather than `mode`, because `mode` above is already the kind
     // of adventuring (delve / journey / settlement) and the two are
@@ -605,6 +605,32 @@ export async function onJourneyTokenMoved(tokenDoc, formationId) {
 }
 
 /**
+ * Seat a journeying party's hex under a token that was set down rather than
+ * walked — stepped onto its true position — so the hex and its ground change
+ * and nothing is counted: no hex entered, no road step. Non-hex scenes and a
+ * formation not on a journey change nothing.
+ */
+export function seatJourneyHex(tokenDoc, formationId) {
+  const scene = tokenDoc?.parent;
+  if (!scene || !isHexScene(scene)) return Promise.resolve(null);
+  const point = {
+    x: tokenDoc.x + ((tokenDoc.width ?? 1) * scene.grid.sizeX) / 2,
+    y: tokenDoc.y + ((tokenDoc.height ?? 1) * scene.grid.sizeY) / 2,
+  };
+  const offset = scene.grid.getOffset(point);
+  const ground = terrainAtPoint(scene, point);
+  return patchFormation(formationId, (record) => {
+    const t = travelOf(record);
+    if (t.mode !== "journey" || (t.hex.i === offset.i && t.hex.j === offset.j)) return false;
+    record.travel = {
+      ...t,
+      hex: { ...t.hex, label: hexLabelFromOffset(offset), i: offset.i, j: offset.j },
+      ...(ground ? { ground: String(ground) } : {}),
+    };
+  });
+}
+
+/**
  * Who in the marching order can find the way.
  *
  * Two separate competences: the Navigation proficiency and the Pathfinding
@@ -708,24 +734,9 @@ export async function rollLandNavigation(formation) {
   };
 }
 
-/** GM-only lost state: players see the intended hex, the Judge the truth. */
-export function setLost(formationId, { active, judgeNote } = {}) {
-  return patchFormation(formationId, (record) => {
-    const t = travelOf(record);
-    record.travel = {
-      ...t,
-      lost: {
-        ...t.lost,
-        ...(active !== undefined ? { active: !!active, sinceDay: active ? t.dayCount + 1 : null } : {}),
-        ...(judgeNote !== undefined ? { judgeNote: String(judgeNote) } : {}),
-      },
-    };
-  });
-}
-
 /**
  * The panel's whole form in ONE ledger write: pickers, weather flags, the
- * day board, the hex label, the lost state. The form submits itself entire
+ * day board, the hex label, the lost note. The form submits itself entire
  * on every change (submitOnChange), so writing field-by-field would queue a
  * patch per field per keystroke; this applies what the form carries and lets
  * `travelOf` refuse the rest. Slot edits under a forced march are ignored —
@@ -797,10 +808,6 @@ export function applyTravelForm(formationId, tv = {}) {
     }
     if (typeof tv.hexLabel === "string") next.hex = { ...t.hex, label: tv.hexLabel.trim() };
     if (typeof tv.lostNote === "string") next.lost = { ...next.lost, judgeNote: tv.lostNote };
-    if ("lostActive" in tv) {
-      const active = !!tv.lostActive;
-      next.lost = { ...next.lost, active, sinceDay: active ? (next.lost.sinceDay ?? t.dayCount + 1) : null };
-    }
     if (tv.day) {
       let day = t.day;
       if (typeof tv.day.kind === "string" && DAY_KINDS[tv.day.kind] && tv.day.kind !== day.kind) {

@@ -481,8 +481,22 @@ is refused whether it was declared or guessed.
 
 For items that predate the flag, `base-type-infer.mjs` still guesses from the
 name using the same clothing patterns and gear profiles the rest of the feature
-reads. The declared flag always wins. The guess retires once the migration has
+reads. It reads core's clothing subtype first, which is a declaration, not a
+guess. The declared flag always wins. The guess retires once the migration has
 run and the importer sets base types on what it materialises.
+
+**Clothing is declared on two fields that say one thing.** The flag is what the
+rail shows; core's `system.subtype` is what core leaves out of the weight
+(`isClothing`, mirroring core's encumbrance). A create or update that moves one
+of them gets the other in the same write: `clothingDeclarationPatch`
+(`base-types.mjs`), applied by the `preCreateItem`/`preUpdateItem` hooks in
+`clothing-declaration.mjs`. So the rail, core's sheet, the importer, a macro and
+the API all end in the same weight. When one write moves both apart, the flag
+wins. A write that moves neither leaves an existing disagreement alone, and
+Annotate writes the flag's half through where the flag says clothing. The item
+sheet has no subtype control of its own; the rail is the one control. Clothing
+sits on `item` documents only, because core weighs every `armor` document
+whatever it is flagged.
 
 **How one item DIFFERS** is its CONTENTS. A variation is an
 `acks-extras.variation` Item flagged `containedIn` at the item it changes —

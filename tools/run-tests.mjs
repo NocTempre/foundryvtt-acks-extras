@@ -88,6 +88,7 @@ const COMMITTED = [
   "importer/test-starting-equipment.mjs",
   "importer/test-hitpoint-tables.mjs",
   "importer/test-class-builder-tables.mjs",
+  "importer/test-recipe-pages.mjs",
   "importer/test-class-tongues.mjs",
   "importer/test-class-training.mjs",
   "importer/test-trap-tiers.mjs",

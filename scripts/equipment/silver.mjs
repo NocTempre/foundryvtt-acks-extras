@@ -2,21 +2,18 @@
  * The Silver quality (RR ch.4 Weapon Qualities).
  *
  * Silver is the only material in ACKS II that changes what a weapon can do, and
- * it changes nothing about the weapon itself: "apart from gaining the Silver
- * feature, the weapon's characteristics do not change." Its whole weight is what
+ * it changes nothing about the weapon itself (RR ch.4). Its whole weight is what
  * the blade COUNTS AS when it lands —
  *
- *   - a monster whose immunity or resistance carries the silver flaw "treats
- *     weapons made of silver as if they were magic for purposes of its
- *     resistance" (RR ch.6), which the Monstrous Manual states per monster as
- *     "silver weapons deal extraordinary damage against it";
+ *   - a monster whose immunity or resistance carries the silver flaw treats a
+ *     silver weapon as magic for that resistance (RR ch.6), which the Monstrous
+ *     Manual states per monster;
  *   - the spells that turn aside MUNDANE damage — deflection, protection from
  *     normal missiles, protection from evil, a banner of invincibility — do not
- *     turn silver aside: "attacks made with silver weapons are considered to
- *     deal extraordinary damage for purposes of this spell";
- *   - masterwork alone never grants the ability to hit a magical monster
- *     "unless forged of a material otherwise capable of doing so (e.g. silver)"
- *     (RR p159).
+ *     turn silver aside, because its attacks count as extraordinary damage for
+ *     them;
+ *   - masterwork alone never grants the ability to hit a magical monster, and a
+ *     material such as silver can (RR p. 159).
  *
  * All three reduce to one question — does this attack deal extraordinary damage
  * — which the monsters feature already asks of a weapon through its own

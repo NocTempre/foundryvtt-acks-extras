@@ -8,7 +8,7 @@
  * test-cookbook-coherence.
  */
 import assert from "node:assert";
-import { abilitySurfaceIndex, tokenizeProfs } from "../../scripts/importer/cookbook.mjs";
+import { abilitySurfaceIndex, preferredId, tokenizeProfs } from "../../scripts/importer/cookbook.mjs";
 
 let pass = 0;
 const check = (label, cond) => {
@@ -75,5 +75,18 @@ check("the unabbreviated form resolves and keeps its selection", spelled[0]?.ref
 
 check("a rank digit is read", tok("Craft (armor-making) 3")[0]?.rank === 3);
 check("a cell reports the printed name, not the alias it matched", tok("Craft")[0]?.name === "Art/Craft");
+
+/* --- a stat block's name against the world's holdings --------------------- */
+const none = new Set();
+const pick = (ids, present = none) => preferredId(ids, present);
+check("one candidate is no choice", (() => { const g = pick(["def.prof.climbing"]); return !g.ambiguous && !g.ranked; })());
+check("the one the world holds answers outright",
+  (() => { const g = pick(["def.prof.acrobatics", "def.power.acrobatics"], new Set(["def.power.acrobatics"])); return g.id === "def.power.acrobatics" && !g.ambiguous && !g.ranked; })());
+check("a pick across categories is ranked, not a guess",
+  (() => { const g = pick(["def.power.acrobatics", "def.prof.acrobatics"]); return g.id === "def.prof.acrobatics" && g.ranked && !g.ambiguous; })());
+check("a tie inside the best category is a guess",
+  (() => { const g = pick(["def.power.renownA", "def.power.renownB", "def.drawback.renown"]); return g.id === "def.power.renownA" && g.ambiguous && !g.ranked; })());
+check("the ranking reads only what the world holds when it holds several",
+  (() => { const g = pick(["def.prof.climbing", "def.skill.climbing", "def.power.climbing"], new Set(["def.skill.climbing", "def.power.climbing"])); return g.id === "def.skill.climbing" && g.ranked; })());
 
 console.log(`test-ability-names: ${pass} checks passed.`);

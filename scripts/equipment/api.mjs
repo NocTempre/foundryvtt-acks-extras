@@ -29,7 +29,7 @@ import * as named from "./overlays/named.mjs";
 import { consumeForAttack, recoverThrown, isThrownAway, consumeItem, nockAmmo } from "./ammo.mjs";
 import * as variationRules from "./variations.mjs";
 import * as variationItems from "./variation-items.mjs";
-import { BASE_TYPE, baseTypesFor } from "./base-types.mjs";
+import { BASE_TYPE, BASE_TYPE_FLAG, CLOTHING_SUBTYPE, baseTypesFor, clothingDeclarationPatch } from "./base-types.mjs";
 import { baseTypeFields, hasBaseTypeFields } from "./variation-defs.mjs";
 import { prepareTorch, rollUnarmed, unarmedStrikeData, setMasterwork, masterworkTiersFor, drawItem, sheatheItem, scavengeItem, clearScavenged, setShieldVariant, SHIELD_VARIANT_KEYS, disguiseItem, revealItem, isDisguised, setWeaponProfile, setWeaponSize, setWeaponGrips, setWeaponCategory, setGearSlotList } from "./actions.mjs";
 import { cycleStrap, strapOf, canStrap } from "./overlays/shield-variants.mjs";
@@ -148,6 +148,18 @@ export async function annotateItem(item) {
       else updates[`flags.${MODULE_ID}.${FLAG_GEAR}.per`] = rounds;
       key ??= "ammunition";
     }
+  }
+
+  // The flag's half of a clothing declaration, written through, so a garment
+  // the rail declared leaves the weight. A subtype of clothing under another
+  // flag is a disagreement only a Judge can settle, so it is left alone.
+  const through = clothingDeclarationPatch(
+    { type: item.type, baseType: null, subtype: item.system?.subtype },
+    { baseType: item.flags?.[MODULE_ID]?.[BASE_TYPE_FLAG] ?? null },
+  );
+  if (through?.subtype === CLOTHING_SUBTYPE) {
+    updates["system.subtype"] = CLOTHING_SUBTYPE;
+    key ??= "clothing";
   }
 
   if (!Object.keys(updates).length) return null;

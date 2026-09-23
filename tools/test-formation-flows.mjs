@@ -570,6 +570,7 @@ await import("../scripts/formation/module.mjs");
 const model = await import("../scripts/formation/formation-model.mjs");
 const engine = await import("../scripts/formation/turn-engine.mjs");
 const requests = await import("../scripts/formation/player-requests.mjs");
+const { getSocket } = await import("../scripts/lib/sockets.mjs");
 const sceneSync = await import("../scripts/formation/scene-sync.mjs");
 const deployment = await import("../scripts/formation/deployment.mjs");
 // The world-clock gate belongs to lib, which this harness does not load (it
@@ -595,13 +596,14 @@ globalThis.socketlib = {
     // executeAsGM runs the handler ON THE GM'S CLIENT, so `game.user` there is
     // the GM and not the player who declared. Modelling that is what lets the
     // world-setting guard above stand: the relay must be the one route by which
-    // a player's declaration reaches a write. The declaring user still travels
-    // as an argument, which is the whole point of validating against it.
+    // a player's declaration reaches a write. The declaring user reaches the
+    // handler the way socketlib delivers it — as `this.socketdata.userId`, the
+    // sender the server stamped — never as anything the payload says.
     executeAsGM: async (name, ...args) => {
       const declaring = game.user;
       game.user = game.users.activeGM;
       try {
-        return await socketHandlers[name]?.(...args);
+        return await socketHandlers[name]?.call({ socketdata: { userId: declaring.id } }, ...args);
       } finally {
         game.user = declaring;
       }
@@ -974,6 +976,20 @@ await scenario("players steer their own members via the GM relay", async () => {
       "a player cannot map without a quill and parchment",
     );
 
+    // A payload naming the GM as its sender buys nothing: the handler acts for
+    // the sender socketlib attests, so the kit gate still refuses.
+    await getSocket().executeAsGM("partyRequest", {
+      formationId: id,
+      type: "role",
+      payload: { actorId: dave.id, role: "mapper" },
+      requestUserId: game.users.activeGM.id,
+    });
+    await drain();
+    assert.ok(
+      !onlyFormation().members.find((m) => m.actorId === dave.id)?.roles?.includes("mapper"),
+      "a forged GM id in the payload does not lift the kit gate",
+    );
+
     // Own member, kit in the pack: role toggle and reorder land.
     await dave.createEmbeddedDocuments("Item", [
       { name: "Quill, writing", type: "item", system: {} },
@@ -1023,6 +1039,28 @@ await scenario("players steer their own members via the GM relay", async () => {
 
   await model.disband(model.getFormation(id));
   await drain();
+});
+
+await scenario("a relayed payload carries the sender the server attested", async () => {
+  const { runRelayed } = await import("../scripts/lib/sockets.mjs");
+  const seen = [];
+  const probe = (...args) => {
+    seen.push(args);
+    return "ran";
+  };
+  const player = game.users.get("PL1");
+  const gm = game.users.activeGM;
+  assert.equal(runRelayed(probe, player.id, [{ a: 1 }]), "ran");
+  assert.deepEqual(seen.at(-1), [{ a: 1, requestUserId: player.id }], "an omitted id becomes the sender's");
+  runRelayed(probe, player.id, [{ requestUserId: gm.id }]);
+  assert.equal(seen.at(-1)[0].requestUserId, player.id, "a forged id is overwritten with the sender's");
+  runRelayed(probe, gm.id, [{ requestUserId: player.id }]);
+  assert.equal(seen.at(-1)[0].requestUserId, null, "a GM sender reads as null, the shape a GM's own dispatch passes");
+  runRelayed(probe, player.id, ["scene1", 2]);
+  assert.deepEqual(seen.at(-1), ["scene1", 2], "a non-object payload passes through untouched");
+  const before = seen.length;
+  assert.equal(runRelayed(probe, "nobody", [{}]), undefined);
+  assert.equal(seen.length, before, "a sender the world does not know never reaches the handler");
 });
 
 await scenario("a player lights their own lamp from the character sheet", async () => {
@@ -1544,12 +1582,12 @@ await scenario("winded markers apply and clear across the rest cycle", async () 
   // is what a reader's book does — the number below is this scenario's premise,
   // not a claim about any page.
   const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
-  registerTable({ id: "formation", tables: { restInterval: 5 } }, { priority: PRIORITY.WORLD });
+  registerTable({ id: "formation", tables: { restInterval: 3 } }, { priority: PRIORITY.WORLD });
 
-  // Six turns without rest crosses the registered interval and sets winded.
-  await engine.advanceTurns(model.getFormation(id), 6, { reason: "manual" });
+  // Four turns without rest cross the registered interval and set winded.
+  await engine.advanceTurns(model.getFormation(id), 4, { reason: "manual" });
   await drain();
-  assert.ok(onlyFormation().clock.winded, "party is winded after 6 turns without rest");
+  assert.ok(onlyFormation().clock.winded, "party is winded after 4 turns without rest");
   assert.ok(
     walker.effects.some((e) => e.getFlag(MODULE_ID, "winded")),
     "Winded active effect applied to the member",
@@ -1988,6 +2026,84 @@ await scenario("one clock advance credits a holed-up stretch exactly once", asyn
 
   await model.disband(model.getFormation(id));
   await drain();
+});
+
+await scenario("a lost episode reads every seat's fog from the server", async () => {
+  const lostFog = await import("../scripts/formation/lost-fog.mjs");
+  const { exploredDocs, writeExplored, deleteExplored } = await import("../scripts/formation/map-items.mjs");
+  // The server holds a player's fog that the Judge's client never loaded — the
+  // shape every earlier session leaves — plus an older copy of it.
+  const server = new Map();
+  const put = (d) => server.set(d._id, { ...d });
+  put({ _id: "older", scene: "S1", user: "PL1", level: "L0", explored: "seen-before", timestamp: 1 });
+  put({ _id: "newest", scene: "S1", user: "PL1", level: "L0", explored: "seen", timestamp: 5 });
+  put({ _id: "judge", scene: "S1", user: "GM1", level: "L0", explored: "judge-view", timestamp: 3 });
+  put({ _id: "away", scene: "S2", user: "PL1", level: "L0", explored: "elsewhere", timestamp: 9 });
+  const held = new (class extends Map {
+    filter(fn) { return [...this.values()].filter(fn); }
+    find(fn) { return [...this.values()].find(fn); }
+  })();
+  // Core resolves an update's response, and a delete's request, in the local
+  // collection: a target this client never loaded throws, as it does live.
+  class FogDoc {
+    constructor(src) { Object.assign(this, src); this.id = src._id; }
+    async update(changes) {
+      assert.ok(held.has(this.id), "a write's response finds its target in the collection");
+      Object.assign(server.get(this.id), changes);
+    }
+    async delete() { return FogDoc.deleteDocuments([this.id]); }
+    static async deleteDocuments(ids) {
+      for (const id of ids) if (!held.has(id)) throw new Error(`FogExploration id [${id}] does not exist in the FogExplorations collection.`);
+      for (const id of ids) { server.delete(id); held.delete(id); }
+    }
+    static database = {
+      get: async (_cls, { query }) => [...server.values()]
+        .filter((d) => Object.entries(query).every(([k, v]) => d[k] === v)).map((d) => new FogDoc(d)),
+    };
+    static async create(data) { const d = { _id: `made${server.size}`, ...data }; put(d); held.set(d._id, new FogDoc(d)); }
+  }
+  const saved = { cls: foundry.utils.getDocumentClass, collections: game.collections };
+  const socket = getSocket();
+  const savedEveryone = socket?.executeForEveryone;
+  foundry.utils.getDocumentClass = (name) => (name === "FogExploration" ? FogDoc : undefined);
+  game.collections = { get: (name) => (name === "FogExploration" ? held : undefined) };
+  if (socket) socket.executeForEveryone = async () => {};
+  try {
+    const docs = await exploredDocs("S1", "L0");
+    assert.deepEqual(docs.map((d) => d.id).sort(), ["judge", "newest"], "each seat's newest copy, on this scene only");
+
+    const snap = await lostFog.snapshotFog("S1", "L0");
+    assert.equal(snap.PL1, "seen", "the snapshot holds the player's fog the Judge never loaded");
+    server.get("newest").explored = "seen+faked";
+    await lostFog.restoreFog("S1", snap, "L0", { complete: true });
+    assert.equal(server.get("newest").explored, "seen", "the restore writes onto the player's own document");
+    assert.ok(server.has("older"), "an older copy is not touched");
+    assert.equal([...server.values()].filter((d) => d.user === "PL1" && d.scene === "S1").length, 2, "and nothing is created");
+    assert.equal(held.size, 0, "the seat a write took in the collection is given back");
+
+    // A snapshot taken from the Judge's client alone cannot tell a seat with no
+    // fog from one it never saw: the player's document survives its restore.
+    await lostFog.restoreFog("S1", { GM1: "judge-view", PL1: null }, "L0", { complete: false });
+    assert.ok(server.has("newest"), "an incomplete snapshot deletes no document it never saw");
+
+    await writeExplored(new FogDoc(server.get("judge")), "judge-view-2");
+    assert.equal(server.get("judge").explored, "judge-view-2", "a direct write lands on the server copy");
+
+    // A seat the complete snapshot recorded as empty loses the document the
+    // episode made for it, though a reload since means this client never held it.
+    put({ _id: "faked", scene: "S1", user: "PL2", level: "L0", explored: "faked-only", timestamp: 7 });
+    await lostFog.restoreFog("S1", { GM1: "judge-view", PL1: "seen" }, "L0", { complete: true });
+    assert.ok(!server.has("faked"), "a complete restore deletes a document this client never loaded");
+    assert.equal(server.get("newest").explored, "seen", "and still writes the recorded seats");
+    assert.equal(held.size, 0, "every seat taken for the delete is given back");
+
+    await deleteExplored([new FogDoc(server.get("older"))]);
+    assert.ok(!server.has("older"), "an older copy read from the server can be deleted");
+  } finally {
+    foundry.utils.getDocumentClass = saved.cls;
+    game.collections = saved.collections;
+    if (socket) socket.executeForEveryone = savedEveryone;
+  }
 });
 
 if (failures) {

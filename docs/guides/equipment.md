@@ -117,6 +117,19 @@ list names.
 grips dashed from the size table, Melee lit from its field, and the axe's
 hands locked at Worn at with a belt declared beside them.*
 
+**Clothing is declared once.** Set *Base type* to Clothing under
+**Construction** and the rail beside the art shows it. The item then weighs as
+clothing whichever sheet, import or macro made the declaration, and the Details
+tab's record has no kind of its own to disagree with it. Only an item offers
+clothing: core weighs every armour document as armour. An item that disagreed
+before this version keeps its weight until you set it; *Annotate* settles one
+the rail already calls clothing.
+
+![](../releases/v8.1.0/equipment-record.png)
+
+*An item's Details tab: Construction says what it is and where it is worn, and
+the record below it holds only the quantities.*
+
 A slot's only rule is that you cannot wear two of the same thing, so a wrong
 guess costs nothing but that. Rings are the exception the Treasure Tome spells
 out: you benefit from **two**, and a third stops all of them working.
@@ -146,9 +159,9 @@ aside mundane damage do not turn it aside. Mark the flaw on the monster's
 **Defenses** tab, beside *Mundane* and *Extraordinary*; the stat block will say
 "silver weapons deal extraordinary damage against it" when it applies.
 
-Masterwork is a separate thing and does not help here: it buys +1 to hit or
-damage, never the ability to harm something that shrugs off ordinary weapons.
-The sheet says so under the tier picker.
+Masterwork is a separate thing and does not help here: it edits the weapon's
+numbers, never its ability to harm something that shrugs off ordinary weapons
+(RR p. 159). The sheet says so under the tier picker.
 
 ![](../releases/v4.9.0/equipment-masterwork-tier.png)
 
@@ -202,7 +215,7 @@ alone, so a half-empty quiver is not refilled.
 ## Proficiency
 
 With enforcement on (the default), a character wielding a weapon with no
-Class-Training fighting-style item reads as non-proficient and takes the RR p.106
+Class-Training fighting-style item reads as non-proficient and takes the RR p. 15
 package — attacks as a 0th-level fighter, no attribute bonus to attack or AC.
 
 Weapon and armour lists stay **permissive** when absent: no list means

@@ -51,7 +51,7 @@ export const SETTING_MARCH_FEET = "marchFeetPerBody";
  */
 export const MARCH_FEET_PER_BODY_DEFAULT = 3;
 
-/** Default wandering-monster cadence: 1d6 every 2 turns, encounter on 6+. */
+/** Default wandering-monster cadence (JJ p. 36). */
 export const DEFAULT_ENCOUNTER_EVERY = 2;
 export const DEFAULT_ENCOUNTER_TARGET = 6;
 

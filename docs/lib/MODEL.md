@@ -680,6 +680,28 @@ both give `slotsOf` an empty list, and every name-heuristic fallback in the
 family gates on the former so a deliberate ruling is not undone by an item's
 name.
 
+### Goods handed to an actor, and bundles
+
+`bundles.mjs` `deliverItems(actor, goods)` is the one way goods arrive on an
+actor from outside it: each stackable folds into an identical stack the actor
+already carries (`planStackMerge`, keyed by `stackSignature`), and everything
+else is created. `bundles-logic.mjs` shapes the arrivals: `arrivalOf` strips
+the source's id, folder, sort, ownership, equipped state, container pointer and
+storage attribution.
+
+Core's bundle is an Item listing references (`system.itemList`), and no actor
+sheet lists an embedded one. So nothing embeds one:
+
+- **A bundle dropped on the character sheet** opens through `unpackBundle`.
+  Each row resolves by its uuid, then by the library item of the same name and
+  type, and a row neither finds is named in a warning while the rest arrive.
+  A row counts as core's own drop counts it: coin as that many coins, a
+  stackable as one stack of the count times its own size, anything else as
+  that many copies. The bundle is read, never consumed.
+- **A market purchase** (`markets/engine/trade.mjs` `deliverGoods`) counts
+  units, so it hands over one stack of the quantity bought or that many
+  copies, through the same `deliverItems`.
+
 ## Carrying: mounts, teams and everything aboard
 
 One relationship covers every actor carried by another
@@ -779,6 +801,35 @@ table processing the same day twice, so there is exactly one copy of it;
 `henchmen/time.mjs`'s `onTimeAdvanced` is a name its engine kept, delegating
 here. Callbacks are idempotent by contract — the hook fires for a calendar the
 Judge dragged as readily as for a rest — so each keeps its own watermark.
+
+## The socket transport
+
+`sockets.mjs` is the module's one cross-client channel: one socketlib
+registration, one handler registry, and a native-channel fallback for
+fire-and-forget calls. A player whose seat cannot write a document asks the
+active GM's client to do it, and that client acts with a GM's authority, so
+**who asked** is the whole of the security question.
+
+The answer comes from Foundry's server, never from the payload. The server
+stamps every module socket message with the id of the user whose connection
+sent it; socketlib hands that id to a handler as `this.socketdata.userId`, and
+the native channel as the listener's second argument. `runRelayed` sits
+between both and every registered handler. It **overwrites** an object
+payload's `requestUserId` with the attested sender: null when a GM sent it,
+the sender's id otherwise. That is the same shape a seat's own local dispatch
+passes (`requestUserId: game.user.isGM ? null : game.user.id`). A call from an
+id the world does not know never reaches its handler.
+
+So the convention every handler follows is one line: **authorize against
+`requestUserId`**, and when it is set, refuse unless that user owns the actor
+the call writes to. Leaving the field out of a payload now means nothing,
+because the field is always rewritten, and naming someone else in it means
+nothing either. A handler that reads identity from anywhere else — an extra
+argument, a user id tucked into the payload under another name — reintroduces
+the hole the wrapper exists to close.
+
+A handler called on the GM's own seat (`executeAsGM` when the caller is a GM)
+runs without the wrapper: the seat is its own authority.
 
 ## Effects the module maintains
 

@@ -393,23 +393,94 @@ check builds a formation-shaped record over real actors instead.
 
 ## Lost (added with the episode)
 
-Fixtures: a hex scene with `tokenVision` and `fogExploration` on, and one or
-two disposable party actors.
+Fixtures: TWO disposable hex scenes, A and B, both with `tokenVision` and
+`fogExploration` on. One or two disposable party actors, each with its party
+token on A, in journey mode. Record every scene, actor and token id with
+`api.track`.
 
-1. `lostEpisode.beginEpisode(f, {day, anchor, trueOffset})`.
-   *Observable:* `isAstray` is true, a hidden shadow token stands at the true
-   hex, and no player fog exists yet.
+**A player's fog from an earlier session** is the fixture that matters. Join
+the Player seat in the capture driver's second browser, view A, and create a
+FogExploration for that seat on A and on B holding a known bitmap (a lit
+top-left quarter reads cleanly under a pixel probe). Track the ids from the
+player's own ledger, then reload BOTH seats so that neither client holds a
+document it made. The Judge's client never holds a player's fog documents —
+`game.collections.get("FogExploration")` on the GM seat shows none of them — so
+an episode that reads that collection misses the player entirely (T-0192).
+Read fog from the server instead: `FogExploration.database.get(cls, {query:
+{scene, user}})` works from the GM seat, and core loads each seat's NEWEST
+document by timestamp.
+
+1. Viewing A, press **They strayed…** on the journey panel and pick a face.
+   *Observable:* `lost.phase` is `astray`, `lost.sceneId` is A's id,
+   `lost.level` is A's viewed level, `lost.fogSnapshotComplete` is true, and
+   the snapshot's entry for the player hashes equal to the player's server
+   document. A hidden shadow token stands at the true hex. **No "duplicate
+   party token" warning** appears: the adoption hook skips shadows.
 2. `walkAstray(f, {believedOffset, trueOffset})` twice, diverging.
-   *Observable:* the shadow follows the TRUE offsets; the ledger holds two
-   faked hexes and two observation pairs; a player FogExploration document now
-   carries a bitmap — and the Judge's does not.
-3. `discoverEpisode(f)`.
-   *Observable:* the player's fog is gone, `believed` is null, the shadow
-   REMAINS (the party still does not know where it is), and the dialog reaches
-   the players over socketlib without blocking the Judge.
-4. On a second party, `reanchorEpisode(f)` instead.
-   *Observable:* fog is restored and then re-painted at the TRUE hexes,
-   `committed` counts them, and the shadow is cleared.
+   *Observable:* the shadow follows the TRUE offsets. The ledger holds two
+   faked hexes and two observation pairs. The player still has exactly ONE
+   document on A, the earlier-session one, and it now carries the believed
+   hexes beside the earlier ground. On the player's seat,
+   `canvas.fog.exploration.id` is that document and its bitmap shows the
+   believed hexes lit. The Judge's own fog is unchanged.
+3. **View scene B**, record B's FogExploration documents (`_id`, `timestamp`,
+   and `explored` length for each), then press **They realise**.
+   *Observable:* B's documents are byte-for-byte unchanged and none is deleted,
+   which is the T-0165 regression. A's player document is back to the
+   snapshot's bitmap, on the same `_id`, and the player's seat shows the
+   believed hexes dark again. `phase` is `aware`, `believed` is null, the
+   shadow REMAINS on A, and the dialog reaches the players without blocking
+   the Judge. The panel now shows **They find the landmark** and **They turn
+   back**, and no Discover button.
+4. Still viewing B, press **They find the landmark**, leave "Move the party
+   token onto its true position" ticked, and confirm.
+   *Observable:* the party token on A now centres on where the shadow stood,
+   no `shadowFor` token remains on any scene, and `phase` is null. The journey
+   hex (`travel.hex`) is the hex the token now stands in (T-0193). The move
+   costs no dungeon turn and raises no day-end offer, because the movement
+   hook skips `TRUTH_MOVE_OPTION`.
+5. On a second party, begin from A, walk once with a true offset, then view B
+   and press **They find the landmark** while astray.
+   *Observable:* a "open the party's scene" warning and NO write: the ledger
+   still reads `astray`, and the shadow still stands. Then view A and repeat,
+   polling until `phase` is null — the commit path writes fog before it
+   writes the ledger. Fog is restored and re-painted at the TRUE hexes onto
+   the player's earlier-session document: the earlier ground and the true hex
+   lit, the believed hex dark, no second document. Every shadow is cleared
+   and the journey hex follows the token.
+6. Begin again, then press **They turn back**.
+   *Observable:* the player's document is back to this episode's snapshot,
+   nothing is committed, the party token has not moved, and no shadow remains.
+7. Begin again, then disband the formation (or delete its party actor).
+   *Observable:* zero `shadowFor` tokens remain on any scene.
+8. **Leftover.** With no episode open, place a shadow for the formation by hand
+   (`shadow.placeShadow(sceneA, f, offset)`) and re-render the panel.
+   *Observable:* the panel says a marker from an earlier episode is on the
+   map. **Remove the marker** deletes it and leaves the party token where it
+   is. Placing it again and re-rendering the sheet (placing a token does not
+   re-render it), **Move the party onto it** moves the party there, deletes
+   it, and moves the journey hex with it.
+9. **Orphan sweep.** Create a shadow flagged to a formation id that does not
+   exist (`scene.createEmbeddedDocuments("Token", [{actorId, hidden: true,
+   flags: {"acks-extras": {shadowFor: "nope"}}}])`) and reload the GM seat.
+   *Observable:* it is gone after `ready`, and every other token on the scene
+   is untouched.
+10. **The player's next session.** Reload the player seat and view A.
+    *Observable:* `canvas.fog.exploration.id` is the earlier-session document,
+    showing the earlier ground and step 5's credited hex.
+11. **Recovery.** With both seats viewing B, create a NEWER FogExploration
+    for the player on B from the GM seat (`{loadFog: false}`), holding a
+    different corner: the shape an earlier build left behind. Run the
+    compendium macro **Merge Fog Copies on This Scene (GM)**.
+    *Observable:* an info toast counts one merged record; the player has one
+    document on B, the newer `_id`, holding both corners; the player's seat
+    re-points at it without a reload. A second run reports nothing to merge,
+    `mergeFogCopies()` from the player seat returns null, and with a party
+    astray on the viewed scene it refuses with a warning and writes nothing.
+
+**Teardown.** `api.sweepTracked()` for the scenes, actors and any token still
+standing, with the player's fog documents tracked from the player's ledger.
+Deleting scene A takes every fog document on it with it.
 
 **A ledger write takes a moment to be readable.** `patchFormation` resolves
 before `getFormations()` reflects it — a scripted check that reads the record

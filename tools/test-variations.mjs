@@ -9,6 +9,7 @@ import {
   baseTypeIsDeclared,
   baseTypeOf,
   baseTypesFor,
+  clothingDeclarationPatch,
   documentBaseType,
 } from "../scripts/equipment/base-types.mjs";
 import {
@@ -126,6 +127,69 @@ test("a name nothing recognises guesses nothing, which is a real answer", () => 
   // The caller falls back to what the document is, and for gear that is right.
   assert.equal(named("Curious Rock", "item"), null);
   assert.equal(baseTypeOf({ type: "item", name: "Curious Rock", flags: {} }, { infer: inferBaseType }), BASE_TYPE.gear);
+});
+
+test("core's clothing subtype is read before any name", () => {
+  assert.equal(named("Curious Rock", "item", { subtype: "clothing" }), BASE_TYPE.clothing);
+  assert.equal(named("Linen (10 lb)", "item", { subtype: "clothing" }), BASE_TYPE.clothing);
+});
+
+/* -------------------------------------------- */
+/*  One clothing declaration                    */
+/* -------------------------------------------- */
+
+const stored = (baseType = null, subtype = "item", type = "item") => ({ type, baseType, subtype });
+
+test("clothing sits on an item document alone, the one core leaves unweighed", () => {
+  assert.deepEqual(baseTypesFor("armor").includes(BASE_TYPE.clothing), false);
+  assert.equal(baseTypeOf(item("armor", BASE_TYPE.clothing)), BASE_TYPE.armour);
+});
+
+test("declaring clothing on the flag writes the subtype in the same write", () => {
+  assert.deepEqual(clothingDeclarationPatch(stored(), { baseType: BASE_TYPE.clothing }), { subtype: "clothing" });
+});
+
+test("moving the flag off clothing, or unsetting it, weighs the item again", () => {
+  assert.deepEqual(clothingDeclarationPatch(stored(BASE_TYPE.clothing, "clothing"), { baseType: BASE_TYPE.gem }),
+    { subtype: "item" });
+  assert.deepEqual(clothingDeclarationPatch(stored(BASE_TYPE.clothing, "clothing"), { baseType: null }),
+    { subtype: "item" });
+});
+
+test("setting the subtype writes the flag to match", () => {
+  assert.deepEqual(clothingDeclarationPatch(stored(), { subtype: "clothing" }), { baseType: BASE_TYPE.clothing });
+  assert.deepEqual(clothingDeclarationPatch(stored(BASE_TYPE.gem), { subtype: "clothing" }), { baseType: BASE_TYPE.clothing });
+  assert.deepEqual(clothingDeclarationPatch(stored(BASE_TYPE.clothing, "clothing"), { subtype: "item" }), { baseType: null });
+});
+
+test("a write that moves both halves apart is settled by the flag", () => {
+  // A form re-submitting the stored subtype beside a moved flag follows the flag.
+  assert.deepEqual(clothingDeclarationPatch(stored(), { baseType: BASE_TYPE.clothing, subtype: "item" }),
+    { subtype: "clothing" });
+  assert.deepEqual(
+    clothingDeclarationPatch(stored(BASE_TYPE.clothing, "clothing"), { baseType: BASE_TYPE.gem, subtype: "clothing" }),
+    { subtype: "item" },
+  );
+  assert.deepEqual(clothingDeclarationPatch(stored(BASE_TYPE.gem), { baseType: BASE_TYPE.clothing, subtype: "item" }),
+    { subtype: "clothing" });
+});
+
+test("a write that moves neither half leaves a disagreement standing", () => {
+  // A form re-submitting the stored subtype is not a declaration; a world's
+  // existing disagreement is a Judge's to settle, never an edit's side effect.
+  assert.equal(clothingDeclarationPatch(stored(BASE_TYPE.clothing, "item"), {}), null);
+  assert.equal(clothingDeclarationPatch(stored(BASE_TYPE.clothing, "item"), { subtype: "item" }), null);
+  assert.equal(clothingDeclarationPatch(stored(BASE_TYPE.gem, "clothing"), { baseType: BASE_TYPE.gem }), null);
+});
+
+test("halves that already agree need nothing", () => {
+  assert.equal(clothingDeclarationPatch(stored(), { baseType: BASE_TYPE.gem }), null);
+  assert.equal(clothingDeclarationPatch(stored(BASE_TYPE.clothing, "item"), { subtype: "clothing" }), null);
+});
+
+test("only an item document carries the declaration", () => {
+  assert.equal(clothingDeclarationPatch(stored(null, undefined, "armor"), { baseType: BASE_TYPE.clothing }), null);
+  assert.equal(clothingDeclarationPatch(stored(null, undefined, "weapon"), { subtype: "clothing" }), null);
 });
 
 /* -------------------------------------------- */

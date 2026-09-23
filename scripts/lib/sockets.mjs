@@ -18,9 +18,36 @@ export function getSocket() {
 }
 
 /**
+ * Runs a handler for a call another client sent. An object payload's
+ * `requestUserId` is replaced with the sender Foundry's server attested: null
+ * for a GM, the sender's id for anyone else — the shape a seat's own dispatch
+ * passes. A handler authorizes on who sent the call, never on what the payload
+ * claims; a call from no known user does not run.
+ * @param {Function} fn      The registered handler.
+ * @param {string} senderId  The user id the server stamped on the message.
+ * @param {Array} args       The call's arguments as sent.
+ */
+export function runRelayed(fn, senderId, args) {
+  const sender = game.users.get(senderId);
+  if (!sender) return undefined;
+  const [payload, ...rest] = args;
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    return fn({ ...payload, requestUserId: sender.isGM ? null : sender.id }, ...rest);
+  }
+  return fn(...args);
+}
+
+/** socketlib binds `this.socketdata.userId` to the attested sender, locally too. */
+const viaSocketlib = (fn) =>
+  function relayed(...args) {
+    return runRelayed(fn, this?.socketdata?.userId, args);
+  };
+
+/**
  * Register a named handler. Safe at import time (queued until the socket is
  * up). Handler names share one module-wide registry — a duplicate is a
- * programming error and throws rather than silently rebinding.
+ * programming error and throws rather than silently rebinding. A relayed call
+ * reaches the handler through `runRelayed`.
  * @param {string} name  Unique handler name.
  * @param {Function} fn  Handler; its return value reaches socketlib callers.
  */
@@ -29,12 +56,12 @@ export function registerHandler(name, fn) {
     throw new Error(`${MODULE_ID} | socket handler "${name}" registered twice — one module, one handler namespace`);
   }
   handlers.set(name, fn);
-  if (socket) socket.register(name, fn);
+  if (socket) socket.register(name, viaSocketlib(fn));
 }
 
 Hooks.once("socketlib.ready", () => {
   socket = socketlib.registerModule(MODULE_ID);
-  for (const [name, fn] of handlers) socket.register(name, fn);
+  for (const [name, fn] of handlers) socket.register(name, viaSocketlib(fn));
 });
 
 /** First active GM — the one client that executes relayed mutations. */
@@ -57,20 +84,21 @@ export async function executeAsGM(action, payload) {
     return;
   }
   if (socket) return socket.executeAsGM(action, payload);
-  game.socket.emit(CHANNEL, { action, payload, userId: game.user.id });
+  game.socket.emit(CHANNEL, { action, payload });
 }
 
 // Native-channel fallback listener: wired only when socketlib never came up.
-// A context with neither socketlib nor a native socket is headless.
+// A context with neither socketlib nor a native socket is headless. The
+// server passes the sender's id as the second argument.
 Hooks.once("ready", () => {
   if (socket || typeof game.socket?.on !== "function") return;
-  game.socket.on(CHANNEL, async ({ action, payload } = {}) => {
+  game.socket.on(CHANNEL, async ({ action, payload } = {}, senderId) => {
     // Only the first active GM executes, so multiple GMs don't double-run.
     if (game.user !== firstActiveGm()) return;
     const handler = handlers.get(action);
     if (!handler) return;
     try {
-      await handler(payload);
+      await runRelayed(handler, senderId, [payload]);
     } catch (err) {
       console.error(`${MODULE_ID} | socket action ${action} failed`, err);
     }

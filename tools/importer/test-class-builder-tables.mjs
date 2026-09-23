@@ -21,7 +21,7 @@ for (const [tableId, recipe] of Object.entries(recipes)) {
   if (recipe.valueBlocks) {
     const out = {};
     for (const block of recipe.valueBlocks) {
-      const found = await findPage({ ...block, searchRadius: 4 }, doc.numPages, readPage);
+      const found = await findPage({ ...block, book: recipe.book, searchRadius: 4 }, doc.numPages, readPage);
       if (!found) continue;
       const got = extractTable(found.items, { ...recipe, valueBlocks: null, emit: null, values: block.values });
       if (Object.keys(got).length) out[block.id] = got;

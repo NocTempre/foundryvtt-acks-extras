@@ -60,22 +60,30 @@ object. Every path is under `scripts/lib/`.
 ## `tables` — layered rules-table registry (Foundry-free)
 
 Documents are plain JSON carrying `id` (`{ id, source, tables, throws? }`).
-Each id holds at most one document per **priority layer**; reads resolve the
-highest layer present:
+Each id holds at most one document per **priority layer**; a read merges the
+layers **per table**, the highest layer holding a table winning it, so a
+partial layer never hides the tables beneath it:
 
 | layer | who registers |
 |---|---|
 | `PRIORITY.SAMPLE` (0) | a module's own shipped config — automation and vocabulary only (extraction-program ruling: no book values, no samples), e.g. henchmen's `throws` and its one inferred `rarity` shift |
 | `PRIORITY.CATALOG` (10) | premium/companion content modules |
 | `PRIORITY.WORLD` (20) | per-world imported tables (via the `ruledata-import` contract) |
+| `PRIORITY.OVERRIDE` (30) | a GM's hand edits: partial documents holding only the tables replaced in the location Ruledata Browser, persisted in the same store and reverted per table |
 
 `registerTable(doc, {priority, source})` (same-layer re-registration
 replaces — idempotent re-import) · `initTables(doc)` (drop-in alias, layer
 0) · `unregisterTable(docId, {priority?})` (layer removal falls back to the
 next-highest; no priority = remove all layers) · `getDoc` / `getTable` /
-`getThrowDef` (throw when absent — callers gate with `hasDoc`) · `hasDoc` ·
-`docInfo()` → `[{id, priority, source}]` for diagnostics ·
-`bracketRow(rows, value)` (null max = open-ended) · `resetTables()`.
+`getThrowDef` (the merged read; throw when absent — callers gate with
+`hasDoc`) · `getLayer(docId, priority)` → that one layer as registered, or
+null, never merged · `hasDoc` · `docInfo()` → `[{id, priority, source}]` for
+diagnostics · `bracketRow(rows, value)` (null max = open-ended) ·
+`resetTables()`.
+
+A writer that merges into what it wrote before reads its own layer with
+`getLayer`, never `getDoc`: the merged read would carry an override or a
+sample down into the write.
 
 `expectTables(docId, tableIds)` at `setup` declares what a consumer reads;
 `expectedTables()` → `[{docId, tableIds}]` drives placeholder generation, and

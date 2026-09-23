@@ -19,7 +19,7 @@ import { dirname, join } from "node:path";
 import {
   SCENE_KIND, PLACE_TOKEN_SIZE, isSceneRecipe, sceneFrame, ringToScene, pointInRing, bandOfSection, formulaMax,
   afterDarkShift, placementMatches, placementHolding, recipeContext, recipeProblems, sceneData, districtRegionData,
-  placeTokenAt, worldCopySource, turnMatrix, pictureKey,
+  placeTokenAt, worldCopySource, isWorldCopy, turnMatrix, pictureKey,
 } from "../../scripts/importer/scene-binding.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 
@@ -262,6 +262,15 @@ check("a copy is owned by nobody, whatever the library's document said", copy.ow
 const bareCopy = worldCopySource({ system: {} }, worldIds);
 check("a document with nothing to rewrite is only filed, owned by nobody and marked", bareCopy, { system: {}, folder: null, ownership: { default: 0 }, flags: { [MODULE_ID]: { worldCopy: true } } });
 check("a world reference is never touched", worldCopySource({ system: { parentUuid: `Actor.${C}` } }, worldIds).system.parentUuid, `Actor.${C}`);
+
+/* ---------------- a copy of an import is not an import ---------------- */
+
+const stamped = { flags: { [MODULE_ID]: { cookbook: { id: "zz.faction.one" } } } };
+ok("a scene's copy is a copy", isWorldCopy(copy));
+ok("a drag out of a world compendium is a copy", isWorldCopy({ ...stamped, _stats: { compendiumSource: lib(C) } }));
+ok("a sidebar duplicate is a copy", isWorldCopy({ ...stamped, _stats: { duplicateSource: `Item.${C}` } }));
+ok("an import made in the sidebar is not", !isWorldCopy({ ...stamped, _stats: { compendiumSource: null, duplicateSource: null } }));
+ok("an import built from the system's own compendium is not", !isWorldCopy({ ...stamped, _stats: { compendiumSource: `Compendium.acks.acks-all-equipment.Item.${C}` } }));
 
 /* ---------------- the picture and the geometry turn by one rule ---------------- */
 

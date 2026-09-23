@@ -536,11 +536,17 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
    * `payload.externalModifiers` is carried verbatim from the player's dialog,
    * never re-derived by firing `HOOKS.INFLUENCE_MODIFIERS` again on the GM
    * client. See docs/influence/DECISIONS.md, "A hidden resolve trusts the
-   * player's externally-injected modifiers, never re-derives them".
+   * player's externally-injected modifiers, never re-derives them". A relayed
+   * call (`requestUserId`, set by `lib/sockets.mjs`) resolves only for a
+   * sender who owns the rolling actor.
    */
   static async resolveExternal(payload = {}) {
     const actor = payload.actorUuid ? await fromUuid(payload.actorUuid) : null;
     if (!actor) return;
+    if (payload.requestUserId) {
+      const user = game.users.get(payload.requestUserId);
+      if (!user || !actor.testUserPermission(user, "OWNER")) return;
+    }
     const target = payload.targetUuid ? await fromUuid(payload.targetUuid) : null;
     const app = new InfluenceApp({ actor, targetActor: target, modifiers: payload.externalModifiers });
     app.#forceHidden = true;

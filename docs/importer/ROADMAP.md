@@ -856,3 +856,12 @@ label that survives having been chosen, on top of the aliasing itself.
 
 Until it lands, the audit that reads the decoder ring reports these sites every
 run, and they are the report's only true positives.
+
+## NPC proficiency tokens the index cannot resolve
+
+An AX3 NPC import logs its statline tokens that match no definition. Of 269, 7
+fail: 2 are extraction defects in the register (a line-break hyphen with the
+throw value inside the word, and an unbalanced specialty parenthesis), and 5
+are names the ability index does not hold. Two of those are spells, which want
+filtering by category before the lookup; the other three are content gaps to
+author.

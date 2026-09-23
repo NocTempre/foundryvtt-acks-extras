@@ -155,13 +155,13 @@ const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) { ui.notifications.warn("Select a token or assign a character."); return; }
 
 // RAW: every character is trained in the single-weapon and missile styles
-// (RR p. 106), so those two are stated, not offered.
+// (RR p. 15), so those two are stated, not offered.
 const STYLES = [["dual", "Two weapons (dual wield)"], ["twoHanded", "Two-handed"], ["weaponShield", "Weapon &amp; shield"]];
 const SIZES = [
-  ["tiny", "Tiny", "dagger, knife, club, sap"],
-  ["small", "Small", "short sword, hand axe, war hammer, javelin"],
-  ["medium", "Medium", "sword, mace, flail, spear, staff"],
-  ["large", "Large", "two-handed sword, great axe, pole arm, morning star"],
+  ["tiny", "Tiny"],
+  ["small", "Small"],
+  ["medium", "Medium"],
+  ["large", "Large"],
 ];
 const CATEGORIES = [
   ["axe", "Axes"],
@@ -203,7 +203,7 @@ const render = (st) => \`<div style="display:grid;gap:.75rem;align-content:start
       ticking nothing at all clears the profile, leaving the character unrestricted.</p>
     \${box("grant", "all", "<b>All weapons</b> (unrestricted)", on(st.grants, "all"))}
     <p class="notes" style="margin-bottom:0"><b>Any melee weapon of these sizes</b> (broad choices i-ii)</p>
-    \${SIZES.map(([k, l, ex]) => box("grant", \`melee:\${k}\`, l, on(st.grants, k), ex)).join("")}
+    \${SIZES.map(([k, l]) => box("grant", \`melee:\${k}\`, l, on(st.grants, k))).join("")}
     <p class="notes" style="margin-bottom:0"><b>Missile</b></p>
     \${box("grant", "missile:all", "All missile weapons", on(st.grants, "missile:all"), "broad choice v")}
     <p class="notes" style="margin-bottom:0"><b>Weapon categories</b> (narrow choices i-vi)</p>

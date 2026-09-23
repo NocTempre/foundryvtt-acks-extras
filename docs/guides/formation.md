@@ -174,6 +174,27 @@ many words, that the last few days were not where they thought. They do not
 learn where they actually went. Finding their way back to a known landmark is
 what puts the country they really crossed onto the map, in its right place.
 
+![](../releases/v8.1.0/formation-lost-aware.png)
+
+From then on the panel offers the two ways out. **They find the landmark**
+credits the ground they really crossed, and can step the party token onto its
+true position. **They turn back** closes the episode and credits nothing. A
+marker left behind by an earlier version is named on the panel, with **Move the
+party onto it** and **Remove the marker**.
+
+![](../releases/v8.1.0/formation-lost-leftover.png)
+
+**If a player's map lost ground they had explored** after a lost episode or an
+anchored map on an earlier version, view that scene and run **Merge Fog Copies
+on This Scene (GM)** from the macro compendium. The ground was still stored,
+in an older copy of the player's fog that their map no longer showed. The macro
+folds every older copy into the one the map shows and says how many it merged.
+It refuses while a party on that scene is lost and does not know it yet.
+
+![](../releases/v8.1.0/formation-fog-merge.png)
+
+*The macro's report after folding one older copy into a player's current fog.*
+
 ### In the city
 
 **Enter the city** swaps the journey board for a settlement one. Choose a
@@ -329,14 +350,13 @@ it is: its level, what springs it, whether it is crudely built, how it resolves
 module rolls — what it deals, and whether it takes only whoever set it off or
 everything within reach.
 
-Two fields are worth a word. **Springs on 1d6 of** is the secret trigger throw,
-2 by default (so 1–2); widen it for a trap that is easy to set off and narrow it
-for a hard one. **Attack throw** is the number your own book gives for a fighter
+Two fields are worth a word. **Springs on 1d6 of** is the secret trigger throw;
+widen it for a trap that is easy to set off and narrow it for a hard one. **Attack throw** is the number your own book gives for a fighter
 of the trap's level — the module ships no fighter progression, so you supply the
 answer rather than the level.
 
-For a pit, leave the damage blank and set the depth: 1d6 per 10 feet is filled
-in for you, and ticking *Spiked* adds the 1d4 spikes at 1d6 each.
+For a pit, leave the damage blank and set the depth: the fall's dice are filled
+in for you from it, and ticking *Spiked* adds the spikes (JJ p. 238).
 
 ![](../releases/v4.9.0/formation-trap-item.png)
 
@@ -460,19 +480,19 @@ is.
 
 A character with thieves' tools can work on a trap the party is standing at:
 
-- **Hastily** — one round, and the Trapbreaking skill only. An unmodified 1–3
-  sets it off. Fail and that character cannot try this trap again until they
-  gain a level.
-- **Methodically** — one full turn. A skilled thief gets +4; a non-thief may try
-  through Adventuring. Only an unmodified 1 sets it off, and a plain failure can
-  be tried again.
+- **Hastily** — one round, and the Trapbreaking skill only. A low enough
+  unmodified roll sets it off, and the module refuses that character another
+  hasty try at this trap until they gain a level (RR p. 267).
+- **Methodically** — one full turn. A skilled thief adds the methodical bonus; a
+  non-thief may try through Adventuring. It is harder to set off than a hasty
+  try, and a plain failure can be tried again (RR p. 267).
 
 Beat it and you choose: **disarm** it, which leaves it re-armable, or
 **discharge** it deliberately, which spends it. A disarmed trap can be re-armed
 later on a Trapbreaking throw.
 
-A crude trap is +4 to find and to remove, attacks at -2, and is saved against
-at +2.
+A crude trap is easier to find, to remove and to save against, and attacks at a
+penalty (JJ p. 238).
 
 ## Doors
 
@@ -481,12 +501,12 @@ in it, and the three things a party does to one that will not open.
 
 ![](../releases/v4.2.0/formation-door.png)
 
-*Two spikes hammered in, the heave broken into its parts — Strength +12 against
-spikes −4, needing 10+ — and what battering it down with an axe would cost in
-turns.*
+*Two spikes hammered in, the heave broken into its parts — Strength against the
+spikes, and the number it needs — and what battering it down with an axe would
+cost in turns.*
 
-- **Spikes** go in one per round, four to a door, and every spike after the
-  first makes forcing it harder. Pulling one back out is its own control.
+- **Spikes** go in one per round, up to the most a door holds, and every spike
+  after the first makes forcing it harder (RR p. 267). Pulling one back out is its own control.
 - **Bash it open** is the throw, itemized before you take it: who is heaving,
   whether a second pair of shoulders is on it, a crowbar, how far from man-sized
   the heaver is, and the Judge's own modifier. The number it needs is shown, and

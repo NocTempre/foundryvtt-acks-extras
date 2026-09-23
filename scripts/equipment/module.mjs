@@ -16,6 +16,7 @@ import VariationData from "./data/variation-data.mjs";
 import { registerVariationSheet } from "./variation-sheet.mjs";
 import { onPreUpdateItem, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
 import { unstowOnUse } from "./containers.mjs";
+import { registerClothingDeclaration } from "./clothing-declaration.mjs";
 import { registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheet } from "./sheet.mjs";
 import { registerItemSheet, ITEM_SHEET_TEMPLATES } from "./item-sheet/sheet.mjs";
@@ -34,6 +35,8 @@ Hooks.once("init", () => {
   // Mounted combat's save prompts hang off the post-attack and pre-update
   // seams; every handler gates on the overlay's own setting.
   registerMountedOverlay();
+  // A garment declared on either half is declared on both, in the same write.
+  registerClothingDeclaration();
 
   // The variation Item sub-type. Wrapped because a throw in `init` leaves the
   // rest of the hook dead, and everything above this line has to survive a

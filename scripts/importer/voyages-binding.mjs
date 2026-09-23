@@ -11,7 +11,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
-import { hasDoc, getDoc, PRIORITY } from "../lib/tables.mjs";
+import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { parseMultiplier } from "./travel-binding.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
@@ -198,8 +198,8 @@ export function assembleVoyageTables(raw = {}) {
  */
 export async function applyVoyagesImport() {
   const svc = services.get("ruledata-import");
-  if (!svc || !hasDoc(VOYAGES_DOC_ID)) return { assembled: [] };
-  const doc = getDoc(VOYAGES_DOC_ID);
+  const doc = getLayer(VOYAGES_DOC_ID, PRIORITY.WORLD);
+  if (!svc || !doc) return { assembled: [] };
   const engine = assembleVoyageTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(

@@ -288,7 +288,7 @@ This feature infers proficiency from its own actor flags and effect markers — 
 ones the ACKS Class Training compendium items set. Weapon and armour resolvers
 stay **permissive** when an actor carries no such flags (no list ⇒ proficient),
 so an unconfigured character is not punished. A trained fighting **style**,
-however, is required to use any weapon at all (RR p.106), so a weapon-wielding
+however, is required to use any weapon at all (RR p. 15), so a weapon-wielding
 character with no Class-Training style item reads as non-proficient once
 enforcement is on.
 
@@ -296,7 +296,7 @@ enforcement is on.
 abilities feature is absent — the pre-merge default, kept for worlds whose
 characters rely on the abilities model), `off`.
 
-Scope is the **penalties** (the RR p.106 non-proficient package), not the
+Scope is the **penalties** (the RR p. 15 non-proficient package), not the
 feature. Equip limits, containers, wear buckets, the loadout effect and bridged
 ability bonuses are unaffected.
 
@@ -1465,3 +1465,78 @@ comments now state the guard; the story is here.
 
 - **The test suite builds the API.** Equipment v0.9.0–v0.12.0 shipped broken: `api.mjs` exposed functions it never imported, so `buildApi()` threw a ReferenceError at init and the module died. `node --check` is syntax-only and no test called `buildApi`; `tools/test-equipment.mjs` now builds it as the guard.
 - **Quality layers share one baseline.** Two layers that each snapshotted their own base meant clearing one restored the other's delta as if pristine. Masterwork and scavenged now unwind against the one pristine snapshot, and `tools/test-equipment.mjs` pins that the two coexist and unwind cleanly.
+
+### A level-scaled typed value resolves through lib, not an abilities method (2026-09-23)
+
+**Reported.** Every level-scaled typed value an ability carried reached the
+bridge as 0. `flatValue` asked the abilities API for a `resolveValue` that
+nothing defines, then fell back to the flat shape alone, so a ladder never
+resolved. The offline check could not see it: its only ladder was one no
+resolver reads, and "contributes nothing" was the right answer for that one.
+
+**Ruled.** `flatValue` resolves with the classes feature's `resolveLevelValue`
+when live (lib's, completed with class progressions), else lib's own, at the
+abilities model's `scalesFor`. The suite now resolves a real ladder at two
+levels, and separately checks the live-API and absent-API paths.
+
+*Cost:* with the classes feature off, a value of the `progression` kind
+contributes 0, because lib's resolver leaves a progression to the classes
+feature.
+
+---
+
+### Clothing is declared once, whichever half is written (2026-09-23)
+
+**Reported.** Clothing declared from the rail kept its full weight. The rail
+writes the `baseType` flag, and core weighs by `system.subtype`, which only the
+Details tab's Kind select and core's own sheet wrote. The importer wrote the
+subtype and no flag. Two declarations, and the weight followed one of them.
+
+**Ruled.** The two fields say one thing: the flag says clothing exactly when the
+subtype does. A create or update that moves one gets the other in the same
+write (`clothingDeclarationPatch`, applied by `preCreateItem`/`preUpdateItem`),
+so every path ends in the same weight (user ruling 2026-09-22: "Import should be
+path independent - fix the clothing weight"). When one write moves both apart,
+the flag wins. The Details Kind select is removed, leaving the rail as the one
+control. Clothing leaves `armor` documents' allowed base types, since core weighs
+every armour document whatever its flag says. `inferBaseType` reads the clothing
+subtype before any name. Annotate writes the flag's half through.
+
+**Rejected: making `isClothing` read the flag.** It silently reinterprets stored
+data with nothing to roll back; that rejection stands. **Rejected: a write-through
+in `setBaseType` and Annotate alone** (the earlier ROADMAP plan). It leaves core's
+sheet and the importer writing one half.
+
+**Rejected: repairing a disagreement on any write.** A write that moves neither
+half leaves the item alone, because a form re-submitting the stored subtype is
+not a declaration, and changing a weight as a side effect of an unrelated edit
+is a migration nobody asked for.
+
+*Cost:* an item that already disagrees keeps its weight until a Judge settles
+it. Annotate settles the flag-says-clothing case. A clothing subtype under
+another flag waits for the repair tool (ROADMAP). An `armor` document flagged
+clothing now reads as armour or shield on the rail; its weight never changed.
+
+### Equipment strings name the field and cite the page (2026-09-23)
+
+**Found.** Hints, labels and roll notes stated printed numbers: dice, prices,
+modifiers and page counts. Others paraphrased the rule they served: the
+non-proficiency package, the mounted saves, the helm and the named item. Several
+source comments quoted the book outright. One named two of its characters.
+
+**Ruled.** A string names what its field or control does, or the state the module
+computed, and keeps the page reference. A comment explains the mechanic without
+the book's words or numbers. The masterwork choices are named for what each one
+improves. Its figure and price are the item's to show once written. The numbers
+the code still carries are ROADMAP ("Equipment numbers through the importer").
+
+**Corrected citations.** In the printing the module reads, the non-proficient use
+sidebar and the fighting-style training it depends on are on RR p. 15. Every
+reference to p. 106, the Proficiencies chapter, now points there. The value of a
+scribed spell is on RR p. 391, not p. 390. The enclosing helm stays on RR
+p. 140.
+
+**Rejected: dropping the page reference with the prose.** That turns a cited
+paraphrase into an uncited one (ip-doctrine, "What a citation does not do").
+
+*Cost:* the hints say less. A Judge who wants the figure turns to the cited page.

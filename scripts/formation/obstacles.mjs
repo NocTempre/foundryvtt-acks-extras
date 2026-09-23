@@ -7,7 +7,7 @@
  * and they do NOT move together:
  *
  *  - **may an ordinary adventurer try at all?** An easy climb and a crawling
- *    traverse are Adventuring 8+; a sheer face, a rappel and a precarious
+ *    traverse are open to Adventuring; a sheer face, a rappel and a precarious
  *    ledge are not permitted without Climbing or Mountaineering, and no roll
  *    changes that;
  *  - **what does failure cost?** On the gentle obstacles, a round and nothing
@@ -17,8 +17,9 @@
  *  - **is the climber helpless while doing it?** Everything except an easy
  *    climb leaves them Vulnerable in combat.
  *
- * One throw per 100 feet, and success moves at a third of combat speed (a
- * rappel excepted — it is the one obstacle that is FASTER than walking).
+ * One throw per stretch of the obstacle, and success moves at a fraction of
+ * combat speed (a rappel excepted — it is the one obstacle that is FASTER than
+ * walking).
  *
  * A party has three ways to make a sheer face easy, and the module models the
  * outcome rather than the method: a rope secured by a proficient climber, a

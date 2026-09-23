@@ -90,14 +90,12 @@ export function layerDeltas(
   { masterwork = masterworkTierOf(item), scavenged = scavengedOf(item), silvered = silveredFlagOf(item) === true } = {},
 ) {
   // `costBaseMul` scales the weapon's OWN listed price, `costAdd` is then added,
-  // and `costMul` scales the whole. The order is the rules': silver is "10× the
-  // listed price of the weapon" (RR ch.4) and so cannot multiply a masterwork
-  // surcharge that RAW states as a flat "additional 80gp" (RR p159); a scavenged
-  // item is then worth a fraction of whatever it would otherwise fetch (RR p160
-  // sells scavenged gear "in volumes determined by their actual (reduced) value").
+  // and `costMul` scales the whole. The order is the rules': silver multiplies
+  // the listed price of the weapon (RR ch.4) and so cannot multiply a masterwork
+  // surcharge, which RAW states as a flat addition (RR p. 159); a scavenged item
+  // is then worth a fraction of whatever it would otherwise fetch (RR p. 160).
   const d = { bonus: 0, damage: 0, ac: 0, weight6: 0, costAdd: 0, costMul: 1, costBaseMul: 1 };
-  // Silver moves no other number: "apart from gaining the Silver feature, the
-  // weapon's characteristics do not change" (RR ch.4).
+  // Silver moves no other number (RR ch.4).
   if (silvered) d.costBaseMul *= SILVER.priceMultiplier;
   const mw = masterwork && masterwork !== "none" ? MASTERWORK[masterwork] : null;
   if (mw) {

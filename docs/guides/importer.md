@@ -262,6 +262,17 @@ place, and nothing is deleted. They materialize as Foundry documents in your
 world. In ACKS Extras, those register into the shared tables registry and the
 henchmen and location features read them.
 
+**(Re)import Individual Entries** lists every rules-table document under
+*Rules tables*, ticked when your world holds its import, with the printed pages
+it reads beside it. Tick one to read just that document again. A table you have
+overridden in **ACKS Imported Rules Tables** keeps your override on top, and
+reverting the override brings back your book's figure.
+
+![](../releases/v8.1.0/importer-rules-tables.png)
+
+*The entry picker's rules tables: each document ticked as imported, its id and
+the pages it reads on the right.*
+
 ![](../releases/importer/v3.0.0/equipment-prose-price.png)
 
 *An item priced only in prose, its cost read from its own paragraph.*
@@ -285,12 +296,28 @@ it, or import anyway and accept the unresolved passage.
 
 **Everything reports as a missing book.** No books are connected on this seat.
 
+**The rules tables say a supplement was skipped.** A few tables come from
+supplements, and the notice names the ones not connected on this seat. Every
+other table was read. Connect the supplement and read the tables again
+(**Reimport One Shelf**, *Rules tables*) to fill the rest. A warning that names
+tables it could not read, from books that are open, is a fault worth reporting.
+
+![](../releases/v8.1.0/importer-supplement-notice.png)
+
+*The notice for a supplement this seat has not connected: information, not a
+warning.*
+
 **An imported ability shows a ladder, not a number.** Correct — ladders travel
 whole and resolve against the character who owns the item.
 
 **I imported twice and got a duplicate.** Import checks for an entry already
 present; a duplicate usually means the first copy was renamed or moved out of the
 folder it was created in.
+
+**Will a rebuild delete my own copy?** No. A document you dragged out of the
+library into the sidebar, or duplicated there, is yours. **Reimport One Shelf**
+and **(Re)import Individual Entries** leave it as it is and put the library's
+own document back beside it. Only *Delete Everything Imported* removes it.
 
 **A description shows `@PdfText[...]` instead of the text.** The document was
 written by a version that stored a placeholder and resolved it while you looked
@@ -550,4 +577,19 @@ Every converted creature — imported or hand-entered — has a **Source** tab o
 block, the rule behind each converted value, and everything left alone. If a
 number ever looks wrong at the table, that tab is where you check it against
 your book.
+
+### Reading one creature again
+
+**(Re)import Individual Entries** has an *OSE creatures* group listing the
+creatures of every OSE book open on this seat. A creature the book prints as one
+block per step is a single row under its template's id, because its steps are
+rebuilt together. Tick a creature and press *Reimport*: the library's copy is
+deleted and read again from your book, and a copy you dragged out of the library
+stays as it is. A creature whose book is not open on this seat is refused before
+anything is deleted.
+
+![](../releases/v8.1.0/importer-ose-entries.png)
+
+*The OSE creatures group narrowed to one book's templates: each a single row,
+rebuilt with all its steps.*
 

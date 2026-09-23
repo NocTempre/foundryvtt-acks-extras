@@ -3,12 +3,14 @@ import { makeLoc } from "../lib/util.mjs";
 import { announce } from "./announce.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
+  getFormations,
   getMapperActor,
   getMemberActor,
   getPartyActor,
   mapperIsProficient,
   patchFormation,
 } from "./formation-model.mjs";
+import { lostOf } from "./lost.mjs";
 import { getSocket, registerHandler } from "../lib/sockets.mjs";
 
 /**
@@ -26,7 +28,7 @@ import { getSocket, registerHandler } from "../lib/sockets.mjs";
  *   mapper lacks Mapping proficiency the bitmap is rendered through a hidden,
  *   per-item deterministic warp (scale/offset): *the record is wrong even
  *   though the live view was true*. Re-anchoring such a map later misaligns
- *   against the real dungeon — the RAW "vague measurements" failure mode.
+ *   against the real dungeon — the unproficient mapper's failure mode (RR p. 264).
  * - **Anchor** (GM-judged): composite a held Map item's bitmap into every
  *   user's FogExploration for the scene and tell clients to reload fog — the
  *   depicted areas light up as explored, merged with the live session.
@@ -125,6 +127,145 @@ export async function compositeToBase64(layers, { width, height }) {
     for (const layer of layers) if (layer?.destroy) layer.texture?.destroy(true);
     rt.destroy(true);
   }
+}
+
+/* -------------------------------------------- */
+/*  Stored exploration                          */
+/* -------------------------------------------- */
+
+const fogUserOf = (doc) => doc.user?.id ?? doc.user;
+
+/** Every stored exploration document for one scene, read from the server. */
+async function storedExploration(sceneId, level, user = null) {
+  const cls = foundry.utils.getDocumentClass("FogExploration");
+  if (!cls || !sceneId) return [];
+  const query = { scene: sceneId };
+  if (level !== undefined) query.level = level;
+  if (user) query.user = user;
+  return cls.database.get(cls, { query });
+}
+
+/**
+ * Each seat's exploration of one scene level, read from the server: per user,
+ * the newest document, which is the one that user's client loads. A client
+ * holds only the fog it loaded or wrote itself, and the Judge's never holds a
+ * player's, so a write built on the local collection misses every player who
+ * explored before and hands them a second, newer document that hides the
+ * first. An `undefined` level matches every level; `user` narrows to one seat.
+ */
+export async function exploredDocs(sceneId, level, { user = null } = {}) {
+  const newest = new Map();
+  for (const doc of await storedExploration(sceneId, level, user)) {
+    const held = newest.get(fogUserOf(doc));
+    if (!held || (doc.timestamp ?? 0) > (held.timestamp ?? 0)) newest.set(fogUserOf(doc), doc);
+  }
+  return [...newest.values()];
+}
+
+/**
+ * Write a bitmap onto an exploration document read from the server. The
+ * response to an update resolves its target in the local collection, where a
+ * document this client never loaded is absent, so it is placed there for the
+ * write and taken out again.
+ */
+export async function writeExplored(doc, explored) {
+  const collection = game.collections.get("FogExploration");
+  const seat = !!collection && !collection.has(doc.id);
+  if (seat) collection.set(doc.id, doc);
+  try {
+    await doc.update({ explored, timestamp: Date.now() }, { loadFog: false });
+  } finally {
+    if (seat) collection.delete(doc.id);
+  }
+}
+
+/**
+ * Delete exploration documents read from the server. A delete request looks
+ * each target up in the local collection before it is sent, so the ones this
+ * client never loaded are placed there for the request.
+ */
+export async function deleteExplored(docs) {
+  if (!docs?.length) return;
+  const cls = foundry.utils.getDocumentClass("FogExploration");
+  const collection = game.collections.get("FogExploration");
+  const seated = collection ? docs.filter((d) => !collection.has(d.id)) : [];
+  for (const d of seated) collection.set(d.id, d);
+  try {
+    await cls.deleteDocuments(docs.map((d) => d.id), { loadFog: false });
+  } finally {
+    for (const d of seated) collection.delete(d.id);
+  }
+}
+
+/**
+ * Point this seat's cached exploration of a scene level at the server's
+ * newest. Core loads a cached copy in preference to asking the server, and a
+ * write the Judge makes to this seat's fog reaches the server, not this cache.
+ */
+async function refreshOwnExploration(sceneId, level) {
+  const collection = game.collections.get("FogExploration");
+  if (!collection) return;
+  const [fresh] = await exploredDocs(sceneId, level, { user: game.user.id });
+  const mine = collection.filter((f) => (f.scene?.id ?? f.scene) === sceneId
+    && fogUserOf(f) === game.user.id && (f.level ?? null) === level);
+  for (const doc of mine) if (doc.id !== fresh?.id) collection.delete(doc.id);
+  if (!fresh) return;
+  const cached = collection.get(fresh.id);
+  if (cached) cached.updateSource({ explored: fresh.explored, timestamp: fresh.timestamp });
+  else collection.set(fresh.id, fresh);
+}
+
+/**
+ * Fold each seat's older exploration copies of the viewed scene level into its
+ * newest, and delete the older ones. A client loads only a seat's newest
+ * document, so ground held in an older copy is stored and never shown; the
+ * union keeps every explored pixel of every copy. Judge-only, on the viewed
+ * scene, where the fog texture exists. Refused while a party is astray there:
+ * its episode's revert writes a snapshot over the newest copy, and the older
+ * ones would be gone.
+ *
+ * @returns {Promise<{seats: number, merged: number}|null>} seats with any
+ *   exploration, and older copies folded away; null when refused.
+ */
+export async function mergeFogCopies({ notify = true } = {}) {
+  if (!game.user?.isGM) return null;
+  const scene = canvas?.scene;
+  if (!scene) {
+    if (notify) ui.notifications.warn(loc("map.mergeNeedsScene"));
+    return null;
+  }
+  const astray = Object.values(getFormations()).some((f) => {
+    const lost = lostOf(f.travel);
+    return lost.phase === "astray" && (lost.sceneId ?? f.sceneId) === scene.id;
+  });
+  if (astray) {
+    if (notify) ui.notifications.warn(loc("map.mergeWhileAstray"));
+    return null;
+  }
+  const level = scene._view ?? null;
+  const bySeat = new Map();
+  for (const doc of await storedExploration(scene.id, level)) {
+    if (!bySeat.has(fogUserOf(doc))) bySeat.set(fogUserOf(doc), []);
+    bySeat.get(fogUserOf(doc)).push(doc);
+  }
+  const dims = fogTextureDims();
+  let merged = 0;
+  for (const copies of bySeat.values()) {
+    if (copies.length < 2) continue;
+    copies.sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+    const layers = [];
+    for (const doc of copies) if (doc.explored) layers.push({ texture: await textureFromBase64(doc.explored), destroy: true });
+    await writeExplored(copies[0], await compositeToBase64(layers, dims));
+    await deleteExplored(copies.slice(1));
+    merged += copies.length - 1;
+  }
+  if (merged) {
+    const socket = getSocket();
+    if (socket) await socket.executeForEveryone("reloadFog", scene.id);
+    else await reloadFog(scene.id);
+  }
+  if (notify) ui.notifications.info(merged ? loc("map.mergedCopies", { count: merged }) : loc("map.noCopies"));
+  return { seats: bySeat.size, merged };
 }
 
 /* -------------------------------------------- */
@@ -343,18 +484,16 @@ export async function anchorMap(formation, itemUuid) {
   const sceneId = canvas.scene.id;
   const level = canvas.scene._view ?? null;
   const fogCls = foundry.utils.getDocumentClass("FogExploration");
-  const collection = game.collections.get("FogExploration");
+  const docs = await exploredDocs(sceneId, level);
 
   try {
     for (const user of game.users) {
-      const doc = collection.find(
-        (f) => ((f.scene?.id ?? f.scene) === sceneId) && ((f.user?.id ?? f.user) === user.id) && (f.level ?? null) === level,
-      );
+      const doc = docs.find((f) => fogUserOf(f) === user.id);
       const layers = [];
       if (doc?.explored) layers.push({ texture: await textureFromBase64(doc.explored), destroy: true });
       layers.push({ texture: mapTexture });
       const b64 = await compositeToBase64(layers, dims);
-      if (doc) await doc.update({ explored: b64, timestamp: Date.now() }, { loadFog: false });
+      if (doc) await writeExplored(doc, b64);
       else {
         await fogCls.create(
           { scene: sceneId, user: user.id, level, explored: b64, timestamp: Date.now() },
@@ -423,6 +562,7 @@ export async function saveFogAsMapItem() {
 
 async function reloadFog(sceneId) {
   if (canvas?.scene?.id !== sceneId) return;
+  await refreshOwnExploration(sceneId, canvas.scene._view ?? null);
   await canvas.fog.load({ preserve: true });
   canvas.perception.initialize();
 }

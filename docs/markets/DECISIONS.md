@@ -101,6 +101,16 @@ Cost: bundles already delivered stay embedded and unlisted on their buyers;
 this change does not unpack them. Thirty swords are thirty documents, as they
 would be after core unpacked the bundle.
 
+### A purchase folds only into an identical stack (2026-09-23)
+
+**Supersedes in part** the entry above: "Stackables still merge into the
+buyer's stack" now means an identical stack (`stackSignature`), no longer any
+stack of the same name. **New evidence:** the character sheet embedded dropped
+bundles whole the same way the purchase had, so delivery moved into
+`lib/bundles.mjs` to serve both writers, and lib's merge identity is the one
+storage transfers use. Ruling and cost: docs/lib/DECISIONS.md, "A bundle
+arrives as its goods, and delivery has one owner".
+
 ### Every PC belongs to one implicit party until configured (2026-09-22)
 
 Recorded from the header of `scripts/markets/engine/parties.mjs`.

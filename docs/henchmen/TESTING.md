@@ -87,6 +87,16 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    employer (`describeRepair` → "1 henchman") and `system.henchmenList` no
    longer holds the id. The setting's hint in Configure Settings names the
    same call.
+9. Hosteller occupants, with the `people` tables imported. Read the street
+   band of the `hosteller` row from
+   `getDoc("people").tables.occupationTypes.rows` (`bands.generalStreet`),
+   then call `generateOccupation(rand, "human")` from
+   `scripts/henchmen/rules/identity.mjs` with a `rand` that returns
+   `(band.min - 0.5) / 100` first and `0.5` after.
+   *Observable:* `occupationSubTables.categories.hosteller.rows` covers 1–100
+   with no gap, and the draw returns category `hosteller` with the occupation
+   of the row whose band holds 51 — not the bare word "Hosteller", which is
+   what a world without that sub-table returns.
 
 ## Teardown
 

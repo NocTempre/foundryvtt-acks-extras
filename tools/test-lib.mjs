@@ -21,6 +21,7 @@ import {
   quantityOf,
   splitSpec,
 } from "../scripts/lib/storage-logic.mjs";
+import { arrivalOf, bundleRows, goodsForRow } from "../scripts/lib/bundles-logic.mjs";
 import {
   ancestorUuids,
   childrenOf,
@@ -1045,6 +1046,45 @@ t("emptyMoneyDeletes: a coin row emptied by the move is deleted, unless coin rem
 t("coinTotalGC counts the way the system does (100cp = 1gp)", () => {
   assert.equal(coinTotalGC([gold("g", 12), silver("s", 30)]), 15);
   assert.equal(coinTotalGC([sword("w")]), 0);
+});
+
+/* -------------------------------------------- */
+/*  bundles-logic: a bundle opened onto an actor */
+/* -------------------------------------------- */
+
+t("bundleRows reads core's item list and counts every row at least once", () => {
+  const rows = bundleRows({ system: { itemList: [{ uuid: "Item.a", name: "Sword", type: "weapon", quantity: 3 }, { uuid: "Item.b", name: "Rope", type: "item", quantity: 0 }, null] } });
+  assert.deepEqual(rows.map((r) => r.count), [3, 1, 1]);
+  assert.deepEqual(rows[0], { uuid: "Item.a", name: "Sword", type: "weapon", count: 3 });
+  assert.deepEqual(bundleRows({ system: {} }), [], "a bundle with no list lists nothing");
+});
+
+t("arrivalOf strips placement and keeps identity", () => {
+  const worn = { ...sword("sw"), folder: "f", sort: 5, ownership: { default: 3 }, flags: { "acks-extras": { containedIn: "pack", storage: { ownerUuid: "Actor.x" }, cookbook: { id: "c1" } } } };
+  const copy = arrivalOf(worn);
+  for (const key of ["_id", "folder", "sort", "ownership"]) assert.equal(key in copy, false, `${key} is the source's, not the copy's`);
+  assert.equal(copy.system.equipped, false, "a copy arrives unequipped");
+  assert.deepEqual(copy.flags["acks-extras"], { cookbook: { id: "c1" } }, "the container pointer and attribution go; identity stays");
+  assert.equal(worn.flags["acks-extras"].containedIn, "pack", "the source is not touched");
+});
+
+t("goodsForRow counts as core's drop does: copies, one stack, or coins", () => {
+  const swords = goodsForRow(sword("sw"), 3);
+  assert.equal(swords.length, 3, "a unit item arrives as that many copies");
+  assert.notEqual(swords[0], swords[1], "each copy is its own object");
+  const arrows = goodsForRow(gear("ar", "Arrows", 20), 2);
+  assert.equal(arrows.length, 1);
+  assert.equal(arrows[0].system.quantity.value, 40, "a stackable arrives as one stack, times its own size");
+  assert.equal(goodsForRow(gear("e", "Rope", 0), 2)[0].system.quantity.value, 2, "an empty source stack counts as one");
+  const coin = goodsForRow(gold("g", 7), 5);
+  assert.equal(coin[0].system.quantity, 5, "coin counts coins, not stacks of the source's size");
+  assert.equal(coin[0].system.quantitybank, 0);
+});
+
+t("goodsForRow feeds planStackMerge: a bundle's arrows join the stack already carried", () => {
+  const { creates, targetUpdates } = planStackMerge(goodsForRow(gear("ar", "Arrows", 20), 1), [gear("have", "Arrows", 5)]);
+  assert.equal(creates.length, 0);
+  assert.deepEqual(targetUpdates, [{ _id: "have", "system.quantity.value": 25 }]);
 });
 
 t("groupByOwner buckets stored goods, unattributed included", () => {

@@ -7,8 +7,8 @@
  * shape: `{ id, source, tables: {…}, throws?: {…} }`). Each id holds at most
  * one document PER PRIORITY LAYER; reads resolve the highest layer present:
  *
- *   0  SAMPLE   — module-shipped default (none ship today: extraction-program
- *                 ruling 1 — no book values, no fallback samples)
+ *   0  SAMPLE   — module-shipped automation config, never a book value
+ *                 (henchmen's `throws` and its partial `rarity`)
  *   10 CATALOG  — premium/companion content module
  *   20 WORLD    — per-world imported tables (importer import via the
  *                 `ruledata-import` service; persisted by its provider)
@@ -144,6 +144,16 @@ export function getDoc(docId) {
   }
   if (!Object.keys(out.throws).length) delete out.throws;
   return out;
+}
+
+/**
+ * One layer of a document exactly as registered, or null; never merged. An
+ * import that merges into what it imported before reads its own layer this
+ * way: `getDoc` would carry a GM's override, or a shipped sample, down into the
+ * import, where clearing the override or updating the sample no longer shows.
+ */
+export function getLayer(docId, priority) {
+  return _layers.get(docId)?.get(priority) ?? null;
 }
 
 /** @returns {object} one table of a ruledata document */

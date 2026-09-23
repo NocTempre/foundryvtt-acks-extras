@@ -4,7 +4,7 @@ import { getFormation, getFrontage, swapCells, toggleRole } from "./formation-mo
 import { ROLE_LABELS, LIGHT_SOURCES } from "./constants.mjs";
 import { anchorMap } from "./map-items.mjs";
 import { toggleDetachMember } from "./deployment.mjs";
-import { getSocket, registerHandler } from "../lib/sockets.mjs";
+import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
 import { attemptDisarm, attemptRearm } from "./trap-zone.mjs";
 import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./turn-engine.mjs";
@@ -27,10 +27,11 @@ import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./t
  * - work on a trap the party has found, or re-arm one they disarmed
  *   (trapbreak / trapRearm).
  *
- * Ownership is validated HERE, on the executing GM client, against the passed
- * user id — never trusted from the requesting client. Every executed request
- * is announced publicly so the table sees who declared what; check results
- * still go to the GM per the usual secrecy rules.
+ * Ownership is validated HERE, on the executing GM client, against the sender
+ * Foundry's server attests (`lib/sockets.mjs` `runRelayed`); nothing the
+ * requesting client writes names who asked. Every executed request is
+ * announced publicly so the table sees who declared what; check results still
+ * go to the GM per the usual secrecy rules.
  */
 
 const REQUEST_HANDLER = "partyRequest";
@@ -223,17 +224,20 @@ async function executeRequest(formation, user, type, payload) {
   }
 }
 
-/** socketlib handler: runs on the active GM with the declaring user's id. */
-async function handlePartyRequest(formationId, type, payload, userId) {
+/**
+ * Relay handler, on the active GM: acts for the attested sender
+ * (`requestUserId`, null when a GM sent it).
+ */
+async function handlePartyRequest({ formationId, type, payload, requestUserId } = {}) {
   const formation = getFormation(formationId);
-  const user = game.users.get(userId);
+  const user = requestUserId ? game.users.get(requestUserId) : game.user;
   if (!formation || !user) return;
   await executeRequest(formation, user, type, payload ?? {});
 }
 
 /**
  * Declare a party action. GMs execute directly; players relay to the active
- * GM via socketlib (executeAsGM routes to exactly one GM client).
+ * GM (executeAsGM routes to exactly one GM client).
  */
 export async function requestPartyAction(formationId, type, payload = {}) {
   const formation = getFormation(formationId);
@@ -242,12 +246,11 @@ export async function requestPartyAction(formationId, type, payload = {}) {
     await executeRequest(formation, game.user, type, payload);
     return;
   }
-  const socket = getSocket();
-  if (!socket || !game.users.activeGM) {
+  if (!game.users.activeGM) {
     ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.request.noGM"));
     return;
   }
-  await socket.executeAsGM(REQUEST_HANDLER, formationId, type, payload, game.user.id);
+  await executeAsGM(REQUEST_HANDLER, { formationId, type, payload });
   ui.notifications.info(game.i18n.localize("ACKS-FORMATION.request.sent"));
 }
 

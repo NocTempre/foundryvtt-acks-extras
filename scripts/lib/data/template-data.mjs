@@ -102,9 +102,9 @@ export default class TemplateData extends foundry.abstract.TypeDataModel {
             label: str(),
             cost: numN(), // slots spent (null → 1; the dragon prints fractions)
             html: str(), // lazy description snippet for the generated actor
-            // A GENERATION sub-roll the ability's own prose enumerates
-            // ("roll 1d8 for the type of aura: 1, arcane; …"), materialized
-            // by the importer: {die, twice?, outcomes: [{min,max,text}]}.
+            // A GENERATION sub-roll the ability's own prose enumerates (a die
+            // rolled to pick among listed outcomes), materialized by the
+            // importer: {die, twice?, outcomes: [{min,max,text}]}.
             // Resolved when the row is rolled; nested rolls inside an outcome
             // stay text for the Judge.
             sub: new ObjectField(),

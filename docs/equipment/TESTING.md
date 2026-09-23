@@ -358,6 +358,45 @@ Fixtures to create and destroy: one disposable `character`, one disposable
 Teardown: delete the item, the container and the character; confirm nothing
 named for the fixture remains.
 
+## One clothing declaration
+
+Fixtures to create and destroy: one disposable `character` owned by the Player
+seat, and on it an `item` named for the test with `system.weight6: 6` (one
+stone). `api.track` every item a step creates, including the embedded copy a
+drag makes. Read encumbrance on the character sheet's bar as well as the API.
+
+1. **The rail, from the Player seat.** Open the item's sheet, Construction
+   panel, and set Base type to Clothing.
+   *Observable:* `system.subtype === "clothing"` and the flag reads
+   `clothing`, in one write; the encumbrance bar drops by one stone.
+2. **Back off it.** Set Base type to Gear, then to Clothing again and then to
+   Auto.
+   *Observable:* Gear writes `system.subtype: "item"` and the stone returns;
+   Auto unsets the flag and weighs it too, because the declaration left both
+   halves.
+3. **The subtype half** (core's sheet, a macro, the importer all write this):
+   `item.update({"system.subtype": "clothing"})`.
+   *Observable:* the flag becomes `clothing` in the same write, and the rail
+   shows it.
+4. **A create.** `Item.create` an `item` with `system.subtype: "clothing"` and
+   no flag, as the importer writes one, and drag an item from core's clothing
+   compendium onto the character.
+   *Observable:* both carry the `clothing` flag as created, and weigh nothing.
+5. **A disagreement already stored is left alone, then settled.** Build the
+   pre-upgrade shape with the hook skipped:
+   `Item.create({name, type: "item", system: {subtype: "item", weight6: 6},
+   flags: {"acks-extras": {baseType: "clothing"}}}, {noHook: true})`. Rename it.
+   *Observable:* the subtype stays `item`; an unrelated edit repairs nothing.
+   Press Annotate on it.
+   *Observable:* `system.subtype === "clothing"`, and Annotate's count
+   includes it.
+6. **One control.** Open a plain item's Record panel.
+   *Observable:* no Kind select; Quantity and Max remain. On an `armor`
+   document the rail's Base type list offers no Clothing.
+
+Teardown: `api.sweepTracked()`; quote what it removed, what it could not find
+and what refused.
+
 ## Weapon identity
 
 What a weapon IS, and the three declarations that state it when nothing can

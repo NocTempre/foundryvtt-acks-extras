@@ -59,6 +59,15 @@ export function bonusSteps(thac0, count, countMax) {
   return Array.from({ length: spans + 1 }, (_, i) => from + step * i);
 }
 
+/** The cookbook id of the generator a book's per-step blocks are gathered into. */
+export const oseGroupId = (bookId, key) => `${bookId}.group.${key}`;
+
+/** The book an `oseGroupId` names, or null for any other id. */
+export function oseGroupBookOf(id) {
+  const m = /^(.+)\.group\.[^.]+$/.exec(String(id ?? ""));
+  return m ? m[1] : null;
+}
+
 /**
  * Build one generator from SEVERAL entries that differ along one axis.
  *

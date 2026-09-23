@@ -1,6 +1,6 @@
 /* global game, ui */
 /**
- * Spell books — RR p. 145 (the item) and p. 390 (value of a scribed spell).
+ * Spell books — RR p. 145 (the item) and p. 391 (value of a scribed spell).
  *
  * A spell book is a RECOGNISED item class, not a property switched on for
  * arbitrary gear: the RR "Spell Book" (which the importer generates from the
@@ -8,21 +8,20 @@
  * Recognition is by name, or by an already-stored spell list so a configured
  * book keeps its identity even if renamed.
  *
- * RAW: a grimoire has 100 pages; each spell takes one page per spell level; the
- * book counts as 1/2 stone whatever it holds; a blank book costs 20gp. Its spells
- * are stored as DATA on the book (name + level) rather than by linking the
- * finder's own spell documents — so a looted book's formulae travel with it and
- * appear on nobody's Spells tab until they are actually learned.
+ * A book's pages fill by spell level, and its weight is the item's own whatever
+ * it holds (RR p. 145). Its spells are stored as DATA on the book (name +
+ * level) rather than by linking the finder's own spell documents — so a looted
+ * book's formulae travel with it and appear on nobody's Spells tab until they
+ * are actually learned.
  *
- * Value follows the Magic Research material cost (RR p390): 1,000gp per spell
- * level. A book's worth is the blank cost plus 1,000gp × the level of every spell
- * scribed in it.
+ * A book's worth is its blank cost plus the scribing value of every spell in
+ * it, by level (RR p. 391).
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 export const SPELLBOOK_PAGES = 100; // RR p145
-export const SPELL_VALUE_PER_LEVEL = 1000; // RR p390 (Material Cost)
+export const SPELL_VALUE_PER_LEVEL = 1000; // RR p391
 export const BLANK_SPELLBOOK_VALUE = 20; // RR p145
 
 /** Names that read as a spell book — the RR canonical item plus a common synonym. */

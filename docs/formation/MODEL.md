@@ -85,9 +85,10 @@ Per turn, in order (mirrors JJ sequence of play step 5):
 
 One sheet, two capability tiers — never two UIs. Formation state lives in a
 world setting only GMs can write, so every player mutation is a **declaration**:
-relayed over socketlib to the active GM client, which validates ownership
-against the *passed user id* (never the requesting client's say-so) and
-executes. Players act on what is THEIRS:
+relayed to the active GM client, which validates ownership against the
+sender Foundry's server attests (the module transport stamps it; see
+[the library model](../lib/MODEL.md#the-socket-transport)) and executes.
+Nothing in the payload names who asked. Players act on what is THEIRS:
 
 | Surface | Player capability | Route |
 |---|---|---|
@@ -98,6 +99,8 @@ executes. Players act on what is THEIRS:
 | Spells | See all tracked spells; add their own via the declaration panel | `spell` |
 | Maps | See the party's maps and session status; consult (anchor) a map their character holds | `anchorMap` |
 | Checks & rest | Declare listen/search/bash/track and rest turns | `check` / `rest` |
+| Scouting | Step their own character out of the party token, or back in | `detach` |
+| Traps | Work on a trap the party has found, or re-arm one they disarmed, with their own character | `trapbreak` / `trapRearm` |
 
 Judge secrets never reach a player's DOM: map `quality`/`distorted` and the
 mapper's proficiency exist only in the GM render context — a warped map must
@@ -569,6 +572,25 @@ Speed — and which factors a flier meets is the `flying` mode's business
 (`docs/lib/MODEL.md`, Movement modes), not this file's. Flight contributes only
 what flight itself is worth, and marks its wind as superseding the ground's.
 
+## Stored exploration
+
+A scene's explored ground is stored per seat as FogExploration documents, and
+a client loads its own seat's NEWEST document by timestamp. A client holds
+only what it loaded or created; the Judge's client never holds a player's. So
+every write the module makes to other seats' fog — anchoring a map, and a lost
+episode's faked reveal, revert and credit — reads the documents from the server
+(`exploredDocs` in [map-items.mjs](../../scripts/formation/map-items.mjs)),
+writes onto each seat's newest (`writeExplored`), and creates one only for a
+seat that has none. A seat told to reload fog first points its cached copy at
+the server's newest, because core loads a cached copy in preference to asking.
+
+An older copy is never shown and never deleted by these writes.
+`mergeFogCopies`, run by the compendium macro *Merge Fog Copies on This Scene
+(GM)*, folds every older copy on the viewed scene into each seat's newest as a
+union of explored pixels, and deletes the older ones. It refuses while a party
+is astray on that scene, because the episode's revert writes its snapshot over
+whatever the merge produced.
+
 ## Lost
 
 A lost party is somewhere real and believes it is somewhere else, and the
@@ -592,14 +614,43 @@ the order they move in:
   caller that knows the ORDER: snapshot before the first fake, and faked ground
   closed before anything is credited.
 
+An episode opens on the party's own scene, and only while the Judge is viewing
+it, because the faked reveal can only be drawn where it is seen. The ledger
+records that scene and its level. From then on every fog write — the revert,
+the credit — goes to that scene and level, wherever the Judge happens to be
+looking. A Judge who re-anchors from another scene is told to open the
+episode's scene when there is ground to credit, and nothing is written.
+
+The snapshot is read from the server (see *Stored exploration*), and the
+ledger's `fogSnapshotComplete` says so. An episode without it was opened by a
+build that read only the Judge's client; its snapshot recorded no player, so
+it finishes on that client's documents and never deletes one it did not see.
+
+The ledger's `phase` is `astray` (the party does not know), then `aware` (it
+knows, and still does not know where), then closed. `active` is kept on the
+record as `phase === "astray"` for the readers of the raw travel record: the day
+log's lost mark and the navigation throw's skip.
+
 Three endings, and only one of them gives anything back. **Discovery** (the
-daily throw succeeds) tells the party it is lost and nothing more — the faked
-ground closes, the observations go with it, and the shadow stays exactly where
-it is, because the party is still standing there and still does not know where
-that is. **Re-anchor** (it finds its last known landmark) is the only
-transition that credits: the false ground closes first, then every observation
-is re-placed at the hex it was really made in, and the shadow retires. A party
-that simply retreats keeps neither.
+daily throw succeeds) turns the episode aware and tells the party it is lost,
+nothing more. The faked ground closes, the observations go with it, and the
+shadow stays exactly where it is, because the party is still standing there and
+still does not know where that is. **Re-anchor** (it finds its last known
+landmark) is the only transition that credits. The false ground closes first,
+then every observation is re-placed at the hex it was really made in. The Judge
+may step the party token onto its shadow, and every shadow retires. The step is
+a truth move, which the movement hook skips, so it seats the journey hex and its
+terrain itself (`seatJourneyHex`). An aware
+party has nothing left to credit. **Retreat** (*They turn back*) keeps neither:
+the false ground closes, nothing is credited, the party token stays where it
+stands, and the shadows retire.
+
+Shadows are cleared from EVERY scene on each ending and when a formation is
+dissolved. A shadow is a token of the party actor, so the party-token adoption
+hook skips it. At `ready`, the primary GM deletes shadows whose formation no
+longer exists. A shadow whose formation exists with no episode open was left by
+an earlier build's discovery. The lost panel says so and offers the same two
+closing buttons, which move the party onto it or remove it.
 
 **Following spares the throw.** RAW exempts navigable rivers, roads and "other
 well-established routes" from getting lost. Roads are the road picker's

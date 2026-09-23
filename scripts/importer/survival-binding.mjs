@@ -18,7 +18,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
-import { hasDoc, getDoc, PRIORITY } from "../lib/tables.mjs";
+import { getLayer, PRIORITY } from "../lib/tables.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const SURVIVAL_DOC_ID = "survival";
@@ -236,8 +236,8 @@ export function assembleSurvivalTables(raw = {}) {
 /** Assemble and register, or report nothing assembled. */
 export async function applySurvivalImport() {
   const svc = services.get("ruledata-import");
-  if (!svc || !hasDoc(SURVIVAL_DOC_ID)) return { assembled: [] };
-  const doc = getDoc(SURVIVAL_DOC_ID);
+  const doc = getLayer(SURVIVAL_DOC_ID, PRIORITY.WORLD);
+  if (!svc || !doc) return { assembled: [] };
   const engine = assembleSurvivalTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(

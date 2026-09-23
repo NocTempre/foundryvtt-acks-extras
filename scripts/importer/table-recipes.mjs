@@ -4,8 +4,12 @@
  * table lives on, where the row labels stop and the cells begin, which rows to
  * claim (by label regex), and how to parse each cell. The dice, numbers and
  * wages are read from the reader's own PDF at import time and persist only in
- * their world. Page numbers are cited (printed); the executor locates the PDF
- * page by header text, tolerating the front-matter offset.
+ * their world. `printedPage` is the folio a reader turns to, and a document's
+ * `source.pages` names every folio its recipes read, under the book's short
+ * name ("RR 272-273"). The search starts on the PDF page that folio prints on
+ * (`pdfGuess`, through the book's `printedOffset`) and takes the page whose
+ * text holds `locate`. `tools/importer/test-recipe-pages.mjs` holds both
+ * against the real books.
  *
  * `docs` groups recipes by ruledata document id; the binding assembles each
  * document from its tables and imports it via the acks-lib ruledata-import
@@ -291,7 +295,7 @@ const FIGHTING_VALUE_ROWS = [
   { key: "0", labelRe: "^0$" },
 ];
 
-// Fighting Value Trade Offs (JJ p293): drop-caps split the label's first
+// Fighting Value Trade Offs (JJ p291): drop-caps split the label's first
 // letter, and small-caps armour grades join without spaces ("fromvery
 // light tonone"), so the regexes never assume word boundaries.
 const TRADEOFF_ROWS = [
@@ -307,10 +311,10 @@ const TRADEOFF_ROWS = [
   { key: "damage.eliminateBoth", labelRe: "damage bonus \\(both" },
 ];
 
-// One printed per-value spell grid (JJ p295/297/298): class-level rows 1–14,
+// One printed per-value spell grid (JJ p293/295/296): class-level rows 1–14,
 // six slot columns, a trailing caster-level column. Two grids share each
 // print column, told apart by their own title rows. A verso page's whole
-// layout sits ~26pt left of a recto's (p298 vs p295/297), hence `verso`.
+// layout sits ~26pt left of a recto's (p296 vs p293/295), hence `verso`.
 const slotGrid = ({ page, startAfter, side, verso = false }) => {
   const d = verso ? -26 : 0;
   const xs = side === "L" ? [124, 151, 177, 203, 230, 256, 288] : [381, 408, 434, 460, 486, 512, 545];
@@ -330,7 +334,7 @@ const slotGrid = ({ page, startAfter, side, verso = false }) => {
   };
 };
 
-// Ready-for-Play Class Builds (JJ p332–333): one prose paragraph per class.
+// Ready-for-Play Class Builds (JJ p330–331): one prose paragraph per class.
 // The window take hands the whole paragraph to builder-binding, which parses
 // the allocation tokens mechanically; the class roster is the cookbook's own.
 const buildBlock = (id, page, locate) => ({
@@ -340,18 +344,18 @@ const buildBlock = (id, page, locate) => ({
   values: [{ key: "build", find: locate.toLowerCase(), take: "window", span: 560 }],
 });
 const BUILD_BLOCKS = [
-  buildBlock("assassin", 332, "Assassin:"),
-  buildBlock("bard", 332, "Bard:"),
-  buildBlock("bladedancer", 332, "Bladedancer:"),
-  buildBlock("crusader", 332, "Crusader:"),
-  buildBlock("dwarvenCraftpriest", 332, "Dwarven Craftpriest:"),
-  buildBlock("dwarvenVaultguard", 332, "Dwarven Vaultguard:"),
-  buildBlock("elvenNightblade", 332, "Elven Nightblade:"),
-  buildBlock("elvenSpellsword", 332, "Elven Spellsword:"),
-  buildBlock("explorer", 332, "Explorer:"),
-  buildBlock("fighter", 332, "Fighter:"),
-  buildBlock("mage", 332, "Mage:"),
-  buildBlock("thief", 333, "Thief:"),
+  buildBlock("assassin", 330, "Assassin:"),
+  buildBlock("bard", 330, "Bard:"),
+  buildBlock("bladedancer", 330, "Bladedancer:"),
+  buildBlock("crusader", 330, "Crusader:"),
+  buildBlock("dwarvenCraftpriest", 330, "Dwarven Craftpriest:"),
+  buildBlock("dwarvenVaultguard", 330, "Dwarven Vaultguard:"),
+  buildBlock("elvenNightblade", 330, "Elven Nightblade:"),
+  buildBlock("elvenSpellsword", 330, "Elven Spellsword:"),
+  buildBlock("explorer", 330, "Explorer:"),
+  buildBlock("fighter", 330, "Fighter:"),
+  buildBlock("mage", 330, "Mage:"),
+  buildBlock("thief", 331, "Thief:"),
 ];
 
 /* ------------------------------------------------------------------ */
@@ -658,12 +662,12 @@ export const TABLE_RECIPES = {
   // This recipe carries the section heading, two x-bands and an indent step.
   // What the rows say comes from the reader's own book.
   languages: {
-    source: { book: "ACKS II Revised Rulebook", pages: "507" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 505" },
     tables: {
       tree: {
         shape: "indentTree",
         book: "rr",
-        printedPage: 507,
+        printedPage: 505,
         locate: "LANGUAGES",
         // Below the two column headers; the section title and the vertical
         // page furniture are excluded by height, not by position.
@@ -687,7 +691,7 @@ export const TABLE_RECIPES = {
   // that carry the figures; survival-binding.mjs parses them into the engine
   // shape acks-extras declares via expectTables.
   flight: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 274" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 272-273" },
     tables: {
       // Air movement is three printed factors: what a full day aloft is worth,
       // what wind costs, and what a heavy load costs. The EXCEPTION — that
@@ -696,7 +700,7 @@ export const TABLE_RECIPES = {
       airProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 274,
+        printedPage: 272,
         locate: "fly all day",
         column: { xMin: 300, xMax: 592 },
         values: [
@@ -710,13 +714,12 @@ export const TABLE_RECIPES = {
       loadProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 274,
         // "normal load" alone also matches the following page; the mount
         // run-in is unique to this one.
         locate: "large enough to serve as mounts",
         // The mount paragraph sits in the LEFT column of the following page,
         // not with the air-movement prose it continues.
-        printedPage: 275,
+        printedPage: 273,
         column: { xMin: 40, xMax: 300 },
         values: [
           // Anchored BEFORE both factors: a window opens after its anchor, so
@@ -733,7 +736,7 @@ export const TABLE_RECIPES = {
       starvationProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 278,
+        printedPage: 276,
         locate: "Starvation",
         column: { xMin: 40, xMax: 300 },
         // ONE window, not one per rung. Every threshold in this paragraph is
@@ -749,7 +752,7 @@ export const TABLE_RECIPES = {
       dehydrationProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 278,
+        printedPage: 276,
         locate: "Dehydration",
         // Starvation fills the left column and Dehydration wraps into the
         // right one — the section order is not the column order.
@@ -763,7 +766,7 @@ export const TABLE_RECIPES = {
       exposureProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 279,
+        printedPage: 277,
         locate: "Frigid Temperatures",
         column: { xMin: 300, xMax: 592 },
         values: [
@@ -774,7 +777,7 @@ export const TABLE_RECIPES = {
       heatProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 279,
+        printedPage: 277,
         locate: "Sweltering Temperatures",
         column: { xMin: 300, xMax: 592 },
         // Whole, like the other two: the armour threshold is stated before the
@@ -786,7 +789,7 @@ export const TABLE_RECIPES = {
       simplifiedProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 279,
+        printedPage: 277,
         locate: "Survival, Simplified",
         column: { xMin: 40, xMax: 300 },
         values: [
@@ -809,7 +812,7 @@ export const TABLE_RECIPES = {
       firewoodProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 278,
+        printedPage: 276,
         locate: "Foraging for firewood",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -821,7 +824,7 @@ export const TABLE_RECIPES = {
       waterProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 278,
+        printedPage: 276,
         locate: "Foraging for water",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -833,7 +836,7 @@ export const TABLE_RECIPES = {
       foodProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 278,
+        printedPage: 276,
         locate: "Foraging for food",
         column: { xMin: 40, xMax: 592 },
         // Taken generously: the terrain and territory penalties are the tail of
@@ -847,7 +850,7 @@ export const TABLE_RECIPES = {
       huntProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 278,
+        printedPage: 276,
         locate: "Hunting for food",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -857,7 +860,7 @@ export const TABLE_RECIPES = {
       dogsProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 278,
+        printedPage: 276,
         locate: "hunting dog can attempt",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -867,7 +870,7 @@ export const TABLE_RECIPES = {
       grazingProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 278,
+        printedPage: 276,
         locate: "Surviving the Wild",
         column: { xMin: 40, xMax: 300 },
         values: [
@@ -882,7 +885,7 @@ export const TABLE_RECIPES = {
       grazingRules: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 279,
+        printedPage: 277,
         // Kept short: a long locate spans run seams the extraction welds shut.
         locate: "gather food by grazing",
         column: { xMin: 40, xMax: 592 },
@@ -896,7 +899,7 @@ export const TABLE_RECIPES = {
       huntingProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 279,
+        printedPage: 277,
         locate: "Game is scarce",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -910,12 +913,12 @@ export const TABLE_RECIPES = {
   // of daily distances to targets — plus the prose modifiers around it.
   // searching-binding.mjs brackets the ladder and parses the windows.
   searching: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 274-275" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 274-275, 285" },
     tables: {
       searchLadder: {
         shape: "gridRows",
         book: "rr",
-        printedPage: 276,
+        printedPage: 274,
         locate: "Wilderness Search",
         column: { xMin: 40, xMax: 300 },
         labelMaxX: 210,
@@ -940,7 +943,7 @@ export const TABLE_RECIPES = {
       searchProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 276,
+        printedPage: 274,
         locate: "particular point of interest",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -959,7 +962,7 @@ export const TABLE_RECIPES = {
       lostSearchProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 287,
+        printedPage: 285,
         locate: "lost party is moving or searching",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -971,7 +974,7 @@ export const TABLE_RECIPES = {
       cadenceProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 276,
+        printedPage: 274,
         locate: "abstract system can be used",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -981,7 +984,7 @@ export const TABLE_RECIPES = {
       surveyProse: {
         shape: "proseValues",
         book: "rr",
-        printedPage: 277,
+        printedPage: 275,
         locate: "Land Surveying",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -1006,7 +1009,7 @@ export const TABLE_RECIPES = {
       pacesProse: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 81,
+        printedPage: 79,
         locate: "Movement in Settlements",
         column: { xMin: 300, xMax: 592 },
         values: [
@@ -1019,7 +1022,7 @@ export const TABLE_RECIPES = {
       stragglingProse: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 81,
+        printedPage: 79,
         locate: "Straggling Groups",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -1031,7 +1034,7 @@ export const TABLE_RECIPES = {
       intentProse: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 82,
+        printedPage: 80,
         locate: "looking for trouble",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -1041,7 +1044,7 @@ export const TABLE_RECIPES = {
       afterDarkProse: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 83,
+        printedPage: 81,
         locate: "after dark",
         column: { xMin: 40, xMax: 592 },
         values: [
@@ -1051,7 +1054,7 @@ export const TABLE_RECIPES = {
       streetCadence: {
         shape: "gridRows",
         book: "jj",
-        printedPage: 82,
+        printedPage: 80,
         locate: "Encounters in the Settlement",
         column: { xMin: 40, xMax: 592 },
         // Measured, not guessed: the label band ends at 130, the frequency
@@ -1081,11 +1084,12 @@ export const TABLE_RECIPES = {
       // paces' figures between two points of interest in the same district
       // versus an adjacent one. Taken as one whole window rather than one per
       // figure — city-travel-binding.mjs reads all four out of it, the same
-      // way the survival paragraphs are read whole.
+      // way the survival paragraphs are read whole. Optional: a supplement.
       districtProse: {
         shape: "proseValues",
         book: "ax3",
-        printedPage: 60,
+        optional: true,
+        printedPage: 58,
         locate: "At commuter speed, it takes",
         column: { xMin: 300, xMax: 592 },
         values: [
@@ -1099,7 +1103,7 @@ export const TABLE_RECIPES = {
   // assembles the engine-shaped `terrainMultipliers`/`roads`/`gettingLost`
   // tables acks-extras declares via expectTables.
   travel: {
-    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 272, 275; JJ 41" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 151, 272, 275; JJ 41" },
     tables: {
       terrainGroups: {
         shape: "gridRows",
@@ -1189,7 +1193,7 @@ export const TABLE_RECIPES = {
   // engine-shaped tables acks-extras' sea derivations declare on the
   // `voyages` document.
   voyages: {
-    source: { book: "ACKS II Revised Rulebook", pages: "316-320" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 316-322" },
     tables: {
       // Six band rows: the 2d6 spread and the band name share the label
       // zone — the name claims the row, labelPattern reads the spread's
@@ -1423,7 +1427,7 @@ export const TABLE_RECIPES = {
     },
   },
   equipment: {
-    source: { book: "ACKS II Revised Rulebook", pages: "160" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 160" },
     tables: {
       scavengedPiercingSlashing: scavengedGrid({
         locate: "Piercing/Slashing Weapons",
@@ -1468,7 +1472,7 @@ export const TABLE_RECIPES = {
     },
   },
   rarity: {
-    source: { book: "ACKS II Judges Journal", pages: "118-119, 259" },
+    source: { book: "ACKS II Judges Journal", pages: "JJ 118-119, 259" },
     tables: {
       // JJ ~118 prints TWO rarity tables: "Class Rarity" (left column) and
       // "Henchmen Rarity by Class" (right column), which assign different
@@ -1586,7 +1590,7 @@ export const TABLE_RECIPES = {
     },
   },
   wages: {
-    source: { book: "ACKS II Revised Rulebook", pages: "108, 162-171" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 108, 162-171" },
     tables: {
       henchmanWageByLevel: {
         shape: "pairs",
@@ -1687,7 +1691,7 @@ export const TABLE_RECIPES = {
     },
   },
   people: {
-    source: { book: "ACKS II Judges Journal", pages: "245-257" },
+    source: { book: "ACKS II Judges Journal + Revised Rulebook + By This Axe", pages: "JJ 229-231, 247-248, 252-258; RR 56, 64, 76, 495-503; BTA 22" },
     tables: {
       classPercentages: {
         shape: "gridRows",
@@ -1761,9 +1765,7 @@ export const TABLE_RECIPES = {
           { id: "magician", printedPage: 230, anchor: "Magician Occupation", window: [425, 565], bandWindow: [432, 473], occWindow: [473, 565], specialWindow: [565, 566] },
           { id: "merchant", printedPage: 230, locate: "Mercantile Interest", anchor: "Merchant Occupation", window: [40, 585], bandWindow: [50, 97], occWindow: [97, 196], specialWindow: [196, 585] },
           { id: "artisan", printedPage: 231, locate: "Wheelwright", anchor: "Artisan Occupation", window: [40, 585], bandWindow: [75, 122], occWindow: [122, 224], specialWindow: [224, 585] },
-          // No hosteller d100 sub-table exists in the printing — hosteller
-          // occupants resolve by establishment ("inns are always owned by
-          // innkeepers"); street draws reroll them like class-routed rows.
+          { id: "hosteller", printedPage: 229, anchor: "Hosteller Occupation", window: [60, 300], bandWindow: [75, 115], occWindow: [115, 198], specialWindow: [198, 300] },
         ],
       },
       // 0th-level occupation → proficiency packages (JJ "Occupations and
@@ -1830,8 +1832,8 @@ export const TABLE_RECIPES = {
         blocks: [
           { cultureId: "auran", printedPage: 502, anchor: "Aurëus", meta: { label: "Tirenean (Auran)", surnameStyle: "hereditary" } },
           { cultureId: "celdorean", printedPage: 496, anchor: "Ardumanish", meta: { label: "Celdorean", patronym: { male: "{parent}apur", female: "{parent}adar" } } },
-          { cultureId: "dwarven", book: "bta", printedPage: 21, anchor: "Arsic", meta: { label: "Dwarven (Meniri/Jutting)", surnameStyle: "hereditary", race: "dwarf" } },
-          { cultureId: "elven", printedPage: 496, anchor: "Aodan", meta: { label: "Elven (Argollëan)", patronym: { male: "Mag {parent}", female: "Ni {parent}" }, race: "elf" } },
+          { cultureId: "dwarven", book: "bta", optional: true, printedPage: 22, anchor: "Arsic", meta: { label: "Dwarven (Meniri/Jutting)", surnameStyle: "hereditary", race: "dwarf" } },
+          { cultureId: "elven", printedPage: 497, anchor: "Aodan", meta: { label: "Elven (Argollëan)", patronym: { male: "Mag {parent}", female: "Ni {parent}" }, race: "elf" } },
           { cultureId: "jutlandic", printedPage: 497, anchor: "Asmund", meta: { label: "Jutlandic", patronym: { male: "{parent}sson", female: "{parent}dottir" } } },
           { cultureId: "kemeshi", printedPage: 498, anchor: "Ankhopten", meta: { label: "Kemeshi" } },
           { cultureId: "krysean", printedPage: 498, anchor: "Aibekeres", meta: { label: "Krysean", patronym: { male: "{parent}", female: "{parent}" } } },
@@ -1914,10 +1916,12 @@ export const TABLE_RECIPES = {
       // BTA dwarven castes — the book states the caste split in prose, not a
       // grid. Anchors carry no values; percentages are read from the page.
       // The Oathsworn share is the book's own remainder (no printed figure).
+      // Optional: a supplement.
       dwarvenCastes: {
         shape: "proseValues",
         book: "bta",
-        printedPage: 21,
+        optional: true,
+        printedPage: 22,
         locate: "of dwarves are Craftborn",
         locateBare: true,
         values: [
@@ -1940,7 +1944,7 @@ export const TABLE_RECIPES = {
   // toggle. Import always materializes the doc; consumers gate USE by the
   // world setting. Common-slave economics are prose; troop prices are a grid.
   slavery: {
-    source: { book: "ACKS II Judges Journal", pages: "409-410" },
+    source: { book: "ACKS II Judges Journal", pages: "JJ 409-410" },
     gatedBy: "enableSlavery",
     tables: {
       commonSlaves: {
@@ -2064,7 +2068,7 @@ export const TABLE_RECIPES = {
   // the market class. Monthly-income column is domain revenue — not
   // extracted here (domain-module scope).
   settlement: {
-    source: { book: "ACKS II Revised Rulebook", pages: "352" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 352" },
     tables: {
       marketClassByFamilies: {
         shape: "pairs",
@@ -2096,7 +2100,7 @@ export const TABLE_RECIPES = {
     },
   },
   availability: {
-    source: { book: "ACKS II Revised Rulebook", pages: "124, 162-165, 172" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 124, 162-165, 172" },
     tables: {
       equipmentAvailability: {
         shape: "gridRows",
@@ -2170,7 +2174,7 @@ export const TABLE_RECIPES = {
   // small-caps face fuses label words ("Mastercraftsman"), so labels match
   // with optional whitespace.
   construction: {
-    source: { book: "ACKS II Revised Rulebook", pages: "174" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 174" },
     tables: {
       wageAndConstructionRates: {
         shape: "gridRows",
@@ -2202,7 +2206,7 @@ export const TABLE_RECIPES = {
   // market class — the same six cost bands as the RR equipment grid, so the
   // row list is shared. acks-extras markets prices magic trades on it.
   magicItems: {
-    source: { book: "ACKS II Judges Journal", pages: "131" },
+    source: { book: "ACKS II Judges Journal", pages: "JJ 131" },
     tables: {
       transactionsByMarketClass: {
         shape: "gridRows",
@@ -2222,7 +2226,7 @@ export const TABLE_RECIPES = {
   // priceStep for demand-step pricing; the daily-stones grid rides along for
   // the future arbitrage loop.
   mercantile: {
-    source: { book: "ACKS II Revised Rulebook", pages: "370, 374-375" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 370, 374-375" },
     tables: {
       // Market Characteristics (RR ch. 8): per-class baselines — cargo,
       // toll, tariff, consignments, passengers. Money/dice cells stay raw
@@ -2280,19 +2284,19 @@ export const TABLE_RECIPES = {
   // materializes race items and stamps the Ready-for-Play builds onto the
   // matching class documents.
   "acks.classBuilder": {
-    source: { book: "ACKS II Judges Journal", pages: "291-303, 332-333" },
+    source: { book: "ACKS II Judges Journal", pages: "JJ 289-301, 330-331" },
     tables: {
       basePoints: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 291,
+        printedPage: 289,
         locate: "build points",
         values: [{ key: "basePoints", find: "allocating a total of", take: "int" }],
       },
       hdRaw: {
         shape: "gridRows",
         book: "jj",
-        printedPage: 292,
+        printedPage: 290,
         locate: "Mortal",
         column: { xMin: 40, xMax: 295 },
         labelMaxX: 80,
@@ -2308,7 +2312,7 @@ export const TABLE_RECIPES = {
       fightingRaw: {
         shape: "gridRows",
         book: "jj",
-        printedPage: 292,
+        printedPage: 290,
         locate: "The table below summarizes",
         column: { xMin: 40, xMax: 590 },
         startAfter: "apability",
@@ -2330,7 +2334,7 @@ export const TABLE_RECIPES = {
       thieveryRaw: {
         shape: "gridRows",
         book: "jj",
-        printedPage: 294,
+        printedPage: 292,
         locate: "The explorer traded all of its thief skills",
         column: { xMin: 300, xMax: 590 },
         labelMaxX: 345,
@@ -2345,7 +2349,7 @@ export const TABLE_RECIPES = {
       divineRaw: {
         shape: "gridRows",
         book: "jj",
-        printedPage: 294,
+        printedPage: 292,
         locate: "noting down the appropriate powers",
         column: { xMin: 300, xMax: 590 },
         startAfter: "noting down the appropriate powers",
@@ -2361,7 +2365,7 @@ export const TABLE_RECIPES = {
       arcaneRaw: {
         shape: "gridRows",
         book: "jj",
-        printedPage: 296,
+        printedPage: 294,
         locate: "Arcane Value determines the extent",
         column: { xMin: 295, xMax: 590 },
         labelMaxX: 345,
@@ -2373,21 +2377,21 @@ export const TABLE_RECIPES = {
         ],
         rows: VALUE_ROWS_4_TO_0,
       },
-      divineSlots1: slotGrid({ page: 295, startAfter: "Divine 1 Power", side: "L" }),
-      divineSlots2: slotGrid({ page: 295, startAfter: "Divine 2 Power", side: "R" }),
-      divineSlots3: slotGrid({ page: 295, startAfter: "Divine 3 Power", side: "L" }),
-      divineSlots4: slotGrid({ page: 295, startAfter: "Divine 4 Power", side: "R" }),
-      arcaneSlots1: slotGrid({ page: 297, startAfter: "Arcane 1 Power", side: "L" }),
-      arcaneSlots2: slotGrid({ page: 297, startAfter: "Arcane 2 Power", side: "R" }),
-      arcaneSlots3: slotGrid({ page: 297, startAfter: "Arcane 3 Power", side: "L" }),
-      arcaneSlots4: slotGrid({ page: 297, startAfter: "Arcane 4 Power", side: "R" }),
-      arcaneDelayed1: slotGrid({ page: 298, startAfter: "Arcane 1 – Delayed", side: "L", verso: true }),
-      arcaneDelayed2: slotGrid({ page: 298, startAfter: "Arcane 2 – Delayed", side: "R", verso: true }),
-      arcaneDelayed3: slotGrid({ page: 298, startAfter: "Arcane 3 – Delayed", side: "L", verso: true }),
+      divineSlots1: slotGrid({ page: 293, startAfter: "Divine 1 Power", side: "L" }),
+      divineSlots2: slotGrid({ page: 293, startAfter: "Divine 2 Power", side: "R" }),
+      divineSlots3: slotGrid({ page: 293, startAfter: "Divine 3 Power", side: "L" }),
+      divineSlots4: slotGrid({ page: 293, startAfter: "Divine 4 Power", side: "R" }),
+      arcaneSlots1: slotGrid({ page: 295, startAfter: "Arcane 1 Power", side: "L" }),
+      arcaneSlots2: slotGrid({ page: 295, startAfter: "Arcane 2 Power", side: "R" }),
+      arcaneSlots3: slotGrid({ page: 295, startAfter: "Arcane 3 Power", side: "L" }),
+      arcaneSlots4: slotGrid({ page: 295, startAfter: "Arcane 4 Power", side: "R" }),
+      arcaneDelayed1: slotGrid({ page: 296, startAfter: "Arcane 1 – Delayed", side: "L", verso: true }),
+      arcaneDelayed2: slotGrid({ page: 296, startAfter: "Arcane 2 – Delayed", side: "R", verso: true }),
+      arcaneDelayed3: slotGrid({ page: 296, startAfter: "Arcane 3 – Delayed", side: "L", verso: true }),
       savesRule: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 299,
+        printedPage: 297,
         locate: "SAVING THROW",
         values: [
           { key: "precedence", find: "to appear in order on this list:", take: "phrase", span: 90 },
@@ -2401,7 +2405,7 @@ export const TABLE_RECIPES = {
       xpRules: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 300,
+        printedPage: 298,
         locate: "PER LEVEL",
         values: [
           { key: "crusaderThief", find: "crusader or thief: additional", take: "int" },
@@ -2412,7 +2416,7 @@ export const TABLE_RECIPES = {
       smoothing: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 301,
+        printedPage: 299,
         locate: "Smoothing",
         values: [
           // A superscript "th" run interleaves into "…experience point [th]
@@ -2424,7 +2428,7 @@ export const TABLE_RECIPES = {
       racialCaps: {
         shape: "gridRows",
         book: "jj",
-        printedPage: 301,
+        printedPage: 299,
         locate: "accompanying table",
         column: { xMin: 180, xMax: 300 },
         labelMaxX: 240,
@@ -2442,14 +2446,14 @@ export const TABLE_RECIPES = {
       tradeoffPenalty: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 294,
+        printedPage: 292,
         locate: "Experience Point Penalty",
         values: [{ key: "perPower", find: "cost of its fighting value by", take: "int" }],
       },
       tradeoffsRaw: {
         shape: "gridRows",
         book: "jj",
-        printedPage: 293,
+        printedPage: 291,
         locate: "Fighting Value Trade Offs",
         column: { xMin: 325, xMax: 600 },
         startAfter: "Benefit",
@@ -2462,7 +2466,7 @@ export const TABLE_RECIPES = {
       dwarfRaw: {
         shape: "gridRows",
         book: "jj",
-        printedPage: 302,
+        printedPage: 300,
         locate: "Dwarf Value",
         column: { xMin: 295, xMax: 600 },
         labelMaxX: 340,
@@ -2477,7 +2481,7 @@ export const TABLE_RECIPES = {
       dwarfRules: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 302,
+        printedPage: 300,
         locate: "DWARVEN CUSTOM",
         // Verso page: the right print column starts at x≈299, so the default
         // 300 split tears its sentences apart.
@@ -2498,7 +2502,7 @@ export const TABLE_RECIPES = {
       elfRaw: {
         shape: "gridRows",
         book: "jj",
-        printedPage: 303,
+        printedPage: 301,
         locate: "stack with points",
         column: { xMin: 320, xMax: 600 },
         labelMaxX: 365,
@@ -2513,7 +2517,7 @@ export const TABLE_RECIPES = {
       elfRules: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 303,
+        printedPage: 301,
         locate: "stack with points",
         values: [
           { key: "stacksWithArcane", find: "stack with points allocated to the arcane value", take: "window", span: 24 },
@@ -2530,7 +2534,7 @@ export const TABLE_RECIPES = {
       raceRequirements: {
         shape: "proseValues",
         book: "jj",
-        printedPage: 301,
+        printedPage: 299,
         locate: "additional requirements",
         values: [
           { key: "dwarfCon", find: "dwarven classes require constitution", take: "int" },

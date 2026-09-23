@@ -3,17 +3,14 @@
  * Overlay: enclosing (heavy) helmet — RR p. 140.
  * Gated by the `overlayEnclosingHelm` world setting.
  *
- * "Wearing a heavy helm imposes a −1 penalty to surprise rolls and −4 penalty to
- * Listening proficiency throws, but offers a +2 bonus on d20 rolls made on the
- * Mortal Wounds table."
- *
- * Division of labour with core (which is frozen):
- *  - **+2 Mortal Wounds is ALREADY core** — `AcksActor#hasHeavyHelm()` +
+ * A heavy helm modifies surprise rolls, Listening throws and the Mortal Wounds
+ * roll. Division of labour with core (which is frozen):
+ *  - **Mortal Wounds is ALREADY core** — `AcksActor#hasHeavyHelm()` +
  *    CharacterMortalWoundsApp apply it, detecting a heavy helm by NAME ("heavy"
  *    and "helmet"). We do NOT re-apply it (that would double for named helms).
- *  - **−1 surprise** is a real actor field (`system.surprise.avoidsurprise`, read
+ *  - **Surprise** is a real actor field (`system.surprise.avoidsurprise`, read
  *    by the surprise matrix), so it is folded into the managed loadout effect.
- *  - **−4 Listening** is a proficiency THROW with no actor field to modify, so it
+ *  - **Listening** is a proficiency THROW with no actor field to modify, so it
  *    is surfaced as a note/flag for the Judge (and for acks-abilities to consume).
  *
  * "Enclosing" is the same fact core keys Mortal Wounds off — a heavy helmet — so

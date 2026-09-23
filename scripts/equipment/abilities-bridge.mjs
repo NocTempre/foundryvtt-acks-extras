@@ -26,7 +26,7 @@
  * `flags.acks-extras.*` change stands aside, to avoid double-counting.
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
-import { slug, abilitySlug, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { slug, abilitySlug, ITEM_TYPE, ACTOR_TYPE, resolveLevelValue } from "../lib/vocab.mjs";
 
 const ABILITIES_FLAG_SCOPE = "acks-extras";
 
@@ -211,32 +211,29 @@ function typedEffects(item) {
 }
 
 /**
- * Resolve a level-scaled value to a flat number for `actor`.
- *
- * A materialized value is either a plain number or a `{kind, ...}` ladder the
- * abilities model resolves against the character. Ask that model when it is
- * live — interpreting a ladder is its job, not ours — and otherwise take only
- * the shapes that need no interpretation. An unresolvable ladder contributes
- * NOTHING rather than its first rung: a bonus reported at the wrong level is
- * worse than a bonus the sheet says is missing.
+ * A level-scaled value as a flat number for `actor` holding `item`: resolved
+ * by the classes feature's `resolveLevelValue` when live (lib's, completed with
+ * class progressions), else lib's, at the scales the abilities model keys on
+ * (`scalesFor`). An unresolvable ladder contributes NOTHING rather than its
+ * first rung: a bonus reported at the wrong level is worse than a bonus the
+ * sheet says is missing.
  */
-function flatValue(actor, value) {
+function flatValue(actor, item, value) {
   if (value == null) return 0;
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  const api = globalThis.acksExtras?.abilities;
-  if (api?.resolveValue) {
-    try {
-      const n = Number(api.resolveValue(actor, value));
-      if (Number.isFinite(n)) return n;
-    } catch {
-      /* fall through to the literal shapes */
-    }
+  const api = globalThis.acksExtras ?? {};
+  const resolve = api.classes?.resolveLevelValue ?? resolveLevelValue;
+  const scales = api.abilities?.scalesFor?.(actor, item) ?? {
+    level: Number(actor?.system?.details?.level ?? actor?.system?.level ?? 1) || 1,
+    rank: 1,
+  };
+  let n = null;
+  try {
+    n = resolve(value, scales.level, scales);
+  } catch {
+    return 0;
   }
-  if (value.kind === "flat") {
-    const n = Number(value.flat);
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
+  return typeof n === "number" && Number.isFinite(n) ? n : 0;
 }
 
 /**
@@ -268,7 +265,7 @@ function addTypedEffects(actor, item, { addNum, addStr, booleans }) {
       }
       case "modifier": {
         if (spec.target !== "initiative" || (spec.mode && spec.mode !== "add")) break;
-        const value = flatValue(actor, spec.value);
+        const value = flatValue(actor, item, spec.value);
         if (!value) break;
         // A modifier the book gates on how heavily the character is equipped
         // goes to the gated domain; one it states flatly is always on. The

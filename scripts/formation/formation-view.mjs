@@ -38,6 +38,7 @@ import { occupantsOf, draftPullOf } from "../vehicles/occupants.mjs";
 import { stationsFor } from "../vehicles/stations.mjs";
 import { FOLLOWING_KINDS } from "./travel.mjs";
 import { driftSummary } from "./lost.mjs";
+import { shadowsOf } from "./shadow.mjs";
 import { travelOf, DAY_KINDS, ANCILLARY_ACTIVITIES, ROAD_KINDS, TERRITORY_KEYS } from "./travel.mjs";
 import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
 import { feetPerUnit } from "../lib/distance-units.mjs";
@@ -856,8 +857,14 @@ function buildTravelView(formation, feet) {
   // ONE lost view: the fields the episode needs and the fields the panel
   // needs are the same object, filled once.
   const drift = driftSummary(t.lost, t.dayCount);
+  const phase = t.lost.phase ?? null;
   view.lost = {
-    active: !!t.lost.active,
+    active: phase === "astray",
+    aware: phase === "aware",
+    open: !!phase,
+    // A shadow standing with no episode open: an earlier ending left it, and
+    // the panel's closing buttons still retire it.
+    leftover: !phase && game.user?.isGM ? shadowsOf(formation.id).length > 0 : false,
     judgeNote: t.lost.judgeNote ?? "",
     days: drift?.days ?? 0,
     fakedHexes: drift?.fakedHexes ?? 0,

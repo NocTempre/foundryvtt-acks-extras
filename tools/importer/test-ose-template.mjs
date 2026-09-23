@@ -9,7 +9,7 @@
  * Numbers are invented; only the SHAPES come from real books.
  */
 import { parseOseStatline } from "../../scripts/importer/ose-statline.mjs";
-import { isRangedCreature, bonusSteps, oseTemplateDataFromFields, oseTemplateFromGroup, TEMPLATE_TYPE } from "../../scripts/importer/ose-template.mjs";
+import { isRangedCreature, bonusSteps, oseTemplateDataFromFields, oseTemplateFromGroup, oseGroupId, oseGroupBookOf, TEMPLATE_TYPE } from "../../scripts/importer/ose-template.mjs";
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -130,6 +130,13 @@ ok("and so does a range with only one end printed", bonusSteps({ ascendingBonus:
   ok("and nothing sits on the base to leak between them", Object.keys(t.system.base.merge).length === 0);
   ok("the members are recorded for audit", t.flags["acks-extras"].ose.group.members.length === 3);
 }
+
+// The picker lists a per-step creature under its generator's id, and a rebuild
+// has to find that id's book to refuse a closed one.
+check("a generator id names its book and its group", oseGroupId("dmb", "bard"), "dmb.group.bard");
+check("the book is read back from a generator id", oseGroupBookOf(oseGroupId("dmb", "bard")), "dmb");
+check("a dotted book id survives the round trip", oseGroupBookOf(oseGroupId("ose.rt", "bard")), "ose.rt");
+check("a creature's own id is not a generator id", oseGroupBookOf("dmb.bard1"), null);
 
 if (failed) {
   console.error(`\nose-template: ${failed} failure(s)`);

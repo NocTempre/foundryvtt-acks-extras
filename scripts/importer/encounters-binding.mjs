@@ -11,7 +11,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
-import { hasDoc, getDoc, PRIORITY } from "../lib/tables.mjs";
+import { getLayer, PRIORITY } from "../lib/tables.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const ENCOUNTERS_DOC_ID = "encounters";
@@ -315,8 +315,8 @@ export function assembleEncounterTables(raw = {}) {
  */
 export async function applyEncountersImport() {
   const svc = services.get("ruledata-import");
-  if (!svc || !hasDoc(ENCOUNTERS_DOC_ID)) return { assembled: [] };
-  const doc = getDoc(ENCOUNTERS_DOC_ID);
+  const doc = getLayer(ENCOUNTERS_DOC_ID, PRIORITY.WORLD);
+  if (!svc || !doc) return { assembled: [] };
   const engine = assembleEncounterTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(

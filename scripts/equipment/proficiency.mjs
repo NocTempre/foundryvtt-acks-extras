@@ -25,7 +25,7 @@ import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects
  * armour resolvers stay PERMISSIVE when the actor carries no such flags (no
  * list ⇒ proficient), so an un-configured character is not penalised for those.
  * A trained fighting STYLE, however, is required to use any weapon at all
- * (RR p.106), so a weapon-wielding character with no Class-Training style item
+ * (RR p. 15), so a weapon-wielding character with no Class-Training style item
  * reads as non-proficient once enforcement is on — configure each character
  * with its Class Training items (a style plus the weapon/armour lists) and the
  * gate is correct.
@@ -42,7 +42,7 @@ import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects
  *                      abilities model and read as falsely non-proficient.
  *   "off"            — never enforce; all proficiency gating goes permissive.
  *
- * Scope: this toggles the PENALTIES (the RR p.106 Non-Proficient Use package:
+ * Scope: this toggles the PENALTIES (the non-proficient use package, RR p. 15:
  * attacks as a 0th-level fighter, no attribute bonus to attack or AC), not the
  * module. Equip limits, containers, wear buckets, the loadout effect, and
  * bridged acks-abilities bonuses are unaffected.
@@ -81,8 +81,7 @@ const SIZE_TOKENS = new Set(["tiny", "small", "medium", "large"]);
  * Canonicalise a grant token.
  *
  * The only liberty taken is the bare SIZE: the book writes broad choices i and
- * ii as "any tiny, small, or medium melee weapons", so `tiny,small,medium` is
- * what a Judge types — and both size-based choices are melee, so a bare size can
+ * ii by melee weapon size, so `tiny,small,medium` is what a Judge types — and both size-based choices are melee, so a bare size can
  * only mean `melee:<size>`. Accepting it here means the shorthand works
  * everywhere a grant is read (the macro, an actor flag, a class-training effect)
  * rather than in one of them.
@@ -123,8 +122,8 @@ export function classifyGrantToken(token) {
  *   all                 unrestricted
  *   missile:all         every missile weapon (broad choice v)
  *   melee:<size>        melee weapons of that size — broad choices i and ii are
- *                       size-based ("any tiny, small, or medium melee weapons"),
- *                       not category-based, so sizes are first-class here. A
+ *                       size-based, not category-based, so sizes are
+ *                       first-class here. A
  *                       bare `tiny` / `small` / `medium` / `large` means this.
  *   <category>          axe | bow | crossbow | flailHammerMace | swordDagger |
  *                       spearPolearm | other

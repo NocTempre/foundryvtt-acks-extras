@@ -363,6 +363,11 @@ module’s own select vocabulary and `calm` stays structurally zero, so the
 commonest throw still computes with nothing imported. Ruling and the rejected
 zero-default: DECISIONS 2026-09-02.
 
+**Done in 8.1.0** — the strings and comments. Hints, notes and warnings name
+their field and cite the page, and tracked tests use invented figures. The
+numbers below still ship in code (DECISIONS 2026-09-23, "Formation strings name
+the field and cite the page").
+
 **Still to rule, roughly worst first:**
 
 | Where | What | Note |
@@ -371,6 +376,10 @@ zero-default: DECISIONS 2026-09-02.
 | `turn-engine.mjs` | the encounter die and the encounter-distance formula | Decisive argument: two of the same throw's three parameters are ALREADY settings-backed (`module.mjs`), and only the dice are hardwired. That inconsistency, not the size of the numbers, is the case. |
 | `obstacles.mjs` | the registered obstacle magnitudes | Counter-example to §6's original claim; unexamined in detail. |
 | `lib/light.mjs` | the light-source durations and radii, re-exported into this feature by `constants.mjs` | Owned by `lib`, not formation — rule it there. |
+| `trap-rules.mjs` | the default trigger, the crude-trap modifiers, the botch bands, pit and spike damage | Found by the 2026-09-23 audit. The trap's trigger field falls back to an imported default once one exists. |
+| `formation-model.mjs`, `formation-view.mjs` | the exploration-speed grid, the capacity fallback, the blind speed share, the combat-speed ratio | Found by the 2026-09-23 audit: the grid §6a's first pass deleted survives here with two readers. |
+| `travel.mjs`, `searching.mjs`, `search-run.mjs` | the ancillary-activity count and the hour written as a literal | The hour is the structural unit; the count is printed. |
+| `constants.mjs` `ROLE_GEAR` | the parchment fallback's cost | A printed price; the fallback carries no cost. |
 
 **Explicitly ruled STRUCTURAL and NOT to be stripped**, recorded so a later pass
 does not "fix" them: `party-rolls.mjs`'s `consumesRound` / `consumesTurn` and
@@ -388,27 +397,20 @@ was load-bearing. The fix is for the test to register the ruledata itself, as
 `test-classes.mjs` and `test-battlemap.mjs` already do. `tools/rules-tests/` is
 gitignored and local-only, which makes it the one place a printed value may
 legitimately sit.
-- **The lost-episode shadow token has no ending that retires it.** MODEL.md
-  says the shadow survives discovery and retires at a later re-anchor, but
-  `discoverLost` closes the episode and `reanchorLost` refuses a closed one —
-  so `clearShadow`'s only caller is unreachable after the commonest ending, and
-  a hidden token of the party actor stays on the scene forever. Wants a
-  `known` state on the ledger (knows it is lost, does not know where) so the
-  two endings stop sharing one bit, `sceneFor` resolving `formation.sceneId`
-  rather than whatever scene the Judge is looking at, the raw `lostActive`
-  checkbox removed so the episode transitions own the state alone, shadow
-  clearing in `dissolveFormation`, and a `ready` sweep to clear shadows whose
-  formation is gone. TESTING.md step 3 asserts the leak as the expected
-  observable and changes with it.
+- **Derivations do not read the shadow yet.** The 2026-08-29 ruling routes
+  every "where is the party" question through `truePositionToken` while an
+  episode runs, so that terrain, encounters and the weather keep reading the
+  truth. Nothing calls it: during an episode they read the party token, which
+  stands at the believed hex. `walkAstray`, which moves the shadow and paints
+  the believed day's hex, has no caller either.
 - **Players enrolling their own tokens.** Both add paths are hard-gated to the
   Judge and the player relay has no `join` case — structurally, because every
   case validates that the actor is already a member. Ruled 2026-08-31: a player
   may enrol a token they own into a formation they already hold a member in,
   behind a `playersAddMembers` world setting defaulting off (the shape
   `playersMoveParty` already set). The relay must resolve the token GM-side by
-  id and never trust a payload. MODEL.md's player-capability table needs the
-  new row and the three it is already missing (`detach`, `trapbreak`,
-  `trapRearm`).
+  id and never trust a payload; the relay's sender is attested since 8.1.0.
+  MODEL.md's player-capability table needs the new row.
 - **The night, and what a night restores.** ROADMAP §4 claims to walk JJ's
   expedition sequence rule by rule and omits steps 10 and 11 — fatigue and
   rest healing — along with RR §VI.2's sleep block. Four clocks that must not

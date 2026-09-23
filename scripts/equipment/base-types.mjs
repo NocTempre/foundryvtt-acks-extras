@@ -28,14 +28,16 @@ export const BASE_TYPE_FLAG = "baseType";
  *
  * This is the constraint core imposes, not a rule from a book: a base type that
  * claimed to be `armour` on a `weapon` document would have core computing the
- * wrong numbers from underneath it. Everything physical may be `gear` — that is
- * the fallback category, not a judgement.
+ * wrong numbers from underneath it. Clothing sits on `item` alone, the one
+ * document core leaves out of the weight when its subtype says clothing.
+ * Everything physical may be `gear` — that is the fallback category, not a
+ * judgement.
  */
 export const BASE_TYPE_DOCUMENTS = Object.freeze({
   [BASE_TYPE.weapon]: [ITEM_TYPE.weapon],
   [BASE_TYPE.armour]: [ITEM_TYPE.armor],
   [BASE_TYPE.shield]: [ITEM_TYPE.armor],
-  [BASE_TYPE.clothing]: [ITEM_TYPE.item, ITEM_TYPE.armor],
+  [BASE_TYPE.clothing]: [ITEM_TYPE.item],
   [BASE_TYPE.gear]: [ITEM_TYPE.item, ITEM_TYPE.weapon, ITEM_TYPE.armor],
   [BASE_TYPE.food]: [ITEM_TYPE.item],
   [BASE_TYPE.gem]: [ITEM_TYPE.item],
@@ -92,4 +94,37 @@ export function baseTypeOf(item, { infer = null } = {}) {
 export function baseTypeIsDeclared(item) {
   const declared = item?.flags?.["acks-extras"]?.[BASE_TYPE_FLAG];
   return !!declared && Object.hasOwn(BASE_TYPE, declared);
+}
+
+/** Core's `system.subtype` value that leaves an `item` out of the weight. */
+export const CLOTHING_SUBTYPE = "clothing";
+
+/**
+ * The half of a clothing declaration that one write leaves out.
+ *
+ * On an `item` document the `baseType` flag says clothing exactly when
+ * `system.subtype` does. The flag is what the rail shows; the subtype is what
+ * core leaves out of the weight. Returns what the same write must also set:
+ * `{subtype}`, or `{baseType}` where null unsets the flag. Returns null when the
+ * write leaves the two agreeing or moves neither. A write that moves both, and
+ * leaves them disagreeing, is settled by the flag.
+ *
+ * @param {object} was  `{type, baseType, subtype}` as stored; a create passes
+ *   no flag and core's initial subtype
+ * @param {object} write  `{baseType?, subtype?}` as the write sets them: null for
+ *   a flag it unsets, absent for a half it does not set
+ * @returns {{subtype: string}|{baseType: string|null}|null}
+ */
+export function clothingDeclarationPatch(was, write = {}) {
+  if (was?.type !== ITEM_TYPE.item) return null;
+  const wasFlag = was.baseType ?? null;
+  const wasSubtype = was.subtype ?? "item";
+  const flagMoved = "baseType" in write && (write.baseType ?? null) !== wasFlag;
+  const subtypeMoved = "subtype" in write && write.subtype !== wasSubtype;
+  if (!flagMoved && !subtypeMoved) return null;
+  const flagSays = (flagMoved ? write.baseType : wasFlag) === BASE_TYPE.clothing;
+  const subtypeSays = (subtypeMoved ? write.subtype : wasSubtype) === CLOTHING_SUBTYPE;
+  if (flagSays === subtypeSays) return null;
+  if (flagMoved) return { subtype: flagSays ? CLOTHING_SUBTYPE : "item" };
+  return { baseType: subtypeSays ? BASE_TYPE.clothing : null };
 }

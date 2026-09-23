@@ -3,8 +3,8 @@
  * Overlay: named arms & armour (JJ p. 399; acks-rules/acks-equipment/RULES.md §13).
  * Gated by the `overlayNamed` world setting.
  *
- * The name is the MECHANISM, not flavour: "only those who confidently speak the
- * name of the item receive the full benefit of its powers."
+ * The name is the MECHANISM, not flavour: speaking it is what unlocks the
+ * item's powers.
  *
  *  - Speaking the TRUE name → all powers unlock at once.
  *  - An unsure character may GUESS ONCE, and may not guess again until reaching
@@ -12,10 +12,9 @@
  *    level.
  *  - Re-naming instead unlocks ONE point of bonus in one category, then one more
  *    per level of experience earned while wielding/wearing it.
- *  - The JUDGE sets the unlock order ("You make the determination of the order in
- *    which the item's powers unlock") — this never auto-picks it.
- *  - Progress lives on the ITEM and survives its wielder: Marcus's +2/+2 hammer
- *    is "a +2 weapon in [Peristo's] hands", and advances on Peristo's level-ups.
+ *  - The JUDGE sets the unlock order — this never auto-picks it.
+ *  - Progress lives on the ITEM and survives its wielder: a new wielder inherits
+ *    the points unlocked so far, and advances them on their own level-ups.
  *
  * NOT RAW, deliberately absent: any renown/XP track of the item's own. RAW ties
  * unlocking to levels of experience earned while wielding.
@@ -120,7 +119,7 @@ export function nameMatches(item, spoken) {
 
 /**
  * May this character guess the name right now? RAW: one guess, then none until
- * "reaching a higher level of experience" — so a guess is allowed only if the
+ * the next level of experience (JJ p. 399) — so a guess is allowed only if the
  * character has never guessed, or has gained a level since their last guess.
  */
 export function canGuess(item, actor) {

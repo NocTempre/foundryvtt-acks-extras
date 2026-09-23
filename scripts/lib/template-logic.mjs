@@ -150,11 +150,11 @@ export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.ra
 }
 
 /**
- * Resolve a row's GENERATION sub-roll ("roll 1d8 for the type of aura: …"):
- * roll the die (twice when flagged), pick the enumerated outcome per roll.
- * Returns `{die, twice, rolls, texts}` or null (no sub, unmatched roll —
- * graceful, the Judge reads the prose). Never recurses: an outcome that
- * itself says "roll 1d8+4 twice" stays text.
+ * Resolve a row's GENERATION sub-roll (a die the ability's prose rolls to pick
+ * among outcomes it lists): roll the die (twice when flagged), pick the
+ * enumerated outcome per roll. Returns `{die, twice, rolls, texts}` or null (no
+ * sub, unmatched roll — graceful, the Judge reads the prose). Never recurses:
+ * an outcome that itself calls for a further roll stays text.
  */
 export function resolveSubRoll(sub, rng = Math.random) {
   const outcomes = Array.isArray(sub?.outcomes) ? sub.outcomes : [];

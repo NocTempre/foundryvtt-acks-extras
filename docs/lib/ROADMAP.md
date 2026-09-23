@@ -31,6 +31,15 @@ verification, not as drive-by edits:
   settings.mjs / feature module.mjs / arbitrary file); pick one, document it,
   move the strays.
 
+## Bundles already embedded
+
+Before this module opened bundles, two writers embedded them whole: a market
+purchase of several unit items, and a bundle dropped on the character sheet.
+Those bundles still sit on their actors, where no sheet lists them. A repair
+check that finds them and opens them onto the same actor is designed; it
+needs a crash-safe path the drop does not (the bundle is deleted last, and a
+resumed run must not deliver twice).
+
 ## Who carries `acks`, and whether that is deliberate
 
 Five surfaces do — the two item sheets (abilities, equipment), the roll editor,
@@ -64,6 +73,12 @@ What that needs: a split between the sweep (geometry only, every scene) and the
 active scene (which may test line of sight), plus a decision about which answer a
 token on an undrawn scene should carry in the meantime.
 
-(none — no unbuilt work surfaced in this job's file list beyond what
-docs/lib/ROADMAP.md and docs/lib/GROUPS.md's "Boundaries / what is NOT here"
-already record.)
+## One automation client, not one automation user
+
+`isPrimaryGM` elects a USER, `game.users.activeGM`, so a Judge with the world
+open in two windows runs every primary-GM hook twice. Compare-before-write
+hooks shrug that off; a write racing a delete does not. T-0184's console error
+at load was one window's party-ownership write landing on an actor the other
+window had just deleted. The fix is electing one CLIENT. Core gives two windows
+of one user no way to agree, so it needs a handshake of the module's own over
+its socket, and a live two-window run proving the loser stays quiet.

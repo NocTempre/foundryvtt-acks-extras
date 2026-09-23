@@ -24,8 +24,8 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
  * level and factor, and the bonuses applied. Also the editor for **custom
  * skills**: any ability item can be flagged to participate in a party roll
  * (`checkKey`), auto-scale on a thief progression (`thiefSkill`), and scale
- * at a fraction of the owner's level (`levelFactor`, e.g. 0.5 for "as a
- * thief of half his class level").
+ * at a fraction of the owner's level (`levelFactor`, e.g. 0.5 for a skill
+ * that works at half the owner's class level).
  */
 export default class SkillAuditApp extends HandlebarsApplicationMixin(ApplicationV2) {
   #formationId;

@@ -21,7 +21,7 @@ import {
 } from "./faction-binding.mjs";
 import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
 import {
-  isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, placementMatches, afterDarkShift, bandOfSection,
+  isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
 } from "./scene-binding.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { DISTRICT_TYPE } from "../formation/district-find.mjs";
@@ -30,10 +30,11 @@ import { occupantRow } from "../lib/place.mjs";
 import { oseAdventureData, oseAdventureId } from "./ose-location.mjs";
 import { BOOKS, bookIsJudges, bookLine } from "./books.mjs";
 import { OSE_PREFIX, oseSourceLabel, oseSourceLine } from "./ose-source.mjs";
+import { oseGroupBookOf } from "./ose-template.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
 import { slugLabel } from "./table-extract.mjs";
 import { TABLE_RECIPES } from "./table-recipes.mjs";
-import { hasDoc } from "../lib/tables.mjs";
+import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { pageItems, pageArtPlacements } from "./extract.mjs";
 import { WEAPON_TABLE, extractWeaponsFromDoc, bindWeaponRow, bindAmmoRow } from "./weapon-tables.mjs";
 import { ARMOR_TABLE, extractArmorFromDoc, bindArmorRow } from "./armor-tables.mjs";
@@ -551,12 +552,9 @@ export function bindMonster(node) {
     // the ids this world already holds before category preference applies.
     const guess = prof.ref ? null : idForName(nameIndex, prof.text, present);
     const id = prof.ref ?? guess?.id ?? null;
-    // A guess is reported once per distinct resolution — a bulk import walks
-    // hundreds of blocks with the same handful of shared names.
-    if (guess?.ambiguous && !warnedAmbiguous.has(`${prof.text}>${id}`)) {
-      warnedAmbiguous.add(`${prof.text}>${id}`);
-      console.warn(`${MODULE_ID} | "${prof.text}" matches several definitions; adopted ${id}.`);
-    }
+    // Once per distinct resolution: a bulk import walks hundreds of blocks with
+    // the same handful of shared names.
+    reportGuess(prof.text, guess);
 
     // The creature's own throw target ("climbing 6+"), split off by stripRoll,
     // outranks the definition's generic ladder — bindAbility resolves that only
@@ -701,13 +699,15 @@ const ourPacksOfType = (type) =>
  * Reads world-then-pack, matching the actor side (`importedIdsOfType`,
  * `importedActor`). Recognised by the cookbook flag, same as
  * `cookbookRemoveImports`; never the class templates' skinned copies, which
- * inherit the definition's cookbook id. See docs/importer/DECISIONS.md, "The
- * library is the packs AND the sidebar this module stamped".
+ * inherit the definition's cookbook id, and never a copy of an import
+ * (`isWorldCopy`), which is the Judge's and survives a rebuild. See
+ * docs/importer/DECISIONS.md, "The library is the packs AND the sidebar this
+ * module stamped".
  */
 const sidebarImports = (type) => {
   const world = { Actor: game.actors, Item: game.items, JournalEntry: game.journal, RollTable: game.tables }[type];
   return [...(world ?? [])].filter(
-    (d) => d.getFlag(MODULE_ID, "cookbook") && !d.flags?.[MODULE_ID]?.templatePart,
+    (d) => d.getFlag(MODULE_ID, "cookbook") && !d.flags?.[MODULE_ID]?.templatePart && !isWorldCopy(d),
   );
 };
 
@@ -966,9 +966,9 @@ export const importedItemFor = (id) => importedItem(id);
 
 /**
  * The imported ACTOR for a cookbook id, or null — the same question against the
- * collection an actor importer writes to.
+ * collection an actor importer writes to. `opts` is `importedActor`'s.
  */
-export const importedActorFor = (id) => importedActor(id);
+export const importedActorFor = (id, opts) => importedActor(id, opts);
 
 /**
  * Every document of a type the library holds — the packs', loaded, and the
@@ -1077,9 +1077,12 @@ const importedItem = async (id) => {
  * counterpart of importedItem, asked of whichever target actors go to. Not
  * indexed: the actor importers already carry `importedIdSet`, and this answers
  * the one question that needs the document itself (an animal, a companion).
+ * The world answers first, copies included, so a scene's places link to one
+ * another; `copies: false` asks for the library's own document, which is what
+ * an "already imported?" check needs (`isWorldCopy`).
  */
-async function importedActor(id) {
-  const world = game.actors.find((a) => a.getFlag(MODULE_ID, "cookbook")?.id === id);
+async function importedActor(id, { copies = true } = {}) {
+  const world = game.actors.find((a) => a.getFlag(MODULE_ID, "cookbook")?.id === id && (copies || !isWorldCopy(a)));
   if (world) return world;
   // Its OWN shelf first — that is where `createDoc` put it — then the others.
   // A creature re-shelved by a release that changed its line is still found,
@@ -1156,10 +1159,15 @@ const targetFolder = (type, bookId, group) =>
  */
 async function importedIdsOfType(type, worldCollection) {
   // Never a class template's part: a skinned copy inherits the definition's
-  // id, and counting it would let it answer for the shared definition.
+  // id, and counting it would let it answer for the shared definition. Never a
+  // copy of an import either (`isWorldCopy`): counting it would stop a rebuild
+  // putting the library's own document back.
   const part = (flags) => !!flags?.[MODULE_ID]?.[TEMPLATE_PART];
   const ids = new Set(
-    [...worldCollection].filter((d) => !part(d.flags)).map((d) => d.getFlag(MODULE_ID, "cookbook")?.id).filter(Boolean),
+    [...worldCollection]
+      .filter((d) => !part(d.flags) && !isWorldCopy(d))
+      .map((d) => d.getFlag(MODULE_ID, "cookbook")?.id)
+      .filter(Boolean),
   );
   // Every shelf: a batch mixes lines, so asking one pack answers "not
   // imported" for every book shelved elsewhere.
@@ -1624,19 +1632,24 @@ const ENTRY_SOURCES = [
   { key: "Traps", type: "Item", refill: "importTraps", entries: () => [...trapEntries()] },
   { key: "Variations", type: "Item", refill: "importVariations", entries: () => [...variationEntries()] },
   { key: "Vehicles", type: "Actor", refill: "importVehicles", entries: () => [...vehicleEntries()] },
+  // A creature an OSE book prints a block per step for is one row, under its
+  // generator's id; `oseImportEntries` rebuilds its steps together.
+  { key: "OseCreatures", type: "Actor", idsRefill: "oseImportEntries", entries: () => api().oseEntryRows?.() ?? [] },
   {
     key: "Tables",
     type: null,
     idsRefill: "cookbookImportTables",
     // A ruledata document's row names the document and cites the pages its
     // recipes read; the tables under it are not offered separately because the
-    // store's unit is the document, which is what a merge writes.
+    // store's unit is the document, which is what a merge writes. Present means
+    // the import's own layer holds it: a sample a module registers under the
+    // same id is not an import.
     entries: () =>
       Object.entries(TABLE_RECIPES).map(([docId, rec]) => [
         docId,
         { name: docId, cite: rec.source?.pages ?? "" },
       ]),
-    present: (docId) => hasDoc(docId),
+    present: (docId) => !!getLayer(docId, PRIORITY.WORLD),
   },
 ];
 
@@ -1649,7 +1662,7 @@ const claimedId = (doc) => String(doc.getFlag(MODULE_ID, "cookbook")?.id ?? "");
  * docs/importer/DECISIONS.md, "A closed book is refused, not rebuilt."
  */
 const readableHere = (id) => {
-  const book = bookOf(cookbookEntry(id));
+  const book = bookOf(cookbookEntry(id)) ?? oseGroupBookOf(id);
   return !book || !!ctx?.sessionDocs?.has(book);
 };
 
@@ -1869,9 +1882,9 @@ async function runEntryReimport(all) {
   }
   for (const [run, only] of runs) refill[run] = (await api()[run]({ only })) ?? null;
 
-  // Sources whose run takes the picked ids. Rules tables are the only one:
-  // nothing was deleted for them, and re-reading the whole set would scan
-  // pages for every recipe there is.
+  // Sources whose run takes the picked ids: rules tables, where nothing was
+  // deleted and re-reading the whole set would scan pages for every recipe
+  // there is, and OSE creatures, whose book run is narrowed to the rows.
   for (const [key, ids] of byKey) {
     const src = ENTRY_SOURCES.find((s) => s.key === key);
     if (!src?.idsRefill) continue;
@@ -4262,6 +4275,19 @@ function sameMaterial(existing, data) {
  */
 const printedName = (doc) => doc.getFlag(MODULE_ID, "cookbook")?.printed ?? doc.name;
 
+/** Cross-book overlaps settled by name since the last report. */
+const overlaps = { merged: 0, tagged: 0 };
+
+/** Log what a run settled across books by name, once, and start the count again. */
+function reportOverlaps() {
+  const { merged, tagged } = overlaps;
+  overlaps.merged = 0;
+  overlaps.tagged = 0;
+  if (merged || tagged) {
+    console.info(`${MODULE_ID} | across books: ${merged} item(s) merged into the copy another book printed, ${tagged} tagged with their book.`);
+  }
+}
+
 /**
  * Reconcile a document about to be imported against one the library already
  * holds under the same printed name. See docs/importer/DECISIONS.md, "Same
@@ -4304,6 +4330,7 @@ async function reconcileByName(data, id, bookId) {
         ...(incomingWins ? { [`flags.${MODULE_ID}.cookbook.id`]: id, [`flags.${MODULE_ID}.cookbook.book`]: bookId } : {}),
       });
       rememberImported(id, other);
+      overlaps.merged++;
       return { skip: true, doc: other };
     }
 
@@ -4319,6 +4346,7 @@ async function reconcileByName(data, id, bookId) {
           [`flags.${MODULE_ID}.cookbook.printed`]: otherPrinted,
         });
       }
+      overlaps.tagged++;
       return { skip: false, name: `${data.name} (${tag(bookId)})`, printed: data.name };
     }
     return { skip: false }; // same book, same name: distinct entries the book itself separates
@@ -6380,7 +6408,7 @@ export async function importVehicles({ only = null } = {}) {
     for (const grid of Object.values(node.fields?.grids ?? {})) {
       for (const row of grid?.rows ?? []) {
         const rowId = `${id}.${rowClaimKey(row)}`;
-        if (await importedActor(rowId)) {
+        if (await importedActor(rowId, { copies: false })) {
           skipped++;
           continue;
         }
@@ -7075,7 +7103,7 @@ export async function importEquipment(id, folderId) {
   // Ask the compendium imports actually land in, never `game.items`/
   // `game.actors` directly. An animal is an ACTOR, so it is asked of the
   // actor side of the same target.
-  const existing = asActor ? await importedActor(id) : await importedItem(id);
+  const existing = asActor ? await importedActor(id, { copies: false }) : await importedItem(id);
   if (existing) return existing;
 
   const build = async () => {
@@ -7294,7 +7322,7 @@ export async function importAllEquipment({ only = null } = {}) {
       // WORLD while imports go to a compendium, everything looks new and the
       // count lies the same way.
       const asActor = isAnimalEntry(entry) && canImportAnimals();
-      const before = asActor ? await importedActor(id) : await importedItem(id);
+      const before = asActor ? await importedActor(id, { copies: false }) : await importedItem(id);
 
       const doc = await importEquipment(id, folder);
       if (doc && !before) {
@@ -7308,12 +7336,16 @@ export async function importAllEquipment({ only = null } = {}) {
   }
   // The weapon, armour and price TABLES are no entry's, so a pass narrowed to
   // entries never reaches them; their shelves rebuild on their own.
-  if (only) return { total: ids.length, created, animals, repaired, repairedAnimals, repairedShields, weapons: null, armor: null, priced: null };
+  if (only) {
+    reportOverlaps();
+    return { total: ids.length, created, animals, repaired, repairedAnimals, repairedShields, weapons: null, armor: null, priced: null };
+  }
   const weapons = await importWeapons();
   const armor = await importArmor();
   // Last: it asks which price rows the entries above already claim, so it has
   // to run after they have had their chance at them.
   const priced = await importPricedGear();
+  reportOverlaps();
   return { total: ids.length, created, animals, repaired, repairedAnimals, repairedShields, weapons, armor, priced };
 }
 
@@ -7803,23 +7835,38 @@ function loadedAbilityIndex() {
  * and only when that leaves the choice open (none present, or several) does the
  * category preference apply: a stat block's proficiency list and a hand-made
  * ability both far more often mean the PROFICIENCY than the same-named class
- * power. `ambiguous` reports whether a real guess was made.
+ * power. `ranked` reports a pick the category ranking settled; `ambiguous`
+ * reports a real guess, a tie inside the best-ranked category.
  */
 const CATEGORY_RANK = ["def.prof.", "def.skill.", "def.power.", "def.drawback."];
-const byCategory = (ids) =>
-  [...ids].sort((a, b) => {
-    const r = (x) => {
-      const i = CATEGORY_RANK.findIndex((p) => x.startsWith(p));
-      return i === -1 ? CATEGORY_RANK.length : i;
-    };
-    return r(a) - r(b);
-  })[0];
+const categoryRank = (id) => {
+  const i = CATEGORY_RANK.findIndex((p) => id.startsWith(p));
+  return i === -1 ? CATEGORY_RANK.length : i;
+};
+const byCategory = (ids) => [...ids].sort((a, b) => categoryRank(a) - categoryRank(b))[0];
 
-function preferredId(ids, present) {
-  if (ids.length === 1) return { id: ids[0], ambiguous: false };
+export function preferredId(ids, present) {
+  if (ids.length === 1) return { id: ids[0], ambiguous: false, ranked: false };
   const here = ids.filter((id) => present.has(id));
-  if (here.length === 1) return { id: here[0], ambiguous: false };
-  return { id: byCategory(here.length ? here : ids), ambiguous: true };
+  if (here.length === 1) return { id: here[0], ambiguous: false, ranked: false };
+  const pool = here.length ? here : ids;
+  const best = Math.min(...pool.map(categoryRank));
+  const top = pool.filter((id) => categoryRank(id) === best);
+  return { id: top[0], ambiguous: top.length > 1, ranked: top.length === 1 };
+}
+
+/**
+ * Report how a printed name was resolved when resolving it was a choice, once
+ * per name and pick in a session: a guess warns, a pick the category ranking
+ * settled logs at debug.
+ */
+function reportGuess(text, guess) {
+  if (!guess?.ambiguous && !guess?.ranked) return;
+  const key = `${text}>${guess.id}`;
+  if (warnedAmbiguous.has(key)) return;
+  warnedAmbiguous.add(key);
+  if (guess.ambiguous) console.warn(`${MODULE_ID} | "${text}" matches several definitions; adopted ${guess.id}.`);
+  else console.debug(`${MODULE_ID} | "${text}" names definitions in several categories; ranked to ${guess.id}.`);
 }
 
 /**
@@ -8167,6 +8214,9 @@ export async function cookbookUpdateAbilities() {
   // Name-adopted items whose description carries someone else's writing. The
   // write is held back until the GM has answered for them.
   const collisions = [];
+  // Guessed resolutions by name, reported once each after the walk: a world
+  // holds many copies of one ability, one per actor that carries it.
+  const guesses = new Map();
   /** Rewrite the generated surface — the descriptor, the cookbook id, the
    * extras. The written extras carry a forced deletion for every optional
    * subkey the rebuild no longer emits (ABILITY_EXTRAS_OPTIONAL), in a copy —
@@ -8201,9 +8251,11 @@ export async function cookbookUpdateAbilities() {
         skipped++;
         continue;
       }
-      if (guess?.ambiguous) {
-        guessed++;
-        console.warn(`${MODULE_ID} | "${doc.name}" matches several definitions; resolved to ${id}.`);
+      if (guess?.ambiguous || guess?.ranked) {
+        if (guess.ambiguous) guessed++;
+        const seen = guesses.get(doc.name) ?? { guess, copies: 0 };
+        seen.copies++;
+        guesses.set(doc.name, seen);
       }
       const found = cookbookEntry(id);
       // Re-extract once per definition, not once per copy of it.
@@ -8296,6 +8348,11 @@ export async function cookbookUpdateAbilities() {
     }
   }
 
+  for (const [name, { guess, copies }] of guesses) {
+    const line = `${MODULE_ID} | "${name}" (${copies} cop${copies === 1 ? "y" : "ies"})`;
+    if (guess.ambiguous) console.warn(`${line} matches several definitions; resolved to ${guess.id}.`);
+    else console.debug(`${line} names definitions in several categories; ranked to ${guess.id}.`);
+  }
   const stale = (await danglingAbilities()).length;
   ui.notifications.info(
     `${MODULE_ID} | abilities updated: ${updated} (${onActors} on actors, ${adopted} matched by name` +
@@ -8711,6 +8768,7 @@ export async function resolveAbilities(tokens) {
     // authored on the entry as an alias and reaches the index through it, so
     // nothing here needs to know which words a printing merged.
     const guess = idForName(nameIndex, base, present);
+    reportGuess(base, guess);
     const id = guess?.id ?? null;
     let item = id ? loadedById.get(id) : null;
     if (!item && id) item = await importAbility(id).catch(() => null);

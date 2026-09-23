@@ -27,7 +27,7 @@
  * radiating search reaches that one first.
  */
 export const HIT_POINTS_DOC = Object.freeze({
-  source: { book: "ACKS II Revised Rulebook", pages: "16" },
+  source: { book: "ACKS II Revised Rulebook", pages: "RR 16" },
   tables: {
     firstLevel: {
       shape: "proseValues",
@@ -58,7 +58,7 @@ export const HIT_POINTS_DOC = Object.freeze({
 export const HP_AFTER_NINE_TABLE = Object.freeze({
   shape: "proseValues",
   book: "jj",
-  printedPage: 299,
+  printedPage: 297,
   locate: "SAVING THROW",
   values: [
     { key: "crusaderMage", find: "crusader or mage:", take: "int", span: 30 },

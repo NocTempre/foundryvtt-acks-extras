@@ -26,6 +26,7 @@ import { capacityStone } from "../lib/capacity.mjs";
 import { announceChange } from "../lib/util.mjs";
 import { equipForRole } from "./judge-override.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { clearShadows } from "./shadow.mjs";
 
 /** World-setting key holding all formation records, keyed by formation id. */
 export const SETTING_FORMATIONS = "formations";
@@ -404,9 +405,9 @@ function encToExplorationSpeed(enc, strMod = 0) {
 }
 
 /**
- * Carried load: each down member counts as 7 3/6 stone plus half their
- * equipment encumbrance (the rescue rule, RULES.md §12), split evenly among
- * members with the Carrier role.
+ * Carried load: each down member's body and a share of their equipment
+ * encumbrance (the rescue rule, RR p. 271), split evenly among members with
+ * the Carrier role.
  */
 export function carriedLoad(formation) {
   const members = realMembers(formation).map((m) => ({ member: m, actor: getMemberActor(m) }));
@@ -882,6 +883,8 @@ export async function removeMember(formation, actorId, { restore = true } = {}) 
  * records are pruned before anything else".
  */
 export async function dissolveFormation(formation) {
+  // A lost party's true-position markers have no episode once the record goes.
+  await clearShadows(formation.id).catch((err) => console.error(`${MODULE_ID} | failed to clear shadow tokens`, err));
   try {
     await recallDeployed(formation, formation.members);
     const restored = await restoreMemberTokens(formation, formation.members, { grid: true });

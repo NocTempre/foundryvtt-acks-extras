@@ -338,8 +338,8 @@ function harnessEligible6(actor, harnessId) {
     // A thrown weapon has left the body; its weight comes off below, and the
     // harness cannot secure what it no longer holds.
     .filter((i) => !i.getFlag?.(MODULE_ID, ITEM_FLAGS.THROWN_STATE))
-    // Per-UNIT heavy check stays RAW (not weight6Of): a stack of six 1/6-stone
-    // torches sums to a stone but no single one is heavy, so quantity must NOT
+    // Per-UNIT heavy check stays RAW (not weight6Of): a stack of light items can
+    // sum past a stone while no single one is heavy, so quantity must NOT
     // enter here. The reduce below sums the bundle-aware weight of each row.
     .filter((i) => Number(i.system?.weight6 ?? 0) < STONE)
     .reduce((sum, i) => sum + weight6Of(i), 0);
@@ -373,12 +373,12 @@ export function encumbranceDelta6(actor) {
     delta -= Math.min(relief * STONE, harnessEligible6(actor, harness.id));
   }
 
-  // 2. Bowquiver: the assembly counts as 2 items when holding anything, 1 when
-  //    empty — rather than quiver + bow + arrows summed.
+  // 2. Bowquiver: the assembly counts as one figure loaded and another empty
+  //    (RR p. 142), rather than quiver + bow + arrows summed.
   for (const q of actor.items.filter((i) => i.getFlag?.(MODULE_ID, ITEM_FLAGS.BOWQUIVER))) {
     const contents = contentsOf(actor, q.id);
     const flat = weight6Of(q) + contentsWeight6(actor, q.id);
-    const raw = contents.length ? 2 : 1; // items, i.e. 2/6 or 1/6 stone
+    const raw = contents.length ? 2 : 1; // in sixths of a stone
     delta += raw - flat;
   }
 

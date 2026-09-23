@@ -17,7 +17,7 @@ import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { executeEntry } from "./executor.mjs";
 import { parseOseStatline, PROFILES, OSE_CANONICAL } from "./ose-statline.mjs";
 import { oseActorDataFromFields, moraleBoundsFromSchema } from "./ose-binding.mjs";
-import { isRangedCreature, oseTemplateDataFromFields, oseTemplateFromGroup } from "./ose-template.mjs";
+import { isRangedCreature, oseTemplateDataFromFields, oseTemplateFromGroup, oseGroupId, oseGroupBookOf } from "./ose-template.mjs";
 import { oseLocationData, oseAdventureData, oseAdventureId } from "./ose-location.mjs";
 import { currentScgConstants } from "./ose-app.mjs";
 import {
@@ -25,6 +25,7 @@ import {
   claimActorImport,
   importedActorFor,
   cookbookBookFile,
+  cookbookEntry,
   cookbookRegisters,
   cookbookSessionDoc,
   cookbookArtImporter,
@@ -57,8 +58,10 @@ export function authoredOseBooks() {
  * @param bookId  an authored book id whose PDF this seat has connected
  * @param opts.folderId  where the actors land
  * @param opts.art       import the page illustration too (default true)
+ * @param opts.only      a Set of the picker's row ids (`oseEntryRows`): a
+ *   creature's own id, or its generator's; every other entry is skipped
  */
-export async function importOseBook(bookId, { folderId = null, art = true } = {}) {
+export async function importOseBook(bookId, { folderId = null, art = true, only = null } = {}) {
   if (!game.user.isGM) {
     ui.notifications.warn(`${MODULE_ID} | GM only (creates documents).`);
     return 0;
@@ -94,7 +97,12 @@ export async function importOseBook(bookId, { folderId = null, art = true } = {}
   const creatureFolder = shelf("Creatures");
   const templateFolder = shelf("Templates");
 
-  const ids = Object.keys(cb.entries).filter((id) => cb.entries[id].kind === "kind.oseMonster");
+  /** Generator id for a group of steps: keys are bare words shared by books. */
+  const groupId = (key) => oseGroupId(bookId, key);
+  const rowOf = (id) => (cb.entries[id].meta?.templateGroup ? groupId(cb.entries[id].meta.templateGroup) : id);
+  const ids = Object.keys(cb.entries).filter(
+    (id) => cb.entries[id].kind === "kind.oseMonster" && (!only || only.has(rowOf(id))),
+  );
   const bar = progressBar(loc("ose.bookImporting", { book: BOOKS[bookId]?.label ?? bookId }), ids.length);
   // One page cache for the whole book: a bestiary puts several creatures on a
   // page and re-rendering it per entry is the expensive half of the run.
@@ -108,8 +116,6 @@ export async function importOseBook(bookId, { folderId = null, art = true } = {}
   const groups = {};
   // Where the entry says it came from, for the line that closes its text.
   const citeOf = (e) => e.cite || `${BOOKS[bookId]?.short ?? bookId} p.${e.pages?.[0] ?? "?"}`;
-  /** Generator id for a group of steps: keys are bare words shared by books. */
-  const groupId = (key) => `${bookId}.group.${key}`;
   /** Group keys whose generator this world already holds — asked once each. */
   const groupHeld = new Map();
   for (const id of ids) {
@@ -122,12 +128,12 @@ export async function importOseBook(bookId, { folderId = null, art = true } = {}
     // three hundred creatures to decide it wanted none of them.
     const group = entry.meta?.templateGroup;
     if (group) {
-      if (!groupHeld.has(group)) groupHeld.set(group, !!(await importedActorFor(groupId(group))));
+      if (!groupHeld.has(group)) groupHeld.set(group, !!(await importedActorFor(groupId(group), { copies: false })));
       if (groupHeld.get(group)) {
         already++;
         continue;
       }
-    } else if (await importedActorFor(id)) {
+    } else if (await importedActorFor(id, { copies: false })) {
       already++;
       continue;
     }
@@ -261,6 +267,44 @@ export async function importOseBook(bookId, { folderId = null, art = true } = {}
     })}${templates ? ` ${loc("ose.bookTemplates", { n: templates })}` : ""}${already ? ` ${loc("ose.bookHeld", { n: already })}` : ""}${refused ? ` ${loc("ose.bookRefused", { n: refused })}` : ""}`,
   );
   return made + templates;
+}
+
+/**
+ * The entry picker's rows for the creatures of every authored book open on this
+ * seat, as `[id, entry]`. A creature the book prints one block per step for is
+ * ONE row under its generator's id, since its steps are rebuilt together.
+ */
+export function oseEntryRows() {
+  const rows = [];
+  for (const { id: bookId, open } of authoredOseBooks()) {
+    if (!open) continue;
+    const groups = new Map();
+    for (const [id, e] of Object.entries(cookbookBookFile(bookId).entries)) {
+      if (e.kind !== "kind.oseMonster") continue;
+      const key = e.meta?.templateGroup;
+      if (!key) rows.push([id, e]);
+      else if (!groups.has(key)) groups.set(key, [oseGroupId(bookId, key), { name: e.meta.templateName ?? e.name, cite: e.cite ?? "" }]);
+    }
+    rows.push(...groups.values());
+  }
+  return rows;
+}
+
+/**
+ * Import the picked rows (`oseEntryRows` ids), one `importOseBook` run per book
+ * narrowed to them. Returns how many documents were made.
+ */
+export async function importOseEntries(ids) {
+  const byBook = new Map();
+  for (const id of ids ?? []) {
+    const bookId = oseGroupBookOf(id) ?? cookbookEntry(id)?.cb?.book?.id ?? null;
+    if (!bookId) continue;
+    if (!byBook.has(bookId)) byBook.set(bookId, new Set());
+    byBook.get(bookId).add(id);
+  }
+  let made = 0;
+  for (const [bookId, only] of byBook) made += await importOseBook(bookId, { only });
+  return made;
 }
 
 /**

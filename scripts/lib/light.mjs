@@ -98,7 +98,7 @@ export const LIGHT_SOURCES = Object.freeze({
     consumes: /^(?!.*\bmilitary\b).*\boil\b/i,
     fuelLabel: "ACKS-LIB.light.oil",
     fuelItem: "Oil, Common (1 pint)",
-    // RR (equipment): "Lanterns can be closed to conceal the light" — burns on.
+    // A closed lantern hides its light and burns on (RR equipment).
     shieldable: true,
   },
   candle: {

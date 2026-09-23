@@ -23,33 +23,34 @@ export { hasAbility };
  *
  * For each member the throw target comes from, in order of fidelity:
  *   1. a matching class-power / proficiency **ability item** on the sheet
- *      (e.g. a thief's "Searching 16+": `system.rollTarget`), with the RAW
- *      +4 methodical bonus applied for skill users where it applies;
+ *      (e.g. a thief's Searching skill: `system.rollTarget`), with the
+ *      methodical bonus applied for skill users where it applies;
  *   2. the sheet's **Adventuring proficiency** target
  *      (`system.adventuring.{listening,searching,dungeonbashing,…}`), which
- *      the GM can tune per character (e.g. 14+ for Alertness).
+ *      the GM can tune per character (e.g. for Alertness).
  *
  * Searching/listening throws are Judge-secret (RR p. 265), so results post as
  * ONE compact GM-whispered card rather than public per-member cards. RAW
  * constraints are enforced or reminded:
- *   - hasty search: skill users only ("Using Adventuring: not permitted");
+ *   - hasty search: skill users only;
  *   - methodical search: takes a full turn (auto-advanced);
  *   - listening: once per turn while the party is moving (tracked, warned).
  */
 
 /**
  * Alertness (or an equivalent power: Mindfulness, Alien Senses, Keen Insect
- * Senses, Attunement to Nature): Adventuring search/listen at 14+ instead of
- * 18+, or +2 on the throw for those separately skilled (RR p. 105).
+ * Senses, Attunement to Nature): an improved Adventuring search/listen target,
+ * or a bonus on the throw for those separately skilled (RR p. 105).
  */
 const ALERTNESS_PATTERN = /alertness|mindfulness|alien senses|keen insect|attunement to nature/i;
 /**
- * Attunement to Nature: +4 (not +2) with the Listening skill, per JJ p.311.
+ * Attunement to Nature: a larger bonus than Alertness's with the Listening
+ * skill (JJ p. 309).
  * It is NOT an alias of Alertness precisely because this value differs, which
  * is why it keeps its own pattern rather than folding into the one above.
  */
 const ATTUNEMENT_PATTERN = /attunement to nature/i;
-/** Trapfinding: +2 on Searching (and Trapbreaking) throws (RR p. 121). */
+/** Trapfinding: a bonus on Searching (and Trapbreaking) throws (RR p. 121). */
 const TRAPFINDING_PATTERN = /trapfinding/i;
 
 /**
@@ -96,7 +97,7 @@ export const PARTY_CHECKS = Object.freeze({
     icon: "fa-magnifying-glass-plus",
     advKey: "searching",
     pattern: /search/i,
-    skillBonus: 4, // Searching skill methodically: +4 (RR p. 265)
+    skillBonus: 4, // a Searching skill used methodically (RR p. 265)
     alertness: true,
     trapfinding: true,
     note: "ACKS-FORMATION.rolls.searchMethodicalNote",
@@ -128,9 +129,9 @@ export const PARTY_CHECKS = Object.freeze({
     label: "ACKS-FORMATION.rolls.trapbreakHasty",
     hint: "ACKS-FORMATION.rolls.trapbreakHastyHint",
     icon: "fa-screwdriver-wrench",
-    advKey: null, // "Using Adventuring: not permitted"
+    advKey: null, // not permitted via Adventuring (RR p. 267)
     pattern: /trap\s*break|trapbreaking|remove\s*traps?|disarm\s*traps?/i,
-    trapfinding: true, // RR p. 121: Trapfinding is +2 on Trapbreaking as well
+    trapfinding: true, // Trapfinding's bonus applies to Trapbreaking as well (RR p. 121)
     note: "ACKS-FORMATION.rolls.trapbreakHastyNote",
   },
   trapbreakMethodical: {
@@ -140,9 +141,9 @@ export const PARTY_CHECKS = Object.freeze({
     label: "ACKS-FORMATION.rolls.trapbreakMethodical",
     hint: "ACKS-FORMATION.rolls.trapbreakMethodicalHint",
     icon: "fa-screwdriver-wrench",
-    advKey: "trapbreaking", // a non-thief may try methodically (18+ on the sheet)
+    advKey: "trapbreaking", // a non-thief may try methodically, on the sheet's Adventuring target
     pattern: /trap\s*break|trapbreaking|remove\s*traps?|disarm\s*traps?/i,
-    skillBonus: 4, // Trapbreaking used methodically: +4
+    skillBonus: 4, // a Trapbreaking skill used methodically (RR p. 267)
     trapfinding: true,
     note: "ACKS-FORMATION.rolls.trapbreakMethodicalNote",
     consumesTurn: true,
@@ -153,7 +154,7 @@ export const PARTY_CHECKS = Object.freeze({
     label: "ACKS-FORMATION.rolls.tracking",
     hint: "ACKS-FORMATION.rolls.trackingHint",
     icon: "fa-paw",
-    advKey: null, // proficients only (Tracking 11+, RR p. 121)
+    advKey: null, // proficients only (Tracking, RR p. 120)
     pattern: /tracking/i,
     note: "ACKS-FORMATION.rolls.trackingNote",
     consumesTurn: true,
@@ -258,12 +259,13 @@ export function scaledSkillTarget(actor, item) {
 /**
  * Resolve one member's throw: {target, source, bonus, parts, skilled} or null.
  * Stacking per the references, itemized in `parts` for transparency:
- *  - skilled: methodical +4 (RR p. 265, skill users only), Alertness +2
- *    (Attunement to Nature: +4 with the Listening skill), Trapfinding +2
- *    on searching throws — all cumulative (no anti-stacking text);
- *  - unskilled: Adventuring target, improved to 14+ by Alertness (a target
- *    change, NOT a bonus — it does not stack with itself); Trapfinding's +2
- *    applies to any Searching throw, Adventuring-based included.
+ *  - skilled: the methodical bonus (RR p. 265, skill users only), Alertness's
+ *    bonus (Attunement to Nature's larger one with the Listening skill), and
+ *    Trapfinding's on searching throws — all cumulative (no anti-stacking
+ *    text);
+ *  - unskilled: Adventuring target, improved by Alertness (a target change,
+ *    NOT a bonus — it does not stack with itself); Trapfinding's bonus applies
+ *    to any Searching throw, Adventuring-based included.
  * With several matching skill items, the BEST (lowest) target is used.
  */
 export function resolveCheck(actor, cfg) {
@@ -346,9 +348,8 @@ export async function rollPartyCheck(formation, checkKey) {
   const preNotes = [];
 
   if (cfg.oncePerTurn) {
-    // RR p. 265: while the party is moving, listening only once per turn —
-    // it takes time for people to settle down into quiet. Enforced; a
-    // stationary party may listen repeatedly.
+    // While the party is moving it listens once per turn (RR p. 265).
+    // Enforced; a stationary party may listen repeatedly.
     if (formation.clock.movedThisTurn && formation.clock.lastListenTurn === formation.clock.turnsTotal) {
       ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.rolls.alreadyListened"));
       return 0;

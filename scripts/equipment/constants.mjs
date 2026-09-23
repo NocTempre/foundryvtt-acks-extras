@@ -79,7 +79,7 @@ export const EFFECT_DOMAINS = Object.freeze({
   // Declared as a seam; not yet read (see ROADMAP.md).
   NO_SHIELD_BENEFIT: "noShieldBenefit", // class lacks Weapon & Shield style
   STYLE_PROFICIENT: "styleProficient", // CSV of fighting styles the actor is trained in
-  SWASHBUCKLING: "swashbuckling", // conditional AC: <= light armour & <= 5 st (RR p. 117)
+  SWASHBUCKLING: "swashbuckling", // conditional AC while lightly equipped (RR p. 117)
 });
 
 /** Per-item override / annotation flags (on weapon & armor items). */

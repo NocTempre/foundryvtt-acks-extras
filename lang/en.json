@@ -781,7 +781,7 @@
       },
       "overlayMounted": {
         "name": "Overlay: mounted saves",
-        "hint": "Paralysis saves to stay mounted without a military saddle / Mounted Combat or Riding."
+        "hint": "Tracks the saves a rider owes to stay mounted (RR p. 308)."
       },
       "overlayNamed": {
         "name": "Overlay: named magic items (JJ)",
@@ -797,7 +797,7 @@
       },
       "overlayEnclosingHelm": {
         "name": "Overlay: enclosing helmet",
-        "hint": "Heavy helmets impose −1 to surprise rolls and −4 to Listening but grant +2 on Mortal Wounds."
+        "hint": "Applies an enclosing helmet's modifiers to its wearer (RR p. 140)."
       },
       "ammoTracking": {
         "name": "Track ammunition & thrown weapons",
@@ -826,10 +826,10 @@
         "warMountJoins": "The war-trained mount joins the attack."
       },
       "saves": {
-        "attackDue": "Without Riding or Mounted Combat: a Paralysis save after every attack by rider or mount.",
-        "attackWaived": "Riding or Mounted Combat holds the seat through attacks.",
-        "damageDue": "No military saddle: a Paralysis save whenever rider or mount takes damage.",
-        "damageWaived": "The saddle (or both proficiencies) holds the seat through wounds."
+        "attackDue": "Save to stay mounted: owed after an attack (RR p. 308).",
+        "attackWaived": "Save to stay mounted after an attack: waived (RR p. 308).",
+        "damageDue": "Save to stay mounted: owed after damage (RR p. 308).",
+        "damageWaived": "Save to stay mounted after damage: waived (RR p. 308)."
       },
       "bonusesHint": "Mounted Combat's attack bonus and the height-advantage modifier apply as the imported proficiencies state them."
     },
@@ -842,7 +842,7 @@
       "weaponNotProficient": "{items}: weapon unusable by this character's class.",
       "armorNotProficient": "{items} is heavier than this character's armour proficiency (max: {max}).",
       "styleNotProficient": "Untrained in the {style} fighting style.",
-      "nonProficientUse": "Non-proficient use of weapons or armor ({items}): attacks as a 0th-level fighter (0th-level characters instead take an additional −1), no attribute bonus to attack throws or Armor Class, class powers unusable, and no XP from adventures while so equipped.",
+      "nonProficientUse": "Equipped non-proficiently: {items} (RR p. 15).",
       "thiefSkillGated": "Backstabbing, Hiding, Pickpocketing, and Sneaking are unavailable while wearing {items}."
     },
     "training": {
@@ -963,13 +963,13 @@
     },
     "action": {
       "unarmed": "Unarmed Strike",
-      "unarmedHint": "Make an unarmed strike (1d3 nonlethal).",
+      "unarmedHint": "Make an unarmed strike (RR p. 299).",
       "draw": "Draw (equip)",
       "sheathe": "Sheathe (unequip)",
       "wear": "Wear it — {slot}",
       "remove": "Take it off ({slot})",
       "readied": "Readied a torch from the stack.",
-      "readyHint": "Ready a torch — pull one from the stack as a 1d4 light-weapon you can wield, light, or throw.",
+      "readyHint": "Ready a torch — pull one from the stack to wield, light, or throw.",
       "noStock": "No {item} left in the stack to ready.",
       "notReadiable": "{item} is not a torch stack; nothing to ready.",
       "scavenge": "Scavenged",
@@ -983,13 +983,13 @@
     "masterwork": {
       "control": "Masterwork",
       "title": "Masterwork — {name}",
-      "prompt": "Apply a masterwork quality. It is written onto the item's own fields (to-hit, damage, AC, or weight) and can be cleared back to None at any time.",
+      "prompt": "Apply a masterwork quality (RR p. 159). It is written onto the item's own fields and can be cleared back to None at any time.",
       "none": "None (standard)",
-      "weaponToHit": "+1 to hit (80gp)",
-      "weaponToDamage": "+1 damage (80gp)",
-      "weaponBoth": "+1 to hit and damage (650gp)",
-      "armorLight": "−1 stone weight (80gp)",
-      "armorAC": "+1 AC (650gp)"
+      "weaponToHit": "To hit",
+      "weaponToDamage": "Damage",
+      "weaponBoth": "To hit and damage",
+      "armorLight": "Weight",
+      "armorAC": "Armor Class"
     },
     "strap": {
       "cycle": "Carry position — click to cycle in hand / on the back / on the front. A strapped shield costs no hand.",
@@ -1037,7 +1037,7 @@
       "materialAuto": "Auto ({guess})",
       "materialNote": "Destroyed by: {types} (item loss). No standing modifier.",
       "materialNoneNote": "No damage type destroys this material (item loss).",
-      "masterworkReachNote": "Masterwork buys numbers, not reach: this still cannot harm a monster that shrugs off mundane weapons unless its material can.",
+      "masterworkReachNote": "Masterwork edits this weapon's numbers only; what it can harm is unchanged (RR p. 159).",
       "silver": "Silver",
       "silverAuto": "Auto ({guess})",
       "silverYes": "Silvered",
@@ -1074,12 +1074,12 @@
       "light": "Light",
       "heavy": "Heavy (enclosing)",
       "cycle": "Helmet type — click to make it a heavy (enclosing) helm.",
-      "heavyHint": "Enclosing helm: −1 surprise, −4 Listening; +2 Mortal Wounds applies when the item is named with \"heavy\" and \"helmet\" (core). Click to make it light."
+      "heavyHint": "Enclosing helmet: its modifiers apply to the wearer (RR p. 140); core applies the Mortal Wounds one to an item whose name holds \"heavy\" and \"helmet\". Click to make it light."
     },
     "spellbook": {
-      "manageHint": "Edit the spells recorded in this book. Value = 20gp + 1,000gp × each spell's level.",
+      "manageHint": "Edit the spells recorded in this book. Its value follows from their levels (RR p. 391).",
       "title": "Spell book — {name}",
-      "prompt": "One spell per line, level as a trailing number: “Fireball, 3”. Each spell fills one page per level; 100 pages total.",
+      "prompt": "One spell per line, level as a trailing number: “Fireball, 3”. The pages used follow from the levels (RR p. 145).",
       "save": "Save spells",
       "over": "{name}: {used}/{cap} pages — over capacity.",
       "pages": "pages"
@@ -1299,9 +1299,6 @@
         "save": "Save",
         "ac": "Armor class",
         "armorType": "Armor type",
-        "subtype": "Kind",
-        "subtypeItem": "Item",
-        "subtypeClothing": "Clothing",
         "quantity": "Quantity",
         "quantityMax": "Max",
         "per": "Per",
@@ -1409,12 +1406,12 @@
       "named": {
         "title": "The Name",
         "unlocked": "{n} of {max} points unlocked",
-        "givenLine": "The given name · points unlock per level earned wielding it",
+        "givenLine": "The given name (JJ p. 399)",
         "noTrueName": "No true name set",
         "trueLine": "True name, Judge only · spoken aloud it unlocks every point",
         "revealed": "Revealed",
         "unrevealed": "Unrevealed",
-        "guessHint": "One guess per level of experience."
+        "guessHint": "Speak a guess at the true name (JJ p. 399)."
       },
       "tag": {
         "named": "Named"
@@ -1588,11 +1585,11 @@
         },
         "encounterEvery": {
           "label": "Throw frequency (turns)",
-          "hint": "Make an encounter throw every N dungeon turns inside this zone. 0 = inherit the module setting (RAW: 2)."
+          "hint": "Make an encounter throw every N dungeon turns inside this zone. 0 = inherit the module setting."
         },
         "encounterTarget": {
           "label": "Target value (1d6)",
-          "hint": "Encounter occurs on this value or higher inside this zone. 0 = inherit the module setting (RAW: 6)."
+          "hint": "Encounter occurs on this value or higher inside this zone. 0 = inherit the module setting."
         }
       }
     },
@@ -1637,7 +1634,7 @@
       "carry": "Carry-over",
       "carryHint": "Distance moved that has not yet added up to a full turn",
       "advanceTurn": "Turn",
-      "advanceTurnHint": "Mark off one full dungeon turn (10 minutes) — methodical searching, picking locks methodically, and other full-turn activities",
+      "advanceTurnHint": "Mark off one full dungeon turn (10 minutes).",
       "restTurn": "Rest",
       "restTurnHint": "Spend one turn resting (resets the rest counter and removes Winded)",
       "encounterNow": "Check",
@@ -1677,10 +1674,10 @@
       "leashed": "{name} has gone as far ahead as they can — the party must catch up first.",
       "orphanParty": "This party actor is not linked to any formation.",
       "hurriedBadge": "per turn — hurrying at combat pace",
-      "paceHint": "Pace: careful exploration (default — quiet, can map, probe with poles, and hastily search) or hurried at combat speed (about 3× the ground per turn, much more noise, and no mapping, poles, or hasty searching).",
+      "paceHint": "Pace: careful exploration (the default) or hurried at combat speed (RR p. 263). Hurrying moves the party faster and blocks hasty searching and probing with a pole.",
       "roundShort": "round",
       "advanceRound": "Round",
-      "advanceRoundHint": "Mark off one bookkeeping round (1 minute; 10 per turn) — hasty actions like listening, hasty searching, bashing a door, or lighting a torch",
+      "advanceRoundHint": "Mark off one bookkeeping round (1 minute; 10 per turn).",
       "downBadge": "Down (0 hp or less): carried, not walking — assign Carriers, or leave them behind to march on",
       "blindBadge": "Cannot see (darkness, no dark senses): moves at 1/3 speed — RULES §4 blinded",
       "editImageHint": "Change the party's image (updates the actor, its prototype token, and the placed token)"
@@ -1727,7 +1724,11 @@
       "reasonEmpty": "Nothing recorded on this map yet (it archives each dungeon turn while the GM views the scene)",
       "reasonScene": "This map depicts a different scene than the party's",
       "reasonViewing": "View the party's scene to anchor (the fog texture only exists for the viewed scene)",
-      "statusLine": "Working record updated at turn {turns} of exploring {scene}. The drawn map itself is stored on this item — carry, sell, or loot it; a Judge can Anchor it from the party sheet to reveal its territory."
+      "mergeNeedsScene": "View the scene whose fog you want to merge first.",
+      "mergeWhileAstray": "A party on this scene is lost and does not know it yet. Merge fog records once they realise it or the episode ends.",
+      "mergedCopies": "Merged {count} older fog record(s) on this scene into each player's current one; their maps now show everything they explored here.",
+      "noCopies": "No seat has more than one fog record on this scene; nothing to merge.",
+      "statusLine":"Working record updated at turn {turns} of exploring {scene}. The drawn map itself is stored on this item — carry, sell, or loot it; a Judge can Anchor it from the party sheet to reveal its territory."
     },
     "rolls": {
       "rowLabel": "Party rolls:",
@@ -1735,34 +1736,34 @@
       "success": "Success",
       "failure": "Failure",
       "listen": "Listen",
-      "listenHint": "1 round (marked off). Every member rolls Listening with their own sheet target. RAW: only the closest member's result applies; once per turn while moving.",
-      "listenNote": "Only the member closest to the sound may apply their result. Once per turn while the party is moving.",
-      "alreadyListened": "The party already listened this turn while moving — once per turn (10 minutes); it takes time to settle into quiet. A stationary party may keep listening.",
+      "listenHint": "Every member rolls Listening with their own sheet target; the round is marked off (RR p. 265).",
+      "listenNote": "Listening (RR p. 265).",
+      "alreadyListened": "The party already listened this turn while moving (RR p. 265).",
       "searchHasty": "Hasty Search",
-      "searchHastyHint": "1 round (marked off). Only members with a Searching skill may hastily search — Adventuring is not permitted.",
-      "searchHastyNote": "1 round, 5' reach (10' with pole). A failed hasty search cannot be repeated until the searcher gains a level.",
+      "searchHastyHint": "Members with a Searching skill search hastily; the round is marked off (RR p. 265).",
+      "searchHastyNote": "Hasty search (RR p. 265).",
       "searchMethodical": "Methodical Search",
-      "searchMethodicalHint": "Takes 1 full turn (advanced automatically). Skill users roll at +4; anyone else uses their Adventuring target (18+).",
-      "searchMethodicalNote": "1 turn (10 minutes, marked off automatically), 5' reach (10' with pole). May be repeated.",
+      "searchMethodicalHint": "Skill users roll with the methodical bonus; anyone else uses their Adventuring target. The turn advances automatically (RR p. 265).",
+      "searchMethodicalNote": "Methodical search (RR p. 265). The turn is marked off automatically.",
       "bash": "Bash Door",
-      "bashHint": "1 round (marked off). Dungeonbashing with ±4 per point of STR modifier (crowbar +2 and size modifiers applied by the Judge).",
-      "bashNote": "Stuck doors, 1 round. Crowbar grants +2 (add manually); two adventurers use the stronger STR modifier +4. Botch (1) deals 1d6 damage.",
+      "bashHint": "Dungeonbashing adjusted by Strength; the Judge applies a crowbar and size (RR p. 267). The round is marked off.",
+      "bashNote": "Stuck doors (RR p. 267). Add a crowbar's bonus by hand.",
       "nobodyCapable": "No member can attempt {check} (no matching skill on any sheet).",
       "notCapable": "Cannot attempt (no skill): {names}",
-      "viaAlertness": "Adventuring (Alertness 14+)",
+      "viaAlertness": "Adventuring (Alertness)",
       "tracking": "Track",
-      "trackingHint": "Takes 1 turn (advanced automatically). Only members with the Tracking proficiency roll (base 11+, adjusted by the Judge for numbers, ground, weather, and light).",
-      "trackingNote": "1 turn (10 minutes, marked off automatically). On a failure the area cannot be searched for tracks again for one hour. Judge modifiers: +2/+4/+6/+8 by group size, +4 soft ground, -8 rocky, -1 per 12h of weather, -4 per hour of rain/snow, -4 dim light.",
+      "trackingHint": "Members with the Tracking proficiency roll; the Judge adjusts the throw for the conditions (RR p. 120). The turn advances automatically.",
+      "trackingNote": "Tracking (RR p. 120). The turn is marked off automatically; apply the Judge's modifiers by hand.",
       "noHastyHurried": "The party is hurrying at combat speed — hasty searching is not possible. Slow to a careful pace first.",
       "partMethodical": "methodical",
       "partAlertness": "Alertness",
       "partTrapfinding": "Trapfinding",
       "trapbreakHasty": "Hasty Trapbreaking",
-      "trapbreakHastyHint": "One round. Skill only — Adventuring is not permitted, and a failure cannot be repeated until higher level.",
-      "trapbreakHastyNote": "One round. An unmodified 1–3 sets the trap off.",
+      "trapbreakHastyHint": "Takes a round; Trapbreaking skill only (RR p. 267).",
+      "trapbreakHastyNote": "Hasty trapbreaking (RR p. 267).",
       "trapbreakMethodical": "Methodical Trapbreaking",
-      "trapbreakMethodicalHint": "One full turn. +4 for a skilled thief; a non-thief may try through Adventuring. A failure may be tried again.",
-      "trapbreakMethodicalNote": "One turn. An unmodified 1 sets the trap off."
+      "trapbreakMethodicalHint": "Takes a turn. A skilled thief rolls with the methodical bonus; anyone else tries through Adventuring (RR p. 267).",
+      "trapbreakMethodicalNote": "Methodical trapbreaking (RR p. 267)."
     },
     "request": {
       "section": "Declare Actions",
@@ -1802,11 +1803,11 @@
       "noncombatant": "Non-combatant",
       "noncombatantHint": "Stays with the party token when combat begins and is not added to the initiative tracker",
       "carrier": "Carrier",
-      "carrierHint": "Carries the down: the carried count as 7 3/6 stone plus half their equipment (the rescue rule), split evenly among Carriers — the load slows the carriers' pace and therefore the party's"
+      "carrierHint": "Carries the downed: each carried body's weight is split evenly among the Carriers (RR p. 271), and the load slows their pace and so the party's"
     },
     "winded": {
       "effectName": "Winded",
-      "effectDescription": "Cannot charge or run until resting for 1 turn (10 minutes). ACKS II."
+      "effectDescription": "Cannot charge or run until rested (RR p. 271)."
     },
     "chat": {
       "turnAdvanced": "{n} dungeon turn(s) pass",
@@ -1817,8 +1818,8 @@
       "elapsed": "Delve time: {turns} turns ({time})",
       "elapsedCity": "Time in the city: {turns} turns ({time})",
       "restStatus": "Turns since rest: {n}/{max}",
-      "windedStatus": "The party is WINDED — no charging or running until it rests 1 turn",
-      "becameWinded": "More than 5 turns without rest — the party is now winded!",
+      "windedStatus": "The party is WINDED — no charging or running until it rests",
+      "becameWinded": "Too long without rest — the party is now winded!",
       "restedRecovered": "The party has rested and is no longer winded.",
       "lightStatus": "{light} ({bearer}): {turns} turns left",
       "lightGuttering": "{bearer}'s {light} is guttering — one turn of light remains!",
@@ -1829,7 +1830,7 @@
       "encounterCheck": "wandering monster throw (encounter on {target}+)",
       "inZone": "in zone \"{name}\"",
       "encounterTriggered": "Wandering monsters!",
-      "encounterDetail": "Maximum encounter distance {distance}' (2d6×10). Occurs at minute {minute} of the turn (1d10). Roll on the dungeon's encounter table and follow the encounter procedure (distance → reactions → surprise).",
+      "encounterDetail": "Maximum encounter distance {distance}'. Occurs at minute {minute} of the turn. Roll on the dungeon's encounter table and run the encounter (RR p. 280).",
       "rationsTitle": "rations consumed",
       "rationsMissing": "No rations found for: {names}",
       "saveTitle": "{save} saving throw",
@@ -1847,7 +1848,7 @@
       "combatFallen": "Down and gathered up with the party: {names}. Assign Carriers to bring them along, or leave them behind where they fell — they keep their share of the experience either way.",
       "combatNoCombatants": "No deployable members (all non-combatants or without tokens) — party token left in the tracker.",
       "bigMove": "That drag consumed {turns} turns. If that was repositioning rather than exploration, use the undo-turn button or pause tracking.",
-      "hurriedStatus": "Hurrying at combat speed: much more noise (earshot as walking/talking or worse), no mapping, no 10' poles, no hasty searching",
+      "hurriedStatus": "Hurrying at combat speed (RR p. 263)",
       "encounterNowTitle": "The rolled encounter occurs NOW",
       "encounterNow": "The wandering monsters arrive at minute {minute} of the turn — interrupt the party's movement here and run the encounter.",
       "signature": "Party signature: {light}, {noise} — applies to surprise and earshot",
@@ -1860,14 +1861,14 @@
       "inCombat": "Members are deployed for combat — the party reforms automatically when the combat ends.",
       "noMapper": "No mapper assigned — without a map the party risks getting lost (assign the Mapper role).",
       "mapperNoLight": "The mapper has no lit light source — mapping requires bright light.",
-      "mapperNoProficiency": "The mapper lacks the Mapping proficiency — the Judge gives only vague measurements and the mapper cannot passively notice map errors.",
+      "mapperNoProficiency": "The mapper lacks the Mapping proficiency (RR p. 264).",
       "noLight": "No lit light source — the party cannot see (unless members have shadowy senses or lightless vision).",
-      "winded": "Winded: the party cannot charge or run until it rests for 1 turn.",
-      "restDue": "5 turns without rest — the party must rest 1 turn now or become winded.",
+      "winded": "Winded: the party cannot charge or run until it rests (RR p. 271).",
+      "restDue": "The party is due a rest — it must rest now or become winded (RR p. 271).",
       "roleNoKit": "{name} holds the {role} role without the kit it needs: {items}.",
       "downNoCarrier": "DOWN with no Carriers: {names} — the party cannot move (assign the Carrier role to bring them along, or leave them behind to march on; they keep their share either way).",
       "carrying": "Carrying {names}: {stone} stone total, split among {carriers} Carrier(s) ({share} st each) — carrier pace is recomputed with the load.",
-      "darkBlinded": "Darkness: {blinded} cannot see and move at 1/3 speed (blinded). Seeing in the dark: {sighted}.",
+      "darkBlinded": "Darkness: {blinded} cannot see and move as the blinded do. Seeing in the dark: {sighted}.",
       "darkSighted": "Darkness: the whole party operates on dark senses ({sighted}). No mapping or reading without bright light.",
       "carrierLine": "{name}: {base}→{eff} st (cap {cap}) — {speed}'/turn.",
       "carrierOver": "{name}: {base}→{eff} st EXCEEDS capacity {cap} — CANNOT MOVE."
@@ -1956,11 +1957,11 @@
       },
       "encounterEvery": {
         "name": "Wandering monster throw frequency (turns)",
-        "hint": "Make an encounter throw every N dungeon turns. RAW: 2. Set 0 to disable automatic throws."
+        "hint": "Make an encounter throw every N dungeon turns (JJ p. 36). Set 0 to disable automatic throws."
       },
       "encounterTarget": {
         "name": "Wandering monster target value",
-        "hint": "Encounter occurs on this value or higher on 1d6. RAW: 6."
+        "hint": "Encounter occurs on this value or higher on the encounter throw (JJ p. 36)."
       },
       "manageFog": {
         "name": "Tie fog of war to the mapper",
@@ -1968,7 +1969,7 @@
       },
       "mapperNeedsLight": {
         "name": "Mapper requires a lit light source",
-        "hint": "Per the rules, mapping requires bright light. When enabled, the map (fog exploration) is only retained while the formation also has a lit torch, lantern, or candle."
+        "hint": "When enabled, the map (fog exploration) is only retained while the formation also has a lit torch, lantern, or candle (RR p. 264)."
       },
       "syncTokenLight": {
         "name": "Party token emits light",
@@ -2249,7 +2250,6 @@
       "enterHex": "Next hex",
       "enterHexHint": "The party crosses into the named hex; the day counts it.",
       "enteredToday": "{n} entered today",
-      "lost": "Lost",
       "lostHint": "GM only — the party does not know.",
       "lostNotePlaceholder": "Where they actually are (GM only)",
       "winding": "{hexes} hex of bends",
@@ -2272,7 +2272,8 @@
         "loadHint": "What the flier is carrying, which sets its speed band.",
         "refused": "{factor} does not apply when {mode}.",
         "replaced": "{factor} is replaced by the flier's own."
-      }
+      },
+      "lostNote": "Judge's note on the lost party"
     },
     "audit": {
       "title": "Skill Audit",
@@ -2288,7 +2289,7 @@
       "progression": "Progression",
       "factor": "Level factor",
       "throwBonus": "Throw bonus (±)",
-      "throwBonusHint": "Flat adjustment to this item's party-roll throw: +4 makes the target 4 lower (e.g. Lockpicking Expertise's bonus applied to a skill). Leave 0 for none.",
+      "throwBonusHint": "Flat adjustment to this item's party-roll throw: +2 makes the target 2 lower. Leave 0 for none.",
       "importedTarget": "Imported target (from the book's own ladder)",
       "inferredProgression": "Progression inferred from the imported identity ({key}) — no binding needed.",
       "progressionNotImported": "Bound to \"{key}\", but that skill has not been imported into this world — there is no ladder to scale with, so the sheet target below is used. Import the skill to restore auto-scaling.",
@@ -2377,7 +2378,7 @@
       "hit": "Hit",
       "missed": "Misses",
       "attackDetail": "Attack throw {throw}+ against AC {ac}",
-      "attackDetailCrude": "Attack throw {throw}+ against AC {ac}, at -2 (crude)",
+      "attackDetailCrude": "Attack throw {throw}+ against AC {ac}, at {penalty} (crude)",
       "noThrow": "No throw — it simply happens",
       "judgeAdjudicates": "The Judge adjudicates this one",
       "damageTo": "Damage to {name}",
@@ -2516,7 +2517,7 @@
       "breakJudgeHint": "Judge only. Marking spotted is for a discovery made some other way than a throw; rebuilding makes it a fresh secret again.",
       "breakHow": "How",
       "breakMode": "Column",
-      "breakModeHint": "Hastily takes a round and is the skill only, and a failure cannot be repeated until higher level. Methodically takes a turn, adds four for a skilled thief, opens the throw to Adventuring, and may be tried again.",
+      "breakModeHint": "Hasty or methodical trapbreaking (RR p. 267). Each mode applies its own time, bonus and retry limit.",
       "breakNeeds": "Needs",
       "breakNoThrow": "This character has no way to work on a trap.",
       "breakAttempt": "Work on it",
@@ -2704,13 +2705,25 @@
       "noNeighbour": "That hex has no neighbour on this grid.",
       "note": "Strayed toward face {face}.",
       "legend": "Lost",
-      "astraySince": "Astray since day {day} — {hexes} hex(es) of map they did not earn.",
+      "astraySince": "Astray for {days} day(s); {hexes} hex(es) of map they did not earn.",
       "begin": "They strayed…",
       "beginHint": "Open an episode: pick the face they actually took, and the table's map begins filling in the wrong place.",
       "discover": "They realise",
       "discoverHint": "A successful throw tells them they are lost. Strict RAW: it does not tell them where they are, and the ground they wrongly mapped closes over.",
       "reanchor": "They find the landmark",
-      "reanchorHint": "The only ending that gives anything back: the country they really crossed is put onto the map, in its right place."
+      "reanchorHint": "The only ending that gives anything back: the country they really crossed is put onto the map, in its right place.",
+      "awareSince": "They know they are lost; {days} day(s) since they strayed.",
+      "leftover": "A true-position marker from an earlier episode is still on the map.",
+      "end": "They turn back",
+      "endHint": "Close the episode and credit nothing: the ground they drew wrongly closes over, the party token stays where it stands, and the true-position marker is removed.",
+      "leftoverMove": "Move the party onto it",
+      "leftoverMoveHint": "Move the party token onto the leftover marker, then remove the marker.",
+      "leftoverClear": "Remove the marker",
+      "leftoverClearHint": "Delete the leftover marker. The party token stays where it is.",
+      "viewScene": "Open the scene the party stands on first: a lost episode's map is drawn there.",
+      "reanchorBody": "The ground they really crossed is put onto the map in its right place, and the true-position marker is removed.",
+      "reanchorMove": "Move the party token onto its true position",
+      "reanchorConfirm": "Put them on the map"
     },
     "flight": {
       "load": {
@@ -4541,7 +4554,7 @@
   "ACKS-FORMATION.doors.spikes": "Spikes",
   "ACKS-FORMATION.doors.spikeIt": "Hammer a spike",
   "ACKS-FORMATION.doors.pullOne": "Pull one",
-  "ACKS-FORMATION.doors.spikeHint": "A spike takes one round. A door holds four at most, and every spike after the first costs -4 to force.",
+  "ACKS-FORMATION.doors.spikeHint": "Spikes hold the door against forcing (RR p. 267).",
   "ACKS-FORMATION.doors.heave": "Bash it open",
   "ACKS-FORMATION.doors.basher": "Heaving",
   "ACKS-FORMATION.doors.noToken": "nobody selected",
@@ -4549,7 +4562,7 @@
   "ACKS-FORMATION.doors.alone": "— alone —",
   "ACKS-FORMATION.doors.crowbar": "Crowbar in hand",
   "ACKS-FORMATION.doors.sizeSteps": "Size steps from man-sized",
-  "ACKS-FORMATION.doors.sizeHint": "+1 per size category larger, -1 per size smaller. Worth 8 either way.",
+  "ACKS-FORMATION.doors.sizeHint": "Size categories away from man-sized: positive for larger, negative for smaller (RR p. 267).",
   "ACKS-FORMATION.doors.judgeMod": "Judge's modifier",
   "ACKS-FORMATION.doors.needs": "Needs a roll of",
   "ACKS-FORMATION.doors.hopeless": "No roll can force this door. Find another way.",
@@ -4558,7 +4571,7 @@
   "ACKS-FORMATION.doors.bashResult": "{name} heaves: {total} against {target}. {outcome}",
   "ACKS-FORMATION.doors.opened": "The door bursts open.",
   "ACKS-FORMATION.doors.held": "It holds.",
-  "ACKS-FORMATION.doors.botched": "It holds, and the rebound costs a point.",
+  "ACKS-FORMATION.doors.botched": "It holds, and the basher is hurt on the rebound.",
   "ACKS-FORMATION.doors.spiked": "{name} hammers a spike home — {n} now hold the door.",
   "ACKS-FORMATION.doors.someone": "Someone",
   "ACKS-FORMATION.doors.axe": "Batter it down",
@@ -4573,7 +4586,7 @@
   "ACKS-FORMATION.doors.mod.size": "Size",
   "ACKS-FORMATION.doors.mod.spikes": "Spikes",
   "ACKS-FORMATION.doors.mod.judge": "Judge",
-  "ACKS-FORMATION.doors.refuse.full": "The door already holds four spikes.",
+  "ACKS-FORMATION.doors.refuse.full": "The door already holds as many spikes as it can.",
   "ACKS-FORMATION.doors.refuse.tooSolid": "An axe will not batter this down.",
   "ACKS-FORMATION.doors.refuse.notADoor": "That wall is not a door.",
   "ACKS-FORMATION.doors.construction": "Construction",
@@ -5243,6 +5256,8 @@
   "ACKS-IMPORTER.ui.pruneAbilities": "Prune",
   "ACKS-IMPORTER.ui.pruneAbilitiesTip": "Remove imported abilities whose definition this module no longer ships. Lists them for confirmation first.",
   "ACKS-IMPORTER.tables.languagesApplied": "Imported {created} language(s) from your own book.",
+  "ACKS-IMPORTER.tables.optionalBooks": "ACKS Extras | Tables from supplements not connected on this seat were skipped ({books}); every other table was read.",
+  "ACKS-IMPORTER.tables.unread": "ACKS Extras | {n} table(s) could not be read from the open books: {tables}. The console report gives the reason for each.",
   "ACKS-IMPORTER.ose.registerTitle": "Register an OSE adventure",
   "ACKS-IMPORTER.ose.registerGo": "Register",
   "ACKS-IMPORTER.ose.registerNote": "Your own PDF, read in this browser only — the file is never stored or sent. Give it a name yourself: a PDF's own title is often the file it was exported from.",
@@ -5368,6 +5383,9 @@
   "ACKS-IMPORTER.ui.booksWaiting": "Waiting for you ({count})",
   "ACKS-IMPORTER.ui.booksOpenHead": "Open this session ({count})",
   "ACKS-IMPORTER.ui.booksAbsentHead": "Not connected ({count})",
+  "ACKS-IMPORTER.ui.bookOpenOne": "ACKS Extras | {book}: open — {n} entry available to import.",
+  "ACKS-IMPORTER.ui.bookOpenMany": "ACKS Extras | {book}: open — {n} entries available to import.",
+  "ACKS-IMPORTER.ui.bookOpenNothing": "ACKS Extras | {book}: open — nothing imports from this book yet.",
   "ACKS-IMPORTER.ui.localHead": "On this computer",
   "ACKS-IMPORTER.ui.localNote": "Pick every PDF in one go — each file goes to the book it belongs to, matched by name and then by size. Anything that can't be placed is named, and each book below also has its own control.",
   "ACKS-IMPORTER.ui.localNoteFolder": "One permission click on “{name}” re-reads every book in that folder. Or pick PDFs directly — they're matched to books by name, then by size.",
@@ -5434,6 +5452,7 @@
   "ACKS-IMPORTER.ui.reimportKindVariations": "Variations",
   "ACKS-IMPORTER.ui.reimportKindVehicles": "Vehicles",
   "ACKS-IMPORTER.ui.reimportKindTables": "Rules tables (read into the world, not onto a shelf)",
+  "ACKS-IMPORTER.ui.reimportKindOseCreatures": "OSE creatures",
   "ACKS-IMPORTER.ui.legacyActive": "ACKS Extras now includes the importer. Disable the separate “ACKS II — Importer” module (Game Settings → Manage Modules) and reload; until then the built-in importer stays off.",
   "ACKS-IMPORTER.ui.migrated": "ACKS Extras | your imported library now belongs to this module: {documents} document(s), {settings} world setting(s) and {macros} macro(s) carried over from the separate importer.",
   "ACKS-IMPORTER.ui.migrationFailed": "ACKS Extras | the imported library could not be carried over from the separate importer module. Reload to try again; if it persists, report it with the console error.",
@@ -5722,6 +5741,7 @@
   "ACKS-CHARACTER.equipment.loadState.light": "lightly loaded",
   "ACKS-CHARACTER.equipment.loadState.loaded": "loaded",
   "ACKS-CHARACTER.equipment.loadState.heavy": "heavily loaded",
+  "ACKS-CHARACTER.equipment.bundleMissing": "Not found, so not unpacked: {names}. Everything else in the bundle arrived.",
   "ACKS-CHARACTER.rail.party": "Your party on the scene · {h} henchmen, {s} summons · click for who is here",
   "ACKS-CHARACTER.rail.partyNone": "No party — no henchmen and no summons · click to bind summons or open the roster",
   "ACKS-CHARACTER.rail.formationHere": "Formation — {name} · {n} of it on the scene · click to open the party",

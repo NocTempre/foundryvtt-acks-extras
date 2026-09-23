@@ -11,6 +11,7 @@
  * Pure module: no Foundry imports. Runs in the browser (against a connected
  * PDF's pageItems) and in Node (tools/verification against the reference PDFs).
  */
+import { BOOKS } from "./books.mjs";
 
 /** Cluster a page's text items into rows by y proximity. */
 export function rowsByY(items, tol = 3) {
@@ -205,12 +206,23 @@ export function applyCellPattern(text, pattern = "raw") {
 }
 
 /**
+ * The PDF page a recipe's search starts on: its `pdfPage`, else its
+ * `printedPage` moved past its book's front matter (`printedOffset`). A recipe
+ * cites the folio a reader turns to; the search needs the PDF page.
+ */
+export function pdfGuess(recipe) {
+  if (recipe.pdfPage != null) return recipe.pdfPage;
+  if (recipe.printedPage == null) return 1;
+  return recipe.printedPage + (BOOKS[recipe.book]?.printedOffset ?? 0);
+}
+
+/**
  * Find the PDF page for a recipe by locating its header text. `readPage(n)`
  * returns that page's `{items}` (the caller wires it to pageItems + the book).
- * Searches a window around the cited printed page first, then the whole book.
+ * Searches a window around the cited page first, then the whole book.
  */
 export async function findPage(recipe, numPages, readPage) {
-  const guess = recipe.pdfPage ?? recipe.printedPage ?? 1;
+  const guess = pdfGuess(recipe);
   const order = [];
   for (let d = 0; d <= (recipe.searchRadius ?? 8); d++) {
     if (guess + d <= numPages) order.push(guess + d);

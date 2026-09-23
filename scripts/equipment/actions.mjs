@@ -26,12 +26,12 @@ function notify(key, data) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  #1 Torch: ready one from the stack as a wieldable 1d4 light-weapon        */
+/*  #1 Torch: ready one from the stack as a wieldable light-weapon            */
 /* -------------------------------------------------------------------------- */
 
 /**
  * The item payload a readied torch becomes — a SINGLE weapon (core weapons have
- * no quantity field), 1d4, melee AND thrown (so core's range selector offers
+ * no quantity field), melee AND thrown (so core's range selector offers
  * both a swing and a hurl), flagged a light source. Pure, so a test can assert
  * the shape without Foundry.
  * @returns {object|null} null when `item` is not a preparable light-weapon.
@@ -99,7 +99,7 @@ export async function prepareTorch(actor, item, { draw = false } = {}) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  #3 Unarmed strike (RR p299: 1d3 nonlethal)                               */
+/*  #3 Unarmed strike (RR p. 299)                                            */
 /* -------------------------------------------------------------------------- */
 
 /**

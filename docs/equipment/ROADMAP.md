@@ -42,13 +42,21 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   API each target calls; a real drag onto Contents, the disguise panel, the
   keys row and a Scene onto the band still wants a session with a compositing
   pane.
-- **One clothing declaration.** The rail's base-type picker writes a
-  `baseType` flag and `isClothing` reads core's `system.subtype`, so declaring
-  clothing through the picker gives the icon and the wear slot but leaves the
-  garment weighing against encumbrance. Wants a forward write in `setBaseType`
-  and the same write in `annotateItem` so re-running Annotate repairs existing
-  worlds. Making `isClothing` read the flag instead is rejected: it silently
-  reinterprets stored data with nothing to roll back.
+- **Equipment numbers through the importer.** The strings and comments name the
+  field and cite the page. The numbers behind them still ship in code:
+  `STYLE_SPEC_BONUS`, `DUAL_WIELD_ATTACK_BONUS`, the manoeuvre table,
+  `HELM_MODIFIERS`, the spell book constants, the unarmed and torch dice, the
+  non-proficient penalties, the bowquiver counts and the scavenged fallback.
+  Each arrives as an imported `equipment` table or from the item's own text, and
+  a feature whose table is absent refuses by naming it. `test-equipment` asserts
+  those shipped numbers today; it passes invented values in once the code takes
+  them.
+- **Clothing declared twice, repaired.** Writes keep the flag and the subtype
+  agreeing (MODEL, "Base types and variations"), and Annotate settles an item
+  whose flag says clothing. Still unreached: an item whose subtype says clothing
+  under another flag, offered with the flag's reading preselected, and an
+  `armor` document flagged clothing, whose flag is unset. Both want the
+  repair tool, with each actor's encumbrance change in its preview.
 
 - **The `SLAYER` effect domain is declared but not read.** `EFFECT_DOMAINS.SLAYER`
   (`scripts/equipment/constants.mjs`) is a seam for a future situational

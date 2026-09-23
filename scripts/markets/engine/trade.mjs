@@ -25,6 +25,9 @@ import { now, calendarMonthStart, secondsPerMonth } from "../../henchmen/time.mj
 import * as adapter from "../../henchmen/acks-adapter.mjs";
 import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
 import { findGearEntry } from "../../equipment/grant.mjs";
+import { deliverItems } from "../../lib/bundles.mjs";
+import { goodsForRow } from "../../lib/bundles-logic.mjs";
+import { quantityOf } from "../../lib/storage-logic.mjs";
 import { partyOf, partySize } from "./parties.mjs";
 
 /** Item types the goods market trades. */
@@ -337,33 +340,16 @@ export async function purchase(location, payload) {
 }
 
 /**
- * Hand purchased goods to their buyer. Stackables merge into the buyer's
- * existing stack; a unit item bought several at a time (thirty swords, three
- * flasks of oil) arrives as that many copies, the documents core's own bundle
- * drop leaves behind. It is never delivered as a bundle: no actor sheet lists
- * an embedded one, so the purchase would be paid for and nowhere to be seen.
+ * Hand purchased goods to their buyer through `lib/bundles.mjs`: `qty` counts
+ * units, so a stackable arrives as one stack of `qty` and folds into an
+ * identical stack the buyer carries, and a unit item (thirty swords) arrives
+ * as `qty` copies. Never as a bundle: no actor sheet lists an embedded one.
  */
 export async function deliverGoods(buyer, { entry, qty }) {
-  const itemData = entry.data;
-  const key = itemKeyOf(itemData.name);
-  if (itemData.type === ITEM_TYPE.item) {
-    const carried = buyer.items.find((i) => i.type === ITEM_TYPE.item && itemKeyOf(i.name) === key);
-    if (carried) {
-      await carried.update({ "system.quantity.value": Number(carried.system.quantity?.value ?? 0) + qty });
-    } else {
-      const data = foundry.utils.deepClone(itemData);
-      foundry.utils.setProperty(data, "system.quantity.value", qty);
-      await buyer.createEmbeddedDocuments("Item", [data]);
-    }
-    return;
-  }
-  const data = foundry.utils.deepClone(itemData);
-  delete data._id;
-  delete data.folder;
-  delete data.sort;
-  delete data.ownership;
-  const copies = Array.from({ length: Math.max(1, qty) }, () => foundry.utils.deepClone(data));
-  await buyer.createEmbeddedDocuments("Item", copies);
+  const data = foundry.utils.deepClone(entry.data);
+  const unit = quantityOf(data);
+  if (unit) foundry.utils.setProperty(data, unit.path, 1);
+  return deliverItems(buyer, goodsForRow(data, qty));
 }
 
 

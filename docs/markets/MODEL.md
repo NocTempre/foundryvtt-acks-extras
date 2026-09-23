@@ -45,8 +45,10 @@ the cached %-rolls — the party's own find first, the town's tenfold stock
 party's find.
 
 - **Buy/sell** (`engine/trade.mjs`): staged copper pricing (condition,
-  demand steps, Bargaining swing by opposed winner); purchases stack
-  (quantity merge, or one copy per unit); sales destroy the sold document. Magic
+  demand steps, Bargaining swing by opposed winner); purchases arrive through
+  lib's `deliverItems` (one stack of the quantity, folded into an identical
+  stack the buyer carries, or one copy per unit; docs/lib/MODEL.md, "Goods
+  handed to an actor, and bundles"); sales destroy the sold document. Magic
   items trade by identification on the JJ transaction grid.
 - **Imports, commissions, searches** (`engine/imports.mjs`): all deliver
   through one due-work sweep the GM time watcher runs (`onTimeAdvanced`,

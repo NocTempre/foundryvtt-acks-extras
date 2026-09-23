@@ -16,7 +16,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
-import { hasDoc, getDoc, PRIORITY } from "../lib/tables.mjs";
+import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { parseCount, countFrom } from "./survival-binding.mjs";
 import { terrainKeys, keyTerrainMap } from "./terrain-vocab.mjs";
 
@@ -245,8 +245,8 @@ export function assembleForagingTables(raw = {}) {
 /** Assemble and register, or report nothing assembled. */
 export async function applyForagingImport() {
   const svc = services.get("ruledata-import");
-  if (!svc || !hasDoc(FORAGING_DOC_ID)) return { assembled: [] };
-  const doc = getDoc(FORAGING_DOC_ID);
+  const doc = getLayer(FORAGING_DOC_ID, PRIORITY.WORLD);
+  if (!svc || !doc) return { assembled: [] };
   const engine = assembleForagingTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(

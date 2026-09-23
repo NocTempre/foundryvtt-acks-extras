@@ -471,25 +471,48 @@
       <h4>{{localize "ACKS-FORMATION.lost.legend"}}</h4>
       {{#if travel.lost.active}}
         <p class="acks-extras-formation-lost-astray">
-          {{localize "ACKS-FORMATION.lost.astraySince" day=travel.lost.days hexes=travel.lost.fakedHexes}}
+          {{localize "ACKS-FORMATION.lost.astraySince" days=travel.lost.days hexes=travel.lost.fakedHexes}}
         </p>
-        {{#if travel.lost.judgeNote}}<p class="hint">{{travel.lost.judgeNote}}</p>{{/if}}
-        <div class="acks-extras-formation-lost-actions">
-          <button type="button" data-action="lostDiscover"
-                  data-tooltip="{{localize 'ACKS-FORMATION.lost.discoverHint'}}">
-            <i class="fa-solid fa-eye"></i> {{localize "ACKS-FORMATION.lost.discover"}}
-          </button>
-          <button type="button" data-action="lostReanchor"
-                  data-tooltip="{{localize 'ACKS-FORMATION.lost.reanchorHint'}}">
-            <i class="fa-solid fa-map-pin"></i> {{localize "ACKS-FORMATION.lost.reanchor"}}
-          </button>
-        </div>
+      {{else if travel.lost.aware}}
+        <p class="acks-extras-formation-lost-astray">
+          {{localize "ACKS-FORMATION.lost.awareSince" days=travel.lost.days}}
+        </p>
+      {{else if travel.lost.leftover}}
+        <p class="hint">{{localize "ACKS-FORMATION.lost.leftover"}}</p>
+      {{/if}}
+      {{#if travel.lost.open}}{{#if travel.lost.judgeNote}}<p class="hint">{{travel.lost.judgeNote}}</p>{{/if}}{{/if}}
+      <div class="acks-extras-formation-lost-actions">
+      {{#if travel.lost.active}}
+        <button type="button" data-action="lostDiscover"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.discoverHint'}}">
+          <i class="fa-solid fa-eye"></i> {{localize "ACKS-FORMATION.lost.discover"}}
+        </button>
+      {{/if}}
+      {{#if travel.lost.open}}
+        <button type="button" data-action="lostReanchor"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.reanchorHint'}}">
+          <i class="fa-solid fa-map-pin"></i> {{localize "ACKS-FORMATION.lost.reanchor"}}
+        </button>
+        <button type="button" data-action="lostEnd"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.endHint'}}">
+          <i class="fa-solid fa-person-walking-arrow-loop-left"></i> {{localize "ACKS-FORMATION.lost.end"}}
+        </button>
+      {{else if travel.lost.leftover}}
+        <button type="button" data-action="lostReanchor"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.leftoverMoveHint'}}">
+          <i class="fa-solid fa-map-pin"></i> {{localize "ACKS-FORMATION.lost.leftoverMove"}}
+        </button>
+        <button type="button" data-action="lostEnd"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.leftoverClearHint'}}">
+          <i class="fa-solid fa-eraser"></i> {{localize "ACKS-FORMATION.lost.leftoverClear"}}
+        </button>
       {{else}}
         <button type="button" data-action="lostBegin" {{#unless travel.lost.hasHex}}disabled{{/unless}}
                 data-tooltip="{{localize 'ACKS-FORMATION.lost.beginHint'}}">
           <i class="fa-solid fa-compass-drafting"></i> {{localize "ACKS-FORMATION.lost.begin"}}
         </button>
       {{/if}}
+      </div>
     </div>
     {{/if}}
 
@@ -514,11 +537,8 @@
 
     {{#if isGM}}
     <div class="acks-extras-formation-travel-lostrow">
-      <label class="checkbox">
-        <input type="checkbox" name="travel.lostActive" {{checked travel.lost.active}}>
-        {{localize "ACKS-FORMATION.travel.lost"}}
-      </label>
       <input type="text" name="travel.lostNote" value="{{travel.lost.judgeNote}}"
+             aria-label="{{localize 'ACKS-FORMATION.travel.lostNote'}}"
              placeholder="{{localize 'ACKS-FORMATION.travel.lostNotePlaceholder'}}">
     </div>
     {{/if}}

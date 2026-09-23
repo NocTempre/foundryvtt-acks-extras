@@ -89,7 +89,7 @@ import {
   listTemplates,
   pickMarchingOrder,
 } from "./marching-templates.mjs";
-import { anchorMap, archiveSession, registerMapSocket, saveFogAsMapItem, startMapSession } from "./map-items.mjs";
+import { anchorMap, archiveSession, mergeFogCopies, registerMapSocket, saveFogAsMapItem, startMapSession } from "./map-items.mjs";
 import { registerLostSocket } from "./lost-fog.mjs";
 import { registerFuzzyRulers } from "./measure-fuzz.mjs";
 import { PARTY_TYPE, PartyData, PartySheet } from "./party-actor.mjs";
@@ -105,6 +105,7 @@ import * as encounterScaling from "./encounter-scaling.mjs";
 import { registerRequestSocket, requestPartyAction } from "./player-requests.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
 import { RESIZE_OPTION, syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
+import { SHADOW_FLAG, TRUTH_MOVE_OPTION, clearOrphanShadows } from "./shadow.mjs";
 import { addLight, advanceRounds, advanceTurns, onPartyTokenMoved, removeLight, toggleLight, toggleShield } from "./turn-engine.mjs";
 import * as travel from "./travel.mjs";
 import * as weather from "./weather.mjs";
@@ -651,6 +652,7 @@ Hooks.once("init", () => {
     archiveSession,
     anchorMap,
     saveFogAsMapItem,
+    mergeFogCopies,
     requestPartyAction,
     // Hand integration (acks-equipment). handsOccupied tells equipment how many
     // hands the party sheet has already filled — lights borne, and the mapper's
@@ -714,6 +716,8 @@ Hooks.once("ready", () => {
     // Prune dead records FIRST (formations whose party actor is gone — the
     // phantom source), then sync the environments of what remains.
     pruneFormations()
+      // A true-position marker whose formation is gone stands in no episode.
+      .then(() => clearOrphanShadows(new Set(Object.values(getFormations()).map((f) => f.id))))
       .then(() => syncEnvironments())
       // A settlement board names the city its blocks were counted in, and one
       // that names none is read as foreign by the next city the party walks
@@ -789,6 +793,8 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   // a block that pivots 6×2 to 2×6 reports two squares of travel it did not
   // walk. `syncPartyTokenSize` re-baselines the clock itself.
   if (options?.[RESIZE_OPTION]) return;
+  // Nor is stepping onto the lost party's true position: it was always there.
+  if (options?.[TRUTH_MOVE_OPTION]) return;
   const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   if (!formationId) return;
   // Only the active GM client runs the automation, regardless of who moved the token.
@@ -1053,6 +1059,9 @@ Hooks.on("createActor", (actor) => {
  * formation moves between scenes after its old token was removed). */
 Hooks.on("createToken", (tokenDoc) => {
   if (!isPrimaryGM() || tokenDoc.actor?.type !== PARTY_TYPE) return;
+  // A lost party's true-position marker is a token of the party actor too,
+  // and is never the party token.
+  if (tokenDoc.getFlag(MODULE_ID, SHADOW_FLAG)) return;
   // Module-created tokens carry the formation flag in their creation data and
   // ensurePartyToken records their linkage itself. Adopting them here too
   // would write back a STALE settings copy read mid-addMember — the write

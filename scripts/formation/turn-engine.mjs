@@ -28,8 +28,8 @@ import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /**
  * The dungeon-turn engine. Implements step 5 of the Judges Journal sequence of
- * play ("mark off 1 turn of game time") plus the every-2-turns wandering
- * monster throw: spell-duration expiry, rest & winded tracking, light-source
+ * play (marking off the turn) plus the periodic wandering monster throw:
+ * spell-duration expiry, rest & winded tracking, light-source
  * burn, and elapsed-time bookkeeping for rations. See acks-rules/acks-formation/RULES.md §9, §14.
  *
  * Everything here runs on a (the) GM client only.
@@ -149,10 +149,10 @@ async function resolveEncounterTable(formation, zone) {
 }
 
 /**
- * Make the wandering-monster encounter throw (1d6, encounter on `target`+,
- * default every 2 turns / 6+). Result is whispered to GMs; on an encounter the
- * distance (2d6×10 ft) and minute-of-turn (1d10) are pre-rolled and the
- * zone/formation encounter table (if any) is drawn from privately.
+ * Make the wandering-monster encounter throw (JJ p. 36): an encounter on
+ * `target`+. Result is whispered to GMs; on an encounter the distance and
+ * minute-of-turn are pre-rolled and the zone/formation encounter table (if
+ * any) is drawn from privately.
  */
 export async function encounterCheck(formation, { manual = false, params = null } = {}) {
   const { zone, target } = params ?? getEncounterParams(formation);
@@ -321,7 +321,7 @@ async function firePendingEncounter(formation, notes) {
 
 /** Per-turn bookkeeping: rest, lights, spells, and the encounter throw. */
 async function onTurnCompleted(formation, notes, resting) {
-  /* --- Rest & winded (RR p. 271: rest 1 turn per 5 turns) --- */
+  /* --- Rest & winded (RR p. 271) --- */
   if (resting) {
     formation.clock.turnsSinceRest = 0;
     if (formation.clock.winded) {
@@ -368,7 +368,7 @@ async function onTurnCompleted(formation, notes, resting) {
   formation.spells = formation.spells.filter((s) => s.remaining > 0);
 
   /* --- Wandering monster throw every N turns (JJ p. 36) ---
-   * The throw is made at the turn boundary; on a hit, the 1d10 minute is
+   * The throw is made at the turn boundary; on a hit, the minute is
    * pre-rolled and the encounter FIRES when the clock reaches that round of
    * the turn now beginning. */
   formation.clock.movedThisTurn = false;

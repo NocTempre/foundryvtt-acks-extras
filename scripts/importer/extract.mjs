@@ -58,6 +58,10 @@ export async function openBook(data) {
   const doc = await getDocument({
     data: new Uint8Array(data),
     useSystemFonts: true,
+    // Errors only: pdf.js warns about image headers it then corrects itself,
+    // and a printing that differs from the one a recipe was cut from is
+    // reported by the book's own fingerprint check.
+    verbosity: 0,
     ...(WASM_URL ? { wasmUrl: WASM_URL } : {}),
   }).promise;
   const meta = await doc.getMetadata().catch(() => null);

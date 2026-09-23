@@ -12,7 +12,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
-import { hasDoc, getDoc, PRIORITY } from "../lib/tables.mjs";
+import { getLayer, PRIORITY } from "../lib/tables.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const WEATHER_DOC_ID = "weather";
@@ -207,8 +207,8 @@ export function assembleWeatherTables(raw = {}) {
  */
 export async function applyWeatherImport() {
   const svc = services.get("ruledata-import");
-  if (!svc || !hasDoc(WEATHER_DOC_ID)) return { assembled: [] };
-  const doc = getDoc(WEATHER_DOC_ID);
+  const doc = getLayer(WEATHER_DOC_ID, PRIORITY.WORLD);
+  if (!svc || !doc) return { assembled: [] };
   const engine = assembleWeatherTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(

@@ -425,3 +425,16 @@ export function worldCopySource(source, worldIds, { folderId = null, sourceUuid 
   }
   return copy;
 }
+
+/**
+ * Is this world document a copy of an imported one, rather than an import? A
+ * copy keeps the cookbook flag it was copied with, so the flag alone cannot
+ * tell. A scene's copy carries `worldCopy`; a drag out of a world compendium
+ * carries Foundry's `compendiumSource` into one; a sidebar duplicate carries
+ * `duplicateSource`. The importer writes none of these on an import.
+ */
+export function isWorldCopy(doc) {
+  if (doc?.flags?.[MODULE_ID]?.worldCopy) return true;
+  const stats = doc?._stats ?? {};
+  return String(stats.compendiumSource ?? "").startsWith("Compendium.world.") || !!stats.duplicateSource;
+}

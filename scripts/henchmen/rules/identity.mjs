@@ -248,8 +248,8 @@ function generateOccupationRaw(rand) {
     const cat = routeKey(row.resolve);
     const rows = cat ? subs[cat]?.rows : null;
     if (!rows?.length) {
-      // No d100 sub-table exists for this civilian row — the row's own
-      // category IS the occupation.
+      // This row's sub-table is not imported — the row's own category IS
+      // the occupation.
       const label = String(row.type ?? "").replace(/([a-z])([A-Z])/g, "$1 $2");
       if (!label) continue;
       return { category: row.type, occupation: label.replace(/\b\w/g, (c) => c.toUpperCase()) };

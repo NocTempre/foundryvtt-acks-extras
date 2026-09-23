@@ -41,7 +41,7 @@ import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
 import { extractStatPairs } from "./stats.mjs";
 import { mapPairs } from "./stats-map.mjs";
 import { createDocFor } from "./poc.mjs";
-import { importTables, tableRecipeCount } from "./tables-binding.mjs";
+import { importTables, tableRecipeBooks, tableRecipeCount } from "./tables-binding.mjs";
 import { applyBuilderImport } from "./builder-binding.mjs";
 import { applyTravelImport, TRAVEL_DOC_ID } from "./travel-binding.mjs";
 import { applyWeatherImport, WEATHER_DOC_ID } from "./weather-binding.mjs";
@@ -83,7 +83,7 @@ import { registerGettingStartedSettings, runImportEverything, gettingStartedDism
 import { registerOseSourceSetting } from "./ose-source.mjs";
 import { registerOseSourceDialog, oseBrowseDialog, oseCalibrateDialog, oseConvertAll } from "./ose-app.mjs";
 import { oseManualDialog } from "./ose-manual.mjs";
-import { importOseBook, importOseAreas, importAuthoredOse, authoredOseBooks } from "./ose-book.mjs";
+import { importOseBook, importOseAreas, importAuthoredOse, authoredOseBooks, oseEntryRows, importOseEntries } from "./ose-book.mjs";
 import { acksExtras } from "../namespace.mjs";
 import * as services from "../lib/services.mjs";
 import { isPrimaryGM } from "../lib/util.mjs";
@@ -1022,7 +1022,12 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
     // Only once the book actually opened: a file that failed the read is not
     // worth bridging, and bridging it would keep re-failing every reload.
     await cacheBytes(bookId, cache);
-    const message = `${MODULE_ID} | ${BOOKS[bookId]?.label ?? bookId}: open — ${entries} entr${entries === 1 ? "y" : "ies"} available to import.`;
+    // A book nothing in this build reads yet says so, rather than counting 0.
+    const book = BOOKS[bookId]?.label ?? bookId;
+    const read = entries || allRecipes().some((r) => r.book === bookId) || tableRecipeBooks().has(bookId);
+    const message = !read
+      ? game.i18n.format(`${LANG_PREFIX}.ui.bookOpenNothing`, { book })
+      : game.i18n.format(`${LANG_PREFIX}.ui.${entries === 1 ? "bookOpenOne" : "bookOpenMany"}`, { book, n: entries });
     if (silent) console.log(message);
     else ui.notifications.info(message);
     return true;
@@ -1072,6 +1077,23 @@ async function cookbookImportTables(only = null) {
   if (report.missingBooks.length) {
     ui.notifications.warn(
       game.i18n.format(`${LANG_PREFIX}.tables.missingBooks`, { books: report.missingBooks.join(", ") }),
+    );
+  }
+  // A supplement this seat does not hold is information, not a fault.
+  if (report.optionalBooks?.length) {
+    ui.notifications.info(
+      game.i18n.format(`${LANG_PREFIX}.tables.optionalBooks`, { books: report.optionalBooks.join(", ") }),
+    );
+  }
+  // A table whose book is open and still would not read is the fault worth a
+  // toast; the reason for each stays in the console report below.
+  if (report.missingTables.length) {
+    const ids = report.missingTables.map((t) => String(t).split(" (")[0]);
+    ui.notifications.warn(
+      game.i18n.format(`${LANG_PREFIX}.tables.unread`, {
+        n: ids.length,
+        tables: ids.length > 5 ? `${ids.slice(0, 5).join(", ")}, …` : ids.join(", "),
+      }),
     );
   }
   // The class-builder tables carry world writes of their own: the assembled
@@ -2434,6 +2456,26 @@ function artIndex(FP) {
   return artListing;
 }
 
+/** Directory creations already asked for this session, by directory. */
+const ensuredDirs = new Map();
+
+/**
+ * Create a data directory once per session. Core rejects the create when the
+ * directory exists, which is the usual case, so the answer is remembered rather
+ * than asked again on every upload.
+ */
+function ensureDirectory(FP, dir) {
+  if (!ensuredDirs.has(dir)) {
+    ensuredDirs.set(
+      dir,
+      FP.createDirectory("data", dir).catch((err) =>
+        console.debug(`${MODULE_ID} | art directory "${dir}" not created (it usually already exists)`, err),
+      ),
+    );
+  }
+  return ensuredDirs.get(dir);
+}
+
 /**
  * The usable art file already on disk for a recipe id, or null.
  *
@@ -2478,9 +2520,7 @@ async function uploadPageArt(doc, recipe) {
     (await extractPageArt(doc, recipe.page, recipe.name ?? null)) ??
     (recipe.box ? await extractPageArtRegion(doc, recipe.page, recipe.box) : null);
   if (!art) return null;
-  await FP.createDirectory("data", dir).catch((err) =>
-    console.debug(`${MODULE_ID} | art directory "${dir}" not created (it usually already exists)`, err),
-  );
+  await ensureDirectory(FP, dir);
   const file = new File([art.blob], filename, { type: "image/png" });
   const res = await FP.upload("data", dir, file, {}, { notify: false });
   if (!res?.path) return null;
@@ -2508,9 +2548,7 @@ async function uploadSceneMap(doc, id, recipe) {
   }
   const art = await extractPageMap(doc, recipe.page, recipe.crop, frame, turnMatrix(frame));
   if (!art) return null;
-  await FP.createDirectory("data", ART_DIR).catch((err) =>
-    console.debug(`${MODULE_ID} | art directory "${ART_DIR}" not created (it usually already exists)`, err),
-  );
+  await ensureDirectory(FP, ART_DIR);
   const filename = `${stem}.${art.ext}`;
   const res = await FP.upload("data", ART_DIR, new File([art.blob], filename, { type: art.blob.type }), {}, { notify: false });
   if (!res?.path) return null;
@@ -2526,7 +2564,7 @@ async function importArt(actor, doc, recipe) {
       return false;
     }
     await actor.update({ img: up.path, "prototypeToken.texture.src": up.path });
-    console.log(`${MODULE_ID} | ${actor.name}: art ${up.cached ? "reused" : `imported (${up.width}x${up.height})`} -> ${up.path}`);
+    console.debug(`${MODULE_ID} | ${actor.name}: art ${up.cached ? "reused" : `imported (${up.width}x${up.height})`} -> ${up.path}`);
     return true;
   } catch (err) {
     console.warn(`${MODULE_ID} | ${actor.name}: art import failed`, err);
@@ -2806,6 +2844,9 @@ Hooks.once("ready", async () => {
     oseManual: oseManualDialog,
     oseImportBook: importOseBook,
     oseImportAreas: importOseAreas,
+    /** The entry picker's OSE creature rows, and the narrowed import that rebuilds them. */
+    oseEntryRows,
+    oseImportEntries: importOseEntries,
     /** Every authored book this seat has open — the OSE step of the import chain. */
     oseImportAuthored: importAuthoredOse,
     oseAuthoredBooks: authoredOseBooks,

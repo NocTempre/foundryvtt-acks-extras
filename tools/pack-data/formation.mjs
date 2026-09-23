@@ -31,6 +31,17 @@ export function buildMacros() {
     ownership: { default: 0 },
     _stats: { coreVersion: "13", createdTime: 1785551134915, modifiedTime: 1785551134915 },
   },
+  {
+    _id: "acksfmMacroFogCp",
+    _key: "!macros!acksfmMacroFogCp",
+    name: "Merge Fog Copies on This Scene (GM)",
+    type: "script",
+    scope: "global",
+    img: "icons/svg/eye.svg",
+    command: "// Fold each seat's older fog copies on the viewed scene into its newest — GM only.\nconst api = game.modules.get(\"acks-extras\")?.api?.formation ?? globalThis.acksExtras?.formation;\nif (!api?.mergeFogCopies) return ui.notifications.error(\"ACKS Exploration Formations is not active.\");\nif (!game.user.isGM) return ui.notifications.warn(\"Merging fog copies is a GM tool.\");\nawait api.mergeFogCopies();",
+    ownership: { default: 0 },
+    _stats: { coreVersion: "14", createdTime: 1790182800000, modifiedTime: 1790182800000 },
+  },
   ];
 }
 

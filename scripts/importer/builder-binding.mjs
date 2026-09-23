@@ -14,7 +14,7 @@
 import { createDoc, ensureItemFolder, importedItemFor, importedItemsByName, refForPrintedName } from "./cookbook.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
-import { hasDoc, getDoc, PRIORITY } from "../lib/tables.mjs";
+import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { CLASS_TYPE, RACE_TYPE as RACE_ITEM_TYPE } from "../classes/constants.mjs";
 
 const BUILDER_DOC_ID = "acks.classBuilder";
@@ -289,7 +289,7 @@ export function assembleBuilderTables(raw) {
   return out;
 }
 
-/** The class names whose runins bound a build paragraph on p332–333. */
+/** The class names whose runins bound a build paragraph on p330–331. */
 const BUILD_ROSTER =
   /\b(assassin|barbarian|bard|bladedancer|crusader|dwarven craftpriest|dwarven vaultguard|elven nightblade|elven spellsword|explorer|fighter|mage|nobiran wonderworker|paladin|priestess|shaman|thief|venturer|warlock|witch|zaharan ruinguard):/;
 
@@ -365,8 +365,8 @@ function abilityRefByName(name, byName) {
 export async function applyBuilderImport() {
   const svc = services.get("ruledata-import");
   const report = { assembled: [], races: [], builds: [] };
-  if (!svc || !hasDoc(BUILDER_DOC_ID)) return report;
-  const doc = getDoc(BUILDER_DOC_ID);
+  const doc = getLayer(BUILDER_DOC_ID, PRIORITY.WORLD);
+  if (!svc || !doc) return report;
   const assembled = assembleBuilderTables(doc.tables ?? {});
   const { races, ...engineTables } = assembled;
   if (Object.keys(engineTables).length) {

@@ -3,15 +3,13 @@
  * Overlay: item loss from damage (JJ p. 398; acks-rules/acks-equipment/RULES.md §11).
  * Gated by the `overlayItemLoss` world setting.
  *
- * When an area attack drops a creature to −6 hp or lower (no save, or a failed
- * save), one stone of its equipment is destroyed, plus another stone per further
- * 6 damage. The rule is a strict positional ORDER through what the victim is
- * wearing and carrying, filtered by whether the damage type can even harm each
- * item's material.
+ * When an area attack drops a creature past the loss threshold (no save, or a
+ * failed save), its equipment is destroyed by the stone, in a strict positional
+ * ORDER through what the victim is wearing and carrying, filtered by whether
+ * the damage type can even harm each item's material.
  *
- * This needed containers first: two of the eight positions are container
- * contents ("equipment in backpack", "equipment hanging from pack or back"), so
- * without the container model the order could not be resolved.
+ * This needed containers first: two of the positions are container contents,
+ * so without the container model the order could not be resolved.
  *
  * Pure planner — it decides what is at risk and in what order. Applying the
  * destruction (and magic items' saving throws, which the wielder rolls with

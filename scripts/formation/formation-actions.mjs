@@ -43,7 +43,7 @@ import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } fr
 import { dismount } from "../lib/mount.mjs";
 import { runForageDay } from "./forage-run.mjs";
 import { runSearchHour } from "./search-run.mjs";
-import { askStrayAndBegin, confirmDiscovery, confirmReanchor } from "./lost-dialog.mjs";
+import { askStrayAndBegin, confirmDiscovery, confirmEnd, confirmReanchor } from "./lost-dialog.mjs";
 import { applyTravelForm, setJourneyMode, enterHex, rollWeatherNow } from "./travel.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import SkillAuditApp from "./skill-audit.mjs";
@@ -238,6 +238,14 @@ export const SHARED_ACTIONS = {
     const formation = gmFormation(this);
     if (!formation) return;
     await confirmReanchor(formation);
+    this.render();
+  },
+
+  /** They turn back, or the Judge closes the episode; nothing is credited. */
+  async lostEnd() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await confirmEnd(formation);
     this.render();
   },
 

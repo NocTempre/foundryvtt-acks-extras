@@ -2200,3 +2200,60 @@ comments now state the guard; the story is here.
   not be worn at all: the wear model declined the write silently, with no
   error, and the character was stuck unable to wear armor it had just
   imported.
+
+### A relayed call's sender comes from the server, never from the payload (2026-09-23)
+
+**Ruled.** Every handler registered through `sockets.mjs` receives the sender
+Foundry's server attested, as `requestUserId` on its payload, whatever the
+calling client wrote there (`runRelayed`). Handlers authorize against that
+field alone. The wrapper is on by default for every handler, with no opt-in.
+**Rejected.**
+- *Each handler reads `this.socketdata` itself.* Most handlers are arrow
+  functions, which cannot see `this`, and a handler written later would have
+  to remember to do it.
+- *An opt-in flag on `registerHandler`.* A forgotten flag reopens the hole
+  silently.
+- *Keeping the party relay's positional user-id argument for one release*
+  (the 2026-09-23 design default). No client can run an older module version
+  against a newer GM: a module update needs the world relaunched, and a
+  relaunch reloads every seat. So the argument would have had no caller and
+  would only have stood as a second, untrusted identity beside the real one.
+
+**What it cost.** Four features' relays had trusted client-supplied identity.
+- The party relay took the declaring user's id as an argument, so a player at
+  the browser console could name a GM and receive the Judge's gear override.
+- The markets and henchmen relays read `requestUserId` from the payload and
+  treated its absence as a GM at the keyboard, so leaving it out skipped every
+  ownership check.
+- Companion creation, influence's hidden roll and the hiring outcome checked
+  no requester at all. They could copy any actor into one the player owned,
+  spend another character's coin, or hire for another character.
+- The lost-party discovery broadcast accepted any sender and put its payload's
+  numbers into dialog markup unescaped.
+
+None of these was reachable from the module's own UI; all of them were
+reachable from the console.
+
+### A bundle arrives as its goods, and delivery has one owner (2026-09-23)
+
+**Ruled.** The character sheet opens a dropped bundle into the goods it lists
+(`bundles.mjs` `unpackBundle`), and the markets hand purchases over through the
+same `deliverItems`. A row counts as core's own bundle drop counts it: copies,
+or one stack of the count times the source's size, or coins. A row whose uuid
+is dead falls back to the library item of the same name and type, because a
+re-imported shelf carries new ids. A row still unresolved is named in a warning
+and the rest arrive.
+**Rejected.**
+- *Letting `ActorSheetV2` create the bundle.* This sheet extends Foundry's
+  `ActorSheetV2`, not the system's sheet, so the system's bundle handling never
+  ran and the bundle was embedded whole, where no actor sheet lists it.
+- *Calling the system sheet's bundle handler.* It is a method of a class the
+  system does not export, and it reads the sheet's own `actor`.
+- *Keeping the markets' name-keyed stack merge.* A purchase now folds only into
+  an identical stack (`stackSignature`), the identity storage transfers already
+  use.
+
+**What it cost.** A purchase of a good the buyer carries in a container, or has
+edited, arrives as a second, loose stack instead of topping up the first. A
+bundle embedded before this change stays on its actor, unseen, until something
+opens it (ROADMAP, "Bundles already embedded").

@@ -15,7 +15,9 @@
  *   • every call is failure-tolerant — no progress bar may ever break an
  *     import, on any core version, dismissed or not;
  *   • finish() is idempotent and belongs in a `finally`, so an import that
- *     throws half way still clears its bar.
+ *     throws half way still clears its bar;
+ *   • the bar is not echoed to the console, where core would write one line
+ *     per step; a run logs its start and its finish at debug instead.
  */
 import { MODULE_ID } from "./constants.mjs";
 
@@ -28,11 +30,13 @@ import { MODULE_ID } from "./constants.mjs";
 export function progressBar(label, total = 0) {
   let bar = null;
   try {
-    bar = ui.notifications?.info?.(label, { progress: true }) ?? null;
+    bar = ui.notifications?.info?.(label, { progress: true, console: false }) ?? null;
   } catch (err) {
     console.warn(`${MODULE_ID} | progress bar unavailable — the job still runs`, err);
   }
   let n = 0;
+  let finished = false;
+  console.debug(`${MODULE_ID} | ${label}: started${total ? ` (${total})` : ""}`);
 
   const paint = (message, pct) => {
     if (!bar?.update) return;
@@ -61,6 +65,9 @@ export function progressBar(label, total = 0) {
     /** Take the bar to 100% so it clears. Safe to call twice. */
     finish(message) {
       paint(message ?? label, 1);
+      if (finished) return;
+      finished = true;
+      console.debug(`${MODULE_ID} | ${label}: finished${total ? ` ${Math.min(n, total)}/${total}` : ` after ${n}`}`);
     },
   };
 }

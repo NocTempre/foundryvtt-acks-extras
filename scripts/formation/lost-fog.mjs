@@ -13,47 +13,64 @@
 import { MODULE_ID } from "../lib/constants.mjs";
 import { getSocket, registerHandler } from "../lib/sockets.mjs";
 import { makeLoc } from "../lib/util.mjs";
-import { fogTextureDims, textureFromBase64, compositeToBase64 } from "./map-items.mjs";
+import { fogTextureDims, textureFromBase64, compositeToBase64, exploredDocs, writeExplored, deleteExplored } from "./map-items.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
 
-/** The FogExploration documents for one scene, one per user that has any. */
-function fogDocsFor(sceneId) {
+/**
+ * The FogExploration documents THIS client holds for one scene and level: the
+ * Judge's own, and those it created this session; a document a player's client
+ * made is never among them. Read only for an episode whose snapshot was taken
+ * from them, which could not see a player's fog and so cannot restore one. An
+ * `undefined` level (an episode recorded before levels were) matches every
+ * level.
+ */
+function heldDocsFor(sceneId, level) {
   const collection = game.collections.get("FogExploration");
   if (!collection) return [];
-  return collection.filter((f) => (f.scene?.id ?? f.scene) === sceneId);
+  return collection.filter((f) => (f.scene?.id ?? f.scene) === sceneId && (level === undefined || (f.level ?? null) === level));
 }
 
+/** The documents an episode reads: the server's, or for an older snapshot the held ones. */
+const docsFor = (sceneId, level, complete) => (complete ? exploredDocs(sceneId, level) : heldDocsFor(sceneId, level));
+
+const userOf = (doc) => doc.user?.id ?? doc.user;
+
 /**
- * Capture every user's fog for a scene, as it truly stands. Taken ONCE per
- * episode, before anything is faked — `beginLost` refuses to overwrite it.
- * A user with no document yet snapshots as `null`.
+ * Capture every user's fog for a scene level, as it truly stands, from the
+ * server. Taken ONCE per episode, before anything is faked — `beginLost`
+ * refuses to overwrite it. A user with no document snapshots as `null`.
  */
-export function snapshotFog(sceneId) {
+export async function snapshotFog(sceneId, level) {
   if (!game.user?.isGM) return null;
+  const docs = await exploredDocs(sceneId, level);
   const snap = {};
-  for (const user of game.users) {
-    const doc = fogDocsFor(sceneId).find((f) => (f.user?.id ?? f.user) === user.id);
-    snap[user.id] = doc?.explored ?? null;
-  }
+  for (const user of game.users) snap[user.id] = docs.find((f) => userOf(f) === user.id)?.explored ?? null;
   return Object.keys(snap).length ? snap : null;
 }
 
 /**
- * Write a snapshot back, closing everything faked since it was taken. A null
- * snapshot removes the user's document instead of writing an empty bitmap.
+ * Write a snapshot back to the scene level it was taken on, closing everything
+ * faked since. A user whose snapshot is null, or who is not in it at all (a
+ * seat created after it was taken), loses the document rather than keeping an
+ * empty bitmap or a faked one. A snapshot with no recorded level writes each
+ * user's first document only, as it was taken. A snapshot that is not
+ * `complete` saw only the documents this client held, so it writes and deletes
+ * only those.
  */
-export async function restoreFog(sceneId, snapshot) {
-  if (!game.user?.isGM || !snapshot) return false;
-  const docs = fogDocsFor(sceneId);
-  for (const [userId, explored] of Object.entries(snapshot)) {
-    const doc = docs.find((f) => (f.user?.id ?? f.user) === userId);
-    if (explored) {
-      if (doc) await doc.update({ explored, timestamp: Date.now() }, { loadFog: false });
-    } else if (doc) {
-      await doc.delete();
-    }
+export async function restoreFog(sceneId, snapshot, level, { complete = false } = {}) {
+  if (!game.user?.isGM || !snapshot || !sceneId) return false;
+  const docs = await docsFor(sceneId, level, complete);
+  const targets = level === undefined
+    ? Object.keys(snapshot).map((userId) => docs.find((f) => userOf(f) === userId)).filter(Boolean)
+    : docs;
+  const gone = [];
+  for (const doc of targets) {
+    const explored = snapshot[userOf(doc)] ?? null;
+    if (explored) await writeExplored(doc, explored);
+    else gone.push(doc);
   }
+  await deleteExplored(gone);
   await reloadEveryone(sceneId);
   return true;
 }
@@ -70,13 +87,16 @@ async function reloadEveryone(sceneId) {
  *
  * Runs on the PLAYER's client, which is the whole point: the Judge already
  * knows. It never awaits the click — a dialog nobody happens to be looking at
- * must not hold up the Judge's turn.
+ * must not hold up the Judge's turn. A broadcast a player sent (`requestUserId`
+ * set by `lib/sockets.mjs`) shows nothing, and the counts are numbers before
+ * they reach the markup.
  */
-function showDiscovery({ days = null, fakedHexes = 0 } = {}) {
+function showDiscovery({ days = null, fakedHexes = 0, requestUserId = null } = {}) {
+  if (requestUserId) return;
   const DialogV2 = foundry.applications?.api?.DialogV2;
   if (!DialogV2) return;
   const content = `<p>${loc("lost.discovered.body")}</p>`
-    + (days != null ? `<p>${loc("lost.discovered.drift", { days, hexes: fakedHexes })}</p>` : "")
+    + (days != null ? `<p>${loc("lost.discovered.drift", { days: Number(days) || 0, hexes: Number(fakedHexes) || 0 })}</p>` : "")
     + `<p class="hint">${loc("lost.discovered.hint")}</p>`;
   DialogV2.prompt({
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
@@ -130,31 +150,34 @@ function hexMaskTexture(scene, hexKeys, dims) {
 }
 
 /**
- * Uncover the believed hexes for the players: the ground, and only the
- * ground. The mask is added to every user's exploration; nothing else
- * follows, since tokens, pins, notes and paths read the ledger rather than
- * the fog.
+ * Uncover the given hexes for the players on the episode's scene level: the
+ * ground, and only the ground. The mask is added to every user's exploration;
+ * nothing else follows, since tokens, pins, notes and paths read the ledger
+ * rather than the fog. Refused unless this client is drawing that level. An
+ * episode whose snapshot is not `complete` paints what this client holds, so
+ * its restore can close what it painted.
  */
-export async function paintFakeReveal(sceneId, hexKeys) {
-  if (!canFake(sceneId) || !hexKeys?.length) return false;
+export async function paintFakeReveal(sceneId, hexKeys, level, { complete = false } = {}) {
+  if (!canFake(sceneId, level) || !hexKeys?.length) return false;
   const scene = canvas.scene;
   const dims = fogTextureDims();
   const mask = hexMaskTexture(scene, hexKeys, dims);
   const fogCls = foundry.utils.getDocumentClass("FogExploration");
-  const level = scene._view ?? null;
+  const docLevel = scene._view ?? null;
+  const docs = await docsFor(sceneId, docLevel, complete);
   try {
     for (const user of game.users) {
       // The Judge is not lied to: their own fog is left exactly as it is.
       if (user.isGM) continue;
-      const doc = fogDocsFor(sceneId).find((f) => (f.user?.id ?? f.user) === user.id);
+      const doc = docs.find((f) => userOf(f) === user.id);
       const layers = [];
       if (doc?.explored) layers.push({ texture: await textureFromBase64(doc.explored), destroy: true });
       layers.push({ texture: mask });
       const b64 = await compositeToBase64(layers, dims);
-      if (doc) await doc.update({ explored: b64, timestamp: Date.now() }, { loadFog: false });
+      if (doc) await writeExplored(doc, b64);
       else {
         await fogCls.create(
-          { scene: sceneId, user: user.id, level, explored: b64, timestamp: Date.now() },
+          { scene: sceneId, user: user.id, level: docLevel, explored: b64, timestamp: Date.now() },
           { loadFog: false },
         );
       }
@@ -166,9 +189,14 @@ export async function paintFakeReveal(sceneId, hexKeys) {
   return true;
 }
 
-/** Whether the faked reveal can actually be drawn on this client. */
-export function canFake(sceneId) {
-  return !!game.user?.isGM && canvas?.scene?.id === sceneId;
+/**
+ * Whether this client can draw on a scene level's fog: a GM viewing that
+ * scene, on that level when one is named. The fog TEXTURE exists only where
+ * it is drawn.
+ */
+export function canFake(sceneId, level) {
+  if (!game.user?.isGM || !sceneId || canvas?.scene?.id !== sceneId) return false;
+  return level === undefined || (canvas.scene._view ?? null) === level;
 }
 
 /** The flag a scene carries while a formation is astray on it. */
