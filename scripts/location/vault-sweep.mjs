@@ -111,24 +111,45 @@ async function depositLedger(character, ledger) {
   return vault;
 }
 
+/** The world's characters, or those whose uuid is in `only`. */
+function characters(only = null) {
+  return game.actors.filter((a) => a.type === ACTOR_TYPE.character && (!only || only.has(a.uuid)));
+}
+
 /**
- * Move every banked balance in the world into vaults. GM-elected; safe to run
- * again at any time (the storage manager's macro does exactly that).
+ * What `runVaultSweep` would move, without moving it: per character, the
+ * ledger a stopped sweep left owed to a vault and the balance still banked.
+ * @returns {{character: Actor, pending: object[], banked: object[]}[]}
+ */
+export function planVaultSweep() {
+  const out = [];
+  for (const character of characters()) {
+    const pending = character.getFlag(MODULE_ID, FLAG_PENDING_DEPOSIT) ?? [];
+    const banked = bankedLedger(character);
+    if (pending.length || banked.length) out.push({ character, pending, banked });
+  }
+  return out;
+}
+
+/**
+ * Move every banked balance in the world into vaults, or only the balances of
+ * the characters whose uuids are in `only`. GM-elected; safe to run again at
+ * any time (the storage manager's macro does exactly that).
  * @returns {Promise<{swept: number, gp: number}>}
  */
-export async function runVaultSweep({ announce = true } = {}) {
+export async function runVaultSweep({ announce = true, only = null } = {}) {
   const moved = [];
 
   // Resume first: a ledger means a previous run zeroed the field but died
   // before the coin landed. The ledger is the truth, not the (now zero) field.
-  for (const character of game.actors.filter((a) => a.type === ACTOR_TYPE.character)) {
+  for (const character of characters(only)) {
     const pending = character.getFlag(MODULE_ID, FLAG_PENDING_DEPOSIT);
     if (!pending?.length) continue;
     const vault = await depositLedger(character, pending);
     moved.push({ character, vault, ledger: pending, resumed: true });
   }
 
-  for (const character of game.actors.filter((a) => a.type === ACTOR_TYPE.character)) {
+  for (const character of characters(only)) {
     const ledger = bankedLedger(character);
     if (!ledger.length) continue;
 

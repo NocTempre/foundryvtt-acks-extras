@@ -93,6 +93,9 @@ import {
 import { SETTING_ADVANCE_WORLD_TIME } from "./world-time.mjs";
 import * as movementModes from "./movement-modes.mjs";
 import * as survival from "./survival.mjs";
+import { danglingRefCheck, fixEach, fixRepairs, registerRepairCheck, repairChecks, scanRepairs } from "./repair.mjs";
+import { registerLibRepairChecks } from "./repair-checks.mjs";
+import { RepairMenu, openRepairTool } from "./apps/repair-app.mjs";
 
 /** The actor sub-types this library adds to the system (named in constants.mjs). */
 export { ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE };
@@ -107,8 +110,8 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
-  // 17: fields.occupantField — the roster row a place and a faction share.
-  apiVersion: 17,
+  // 18: repair — the standing repair tool's registry and runner.
+  apiVersion: 18,
   vocab,
   fields,
   /**
@@ -141,6 +144,22 @@ const localImpl = Object.freeze({
   movementModes,
   /** Hunger and thirst, a day at a time. Formation automates it for a group. */
   survival,
+  /**
+   * The standing repair tool (repair.mjs, repair-logic.mjs): `register` a
+   * check, `checks` lists them, `scan` and `fix` run them as the window does
+   * (fix rescans, and judges by what it finds), `open` shows the window,
+   * `danglingRefCheck` builds the commonest check, and `fixEach` shapes a
+   * per-finding fix's results. GM only.
+   */
+  repair: {
+    register: registerRepairCheck,
+    checks: repairChecks,
+    scan: scanRepairs,
+    fix: fixRepairs,
+    open: openRepairTool,
+    danglingRefCheck,
+    fixEach,
+  },
   services,
   loadRuledata,
   // --- patch layer ---
@@ -421,6 +440,18 @@ Hooks.once("init", () => {
       lose: `${LANG_PREFIX}.settings.storageDeletePolicy.lose`,
     },
     default: "return",
+  });
+
+  // The repair tool: lib's own checks, and the GM's way in from settings.
+  // Every other feature registers its checks in its own init.
+  registerLibRepairChecks();
+  game.settings.registerMenu(MODULE_ID, "repairTool", {
+    name: `${LANG_PREFIX}.repair.menuName`,
+    label: `${LANG_PREFIX}.repair.menuLabel`,
+    hint: `${LANG_PREFIX}.repair.menuHint`,
+    icon: "fa-solid fa-screwdriver-wrench",
+    type: RepairMenu,
+    restricted: true,
   });
 
   // WHOSE DEFAULTS the world opens on — Foundry's, the system's or this

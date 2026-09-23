@@ -1,0 +1,9 @@
+{{!-- The repair window's one write. A separate part so it stays pinned below
+      the scrolling body. --}}
+<footer class="form-footer acks-extras-repair-footer">
+  <span class="acks-extras-repair-count" aria-live="polite">{{pickedLabel}}</span>
+  <button type="button" data-action="fixSelected" {{disabled nonePicked}}>
+    <i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>
+    {{localize "ACKS-LIB.repair.fixSelected"}}
+  </button>
+</footer>

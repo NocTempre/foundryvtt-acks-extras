@@ -30,8 +30,28 @@ if (typeof api.packs.restoreCompendiumLibrary !== "function") {
 }
 await api.packs.restoreCompendiumLibrary();`;
 
+/** Macro command: opens the repair tool (scripts/lib/apps/repair-app.mjs). */
+const REPAIR_WORLD = `// Find the data this module left damaged, and fix what you choose.
+const api = game.modules.get("acks-extras")?.api?.lib ?? globalThis.acksExtras?.lib;
+if (!api) return ui.notifications.error("ACKS Extras is not active.");
+if (typeof api.repair?.open !== "function") {
+  return ui.notifications.warn("ACKS Extras | Repair This World needs a newer build of this module.");
+}
+api.repair.open();`;
+
 export function buildMacros() {
   return [
+    {
+      _id: "acksLibRepair000",
+      _key: "!macros!acksLibRepair000",
+      name: "Repair This World (GM)",
+      type: "script",
+      scope: "global",
+      img: "icons/svg/clockwork.svg",
+      command: REPAIR_WORLD,
+      ownership: { default: 0 },
+      _stats: { coreVersion: "13", createdTime: 1785551134915, modifiedTime: 1785551134915 },
+    },
     {
       _id: "acksLibRestore00",
       _key: "!macros!acksLibRestore00",

@@ -493,7 +493,9 @@ of them gets the other in the same write: `clothingDeclarationPatch`
 `clothing-declaration.mjs`. So the rail, core's sheet, the importer, a macro and
 the API all end in the same weight. When one write moves both apart, the flag
 wins. A write that moves neither leaves an existing disagreement alone, and
-Annotate writes the flag's half through where the flag says clothing. The item
+Annotate writes the flag's half through where the flag says clothing. The repair
+tool's `equipment.railClothing` check finds every disagreement left from before
+and settles it the same way (docs/lib/MODEL.md, "The repair tool"). The item
 sheet has no subtype control of its own; the rail is the one control. Clothing
 sits on `item` documents only, because core weighs every `armor` document
 whatever it is flagged.

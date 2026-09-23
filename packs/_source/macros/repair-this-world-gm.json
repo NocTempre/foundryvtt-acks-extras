@@ -1,0 +1,18 @@
+{
+  "_id": "acksLibRepair000",
+  "_key": "!macros!acksLibRepair000",
+  "name": "Repair This World (GM)",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/clockwork.svg",
+  "command": "// Find the data this module left damaged, and fix what you choose.\nconst api = game.modules.get(\"acks-extras\")?.api?.lib ?? globalThis.acksExtras?.lib;\nif (!api) return ui.notifications.error(\"ACKS Extras is not active.\");\nif (typeof api.repair?.open !== \"function\") {\n  return ui.notifications.warn(\"ACKS Extras | Repair This World needs a newer build of this module.\");\n}\napi.repair.open();",
+  "ownership": {
+    "default": 0
+  },
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  },
+  "folder": "acks420ff1a0388a"
+}

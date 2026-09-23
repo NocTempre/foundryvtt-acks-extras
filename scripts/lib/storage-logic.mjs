@@ -19,6 +19,9 @@ import { ITEM_TYPE } from "./vocab.mjs";
 export const LIB_ID = "acks-extras";
 export const STORAGE_KEY = "storage";
 
+/** The flag naming the bundle a copy was unpacked from: provenance, never identity. */
+export const UNPACKED_FROM = "unpackedFrom";
+
 /** acks-equipment's container pointer — read generically, never imported. */
 const EQUIPMENT_ID = "acks-extras";
 const CONTAINED_IN = "containedIn";
@@ -242,7 +245,10 @@ export function stackSignature(plain, { byOwner = false } = {}) {
   // Sheet-computed, not identity: the system recalculates it on every render.
   if ("totalvalue" in wrapper.system) wrapper.system.totalvalue = 0;
   const flags = structuredClone(plain.flags ?? {});
-  if (flags[LIB_ID]) delete flags[LIB_ID][STORAGE_KEY];
+  if (flags[LIB_ID]) {
+    delete flags[LIB_ID][STORAGE_KEY];
+    delete flags[LIB_ID][UNPACKED_FROM];
+  }
   // An arriving item has had keys removed from its flags (attribution, a
   // dangling container pointer), which can leave an emptied `{"acks-extras": {}}`
   // scope where a row that never travelled has none; an emptied scope must

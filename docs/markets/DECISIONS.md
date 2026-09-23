@@ -99,7 +99,9 @@ what this ruling delivers directly.
 
 Cost: bundles already delivered stay embedded and unlisted on their buyers;
 this change does not unpack them. Thirty swords are thirty documents, as they
-would be after core unpacked the bundle.
+would be after core unpacked the bundle. (Addressed 2026-09-23: the repair
+tool's `lib.embeddedBundles` check opens them. See docs/lib/DECISIONS.md, "One
+standing repair tool".)
 
 ### A purchase folds only into an identical stack (2026-09-23)
 

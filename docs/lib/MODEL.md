@@ -701,6 +701,17 @@ sheet lists an embedded one. So nothing embeds one:
 - **A market purchase** (`markets/engine/trade.mjs` `deliverGoods`) counts
   units, so it hands over one stack of the quantity bought or that many
   copies, through the same `deliverItems`.
+- **A bundle already embedded**, which both paths wrote whole before they
+  opened bundles, is opened where it lies by `unpackEmbeddedBundle` (the
+  repair tool's `lib.embeddedBundles`). It writes three times: the stack
+  merges together with a journal on the bundle (`flags.acks-extras.unpack`,
+  holding the planned copies), then those copies, each stamped `unpackedFrom`
+  with the bundle's id, then the bundle's deletion. `unpackStage` reads which
+  writes landed, so a run that stopped part-way resumes at the next one,
+  creating the journal's copies rather than resolving the rows again, and
+  nothing arrives twice. A bundle with a row nothing resolves is left whole.
+  The stamp is provenance only: `stackSignature` and `arrivalOf` ignore it, so
+  a copy still folds into its kin.
 
 ## Carrying: mounts, teams and everything aboard
 
@@ -1083,4 +1094,53 @@ covering fewer days without anyone drinking faster.
 An unimported subsystem starves nobody: with no thresholds the ladders do not
 advance, though the clocks still run, so importing later starts from the truth
 rather than from zero.
+
+## The repair tool
+
+One window for data this module left damaged: a link to a document that is
+gone, a bundle no sheet lists, a write that stopped part-way. It is GM-only.
+It opens from the restricted settings menu **Repair this world**, from the
+*Repair This World (GM)* macro, and from `acksExtras.lib.repair.open({only})`
+(`apps/repair-app.mjs`).
+
+**A check is registered where its knowledge lives.** Each feature's
+`repair-checks.mjs` registers its checks at `init` through
+`registerRepairCheck` (`repair-logic.mjs`). A check has an id
+`<feature>.<name>`, lang keys for its label and hint, a read-only `scan`, and an
+optional `fix`. A check with no `fix` is report-only. A finding can also be
+unfixable inside a fixable check (`fixable: false`), and either kind can carry a
+`reason` naming where it is fixed instead. `danglingRefCheck` builds the common
+case: a field naming a document that no longer resolves.
+
+**The rescan decides.** Fixing takes the ticked keys from a fresh scan and
+leaves alone any key that scan no longer reports. It hands the fix only the
+fixable findings, then scans the check again. A finding the rescan no longer
+reports is fixed. One it still reports has failed, whatever the fix said. The
+failure is `still` after a fix that reported success, `refused` or `threw`
+when the fix said so, and `unverified` when the rescan itself failed. This is
+what catches a write that says it worked and did not apply.
+
+**Nothing scans on its own.** There is no scan at `ready`; the window scans
+when asked. Henchmen's own reference sweep at ready (`autoRepairReferences`) is
+that feature's, and the tool does not replace it.
+
+**One report per fix.** After a fix the GMs get one whispered card
+(`postToJudges`). It lists, per check, the counts and each subject, with the
+reason for every failure. A subject is a link while it exists and its name once
+it does not.
+
+| Check | Finds | Fix |
+|---|---|---|
+| `lib.embeddedBundles` | A bundle embedded on a world actor or an unlinked token's actor, named as a market purchase when it has that shape, and as partial when an unpack stopped part-way | `unpackEmbeddedBundle` ("Goods handed to an actor, and bundles"). A bundle with an unresolved row is unfixable, and the finding names the rows. |
+| `lib.attachments` | An actor attached to a carrier that is gone | Unsets the attachment |
+| `lib.mountPairs` | A legacy rider or mount flag naming an actor that is gone or does not name it back | Unsets that flag |
+| `lib.strandedCoin` | An actor that cannot load because its sub-type's package is absent or disabled, holding coin | Report only. A disabled package is named so it can be enabled. |
+| `lib.mergeResidue` | What the retired acks-* modules left: Actors, Items and region behaviours of their sub-types that cannot load, their flag scopes, AE change keys into them, sheet choices naming their sheets, and their world settings | Report only. *Clean Up After the Merge (GM)* removes all of it except the region behaviours ([DECISIONS §11](../DECISIONS.md#11-the-cleaner-macro--why-it-is-not-a-migration)). An actor row that holds coin warns that the macro deletes the coin with the actor. |
+| `henchmen.references` | An employer's hireling or monster list, or a hireling's employer, naming a deleted actor, or a hireling listed twice | `repairActor` (henchmen `repair.mjs`) |
+| `location.links` | A place's map or region link naming a scene or region that is gone or names another place, and a scene or region naming a place that is gone | Clears the stale link. The place, scene and region stay. |
+| `location.vaultSweep` | Coin in a character's bank column, or owed to a vault by a sweep that stopped part-way (the `acks` system only) | `runVaultSweep` for the chosen characters |
+| `location.orphanVaults` | A vault whose character is gone, and goods stored for an owner who is gone | Report only. The row points at the place's Storage tab, whose storage manager moves them. |
+| `formation.members` | A marching-order member whose actor is gone | Drops the member, with the lights it bore and the spells it cast |
+| `formation.shadows` | A true-position marker with no party, on a party no longer lost, or beside the one its episode keeps on its own scene; a marker only on another scene; a lost party with none | Deletes the first three. A marker from a closed episode also names the Lost section of the party's sheet, which can move the party onto it instead. The last two are report-only and point there. |
+| `equipment.railClothing` | An item whose base type and clothing subtype disagree, and an `armor` document declared clothing | Writes the missing half, with the base type winning, or unsets the declaration on the `armor` document |
 

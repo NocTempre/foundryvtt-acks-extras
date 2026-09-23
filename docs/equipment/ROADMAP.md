@@ -51,12 +51,10 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   a feature whose table is absent refuses by naming it. `test-equipment` asserts
   those shipped numbers today; it passes invented values in once the code takes
   them.
-- **Clothing declared twice, repaired.** Writes keep the flag and the subtype
-  agreeing (MODEL, "Base types and variations"), and Annotate settles an item
-  whose flag says clothing. Still unreached: an item whose subtype says clothing
-  under another flag, offered with the flag's reading preselected, and an
-  `armor` document flagged clothing, whose flag is unset. Both want the
-  repair tool, with each actor's encumbrance change in its preview.
+- **The clothing repair's encumbrance preview.** The repair tool's
+  `equipment.railClothing` check settles an item whose two halves disagree
+  (docs/lib/MODEL.md, "The repair tool"). It does not yet show each carrier's
+  encumbrance change before the fix.
 
 - **The `SLAYER` effect domain is declared but not read.** `EFFECT_DOMAINS.SLAYER`
   (`scripts/equipment/constants.mjs`) is a seam for a future situational

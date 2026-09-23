@@ -25,6 +25,7 @@ import { registerMountedOverlay } from "./overlays/mounted.mjs";
 import { isWearable } from "../lib/item-model.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { registerManagedEffect, managedDelete } from "../lib/managed-effects.mjs";
+import { registerEquipmentRepairChecks } from "./repair-checks.mjs";
 
 
 Hooks.once("init", () => {
@@ -37,6 +38,7 @@ Hooks.once("init", () => {
   registerMountedOverlay();
   // A garment declared on either half is declared on both, in the same write.
   registerClothingDeclaration();
+  registerEquipmentRepairChecks();
 
   // The variation Item sub-type. Wrapped because a throw in `init` leaves the
   // rest of the hook dead, and everything above this line has to survive a

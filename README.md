@@ -175,6 +175,11 @@ The foundation the other features are built on, and useful on its own.
 - **The rules-table registry.** A priority-layered store the other features read
   through: built-in sample tables at the bottom, imported book tables above them,
   GM overrides on top. Nobody reads a table by module name.
+- **Repair This World (GM).** One window that finds the data this module left
+  damaged: bundles no sheet lists, links to documents that are gone, writes
+  that stopped part-way. It changes only the findings you tick, and checks
+  every fix by scanning again. Open it from the module's settings or its
+  macro.
 - **Theming.** One design-token layer (`--acks-*`) across every ACKS surface —
   including the ones the *system* renders — measured from the books and carrying
   a light and a dark value for every colour. Per-client controls for colour

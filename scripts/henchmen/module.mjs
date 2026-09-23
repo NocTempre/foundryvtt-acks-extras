@@ -11,6 +11,7 @@ import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, LOCATION_TYPE, RULEDATA, HOOKS, SCHEMA_VERSION } from "./constants.mjs";
 import { installWageGuard, registerDeletionCleanup, sweepAtReady, repairWorld, repairActor, scanActor, describeRepair } from "./repair.mjs";
 import * as config from "./config.mjs";
+import { registerHenchmenRepairChecks } from "./repair-checks.mjs";
 import { registerSettings, getSetting } from "./settings.mjs";
 import { getTable, getDoc, initTables } from "./rules/tables.mjs";
 import { THROWS_DATA, RARITY_AUTOMATION } from "./data/throws-data.mjs";
@@ -62,6 +63,7 @@ Hooks.once("init", () => {
   // repair after (scripts/henchmen/repair.mjs; see docs/henchmen/MODEL.md §4b).
   installWageGuard();
   registerDeletionCleanup();
+  registerHenchmenRepairChecks();
 
   try {
     const T = `modules/${MODULE_ID}/templates/henchmen`;

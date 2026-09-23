@@ -5,10 +5,13 @@
  */
 import { toNum as num } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
-import { LIB_ID, STORAGE_KEY, quantityOf } from "./storage-logic.mjs";
+import { LIB_ID, STORAGE_KEY, UNPACKED_FROM, planStackMerge, quantityOf } from "./storage-logic.mjs";
 
 /** The equipment feature's container pointer, under the same flag scope. */
 const CONTAINED_IN = "containedIn";
+
+/** The journal an embedded bundle carries between its merge write and its creates. */
+export const UNPACK_JOURNAL = "unpack";
 
 /**
  * The rows a core bundle lists (`system.itemList`), each counted at least once.
@@ -43,6 +46,7 @@ export function arrivalOf(sourceData) {
     copy.flags[LIB_ID] = { ...copy.flags[LIB_ID] };
     delete copy.flags[LIB_ID][CONTAINED_IN];
     delete copy.flags[LIB_ID][STORAGE_KEY];
+    delete copy.flags[LIB_ID][UNPACKED_FROM];
   }
   return copy;
 }
@@ -68,4 +72,50 @@ export function goodsForRow(sourceData, count) {
     return [one];
   }
   return Array.from({ length: n }, (_, i) => (i ? structuredClone(one) : one));
+}
+
+/** `data` with the bundle it came out of stamped on it. */
+function stampFrom(data, bundleId) {
+  const copy = structuredClone(data);
+  copy.flags = { ...(copy.flags ?? {}), [LIB_ID]: { ...(copy.flags?.[LIB_ID] ?? {}), [UNPACKED_FROM]: bundleId } };
+  return copy;
+}
+
+/**
+ * How far an embedded bundle's unpack got, read from the bundle and the items
+ * beside it: `delete` once a copy stamped with its id is on the actor (only the
+ * bundle is left to remove), `create` once its journal says the merge landed
+ * (the copies are still owed), `fresh` when nothing has been written.
+ */
+export function unpackStage(bundle, actorItems) {
+  const id = bundle?._id ?? bundle?.id;
+  if ((actorItems ?? []).some((i) => i?.flags?.[LIB_ID]?.[UNPACKED_FROM] === id)) return "delete";
+  if (bundle?.flags?.[LIB_ID]?.[UNPACK_JOURNAL]?.merged) return "create";
+  return "fresh";
+}
+
+/**
+ * The writes that open a bundle embedded on an actor. `updates` folds the
+ * stackables into the stacks the actor already carries and writes the
+ * bundle's journal in the same call; `creates` are the copies, each stamped
+ * with the bundle's id. The caller writes `updates`, then `creates`, then
+ * deletes the bundle.
+ * @returns {{updates: object[], creates: object[]}}
+ */
+export function planEmbeddedUnpack(bundleId, goods, actorItems) {
+  const { creates, targetUpdates } = planStackMerge(goods, actorItems);
+  const stamped = creates.map((c) => stampFrom(c, bundleId));
+  const journal = { _id: bundleId, [`flags.${LIB_ID}.${UNPACK_JOURNAL}`]: { merged: true, creates: stamped } };
+  return { updates: [...targetUpdates, journal], creates: stamped };
+}
+
+/**
+ * Whether a bundle has the shape a market purchase gave one before purchases
+ * arrived as goods: one row, named for that row and its count.
+ */
+export function isPurchaseBundle(bundle) {
+  const rows = bundleRows(bundle);
+  if (rows.length !== 1) return false;
+  const name = String(bundle?.name ?? "");
+  return !!rows[0].name && name.startsWith(rows[0].name) && name.endsWith(`×${rows[0].count}`);
 }

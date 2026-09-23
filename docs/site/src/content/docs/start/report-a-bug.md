@@ -53,3 +53,11 @@ excerpt would.
 Not sure it's a bug? Check the [guides](../../guides/abilities/) first — the
 behaviour you hit may be documented, and if it turns out the docs are what's
 missing, that's a report worth filing too.
+
+Something in your world looks broken rather than behaving wrongly? Examples
+are a sheet listing someone who was deleted, a purchase you cannot find, or a
+party member who is no longer there. As the GM, run **Repair This World (GM)**
+from the *ACKS Extras Macros* compendium, or open it from the module's
+settings. It lists the damage this module knows how to find and changes
+nothing until you choose. If it finds nothing, or its fix does not take, that
+is worth a report. Say what it listed.

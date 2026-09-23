@@ -31,14 +31,24 @@ verification, not as drive-by edits:
   settings.mjs / feature module.mjs / arbitrary file); pick one, document it,
   move the strays.
 
-## Bundles already embedded
+## What the repair tool only reports
 
-Before this module opened bundles, two writers embedded them whole: a market
-purchase of several unit items, and a bundle dropped on the character sheet.
-Those bundles still sit on their actors, where no sheet lists them. A repair
-check that finds them and opens them onto the same actor is designed; it
-needs a crash-safe path the drop does not (the bundle is deleted last, and a
-resumed run must not deliver twice).
+- **Documents the world cannot load.** `lib.strandedCoin` and
+  `lib.mergeResidue` list what they find and write nothing. Their fixes wait
+  for a scratch world, because no create-and-destroy fixture in the shared test
+  world can hold such a document. Designed:
+  - stranded coin credited to an actor the Judge picks, with the fixed keys
+    kept in a hidden `repairLedger` world setting so that a rescan cannot mint
+    the coin twice (the unloadable actor cannot record that it was emptied),
+    and a per-check forget;
+  - the residue fix deleting what the cleaner macro deletes, but skipping an
+    actor that still holds unrecovered coin unless the Judge says otherwise;
+  - the cleaner macro becoming a launcher into those two checks, under its
+    own id.
+- **Region behaviours the retired modules left.** `lib.mergeResidue` reports
+  them. The cleaner macro no longer reaches them, and nothing removes them.
+- **More checks.** Class-training effects whose class uuid no longer resolves:
+  they refuse hand-deletion, and `resetTraining` returns false for them.
 
 ## Who carries `acks`, and whether that is deliberate
 

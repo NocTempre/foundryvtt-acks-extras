@@ -671,5 +671,132 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   opacity: 0.7;
 }
 
-/* --- The animal panel: training, mountability and load on a mount --- */
+/* --- The repair window: a scrolling body over a pinned footer ---
+   The body part is the scroller (it keeps its place across the re-render a
+   scan triggers); the footer never shrinks, so the fix button stays in reach. */
+
+.acks-extras-repair.application .window-content {
+  padding: 0;
+}
+
+.acks-extras-repair .acks-extras-repair-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--acks-sp-3);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-repair .acks-extras-repair-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border-top: var(--acks-border-soft);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-repair .acks-extras-repair-count {
+  flex: 1 1 auto;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-repair .acks-extras-repair-footer button {
+  flex: 0 0 auto;
+}
+
+/* Core pins a button's type size, so the window's own buttons re-take it and
+   ride the knob with the text around them. */
+.acks-extras-repair .acks-extras-repair-bar button,
+.acks-extras-repair .acks-extras-repair-check > header button,
+.acks-extras-repair .acks-extras-repair-footer button {
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-repair .acks-extras-repair-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--acks-sp-2);
+}
+
+.acks-extras-repair .acks-extras-repair-group h2 {
+  font-size: var(--acks-fs-h2);
+  margin: var(--acks-sp-3) 0 var(--acks-sp-2);
+}
+
+.acks-extras-repair .acks-extras-repair-check {
+  border: var(--acks-border-soft);
+  padding: var(--acks-sp-2);
+  margin-bottom: var(--acks-sp-2);
+}
+
+.acks-extras-repair .acks-extras-repair-check > header {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-repair .acks-extras-repair-check > header h3 {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+.acks-extras-repair .acks-extras-repair-check > header button {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.acks-extras-repair .acks-extras-repair-tag,
+.acks-extras-repair .acks-extras-repair-hint,
+.acks-extras-repair .acks-extras-repair-reason {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-repair .acks-extras-repair-hint {
+  margin: var(--acks-sp-1) 0;
+}
+
+.acks-extras-repair .acks-extras-repair-findings {
+  width: 100%;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-repair .acks-extras-repair-findings th:first-child,
+.acks-extras-repair .acks-extras-repair-findings td:first-child {
+  width: 2em;
+  text-align: center;
+}
+
+.acks-extras-repair .acks-extras-repair-findings td {
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+/* The subject opens the document's own sheet: a button, so the keyboard
+   reaches it, drawn as the link it reads as. */
+.acks-extras-repair .acks-extras-repair-subject {
+  all: unset;
+  cursor: pointer;
+  color: var(--acks-spot);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-repair .acks-extras-repair-subject:focus-visible {
+  outline: 2px solid var(--acks-spot);
+}
+
+.acks-extras-repair .acks-extras-repair-clean {
+  font-style: italic;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-repair .acks-extras-repair-failed,
+.acks-extras-repair-report .acks-extras-repair-failed {
+  color: var(--acks-danger-ink);
+}
 

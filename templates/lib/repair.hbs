@@ -1,0 +1,72 @@
+{{!-- The repair window's body: each feature's checks, what a scan found, and
+      what the last fix did. The part root is the scroller. --}}
+<div class="acks-extras-repair-body">
+  <p class="acks-extras-repair-intro">{{localize "ACKS-LIB.repair.intro"}}</p>
+  <div class="acks-extras-repair-bar">
+    <button type="button" data-action="scanAll" {{disabled busy}}>
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      {{localize "ACKS-LIB.repair.scanAll"}}
+    </button>
+  </div>
+
+  {{#each groups as |group|}}
+  <section class="acks-extras-repair-group">
+    <h2>{{group.label}}</h2>
+    {{#each group.checks as |check|}}
+    <article class="acks-extras-repair-check" data-check="{{check.id}}">
+      <header>
+        <h3>{{check.label}}</h3>
+        {{#if check.reportOnly}}<span class="acks-extras-repair-tag">{{localize "ACKS-LIB.repair.reportOnly"}}</span>{{/if}}
+        <button type="button" data-action="scanOne" data-check="{{check.id}}" {{disabled @root.busy}}>{{localize "ACKS-LIB.repair.scan"}}</button>
+      </header>
+      {{#if check.hint}}<p class="acks-extras-repair-hint">{{check.hint}}</p>{{/if}}
+
+      {{#if check.outcome}}
+      <div class="acks-extras-repair-outcome">
+        <p>{{check.outcome.counts}}</p>
+        <ul>
+          {{#each check.outcome.fixed as |row|}}<li>{{row.name}}: {{row.text}}</li>{{/each}}
+          {{#each check.outcome.failed as |row|}}<li class="acks-extras-repair-failed">{{row.name}}: {{row.text}}</li>{{/each}}
+        </ul>
+      </div>
+      {{/if}}
+
+      {{#if check.error}}
+      <p class="acks-extras-repair-failed">{{localize "ACKS-LIB.repair.scanFailed" error=check.error}}</p>
+      {{else if check.scanned}}
+        {{#if check.findings.length}}
+        <table class="acks-extras-repair-findings">
+          <thead>
+            <tr>
+              <th scope="col">
+                {{#if check.anyFixable}}<input type="checkbox" data-pick-all="{{check.id}}" aria-label="{{localize 'ACKS-LIB.repair.pickAll'}}">{{/if}}
+              </th>
+              <th scope="col">{{localize "ACKS-LIB.repair.colSubject"}}</th>
+              <th scope="col">{{localize "ACKS-LIB.repair.colFound"}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each check.findings as |f|}}
+            <tr>
+              <td>{{#if f.fixable}}<input type="checkbox" data-pick="{{f.pick}}" aria-label="{{f.name}}" {{checked f.checked}}>{{/if}}</td>
+              <td>
+                {{#if f.uuid}}<button type="button" class="acks-extras-repair-subject" data-action="openSubject" data-uuid="{{f.uuid}}">{{f.name}}</button>
+                {{else}}{{f.name}}{{/if}}
+              </td>
+              <td>
+                {{f.detail}}
+                {{#if f.reason}}<div class="acks-extras-repair-reason">{{f.reason}}</div>{{/if}}
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+        {{else}}
+        <p class="acks-extras-repair-clean">{{localize "ACKS-LIB.repair.clean"}}</p>
+        {{/if}}
+      {{/if}}
+    </article>
+    {{/each}}
+  </section>
+  {{/each}}
+</div>

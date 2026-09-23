@@ -393,6 +393,8 @@ drag makes. Read encumbrance on the character sheet's bar as well as the API.
 6. **One control.** Open a plain item's Record panel.
    *Observable:* no Kind select; Quantity and Max remain. On an `armor`
    document the rail's Base type list offers no Clothing.
+7. **A disagreement left from before.** Walked as the repair tool's
+   `equipment.railClothing` check in docs/lib/TESTING.md, "The repair tool".
 
 Teardown: `api.sweepTracked()`; quote what it removed, what it could not find
 and what refused.

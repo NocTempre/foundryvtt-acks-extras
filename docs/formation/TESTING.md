@@ -494,6 +494,10 @@ end of the run, so it can disagree with a boolean captured beside it.
 lost", which is what `isAstray` did on its first outing — every offline caller
 happened to wrap correctly, so only the live run caught it.
 
+Markers left outside an episode, and members whose actor is gone, are walked
+as the repair tool's formation checks in docs/lib/TESTING.md, "The repair
+tool".
+
 ## The day's end (added with the movement-raised offer)
 
 Fixture: a hex scene (`grid.type: 2`, a mile distance per hex), a party actor

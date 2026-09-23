@@ -140,6 +140,7 @@ import { FLIGHT_DOC } from "./flight.mjs";
 import { SURVIVAL_DOC } from "../lib/survival.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TRAVEL_DOC, WEATHER_DOC } from "../vehicles/vehicle-speed.mjs";
+import { registerFormationRepairChecks } from "./repair-checks.mjs";
 
 /** Open the formation window. */
 function openPartySheet() {
@@ -151,6 +152,7 @@ function openPartySheet() {
 
 
 Hooks.once("init", () => {
+  registerFormationRepairChecks();
   game.settings.register(MODULE_ID, "ownXpDealing", {
     name: "ACKS-FORMATION.xp.settingName",
     hint: "ACKS-FORMATION.xp.settingHint",

@@ -45,6 +45,7 @@ import {
 } from "./scene-link.mjs";
 import { depositReach, reachablePlaces, pinnedPlaces, setPinnedPlace, companionIds } from "./reach.mjs";
 import { placeUnderParty, placesOnScene } from "./here.mjs";
+import { registerLocationRepairChecks } from "./repair-checks.mjs";
 
 /** The icon a place is made with when its maker names none: core's own house. */
 const PLACE_IMG = "icons/svg/house.svg";
@@ -57,6 +58,7 @@ const TEMPLATES = [
 
 Hooks.once("init", () => {
   registerStoreSetting();
+  registerLocationRepairChecks();
 
   // NEVER gate this on an apiVersion check. lib is a sibling feature, not a
   // separately-installed dependency: it attaches at import time

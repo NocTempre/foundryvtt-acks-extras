@@ -2256,7 +2256,8 @@ and the rest arrive.
 **What it cost.** A purchase of a good the buyer carries in a container, or has
 edited, arrives as a second, loose stack instead of topping up the first. A
 bundle embedded before this change stays on its actor, unseen, until something
-opens it (ROADMAP, "Bundles already embedded").
+opens it. (Addressed the same day: the repair tool opens them. See "One
+standing repair tool" below.)
 
 ### One roll dialog, and the natural die on the card (2026-09-23)
 
@@ -2342,3 +2343,66 @@ listening and searching, obstacles, the encounter shift, the settlement turn
 and stay, the wandering-monster throw and its table draw, a hireling's secret
 throw, the weekly search fee, secret influence, sea throws and the sinking
 clock.
+
+### One standing repair tool (2026-09-23)
+
+**Ruled.** Damaged data a fixed bug left behind is repaired from one GM window,
+over a registry of checks that each feature registers for its own data (MODEL,
+"The repair tool"). A fix is judged by scanning again, never by what the fix
+reports. Nothing scans at `ready`. A check may be report-only, and a finding
+may name where it is fixed instead.
+
+This **supersedes in part** docs/henchmen/DECISIONS.md 2026-09-01 ("fix the
+bug, do not ship a script that repairs it"), on the user's ruling. The source
+fix stays the rule, and a check now ships beside it. **New evidence:** fixed
+bugs left data that no code path reaches. The bundles the market and the
+character sheet embedded whole stay on their actors after both writers stopped
+("A bundle arrives as its goods", above). A true-position marker from an
+episode that ended before the ledger kept its phase stands on its scene with
+nothing that will remove it (docs/formation/DECISIONS.md, "A lost episode
+belongs to its scene"). It also extends docs/DECISIONS.md §11: the cleaner's
+walk now also runs as a scan in module code, and the scan includes the region
+behaviours the macro lost.
+
+- **An embedded bundle is opened crash-safely.** Merges and a journal land in
+  one write, then the stamped copies, then the deletion, so a resumed run
+  delivers nothing twice (MODEL, "Goods handed to an actor, and bundles").
+- **The two invalid-document checks report only.** Stranded coin and merge
+  residue list what they find and write nothing. Their fixes destroy or
+  recreate documents the world cannot load, and no create-and-destroy fixture
+  in the shared test world can hold one, so they wait for a scratch world
+  (ROADMAP).
+- **The cleaner macro keeps its own command.** The design made it a launcher
+  into this window. With merge residue report-only, a launcher would remove the
+  only way to clean up.
+- **A residue row that holds coin says so.** The macro deletes an unloadable
+  actor whole, so such a row names the coin and warns that the macro deletes
+  it, rather than sending the Judge to it bare.
+- **A true-position marker goes only when the Judge ticks it.** The fix covers
+  a marker with no party, a spare beside the one its episode keeps on its own
+  scene, and one from a closed episode. Formation keeps that last kind from its
+  ready sweep because it is the only record of where the party stood, so its
+  row also points at the panel that can move the party onto it. An open
+  episode's only marker is never touched, and a missing one is reported.
+- **Clothing's base type wins** where its two halves disagree, as the
+  declaration hook rules a write that moves both.
+
+**Rejected.**
+- *A scan at `ready` with a notification.* Every check walks the whole world,
+  most worlds have nothing to find, and a notice at every load about a finding
+  the Judge chose to keep teaches the table to ignore it. Adding one needs a
+  setting.
+- *Trusting the fix's own report.* A write can say it worked and not apply.
+- *A hidden `repairLedger` world setting.* It would record fixed keys for
+  fixes that cannot change their own source, such as coin credited to another
+  actor. No such fix ships, so neither does the setting, nor its per-check
+  forget.
+- *One macro per check.* The retired repair macros each added a preview and a
+  scope and no capability. One window, with a scan per check, is the preview.
+
+**What it cost.** Coin inside an actor that cannot load stays out of reach in
+this version. The check shows how much. Where the package is installed but
+off, it names the package to enable, unless it is one of the retired acks-*
+modules. The region behaviours the retired modules left are reported, and no
+shipped tool removes them. A bundle with a row nothing in the world resolves
+stays whole until the Judge imports the good or edits the bundle.

@@ -1,4 +1,4 @@
-# lib API (apiVersion 17)
+# lib API (apiVersion 18)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 17,
+  apiVersion: 18,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -49,12 +49,13 @@ acksExtras.lib = {
   TemplateData, TEMPLATE_TYPE, templateLogic,
   // --- domain surfaces ---
   mount, senses, light, perception, storage, places, itemModel, …
+  repair,              // lib/repair.mjs — the standing repair tool (below); 18
 }
 ```
 
 The elided trailing group and the full file-by-file surface are indexed in
-**`scripts/lib/README.md`** (validate-enforced: a lib file and its row cannot
-disagree) — check there first. `scripts/lib/module.mjs` builds the exposed
+**`scripts/lib/README.md`** — check there first. No gate compares that index
+with the files, so a file added without its row is found only by reading. `scripts/lib/module.mjs` builds the exposed
 object. Every path is under `scripts/lib/`.
 
 ## `tables` — layered rules-table registry (Foundry-free)
@@ -391,6 +392,45 @@ them today; treat a change here as cheap until magic lands.
   about the spell. **TODO(magic):** replace with a real spell primitive (school,
   range, duration, save, reversibility, ritual cost) and retire the free-text
   `spell` string on `effectField`.
+
+## `repair` — the standing repair tool (apiVersion 18)
+
+How the tool behaves is docs/lib/MODEL.md, "The repair tool". `scan` and `fix`
+throw for a seat that is not a GM, and `open` warns and returns null.
+
+```
+acksExtras.lib.repair = {
+  register(spec),                   // → the frozen check; call it at `init`
+  checks({only}?),                  // → the checks this world meets, in window order
+  async scan({only}?),              // → [{id, findings, error}]
+  async fix(id, keys, {report}?),   // → {id, fixed, failed, gone, rescan}
+  open({only}?),                    // the window, scoped to `only` when given
+  danglingRefCheck(spec),           // → a spec for register()
+  async fixEach(findings, fn),      // → the result list a fix returns
+}
+```
+
+A spec is `{id, label, hint?, scan, fix?, order?, requires?}`:
+
+- `id` is `<feature>.<name>`. A second registration of one id throws.
+- `label` and `hint` are lang keys.
+- `scan()` is read-only and returns findings
+  `{key, uuid?, name, detail, fixable?, reason?}`. `key` is unique within the
+  check: a duplicate keeps the first, and a finding with no key is dropped.
+  `fixable: false` lists a finding without offering it, and `reason` says
+  where it is fixed instead.
+- `fix(findings)` returns `{key, ok, summary?, error?}` per finding it was
+  handed; `fixEach` builds that list from a per-finding function, turning a
+  throw into `ok: false`. The runner does not trust the list: it rescans the
+  check, and a finding still found has failed. With no `fix` the check is
+  report-only.
+- `requires()` returning false, or throwing, hides the check.
+
+`fix(id, keys)` takes `keys` from a fresh scan: a key that scan no longer
+reports is returned in `gone` and left alone, and a key the scan reports as
+`fixable: false` is skipped without appearing in any list. Each `failed` entry
+carries `why` (`still`, `refused`, `threw` or `unverified`) and `error`. With
+`report` left true, a fix that changed anything whispers one card to the GMs.
 
 ## Versioning
 

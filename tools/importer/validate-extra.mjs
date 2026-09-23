@@ -64,6 +64,8 @@ const rel = (f) => path.relative(ROOT, f).split(path.sep).join("/");
     "tools/pack-data/cleanup.mjs",
     // Generated FROM the entry above — same "names the old ids by design".
     "packs/_source/macros/clean-up-after-the-merge-gm.json",
+    // The repair tool's merge-residue scan: the cleaner's walk, in module code.
+    "scripts/lib/repair-checks.mjs",
   ]);
   for (const dir of ["scripts", "styles", "lang", "tools", "register", "cookbook", "packs/_source"]) {
     for (const f of walk(path.join(ROOT, dir))) {

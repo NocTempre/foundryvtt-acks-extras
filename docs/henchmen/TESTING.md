@@ -98,6 +98,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    of the row whose band holds 51 — not the bare word "Hosteller", which is
    what a world without that sub-table returns.
 
+The reference repair's check in the repair tool (`henchmen.references`) is
+walked in docs/lib/TESTING.md, "The repair tool".
+
 ## Teardown
 
 Delete the employer, the hires, the location and any actors the recruit path

@@ -248,6 +248,12 @@ Live-verified on the test world: 43 leftovers removed, a second run reported
 "already clean" without prompting, and the world then loaded with zero console
 errors where it had previously thrown on every load.
 
+**Extended 2026-09-23** (docs/lib/DECISIONS.md, "One standing repair tool").
+The repair tool's `lib.mergeResidue` check runs this walk in module code as a
+scan. The scan includes the region behaviours the macro no longer reaches. The
+macro stays the fix for everything except those behaviours, which nothing
+removes yet (docs/lib/ROADMAP.md).
+
 ## 12. Single-branch development — RESOLVED (isolation off, guard on)
 
 The convention was always one branch. It read `Branch `main`; tags `v<semver>`.`

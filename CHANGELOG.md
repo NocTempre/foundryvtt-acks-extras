@@ -1,5 +1,41 @@
 # Changelog
 
+## 8.3.0
+
+### Added
+
+- **Repair This World finds the data this module left damaged, and fixes only
+  what you choose.** Open it from **Configure Settings → ACKS II — Extras →
+  Repair this world**, or run *Repair This World (GM)* from the *ACKS Extras
+  Macros* compendium. **Scan all** lists what it finds, feature by feature:
+  bundles carried where no sheet shows them, hireling lists naming deleted
+  actors, party members whose actor is gone, true-position markers left on a
+  map, place links to maps and regions that are gone, banked coin not yet in a
+  vault, actors still attached to a mount or wagon that was deleted, and
+  clothing declared on one half only. Nothing changes until you tick findings
+  and press **Fix selected**. Every fix is checked by scanning again, so a fix
+  that did not take shows as failed rather than done, and one card whispered
+  to the Judge says what was fixed and what was not. Some findings are listed
+  with where to deal with them instead: storage whose owner is gone, a lost
+  party whose marker is on another map or missing, and what the separate
+  acks-* modules left behind, which *Clean Up After the Merge (GM)* still
+  removes. The exception is region behaviours, which that macro no longer
+  finds. Coin inside an actor
+  that cannot load is listed with how much it holds, and a row the cleanup
+  macro would delete warns when it holds coin. This version does not move that
+  coin. GM only. For module authors, `acksExtras.lib.repair` registers
+  further checks (apiVersion 18).
+
+### Fixed
+
+- **A bundle carried where no sheet shows it can be opened.** Before purchases
+  and dropped bundles arrived as their goods, both put the bundle itself on the
+  actor, where no sheet listed it. The repair tool opens each one onto the actor
+  carrying it: the goods it names arrive as they would from a drop, and the
+  bundle is removed. A bundle naming goods this world no longer holds is listed
+  with the missing names and left as it is. An opening that is interrupted is
+  finished by the next one, and never delivers twice.
+
 ## 8.2.0
 
 ### Fixed

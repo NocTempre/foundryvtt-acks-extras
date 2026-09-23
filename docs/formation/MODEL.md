@@ -650,7 +650,10 @@ dissolved. A shadow is a token of the party actor, so the party-token adoption
 hook skips it. At `ready`, the primary GM deletes shadows whose formation no
 longer exists. A shadow whose formation exists with no episode open was left by
 an earlier build's discovery. The lost panel says so and offers the same two
-closing buttons, which move the party onto it or remove it.
+closing buttons, which move the party onto it or remove it. The repair tool's
+`formation.shadows` check lists every such marker across the world, with the
+spares and the members whose actor is gone (`formation.members`)
+(docs/lib/MODEL.md, "The repair tool").
 
 **Following spares the throw.** RAW exempts navigable rivers, roads and "other
 well-established routes" from getting lost. Roads are the road picker's

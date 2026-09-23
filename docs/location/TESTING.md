@@ -269,6 +269,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     (empty, but standing on a map — hide its token and run again) survive; an
     empty place with no token, no link and nothing in it goes.
 
+The repair tool's location checks (stale links, banked coin, storage whose
+owner is gone) are walked in docs/lib/TESTING.md, "The repair tool".
+
 ## Teardown
 
 Delete every document the compendium steps imported (filter the pack index by

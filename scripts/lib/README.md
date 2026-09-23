@@ -20,12 +20,17 @@ sibling modules) — never the import path for this module's own features.
 | `choice-spec.mjs` | The family's one "choose N from …" primitive. |
 | `tables.mjs` | Layered rules-table registry (SAMPLE/CATALOG/WORLD) + `bracketRow(rows, value)` — the ONE min/max bracket lookup. Foundry-free. |
 | `ruledata.mjs` | Foundry-side loader: fetches `ruledata/<id>.json` and registers it into the tables registry. |
+| `repair-logic.mjs` | The repair registry and its runner: `registerRepairCheck`, scan → fix → rescan (`fixCheck`, where the rescan decides), `fixEach`, `danglingRefCheck`. Foundry-free. |
+| `repair.mjs` | The repair tool's Foundry half: `worldActors` (world actors, then unlinked tokens'), the GM-only `scanRepairs` / `fixRepairs`, and the report whispered to the GMs. Every feature registers its checks through it (docs/lib/MODEL.md, "The repair tool"). |
+| `repair-checks.mjs` | Lib's own checks: embedded bundles, dead attachments, legacy mount pairs, and the report-only stranded coin and merge residue. |
 | `services.mjs` | Named-contract service registry — providers register at `init`, consumers look up by contract name (contracts: `docs/lib/API.md`). |
 | `sockets.mjs` | The module's ONE cross-client transport (socketlib + handler registry + native fallback). |
 | `util.mjs` | `makeLoc` / `toNum` / `gmIds` / `judgesAndOwners` / `isPrimaryGM` / `libStorage` / `announceChange` / `ownsSheet` / `typeScale` + `atTypeScale` / `unset` + `isUnset` — the helpers every feature used to copy (`gmIds` is the one spelling of "the GMs"; `judgesAndOwners(doc)` adds that document's other owners), the one predicate that tells a sheet this module draws from the system's, the JS twin of `--acks-extras-k` for a window whose opening size is a design-canvas figure, and the one spelling of a forced deletion in an update. |
 | `a11y.mjs` | `associateLabels` — every caption in EVERY rendered window (this module's, the system's, Foundry's) bound to the control it fronts, with an id seeded from that window's own root id. The ONE answer to "a `<label>` that names nothing"; never write a literal `id=` in a `.hbs` instead, two copies of one sheet collide. |
 | `world-time.mjs` | The one switch deciding whether this module writes `game.time`. |
 | `sheet-claim.mjs` | This module's sub-types open on this module's sheets: takes the default back from a stored `core.sheetClasses` pin (which outranks every later `makeDefault`, permanently), clears that pin once as GM, and stands a partial under the name the system's item sheet builds from a type so a foreign sheet degrades to a note instead of a thrown render. Imported LAST from `scripts/module.mjs`. |
+| `ui-preset-logic.mjs` | The default-sheet ladder a world's UI preset resolves (extras, then the system, then Foundry). Foundry-free. |
+| `ui-preset.mjs` | The UI preset: whose defaults a world opens on, its look and its default sheet per type, chosen once by the Judge for every seat. |
 | `module.mjs` | The barrel + patch layer: builds `acksExtras.lib`, registers settings, sub-types and patches. Import FROM the individual files, not from here. |
 
 ## Reading actors & items
@@ -61,6 +66,8 @@ sibling modules) — never the import path for this module's own features.
 | `money.mjs` | Money as physical: `transferCoin` (location-gated), `creditCoin`, `exchangeCoins`, `HOUSE_OWNER`. The ONE payment path. |
 | `storage-logic.mjs` | Pure transfer plans for goods stored off-person. Foundry-free half of storage. |
 | `storage.mjs` | Storage at a place — the document writes over storage-logic's plans. |
+| `bundles-logic.mjs` | What a bundle's rows become on an actor, and the three-write plan that opens one already embedded (`planEmbeddedUnpack`, `unpackStage`). Foundry-free. |
+| `bundles.mjs` | Goods handed to an actor: `deliverItems` (the one delivery path, for the markets too), `unpackBundle` for a dropped bundle, `unpackEmbeddedBundle` for one already embedded. |
 | `place-logic.mjs` | Pure nesting/occupancy/stacking rules for PLACES. Foundry-free half of place. |
 | `place.mjs` | PLACES — nesting, occupancy, stacking over the storage primitive. |
 | `group-logic.mjs` | Pure stacked-actor lifecycle decisions. Foundry-free half of group. |
@@ -82,6 +89,7 @@ sibling modules) — never the import path for this module's own features.
 | `apps/follower-card-sheet.mjs` | The Follower Card as an actor sheet (default for `monster` sub-types). |
 | `apps/group-sheet.mjs` | The group (stacked-actor) sheet. |
 | `apps/template-sheet.mjs` | The template-generator builder sheet. |
+| `apps/repair-app.mjs` | The repair window (GM only): scan all or one check, tick findings, Fix selected; `RepairMenu` is the settings-menu entry, `openRepairTool` the macro's and the API's. |
 
 ## data/
 

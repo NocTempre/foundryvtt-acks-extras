@@ -8,7 +8,12 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
-### Two repair macros retire into the code that made them unnecessary (2026-09-01)
+### Two repair macros retire into the code that made them unnecessary (2026-09-01) — SUPERSEDED IN PART 2026-09-23
+
+**Superseded in part by docs/lib/DECISIONS.md, "One standing repair tool".**
+A standing repair tool now ships beside the source fix, and this reference
+repair is one of its checks (`henchmen.references`, wrapping `repair.mjs`).
+Both macros stay retired, and the sweep at ready stays.
 
 User direction: fix the bug, do not ship a script that repairs it.
 

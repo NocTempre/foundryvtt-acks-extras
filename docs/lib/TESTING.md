@@ -713,6 +713,137 @@ features that post Judge-only cards.
 **Teardown.** Delete the messages by the ids the steps read back;
 `api.sweepTracked()` for the table.
 
+## The repair tool
+
+Covers `repair-logic.mjs` and `repair.mjs` (the registry, scan → fix → rescan,
+the report), `apps/repair-app.mjs`, the settings menu and the macro, and every
+shipped check a create-and-destroy fixture can reach. `lib.strandedCoin` and
+`lib.mergeResidue` need a document the world cannot load, which no fixture
+here can make. Walk them only in a scratch world, and otherwise report them as
+not exercised.
+
+The scan reads the whole world, so a shared world shows other sessions' rows.
+**Tick only the rows that name your own fixtures.**
+
+**Drive notes (learned live):**
+- **Write every `system` field with an update after the create.** The
+  system's actor create replaces creation-time `system` data unless `items`
+  rides along, and `api.create` goes through it. A place created with a
+  `sceneUuid` stores `""` and scans clean.
+- **The clothing declaration hooks refuse the disagreeing items.** Every
+  `preCreateItem` and `preUpdateItem` entry whose function source contains
+  `clothingDeclarationPatch` keeps an item's two halves together. Detach them
+  in your own client with `Hooks.off(name, id)`, create the three clothing
+  fixtures, and restore them with `Hooks.on` straight after.
+- **Never reload between building the fixtures and step 3.** The ready-time
+  sweeps repair or delete fixtures at load: the henchmen references, the vault
+  sweep, the empty-place prune and the orphan-marker sweep. The walk then
+  proves nothing.
+- **A backgrounded pane lays out at 0×0,** so coordinate and ref clicks miss.
+  Call `.click()` on the real controls in page context:
+  `button[data-key="acks-extras.repairTool"]` in the settings window, and
+  `[data-action="scanAll"]`, `input[data-pick]` and
+  `[data-action="fixSelected"]` in the tool.
+
+**Fixtures (as GM, each id recorded with `api.track`):**
+- "Repair Hero", a `character` the Player seat owns. Its
+  `system.henchmenList` holds one id no actor has.
+- "Repair Sword", a world `weapon`. On Repair Hero, four embedded `bundle`
+  items, made with `createEmbeddedDocuments`, because the sheet's drop no
+  longer embeds one:
+  - "Repair Sword ×3", whose one `system.itemList` row points at Repair Sword
+    with `quantity` 3. This is the shape a market purchase left (`git show
+    7655412:scripts/markets/engine/trade.mjs`).
+  - "Repair Kit", whose one row names a world item that was created and then
+    deleted, under a name no library item carries.
+  - "Repair Half", half unpacked: beside it on Repair Hero, a copy of Repair
+    Sword flagged `flags.acks-extras.unpackedFrom` with Repair Half's id.
+  - "Repair Journal", stopped between its two writes. Its
+    `flags.acks-extras.unpack` is `{merged: true, creates: [...]}`, where the
+    two item sources are each stamped `flags.acks-extras.unpackedFrom` with
+    Repair Journal's own id, so the flag is set by an update once that id
+    exists.
+- Also on Repair Hero, the gold `money` item the system gave it, updated to a
+  nonzero `system.quantitybank`.
+- "Repair Rider", a `character` flagged `flags.acks-extras.attachedTo =
+  {uuid: "Actor.<16 characters no actor has>", role: "rider"}` and
+  `flags.acks-extras.mount = "Actor.<the same>"`.
+- "Repair Place", an `acks-extras.location` whose `system.sceneUuid` is
+  updated to a scene uuid that does not exist.
+- "Repair Scene", a scene created with `active: false`, so that no client
+  starts drawing it, and flagged `flags.acks-extras.location` with an actor
+  uuid that does not exist. On it, a token of Repair Hero flagged
+  `flags.acks-extras.shadowFor` with a formation id no formation has.
+- "Repair Vault", an `acks-extras.location` flagged
+  `flags.acks-extras.storage.vaultOf` with an actor uuid that does not exist.
+- Three world items, built with the declaration hooks detached:
+  - "Repair Coat", an `item` flagged `flags.acks-extras.baseType =
+    "clothing"`, whose `system.subtype` is `item`.
+  - "Repair Cloak", an `item` flagged `baseType = "gear"`, whose
+    `system.subtype` is `clothing`.
+  - "Repair Armour", an `armor` item flagged `baseType = "clothing"`.
+
+1. **A scan writes nothing.** Arm an observer on the create, update and delete
+   hooks of Actor, Item, Scene, Token, Setting and ChatMessage, recording only
+   calls whose `userId` is your own. Open **Configure Settings → ACKS II —
+   Extras → Repair this world** and press **Scan all**.
+   **Observable:** every fixture has its row under its check:
+   - four bundles: Repair Kit has no tick box and names its missing good, and
+     Repair Journal reads "Partly unpacked. Fixing finishes it.";
+   - the henchmen list, the attachment and the mount flag, the place link, the
+     scene flag, the shadow and the banked coin;
+   - the orphan vault, marked report only, with no tick box and a line
+     pointing at the place's Storage tab;
+   - the three clothing items, where Repair Armour names its document type by
+     its label.
+
+   The observer holds nothing.
+2. **Fix.** Tick your fixtures' fixable rows and press **Fix selected**, then
+   confirm.
+   **Observable:** one card, whispered to the GMs, lists every ticked row as
+   fixed. `api.track` it; it is the newest message whose content links your
+   fixtures' uuids. Then check each fixture:
+   - Repair Hero carries no `bundle` except Repair Kit. It has three Repair
+     Sword copies stamped with the purchase bundle's id, exactly one copy
+     stamped with Repair Half's id, and Repair Journal's two copies with
+     Repair Journal gone. Its henchmen list is empty.
+   - Repair Rider has neither flag.
+   - Repair Place's `sceneUuid` is `""`.
+   - Repair Scene has no `location` flag and no shadow token.
+   - Repair Coat's subtype is `clothing`, Repair Cloak's is `item`, and Repair
+     Armour has no `baseType`.
+   - The banked coin is in a vault. `api.track` the vault, read back as the
+     provider whose `vaultOf` is Repair Hero's uuid.
+3. **The rescan decided.** Press **Scan all** again.
+   **Observable:** none of the fixed rows is listed, and Repair Kit and Repair
+   Vault still are.
+4. **A second fix is a no-op.** In page context, `await
+   api.repair.fix("lib.embeddedBundles", [<Repair Sword ×3's old uuid>])`.
+   **Observable:** the key is in `gone`, `fixed` and `failed` are empty, and no
+   card is posted.
+5. **Layout and type size.** Size the window to 480×320, then re-render it.
+   **Observable:** the body scrolls, the footer stays pinned, `.window-content`
+   itself does not scroll, and the body keeps its scroll position across the
+   re-render.
+
+   Raise the type knob, then close and reopen the window. A window that is
+   already open keeps its old sizes in the pane.
+   **Observable:** the body text, the hints and the window's own buttons all
+   grow with the knob.
+6. **The player seat.** Join as Player from the capture driver's own browser
+   (`connect({ user: "Player" })`). Pane tabs share one session, so a pane
+   join demotes the GM.
+   **Observable:**
+   - the settings window has no **Open the repair tool** button;
+   - running *Repair This World (GM)* warns that only a GM can repair the
+     world, and no window opens;
+   - `api.repair.open()` returns null;
+   - `api.repair.scan()` and `api.repair.fix()` both reject.
+
+**Teardown.** `api.sweepTracked()`. Deleting Repair Hero takes its bundles,
+copies and coin with it. The shadow token went with the fix, so it sweeps as
+missing.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.
