@@ -1,32 +1,15 @@
 /* global game, ui, Hooks */
 /**
- * Module-managed Active Effects — the ones this module writes, rewrites and
- * owns, and which a hand must not delete.
+ * Module-managed Active Effects — class combat training (`fromClass`) and
+ * the equipment loadout (`loadout`) — refuse hand-deletion; editing, emptying
+ * and disabling stay untouched. See docs/lib/DECISIONS.md, "2026-08-25 — the
+ * effects the module maintains refuse hand-deletion, and nothing else about
+ * them changes." The module's own deletes authorize themselves by passing
+ * `managedDelete()` in the operation options, rather than by a global unlock.
  *
- * Two effects on a character are machinery rather than notes a Judge made:
- * the class's combat training (`fromClass`) and the equipment loadout
- * (`loadout`). Both sit in core's ordinary Effects list beside hand-made ones,
- * with the same trash button, and deleting either breaks the character
- * silently — training vanishes and every weapon reads as untrained until the
- * class is applied again; the loadout's modifiers vanish until the next equip
- * happens to rebuild them. Nothing announces it, because from Foundry's side a
- * document was deleted exactly as asked.
- *
- * So deletion is REFUSED and everything else is left alone. Editing, clearing
- * the changes and disabling all still work: a Judge who wants a character
- * untrained can empty the effect, which is a decision they can see afterwards,
- * rather than removing the row and leaving no trace of what used to be there.
- *
- * The module's own deletes are the exception, and they authorize themselves by
- * passing `managedDelete()` in the operation options rather than by unsetting a
- * global. An option travels with the one call that asked for it; a global
- * unlock would still be open across every `await` inside it, and the sync path
- * awaits repeatedly.
- *
- * WHAT EMPTYING MEANS DIFFERS BY OWNER, and the difference is not hidden:
- * training is a COPY taken when the class was applied, so an emptied one stays
- * emptied until the class is applied again; the loadout is DERIVED from what is
- * equipped, so an emptied one refills the next time the loadout is recomputed.
+ * Emptying means something different per owner: training is a COPY taken at
+ * apply time, so an emptied one stays emptied; the loadout is DERIVED from
+ * what is equipped, so an emptied one refills on the next recompute.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 

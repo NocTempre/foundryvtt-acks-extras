@@ -128,9 +128,8 @@ export function registerInfluenceIntegration() {
       const context = payload?.context;
       // --- Our hosted pages: apply the consequences ---
       if (context?.module === MODULE_ID) {
-        // One roll = one application. Multiple open dialog instances for the
-        // same candidate each report the shared completion, so identical
-        // resolutions arriving within a short window collapse to one.
+        // One roll = one application; see docs/henchmen/DECISIONS.md,
+        // "Exactly-once hiring under duplicate socket delivery".
         const sig = [context.candidateId ?? context.specialHireId ?? context.actorUuid ?? "", payload.mode, payload.natural, payload.total, payload.outcome].join(":");
         const nowMs = Date.now();
         for (const [k, t] of _seenResolutions) if (nowMs - t > 15000) _seenResolutions.delete(k);
@@ -139,9 +138,9 @@ export function registerInfluenceIntegration() {
         if (payload.mode === "hiring") {
           const signingTier = signingTierFromParts(payload.parts);
           const signingGp = signingTier > 0 ? (context.signingTiers?.[signingTier] ?? 0) : 0;
-          // Local-first: a seat that can write the location applies the
-          // outcome itself — no GM client required (dynamic import avoids
-          // the module cycle with the recruit dialog).
+          // Local-first (docs/henchmen/DECISIONS.md, "Recruiting needs no GM
+          // client online"). Dynamic import avoids the module cycle with the
+          // recruit dialog.
           const { deliverHiringOutcome } = await import("../apps/recruit-dialog.mjs");
           await deliverHiringOutcome({
             locationUuid: context.locationUuid,

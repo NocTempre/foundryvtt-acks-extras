@@ -84,11 +84,9 @@ class CalibrationSession {
   /* -------------------------------------------- */
 
   /**
-   * Arm a mode. A SETTER, never a toggle: arming is driven from two places at
-   * once — the toolbar re-fires `onChange` for the already-active tool when
-   * the group is re-entered, and the panel's buttons mirror it — and a toggle
-   * turned each of those into a silent disarm. That is what stopped a second
-   * box being drawn: the mode looked armed and was not.
+   * Arm a mode. A SETTER, never a toggle: arming is driven from two places
+   * at once — the toolbar's `onChange` re-fires on re-entry, and the panel's
+   * buttons mirror it — and a toggle would turn either into a silent disarm.
    *
    * Pass null to disarm.
    */

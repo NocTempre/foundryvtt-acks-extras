@@ -76,11 +76,8 @@ function confirmApply(body, { shifts }) {
  * @returns {Promise<boolean>} whether the update was confirmed and written.
  */
 export async function applyGridCalibration(scene, fit, { gridSize, outputFeet, mapCellFeet, units, mapSystem = null }) {
-  // GRIDLESS is the ordinary starting state of a freshly imported map, and
-  // giving it a square grid is the whole point of calibrating — so it is
-  // accepted and switched to SQUARE by the apply. A hex scene is refused THIS
-  // apply because a rectangular lattice is not what it wants; the hex family
-  // is how a hex map is calibrated.
+  // GRIDLESS is accepted and switched to SQUARE; a hex scene is refused this
+  // apply — the hex family calibrates it instead.
   if (!CALIBRATABLE_GRIDS.has(scene.grid.type)) {
     ui.notifications.warn(loc("warn.notSquareGrid"));
     return false;
@@ -97,10 +94,8 @@ export async function applyGridCalibration(scene, fit, { gridSize, outputFeet, m
   const width = Math.round(tex.width * fx);
   const height = Math.round(tex.height * fy);
 
-  // Solve the shift off a preview clone whose shift is ZEROED, so its
-  // `sceneX`/`sceneY` report exactly the padding-rounded origin the real
-  // scene will have before its own shift applies. Asking the clone keeps
-  // this correct if core's padding rounding ever changes.
+  // Solved off a clone with shift zeroed, so sceneX/sceneY report the
+  // pre-shift padding-rounded origin.
   const clone = scene.clone({ width, height, shiftX: 0, shiftY: 0, "grid.size": G }, { keepId: true });
   const dims = clone.getDimensions();
   const shiftX = solveShift({ origin: dims.sceneX, phase: fit.phaseX, factor: fx, gridSize: G });
@@ -138,15 +133,8 @@ export async function applyGridCalibration(scene, fit, { gridSize, outputFeet, m
 /**
  * Apply a HEX calibration: the background is rescaled so one drawn hex is one
  * Foundry hex of `gridSize` px, and the scene is shifted so that hex's centre
- * lands on a Foundry hex centre.
- *
- * Neither a hex's proportions nor its packing are restated here. The bounding
- * box of a hex at a probe size, and the centre nearest a point, are both ASKED
- * of a scene clone carrying the target grid: hex geometry is core's, and a
- * copy of it here would be a second answer to drift from.
- *
- * One drawn hex is one Foundry hex, always. Re-pitching a grid to a fraction
- * of a drawn cell is a square-grid idea — hexes do not tile hexes.
+ * lands on a Foundry hex centre. A hex's bounding box and centre are asked of
+ * a scene clone carrying the target grid, never rederived here.
  *
  * @param {Scene} scene
  * @param {object} fit  Rect-mode fit (image px) of one hex's bounding box.
@@ -171,9 +159,7 @@ export async function applyHexCalibration(scene, fit, { gridSize, outputFeet, he
   }
   const G = Math.round(gridSize);
 
-  // A hex at the probe size, MEASURED rather than derived: its bounding box is
-  // not square and the two edges differ, which is the whole reason a hex map
-  // cannot reuse the square path.
+  // Measured, not derived: a hex's bounding box is not square.
   const probe = hexProbe(scene, family, hexEven);
   const hexW = probe ? (probe.refW / probe.refSize) * G : 0;
   const hexH = probe ? (probe.refH / probe.refSize) * G : 0;
@@ -186,9 +172,8 @@ export async function applyHexCalibration(scene, fit, { gridSize, outputFeet, he
   const width = Math.round(tex.width * fx);
   const height = Math.round(tex.height * fy);
 
-  // The shift is solved the way the square path solves it — off a zero-shift
-  // clone — but by asking that clone's own grid which hex centre is nearest.
-  // A phase cannot express hex packing: every other row starts half a cell over.
+  // Off a zero-shift clone, asking its grid for the nearest hex centre — a
+  // phase cannot express the row/column offset hex packing needs.
   const clone = scene.clone({ width, height, shiftX: 0, shiftY: 0, "grid.size": G, "grid.type": type }, { keepId: true });
   const dims = clone.getDimensions();
   const point = { x: dims.sceneX + hexCentre.x * fx, y: dims.sceneY + hexCentre.y * fy };
@@ -227,12 +212,8 @@ export async function applyHexCalibration(scene, fit, { gridSize, outputFeet, he
  * Apply a SCALE ONLY calibration: what the map's distances are worth, and
  * nothing else. The image is not rescaled, the scene is not shifted, and the
  * grid type is left exactly as it was — a gridless map stays gridless.
- *
- * This is the apply for a map with no drawn grid to fit. A scale bar is the
- * only measurement such a map offers, and a ruler that reads true is the only
- * thing a fitted grid would have bought. `size` and `distance` are one ratio
- * and the caller has already solved which pair of them to write
- * (`scaleOnlyGrid`).
+ * `size` and `distance` are one ratio; the caller has already solved which
+ * pair of them to write (`scaleOnlyGrid`).
  *
  * @param {Scene} scene
  * @param {object} choice  `{ size, distance, units, mapSystem }`.
@@ -264,14 +245,10 @@ export async function applyScaleOnly(scene, { size, distance, units, mapSystem =
 
 /**
  * Bake a corrected copy of the scene background: render the image through the
- * inverse of the fitted lattice so its cells come out SQUARE and upright,
+ * inverse of the fitted lattice (`A = s·M⁻¹`, correcting skew, rotation and
+ * unequal X/Y in one transform) so its cells come out SQUARE and upright,
  * upload it beside the original as `<name>-aligned.webp`, and point the scene
  * at it. The original file is never touched.
- *
- * This corrects every way a scan can be wrong at once — skew, rotation and
- * unequal X/Y — because they are one transform. `A = s·M⁻¹` sends the fitted
- * basis to `(s,0)` and `(0,s)`, so a stretched map is fixed in the IMAGE
- * rather than by leaving the scene at an odd width-to-height ratio.
  *
  * @param {Scene} scene
  * @param {object} fit  Any fit; `u`/`v` when affine, else the axis sizes.
@@ -296,8 +273,7 @@ export async function bakeCorrectedBackground(scene, fit) {
   const v = fit.v ?? { x: 0, y: fit.sizeY };
   const det = u.x * v.y - u.y * v.x;
   if (Math.abs(det) < 1e-9) return null;
-  // The larger edge is the target, so the correction only ever stretches the
-  // short axis — resampling up loses less than squeezing down.
+  // The larger edge is the target, so only the short axis stretches.
   const s = Math.max(Math.hypot(u.x, u.y), Math.hypot(v.x, v.y));
   const a = (s * v.y) / det;
   const c = (-s * v.x) / det;
@@ -342,9 +318,8 @@ export async function bakeCorrectedBackground(scene, fit) {
   }
   ui.notifications.info(loc("bake.done", { path: response.path }));
 
-  // The corrected image's lattice is exact by construction: square cells of
-  // edge `s`, with the origin carried through the same transform. An
-  // orthogonal fit has no `origin`, so its phases stand in for one.
+  // Exact by construction: square cells of edge `s`, origin carried through
+  // the same transform. An orthogonal fit has no `origin`; its phases stand in.
   const O = fit.origin ?? { x: fit.phaseX, y: fit.phaseY };
   return {
     path: response.path,

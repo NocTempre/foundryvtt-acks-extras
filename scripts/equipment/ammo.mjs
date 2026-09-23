@@ -1,23 +1,9 @@
 /* global game, ui */
 /**
- * Ammunition consumption + thrown-weapon state (RAW-grounded).
- *
- * RAW (RR): a missile attack is "subject to available ammunition" (p304); a
- * bundle of 20 arrows/bolts is ONE inventory item (p144). The base rules give
- * no automatic recovery percentage — recovery is Judge's discretion and thrown
- * weapons come back by being picked up. So this does exactly what RAW specifies
- * and no more:
- *
- *   - CONSUME on use: firing a launcher decrements its matching ammo by one;
- *     a stackable thrown weapon (a bundle of darts) decrements likewise.
- *   - THROWN STATE: a SINGLE thrown weapon (a hand axe, a lone javelin) is not
- *     destroyed — it is marked "thrown away", unequipped, and its weight is
- *     removed until recovered (encumbranceDelta6 excludes it).
- *   - NO retrieval automation: recovery is a manual action (the Recover macro
- *     clears the thrown state); fired ammo is restocked by hand, per RAW.
- *
- * Non-invasive: called as a fire-and-forget side effect AFTER the core roll in
- * the rollAttack wrap, never blocking or failing the roll.
+ * Ammunition consumption + thrown-weapon state. See docs/equipment/DECISIONS.md,
+ * "Ammunition does what RAW says and no more (2026-07-24)" for the scope
+ * ruling. Called as a fire-and-forget side effect after the core roll in the
+ * rollAttack wrap; never blocks or fails the roll.
  */
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "./constants.mjs";
 import { WEAPON_CATEGORY } from "./config.mjs";
@@ -108,11 +94,8 @@ export async function recoverThrown(actor) {
  */
 export async function consumeForAttack(actor, item, profile, options = {}) {
   if (!game.settings.get(MODULE_ID, SETTINGS.AMMO_TRACKING)) return;
-  // A monster attack always arrives as "attack" (core never assigns it
-  // "missile", even for a bow) — treat it as missile only when the weapon
-  // can ONLY be used at range, so a melee-and-missile weapon (hand axe),
-  // which core gives no way to disambiguate, stays unconsumed rather than
-  // wrongly falling into the thrown branch below on every melee swing.
+  // Missile only when the weapon can ONLY be used at range, so a dual-mode
+  // weapon (hand axe) is not wrongly treated as thrown on a melee swing.
   const isMissile =
     options.type === "missile" ||
     (options.type === "attack" && item.system?.missile && !item.system?.melee);
@@ -157,19 +140,15 @@ export async function consumeForAttack(actor, item, profile, options = {}) {
 }
 
 /**
- * Which stack the shot comes out of. Silvered ammunition costs ten times what
- * ordinary ammunition costs (RR ch.4) and is bought for one fight in
- * particular, so PLAIN AMMUNITION IS SPENT FIRST and silver is fired only once
- * it is what is left — which is also the moment the archer most wants to be
- * told, hence its own message.
+ * Which stack the shot comes out of: plain ammunition is spent first, silver
+ * (RR ch.4) only once it is what is left. The archer can override with a
+ * declaration held on the stack's own `nocked` flag, which outranks the
+ * plain-first default for as long as the stack lasts. See
+ * docs/equipment/DECISIONS.md, "Plain ammunition is spent before silver
+ * (2026-09-22)".
  *
- * The archer overrides that with a DECLARATION — "the silver ones, now" — held
- * on the stack's own `nocked` flag, which outranks the plain-first default for
- * as long as the stack lasts.
- *
- * Never gate this on `system.equipped`: an ammunition stack is an `item`, and
- * only `weapon` and `armor` carry that field — the test would read undefined
- * forever and the rule would be dead. That is why the declaration is a flag.
+ * Never gate this on `system.equipped`: an ammunition stack is an `item`,
+ * and only `weapon`/`armor` carry that field.
  */
 function pickAmmo(actor, pattern) {
   const stacks = actor.items.filter((i) => pattern.test(i.name) && roundsOf(i) > 0);

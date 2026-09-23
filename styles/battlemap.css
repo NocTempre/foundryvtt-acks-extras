@@ -8,8 +8,7 @@
    The panel is a WINDOW, resizable and narrow, so every rule here has to hold
    from the opening width down to whatever the GM drags it to. Nothing is set
    below the base ramp: the design system's display face is unreadable at hint
-   sizes, which is what made the first build's advice illegible rather than
-   merely small. */
+   sizes. */
 
 /* Body scrolls, footer stays: the apply must not be something to hunt for.
    The frame's content box is the flex column — the parts are its children,

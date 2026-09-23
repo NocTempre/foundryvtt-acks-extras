@@ -1,16 +1,11 @@
 /**
- * A vessel's own clock (RR ch. 7).
+ * A vessel's own clock (RR ch. 7): a ship's day is not a party's day. An
+ * expedition speed is miles over an EIGHT-hour march; a voyage speed is
+ * miles over TWELVE — so the two live in separate modules, agreeing only on
+ * the HOUR, never a single "miles per day" field.
  *
- * THE WHOLE POINT: a ship's day is not a party's day. An expedition speed is
- * miles over an EIGHT-hour march, because walking is strenuous; a voyage speed
- * is miles over TWELVE hours, because crewing is not. Reading one against the
- * other silently understates a ship by half, and it is exactly the mistake a
- * single "miles per day" field invites — which is why the two live in separate
- * modules with the hour, not the day, as the thing they agree on.
- *
- * The round-the-clock rule is the sharpest illustration: a ship that sails
- * through the night covers twice the distance in a day and is not going any
- * faster while she does it.
+ * See docs/vehicles/DECISIONS.md, "A vessel's day is twelve hours and a
+ * party's is eight."
  */
 import { seaSpeeds } from "./vehicle-speed.mjs";
 import { speedFactor, roundVoyage, roundCombat } from "./vessel-damage.mjs";

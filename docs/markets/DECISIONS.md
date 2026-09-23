@@ -100,3 +100,12 @@ what this ruling delivers directly.
 Cost: bundles already delivered stay embedded and unlisted on their buyers;
 this change does not unpack them. Thirty swords are thirty documents, as they
 would be after core unpacked the bundle.
+
+### Every PC belongs to one implicit party until configured (2026-09-22)
+
+Recorded from the header of `scripts/markets/engine/parties.mjs`.
+
+**Ruled** (by the user). By default every PC belongs to one implicit party,
+whose size for the party-size rule counts the player characters and their
+henchmen, because the book counts adventurers, not players. The
+`marketParties` world setting overrides it with explicit rosters.

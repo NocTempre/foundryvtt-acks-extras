@@ -82,15 +82,11 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
         levelMax: num({ integer: true }),
       }),
 
-      // --- Defenses: type & special immunities/resistances/susceptibilities.
-      //     `damage` is a set of damage types; `effects` is free text (open
-      //     keywords like "enchantment", "all death effects"). ---
-      // The shared defence shape (lib defensesField): the same bands the
-      // ability model stores, so a granted immunity and a printed one read
-      // identically. Differences from the pre-4.0 local shape — `effects` is
-      // a closed set (was free prose) and `conditions` exists — are migrated
-      // once at ready by the monsters module's defence sweep; the prose that
-      // does not parse lands in each band's `note`.
+      // --- Defenses: immunities/resistances/susceptibilities, using lib's
+      //     shared defensesField (same bands the ability model stores).
+      //     `damage` is a set of damage types; unparsed legacy prose lands in
+      //     each band's `note`. See docs/monsters/DECISIONS.md, "Defence
+      //     bands adopt the shared shape; capacity answers once". ---
       defenses: defensesField(),
 
       // --- Spellcasting (repertoire uses core spell items + system.spells slots). ---

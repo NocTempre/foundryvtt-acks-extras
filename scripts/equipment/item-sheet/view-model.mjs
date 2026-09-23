@@ -133,9 +133,8 @@ export function valueBadge({ mode, fullCost, apparentCost, hideMagic, masked, ma
  */
 export function buildItemSheetModel(snap, viewer = {}) {
   const gm = !!viewer.isGM && !viewer.previewAsPlayer;
-  // `editable` is the permission; `editing` is the permission AND the pencil.
-  // Templates gate what DESCRIBES the item on the second and what USES it on
-  // the first, so a locked sheet still rolls, equips and pins.
+  // `editable` is the permission; `editing` is the permission AND the pencil
+  // (see docs/equipment/MODEL.md, "Editing is armed, not assumed.").
   const editable = !!viewer.editable;
   const editing = editable && !!viewer.editing;
   const magic = snap.magic ?? { is: false, aura: null, identified: "full" };
@@ -299,21 +298,14 @@ export function buildItemSheetModel(snap, viewer = {}) {
       value: value.text,
       valueReason: value.reason,
       valueUnknown: value.reason === "unknown",
-      // The listed price is typed on the band only where the badge reads the
-      // plain value: a masked, apparent, unappraised or unsaleable reading is
-      // set elsewhere (Details, the disguise, identification), and a field
-      // under it would write a number the badge does not show.
+      // Editable only where the badge reads the plain value (see
+      // docs/equipment/MODEL.md, "The band types the two numbers it reads.").
       valueEditable: value.reason === "value",
       listed: listedPrice(snap.price),
-      // What the layers make of the listed price, shown beside the field only
-      // where they change it — one number labelled "value" meaning two things
-      // is the quiver-weight mistake again.
       valueDiffers: value.reason === "value" && listedPrice(snap.price) !== (snap.price?.final ?? 0),
-      // The band states the weight of ONE unit — or of one bundle, where the
-      // item declares a bundle size. `carried` is what the whole stack costs
-      // the bearer, and it is shown beside it whenever the two differ, because
-      // one number labelled "weight" meaning two things on one sheet is what
-      // made a bundled quiver unreadable.
+      // Weight of one unit, or one bundle where the item declares a bundle
+      // size (see docs/equipment/DECISIONS.md, "A stated weight may cover a
+      // bundle (2026-08-31)"); `carried` is what the whole stack costs.
       weight: stoneLabel(snap.weight6),
       weight6: snap.weight6,
       per: snap.per ?? 1,

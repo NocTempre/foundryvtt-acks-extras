@@ -1,34 +1,13 @@
 /**
- * BASE TYPE — what an item is, as the books sort equipment.
- *
- * The books put a gem, a loaf, a cloak and a sword in different categories, and
- * each records different things. Foundry has four physical document sub-types,
- * so everything below that line used to be GUESSED from the item's name:
- * sixteen regexes deciding whether something is a garment, a profile table
- * keyed by normalised name, weapon aliases matched by string. A flag declares
- * what those infer.
- *
- * **Base type REFINES the document type; it never replaces it.** Core's
- * `actor.mjs` derives AC, initiative and encumbrance straight from
- * `item.type === "armor"` / `"weapon"`, and the system is an unmodifiable
- * reference — so plate stays an `armor` document and says `armour` here, and a
- * gem is an ordinary `item` document that says `gem`. Anything that made a
- * category its own document sub-type would stop being `item` and fall out of
- * every core path that asks "is this ordinary gear".
- *
- * **The keys ship; what each category RECORDS does not.** Naming the concept
- * `"gem"` is how this code talks about itself. What a gem records — cut, carat,
- * whatever the book says — is content and arrives as imported field specs
- * (`lib/field-spec.mjs`), rendered generically. Nothing here knows what a gem
- * has, only that gems are a thing items can be.
+ * BASE TYPE — what an item is, as the books sort equipment. Refines the
+ * document type; it never replaces it (see docs/equipment/MODEL.md, "Base
+ * types and variations"). What each category RECORDS is content and arrives
+ * as imported field specs (`lib/field-spec.mjs`), rendered generically —
+ * nothing here knows what a gem has, only that gems are a thing items can be.
  */
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
-/**
- * The categories. Extending this list is a structural change, not a content
- * one — a new key is only ever added because the code needs to talk about a
- * category, and what that category records still comes from the register.
- */
+/** The categories. Extending this list is a structural change, not a content one. */
 export const BASE_TYPE = Object.freeze({
   weapon: "weapon",
   armour: "armour",
@@ -90,13 +69,9 @@ export function documentBaseType(documentType) {
 }
 
 /**
- * The base type of an item: what it DECLARES, else what can be inferred.
- *
- * The declared flag always wins. Inference is the compatibility path for the
- * worlds that predate the flag, and it is deliberately kept — introducing the
- * flag and dropping the guess in one release would strip every existing world's
- * clothing of the slots it was being granted by name. It retires when the
- * migration has run and the importer sets base types on what it materialises.
+ * The base type of an item: what it DECLARES, else what can be inferred. The
+ * declared flag always wins (see docs/equipment/MODEL.md, "Base types and
+ * variations").
  *
  * @param {object} item a Foundry Item, or any `{type, name, flags}` shape
  * @param {object} [opts]

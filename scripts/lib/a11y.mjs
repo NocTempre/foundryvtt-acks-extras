@@ -1,46 +1,13 @@
 /**
- * Label association — a rendered window's `<label>`s bound to the controls they
- * front, and the ids that binding needs.
- *
- * Foundry's own `createFormGroup` already mints `rootId-name` ids and sets
- * `for`, but only for a group built from a DataField. Every hand-written form
- * group in this module, and every dialog whose body is a template literal,
- * ships a bare `<label>` beside its control: it names nothing, so a screen
- * reader falls back to the control's `name` or announces nothing, and a click
- * on the caption does nothing.
- *
- * The binding is made after render rather than written into the templates
- * because the id has to be unique per WINDOW, not per template. Two copies of
- * one sheet are ordinary, so a literal `id=` in a `.hbs` makes the second
- * window's label focus the first window's field. An application's root element
- * id is already unique, so it is the seed. The same reason rules out a static
- * `for=`: `templates/lib/follower-card.hbs` fronts an `<input>` or a `<span>`
- * from one caption depending on `editable`, and no static answer is right for
- * both.
- *
- * It runs on EVERY application, not only this module's. The defect is the same
- * one wherever it appears — the system's sheets and Foundry's own configuration
- * windows carry it too — and this module already repairs what it finds in the
- * layers beneath it (`patches/`). Repairing a window means adding an id where
- * there is none and a `for` where there is none, so a host that sets its own is
- * unaffected. A binding the host wrote is overruled only where it CANNOT work
- * and no reader can tell: a `for` naming an id no window holds, and the later
- * of two controls sharing one id. Both leave a field with no name at all, which
- * is the state this pass exists to end.
- *
- * What this does NOT do: it never invents a control, never rewrites a tag, and
- * never touches a `<label>` that fronts nothing. A caption that labels a
- * read-out is a template bug and is fixed in the template — a runtime tag swap
- * would silently un-style the 59 rules in `styles/` whose selectors name
- * `label`.
+ * Label association — binds a rendered window's `<label>`s to the controls
+ * they front, and mints the ids that binding needs. Runs on every application,
+ * not only this module's. See docs/lib/MODEL.md, "Label association".
  */
 
 /**
- * What a `<label>` may name. Foundry's form elements are form-associated custom
- * elements (`AbstractFormInputElement.formAssociated`), so they are labelable
- * and `for=` reaches them. `<multi-checkbox>` is the one that takes the
- * accessible name without taking focus — it assigns no `_primaryInput`, so the
- * name arrives and the click does nothing; the name is the point.
+ * What a `<label>` may name: Foundry's form-associated custom elements plus
+ * native form controls. `<multi-checkbox>` takes the accessible name without
+ * taking focus (it assigns no `_primaryInput`).
  */
 export const LABELABLE = [
   "input:not([type=hidden])",
@@ -63,23 +30,14 @@ export const LABELABLE = [
   "code-mirror",
 ].join(",");
 
-/**
- * A `<button>` is labelable but is a LAST resort, so it is absent from
- * `LABELABLE` and reached only through the fallback below. Label activation
- * forwards a click, so binding a caption to a button turns a stray click on the
- * text into whatever the button does. Where the group holds a field, the field
- * is what the caption names and the button is left alone; where the button is
- * all there is — core's settings menus are rows of exactly that shape — naming
- * it is better than naming nothing.
- */
+// `<button>` is labelable but is a last resort, reached only through the
+// fallback below: naming it is better than naming nothing, but a field in the
+// same group always wins the binding.
 
 /**
- * An id derived from the control's own name, so it reads like the ones core's
- * `createFormGroup` mints. A name is not unique on its own — a checkbox row
- * writes one name from several boxes — and a control may have no name at all,
- * so the stem is suffixed until nothing answers to it. `minted` carries the
- * ids made during this pass, because a detached fragment is not yet reachable
- * from `getElementById`.
+ * An id derived from the control's own `name`, suffixed until unique.
+ * `minted` tracks ids made during this pass, since a detached fragment is not
+ * yet reachable from `getElementById`.
  */
 function mintId(control, seed, minted) {
   const name = control.getAttribute("name");
@@ -92,10 +50,8 @@ function mintId(control, seed, minted) {
 }
 
 /**
- * Whether a control already announces a name — a `<label>` bound to it, a
- * `<label>` wrapping it, or an ARIA name written by the host. The four routes
- * are equivalent to a screen reader, so any one of them ends this pass's
- * interest in the control.
+ * Whether a control already announces a name — bound `<label>`, wrapping
+ * `<label>`, or an ARIA name the host wrote.
  */
 function named(control) {
   return !!(control.labels?.length
@@ -105,17 +61,10 @@ function named(control) {
 }
 
 /**
- * The control a caption fronts, or null when it fronts none.
- *
- * Candidates follow the label inside the label's own parent — the `.form-group`
- * in the standard shape, whatever wraps them in the flat one. Two exclusions
- * carry the whole judgement:
- *
- * - A control inside another `<label>` is already named by that label. This is
- *   what keeps a group heading off its first member: every checkbox in a
- *   `<label class="checkbox">` row is filtered out, so a heading over such a
- *   row finds nothing and is left alone rather than ticking the first box.
- * - A control inside a nested `.form-group` belongs to that group's own label.
+ * The control a caption fronts, or null when it fronts none. Candidates
+ * follow the label inside the label's own parent, excluding a control already
+ * inside another `<label>` (so a group heading never ticks its first member)
+ * or inside a nested `.form-group` (which belongs to that group's own label).
  */
 function controlFor(label, root) {
   const scope = label.parentElement;
@@ -135,9 +84,8 @@ function controlFor(label, root) {
 
 /**
  * Bind every unbound `<label>` under `root` to the control it fronts.
- *
- * Idempotent, and re-run on every render because ApplicationV2 replaces a
- * part's HTML wholesale — the ids from the previous render leave with it.
+ * Idempotent, and safe to re-run on every render — ApplicationV2 replaces a
+ * part's HTML wholesale, so each render needs its own pass.
  *
  * @param {HTMLElement} root      The subtree to bind — a window's whole root, or
  *                                the fragment an injector just built when it
@@ -158,10 +106,8 @@ export function associateLabels(root, { seed } = {}) {
   const exists = (id) =>
     !!id && (!!document.getElementById(id) || !!root.querySelector?.(`#${CSS.escape(id)}`));
 
-  // Two controls answering to one id: `getElementById` hands every caption the
-  // FIRST of them, so the later one is unreachable and its own caption names
-  // its neighbour's field. Re-mint the loser and carry the caption that sits
-  // with it — the one inside its group, not the one that answers to the id.
+  // Two controls sharing one id: `getElementById` resolves to the first, so
+  // the later one is re-minted and its own caption carried across with it.
   const seen = new Set();
   for (const control of root.querySelectorAll(LABELABLE)) {
     const id = control.id;
@@ -171,12 +117,9 @@ export function associateLabels(root, { seed } = {}) {
       seen.add(id);
       continue;
     }
-    // The caption that names it sits WITH it, not with the control that keeps
-    // the id. Walk out from the control until a `for` naming the old id turns
-    // up, and stop before any scope that also holds the keeper — past that
-    // point the two captions are one apiece and nothing tells them apart. The
-    // group class is not a fixed name to search on: the shipped case pairs a
-    // `.form-group-h` caption with a `.form-fields` child.
+    // The caption naming this control sits with it, not with the id's keeper:
+    // walk out until a `for` naming the old id turns up, stopping before any
+    // scope that also holds the keeper.
     let caption = null;
     for (let scope = control.parentElement; scope && root.contains(scope); scope = scope.parentElement) {
       if (holder && scope.contains(holder)) break;
@@ -189,9 +132,7 @@ export function associateLabels(root, { seed } = {}) {
 
   let bound = 0;
   for (const label of root.querySelectorAll("label")) {
-    // A `for` naming an element no window holds binds nothing — the caption is
-    // as unnamed as one with no `for` at all, so it is rebound to what it
-    // actually fronts. A `for` that resolves is the host's answer and stands.
+    // A `for` naming an id no window holds is treated as absent and rebound.
     if (label.hasAttribute("for") && exists(label.htmlFor)) continue;
     if (label.querySelector(LABELABLE)) continue;
     // A caption inside something already clickable would add a second effect to
@@ -206,17 +147,9 @@ export function associateLabels(root, { seed } = {}) {
     bound++;
   }
 
-  // A group with one caption and several controls — a width beside a height, a
-  // relay toggle beside the channel it relays to — can bind the caption to only
-  // one of them, because `for` names a single id. The others are left with no
-  // name at all, which is the state this pass exists to end, so they borrow the
-  // group's caption through `aria-labelledby`. The caption keeps its `for`: the
-  // click target stays where the binding put it, and only the announced name
-  // spreads. That is also why this reads a caption `for=` must refuse — one
-  // inside a rollable header, say: naming forwards no click, so a caption that
-  // cannot safely be made clickable can still be made to speak. A shared name
-  // is imprecise where the group is a pair; nameless is worse, and the precise
-  // fix is a caption per control in the template.
+  // `for` names a single id, so a group with more than one control leaves the
+  // rest silent once the first is bound; they borrow the group's caption
+  // through `aria-labelledby` (the caption keeps its `for`).
   for (const control of root.querySelectorAll(LABELABLE)) {
     if (named(control)) continue;
     const group = control.closest(".form-group");
@@ -224,8 +157,8 @@ export function associateLabels(root, { seed } = {}) {
     const caption = group.querySelector("label");
     if (!caption || caption.contains(control)) continue;
     if (!caption.id) {
-      // The caption already names one control; hanging its own id off that
-      // one's keeps the pair legible in the DOM and unique by construction.
+      // Hung off the control the caption already names, so the pair stays
+      // legible in the DOM and unique by construction.
       const stem = caption.getAttribute("for") || mintId(control, prefix, minted);
       caption.id = `${stem}-caption`;
     }
@@ -233,10 +166,9 @@ export function associateLabels(root, { seed } = {}) {
     bound++;
   }
 
-  // A control read through a `data-*` selector carries no `name` on purpose —
-  // a name would put its value in the submitted data, and on a sheet that
-  // submits on change that writes a field nobody meant to set. It still needs
-  // one handle, so it is given the id it would otherwise have no way to get.
+  // A control read through a `data-*` selector carries no `name` on purpose,
+  // so a submit-on-change form does not write an unrecognised path; it still
+  // needs a handle.
   for (const control of root.querySelectorAll(LABELABLE)) {
     if (control.id || control.getAttribute("name")) continue;
     control.id = mintId(control, prefix, minted);

@@ -1,26 +1,9 @@
 /* global ui */
 /**
- * The Judge's override: what it means for a GM to simply GIVE a character
- * something.
- *
- * The party sheet's gear rules exist to stop a player claiming a torch they
- * never bought or a free hand they do not have. Applied to the Judge they are
- * only in the way — a Judge who assigns the light has already decided the
- * character has one, and being told "Nolan has no torch" is being told a fact
- * they were in the middle of changing. So a GM action does not ask: the gear
- * appears in the pack and a hand is emptied to hold it.
- *
- * PLAYERS ARE STILL GATED, and that asymmetry is the whole point of the file —
- * a declaration relayed from a player carries no override, so nobody conjures a
- * lantern mid-corridor. The two paths meet in `player-requests.mjs`, which
- * passes the DECLARING user's authority rather than the executing client's (a
- * player's request runs on a GM client, so `game.user.isGM` would say yes to
- * everyone).
- *
- * The override NEVER BLOCKS. Where it cannot finish the job — the world has no
- * such item to copy, or the hands are full of lit torches that sheathing cannot
- * empty — it reports what it managed and lets the action through anyway. A Judge
- * who is overriding the rules is not looking for a smaller refusal.
+ * The Judge's override: what it means for a GM to simply give a character
+ * something — the gear appears in the pack and a hand empties to hold it,
+ * never blocking. Players are still gated. See docs/formation/MODEL.md,
+ * "The Judge's override".
  */
 import { MODULE_ID, ROLE_GEAR, ROLE_HAND_COST, lightGear } from "./constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
@@ -91,14 +74,9 @@ function announce(actor, { granted, released }) {
 }
 
 /**
- * Give a character what it takes to burn a light of `type`, and a hand to hold
- * it in. The gear list is the light table's (`lightGear`), so a lantern arrives
- * with its flask of oil and a torch arrives as a bundle.
- *
- * ONE HAND, not two: the light record the caller is about to create is what
- * occupies it — a lit source is held by definition, which is why the formation's
- * light list feeds the hand count directly rather than the source also being
- * equipped as a weapon.
+ * Give a character what it takes to burn a light of `type`, and one hand
+ * to hold it in. The gear list is the light table's (`lightGear`), so a
+ * lantern arrives with its flask of oil and a torch arrives as a bundle.
  */
 export async function equipForLight(actor, type) {
   return supplyGear(actor, lightGear(type), { hands: 1 });

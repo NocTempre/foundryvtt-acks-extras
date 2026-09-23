@@ -1,18 +1,17 @@
-/* ACKS II Follower Card (acks-lib) — the printed henchman/follower card as a
-   compact, self-contained actor view. Rendered both as a hireling's own sheet
-   (FollowerCardSheet) and, read-only, as the cards the character sheet's hirelings
-   tab is re-skinned into (acks-henchmen).
+/* ACKS II Follower Card (lib subsystem) — the printed henchman/follower card
+   as a compact, self-contained actor view. Rendered both as a hireling's own
+   sheet (FollowerCardSheet) and, read-only, as the cards the character
+   sheet's hirelings tab is re-skinned into (the henchmen feature).
 
    Colours come from the design-system tokens (vendor/acks-design/tokens.css) —
    the single publisher at :root with one .theme-dark override — so the card is a
    light printed card on a light seat, inverts its paper on a dark one, and agrees
-   with every other ACKS surface by construction. NO literal fallbacks: a fallback
-   masks a missing token (that is exactly how --acks-field went undeclared while
-   rendering white boxes on dark seats), and acks-lib itself guarantees the token
-   file is loaded. Type rides the scale: the card base is --acks-fs-label off the
-   family-wide --acks-fs-base knob (the acks-lib fontScale setting). Every rule
-   leads with .acks-lib-follower-card so the top-level class carries the module
-   id (7d). */
+   with every other ACKS surface by construction. NO literal fallbacks: a
+   fallback masks a missing token, and the lib subsystem itself guarantees the
+   token file is loaded. See docs/lib/DECISIONS.md, "One token publisher".
+   Type rides the scale: the card base is --acks-fs-label off the family-wide
+   --acks-fs-base knob (the lib subsystem's fontScale setting). Every rule leads with
+   .acks-lib-follower-card so the top-level class carries the module id (7d). */
 
 .acks-lib-follower-card {
   display: flex;
@@ -401,8 +400,7 @@
 }
 
 /* Read-only cards (hirelings-tab grid) inherit the same scale step as the
-   editable sheet. They used to drop to a hardcoded 11px — the smallest text
-   in the client, on the surface players actually read at the table. */
+   editable sheet. */
 
 /* --- Interactive affordances (editable sheet only) ---
    Equipped is carried by the ink pair, not by a hue: the faint step for the
@@ -611,10 +609,8 @@
 
 /* UNSET — no class profile has been configured, so this is UNKNOWN, not "no".
    Grey keeps it visibly different from a deliberate "not proficient" (outline)
-   and from a granted one (burgundy). Routed through the palette, or the light
-   chip it used to hardcode became the brightest thing on a dark card — the
-   loudest element on the sheet standing for "we don't know". The pair is soft
-   on purpose and lands at 3.9:1 light / 3.5:1 dark. */
+   and from a granted one (burgundy). Routed through the palette rather than a
+   literal, so the pair stays soft in both themes. */
 :is(.acks-lib-follower-card, .acks-lib-build) .fc-pill.unset {
   color: var(--acks-ink-faint);
   background: var(--acks-tint-2);

@@ -1,26 +1,14 @@
 /* global foundry */
 /**
- * `acks-lib.animal` — the bridge between an animal and a monster.
+ * `acks-lib.animal` — the bridge between an animal and a monster. See
+ * docs/lib/API.md, "`acks-extras.animal` — the animal/monster bridge", and
+ * docs/lib/MODEL.md, "What a mount knows about itself".
  *
- * THE PROBLEM. The RR equipment chapter prices ten animals — camel, hunting and
- * war dog, donkey, four horses, mule, ox — and because they are bought in a
- * shop they import as INVENTORY ITEMS. A war dog is then, as far as the system
- * is concerned, a backpack: it cannot be attacked, cannot fight, has no morale
- * and cannot be ridden. But an animal is a creature, and the books stat it as
- * one.
- *
- * THE BRIDGE. This sub-type's combat block uses the SAME FIELD PATHS as the
- * system's own monster (`hp`, `aac`, `thac0`, `movement`, `saves`,
- * `details.morale`, …). That is the whole point of it: anything that already
- * reads a monster — an encounter helper, a morale check, acks-formation's unit
- * maths — reads an animal without knowing animals exist. An animal is a monster
- * that can also be bought, loaded and ridden.
- *
- * Deliberately NOT a monster sub-type of its own making: the schema is declared
- * here rather than imported from the system because a released acks system
- * ships one bundled `acks.mjs`, not its individual data-model files, so there
- * is nothing to import at runtime. The field paths are mirrored on purpose and
- * the initials are copied from the system's templates — see actor-compat.mjs.
+ * This sub-type's combat block uses the SAME FIELD PATHS as the system's own
+ * monster (`hp`, `aac`, `thac0`, `movement`, `saves`, `details.morale`, …),
+ * declared here rather than imported since a released system ships one
+ * bundled `acks.mjs`, not its individual data-model files. Initials are
+ * copied from the system's templates — see actor-compat.mjs.
  *
  * What it adds beyond a monster is the shop-and-stable half: what the animal
  * can CARRY, whether it can be RIDDEN, and how well it is trained.
@@ -133,11 +121,8 @@ export default class AnimalData extends foundry.abstract.TypeDataModel {
       }),
 
       // --- What the SYSTEM'S MONSTER SHEET reads ---
-      // The bridge is only real if the sheet works, and this module ships no
-      // sheet of its own: it registers the system's monster sheet for animals
-      // (see module.mjs), because an animal IS a monster you can also buy. That
-      // sheet touches these four unguarded, so they exist here for the same
-      // reason acks-lib's compat stubs exist at all.
+      // This module ships no sheet of its own (see module.mjs); these four
+      // fields exist because the system's monster sheet touches them unguarded.
       pattern: new StringField({ required: true, initial: "white" }),
       counter: new SchemaField({
         value: new NumberField({ initial: 0, min: 0 }),

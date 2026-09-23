@@ -8,15 +8,7 @@
  * sub-type; nothing mutates the acks system. Extended data lives in
  * `flags["acks-extras"].extras`.
  *
- * Safe to default: the subclass keeps every tab the system's sheet defines, so
- * enabling this module adds the extended stat block and takes nothing away. The
- * system's plain sheet stays selectable per-actor from Sheet Configuration.
- *
- * The animal borrows this sheet for the same reason it borrows the system's:
- * its combat block mirrors the monster's field paths exactly (lib/data/
- * animal-data.mjs), so a monster sheet reads an animal unchanged. lib registers
- * the system's plain sheet for `animal` first; this registration runs later
- * (monsters is imported last) and takes the default over from it.
+ * See docs/monsters/DECISIONS.md for why this sheet defaults on both types.
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, FLAG_EXTRAS, MONSTER_TYPE } from "./constants.mjs";
@@ -47,12 +39,10 @@ function registerHelpers() {
 /**
  * Resolve the system's default monster sheet class (our base to extend).
  *
- * Only the SYSTEM's sheets are candidates — registry keys are `<scope>.<class>`
- * and only scope `acks` qualifies. This module registers into the same map (this
- * sheet, and lib's Follower Card), and a resolution that accepted one of ours
- * would subclass this module's own output, growing a fresh layer on every
- * reload; a third party's sheet is just as wrong a base. Never widen this to
- * the whole registry. Absence returns null, and the caller skips registration.
+ * Only entries keyed `acks.*` qualify — this module registers into the same
+ * registry (this sheet, and lib's Follower Card), so an unfiltered lookup
+ * could pick one of ours and subclass its own output. Absence returns null,
+ * and the caller skips registration.
  */
 function resolveMonsterSheetBase() {
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
@@ -61,11 +51,10 @@ function resolveMonsterSheetBase() {
     .map(([, entry]) => entry);
   const defaulted = entries.find((e) => e.default) ?? null;
   const chosen = defaulted ?? entries[0] ?? null;
-  // Registry order is not a choice: when several candidates remain and none is
-  // flagged default, name the class adopted so a wrong base is diagnosable from
-  // the console. A lone candidate is unambiguous — this module's own later
-  // makeDefault registrations legitimately clear the system entry's flag, and
-  // warning on that expected state would cry wolf every load.
+  // A lone candidate is unambiguous even though nothing flagged it default —
+  // this module's own later makeDefault registrations clear the system
+  // entry's flag as expected. Only warn when the pick among several is a
+  // guess, so the console names which class a wrong base would be.
   if (!defaulted && entries.length > 1) {
     console.warn(`${MODULE_ID} | no acks monster sheet is flagged default; extending ${chosen.cls?.name} by registry order.`);
   }
@@ -133,10 +122,8 @@ Hooks.once("ready", () => {
   sheetTypes = animalType ? [MONSTER_TYPE, animalType] : [MONSTER_TYPE];
   const label = game.i18n.localize("ACKS-MONSTERS.sheet.full");
 
-  // A MONSTER lands on lib's Follower Card and expands to this — so this sheet is
-  // registered for the type but does not claim the default. Claiming it here as
-  // well would make the landing sheet depend on which subsystem's `ready` handler
-  // ran last, which is not a thing to leave to import order.
+  // Registered for `monster` without claiming the default — a MONSTER lands
+  // on lib's Follower Card, which expands into this sheet.
   foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, FullMonsterSheet, {
     types: [MONSTER_TYPE],
     makeDefault: false,
@@ -151,12 +138,9 @@ Hooks.once("ready", () => {
   }
   console.log(`${MODULE_ID} | Full Monster sheet registered for ${sheetTypes.join("/")} (default for ${animalType ?? "none"}).`);
 
-  // One-time GM sweep: pre-4.0 defence bands stored `effects` as free prose and
-  // had no `conditions` set. Shape-gated — it fires only for an actor whose
-  // band still holds a STRING there, and the write it makes no longer matches,
-  // so it cannot fire twice. Prose tokens that name a known effect or condition
-  // become set members; what does not parse is prepended to the band's note, so
-  // nothing printed is lost.
+  // One-time GM sweep: shape-gated on a band whose `effects` is still a STRING,
+  // so it cannot fire twice. See docs/monsters/DECISIONS.md, "Defence bands
+  // adopt the shared shape; capacity answers once".
   if (game.user.isGM) migrateDefenseBands().catch((err) => console.error(`${MODULE_ID} | defence-band migration failed`, err));
 });
 

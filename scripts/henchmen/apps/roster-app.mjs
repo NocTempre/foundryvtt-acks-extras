@@ -86,8 +86,9 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
   };
 
   /**
-   * Bulk face-flip for the whole retinue, through acks-lib's one sanctioned
-   * switch (followerCard.setSheet — the same flag core's Sheet Config writes).
+   * Bulk face-flip for the whole retinue, through the lib subsystem's one
+   * sanctioned switch (followerCard.setSheet — the same flag core's Sheet
+   * Config writes).
    * Returns a bound handler so both buttons share one implementation.
    */
   static #onAllSheets(useCard) {

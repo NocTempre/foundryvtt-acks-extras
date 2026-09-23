@@ -36,8 +36,7 @@ function mode() {
 /**
  * Exactly one client performs loadout WRITES (auto-unequip, effect sync) to
  * avoid duplicate effects on actors owned by both a player and the GM: the
- * active GM if one is online, else the actor's owner. (Phase 4 replaces this
- * with explicit socketlib routing to the primary GM.)
+ * active GM if one is online, else the actor's owner. See ROADMAP.md.
  */
 export function primaryResponder(actor) {
   if (game.users.activeGM) return game.users.activeGM.isSelf;
@@ -45,11 +44,10 @@ export function primaryResponder(actor) {
 }
 
 /**
- * Loadout automation is a character-only concern. Monsters (and any other actor
- * type) never carry an Equipment Loadout effect, so we must never react to their
- * item/effect churn — doing so spawned phantom "Equipment Loadout" effects and a
- * storm of "ActiveEffect does not exist" races when another module rewrote a
- * monster's embedded items. This is the single gate every write path checks.
+ * Loadout automation is a character-only concern: monsters (and any other
+ * actor type) never carry an Equipment Loadout effect (see
+ * docs/equipment/DECISIONS.md, "Loadout automation reacted to monster item
+ * churn (2026-09-22)"). This is the single gate every write path checks.
  */
 export const managesLoadout = (actor) => actor?.type === ACTOR_TYPE.character;
 
@@ -172,22 +170,16 @@ async function autoResolve(actor, loadout, blocking) {
 /**
  * ONE SYNC AT A TIME PER ACTOR.
  *
- * `syncLoadoutEffect` is read-modify-write: it looks for the managed effect and
- * creates one if it finds none. Every route into it is an async hook, and a
- * single user action routinely fires several at once — creating a character's
- * items is one `createEmbeddedDocuments` call and one `createItem` hook PER
- * ITEM, which is what importing a character does. Run concurrently they all
- * read "no effect yet" before any of them has finished creating one, and the
- * actor ends up wearing four copies of its own loadout effect with every bonus
- * multiplied by four.
- *
+ * `syncLoadoutEffect` is read-modify-write, and a single user action can fire
+ * several routes into it at once (see docs/equipment/DECISIONS.md,
+ * "Concurrent syncs could create duplicate loadout effects (2026-09-22)").
  * `primaryResponder` does not help: it settles WHICH CLIENT writes, not how
  * many writes that client has in flight.
  *
- * Chaining onto the actor's own pending sync serialises them without blocking
- * anything else, and the entry is dropped once the queue drains so a long-lived
- * world does not accumulate one per actor ever touched. A failed sync must not
- * poison the chain, so the link swallows — the error is reported by the caller.
+ * Chaining onto the actor's own pending sync serialises them without
+ * blocking anything else, and the entry is dropped once the queue drains. A
+ * failed sync must not poison the chain, so the link swallows — the error
+ * is reported by the caller.
  */
 const syncQueue = new Map();
 

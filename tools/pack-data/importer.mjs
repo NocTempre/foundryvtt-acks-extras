@@ -84,23 +84,9 @@ const apiMacro = (id, name, img, fn, sort, folderId, args = "") => macro(id, nam
 
 function buildMacros() {
   return [
-    /* FOUR CONTROLS, and one of them is not a control.
-       The pack shipped twenty-one macros. Nearly all were a single step of one
-       larger job, on the shelf because it happened to be a function: import
-       traps, import variations, import vehicles, import rules tables, build
-       template packages, fill companion slots. A Judge does not choose those
-       individually — they are what "import everything" is made of, they have a
-       dependency order, and a list of them invites running them in the wrong
-       one.
-       What is left is what a Judge actually reaches for:
-         - connect your books (the prerequisite, not a control)
-         - import everything
-         - delete everything
-         - rebuild ONE shelf
-       Everything dropped is still on the api and every world that imported the
-       old pack keeps its copies working, because the functions all still
-       resolve. Their ids are NOT reused: an id is identity, and re-issuing one
-       would hand such a world a duplicate. Folder ids likewise. */
+    // Four entries: connect your books (the prerequisite), import everything,
+    // delete everything, rebuild one shelf. See docs/importer/DECISIONS.md,
+    // "Three controls, not twenty-one (2026-08-24)".
     folder(FOLDERS.setup, "Your Books", 100),
     folder(FOLDERS.import, "Import from your books", 200),
 
@@ -118,10 +104,9 @@ await api.importEverything();`,
       FOLDERS.import,
     ),
     apiMacro("ackscMacReimport", "Reimport One Shelf (GM)", "icons/svg/regen.svg", "cookbookReimportShelf", 210, FOLDERS.import),
-    /* The fifth control, and it is a debug tool rather than one of the four:
-       a Judge rebuilds a shelf, an author checking one recipe rebuilds one
-       entry. It ships because the thing it addresses — did THIS entry come
-       out right — has no other answer that does not empty a shelf. */
+    // A per-entry rebuild, for checking one recipe without emptying its
+    // shelf. See docs/importer/DECISIONS.md, "The entry picker runs each
+    // importer over the ticked entries only (2026-09-22)".
     apiMacro(
       "ackscMacReimpEnt",
       "(Re)import Individual Entries (GM)",

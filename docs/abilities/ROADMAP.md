@@ -75,3 +75,18 @@ not a replacement for typing one. Nothing on this row remains open.
   whether the label too should arrive by import, leaving code holding only the
   key, is not decided. Deciding it means agreeing where a rules term stops being
   a rules term and starts being quoted text.
+
+## One rank model
+
+Two conventions record how many times a character took an ability, and they
+disagree. Chargen grants rank N as N same-named copies, and `rankOf()` reads
+rank by counting them; `extras.qty` records a count on one item, which the
+sheet displays and nothing reads as rank. What a second take MEANS is
+per-ability — a deeper rank for some, a second pick for others
+(`selections`).
+
+Designed and absent: holding one ability by two routes may read as rank 2
+without becoming a second copy. An alias or variant that grants a rank of
+another ability is absorbed by that root, leaving the root's own count alone,
+so the mechanics read the count plus every granted rank. The two numbers
+answer different questions — how often it was taken, and what it reads at.

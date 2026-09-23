@@ -2,31 +2,21 @@
 /**
  * Reaching an ability's throws from the character sheet.
  *
- * The system's sheet offers exactly one control per ability — the row's icon,
- * the d20 in Favorites — and core's roller can only ever make one throw, so a
- * proficiency the book prints with two ways to attempt it (hastily, or
- * methodically for a turn and a bonus) had one of them reachable and the other
- * only from inside the item. roll-wrap.mjs already routes every one of those
- * controls through the multi-roll roller; what was missing was a way to SAY
- * which throw is meant.
+ * The system's sheet offers one control per ability — the row's icon, the d20
+ * in Favorites — and roll-wrap.mjs routes each through the multi-roll roller.
+ * This lets the reader say WHICH throw is meant, on three surfaces:
  *
- * Three surfaces, one rule each:
+ * - The tag strip in an expanded row prints every throw with its target; each
+ *   tag carries its throw's key and rolls it. The strip is built by `getTags`
+ *   (roll-wrap.mjs) and inserted by core when the row is expanded, after this
+ *   render, so the click is DELEGATED from the sheet root.
+ * - A multi-throw row gains a cycle control naming its default throw — what
+ *   the row's own icon and every other route reach.
+ * - Favorites renders one control per throw.
  *
- * - The tag strip in an expanded row already prints every throw with its
- *   target. Each tag now carries its throw's key and rolls it. The strip is
- *   built by `getTags` (roll-wrap.mjs) and inserted by core when the row is
- *   expanded, long after this render — so the click is DELEGATED from the
- *   sheet root rather than bound to tags that do not exist yet.
- * - A multi-throw row gains a cycle control naming its default throw. The
- *   default is what the row's own icon and every other route reach.
- * - Favorites renders one control per throw, because a favourite exists to be
- *   rolled without going looking for it, and going looking for the other throw
- *   is the thing being fixed.
- *
- * INJECTED, NOT SUBCLASSED, and REBUILT EVERY RENDER — the reason the Storage
- * tab documents: core declares its parts as statics, ApplicationV2 replaces
- * them on re-render, and a latched control outlives the node it was measured
- * against. Ours are removed and re-added instead.
+ * Injected, not subclassed, and rebuilt on every render: core declares its
+ * parts as statics and ApplicationV2 replaces them on re-render, so a latched
+ * control would outlive its node. Ours are removed and re-added instead.
  */
 import { MODULE_ID, ABILITY_TYPE } from "./constants.mjs";
 import { rollsOf, keyOf, rollAbility, defaultKeyOf, setDefaultKey, nextKeyAfter, throwText } from "./ability-rolls.mjs";
@@ -57,11 +47,9 @@ function abilityOf(element, actor) {
 /* -------------------------------------------- */
 
 /**
- * One listener per sheet, bound once, covering all three surfaces.
- *
- * Delegation is not a tidiness choice here: the tag strip is written into the
- * row by core's own summary toggle after this code has finished, so there is
- * nothing to bind to at render time.
+ * One listener per sheet, bound once, covering all three surfaces. Delegated
+ * because core's summary toggle writes the tag strip into the row after this
+ * code has run, so there is nothing to bind to at render time.
  */
 function bindActions(root, actor) {
   if (root.dataset[BOUND]) return;
@@ -98,11 +86,8 @@ function bindActions(root, actor) {
 /* -------------------------------------------- */
 
 /**
- * Name the default throw on every row that has a choice to make.
- *
- * Only rows with two or more throws get one — on a single-throw proficiency
- * there is nothing to cycle and the control would be a button that does
- * nothing, which is the defect this release is removing elsewhere.
+ * Name the default throw on every row that has a choice to make — rows with two
+ * or more throws only; a single-throw row has nothing to cycle.
  */
 function injectCycles(root, actor) {
   for (const controls of root.querySelectorAll(".item__controls")) {

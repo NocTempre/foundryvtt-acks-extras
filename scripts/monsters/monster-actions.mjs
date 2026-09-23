@@ -44,10 +44,9 @@ async function addRow(event, target) {
 }
 
 /**
- * Guarded save roll. The system's rollSave() reads this.system.saves[key].value
- * with no guard, so it throws on legacy monsters whose saves object still uses
- * pre-migration keys (breath/wand instead of blast/implements). Warn instead of
- * crashing; the value input on the sheet lets the GM set the missing save.
+ * Guarded save roll. The system's rollSave() reads
+ * `this.system.saves[key].value` with no guard and throws when the key is
+ * missing; warn instead, and let the GM fill it from the sheet's value input.
  */
 function rollSave(event, target) {
   const save = target?.dataset?.save;

@@ -178,14 +178,9 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     (v) => setBaseType(item, v || null),
   ));
 
-  // WHAT THE WEAPON IS. Everything a weapon does downstream — the proficiency
-  // class a training grant is matched against, the Weapon Focus group, the
-  // damage type, the size that sets its hand cost — is read off ONE table row,
-  // and which row that is was inferred from the item's NAME. A template renames
-  // the gear it grants to the words its own page printed ("Francisca", "Two-
-  // handed iron sword"), so the inference misses or lands on the wrong row and
-  // the sheet says non-proficient about a weapon the character trained on.
-  // These controls are where that is stated instead of guessed.
+  // WHAT THE WEAPON IS — the declarations that outrank the name inference
+  // (see docs/equipment/DECISIONS.md, "What a weapon IS is declared, not
+  // read off its name (2026-09-07)").
   if (item.type === ITEM_TYPE.weapon) {
     const identity = weaponIdentity(item);
     const profile = classifyWeapon(item);
@@ -198,10 +193,9 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
       identity.source === "flag" ? identity.key : SLOT_AUTO,
       (v) => setWeaponProfile(item, v),
     ));
-    // An unidentified weapon does not fail — it falls back to a medium,
-    // class-`other` weapon and says nothing. Naming the consequence is the
-    // only way a reader connects this control to the badge on the character
-    // sheet that sent them here.
+    // An unidentified weapon falls back to a medium, class-`other` weapon
+    // and says nothing on its own; naming the consequence here connects
+    // this control to the badge that sent the reader.
     note(identity.key
       ? loc("props.weaponTypeNote", {
         weapon: weaponName(identity.key),
@@ -310,7 +304,7 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
       cur,
       (v) => (v === "none" ? clearScavenged(item) : setScavengedRow(item, tableKey, v)),
     );
-    // A stacked condition (a 19-20 reroll produced several) has no single row —
+    // A stacked condition (a reroll produced several) has no single row —
     // say so rather than showing one of them as if it were the whole story.
     if (sc?.labels?.length > 1) picker.dataset.tooltip = sc.labels.join("; ");
     const g = el("div", "acks-extras-item-sheet__prop-group");
@@ -321,20 +315,19 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
       }));
     row("ACKS-EQUIPMENT.props.condition", g);
 
-    // Masterwork buys numbers, never eligibility: a masterwork blade still
-    // cannot touch a magical monster "unless forged of a material otherwise
-    // capable of doing so (e.g. silver)" (RR p159). Said here because the tier
-    // picker is exactly where a reader forms the opposite impression.
+    // Masterwork buys numbers, never eligibility against a magical monster
+    // (RR p.159) — said here because the tier picker is exactly where a
+    // reader forms the opposite impression.
     if (item.type === ITEM_TYPE.weapon && tier !== "none" && !isSilvered(item)) note(loc("props.masterworkReachNote"));
 
     const summary = layerSummary(item);
     if (summary) row("ACKS-EQUIPMENT.props.net", el("span", "acks-extras-item-sheet__prop-note", summary));
   }
 
-  // SILVER (RR ch.4) — a weapon quality, so weapons and ammunition only. "Auto"
-  // hands the answer back to the weapon table and the name; picking Silvered
-  // outright is what applies the 10× price, since the RAW list already charges
-  // a Silver Dagger its silvered price and must not be billed twice.
+  // SILVER (RR ch.4) — a weapon quality, so weapons and ammunition only.
+  // "Auto" hands the answer back to the weapon table and the name; picking
+  // Silvered outright is what applies the price layer (see config.mjs
+  // SILVER).
   if (canBeSilvered(item)) {
     const flag = silveredFlagOf(item);
     row("ACKS-EQUIPMENT.props.silver", select(

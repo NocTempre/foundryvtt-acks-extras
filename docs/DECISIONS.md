@@ -487,3 +487,11 @@ exits 2 and says so rather than skipping, and the remedy is `acorn` as a
 devDependency, which its error message names. The allowlists also need upkeep:
 a new file reading a Foundry global fails validate until the global is listed,
 which is the gate doing its job.
+
+### History the source comments carried, recorded (2026-09-22)
+
+These were written into code comments as the reason a guard exists. The
+comments now state the guard; the story is here.
+
+- **`tools/audit-imports.mjs` exists because a wrong named import shipped.** An import line copied between two files whose constants live in different places named an export its target did not provide. The browser threw at load and every later hook was dead, while `validate` (which reads files) and the test suite (which imports only the pure modules) both stayed green.
+- **`tools/audit-styles.mjs` strips comments before it scans.** A previous hand-rolled version parsed selectors out of comment prose and reported 85 hits where there were 19.

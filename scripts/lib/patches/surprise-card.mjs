@@ -2,38 +2,23 @@
 /**
  * Core patch: the Surprise Matrix's results, gathered onto ONE chat card.
  *
- * Core's `SurpriseMatrix` posts a separate `ChatMessage` per combatant — a
- * one-line sentence each, in roll order, so a six-combatant encounter buries the
- * chat log under six cards that have to be read one at a time to answer the only
- * question being asked: who is surprised. This replaces the pile with a single
- * card carrying a Monsters table and an Adventurers table, name / total /
- * result, which is the shape the answer actually has.
+ * Core's `SurpriseMatrix` posts a separate `ChatMessage` per combatant. This
+ * replaces the pile with a single card carrying a Monsters table and an
+ * Adventurers table, name / total / result.
  *
- * THE ROLL IS STILL CORE'S. Nothing here re-derives a surprise number. The
- * matrix cell, the modifier stack, the surprise threshold and the `surprised`
- * status effect are all the system's, and are unreachable from a module
- * besides: the system ships as one minified bundle with no exports, and
- * `SURPRISE_MATRIX`, `#rollSurprise` and `#rollSurpriseForGroup` are a private
- * constant and two private methods. Duplicating the matrix here would be
- * inventing what the system provides, and would drift the first time the system
- * corrected a cell.
+ * The roll is still core's — the matrix cell, modifier stack, threshold and
+ * `surprised` status are the system's and unreachable besides (a minified
+ * bundle with no exports). The seam is presentation only, in three moves:
+ * (1) `renderApplicationV2` hands over a live instance, and the instance's
+ * `rollSurprise` action is swapped for a wrapper that still calls core's;
+ * (2) while core's handler runs, a scoped `preCreateChatMessage` hook captures
+ * and blocks the per-combatant messages, reading each one's total and verdict
+ * back out of its own localized template (`resultReaders`); (3) the captured
+ * rows post as one card.
  *
- * So the seam is presentation only, in three moves:
- *
- *  1. `renderApplicationV2` hands over a live instance. `this.options` is
- *     shallow-frozen but `options.actions` is a per-instance deep clone, and
- *     ApplicationV2 looks the handler up at CLICK time — so the instance's
- *     `rollSurprise` can be swapped for a wrapper that still calls core's.
- *  2. While core's handler runs, a scoped `preCreateChatMessage` hook captures
- *     and BLOCKS the per-combatant messages, reading each one's total and
- *     verdict back out of its own localized template (see `resultReaders`).
- *  3. The captured rows are posted as one card.
- *
- * Privacy is preserved by splitting, not by widening: core whispers a HIDDEN
- * monster's result to the Judges, and one chat message cannot be part public.
- * Rows core would have whispered go to a second, GM-only card; the rest go to a
- * public one. With nothing hidden — the ordinary case — there is exactly one
- * card.
+ * Privacy is preserved by splitting, not widening: core whispers a hidden
+ * monster's result to the Judges, so those rows go to a second, GM-only card.
+ * See docs/lib/DECISIONS.md, "Surprise results consolidate onto one card".
  */
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import { makeLoc } from "../util.mjs";
@@ -65,17 +50,11 @@ const escapeRx = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * Readers that pull `{result}` and `{formula}` back out of a rendered core
- * message, built from the very template that rendered it.
- *
- * Core hands the roll to `game.i18n.format(key, {result, formula})` and keeps
- * nothing else — no attached Roll, no flag. Formatting the same key with
- * sentinels in place of the data says exactly where in the sentence the two
- * values sit, so a reader tracks any translation of those strings for free and
- * needs no copy of their English.
- *
- * Returns null when a template does not carry `{result}` at all. That is the
- * pre-flight: with no way to read a total, nothing is captured and nothing is
- * blocked, and core's own messages post unchanged.
+ * message, built from the very template that rendered it — sentinels in place
+ * of the data say where in the sentence the two values sit. Returns null when
+ * a template carries no `{result}` at all, the pre-flight for standing the
+ * patch down rather than blocking output it cannot reproduce. See
+ * docs/lib/DECISIONS.md, "Surprise results consolidate onto one card".
  */
 function resultReaders() {
   const readers = [];
@@ -117,14 +96,10 @@ function groupIndex(pools) {
 }
 
 /**
- * The whole card for one audience, or "" when that audience has no rows.
- *
- * The card itself is `renderRollCard` (lib/roll-card.mjs) — the same renderer
- * the party's checks and saving throws post through, so all three read alike
- * and gain any improvement once.
- *
- * A surprised row is marked `neutral`, NOT `failure`: whether being surprised is
- * bad news depends on which of the two tables you are reading.
+ * The whole card for one audience, or "" when that audience has no rows,
+ * rendered through the shared `renderRollCard` (lib/roll-card.mjs). See
+ * docs/lib/DECISIONS.md, "`neutral` is a third emphasis, not a missing
+ * verdict".
  */
 function cardHtml(rows, { hidden }) {
   const side = (group) =>
@@ -207,15 +182,11 @@ async function postCards(rows) {
 }
 
 /**
- * The Surprise Matrix, identified by what it DECLARES rather than by what it is
- * called.
- *
- * `render<ClassName>` is unusable here: the system ships terser-minified, so
- * `SurpriseMatrix` reaches a live world as `E` and the hook name is whatever
- * that build's mangler chose. `surprise-matrix-app` is a string in the app's own
- * `DEFAULT_OPTIONS.classes` and survives minification unchanged; the action is
- * required alongside it so a future app that merely borrowed the class cannot be
- * mistaken for this one.
+ * The Surprise Matrix, identified by what it DECLARES, not by what it is
+ * called — `render<ClassName>` is unusable on a minified build. The action is
+ * required alongside the class so a future app that merely borrows it is not
+ * mistaken for this one. See docs/lib/DECISIONS.md, "Found live, and only
+ * live: the class name is not usable as a hook".
  */
 function isSurpriseMatrix(app) {
   return (

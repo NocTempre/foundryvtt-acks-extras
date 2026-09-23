@@ -1974,3 +1974,55 @@ be seen and corrected.
 **Cost:** one band per map and one special list per district; a list with
 several routed bands is `docs/formation/ROADMAP.md`. The band and the shift
 are not honoured on the world's own list, which has neither.
+
+### Settlement distances round by magnitude, not by a fixed decimal count (2026-09-22)
+
+Recorded from the comment on `unitFigure` in `scripts/formation/formation-view.mjs`.
+
+**Ruled.** A distance printed beside a scene's own unit rounds by the size of
+the number, not by a fixed decimal count: a whole number at ten and over, one
+decimal from one up to ten, two significant digits below one. The same
+distance is a large figure in one unit and a fraction in another, and a fixed
+low precision would round a genuine, small, non-zero distance down to a
+printed zero. A true zero still prints as zero.
+
+### Capability matching is a union, not a fallback (2026-09-22)
+
+Recorded from the header and the override comments of `scripts/formation/ability-bridge.mjs`.
+
+**Ruled.** Capability matching is precise but only as complete as the
+register: a real listening proficiency that does not yet declare the listening
+keyword would be silently dropped by a strict capability check. So candidates
+are the UNION of capability matches and the existing name matches: never fewer
+members than before, plus the ones a rename would have hidden.
+
+**Ruled.** The union is deliberately generous, so the GM can see what it caught
+and overrule it. Overrides are world-scoped and keyed by ability identity, not
+by item, because whether an ability counts is a ruling about the rules, not
+about one character's copy. No entry means automation decides, `true` forces
+the ability in, `false` forces it out, and resetting deletes entries rather than
+writing `true`, so the automated default really is the default.
+
+### History the source comments carried, recorded (2026-09-22)
+
+These were written into code comments as the reason a guard exists. The
+comments now state the guard; the story is here.
+
+- **A character in no formation lights their own lamp.** The sheet's light controls were gated on the actor being in a party formation, so a character alone saw no control on their lantern and a dragged-in lamp did nothing. A solo light is a flag on the character's own actor and needs no formation, no GM and no relay; `tools/test-formation-flows.mjs` pins it ("a character in no formation lights their own lamp").
+- **A lit torch survives every hook chain.** The reported symptom was correct lighting, then none: the party token lost its light and even a manual light was stomped. That happens if `formation.lights` is reverted by a stale write after the light was added, or if `syncEnvironments` dies before `syncPartyTokenLight`; `tools/test-formation-flows.mjs` pins it ("a lit torch survives every hook chain and reaches the token").
+- **The travel panel's lost view is filled once.** A second assignment to the
+  panel's lost-state fields once overwrote the drift fields written earlier in
+  the same pass, and the panel showed a missing day count. The fields the lost
+  episode needs and the fields the panel needs are now written from one
+  object, in `buildTravelView` (`scripts/formation/formation-view.mjs`).
+- **The ability bridge imports the lib statically.** Its first cut looked the
+  functions up on the public API object at call time; when that object grew a
+  `vocab` namespace, `satisfies` stopped existing there and both capability
+  checks silently returned false, so every dragged cookbook skill fell back to
+  Adventuring, mislabelled and unbonused. A static import fails loudly at load
+  instead.
+- **The ladder cache is rebuilt without being dropped.** Creating an actor
+  fires `createItem`, which once emptied the cache moments before the party
+  roll that needed it, and three members silently rolled against the wrong
+  numbers. A slightly stale ladder costs nothing; an emptied cache downgrades
+  every borrowed skill to its sheet target.

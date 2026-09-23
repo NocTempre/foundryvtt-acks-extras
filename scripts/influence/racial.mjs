@@ -1,6 +1,7 @@
 /* global game */
 /**
- * Racial & cross-species reaction support (docs/RACIAL_REACTIONS_PLAN.md):
+ * Racial & cross-species reaction support (docs/influence/DECISIONS.md,
+ * "Racial and cross-species reactions ship strict-RAW"):
  *  - kind typing: what races/categories an actor belongs to, read from the
  *    class name (characters) or the Full Monster Sheet (monsters);
  *  - the asymmetric campaign race-relations registry (world setting + api);

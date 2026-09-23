@@ -1,14 +1,9 @@
 /* global game, canvas, foundry */
 /**
- * The Judge's controls for a party that has lost its way.
- *
- * The navigation card can only ever report. RAW hands the STRAY DIRECTION to a
- * person — "based on the landmarks and terrain, or randomly" — so the module
- * asks rather than choosing, and offers the blind roll for a Judge who would
- * rather not.
- *
- * Without this the whole lost feature was unreachable: the ledger, the shadow
- * and the faked reveal all existed and nothing could start them.
+ * The Judge's controls for a party that has lost its way: the navigation
+ * card only reports, so this asks which way the party strayed and offers a
+ * blind roll for a Judge who would rather not choose. See
+ * docs/formation/MODEL.md, "Lost".
  */
 import { makeLoc } from "../lib/util.mjs";
 import { HEX_FACES, rollStrayFace, travelOf } from "./travel.mjs";

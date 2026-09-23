@@ -1,28 +1,10 @@
 /* global game, foundry, ui */
 /**
- * Binding a character to a class, in the window the Scores Generator already
- * was.
- *
- * The picker used to be a two-field dialog — class, level — followed by a
- * second dialog that listed the changes and asked every open pick. Beside it
- * the generator (stat-page.mjs) asked the SAME questions better: it offered the
- * class's starting packages, it counted the Intellect bonus, and it said what a
- * package would hand over before handing it over. A character bound from their
- * sheet reached none of that, so binding at 1st level gave the class's numbers
- * and no starting package at all.
- *
- * So this is the generator's own layout, minus the column it has no use for.
- * The attribute rolls are replaced by the level being SET and the picks that
- * come with it — a played character's ladder, which is what the level-up wizard
- * would have asked one rung at a time. The class and package column and the
- * choices column are the generator's, built from the same code (panels.mjs) and
- * asked with the same rung control (picks.mjs).
- *
- * WHAT IT NEVER DOES IS WIPE. Generating a character REPLACES the last run of
- * the page, because that is what generating means; binding a class to a
- * character who already owns things is the opposite act. A package is therefore
- * opt-in here and defaults to none, and what it will ADD is stated on the
- * panel — see docs/classes/DECISIONS.md.
+ * Binding a character to a class: one window, the Scores Generator's own
+ * layout with the attribute column replaced by the level being set and its
+ * picks. A package is opt-in here and defaults to none — binding never
+ * wipes what a character already owns. See docs/classes/MODEL.md, "The
+ * picker".
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classItems, classForActor, byBookOrder } from "./registry.mjs";
@@ -180,13 +162,9 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const { opening, ladder } = this.#rungs(cls, level, template);
     const granted = template ? templateGrantKeys(template) : null;
 
-    // What the page is OFFERING, recorded for the write. Both lists shrink when
-    // a package is chosen — it answers the opening picks itself — and the bonus
-    // row disappears entirely when no package is. The answers given before that
-    // change stay in `binding`, so a write reading the raw bag applies picks the
-    // page had stopped asking for: a proficiency granted twice, or granted at
-    // all on a page showing no such question. Never read `answers` or
-    // `bonusPicks` in the submit path without these.
+    // What the page is OFFERING, recorded for the write: both lists shrink
+    // when a package is chosen, and stale answers in `binding` must not be
+    // read past this filter, or a proficiency is granted twice.
     this.binding.offeredRungKeys = [...opening, ...ladder].map((r) => r.name.slice("rung-".length));
     this.binding.offeredBonus = bonusCount;
 
@@ -218,8 +196,8 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
       bonus: Array.from({ length: bonusCount }, (_, i) => ({
         name: `bonus-${i}`,
         label: loc("chargen.bonusPick", { n: i + 1 }),
-        // Chosen "on top of those listed for the template" (RR Ch. 2), so the
-        // picks stand — minus the abilities the package is already handing over.
+        // Chosen in addition to the template's own grants (RR Ch. 2), minus
+        // the abilities the package is already handing over.
         options: choosableGenerals()
           .sort((a, b) => a.name.localeCompare(b.name))
           .map((item) => ({ ref: refOf(item), name: item.name }))

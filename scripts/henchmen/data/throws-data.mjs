@@ -1,20 +1,14 @@
 /**
- * Social-roll AUTOMATION config — this module's own, NOT the book database.
+ * Social-roll AUTOMATION config — this module's own, not an imported book
+ * table. Maps the universal ACKS 2d6 outcome ladder onto this module's own
+ * effect enums (`refuseSlander`, `tryAgain`, `acceptElan`…) and derive keys
+ * (`chaMod`, `effectiveLoyalty`…), so hiring/loyalty/obedience rolls work with
+ * no import. Ships at SAMPLE priority: a content catalog or world import may
+ * still override it by the `throws` doc id.
  *
- * Unlike availability/wages/rarity/people (proprietary book tables that ship
- * NOWHERE and are materialized per-seat from the reader's PDF via the importer
- * extraction), this file is henchmen's ROLL AUTOMATION: how the module presents
- * and computes its 2d6 social throws. It is expressed entirely in module
- * vocabulary — the universal ACKS 2d6 outcome ladder (2 / 3-5 / 6-8 / 9-11 /
- * 12) mapped to this module's own effect enums (`refuseSlander`, `tryAgain`,
- * `acceptElan`…), plus modifier rows that reference this module's own derive
- * keys (`chaMod`, `effectiveLoyalty`…), control types, and i18n label keys.
- * There is no book prose and no reproduced data compilation here, so it ships
- * with the module and registers at SAMPLE priority — a content catalog or a
- * world import may still override it by the `throws` doc id.
- *
- * Registered at setup via the acks-lib table registry; read by ThrowDialog and
- * the influence-hosted pages through getThrowDef/getTable("throws", …).
+ * Registered at setup via the lib subsystem's table registry; read by
+ * ThrowDialog and the influence-hosted pages through getThrowDef/getTable
+ * ("throws", …).
  */
 
 const employerChaMod = {
@@ -206,10 +200,8 @@ export const THROWS_DATA = {
 /**
  * Alignment-openness AUTOMATION (module inference, not a printed table):
  * recruiting a class openly where its alignment is unwelcome shifts the
- * directed-search rarity one step (chaotic warlocks in a lawful town). The
- * step is this module's own judgment call layered under any world import
- * (partial doc at SAMPLE priority; per-table registry layering keeps the
- * imported rarity tables above it).
+ * directed-search rarity one step. Partial doc at SAMPLE priority; per-table
+ * registry layering keeps any imported rarity tables above it.
  */
 export const RARITY_AUTOMATION = {
   id: "rarity",

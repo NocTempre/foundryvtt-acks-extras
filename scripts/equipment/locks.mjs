@@ -2,20 +2,10 @@
 /**
  * Defeating a container's lock — by picking it, or by breaking the container.
  *
- * WHAT THIS DOES NOT DO: invent a throw. The module ships no target numbers for
- * picking a lock or bashing a chest, because it has not read them off anyone's
- * page (docs: scans locate, recipes interpret — a fabricated target is worse
- * than no automation). What it does is ROLL THE CHARACTER'S OWN ABILITY: the
- * Lockpicking or Dungeon Bashing item on their sheet, whose target came from
- * their book via the importer, rolled through acks-abilities' roller.
- *
- * So this file is plumbing between three things that already exist — the
- * character's proficiency, the roll that proficiency knows how to make, and the
- * container's lock — and it adds no rules of its own. Without acks-abilities it
- * degrades to "roll it yourself and tell me", which is honest.
- *
- * RAW constraint that IS enforced: gloves block lockpicking (RR p. 145,
- * acks-rules/acks-equipment/RULES.md §6).
+ * Rolls the character's own Lockpicking or Dungeon Bashing item through
+ * acks-abilities; invents no target of its own (see docs/equipment/MODEL.md,
+ * "2026-07-24 — containers live on the sheet; locks roll the character's own
+ * proficiency"). RAW constraint enforced: gloves block lockpicking (RR p. 145).
  */
 import { MODULE_ID, HOOKS, ITEM_FLAGS } from "./constants.mjs";
 import { containerOf, isLocked, setOpened, contentsOf, isFragile } from "./containers.mjs";
@@ -53,9 +43,9 @@ const GLOVE_NAME = /\bglove|gauntlet/i;
  * Is the character wearing gloves? RR p. 145 blocks pickpocketing, lockpicking
  * and trap-breaking while gloved.
  *
- * WORN, not `system.equipped` — gloves are a plain `item`, which core gives no
- * `equipped` field, so gating on that field made this rule permanently inert.
- * Never re-narrow a worn test to one store.
+ * Tests WORN, never `system.equipped` — a plain `item` carries no `equipped`
+ * field (see docs/equipment/DECISIONS.md, "A worn-check gated on
+ * `system.equipped` never fires (2026-09-22)").
  *
  * The hands slot answers it outright once gear is annotated; the name test is
  * the fallback for gear that is not, because gloves are ordinary equipment a

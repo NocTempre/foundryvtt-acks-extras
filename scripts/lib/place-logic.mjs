@@ -1,32 +1,11 @@
 /**
- * The Foundry-FREE half of PLACES — the nesting, occupancy and stacking rules
- * that let "the Duchy of Aura", "the Rusty Anchor", "the cellar" and "the chest
- * in the cellar" be the same kind of thing. place.mjs re-exports these and adds
- * the document reads and writes around them; this half imports under Node and is
- * unit-tested offline (the same split as storage-logic.mjs vs storage.mjs).
- *
- * WHY A PLACE IS NOT JUST A PROVIDER. acks-lib already had one half of this:
- * a PROVIDER is any actor that holds goods (storage.mjs). That answers "where
- * are my boots" and nothing else. A place additionally answers:
- *
- *   - **what is it inside of** — a cellar is in an inn, an inn is in a town;
- *   - **what is inside it that is not an item** — the garrison, the innkeeper,
- *     the pack of rats, the sub-buildings;
- *   - **how many of it are there** — eight identical warehouse bays are one
- *     actor until one of them becomes interesting.
- *
- * A CONTAINER IS THE TRIVIAL PLACE. A chest is a place with no market, no
- * occupants, and exactly one level of nesting; a duchy is a place with all
- * three. Because the degenerate case is a real shipped document — the equipment
- * feature's container item — the model is kept honest: anything the location
- * sheet does to a town, it must be able to do to a chest.
- *
- * Everything here works on NORMALISED NODES, never on Foundry documents:
- *
- *   {uuid, parentUuid, name, kind, count}
- *
- * so a location actor, a container item and a plain provider actor all reduce to
- * the same shape before any rule runs. place.mjs owns the reduction.
+ * The Foundry-free half of PLACES — nesting, occupancy and stacking rules
+ * shared by locations, storage providers and container items. Works on
+ * NORMALISED NODES ({uuid, parentUuid, name, kind, count}), never on Foundry
+ * documents, so it imports under Node and is unit-tested offline (the same
+ * split as storage-logic.mjs vs storage.mjs). place.mjs re-exports these,
+ * adds the document reads and writes, and owns the node reduction. See
+ * docs/lib/PLACES.md.
  */
 
 /** Flag scope shared with the rest of the family (one module id since the merge). */
@@ -53,9 +32,9 @@ export const PLACE_KIND = Object.freeze({
  */
 export const OCCUPANT_KIND = Object.freeze({
   ACTOR: "actor", // a character, an NPC, an animal
-  GROUP: "group", // an acks-lib.group stack — a platoon, a rat swarm
+  GROUP: "group", // a group-actor stack — a platoon, a rat swarm
   MONSTER: "monster",
-  HENCHMAN: "henchman", // a retainer, tracked by acks-henchmen
+  HENCHMAN: "henchman", // a retainer, tracked by the henchmen feature
   PLACE: "place", // a sub-place shown inline (buildings inside a town)
 });
 
@@ -76,12 +55,8 @@ export function indexPlaces(nodes) {
 }
 
 /**
- * The direct children of a place, in stable name order.
- *
- * Sorted here rather than at the sheet because the ORDER IS PART OF THE MODEL:
- * two clients rendering the same town must list its buildings identically, or a
- * GM describing "the third building down" is describing a different building to
- * every player.
+ * The direct children of a place, in stable name order — sorted here, not at
+ * the sheet, so every client renders the same list.
  */
 export function childrenOf(uuid, nodes) {
   return (nodes ?? [])
@@ -90,12 +65,9 @@ export function childrenOf(uuid, nodes) {
 }
 
 /**
- * Every ancestor of a place, nearest first, stopping at the root.
- *
- * Cycle-safe by construction: a uuid already seen ends the walk. A corrupt
- * parent chain therefore renders a short breadcrumb rather than hanging the
- * sheet — which is the behaviour you want, because the sheet is where a GM
- * would go to fix it.
+ * Every ancestor of a place, nearest first, stopping at the root. Cycle-safe
+ * by construction: a uuid already seen ends the walk. See docs/lib/PLACES.md,
+ * "The one invariant".
  */
 export function ancestorUuids(uuid, index) {
   const out = [];
@@ -123,10 +95,8 @@ export function placePath(uuid, index) {
 export const depthOf = (uuid, index) => ancestorUuids(uuid, index).length;
 
 /**
- * Every place under this one, breadth-first, excluding itself.
- *
- * The visited set doubles as the cycle guard, exactly as expandContainerClosure
- * does for nested containers — a corrupt loop terminates instead of hanging.
+ * Every place under this one, breadth-first, excluding itself. The visited
+ * set is also the cycle guard (as in `expandContainerClosure`).
  */
 export function descendantUuids(uuid, nodes) {
   const byParent = new Map();
@@ -154,16 +124,9 @@ export function descendantUuids(uuid, nodes) {
 /* -------------------------------------------- */
 
 /**
- * Would making `parentUuid` the parent of `uuid` create a loop?
- *
- * THE ONE INVARIANT OF THE WHOLE NESTING MODEL. Dropping a town onto one of its
- * own cellars must not produce a cycle: the walks above survive one (they are
- * all guarded), but a cycle silently orphans everything in it from the root, so
- * it is refused at the point of the write rather than tolerated afterwards.
- *
- * Self-parenting counts. A parent that is not in the index does not — it is a
- * place this client cannot see, and refusing the drop on that basis would make
- * the rule depend on who is looking.
+ * Would making `parentUuid` the parent of `uuid` create a loop? Self-parenting
+ * counts; a parent not in the index does not, since that just means a place
+ * this client cannot see. See docs/lib/PLACES.md, "The one invariant".
  */
 export function wouldCycle(uuid, parentUuid, index) {
   if (!uuid || !parentUuid) return false;
@@ -189,12 +152,9 @@ export function planReparent(uuid, parentUuid, index) {
 /* -------------------------------------------- */
 
 /**
- * Sum a per-place number over a place and everything beneath it.
- *
- * Used for the two totals a nested model needs and a flat one does not: the coin
- * held in a town (its own vaults plus every cellar and chest under it) and the
- * headcount of its garrison. `counts` is uuid → number; places missing from it
- * contribute nothing.
+ * Sum a per-place number over a place and everything beneath it — coin held
+ * in a town plus its cellars, a garrison's headcount. `counts` is uuid →
+ * number; places missing from it contribute nothing.
  */
 export function rollup(uuid, nodes, counts) {
   const own = Number(counts?.get?.(uuid) ?? 0) || 0;
@@ -206,20 +166,10 @@ export function rollup(uuid, nodes, counts) {
 /* -------------------------------------------- */
 
 /**
- * The roster a sheet actually renders: what was deliberately placed here, plus
- * whoever is standing on the linked scene.
- *
- * TWO SOURCES, ONE LIST, STORED WINS. The roster is the deliberate record — the
- * GM said the garrison is billeted here — and survives the scene being deleted,
- * renamed or never opened. Tokens on the linked scene are DERIVED: appended when
- * they are not already in the roster, marked `derived: true`, and never written
- * back. That asymmetry is the point. A derived row is a live observation and
- * disappears when the token walks away; promoting one to a stored row is an
- * explicit act (the sheet's "keep here" button), because a party crossing a map
- * should not silently take up residence in it.
- *
- * Dedup is by actor uuid, so the same actor placed by hand AND standing on the
- * map appears once — as the stored row, keeping its notes and attribution.
+ * The roster a sheet renders: what was deliberately placed here, plus
+ * whoever is standing on the linked scene. Dedup is by actor uuid; the
+ * stored row wins. See docs/lib/PLACES.md, "Occupancy: two sources, one
+ * list, stored wins".
  */
 export function mergeOccupants(stored, derived) {
   const rows = [];
@@ -238,23 +188,12 @@ export function mergeOccupants(stored, derived) {
 }
 
 /**
- * Which occupant rows this viewer may see.
- *
- * THE SAME RULING AS STORAGE, RESTATED FOR PEOPLE (storage.mjs header): this is
- * a UI convention, not a security boundary. A player with ownership of a shared
- * town can still enumerate its roster from the console, so a garrison that must
- * genuinely stay secret belongs on a GM-owned place — the rule here only decides
- * what the sheet puts on screen.
- *
- * A hidden row is hidden from players, FULL STOP, with exactly one exception:
- * the row you put there yourself (`ownerUuid`), so your own stabled horse does
- * not vanish because a GM hid somebody else's garrison.
- *
- * THE EXCEPTION IS DELIBERATELY NOT "you own the occupant". That was the first
- * implementation and live testing killed it: in a world that grants players
- * ownership of most actors — which is ordinary — owning the NPC meant seeing
- * every hidden row about it, and `hidden` stopped meaning anything. Owning an
- * actor is not evidence the GM meant you to know it is here; placing it is.
+ * Which occupant rows this viewer may see. A UI convention, not a security
+ * boundary (docs/lib/PLACES.md, "Occupancy: two sources, one list, stored
+ * wins"; see also storage.mjs). A hidden row is hidden from players, with
+ * exactly one exception: the row the viewer placed themselves (`ownerUuid`).
+ * See docs/lib/DECISIONS.md, "The hidden-row exception is who placed the
+ * occupant, never who owns it".
  */
 export function visibleOccupants(rows, { isGM = false, ownedUuids = [] } = {}) {
   if (isGM) return [...(rows ?? [])];
@@ -292,16 +231,8 @@ export const headcount = (rows) =>
 /* -------------------------------------------- */
 
 /**
- * Eight identical warehouse bays are ONE actor until one of them becomes
- * interesting — the same laziness invariant acks-lib.group applies to bodies
- * (docs/lib/GROUPS.md), applied to places.
- *
- * A group's members can diverge in place because a member IS an ActorDelta over
- * a shared base. A place cannot borrow that: its contents are embedded items and
- * a roster, which have no delta representation, so divergence here is a SPLIT —
- * the interesting bay becomes its own actor and the stack shrinks by one. That
- * is the whole mechanism, and it is why `count` is the only stack state.
- *
+ * Plan splitting one instance out of a stacked place. See docs/lib/PLACES.md,
+ * "Stacking, and how it differs from a group".
  * @returns {{from: number, to: number}|null} null when the split is impossible
  *   (nothing to take, or taking the lot, which would leave an empty stack).
  */

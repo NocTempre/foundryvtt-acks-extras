@@ -1,26 +1,10 @@
 /* global game, Item, Hooks */
 /**
- * Bringing a world's languages onto the system's own type.
- *
- * Two shapes predate this: languages minted as ABILITY items (the taxonomy
- * import's own, stamped `def.language.*`), and tongues recorded as bare names
- * inside a carrier's `entries` flag — which were never documents at all, so no
- * character holding one was visible to the system's sheet section or to the
- * Polyglot provider that reads it.
- *
- * BOTH CONVERGE ON THE SAME ANSWER: one `language` document per tongue, on the
- * actor that speaks it. The carrier survives, holding only what it was always
- * really for — the count of picks still open, and which languages were chosen
- * against it.
- *
- * ORDERED TO SURVIVE A FAILURE AT ANY POINT. Every replacement is created
- * before anything it replaces is removed, and the carrier's flag is rewritten
- * only once its languages exist. A run that dies halfway leaves a world with a
- * duplicate — which the next run adopts rather than doubling — never one that
- * has lost a language.
- *
- * IDEMPOTENT, so it can simply run at `ready` on every load: a world already
- * converted matches nothing and writes nothing.
+ * Converts a world's pre-migration languages — abilities minted by the
+ * taxonomy import, and bare names inside a carrier's `entries` flag — onto
+ * one `language` document per tongue. Runs at `ready`, GM-only, idempotent,
+ * creating every replacement before removing what it replaces. See
+ * docs/classes/MODEL.md, the language-migration paragraph.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { SLOT_FLAG, LANGUAGE_TYPE, ensureLanguage, slotsOf } from "./languages.mjs";
@@ -138,10 +122,9 @@ export async function migrateLanguages() {
 /** Run the sweep once the world is up. */
 export function installLanguageMigration() {
   Hooks.once("ready", () => {
-    // This sweep WRITES, and it decides what to create by asking the library
-    // what already exists. A shelf still warming reads as absent, so a language
-    // sitting in a cold pack would be minted again beside itself. Everything
-    // else can tolerate a partial read; a create cannot.
+    // This sweep WRITES by asking the library what exists; a shelf still
+    // warming reads as absent, so a language in a cold pack would be minted
+    // again beside itself.
     whenReady()
       .then(() => migrateLanguages())
       .then((r) => {

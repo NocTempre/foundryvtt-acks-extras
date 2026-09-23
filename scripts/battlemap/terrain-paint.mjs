@@ -1,26 +1,17 @@
 /* global game, canvas, foundry, PIXI, CONST, Hooks, ui */
 /**
- * Hex terrain painting — map prep for the overland journey.
+ * Hex terrain painting — map prep for the overland journey. A hex-gridded
+ * scene's terrain is painted into scene REGIONS: one region per terrain
+ * kind, its shapes the painted cells, tinted and flagged `terrain: <key>`.
+ * Each region also carries the painted cells as OFFSET KEYS
+ * (`terrainHexes`, aligned index-for-index with `shapes`), so "what terrain
+ * is this hex?" is a flag read, never a point-in-polygon test. One terrain
+ * per hex; painting is GM-only, hex grids only. The PAINT SESSION is armed
+ * by the battlemap control group's terrain tool, a screen-space pointer
+ * catcher (capture.mjs's pattern) turning clicks and drags into cell writes.
  *
- * A hex-gridded scene's terrain is painted into scene REGIONS: one region
- * per terrain kind per scene, its shapes the painted hex cells, tinted in
- * the terrain's colour and flagged `terrain: <TERRAIN key>`. Beside the
- * shapes each region carries the painted cells as OFFSET KEYS
- * (`terrainHexes: ["i:j", …]`, aligned index-for-index with `shapes`), which
- * is what makes erasing exact and the travel lookup geometry-free: "what
- * terrain is this hex?" is a flag read, never a point-in-polygon test, so it
- * answers identically on a client with no canvas.
- *
- * ONE TERRAIN PER HEX: painting a cell removes it from every other terrain
- * region first — two regions claiming one cell is a map that answers a
- * question two ways.
- *
- * The PAINT SESSION is armed by the battlemap control group's terrain tool
- * (one armed thing at a time, Foundry's own tool exclusivity): a
- * screen-space pointer catcher (capture.mjs's proven pattern) turns clicks
- * and drags into cell writes, and a small palette window picks which terrain
- * the brush lays down — or the eraser. Painting is GM-only, hex grids only;
- * a square-grid scene refuses with a warning rather than approximating.
+ * See docs/battlemap/DECISIONS.md, "Terrain paints as regions, and the
+ * cell key is the identity."
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { TERRAIN, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
@@ -30,13 +21,10 @@ export const TERRAIN_FLAG = "terrain";
 export const HEXES_FLAG = "terrainHexes";
 
 /**
- * Terrain kinds the brush refuses even though they are valid terrain.
- *
- * Mud and snow are rows of the printed terrain table, so they price a march
- * like any other ground — but they describe what the weather has LEFT, and the
- * footing state machine already derives them daily. Painting them would bake a
- * transient into the geography and leave two systems with an opinion about one
- * hex, so they stay lookup-only.
+ * Terrain kinds the brush refuses even though they are valid terrain: mud
+ * and snow describe what the weather has left, and the footing state
+ * machine already derives them daily. See docs/battlemap/DECISIONS.md,
+ * "Mud and snow leave the brush."
  */
 export const UNPAINTABLE = Object.freeze(["mud", "snow"]);
 
@@ -62,11 +50,10 @@ export const TERRAIN_COLORS = Object.freeze({
 });
 
 /**
- * Every terrain the brush may lay down: the shipped structural keys plus any
- * key the imported multiplier table carries, minus the ones weather owns.
- *
- * This is what lets a Judge with an ash waste paint one — adding a terrain is
- * adding a registry row, the way everything else in this family extends.
+ * Every terrain the brush may lay down: the shipped structural keys plus
+ * any key the imported multiplier table carries, minus the ones weather
+ * owns. See docs/battlemap/DECISIONS.md, "The terrain vocabulary opens to
+ * imported keys."
  */
 export function paintableTerrains() {
   const shipped = Object.keys(TERRAIN);

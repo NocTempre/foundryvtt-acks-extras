@@ -26,12 +26,8 @@ export const TURNS_PER_DAY = 144;
 export const FORMATION_DOC = "formation";
 
 /**
- * One printed figure, or null when nothing is registered.
- *
- * The same shape `flight.mjs` and `foraging.mjs` already use. What ships is
- * that a party must rest, that a carried body weighs on whoever carries it,
- * and that only part of its kit weighs with it — the procedure. How OFTEN, and
- * HOW MUCH, are read off a page and arrive with the reader's own book.
+ * One printed figure, or null when nothing is registered — the same shape
+ * `flight.mjs` and `foraging.mjs` read.
  */
 export function formationValue(key) {
   if (!hasTableDoc(FORMATION_DOC)) return null;
@@ -97,15 +93,9 @@ export const ROLE_HINTS = Object.freeze({
 });
 
 /**
- * ACKS II saving throw keys (system: actor.system.saves[key].value).
- *
- * `breath` is CORRECT for the released system: acks 14.0.1 stores member saves
- * under `saves.breath` (displayed as "Blast" via ACKS.saves.breath.long).
- * Verified live — a fresh character's schema is
- * [paralysis, death, breath, implements, spell, wand] and ACKS.saves.blast.long
- * does not exist. The system's dev branch renames breath→blast; flip this key
- * when that lands in a system RELEASE, not before — the modules target the
- * released system, and the test world runs it.
+ * ACKS II saving throw keys (system: actor.system.saves[key].value). `breath`
+ * is correct for the released system. See docs/formation/DECISIONS.md, "Save
+ * keys track the RELEASED system, never the dev branch".
  */
 export const SAVE_KEYS = Object.freeze(["paralysis", "death", "breath", "implements", "spell"]);
 
@@ -113,16 +103,11 @@ export const SAVE_KEYS = Object.freeze(["paralysis", "death", "breath", "impleme
 export const ROUNDS_PER_TURN = 10;
 
 /*
- * Thief skill level ladders USED to live here as a literal RR p.31 table.
- * They are now read from the GM's own book: the importer's `progression` recipe
- * extracts each skill's grid column at import and stores it on the ability as
- * an acks-lib `breakpoints` LevelValue, which resolves at any level. See
- * `ability-bridge.mjs` (`importedLadderFor`) for the lookup and
- * docs/ABILITIES-AUDIT.md §5 Phase 4 for why the table went.
- *
- * The `acks-formation.thiefSkill: <key>` flag survives and means what it always
- * meant — "scale as <key> does" — but now resolves through the imported
- * definition instead of a shipped array.
+ * Thief skill level ladders are read from the GM's own book, not shipped here.
+ * See `ability-bridge.mjs` (`importedLadderFor`) for the lookup and
+ * docs/formation/DECISIONS.md, "The ladders come from the GM's own book".
+ * The `acks-formation.thiefSkill: <key>` flag still means "scale as <key>
+ * does".
  */
 
 /**
@@ -150,18 +135,11 @@ export const TRAP_ITEM_TYPE = `${MODULE_ID}.trap`;
 export const TRAP_ZONE_TYPE = `${MODULE_ID}.trapZone`;
 
 /**
- * The implement each role needs before a character can take it up, in the shape
- * `grantGear` reads — so ONE list both refuses the role to a character without
- * the gear and, for a Judge who overrides, supplies what was missing.
- *
- * RR p. 266 gives the mapper's requirement as "both hands occupied", and this is
- * what occupies them: a quill in one hand, something to draw on in the other.
- * ONE HAND PER PIECE, which is why the kit is a list rather than a count — add a
- * third piece and the mapper needs a third hand, exactly as RAW would have it.
- *
- * The RAW equipment list prices the quill and no writing surface, so parchment
- * carries a stand-in price, used only when the world has no such item to copy
- * (see docs/formation/DECISIONS.md).
+ * The implement each role needs before a character can take it up, in the
+ * shape `grantGear` reads: one list both refuses the role without the gear
+ * and, for a Judge who overrides, supplies what was missing. See
+ * docs/formation/DECISIONS.md, "2026-08-03 — The mapper's kit is quill and
+ * parchment, one hand each." (RR p. 266).
  */
 export const ROLE_GEAR = Object.freeze({
   [ROLES.POLE]: Object.freeze([
@@ -189,13 +167,9 @@ export const ROLE_HAND_COST = Object.freeze({
 });
 
 /**
- * Carrying a body: what the carried character weighs, and what share of their
- * kit is carried with them.
- *
- * ONE OWNER for one printed figure. The rescue path in `swimming.mjs` used to
- * keep its own copy of both, so the same number was transcribed twice inside
- * one feature — which is how a printed value survives being registered in one
- * place and not the other.
+ * Carrying a body: what the carried character weighs, and what share of
+ * their kit is carried with them. See docs/formation/DECISIONS.md, "Three
+ * printed figures leave the module; the rest are inventoried".
  *
  * @returns {{stone: number|null, gearShare: number|null}}
  */
@@ -210,10 +184,6 @@ export const RATION_PATTERN = /ration/i;
 /** Default image used for the party token / party actor. */
 export const DEFAULT_PARTY_IMAGE = "icons/environment/people/group.webp";
 
-/* The exploration speed grid that stood here was a printed table transcribed
-   whole — four encumbrance bands against three speeds — with no reader left in
-   the module: the authoritative per-actor figure is
-   `actor.system.movementacks.exploration`, which the acks system computes. A
-   printed grid nothing consults is content with no argument for shipping it, so
-   it is gone rather than registered. If a speed band is ever needed here, read
-   the system's value or register the table; do not retype it. */
+/* Exploration speed reads `actor.system.movementacks.exploration`, which the
+   acks system computes. See docs/formation/DECISIONS.md, "Three printed
+   figures leave the module; the rest are inventoried". */

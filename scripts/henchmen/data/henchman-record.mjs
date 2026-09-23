@@ -9,8 +9,8 @@
  * and the event log.
  */
 import { MODULE_ID, FLAG_RECORD } from "../constants.mjs";
-// Leaf field-builders shared from acks-lib (were a verbatim copy here and in
-// location-data.mjs). `fields` stays for the composite types below.
+// Leaf field-builders shared from the lib subsystem; `fields` stays for the
+// composite types below.
 import { num, str, int } from "../../lib/fields.mjs";
 
 const fields = foundry.data.fields;
@@ -38,10 +38,10 @@ export default class HenchmanRecord extends foundry.abstract.DataModel {
       locationUuid: str(),
       settlementName: str(),
       employerUuid: str(),
-      // NEVER give a wage clock a numeric initial. Zero is a real worldTime, so
-      // an unset clock has to materialize as null or the billing guard cannot
-      // tell "never enrolled" from "hired at the dawn of the world" and invoices
-      // every month since. The guards downstream all test `== null`.
+      // Never a numeric initial: zero is a real worldTime, so an unset clock
+      // must materialize as null. Guards downstream all test `== null`. See
+      // docs/henchmen/DECISIONS.md, "Two repair macros retire into the code
+      // that made them unnecessary".
       hiredTime: num({ integer: true }),
 
       // Generated identity (RR 495-503 People; JJ 245-257 NPCs).

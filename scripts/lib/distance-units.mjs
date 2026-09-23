@@ -2,14 +2,8 @@
  * What one of a scene's distance units is worth in feet.
  *
  * Foundry's `grid.units` is free text, and every length this module owns is in
- * FEET — footprints, frontages, reaches. Converting one into grid squares
- * therefore needs a number for the scene's unit, and a scene whose squares are
- * six MILES is the case that makes the omission visible: a party sized as
- * though six were six feet is ten squares wide.
- *
- * An unrecognised or empty unit is feet. That is what the family assumed
- * before the battlemap's unit picker existed, so an untouched world keeps the
- * behaviour it had.
+ * FEET — footprints, frontages, reaches. An unrecognised or empty unit reads
+ * as feet, so an untouched world's behaviour does not change.
  *
  * Foundry-free.
  */

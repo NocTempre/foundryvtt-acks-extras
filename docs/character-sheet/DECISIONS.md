@@ -563,3 +563,12 @@ re-render.
 
 Cost: a field the cell starts reading later must join that list, or the cell
 goes stale for updates of that field alone.
+
+### Core windows are reached through the sheet registry, not reimplemented (2026-09-22)
+
+Recorded from the header of `scripts/character-sheet/core-bridge.mjs`.
+
+**Ruled.** A bridge cell calls the system's own action with `{actor}` as
+`this`, so it opens the very window core's sheet opens: reuse of the system's
+windows through the system's own registry, not a copy of them. If the system
+renames an action, the cell says so rather than opening nothing.

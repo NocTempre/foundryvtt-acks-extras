@@ -1,17 +1,11 @@
 /* global game, document */
 /**
- * Compact profile strips: fighting styles, weapon categories, armour.
- *
- * These are STATES, not list entries. A sheet that spells them out as rows
- * ("Fighting Style: Dual Weapon", "Armour Proficiency: Heavy", …) buries the
- * proficiencies that actually do something under a wall of flags. So they render
- * as an always-visible strip: every slot is shown, a trained one lights up, and a
- * SPECIALIZED / FOCUSED one goes gold. Nothing is hidden and nothing repeats.
- *
- * The state is read from acks-equipment's own profile API (effects + actor flags)
- * — never from item names — so it stays right however the training was granted.
- * With that module absent there is no profile to read and the strips are empty
- * (the card simply omits them) rather than guessed at.
+ * Compact profile strips: fighting styles, weapon categories, armour — an
+ * always-visible strip per category, read from the equipment feature's own
+ * profile API (effects + actor flags) and, failing that, the character's
+ * imported proficiency items. Empty when neither source exists, never
+ * guessed. See docs/lib/DECISIONS.md, "Profile strips render states, not a
+ * list of granted proficiencies".
  */
 import { DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE, SELECTION_VOCAB, matchSelectionKey } from "./vocab.mjs";
@@ -61,10 +55,9 @@ const ARMOUR = [
 ];
 
 /**
- * Which weapon CLASSES an equipment profile covers — its `{all, tokens}` read
- * through `weaponTokenClasses`. Unarmed is always available — anyone may strike
- * unarmed — so it lights for every character and golds only with the Unarmed
- * Fighting proficiency.
+ * Which weapon classes an equipment profile covers — its `{all, tokens}`
+ * read through `weaponTokenClasses`. Unarmed is always available, so it
+ * lights for every character and golds only with Unarmed Fighting.
  */
 function coveredClasses(all, tokens, api) {
   const covered = new Set(["unarmed"]);
@@ -76,22 +69,20 @@ function coveredClasses(all, tokens, api) {
 const norm = (s) => String(s ?? "").toLowerCase().replace(/[^a-z]/g, "");
 
 /**
- * Ability items that merely RECORD one of these states — they belong in the
- * strips, not in the proficiency list. Matched on a normalised name prefix, the
- * same way acks-equipment matches its own proficiency names.
+ * Ability items that merely record one of these states — they belong in the
+ * strips, not the proficiency list. Matched on a normalised name prefix, the
+ * same way the equipment feature matches its own proficiency names.
  */
 export const isProfileAbility = (item) =>
   item?.type === ITEM_TYPE.ability && /^(fightingstyle|armou?rproficiency|weaponproficiency|weaponfocus)/.test(norm(item.name));
 
 /**
- * Synonyms for the free-text picks on an imported proficiency. acks-abilities
- * stores `selections` as free vocabulary BY DESIGN (the meaningful token set is
- * per-ability and lives in the book) and tells consumers to normalise and match
- * against their own vocabulary — this is acks-lib's side of that contract. For
- * WEAPONS it is the fallback behind the sheet's own vocabulary: a grant token or
- * a group name resolves there (`weaponTokenClasses`); what reaches this table
- * is a single weapon's name — "dagger", "long bow" — or a phrasing the
- * vocabulary does not list, and it lights the class the weapon belongs to.
+ * Synonyms for the free-text picks on an imported proficiency. The abilities
+ * feature stores `selections` as free vocabulary and expects consumers to
+ * normalise and match against their own — this is the lib subsystem's side
+ * of that contract. For weapons it is the fallback behind the sheet's own
+ * vocabulary (`weaponTokenClasses`): a single weapon's name or an unlisted
+ * phrasing lands here and lights the class it belongs to.
  */
 const WEAPON_SYNONYMS = {
   sworddagger: ["sword", "swords", "dagger", "daggers", "swordsdaggers", "sworddagger", "swordsanddaggers"],
@@ -130,27 +121,19 @@ const matchSynonym = (token, table) => {
 
 /**
  * The weapon classes one grant token or stored pick covers, as slot keys.
- *
- * ONE resolver for every surface that reads a weapon grant at class granularity
- * — the strips, the class-training editor — so a class trained in every missile
- * weapon and every melee weapon up to medium size lights the same pills wherever
- * it is drawn. The token is read through the sheet's own vocabulary first
- * (`SELECTION_VOCAB.weaponProficiency`, whose keys ARE the grant tokens of
- * equipment's `proficiency.mjs`), so a box ticked on the ability sheet and a
- * clause written into a training effect agree:
+ * The one resolver for every surface that reads a weapon grant at class
+ * granularity, so the strips and the class-training editor agree. The
+ * token is read through the sheet's own vocabulary first
+ * (`SELECTION_VOCAB.weaponProficiency`):
  *   all             → every class
  *   missile:all     → every missile class
- *   melee:<size>    → every melee WEAPON class holding a weapon of that size,
- *                     read off equipment's table (a class with no tiny weapon
- *                     is not lit by `melee:tiny`, or a chip could never be
- *                     withdrawn); every melee class when no table is live.
- *                     Unarmed is no weapon in equipment's grammar, so a size
- *                     clause never names it — the strips light it for every
- *                     body on their own.
+ *   melee:<size>    → every melee weapon class holding a weapon of that size
+ *                     (read off the equipment table when live; every melee
+ *                     class otherwise). Unarmed is no weapon in that
+ *                     grammar, so a size clause never names it.
  *   <category>      → that class, by key or by the book's plural name
- * Anything else is a single NAMED weapon or a phrasing the vocabulary does not
- * list: the synonym table places it, else equipment's own weapon table when
- * that feature is live. A token nothing recognises covers no class.
+ * Anything else is a single named weapon or an unlisted phrasing: the
+ * synonym table places it, else the equipment feature's own weapon table.
  * @returns {string[]} `SLOT_VOCAB.weapons[].key` values, in vocabulary order
  */
 export function weaponTokenClasses(token, equipment = equipmentApi()) {
@@ -180,13 +163,13 @@ export function weaponTokenClasses(token, equipment = equipmentApi()) {
 }
 
 /**
- * The character's IMPORTED proficiency items that state a training, one entry
- * per item: its name, its category (`fightingStyle` | `weaponProficiency` |
- * `armorProficiency`) and its picks as written. Read through acks-abilities'
- * own API (`getExtras().category` + `selectionsOf`) — never by parsing item
- * names, which that module explicitly owns. A category with no explicit pick
- * still declares the DOMAIN; the item's own name is the fallback pick
- * ("Fighting Style: Dual Weapon" → dual).
+ * The character's imported proficiency items that state a training, one
+ * entry per item: its name, its category (`fightingStyle` |
+ * `weaponProficiency` | `armorProficiency`) and its picks as written. Read
+ * through the abilities feature's own API (`getExtras().category` +
+ * `selectionsOf`) — never by parsing item names. A category with no
+ * explicit pick still declares the domain; the item's own name is the
+ * fallback pick.
  * @returns {{name: string, category: string, tokens: string[]}[]}
  */
 export function abilityContributions(actor) {
@@ -251,8 +234,8 @@ function abilityGrants(actor, equipment) {
 export function profileStrips(actor) {
   if (actor?.type !== ACTOR_TYPE.character) return { styles: [], weapons: [], armour: [], any: false };
   const api = equipmentApi();
-  // The character's own imported proficiency items are a first-class source, so
-  // the strips work with acks-abilities alone (no acks-equipment profile needed).
+  // Imported proficiency items are a first-class source, so the strips work
+  // with the abilities feature alone, no equipment profile needed.
   const grants = abilityGrants(actor, api);
   const anyGrant = grants.has.styles || grants.has.weapons || grants.has.armour;
   if (!api && !anyGrant) return { styles: [], weapons: [], armour: [], any: false };
@@ -273,24 +256,17 @@ export function profileStrips(actor) {
   }
   for (const s of grants.styles) trained.add(s);
 
-  /**
-   * "Unconfigured" is NOT "proficient in everything". acks-equipment answers
-   * permissively when a character has no profile — `{all: true}` for weapons and
-   * `heavy` for armour — so it never penalises an un-set-up actor at roll time.
-   * Lighting the whole strip off that default would state a proficiency the
-   * character has not been given. So a group with no explicit profile (no flag,
-   * no granting effect) shows only what is true for ANY body: unarmed, and
-   * unarmoured, plus the two mandatory fighting styles.
-   */
+  // "Unconfigured" is not "proficient in everything" — see
+  // docs/lib/DECISIONS.md, "Unconfigured reads as unset, never as fully
+  // trained".
   const flagSet = (k) => {
     const v = actor.getFlag?.("acks-extras", k);
     return v != null && v !== "" && !(Array.isArray(v) && !v.length);
   };
   const stylesConfigured = grants.has.styles || flagSet("styles") || trained.size > 2 || spec.size > 0;
 
-  // With no profile the whole group is UNKNOWN — every pill greys out, including
-  // the styles every class technically has. An unset sheet states nothing; a set
-  // one states exactly what it was given.
+  // Unconfigured greys out every pill (see the ruling above), including
+  // styles every class could technically take.
   const styles = STYLES.map((s) => ({
     key: s.key,
     icon: s.icon,
@@ -337,17 +313,14 @@ export function profileStrips(actor) {
     /* no focus data — no gold, which is the honest default */
   }
 
-  // Every weapon class shows; the class-build selection lights the ones it covers.
-  // A bare `{all:true}` with no tokens and no flag is acks-equipment's permissive
-  // DEFAULT, not a granted unrestricted selection — so it is only consulted when
-  // an equipment profile actually exists. Otherwise the imported proficiency
-  // items are the whole story, and "Weapons (Swords)" must not read as "all".
+  // A bare {all:true} with no tokens and no flag is the equipment feature's
+  // permissive default, not a granted selection — consulted only when a
+  // profile actually exists (see the ruling above).
   const equipmentWeapons = flagSet("weaponProficiency") || profTokens.size > 0;
   const covered = equipmentWeapons ? coveredClasses(allWeapons, profTokens, api) : new Set();
   for (const w of grants.weapons) covered.add(w);
-  // Unarmed is always available whichever source declared the training:
-  // `coveredClasses` adds it for a profile, so a training declared only by
-  // ability items adds it too, rather than showing a fist nobody granted away.
+  // Unarmed is always available: `coveredClasses` adds it for a profile, so
+  // training declared only by ability items adds it too.
   if (grants.has.weapons) covered.add("unarmed");
   let unarmedFocus = false;
   try {
@@ -365,7 +338,8 @@ export function profileStrips(actor) {
     unset: !weaponsConfigured,
   }));
 
-  // Same story: `heavy` is acks-equipment's permissive fallback, not a grant.
+  // Same story: `heavy` is the equipment feature's permissive fallback, not
+  // a grant.
   const equipmentArmour =
     flagSet("armorMax") ||
     (() => {
@@ -389,10 +363,9 @@ export function profileStrips(actor) {
     gold: false,
     unset: !armourConfigured,
   }));
-  // A SHIELD is its own armour category (RR pp. 128/140-141), not a rung on the
-  // suit ladder — and RAW it only benefits a class with the Weapon & Shield
-  // fighting style (JJ p. 291), so that style is what lights it. What a shield
-  // is worth is printed on those pages, not in the label.
+  // A shield is its own armour category (RR pp. 128/140-141), not a rung on
+  // the suit ladder; RAW it benefits only the Weapon & Shield fighting style
+  // (JJ p. 291), which is what lights it here.
   armour.push({
     key: "shield",
     icon: "fas fa-shield-halved",
@@ -406,11 +379,10 @@ export function profileStrips(actor) {
 }
 
 /**
- * The strips as a DOM element — the follower card's build row, mountable on any
- * surface (equipment's inventory Training row). Same pill classes, same state
- * grammar (lit = trained, gold = specialized/focused, grey = unconfigured), so
- * the two renderings cannot drift apart in meaning. Returns null when there is
- * nothing to state, so a caller simply omits the row.
+ * The strips as a DOM element — the follower card's build row, mountable on
+ * any surface. Same pill classes and state grammar (lit = trained, gold =
+ * specialized/focused, grey = unconfigured) as the strips above, so the two
+ * renderings cannot drift apart. Returns null when there is nothing to show.
  */
 export function profileStripElement(actor) {
   const strips = profileStrips(actor);
@@ -467,12 +439,10 @@ export function sizePips(item) {
 }
 
 /**
- * The three slot vocabularies, in the order every surface shows them. Exported
- * because the class-modifiers editor renders the SAME slots as toggles and must
- * not keep a second copy: `key` is the normalised identity the strips match on,
- * `token` the canonical spelling a grant is WRITTEN as (the profile compares
- * case-insensitively; what is stored should still read the way the rest of the
- * module spells it).
+ * The three slot vocabularies, in the order every surface shows them.
+ * Exported so the class-modifiers editor renders the same slots as toggles
+ * without a second copy: `key` is the normalised identity the strips match
+ * on; `token` is the canonical spelling a grant is written as.
  */
 export const SLOT_VOCAB = Object.freeze({ styles: STYLES, weapons: WEAPON_CLASSES, armour: ARMOUR });
 

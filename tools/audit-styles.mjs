@@ -1,21 +1,16 @@
 /**
  * Two style faults that are invisible until somebody opens the sheet.
  *
- * **An unstyled class.** A template writes `class="acks-extras-vehicle-crew"`
- * and no stylesheet ever mentions it. Nothing errors; the element simply
- * inherits whatever it happens to inherit, and the layout the author had in
- * mind never existed. Fifty-four of these had accumulated across eight
- * features before anything looked.
+ * **An unstyled class.** A template writes a class no stylesheet mentions;
+ * nothing errors, the element inherits whatever it happens to inherit, and
+ * the intended layout never existed.
  *
- * **An undefined token.** House doctrine is that consumers read tokens BARE —
- * `var(--acks-spot)`, never with a literal fallback — precisely so a missing
- * token reveals itself. It only reveals itself if someone checks: CSS drops an
- * invalid declaration silently, so `background: var(--acks-row-alt)` on a
- * token nobody publishes is a rule that does nothing and looks fine.
+ * **An undefined token.** Consumers read design tokens BARE, never with a
+ * literal fallback, precisely so a missing one reveals itself — CSS drops an
+ * invalid declaration silently otherwise. See docs/lib/DECISIONS.md, "One
+ * token publisher".
  *
- * Comments are stripped before either scan. A previous hand-rolled version of
- * this check parsed selectors out of comment prose and reported 85 hits where
- * there were 19.
+ * Comments are stripped before either scan.
  *
  * Usage: node tools/audit-styles.mjs   (also runs via `npm run validate`)
  */

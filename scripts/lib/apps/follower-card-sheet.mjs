@@ -2,19 +2,18 @@
 /**
  * FollowerCardSheet — the compact "Follower Card" as an actor's own sheet.
  *
- * Registered at `ready` in module.mjs: the DEFAULT sheet for `monster`, and an
- * alternative for `character`. A monster is met before it is read up on, so what
- * opens is the block you fight from — attacks, powers, spells — and the full stat
- * block is one click away on the "Expand / details" header button. A character
- * keeps their own sheet; acks-lib makes the card the per-instance default only for
- * retainers, so a hireling opens as the card.
+ * Registered at `ready` in module.mjs: the default sheet for `monster`, an
+ * alternative for `character`, and the per-instance default for retainers.
+ * See docs/lib/FOLLOWER-CARD.md and docs/lib/DECISIONS.md, "A monster's type
+ * default is the Follower Card, met before it is read up on".
  *
- * The card is a QUICK-ROLL surface: attacks and proficiencies roll through the
- * system, and each roll target (AC, adventuring throws) can be given a **sticky
- * card-only override** — stored in `flags.acks-extras.fcOverrides`, which the main
- * character sheet ignores, so you can change a target for a quick roll without
- * touching the actor's real data. **Reset** clears the overrides; **Commit** bakes
- * them into the real base fields. `+Attack` / `+Skill` add minimal items for ad-hocs.
+ * A quick-roll surface: attacks and proficiencies roll through the system,
+ * and each roll target can carry a sticky card-only override in
+ * `flags.acks-extras.fcOverrides`, which the main character sheet ignores.
+ * **Reset** clears the overrides; **Commit** bakes them into the real base
+ * fields. `+Attack` / `+Skill` add minimal items for ad-hocs. See
+ * docs/lib/DECISIONS.md, "Card-only overrides bake onto whichever field
+ * actually exists, or stay overrides".
  */
 import { toNum as num, unset } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
@@ -47,14 +46,8 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     },
   };
 
-  /**
-   * Post a power or spell to chat, so the table reads what the creature just did
-   * instead of waiting for the book to be found.
-   *
-   * The system's own `show()` renders the item card and obeys the seat's roll
-   * mode, so a GM who has chosen to whisper their rolls whispers this too — the
-   * one place that choice is already recorded, and not worth a second one.
-   */
+  /** Post a power or spell to chat via the system's own `show()`, which
+   * obeys the seat's roll mode. */
   static #onShowItem(event, target) {
     this.actor.items.get(target.dataset.itemId)?.show?.();
   }
@@ -89,10 +82,8 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       inp.addEventListener("change", (ev) => this.#onAttackInput(ev));
     }
 
-    // Re-fit the window to the card. `position.height: "auto"` only applies to the
-    // FIRST render — a resize (or a restored position) pins a pixel height, which
-    // then shows as empty window-content under a short card. Ask for auto again
-    // every render so the frame always tracks the content.
+    // `position.height: "auto"` only applies to the first render; a resize
+    // pins a pixel height, so ask for auto again on every render.
     try {
       this.setPosition({ height: "auto" });
     } catch {
@@ -112,24 +103,12 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
   }
 
   /**
-   * Open the full sheet for this actor's type — never this card.
-   *
-   * The sheet is the one this actor would open with the card flag cleared: the
-   * registry's `default` for its type, which is where the world's look preset
-   * and Foundry's Configure Default Sheets both land. Reading any other entry
-   * first overrules the world's choice for exactly the actors that wear a card.
-   * Where the card itself holds that default, no other entry claims it, and
-   * this module's own full sheet is next, because the card is a summary OF it:
-   * the Full Monster sheet carries the extended block a monster's card
-   * abbreviates, which the system's plain sheet has none of. Registration order
-   * decides only when neither exists.
-   *
-   * A window already showing that sheet is raised rather than rebuilt. Two
-   * instances of one sheet class over one document carry the same frame id, so
-   * the second render REPLACES the first's element in the DOM and strands the
-   * first: it keeps rendering into a node nobody sees, and the parts each sheet
-   * relocates — the title band into the window header — end up split between
-   * the live window and the stranded one.
+   * Open the full sheet for this actor's type — never this card. Prefers the
+   * registry's `default` for the type, then this module's own full sheet,
+   * then registration order. Raises an already-open window rather than
+   * rendering a second one. See docs/lib/DECISIONS.md, '2026-09-22 — "Full
+   * sheet" opens the sheet the world chose' and '2026-09-19 — "Full sheet"
+   * raises the window it already opened'.
    */
   #openFull() {
     const entries = Object.entries(CONFIG.Actor?.sheetClasses?.[this.actor.type] ?? {})
@@ -217,10 +196,8 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     const ov = this.actor.getFlag(MODULE_ID, "fcOverrides") ?? {};
     const upd = {};
     if (ov.ac != null) {
-      // Core recomputes `aac.value` from armour + DEX + `aac.mod` for a body that
-      // HAS ability scores, so a direct write there is overwritten on the next
-      // prepare — the difference goes into `aac.mod` instead. A model with no
-      // scores gets no such pass and stores its AC as typed.
+      // Core recomputes `aac.value` on a body with ability scores, so the
+      // difference goes into `aac.mod` instead; a scoreless model stores it as typed.
       if (actorProvides(this.actor, "scores")) {
         const sys = this.actor.system;
         const base = num(sys.aac?.value) - num(sys.aac?.mod);
@@ -229,10 +206,8 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
         upd["system.aac.value"] = num(ov.ac);
       }
     }
-    // Speed bakes onto whichever rate the model actually declares. `enc` is
-    // absent here on purpose: the carried figure is summed from the items on the
-    // body, so there is no base field to bake it into — it stays an override
-    // until Reset, like an unarmed attack's edit below.
+    // Speed bakes onto whichever rate the model declares. `enc` has no base
+    // field to bake into and stays an override until Reset.
     if (ov.speed != null) {
       if (actorProvides(this.actor, "movementacks.combat")) upd["system.movementacks.combat"] = num(ov.speed);
       else if (actorProvides(this.actor, "movement.base")) upd["system.movement.base"] = num(ov.speed);
@@ -240,9 +215,8 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     for (const [k, v] of Object.entries(ov.adventuring ?? {})) upd[`system.adventuring.${k}`] = num(v);
     if (Object.keys(upd).length) await this.actor.update(upd);
 
-    // Attack edits bake onto the WEAPON they came from (name / damage die / the
-    // weapon's own bonus). A row with no item — unarmed, improvised — has nothing
-    // to write to, so its override simply stays an override.
+    // Attack edits bake onto the weapon they came from; a row with no item
+    // (unarmed, improvised) has nothing to write to and stays an override.
     const itemUpdates = [];
     for (const [key, o] of Object.entries(ov.attacks ?? {})) {
       const itemId = String(key).split(":")[0];
@@ -256,11 +230,9 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     }
     if (itemUpdates.length) await this.actor.updateEmbeddedDocuments("Item", itemUpdates);
 
-    // Clear ONLY what was baked. `enc` has no base field to bake into and an
-    // itemless attack row has nothing to write to — both stay overrides until
-    // Reset, so a whole-flag unset here would destroy live state. Deletion
-    // must be spelled per key (`unset()`): writing a smaller object would deep-merge
-    // and remove nothing.
+    // Clear only what was baked; a whole-flag unset would drop overrides that
+    // have no base field to bake into. Deletion is spelled per key
+    // (`unset()`) — a smaller object would deep-merge and remove nothing.
     const cleared = {};
     if (ov.ac != null) cleared.ac = unset();
     if (ov.speed != null && (actorProvides(this.actor, "movementacks.combat") || actorProvides(this.actor, "movement.base"))) {

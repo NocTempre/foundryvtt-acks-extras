@@ -1,12 +1,12 @@
-/* acks-lib styles, plus the window contract every acks-extras window shares.
-   Scope every selector under a module-specific class.
+/* Lib-subsystem styles, plus the window contract every acks-extras window
+   shares. Scope every selector under a module-specific class.
 
    Colour, type and line work read the ACKS design tokens BARE — no literal
    fallback. A fallback masks a missing token instead of failing loudly, and
    Foundry's own `--color-*` variables are declared once globally with no theme
    scoping, so they are light-theme constants that render wrong on a dark seat.
-   acks-lib loads vendor/acks-design/tokens.css unconditionally, so every name
-   below resolves at :root in both themes. */
+   The lib subsystem loads vendor/acks-design/tokens.css unconditionally, so
+   every name below resolves at :root in both themes. */
 
 /* --- The type knob as a ratio ------------------------------------------------
  * `--acks-fs-base` is a SIZE, and the ramp steps derived from it serve any
@@ -426,21 +426,16 @@
  * the ACKS palette belongs in lib-sheet-theme.css where the setting can reach it.
  */
 
-/* The encumbrance bar is a DARK band in every seat and every look — core paints
- * it `--color-cool-4` (acks.css:2337), a cool near-black that Foundry does not
- * theme — while the label over it declares no colour at all (acks.css:2354) and
- * so inherits the seat's body text. On a LIGHT seat that inherited ink is dark,
- * and "Unencumbered" renders at 1.12:1 on its own bar.
+/* The encumbrance bar is a DARK band in every seat and every look (core
+ * paints it `--color-cool-4`, unthemed); its label inherits the seat's body
+ * text and reads unreadably dark on a light seat. `--acks-on-burgundy` fixes
+ * it: reversed lettering for a band that is dark-in-both-themes, so this is
+ * one of the few tokens the `core` look leaves alone even though the band is
+ * core's rather than a burgundy one.
  *
- * Reversed lettering is the fix, and `--acks-on-burgundy` is the role token for
- * it: text that sits on a band which is dark in BOTH themes, and therefore
- * theme-fixed by design. The band here is core's rather than a burgundy one, but
- * the role — and so the value — is exactly the same, and it is one of the few
- * tokens the `core` look deliberately leaves alone.
- *
- * The leading `body` is not decoration: it lifts this over core's own (0,4,0)
- * pairing, and it keeps the line out of the top-level-class namespacing check,
- * which only reads selectors that begin with a bare class. */
+ * The leading `body` lifts this over core's own (0,4,0) pairing and keeps the
+ * line out of the top-level-class namespacing check, which only reads
+ * selectors that begin with a bare class. */
 body .sheet.acks.actor-v2 .encumbrance-label {
   color: var(--acks-on-burgundy);
 }

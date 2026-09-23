@@ -3,9 +3,9 @@
  *
  * Extends the core `ability` item (proficiencies / class powers / skills /
  * monster abilities) with a structured, level-aware EFFECT model stored at
- * `flags["acks-extras"].extras` (see ability-extras.mjs) and — later — an
- * alternate ability sheet to view/edit it. Nothing mutates the acks system;
- * the effect vocabulary comes from acks-lib.
+ * `flags["acks-extras"].extras` (see ability-extras.mjs) and an alternate
+ * ability sheet that views and edits it. Nothing mutates the acks system; the
+ * effect vocabulary comes from the lib subsystem.
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, FLAG_EXTRAS, ABILITY_TYPE } from "./constants.mjs";
@@ -25,9 +25,8 @@ function resolveAbilitySheetBase() {
   const entries = Object.values(registered);
   const defaulted = entries.find((e) => e.default) ?? null;
   const chosen = defaulted ?? entries[0] ?? null;
-  // Registry order is not a choice: when several entries compete and none is
-  // flagged default, name the class adopted so a wrong base is diagnosable
-  // from the console. A lone entry is unambiguous and stays quiet.
+  // Warn when several entries compete and none is flagged default, naming the
+  // class adopted; a lone entry is unambiguous and stays quiet.
   if (!defaulted && entries.length > 1) {
     console.warn(`${MODULE_ID} | no ${ABILITY_TYPE} sheet is flagged default; extending ${chosen.cls?.name} by registry order.`);
   }
@@ -44,11 +43,8 @@ Hooks.once("init", () => {
     AbilityExtras,
     /** Read the extended effect model for an ability item (an AbilityExtras instance). */
     getExtras: (item) => AbilityExtras.fromItem(item),
-    // Rank and target semantics, exposed because a consumer MUST NOT
-    // re-derive them. What a count means is per-ability and changing (see
-    // README, "qty is not the effective rank"), so a module that reads
-    // extras.qty and treats it as rank will be wrong for every ability that
-    // spends its count on a list rather than a rank. Ask here instead.
+    // Rank and target semantics. Consumers call these rather than re-deriving
+    // them — `extras.qty` is a count, not a rank.
     rankOf,
     scalesFor,
     targetOf,
@@ -62,9 +58,8 @@ Hooks.once("init", () => {
     // shows the term rather than only the number it produced.
     scoreTerm,
     // Every roll an ability offers, in one shape — this module's store, with
-    // core's singleton folded in when it has not been edited here yet. THE read
-    // path: never assemble an ability's rolls from `system.roll` yourself, or
-    // you will see one throw where the book prints four.
+    // core's singleton folded in when it has not been edited here yet. The only
+    // read path: never assemble an ability's rolls from `system.roll`.
     rollsOf,
     /** Roll one of them by key (omit the key for the ability's default throw). */
     rollAbility,
@@ -122,12 +117,10 @@ Hooks.once("ready", async () => {
     console.error(`${MODULE_ID} | could not resolve the acks ability sheet; ACKS Ability sheet NOT registered.`);
     return;
   }
-  // tab-mechanics.hbs folds the system's Active Effects block in via its
-  // partial — but a Handlebars partial only resolves once REGISTERED, and the
-  // system registers it lazily with its own sheets. Open an ability FIRST after
-  // a reload and the partial does not exist yet, so the sheet dies ("The partial
-  // ... could not be found"). Preload it ourselves; if a future system renames
-  // the file, degrade to rendering the tab without the block rather than break.
+  // tab-mechanics.hbs folds in the system's Active Effects partial, which
+  // resolves only once the system registers it — lazily, with its own sheets
+  // — so opening an ability sheet first after a reload throws. Preloaded
+  // here; degrades to rendering without the block if the system renames it.
   const AE_PARTIAL = "systems/acks/templates/items/v2/common/item-active-effects.hbs";
   try {
     await foundry.applications.handlebars.loadTemplates([AE_PARTIAL]);
@@ -135,20 +128,15 @@ Hooks.once("ready", async () => {
     globalThis.Handlebars?.registerPartial?.(AE_PARTIAL, "");
     console.warn(`${MODULE_ID} | the system no longer ships ${AE_PARTIAL}; the Mechanics tab renders without the Active Effects block.`, err);
   }
-  // Core's ability roller reaches only the FIRST roll. Wrapping it is what
-  // makes the character sheet, the chat card and `item.use()` agree with this
-  // module's sheet instead of quietly rolling something else.
+  // Routes every core entry to an ability roll through rollAbility().
   registerRollWrap();
-  // The wrap makes every route roll the right throw; this makes the sheet
-  // offer more than one of them to press.
+  // Puts a control for each throw on the character sheet.
   registerSheetRolls();
 
   AcksAbilitySheet = createAbilitySheet(Base);
-  // DEFAULT, because a sheet nobody selects shows nobody the mechanics — which
-  // is the entire point of this module. Safe to default: it SUBCLASSES the
-  // system's own ability sheet and keeps every tab it defines, so enabling this
-  // module adds the Mechanics tab and takes nothing away. A GM who prefers the
-  // plain sheet can still pick it per item in the sheet config.
+  // The default for every ability item; the system's plain sheet stays
+  // selectable per item. See docs/abilities/DECISIONS.md, "The extended sheet
+  // is the default".
   foundry.applications.apps.DocumentSheetConfig.registerSheet(Item, MODULE_ID, AcksAbilitySheet, {
     types: [ABILITY_TYPE],
     makeDefault: true,

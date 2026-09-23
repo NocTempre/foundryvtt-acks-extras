@@ -4,10 +4,10 @@
  * and — the number the table actually asks for — how fast it is going right
  * now and what is slowing it down.
  *
- * The speed panel names its own reductions. A galley showing 165' when the
- * book says 330' is either half-manned or hungry, and a Judge should not have
- * to work out which; every factor the derivation applied is listed beside the
- * result.
+ * The speed panel names its own reductions. A vessel showing far less than
+ * her printed speed is either short-handed or hungry, and a Judge should not
+ * have to work out which; every factor the derivation applied is listed
+ * beside the result.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { VEHICLE_TYPE } from "./constants.mjs";
@@ -161,8 +161,8 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       // terrain multiplier is already inside feetPerTurn, so it is not applied
       // a second time here.
       expedition: isSea ? null : expeditionFrom(speed.feetPerTurn, { pace: this.#pace }),
-      // A vessel's day is TWELVE hours where the wagon above counts eight, so
-      // the two are never shown as the same kind of number.
+      // A vessel's day and the wagon's day run on different clocks, so the
+      // two are never shown as the same kind of number.
       voyage: isSea ? voyageDay(sys, { wind: this.#wind, underSail: true, roles: effRoles }) : null,
       hull: isSea ? hullState(sys, effRoles) : null,
       // The seats, at a glance: who is in what role, what each group still
@@ -245,12 +245,11 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     const data = super._prepareSubmitData(event, form, formData, updateData);
     // Over what the vehicle already holds: these rows carry fields no input
     // names (an animal's uuid and name), and rebuilding them from the form
-    // alone drops every one of them.
-    // `toObject()`, not the model: cloning a live DataModel's array rows does
-    // not yield their plain fields. The form's own input names come with it —
-    // by now the submission has been cleaned against the schema, so a field
-    // with no input is already sitting at its default and cannot be told from
-    // one the reader emptied on purpose.
+    // alone drops every one of them. `toObject()`, not the model: cloning a
+    // live DataModel's array rows does not yield their plain fields. By now
+    // the submission is cleaned against the schema, so a field with no input
+    // is already at its default and indistinguishable from one the form
+    // actually cleared.
     if (data.system) {
       const named = new Set([...(form?.elements ?? [])].map((el) => el.name).filter(Boolean));
       data.system = VehicleData.mergeSubmit(this.actor.system.toObject(), data.system, named);
@@ -310,8 +309,8 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     const doc = await fromUuid(data.uuid);
     if (!doc || doc.documentName !== "Actor") return;
     // A drop on a SPECIFIC station is unambiguous and attaches directly; a
-    // drop anywhere else asks. The hold and the team keep their historical
-    // meanings as the dialog's preselection, so the old gesture is one click.
+    // drop anywhere else asks, preselecting the hold or team target so the
+    // drop stays one click.
     const seat = event.target?.closest?.("[data-station]")?.dataset.station ?? null;
     const preselect =
       seat ??
@@ -334,8 +333,8 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
   /**
    * Station groups resolved for the template: labels localized, chips built,
    * the unnamed stepper named after the field it writes, empty seats counted
-   * out, and the half-hand arithmetic (an unqualified body is half a hand,
-   * RR ch. 7) stated as an effective count.
+   * out, and the qualification arithmetic (RR ch. 7) stated as an effective
+   * count.
    */
   #stationView(groups) {
     const editable = this.isEditable;
@@ -367,7 +366,8 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
           ),
         };
       });
-      // An unqualified BODY is half a hand — a stack of twenty is twenty of them.
+      // An unqualified body counts for less than a full hand; a stack counts
+      // every body in it.
       const half = g.named.reduce((n, o) => n + (o.qualified === false ? Math.max(0, o.bodies ?? 1) : 0), 0);
       return {
         key: g.key,
@@ -538,9 +538,10 @@ const round2 = (n) => Math.round(n * 100) / 100;
  * her, and — the part a Judge needs at exactly one moment — that she is going
  * down, and roughly how long the people aboard have.
  *
- * The repair line is stated for the crew she actually has, because "five hands
- * per point per turn" is arithmetic nobody should be doing mid-battle, and
- * because only half of what she took at sea can be put back before a dock.
+ * The repair line is stated for the crew she actually has, because the
+ * repair rate is arithmetic nobody should be doing mid-battle, and because
+ * only a printed fraction of what she took at sea can be put back before a
+ * dock.
  */
 function hullState(sys) {
   const value = Number(sys?.shp?.value) || 0;

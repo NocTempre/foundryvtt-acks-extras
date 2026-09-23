@@ -5,10 +5,10 @@
  * GM-prompt-first with secret rolls: watchers on the GM client detect
  * calamities (hp crossing ≤0 on a managed hireling) and level gains, then
  * whisper the GM an event card with [Roll Loyalty (secret)] / [Waive]
- * buttons. The `autoRollCalamity` setting collapses prompt→roll. All
- * bookkeeping lands in the HenchmanRecord ledgers; the resulting EFFECTIVE
- * loyalty (base + permanents + employer CHA + employer effects) is written
- * back to core `system.retainer.loyalty` so the system's own button agrees.
+ * buttons (the `autoRollCalamity` setting collapses prompt→roll). Bookkeeping
+ * lands in the HenchmanRecord ledgers; the resulting effective loyalty (base +
+ * permanents + employer CHA + employer effects) is written back to core
+ * `system.retainer.loyalty` so the system's own button agrees.
  *
  * Wages: every `daysPerMonth` of worldTime per hireling, a per-employer
  * whisper offers [Pay] / [Mark missed]; missed wages are calamities (RR 166).
@@ -72,15 +72,11 @@ export async function addLoyaltyPermanent(actor, delta, reason, note = "") {
 
 /**
  * Suspend or restore one ledger entry (RR 166: a wound or tampering penalty
- * applies only "while uncompensated"). The entry STAYS in the ledger — it
- * simply stops counting toward the effective score — so the history remains
- * readable and the Judge can undo the ruling.
+ * applies only "while uncompensated"). The entry stays in the ledger and
+ * simply stops counting toward the effective score, so it stays reversible.
  *
- * GM-ONLY, and enforced here rather than only in the roster template: a
- * hireling's OWNER is usually the player, so Foundry's own permissions would
- * happily let them suspend their own loyalty penalties from the console.
- * Loyalty is secret Judge information (every roll in this module is
- * whispered), so the ruling is the GM's alone.
+ * GM-only, enforced here and not only in the roster template: a hireling's
+ * owner is usually the player, and loyalty is secret Judge information.
  * @param {Actor} actor
  * @param {object} opts
  * @param {"loyalty"|"morale"} [opts.track="loyalty"] - which ledger
@@ -311,11 +307,10 @@ function dueHirelings(employer, currentTime) {
     const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
     if (record.terms?.vassalDomain) continue; // domain income covers the wage
     const last = record.terms?.lastPaidTime ?? record.hiredTime;
-    // No timestamp at all = a pre-existing henchman the module never enrolled
-    // (hand-made long before install, retainer.enabled set by hand). Billing
-    // them from `?? 0` meant every month since worldTime ZERO — six-figure
-    // invoices and a calamity for a debt the module invented. They owe
-    // nothing until enrollNewcomers() starts their clock from today.
+    // No timestamp = a pre-existing henchman never enrolled; they owe nothing
+    // until enrollNewcomers() starts their clock. See docs/henchmen/
+    // DECISIONS.md, "Two repair macros retire into the code that made them
+    // unnecessary".
     if (last == null) continue;
     const months = Math.floor((currentTime - last) / secondsPerMonth());
     if (months >= 1) {
@@ -478,9 +473,8 @@ export async function payWagesFor(employer, { markMissed = false } = {}) {
   }
   const total = due.reduce((s, d) => s + d.amount, 0);
   if (!markMissed && adapter.getGold(employer) + 0.005 < total) {
-    // Insufficient funds is a STOP, not a silent slide into "missed": no
-    // payday recorded, no arrears, no calamity. The GM can sell something and
-    // press Pay again, pay by hand, or press "Mark missed" meaning it.
+    // Insufficient funds stops here rather than silently becoming "missed":
+    // no payday recorded, no arrears, no calamity.
     ui.notifications.warn(
       game.i18n.format("ACKS-HENCHMEN.gold.insufficient", {
         name: employer.name,
@@ -551,10 +545,8 @@ async function checkWagesDue(currentTime) {
   if (!getSetting("wageReminders")) return;
   for (const employer of allEmployers()) {
     await enrollNewcomers(employer, currentTime);
-    // The same list Pay will bill — groups included — and the same Σ amount,
-    // so the card can never promise one figure and charge another. (It used
-    // to reduce over `d.wage`, a key dueHirelings never wrote: NaN on every
-    // card, in every world.)
+    // The same list and Σ amount Pay will bill, so the card can never promise
+    // one figure and charge another.
     const due = [...dueHirelings(employer, currentTime), ...dueGroups(employer, currentTime)];
     if (!due.length) continue;
     const total = due.reduce((s, d) => s + d.amount, 0);
@@ -568,9 +560,8 @@ async function checkWagesDue(currentTime) {
       ],
       actor: employer,
     });
-    // One reminder per month: bump lastPaidTime forward is wrong; instead we
-    // rely on the GM acting on the card. A repeat reminder only fires after
-    // another full month elapses because lastPaidTime is only set on action.
+    // lastPaidTime is set only on GM action, so a repeat reminder needs
+    // another full month elapsed.
   }
 }
 

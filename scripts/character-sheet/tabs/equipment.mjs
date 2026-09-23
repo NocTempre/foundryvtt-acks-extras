@@ -205,7 +205,6 @@ function placeRow(actor, provider, items, coinGC, pinned, scan) {
   };
 }
 
-/** Build the tab's data. */
 /**
  * The companion slots the character's abilities confer, as rows: the creature
  * in the slot or the empty slot, and the ability that confers it. The slot and
@@ -222,6 +221,7 @@ function companionRows(actor) {
   }));
 }
 
+/** Build the tab's data. */
 export function buildEquipmentTab(actor) {
   const companions = companionRows(actor);
   const sys = actor.system ?? {};

@@ -1,40 +1,31 @@
 /* global game, foundry, Hooks, CONFIG, ChatMessage, Roll, ui */
 /**
- * Core patch: the attack roll, remodeled as TARGET vs AUDITABLE BONUS STACK.
- *
- * WHY: ACKS distinguishes the ATTACK THROW — a
- * target that MOVES (class/level, "attacks as 0th-level fighter") — from BONUSES
- * added to the roll (ability, magic, situational). Core's `rollAttack` folds the
- * target movement into the die pool (`bba = 10 − throw`) and resolves
- * `total ≥ AC + 10`: the same hit test algebraically, but the rolled value is
- * silently masked behind the target adjustment, no modifier is attributable, and
- * planned effect replacer/deduplication logic has no stack to operate on. This
- * patch owns the method and restores the model:
+ * Core patch: the attack roll, remodeled as target vs auditable bonus stack.
  *
  *   roll  = 1d20 + labeled bonus terms      (each term visible in the roll tooltip)
  *   hits  ⇔ die + Σterms ≥ throw + targetAC (die specials preserved: nat 1 misses,
  *                                            nat 20 hits, unless exploding 20s)
  *
- * Outcomes are IDENTICAL to core's for identical inputs (parity-tested in
- * tools/test-logic.mjs); what changes is the model and the audit.
- *
- * OWNERSHIP (one owner per wrapped core method): acks-lib OWNS `rollAttack`'s
- * implementation. acks-equipment's libWrapper WRAPPER composes on top unchanged —
- * it adjusts `attData.item.system.bonus` and calls through, so its RAW deltas
- * arrive in this model as part of the weapon term, except the parts it names on
- * `attData.acksLibTerms`, which are lifted out as terms of their own. The
- * `acksLibPreAttackRoll(actor, ctx)` hook fires before the roll with the mutable
- * term stack (`ctx.terms`), the movable target (`ctx.throwTarget`), and
- * `ctx.targetAc` — the seam for effect replacer/dedup logic and for equipment's
- * documented pre-roll-hook handoff.
+ * Outcomes are identical to core's for identical inputs (parity-tested in
+ * tools/test-logic.mjs). The equipment feature's libWrapper wrapper composes on
+ * top unchanged, naming any of its own deltas on `attData.acksLibTerms` to be
+ * lifted out as terms of their own rather than folded into the weapon term.
  *
  * The chat card renders core's own template with core's data shape, so damage
  * application and every other chat listener keep working.
+ *
+ * See docs/lib/DECISIONS.md, "One owner for the attack roll, and one seam for
+ * future modifiers".
  */
 import { MODULE_ID } from "../constants.mjs";
 import { toNum as num } from "../util.mjs";
 import { attackTerms, termTotal, resolveAttack } from "../attack-logic.mjs";
 
+/**
+ * Fired before the attack roll, with `(actor, ctx)` — the seam for a combat
+ * modifier or a replacer/dedup logic. `ctx.terms` (mutable) is the bonus
+ * stack, `ctx.throwTarget` the movable target, `ctx.targetAc` the defender's.
+ */
 export const PRE_ATTACK_HOOK = "acksLibPreAttackRoll";
 
 /**
@@ -71,18 +62,15 @@ function bestBonus(actor, type) {
 function buildContext(actor, attData, options) {
   const sys = actor.system;
   const type = options.type ?? "melee";
-  // A roll with no item is the sheet's Melee/Ranged button: a quick throw for
-  // the CHARACTER, answering with attribute plus training and nothing a weapon
-  // or worn item adds. It reads the same figure the box displays, from the same
-  // call, so the button cannot promise a number the dice do not produce. A roll
-  // that DOES carry an item keeps the exact per-weapon path below, where the
-  // loadout adjustment and the item's own bonus belong.
+  // No item: the sheet's weaponless Melee/Ranged button, reading the same
+  // figure the display box shows, from the same call. An item keeps the
+  // per-weapon path below, where the loadout adjustment and the item's own
+  // bonus belong.
   const quick = attData?.item ? null : bestBonus(actor, type);
   const abilityKey = quick?.abilityKey ?? (type === "missile" ? "dex" : "str");
-  // Parts a wrapper folded into the item's bonus that are not the weapon's
-  // (equipment's non-proficiency package), each already labelled: taken back
-  // out of the weapon's term and shown as their own, so the total is unchanged
-  // and the weapon carries only what is its.
+  // Parts a wrapper already folded into the item's bonus (equipment's
+  // non-proficiency package), each labelled: taken back out of the weapon's
+  // term and shown as their own.
   const lifted = (Array.isArray(attData?.acksLibTerms) ? attData.acksLibTerms : []).filter((t) => num(t?.value));
   const terms = attackTerms({
     type,
@@ -114,13 +102,10 @@ function buildContext(actor, attData, options) {
     options,
   };
 
-  // A caller-supplied override (the Follower Card's per-attack quick edits): it
-  // MOVES the target and/or REPLACES the bonus stack, keeping the two kinds of
-  // number distinct rather than folding one into the other.
-  //
-  // Read from attData FIRST: core's `targetAttack` rebuilds the options object as
-  // `{type, skipDialog}` before calling rollAttack, so anything passed in options
-  // is dropped on that path — attData is forwarded intact.
+  // A caller-supplied override (the Follower Card's per-attack edits): moves
+  // the target and/or replaces the bonus stack. Read from attData first —
+  // core's `targetAttack` rebuilds options as `{type, skipDialog}` before
+  // calling rollAttack, dropping anything passed there.
   const ov = attData?.acksLibOverride ?? options.acksLibOverride;
   if (ov) {
     if (Number.isFinite(Number(ov.target))) ctx.throwTarget = Number(ov.target);
@@ -137,14 +122,11 @@ function buildContext(actor, attData, options) {
 const termPart = (t) => `${t.value}[${String(t.label).replace(/[[\]]/g, "")}]`;
 
 /**
- * A weapon's damage die, or the 1d6 default.
- *
- * A stat block may state damage as prose rather than dice — a monster that
- * strikes "by weapon" does whatever it is holding — and Foundry's parser throws
- * on the ENTIRE formula when one term is unparseable, so an unrollable damage
- * string costs the attack, not just the damage. The same default this file
- * already gives an empty damage field covers an unrollable one, and the GM is
- * told which item to correct instead of losing the roll.
+ * A weapon's damage die, or the 1d6 default when the field is blank or
+ * unparseable (a stat block may state damage as prose rather than dice). An
+ * unparseable one also warns, naming the item — Foundry's parser throws on
+ * the whole formula over one bad term, which would otherwise cost the attack,
+ * not just the damage.
  */
 function damageDie(item) {
   const raw = item?.system?.damage;
@@ -173,10 +155,8 @@ function damageParts(actor, attData, type) {
   return parts;
 }
 
-/* The message modes this dialog offers, in display order. CONFIG.ChatMessage.modes
- * also carries `ic`, which styles a message as in-character rather than deciding
- * who may see it — it answers a different question than "who sees this roll", so
- * the roll dialog does not offer it. */
+/* Modes this dialog offers, in display order. CONFIG.ChatMessage.modes also
+ * carries `ic` (in-character styling, not visibility), which is not one of them. */
 const VISIBILITY_MODES = ["public", "gm", "blind", "self"];
 
 /**
@@ -268,9 +248,9 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   // the result.
   Hooks.callAll(POST_ATTACK_HOOK, actor, ctx, res);
 
-  // The auditable line: target stated as a target, bonuses as roll-adds.
-  // The defender's AC earns its place only by changing the number needed. Against
-  // AC 0 it restates the throw, so it is dropped rather than printed twice.
+  // The auditable line: target stated as a target, bonuses as roll-adds. The
+  // defender's AC is shown only when it changes the number needed — against
+  // AC 0 it would just restate the throw.
   const acShifts = ctx.targetAc != null && res.effectiveTarget !== ctx.throwTarget;
   const vsAc = acShifts ? game.i18n.format("ACKS-LIB.attack.vsAc", { ac: ctx.targetAc, need: res.effectiveTarget }) : "";
   const stack = `${die}${ctx.terms.map((t) => ` ${t.value >= 0 ? "+" : "−"} ${Math.abs(t.value)} (${t.label})`).join("")} = ${res.total}`;
@@ -293,10 +273,9 @@ async function acksLibRollAttack(actor, attData, options = {}) {
       target: attData?.roll?.target,
     },
   };
-  // Core owns the audience. `applyMode` sets `whisper` (as user ids) and
-  // `blind` for every mode it knows, so no mode name is ever compared here — a
-  // vocabulary that lives in exactly one place cannot drift out of step with
-  // itself.
+  // Core owns the audience; no mode name is compared here. See
+  // docs/lib/DECISIONS.md, "The attack roll delegates its audience to core,
+  // and offers four modes".
   const chatData = { user: game.user.id, speaker: ChatMessage.getSpeaker({ actor }) };
   ChatMessage.applyMode(chatData, messageMode);
   // The system's roll-attack.hbs reads this to hide the numbers; it is a
@@ -326,10 +305,8 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   );
 
   if (game.dice3d) {
-    // Dice So Nice reads its users list as "exactly these users", and
-    // `applyMode` answers a public roll with an EMPTY whisper, which that list
-    // reads as nobody: passed through, no other seat animates the roll.
-    // Everyone is no list at all.
+    // Dice So Nice reads an empty viewers list as "nobody", not "everyone" —
+    // a public roll's empty whisper list is passed through as null instead.
     const viewers = chatData.whisper?.length ? chatData.whisper : null;
     await game.dice3d.showForRoll(roll, game.user, true, viewers, chatData.blind);
     if (res.isSuccess) await game.dice3d.showForRoll(dmgRoll, game.user, true, viewers, chatData.blind);
@@ -342,11 +319,9 @@ async function acksLibRollAttack(actor, attData, options = {}) {
 
 /**
  * The installed method body — fail-safe: any error falls back to core's roll.
- *
- * The `await` is what makes that true. The remodeled roll is async, so returning
- * its promise unawaited leaves every rejection raised inside it — a bad formula,
- * a failed render, a template miss — outside this `try`, and the fail-safe can
- * only ever catch a throw from the call itself.
+ * Must `await` the remodeled roll rather than return its promise unawaited, or
+ * a rejection raised inside it (a bad formula, a failed render) would surface
+ * past this `try` as an unhandled rejection instead of falling back.
  */
 async function patchedRollAttack(attData, options = {}) {
   try {
@@ -359,14 +334,11 @@ async function patchedRollAttack(attData, options = {}) {
 
 /**
  * Wrappers to compose AROUND this patch, innermost-last — the equipment
- * feature's pre-roll adjustment is the only one today.
- *
- * This exists because libWrapper permits many PACKAGES to wrap one method but
- * not one package to register twice for it. Before the merge, lib's OVERRIDE
- * and equipment's WRAPPER were two packages and composed for free; afterwards
- * they are one, and the second registration threw at `ready` — taking the
- * whole ready hook with it. Composing here reproduces libWrapper's own
- * ordering (wrappers outside, override inside) inside a single registration.
+ * feature's pre-roll adjustment is the only one today. libWrapper permits many
+ * packages to wrap one method but not one package to register twice for it, so
+ * this reproduces its own ordering (wrappers outside, override inside) inside
+ * a single registration. See docs/lib/DECISIONS.md, "History the source
+ * comments carried, recorded".
  *
  * Each entry has libWrapper's WRAPPER signature: `(wrapped, ...args)`, called
  * with the actor as `this`.
@@ -408,16 +380,15 @@ function chainedCoreRollAttack(wrapped, attData, options = {}) {
 }
 
 /**
- * Install at `ready` (the actor class is final).
+ * Install at `ready` (the actor class is final). One registration always
+ * lands, whichever way `useModel` falls — `composed` is reachable only from
+ * the installed chain, so a feature that registered through `wrapRollAttack`
+ * (the equipment feature's per-weapon modifiers and ammunition spend) is
+ * silently dead without it. Never gate the install on the remodeled roll's
+ * setting; that setting chooses only what sits innermost.
  *
- * ONE registration always lands, whichever way `useModel` falls: `composed` is
- * reachable only from the installed chain, so every feature that registered
- * through `wrapRollAttack` — acks-equipment's per-weapon RAW modifiers and its
- * ammunition spend — is silently dead without it. Never gate the install on the
- * remodeled roll's setting; that setting chooses only what sits INNERMOST.
- *
- * @param {boolean} useModel  true → the remodeled roll replaces core's (OVERRIDE);
- *                            false → core's roll runs, carrying the chain (WRAPPER).
+ * @param {boolean} useModel  true: the remodeled roll replaces core's
+ *   (OVERRIDE); false: core's roll runs, carrying the chain (WRAPPER).
  */
 export function installAttackRollPatch(useModel = true) {
   if (game.system?.id !== "acks") return false;

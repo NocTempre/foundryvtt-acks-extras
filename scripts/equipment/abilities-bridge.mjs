@@ -7,26 +7,23 @@
  * `flags["acks-extras"].extras.selections` — imported from the Judge's own
  * books. This bridge translates those facts into the SAME effect domains the
  * collectors in effects.mjs already serve, so loadout, proficiency and
- * roll-wrap consume them unchanged. It is the ONLY route now: the module used
- * to ship 42 effect-carrying proficiency items and no longer ships any.
+ * roll-wrap consume them unchanged. It is the only route: this module ships
+ * no effect-carrying proficiency items of its own (see
+ * docs/equipment/DECISIONS.md, "The module stops shipping a library of its
+ * own (2026-09-01)").
  *
- * Posture (mirrors acks-influence's ability-effects.mjs): read the FLAGS
- * directly so the data works even when acks-abilities is inactive — the flag
- * was written at import time. Use the abilities API (`selectionsOf`, `rankOf`)
- * when it is live, because interpretation of picks and ranks belongs there
- * (README consumer contract); fall back to the flag shape it documents.
+ * Reads the flags directly, so the data works with the abilities feature
+ * inactive; prefers its API (`selectionsOf`, `rankOf`) when live, since
+ * interpreting picks and ranks is its job.
  *
- * Asymmetry is the design: the bridge contributes BONUSES and positive
- * training facts (Finesse, style specialization, Martial/Armour Training,
- * Weapon Focus, Combat Trickery). It never claims the facts the abilities
- * model cannot represent yet (class weapon lists, base armour proficiency),
- * so the Non-Proficient Use penalties stay off under `auto` — see
- * proficiency.mjs enforcementActive().
+ * Contributes bonuses and positive training facts only (Finesse, style
+ * specialization, Martial/Armour Training, Weapon Focus, Combat Trickery),
+ * never a fact the abilities model cannot yet represent — so Non-Proficient
+ * Use penalties stay off under `auto` (see proficiency.mjs
+ * enforcementActive()).
  *
- * Dedup rule: an ability item whose OWN Active Effects already carry any
- * `flags.acks-extras.*` change stands aside — it speaks the native effect
- * language (this module's pack items do), and bridging it too would double
- * its contribution.
+ * An ability item whose own Active Effects already carry a
+ * `flags.acks-extras.*` change stands aside, to avoid double-counting.
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
 import { slug, abilitySlug, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
@@ -102,10 +99,9 @@ function rankOf(actor, item) {
 }
 
 /**
- * The exact set of change keys this feature speaks. Membership, NOT a prefix
- * test: sibling features share the flag scope, so `startsWith(EFFECT_PREFIX)`
- * matches their domains too, and also plain item flags like
- * `flags.acks-extras.size` that are not effect domains at all.
+ * The exact set of change keys this feature speaks — checked by membership,
+ * not a prefix test, since sibling features share the flag scope and a plain
+ * item flag like `flags.acks-extras.size` is not an effect domain at all.
  */
 const OWN_CHANGE_KEYS = new Set(Object.values(EFFECT_DOMAINS).map((d) => `${EFFECT_PREFIX}${d}`));
 
@@ -194,24 +190,14 @@ const NUMERIC_DOMAINS = Object.freeze({
 /* ---------------------------------------------------------------------- */
 
 /**
- * The slug tables above key on the definition id's LAST segment, which is the
- * ability's own name for a proficiency (`def.prof.weaponFinesse`) but carries
- * the owning class for a class power (`def.power.bladedancerWeaponFinesse`).
- * So a power that grants a proficiency's mechanic verbatim reaches no table
- * entry, and never will: the tables cannot be made to cover every class's name
- * for a rule without restating the rule once per class.
- *
- * The ability items already carry the answer. The importer classifies each
- * entry into `flags["acks-extras"].extras.effects` as TYPED specs — the same
- * shape acks-lib's `effectField()` declares — so `attributeSubstitution
- * dex insteadOf str on attackThrow` says what the mechanic is without anyone
- * naming the ability. Reading the model covers every ability that declares one,
- * whatever it is called and whichever book it came from.
- *
- * The name tables stay for the abilities whose mechanics the model does not yet
- * express (fighting styles, weapon groups, armour training). Nothing is read
- * twice: an ability contributing through the model contributes the same domain
- * once, because each spec maps to exactly one domain.
+ * The slug tables key on a definition id's LAST segment, which does not
+ * identify a class power granting the same mechanic under its own name. The
+ * typed specs in `flags["acks-extras"].extras.effects` (the same shape
+ * acks-lib's `effectField()` declares) are read first for that reason; the
+ * name tables stay only for mechanics the typed model does not yet express
+ * (fighting styles, weapon groups, armour training). See
+ * docs/equipment/DECISIONS.md, "2026-08-11 — the abilities bridge reads the
+ * typed effect model, not the name."
  */
 const ATTRIBUTE_SUBSTITUTION_TARGETS = Object.freeze({
   attackThrow: EFFECT_DOMAINS.FINESSE,
@@ -257,14 +243,12 @@ function flatValue(actor, value) {
  * Translate one ability's typed specs into domains.
  *
  * Deliberately narrow: only the specs this feature can act on are read, and an
- * unrecognised one is left alone for whichever feature owns it. Claiming a spec
- * we cannot honour would report a bonus on the sheet that never reaches a roll.
+ * unrecognised one is left alone for whichever feature owns it.
  *
  * @returns {Set<string>} the domains this item contributed to. The slug tables
- *   below stand down on a domain already claimed here — the two describe the
- *   same ability, and Combat Reflexes classified from a connected book declares
- *   the very initiative bonus its table entry hardcodes. Summing both would
- *   pay it twice, and only for the seats that own the book.
+ *   below stand down on a domain already claimed here — see
+ *   docs/equipment/DECISIONS.md, "2026-08-11 — the abilities bridge reads the
+ *   typed effect model, not the name."
  */
 function addTypedEffects(actor, item, { addNum, addStr, booleans }) {
   const claimed = new Set();
@@ -342,23 +326,17 @@ export function bridgeContributions(actor) {
     if (speaksNative(item)) continue; // native effect items are not bridged
     current = String(item.name ?? "");
 
-    // The typed model first, and independently of the slug tables: an ability
-    // that declares its mechanic needs no name to be recognised, which is what
-    // lets a class power grant a proficiency's rule without being listed here.
+    // The typed model first, independently of the slug tables.
     const claimed = addTypedEffects(actor, item, { addNum, addStr, booleans: out.booleans });
 
-    // A fighting-style proficiency trains its picks whatever it is named. The
-    // switch below dispatches on the slug, which only ever matches
-    // Specialization, so the base pick is recognised by its CATEGORY instead —
-    // the same key the Training strip reads to light a pill. Both surfaces then
-    // answer from one source; keying this on the slug is what let the strip and
-    // the loadout disagree about the same character.
+    // A fighting-style proficiency trains its picks whatever it is named; the
+    // base pick is recognised by its CATEGORY (not the slug, which only ever
+    // matches Specialization) — the same key the Training strip reads.
     //
-    // Only fightingStyle is honoured here. weaponProficiency and
-    // armorProficiency answer permissively when undeclared (proficiency.mjs
-    // weaponProficiency/armorMax), so bridging those categories would turn an
-    // unconfigured character from unrestricted into restricted — never widen
-    // this branch to them.
+    // Only fightingStyle is honoured here: weaponProficiency and
+    // armorProficiency stay permissive when unset (DECISIONS.md, "Proficiency
+    // enforcement is a policy, and it is on by default") — never widen this
+    // branch to them.
     if (categoryOf(item) === "fightingStyle" && !claimed.has(EFFECT_DOMAINS.STYLE_PROFICIENT)) {
       for (const pick of stylePicksOf(item)) addStr(EFFECT_DOMAINS.STYLE_PROFICIENT, resolveStylePick(pick));
     }

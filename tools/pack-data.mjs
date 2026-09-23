@@ -10,11 +10,8 @@
  * MACROS ARE CONCATENATED, NOT OVERWRITTEN. Several features each ship a pack
  * literally named `macros`, so a plain object spread would silently keep only
  * the last one. They union into a single `macros` pack — no filename and no
- * `_id` collisions across them, so nothing has to be renamed.
- *
- * They land in ONE compendium folder rather than the per-feature trees they
- * arrived in; a flat wall of macros in a single pack is worse than the
- * separate packs were.
+ * `_id` collisions across them, so nothing has to be renamed. See
+ * docs/DECISIONS.md, "9. Macros — RESOLVED".
  */
 import crypto from "node:crypto";
 
@@ -66,13 +63,9 @@ function collect() {
     }
   }
   if (out.macros?.length) {
-    // A macro that already names a folder — the importer's own macros, filed
-    // under its two sub-folders — keeps that assignment; only a TOP-level
-    // document (folder: null/undefined: every other feature's flat macros,
-    // and the importer's two sub-folders themselves) is promoted into the
-    // shared folder. That nests the importer's tree one level under "ACKS
-    // Extras" instead of flattening it — a plain overwrite here would have
-    // discarded every macro's own folder assignment.
+    // Only a TOP-level macro (folder: null/undefined) is promoted into the
+    // shared folder; one that already names a folder (the importer's own,
+    // under its two sub-folders) keeps it, nesting that tree one level under.
     out.macros = [
       macroFolder(),
       ...out.macros.map((m) => ({ ...m, folder: m.folder == null ? MACRO_FOLDER_ID : m.folder })),

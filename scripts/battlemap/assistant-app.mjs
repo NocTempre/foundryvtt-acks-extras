@@ -1,18 +1,14 @@
 /* global game, canvas, ui, foundry, console */
 /**
  * The map setup panel: what this scene IS, the live fit, the GM's scale
- * decisions and the apply actions. Sampling is the scene controls' job; this
- * is the numbers.
+ * decisions and the apply actions. Sampling is the scene controls' job;
+ * this is the numbers. A WINDOW, dismissed by its own close control. Every
+ * number on it is labelled with what it MEANS and in which units — the two
+ * scale decisions read alike and are not alike (one describes the map, the
+ * other commands the grid).
  *
- * A WINDOW, opened on demand and dismissed by its own close control. A panel
- * that is summoned has to be dismissable, and a docked surface is not: it
- * holds its slot in the sidebar whether or not any map is being aligned. A
- * window can be dragged clear of the map, which is the whole of what docking
- * bought.
- *
- * Every number on it is labelled with what it MEANS and in which units. The
- * two scale decisions read alike and are not alike — one describes the map,
- * the other commands the grid — so neither is ever shown as a bare figure.
+ * See docs/battlemap/DECISIONS.md, "The panel is a window again, dismissed
+ * by the toolbar."
  */
 
 import { MODULE_ID, LANG_PREFIX, CALIBRATABLE_GRIDS, GRID_FAMILIES, GRID_TYPE, TRAVEL_MODES } from "./constants.mjs";
@@ -159,12 +155,9 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
   /* -------------------------------------------- */
 
   /**
-   * What one drawn map cell is worth, in the scene's distance units.
-   *
-   * The field and its chips write ONE slot. Never give this quantity a second
-   * home: a control that displays it and a control that overrides it disagree
-   * the moment either is touched, and the arithmetic silently follows the
-   * hidden one.
+   * What one drawn map cell is worth, in the scene's distance units. The
+   * field and its chips write ONE slot — never a second home for this
+   * quantity. See docs/battlemap/DECISIONS.md, "One entered value, one slot."
    */
   get mapCellFeet() {
     if (this.opts.mapCellFeet > 0) return this.opts.mapCellFeet;
@@ -195,9 +188,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
   /**
    * A ruler cell worth a comfortable number of pixels, rounded to a number a
    * Judge would have chosen. Offered only where the measurement came from a
-   * BAR: a map with drawn cells already says what a cell is worth, and
-   * overriding that with a screen-size preference would answer a question the
-   * map had answered.
+   * BAR — a map with drawn cells has already answered what a cell is worth.
    */
   get comfortableCell() {
     const per = this.barPxPerUnit;
@@ -326,9 +317,8 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       independentXY: this.independentXY,
       allowSkew: this.allowSkew,
       opts: this.opts,
-      // Each sample carries the box that says what it REPRESENTS: how many
-      // cells a drag spans, what a scale bar reads. Stating it on the row is
-      // what keeps a measurement and its meaning together.
+      // Each sample carries the box that says what it REPRESENTS — how many
+      // cells a drag spans, what a scale bar reads.
       boxRows: this.samples.squares.map((r, i) => ({
         index: i,
         cells: boxCells(r),
@@ -405,17 +395,9 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
   }
 
   /**
-   * Chips for the map-cell field: what a scale bar rounds to when one has been
-   * dragged, and the plain ladder otherwise — the commonest case is a GM who
-   * already knows the map's squares are 10 ft and has no bar to derive
-   * anything from, and an empty chip row taught them nothing. A hex map's
-   * cells are worth whatever its own key says, so it gets suggestions only
-   * when a bar has been measured.
-   */
-  /**
    * Chips for the output field. Scale-only offers the neighbours of the cell
-   * it would choose by itself, because the plain ladder is a set of combat
-   * distances and the map being scaled may be a county.
+   * it would choose by itself — the plain ladder is a set of combat
+   * distances, and the map being scaled may be a county.
    */
   #outputChips() {
     const comfortable = this.isScaleOnly ? this.comfortableCell : null;
@@ -423,6 +405,12 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     return values.map((v) => ({ value: v, active: this.outputFeet === v }));
   }
 
+  /**
+   * Chips for the map-cell field: what a scale bar rounds to when one has
+   * been dragged, else the plain ladder. A hex map gets suggestions only
+   * when a bar has been measured — its cells are worth whatever its own key
+   * says otherwise.
+   */
   #mapChips(rawFeet) {
     if (!rawFeet && this.isHex) return [];
     const values = rawFeet ? roundSuggestions(rawFeet) : SQUARE_FEET;
@@ -441,10 +429,9 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
 
   async _onRender(context, options) {
     await super._onRender(context, options);
-    // A toolbar press changes the session, not this panel, so the panel
-    // follows the session rather than the other way round. The subscription is
-    // held only while the window is open — a listener over a closed window
-    // would re-open it on the next toolbar press.
+    // The panel follows the session, not the other way round. Held only
+    // while the window is open — a listener over a closed window would
+    // re-open it on the next toolbar press.
     this.#unsubscribe ??= session.subscribe(() => this.render());
   }
 
@@ -452,9 +439,8 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     super._onClose(options);
     this.#unsubscribe?.();
     this.#unsubscribe = null;
-    // Nothing is disarmed here. Shutting the panel is not a statement about the
-    // canvas — leaving the Battlemap control group is what disarms, and it owns
-    // that.
+    // Nothing is disarmed here — closing the panel is not a statement about
+    // the canvas; leaving the Battlemap control group is what disarms.
   }
 
   /* -------------------------------------------- */
@@ -475,9 +461,8 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       if (present(slot)) session.opts[slot] = num(d[slot]);
     }
     session.setSetup({ gridFamily: d.gridFamily, hexEven: d.hexEven, units: d.units, mapSystem: d.mapSystem });
-    // The declared system is a statement ABOUT THE SCENE, not part of the
-    // calibration arithmetic, so it lands the moment it is chosen — a Judge
-    // labelling an already-aligned map should not have to re-apply a grid.
+    // A statement ABOUT THE SCENE, not part of the calibration arithmetic,
+    // so it lands the moment it is chosen.
     BattlemapAssistant.#writeSystem(d.mapSystem || null);
     this.render();
   }

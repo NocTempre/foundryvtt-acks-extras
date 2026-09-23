@@ -39,12 +39,10 @@ function notify(key, data) {
 export function readiedWeaponData(item) {
   const name = item?.name ?? "";
   const own = equipmentClass(name);
-  // Core's own compendium calls the stack "Torches (6)", which the strict
-  // classifier passes over by design — it is the importer's, and a loose
-  // match there reclassifies ordinary gear. The light model's torch pattern
-  // is what every torch control keys on, so what it names readies as the
-  // table's torch, under the torch's own name so the readied weapon
-  // classifies as one.
+  // Core's compendium names the stack "Torches (6)", which the importer's
+  // strict classifier passes over; the light model's torch pattern is what
+  // this control keys on instead (DECISIONS.md, "A weapon that needs both
+  // hands is held in both (2026-09-07)").
   const stackIsTorch = !own && LIGHT_SOURCES.torch.consumes.test(name);
   const klass = own ?? (stackIsTorch ? equipmentClass("torch") : null);
   if (klass?.prepareAs !== "weapon") return null;
@@ -75,10 +73,9 @@ export function readiedWeaponData(item) {
  * with a warning when the stack is empty or the item is not a preparable light
  * source — a control that answers nothing reads as a hung sheet.
  *
- * The stack itself is never in hand: it declares no place, and a bundle is not
- * a thing you hold. "Equip a torch" therefore means ready one and draw IT —
- * `draw` does both in one gesture, for a stack dropped on a hand place or its
- * own Equip control. The drawn torch answers to the hand count like any weapon.
+ * The stack itself is never in hand (see docs/equipment/DECISIONS.md, "Two
+ * hands are two places, and a torch is equipped by readying it (2026-09-07)");
+ * `draw` readies and draws it in one gesture.
  * @param {object} [opts]
  * @param {boolean} [opts.draw] put the readied torch in hand at once.
  * @returns {Promise<Item|null>} the created weapon, or null.
@@ -106,10 +103,9 @@ export async function prepareTorch(actor, item, { draw = false } = {}) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * The synthetic weapon an unarmed strike rolls through. RR p299: unarmed strikes
- * deal 1d3 nonlethal damage; the Unarmed Fighting proficiency changes only
- * LETHALITY (lethal damage, and can hurt metal-armoured foes when brawling), not
- * the die — so there is one die here. Melee only.
+ * The synthetic weapon an unarmed strike rolls through (RR p.299). The
+ * Unarmed Fighting proficiency changes only lethality, not the die — so
+ * there is one die here. Melee only.
  */
 export function unarmedStrikeData() {
   return {
@@ -173,13 +169,9 @@ export const SLOT_AUTO = "auto";
 export const SLOT_NONE = "none";
 
 /**
- * Declare the whole set of places a piece of gear may sit, rather than one.
- *
- * A weapon is the case that needs it: it is held in either hand or in both, and
- * it also rides somewhere when it is not in a hand — a scabbard on the belt, a
- * strap across the back. Those are not alternatives to each other, so the
- * single-slot control cannot state them and the inference never offered the
- * stowed half at all. An empty list is the `none` answer (carried, worn
+ * Declare the whole set of places a piece of gear may sit, rather than one —
+ * a weapon may be held in a hand and also ride stowed elsewhere (a scabbard,
+ * a strap) at once. An empty list is the `none` answer (carried, worn
  * nowhere); passing null clears the declaration back to inference.
  */
 export async function setGearSlotList(item, slots) {
@@ -200,12 +192,9 @@ export async function setGearSlotList(item, slots) {
 /**
  * Declare WHICH RAW weapon this is — the answer the proficiency check, the
  * Weapon Focus group, the damage type and every derived default hang off.
- *
- * `auto` clears the declaration and hands the question back to `weaponIdentity`,
- * which reads the item's mint id, its name, and the base a template skinned it
- * over. Declaring is what a Judge does when none of those can be right: a
- * template renames the axe it grants to the word its page printed, and no alias
- * list ever catches up with prose.
+ * `auto` clears the declaration and hands the question back to
+ * `weaponIdentity` (see docs/equipment/MODEL.md, "What makes a sword a
+ * sword — `weaponIdentity`").
  */
 export async function setWeaponProfile(item, key) {
   if (!item) return false;
@@ -271,13 +260,11 @@ export async function setGearAccess(item, value) {
 }
 
 /**
- * Declare how much this holds, in stone.
- *
- * Blank clears it back to "holds nothing" — distinct from 0, which is a
- * container whose size nobody has stated and which therefore never warns.
- * Any gear may be given one: a coat with hidden pockets holds a dagger, and
- * whether it does is a Judge's call about that coat rather than something a
- * name can be read for.
+ * Declare how much this holds, in stone. Blank clears it back to "holds
+ * nothing" — distinct from 0, a container whose size nobody has stated,
+ * which therefore never warns. Any gear may be given one (see
+ * docs/equipment/DECISIONS.md, "Capacity lives on the gear flag, not the
+ * container record (2026-09-22)").
  */
 export async function setGearCapacity(item, value) {
   if (!item) return false;
@@ -332,10 +319,11 @@ export function masterworkTiersFor(type) {
 }
 
 /**
- * Apply (or clear) a masterwork tier on an item. RR p159 masterwork is fully
- * expressible in fields core already has (+1 hit = system.bonus, +1 damage, +1 AC
- * = aac.value, −1 stone = weight6), so it STAMPS those fields rather than adding
- * a roll-time overlay — the deliberate design (see config.MASTERWORK).
+ * Apply (or clear) a masterwork tier on an item (RR p.159): STAMPS the
+ * tier's bonuses onto fields core already reads, rather than adding a
+ * roll-time overlay (see config.MASTERWORK; docs/equipment/DECISIONS.md,
+ * "Masterwork stamps core fields rather than a roll-time overlay
+ * (2026-09-22)").
  *
  * The fields are written by recomputeItemFields from the item's ONE pristine
  * baseline plus every active layer, so masterwork and a scavenged condition
@@ -358,7 +346,7 @@ export async function setMasterwork(item, tier) {
 const rollD20 = () => 1 + Math.floor(Math.random() * 20);
 
 /**
- * Expand a scavenged roll: each 19-20 result spawns two more d20s (RR p160),
+ * Expand a scavenged roll: a reroll result (RR p.160) spawns two more d20s,
  * accumulated in roll order. Bounded so a cascade of rerolls cannot loop. The
  * roller is injectable so tests can drive it deterministically.
  * @returns {number[]} every d20 rolled, in order.
@@ -419,13 +407,12 @@ export async function setScavengedRow(item, tableKey, bandMax) {
 }
 
 /**
- * Roll a scavenged condition (RR p160) onto any weapon or armour.
+ * Roll a scavenged condition (RR p.160) onto any weapon or armour.
  *
- * THE ROLL PREFERS THE IMPORTED TABLE: when the GM has imported the condition
- * table from their own book as a world RollTable, it is DRAWN natively (its own
- * formula, its own chat card, GM-editable rows) and the drawn row is matched back
- * to the mechanical effects. Without it the built-in RAW table stands in, so the
- * control always works. Each 19-20 result spawns two more rolls either way.
+ * Prefers a world RollTable the GM imported from their own book — drawn
+ * natively and matched back to the mechanical effects — over the built-in
+ * RAW table, so the control works either way. A reroll result spawns two
+ * more rolls under either table.
  *
  * Fields are written by recomputeItemFields, so a re-roll never compounds and a
  * coexisting masterwork survives. `roll` is injectable for tests.
@@ -436,11 +423,9 @@ export async function scavengeItem(item, { roll } = {}) {
   const profile = item.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
   const tableKey = tableFor(item, profile);
 
-  // THE READER'S OWN TABLE WINS. The importer extracts RR p160 from the seat's
-  // PDF into the acks-lib ruledata registry; when it is there, the bands, the
-  // category names, the effects and the resale percentages all come from that
-  // page. The built-in RAW table is only the stand-in for a world that has not
-  // imported one, so the control works either way.
+  // The imported table's bands, category names, effects and resale
+  // percentages all come from the GM's own book; the built-in table is only
+  // the stand-in for a world that has not imported one.
   const useImported = !roll && !!importedTable(tableKey);
   const rolls = [];
   const queue = [0];
@@ -450,8 +435,7 @@ export async function scavengeItem(item, { roll } = {}) {
     let v;
     if (roll) v = roll();
     else {
-      // A real d20 through Foundry's roller, so dice-so-nice and the roll log
-      // see it (the module's own d20 was invisible to both).
+      // A real d20 through Foundry's roller, so dice-so-nice and the roll log see it.
       const r = await new Roll("1d20").evaluate();
       v = r.total;
     }

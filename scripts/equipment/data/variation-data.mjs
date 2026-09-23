@@ -3,30 +3,14 @@ import { VARIATION_KIND } from "../variations.mjs";
 
 /**
  * Data model for the `acks-extras.variation` Item subtype — one way an item
- * differs from its plain self, as a document.
+ * differs from its plain self, as a document (see docs/equipment/MODEL.md,
+ * "Base types and variations", and docs/equipment/DECISIONS.md, "A variation
+ * is a document, and applying it is putting it inside (2026-08-15)").
  *
- * **Why a document.** A variation applies to a base item the way gear goes into
- * a container: the relation is `containedIn`, and what it holds is a real Item.
- * That buys the whole inventory apparatus at once — drag it on, see it listed
- * under the thing it changed, drag it off — and it gives the importer
- * something to materialize into, exactly as a trap or an ability is.
- *
- * **The definition and the instance are the same object.** A variation Item
- * carries both what masterwork MEANS (`deltas`, `cost`, what it may go on) and
- * what is true of THIS one (`hidden`, `read`, `data`). They are not split
- * because a copy is what applying makes: the blade's masterwork is its own
- * document, so re-importing the register cannot silently revalue a sword a
- * Judge already priced, and an exported item is still readable by a world that
- * imported nothing.
- *
- * **No numbers ship.** Every field below is empty or zero until something fills
- * it — the importer from the reader's own book, or a Judge typing one in. The
- * module knows variations exist and how they combine; what masterwork COSTS is
- * a page value and arrives with the page.
- *
- * The item is deliberately non-physical: no `cost`, no `weight6`. That keeps it
- * out of `isGoods`, so encumbrance never counts it, `storeIn` never treats it
- * as cargo, and its price shows up only through the base item it changed.
+ * The item is deliberately non-physical: no `cost`, no `weight6`. That keeps
+ * it out of `isGoods`, so encumbrance never counts it, `storeIn` never
+ * treats it as cargo, and its price shows up only through the base item it
+ * changed.
  */
 export default class VariationData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
@@ -36,12 +20,10 @@ export default class VariationData extends foundry.abstract.TypeDataModel {
     const num = (initial = 0) => new fields.NumberField({ required: true, initial, nullable: false });
     return {
       /**
-       * The namespaced key: `masterwork.weaponToHit`, `material.silver`.
-       *
-       * The prefix IS the exclusivity group — two variations clash when their
-       * keys share one, which is why nothing declares a slot. A blank key is
-       * allowed so a half-typed hand-made variation still saves; it applies to
-       * nothing until filled.
+       * The namespaced key: `masterwork.weaponToHit`, `material.silver` (see
+       * docs/equipment/MODEL.md, "Conflict is derived from the key's
+       * namespace."). A blank key is allowed so a half-typed hand-made
+       * variation still saves; it applies to nothing until filled.
        */
       key: new fields.StringField({ required: true, blank: true, initial: "" }),
 
@@ -79,14 +61,16 @@ export default class VariationData extends foundry.abstract.TypeDataModel {
       }),
 
       /**
-       * Do they know it is there? Governs presentation and price only — a
-       * disguised magic sword still hits as a magic sword.
+       * Do they know it is there? Governs presentation and price only (see
+       * docs/equipment/MODEL.md, "Hidden governs presentation, never
+       * mechanics.").
        */
       hidden: new fields.BooleanField({ initial: false }),
 
       /**
-       * Do they know what it means? A different question from `hidden`: a
-       * visible inscription in an unknown script is legible-false, not hidden.
+       * Do they know what it means? A different question from `hidden` (see
+       * docs/equipment/MODEL.md, "`hidden` and `read` are different
+       * questions.").
        */
       read: new fields.BooleanField({ initial: true }),
 

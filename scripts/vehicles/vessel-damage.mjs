@@ -12,8 +12,9 @@
  *    a battered ship a slow ship rather than merely a ship with a small number
  *    on her sheet;
  *  - **structural hit points are never healed, only repaired** — by hand, by
- *    the crew, at five of them per point per turn, and only half of what she
- *    took at sea can be put back before she reaches a dock.
+ *    the crew, at the book's printed rate per point per turn, and only a
+ *    printed fraction of what she took at sea can be put back before she
+ *    reaches a dock.
  *
  * The functions here are pure: they take a vessel's `system` data and return
  * what the rule says, so the sheet and any macro read the same answer and the
@@ -65,8 +66,8 @@ export function damageToVessel(amount, source = "personal", { areaSquareFeet = 0
   const area = spec.area && areaSquareFeet ? spellAreaFactor(areaSquareFeet) : 1;
   if (area == null) return { dealt: null, share, ignored: false, missing: true };
   const scale = share * area;
-  // Rounded DOWN: a tenth of a light ballista's bolt is often nothing, and
-  // that is the rule working rather than failing.
+  // Rounded DOWN: a small share of a hit is often nothing, and that is the
+  // rule working rather than failing.
   const dealt = Math.floor(Math.max(0, Number(amount) || 0) * scale);
   return { dealt, share: scale, ignored: share === 0, missing: false };
 }
@@ -111,9 +112,10 @@ export const roundCombat = (feet) => Math.round((Number(feet) || 0) / grain("com
 /**
  * What it takes to put a hull back together.
  *
- * A gang of hands puts back one point a turn — and they can do nothing else
- * while they do it, which is why a running repair during a chase costs the
- * oars that were making the chase. Only a printed FRACTION of what she took
+ * A gang of hands works down the standing damage over turns — and they can
+ * do nothing else while they do it, which is why a running repair during a
+ * chase costs the oars that were making the chase. Only a printed FRACTION
+ * of what she took
  * at sea can be repaired at sea; the rest waits for a dock, so a long voyage
  * accumulates damage no amount of crew-turns will clear. The gang's size and
  * the sea fraction are the imported `repair` table's; unimported, the plan

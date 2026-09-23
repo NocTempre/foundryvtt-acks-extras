@@ -157,10 +157,9 @@ export function generateAppearance(rand, cultureId) {
 
 /**
  * Which JJ 248 age-trajectory column a class follows — interpretation, not
- * page data: the table's own labels are Fighter/(noble), Crusader
- * (proselytizer), Mage (researcher), Thief (carouser); classes map to the
- * trajectory whose adventuring life they lead. Magistrate/commoner columns
- * describe civilian careers, not adventuring classes.
+ * page data: classes map to whichever of the table's adventuring-archetype
+ * columns their adventuring life matches. The table's civilian-career
+ * columns don't apply to any adventuring class.
  */
 const AGE_CLASS_GROUPS = {
   crusader: ["crusader", "bladedancer", "priestess", "shaman", "paladin", "dwarven craftpriest", "witch"],
@@ -179,9 +178,9 @@ function ageColumnFor(classKey) {
 
 /**
  * Plausible age for a candidate of a level/class: the JJ minimum for the
- * class group plus small variance; 0th level = young adult. A column that
- * caps early ("44+") holds its cap value for higher levels. When the age
- * table has not been imported, every candidate is a young adult (18+).
+ * class group plus small variance; 0th level = young adult. A column with
+ * an open-ended top bracket holds its cap value for higher levels. When the
+ * age table has not been imported, every candidate is a young adult (18+).
  */
 export function generateAge(rand, level, classKey) {
   const rows = optTable("people", "ageByClass")?.rows;
@@ -219,13 +218,6 @@ export function hd0For(race, station = "commoner") {
 }
 
 /**
- * 0th-level occupation. Humans roll the JJ 254-257 profession lists; races
- * with their own society table (occupations.byRace — dwarves roll CASTE per
- * the BTA ethnicity text) use it instead. A category with no entries (the
- * dwarven Oathsworn) means the occupation IS the sworn order — the class
- * trajectory carries it, and the caste label alone is recorded.
- */
-/**
  * RAW occupation roll (JJ ~229): d100 on the General/Street occupant column,
  * route to that row's occupation sub-table, d100 there. Rows routed to an
  * NPC class (thief/fighter/crusader) reroll — the book's own rule when only
@@ -242,9 +234,8 @@ function generateOccupationRaw(rand) {
     for (const id of Object.keys(subs)) if (t.includes(id)) return id;
     return null;
   };
-  // A row whose resolve column routes to an NPC CLASS (the book's own
-  // reroll bands for civilian draws: 84-85, 92-93, 96-97, and the
-  // uncovered 99-00) rerolls — the class trajectory rolls separately.
+  // A row whose resolve column routes to an NPC CLASS rerolls — the book's
+  // own rule for a civilian-only draw; the class trajectory rolls separately.
   const classRouted = (resolve) => /class/i.test(String(resolve ?? ""));
   for (let tries = 0; tries < 12; tries++) {
     const roll = Math.floor(rand() * 100) + 1;
@@ -257,8 +248,7 @@ function generateOccupationRaw(rand) {
     const cat = routeKey(row.resolve);
     const rows = cat ? subs[cat]?.rows : null;
     if (!rows?.length) {
-      // No d100 sub-table exists for this civilian row (the printing's
-      // hosteller: "inns are always owned by innkeepers") — the row's own
+      // No d100 sub-table exists for this civilian row — the row's own
       // category IS the occupation.
       const label = String(row.type ?? "").replace(/([a-z])([A-Z])/g, "$1 $2");
       if (!label) continue;
@@ -292,6 +282,13 @@ function rollDwarvenCaste(rand, castes) {
   return castes.labels?.[order[order.length - 1]] ?? order[order.length - 1];
 }
 
+/**
+ * 0th-level occupation. Humans roll the JJ 254-257 profession lists; races
+ * with their own society table (occupations.byRace — dwarves roll CASTE per
+ * the BTA ethnicity text) use it instead. A category with no entries (the
+ * dwarven Oathsworn) means the occupation IS the sworn order — the class
+ * trajectory carries it, and the caste label alone is recorded.
+ */
 export function generateOccupation(rand, race = "human") {
   if (race === "dwarf") {
     const castes = optTable("people", "dwarvenCastes");
@@ -299,9 +296,8 @@ export function generateOccupation(rand, race = "human") {
     if (caste) return { category: "caste", occupation: caste };
   }
   // The RAW occupant system (street column + sub-tables) is the primary
-  // path; the uniform package draw is the degraded fallback while those
-  // tables are not imported. (The pre-purge `people.occupations` category
-  // table is retired — orphaned by the content migration.)
+  // path; the uniform package draw is the fallback while those tables are
+  // not imported.
   const raw = generateOccupationRaw(rand);
   if (raw) return raw;
   const packs = optTable("people", "occupationPackages");

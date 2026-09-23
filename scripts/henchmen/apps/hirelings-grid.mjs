@@ -2,19 +2,20 @@
 /**
  * Re-skin the core character sheet's Hirelings tab as a grid of Follower Cards.
  *
- * Pure runtime DOM augmentation of the SYSTEM sheet (the acks-domains / acks-influence
- * injection pattern) — no core files are touched. The grid is built from the
- * employer's DATA (not core's rendered rows) so it can include BOTH the core
- * character henchmen (`henchmenList`, via getHirelings) and this module's monster
- * henchmen (`FLAG_MONSTER_LIST`) — a monster hireling is category "henchman", so it
- * joins the Henchmen bucket alongside the rest.
+ * Pure runtime DOM augmentation of the SYSTEM sheet (the same injection
+ * pattern acks-domains and the influence feature use) — no core files are
+ * touched. The grid is built from the employer's DATA (not core's rendered
+ * rows) so it can include BOTH the core character henchmen (`henchmenList`,
+ * via getHirelings) and this module's monster henchmen (`FLAG_MONSTER_LIST`)
+ * — a monster hireling is category "henchman", so it joins the Henchmen
+ * bucket alongside the rest.
  *
  * Actions: character cards keep the system's own hireling actions
  * (hirelingShow/Loyalty/Morale/Delete), resolved through ApplicationV2's delegated
  * dispatch by the data-item-id on the card's `.item` wrapper. Monster cards can't use
  * those (delHenchman touches henchmenList, not the monster list), so their actions
  * are re-tagged to a private `acksHmMon*` prefix the system ignores and handled here.
- * Degrades to the stock list when acks-lib is too old to expose `followerCard`.
+ * Degrades to the stock list when the lib subsystem is too old to expose `followerCard`.
  */
 import { MODULE_ID, FLAG_MONSTER_LIST, HOOKS } from "../constants.mjs";
 import { openLoyaltyRoll } from "../engine/events.mjs";
@@ -27,7 +28,7 @@ const GRID_CLASS = "acks-henchmen-follower-grid";
 async function gridifyHirelings(app, element) {
   if (game.system?.id !== "acks") return;
   const api = globalThis.acksExtras?.lib?.followerCard;
-  if (!api?.render) return; // older acks-lib — leave the stock list intact
+  if (!api?.render) return; // lib subsystem too old — leave the stock list intact
   const employer = app.actor ?? app.document;
   if (employer?.type !== ACTOR_TYPE.character) return;
   const root = element instanceof HTMLElement ? element : element?.[0];
@@ -39,10 +40,9 @@ async function gridifyHirelings(app, element) {
 
   // Buckets from the employer: character hirelings + monster henchmen (category
   // "henchman"), so monsters appear in the list alongside the rest.
-  // Core's getHirelings returns `foundry.utils.duplicate()` SNAPSHOTS, not live
-  // actors: no Item collection and no prepared derived data, so a card built from
-  // one shows AC 0, no encumbrance and an unarmed/improvised attack list while the
-  // hireling's own sheet shows its real gear. Resolve each back to its document.
+  // Core's getHirelings returns `foundry.utils.duplicate()` snapshots, not live
+  // actors — no Item collection, no prepared derived data. Resolve each back to
+  // its document or a card shows AC 0 and an unarmed attack list.
   const live = (h) => game.actors.get(h?._id ?? h?.id) ?? null;
   const rawBuckets = employer.getHirelings?.() ?? {};
   const buckets = Object.fromEntries(

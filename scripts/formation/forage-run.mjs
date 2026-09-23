@@ -1,16 +1,9 @@
 /* global game, Roll, ChatMessage */
 /**
  * Spending the day's hours on the country, and what comes back.
- *
- * [foraging.mjs](./foraging.mjs) prices the throws and owns no dice. This rolls
- * them, and — the part that makes the slots worth picking — deposits what is
- * found so the order can eat it.
- *
- * What is found is written to the FORAGER's own pack, not to a party pool
- * document, because the party pool is already the sum of what the members
- * carry ([provisions.mjs](./provisions.mjs)). Inventing a second store would
- * be a second answer to "how much food is there", and the two would disagree
- * the first time someone dropped a sack.
+ * [foraging.mjs](./foraging.mjs) prices the throws and owns no dice; this
+ * rolls them and deposits what is found into the forager's own pack (see
+ * docs/formation/MODEL.md, "Working the country").
  */
 import { MODULE_ID, RATION_PATTERN } from "./constants.mjs";
 import { makeLoc, gmIds } from "./../lib/util.mjs";
@@ -67,12 +60,9 @@ async function deposit(actor, kind, days) {
 }
 
 /**
- * Work the country for one day.
- *
- * Water is thrown for the PARTY — once per group, not once per forager — while
- * food and firewood are each forager's own attempt. Hunting is its own throw
- * again. Anything unimported is reported rather than rolled, because a throw
- * against a target nobody supplied is not a throw.
+ * Work the country for one day. Water is thrown for the party once; food
+ * and firewood are each forager's own attempt; hunting is its own throw
+ * again. See docs/formation/MODEL.md, "Working the country".
  */
 export async function runForageDay(formation, { kinds = ["food"], hunting = false } = {}) {
   if (!game.user?.isGM) return null;
@@ -98,10 +88,8 @@ export async function runForageDay(formation, { kinds = ["food"], hunting = fals
       continue;
     }
 
-    // What a success is worth, and in what. A kind that FEEDS converts its
-    // weight into days by how many mouths that weight feeds; firewood does
-    // not feed anyone, so its stone stays stone. Reporting fuel in days is how
-    // a Judge comes to think the party has a fortnight's food.
+    // A kind that feeds converts its weight into days; firewood does not
+    // feed anyone, so its stone stays stone.
     const perThrow = yielded ? yielded.amount * (yielded.feeds ?? 1) : 0;
     const unit = provisioning(yielded) ? "days" : (yielded?.unit ?? null);
 

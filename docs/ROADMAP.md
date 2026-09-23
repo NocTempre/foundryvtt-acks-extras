@@ -22,6 +22,50 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
   `GROUP_HOOKS` keep their old names pending a check for external consumers
   (acks-domains/structures may listen). Rename or ratify — do not "fix"
   without that check.
+- **Comment sweep, strict cut: the unswept remainder.** Two waves
+  (2026-09-22/23) cut the comments of about 200 scripts and 11 stylesheets to
+  the strict reading of `.claude/rules/docs-doctrine.md`: a docstring gives
+  what the symbol does or returns, the caller's contract, and a guard in one
+  clause; history, rulings and rejected alternatives moved to the feature's
+  DECISIONS, dated 2026-09-22. Not yet swept: most of `tools/`, `discord/`,
+  `scripts/bridge`, `scripts/location`, `scripts/factions`, the rest of
+  `scripts/importer`, `formation`, `equipment`, `classes`, `lib`, `henchmen`
+  and `monsters`, the two entry points, and the templates. What the waves
+  learned: one agent per file list, with a gate proving each file's code token
+  stream unchanged, does the cut cheaply, but the DECISIONS entries it stages
+  do not survive unchecked: several jobs invented counts, causes and costs,
+  and pointed code at headings they never staged. Each entry has to be read
+  against the removed comment text before it merges, and that review is the
+  pass's real cost. A cheaper first step is a grep of the unswept files for
+  the defect signatures the waves found: porting attribution, `ruledata/` and
+  local-only rules paths, pre-merge module names, retired settings and
+  macros, printed values beside page citations. Comments the waves cut
+  without staging are recoverable from the parent of the 8.0.7 commit.
+- **Findings of the comment sweep, not yet fixed.**
+  - *Printed values in shipped code:* `WOUND_PENALTIES` in
+    `scripts/henchmen/rules/loyalty.mjs` (see
+    [henchmen/ROADMAP.md](henchmen/ROADMAP.md)); the band and value fields in
+    `scripts/henchmen/rules/throws-data.mjs`; the bribe ladder in
+    `#bribeTiers` (`scripts/influence/influence-app.mjs`); three literals in
+    vehicle arithmetic (`seaSpeeds` in `vehicle-speed.mjs`, `repairPlan` in
+    `vessel-damage.mjs`, `#stationView` in `vehicle-sheet.mjs`). Unverified:
+    a multiplier in `scripts/lib/movement-scales.mjs`, the saves lookup in
+    `scripts/monsters/config.mjs`, and the hardcoded bonuses the formation
+    ability bridge applies in place of cookbook effects.
+  - *Printed content in tracked, unshipped files:* the scavenged-condition
+    fixtures in `tools/test-equipment.mjs`; a masterwork bonus and price in
+    the pristine-snapshot ruling of `docs/equipment/DECISIONS.md`; printed
+    item strings quoted in `docs/importer/DECISIONS.md`.
+  - *Stale text:* the header of `scripts/henchmen/apps/throw-dialog.mjs`
+    (porting attribution, a `ruledata/` path, outcome names with their
+    natural rolls); the header of `scripts/monsters/config.mjs` (a local-only
+    extract path, the retired sample-monster generation, pre-merge module
+    names); the user-visible strings `ACKS-HENCHMEN.migration.wiped` and
+    `ACKS-HENCHMEN.repair.swept` (a pre-merge module prefix, a version, a
+    history claim); `docs/equipment/MODEL.md` lists the `slayer` effect
+    domain as consumed, and no script reads it by name.
+  - *Code:* `bindVariation` in `scripts/importer/cookbook.mjs` spreads `data`
+    and `dataFields` twice (harmless).
 
 ---
 

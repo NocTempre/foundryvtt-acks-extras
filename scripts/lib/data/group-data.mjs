@@ -1,48 +1,14 @@
 /* global foundry */
 /**
  * `acks-lib.group` — a STACK of near-identical creatures held as one actor:
- * a mercenary platoon, a pack of kobolds, a flight of manes.
+ * a mercenary platoon, a pack of kobolds, a flight of manes. See
+ * docs/lib/GROUPS.md for the model (member records as ActorDeltas, the
+ * laziness invariant, the representative individual) and the lifecycle ops
+ * (group.mjs).
  *
- * THE PROBLEM. A hired mercenary platoon is, in the system today, ONE
- * `character` actor with `system.retainer.quantity = 30`. The 30 is a label:
- * there is no per-body hit points, no casualties, no "this one has a different
- * sword". The same gap swallows every monster group. But the books stat these
- * as many individuals who happen to be alike, and play needs them to diverge —
- * one takes an arrow, one loots a better blade, one becomes a named villain.
- *
- * THE MODEL. Foundry already has a sparse per-instance override document: an
- * unlinked token's `ActorDelta` stores only what differs from its base actor,
- * embedded item overrides included, and the acks system already writes into it
- * (an unlinked monster token rolls its HP straight into `token.delta`). So a
- * member's individuality IS an ActorDelta source object — same shape, same
- * merge rules — and a member that has never diverged needs NO record at all.
- *
- * MANY STACKS PER GROUP. A group is not one prototype but a LIST of `stacks`.
- * A uniform pack is one stack; a mixed unit — 10 swordsmen beside 10 spearmen —
- * is two, each with its OWN base actor. Different gear is then just a different
- * base actor, not a per-body override: the ActorDelta layer above still handles
- * the divergence WITHIN a stack (one swordsman loots a better blade), while the
- * coarse "these ten are archers, those ten are pikes" split is a second stack.
- * Each stack is a self-contained sub-group: its own prototype, its own
- * headcount, its own sparse roster tracking its own bodies' HP and casualties.
- *
- * THE INVARIANT (per stack). `size.current` counts a stack's living bodies. Its
- * `roster` holds a record ONLY for members that have become interesting
- * (materialized, deployed to the canvas, detached to their own actor, or
- * fallen). Pristine bodies are the DIFFERENCE:
- *
- *     pristine = stack.size.current − (materialized + deployed records)
- *
- * A 30-strong platoon that has never fought is one stack, `size.current: 30,
- * roster: []`. Storage is proportional to how interesting the group has become,
- * not to its headcount. That is the whole point.
- *
- * THE COMPAT STRATEGY is deploy/recall (see group.mjs): a deployed member is an
- * ordinary token over an ordinary actor, so combat, acks-equipment and
- * acks-formation all work on it with no special-casing. Undeployed, the group
- * carries a REPRESENTATIVE INDIVIDUAL's stat block (the FIRST stack's one-body
- * hp/aac/saves) so the token is still attackable and shows a sensible bar — the
- * same reason `acks-lib.animal` mirrors the monster field paths (actor-compat).
+ * A group is a LIST of `stacks`, not one prototype: a uniform pack is one
+ * stack, a mixed unit (10 swordsmen beside 10 spearmen) is two, each with its
+ * own base actor and its own sparse roster.
  */
 import { acksCompatStubs, savingThrowFields } from "../actor-compat.mjs";
 import { migrateGroupSource, platoonCapacity } from "../group-logic.mjs";
@@ -82,15 +48,9 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
     /**
      * ONE stack: the prototype every one of its bodies copies, a headcount, and
      * a sparse roster. `template.uuid` points at a WORLD actor (ActorDelta needs
-     * a real world base to merge onto — a compendium entry cannot be that base),
-     * minted from `snapshot` on first deploy if absent. `snapshot` is a cached
-     * `toObject()` so the stack survives its source being deleted.
-     *
-     * NAMED `template`, NOT `prototype`: Foundry blocks `prototype` (with
-     * `__proto__` and `constructor`) as a forbidden key in dotted-path expansion
-     * — a prototype-pollution guard — so a field named `prototype` can never be
-     * written via `actor.update({"system…prototype.x": …})`; the key is silently
-     * dropped. Verified live against acks 14.0.1.
+     * a real base to merge onto), minted from `snapshot` on first deploy if
+     * absent. Named `template`, not `prototype` — see docs/lib/GROUPS.md, "Why
+     * the field is `template`, not `prototype`".
      */
     const stack = () =>
       new SchemaField({
@@ -114,10 +74,7 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         // the consumer sets both from the mercenary rules at hire.
         mounted: new foundry.data.fields.BooleanField({ initial: false }),
         baseMorale: int(0, { min: -4, max: 4 }),
-        /**
-         * THE SPARSE ROSTER. One entry per body of this stack that has diverged;
-         * pristine bodies are absent by design (see the class comment's invariant).
-         */
+        /** The sparse roster: one entry per body that has diverged. See docs/lib/GROUPS.md, "The laziness invariant". */
         roster: new ArrayField(
           new SchemaField({
             key: str(), // randomID, stable for the member's whole life
@@ -140,18 +97,14 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
       // v1 introduced `stacks` (was a single top-level template/size/roster).
       _schemaVersion: new NumberField({ required: true, initial: 1, integer: true, min: 0 }),
 
-      /**
-       * The stacks that make up this group. One for a uniform pack; several for a
-       * mixed unit (10 swordsmen + 10 spearmen). Each is self-contained: its own
-       * prototype, headcount, and roster with its own HP/casualty tracking.
-       */
+      /** The stacks that make up this group: one for a uniform pack, several for a mixed unit. */
       stacks: new ArrayField(stack()),
 
       /**
-       * The displayed collective noun is DATA, not a hardcoded word: a *pack* of
-       * kobolds wandering, a *tribe* in its lair, a *unit* of mercenaries. Filled
-       * from the monster stat block's ecology (`encounter.*.noun`) or the unit category, and
-       * always GM-overridable. Blank → the sheet falls back to a category default.
+       * The displayed collective noun, filled from the monster stat block's
+       * ecology or the unit category and always GM-overridable. Blank falls
+       * back to a category default. See docs/lib/GROUPS.md, "The collective
+       * noun is data".
        */
       noun: str(),
 
@@ -163,12 +116,10 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         wageUnit: str({ initial: "month" }),
         employerUuid: str(),
         locationUuid: str(),
-        // The commanding officer (RR 171): a lone leveled actor, not a stack —
-        // an officer is a unique individual who COMMANDS the troop stacks. The
-        // troops addendum keeps only the skirmish-scale bit here: the uuid and a
-        // cached morale modifier the officer confers, so `commandMorale` is
-        // computable without loading the officer. Domain-scale command (how many
-        // units an officer leads across an army) is acks-troops, not here.
+        // The commanding officer (RR 171): a lone leveled actor, not a stack.
+        // Only the skirmish-scale bit lives here (uuid + cached morale
+        // modifier, so `commandMorale` computes without loading the officer);
+        // domain-scale command is acks-troops.
         officerUuid: str(),
         officerMoraleBonus: int(0, { min: 0, max: 4 }),
         // The commander's level (cached from the officer, or the personally-leading
@@ -180,13 +131,8 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         loyalty: int(0, { min: -4, max: 4 }),
       }),
 
-      // --- The representative individual (design §8). ---
-      // The GROUP token (undeployed) mirrors the FIRST stack's one-body stat
-      // block so it is attackable and shows a bar. The compat stubs are the FLOOR
-      // the system touches on every actor (isNew, thac0, initiative, movement, a
-      // saves stub); savingThrowFields then supplies the FULL five-save block
-      // (later keys win, so it upgrades the stub's partial saves). Per-stack stats
-      // otherwise live in each stack's template.snapshot.
+      // --- The representative individual. See docs/lib/GROUPS.md, "The
+      // representative individual". ---
       ...acksCompatStubs(),
       ...savingThrowFields(),
       hp: new SchemaField({

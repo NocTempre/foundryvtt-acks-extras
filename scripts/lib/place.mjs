@@ -1,40 +1,10 @@
 /* global game, foundry, Hooks, ui, Actor, fromUuidSync */
 /**
- * PLACES — nesting, occupancy and stacking over the storage primitive.
- *
- * storage.mjs answered "whose goods are these and where are they kept". This
- * answers the three questions a *place* has that a bare provider does not: what
- * is it inside of, what living thing is in it, and how many of it are there.
- * The rules live in place-logic.mjs (Foundry-free, unit-tested); this file is
- * the document reads and writes around them.
- *
- * THREE DOCUMENTS REDUCE TO ONE SHAPE.
- *
- *   - an `acks-extras.location` actor — the full article: market, roster,
- *     children, storage;
- *   - any other actor flagged a storage provider — a wagon, a pack mule, a
- *     hireling with a strongbox;
- *   - an equipment CONTAINER ITEM — the trivial article, and the one that keeps
- *     the model honest: a chest is a place with no market, no occupants and one
- *     level of nesting.
- *
- * `nodeOf` performs that reduction and nothing downstream knows the difference.
- *
- * WHERE THE PARENT POINTER LIVES, AND WHY IT IS THREE PLACES. A location actor
- * carries `system.parentUuid`, because it is ours and a schema field is
- * validated, migratable and visible in the sheet's own form. A foreign provider
- * carries `flags.acks-extras.place.parentUuid`, because we do not own its
- * schema. A container item carries NOTHING — its parent is *derived* from the
- * carrier it is embedded on and acks-equipment's own `containedIn` pointer,
- * because that module already owns the fact and a second copy would drift the
- * first time somebody moved a sack into a backpack. One fact, one owner, three
- * readers.
- *
- * COST. `allPlaces()` is a single pass over `game.actors` — cheap at world
- * scale, but a scan, so call it once per render and share the result. Container
- * items are deliberately NOT enumerated world-wide (that would be O(actors x
- * items) on every breadcrumb); they are resolved only as the children of the
- * place actually being looked at.
+ * PLACES — nesting, occupancy and stacking over the storage primitive. The
+ * document reads and writes around the Foundry-free rules in
+ * place-logic.mjs. Three document shapes (a location actor, a foreign
+ * storage provider, an equipment container item) reduce to one node through
+ * `nodeOf`; nothing downstream knows the difference. See docs/lib/PLACES.md.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { holdsGear } from "./item-model.mjs";
@@ -99,7 +69,7 @@ export const PLACE_HOOKS = Object.freeze({
 /** The location actor sub-type. Named here, not imported, to keep lib edge-free. */
 const LOCATION_TYPE = `${MODULE_ID}.location`;
 
-/** acks-equipment's container vocabulary — read generically, never imported. */
+/** The equipment feature's container vocabulary — read generically, never imported. */
 const CONTAINER_FLAG = "container";
 const CONTAINED_IN = "containedIn";
 
@@ -111,12 +81,9 @@ const CONTAINED_IN = "containedIn";
 export const isLocation = (doc) => doc?.documentName === "Actor" && doc?.type === LOCATION_TYPE;
 
 /**
- * Is this item something gear can go inside?
- *
- * Either ground: a declared capacity — which any gear may have, a coat with
- * hidden pockets as much as a sack — or a container state record for one a
- * Judge made by hand and gave a lock but no stated size. Reading only the
- * record made a place out of the second and not the first.
+ * Is this item something gear can go inside? True for a declared capacity
+ * (any gear may have one) or a container state flag — checking only the
+ * flag would miss a capacity-only container.
  */
 export const isContainerItem = (doc) =>
   doc?.documentName === "Item" && (holdsGear(doc) || !!doc?.getFlag?.(MODULE_ID, CONTAINER_FLAG));
@@ -185,12 +152,9 @@ export function nodeOf(doc) {
 }
 
 /**
- * One place node from a compendium INDEX row.
- *
- * An index row is not a document — no `documentName`, no `getFlag` — so the
- * predicates above cannot read it and it gets its own reduction. Only the two
- * actor-backed kinds can appear here, and both are recognisable from indexed
- * fields: our own sub-type by `type`, a foreign provider by the place flag.
+ * One place node from a compendium INDEX row — its own reduction, since an
+ * index row has no `documentName` or `getFlag` for the predicates above to
+ * read. Only the two actor-backed kinds can appear here.
  */
 function packNodeOf(row, uuid) {
   const flag = row?.flags?.[MODULE_ID]?.[PLACE_KEY];
@@ -214,16 +178,9 @@ export function packIdOf(uuid) {
 }
 
 /**
- * The places one compendium holds, read from its loaded index.
- *
- * Scoped to a SINGLE pack on purpose. A pack's places point at each other —
- * an imported adventure and the rooms keyed to it are written together — so
- * the pack being looked at is the whole world those pointers live in, and
- * walking every installed pack on every render would buy nothing but cost.
- *
- * The index is whatever is already loaded; nothing is fetched on a render
- * path. `system.parentUuid` is in it because the location feature adds it to
- * `CONFIG.Actor.compendiumIndexFields` at init.
+ * The places one compendium holds, read from its already-loaded index — no
+ * fetch on a render path. Scoped to a single pack; see docs/lib/PLACES.md,
+ * "Cost".
  */
 export function packPlaces(packId) {
   const pack = packId ? game.packs?.get(packId) : null;
@@ -238,17 +195,10 @@ export function packPlaces(packId) {
 }
 
 /**
- * Every ACTOR-backed place in the world, as nodes — plus, when a pack is
- * named, the places that pack holds.
- *
- * Container items are excluded on purpose (see the header): they are resolved as
- * the children of the place being viewed, not enumerated globally. That keeps
- * this a single `game.actors` pass, which is what makes it safe to call on every
- * sheet render.
- *
- * `pack` is how a place that lives in a compendium sees its own family. Pass
- * the viewed document's `pack`; a world document passes nothing and this is
- * the `game.actors` scan it always was.
+ * Every actor-backed place in the world, as nodes — plus, when a pack is
+ * named, the places that pack holds. Container items are excluded (see
+ * docs/lib/PLACES.md, "Cost"); pass the viewed document's `pack` so a place
+ * living in a compendium sees its own family.
  */
 export function allPlaces({ pack = null } = {}) {
   const world = (game.actors?.contents ?? []).filter((a) => isLocation(a) || isProvider(a)).map(nodeOf).filter(Boolean);
@@ -280,12 +230,9 @@ export function resolvePlaceSync(uuid) {
 /* -------------------------------------------- */
 
 /**
- * The places directly inside this one: sub-locations and provider actors that
- * point at it, plus the container items it physically holds.
- *
- * The two halves come from different sources and that is inherent — a child
- * LOCATION is a separate document that names its parent, a child CONTAINER is an
- * embedded item on this very actor. `nodeOf` flattens the difference away.
+ * The places directly inside this one: sub-locations and provider actors
+ * that name it as parent, plus the container items it physically holds.
+ * `nodeOf` flattens the two different sources into one shape.
  */
 export function childPlaces(doc, nodes = null) {
   if (!doc) return [];
@@ -306,20 +253,10 @@ export function childPlaces(doc, nodes = null) {
 /* -------------------------------------------- */
 
 /**
- * The items held at a place — the call that makes a chest and a town the same
- * kind of thing.
- *
- * The two backings genuinely differ and cannot be papered over at the document
- * level: an actor-place holds REAL EMBEDDED ITEMS stamped with whose they are
- * (storage.mjs), while a container item holds SIBLING items on the same carrier
- * pointed at it by acks-equipment's `containedIn`. Foundry has no embedded
- * items on items, so there was never a choice about that. What there IS a choice
- * about is whether every caller has to know — and they do not, because this
- * resolves both to a list of Items.
- *
- * Attribution differs with the backing and that is honest rather than papered
- * over: goods at a town are somebody's (`ownerUuid`), goods in your own backpack
- * are yours by virtue of the backpack being yours.
+ * The items held at a place — a list of Items whichever backing holds them:
+ * an actor-place's real embedded items (storage.mjs), or a container item's
+ * siblings pointed at it by the equipment feature's `containedIn`. See
+ * docs/lib/PLACES.md, "A container is the trivial place".
  */
 export function contentsOf(doc) {
   if (!doc) return [];
@@ -331,12 +268,9 @@ export function contentsOf(doc) {
 }
 
 /**
- * Everything at a place, as uniform rows: the sub-places, then the items.
- *
- * Sub-places come first because that is the order a person reads a place in —
- * "the inn has a cellar and a strongroom, and behind the bar there are three
- * casks". A row carries `isPlace` so the sheet can make one drillable and the
- * other draggable without a second pass.
+ * Everything at a place, as uniform rows: sub-places first, then items — the
+ * order a person describes a place in. Each row carries `isPlace` so the
+ * sheet can make one drillable and the other draggable in one pass.
  */
 export function contentRows(doc, nodes = null) {
   const places = childPlaces(doc, nodes).map((node) => ({
@@ -344,10 +278,9 @@ export function contentRows(doc, nodes = null) {
     isPlace: true,
     stacked: isStacked(node),
   }));
-  // A container stashed at a location is BOTH stored goods and a child place.
-  // It is listed once, as the place — the drillable row is strictly the more
-  // useful of the two, and a row that appeared twice would let a GM retrieve a
-  // chest from under its own contents.
+  // A container stashed at a location is both stored goods and a child
+  // place; listed once, as the place, so a chest cannot be retrieved from
+  // under its own contents.
   const asPlaces = new Set(places.map((p) => p.uuid));
   const items = contentsOf(doc)
     .filter((item) => !asPlaces.has(item.uuid))
@@ -370,12 +303,9 @@ export function contentRows(doc, nodes = null) {
 
 /**
  * Put a place inside another one (or at the root, with a null parent).
- *
- * Refuses cycles — the one invariant of the model (place-logic.mjs). Container
- * items are refused outright: their parent is derived from where they physically
- * are, so "re-parenting" one means MOVING it, which is storage's job and has
- * entirely different semantics (goods, weight, attribution).
- *
+ * Refuses cycles (docs/lib/PLACES.md, "The one invariant") and refuses
+ * container items outright. See docs/lib/DECISIONS.md, "Re-parenting a
+ * container item is a move, not a re-parent".
  * @returns {Promise<boolean>} whether anything was written
  */
 export async function setParent(doc, parentUuid) {
@@ -440,12 +370,10 @@ function groupHeadcount(actor) {
 }
 
 /**
- * The tokens standing on a place's linked scene, as DERIVED occupant rows.
- *
- * Only linked tokens and tokens over world actors produce a row: a synthetic
- * actor's uuid dies with its token, so a row built from one would be a dead
- * reference the moment the GM cleaned up the map — the same reasoning that makes
- * storage refuse token actors as transfer endpoints.
+ * The tokens standing on a place's linked scene, as derived occupant rows.
+ * Only linked tokens and tokens over world actors produce a row — an
+ * unlinked token's actor uuid dies with it, same as storage's refusal of
+ * token actors as transfer endpoints.
  */
 export function sceneOccupants(scene) {
   if (!scene) return [];
@@ -465,10 +393,9 @@ export function sceneOccupants(scene) {
 }
 
 /**
- * The roster a sheet renders: stored rows, plus the linked scene's tokens, then
- * filtered to what this viewer may see. One call, because getting the ORDER of
- * those three steps wrong is how a hidden row leaks (filter last) or a stored
- * row loses its notes to a derived duplicate (merge before filter).
+ * The roster a sheet renders: stored rows merged with the scene's tokens,
+ * then filtered to what this viewer may see. The order matters — see
+ * docs/lib/PLACES.md, "Occupancy: two sources, one list, stored wins".
  */
 export function rosterFor(doc, { scene = null, isGM = false, ownedUuids = [] } = {}) {
   const stored = (doc?.system?.roster ?? []).map((r) => r.toObject?.() ?? r);
@@ -502,14 +429,8 @@ export async function removeOccupant(place, uuid) {
 /* -------------------------------------------- */
 
 /**
- * Split one instance out of a stacked place into its own actor.
- *
- * The stack shrinks, the new place inherits the parent, the name gains an
- * ordinal, and NOTHING ELSE COMES ACROSS — no goods, no roster. That is
- * deliberate: the stack's contents were never per-instance (eight identical bays
- * hold one pooled inventory), so dividing them would be inventing an answer the
- * model never had. The split exists to make one bay *become* interesting; what
- * goes in it is the next thing the GM does.
+ * Split one instance out of a stacked place into its own actor. See
+ * docs/lib/PLACES.md, "Stacking, and how it differs from a group".
  */
 export async function splitPlace(place, take = 1) {
   if (!place || !place.isOwner) return null;
@@ -519,9 +440,8 @@ export async function splitPlace(place, take = 1) {
     return null;
   }
   const source = place.toObject();
-  // Carry the flags across, but never `vaultOf`: that names the ONE character a
-  // personal vault belongs to, and two actors claiming it would make
-  // `findVaultOf` return whichever it happened to reach first.
+  // Flags carry across except `vaultOf`: two actors claiming the one
+  // personal vault would make `findVaultOf` ambiguous.
   const flags = foundry.utils.deepClone(source.flags ?? {});
   if (flags[MODULE_ID]?.[STORAGE_KEY]?.vaultOf) delete flags[MODULE_ID][STORAGE_KEY].vaultOf;
   const created = await Actor.create({
@@ -546,10 +466,8 @@ export async function splitPlace(place, take = 1) {
 /* -------------------------------------------- */
 
 /**
- * Coin held at a place and everything under it, in gold.
- *
- * The roll-up is what nesting buys: "how much is at the Rusty Anchor" should
- * include the strongbox in its cellar, or nesting is just a label.
+ * Coin held at a place and everything under it, in gold — what nesting buys
+ * that a flat model does not: a town's total includes what its cellars hold.
  */
 export function coinRollupGC(doc, nodes = null) {
   const all = nodes ?? allPlaces();

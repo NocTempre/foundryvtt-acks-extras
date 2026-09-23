@@ -1,23 +1,13 @@
 /**
- * The stations of a vehicle: who is in what role, seat by seat, at a glance.
+ * The stations of a vehicle: who is in what role, seat by seat. A vehicle's
+ * people are STATIONS it defines itself — a driver's seat, a rowers' bench,
+ * officer seats, a team, passenger berths — derived from the vehicle's data
+ * plus the occupant list. Pure derivation over plain objects; labels return
+ * as KEYS for the view layer.
  *
- * A vehicle's people are not a list — they are a set of STATIONS the vehicle
- * itself defines: a driver's seat (or the whole printed complement, on the
- * vehicles whose "crew" column means something else), a bench of rowers with a
- * complement to fill, officer seats whose emptiness has rules consequences, a
- * team in the traces, berths for passengers. This module derives those groups
- * from the vehicle's own data plus the occupant list, so the sheet renders
- * what it is told: which groups exist, what each requires, who fills it, and
- * what a shortfall costs.
- *
- * Pure derivation over plain objects — no documents, no i18n, no DOM. Labels
- * are returned as KEYS (or the vehicle's own typed text) for the view layer
- * to resolve; occupants arrive already weighed and qualified (occupants.mjs).
- *
- * Counting rule, everywhere: a typed count is the UNNAMED complement ("30
- * rowers", "2 heavy horses", "4 passengers"), and named occupants ADD to it.
- * One pattern, every group — the abstract statement and the real people
- * coexist, exactly as the team's rows and harnessed animals do.
+ * Counting rule, everywhere: a typed count is the UNNAMED complement, and
+ * named occupants ADD to it. See docs/vehicles/DECISIONS.md, "Stations:
+ * typed counts are the unnamed complement; named add."
  */
 import { complementMeans } from "./berths.mjs";
 
@@ -54,9 +44,9 @@ export function stationsFor(sys, occupants = [], { pull = null } = {}) {
 function landStations(sys, occupants, by, pull) {
   const groups = [];
 
-  // The team is counted in heavy-horse equivalents, not heads: a mule is half
-  // a slot, so it renders as a pull fraction against the build requirement
-  // rather than as seats.
+  // The team is counted in heavy-horse equivalents, not heads: an animal's
+  // pull varies by kind, so it renders as a pull fraction against the build
+  // requirement rather than as seats.
   const abstract = (sys?.team?.animals ?? []).map((a, index) => ({ ...a, index }));
   groups.push({
     key: "team",

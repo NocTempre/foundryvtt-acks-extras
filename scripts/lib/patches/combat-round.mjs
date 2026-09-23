@@ -2,48 +2,21 @@
 /**
  * Core patch: a combatant with no actor must not wedge the round counter.
  *
- * `AcksCombat#nextRound` strips the `surprised`, `delayed` and `done` statuses
- * from every combatant before it advances, and reads each one as
- * `t.actor.hasEffect(...)` with no guard — four sites, counting the
- * `skipDefeated` turn search. Its sibling `nextTurn` reads the same field as
- * `t.actor?.hasEffect(...)`, so the two disagree about whether an actor is
- * optional, and only the round path throws.
+ * `AcksCombat#nextRound` dereferences `t.actor.hasEffect(...)` with no guard
+ * at four sites (its sibling `nextTurn` guards the same read), so a token
+ * whose Actor was deleted throws the method before it reaches its own
+ * `update()` and the round never changes again. This wraps the method and
+ * shadows `actor` on exactly those combatants with an empty stand-in while
+ * core reads; core's method itself runs unmodified.
  *
- * A combatant whose `actor` is null is ordinary wreckage, not a corrupt world:
- * deleting a sidebar Actor leaves every LINKED token it placed standing on the
- * scene, and a token in a running combat keeps its combatant. From that moment
- * `nextRound()` raises `Cannot read properties of null (reading 'hasEffect')`
- * before it reaches its own `update()`, so the round never changes. Turns still
- * advance — `nextTurn` is guarded — until the last one, where core delegates to
- * `nextRound` and the fight stops on whatever round it was on. (An UNLINKED
- * token survives its Actor's deletion: its delta is the actor, and it is
- * unaffected.)
+ * The stand-in lives only for core's synchronous prefix: `nextRound` awaits
+ * nothing ahead of those reads, so `wrapped()` is called unawaited here and
+ * the shadows come off before its promise settles — which is what keeps the
+ * stand-in away from core's document lifecycle. Should core ever `await`
+ * ahead of those reads, the original throw returns rather than a new one.
  *
- * THE PATCH ADDS THE GUARD CORE OMITS, AND NOTHING ELSE. Core's method runs
- * unmodified through a libWrapper WRAPPER; what changes is only what it finds
- * on an actor-less combatant while it reads. Each such combatant carries an own
- * `actor` property — an empty stand-in holding no effects and no statuses —
- * shadowing the class getter that answers null. The `hasEffect` reads then
- * answer "no effect", which is the truth about a combatant with no actor;
- * `removeEffect` is never reached because it is gated on that answer; and the
- * `isDefeated` read (`this.actor?.statuses`) is unchanged because the stand-in's
- * status set is empty. Length, indices, `advanceTime` and the combatants
- * themselves are untouched, so the round advances exactly as it would have with
- * the actor still there.
- *
- * THE STAND-IN LIVES ONLY FOR CORE'S SYNCHRONOUS PREFIX, and that is the whole
- * design. `nextRound` awaits nothing: every unguarded read runs before it
- * returns the promise for its own `update()`. So `wrapped()` is called and its
- * promise is NOT awaited before the shadows come off — by the time that promise
- * settles, the combatants answer null again. This is what keeps the stand-in
- * away from core's document lifecycle, which is not null-hostile but IS
- * type-strict: `Combat#updateCombatantActors`, running inside that update,
- * calls `combatant.actor?.render()` and tolerates a null far better than an
- * object that is not an Actor.
- *
- * Should core ever `await` ahead of those reads, the shadows are already off
- * when they run and the original throw returns — the same breakage as an
- * unpatched world, never a new one.
+ * See docs/lib/DECISIONS.md, "extras guards the system's round counter, and
+ * the guard is scoped to core's synchronous prefix".
  */
 import { MODULE_ID } from "../constants.mjs";
 

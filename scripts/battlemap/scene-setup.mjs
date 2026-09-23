@@ -42,12 +42,9 @@ export function sceneTravelSystem(scene) {
 
 /**
  * How big one city block is drawn on this map, in the scene's own distance
- * units, or null when nobody has said.
- *
- * A block is a property of the MAP, not of the rules: the book measures a city
- * in blocks precisely so that nobody has to count feet, and how wide the Judge
- * drew theirs is theirs to state. Null is silence — the city tracker times the
- * party by its walking speed instead, and says so.
+ * units, or null when nobody has said (the city tracker then times the party
+ * by walking speed instead). See docs/formation/DECISIONS.md, "The block is
+ * the map's, not the book's."
  */
 export function sceneBlockFeet(scene) {
   return sceneSetup(scene).blockFeet;
@@ -55,13 +52,10 @@ export function sceneBlockFeet(scene) {
 
 /**
  * What this map says of its city's own incident list, or null when it names
- * none.
- *
- * A property of the MAP for the reason a block is: a world can hold two cities,
- * each printed with a list of its own, and the map is the one thing that knows
- * which city it draws. The shift is what the list adds once it is dark, and the
- * band is the stretch of it that defers to the quarter the party is in; both
- * are the Judge's to state from their own book, and both are silent at zero.
+ * none: `afterDark` is what the list adds once it is dark, `band` the
+ * stretch of it read for the party's quarter; both null (silent) at zero.
+ * See docs/formation/DECISIONS.md, "A city's own list belongs to its map,
+ * and hands one band to the quarter."
  *
  * @returns {{tableUuid: string, afterDark: number,
  *   band: {from: number, to: number}|null}|null}
@@ -122,12 +116,9 @@ export function familyOfScene(scene) {
 
 /**
  * The bounding box of ONE hex of the given family, measured off a clone of
- * this scene carrying that grid.
- *
- * Asked rather than derived: a hex's proportions are core's own geometry, they
- * differ between pointy-topped rows and flat-topped columns, and a second copy
- * of the ratio here is a second answer to drift from. The size it is measured
- * at is arbitrary — callers scale the answer.
+ * this scene carrying that grid — asked rather than derived, since a copy of
+ * core's hex ratio here would drift. The size it is measured at is arbitrary
+ * — callers scale the answer.
  *
  * @returns {{refW:number, refH:number, refSize:number}|null} null when the
  *   family writes no hexes or the clone's grid cannot be read.
@@ -138,9 +129,8 @@ export function hexProbe(scene, family, even = false) {
   const probe = scene.clone({ "grid.type": type, "grid.size": HEX_PROBE_SIZE }, { keepId: true });
   const refW = probe.grid?.sizeX;
   const refH = probe.grid?.sizeY;
-  // A hex's bounding box is never square. Equal edges mean the clone did not
-  // rebuild its grid from the changed type and is still answering as a square
-  // one — refuse rather than scale a map by a ratio of one.
+  // Equal edges mean the clone never rebuilt its grid from the changed type;
+  // refuse rather than scale a map by a ratio of one.
   if (!(refW > 0) || !(refH > 0) || Math.abs(refW - refH) < 1e-6) return null;
   return { refW, refH, refSize: HEX_PROBE_SIZE };
 }

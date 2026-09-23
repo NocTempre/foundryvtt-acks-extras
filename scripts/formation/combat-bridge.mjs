@@ -6,19 +6,12 @@ import { deployMembers, deployedTokens, isMemberDeployed, recallMembers } from "
 import { advanceRounds } from "./turn-engine.mjs";
 
 /**
- * Combat integration (runs on the primary GM client):
- *
- * - Adding the party token to a combat deploys the member tokens around it in
- *   marching order and swaps the party combatant for one combatant per BODY on
- *   the field — a member who is a stack fights as the crowd it put there, not
- *   as the one row it holds in the marching order.
- *   Members flagged Non-combatant stay inside the party token and out of the
- *   initiative; the party token hides if nobody stays behind.
- * - When the combat ends the party reforms automatically: member tokens are
- *   re-stashed (with any changes they accrued) — including the fallen, who
- *   are gathered up to be carried (assign the Carrier role) or abandoned by
- *   removing them from the formation.
- * - Combat rounds feed the round-level clock directly (10 = 1 turn).
+ * Combat integration (runs on the primary GM client): adding the party token
+ * to a combat deploys the members in marching order, one combatant per body
+ * on the field; a Non-combatant member stays inside the party token. Ending
+ * the combat reforms the party — member tokens re-stashed, the fallen
+ * gathered as Carrier cargo or left behind. Combat rounds feed the
+ * round-level clock (10 rounds = 1 turn).
  */
 
 
@@ -35,14 +28,9 @@ export async function onPartyCombatantCreated(combatant) {
   if (!formation) return;
   const combat = combatant.parent;
 
-  // Already deployed (e.g. the party token was re-added): just drop the extra
-  // combatant. Deployed member tokens count as evidence even without the
-  // combat flag — deploying again would duplicate every member on the field.
-  //
-  // A DETACHED member is not that evidence: a scout ahead of the party is
-  // exactly who walks into a fight, and treating their token as "already
-  // deployed" would leave the rest of the party inside the party token for the
-  // whole battle.
+  // Already deployed (e.g. the party token was re-added): drop the extra
+  // combatant rather than duplicate every member on the field. A detached
+  // member (already a token ahead of the party) does not count as evidence.
   const alreadyFighting = formation.members.some((m) => isMemberDeployed(m) && !m.detached);
   if (formation.combat?.active || alreadyFighting) {
     await combatant.delete();
@@ -124,10 +112,8 @@ export async function onCombatEnd(combat) {
   const formations = Object.values(getFormations()).filter(
     (f) =>
       (f.combat?.active && f.combat.combatId === combat.id) ||
-      // Self-healing: deployed member tokens are evidence of an unfinished
-      // deploy even when the combat flag is missing (a crash, or a stale
-      // concurrent write having clobbered it). Reforming on evidence beats
-      // stranding the whole party on the field.
+      // Deployed member tokens are evidence of an unfinished deploy even when
+      // the combat flag is missing.
       f.members.some(isMemberDeployed),
   );
   for (const formation of formations) {

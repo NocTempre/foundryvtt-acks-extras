@@ -1,22 +1,17 @@
 /**
- * The post-switch cleaner. Consumed by the synced tools/build-packs.mjs
- * harness via the `packs` map exported at the bottom of this file; registered
- * as a feature in tools/pack-data.mjs, whose aggregator concatenates this
- * `macros` pack with every other feature's into the one shared `macros`
- * compendium.
+ * The post-switch cleaner: finds and removes what the pre-merge acks-* modules
+ * left in a world (flag scopes, Active Effect change keys, world settings,
+ * sheet-class pointers, and documents of a removed sub-type). Consumed by the
+ * synced tools/build-packs.mjs harness via the `packs` map exported at the
+ * bottom of this file; registered as a feature in tools/pack-data.mjs, whose
+ * aggregator concatenates this `macros` pack with every other feature's into
+ * the one shared `macros` compendium.
  *
- * A world that ran the nine separate acks-* modules still carries what they
- * wrote: flag scopes under their ids, Active Effect change keys pointing at
- * those scopes, world settings in their namespaces, and sheet-class pointers at
- * their sheet keys. Nothing carries across — this is a clean break, not a
- * migration — so all of it is dead weight, and the sub-typed Actors among it
- * are worse than dead: Foundry refuses to instantiate an Actor whose `type` is
- * gone, so they surface as "Failed to initialize Actor" on every load.
- *
- * This macro finds that residue and removes it. It reports before it deletes,
- * it is idempotent, and it runs with the old modules uninstalled — flags of an
- * uninstalled module are still readable, and invalid Actors are reached through
- * the collection's invalid-document accessors rather than the normal lookup.
+ * Reports before it deletes, is idempotent, and runs with the old modules
+ * uninstalled — flags of an uninstalled module are still readable, and invalid
+ * Actors are reached through the collection's invalid-document accessors
+ * rather than the normal lookup. See docs/DECISIONS.md, "The cleaner macro —
+ * why it is not a migration".
  *
  * It does NOT touch anything acks-extras owns. `_id` is content-hashed from the
  * macro name and carries the declared "acks" idPrefix; dropping or re-adding

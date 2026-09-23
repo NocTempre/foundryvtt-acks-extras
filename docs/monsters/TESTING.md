@@ -73,8 +73,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 7. Place a token of a monster with a lightless range, with `lib`'s vision
    management on.
    *Observable:* the token's sight range matches the declared lightless range.
-8. Bestiary samples: open the shipped sample monsters.
-   *Observable:* each loads, its sheet renders, and its extras are populated
+8. Imported monsters: open a monster the importer created from the Judge's
+   books (no sample monsters ship).
+   *Observable:* it loads, its sheet renders, and its extras are populated
    rather than default.
 9. Right-click the plain monster in the Actors directory and pick the Full
    Monster sheet entry three times — the real context menu, not a

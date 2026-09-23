@@ -9,20 +9,21 @@
  * real number and say what reduced it.
  *
  * WHAT MOVES A VESSEL (RR ch. 7):
- *  - **missing rowers** reduce rowing speed IN PROPORTION to the shortfall —
- *    half the rowers is half the speed, not a step on a table;
- *  - **an underfed crew** moves at ½ speed under oar or sail; a starving or
- *    dehydrated one at ⅓ (and starts rolling morale, which is a mutiny problem
- *    rather than a speed one);
- *  - **wind** multiplies sail speed from ×0 in a dead calm through ×3/2 in a
- *    strong wind, and above that it starts costing the oars too;
- *  - **a stowed mast** costs the bigger galleys 30' of oar sprint and cruise,
- *    because there is no room to work the oars.
+ *  - **missing rowers** reduce rowing speed IN PROPORTION to the shortfall,
+ *    not a step on a table;
+ *  - **crew condition** (underfed, starving, dehydrated) scales speed under
+ *    oar or sail, and starts rolling morale — a mutiny problem, not only a
+ *    speed one;
+ *  - **wind** multiplies sail speed across its printed bands, from a dead
+ *    calm up through a strong wind, and past that it starts costing the
+ *    oars too;
+ *  - **a stowed mast** costs the bigger galleys a flat printed amount of
+ *    oar sprint and cruise, because there is no room to work the oars.
  *
- * WHAT MOVES A CART is simpler and stranger: the printed rows pair a LOAD with
- * a SPEED — "up to 80 stone at 60', or up to 120 stone at 30'" — so a cart
- * does not have a speed and a capacity, it has a speed that depends on how
- * much it is carrying. Loading one more sack can halve the day's travel.
+ * WHAT MOVES A CART is simpler and stranger: the printed rows pair a LOAD
+ * with a SPEED, so a cart does not have a speed and a capacity — it has a
+ * speed that depends on how much it is carrying. Loading one more sack can
+ * halve the day's travel.
  *
  * Every function here is arithmetic over plain objects: no documents, no dice.
  */
@@ -196,8 +197,8 @@ export function windFor(roll) {
 }
 
 /**
- * What the crew's belly does to every speed. Starving outranks underfed — a
- * crew is not both a half and a third.
+ * What the crew's belly does to every speed. Starving outranks underfed —
+ * a crew is not penalized for both at once.
  */
 export function conditionMultiplier({ underfed = false, starving = false } = {}) {
   if (starving) return 1 / 3;
@@ -255,8 +256,8 @@ export function seaSpeeds(vehicle, { wind = "moderate", roles = null } = {}) {
   if (sailF !== 1) reasons.push({ key: `wind.${key}`, factor: sailF, appliesTo: "sail" });
   if (oarF !== 1) reasons.push({ key: `wind.${key}`, factor: oarF, appliesTo: "oar" });
 
-  // A stowed mast leaves the rowers no room: a flat 30' off sprint and cruise
-  // rather than a multiplier, so it comes off before anything scales.
+  // A stowed mast leaves the rowers no room: a flat amount off sprint and
+  // cruise rather than a multiplier, so it comes off before anything scales.
   const stow = vehicle?.mastStowed ? 30 : 0;
   const oar = (base) => Math.max(0, ((Number(base) || 0) - stow)) * crew * cond * oarF;
   const plain = (base) => Math.max(0, Number(base) || 0) * crew * cond * oarF;
@@ -277,9 +278,8 @@ export function seaSpeeds(vehicle, { wind = "moderate", roles = null } = {}) {
     voyageSail: round1((Number(s.voyageSail) || 0) * cond * sailF),
     reasons,
     becalmed: !!spec && sailF === 0,
-    // Strong and worse forbid tacking to everyone EXCEPT a master mariner.
-    // That is not a small thing: it is the difference between beating upwind
-    // slowly and not at all.
+    // Strong and worse forbid tacking to everyone EXCEPT a master mariner —
+    // the difference between beating upwind slowly and not at all.
     canTack: !w.noTack || masterMariner,
     tackSpeed:
       w.noTack && masterMariner && Number.isFinite(tackFactor)
@@ -293,9 +293,9 @@ export function seaSpeeds(vehicle, { wind = "moderate", roles = null } = {}) {
  * A land vehicle's speed for the load it is carrying.
  *
  * The printed tiers are pairs of (load, speed) for a given team. The vehicle
- * moves at the speed of the FASTEST tier whose load it is still under — carry
- * 80 stone on a one-horse cart and it makes 60'; add a stone and it drops to
- * the 120-stone row at 30'; pass 120 and it does not move at all.
+ * moves at the speed of the FASTEST tier whose load it is still under; add
+ * one more stone than a tier allows and it drops to the next, slower row;
+ * exceed every tier and it does not move at all.
  *
  * @param {object} vehicle the vehicle's `system` data
  * @param {number} loadStone what is aboard right now

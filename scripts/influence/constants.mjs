@@ -39,13 +39,10 @@ export const HOOKS = Object.freeze({
  *   - tone {"all"|"diplomacy"|"intimidation"|"seduction"} default "all"
  *   - label {string} optional display label (else the effect's name)
  *
- * ONE effect may carry several changes, which is how a rule that spans roll
- * families is expressed. Inhumanity is the reason this exists: RAW it modifies
- * "reactions, loyalty, and morale", so it ships as three changes on one effect
- * rather than three items a GM has to keep in sync. Before this, every effect
- * was implicitly a reaction effect and the loyalty page had to include all of
- * them or none — so a Diplomacy bonus leaked onto loyalty rolls, or Inhumanity
- * silently didn't. Mirrors acks-lib `MODIFIER_TARGETS`.
+ * ONE effect may carry several changes, which is how a rule spanning several
+ * roll families (Inhumanity: reactions, loyalty and morale) ships as one
+ * effect rather than three items a GM has to keep in sync. Mirrors the lib
+ * subsystem's `MODIFIER_TARGETS`.
  */
 export const ROLL_FAMILY = Object.freeze({
   REACTION: "reaction",
@@ -67,16 +64,11 @@ export const CHANGE_KEY_FAMILY = Object.freeze({
 /**
  * Does a throw opened in this mode belong to the REACTION family — the one a
  * reception prices? The gate every `HOOKS.INFLUENCE_MODIFIERS` listener that
- * carries a reception (a quarter's, a faction's) asks, kept here so the
- * listeners cannot answer it differently.
- *
- * The bare influence roll (`mode` falsy) has no external mode of its own and
- * IS the reaction/attitude roll, so it counts. An external mode counts only
- * when it is registered under `EXTERNAL_MODES` as REACTION family — a mode
- * this check has never heard of answers false rather than inheriting the
- * modifier, so a family added later without being priced stays silent by
- * exclusion, never by leak. Loyalty, morale and obedience throws are about
- * someone already known, not about a reception, and their family says so.
+ * carries a reception asks, kept here so listeners cannot answer it
+ * differently. The bare influence roll (`mode` falsy) counts; an external
+ * mode counts only when registered under `EXTERNAL_MODES` as REACTION
+ * family. See docs/influence/DECISIONS.md, "An unregistered external mode is
+ * excluded, not leaked".
  */
 export function isReactionMode(mode) {
   if (!mode) return true;
@@ -188,21 +180,11 @@ export const INFLUENCE_BAND_LABELS = Object.freeze({
 });
 
 /**
- * The attempt ladder: which attempt this is, and what it costs in time.
- *
- * WHAT SHIPS is the procedure — the first step is the initial reaction, which
- * SETS an attitude rather than shifting one; every later step is a repeated
- * attempt to influence, and each is a further rung.
- *
- * WHAT DOES NOT is how many rungs there are and what each costs. Both are read
- * off a page, and a ladder of rungs a reader picks from is a table of options,
- * so it arrives registered (`lib/tables.mjs`, doc `influence`, table
- * `attemptTime`) rather than shipped.
- *
- * With nothing registered the ladder still works and simply says less: a rung
- * is named by its own ordinal, which is a fact about this tracker rather than a
- * fact from a book, and no time is quoted because none is known. `maxAttempt`
- * is null in that state — the module does not invent a printed limit.
+ * The attempt ladder: which attempt this is, and what it costs in time. The
+ * rung count and its costs are imported, never shipped (`lib/tables.mjs`,
+ * doc `influence`, table `attemptTime`) — see docs/influence/DECISIONS.md,
+ * "both were IP leaks and are gone from the shipped artifact". With nothing
+ * registered a rung is named by its own ordinal and `maxAttempt` is null.
  *
  * @param {number} attempt which rung the tracker is on now — only consulted
  *   when nothing is registered, to decide how far the ladder can be shown
@@ -225,12 +207,10 @@ export function influenceTimeLadder(attempt = 0) {
 
 /**
  * The monthly wage a henchman of a given level is owed, used to suggest a
- * bribe fee from the target's HD.
- *
- * A printed ladder of prices, so it is imported rather than shipped
- * (`lib/tables.mjs`, doc `influence`, table `henchmanWage`). That a bribe can
- * be offered, that its size is keyed to what the target is worth, and that the
- * fee is gold moved on a successful attempt are the procedure and stay here.
+ * bribe fee from the target's HD. Imported, never shipped
+ * (`lib/tables.mjs`, doc `influence`, table `henchmanWage`) — see
+ * docs/influence/DECISIONS.md, "both were IP leaks and are gone from the
+ * shipped artifact".
  *
  * @returns {number|null} null when nothing is registered — the field is then
  *   simply not pre-filled, and the Judge names the sum
@@ -451,7 +431,7 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
 
 /**
  * EXTERNAL MODES — additional roller pages hosted by the influence app for
- * consumer modules (acks-henchmen): the Reaction to Hiring Offer (RR 162)
+ * consumer features (the henchmen feature): the Reaction to Hiring Offer (RR 162)
  * and the secret Hireling Loyalty roll (RR 166). An external mode replaces
  * the three core tones (the tone selector, attitude ladder, and attempt
  * tracker hide); modifiers reuse the same engine — `auto` sources support
@@ -508,8 +488,7 @@ export const EXTERNAL_MODES = Object.freeze({
     label: "ACKS-INFLUENCE.mode.loyalty.title",
     secret: true,
     // Loyalty-family effects only. A Diplomacy bonus is not a loyalty modifier;
-    // Inhumanity is (RAW: "reactions, loyalty, and morale") and reaches this
-    // page through its own loyalty change.
+    // Inhumanity is, and reaches this page through its own loyalty change.
     family: ROLL_FAMILY.LOYALTY,
     bands: [
       { max: 2, key: "hostility" },
@@ -539,19 +518,12 @@ export const EXTERNAL_MODES = Object.freeze({
   },
 
   /**
-   * Combat morale — the Monster Morale table (RR 307). The Judge's roll for
-   * whether monsters and NPCs fight on, at the end of a round in which a third
-   * of a group has fallen (and each casualty after), when a solitary creature
-   * has lost a third of its hp (and each wound after), or on the first round
-   * the party flees.
+   * Combat morale — the Monster Morale table (RR 307): the Judge's roll for
+   * whether monsters and NPCs fight on. Not the Unit Morale table (RR 468) — see
+   * docs/influence/DECISIONS.md, "Three morale subsystems, never conflated".
    *
-   * NOT the Unit Morale table (RR 468) — that is the mass-combat scale, it has
-   * different outcomes, and it is the one a commander's morale modifier
-   * (RR 436: CHA + Command + battlefield prowess) applies to. None of that
-   * belongs here; adding it would inflate every encounter morale roll.
-   *
-   * `subject: "target"` because the creature checking morale is the target of
-   * the app, not its actor. PCs never roll this — they always choose.
+   * `subject: "target"`: the creature checking morale is the target of the
+   * app, not its actor. PCs never roll this — they choose.
    */
   morale: {
     label: "ACKS-INFLUENCE.mode.morale.title",
@@ -650,7 +622,7 @@ export const EXTERNAL_MODES = Object.freeze({
         group: "ACKS-INFLUENCE.mode.obedience.score",
         mods: [
           // Supplied by the consumer when it tracks a fuller morale record
-          // (acks-henchmen's base + permanents); falls back to the sheet.
+          // (the henchmen feature's base + permanents); falls back to the sheet.
           { key: "moraleScore", type: "signed", label: "ACKS-INFLUENCE.mode.obedience.morale", auto: "ctx:effectiveMorale" },
         ],
       },

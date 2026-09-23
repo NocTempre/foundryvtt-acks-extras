@@ -1,22 +1,10 @@
 /* global game, ChatMessage, Roll */
 /**
- * A wandering monster met on the wrong floor (JJ ch. 2).
- *
- * A random encounter table is written for a monster LEVEL, and the party is on
- * a dungeon LEVEL, and when those disagree two things change at once — in the
- * same direction, which is what makes going too deep doubly unkind:
- *
- *  - the NUMBER appearing shifts by half again per step deeper, or halves per
- *    step shallower, rounding up. The book's own worked case: 1d6 wights are
- *    Level 3 monsters and the roll is a 4 — met on Dungeon Level 1 that is
- *    4 × ½ × ½ = 1 wight, and on Dungeon Level 5 it is 4 × 1½ × 1½ = 9;
- *  - the REACTION roll shifts by the same difference the other way. Those
- *    wights take −2 on level 5 and +2 on level 1, because numbers deeper down
- *    make monsters bold, while something powerful wandering an upper floor is
- *    more inclined to see the party as tools than as threats.
- *
- * The two numbers are exact opposites of one another, so one subtraction
- * drives both.
+ * A wandering monster met on the wrong floor (JJ ch. 2). A random encounter
+ * table is written for a monster level; when the dungeon level it is drawn
+ * on differs, the number appearing and the reaction roll both shift with
+ * the difference, in exact opposite amounts, so one subtraction drives
+ * both.
  */
 import { MODULE_ID } from "./constants.mjs";
 
@@ -51,10 +39,7 @@ export function encounterShift({ dungeonLevel = 0, monsterLevel = 0 } = {}) {
   return { steps, multiplier, reaction: steps === 0 ? 0 : -steps, matched: true };
 }
 
-/**
- * The number actually encountered. Rounded UP, as the book rounds it — which
- * is why a deeply unlucky party still meets one wight rather than none.
- */
+/** The number actually encountered, rounded up as the book rounds it. */
 export function scaleNumber(rolled, shift) {
   const n = Math.max(0, Number(rolled) || 0);
   if (!shift?.matched || !n) return n;
@@ -62,10 +47,9 @@ export function scaleNumber(rolled, shift) {
 }
 
 /**
- * Announce what the difference did, to the Judge alone. This is deliberately a
- * SEPARATE card from the table's own draw rather than a rewrite of it: the
- * table said what it says, and the adjustment is the Judge's to apply to a
- * number only they can see (the table result names a die, not a count).
+ * Announce what the difference did, to the Judge alone — a separate card
+ * from the table's own draw, since the table result names a die, not a
+ * count, and the adjustment is the Judge's to apply.
  */
 export async function announceShift(table, { dungeonLevel, monsterLevel } = {}) {
   const shift = encounterShift({ dungeonLevel, monsterLevel });

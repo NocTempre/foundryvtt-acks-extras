@@ -386,9 +386,8 @@
 
 /* The character sheet on a short display. The sheet class belongs to the
    system, and core leaves `.window-content` `overflow: hidden` with the active
-   tab unbounded — so on a window shorter than the content, the tab is amputated
-   with no scrollbar to say anything is missing. Measured at a 380px-tall
-   window: 247px of tab inside a 70px box.
+   tab unbounded — so on a window shorter than the content, the tab is
+   amputated with no scrollbar to say anything is missing.
 
    The tab becomes the scroller rather than `.window-content`, so the header and
    the tab strip stay put while only the pane under them moves. Header and strip

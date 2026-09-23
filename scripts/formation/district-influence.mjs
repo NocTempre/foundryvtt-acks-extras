@@ -1,13 +1,9 @@
 /* global Hooks, game */
 /**
- * Carries a district's reaction figure onto an influence throw: a quarter
- * that meets strangers coldly (or warmly) prices the roll the same way a
- * district's own cadence prices the street's encounter chance.
- *
- * Registered on the influence roller’s own modifier hook
- * (`HOOKS.INFLUENCE_MODIFIERS`) rather than called by the roller directly: the
- * roller is another module and knows nothing about districts, and this listener
- * knows nothing about how the roll it modifies is built or shown.
+ * Carries a district's reaction figure onto an influence throw, over the
+ * roller's own `HOOKS.INFLUENCE_MODIFIERS` hook. See
+ * docs/formation/MODEL.md, "A district prices an influence throw through
+ * the roller's own hook".
  */
 import { MODULE_ID } from "./constants.mjs";
 import { getFormationForActor } from "./formation-model.mjs";
@@ -31,21 +27,11 @@ export function installDistrictInfluence() {
 
 /**
  * Push the district's reaction figure onto `context.modifiers`, when one is
- * owed — never more than one entry, and never onto the wrong side of the roll.
- *
- * A district charges a throw made BY a party standing in it, so the figure is
- * about the side that OPENED the roll: `actor`, and the formation lookup asks
- * only that side. A payload carrying a `targetActor` and no `actor` is priced
- * by nobody here, which is the right answer — the quarter receives the party,
- * not the party's mark.
- *
- * Pushes nothing when the throw's own family is not one a district's
- * reception bears on (a district's figure is a REACTION figure — how a quarter
- * takes to a stranger — and `isReactionMode` is the one gate that says which
- * throws those are), when there is no settlement board under the actor, no
- * district drawn where the party is standing, or the district owes no figure
- * for the place the party is actually in (`districtReaction` itself answers
- * that last question).
+ * owed — never more than one entry. Prices the side that opened the roll
+ * (`actor`); a payload naming only `targetActor` is priced by nobody here.
+ * Pushes nothing outside a reaction-mode roll (`isReactionMode`), with no
+ * settlement board under the actor, no district where the party stands, or
+ * no figure owed for that place (`districtReaction` answers the last one).
  *
  * @param {{actor: object|null, mode: string|null, modifiers: object[]}} context
  */
@@ -63,11 +49,8 @@ function pushDistrictModifier(context) {
   const district = findDistrict(formation);
   if (!district) return;
 
-  // Where the party actually IS, by the same reading the city turn and the
-  // panel take: the street drawn under their token answers over the picker,
-  // because it was drawn while the picker was typed. A stationary answer is
-  // the exception no road overrules — a party holed up is not out on the
-  // street its walls happen to sit on (`effectiveWhere`).
+  // Same reader the city turn and the panel use — see docs/formation/MODEL.md,
+  // "One reader answers where the party is standing".
   const here = streetUnder(formation, t.settlement).here;
 
   const reaction = districtReaction(district.behavior.system, { where: here.where });

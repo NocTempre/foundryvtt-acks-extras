@@ -1,27 +1,20 @@
 #!/usr/bin/env node
 /**
- * Make a CLONE runnable — the source-install path, with no release zip.
+ * Makes a CLONE runnable — the source-install path, with no release zip.
  *
- * A clone is not a module. The compiled LevelDB compendiums are build output
+ * A clone is not a module: the compiled LevelDB compendiums are build output
  * and are gitignored (`.gitignore` says why), so a fresh clone has every
- * compendium declared and every one of them empty — which presents as a working
- * install that has simply lost its content. This script is the one command that
- * closes that gap, and it CHECKS rather than assumes: it verifies every path
- * `module.json` declares actually exists on disk before it reports success.
- *
- * The trap it exists to catch first, though, is the directory name. Foundry
- * resolves a module by the name of its folder under `Data/modules`, so a clone
- * of `foundryvtt-acks-extras` — the repository's name, which is NOT the module
- * id — never loads, with no error anywhere: the module simply is not in the
- * list. That is checked before anything is built, because building first and
- * failing to load afterwards is how the afternoon goes.
+ * compendium declared and every one of them empty. Verifies every path
+ * `module.json` declares actually exists on disk before it reports success,
+ * and checks the directory name first: Foundry resolves a module by the name
+ * of its folder under `Data/modules`, so a clone folder named for the
+ * repository rather than the module id never loads, with no error anywhere.
  *
  * Usage, from inside the clone:
  *
  *   node tools/rebuild.mjs            install dependencies, build packs, verify
  *   node tools/rebuild.mjs --prune    then delete node_modules — the runtime
- *                                     needs none of it, and it is the largest
- *                                     thing in the folder by an order of magnitude
+ *                                     needs none of it
  *   node tools/rebuild.mjs --check    verify only; build nothing, install nothing
  *
  * `--prune` leaves a folder Foundry can load and `git pull` can update; rerun
@@ -56,10 +49,9 @@ const inModulesDir = parentName.toLowerCase() === "modules";
 say(`rebuild: ${manifest.title} ${manifest.version} (id "${manifest.id}")`);
 say(`  folder: ${ROOT}`);
 
-// Only a folder sitting DIRECTLY under Data/modules has to carry the id: that
-// name is what Foundry resolves. A checkout anywhere else is linked in by a
-// junction or symlink that supplies the name, which is the normal development
-// arrangement and not a fault — so it is said once, not failed on.
+// Only a folder sitting DIRECTLY under Data/modules has to carry the id — a
+// checkout elsewhere is linked in by a junction or symlink that supplies the
+// name, so it is noted, not failed on.
 if (inModulesDir && dirName !== manifest.id) {
   fail(
     `this folder is directly under "modules" and is named "${dirName}" — Foundry resolves a module by its id, "${manifest.id}", so it will not appear in the module list at all`,
@@ -92,8 +84,7 @@ if (!CHECK_ONLY && !problems.length) {
   say("\nbuilding:");
   if (!haveModules) {
     // `ci` when there is a lockfile: the pack compiler is a native build
-    // (classic-level), and a resolved-fresh tree is how it stops matching the
-    // Node it will run under.
+    // (classic-level), sensitive to the Node it resolves against.
     try {
       run("npm", hasLock ? ["ci"] : ["install"]);
     } catch {
@@ -127,9 +118,8 @@ for (const lang of manifest.languages ?? []) check(lang.path, `the ${lang.lang} 
 let packsOk = 0;
 for (const pack of manifest.packs ?? []) {
   if (!check(pack.path, `the "${pack.name}" compendium`)) continue;
-  // A compiled LevelDB pack is a DIRECTORY holding data files. An empty one is
-  // the exact shape a clone has before this script runs, and it loads happily
-  // with nothing inside — so emptiness is the thing worth reporting.
+  // A compiled LevelDB pack is a directory holding data files; an empty one
+  // loads happily with nothing inside, so emptiness is worth reporting.
   const entries = fs.readdirSync(path.join(ROOT, pack.path));
   if (!entries.some((f) => /\.(ldb|log|sst)$/i.test(f) || f === "CURRENT")) {
     fail(`the "${pack.name}" compendium is an empty directory — it would load with no documents`, "rerun this script without --check");

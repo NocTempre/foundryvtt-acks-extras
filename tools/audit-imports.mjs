@@ -1,18 +1,12 @@
 /**
- * Does every named import actually exist in the module it names?
+ * Checks that every named import actually exists in the module it names.
  *
  * A wrong name here is MODULE-BREAKING and offline-invisible: the browser
- * throws `The requested module './constants.mjs' does not provide an export
- * named 'ACTOR_TYPE'` at load, every later hook is dead, and nothing this repo
- * runs offline notices — validate reads files, the test suite imports only the
- * pure modules, and neither one asks the module graph to resolve. It shipped
- * that way once, from copying an import line between two files whose constants
- * live in different places.
- *
- * Deliberately textual, not a real parse: this checks the shapes this codebase
- * writes — `import { a, b as c } from "./x.mjs"` — against `export` in the
- * target. A file re-exporting with `export * from` is treated as opaque and
- * its importers are skipped rather than guessed at.
+ * throws at load and nothing else in this repo notices, since validate reads
+ * files and the test suite imports only the pure modules. Matches import
+ * specifiers textually against `export` statements in the target; a file
+ * re-exporting with `export * from` is treated as opaque and its importers
+ * are skipped.
  *
  * Usage: node tools/audit-imports.mjs   (also runs via `npm run validate`)
  */

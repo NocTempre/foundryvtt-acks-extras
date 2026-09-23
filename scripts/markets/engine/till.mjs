@@ -3,18 +3,15 @@
  * The market's till: the coin float a market keeps on hand, refreshed to its
  * market level each market month.
  *
- * The target is a STORED FIELD (`system.market.tillTargetGp`), not a buried
- * derivation — it is a knob other systems turn (trade routes will raise and
- * drain it). When the field is null the first refresh derives it — urban
- * families × monthly family income — and WRITES IT BACK, so from then on the
- * number on the sheet is the truth and the formula is only ever a default.
+ * The target is a stored field (`system.market.tillTargetGp`), not a buried
+ * derivation. When unset, the first refresh derives it — urban families ×
+ * monthly family income — and writes it back, so the sheet's number becomes
+ * the truth and the formula is only ever a default.
  *
- * Sourcing honours the no-book-values rule: family income comes from an
- * imported `economy` ruledata table when the GM's books have supplied one,
- * else from a world setting whose default is an explicit round PLACEHOLDER —
- * not the printed figure. Families likewise: the stated `urbanFamilies` wins;
- * without one, a deliberately-invented round ladder stands in per class until
- * real numbers are entered.
+ * Family income comes from an imported `economy` table when the GM's books
+ * have supplied one, else a placeholder world setting. Families likewise:
+ * the stated `urbanFamilies` wins; without one, a placeholder ladder per
+ * market class stands in (see PLACEHOLDER_FAMILIES).
  */
 import { MODULE_ID } from "../constants.mjs";
 import { getSetting } from "../settings.mjs";

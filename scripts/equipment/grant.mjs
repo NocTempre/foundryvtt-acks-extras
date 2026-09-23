@@ -2,19 +2,15 @@
 /**
  * Handing gear over, and making room to hold it.
  *
- * A Judge who gives a character a torch is not asking whether that character
- * went shopping first. Two mutations make that true, and both are equipment
- * facts, so both live here: put the required gear in the pack (`grantGear`), and
- * empty enough hands to hold it (`clearHands`). Callers say WHAT is needed; this
- * file is the only place that says how it appears.
+ * Two mutations, both equipment facts: put the required gear in the pack
+ * (`grantGear`), and empty enough hands to hold it (`clearHands`). Callers
+ * say WHAT is needed; this file is the only place that says how it appears.
+ * Both are IDEMPOTENT — gear already carried is left alone and hands
+ * already free are not disturbed.
  *
- * Both are IDEMPOTENT. Gear already carried is left alone and hands already free
- * are not disturbed, so repeating a grant is a no-op rather than a second torch
- * and a dropped sword.
- *
- * Nothing here decides WHETHER a character should be given anything — that is a
- * rule, and it belongs to the feature holding the rule (a light source's gear
- * list lives with the light table; the mapper's kit lives with the roles).
+ * Nothing here decides WHETHER a character should be given anything (see
+ * docs/equipment/MODEL.md, "Giving gear, and making room for it —
+ * `grant.mjs`").
  */
 import { carriesItem } from "../lib/item-model.mjs";
 import { getLoadout, releaseOrder } from "./loadout.mjs";
@@ -116,11 +112,8 @@ export async function grantGear(actor, specs = []) {
  * time, re-reading the loadout after each so it stops the moment there is room.
  * A two-handed weapon therefore buys both hands in a single release.
  *
- * ROOM IS `handsSpare`, NOT `handsFree`. A lone versatile weapon widens its grip
- * to fill any hand going, so measuring what is FREE would see the sword eat each
- * hand as fast as this one emptied it and strip the character bare. What matters
- * is what is COMMITTED — and a two-handed grip commits nothing, because it
- * yields the instant the torch arrives.
+ * ROOM IS `handsSpare`, NOT `handsFree` (see docs/equipment/MODEL.md,
+ * "Hands: free, committed, spare").
  *
  * It can FALL SHORT and says so rather than throwing: hands filled by lit
  * torches are not freed by sheathing anything, because a light is put out, not

@@ -42,6 +42,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   from `scripts/henchmen/rules/availability.mjs`, where `overrides` is the
   location's `system.market.rarityOverrides` read as plain rows, and the
   result's `rarity` says which tier was rolled on.
+- **A dangling hireling reference is seeded, not made by deleting a hire.**
+  Deleting a hireling runs the `deleteActor` prune on the active GM's client
+  and leaves nothing to repair. Write an id no actor holds straight onto the
+  employer — `employer.update({"system.henchmenList": ["zzDanglingId0001"]})`
+  — and scope the repair to the fixture:
+  `acksExtras.henchmen.repair.repairWorld({actors: [employer]})`. The bare
+  call sweeps every actor in the shared world.
 
 ## Steps
 
@@ -72,6 +79,14 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    tables imported, at 9th.
    *Observable:* the level gate names the character and their level; with the
    tables absent the refusal names the tables instead.
+8. Dangling-reference repair: seed a dangling id on the employer (above), call
+   `employer.getTotalWages()`, render the employer's sheet, then run the scoped
+   `repairWorld`.
+   *Observable:* `getTotalWages` returns without throwing and the console warns
+   once, naming the API call; the sheet renders; the repair reports the
+   employer (`describeRepair` → "1 henchman") and `system.henchmenList` no
+   longer holds the id. The setting's hint in Configure Settings names the
+   same call.
 
 ## Teardown
 

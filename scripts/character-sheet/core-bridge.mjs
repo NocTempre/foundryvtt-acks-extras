@@ -9,10 +9,9 @@
  * the sheet registry, and an ApplicationV2 keeps its action handlers on
  * `DEFAULT_OPTIONS.actions`, where a private static method is stored as a
  * plain function. Each of the five reads nothing but `this.actor`, so calling
- * it with `{actor}` for `this` opens the very window core's sheet opens. This
- * is reuse of the system's windows through the system's own registry, not a
- * copy of them; if the system ever renames an action the cell says so rather
- * than opening nothing.
+ * it with `{actor}` for `this` opens the very window core's sheet opens. See
+ * docs/character-sheet/DECISIONS.md, "Core windows are reached through the
+ * sheet registry, not reimplemented".
  */
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { LANG } from "./constants.mjs";

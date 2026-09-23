@@ -5,9 +5,8 @@
  */
 import { CHANGE_KEY_FAMILY, henchmanMonthlyWage, INFLUENCE_MODIFIERS, MODULE_ID } from "./constants.mjs";
 import { inferRace, optionalRuleEnabled, parseKindList } from "./racial.mjs";
-// Ability mod + level-or-HD read once from acks-lib (acks-henchmen read the same
-// schema). hitDiceOrLevel also anchors the HD parse, fixing the old "d8" → 8
-// mis-read where a die size was taken for a rating.
+// Ability mod and level-or-HD read once from the lib subsystem (the
+// henchmen feature reads the same schema).
 import { abilityMod, hitDiceOrLevel } from "../lib/actor-read.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
@@ -28,12 +27,11 @@ export function classifyAlignment(value) {
 }
 
 /**
- * This module's alignment tokens → acks-lib's (`lawful`/`neutral`/`chaotic`,
- * which is what acks-monsters and the importer already use). Kept as a
- * boundary translation rather than a rename: `law`/`chaos` are baked into
- * published effect flags, and breaking those to tidy a spelling is not worth
- * it. Unknown/"other" maps to null — an alignment nobody established cannot
- * gate anything, and `scopeApplies` treats a null as undetermined.
+ * This module's alignment tokens → the lib subsystem's (`lawful`/`neutral`/
+ * `chaotic`, which the monsters feature and the importer already use). See
+ * docs/influence/DECISIONS.md, "Alignment is translated at the boundary, not
+ * renamed". Unknown/"other" maps to null, which `scopeApplies` treats as
+ * undetermined.
  */
 const LIB_ALIGNMENT = Object.freeze({
   [ALIGNMENT.LAW]: "lawful",
@@ -111,26 +109,16 @@ export function getProficiencies(actor) {
 }
 
 /**
- * Item ids already spoken for by a static proficiency checkbox in `groups`.
+ * Item ids already spoken for by a static proficiency checkbox in `groups`,
+ * so the same item's effect model does not add a second row for it. See
+ * docs/influence/DECISIONS.md, "A proficiency row wins over the same item's
+ * effects". Read from the rows a page actually renders, never from the
+ * matcher list, so a proficiency with no row on this page is left alone
+ * rather than claimed with nothing to be claimed for.
  *
- * A proficiency detected by NAME fills its own row, so the same item's effect
- * model must not add a second one: that is the ability counted twice. The
- * static row wins — it carries the audited printed mechanic, and the
- * mutually-exclusive tone set is modelled on those rows (`exclusive` in
- * INFLUENCE_MODIFIERS), so moving the bonus onto an effect row would let all
- * three tone proficiencies stack again.
- *
- * Read from the rows a page actually renders, never from the matcher list: a
- * proficiency detected but not offered here (Beast Friendship and Folkways
- * anywhere, Performance outside Seduction) has no other row to be counted in,
- * and claiming it would silently drop the modifier rather than deduplicate it.
- * Only a row that contributes to the throw claims — the bribe fee reads Bribery
- * to price a bribe, which is not a modifier on the roll.
- *
- * A power standing in for a proficiency (`actsAs`) fills that same checkbox and
- * is claimed with it. It is named for itself, so no name match can ever find
- * it, and only the core four can be stood in for — CORE_PROFS is what ticks the
- * box, so an `actsAs` naming anything else fills nothing and keeps its own row.
+ * A power standing in for a proficiency (`actsAs`) fills that same checkbox
+ * and is claimed with it; only the core four can be stood in for. See "A
+ * stand-in power is claimed by the box it fills, and named once".
  *
  * @param {Actor|null} actor
  * @param {Array} groups  the page's own modifier groups, before effect rows join them
@@ -387,10 +375,10 @@ export function getEffectReactionMods(actor) {
           const tones = (Array.isArray(raw) ? raw : String(raw).split(","))
             .map((t) => String(t).trim().toLowerCase())
             .filter(Boolean);
-          // Translate this module's own flag vocabulary into acks-lib's, so
-          // both effect sources reach scopeApplies() in one shape and gating
-          // lives in exactly one place. `alignmentSign` and `alignmentOnly`
-          // are the same axis with different modes — lib says so explicitly.
+          // Translates this module's own flag vocabulary into the lib
+          // subsystem's, so both effect sources reach scopeApplies() in one
+          // shape. `alignmentSign` and `alignmentOnly` are the same axis with
+          // different modes.
           const vs = f.vs ? parseKindList(f.vs) : null;
           const signed = f.alignmentSign ? String(f.alignmentSign).toLowerCase() : null;
           const gated = f.alignmentOnly ? String(f.alignmentOnly).toLowerCase() : null;
@@ -424,18 +412,11 @@ export function getEffectReactionMods(actor) {
 }
 
 /**
- * The effect-sourced rows one page offers, from the whole set an actor supplies.
- *
- * Four gates, and the order they are stated in is the order they are argued:
- * the page's roll family (a Diplomacy bonus is not a loyalty modifier), whose
- * roll it modifies, whether a static proficiency row on this page already
- * offers the same item (see itemsWithProficiencyRows), and finally the tone.
- *
- * A page with no tone of its own passes `tone: null`, which leaves a
- * tone-scoped row undetermined rather than excluded — it is offered, not
- * asserted. Tone MISmatch on a page that has one is likewise a filter here and
- * not in scopeApplies: a mismatched row must not silently vanish from a page
- * the GM is looking at when they may still rule that it applies.
+ * The effect-sourced rows one page offers, from the whole set an actor
+ * supplies: matching roll family, applying to self, not already claimed by a
+ * static proficiency row (`itemsWithProficiencyRows`), and matching the
+ * page's tone when it has one. See docs/influence/DECISIONS.md, "A tone
+ * mismatch is filtered at the page, not in scopeApplies".
  *
  * @param {Array} mods  rows in the shared modifier shape
  * @param {{family:string, tone?:string|null, claimed?:Set<string>}} page

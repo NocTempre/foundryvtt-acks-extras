@@ -1,25 +1,9 @@
 /**
- * Flight: the expedition, above the ground rather than on it.
- *
- * Sized between the land march and a voyage on purpose. It is the land
- * derivation with a factor on top — no navigation, no footing, no roads —
- * because none of those are things a flier meets.
- *
- * Four structural facts, and every figure behind them imported:
- *
- *  - **A day aloft is worth more than a day afoot.** How much more is printed.
- *  - **A partial day blends.** A creature aloft for part of the day has only
- *    that portion multiplied, so the day is a weighted mix of two speeds — the
- *    blend is arithmetic, and it is ours; the factor is not.
- *  - **Weather applies as it does on the ground, with one exception.** Wind is
- *    the exception, and it cuts flight specifically.
- *  - **A flying mount slows under load** at a threshold, not gradually: full
- *    speed up to its normal load, less beyond it, to its maximum.
- *
- * The ground below still counts: RR prints the terrain multipliers under Flight
- * Speed, so a flier meets the country it crosses. That is the `flying` mode's
- * business ([lib/movement-modes.mjs](../lib/movement-modes.mjs)) — this file
- * contributes only what flight itself is worth.
+ * Flight: the expedition, above the ground rather than on it. See
+ * docs/formation/MODEL.md, "Flight". This file contributes only what
+ * flight itself is worth; the `flying` mode
+ * ([lib/movement-modes.mjs](../lib/movement-modes.mjs)) handles the ground
+ * a flier still crosses.
  */
 import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { numOrNull } from "../lib/util.mjs";

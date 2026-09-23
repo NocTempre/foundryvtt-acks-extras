@@ -16,9 +16,10 @@
  * shipping theirs costs a migration rather than a name fight.
  *
  * THE MODEL IS STRUCTURE ONLY, as everywhere in this family: no printed cargo
- * capacity, crew complement, speed or cost ships here. A galley's 170 rowers
- * reach a world through the importer from the GM's own book, or a Judge types
- * them. A blank vehicle is a valid homebrew starting point.
+ * capacity, crew complement, speed or cost ships here. A galley's whole
+ * rowing complement reaches a world through the importer from the GM's own
+ * book, or a Judge types it. A blank vehicle is a valid homebrew starting
+ * point.
  */
 import { num, str, int, bool, html, choice } from "../lib/fields.mjs";
 import { acksCompatStubs } from "../lib/actor-compat.mjs";
@@ -80,11 +81,10 @@ export default class VehicleData extends TypeDataModel {
     const { ArrayField, SchemaField } = foundry.data.fields;
 
     /**
-     * One printed load/speed tier for a land vehicle. The book gives carts and
-     * wagons TWO of these per team size — "up to 80 stone at 60', or up to 120
-     * stone at 30'" — which is a load-dependent speed, not a capacity and a
-     * separate speed. Stored in stone (the printed unit); the sixths the
-     * capacity primitive counts in are derived where they are needed.
+     * One printed load/speed tier for a land vehicle: a load-dependent speed,
+     * not a capacity and a separate speed — the book gives carts and wagons
+     * two of these per team size. Stored in stone (the printed unit); the
+     * sixths the capacity primitive counts in are derived where needed.
      */
     const speedTier = () =>
       new SchemaField({
@@ -161,9 +161,9 @@ export default class VehicleData extends TypeDataModel {
        */
       cargo: new SchemaField({
         capacityStone: num({ min: 0 }),
-        // A passenger rides as 50 stone of cargo, and 50 stone of cargo can go
-        // in place of each crew member (RR ch. 7). Both directions are the
-        // same exchange rate, so it is stored once.
+        // A passenger rides as cargo, and cargo can go in place of a crew
+        // member at the same printed rate (RR ch. 7) — both directions are
+        // one exchange rate, stored once.
         passengerStone: num({ min: 0, initial: 50 }),
         passengers: int(0, { min: 0 }),
       }),
@@ -198,13 +198,14 @@ export default class VehicleData extends TypeDataModel {
         voyageSail: num({ min: 0 }),
       }),
 
-      /** Structural hit points: a vessel at 0 sinks in 1d10 rounds. */
+      /** Structural hit points: at 0 the vessel begins sinking (see startSinkingClock). */
       ac: num({ integer: true }),
       shp: new SchemaField({ value: num({ min: 0, integer: true }), max: num({ min: 0, integer: true }) }),
 
       /**
-       * The crew's state, which multiplies every speed: underfed crew move at
-       * half, starving or dehydrated at a third (RR ch. 7 §"Surviving").
+       * The crew's state, which multiplies every speed: underfed and
+       * starving/dehydrated each cost speed, at printed penalties (RR ch. 7
+       * §"Surviving").
        */
       condition: new SchemaField({
         underfed: bool(false),
@@ -215,15 +216,15 @@ export default class VehicleData extends TypeDataModel {
       mastStowed: bool(false),
 
       /**
-       * Whether a driver with the Driving proficiency holds the reins. Worth a
-       * road multiplier of 2 instead of 3/2 — and worth nothing off a road.
+       * Whether a driver with the Driving proficiency holds the reins —
+       * worth a better road multiplier, and nothing off a road.
        */
       driverProficient: bool(false),
 
       /**
        * Ranks of Seafaring aboard (RR ch. 3): one to sail or row, two to do
-       * both and captain her, three for a master mariner — who alone can tack
-       * in a strong wind, at two-ninths speed.
+       * both and captain her, three for a master mariner who alone can tack
+       * in a strong wind.
        */
       seafaringRank: int(0, { min: 0, max: 3 }),
     };
@@ -242,27 +243,16 @@ export default class VehicleData extends TypeDataModel {
   }
 
   /**
-   * The submitted rows laid OVER the stored ones.
+   * The submitted rows laid OVER the stored ones. A row carries fields the
+   * form has no input for (an animal's uuid and name, set only by dragging
+   * it into harness), so rebuilding from the form alone would come back
+   * nameless and bound to nothing. `named` (the form's actual input names)
+   * decides which fields the submission overwrites; a submitted default is
+   * indistinguishable from a field deliberately cleared, so only a NAMED
+   * field is taken and the rest stand as the stored row had them.
    *
-   * Rebuilding an array row from the form alone keeps only what the form has
-   * an input for, and these rows carry more than they show: an animal's uuid
-   * and name are set when it is dragged into the harness and are never typed,
-   * so a row rebuilt from its two inputs comes back nameless and bound to
-   * nothing. Every field the form does not name is taken from what the row
-   * already held.
-   *
-   * `named` is the set of input names the form actually carries, and it is
-   * what makes this work at all. By the time a submission arrives it has been
-   * cleaned against the schema, so every field the form omitted is ALREADY
-   * present at its default — an empty name, an empty uuid — and is
-   * indistinguishable from a field deliberately cleared. Overlaying the
-   * submitted row wholesale therefore restores nothing. Only the fields the
-   * form has an input for are taken; the rest stand as the row had them.
-   *
-   * Never fold this back into `normalize`: normalize turns a shape into
-   * another shape and knows nothing about the document, while this needs what
-   * is stored — and a merge that silently had no stored side would restore
-   * the same loss.
+   * Never fold this into `normalize`: that turns a shape into another shape
+   * and knows nothing about the document, while this needs the stored row.
    */
   static mergeSubmit(stored, submitted, named = null) {
     const data = VehicleData.normalize(submitted);

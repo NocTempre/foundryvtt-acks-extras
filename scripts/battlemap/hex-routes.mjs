@@ -1,22 +1,14 @@
 /* global game, canvas */
 /**
- * Where a scene's routes come from.
+ * Where a scene's routes come from. `hex-topology.mjs` is the pure model —
+ * nodes, links, hubs, cost; this is the half that knows about a scene:
+ * turning a click into a node, and answering what links the scene has.
  *
- * [hex-topology.mjs](./hex-topology.mjs) is the pure model — nodes, links,
- * hubs, cost. This is the half that knows about a scene: turning a click into a
- * node, and answering what links the scene has.
- *
- * **A road is DRAWN, and the links are derived from it.** A road is a wall
- * ([roads.mjs](./roads.mjs)) on any grid, and on a hex grid the crossings it
- * makes ARE the link set: nothing has to be declared twice, and a street
- * dragged into a new shape brings its links with it. Core's own snapping puts a
- * wall's ends on the hex vertices, side midpoints and centres that the topology
- * addresses, so the two models meet without either reimplementing the other.
- *
- * The older DECLARED links live on in a single scene flag and are read
- * alongside the derived ones, so a world part-way through a network keeps
- * working; `convertRoutesToWalls` retires them into walls. Nothing in the
- * module writes new ones.
+ * Roads are drawn as walls (`roads.mjs`); on a hex grid their crossings ARE
+ * the link set, derived rather than declared. The older DECLARED links live
+ * on in the `hexRoutes` scene flag, read alongside the derived ones so a
+ * part-converted world keeps working; `convertRoutesToWalls` retires them.
+ * Nothing here writes new declared links.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { isHexScene } from "./terrain-paint.mjs";
@@ -29,11 +21,9 @@ import { roadGraph, roadSegmentsOf, roadWallData } from "./roads.mjs";
 export const ROUTES_FLAG = "hexRoutes";
 
 /**
- * The links a Judge DECLARED on this scene with the retired node tool.
- *
- * Kept apart from the derived ones because this is what the writers read and
- * write back: a write over the union would freeze today's roads into the flag,
- * and the whole point of deriving them is that they follow the walls.
+ * The links a Judge DECLARED on this scene with the retired node tool. Kept
+ * apart from the derived ones — this is what the writers read and write
+ * back, and a write over the union would freeze today's roads into the flag.
  */
 export function declaredRoutesOf(scene) {
   const raw = scene?.getFlag?.(MODULE_ID, ROUTES_FLAG);
@@ -125,24 +115,12 @@ function hexCentre(scene, id) {
 }
 
 /**
- * Turn every declared link on this scene into a road wall.
- *
- * The Judge's way off the retired tool, and it is one press rather than a
- * migration: a link becomes a wall carrying the surface it was declared with.
- *
- * The winding a Judge TYPED is not carried across. It cannot be: winding is now
- * measured off the shape of the drawn line, and writing the old figure onto a
- * straight wall would make the two disagree the moment the wall is dragged.
- *
- * Drawn hex MIDDLE to hex middle, never between the link's own two ends: those
- * are the two halves of one shared boundary and sit at the same point, so a wall
- * between them would have no length. A line through both hexes is also the only
- * shape the derivation can re-read, so a converted link comes back as a derived
- * one and the network is unchanged by the press.
- *
- * A link that cannot be placed STAYS on the flag. Clearing the whole flag after
- * a partial conversion would destroy exactly the declarations the press failed
- * to carry.
+ * Turn every declared link on this scene into a road wall — one press, not
+ * a migration. Drawn hex MIDDLE to hex middle: the link's own two ends are
+ * one shared boundary and would make a zero-length wall, and a middle-to-
+ * middle line is also the only shape the derivation can re-read. The old
+ * typed winding is not carried across, since winding is now measured off
+ * the drawn shape. A link that cannot be placed stays on the flag.
  *
  * @returns {Promise<{made: number, skipped: number}|null>}
  */
@@ -249,10 +227,8 @@ export function areAdjacent(scene, fromOffset, toOffset) {
  */
 export function facingNodes(scene, fromOffset, toOffset) {
   if (!isHexScene(scene) || !fromOffset || !toOffset) return null;
-  // Adjacency is checked FIRST and against the grid's own neighbours. Any two
-  // hexes have a midpoint, so nudging toward it from far apart yields two
-  // perfectly valid nodes and a crossing that does not exist — and a link that
-  // happened to join them would price a teleport as a road.
+  // Checked first, against the grid's own neighbours — any two hexes have a
+  // midpoint, so skipping this would price a teleport as a road.
   if (!areAdjacent(scene, fromOffset, toOffset)) return null;
   const a = scene.grid.getCenterPoint(fromOffset);
   const b = scene.grid.getCenterPoint(toOffset);

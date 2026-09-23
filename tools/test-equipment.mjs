@@ -349,13 +349,8 @@ const dualLo = getLoadout(actor([weapon("Sword", { melee: true, id: "x" }), weap
 const dualChanges = buildLoadoutChanges(actor([], { flags: { styles: "dual" } }), dualLo);
 check("dual style → +1 melee attack in the loadout effect", dualChanges.some((c) => c.key === "system.thac0.mod.melee" && Number(c.value) === 1));
 
-// Phase 4 was the Paper Doll slot config; removed with the feature.
-
-// The shipped content packs retired: sample gear, the proficiency items and the
-// class-training chunks all came out when the module stopped shipping a library
-// of its own. What they demonstrated is exercised below against constructed
-// items instead — the overlays and the effect model are the mechanics, and they
-// never depended on a pack to be true.
+// The overlays and the effect model are the mechanics under test below,
+// exercised against constructed items rather than a shipped content pack.
 
 // --- Phase 5b: JJ shield-variant overlay -------------------------------------
 const shieldItem = (name, variant, strap = "hand") =>
@@ -968,10 +963,8 @@ SETTINGS_STATE.overlayNamed = false;
 
 
 // --- buildApi smoke test ------------------------------------------------------
-// v0.9.0-v0.12.0 shipped BROKEN: api.mjs exposed containerReport & co. that it
-// never imported, so buildApi() threw a ReferenceError at init and the whole
-// module died. node --check is syntax-only and nothing here called buildApi, so
-// it sailed through. Actually building the API is the guard.
+// Actually building the api is the guard: `node --check` is syntax-only, and a
+// name exposed but never imported throws only when buildApi() actually runs.
 // namespace.mjs registers the single module.api assignment on init; capture
 // the callbacks so the test can fire them the way Foundry would.
 const initCallbacks = [];
@@ -1106,8 +1099,9 @@ check("stowing worn gear takes it off first", stored?.["flags.acks-extras.gear.w
 const wornBlade = { ...gear("Sword", 6, { id: "swx", type: "weapon", equipped: true }), update: async (u) => { stored = u; } };
 check("stowing a wielded weapon clears core's own field", (await storeIn(withItems([pack, wornBlade]), wornBlade, pack)) === true && stored?.["system.equipped"] === false);
 
-// containerReport is now the whole feature's data path (the Container Manager
-// popout it used to feed is retired; the sheet renders this directly).
+// containerReport is the whole feature's data path; the sheet renders it
+// directly. See docs/equipment/DECISIONS.md, "The Container Manager popout
+// is retired".
 globalThis.game.user = { isGM: false };
 const report = containerReport(packed);
 check("containerReport lists the containers", report.length === 1);
@@ -1235,10 +1229,8 @@ check("the shoulders bucket is now reachable at all",
 // --- the two stores must not drift ------------------------------------------
 //
 // Core's own equip toggle writes `system.equipped` and knows nothing of the
-// slot flag, so an armour unequipped that way keeps a `wornAt` naming where it
-// used to sit. Read declaration-first, that bucketed it under BODY while the
-// loadout — which reads `equipped` — gave the character no AC: worn and
-// wielded became a list of things doing nothing.
+// slot flag, so an armour unequipped that way can still keep a `wornAt`
+// naming where it sat — a stale slot must not read as worn.
 const staleArmor = gear("Arena Armor, Heavy", 24, { type: "armor", id: "aa", equipped: false, wornAt: "body", slots: ["body"] });
 const drifted = withItems([staleArmor]);
 const dfLo = getLoadout(drifted);
@@ -1872,8 +1864,8 @@ await scavengeItem(scArmor, { roll: () => 13 }); // "Dented/rotting" → -1 AC, 
 check("scavenge stamps -1 AC on armour + records break flag", scArmor.system.aac.value === 5 && scArmor._flags.scavenged?.breaks === true);
 
 /* --- LAYERING: masterwork + scavenged must coexist and unwind cleanly ----- */
-// This is the bug the single-baseline model fixes: two layers each snapshotting
-// their own "base" meant clearing one restored the other's delta as if pristine.
+// A single baseline, never a per-layer snapshot: two layers snapshotting their
+// own "base" would let clearing one restore the other's delta as if pristine.
 const both = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0, weight6: 6 });
 await setMasterwork(both, "weaponBoth"); // +1 hit, +1 damage
 check("masterwork alone: +1 hit / 1d6 + 1", both.system.bonus === 1 && both.system.damage === "1d6 + 1");

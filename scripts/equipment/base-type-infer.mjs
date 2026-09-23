@@ -3,23 +3,10 @@ import { BASE_TYPE } from "./base-types.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /**
- * Guessing a base type from an item's NAME — the thing base types replace.
- *
- * Before the flag existed, a category was inferred: sixteen regexes deciding
- * whether a name is a garment and where it is worn, a profile table keyed by
- * normalised name deciding whether something is a container. That is what
- * `baseType` declares instead.
- *
- * This file is the compatibility path, and it is deliberately kept for now.
- * A world that predates the flag has thousands of items carrying no base type,
- * and dropping the guess in the release that introduces the flag would strip
- * every one of them of the slots and capacities they are currently being
- * granted by name. It retires once the migration has run and the importer sets
- * base types on what it materialises.
- *
- * It reads the SAME tables the rest of the feature reads. There is no second
- * copy of the patterns here, so nothing can drift between the guess and what
- * the guess is standing in for.
+ * Guessing a base type from an item's NAME, for a world that predates the
+ * `baseType` flag. See docs/equipment/MODEL.md, "Base types and variations".
+ * Reads the SAME tables the rest of the feature reads, so nothing can drift
+ * between the guess and what it stands in for.
  */
 
 /**

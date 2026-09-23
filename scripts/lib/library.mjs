@@ -1,27 +1,10 @@
 /* global game, console */
 /**
- * The imported library, wherever it lives.
- *
- * The importer subsystem materializes a world's books into WORLD COMPENDIUMS
- * — one pack per document type, labelled "ACKS Cookbook — <Type>". Everything
- * in this module that used to read `game.items` for a class, a race, a
- * proficiency or a language was reading the sidebar, which is now empty of
- * all of them: the class list rendered blank, `findByRef` answered null for
- * every imported ref, and chargen offered no proficiencies at all.
- *
- * THE SIDEBAR STILL COUNTS. A Judge's own homebrew class lives there, with the
- * template package it builds, and so does whatever an earlier release wrote
- * there. So a library read is world PLUS pack, in that order: what this seat
- * made itself wins over what it imported. Writing goes through
+ * The imported library, wherever it lives: a read is world sidebar PLUS every
+ * shelf, in that order, and it is SYNCHRONOUS because its callers are sheet
+ * getters and `_prepareContext` bodies that cannot await. See
+ * docs/lib/MODEL.md, "The imported library". Writing goes through
  * `library-target.mjs`, which opens the shelves this file reads.
- *
- * SYNCHRONOUS, because its callers are sheet getters and `_prepareContext`
- * bodies that cannot await. That is paid for by warming the packs once at
- * `ready`: `getDocuments()` instantiates them into the collection, Foundry
- * keeps that collection current as documents are created and deleted, and
- * every read afterwards is a plain filter over memory — the same cost the
- * `game.items` reads had. `whenReady()` is there for the callers that CAN
- * await and must not race a cold start.
  */
 import { MODULE_ID } from "./constants.mjs";
 
@@ -96,19 +79,9 @@ const worldCollection = (type) =>
 
 /**
  * Every shelf the importer has minted for a document type — every LINE of it.
- *
- * Matched on the label PREFIX, never on a whole label: a lined book is shelved
- * on its own pack (`ACKS Cookbook — Dolmenwood — Item`), so a reader that
- * demanded the unlined label answered for the ACKS books and reported every
- * other one absent. This reads back the writer's own shape — the importer keeps
- * the prefix on every shelf precisely so that one prefix finds them all.
- *
- * Found by label rather than by collection id, because the id is minted by
- * Foundry when the pack is created and differs between worlds.
- *
- * The unlined shelf sorts FIRST, so a lookup that has to choose between two
- * shelves holding the same name answers with the ACKS document rather than
- * with whichever pack Foundry happened to register first.
+ * Matched on the label PREFIX, never on a whole label (see docs/lib/MODEL.md,
+ * "The imported library"), and found by label rather than by collection id,
+ * because the id differs between worlds. The unlined shelf sorts FIRST.
  */
 export function libraryPacks(type) {
   const own = `${PACK_LABEL_PREFIX}${type}`;
@@ -129,15 +102,10 @@ export function libraryPacks(type) {
 }
 
 /**
- * Every pack the importer has minted in this world, with the LINE each holds.
- *
- * The inverse of the importer's `packLabel`, and it lives here because the
- * label prefix does: a pack's line is the segment between the prefix and the
- * document type, and the ACKS library has none — its label carries no line and
- * neither does its shelf. Read by the sidebar organizer
- * (`compendium-folders.mjs`), which files each pack under the line it holds
- * and cannot ask the importer, whose own `lineOf` answers for a book id rather
- * than for a pack that already exists.
+ * Every pack the importer has minted in this world, with the LINE each holds
+ * (the segment between the prefix and the document type; the ACKS library has
+ * none). Read by the sidebar organizer (`compendium-folders.mjs`), which files
+ * each pack under the line it holds.
  *
  * @returns {{pack: object, line: string|null, type: string}[]}
  */
@@ -195,14 +163,10 @@ export const whenReady = () => warmLibrary();
 
 /**
  * Every library document of a type — the sidebar's, then every shelf's.
- *
- * Synchronous by design (see the file header). A shelf that is still cold — the
- * importer created it after `ready`, or this is the first read of the session —
- * starts loading in the background and answers with what is in hand; sheets
- * re-render on the document creates that follow, so the next read is complete.
- * Anything that must not miss an imported document awaits `whenReady()` first —
- * and a caller that CANNOT re-render must, because for it "what is in hand"
- * never becomes complete.
+ * Synchronous by design (see the file header): a cold shelf starts loading in
+ * the background and answers with what is in hand. A caller that CANNOT
+ * re-render must await `whenReady()` first — see docs/lib/MODEL.md, "The
+ * imported library".
  */
 export function libraryDocs(type) {
   const docs = [...(worldCollection(type) ?? [])];
@@ -220,11 +184,9 @@ export const libraryItems = () => libraryDocs("Item");
 export const libraryActors = () => libraryDocs("Actor");
 
 /**
- * The library document carrying this importer cookbook id, or null.
- *
- * Skips the class-template parts: a skinned copy inherits the id of the
- * definition it was made from, so a plain id search finds one class's engraved
- * silver waterskin where the shared Waterskin was meant.
+ * The library document carrying this importer cookbook id, or null. Skips the
+ * class-template parts, which inherit the id of the definition they were made
+ * from.
  */
 export function byCookbookId(type, id) {
   if (!id) return null;
@@ -234,15 +196,11 @@ export function byCookbookId(type, id) {
 }
 
 /**
- * Warm at ready, so the first sheet render is already complete.
- *
- * Registered from the lib module's own ready hook rather than at module scope:
- * this file is imported by pure logic the offline suite exercises without a
- * Foundry global in sight, and a top-level `Hooks` call there is a ReferenceError
+ * Warm at ready, so the first sheet render is already complete. Registered
+ * from the lib module's own ready hook rather than at module scope: this file
+ * is imported by pure logic the offline suite exercises with no Foundry
+ * global in sight, and a top-level `Hooks` call there is a ReferenceError
  * before any test body runs.
- *
- * Core emits no hook when a compendium is created, so a pack the importer makes
- * later in the session is picked up by `libraryDocs`' own cold check instead.
  */
 export function registerLibraryWarm() {
   warmLibrary();

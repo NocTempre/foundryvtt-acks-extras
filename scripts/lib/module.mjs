@@ -269,19 +269,15 @@ const localImpl = Object.freeze({
   damageType,
 });
 
-// Core-deferral shim (ruling: acks-module-template docs/DECISIONS.md): if/when a surface is upstreamed into the
-// system, `game.acks.lib` provides it and consumers transparently defer. At
+// Core-deferral shim (acks-module-template docs/DECISIONS.md): if/when a surface
+// is upstreamed into the system, `game.acks.lib` provides it and consumers
+// transparently defer. Merged key-by-key, not replaced wholesale — core's
+// version of a name wins; everything core does not define stays local. At
 // module-evaluation time `game` is undefined, so this resolves to localImpl.
-//
-// MERGED, not replaced: the system may upstream ONE surface (it currently has
-// none) long before it has all of them, and swapping wholesale would take the
-// rest of this library away with it. Core's version of a name wins; everything
-// core does not define stays local.
 function resolveApi() {
   const fromCore = globalThis.game?.acks?.lib;
-  // The movement scales are this module's own vocabulary, not something core
-  // can supply, so they ride on every resolution rather than being merged in
-  // at one call site the init hook would then overwrite.
+  // Movement scales are this module's own vocabulary; re-merged on every
+  // resolution rather than once at init, so a later core merge cannot drop them.
   const withScales = (api) => Object.freeze({ ...api, movementScales });
   return fromCore ? withScales({ ...localImpl, ...fromCore }) : withScales(localImpl);
 }
@@ -292,21 +288,10 @@ Hooks.once("init", () => {
   const api = resolveApi();
   acksExtras.lib = api;
 
-  /*
-   * The sub-type data models register HERE, and never later.
-   *
-   * The system is not modified: this ADDS types alongside its own, declared in
-   * module.json `documentTypes` and given their models here.
-   *
-   * `Game#setupGame` builds every world Document — `initializeDocuments()` —
-   * BEFORE it fires the `setup` hook, and a Document whose sub-type has no
-   * registered model keeps its `system` as a plain Object for the life of the
-   * session. Nothing re-initializes it, so the actor never gains a schema and
-   * any sheet that reads one throws. Registering at `init` is the only phase
-   * that runs before the documents exist; Foundry's own module sub-type
-   * documentation prescribes it, and nothing between `init` and `ready`
-   * rewrites `CONFIG.Actor.dataModels`.
-   */
+  // The sub-type data models register HERE, never at `setup` — see
+  // docs/lib/DECISIONS.md, "2026-08-05 — Sub-type data models register at
+  // `init`, never at `setup`." A model missing when `initializeDocuments()`
+  // runs leaves the actor's `system` a plain Object for the session.
   CONFIG.Actor.dataModels[ANIMAL_TYPE] = AnimalData;
   CONFIG.Actor.dataModels[GROUP_TYPE] = GroupData;
   CONFIG.Actor.dataModels[TEMPLATE_TYPE] = TemplateData;
@@ -336,9 +321,9 @@ Hooks.once("init", () => {
     .loadTemplates([FOLLOWER_CARD_TEMPLATE, `modules/${MODULE_ID}/templates/lib/station-chip.hbs`])
     .catch((err) => console.warn(`${MODULE_ID} | lib template preload skipped`, err));
 
-  // The attack-roll core patch (patches/attack-roll.mjs). World-scoped so the
-  // whole table rolls one model; requiresReload because the method is patched
-  // once at ready.
+  // The attack-roll core patch (patches/attack-roll.mjs; docs/lib/DECISIONS.md,
+  // "2026-08-18 — One owner for the attack roll, and one seam for future
+  // modifiers"). requiresReload: the method is patched once at ready.
   game.settings.register(MODULE_ID, "attackRollPatch", {
     name: `${LANG_PREFIX}.settings.attackRollPatch.name`,
     hint: `${LANG_PREFIX}.settings.attackRollPatch.hint`,
@@ -349,11 +334,9 @@ Hooks.once("init", () => {
     requiresReload: true,
   });
 
-  // The Surprise Matrix's results on one card (patches/surprise-card.mjs).
-  // World-scoped: the card is a shared reading of the encounter, and half a
-  // table looking at a table of results while the other half scrolls a pile of
-  // one-liners is two different conversations. Read at click time, so it takes
-  // effect on the next encounter with no reload.
+  // The Surprise Matrix's results on one card (patches/surprise-card.mjs; docs/lib/DECISIONS.md,
+  // "2026-08-11 — Surprise results consolidate onto one card"). Read at click
+  // time, so toggling takes effect on the next encounter with no reload.
   game.settings.register(MODULE_ID, SETTING_SURPRISE_CARD, {
     name: `${LANG_PREFIX}.settings.surpriseCard.name`,
     hint: `${LANG_PREFIX}.settings.surpriseCard.hint`,
@@ -363,9 +346,9 @@ Hooks.once("init", () => {
     default: true,
   });
 
-  // A round's initiative on one card (patches/initiative-card.mjs). World-scoped
-  // and read per roll for the same reasons as the surprise card above: the order
-  // of battle is a shared reading, and the toggle takes effect on the next roll.
+  // A round's initiative on one card (patches/initiative-card.mjs; docs/lib/DECISIONS.md,
+  // "2026-08-24 — Initiative reuses the roll CARD, not an invented grouping").
+  // Read per roll, so the toggle takes effect on the next roll.
   game.settings.register(MODULE_ID, SETTING_INITIATIVE_CARD, {
     name: `${LANG_PREFIX}.settings.initiativeCard.name`,
     hint: `${LANG_PREFIX}.settings.initiativeCard.hint`,
@@ -375,11 +358,9 @@ Hooks.once("init", () => {
     default: true,
   });
 
-  // Token vision and light derived from the sheet (senses.mjs / light.mjs).
-  // World-scoped: what a creature can see is a table-wide fact, and half a
-  // table running with the system's stock 60' monster sight would see different
-  // things in the same corridor. Off restores nothing — tokens keep whatever
-  // they were last set to, which is the honest no-op.
+  // Token vision and light derived from the sheet (senses.mjs / light.mjs;
+  // docs/lib/MODEL.md's senses section). Off restores nothing — tokens keep
+  // whatever they were last set to.
   game.settings.register(MODULE_ID, SETTING_MANAGE_VISION, {
     name: `${LANG_PREFIX}.settings.manageVision.name`,
     hint: `${LANG_PREFIX}.settings.manageVision.hint`,
@@ -392,9 +373,8 @@ Hooks.once("init", () => {
   });
 
   // Whether this module may write to game.time (world-time.mjs). Registered
-  // here rather than in either feature that advances the clock: dungeon turns
-  // and the location sheet's week button spend the same shared resource, so one
-  // key answers for both and neither can drift a default the other reads.
+  // here, not in either feature that advances the clock — see docs/lib/DECISIONS.md,
+  // "The world clock has one owner, and it is lib (2026-08-04)".
   game.settings.register(MODULE_ID, SETTING_ADVANCE_WORLD_TIME, {
     name: `${LANG_PREFIX}.settings.advanceWorldTime.name`,
     hint: `${LANG_PREFIX}.settings.advanceWorldTime.hint`,
@@ -404,15 +384,13 @@ Hooks.once("init", () => {
     default: true,
   });
 
-  // What happens to goods stored at a place when that place is deleted. A
-  // FALLBACK, not a rule: returning them keeps a GM tidying the actor directory
-  // from wiping the party's belongings, but a campaign where a sacked city
-  // really does take your warehouse with it sets "lose".
   // Polyglot reads what a character speaks off the system's own language items
   // and needs nothing from us; this only tells it about the tongues a world
   // imported from its own books (polyglot.mjs).
   installPolyglotBridge();
 
+  // What happens to goods stored at a place when that place is deleted
+  // (docs/lib/API.md's storage section): a fallback default, not a rule.
   game.settings.register(MODULE_ID, DELETE_POLICY_SETTING, {
     name: `${LANG_PREFIX}.settings.storageDeletePolicy.name`,
     hint: `${LANG_PREFIX}.settings.storageDeletePolicy.hint`,
@@ -427,20 +405,17 @@ Hooks.once("init", () => {
   });
 
   // WHOSE DEFAULTS the world opens on — Foundry's, the system's or this
-  // module's — for every seat (ui-preset.mjs). It is the world half of `look`
-  // below and the default-sheet ladder in one setting. The ladder runs from a
-  // ready hook registered HERE, during init: every ready-time sheet
-  // registration in this module was queued at import time, so a hook queued
-  // now lands after all of them. The prompt follows, once per world.
+  // module's — for every seat (ui-preset.mjs; docs/lib/MODEL.md's UI preset
+  // section). Registered here, during init, so the ladder's ready hook lands
+  // after every other feature's own ready-time sheet registration.
   registerUiPresetSettings({ onLookChange: applyLook });
   Hooks.once("ready", () => {
     refreshSheetDefaults();
     promptUiPreset().catch((err) => console.error(`${MODULE_ID} | the UI preset prompt failed`, err));
   });
 
-  // WHICH PALETTE the ACKS surfaces draw in. Foundry's own colour scheme is the
-  // default source of truth; this only exists so a player can hold the ACKS look
-  // steady while the rest of their client goes the other way.
+  // Which palette the ACKS surfaces draw in; stands down under `look: core`.
+  // See docs/lib/MODEL.md's client-settings section.
   game.settings.register(MODULE_ID, "theme", {
     name: `${LANG_PREFIX}.settings.theme.name`,
     hint: `${LANG_PREFIX}.settings.theme.hint`,
@@ -456,25 +431,10 @@ Hooks.once("init", () => {
     onChange: (mode) => applyTheme(mode),
   });
 
-  // WHOSE LOOK the family draws in at all. `book` is the ACKS design system —
-  // burgundy, Cinzel, letterpress-flat. `core` hands every token back to
-  // Foundry's own variables, so the module's surfaces draw in whatever palette
-  // and faces the client is already using.
-  //
-  // This is the OUTER of the two look settings and it governs the other: with
-  // `core` chosen there is no ACKS palette on any surface, so `sheetStyle` —
-  // which only ever chose how much of that palette core's sheets took — has
-  // nothing left to decide and is not consulted.
-  //
-  // Deliberately NOT a colour scheme. The seat's light/dark under `core` is
-  // Foundry's own, because the tokens now resolve to Foundry's theme-aware
-  // variables; that is the whole point of handing them over, and it is why
-  // `theme` stands down alongside `sheetStyle` (see applyTheme).
-  //
-  // `world`, the default, defers to the world's UI preset: a seat that never
-  // touched this draws what the Judge chose for the table, and `effectiveLook`
-  // is the one reader that resolves it. A stored `book` or `core` is a
-  // player's own override and stands whatever the preset says.
+  // Whose look the family draws in at all — the outer of the two look
+  // settings, governing `sheetStyle` and `theme` below it. `world` (default)
+  // defers to the world's UI preset via `effectiveLook()`. See docs/lib/MODEL.md's
+  // client-settings section.
   game.settings.register(MODULE_ID, "look", {
     name: `${LANG_PREFIX}.settings.look.name`,
     hint: `${LANG_PREFIX}.settings.look.hint`,
@@ -490,10 +450,8 @@ Hooks.once("init", () => {
     onChange: () => applyLook(),
   });
 
-  // HOW MUCH of the ACKS look the SYSTEM's own windows take. Not whether they
-  // follow your colour scheme — both settings carry the same palette, so a dark
-  // seat is dark either way. Full dress restyles the furniture too and needs a
-  // wider sheet for it; palette keeps core's own layout and width.
+  // How much of the ACKS look the SYSTEM's own windows take (both carry the
+  // same palette). See docs/lib/MODEL.md's client-settings section.
   game.settings.register(MODULE_ID, "sheetStyle", {
     name: `${LANG_PREFIX}.settings.sheetStyle.name`,
     hint: `${LANG_PREFIX}.settings.sheetStyle.hint`,
@@ -508,12 +466,9 @@ Hooks.once("init", () => {
     onChange: () => applyLook(),
   });
 
-  // THE font knob. Every ACKS surface (follower card, module apps, and — with
-  // the theme on — the system sheets) derives its sizes from --acks-fs-base via
-  // the token scale, so one inline declaration on the root element resizes the
-  // family. Inline style outranks the :root rule; 14 matches the token default,
-  // so at 14 the property is REMOVED and the stylesheet value rules (a fresh
-  // client is byte-identical to no-setting). Foundry's UI scale compounds on top.
+  // The font knob, driving --acks-fs-base (docs/lib/MODEL.md's client-settings
+  // section). At 14 (the token default) the inline property is removed rather
+  // than written, so a fresh client is byte-identical to no-setting.
   game.settings.register(MODULE_ID, "fontScale", {
     name: `${LANG_PREFIX}.settings.fontScale.name`,
     hint: `${LANG_PREFIX}.settings.fontScale.hint`,
@@ -530,29 +485,21 @@ Hooks.once("init", () => {
 /**
  * Which classes an application root should be wearing right now.
  *
- * One answer for both the render hook and the re-dress sweep, so a window that
- * was already open when a setting changed cannot end up dressed differently
- * from one opened a moment later.
- *
- * Under the `core` look NOTHING is worn, and that is not merely cosmetic
- * restraint: `.acks-ui`/`.acks-palette` point Foundry's variables at the ACKS
- * tokens, while the `core` look points the ACKS tokens at Foundry's variables.
- * Both at once is a var() cycle, which resolves to the guaranteed-invalid value
- * and silently unsets every property downstream of it. The classes come off in
- * the same pass that sets the attribute — never one without the other.
+ * One answer for both the render hook and the re-dress sweep, so a window
+ * already open when a setting changes cannot end up dressed differently from
+ * one opened a moment later. Under the `core` look, nothing is worn — see
+ * docs/lib/MODEL.md's look section for why `core` and the dress classes must
+ * never both hold.
  *
  * @param {boolean} owned whether the application DECLARED itself an ACKS surface.
  * @returns {{ui: boolean, palette: boolean}} which of the two dress classes belong on the root.
  */
 function dressFor(owned) {
   if (effectiveLook() === "core") return { ui: false, palette: false };
-  // A window this module DECLARED as an ACKS surface always wears the full
-  // dress: `sheetStyle` governs how much of the look the SYSTEM's windows take,
-  // and five of this module's own sheets extend a core sheet and therefore
-  // inherit `acks`/`acks2` into their class list, so the class list alone
-  // cannot tell the two apart. The declared options can — `options.classes` is
-  // computed once at construction and is never touched by the classList writes
-  // below.
+  // A DECLARED surface always wears the full dress: several of this module's
+  // own sheets extend a core sheet and inherit `acks`/`acks2` into their class
+  // list, so `options.classes` (set once at construction) is the only signal
+  // the class list itself cannot fake.
   if (owned) return { ui: true, palette: false };
   const style = game.settings.get(MODULE_ID, "sheetStyle");
   return { ui: style === "full", palette: style === "palette" };
@@ -560,17 +507,10 @@ function dressFor(owned) {
 
 /**
  * Apply the `look` / `sheetStyle` pair to the whole client, including windows
- * that are already open.
- *
- * The classes are applied on render, so without the sweep a setting change
- * appears to do nothing until each window is closed and reopened. Swapping them
- * in place is enough — they are pure CSS hooks, and the min-width the full dress
- * needs is a stylesheet rule, not a stored position.
- *
- * The `core` look additionally withholds `body.acks-lib-sheet-theme`, which is
- * the only vehicle by which this module dresses surfaces that are not
- * application roots at all — core's chat cards, and every window header in the
- * client.
+ * already open — otherwise a setting change appears to do nothing until each
+ * window is closed and reopened. The `core` look also withholds
+ * `body.acks-lib-sheet-theme`, the only vehicle for surfaces that are not
+ * application roots (core's chat cards, every window header).
  */
 function applyLook() {
   const core = effectiveLook() === "core";
@@ -590,39 +530,17 @@ function applyLook() {
   }
 }
 
-/**
- * Pin the ACKS palette from the `theme` setting, or release it to Foundry.
- *
- * `follow` REMOVES the attribute rather than writing a value: with nothing
- * pinned, the token file's dark block tracks Foundry's own `.theme-dark`
- * wherever it lands — on <body>, or on an individual application root when the
- * client's `colorScheme.applications` differs from `colorScheme.interface`.
- *
- * The pin lands on <html>, NOT <body>, for the reason applyFontScale documents
- * below and for one more: forcing LIGHT works by *withholding* the dark block
- * from the pinned element and its whole subtree (see the `:not()` guards in
- * tokens.css), so the pin has to sit above every element Foundry might mark
- * dark. A pin on <body> would not cover a per-application `.theme-dark`, which
- * sits deeper.
- */
+/** Pin the ACKS palette from the `theme` setting, or release it to Foundry. */
 function applyTheme(mode) {
   applyRootPin(mode);
 }
 
 /**
- * Write (or clear) the `data-acks-theme` pin on <html>.
- *
- * Split out from applyTheme so applyLook can re-run it without the two calling
- * each other — the `core` look has to be able to drop a pin that `book` had set,
- * and a cycle between the two appliers is the easy way to get that wrong.
- *
- * THE PIN STANDS DOWN UNDER THE `core` LOOK, and it must. Under `core` the ACKS
- * tokens resolve to Foundry's own theme-aware variables, so the seat's light and
- * dark are Foundry's to decide; a pin here could only put the ACKS palette back
- * underneath the host's, which is the entire thing `core` exists to stop. It is
- * also what keeps ground and ink chosen by ONE authority inside a window this
- * module no longer dresses — the split authority is what the previous opt-out
- * foundered on.
+ * Write (or clear) the `data-acks-theme` pin on <html>, never <body> — see
+ * docs/lib/MODEL.md's client-settings section for why the element matters.
+ * Split out from applyTheme so applyLook can re-run it without the two
+ * calling each other. Stands down under the `core` look, which resolves the
+ * ACKS tokens to Foundry's own theme-aware variables.
  */
 function applyRootPin(mode) {
   const root = document.documentElement;
@@ -632,36 +550,10 @@ function applyRootPin(mode) {
 }
 
 /**
- * Mark every ACKS surface the SYSTEM renders as an ACKS surface.
- *
- * The design system is scoped to `.acks-ui` on an application root, and the
- * module's own windows declare it in their `classes`. Core's windows cannot —
- * so without this the family renders two ways: module windows in the ACKS
- * frame, the system's character sheet, item sheet, Mortal Wounds, Stat
- * Generator, Surprise Matrix and Party Overview in Foundry's default chrome.
- *
- * The class carries the design system's REMAP of Foundry's own custom
- * properties, which is the load-bearing part. The `acks` system publishes no
- * dark palette at all — its stylesheet has zero `.theme-dark` rules and its
- * sheet ground is a fixed light parchment image — so on a dark seat its widgets
- * would otherwise draw light-theme values under themed module regions injected
- * into the same sheet. Remapping at the root is what makes one window one
- * colour scheme.
- *
- * WHICH class is the `sheetStyle` setting. `acks-ui` is the full dress —
- * banners, tabs, ACKS controls; the roomier fields mean core's own sheets need
- * ~90px more than core's default width asks for, which the min-width in
- * styles/lib-sheet-theme.css supplies. `acks-palette` is the colours alone, so
- * core keeps its own field metrics and its own width.
- *
- * The setting is how much ACKS, never whether the seat works: both classes
- * carry the same light/dark remap, so a palette-only sheet follows a dark seat
- * exactly as a fully-dressed one does.
- *
- * `renderApplicationV2` reaches every ApplicationV2: core fires render hooks for
- * each class in the inheritance chain, not just the concrete one.
- *
- * `acks2` is included because the system's dialogs carry it without `acks`.
+ * Mark every ACKS surface the SYSTEM renders as an ACKS surface, so the
+ * system's own sheets and dialogs take the same colour remap as this
+ * module's windows (docs/lib/MODEL.md's theming section). `acks2` is included
+ * because the system's dialogs carry it without `acks`.
  */
 Hooks.on("renderApplicationV2", (app, element) => {
   const root = element instanceof HTMLElement ? element : element?.[0];
@@ -692,13 +584,10 @@ Hooks.on("renderApplicationV2", (app, element) => {
 });
 
 /**
- * Drive --acks-fs-base (the family-wide type knob) from the fontScale setting.
- * At the token default (14) the inline property is REMOVED so the stylesheet
- * value governs. The pin lands on <html>, NOT <body>, and that is load-bearing:
- * the --acks-fs-* scale steps are declared at :root and custom properties
- * inherit as ALREADY-SUBSTITUTED values, so a base set on <body> would never
- * reach steps whose substitution ran at <html> (verified live — the token
- * file's dark block documents the same physics for the colour tokens).
+ * Drive --acks-fs-base (the family-wide type knob) from the fontScale
+ * setting. At the token default (14) the inline property is removed so the
+ * stylesheet value governs. The pin lands on <html>, never <body> — see
+ * docs/lib/MODEL.md's client-settings section for why the element matters.
  */
 function applyFontScale(px) {
   const n = Number(px);
@@ -707,26 +596,13 @@ function applyFontScale(px) {
 }
 
 /**
- * Give animals the SYSTEM'S OWN monster sheet.
- *
- * This library ships no sheet, and should not: an animal is a monster you can
- * also buy, its schema mirrors the monster's field paths for exactly that
- * reason, and a second sheet rendering the same fields would be a second thing
- * to keep in step. So the system's monster sheet is registered for the animal
- * type as well.
- *
- * This is the FLOOR, not the final answer: monsters/module.mjs registers the
- * Full Monster sheet for `animal` too, later in the same hook, and takes the
- * default over. Registering here regardless is what guarantees an animal always
- * has a working sheet even when that sheet cannot be built.
- *
- * At READY, not init: Foundry defers every registerSheet call made before
- * `game.ready` into a pending queue, so `CONFIG.Actor.sheetClasses` is empty
- * during init and the system's sheet cannot be resolved yet. Same reason
- * acks-abilities resolves its base class here.
- *
- * If it cannot be found, the animal type simply has no sheet rather than the
- * world failing to load — and the console says which.
+ * Give animals the system's own monster sheet — this library ships no sheet
+ * of its own, since the animal schema mirrors the monster's field paths. A
+ * floor, not the final answer: monsters/module.mjs registers the Full
+ * Monster sheet for `animal` too, later in the same hook, and takes the
+ * default over. Registered at ready, not init, because `CONFIG.Actor.sheetClasses`
+ * is empty until then. A lookup that fails leaves the type with no sheet
+ * rather than failing the world, and the console says which.
  */
 Hooks.once("ready", () => {
   // Load the importer's packs, so the synchronous library reads every sheet
@@ -741,76 +617,50 @@ Hooks.once("ready", () => {
     console.error(`${MODULE_ID} | filing the ACKS compendiums failed`, err),
   );
 
-  // An animal's training, mountability and load live in this library's own
-  // subtree, which the system's monster sheet does not render — the panel is
-  // the surface a Judge types them on and an import's values show up in.
-
-  // The body class is a toggle again, owned by `look`: it is the marker that
-  // says "ACKS surfaces are themed", and under the `core` look they are not.
-  // It stays a class rather than becoming a bare selector because it is also
-  // what lets these rules out-specify the system's own — the system paints
-  // EVERY window header in the client from an unscoped `.window-header` and
-  // `.application .window-header` pair, and the body class is how the override
-  // clears them.
+  // `body.acks-lib-sheet-theme` is the marker that ACKS surfaces are themed
+  // (docs/lib/MODEL.md's theming section); it stays a class so these rules
+  // out-specify the system's own unscoped window-header selectors.
   applyLook();
   applyFontScale(game.settings.get(MODULE_ID, "fontScale"));
 
-  // Bind every caption in every rendered window to the control it fronts — this
-  // module's windows, the system's sheets, and Foundry's own configuration
-  // windows alike. The defect does not stop at the module boundary and neither
-  // does the repair; a11y.mjs states what it will and will not touch.
-  //
-  // Registered at READY, not at import: `renderApplicationV2` handlers fire in
-  // registration order, every feature injector registers its own at import
-  // time, and lib is imported first — so registering here is what puts this
-  // last and lets it see the DOM the injectors added. The surfaces that still
-  // land after it (the async injectors) call `associateLabels` themselves.
+  // Bind every caption in every rendered window to the control it fronts —
+  // this module's windows, the system's sheets, and Foundry's own config
+  // windows alike (docs/lib/MODEL.md's label-association section covers the
+  // ready-vs-import registration order this relies on).
   Hooks.on("renderApplicationV2", (app, element) => associateLabels(element, { seed: app.id }));
 
   if (game.system?.id !== "acks") return;
 
-  // Own the attack roll (throw = target, bonuses = auditable stack) unless the
-  // world opted out. At ready: the system's Actor class is final here.
-  //
-  // The install itself is UNCONDITIONAL: it also hosts the composition chain
-  // other features register into (`wrapRollAttack`), and that chain has no other
-  // reader — skipping the install would silently kill acks-equipment's
-  // per-weapon RAW modifiers and ammunition spend along with the model. Never
-  // gate it on this setting; the setting only chooses whose roll runs innermost.
-  //
-  // The display patch DOES follow the setting: it supersedes the core sheet's
-  // folded Melee/Ranged boxes so the wrong number is unreachable, which only
-  // holds while the model is the one rolling.
+  // Own the attack roll (throw = target, bonuses = auditable stack); see
+  // docs/lib/DECISIONS.md, "2026-08-18 — One owner for the attack roll, and
+  // one seam for future modifiers". At ready: the system's Actor class is
+  // final here.
   const useAttackModel = game.settings.get(MODULE_ID, "attackRollPatch");
   installAttackRollPatch(useAttackModel);
   if (useAttackModel) installAttackDisplayPatch();
 
-  // The consolidated surprise card. Installed UNCONDITIONALLY — the wrapper
-  // reads its own setting per click and defers to core's handler when off, so
-  // the toggle needs no reload and nothing is intercepted while it is off.
+  // The consolidated surprise card; see docs/lib/DECISIONS.md, "2026-08-11 —
+  // Surprise results consolidate onto one card".
   installSurpriseCardPatch();
 
-  // The consolidated initiative card, on the same terms: the wrapper reads its
-  // setting per roll and calls core untouched when off.
+  // The consolidated initiative card; see docs/lib/DECISIONS.md, "2026-08-24
+  // — Initiative reuses the roll CARD, not an invented grouping".
   installInitiativeCardPatch();
 
-  // The round counter's guard against a combatant whose actor was deleted.
-  // Unconditional: it repairs a throw in core's nextRound, and there is no
-  // state in which the unguarded read is the wanted one.
+  // The round counter's guard against a combatant whose actor was deleted;
+  // see docs/lib/DECISIONS.md, "2026-09-07 — extras guards the system's
+  // round counter, and the guard is scoped to core's synchronous prefix".
   installCombatRoundPatch();
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
   const entries = Object.values(registered);
   const defaulted = entries.find((e) => e.default) ?? null;
   const MonsterSheet = defaulted?.cls ?? entries[0]?.cls ?? null;
-  // A failed monster-sheet lookup costs the ANIMAL alias its sheet and nothing
-  // more — never a return out of the whole ready hook, which would also drop
-  // the unrelated sheet registrations and one-time sweeps below.
+  // A failed lookup costs only the ANIMAL_TYPE alias its sheet; the rest of
+  // this hook's registrations and sweeps still run.
   if (!MonsterSheet) {
     console.warn(`${MODULE_ID} | could not resolve the acks monster sheet; ${ANIMAL_TYPE} has no sheet.`);
   } else {
-    // Registry order is not a choice: when several entries compete and none is
-    // flagged default, name the class adopted so a wrong alias sheet is
-    // diagnosable from the console. A lone entry is unambiguous and stays quiet.
+    // Named so an ambiguous pick (no entry flagged default) is diagnosable.
     if (!defaulted && entries.length > 1) {
       console.warn(`${MODULE_ID} | no monster sheet is flagged default; ${ANIMAL_TYPE} adopts ${MonsterSheet.name} by registry order.`);
     }
@@ -840,20 +690,18 @@ Hooks.once("ready", () => {
   });
   console.log(`${MODULE_ID} | ${TEMPLATE_TYPE} sheet registered.`);
 
-  // The Follower Card for a CHARACTER is an alternative, never the default — a PC
-  // keeps their own sheet. It becomes the per-instance default for retainers via
-  // flags.core.sheetClass (below).
+  // The Follower Card for a CHARACTER is an alternative, never the type
+  // default — a PC keeps their own sheet. It becomes the per-instance default
+  // for retainers via flags.core.sheetClass (see the hooks below).
   foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, FollowerCardSheet, {
     types: ["character"],
     makeDefault: false,
     label: "ACKS-LIB.sheet.follower",
   });
 
-  // For a MONSTER it is the default, and the extended block is what opens behind
-  // it. A monster is met before it is read up on: what a table needs on the first
-  // click is the half-page you fight from, not the whole entry. `makeDefault`
-  // decides only where an actor with NO recorded choice lands, so this changes no
-  // stored document and leaves every hand-picked sheet alone.
+  // For a MONSTER it is the type default, and the extended block opens behind
+  // it. `makeDefault` decides only where an actor with no recorded choice
+  // lands, so this changes no stored document.
   foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, FollowerCardSheet, {
     types: ["monster"],
     makeDefault: true,
@@ -861,15 +709,10 @@ Hooks.once("ready", () => {
   });
   console.log(`${MODULE_ID} | FollowerCardSheet registered (character; default for monster).`);
 
-  // One-time GM sweep: a world that already ran this module carries THIS MODULE'S
-  // OWN former default pinned in `core.sheetClasses`, and a stored choice outranks
-  // any later registration — so `makeDefault` above moves a NEW world to the card
-  // and leaves every existing one opening the full sheet forever.
-  //
-  // Rewrite only that one exact string, the value our past registration wrote. A
-  // GM who has since picked the system's sheet, or the card, holds a different
-  // value and is left alone; and the rewritten value no longer matches, so this
-  // cannot fire twice. Reversible from the sheet's own configuration in one click.
+  // One-time GM sweep, migrating a world's OWN former default (see
+  // docs/lib/DECISIONS.md, "The monster type default migrates its own former
+  // pin, once (2026-09-22)"). Rewrites only the one exact string this
+  // module's own past registration wrote.
   if (game.user.isGM) {
     const stored = game.settings.get("core", "sheetClasses") ?? {};
     if (stored?.Actor?.monster === `${MODULE_ID}.FullMonsterSheet`) {
@@ -882,9 +725,8 @@ Hooks.once("ready", () => {
     }
   }
 
-  // One-time GM sweep: existing retainers with no explicit sheet choice adopt the
-  // card. Idempotent (only actors missing flags.core.sheetClass); never clobbers a
-  // hand-picked sheet.
+  // One-time GM sweep: existing retainers with no explicit sheet choice adopt
+  // the card (docs/lib/FOLLOWER-CARD.md's "Default-for-retainers" section).
   if (game.user.isGM) {
     const updates = game.actors
       .filter((a) => FOLLOWER_TYPES.has(a.type) && a.system?.retainer?.enabled && !a.getFlag("core", "sheetClass"))
@@ -895,24 +737,13 @@ Hooks.once("ready", () => {
   }
 });
 
-/* Retainers default to the Follower Card. Keyed on the core retainer flag so it
- * covers character AND monster hirelings without depending on acks-henchmen; only
- * ever SET (never clobbers a manual sheet choice), and never auto-reverts on
- * dismiss. preCreate catches actors born as retainers; updateActor catches a plain
- * actor flipped into service (drop-as-henchman, hires that set the flag). */
 /* -------------------------------------------- */
 /*  Token senses & light                        */
 /* -------------------------------------------- */
 
-/*
- * A creature's sight follows its sheet, so every route that can change what it
- * perceives re-derives the token: placing it, gaining or losing the ability or
- * effect that grants dark sight, and lighting or dousing what it carries.
- *
- * All of these run on the primary GM alone (`syncActorTokens` enforces it) —
- * token updates are GM writes, and five clients racing to make the same one is
- * how duplicate-write bugs start.
- */
+// A creature's sight follows its sheet, so every route that can change what
+// it perceives re-derives the token. `syncActorTokens` enforces the primary
+// GM alone, since token updates are GM writes.
 Hooks.on("createToken", (tokenDoc) => {
   if (game.system?.id !== "acks" || !isPrimaryGM()) return;
   syncTokenFromActor(tokenDoc).catch((err) => console.error(`${MODULE_ID} | token sense sync failed`, err));
@@ -933,15 +764,10 @@ for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEff
   });
 }
 
-/*
- * A stat block edited on the Full Monster Sheet changes the creature's vision
- * modes, so the flag write has to re-derive too.
- *
- * Flags ONLY, deliberately: nothing in the sense or light derivation reads
- * `system`, and matching on it would rescan every scene's tokens on every hit
- * point lost — a full sweep per damage roll, for an answer that cannot have
- * changed.
- */
+// A stat block edited on the Full Monster Sheet changes the creature's vision
+// modes too. Matches on `flags.${MODULE_ID}` only, never `system` — see
+// docs/lib/DECISIONS.md, "A sense-and-light re-derive matches on its own flag,
+// never on `system` (2026-09-22)".
 Hooks.on("updateActor", (actor, changes) => {
   if (game.system?.id !== "acks") return;
   if (!foundry.utils.hasProperty(changes, `flags.${MODULE_ID}`)) return;
@@ -954,16 +780,9 @@ Hooks.on("canvasReady", (canvas) => {
   syncSceneTokens(canvas?.scene).catch((err) => console.error(`${MODULE_ID} | scene sense sync failed`, err));
 });
 
-/*
- * Night Vision is the one sense whose reach is not a property of the creature:
- * it is twice the range of a light burning nearby, which somebody else lit and
- * somebody else carries. Nothing on the sheet moves when that torch does, so
- * none of the hooks above can see it — these watch the light instead.
- *
- * Debounced, and narrowed to the night-vision cast, because the trigger is
- * every light and every step: a lit torch crossing a room fires `updateToken`
- * on each square of the walk.
- */
+// Night Vision's reach depends on a light nobody's sheet tracks, so these
+// hooks watch the light instead (docs/lib/MODEL.md's senses section covers
+// why this is debounced and narrowed to the night-vision cast).
 const relightNightVision = foundry.utils.debounce((scene) => {
   syncNightVisionTokens(scene).catch((err) => console.error(`${MODULE_ID} | night vision sync failed`, err));
 }, 250);
@@ -977,16 +796,18 @@ for (const hook of ["createAmbientLight", "updateAmbientLight", "deleteAmbientLi
 
 Hooks.on("updateToken", (tokenDoc, changes) => {
   if (game.system?.id !== "acks") return;
-  // Only a MOVE, a change of what the token is burning, or its appearing and
-  // vanishing can change who is standing in light; every other update is left
-  // alone. The sync's own light writes DO land here, and should — a torch that
-  // just came alight changes who can see. That settles rather than loops: the
-  // second pass finds every delta already satisfied and writes nothing, so no
-  // further update is emitted.
+  // Only a move, a light change, or hidden toggling can change who stands in
+  // light. The sync's own light writes land here too and should — but they
+  // settle rather than loop, since the next pass finds every delta already
+  // satisfied.
   if (!("x" in changes || "y" in changes || "light" in changes || "hidden" in changes)) return;
   relightNightVision(tokenDoc?.parent);
 });
 
+// Retainers default to the Follower Card, keyed on the core retainer flag
+// (docs/lib/FOLLOWER-CARD.md's "Default-for-retainers" section). preCreate
+// catches actors born as retainers; updateActor below catches a plain actor
+// flipped into service.
 Hooks.on("preCreateActor", (doc, data) => {
   if (game.system?.id !== "acks") return;
   if (!FOLLOWER_TYPES.has(doc.type)) return;

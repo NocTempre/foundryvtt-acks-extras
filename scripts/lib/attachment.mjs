@@ -1,22 +1,14 @@
 /* global game, Hooks */
 /**
- * One actor attached to another, in a stated role.
+ * One actor attached to another, in a stated role — a rider, a passenger, a
+ * draft animal in harness, a rower, cargo lashed on. Modelled once here
+ * rather than per feature. See docs/lib/MODEL.md, "Carrying: mounts, teams
+ * and everything aboard".
  *
- * A rider on a horse, a passenger in a wagon, an ox in the traces, a rower at
- * the bench, a canoe lashed to a cart — the same relationship wearing five
- * hats, modelled once here rather than five times across two features.
- * Everything that follows from being attached (whose weight counts against
- * what, whose legs stop setting the party's pace, what happens when the
- * carrier is deleted) is answered in one place and cannot drift apart.
- *
- * THE BINDING IS A FLAG ON THE ATTACHED ACTOR naming its carrier, never a
- * roster on the carrier naming its passengers. One writer per fact: an actor
- * can only be attached to one thing at a time, a carrier deleted out from
- * under them leaves a dangling uuid that reads as "not attached" rather than a
- * roster pointing at a ghost, and no two lists can disagree about who is
- * aboard. One flag per actor also makes the attachments a FOREST by
- * construction — a rider on a horse harnessed to a wagon is a chain, never a
- * web — which is what lets `carrierChain` walk it and `attach` refuse a cycle.
+ * The binding is a flag on the ATTACHED actor naming its carrier, never a
+ * roster on the carrier: one writer per fact, and one flag per actor makes
+ * the attachments a forest by construction, which is what lets
+ * `carrierChain` walk it and `attach` refuse a cycle.
  *
  * The flag carries `{uuid, role, station, kind}`:
  *  - `role` is the PHYSICS — which of ATTACH_ROLES applies, deciding weight
@@ -38,11 +30,8 @@ export const ATTACH_FLAG = "attachedTo";
  * The five ways one actor rides on, in, or ahead of another.
  *
  * `bearsWeight` says whether the attached actor's mass counts against the
- * carrier's load — a passenger in the hold does, a horse in the traces
- * obviously does not, and crew are explicitly free of a vessel's cargo (RR
- * ch. 7: "Crew do not count against a vessel's cargo capacity"). `cargo` is
- * for actor-shaped freight — a boat on a wagon, a disassembled engine — which
- * weighs like cargo because it IS cargo.
+ * carrier's load; crew are the stated exception (RR ch. 7). `cargo` is for
+ * actor-shaped freight, which weighs like cargo because it is cargo.
  *
  * `setsPace` says whether the carrier's speed replaces the attached actor's
  * when a party reckons its slowest member.
@@ -115,12 +104,10 @@ export function isAttached(actor, role = null) {
 
 /**
  * carrier uuid → Set of attached actor ids. The flag on the attached actor
- * remains the only truth: every index hit is re-verified against it before it
- * is returned, so a stale index costs a wasted lookup, never a wrong answer.
- * Invalidated whole on any actor create/delete or any update touching the
- * flag; rebuilt lazily on the next read. Without it, `riderOf` inside a
- * per-actor loop (capacity sums, follower cards) is a full world scan per
- * call.
+ * remains the only truth — every index hit is re-verified against it, so a
+ * stale index costs a wasted lookup, never a wrong answer. Invalidated whole
+ * on any actor create/delete or any update touching the flag; rebuilt lazily
+ * on the next read.
  */
 let index = null;
 
@@ -230,8 +217,7 @@ export async function detachAll(carrier, role = null) {
 /**
  * The arrangement, as a plain record — who was attached to what, in which
  * role, at which station. Stored so it can be put back exactly (see
- * `restoreArrangement`), which is what makes unloading a wagon at a ford and
- * reloading it afterwards a two-click operation rather than twelve.
+ * `restoreArrangement`).
  */
 export function snapshotArrangement(actors = null) {
   const pool = actors ?? game.actors ?? [];

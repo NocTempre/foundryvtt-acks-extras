@@ -93,14 +93,13 @@ export const WEAPONS = Object.freeze({
   spear: { size: SIZE.MEDIUM, melee: true, thrown: true, damage: "1d6", damage2h: "1d8", type: "piercing", cat: WEAPON_CATEGORY.SPEAR_POLEARM, special: ["impact", "long", "thrown"] },
   // Other weapons
   bola: { size: SIZE.SMALL, missile: true, thrown: true, damage: "1d2", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["entangling", "thrown"] },
-  // Military (burning) oil: 1d8 direct + 1d8 next round, 1d3 splash (RR p297).
-  // RR p298: oil/holy water/torches "do not gain a bonus to damage from high
-  // STR, class, Backstabbing, or any similar effect" → noDamageBonus.
+  // Military (burning) oil: direct plus splash damage over rounds (RR p.297);
+  // no STR/class/Backstabbing damage bonus (RR p.298) → noDamageBonus.
   militaryoil: { size: SIZE.SMALL, missile: true, thrown: true, damage: "1d8", type: "fire", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["thrown", "splash", "noDamageBonus"] },
-  // Holy water: a thrown one-shot flask that SHATTERS on use. RR p268/p297: a
-  // chaotic enchanted creature directly struck "suffers 1d8 damage for 2 rounds"
-  // (same rules as burning oil), harmless to other creatures; 1d3 splash; no
-  // STR/class damage bonus (RR p298). type "holy" (only vs chaotic enchanted).
+  // Holy water: a thrown one-shot flask that SHATTERS on use (same damage
+  // rules as burning oil; RR p.268/p.297), harmless to non-chaotic-enchanted
+  // creatures; no STR/class damage bonus (RR p.298). type "holy" (only vs
+  // chaotic enchanted).
   holywater: { size: SIZE.SMALL, missile: true, thrown: true, damage: "1d8", type: "holy", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["thrown", "splash", "consumable", "noDamageBonus"] },
   cestus: { size: SIZE.SMALL, melee: true, damage: "1d3", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, special: ["worn"] },
   net: { size: SIZE.MEDIUM, melee: true, thrown: true, damage: "", type: "", cat: WEAPON_CATEGORY.OTHER, twoHandedForced: true, special: ["entangling", "thrown"] },
@@ -110,10 +109,11 @@ export const WEAPONS = Object.freeze({
   staffsling: { size: SIZE.MEDIUM, missile: true, melee: true, damage: "1d4", damage2h: "1d6", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, twoHandedForced: true },
   staff: { size: SIZE.MEDIUM, melee: true, damage: "1d4", damage2h: "1d6", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER },
   whip: { size: SIZE.SMALL, melee: true, damage: "1d2", type: "slashing", cat: WEAPON_CATEGORY.OTHER, special: ["flexible"] },
-  // A lit torch used as a weapon deals 1d4 (RR p148) and — thrown or wielded —
-  // gains NO damage bonus from STR, class, Backstabbing, or the like (RR p300,
-  // stated for the thrown case; extended to melee per Judge ruling). `thrown`
-  // so it can be hurled; `light` marks it a light source for the sheet controls.
+  // A lit torch used as a weapon (RR p.148) — thrown or wielded — gains no
+  // damage bonus from STR, class, Backstabbing or the like (RR p.300; see
+  // docs/equipment/DECISIONS.md, "A torch's no-damage-bonus rule covers melee
+  // too (2026-09-22)"). `thrown` so it can be hurled; `light` marks it a light
+  // source for the sheet controls.
   torch: { size: SIZE.SMALL, melee: true, thrown: true, damage: "1d4", type: "fire", cat: WEAPON_CATEGORY.OTHER, special: ["thrown", "noDamageBonus", "light"] },
 });
 
@@ -178,15 +178,11 @@ export const SHIELD_VARIANTS = Object.freeze({
 });
 
 /**
- * Masterwork tiers (RR p. 159).
- *
- * REFERENCE DATA, not automation — deliberately (see constants.mjs, the note by
- * the overlay settings). Masterwork is fully expressible in fields core already
- * has: +1 hit is `system.bonus`, +1 damage is a "1d6+1" damage string, +1 AC is
- * `aac.value`, and −1 stone is `weight6`. So a masterwork item is DATA — a tier
- * key plus the pristine baseline, written onto the item. Nothing reads this
- * table at runtime and nothing should; it is here so the numbers a tier stands
- * for are written down in one place.
+ * Masterwork tiers (RR p.159): REFERENCE DATA, not automation (see
+ * constants.mjs, the note by the overlay settings; docs/equipment/DECISIONS.md,
+ * "Masterwork stamps core fields rather than a roll-time overlay
+ * (2026-09-22)"). A masterwork item is DATA — a tier key plus the pristine
+ * baseline, written onto the item. Nothing reads this table at runtime.
  */
 export const MASTERWORK = Object.freeze({
   weaponToHit: { cost: 80, toHit: 1 },
@@ -279,13 +275,10 @@ export function bundledAmmoCount(name) {
 /**
  * Resolve a gear profile from an item name, or null.
  *
- * A LOADED DEVICE KEEPS ITS PLACE AND LOSES ITS CAPACITY. Where it rides and
- * what it costs to draw from are facts about the quiver and stay true — RR
- * pp293-294 make a quiver free to reach into, which is the whole reason an
- * archer wears one. What it is not is somewhere to put things: it arrives full
- * of its own arrows. Stamping a capacity on it showed a full quiver as
- * "0 / 1 st — empty", with the twenty arrows readable only in its name and no
- * way to put anything in it, while the count sat where nothing could spend it.
+ * A loaded device keeps its place and loses its capacity: it arrives full of
+ * its own arrows, so it is not also somewhere to put things (see
+ * docs/equipment/DECISIONS.md, "2026-08-11 — a device sold with its load is
+ * the ammunition, not a container").
  */
 export function gearProfileFor(name) {
   const key = slug(name);
@@ -321,21 +314,11 @@ export const CLOTHING_SLOT_PATTERNS = Object.freeze([
   { re: /\b(hat|skullcap|veil|crown|circlet|tiara|coif|hood|headdress)\b/i, slots: [SLOT.head] },
   { re: /\b(necklace|amulet|torc|pendant|collar)\b/i, slots: [SLOT.neck] },
   { re: /\b(ring)\b/i, slots: [SLOT.ring] },
-  // Garments worn ON THE BODY, and the reason the list ends with a broad one:
-  // the slots above are all the places a single named thing goes, and anything
-  // that clothes the torso or legs simply goes ON. It lands in `worn`, which is
-  // uncapped, rather than `body`, which is the one suit of armour — a robe and
-  // a mail hauberk are not competing for the same place.
-  //
-  // LAST, so every named slot above wins its own word first: a leather BELT is
-  // belt-worn though it is also clothing, and low BOOTS are feet.
-  //
-  // A NAME TEST IS THE ONLY TEST THERE IS for gear that arrived from outside
-  // the clothing pack. The structural answer (`isClothing`) reads
-  // `system.subtype`, which core sets on its own clothing items and nothing
-  // sets on an item built from a book's starting-equipment list — so a robe
-  // imported with a character was unwearable while boots from the same line
-  // were fine, purely because "boots" had a pattern and "robe" did not.
+  // Garments worn ON THE BODY: lands in `worn` (uncapped), not `body` (the one
+  // suit of armour). LAST, so every named slot above wins its own word first —
+  // a leather BELT is belt-worn though it is also clothing. See
+  // docs/equipment/DECISIONS.md, "2026-08-11 — clothing the named slots do
+  // not claim is still worn."
   {
     re: /\b(robes?|gowns?|dress(?:es)?|tunics?|shirts?|blouses?|chitons?|togas?|cassocks?|habits?|vestments?|surcoats?|tabards?|doublets?|jerkins?|jackets?|coats?|vests?|smocks?|frocks?|breeches|trousers|pants|leggings|hose|kilts?|skirts?|loincloths?|aprons?)\b/i,
     slots: [SLOT.worn],

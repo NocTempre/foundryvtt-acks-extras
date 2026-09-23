@@ -2,28 +2,18 @@
 /**
  * Ability-roll integration — the single owner of core's ability roll path.
  *
- * `AcksItem#rollFormula` is the system's ability roller, and it can only ever
- * make ONE roll: it reads `system.roll` / `system.rollType` / `system.rollTarget`
- * directly. Every route into it — the proficiency row on the character sheet,
- * the chat card's Roll button, `item.use()`, a hotbar macro — therefore reaches
- * exactly the first throw an ability has, and there is no way in for the rest.
+ * `AcksItem#rollFormula` reads one roll (`system.roll` / `rollType` /
+ * `rollTarget`), so every route into it — the character sheet's proficiency
+ * row, the chat card's Roll button, `item.use()`, a hotbar macro — reaches only
+ * an ability's first throw. This wraps it, and `#getTags`, so all of them
+ * arrive at `rollAbility()`, the same call the Rolls tab makes.
  *
- * Rather than leave the sheet rolling one way and the rest of the game another,
- * this wraps that one method so ALL of them arrive at `rollAbility()`. The Rolls
- * tab does not get a private roller; it uses the same call these do.
- *
- * SCOPE — this wrap touches `ability` items and nothing else. Spells, weapons
- * and hand-made items fall straight through to `wrapped()`, untouched.
- *
- * OWNERSHIP (CLAUDE.md, "one owner per wrapped core method"): acks-abilities
- * owns `AcksItem#rollFormula` and `AcksItem#getTags` for the `ability` case,
- * because multi-roll abilities are this module's whole domain. No sibling may
- * wrap them; anything else needing to influence an ability roll should go
- * through the API. See docs/MODEL.md.
- *
- * HANDOFF: this exists only because the system stores one roll per ability. If
- * `system.rolls` ever becomes an array upstream, delete this file and let core
- * roll them — the store, not the roller, is the thing that has to change.
+ * Touches `ability` items only; every other item type falls through to
+ * `wrapped()` untouched. No other feature wraps these two methods: anything
+ * that needs to influence an ability roll goes through the API. Ownership,
+ * and the condition under which this file is deleted: see
+ * docs/abilities/DECISIONS.md, "2026-07-24 — this module owns core's ability
+ * roll path".
  */
 import { MODULE_ID, ABILITY_TYPE } from "./constants.mjs";
 import { rollAbility, rollsOf, keyOf, defaultKeyOf, throwText } from "./ability-rolls.mjs";
@@ -32,12 +22,9 @@ import { THROW_TAG_CLASS, THROW_DEFAULT_CLASS } from "./sheet-rolls.mjs";
 /**
  * Route an ability's roll through the multi-roll roller.
  *
- * An ability with NO roll shows itself instead of rolling. Core means to do
- * this already — `use()` has a "no roll, so show it" branch — but it tests
- * `system.roll`, which defaults to the string "1d20" and is therefore always
- * truthy. So a proficiency that makes no throw at all (Access to Capital,
- * Bargaining, most of the economic ones) still posts a d20 scored against a
- * target of 0. Reading "has a roll" from the store instead settles it.
+ * An ability with no throw shows its card instead of rolling. Core's own
+ * "no roll, so show it" branch in `use()` tests `system.roll`, which defaults
+ * to "1d20" and is never empty, so "has a roll" is read from the store instead.
  */
 async function onRollFormula(wrapped, options = {}) {
   if (this.type !== ABILITY_TYPE) return wrapped(options);
@@ -49,10 +36,8 @@ async function onRollFormula(wrapped, options = {}) {
 }
 
 /**
- * Tag an ability with EVERY roll it offers, not just the first.
- *
- * Core builds one tag from `system.roll` + `system.rollTarget`. An ability with
- * four throws showed one, and a ladder showed its first rung as though fixed.
+ * Tag an ability with every roll it offers. Core builds one tag from
+ * `system.roll` + `system.rollTarget`; this builds one per throw.
  */
 function onGetTags(wrapped) {
   if (this.type !== ABILITY_TYPE) return wrapped();
@@ -64,15 +49,11 @@ function onGetTags(wrapped) {
   const tag = (text) => (text ? `<li class='tag'>${esc(text)}</li>` : "");
   const current = defaultKeyOf(this);
 
-  // Each throw's tag carries its own KEY, which is what turns the strip the
-  // reader is already looking at into the way to roll it (sheet-rolls.mjs
-  // binds the click). The tag stays an <li> because core wraps this string in
-  // its own <ol class="tag-list">, and a strip that renders somewhere with no
-  // handler bound is simply a strip again.
+  // Each tag carries its own KEY (sheet-rolls.mjs binds the click). Stays an
+  // <li>: core wraps this string in its own <ol class="tag-list">.
   const parts = rolls.map((r, i) => {
-    // `throwText` is the one renderer: a ladder with no actor to resolve
-    // against says so rather than printing a number true at one rank only, a
-    // measure prints its dice, and a lettered rung prints its cell.
+    // `throwText` is the one renderer: a ladder with no actor shows its
+    // caveat rather than one rank's number; a measure shows its dice.
     const text = [r.label, throwText(r, this.actor, this)].filter(Boolean).join(" ");
     if (!text) return "";
     const key = keyOf(r, i);

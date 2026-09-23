@@ -100,7 +100,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         note: str(),
       });
 
-    /** One casting tradition (0 for most classes; 2 only for the Nobiran). */
+    /** One casting tradition (0 for most classes; 2 for a rare dual-tradition class). */
     const tradition = () =>
       new SchemaField({
         key: str(), // "arcane" / "divine" — stable within the class
@@ -138,14 +138,9 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
       });
 
     /**
-     * One spell inside a starting template's bundle — or the OFFER of one.
-     *
-     * A printed package sometimes hands over a spell the player still has to
-     * name ("and one spell of character's choice"). That is not a spell and is
-     * never minted as one, but it is not nothing either: recorded only as a
-     * sentence in a note it is invisible on the character and the pick is
-     * silently never made. So it rides as a row whose `offer` is set, carrying
-     * what may be picked rather than what was granted.
+     * One spell inside a starting template's bundle, or the OFFER of one (a
+     * pick the player still has to name). See docs/classes/MODEL.md, the
+     * template-offer row.
      */
     const templateSpell = () =>
       new SchemaField({
@@ -163,11 +158,8 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         qty: int(1, { min: 1 }),
         skinName: str(), // display name for the skinned copy ("" = use `name`)
         note: str(),
-        // What the page says THIS piece is worth, in gold, where the cell
-        // prices it in brackets ("bladedancer's head dress (20gp value)").
-        // Most of what carries one has no catalogue row at all — the cell
-        // prices it precisely because the shop list does not — so this is the
-        // only value the item will ever have. Zero means the cell said nothing.
+        // What the page prices this piece at, for the items with no catalogue
+        // row of their own. Zero means the cell said nothing.
         cost: num({ min: 0 }),
         choice: choiceSpecField(),
       });
@@ -193,18 +185,14 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
       });
 
     /**
-     * A PATH GROUP: one set of mutually exclusive class options.
-     *
-     * A class carries as many as its spread states — a Barbarian's region, a
-     * Zaharan's dark path, a dwarven caste — and starting templates are one
-     * more of them rather than a parallel mechanism (2026-08-22, DECISIONS).
-     *
-     * `source` says where the options live. Empty means they are stated right
-     * here, in `options`. `"templates"` means the group's options ARE this
-     * class's own `templates` rows, POINTED AT rather than copied: a world that
-     * upgrades keeps its rows, its bundles and its 3d6 table exactly where they
-     * were, and nothing had to be migrated to gain a selector. Folding them in
-     * properly is ROADMAP's, deliberately not taken here.
+     * A PATH GROUP: one set of mutually exclusive class options (a
+     * Barbarian's region, a Zaharan's dark path, a dwarven caste). `source`
+     * says where the options live: empty means `options` below; `"templates"`
+     * points at this class's own `templates` rows rather than copying them.
+     * See docs/classes/DECISIONS.md, "2026-08-22 — a class's mutually
+     * exclusive options are PATHS, and a starting template is one", and
+     * docs/classes/ROADMAP.md, "Starting templates, folded into the path
+     * group rather than pointed at".
      */
     const pathGroup = () =>
       new SchemaField({

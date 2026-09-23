@@ -1,18 +1,10 @@
 /* global game, foundry, ui, Actor, Folder, fromUuid */
 /**
- * The `acks-lib.template` BUILDER sheet.
- *
- * A template is not a creature — it is the book's generation procedure held as
- * a document — so its sheet is a builder: one select per axis (defaulting to
- * "Roll", the book's own procedure), a drop zone for an optional BASE actor
- * (the vampire thrall's victim), and Generate. Pins and the base are
- * per-window UI state, never actor data: closing the sheet forgets them, the
- * template document stays pure.
- *
- * Generation itself is the pure half (template-logic.mjs): pinned > derived >
- * rolled, merged into one engine-ready payload, created as ONE actor. The
- * provenance rides in `flags["acks-extras"].generated` so a sheet can later say
- * "derived from Dragon (Adult · Wyvern)".
+ * The `acks-lib.template` BUILDER sheet: one select per axis (defaulting to
+ * "Roll"), a drop zone for an optional base actor, and Generate. Pins and the
+ * base are per-window UI state, never actor data. See docs/lib/DECISIONS.md,
+ * "The template actor is a generator, never a bulk import" and
+ * docs/lib/API.md for the generation engine (template-logic.mjs).
  */
 import { MODULE_ID, LANG_PREFIX, TEMPLATE_TYPE } from "../constants.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollMenu } from "../template-logic.mjs";
@@ -23,22 +15,11 @@ const { HandlebarsApplicationMixin } = foundry.applications.api;
 export { TEMPLATE_TYPE };
 
 /**
- * The sheet for a template actor — the generator behind a creature the book
- * stats as tables (a dragon by age, type and body form). Builds one concrete
- * actor on demand rather than materializing the cross product.
- */
-/**
  * Where a generated creature goes: a top-level folder of its own, made on
- * demand, NEVER the template's.
- *
- * A generator and the creatures rolled off it are different kinds of document.
- * Filing the creature beside the template buries play material in the reference
- * shelf the importer built — and when the template lives in a compendium, the
- * template's folder id belongs to that pack and would leave the new actor in
- * the sidebar pointing at a folder the sidebar does not have.
- *
- * An existing folder of this name is adopted rather than duplicated, so a Judge
- * who renames or refiles it keeps their arrangement.
+ * demand, never the template's — a template in a compendium has a folder id
+ * the sidebar cannot resolve. An existing folder of this name is adopted
+ * rather than duplicated. See docs/lib/DECISIONS.md, "Generated actors file
+ * into their own folder, never the template's".
  */
 async function generatedFolder() {
   const name = game.i18n?.localize?.(`${LANG_PREFIX}.template.folder`) ?? "Generated";
@@ -48,6 +29,7 @@ async function generatedFolder() {
   );
 }
 
+/** The sheet for a template actor: builds one concrete actor on demand rather than materializing the cross product. */
 export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-lib-template-sheet"],
@@ -184,10 +166,7 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
       token,
       art: source.img ?? "",
     });
-    // First capture into an otherwise-empty template adopts the source's TYPE:
-    // capture a warhorse and the template generates `acks-lib.animal` actors,
-    // capture a monster and it generates monsters. (Mounts and pack animals
-    // are container roots too.)
+    // First capture into an otherwise-empty template adopts the source's type.
     const hasOther = axes.some((a) =>
       a.options.some((o) => o !== option && (Object.keys(o.merge ?? {}).length || (o.items ?? []).length))
     );
@@ -295,11 +274,8 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
     const { choices, log } = chooseAxes(sys, { pinned: this.#pins, baseValues });
     const resolved = resolveActor(sys, choices, { baseName: base?.name ?? "", templateName: this.actor.name });
 
-    // STACKING: a dropped base actor SEEDS generation — its full system,
-    // items, and flags first, the template's patches layered on top. That is
-    // what makes templates compose: generate a Goblin Chieftain, drop it on
-    // Vampire Thrall, and the thrall keeps whatever the thrall's own rows do
-    // not override.
+    // A dropped base actor seeds generation (full system/items/flags), the
+    // template's patches layered on top — what makes templates compose.
     if (base) {
       const seeded = base.system.toObject();
       mergePatch(seeded, resolved.system);
@@ -323,9 +299,8 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
       menuPicks = rollMenu(sys.menu, budget).picks;
     }
 
-    // Description: the option snippets, then the rolled abilities — each a
-    // lazy tag the importer authored; a bookless viewer sees stubs, as ever.
-    // A resolved sub-roll ("aura type") rides its ability as a rolled note.
+    // Description: the option snippets, then the rolled abilities. A resolved
+    // sub-roll rides its ability as a rolled note.
     const htmlParts = [...resolved.htmlParts];
     for (const pick of menuPicks) {
       let part = pick.html || `<p>${pick.label}</p>`;

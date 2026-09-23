@@ -1,7 +1,7 @@
 /**
  * Named-contract service registry (contracts: docs/lib/API.md). Providers register an
  * implementation under a CONTRACT NAME at `init`; consumers look the name up
- * from hooks onward. Contract names and shapes are defined in docs/API.md —
+ * from hooks onward. Contract names and shapes are defined in docs/lib/API.md —
  * never by module ids — so no family module ever probes another's existence.
  * Pure module: no Foundry imports.
  */

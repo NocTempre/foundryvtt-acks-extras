@@ -135,10 +135,10 @@
   opacity: 1;
 }
 
-/* Hint prose is muted with INK, not opacity: an opacity mute composites toward
-   whatever ground the bucket happens to sit on, so the same hint lands on a
-   different tone in a container than in a bare section. The soft ink is one
-   value in both themes. */
+/* Hint prose is muted with INK, not opacity — the same hint would otherwise
+   land on a different tone in a container than in a bare section. See
+   docs/lib/DECISIONS.md, "Secondary and muted state reads in ink, never
+   opacity". */
 .acks-equipment-wear__hint {
   margin: 0.25rem;
   color: var(--acks-ink-soft);
@@ -163,9 +163,9 @@
 }
 
 /* --------------------------------------------------------------------------
-   Containers on the equipment tab
-   The popout window these controls used to live in is retired; a container is
-   opened where it sits, next to the gear it holds.
+   Containers on the equipment tab: a container opens where it sits, next to
+   the gear it holds. See docs/equipment/DECISIONS.md, "The Container Manager
+   popout is retired".
    -------------------------------------------------------------------------- */
 
 .acks-equipment-container__header {

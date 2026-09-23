@@ -34,17 +34,12 @@ const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;
  * same array (a consumer that only knows the party's current surroundings,
  * e.g. a district's reaction figure). Neither route replaces the other.
  *
- * Deliberately synchronous: the hook call is synchronous and a constructor
- * throw (a bad `options.mode`, an invalid actor) must reach the caller as a
- * real exception, not a rejected promise — a consumer that opens this app as
- * its first choice and falls back to its own dialog on failure (the henchmen
- * feature's `openLoyaltyRoll`/`openObedienceRoll`) wraps the call in a plain
- * `try/catch`, which only a synchronous throw satisfies.
+ * Deliberately synchronous. See docs/influence/DECISIONS.md, "Opening the
+ * roller stays synchronous so a constructor throw reaches the caller".
  * @param {Actor|null} actor
  * @param {object} [options] - { targetActor, mode, modifiers: [{label, value}] }
- * @returns {Promise<InfluenceApp>} what `render` returns. Synchronous here
- *   means the THROW is synchronous, which is what the fallback depends on;
- *   the render itself is core's and is async.
+ * @returns {Promise<InfluenceApp>} what `render` returns; the throw itself is
+ *   synchronous, the render is core's and is async.
  */
 function openInfluenceApp(actor = null, options = {}) {
   const modifiers = [...(options.modifiers ?? [])];
@@ -68,7 +63,8 @@ function openInfluenceApp(actor = null, options = {}) {
 registerHandler("resolveHiddenRoll", (payload) => InfluenceApp.resolveExternal(payload));
 
 Hooks.once("init", () => {
-  // World settings for the racial layer (docs/RACIAL_REACTIONS_PLAN.md).
+  // World settings for the racial layer (docs/influence/DECISIONS.md,
+  // "Racial and cross-species reactions ship strict-RAW").
   game.settings.register(MODULE_ID, "enableBtaCaste", {
     name: "ACKS-INFLUENCE.settings.btaCaste.name",
     hint: "ACKS-INFLUENCE.settings.btaCaste.hint",
@@ -92,16 +88,17 @@ Hooks.once("init", () => {
     apiVersion: 8, // 8: HOOKS.INFLUENCE_MODIFIERS — external modifiers collected via hook
     // Synchronous: a listener's own throw is already caught inside
     // openInfluenceApp, but a constructor throw must reach the caller
-    // unaltered so a consumer's own try/catch fallback (e.g. the henchmen
-    // feature's fall-through to its own ThrowDialog) actually fires.
+    // unaltered. See docs/influence/DECISIONS.md, "Opening the roller stays
+    // synchronous so a constructor throw reaches the caller".
     open: (actor, options) => openInfluenceApp(actor, options),
     InfluenceApp,
-    // Racial & cross-species helpers (docs/RACIAL_REACTIONS_PLAN.md):
+    // Racial & cross-species helpers (docs/influence/DECISIONS.md, "Racial
+    // and cross-species reactions ship strict-RAW"):
     kindOf,
     matchesKind,
     relationFor,
     registerRaceRelations,
-    // Rules constants & helpers exported for consumer modules (acks-henchmen).
+    // Rules constants & helpers exported for consumer features (the henchmen feature).
     constants: {
       REACTION_CHANGE_KEY,
       LOYALTY_CHANGE_KEY,
@@ -157,13 +154,10 @@ Hooks.once("ready", () => {
 });
 
 /**
- * Resolve the character whose sheet is being rendered, for the injectors below.
- *
- * The gate is "this app IS a character Actor's sheet", never "this app has an
- * actor". `renderApplicationV2` offers EVERY ApplicationV2, and plenty of other
- * windows expose an `.actor` — an owned Item's sheet reports its owner — so
- * never resolve the actor from `.actor`: that lets a foreign window through and
- * it gets dressed as a character sheet.
+ * Resolve the character whose sheet is being rendered, for the injectors
+ * below. Gated on the document, never on `.actor`. See
+ * docs/influence/DECISIONS.md, "Sheet injectors gate on the document, never
+ * on `.actor`".
  * @param {foundry.applications.api.ApplicationV2} app
  * @returns {Actor|null} The sheet's character, or null if this is not one.
  */
@@ -226,9 +220,9 @@ function injectRelationships(app, element) {
     if (!actor) return;
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root) return;
-    // Character sheets without core's primary tab strip (the Follower Card, our
-    // own location sheet) have no Notes tab to extend. That is not a failure to
-    // report — only a sheet carrying the strip is expected to host the section.
+    // A sheet with no primary tab strip has no Notes tab to extend; not a
+    // failure. See docs/influence/DECISIONS.md, "Sheet injectors gate on the
+    // document, never on `.actor`".
     if (!root.querySelector('section.tab[data-group="primary"]')) return;
     const host =
       root.querySelector('.tab[data-tab="notes"] .content .flexcol') ??
@@ -314,10 +308,10 @@ function onRenderCharacterSheet(app, element) {
   injectRelationships(app, element);
 }
 
-// v13/v14 ApplicationV2 fires render hooks for the whole class inheritance chain.
-// We anchor on the base-class hooks (which fire regardless of the system sheet's
-// possibly-minified class name) plus the system-specific name. The handlers
-// filter to character sheets and dedupe, so multiple firings are harmless.
+// Anchored on all three hook names so the system's minified sheet class name
+// can change freely; the character-document gate above makes the broad hook
+// harmless. See docs/influence/DECISIONS.md, "Sheet injectors gate on the
+// document, never on `.actor`".
 Hooks.on("renderApplicationV2", onRenderCharacterSheet);
 Hooks.on("renderActorSheetV2", onRenderCharacterSheet);
 Hooks.on("renderACKSCharacterSheetV2", onRenderCharacterSheet);

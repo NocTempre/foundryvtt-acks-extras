@@ -1,23 +1,16 @@
 /* global foundry, game, CONFIG */
 /**
  * The ACKS II "Follower Card" — the printed henchman/follower card, rendered as a
- * compact, theme-styled view of an actor.
+ * compact, theme-styled view of an actor. See docs/lib/FOLLOWER-CARD.md.
  *
- * One layout serves two surfaces:
- *   - the editable FollowerCardSheet (a hireling's default sheet), and
- *   - the read-only cards the character sheet's hirelings tab is re-skinned into
- *     (acks-henchmen), where the SAME markup must emit no `name=` inputs — those
- *     would bind to the EMPLOYER's form — only the system's own hireling actions.
+ * One layout serves two surfaces: the editable FollowerCardSheet, and the
+ * read-only cards a character sheet's hirelings tab is re-skinned into (the
+ * henchmen feature), where the SAME markup must emit no `name=` inputs.
  *
- * Every derived number is precomputed HERE, in JS, so the template needs no system
- * Handlebars helper and one code path covers every actor that can be hired — the
- * system's `character` and `monster` and this module's `animal` alike (each carries
- * the same `retainer` schema, and the hire paths set `retainer.enabled`).
- *
- * WHICH FIELDS A CARD SHOWS IS DECIDED BY WHAT THE ACTOR'S DATA MODEL DECLARES,
- * never by `actor.type` — see `actorProvides` below. A rating the model does not carry
- * (a beast has no class, no ability scores, no encumbrance) is left out of the card
- * rather than read off a path that type does not have.
+ * Which fields a card shows is decided by what the actor's data model
+ * DECLARES, never by `actor.type` — see `actorProvides` below and
+ * docs/lib/DECISIONS.md, "The Follower Card selects fields by schema, never
+ * by actor type".
  */
 import { toNum as num } from "./util.mjs";
 import { MODULE_ID } from "./constants.mjs";
@@ -69,17 +62,11 @@ function hdLabel(actor) {
 }
 
 /**
- * Does this actor actually carry the field at `path`?
- *
- * True when the actor's data model DECLARES the field — so a declared-but-empty
- * one still counts — or when a derived pass has PUT it there (`encumbrance.value6`
- * and friends are computed, never declared). Foundry's `getField` walks a dotted
- * path and returns undefined the moment a segment is not a schema, so asking for
- * `details.xp.value` on a model whose `details.xp` is a plain number answers no.
- *
- * Every branch in the card selects on this instead of on `actor.type`: a type test
- * is a closed set, and an actor type added later silently takes some other type's
- * branch and renders that type's field paths against data of a different shape.
+ * Does this actor actually carry the field at `path`? True when the actor's
+ * data model DECLARES the field, or when a derived pass has put it there.
+ * Every branch in the card selects on this instead of on `actor.type`. See
+ * docs/lib/DECISIONS.md, "The Follower Card selects fields by schema, never
+ * by actor type".
  *
  * @param {Actor} actor
  * @param {string} path dotted, relative to `system` — "details.xp.value"
@@ -143,17 +130,10 @@ export async function followerCardContext(actor, { editable = false, interactive
 
   const weapons = items.filter((i) => i.type === ITEM_TYPE.weapon);
   // Powers/prof and equipment carry ids so the editable sheet can roll them and
-  // toggle equipped state; the read-only grid just reads `.name`.
-  // Proficiencies that DO something. The ones that merely record a fighting
-  // style / armour / weapon-proficiency state live in the strips instead, and a
-  // non-rolling entry gets no button at all — a d20 means "this rolls".
-  // `hasText` earns the power a Read-aloud button: a named power whose prose the
-  // book supplies is the thing a table stops to read out ("Terrifying Visage"),
-  // and it is worth posting whether or not it also rolls.
-  // Computed up front (not just at ctx.strips below) so the powers list can hide
-  // a profile ability only when the strips will actually render it — the strips
-  // panel is empty for any non-character actor, so a monster's proficiency item
-  // must stay in this list or it is filtered out and rendered by nothing.
+  // toggle equipped state; the read-only grid just reads `.name`. `rollable`
+  // gates the roll button; `hasText` gates a Read-aloud button. Computed up
+  // front, since strips renders nothing for a non-character actor and a
+  // monster's proficiency item must stay in this list.
   const strips = profileStrips(actor);
   const powers = items
     .filter((i) => i.type === ITEM_TYPE.ability && (!isProfileAbility(i) || !strips.any))
@@ -170,19 +150,14 @@ export async function followerCardContext(actor, { editable = false, interactive
       };
     });
 
-  // Caster strip: the card deliberately omits the spell PAGE (memorized lists,
-  // reset buttons — that is the full sheet's job), but a caster whose card
-  // shows nothing at all reads as "the module lost my spells". One line of
-  // per-level slots says otherwise, and links out for the rest. Slot shape per
-  // the released system: system.spells.enabled + spells[level] = {value: used,
-  // max} under numeric keys — read defensively, core owns that model.
+  // Caster strip: one line of per-level slots, no memorize/reset controls
+  // (that stays the full sheet's job). Slot shape per the released system:
+  // spells[level] = {value: used, max} under numeric keys, read defensively.
   const spellLevels = Object.entries(sys.spells ?? {})
     .filter(([key, slot]) => /^\d+$/.test(key) && slot && (num(slot.max) > 0 || num(slot.value) > 0))
     .map(([key, slot]) => ({ lvl: key, used: num(slot.value), max: num(slot.max) }));
 
-  // The spells THEMSELVES, by level. A creature that casts is usually met before
-  // it is read up on, so the names belong where the block is — the full sheet
-  // keeps the page that memorizes and resets them.
+  // The spells themselves, by level.
   const byLevel = new Map();
   for (const s of items.filter((i) => i.type === ITEM_TYPE.spell)) {
     const lvl = String(num(s.system?.lvl, 1));
@@ -237,11 +212,9 @@ export async function followerCardContext(actor, { editable = false, interactive
     secrets: !!actor?.isOwner,
   });
 
-  // LEVEL / HD — a class level where the model declares one, Hit Dice where it
-  // declares the die formula instead. `levelPath` is the field the editable card
-  // binds to; null means the rating has no editable home here (HD is edited on
-  // the full sheet), and an empty `level` means this actor carries no rating at
-  // all rather than a zero it never had.
+  // LEVEL / HD — class level where declared, else Hit Dice. `levelPath` null
+  // means no editable home here (HD is edited on the full sheet); an empty
+  // `level` means no rating at all, never a zero it never had.
   if (actorProvides(actor, "details.level")) {
     ctx.levelLabel = "ACKS.details.level";
     ctx.level = num(sys.details?.level, 1);
@@ -256,9 +229,8 @@ export async function followerCardContext(actor, { editable = false, interactive
     ctx.levelPath = null;
   }
 
-  // XP — the character model NESTS it (`details.xp` is {value, next, …}); the
-  // creature models store a flat award number at `details.xp`. Bind the input to
-  // whichever the model declares, or the edit writes an object over a number.
+  // XP — nested (`{value, next, …}`) on a character, flat on a creature; bind
+  // to whichever the model declares, or the edit writes an object over a number.
   if (actorProvides(actor, "details.xp.value")) {
     ctx.xp = num(sys.details?.xp?.value);
     ctx.xpNext = num(sys.details?.xp?.next);
@@ -283,11 +255,9 @@ export async function followerCardContext(actor, { editable = false, interactive
       }))
     : [];
 
-  // Speed: the ACKS II block (combat / exploration) where the model declares it,
-  // else the creature's base rate and its own printed movement string. The
-  // PRIMARY rate takes an override like AC does; the secondary stays derived,
-  // because the two are one printed pair and a card that let both drift would
-  // say a thing the book never does.
+  // Speed: the ACKS II block (combat/exploration) where declared, else the
+  // creature's base rate and printed movement string. The primary rate takes
+  // an override like AC does; the secondary stays derived.
   if (actorProvides(actor, "movementacks.combat")) {
     ctx.speed = { primary: num(sys.movementacks?.combat), secondary: num(sys.movementacks?.exploration) };
   } else if (actorProvides(actor, "movement.base")) {
@@ -300,16 +270,11 @@ export async function followerCardContext(actor, { editable = false, interactive
     ctx.speed.overridden = true;
   }
 
-  // Encumbrance — only for a model that tracks a carrying limit. The 1/6-stone
-  // CARRIED figure is derived (core computes `value6` for an owner/GM viewer
-  // only — `computeEncumbrance` gates on `isOwner || game.user.isGM` — so a
-  // Judge's own card is exact but a fellow player's read-only view of it, or a
-  // hireling whose ownership never propagated, would otherwise see an
-  // uncomputed zero with no sign it is stale). Fall back to the lib's own
-  // item-weight sum, which mirrors core's rule without needing the gated pass.
-  // `max` reads the DECLARED (persisted) limit rather than the ephemeral
-  // `max6`, since only the schema field survives for a viewer core never
-  // derived for.
+  // Encumbrance — only for a model with a carrying limit. Core's `value6` is
+  // computed for an owner/GM viewer only (`computeEncumbrance` gates on
+  // `isOwner || game.user.isGM`), so a non-owner viewer falls back to the
+  // lib's own item-weight sum. `max` reads the declared limit, not the
+  // ephemeral `max6`.
   ctx.enc = actorProvides(actor, "encumbrance.max")
     ? {
         value: stones(Number.isFinite(sys.encumbrance?.value6) ? sys.encumbrance.value6 : borneWeight6(actor)),
@@ -321,10 +286,9 @@ export async function followerCardContext(actor, { editable = false, interactive
     ctx.enc.overridden = true;
   }
 
-  // ATTACKS — one row per option the body actually has, each with its damage-type
-  // icon. Target vs bonus stays DISTINCT (the ACKS model the patched roll uses):
-  // the attack throw is the MOVING TARGET (class/level); the ability mod and
-  // attack adjustment are ROLL-ADD bonuses. Never folded into one number.
+  // ATTACKS — one row per option the body has. Target vs bonus stays
+  // distinct, the same model attack-logic.mjs uses; see docs/lib/DECISIONS.md,
+  // "One owner for the attack roll, and one seam for future modifiers".
   const throwTarget = num(sys.thac0?.throw, 10);
   const bonusFor = (type) =>
     // What rides here is an ability mod and the attack adjustment paired with it,

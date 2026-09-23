@@ -4738,3 +4738,79 @@ and a table re-read is a shelf-scale action, which is the picker's unit.
 
 *Cost:* one option in a list whose other options empty a shelf first, carried
 by its label.
+
+### The vehicle table's pairs are speed tiers, and a howdah's cargo is a passenger count (2026-09-22)
+
+Recorded from the comments on `bindVehicleRow` and `bindSeaVesselRow` in `scripts/importer/cookbook.mjs`.
+
+**Ruled.** The land table states movement and cargo as pairs, and its column
+notes say what a pair means: the first figure is at normal encumbrance, the
+second at heavy. So the row binds them as speed TIERS rather than one capacity
+beside one speed: a cart hauling its heavy load moves at the slower rate, and
+the tier row is where the vehicle model already looks for that. A cargo figure
+in parentheses is the table's other convention: the vehicle carries passengers
+or that much cargo instead. Those rows are howdahs, whose crew column is a
+choice between two passenger counts rather than a complement, so they fill a
+passenger count, not a crew role, and get no speed tiers, because their pace is
+the creature's, not the vehicle's.
+
+**Ruled.** The sea table's conventions differ from the land table's. Its three
+crew columns are three role complements: sailors and rowers are motive, and
+marines are not, being cargo that fights. Its combat and voyage speeds land on
+the schema's named sea fields rather than tiers, and its cargo is a single
+figure, never a pair. A dash is an absent cell, not a zero. A parenthesised
+marines figure is an allowance drawn from the crew itself rather than an extra
+complement, and it still binds as the bench size, because the schema's
+`required` on a non-motive role is a bench, not extra manpower. Price is not
+read: it is the markets' business, not the hull's.
+
+**Rejected.** Reading the draft team. The label names it in prose, and
+converting that into the heavy-horse equivalents the schema counts is a
+judgment about draft values, not a reading of the table.
+
+### A class's training paragraph is read by three grammars, one per domain (2026-09-22)
+
+Recorded from the comments on `parseCombatTraining` and `parseTrainingProse` in `scripts/importer/cookbook.mjs`.
+
+**Ruled.** A class spread states its weapon, armour and fighting-style
+training in one paragraph, in that fixed order, and the formula reader applies
+one grammar per domain, each a shape the book writes rather than a value it
+prints. Where a sentence names a group and then enumerates it in a
+parenthesis, the enumeration is what is read, so nothing is inferred about the
+group. Armour reads the heaviest rung named, since each rung includes
+everything under it; a sentence denying armour outright is the bottom rung, not
+an absent answer. Styles read only the positive clause: every spread that
+names styles goes on to name the ones it excludes, in the same sentence, so the
+exclusion clause is cut before anything is read. The two mandatory styles are
+not emitted: the consumer already holds them, and repeating them here would
+state a rule that lives there. A paragraph with no formula marker goes to a
+second, sentence-shaped reader, which converges on the same grants.
+
+**Ruled.** A paragraph carrying a digit is refused: none of these sentences
+prints a number, and one that does has a table's cells folded through it. Each
+page column is offered on its own first and the joined page only afterwards,
+since a column carries its own prose without the table beside it, and a
+paragraph that genuinely runs across a column break still needs the joined
+page.
+
+*Cost:* before the per-column retry, refusal was the end of it, and twelve
+classes silently imported with no weapon, armour or fighting-style training,
+indistinguishable from classes that grant none. Before the sentence reader,
+all ten classes of the book that writes its training as plain sentences read
+as having no training at all.
+
+### History the source comments carried, recorded (2026-09-22)
+
+These were written into code comments as the reason a guard exists. The
+comments now state the guard; the story is here.
+
+- **Monster folders file by type, not family.** Filing by family was tried first: most families have only a handful of members, so it produced a folder per creature rather than a taxonomy.
+- **One destination rule serves every actor importer.** Before it, animals were filed under the raw group key's folder, ungrouped monsters piled into one folder while their families went unused, and vehicles asked the item rule and landed loose at the top of the library.
+- **Removal recognises template parts and deletes folders last.** A flag-only sweep once deleted the folders around the class-template bundles, their skinned gear and the per-class tables, and Foundry re-parented 715 orphans to the top of the sidebar: a folder deleted while it still holds documents re-parents them instead of taking them with it.
+- **Entry counts read both cookbook shapes.** Counting only the per-book shape reported zero entries for the Revised Rulebook while a content-type cookbook held its proficiencies.
+- **`repairAnimalItems` exists because animals were once inventory.** Before animals imported as actors, the priced animals became inventory items; an item's type cannot change in place, so the repair deletes the module's own generated ones for the equipment import to re-create as actors.
+- **`danglingAbilities` exists because definitions were withdrawn.** Ten were, once it turned out the harvest had read the tail of a spaceless heading as an ability of its own; the items they created stay in worlds that imported them, and this offers them for removal.
+- **A starting-equipment pair once never split.** The joined descriptor contained a known item's name, so the containment fallback read the whole pair as that one item and the character got one item named for two weapons; the menu match now takes only a whole descriptor or an exact alias key.
+- **A monster's create carries its items, cookbook id and extras in one write.** They were four separate round trips per monster; folding them into the create was measured at about 2.6x on the write phase.
+- **`repairEquipmentAbilities` exists because equipment leaked into the ability import.** Every ability path walks the content cookbooks generically, so a new non-ability kind joins the ability import unless it is excluded; equipment did in v0.26.0, and the ability-typed documents it made fail validation on every sheet render. The category clamp stands behind the register lint for any value the lint never saw.
+- **Equipment once imported as plain `item`.** A sword had no damage and no attack, and nothing could be wielded or worn, because `equipped` lives only on `weapon` and `armor`; the core type now follows from the register's group rather than a name scan.

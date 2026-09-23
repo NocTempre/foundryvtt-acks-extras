@@ -8,9 +8,8 @@
  * express (general flag, repeatable, custom-power cost, prerequisites, choice
  * branches, deprecation).
  *
- * Built from the shared acks-lib field-builders so the effect vocabulary is one
- * definition across the family (sibling-relative import — the side-by-side
- * layout the toolchain assumes; resolves under /modules/ at runtime).
+ * Built from the lib subsystem's field-builders, so the effect vocabulary is
+ * one definition across every feature.
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { num, str, bool, choice, refList, effectsField, defensesField, rollsField } from "../lib/fields.mjs";
@@ -27,47 +26,18 @@ export default class AbilityExtras extends foundry.abstract.DataModel {
       category: choice(ABILITY_CATEGORIES, { initial: "proficiency" }),
       general: bool(), // the "(G)" general-proficiency marker
       repeatable: bool(), // "may be selected multiple times"
-      // How many times this character has taken it. ONE item carrying a count,
-      // never N identical rows — the same way a stack of arrows is one
-      // inventory line.
-      //
-      // `qty` is only the COUNT. What it MEANS is per-ability and not yet
-      // modelled: Animal Husbandry taken twice is rank 2 of one thing, while
-      // Weapon Proficiency taken twice is two different weapons, and Art/Craft
-      // taken twice may be either a second discipline or a better first one.
-      // So do not read qty as rank — rankOf() is one INTERPRETATION of qty,
-      // correct for rank-scaled abilities and wrong for list-expanding ones.
-      // Modelling that (and where a character's actual picks live) is the open
-      // half of the merged-ability work.
-      //
-      // qty is NOT the effective rank. Holding one ability by two routes can
-      // legitimately read as rank 2, but the second route must not become a
-      // second copy: an alias/variant grants "+1 rank of X" and the root
-      // ABSORBS it, leaving its own qty alone. So the mechanics read
-      // `qty + Σ(granted ranks)`, and the two numbers answer different
-      // questions — "how often did you take it" vs "what does it read at".
+      // How many times this character has taken it, as recorded on this item.
+      // A count, not a rank: rankOf() reads rank by counting same-named copies
+      // (the convention chargen writes), and nothing reads this field as one.
       qty: num({ integer: true, initial: 1, min: 1 }),
-      // --- The picks: what each take CHOSE (the other half of qty) ---
-      // `qty` says how often the ability was taken; `selections` records what
-      // each take selected, for the list-expanding abilities where a take IS a
-      // choice: Weapon Focus's category, Martial Training's weapon group,
-      // Fighting Style Specialization's style, Art/Craft's discipline. One
-      // string per take, order-aligned with the count; rank-scaled abilities
-      // (where a second take deepens rather than widens) leave it empty.
-      //
-      // Free vocabulary BY DESIGN — the meaningful token set is per-ability
-      // (weapon groups for one, crafts for another) and lives in the book, so
-      // the schema cannot enumerate it. Consumers normalize (lowercase,
-      // alphanumeric fold) and match against their own vocabularies; they read
-      // through selectionsOf(), which also absorbs the legacy "(X)" name-suffix
-      // convention, so no consumer ever parses item names itself.
-      //
-      // Stored only on a CHARACTER'S copy. The definition side stays
-      // selection-free for the same reason it stays ownership-free (MODEL.md):
-      // the book defines the ability; who took it and what they picked is the
-      // character's data.
+      // What each take selected, for abilities where a take is a choice (a
+      // weapon group, a fighting style, a craft): one string per take,
+      // order-aligned with the count; rank-scaled abilities leave it empty.
+      // Free text — consumers fold case and punctuation and match against their
+      // own vocabularies, reading through selectionsOf(), never item names.
+      // Stored only on a character's copy, never on the definition.
       selections: new ArrayField(str()),
-      powerValue: num(), // custom-power cost (0.5 / 1 / 1.5 / 2 / 3 / 5); powers only
+      powerValue: num(), // custom-power cost; powers only
       deprecated: bool(), // "removed from ACKS II" — still ingested, just flagged
       replacedBy: str(), // what supersedes it (a def id), so references can redirect
       // Set when the ability arrived from a converted/legacy source: `deleted`
@@ -75,24 +45,18 @@ export default class AbilityExtras extends foundry.abstract.DataModel {
       // info, `renamed` as a note. All three are surfaced.
       conversionStatus: choice(CONVERSION_STATUS),
       conversionFrom: str(), // the PRE-conversion name — what the older source called it
-      // An alias is its OWN ability, not a redirect: the books list a name whose
-      // text lives under another entry. It gets a real item (so it can be picked,
-      // granted and shown), a pointer to where its text is, and — because the two
-      // are the same capability — a non-stacking relation to the target.
+      // The def id of the entry whose text this alias shares. An alias is a real
+      // ability item (pickable, grantable, shown), not a redirect, and does not
+      // stack with its target.
       aliasOf: str(),
-      // What this ability lets you DO, named independently of this entry, as
-      // acks-lib `kw:` capability tokens. A prerequisite written against a
-      // capability is satisfied by any ability providing it — which is what
-      // makes a gate survive the books printing the same capability as a
-      // proficiency, a skill, a class power and an alias. Two abilities sharing
-      // a capability are the same capability twice, so they do not stack.
+      // Capability tokens (`kw:<slug>`) this ability provides. A prerequisite
+      // written against a capability is met by any ability providing it; two
+      // abilities providing one capability do not stack.
       provides: refList(),
       requires: str(), // prerequisite marker (detail lives in the lazy description)
-      // The mechanics below are a MACHINE DRAFT: classified from the reader's
-      // book by a generic scan, not yet read against the page by a chef. A
-      // number's meaning is contextual — a smaller penalty is a bonus, an
-      // opponent's modifier is not yours — so until the cookbook entry carries
-      // its audit sign-off, the sheet says so and the printed text governs.
+      // Set while the mechanics below are a machine draft — classified by a
+      // generic scan, not yet read against the page. The sheet flags them and
+      // the printed text governs until the cookbook entry is audited.
       unaudited: bool(),
       // --- A pick-one branch (Combat Trickery maneuver, Elementalism element…) ---
       choice: new SchemaField({
@@ -100,19 +64,12 @@ export default class AbilityExtras extends foundry.abstract.DataModel {
         options: new ArrayField(new SchemaField({ label: str(), ref: str() })),
       }),
       // --- The rolls this ability offers ---
-      // An ability is not one roll. Animal Husbandry diagnoses, cures, cures
-      // serious injury and extracts venom — four rolls, three of them on their
-      // own rank progression. The core item carries a single roll/rollTarget,
-      // which cannot express that, so the set lives here and the Rolls tab
-      // presents them individually.
+      // Every throw the ability offers; core's single roll/rollTarget holds one.
+      // Read through rollsOf(), written through writeRolls().
       rolls: rollsField(),
-      // Which of them the single d20 reaches — the row's icon, the chat card's
-      // Roll button, `item.use()`, a hotbar macro. Holds a roll's KEY, and the
-      // key is the handle precisely because it survives a relabelling. Blank
-      // (or naming a throw that has since been deleted) reads as the first
-      // roll, so an ability nobody has chosen for still rolls what it always
-      // did. Stored per ITEM, so one character's Lockpicking can default to
-      // the methodical throw while another's does not.
+      // The KEY of the throw a bare roll reaches (the row's icon, the chat
+      // card's Roll button, `item.use()`, a hotbar macro). Blank, or naming a
+      // deleted throw, reads as the first. Per item, not per definition.
       defaultRoll: str(),
       // --- The structured, level-aware effects (acks-lib vocabulary) ---
       effects: effectsField(),
@@ -156,12 +113,10 @@ export default class AbilityExtras extends foundry.abstract.DataModel {
 }
 
 /**
- * The picks recorded on a character's copy of an ability — the ONLY supported
- * way to read them (consumer contract, README). Prefers the stored
- * `selections` array; absent that, absorbs the legacy convention of carrying
- * the pick as a "(X)" suffix on the item name ("Martial Training (Axes)",
- * and the "(specialty)" suffix the the importer ability-provider stamps), so
- * no consumer ever parses item names itself.
+ * The picks recorded on a character's copy of an ability — the only supported
+ * way to read them. Prefers the stored `selections` array; absent that, reads
+ * the legacy "(X)" suffix on the item name, so no consumer parses item names
+ * itself.
  * @param {Item} item
  * @returns {string[]} trimmed, non-empty picks; [] when none are recorded
  */

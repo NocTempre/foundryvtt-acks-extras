@@ -1,37 +1,10 @@
 /* global foundry */
 /**
- * The shared item baseline.
- *
- * The system's item data models were built type by type, so what is really one
- * concept is spelled out repeatedly and inconsistently:
- *
- *  - `cost` + `weight6` are hand-spread into `item`, `weapon` and `armor` from
- *    a template — but `spell`, `language`, `ability` and `bundle` do not have
- *    them, so "is this thing physical?" has no answer in the schema.
- *  - `equipped` is declared SEPARATELY on `weapon` and on `armor`, and nowhere
- *    else — so "can this be worn or wielded?" is a hardcoded type list.
- *  - `favorite` lives on `weapon` and `ability`; `save` on `weapon`, `ability`
- *    and `spell`; `pattern` on `weapon` and `ability`.
- *
- * Every module then re-derives the same facts with its own type list, and they
- * disagree: acks-equipment's stowable set, its weight sum, and its worn-armour
- * lookup each encode "which types are physical" separately.
- *
- * The system is an unmodifiable reference, so this cannot be fixed by giving
- * those models a common base. What it CAN be is one place that answers the
- * questions — plus the field builders a module's own item sub-type should use
- * so it matches the system exactly rather than approximately.
- *
- * Everything here reads the SCHEMA, not a type name, wherever it can: `"cost" in
- * item.system` keeps working when the system adds a physical type this library
- * has never heard of, and a hardcoded list does not.
- *
- * The schema probe answers "can this be worn?" correctly and uselessly: `no`,
- * for every cloak, glove, harness and pack in the books, because the system
- * declares `equipped` on `weapon` and `armor` alone. So the wear half below
- * reads a DECLARATION instead — `flags.acks-extras.gear.slots`, the GearExtras
- * model — and `isWorn`/`setWorn` hide which of the two stores a given item uses.
- * Nothing outside this file should know there are two.
+ * The shared item baseline: the one place that answers "is this a thing?",
+ * "can it be worn?" and "what does it weigh?" by reading the system's schema
+ * rather than a per-module type list, plus the field builders a module's own
+ * item sub-type should use to match the system exactly. See
+ * docs/lib/MODEL.md, "The item taxonomy: goods, gear, and where it sits".
  */
 
 import { MODULE_ID, FLAG_GEAR, VARIATION_TYPE } from "./constants.mjs";
@@ -99,16 +72,11 @@ export function bundleSizeOf(item) {
 
 /**
  * Effective weight in `weight6`, honouring quantity the way the system does.
- *
- * Only stackable items multiply: a `weapon` or `armor` has no quantity field,
- * and reading `quantity?.value ?? 1` off one would be harmless today and wrong
- * the moment the system adds it. Quantity is read where it exists.
- *
- * A stated weight may cover a BUNDLE of units rather than one (`bundleSizeOf`),
- * in which case the weight is counted once per bundle and a part-used bundle
- * still counts whole — twenty-one arrows out of a twenty-arrow quiver weigh two
- * quivers, not one and a twentieth. That is the books' own rule for goods sold
- * in bundles, and it is why this CEILS rather than dividing linearly.
+ * Only stackable items multiply (a `weapon`/`armor` has no quantity field, so
+ * it is read where it exists, not defaulted). A stated weight covering a
+ * BUNDLE of units is counted once per whole bundle used (CEILS, not divides) —
+ * see docs/lib/DECISIONS.md, "A bundled good's weight and its count share a
+ * denominator, and the size is printed".
  */
 export function weight6Of(item) {
   if (!isPhysical(item)) return 0;
@@ -121,11 +89,9 @@ export function weight6Of(item) {
 
 /**
  * What core's own encumbrance sum would make of this item — `weight6` times
- * quantity, with no bundle applied.
- *
- * Core owns the character encumbrance loop and cannot be modified, so a bundle
- * has to be corrected AFTER core has counted it. This is the figure to correct
- * away; `encumbranceDelta6` is the one caller.
+ * quantity, with no bundle applied. Core owns the character encumbrance loop
+ * and cannot be modified, so a bundle has to be corrected AFTER core has
+ * counted it; this is the figure `encumbranceDelta6` corrects away.
  */
 export function coreWeight6Of(item) {
   if (!isPhysical(item)) return 0;
@@ -169,13 +135,10 @@ const AMMO_NAME = /arrow|bolt|quarrel|bullet|sling\s*stone|shot/i;
 export const isAmmoItem = (item) => AMMO_NAME.test(item?.name ?? "");
 
 /**
- * What this item contributes to encumbrance, in `weight6`.
- *
- * Mirrors core's `computeEncumbrance` rule exactly — quantity multiplies where
- * the type has it, and CLOTHING IS EXCLUDED — so anything summing a non-
- * character's load reaches the same number core would for a character instead
- * of reimplementing the loop and drifting from it. Coin is 0 here by design:
- * core's `getTotalMoneyEncumbrance()` owns coin weight and callers add it.
+ * What this item contributes to encumbrance, in `weight6`. Mirrors core's
+ * `computeEncumbrance` rule exactly, clothing excluded, so a non-character's
+ * load reaches the same number core would for a character. Coin is 0 here by
+ * design: core's `getTotalMoneyEncumbrance()` owns coin weight.
  */
 export const encumbering6 = (item) => (isClothing(item) ? 0 : weight6Of(item));
 
@@ -194,14 +157,10 @@ export function physicalItems(actor) {
 export const hasStock = (item) => (item?.system?.quantity?.value ?? 1) > 0;
 
 /**
- * The item this actor is carrying whose NAME matches, or null.
- *
- * The one answer to "have they got a pole / a torch / a quill" — the shape every
- * rule takes that demands a physical implement before a character may do
- * something. Two riders come with it, and both matter: only PHYSICAL items
- * count, so a proficiency called "Mapping" is never mistaken for the mapper's
- * kit; and an empty stack reads as not carried, because a bundle of no torches
- * lights nothing.
+ * The item this actor is carrying whose NAME matches, or null — the one
+ * answer to "have they got a pole / a torch / a quill". Only PHYSICAL items
+ * count (a proficiency named "Mapping" is never mistaken for the mapper's
+ * kit), and an empty stack reads as not carried.
  */
 export function findCarried(actor, pattern) {
   return actor?.items?.find((i) => isPhysical(i) && pattern.test(i.name ?? "") && hasStock(i)) ?? null;
@@ -231,14 +190,9 @@ export async function setEquipped(item, equipped = true) {
 
 /**
  * Is this a thing that can be carried, stowed, stored or handed over?
- *
- * `isPhysical` alone cannot answer it: the system gives `money` no `cost` and no
- * `weight6`, so coins fail the schema probe while obviously being goods. That
- * gap is why fifteen call sites grew a `|| i.type === "money"` rider. It is
- * answered HERE, once, and the riders read this instead.
- *
- * `bundle` is excluded: it holds uuid references rather than being a thing, so
- * stowing one would nest a pointer, not an object.
+ * `isPhysical` alone cannot answer it: `money` has no `cost`/`weight6` and so
+ * fails the schema probe while obviously being goods. `bundle` is excluded —
+ * it holds uuid references rather than being a thing.
  */
 export const isGoods = (item) => isPhysical(item) || item?.type === ITEM_TYPE.money;
 
@@ -262,11 +216,8 @@ export function gearOf(item) {
 /**
  * The slots this item may occupy — declared only. Unknown keys are dropped, so
  * a stale or hand-edited flag degrades to "fewer slots", never to a slot the
- * sheet cannot draw.
- *
- * Callers that also want the slots INFERRED from a core type (a weapon's hands,
- * an armour's body) layer that on top; this is the declaration, and the
- * declaration always wins.
+ * sheet cannot draw. Callers wanting slots INFERRED from a core type layer
+ * that on top; this declaration always wins.
  */
 export function slotsOf(item) {
   const declared = gearOf(item).slots;
@@ -274,34 +225,24 @@ export function slotsOf(item) {
 }
 
 /**
- * Has anyone declared where this item sits — as opposed to declaring that it
- * sits NOWHERE?
- *
- * The two are different answers and `slotsOf` cannot tell them apart, because
- * both are an empty list. Every name-heuristic fallback in the family gates on
- * THIS, not on `slotsOf(item).length`: a Judge who deliberately sets a Great
- * Helm to sit nowhere must not have the name test put it back on the head.
+ * Has anyone declared where this item sits, as opposed to declaring that it
+ * sits NOWHERE? `slotsOf` cannot tell the two apart (both are an empty list).
+ * See docs/lib/MODEL.md, "Slots" — every name-heuristic fallback gates on
+ * this, never on `slotsOf(item).length`.
  */
 export const declaresSlots = (item) => Array.isArray(gearOf(item).slots);
 
 /**
- * Can this be worn or wielded at all?
- *
- * Two grounds, because the system splits the answer: core says yes for anything
- * carrying its `equipped` field (`weapon`, `armor`), and a declared slot says
- * yes for everything core forgot (clothing, rigging, packs). An item with
- * neither is plain goods — which is exactly how rations, loot and coin get the
- * wear features switched off without a flag saying so.
+ * Can this be worn or wielded at all? Core says yes for anything carrying its
+ * `equipped` field (`weapon`, `armor`); a declared slot says yes for
+ * everything core forgot. An item with neither is plain goods.
  */
 export const isWearable = (item) => isEquippable(item) || slotsOf(item).length > 0;
 
 /**
- * Is it worn or wielded right now?
- *
- * READ THROUGH HERE, never off one store. Core owns `system.equipped` where it
- * exists and its own equip toggle writes it; everything else records the slot
- * it occupies. Two stores, one question — gating on either alone answers `false`
- * for half the gear on the character.
+ * Is it worn or wielded right now? READ THROUGH HERE, never off one store —
+ * see docs/lib/MODEL.md, "Two stores, and why nothing outside this file
+ * knows".
  */
 export function isWorn(item) {
   if (isEquippable(item)) return !!item.system.equipped;
@@ -319,15 +260,11 @@ export function wornSlotOf(item) {
 }
 
 /**
- * Put an item in a slot, or take it off with `null`.
- *
- * Writes to whichever store the item's type uses, so callers never branch. A
- * slot the item does not declare is refused rather than stored — the declaration
- * is what bounds this, and silently accepting would make it decoration.
- *
- * Core-equippable types keep answering through `system.equipped`; the slot is
- * still recorded for them when they declare one, because "equipped" cannot say
- * whether a shield is in the hand or strapped to the back.
+ * Put an item in a slot, or take it off with `null`. Writes to whichever store
+ * the item's type uses, so callers never branch. A slot the item does not
+ * declare is refused rather than stored; core-equippable types keep answering
+ * through `system.equipped` but still record a declared slot, because
+ * "equipped" cannot say whether a shield is in the hand or on the back.
  *
  * @param {Item} item
  * @param {string|null} slot a WEAR_SLOTS key, or null to remove
@@ -335,14 +272,8 @@ export function wornSlotOf(item) {
  */
 export async function setWorn(item, slot = null) {
   if (!item) return false;
-  // A DECLARATION BOUNDS WHERE A THING GOES; IT DOES NOT DECIDE WHETHER IT CAN
-  // BE PUT ON. Gear that declares nowhere to go cannot be put anywhere — that
-  // is the rule this refusal exists for. But armour and weapons answer through
-  // core's own `equipped` boolean, which has no slot to be wrong about, and
-  // every IMPORTED one arrives undeclared (the annotate pass is a thing a Judge
-  // runs, not a precondition). Refusing them meant an imported suit of armour
-  // could not be worn at all: the wear model declined, silently, and the
-  // character stood in the arena in his tunic.
+  // Core-equippable types are never refused for an undeclared slot: they have
+  // no slot to be wrong about, and every imported one arrives undeclared.
   if (slot !== null && slotsOf(item).length && !slotsOf(item).includes(slot)) return false;
   if (slot !== null && !slotsOf(item).length && !isEquippable(item)) return false;
 
@@ -364,21 +295,11 @@ export async function setWorn(item, slot = null) {
 /* -------------------------------------------- */
 
 /**
- * How much this item holds, in STONE, or `null` for "holds nothing".
- *
- * Capacity is a property of GEAR, not of a category called containers. A coat
- * with hidden pockets, a bandolier, a saddle and a sack all hold things, and
- * while the concept lived inside the equipment feature's container record only
- * the items it recognised as carrying devices could have one — which is why
- * clothing could carry magical qualities but not a dagger.
- *
- * Reads the gear model first and the legacy container record second, so worlds
- * annotated before the concept moved keep answering correctly with nothing to
- * migrate.
- *
- * 0 is a real answer, distinct from null: a container of unstated size. RAW
- * capacity is a warning rather than a limit, so an unstated one simply never
- * warns.
+ * How much this item holds, in STONE, or `null` for "holds nothing". Capacity
+ * is a property of GEAR, not of a category called containers — see
+ * docs/lib/MODEL.md, "Capacity". Reads the gear model first and the legacy
+ * container record second, so worlds annotated before the concept moved keep
+ * answering correctly.
  */
 export function capacityOf(item) {
   const declared = gearOf(item).capacity;
@@ -392,10 +313,8 @@ export const holdsGear = (item) => capacityOf(item) !== null;
 
 /**
  * The weight of ordinary equipment a harness relieves its wearer of, in
- * stone, or `null` when the item does not state one. The figure is the
- * book's, and it arrives with the item — read from its own text by the
- * annotate pass or typed on its sheet — never from a constant here; an
- * unstated harness relieves nothing.
+ * stone, or `null` when the item does not state one — read from the item
+ * (the annotate pass or its sheet), never from a constant here.
  */
 export function reliefOf(item) {
   const declared = gearOf(item).relief;
@@ -467,18 +386,11 @@ export function itemsInSlot(actor, slot) {
 }
 
 /**
- * How a place is occupied. Two counts, because two rules cap two different
- * things. The Treasure Tome's one-of-a-form rule caps MAGIC items by form —
- * `slotCapacity`: two rings, one of everything else — and the body caps what
- * cannot physically be doubled: a second helm, a second suit, a second weapon
- * in the same hand, which is anything core can equip. Clothing and plain gear
- * take no room at all, so a coif under a helm and a magic circlet over both
- * are three things at one place and none of them over. An uncapped place —
- * the belt, the back, `worn` — caps neither.
- *
- * The Tome's rings are why this is a state rather than a refused write: a
- * third ring does not fail to go on, it stops all three working. What a full
- * place MEANS is the caller's to decide.
+ * How a place is occupied. Two counts cap two different things — a form's
+ * MAGIC-item cap (`slotCapacity`) and the body's one-of-what-core-can-equip
+ * cap; clothing and plain gear count against neither. See docs/lib/MODEL.md,
+ * "Slots" — a full magic count is a state rather than a refused write, so
+ * what it MEANS is the caller's to decide.
  * @param {string} slot a wear-slot key
  * @param {Item[]} items what is at that place, as the caller resolved it
  * @returns {{equip:number, magic:number, cap:number, used:number, full:boolean}}

@@ -16,20 +16,11 @@
  */
 
 /**
- * Putting the compendium sidebar back the way the manifests describe it.
- *
- * A library drifts and cannot right itself: Foundry files a package's packs
- * from its manifest once, skips any pack whose configuration already names a
- * folder, and never revisits the decision — so a folder deleted years ago
- * strands every pack that named it at the sidebar root permanently. This is
- * the surface that asks for all of them at once.
- *
- * It OVERRULES rather than repairs: every ACKS pack goes back to its declared
- * place and every per-pack override — a custom sort, a lock, an ownership
- * grant — is dropped back to the package's own default. That is what "restore"
- * means, and it is why the macro asks before it writes. The gentle pass that
- * only fills an empty or dangling slot runs by itself at every load and needs
- * no macro (scripts/lib/compendium-folders.mjs).
+ * Macro command: re-files every ACKS compendium to its manifest-declared
+ * folder and resets each pack's per-pack overrides (sort, lock, ownership).
+ * See docs/lib/MODEL.md (compendium-folders) for how this differs from the
+ * load-time pass that only fills an empty or dangling slot
+ * (scripts/lib/compendium-folders.mjs).
  */
 const RESTORE_LIBRARY = `// Put every ACKS compendium back where its package's manifest says it goes.
 const api = game.modules.get("acks-extras")?.api?.lib ?? globalThis.acksExtras?.lib;

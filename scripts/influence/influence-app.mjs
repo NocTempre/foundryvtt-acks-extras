@@ -98,8 +98,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
 
     this.#actor = options.actor ?? null;
     this.#targetActor = options.targetActor ?? getTargetActor();
-    // Other modules (e.g. acks-henchmen: per-settlement slander penalties) can
-    // inject flat modifiers; they apply to every tone and show on the card.
+    // Other features (e.g. the henchmen feature: per-settlement slander
+    // penalties) can inject flat modifiers; they apply to every tone and show on the card.
     this.#externalModifiers = externalRows(options.modifiers);
     // Don't auto-fill the target with the influencer themselves (e.g. a
     // self-targeted token) — keep the two sides distinct until set explicitly.
@@ -227,18 +227,14 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
    * checkboxes — default on when non-situational, off when the GM must confirm.
    */
   #buildModConfig() {
-    // WHOSE effects feed this page. Usually the actor working the roll — but a
-    // morale or obedience check is the creature's own, and reading the roller's
-    // effects there would apply an employer's powers to his hireling's nerve.
+    // WHOSE effects feed this page: usually the roller, but a morale or
+    // obedience check is the creature's own. See docs/influence/DECISIONS.md,
+    // "A page reads its subject's own effects, not the roller's".
     const subject = this.#mode?.subject === "target" ? this.#targetActor : this.#actor;
-    // Two sources, one shape. Active Effects first — an item that carries one
-    // has overridden whatever its abilities model says, so it claims that item.
-    // A third source is not an effect at all: a proficiency detected by name,
-    // whose static row already offers the same ability. That claim is made per
-    // page (below), because which proficiencies get a row differs by page, and
-    // always against `this.#actor` — the static rows read the roller's
-    // proficiencies (computeDefaults) even on a page whose effects are the
-    // subject's, so the roller's items are the ones that can speak twice.
+    // Two sources, one shape: Active Effects claim their item first, then a
+    // name-matched proficiency claims what a static row on this page already
+    // offers — always checked against `this.#actor`, since the static rows
+    // are the roller's own even on a page whose effects are the subject's.
     const aeMods = getEffectReactionMods(subject);
     const aeClaimed = itemsWithReactionEffects(subject);
     const effectMods = [...aeMods, ...getAbilityReactionMods(subject, aeClaimed)];
@@ -247,14 +243,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     const config = {};
 
     /**
-     * Rename a proficiency box after the power standing in for it — but only
-     * while the character lacks the proficiency itself, since holding both is
-     * one non-stacking capability and the canonical name is the one to show.
-     *
-     * The rename is stamped onto the config, not applied at render, because the
-     * chat card lists what contributed by the same labels; resolving it in the
-     * view would print the power's name in the dialog and the proficiency's on
-     * the card. The frozen table is copied, never written to.
+     * Rename a proficiency box after the power standing in for it, while the
+     * character lacks the proficiency itself. See docs/influence/DECISIONS.md,
+     * "A stand-in power is claimed by the box it fills, and named once". The
+     * frozen table is copied, never written to.
      */
     const actsAs = getActsAsPowers(this.#actor);
     const ownProfs = getProficiencies(this.#actor);
@@ -284,18 +276,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       : null;
 
     /**
-     * An effect-granted checkbox row, gated by acks-lib's `scopeApplies`.
-     *
-     * Three outcomes, and the middle one is the point:
-     *   applies       pre-checked, unless the effect is also situational
-     *   fails         unchecked — a known mismatch
-     *   undetermined  unchecked, but offered — the scope could not be settled
-     *                 (untyped target, no tone yet), which is not the same as
-     *                 failing. Every row stays GM-toggleable regardless.
-     *
-     * An UNAUDITED row never pre-checks whatever the scope says. Its sign and
-     * conditions came from a generic scan, not from a chef reading the page, so
-     * it is offered rather than asserted (recipes-not-rules doctrine).
+     * An effect-granted checkbox row, gated by the lib subsystem's
+     * `scopeApplies`. Pre-checked when it applies and is not situational;
+     * unchecked when it fails or is undetermined (the scope could not be
+     * settled — untyped target, no tone yet) — every row stays GM-toggleable
+     * regardless. An unaudited row never pre-checks. See
+     * docs/influence/DECISIONS.md, "Modifiers are offered, never asserted".
      */
     const effectModRow = (m, tone) => {
       const scope = scopeApplies(m, {
@@ -398,12 +384,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /*  Bribe fee                                   */
   /* -------------------------------------------- */
 
-  /**
-   * Auto-computed bribe fee (gp) from the target's HD and the chosen bribe bonus:
-   * +1/+2/+3 = a day / week / month of pay (a week / month / year without the
-   * Bribery proficiency), where "a month" is the henchman wage for the target's HD.
-   */
-  /** The gp cost of each bribe tier (+1/+2/+3) for the current actor/target pair. */
+  /** The gp cost of each bribe tier for the current actor/target pair. */
   #bribeTiers() {
     const monthly = monthlyWageForHD(getActorHD(this.#targetActor));
     const day = Math.round(monthly / 30);
@@ -413,6 +394,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     return hasBribery ? { 1: day, 2: week, 3: monthly } : { 1: week, 2: monthly, 3: year };
   }
 
+  /**
+   * Auto-computed bribe fee (gp) from the target's HD and the chosen bribe
+   * tier, priced by `#bribeTiers`.
+   */
   #computeBribeFee() {
     const diplo = this.#modifiers[INFLUENCE_TONE.DIPLOMACY];
     const level = Number(diplo.bribe) || 0;
@@ -548,16 +533,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
 
   /**
    * GM-side: rebuild the roll with full target data and post it (hidden path).
-   *
-   * `payload.externalModifiers` is carried verbatim from the player's dialog
-   * rather than re-derived by firing `HOOKS.INFLUENCE_MODIFIERS` again on the
-   * GM client: those figures (a district's reaction modifier, a settlement's
-   * slander penalty) were already rendered read-only to the player before the
-   * roll, so trusting the same values back costs nothing a re-derive would
-   * guard against, while re-firing the hook cannot promise the identical list
-   * if scene state moved between opening the dialog and clicking roll. The
-   * invariant this keeps is that the resolved roll's modifier list equals
-   * what the player saw.
+   * `payload.externalModifiers` is carried verbatim from the player's dialog,
+   * never re-derived by firing `HOOKS.INFLUENCE_MODIFIERS` again on the GM
+   * client. See docs/influence/DECISIONS.md, "A hidden resolve trusts the
+   * player's externally-injected modifiers, never re-derives them".
    */
   static async resolveExternal(payload = {}) {
     const actor = payload.actorUuid ? await fromUuid(payload.actorUuid) : null;
@@ -617,11 +596,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       currentAttitude: this.#system.currentAttitude,
       gmAdjustment: this.#system.gmAdjustment,
       playerMods: foundry.utils.deepClone(this.#modifiers[this.#system.tone]),
-      // The externally-injected modifiers this dialog is already showing
-      // (read-only rows: a district's reaction figure, a settlement's slander
-      // penalty) — forwarded so the GM's resolve computes against the same
-      // list the player saw. See resolveExternal for why this is sent rather
-      // than re-derived.
+      // The externally-injected modifiers this dialog is already showing,
+      // forwarded so the GM's resolve computes against the same list the
+      // player saw (see resolveExternal).
       externalModifiers: foundry.utils.deepClone(this.#externalModifiers),
       // Blind bribe guess: the gp the player offers without knowing the tiers.
       bribeOffer: Number(this.#modifiers[INFLUENCE_TONE.DIPLOMACY]?.bribeFee) || 0,
@@ -748,14 +725,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     context.hasTarget = Boolean(this.#targetActor);
     context.ladder = this.#attitudeLadder();
     context.groups = this.#buildGroups();
-    // Externally injected modifiers (a district's reaction figure, a
-    // settlement's slander penalty): read-only, since their value comes from
-    // where the party stands rather than anything typed here, and disagreeing
-    // with their own source is worse than not being editable. They already
-    // move #computeSubtotal() and the chat card regardless of whether this
-    // list is empty — this is what lets the dialog say why. Not target-derived,
-    // so unlike bribeFee/targetWill/etc. they carry no target secret and are
-    // never subject to #targetHidden() masking.
+    // Externally injected modifiers stay read-only and unmasked. See
+    // docs/influence/DECISIONS.md, "External modifiers stay read-only and
+    // unmasked".
     context.externalModifiers = this.#externalModifiers.map((m) => ({ label: m.label, value: m.value, note: m.note }));
     context.relationshipModifier = this.#relationshipModifier();
     context.finalModifier = this.#finalModifier;
@@ -1233,14 +1205,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     // If a bribe was offered with a fee, move the gold now.
     const bribePaid = await this.#maybePayBribe();
 
-    // OPPOSED: the target rolls their own stack against the influencer's,
-    // rather than the influencer rolling against a situation. Each side keeps
-    // its OWN modifiers — the target's CHA and the reaction effects that name
-    // the target as their subject — which is why the resolver carries a
-    // subject at all: an effect aimed at an opponent must not fold into the
-    // roller's total. The contest reports who prevailed and by how much; it
-    // moves no attitude, because ACKS prints no band for an opposed reaction
-    // and inventing one would be inventing a rule.
+    // OPPOSED: each side keeps its own modifiers, read through the same
+    // resolver pointed at the other actor. See docs/influence/DECISIONS.md,
+    // "An opposed contest has no printed band and moves no tracked attitude".
     const opposed = await this.#rollOpposed(roll, total);
 
     const result = {
@@ -1297,8 +1264,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       });
     }
 
-    // An opposed contest resolves between the two rolls and nowhere else: it
-    // has no printed band, so it may not move the tracked attitude.
+    // See docs/influence/DECISIONS.md, "An opposed contest has no printed
+    // band and moves no tracked attitude".
     if (opposed) {
       if (this.rendered) this.render();
       return;
@@ -1317,7 +1284,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     void this.#saveAttitude(newIndex, nextAttempt);
     this.#recalculate();
 
-    // Consumer-module event (acks-henchmen etc.): the full resolved roll.
+    // Consumer-feature event (the henchmen feature etc.): the full resolved roll.
     Hooks.callAll("acksExtras.influenceRollComplete", {
       actor: this.#actor,
       target: this.#targetActor,

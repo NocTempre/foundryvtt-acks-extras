@@ -59,7 +59,7 @@ Hooks.once("init", () => {
 
   // Core's getTotalWages dereferences every henchmenList id unguarded, so one
   // deleted hireling breaks character-sheet render for everyone. Guard first,
-  // repair after (scripts/repair.mjs).
+  // repair after (scripts/henchmen/repair.mjs; see docs/henchmen/MODEL.md §4b).
   installWageGuard();
   registerDeletionCleanup();
 
@@ -223,9 +223,8 @@ Hooks.once("ready", () => {
     }
   }
 
-  // Location schema migration (GM): v2 moved availability from per-posting
-  // pools to the location's shared market — old-shape postings/candidates
-  // (pre-0.3.0 test data) cannot be converted and are cleared.
+  // Location schema migration (GM): old-shape postings/candidates predate the
+  // shared-market model and cannot be converted, so they are cleared instead.
   if (game.user === game.users.activeGM) {
     for (const location of game.actors.filter((a) => a.type === LOCATION_TYPE)) {
       if ((location.system.schemaVersion ?? 1) >= SCHEMA_VERSION) continue;

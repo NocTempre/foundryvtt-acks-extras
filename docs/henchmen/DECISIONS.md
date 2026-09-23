@@ -264,3 +264,52 @@ untaken half of it.
 
 **Cost:** two places can now say a class's rarity; the row wins, and the
 sheet shows the rows beside the variant so nothing is hidden.
+
+### Unit morale interpretation stays with the Judge, not auto-verdicted (2026-09-22)
+
+Recorded from the comment on `openUnitMoraleDialog` in `scripts/henchmen/apps/unit-morale-dialog.mjs`.
+
+**Ruled.** The dialog posts the 2d6 roll and total to chat; it does not look up an outcome band itself, so the Judge reads the result off the table by hand.
+**Rejected.** Auto-resolving the outcome band, because the book's morale scales are close enough to one another that an automatic pick risks applying the wrong one.
+
+### Directed searches replace pool members, and contend most-specific-first (2026-09-22)
+
+Recorded from the `specSpecificity`, `applyDirectedReplacement` and `createPosting` comments in `scripts/henchmen/engine/recruitment.mjs`.
+
+**Ruled.** A successful directed search (JJ 118-119) replaces rolled leveled henchmen still left in the month's shared pool rather than minting new people. When several directed searches contend for the same month, the more specific resolves first — class+level, then class, then class+proficiency, then general proficiency — random order on ties.
+
+### A month roll never fires against an unloaded table registry (2026-09-22)
+
+Recorded from the month-anchor guard comment in `processLocation` (`scripts/henchmen/engine/recruitment.mjs`).
+
+**Ruled.** Rolling a new market month replaces the whole shared pool, so the roll is skipped whenever the availability tables are not loaded in the registry (a world relaunch, a GM leaving, or a module update can leave it momentarily empty) rather than proceeding and persisting a zero-candidate market over a full one. The existing market stays intact and the roll retries on the next process pass; the Reload button forces an earlier retry.
+
+### Insufficient wages is a stop, not a silent miss (2026-09-22)
+
+Recorded from the guard comment in `payWagesFor` (`scripts/henchmen/engine/events.mjs`).
+
+**Ruled.** When the employer's gold is short of the total due and the caller has not explicitly asked to mark wages missed, pay stops entirely: no payday is recorded, no arrears accrue, and no calamity fires. The GM can sell something and press Pay again, pay by hand, or press "Mark missed" meaning it.
+
+### Candidate class and level are fixed at the market roll, not at hire (2026-09-22)
+
+Recorded from the design-rule comment on `scripts/henchmen/rules/candidates.mjs`.
+
+**Ruled.** A candidate's class and level are fixed when the monthly pool is rolled — the market offers what it offers, subdivided into weekly arrival tranches — with no per-candidate reroll surface. Attributes are rolled once, at hire time, and recorded.
+**Rejected.** A per-candidate reroll surface, which would let a recruiter re-roll until a better class or level came up.
+
+### Wage pay-period conversions match the influence feature's bribe tiers (2026-09-22)
+
+Recorded from the comment on `signingBonusCost` in `scripts/henchmen/rules/wages.mjs`.
+
+**Ruled.** A week's pay converts to monthly ÷ 4 and a day's to monthly ÷ 30 (the book names the periods, not the arithmetic), matching the influence feature's bribe-tier conversions so both rollers price a period identically.
+
+### History the source comments carried, recorded (2026-09-22)
+
+These were written into code comments as the reason a guard exists. The
+comments now state the guard; the story is here.
+
+- **`checkWagesDue`'s due-total sum.** It once reduced over a key `dueHirelings` never wrote, producing NaN on the wages-due card in every world; it now sums the same list Pay itself bills.
+- **`HenchmanRecord`'s field-builder import.** `num`/`str`/`int` were a verbatim copy of `location-data.mjs`'s leaf builders before both were consolidated onto the shared `lib/fields.mjs`.
+- **The location schema migration's version markers.** The migration that clears old-shape postings/candidates dates to the v2 schema change that moved availability from per-posting pools to the location's shared market; pre-0.3.0 test data predates that change and cannot be converted.
+- **`installWageGuard`'s libWrapper registration.** It replaced an earlier hand-rolled raw patch; libWrapper's own idempotence now does the job that patch's idempotence check did by hand.
+- **`generateOccupation`'s occupant path.** A retired `people.occupations` category table backed it before the street-column/sub-table system replaced it; the old table is orphaned by that migration and no longer read.

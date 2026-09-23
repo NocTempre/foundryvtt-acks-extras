@@ -1,34 +1,16 @@
 /* global game, canvas, ui, ChatMessage, Roll */
 /**
- * Doors, and the four ways past one (RR ch. 6 §"Doors").
- *
- * A door in this module is a WALL on the scene — Foundry's own door, with its
+ * Doors, and the four ways past one (RR ch. 6 "Doors"): a key, picking the
+ * lock, battering it down, or bashing it open on a Dungeonbashing throw. A
+ * door in this module is a wall on the scene — Foundry's own door, with its
  * own open/closed/locked state — and everything ACKS adds to it is a flag
- * beside that state. Nothing here replaces the door: a Judge who just wants to
- * click it open still clicks it open.
+ * beside that state. Spikes are the reason a door needs stored state at
+ * all, and are what makes an evil door stayable.
  *
- * THE FOUR WAYS, as the book prints them:
- *  - **use a key** (one action, no throw) — Foundry's own door control;
- *  - **pick the lock**, hastily (1 round, a Lockpicking throw, and a broken
- *    pick on an unmodified 1–3 jams the lock FOREVER) or methodically (1 turn,
- *    +4, jammed only on a natural 1);
- *  - **batter it down** with an axe — no throw at all, just time: 1 turn for a
- *    plain wooden door, 3 for an iron-banded one, and stone or solid metal not
- *    at all without something that deals structural damage;
- *  - **bash it open** in one round on a Dungeonbashing throw of 18+.
- *
- * THE BASH MODIFIERS are the interesting part, and they are why this exists
- * rather than a bare party check: ±4 per point of Strength adjustment, +4 more
- * when a PAIR heaves together (using the stronger one's adjustment), +2 for a
- * crowbar, ±8 per size category away from man-sized, and −4 for every spike
- * after the first. An unmodified 1 bounces the basher off for 1 bludgeoning
- * damage. Failure is never final — the book says try again.
- *
- * SPIKES are the reason a door needs stored state at all. A spike takes one
- * round to hammer home, a door holds at most four, and each one after the
- * first costs −4 to force the door. They are also what makes an EVIL door —
- * one that swings shut when released and opens for monsters regardless —
- * stayable at all.
+ * The bash target, its modifiers and `DOOR_KINDS` are printed magnitudes
+ * still shipped in code rather than read from the registry. See
+ * docs/formation/DECISIONS.md, "The door numbers are content, and move
+ * behind the registry", and ROADMAP.md §6.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
@@ -46,14 +28,9 @@ export const BASH_TARGET = 18;
 
 /**
  * What Strength is worth on a Dungeonbashing throw, per point of modifier.
- *
- * THE definition for this module. The factor belongs to the THROW, not to the
- * Adventuring proficiency that makes the best-known one: a character bashes a
- * door, breaks out of a grab, shoves forward while stuck and tears free of
- * webbing on the same throw, and Strength is worth the same on all of them. So
- * every surface that resolves a Dungeonbashing throw reads it here rather than
- * restating it — the party sheet's bash column did restate it, and a rule with
- * two copies is a rule that drifts.
+ * The one definition every surface that resolves such a throw reads. See
+ * docs/formation/DECISIONS.md, "Strength on a Dungeonbashing throw has one
+ * owner".
  */
 export const BASH_STR_FACTOR = 4;
 
@@ -105,8 +82,6 @@ export const isDoor = (wall) => Number(wall?.door) > 0;
 export function bashPlan({ strMod = 0, pair = false, crowbar = false, sizeSteps = 0, spikes = 0, extra = 0 } = {}) {
   const parts = [];
   const push = (value, key) => { if (value) parts.push({ value, key }); };
-  // Strength moves the ROLL by BASH_STR_FACTOR per point — the book's own
-  // example has an 18 Strength opening doors on a 6+, which is 18 less 12.
   push(bashStrBonus(strMod), "str");
   push(pair ? 4 : 0, "pair");
   push(crowbar ? 2 : 0, "crowbar");
@@ -119,8 +94,8 @@ export function bashPlan({ strMod = 0, pair = false, crowbar = false, sizeSteps 
     target: BASH_TARGET,
     modifier,
     parts,
-    // A natural 20 plus the modifiers still short of 18 cannot be forced by
-    // heaving at all — worth SAYING rather than letting a table roll for it.
+    // Worth saying when even the best possible roll cannot force it, rather
+    // than letting a table roll for it.
     hopeless: 20 + modifier < BASH_TARGET,
   };
 }

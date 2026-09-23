@@ -16,20 +16,12 @@ export const FLAG_RETAIN_BONUS = "retainBonus";
 
 /**
  * Book-table document ids checked at `ready` and named to the GM when the
- * tables declared for them are not all readable. `throws` is NOT here — it is
- * this module's own roll-automation config, shipped in
- * scripts/data/throws-data.mjs and registered at setup.
- *
- * Only ids an import can actually supply belong here, so every id this list
- * puts in front of a GM is one they can go and resolve. It therefore matches
- * the `expectTables` declarations in module.mjs exactly — and must, because
- * the check reads those declarations: an id listed here with none declared
- * there is reported on its registration alone, which for `rarity` (this
- * module registers a doc under that id at setup) would be never. `followers` is
- * deliberately outside it: no extraction recipe produces that document, and
- * apps/followers-dialog.mjs gates on it at the point of use, where the message
- * can name the pages to import. Add an id here — with its `expectTables`
- * declaration — only once a recipe for it ships.
+ * tables declared for them are not all readable. `throws` is not here — it is
+ * this module's own roll-automation config (scripts/data/throws-data.mjs,
+ * registered at setup).
+ * Must match the `expectTables` declarations in module.mjs exactly. See
+ * docs/henchmen/DECISIONS.md, "The ready-time table check names only ids an
+ * import can supply".
  */
 export const RULEDATA = Object.freeze([
   "availability",
@@ -47,8 +39,8 @@ export const SCHEMA_VERSION = 2;
  * Active Effect change-key prefix. Any effect change whose key is
  * `flags.acks-extras.<domain>` (for this feature's domains) contributes to
  * that modifier domain — this is how proficiency/power Items carry their
- * mechanics (data-driven, never a hardcoded name list). See docs/MODEL.md
- * for the contract.
+ * mechanics (data-driven, never a hardcoded name list). See
+ * docs/henchmen/MODEL.md for the contract.
  */
 export const EFFECT_PREFIX = `flags.${MODULE_ID}.`;
 

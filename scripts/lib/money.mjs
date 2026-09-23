@@ -1,29 +1,14 @@
 /* global game, ui, foundry */
 /**
- * Money is a physical thing that always sits somewhere (owner ruling,
- * 2026-08-14). A payment is therefore a TRANSFER: the coins taken from the
- * payer land on the payee's stacks — an actor's purse, or a location's till —
- * and change comes BACK from the payee's stacks by the same arithmetic. Coin
- * is never burned by a payment; a Judge who genuinely wants coin gone deletes
- * the stack, and owns that choice.
+ * Money is a physical thing that always sits somewhere — a payment is a
+ * TRANSFER, location-gated before any denomination math, with exchange
+ * terms read from the place. See docs/lib/DECISIONS.md, "2026-08-14 — Money
+ * is physical; four rulings land at once".
  *
- * The transfer is LOCATION-GATED before any denomination math: the payer's
- * coin must be somewhere it can actually reach the payee. For a location
- * payee that is the storage-reach rule (standing there, an owned vault, a
- * pinned place); for an actor payee it is sharing a scene. `gate: false` is
- * the Judge's override, as everywhere.
- *
- * Exchange terms come from the PLACE (owner ruling): a market exchanges
- * denominations freely — its till always makes change, minting small coin as
- * needed, which is what "freely" means mechanically — while a placeless deal
- * or a market-less place must barter: change only exists if the payee's own
- * stacks can represent it, and a transfer that cannot be changed refuses
- * whole rather than silently overcharging.
- *
- * The HOUSE pile: a location's own coin is storage-attributed to the sentinel
- * owner below rather than to any character. Every bucket-by-owner path treats
- * it as just another owner; only the retrieval UI treats it specially (the
- * Judge's, by default).
+ * The HOUSE pile: a location's own coin is storage-attributed to the
+ * sentinel owner below rather than to any character. Every bucket-by-owner
+ * path treats it as just another owner; only the retrieval UI treats it
+ * specially (the Judge's, by default).
  */
 import { MODULE_ID } from "./constants.mjs";
 import { acksExtras } from "../namespace.mjs";
@@ -77,12 +62,10 @@ export function coinReach(from, to) {
   const managerOf = (a) => a?.system?.retainer?.managerid ?? null;
   if (rosterOf(from).includes(to.id) || rosterOf(to).includes(from.id)) return { can: true, reason: null };
   if (managerOf(to) === from.id || managerOf(from) === to.id) return { can: true, reason: null };
-  // Otherwise, actor to actor: they share a scene (a hand can reach a hand).
-  // One token is one BODY. A synthetic token actor is matched by its own token,
-  // because its `id` is the base actor's and matching on that would let an
-  // unlinked copy of a hireling hand coin across the map to whoever is standing
-  // beside another copy of the same sheet. A base actor — which is what a LINKED
-  // token's `actor` is — answers for every token naming it.
+  // Otherwise, actor to actor: they share a scene. An unlinked (synthetic)
+  // token actor is matched by its own token uuid, never by `id` — see
+  // docs/lib/DECISIONS.md, "A reach check matches an unlinked token by its
+  // own token, never by actor id (2026-09-22)".
   const standsOn = (scene, a) => {
     if (!a) return false;
     if (!a.isToken) return scene.tokens.some((t) => t.actorId === a.id);

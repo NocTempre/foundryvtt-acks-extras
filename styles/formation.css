@@ -15,8 +15,8 @@
 
    The party sheet is not a system sheet, so styles/lib-sheet-theme.css does not
    reach it and no font-family is set here — typography arrives with the design
-   system's own .acks-ui layer. Sizes ride --acks-fs-base so the acks-lib
-   fontScale setting reaches them, and every line-height is a unitless multiple
+   system's own .acks-ui layer. Sizes ride --acks-fs-base so the lib
+   subsystem's fontScale setting reaches them, and every line-height is a unitless multiple
    for the same reason: a px leading pins a control row at one height while its
    label rides the ramp, so a raised fontScale clips the row. */
 
@@ -298,9 +298,9 @@
   grid-column: 1 / -1;
 }
 
-/* An empty file in the rank is drawn, not dimmed. The dashed keyline carries
-   "no one stands here" on its own, and an opacity mute here would composite the
-   hint inside the cell a second time, past what its own ink token allows. */
+/* An empty file in the rank is drawn, not dimmed — the dashed keyline carries
+   "no one stands here" on its own. See docs/lib/DECISIONS.md, "Secondary and
+   muted state reads in ink, never opacity". */
 .acks-extras:is(.party-sheet, .skill-audit) .member.blank-cell {
   border: var(--acks-rule-hair) dashed var(--acks-rule-color-soft);
   border-radius: var(--acks-radius);
@@ -541,10 +541,11 @@
   color: var(--acks-spot);
 }
 
-/* A spent row recedes in INK, never in opacity. Opacity dims the whole row —
-   the glyph with it — and the glyph is the only structural carrier the state
-   has, so muting it composites the one mark that must stay readable. The prose
-   drops to soft ink instead and the glyph keeps the faint ink set above. */
+/* A spent row recedes in INK, never opacity — the glyph is the only
+   structural carrier of the state, so dimming the row would dim the one mark
+   that must stay readable; the prose drops to soft ink and the glyph keeps
+   the faint ink set above. See docs/lib/DECISIONS.md, "Secondary and muted
+   state reads in ink, never opacity". */
 .acks-extras:is(.party-sheet, .skill-audit) .light.unlit {
   color: var(--acks-ink-soft);
 }
@@ -574,9 +575,8 @@
   white-space: nowrap;
 }
 
-/* Secondary prose recedes in ink. An opacity mute composites toward whatever
-   ground the row happens to sit on, and that ground is not the same tone in
-   both seats; the ink token is theme-correct by construction. */
+/* Secondary prose recedes in ink, not opacity. See docs/lib/DECISIONS.md,
+   "Secondary and muted state reads in ink, never opacity". */
 .acks-extras:is(.party-sheet, .skill-audit) .hint {
   font-size: var(--acks-fs-label);
   color: var(--acks-ink-soft);

@@ -1,27 +1,13 @@
 /* global game, foundry */
 /**
- * ONE chat card for a roll several people made at once.
- *
- * Three surfaces post this shape — the exploration party's checks (Listen,
- * Search, Bash, Track), the party's saving throws, and the Surprise Matrix's
- * results — and each had grown its own renderer: two hand-built
- * `<ul class="results">` lists in the formation feature and a table in the
- * surprise patch. Same question every time (who rolled, what did they get, did
- * it land), three answers, drifting apart: only one of them showed a target,
- * only one showed the modifier stack, and the two lists never gained the
- * design system's tabular figures or banded rows.
- *
- * This is the one renderer. It owns the CARD — banner, note, tables, footnote —
- * and nothing about any particular throw: what a row means, what counts as
- * success, and every localized word on it are the caller's.
- *
- * The markup is the design system's `acks-chat` component plus `acks-table`,
- * which is what makes the card carry its own GROUND as well as its ink: a chat
- * message's panel is not ACKS-themed, so a card that set only colours draws
- * dark-theme lettering on a light panel. `acks-ui` is deliberately absent —
- * `.acks-ui :is(h1,h2,h3,h4)` (base.css) paints headings the spot colour at
- * (0,2,0) and out-specifies `.acks-chat-title` (0,1,0), which would put
- * burgundy lettering on the burgundy banner.
+ * ONE chat card for a roll several people made at once — the exploration
+ * party's checks, the party's saving throws, and the Surprise Matrix's
+ * results. Owns the CARD (banner, note, tables, footnote); what a row
+ * means, what counts as success, and every localized word are the caller's.
+ * The markup is the design system's `acks-chat` plus `acks-table`; `acks-ui`
+ * is deliberately absent. See docs/lib/DECISIONS.md, "One renderer for
+ * every card where several people roll", and "Found live: `acks-ui`
+ * defeats the chat component's own banner."
  */
 import { LANG_PREFIX } from "./constants.mjs";
 import { makeLoc } from "./util.mjs";

@@ -2,28 +2,16 @@
 /**
  * Mount binding — who is riding what.
  *
- * acks-equipment has carried a mounted-combat overlay it cannot switch on:
- * "blocked on there being any 'mounted' state in the system at all"
- * (its settings.mjs). Shield rules alternate between rider and mount, lances
- * only apply mounted, a kite shield's encumbrance changes on horseback — all of
- * it needs one fact nothing recorded: this character is on that animal.
+ * A facade over lib/attachment.mjs: mounting is the `rider` role of the one
+ * attachment relationship, stored once on the rider's flag. The API and hooks
+ * here keep their mounted-combat names; only the storage moved. See
+ * docs/lib/MODEL.md, "Carrying: mounts, teams and everything aboard".
  *
- * THIS IS A FACADE OVER lib/attachment.mjs, and a permanent one. Mounting is
- * the `rider` role of the one attachment relationship — the same binding that
- * seats a passenger in a wagon and an ox in the traces — so the fact is stored
- * ONCE, as the rider's attachment flag, and every consumer of "who is aboard
- * what" agrees with every consumer of "who is riding what". The API and hooks
- * here keep their names because they are the mounted-combat vocabulary other
- * features were promised; only the storage moved.
+ * Legacy symmetric MOUNT_FLAG/RIDER_FLAG pairs are still read; every write
+ * converges them to the attachment flag and clears them.
  *
- * LEGACY PAIRS ARE STILL READ. This module used to store a symmetric
- * MOUNT_FLAG/RIDER_FLAG pair on both ends; worlds written under that scheme
- * read correctly (both ends must still agree, as before), and any write —
- * mounting or dismounting — replaces the pair with the attachment flag and
- * clears it. Worlds converge lazily; no migration sweep.
- *
- * A mount is not required to be an `acks-lib.animal`. A character can ride a
- * monster, and in ACKS plenty do.
+ * A mount need not be an `acks-extras.animal` — a character can ride a
+ * monster.
  */
 import { resolveActorSync } from "./storage.mjs";
 import { MODULE_ID } from "./constants.mjs";
@@ -94,8 +82,7 @@ export async function mountActor(rider, mount) {
     warn("notOwner");
     return false;
   }
-  // A mount that says it cannot be ridden is advisory, not a block: the Judge
-  // may well allow it, and refusing outright would make the module the referee.
+  // mountable === false only warns; it is advisory, not a block.
   if (mount.system?.animal && mount.system.animal.mountable === false) {
     warn("notMountable", { name: mount.name });
   }

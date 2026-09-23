@@ -24,8 +24,8 @@ import { ANIMAL_TRAINING } from "../lib/data/animal-data.mjs";
 
 const T = `modules/${MODULE_ID}/templates/monsters`;
 
-// Spelled here rather than imported from lib's module.mjs, which is a ready-time
-// registrar this sheet must not depend on — the same string, no cycle.
+// Spelled here rather than imported from lib's ready-time registrar module,
+// to avoid a cycle — same string.
 const ANIMAL_SUBTYPE = `${MODULE_ID}.animal`;
 
 /**
@@ -62,9 +62,7 @@ function computeEncumbrance(actor, extras) {
     state,
     speedFactor,
     stateLabel: game.i18n.localize(`ACKS-MONSTERS.enc.${state}`),
-    // The rider's line shows the figure the mount's load counts: body plus
-    // kit as it weighs, never the rider's own encumbrance, which a harness or
-    // a slung shield has already lightened for walking.
+    // The rider's line is body weight plus kit, not the rider's own encumbrance.
     rider: rider ? { name: rider.name, stone: Math.round(borneBy6(rider) / 6 * 10) / 10 } : null,
   };
 }
@@ -157,10 +155,8 @@ export function createFullMonsterSheet(Base) {
     }
 
     /**
-     * The `system.animal` subtree, or null on a plain monster. It gates the
-     * Animal tab BOTH ways: dropping only the nav entry would still render the
-     * part, and its `system.animal.*` inputs would submit that path against a
-     * monster that has no such schema.
+     * The `system.animal` subtree, or null on a plain monster; gates the
+     * Animal tab both ways. See docs/monsters/MODEL.md, "Animal tab".
      */
     get #animalData() {
       return this.actor.type === ANIMAL_SUBTYPE ? (this.actor.system?.animal ?? null) : null;
@@ -188,13 +184,10 @@ export function createFullMonsterSheet(Base) {
       const extras = MonsterExtras.fromActor(this.actor);
       context.extras = extras;
       context.ose = oseSourceView(this.#oseRecord);
-      // Enrich the entry-prose fields so text enrichers run in them the way the
-      // core sheet already enriches biography — imported book text is stored in
-      // the field itself, but a Judge writing beside it reaches for the same
-      // links and rolls core enriches everywhere else. The raw value still
-      // drives editing (prose-mirror `value`); the enriched HTML is the display.
-      // `relativeTo` is what resolves relative @UUID links in that display, and
-      // secrets stay hidden from anyone who does not own the actor.
+      // Enrich the entry-prose fields the same way core enriches biography.
+      // The raw value still drives editing; the enriched HTML is the display.
+      // `relativeTo` resolves relative @UUID links; secrets stay hidden from
+      // a non-owner.
       const TE = foundry.applications.ux.TextEditor.implementation;
       const desc = extras.description ?? {};
       context.enrichedDesc = Object.fromEntries(
@@ -216,8 +209,7 @@ export function createFullMonsterSheet(Base) {
       context.ages = CFG.AGE_CATEGORIES;
       context.x = `flags.${MODULE_ID}.${FLAG_EXTRAS}`;
       // The Animal tab. `training` falls back to the schema initial so a blank
-      // string still selects a row; what the beast CARRIES is not repeated here
-      // — it is edited on Classification and drawn on Inventory.
+      // string still selects a row. See docs/monsters/MODEL.md, "Animal tab".
       const animal = this.#animalData;
       context.animal = animal
         ? {
@@ -227,10 +219,9 @@ export function createFullMonsterSheet(Base) {
             imported: !!this.actor.flags?.[MODULE_ID]?.cookbook,
           }
         : null;
-      // Pre-localized save rows for the Classification tab. Resolve each save to
-      // whichever key the running system actually uses — the released acks
-      // 14.0.1 still uses breath/wand, while newer builds use blast/implements —
-      // so the value and roll target the real field and never come up empty.
+      // Pre-localized save rows for the Classification tab. Resolves each
+      // logical save to whichever key the running system actually uses, so
+      // the value and roll target the real field and never come up empty.
       const sysSaves = this.actor.system?.saves ?? {};
       const pick = (...keys) => keys.find((k) => sysSaves[k] !== undefined) ?? keys[0];
       context.saveRows = [
@@ -291,11 +282,9 @@ export function createFullMonsterSheet(Base) {
             foundry.utils.setProperty(submitData, `system.details.appearing.${key}`, next);
           }
         }
-        // The Hit Dice rating is the authored source of core's roll formula:
-        // a change to count, die or bonus rewrites `system.hp.hd`, which the
-        // header, the follower card and the HP roll all read. Only the
-        // rating's OWN change writes — a formula typed straight into the
-        // header survives every other submit.
+        // Only the rating's own change rewrites `system.hp.hd`. See
+        // docs/monsters/DECISIONS.md, "The Hit Dice rating writes core's
+        // roll formula".
         const formula = hdFormula(cleaned.hd);
         if (formula && formula !== hdFormula(stored.hd)) {
           foundry.utils.setProperty(submitData, "system.hp.hd", formula);

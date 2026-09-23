@@ -339,10 +339,7 @@ export function getLoadout(actor, opts = {}) {
   // RAW "Non-Proficient Use of Weapons and Armor" (RR p. 106 sidebar): the
   // condition is the equipped STATE — any unusable weapon, unusable worn
   // armour, or an untrained fighting style (weapon and style proficiency are
-  // distinct; BOTH are required) — and while it holds, a 1st+ level character
-  // attacks as a 0th-level fighter (a 0th-level one takes an additional −1),
-  // gains no attribute bonus to attack or AC, cannot use class powers, and
-  // earns no XP from the adventure. Attack/AC land in roll-wrap + the loadout
+  // distinct; BOTH are required). Attack/AC land in roll-wrap + the loadout
   // effect; class powers and XP are Judge-side, surfaced via the violation.
   const nonProficientUse =
     !!(nonProfWeapons.length > 0 || (armor && !armorProficient) || (weapons.length > 0 && !styleProficient));

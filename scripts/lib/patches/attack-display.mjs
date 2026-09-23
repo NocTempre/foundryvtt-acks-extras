@@ -1,21 +1,15 @@
 /* global game, Hooks */
 /**
  * Core patch (display half of patches/attack-roll.mjs): the character sheet's
- * Melee/Ranged boxes, REPLACED at every render.
- *
- * Core's attributes tab prints Melee/Ranged as `ability mod + attack adjustment`
- * — a bonus-only number with the attack throw (the moving target) omitted, so
- * editing the throw never visibly changes it and the number contradicts what the
- * roll actually does. Core is a read-only reference, so the wrong display cannot
- * be deleted at the source; instead this hook overwrites the rendered value and
- * tooltip on every render, making the folded number UNREACHABLE in play. The
- * replacement states the model the patched roll uses:
- *
- *     10+ +2      — attack throw (target, moves with class/level) · roll bonus
+ * Melee/Ranged boxes, replaced at every render with the patched roll's model —
+ * attack throw and roll bonus shown separately (`10+ +2`) instead of folded
+ * into one number.
  *
  * The rollable headers keep their own `data-action="rollAttack"` wiring — only
  * the displayed value/tooltip are superseded. Character sheets only: monsters
- * have no such boxes, and the Follower Card already renders the split.
+ * have no such boxes, and the Follower Card already renders the split. See
+ * docs/lib/DECISIONS.md, "One owner for the attack roll, and one seam for
+ * future modifiers".
  */
 import { toNum as num } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
@@ -62,15 +56,11 @@ function fixAttackDisplays(app, element) {
     const header = root.querySelector(`a[data-action="rollAttack"][data-attack="${type}"]`);
     const input = header?.closest(".form-group")?.querySelector("input");
     if (!input) continue; // not this sheet's markup (e.g. the Follower Card)
-    // These buttons name no weapon, so they answer for the CHARACTER: the base
-    // attack throw and the stat, which is what a table needs off the cuff. The
-    // situational terms are deliberately absent — `system.thac0.mod` (where the
-    // current loadout and any magic item deposit their results), a weapon's own
-    // bonus, a style bonus. The weapon's own roll applies all of those exactly,
-    // and a summary carrying them would disagree with the dice.
-    //
-    // Melee and Ranged stay separate, as they are on the sheet: each asks
-    // equipment for its own throw, so neither figure can reach the other.
+    // These buttons name no weapon, so they show the throw and stat alone,
+    // with no situational term (the weapon's own roll applies those). Melee
+    // and Ranged stay separate, each reading its own throw from equipment.
+    // See docs/lib/DECISIONS.md, "The Melee/Ranged boxes show the base throw
+    // and stat alone".
     const best = bestBonus(actor, type);
     const abilityKey = best?.abilityKey ?? (type === "missile" ? "dex" : "str");
     const bonus = best ? best.total : num(sys.scores?.[abilityKey]?.mod);

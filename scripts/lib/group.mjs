@@ -1,36 +1,15 @@
 /* global game, foundry, Actor, Roll, Hooks, CONST, fromUuid, fromUuidSync */
 /**
  * Group operations — the lifecycle of a stacked actor (see data/group-data.mjs).
- *
- * A group holds a LIST of stacks; every operation here addresses ONE stack by
- * its key (a mixed unit of 10 swordsmen + 10 spearmen is two stacks, deployed
- * and depleted independently). Each stack holds a SPARSE roster: a record per
- * body that has diverged, and nothing for pristine bodies. These functions move
- * a stack's members through that lifecycle while keeping the one invariant true
- * at every step — a stack's `size.current` (living bodies) is never less than
- * the number of its living records.
- *
- * DEPLOY/RECALL is the compatibility strategy. Deploying spawns unlinked tokens
- * of a stack's prototype with each member's ActorDelta pre-applied, so on the
- * canvas a member is an ordinary token over an ordinary actor and every
- * system/module that reads an actor reads it unchanged. Recalling folds
- * `token.delta` back into the member record and removes the token.
- *
- * THE ROSTER FOLLOWS THE CANVAS, not the other way round. Every route that ends
- * a body's time on the map — recall, casualties, a token simply deleted after a
- * battle — folds through the same reconciliation, and a record left pointing at
- * a token that no longer exists is freed rather than believed. The canvas is
- * what a Judge edits; the roster has to be able to catch up with it.
- *
- * BATCHED BY DEFAULT. A stack is a crowd, so every operation that touches many
- * bodies (deploy, recall, casualties, materialize) costs ONE roster write and
- * one document call per scene, whether it moves one body or forty.
+ * A group holds a LIST of stacks, each with a SPARSE roster (a record per body
+ * that has diverged; nothing for pristine bodies). See docs/lib/GROUPS.md,
+ * "The lifecycle" for the deploy/recall compatibility strategy and its table
+ * of operations, "The roster follows the canvas, not the other way round" and
+ * "Group writes are batched, not per-body" for two invariants kept throughout.
  *
  * These operations write world documents (tokens, actors) and so run on the
- * calling client under Foundry's own permission checks — a GM, or an owner with
- * token-create rights on the scene. They are defensive (try/caught, half-steps
- * persisted before destructive ones) but they do not route over a socket; a
- * consumer that needs GM-routed writes wraps them.
+ * calling client under Foundry's own permission checks; they do not route
+ * over a socket — a consumer needing GM-routed writes wraps them.
  */
 import { MODULE_ID } from "./constants.mjs";
 import GroupData, { GROUP_CATEGORY, GROUP_STATE } from "./data/group-data.mjs";
@@ -172,12 +151,8 @@ async function removeTokens(tokens) {
 /**
  * Fold a batch of deployed members back into their stacks in ONE write: store
  * what happened to each body while it was out, drop the ones that came back at
- * ≤0 hp to casualties, and shrink each stack by the number that fell.
- *
- * Every caller stashes through here BEFORE deleting the tokens the folds were
- * read from, so a failure between the two loses nothing. It is also what makes
- * the deletion idempotent: a folded member no longer names its token, so the
- * `deleteToken` reconciliation sees nothing left to do.
+ * ≤0 hp to casualties, and shrink each stack by the number that fell. Callers
+ * stash through here before deleting the tokens the folds were read from.
  *
  * @param {{stackKey: string, memberKey: string, delta: object, fell: boolean}[]} folds
  * @returns {Promise<number>} how many of them fell
@@ -208,15 +183,10 @@ async function foldMembers(group, folds) {
 }
 
 /**
- * A `deployed` record whose token no longer exists is a body still standing, not
- * a body spent: flip it back to `materialized` so it is chosen again.
- *
- * Without this a stack that lost its tokens to anything other than a recall —
- * the scene deleted, a crash mid-deploy — keeps records nothing can reach.
- * They still count as living records, so the pristine difference shrinks to
- * match, and the stack reports it has nothing left to deploy while its headcount
- * says otherwise. Never resolve this by shrinking the headcount instead: the
- * bodies are alive, only the link to the canvas is broken.
+ * A `deployed` record whose token no longer exists is a body still standing,
+ * not a body spent: flip it back to `materialized` so it is chosen again,
+ * rather than shrinking the headcount. See docs/lib/DECISIONS.md, "The roster
+ * follows the canvas, not the other way round".
  *
  * @returns {Promise<number>} how many records were freed
  */
@@ -238,14 +208,11 @@ export async function reconcileStrandedMembers(group) {
 }
 
 /**
- * A member's token was removed from a scene by something other than a recall —
- * the Judge clearing the fallen off the board after a battle. Reconcile the
- * roster with what the canvas now says: the body is folded back in, and if it
- * left at ≤0 hp the stack's headcount drops with it.
- *
- * Keyed on the record still naming THIS token, which is what keeps it out of the
- * way of every deliberate route (recall, casualties, detach) — each of those
- * clears the link before it deletes anything.
+ * A member's token was removed from a scene by something other than a recall
+ * (the Judge clearing the fallen off the board). Reconcile the roster with
+ * what the canvas now says: fold the body back in, and drop the stack's
+ * headcount if it left at ≤0 hp. Keyed on the record still naming THIS token,
+ * which every deliberate route (recall, casualties, detach) clears first.
  */
 async function reconcileDeletedToken(tokenDoc) {
   const groupUuid = tokenDoc.getFlag(MODULE_ID, GROUP_FLAG);
@@ -374,10 +341,10 @@ export async function setPrototype(group, source, { count = 0 } = {}) {
 }
 
 /**
- * Ensure a STACK has a WORLD actor to be the ActorDelta base. ActorDelta merges
- * onto a real world actor; a compendium uuid cannot be that base. If the stack's
- * prototype points at a world actor already, that is used; otherwise one is
- * minted from the snapshot (hidden, owned by nobody) and remembered on the stack.
+ * Ensure a STACK has a WORLD actor to be the ActorDelta base (a compendium uuid
+ * cannot be one — see docs/lib/GROUPS.md, "Member records ARE ActorDeltas").
+ * Uses the stack's prototype if it already points at a world actor; otherwise
+ * mints one from the snapshot (hidden, owned by nobody) and remembers it.
  *
  * @returns {Promise<Actor|null>}
  */
@@ -474,18 +441,9 @@ export async function materializeMember(group, stackKey, { name = "", extraDelta
 }
 
 /**
- * Record `n` casualties in ONE stack — the bulk removal every surface uses, at
- * the cost of one write however many bodies fall.
- *
- * Bodies are taken in the order that costs the least to lose. Pristine ones fall
- * FIRST: they leave no record, so the stack simply shrinks. Then RESTING
- * records become `dead` ones (kept for the report). Only then does a DEPLOYED
- * body fall, and its token comes off the map with it — a stack cannot report
- * twenty-four dead while twenty-four of them still stand on the canvas.
- *
- * The roster is written before any token is destroyed, and the fallen no longer
- * name their tokens, so the deletion reconciliation finds nothing to redo.
- *
+ * Record `n` casualties in ONE stack, in one write. Bodies fall in the order
+ * that costs the least to lose: pristine ones first (no record), then resting
+ * records (→ `dead`), then deployed bodies last (token removed with them).
  * @returns {Promise<number>} casualties actually applied
  */
 export async function applyCasualties(group, stackKey, n) {
@@ -536,14 +494,11 @@ function defaultPlacer(scene, x, y) {
 
 /**
  * Put `count` members of ONE stack onto a scene as unlinked tokens, each
- * carrying its member delta. Resting records go out first, then pristine bodies
- * materialize on the way (they need a record to hold their token link and rolled
- * HP). Members already deployed are skipped, and records stranded by tokens that
- * vanished are freed first so a stack that took casualties can march again.
- *
- * The whole line is one creation call and one roster write, so deploying forty
- * bodies costs what deploying one does. A crash between the two leaves orphan
- * tokens that recall's reconciliation (by flag) still collects.
+ * carrying its member delta. Resting records go out first, then pristine
+ * bodies materialize on the way (they need a record to hold their token link
+ * and rolled HP); stranded records are freed first so a stack that took
+ * casualties can march again. One creation call and one roster write however
+ * many bodies deploy.
  *
  * @param {Actor} group
  * @param {Scene} scene
@@ -677,6 +632,3 @@ export async function detach(group, stackKey, memberKey, { folder = null } = {})
   Hooks.callAll(GROUP_HOOKS.DETACHED, group, actor, member);
   return actor;
 }
-
-// sizeFromEcology lives in group-logic.mjs (Foundry-free) and is re-exported at
-// the top of this file — the ecology runway is pure enough to unit-test offline.

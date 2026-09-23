@@ -21,18 +21,11 @@ import { filledLanguages } from "../classes/languages.mjs";
 
 const T = `modules/${MODULE_ID}/templates/abilities`;
 
-// The system's Active Effects partial, folded into the mechanics tab. This is
-// the ONE place the path is named: the mechanics part preloads it (a core
-// rename fails at part load, loudly) and tab-mechanics.hbs receives it through
-// context rather than hardcoding a reach into core's template tree.
+// The system's Active Effects partial. The one place the path is named: the
+// mechanics part preloads it (a core rename fails at part load, loudly) and
+// tab-mechanics.hbs receives it through context instead.
 const CORE_EFFECTS_PARTIAL = "systems/acks/templates/items/v2/common/item-active-effects.hbs";
 
-/**
- * A definition id ("def.power.longeval") reads as noise on a sheet, so show the
- * ability's own name when that ability is in the world. The id is what the data
- * holds and what survives a rename; this is display only, and falls back to the
- * id whenever the referenced ability has not been imported.
- */
 /** The name of the creature a companion slot points at, or "" when the pointer is empty or stale. */
 function companionName(uuid) {
   if (!uuid) return "";
@@ -43,20 +36,23 @@ function companionName(uuid) {
   }
 }
 
+/**
+ * A definition id ("def.power.longeval") shown as the ability's own name when
+ * that ability is in the world. Display only: the data keeps the id, and the id
+ * is returned whenever the referenced ability cannot be found.
+ */
 function refName(ref) {
   if (!ref) return ref;
   // lib owns the provenance-flag read (and the importer's scope name with it);
   // it survives on the item whether or not the importer is active.
   const match = (i) => definitionId(i) === ref;
   // The library — the sidebar plus the importer's own pack — answers almost
-  // every ref; imports live in the pack, so the sidebar alone rendered each
-  // relation as a raw id.
+  // every ref.
   const item = libraryItems().find(match);
   if (item) return item.name;
   // Any OTHER Item pack a world happens to hold, for a ref pointing outside
-  // the library. Only already-loaded packs are searched — this is a display
-  // nicety on a synchronous render path, so it must not await anything; an
-  // unopened pack still falls back to the id, exactly as before.
+  // the library. Only already-loaded packs are searched: this is a synchronous
+  // render path and must not await; an unopened pack falls back to the id.
   for (const pack of game.packs ?? []) {
     if (pack.documentName !== "Item") continue;
     const hit = pack.contents?.find?.(match);
@@ -65,11 +61,7 @@ function refName(ref) {
   return ref;
 }
 
-/**
- * A breakpoint ladder that came from a printed PER-LEVEL table: contiguous
- * levels, one value each, long enough that listing it inline is noise. Read
- * off a table, it should be shown as a table.
- */
+/** True when breakpoints step one level at a time, long enough to render as a table rather than inline. */
 function isDenseLadder(bp) {
   if (!bp || bp.length < 4) return false;
   return bp.every((b, i) => i === 0 || b.atLevel === bp[i - 1].atLevel + 1);
@@ -81,12 +73,7 @@ const ordinal = (n) => {
   return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
 };
 
-/**
- * A class key as a NAME — the world's document for it, then the chassis
- * vocabulary, then the key itself. The four chassis are not the only classes a
- * progression may borrow from, so a lookup in the chassis list alone prints a
- * bare key for every real class.
- */
+/** A class key as a name: the world's document for it, then the chassis vocabulary, then the key itself. */
 function className(key) {
   if (!key) return "";
   try {
@@ -102,20 +89,15 @@ function describeEffect(e, V) {
   const lv = (v) => {
     if (!v) return null;
     if (v.kind === "perLevel" && v.base != null) {
-      // `base === per` is the "N per level" shape — the value IS N x level, so
-      // showing "0.5 (+0.5/level)" invites reading a +0.5 bonus at 1st level
-      // when the rule gives 1. Say what it multiplies, and say the rounding:
-      // "half class level (round up)" is the rule, "0.5" is not a bonus anyone
-      // ever applies.
+      // `base === per` is the "N per level" shape (value = N × level): shown
+      // as the rate and its rounding, not the raw per-level fraction.
       const rounding = v.round ? ` ${label(V.VALUE_ROUNDING, v.round).toLowerCase()}` : "";
       if (v.base === v.per) return `${v.base}/level${rounding}`;
       return `${v.base} (${v.per >= 0 ? "+" : ""}${v.per}/level)${rounding}`;
     }
     if (v.kind === "breakpoints" && v.breakpoints?.length) {
-      // A ladder read off a printed PER-LEVEL table has a value for every level
-      // in its range. Listing all fourteen inline is unreadable and, worse,
-      // reads as though the value only changes at those points — so summarise
-      // the span here and let the row render the full table underneath.
+      // A per-level ladder spanning every level is summarised as a range here;
+      // the row renders the full table underneath.
       if (isDenseLadder(v.breakpoints)) {
         const first = v.breakpoints[0];
         const last = v.breakpoints[v.breakpoints.length - 1];
@@ -136,12 +118,8 @@ function describeEffect(e, V) {
 
   switch (e.type) {
     case "modifier": {
-      // A situational bonus must SAY so — a bare "+4" claims it always applies,
-      // and most of these apply only while ambushing, negotiating, casting…
-      // WHOSE roll this hits LEADS the line when it is not the character's
-      // own: "-2 to surprise" and "the opponent: -2 to surprise" are opposite
-      // abilities, and reading that off the tail of a qualifier list is too
-      // easy to miss.
+      // A situational modifier states its condition rather than a bare number.
+      // The subject leads the line when the roll is not the character's own.
       const subject = e.appliesTo && e.appliesTo !== "self" ? `${label(V.EFFECT_SUBJECTS, e.appliesTo)}: ` : "";
       const qual = [e.forWhat, e.condition === "situational" ? "situational" : e.condition, e.mode === "replace" ? "replaces the default" : "", e.mode === "set" ? "does not apply" : ""]
         .filter(Boolean).join("; ");
@@ -185,9 +163,8 @@ function describeEffect(e, V) {
     case "limitation":
       return { kind: label(V.EFFECT_TYPES, e.type), text: e.restriction || e.condition || "—" };
     case "outcome": {
-      // "On a roll of X, Y happens." The trigger phrase leads with its number —
-      // that number came off the page, and an outcome whose number did not
-      // materialize (bookless seat) must read as undecidable, not as absent.
+      // The trigger phrase leads with its number; one not yet materialized
+      // (bookless seat) reads as undecidable, not absent.
       const when =
         e.trigger === "naturalBand"
           ? Number.isFinite(e.naturalMax)
@@ -223,11 +200,9 @@ function describeEffect(e, V) {
     case "spellcastingMod":
       return {
         kind: label(V.EFFECT_TYPES, e.type),
-        // No `savePenalty` here. This branch rendered one, but acks-lib's
-        // effectField declares no such field, so the value could never survive
-        // validation to reach the sheet — a display path with no storage
-        // behind it, found by chef audit. A save penalty an ability imposes on
-        // its targets is a `modifier` with `appliesTo: "opponent"`.
+        // No `savePenalty`: effectField declares none. A save penalty an
+        // ability imposes on its targets is a `modifier` with
+        // `appliesTo: "opponent"`.
         text: [e.school, e.casterLevelDelta ? `${signed(e.casterLevelDelta)} caster levels` : ""]
           .filter(Boolean).join(", ") || "—",
       };
@@ -241,10 +216,8 @@ function describeEffect(e, V) {
       return { kind: label(V.EFFECT_TYPES, e.type), text: `${what} ${total}× — ${label(V.REROLL_KEEP, e.keep) || "Keep the Better"}` };
     }
     case "companion": {
-      // The slot exists whether or not a creature is in it: a seat without the
-      // citing book still sees what the ability confers, and a slot the page
-      // leaves to the reader's choice says it is waiting for one. A filled slot
-      // names the creature itself; the note is the slot's own label.
+      // The slot exists whether or not a creature fills it: a filled slot names
+      // the creature; an unfilled one shows its note as a label.
       const bound = companionName(e.actorUuid);
       const who = bound || e.note || refName(e.ref) || "creature";
       const state = e.actorUuid ? "" : ` ${game.i18n.localize(e.ref ? "ACKS-ABILITIES.companion.notLoaded" : "ACKS-ABILITIES.companion.notChosen")}`;
@@ -269,11 +242,10 @@ export function createAbilitySheet(Base) {
   //   mechanics    everything that changes the game without being rolled — the
   //                extended effect model AND Foundry's Active Effects
   //
-  // The system's own `effects` part is folded into mechanics rather than kept
-  // as a fourth tab: two tabs both meaning "effects" was a distinction only the
-  // implementation cared about. Core's description part is reused as-is — only
-  // the details partial inside it is swapped (see _prepareDescriptionContext),
-  // so the roll fields come off Description without restating core's template.
+  // The system's own `effects` part is folded into mechanics (see
+  // docs/abilities/DECISIONS.md, "Active Effects live on the Mechanics tab").
+  // Core's description part is reused as-is — only the details partial inside
+  // it is swapped (see _prepareDescriptionContext).
   const parts = { header: P.header, tabs: P.tabs };
   if (P.description) parts.description = P.description;
   parts.rolls = { template: `${T}/tab-rolls.hbs`, scrollable: [""] };
@@ -302,28 +274,17 @@ export function createAbilitySheet(Base) {
       const extras = AbilityExtras.fromItem(this.item);
       context.extras = extras;
       context.x = `flags.${MODULE_ID}.${FLAG_EXTRAS}`;
-      // The count earns a row only when it carries information: a repeatable
-      // ability the character could take again, or a count already above 1.
-      // A non-repeatable ability sitting at 1 says nothing, and "x1" on every
-      // sheet is noise. Above 1 always shows — including on a NON-repeatable
-      // ability, where the combination is a data fault and hiding it would
-      // hide the fault.
+      // The count shows for a repeatable ability, and for any count above 1 —
+      // including on a non-repeatable ability, where it is a data fault and is
+      // drawn as one (`qtyConflict`).
       context.showQty = !!extras.repeatable || Number(extras.qty) > 1;
-      // Taken more than once while the book says it cannot be. That is a
-      // contradiction in the data, not a preference, so it is drawn as one
-      // rather than sitting quietly in a number field nobody re-reads.
       context.qtyConflict = !extras.repeatable && Number(extras.qty) > 1;
-      // Selections: a checkbox per canonical pick for this ability (acks-lib's
-      // selection vocabularies — the class-build shortlist, or the ability's
-      // own), with the comma-separated line kept as the fallback for picks the
-      // shortlist does not name. A stored pick is matched with case and
-      // punctuation folded, so imported free text like "Swords" ticks the
-      // Swords & Daggers box instead of sitting in the fallback and never
-      // matching anything. Boxes come from selectionOptions(), never
-      // Object.entries: a vocabulary's meta keys are not picks.
-      // Read through selectionsOf, never off `extras.selections` directly: it
-      // also absorbs the legacy "(X)" name suffix, which is how a pick granted
-      // by a template before the selection was stored still ticks its box.
+      // A checkbox per canonical pick (lib's selection vocabulary), the
+      // comma-separated line as fallback for picks the vocabulary does not
+      // name. Matched with case and punctuation folded. Boxes come from
+      // selectionOptions(), never Object.entries (a vocabulary's meta keys are
+      // not picks). Read through selectionsOf, never `extras.selections`
+      // directly — it also absorbs the legacy "(X)" name-suffix convention.
       const picks = selectionsOf(this.item);
       const vocab = V.selectionVocabFor?.(this.item, extras.category) ?? null;
       const matched = new Set();
@@ -369,9 +330,7 @@ export function createAbilitySheet(Base) {
       const scales = scalesFor(this.item.actor, this.item);
       // A throw's rungs, wherever they live: typed onto the throw, or borrowed
       // from a class document's published ladder. The tab shows the whole table
-      // either way — a throw rated off another class's table is still a ladder
-      // to the reader, and hiding it because the rungs are stored elsewhere is
-      // the difference between the two being visible at all.
+      // either way.
       const borrows = (t) => (t?.kind === "progression" || (!t?.kind && t?.as)) && !!t?.table;
       const ladderRowsFor = (r) => {
         if (measures(r)) return [];
@@ -386,13 +345,9 @@ export function createAbilitySheet(Base) {
         return t.breakpoints ?? [];
       };
       /**
-       * How a BORROWED ladder is read, when it is not read one-for-one.
-       *
-       * The rungs of a borrowed table are the LENDING class's levels, not the
-       * reader's: a character reading one at a fraction of their level stands
-       * well short of the rung their own level would name. A header reading
-       * "Class Level" over those numbers claims they are theirs, and a player
-       * counting along the row lands somewhere they are not.
+       * A borrowed ladder's name, fraction, and rounding, for a header keyed to
+       * the LENDING class's levels rather than the reader's own. See
+       * docs/abilities/MODEL.md, borrowed ladders.
        */
       const borrowedAs = (r) => {
         const t = r.target ?? {};
@@ -460,9 +415,9 @@ export function createAbilitySheet(Base) {
       });
       context.scales = scales;
       // Converted content still imports; it just carries a notice. Removed-on-
-      // purpose reads as a caution, merely-omitted as info, and a RENAME is
-      // marked too — it resolved, but the reader's book calls it something else,
-      // so the notice names it. Wording and icon come from acks-lib.
+      // purpose reads as a caution, merely-omitted as info, and a RENAME names
+      // what the reader's book calls it. Wording and icon come from lib's
+      // vocabulary.
       const statusKey = extras.conversionStatus || (extras.deprecated ? "deleted" : "");
       const status = statusKey ? V.CONVERSION_STATUS?.[statusKey] : null;
       const CLS = { caution: "warning", info: "info", note: "info" };
@@ -493,24 +448,10 @@ export function createAbilitySheet(Base) {
     }
 
     /**
-     * Swap the details partial the system's description tab renders, and tell
-     * it whether the ability throws at all.
-     *
-     * Core's `description.hbs` pulls in `details-<type>.hbs` through a context
-     * function, and for an ability that partial is mostly the roll block —
-     * formula, type, target. Those belong on the Rolls tab with the ability's
-     * other throws; leaving the first one here made it look like the only one,
-     * and left a bare "1d20 / = / 0" on every proficiency that makes no throw at
-     * all.
-     *
-     * `system.blindroll` stays on this tab, because it is one setting for ALL of
-     * an ability's throws rather than a property of any one of them — but the
-     * partial renders it only while `hasRolls`, so it never offers to hide a
-     * result the ability cannot produce.
-     *
-     * Nothing but the pointer and that flag is added. Core's description
-     * template, its enrichment and everything else about the tab are reused
-     * untouched.
+     * Swaps the details partial the description tab renders (the roll block
+     * moves to the Rolls tab) and tells it whether the ability throws at all.
+     * `system.blindroll` stays on this tab — one setting for all of an
+     * ability's throws — gated on `hasRolls`.
      * @override
      */
     async _prepareDescriptionContext(context) {
@@ -579,22 +520,18 @@ export function createAbilitySheet(Base) {
       const raw = foundry.utils.getProperty(submitData, path);
       if (raw && typeof raw === "object") {
         const stored = foundry.utils.deepClone(this.item.getFlag(MODULE_ID, FLAG_EXTRAS) ?? {});
-        // The Rolls tab may be showing a roll that still lives in core's
-        // singleton fields — rollsOf() folded it for display. Seed the merge
-        // base with what was actually shown, so editing it MATERIALIZES it here
-        // instead of writing a half-row over an empty array and losing the
-        // fields the form did not render.
+        // The Rolls tab may show a roll still living in core's singleton
+        // fields (rollsOf() folds it for display); seed the merge base with
+        // that so editing it materializes here instead of losing fields the
+        // form did not render.
         if (!(stored.rolls ?? []).length) {
           const folded = rollsOf(this.item);
           if (folded.length) stored.rolls = foundry.utils.deepClone(folded);
         }
-        // Ticked selection boxes are not form fields (they carry no name, so they
-        // cannot collide with the array path) — fold them into the free-text line
-        // here. Boxes first, in vocabulary order, then whatever the fallback line
-        // still holds; unticking a box therefore removes that pick. A typed phrase
-        // the vocabulary recognises is stored as its KEY at once — the box it
-        // would tick — so the pick is canonical from the first save, not the
-        // second; a phrase nothing matches stays as typed.
+        // Ticked selection boxes carry no name (so they cannot collide with the
+        // array path); folded into the free-text line here, boxes first in
+        // vocabulary order, then the fallback line. A typed phrase the
+        // vocabulary recognises is stored as its key at once.
         const root = form instanceof HTMLElement ? form : this.element;
         const boxes = [...(root?.querySelectorAll("[data-selection-pick]") ?? [])];
         if (boxes.length) {
@@ -611,10 +548,8 @@ export function createAbilitySheet(Base) {
         const merged = foundry.utils.mergeObject(stored, raw, { inplace: false, overwrite: true, insertKeys: true });
         // selections is authoritative from the form (an emptied list must stick).
         if (Array.isArray(raw.selections)) merged.selections = raw.selections;
-        // The "(spec)" suffix is DERIVED from the picks, never typed: choosing a
-        // selection renames the ability, and clearing the picks takes the suffix
-        // off again. Only when this ability HAS a vocabulary — an ability with
-        // no picks to offer keeps whatever name it was given.
+        // The "(spec)" suffix is derived from the picks, never typed, and only
+        // when the ability has a vocabulary; clearing the picks removes it.
         if (Array.isArray(merged.selections)) {
           const V = globalThis.acksExtras?.lib?.vocab;
           const vocab = V?.selectionVocabFor?.(this.item, merged.category);

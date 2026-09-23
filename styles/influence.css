@@ -1,21 +1,19 @@
-/* ACKS II — Influence & Reactions module styles.
+/* ACKS II — Influence & Reactions feature styles.
  *
  * Every colour, rule and face here comes from the vendored design tokens
  * (vendor/acks-design/tokens.css), read BARE: a literal fallback pins a
- * light-theme value that survives on a dark seat, which is what the token file
- * exists to prevent. The spot colour keeps its two roles — --acks-burgundy is
- * the SURFACE white lettering sits on, --acks-spot is the INK that sits on the
- * paper — and they diverge on a dark seat, so the role decides the token.
+ * light-theme value that survives on a dark seat. The spot colour keeps its
+ * two roles — --acks-burgundy is the SURFACE white lettering sits on,
+ * --acks-spot is the INK that sits on the paper — and they diverge on a dark
+ * seat, so the role decides the token.
  *
  * The palette carries no categorical hues. Where a mark used one, the glyph
  * already names the thing and the mark is drawn in the spot colour.
  *
- * SECONDARY PROSE IS MUTED WITH INK, NOT OPACITY. An opacity composites toward
- * whatever ground the row happens to sit on, so it says something different on
- * paper than on leather, and laid over a state token it silently erodes a value
- * that was contrast-tuned at full strength. `opacity:` survives here in exactly
- * two places, and neither is text: a portrait for a target that is not there,
- * and a disabled control.
+ * SECONDARY PROSE IS MUTED WITH INK, NOT OPACITY (docs/lib/DECISIONS.md,
+ * "Secondary and muted state reads in ink, never opacity"). `opacity:`
+ * survives here in exactly two places, and neither is text: a portrait for a
+ * target that is not there, and a disabled control.
  */
 
 .acks-influence-dialog .influence-body {

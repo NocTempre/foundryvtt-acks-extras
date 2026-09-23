@@ -34,11 +34,8 @@ export function buildMacros() {
       `if (!game.user.isGM) return ui.notifications.warn("The storage manager is a GM tool.");
 game.modules.get("acks-extras").api.location.openStorageManager();`,
     ),
-    // A CHARACTER is refused here for the same reason the manager's Enable
-    // dialog leaves characters out of its list: a place is somewhere goods are
-    // left, and a character is who leaves them. Flagging one made the character
-    // a shared warehouse, which is not what a personal vault is and not what
-    // anyone selecting their own token meant to ask for.
+    // Refuses a character, matching the storage manager's own Enable dialog.
+    // See docs/location/DECISIONS.md, "Storage can be turned off again".
     macro(
       "Enable Storage Here",
       "icons/svg/village.svg",

@@ -1,11 +1,9 @@
 /**
  * Candidate identity rolls. Pure module — dice arrive via an injected async
- * roller.
- *
- * DESIGN RULE (anti-fishing): a candidate's class and level are FIXED when
- * the monthly pool is rolled — the market offers what it offers, subdivided
- * into weekly arrival tranches. There is no per-candidate reroll surface.
- * Attributes (3d6 ×6) are rolled once, at HIRE time, and recorded.
+ * roller. A candidate's class and level are fixed when the monthly pool is
+ * rolled, with no per-candidate reroll surface; attributes (3d6 ×6) are
+ * rolled once, at hire time, and recorded. See docs/henchmen/DECISIONS.md,
+ * "Candidate class and level are fixed at the market roll, not at hire".
  */
 import { bracketRow, getTable, optTable } from "./tables.mjs";
 

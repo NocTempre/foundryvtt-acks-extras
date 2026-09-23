@@ -49,10 +49,9 @@ export const CLASS_DOC_PREFIX = "acks.class.";
 export const CHASSIS_KEYS = ["fighter", "crusader", "mage", "thief"];
 
 /**
- * How a casting tradition's capacity is modeled. `vancian` is the RR slot
- * grid; the rest are carried by the schema now so By This Axe gnosis,
- * Heroic Fantasy ceremonial magic and point-based variants materialize into
- * the same field instead of forcing a schema break later.
+ * How a casting tradition's capacity is modeled; `vancian` is the RR slot
+ * grid. See docs/classes/DECISIONS.md, "2026-08-05 — Casting is a typed
+ * framework from the start".
  */
 export const CASTING_KINDS = {
   vancian: { label: "Spell Slots" },

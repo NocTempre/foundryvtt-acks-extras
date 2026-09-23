@@ -141,31 +141,22 @@ const MODE_ICONS = {
 };
 
 /**
- * Calibration gets a control group of its own, not a button hidden at the end
- * of somebody else's.
+ * Calibration gets a control group of its own. Each capture mode IS a
+ * scene-control tool (Foundry keeps one active at a time for free); the
+ * group carries no `layer`, since it drives the calibration overlay, not a
+ * placeables layer. Activating the group opens the window; leaving it
+ * disarms and nothing else — the window is dismissed only by its own close
+ * control.
  *
- * Each capture mode IS a scene-control tool — it arms a canvas interaction,
- * which is the thing a tool models — so Foundry keeps exactly one of them
- * active for free and the armed mode is visible in the toolbar rather than
- * buried in a window. The group carries no `layer`: it drives the calibration
- * overlay, not a placeables layer, and a SceneControl has never required one.
- *
- * The window is still where the numbers and the apply actions live, so
- * activating the group opens it. Leaving the group disarms and NOTHING else:
- * core drops a layerless control group on every canvas redraw, and the apply
- * redraws the canvas — closing the panel here takes it away the instant its
- * own apply lands, which is when the GM is reading the result. The window is
- * dismissed by its own close control.
+ * See docs/battlemap/DECISIONS.md, "The panel is a window again, dismissed
+ * by the toolbar."
  */
 function installSceneControls() {
   Hooks.on("getSceneControlButtons", (controls) => {
     if (!game.user.isGM) return;
     const tools = {};
-    // The way out, and the group's resting state. Without a tool that arms
-    // NOTHING, every tool in the group draws on the map and the only exit is
-    // to leave the group entirely — and core remembers the last tool per
-    // control, so coming back re-arms it. This is the tool that remembering
-    // should land on.
+    // The group's resting state — without it, every tool in the group draws
+    // on the map and core's per-control memory would re-arm one on return.
     tools[TOOL_OFF] = {
       name: TOOL_OFF,
       title: game.i18n.localize(`${LANG_PREFIX}.mode.off`),
@@ -207,10 +198,9 @@ function installSceneControls() {
         }
       },
     };
-    // Roads: drawn as WALLS with core's own wall tool, on any grid. Each of
-    // these is a PRESET — it arms what the next wall is created as and hands
-    // over the drawing tool — so they are buttons rather than canvas modes,
-    // and the pip that says one is live belongs to the wall tool, not here.
+    // Roads are drawn as WALLS with core's own wall tool. Each of these is a
+    // PRESET (arms what the next wall is created as), so they are buttons, not
+    // canvas modes — the "one is live" pip belongs to the wall tool, not here.
     ROAD_SURFACES.forEach((kind, i) => {
       tools[`route-${kind}`] = {
         name: `route-${kind}`,
@@ -333,8 +323,8 @@ function installSceneConfigRow() {
     group.querySelector(".acks-extras-battlemap-autoscale").addEventListener("change", async (ev) => {
       await scene.setFlag(MODULE_ID, FLAG_BATTLEMAP, { ...flag, autoScale: ev.currentTarget.checked });
     });
-    // Blank or zero clears the declaration rather than storing a block of no
-    // width: silence is what the city tracker reads as "time them by their feet".
+    // Blank or zero clears the declaration — silence is what the city
+    // tracker reads as "use walking speed".
     group.querySelector(".acks-extras-battlemap-blockfeet")?.addEventListener("change", async (ev) => {
       const feet = Number(ev.currentTarget.value);
       await scene.setFlag(MODULE_ID, FLAG_BATTLEMAP, {
@@ -347,14 +337,10 @@ function installSceneConfigRow() {
 }
 
 /**
- * The city's own incident list, on a city map: the table, what it adds after
- * dark, and the band it hands to the district the party is in.
- *
- * Each control writes on change, like the rest of the row — the scene-config
- * submit knows nothing about this flag. The table is named by UUID and takes a
- * drop; one that is not a RollTable this world can read is refused and the
- * field put back, because a dead UUID here silently sends every incident to
- * the world's list instead.
+ * The city's own incident list, on a city map: the table, what it adds
+ * after dark, and the band it hands to the district the party is in. Each
+ * control writes on change; the table field takes a UUID or a drop, and one
+ * that is not a readable RollTable is refused and put back.
  */
 function incidentsRow(scene) {
   const say = (key) => game.i18n.localize(`${LANG_PREFIX}.sceneConfig.${key}`);

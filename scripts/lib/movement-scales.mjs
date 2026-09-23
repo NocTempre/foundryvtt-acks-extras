@@ -1,30 +1,22 @@
 /**
  * The four speeds a creature has, and the names the book gives them.
  *
- * ACKS measures movement at four scales, and they are not interchangeable —
- * quoting one where another is meant is how a party ends up marching sixty
- * miles down a dungeon corridor:
+ * ACKS measures movement at four scales, and they are not interchangeable:
  *
  *  - **combat speed** — feet per ROUND, what a fight is measured in;
- *  - **running speed** — feet per round at a sprint. In the wilderness both of
- *    these are three times their dungeon value, the open ground being what it
- *    is (RR ch. 6);
- *  - **exploration speed** — feet per TURN, the careful dungeon pace, and the
- *    figure everything else is derived from;
- *  - **expedition speed** — MILES PER DAY, what a wilderness journey is
- *    actually planned in, printed as a table against exploration speed and
- *    also given in hexes per day and miles per hour.
+ *  - **running speed** — feet per round at a sprint, scaled up outdoors from
+ *    its dungeon value (RR ch. 6);
+ *  - **exploration speed** — feet per TURN, the figure everything else is
+ *    derived from;
+ *  - **expedition speed** — MILES PER DAY, printed as a table against
+ *    exploration speed and also given in hexes per day and miles per hour.
  *
- * The printed table is exactly linear, so it is arithmetic here rather than
- * thirteen rows of lookup: a day's march is exploration speed over five, a
- * six-mile hex is six of those miles, and the miles-per-hour column assumes
- * the eight hours of intense marching that a dedicated travel day means.
+ * The printed table is exactly linear, so the conversions below are
+ * arithmetic rather than table lookup. See docs/lib/DECISIONS.md, "Expedition
+ * speed is computed, not looked up".
  *
- * TRAVEL PACE is the other half of the same question. A party dedicating the
- * day gets its expedition speed; a FORCED MARCH of twelve hours multiplies it
- * by 3/2 and spends every ancillary activity to do it; a party that would
- * rather do other things can travel an hour at a time as an ancillary
- * activity, and four of those make half speed.
+ * TRAVEL PACE is the other half of the same question — how a party spends
+ * the day changes its expedition speed.
  */
 
 /** Feet per turn that make one mile per day of expedition speed. */
@@ -48,11 +40,11 @@ export const SCALES = Object.freeze({
 });
 
 /**
- * How a party is spending the day (RR ch. 6 §Expedition Speed).
+ * How a party is spending the day (RR ch. 6, Expedition Speed).
  *
- * `forced` is not free: twelve hours of marching instead of eight, and every
- * ancillary activity spent on the road. The rules for what that costs a
- * character belong to exhaustion, not here — this only carries the multiplier.
+ * `forced` costs a longer march and every ancillary activity spent on the
+ * road; what that costs the character belongs to exhaustion, not here — this
+ * only carries the multiplier.
  */
 export const TRAVEL_PACE = Object.freeze({
   dedicated: { label: "ACKS-LIB.pace.dedicated", multiplier: 1, hours: MARCH_HOURS },
@@ -77,9 +69,8 @@ export function expeditionFrom(explorationFeetPerTurn, { multiplier = 1, pace = 
     explorationFeetPerTurn: round(feet),
     milesPerDay: round(milesPerDay),
     hexesPerDay: round(milesPerDay / MILES_PER_HEX),
-    // The printed column is miles per hour of MARCHING, so a forced march does
-    // not go faster per hour — it goes for longer. Dividing the day's total by
-    // that day's own hours keeps that true.
+    // Per hour of MARCHING, not per hour of the day — a forced march goes
+    // longer, not faster, which dividing by that day's own hours keeps true.
     milesPerHour: round(milesPerDay / paceSpec.hours),
   };
 }

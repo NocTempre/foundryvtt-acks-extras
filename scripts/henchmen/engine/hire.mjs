@@ -317,10 +317,8 @@ export async function hire(location, candidateId, employer, opts = {}) {
   }
   if (!actor) return { error: "actor-create-denied" };
 
-  // COMMIT the hire on the market FIRST: the actor exists, so the candidate is
-  // taken. Everything after this (grants, roster link, record, loyalty) is
-  // enrichment, and a failure there must never leave a phantom "available"
-  // candidate standing beside a real hired actor.
+  // Commit on the market first; everything after is enrichment. See
+  // docs/henchmen/DECISIONS.md, "Commit the hire before enriching it".
   await updateCandidate(location, candidateId, { status: "hired" });
 
   // Grant the candidate's proficiency package (JJ 254-257) as real ability

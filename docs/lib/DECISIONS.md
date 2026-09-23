@@ -1829,3 +1829,374 @@ until the primary GM's next change. The drop is asynchronous inside a
 synchronous `onChange`, so the reload Foundry asks for may fire before the
 core setting is written — Foundry's reload confirmation waits on the Judge,
 which is time enough in practice.
+
+### The throw-tag border bug is fixed (2026-09-22)
+
+Recorded while sweeping `styles/abilities.css`. The earlier "Not fixed here, found while reading" note — the throw-tag border naming `--acks-rule`, which is a stroke width, not a colour — is superseded: the rule reads `var(--acks-rule-hair) solid var(--acks-rule-color)`, and a comment beside it states the width-versus-colour trap.
+
+### The lantern fuel pattern rejects on the whole name, not a lookbehind (2026-09-22)
+
+Recorded from the comment on `LIGHT_SOURCES` in `scripts/lib/light.mjs`.
+
+**Ruled.** The lantern's fuel pattern excludes military oil by rejecting the
+whole item name whenever it mentions the qualifier, rather than trying a
+lookbehind on the fuel noun. The raw item's name states the qualifier before
+the noun, so a lookbehind cannot see it in time to exclude it.
+
+### Fuel burn-down reuses the ammunition tracker (2026-09-22)
+
+Recorded from the comment on `prepareToLight` in `scripts/lib/light.mjs`.
+
+**Ruled.** Fuel consumed when a light is struck is decremented through the
+equipment feature's own ammunition-tracker decrement when it is present,
+rather than a second decrement written here, so fuel burn-down and
+ammunition spend share one code path.
+
+### A sense-and-light re-derive matches on its own flag, never on `system` (2026-09-22)
+
+Recorded from the comment on the `updateActor` listener in `scripts/lib/module.mjs`.
+
+**Ruled.** The listener that re-derives a token's senses and light after a
+stat-block edit matches only on this module's own flag subtree changing,
+never on `system`. Nothing in the sense or light derivation reads `system`,
+so matching on it would re-sweep every scene's tokens on every ordinary stat
+change — a hit-point loss included — for an answer that cannot have changed.
+
+### The monster type default migrates its own former pin, once (2026-09-22)
+
+Recorded from the ready-hook sheet-migration comment in `scripts/lib/module.mjs`.
+
+**Ruled.** A one-time GM sweep rewrites a world's own former
+`core.sheetClasses` pin for the monster type, from this module's earlier
+full-sheet default to the Follower Card, because a stored pin outranks a
+later `makeDefault` registration and would otherwise leave every world that
+adopted this module before the card shipped opening the full sheet forever.
+It rewrites only the one exact string this module's own past registration
+wrote — a GM who has since chosen differently is left alone, and the
+rewritten value no longer matches, so the sweep cannot fire twice.
+
+**Cost:** reversible in one click from the sheet's own configuration.
+
+### The attack, surprise and initiative patches install unconditionally; only presentation follows the setting (2026-09-22)
+
+Recorded from the ready-hook install comments in `scripts/lib/module.mjs`.
+
+**Ruled.** The attack-roll, surprise-card and initiative-card patches
+install unconditionally at ready; only their presentation half follows its
+world setting. The attack-roll install also hosts the composition chain
+other features register into — the equipment feature's per-weapon modifiers
+and ammunition spend have no other reader — so skipping the install while
+the setting is off would silently drop that chain along with the model; the
+setting only chooses whose roll runs innermost. The surprise and initiative
+wrappers likewise read their own setting per call and defer to core's
+handler when off, so toggling either takes effect immediately with no reload.
+
+### A monster's type default is the Follower Card, met before it is read up on (2026-09-22)
+
+Recorded from the FollowerCardSheet registration comments in `scripts/lib/module.mjs`.
+
+**Ruled.** A monster's type default is the Follower Card, with the extended
+block opening behind it: what a table needs on the first click is the
+half-page it fights from, not the whole entry. A character's own type
+registration stays an alternative, never the default — a PC keeps their own
+sheet, and only becomes a per-instance Follower Card default through the
+retainer flag.
+
+### A reach check matches an unlinked token by its own token, never by actor id (2026-09-22)
+
+Recorded from the comment on `coinReach` in `scripts/lib/money.mjs`.
+
+**Ruled.** A payment's actor-to-actor reach check, when a party is an
+unlinked (synthetic) token actor, matches that party by its own token's
+uuid rather than by actor id. An unlinked token's actor id is the base
+actor's, and matching on it would let one unlinked copy hand coin to
+whoever stands beside a different unlinked copy of the same sheet. A linked
+token's actor is the base actor, which already answers for every token
+naming it.
+
+### A mount that refuses riding still allows it (2026-09-22)
+
+Recorded from the comment on `mountActor` in `scripts/lib/mount.mjs`.
+
+**Ruled.** `mountActor` only warns when `animal.mountable` is false; it does
+not block the mount.
+**Rejected.** Refusing outright, which would make the module the referee
+instead of the table.
+
+### Expedition speed is computed, not looked up (2026-09-22)
+
+Recorded from the file header comment in `scripts/lib/movement-scales.mjs`.
+
+**Ruled.** The printed conversion between exploration and expedition speed
+is exactly linear, so `expeditionFrom` computes it by arithmetic instead of
+encoding the table as rows of lookup data.
+**Rejected.** A row-per-value lookup table, which would need as many rows as
+the book prints and could disagree with itself if one were mistyped.
+
+### The Melee/Ranged boxes show the base throw and stat alone (2026-09-22)
+
+Recorded from the comment on `fixAttackDisplays` in `lib/patches/attack-display.mjs`.
+
+**Ruled.** The character sheet's Melee/Ranged boxes state only the attack
+throw and the ability score, with no per-weapon or per-loadout term. The
+weapon's own roll already applies those exactly, and a summary carrying them
+too would disagree with the dice it produces. Melee and Ranged stay separate,
+each reading its own throw from the equipment feature.
+
+### Coin made draggable is guarded against minting itself (2026-09-22)
+
+Recorded from the comment on `guardMoneySelfDrop` in `lib/patches/goods-drag.mjs`.
+
+**Ruled.** Making a coin row draggable, so it can reach a container or a
+place, also puts it within reach of core's money-drop branch: a same-actor
+drop there adds to the row's quantity instead of merely reordering it, and a
+cross-actor drop adds to the receiver without debiting the giver. Both are
+guarded beside the class that opens them — a same-actor money drop is routed
+to a plain sort, as core does for every other item type, and a cross-actor
+one to the family's existing hand-over transfer.
+
+**Rejected.** A blanket same-actor guard on every money drop, because a
+bundle item dropped on its own actor is meant to unpack, not merely sort —
+money is guarded and nothing else is.
+
+### The hidden-row exception is who placed the occupant, never who owns it (2026-09-22)
+
+Recorded from the comment on `visibleOccupants` in `scripts/lib/place-logic.mjs`.
+
+**Ruled.** A hidden occupant row stays hidden from players with exactly one
+exception: the row the viewer placed themselves (`ownerUuid`), not any row
+naming an actor the viewer owns.
+
+**Rejected: the exception keyed on owning the occupant.** That was the first
+implementation, and live testing killed it: in a world that grants players
+ownership of most actors — which is ordinary — owning the occupant meant
+seeing every hidden row about it, and `hidden` stopped meaning anything.
+Owning an actor is not evidence the GM meant a player to know it is here;
+placing it is.
+
+### Re-parenting a container item is a move, not a re-parent (2026-09-22)
+
+Recorded from the comment on `setParent` in `scripts/lib/place.mjs`.
+
+**Ruled.** `setParent` refuses a container item outright. A container's
+parent is derived from where it physically is, so "re-parenting" one means
+moving it — a different operation, with different semantics (goods, weight,
+attribution), owned by storage rather than by the place primitive.
+
+### Profile strips render states, not a list of granted proficiencies (2026-09-22)
+
+Recorded from the file header and body comments in
+`scripts/lib/proficiency-strip.mjs`.
+
+**Ruled.** Fighting styles, weapon categories and armour render as an
+always-visible strip — every slot shown, a trained one lit, a
+specialized/focused one gold — rather than as rows of text
+("Fighting Style: Dual Weapon", "Armour Proficiency: Heavy", …). State is
+read from the equipment feature's own profile API (effects and actor flags),
+never from item names, and falls back to the character's own imported
+proficiency items when that feature is absent, so the strip works with
+either source alone.
+
+**Rejected.** Spelling each state out as a sheet row: it buries the
+proficiencies that actually do something under a wall of flags.
+
+### Unconfigured reads as unset, never as fully trained (2026-09-22)
+
+Recorded from body comments in `scripts/lib/proficiency-strip.mjs`
+(styles, weapons and armour each restated the same ruling).
+
+**Ruled.** The equipment feature answers permissively when a character has
+no profile at all (`{all: true}` for weapons, `heavy` for armour), so that a
+roll is never penalised for an unconfigured actor. The strips do not read
+that default as a grant: with no explicit profile and no ability-item
+training, a category shows only what is true of any body (unarmed,
+unarmoured, the styles every class could take) and marks the rest unset.
+
+**Rejected.** Lighting the whole strip off the equipment feature's
+permissive default — it would state a proficiency the character was never
+actually given.
+
+### Secondary and muted state reads in ink, never opacity (2026-09-22)
+
+Recorded from a rule repeated near-verbatim across `styles/abilities.css`,
+`styles/equipment.css`, `styles/henchmen.css`, `styles/formation.css` (three
+sites) and `styles/influence.css`'s header.
+
+**Ruled.** Secondary or muted prose, a spent row's glyph, and any state that
+must stay readable take an `-ink` token, never `opacity`. An opacity mute
+composites toward whatever ground the element happens to sit on — paper,
+tint, callout wash — so the same mute reads a different tone on each, and
+laid over a state token it silently erodes a value that was contrast-tuned
+at full strength. The `-ink` pair is theme-correct by construction in both
+seats.
+
+**Rejected.** `opacity` for this purpose, for the reason above. It still has
+a place for genuinely decorative dimming (a placeholder portrait, a disabled
+control) — never for text or a state's structural carrier.
+
+### Animal saves mirror the released system's schema, not its dev branch (2026-09-22)
+
+Recorded from the comment on `savingThrowFields` in `scripts/lib/actor-compat.mjs`.
+
+**Ruled.** The saving-throw schema's keys and initials mirror the released
+acks system's schema exactly, not its dev-branch rename of one save key — the
+monster sheet reads the released key names, and the dev-branch name would
+leave part of the sheet blank while adding a field nothing reads.
+**Rejected.** Following the dev branch's renamed key ahead of its release,
+because the modules target the released system, not its dev branch.
+
+### Card-only overrides bake onto whichever field actually exists, or stay overrides (2026-09-22)
+
+Recorded from the comments on `#onCommit` in `scripts/lib/apps/follower-card-sheet.mjs`.
+
+**Ruled.** Committing a Follower Card's overrides writes each one to
+whichever base field the actor's model actually declares (AC's difference
+into `aac.mod` when core recomputes `aac.value`; speed onto whichever
+movement rate the model provides; an attack edit onto the weapon item it came
+from), and leaves an override in place when the actor has no matching base
+field to write to. Clearing after commit removes only the keys that were
+baked, spelled per key rather than as a whole-flag unset, so an override with
+nothing to bake into survives.
+
+### Generated actors file into their own folder, never the template's (2026-09-22)
+
+Recorded from the comment on `generatedFolder` in `scripts/lib/apps/template-sheet.mjs`.
+
+**Ruled.** A generated creature is filed into a top-level folder made on
+demand, never beside its template. Filing it beside the template would either
+bury play material inside the importer's reference shelf, or — when the
+template itself lives in a compendium — leave the new world actor pointing at
+a folder id the sidebar cannot resolve. An existing folder of the expected
+name is adopted rather than duplicated, so a Judge's rename or refile of it
+survives.
+
+### The damage-type override keeps a name distinct from the stamped value (2026-09-22)
+
+Recorded from the comment on the resolution order in `scripts/lib/damage-type.mjs`.
+
+**Ruled.** The override key stays spelled `damageTypeOverride`, distinct from
+`damageType`, so it can never collapse into the value it is meant to
+override.
+
+### A bundled good's weight and its count share a denominator, and the size is printed (2026-09-22)
+
+Recorded from the comment on the `per` field in `scripts/lib/data/gear-extras.mjs`
+(also read from `scripts/lib/item-model.mjs`'s `weight6Of`).
+
+**Ruled.** `per` states how many units one stated `weight6` covers, for goods
+the books price per bundle rather than per piece; it defaults to 1, the
+ordinary per-item case. The field is structure; the bundle size a given row
+is priced for is printed, so it arrives from the importer, from the item's
+own name, or from the Judge — never from a table shipped here.
+
+### A borrowed progression can name its ladder (2026-09-22)
+
+Recorded from the comment on the `table` field in `scripts/lib/fields.mjs`.
+
+**Ruled.** A borrowed saving-throw progression's `table` field names WHICH of
+the source class's ladders it borrows; blank means its attack bands, which is
+what a progression meant before named ladders existed.
+
+### The squad command-capacity figure is an interpretation, not a printed number (2026-09-22)
+
+Recorded from the comment on `platoonCapacity` in `scripts/lib/group-logic.mjs`.
+
+**Ruled.** The 1st-level (squad) command-capacity figure is a documented
+interpretation — half of the half-platoon figure — used until a more
+authoritative source confirms it. It only bites a 1st-level PC personally
+leading; hired mercenary officers are all higher level and always grant the
+full platoon figure.
+
+### The roster follows the canvas, not the other way round (2026-09-22)
+
+Recorded from the file header and `reconcileStrandedMembers` in `scripts/lib/group.mjs`.
+
+**Ruled.** Every route that ends a deployed body's time on the map — recall,
+casualties, or a token simply deleted after a battle — folds through the same
+reconciliation, and a roster record left pointing at a token that no longer
+exists is freed back to `materialized` rather than believed deployed. The
+canvas is what a Judge edits directly; the roster has to be able to catch up
+with it, never the reverse.
+**Rejected.** Resolving a stranded record by shrinking the stack's headcount
+instead — the bodies are still alive, only the link to the canvas is broken.
+
+### Group writes are batched, not per-body (2026-09-22)
+
+Recorded from the file header in `scripts/lib/group.mjs`.
+
+**Ruled.** Every group operation that touches many bodies at once (deploy,
+recall, casualties, materialize) costs one roster write and one document call
+per scene, whatever the count, so moving a stack of any size costs what
+moving one body does.
+
+### An imported suit of armour must be wearable before it is annotated (2026-09-22)
+
+Recorded from the comment on `setWorn` in `scripts/lib/item-model.mjs`.
+
+**Ruled.** Core-equippable types (weapon, armor) are never refused for an
+undeclared wear slot: they answer through core's own `equipped` boolean,
+which has no slot to be wrong about, and every imported one arrives with its
+slot undeclared, since annotation is a pass a Judge runs afterward rather
+than a precondition of import.
+
+### History the source comments carried, recorded (2026-09-22)
+
+These were written into code comments as the reason a guard exists. The
+comments now state the guard; the story is here.
+
+- **Shadowy senses are checked before the capability match, in `sensesOf`
+  (`scripts/lib/senses.mjs`).** Reading the capability as a lightless source
+  once granted a thief the monsters' default lightless range — doubling what
+  the rules allow — through a sense that deafness, silence and running do
+  not switch off. A capability alone no longer outranks a named shadowy-sense
+  match.
+- **Composing wrappers around the attack roll, one registration only.**
+  Before the lib and equipment subsystems merged into one module, their two
+  libWrapper registrations on `rollAttack` composed for free as separate
+  packages. Merged into one, the second registration threw at `ready`,
+  taking the whole hook down with it. `patches/attack-roll.mjs` now folds
+  every registered wrapper around the innermost roll itself, in libWrapper's
+  own ordering, inside a single registration.
+- **One socket replaces three.** Pre-merge, formation and influence each
+  called `socketlib.registerModule` on `socketlib.ready`, and henchmen again
+  at `ready` plus a hand-rolled native-channel fallback — three sockets on
+  one module id, with nothing guarding the shared handler-name space.
+- **`styles/battlemap.css` header.** The design system's display face is
+  unreadable below the base ramp; an early build's advice text used sizes
+  under it and was illegible rather than merely small.
+- **`styles/classes.css`, the short-display character sheet fix.** Measured
+  live at a 380px-tall window: the tab content (247px) was amputated to a
+  70px box with no scrollbar, before the tab was made the scroller.
+- **`styles/lib-follower-card.css`, read-only card type scale.** The
+  read-only cards used to drop to a hardcoded, unscaled small size — the
+  smallest text size in the client, on the surface players read at the
+  table — before they were made to inherit the editable sheet's scale step.
+- **`styles/lib-follower-card.css`, the UNSET class-profile pill.** Before
+  being routed through the palette, this pill's grey was a hardcoded light
+  chip that read as the brightest element on a dark card — the loudest mark
+  standing for "we don't know".
+- **`styles/lib-sheet-theme.css`, banner surfaces.** Core's own
+  `.acks.sheet.actor .window-header` rule out-specifies the plain body-class
+  pairing and, being a shorthand, resets `background-image` to `none` — the
+  banner texture vanished on exactly the windows this theme is named after,
+  while the recoloured background still looked right, which is what made it
+  easy to miss.
+- **`styles/lib.css`, the encumbrance bar's reversed lettering.** Core's own
+  label over the bar inherits the seat's body text and read at roughly
+  1.12:1 contrast on a light seat before `--acks-on-burgundy` was applied;
+  core's source is `acks.css:2337` (bar fill) and `acks.css:2354` (label).
+- **The override/stamped split.** The two tiers used to live in separate
+  modules, one owning the override and the other the stamped value, and the
+  module id was what told the two apart. Once the modules merged, the key
+  names had to carry that distinction instead.
+- **Why the field exists.** Without a shared denominator between a row's
+  printed weight and its printed count, typing the two figures as read
+  produced an item far heavier than it should be.
+- **The dropped ladder.** The field was absent from the schema entirely until
+  it was added, so a ladder a Judge picked was silently dropped on the first
+  save and the throw quietly fell back to attack throws instead.
+- **The silent lockout.** Refusing a slotless core-equippable item the same
+  way a slotless plain item is refused meant an imported suit of armour could
+  not be worn at all: the wear model declined the write silently, with no
+  error, and the character was stuck unable to wear armor it had just
+  imported.

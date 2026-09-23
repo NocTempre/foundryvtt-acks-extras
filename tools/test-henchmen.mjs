@@ -1,11 +1,7 @@
 /**
- * Pure-data regression tests for the henchmen pack builders.
- *
- * The feature's proficiency and power ITEMS retired with the module's shipped
- * library — those definitions come from the Judge's own books now — so what is
- * left to guard is the macro pack: prefixed deterministic ids, so dropping or
- * adding a macro never renumbers the others and no world's imported copy is
- * orphaned.
+ * Pure-data regression tests for the henchmen macro pack: prefixed
+ * deterministic ids, so dropping or adding a macro never renumbers the
+ * others and no world's imported copy is orphaned.
  *
  * Run: npm test
  */

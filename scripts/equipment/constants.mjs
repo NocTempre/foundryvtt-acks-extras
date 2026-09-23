@@ -25,7 +25,7 @@ export { VARIATION_TYPE as VARIATION_ITEM_TYPE } from "../lib/constants.mjs";
 /**
  * Effect domains — the `<domain>` in `flags.acks-extras.<domain>` change keys.
  * Numeric domains sum; string/CSV domains collect; boolean-ish domains test
- * presence. See docs/MODEL.md for the full contract.
+ * presence. See docs/equipment/MODEL.md for the full contract.
  */
 export const EFFECT_DOMAINS = Object.freeze({
   // Numeric, always-on → folded into the core `system.*.mod` fields.
@@ -44,13 +44,9 @@ export const EFFECT_DOMAINS = Object.freeze({
   MAX_CLEAVES: "maxCleaves", // Combat Ferocity
   // String / CSV domains.
   WEAPON_FOCUS: "weaponFocus", // CSV of Weapon Focus categories
-  // NOT YET IMPLEMENTED, and not implementable here alone: a slaying bonus
-  // (Goblin-Slaying, Vermin-Slaying) applies against a CREATURE KIND, so it
-  // needs the target's kind at attack time. acks-lib already owns that question
-  // — `scopeApplies(effect, ctx)` resolves `vsKinds` — so the slayer bonus
-  // should arrive as a scoped modifier through the abilities effect model
-  // rather than as a flat domain this module sums blindly. Left declared as the
-  // seam; nothing reads it, and nothing should until the scoped path is wired.
+  // Declared as the seam for a creature-kind-scoped modifier through the
+  // abilities effect model (acks-lib's `scopeApplies`/`vsKinds`); not yet
+  // read. See ROADMAP.md.
   SLAYER: "slayer", // CSV of "group:bonus" slayer entries (goblin, vermin)
   MARTIAL_WEAPONS: "martialWeapons", // CSV weapon categories added to proficiency
   WEAPON_PROF: "weaponProf", // CSV grant tokens from class training (JJ p. 290 chunks)
@@ -64,12 +60,10 @@ export const EFFECT_DOMAINS = Object.freeze({
   // freeze it at whatever it was when the ability was granted.
   DAMAGE_ATTRIBUTE: "damageAttribute",
   // Boolean-ish domains (presence tested).
-  // Weapon Finesse — DEX instead of STR on the melee attack throw, on
-  // tiny/small/medium weapons. One domain serves both printed versions of the
-  // rule: the size restriction is the proficiency's, and applying it to the
-  // bladedancer's broader version narrows her only on a weapon larger than
-  // medium. Withholding a bonus RAW grants is the safe direction to be wrong;
-  // the alternative reads the restriction out of prose. See DECISIONS.md.
+  // Weapon Finesse — DEX instead of STR on the melee attack throw. One
+  // domain serves both printed versions of the rule (see
+  // docs/equipment/DECISIONS.md, "2026-08-11 — the abilities bridge reads
+  // the typed effect model, not the name").
   FINESSE: "finesse",
   PRECISE_SHOOTING: "preciseShooting",
   SNIPING: "sniping",
@@ -82,10 +76,7 @@ export const EFFECT_DOMAINS = Object.freeze({
   RUNNING: "running", // +30' base speed (≤ medium armour, ≤7 st) — consumed by movement modules (formation), not this one
   BERSERKERGANG: "berserkergang",
   FREE_SWAP: "freeSwap", // Fighting Style Specialization free draw/sheath/ready
-  // NOT YET IMPLEMENTED: no class data says which classes lack the Weapon &
-  // Shield style, and inferring it from the styles an actor happens to be
-  // trained in would turn "not trained yet" into "forbidden". Needs the class
-  // list; declared as the seam it will hang off.
+  // Declared as a seam; not yet read (see ROADMAP.md).
   NO_SHIELD_BENEFIT: "noShieldBenefit", // class lacks Weapon & Shield style
   STYLE_PROFICIENT: "styleProficient", // CSV of fighting styles the actor is trained in
   SWASHBUCKLING: "swashbuckling", // conditional AC: <= light armour & <= 5 st (RR p. 117)
@@ -166,10 +157,10 @@ export const SETTINGS = Object.freeze({
   AMMO_TRACKING: "ammoTracking", // consume ammunition / mark thrown weapons on a missile attack
   DEFAULT_HAND_BUDGET: "defaultHandBudget",
   // Optional-rule overlays (RAW, off unless core-default).
-  // NOTE: there is deliberately no masterwork overlay — RR p. 159 masterwork is
-  // fully expressible in fields core already has (+1 hit = item.system.bonus,
-  // +1 damage = a "1d6+1" damage string, +1 AC = aac.value, −1 stone = weight6),
-  // so it needs data on the item, not automation (see config.mjs MASTERWORK).
+  // There is no masterwork overlay: it needs data on the item, not
+  // automation (see config.mjs MASTERWORK; docs/equipment/DECISIONS.md,
+  // "Masterwork stamps core fields rather than a roll-time overlay
+  // (2026-09-22)").
   OVERLAY_SHIELD_VARIANTS: "overlayShieldVariants",
   OVERLAY_MANEUVERS: "overlayManeuvers",
   OVERLAY_ITEM_LOSS: "overlayItemLoss",

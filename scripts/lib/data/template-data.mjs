@@ -2,26 +2,11 @@
 /**
  * `acks-lib.template` — a GENERATOR actor: the book's "characteristics by
  * rank/age/tier" pages held as a document that stamps out concrete creatures.
+ * See docs/lib/API.md, "`acks-extras.template` — the generator actor (v0.16)".
  *
- * THE PROBLEM. Four MM entries (dragon, cacodemon, elemental, vampire thrall)
- * have no stat block — every cell reads "varies by rank/age/tier", resolved by
- * tables on the following pages. They cannot import as `monster` actors, and
- * bulk-materializing the cross product (11 ranks × 5 body forms × …) would be
- * hundreds of near-duplicate actors nobody asked for.
- *
- * THE MODEL. The template actor stores AXES (rank, age, element, HD…), each
- * option carrying ENGINE-READY patches — `system.*` fragments, embedded-item
- * payloads, a name piece, an art path, a description snippet — that the
- * importer materialized from the reader's own book.
- * Generation is then pure selection + merge (template-logic.mjs): pinned >
- * derived-from-a-dropped-base > rolled per the book's own dice. A dropped base
- * actor makes the same document a MODIFIER (vampire thrall rewriting its
- * victim); with no base the template self-generates. This library never
- * interprets book content — a bookless template simply has empty axes and the
- * sheet says so.
- *
- * All book-derived values live in WORLD data (the hand-typed-table
- * equivalence); the module ships only structure.
+ * Generation is pure selection + merge (template-logic.mjs): pinned >
+ * derived-from-a-dropped-base > rolled per the book's own dice. All
+ * book-derived values live in WORLD data; the module ships only structure.
  */
 import { acksCompatStubs, savingThrowFields } from "../actor-compat.mjs";
 

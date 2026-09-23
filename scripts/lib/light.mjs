@@ -76,9 +76,8 @@ function randomId() {
  *                compendium so the granted item is core's, not a copy.
  *
  * A lantern burns COMMON oil; military oil is a thrown weapon (RR p297) and
- * must never read as lamp fuel. The pattern therefore rejects the whole name
- * when it mentions military — a lookbehind cannot, because the RAW item is
- * named "Oil, Military (1 pint)" with the word `oil` FIRST.
+ * must never read as lamp fuel — see docs/lib/DECISIONS.md, "The lantern
+ * fuel pattern rejects on the whole name, not a lookbehind (2026-09-22)".
  */
 export const LIGHT_SOURCES = Object.freeze({
   torch: {
@@ -183,18 +182,11 @@ export function bearerLights(actor) {
 /* -------------------------------------------- */
 
 /**
- * Everything that must be true before a flame is struck, and the fuel it eats
- * when it is.
- *
- * Lives here because BOTH ways of lighting a source ask exactly this: a party
- * member lighting through the formation's turn engine, and a character alone
- * in a corridor lighting from their own sheet. The rules — a free hand to hold
- * it, the gear it needs (RR p265), one unit of fuel off the stack — belong to
- * the light source, not to whether anyone happens to be marching in formation.
- *
- * Consumes the fuel as a side effect when the check passes, because the two are
- * one decision: a caller that asked and then declined to spend would have
- * warned about missing gear it never took.
+ * Everything that must be true before a flame is struck, and the fuel it
+ * eats when it is — shared by the formation's turn engine and a lone
+ * character's own sheet, per docs/lib/DECISIONS.md, "A character alone can
+ * strike a light (2026-08-11)". Consumes the fuel as a side effect of the
+ * check passing, so a refused light never spends what it warned about.
  *
  * @param {Actor} actor
  * @param {string} type   a LIGHT_SOURCES key
@@ -207,20 +199,16 @@ export function bearerLights(actor) {
 export async function prepareToLight(actor, type, { override = false } = {}) {
   if (!LIGHT_SOURCES[type] || !actor) return false;
 
-  // Two-way hand check (acks-equipment): a light is held in hand, so lighting
-  // one needs a hand to hold it. ROOM, not free hands — a lone sword widens to
-  // a two-handed grip whenever a hand is going spare and gives it straight back
-  // for the torch, so asking what is FREE would refuse a swordsman with an
-  // empty off hand. Only the call is defended: an unreadable hand count means
-  // no check, not a refusal.
+  // Two-way hand check (acks-equipment). ROOM, not free hands: a two-handed
+  // grip widens for a spare hand and gives it back for the torch, so asking
+  // what is free would wrongly refuse it. An unreadable hand count skips the
+  // check rather than refusing.
   let freeHands;
   let held = "";
   try {
     const equipment = globalThis.acksExtras?.equipment;
     freeHands = equipment?.spareHands?.(actor) ?? equipment?.freeHands?.(actor);
-    // Hands the party sheet holds — a torch already borne, the mapper's kit —
-    // are named with the refusal: a bearer whose sheet shows nothing in hand
-    // is otherwise refused for no stated reason.
+    // Names what the sheet already shows in hand, so the refusal is not unexplained.
     held = equipment?.heldHandsClause?.(actor) ?? "";
   } catch (err) {
     console.error(`${MODULE_ID} | acks-equipment hand count failed`, err);
@@ -247,14 +235,10 @@ export async function prepareToLight(actor, type, { override = false } = {}) {
     if (enforcement === "require" && !override) return false;
   }
 
-  // Consume one unit of the FUEL, but only when it is a genuine STACK. A
-  // stackable light item (a bundle of torches, a flask of oil, candles) has a
-  // core `system.quantity` and loses one to the flame. A torch carried as a
-  // WEAPON has no quantity field (core weapons don't) — it is a single wielded
-  // torch that simply burns out on its own timer, so there is nothing to
-  // decrement. A lantern (the reusable device) is never consumed; only its oil
-  // is. Reuse acks-equipment's ammunition-tracker decrement when present so
-  // fuel burn-down and ammo share one code path.
+  // Only a genuine stack decrements: a torch carried as a WEAPON has no
+  // `system.quantity` (core weapons don't) and simply burns out on its own
+  // timer. See docs/lib/DECISIONS.md, "Fuel burn-down reuses the ammunition
+  // tracker (2026-09-22)" for why the decrement itself is shared with equipment.
   if (fuel && fuel.system?.quantity?.value != null) {
     const consume = globalThis.acksExtras?.equipment?.consumeItem;
     if (typeof consume === "function") await consume(fuel, 1);
@@ -267,18 +251,10 @@ export async function prepareToLight(actor, type, { override = false } = {}) {
 /*  A lone actor's own lights                   */
 /* -------------------------------------------- */
 
-/*
- * The mutators for the record `actorFlagLights` reads. A formation tracks fuel,
- * burn-down and shutters through its turn engine; an actor outside one has no
- * clock to burn against, so these track the STATE of a flame (lit, doused,
- * shuttered) and nothing about its duration. That is the honest half — a light
- * that shows on canvas and can be put out — and it is the half a character
- * standing alone in a corridor has ever been able to use.
- *
- * Every write goes through the actor's own flag, so a player who owns their
- * character may light their own lamp with no GM in the loop. This is the whole
- * reason the lone path is not simply a formation of one.
- */
+// The mutators for the record `actorFlagLights` reads: state only (lit,
+// doused, shielded), never duration — see docs/lib/DECISIONS.md, "A character
+// alone can strike a light (2026-08-11)". Every write goes through the
+// actor's own flag, so its owner needs no GM in the loop.
 
 /** Write the light list back, dropping the flag entirely when it empties. */
 async function writeActorLights(actor, lights) {
@@ -357,18 +333,10 @@ function centreOf(doc, gridSize) {
 }
 
 /**
- * The largest BRIGHT radius, in scene units, whose source actually reaches this
- * token — the "light range" ACKS Night Vision doubles indoors (MM §5).
- *
- * Every lit thing on the scene is a candidate: the scene's own ambient lights
- * and any token emitting light, the bearer's own torch included. A source
- * counts when the token stands inside its bright radius, so the answer is 0 in
- * an unlit corridor, which is what makes a night-vision creature blind in total
- * dark exactly as the books say.
- *
- * Distance is straight-line and ignores WALLS: a torch on the far side of a
- * door still reads as reaching. Resolving occlusion needs the live canvas, and
- * this has to answer for scenes nobody is looking at.
+ * The largest BRIGHT radius, in scene units, whose source actually reaches
+ * this token — the "light range" ACKS Night Vision doubles indoors (MM §5;
+ * docs/lib/MODEL.md's senses section). Straight-line, ignoring walls: this
+ * has to answer for scenes nobody is looking at.
  *
  * @returns {number} bright radius in scene units (feet), 0 when nothing reaches
  */

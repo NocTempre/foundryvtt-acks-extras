@@ -280,15 +280,9 @@ async function grantBundleRows(actor, rows, report) {
 }
 
 /**
- * Apply one template's full package to the actor.
- *
- * Bundle-first: a row bound to a materialized bundle grants the bundle's
- * LINKED documents — the repairable ones a Judge may have fixed — with the
- * Intellect shortfall taken on the bundle's own order (the bonus proficiency
- * is the ability listed last, the bonus spell the spell listed second). A
- * linked document that no longer exists is reported, never silently dropped.
- * No bundle, or one that resolves to nothing, is the legacy row path,
- * unchanged — an un-upgraded world behaves exactly as it always did.
+ * Apply one template's full package to the actor: bundle-first when a row is
+ * bound to a materialized bundle, else the unchanged legacy row path. See
+ * docs/classes/MODEL.md, the `applyTemplate` paragraph.
  *
  * @param {object} [options]
  * @param {number|null} [options.gold] the coin actually granted; the printed
@@ -307,13 +301,10 @@ export async function applyTemplate(actor, classItem, template, { generalRefs = 
     band: String(template?.name ?? template?.rollMin ?? ""),
     classUuid: classItem?.uuid ?? "",
   };
-  // A TEMPLATE ANSWERS THE GROUP IT NAMES. "Pit Fighter (Jutland)" prints its
-  // variant as an annotation, and that annotation IS an option of whichever
-  // group the class states it under — so taking the template chooses the
-  // region, and the character's training follows without anyone being asked
-  // twice. The group stays a first-class choice for a character built without
-  // a template; this only fills it in when the template says so, and never
-  // overwrites an answer already given.
+  // A template's printed variant annotation is an option of the path group
+  // the class states it under, so taking the template answers that group and
+  // its training follows without asking twice. Never overwrites an answer
+  // already given.
   const selection = templateSelection(classItem?.system, template);
   if (selection && !actorPaths(actor)[selection.group]) {
     const merged = await setActorPath(actor, selection.group, selection.option);

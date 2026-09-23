@@ -115,11 +115,8 @@ async function adjustTrackedSpell(app, target, delta) {
 
 export const SHARED_ACTIONS = {
   /**
-   * Divide an adventure's experience among the formation. Lives here rather
-   * than on core's party overview because the formation is this module's
-   * roster of record — and because core's own division counts only
-   * `character` actors at a flat share, which loses the henchman half and
-   * hands nothing to the Judge to check before it lands.
+   * Divide an adventure's experience among the formation, including
+   * henchmen, with the split shown to the Judge before it lands.
    */
   async dealXp() {
     const formation = gmFormation(this);
@@ -144,19 +141,11 @@ export const SHARED_ACTIONS = {
     member.left = leaving;
     await updateFormation(formation);
 
-    // Leaving someone means leaving them SOMEWHERE. Their token drops onto the
-    // scene where the party stood, so the map shows the body and the party can
-    // find its way back; going back for them recalls it into the party token.
-    // They stay on the roster throughout — a member left behind is still owed
-    // their share of the experience.
-    //
-    // Deployed WITHOUT the detached flag on purpose: that flag arms the
-    // movement leash that keeps a scouting detachment near the party, and a
-    // body on the floor is not going to follow anybody. The party walks away,
-    // which is the entire point of leaving them.
-    //
-    // A combat has its own reasons for who is on the map, so this never
-    // touches the canvas mid-fight — the roster still records the decision.
+    // Leaving someone drops their token where the party stood; going back
+    // for them recalls it. Deployed without the detached flag: that flag
+    // arms the movement leash, and a body on the floor follows nobody.
+    // Never touches the canvas mid-combat — the roster still records the
+    // decision.
     if (!formation.combat?.active) {
       if (leaving && !isMemberDeployed(member)) {
         await deployMembers(formation, { members: [member] });
@@ -382,11 +371,7 @@ export const SHARED_ACTIONS = {
     await requestPartyAction(formation.id, "role", { actorId, role });
   },
 
-  /**
-   * Step out of the party token, or step back in. The GM moves anyone; a player
-   * moves their own character, which is the point — scouting ahead is a thing
-   * you decide to do, not a thing you ask permission for.
-   */
+  /** Step out of the party token, or step back in. The GM moves anyone; a player moves their own character. */
   async toggleDetach(event, target) {
     const formation = this.formation;
     if (!formation) return;
@@ -512,9 +497,7 @@ export const SHARED_ACTIONS = {
     await requestPartyAction(formation.id, "lightShield", { lightId });
   },
 
-  /** Pace (RR p. 263): careful exploration, or hurried at combat speed ×10
-   *  rounds per turn — losing mapping, poles, and hasty search, and making
-   *  much more noise. */
+  /** Pace (RR p. 263): careful exploration, or hurried. */
   async togglePace() {
     const formation = gmFormation(this);
     if (!formation) return;
@@ -780,17 +763,10 @@ export const SHARED_ACTIONS = {
 };
 
 /**
- * The frontage the Judge typed, or null to leave the width alone.
- *
- * Any positive whole number is a line: a war party crossing open ground is as
- * wide as it likes. A zero, a negative or a fraction is REFUSED out loud rather
- * than rounded into something legal — a field that silently corrects what was
- * typed reads as a field that ignored it. Blank is not an error; it is a
- * half-finished edit.
- *
- * The ceiling is the map. A line wider than the scene has nowhere to put its
- * flanks, so the request is honoured as far as the scene goes and the Judge is
- * told where it stopped.
+ * The frontage the Judge typed, or null to leave the width alone. Blank is
+ * not an error. A zero, negative or fractional value is refused rather
+ * than rounded; a value wider than the scene is clamped to it, and the
+ * Judge is told where it stopped.
  */
 function readFrontage(value, formation) {
   if (value === "" || value === null || value === undefined) return null;

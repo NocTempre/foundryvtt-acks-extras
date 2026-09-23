@@ -1,12 +1,13 @@
 /* global game, ui, foundry, ChatMessage, Hooks */
 /**
  * Recruit flow — the Reaction to Hiring Offer (RR 162) for market candidates
- * AND special hires (real actors). When acks-influence hosts the modes (apiVersion 3+) the
- * roll renders as an influence-hosted "hiring" page (consistent UI, auto
- * subject/target detection, core tones hidden); otherwise the module's own
- * ThrowDialog carries it. Every attempt is tracked PER NPC (refusals build
- * the cumulative −1; refuse-and-slander blocks the party permanently).
- * Mutations (actor creation, location writes) execute on the GM client.
+ * AND special hires (real actors). When the influence feature hosts the
+ * modes (apiVersion 3+) the roll renders as an influence-hosted "hiring" page
+ * (consistent UI, auto subject/target detection, core tones hidden);
+ * otherwise the module's own ThrowDialog carries it. Every attempt is
+ * tracked PER NPC (refusals build the cumulative −1; refuse-and-slander
+ * blocks the party permanently). Mutations (actor creation, location writes)
+ * execute on the GM client.
  */
 import { MODULE_ID, HOOKS } from "../constants.mjs";
 import { openThrowDialog } from "./throw-dialog.mjs";
@@ -202,15 +203,12 @@ export async function openRecruitSpecial(location, specialHireId, preferredEmplo
   });
 }
 
-/** GM-side executor for a resolved hiring throw (socket action + hook).
- *
- *  EXACTLY-ONCE under duplicate delivery: the same resolution reaches every
- *  socket of the addressed GM user — a GM with two windows open, or a co-GM.
- *  Defence in depth, because neither half suffices alone. An in-flight key
- *  kills same-client duplicates; a persisted CLAIM settles cross-socket races —
- *  each roll carries a resolutionId, the applier writes it on the candidate,
- *  waits a settle beat so every claimant's write lands, re-reads, and only the
- *  socket whose id survived applies. */
+/**
+ * GM-side executor for a resolved hiring throw (socket action + hook).
+ * Exactly-once under duplicate socket delivery: an in-flight key plus a
+ * persisted resolutionId claim. See docs/henchmen/DECISIONS.md,
+ * "Exactly-once hiring under duplicate socket delivery".
+ */
 const inFlightOutcomes = new Set();
 const CLAIM_SETTLE_MS = 300;
 

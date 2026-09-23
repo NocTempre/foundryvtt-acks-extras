@@ -71,8 +71,8 @@ export function classRarity(className, variant = "default") {
  * The Judge's word on a class's rarity in ONE market — the location's
  * `market.rarityOverrides` rows `{classKey, rarity}` — or null when the
  * market says nothing about the class. Consulted before the rarity table on
- * every directed search, so a town where wizards are common is a row on the
- * town rather than a second table variant.
+ * every directed search. See docs/henchmen/DECISIONS.md, "Rarity overrides
+ * are rows on the market, not a second table variant".
  */
 export function overrideRarity(overrides, classKey) {
   const wanted = String(classKey ?? "").toLowerCase().trim();

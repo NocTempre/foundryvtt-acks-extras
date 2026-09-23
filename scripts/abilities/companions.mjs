@@ -8,9 +8,8 @@
  * whether or not a creature has been put in it. Two writers fill it. The
  * importer's fill pass writes `actorUuid` from a cookbook `ref`, for the
  * abilities whose creature the page NAMES. This file writes it from the
- * table, for the abilities whose creature is CHOSEN — which the page describes
- * only by a rule ("animals of less than 1 HD", RR p. 113) and leaves to the
- * reader.
+ * table, for the abilities whose creature is CHOSEN under a rule the page
+ * states (RR p. 113).
  *
  * The choice is a picker over the imported library: the animals the rule
  * allows first, every other animal after them at the Judge's discretion, and
@@ -89,9 +88,9 @@ export function hitDiceOf(actor) {
 }
 
 /**
- * Under one Hit Die: a fraction of a die, or one die with a penalty — the
- * "less than 1 HD" the familiar rule allows (RR p. 113). The rule is
- * structural; which animals satisfy it is read off the imported creatures.
+ * Under one Hit Die: a fraction of a die, or one die with a penalty (RR
+ * p. 113). The test is structural; which animals pass it is read off the
+ * imported creatures.
  */
 export const underOneHitDie = ({ count, bonus } = {}) => count > 0 && (count < 1 || (count === 1 && bonus < 0));
 
@@ -234,11 +233,10 @@ async function createCompanionActor({ ownerUuid, abilityId, index, uuid = "", na
 }
 
 /**
- * The prompt: an ability that confers a chosen companion, added to a character
- * by this seat, opens the picker at once. A slot the page names by ref is the
- * importer's to fill, so it does not prompt; a slot left empty is still
- * offered on the Inventory tab. An actor in a compendium is a library document
- * being written, never a seat choosing, so it is passed over.
+ * Opens the companion picker at once for an ability item added to a character
+ * by this seat, when its slot is unfilled and not importer-bound (ref-named).
+ * Skipped in a compendium: a library document being written, not a seat
+ * choosing.
  */
 function onCreateItem(item, _options, userId) {
   if (userId !== game.user.id) return;

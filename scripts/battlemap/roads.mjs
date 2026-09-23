@@ -1,31 +1,15 @@
 /* global game, canvas, ui, document, foundry, CONST, Hooks */
 /**
- * Roads: a street the Judge DREW, on any grid.
+ * Roads: a street the Judge DREW, on any grid — a Wall that restricts
+ * nothing, flagged as a road. Drawn with core's own wall tool (its own
+ * snapping); a bend is measured along the road GRAPH, not the chord; the
+ * street type (avenue/alley) is read off the wall, not a separate picker.
+ * `move`/`sight`/`sound`/`light` are all NONE and it is not a door — a wall
+ * that gained a restriction after being flagged is reported, never silently
+ * corrected. What a surface is WORTH is printed and imported (`travel`
+ * document's `roads` table); a wall carries only the KEY.
  *
- * A road is a Wall that restricts nothing, flagged as a road. That is the whole
- * design, and it replaces a hex-only link set that could not be drawn on a city
- * map at all. Three things fall out of it:
- *
- *  - **It is drawn with core's own wall tool**, so snapping is core's snapping:
- *    a hex grid offers vertices, side midpoints and centres — the thirteen
- *    nodes the hex topology already addresses — a square grid offers its
- *    vertices and midpoints, and a gridless map offers the free hand. Nothing
- *    here reimplements any of that.
- *  - **A bend is measured along its legs.** Distance between two points is
- *    taken over the road GRAPH, so a party that follows a curving street pays
- *    for the street and not for the chord across the block it went round.
- *  - **Where the party is standing is read off the map.** A road says whether
- *    it is an avenue or an alley, so the city's `where` is a fact rather than a
- *    picker the Judge has to keep in step with the token.
- *
- * A road never blocks anything: `move`, `sight`, `sound` and `light` are all
- * NONE and it is not a door. A wall that gained a movement restriction after
- * being flagged is a street the party cannot walk down, which is why the wall
- * sheet says so rather than silently correcting it — the Judge may have meant
- * the wall and forgotten the flag.
- *
- * What a surface is WORTH is printed and imported (the `travel` document's
- * `roads` table, which the vehicles derivation reads). A wall carries the KEY.
+ * See docs/battlemap/DECISIONS.md, "A road is a wall, on every grid."
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { makeLoc, locOr } from "../lib/util.mjs";
@@ -63,13 +47,9 @@ export const ROAD_FLAG = "road";
 export const ROAD_SURFACES = Object.freeze(ROAD_KINDS.filter((k) => k !== "none"));
 
 /**
- * Every surface a road may carry HERE: the structural list above, plus whatever
- * this world's imported road table names.
- *
- * A reader whose book prints a surface this build never heard of drew a real
- * street with it, and the wall sheet has to be able to say so. The toolbar
- * still offers the structural few, because a tool per imported key would
- * rebuild the toolbar from the registry.
+ * Every surface a road may carry HERE: the structural list above, plus
+ * whatever this world's imported road table names — the wall sheet must be
+ * able to name a surface the toolbar itself only offers the structural few of.
  */
 export function roadSurfaceKeys() {
   const imported = Object.keys(readTable(TRAVEL_DOC, "roads") ?? {}).filter((k) => k && k !== "none");
@@ -134,12 +114,8 @@ export function roadWallData({ surface = ROAD_SURFACES[0], street = null, name =
 }
 
 /**
- * The street a road drawn on this scene is assumed to be.
- *
- * A city map's streets are avenues unless the Judge says otherwise, because
- * that is what most of a city is; anywhere else a road has no street at all —
- * a highway between two towns is neither an avenue nor an alley, and giving it
- * one would put the city's cadence on a road in open country.
+ * The street a road drawn on this scene is assumed to be: avenue on a
+ * settlement-mode scene, else none — a highway in open country is neither.
  */
 export function defaultStreet(scene) {
   return sceneTravelSystem(scene) === "settlement" ? "avenue" : null;
@@ -150,12 +126,9 @@ export function defaultStreet(scene) {
 /* -------------------------------------------- */
 
 /**
- * How close two road ends must be to count as joined, in pixels.
- *
- * A DRAWING tolerance, not a rule: core's snapping puts consecutive ends within
- * a pixel or two, and a free hand on a large-scale map is further out. It grows
- * with the grid because a map drawn at 400 pixels to the block is dragged with
- * the same hand as one drawn at 50.
+ * How close two road ends must be to count as joined, in pixels — a DRAWING
+ * tolerance, not a rule. Grows with the grid size, since a free hand is
+ * further out on a large-scale map than a small one.
  */
 export function joinTolerance(scene) {
   return Math.max(8, Math.round((scene?.grid?.size ?? 100) / 10));
@@ -165,17 +138,11 @@ export function joinTolerance(scene) {
 const graphs = new Map();
 
 /**
- * The road network of a scene, as a graph.
- *
- * Memoised per scene: every step of every city turn measures against it, and
- * rebuilding it from the wall table each time would rebuild it several times
- * per drag. Any wall change on the scene drops the cache — including a change
- * to a wall that is not a road, because flagging one is exactly such a change.
- *
- * **A road that still restricts movement is not in the network.** The party
- * cannot cross such a wall, so a route measured along it would credit travel
- * the token can never perform. Marking one warns the Judge; the overlay keeps
- * drawing it, so the wall the warning is about can be found and opened up.
+ * The road network of a scene, as a graph. Memoised per scene (any wall
+ * change drops the cache, including a non-road wall — flagging one is such a
+ * change). Excludes a road that still restricts movement — the party cannot
+ * cross it, so measuring along it would credit travel it cannot perform; the
+ * overlay still draws it so the Judge can find and open it up.
  */
 export function roadGraph(scene) {
   if (!scene?.id) return joinSegments([], 8);
@@ -198,32 +165,18 @@ export function invalidateRoadGraph(sceneId = null) {
 }
 
 /**
- * A graph's roads as the LINES they were drawn as — one entry per drawn line,
- * each carrying that line whole.
+ * A graph's roads as the LINES they were drawn as — one entry per drawn
+ * line, each carrying that line whole.
  *
- * **An edge is not a drawn line.** Joining cuts a line at every junction along
- * it, so one street stands in `edges` once per stretch between its neighbours.
- * The pieces of one line share a single `meta` — the entry `joinSegments` was
- * handed, by reference — which both identifies them as one line and carries
- * that line whole (`c`). Two things follow, and both are why the pieces are put
- * back together here rather than downstream:
- *
- *  - A hex crossing is read off consecutive samples taken at a uniform step
- *    along one line. Each piece is stepped from its own end, so the run of
- *    hexes the pieces derive is not the run the whole line derives: the samples
- *    land in different places, and a piece shorter than the step names no
- *    crossing at all.
- *  - A street reported once per piece is several streets to a caller counting
- *    them.
- *
- * Substitution and dedupe answer to ONE fact — whether the entry states a whole
- * line — because doing either alone is worse than doing neither: the whole line
- * emitted once per piece repeats the street, and the pieces emitted separately
- * derive their links from their own samples rather than the line's. An entry stating no line (a bare `[x1,y1,x2,y2]`, whose
- * `meta` is empty) has nothing to put back together, so each of its edges
- * stands as the line it is. Identity is the `meta` OBJECT and not a field on
- * it: the shared reference is what `joinSegments` guarantees, where an id is
- * neither guaranteed present nor guaranteed unique.
+ * Joining cuts a line at every junction, so one street stands in `edges`
+ * once per stretch; its pieces share a single `meta` object (identity is
+ * that OBJECT, never a field on it — `joinSegments` guarantees the
+ * reference, not an id). Reassembled here rather than downstream: a hex
+ * crossing reads consecutive samples along one line, and pieces stepped from
+ * their own ends derive a different run of hexes than the whole line would;
+ * a street reported once per piece is also several streets to a caller
+ * counting them. An entry with no whole line (`meta` empty) stands as the
+ * edge it already is.
  *
  * @param {object} graph from `joinSegments`
  * @returns {Array<{seg: number[], surface?: string, street?: string|null,
@@ -271,17 +224,12 @@ function feetPerPixel(scene) {
 }
 
 /**
- * How far it is along the roads from one point to another, in feet.
- *
- * Null when EITHER end is more than a cell off the roads, when the two ends are
- * on networks that do not meet, or when the scene states no scale — every one of
- * which means the caller should fall back to the straight line and say so. A
- * road measurement that quietly became a chord is the defect this exists to fix;
- * a straight-line move quietly charged as street frontage is the same defect
- * pointing the other way.
- *
- * `offRoad` is the walk to and from the lines, kept apart from `along` so a
- * Judge can see that most of a move was across a courtyard.
+ * How far it is along the roads from one point to another, in feet. Null
+ * when either end is more than a cell off the roads, the two ends are on
+ * networks that do not meet, or the scene states no scale — the caller then
+ * falls back to the straight line. `offRoad` (the walk to/from the lines) is
+ * kept apart from `along` so a Judge can see how much of a move crossed
+ * open ground.
  *
  * @returns {{feet: number, along: number, offRoad: number, roads: string[],
  *   street: string|null}|null}
@@ -296,13 +244,9 @@ export function roadDistance(scene, from, to) {
   const reach = scene.grid.size;
   const walk = pathLengthAlong(graph, { from, to, reach });
   if (!walk) return null;
-  // BOTH ends, where the geometry asks for either. A move that starts on a
-  // street and ends across open ground is a walk across open ground: charging
-  // it along the street plus the trek off the street costs MORE than the
-  // straight line the party could have walked instead, which is the defect this
-  // function exists to fix, running backwards. The geometry answers for one end
-  // so a caller can price stepping onto a road or off it; a turn of travel wants
-  // only the route the party actually followed.
+  // BOTH ends, where the geometry asks for either: a move from a street across
+  // open ground must not charge the street plus the trek off it. The geometry
+  // itself answers for one end, for a caller pricing just stepping on/off a road.
   if (walk.offRoadFrom > reach || walk.offRoadTo > reach) return null;
 
   const offRoad = walk.offRoadFrom + walk.offRoadTo;
@@ -324,12 +268,8 @@ export function roadDistance(scene, from, to) {
 
 /**
  * Make a road of this kind the shape the wall tool draws, and hand the Judge
- * that tool.
- *
- * **One preset slot, shared with the trap line.** Core keeps a single setting
- * for what the wall tool creates, so arming a street disarms a tripwire and the
- * other way round. The notification names the road that is now armed, which is
- * the only way the Judge can tell which of the two is live.
+ * that tool. Shares core's one preset slot with the trap line — arming a
+ * street disarms a tripwire — so the notification names what is now armed.
  */
 export async function armRoadPreset({ surface = ROAD_SURFACES[0], street = undefined, name = "" } = {}) {
   const scene = canvas?.scene;
@@ -343,13 +283,10 @@ export async function armRoadPreset({ surface = ROAD_SURFACES[0], street = undef
 }
 
 /**
- * Re-arm the road the wall tool is already set to draw, as an alley.
- *
- * A MODIFIER on the armed preset rather than a road kind of its own: pressing
- * paved and then alley means a paved alley, which is what a Judge who pressed
- * them in that order meant. With a trap line armed instead — the two share
- * core's one preset slot — there is no surface to keep, and the plainest one
- * answers.
+ * Re-arm the road the wall tool is already set to draw, as an alley — a
+ * MODIFIER on the armed preset (paved, then alley, means a paved alley).
+ * With a trap line armed instead, there is no surface to keep and the
+ * plainest one answers.
  */
 export async function armAlleyPreset() {
   const armed = currentWallPreset();
@@ -358,14 +295,10 @@ export async function armAlleyPreset() {
 }
 
 /**
- * Mark the selected walls as roads — or, with nothing selected, arm the preset.
- *
- * **An existing wall's own properties are never altered.** A road is a layer,
- * the way a trap is: a Judge who flagged the wall of a building as a street
- * meant the line, and reaching in to open it up would knock a hole in the
- * building. What it does instead is COUNT the walls that still restrict
- * movement, so the notification can say a street has been declared that the
- * party cannot walk down.
+ * Mark the selected walls as roads — or, with nothing selected, arm the
+ * preset. An existing wall's own properties are never altered (a road is a
+ * layer, like a trap); it counts walls that still restrict movement instead,
+ * so the notification can warn of a street the party cannot walk down.
  *
  * @returns {Promise<{added: number, updated: number, blocking: number, armed: boolean}>}
  */
@@ -398,11 +331,8 @@ export async function roadFromSelection({ surface = ROAD_SURFACES[0], street = u
 
 /**
  * Drop the built network whenever a wall changes, and tell the wall sheet a
- * road is what it is editing.
- *
- * The invalidation is keyed on the wall's own scene, not on the viewed one: a
- * Judge editing walls on a scene they are not looking at is ordinary, and a
- * stale graph would measure the next turn against the streets as they were.
+ * road is what it is editing. Keyed on the wall's own scene, not the viewed
+ * one — a Judge may edit walls on a scene they are not looking at.
  */
 export function registerRoadHooks() {
   for (const hook of ["createWall", "updateWall", "deleteWall"]) {
@@ -416,24 +346,17 @@ export function registerRoadHooks() {
 
 /**
  * The road row on a wall's own configuration sheet: which surface, which
- * street, and what it is called.
- *
- * Hung on the generic render hook and filtered, which is how every other sheet
- * injection in this repo is done: the per-class render hooks stop firing when
- * core reshuffles an application's class hierarchy, and a wall's sheet is only
- * recognisable by what it is editing anyway.
- *
- * The fields write immediately rather than on submit, because the sheet's own
- * submit handler knows nothing about a flag this module added.
+ * street, and what it is called. Hung on the generic render hook and
+ * filtered — the family's standard sheet-injection pattern, since a wall's
+ * sheet is only recognisable by what it is editing. Fields write immediately;
+ * the sheet's own submit handler knows nothing about a flag this module added.
  */
 function installRoadRow(app, element) {
   if (!game.user?.isGM) return;
   const wall = app?.document;
-  // An id is what makes it a wall on the SCENE. The wall palette renders this
-  // same sheet over an unsaved preview document — the shape of the next wall to
-  // be drawn — whose id is null, and a flag written to that has no document to
-  // land on: the write throws, the picker springs back on the next re-render,
-  // and touching the palette's form re-writes core's armed preset besides.
+  // An id makes it a wall on the SCENE, not the palette's unsaved preview
+  // document (id null) — writing a flag there throws and the picker springs
+  // back on the next re-render.
   if (wall?.documentName !== "Wall" || !wall.id) return;
   const root = element instanceof HTMLElement ? element : element?.[0];
   if (!root) return;
@@ -442,11 +365,9 @@ function installRoadRow(app, element) {
   if (root.querySelector(".acks-extras-road-row")) return;
 
   const road = wallRoad(wall);
-  // The row is assembled as markup, so everything interpolated into it is
-  // escaped: a street the Judge named `The "Shambles"` closes the value
-  // attribute early, and the name the next edit reads back off the live DOM is
-  // whatever survived that. Imported surface keys and their labels arrive from
-  // a reader's own book and are no more trusted than a typed name.
+  // Assembled as markup, so everything interpolated is escaped — a name
+  // holding a quote character must not close the attribute early. Imported
+  // surface keys and their labels are no more trusted than a typed name.
   const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
   const option = (value, label, selected) =>
     `<option value="${esc(value)}"${selected ? " selected" : ""}>${esc(label)}</option>`;

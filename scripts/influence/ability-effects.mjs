@@ -1,26 +1,25 @@
 /**
- * Reads social-roll modifiers out of the **acks-abilities effect model** —
- * `item.flags["acks-extras"].extras.effects[]`, in the acks-lib vocabulary —
- * so abilities imported by the importer drive the roller without anyone
- * hand-authoring an Active Effect.
+ * Reads social-roll modifiers out of the abilities feature's effect model —
+ * `item.flags["acks-extras"].extras.effects[]`, in the lib subsystem's
+ * vocabulary — so abilities imported by the importer drive the roller without
+ * anyone hand-authoring an Active Effect.
  *
- * This is the second of two sources. The first, in actor-data.mjs, reads
- * ActiveEffect documents keyed `flags.acks-extras.<family>`; that path stays
- * as the escape hatch for homebrew and for overriding an import. Both sources
- * normalize to ONE row shape carrying acks-lib scope fields, so
- * `scopeApplies()` decides both and there is a single place gating can be wrong.
+ * The second of two sources. The first, in actor-data.mjs, reads ActiveEffect
+ * documents keyed `flags.acks-extras.<family>` — the escape hatch for
+ * homebrew and for overriding an import. Both sources normalize to one row
+ * shape carrying the lib subsystem's scope fields, so `scopeApplies()`
+ * decides both.
  *
- * The abilities SHEET is not required: the extras are plain data on an item
- * flag, readable without it — which matters, because the importer writes the
- * flag during import and a seat may never open that sheet. The lib vocabulary
- * IS required, for the level-value and scope semantics.
+ * The abilities sheet is not required: the extras are plain data on an item
+ * flag, readable without it, which the importer writes without ever opening
+ * that sheet.
  */
 import { CHANGE_KEY_FAMILY, ROLL_FAMILY } from "./constants.mjs";
 import { resolveLevelValue } from "../lib/vocab.mjs";
 
 const ABILITIES_FLAG = "acks-extras";
 
-/** The roll families this roller hosts, keyed by acks-lib MODIFIER_TARGETS. */
+/** The roll families this roller hosts, keyed by the lib subsystem's MODIFIER_TARGETS. */
 const SOCIAL_TARGETS = new Set([ROLL_FAMILY.REACTION, ROLL_FAMILY.LOYALTY, ROLL_FAMILY.MORALE]);
 
 /** A character's class level, for resolving level-scaling values. */
@@ -32,10 +31,10 @@ function actorLevel(actor) {
 /**
  * Social-roll modifiers from an actor's abilities.
  *
- * `skipItemIds` are items that already contributed through the ActiveEffect
- * path. An item carrying both an AE and extras would otherwise be counted
- * twice, and the AE wins: a GM who hand-added one to an imported ability meant
- * to override what the import classified.
+ * `skipItemIds` names items already counted through the ActiveEffect path,
+ * so an item carrying both is not counted twice. See
+ * docs/influence/DECISIONS.md, "A hand-added Active Effect overrides an
+ * imported ability's own".
  *
  * @param {Actor|null} actor
  * @param {Set<string>} [skipItemIds]
@@ -58,9 +57,8 @@ export function getAbilityReactionMods(actor, skipItemIds = new Set()) {
       if (effect?.type !== "modifier") continue;
       if (!SOCIAL_TARGETS.has(effect.target)) continue;
 
-      // A level ladder resolves against THIS actor's level; a scale the effect
-      // needs but nobody supplied resolves to null, and a modifier whose value
-      // is unknown is not a modifier — skip rather than treat it as zero.
+      // A level ladder resolves against THIS actor's level. See
+      // docs/influence/DECISIONS.md, "An unknown is not a modifier".
       const value = resolveLevelValue(effect.value, level, { level, rank: 1 });
       if (!Number.isFinite(value) || value === 0) continue;
 
@@ -70,17 +68,15 @@ export function getAbilityReactionMods(actor, skipItemIds = new Set()) {
         label: item.name || "Ability",
         value,
         family: effect.target,
-        // Whose roll this modifies. The roller resolves ONE actor's social
-        // roll, so an effect aimed at an opponent or an ally is not a modifier
-        // on it — storing it as one is the inversion EFFECT_SUBJECTS exists to
-        // prevent. Carried through so a future opposed mode can use it.
+        // Whose roll this modifies; carried through unapplied for a future
+        // opposed mode. See docs/influence/DECISIONS.md, "The subject of an
+        // effect is carried, not folded in".
         appliesTo: effect.appliesTo || "self",
-        // A machine-classified effect carries a free-text condition it could
-        // not structure; that is precisely a situational modifier. An effect
-        // the chef audited and left unconditional applies on its own.
+        // A free-text `condition` marks a situational modifier; an audited
+        // effect with none applies unconditionally.
         situational: Boolean(effect.condition) || Boolean(extras.unaudited),
-        // Scope fields are already acks-lib vocabulary — passed straight to
-        // scopeApplies with no translation, unlike the AE path.
+        // Scope fields are already the lib subsystem's vocabulary — passed
+        // straight to scopeApplies with no translation, unlike the AE path.
         vsKinds: (effect.vsKinds ?? []).map((k) => String(k).toLowerCase()),
         vsAlignment: effect.vsAlignment || null,
         vsAlignmentMode: effect.vsAlignmentMode || "gate",
@@ -88,10 +84,9 @@ export function getAbilityReactionMods(actor, skipItemIds = new Set()) {
         optionalRule: effect.optionalRule || null,
         kickerAt: Number.isFinite(effect.kickerAt) ? effect.kickerAt : null,
         kickerNote: effect.kickerNote || "",
-        // The mechanics were classified by a generic scan, not read against the
-        // page by a chef. A wrong sign or a missed condition must present as
-        // unverified rather than as the book's ruling, so the row is badged and
-        // never pre-checked (see #buildModConfig).
+        // Machine-classified, not chef-audited. See
+        // docs/influence/DECISIONS.md, "Modifiers are offered, never
+        // asserted".
         unaudited: Boolean(extras.unaudited),
         source: "ability",
       });

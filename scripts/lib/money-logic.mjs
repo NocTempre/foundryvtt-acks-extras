@@ -3,11 +3,9 @@
  * document writes). Everything is INTEGER COPPER internally — coppervalue ×
  * count — because copper is the books' smallest coin and floats drift.
  *
- * One spend policy survives 4.0 (owner ruling 2026-08-14): SMALLEST
- * denomination first, breaking a larger coin when the small ones run out, with
- * the overshoot owed back as change. The policy is the rules-faithful one — a
- * purse pays exact where it can, and where it cannot, the larger coin is
- * broken and the difference returned — and its shortfall reporting is what
+ * The spend policy (smallest denomination first, breaking a larger coin for
+ * change when needed) is docs/lib/DECISIONS.md, "2026-08-14 — Money is
+ * physical; four rulings land at once". Its shortfall reporting is what
  * every refusing caller (bribes, tolls, wages) shows the player.
  */
 import { toNum as num } from "./util.mjs";
@@ -114,10 +112,11 @@ export function planChange(kinds, changeCp) {
 }
 
 /**
- * What the local economy gives for coin (owner ruling 2026-08-14): a MARKET
- * exchanges denominations freely at face value; anywhere else there is no
- * changer — coin still SPENDS at face value, but conversion is refused and
- * the parties barter with the stacks they hold. `terms` come from the place
+ * What the local economy gives for coin: a MARKET exchanges denominations
+ * freely at face value; anywhere else there is no changer — coin still
+ * SPENDS at face value, but conversion is refused and the parties barter
+ * with the stacks they hold (docs/lib/DECISIONS.md, "2026-08-14 — Money is
+ * physical; four rulings land at once"). `terms` come from the place
  * (money.mjs derives them; a GM override field wins when present).
  *
  * @returns {number|null} copper value, or null when conversion is refused.

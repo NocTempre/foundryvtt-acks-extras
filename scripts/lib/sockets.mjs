@@ -1,17 +1,10 @@
 /* global game, Hooks, socketlib, ui */
 /**
- * The module's ONE cross-client transport.
- *
- * Pre-merge, three features each ran their own: formation and influence both
- * called `socketlib.registerModule` on `socketlib.ready`, henchmen again at
- * `ready` plus a hand-rolled native-channel fallback — three sockets on one
- * module id, with nothing guarding the shared handler-name space. Now there
- * is one socketlib registration, one handler registry that THROWS on a
- * duplicate name (the collision has no other tripwire), and one native
- * fallback channel. socketlib is a `requires` in module.json, so the
- * fallback is belt-and-suspenders; only fire-and-forget actions can use it —
- * a result-bearing call (the hidden influence roll) needs the socketlib path,
- * exactly as it always did.
+ * The module's ONE cross-client transport: one socketlib registration, one
+ * handler registry that throws on a duplicate name (the collision has no
+ * other tripwire), and one native fallback channel. socketlib is a `requires`
+ * in module.json, so the fallback is belt-and-suspenders; only fire-and-forget
+ * actions can use it — a result-bearing call needs the socketlib path.
  */
 import { MODULE_ID } from "./constants.mjs";
 
@@ -59,7 +52,7 @@ export async function executeAsGM(action, payload) {
     return;
   }
   if (!firstActiveGm()) {
-    // henchmen-rooted key by history; the wording is feature-neutral.
+    // A henchmen-named lang key reused here; the wording is feature-neutral.
     ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.socket.noGm"));
     return;
   }
@@ -67,10 +60,8 @@ export async function executeAsGM(action, payload) {
   game.socket.emit(CHANNEL, { action, payload, userId: game.user.id });
 }
 
-// Native-channel fallback listener: only wired when socketlib never came up.
-// A context with neither socketlib NOR a native socket is headless — there is
-// nobody to hear the channel, and throwing here would take the whole ready
-// hook down with it, killing every registration that follows.
+// Native-channel fallback listener: wired only when socketlib never came up.
+// A context with neither socketlib nor a native socket is headless.
 Hooks.once("ready", () => {
   if (socket || typeof game.socket?.on !== "function") return;
   game.socket.on(CHANNEL, async ({ action, payload } = {}) => {

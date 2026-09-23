@@ -1,5 +1,22 @@
 # Changelog
 
+## 8.0.7
+
+### Fixed
+
+- **The hireling-reference repair points at something that exists.** The hint
+  on *Auto-repair dangling hireling references*, and the console warning a
+  world with dangling references logs, told the GM to run the *Repair
+  Henchmen References* macro, which no longer ships. Both now name the console
+  call that does the same job, `acksExtras.henchmen.repair.repairWorld()`.
+
+### Changed
+
+- **Source comments are short again.** Comments across about 200 scripts and
+  11 stylesheets are cut back to docstrings and short notes; the design
+  history and rulings they carried now live in the repository's design notes.
+  No behaviour changes.
+
 ## 8.0.6
 
 ### Fixed

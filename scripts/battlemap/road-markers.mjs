@@ -1,21 +1,11 @@
 /* global game, canvas, ui, Hooks, PIXI */
 /**
- * Seeing the streets you drew.
- *
- * A road is a wall that restricts nothing, and core draws walls only while the
- * Walls control is open — so a Judge laying out a city has no way to tell a
- * street from the building wall beside it, and a player never sees either. This
- * draws the road network over the map for the Judge: tinted by surface, dashed
- * where the road is an alley.
- *
- * **GM only, and presentation only.** Nothing here decides anything: the tints
- * are on the same footing as the terrain palette's colours, and the party's
- * movement is measured off the walls whether or not this ever draws.
- *
- * Drawn while the Judge is working the map — the Walls control, or the
- * battlemap's own group — rather than always. A permanent overlay of every
- * street competes with the map it is describing, and the map is the thing the
- * Judge is trying to look at.
+ * Seeing the streets you drew: a GM-only, presentation-only overlay drawing
+ * the road network over the map — tinted by surface, dashed where the road
+ * is an alley. Decides nothing; the party's movement is measured off the
+ * walls whether or not this ever draws. Drawn only while the Judge is
+ * working the map (the Walls control, or the battlemap's own group), never
+ * as a permanent overlay.
  */
 import { MODULE_ID, CONTROL_GROUP } from "./constants.mjs";
 import { roadWallsOf, wallRoad } from "./roads.mjs";
@@ -28,10 +18,8 @@ export const ROAD_TINT = Object.freeze({ earth: 0x8a6a44, gravel: 0xa8a094, pave
 
 /**
  * The controls whose tools work the map, and so want the streets visible.
- *
- * Named from the constant, never spelled out: a scene control's key is the
- * camelCased module id, and a literal here that drifted from it would leave the
- * overlay simply never drawing — with nothing to say it had not.
+ * Named from the constant, never spelled out — a literal here that drifted
+ * from the control's key would leave the overlay silently never drawing.
  */
 const DRAW_CONTROLS = Object.freeze(["walls", CONTROL_GROUP]);
 

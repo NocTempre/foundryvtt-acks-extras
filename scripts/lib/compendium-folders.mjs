@@ -1,33 +1,12 @@
 /* global game, ui, foundry, Folder */
 /**
- * Where every compendium sits in the sidebar.
- *
- * Foundry files a package's packs from its manifest `packFolders`, and does it
- * ONCE. Three rules, each reasonable alone: the initializer runs only when the
- * world's pack set changes; it matches a folder by its hierarchy NAME, so two
- * packages naming the same folder share it; and it skips any pack whose
- * `core.compendiumConfiguration` entry already names a folder. What they add up
- * to is a library that drifts and cannot right itself — a folder deleted years
- * ago leaves every pack that named it stranded at the root permanently, because
- * the slot is full of a dead id.
- *
- * This file answers that in two strengths, and the difference between them is
- * the whole design:
- *
- *  - `organizeCompendiumFolders()` runs at `ready` and only FILLS. A pack with
- *    no folder, or one naming a folder that no longer exists, is filed where
- *    its own package's manifest says it goes. A reference that resolves is a
- *    Judge's arrangement and is never touched.
- *  - `restoreCompendiumLibrary()` is the macro, and it OVERRULES. Every ACKS
- *    pack goes back to its declared place and its per-pack configuration is
- *    reset to the package's defaults. Overwriting a Judge's arrangement is what
- *    "restore" means, which is why nothing calls it but a GM who asked for it.
+ * Where every compendium sits in the sidebar, in two strengths —
+ * `organizeCompendiumFolders()` (fills only) and `restoreCompendiumLibrary()`
+ * (overrules). See docs/lib/MODEL.md, "The compendium sidebar".
  *
  * THE SYSTEM'S TREE IS THE SYSTEM'S. Both strengths read the SYSTEM's own
  * declaration for the system's packs and this module's for this module's;
- * neither states a folder name belonging to the other. The declaration is read
- * live from `game.system.packFolders`, so a system release that re-shelves its
- * own compendiums re-shelves them here too, with nothing here to update.
+ * neither states a folder name belonging to the other.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { importedPacks, isJudgeLine, JUDGE_SHELF_OWNERSHIP } from "./library.mjs";
@@ -75,13 +54,8 @@ const declaresLivePack = (packageId, node) =>
 
 /**
  * Walk a declared subtree and answer, for each of its packs, the FOLDER PATH it
- * belongs at — root first, leaf last. Nothing is created here.
- *
- * Planning before building is what keeps the sidebar from growing a second,
- * empty copy of the whole tree at every load: the gentle pass leaves most packs
- * exactly where they are, and a walk that made folders as it went would build
- * the shelf and then decline to move anything into it. A folder comes into
- * existence only where a pack is actually being written to it.
+ * belongs at — root first, leaf last. Nothing is created here; planning is
+ * separate from building (docs/lib/MODEL.md, "The compendium sidebar").
  */
 function walkDeclared(packageId, nodes, prefix, targets) {
   for (const node of nodes ?? []) {
@@ -101,13 +75,8 @@ function walkDeclared(packageId, nodes, prefix, targets) {
 /**
  * Where an imported pack belongs: this module's own declared folder, then "From
  * your books", then — only for a pack holding another game's line — a folder
- * named after that line.
- *
- * The ACKS library carries no line in its pack label and gets none in the
- * sidebar either; it is the default shelf. A LINE's folder is only described
- * here and is built by the first pack that needs it, so a world that never
- * imported Dolmenwood has no Dolmenwood shelf standing empty, and one that
- * imports it tomorrow gets the shelf together with the pack.
+ * named after that line. The ACKS library gets no line folder; it is the
+ * default shelf. See docs/lib/MODEL.md, "The compendium sidebar".
  */
 function importPath(line, root) {
   const path = [
@@ -180,14 +149,11 @@ const needsWrite = (entry, reset) =>
 /**
  * Write the folder assignments and answer what changed.
  *
- * `reset` is the difference between the two strengths. A restore rewrites each
- * entry down to `{folder}` alone, dropping every per-pack override a world
- * accumulated — a custom sort, a lock, an ownership grant — back to the
- * package's own defaults. A Judge's shelf has a default of its own, and gets
- * it back: closed to every player seat, as it was made. Clearing `locked` is not the same as unlocking it:
- * with no entry Foundry reads a package's pack as locked and a world pack as
- * writable, which is what each of them is for, and the importer needs its own
- * packs writable to refill them.
+ * `reset` is the difference between the two strengths (docs/lib/MODEL.md,
+ * "The compendium sidebar"): a restore rewrites each entry down to `{folder}`
+ * alone, dropping every per-pack override back to the package's own defaults.
+ * Clearing `locked` is not the same as unlocking it: with no entry Foundry
+ * reads a package's pack as locked and a world pack as writable.
  */
 async function filePacks(targets, { reset }) {
   const config = foundry.utils.deepClone(game.settings.get("core", "compendiumConfiguration") ?? {});
@@ -226,30 +192,20 @@ async function filePacks(targets, { reset }) {
 }
 
 /**
- * Remove the folders this pass emptied, and the ancestors they emptied in turn.
- *
- * Only ones it emptied: a folder goes when it has just lost a pack, holds no
- * other pack and no sub-folder. That is narrow on purpose — an empty folder a
- * Judge made for their own use is not ours to tidy.
- *
- * The ancestor walk is what makes a rename come out clean rather than doubled.
- * Renaming a shelf moves the packs to new folders and leaves the old tree
- * standing: the line folder is empty, its parent holds only that empty folder,
- * and its parent only THAT — so a sweep looking no further than the folder a
- * pack left would delete the leaf and leave two empty shelves above it. Passes
- * repeat until one changes nothing, which collapses the chain from the bottom
- * without needing to know how deep it went.
+ * Remove the folders this pass emptied, and the ancestors they emptied in
+ * turn — narrowly, a folder goes only once it holds no other pack and no
+ * sub-folder, so a Judge's own empty folder is never a candidate. Passes
+ * repeat until one changes nothing, collapsing a renamed shelf's whole empty
+ * chain without needing to know how deep it went.
  */
 async function sweepVacated(vacated, { withinOwnTree = false } = {}) {
   const candidates = new Set();
   for (const id of vacated) {
     for (let f = game.folders.get(id); f?.type === "Compendium"; f = f.folder) candidates.add(f.id);
   }
-  // A restore also collapses the empty shelves inside THIS MODULE'S OWN tree,
-  // which no pack ever vacated: deleting an imported pack leaves its line's
-  // folder standing, and nothing else would ever take it down. Scoped to our
-  // own root and to folders that end up holding nothing, so a Judge's shelf
-  // elsewhere is never a candidate however empty it is.
+  // A restore also collapses empty shelves inside this module's own tree,
+  // which no pack ever vacated (deleting an imported pack leaves its line's
+  // folder standing).
   const root = withinOwnTree ? declaredRoot() : null;
   const ownRoot = root
     ? game.folders?.find((f) => f.type === "Compendium" && f.name === root.name && !f.folder)
@@ -272,13 +228,9 @@ async function sweepVacated(vacated, { withinOwnTree = false } = {}) {
         continue;
       }
       if (game.folders.some((f) => f.type === "Compendium" && f.folder?.id === id)) continue;
-      // A configuration entry only holds a folder open while its PACK still
-      // exists. A world keeps the entry of every pack it has ever had — a
-      // module uninstalled, a pack this release stopped shipping — and those
-      // dead entries would otherwise pin an empty shelf open forever, which is
-      // precisely the state this whole file exists to end. They are dropped
-      // along with the folder they named: they point at nothing either way, and
-      // an empty slot is what lets Foundry re-file the pack if it ever returns.
+      // A configuration entry only holds a folder open while its pack still
+      // exists (docs/lib/MODEL.md, "The compendium sidebar"); a dead entry is
+      // dropped along with the folder it named.
       if (Object.entries(config).some(([c, entry]) => entry?.folder === id && game.packs.get(c))) continue;
       if (await folder.delete().then(() => true).catch(() => false)) {
         for (const [c, entry] of Object.entries(config)) if (entry?.folder === id) orphaned.add(c);
@@ -352,12 +304,10 @@ export async function restoreCompendiumLibrary({ confirm = true } = {}) {
 
 /**
  * File a pack the importer has just minted, without disturbing anything else.
- *
- * Called from the importer's own `packFor` at the moment of creation: a pack
- * made through `CompendiumCollection.createCompendium` carries no folder at all
- * and lands loose at the sidebar root, which is where every imported library
- * sat before this. The `line` is the one the label was built from, so the shelf
- * and the label can never disagree about which books a pack holds.
+ * Called from the importer's own `packFor` at the moment of creation, since a
+ * pack made through `CompendiumCollection.createCompendium` carries no folder
+ * at all. `line` is the one the label was built from, so the shelf and the
+ * label can never disagree about which books a pack holds.
  */
 export async function fileImportedPack(collection, line = null) {
   if (!game.user?.isGM) return false;

@@ -26,16 +26,12 @@ const grantedFrom = (item) => item.flags?.[MODULE_ID]?.grantedFrom ?? null;
 const nameKey = (doc) => String(doc?.name ?? "").trim().toLowerCase();
 
 /**
- * Does the actor already own an ability carrying this ref?
- *
- * An OWNED copy is not the world item: it has its own uuid, so a `uuid:` ref
- * never matches one by uuid however obvious that looks — which is why a
- * hand-made ability used to be granted again on every apply. Three things can
- * answer the question, in falling order of certainty: the importer's stamp
- * (copied onto the owned item), the ref this file stamped when it granted the
- * copy, and — for a copy that predates either, or that a Judge dragged on by
- * hand — the source's name, which is the only identity such an item has. The
- * same name-matching `isAdventuring` has always relied on.
+ * Does the actor already own an ability carrying this ref? An owned copy has
+ * its own uuid, never the world item's, so recognition runs the importer's
+ * stamp → the `grantedFrom` stamp this file writes at grant time → the
+ * source's name, for a copy that predates either or that a Judge dragged on
+ * by hand. See docs/classes/DECISIONS.md, "An owned copy is not the world
+ * item, and the dedupe never knew it."
  */
 export function ownsRef(actor, ref) {
   if (!ref) return false;
@@ -73,18 +69,10 @@ export const isAdventuring = (item) =>
   refOf(item) === ADVENTURING_REF || String(item.name ?? "").trim().toLowerCase() === "adventuring";
 
 /**
- * Every general proficiency a character may still CHOOSE.
- *
- * "All player characters are assumed to have Adventuring" (RR Ch. 3 §III.4),
- * so it is never on offer: a pick spent on it buys nothing.
- *
- * A CLASS'S OWN SPECIALIZED COPY IS NOT AN OPTION. Materializing a class's
- * templates mints one world proficiency per printed specialty, per class, and
- * they are ordinary general abilities in every respect the filter above can
- * see — so the select listed "Performance (singing)" once for each class whose
- * template prints it, and a pick spent on one granted that class's copy rather
- * than the definition. What a player picks here is a DEFINITION, which is the
- * same rule `findByRef` keeps for a lookup by ref.
+ * Every general proficiency a character may still CHOOSE — never Adventuring
+ * (RR Ch. 3 §III.4), and never a class's own template copy, only the
+ * definition it copied. See docs/classes/DECISIONS.md, "2026-08-30 — a pick
+ * list offers definitions, never a class's own copy".
  */
 export const choosableGenerals = () =>
   libraryItems().filter(
@@ -107,19 +95,13 @@ export async function grantAdventuring(actor, grants) {
 }
 
 /**
- * Every spell a character of this class may CHOOSE from.
- *
- * Unlike every other option source, this one deliberately reaches past the
- * library into whatever spell compendia the world has. The 2026-08-20 ruling —
- * read the imports, never the system's shipped compendium — governs what a
- * PACKAGE materializes into a template from a book the reader may not own. A
- * player electing their own starting spell is a different act: the offer is
- * only worth making from what their world actually holds, and a world that has
- * imported no spell list still has the system's. Offering nothing would leave
- * the pick unredeemable, which is a surface nobody can reach.
- *
- * Narrowed to the class's own traditions where the documents say which they
- * belong to; a class with no casting row offers no spells at all.
+ * Every spell a character of this class may CHOOSE from — the only option
+ * source that reaches past the library into whatever spell compendia the
+ * world has, so the offer is never unredeemable in a world that imported no
+ * spell list. Narrowed to the class's own traditions where the documents say
+ * which they belong to; a class with no casting row offers no spells at all.
+ * See docs/classes/DECISIONS.md, "2026-08-20 — a package resolves through
+ * the IMPORTS, and mints what it cannot find".
  */
 export function choosableSpells(classItem) {
   const traditions = classItem?.system?.casting ?? [];
@@ -144,14 +126,9 @@ export function choosableSpells(classItem) {
 }
 
 /**
- * Load every compendium that holds a spell, so `choosableSpells` can see them.
- *
- * A compendium's `contents` is empty until its documents are loaded, and the
- * system's spell packs are cold in a fresh session — so an offer resolved
- * without this returns nothing at all and the pick reads as unredeemable in
- * exactly the world it exists to serve (one that has imported no spells of its
- * own). The index is always present, so the decision of WHICH packs to load
- * costs no loading.
+ * Load every compendium holding a spell, so `choosableSpells` can see them. A
+ * pack's `contents` is empty until its documents load; its index is always
+ * present, so which packs to load costs no loading.
  */
 export async function warmSpellPacks() {
   const wanted = [];
@@ -177,12 +154,10 @@ export function optionsForChoice(choice, classItem) {
 }
 
 /**
- * How a choice rung is remembered once it has been answered. Position in the
- * ladder plus the level it sits at — stable for a class document that is
- * imported and left alone, which is the normal life of one. A Judge who
- * reorders the ladder afterwards may be asked a rung again; the options a
- * character already holds are filtered out either way, so the worst case is a
- * question, not a duplicate.
+ * How a choice rung is remembered once answered: position in the ladder plus
+ * its level, stable while the class document is left alone. A reordered
+ * ladder may ask a rung again; already-held options are filtered out either
+ * way, so the worst case is a question, not a duplicate.
  */
 export const awardKey = (award, index) => `${index}:${award.atLevel ?? 1}`;
 
@@ -212,13 +187,9 @@ function splitOwed(actor, rungs, seen) {
 }
 
 /**
- * The awards a character is owed for holding `level` in this class: every rung
- * of the ladder AT OR BELOW it, not merely the one just reached.
- *
- * The level-up wizard asks for one rung because a level is EARNED one at a
- * time. Setting a level asks for all of them, which is the same reading of the
- * ladder the printed spread has — a 5th-level fighter has taken every award
- * the table prints through 5th, whatever order they arrived in.
+ * The awards a character is owed for holding `level` in this class: every
+ * rung of the ladder at or below it, not merely the one just reached — the
+ * same reading a level-up climbs one rung at a time.
  */
 export function awardsThrough(actor, classItem, level, taken = []) {
   return splitOwed(

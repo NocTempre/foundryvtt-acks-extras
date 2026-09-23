@@ -1,23 +1,9 @@
 /* global game, foundry, Folder, console */
 /**
- * Where a library document is WRITTEN — the shelves `library.mjs` reads.
- *
- * Three writers put documents on the library's shelves: the importer, which
- * materializes a world's books; the classes feature, whose template packages
- * are derived from an imported class; and the location feature, which
- * materializes the rules tables a world imported. The first used to own the
- * shelf entirely, and the other two wrote to the sidebar — so a Judge found
- * half of "everything imported" in a compendium and the rest loose in a
- * directory, and one ownership setting reached only the first half. Every
- * writer now opens its shelf here.
- *
- * A shelf is created on first use and filed under the line's sidebar folder
- * the moment it exists (`fileImportedPack`), so a pack made by any writer
- * sits where the others sit. A Judge's shelf (`isJudgeLine`) is closed to
- * every player seat BEFORE anything is written to it, and only then: a shelf
- * that already exists keeps whatever its Judge has since set. Nothing is
- * cached: the importer keeps its own confirmed cache in front of this, and the
- * two feature writers open a shelf once per run.
+ * Where a library document is WRITTEN — the shelves `library.mjs` reads. The
+ * one door every writer (importer, classes, location) opens its shelf
+ * through. See docs/lib/DECISIONS.md, "Every writer of the library opens its
+ * shelf through one door".
  */
 import { MODULE_ID } from "./constants.mjs";
 import { libraryPackLabel, findLibraryPack, isJudgeLine, JUDGE_SHELF_OWNERSHIP } from "./library.mjs";
@@ -56,11 +42,8 @@ export async function ensureLibraryPack(type, line = null) {
  * A folder path inside ONE shelf, made where missing — the same find-or-create
  * the importer's own tree does, without its promise cache: the feature writers
  * run one pass at a time. A path deeper than a pack allows is cut, so the
- * document lands one level up rather than nowhere.
- *
- * Folders made here carry the importer's cookbook stamp, as its own do: a
- * folder that outlives its shelf (a world upgraded from a sidebar-writing
- * release) is then still recognised by Remove Imports.
+ * document lands one level up rather than nowhere. Folders made here carry the
+ * importer's cookbook stamp, so Remove Imports still recognises them.
  *
  * @param {object} pack the CompendiumCollection to file inside
  * @param {string} type the document type the folders file

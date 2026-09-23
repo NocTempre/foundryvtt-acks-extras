@@ -59,9 +59,9 @@ async function clearLanguage(_event, target) {
  */
 export async function onDropLanguage(item) {
   if (item?.type !== LANGUAGE_TYPE) {
-    // An ability is the mistake worth naming: languages used to BE abilities,
-    // so a world's older copy still looks droppable. Anything else declines
-    // quietly and goes to the sheet's normal drop handling.
+    // A language stored as an ability item (the older shape a world may still
+    // hold) is refused with a warning. Anything else declines quietly and goes
+    // to the sheet's normal drop handling.
     if (item?.type === "ability") {
       ui.notifications?.warn(game.i18n.localize("ACKS-ABILITIES.languages.refuse.notALanguage"));
       return true;

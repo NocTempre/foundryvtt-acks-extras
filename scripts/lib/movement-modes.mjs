@@ -1,29 +1,8 @@
 /**
- * How a thing moves decides which modifiers it meets.
- *
- * The family grew three speed derivations independently — a march, a voyage, a
- * flight — and each grew its own opinion about which factors apply. That is
- * three places to change when a factor arrives, and three chances to disagree.
- *
- * A movement MODE is the missing middle. Each declares the ordered layers it
- * consumes and, where it differs, what it replaces or refuses. Two shapes fall
- * out of that, and they are the two the family actually needs:
- *
- *  - **An adjustment.** A vehicle is a march with gates on it — it meets every
- *    factor a walker meets and then refuses some ground outright. Its mode
- *    consumes the land layers and adds its own.
- *  - **An independent layer.** A vessel meets none of the land factors: no
- *    terrain, no road, no footing. Its mode declares its own layers, and the
- *    land stack is simply not consulted.
- *
- * A flier sits between them, which is why it needed this: RR prints the terrain
- * multipliers under Flight Speed, so a flier DOES meet the ground below it, and
- * weather applies "normally" — with wind the stated exception, which the flight
- * layer replaces rather than adds to.
- *
- * This file composes; it never prices. Every factor arrives as a part from the
- * derivation that owns it, and the mode only decides which are consulted and
- * in what order.
+ * How a thing moves decides which modifiers it meets. Each movement mode
+ * declares the ordered layers it consumes and what it replaces or refuses.
+ * This file composes; it never prices. See docs/lib/MODEL.md, "Movement
+ * modes".
  */
 
 /**
@@ -38,13 +17,9 @@ export function layerOf(key) {
 }
 
 /**
- * The modes, and what each consumes.
- *
- * `layers` is ORDERED and the order is the rules' own — the road multiplier
- * lands after the terrain it passes through, because a road makes bad country
- * passable rather than good. Superseding is NOT declared here: the part that
- * supersedes names its own victim (`supplants`), because only the layer
- * contributing a special case knows which general case it stands in for.
+ * The modes, and what each consumes. `layers` is ORDERED to the rules' own
+ * sequence. Superseding is declared per-part (`supplants`), not here — only
+ * the special-case layer knows which general case it replaces.
  */
 export const MOVEMENT_MODES = Object.freeze({
   foot: {
@@ -62,10 +37,9 @@ export const MOVEMENT_MODES = Object.freeze({
     gates: ["wheels", "footing"],
   },
   /**
-   * Above the country, not out of it. RR prints the terrain multipliers under
-   * Flight Speed, so terrain is consumed; weather applies as it does below,
-   * except that wind bites fliers specifically — so the flight layer REPLACES
-   * the wind condition rather than stacking with it.
+   * Above the country, not out of it: terrain is consumed (RR — Flight
+   * Speed); weather applies as below except wind, which the flight layer
+   * replaces rather than stacks with.
    */
   flying: {
     label: "ACKS-LIB.movement.mode.flying",
@@ -89,13 +63,8 @@ export function isMode(mode) {
 /**
  * Compose one speed multiplier from parts, under a mode.
  *
- * Parts a mode refuses are DROPPED and reported rather than silently ignored —
- * a caller handing terrain to a vessel has a bug, and a readout that quietly
- * swallowed it would hide the bug behind a plausible number.
- *
- * Ordering is the mode's `layers`, not the caller's array order, so a
- * derivation may contribute parts in whatever order suits it and still read out
- * in the order the rules apply them.
+ * Parts a mode refuses are dropped and reported, never silently ignored.
+ * Ordering follows the mode's `layers`, not the caller's array order.
  *
  * @param {object} o
  * @param {string} o.mode a key of `MOVEMENT_MODES`
@@ -109,10 +78,8 @@ export function composeMovement({ mode = "foot", parts = [] } = {}) {
   const refuses = new Set(spec.refuses ?? []);
   const order = spec.layers;
 
-  // What a special case stands in for. A flier's wind supersedes the ground's
-  // wind rather than multiplying with it — but only because the flier actually
-  // contributed one; nobody supplanting anything leaves the general case
-  // standing, so a flier in a gale with no flight-wind rule still feels it.
+  // Supplanted only by a part that actually claims the layer; absent that,
+  // the general case still applies.
   const supplanted = new Set(
     parts.filter((p) => p?.supplants).map((p) => String(p.supplants)),
   );

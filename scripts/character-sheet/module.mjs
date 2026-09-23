@@ -1,16 +1,14 @@
 /* global Hooks, foundry, Actor */
 /**
  * The character sheet — this module's own window for `character` actors,
- * registered as this module's DEFAULT for the type (DECISIONS 2026-09-03).
- * Whether the world opens on it is the UI preset's ladder (lib/ui-preset.mjs),
- * which runs after this registration; `makeDefault` here declares the
- * module's own choice for the ladder to read. The system's own sheet stays
- * registered untouched; Sheet Config switches an actor back.
+ * registered as this module's default for the type (DECISIONS 2026-09-03,
+ * "The module's own character sheet, and it is the default"). Whether a
+ * world opens on it is `lib/ui-preset.mjs`'s ladder; the system's own sheet
+ * stays registered, and Sheet Config switches an actor back.
  *
- * Registration happens at READY: Foundry defers every registerSheet call made
- * before `game.ready` into a pending queue that is flushed late in setup, and
- * a sheet claiming the default has to land after the system's own claim
- * rather than race it.
+ * Registered at `ready`, not `init`: Foundry flushes queued sheet
+ * registrations late in setup, so a default claim has to land after the
+ * system's own.
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, LANG } from "./constants.mjs";

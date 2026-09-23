@@ -87,10 +87,8 @@ export async function annotateItem(item) {
     if (key) {
       const base = CONFIG_DATA.WEAPONS[key];
       Object.assign(updates, {
-        // The identity itself, written down. Everything below it is derived
-        // from this row, so recording only the derivations would leave the
-        // proficiency CATEGORY — which has no flag of its own — still being
-        // re-guessed from the name on every render.
+        // The identity itself, written down (DECISIONS.md, "What a weapon
+        // IS is declared, not read off its name (2026-09-07)").
         [`flags.${MODULE_ID}.${ITEM_FLAGS.PROFILE_KEY}`]: key,
         [`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`]: base.size,
         [`flags.${MODULE_ID}.${ITEM_FLAGS.DAMAGE_TYPE}`]: base.type || "",
@@ -113,13 +111,10 @@ export async function annotateItem(item) {
     if (profile.capacity != null) key ??= "container";
   }
 
-  // Where it sits, what it costs to reach into, and how much it holds. Only
-  // stamped when there is something to say, so annotating a sack of rations
-  // does not litter it with an empty model.
-  //
-  // Capacity is written HERE, not into the container record: it is a property
-  // of gear rather than of a category, which is what lets a Judge give a coat
-  // hidden pockets. The container record keeps only the lock's state.
+  // Where it sits, what it costs to reach into, and how much it holds — only
+  // stamped when there is something to say. Capacity is written into the
+  // gear flag rather than the container record, which keeps only the lock's
+  // state.
   const gear = inferGear(item);
   if (gear.slots.length || gear.access || gear.capacity != null || gear.relief != null) {
     updates[`flags.${MODULE_ID}.${FLAG_GEAR}`] = {
@@ -133,18 +128,11 @@ export async function annotateItem(item) {
     key ??= gear.capacity != null ? "container" : "gear";
   }
 
-  // A device sold with its load — "Quiver, 20 Arrows" — is the ammunition, and
-  // an earlier pass that read it as an empty quiver left a capacity on it. This
-  // is the one place the annotate step UNDOES its own earlier answer rather
-  // than merely refining it, because the stale flag is what shows a full quiver
-  // as empty and nothing else will clear it. Re-running the annotate button is
-  // how a world already carrying the wrong answer gets the right one.
+  // A device sold with its load — "Quiver, 20 Arrows" — is the ammunition;
+  // re-running annotate clears a capacity an earlier pass mistakenly stamped.
   //
-  // The count is never written here. Annotate stamps what a thing IS, never
-  // how much of it is left: core initialises every item's count, so there is
-  // no blank one to fill, and a count taken from the name would refill a
-  // half-spent quiver on the next pass. The count arrives with the item — the
-  // compendium's, the importer's, or the Judge's on the sheet.
+  // The count is never written here (DECISIONS.md, "Annotate declares the
+  // bundle and never the count (2026-09-05)").
   const rounds = CONFIG_DATA.bundledAmmoCount(item.name ?? "");
   if (rounds != null) {
     if (capacityOf(item) != null) {
@@ -152,10 +140,8 @@ export async function annotateItem(item) {
       key = "ammunition";
     }
     // The name states a bundle, so the printed weight beside it is the
-    // bundle's. Declaring that is what keeps the count, however it arrived,
-    // from multiplying a whole quiver's weight by its own arrows — the very
-    // over-encumbrance the annotate step exists to tidy. Never overwrite a
-    // bundle size a Judge has already set.
+    // bundle's (DECISIONS.md, "A stated weight may cover a bundle
+    // (2026-08-31)"). Never overwrite a bundle size a Judge has already set.
     if (bundleSizeOf(item) <= 1) {
       const gearNow = updates[`flags.${MODULE_ID}.${FLAG_GEAR}`];
       if (gearNow) gearNow.per = rounds;
@@ -187,19 +173,16 @@ export function buildApi() {
     // Free hands right now — read by acks-formation before it lights a source
     // (a light needs a hand to hold). The write half of the two-way hook.
     freeHands: (actor) => getLoadout(actor).handsFree,
-    // Room for one more thing, which is a different question from what is free:
-    // a lone versatile weapon holds the spare hand only until something needs
-    // it. acks-formation asks THIS before lighting a torch, so a swordsman with
-    // an empty off hand is not told he has none.
+    // Room for one more thing (see docs/equipment/MODEL.md, "Hands: free,
+    // committed, spare"); acks-formation asks this before lighting a torch.
     spareHands: (actor) => getLoadout(actor).handsSpare,
     // The hands the party sheet holds, as the clause every hand total carries;
     // "" when the gear accounts for every hand. lib names it in a light refusal.
     heldHandsClause: (actor) => heldHandsClause(getLoadout(actor)),
     heldLightHands,
     releaseOrder,
-    // The Judge's override, in two mutations: hand over gear the character does
-    // not have, and put held gear away to make room for it. acks-formation calls
-    // both when a GM gives a member a light or sets them to mapping.
+    // The Judge's override mutations (see docs/equipment/MODEL.md, "Giving
+    // gear, and making room for it — `grant.mjs`").
     grantGear,
     clearHands,
     findGearSource,
@@ -264,9 +247,10 @@ export function buildApi() {
     drawItem,
     sheatheItem,
     setMasterwork,
-    // VARIATIONS — the open-ended half of "how does this one differ". The
-    // legacy setters above stay while worlds still carry the three flags they
-    // write; a variation needs no setter of its own, which is the point.
+    // VARIATIONS — the open-ended half of "how does this one differ" (see
+    // docs/equipment/DECISIONS.md, "A variation is a document, and applying
+    // it is putting it inside (2026-08-15)"). The legacy setters above stay
+    // until the importer replaces the flags they write.
     variations: {
       ...variationRules,
       ...variationItems,
@@ -317,9 +301,8 @@ export function buildApi() {
     storeIn,
     takeOut,
     emptyContainer,
-    // Locks and concealment. `openContainerManager` is GONE — the popout it
-    // opened is retired; its controls live on the character sheet's equipment
-    // tab, next to the gear they act on.
+    // Locks and concealment (see docs/equipment/DECISIONS.md, "The Container
+    // Manager popout is retired").
     isLocked,
     isConcealed,
     isFragile,

@@ -32,17 +32,11 @@ function slotRowAt(tradition, level) {
 }
 
 /**
- * The class's damage-bonus ladder, and who the bonus applies to.
- *
- * A class states its damage bonus as a progression column, and the column's
- * KEY says who it applies to. Four spellings: `meleeDamageBonus` and
- * `missileDamageBonus` are narrowed by the page; bare `damageBonus` is
- * unrestricted and applies to both; `electedDamageBonus` is the barbarian's
- * shape — the page prints the column unqualified and the paragraph beside it
- * has the player choose melee or missile at 1st level, for good. An elected
- * column is ASKED, and the answer belongs to the CHARACTER, not to the class,
- * because one world's barbarians do not all specialize alike.
- *
+ * The class's damage-bonus ladder, and who the bonus applies to. A class
+ * states it as a progression column; the column's KEY says who it applies
+ * to: `meleeDamageBonus`, `missileDamageBonus`, unrestricted `damageBonus`,
+ * or `electedDamageBonus`, whose scope the character elects once, at 1st
+ * level, rather than the class fixing it.
  * @returns {{ladder: object, scope: "melee"|"missile"|"both"|null}|null}
  *   `scope` is null only for an elected column, where the election is the
  *   character's.
@@ -156,13 +150,10 @@ const currentAt = (actor, path) => foundry.utils.getProperty(actor, path);
 const DAMAGE_BONUS_OPTIONS = ["melee", "missile"];
 
 /**
- * Ask which attacks this character's class damage bonus applies to.
- *
- * Asked only where the column is elected, and only once — the answer is
- * recorded on the character and honoured by every later apply. The
- * dialog is deliberately its own small prompt rather than a row in the confirm
- * dialog: every caller that matters suppresses that one.
- *
+ * Ask which attacks this character's class damage bonus applies to. Asked
+ * only where the column is elected, and only once — the answer is recorded
+ * on the character and honoured by every later apply. Its own small prompt,
+ * since every caller that matters suppresses the confirm dialog.
  * @returns {Promise<"melee"|"missile"|"both"|null>} null when dismissed.
  */
 async function askDamageBonusElection(actor, classItem) {
@@ -191,57 +182,13 @@ async function askDamageBonusElection(actor, classItem) {
 }
 
 /**
- * Apply `classItem` to `actor` at `level` (default: the actor's current
- * level, floored to 1). Shows a confirm dialog listing every change and
- * flagging hand-edited fields; `{confirm: false}` skips it (callers that
- * already confirmed). Records the applied ledger on the actor.
- *
- * `{grantAwards: true}` also hands over the abilities the class owes AT AND
- * BELOW that level — Adventuring, every fixed award, and one pick per choice
- * award, asked in the same dialog. Only the paths that SET a level pass it
- * (the picker and a dropped class); chargen grants its own 1st level and the
- * level-up wizard has already granted the rung it just earned, so neither
- * wants the whole ladder handed over underneath it.
- *
- * `{answered}` records rungs a CALLER has already asked — the level-up wizard
- * and chargen both answer rungs of their own, and a rung answered anywhere is
- * a rung this dialog must not ask again. Without it a character levelled to 5th
- * met every pick from 1st to 5th a second time the moment their class was
- * re-applied.
- *
- * `{answers}` carries rung answers a caller has ALREADY collected, keyed by
- * award key — how a surface that asked the questions itself (the class picker,
- * assign-app.mjs) hands them over instead of having them asked a second time in
- * a confirm dialog. Answers gathered by this function's own dialog merge into
- * the same map, so there is one path from an answer to what it grants.
- *
- * @param {object} [options]
- * @param {string[]} [options.answered] award keys (`grants.awardKey`) the
- *   caller has already put to the player and does not want asked again
- * @param {Record<string, string>} [options.answers] award key → the ref chosen
- *   for it, or `picks.ANSWERED` for a rung the character already satisfies
- * @returns {Promise<{applied: boolean, update?: object, missing?: string[], grants?: object[]}>}
- */
-/**
- * Carry the class's COMBAT TRAINING onto the character.
- *
- * A class document states what it is trained to fight with as an ActiveEffect
- * — `weaponProf`, `armourProficiency`, `styleProficient` — and `transfer: true`
- * on it means nothing here, because a character does not OWN the class
- * document: the class is recorded as a name and a ledger flag, and the world
- * item stays in the directory. So the effect sat on a document nothing read,
- * and every character was unrestricted: a Mage in full plate reported as
- * proficient with it, and no weapon or fighting style was ever untrained.
- *
- * The effect is copied onto the ACTOR, stamped with the class it came from so
- * a re-apply — or a change of class — removes exactly what a previous apply
- * put there and nothing a Judge added by hand. Copies rather than links,
- * because the character's proficiency is theirs: editing the class afterwards
- * should not silently retrain everyone who ever took it, and re-applying is
- * how a Judge asks for that.
- *
- * Nothing is written for a class stating no training; the character is left
- * unrestricted, which is what an unstated training means.
+ * Carry the class's COMBAT TRAINING onto the character: its training
+ * ActiveEffect (`weaponProf`, `armourProficiency`, `styleProficient`) is
+ * copied onto the actor, stamped with the class it came from so a re-apply
+ * or a class change removes exactly what a previous apply put there. Writes
+ * nothing for a class stating no training. See docs/classes/DECISIONS.md,
+ * "2026-08-22 — a class's training is copied to the character, because
+ * transfer cannot reach one".
  */
 export async function syncClassTraining(actor, classItem, selections = null) {
   if (!actor) return [];
@@ -277,6 +224,26 @@ export async function syncClassTraining(actor, classItem, selections = null) {
   return made ?? [];
 }
 
+/**
+ * Apply `classItem` to `actor` at `level` (default: the actor's current
+ * level, floored to 1). Shows a confirm dialog listing every change and
+ * flagging hand-edited fields; `{confirm: false}` skips it. Records the
+ * applied ledger on the actor.
+ *
+ * `{grantAwards: true}` also hands over the abilities owed at and below that
+ * level (Adventuring, fixed awards, one pick per choice award), asked in the
+ * same dialog — only the paths that SET a level pass it; chargen and the
+ * level-up wizard grant their own rung and do not want the whole ladder
+ * handed over underneath it.
+ *
+ * @param {object} [options]
+ * @param {string[]} [options.answered] award keys (`grants.awardKey`) a
+ *   caller has already put to the player, not to be asked again
+ * @param {Record<string, string>} [options.answers] award key → the ref
+ *   chosen for it, or `picks.ANSWERED`, for a caller (the class picker) that
+ *   collected rung answers itself instead of through this function's dialog
+ * @returns {Promise<{applied: boolean, update?: object, missing?: string[], grants?: object[]}>}
+ */
 export async function applyClass(
   actor,
   classItem,
@@ -297,13 +264,9 @@ export async function applyClass(
     return { applied: false };
   }
   const targetLevel = level ?? Math.max(1, Number(actor.system?.details?.level) || 1);
-  // A damage bonus whose column is elected is the CHARACTER's election, so
-  // it is asked here rather than in the confirm dialog below: every surface
-  // that applies a class (chargen, the level-up wizard, the picker) suppresses
-  // that dialog, and a question only the unused path asks is a question nobody
-  // is ever asked. The election this character already gave stands — it is
-  // permanent, and re-applying must not silently re-elect it — but only for
-  // the class it was given for, so changing class asks again.
+  // An elected damage-bonus column is asked here, not in the confirm dialog
+  // below (every apply surface suppresses that dialog). The election stands
+  // once given for this class; changing class asks again.
   const classKey = classItem.system.key || classItem.name.toLowerCase();
   const dmgLadder = damageBonusLadder(classItem);
   const remembered = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.damageBonus ?? null;
@@ -316,12 +279,10 @@ export async function applyClass(
   }
   const { update, level: clamped, missing } = classUpdateData(actor, classItem, targetLevel, { election });
 
-  // Setting a level by hand leaves hit points and experience describing the
-  // character you no longer have — a 4th-level thief keeping 1st-level hit
-  // points and an experience total three bands away. The PICKER and CHARGEN
-  // both ask for this — neither rolls hit dice of its own. The level-up wizard
-  // never does: it has already rolled the one die it means to add, and a
-  // rebuild underneath it would discard the roll the player watched.
+  // Setting a level by hand leaves hit points and experience describing a
+  // character no longer held; the picker and chargen ask for a rebuild, since
+  // neither rolls hit dice of its own. The level-up wizard never does — it
+  // has already rolled the one die it means to add.
   let hpSteps = null;
   if (rebuildVitals) {
     const previousLevel = Math.max(1, Number(actor.system?.details?.level) || 1);
@@ -381,9 +342,8 @@ export async function applyClass(
    *  pass `paths` to answer without a dialog — chargen does. */
   const pathPicks = { ...actorPaths(actor), ...(paths ?? {}) };
 
-  // A level whose numbers already agree can still owe abilities — re-applying
-  // the same class at the same level is exactly how a character bound before
-  // this catch-up existed gets what they were always owed.
+  // A level whose numbers already agree can still owe abilities; re-applying
+  // the same class at the same level is how a character collects them.
   if (!rows.length && !awardCount) {
     ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.apply.noChanges`, { name: actor.name }));
   } else if (confirm) {

@@ -191,12 +191,11 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
 
   /**
    * Open at the canvas width for the seat's type size. `DEFAULT_OPTIONS` is
-   * evaluated at module load, before settings exist, so the figure declared
-   * there is the design's own and the scale is applied here — at construction,
-   * which is late enough to read the setting and early enough that the window
-   * never renders at one width and jumps to another. `min-width` deliberately
-   * does not follow (styles/character-sheet.css); core clamps the result to
-   * the viewport, so a raised setting cannot open wider than the display.
+   * evaluated before settings exist, so the scale is applied here at
+   * construction instead; core clamps the result to the viewport. `min-width`
+   * does not follow (styles/character-sheet.css) — see
+   * docs/character-sheet/DECISIONS.md, "The canvas figures are a
+   * specification, scaled by a ratio".
    */
   _initializeApplicationOptions(options) {
     const opts = super._initializeApplicationOptions(options);

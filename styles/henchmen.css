@@ -2,7 +2,7 @@
 
 /* ----------------- hirelings tab: Follower Card grid ----------------- */
 /* The core character sheet's Hirelings tab, re-skinned at runtime into a grid
-   of acks-lib Follower Cards (scripts/apps/hirelings-grid.mjs). */
+   of the lib subsystem's Follower Cards (scripts/henchmen/apps/hirelings-grid.mjs). */
 .acks-henchmen-follower-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -112,9 +112,10 @@
   font-size: 0.85em;
 }
 
-/* Secondary prose is muted with the INK token and never with opacity: an
-   opacity mute composites toward whatever ground the row happens to sit on,
-   and these bodies render over paper, tint and the callout wash alike. */
+/* Secondary prose is muted with the INK token, never opacity — these bodies
+   render over paper, tint and the callout wash alike. See
+   docs/lib/DECISIONS.md, "Secondary and muted state reads in ink, never
+   opacity". */
 :is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .hint {
   color: var(--acks-ink-soft);
   font-size: var(--acks-fs-label);

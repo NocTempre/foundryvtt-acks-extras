@@ -1,45 +1,30 @@
 /* global game, Hooks */
 /**
- * Core patch: the goods rows core leaves un-draggable.
+ * Core patch: the goods rows core leaves un-draggable, and the mint bug that
+ * opens once they are.
  *
  * `ActorSheetV2` binds its drag sources with `dragSelector: ".draggable"`, and
- * core's inventory marks every row with that class EXCEPT money
- * (`templates/actors/v2/inventory.hbs`). A coin row is therefore never bound as
- * a drag source: no `dragstart` fires, no payload is produced, and every drop
- * target in the family — a container item, a place's storage — waits on a drag
- * that cannot begin. The failure is silent by construction, because no code of
- * ours ever runs; nothing reaches the console to explain it.
+ * core's inventory template marks every row with that class except money. A
+ * coin row is therefore never bound as a drag source, silently: no `dragstart`
+ * fires and nothing of ours runs to explain why. The system is a read-only
+ * reference, so the class is added after render and the sheet's own DragDrop
+ * is re-bound — `DragDrop.bind` assigns `ondragstart` element by element, so a
+ * class added afterwards stays inert until that pass runs again; binding twice
+ * is safe because those handlers are assigned, not stacked.
  *
- * The system is a read-only reference, so the class is added after render and
- * the sheet's own DragDrop is re-bound. THE RE-BIND IS THE FIX, not a tidy-up:
- * `DragDrop.bind` assigns `ondragstart` element by element, so a class added
- * afterwards stays inert until that pass runs again. Binding twice is safe
- * because those handlers are ASSIGNED rather than added — a second pass replaces
- * them instead of stacking a duplicate.
+ * Which rows qualify is read from the DATA, never a type name: a row is a drag
+ * source when its `data-item-id` resolves to goods on this actor, via the same
+ * `isGoods` storage and containers already gate on.
  *
- * Which rows qualify is read from the DATA, never from a type name: a row is a
- * drag source when its `data-item-id` resolves to GOODS on this actor — the same
- * `isGoods` that storage and containers already gate on. That covers coin today
- * and anything the system forgets tomorrow, while leaving rows that are not
- * goods (the favourites panel, the languages list) exactly as core renders them.
- *
- * SECOND HALF: a coin row dropped back on its own sheet must never MINT coin.
- * Foundry's `ActorSheetV2._onDropItem` treats a drop whose item already belongs
- * to this actor as a re-SORT. The system's override switches on item type before
- * it ever reaches that guard, so money is routed to `_onDropItemMoney`, which
- * finds the row already on the actor and adds one to its quantity. Making the
- * row draggable at all is what puts that path within a player's reach, so the
- * guard belongs here beside the class that opened it — the two halves are one
- * change. Money, and only money: a BUNDLE dropped on its owner unpacks by
- * design, and a blanket same-actor guard would silently take that away.
- *
- * THIRD: coin dragged onto SOMEBODY ELSE minted money too, and worse. The same
- * core method's other branch copies the stack to the receiver, adds one to it,
- * and never takes it off the giver — 100 gold handed over left 100 behind and
- * put 101 in front, so the table gained 101 gold by dragging. A coin row dragged
- * onto another sheet means a hand-over, so it is routed to `handOver`, which is
- * the family's existing transfer: it merges by denomination, checks that the
- * dragger owns both seats, and compensates loudly if half the move fails.
+ * Making coin draggable at all opens two core paths that must not run once it
+ * is: `_onDropItem`'s money branch adds one to the row's quantity on a same-
+ * actor drop (a re-sort for every other type), and does the same to the
+ * receiver on a cross-actor drop without debiting the giver. Both are guarded
+ * here, beside the class that opened them: a same-actor money drop is routed
+ * to a plain sort, and a cross-actor one to `handOver`, the family's existing
+ * transfer. See docs/lib/DECISIONS.md, "Goods the system leaves un-draggable
+ * are marked — and only those", and "Coin made draggable is guarded against
+ * minting itself".
  */
 import { isGoods } from "../item-model.mjs";
 import { MODULE_ID } from "../constants.mjs";

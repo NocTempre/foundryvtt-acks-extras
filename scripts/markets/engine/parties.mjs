@@ -3,10 +3,11 @@
  * Party resolution for market caps. The availability values are per party
  * (RR §IV.3), so every trade is charged to a party ledger.
  *
- * Default: every PC belongs to ONE implicit party (user ruling) whose size —
- * for the 12-or-more-adventurers rule — counts the player characters AND
- * their henchmen, because the book counts adventurers, not players. The
- * `marketParties` world setting overrides with explicit rosters.
+ * Default: every PC belongs to ONE implicit party, whose size for the
+ * party-size rule counts henchmen too. See
+ * docs/markets/DECISIONS.md, "Every PC belongs to one implicit party until
+ * configured". The `marketParties` world setting overrides with explicit
+ * rosters.
  */
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { getHenchmenIds } from "../../henchmen/acks-adapter.mjs";

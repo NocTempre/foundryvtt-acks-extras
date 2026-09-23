@@ -3,41 +3,22 @@
  * Core patch: a round's initiative, gathered onto ONE chat card.
  *
  * Core's `AcksCombat#rollInitiative` posts a separate `ChatMessage` per
- * combatant — "<name> rolls for Initiative!" and a die — so a fight with a
- * deployed stack in it buries the log under a message per body, each of which
- * has to be read on its own to answer the only question being asked: who goes
- * first. This replaces the pile with a single card, one row per roll, ordered
- * highest first.
+ * combatant. This replaces the pile with a single card, one row per roll,
+ * ordered highest first — a combat group (`flags.acks.groups`) collapses to
+ * one row naming its members, since core rolls one total for the group but
+ * announces it under only the first member.
  *
- * THE ROLL IS STILL CORE'S, AND SO IS THE GROUPING. Nothing here rolls a die or
- * decides who shares a number. Core already rolls ONE `1d6+bonus` for a combat
- * group (`flags.acks.groups`, built by the tracker's people icon) and hands that
- * total to every member; what it cannot do is say so — the group's single roll
- * is announced under whichever member came first in the loop, reading exactly
- * like an individual roll, and every other member is silent. The card is where
- * the grouping becomes visible: a group is ONE row, named as the tracker names
- * it (`[G0]` → Group 0), with its members under it.
+ * The roll and the grouping are still core's; the seam is presentation only,
+ * in three moves: (1) a libWrapper WRAPPER around `rollInitiative`, never a
+ * re-implementation; (2) while it runs, a scoped `preCreateChatMessage` hook
+ * captures and blocks its per-combatant messages, keeping each one's formula
+ * and recipients; (3) rows are read back off the COMBATANTS once core has
+ * written them, not off the captured messages, so a grouped member core kept
+ * silent about still has a number and still belongs on the card.
  *
- * Which combatants are a group therefore stays the Judge's explicit choice —
- * stacks, a summoner and their summons — and nothing is grouped automatically.
- *
- * The seam is presentation only, in three moves:
- *
- *  1. A libWrapper WRAPPER around `rollInitiative` — never a re-implementation,
- *     so the group flag, the roll mode, the socket hop from a player's click and
- *     the combatant updates all stay core's.
- *  2. While core's method runs, a scoped `preCreateChatMessage` hook captures
- *     and BLOCKS its per-combatant messages, keeping each one's formula and the
- *     recipients core chose for it.
- *  3. The rows are read back off the COMBATANTS once core has written them, not
- *     off the captured messages, because a grouped member core kept silent about
- *     still has a number and still belongs on the card.
- *
- * Privacy is preserved by splitting, not by widening: a hidden combatant's row
- * travels on a second, Judges-only card, and a group with one hidden member puts
- * that member on the Judges' card while its open members stay on the public one.
- * The shared total appears on both — it is the same number the tracker already
- * shows for every combatant that is not hidden.
+ * Privacy is preserved by splitting, not widening: a hidden combatant's row
+ * travels on a second, Judges-only card. See docs/lib/DECISIONS.md,
+ * "Initiative reuses the roll CARD, not an invented grouping".
  */
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import { gmIds, makeLoc } from "../util.mjs";
@@ -58,13 +39,10 @@ const escapeRx = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * Recognizer for core's initiative flavor, built from the very template that
- * writes it: formatting `ACKS.roll.individualInit` with a sentinel in place of
- * the name says exactly what shape that sentence has, so the test follows any
- * translation of it and holds no copy of the English.
- *
- * This is an IDENTITY test, not a reader — the total is taken from the
- * combatant. It is what keeps an unrelated message posted mid-roll from being
- * swallowed by a card it has nothing to do with.
+ * writes it — a sentinel in place of the name says exactly what shape the
+ * sentence has, so the test follows any translation without holding a copy of
+ * the English. An identity test only: the total is read off the combatant,
+ * which is what keeps an unrelated message from being swallowed into the card.
  */
 function flavorPattern() {
   const probe = game.i18n.format("ACKS.roll.individualInit", { name: NAME_MARK });
@@ -124,9 +102,9 @@ function initiativeCapture(combat, rolledIds, pattern) {
  * card with the rest.
  */
 function gatherEntries(combat, rolledIds, captured) {
-  // Read straight off the document rather than through the flag accessors: the
-  // system owns this namespace and this module only looks at it. The plain read
-  // says so — nothing here can create it, rename it, or write into it.
+  // Read straight off the document, not through the flag accessors: this is
+  // core's namespace, not ours. See docs/lib/DECISIONS.md, "Initiative reuses
+  // the roll CARD, not an invented grouping".
   const groups = combat.flags?.acks?.groups ?? [];
   const byToken = new Map(captured.map((c) => [c.tokenId, c]));
   const entries = new Map();

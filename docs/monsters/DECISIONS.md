@@ -129,3 +129,22 @@ enough to keep the two agreeing whenever the rating is the one touched.
 Rejected: rolling hit points automatically when the rating changes. A Judge
 who set 4/4 by hand and then corrects a die type would lose the hand-set
 value; the roll is one click, and it is the Judge's.
+
+### The monster feature ships no example packs (2026-09-22)
+
+Recorded from the header of `tools/pack-data/monsters.mjs`.
+
+**Ruled.** The bestiary, spoils and treasure example packs are retired (4.1): the importer materializes all three from the GM's own books, with far greater coverage than the samples had, and a shipped example is a second copy to keep true. The monster feature is unchanged — what a monster is and what it drops live in the model and the sheet, not in a sample.
+
+### Save-key compatibility is resolved per-actor, not assumed (2026-09-22)
+
+Recorded from comments on `rollSave` in `scripts/monsters/monster-actions.mjs` and the Classification tab's save-row builder in `scripts/monsters/monster-sheet.mjs`.
+
+**Ruled.** The acks system's saves object has used two different key sets across its own releases (an older set and the current `blast`/`implements` set). Both the save-roll action and the Classification tab's save rows resolve each logical save to whichever key is present on the running system's actor, so a value or a roll never comes up empty on an install running the older key set.
+
+### Follower Card ordering is not left to import order (2026-09-22)
+
+Recorded from a comment on the `ready` hook in `scripts/monsters/module.mjs`.
+
+**Ruled.** A `monster`-type actor lands by default on lib's Follower Card, which expands into the Full Monster Sheet. This feature's own `registerSheet` call for `monster` registers the sheet as selectable but does not claim `makeDefault` for that type.
+**Rejected.** Claiming the default here too, because which sheet a `monster` lands on would then depend on which subsystem's `ready` handler ran last — an import-order race rather than a choice.

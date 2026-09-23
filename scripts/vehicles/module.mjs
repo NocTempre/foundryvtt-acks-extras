@@ -44,23 +44,15 @@ Hooks.once("init", () => {
 });
 
 /**
- * The speed derivation is published because it is the interesting part, and the
- * part another module would otherwise re-derive: a domain module costing a
- * caravan, or a battle module asking how far a wagon train gets in a day, wants
- * `landSpeed`/`seaSpeeds` rather than its own reading of the tables.
- *
- * The sea rules ride with them for the same reason, and one of them is a trap
- * worth publishing loudly: `voyageDay` counts TWELVE hours where a marching
- * party counts eight, so a caller comparing a ship to a column must go through
- * `compareToMarch` rather than setting the two day-figures side by side.
+ * Published because `landSpeed`/`seaSpeeds` are what another module (a
+ * caravan cost, a wagon train's day) wants rather than its own reading of
+ * the tables. Trap to note: `voyageDay` counts TWELVE hours where a
+ * marching party counts eight — compare through `compareToMarch`, never by
+ * setting the two day-figures side by side.
  */
-// apiVersion 1: the surface stops being an unversioned spread the release the
-// stations land — additive changes bump it, removals are a new major of it.
-// apiVersion 2: the sea's printed values moved to the `voyages` registry
-// (DECISIONS 2026-08-28) — NAVIGATION_TARGETS, HAZARDS, DAMAGE_SHARE,
-// SINK_FORMULA, CREW_PER_POINT and BERTH_STONE are REMOVED, replaced by the
-// registry-reading functions and structural key lists beside them; the
-// seamanship dialogs and the sinking clock join the spread.
+// apiVersion: bumped on additive changes; a removal is a new major. See
+// docs/vehicles/DECISIONS.md, "The sea's numbers come off the page too
+// (Path B completes)."
 acksExtras.vehicles = {
   apiVersion: 2,
   VEHICLE_TYPE,

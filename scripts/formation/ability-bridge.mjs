@@ -2,25 +2,13 @@
 
 /**
  * Capability-aware ability matching — the bridge to the abilities program
- * (acks-lib vocabulary, acks-abilities effect model, importer import).
- * The capability primitives themselves live in `lib/capabilities.mjs`; what
- * this file adds is how a formation CONSUMES them, plus the skill ladders.
- *
- * **Union, not fallback.** Capability matching is precise but only as complete
- * as the register: Eavesdropping is a real listening proficiency that does not
- * yet declare `kw:listening`, and a strict capability check would silently drop
- * it. So candidates are the UNION of capability matches and the existing name
- * matches — never fewer members than before, plus the ones a rename would have
- * hidden.
- *
- * acks-lib is a hard `requires` of this module and its vocabulary is imported
- * STATICALLY, exactly like `slug` below. The first cut looked the functions up
- * on `globalThis.acksExtras?.lib` at call time instead — and when the public object
- * grew a `vocab` namespace, `acksLib.satisfies` stopped existing and both
- * capability checks silently returned false forever: every dragged cookbook
- * skill fell back to Adventuring, mislabelled and unbonused. A static import
- * cannot drift from the API surface like that; if the function moves, the
- * module fails loudly at load instead of guessing quietly at runtime.
+ * (lib vocabulary, abilities effect model, the importer). The capability
+ * primitives themselves live in `lib/capabilities.mjs`; this file is how a
+ * formation CONSUMES them, plus the skill ladders. Candidates are the union
+ * of capability matches and the existing name matches. lib's vocabulary is
+ * imported statically, not read off `globalThis.acksExtras` at call time.
+ * See docs/formation/DECISIONS.md, "Capability matching is a union, not a
+ * fallback".
  */
 
 import { MODULE_ID } from "./constants.mjs";
@@ -38,23 +26,10 @@ export { abilityRefs, hasCapability, itemHasCapability } from "../lib/capabiliti
 
 /**
  * The throw target an imported ability carries, resolved at `level` — or null.
- *
- * The importer materializes each classified throw into the acks-abilities
- * extras (`extras.rolls[].target`, an acks-lib LevelValue carried WHOLE), and
- * deliberately never writes `system.rollTarget`. So the number a party roll
- * needs lives here for exactly the items the program produces.
- *
- * **A thief skill's whole level ladder arrives this way.** The cookbook's
- * `progression` op reads the grid column out of the seat's own book and emits
- * `{kind:"breakpoints"}`, which `resolveLevelValue` answers at any level — this
- * module does not need, and no longer keeps, a table of its own. (An earlier
- * note here claimed these ladders resolved to nothing because they were
- * `kind:"progression"`, the LevelValue kind that defers to an external class
- * table. They are not: the executor emits breakpoints, and it was only this
- * module preferring its own copy that hid the fact.)
- *
- * Returns null for the importer's flat-0 "no target extracted" sentinel so the
- * caller can fall through to its own answer.
+ * Reads the abilities extras (`extras.rolls[].target`, a lib LevelValue), which
+ * is where the importer materializes a classified throw; `system.rollTarget`
+ * is never written. Returns null for the importer's flat-0 "no target
+ * extracted" sentinel so the caller can fall through to its own answer.
  */
 export function importedThrowTarget(item, level) {
   const rolls = item?.getFlag?.(ABILITIES_ID, "extras")?.rolls ?? [];
@@ -88,33 +63,19 @@ function ladderOf(item) {
 }
 
 /*
- * Where the imported definitions actually live.
- *
- * The importer's `importToCompendium` setting sends every import to a WORLD
- * compendium ("ACKS Cookbook — Item") instead of the item directory, so a read
- * that only walks `game.items` finds nothing in exactly the worlds that have
- * imported the most. The importer learned this the hard way — the setting moved
- * the WRITES and not the READS, and its dedup silently duplicated everything —
- * and the same trap caught this module's first cut, live, on a test world with
- * 467 imported items and an empty `game.items`.
- *
- * Pack documents load asynchronously and `scaledSkillTarget` is called inside a
- * roll loop, so the ladders are cached. The cache is built once and dropped
- * whenever an item changes; nothing here is on a hot path except the read.
+ * Imported definitions may live in `game.items` or in a world compendium,
+ * so a reader must walk both. Pack documents load asynchronously and
+ * `scaledSkillTarget` runs inside a roll loop, so the ladders are cached;
+ * nothing here is on a hot path except the read.
  */
 let ladderCache = null;
 let refreshQueued = false;
 
 /**
- * Schedule a rebuild — deliberately WITHOUT dropping the current map.
- *
- * A ladder is a page out of the GM's book: it does not change between one roll
- * and the next, so serving a slightly stale one costs nothing. Serving `null`
- * costs a great deal — the read is synchronous, so an emptied cache silently
- * downgrades every borrowed skill to its sheet target. Live-caught exactly
- * that way: creating an actor fires `createItem`, which emptied the cache
- * microseconds before the party roll that needed it, and three members
- * quietly rolled against the wrong numbers.
+ * Schedule a rebuild without dropping the current map. The read is
+ * synchronous, so an emptied cache would silently downgrade every borrowed
+ * skill to its sheet target until the rebuild finished; a stale map costs
+ * nothing by comparison.
  */
 export function invalidateLadders() {
   if (refreshQueued) return;
@@ -159,26 +120,18 @@ export function initLadders() {
 
 /**
  * The ladder for a named thief skill, read from this world's imported copy of
- * that skill — the definition the importer materialized from the GM's own book.
- *
- * This is what the `thiefSkill` flag means now: not an index into a table this
- * module ships, but a POINTER at a cookbook definition ("scale as Listening
- * does"). An item that carries its own ladder never needs this; a hand-bound or
- * pre-0.28.0 item has no ladder of its own and borrows the real one.
- *
- * The owning actor is searched first and synchronously — a character holding
- * the skill answers without touching the cache at all — then the cached index
- * of world items and packs. Returns null when the skill has not been imported,
- * which is a real state and not an error: the caller falls back to the item's
- * own sheet target and the Skill Audit says so in as many words.
+ * that skill. `thiefSkill` names the skill to scale as, not an index into a
+ * table this module ships; an item with no ladder of its own borrows the real
+ * one. The owning actor is searched synchronously first, then the cached
+ * index of world items and packs. Returns null when the skill has not been
+ * imported — the caller falls back to the item's own sheet target. See
+ * docs/formation/DECISIONS.md, "The ladders come from the GM's own book".
  */
 export function importedLadderFor(key, actor = null) {
   if (!key) return null;
   const id = skillDefId(key);
   const carries = (item) =>
     item?.type === ITEM_TYPE.ability && cookbookId(item) === id ? ladderOf(item) : null;
-  // Everything readable synchronously is read synchronously, so a world that
-  // imports into the item directory never depends on the cache at all.
   for (const item of actor?.items ?? []) {
     const ladder = carries(item);
     if (ladder) return ladder;
@@ -221,16 +174,10 @@ export function ladderRows(target) {
 /* -------------------------------------------- */
 
 /**
- * The union is deliberately generous, so the GM needs somewhere to see what it
- * caught and overrule it. Overrides are stored world-scoped and keyed by
- * ABILITY IDENTITY, not by item: "does Eavesdropping count as listening" is a
- * ruling about the rules, not about one character's copy of the item, so one
- * decision governs every copy in every party.
- *
- * Tri-state by absence: no entry means automation decides (the default), `true`
- * forces the ability in, `false` forces it out. Resetting deletes entries
- * rather than writing `true`, so "back to automated defaults" really is the
- * automated default and not a snapshot of it.
+ * The GM's overrides for the ability-matching union, world-scoped and keyed
+ * by ability identity (not by item), so one ruling governs every copy in
+ * every party. Tri-state by absence: no entry means automated, `true`/`false`
+ * force it in or out. Resetting deletes entries rather than writing `true`.
  */
 export const SETTING_ABILITY_OVERRIDES = "abilityOverrides";
 
@@ -272,20 +219,5 @@ export async function resetOverrides() {
   return game.settings.set(MODULE_ID, SETTING_ABILITY_OVERRIDES, {});
 }
 
-/*
- * Deliberately NOT wrapped here yet: acks-lib's `scopeApplies` (the 0.6.0
- * scoping primitive) and `nonStackingGroups`.
- *
- * `scopeApplies` answers WHEN a modifier applies — `vsKinds`, `vsAlignment`,
- * `tones`, `optionalRule`, `kickerAt`. This module cannot use it until it
- * consumes cookbook `effects` instead of its own hardcoded bonuses (retirement
- * Phase 4), because today there is no scoped effect in the pipeline for it to
- * gate. Wrapping it now would be an untested indirection with no caller.
- * When Phase 4 lands, the rule to honour is that **`undetermined` is not
- * `false`**: an unsettled scope must surface as a manual toggle, not silently
- * drop the bonus.
- *
- * `nonStackingGroups` is likewise unnecessary so far: every capability this
- * module reads is consumed as a boolean (`hasCapability`), so holding the same
- * capability twice already cannot double-apply.
- */
+// lib's `scopeApplies` and `nonStackingGroups` are not wrapped here. See
+// docs/formation/ROADMAP.md, "Scoped effects for ability matching".

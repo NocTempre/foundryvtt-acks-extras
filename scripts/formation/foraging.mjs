@@ -1,28 +1,9 @@
 /**
- * Living off the country: foraging, hunting, and grazing.
- *
- * The day board has carried `forage` and `hunt` as pickable slots since the
- * journey shipped, and nothing has ever resolved them. This resolves them, and
- * what it produces goes into the same pool
- * ([provisions.mjs](./provisions.mjs)) the order eats from — which is the only
- * reason the slots were ever worth picking.
- *
- * Three kinds of foraging, and they are NOT the same shape, which is the whole
- * reason this needs structure rather than one function:
- *
- *  - **Firewood** is per forager and may be attempted as often as wanted.
- *  - **Water** is a PARTY throw, once a day — one roll for the whole order,
- *    not one each — and a hex with a river or a lake skips the throw entirely.
- *    Past a certain size the order throws again for each further group.
- *  - **Food** is per forager, once a day, against one target wherever you are.
- *
- * Hunting is its own activity: the hunter throws, dogs throw alongside and help
- * each other to a cap, and how settled the country is moves the target — game
- * is scarce where people are.
- *
- * Every target, bonus, cap and yield is printed and arrives through the
- * `foraging` registered document. What ships is which activities exist, who
- * throws for each, and how the modifiers combine.
+ * Living off the country: foraging, hunting, and grazing. See
+ * docs/formation/MODEL.md, "Living off the country". Every target, bonus,
+ * cap and yield is printed and arrives through the `foraging` registered
+ * document; what ships is which activities exist, who throws for each, and
+ * how the modifiers combine.
  */
 import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { numOrNull } from "../lib/util.mjs";

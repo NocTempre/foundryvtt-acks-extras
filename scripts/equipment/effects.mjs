@@ -116,9 +116,8 @@ export function buildLoadoutChanges(actor, loadout) {
     add("system.damage.mod.melee", bonus.damageMelee);
   }
 
-  // Base dual-weapon bonus: RAW grants +1 to the melee attack throw simply for
-  // having a second weapon (RR p. 296) — independent of Specialization, which
-  // adds its own +1 above. Untrained use still takes the −1 non-proficiency
+  // Base dual-weapon bonus (RR p.296): independent of Specialization, which
+  // adds its own bonus above. Untrained use still takes the non-proficiency
   // penalty, applied per-weapon in roll-wrap.mjs.
   if (loadout.activeStyle === STYLE.DUAL) add("system.thac0.mod.melee", DUAL_WIELD_ATTACK_BONUS);
 
@@ -126,10 +125,9 @@ export function buildLoadoutChanges(actor, loadout) {
   add("system.initiative.mod", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_INIT));
   add("system.thac0.mod.melee", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_ATTACK_MELEE));
   add("system.thac0.mod.missile", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_ATTACK_MISSILE));
-  // Melee DAMAGE had no outlet while both attack domains did, so anything
-  // contributing through this channel — an ability, a hand-made Active Effect —
-  // was summed and then silently discarded. Nothing else reads the domain, so
-  // the value simply vanished rather than landing anywhere wrong.
+  // The one outlet for this domain — an ability, a hand-made Active Effect
+  // (see docs/equipment/DECISIONS.md, "The melee-damage domain had no
+  // outlet (2026-09-22)").
   add("system.damage.mod.melee", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_DAMAGE_MELEE));
   add("system.aac.mod", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_AC));
 
@@ -139,27 +137,24 @@ export function buildLoadoutChanges(actor, loadout) {
   add("system.aac.mod", loadout.condAC ?? 0);
   add("system.initiative.mod", loadout.condInit ?? 0);
 
-  // Non-proficient use (RR p. 106): "regardless of level, the characters will
-  // receive no bonus on their ... armor class from attributes". Bonuses only —
-  // an attribute PENALTY still applies, so cancel max(0, dex.mod).
+  // Non-proficient use (RR p.106): bonuses only — an attribute PENALTY
+  // still applies, so cancel max(0, dex.mod).
   if (loadout.nonProficientUse) {
     add("system.aac.mod", -Math.max(0, Number(actor.system?.scores?.dex?.mod ?? 0)));
   }
 
-  // Core's computeAC adds the last equipped shield's AC unconditionally. Two
-  // rules say it grants nothing: the JJ variant overlay (a buckler without
-  // Specialization, a shield strapped on the back) and RR ch.3's Fighting
-  // Styles — no Weapon & Shield style, no benefit from a shield. Both cancel
-  // the same one addition, so the deeper cut applies once, never both.
+  // Core's computeAC adds the last equipped shield's AC unconditionally; two
+  // rules can say it grants nothing (see docs/equipment/MODEL.md, "The
+  // shield and its style").
   const variantCut = shieldACCorrection(loadout, spec.has(STYLE.WEAPON_SHIELD.toLowerCase()), actor);
   const lastShield = loadout.shields?.[loadout.shields.length - 1] ?? null;
   const styleCut = loadout.shieldStyled === false && lastShield ? -Number(lastShield.system?.aac?.value ?? 0) : 0;
   add("system.aac.mod", Math.min(variantCut, styleCut));
 
-  // Enclosing (heavy) helmet, RR p140: −1 to surprise rolls. The surprise matrix
-  // reads system.surprise.avoidsurprise, so lowering it makes the wearer harder
-  // to keep from being surprised. (−4 Listening is a proficiency throw with no
-  // field — surfaced as a note; +2 Mortal Wounds is core's, via hasHeavyHelm.)
+  // Enclosing (heavy) helmet (RR p.140): affects the field the surprise
+  // matrix reads (system.surprise.avoidsurprise). Listening is a proficiency
+  // throw with no field — surfaced as a note; Mortal Wounds is core's, via
+  // hasHeavyHelm.
   if (enclosingHelmActive(actor)) add("system.surprise.avoidsurprise", HELM_MODIFIERS.surprise);
 
   return changes;
@@ -185,13 +180,12 @@ export function findLoadoutEffect(actor) {
 /**
  * Delete every managed loadout effect but the first.
  *
- * There must only ever be one — its changes are the WHOLE loadout, so a second
- * copy does not add detail, it doubles every bonus on the actor. Concurrent
- * syncs used to be able to create several (creating a character's items fires
- * one hook per item, and each read "no effect yet" before any had finished
- * writing); `queueSync` in enforce.mjs stops that happening now. This is the
- * repair for a world that already has them, and it runs on the ordinary sync
- * path so nobody has to be told to go looking.
+ * There must only ever be one — its changes are the WHOLE loadout, so a
+ * second copy doubles every bonus on the actor (see
+ * docs/equipment/DECISIONS.md, "Concurrent syncs could create duplicate
+ * loadout effects (2026-09-22)"). `queueSync` in enforce.mjs prevents new
+ * duplicates; this is the repair for a world that already has them, run on
+ * the ordinary sync path.
  */
 async function collapseDuplicates(actor) {
   const extra = loadoutEffects(actor).slice(1);

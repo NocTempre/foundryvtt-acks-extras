@@ -1,33 +1,20 @@
 /* global foundry, game, ui, Item, Hooks */
 /**
  * The ACKS item sheet — one window for every piece of gear: weapons, armour,
- * gear, containers, charts, spell books, coin and treasure. Its shape is fixed;
- * what varies is which flanking cells carry data and which tabs exist.
+ * gear, containers, charts, spell books, coin and treasure (see
+ * docs/equipment/DECISIONS.md, "One item sheet, this module's own markup
+ * (2026-08-23)"). Its shape is fixed; what varies is which flanking cells
+ * carry data and which tabs exist.
  *
- * Three layers, and this file is only the outermost:
+ * Three layers, and this file is only the outermost (see
+ * docs/equipment/MODEL.md, "The item sheet"):
  *   snapshot.mjs   reads the document into plain data
  *   view-model.mjs decides what to show (pure, tested offline)
  *   sheet.mjs      binds the decisions to Foundry — the form, the actions,
  *                  the drops, and the window chrome
  *
- * The window chrome is merged into the sheet's own first row: the title band
- * part is rendered into the window content and then MOVED into Foundry's
- * `.window-header`, so the header stays the drag handle and keeps its close
- * and controls buttons while the band's inputs live inside the form. Pointer
- * presses on the band's controls are stopped before they reach the header, or
- * every click on the name field would start a window drag.
- *
- * Registered as the default sheet for the four goods types. It replaces the
- * subclass-of-core sheet that moved core's nodes around: the whole surface is
- * this module's own markup now, so nothing depends on the shape of the
- * system's template.
- *
- * The sheet opens LOCKED. Every field, toggle and construction control reads
- * but does not write until the editor rail's pencil arms it (`#ui.editing`),
- * and a sheet closed and reopened is locked again. What stays live while
- * locked is what USES the item rather than describes it — rolling, equipping,
- * pinning, splitting, storing, taking out, guessing a name — and the rail
- * cells that open a dialog of their own.
+ * The sheet opens LOCKED (see docs/equipment/MODEL.md, "Editing is armed,
+ * not assumed.").
  */
 import { MODULE_ID, ITEM_FLAGS, VARIATION_ITEM_TYPE } from "../constants.mjs";
 import { LANG } from "../constants.mjs";
@@ -152,12 +139,8 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
   #model = null;
 
   /**
-   * Hook ids for the sibling watch. The sheet shows facts held on OTHER
-   * documents in the same collection — what is stored inside it, the
-   * variations applied to it, whether the bearer has Lockpicking — and a
-   * document sheet re-renders only on its own updates. So sibling creates,
-   * updates and deletes re-render it too, debounced so a loadout sync that
-   * touches a dozen items costs one render.
+   * Hook ids for the sibling watch (see docs/equipment/MODEL.md, "Sibling
+   * changes re-render it.").
    */
   #siblingHooks = [];
 
@@ -242,10 +225,8 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
    */
   _processFormData(event, form, formData) {
     const data = super._processFormData(event, form, formData);
-    // The band's quantity badge doubles the Record panel's field on screen, so
-    // it submits under its own name and counts only when it is the control
-    // that fired the change — otherwise the Record field's value (same name
-    // as the document path) is already the submit.
+    // See docs/equipment/DECISIONS.md, "A derived control writes back only
+    // when it is the control that fired (2026-08-31)".
     if ("acksBandQty" in data) {
       const qty = Number(data.acksBandQty);
       delete data.acksBandQty;
@@ -260,10 +241,9 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
     }
     // The listed price is the PRISTINE cost: with layers applied it lives in
     // the snapshot and the document's cost is recomputed from it; with none,
-    // the document's cost is the listed price itself. Two controls type it —
-    // the band's badge and the Details ledger — each under its own name, and
-    // each counts only when it is the control that fired the change, so the
-    // other's stale copy never writes over a fresh one.
+    // the document's cost is the listed price itself. Two controls type it,
+    // each under its own name (DECISIONS.md, "A derived control writes back
+    // only when it is the control that fired (2026-08-31)").
     for (const name of ["acksBandValue", "acksListedPrice"]) {
       if (!(name in data)) continue;
       const listed = Number(data[name]);
@@ -321,9 +301,10 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
   }
 
   /**
-   * The title band is the window header. Foundry's header keeps its drag
-   * handle and its two buttons; the icon and title it renders are hidden by
-   * CSS rather than removed, so `_updateFrame` still has nodes to write.
+   * The title band is the window header (see docs/equipment/MODEL.md, "The
+   * band is the window header."). The icon and title Foundry's header
+   * renders are hidden by CSS rather than removed, so `_updateFrame` still
+   * has nodes to write.
    */
   #moveBandIntoHeader() {
     const header = this.element.querySelector(":scope > .window-header");

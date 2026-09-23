@@ -124,9 +124,9 @@ export function monthsBetween(t0, t1) {
 }
 
 /**
- * GM convenience: advance the shared world clock. Gated by lib's world-clock
- * policy, the same switch dungeon turns obey; the notice is here because this
- * path is a button press and a silently inert button is a bug report.
+ * GM convenience: advance the shared world clock, gated by lib's world-clock
+ * policy (docs/henchmen/MODEL.md §5); shows a notice rather than doing
+ * nothing when the policy is off.
  */
 export async function advanceDays(days) {
   if (!game.user.isGM) return;
@@ -138,10 +138,9 @@ export async function advanceDays(days) {
 }
 
 /**
- * Register a due-processing callback fired on the GM client whenever world
- * time moves forward. Processing must be idempotent — each consumer keeps its
- * own `lastProcessedTime` watermark. The guard itself is `lib/world-time.mjs`;
- * this name is what the henchmen engine has always called it.
+ * Register a due-processing callback, fired on the GM client whenever world
+ * time advances. Processing must be idempotent — each consumer keeps its own
+ * `lastProcessedTime` watermark. Delegates to `lib/world-time.mjs`.
  */
 export function onTimeAdvanced(callback) {
   return onWorldTimeAdvanced(callback);

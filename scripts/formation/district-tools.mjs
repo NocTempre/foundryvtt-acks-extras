@@ -1,12 +1,9 @@
 /* global canvas, game, ui, Hooks, foundry, document */
 /**
  * The two ways a Judge turns ground already on the map into a district: mark
- * regions already drawn, or trace one from a loop of walls — the same two
- * routes `trap-walls.mjs` offers for a trap area, followed here for the same
- * reason: the Judge is usually already holding one selection or the other.
- *
- * Neither tool touches a region's visibility; the reason is stated where the
- * argument is not passed, in `districtFromSelection`.
+ * regions already drawn, or trace one from a loop of walls. See
+ * docs/formation/MODEL.md, "The two tools make a district out of whatever
+ * the Judge is already holding".
  */
 import { MODULE_ID } from "./constants.mjs";
 import { DISTRICT_TYPE } from "./district-zone.mjs";
@@ -16,16 +13,10 @@ import { LOCATION_TYPE } from "../location/constants.mjs";
 
 /**
  * A "Place" row on the District behaviour's sheet: the location actor the
- * quarter IS — its market, its notes, what is kept there.
- *
- * The link itself is the location feature's (the Region's own flag, mirrored
- * on the place, the way a scene's link is made) and is reached through its
- * api, so this sheet knows nothing about how it is stored. The row is only
- * where a Judge typing a quarter's figures is already looking.
- *
- * DOM injection rather than a sheet subclass, for the reason the scene-config
- * row gives; rebuilt on every render, because ApplicationV2 replaces its
- * parts.
+ * quarter is. Reads and writes the link through the location feature's own
+ * api, so this sheet knows nothing about how it is stored. DOM injection
+ * rather than a sheet subclass; rebuilt on every render, since ApplicationV2
+ * replaces its parts.
  */
 export function installDistrictPlaceRow() {
   Hooks.on("renderRegionBehaviorConfig", (app, element) => {
@@ -61,8 +52,7 @@ export function installDistrictPlaceRow() {
     host.append(group);
     associateLabels(group);
 
-    // Written immediately rather than on submit: the link is a flag on the
-    // region plus a field on an actor, and the sheet's submit knows neither.
+    // Written immediately: the sheet's own submit knows nothing of this link.
     const report = (run) =>
       Promise.resolve(run).catch((err) => console.error(`${MODULE_ID} | district place link failed`, err));
     group.querySelector(".acks-extras-district-place-select").addEventListener("change", (ev) => {
@@ -77,32 +67,17 @@ export function installDistrictPlaceRow() {
 }
 
 /**
- * Has the SERVER seen the District sub-type since the world launched?
- *
- * `module.json` `documentTypes` is read at launch, so after a reload alone the
- * data model is registered in the browser while every create against the type
- * resolves to an empty array instead of throwing. Both tools ask this to tell
- * that state apart from an ordinary failure, because only one of the two is
- * fixed by shutting the world down.
+ * Has the server seen the District sub-type since the world launched? See
+ * docs/formation/MODEL.md, "A behaviour sub-type is spelled twice", and
+ * `.claude/rules/live-testing.md` on the relaunch requirement.
  */
 const subTypeRegistered = () => !!game.documentTypes?.RegionBehavior?.includes(DISTRICT_TYPE);
 
 /**
  * Attach a District behavior to every Region currently controlled on the
- * Regions layer, then open each one's sheet so the Judge can type the
- * quarter's figures straight away.
- *
- * IDEMPOTENT: a region that already carries a District behavior is left
- * exactly as it is — its EXISTING behavior is what opens, never a second one
- * stacked beside it.
- *
- * The returned (and reported) count is what was actually confirmed to carry
- * the behavior afterward, never the size of the selection: a sub-type not yet
- * registered on the SERVER (`.claude/rules/live-testing.md` — a
- * `documentTypes` addition needs a world relaunch, not just a reload) makes
- * `createEmbeddedDocuments` resolve to an empty array instead of throwing, so
- * counting the selection would tell the Judge every region was marked when
- * none were.
+ * Regions layer, then open each one's sheet. Idempotent: a region already
+ * carrying a District behavior opens its existing one. The returned count is
+ * what was actually confirmed afterward, never the size of the selection.
  *
  * @returns {Promise<{marked: number}>}
  */
@@ -133,8 +108,6 @@ export async function markControlledRegions() {
       game.i18n.format("ACKS-FORMATION.settlement.district.markPartial", { count: marked, total: regions.length }),
     );
   } else if (!subTypeRegistered()) {
-    // Nothing was marked and the type is not on the server: every create in
-    // this loop resolved to an empty array.
     ui.notifications?.warn(game.i18n.localize("ACKS-FORMATION.settlement.district.notRegistered"));
   } else {
     ui.notifications?.warn(game.i18n.localize("ACKS-FORMATION.settlement.district.markFailed"));
@@ -143,20 +116,11 @@ export async function markControlledRegions() {
 }
 
 /**
- * Build a District Region from the selected walls' outline.
- *
- * `behaviorType: DISTRICT_TYPE` passed to `regionFromWalls` is what makes a
- * second press on the same loop idempotent: the shared helper recognises a
- * region this tool already made by that type and hands it back rather than
- * stacking a duplicate over the same ground. The notification distinguishes
- * that reused case from a fresh one, which is what makes the idempotence
- * visible rather than merely true — matching the discipline
- * `trap-walls.mjs`'s `regionFromSelection` already keeps for a trap area.
- *
- * Every refusal `regionFromWalls` can hand back (`noScene`, `selectLoop`,
- * `notClosed`, `refused`) gets its own district-owned key rather than
- * borrowing the trap tool's: a later reword of trap wording for its own
- * feature would otherwise silently reword this one too.
+ * Build a District Region from the selected walls' outline. Idempotent: a
+ * wall loop already bounding a district hands that district back rather
+ * than stacking a duplicate; the notification names which happened. Every
+ * refusal `regionFromWalls` can hand back gets its own district-owned key,
+ * never the trap tool's.
  *
  * @returns {Promise<RegionDocument|null>}
  */
@@ -164,10 +128,7 @@ export async function districtFromSelection() {
   const walls = controlledWalls();
   const { region, created, reason } = await regionFromWalls(walls, {
     name: game.i18n.localize("ACKS-FORMATION.settlement.district.regionName"),
-    // No `visibility` passed: a trap area is pinned to GAMEMASTER because a
-    // trap is a surprise, but a district is not — the party already knows
-    // which quarter it is standing in — so core's own default (unlocked,
-    // shown to anyone who opens the Regions control) is left standing here.
+    // No `visibility` passed: unlike a trap, a district is not a surprise.
     behaviorType: DISTRICT_TYPE,
     behaviors: [
       {
@@ -177,11 +138,8 @@ export async function districtFromSelection() {
     ],
   });
   if (!region) {
-    // `refused` is what a create returning falsy looks like from out here, and
-    // before a world relaunch that is exactly what an unregistered sub-type
-    // does. Naming the cause rather than the symptom, the way the Regions tool
-    // does: a Judge told only that it 'could not be created' has nothing to act
-    // on, and the thing to act on is a shutdown.
+    // `refused` before a world relaunch is what an unregistered sub-type
+    // looks like from here; named as such rather than as a bare failure.
     const key = reason === "refused" && !subTypeRegistered() ? "notRegistered" : reason;
     ui.notifications?.warn(game.i18n.localize(`ACKS-FORMATION.settlement.district.${key}`));
     return null;
@@ -197,13 +155,9 @@ export async function districtFromSelection() {
 
 /**
  * Two Judge tools: mark selected Regions as a district (Regions layer), and
- * trace one from selected walls (Walls layer, beside the trap and road tools
- * that already build a region the same way).
- *
- * Registers on the SAME `getSceneControlButtons` hook the Walls-layer tools
- * do rather than opening a control of its own: leaving a placeables layer
- * releases everything selected on it, so a dedicated District control would
- * empty whichever selection each tool needs at the moment it opened.
+ * trace one from selected walls (Walls layer). Registers on the same
+ * `getSceneControlButtons` hook the Walls-layer tools use rather than a
+ * control of its own — leaving a placeables layer releases its selection.
  */
 export function installDistrictControls() {
   // A `button: true` tool's `onChange` is not awaited by core, so a rejected

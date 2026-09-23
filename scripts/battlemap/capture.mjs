@@ -107,11 +107,8 @@ export class CaptureOverlay {
 
     this.previewMesh = container.addChild(new foundry.canvas.containers.GridMesh().initialize({ color: COLOR_PREVIEW }));
     this.previewMesh.visible = false;
-    // Deaf, like every other child above the catcher. It is added AFTER the
-    // catcher, so it sits on top of it, and it turns visible the moment a fit
-    // exists — which is to say the moment the FIRST sample lands. Left able to
-    // take a hit it swallows the pointer for every drag after that one, and
-    // the symptom is a capture layer that works exactly once.
+    // Deaf, like every other child above the catcher — added after it, so
+    // it sits on top, and turns visible the moment a fit exists.
     this.previewMesh.eventMode = "none";
     this.previewLines = container.addChild(new PIXI.Graphics());
     this.previewLines.eventMode = "none";
@@ -143,10 +140,9 @@ export class CaptureOverlay {
   }
 
   onPointerDown(ev) {
-    // Left button only. The right button is how a GM PANS the canvas, so it
-    // never edits samples: binding an undo to it meant every drag across a
-    // large map silently ate the last thing sampled. Ctrl+Z undoes; the
-    // eraser and the panel's own rows delete a chosen one.
+    // Left button only — the right button pans the canvas, so it never
+    // edits samples. Ctrl+Z undoes; the eraser and panel rows delete a
+    // chosen one.
     if (ev.button !== 0) return;
     const p = this.point(ev);
     if (this.mode === "corners") {
@@ -190,10 +186,8 @@ export class CaptureOverlay {
   }
 
   /**
-   * Escape means GET OUT, everywhere else in Foundry and here. It disarms
-   * rather than deleting a sample: binding the universal escape key to a
-   * destructive edit meant the one key a GM presses to leave the tool ate
-   * their work instead. Ctrl+Z is the undo — the sampling group drives no
+   * Escape disarms, everywhere else in Foundry and here — it does not
+   * delete a sample. Ctrl+Z is the undo; the sampling group drives no
    * placeable layer, so core has no undo of its own to collide with.
    */
   onKeyDown(ev) {
@@ -328,10 +322,8 @@ export class CaptureOverlay {
     this.previewLines.clear();
     this.previewMesh.visible = false;
     if (!fit?.ok) return;
-    // Only a square fit has lines to promise. A hex family measures ONE cell
-    // and lets Foundry pack the rest, and a scale-only calibration draws no
-    // grid at all — a rectangular lattice over either would preview a map
-    // that is not the one about to be written.
+    // Only a square fit has lines to promise — a hex family measures one
+    // cell and lets Foundry pack the rest; scale-only draws no grid at all.
     if (this.host.gridFamily && this.host.gridFamily !== "square") return;
     const dims = canvas.scene.dimensions;
     const { sx, sy } = imageScale();

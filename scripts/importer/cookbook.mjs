@@ -71,20 +71,10 @@ const UNLINED_LINE = "Your Books";
 /**
  * The SERIES a cookbook id's imports belong to, or null for the ACKS library.
  *
- * One pure function over the id, and that is the point: every write (`packFor`,
- * `ensureFolderPath`) and every presence check (`importedActor`,
- * `importedIdsOfType`) derives the destination from the same input, so a
- * document can never be filed on one shelf and looked for on another — which is
- * the twin-minting failure the claim rules already exist to prevent.
- *
- * A shipped book answers from `BOOKS`. A Judge-registered source answers from
- * its own world record, and an `ose.*` id that names no line still leaves the
- * ACKS shelves: it is another game's creature whatever its source forgot to say.
- *
- * A book written for the Judge alone is shelved on its series' JUDGE line
- * (`judgeLine`), whose packs no player seat can open. What an earlier release
- * imported from it stays where it was put and is still found — every presence
- * check reads every shelf — until its book is reimported.
+ * The one function every write (`packFor`, `ensureFolderPath`) and every
+ * presence check (`importedActor`, `importedIdsOfType`) derives the
+ * destination from. A book written for the Judge alone resolves to its
+ * series' JUDGE line (`judgeLine`), whose packs no player seat can open.
  */
 export function lineOf(bookId) {
   if (!bookId) return null;
@@ -96,12 +86,9 @@ export function lineOf(bookId) {
 /**
  * The book a cookbook id belongs to: what the flag says, else the id's own
  * prefix. `dmb.group.bard` is dmb; `ose.milk.p7` is the source `ose.milk`,
- * because an `ose.*` id spends two segments naming its book.
- *
- * The registry decides which of the two an `ose.*` id is, rather than the
- * segment count: `ose.hand` — a block typed from nothing — is two segments and
- * names no book at all, and reading it as one would file those creatures under
- * a folder called after the id.
+ * since an `ose.*` id spends two segments naming its book. The registry, not
+ * the segment count, decides which — `ose.hand` is two segments but names no
+ * book.
  */
 export function bookOfCookbookId(id, book = null) {
   if (book) return String(book);
@@ -224,12 +211,9 @@ export const cookbookEntry = (fullId) => {
  */
 const bookOf = (found) => found?.cb?.book?.id ?? found?.entry?.book ?? null;
 /**
- * How many shipped entries this book unlocks.
- *
- * Both shapes count. Per-book cookbooks (monsters) are keyed by the book;
- * content-type cookbooks span books and name it per entry, so counting only
- * the first reported 0 for the Revised Rulebook while 120 proficiencies sat in
- * proficiencies.json waiting on exactly that book.
+ * How many shipped entries this book unlocks. Counts both shapes: per-book
+ * cookbooks (monsters) keyed by the book, and content-type cookbooks that
+ * span books and name it per entry.
  */
 export const cookbookCount = (bookId) => {
   let n = Object.keys(data.books.get(bookId)?.entries ?? {}).length;
@@ -444,20 +428,12 @@ export function buildExtras(node) {
 }
 
 /**
- * Size key -> prototype token footprint in grid squares.
- *
- * The book gives each size class a FRONTAGE in 5' squares, and acks-monsters
- * already publishes the whole size table (scripts/config.mjs SIZES) — so this
- * is the same posture as SAVES_LUT in stats.mjs: derived game math already
- * published by a sibling, not new disclosure. Kept local rather than imported
- * because a seat may not have acks-monsters installed.
- *
- * Two deliberate readings, because frontage and footprint are not the same
- * question. "1 sq or less" and "2/3 sq" both describe how many creatures fit
- * in a line, not a sub-square token, so Small and Man-Sized are both 1×1 — a
- * half-square token would be a presentation choice the book never asked for.
- * `largeHugeGigantic` is absent on purpose: that register key exists because
- * the page gives a RANGE, and picking one for the GM would be inventing.
+ * Size key -> prototype token footprint in grid squares. Small and Man-Sized
+ * both read 1×1: frontage describes how many creatures fit in a line, not a
+ * sub-square token. Kept local rather than imported from the monsters
+ * feature's own size table, since a seat may not have it installed.
+ * `largeHugeGigantic` is absent: that register key names a printed range, and
+ * picking a single footprint for it would be inventing one.
  */
 const TOKEN_SIZE = {
   small: { width: 1, height: 1 },
@@ -571,28 +547,20 @@ export function bindMonster(node) {
     // page and the name in the book differ.
     const renamed = prof.convertedFrom ? { conversionStatus: "renamed", conversionFrom: prof.convertedFrom } : {};
 
-    // WHICH definition this is. An authored registry `ref` is a decision someone
-    // made and wins outright; without one the printed name is only a guess, so
-    // it is resolved against the ids this world actually holds before category
-    // preference applies. 14 names ("Alertness", "Climbing") are both a
-    // proficiency and a class power, and a world that imported one list and not
-    // the other has already answered which was meant.
+    // An authored `ref` wins outright; without one, the name is resolved against
+    // the ids this world already holds before category preference applies.
     const guess = prof.ref ? null : idForName(nameIndex, prof.text, present);
     const id = prof.ref ?? guess?.id ?? null;
-    // A guess is reported, but ONCE per distinct resolution: a bulk import walks
-    // hundreds of blocks and the same handful of shared names ("climbing") would
-    // otherwise bury the console in the same line.
+    // A guess is reported once per distinct resolution — a bulk import walks
+    // hundreds of blocks with the same handful of shared names.
     if (guess?.ambiguous && !warnedAmbiguous.has(`${prof.text}>${id}`)) {
       warnedAmbiguous.add(`${prof.text}>${id}`);
       console.warn(`${MODULE_ID} | "${prof.text}" matches several definitions; adopted ${id}.`);
     }
 
-    // The block prints THIS creature's own throw target ("climbing 6+"), split
-    // off by the refList's stripRoll. It outranks the definition's generic
-    // ladder — which bindAbility can only resolve at 1st level, having no actor
-    // to read — and it is materialized from the seat's own page like every other
-    // value. Until now nothing consumed it, which was invisible while the tiers
-    // below effectively never fired.
+    // The creature's own throw target ("climbing 6+"), split off by stripRoll,
+    // outranks the definition's generic ladder — bindAbility resolves that only
+    // at 1st level, with no actor to read.
     const withTarget = (item) =>
       prof.target == null
         ? item
@@ -606,11 +574,8 @@ export function bindMonster(node) {
             },
           };
 
-    // 1. ALREADY LOADED — copy the item the world holds. Worth preferring over a
-    //    fresh bind: this path has no executed node for the ability, so building
-    //    from the cookbook yields structure only, while an item imported with
-    //    the book open already materialized its throws and effects. It also
-    //    inherits whatever the GM tuned.
+    // 1. ALREADY LOADED — copy the item the world holds; it already materialized
+    //    its throws and effects, and carries whatever the GM tuned.
     const loaded = id ? loadedById.get(id) : null;
     if (loaded) {
       const src = loaded.toObject();
@@ -683,19 +648,13 @@ export function bindMonster(node) {
  *   <book label>                e.g. "AX2 Secrets of the Nethercity"
  *     └── <entry meta.group>    e.g. "New Monsters", "Old District — …"
  *
- * Each document type gets its own pack, so the PACK is the container and a
- * folder named for the module inside it would only repeat its own label.
- * Entries without a group sit in the book folder; content-type items
- * (abilities, equipment) use their own top level instead of a book. Resolved
- * folders are cached for the session AND pre-created before any concurrent
- * import starts, so parallel workers cannot race two folders of the same name
- * into existence.
- *
- * TWO LEVELS, never three. Foundry's folder ownership dialog writes only
- * `folder.contents` — the direct children — so depth is what decides how many
- * times a Judge has to open it; and a pack caps folders one level shallower
- * than the world does. `ensureFolderPath` refuses a deeper path outright
- * rather than letting one grow back a level at a time.
+ * The PACK is the container; entries without a group sit in the book folder,
+ * and content-type items (abilities, equipment) use their own top level
+ * instead of a book. Folders are cached for the session and pre-created
+ * before any concurrent import starts. Never more than two levels —
+ * `ensureFolderPath` refuses a deeper path rather than creating it. See
+ * docs/importer/DECISIONS.md, "The pack is the container: compendium-only,
+ * two levels deep".
  */
 const FOLDER_MAX_DEPTH = 2;
 const folderCache = new Map();
@@ -706,40 +665,27 @@ const folderCache = new Map();
 
 /**
  * Imports land in WORLD COMPENDIUMS, one per document type, created on first
- * use and cached by type. Documents are written there directly — `createDoc`
- * passes `{pack}` at creation and `ensureFolderPath` builds the tree inside
- * the pack — so nothing is ever staged in the sidebar and swept up afterwards.
- *
- * A pack is the unit a Judge can hand to players in ONE gesture: pack
- * ownership is a single role-keyed setting, where document ownership has to be
- * applied folder by folder (Foundry's dialog writes only a folder's direct
- * contents, so a library of thousands cost a hundred dialogs and still missed
- * every document a level down). That is the whole reason imports go here.
- *
- * World packs are unlocked by default, so an imported document stays editable
- * and draggable exactly as a sidebar one was.
+ * use and cached by type. `createDoc` passes `{pack}` at creation and
+ * `ensureFolderPath` builds the tree inside the pack, so nothing is staged in
+ * the sidebar and swept up afterwards. World packs are unlocked by default,
+ * so an imported document stays editable and draggable. See
+ * docs/importer/DECISIONS.md, "The pack is the container: compendium-only,
+ * two levels deep".
  */
 const packCache = new Map();
 
 /**
  * The visible name of a pack — what every "imported into…" message names, and
- * what `cookbookRemoveImports` recognises its own packs by.
- *
- * Every label keeps the `FOLDER_NAME` prefix whatever line it holds, for two
- * reasons: the sidebar sorts packs by label, so the library stays one block
- * rather than scattering through the world's other compendia; and removal finds
- * this module's packs by that prefix alone, so a line added by a later release
- * is swept up by a Remove Imports that has never heard of it.
+ * what `cookbookRemoveImports` recognises its own packs by. Every label keeps
+ * the `FOLDER_NAME` prefix whatever line it holds. See
+ * docs/importer/DECISIONS.md, "The prefix is load-bearing."
  */
 const packLabel = libraryPackLabel;
 
 /**
- * Every world pack of a type this module owns, whatever line it holds.
- *
- * The read counterpart of `packFor`: a write goes to ONE shelf, but "have I
- * imported this already?" has to ask them all — a batch mixes ids from several
- * lines, and a check that asked only the ACKS shelf would call every Dolmenwood
- * creature new on every run.
+ * Every world pack of a type this module owns, whatever line it holds. The
+ * read counterpart of `packFor`: a write goes to one shelf, but a presence
+ * check has to ask them all, since a batch mixes ids from several lines.
  */
 const ourPacksOfType = (type) =>
   game.packs.filter(
@@ -752,20 +698,11 @@ const ourPacksOfType = (type) =>
 /**
  * The sidebar documents this module stamped — the other half of the library in
  * any world old enough to have imported before imports went to compendia.
- *
- * A write lands on a pack today, so the sidebar is not where the library grows;
- * it is where a sidebar-era release's imports are still sitting. A read that
- * asks the packs alone calls every one of them missing, and the whole library
- * follows from that: the next run mints a twin into the pack, so a world holds
- * each class, proficiency and price twice; the rebuild controls empty the pack
- * and leave the sidebar copy behind; Update passes over it. The actor side has
- * always read world-then-pack — `importedIdsOfType`, `importedActor` — and this
- * is the item side saying the same thing.
- *
- * Ours is the cookbook flag, which is also what `cookbookRemoveImports` sweeps
- * by: a hand-made document carries none and is never counted. NEVER the class
- * templates' skinned copies — a skin inherits the definition's cookbook id and
- * would answer for the document it was made from.
+ * Reads world-then-pack, matching the actor side (`importedIdsOfType`,
+ * `importedActor`). Recognised by the cookbook flag, same as
+ * `cookbookRemoveImports`; never the class templates' skinned copies, which
+ * inherit the definition's cookbook id. See docs/importer/DECISIONS.md, "The
+ * library is the packs AND the sidebar this module stamped".
  */
 const sidebarImports = (type) => {
   const world = { Actor: game.actors, Item: game.items, JournalEntry: game.journal, RollTable: game.tables }[type];
@@ -776,14 +713,10 @@ const sidebarImports = (type) => {
 
 /**
  * The pack collection id imports of this type and line go to, or null if it
- * cannot be opened. A null line is the ACKS library's own pack.
- *
- * The cached answer is CONFIRMED against `game.packs` before it is handed out.
- * A pack can go away under a running session — a GM deletes it from the
- * sidebar, or another seat runs Remove Imports — and a cached id for a pack
- * that no longer exists makes every `createDoc` fail silently: the write names
- * a target the server has never heard of, and the import reports nothing made
- * with nothing in the log. Re-resolving simply creates the pack again.
+ * cannot be opened. A null line is the ACKS library's own pack. The cached
+ * answer is confirmed against `game.packs` before it is handed out — a pack
+ * can go away under a running session (deleted, or swept by Remove Imports on
+ * another seat) — and re-resolving simply creates the pack again.
  */
 async function packFor(type, line = null) {
   const cacheKey = `${type}|${line ?? ""}`;
@@ -835,33 +768,22 @@ const packOpts = async (type, line = null) => {
 };
 
 /**
- * Create a document in this type's compendium, on its own line's shelf.
- *
- * The line is read off the document's OWN cookbook flag rather than passed in.
- * Twenty-odd importers create documents and every one of them already stamps
- * that flag, so deriving the destination from it means no importer can be
- * updated and forgotten — and it is the same input every presence check reads,
- * which is what keeps a document from being filed on one shelf and looked for
- * on another. `opts.line` answers only for a document with no flag to read.
- *
- * Exported because every import path has to write to the same target; a second
- * creator calling `Actor.create` directly puts half the library in the sidebar,
- * where the presence checks do not look and the pack's ownership does not reach.
+ * Create a document in this type's compendium, on its own line's shelf. The
+ * line is read off the document's OWN cookbook flag rather than passed in;
+ * `opts.line` answers only for a document with no flag to read. Every import
+ * path must write through here — a second creator calling `Actor.create`
+ * directly puts the document in the sidebar, where the presence checks do not
+ * look. See docs/importer/DECISIONS.md, "The shelf is derived from the
+ * document's own cookbook flag, not passed in."
  */
 export const createDoc = async (cls, data, { line = null, ...opts } = {}) =>
   remembered(await cls.create(data, { ...opts, ...(await packOpts(cls.documentName, lineOfData(data) ?? line)) }));
 
 /**
- * Teach the dedup index about a document the moment it exists.
- *
- * The index is built once per session, and only `claimImport` used to update
- * it — so anything created through `createDoc` alone was invisible to the next
- * presence check IN THE SAME SESSION, and running that importer twice made a
- * twin. Race items did exactly that: two `def.race.dwarf`, two `def.race.elf`,
- * every time the class-builder tables were imported a second time.
- *
- * Keyed off the document's own cookbook flag rather than a caller-supplied id,
- * so no creator can forget. Items only: the index is an Item index.
+ * Teach the dedup index about a document the moment it exists. Keyed off the
+ * document's own cookbook flag rather than a caller-supplied id, so no
+ * creator can forget. Items only: the index is an Item index. See
+ * docs/importer/DECISIONS.md, "Every create teaches the dedup index".
  */
 function remembered(doc) {
   if (doc?.documentName !== "Item") return doc;
@@ -871,40 +793,22 @@ function remembered(doc) {
 }
 
 /**
- * Create MANY documents in one write, and the reason every bulk import must.
- *
- * A write costs one round trip whose price is set by HOW MANY DOCUMENTS THE
- * TARGET ALREADY HOLDS, not by the payload — each call re-indexes the
- * collection. Measured against this world: a create into a 19-document pack
- * takes ~35ms; the same create into a 1,039-document pack takes ~950ms. So a
- * loop that writes one document at a time is quadratic in the size of what it
- * is building, and visibly slows as it goes.
- *
- * Batching collapses N re-indexes into one. Measured at 1,039 documents:
- * 25 individual creates 23,866ms, the same 25 in one call 1,107ms — 21.6x, and
- * the gap widens as the library grows. That is the difference between an
- * ability import that takes minutes and one that takes seconds.
- *
- * Chunked rather than one giant call because a rejected batch fails whole: a
- * chunk bounds what one bad document can take down with it, lets a progress bar
- * move, and keeps the retry below cheap.
+ * Create MANY documents in one write, chunked rather than one giant call so a
+ * rejected batch does not take everything down with it. See
+ * docs/importer/DECISIONS.md, "Writes are batched, because a write costs
+ * what the shelf already holds".
  */
 export const WRITE_CHUNK = 50;
 export async function createDocs(cls, dataList, opts = {}) {
   if (!dataList.length) return [];
-  // POSITIONAL: one slot per input, `null` where that document was not
-  // created. An array that silently omits failures shifts every later slot, so
-  // a caller pairing results to inputs files documents under their neighbours'
-  // ids — a lookup that confidently answers with the wrong document rather
-  // than a lost import. The pairing below is by cookbook id and not by
-  // position, for the reason written where it happens.
+  // One slot per input, `null` where that document was not created; paired to
+  // inputs by cookbook id below, never by position. See
+  // docs/importer/DECISIONS.md, "A batched write files by identity, never by
+  // position".
   const out = new Array(dataList.length).fill(null);
 
-  // Grouped by LINE, because one resolved pack for a mixed list writes every
-  // document to whichever shelf the first one wanted. Nothing batched carries a
-  // non-ACKS id today — the OSE paths embed their gear on the actor rather than
-  // minting world items — so this groups into exactly one bucket now, and keeps
-  // doing the right thing for the first line-bearing book that mints one.
+  // Grouped by LINE: one resolved pack for a mixed list writes everything to
+  // whichever shelf the first document wanted.
   const byLine = new Map();
   dataList.forEach((data, i) => {
     const line = lineOfData(data) ?? opts.line ?? null;
@@ -928,15 +832,9 @@ export async function createDocs(cls, dataList, opts = {}) {
           return null;
         });
       if (made) {
-        // Matched by cookbook id, NEVER by position. `createDocuments` does not
-        // throw on a document that fails validation — it drops it and answers
-        // with FEWER documents than it was given, in order. So `made[k]` stops
-        // being `chunk[k]` at the first invalid document, and everything after
-        // it lands one slot early: the exact off-by-one this positional
-        // contract exists to prevent, reintroduced inside the fix for it. Every
-        // document this module creates carries a cookbook id, which is the
-        // identity to pair on; anything unidentifiable falls into the chunk's
-        // first free slot so the count still tells the truth.
+        // Matched by cookbook id, never by position: `createDocuments` drops an
+        // invalid document rather than throwing, so `made` can be shorter than
+        // `chunk`. Anything unidentifiable falls into the chunk's first free slot.
         const slotsById = new Map();
         for (const e of chunk) {
           const key = e.data?.flags?.[MODULE_ID]?.cookbook?.id;
@@ -972,40 +870,28 @@ export async function createDocs(cls, dataList, opts = {}) {
 
 /**
  * Every Item this module has imported, indexed by cookbook id — the packs a
- * write lands on, and the sidebar ones a sidebar-era release left behind.
- *
- * The index is what every item import asks before it creates, so an import it
- * cannot see is an import that gets made again: never index the packs alone
- * while a world can hold both (see `sidebarImports`). The skinned template
- * copies are the documents this index must not answer with — a skin inherits
- * the definition's cookbook id, so a bare world read hands back one class's
- * engraved silver waterskin as "the Waterskin you imported" — and the filter
- * that keeps them out lives there.
- *
- * Cached because dedup is asked once per id across a whole-corpus import, and
- * loading a compendium's documents per id would be hundreds of round trips.
- * `rememberImported` keeps the cache honest as new ones are created.
+ * write lands on, and the sidebar ones a sidebar-era release left behind (see
+ * `sidebarImports`). Excludes the skinned template copies, which inherit the
+ * definition's cookbook id. Cached, since dedup is asked once per id across a
+ * whole-corpus import; `rememberImported` keeps the cache honest as new ones
+ * are created.
  */
 let importedCache = null;
 async function importedIndex() {
   if (importedCache) return importedCache;
-  // Every Item shelf this module owns. Items are shared across books — one
-  // Waterskin serves every one of them — so today they all land on the ACKS
-  // shelf; reading them all anyway means a line that ever does mint an item is
-  // deduplicated rather than twinned.
+  // Every Item shelf this module owns, whatever line — items are shared across
+  // books, so a line that ever mints one is deduplicated rather than twinned.
   const collections = ourPacksOfType("Item");
   const docs = [
     ...(await Promise.all(collections.map((c) => c.getDocuments().catch(() => [])))).flat(),
-    // The packs FIRST, so the shelf a write lands on is the document an id
-    // answers with when a world holds both.
-    ...sidebarImports("Item"),
+    ...sidebarImports("Item"), // packs first: the write's own shelf wins when a world holds both
   ];
   const byId = new Map();
   for (const doc of docs) {
     const flag = doc.getFlag(MODULE_ID, "cookbook");
-    // Every id the document answers for: its own, and any it absorbed when two
-    // books turned out to print the same thing. Without the merged ids the
-    // loser's id resolves to nothing and the next run imports the twin again.
+    // Every id the document answers for: its own, and any it absorbed on merge
+    // (see "Same name, two books: merge unless they differ beyond their
+    // source", docs/importer/DECISIONS.md).
     for (const key of [flag?.id, ...(flag?.merged ?? [])]) if (key && !byId.has(key)) byId.set(key, doc);
   }
   importedCache = byId;
@@ -1019,44 +905,30 @@ function rememberImported(id, doc) {
 }
 
 /**
- * Imports for a cookbook id that are still being built, keyed by id.
- *
- * Checking `importedItem` and creating the document are two awaits apart — a
- * page extraction and a socket round-trip, hundreds of milliseconds — and the
- * importers run concurrently (importMany at IMPORT_CONCURRENCY, every monster
- * and NPC resolving its own proficiency list). Without a claim, every worker
- * that asks for the same shared ability during that window misses the cache and
- * mints its own copy, so one proficiency becomes four.
- *
- * The claim is the PROMISE, exactly as ensureFolderPath claims a folder: the
- * second caller waits for the first one's document instead of building a twin.
- * Being keyed on the cookbook id alone and shared by every item importer, it is
- * also what makes the class import and the ability import land on the SAME
- * item rather than one each.
+ * Imports for a cookbook id that are still being built, keyed by id. The
+ * claim is the PROMISE, as `ensureFolderPath` claims a folder: the second
+ * caller waits for the first one's document instead of building a twin.
+ * Keyed on the cookbook id alone and shared by every item importer, so the
+ * class import and the ability import land on the same item. See
+ * docs/importer/DECISIONS.md, "One dedup rule for every importer: ask the
+ * shelf you write to, and claim before you build".
  */
 const inflightImports = new Map();
 
 /**
  * The item for a cookbook id: the one already imported, the one another caller
- * is importing right now, or a fresh one from `build`.
- *
- * `build` runs at most once per id per session. A build that yields nothing
- * (a rejected create, a page that did not match) releases the claim so a later
- * attempt can try again rather than inheriting the failure forever.
+ * is importing right now, or a fresh one from `build`. `build` runs at most
+ * once per id per session; a build that yields nothing releases the claim so
+ * a later attempt can try again.
  */
 async function claimImport(id, build) {
   return claimed(id, importedItem, rememberImported, build);
 }
 
 /**
- * The ACTOR-side claim. Same rule, different shelf: a presence check has to ask
- * the collection the matching write goes to, and an actor importer asking the
- * ITEM index gets "not imported" every time — which is how one run of the
- * vehicle importer minted a second copy of all 19 printed rows, then a third.
- * Nothing is remembered: actors are found by their flag, not by an index.
- *
- * Exported because the OSE book importers write actors too, and an importer
- * that skips the claim is how a second run mints twins.
+ * The ACTOR-side claim: same rule, the actor collection instead of the item
+ * index. Nothing is remembered — actors are found by their flag, not by an
+ * index. Exported because the OSE book importers write actors too.
  */
 export async function claimActorImport(id, build) {
   return claimed(id, importedActor, (_id, doc) => doc, build);
@@ -1072,11 +944,9 @@ async function claimed(id, present, remember, build) {
   try {
     return await pending;
   } finally {
-    // The claim covers the in-flight window and NOTHING else. `remember` has
-    // already run inside `pending`, so the verified index holds the result
-    // before this line — while a claim kept past resolution would be a second
-    // cache that nothing invalidates, and a document deleted afterwards would
-    // go on answering "already imported" for the rest of the session.
+    // The claim covers the in-flight window only, never past resolution — see
+    // docs/importer/DECISIONS.md, "Amended 2026-08-06 (2.4.2): a claim is a
+    // window, not a cache."
     inflightImports.delete(id);
   }
 }
@@ -1096,21 +966,16 @@ export const importedItemFor = (id) => importedItem(id);
 
 /**
  * The imported ACTOR for a cookbook id, or null — the same question against the
- * collection an actor importer writes to. Asked before an expensive read, not
- * only before the write: a page render per entry is the cost a second run of a
- * whole book is trying to avoid.
+ * collection an actor importer writes to.
  */
 export const importedActorFor = (id) => importedActor(id);
 
 /**
  * Every document of a type the library holds — the packs', loaded, and the
- * sidebar's (`sidebarImports`).
- *
- * The one way to enumerate imports. A pass that walks `game.<collection>`
- * instead finds an empty shelf and reports it as "nothing to do", which is how
- * Update once claimed a fully-imported world held no classes; a pass that walks
- * the packs alone leaves a sidebar-era import unreachable by every control that
- * repairs, rebuilds or removes one.
+ * sidebar's (`sidebarImports`). The one way to enumerate imports; a pass that
+ * walks `game.<collection>` alone or the packs alone misses part of the
+ * library. See docs/importer/DECISIONS.md, "The library is the packs AND the
+ * sidebar this module stamped".
  */
 export async function importedDocs(type) {
   const packed = (await Promise.all(ourPacksOfType(type).map((c) => c.getDocuments().catch(() => [])))).flat();
@@ -1120,9 +985,8 @@ export async function importedDocs(type) {
 /** Delete imported documents of a type from wherever the library lives. */
 async function deleteImported(type, docs) {
   if (!docs.length) return 0;
-  // Grouped by the pack each document is ON, never by one resolved target: the
-  // list spans lines now, and a delete addressed to the wrong pack removes
-  // nothing and says nothing.
+  // Grouped by the pack each document is ON, never by one resolved target —
+  // the list can span lines.
   const byPack = new Map();
   for (const doc of docs) {
     const key = doc.pack ?? "";
@@ -1155,29 +1019,19 @@ export async function importedItemsByName() {
 }
 
 /**
- * Shelf re-reads in flight, keyed by pack collection id — see `liveCopy`.
- *
- * An eviction drops the whole shelf at once, so every concurrent worker meets
- * it in the same instant; without this each of them would order its own full
- * copy of a thousand-document pack.
+ * Shelf re-reads in flight, keyed by pack collection id — see `liveCopy`, so
+ * every concurrent worker meets an eviction in the same instant rather than
+ * each ordering its own full copy of the pack.
  */
 const shelfReloads = new Map();
 
 /**
- * The live document behind a cached one, or null once it is really gone.
- *
- * A compendium is a CACHE, not the shelf: it drops every document it holds
- * `CompendiumCollection.CACHE_LIFETIME_SECONDS` (300) after the last access,
- * keeping only its index. So `collection.get` answers "gone" for a document
- * that is merely cold, and a presence check built on it reports a fully
- * imported library as empty the moment a run pauses five minutes — which is how
- * one session skipped all 31 classes as already present and then, after a
- * stretch of read-only probing, imported all 31 a second time.
- *
- * The index is what survives an eviction and what a real delete takes with it,
- * so it is what the question is asked of; the document itself is re-read only
- * when the answer is yes. A world document has no eviction and answers from its
- * own collection.
+ * The live document behind a cached one, or null once it is really gone. A
+ * compendium is a CACHE over the shelf, not the shelf: presence is asked of
+ * its INDEX, which survives an eviction, and the document is re-read only
+ * once the index says yes. A world document has no eviction and answers from
+ * its own collection. See docs/importer/DECISIONS.md, "A compendium is a
+ * cache; presence is asked of its index".
  */
 async function liveCopy(doc) {
   if (!doc.pack) return doc.collection?.get?.(doc.id) ?? null;
@@ -1187,7 +1041,7 @@ async function liveCopy(doc) {
   let pending = shelfReloads.get(doc.pack);
   if (!pending) {
     // The whole shelf, not the one document: the eviction dropped every id the
-    // caller's loop is about to ask for, and one read restores all of them.
+    // caller's loop is about to ask for.
     pending = pack.getDocuments().catch(() => []);
     shelfReloads.set(doc.pack, pending);
     pending.finally(() => shelfReloads.delete(doc.pack));
@@ -1256,12 +1110,8 @@ async function ensureFolderPath(type, names, line = null) {
   let parent = null;
   for (const name of path) {
     const key = `${type}|${pack ?? "world"}|${parent?.id ?? "root"}|${name}`;
-    // Cache the PROMISE, not the resolved folder: two concurrent importers that
-    // both miss a resolved cache would each create the folder and the world
-    // would end up with duplicates. Awaiting a shared promise means the second
-    // caller waits for the first one's folder instead of making its own — which
-    // is what lets a folder be resolved mid-import (once extraction reveals the
-    // monster's type) rather than having to be pre-created before the fan-out.
+    // Cache the PROMISE, not the resolved folder: the second concurrent caller
+    // then awaits the first one's folder instead of creating a duplicate.
     let pending = folderCache.get(key);
     if (!pending) {
       const parentId = parent?.id ?? null;
@@ -1269,11 +1119,8 @@ async function ensureFolderPath(type, names, line = null) {
         (collection ?? game.folders).find(
           (fo) => fo.type === type && fo.name === name && (fo.folder?.id ?? null) === parentId,
         ) ??
-        // A folder we make is marked like every document we make: removal
-        // enumerates flagged folders, so an unmarked one is a folder this
-        // module creates and can never take away again. An adopted folder —
-        // one the reader already had under this name — is deliberately left
-        // unmarked, so removal leaves it exactly where it was found.
+        // Marked like every document this module makes, so removal can find it;
+        // an adopted folder (one already there under this name) stays unmarked.
         (await Folder.create(
           { name, type, folder: parentId, sorting: "a", flags: { [MODULE_ID]: { cookbook: { id: `folder.${type}.${name}` } } } },
           pack ? { pack } : {},
@@ -1303,27 +1150,22 @@ const targetFolder = (type, bookId, group) =>
  * Every cookbook id already held for one document type, in WHICHEVER target is
  * configured — the sidebar collection plus, in compendium mode, the pack INDEX
  * (read with the cookbook flag as an index field, so no document is loaded).
- *
- * Every "have I imported this already?" question routes through here. Asking
- * the sidebar alone is the standing hazard: `importToCompendium` moves the
- * WRITES, and a check that stayed pointed at the world sees an empty shelf and
- * re-imports the lot on every run.
+ * Every "have I imported this already?" question routes through here. See
+ * docs/importer/DECISIONS.md, "One dedup rule for every importer: ask the
+ * shelf you write to, and claim before you build".
  */
 async function importedIdsOfType(type, worldCollection) {
-  // Never a class template's part: a skinned copy inherits the id of the
-  // definition it was made from, and counting it would let one class's
-  // engraved waterskin answer for the shared Waterskin — which then never
-  // imports, because the index says it is already here.
+  // Never a class template's part: a skinned copy inherits the definition's
+  // id, and counting it would let it answer for the shared definition.
   const part = (flags) => !!flags?.[MODULE_ID]?.[TEMPLATE_PART];
   const ids = new Set(
     [...worldCollection].filter((d) => !part(d.flags)).map((d) => d.getFlag(MODULE_ID, "cookbook")?.id).filter(Boolean),
   );
-  // Every shelf, because a batch mixes lines: "import everything" walks the
-  // ACKS books and the OSE ones in one pass, and asking one pack about all of
-  // them answers "not imported" for every book shelved somewhere else.
+  // Every shelf: a batch mixes lines, so asking one pack answers "not
+  // imported" for every book shelved elsewhere.
   for (const collection of ourPacksOfType(type)) {
-    // A failed index read must be LOUD: returning an empty set here reads as
-    // "nothing imported yet" and a bulk run re-creates everything as twins.
+    // A failed index read must be LOUD — an empty set here reads as "nothing
+    // imported yet" and a bulk run re-creates everything as twins.
     const index = await collection
       .getIndex({ fields: [`flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.${TEMPLATE_PART}`] })
       .catch((err) => {
@@ -1343,13 +1185,10 @@ async function importedIdsOfType(type, worldCollection) {
 }
 
 /**
- * Cookbook ids already held as ACTORS, wherever imports go.
- *
- * Unlike an ability, a monster import always CREATES — importOne has no reuse
- * to fall back on — so importing the same entry twice leaves two actors
- * claiming one cookbook id, and anything resolving by id (a companion slot,
- * say) then picks between them arbitrarily. Every actor import path filters
- * through this, which is what makes "import all" safe to press twice.
+ * Cookbook ids already held as ACTORS, wherever imports go. A monster import
+ * always CREATES — `importOne` has no reuse to fall back on — so every actor
+ * import path filters through this, which is what makes "import all" safe to
+ * press twice.
  */
 const importedIdSet = () => importedIdsOfType("Actor", game.actors);
 
@@ -1363,13 +1202,8 @@ async function importedActorsOfType(type) {
 }
 
 /**
- * Monster TYPE → folder name. The stat block's own taxonomy (Animal, Undead,
- * Beastman, …) is what a Judge actually browses by; the Monstrous Manual prints
- * no section groups, so without this its 154 entries pile into one folder.
- *
- * Filing by FAMILY was tried first and was wrong: most families have one to
- * three members, so it produced a folder per creature ("Bat", "Boar", "Cat")
- * rather than a taxonomy.
+ * Monster TYPE → folder name: the stat block's own taxonomy (Animal, Undead,
+ * Beastman, …), which is what a Judge actually browses by.
  */
 const TYPE_FOLDER = {
   animal: "Animals",
@@ -1424,11 +1258,8 @@ function actorGroupOf(found, id, { type = null } = {}) {
 }
 
 /**
- * THE one destination rule for a cookbook ACTOR — every actor importer asks it,
- * so no two of them can disagree about where a creature belongs (animals used
- * to import into "Animals" and be filed away into "<book> › animal", the raw
- * group key; MM monsters with no group sat 150 to a folder while their families
- * went unused; vehicles asked the ITEM rule and landed loose at the top).
+ * THE one destination rule for a cookbook ACTOR — every actor importer asks
+ * it, so no two of them can disagree about where a creature belongs.
  */
 function actorFolderFor(id, found = cookbookEntry(id), opts = {}) {
   // The Animals shelf is cross-book, but not cross-LINE: it is built in
@@ -1439,13 +1270,10 @@ function actorFolderFor(id, found = cookbookEntry(id), opts = {}) {
 }
 
 /**
- * The folder an import from this book belongs in — its book's shelf, inside its
- * line's pack.
- *
- * Exported for the OSE importers, which build their documents outside this file
- * and would otherwise have to know how a line becomes a pack. Their creatures
- * used to be created with no folder at all, which left every one of them loose
- * at the top of the library.
+ * The folder an import from this book belongs in — its book's shelf, inside
+ * its line's pack. Exported for the OSE importers, which build their
+ * documents outside this file and would otherwise have to know how a line
+ * becomes a pack.
  */
 export const importFolderFor = (type, bookId, group = null) => targetFolder(type, bookId, group);
 
@@ -1594,17 +1422,12 @@ const sysObject = (doc) =>
 /* -------------------------------------------- */
 
 /**
- * Which importer refills each top-level shelf.
- *
- * The shelves themselves are NOT listed here — `ITEM_SHELF` already says which
- * id namespaces land on which shelf, and restating that would let the two
- * drift. This names only the thing `ITEM_SHELF` cannot: which run rebuilds a
- * shelf once it is empty. A shelf missing from this map cannot be reimported on
- * its own and says so.
- *
- * Every importer here is dedup-driven: run after a shelf is emptied, it
- * re-creates that shelf and passes over what the world still holds. The run is
- * not narrowed, so it also imports whatever of its domain the world never held.
+ * Which importer refills each top-level shelf. The shelves themselves are not
+ * listed here — `ITEM_SHELF` already says which id namespaces land on which
+ * shelf; this names only which run rebuilds one once it is empty. Every
+ * importer here is dedup-driven, so it also imports whatever of its domain
+ * the world never held. See docs/importer/DECISIONS.md, "Three controls, not
+ * twenty-one".
  */
 const SHELF_REFILL = {
   // Declared in the order Import Everything runs these steps; a book run,
@@ -1634,21 +1457,12 @@ export const reimportableShelves = () =>
   [...new Set(Object.values(ITEM_SHELF))].filter((shelf) => SHELF_REFILL[shelf] && shelfPrefixes(shelf).length).sort();
 
 /**
- * GM: empty ONE top-level shelf and import it again.
- *
- * The third of the three controls a Judge actually needs — import everything,
- * delete everything, and rebuild one shelf — for the case where a shelf is
- * wrong and a whole re-import is too big a hammer: a book reconnected at a
- * different printing, an extraction fixed, a shelf edited past recognition.
- *
- * Deleting first is the point. Import is idempotent and passes over what it
- * already has, so importing "again" over a populated shelf changes nothing;
- * only an empty shelf gets rebuilt.
- *
- * Documents a class template made are never touched: they carry acks-extras'
- * own stamp, they are the Judge's repairable copies, and they are not this
- * shelf's to delete. Neither is a document whose entry's book is not open on
- * this seat (`readableHere`): the refill could put back a stub at best.
+ * GM: empty ONE top-level shelf and import it again. Deleting first is the
+ * point — import is idempotent, so only an empty shelf gets rebuilt.
+ * Documents a class template made are never touched, nor is a document whose
+ * entry's book is not open on this seat (`readableHere`) — the refill could
+ * put back a stub at best. See docs/importer/DECISIONS.md, "Three controls,
+ * not twenty-one".
  *
  * @param {string} [shelf] a name from `reimportableShelves()`; omitted, asks.
  */
@@ -1740,16 +1554,9 @@ export const reimportableBooks = () => {
 
 /**
  * GM: delete every document imported from ONE book and import them again.
- *
- * The shelf run's sibling, for the case a shelf cannot express: a book
- * reconnected from a better copy, whose documents sit on several shelves
- * beside every other book's. Only shelves with a refill run are touched, so
- * what this deletes is exactly what the refill can put back; a document
- * another book owns that MERGED one of this book's ids stays, because it is
- * that book's document, and so does one whose id resolves to no entry — it
- * has no book to be attributed to (the shelf run still reaches it). The refill
- * runs are dedup-driven — each passes over what still exists and re-creates
- * only what was removed.
+ * Only shelves with a refill run are touched. A document another book owns
+ * that MERGED one of this book's ids stays, because it is that book's
+ * document. See docs/importer/DECISIONS.md, "A book is a reimport unit too".
  *
  * @param {string} bookId a key of BOOKS, open on this seat.
  */
@@ -1793,26 +1600,16 @@ export async function cookbookReimportBook(bookId) {
 /* -------------------------------------------- */
 
 /**
- * Every importable entry, grouped by the run that rebuilds one.
- *
- * `refill` names the api function that re-creates a deleted entry. Every
- * importer named here takes `only`, the ids to consider, so a run after
- * deleting exactly the picked documents rebuilds those and nothing else —
- * without it, a run also imports every entry the world never held. Monsters
- * name no refill because they need none: `importMany` takes an explicit id
- * list.
- *
- * The list is deliberately the entry-driven importers only. Weapons, armor and
- * the price list are built from whole printed tables rather than from an entry
- * apiece, so there is no single row to check; those stay with the shelf
- * rebuild.
- *
- * Rules tables are the one source that is not documents at all. They live in
- * the ruledata store rather than on a shelf, they MERGE rather than replace,
- * and there is nothing to delete before re-reading one — so they carry no
- * `type`, and an `idsRefill` (a run handed the picked ids) instead of a
- * `refill`. Re-reading one ruledata document instead of all of them is the
- * whole value: a full table run scans pages for every recipe there is.
+ * Every importable entry, grouped by the run that rebuilds one. `refill`
+ * names the api function; every importer named here takes `only`, the ids to
+ * consider. Monsters name no refill — `importMany` already takes an explicit
+ * id list. Weapons, armor and the price list are built from whole printed
+ * tables rather than an entry apiece, so they stay with the shelf rebuild
+ * instead. Rules tables carry no `type` and an `idsRefill` instead of a
+ * `refill`: they live in the ruledata store, merge rather than replace, and
+ * there is nothing to delete before re-reading one. See
+ * docs/importer/DECISIONS.md, "Rules tables join the entry picker as
+ * documents, not as tables".
  */
 const ENTRY_SOURCES = [
   { key: "Monsters", type: "Actor", refill: null, entries: () => actorEntriesAcrossBooks().rows.map((r) => [r.id, r.entry]) },
@@ -1848,10 +1645,8 @@ const claimedId = (doc) => String(doc.getFlag(MODULE_ID, "cookbook")?.id ?? "");
 
 /**
  * Whether an entry can be read back on this seat: false only when the entry
- * names its book and that book is not open here. Every reimport deletes first,
- * and a closed book rebuilds a stub or nothing, so an unreadable entry's
- * document is kept rather than traded for one. An id that resolves to no entry
- * names no book, so nothing here holds it back.
+ * names its book and that book is not open here. See
+ * docs/importer/DECISIONS.md, "A closed book is refused, not rebuilt."
  */
 const readableHere = (id) => {
   const book = bookOf(cookbookEntry(id));
@@ -1936,23 +1731,11 @@ function wireEntryPicker(root, listEl) {
 
 /**
  * GM debug tool: list every importable entry with a checkbox and rebuild the
- * ones ticked.
- *
- * The finest of the rebuild controls. "Import everything" and "rebuild one
- * shelf" both address a whole category; this addresses a row. It is what a
- * fixed extraction wants: change one recipe, tick the entry it belongs to, see
- * the document it produces — without emptying the shelf around it or waiting
- * for a whole book to read again.
- *
- * Ticked entries are DELETED first and imported again. Deleting is what makes
- * it a re-import: every importer passes over what it already has, so importing
- * over a present document changes nothing. A document a class template made is
- * never touched — it carries this module's own stamp and is the Judge's
- * repairable copy, not the importer's to delete.
- *
- * The id is shown beside every row because this is a debug surface: the id is
- * what a recipe, a register and a console call all name, and it is the only
- * label that survives a rename on either side.
+ * ones ticked — the finest of the rebuild controls, next to "import
+ * everything" and "rebuild one shelf". A document a class template made is
+ * never touched. The id is shown beside every row since it is what a recipe,
+ * a register and a console call all name. See docs/importer/DECISIONS.md,
+ * "The entry picker runs each importer over the ticked entries only".
  */
 export async function cookbookReimportEntries() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and creates documents).`);
@@ -2030,10 +1813,10 @@ export async function cookbookReimportEntries() {
 
 /**
  * Delete what the picked entries claim, then run each owning importer once,
- * narrowed to the picked ids (`only`): a whole run also imports every entry
- * the world has never held, so two ticked classes in a world without the rest
- * would bring all of them. An entry whose book is not open on this seat is
- * refused before anything is deleted: nothing could read it back.
+ * narrowed to the picked ids (`only`). An entry whose book is not open on
+ * this seat is refused before anything is deleted. See
+ * docs/importer/DECISIONS.md, "The entry picker runs each importer over the
+ * ticked entries only".
  */
 async function runEntryReimport(all) {
   // Rules tables carry no book to check and delete nothing.
@@ -2105,26 +1888,18 @@ async function runEntryReimport(all) {
  * GM: delete EVERY document this module imported — the packs it created, the
  * world documents it or its materializers made from them, the folders they
  * were filed in, and the rules-table documents the ruledata provider
- * materialized on import. The counterpart to "import all": a clean slate for
- * re-importing after a recipe change, and the reset the test cycle needs.
+ * materialized on import. The counterpart to "import all".
  *
- * Three identities, because three things create on this module's behalf and
- * only one of them stamps a cookbook flag:
+ * Three identities: this module's own cookbook flag; `flags[MODULE_ID]
+ * .templatePart` on the class-template bundles, their skinned gear and the
+ * per-class 3d6 tables (world documents by design); and the ruledata
+ * provider's own count, which it removes itself. A map stood up from a
+ * recipe is a world Scene carrying the first, and so are the places and
+ * organisations brought into the world for it to stand on.
  *
- * - our own flag, on everything the importer writes;
- * - `flags[MODULE_ID].templatePart`, on the class-template bundles, their
- *   skinned gear and the per-class 3d6 tables — world documents by design, and
- *   the ones a flag-only sweep left behind: their folders were deleted around
- *   them and Foundry re-parented 715 orphans to the top of the sidebar;
- * - the ruledata provider's own count, which it removes itself.
- *
- * A map stood up from a recipe is a world Scene carrying the first, and so are
- * the places and organisations brought into the world for it to stand on, so
- * both go with everything else.
- *
- * Hand-made documents carry none of the three and are never touched. Art files
- * stay on disk (Foundry exposes no delete API); a re-import reuses them, which
- * is the point — only a changed recipe needs them cleared by hand.
+ * Hand-made documents carry none of the three and are never touched. Art
+ * files stay on disk (Foundry exposes no delete API) and are reused by a
+ * re-import.
  */
 export async function cookbookRemoveImports() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes documents).`);
@@ -2136,9 +1911,8 @@ export async function cookbookRemoveImports() {
     ["JournalEntry", game.journal.filter(mine)],
     ["RollTable", game.tables.filter(mine)],
     ["Scene", game.scenes.filter(mine)],
-    // Folders LAST in this list and last in the delete loop below: a folder
-    // deleted while it still holds documents re-parents them instead of taking
-    // them with it, which is the orphan-maker this pass exists to end.
+    // Folders LAST: deleting a folder while it still holds documents
+    // re-parents them instead of taking them with it.
     ["Folder", game.folders.filter(mine)],
   ];
   // The packs themselves, found by LABEL rather than through `packFor` — a
@@ -2148,13 +1922,11 @@ export async function cookbookRemoveImports() {
     (p) => p.metadata.packageType === "world" && String(p.metadata.label ?? "").startsWith(`${FOLDER_NAME} — `),
   );
   const packed = ourPacks.reduce((n, p) => n + p.index.size, 0);
-  // The rules-table import also materialized documents — RollTables, their
-  // folders, and the JSON journal — through the ruledata provider (ACKS
-  // Extras), which stamps no cookbook flag. The provider owns them, so it
-  // counts and removes them here. Only what the SIDEBAR holds: the provider
-  // writes to the library's shelves, and those go with the packs above,
-  // already counted. The imported table DATA (the world store the automation
-  // reads) deliberately stays: removing documents is a tidy-up, not an
+  // The rules-table import also materialized documents (RollTables, their
+  // folders, the JSON journal) through the ruledata provider, which stamps no
+  // cookbook flag; the provider counts and removes only the sidebar ones,
+  // since its shelf ones go with the packs above. The imported table DATA
+  // (the world store the automation reads) stays: this is a tidy-up, not an
   // un-import.
   const ruledata = services.get("ruledata-import");
   const materialized = ruledata?.countMaterializedDocs?.({ sidebar: true }) ?? 0;
@@ -2224,11 +1996,9 @@ async function importOne(bookId, id, folderId) {
   if (kind === "kind.monsterFamily") return importFamily(bookId, id, folderId);
   if (kind && kind !== "kind.monster") return null;
   const session = ctx.sessionDocs.get(bookId);
-  // The `art` op walks the page's operator list to CHOOSE which placed image to
-  // extract, and costs seconds where the rest of the recipe costs milliseconds.
-  // When the chosen image is already a verified file on disk there is nothing
-  // left to choose, so the op is skipped outright — the cache saved the upload
-  // long before this, but never the walk.
+  // Skip the `art` op outright when the file is already on disk — see
+  // docs/importer/DECISIONS.md, "The art op is skipped when the picture is
+  // already on disk".
   const artOnDisk = await ctx.cachedArt?.(id).catch(() => null);
   const node = await executeEntry(session.doc, found.cb, data.registers, id, artOnDisk ? { skipOps: ["art"] } : {});
   if (!node.ok) {
@@ -2241,19 +2011,14 @@ async function importOne(bookId, id, folderId) {
   // its extras flag; system.details.biography is never a fallback destination.
   const { extras } = monsterProseChannels(node, id, found.entry.cite);
 
-  // FILE IT NOW. A document's destination is decided by the importer that
-  // creates it and by nothing afterwards — the stat block has just told us the
-  // creature's TYPE, the axis monsters are grouped by, so this is the only
-  // moment that knows the answer. (ensureFolderPath caches the promise, so
-  // concurrent importers cannot race two folders of the same name.)
+  // FILE IT NOW: the stat block has just told us the creature's TYPE, the axis
+  // monsters are grouped by, and nothing afterwards decides a destination.
   const typed = primaryTypeOf(node);
   const folder = (await actorFolderFor(id, found, { type: typed }))?.id ?? folderId;
 
-  // ONE write, not four. create/update/createEmbeddedDocuments/setFlag were each
-  // a separate socket round-trip a bulk import paid per monster; fold the
-  // embedded items, the cookbook id, and the FMS extras into the single create
-  // (measured ~2.6x on the write phase alone). Art follows separately — it needs
-  // the uploaded file path.
+  // ONE write, not four: the embedded items, the cookbook id and the FMS extras
+  // fold into the single create rather than costing a socket round-trip each.
+  // Art follows separately — it needs the uploaded file path.
   const actor = await createDoc(Actor, {
     // A person's row ships a neutral label; the name is the page's own.
     name: printedNameOf(node, found.entry.name),
@@ -2279,18 +2044,16 @@ async function importOne(bookId, id, folderId) {
       },
     },
   });
-  // Foundry REPORTS a schema-validation failure and returns undefined rather
-  // than throwing, so without this the next line dereferences nothing and the
-  // real error — already in the console — is buried under a TypeError from
-  // three frames away. One unimportable monster must read as one skipped
-  // monster, not as a crash in the importer.
+  // Foundry reports a schema-validation failure and returns undefined rather
+  // than throwing, so an unimportable monster reads as one skipped rather
+  // than a crash in the importer.
   if (!actor) {
     ui.notifications.warn(`${MODULE_ID} | ${found.entry.name}: the system rejected the extracted stats — skipped (see console).`);
     return null;
   }
-  // Gated on the RECIPE asking for art, not on the op having run: the op is
-  // skipped when the file is already on disk, and gating on its result would
-  // mean a cached illustration never reached the actor.
+  // Gated on the RECIPE asking for art, not on the op having run — see
+  // docs/importer/DECISIONS.md, "The art op is skipped when the picture is
+  // already on disk".
   const artInstr = found.entry.fields?.art ?? null;
   if ((artInstr || node.fields.art) && ctx.importArtForPage) {
     await ctx.importArtForPage(actor, session.doc, {
@@ -2476,17 +2239,13 @@ function templateOption(ax, row, cells, { id, cite, sectionText }) {
  * PROSE LEADER ROLES — the general pass, run for EVERY family: the ROLE
  * variants a member's own prose describes (champions, sub-chieftains,
  * chieftains, drudges/whelps, shamans, witch doctors) become a second axis.
- * The MM's sentences are formulaic ("led by a champion with 3 AC, 1 HD, and
- * 7 hp"), so the regexes are shipped LOCATORS in the defense-scan tradition;
- * every number is read at import from THIS seat's own extracted prose, per
- * member. GRACEFUL BY DESIGN: prose that matches nothing adds nothing — a
- * family without leader sentences simply has no Role axis, a member without
- * a chieftain sentence lacks that one cell.
+ * The regexes are shipped LOCATORS; every number is read at import from THIS
+ * seat's own extracted prose, per member. Prose that matches nothing adds
+ * nothing — a family without leader sentences simply has no Role axis.
  */
 const proseLeaderRoles = ({ options, memberText, axes, cells, out }) => {
-    // Tolerant of both printed shapes: goblin's "1 HD, and 7 hp" AND gnoll's
-    // "3 HD, 16 hp, and a +2 damage bonus" (the damage clause may follow any
-    // of the three; "and" may sit before hp or before the bonus).
+    // Tolerant of the two printed shapes: the damage clause may follow any of
+    // the three fields, and "and" may sit before hp or before the bonus.
     const RX = {
       champion: /led by a champion with (\d+) AC,? (\d+(?:[+-]\d+)?) HD,? (?:and )?(\d+) hp(?:,? and a ([+-]\d+) damage bonus)?/i,
       subChieftain: /led by a sub-?chieftain with (\d+) AC,? (\d+(?:[+-]\d+)?) HD,? (?:and )?(\d+) hp(?:,? and a ([+-]\d+) damage bonus)?/i,
@@ -2596,10 +2355,9 @@ async function importFamily(bookId, famId, folderId) {
     let entry = cb.entries[member.id];
     if (!entry) continue;
     // CROSS-BOOK: a member reprinted in another open book binds the NEWER
-    // printing (the per-entry defer rule, applied per variant) — the option
-    // keeps this family's variant label, its stats and its text come from
-    // the revising book, and its cookbook id becomes the revising id so
-    // merge/dedup sees the same creature.
+    // printing (the per-entry defer rule, per variant) — the option keeps this
+    // family's variant label but takes its stats, text and cookbook id from
+    // the revising book, so merge/dedup sees the same creature.
     let bindId = member.id;
     let bindCb = cb;
     let bindDoc = session.doc;
@@ -2708,8 +2466,7 @@ async function importFamily(bookId, famId, folderId) {
   // CROSS-BOOK MERGE: the same conceptual family already imported (from this
   // or another book) gains this book's NEW variants instead of a twin. Two
   // identity signals: a shared member id (revisedBy-deferred variants land on
-  // the revising id, so AX2's Animated Statues match the MM family) and a
-  // shared family suffix ("mm.familyMummy" ↔ "ax2.familyMummy").
+  // the revising id) and a shared family suffix across books.
   const optionIdOf = (o) => o.flags?.[MODULE_ID]?.cookbook?.id ?? null;
   const famSuffix = famId.split(".")[1] ?? famId;
   const incomingIds = new Set(options.map(optionIdOf).filter(Boolean));
@@ -2793,15 +2550,12 @@ async function importFamily(bookId, famId, folderId) {
 }
 
 /**
- * A GENERATION sub-roll enumerated by an ability's own prose — "roll 1d8 for
- * the type of aura: 1, arcane; 2, acidic; …" — parsed from THIS seat's
- * extracted text at import (values persist in world data, the hand-typed
- * equivalence). Play-time rolls ("roll 1d20 to determine onset time…") are
- * deliberately NOT matched: the phrase must close with a colon right after
- * the die / "twice" / a short "for X" qualifier. Returns
- * `{die, twice?, outcomes: [{min, max, text}]}` or null; an enumeration stops
- * at the first non-numbered segment. Nested rolls inside an outcome stay
- * text for the Judge.
+ * A GENERATION sub-roll enumerated by an ability's own prose, parsed from
+ * THIS seat's extracted text at import. A play-time roll is deliberately not
+ * matched: the phrase must close with a colon right after the die / "twice" /
+ * a short "for X" qualifier. Returns `{die, twice?, outcomes: [{min, max,
+ * text}]}` or null; an enumeration stops at the first non-numbered segment.
+ * Nested rolls inside an outcome stay text for the Judge.
  */
 function subRollFromProse(text) {
   const m = /\broll (\d*d\d+(?:[+-]\d+)?)( twice)?(?: for [^:]{0,50})?:\s*/i.exec(text ?? "");
@@ -2818,14 +2572,11 @@ function subRollFromProse(text) {
 }
 
 /**
- * kind.monsterTemplate -> an `acks-extras.template` GENERATOR actor.
- *
- * All book-parsing intelligence happens HERE, once, at import: grid rows map
- * through the same scalar binder as full stat blocks, form routines through
- * the same attackModel, and the template actor stores only engine-ready
- * patches. the extras lib's roll/resolve then never interprets book content — which
- * is what keeps one owner per mapping. Values persist in world data (the
- * hand-typed-table equivalence), and so does the prose beside them.
+ * kind.monsterTemplate -> an `acks-extras.template` GENERATOR actor. All
+ * book-parsing happens HERE, once, at import: grid rows map through the same
+ * scalar binder as full stat blocks, form routines through the same
+ * attackModel, and the template actor stores only engine-ready patches —
+ * one owner per mapping.
  */
 async function importTemplate(bookId, id, folderId) {
   const found = cookbookEntry(id);
@@ -2967,13 +2718,11 @@ async function importTemplate(bookId, id, folderId) {
 
 /**
  * Every stat leaf bindMonster writes only when the page yields it. A refill
- * must RETRACT these: update() merges nested objects, so a key the
- * re-extraction no longer produces would otherwise keep its stale value
- * forever. Each path absent from the new payload is written back to its schema
- * initial — the state a fresh import of the same node would leave. Only
- * binder-owned leaves are listed; everything else on the actor is left alone
- * (in particular `details.treasure.table`, which belongs to the GM's linked
- * treasure table, and `hp.bhr`, which the binder never writes).
+ * must RETRACT these — `update()` merges nested objects, so a key the
+ * re-extraction no longer produces would otherwise keep its stale value.
+ * Only binder-owned leaves are listed; everything else on the actor is left
+ * alone. See docs/importer/DECISIONS.md, "A refill retracts only what its
+ * entry claimed to fill".
  */
 const REFILL_STAT_PATHS = [
   "aac.value",
@@ -2997,17 +2746,13 @@ const REFILL_STAT_PATHS = [
 ];
 
 /**
- * Re-read an already-imported monster's stats from this seat's book.
- *
- * The counterpart to importOne for an actor that already exists: same
- * extraction, same binding, but it UPDATES rather than creates. Embedded items
- * are left alone — a refill that re-added the abilities would duplicate them
- * on every run, and the stats are what go stale when a recipe improves.
- *
- * Returns null when the actor is not ours, so the caller can fall back to its
- * own recipes; otherwise `{ ok }` with a `reason` the caller can explain —
- * `book-closed`, `no-match`, or `no-stats` for an entry this binding cannot
- * read a stat block from.
+ * Re-read an already-imported monster's stats from this seat's book — same
+ * extraction and binding as `importOne`, but UPDATES rather than creates.
+ * Embedded items are left alone. Returns null when the actor is not ours;
+ * otherwise `{ ok }` with a `reason` the caller can explain — `book-closed`,
+ * `no-match`, or `no-stats` for an entry this binding cannot read a stat
+ * block from. See docs/importer/DECISIONS.md, "A refill retracts only what
+ * its entry claimed to fill".
  */
 export async function refillMonster(actor) {
   const id = actor?.getFlag(MODULE_ID, "cookbook")?.id;
@@ -3019,12 +2764,11 @@ export async function refillMonster(actor) {
   if (!session) return { ok: false, reason: "book-closed", book: bookId, name: found.entry.name };
   const node = await executeEntry(session.doc, found.cb, data.registers, found.id);
   if (!node.ok) return { ok: false, reason: "no-match", book: bookId, name: found.entry.name };
-  // The retraction below is what makes a field a recipe no longer produces
-  // disappear from the actor, and it only means that for an entry that HAS a
-  // stat block. An entry declaring no `stats.*` fields describes none for this
-  // binding — an OSE creature's numbers sit inside its `block` region and are
-  // read by the OSE grammar, not here — so binding it yields nothing and every
-  // path would retract at once. Never retract fields the entry never claimed.
+  // Never retract fields the entry never claimed — an entry with no
+  // `stats.*` fields (an OSE creature reads its numbers from `block`
+  // instead) would otherwise retract every path at once. See
+  // docs/importer/DECISIONS.md, "A refill retracts only what its entry
+  // claimed to fill".
   if (!node.fields.stats || !Object.keys(node.fields.stats).length) {
     return { ok: false, reason: "no-stats", book: bookId, name: found.entry.name };
   }
@@ -3361,21 +3105,14 @@ export async function cookbookImportJournals() {
 
 /**
  * Points of interest: the keyed places of a settlement's quarters, as
- * location ACTORS nested quarter → city, rather than as journal pages.
- *
- * The city is the book's own place — the adventure place the OSE binding also
- * makes, claimed under one id so whichever path runs first makes it and the
- * other finds it. Each quarter is a place named after its group; each point is
- * `poiLocationData`, named by the heading the Judge's page prints under its key
- * number (`printedNameOf` — the cookbook ships only the number) with the page's
- * text as its notes. Presence is asked by
- * cookbook id BEFORE the page is read, so a re-run costs nothing for what the
- * world already holds. A world that imported these as pages under an earlier
- * release keeps its pages: nothing here deletes.
- *
- * A quarter's overview entry makes no place of its own: its text becomes the
- * notes of the quarter's place, written only while those notes are empty, so
- * a re-run reads nothing and a Judge's own words over them are kept.
+ * location ACTORS nested quarter → city, rather than as journal pages. Each
+ * point is `poiLocationData`, named by the heading the Judge's page prints
+ * under its key number (the cookbook ships only the number). Presence is
+ * asked by cookbook id before the page is read. A world that imported these
+ * as pages under an earlier release keeps its pages: nothing here deletes.
+ * See docs/importer/DECISIONS.md, "A settlement's keyed places are actors,
+ * nested quarter → city" and "A quarter's overview is the notes of the
+ * quarter's place".
  */
 export async function cookbookImportPoiPlaces() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
@@ -3452,24 +3189,14 @@ export async function cookbookImportPoiPlaces() {
 
 /**
  * Organisations, as FACTION actors (`faction-binding.mjs` says which entries
- * are one, and of which sort).
- *
- * An AUTHORED organisation is named, and its notes filled, from the Judge's
- * page; it is seated at its own keyed place — at the quarter's place while that
- * one has not been imported — with its holdings, its leader, its members and
- * the quarters it controls as the entry's block names them. A GROUP
- * organisation is seated in its quarter's place (the city's, for a company with
- * no quarter) with the group's imported people as members, unless an authored
- * one stands in for it.
- *
- * Each faction is claimed by cookbook id, and presence is asked BEFORE the page
- * is read, so a second run finds what the first built and reads nothing for it.
- * A re-run tops up only what is absent — a person not yet rostered, a holding
- * not yet held, a keyed seat where the quarter stood in, a relation not yet on
- * the sheet — and never rewrites a row that is there: those are the Judge's.
- * People and places arrive through their own steps, which run before this one;
- * what the world has not imported is left for the next run. Relations are
- * written last, once every organisation they could name exists.
+ * are one, and of which sort): named and seated from the entry's `organisation`
+ * block, at its own keyed place or its quarter's. Presence is asked by
+ * cookbook id before the page is read, so a re-run tops up only what is
+ * absent and never rewrites a row that is there. Relations are written
+ * last, once every organisation they could name exists. See
+ * docs/importer/DECISIONS.md, "An organisation the book introduces by name
+ * is an authored row" and "A body becomes a faction one way: a row that was
+ * read".
  */
 export async function cookbookImportFactions() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
@@ -3726,12 +3453,9 @@ async function ensureWorldFolderPath(type, names, made = []) {
  * What bringing a book's places and organisations into the world would take,
  * worked out WITHOUT writing anything: which of the cookbook ids the world
  * already holds, which the library holds and would be made again, and which
- * neither has. The book's organisations are counted in whether or not they were
- * asked for, so the quarter a faction is seated in is the same document the
- * map's region names.
- *
- * Asked before the picture is drawn, so a map that cannot be built — no quarter
- * imported yet, a page that will not render — leaves no actor behind it.
+ * neither has. Asked before the picture is drawn, so a map that cannot be
+ * built leaves no actor behind it. See docs/importer/DECISIONS.md, "A map
+ * and what stands on it are world documents, owned by nobody".
  *
  * @returns {Promise<{actors: Map<string, Actor>, queued: Map<object, {id: string, _id: string}[]>,
  *   worldIds: Map<string, string>, missing: string[], known: Set<string>}>}
@@ -3774,14 +3498,11 @@ async function planCrossing(bookId, cookbookIds) {
 
 /**
  * Carry out a crossing plan, and answer with the world's document for every
- * cookbook id the plan knew.
- *
- * A scene link, a region link and a token each need a WORLD actor, and a
- * faction is only consulted once it is one. What the world already holds under
- * a cookbook id is used as it stands; what only the library holds is created
- * again from its source (`worldCopySource`) in one write per chunk, keeping its
- * id so the references between the copies can be rewritten before any of them
- * exists.
+ * cookbook id the plan knew. What only the library holds is created again
+ * from its source (`worldCopySource`), keeping its id so references between
+ * the copies can be rewritten before any of them exists. See
+ * docs/importer/DECISIONS.md, "A map and what stands on it are world
+ * documents, owned by nobody".
  *
  * @param {{actors: string[], folders: string[]}} created collects the uuid of everything made
  * @returns {Promise<{actors: Map<string, Actor>, copied: number}>}
@@ -3799,8 +3520,8 @@ async function bringAcross(bookId, plan, created) {
     const docs = await collection.getDocuments({ _id__in: rows.map((r) => r._id) });
     for (const doc of docs) {
       const folderId = await folderFor(doc.type === FACTION_TYPE ? "Factions" : "Places");
-      // The copy states who owns it (nobody); core's default would strip that
-      // and leave a place to the rule that shares every new place with the table.
+      // Owned by nobody — see docs/importer/DECISIONS.md, "A map and what
+      // stands on it are world documents, owned by nobody".
       sources.push(game.actors.fromCompendium(
         worldCopySource(doc.toObject(), worldIds, { folderId, sourceUuid: doc.uuid }),
         { keepId: true, clearOwnership: false },
@@ -3825,23 +3546,15 @@ async function bringAcross(bookId, plan, created) {
 const SCENE_STEPS = 4;
 
 /**
- * Maps: a book's scene recipes, stood up as WORLD scenes.
- *
- * A recipe is geometry over one page of the seat's own book (`scene-binding.mjs`):
- * the picture is cut from that page and turned upright, each quarter becomes a
- * District region in its own colour over the quarter's place, each keyed place
- * a token of its own actor, and the city's list and the quarters' lists are
- * wired in from the tables the world has imported. The scene is a world
- * document and so are the actors it stands on (`bringAcross`), which is the one
- * exception to the library keeping what it imports in compendiums: a map nobody
- * can open is no map.
- *
- * Nothing is drawn until the page answers to the recipe's anchor — the placement
- * of the map's own image — so a printing that lays the map out elsewhere is
- * refused rather than given outlines that fit another picture. A scene the
- * world already holds under the recipe's id is left exactly as it stands.
- * Places are set down HIDDEN: a keyed place may be a secret, and showing one is
- * a click where un-showing it is not possible.
+ * Maps: a book's scene recipes, stood up as WORLD scenes. A recipe is
+ * geometry over one page of the seat's own book (`scene-binding.mjs`): the
+ * picture is cut from that page and turned upright, each quarter becomes a
+ * District region over the quarter's place, each keyed place a token of its
+ * own actor. Nothing is drawn until the page answers to the recipe's anchor.
+ * A scene the world already holds under the recipe's id is left exactly as
+ * it stands. See docs/importer/DECISIONS.md, "A printed map is a recipe of
+ * geometry over its page" and "A map and what stands on it are world
+ * documents, owned by nobody".
  */
 export async function cookbookImportScenes() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates scenes).`);
@@ -3898,14 +3611,10 @@ export async function cookbookImportScenes() {
 }
 
 /**
- * Hand a new map's quarters to the organisations that control them.
- *
- * An imported organisation names its quarters on its flag, by the id of each
- * quarter's place, because a Region to control only exists once a map does.
- * Every faction of the book now in the world has those ids turned into the
- * regions this scene drew; a Region it held that no longer exists — the map it
- * was on was deleted — is dropped in the same write, and one on some other
- * scene is kept. A faction whose flag names no quarter is not read at all.
+ * Hand a new map's quarters to the organisations that control them: every
+ * faction of the book now in the world has its flagged quarter ids turned
+ * into the regions this scene drew. A Region it held that no longer exists
+ * is dropped in the same write; one on some other scene is kept.
  * @returns {Promise<number>} how many factions were written to
  */
 async function claimControlledQuarters(bookId, scene, recipe, districtIds) {
@@ -3943,9 +3652,7 @@ async function importScene({ bookId, id, row }, counts, tick) {
   const placements = await pageArtPlacements(doc, recipe.page).catch(() => []);
   if (!placementMatches(placements, recipe.placement)) return void counts.refused++;
 
-  // Nothing is written until the picture exists: a map with no quarter to
-  // name is turned away before the slow part, with the one thing that fixes it
-  // said, and a page that will not render leaves no actor behind it.
+  // Nothing is written until the picture exists.
   tick();
   const quarterOf = (entryId) => poiGroupOf(cb.entries[entryId]?.meta?.group)?.district ?? "";
   const cityId = oseAdventureId(bookId);
@@ -3962,9 +3669,9 @@ async function importScene({ bookId, id, row }, counts, tick) {
   const world = await bringAcross(bookId, plan, counts.created);
   counts.copied += world.copied;
   counts.missing += plan.missing.length;
-  // What the city's list adds after dark is read off the imported list's own
-  // shape and the stretch that defers to the quarter off the row the recipe
-  // points at, so neither figure ships.
+  // Read from the imported list at import, so neither figure ships. See
+  // docs/importer/DECISIONS.md, "A printed map is a recipe of geometry over
+  // its page".
   const list = recipe.incidents?.table ? await importedTable(recipe.incidents.table) : null;
   const incidents = list
     ? {
@@ -4018,15 +3725,6 @@ async function importScene({ bookId, id, row }, counts, tick) {
   }
 }
 
-/*
- * NOTE a local `levelValueAt()` used to sit here — a third copy of the extras lib's
- * LevelValue resolver, needed only because an imported ability's roll target
- * had to be FLATTENED to a first-level number to fit the core item's single
- * `rollTarget`. Ladders now travel whole into the acks-abilities flag and are
- * resolved there against the character, so nothing here has to resolve
- * anything — this module locates and classifies, it does not evaluate.
- */
-
 /** "kw:sensingevil" -> "Sensing Evil"-ish, for the system's requirements field. */
 const capabilityLabel = (token) => {
   const slug = String(token).replace(/^kw:/, "");
@@ -4040,26 +3738,12 @@ const capabilityLabel = (token) => {
 const NICHE_ICON_MODULE = "game-icons-net";
 
 /**
- * Which picture this ability gets.
- *
- * Foundry's own 7,100 icons cover most of the corpus, but not the ACKS-shaped
- * corners of it: Acrobatics, Blind Fighting, Caving and Mapping have no core
- * icon worth the name, and game-icons.net has all four. So an entry may name
- * both — `icon` from core, which every seat has, and `iconNiche` from the
- * optional pack. The niche one wins where the pack is installed and is simply
- * ignored where it is not, which is the same bring-your-own posture the rest
- * of this module takes with books.
- *
- * Referencing those paths carries no licensing weight for us: the art ships in
- * THAT module under its own CC BY terms and attribution, and we only point at
- * it. Nothing is copied here.
- *
- * NOTE an item stores its img at CREATION, and nothing rewrites it afterwards.
- * Update Abilities does not: it rewrites the generated surface — descriptor,
- * structured extras, cookbook id — and leaves presentation a GM may have tuned
- * alone. So installing the pack later, or changing an entry's icon, repaints
- * only what is imported after it; re-importing the shelf is what repaints the
- * rest.
+ * Which picture this ability gets: `iconNiche` from the optional game-icons.net
+ * pack when it is installed, else `icon` from core. Referencing those paths
+ * carries no licensing weight here — the art ships in that module under its
+ * own terms, and nothing is copied. An item's img is set at creation and
+ * never rewritten afterwards; Update Abilities leaves presentation alone, so
+ * installing the pack later repaints only what is imported after it.
  */
 export function abilityIcon(entry) {
   if (entry?.iconNiche && game.modules?.get?.(NICHE_ICON_MODULE)?.active) return entry.iconNiche;
@@ -4070,11 +3754,10 @@ export function abilityIcon(entry) {
 
 /**
  * `meta.category` lands in a CONSTRAINED choice field on the ability model.
- * The register lint holds every ability-bound kind's entries to that vocabulary
- * before a cookbook compiles; this clamp stands behind it for whatever the lint
- * never saw: an unknown value reached the DataModel and failed validation on
- * every sheet render (the v0.26.0 equipment leak). Falls back to the model's
- * own default so the item stays valid and usable.
+ * This clamp stands behind the register lint for whatever it never saw, and
+ * falls back to the model's own default so the item stays valid. See
+ * docs/importer/DECISIONS.md, "A kind says what it binds to, and the lint
+ * holds its categories to the vocabulary".
  */
 function abilityCategory(value) {
   if (!value) return "proficiency";
@@ -4117,18 +3800,10 @@ export function bindAbility(entry, node, id, opts = {}) {
     // capability resolves no matter which of the same-capability entries the
     // character actually holds.
     ...(meta.provides?.length ? { provides: meta.provides } : {}),
-    // No chef has read this entry's full output against the printed page yet.
-    // The scan-classified mechanics still bind — an inert ability helps nobody
-    // — but they present as the machine draft they are: a wrong sign or a
-    // missed bonus must read as unverified, never as the book's ruling. The
-    // flag clears only when the register entry gains its `audited` sign-off.
-    //
-    // Written EXPLICITLY either way, never omitted when audited. Update merges
-    // flags, so an omitted `false` left a stale `true` on every ability
-    // imported before its sign-off — the banner could be raised but never
-    // lowered, which makes the whole gate one-way. Live-caught on this very
-    // batch: twelve entries signed, and Update left them all still marked
-    // machine-classified.
+    // Scan-classified mechanics still bind, but present as unverified until the
+    // register entry gains its `audited` sign-off. Written EXPLICITLY either
+    // way, never omitted: update() merges flags, so an omitted `false` would
+    // leave a stale `true` once an entry is signed off.
     unaudited: !entry.audited,
     // Set when this reference arrived under an older/foreign name: the reader's
     // source calls it `conversionFrom`, ACKS II calls it `entry.name`.
@@ -4136,41 +3811,28 @@ export function bindAbility(entry, node, id, opts = {}) {
     ...(opts.conversionFrom ? { conversionFrom: opts.conversionFrom } : {}),
     // Structured effects are CLASSIFIED from the seat's own prose (type, target
     // and value all materialize; the cookbook pre-declares none of them). An
-    // ability the scan can't classify is still valid — name + type + prose.
-    // An alias reads the TARGET's prose through its pre-baked pointer, so it
-    // materializes the same mechanics without the cookbook restating any.
-    //
-    // Without the book there is no prose to classify — but a chef-authored spec
-    // that carries no `from` locator has no value to materialize either. It is
-    // pure structure (a prerequisite, a companion slot), so gating it on the
-    // book would withhold something the cookbook already states. Those apply
-    // either way; anything pointing at a number still waits for the book.
+    // alias reads the TARGET's prose through its pre-baked pointer. A
+    // chef-authored spec with no `from` locator is pure structure (a
+    // prerequisite, a companion slot) and applies without the book; anything
+    // pointing at a number still waits for it.
     effects: [...aliasEffects, ...(node?.fields?.effects ?? materializeEffects(entry.fields?.effects?.specs, []))],
-    // `rolls` is assembled below, after the throws have been classified, and
-    // assigned onto this same object — see the note there for why it goes here
-    // rather than to the core item's single roll field.
-    // Immunity-granting abilities (Divine Health, Wakefulness, Fiery
-    // Resistance…) materialize defenses from the seat's OWN prose via the
-    // executor's vocabulary scan — nothing about which is shipped.
+    // `rolls` is assembled below and assigned onto this same object, once the
+    // throws are classified.
+    // Materialized from the seat's OWN prose via the executor's vocabulary
+    // scan — nothing about which is shipped.
     ...(node?.fields?.defenses ? { defenses: node.fields.defenses } : {}),
   };
   // EVERY throw the extract classified becomes a roll, not just the first. The
-  // recipe's own `rolls` (a chef naming each throw) wins when present;
-  // otherwise the classified `throw` effects are lifted in order. Ladders are
-  // carried WHOLE — acks-abilities resolves them against the character's level
-  // or rank at render time, so nothing is flattened on the way in.
-  //
+  // recipe's own `rolls` wins when present; otherwise the classified `throw`
+  // effects are lifted in order. Ladders are carried WHOLE, resolved by
+  // acks-abilities at render time rather than flattened here.
   // These go to the acks-abilities flag and NOT to `system.roll` /
-  // `system.rollTarget`. The core item can hold exactly one roll, so writing
-  // there too would mean two stores for the same thing, disagreeing the moment
-  // an ability has more than one throw — and it is the second store that made
-  // the sheet and the chat card roll different numbers. acks-abilities owns
-  // ability rolls and folds core's fields in on read for items it has not
-  // written; nothing needs a shadow copy.
-  // Throws that come from a class's published TABLE rather than from this
-  // entry's prose \u2014 one per ladder, because how many there are is data. They
-  // lead the list: the books cross-reference the table first and roll whatever
-  // follows second, and that is the order a reader wants the buttons in.
+  // `system.rollTarget`: the core item can hold exactly one roll, so writing
+  // there too would mean two stores for the same thing.
+  // acks-abilities owns ability rolls and folds core's fields in on read for
+  // items it has not written.
+  // Throws from a class's published TABLE lead the list: the books
+  // cross-reference the table first and roll whatever follows second.
   const fromLadders = (entry.fields?.rolls?.specs ?? []).filter((sp) => sp?.fromLadders);
   const borrowed = [];
   for (const sp of fromLadders) {
@@ -4357,17 +4019,12 @@ function itemShelfPath(id) {
 }
 
 /**
- * The folder a definition id's item files under, created on demand.
- *
- * Every item importer asks this and none builds its own path — a second
- * path-builder is a second opinion about where a document belongs, and the
- * price list proved what that costs: its importer filed 172 rows under
- * "Equipment / Price List" while this function said the top level, so whichever
- * ran last won.
- *
- * The shelf comes from the id's first two segments alone, so callers whose ids
- * have no register entry (languages, read from the seat's own book) still land
- * on their shelf.
+ * The folder a definition id's item files under, created on demand. Every
+ * item importer asks this and none builds its own path. The shelf comes from
+ * the id's first two segments alone, so callers whose ids have no register
+ * entry (languages, read from the seat's own book) still land on their shelf.
+ * See docs/importer/DECISIONS.md, "Organize is deleted, because destination
+ * has one author".
  */
 export async function ensureItemFolder(id = null) {
   return ensureFolderPath("Item", itemShelfPath(id));
@@ -4391,34 +4048,19 @@ async function prepareItemShelves() {
 }
 
 /**
- * PARSE every recipe against the connected books and report which ones fail.
- *
- * Writes nothing. A recipe is a set of page coordinates and probes, and the only
- * thing that decides whether it still matches is the printing in front of it —
- * so the question "does this recipe work?" has to be answerable WITHOUT the
- * import that would act on the answer. Before this, a broken recipe surfaced as
- * one warning in a run of hundreds, or as a document that quietly imported with
- * an empty description.
- *
- * Each entry is executed independently: one failure never stops the pass, and
- * every entry gets a row. `ok: false` is the recipe's own name-anchor check
- * failing — the printing moved, or the coordinates were never right for this
- * edition — and `misses` names the fields that threw underneath.
- *
- * The pass shares ONE page cache per book across every entry, which is what
- * makes a whole-corpus audit affordable: the shipped abilities average 5.5
- * entries per page.
+ * PARSE every recipe against the connected books and report which ones fail,
+ * writing nothing. Each entry is executed independently: one failure never
+ * stops the pass. `ok: false` is the recipe's own name-anchor check failing;
+ * `misses` names the fields that threw underneath. The pass shares ONE page
+ * cache per book across every entry. See docs/importer/DECISIONS.md, "The
+ * audit: a recipe answers for itself, without importing".
  *
  * @param {object} [options]
  * @param {string[]} [options.ids] audit only these entry ids
  * @param {string[]} [options.books] audit only entries from these book ids
  * @param {string[]} [options.kinds] audit only these entry kinds
- * @param {boolean} [options.art] decode page artwork too (default false).
- *   An audit asks whether a recipe still matches the PRINTING, which is a text
- *   question; the `art` op decodes a page's placed images and costs SECONDS
- *   where the rest of a recipe costs milliseconds — measured on the Monstrous
- *   Manual at 1.8s for one creature and 15s for another, against 7ms for a
- *   proficiency. Leave it off unless the artwork itself is what is in doubt.
+ * @param {boolean} [options.art] decode page artwork too (default false) —
+ *   costs seconds per entry where the rest of a recipe costs milliseconds.
  * @returns {Promise<{rows: object[], summary: object}>} every row, and the tally
  */
 let lastAuditRows = [];
@@ -4595,18 +4237,12 @@ const bookRank = (bookId) => {
 };
 
 /**
- * Does the document the library holds already say everything this import would?
- *
- * Two entries printed in two books are the same item when nothing but their
- * source differs. Provenance has to come out of the comparison or nothing ever
- * matches — the description is the entry's own text, closing on its citation.
- *
- * DIRECTIONAL, and that is the whole trick. A live document's `system` is a
- * data model carrying every field the schema declares, defaults included, while
- * creation data carries only what the binding set. Comparing the two whole
- * never matches, which is how two identical printings of Laborer's Tools were
- * declared different and tagged instead of merged. So only the keys the INCOMING
- * sets are checked, against what the existing document holds for them.
+ * Does the document the library holds already say everything this import
+ * would? DIRECTIONAL: only the keys the INCOMING data sets are checked,
+ * against what the existing document holds for them — a live document's
+ * `system` carries every schema field, defaults included, so comparing both
+ * whole never matches. See docs/importer/DECISIONS.md, "Same name, two
+ * books: merge unless they differ beyond their source".
  */
 function sameMaterial(existing, data) {
   if ((existing?.type ?? null) !== (data?.type ?? null)) return false;
@@ -4619,30 +4255,19 @@ function sameMaterial(existing, data) {
 }
 
 /**
- * The name a document was PRINTED under, before any book tag was added.
- *
- * Tagging rewrites the name ("Boots" becomes "Boots (RR)"), and a rewritten
- * name no longer collides with the other book's — so a second run would find no
- * collision, reconsider nothing, and a pair tagged by an older build could never
- * later be merged. The printed name is kept on the flag and is what collisions
- * are judged on, so the answer does not depend on how many times this has run.
+ * The name a document was PRINTED under, before any book tag was added. Kept
+ * on the flag and used to judge collisions, so a rewritten (tagged) name
+ * cannot escape being reconsidered. See docs/importer/DECISIONS.md, "Same
+ * name, two books: merge unless they differ beyond their source".
  */
 const printedName = (doc) => doc.getFlag(MODULE_ID, "cookbook")?.printed ?? doc.name;
 
 /**
  * Reconcile a document about to be imported against one the library already
- * holds under the same printed name.
- *
- * THE RULE: two imports sharing a name are one document unless they differ
- * beyond their source. Identical-but-for-provenance means merge — the
- * higher-precedence book's copy is the one kept, and the loser's id is recorded
- * on it so every later lookup, in any order, lands on the same document.
- * Genuinely different means keep both, TAGGED, so a reader can tell which book
- * each came from instead of finding two rows called "Boots".
- *
- * Merging by recording the id (rather than silently not importing) is what
- * makes this idempotent: a merged-away id still resolves, so a second run finds
- * the document rather than minting the twin again.
+ * holds under the same printed name. See docs/importer/DECISIONS.md, "Same
+ * name, two books: merge unless they differ beyond their source". Merging
+ * records the loser's id on the kept document rather than skipping silently,
+ * so a merged-away id still resolves on a later run.
  *
  * @returns {Promise<{skip: true, doc: object} | {skip: false, name?: string}>}
  *   `skip` when the library already answers for this entry; otherwise the name
@@ -4653,9 +4278,8 @@ async function reconcileByName(data, id, bookId) {
   const keys = nameKeys(data.name);
   if (!keys.size) return { skip: false };
 
-  // Asked once per document being imported, so it reads an INDEX rather than
-  // the library: loading every pack document per item made the equipment import
-  // quadratic all over again, in the check meant to keep it clean.
+  // Reads an INDEX rather than the library — see docs/importer/DECISIONS.md,
+  // "Same name, two books: merge unless they differ beyond their source".
   const index = await libraryNameIndex();
   const candidates = new Set();
   for (const k of keys) for (const doc of index.get(k) ?? []) candidates.add(doc);
@@ -4665,13 +4289,8 @@ async function reconcileByName(data, id, bookId) {
     if (!otherId || otherId === id) continue;
 
     const otherBook = other.getFlag(MODULE_ID, "cookbook")?.book ?? bookOf(cookbookEntry(otherId));
-    // Never across LINES. Everything below is a claim that two BOOKS printed
-    // one thing — merge the reprint, or tag both so a reader can tell them
-    // apart. Two GAMES printing "Rope" is neither: merging rewrites the name,
-    // system and identity of somebody's OSE import in favour of the ACKS entry
-    // (which always outranks it, whether its book is unranked or merely
-    // declared later), and tagging would label it as an edition of a book it
-    // has nothing to do with.
+    // Never across LINES.
+    // See docs/importer/DECISIONS.md, "Reconciling is a claim about one game's library".
     if (lineOf(bookOfCookbookId(otherId, otherBook)) !== lineOf(bookOfCookbookId(id, bookId))) continue;
     if (sameMaterial(other, data)) {
       // The same item, printed twice. Keep the higher-precedence copy and teach
@@ -4709,21 +4328,11 @@ async function reconcileByName(data, id, bookId) {
 
 /**
  * One page cache per BOOK, living exactly as long as one bulk run.
- *
- * `executeEntry` caches pages for the duration of a single call, which is the
- * right lifetime for a single entry and the wrong one for a corpus: the shipped
- * abilities put a mean of 5.5 entries on each page and as many as 19 on one, so
- * a per-entry cache re-extracts the same page for every entry printed on it.
- * Measured on the Judges Journal's p.322 dictionary spread: 19 entries, 15.8s,
- * a flat ~833ms each — the cost of `getTextContent()`, paid nineteen times for
- * one page. Across the ability corpus that is 579 page reads for 105 distinct
- * pages, 82% of them redundant.
- *
- * Keyed by book because a page number means nothing without one, and handed out
- * as a function so a caller threads ONE object through a whole run and drops it
- * at the end. Nothing here outlives the run: a session-long cache would hold
- * every page of every opened book for as long as the world is up, which is the
- * memory the per-call cache was avoiding.
+ * `executeEntry` caches pages only for the duration of a single call, which
+ * re-extracts the same page for every entry printed on it. Nothing here
+ * outlives the run — a session-long cache would hold every page of every
+ * opened book for as long as the world is up.
+ * See docs/importer/DECISIONS.md, "Writes are batched, because a write costs what the shelf already holds".
  *
  * @returns a `(bookId) => Map` to pass as `executeEntry`'s `opts.pageCache`
  */
@@ -4756,16 +4365,12 @@ export async function importAbility(id, folderId, { pageCache = null } = {}) {
 }
 
 /**
- * Everything an ability import does EXCEPT the write.
- *
- * Split out because the write is the expensive half and only batching makes it
- * cheap (see `createDocs`): a bulk run builds every document first and then
- * writes them a chunk at a time, which it cannot do while building and writing
- * are one call. Building is pure-ish and fast — a definition parses in about
- * 7ms — so a whole corpus can be built before anything is written.
- *
- * Returns creation data with its folder already resolved, or null when the
- * entry is unknown.
+ * Everything an ability import does EXCEPT the write. Split out so a bulk
+ * run can build every document first and write them in chunks (`createDocs`),
+ * which building and writing as one call cannot do. Returns creation data
+ * with its folder already resolved, or null when the entry is unknown. See
+ * docs/importer/DECISIONS.md, "Writes are batched, because a write costs
+ * what the shelf already holds".
  */
 async function abilityData(id, { folderId = null, pageCache = null } = {}) {
   const found = cookbookEntry(id);
@@ -4786,14 +4391,12 @@ async function abilityData(id, { folderId = null, pageCache = null } = {}) {
 }
 
 /**
- * Definition kinds that do NOT bind to an `ability` item.
- *
- * A content-type cookbook is not automatically an ABILITY cookbook: equipment
- * binds to a core inventory item. Every ability path walks the content
- * cookbooks generically, so a new non-ability kind silently joins the ability
- * import unless it is excluded here — which is exactly what shipped in
- * v0.26.0 and produced `category: equipment is not a valid choice` when the
- * ability sheet tried to validate items that should never have been abilities.
+ * Definition kinds that do NOT bind to an `ability` item. A content-type
+ * cookbook is not automatically an ABILITY cookbook: every ability path walks
+ * the content cookbooks generically, so a new non-ability kind silently joins
+ * the ability import unless it is excluded here. See
+ * docs/importer/DECISIONS.md, "A namespace with no shelf is a failing test,
+ * not a folder nobody notices".
  */
 const NON_ABILITY_KINDS = new Set([
   "kind.equipment",
@@ -4804,9 +4407,7 @@ const NON_ABILITY_KINDS = new Set([
   "kind.variation",
   "kind.vehicle",
   // A conversion constant is a NUMBER the converter is handed at run time
-  // (readScgConstants), never a document. Missing from this list it joined the
-  // generic ability walk and minted four `ability` items nothing reads — the
-  // silent join this list exists to prevent, one kind later.
+  // (readScgConstants), never a document.
   "kind.constant",
 ]);
 
@@ -4853,25 +4454,14 @@ const splitList = (s) =>
 const isAwardableByName = (entry) => !NON_ABILITY_KINDS.has(entry?.kind) && entry?.kind !== "kind.language";
 
 /**
- * Every printed SURFACE a class list or template cell can name, resolved once.
- *
- * A definition is printed under more than one surface: its own name, plus any
- * authored `aliases` recording a second form the books use for the same thing.
- * Both the list path and the cell path read this ONE index, because they used
- * to read two that disagreed — a length-sorted menu whose ties fell to cookbook
- * load order, and a flat last-wins map — so twenty printed names, "Acrobatics"
- * and "Climbing" among them, resolved to a class POWER on one path and the
- * PROFICIENCY on the other. A cell then granted a power the character was not
- * owed AND, because `ownsRef` matches on type and name, silently refused them
- * the proficiency ever after.
- *
- * Collisions are arbitrated by `byCategory` — the same ranking the monster
- * path uses, which prefers a proficiency to a same-named power. The world's
- * holdings are deliberately NOT consulted here: `preferredId` would hand a
- * single world-held candidate the answer outright, so a world holding the
- * powers but not the proficiency list would bind a class's printed "Alertness"
- * to the power. What a class's spread means is a fact about the book, not
- * about what has been imported yet.
+ * Every printed SURFACE a class list or template cell can name, resolved
+ * once — a definition's own name plus any authored `aliases`. Both the list
+ * path and the cell path read this ONE index. Collisions are arbitrated by
+ * `byCategory`, the same ranking the monster path uses; the world's holdings
+ * are deliberately NOT consulted, since what a class's spread means is a
+ * fact about the book, not about what has been imported yet. See
+ * docs/importer/DECISIONS.md, "A second printed name for a shipped entry is
+ * authored on the entry".
  *
  * @returns {{byKey: Map<string, {ref: string, name: string, ambiguous: boolean}>,
  *           menu: Array<{surface: string, name: string, ref: string, alias: boolean}>}}
@@ -4980,31 +4570,13 @@ export function tokenizeProfs(cellText, menu) {
   return out.map(({ tail, ...e }) => e);
 }
 
-/** One menu row: the printed name, the id it points at, and both folds. Each
- *  row also folds its PAREN-STRIPPED name — "Spell Book (Blank)" is the base an
- *  "iron-shod spellbook" is an instance of, and only the stripped fold sees it. */
 /**
- * Every way this catalogue prints ONE name.
- *
- * Two conventions, and they are conventions rather than exceptions — the price
- * list uses them throughout, so they are read by rule and not authored per
- * entry.
- *
- * **Head first, qualifier after the comma.** The list writes "Rations, Iron",
- * "Rope, 50’", "Sack, Small", "Horse, Medium riding", "Saddle and tack,
- * Riding"; a template's cell writes the same things as English — "1 week’s
- * iron rations", "50’ rope", "small sack". Rotating the commas back gives the
- * form the cell actually contains. Without it the two halves of the catalogue
- * could never meet, and they did not: 250-odd printed descriptors matched
- * nothing because of this alone.
- *
- * **A slash names one thing twice.** "Sandals/Shoes", "Waterskin/Wineskin",
- * "Pouch/purse", "Belt/Sash, Leather" — one printed row, either word, and a
- * cell picks whichever it likes.
- *
- * The HEAD alone is deliberately not a form: "Sandals/Shoes, Leather, High"
- * must not answer for a bare "sandals", which is the described entry's own
- * name and already in the menu.
+ * Every way this catalogue prints ONE name: head-first with its qualifier
+ * after a comma rotated back to the cell's English order, and slash
+ * alternatives expanded to one row per word. The HEAD alone is deliberately
+ * not a form, or a qualified row would answer for a bare name that is
+ * another row's own. See docs/importer/DECISIONS.md, "The catalogue's
+ * conventions are rules; what is left is authored".
  */
 export function nameForms(name) {
   const raw = String(name ?? "").trim();
@@ -5050,20 +4622,10 @@ function menuRow(name, ref) {
 /**
  * The gear a template's Starting Equipment cell can name, longest first.
  *
- * TWO SOURCES, because a reader's gear arrives down two pipelines. The run-in
- * cookbook describes the shop list (`kind.equipment`); weapons, armour and
- * priced rows are materialized from the reader's own GRIDS and mint their own
- * ids (`def.weapon.sword`, `def.armor.plate`, `def.priced.silk-1-lb`), which
- * are not cookbook entries and never will be. A menu built from the cookbook
- * alone therefore cannot see a single weapon: a template naming a sword pointed
- * at nothing, "war hammer" bound to the carpentry Hammer the shop list does
- * carry, and a printed pair of weapons never split because neither half was a
- * known item.
- *
- * `extra` is that second source, read from what this import has already
- * created. Equipment lands before classes (the Getting Started step order), so
- * a class binds after its weapons exist. A cookbook entry wins on a shared id;
- * the grids only fill what the cookbook is silent about.
+ * Merges two pipelines: the cookbook's `kind.equipment` rows, then `extra`
+ * (gear this import has already materialized, keyed by its own def id). A
+ * cookbook entry wins on a shared id.
+ * See docs/importer/DECISIONS.md, "A template's equipment menu is BOTH pipelines, and a short name is a whole word".
  */
 function equipmentMenu(extra = []) {
   const menu = [];
@@ -5091,13 +4653,9 @@ const GEAR_DOC_TYPES = new Set(["weapon", "armor", "item"]);
  * imported index rather than `game.items`, so a compendium-mode world resolves
  * its templates against the same gear a world-mode one does.
  *
- * A TEMPLATE PART IS NOT AN IMPORT. Extras skins a template's gear by copying
- * the base document, and a copy carries the original's flags — so a world holds
- * a dozen documents stamped `def.weapon.staff`, only one of which is the Staff.
- * Offering "Aged and dusty staff" as the menu's name for that id would make one
- * template's description the catalogue name every other template matches
- * against. Extras publishes the flag naming what a document is part of; a
- * document carrying it is skipped.
+ * Skips any document carrying the `templatePart` flag — a copied skin, not the
+ * base item.
+ * See docs/importer/DECISIONS.md, "A template part is not an import".
  */
 async function materializedGearMenu() {
   const rows = [];
@@ -5121,20 +4679,15 @@ const FUNCTION_WORD = new Set([
 
 /**
  * Parse a template's Starting Equipment cell into item descriptors, coin and
- * the encumbrance note. Every descriptor resolves against the menu — the
- * equipment cookbook plus the grids a reader has materialized beside it — in
- * each of the forms that catalogue prints its names in (`nameForms`), or
- * through an authored equivalence ("long bearded axe" is a great axe). Each
- * keeps its printed wording as the skin, and its printed price where the cell
- * states one; what resolves to nothing imports as a bare named item, which for
- * the goods these cells price in place is the whole of what the page said.
+ * the encumbrance note. Each descriptor resolves against `menu` (in any of
+ * `nameForms`, or via an authored alias) and keeps its printed wording as the
+ * skin and its printed price where the cell states one; an unresolved
+ * descriptor still imports as a bare named item.
  *
- * SPLITTING THE CELL IS THIS FUNCTION'S JOB. Deciding what a piece IS is not,
- * and two kinds of piece are not gear at all: a spell recorded in the book it
- * came packed with, and a creature an ability confers. Both are lifted off the
- * item list afterwards, by `liftBookSpells` and `liftCompanions`, which have
- * the ability and spell models to hand where this function has only wording.
- * What survives all three is gear. See ROADMAP.md § Starting equipment.
+ * Splitting the cell is this function's job; deciding what a piece IS is not —
+ * a spell recorded in its own book and a creature an ability confers are
+ * lifted off the item list afterwards, by `liftBookSpells` and
+ * `liftCompanions`. See docs/importer/ROADMAP.md § Starting equipment.
  */
 export function parseEquipment(cellText, menu, aliases = {}) {
   let text = String(cellText ?? "").replace(/\s+/g, " ").trim();
@@ -5144,20 +4697,14 @@ export function parseEquipment(cellText, menu, aliases = {}) {
     enc = encMatch[0].replace(/[().]/g, "").trim();
     text = text.slice(0, encMatch.index).trim().replace(/,\s*$/, "");
   }
-  // Printed starting coin. Most templates pay in gold, but a few pay partly or
-  // wholly in silver — "1gp, 8sp", "20sp for alms", "65sp" — and a template
-  // that prints only silver leaves its character with nothing if only gold is
-  // read. A coin amount taken here is REMOVED from the text, so what is left
-  // for the item splitter is equipment and nothing else.
+  // Printed starting coin, in gold or silver. Removed from the text so the
+  // item splitter sees only equipment.
   let gp = 0;
   let sp = 0;
-  // AN AMOUNT INSIDE BRACKETS PRICES THE ITEM IT FOLLOWS. "(45gp value)" is
-  // what a gemstone-tipped staff is worth, not money the character carries;
-  // taking it inflated the purse AND cut the item's name off at the bracket,
-  // because the lift eats to the next comma. The BRACKET is the test, not the
-  // word "value" after the amount — the same tables print "(20gp)" bare, and
-  // that spelling was still read as coin: a witch's silver earrings arrived
-  // named "silver earrings (" with 20gp added to her purse.
+  // An amount inside brackets prices the item it follows, not coin the
+  // character carries; the bracket is the test, not any word after the
+  // amount.
+  // See docs/importer/DECISIONS.md, "Two things read off a cell that were never in it".
   const bracketed = new Set();
   for (const b of text.matchAll(/\([^)]*\)/g)) {
     for (let i = b.index; i < b.index + b[0].length; i++) bracketed.add(i);
@@ -5179,19 +4726,12 @@ export function parseEquipment(cellText, menu, aliases = {}) {
     .map(([k, v]) => ({ text: k, fold: fold(k), ref: typeof v === "string" ? v : (v?.ref ?? "") }))
     .filter((a) => a.fold && a.ref)
     .sort((a, b) => b.fold.length - a.fold.length);
-  // WHICH known item does this descriptor point at? Deliberately generous: the
-  // printed wording is a description ("smooth-worn staff"), not a catalogue
-  // name, so a contained name is the usual way a real cell resolves. Six
-  // characters is the floor at which bare containment stops being a
-  // coincidence. A SHORTER name is still findable, but only as a whole word of
-  // the descriptor — "sword" in "polished sword", never "mace" in "grimace" —
-  // and a trailing plural is part of that word, because a cell that prints
-  // "torches" names the Torch the menu holds. Below four characters nothing is
-  // safe enough to match this way at all ("oil", "net", "sap", "hat").
-  //
-  // ACKS Extras applies the same rule to WORLD documents (`bestBaseMatch` in
-  // classes/template-packages.mjs); the two must agree, or a descriptor
-  // resolves to one base here and skins itself over another one there.
+  // A contained name resolves a descriptor's printed wording ("smooth-worn
+  // staff") to a catalogue item. Six characters is the bare-containment floor;
+  // shorter names must match a whole word (trailing plural included). ACKS
+  // Extras applies the same floors to world documents (`bestBaseMatch` in
+  // classes/template-packages.mjs) and the two must agree.
+  // See docs/importer/DECISIONS.md, "A template's equipment menu is BOTH pipelines, and a short name is a whole word".
   const LOOSE_FLOOR = 6;
   const WORD_FLOOR = 4;
   // Seams are `\s*`, never `\s+`: real extraction welds words together.
@@ -5204,9 +4744,8 @@ export function parseEquipment(cellText, menu, aliases = {}) {
     if (form.fold.length >= LOOSE_FLOOR) return true;
     return form.fold.length >= floor && wholeWordIn(form.text, descriptor);
   };
-  // An AUTHORED key may be shorter than an inferred one — "hat" is a chef's
-  // statement about a printed word, not a catalogue name a rule went looking
-  // for — and the whole-word test still stands between it and "that".
+  // An authored key may be shorter than an inferred one; the whole-word test
+  // still applies.
   const AUTHORED_FLOOR = 3;
   // `forms` before `stripped`, so a name that matches as printed is preferred
   // over one that only matches once its bracketed qualifier is dropped. Both
@@ -5227,9 +4766,10 @@ export function parseEquipment(cellText, menu, aliases = {}) {
       ""
     );
   };
-  // The catalogue joins a SET's parts with a comma — "Quiver, 20 Arrows",
-  // "Case, 20 Bolts" — and a template's cell joins the same parts with "with".
-  // Asked a second time without it, the two spellings meet.
+  // The catalogue joins a SET's parts with a comma; a template's cell joins
+  // the same parts with "with". Asked a second time without it, the two
+  // spellings meet.
+  // See docs/importer/DECISIONS.md, "The catalogue's conventions are rules; what is left is authored".
   const resolve = (descriptor) => {
     const direct = lookup(descriptor);
     if (direct) return direct;
@@ -5242,17 +4782,10 @@ export function parseEquipment(cellText, menu, aliases = {}) {
    *
    * A different question from `resolve`, and it has to be asked differently.
    * The pair rule below splits "X and Y" only when the whole thing is not
-   * already a known item — "tunic and pants" is one printed outfit at one
-   * printed price and must stay whole. Asking `resolve` that question let its
-   * containment fallback answer yes for the wrong reason: "spear and short
-   * sword" CONTAINS "short sword", so the joined string read as an
-   * already-known item and the pair never split. The character got one item
-   * named for two weapons, and the longer the second weapon's name the more
-   * certain it was — the rule only ever fired when both halves happened to fold
-   * shorter than six characters.
-   *
-   * So this matches the whole descriptor and nothing less: an exact menu name
-   * (with or without its bracketed qualifier) or an exact alias key.
+   * already a known item. `resolve`'s containment fallback is too generous
+   * for this question, so this matches the whole descriptor and nothing
+   * less: an exact menu name (with or without its bracketed qualifier) or an
+   * exact alias key.
    */
   const resolveWhole = (descriptor) => {
     const f = fold(descriptor);
@@ -5261,22 +4794,13 @@ export function parseEquipment(cellText, menu, aliases = {}) {
   };
   const items = [];
   const push = (descriptor, note = "") => {
-    // Nothing but connective tissue is not a thing. Taking the coin out of a
-    // clause removes the amount and what it was for — "and a further 20gp of
-    // equipment of the character's choosing" leaves "a further" — and the
-    // remainder went on the sheet as an item by that name. Naming the closed
-    // set of function words, rather than the one phrase that was reported,
-    // catches the same wreckage whatever wording strands it; a real piece of
-    // gear always carries a word that is not on this list.
+    // Nothing but connective tissue is not a thing — taking the coin out of a
+    // clause can strand a bare remainder with no gear word in it.
     if (!descriptor || descriptor.split(/\s+/).every((w) => FUNCTION_WORD.has(w.toLowerCase().replace(/[^a-z]/g, "")))) return;
     const qty = parseInt(/^(\d+)\s/.exec(descriptor)?.[1] ?? "1", 10);
-    // WHAT THE PAGE SAYS THIS ONE IS WORTH. A bracketed amount is the cell
-    // pricing the item in front of the reader — "(20gp value)", "(45gp value)",
-    // and the same amount written bare — and it is the only value most of these
-    // goods will ever have: the catalogue has no row for a bladedancer's head
-    // dress, which is exactly why the cell prices it. Read off the reader's own
-    // page like every other imported number, and it OVERRIDES a base's price
-    // when there is a base, because the page is talking about this item.
+    // A bracketed amount prices the item in front of the reader and overrides
+    // a base's price when there is one.
+    // See docs/importer/DECISIONS.md, "What the page says a thing is worth is imported with it".
     const priced = /\((\d[\d,]*)\s*gp[^)]*\)/i.exec(descriptor);
     const cost = priced ? parseInt(priced[1].replace(/,/g, ""), 10) : null;
     items.push({
@@ -5288,41 +4812,29 @@ export function parseEquipment(cellText, menu, aliases = {}) {
       ...(Number.isFinite(cost) && cost > 0 ? { cost } : {}),
     });
   };
-  // SEMICOLONS SEPARATE TOO. A printed equipment cell punctuates the way its
-  // author saw fit: some list with commas throughout, others group with commas
-  // and separate the groups with semicolons ("spellbook with discern magic and
-  // one spell of character's choice; smooth-worn staff, blue robe"). Splitting
-  // on the comma alone fused whatever followed a semicolon onto the item before
-  // it, and the character started play holding a staff welded to a spell.
-  // A semicolon inside brackets is left alone for the same reason a comma is.
+  // Semicolons separate too, alongside commas; one inside brackets is left
+  // alone for the same reason a comma is.
   /* --- chunking, and the two clauses that span chunks --------------------- */
   //
-  // The separators split a cell into chunks, but two printed constructions are
-  // written ACROSS them and have to be put back before anything is read.
-  // A FULL STOP CAN BE A SEPARATOR TOO, because a printed cell can carry a
-  // typo: one template's list runs "…waterskin. 1 week's iron rations…" where
-  // every other one has a comma there, and read as a single descriptor the
-  // rations vanished into the waterskin's name. Only a stop followed by the
-  // start of another descriptor counts, and never one inside brackets — which
-  // is where the abbreviations live ("(enc. 6 2/6 st)").
+  // The separators split a cell into chunks; two printed constructions are
+  // written ACROSS them and are rejoined below before anything is read.
+  // A full stop can be a separator too — only one followed by the start of
+  // another descriptor, and never inside brackets, where the abbreviations
+  // live.
+  // See docs/importer/DECISIONS.md, "Two things read off a cell that were never in it".
   const chunks = text
     .split(/[,;](?![^(]*\))|\.(?![^(]*\))(?=\s+[a-z0-9])/i)
-    // TRIM FIRST. Every chunk after the first begins with the space that
-    // followed its separator, so a leading-"and" strip applied before trimming
-    // can only ever match the first chunk — which is the one that never starts
-    // with "and". That put "and one spell of character's choice" on the sheet
-    // as the name of an item.
+    // Trim before stripping a leading connective — every chunk after the
+    // first begins with the separator's space, which a pre-trim strip would
+    // miss.
     .map((raw) => raw.replace(/\s+/g, " ").trim().replace(/[.]$/, "").trim())
     .filter(Boolean);
 
-  // A BOOK'S CONTENTS ARE AN ENGLISH LIST, and an English list is commas until
-  // the last item, which carries the "and". "Bark-bound prayer book with remove
-  // fear, angelic choir, and counterspell" is ONE book; split on the comma it
-  // became a book and two pieces of gear named for spells, which then went on
-  // the character's sheet as inventory. The clause is rejoined from the "…book
-  // with" chunk up to and including the chunk that opens with "and" — the list
-  // has to actually close that way within a few chunks, or nothing is absorbed
-  // and a cell that merely mentions a book is left alone.
+  // A book's contents are an English list: commas until the last item, which
+  // carries the "and". Rejoined from the "…book with" chunk up to and
+  // including the chunk that opens with "and", only if the list actually
+  // closes that way within a few chunks.
+  // See docs/importer/DECISIONS.md, "The catalogue's conventions are rules; what is left is authored".
   const BOOK_WITH = /\b(?:spell\s*book|spellbook|prayer\s*book|book)\s+with\b/i;
   const LIST_TAIL = /^and\s+/i;
   const LIST_REACH = 4;
@@ -5342,10 +4854,9 @@ export function parseEquipment(cellText, menu, aliases = {}) {
         continue;
       }
     }
-    // A STRAY COMMA INSIDE ONE PRINTED NAME. "hunter green cloak, tunic, and
-    // pants" is a cloak and an outfit, not a cloak, a tunic and some pants:
-    // rejoining is allowed only when the menu knows the two chunks together as
-    // one item, so an ordinary list is never welded.
+    // A stray comma inside one printed name: rejoining is allowed only when
+    // the menu knows the two chunks together as one item, so an ordinary list
+    // is never welded.
     const prev = joined[joined.length - 1];
     if (prev && LIST_TAIL.test(chunks[i]) && resolveWhole(`${prev} ${chunks[i]}`)) {
       joined[joined.length - 1] = `${prev} ${chunks[i]}`;
@@ -5357,27 +4868,20 @@ export function parseEquipment(cellText, menu, aliases = {}) {
   for (const chunk of joined) {
     const descriptor = chunk.replace(/^and\s+/i, "").trim();
     if (!descriptor) continue;
-    // A counted container splits into itself and its contents — "sack with 12
-    // iron spikes" is a sack plus twelve spikes, and the count belongs on the
-    // spikes where the sheet can spend it. Only a DIGIT after "with" splits;
-    // "pouch with herbs" stays one item.
-    //
-    // UNLESS THE CATALOGUE SELLS THE SET. "Quiver, 20 Arrows" and "Case, 20
-    // Bolts" are single priced rows, and the cell writes them "quiver with 20
-    // arrows": split, the character got two things the price list has never
-    // heard of and the encumbrance was counted twice.
+    // A counted container splits into itself and its contents; only a digit
+    // after "with" splits, and never when the menu already resolves the
+    // whole descriptor as a catalogue set.
+    // See docs/importer/DECISIONS.md, "The catalogue's conventions are rules; what is left is authored".
     const container = /^(.+?)\s+with\s+(\d+)\s+(.+)$/i.exec(descriptor);
     if (container && !resolve(descriptor)) {
       push(container[1]);
       push(`${container[2]} ${container[3]}`, `carried in ${container[1].toLowerCase()}`);
       continue;
     }
-    // A CLOSING BRACKET CAN END A DESCRIPTOR. One cell prints its holy book and
-    // the quill after it with no comma between them — "holy book (the book of
-    // the awakening) quill" — and read whole the quill was swallowed by the
-    // book's name. The same guard as the pair rule below: it splits only when
-    // what follows the bracket is itself a known item, so every "(20gp value)"
-    // and "(white bird)" that ends a descriptor is left exactly as printed.
+    // A closing bracket can end a descriptor with no comma after it; the same
+    // guard as the pair rule below, splitting only when what follows the
+    // bracket is itself a known item.
+    // See docs/importer/DECISIONS.md, "Two things read off a cell that were never in it".
     const bracketed = /^(.*\))\s+(\S.*)$/.exec(descriptor);
     if (bracketed && resolve(bracketed[1]) && resolve(bracketed[2])) {
       push(bracketed[1]);
@@ -5389,11 +4893,9 @@ export function parseEquipment(cellText, menu, aliases = {}) {
     // outfit, one printed price) is a known item WHOLE and stays whole. The
     // whole-descriptor test is `resolveWhole`, never `resolve`: see there.
     //
-    // "UNDER" PAIRS THE SAME WAY. The templates dress a character in both at
-    // once — "leather armor under blue mage's cassock", "leather armor under
-    // white druid's robes" — and read as one descriptor the cassock was lost
-    // inside the armour's name: nine characters started play with a garment
-    // they are printed as wearing and did not have.
+    // "Under" pairs the same way — the templates dress a character in both at
+    // once.
+    // See docs/importer/DECISIONS.md, "The catalogue's conventions are rules; what is left is authored".
     const pair = /^(.+?)\s+(?:and|under)\s+(.+)$/i.exec(descriptor);
     if (pair && !resolveWhole(descriptor) && resolve(pair[1]) && resolve(pair[2])) {
       push(pair[1]);
@@ -5410,26 +4912,13 @@ export function parseEquipment(cellText, menu, aliases = {}) {
  * list. Mutates the matched item (its name is cut back to the book, and the
  * printed sentence is preserved on its note) and returns the spells.
  *
- * A BOOK PRINTS ITS CONTENTS INLINE — "musty old spellbook with beguile
- * humanoid and auditory illusion", "Ancient prayer book with counterspell,
- * predict weather, and cure light injury". The book stays the ITEM, with its
- * embellished name intact; the spells move to where the binder's schema has
- * carried them all along. A divine caster's book is a PRAYER book and prints
- * its spells the same way, so both spellings are read — and only after
- * `parseEquipment` has put the clause back together across the commas of its
- * own list, which is where a prayer book's spells used to be torn off and land
- * on the character as inventory.
+ * Reads both spellbook and prayer-book spellings, after `parseEquipment` has
+ * rejoined the clause across its own list's commas. A choice clause ("one
+ * spell of character's choice") rides as a nameless row whose `offer` is set,
+ * with a stable `key`, rather than as a spell or a dropped sentence.
+ * See docs/importer/DECISIONS.md, "A printed pick rides as an offer, not as a dropped sentence".
  *
- * A CHOICE IS NOT A SPELL — IT IS AN OFFER. "and one spell of character's
- * choice" names a pick the player has still to make; minted as a spell it
- * became a document called "One spell of character's choice". But dropped
- * entirely it was worse: the printed sentence survived only on the item's note,
- * where nothing on the character shows it and the pick is simply never made. So
- * the clause rides as a row that carries no name and IS the offer, which the
- * engine turns into a marker the player answers. The printed sentence stays on
- * the note either way.
- *
- * A DIGIT after "with" is a load, not a library: "quiver with 20 arrows".
+ * A digit after "with" is a load, not a library: "quiver with 20 arrows".
  */
 export function liftBookSpells(items) {
   const BOOK_CONTENTS = /^(.*?(?:spell\s*book|spellbook|prayer\s*book))\s+with\s+(.+)$/i;
@@ -5464,27 +4953,15 @@ export function liftBookSpells(items) {
 }
 
 /**
- * A TOTEM ANIMAL IS A CREATURE, NOT A TRINKET.
+ * Lift a totem-animal or familiar phrase off the equipment list and turn it
+ * into the naming ability's SELECTION, rather than an item with no base.
  *
- * "Rat totem animal", "Black cat familiar" — printed in the Starting Equipment
- * cell, but naming neither gear nor anything the character carries. The ability
- * that confers the creature is granted elsewhere (a class award, or the
- * proficiency column beside this very cell) and it carries an EMPTY companion
- * slot on purpose: WHICH creature it is was never a property of the ability,
- * and `resolveCompanion` leaves the slot open for exactly this reason. The
- * template is the thing that answers the question, so the phrase becomes that
- * ability's SELECTION.
- *
- * Read as gear it was minted as an item with no base, no mechanics and no
- * creature behind it — a rat on the character's equipment list — and, worse,
- * a DUPLICATE: a witch whose proficiency column already printed "Familiar" got
- * the ability and an item named for its cat.
- *
- * The selection lands on the row's existing entry for that ability when it has
- * one and has not already been given a selection by the proficiency column;
- * otherwise the entry is added, carrying the ref. Either way the specialized
- * copy is stamped `grantedFrom` that ref, which is what stops the class's own
- * award of the same ability from granting it a second time.
+ * The selection lands on the row's existing entry for that ability when there
+ * is one and it has no selection yet; otherwise an entry is added, carrying
+ * the ref. Either way the specialized copy is stamped `grantedFrom` that ref,
+ * so the class's own award of the same ability does not grant it a second
+ * time.
+ * See docs/importer/DECISIONS.md, "A totem animal is a creature, and the template is which one".
  *
  * Mutates `items` (the phrase is removed) and `abilities`. Returns how many
  * were lifted.
@@ -5563,16 +5040,6 @@ export function proseGainSchedule(body) {
 }
 
 /**
- * Bind one executed class entry to `acks-extras.class` item data. Everything
- * numeric or listed comes from `node` (the reader's own book); with no book
- * the item still imports as a stub the constructor sheet explains.
- * `opts.gains` is this class's Proficiencies-Gained-per-Level row — each C
- * becomes a class-proficiency ChoiceSpec award, each G a general one.
- * `opts.gear` is the grid-materialized half of the equipment menu (see
- * `equipmentMenu`); omitted, a template's cell can name no weapon and no
- * armour, so the caller supplies it.
- */
-/**
  * Every dash a page may print in an empty cell. A dash says the character
  * cannot act at that rung at all; every other non-numeric cell says the rung is
  * reached without a throw.
@@ -5580,25 +5047,17 @@ export function proseGainSchedule(body) {
 const DASHES = new Set(["-", "\u2010", "\u2011", "\u2012", "\u2013", "\u2014", "\u2015", "\u2212"]);
 
 /**
- * A grid keyed on a NAME rather than on a level, as one LADDER per row.
+ * A grid keyed on a NAME rather than on a level, as one LADDER per row \u2014
+ * each row's cells sorted by the header's level scale into `{atLevel, value}`
+ * or `{atLevel, outcome, text}` rungs.
  *
- * The rebuking table is the case: its rows are kinds of undead and its columns
- * are the class's levels. Each row becomes a ladder a throw can name, so every
- * class that reads that table at a fraction of its own level borrows the one
- * published copy instead of re-reading the page.
+ * The cell rule is structural and holds no printed letter: a numeric cell is
+ * a target, a dash is a rung the character cannot act on, anything else
+ * non-empty is a rung reached without a throw.
+ * See docs/importer/DECISIONS.md, "A grid may be keyed on a name, and its cells need not be numbers".
  *
- * The SCALE is the header row, read from the seat's own page \u2014 which levels the
- * table prints, how many there are, and where it stops are values like any
- * other, and none of them is known here.
- *
- * The CELL RULE is structural and holds no printed letter: a cell that parses
- * as a number is a target, a dash is a rung the character cannot act on, and
- * anything else non-empty is a rung reached without a throw. What the page
- * prints there rides through as `text`, from the reader\u2019s own book \u2014 a rule
- * that knew what the letters meant would be shipping the rule.
- *
- * THE one derivation of these keys, so an ability that names a ladder and the
- * class that publishes it cannot disagree about what it is called.
+ * The one derivation of these keys, so an ability naming a ladder and the
+ * class publishing it cannot disagree about what it is called.
  */
 export function gridLadders(grid, prefix) {
   const scale = new Map();
@@ -5634,13 +5093,9 @@ export function gridLadders(grid, prefix) {
 }
 
 /**
- * The ladders a `fromLadders` spec expands over, read from the class entry that
- * publishes them.
- *
- * Resolved from the COOKBOOK rather than from a document already in the world,
- * so it does not matter whether the class has been imported yet \u2014 and rather
- * than from a run-level channel, because entries are executed independently and
- * one asking another for its fields is the smaller change.
+ * The ladders a `fromLadders` spec expands over, read from the class entry
+ * that publishes them. Resolved from the cookbook rather than a world
+ * document, so it does not matter whether the class has been imported yet.
  *
  * @returns {Promise<Array<{key: string, label: string}>>} empty when the class
  *   entry, its book, or the grid is unreachable \u2014 a missing table drops the
@@ -5668,6 +5123,16 @@ export async function laddersFromSpec(spec, { pageCache = null } = {}) {
   return gridLadders(grid, spec.prefix ?? "").map(({ key, label }) => ({ key, label }));
 }
 
+/**
+ * Bind one executed class entry to `acks-extras.class` item data. Everything
+ * numeric or listed comes from `node` (the reader's own book); with no book
+ * the item still imports as a stub the constructor sheet explains.
+ * `opts.gains` is this class's Proficiencies-Gained-per-Level row — each C
+ * becomes a class-proficiency ChoiceSpec award, each G a general one.
+ * `opts.gear` is the grid-materialized half of the equipment menu (see
+ * `equipmentMenu`); omitted, a template's cell can name no weapon and no
+ * armour, so the caller supplies it.
+ */
 export function bindClass(entry, node, id, { gains = null, commonName = null, gear = [] } = {}) {
   const cite = entry.cite ?? "";
   const f = node?.fields ?? {};
@@ -5737,17 +5202,8 @@ export function bindClass(entry, node, id, { gains = null, commonName = null, ge
     values,
   }));
 
-  // A grid keyed on a NAME rather than on a level — the crusader's rebuking
-  // table, whose rows are undead types and whose columns are the crusader's
-  // levels. Each row becomes one ladder, so a throw can name it the same way it
-  // names a thief's Climb Walls, and every class that rebukes at a fraction of
-  // its level borrows the one published table instead of re-reading the page.
-  //
-  // The CELL RULE is structural and holds no printed letter: a cell that parses
-  // as a number is a target, a dash is a rung the character cannot act on, and
-  // anything else non-empty is a rung reached without a throw. Which letter the
-  // page prints there rides through as `text`, from the reader's own book — a
-  // rule that knew what the letters meant would be shipping the rule.
+  // A grid keyed on a NAME rather than on a level (the crusader's rebuking
+  // table) — see `gridLadders`.
   ladders.push(...gridLadders(f.rebuking, "rebuke"));
 
   // One combined attack-and-saves table, or the split pair the priestess and
@@ -5897,14 +5353,11 @@ export function bindClass(entry, node, id, { gains = null, commonName = null, ge
     awards.sort((a, b) => a.atLevel - b.atLevel);
   }
 
-  /* --- languages (RR §I.10, read off the spread) ---
-     A demi-human spread prints its whole list in a Tongues runin — racial
-     tongue, the common one, and the rest — with no pick left open beyond what
-     Intellect buys, so the parse IS the granted list and count stays 0. A
-     spread without the runin is a human class: it knows the common tongue and
-     its homeland's, and the homeland is setting-dependent, so it rides as ONE
-     open pick beside the extracted common name. Bookless (no body), both stay
-     empty — a class with no page to read grants nothing rather than a guess. */
+  // Languages (RR §I.10, read off the spread). A demi-human spread's Tongues
+  // runin is the granted list, whole, with count 0; without the runin the
+  // class is human — one open homeland pick beside the common tongue.
+  // Bookless (no body), both stay empty.
+  // See docs/importer/DECISIONS.md, "2026-08-16 — who speaks which: read off the spread, defaulted off the chapter".
   const tongues = body ? parseTongues(body) : null;
   // Multilingual / Linguistics: picks the reader fills from their own campaign,
   // which ride on top of whichever list the class starts from.
@@ -6027,16 +5480,11 @@ export function bindClass(entry, node, id, { gains = null, commonName = null, ge
 }
 
 /**
- * The class's training as one embedded Active Effect.
+ * The class's training as one embedded, transferring Active Effect carrying
+ * weapon, armour and style proficiency together.
  *
- * The consumer reads the CHANGE LIST, not an applied value, so the effect only
- * has to be present and enabled on an actor holding the class — which a
- * transferring item effect is. It carries all three domains together because
- * they are one paragraph in the book and one answer about the character.
- *
- * `type` is written rather than the older numeric `mode`: on v14 the numeric
- * field survives only as a shim whose setter coerces, so a string there
- * silently lands as NaN and the change never gets a type at all.
+ * `type` is written rather than the older numeric `mode` (on v14 the numeric
+ * field is a coercing shim; a string there would silently land as NaN).
  */
 function trainingEffect(entry, training) {
   const changes = [];
@@ -6080,14 +5528,9 @@ async function executeProfGains() {
 
 /**
  * What the common tongue is called in this setting, read once per run from
- * the chargen chapter's LANGUAGES section (`def.classmeta.startingTongues`).
- *
- * The section introduces the vulgarized Classical tongue by the name it is
- * "often called", and that quoted name is the one a human class's granted
- * list carries. The PATTERN is structure — the book explaining a nickname —
- * and the NAME comes off the reader's own page, so nothing is transcribed.
- * Null without the book, or if the sentence is not where the anchor says: a
- * human class then imports with no granted tongue rather than a guessed one.
+ * the chargen chapter's Languages section (`def.classmeta.startingTongues`).
+ * Null without the book, or if the sentence is not where the anchor says.
+ * See docs/importer/DECISIONS.md, "2026-08-16 — who speaks which: read off the spread, defaulted off the chapter".
  */
 async function executeCommonTongue() {
   const id = "def.classmeta.startingTongues";
@@ -6107,21 +5550,8 @@ async function executeCommonTongue() {
 
 /**
  * Read the training paragraph from the COLUMN it is printed in, not from the
- * page's reading order.
- *
- * A spread whose level table sits beside the prose extracts with the table's
- * cells folded through the sentence — "Battle axeMediumdagger5,000" — and
- * `parseCombatTraining` refuses any paragraph carrying a digit, because none of
- * these sentences prints a number and one that does is interleaved. Refusing is
- * right; refusing was also the END of it, so twelve classes imported with no
- * weapon, armour or fighting-style training at all, silently, and a class that
- * grants no armour proficiency looked exactly like one that has none.
- *
- * The fields already arrive one per page-COLUMN where the extraction could tell
- * them apart (`body61c0`, `body61c1`), and a column carries its own prose
- * without the table beside it. So each is offered on its own first, and the
- * joined page only afterwards — which is what a paragraph that genuinely runs
- * across a column break needs.
+ * page's reading order: each page-column field (`body61c0`, `body61c1`) is
+ * tried on its own first, and the full joined page only afterwards.
  */
 export function readTraining(bodyParts, runin) {
   for (const part of bodyParts ?? []) {
@@ -6133,39 +5563,18 @@ export function readTraining(bodyParts, runin) {
 }
 
 /**
- * What a class is TRAINED to fight with, read off its own spread.
+ * What a class is TRAINED to fight with, read off its own spread's run-in
+ * paragraph (weapons, then armour, then fighting styles, in that fixed
+ * order; the run-in label is declared per class in the register).
  *
- * Every class spread carries one paragraph stating all three trainings in a
- * fixed order — weapons, then armour, then fighting styles — as a run-in
- * whose label the register declares per class, because it is not the same
- * label on every spread.
- *
- * The three grammars, each a shape the book writes rather than a value it
- * prints:
- *
- *  - WEAPONS. "all weapons" is unrestricted; a size clause ("any tiny, small,
- *    or medium melee weapons") is a set of size grants; "all missile weapons"
- *    is the missile grant; anything else is a list of named weapons, and where
- *    the sentence names a group and then enumerates it in a parenthesis, the
- *    ENUMERATION is what is read — the book's own answer to what the group
- *    contains, in the book's own words, so nothing is inferred about the group.
- *  - ARMOUR. The heaviest rung the sentence names, since each rung includes
- *    everything under it. A sentence that denies armour outright is the
- *    bottom rung, not an absent answer.
- *  - STYLES. Only the POSITIVE clause. Every spread that names styles goes on
- *    to name the ones it excludes, in the same sentence and the same words, so
- *    a parse that reads the whole sentence grants precisely what the class is
- *    forbidden. The exclusion clause is cut before anything is read.
- *
- * The two mandatory styles are not emitted: they are RAW for every class, and
- * the consumer already holds them, so repeating them here would be this repo
- * stating a rule that lives in the other one.
- *
- * A sentence stating an EXCEPTION ("all weapons except …") returns no weapon
- * grant at all. The grant vocabulary cannot express a subtraction, and reading
- * such a sentence as its unrestricted half would grant exactly the weapons the
- * class is denied — so the class stays unstated, and a reader who narrows it
- * by hand is not fighting an assertion this importer invented.
+ * Weapons: "all weapons" is unrestricted, a size clause is a set of size
+ * grants, "all missile weapons" is the missile grant, otherwise a named
+ * list — a parenthesized enumeration after a group name overrides the group.
+ * An "except" clause returns no weapon grant at all. Armour: the heaviest
+ * rung named (a denial is the bottom rung). Styles: the positive clause
+ * only, with the exclusion clause cut before reading; the two mandatory
+ * styles are not emitted, since the consumer already holds them.
+ * See docs/importer/DECISIONS.md, "A class's training paragraph is read by three grammars, one per domain".
  *
  * @param {string} body the spread's raw body text, in reading order
  * @param {string} runin the run-in label this class prints the paragraph under
@@ -6189,14 +5598,9 @@ export function parseCombatTraining(body, runin) {
   // Progression:"), so no separating space is required of it either.
   const para = after.slice(0, /(?:^|[.)\s])[A-Z][a-z]+(?:\s*[A-Za-z]+){0,3}:/.exec(after)?.index ?? 900);
 
-  // A spread whose level table sits inside the text block extracts with the
-  // table's cells folded through the sentence, mid-word: a weapon list comes
-  // back holding "battlelevelaxes" and a row of hit dice. None of these
-  // paragraphs prints a number, so a digit means the prose is interleaved and
-  // no part of it can be trusted — including the clauses that happen to look
-  // intact, which is how such a class ends up granted the one fighting style
-  // the table did not interrupt. Reading it needs the paragraph located by
-  // its column, not the page's reading order.
+  // None of these paragraphs prints a number, so a digit means a level
+  // table's cells are folded through the sentence and no part of it can be
+  // trusted.
   if (/\d/.test(para)) return null;
 
   // Segment by the three phrases themselves: the shortest spreads state all
@@ -6296,26 +5700,16 @@ export function parseCombatTraining(body, runin) {
 }
 
 /**
- * The SECOND grammar: a spread that states its training in sentences rather
- * than in the RR formula.
+ * The second grammar: a spread that states its training in sentences
+ * ("can fight with…", "can wield…") rather than in the RR formula the
+ * segmenter above keys on.
  *
- * By This Axe writes the same three facts with none of the three phrases the
- * segmenter above keys on — "Delvers can fight with all axes, hammers, flails,
- * and maces… They can wear leather armor or lighter. They can wield a weapon
- * two-handed or wield a weapon in each hand but cannot wield a shield." No
- * marker, so every one of its ten classes read as having no training at all,
- * and a class that grants no armour proficiency looked exactly like one that
- * has none.
- *
- * The SHAPES are the rule and ship here; every weapon named, and which armour
- * rung, is read off the reader's own page. Both books' readers converge on the
- * one grant vocabulary the consumer already publishes (`classifyGrantToken`):
- * `all`, `missile:all`, `melee:<size>`, a weapon-category, or a weapon name.
- *
- * EXCLUSIONS ARE DROPPED, NEVER INVERTED — the same rule the formula reader
- * follows. "all missile weapons except longbows" grants no missile clause at
- * all rather than granting the longbow the class is denied; the named groups
- * beside it still stand, so the class is under-granted and never over-granted.
+ * Both books' readers converge on the one grant vocabulary the consumer
+ * already publishes (`classifyGrantToken`): `all`, `missile:all`,
+ * `melee:<size>`, a weapon-category, or a weapon name. Exclusions are
+ * dropped, never inverted — a denied clause grants nothing rather than the
+ * thing denied, the same rule the formula reader follows.
+ * See docs/importer/DECISIONS.md, "A class's training paragraph is read by three grammars, one per domain".
  */
 export function parseTrainingProse(para) {
   const text = String(para ?? "");
@@ -6389,22 +5783,13 @@ const TRAINING_GROUPS = [
 ];
 
 /**
- * One row of a class's combat-proficiencies TABLE, as a path option's training.
- *
- * A spread whose training differs per region prints it as a grid rather than a
- * sentence, so there is no paragraph to read: the Barbarian states a weapon
- * list, an armour column and a style column per region, and the class itself
- * states none of the three. Each row becomes one option of a path group.
- *
- * The armour column names every rung it permits ("Medium Light Very Light"), so
- * the answer is the HEAVIEST — the same rule the prose reader follows, for the
- * same reason. Weapons and styles are read exactly as the prose reader reads
- * them, so both routes land on one grant vocabulary.
- *
- * PER-OPTION DATA STAYS ON THE OPTION even where every row agrees — all three
- * regions permit armour up to medium, and hoisting that to the class would
- * bake in a coincidence of this printing and leave nowhere for a custom path,
- * or a later one that differs, to say otherwise.
+ * One row of a class's combat-proficiencies TABLE, as a path option's
+ * training. A spread whose training differs per option prints a grid rather
+ * than a sentence, so each row becomes one option of a path group. The
+ * armour column names every rung it permits; the answer is the heaviest, the
+ * same rule the prose reader follows. Per-option data stays on the option
+ * even where every row agrees.
+ * See docs/importer/DECISIONS.md, "A class's variants are PATHS, and the grid that prints them is read by geometry".
  */
 export function readTrainingCells(cells = {}) {
   const weapons = [];
@@ -6491,19 +5876,14 @@ function singularWeapon(raw) {
 }
 
 /**
- * The tongues a class's spread prints, parsed from its Racial Traits runin.
+ * The tongues a class's spread prints, parsed from its Racial Traits runin
+ * (`<Race> Tongues:`), sometimes in two clauses ("can speak … and can also
+ * speak …") — both are read. List items keep the book's own capitalization,
+ * drop the article and the trailing "tongues"/"languages"; anything not
+ * shaped like a proper name is discarded rather than granted.
  *
- * The runin is labelled `<Race> Tongues:` and its sentence lists what the
- * race can speak, sometimes in two clauses ("can speak … and can also speak
- * …"). Both are read; list items keep the book's own capitalization, drop the
- * article and the trailing "tongues"/"languages", and anything not shaped
- * like a proper name (a spell reference, a subordinate clause) is discarded
- * rather than granted.
- *
- * The grammar here is structure — how the book phrases the trait — and every
- * name in the result came off the reader's own page. A spread with no Tongues
- * runin (every human class) returns null, which is an answer, not a failure:
- * it routes the class to the human default.
+ * A spread with no Tongues runin (every human class) returns null, which
+ * routes the class to the human default.
  *
  * @param {string} body the spread's raw body text, in reading order
  * @returns {{race: string, granted: string[]}|null}
@@ -6526,12 +5906,10 @@ export function parseTongues(body) {
   const window = rest.slice(0, Math.min(next?.index ?? 600, 600));
 
   const granted = [];
-  // The capture is CAPPED at 80 characters — the printed lists all fit in 48
-  // even with every space glued out. A clause that cannot reach its terminator inside the cap is one the
-  // page has interleaved with a neighbouring column's text (measured live: a
-  // spread's proficiency list arrived mid-sentence, capitalised exactly like
-  // tongues), and it is dropped whole: the class falls back to the human
-  // default rather than granting a proficiency as a language.
+  // The capture is capped at 80 characters; a clause that cannot reach its
+  // terminator inside the cap is interleaved with a neighbouring column's
+  // text and is dropped whole.
+  // See docs/importer/DECISIONS.md, "2026-08-16 — who speaks which: read off the spread, defaulted off the chapter".
   for (const clause of window.matchAll(/can\s*(?:also\s*)?speak\s*([^.]{0,80}?)(?=\s*(?:tongues|languages)\b|\.|$)/g)) {
     for (const piece of clause[1].replace(/^the\s*/i, "").split(/,|\band\b/)) {
       // Strip the glued terminator, then re-open a space the extraction
@@ -6557,20 +5935,11 @@ const NUMBER_WORD = Object.freeze({
 
 /**
  * How many EXTRA languages of the reader's own choosing a spread grants,
- * beyond any it names — a Multilingual or Linguistics class power ("gain
- * three bonus languages", "can speak, read, and write an additional 4
- * languages of his choice"). These are open picks, never names: the book
- * leaves them to the campaign's own regions, so they become slots and nothing
- * else, which is exactly what `languages.count` is.
+ * beyond any it names — a Multilingual or Linguistics class power. These are
+ * open picks, never names, so they land in `languages.count`.
  *
- * Every separator is `\s*` for the reason `parseTongues` needs it — raw body
- * extraction glues inter-run spaces out — and the number-word alternation is
- * explicit rather than `[a-z]+` so a fully-glued "threebonuslanguages" still
- * resolves where a greedy class would swallow the whole token.
- *
- * Takes the LARGEST grant found rather than the sum: a spread states its
- * allowance once and then talks about it ("some or all of these languages"),
- * and summing would count the restatement.
+ * Takes the largest grant found rather than the sum.
+ * See docs/importer/DECISIONS.md, "2026-08-16 — a class is its race's whether or not its page reads".
  *
  * @param {string} body the spread's raw body text
  * @returns {number} extra picks, 0 where the spread grants none
@@ -6591,33 +5960,12 @@ export function parseBonusLanguages(body) {
 }
 
 /**
- * Bring the race documents' tongues in step with what the class spreads read.
- *
- * A Tongues runin names its RACE ("Dwarf Tongues: Dwarves can speak…"), and
- * the custom-class-builder's race items — whose own chapter prints no such
- * runin — are the other place that list belongs: a custom dwarven class built
- * on the race document owes its character the same tongues a vaultguard gets.
- * The label off the page keys the match, folded against the race item's key
- * and name, and only a race whose list is still EMPTY is written — a Judge's
- * own edit is never replaced.
- *
- * Races import from the builder tables and classes from their spreads, in
- * either order: run after a class import here, and worked into the race on
- * the next class import if the race arrived later.
- */
-/**
- * Lend a race's tongues to a class of that race whose own page did not parse.
- *
- * A class is an elf class whether or not its spread reads cleanly, and the
- * Spellsword's does not: its page interleaves the proficiency list through the
- * Tongues sentence, so the clause is dropped rather than risk granting a
- * proficiency as a language. The register declares the race, and the list is
- * taken from a sibling of the same race whose page DID parse — so every name
- * still comes off the reader's own book, just from the page that printed it
- * legibly.
+ * Lend a race's tongues to a class of that race whose own page did not
+ * parse, taken from a sibling of the same race whose page did.
  *
  * Only a class that ended with no named tongues is filled, and only from a
  * sibling that has some; a class the parse already answered is left alone.
+ * See docs/importer/DECISIONS.md, "2026-08-16 — a class is its race's whether or not its page reads".
  */
 async function inheritRaceTongues(classDocs) {
   const docs = (classDocs ?? []).filter(Boolean);
@@ -6651,6 +5999,14 @@ async function inheritRaceTongues(classDocs) {
   return lent;
 }
 
+/**
+ * Bring the race documents' tongues in step with what the class spreads
+ * read, so a custom class built on a race document owes its character the
+ * same tongues the race's own imported classes get. Only a race whose list
+ * is still EMPTY is written — a Judge's own edit is never replaced. Races
+ * and classes can import in either order; this runs after a class import
+ * and is worked into a race arriving later by the next class import.
+ */
 async function syncRaceTongues(classDocs) {
   const items = await importedDocs("Item");
   const raceOf = (label) => {
@@ -6669,30 +6025,16 @@ async function syncRaceTongues(classDocs) {
   }
 }
 
-/**
- * Import every class document (skip ones already in the world). Values come
- * from the connected book; a bookless import creates constructor stubs.
- */
 /** The label `bindClass` derives for a ladder key, so a hand edit is visible. */
 const ladderLabelFor = (key) => key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
 
 /**
- * Re-key a class ladder whose column has since been QUALIFIED.
- *
- * A ladder's key is the only part of a progression column that reaches a class
- * document — the printed header is a locator and is dropped at compile — so the
- * key is what a consumer reads to decide who a value applies to. A column keyed
- * without a qualifier its header states hands over a broader rule than the page
- * gives, and `importClasses` skips a class this world already holds, so no
- * ordinary re-import would ever correct one.
- *
- * Document-driven like `importTemplatePackages`: it compares each class against
- * the column keys the cookbook declares NOW, so no book need be connected and
- * no class is named here. A key the cookbook no longer declares is re-keyed
- * only when exactly ONE declared key is that same name behind a qualifier —
- * anything less certain is left alone rather than guessed at. The label moves
- * with the key only where it still reads as the one import derived; a Judge who
- * retitled the column keeps their title.
+ * Re-key a class ladder whose column has since been QUALIFIED. Document-driven
+ * like `importTemplatePackages`: compares each imported class against the
+ * column keys the cookbook declares NOW, and re-keys only where exactly one
+ * declared key is that same name behind a qualifier. The label moves with the
+ * key only where it still reads as the one import derived.
+ * See docs/importer/DECISIONS.md, "A column key carries every qualification its printed header carries".
  *
  * @returns {Promise<number>} how many classes were corrected
  */
@@ -6856,24 +6198,12 @@ const printedPair = (cell) =>
     .filter((n) => Number.isFinite(n));
 
 /**
- * One printed row of the vehicle table as an `acks-extras.vehicle`.
- *
- * The table states movement and cargo as PAIRS, and the column notes say what
- * a pair means: the first figure is at normal encumbrance, the second at
- * heavy. So the two become speed TIERS rather than one capacity beside one
- * speed — a cart hauling its heavy load moves at the slower rate, and the tier
- * row is where the vehicle model already looks for that.
- *
- * A cargo figure in PARENTHESES is the table's other convention: the vehicle
- * carries passengers or that much cargo instead. Those rows are the howdahs,
- * whose crew column is a choice between two passenger counts rather than a
- * complement — so they fill `cargo.passengers`, not a crew role, and they get
- * no speed tiers because their pace is the creature's, not the vehicle's.
- *
- * Deliberately NOT read: the draft team. The label names it in prose ("2 heavy
- * horses", "4 light horses"), and converting those into the heavy-horse
- * equivalents the schema counts is a judgment about draft values rather than a
- * reading of this table.
+ * One printed row of the vehicle table as an `acks-extras.vehicle`. A
+ * movement/cargo pair becomes speed TIERS (normal encumbrance, then heavy);
+ * a cargo figure in parentheses fills `cargo.passengers` instead (the
+ * howdahs, whose pace is the creature's and so get no speed tiers). The
+ * draft team is not read from this table.
+ * See docs/importer/DECISIONS.md, "The vehicle table's pairs are speed tiers, and a howdah's cargo is a passenger count".
  */
 export function bindVehicleRow(row, entry, id) {
   if (entry?.meta?.kindOfVehicle === "sea") return bindSeaVesselRow(row, entry, id);
@@ -6930,17 +6260,14 @@ export function bindVehicleRow(row, entry, id) {
 
 /**
  * One printed row of the Sea Vessels table as a sea `acks-extras.vehicle`.
- *
- * The sea table's conventions differ from the land one's: three crew columns
- * are three ROLE complements (sailors and rowers motive, marines not — they
- * are cargo that fights); four combat speeds and two voyage speeds land on
- * the schema's named sea fields rather than tiers; cargo is a single figure,
- * never a pair. A dash is an absent cell, not a zero — a barge has no rowers
- * rather than nought of them. A PARENTHESISED marines figure (the longship)
- * is an allowance drawn from the crew itself rather than an extra
- * complement; it binds as the bench size all the same, because the schema's
- * `required` on a non-motive role is a bench, not extra manpower. Cost is
- * the markets' business, not the hull's, and is not read.
+ * Its conventions differ from the land table's: three crew columns are three
+ * ROLE complements (sailors and rowers motive, marines not); four combat
+ * speeds and two voyage speeds land on the schema's named sea fields rather
+ * than tiers; cargo is a single figure, never a pair. A dash is an absent
+ * cell, not a zero. A parenthesised marines figure binds as a bench (the
+ * schema's `required` on a non-motive role), not extra manpower. Cost is not
+ * read.
+ * See docs/importer/DECISIONS.md, "The vehicle table's pairs are speed tiers, and a howdah's cargo is a passenger count".
  */
 function bindSeaVesselRow(row, entry, id) {
   const cells = row?.cells ?? {};
@@ -7080,18 +6407,14 @@ export async function importVehicles({ only = null } = {}) {
 const SIXTHS_PER_STONE = 6;
 
 /**
- * Build one `acks-extras.variation` from an entry and its materialized numbers.
+ * Build one `acks-extras.variation` from an entry and its materialized
+ * numbers. The register declares what kind of difference this is, what it
+ * may go on, and what it supersedes; every number comes from
+ * `node.fields.variation`, and a locator that did not match drops its whole
+ * spec rather than defaulting.
  *
- * The register says what KIND of difference this is, what it may go on, and
- * what it supersedes — all structure, none of it read off a page. Every number
- * comes from `node.fields.variation`, which the executor located in the seat's
- * own prose; a locator that did not match drops its whole spec, so a field is
- * either the book's number or absent, never a default wearing the book's
- * authority.
- *
- * `deltas.stoneLighter` is the one translation: the page says an item "weighs
- * one less stone" and the schema counts sixths, so the located stone count is
- * negated and scaled. That is a change of unit, not of value.
+ * `deltas.stoneLighter` is the one unit translation: the located stone count
+ * is negated and scaled to the sixths the schema counts in.
  */
 export function bindVariation(entry, node, id) {
   const meta = entry.meta ?? {};
@@ -7255,14 +6578,10 @@ export function splitTrapTiers(blocks = []) {
 
 /**
  * Build one `acks-extras.trap` from a trap entry and its materialized text.
- *
- * Only two things are read out of the seat's prose: the tier SPLIT, which is
- * the book's own numbering, and the damage dice, which is the frozen `dice`
- * locate. Everything a Judge would have to JUDGE — whether the throw is a save
- * or an attack, which save, what beating it is worth, how far the effect
- * reaches — is left at its default with the printed sentence sitting beside it
- * on the sheet. Guessing those is exactly the interpretation the pipeline keeps
- * offline, and a wrong-but-plausible save key is worse than a blank one.
+ * Only two things are read out of the seat's prose: the tier split (the
+ * book's own numbering) and the damage dice. Everything a Judge would have
+ * to judge — the throw type, which save, the effect's reach — is left at its
+ * default with the printed sentence sitting beside it on the sheet.
  */
 export function bindTrap(entry, node, id) {
   const cite = entry.cite ?? "";
@@ -7433,15 +6752,9 @@ export const cookbookAbilityIds = () => [...abilityEntries()].map(([id]) => id);
 /* -------------------------------------------- */
 
 /**
- * The core item type an equipment entry becomes.
- *
- * Everything used to import as `item`, so a sword was a sack: no damage, no
- * attack, and — because `equipped` lives only on `weapon` and `armor` — nothing
- * the character could actually wield or wear. The register says which group an
- * entry belongs to, so the type follows from data rather than from a name scan.
- *
- * `animal` is deliberately NOT here: a mule is a creature, not a thing, and it
- * imports as an actor. See importEquipment.
+ * The core item type an equipment entry becomes, from the register's own
+ * group rather than a name scan. `animal` is deliberately NOT here: a mule
+ * is a creature, not a thing, and imports as an actor. See importEquipment.
  */
 const EQUIPMENT_TYPE = Object.freeze({
   weapon: "weapon",
@@ -7454,17 +6767,11 @@ export const equipmentTypeOf = (entry) => EQUIPMENT_TYPE[entry?.meta?.group] ?? 
 
 /**
  * The numbers a `values` recipe located in the seat's own prose, as the flat
- * fields the binding reads (`aac`, `cost`, `weight6`).
- *
- * The recipe names the field AND the unit the page states it in, because the
- * page and the schema do not agree on one: encumbrance prints in stone or in
- * items, and `weight6` counts sixths of a stone. Converting here is a change of
- * UNIT, not of value — the same translation `bindVariation` makes for a
- * masterwork's lighter stone, and the reason a locator may not simply write
- * whatever integer it read into the field.
- *
- * A field this version does not know is skipped rather than guessed at, so a
- * later recipe can name one without this one mangling it.
+ * fields the binding reads (`aac`, `cost`, `weight6`). The recipe names the
+ * field AND the unit the page states it in — encumbrance prints in stone or
+ * in items, and `weight6` counts sixths of a stone — so this only converts
+ * units, never values. A field this version does not know is skipped rather
+ * than guessed at.
  */
 export function locatedValues(node) {
   const out = {};
@@ -7635,12 +6942,8 @@ export function mountableSpecies(entries) {
 
 /**
  * The loads an animal's own printed description states, in SIXTHS of a stone
- * (the family's one weight unit).
- *
- * The RR gives each animal its carrying capacity in prose — "a normal load of
- * 30 stone and maximum load of 60 stones" — beside the speed. That sentence is
- * already imported as the creature's description, so reading the two figures
- * out of the seat's own text adds no geometry and ships no value: an animal
+ * (the family's one weight unit) — its normal and maximum load, read out of
+ * the same prose already imported as the creature's description. An animal
  * whose book says nothing simply arrives unstated.
  */
 export function loadsFromText(text) {
@@ -7656,9 +6959,9 @@ export function loadsFromText(text) {
 }
 
 /**
- * The land speed an animal's description states, in feet per turn — the first
- * of the printed pair ("a speed of 60' / 180'"), which is the exploration
- * figure every other speed in the family derives from.
+ * The land speed an animal's description states, in feet per turn — the
+ * first of the printed pair, which is the exploration figure every other
+ * speed in the family derives from.
  */
 export function speedFromText(text) {
   const m = /speed of ([\d,]+)\s*[’']/.exec(String(text ?? "").replace(/\s+/g, " "));
@@ -7677,16 +6980,13 @@ export function loadedAnimalEntries() {
 }
 
 /**
- * Bind an `animal` equipment entry to an ACTOR instead of an item.
+ * Bind an `animal` equipment entry to an ACTOR instead of an item — a
+ * creature fights, can be attacked, has morale and can be ridden, none of
+ * which an inventory item has.
  *
- * The RR equipment chapter prices ten animals because you buy them in a shop,
- * but a war dog is a creature: it fights, it can be attacked, it has morale,
- * and it can be ridden. Imported as inventory it was none of those — the system
- * had it filed next to the rope.
- *
- * Requires ACKS Extras, which supplies the `acks-extras.animal` sub-type. Without it
- * there is nowhere for a creature to go, so the entry stays an item rather than
- * failing the import; the caller decides.
+ * Requires ACKS Extras, which supplies the `acks-extras.animal` sub-type.
+ * Without it there is nowhere for a creature to go, so the entry stays an
+ * item rather than failing the import; the caller decides.
  */
 export function bindAnimal(entry, node, id, { ridable = null } = {}) {
   const cite = entry.cite ?? "";
@@ -7772,11 +7072,9 @@ export async function importEquipment(id, folderId) {
   if (!found) return null;
 
   const asActor = isAnimalEntry(found.entry) && canImportAnimals();
-  // Ask the collection imports actually go to. Reading `game.items` outright
-  // was right only while every import landed in the world: with
-  // `importToCompendium` on, the check looked somewhere nothing is ever
-  // written and every run re-created the whole shop list. An animal is an
-  // ACTOR, so it is asked of the actor side of the same target.
+  // Ask the compendium imports actually land in, never `game.items`/
+  // `game.actors` directly. An animal is an ACTOR, so it is asked of the
+  // actor side of the same target.
   const existing = asActor ? await importedActor(id) : await importedItem(id);
   if (existing) return existing;
 
@@ -7872,14 +7170,10 @@ export const cookbookEquipmentIds = () =>
     .map(([id]) => id);
 
 /**
- * Remove `ability` items mis-created from equipment entries.
- *
- * v0.26.0 let equipment ids into the ability import, so a world that ran
- * "Import ALL Abilities" holds ability-typed documents for gear. They are
- * generated artifacts with an invalid category, they fail validation on every
- * sheet render, and an item's type cannot be changed in place — so they are
- * deleted and re-created properly by the equipment import. Only OUR generated
- * documents are touched; a hand-made item is never deleted.
+ * Remove `ability` items mis-created from equipment entries. An item's type
+ * cannot be changed in place, so they are deleted and re-created properly by
+ * the equipment import. Only OUR generated documents are touched; a
+ * hand-made item is never deleted.
  * @returns {Promise<number>} how many were removed
  */
 export async function repairEquipmentAbilities() {
@@ -7896,19 +7190,13 @@ export async function repairEquipmentAbilities() {
 }
 
 /**
- * Remove `item`-typed documents that should now be ANIMAL ACTORS.
- *
- * Before animals imported as actors, the ten priced animals became inventory
- * items — a war dog filed next to the rope. A world that ran the old import
- * holds those, and an item's type cannot be changed in place, so they are
- * deleted here and re-created as actors by the equipment import. Exactly the
+ * Remove `item`-typed documents that should now be ANIMAL ACTORS, so the
+ * equipment import can re-create them as actors. Exactly the
  * repairEquipmentAbilities pattern: only OUR generated documents are touched
- * (the `minted` flag + a `def.equip.` cookbook id whose entry is an animal),
- * so a hand-made "War Dog" item a table wrote themselves is never deleted.
+ * (the `minted` flag + a `def.equip.` cookbook id whose entry is an animal).
  *
  * A no-op before `game.actors` exists — without the animal sub-type reachable
- * yet the items are still the best available representation, so removing them
- * would delete data with nothing to replace it.
+ * yet, removing the items would delete data with nothing to replace it.
  *
  * @returns {Promise<number>} how many were removed
  */
@@ -7930,19 +7218,12 @@ export async function repairAnimalItems() {
 }
 
 /**
- * Remove the JJ shield forms an earlier version imported as VARIATIONS.
- *
- * The six forms used to be `acks-extras.variation` documents a reader dragged
- * onto a shield; they are shields, and now import as `armor` items of type
- * shield. An item's type cannot be changed in place and the cookbook id moved
- * with the kind, so the old documents can neither be updated nor recognised by
- * the new import — they would simply stand beside it, two Kite Shields of
- * different types on two shelves.
- *
- * Only the LIBRARY copies go, matched on the id they were imported under. A
- * variation a Judge already applied to a shield is an embedded copy on that
- * document, which this never sees (`importedDocs` reads the sidebar and our own
- * packs), so nothing a table put on an item is touched.
+ * Remove the JJ shield forms an earlier version imported as VARIATIONS, so
+ * the equipment import can re-create them as the `armor` shield items they
+ * now are. Only the LIBRARY copies go, matched on the id they were imported
+ * under; a variation a Judge already applied to a shield is an embedded copy
+ * on that document and is never touched.
+ * See docs/importer/DECISIONS.md, "A shield form is a shield, not a difference applied to one".
  *
  * @returns {Promise<number>} how many were removed
  */
@@ -7957,19 +7238,14 @@ export async function repairShieldVariations() {
 }
 
 /**
- * Correct the SUBTYPE of priced items an earlier run filed as plain inventory.
- *
- * Before a grid row carried the section it was printed under, every one of them
- * was written `subtype: "item"` — so a belt, a cloak and a pair of boots were
- * ordinary inventory: filed among the gear rather than in the sheet's clothing
- * band, and weighed against encumbrance, which core exempts clothing from.
- *
- * Corrected in place rather than re-created. An item's subtype is mutable, so
- * there is nothing here of the delete `repairAnimalItems` needs (a type is
- * not), and re-creating would mint a duplicate: the id is already claimed.
- * Only documents carrying our `minted` flag are touched, and only that one
- * field, so a Judge's own "Belt" is never rewritten. Skins already copied onto
- * a character belong to the template package, which re-derives them.
+ * Correct the SUBTYPE of priced items an earlier run filed as plain
+ * inventory. Corrected in place rather than re-created: an item's subtype is
+ * mutable, so there is nothing here of the delete `repairAnimalItems` needs,
+ * and re-creating would mint a duplicate. Only documents carrying our
+ * `minted` flag are touched, and only that one field, so a Judge's own
+ * "Belt" is never rewritten. Skins already copied onto a character belong to
+ * the template package, which re-derives them.
+ * See docs/importer/DECISIONS.md, "A grid row is what the SECTION above it says, not what its name looks like".
  *
  * @param {{name:string, section:string}[]} rows the grid as this seat read it
  * @returns {Promise<number>} how many were corrected
@@ -8049,26 +7325,11 @@ export async function importAllEquipment({ only = null } = {}) {
 const weaponId = (name) => `def.weapon.${slugLabel(name).replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase())}`;
 
 /**
- * Materialize the RR weapons TABLE into `weapon` items from the reader's own
- * book — the clean-break pipeline (see weapon-tables.mjs). Unlike the run-in
- * gear cookbook, a grid has no prose of its own, so a bookless seat gets
- * nothing here. Deduped by cookbook id; each item carries its full set of
- * attack/damage modes (weapon-tables `damageModes`), which the core compendium
- * could not express and split into separate items instead.
- * @returns {Promise<{table:number, created:number}>}
- */
-/**
- * Remove ammunition the grid's third type was read as a WEAPON.
- *
- * Before the Ammunition rows were told apart from the Missile ones, a case of
- * bolts imported as a `weapon`: a type with no `quantity` field, so its load
- * could only live in its name, and a default damage die, so it arrived as
- * something to swing. A document's type cannot be changed in place, so the
- * wrong ones are deleted and the run re-creates them as inventory — the
- * `repairAnimalItems` pattern, and the same guard: only documents carrying our
- * own `minted` flag are touched, so a Judge's hand-made "Case of Bolts" is
- * never deleted. A class template's copy carries no importer stamp and is not
- * reached from here; the equipment root re-derives those with its packages.
+ * Remove ammunition the grid's third type was read as a WEAPON, so the run
+ * re-creates them as inventory. The `repairAnimalItems` pattern and guard:
+ * only documents carrying our own `minted` flag are touched. A class
+ * template's copy carries no importer stamp and is not reached from here.
+ * See docs/importer/DECISIONS.md, "The weapons grid prints three types, and ammunition is not a weapon".
  *
  * @param {string[]} ids the cookbook ids of this seat's ammunition rows
  * @returns {Promise<number>} how many were removed
@@ -8088,6 +7349,15 @@ async function repairAmmoWeapons(ids) {
   return wrong.length;
 }
 
+/**
+ * Materialize the RR weapons TABLE into `weapon` items from the reader's own
+ * book — the clean-break pipeline (see weapon-tables.mjs). Unlike the run-in
+ * gear cookbook, a grid has no prose of its own, so a bookless seat gets
+ * nothing here. Deduped by cookbook id; each item carries its full set of
+ * attack/damage modes (weapon-tables `damageModes`), which the core
+ * compendium could not express and split into separate items instead.
+ * @returns {Promise<{table:number, created:number}>}
+ */
 export async function importWeapons(folderId) {
   const session = ctx.sessionDocs.get(WEAPON_TABLE.book);
   if (!session?.doc) return { table: 0, created: 0, reason: "book not connected" };
@@ -8105,12 +7375,9 @@ export async function importWeapons(folderId) {
   // while the wrong documents stand (the lesson importPricedGear records).
   const repaired = await repairAmmoWeapons(rows.filter((r) => r.ammunition).map((r) => weaponId(r.name)));
   let created = 0;
-  // A row the equipment root has no profile for. It imports fine and rolls
-  // fine, and it is silently size-medium and proficiency-category `other`, so
-  // every character trained on it is told it is not proficient — including
-  // every template item skinned over it later. Caught HERE, at the recipe, is
-  // the only place the whole grid is in view at once; found on a character
-  // sheet it is one badge with no way back to its cause.
+  // A row the equipment root has no profile for imports fine and rolls fine,
+  // but silently as size-medium and proficiency-category `other`. Caught
+  // here, since this is the only place the whole grid is in view at once.
   const unidentified = [];
   for (const row of rows) {
     const id = weaponId(row.name);
@@ -8160,19 +7427,13 @@ const pricedId = (name) =>
   `def.priced.${String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "row"}`;
 
 /**
- * The core item subtype a printed price SECTION corresponds to, defaulting to
- * plain inventory.
- *
- * The second price grid stacks three sections, and only the first is clothing.
- * A subtype is not decoration: core files a clothing item on its own part of
- * the sheet and leaves it out of encumbrance, so a belt imported as ordinary
- * inventory is weighed against the character for as long as it stands. A
- * described entry gets this from the register (`bindEquipment`); a grid row
- * has no entry, and the heading it was printed under is the page's own answer.
- *
- * WHICH headings mean something is asked of the SYSTEM's subtype vocabulary,
- * by key and by localized label alike, so no name off the page is written down
- * here and a heading the vocabulary does not know stays plain inventory.
+ * The core item subtype a printed price SECTION corresponds to, defaulting
+ * to plain inventory. A described entry gets this from the register
+ * (`bindEquipment`); a grid row has no entry, so the heading it was printed
+ * under is the page's own answer. Which headings mean something is asked of
+ * the SYSTEM's subtype vocabulary, by key and by localized label alike, so
+ * no name off the page is written down here.
+ * See docs/importer/DECISIONS.md, "A grid row is what the SECTION above it says, not what its name looks like".
  */
 function subtypeForSection(section) {
   const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -8185,19 +7446,14 @@ function subtypeForSection(section) {
 }
 
 /**
- * Materialize the printed price rows that no cookbook entry of its own claims.
+ * Materialize the printed price rows that no cookbook entry of its own
+ * claims. The gear cookbook is a list of things the book DESCRIBES; the
+ * price grid is a list of things it SELLS, itemizing what a description
+ * treats as one subject and pricing things no paragraph describes at all.
  *
- * The gear cookbook is a list of things the book DESCRIBES; the price grid is
- * a list of things it SELLS, and the two are not the same list. The grid
- * itemizes what a description treats as one subject — a candle is sold by the
- * material it is made of, a saddle by what it is for — and it also prices
- * things no paragraph describes at all. Either way the reader can buy the row
- * and could not, before this, own it: the category imported once, with no
- * price, because pricing it would have meant choosing one of its variants.
- *
- * A row an entry already resolves is left alone — that item exists and carries
- * the book's own description, which a grid row does not have. Everything else
- * becomes an item priced from the reader's own page.
+ * A row an entry already resolves is left alone — that item exists and
+ * carries the book's own description, which a grid row does not have.
+ * Everything else becomes an item priced from the reader's own page.
  */
 export async function importPricedGear(folderId) {
   const session = ctx.sessionDocs.get(WEAPON_TABLE.book);
@@ -8234,14 +7490,10 @@ export async function importPricedGear(folderId) {
     }
   }
 
-  // And whatever the LIBRARY already holds, under either spelling. The loop
-  // above only knows the equipment chapter's declared entries; the weapon and
-  // armour tables mint their items from a grid at run time, so nothing declares
-  // "Military Oil" — and the catalogue prints it as "Oil, Military (1 pint)",
-  // which is a different key again. The result was two documents for one flask.
-  //
-  // This is why the price list runs LAST (see importAllEquipment): it can only
-  // ask what the shelves already hold once they hold it.
+  // And whatever the LIBRARY already holds, under either spelling — the loop
+  // above only knows the equipment chapter's declared entries, not what the
+  // weapon and armour tables mint from a grid at run time.
+  // See docs/importer/DECISIONS.md, "One name has many printed forms, and the rule lives in lib".
   const libraryKeys = new Set();
   for (const doc of await importedDocs("Item")) for (const k of nameKeys(doc.name)) libraryKeys.add(k);
   rows.forEach((row, i) => {
@@ -8441,17 +7693,10 @@ const nameKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /**
  * Folded printed name -> the definition it means, from the `powerSource`
- * register.
- *
- * A class or race spread names a power in the SHORT form its own paragraph
- * uses, while the definition carries the full one: a dwarf's rung prints
- * "Hardy" for `def.power.hardyPeople`, and both "Dwarf Tongues" and "Elf
- * Tongues" mean `def.power.giftOfTongues` — which no name match can find,
- * because the printed name is not the definition's name.
- *
- * A name several definitions answer to resolves to NOTHING rather than to a
- * guess: nine classes print their own "Renown", and picking one would bind a
- * rung to another class's power. Built once and memoised on the register.
+ * register — the printed name and the definition's own name are not always
+ * the same name. A name several definitions answer to resolves to NOTHING
+ * rather than a guess. Built once and memoised on the register.
+ * See docs/importer/DECISIONS.md, "The printed name and the defined name are two different names".
  */
 function printedNameIndex() {
   if (data.registers?.__printedNames) return data.registers.__printedNames;
@@ -8708,17 +7953,14 @@ export async function cookbookImportAbilities({ only = null } = {}) {
   try {
     await prepareItemShelves();
     const pageCache = runPageCache();
-    // BUILD every document first, WRITE them a chunk at a time. Building one
-    // ability costs about 7ms; writing one costs a ~700ms server transaction
-    // whatever its size, so a build-then-write loop turns what was 573 round
-    // trips into a dozen. `createDocs` owns the chunking.
+    // BUILD every document first, WRITE them a chunk at a time.
+    // See docs/importer/DECISIONS.md, "Writes are batched, because a write costs what the shelf already holds".
     let batch = [];
     const flush = async () => {
       if (!batch.length) return;
       // `createDocs` teaches the dedup index itself: every document it makes
       // goes through `remembered`, which reads the id off the document's own
-      // flag. Re-teaching it here from the batch by index is what filed
-      // documents under their neighbours' ids whenever a create failed.
+      // flag, never the batch's position.
       const written = await createDocs(Item, batch.map((b) => b.data));
       made += written.filter(Boolean).length; // positional: nulls are failures, not imports
       batch = [];
@@ -8881,26 +8123,20 @@ async function placeGeneratedBeside(holder, id, built) {
 }
 
 /**
- * GM: refresh every ability already in the world — loose items AND the copies
- * embedded on actors — against the current cookbook.
+ * GM: refresh every ability already in the world — loose items AND the
+ * copies embedded on actors — against the current cookbook.
  *
- * Matched by cookbook id first, then by folded NAME, so abilities made by hand
- * or imported by an older version get adopted and repaired rather than
- * duplicated. Only the generated surface is rewritten (the descriptor, the
- * structured extras, the cookbook id); the item's name and the system fields a
- * GM may have tuned are left alone.
+ * Matched by cookbook id first, then by folded NAME, so abilities made by
+ * hand or imported by an older version get adopted and repaired rather than
+ * duplicated. Only the generated surface is rewritten; the item's name and
+ * the system fields a GM may have tuned are left alone.
  *
- * An item this module FLAGGED is rewritten outright — that is what Update is
- * for, and the flag is proof of authorship. An item matched only by NAME is
- * somebody else's, so its description is never replaced silently: those are
- * collected during the walk and settled by one dialog afterwards, either by
- * renaming the original aside and creating the reference next to it, or by
- * replacing it on the GM's explicit word.
- *
- * Both outcomes are idempotent, which is the point of the design: a renamed
- * item no longer folds to the definition, so no later run re-adopts it, and
- * every item this run wrote carries the cookbook flag, so a later run rewrites
- * it to identical content. Running twice leaves the same world as running once.
+ * An item this module FLAGGED is rewritten outright. An item matched only by
+ * NAME is somebody else's, so its description is never replaced silently:
+ * those are collected during the walk and settled by one dialog afterwards.
+ * Both outcomes are idempotent — running twice leaves the same world as
+ * running once.
+ * See docs/importer/DECISIONS.md, "Importing again refreshes what it did not create".
  */
 export async function cookbookUpdateAbilities() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
@@ -8937,11 +8173,8 @@ export async function cookbookUpdateAbilities() {
    * `built` stays clean for the create path, which must not carry deletions
    * into fresh documents.
    *
-   * `keepProse` holds back the description and nothing else. The flag proves
-   * this module created the item; it does not prove nobody has written in it
-   * since, and the mechanics are what an update exists to repair. Never widen
-   * this to skip the whole write — an item left unrepaired because someone
-   * annotated it is the failure this option exists to avoid. */
+   * `keepProse` holds back the description and nothing else; the mechanics
+   * are always rewritten. */
   const writeGenerated = (doc, built, { keepProse = false } = {}) => {
     const extras = { ...built.flags[MODULE_ID].extras };
     for (const key of ABILITY_EXTRAS_OPTIONAL) {
@@ -8985,12 +8218,9 @@ export async function cookbookUpdateAbilities() {
       }
       const node = nodeCache.get(id);
       // Nothing was read — this entry's book is not open on this seat, or its
-      // extraction failed — so nothing can be rebuilt from it. A rebuild made
-      // without a node carries the citation line alone in place of the text,
-      // and an extras block whose node-derived parts (the effects among them)
-      // are empty; writing it trades real prose and real mechanics for the
-      // shape of an entry nobody here could read. Left exactly as it is:
-      // connect the book and run it again.
+      // extraction failed — so nothing can be rebuilt from it. Left exactly
+      // as it is: connect the book and run it again.
+      // See docs/importer/DECISIONS.md, "Importing again refreshes what it did not create".
       if (!node) {
         unread++;
         continue;
@@ -9003,13 +8233,9 @@ export async function cookbookUpdateAbilities() {
         ...(ladderCache.get(id) ? { ladders: ladderCache.get(id) } : {}),
       });
       built.flags[MODULE_ID].extras.effects = await resolveCompanions(built.flags[MODULE_ID].extras.effects);
-      // Never overwrite writing this module did not put there. Authorship of
-      // the ITEM and authorship of its DESCRIPTION are different questions: the
-      // flag answers the first, and a Judge who annotated a description this
-      // module created still wrote those words. So an item matched by name only
-      // is asked about, while a flagged one keeps its prose and takes the rest
-      // of the update — which is the half that repairs the mechanics, and the
-      // reason to run this at all.
+      // Authorship of the ITEM and authorship of its DESCRIPTION are
+      // different questions: a Judge who annotated a description this
+      // module created still wrote those words.
       const prose = doc.system?.description;
       const annotated = handWrittenProse(prose);
       if (flagged && annotated) {
@@ -9085,13 +8311,11 @@ export async function cookbookUpdateAbilities() {
 }
 
 /**
- * Ability items this module generated whose definition no longer exists.
- *
- * A definition can be withdrawn — ten were, once it turned out the harvest had
- * read the tail of a spaceless heading as an ability of its own. The items it
- * already created stay behind in every world that imported them, pointing at
- * nothing. They are unambiguously ours (minted, with a cookbook id that no
- * longer resolves), which is what makes them safe to offer for removal.
+ * Ability items this module generated whose definition no longer exists. A
+ * withdrawn definition's items stay behind in every world that imported
+ * them, pointing at nothing. They are unambiguously ours (minted, with a
+ * cookbook id that no longer resolves), which is what makes them safe to
+ * offer for removal.
  */
 export async function danglingAbilities() {
   const out = [];

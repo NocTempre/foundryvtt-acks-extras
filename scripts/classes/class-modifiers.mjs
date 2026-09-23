@@ -1,27 +1,11 @@
 /* global game, Hooks, ui, document */
 /**
  * CLASS MODIFIERS — the character's combat training as its own section of the
- * SYSTEM sheet's Effects tab, above the ordinary effect list, each slot a
- * toggle at class granularity. The module's own character sheet does not
- * mount this: its Stats tab is the one editor, at weapon granularity.
- *
- * The training arrives as an Active Effect whose changes are three CSV strings.
- * In core's effect list that is one row named after the class, and the only way
- * to change what it grants is to open it and hand-edit `dual,twoHanded,
- * weaponShield` in a text field — an editor for the storage format rather than
- * for the thing. So the effect is LIFTED OUT of that list and drawn as the same
- * slot strip the Inventory tab and the follower card use, except that here the
- * pills are buttons: click one and the grant changes. Unarmed is no weapon in
- * the grant grammar — every body strikes unarmed — so its chip only shows.
- *
- * It is the same effect either way. Nothing is duplicated, nothing new is
- * stored, and the section disappears with the effect — a character with no
- * class applied has no Class modifiers section, not an empty one.
- *
- * The loadout effect deliberately does NOT come here. It is derived from what
- * is equipped and recomputed on every change, so there is nothing about it a
- * toggle could hold; it stays in the ordinary list, locked
- * (lib/managed-effects.mjs).
+ * system sheet's Effects tab, lifted out of the ordinary effect row and drawn
+ * as the same toggle-pill slot strip the Inventory tab and follower card use.
+ * The training row is removed from the list beneath it; it is the same
+ * Active Effect either way. See docs/classes/MODEL.md, "Class modifiers —
+ * editing the training".
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { SLOT_VOCAB } from "../lib/proficiency-strip.mjs";
@@ -78,9 +62,8 @@ function buildGroup(actor, effect, group, labelKey, tipKey, editable) {
         // Our controls live inside core's <form>, and an ApplicationV2 sheet
         // submits on change: an unstopped event reaches core's delegated
         // handler and submits the sheet underneath us.
-        // A lit chip withdraws its class. At class granularity a chip lights
-        // when ANY of the class is granted, so left to decide for itself a
-        // partly covered class would complete rather than clear.
+        // A lit chip withdraws its class: a chip lights when any of the class
+        // is granted, so left to itself it would complete rather than clear.
         toggleTraining(actor, group, slot.key, { on: chip ? !on : null }).catch((err) => {
           console.error(`${MODULE_ID} | toggling class training failed`, err);
           ui.notifications?.error(game.i18n.localize(`${LANG_PREFIX}.modifiers.failed`));

@@ -3,14 +3,11 @@
  * that nothing reads.
  *
  * A rule that is written down in a table and never read is invisible: it looks
- * implemented to anyone reading the data, and does nothing at the table. This
- * module had ten of them (shield encumbrance by carry state, a phalanx shield
- * being unusable mounted, a kite shield that cannot be slung on the back), all
- * authored, all inert. Run this after adding a table so the next one is caught
- * while it is still cheap.
+ * implemented to anyone reading the data, and does nothing at the table. Run
+ * this after adding a table so the next one is caught while it is still cheap.
  *
  * ADVISORY: exit 0 always. A hit is a question, not a failure — some entries
- * are deliberately data-only or a documented seam. Say WHY in a comment next to
+ * are data-only or a documented seam on purpose. Say why in a comment next to
  * the entry so the answer survives the next sweep.
  *
  * Usage: npm run find:dead-config     (or: node tools/find-dead-config.mjs [dir])

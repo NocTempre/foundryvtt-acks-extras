@@ -515,9 +515,9 @@ function bandRowsFor(magic) {
 
 /**
  * The atomic sale: same monthly cells as buying, charged to the independent
- * `sold` counters. The sold document is DESTROYED — a quantity stack
- * decrements, anything else leaves play (user ruling; the JJ removes items
- * sold to the Tower from play).
+ * `sold` counters. The sold document is destroyed. See
+ * docs/markets/DECISIONS.md, "a sale destroys the sold item document
+ * (quantity decrement for stacks); only a purchase creates one."
  */
 export async function sell(location, payload) {
   const {

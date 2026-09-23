@@ -1,21 +1,14 @@
 /* global game, ui */
 /**
- * Loading a party into a wagon, and putting them back where they were.
+ * Loading a party into a wagon, and putting them back where they were —
+ * both directions in one action, since mass boarding by hand is twelve
+ * clicks a Judge repeats at every ford.
  *
- * Mass boarding by hand is twelve clicks that a Judge does at every ford and
- * undoes on the other side, so both directions are one action here.
+ * **Board for best pace**: aboard everyone the vehicle carries faster than
+ * their own legs, slowest first, until the hold is full.
  *
- * **Board for best pace** puts aboard everyone the vehicle would carry faster
- * than their own legs — slowest first, because that is the member currently
- * holding the party back and therefore the one whose boarding buys the most.
- * It stops when the hold is full, and it never boards someone who walks faster
- * than the wagon rolls: that would slow the party down, which is the opposite
- * of the point.
- *
- * **Re-board as before** restores the arrangement recorded the last time this
- * changed anything. The snapshot is taken BEFORE the change, so "before" means
- * what the party would recognise as before — everyone on foot at the ford,
- * rather than some earlier configuration nobody remembers.
+ * **Re-board as before**: restores the arrangement snapshotted just before
+ * the last change that boarded or moved anyone.
  */
 import { MODULE_ID, LANG_PREFIX, VEHICLE_TYPE } from "./constants.mjs";
 import { attach, detach, attachedTo, snapshotArrangement, restoreArrangement } from "../lib/attachment.mjs";
@@ -29,9 +22,9 @@ export const ARRANGEMENT_FLAG = "lastArrangement";
 
 /**
  * What one actor costs a hold: their TRUE mass — body (or bodies, for a
- * stack) plus what they carry. The vehicle's printed per-head rate prices
- * only UNNAMED heads (owner ruling, DECISIONS 2026-08-28); the parameter
- * stays for API compatibility and is no longer read.
+ * stack) plus what they carry. `_vehicle` stays for API compatibility and
+ * is no longer read. See docs/vehicles/DECISIONS.md, "Weights are true;
+ * the printed rate prices the unnamed head."
  */
 export function passengerCost(actor, _vehicle) {
   return borneBy6(actor) / STONE;
@@ -94,10 +87,9 @@ export async function reboardLast(vehicle) {
     ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.board.nothingToRestore`));
     return { ok: false, reason: "nothing" };
   }
-  // Any PASSENGER aboard now who was not aboard then gets off, or restoring an
-  // empty arrangement would leave them stranded in the wagon. Passengers only:
-  // boarding never touched the team or the crew, so putting an arrangement
-  // back must not unharness the horses.
+  // Any PASSENGER aboard now who was not aboard then gets off — restoring an
+  // empty arrangement must not leave them stranded. Passengers only: boarding
+  // never touched the team or crew, so this must not unharness the horses.
   const remembered = new Set(snapshot.map((r) => r.actor));
   for (const p of attachedTo(vehicle, "passenger")) if (!remembered.has(p.uuid)) await detach(p);
 

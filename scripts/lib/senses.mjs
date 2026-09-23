@@ -1,36 +1,9 @@
 /**
  * What a creature can PERCEIVE — the one place ACKS senses are read, and the
- * one place they become Foundry token vision.
- *
- * Two questions are asked of this file. "Can this actor act in the dark?" is a
- * rules question the formation asks when it computes party speed and warns about
- * blinded members. "What should this token's sight be?" is the Foundry question
- * `token-sync.mjs` asks. Both are answered from the same reading of the sheet,
- * so a creature can never be blind to the movement rules and sighted on canvas.
- *
- * Sources, in precedence order:
- *   1. the Full Monster Sheet stat block (`flags["acks-extras"].extras`), read
- *      raw so this stays independent of feature load order;
- *   2. a `kw:lightlessvision` capability from the abilities register;
- *   3. item / active-effect NAMES, for hand-made abilities that declare nothing.
- *
- * ## Foundry mapping
- *
- * In Foundry, `sight.range` is what a token sees *in darkness* — core derives
- * `basicSight` (darkvision) at that range and `lightPerception` at infinity
- * (`client/documents/token.mjs:541-542`), so a token with range 0 still sees
- * everything the torches light and nothing they do not. That makes range 0 the
- * correct configuration for an ordinary human, and the reason this pass matters:
- * the system's own monster packs ship every creature at `sight.range: 60`, which
- * hands a peasant and a bugbear the same dark sight.
- *
- * Because core derives the detection modes from `sight`, nothing here writes
- * `detectionModes` — one less field to clobber on a GM's hand-tuned token.
- *
- * Dark senses render as `monochromatic`, never `darkvision`: core's darkvision
- * mode promotes DIM to BRIGHT, which would let a creature read a scroll in a
- * lightless corridor. Both ACKS senses explicitly see only "as dim light", and
- * dim light cannot discern colours or read (RULES §4).
+ * one place they become Foundry token vision. Read raw from the Full Monster
+ * Sheet stat block first, so this stays independent of feature load order;
+ * falls back to a capability, then to item/effect names. See
+ * docs/lib/MODEL.md, "Perception: senses, light, and the token".
  */
 
 import { hasCapability } from "./capabilities.mjs";
@@ -57,11 +30,9 @@ const CAP_LIGHTLESS = "kw:lightlessvision";
 const DARK_VISION = new Set(["lightless", "blind"]);
 
 /**
- * How far Night Vision carries indoors: TWICE the range of the light it is
- * seeing by (MM §5 — "moonlight → daylight; indoors 2× light range; not total
- * dark"). It is a multiplier on someone else's torch, never a radius of its
- * own, which is what keeps the last clause true: no light reaching the creature
- * means nothing to double, and the sense goes dark with the room.
+ * How far Night Vision carries indoors: a multiplier on someone else's
+ * light, never a radius of its own (MM §5). See docs/lib/MODEL.md, "Night
+ * Vision is the one sense read off the square".
  */
 const NIGHT_LIGHT_FACTOR = 2;
 
@@ -73,17 +44,14 @@ const NIGHT_LIGHT_FACTOR = 2;
 const DARK_SENSES = new Set(["echolocation", "mechAerial", "mechAquatic", "mechTerrestrial", "mechWebbed"]);
 
 /**
- * Name matchers for actors with no stat block and no declared capability.
- *
- * Split by RANGE, because the two ACKS senses do not reach equally far: a
- * thief's shadowy senses read 30', while lightless vision is the monsters'
- * default at 60'. A single combined pattern cannot tell them apart and would
- * have to guess one range for both.
+ * Name matchers for actors with no stat block and no declared capability,
+ * split by range: the two ACKS senses do not reach equally far, so one
+ * pattern per sense keeps the range distinguishable.
  */
 const SHADOWY_PATTERN = /shadowy\s*sense/i;
 const LIGHTLESS_PATTERN = /lightless\s*vision|infravision|darkvision|dark\s*sight/i;
 
-/** Either dark sense, by name — the union both callers of the old pattern used. */
+/** Either dark sense, by name — what both callers of this pattern need. */
 export const DARK_SENSE_PATTERN = new RegExp(`${SHADOWY_PATTERN.source}|${LIGHTLESS_PATTERN.source}`, "i");
 
 /** Shadowy senses "see" as a dim-light source in a 30' radius (RULES §4). */
@@ -94,8 +62,8 @@ export const DEFAULT_LIGHTLESS_RANGE = 60;
 
 /**
  * What an inherently blind creature perceives when its stat block records no
- * ranged sense at all. Such a creature navigates perfectly well — it simply has
- * no number on its sheet — so it gets the shadowy radius rather than nothing.
+ * ranged sense: the shadowy radius rather than nothing, since it still
+ * navigates.
  */
 const DEFAULT_BLIND_RANGE = SHADOWY_SENSE_RANGE;
 
@@ -149,10 +117,9 @@ function matchesByName(actor, pattern) {
 
 /**
  * Can this actor operate without light? One reading of the sheet, shared with
- * token vision — a creature blind to the movement rules and sighted on canvas
- * (or the reverse) is the bug this file exists to prevent. A sense a condition
- * has switched off does not count, so a deafened thief moves at the blinded
- * ⅓ speed exactly as the canvas shows them seeing nothing.
+ * token vision, so a creature is never blind to the movement rules and
+ * sighted on canvas (or the reverse). See docs/lib/MODEL.md, "Perception:
+ * senses, light, and the token".
  */
 export function canSeeInDark(actor) {
   return actor ? senseProfile(actor).seesInDark : false;
@@ -163,12 +130,10 @@ export function canSeeInDark(actor) {
 /* -------------------------------------------- */
 
 /**
- * The senses a creature can be suppressed out of, by condition.
- *
- * Shadowy senses are the conditional one (RULES §4: not at running speed, while
- * deafened, or in magical silence). Magical DARKNESS also stops them, but that
- * is a property of where the creature is standing rather than of the creature,
- * so it is enforced per-test in `perception.mjs` instead of here.
+ * The senses a creature can be suppressed out of, by condition (RULES §4:
+ * shadowy senses fail running, deafened, or in magical silence). Magical
+ * darkness is enforced in `perception.mjs` instead — a property of the
+ * ground, not the creature.
  */
 const SHADOWY_SUPPRESSORS = ["deaf", "silence", `${MONSTERS_ID}.running`];
 
@@ -212,20 +177,9 @@ function sensesOf(actor) {
     return found.sort((a, b) => b.range - a.range);
   }
 
-  // No stat block: the capability register, then names.
-  //
-  // SHADOWY SENSES ARE ASKED FIRST, because the capability does not settle the
-  // range. Shadowy Senses `provides: kw:lightlessvision` — correctly, so that a
-  // prerequisite written against lightless vision is satisfied by a thief who
-  // has it — but that is a claim about what the sense COUNTS AS, not about how
-  // far it reaches. Read as a lightless source it granted the monsters' 60'
-  // default, so a thief saw twice what RR §4 allows, through a sense that
-  // deafness, silence and running do not switch off. Both halves were wrong.
-  //
-  // A capability alone therefore never outranks a shadowy sense. Naming
-  // lightless vision outright still does: an elf with real infravision AND
-  // thief training has both senses, at their own ranges, and looks through the
-  // longer one.
+  // No stat block: the capability register, then names. Shadowy senses are
+  // checked first — the capability claims what the sense counts as, not how
+  // far it reaches, so it never outranks a named shadowy-sense match alone.
   const shadowy = matchesByName(actor, SHADOWY_PATTERN);
   if (shadowy) found.push({ key: "shadowy", range: SHADOWY_SENSE_RANGE });
   if (matchesByName(actor, LIGHTLESS_PATTERN) || (!shadowy && hasCapability(actor, CAP_LIGHTLESS))) {
@@ -249,21 +203,14 @@ export function hasNightVision(actor) {
  * How this actor's token should perceive:
  * `{ seesInDark, sightRange, visionMode, detection, suppressed }`.
  *
- * `sightRange` is in scene units (feet) and means seeing the SURROUNDINGS in
- * darkness — 0 is the correct, common answer, leaving the token to see lit areas
- * only. `detection` is the `{modeId: range}` record of which creatures it can
- * find and how: a sense is not merely a radius, and modelling one as plain sight
- * would let invisibility beat echolocation and stop tremor at a wall.
- *
- * A creature with several senses looks through its longest, and detects with all
- * of them at their own ranges.
+ * A creature with several senses looks through its longest, and detects with
+ * all of them at their own ranges. See docs/lib/MODEL.md, "Perception:
+ * senses, light, and the token".
  *
  * @param {object} [context]
  * @param {number} [context.litBy] the bright radius, in scene units, of the
  *   strongest light reaching this creature — the number Night Vision doubles.
- *   Only that sense reads it; every other answer here is a property of the
- *   sheet alone. Omitted (0) it yields the total-dark reading, which is the
- *   right answer for any caller asking about the creature rather than a square.
+ *   Omitted (0) yields the total-dark reading.
  */
 export function senseProfile(actor, { litBy = 0 } = {}) {
   const statuses = statusesOf(actor);
@@ -277,11 +224,8 @@ export function senseProfile(actor, { litBy = 0 } = {}) {
   }
 
   if (!live.length) {
-    // Night Vision is the one LIGHT-BASED sense: it doubles the reach of
-    // whatever is burning nearby and grants nothing of its own, so an unlit
-    // room leaves it at 0 and the creature is as blind as anyone else. Reported
-    // as seesInDark FALSE regardless — that flag asks whether the creature can
-    // march without a light at all, and this one cannot.
+    // Night Vision doubles nearby light and grants nothing of its own; unlit
+    // means 0, and seesInDark stays false — that flag means "without light at all".
     const night = hasNightVision(actor);
     return {
       seesInDark: false,

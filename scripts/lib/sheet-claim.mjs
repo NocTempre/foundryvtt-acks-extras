@@ -1,28 +1,12 @@
 /* global foundry, game, CONFIG, Handlebars, Hooks, console */
 /**
- * This module's sub-types answer to this module's sheets, whatever a world
- * has stored.
- *
- * A stored default outranks `makeDefault` permanently: Foundry's
- * `DocumentSheetConfig.#registerSheet` reads `core.sheetClasses` and, where
- * that setting names a sheet for a type, uses it INSTEAD of the registration's
- * own claim — for every registration made afterwards, forever. A world whose
- * setting names a foreign sheet for one of this module's sub-types therefore
- * opens that sheet however many times this module registers its own.
- *
- * For these sub-types that is never a preference, because no foreign sheet can
- * render one: the system's item sheet builds its details partial from the
- * document's type (`details-<type>.hbs`), and no such file exists outside the
- * module that defines the type. The render throws, the window never opens, and
- * nothing says why. So the default is taken back on every client, the stored
- * pin is cleared once by the primary GM, and a partial is registered under the
- * name the system's sheet asks for so the remaining routes to a foreign sheet
- * — a single document pinned through its own `core.sheetClass` flag — degrade
- * to a note instead of a thrown render.
- *
- * Runs LAST: it is imported at the end of `scripts/module.mjs`, so its ready
- * hook is registered after every feature's and fires after the ready-time sheet
- * registrations it has to outlast.
+ * Keeps this module's sub-types on this module's sheets against a stored
+ * world preference that would open a foreign one and throw: the default is
+ * retaken on every client, the stored pin is cleared once by the primary GM,
+ * and a fallback partial degrades a lingering foreign pin to a note instead
+ * of a thrown render. Runs last — imported at the end of `scripts/module.mjs`,
+ * after every other ready-time sheet registration.
+ * See docs/lib/MODEL.md, "The UI preset: whose defaults the world opens on".
  */
 import { MODULE_ID } from "./constants.mjs";
 import { isPrimaryGM } from "./util.mjs";
@@ -116,14 +100,10 @@ export async function clearForeignSheetPins() {
 
 /**
  * Register a fallback under the partial name the system's item sheet builds
- * from a document's type, for every item sub-type this module defines.
- *
- * The system's description tab renders `{{> (getDetailsPartialPath) }}`, which
- * resolves to `systems/<system>/templates/items/v2/details/details-<type>.hbs`.
- * A name Handlebars cannot resolve throws and takes the whole window with it,
- * so the name resolves — to a note saying where the type's fields are. Never
- * overwrites a partial that already exists: a system that ships one for a type
- * has answered the question itself.
+ * from a document's type (`details-<type>.hbs`), for every item sub-type this
+ * module defines: an unresolvable partial name throws and takes the whole
+ * window with it, so the fallback resolves it to a note naming where the
+ * type's fields are. Never overwrites a partial that already exists.
  */
 export async function registerForeignDetailsFallback() {
   const types = Object.keys(CONFIG.Item?.dataModels ?? {}).filter((type) => type.startsWith(`${MODULE_ID}.`));

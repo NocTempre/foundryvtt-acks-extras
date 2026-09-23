@@ -1,29 +1,13 @@
 /* global game, foundry */
 /**
- * Modifier discovery — the heart of the module's data-driven design.
+ * Modifier discovery: collects Active Effect changes keyed
+ * `flags.acks-extras.<domain>` on an actor's proficiency/power items into
+ * that domain's modifiers, plus name-regex fallbacks (`config.NAME_FALLBACKS`)
+ * for classic-proficiency items that carry no such effect. Full contract
+ * (change keys, effect-level metadata flags) is docs/henchmen/MODEL.md §4.
  *
- * Mechanics live as Active Effect changes on proficiency/power Items
- * (`ability` type in acks), NOT as hardcoded proficiency lists. Any effect
- * change whose key is `flags.acks-extras.<domain>` (this feature's domains
- * only — membership test below) contributes its value to that modifier
- * domain. Per-effect metadata is read from the effect's own flags:
- *   flags["acks-extras"].label      — display label (defaults to effect/item name)
- *   flags["acks-extras"].condition  — i18n key or text; marks the bonus as
- *                                     situational → rendered as a toggle in
- *                                     roll dialogs (GM/player decides if it
- *                                     applies), like the influence feature's
- *                                     `situational` convention.
- *   flags["acks-extras"].target     — free-text scope note (e.g. "animal",
- *                                     "sameReligion") appended to the label.
- *
- * For hiring rolls we also honor the influence feature's Active Effect
- * convention (`flags.acks-extras.reaction` + its `situational`/`tone`/`label`
- * flags), so reaction-granting effects written for it feed hiring here.
- *
- * GRACEFUL DEGRADATION: items named like the classic book proficiencies that
- * carry NO effect changes in this feature's domains are still recovered, via
- * the name regexes in config.NAME_FALLBACKS — so a world that never set up
- * effects still gets the common cases.
+ * Hiring rolls also honor the influence feature's own `flags.acks-extras.
+ * reaction` effect convention, so reaction-granting effects feed hiring here.
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS, INFLUENCE_REACTION_KEY, MODULE_ID } from "./constants.mjs";
 import { NAME_FALLBACKS } from "./config.mjs";
@@ -31,10 +15,10 @@ import { appliedEffects, localizeKey as localize, makeEffectMeta, activeNumericC
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /**
- * The exact set of change keys this feature speaks. Membership, NOT a prefix
- * test: sibling features share the flag scope, so `startsWith(EFFECT_PREFIX)`
- * matches their domains too, and also plain item flags like
- * `flags.acks-extras.record` that are not effect domains at all.
+ * The exact set of change keys this feature speaks. Membership, not a prefix
+ * test — a prefix test would also match sibling features' domains and plain
+ * item flags like `flags.acks-extras.record`. See docs/DECISIONS.md,
+ * "`EFFECT_PREFIX` collapse".
  */
 const OWN_CHANGE_KEYS = new Set(Object.values(EFFECT_DOMAINS).map((d) => `${EFFECT_PREFIX}${d}`));
 

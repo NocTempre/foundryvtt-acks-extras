@@ -1,6 +1,6 @@
 /* global game */
 /**
- * Cross-module facts — the "has X" fallback chain (docs/MODEL.md §7):
+ * Cross-module facts — the "has X" fallback chain (docs/henchmen/MODEL.md §7):
  *   1. owning module's API, when it exists and is active
  *   2. actor flag
  *   3. INVENTORY MARKER ITEM — a plain Item whose name declares the fact,

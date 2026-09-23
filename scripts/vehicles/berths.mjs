@@ -2,36 +2,21 @@
  * What a vehicle has ROOM for, bucket by bucket — and which of those buckets
  * are actually the same room wearing two names.
  *
- * A vehicle is not one pool of space. It has a team in the traces, somebody
- * holding the reins, a crew working it, passengers riding it, and cargo in the
- * back; and which of those a given vehicle HAS, and which of them compete for
- * the same stone, is a property of the vehicle rather than of vehicles in
- * general:
+ * A vehicle is not one pool of space: a team in the traces, someone holding
+ * the reins, a crew working it, passengers riding it, cargo in the back —
+ * and which of those a given vehicle HAS, and which compete for the same
+ * stone, is a property of the vehicle, not of vehicles in general.
  *
- *  - a **land vehicle** has no berths. A passenger is freight that complains:
- *    they and the cargo come out of one pool, printed as a pair — a small
- *    palanquin carries "one passenger (or up to 15 stone) at 60', or two
- *    passengers (up to 35 stone) at 30'" (RR ch. 4). Note what that pair says:
- *    the exchange is NOT a constant (one berth is 15 stone, two are 17½ each)
- *    and taking a second passenger can cost SPEED as well as room. So the rate
- *    is the vehicle's own `cargo.passengerStone`, never a number assumed here,
- *    and a vehicle whose printed pairs are non-linear states them as speed
- *    tiers like any other load;
- *  - a **vessel** has berths, and her crew is not cargo — but the two TRADE,
- *    at the book's fifty stone per hand (RR ch. 7). Sailing short-handed to
- *    carry more is a real decision, and one this model represents rather than
- *    forbids.
+ *  - A **land vehicle** has no berths: a passenger and the cargo share one
+ *    pool, priced at the vehicle's own `cargo.passengerStone` (RR ch. 4),
+ *    never a number assumed here — a non-linear printed rate states itself
+ *    as speed tiers like any other load.
+ *  - A **vessel** has berths, and her crew is not cargo — the two TRADE, at
+ *    the book's printed rate per hand (RR ch. 7).
  *
- * WHAT "CREW" MEANS IS PER VEHICLE. Chapter 4 is explicit that the column
- * "indicates the driver, driver and warriors (for chariots), or the passengers
- * (for howdahs)" — so the same field is a driver on a wagon, a fighting
- * complement on a chariot, and the passenger list on a howdah. A sheet that
- * labels it "Crew" everywhere is wrong on two vehicles in three, which is why
- * the bucket carries what it MEANS rather than only what it holds.
- *
- * Collapsing all of this into a single capacity number is what makes a wagon
- * quietly carry a free platoon, so the buckets are derived here and the sheet
- * renders what it is told rather than deciding for itself.
+ * WHAT "CREW" MEANS IS PER VEHICLE (RR ch. 4): the same field is a driver on
+ * a wagon, a fighting complement on a chariot, the passenger list on a
+ * howdah — so the bucket carries what it MEANS, not only what it holds.
  */
 
 import { readTable, VOYAGES_DOC } from "./vehicle-speed.mjs";
@@ -111,9 +96,9 @@ export function complementMeans(vehicle) {
 export const poolsPassengersWithCargo = (vehicle) => vehicle?.kind !== "sea";
 
 /**
- * How much cargo a vessel could carry if she sailed short-handed, and what it
- * costs her: fifty stone for every hand left ashore (RR ch. 7), and the speed
- * that missing hand takes with it.
+ * How much cargo a vessel could carry if she sailed short-handed, and what
+ * it costs her: the book's printed rate per hand left ashore (RR ch. 7),
+ * and the speed that missing hand takes with it.
  *
  * Returns null for anything that is not a vessel — a wagon cannot leave its
  * horses behind to make room.

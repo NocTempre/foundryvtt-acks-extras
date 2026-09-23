@@ -3,46 +3,27 @@ import { SETTLEMENT_LOCATIONS } from "./settlement.mjs";
 import { DISTRICT_TYPE, findDistrict, districtAt } from "./district-find.mjs";
 
 /**
- * "District" scene-region behavior: draw a Region over a quarter of a city and
- * give the whole quarter its own character — how often the streets throw by day
- * and by night, which table answers when they do, which table answers when the
- * quarter's own powers are hunting the party, which table the city's own list
- * hands over to, and how the locals take to strangers there.
+ * "District" scene-region behavior: draw a Region over a quarter of a city
+ * and give it its own encounter cadence, tables and reaction figure. A
+ * district is the outermost of three layers (street → zone → district);
+ * `resolveCityCadence` in [settlement.mjs](./settlement.mjs) performs the
+ * precedence, per field, and reads the field names below. See
+ * docs/formation/DECISIONS.md, "A district states a day figure and a night
+ * figure, not a figure and a shift".
  *
- * A district is the OUTERMOST of three layers and the widest: the street the
- * party is standing on, then an Encounter Zone drawn over a few blocks, then
- * the district drawn over the quarter. Precedence runs street → zone →
- * district, per field — `resolveCityCadence` in
- * [settlement.mjs](./settlement.mjs) is where that is performed, and the field
- * names below are the ones it reads.
- *
- * The shape is the one a settlement gazetteer prints for a quarter (JJ ch. 7):
- * a day figure and a night figure rather than one figure and a shift, because
- * that is how a quarter is described and because two figures cannot disagree
- * about which of them applies. Every number is the Judge's to type from their
- * own book — the module ships the boxes and none of the values.
- *
- * The point-in-region geometry is shared with every other zone behavior and
- * lives in `zones.mjs`, which also states why these extend `RegionBehaviorType`.
- * The readers — which district the party stands in, which is drawn over a
- * point — live in `district-find.mjs`, which needs no core class at load, and
- * are re-exported here for the importers that think of them as the district's.
+ * The point-in-region geometry lives in `zones.mjs`. The readers — which
+ * district the party stands in, which is drawn over a point — live in
+ * `district-find.mjs` and are re-exported here.
  */
 
 export { DISTRICT_TYPE, findDistrict, districtAt };
 
 /**
- * Where a district's reaction figure applies, as a select.
- *
- * A FUNCTION, not a frozen object: `StringField` evaluates a callable `choices`
- * at render time, and core does not localize choice labels it is handed as
- * strings — so a static map would put raw i18n keys in the select.
- *
- * The vocabulary is `any` plus the street vocabulary the board already uses, so
- * a district states its reaction the way the board states its place and no new
- * spelling of "where" enters the feature. `holedUp` is in the list for free and
- * is meant: a quarter can be unwelcoming to sleep in and unremarkable to walk
- * through.
+ * Where a district's reaction figure applies, as a select. A function, not
+ * a frozen object: `StringField` evaluates a callable `choices` at render
+ * time, and core does not localize choice labels handed to it as strings.
+ * See docs/formation/DECISIONS.md, "A district's reaction figure is signed,
+ * and never inherits".
  */
 function reactionWhereChoices() {
   // Falls back to the key rather than throwing. Core validates a stored value
@@ -61,24 +42,23 @@ export class DistrictBehavior extends foundry.data.regionBehaviors.RegionBehavio
     const fields = foundry.data.fields;
     return {
       tableUuid: new fields.DocumentUUIDField({ type: "RollTable" }),
-      // The quarter's own powers, looking for this party in particular. A
-      // SECOND table rather than a modifier on the first: what a watch that is
-      // hunting you sends is a different list, not the ordinary list rolled
-      // higher.
+      // Selected over `tableUuid` while the board is `wanted`. See
+      // docs/formation/DECISIONS.md, "Being hunted is a board fact, and it
+      // does not travel".
       wantedTableUuid: new fields.DocumentUUIDField({ type: "RollTable" }),
-      // The quarter's special list: NOT a replacement for the city's list the
-      // way `tableUuid` is, but what that list hands its roll to when the total
-      // lands in the stretch the map says defers to the quarter.
+      // What the city's own list hands its roll to for one stretch of it; not
+      // a replacement for `tableUuid`. See docs/formation/DECISIONS.md, "A
+      // city's own list belongs to its map, and hands one band to the quarter".
       specialTableUuid: new fields.DocumentUUIDField({ type: "RollTable" }),
       // 0 = inherit the layer outside this one, on each field independently.
-      // Bounds mirror the street's: a cadence in turns, a target on 1d6.
       encounterEveryDay: new fields.NumberField({ required: true, initial: 0, min: 0, max: 24, integer: true }),
       encounterEveryNight: new fields.NumberField({ required: true, initial: 0, min: 0, max: 24, integer: true }),
       encounterTargetDay: new fields.NumberField({ required: true, initial: 0, min: 0, max: 6, integer: true }),
       encounterTargetNight: new fields.NumberField({ required: true, initial: 0, min: 0, max: 6, integer: true }),
-      // SIGNED, and 0 means "no adjustment" rather than "inherit" — which is
-      // why this one never goes through the cadence layering's `stated()`,
-      // whose whole job is to read 0 as inherit and to reject a negative.
+      // Signed; 0 means "no adjustment", never "inherit" — never passed
+      // through the cadence layering's `stated()`. See
+      // docs/formation/DECISIONS.md, "A district's reaction figure is
+      // signed, and never inherits".
       reactionModifier: new fields.NumberField({ required: true, initial: 0, min: -20, max: 20, integer: true }),
       reactionWhere: new fields.StringField({
         required: true, blank: false, initial: "any", choices: reactionWhereChoices,

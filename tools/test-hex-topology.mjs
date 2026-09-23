@@ -141,11 +141,10 @@ ok("a route counts the hexes it actually crosses", () => {
 
 /**
  * A square stand-in for a hex grid: 100-pixel cells, neighbours share an EDGE.
- *
- * Square on purpose — the derivation asks the grid three questions and must
- * work for any layout core supports, so the test answers them the simplest way
- * that still has corners. A DIAGONAL step is a corner, and `facing` refuses it
- * exactly as the real one does for two hexes that only touch.
+ * The derivation asks the grid three questions and must work for any layout
+ * core supports, so a square answers them the simplest way that still has
+ * corners. A DIAGONAL step is a corner, and `facing` refuses it exactly as
+ * the real one does for two hexes that only touch.
  */
 const fakeGrid = {
   step: 5,

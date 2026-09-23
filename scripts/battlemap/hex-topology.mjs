@@ -1,28 +1,13 @@
 /**
- * A hex is not a cell: it has sides, corners and a middle.
+ * A hex's addressable geometry: thirteen NODES (six sides, six corners, a
+ * centre) and the LINKS declared between them — the model a drawn road's
+ * crossings are read into. A road applies only to travel along a declared
+ * path; a winding one costs more distance than crossing straight. Pure
+ * geometry and bookkeeping — no Foundry, no canvas. What a link is worth
+ * lives in the travel tables.
  *
- * Painting a road as a property of a hex answers the wrong question. A road is
- * not something a hex HAS, it is something a party FOLLOWS — and following it
- * means entering by one edge and leaving by another. A hex the road merely
- * passes through the corner of is not a hex you can drive across.
- *
- * So a hex carries thirteen addressable NODES: six sides, six corners, and a
- * centre. Connections are declared between nodes, a hex may hold several
- * unconnected ones — a bridge and a ford in the same hex need not join — and a
- * route is a walk over those connections.
- *
- * Two consequences the travel rules actually care about:
- *
- *  - **A road applies only ALONG a declared path.** Being in a hex that
- *    contains one earns nothing. This is also what makes "the party is on a
- *    road" a fact rather than a guess, which the navigation rule leans on.
- *  - **A winding road is longer than the hex is wide.** Following the bends
- *    costs distance the straight crossing does not, and that cost is explicit:
- *    a road is usually still worth it, but the trade is visible rather than
- *    free.
- *
- * Pure geometry and bookkeeping — no Foundry, no canvas. What a link is WORTH
- * lives in the travel tables as it always has.
+ * See docs/battlemap/DECISIONS.md, "A hex has sides, corners and centres,
+ * and a road is a declared path."
  */
 
 /** The three kinds of place a connection can touch. */
@@ -35,9 +20,7 @@ export const NODE_KINDS = Object.freeze({
 /**
  * The letter each kind is written with.
  *
- * `centre` is `m` for middle, NOT its own first letter: "corner" and "centre"
- * both begin with c, and sharing a prefix would make a hex's middle and its
- * first corner the same node.
+ * `centre` is `m`, not its own initial — corner and centre both start with c.
  */
 const KIND_LETTER = Object.freeze({ side: "s", corner: "c", centre: "m" });
 const LETTER_KIND = Object.freeze({ s: "side", c: "corner", m: "centre" });
@@ -95,12 +78,9 @@ export function withoutLink(links, from, to) {
 }
 
 /**
- * The connected components of a link set — the HUBS.
- *
- * A hex may hold several, and they need not join: a bridge over a gorge and a
- * ford below it are two ways through the same cell that do not meet. Returning
- * them as separate components is what lets a route refuse to teleport between
- * them.
+ * The connected components of a link set — the HUBS. A hex may hold several,
+ * unconnected (a bridge and a ford need not join), so a route cannot
+ * teleport between them.
  */
 export function hubs(links) {
   const parent = new Map();
@@ -134,16 +114,10 @@ export function connected(links, from, to) {
 }
 
 /**
- * The cost of following a route, against crossing straight.
- *
- * `winding` is a per-link multiplier: 1 is a link as short as the crossing it
- * replaces, and anything above it is the bends. The tax is what the road adds
- * in DISTANCE, and it is reported separately from what the road saves in
- * SPEED — the two are different currencies, and a readout that netted them
- * would hide the trade the Judge is meant to see.
- *
- * Returns null for a route that is not actually connected, rather than pricing
- * a walk nobody could take.
+ * The cost of following a route, against crossing straight. `winding` is a
+ * per-link multiplier (1 is a link as short as the crossing it replaces);
+ * the tax is reported in DISTANCE, separate from what the road saves in
+ * SPEED. Returns null for a route that is not actually connected.
  */
 export function routeCost(links, path) {
   const steps = Array.isArray(path) ? path : [];
@@ -171,11 +145,8 @@ export function routeCost(links, path) {
 }
 
 /**
- * Is the party ON a road for this step?
- *
- * The question the travel derivation and the navigation rule both ask, and the
- * reason the topology exists: a road earns its multiplier and its
- * no-getting-lost only while it is being followed.
+ * Is the party ON a road for this step? A road's multiplier and its
+ * no-getting-lost apply only while it is being followed.
  */
 export function onRoad(links, from, to) {
   const [a, b] = [from, to].sort();
@@ -188,29 +159,14 @@ export function onRoad(links, from, to) {
 /* -------------------------------------------- */
 
 /**
- * The links a set of DRAWN road segments implies.
- *
- * A road is a wall on the map, and a hex link is a fact about a crossing. This
- * is the translation between them: walk each segment, note which hex each step
- * of it falls in, and every move to a DIFFERENT, ADJACENT hex is a crossing —
- * which is a link between the two hexes' facing side nodes.
- *
- * A wall that merely clips a hex's corner emits nothing, because the hex before
- * the clip and the hex after it are not neighbours: there is no crossing to
- * declare, which is exactly the ruling that a hex a road only touches earns
- * nothing.
- *
- * **Winding is measured, not typed.** A link's `winding` is the road lying in
- * the two hexes it joins — half of each, which is the stretch between their
- * middles — over the distance between their centres. A straight run across a
- * hex is 1; a street that doubles back through one is more, and the party pays
- * the difference in distance. The road inside a hex is summed over EVERY
- * segment there, which is what makes a snaking street drawn as six short lines
- * cost what its shape says rather than what each line does. The cost of that:
- * two roads that both cross one hex without meeting — a bridge and a ford —
- * are counted together there, so the hex reports more bend than either has.
- * `makeLink` floors the result at 1, so the measure can never make a road
- * cheaper than crossing straight.
+ * The links a set of DRAWN road segments implies: walk each segment, note
+ * which hex each step falls in, and every move to a different, adjacent hex
+ * is a crossing — a link between the two hexes' facing side nodes. A wall
+ * that merely clips a hex's corner emits nothing (the hex before and after
+ * the clip are not neighbours). `winding` is the road lying inside the two
+ * joined hexes (summed over every segment there) over the distance between
+ * their centres, floored at 1 by `makeLink`. See docs/battlemap/DECISIONS.md,
+ * "A road is a wall, on every grid."
  *
  * Pure: the grid is an ADAPTER, so this is testable without a scene and works
  * for any hex layout core supports.

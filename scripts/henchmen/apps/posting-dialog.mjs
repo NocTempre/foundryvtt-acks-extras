@@ -138,9 +138,8 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
 
-    // RR 168: candidates judge the employer by appearance and spending —
-    // the PRESENTED level (a lie, if it differs) governs who will sign on.
-    // Discovery later means a loyalty roll at −1 per level of difference.
+    // RR 168: candidates judge the employer by the PRESENTED level (a lie,
+    // if it differs), not the true one; a later discovery costs loyalty.
     const presented = data.presentedLevel !== "" && data.presentedLevel != null ? Number(data.presentedLevel) : null;
     if (presented != null) spec.presentedLevel = presented;
 

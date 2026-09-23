@@ -1,32 +1,16 @@
 /* global game, ui, foundry */
 /**
- * Containers — nested inventory with a RAW weight roll-up (RR pp. 142–145, 161;
- * acks-rules/acks-equipment/RULES.md §1/§3).
+ * Containers — nested inventory with a RAW weight roll-up (RR pp. 142–145,
+ * 161; acks-rules/acks-equipment/RULES.md §1/§3).
  *
- * Design note (reuse first). Contents stay REAL items on the actor, flagged with
- * `containedIn`. That means core's computeEncumbrance already counts each item
- * exactly once, and a backpack's contents already weigh on the carrier — which
- * is what RAW wants. So the common case needs **no** correction at all, and
- * acks-formation keeps reading core's encumbrance unchanged.
+ * Contents stay REAL items on the actor, flagged with `containedIn`, so
+ * core's computeEncumbrance already counts each item once and the common
+ * case needs no correction. Only RAW rules that genuinely disagree with a
+ * flat sum are corrected, in `encumbranceDelta6`: the adventurer's harness
+ * (RR p. 142), the bowquiver assembly (RR p. 142), and JJ shield variants
+ * (JJ pp. 407–408, overlay-gated).
  *
- * Only a few RAW rules genuinely disagree with a flat sum, and only those are
- * corrected:
- *
- *  1. **Adventurer's harness** (RR p. 142): the wearer is relieved of a stated
- *     weight of ordinary equipment — the item's own figure (`gear.relief`),
- *     never a number of ours. It cannot secure heavy items, coins, or be worn
- *     over heavy armour — so the weight it forgives is drawn only from
- *     ordinary (non-heavy, non-coin) gear.
- *  2. **Bowquiver** (RR p. 142): empty it counts as 1 item; holding a bow and 20
- *     arrows the whole assembly counts as **2 items** — not bow (1 stone) plus
- *     quiver plus arrows. A flat sum is wildly heavier than RAW.
- *  3. **JJ shield variants** (JJ pp. 407–408, overlay-gated): a shield is rated
- *     by variant and carry state, not by its item weight — a buckler counts as
- *     one item rather than a stone, a kite shield rides lighter mounted, and a
- *     front-strapped crescent is heavier than a slung one.
- *
- * Capacity (backpack 4 st, rucksack 2, sack 6/2, saddlebag 3, pouch 1/2) is
- * enforced as a warning on the container, not by altering weight.
+ * Capacity is enforced as a warning on the container, not by altering weight.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
@@ -49,12 +33,9 @@ import { unset } from "../lib/util.mjs";
 
 /**
  * The container STATE record on an item: `flags.acks-extras.container` —
- * `{locked, opened, concealed, fragile, lockMod}`.
- *
- * Capacity is NOT here. It is a property of gear (acks-lib `capacityOf`), not
- * of a category called containers: a coat with hidden pockets and a bandolier
- * hold gear without being carrying devices, and while capacity lived in this
- * record only the items annotated as devices could have one.
+ * `{locked, opened, concealed, fragile, lockMod}`. Capacity is NOT here (see
+ * docs/equipment/DECISIONS.md, "Capacity lives on the gear flag, not the
+ * container record (2026-09-22)").
  */
 export function containerOf(item) {
   return item?.getFlag?.(MODULE_ID, ITEM_FLAGS.CONTAINER) ?? null;
@@ -81,12 +62,9 @@ export function capacityStone(item) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Is the container locked AND still shut?
- *
- * `locked` is the lock's existence; `opened` records that someone has defeated
- * it. Two fields rather than one because picking a lock does not remove it —
- * the chest can be re-locked, and the Judge should not have to re-describe the
- * lock to do it.
+ * Is the container locked AND still shut? Two fields rather than one — see
+ * docs/equipment/MODEL.md, "2026-07-24 — containers live on the sheet; locks
+ * roll the character's own proficiency".
  */
 export function isLocked(item) {
   const c = containerOf(item);
@@ -100,20 +78,14 @@ export const isConcealed = (item) => !!containerOf(item)?.concealed;
 export const isFragile = (item) => !!containerOf(item)?.fragile;
 
 /**
- * May this user see what is inside?
+ * May this user see what is inside? Visibility is inherited from ownership,
+ * gated by the lock: own it and it is open, and you see inside; own it and
+ * it is locked, and you do not, until the lock is defeated. The GM always
+ * sees inside.
  *
- * VISIBILITY IS INHERITED FROM OWNERSHIP, GATED BY THE LOCK. Picking up a
- * locked crate tells you that you are carrying a locked crate — not what is in
- * it. So: own it and it is open, and you see inside; own it and it is locked,
- * and you do not, until the lock is defeated.
- *
- * The GM always sees inside: they are the one who decided what is in there.
- *
- * This is a UI rule, not a security boundary. The contents are ordinary items
- * on the actor and Foundry replicates them to their owner regardless — a player
- * determined to look can. Treat it as "the sheet does not tell you", which is
- * what a locked chest at the table actually means, and put anything that must
- * genuinely stay secret on a GM-owned actor.
+ * A UI rule, not a security boundary (see docs/equipment/MODEL.md,
+ * "2026-07-24 — containers live on the sheet; locks roll the character's
+ * own proficiency").
  */
 export function canSeeInside(item, user = game.user) {
   if (!item) return false;
@@ -262,14 +234,10 @@ export async function storeIn(actor, item, container) {
 }
 
 /**
- * Gear that is put to use comes out of the container holding it.
- *
- * The other half of `storeIn`, which takes gear off to stow it: a thing is
- * either in the pack or in the hand, never both. Without this half the sheet
- * and the loadout describe different characters — a sword drawn while inside a
- * chest stayed bucketed under the chest, where `containedIn` outranks every
- * other answer to "where is this?", while the loadout read `equipped` and spent
- * a hand on it, granted its attack, and counted the shield beside it.
+ * Gear that is put to use comes out of the container holding it — the other
+ * half of `storeIn`; a thing is either in the pack or in the hand, never
+ * both (see docs/equipment/DECISIONS.md, "Putting gear to use takes it out
+ * of the pack (2026-08-30)").
  *
  * The seam is the UPDATE, not the control, so every caller is covered by one
  * rule: this module's Draw and Wear controls, core's own equip toggle sitting
@@ -277,9 +245,8 @@ export async function storeIn(actor, item, container) {
  * followed by a second write, so the gear leaves the container and enters use
  * in one document write and no render shows the halfway state.
  *
- * A lock is not consulted. Whether the contents can be reached at all is
- * decided before this — a locked container shows its rows to the Judge alone,
- * and the Judge is who opens it at the table.
+ * A lock is not consulted: whether the contents can be reached at all is
+ * decided before this.
  *
  * @param {Item} item the document about to be updated
  * @param {object} changes the pending update, expanded, mutated in place
@@ -348,10 +315,8 @@ export function containerReport(actor) {
         concealed: isConcealed(c),
         fragile: isFragile(c),
         visible,
-        // WEIGHT IS NOT A SECRET. A locked chest still drags on your
-        // encumbrance, and hiding its load would make the number on the sheet
-        // unexplainable. You cannot see what is inside; you can feel that it
-        // is heavy — which is exactly right.
+        // Weight is not a secret (see docs/equipment/MODEL.md, "load is
+        // never hidden").
         contents: visible ? contentsOf(actor, c.id) : [],
       };
     });
@@ -399,10 +364,9 @@ export function encumbranceDelta6(actor) {
   delta += shieldEncumbranceDelta6(actor);
 
   // 1. Adventurer's harness: relieves the wearer of the weight its own text
-  //    states (`gear.relief`, in stone); unstated relieves nothing. WORN, not
-  //    `system.equipped` — a harness is a plain `item`, which core gives no
-  //    `equipped` field, so gating on that field made this rule permanently
-  //    inert. Never re-narrow a worn test to one store.
+  //    states (`gear.relief`, in stone); unstated relieves nothing. Tests
+  //    WORN, never `system.equipped` (see docs/equipment/DECISIONS.md, "A
+  //    worn-check gated on `system.equipped` never fires (2026-09-22)").
   const harness = actor.items.find((i) => i.getFlag?.(MODULE_ID, ITEM_FLAGS.HARNESS) && isWorn(i));
   const relief = harness ? reliefOf(harness) : null;
   if (harness && relief !== null && wornArmourType(actor) !== "heavy") {

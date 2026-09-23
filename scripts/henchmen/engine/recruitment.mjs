@@ -52,11 +52,11 @@ export const GENERIC_KINDS = ["henchman", "mercenary", "specialist"];
 export const PRIVATE_KINDS = ["henchmanByClass", "henchmanByClassProficiency", "henchmanByProficiency"];
 
 /**
- * Directed-search SPECIFICITY (user's RAW model): a successful directed
- * search REPLACES rolled leveled henchmen still left in the month; when
- * several searches contend, the more specific resolves first (random on
- * ties). 4 = class+level, 3 = class, 2 = class proficiency, 1 = general
- * proficiency.
+ * Directed-search specificity: when several directed searches contend for
+ * the same month's replacement pool, the more specific resolves first
+ * (random on ties). 4 = class+level, 3 = class, 2 = class proficiency, 1 =
+ * general proficiency. See docs/henchmen/DECISIONS.md, "Directed searches
+ * replace pool members, and contend most-specific-first".
  */
 export function specSpecificity(spec) {
   if (spec.kind === "henchmanByClass") return spec.level >= 1 ? 4 : 3;
@@ -73,15 +73,6 @@ export function segmentKeyFor(spec) {
   if (spec.kind === "specialist") return `specialist:${spec.specialistType}`;
   return "";
 }
-
-/* ------------------------- commissions ------------------------- */
-/**
- * A posting that has advertised THE SAME THING through a whole market month
- * upgrades to a COMMISSION (the JJ mechanic): its own further rolls shift
- * one rarity toward common. `advertVeteran` is stamped at the monthly roll
- * on postings that already existed when the ending month began (a posting's
- * spec is immutable, so it advertised the same thing throughout).
- */
 
 /**
  * Effective market class for a recruiter's own dealings (fees, private
@@ -132,13 +123,14 @@ export function marketLogAppend(list, time, type, note) {
 }
 
 /**
- * Apply a successful DIRECTED SEARCH as pool REPLACEMENT (user's RAW model,
- * JJ 118-119): up to `quantity` valid leveled henchmen still left in the
- * month (pending or unhired) are randomly replaced by what the recruiter
- * sought. Only step-3 rolled henchmen (level 1+, shared pool) qualify;
- * class+level searches replace only their level. Replaced candidates are
- * highlighted for the posting employer and stay available ALL month (no
- * weekly churn). Mutates `candidates` in place; returns the replaced count.
+ * Apply a successful directed search as pool replacement (JJ 118-119): up to
+ * `quantity` valid leveled henchmen still left in the month (pending or
+ * unhired) are randomly replaced by what the recruiter sought. Only rolled
+ * henchmen (level 1+, shared pool) qualify; class+level searches replace only
+ * their level. Replaced candidates are highlighted for the posting employer
+ * and stay available all month (no weekly churn). Mutates `candidates` in
+ * place; returns the replaced count. See docs/henchmen/DECISIONS.md,
+ * "Directed searches replace pool members, and contend most-specific-first".
  */
 export function applyDirectedReplacement({ location, spec, employerUuid, quantity, rarity, candidates }) {
   if (!(quantity > 0)) return 0;
@@ -158,13 +150,10 @@ export function applyDirectedReplacement({ location, spec, employerUuid, quantit
   const picks = eligible.slice(0, Math.min(quantity, eligible.length));
   const demographics = demographicsOf(location);
   for (const c of picks) {
-    // The search FOUND this person: available immediately and for the whole
-    // month. A pending future-week arrival would be invisible and unhirable —
-    // a search that turned up somebody the recruiter cannot talk to.
+    // Available immediately and for the whole month — see docs/henchmen/
+    // DECISIONS.md, "A directed search finds a person, and finds them now".
     c.status = "available";
-    // Directed results are PRIVATE to the recruiter (JJ 118) and live in the
-    // Recruitment tab's directed bucket, not the shared walk-in tabs.
-    // Employer-less GM posts stay shared.
+    // Private to the recruiter (JJ 118); employer-less GM posts stay shared.
     c.privateToUuid = employerUuid ?? "";
     const changesClass = spec.kind === "henchmanByClass" || spec.kind === "henchmanByClassProficiency";
     if (changesClass && spec.classKey) {
@@ -275,10 +264,9 @@ async function buildCandidates({ location, spec, total, marketClass, segment, pr
 
   for (const { week, count } of weeks) {
     if (count <= 0) continue;
-    // LATE ROLLS: when the month is rolled after its start (clock jumped,
-    // nobody processed), arrivals schedule from the ROLL time. Backdating them
-    // to the month start expires whole cohorts instantly — one week of
-    // visibility each. On-time rolls keep the RAW week 1/2/3 pacing.
+    // Late rolls schedule from the roll time, not the month start — see
+    // docs/henchmen/DECISIONS.md, "Late market rolls schedule from the roll,
+    // not the month start".
     const availableFromTime = Math.max(monthStart + (week - 1) * SECONDS_PER_WEEK, notBefore + (week - 1) * SECONDS_PER_WEEK);
     const base = {
       segment: segment ?? "",
@@ -335,9 +323,9 @@ async function buildCandidates({ location, spec, total, marketClass, segment, pr
           candidate.classKey = rolled.classKey;
           candidate.doubleD100 = rolled.rolls;
         }
-        // 0th-level henchmen have NO class (user's market model: classes are
-        // rolled on the double-d100 for level 1-4 ONLY; a 0th prospect rolls
-        // a street OCCUPATION and takes a class when they actually level).
+        // 0th-level henchmen have no class: the double-d100 rolls a class for
+        // levels 1-4 only, and a 0th prospect rolls a street occupation and
+        // takes a class when they actually level.
         candidate.wageGp = henchmanWage(spec.level ?? 0);
       } else if (spec.kind === "henchmanByClass") {
         if (!candidate.level || candidate.level <= 0) {
@@ -545,9 +533,9 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
     const dup = postings.find((p) => p.status === "active" && p.segment === segment && p.employerUuid === (employer?.uuid ?? ""));
     if (dup) return { error: "duplicate-segment" };
   } else if (!gmAdd) {
-    // Once per month per TYPE of directed search per recruiter (user's RAW
-    // model): a second by-class search this month is blocked even for a
-    // different class. GM placements are exempt (they are not searches).
+    // Once per month per TYPE of directed search per recruiter: a second
+    // by-class search this month is blocked even for a different class. GM
+    // placements are exempt (they are not searches).
     const dup = postings.find(
       (p) =>
         p.status === "active" &&
@@ -593,10 +581,9 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
     posting.totalAvailable = 1;
     posting.rollDetail = `GM-placed: ${placed.classKey || "henchman"}${placed.level ? ` L${placed.level}` : ""}`;
   } else if (isPrivate) {
-    // DIRECTED SEARCH → POOL REPLACEMENT (user's RAW model): the roll
-    // (final rarity vs. Henchman Availability by Market Class and Rarity)
-    // does not mint new people — it replaces rolled leveled henchmen still
-    // left in the month with what the recruiter sought.
+    // Directed search → pool replacement (applyDirectedReplacement): the
+    // roll (final rarity vs. Henchman Availability by Market Class and
+    // Rarity) does not mint new people.
     const mc = effectiveMarketClass(location, employer);
     const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, location.system.market?.classRarityTableId || "default", rarityOverridesOf(location));
     if (result.error) return { error: result.error };
@@ -712,21 +699,20 @@ export async function processLocation(location, currentTime = now()) {
   const rolledOver =
     monthAnchorTime &&
     (calStart != null ? monthAnchorTime < calStart : currentTime - monthAnchorTime >= secondsPerMonth());
-  // GUARD (critical): the month is due to roll, but rolling REPLACES the whole
-  // shared market. If the availability tables are not loaded — the book link
-  // that seeds them does not persist on a remote, and a world relaunch / GM
-  // leaving / module update can leave the registry momentarily empty — the roll
-  // would produce ZERO and persist an empty market over a full one ("values
-  // disappear between loads"). Never roll on missing tables: keep the existing
-  // market intact and retry on the next process (the Reload button forces it).
+  // Rolling REPLACES the whole shared market, so never roll while the
+  // availability tables are unloaded — that would persist an empty market
+  // over a full one. Keep the existing market intact and retry on the next
+  // process (the Reload button forces it). See docs/henchmen/DECISIONS.md,
+  // "A month roll never fires against an unloaded table registry".
   const marketDue = !monthAnchorTime || rolledOver;
   if (marketDue && !hasDoc("availability")) {
     console.warn(`${MODULE_ID} | market roll deferred for "${location.name}": availability tables not loaded (book not re-imported?)`);
   }
   if (marketDue && hasDoc("availability")) {
-    // Long-running adverts: postings that already existed when the ending
-    // month began ran it in full — designate them; their searches ease one
-    // rarity for the whole location while the advert stays up.
+    // A posting that advertised the same thing for a whole month upgrades to
+    // a COMMISSION (the JJ mechanic): `advertVeteran` marks postings that
+    // already existed when the ending month began, so their next directed
+    // re-roll (below) shifts one rarity toward common.
     if (rolledOver) {
       for (const p of postings) {
         if (p.status === "active" && !p.advertVeteran && (p.createdTime ?? Infinity) < monthAnchorTime) {
@@ -855,10 +841,10 @@ export async function processLocation(location, currentTime = now()) {
     try {
       const employerDoc = posting.employerUuid ? await fromUuid(posting.employerUuid).catch(() => null) : null;
       const employer = employerDoc?.actor ?? employerDoc;
-      // This recruiter's previous directed results purge on re-roll. The guard
-      // is load-bearing, not an optimisation: an employer-less posting ("" uuid)
-      // matching the shared pool's empty privateToUuid purges the whole fresh
-      // month rather than one recruiter's stale results.
+      // This recruiter's previous directed results purge on re-roll. The
+      // empty-uuid branch is load-bearing, not an optimisation — see
+      // docs/henchmen/DECISIONS.md, "The empty-uuid guard on directed purge
+      // is load-bearing".
       if (posting.employerUuid) candidates = candidates.filter((c) => c.privateToUuid !== posting.employerUuid);
       else candidates = candidates.filter((c) => !(c.monthLong && !c.privateToUuid && c.highlightFor === ""));
       const mc = effectiveMarketClass(location, employer);
@@ -913,18 +899,13 @@ export async function processLocation(location, currentTime = now()) {
 }
 
 /**
- * Reload — RECOVER a market that reads empty because of a render / registry
- * error, not because it is genuinely empty. It does NOT roll or regenerate the
- * market: rolling is Process time's job, and there is one regenerate path, not
- * two.
- *
- * The imported ruledata persists as world data (acks-location), but a reload /
- * GM change / module update can leave the in-memory registry without it — which
- * blanks the market's labels and can throw the sheet's render, so the board
- * LOOKS empty though its candidates are still stored on the location actor.
- * This re-mirrors that persisted data back into the registry; the caller then
- * re-renders and the existing market and its labels reappear. Client-local and
- * side-effect-free on the location (no write), so any viewer may run it.
+ * Recover a market that reads empty because the in-memory table registry
+ * lost the persisted ruledata (a reload / GM change / module update can leave
+ * it without it), not because the market is genuinely empty. Re-mirrors the
+ * persisted data back into the registry so a re-render shows the existing
+ * market again. Never rolls or regenerates — that stays processLocation's
+ * job. Client-local and side-effect-free on the location (no write), so any
+ * viewer may run it.
  *
  * @returns {Promise<{reloaded: object|null, tablesPresent: boolean}>}
  */

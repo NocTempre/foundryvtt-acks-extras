@@ -451,3 +451,14 @@ legitimately sit.
   offered only once the Judge has said what dark means here; or a sunrise /
   sunset pair reaching `sky.mjs` through the importer, at which point the
   toggle follows a figure the Judge's own book supplied.
+
+## Scoped effects for ability matching
+
+The ability bridge does not yet wrap the lib's `scopeApplies` or
+`nonStackingGroups`. `scopeApplies` answers when a modifier applies, and this
+feature cannot use it until it consumes cookbook `effects` instead of its own
+hardcoded bonuses, because until then no scoped effect reaches the pipeline
+for it to gate. When it does, `undetermined` is not `false`: an unsettled scope
+surfaces as a manual toggle rather than silently dropping the bonus.
+`nonStackingGroups` stays unnecessary while every capability here is consumed
+as a boolean.

@@ -79,7 +79,6 @@ export async function openFollowersDialog(actor) {
     ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.followers.strongholdMissing"));
   }
 
-  // Roll every grant.
   const companionLevels = getTable("followers", "companionLevel");
   const results = [];
   for (const grant of row.grants) {

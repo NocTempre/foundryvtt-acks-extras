@@ -1,23 +1,19 @@
 /**
  * Free variables: an identifier read or written that NO enclosing scope binds
- * and no allowlist covers.
- *
- * `node --check` cannot see this class of defect and neither can a test: a free
- * variable is legal JavaScript that throws `ReferenceError` only when the line
- * carrying it is reached, so a name that lost its binding in a branch nothing
- * offline calls passes every check and dies in a world.
+ * and no allowlist covers. A free variable is legal JavaScript until the line
+ * carrying it executes, so `node --check` and a test suite that imports only
+ * the pure modules both miss it.
  *
  * The scan is a real parse, not a regex: acorn builds the AST, this file builds
  * the lexical scope tree over it, and every reference is resolved against the
  * scopes that enclose it. The allowlists are what a runtime legitimately
  * supplies — the browser and Foundry's own globals for `scripts/`, Node's for
- * `tools/` — so a name outside them is unbound at every altitude and the report
- * is the whole of the finding.
+ * `tools/`.
  *
- * acorn arrives from the copy Node already bundles, which needs
+ * Reads acorn from the copy Node already bundles, which needs
  * `--expose-internals`; that flag is refused inside NODE_OPTIONS, so a caller
- * re-execs. If the path is ever gone the gate FAILS and names the reason: a
- * check that quietly stops checking is worse than no check.
+ * re-execs. If the path is ever gone the gate FAILS and names the reason. See
+ * docs/DECISIONS.md, "17. A free variable fails validate (2026-09-17)".
  *
  *   node --expose-internals tools/free-variables.mjs <root> --allow=<list.json>
  */

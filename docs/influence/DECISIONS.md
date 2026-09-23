@@ -286,3 +286,89 @@ carrying. The magnitudes still have to move together with their constants; the
 reference is what makes their absence survivable in the meantime, and the 22
 `ACKS-HENCHMEN` labels below have no reference to fall back on because they
 never carried one.
+
+### A hand-added Active Effect overrides an imported ability's own extras (2026-09-22)
+
+Recorded from the comment on `skipItemIds` in `scripts/influence/ability-effects.mjs`.
+
+**Ruled.** An item carrying both an Active Effect and imported extras would
+otherwise be counted twice. The Active Effect wins: a GM who hand-added one to
+an imported ability meant to override what the import classified.
+
+### A tone mismatch is filtered at the page, not in scopeApplies (2026-09-22)
+
+Recorded from the docstring on `effectRowsForPage` in `scripts/influence/actor-data.mjs`.
+
+**Ruled.** A page with no tone of its own passes `tone: null`, which leaves a
+tone-scoped row undetermined rather than excluded: it is offered, not
+asserted. A tone mismatch on a page that has one is a filter in
+`effectRowsForPage`, not in `scopeApplies`, so a mismatched row does not
+silently vanish from a page where the GM may still rule that it applies.
+
+### An unregistered external mode is excluded, not leaked (2026-09-22)
+
+Recorded from the docstring on `isReactionMode` in `scripts/influence/constants.mjs`.
+
+**Ruled.** An external mode counts only when `EXTERNAL_MODES` registers it as
+reaction family. A mode the check has never heard of answers false rather than
+inheriting the modifier, so a family added later without being priced stays
+silent by exclusion, never by leak.
+
+### A page reads its subject's own effects, not the roller's (2026-09-22)
+
+Recorded from the comment in `#buildModConfig` in `scripts/influence/influence-app.mjs`.
+
+**Ruled.** The effects that feed a page are usually the rolling actor's, but a
+morale or obedience check is the creature's own, and reading the roller's
+effects there would apply an employer's powers to the hireling's nerve.
+
+### Opening the roller stays synchronous so a constructor throw reaches the caller (2026-09-22)
+
+Recorded from the docstring on `openInfluenceApp` in `scripts/influence/module.mjs`.
+
+**Ruled.** The hook call is synchronous, and a constructor throw must reach the
+caller as a real exception, not a rejected promise: a consumer that opens this
+app first and falls back to its own dialog on failure (the henchmen feature's
+loyalty and obedience rolls) wraps the call in a plain `try/catch`, which only
+a synchronous throw satisfies. The return value is still what `render`
+returns; only the throw is synchronous.
+
+### A hidden resolve trusts the player's externally-injected modifiers, never re-derives them (2026-09-22)
+
+Recorded from the docstring on `resolveExternal` and the comments on the externally injected modifiers in `scripts/influence/influence-app.mjs`.
+
+**Ruled.** `payload.externalModifiers` is carried verbatim from the player's
+dialog rather than re-derived by firing `HOOKS.INFLUENCE_MODIFIERS` again on
+the GM client. Those figures were already rendered read-only to the player
+before the roll, so trusting them back costs nothing a re-derive would guard
+against, while re-firing the hook cannot promise the identical list if scene
+state moved between opening the dialog and clicking roll. The invariant: the
+resolved roll's modifier list equals what the player saw.
+
+### External modifiers stay read-only and unmasked (2026-09-22)
+
+Recorded from the comment on the externally injected modifiers in `scripts/influence/influence-app.mjs`.
+
+**Ruled.** The injected rows are read-only, because their value comes from
+where the party stands rather than anything typed in the dialog, and
+disagreeing with their own source is worse than not being editable. They are
+not target-derived, so they carry no target secret and are never masked.
+
+### An opposed contest has no printed band and moves no tracked attitude (2026-09-22)
+
+Recorded from the OPPOSED-mode comments in `scripts/influence/influence-app.mjs`.
+
+**Ruled.** In an opposed contest the target rolls their own stack against the
+influencer's, and each side keeps its own modifiers, which is why the resolver
+carries a subject at all: an effect aimed at an opponent must not fold into the
+roller's total. The contest reports who prevailed and by how much and moves no
+attitude, because the book prints no band for an opposed reaction, and
+inventing one would be inventing a rule.
+
+### History the source comments carried, recorded (2026-09-22)
+
+These were written into code comments as the reason a guard exists. The
+comments now state the guard; the story is here.
+
+- **A change key names its roll family.** One effect may carry several changes, which is how a rule that spans roll families is expressed. Before this, every effect was implicitly a reaction effect and the loyalty page had to include all of them or none, so a Diplomacy bonus leaked onto loyalty rolls, or an ability spanning several families silently failed to apply to some of them.
+- **`hitDiceOrLevel` anchors the hit-dice parse.** An earlier parse took a die size for a rating, reading a "d8" as 8.

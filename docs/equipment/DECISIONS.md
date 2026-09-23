@@ -1286,3 +1286,182 @@ rebuilds twice. A rebuild that comes out the same writes nothing:
 
 *Cost:* a loadout computation per edit of such an item, on the primary
 responder only.
+
+### Keying the fighting-style dispatch on the item slug let the strip and the loadout disagree (2026-09-22)
+
+Recorded from the comment on the fightingStyle dispatch block in
+`scripts/equipment/abilities-bridge.mjs`.
+
+**Ruled.** The dispatch reads the typed effect model (already the subject of
+the 2026-08-11 "abilities bridge reads the typed effect model" ruling), not
+an item's name/slug, so a renamed or aliased style item still resolves to the
+same effect the loadout enforcement checks.
+
+**Rejected.** Matching on the item's slug/name. Two independent readers (the
+sheet's training strip and the loadout's enforcement gate) each did their own
+slug fold; a hand-typed style name that folded differently in one than the
+other made the strip show trained while the loadout enforced untrained.
+
+*Cost:* one more caller routed through the shared typed-effect reader instead
+of a local name match.
+
+### Masterwork stamps core fields rather than a roll-time overlay (2026-09-22)
+
+Recorded from the docstrings on `setMasterwork` (`scripts/equipment/actions.mjs`),
+the `MASTERWORK` weapon-table entries and the `MASTERWORK` const
+(`scripts/equipment/config.mjs`), and the masterwork `NOTE` under `SETTINGS`
+(`scripts/equipment/constants.mjs`) — all four pointed here.
+
+**Ruled.** Applying masterwork writes its bonuses directly onto the item's own
+core fields (to-hit/damage/AC bonus, weight) at the moment it is applied,
+stamped once rather than read off a live overlay every time the item rolls.
+
+**Rejected.** A roll-time overlay that reads a masterwork flag and adds its
+bonus on every roll. Keeping the bonus off the item's own fields meant every
+consumer of that field (the roll wrapper, the sheet's weight line, any other
+module reading the item directly) had to know to also check the overlay, and
+several did not.
+
+*Cost:* unstamping masterwork must explicitly subtract what was stamped
+(paired with the scavenged-quality snapshot machinery — see "Quality layers
+share one baseline" — rather than simply clearing a flag).
+
+### The scavenged-ammo roll used the module's own d20, invisible to the table (2026-09-22)
+
+Recorded from the docstring and inline comment on `scavengeItem`/
+`rollScavengedD20s` in `scripts/equipment/actions.mjs`.
+
+**Ruled.** The scavenging roll is made through the same visible roll path
+every other check in this module uses, so the die a table sees in chat is the
+one the outcome is actually judged against.
+
+**Rejected.** A module-internal roll that computed pass/fail and only posted
+the result. A Judge who wanted to apply house rules to the roll, or simply
+verify it, had nothing to look at; the die the code used and the die the
+table could see were two different things.
+
+*Cost:* one more roll message per scavenge attempt.
+
+### Capacity lives on the gear flag, not the container record (2026-09-22)
+
+Recorded from the docstrings on `setGearCapacity` (`scripts/equipment/actions.mjs`)
+and `containerOf` (`scripts/equipment/containers.mjs`).
+
+**Ruled.** A container's capacity is read off the gear-profile flag the item
+already carries (its inferred or annotated profile), not stored a second time
+on a container-specific record. One value, one owner.
+
+**Rejected.** A parallel `capacity` field on the container record, set once at
+creation. It drifted from the gear profile the moment a profile was
+re-inferred or re-annotated, and nothing kept the two in sync.
+
+*Cost:* every capacity read goes through the gear-profile lookup; there is no
+faster cached path.
+
+### Plain ammunition is spent before silver (2026-09-22)
+
+Recorded from the docstring on `pickAmmo` in `scripts/equipment/ammo.mjs`.
+
+**Ruled.** Given a choice of ammunition stacks, the plain stack is drawn down
+before a silver (or otherwise upgraded) stack, so the more valuable stock is
+preserved for the target that needs it.
+
+*Cost:* none noted; a straightforward ordering rule.
+
+### A torch's no-damage-bonus rule covers melee too (2026-09-22)
+
+Recorded from the comment on the `torch` weapon-table entry in
+`scripts/equipment/config.mjs`.
+
+**Ruled.** The RAW no-attribute-bonus-to-damage clause for a torch (RR
+p.299-area weapon table) is enforced for melee use as well as thrown use, on
+a Judge ruling — the printed table's own wording does not distinguish the two
+uses.
+
+**Rejected.** Limiting the no-bonus clause to thrown use only (the table's
+more literal reading), which would let a torch swung in melee take a
+strength bonus other light, awkward weapons on the same table do not get.
+
+*Cost:* none noted.
+
+### The melee-damage domain had no outlet (2026-09-22)
+
+Recorded from the inline comment above the `STYLE_DAMAGE_MELEE`-add path in
+`scripts/equipment/effects.mjs`.
+
+**Ruled.** A contribution to the melee-damage effect domain is folded into the
+loadout's own term rather than silently discarded when no other consumer is
+listening for it.
+
+**Rejected.** Leaving the domain write-only until a future consumer arrives.
+A Judge who granted an effect targeting this domain saw it accepted and then
+watched it produce nothing, with no error to explain why.
+
+*Cost:* none noted.
+
+### Concurrent syncs could create duplicate loadout effects (2026-09-22)
+
+Recorded from `collapseDuplicates` in `scripts/equipment/effects.mjs` and
+`queueSync` in `scripts/equipment/enforce.mjs`.
+
+**Ruled.** `queueSync` serialises every loadout sync for a given actor onto
+one chained promise per actor, so at most one `syncLoadoutEffect` read-modify-
+write is ever in flight for that actor at a time; `collapseDuplicates` is the
+backstop that folds any loadout effect(s) that still slipped through into one.
+
+**Rejected.** Relying on `primaryResponder` alone to prevent duplicates. It
+settles which CLIENT is allowed to write, not how many writes that one client
+already has in flight — several routes into the sync (an equip toggle, an
+item create/delete, an actor-flag change, an Active Effect change) could each
+fire their own read-modify-write on the same actor inside one user action,
+racing each other's `createEmbeddedDocuments` call. Each in-flight write's
+`createItem` hook could itself trigger a further sync, so an actor could end
+up carrying several copies of its own loadout effect, each contributing its
+bonuses again.
+
+*Cost:* every loadout sync now goes through the shared per-actor queue; a
+sync that arrives while one is already queued waits its turn rather than
+running immediately.
+
+### Loadout automation reacted to monster item churn (2026-09-22)
+
+Recorded from `managesLoadout` in `scripts/equipment/enforce.mjs` and the
+one-time hygiene pass in `scripts/equipment/module.mjs`'s `ready` hook.
+
+**Ruled.** Loadout automation (enforcement, the loadout Active Effect) is
+gated to character-type actors only; monsters and every other actor type
+never carry a managed loadout effect. The `ready`-hook pass removes any such
+effect a pre-guard build left stranded on a non-character actor.
+
+**Rejected.** Leaving the gate absent and relying on monsters rarely toggling
+`system.equipped`. Another module rewriting a monster's embedded items could
+still toggle it, and each toggle drove the same write path a character's
+equip does — producing loadout effects (sometimes several duplicates) on
+actors the feature was never meant to touch.
+
+*Cost:* a monster's `system.equipped` writes are inert as far as this
+feature is concerned, by design.
+
+### A worn-check gated on `system.equipped` never fires (2026-09-22)
+
+Recorded from the harness-relief comment in `encumbranceDelta6`
+(`scripts/equipment/containers.mjs`) and the docstring on `wearingGloves`
+(`scripts/equipment/locks.mjs`).
+
+**Ruled.** Both checks test WORN (the annotated-slot / `isWorn` path), never
+`system.equipped`, and this must never be re-narrowed to the single field.
+
+**Rejected.** Gating on `system.equipped`. The harness and gloves in both
+cases are a plain `item` document type, which core gives no `equipped` field
+at all — a check keyed on it silently and permanently never fired, for as
+long as the code shipped that way, with no error to surface the mistake.
+
+*Cost:* none; the worn test already existed and covers plain items too.
+
+### History the source comments carried, recorded (2026-09-22)
+
+These were written into code comments as the reason a guard exists. The
+comments now state the guard; the story is here.
+
+- **The test suite builds the API.** Equipment v0.9.0–v0.12.0 shipped broken: `api.mjs` exposed functions it never imported, so `buildApi()` threw a ReferenceError at init and the module died. `node --check` is syntax-only and no test called `buildApi`; `tools/test-equipment.mjs` now builds it as the guard.
+- **Quality layers share one baseline.** Two layers that each snapshotted their own base meant clearing one restored the other's delta as if pristine. Masterwork and scavenged now unwind against the one pristine snapshot, and `tools/test-equipment.mjs` pins that the two coexist and unwind cleanly.

@@ -18,12 +18,10 @@
  * The title band is this module's own part, moved into Foundry's
  * `.window-header` at render, exactly as the item sheet does it.
  *
- * Six tones, one meaning each (DECISIONS 2026-09-03): pos green a positive
- * status, neg/bad red a negative status or harm, warn/tm amber a mundane thing
- * burning down or a slowed load, ts the magic tone, gold specialization and
- * achievement, burgundy (hi/full) identity and selection. The magic tone has
- * no token of its own yet and is MIXED from the spot colour and the ink, so it
- * follows both seats without a literal colour entering this file.
+ * Six tones, one meaning each: pos/neg/warn/ts/gold/hi. See
+ * docs/character-sheet/DECISIONS.md, "The design canvas is the
+ * specification", and docs/character-sheet/MODEL.md § "The magic tone" for
+ * `--acks-extras-magic`'s mix.
  */
 
 .acks-extras-character-sheet {
@@ -47,14 +45,11 @@
   --acks-extras-magic: color-mix(in srgb, var(--acks-burgundy) 45%, var(--acks-ink) 55%);
   --acks-extras-magic-ink: color-mix(in srgb, var(--acks-spot) 55%, var(--acks-ink) 45%);
   --acks-extras-magic-tint: color-mix(in srgb, var(--acks-extras-magic) 12%, var(--acks-paper-pure));
-  /* The two frame figures part company, and neither carries the ratio here.
-   * `width` is shadowed: core writes the frame width inline from the sheet's
-   * own `position`, so this declaration only stands where core sizes from CSS,
-   * and the scaled opening width is applied in sheet.mjs where the setting is
-   * readable. `min-width` is the floor a user can shrink to and stays literal
-   * — scaling it to 823px at the largest setting would push the floor past the
-   * container breakpoints below, disabling the narrow layouts for exactly the
-   * user most likely to need them. */
+  /* Neither figure carries the ratio: `width` is shadowed by core's inline
+   * write from the sheet's own `position` (the scaled opening width is
+   * applied in sheet.mjs instead); `min-width` is a literal floor. See
+   * docs/character-sheet/DECISIONS.md, "The canvas figures are a
+   * specification, scaled by a ratio". */
   width: 900px;
   min-width: 640px;
   /* GEOMETRY ONLY: ground, ink and frame are the `.acks-ui` dress's. */

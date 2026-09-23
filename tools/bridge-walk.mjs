@@ -123,17 +123,15 @@ try {
   check("announce records the client's key, catalogue and the members it has heard from, and answers the configuration", announced.agent?.keyId === keyIdOf(keys.publicKey) && announced.agent?.guilds?.length === 1 && announced.agent?.members?.[0]?.displayName === "The Walker" && !!announced.config, JSON.stringify({ state: announced.agent?.status?.state, guilds: announced.agent?.guilds?.length, members: announced.agent?.members?.length, revision: announced.config?.revision }));
   const readConfig = await asSeat("config");
   check("config reads back what announce answered", readConfig.agent?.keyId === announced.agent?.keyId && readConfig.config?.revision === announced.config?.revision, JSON.stringify({ gaps: configGaps(readConfig.config, readConfig.agent) }));
-  // Sealed in the PAGE, by the same module file the config window uses, and
-  // opened here — the handshake end to end. A seal proved in Node alone would
-  // prove the algorithm and not the browser the Judge actually types into.
+  // Sealed in the PAGE, using the same module file the config window uses —
+  // proves the browser path, not only the algorithm in Node.
   const sealedInPage = await seat.eval(`(async () => {
     const m = await import("/modules/acks-extras/scripts/bridge/sealing.mjs");
     return m.seal(${JSON.stringify(readConfig.agent.publicKey)}, "walk-token-not-a-real-one");
   })()`);
   check("what the browser seals to the announced key opens on the host, and is not the token", (await unseal(keys.privateKey, sealedInPage)) === "walk-token-not-a-real-one" && !String(sealedInPage).includes("walk-token"), `${String(sealedInPage).length} chars of base64`);
-  // A restart request is the one write the walk makes to the configuration:
-  // a stamp nobody's answers depend on, moved so the digest moves. It is not
-  // put back — a second write would be a second request.
+  // The one write this walk makes to the configuration: moves the stamp so
+  // the digest moves. Not put back — a second write would be a second request.
   const restarted = JSON.parse(await seat.eval(`(async () => { const before = acksExtras.bridge.clientConfig.read(); const after = await acksExtras.bridge.clientConfig.requestRestart(); return JSON.stringify({ before, after }); })()`));
   const { restartNonce: n0, revision: r0, updatedAt: u0, ...rest0 } = restarted.before;
   const { restartNonce: n1, revision: r1, updatedAt: u1, ...rest1 } = restarted.after;
@@ -260,7 +258,8 @@ try {
   const pw = await asFake2("password", { password: "walk-password-not-real" });
   check("the enrolled user sets their own password through the seat", pw.changed === true && pw.user?.id === fixtureUserId, JSON.stringify(pw));
   await expectRefusal("an unbound identity cannot set a password", "unbound", () => asFake("password", { password: "walk-password-not-real" }));
-  // A Gamemaster's password is never set from outside Foundry: bind the first identity to a Gamemaster for one call, then drop it.
+  // See docs/bridge/DECISIONS.md, "A password from Discord is the member's
+  // own, and never a Gamemaster's" — bind to a Gamemaster for one call, then drop it.
   const gm = users.find((u) => u.role === 4);
   if (gm) {
     await asSeat("link", { externalId: FAKE.user, foundryUserId: gm.id });

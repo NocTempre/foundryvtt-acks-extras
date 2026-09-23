@@ -1,23 +1,16 @@
 /**
- * The Foundry-FREE half of location storage: everything that decides WHAT a
- * transfer does, split out so it imports under Node and is unit-tested offline
- * (the same split as group-logic.mjs vs group.mjs). storage.mjs re-exports these
- * and adds the document writes around them.
+ * The Foundry-free half of location storage: decides WHAT a transfer does,
+ * split out so it imports under Node and is unit-tested offline (as
+ * group-logic.mjs is to group.mjs). storage.mjs re-exports these and adds the
+ * document writes.
  *
- * Every function here works on PLAIN item data — `item.toObject()` results — and
- * returns plans, never side effects. Nothing dereferences a Foundry global.
+ * Works on PLAIN item data (`item.toObject()` results) and returns plans,
+ * never side effects; nothing here dereferences a Foundry global.
  *
- * Two vocabularies are read here that this library does not own:
- *
- *  - `system.quantity` has two shapes in the system: `money` stores a bare
- *    number, `item` a `{value, max}` schema, and `weapon`/`armor` have none at
- *    all. `quantityOf` is the one place that difference is resolved, and it
- *    reads the SHAPE rather than the type name (item-model.mjs philosophy).
- *  - `flags.acks-extras.containedIn` is the equipment feature's documented
- *    container pointer. It is READ (and rewritten) generically so a container
- *    stashed at a location takes its contents along; this file imports nothing
- *    from equipment, and the behaviour simply does not trigger when no item
- *    carries the pointer.
+ * Reads two foreign vocabularies without importing their owners: `quantityOf`
+ * resolves `system.quantity` by its shape, not the item type; `containedIn`
+ * is the equipment feature's container pointer, read (and rewritten)
+ * generically. See docs/lib/API.md, "storage".
  */
 import { toNum as num } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
@@ -129,15 +122,14 @@ function readSpec(spec, byId) {
  * Plan one transfer: what to create on the target, and what to update or delete
  * on the source. Nothing is written — the caller decides the order.
  *
- * The arriving copies are NORMALISED, because state that was true on the source
- * is not true at the destination:
- *  - nothing arrives equipped (you cannot wield a sword you left in a vault);
- *  - `quantitybank` is zeroed — the bank field is retired, storage replaces it;
+ * The arriving copies are normalised for the destination:
+ *  - nothing arrives equipped;
+ *  - `quantitybank` is zeroed (the field is retired; storage replaces it);
  *  - `containedIn` is remapped through the new ids when the container came
  *    along, and stripped when it did not (the pointer would dangle);
- *  - attribution is stamped when the target stores goods for someone, preserved
- *    on provider→provider moves so consolidation does not launder ownership,
- *    and stripped when goods land back on a character (who owns their own).
+ *  - attribution is stamped when the target stores goods for someone,
+ *    preserved on provider→provider moves, and stripped when goods land on a
+ *    character.
  *
  * @param {object[]} plainItems - every item on the source, as plain data
  * @param {Array<string|{id: string, quantity?: number}>} spec - what to move
@@ -227,30 +219,18 @@ function canon(value) {
 }
 
 /**
- * The merge identity of a stack — what makes two rows "the same thing", so
- * splitting a stack and putting it back gives you one row rather than two.
- * Returns null for anything that must keep its own row.
- *
- * Coin is keyed on DENOMINATION rather than a full comparison: two gold pieces
- * are the same money whatever their art or where they came from.
- *
- * Everything else is keyed on the whole document minus the quantity — same
- * type, name, art, system data and flags. That is strict on purpose: a torch
- * with a dent in it, a torch inside a backpack and a plain torch are three
- * different rows, and an item carrying its own Active Effects never merges at
- * all. Over-merging silently destroys data; under-merging is a tidy-up.
- *
- * At a provider the key also carries the owner, so two characters' goods stay
- * two rows.
+ * The merge identity of a stack — what makes two rows "the same thing" for
+ * merging. Returns null for anything that must keep its own row (unstackable,
+ * or carrying its own Active Effects). Coin keys on denomination; everything
+ * else keys on the whole document minus quantity. At a provider the key also
+ * carries the owner. See docs/lib/API.md, "storage".
  */
 export function stackSignature(plain, { byOwner = false } = {}) {
   if (!quantityOf(plain)) return null; // unstackable: weapons, armour
   const owner = byOwner ? (storageFlagOf(plain)?.ownerUuid ?? "") : "";
-  // Coin identity is the KIND, not just the rate: a local variation ("Gold,
-  // debased") is a separate stack everywhere it travels, even at the same
-  // coppervalue — face value is intrinsic to the coin; what a place GIVES for
-  // it is valuation, applied at spend time, never baked into the stack
-  // (owner ruling 2026-08-14).
+  // Coin identity is the KIND (name and rate together), not the rate alone.
+  // See docs/lib/DECISIONS.md, "2026-08-14 — Money is physical; four rulings
+  // land at once".
   if (isMoney(plain)) {
     const kind = String(plain.name ?? "").trim().toLowerCase();
     return `money|${owner}|${num(plain.system?.coppervalue, 1)}|${kind}`;
@@ -263,10 +243,10 @@ export function stackSignature(plain, { byOwner = false } = {}) {
   if ("totalvalue" in wrapper.system) wrapper.system.totalvalue = 0;
   const flags = structuredClone(plain.flags ?? {});
   if (flags[LIB_ID]) delete flags[LIB_ID][STORAGE_KEY];
-  // An arriving item has had keys REMOVED from its flags (the attribution, and
-  // a container pointer that would dangle), which leaves `{"acks-lib": {}}`
-  // where a row that never travelled simply has no such scope. Those are the
-  // same item, so an emptied scope must not read as a difference.
+  // An arriving item has had keys removed from its flags (attribution, a
+  // dangling container pointer), which can leave an emptied `{"acks-extras": {}}`
+  // scope where a row that never travelled has none; an emptied scope must
+  // not read as a difference.
   for (const [scope, value] of Object.entries(flags)) {
     if (value && typeof value === "object" && !Object.keys(value).length) delete flags[scope];
   }
@@ -274,12 +254,10 @@ export function stackSignature(plain, { byOwner = false } = {}) {
 }
 
 /**
- * Fold arriving goods into rows that already exist, instead of adding a second
- * "Gold" (or a second half-stack of torches).
- *
- * The system's own drop handler merges on document ID, which only works for
- * items sharing an id lineage — anything that has been through a transfer has a
- * fresh id, so the merge has to be by identity here.
+ * Fold arriving goods into rows that already exist, instead of duplicating a
+ * stack the system's own (document-ID-based) drop-handler merge cannot match —
+ * anything that has been through a transfer has a fresh id. See docs/lib/API.md,
+ * "storage".
  *
  * @returns {{creates: object[], targetUpdates: object[]}}
  */

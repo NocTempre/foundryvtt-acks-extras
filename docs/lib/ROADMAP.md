@@ -63,3 +63,7 @@ has open, so it cannot depend on one being drawn.
 What that needs: a split between the sweep (geometry only, every scene) and the
 active scene (which may test line of sight), plus a decision about which answer a
 token on an undrawn scene should carry in the meantime.
+
+(none — no unbuilt work surfaced in this job's file list beyond what
+docs/lib/ROADMAP.md and docs/lib/GROUPS.md's "Boundaries / what is NOT here"
+already record.)

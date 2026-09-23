@@ -28,3 +28,14 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   it. `posting.created`,
   `card.downedNote` and `roster.calamityPlaceholder` are not in the set —
   their figures are world-computed interpolations or the zero point.
+
+- **Loyalty penalty magnitudes arrive through the importer.** `WOUND_PENALTIES`
+  in `rules/loyalty.mjs` ships the printed magnitudes (RR 166). The agreed
+  shape (2026-09-23): a `throws` value table filled by an importer recipe and
+  read through a throw-values reader; with the table absent, the roster's
+  penalty prompt names the missing table and disables the unpriced kinds;
+  tampering penalties stay permanent, with a Judge override that lifts an
+  entry and a reset; it ships as a hotfix. The first `throws` import would
+  freeze the sample automation into the world layer, so the same change makes
+  the import merge over the written layer only, makes picker presence read the
+  world layer, and lists only world and override tables in the journal.

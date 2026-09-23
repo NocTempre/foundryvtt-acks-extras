@@ -49,12 +49,7 @@ function circularPhase(offsets, s) {
   return mod((s / (2 * Math.PI)) * Math.atan2(sin, cos), s);
 }
 
-/**
- * How many map cells a drawn box spans. A box is one cell unless the GM says
- * otherwise on its own row in the panel: dragging across a run of cells is
- * both easier to aim and a better measurement than pinching one, so the count
- * is part of the sample rather than an assumption about it.
- */
+/** How many map cells a drawn box spans — its own `cells` count, or one. */
 export const boxCells = (r) => (r?.cells > 0 ? r.cells : 1);
 
 /** Per-axis observations: cell-span deltas and grid-line phase offsets. */

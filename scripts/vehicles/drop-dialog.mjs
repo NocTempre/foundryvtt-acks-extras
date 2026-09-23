@@ -1,14 +1,14 @@
 /* global foundry, game */
 import { makeLoc } from "../lib/util.mjs";
 /**
- * What is this dropped actor to the vehicle? A dialog that ASKS.
+ * What is this dropped actor to the vehicle? A dialog that ASKS: every
+ * actor drop offers the stations the vehicle actually has (from
+ * `stationsFor`, so the options and the sheet's groups can never disagree),
+ * each with its cost stated before anything is written. The caller
+ * attaches; this only asks.
  *
- * A drop used to be routed silently by target — hold meant passenger,
- * anywhere else meant the traces — and the guide's promise of a choice was
- * TESTING.md's documented mismatch. This dialog closes it: every actor drop
- * offers the stations the vehicle actually has (from `stationsFor`, so the
- * options and the sheet's groups can never disagree), each with its cost
- * stated before anything is written. The caller attaches; this only asks.
+ * See docs/vehicles/DECISIONS.md, "The drop dialog asks; a seat drop does
+ * not."
  */
 import { VEHICLE_TYPE, LANG_PREFIX } from "./constants.mjs";
 import { stationsFor } from "./stations.mjs";

@@ -698,9 +698,9 @@ await atest("chargen asks for the rebuild, so a generated character's hit points
 /* ------------------ answering a rung of the ladder ------------------ */
 
 await atest("a level-up climbs exactly one rung, keyed as the picker remembers it", () => {
-  // The wizard used to index its own filtered slice, which produced keys the
-  // picker's `awardsThrough` had never heard of — so nothing the wizard asked
-  // was ever recognised as answered.
+  // Proves awardsAt and awardsThrough key the same rung identically. See
+  // docs/classes/DECISIONS.md, "a pick the character owes is an item on the
+  // character" (identity is content, never position).
   const at5 = awardsAt({ items: [] }, LADDERED, 5);
   assert.equal(at5.choices.length, 1);
   assert.equal(at5.fixed.length, 0);
@@ -712,9 +712,9 @@ await atest("a level-up climbs exactly one rung, keyed as the picker remembers i
 });
 
 await atest("a rung answered anywhere closes it; only a ref grants from it", () => {
-  // "Already on the sheet" is an ANSWER — it closes the question — but it is
-  // not a pick, so nothing materializes. Conflating the two is what forced a
-  // player to choose a proficiency they did not want and delete it afterwards.
+  // "Already on the sheet" closes the question without granting. See
+  // docs/classes/DECISIONS.md, "a template is a bundle of repairable
+  // documents, in a table on the class".
   assert.equal(closesRung(ANSWERED), true);
   assert.equal(grantsFrom(ANSWERED), false);
   assert.equal(closesRung("def.prof.berserkergang"), true);
@@ -729,10 +729,9 @@ await atest("a rung answered anywhere closes it; only a ref grants from it", () 
 });
 
 await atest("an option the character already holds is offered, never removed", () => {
-  // The reported defect: the picker filtered owned options OUT, so a character
-  // who had already taken their 1st-level proficiency could not say so — the
-  // rung offered only things they did not want. Held options are MARKED now,
-  // and `grantAbility` is what declines to double them.
+  // See docs/classes/DECISIONS.md, "a template is a bundle of repairable
+  // documents, in a table on the class" — held options are marked, not
+  // filtered out; `grantAbility` is what declines to double them.
   const src = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
   assert.ok(
     !/filter\(\(o\) => !ownsRef\(/.test(src),
@@ -743,9 +742,7 @@ await atest("an option the character already holds is offered, never removed", (
 });
 
 await atest("every surface asks a rung through the one control", () => {
-  // Three copies of this question is three places to answer it differently,
-  // which is exactly how only one of them came to consider what the character
-  // already owned. `optionsForChoice` has one caller now, and it is picks.mjs.
+  // See docs/classes/DECISIONS.md, "three pickers were one question".
   const callers = ["apply.mjs", "levelup.mjs", "stat-page.mjs", "assign-app.mjs"].filter((f) =>
     /optionsForChoice/.test(readFileSync(new URL(`../scripts/classes/${f}`, import.meta.url), "utf8")),
   );
@@ -757,16 +754,16 @@ await atest("every surface asks a rung through the one control", () => {
 });
 
 await atest("the level-up wizard records the rung it closed", () => {
-  // Without this a character levelled to 5th met every pick from 1st to 5th
-  // again the moment their class was re-applied — the reported symptom.
+  // See docs/classes/DECISIONS.md, "A level set is a level owed: applying a
+  // class grants its ladder" — a choice rung answered is remembered so
+  // re-applying does not ask it again.
   const src = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
   assert.match(src, /answered:\s*choices\s*\n?\s*\.filter/s, "the wizard hands its answered keys to applyClass");
 });
 
 await atest("the class picker never wipes what a character already owns", () => {
-  // Generating a character REPLACES the last run of the page; binding a class
-  // to a played character is the opposite act. The picker therefore uses the
-  // merging half of chargen and never `applyChargen`, whose default is a wipe.
+  // See docs/classes/DECISIONS.md, "three pickers were one question" —
+  // merge, opt-in, never wipe.
   const src = readFileSync(new URL("../scripts/classes/assign-app.mjs", import.meta.url), "utf8");
   assert.ok(!/applyChargen/.test(src), "assign-app must not route through the wiping path");
   assert.match(src, /applyTemplate\(/, "it applies a package by merging it");
@@ -856,9 +853,9 @@ test("a class stating no paths asks nothing and grants nothing", () => {
 });
 
 test("a short base name resolves by exact match", () => {
-  // "Staff"(5 folded) could never resolve under the old ≥6-substring rule, so
-  // every template staff landed as a bare unwieldable `item` — the reported
-  // bug. Exact folded equality wins at any length.
+  // See docs/classes/DECISIONS.md, "a template is a bundle of repairable
+  // documents, in a table on the class" — exact folded equality wins at any
+  // length.
   const world = [{ name: "Staff" }, { name: "Quarterstaff" }];
   assert.equal(bestBaseMatch("staff", world), world[0]);
 });
@@ -882,9 +879,8 @@ test("descriptor within a base descriptor resolves the staff skin", () => {
 });
 
 test("the catalogue's head-first naming meets the cell's English", () => {
-  // The price list writes "Rations, Iron" and "Saddle and tack, Riding"; the
-  // template's cell writes "1 week's iron rations". Read only as printed, the
-  // repair pass could never re-match a document minted before its base landed.
+  // See docs/classes/DECISIONS.md, "the catalogue's naming conventions are
+  // read here too".
   const world = [{ name: "Rations, Iron" }, { name: "Saddle and tack, Riding" }, { name: "Waterskin/Wineskin" }];
   assert.equal(bestBaseMatch("1 week’s iron rations", world), world[0]);
   assert.equal(bestBaseMatch("riding saddle and tack", world), world[1]);
@@ -894,9 +890,8 @@ test("the catalogue's head-first naming meets the cell's English", () => {
 });
 
 test("a plural cell names the singular base", () => {
-  // A cell prints what the character carries, not what the catalogue calls it:
-  // "torches" and "darts" are the Torch and the Dart the world holds. Read as
-  // unknown gear they arrived as trinkets with no damage on them.
+  // See docs/classes/DECISIONS.md, "a short base name is a whole word, and a
+  // plural is part of it".
   const world = [{ name: "Torch" }, { name: "Dart" }, { name: "Sword" }];
   assert.equal(bestBaseMatch("Torches", world), world[0]);
   assert.equal(bestBaseMatch("Feathered darts", world), world[1]);
@@ -941,10 +936,8 @@ test("a printed count lives on quantity, never in the name", () => {
 });
 
 test("an offer is a pick, and only an explicit flag makes one", () => {
-  // The distinction the whole pending-choice surface rests on. A blank row a
-  // Judge just added has no name and an initialised ChoiceSpec, so anything
-  // inferred from emptiness would read it as an offer and put a phantom pick
-  // on every character generated on that band.
+  // See docs/classes/DECISIONS.md, "a pick the character owes is an item on
+  // the character".
   assert.equal(isOffer({ offer: true, choice: { from: "spellList" } }), true);
   assert.equal(isOffer({ name: "Fireball", choice: { from: "spellList" } }), false);
   assert.equal(isOffer({ rank: 1 }), false);
@@ -953,9 +946,8 @@ test("an offer is a pick, and only an explicit flag makes one", () => {
 });
 
 test("an offer is remembered by what it offers, never by where it sits", () => {
-  // Materializing rewrites the row's arrays and the non-bundle path grants
-  // from a spliced copy, so an index-keyed marker would be minted twice for
-  // one printed pick.
+  // See docs/classes/DECISIONS.md, "a pick the character owes is an item on
+  // the character" (identity is content, never position).
   const entry = { offer: true, choice: { from: "spellList", filter: "any", count: 1, label: "Starting spell" } };
   const ctx = { classKey: "mage", band: "Apprentice", kind: "spell" };
   assert.equal(offerKey(entry, ctx), offerKey({ ...entry }, ctx));
@@ -967,18 +959,17 @@ test("an offer is remembered by what it offers, never by where it sits", () => {
 });
 
 test("nothing in the pending-choice path can write to the world library", () => {
-  // The 4.20.0 boundary, as a mechanical guard: a placeholder on a CHARACTER
-  // is a true statement about what they owe; one in the library is a lie about
-  // what the world contains.
+  // See docs/classes/DECISIONS.md, "a pick the character owes is an item on
+  // the character" — a placeholder on a character is a true statement about
+  // what they owe; one in the library is a lie about what the world contains.
   const src = readFileSync(new URL("../scripts/classes/pending-choices.mjs", import.meta.url), "utf8");
   assert.doesNotMatch(src, /Item\.implementation\.create|game\.items\.create/);
   assert.match(src, /createEmbeddedDocuments/);
 });
 
 test("resolution reaches the compendia, not only game.items", () => {
-  // The importer can be configured to import into a PACK. Resolving only
-  // against the world is why a compendium-mode world materialized packages
-  // with no proficiencies at all and every base item unresolved.
+  // See docs/classes/DECISIONS.md, "a package resolves through the IMPORTS,
+  // and mints what it cannot find".
   const src = readFileSync(new URL("../scripts/classes/template-packages.mjs", import.meta.url), "utf8");
   assert.match(src, /getIndex\(\{ fields: INDEX_FIELDS \}\)/, "pack indexes are read for resolution");
   assert.match(src, /export async function findSource/, "one resolver: world first, then packs");
@@ -1007,9 +998,8 @@ test("a row entry the bundle represents is stripped, by ref or by name", () => {
 });
 
 test("stripping is evidence-based: what the bundle lacks stays printed", () => {
-  // The safety property that makes single ownership non-destructive — a
-  // partial package can never silently shorten a starting kit, because only
-  // entries the bundle demonstrably carries are removed.
+  // See docs/classes/DECISIONS.md, "a package resolves through the IMPORTS,
+  // and mints what it cannot find" (single ownership stands).
   const row = {
     abilities: [{ ref: "def.prof.alertness", name: "Alertness" }],
     items: [{ name: "smooth-worn staff", qty: 1 }],
@@ -1020,11 +1010,8 @@ test("stripping is evidence-based: what the bundle lacks stays printed", () => {
 });
 
 test("a placeholder can never resolve itself", () => {
-  // Found live: a placeholder is a document carrying the printed NAME and
-  // nothing else, so a search by name matched it, cloned its emptiness as
-  // the "resolution", and cleared the unresolved flag — the Judge's signal
-  // that a real definition is still missing went quiet on the next routine
-  // re-run, with nothing repaired. An unresolved part is never a source.
+  // An unresolved part is never a source — a name search must not match a
+  // placeholder and clone its own emptiness as the "resolution".
   const placeholder = { flags: { "acks-extras": { templatePart: { kind: "ability", unresolved: true } } } };
   const resolvedCopy = { flags: { "acks-extras": { templatePart: { kind: "ability", unresolved: false } } } };
   const anImport = { flags: { "acks-extras": { cookbook: { id: "def.prof.alertness" } } } };
@@ -1283,8 +1270,8 @@ try {
     assert.deepEqual(classTraining(actor).weapons, ["axe"]);
 
     // The class prints axes; a hand added the great sword and dropped the hand axe.
-    // Its `effects` is an EmbeddedCollection at runtime — iterable, `map` and
-    // `filter`, and NO `flatMap`; a plain array here hid a sheet-killing throw.
+    // `effects` is an EmbeddedCollection at runtime — iterable, `map` and
+    // `filter`, never `flatMap`.
     class CollectionLike {
       #rows;
       constructor(rows) {
@@ -1318,9 +1305,7 @@ try {
     }
   });
 
-  /* A compendium keeps only its index once it has gone cold, and fromUuidSync
-   * then answers with the index row: name, type and img, no `system`. A class
-   * lookup must treat that row as "not loaded", never as a class. */
+  // See docs/classes/DECISIONS.md, "A class answer is a document or nothing".
   test("a class evicted from its pack answers as unbound, not as an index row", () => {
     const bound = (uuid) => ({ getFlag: (m, k) => (m === "acks-extras" && k === "classes" ? { uuid } : undefined), system: { details: { class: "" } } });
     const row = { _id: "c1", uuid: "Compendium.world.shelf.Item.c1", name: "Paladin", type: "acks-extras.class", img: "" };

@@ -2939,7 +2939,7 @@
   "ACKS-HENCHMEN.migration.wiped": "acks-henchmen: location \"{name}\" was migrated to the shared-market model (v0.3.0) — its old test postings/candidates were cleared.",
   "ACKS-HENCHMEN.repair.swept": "acks-henchmen: repaired dangling hireling references on {count} actor(s) — deleted hirelings were still listed on their employers (this crashed character sheets).",
   "ACKS-HENCHMEN.setting.autoRepairReferences": "Auto-repair dangling hireling references",
-  "ACKS-HENCHMEN.setting.autoRepairReferencesHint": "At world load, remove references to deleted hirelings from employers' rosters. A dangling reference crashes character-sheet rendering in acks 14.0.1. Turn off only if you repair manually with the \"Repair Henchmen References\" macro.",
+  "ACKS-HENCHMEN.setting.autoRepairReferencesHint": "At world load, remove references to deleted hirelings from employers' rosters. With this off, a GM can run acksExtras.henchmen.repair.repairWorld() from the console instead.",
   "ACKS-HENCHMEN.tablesMissing": "ACKS Extras | rules tables not imported ({list}). Book tables ship with no world — import them from your own ACKS II PDFs with Import Everything, or Rules tables in Reimport One Shelf (ACKS Extras Macros). Market, wage, and hiring automation stays disabled until then.",
   "ACKS-HENCHMEN.posting.error.unknown-level": "Unknown henchman level.",
   "ACKS-HENCHMEN.posting.error.unknown-troop-type": "Unknown mercenary troop type.",

@@ -2,13 +2,11 @@
 /**
  * Damage typing for weapons, and the attack options an actor actually has.
  *
- * THE GAP THIS CLOSES: core weapon Items carry no damage type at all, and the
- * equipment feature only STAMPS `flags.acks-extras.damageType` when someone runs
- * its annotate macro — so ordinary gear on a henchman is untyped and nothing can
- * show a damage-type affordance. Rather than duplicate the weapon table (it is
- * equipment's, read off the books) this resolves the type LIVE through that
- * feature's own classifier, so every profiled weapon is typed with no annotation
- * step and no second copy of the data.
+ * Core weapon Items carry no damage type at all, and the equipment feature
+ * only stamps `flags.acks-extras.damageType` when its annotate macro has run,
+ * so this resolves the type LIVE through that feature's own classifier — every
+ * profiled weapon is typed with no annotation step and no second copy of the
+ * data.
  *
  * Resolution order, most explicit first:
  *   1. `flags.acks-extras.damageTypeOverride` — a hand-set override (ad-hoc weapons)
@@ -16,12 +14,10 @@
  *   3. equipment's live `classifyWeapon(item).type`
  *   4. null — genuinely unknown; the UI shows a neutral icon rather than guessing
  *
- * The override key is spelled out because these two tiers used to live in
- * separate modules (`flags.acks-lib.damageType` over
- * `flags.acks-equipment.damageType`) and the module id was what told them
- * apart. One module now, so the NAME has to carry that distinction — leave them
- * both called `damageType` and the override silently becomes the value it is
- * meant to override.
+ * The override key stays spelled `damageTypeOverride`, distinct from
+ * `damageType`, so it can never collapse into the value it overrides. See
+ * docs/lib/DECISIONS.md, "The damage-type override keeps a name distinct
+ * from the stamped value".
  */
 import { MODULE_ID } from "./constants.mjs";
 import { DAMAGE_TYPES, ITEM_TYPE } from "./vocab.mjs";

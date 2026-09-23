@@ -112,10 +112,9 @@ Hooks.once("ready", async () => {
     refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | initial loadout sync failed for ${actor.name}`, err));
   }
 
-  // One-time hygiene: earlier builds (before the character-only guard) could
-  // strand managed loadout effect(s) on a non-character actor — e.g. a monster
-  // whose embedded items another module rewrote, sometimes several duplicates.
-  // Remove every such stray in a single pass.
+  // One-time hygiene: removes any managed loadout effect stranded on a
+  // non-character actor (see docs/equipment/DECISIONS.md, "Loadout automation
+  // reacted to monster item churn (2026-09-22)").
   for (const actor of game.actors.filter((a) => a.type !== ACTOR_TYPE.character && a.isOwner)) {
     if (!primaryResponder(actor)) continue;
     const strays = actor.effects.filter((e) => e.getFlag?.(MODULE_ID, LOADOUT_EFFECT_FLAG) === true).map((e) => e.id);

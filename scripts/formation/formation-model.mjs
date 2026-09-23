@@ -64,15 +64,11 @@ export function getFormations() {
 }
 
 /**
- * The stored blob ITSELF — no copy, and therefore READ-ONLY. Mutating a record
- * from here edits the live setting cache without ever persisting it, and the
- * next save writes the mutation as if it had been asked for.
- *
- * This exists because the copy is the expensive part: a record carries a full
- * token snapshot per stashed member, so a forty-strong party costs forty token
- * documents to clone for a question as small as "is this actor holding a
- * torch?". The hot paths — a token moving, a loadout recomputing, a scene
- * sweep — ask exactly those questions and never write.
+ * The stored blob itself — no copy, and therefore read-only. Mutating a
+ * record from here edits the live setting cache without ever persisting
+ * it, and the next save writes the mutation as if it had been asked for.
+ * Exists because cloning is expensive for a hot read path that never
+ * writes (a token moving, a loadout recomputing, a scene sweep).
  */
 export function readFormations() {
   return game.settings.get(MODULE_ID, SETTING_FORMATIONS) ?? {};
@@ -185,17 +181,12 @@ function commit(mutate) {
 }
 
 /**
- * A whole-record write is an UPDATE: it refuses a record the ledger no longer
- * holds rather than putting it back. Only `createFormation` inserts, and it
- * mints the id it inserts under.
- *
- * The refusal is the whole point. Callers reach here holding a record they
- * fetched earlier — a hook, a turn tick, a sheet action — and "it was deleted
- * while I worked" makes the write moot, not urgent. Writing it anyway is how a
- * dissolved party came back with `sceneId` and `tokenId` nulled.
- *
- * Still writes `formation` WHOLE, so a concurrent change to THAT record is
- * overwritten; `patchFormation` is what a writer uses to avoid that.
+ * A whole-record write: refuses a record the ledger no longer holds rather
+ * than putting it back. Only `createFormation` inserts. Still writes
+ * `formation` whole, so a concurrent change to that record is overwritten;
+ * `patchFormation` is what a writer uses to avoid that. See
+ * docs/formation/MODEL.md, "Every write goes through one private
+ * `commit(mutate)`".
  */
 export async function updateFormation(formation) {
   await commit((all) => {
@@ -206,15 +197,12 @@ export async function updateFormation(formation) {
 }
 
 /**
- * Targeted mutation for BACKGROUND writers (map sessions, cleanup hooks):
- * re-reads the record FRESH inside the save lock, applies `mutate` to that
- * copy only, and persists. `mutate` may return `false` to decline (its guards
- * re-checked against current reality, not the stale copy it was called with).
- *
- * This exists because `updateFormation` writes the WHOLE record: a slow async
- * flow holding a copy from before someone else's save will erase that save on
- * completion. Deploy's combat flag was being erased exactly this way by the
- * environment sync that every settings change triggers.
+ * Targeted mutation for background writers (map sessions, cleanup hooks):
+ * re-reads the record fresh inside the save lock, applies `mutate` to that
+ * copy only, and persists. `mutate` may return `false` to decline, with its
+ * guards checked against this fresh copy, not the stale one it was called
+ * with. See docs/formation/MODEL.md, "Every write goes through one private
+ * `commit(mutate)`".
  */
 export async function patchFormation(id, mutate) {
   let absent = false;
@@ -313,11 +301,9 @@ export function explorationSpeedOf(actor) {
 }
 
 /**
- * Real members of the marching order (grid cells minus blank slots).
- *
- * This is the party's HEADCOUNT wherever one is wanted — anything that counts
- * `members` instead counts the empty ranks a Judge left in the grid, and a
- * panel and a tick that count differently disagree about the same party.
+ * Real members of the marching order (grid cells minus blank slots). The
+ * party's headcount wherever one is wanted — `members` alone also counts
+ * the empty ranks a Judge left in the grid.
  */
 export function realMembers(formation) {
   const cells = formation?.members;
@@ -373,22 +359,12 @@ export function isDown(actor) {
 }
 
 /**
- * Dead, as opposed to merely down — and the difference decides two things that
- * pull opposite ways.
- *
- * A DEAD member stays on the roster because the experience rule counts "all
- * party members who returned to civilization, ALIVE OR DEAD" (RR ch. 6), and a
- * body left in the dungeon does not stop being owed its share. But a corpse
- * does not walk, and it does not stop the living from walking either: the
- * party may carry it out or leave it, and neither choice changes their pace.
- *
- * An INCAPACITATED member is the opposite case. They are alive, they cannot
- * walk, and abandoning them is a decision the party has to actually make — so
- * an uncarried casualty stops the column rather than being silently stepped
- * over.
- *
- * Read from the `dead` status the system marks, or from the member record when
- * a Judge has said so directly.
+ * Dead, as opposed to merely down (RR ch. 6 on who still earns a share). A
+ * dead member stays on the roster and does not stop the column either way
+ * it is handled; an incapacitated member is alive, cannot walk, and stops
+ * the column until the party decides to carry or leave them. Read from the
+ * `dead` status the system marks, or from the member record when a Judge
+ * has said so directly.
  */
 export function isDead(actor, member = null) {
   if (member?.dead) return true;
@@ -488,31 +464,18 @@ export function carrierSpeedFor(carrier, formation) {
   if (carrier?.type === VEHICLE_TYPE) {
     if (carrier.system?.kind !== "land") return null;
     const aboardStone = load6(carrier) / STONE;
-    // NO ground here, on purpose: the party's speeds are compared on a common
-    // unscaled base — a walker's exploration speed knows nothing of terrain
-    // either — and the travel panel applies the day's terrain/road/weather
-    // multiplier ONCE to the slowest base at expedition time. Scaling only
-    // the carriers would bias the slowest-member comparison and double-count
-    // the ground. (The legacy `formation.ground` object is still honoured for
-    // any caller that ever wrote one.) The real team — harnessed attachments
-    // included — is stated to the arithmetic, which only sees the abstract
-    // rows on its own.
+    // No ground here — see docs/formation/DECISIONS.md, "Ruled: the party's
+    // speeds are compared on a common UNSCALED base".
     return landSpeed(carrier.system, aboardStone, formation?.ground ?? null, { pull: draftPullOf(carrier) }).feetPerTurn;
   }
   return explorationSpeedOf(carrier);
 }
 
 /**
- * The party moves at the pace of its slowest WALKING member — and a member
- * riding in a wagon is not walking.
- *
- * Down members do not walk either; Carriers move at the speed of their own
- * encumbrance PLUS their share of the carried load. A passenger aboard a
- * vehicle contributes the VEHICLE's pace instead of their own, which is the
- * whole point of putting the heavily-laden merchant in the cart: their legs
- * stop setting the party's speed, and the wagon's wheels start. Every
- * passenger of one wagon contributes the same number, so a full cart counts
- * once in effect.
+ * The party moves at the pace of its slowest walking member. A member
+ * riding in a wagon is not walking and contributes the vehicle's pace
+ * instead; down members do not walk either, and Carriers move at the speed
+ * of their own encumbrance plus their share of the carried load.
  */
 export function partySpeed(formation) {
   const load = carriedLoad(formation);
@@ -522,30 +485,21 @@ export function partySpeed(formation) {
     const actor = getMemberActor(member);
     if (!actor) continue;
 
-    // A casualty — dead or unconscious, it makes no difference to their legs —
-    // moves at nothing. The party moves at its slowest member, so one of them
-    // lying in the corridor stops the column, and that is the whole point: the
-    // party has to DECIDE.
-    //
-    // Two decisions clear it. Carry them, which costs the Carriers speed under
-    // the weight; or LEAVE them, which lets the column move on. A member left
-    // behind is skipped here but stays on the roster — they are still owed
-    // their share of the experience, whether they walked out or not.
+    // A casualty moves at nothing, stopping the column until the party
+    // carries them (costing the Carriers speed) or leaves them (skipped
+    // here, but still on the roster).
     if (isCasualty(actor, member)) {
       if (member.left) continue;
       if (load.carriers.length) continue; // somebody has them up
       return 0;
     }
     let speed;
-    // Riding in or on ANYTHING — a wagon, a horse — means these legs are not
-    // the ones setting the party's pace. The ROOT of the chain answers: a
-    // rider whose horse is in a wagon's traces travels at the wagon's pace.
+    // Riding anything means these legs are not setting the pace. The root
+    // of the chain answers: a rider whose horse is in a wagon's traces
+    // travels at the wagon's pace.
     const attachment = attachmentOf(actor);
     const carrier = ATTACH_ROLES[attachment?.role]?.setsPace ? rootCarrierOf(actor) : null;
     if (carrier) {
-      // The wagon's pace, for the ground the party says it is on. A vehicle
-      // that cannot move at all (nothing in harness, or overloaded) makes the
-      // party's speed zero, which is exactly what a stuck cart does to a road.
       speed = carrierSpeedFor(carrier, formation);
     } else if (load.down.length && member.roles?.includes(ROLES.CARRIER)) {
       const enc = Number(actor.system?.encumbrance?.value ?? 0) + load.sharePerCarrier;
@@ -806,24 +760,10 @@ function freeCellPlacer(scene, anchor) {
 }
 
 /**
- * Put stashed member tokens back on the map in ONE creation call.
- *
- * `grid` restores the marching-order SHAPE (used when the whole formation comes
- * apart at once); otherwise each token takes the next free square spiralling out
- * from the party. Either way the block is fitted to the scene, so a wide or deep
- * formation cannot deposit its rear ranks past the edge of the map.
- *
- * Consumes `tokenData` on the member records it is given — clearing the stash is
- * the caller's cue that these characters are back on the canvas.
- * @param {object[]} members the member records to restore
- * @returns {Promise<number>} how many tokens were created
- */
-/**
- * Is this member standing on the canvas under their own token?
- *
- * Mirrors `deployment.mjs`'s predicate. Declared here rather than imported
- * because `deployment.mjs` imports this file, and the restore path needs the
- * answer synchronously inside a filter.
+ * Is this member standing on the canvas under their own token? Mirrors
+ * `deployment.mjs`'s predicate; declared here (rather than imported)
+ * because `deployment.mjs` imports this file, and the restore path needs
+ * the answer synchronously inside a filter.
  */
 const isMemberDeployed = (member) => !!(member?.deployedTokenId || member?.deployedStack);
 
@@ -850,18 +790,23 @@ async function recallDeployed(formation, members) {
   }
 }
 
+/**
+ * Put stashed member tokens back on the map in one creation call. `grid`
+ * restores the marching-order shape; otherwise each token takes the next
+ * free square spiralling out from the party. Either way the block is
+ * fitted to the scene. Consumes `tokenData` on the member records it is
+ * given, clearing the stash as the cue that these characters are back on
+ * the canvas.
+ *
+ * @param {object[]} members the member records to restore
+ * @returns {Promise<number>} how many tokens were created
+ */
 async function restoreMemberTokens(formation, members, { grid = false } = {}) {
-  // A stash whose actor is gone cannot be re-created: the system's own
-  // TokenDocument._preCreate reads the token's actor, and a token whose base
-  // actor was deleted resolves it to null. Foundry creates the batch in ONE
-  // call, so a single dead member would abort the creation of every live one
-  // and take their positions down with it.
-  // A DEPLOYED member is already on the canvas, and their stash is the stale
-  // snapshot taken before they left the party token. Restoring from it would
-  // stand a second copy of them beside the body they are using — so a member
-  // still holding a deployment marker is never restored from. Callers recall
-  // first (`recallDeployed`); this filter is what keeps a future one from
-  // re-opening the hole.
+  // A stash whose actor is gone cannot be re-created (core's own
+  // TokenDocument._preCreate resolves it to null), and Foundry creates the
+  // batch in one call, so one dead member would abort every live one too.
+  // A deployed member's stash is the stale pre-detach snapshot; callers
+  // recall first (`recallDeployed`), and this filter guards the rest.
   const stashed = members.filter((m) => m?.tokenData && !isMemberDeployed(m) && game.actors.get(m.actorId));
   if (!stashed.length) return 0;
   const scene = getPartyScene(formation) ?? game.scenes.viewed;
@@ -869,8 +814,8 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
 
   const partyToken = getPartyToken(formation);
   const anchor = partyToken ? { x: partyToken.x, y: partyToken.y } : null;
-  // Read once and passed down: the origin is clamped for a heading, so a cell
-  // laid out against a different one would fall outside the room made for it.
+  // Read once and passed down — see docs/formation/MODEL.md, "Which way the
+  // block points".
   const heading = snapHeading(partyToken?.rotation);
   const origin = anchor && grid ? blockOrigin(formation, scene, anchor, { heading }) : null;
   const nextFree = anchor && !grid ? freeCellPlacer(scene, anchor) : null;
@@ -930,12 +875,11 @@ export async function removeMember(formation, actorId, { restore = true } = {}) 
 }
 
 /**
- * Dissolve a formation WITHOUT touching its party actor: restore every stashed
- * member token, remove the party token, and delete the record. This is both
- * the second half of `disband` and the cleanup for a formation whose party
- * actor is already gone (deleted from the sidebar) — the case that used to
- * leave a phantom record behind, silently re-adopted by the next "Add to
- * party" and resurrecting its actor.
+ * Dissolve a formation without touching its party actor: restore every
+ * stashed member token, remove the party token, and delete the record.
+ * Both the second half of `disband` and the cleanup for a formation whose
+ * party actor is already gone. See docs/formation/DECISIONS.md, "Phantom
+ * records are pruned before anything else".
  */
 export async function dissolveFormation(formation) {
   try {
@@ -970,10 +914,9 @@ export async function disband(formation) {
 }
 
 /**
- * Drop every formation whose party actor no longer exists (restoring anything
- * stashed inside first). Runs once at ready on the primary GM: it clears the
- * phantom records accumulated by earlier versions, and any record orphaned by
- * a crash mid-flow.
+ * Drop every formation whose party actor no longer exists (restoring
+ * anything stashed inside first). Runs once at ready on the primary GM,
+ * the backstop for a record orphaned by a crash mid-flow.
  */
 export async function pruneFormations() {
   for (const formation of Object.values(getFormations())) {
@@ -1019,20 +962,11 @@ export async function removeBlank(formation, index) {
 /* -------------------------------------------- */
 
 /**
- * How many march abreast (1 = single file; RR p. 264: 2 in corridors ≥6').
- *
- * ANY positive whole number is a formation width — a war party crossing open
- * ground lines up as wide as it likes. This is a read of stored state, so a
- * missing or corrupt value degrades to single file; the number a Judge TYPES is
- * validated where it is typed, so a bad entry is refused rather than rounded.
- */
-/**
- * The marching order as a companion module consumes it — one row per REAL
- * member, in file order, with the rank/file cell computed from the current
- * frontage and the member's roles named. No token snapshots ride along: this
- * is the delve record (who stands where, who carries the pole, who scouts),
- * not a deployment payload. Published on `api.formation.marchingOrder` as part
- * of the versioned contract a trap module keys on.
+ * The marching order as a companion module consumes it: one row per real
+ * member, in file order, with the rank/file cell computed from the
+ * current frontage and the member's roles named. No token snapshots ride
+ * along. Published on `api.formation.marchingOrder`, a versioned contract
+ * a trap module keys on.
  */
 export function marchingOrder(formation) {
   const frontage = getFrontage(formation);
@@ -1048,6 +982,12 @@ export function marchingOrder(formation) {
   });
 }
 
+/**
+ * How many march abreast (RR p. 264). A read of stored state: a missing or
+ * corrupt value degrades to single file; the number a Judge types is
+ * validated where it is typed, so a bad entry is refused rather than
+ * rounded here.
+ */
 export function getFrontage(formation) {
   const stored = Math.floor(Number(formation?.frontage));
   return Number.isFinite(stored) && stored >= 1 ? stored : 1;

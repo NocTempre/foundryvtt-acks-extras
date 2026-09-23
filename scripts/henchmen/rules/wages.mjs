@@ -66,9 +66,9 @@ export function signingBonusCost(tier, monthlyWage, briberyProficient) {
   const period = Array.isArray(side) ? side.find((r) => r.bonus === tier)?.wages : side?.[String(tier)];
   if (!period) return null;
   const row = { wages: period };
-  // Family-standard pay conversions (RAW names the periods, not the math):
-  // a week's pay = monthly / 4, a day's = monthly / 30 — matching the
-  // influence module's bribe tiers so both rollers price identically.
+  // Pay-period conversion (RAW names the periods, not the math): a week's
+  // pay = monthly / 4, a day's = monthly / 30. See docs/henchmen/DECISIONS.md,
+  // "Wage pay-period conversions match the influence feature's bribe tiers".
   const gp = { day: monthlyWage / 30, week: monthlyWage / 4, month: monthlyWage, year: monthlyWage * 12 }[row.wages];
   return { gp: Math.ceil(gp), wages: row.wages };
 }

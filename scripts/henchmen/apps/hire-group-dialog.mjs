@@ -27,19 +27,16 @@ function officerLabel(c) {
 }
 
 /**
- * Wire the +/− steppers and the "take all" affordance on the group dialog, put
- * the count fields on a numeric soft keyboard, and keep every count within
- * [0, cap]. Event-delegated off the dialog root so it survives DialogV2's DOM,
- * and defensive: a missing root simply leaves the number inputs (which already
- * carry min/max) as the fallback.
+ * Wire the +/− steppers and the "take all" affordance on the group dialog,
+ * and keep every count within [0, cap]. Event-delegated off the dialog root
+ * so it survives DialogV2's DOM; a missing root leaves the number inputs
+ * (which already carry min/max) as the fallback.
  */
 function wireSteppers(root) {
   if (!(root instanceof HTMLElement)) return;
-  // The numeric soft keyboard is requested as a PROPERTY here, never as an
-  // `inputmode` attribute in the dialog's markup: DialogV2 runs a string
-  // `content` through cleanHTML, whose <input> allowlist does not include
-  // `inputmode`, so an attribute written there is dropped before render and a
-  // tablet opens the alphabetic keyboard on a count field.
+  // Set as a property, not an `inputmode` attribute — DialogV2's cleanHTML
+  // strips it. See docs/henchmen/DECISIONS.md, "Attributes outside Foundry's
+  // allowlist are set from the render callback".
   for (const input of root.querySelectorAll('input[type="number"][data-cap]')) input.inputMode = "numeric";
   const clamp = (input) => {
     const cap = Number(input.dataset.cap) || 0;
@@ -79,8 +76,6 @@ export async function openHireGroupDialog(location) {
 
   const esc = foundry.utils.escapeHTML;
   // Each troop type is a stepper capped at what the market has (0 = not taken).
-  // The number stays editable (type a big count directly); the − / + step by
-  // one; the "/ N" affordance fills to the cap. All three respect the cap.
   const cap = (c) => Math.max(0, Number(c.quantity ?? 1));
   const troopCells = troops
     .map(

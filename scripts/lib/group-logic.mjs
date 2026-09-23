@@ -65,15 +65,12 @@ export function memberName(stack, member) {
 
 /**
  * RR 169 "personally led" command capacity, in INFANTRY-EQUIVALENTS, by the
- * commander's level: a 3rd+ level leader may personally lead a platoon (30
- * infantry / 15 cavalry), 2nd a half-platoon (15), 1st a squad. Cavalry count
- * double toward the limit, so the group's strength and this capacity are both in
- * infantry-equivalents. 0th level cannot lead mercenaries into danger at all.
- *
- * NOTE the squad (1st-level) size is not in the local RR extract; 7 is used as a
- * documented interpretation (half of a half-platoon) until the Domains at War
- * value is confirmed. It only bites a 1st-level PC personally leading — hired
- * mercenary officers are all 4th+ level, so they always grant the full platoon.
+ * commander's level. Cavalry count double toward the limit, so the group's
+ * strength and this capacity are both in infantry-equivalents. 0th level
+ * cannot lead mercenaries into danger at all. The 1st-level (squad) figure is
+ * a documented interpretation pending confirmation — see docs/lib/DECISIONS.md,
+ * "The squad command-capacity figure is an interpretation, not a printed
+ * number".
  */
 export function platoonCapacity(level) {
   const L = Number(level) || 0;
@@ -108,15 +105,9 @@ export function migrateGroupSource(source) {
 }
 
 /**
- * An effect a deployed member picked up as DERIVED state — a module-managed
- * loadout effect, a re-appliable buff — must not be baked into the resting
- * record on recall, or it re-applies forever. The general marker: any effect
- * flagged `flags.<namespace>.managed = true`. Authored effects (a curse the
- * Judge put on this one kobold, with no managed marker) are kept.
- *
- * The specific markers each consuming module uses (e.g. acks-equipment's loadout
- * effect) are taught to this predicate through the `acksLibGroupIsDerivedEffect`
- * hook rather than the library hardcoding module ids.
+ * Is this effect DERIVED state that must not survive a recall (vs. an authored
+ * effect, kept)? See docs/lib/GROUPS.md, "Derived effects do not survive
+ * recall".
  */
 export function isDerivedEffect(effectData) {
   const flags = effectData?.flags ?? {};
@@ -143,13 +134,8 @@ export function cleanDelta(delta) {
 }
 
 /**
- * The ONE ecology reader: a monster's number-appearing → a size formula,
- * soft-read so the monsters feature stays optional. Returns a dice string;
- * nothing auto-rolls it (the Judge decides when a group is sized), and a source
- * with no ecology data returns null so the Judge types the size. The richer
- * seams — lair chance, supply cost, battle rating — are declared in
- * group-data.mjs and deliberately unread (docs/ROADMAP.md § Groups).
- *
+ * A monster's number-appearing → a size dice formula, or null if unstated. See
+ * docs/lib/GROUPS.md, "Ecology runway — READ only, deliberately unimplemented".
  * @param {object} source - a prototype actor (may carry monster extras)
  * @param {"wilderness"|"dungeon"} [context]
  * @returns {string|null} a dice formula, or null if unstated

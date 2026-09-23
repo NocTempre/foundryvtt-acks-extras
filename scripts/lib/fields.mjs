@@ -59,16 +59,10 @@ export const refList = () => new (F().ArrayField)(new (F().StringField)({ blank:
 
 /**
  * One occupant — a living thing recorded on a place's roster, or on a
- * faction's membership. One definition, because a garrison billeted at an
- * inn and the guild that pays it are the same kind of row.
- *
- * A REFERENCE, not an embedded document: Foundry cannot embed an Actor in an
- * Actor, so a garrison, a stabled horse and a captive dragon are all uuids.
- * The name and image are DENORMALISED alongside, for the same reason storage
- * stamps `ownerName` next to `ownerUuid` — a deleted actor leaves a row that
- * still says what used to be here, which is a record a GM can act on rather
- * than a blank. `place-logic.mjs`'s `OCCUPANT_KIND` is the `kind` vocabulary;
- * `place.mjs`'s `occupantRow` builds a row from a live actor.
+ * faction's membership: a REFERENCE (uuid), denormalised with name and image.
+ * See docs/lib/PLACES.md, "Occupancy: two sources, one list, stored wins".
+ * `place-logic.mjs`'s `OCCUPANT_KIND` is the `kind` vocabulary; `place.mjs`'s
+ * `occupantRow` builds a row from a live actor.
  */
 export function occupantField() {
   const { SchemaField, StringField, BooleanField } = F();
@@ -112,21 +106,16 @@ export function levelValueField() {
       new SchemaField({ atLevel: num({ integer: true }), value: num(), outcome: choice(RUNG_OUTCOMES), text: str() }),
     ),
     on: choice(VALUE_SCALES), // conditional: which scale the ladder is keyed on
-    // Fractional per-level values are printed with their rounding — "a bonus
-    // to their Mortal Wounds throw of one-half his class level (round up)".
-    // Without this the value resolves to 2.5 at 5th level, which is not a
-    // number the rule ever produces.
+    // Fractional per-level values are printed with their rounding; without
+    // this a half-per-level value resolves to a fraction the rule never produces.
     round: choice(VALUE_ROUNDING),
     // WHOSE table, as a class KEY — the four chassis, or any class document the
-    // world holds. Not a closed enum: the editor offers every published class,
-    // and most classes a throw borrows from are not chassis; a value outside a
-    // closed list is silently rewritten to the first one, so choosing a real
-    // class stored `fighter`.
+    // world holds. Not a closed enum: a value outside a closed list is
+    // silently rewritten to the first one, so choosing a real class stored
+    // `fighter`.
     as: str(),
-    // WHICH of that class's ladders — blank means its attack bands, which is
-    // what a progression meant before named ladders existed. Absent from this
-    // schema entirely until now, so the ladder a Judge picked was dropped on the
-    // first save and the throw quietly fell back to attack throws.
+    // WHICH of that class's ladders — blank means its attack bands. See
+    // docs/lib/DECISIONS.md, "A borrowed progression can name its ladder".
     table: str(),
     // The FRACTION of class level the borrowed table is read at, as the page
     // writes it — a numerator over a denominator. It is data because which
@@ -140,17 +129,10 @@ export function levelValueField() {
 }
 
 /**
- * ONE named roll an ability offers.
- *
- * An ability is not one roll. Animal Husbandry diagnoses (11+ / 7+ / 3+ by
- * rank), cures (18+), cures serious injury (14+) and extracts venom
- * (18+ / 14+ / 10+) — four different rolls, three of them on their own rank
- * progression. A single `rollTarget` cannot hold that, and picking one of them
- * to be "the" roll silently loses the rest.
- *
- * The RECIPE says how many rolls an ability has and where each one is written.
- * Everything in this shape — the label, the target, the progression, the
- * qualifier — is read from the reader's own book.
+ * ONE named roll an ability offers — an ability is not always one roll, so a
+ * single `rollTarget` cannot hold every throw it makes. Everything in this
+ * shape — the label, the target, the progression, the qualifier — is read
+ * from the reader's own book.
  */
 export function rollField() {
   const { SchemaField } = F();
@@ -164,16 +146,10 @@ export function rollField() {
     rollType: choice(THROW_TYPES, { initial: "above" }),
     target: levelValueField(), // flat, per-level, or a rank ladder — none on a measure
     scale: choice(VALUE_SCALES, { initial: "level" }), // what `target` is keyed on
-    // An ability score the character adds to this throw. `key` is an ATTRIBUTES
-    // key, which is the core system's own score path, so it reads straight out
-    // of `system.scores`; blank means the throw takes no score at all. `times`
-    // multiplies the modifier, so a throw written against a multiple of it
-    // needs no second shape — a plain one leaves the multiplier at 1.
-    //
-    // Kept on the ROLL rather than in the formula because a score term is the
-    // same statement as a target: the sheet, the strip and the chat card all
-    // read a number here, and a term buried in the dice string would move none
-    // of them.
+    // An ability score the character adds to this throw. `key` is an
+    // ATTRIBUTES key (`system.scores` path); blank means no score. `times`
+    // multiplies the modifier (1 for a plain score term). Kept on the ROLL
+    // rather than in the formula, so every surface reads the same number.
     score: new SchemaField({
       key: choice(ATTRIBUTES),
       times: num({ initial: 1 }),
@@ -251,13 +227,9 @@ export function effectField() {
     // inverts the ability. Defaults to self, so existing effects are unchanged.
     appliesTo: choice(EFFECT_SUBJECTS, { initial: "self" }),
     // WHICH of the ability's throws this modifier belongs to, by that throw's
-    // key. The books scope a great many modifiers to one way of attempting a
-    // thing — "+4 when picking methodically", "not on a hasty attempt" — and
-    // those variants are already separate keyed throws, so the throw's own name
-    // is the guard. `condition` still carries the prose for the reader; this
-    // carries the part a machine may act on, because deciding from the prose
-    // gets it wrong (Lockpicking's condition names BOTH its throws in one
-    // string). Blank means the modifier is not scoped to a single throw.
+    // key — the throw's own name is the guard, not `condition`'s prose. See
+    // docs/abilities/DECISIONS.md, "A modifier must name what it modifies,
+    // and may name the throw". Blank means not scoped to a single throw.
     appliesToRoll: str(),
     roll: str(), // e.g. "1d20"
     rollType: choice(ROLL_TYPES),
@@ -310,15 +282,9 @@ export function effectField() {
     amount: num(),
     unit: str(),
     period: str(),
-    /* --- Relational: depend on / grant / alter OTHER abilities ---
-     * `ref`/`refs`  the ability this effect targets (modifies) or requires/grants.
-     * `ifHas`       gate: the effect applies only while the character also has
-     *               these — the books' "if separately proficient in Searching…"
-     *               and "if the character also has Bright Lore of Aura…".
-     * `mode`        add | replace | set — "instead of" is a replace variant.
-     * `stacksWith` / `notStacksWith`  explicit stacking rules, e.g. Diplomacy
-     *               stacks with Mystic Aura but NOT Intimidation or Seduction.
-     * `choose`      for `grants`: pick N of `refs`. */
+    // Relational: depend on / grant / alter OTHER abilities. See
+    // docs/lib/API.md, "Relational effects — requires / grants / modifies,
+    // stacking and chaining".
     ref: str(),
     refs: refList(),
     ifHas: refList(),
@@ -326,65 +292,29 @@ export function effectField() {
     stacksWith: refList(),
     notStacksWith: refList(),
     choose: num({ integer: true }),
-    /* --- Scoping: WHEN this modifier applies to a particular roll ---
-     * `condition` (below) is free text a human reads; these are the parts a
-     * machine can decide, and `scopeApplies()` in vocab.mjs is the one place
-     * that decides them.
-     *
-     * `vsKinds`     target kind tokens — "animal", "dwarf", "human",
-     *               "demi-human", "monster". Beast Friendship is +2 vs normal
-     *               animals; without this it stores as an unconditional +2 and
-     *               applies to everything the character talks to. The token
-     *               vocabulary is the CONSUMER's (acks-influence types actors
-     *               from class names and acks-monsters' typing) — lib only
-     *               carries the list and does the matching.
-     * `vsAlignment` / `vsAlignmentMode`  gate vs sign-flip; see
-     *               SCOPE_ALIGNMENT_MODES, which exists because Ancient Pacts
-     *               and Deathly Visage are different rules wearing the same
-     *               shape.
-     * `tones`       restrict to some of the three encounter tones.
-     * `optionalRule` the effect obeys a world setting of this name (the By
-     *               This Axe dwarven-caste rule is the first). Absent from the
-     *               world's settings means enabled — content for an unheard-of
-     *               rule should not silently vanish. */
+    // Scoping: WHEN this modifier applies to a particular roll — the parts a
+    // machine can decide, resolved by `scopeApplies()` in vocab.mjs. See
+    // docs/lib/API.md, "Scoping — when a modifier applies".
     vsKinds: refList(),
     vsAlignment: choice(ALIGNMENTS),
     vsAlignmentMode: choice(SCOPE_ALIGNMENT_MODES, { initial: "gate" }),
     tones: new (F().ArrayField)(new (F().StringField)({ choices: choicesOf(INFLUENCE_TONES) })),
     optionalRule: str(),
-    /* --- Kicker: a rider that fires on a good enough total ---
-     * Mystic Aura's "+1, and if that brings the total to 12+ the subject acts
-     * as if bewitched" is two mechanics in one sentence. The modifier is the
-     * number; this is the rest. `kickerAt` is the total that triggers it,
-     * `kickerNote` what happens — deliberately prose, because the outcomes the
-     * books describe here (bewitched-while-present, deduces it afterwards) are
-     * rulings, not numbers. */
+    // Kicker: a rider that fires on a good enough total. See docs/lib/API.md,
+    // "Scoping — when a modifier applies" (`kickerAt`/`kickerNote`).
     kickerAt: num({ integer: true }),
     kickerNote: str(),
-    /* --- reroll: "roll twice and keep the better" ---
-     * `times` is the number of EXTRA rolls (default 1). `keep` decides which
-     * result stands; `resolveReroll` reads `rollType` above so "better" means
-     * higher on a roll-high throw and lower on a roll-low one. Reuses
-     * `target`/`forWhat`/`condition` to say WHAT is rerolled and when. */
+    // reroll: "roll twice and keep the better". See docs/lib/API.md, "Rerolls".
     keep: choice(REROLL_KEEP),
     times: num({ integer: true }),
-    /* --- outcome: "on a roll of X, Y happens" ---
-     * `trigger` picks the machine rule (see OUTCOME_TRIGGERS / outcomeFires).
-     * `naturalMax` / `belowFraction` are the page's numbers, located per-seat —
-     * an outcome without its number cannot fire and surfaces as undecidable.
-     * `consequence` is WHAT happens, a chef conclusion in own words, never the
-     * page's sentence. Variant scoping (hasty vs methodical) rides `condition`
-     * like every other effect. */
+    // outcome: "on a roll of X, Y happens". See docs/lib/API.md, the
+    // "Roll outcomes" bullet under Vocabulary.
     trigger: choice(OUTCOME_TRIGGERS),
     naturalMax: num({ integer: true }),
     belowFraction: num(),
     consequence: str(),
-    /* --- companion: a creature the ability confers ---
-     * `ref` is the monster entry id (the recipe knows which — that pointer is
-     * not the book's text and ships safely). `actorUuid` is the loaded bucket:
-     * empty until the citing book is available or a GM drops an actor in, so a
-     * bookless seat still gets the slot and can fill it later. `amount` is how
-     * many the ability confers. */
+    // companion: a creature the ability confers. See docs/lib/API.md,
+    // "Companions".
     actorUuid: str(),
     // shared
     condition: str(), // free-text situational qualifier (when no structured form fits)

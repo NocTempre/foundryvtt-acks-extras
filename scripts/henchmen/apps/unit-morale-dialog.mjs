@@ -1,12 +1,11 @@
 /* global game, foundry, Roll, ChatMessage */
 /**
  * Unit morale roll for an acks-lib.group — a 2d6 check with the leader-modified
- * base (`commandMorale`, which already folds in the officer's RR 171 modifier and
- * any leader morale bonus) plus the situational modifiers the roller ticks when
- * it is time (RR 166). No auto-detection: the Judge selects what applies and
- * reads the result. The 2d6 roll goes to chat; interpretation stays with the
- * table (the three ACKS morale scales are close enough that auto-verdicts risk
- * using the wrong one).
+ * base (`commandMorale`, folding in the officer's RR 171 modifier and any
+ * leader morale bonus) plus the situational modifiers ticked at roll time
+ * (RR 166). Posts the roll and total to chat; the Judge reads the outcome
+ * off the table. See docs/henchmen/DECISIONS.md, "Unit morale interpretation
+ * stays with the Judge, not auto-verdicted".
  */
 const MODS = [
   { key: "employerPresent", value: 2 },

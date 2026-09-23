@@ -10,10 +10,10 @@
  */
 import { MODULE_ID, FLAG_RETAIN_BONUS } from "./constants.mjs";
 import { sumEffectModifiers } from "./effects.mjs";
-// The generic actor reads (ability mod, class level, HD parse) live once in
-// acks-lib — acks-influence read the same schema. `monsterHd`'s union also picks
-// up the "1/2"-HD form this module's own parser missed. Henchman-specific reads
-// (retainer, henchmenList, gold) stay here.
+// Generic actor reads (ability mod, class level, HD parse) live once in the
+// lib subsystem — the influence feature reads the same schema. `monsterHd`'s
+// union also covers the "1/2"-HD form. Henchman-specific reads (retainer,
+// henchmenList, gold) stay here.
 import { abilityMod, classLevel, monsterHd } from "../lib/actor-read.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 // A bare `export … from` re-export creates no local binding — spendGold's
@@ -80,17 +80,12 @@ export function getHenchmenIds(actor) {
 
 /**
  * Organize hirelings into a Folder named after their employer in the Actors
- * sidebar: for each employer with henchmen, ensure a folder, move the employer
- * and its henchmen into it, and raise each henchman's ownership to match the
- * employer's so the employing player sees them. Chains nest — a henchman who is
- * itself an employer gets its own sub-folder inside its manager's, and ownership
- * flows down the chain. Circular chains are invalid and not expected; a cheap
- * guard prevents a runaway anyway.
- *
- * GM-only (creates/updates world documents). Idempotent: the per-employer folder
- * is found by its `flags.acks-extras.employerId` and reused, so re-running
- * re-homes moved actors instead of making duplicate folders.
- *
+ * sidebar, raising each henchman's ownership to match the employer's. Chains
+ * nest — a henchman who is itself an employer gets its own sub-folder inside
+ * its manager's.
+ * GM-only. Idempotent: the per-employer folder is found by its
+ * `flags.acks-extras.employerId` and reused, so re-running re-homes moved
+ * actors instead of making duplicates.
  * @param {Actor[]} [actors] - the pool to organize; default = every actor
  * @returns {Promise<{folders:number, moved:number}>} counts of folders created
  *          and actors moved
@@ -210,13 +205,12 @@ export function getGold(actor) {
 }
 
 /**
- * Spend gp from an actor's coin — a TRANSFER when a destination is known.
- * With `to` (an actor or a location), the coins physically move there through
- * lib's location-gated transfer, change and all; without one, the legacy sink
- * remains for callers whose payee is genuinely off-stage (a fee to the world
- * at large), planned smallest-first with change made from the actor's own
- * denominations. Returns false (and warns) when funds are insufficient or the
- * transfer is refused.
+ * Spend gp from an actor's coin, planned smallest-first with change made from
+ * the actor's own denominations.
+ * With `to` (an actor or a location), the coins move there as a transfer
+ * through the lib subsystem's location-gated transfer; without one, they sink
+ * (payee off-stage). Returns false (and warns) when funds are insufficient or
+ * the transfer is refused.
  * @param {Actor} actor
  * @param {number} gp
  * @param {string} reason - for the chat receipt and any refusal warning
@@ -284,9 +278,8 @@ export async function spendGold(actor, gp, reason, { chat = true, to = null, at 
 export async function grantGold(actor, gp, { toBank = false, from = null, at = null, allowMint = false, gate = true } = {}) {
   const copper = Math.round(gp * 100);
   if (copper <= 0) return 0;
-  // With a named payer the grant is a TRANSFER — the coin comes from
-  // somewhere (a market's till, an employer) instead of thin air. The
-  // payerless form remains the Judge's mint.
+  // A named payer makes this a transfer (from a market's till, an employer);
+  // payerless is a mint.
   if (from) {
     const r = await acksExtras.lib.money.transferCoin({ from, to: actor, gp, at, allowMint, toBank, gate });
     return r.ok ? gp : 0;

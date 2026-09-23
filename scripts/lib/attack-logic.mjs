@@ -1,20 +1,9 @@
 /**
  * Attack-roll logic (pure, Foundry-free) — the corrected ACKS attack model.
- *
- * ACKS distinguishes two kinds of number on an attack:
- *
- *   - the ATTACK THROW — a TARGET that MOVES (class/level progression, and rules
- *     like "attacks as a 0th-level fighter" that RELOCATE it);
- *   - BONUSES — things ADDED TO THE ROLL (ability mod, magic weapon, situational),
- *     each an auditable term.
- *
- * The system's own roll folds the target movement into the die pool as
- * `bba = 10 − throw` and resolves `total ≥ targetAC + 10`, which is algebraically
- * the same hit test but destroys the distinction: the chat total silently
- * contains the target-side adjustment, no term is attributable, and planned
- * effect replacer/deduplication logic has no stack to operate on. This module is
- * the replacement model: an explicit throw target, an explicit term list, and a
- * resolver — used by acks-lib's core patch (patches/attack-roll.mjs).
+ * An explicit throw target (the moving target) and an explicit bonus-term
+ * list, replacing core's folded `bba = 10 − throw` resolution; used by lib's
+ * core patch (patches/attack-roll.mjs). See docs/lib/DECISIONS.md, "One owner
+ * for the attack roll, and one seam for future modifiers".
  *
  * Hit test (identical outcome to core's, restated in RAW form):
  *   d20 + Σbonuses ≥ throw + targetAC        (ascending AC; unarmored man = 0)

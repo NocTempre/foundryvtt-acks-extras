@@ -504,21 +504,10 @@ export function travelReadout(formation, feet) {
 
 /**
  * A distance the settlement board prints beside the scene's own unit.
- *
- * Precision follows magnitude, because the same length is a big number in one
- * unit and a fraction in another: an ordinary party's turn is 120 ft, 40 yd,
- * 37 m — and about two hundredths of a mile. A turn measured in miles or
- * kilometres CANNOT round to a whole number and stay true; rounded that way it
- * prints as a party that moves nothing, which reads as a dead tracker rather
- * than as a map drawn at the wrong scale. So:
- *
- * - 10 and over — a whole number; tenths of a foot are noise.
- * - 1 up to 10 — one decimal.
- * - under 1 — two significant digits, wherever the leading zeros end, so the
- *   figure survives however coarse the map's unit is.
- *
- * A genuine zero prints zero. Only a non-zero distance is protected from
- * rounding into one.
+ * Precision follows magnitude: a whole number at 10 and over, one decimal
+ * from 1 up to 10, two significant digits below 1. A genuine zero prints
+ * zero. See docs/formation/DECISIONS.md, "Settlement distances round by
+ * magnitude, not by a fixed decimal count".
  */
 function unitFigure(value) {
   const n = Number(value);
@@ -540,11 +529,9 @@ const NO_THROW_REASONS = Object.freeze({
 
 /**
  * The settlement board's context: the two pickers, the derived block rate with
- * its factors named, and the turn's navigation prospect.
- *
- * Every unpriced answer carries the REASON it is unpriced, because a city with
- * nothing imported must read as "not imported" and never as a distance of
- * zero — the same contract the march readout keeps.
+ * its factors named, and the turn's navigation prospect. Every unpriced
+ * answer carries the reason it is unpriced. See docs/formation/DECISIONS.md,
+ * "A figure that never arrived is never shown as a zero".
  */
 function buildSettlementView(formation, t) {
   const s = t.settlement;
@@ -609,13 +596,8 @@ function buildSettlementView(formation, t) {
   // so the panel and the tracker can never disagree about the rate.
   const scene = getPartyScene(formation);
   const blockFeet = sceneBlockFeet(scene);
-  // The block size as the Judge typed it, and the turn's rate back in the SAME
-  // units, because the readout prints each beside this scene's `units`. The
-  // tracker works in feet whichever half priced the turn — the pace's blocks or
-  // the party's own walking speed — and both branches of the readout name the
-  // scene's unit, so both are converted here rather than one of them. Both go
-  // through ONE formatter: a panel that rounded the turn and printed the block
-  // raw would state two figures in one currency at two precisions.
+  // The block size as the Judge typed it, and the turn's rate, both converted
+  // to the scene's unit and rounded through the same `unitFigure` formatter.
   const turnFeet = unitFigure((turnDistance(formation, scene) || 0) / feetPerUnit(scene?.grid?.units));
   // The place the party is standing AT, and the quarter's own place — by the
   // location feature's readers, because which token is a place is that
@@ -671,9 +653,7 @@ function buildSettlementView(formation, t) {
     districtPlace: districtPlace ? { uuid: districtPlace.uuid, name: districtPlace.name, canOpen: mayView(districtPlace) } : null,
     // How many places have a token on this map: what a walk can be made to.
     poiTargets,
-    // The RATE, kept apart from the tally the spread above carries: a panel
-    // that showed one where the other belongs reads as a party that has walked
-    // five blocks and never gets any further.
+    // The RATE, kept apart from the tally the spread above carries.
     rateBlocks: rate.blocks,
     blocksUnpriced: rate.blocks == null,
     straggling: (rate.parts ?? []).some((p) => p.key === "straggling"),
@@ -695,11 +675,8 @@ function buildSettlementView(formation, t) {
     stray: strayBlocks(),
     cadence,
     cadenceMissing: !cadence,
-    // The tracker's own question, answered here rather than re-derived from
-    // `blockFeet` alone in the template: the clock only times by blocks when
-    // the map declared a block size AND the registry priced the pace. With one
-    // half missing it falls back to walking speed, and a readout that claimed
-    // blocks anyway would name a rate nothing is using.
+    // Blocks are timed only when the map declared a block size AND the
+    // registry priced the pace; missing either falls back to walking speed.
     timedByBlocks: !stationary && !!blockFeet && rate.blocks != null,
     // The street the MAP says the party is on, when a road says so. The picker
     // stays on its own value — it is what the Judge typed, and a select that
@@ -719,12 +696,9 @@ function buildSettlementView(formation, t) {
 }
 
 /**
- * The camp: what the party is living on, and who is suffering for it.
- *
- * One section rather than three, because a Judge asks these together — how
- * long the packs last, who is going short, and whether tonight's foraging is
- * worth the hours. Splitting them across three panels would make the trade
- * between them invisible, and the trade is the whole point of the day board.
+ * The camp: what the party is living on, and who is suffering for it — one
+ * section, since a Judge asks how long the packs last, who is going short,
+ * and whether tonight's foraging is worth the hours together.
  */
 function buildCampView(formation, t) {
   const members = realMembers(formation ?? {});
@@ -879,9 +853,8 @@ function buildTravelView(formation, feet) {
         factor: p.note && p.factor === 1 ? null : fractionLabel(p.factor),
       })),
   };
-  // ONE lost view. A second assignment here silently clobbered the drift
-  // fields and the panel read "day undefined"; the fields the episode needs
-  // and the fields the old panel needed are the same object.
+  // ONE lost view: the fields the episode needs and the fields the panel
+  // needs are the same object, filled once.
   const drift = driftSummary(t.lost, t.dayCount);
   view.lost = {
     active: !!t.lost.active,
@@ -1044,10 +1017,8 @@ export function buildPlayerPanel(formation) {
       label: game.i18n.localize(cfg.label),
     })),
     playerSpells: [],
-    // Trapbreaking is offered to a seat that could actually make the throw —
-    // by the skill, or by Adventuring, which the book allows methodically. A
-    // button that only ever answers "you have no way to work on a trap" is
-    // worse than no button.
+    // Trapbreaking is offered only to a seat that could actually make the
+    // throw — by the skill, or by Adventuring.
     canTrapbreak: owned.some(
       (a) => resolveCheck(a, PARTY_CHECKS.trapbreakHasty) || resolveCheck(a, PARTY_CHECKS.trapbreakMethodical),
     ),

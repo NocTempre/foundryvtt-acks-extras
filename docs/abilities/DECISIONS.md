@@ -612,3 +612,48 @@ is a design of its own and a new behaviour of every imported power — a minor,
 recorded in the ledger, not cut from a field report.
 
 *Cost:* one legend renamed and one hint; no data changes.
+
+### The extended sheet is the default (2026-09-22)
+
+Recorded from the registration comment in `abilities/module.mjs`, where it
+had lived since the sheet shipped.
+
+**Ruled.** `AcksAbilitySheet` registers with `makeDefault: true` for every
+`ability` item. A sheet nobody selects shows nobody the Rolls or Mechanics
+tabs, which is the whole of what this feature adds. Defaulting takes nothing
+away: the sheet subclasses the system's own and keeps every tab it defines,
+so enabling the module adds tabs and removes none, and the system's plain
+sheet stays selectable per item.
+
+### Active Effects live on the Mechanics tab (2026-09-22)
+
+Recorded from the tab-layout comment in `abilities/ability-sheet.mjs`.
+
+**Ruled.** The system's own `effects` part is folded into Mechanics rather
+than kept as a fourth tab. Two tabs both meaning "effects" was a distinction
+only the implementation cared about: to the reader, the extended effect model
+and Foundry's Active Effects are both what the ability does without being
+rolled.
+
+### History the source comments carried, recorded (2026-09-22)
+
+These were written into code comments as the reason a guard exists. The
+comments now state the guard; the story is here.
+
+- **No `savePenalty` on a spellcasting-modifier row.** The row once rendered
+  one, but `effectField` declares no such field, so the value could never
+  survive validation to reach the sheet — a display path with no storage
+  behind it, found in a chef audit. A save penalty an ability imposes on
+  its targets is a `modifier` with `appliesTo: "opponent"`.
+- **A roll's handle falls back to its position.** Before `keyOf`, a lookup
+  gated on the stored key alone, and clicking the third throw of a keyless
+  import rolled the first.
+- **`throwText` is the one renderer of a throw's reading.** Four surfaces
+  showed it and built it three different ways, which is how a measure read as
+  `?` on one and `—` on another.
+- **The roll block left Description.** Core's details partial put the first
+  throw's formula, type and target on Description, which made it look like the
+  only throw and left a bare `1d20 / = / 0` on every proficiency that makes no
+  throw at all.
+- **`refName` searches the library, not the sidebar.** Imports live in the
+  importer's pack, so a sidebar-only lookup rendered every relation as a raw id.

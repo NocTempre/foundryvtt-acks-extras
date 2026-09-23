@@ -1,38 +1,24 @@
 /* global foundry, game, Roll, ChatMessage, ui */
 /**
- * The roller behind the Rolls tab — and, through roll-wrap.mjs, behind every
- * other way the game rolls an ability.
+ * The ability roller: the Rolls tab's buttons and, through roll-wrap.mjs, every
+ * other route the game rolls an ability by.
  *
- * The core ability item carries ONE roll (formula, type, target). Most ACKS
- * proficiencies offer several: Animal Husbandry diagnoses, cures, cures serious
- * injury and extracts venom, three of those on their own rank ladder. So an
- * ability's rolls live in `flags["acks-extras"].extras.rolls`.
- *
- * ONE STORE, ONE READ PATH. `rollsOf()` is the only place anything asks an
- * ability what it rolls, and it folds core's singleton fields in on the way out
- * — so an item this module has never migrated still presents the same shape,
- * and roll #1 is not reached by different code than roll #3. `writeRolls()` is
- * its counterpart: the only place anything changes the set, so keys stay unique
- * and an emptied list stays empty.
- *
- * Targets resolve against the CHARACTER, not the item: a rank ladder needs how
- * many times the proficiency was taken, a level ladder needs the actor's level.
- * A shared world item has neither, so it shows the ladder instead of a number.
+ * An ability's throws live in `flags["acks-extras"].extras.rolls` (core's item
+ * holds one). `rollsOf()` is the only read — it folds core's singleton fields
+ * in — and `writeRolls()` the only write. Targets resolve against the
+ * CHARACTER (rank or level); a shared world item shows the ladder instead.
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import AbilityExtras from "./ability-extras.mjs";
 import { slug, ATTRIBUTES, isMeasure } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
-// The classes registry, not lib: lib returns null for the `progression` kind
-// by design (it cannot see the world's class documents), and a throw that
-// borrows a published ladder is exactly that kind.
+// The classes registry, not lib: lib cannot see the world's class documents,
+// so it answers null for the `progression` kind a borrowed ladder uses.
 import { resolveLevelOutcome } from "../classes/registry.mjs";
 
 /**
- * How many times an actor has this ability. The books rate several
- * proficiencies by rank ("if the character selects Animal Husbandry twice…"),
- * and taking it twice is how you hold rank 2 — so rank is the count of
- * same-named ability items the actor carries.
+ * An actor's rank in this ability: the count of same-named ability items it
+ * carries (rank N is N copies).
  */
 export function rankOf(actor, item) {
   if (!actor || !item) return 1;
@@ -59,36 +45,12 @@ const namesActivity = (forWhat, wanted) =>
     .some((part) => slug(part) === wanted);
 
 /**
- * What this character's abilities do to THIS ability's throws.
- *
- * The books state a great many of these — Lockpicking Expertise gives "+2 on
- * Lockpicking proficiency throws", a methodical attempt gives +4 on its own
- * throw — and they are extracted onto the granting ability as modifiers naming
- * the activity they apply to. Nothing read them, so every one of them sat
- * inert: a character holding both Lockpicking and Lockpicking Expertise showed
- * the bare class ladder, and the Lockbreaker template grants exactly that pair.
- *
- * Two rules keep this from over-applying:
- *
- * - **One ability, counted once.** Holding a proficiency twice is RANK (RR
- *   §III.3 — the target drops by 4 per selection), which the ladder's `rank`
- *   scale already answers. Iterating both copies would apply the bonus twice
- *   and then let the ladder apply it again.
- * - **A modifier must NAME what it modifies.** An unattributed "+2 to
- *   proficiency throws" is not evidence of anything: it is what the importer's
- *   generic scan leaves behind when it drops the activity from the sentence,
- *   and applying those to every throw would give a character every bonus in
- *   their list on every roll they make.
- *
- * A modifier scoped to ONE way of attempting the thing names that throw
- * (`appliesToRoll`), and the name is the guard: "methodical" is a key, not a
- * reading of prose. Deciding it from `condition` instead would get Lockpicking
- * wrong, whose condition names both of its throws in a single string
- * ("methodical attempt (one turn); not a hasty attempt").
- *
- * A modifier that is conditioned but names no throw is a gap in what was
- * captured, not a modifier to guess at; it is returned unapplied so a caller
- * can say so rather than silently dropping it.
+ * What this character's other abilities do to THIS ability's throws: the
+ * proficiency-throw modifiers naming it in `forWhat`. Each ability counts once
+ * (a second copy is rank, RR §III.3); one scoped by `appliesToRoll` applies to
+ * that throw alone; a conditioned one naming no throw is returned in `pending`,
+ * unapplied. See docs/abilities/DECISIONS.md, "A modifier must name what it
+ * modifies, and may name the throw".
  *
  * @param {object} [roll] the throw being resolved; omit for the ability's
  *   unscoped total
@@ -109,14 +71,10 @@ export function throwModifiers(actor, item, roll = null) {
 
     for (const effect of other.getFlag(MODULE_ID, FLAG_EXTRAS)?.effects ?? []) {
       if (effect?.type !== "modifier" || effect.target !== THROW_TARGET) continue;
-      // A penalty an ability imposes on its VICTIMS is not one its holder
-      // suffers. Without this the two are indistinguishable and the ability
-      // reads inverted.
+      // A penalty imposed on the ability's victims is not its holder's.
       if ((effect.appliesTo ?? "self") !== "self") continue;
       if (effect.mode && effect.mode !== "add") continue;
-      // A modifier may name more than one activity — the books state plenty
-      // as "on Hiding and Sneaking proficiency throws" — so the field holds a
-      // list and any member matching is a match.
+      // `forWhat` may name several activities; any member matching is a match.
       if (!effect.forWhat || !namesActivity(effect.forWhat, mine)) continue;
 
       const scales = scalesFor(actor, other);
@@ -142,33 +100,21 @@ export function throwModifiers(actor, item, roll = null) {
 const signed = (n) => `${n >= 0 ? "+" : ""}${n}`;
 
 /**
- * Is this throw a MEASURE — dice with nothing to beat?
- *
- * The one predicate every surface asks, so the sheet row, the tag strip,
- * Favorites, the editor's preview and the chat card cannot disagree about
- * whether a throw has a target at all. A measure is not "a throw whose target
- * failed to resolve": the two look identical from a null and read completely
- * differently, which is the bug this distinction removes.
+ * Is this throw a MEASURE — dice with nothing to beat? The one predicate every
+ * surface asks; a measure and an unresolved target both carry a null target.
  */
 export const measures = (roll) => isMeasure(roll?.rollType);
 
 /**
- * What a throw is CALLED when the book gave it no name of its own.
- *
- * "Proficiency throw" is right for a throw that is one and wrong for a measure,
- * which is not thrown against anything — an ability's effect roll labelled as a
- * proficiency throw reads as a second attempt at the first one.
+ * What a throw is called when it has no label of its own: the unnamed-throw
+ * wording, or the unnamed-measure wording for a measure.
  */
 export const labelOf = (roll) =>
   roll?.label || game.i18n.localize(measures(roll) ? "ACKS-ABILITIES.roll.unnamedMeasure" : "ACKS-ABILITIES.roll.unnamed");
 
 /**
- * What an ability score contributes to this throw — null when the throw
- * declares none, or when there is no character whose score to read.
- *
- * A throw's score term is written two ways: the modifier itself, and a multiple
- * of it. One multiplier covers both, so `times` is 1 for the plain case and
- * nothing has to be typed for it.
+ * What an ability score contributes to this throw — its modifier times
+ * `times` — or null when the throw declares no score or there is no character.
  *
  * @param {object} roll the throw
  * @param {Actor} actor the character holding it
@@ -179,20 +125,15 @@ export function scoreTerm(roll, actor) {
   if (!key || !actor) return null;
   const mod = abilityMod(actor, key);
   const raw = Number(roll.score.times ?? 1);
-  // A blank multiplier is "once", not "never": the field is left empty far more
-  // often than it is set, and reading it as 0 would silently cancel the score
-  // the reader just chose.
+  // A blank multiplier reads as once, never as zero.
   const times = Number.isFinite(raw) ? raw : 1;
   return { key, label: ATTRIBUTES[key]?.label ?? key.toUpperCase(), times, mod, bonus: mod * times };
 }
 
 /**
- * Does a throw's score term actually move its target?
- *
- * An exact-match throw takes no modifier at all — there is no "easier" to be
- * had — so a score declared on one is stated rather than applied. Every surface
- * that prints the term asks HERE, so none of them can announce a bonus the
- * target does not carry.
+ * Does a throw's score term move its target? Not on an exact-match throw or a
+ * measure, where the term is stated rather than applied. Every surface that
+ * prints the term asks here.
  */
 export const scoreApplies = (roll) => {
   const type = roll?.rollType || "above";
@@ -200,15 +141,10 @@ export const scoreApplies = (roll) => {
 };
 
 /**
- * A score term as one line — "WIL +2", or "WIL +2 × 4 = +8" when it is
- * multiplied. Written as the MODIFIER it is, not as the target it moved: the
- * target is printed beside it and the two read as one sentence.
- *
- * Where the term LANDS differs by throw, and the line has to say which, because
- * all three look identical otherwise. A scored throw carries it in the target
- * printed beside it. A MEASURE has no target, so it carries it in the result —
- * `measuredFormula` puts it in the dice. An exact-match throw carries it
- * nowhere, and says so rather than stating a bonus that does nothing.
+ * A score term as one line — "WIL +2", or "WIL +2 × 4 = +8" when multiplied —
+ * written as the modifier, not the target it moved. Given a throw the term does
+ * not move, the line says where it lands instead: in a measure's result, or
+ * nowhere on an exact-match throw.
  */
 export function scoreText(term, roll = null) {
   const written = scoreWritten(term);
@@ -227,26 +163,9 @@ function scoreWritten(term) {
 }
 
 /**
- * What a throw comes to for this character — the WHOLE verdict, not a number.
- *
- * A target is read at the roll's OWN scale. Animal Husbandry's diagnosis ladder
- * is rated by rank, so reading it at the character's class level answers a
- * question nobody asked — a 5th-level character who took the proficiency once
- * would diagnose on the third rung. `scale` is what the sheet already labels the
- * ladder with; it is what the ladder is read at too.
- *
- * A number is not always the answer. A printed progression may say the throw is
- * not made at all — a rung the character cannot act on, or one where the result
- * simply happens. Those rungs reach the roller through `outcome`, so an
- * automatic result is not rolled for and an unavailable one is not offered as
- * though it were merely unresolved.
- *
- * Resolution goes through the CLASSES registry, not through lib. lib returns
- * null for the `progression` kind by design — it cannot see the world's class
- * documents — so a throw borrowing a published ladder resolved to nothing at
- * all and read as a throw with no target. The registry completes exactly that
- * kind and defers to lib for the rest, which is what makes a borrowed table
- * resolve at roll time and not only in the picker.
+ * What a throw comes to for this character — the whole verdict, read at the
+ * roll's own `scale` and resolved through the classes registry (which completes
+ * the `progression` kind lib cannot see).
  *
  * @returns {{outcome: string, target: number|null, text: string}}
  *   `outcome` is "throw" (roll against `target`), "auto" (no roll — it happens)
@@ -254,16 +173,13 @@ function scoreWritten(term) {
  */
 export function throwOutcome(roll, actor, item) {
   const none = (target = null, text = "") => ({ outcome: "throw", target, text });
-  // A measure has no target by construction, whatever a previous edit left in
-  // the target fields. Answering from those would score a quantity against a
-  // number nobody rolled towards.
+  // A measure has no target, whatever the target fields still hold.
   if (measures(roll)) return none();
   const target = roll?.target;
   const scales = scalesFor(actor, item);
   const at = scales[roll?.scale || "level"];
-  // A scale nothing here can supply (Arcane Value, Hit Dice — no consumer
-  // computes them yet). A flat target still answers; a ladder does not, and the
-  // sheet shows the whole ladder rather than a number read at the wrong rung.
+  // A scale nothing here supplies (Arcane Value, Hit Dice): a flat target still
+  // answers; a ladder does not, and the sheet shows it whole.
   if (at == null) return none((target?.kind ?? "flat") === "flat" ? (target?.flat ?? null) : null);
 
   let verdict;
@@ -281,10 +197,9 @@ export function throwOutcome(roll, actor, item) {
  * How a throw READS on a control — "15+", "3-", "12", a measure's dice, the
  * cell a lettered rung prints, or "—" when nothing resolved.
  *
- * THE one place this string is built. Four surfaces show it (the Rolls tab, the
- * expanded row's tag strip, Favorites, the cycle control's tooltip) and they
- * used to build it three different ways, which is how a measure came to read as
- * `?` on one and `—` on another.
+ * THE one place this string is built, for all four surfaces that show it (the
+ * Rolls tab, the expanded row's tag strip, Favorites, the cycle control's
+ * tooltip).
  */
 export function throwText(roll, actor, item) {
   if (measures(roll)) return roll?.formula || "1d20";
@@ -296,26 +211,16 @@ export function throwText(roll, actor, item) {
 }
 
 /**
- * Resolve a roll's target number, or null when it cannot be known here.
- *
- * The number half of `throwOutcome`, kept because most callers only want the
- * number and asking through one function is what stops them disagreeing. An
- * automatic or unavailable rung has no target, and says so by having none.
+ * Resolve a roll's target number, or null when it cannot be known here — the
+ * number half of `throwOutcome`. An automatic or unavailable rung has none.
  */
 export const targetOf = (roll, actor, item) => throwOutcome(roll, actor, item).target;
 
 /**
- * A resolved target with the character's standing bonuses folded in — what
- * their other abilities give this throw, and the ability score it is written
- * against.
- *
- * The books state these as bonuses to the ROLL; the sheet shows a target, and
- * the two are the same statement read from opposite ends — so a bonus lowers a
- * throw that must reach its target and raises one that must stay under it. An
- * exact-match throw takes neither: there is no "easier" to be had.
- *
- * Applied HERE rather than at each caller, so the strip, the roller, the chat
- * card and Favorites cannot disagree about what a throw comes to.
+ * A resolved target with the character's standing bonuses folded in: other
+ * abilities' modifiers and the throw's score term. A bonus lowers an "above"
+ * target and raises a "below" one; an exact-match throw takes neither. Applied
+ * here, once, so every surface reads the same number.
  */
 function withModifiers(target, roll, actor, item) {
   if (typeof target !== "number" || !actor) return target;
@@ -327,14 +232,9 @@ function withModifiers(target, roll, actor, item) {
 }
 
 /**
- * Every roll an ability offers — THE read path.
- *
- * Reads this module's store, and folds the core item's singleton fields in when
- * that store is empty, so an ability nobody has migrated yet still answers in
- * one shape. A core record sitting at its schema defaults (`1d20`, target 0) is
- * NOT a roll: those are the initials the field ships with, not a throw anyone
- * entered, and materializing them puts a meaningless d20 button on hundreds of
- * proficiencies that make no throw at all.
+ * Every roll an ability offers — THE read path. Folds core's singleton fields
+ * in when this module's store is empty; core's schema defaults (`1d20`,
+ * target 0) are not a roll.
  *
  * @param {Item} item
  * @returns {object[]} rolls in presentation order (possibly empty)
@@ -362,11 +262,9 @@ export function rollsOf(item) {
 }
 
 /**
- * The handle a roll answers to: its stored key, or its position when it has
- * none. ONE rule, used by the sheet's buttons, by `rollAbility(item, key)` and
- * by the editor — so a roll that predates the editor and carries no key is
- * still reachable. Never gate a lookup on the stored key alone: clicking the
- * third throw of a keyless import then rolled the first.
+ * The handle a roll answers to: its stored key, or `roll<index>` when it has
+ * none. The one rule every lookup uses — never gate a lookup on the stored key
+ * alone.
  */
 export const keyOf = (roll, index) => roll?.key || `roll${index}`;
 
@@ -379,14 +277,9 @@ function uniqueKey(base, taken) {
 }
 
 /**
- * Give every roll a key that no other roll in the ability holds.
- *
- * A key that EXISTS is never rewritten. It is the handle a macro or an
- * importing module holds, so renaming a throw must not silently retarget them;
- * the label is what the reader identifies a roll by, the key is what code does.
- * That is why the pass that KEEPS keys runs first and claims them all — filling
- * a blank one from its label cannot then take a name a later roll was already
- * answering to.
+ * Give every roll a unique key. An existing key is never rewritten (macros and
+ * importing modules hold it), and all existing keys are claimed before blank
+ * ones are filled from labels.
  */
 function settleKeys(rolls) {
   const settled = rolls.map((roll) => ({ ...roll }));
@@ -400,11 +293,8 @@ function settleKeys(rolls) {
 
 /**
  * The key of the throw a bare roll reaches — the stored default, or the first.
- *
- * Resolved leniently on READ rather than repaired on write, because the two
- * things that invalidate a default (the throw deleted, the ability re-imported
- * with a different set) both leave a key naming nothing, and an ability that
- * silently rolls its first throw is better than one that rolls nothing.
+ * A stored key naming no current throw (deleted, or re-imported away) reads as
+ * the first; it is resolved on read, never repaired on write.
  */
 export function defaultKeyOf(item) {
   const rolls = rollsOf(item);
@@ -414,11 +304,7 @@ export function defaultKeyOf(item) {
   return found >= 0 ? stored : keyOf(rolls[0], 0);
 }
 
-/**
- * Make one throw the ability's default. Writes the KEY, never the index — a
- * later edit that reorders or inserts a throw must not move the default onto a
- * different one.
- */
+/** Make one throw the ability's default. Writes the key, never the index, so a reorder cannot move it. */
 export async function setDefaultKey(item, key) {
   const raw = foundry.utils.deepClone(item.getFlag(MODULE_ID, FLAG_EXTRAS) ?? {});
   raw.defaultRoll = String(key ?? "");
@@ -452,18 +338,9 @@ export const blankRoll = () => ({
 export const readRolls = (item) => foundry.utils.deepClone(rollsOf(item));
 
 /**
- * Persist an ability's rolls — THE write path, the counterpart to rollsOf().
- *
- * Two things happen here that a bare setFlag would not do:
- *
- * Keys are settled before writing, so every roll has a unique handle whatever
- * the caller assembled.
- *
- * An emptied list also resets core's singleton roll fields to their schema
- * initials. rollsOf() folds those fields in when the store is empty, so
- * deleting the last roll of an ability whose throw still lived there would
- * resurrect it on the very next render. The initials are what the fold reads as
- * "no roll", which is what the deletion just said.
+ * Persist an ability's rolls — THE write path. Settles keys first. An emptied
+ * list also resets core's singleton roll fields to their schema initials, or
+ * rollsOf() would fold the deleted throw back in.
  */
 export async function writeRolls(item, rolls) {
   const settled = settleKeys(rolls);
@@ -486,18 +363,10 @@ export async function writeRolls(item, rolls) {
 }
 
 /**
- * How an ability's throws are posted to chat, or undefined to leave the seat's
- * own default alone.
- *
- * `system.blindroll` is core's field and it is ABILITY-wide: it hides every
- * throw the ability offers, not a chosen one. A GM rolling a blind ability
- * posts to themselves instead — blind exists to keep a result from the table,
- * and the GM is who the result is for. That is core's own rule
- * (`AcksDice.#sendRoll`), applied to each of an ability's throws rather than to
- * the single throw core can store.
- *
- * The mode names are Foundry 14's `CONFIG.ChatMessage.modes` keys; the legacy
- * `rollMode` spellings core still uses are deprecated and log on every call.
+ * The chat message mode for an ability's throws: "blind" when core's
+ * ability-wide `system.blindroll` is set ("self" for a GM, as core's
+ * `AcksDice.#sendRoll` does), else undefined for the seat's default. Mode names
+ * are Foundry 14's `CONFIG.ChatMessage.modes` keys.
  */
 function messageModeFor(item) {
   if (!item?.system?.blindroll) return undefined;
@@ -505,13 +374,9 @@ function messageModeFor(item) {
 }
 
 /**
- * A throw's dice, or the 1d20 default.
- *
- * The formula is a free-text field, so it holds whatever was typed — or whatever
- * a book's prose gave it. Foundry's parser throws on an unparseable formula, and
- * this roller is async, so that throw would surface as an unhandled rejection
- * with no card and no explanation. The default already covers a blank formula;
- * it covers an unrollable one too, and names the throw so it can be corrected.
+ * A throw's formula, or "1d20" when it is blank or unparseable. An unparseable
+ * one also warns, naming the throw — Foundry's parser would otherwise throw
+ * inside this async roller as an unhandled rejection.
  */
 function rollableFormula(roll, item) {
   const formula = String(roll?.formula ?? "").trim();
@@ -527,16 +392,9 @@ function rollableFormula(roll, item) {
 }
 
 /**
- * A measure's dice with its score term folded in — appended to the formula.
- *
- * On a SCORED throw a score moves the target, which is where `targetOf` puts
- * it. A measure has no target to move, so the only place the term can land is
- * the result, and it has to land in the FORMULA rather than on the total:
- * `toMessage` attaches the Roll and Foundry renders that Roll's own dice box,
- * so a total adjusted afterwards would be contradicted by the box beside it.
- *
- * Every other throw is returned untouched — a score is already inside its
- * target, and adding it here would apply it twice.
+ * The formula to roll: a measure's dice with its score term appended (in the
+ * formula, not the total, so Foundry's dice box agrees); any other throw's
+ * formula unchanged — its score is already in the target.
  */
 function measuredFormula(roll, item, actor) {
   const formula = rollableFormula(roll, item);
@@ -547,13 +405,9 @@ function measuredFormula(roll, item, actor) {
 
 /**
  * The system's OWN throw card — the template it posts every save, reaction and
- * exploration roll through, and the sibling of the one attacks use.
- *
- * Reused rather than reproduced: a proficiency throw is a throw, and it should
- * arrive wearing the same banner, portrait and success rule as everything else
- * the table rolls. Posting it as a bare flavour line is what made it the one
- * roll with no headline. Nothing here re-templates the card, so a system that
- * restyles its chat carries this along with it.
+ * exploration roll through. Nothing here re-templates it, so a system restyle
+ * carries ability throws along. See docs/abilities/DECISIONS.md, "A
+ * proficiency throw wears the system's own chat card".
  */
 const CARD_TEMPLATE = "systems/acks/templates/chat/roll-result.hbs";
 
@@ -561,13 +415,9 @@ const CARD_TEMPLATE = "systems/acks/templates/chat/roll-result.hbs";
 const esc = (text) => foundry.utils.escapeHTML?.(text) ?? text;
 
 /**
- * Why a SCORED throw came up with no target — "" when it has one.
- *
- * Two different failures reach the same null and they are not the same news: a
- * shared world item has no character to read a ladder against, while an owned
- * one whose ladder starts above this character's level is a throw they cannot
- * yet make. Telling the reader the first when the second happened sends them
- * looking for a copy on a character they are already looking at.
+ * Why a scored throw has no target — a shared world item (no character to read
+ * against), or an owned one below its ladder's first rung — or "" when it has
+ * one.
  */
 function missingTargetText(target, actor) {
   if (target != null) return "";
@@ -575,24 +425,15 @@ function missingTargetText(target, actor) {
 }
 
 /**
- * The card's context, in the shape core's template reads.
- *
- * The target rides the SUCCESS row (`Success (14+)`) rather than a line of its
- * own — core's template already prints it there, and stating it twice is how
- * the old flavour line read. The details slot is left for what core has no
- * field for: the condition the book puts on the throw, and the reason a target
- * could not be resolved.
- *
- * A MEASURE has none of that. It is not scored, so no success row, no target,
- * and above all no explanation of a missing one — "no target on a shared item"
- * over a quantity roll reads as a defect in a throw that worked as written.
+ * The card's context in the shape core's template reads. The target rides
+ * core's success row; the details slot carries the throw's condition and any
+ * unresolved-target reason. A measure is unscored and carries neither.
  */
 async function cardData(item, actor, roll, { target, success, suffix, verdict, evaluated }) {
   const term = scoreTerm(roll, actor);
   const outcome = verdict?.outcome ?? "throw";
   const details = [
-    // An automatic rung is not a missing target — the page prints a cell there
-    // saying no throw is made, and the cell is quoted rather than paraphrased.
+    // An automatic or unavailable rung prints its cell, not a missing-target line.
     outcome !== "throw"
       ? esc(
           game.i18n.format(outcome === "auto" ? "ACKS-ABILITIES.roll.autoDetail" : "ACKS-ABILITIES.roll.noneDetail", {
@@ -602,68 +443,48 @@ async function cardData(item, actor, roll, { target, success, suffix, verdict, e
       : measures(roll)
         ? ""
         : esc(missingTargetText(target, actor)),
-    // The score is already inside the target, so the line is there to say WHY
-    // the target moved — a throw that reads 4+ on one character and 6+ on
-    // another is otherwise unexplained at the table.
+    // Names the score term that moved the target.
     term ? esc(scoreText(term, roll)) : "",
     roll.condition ? `<em>${esc(roll.condition)}</em>` : "",
   ].filter(Boolean).join("<br>");
 
   return {
     title: [item.name, roll.label].filter(Boolean).join(" — "),
-    // The card must carry its own dice box. Foundry substitutes a message's
-    // roll HTML for its content ONLY when that content has no child elements,
-    // and this card's template opens with a section — so a card that omits
-    // `rollACKS` shows no dice at all. Core's own rollers pass the same key.
+    // The card carries its own dice: Foundry substitutes roll HTML only for
+    // content with no child elements, and this template opens with a section.
     rollACKS: evaluated ? await evaluated.render() : null,
     data: {
       item: { img: item.img },
       actor: { img: actor?.img ?? item.img },
-      // Core's template hides the body of a blind card behind this; the message
-      // mode below is what actually withholds it. Both read the same field.
+      // Core's template hides a blind card's body; the message mode withholds it.
       roll: { blindroll: !!item.system?.blindroll },
     },
     result: {
       details,
       isSuccess: success === true,
       isFailure: success === false,
-      // The SUCCESS row carries the target, and on an automatic rung it carries
-      // the cell the page prints instead — "Success (D)" is the table's own
-      // answer, where "Success ()" would read as a number that failed to load.
+      // On an automatic rung the success row carries the printed cell.
       target: outcome === "auto" ? verdict.text : target == null ? "" : `${target}${suffix}`,
     },
   };
 }
 
 /**
- * Roll one of an ability's rolls and post the result.
- *
- * Success is reported only when a target is known. On a shared world item there
- * is no character to resolve a ladder against, so the roll still happens and
- * the result stands on its own rather than being scored against a guess. A
- * MEASURE stands on its own by construction — it is asked "how much", and the
- * total is the whole answer.
- *
- * THE one place an ability's throw is posted — the Rolls tab's buttons and
- * core's own roll path (through roll-wrap.mjs) both arrive here — so blind is
- * honoured wherever the roll was started from.
+ * Roll one of an ability's throws (its default when `key` is omitted) and post
+ * the result. The one place an ability's throw is posted, so blind applies
+ * wherever the roll started. Success is scored only when a target is known; a
+ * measure's total is the whole answer.
  */
 export async function rollAbility(item, key) {
   const rolls = rollsOf(item);
-  // No key names the ability's DEFAULT throw, not its first. Every route that
-  // cannot pass one — the row's icon, the chat card's button, `item.use()`, a
-  // macro — arrives here that way, so the choice has to be honoured at the
-  // bottom rather than at each of them.
+  // No key means the default throw: every route that cannot pass one arrives so.
   const wanted = key ?? defaultKeyOf(item);
   const roll = rolls.find((r, i) => keyOf(r, i) === wanted) ?? rolls[0];
   if (!roll) return null;
   const actor = item.actor ?? null;
   const verdict = throwOutcome(roll, actor, item);
 
-  // A rung the character has not reached is not a throw that failed — it is a
-  // throw the page does not offer them. Rolling anyway would post a failure
-  // they can never turn into a success, so the clicker is told and nothing
-  // reaches the table.
+  // An unavailable rung posts nothing; the clicker is told why.
   if (verdict.outcome === "none") {
     ui.notifications.info(
       game.i18n.format("ACKS-ABILITIES.roll.notAvailable", {
@@ -674,9 +495,7 @@ export async function rollAbility(item, key) {
     return { total: null, target: null, success: null, outcome: "none" };
   }
 
-  // An AUTOMATIC rung makes no throw at all: the table says the result happens.
-  // Posting a d20 beside it would invite the table to read the die as the thing
-  // that decided it.
+  // An automatic rung posts its card with no dice.
   if (verdict.outcome === "auto") {
     await postAutomatic(item, actor, roll, verdict);
     return { total: null, target: null, success: true, outcome: "auto" };
@@ -690,10 +509,8 @@ export async function rollAbility(item, key) {
 
   const suffix = type === "above" ? "+" : type === "below" ? "-" : "";
 
-  // The card, or the plain line it replaced. A system that has moved or renamed
-  // its chat template must cost the throw its banner, never its result — this
-  // roller is the ONE place an ability's throw is posted, so a throw here is a
-  // throw the player already made.
+  // The card, or a plain line when it cannot render (a moved or renamed core
+  // template): a missing template costs the throw its banner, never its result.
   let content = null;
   try {
     content = await foundry.applications.handlebars.renderTemplate(
@@ -716,10 +533,8 @@ export async function rollAbility(item, key) {
   await evaluated.toMessage(
     {
       speaker: ChatMessage.getSpeaker({ actor }),
-      // The card renders the dice itself, through `rollACKS`. `toMessage` still
-      // attaches the Roll — Dice So Nice and roll inspection read it — but it
-      // never injects a dice box beside custom content, so a card that leaves
-      // the key out shows no dice at all.
+      // The card renders the dice (`rollACKS`); the Roll is still attached for
+      // Dice So Nice and roll inspection.
       ...(content
         ? { content }
         : {
@@ -732,20 +547,15 @@ export async function rollAbility(item, key) {
             }${roll.condition ? `<br><em>${esc(roll.condition)}</em>` : ""}`,
           }),
     },
-    // An undefined mode falls through to the seat's own default, which is what
-    // toMessage does when nothing is passed at all.
+    // undefined falls through to the seat's own default.
     { messageMode: messageModeFor(item) },
   );
   return { total, target, success, outcome: "throw" };
 }
 
 /**
- * The card for a rung that needs no throw — same banner, no dice.
- *
- * Posted as a plain message rather than through `Roll#toMessage`, because there
- * is no Roll: the table's answer is the cell, and attaching a die to it would
- * put a number on screen that decided nothing. Blind is honoured the same way,
- * since an automatic result is still a result the GM may be withholding.
+ * The card for a rung that needs no throw — same banner, no dice — posted as a
+ * plain message because there is no Roll. Blind applies.
  */
 async function postAutomatic(item, actor, roll, verdict) {
   let content = null;

@@ -281,15 +281,9 @@ for (const [key, entry] of Object.entries(SIZES)) {
 /* -------------------------------------------- */
 
 /**
- * A GM-entered value is entered in a FIELD. Chips are shortcuts that fill one,
- * never a parallel store — so every `opts` slot must have an input named for
- * it in the panel.
- *
- * Both failures this catches are ones the panel shipped with. A slot with an
- * input and a second, field-less slot overriding it displays one number and
- * computes another. A slot with no input at all is state nothing can set and
- * a handler still reads. The static read is the point: neither is reachable
- * from the pure solver, and both look fine in a screenshot.
+ * Proves every `opts` slot the panel reads has a named input, and every named
+ * input maps to a real slot — a static read, since neither mismatch is
+ * reachable from the pure solver and both look fine in a screenshot.
  */
 {
   const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
@@ -338,13 +332,9 @@ for (const [key, entry] of Object.entries(SIZES)) {
 /* -------------------------------------------- */
 
 /**
- * An `actions` entry and a `data-action` control are two halves of one thing,
- * and neither half fails loudly on its own. A registered action with no
- * control is a handler nothing can call — dead weight that reads as a
- * feature, and it shipped twice: `wipe` and `setMode` survived the move of
- * arming onto the scene-control toolbar, describing panel buttons that were
- * no longer there. A control with no action is the opposite and worse: the
- * button renders, the GM presses it, and nothing happens.
+ * Proves every registered `actions` entry has a `data-action` control, and
+ * vice versa — an action with no control is dead code, and a control with no
+ * action does nothing when pressed.
  */
 {
   const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
@@ -404,9 +394,9 @@ assert.deepEqual(Object.keys(TERRAIN_COLORS).sort(), Object.keys(TERRAIN).sort()
   "every terrain kind has a swatch, and no swatch lacks a terrain");
 
 /* --- the OPEN terrain vocabulary ------------------------------------------
-   The brush used to reject anything outside a frozen list, so an imported
-   terrain row was unreachable. It now paints the union of shipped and
-   imported keys, minus the two the weather owns. Values below are invented. */
+   Proves the brush paints the union of shipped and imported terrain keys,
+   minus the two the weather owns. See docs/battlemap/DECISIONS.md for the
+   open-vocabulary ruling. Values below are invented. */
 {
   const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
   unregisterTable("travel");
@@ -548,12 +538,9 @@ assert.deepEqual(Object.keys(TERRAIN_COLORS).sort(), Object.keys(TERRAIN).sort()
 
   unregisterTable("travel");
 
-  // One drawn line, cut by the graph at the junction another street makes on
-  // it. The pieces of one line share ONE `meta` — the same object by reference,
-  // which is what `joinSegments` guarantees — and that reference is the whole
-  // of the identity here. The entries carry no id on purpose: the substitution
-  // and the dedupe both answer to the entry stating a whole line, so an
-  // anonymous street partitions exactly as a named one does.
+  // One drawn line, cut by the graph at a junction. The pieces share ONE
+  // `meta` object by reference (what `joinSegments` guarantees), which is the
+  // whole of the identity here — entries carry no id.
   const high = { c: [0, 0, 200, 0], road: { surface: "paved", street: "avenue", name: "High" } };
   const lane = { c: [100, 0, 100, 100], road: { surface: "earth", street: "alley", name: "Lane" } };
   const split = roadSegmentsFromGraph({

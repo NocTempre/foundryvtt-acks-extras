@@ -1,21 +1,14 @@
 /* global fromUuid */
 /**
- * Who is aboard a vehicle, assembled once.
+ * Who is aboard a vehicle, assembled once. The attachment layer knows who
+ * is bound and in what role; the capacity primitive knows what each
+ * weighs. This module is the ONE place those join into the occupant list
+ * every consumer reads (sheet, buckets, boarding, the formation's train).
  *
- * The attachment layer knows who is bound to the vehicle and in what role; the
- * capacity primitive knows what each of them weighs. This module is the ONE
- * place those two are joined into the occupant list every consumer reads — the
- * sheet, the buckets, boarding, the formation's train — so no surface
- * hand-rolls its own assembly and disagrees with another about who is aboard
- * or what they cost the hold.
- *
- * THE TEAM HAS TWO HALVES, on purpose. A row in `system.team.animals` with no
- * uuid is the ABSTRACT complement — "2 heavy horses" a Judge states without
- * minting two actor documents, exactly as unnamed passengers are a count. A
- * REAL animal in harness is a `draft` ATTACHMENT on the animal, no row at all.
- * `draftPullOf` sums both halves; rows that still carry a uuid (written by the
- * old drop handler) are honoured on read and converted to attachments by
- * `normalizeTeamRows` the next time the sheet renders for an owner.
+ * The team has two halves — abstract rows and real `draft` attachments;
+ * `draftPullOf` sums both, and `normalizeTeamRows` converts old uuid-bearing
+ * rows lazily. See docs/vehicles/DECISIONS.md, "The team has two halves:
+ * abstract rows, real attachments."
  */
 import { attachedTo, attachmentOf, attach } from "../lib/attachment.mjs";
 import { borneBy6, borneWeight6 } from "../lib/capacity.mjs";
@@ -55,15 +48,12 @@ export function draftKindOf(actor) {
 
 /**
  * Everyone attached to this vehicle, weighed and labelled: the single feeder
- * for the sheet, `fillBuckets`, boarding and the formation's train.
- *
- * WEIGHTS ARE TRUE (owner ruling, DECISIONS 2026-08-28): a specific actor
- * costs its specific mass — body (or bodies, for a stack) plus what it
- * actually carries. The vehicle's printed per-head rate is the UNNAMED
- * abstraction only, never a floor or a surcharge on a real actor. Crew
- * bodies never charge the hold (RR p. 316), but a NON-MOTIVE role's gear
- * does — the marines rule — so those occupants carry `gearStone` with
- * `cargoGear: true` and the buckets charge it.
+ * for the sheet, `fillBuckets`, boarding and the formation's train. A
+ * specific actor costs its true mass; the vehicle's printed per-head rate
+ * is the UNNAMED abstraction only. Crew bodies never charge the hold (RR p.
+ * 316), but a non-motive role's gear does (`gearStone`, `cargoGear: true`).
+ * See docs/vehicles/DECISIONS.md, "Weights are true; the printed rate
+ * prices the unnamed head."
  *
  * @param {Actor} vehicle
  * @returns {{actor, uuid, id, name, img, role, station, kind, bodies, stone,

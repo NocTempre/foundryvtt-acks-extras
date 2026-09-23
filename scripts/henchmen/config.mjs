@@ -102,17 +102,12 @@ export const RARITY_TIERS = Object.freeze([
 ]);
 
 /**
- * Item-name fallbacks: when a proficiency/power Item carries NO
- * `flags.acks-extras.*` Active Effect, these regexes recover the classic
- * book mechanics from the item name alone (graceful degradation for worlds
- * built before this module — the AE contract is always preferred and a
- * name match is skipped when the item has any of this feature's effect
- * changes). This is the ONLY route for an imported ability, which carries the
- * importer's typed effect model rather than this feature's change keys, and it
- * still answers for worlds holding items from a retired pack whose change keys
- * shipped under a dead flag scope.
- * `condition` marks the bonus as situational (GM/player toggles it in the
- * roll dialog); absent condition means always-on.
+ * Item-name regexes that recover classic proficiency mechanics from an item
+ * carrying no `flags.acks-extras.*` Active Effect change; skipped once an
+ * item has any such change. See docs/henchmen/MODEL.md § "The Active Effect
+ * contract".
+ * `condition` marks the bonus as situational (toggled in the roll dialog);
+ * absent means always-on.
  */
 export const NAME_FALLBACKS = Object.freeze({
   hiring: [

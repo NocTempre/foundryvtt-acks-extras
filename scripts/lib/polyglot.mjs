@@ -1,24 +1,10 @@
 /* global game, Hooks */
 /**
  * Telling Polyglot about the languages a world imported from its own books.
- *
- * THE SYSTEM ALREADY OWNS THE INTEGRATION and this module does not take it
- * over. `acks` registers its own provider and that provider answers the
- * question that matters — what does this character speak — by reading the
- * actor's `language` items, which is exactly what the family now writes. So
- * the known-tongue half needs no code here at all.
- *
- * ONE GAP IS LEFT. The system's provider builds the world's language LIST from
- * its own compendium and nothing else, so a tongue read out of a Judge's book
- * is spoken by the character and still absent from the chat selector — known,
- * but unusable. This adds those documents to the list the provider already
- * built.
- *
- * WHY NOT REGISTER OUR OWN PROVIDER: Polyglot picks its default by preferring
- * a `system.*` registration over a `module.*` one, so a provider registered
- * here would sit unused until a GM found the setting and chose it. Feeding the
- * system's provider is both the working answer and the one the family's
- * reuse-before-invent rule asks for.
+ * The system's own Polyglot provider already answers what a character
+ * speaks; this only adds the world's language documents to its list, so an
+ * imported tongue is not known but unusable. See docs/lib/DECISIONS.md,
+ * "The same day — telling Polyglot what the world imported".
  */
 import { MODULE_ID } from "./constants.mjs";
 import { worldLanguages } from "../classes/languages.mjs";
@@ -27,13 +13,9 @@ import { worldLanguages } from "../classes/languages.mjs";
 const PROVIDER_READY = "polyglot.languageProvider.ready";
 
 /**
- * Add every language document the world holds to Polyglot's list, keeping any
- * font and rng the GM already chose for it.
- *
- * A language the provider already knows is left exactly as it is — the
- * system's compendium entry wins, because a world holding both means the
- * import adopted that document and they are the same tongue.
- *
+ * Add every language document the world holds to Polyglot's list, keeping
+ * any font and rng the GM already chose. An entry the provider already
+ * knows is left as it is.
  * @returns {number} how many were added.
  */
 export function publishWorldLanguages() {
@@ -71,13 +53,9 @@ export function installPolyglotBridge() {
     if (added) console.log(`${MODULE_ID} | told Polyglot about ${added} imported language(s)`);
   });
 
-  // A language imported after Polyglot settled must reach the selector without
-  // a reload — an import mid-session is the normal way these arrive. Only world
-  // language documents move the list, so everything else costs one comparison.
-  //
-  // ADDING ONLY. Withdrawing a language from a live provider would strip it
-  // from every message already written in it; a deleted language leaves the
-  // selector at the next reload instead.
+  // Reached without a reload for a mid-session import. Adding only — see
+  // docs/lib/DECISIONS.md, "The same day — telling Polyglot what the world
+  // imported".
   Hooks.on("createItem", (item) => {
     if (item?.type === "language" && !item.parent) publishWorldLanguages();
   });

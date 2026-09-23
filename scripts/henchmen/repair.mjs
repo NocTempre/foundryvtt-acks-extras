@@ -1,26 +1,13 @@
 /* global game, ui, Hooks, libWrapper */
 /**
- * Dangling-reference repair.
+ * Dangling-reference repair for core's unguarded `getTotalWages`, which
+ * dereferences every id in `system.henchmenList` and throws through
+ * `_prepareContext` when a hireling has been deleted.
  *
- * Core acks 14.0.1 `AcksActor#getTotalWages` (actor.mjs) walks
- * `system.henchmenList` and dereferences every id unguarded:
- *
- *     const henchman = game.actors.get(id);
- *     const q = henchman.system.retainer?.quantity || 1;   // throws if deleted
- *
- * So ONE deleted hireling that is still listed on an employer makes every
- * render of that character sheet throw at `_prepareContext`. The list is core
- * data (written through the system's own addHenchman/delHenchman), but this
- * module is the main thing that puts ids in it, so the repair ships here.
- *
- * Three layers, in order of when they act:
- *   1. `deleteActor` (GM) — prune references the moment an actor goes away,
- *      so the damage never happens again.
- *   2. `ready` (GM) — sweep existing worlds once; idempotent and silent when
- *      there is nothing to fix.
- *   3. a guarded wrap of `getTotalWages` — sheets still render for players
- *      (who cannot write world data) and for any id we did not catch. It
- *      never writes; repair is the GM paths above and the macro.
+ * Entry points: `registerDeletionCleanup` (prune on delete), `sweepAtReady`
+ * (one-time world sweep), `installWageGuard` (render-safe wrap for anything
+ * the first two missed). See docs/henchmen/MODEL.md §4b for the full
+ * mechanics and why the wrap lives here rather than in lib/.
  */
 import { MODULE_ID, FLAG_MONSTER_LIST } from "./constants.mjs";
 
@@ -117,13 +104,12 @@ export function describeRepair(result) {
 
 /**
  * Wrap core's unguarded `getTotalWages` so a dangling id cannot break sheet
- * render. The original runs untouched in the healthy case; only on a throw do
- * we recompute over the resolvable ids. Never writes.
+ * render. The original runs untouched in the healthy case; only on a throw
+ * does it recompute over the resolvable ids. Never writes.
  *
- * libWrapper MIXED, and this module registers the method nowhere else — the
- * one-owner-per-wrapped-method rule. libWrapper itself enforces the idempotence
- * the old raw patch hand-rolled: a second register of the same target by the
- * same package throws instead of stacking.
+ * libWrapper MIXED, and this module registers the method nowhere else (one
+ * owner per wrapped method) — a second register of the same target by this
+ * package throws rather than stacking.
  */
 export function installWageGuard() {
   if (typeof libWrapper === "undefined") {
@@ -142,7 +128,7 @@ export function installWageGuard() {
         _warned.add(this.id);
         console.warn(
           `${MODULE_ID} | "${this.name}" lists ${dangling.length} deleted hireling(s); ` +
-            `wages computed from the rest. Run the "Repair Henchmen References" macro to clean this up.`,
+            `wages computed from the rest. A GM can clear them with acksExtras.henchmen.repair.repairWorld().`,
           dangling
         );
       }

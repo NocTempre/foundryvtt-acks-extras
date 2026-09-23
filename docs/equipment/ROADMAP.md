@@ -49,3 +49,18 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   and the same write in `annotateItem` so re-running Annotate repairs existing
   worlds. Making `isClothing` read the flag instead is rejected: it silently
   reinterprets stored data with nothing to roll back.
+
+- **The `SLAYER` effect domain is declared but not read.** `EFFECT_DOMAINS.SLAYER`
+  (`scripts/equipment/constants.mjs`) is a seam for a future situational
+  roll-time consumer (e.g. Goblin-/Vermin-Slaying); nothing in
+  `scripts/equipment` currently reads it. Note: `docs/equipment/MODEL.md`'s
+  effect-contract table lists `slayer` as already consumed — that line is
+  stale and should be corrected when this lands or is dropped.
+- **The `NO_SHIELD_BENEFIT` effect domain is declared but not read.**
+  Same shape as `SLAYER` (`scripts/equipment/constants.mjs`): a seam for a
+  future consumer, currently write-only.
+- **Primary-GM socketlib routing for loadout writes.** `primaryResponder`
+  (`scripts/equipment/enforce.mjs`) picks the active GM, else the actor's
+  owner, as the one client that performs loadout writes. A later phase
+  replaces this with explicit socketlib routing to the primary GM so a
+  non-GM owner never has to be the writer.

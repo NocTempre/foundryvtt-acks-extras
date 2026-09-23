@@ -1,38 +1,10 @@
 /* global foundry, game, CONFIG, Token */
 
 /**
- * The ACKS senses as Foundry perception modes.
- *
- * `senses.mjs` decides WHAT a creature perceives; this file teaches Foundry what
- * each of those senses IS. Both halves are needed, because a radius alone
- * flattens five different senses into one: modelled as plain sight, echolocation
- * is fooled by invisibility, tremor cannot reach through the floor, magical
- * darkness blinds a bat, and Hiding cannot beat infravision. None of that is
- * true in ACKS.
- *
- * ## What core gives us to work with
- *
- * `DetectionMode.type` decides the big questions, in core's own `_canDetect`:
- * only SIGHT modes are defeated by the Blind status and by an invisible target,
- * and only wall-respecting modes are defeated by magical darkness
- * (`visionSource.blinded.darkness`). `walls` separately decides whether line of
- * sight is tested at all. So a non-visual sense that still cannot hear through
- * stone is `type: OTHER, walls: true` — with the darkness bail overridden,
- * because sound does not care how dark it is.
- *
- * `VisionMode` decides only how the world LOOKS through that sense. None of the
- * rules ride on it; it is there so a player can tell at a glance which sense
- * they are looking through.
- *
- * ## Two conditions the module has to supply
- *
- * Core ships `blind`, `deaf`, `silence` and `invisible`, which cover most of
- * this. It has no notion of **running** (shadowy senses fail at running speed)
- * or of **hiding** (Hiding proficiency beats lightless vision), so this module
- * registers those two as status effects. They are deliberately toggles rather
- * than inferences: whether a character is running flat-out this round, or has
- * gone to ground, is a declaration, not something to guess from a token's
- * position.
+ * The ACKS senses as Foundry perception modes: `senses.mjs` decides WHAT a
+ * creature perceives, this file registers what each sense IS to Foundry
+ * (vision modes, detection modes, and the two status effects core lacks). See
+ * docs/lib/MODEL.md, "Perception: senses, light, and the token".
  */
 
 import { MODULE_ID } from "./constants.mjs";
@@ -66,11 +38,7 @@ export const DETECTION_MODES = Object.freeze({
 const CAP_HIDING = "kw:hiding";
 const HIDING_PATTERN = /hid(e|ing)\b|hide\s*in\s*shadows/i;
 
-/**
- * Is this actor's Hiding good enough to beat lightless vision? RULES §4 gives
- * the trick to characters *proficient* in Hiding — going to ground without the
- * training hides you from eyes, not from infravision.
- */
+/** Is this actor's Hiding good enough to beat lightless vision (RULES §4: proficient only)? */
 function hidesFromLightless(actor) {
   if (!actor) return false;
   if (hasCapability(actor, CAP_HIDING)) return true;
@@ -89,10 +57,10 @@ function buildVisionModes() {
   const shader = foundry.canvas.rendering.shaders.ColorAdjustmentsSamplerShader;
 
   /**
-   * The shared shape of a "sees without light, as dim light" mode. Crucially it
-   * does NOT remap DIM to BRIGHT the way core's darkvision does: ACKS dark
-   * senses see only as dim light, and dim light cannot discern colour or read.
-   * `tint` is the only thing that varies, so each sense reads differently.
+   * The shared shape of a "sees without light, as dim light" mode. Never
+   * remaps DIM to BRIGHT, unlike core's darkvision — see docs/lib/MODEL.md,
+   * "Perception: senses, light, and the token". `tint` is the only thing
+   * that varies.
    */
   const dimSense = (id, label, tint, saturation = -1) =>
     new VisionMode({
@@ -117,10 +85,8 @@ function buildVisionModes() {
     [VISION_MODES.SHADOWY]: dimSense(VISION_MODES.SHADOWY, "ACKS-LIB.vision.shadowy", [0.72, 0.8, 1.0]),
     // A returned pulse: colourless and slightly harder-edged.
     [VISION_MODES.ECHOLOCATION]: dimSense(VISION_MODES.ECHOLOCATION, "ACKS-LIB.vision.echolocation", [0.85, 0.9, 0.85]),
-    // Night vision is the one sense that IS light-based: it promotes dim to
-    // bright, exactly as core's lightAmplification does, but without that
-    // mode's green night-scope cast, which no ACKS creature has any business
-    // seeing through.
+    // The one light-based sense: promotes dim to bright like core's
+    // lightAmplification, without its green cast.
     [VISION_MODES.NIGHT]: new VisionMode({
       id: VISION_MODES.NIGHT,
       label: "ACKS-LIB.vision.night",
@@ -150,9 +116,8 @@ function buildDetectionModes() {
     /** @override */
     _canDetect(visionSource, target, level) {
       if (!super._canDetect(visionSource, target, level)) return false;
-      // RULES §4: characters proficient in Hiding can hide from lightless
-      // vision. Sight-based detection already fails against invisibility and
-      // while blinded — core's base handles both for a SIGHT mode.
+      // RULES §4: Hiding proficiency alone defeats it; blind/invisible are
+      // already handled by core's SIGHT-mode base.
       if (target instanceof Token) {
         const doc = target.document;
         if (doc.hasStatusEffect(STATUS_HIDING) && hidesFromLightless(target.actor)) return false;
@@ -162,11 +127,9 @@ function buildDetectionModes() {
   }
 
   /**
-   * Shadowy senses: hearing, scent and touch. Not sight — so blindness and
-   * invisibility do not defeat it — but it fails while deafened, in magical
-   * silence, at running speed, and in magical darkness. The darkness case is
-   * inherited: core's base bails on `visionSource.blinded.darkness` for any
-   * wall-respecting mode, which is exactly the rule here.
+   * Shadowy senses: hearing, scent and touch. Fails while deafened, silenced,
+   * running, or in magical darkness (inherited from core's wall-respecting
+   * darkness bail); survives blindness and invisibility.
    */
   class ShadowySensesDetection extends DetectionMode {
     /** @override */
@@ -179,10 +142,9 @@ function buildDetectionModes() {
   }
 
   /**
-   * Echolocation: a sound pulse. Stopped by walls and by silence or deafness —
-   * but NOT by darkness, magical or otherwise, and not by invisibility. That
-   * means overriding the base's darkness bail, which core keys off `walls`
-   * rather than off the detection type.
+   * Echolocation: a sound pulse. Stopped by walls, silence or deafness; not
+   * by darkness or invisibility — overrides core's darkness bail, which core
+   * keys to `walls` rather than to type.
    */
   class EcholocationDetection extends DetectionMode {
     /** @override */
@@ -223,8 +185,7 @@ function buildDetectionModes() {
       type: TYPES.SIGHT,
       walls: true,
     }),
-    // Hearing is the channel deafness and silence switch off, and it is the one
-    // shadowy senses lean on hardest (RULES §4 lists hearing first).
+    // Hearing-based; deafness and silence switch it off.
     [DETECTION_MODES.SHADOWY]: new ShadowySensesDetection({
       id: DETECTION_MODES.SHADOWY,
       label: "ACKS-LIB.detection.shadowy",
@@ -237,8 +198,7 @@ function buildDetectionModes() {
       type: TYPES.SOUND, // core's own comment cites echolocation for this type
       walls: true,
     }),
-    // Pressure and vibration through air, water or web — core files tremorsense
-    // and movement detection under MOVE, which is this sense exactly.
+    // Core files tremorsense and movement detection under MOVE.
     [DETECTION_MODES.MECHANORECEPTION]: new MechanoreceptionDetection({
       id: DETECTION_MODES.MECHANORECEPTION,
       label: "ACKS-LIB.detection.mechanoreception",

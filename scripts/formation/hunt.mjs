@@ -1,15 +1,9 @@
 /* global fromUuidSync */
 /**
- * The hunt: a faction that WANTS the party marks the settlement board hunted
- * in the quarters it controls, so the district's hunted table answers there
- * without the Judge having to remember to tick the box.
- *
- * The board is asked once per QUARTER, not once per turn. `huntRegion` is the
- * district the board was last asked for; while the party stays in it the
- * Judge's own word on `wanted` stands, ticked or unticked, and the ledger is
- * consulted again only when the party enters the city or crosses into another
- * quarter. A feed that re-armed the flag every turn would fight a Judge who
- * had just cleared it.
+ * The hunt: a faction that wants the party marks the settlement board
+ * hunted in the quarters it controls. Asked once per quarter, not once
+ * per turn — see docs/formation/MODEL.md, "Being hunted is a fact about
+ * the board, not about the party".
  */
 import { findDistrict } from "./district-find.mjs";
 import { applyHunt } from "./settlement.mjs";

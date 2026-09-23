@@ -371,10 +371,9 @@ class TokenMock {
   }
   /**
    * Core's `TokenDocument#resize`, modelled rather than stubbed: it holds the
-   * token's CENTRE still, so a size change MOVES x and y. A mock that only
-   * wrote width and height would agree with the bug this exists to pin —
-   * an x/y-anchored resize is what made a turning formation lurch sideways —
-   * and would report green while the party jumped at the table.
+   * token's CENTRE still, so a size change MOVES x and y. See
+   * docs/formation/DECISIONS.md, "A formation that turns has not gone
+   * anywhere".
    */
   async resize(dimensions, options = {}) {
     const g = this.parent?.grid?.size ?? 100;
@@ -505,10 +504,8 @@ globalThis.game = {
     async set(ns, key, value) {
       const k = `${ns}.${key}`;
       // A WORLD setting is GM-only in Foundry, and every formation lives in one.
-      // Refusing the write here is what makes the player paths testable at all:
-      // without it a player mutation appears to work in the harness and only
-      // fails at a real table, which is how the sheet's light controls shipped
-      // dead. Modelled as Foundry does it — the write throws.
+      // Refusing the write here is what makes the player paths testable at all.
+      // Modelled as Foundry does it — the write throws.
       if (settingsScopes.get(k) === "world" && !game.user?.isGM) {
         throw new Error(`User lacks permission to update world setting ${k}`);
       }
@@ -520,10 +517,8 @@ globalThis.game = {
     },
   },
   i18n: { localize: (k) => k, format: (k, d) => `${k}${d ? " " + JSON.stringify(d) : ""}`, has: () => true },
-  // No `user` here on purpose: it is assigned below, out of `users`, so that
-  // the seat IS one of the table's users. A key here would be a look-alike
-  // sitting where a reader looks first, and a later edit that reordered the
-  // two would restore the identity failure with nothing to go red.
+  // No `user` here on purpose: it is assigned below, out of `users`, so the
+  // seat is one of the table's own users, not a look-alike beside them.
   users: (() => {
     const users = [
       { id: "GM1", name: "GM", isGM: true, isSelf: true },
@@ -1136,11 +1131,8 @@ await scenario("a player lights their own lamp from the character sheet", async 
 });
 
 await scenario("a character in no formation lights their own lamp", async () => {
-  // THE ORDINARY CASE, and it used to be the impossible one: the sheet's light
-  // controls were gated on the actor being in a party formation, so a character
-  // alone in a corridor saw no control on their lantern at all and a dragged-in
-  // lamp did nothing. The lights of someone marching with nobody are their own —
-  // a flag on their own actor — so this needs no formation, no GM and no relay.
+  // The lights of someone marching with nobody are their own — a flag on
+  // their own actor — so this needs no formation, no GM and no relay.
   const { declareLightAction } = await import("../scripts/equipment/sheet.mjs");
   // The sheet reaches lib through the shared namespace, exactly as it does live.
   const lightLib = await import("../scripts/lib/light.mjs");
@@ -1621,11 +1613,8 @@ await scenario("moving the party token advances the clock", async () => {
 });
 
 await scenario("turning the party pivots it on the spot and costs no movement", async () => {
-  // The reported symptom: the party token jumps around as it moves. Core
-  // auto-rotates a dragged token, the rotation swaps the block's width and
-  // height, and width/height are MOVEMENT fields — so an x/y-anchored size
-  // write pivots the block about its top-left CORNER and reports the lurch as
-  // distance walked. A turn moves the party nowhere and costs it nothing.
+  // See docs/formation/DECISIONS.md, "A formation that turns has not gone
+  // anywhere". A turn moves the party nowhere and costs it nothing.
   const walker = await member("Wheeler");
   await drain();
   const [wToken] = await scene.createEmbeddedDocuments("Token", [
@@ -1640,7 +1629,7 @@ await scenario("turning the party pivots it on the spot and costs no movement", 
   assert.ok(partyToken, "party token placed");
 
   // Six abreast: wide across the line of march and one rank deep, so the two
-  // axes differ and a swap is visible. A square block would hide the bug.
+  // axes differ and a swap is visible.
   await model.updateFormation({ ...model.getFormation(id), frontage: 6 });
   await partyToken.update({ rotation: 0 }); // south: the default facing
   await drain();
@@ -1685,10 +1674,8 @@ await scenario("turning the party pivots it on the spot and costs no movement", 
 });
 
 await scenario("a lit torch survives every hook chain and reaches the token", async () => {
-  // The reported symptom: correct lighting, then no visibility — the party
-  // token ends up with no light, and even a manual light is stomped. That
-  // happens if formation.lights is reverted by a stale write after the light
-  // was added, or if syncEnvironments dies before syncPartyTokenLight.
+  // Proves the light survives a stale `formation.lights` write and that
+  // `syncEnvironments` reaches `syncPartyTokenLight`.
   const bearer = await member("Lampwright");
   await drain();
   const [bToken] = await scene.createEmbeddedDocuments("Token", [
@@ -1734,11 +1721,8 @@ await scenario("a lit torch survives every hook chain and reaches the token", as
 });
 
 await scenario("a queued write never resurrects a record deleted while it waited", async () => {
-  // Both flows used to read the ledger BEFORE queueing their write, so each
-  // carried a copy of every other row as it looked then. Whichever wrote last
-  // won outright: an update could undo an unrelated delete, and a delete could
-  // undo an unrelated update. Deleting a party and its members back-to-back hit
-  // this and left an orphaned record behind.
+  // See docs/formation/DECISIONS.md, "The ledger is read inside the lock,
+  // never before it".
   await game.settings.set(MODULE_ID, "formations", {}); // isolate
   await drain();
   const keep = await model.createFormation("Keeper");
@@ -1800,11 +1784,8 @@ await scenario("a whole-record write never resurrects the record it was holding"
 });
 
 await scenario("overlapping environment sweeps coalesce instead of racing", async () => {
-  // Every write to the formations setting fires an unawaited syncEnvironments,
-  // so a burst — dissolving a party and its members, or a bulk delete — used to
-  // put several sweeps in flight at once, each holding scene documents the
-  // others were invalidating. One sweep runs; requests arriving during it
-  // collapse into a single replay.
+  // See docs/formation/DECISIONS.md, "Environment sweeps coalesce, and a
+  // vanished target is not a fault".
   await game.settings.set(MODULE_ID, "formations", {}); // isolate
   await drain();
 

@@ -1,41 +1,18 @@
 /**
- * Jumping and leaping (RR ch. 6).
- *
- * Like swimming, this sits beside the Spelunking table rather than in it, and
- * for a sharper reason: **crossing a gap is not a throw at all.** Every obstacle
- * in `OBSTACLES` answers "what must I roll, per hundred feet, and what does
- * failing cost" — jumping answers none of those. It is a DISTANCE the character
- * has, compared against a gap the dungeon has. Either the number reaches or it
- * does not, and if it does, an ordinary jump onto solid ground is simply made.
- *
- * The dice enter twice, and neither is a check to cross:
- *
- *  - the 1d6 inside the horizontal distance itself, which is why a jump is a
- *    RANGE and a Judge is better served by "9 to 14 feet" than by one roll;
- *  - a Paralysis save on LANDING, and only for a precarious destination or a
- *    jump made charging into melee. Failing it does not undo the jump — it
- *    lands the jumper 1d6 feet short of wherever they were going.
- *
- * So nothing here rolls. It reports distances and the parts they were built
- * from, exactly as the door helper shows a throw before anybody rolls it.
- *
- * What it also does not do is hold printed values that already have an owner.
- * The attribute-modifier table is the system's and the Acrobatics numbers are
- * the proficiency's; both are passed in. See `dexModifier` and `NO_ACROBATICS`.
+ * Jumping and leaping (RR ch. 6): a distance the character has, compared
+ * against a gap the dungeon has, reported as a range rather than rolled.
+ * See docs/formation/DECISIONS.md, "Jumping is a distance, not a throw, so
+ * it is not an obstacle" and "Jumping holds no printed value that already
+ * has an owner". The attribute-modifier table is the system's and the
+ * Acrobatics numbers are the proficiency's; both are passed in — see
+ * `dexModifier` and `NO_ACROBATICS`.
  */
 
 /**
- * What Acrobatics is worth belongs to ACROBATICS.
- *
- * Jumping knows the SHAPE of the rule — that the proficiency raises the score a
- * jump is figured from, up to a cap, and helps the landing save — because that
- * shape is the jumping rule. It does not know the numbers: those are printed
- * with the proficiency, so they arrive with the character's own Acrobatics
- * ability and are passed in. Hardcoding them here would put a printed value in
- * this repo and give one fact two owners, which is how the two drift.
- *
- * Absent the ability's terms, Acrobatics contributes nothing rather than a
- * guess — a jumper with no imported proficiency jumps as anyone would.
+ * What Acrobatics is worth belongs to Acrobatics — passed in, never
+ * hardcoded here. See docs/formation/DECISIONS.md, "Jumping holds no
+ * printed value that already has an owner". Absent the ability's terms,
+ * Acrobatics contributes nothing rather than a guess.
  */
 export const NO_ACROBATICS = Object.freeze({ dexCap: null, saveBonus: 0 });
 
@@ -62,17 +39,10 @@ export const FALL_FEET_PER_DIE = 10;
 export const FALL_DIE_FACES = 6;
 
 /**
- * The Dexterity modifier a jump is figured from.
- *
- * NOT derived here. The attribute-modifier table is the book's, the system
- * computes it, and every character sheet already carries the answer as
- * `system.scores.dex.mod` — re-deriving it would put a printed table in this
- * repo and give one fact two owners, which is how the two drift.
- *
- * Acrobatics raises the SCORE a jump is figured from, and past 18 the printed
- * bands run out. Those extended rows arrive with a seat's own imported book, so
- * a caller holding them passes the modifier it wants used, and one that does
- * not gets the sheet's own.
+ * The Dexterity modifier a jump is figured from. Not derived here: every
+ * sheet already carries it as `system.scores.dex.mod`. A caller holding a
+ * seat's own imported extended bands (past what the printed table covers)
+ * passes `extended`; one that does not gets the sheet's own.
  */
 export function dexModifier({ mod = 0, extended = null } = {}) {
   const supplied = given(extended);
@@ -95,12 +65,9 @@ function given(value) {
 }
 
 /**
- * The DEX a jump is figured from: the character's own, raised by class level if
- * they are an acrobat, and held at the proficiency's own cap where one is given.
- *
- * No cap is invented in its absence — a ceiling this file made up would be a
- * printed number with no book behind it, and it would silently shorten the jump
- * of every acrobat in a world whose Acrobatics was never imported.
+ * The DEX a jump is figured from: the character's own, raised by class
+ * level if they are an acrobat, and held at the proficiency's own cap
+ * where one is given. No cap is invented in its absence.
  */
 export function effectiveDex({ dex = DEFAULT_CREATURE_DEX, acrobatics = false, level = 0, dexCap = null } = {}) {
   const base = Number(dex);
@@ -112,17 +79,11 @@ export function effectiveDex({ dex = DEFAULT_CREATURE_DEX, acrobatics = false, l
 }
 
 /**
- * Encumbrance, then the standing-jump halving, then the creature multiplier.
- *
- * The order is the rule's own: distance is "reduced by 1' per stone", and it is
- * that reduced figure which is halved without a run-up ("after encumbrance, are
- * halved"). The creature scaling is stated separately, over the whole result.
- *
- * Clamped at zero. The printed minimum of 1' belongs to the leap's base formula
- * and not to what encumbrance leaves of it, so a heavily laden character really
- * can be unable to leave the ground — but a NEGATIVE maximum jump is not a
- * distance, it is an arithmetic leftover, and reporting one would read as a
- * measurement.
+ * Encumbrance, then the standing-jump halving, then the creature
+ * multiplier, in the rule's own order. Clamped at zero: a negative result
+ * is an arithmetic leftover, not a distance. See
+ * docs/formation/DECISIONS.md, "Jumping is a distance, not a throw, so it
+ * is not an obstacle".
  */
 function applyConditions(base, { encumbrance = 0, runningStart = true, runSpeed = null } = {}) {
   let feet = base - Math.max(0, Number(encumbrance) || 0);

@@ -1,14 +1,11 @@
 /**
  * Compendium macros for the formation feature.
  *
- * Lifted verbatim out of acks-formation's hand-written tools/build-packs.mjs
- * during the merge: that module never adopted the canonical generated-packs
- * contract, and a repo has exactly one build-packs.mjs, synced from the
- * template. Ids and fixed _stats timestamps are preserved so rebuilds stay
- * byte-identical.
- *
  * Contract: export documents ready for tools/build-packs.mjs. Every top-level
- * document needs a 16-alphanumeric `_id` and a matching `_key`.
+ * document needs a 16-alphanumeric `_id` and a matching `_key`; ids and fixed
+ * _stats timestamps are preserved so rebuilds stay byte-identical. See
+ * docs/DECISIONS.md, "formation and influence had no `tools/pack-data.mjs`
+ * — RESOLVED".
  */
 export function buildMacros() {
   return [

@@ -1,19 +1,10 @@
 /* global game, foundry, Hooks, Actor */
 /**
  * The casting framework: kind-typed traditions with extras-owned resource
- * pools, rendered as a per-tradition strip on the character sheet.
- *
- * The class DOCUMENT is authoritative for capacity (a vancian tradition's
- * slot row at the character's level; a pool schedule for points-like kinds);
- * the ACTOR carries only what is SPENT, under
- * `flags["acks-extras"].classes.pools[traditionKey]`. Deriving max live means
- * a level-up or an Update Classes never has to migrate pool state — spent
- * counts persist, capacity follows the document.
- *
- * The system's own `spells.1..6.max` grid stays what applyClass wrote (the
- * single-tradition vancian compatibility surface); this strip is the
- * per-tradition truth and the only surface that can show two traditions at
- * once (the Nobiran's arcane and divine pools live side by side).
+ * pools, rendered as a per-tradition strip on the character sheet. The class
+ * document is authoritative for capacity; the actor stores only what is
+ * SPENT, under `flags["acks-extras"].classes.pools[traditionKey]`. See
+ * docs/classes/MODEL.md, "Casting".
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor } from "./registry.mjs";

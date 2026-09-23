@@ -1,9 +1,7 @@
 /**
  * Foundry-side ruledata loader (contracts: docs/lib/API.md). Fetches a module's shipped
- * `ruledata/<id>.json` files and registers each into the tables registry.
- * A missing file is a NORMAL state (extraction-program ruling 1 — book
- * tables are imported per world, not shipped): it is reported, never thrown,
- * so callers can surface one notice and degrade to stubs.
+ * `ruledata/<id>.json` files and registers each into the tables registry. A missing
+ * file is reported, never thrown, so callers can surface one notice and degrade to stubs.
  */
 import { registerTable, PRIORITY, missingCoverage } from "./tables.mjs";
 

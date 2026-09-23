@@ -1,22 +1,14 @@
 /* global game, canvas, foundry, PIXI */
 /**
- * The faked reveal, and its undoing.
- *
- * While a party is astray the ground it *believes* it has crossed is uncovered
- * for the players — the art under the fog and nothing else. It reveals no
- * authored content: tokens are gated by vision already, and pins, notes and
- * declared paths are filtered by the TRULY explored set, never by whether fog
- * happens to be lifted. A feature that reads fog to decide what a player may
- * see leaks straight through this, and that is a defect in that feature.
- *
- * The undoing is exact rather than reconstructed: each user's fog is captured
- * once, at the moment the lie begins, and written back whole on discovery.
- * Subtracting a faked area from a live bitmap drifts, and a map that drifts is
- * worse than one that is simply wrong.
- *
- * Everything here runs on the primary GM client, on the viewed scene, for the
- * same reason `map-items.mjs` does: a scene's fog documents are reachable
- * anywhere, but its fog TEXTURE only exists where it is drawn.
+ * The faked reveal, and its undoing: while a party is astray the ground it
+ * *believes* it has crossed is uncovered for the players — the art under the
+ * fog and nothing else. Tokens, pins, notes and paths are gated by vision and
+ * the TRULY explored set, never by whether fog happens to be lifted, so a
+ * feature that reads fog to decide what a player may see leaks straight
+ * through this. See docs/formation/MODEL.md, "Lost". Runs on the primary GM
+ * client, viewed scene, for the reason `map-items.mjs` does: a scene's fog
+ * documents are reachable anywhere, but its fog TEXTURE only exists where it
+ * is drawn.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { getSocket, registerHandler } from "../lib/sockets.mjs";
@@ -33,12 +25,9 @@ function fogDocsFor(sceneId) {
 }
 
 /**
- * Capture every user's fog for a scene, as it truly stands.
- *
- * Taken ONCE per episode, before anything is faked — `beginLost` refuses to
- * overwrite it — so this is the only record of what the party had really
- * earned. A user with no document yet snapshots as `null`, which restores by
- * DELETING their document rather than writing an empty one.
+ * Capture every user's fog for a scene, as it truly stands. Taken ONCE per
+ * episode, before anything is faked — `beginLost` refuses to overwrite it.
+ * A user with no document yet snapshots as `null`.
  */
 export function snapshotFog(sceneId) {
   if (!game.user?.isGM) return null;
@@ -51,11 +40,8 @@ export function snapshotFog(sceneId) {
 }
 
 /**
- * Write a snapshot back, closing everything faked since it was taken.
- *
- * A user whose snapshot is null had no exploration at all when the lie began,
- * so their document is removed — restoring an empty bitmap would leave the
- * scene "explored but black", which reads as a bug rather than as fog.
+ * Write a snapshot back, closing everything faked since it was taken. A null
+ * snapshot removes the user's document instead of writing an empty bitmap.
  */
 export async function restoreFog(sceneId, snapshot) {
   if (!game.user?.isGM || !snapshot) return false;
@@ -102,15 +88,9 @@ function showDiscovery({ days = null, fakedHexes = 0 } = {}) {
 }
 
 /**
- * Tell the TABLE the ground it drew was never theirs.
- *
- * Deliberately blunt and deliberately after the revert: the players watch the
- * map lose the hexes, then read why. It names no direction and no position — a
- * successful throw reveals that the party was lost, never where it went.
- *
- * Broadcast to the other seats and NOT awaited. Awaiting a dialog would park
- * the Judge's turn on a click that may never come, and showing it to the Judge
- * would tell them something they already know.
+ * Tell the TABLE the ground it drew was never theirs, after the revert and
+ * naming no direction or position. Broadcast to the other seats and NOT
+ * awaited — a dialog nobody is looking at must not hold up the Judge's turn.
  */
 export function announceDiscovery(payload = {}) {
   const socket = getSocket();
@@ -125,12 +105,8 @@ export function registerLostSocket() {
 
 /**
  * A white-on-black mask of the given hexes, in the fog texture's own space.
- *
- * The exploration bitmaps are white-where-seen and unioned with ADD, so a mask
- * drawn the same way composites without any blend trickery. Hex vertices come
- * from the grid itself — the same call the terrain layer paints with — so the
- * faked ground lands exactly on the cells the ledger names and never a pixel
- * off.
+ * Hex vertices come from the grid itself, the same call the terrain layer
+ * paints with.
  */
 function hexMaskTexture(scene, hexKeys, dims) {
   const rect = canvas.dimensions.sceneRect;
@@ -154,15 +130,10 @@ function hexMaskTexture(scene, hexKeys, dims) {
 }
 
 /**
- * Uncover the believed hexes for the players: the ground, and only the ground.
- *
- * The mask is added to every user's exploration, so the art under the fog
- * shows and the party's map grows the way a true march would grow it. Nothing
- * else follows — tokens are gated by vision, and pins, notes and paths read the
- * ledger rather than the fog.
- *
- * GM-and-viewed-scene, for the reason archiving is: a scene's fog documents are
- * reachable anywhere, but its fog TEXTURE only exists where it is drawn.
+ * Uncover the believed hexes for the players: the ground, and only the
+ * ground. The mask is added to every user's exploration; nothing else
+ * follows, since tokens, pins, notes and paths read the ledger rather than
+ * the fog.
  */
 export async function paintFakeReveal(sceneId, hexKeys) {
   if (!canFake(sceneId) || !hexKeys?.length) return false;
