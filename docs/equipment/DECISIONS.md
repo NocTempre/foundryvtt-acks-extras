@@ -1050,6 +1050,12 @@ have to agree to ask the second question, and the roll wrapper already gates
 its die upsize on `damage2h`, which no two-hand-only weapon carries, so the
 one flag is safe to widen.
 
+> **Corrected 2026-09-22** ("A head-first catalogue name identifies by name",
+> below): one two-hand-only weapon does carry `damage2h` — the staff-sling,
+> for its melee use as a staff, where the upsize is the intended die. The
+> widening stays safe because the upsize is melee-only and a weapon identified
+> correctly carries its own row's `damage2h`.
+
 Two smaller findings from the same walk, fixed alongside. Core's compendium
 names the torch stack "Torches (6)", and the strict classifier the importer
 owns passes it over, so the Ready control it was offered — gated on the
@@ -1201,3 +1207,82 @@ capacity field and applied-variations list are gone, since Details already
 carried both, with the `stowed`, `slotAuto`, `category.*` and
 `itemSheet.tags.*` lang keys. Live-verified; see
 [TESTING.md](TESTING.md#the-item-sheet).
+
+### A head-first catalogue name identifies by name (2026-09-22)
+
+Field report, with a screenshot: an elf's two-handed sword listed twice among
+the character sheet's attacks — once wielded, once as a two-handed grip with
+no shield — while the Equipment tab held one item, and the second row's die,
+and the roll behind the first, were the one-handed sword's two-handed die.
+Reproduced live. The catalogue writes the weapon head-first
+("Sword, Two-Handed"), and the name rung of `weaponIdentity` matched exact
+slugs and aliases only, so identity fell to the loose rung, where the
+one-handed sword its name contains answered: a versatile weapon carrying a
+two-handed die. The sheet offered that weapon's second grip row, and the roll
+wrapper upsized a two-hand weapon to the sword's die.
+
+**Ruled.** The name rung asks every form `nameKeys` reads out of a name — the
+head-first reorder, the parenthetical dropped, each side of a slash — for an
+exact or alias match before the loose rung is reached. A skinned item asks its
+`base` cookbook id before its `baseName`: the id is the catalogue row, the
+name only a reading of it. The importer's classifier (`strictWeaponKey`, which
+decides the core type a gear row is minted as) stays exact; reading reordered
+forms there re-types price-list rows the importer mints as plain inventory.
+
+**Rejected: gating the two-handed die on the versatile grip (`canTwoHand`).**
+It answers this report and takes the melee die off the staff-sling, which
+needs both hands and fights in melee as a staff. The upsize stays gated on a
+melee attack and on the identified row's `damage2h`, which a two-handed sword
+does not carry; the 2026-09-07 premise it rested on is corrected in place.
+
+*Cost:* a name whose reordered form is a catalogue row now resolves to that
+row rather than to the loose match, for every head-first name, not only this
+one. Two neighbours the investigation found stay open: a core weapon tagged
+Two-handed with no catalogue row still resolves as versatile (a hand-cost
+change, so a minor), and a versatile weapon held in both hands lists its
+one-hand die on the row while rolling its two-handed one (a display ruling,
+not yet made).
+
+### The non-proficiency package is a term of its own (2026-09-22)
+
+Field report: a character trained in nothing attacked with a whip, and the
+roll dialog showed the penalty as the whip's — a negative figure labelled with
+the weapon's name — where the reporter wanted it named as untrained. The
+package (`computeAttackMods`) is folded into the item's bonus, so it reached
+lib's model inside the weapon's term and took the weapon's label.
+
+**Ruled.** The package stays folded — with the attack-roll setting off, core's
+roll reads the item's bonus and nothing else — and is also named, as one term,
+on `attData.acksLibTerms`. Lib lifts each named part out of the weapon's term
+and shows it as its own (`lib/patches/attack-roll.mjs`), so the total is
+unchanged and the weapon carries only what is its. The label is the item
+sheet's own word for the same package, *Non-proficient*, so the sheet and the
+roll never name one thing two ways.
+
+**Rejected: pushing the term from an `acksLibPreAttackRoll` listener.** Lib's
+2026-07-31 ruling routes every FUTURE modifier through that hook; this one
+predates it and must stay in the fold for core's roll. A hook-pushed term
+beside the fold counts the package twice unless the listener also takes it
+out of the weapon's term — the same lift, split across two modules and
+ordered by hook registration.
+
+*Cost:* one field on `attData` that only lib reads. A wrapper that names
+nothing rolls exactly as before.
+
+### An edit that changes what the loadout reads rebuilds it (2026-09-22)
+
+Found under a duplicate report of the Weapon & Shield bonus (the style itself
+was fixed in 7.0.0): a Fighting Style Specialization whose style is ticked
+after the weapon and shield are equipped changes nothing until the next equip
+toggle or a reload. `updateItem` rebuilt the loadout only when
+`system.equipped` changed, and the pick is an edit to an ability item — as is
+a shield's strap, a declared weapon type or a grip on an item already held.
+
+**Ruled.** Every other update to a wearable or an ability rebuilds the
+loadout too (`onLoadoutItemChange`, the create/delete path's own gate); the
+equip toggle keeps its own rebuild inside `onUpdateItem`, so no update
+rebuilds twice. A rebuild that comes out the same writes nothing:
+`syncLoadoutEffect` compares the changes before it writes.
+
+*Cost:* a loadout computation per edit of such an item, on the primary
+responder only.

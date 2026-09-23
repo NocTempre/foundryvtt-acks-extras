@@ -1602,8 +1602,9 @@ const sysObject = (doc) =>
  * shelf once it is empty. A shelf missing from this map cannot be reimported on
  * its own and says so.
  *
- * Every importer here is dedup-driven, so running one after emptying a single
- * shelf re-creates exactly that shelf and passes over everything else.
+ * Every importer here is dedup-driven: run after a shelf is emptied, it
+ * re-creates that shelf and passes over what the world still holds. The run is
+ * not narrowed, so it also imports whatever of its domain the world never held.
  */
 const SHELF_REFILL = {
   // Declared in the order Import Everything runs these steps; a book run,
@@ -1646,7 +1647,8 @@ export const reimportableShelves = () =>
  *
  * Documents a class template made are never touched: they carry acks-extras'
  * own stamp, they are the Judge's repairable copies, and they are not this
- * shelf's to delete.
+ * shelf's to delete. Neither is a document whose entry's book is not open on
+ * this seat (`readableHere`): the refill could put back a stub at best.
  *
  * @param {string} [shelf] a name from `reimportableShelves()`; omitted, asks.
  */
@@ -1659,6 +1661,9 @@ export async function cookbookReimportShelf(shelf = null) {
     // Books beside shelves, in one picker: the value says which kind it names.
     const books = reimportableBooks();
     const bookOptions = books.map((b) => `<option value="book:${esc(b.id)}">${esc(b.label)}</option>`).join("");
+    // The rules tables are no shelf: they are read into the ruledata store and
+    // merge there, so the option re-reads them in place and deletes nothing.
+    const tablesOption = `<option value="tables:">${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportTablesAll`))}</option>`;
     return foundry.applications.api.DialogV2.prompt({
       window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.reimportTitle`) },
       classes: ["acks-ui", "acks-extras-importer-dialog"],
@@ -1667,12 +1672,14 @@ export async function cookbookReimportShelf(shelf = null) {
         <select name="pick">
           <optgroup label="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportGroupShelves`))}">${shelfOptions}</optgroup>
           ${books.length ? `<optgroup label="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportGroupBooks`))}">${bookOptions}</optgroup>` : ""}
+          <optgroup label="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportGroupTables`))}">${tablesOption}</optgroup>
         </select></div>`,
       ok: {
         label: game.i18n.localize(`${LANG_PREFIX}.ui.reimportGo`),
         callback: (event, button) => {
           const [kind, ...rest] = String(button.form.elements.pick.value).split(":");
           const picked = rest.join(":");
+          if (kind === "tables") return api().cookbookImportTables();
           return kind === "book" ? cookbookReimportBook(picked) : cookbookReimportShelf(picked);
         },
       },
@@ -1684,12 +1691,16 @@ export async function cookbookReimportShelf(shelf = null) {
   const mine = (d) =>
     !d.flags?.[MODULE_ID]?.templatePart &&
     prefixes.some((p) => String(d.getFlag(MODULE_ID, "cookbook")?.id ?? "").startsWith(`${p}.`));
-  const doomed = (await importedDocs("Item")).filter(mine);
+  const shelved = (await importedDocs("Item")).filter(mine);
+  const doomed = shelved.filter((d) => readableHere(claimedId(d)));
+  const kept = shelved.length - doomed.length;
 
   const ok = await foundry.applications.api.DialogV2.confirm({
     window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.reimportTitle`) },
     classes: ["acks-ui", "acks-extras-importer-dialog"],
-    content: `<p>${game.i18n.format(`${LANG_PREFIX}.ui.reimportConfirm`, { n: doomed.length, shelf })}</p>`,
+    content:
+      `<p>${game.i18n.format(`${LANG_PREFIX}.ui.reimportConfirm`, { n: doomed.length, shelf })}</p>` +
+      (kept ? `<p>${game.i18n.format(`${LANG_PREFIX}.ui.reimportKeepsClosed`, { n: kept })}</p>` : ""),
   });
   if (!ok) return null;
 
@@ -1697,7 +1708,8 @@ export async function cookbookReimportShelf(shelf = null) {
   forgetImportedIndex(); // the shelf it remembers is the one just deleted
   const made = await api()[SHELF_REFILL[shelf]]();
   ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.reimportDone`, { n: doomed.length, shelf }));
-  return { shelf, removed: doomed.length, refill: made ?? null };
+  if (kept) ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.reimportKeptClosed`, { n: kept }));
+  return { shelf, removed: doomed.length, kept, refill: made ?? null };
 }
 
 /** The module's own api, for `SHELF_REFILL` to name a run without importing it. */
@@ -1784,11 +1796,11 @@ export async function cookbookReimportBook(bookId) {
  * Every importable entry, grouped by the run that rebuilds one.
  *
  * `refill` names the api function that re-creates a deleted entry. Every
- * importer named here is dedup-driven, so running one after deleting exactly
- * the picked documents rebuilds those and passes over everything else — the
- * mechanic `cookbookReimportShelf` uses, addressed per ENTRY instead of per
- * shelf. Monsters name no refill because they need none: `importMany` takes an
- * explicit id list.
+ * importer named here takes `only`, the ids to consider, so a run after
+ * deleting exactly the picked documents rebuilds those and nothing else —
+ * without it, a run also imports every entry the world never held. Monsters
+ * name no refill because they need none: `importMany` takes an explicit id
+ * list.
  *
  * The list is deliberately the entry-driven importers only. Weapons, armor and
  * the price list are built from whole printed tables rather than from an entry
@@ -1833,6 +1845,18 @@ const ENTRY_SOURCES = [
 
 /** The cookbook id an imported document claims, or "" when it claims none. */
 const claimedId = (doc) => String(doc.getFlag(MODULE_ID, "cookbook")?.id ?? "");
+
+/**
+ * Whether an entry can be read back on this seat: false only when the entry
+ * names its book and that book is not open here. Every reimport deletes first,
+ * and a closed book rebuilds a stub or nothing, so an unreadable entry's
+ * document is kept rather than traded for one. An id that resolves to no entry
+ * names no book, so nothing here holds it back.
+ */
+const readableHere = (id) => {
+  const book = bookOf(cookbookEntry(id));
+  return !book || !!ctx?.sessionDocs?.has(book);
+};
 
 /**
  * Does this document belong to that entry?
@@ -2005,15 +2029,18 @@ export async function cookbookReimportEntries() {
 }
 
 /**
- * Delete what the picked entries claim, then run each owning importer once.
- *
- * The importers are re-run WHOLE rather than per entry. They are dedup-driven,
- * so a whole run after a targeted delete rebuilds exactly what was deleted; a
- * per-entry entry point into each of them does not exist, and inventing six of
- * them to save a debug tool some seconds would be six more paths to keep in
- * step with the six that ship.
+ * Delete what the picked entries claim, then run each owning importer once,
+ * narrowed to the picked ids (`only`): a whole run also imports every entry
+ * the world has never held, so two ticked classes in a world without the rest
+ * would bring all of them. An entry whose book is not open on this seat is
+ * refused before anything is deleted: nothing could read it back.
  */
-async function runEntryReimport(picked) {
+async function runEntryReimport(all) {
+  // Rules tables carry no book to check and delete nothing.
+  const closed = all.filter(({ key, id }) => key !== "Tables" && !readableHere(id));
+  const picked = all.filter((p) => !closed.includes(p));
+  if (closed.length) ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportEntriesClosed`, { n: closed.length }));
+  if (!picked.length) return null;
   // Re-read: the dialog's list was drawn when it opened, and another window may
   // have imported or deleted since.
   const docs = { Actor: await importedDocs("Actor"), Item: await importedDocs("Item") };
@@ -2050,14 +2077,14 @@ async function runEntryReimport(picked) {
   // below rebuild, so a run that rebuilds both wants the shelves rebuilt after.
   const monsters = byKey.get("Monsters") ?? [];
   if (monsters.length) refill.Monsters = await importMany(monsters, game.i18n.localize(`${LANG_PREFIX}.ui.cookbookWorking`));
-  const runs = [
-    ...new Set(
-      [...byKey.keys()]
-        .map((key) => ENTRY_SOURCES.find((s) => s.key === key)?.refill)
-        .filter(Boolean),
-    ),
-  ];
-  for (const run of runs) refill[run] = (await api()[run]()) ?? null;
+  const runs = new Map();
+  for (const [key, ids] of byKey) {
+    const run = ENTRY_SOURCES.find((s) => s.key === key)?.refill;
+    if (!run) continue;
+    if (!runs.has(run)) runs.set(run, new Set());
+    for (const id of ids) runs.get(run).add(id);
+  }
+  for (const [run, only] of runs) refill[run] = (await api()[run]({ only })) ?? null;
 
   // Sources whose run takes the picked ids. Rules tables are the only one:
   // nothing was deleted for them, and re-reading the whole set would scan
@@ -2071,7 +2098,7 @@ async function runEntryReimport(picked) {
   ui.notifications.info(
     game.i18n.format(`${LANG_PREFIX}.ui.reimportEntriesDone`, { n: picked.length, removed: removing }),
   );
-  return { picked: picked.length, removed: removing, refill };
+  return { picked: picked.length, refused: closed.length, removed: removing, refill };
 }
 
 /**
@@ -6697,7 +6724,15 @@ async function repairClassLadderKeys() {
   return repaired;
 }
 
-export async function importClasses() {
+/**
+ * GM: import every class the cookbook holds that this world does not.
+ *
+ * `only`, a Set of cookbook ids, narrows the pass to those entries — how the
+ * entry picker rebuilds exactly what it deleted, where a whole pass would also
+ * import every class the world never had. The same option narrows the other
+ * five entry-driven importers.
+ */
+export async function importClasses({ only = null } = {}) {
   // The macro that runs this is labelled "(GM)" and is executable by every
   // seat. Without the guard a player with item-creation rights adds a second
   // set of all 31 classes to the world just by pressing it — which is what a
@@ -6717,6 +6752,7 @@ export async function importClasses() {
   const commonName = await executeCommonTongue();
   const gear = await materializedGearMenu();
   for (const [id, entry] of classEntries()) {
+    if (only && !only.has(id)) continue;
     if (await importedItem(id)) {
       skipped++;
       continue;
@@ -6998,7 +7034,7 @@ export function* vehicleEntries() {
  * entry id would make a second run skip every remaining vehicle because the
  * first row already existed.
  */
-export async function importVehicles() {
+export async function importVehicles({ only = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
   if (!CONFIG.Actor.dataModels?.[VEHICLE_ACTOR_TYPE]) {
     ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the vehicle actor type is unavailable.`);
@@ -7007,6 +7043,7 @@ export async function importVehicles() {
   const made = [];
   let skipped = 0;
   for (const [id, entry] of vehicleEntries()) {
+    if (only && !only.has(id)) continue;
     const found = cookbookEntry(id);
     const bookId = found ? bookOf(found) : null;
     const session = bookId ? ctx.sessionDocs.get(bookId) : null;
@@ -7134,7 +7171,7 @@ export function* variationEntries() {
  * macro would mint a second set, and a world without acks-extras has no
  * variation data model to put them in.
  */
-export async function importVariations() {
+export async function importVariations({ only = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   if (!CONFIG.Item.dataModels?.[VARIATION_ITEM_TYPE]) {
     ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the variation item type is unavailable.`);
@@ -7143,6 +7180,7 @@ export async function importVariations() {
   const made = [];
   let skipped = 0;
   for (const [id, entry] of variationEntries()) {
+    if (only && !only.has(id)) continue;
     if (await importedItem(id)) {
       skipped++;
       continue;
@@ -7264,7 +7302,7 @@ export function* trapEntries() {
  * GM macro would mint a second set of thirteen, and a world without acks-extras
  * has no trap data model to put them in.
  */
-export async function importTraps() {
+export async function importTraps({ only = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   if (!CONFIG.Item.dataModels?.[TRAP_ITEM_TYPE]) {
     ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the trap item type is unavailable.`);
@@ -7273,6 +7311,7 @@ export async function importTraps() {
   const made = [];
   let skipped = 0;
   for (const [id, entry] of trapEntries()) {
+    if (only && !only.has(id)) continue;
     if (await importedItem(id)) {
       skipped++;
       continue;
@@ -7300,6 +7339,10 @@ export async function importTraps() {
  * (name, img, the whole system object). Class documents are wholly generated
  * in this phase — a hand-tuned document keeps its edits only until Update;
  * the confirm says so.
+ *
+ * A class whose book is not open on this seat, or whose entry read nothing,
+ * is left exactly as it is: this write replaces the whole `system`, and a
+ * rebuild with nothing read is the entry's shape without its content.
  */
 export async function cookbookUpdateClasses() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (rewrites items).`);
@@ -7312,18 +7355,30 @@ export async function cookbookUpdateClasses() {
     ui.notifications?.info(`${MODULE_ID} | no imported class documents to update.`);
     return 0;
   }
+  const readable = targets.filter((i) => readableHere(i.flags[MODULE_ID].cookbook.id));
+  const closed = targets.length - readable.length;
+  if (!readable.length) {
+    ui.notifications?.info(`${MODULE_ID} | ${closed} imported class document(s) left as they are — their book is not open on this seat.`);
+    return 0;
+  }
   const ok = await foundry.applications.api.DialogV2.confirm({
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: "Update Classes" },
-    content: `<p>Rewrite ${targets.length} imported class document(s) from the connected book? Hand edits on them are replaced.</p>`,
+    content:
+      `<p>Rewrite ${readable.length} imported class document(s) from the connected book? Hand edits on them are replaced.</p>` +
+      (closed ? `<p>${closed} more come from a book that is not open on this seat and are left as they are.</p>` : ""),
     modal: true,
   });
   if (!ok) return 0;
-  let updated = 0;
+  // The follow-up passes below take only what this loop rewrote: lending a
+  // race's tongues gives back a slot each time it runs, so a class it passes
+  // over must stay out of them.
+  const written = [];
+  let unread = closed;
   const gainsNode = await executeProfGains();
   const commonName = await executeCommonTongue();
   const gear = await materializedGearMenu();
-  for (const item of targets) {
+  for (const item of readable) {
     const id = item.flags[MODULE_ID].cookbook.id;
     const entry = byId.get(id);
     const found = cookbookEntry(id);
@@ -7334,6 +7389,10 @@ export async function cookbookUpdateClasses() {
       node = await executeEntry(session.doc, found.cb, data.registers, id);
       if (!node?.ok) node = null;
     }
+    if (bookId && !node) {
+      unread++;
+      continue;
+    }
     const doc = bindClass(entry, node, id, { gains: classGainsFor(gainsNode, entry.name), commonName, gear });
     const tongues = doc.flags?.[MODULE_ID]?.tongues;
     await item.update({
@@ -7342,17 +7401,19 @@ export async function cookbookUpdateClasses() {
       system: doc.system,
       ...(tongues ? { [`flags.${MODULE_ID}.tongues`]: tongues } : {}),
     });
-    updated++;
+    written.push(item);
   }
-  await inheritRaceTongues(targets);
-  await syncRaceTongues(targets);
+  await inheritRaceTongues(written);
+  await syncRaceTongues(written);
   // The update above replaced each document's whole `system`, which wipes the
   // rows' cached bundle uuids — this re-derives them from the bundles' own
   // flags and re-strips the arrays it restored, so a package is never handed
   // over twice.
-  await materializeClassTemplates(targets);
-  ui.notifications?.info(`${MODULE_ID} | classes updated: ${updated}.`);
-  return updated;
+  await materializeClassTemplates(written);
+  ui.notifications?.info(
+    `${MODULE_ID} | classes updated: ${written.length}${unread ? `; ${unread} left untouched — their book is not open on this seat, or read nothing` : ""}.`,
+  );
+  return written.length;
 }
 
 /** Every [id, entry] pair across the content cookbooks that IS an ability. */
@@ -7928,18 +7989,21 @@ async function repairPricedSubtypes(rows) {
 }
 
 /** Bulk import: every equipment entry, shared folder, dedup via importEquipment. */
-export async function importAllEquipment() {
+export async function importAllEquipment({ only = null } = {}) {
   // Same reason as importClasses: the macro says "(GM)" but every seat can run
   // it, and a player who does adds a second shop list to the world.
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
-  const repaired = await repairEquipmentAbilities();
+  // The three repairs each delete what the loop below is trusted to rebuild, so
+  // a pass narrowed by `only` makes none of them: it would rebuild only its
+  // own entries and leave the rest deleted.
+  const repaired = only ? 0 : await repairEquipmentAbilities();
   // A world imported by an earlier version holds animals as items; drop them so
   // the loop below recreates them as actors (no-op without ACKS Extras).
-  const repairedAnimals = await repairAnimalItems();
+  const repairedAnimals = only ? 0 : await repairAnimalItems();
   // And the shield forms it holds as variations; the loop below imports them as
   // the shields they are.
-  const repairedShields = await repairShieldVariations();
-  const ids = cookbookEquipmentIds();
+  const repairedShields = only ? 0 : await repairShieldVariations();
+  const ids = cookbookEquipmentIds().filter((id) => !only || only.has(id));
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressEquipment`), ids.length);
   let created = 0;
   let animals = 0;
@@ -7966,6 +8030,9 @@ export async function importAllEquipment() {
   } finally {
     bar.finish();
   }
+  // The weapon, armour and price TABLES are no entry's, so a pass narrowed to
+  // entries never reaches them; their shelves rebuild on their own.
+  if (only) return { total: ids.length, created, animals, repaired, repairedAnimals, repairedShields, weapons: null, armor: null, priced: null };
   const weapons = await importWeapons();
   const armor = await importArmor();
   // Last: it asks which price rows the entries above already claim, so it has
@@ -8631,9 +8698,9 @@ export async function cookbookImportAbilitiesDialog() {
 }
 
 /** GM: import every shipped ability as a shared, deduped item. */
-export async function cookbookImportAbilities() {
+export async function cookbookImportAbilities({ only = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
-  const ids = cookbookAbilityIds();
+  const ids = cookbookAbilityIds().filter((id) => !only || only.has(id));
   if (!ids.length) return ui.notifications.warn(`${MODULE_ID} | no abilities in the shipped cookbook.`);
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressAbilities`), ids.length);
   let made = 0;

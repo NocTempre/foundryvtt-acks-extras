@@ -114,12 +114,15 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
   /**
    * Open the full sheet for this actor's type — never this card.
    *
-   * THIS MODULE'S OWN full sheet wins, because the card is a summary OF it: the
-   * Full Monster sheet carries the extended block a monster's card abbreviates,
-   * and falling past it lands on the system's plain sheet, which has none of it.
-   * Preferring the registry's `default` cannot express that — once the card holds
-   * that title for a type, no other entry claims it, and the choice decays to
-   * registration order.
+   * The sheet is the one this actor would open with the card flag cleared: the
+   * registry's `default` for its type, which is where the world's look preset
+   * and Foundry's Configure Default Sheets both land. Reading any other entry
+   * first overrules the world's choice for exactly the actors that wear a card.
+   * Where the card itself holds that default, no other entry claims it, and
+   * this module's own full sheet is next, because the card is a summary OF it:
+   * the Full Monster sheet carries the extended block a monster's card
+   * abbreviates, which the system's plain sheet has none of. Registration order
+   * decides only when neither exists.
    *
    * A window already showing that sheet is raised rather than rebuilt. Two
    * instances of one sheet class over one document carry the same frame id, so
@@ -133,8 +136,8 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       .map(([id, e]) => ({ id, ...e }))
       .filter((e) => e.cls && e.cls !== FollowerCardSheet);
     const full =
-      entries.find((e) => e.id.startsWith(`${MODULE_ID}.`))?.cls ??
       entries.find((e) => e.default)?.cls ??
+      entries.find((e) => e.id.startsWith(`${MODULE_ID}.`))?.cls ??
       entries[0]?.cls ??
       null;
     if (!full) {

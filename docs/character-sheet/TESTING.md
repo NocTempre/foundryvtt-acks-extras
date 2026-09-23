@@ -127,7 +127,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    two-handed rows and the dagger a thrown row; clicking a row makes the roll
    through core's pipeline (a chat card, the module's attack card format);
    the pin on a save row writes the actor flag, the pin on a weapon row flips
-   the item's favourite.
+   the item's favourite. A crossbow's missile row, clicked and then starred
+   and fired from the fold's pin bar: *Observable:* both post a MISSILE attack
+   whose terms carry Dexterity and no Strength. The pin stores the row id
+   `wpn:<itemId>:atk:missile`, and a reader that keeps one segment after the
+   item id rolls every weapon row as melee.
 5. Equipment tab. *Observable:* worn gear sits at its slot, the backpack shows
    a capacity bar and contents, the coin stack lists under Coin & valuables;
    drag the sword onto the Main hand slot — it is drawn (`system.equipped`
@@ -206,7 +210,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     token; *Release* clears the flag and the asterisk; deleting the hireling's
     token drops the figure to `0`. With a formation whose party token is on
     the scene the cell shows the marching-order glyph and its member count
-    and opens the party sheet.
+    and opens the party sheet. Count renders with
+    `Hooks.on("renderAcksCharacterSheet", …)`, then move the hireling's token
+    a few squares (`{animate: false}`): *Observable:* the count does not
+    move. Rename the token: it rises by one — a move touches nothing the cell
+    reads, and a rename does.
 
 ## Type scale (the `fontScale` knob)
 

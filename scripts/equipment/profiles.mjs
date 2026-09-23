@@ -23,7 +23,7 @@ import {
   gearProfileFor, CLOTHING_SLOT_PATTERNS,
 } from "./config.mjs";
 import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
-import { SLOT, slug, ITEM_TYPE } from "../lib/vocab.mjs";
+import { SLOT, slug, nameKeys, ITEM_TYPE } from "../lib/vocab.mjs";
 
 /* -------------------------------------------- */
 /*  Armour classification                        */
@@ -155,12 +155,22 @@ function mflag(item, key) {
   return item?.getFlag?.(MODULE_ID, key) ?? item?.flags?.[MODULE_ID]?.[key];
 }
 
-/** Exact-or-alias resolution of one written name, or null. */
+/**
+ * Exact-or-alias resolution of one written name, or null.
+ *
+ * Every form `nameKeys` reads a name in is tried, the name as written first: a
+ * catalogue name printed head-first ("Sword, Two-Handed") is the same weapon
+ * as the one printed the other way round, and missing it drops the item to the
+ * loose rung, where the one-handed sword its name contains answers for it.
+ */
 function namedKey(name) {
-  const key = slug(name);
-  if (WEAPONS[key]) return key;
-  const alias = WEAPON_ALIASES[key];
-  return alias && WEAPONS[alias] ? alias : null;
+  if (!name) return null;
+  for (const key of nameKeys(name)) {
+    if (WEAPONS[key]) return key;
+    const alias = WEAPON_ALIASES[key];
+    if (alias && WEAPONS[alias]) return alias;
+  }
+  return null;
 }
 
 /**
@@ -210,9 +220,8 @@ function refKey(ref) {
  *   construction, so it outranks the base a skin was copied from: "Silver
  *   Dagger" says more than the Dagger row it was cut from.
  * - `skin` — `flags.acks-extras.skin`, what a printed descriptor was skinned
- *   over. Its `base` cookbook id is asked before its `baseName`, because a
- *   catalogue name printed head-first ("Sword, Two-Handed") reads no better
- *   than the descriptor did.
+ *   over. Its `base` cookbook id is asked before its `baseName`: the id is the
+ *   catalogue row, the name only a reading of it.
  * - `loose` — the longest catalogue name the document's name contains.
  *
  * `ignoreDeclared` asks what the ladder would say WITHOUT the flag — the reading
@@ -262,7 +271,13 @@ export function isUnidentifiedWeapon(item) {
   return item?.type === ITEM_TYPE.weapon && !weaponIdentity(item).key;
 }
 
-/** Exact-or-alias key resolution — no fuzzy substring match (see equipmentClass). */
+/**
+ * Exact-or-alias key resolution of the name exactly as written — no reordered
+ * form, no substring match (see equipmentClass). Narrower than `namedKey` on
+ * purpose: this decides which core type the importer mints a gear row as, and
+ * reading a reordered form here re-types price-list rows the importer mints as
+ * plain inventory.
+ */
 function strictWeaponKey(name) {
   const key = slug(name);
   if (WEAPONS[key]) return key;

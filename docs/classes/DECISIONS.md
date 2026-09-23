@@ -1362,3 +1362,35 @@ instead of instantly — one round trip, once per five minutes of disuse.
 a row with a `name`, so a surface that showed the class name off the row now
 shows the unbound state for that one render; the reload re-renders the sheet
 through the same route a Judge override did.
+
+## 2026-09-22 — A class named in text loads the rows of that name, not the library
+
+**Evidence:** a field report of character sheets that sometimes took a long
+time to open, at a table of five on one small server. `classForActorAsync`
+answered a character whose class is text alone — no bound uuid — by awaiting
+the library warm, which re-downloads every cold import pack of four document
+types; packs evict after five idle minutes, so an open after a pause paid for
+all of them. The bound path already loaded one document. Measured live on dev
+hardware with every shelf cleared: the library warm that path awaited before
+rendering took 7.0 s; a warm open takes 50 ms.
+
+**Ruled:** the text path reads each class shelf's index, which stays loaded,
+loads only the rows whose name matches, and asks the registry again. What it
+answers is still a document or nothing (the 2026-09-16 ruling above).
+
+**Rejected:** answering from the index row the lookup finds. The row is not
+a class — the ruling above exists because a surface built from one crashes.
+
+**Rejected: loading the named rows before the registry's first read.** That
+read starts the Item shelf's reload and the one-class fetch queues behind it,
+so the open still waits for the shelf. Fetching the class first would open the
+sheet sooner onto a half-loaded shelf, and every other synchronous read in the
+render — equipment identity, ability labels — would answer from it with
+nothing to re-render the sheet when the shelf lands. A faster wrong sheet.
+
+**Cost:** a cold open still pays for the Item shelf — 3.1 s, against 2.7 s for
+that shelf alone — because the sheet reads it; the Actor, JournalEntry and
+RollTable shelves stay unloaded. What remains is the eviction itself, the
+memory-for-correctness trade the 2026-09-07 entry declined inside a hotfix. A text-only class whose name no row carries still resolves to
+nothing, now after one index pass instead of a library download; a name that
+several shelves carry loads each of them.

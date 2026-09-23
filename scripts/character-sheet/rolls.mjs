@@ -14,7 +14,8 @@
  *
  * Row ids are stable strings because the pinned rolls are stored by id:
  * `save:death`, `adv:climb`, `init`, `surprise:avoid`, `atk:melee`, `bhr`,
- * `unarmed`, `morale`, `loyalty`, `wpn:<itemId>:<mode>`, `abl:<itemId>:<key>`.
+ * `unarmed`, `morale`, `loyalty`, `wpn:<itemId>:atk:<mode>` (the item sheet's
+ * own row id after the item id), `abl:<itemId>:<key>`.
  */
 import { LANG, SAVE_KEYS, ADVENTURING_KEYS } from "./constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
@@ -170,7 +171,12 @@ async function plainRoll(actor, formula, data, flavor) {
  * Make one roll by id. Returns false when the id names nothing rollable.
  */
 export async function rollById(actor, id, { event } = {}) {
-  const [kind, a, b] = String(id).split(":");
+  const [kind, a] = String(id).split(":");
+  // What follows an item id is the item's own roll key, and a weapon's is the
+  // item sheet's row id, which carries a colon of its own (`atk:missile`): it
+  // is the whole remainder, never one segment. Cut to one, every weapon mode
+  // reads as `atk` and rolls as melee.
+  const rest = String(id).split(":").slice(2).join(":");
   const sys = actor.system ?? {};
   switch (kind) {
     case "save":
@@ -213,12 +219,12 @@ export async function rollById(actor, id, { event } = {}) {
     case "wpn": {
       const item = actor.items.get(a);
       if (!item) return false;
-      return itemRollById(item, `atk:${b}`, { event });
+      return itemRollById(item, rest, { event });
     }
     case "abl": {
       const item = actor.items.get(a);
       if (!item) return false;
-      await rollAbility(item, b);
+      await rollAbility(item, rest);
       return true;
     }
     default:

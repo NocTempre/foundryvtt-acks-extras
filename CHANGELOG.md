@@ -1,5 +1,93 @@
 # Changelog
 
+## 8.0.6
+
+### Fixed
+
+- **Deal XP is back on the formation window.** With *Deal experience from the
+  formation* on — the default — the system party sheet's Deal XP button is
+  hidden, and the formation window's own button never drew, so experience could
+  only be dealt by turning the setting off. It now shows on the Party tab for
+  the GM. It deals experience; dividing treasure is not built.
+- **A missile weapon rolled from the character sheet attacks as a missile
+  weapon.** A crossbow's row on the Rolls tab, and its button on the pin bar,
+  rolled a melee attack — Strength added, Dexterity left out — because the roll
+  kept only the first half of the name that says which attack it is. Every
+  weapon mode now rolls as itself from every place it can be pressed.
+- **A weapon you are not trained in says so on the roll.** The penalty for
+  fighting with a weapon outside your proficiencies was folded into the
+  weapon's own bonus, so the attack breakdown read as though the weapon itself
+  were worse — a minus beside its name. It is now a line of its own,
+  *Non-proficient*, the label the item sheet already uses.
+- **An attack the Judge rolls in private stays private.** The attack dialog
+  opens on the roll mode the chat is set to instead of on a public roll, so a
+  Judge whose chat is on a private mode rolls a monster's attack the same way.
+  With a target selected, the attack card shows that target's Armor Class to
+  everyone who can read the card; the setting's hint now says so, and says to
+  roll a monster's attacks privately to keep both from the players.
+- **Other players see the dice again.** With the attack breakdown on, a public
+  attack roll animated its 3D dice for the roller alone: the roll handed Dice So
+  Nice an empty list of viewers, which it reads as nobody. A public roll now
+  animates for everyone, and a private one for exactly the users it is
+  whispered to.
+- **Full sheet opens the sheet your world chose.** On a henchman's card, *Full
+  sheet* opened this module's character sheet even in a world set to the
+  system's. It now opens the default the world picked — through the look
+  setting or Foundry's *Configure Default Sheets* — and falls back to this
+  module's sheet only where the card itself is the default. The Actors
+  directory's *Open Full Monster Sheet* now raises the sheet it already opened
+  instead of stacking a second one over it.
+- **Goods bought at a market arrive in the inventory.** Military oil — and any
+  item bought two or more at a time — was paid for and never appeared: the
+  purchase arrived as one bundle to unpack, and no sheet lists a bundle, so
+  there was nothing to unpack. A purchase now delivers the items themselves,
+  one per unit; stackable goods still join the buyer's stack, and imports and
+  commissions deliver the same way. Purchases made before this release are not
+  unpacked; a Judge who wants them back adds the items by hand.
+- **A two-handed sword is listed once, with its own damage.** A weapon whose
+  catalogue name is written head-first — *Sword, Two-Handed* — was not
+  recognised as the weapon it names, so the Rolls tab listed it twice and one
+  of the rows rolled the wrong die. A head-first name now identifies the weapon
+  exactly as the plain name does.
+- **Choosing Weapon & Shield raises Armor Class at once.** Ticking a fighting
+  style on the proficiency changed nothing until a weapon or shield was
+  equipped again, because only equipping rebuilt the loadout the bonus is read
+  from. Any edit to an item that changes what the loadout reads now rebuilds
+  it.
+- **A character sheet opens sooner after the table has been quiet.** A
+  character whose class is typed rather than chosen from the library waited,
+  whenever the imported library had gone idle, for every imported shelf to load
+  again — items, actors, journals and tables — before the sheet would draw. It
+  now loads the class it names and the items the sheet reads, and nothing else,
+  which on the development machine roughly halves the wait. Open sheets also
+  stop redrawing every time a token moves on the scene; they redraw for what
+  the party cell shows — a token added, removed, renamed or re-pictured.
+- **Importing a few entries imports those entries.** *(Re)import Individual
+  Entries* ran the whole importer behind each ticked row, so ticking two
+  classes in a world without the rest brought in every class it lacked. Each
+  importer now runs over the ticked entries only.
+- **An entry whose book is not open is never rebuilt from nothing.** The picker
+  refuses such an entry and leaves it as it is, where it used to delete it and
+  rebuild a stub. *Reimport One Shelf* keeps the documents on the shelf that come
+  from such a book, and its confirm says how many before anything is deleted.
+  `acksExtras.importer.cookbookUpdateClasses()` leaves a class from a closed
+  book untouched instead of rewriting it with nothing read, and its confirm
+  names those it passes over.
+- **Rules tables have a control of their own again.** *Reimport One Shelf*
+  offers *Rules tables*, which re-reads every rules table from your books in
+  place and deletes nothing. The notices that send you to import a missing
+  table — the class builder, henchmen, markets, the location browser, an empty
+  class list, a class with no progression — named the "ACKS Importer", a module
+  that no longer exists; they now name *Import Everything*, *Reimport One
+  Shelf* or the macro folder that holds them.
+- **An imported power's mechanics say they are read, not applied.** The
+  Mechanics tab showed the rows imported from your book under a fieldset called
+  *Effects*, directly above the system's own Active Effects, also called
+  *Effects*. The imported fieldset is now *Imported mechanics*, with a line
+  saying the module applies only some of its rows and that a number on the
+  sheet changes through an Active Effect below it; the abilities guide gives
+  the recipe for Armor Class.
+
 ## 8.0.5
 
 ### Added

@@ -497,12 +497,16 @@ turns.*
 ## Dealing out experience
 
 **Deal XP** divides an adventure's total between the party and shows the
-division before it is given.
+division before it is given. It sits among the Judge's controls on the party
+sheet's **Party** tab, and only a GM sees it. While the setting *Deal
+experience from the formation* is on, the system party sheet's own Deal XP
+button is hidden, so this is the one to use; turn the setting off to go back
+to the system's division.
 
 ![](../releases/v4.5.0/formation-xp.png)
 
-*Full shares to the player characters, a henchman at half, and the two taking
-nothing named with the reason.*
+*Full shares to the player characters, a henchman at the share their terms
+set, and the two taking nothing named with the reason.*
 
 Everyone's share is listed with what they will gain, and anyone taking nothing
 is listed too, with why — a mercenary is paid in wages rather than experience, a

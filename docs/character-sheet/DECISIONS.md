@@ -547,3 +547,19 @@ figure the sheet rolls with, and only the mark and its tooltip explain why.
 The guide says so. The Class tab's `level` stays prepared for the tab's own
 logic (the XP bar, the awards lookup) and only its input is stored-sourced —
 two readings of one field in one file, named `level` and `levelField`.
+
+### A token's move does not re-render the sheet (2026-09-22)
+
+Same report as classes DECISIONS 2026-09-22 (slow sheets at a table of five on
+one small server). Every open character sheet re-rendered, debounced, on every
+`updateToken` on the current scene, because the party cell counts the scene's
+tokens — and a move is nearly every token update on a live scene, so each step
+re-rendered every open sheet on every seat.
+
+**Ruled.** An update re-renders only when it touches a field the party cell
+reads (`PARTY_TOKEN_KEYS`: which actor, whether it is linked, its name and
+texture, an unlinked token's actor data). Creating and deleting a token still
+re-render.
+
+Cost: a field the cell starts reading later must join that list, or the cell
+goes stale for updates of that field alone.

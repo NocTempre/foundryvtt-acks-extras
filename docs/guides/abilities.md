@@ -12,9 +12,13 @@ matching proficiency pills.
 
 Open any **ability** item. Beyond core's fields:
 
-- **Mechanics** — the structured effect model (what this ability actually does),
-  with the system's own Active Effects folded in rather than kept in a separate
-  tab.
+- **Mechanics** — *Imported mechanics*, what the ability does as read from your
+  book, and below it the system's own Active Effects, folded in rather than kept
+  in a separate tab. The imported rows describe the ability; the module applies
+  only some of them. To make an ability change a number on the sheet — Armor
+  Class, a save — give the character's copy an Active Effect: **+ New Effect**
+  under *Effects*, then a change with key `system.aac.mod` (Armor Class), type
+  **Add**, and the value the ability grants.
 - **Rolls** — every throw the ability makes.
 - **Selections** — the picks a proficiency of this category can take.
 
@@ -107,6 +111,13 @@ attack-throw default.*
 **An ability with no roll shows itself instead of rolling.** Core intends this,
 but tests a field that defaults to `"1d20"` and is therefore never empty — so a
 proficiency that makes no throw used to post a d20 against a target of 0.
+
+**To announce one at the table**, press the **eye** on its row in the character
+sheet's *Abilities* tab: the ability's card goes to chat with its description,
+which is how a power that grants a bonus rather than a throw is put in front of
+everyone. Dragged to the hotbar, the same ability posts the same card. The card
+announces it; a bonus the power grants reaches the sheet only through an Active
+Effect (see **Mechanics** above).
 
 ## What a throw looks like in chat
 

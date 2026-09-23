@@ -21,7 +21,8 @@
  * OWNERSHIP (one owner per wrapped core method): acks-lib OWNS `rollAttack`'s
  * implementation. acks-equipment's libWrapper WRAPPER composes on top unchanged —
  * it adjusts `attData.item.system.bonus` and calls through, so its RAW deltas
- * arrive in this model as part of the weapon term. The
+ * arrive in this model as part of the weapon term, except the parts it names on
+ * `attData.acksLibTerms`, which are lifted out as terms of their own. The
  * `acksLibPreAttackRoll(actor, ctx)` hook fires before the roll with the mutable
  * term stack (`ctx.terms`), the movable target (`ctx.throwTarget`), and
  * `ctx.targetAc` — the seam for effect replacer/dedup logic and for equipment's
@@ -78,11 +79,16 @@ function buildContext(actor, attData, options) {
   // loadout adjustment and the item's own bonus belong.
   const quick = attData?.item ? null : bestBonus(actor, type);
   const abilityKey = quick?.abilityKey ?? (type === "missile" ? "dex" : "str");
+  // Parts a wrapper folded into the item's bonus that are not the weapon's
+  // (equipment's non-proficiency package), each already labelled: taken back
+  // out of the weapon's term and shown as their own, so the total is unchanged
+  // and the weapon carries only what is its.
+  const lifted = (Array.isArray(attData?.acksLibTerms) ? attData.acksLibTerms : []).filter((t) => num(t?.value));
   const terms = attackTerms({
     type,
     abilityMod: quick ? quick.abilityMod : sys.scores?.[abilityKey]?.mod,
     attackMod: quick ? 0 : sys.thac0?.mod?.[type],
-    itemBonus: attData?.item?.system?.bonus,
+    itemBonus: num(attData?.item?.system?.bonus) - termTotal(lifted),
   }).map((t) => ({
     ...t,
     label:
@@ -92,6 +98,7 @@ function buildContext(actor, attData, options) {
           ? L("adjustment", "Attack adjustment")
           : attData?.item?.name || L("weapon", "Weapon"),
   }));
+  for (const t of lifted) terms.push({ key: String(t.key ?? "situational"), value: num(t.value), label: t.label || L("situational", "Situational") });
   const target = attData?.roll?.target ?? null;
   const ctx = {
     actor,
@@ -172,10 +179,16 @@ function damageParts(actor, attData, type) {
  * the roll dialog does not offer it. */
 const VISIBILITY_MODES = ["public", "gm", "blind", "self"];
 
-/** Minimal situational-bonus + roll-mode dialog (core's getRollDetails shape). */
-async function rollDetailsDialog(title, formula) {
+/**
+ * Minimal situational-bonus + roll-mode dialog (core's getRollDetails shape).
+ * It opens on the mode the roller's chat is already set to, as core's does:
+ * a Judge whose chat whispers to the GMs never posts an attack in the open by
+ * pressing Roll.
+ */
+async function rollDetailsDialog(title, formula, messageMode) {
   const modes = VISIBILITY_MODES.map(
-    (k) => `<option value="${k}">${game.i18n.localize(CONFIG.ChatMessage.modes[k].label)}</option>`,
+    (k) =>
+      `<option value="${k}"${k === messageMode ? " selected" : ""}>${game.i18n.localize(CONFIG.ChatMessage.modes[k].label)}</option>`,
   );
   const content = `
     <p class="hint">${formula}</p>
@@ -225,7 +238,7 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   const attackParts = [exploding ? "1d20x" : "1d20", ...ctx.terms.map(termPart)];
   let messageMode = game.settings.get("core", "messageMode");
   if (!skipDialog) {
-    const details = await rollDetailsDialog(label, attackParts.join(" + "));
+    const details = await rollDetailsDialog(label, attackParts.join(" + "), messageMode);
     if (!details) return null; // cancelled
     if (details.bonus) {
       ctx.terms.push({ key: "situational", value: details.bonus, label: L("situational", "Situational") });
@@ -280,10 +293,10 @@ async function acksLibRollAttack(actor, attData, options = {}) {
       target: attData?.roll?.target,
     },
   };
-  // Core owns the audience. `applyMode` sets `whisper` (as user ids, which is
-  // what the Dice So Nice call below wants) and `blind` for every mode it
-  // knows, so no mode name is ever compared here — a vocabulary that lives in
-  // exactly one place cannot drift out of step with itself.
+  // Core owns the audience. `applyMode` sets `whisper` (as user ids) and
+  // `blind` for every mode it knows, so no mode name is ever compared here — a
+  // vocabulary that lives in exactly one place cannot drift out of step with
+  // itself.
   const chatData = { user: game.user.id, speaker: ChatMessage.getSpeaker({ actor }) };
   ChatMessage.applyMode(chatData, messageMode);
   // The system's roll-attack.hbs reads this to hide the numbers; it is a
@@ -313,8 +326,13 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   );
 
   if (game.dice3d) {
-    await game.dice3d.showForRoll(roll, game.user, true, chatData.whisper, chatData.blind);
-    if (res.isSuccess) await game.dice3d.showForRoll(dmgRoll, game.user, true, chatData.whisper, chatData.blind);
+    // Dice So Nice reads its users list as "exactly these users", and
+    // `applyMode` answers a public roll with an EMPTY whisper, which that list
+    // reads as nobody: passed through, no other seat animates the roll.
+    // Everyone is no list at all.
+    const viewers = chatData.whisper?.length ? chatData.whisper : null;
+    await game.dice3d.showForRoll(roll, game.user, true, viewers, chatData.blind);
+    if (res.isSuccess) await game.dice3d.showForRoll(dmgRoll, game.user, true, viewers, chatData.blind);
   } else {
     chatData.sound = CONFIG.sounds.dice;
   }

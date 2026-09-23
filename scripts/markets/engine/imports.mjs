@@ -207,7 +207,7 @@ export async function processImports(location) {
         resolved += 1;
         continue;
       }
-      await deliverGoods(buyer, { entry, qty: order.qty, locationName: location.name });
+      await deliverGoods(buyer, { entry, qty: order.qty });
       order.status = "delivered";
       log.push({ time: t, type: "importArrived", note: `${buyer.name}: ${order.qty}× ${order.itemName} arrived` });
       await postCard(buyer, `<strong>${game.i18n.format(`${LANG}.imports.arrivedLine`, { buyer: buyer.name, qty: order.qty, name: order.itemName, location: location.name })}</strong>`);
@@ -230,7 +230,7 @@ export async function processImports(location) {
       log.push({ time: t, type: "commissionDone", note: `${order.qty}× ${order.itemName}: finished but undeliverable (missing ${buyer ? "source item" : "buyer"})` });
       continue;
     }
-    await deliverGoods(buyer, { entry, qty: order.qty, locationName: location.name });
+    await deliverGoods(buyer, { entry, qty: order.qty });
     log.push({ time: t, type: "commissionDone", note: `${buyer.name}: ${order.qty}× ${order.itemName} finished` });
     await postCard(buyer, `<strong>${game.i18n.format(`${LANG}.commissions.doneLine`, { buyer: buyer.name, qty: order.qty, name: order.itemName })}</strong>`);
   }

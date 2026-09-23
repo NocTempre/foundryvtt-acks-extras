@@ -46,7 +46,7 @@ party's find.
 
 - **Buy/sell** (`engine/trade.mjs`): staged copper pricing (condition,
   demand steps, Bargaining swing by opposed winner); purchases stack
-  (quantity merge or one bundle); sales destroy the sold document. Magic
+  (quantity merge, or one copy per unit); sales destroy the sold document. Magic
   items trade by identification on the JJ transaction grid.
 - **Imports, commissions, searches** (`engine/imports.mjs`): all deliver
   through one due-work sweep the GM time watcher runs (`onTimeAdvanced`,

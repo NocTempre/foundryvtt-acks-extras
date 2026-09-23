@@ -149,6 +149,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    the character and without the Create Actor permission, and choose again:
    the actor is made all the same (on the GM's client — a GM must be
    connected) and the player owns it.
+14. **An imported modifier is read, and an Active Effect applies.** Fixture: a
+   character and, on it, a copy of an imported class power whose Mechanics tab
+   lists an Armor Class modifier row. *Observable:* that fieldset's legend
+   reads *Imported mechanics* with the hint under it, and the character's
+   `system.aac.value` does not include the row. Under *Effects* press
+   **+ New Effect** and add a change `system.aac.mod`, type Add, value 1 — a
+   real click through the system's effect sheet. *Observable:* the actor's
+   `system.aac.value` (re-read from `fromUuid`) moves by one, and disabling the
+   effect moves it back.
 
 ## Teardown
 

@@ -94,6 +94,14 @@ report the same symptom.
 7. Attack patch: with the `attackRollPatch` setting on, roll an attack.
    *Observable:* the patched path runs; turn the setting off and the system's
    own path returns. An inert setting is a bug.
+   Set the chat's roll mode to *Private GM Roll* and roll again.
+   *Observable:* the dialog's mode select opens on that mode, not on *Public*,
+   and pressing Roll without touching it posts a whispered card. Back on
+   *Public*, with Dice So Nice active, roll from the GM seat while a player
+   seat watches: *Observable:* the player's client animates the dice. Read
+   what reached Dice So Nice with a wrapper on `game.dice3d.showForRoll` in the
+   roller's page: its fourth argument is `null` for a public roll and the
+   whisper's ids for a private one — an empty list there is nobody.
 8. Vision and senses: with `manageVision` on, place a token of an actor with a
    declared lightless range.
    *Observable:* the token's vision matches `senses.sightRange`, and the
@@ -112,6 +120,15 @@ report the same symptom.
    `.acks-extras-character-sheet` in the document. A second window is the
    frame-id collision — both copies answer to one id, and the survivor is the
    one that rendered last.
+   The sheet **Full sheet** opens is the registry's `default` for the type,
+   which is where the UI preset writes its answer (`ui-preset.mjs`, in memory
+   on each client). Set it on THIS client alone — flip `default` to the
+   system's entry in `CONFIG.Actor.sheetClasses.character` — rather than
+   changing the world's preset, a shared setting other sessions are reading.
+   Press **Full sheet** on a character henchman's card. *Observable:* the
+   system's character sheet opens, not this module's; flip `default` back and
+   the module's opens. A card whose type has no other default still opens this
+   module's full sheet. A reload undoes the flip either way.
 9a. Design-canvas geometry survives a ratio it cannot read. On an open character
    sheet, `element.classList.remove("acks-extras")` — the one class that
    publishes `--acks-extras-k`.

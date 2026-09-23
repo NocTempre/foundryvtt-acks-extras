@@ -46,6 +46,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    payment and the sale); the item on the buyer's sheet; the buyer's coin
    reduced by the total; and one new entry in
    `location.system.market.marketLog`.
+   Then buy a unit item (a weapon, a flask) at `qty: 3`.
+   *Observable:* three documents of that name and type on the buyer, each
+   listed on the character sheet, and no `bundle` item among
+   `buyer.items` — a bundle is listed by no sheet, so its presence is the
+   purchase that vanished.
 4. Buy past the party cap.
    *Observable:* refused by the cap with the cap named, not silently clamped
    — and turning `marketsEnforceCaps` off allows it, which is what proves the

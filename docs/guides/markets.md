@@ -32,8 +32,8 @@ market's class, scarce goods as a percent chance your merchants find one.
 Buy opens the purchase dialog — quantity, an optional merchant Bargaining
 profile (GM), and for parties of twelve or more adventurers the dedicated
 shopping day that doubles the month's purchases. Purchases stack: countable
-gear merges, and thirty swords arrive as one bundle you can drag out to
-distribute. Sell offers your own priced goods at their condition-reduced
+gear merges, and thirty swords arrive as thirty swords to hand out. Sell
+offers your own priced goods at their condition-reduced
 value; sold goods leave play.
 
 ![](../releases/v4.0.0/markets-purchase-dialog.png)

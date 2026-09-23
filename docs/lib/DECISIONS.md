@@ -7,6 +7,43 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-09-22 — the attack dialog opens on the chat's mode, and an empty
+  audience is everyone to the dice.** Two field reports against the
+  attack-roll setting, one cause-pair. A Judge kept the setting off because it
+  made monster stats player-facing: the roll dialog listed its four modes and
+  opened on the first, *public*, whatever the roller's chat was set to, so a
+  Judge whose chat whispers to the GMs posted every monster attack — throw,
+  target and labelled terms — in the open by pressing Roll. Core's own dialog
+  opens on the chat's mode; this one now does too (`rollDetailsDialog` takes
+  `core.messageMode`). And with the setting on, other players saw no 3D dice:
+  `applyMode` answers a public roll with an EMPTY `whisper`, and Dice So Nice
+  reads its users list as exactly those users, so the list said nobody. The
+  call now passes no list at all when the whisper is empty. The new evidence
+  against the 2026-08-05 sentence marked below is the report itself; the
+  sentence was right that the call wants ids and silent on the empty case.
+
+  **Rejected: hiding the breakdown from players on a public roll of a
+  Judge-owned actor.** It answers the privacy half without the Judge changing
+  their chat mode, and it is a per-actor split of one card — a new setting or
+  a new card shape, so a minor, recorded in the ledger rather than cut here.
+
+- **2026-09-22 — "Full sheet" opens the sheet the world chose.** Field report:
+  with the look set to the system's own sheets, characters opened on them but
+  a henchman card's *Full sheet* opened this module's. `openFull` took this
+  module's own full sheet before the registry's `default`, and the default is
+  where both the look preset (`ui-preset.mjs` flags it) and Foundry's
+  Configure Default Sheets land, so the world's choice was overruled for
+  exactly the actors that wear a card. Ruled: the default first; this module's
+  own full sheet only where the card itself holds the default (then no other
+  entry claims it), and registration order last.
+
+  **Rejected: reading the look setting inside the card.** The preset already
+  writes its answer into the default; a second reading would be a second copy
+  of one choice, and it misses a choice made in Configure Default Sheets.
+  *Cost:* a world whose default for a monster is the system's plain sheet
+  opens a monster card's Full sheet there, without the extended block the
+  card abbreviates — which is that world's choice to make.
+
 - **2026-09-20 — a sub-type reclaims its own sheet at ready, because a stored
   default outranks `makeDefault` forever.** A field report showed traps,
   classes, races and variations refusing to open, with
@@ -989,6 +1026,9 @@ second copy to fall out of step with core's, and a mode added later is handled
 without an edit here. It also returns `whisper` as user ids, which is what the
 Dice So Nice call downstream wants — `getWhisperRecipients` returns User
 documents, and that mismatch was live in the previous shape.
+*(Superseded in part 2026-09-22 — "The attack dialog opens on the chat's mode,
+and an empty audience is everyone to the dice", at the top: ids are what that
+call wants, but an EMPTY list is not everyone to it.)*
 
 Rejected: renaming the three comparisons to the new spellings. It restores
 correctness but keeps the duplicated vocabulary that caused the hazard, and the

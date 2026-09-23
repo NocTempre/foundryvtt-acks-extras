@@ -76,6 +76,16 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 8. Bestiary samples: open the shipped sample monsters.
    *Observable:* each loads, its sheet renders, and its extras are populated
    rather than default.
+9. Right-click the plain monster in the Actors directory and pick the Full
+   Monster sheet entry three times — the real context menu, not a
+   `new FullMonsterSheet(…)` in the console, which is the path under test.
+   *Observable:* collect the app objects `renderFullMonsterSheet` hands its
+   listeners into a `Set` across the three picks — it holds ONE, and that
+   one's `element.isConnected` is true. Three is the frame-id collision: each
+   new instance takes the last one's id and replaces its element, and the
+   older keep rendering into nodes nobody sees. The DOM shows one window
+   either way, and `actor.apps` is keyed by that shared id, so neither counts
+   instances.
 
 ### The Animal tab
 

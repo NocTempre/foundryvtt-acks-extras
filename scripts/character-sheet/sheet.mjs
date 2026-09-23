@@ -73,6 +73,9 @@ const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallb
 /** The places a thing is HELD at, where a dropped torch stack readies one into hand. */
 const HAND_PLACES = Object.freeze([SLOT.mainHand, SLOT.offHand, SLOT.bothHands]);
 
+/** The token fields the party cell reads (`partyOf`); an update touching none of them leaves it as it was. */
+const PARTY_TOKEN_KEYS = Object.freeze(["actorId", "actorLink", "name", "texture", "delta"]);
+
 /**
  * Actions that only LOOK — fold, switch a tab, open a menu or another window,
  * make a roll as the system's own sheet lets an observer — and so stay live
@@ -251,13 +254,20 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     const watchToken = (doc) => {
       if (doc?.parent?.id === currentScene()?.id) this.#renderSoon();
     };
+    // Of a token's own changes the cell reads only which actor it is, what it
+    // is called and shows, and an unlinked token's actor data (whose summons it
+    // is). A move changes none of those and is nearly every token update on a
+    // live scene; answering it would re-render every open sheet on every seat.
+    const watchTokenUpdate = (doc, changes) => {
+      if (PARTY_TOKEN_KEYS.some((k) => k in (changes ?? {}))) watchToken(doc);
+    };
     const watchSetting = (setting) => {
       if (setting?.key === `${MODULE_ID}.formations`) this.#renderSoon();
     };
     const pairs = [
       ["updateActor", watchActor], ["deleteActor", watchActor],
       ["createItem", watchItem], ["updateItem", watchItem], ["deleteItem", watchItem],
-      ["createToken", watchToken], ["updateToken", watchToken], ["deleteToken", watchToken],
+      ["createToken", watchToken], ["updateToken", watchTokenUpdate], ["deleteToken", watchToken],
       ["canvasReady", () => this.#renderSoon()], ["updateSetting", watchSetting],
       ["acksExtras.lightChanged", watchMine], ["acksExtras.roleChanged", watchMine],
       ["updateCombat", () => this.#renderSoon()], ["deleteCombat", () => this.#renderSoon()],

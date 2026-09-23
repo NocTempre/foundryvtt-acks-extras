@@ -76,3 +76,27 @@ fiction, and the card says so. Only FULL identification (magic research)
 sells at base cost; partial still trades at apparent value. The equipment
 sheet mounts the markets-owned magic panel on its Construction tab, the
 same one-line composition as the goods schema.
+
+## 2026-09-22 — A purchase arrives as the things bought, never as a bundle
+
+**Reported.** Military oil bought at a market was paid for and never appeared
+in the buyer's inventory. Any unit item bought two or more at a time did the
+same: the purchase was delivered as ONE core `bundle` document embedded on
+the buyer, meant to be dragged out and unpacked. No actor sheet lists an
+embedded bundle — core's included — so there was nothing to drag, and the
+receipt and the ledger both said the sale had happened.
+
+**Ruled: deliver the copies.** A unit item bought N at a time arrives as N
+copies of its source, stripped of the source's id, folder, sort and
+ownership — the documents core's own bundle drop leaves behind, and the shape
+chargen's bundle grant already delivers. Stackables still merge into the
+buyer's stack. Imports and commissions deliver through the same function and
+change with it.
+
+Rejected: listing the bundle on the sheets. It would add a surface to two
+sheets for an intermediate object whose only purpose is to be unpacked into
+what this ruling delivers directly.
+
+Cost: bundles already delivered stay embedded and unlisted on their buyers;
+this change does not unpack them. Thirty swords are thirty documents, as they
+would be after core unpacked the bundle.

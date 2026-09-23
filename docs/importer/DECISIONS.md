@@ -4602,6 +4602,10 @@ sentences the city knows.
 
 ### The entry picker rebuilds by re-running whole importers (2026-09-20)
 
+> **Superseded 2026-09-22** ("The entry picker runs each importer over the
+> ticked entries only", below): a whole run imports every entry the world
+> never held, not only the ones it just deleted.
+
 **Problem.** "Did *this* entry come out right" had no answer short of emptying
 the shelf around it. A recipe fixed for one trap meant deleting thirteen and
 waiting for all thirteen to build again; a fixed proficiency meant the whole
@@ -4663,3 +4667,74 @@ show ticks on table rows and none on the shelves above them.
 
 *Cost:* a picker row whose behaviour differs from every other row in the list,
 carried by one sentence in the hint and a group label that says so.
+
+---
+
+### The entry picker runs each importer over the ticked entries only (2026-09-22)
+
+**New evidence.** A Judge used the picker to bring in classes and watched it
+import classes nobody ticked. The 2026-09-20 ruling rested on "every importer
+passes over what it already holds, so a whole run after a targeted delete
+rebuilds exactly what was deleted" — true on a world that holds the whole
+shelf, and on no other. The picker lists every entry this build can import,
+held or not, so ticking one the world never held is its ordinary use, and on a
+world that imported part of a shelf the whole run imported the rest of it.
+
+**Ruled.** The six importers the picker drives (abilities, classes, equipment,
+traps, variations, vehicles) take `{ only }`, a set of cookbook ids, and their
+loop passes over every entry outside it. It is the same loop over fewer ids,
+not a second path, which is what the 2026-09-20 entry objected to.
+`runEntryReimport` groups the ticked ids by owning run and calls each run once
+with its set. Under `only`, `importAllEquipment` also skips its three repair
+passes and its weapon, armour and price-list tail: each repair deletes what the
+whole loop is trusted to rebuild, and the tail builds from whole printed tables
+that no picker row names.
+
+**A closed book is refused, not rebuilt.** Every reimport deletes first, and an
+entry whose book is not open on this seat rebuilds a stub or nothing — its
+content comes off the page. A ticked entry whose book is closed is left as it
+is and the notice counts it; the shelf rebuild keeps that shelf's closed-book
+documents the same way (`readableHere`), and its confirm says how many it keeps
+before anything is deleted, so the count it offers to delete is not read as
+the whole shelf. Update Classes had
+the same shape — it replaces a class's whole `system` with whatever was read —
+and now leaves a class it could not read untouched, as Update Abilities already
+did. Its follow-up passes take only the classes it rewrote: lending a race's
+tongues gives back a language slot each time it runs over a class.
+
+**Rejected: narrowing the shelf and book rebuilds to what they held.** "Empty
+this shelf and import it again" is a request for the shelf, and a Judge
+filling a partial one uses it for exactly that. Narrowed, the gap could not be
+filled from the one control that names it.
+
+*Cost:* the shelf and book rebuilds still import what the world never held on
+that shelf or from that book, and Import Everything on a seat with a book
+closed still mints a stub for each of that book's entries the world lacks —
+both what those controls promise. The picker is the tool for one entry, and
+the only one that now refuses a closed book outright.
+
+---
+
+### Rules tables are read again from Reimport One Shelf (2026-09-22)
+
+**Reported.** "There's no longer a way to import rules tables." Two things
+made it true for a Judge who looked. Reimport One Shelf offered shelves and
+books and no tables: the tables were read by Import Everything and by the entry
+picker's table rows and by nothing else. And seven notices that send a Judge
+to import something — a missing table in the class builder, henchmen and
+markets, an empty class list or a stub class — named the "ACKS Importer", a
+module that since the 2026-09-01 merge does not exist to be found; the
+location browser's named a control no surface is called.
+
+**Ruled.** Reimport One Shelf carries a **Rules tables** group whose one option
+re-reads every table in place (`cookbookImportTables`); like the picker's table
+rows it deletes nothing, and the option's label says so. Every notice that
+points at an import names the macros that do it — Import Everything, or Rules
+tables in Reimport One Shelf.
+
+**Rejected: a macro of its own.** The macro pack was cut to the controls a
+Judge reaches for (see the pack's own ruling in `tools/pack-data/importer.mjs`),
+and a table re-read is a shelf-scale action, which is the picker's unit.
+
+*Cost:* one option in a list whose other options empty a shelf first, carried
+by its label.

@@ -241,11 +241,11 @@ export function isArmorGatedSkill(name) {
 }
 
 /**
- * "In light, very light, or no armor, carrying 5 stone or less" — the clause
- * ACKS II attaches to the bonuses a character fights unencumbered for.
- * Swashbuckling (RR p. 117) and the bladedancer's Graceful Fighting are the two
- * that reach the sheet, and they are written with the same words, so they ask
- * the same question here rather than each testing armour and weight its own way.
+ * Whether the character fights lightly equipped: armour no heavier than light
+ * and a load inside the gate. Swashbuckling (RR p. 117) and a class power
+ * written against the same condition are the two bonuses that reach the sheet,
+ * so they ask one question here rather than each testing armour and weight its
+ * own way.
  */
 export function lightlyEquipped(actor, loadout) {
   const armorCat = loadout?.armor?.system?.type ?? "unarmored";

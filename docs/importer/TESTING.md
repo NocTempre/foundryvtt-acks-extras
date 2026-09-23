@@ -131,8 +131,8 @@ is `0` — and that the window shows nothing staged.
 
 ## Remove ALL Imports sweeps materialized rules tables
 
-Import rules tables ("Import Rules Tables (GM)", then "Create Foundry Tables
-from Rules Import (GM)"), confirm "ACKS Cookbook — RollTable" holds "ACKS
+Import rules tables (Reimport One Shelf → Rules tables; the import creates the
+Foundry documents itself), confirm "ACKS Cookbook — RollTable" holds "ACKS
 Imported Tables" with per-doc subfolders and readable names and "ACKS Cookbook
 — JournalEntry" holds "ACKS Ruledata (Imported)" — the sidebar gains neither —
 then run "Remove ALL Imports (GM)". *Observable:* the confirm counts the
@@ -140,8 +140,9 @@ packs' contents (the rules-table documents among them) plus whatever
 materialized rules-table documents an earlier release left in the sidebar;
 afterwards the packs are gone with the folder tree, its RollTables and the
 journal, the sidebar holds none of them, while the imported table DATA still
-answers (the ruledata browser still lists tables, and re-running Create
-Foundry Tables rebuilds the documents on fresh shelves without re-importing).
+answers (the ruledata browser still lists tables, and
+`acksExtras.lib.services.get("ruledata-import").materializeDocs()` rebuilds the
+documents on fresh shelves without re-importing).
 
 ## The library: compendium target and the two-level tree
 
@@ -363,8 +364,8 @@ The dedup rules, each with a case that used to break it.
 
 ## Three controls, and one shelf at a time
 
-*Observable:* the "ACKS Importer — Macros" compendium holds FIVE macros in two
-folders — your books, import everything, reimport one shelf, reimport
+*Observable:* the "ACKS Extras Macros" compendium's two importer folders hold
+FIVE macros — your books, import everything, reimport one shelf, reimport
 individual entries, delete everything. A sixth is a regression. The four are
 the controls; the entry picker is the debug tool beside them.
 
@@ -442,9 +443,68 @@ after the run are the ones to track, read the moment the run resolves.
    in the store still answers. A tick on a table row reflects `hasDoc`, not a
    document flag, so a world that has the store but no imported items shows
    ticks here and none above.
+7. Tick ONE entry the world does not hold (no present tick), from a run whose
+   shelf the world holds only part of, and press *Reimport*.
+   *Observable:* exactly one document is created — `api.track` it from the
+   run's result — and the shelf's count rises by one. Every other entry of that
+   run the world lacked is still absent: the run was narrowed to the tick
+   (`{ only }`), where a whole run imports every entry the world lacks.
+   **On a world whose shelves are whole** there is no such entry without
+   deleting shared documents first, and the equipment rows the picker marks
+   absent are the second book's duplicates, which merge into or rename a held
+   document. Prove the narrowing without a write instead:
+   `importTraps({ only: new Set([id]) })` on one held trap reports "0
+   imported, 1 already present" where the whole run reports 13, and the Item
+   pack's index count is unchanged. Traps, because `importClasses` runs a
+   ladder-key repair before its loop and can write to held classes.
+8. Tick an entry whose book is NOT open on this seat.
+   *Observable:* a notice says it was left as it is; no removal confirm opens,
+   its document keeps its id and nothing is created. On the shelf rebuild, the
+   confirm's second paragraph names how many documents on the shelf come from
+   a book that is not open and are kept; the count it offers to delete excludes
+   them. Answer No — confirming rebuilds the shelf under new ids.
+9. Run `acksExtras.importer.cookbookUpdateClasses()` with a class imported from
+   a book that is not open on this seat.
+   *Observable:* the confirm counts only the classes it can read and names the
+   others as left as they are. Cancel it: Update rewrites every readable class
+   in the world, which a shared test world does not want, and the partition is
+   what the confirm shows.
+
+**Closing a book on one seat.** A world whose books are SHELVED reopens every
+one of them on every seat at join (`restoreShelf`), so a GM seat never holds a
+closed book unless the book is unshelved for the whole world, and
+`forgetBooks()` drops this computer's remembered locations for good. Steps 8
+and 9 are reached by masking one book on this client for the length of one
+evaluation: wrap `Map.prototype.has` to answer false for that book id on the
+map whose values carry `{doc, title}` (the importer's open-book map), and
+restore it in a `finally`. It is a synthetic trigger — it proves the partition
+against the world's real documents, not a seat that never opened the book —
+and the report says so.
 
 **Teardown.** `api.sweepTracked()`; quote what it removed, what it could not
 find and what refused.
+
+## Rules tables from Reimport One Shelf
+
+**Reimport One Shelf (GM)** — `acksExtras.importer.cookbookReimportShelf()`.
+
+1. Open it. *Observable:* a **Rules tables** group below the shelves and books,
+   holding one option that says it re-reads in place and deletes nothing.
+2. Choose it, with the rulebook open on this seat. *Observable:* no removal
+   confirm; the progress bar reads the rules tables from the books; afterwards
+   `acksLib.tables.getDoc("weather")` answers and no shelf lost a document.
+   On a shared world the re-read rewrites a store every session reads; the
+   dialog's wiring is proved by replacing `acksExtras.importer
+   .cookbookImportTables` with a recorder for the one submit (the option calls
+   it through the api object, once, and opens no confirm), and the re-read
+   itself by step 6 of *One entry at a time*, one document at a time.
+3. The notices that send a Judge to import something — a missing table in the
+   class builder, henchmen and markets, the location browser's empty list, an
+   empty class picker, a stub class — are read through `game.i18n.localize`,
+   since a shared world has its tables and emptying it to see one is a
+   mutation. *Observable:* each names Import Everything, Reimport One Shelf or
+   the macro folder that holds them, and none names the "ACKS Importer", a
+   module that no longer exists to be found.
 
 ## Two books, one item
 
@@ -1306,7 +1366,8 @@ idempotent and no documents are created.
 **Fixtures.** None beyond a connected Revised Rulebook and Judges Journal.
 
 **Steps.**
-1. Run Import Tables with both books connected.
+1. Re-read the rules tables (Reimport One Shelf → Rules tables) with both
+   books connected.
 2. In the console, read the registered `hitPoints` ruledata document and the
    `acks.classBuilder` budget.
 

@@ -249,11 +249,15 @@ const sysL4 = { details: { level: 4 }, thac0: { bba: 2 }, scores: { str: { mod: 
 a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: sysL4 });
 let m = computeAttackMods(a, attData(swordItem), { type: "melee" });
 check("non-prof weapon, L4 bba+2 STR+2 → attacks as 0th-level fighter (−5)", m && m.bonusDelta === -5);
+// The package is its own labelled term, so the roll reads "−5 Non-proficient"
+// and never as a penalty the weapon carries.
+check("the package is named as one term of its own", m.terms.length === 1 && m.terms[0].key === "nonProficient" && m.terms[0].value === -5 && m.terms[0].label === "Non-proficient");
 
 // Weapon and style BOTH untrained: one package, never two.
 a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single" }, system: sysL4 });
 m = computeAttackMods(a, attData(swordItem), { type: "melee" });
 check("weapon+style both untrained → one package, not two", m.bonusDelta === -5);
+check("…and named once", m.terms.length === 1 && m.terms[0].value === -5);
 
 // Attribute PENALTIES are not bonuses and still apply.
 a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: { details: { level: 1 }, thac0: { bba: 0 }, scores: { str: { mod: -1 }, dex: { mod: 0 } } } });
@@ -2206,6 +2210,16 @@ check("a recorded base beats the LOOSE name match that was wrong",
   weaponIdentity(weap("Two-handed iron sword", { skin: { base: "def.weapon.twoHandedSword" } })).key === "twohandedsword");
 check("without it, the loose match still answers as it always did",
   weaponIdentity(weap("Two-handed iron sword")).key === "sword");
+// A catalogue name printed head-first is the weapon it names, not a loose
+// match: read only as written it contains the one-handed sword, and the item
+// took that row's grip choice and its dice.
+const headFirst = weap("Sword, Two-Handed");
+check("a head-first catalogue name identifies by name",
+  weaponIdentity(headFirst).key === "twohandedsword" && weaponIdentity(headFirst).source === "name");
+check("so it costs both hands and offers no second grip row",
+  cost(classify(headFirst), { twoHanded: false }) === 2 && classify(headFirst).damage2h === null);
+check("a head-first skinned base reads the same way",
+  weaponIdentity(weap("Two-handed iron sword", { skin: { baseName: "Sword, Two-Handed" } })).key === "twohandedsword");
 check("an importer-minted row identifies by its cookbook id",
   weaponIdentity(weap("Hachereau", { cookbook: { id: "def.weapon.battleAxe" } })).source === "mint");
 check("an exact name outranks the base it was cut from",

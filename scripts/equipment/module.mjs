@@ -148,6 +148,11 @@ Hooks.on("preUpdateItem", (item, changes) => {
 
 Hooks.on("updateItem", (item, changes) => {
   onUpdateItem(item, changes).catch((err) => console.error(`${MODULE_ID} | updateItem enforcement failed`, err));
+  // An equip toggle rebuilds inside onUpdateItem. Any other edit to a wearable
+  // or a proficiency can change what the loadout reads — a Specialization's
+  // style pick, a shield's strap, a declared weapon type or grip — so it
+  // rebuilds too; a loadout that comes out the same writes nothing.
+  if (!foundry.utils.hasProperty(changes, "system.equipped")) onLoadoutItemChange(item);
 });
 
 /* Items that affect the loadout: anything WEARABLE — which is core's

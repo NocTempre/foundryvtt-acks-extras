@@ -350,8 +350,8 @@ levels table. Nothing else.
 2. Generate the character through the Scores Generator on a low-Constitution
    score and note the hit points. This is the pre-import behaviour and must be
    unchanged from before this release.
-3. Import the hit-point table (the importer, Import Tables, with the rulebook
-   connected). `firstLevelDieMinimum()` now returns the printed floor.
+3. Import the hit-point table (Reimport One Shelf → Rules tables, with the
+   rulebook connected). `firstLevelDieMinimum()` now returns the printed floor.
 4. Delete the character and generate a fresh one on the same scores.
 
 **Observable.** The 1st-level total is now taken from a die read at the floor,
@@ -503,6 +503,11 @@ background reload — that race is the bug, and it is narrow.
    `flags["acks-extras"].classes.uuid`), then clear the pack and
    `await actor.sheet.render(true)` in one evaluation; open the level-up
    dialog on the same actor the same way.
+6. A class held as TEXT alone: a second disposable character with
+   `system.details.class` set to an imported class's name and no
+   `classes.uuid` flag. Clear the Item pack AND one import pack of another
+   type (an Actor pack), then `await actor.sheet.render(true)`, in one
+   evaluation, timing the render.
 
 **Observable.** The dropdown holds the **whole** class list, not the sidebar
 fixture alone; the picks and template boxes describe a real class. Before the
@@ -520,7 +525,19 @@ depending on which reader met the index row first — and the window never
 opened until a page reload; a player double-clicking a token saw nothing at all,
 then a sheet minutes later once some other read had warmed the pack.
 
-**Teardown.** Delete the class Item and the actor by the uuids the run recorded.
+Step 6's sheet opens on the named class's figures, and every shelf that is not
+an Item shelf — the Actor packs, JournalEntry, RollTable — still reads `size` 0
+when the render resolves and seconds after: the text path no longer awaits the
+library. The Item pack IS full afterwards, and that is expected: the registry's
+own synchronous read starts the shelf reload, the one-class fetch queues behind
+it, and the sheet's other reads need the shelf anyway. For the yardstick, time
+`whenReady()` over the cleared shelves and `pack.getDocuments()` on the cleared
+Item pack alone in the same session: the render lands near the second, far
+below the first (on dev hardware, 7.0 s for the library, 2.7 s for the Item
+shelf, 3.1 s for the render, 50 ms warm).
+
+**Teardown.** Delete the class Item and the actors by the uuids the run
+recorded.
 
 ## A choice left open, answered later
 

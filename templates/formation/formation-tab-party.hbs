@@ -26,11 +26,9 @@
 
     {{#if isGM}}
     <div class="buttons">
-      {{#if canControl}}
       <button type="button" data-action="dealXp" data-tooltip="{{localize 'ACKS-FORMATION.xp.hint'}}">
         <i class="fa-solid fa-star"></i> {{localize "ACKS-FORMATION.xp.deal"}}
       </button>
-      {{/if}}
       <button type="button" data-action="advanceTurn" data-tooltip="{{localize 'ACKS-FORMATION.app.advanceTurnHint'}}">
         <i class="fa-solid fa-hourglass-half"></i> {{localize "ACKS-FORMATION.app.advanceTurn"}}
       </button>

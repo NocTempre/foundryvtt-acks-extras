@@ -256,7 +256,9 @@ and a shared family suffix.
 
 ### Rules tables
 
-**Import tables** materializes the rules tables as Foundry documents in your
+The rules tables arrive with **Import Everything**. To read them again on
+their own, pick **Rules tables** in **Reimport One Shelf**: they are re-read in
+place, and nothing is deleted. They materialize as Foundry documents in your
 world. In ACKS Extras, those register into the shared tables registry and the
 henchmen and location features read them.
 

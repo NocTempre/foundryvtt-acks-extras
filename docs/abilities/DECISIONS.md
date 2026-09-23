@@ -589,3 +589,26 @@ picker asks the question instead. The matching stays on the importer roadmap.
 *Cost:* releasing a slot leaves the creature in the world, filed under
 Companions; a Judge deletes it by hand. A companion effect on a MONSTER's
 ability is read by nothing — the prompt and the section are the character's.
+
+### The imported rows say they are read, not applied (2026-09-22)
+
+Field report, with a screenshot: a Judge asked how to make an item change
+Armor Class the way a class power does. The power's Mechanics tab showed an
+imported row reading an Armor Class modifier under a fieldset titled
+*Effects*, and below it the system's Active Effects under a second fieldset
+also titled *Effects*. The imported row describes the power as read from the
+book; nothing applies it — the equipment bridge applies the proficiency facts
+it models, and a power's Armor Class modifier is not one of them. Two
+fieldsets of one name, one of which changes nothing, read as a bug.
+
+**Ruled.** The imported fieldset is *Imported mechanics*, with a hint that the
+module applies only some of its rows and that a number on the sheet changes
+through an Active Effect in the fieldset below; the guide gives the recipe
+(`system.aac.mod`, type Add).
+
+**Rejected: applying the imported Armor Class rows.** Which imported modifiers
+apply, under which conditions, and how they meet a Judge's own Active Effect
+is a design of its own and a new behaviour of every imported power — a minor,
+recorded in the ledger, not cut from a field report.
+
+*Cost:* one legend renamed and one hint; no data changes.

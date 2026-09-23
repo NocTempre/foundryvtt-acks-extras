@@ -98,6 +98,21 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    one more. The same character with the sword alone stays one-handed
    (`wieldTwoHanded` false, `activeStyle` single); add `twoHanded` to the
    flag and the auto grip widens.
+3c. A pick made after the kit is drawn: draw the sword and the shield first,
+   then give the character a Fighting Style Specialization ability and tick
+   *Weapon & Shield* on its Mechanics tab — the ability sheet's own checkbox,
+   a real click, not a flag write. *Observable:* with no equip toggle and no
+   reload, the managed loadout effect gains the specialization's change and
+   `system.aac.value` climbs; untick it and the value falls back. Read the
+   actor from `fromUuid` after each, not the open sheet's document.
+3d. The penalty is named: with proficiency enforcement `on` and the
+   attack-roll setting on, attack from the character sheet with a weapon the
+   character is not proficient in. *Observable:* the roll dialog's formula and
+   the chat roll's tooltip carry a term labelled **Non-proficient**, apart from
+   the weapon's own term, which carries only the weapon's bonus;
+   `computeAttackMods(actor, {item})` returns that one term in `terms`. With
+   the attack-roll setting off (a reload), the same attack totals the same —
+   core's roll reads the package folded into the item's bonus.
 4. Containers: declare capacity on the sack, `storeIn` the weapon, then
    `takeOut`.
    *Observable:* `contentsOf(sack)` lists it, `encumbranceDelta6` changes, and
@@ -361,6 +376,7 @@ effect leaves), carrying four weapons created on it:
 | `Francisca (bare)` | none | the same item with nothing to identify it |
 | `Two-handed iron sword` | `skin: {base: "def.weapon.twoHandedSword", …}` | a name whose LOOSE match is a different, smaller row |
 | `Hachereau` | `cookbook: {id: "def.weapon.battleAxe"}` | a row the importer minted from the reader's grid |
+| `Sword, Two-Handed` | none | the catalogue's head-first name, with nothing else to read |
 
 No base document has to exist: the resolver reads the recorded id and name, it
 does not dereference them.
@@ -402,6 +418,12 @@ does not dereference them.
    un-stopped change re-renders the sheet from ITS form data; a check that
    reads the in-memory document cannot tell a persisted write from one that is
    about to be thrown away.
+10. **A head-first name identifies by name.** `weaponIdentity` on
+   `Sword, Two-Handed`. *Observable:* `{key: "twohandedsword", source: "name"}`
+   and `damage2h` null. Draw it on a character and open the character sheet:
+   its attack list shows **one** row for it, and a damage roll from that row
+   rolls the item's own die — read the formula off the chat message, not the
+   row's label, since the row and the roll are separate readings.
 
 ### Teardown
 

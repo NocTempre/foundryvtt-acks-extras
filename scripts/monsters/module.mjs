@@ -218,7 +218,16 @@ Hooks.on("getActorContextOptions", (_directory, options) => {
     visible: (li) => !!FullMonsterSheet && sheetTypes.includes(findActor(li)?.type),
     onClick: (_event, li) => {
       const actor = findActor(li);
-      if (actor && FullMonsterSheet) new FullMonsterSheet({ document: actor }).render(true);
+      if (!actor || !FullMonsterSheet) return;
+      // A second instance over the same actor carries the first's frame id and
+      // replaces its element, stranding it; an open one is raised instead.
+      const open = Object.values(actor.apps ?? {}).find((app) => app.constructor === FullMonsterSheet);
+      if (open) {
+        open.render(true);
+        open.bringToFront?.();
+        return;
+      }
+      new FullMonsterSheet({ document: actor }).render(true);
     },
   });
 });

@@ -21,7 +21,7 @@ import {
   levelFactor,
 } from "../lib/vocab.mjs";
 import { CLASS_TYPE, CHASSIS_KEYS, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, FLAG_CLASSES, FLAG_TEMPLATE_PART, MODULE_ID } from "./constants.mjs";
-import { libraryItems, cookbookId, whenReady } from "../lib/library.mjs";
+import { libraryItems, libraryPacks, cookbookId, whenReady } from "../lib/library.mjs";
 
 /** Every class Item the library holds — the sidebar's and the imported pack's. */
 export function classItems() {
@@ -120,19 +120,43 @@ export function classForActor(actor) {
 }
 
 /**
+ * The uuids of the library's class rows called `name` (already lower-cased).
+ * Read off the packs' indexes, which a pack keeps when it drops its
+ * documents, so finding the one class a name means loads no shelf.
+ */
+function classRowsNamed(name) {
+  const out = [];
+  for (const pack of libraryPacks("Item")) {
+    for (const row of pack.index ?? []) {
+      if (row.type === CLASS_TYPE && String(row.name ?? "").toLowerCase() === name) {
+        out.push(row.uuid ?? `Compendium.${pack.collection}.Item.${row._id}`);
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * The bound class as a document, for a caller that can await: a class
- * evicted from its pack is loaded back first, and a character bound by name
- * alone waits for the library. The character sheet reads this before it
- * snapshots, so a cold shelf costs one fetch rather than a window that never
- * opens.
+ * evicted from its pack is loaded back first, and so is a class a character
+ * names without being bound to it — the rows of that name and nothing else.
+ * A name no row carries (a key, or text no class matches) is answered from
+ * what is loaded: the shelves warm behind the read, and the next render has
+ * them. The character sheet awaits this on every render, so what it waits on
+ * is what every open sheet waits on — one document, never the library.
  */
 export async function classForActorAsync(actor) {
   const flag = actor?.getFlag?.(MODULE_ID, FLAG_CLASSES);
   if (flag?.uuid) {
     if (isIndexRow(fromUuidSync(flag.uuid))) await warmDocument(flag.uuid);
-  } else if (String(actor?.system?.details?.class ?? "").trim()) {
-    await whenReady();
+    return classForActor(actor);
   }
+  const name = String(actor?.system?.details?.class ?? "").trim().toLowerCase();
+  if (!name) return null;
+  const found = classForActor(actor);
+  if (found) return found;
+  const named = classRowsNamed(name);
+  if (named.length) await Promise.all(named.map((uuid) => warmDocument(uuid)));
   return classForActor(actor);
 }
 

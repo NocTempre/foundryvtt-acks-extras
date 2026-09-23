@@ -32,7 +32,7 @@
  * the same modifiers contributed through it. We fire our own
  * `acksEquipment.preRollAttack` with the computed breakdown in the meantime.
  */
-import { MODULE_ID, HOOKS, EFFECT_DOMAINS } from "./constants.mjs";
+import { MODULE_ID, LANG, HOOKS, EFFECT_DOMAINS } from "./constants.mjs";
 import { SIZE } from "./config.mjs";
 import { getLoadout } from "./loadout.mjs";
 import { classifyWeapon } from "./profiles.mjs";
@@ -42,6 +42,7 @@ import { maneuverMods, overlayEnabled as maneuverOverlayEnabled } from "./overla
 import { encumbranceDelta6 } from "./containers.mjs";
 import { consumeForAttack } from "./ammo.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { locOr } from "../lib/util.mjs";
 
 /** Sizes eligible for Weapon Finesse (RR p. 121). */
 const FINESSE_SIZES = [SIZE.TINY, SIZE.SMALL, SIZE.MEDIUM];
@@ -78,7 +79,12 @@ const withDelta = (formula, delta) => (delta > 0 ? `${formula} + ${delta}` : `${
 
 /**
  * Compute the per-weapon RAW modifiers for one attack.
- * @returns {{bonusDelta:number, damage:string|null, notes:string[]}|null}
+ *
+ * `terms` names the parts of `bonusDelta` that are not the weapon's, so the
+ * remodeled roll can show each as its own labelled term; the delta already
+ * includes them, which is all core's own roll reads.
+ * @returns {{bonusDelta:number, damage:string|null, notes:string[],
+ *   terms:{key:string, value:number, label:string}[]}|null}
  */
 export function computeAttackMods(actor, attData, options = {}) {
   if (actor?.type !== ACTOR_TYPE.character) return null; // monster natural attacks are not proficiency-gated
@@ -94,6 +100,7 @@ export function computeAttackMods(actor, attData, options = {}) {
   const loadout = getLoadout(actor);
   const entry = item ? loadout.weapons.find((w) => w.item.id === itemId) : null;
   const notes = [];
+  const terms = [];
   let bonusDelta = 0;
   let damage = null;
 
@@ -107,16 +114,17 @@ export function computeAttackMods(actor, attData, options = {}) {
   if (loadout.nonProficientUse || usingNonProfWeapon) {
     const level = Number(actor.system?.details?.level ?? 1);
     const bba = Number(actor.system?.thac0?.bba ?? 0);
+    let penalty = 0;
     if (level >= 1) {
       // 1st+ level: attacks as a 0th-level fighter — attack throw 11+, bba −1.
       // Core already pushed the actor's own bba, so contribute the difference.
       if (bba !== -1) {
-        bonusDelta += -1 - bba;
+        penalty += -1 - bba;
         notes.push("non-proficient use: attacks as a 0th-level fighter (11+)");
       }
     } else {
       // 0th level: still fights as 0th level, but at an additional −1.
-      bonusDelta -= 1;
+      penalty -= 1;
       notes.push("non-proficient 0th-level character (additional −1)");
     }
     // Regardless of level: no attribute BONUS on the attack throw. Penalties
@@ -125,9 +133,15 @@ export function computeAttackMods(actor, attData, options = {}) {
     if (options.type === "melee" || options.type === "missile") {
       const attr = Number(actor.system?.scores?.[options.type === "missile" ? "dex" : "str"]?.mod ?? 0);
       if (attr > 0) {
-        bonusDelta -= attr;
+        penalty -= attr;
         notes.push(`no attribute bonus on attack throws (−${attr})`);
       }
+    }
+    // One labelled term for the whole package: the reader sees why the throw
+    // dropped, not a weapon that seems to carry a penalty of its own.
+    bonusDelta += penalty;
+    if (penalty) {
+      terms.push({ key: "nonProficient", value: penalty, label: locOr(`${LANG}.itemSheet.rolls.mod.nonProficient`, "Non-proficient") });
     }
     // Name the failed requirement(s) for the chat/console note.
     if (usingNonProfWeapon) notes.push(`${item.name}: weapon unusable by class`);
@@ -230,7 +244,7 @@ export function computeAttackMods(actor, attData, options = {}) {
   }
 
   if (!bonusDelta && !damage) return null;
-  return { bonusDelta, damage, notes };
+  return { bonusDelta, damage, notes, terms };
 }
 
 /** Apply the modifiers to a COPY of the throwaway plain item object. */
@@ -240,7 +254,10 @@ function applyMods(attData, mods) {
   const item = foundry.utils.deepClone(attData.item);
   item.system.bonus = Number(item.system.bonus ?? 0) + mods.bonusDelta;
   if (mods.damage) item.system.damage = mods.damage;
-  return { ...attData, item };
+  // The labelled parts ride beside the bonus they are folded into: the
+  // remodeled roll lifts them back out as their own terms, and core's roll,
+  // which reads only the bonus, never sees them.
+  return mods.terms?.length ? { ...attData, item, acksLibTerms: mods.terms } : { ...attData, item };
 }
 
 /**

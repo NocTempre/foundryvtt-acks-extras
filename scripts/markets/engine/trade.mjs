@@ -218,9 +218,8 @@ export async function buildCatalog(location) {
 /**
  * The atomic purchase. Runs on a seat that can write the location AND the
  * buyer (players hold OWNER on both by default); other seats relay via the
- * "marketsPurchase" socket. Deliveries stack: quantity-bearing items merge
- * into the buyer's existing stack; a multi-unit purchase of unit items
- * (thirty swords) delivers ONE bundle document pointing at the source.
+ * "marketsPurchase" socket. Delivery is `deliverGoods`: quantity-bearing items
+ * merge into the buyer's existing stack, unit items arrive one copy per unit.
  */
 export async function purchase(location, payload) {
   const {
@@ -305,7 +304,7 @@ export async function purchase(location, payload) {
   const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.trade.buyReason`, { qty, name: itemData.name }), { to: location, at: location });
   if (!paid) return err("insufficientGold");
 
-  await deliverGoods(buyer, { entry, qty, locationName: location.name });
+  await deliverGoods(buyer, { entry, qty });
 
   ledgerRow.bought += qty;
   totalsRow.bought += qty;
@@ -339,11 +338,12 @@ export async function purchase(location, payload) {
 
 /**
  * Hand purchased goods to their buyer. Stackables merge into the buyer's
- * existing stack; a multi-unit purchase of unit items (thirty swords)
- * arrives as ONE bundle document pointing at the source — core explodes it
- * on drop when the owner distributes.
+ * existing stack; a unit item bought several at a time (thirty swords, three
+ * flasks of oil) arrives as that many copies, the documents core's own bundle
+ * drop leaves behind. It is never delivered as a bundle: no actor sheet lists
+ * an embedded one, so the purchase would be paid for and nowhere to be seen.
  */
-export async function deliverGoods(buyer, { entry, qty, locationName = "" }) {
+export async function deliverGoods(buyer, { entry, qty }) {
   const itemData = entry.data;
   const key = itemKeyOf(itemData.name);
   if (itemData.type === ITEM_TYPE.item) {
@@ -357,31 +357,13 @@ export async function deliverGoods(buyer, { entry, qty, locationName = "" }) {
     }
     return;
   }
-  if (qty === 1) {
-    await buyer.createEmbeddedDocuments("Item", [itemData]);
-    return;
-  }
-  await buyer.createEmbeddedDocuments("Item", [
-    {
-      name: game.i18n.format(`${LANG}.trade.bundleName`, { name: itemData.name, qty }),
-      type: ITEM_TYPE.bundle,
-      img: itemData.img,
-      system: {
-        description: game.i18n.format(`${LANG}.trade.bundleDescription`, { qty, name: itemData.name, location: locationName }),
-        itemList: [
-          {
-            id: itemData._id ?? foundry.utils.randomID(),
-            uuid: entry.uuid,
-            quantity: qty,
-            name: itemData.name,
-            img: itemData.img,
-            type: itemData.type,
-            inCompendium: entry.inCompendium,
-          },
-        ],
-      },
-    },
-  ]);
+  const data = foundry.utils.deepClone(itemData);
+  delete data._id;
+  delete data.folder;
+  delete data.sort;
+  delete data.ownership;
+  const copies = Array.from({ length: Math.max(1, qty) }, () => foundry.utils.deepClone(data));
+  await buyer.createEmbeddedDocuments("Item", copies);
 }
 
 

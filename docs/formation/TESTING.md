@@ -345,6 +345,30 @@ supply divided by mouths (a week's rations across two is three whole days);
 `suffering` lists only members off the top rung, localized, carrying any
 Constitution lost. The rendered section carries no raw lang keys.
 
+## Deal XP
+
+Fixtures: the party actor with two characters enrolled, plus a disposable
+monster actor carrying a henchman record (`flags.acks-extras.record` with
+`terms.xpShare`) enrolled beside them.
+
+1. As the GM, open the party sheet on its **Party** tab.
+   *Observable:* a **Deal XP** button among the clock buttons
+   (`[data-action="dealXp"]`). It is gated on the GM seat alone — the tab's
+   root context carries no `canControl`, so a gate on it hides the button from
+   everyone.
+2. With the `ownXpDealing` setting on, open the system party sheet.
+   *Observable:* its own Deal XP button is hidden and the moved-hint says where
+   dealing lives; with the setting off, the system's button is back.
+3. Press **Deal XP**, enter a total, confirm.
+   *Observable:* the dialog lists each share before anything is written; after
+   confirming, each character's `system.details.xp.value` rises by the listed
+   gain plus its own `system.details.xp.bonus` percent, rounded down — core's
+   `getExperience` applies the bonus, and posts a card per character. Those
+   cards and the dialog's summary card are all created by the run: read them
+   back and `api.track` each. Core's `getExperience` returns early for any
+   type but `character`, so a monster carrying a henchman record is listed
+   with a share and receives nothing; the fixture uses characters.
+
 ## End day, the whole tick (added with survival and the throw)
 
 End day now does three things, and each can fail independently.

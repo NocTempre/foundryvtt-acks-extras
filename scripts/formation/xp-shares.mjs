@@ -1,26 +1,19 @@
 /* global game */
 /**
- * Dividing an adventure's experience among the people who earned it.
+ * Dividing an adventure's experience among the people who earned it (RR ch. 6,
+ * experience from adventuring; RR ch. 4 for henchmen's shares).
  *
- * THE RULE (RR ch. 6): the sum of monster and treasure XP "is divided evenly
- * among all party members who returned to civilization (alive or dead), with
- * henchmen receiving a half share each." Two details in that sentence do real
- * work and are easy to lose:
+ * Two points of the division do real work and are easy to lose:
  *
- *  - **alive or dead.** A character who died on the way out still returned,
- *    and still takes a share. Excluding the fallen is a common house error, so
- *    nothing here filters on being down;
- *  - **a half share for henchmen**, because they act under a player's command
- *    (RR ch. 4 says the same from the other side).
+ *  - **the fallen still count.** Nothing here filters on a member being down:
+ *    a character who died on the way out takes a share like the rest;
+ *  - **a henchman's share is their own record's**, `terms.xpShare`, which the
+ *    hiring negotiation may have moved — so the record is asked rather than a
+ *    constant assumed.
  *
- * AND WHO GETS NOTHING. Hired mercenaries and specialists "do not receive a
- * share" — they are paid in wages, not experience. Neither do the animals, the
- * wagons, or anything summoned: they are not party members, they are equipment
- * that happens to have a sheet.
- *
- * The share a henchman actually takes is on their own record
- * (`terms.xpShare`), which the hiring negotiation may have moved off the
- * default half — so the record is asked rather than the constant assumed.
+ * WHO GETS NOTHING. Hired mercenaries and specialists are paid in wages, not
+ * experience. Neither do the animals, the wagons, or anything summoned: they
+ * are not party members, they are equipment that happens to have a sheet.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { getMemberActor, realMembers } from "./formation-model.mjs";
