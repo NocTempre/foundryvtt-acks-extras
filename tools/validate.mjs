@@ -357,17 +357,24 @@ function readHelperRegistrations(src) {
   return { names, unreadable };
 }
 
+/* Every registerHelper call in scripts/ (.mjs and .js), read once: 2b checks
+ * what templates call against these names, 7c checks each name against the
+ * module namespace. Both read this one list, so they never disagree about what
+ * counts as a registration. One entry per file that registers anything;
+ * `unreadable` holds the line of each call whose names cannot be read. */
+const HELPER_REGISTRATIONS = [];
+walk(path.join(ROOT, "scripts"), (full) => {
+  if (!/\.m?js$/.test(full)) return;
+  const src = fs.readFileSync(full, "utf8");
+  const { names, unreadable } = readHelperRegistrations(src);
+  if (!names.length && !unreadable.length) return;
+  const lineAt = (index) => src.slice(0, index).split("\n").length;
+  HELPER_REGISTRATIONS.push({ file: rel(full), names, unreadable: unreadable.map(lineAt) });
+});
+
 {
-  const lineAt = (text, index) => text.slice(0, index).split("\n").length;
-  const registered = new Set();
-  const unreadable = [];
-  walk(path.join(ROOT, "scripts"), (full) => {
-    if (!/\.m?js$/.test(full)) return;
-    const src = fs.readFileSync(full, "utf8");
-    const read = readHelperRegistrations(src);
-    for (const name of read.names) registered.add(name);
-    for (const at of read.unreadable) unreadable.push(`${rel(full)}:${lineAt(src, at)}`);
-  });
+  const registered = new Set(HELPER_REGISTRATIONS.flatMap((entry) => entry.names));
+  const unreadable = HELPER_REGISTRATIONS.flatMap((entry) => entry.unreadable.map((line) => `${entry.file}:${line}`));
   for (const where of unreadable) {
     console.warn(`WARN ${where}: registerHelper call whose helper name this check cannot read — pass it a string literal, an object literal of helpers, or a same-file const holding one; until then a template calling that helper fails as unknown`);
   }
@@ -880,12 +887,27 @@ if (module_?.id) {
       if (/^acks/i.test(m[1])) warn(rel(full), `hook "${m[1]}" fires under a foreign acks-* namespace — fine only if it's a deliberate cross-module call`);
       else fail(rel(full), `custom hook "${m[1]}" must start with "${camelNs}"`);
     }
-    for (const m of text.matchAll(/Handlebars\.registerHelper\(\s*["'`]([^"'`]+)["'`]/g)) {
-      if (m[1].startsWith(camelNs)) continue;
-      if (/^acks/i.test(m[1])) warn(rel(full), `helper "${m[1]}" uses a foreign acks-* namespace`);
-      else fail(rel(full), `Handlebars helper "${m[1]}" must start with "${camelNs}"`);
-    }
   });
+  /* Helpers: every name 2b's reader found. A registerHelper call it cannot
+   * read FAILS here, where 2b only warns: 2b's backstop is that each template
+   * calling the helper still fails, and this check has none — the name is the
+   * whole of what it checks. */
+  let helperNames = 0;
+  for (const { file, names, unreadable } of HELPER_REGISTRATIONS) {
+    for (const name of new Set(names)) {
+      helperNames++;
+      if (name.startsWith(camelNs)) continue;
+      if (/^acks/i.test(name)) warn(file, `helper "${name}" uses a foreign acks-* namespace`);
+      else fail(file, `Handlebars helper "${name}" must start with "${camelNs}"`);
+    }
+    for (const line of unreadable) {
+      fail(
+        file,
+        `line ${line}: registerHelper call whose helper name this check cannot read, so whether it starts with "${camelNs}" is unchecked — pass it a string literal, an object literal of helpers, or a same-file const holding one`,
+      );
+    }
+  }
+  console.log(`validate: helper namespacing checked ${helperNames} name${helperNames === 1 ? "" : "s"} registered in scripts/ against "${camelNs}"`);
 
   // 7d. top-level CSS classes carry the module id (kebab, like the id itself).
   const cssSeen = new Set();
