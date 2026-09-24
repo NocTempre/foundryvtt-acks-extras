@@ -1,5 +1,5 @@
 /* global game, foundry */
-import { MODULE_ID } from "../lib/constants.mjs";
+import { deployedBodies } from "../lib/group-logic.mjs";
 import {
   blockOrigin,
   cellPosition,
@@ -9,6 +9,7 @@ import {
   getPartyToken,
   isDown,
   isStackMember,
+  MEMBER_TOKEN_OPTION,
   patchFormation,
   readFormations,
   updateFormation,
@@ -53,7 +54,7 @@ export function isMemberDeployed(member) {
 /**
  * Every token on `scene` this member is standing on: one for an individual,
  * one per body for a stack, none for a member inside the party token or
- * already gone. A stack's bodies are found by the same group flag
+ * already gone. A stack's bodies are found by `deployedBodies`, the read
  * `groups.recall` gathers them by. Enumeration only: nothing here writes.
  *
  * @param {object} member the formation member record
@@ -62,12 +63,7 @@ export function isMemberDeployed(member) {
  */
 export async function deployedTokens(member, scene) {
   if (!scene || !isMemberDeployed(member)) return [];
-  if (member.deployedStack) {
-    const actor = getMemberActor(member);
-    if (!actor) return [];
-    const { GROUP_FLAG } = await groupOps();
-    return scene.tokens.filter((t) => t.getFlag(MODULE_ID, GROUP_FLAG) === actor.uuid);
-  }
+  if (member.deployedStack) return deployedBodies(getMemberActor(member), [scene]);
   const token = scene.tokens.get(member.deployedTokenId);
   return token ? [token] : [];
 }
@@ -106,7 +102,7 @@ export async function deployMembers(formation, { members = formation.members, de
     if (isMemberDeployed(member)) continue; // already out
     const actor = getMemberActor(member);
     // A casualty is carried rather than deployed, unless the party left them.
-    if (isDown(actor) && !member.left) continue;
+    if (isDown(actor, member) && !member.left) continue;
     if (isStackMember(member)) {
       // Held out of the individuals' batch: the group model does its own batched
       // creation, once per stack, after theirs.
@@ -130,6 +126,7 @@ export async function deployMembers(formation, { members = formation.members, de
     const tokens = await scene.createEmbeddedDocuments(
       "Token",
       toCreate.map((c) => c.data),
+      { [MEMBER_TOKEN_OPTION]: true },
     );
     tokens.forEach((token, i) => {
       const member = toCreate[i].member;

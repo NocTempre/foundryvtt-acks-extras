@@ -39,6 +39,15 @@ if (typeof api.repair?.open !== "function") {
 }
 api.repair.open();`;
 
+/** Macro command: opens the hit-point window (scripts/lib/apps/hp-app.mjs) on the selected tokens. */
+const ADJUST_HP = `// Adjust the hit points of the selected tokens, or of a party's members.
+const api = game.modules.get("acks-extras")?.api?.lib ?? globalThis.acksExtras?.lib;
+if (!api) return ui.notifications.error("ACKS Extras is not active.");
+if (typeof api.hp?.open !== "function") {
+  return ui.notifications.warn("ACKS Extras | Adjust Hit Points needs a newer build of this module.");
+}
+api.hp.open();`;
+
 export function buildMacros() {
   return [
     {
@@ -49,6 +58,17 @@ export function buildMacros() {
       scope: "global",
       img: "icons/svg/clockwork.svg",
       command: REPAIR_WORLD,
+      ownership: { default: 0 },
+      _stats: { coreVersion: "13", createdTime: 1785551134915, modifiedTime: 1785551134915 },
+    },
+    {
+      _id: "acksLibHpAdjust0",
+      _key: "!macros!acksLibHpAdjust0",
+      name: "Adjust Hit Points (GM)",
+      type: "script",
+      scope: "global",
+      img: "icons/svg/regen.svg",
+      command: ADJUST_HP,
       ownership: { default: 0 },
       _stats: { coreVersion: "13", createdTime: 1785551134915, modifiedTime: 1785551134915 },
     },

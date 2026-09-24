@@ -180,6 +180,11 @@ The foundation the other features are built on, and useful on its own.
   that stopped part-way. It changes only the findings you tick, and checks
   every fix by scanning again. Open it from the module's settings or its
   macro.
+- **Adjust Hit Points (GM).** Damage, heal or set the hit points of several
+  creatures at once, each with its own multiplier, through the system's own
+  damage rule. It opens on the selected tokens from the Tokens controls or its
+  macro, and on a whole party from the party sheet. Undo works while the
+  window is open.
 - **Theming.** One design-token layer (`--acks-*`) across every ACKS surface —
   including the ones the *system* renders — measured from the books and carrying
   a light and a dark value for every colour. Per-client controls for colour

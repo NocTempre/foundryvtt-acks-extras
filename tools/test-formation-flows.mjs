@@ -33,6 +33,10 @@ globalThis.Hooks = {
     };
     this.on(name, wrapper);
   },
+  off(name, fn) {
+    const list = hooks.get(name) ?? [];
+    if (list.includes(fn)) list.splice(list.indexOf(fn), 1);
+  },
   call(name, ...args) {
     for (const fn of [...(hooks.get(name) ?? [])]) {
       try {
@@ -71,6 +75,29 @@ const setProp = (obj, path, value) => {
   for (const p of parts.slice(0, -1)) at = at[p] ??= {};
   at[parts.at(-1)] = value;
 };
+// Foundry's own `setProperty` builds an intermediate only where it is
+// undefined, so a null on the path throws, as it does live. The mocks' writes
+// keep the lenient `setProp` above.
+const foundrySetProperty = (obj, path, value) => {
+  const parts = path.split(".");
+  const key = parts.pop();
+  const target = parts.reduce((at, p) => {
+    if (at[p] === undefined) at[p] = {};
+    return at[p];
+  }, obj);
+  if (target[key] === value) return false;
+  target[key] = value;
+  return true;
+};
+// A document's `updateSource`, as far as a delta patch needs: objects merge,
+// anything else replaces.
+const mergeInto = (target, patch) => {
+  for (const [k, v] of Object.entries(patch)) {
+    if (v && typeof v === "object" && !Array.isArray(v) && target[k] && typeof target[k] === "object") mergeInto(target[k], v);
+    else target[k] = JSON.parse(JSON.stringify(v));
+  }
+  return target;
+};
 const hasProp = (obj, path) => {
   let at = obj;
   for (const p of path.split(".")) {
@@ -90,7 +117,7 @@ globalThis.foundry = {
   utils: {
     deepClone: (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v))),
     randomID: () => uid("rnd"),
-    setProperty: setProp,
+    setProperty: foundrySetProperty,
     hasProperty: hasProp,
     getProperty: (o, p) => p.split(".").reduce((a, k) => a?.[k], o),
     escapeHTML: (s) => String(s),
@@ -419,11 +446,31 @@ class SceneMock {
     await sleep(2);
     return this;
   }
-  async createEmbeddedDocuments(type, arr) {
+  async createEmbeddedDocuments(type, arr, options = {}) {
     assert.equal(type, "Token");
     const out = [];
     for (const data of arr) {
       const token = new TokenMock(this, data);
+      // Foundry's order: the document's own `_preCreate` first (here the
+      // system's roll for a placed unlinked monster, when a scenario arms
+      // `rollMonsterHp`), then the `preCreateToken` hook with the creation
+      // data as given. A null delta stays null unless something writes it.
+      const original = token.delta;
+      const pending = original ?? {};
+      let written = false;
+      Object.defineProperty(pending, "updateSource", {
+        value: (patch) => {
+          written = true;
+          return mergeInto(pending, patch);
+        },
+        configurable: true,
+      });
+      token.delta = pending;
+      if (this.rollMonsterHp && !token.actorLink && token.actor?.type === "monster") {
+        pending.updateSource({ system: { hp: { value: 1, max: 1 } } });
+      }
+      Hooks.call("preCreateToken", token, data, options, "GM1");
+      if (!written && original == null) token.delta = original;
       this.tokens.set(token.id, token);
       out.push(token);
       await sleep();
@@ -853,6 +900,112 @@ await scenario("a detached scout does not block the party deploying for combat",
   await combat.delete();
   await drain();
   assert.equal(onlyFormation().members.filter((m) => m.deployedTokenId).length, 0, "everyone reformed");
+});
+
+await scenario("an unlinked member is down by their own token's hit points, stashed or deployed", async () => {
+  const services = await import("../scripts/lib/services.mjs");
+  const hireling = await ActorMock.create({
+    name: "Hireling",
+    type: "monster",
+    system: { hp: { value: 10, max: 10 }, movementacks: { exploration: 120 }, movement: { base: 120 } },
+  });
+  await drain();
+  // An unlinked token that took its wounds on the map; the world actor is whole.
+  const [wounded] = await scene.createEmbeddedDocuments("Token", [
+    { name: "Hireling", actorId: hireling.id, actorLink: false, x: 700, y: 500, delta: { system: { hp: { value: 0 } } } },
+  ]);
+  await model.addMember(model.getFormation(onlyFormation().id), hireling, wounded);
+  await drain();
+  let stored = onlyFormation();
+  let m = stored.members.find((x) => x.actorId === hireling.id);
+  assert.equal(m.tokenData?.actorLink, false, "stashed as an unlinked token");
+  assert.equal(model.isDown(hireling), false, "the world actor alone reads as standing");
+  assert.equal(model.isDown(hireling, m), true, "the member's own token says down");
+  assert.equal(model.isCasualty(hireling, m), true, "a casualty the party must carry or leave");
+  assert.equal(model.partySpeed(stored), 0, "so the column stops for them");
+
+  // The roster hands a stashed unlinked member over with no document, and
+  // writes their hit points into the stash.
+  const roster = services.get("party-roster");
+  const row = roster.members(stored.id).find((x) => x.actorId === hireling.id);
+  assert.deepEqual([row.document, row.unlinked, row.stashed, row.hp?.value], [null, true, true, 0]);
+  const done = await roster.adjustStashedHp(stored.id, hireling.id, (hp) => hp.value + 6);
+  await drain();
+  assert.deepEqual([done.before, done.after], [0, 6]);
+  stored = onlyFormation();
+  m = stored.members.find((x) => x.actorId === hireling.id);
+  assert.equal(m.tokenData.delta.system.hp.value, 6, "written into the stashed token");
+  assert.equal(hireling.system.hp.value, 10, "the world actor is untouched");
+  assert.equal(model.isDown(hireling, m), false, "and the member stands again");
+
+  // Deployed, the live token is theirs.
+  assert.equal(await deployment.toggleDetachMember(stored, hireling.id), "detached");
+  await drain();
+  m = onlyFormation().members.find((x) => x.actorId === hireling.id);
+  const live = scene.tokens.get(m.deployedTokenId);
+  // Stands in for Foundry's synthetic actor, which this mock's tokens do not build.
+  Object.defineProperty(live, "actor", { value: { system: { hp: { value: -2, max: 10 } }, statuses: new Set(["dead"]) } });
+  assert.equal(model.isDown(hireling, m), true, "down by the live token");
+  assert.equal(model.isDead(hireling, m), true, "and dead by its status");
+  const deployedRow = roster.members(onlyFormation().id).find((x) => x.actorId === hireling.id);
+  assert.equal(deployedRow.document, live.actor, "written through the live token's actor");
+  assert.equal(await roster.adjustStashedHp(stored.id, hireling.id, () => 1), null, "a deployed member's stash is not written");
+
+  // Recall them, and leave the party as it was.
+  assert.equal(await deployment.toggleDetachMember(onlyFormation(), hireling.id), "recalled");
+  await drain();
+  await hireling.delete();
+  await drain();
+  assert.equal(onlyFormation().members.length, 2, "back to the two");
+});
+
+await scenario("a member stashed at full health takes a hit point change, and keeps it when placed again", async () => {
+  const services = await import("../scripts/lib/services.mjs");
+  const roster = services.get("party-roster");
+  const porter = await ActorMock.create({
+    name: "Porter",
+    type: "monster",
+    system: { hp: { value: 5, max: 5 }, movementacks: { exploration: 120 }, movement: { base: 120 } },
+  });
+  await drain();
+  // A token that matches its actor: Foundry stashes its delta as null.
+  const [whole] = await scene.createEmbeddedDocuments("Token", [
+    { name: "Porter", actorId: porter.id, actorLink: false, x: 800, y: 500, delta: null },
+  ]);
+  await model.addMember(model.getFormation(onlyFormation().id), porter, whole);
+  await drain();
+  let m = onlyFormation().members.find((x) => x.actorId === porter.id);
+  assert.equal(m.tokenData.delta, null, "stashed with no delta");
+  const done = await roster.adjustStashedHp(onlyFormation().id, porter.id, (hp) => hp.value - 3);
+  await drain();
+  assert.deepEqual([done?.before, done?.after], [5, 2], "written through the null delta");
+  m = onlyFormation().members.find((x) => x.actorId === porter.id);
+  assert.equal(m.tokenData.delta.system.hp.value, 2);
+
+  // The system rolls every placed unlinked monster new hit points; the
+  // formation's own placement puts the member's back.
+  scene.rollMonsterHp = true;
+  try {
+    assert.equal(await deployment.toggleDetachMember(onlyFormation(), porter.id), "detached");
+    await drain();
+    m = onlyFormation().members.find((x) => x.actorId === porter.id);
+    const live = scene.tokens.get(m.deployedTokenId);
+    assert.deepEqual(live.delta.system.hp, { value: 2, max: 5 }, "placed with the stash's hit points, not the roll");
+    const [placed] = await scene.createEmbeddedDocuments("Token", [
+      { name: "Porter", actorId: porter.id, actorLink: false, x: 900, y: 500 },
+    ]);
+    assert.deepEqual(placed.delta.system.hp, { value: 1, max: 1 }, "a monster the Judge places keeps the system's roll");
+    await scene.deleteEmbeddedDocuments("Token", [placed.id]);
+    assert.equal(await deployment.toggleDetachMember(onlyFormation(), porter.id), "recalled");
+    await drain();
+  } finally {
+    scene.rollMonsterHp = false;
+  }
+  m = onlyFormation().members.find((x) => x.actorId === porter.id);
+  assert.equal(m.tokenData.delta.system.hp.value, 2, "and recalled with them");
+  await porter.delete();
+  await drain();
+  assert.equal(onlyFormation().members.length, 2, "back to the two");
 });
 
 await scenario("deleting a member actor removes it from the formation", async () => {
@@ -2106,6 +2259,90 @@ await scenario("a lost episode reads every seat's fog from the server", async ()
     foundry.utils.getDocumentClass = saved.cls;
     game.collections = saved.collections;
     if (socket) socket.executeForEveryone = savedEveryone;
+  }
+});
+
+await scenario("a wandering monster off its floor is compared at the level of the table that named it", async () => {
+  // See docs/formation/DECISIONS.md, "A table's monster level is set on the table".
+  const { shiftSources } = await import("../scripts/formation/encounter-scaling.mjs");
+  const table = (uuid, level) => ({
+    uuid,
+    id: uuid,
+    name: uuid,
+    flags: level ? { [MODULE_ID]: { monsterLevel: level } } : {},
+    getFlag(ns, key) {
+      return this.flags?.[ns]?.[key];
+    },
+  });
+  const drawnFrom = (...parents) => parents.map((parent) => ({ parent }));
+  const pairs = (sources) => sources.map((s) => [s.table.uuid, s.level]);
+  const matrix = table("RollTable.matrix", null);
+  const low = table("RollTable.low", 2);
+  const high = table("RollTable.high", 4);
+  const bare = table("RollTable.bare", null);
+  const wrapper = table("RollTable.wrapper", 3);
+
+  assert.deepEqual(pairs(shiftSources(matrix, drawnFrom(low))), [["RollTable.low", 2]], "the inner table names the level");
+  assert.deepEqual(pairs(shiftSources(wrapper, drawnFrom(wrapper))), [["RollTable.wrapper", 3]], "a plain draw reads the named table");
+  assert.deepEqual(pairs(shiftSources(wrapper, drawnFrom(bare))), [["RollTable.bare", 3]], "an inner table stating none takes the named table's");
+  assert.deepEqual(shiftSources(matrix, drawnFrom(bare)), [], "a level set nowhere scales nothing");
+  assert.deepEqual(
+    pairs(shiftSources(matrix, drawnFrom(low, high, low))),
+    [["RollTable.low", 2], ["RollTable.high", 4]],
+    "one source per producing table, each at its own level",
+  );
+  assert.deepEqual(shiftSources(matrix, undefined), [], "nothing drawn, nothing compared");
+
+  // Wired end to end: the zone under the party token supplies the dungeon
+  // level through its behavior's data, and the card names the inner table.
+  const runner = await member("Delver");
+  await drain();
+  const [rToken] = await scene.createEmbeddedDocuments("Token", [{ name: "Delver", actorId: runner.id, x: 1000, y: 1000 }]);
+  await game.settings.set(MODULE_ID, "formations", {});
+  let formation = await model.createFormation("Deep Party");
+  formation = await model.addMember(formation, runner, rToken);
+  await drain();
+  const outer = {
+    ...table("RollTable.outer", null),
+    draw: async () => ({ roll: { total: 1 }, results: drawnFrom(low) }),
+    toMessage: async () => null,
+  };
+  uuidMap.set(outer.uuid, outer);
+  const zone = {
+    id: uid("reg"),
+    name: "Deep Zone",
+    elevation: {},
+    testPoint: () => true,
+    behaviors: [
+      {
+        type: "acks-extras.encounterZone",
+        disabled: false,
+        system: { tableUuid: outer.uuid, encounterEvery: 0, encounterTarget: 1, dungeonLevel: 5 },
+      },
+    ],
+  };
+  scene.regions.set(zone.id, zone);
+  const shiftCards = (from) => chat.slice(from).filter((m) => m.flavor === "ACKS-FORMATION.scaling.flavor");
+  try {
+    let from = chat.length;
+    assert.equal(await engine.encounterCheck(model.getFormation(onlyFormation().id), { manual: true }), true, "the throw hits");
+    const [card, ...extra] = shiftCards(from);
+    assert.ok(card, "a shift card is posted");
+    assert.equal(extra.length, 0, "and only one");
+    assert.equal(card.speaker?.alias, "RollTable.low", "named for the table that named the monster");
+    assert.match(card.content, /"monster":2/, "at that table's level");
+    assert.match(card.content, /"dungeon":5/, "against the zone's dungeon level");
+    assert.deepEqual(card.whisper, ["GM1"], "to the Judge alone");
+
+    zone.behaviors[0].system.dungeonLevel = 0;
+    from = chat.length;
+    await engine.encounterCheck(model.getFormation(onlyFormation().id), { manual: true });
+    assert.equal(shiftCards(from).length, 0, "a zone with no dungeon level compares nothing");
+  } finally {
+    scene.regions.delete(zone.id);
+    uuidMap.delete(outer.uuid);
+    await model.disband(model.getFormation(onlyFormation().id));
+    await drain();
   }
 });
 

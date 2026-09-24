@@ -15,6 +15,7 @@ import {
 import { onCombatEnd, onCombatRoundChange, onPartyCombatantCreated } from "./combat-bridge.mjs";
 import { SETTING_ABILITY_OVERRIDES, initLadders } from "./ability-bridge.mjs";
 import { registerEncounterZone } from "./encounter-zone.mjs";
+import { installMonsterLevelRow } from "./monster-level-row.mjs";
 import { registerDistrictZone, findDistrict, DISTRICT_TYPE } from "./district-zone.mjs";
 import { districtReaction } from "./settlement.mjs";
 import { districtFromSelection, installDistrictControls, installDistrictPlaceRow, markControlledRegions } from "./district-tools.mjs";
@@ -74,6 +75,7 @@ import {
   heldLightCount,
   lightsForBearer,
   getPartyToken,
+  MEMBER_TOKEN_OPTION,
   marchingOrder,
   patchFormation,
   pruneFormations,
@@ -82,6 +84,7 @@ import {
   updateFormation,
 } from "./formation-model.mjs";
 import { findDeployedMember, leashBreach, reanchorDetached } from "./deployment.mjs";
+import { ownHitPointsPatch } from "../lib/hp-logic.mjs";
 import {
   SETTING_TEMPLATES,
   describeResult,
@@ -141,6 +144,7 @@ import { SURVIVAL_DOC } from "../lib/survival.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TRAVEL_DOC, WEATHER_DOC } from "../vehicles/vehicle-speed.mjs";
 import { registerFormationRepairChecks } from "./repair-checks.mjs";
+import { registerPartyRoster } from "./party-roster.mjs";
 
 /** Open the formation window. */
 function openPartySheet() {
@@ -153,6 +157,7 @@ function openPartySheet() {
 
 Hooks.once("init", () => {
   registerFormationRepairChecks();
+  registerPartyRoster();
   game.settings.register(MODULE_ID, "ownXpDealing", {
     name: "ACKS-FORMATION.xp.settingName",
     hint: "ACKS-FORMATION.xp.settingHint",
@@ -169,6 +174,7 @@ Hooks.once("init", () => {
   installDistrictControls();
   installDistrictInfluence();
   installDistrictPlaceRow();
+  installMonsterLevelRow();
   installIncidentCardActions();
   installTrapDrop();
   installTrapMarkers();
@@ -1055,6 +1061,17 @@ Hooks.on("createActor", (actor) => {
     const formation = await createFormation(actor.name, { actorId: actor.id });
     await actor.setFlag(MODULE_ID, FLAG_FORMATION_ID, formation.id);
   })().catch((err) => console.error(`${MODULE_ID} | party actor adoption failed`, err));
+});
+
+/* A member's token placed from the roster keeps the hit points the formation
+ * holds for them. The system's own `_preCreate` runs first and rolls a placed
+ * unlinked monster new ones (its `autoRollMonsterHP` setting), which would
+ * undo every wound the party carried them with. Only the formation's own
+ * placements carry the option, so a monster the Judge places still rolls. */
+Hooks.on("preCreateToken", (tokenDoc, data, options) => {
+  if (!options?.[MEMBER_TOKEN_OPTION]) return;
+  const patch = ownHitPointsPatch(data, game.actors.get(data.actorId));
+  if (patch) tokenDoc.delta?.updateSource(patch);
 });
 
 /* Placing a party actor's token adopts it as THE party token (also how a

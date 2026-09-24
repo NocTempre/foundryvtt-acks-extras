@@ -96,6 +96,9 @@ import * as survival from "./survival.mjs";
 import { danglingRefCheck, fixEach, fixRepairs, registerRepairCheck, repairChecks, scanRepairs } from "./repair.mjs";
 import { registerLibRepairChecks } from "./repair-checks.mjs";
 import { RepairMenu, openRepairTool } from "./apps/repair-app.mjs";
+import { adjustTargets } from "./hp.mjs";
+import { hpEligibility, planHpChange } from "./hp-logic.mjs";
+import { installHpControl, openHpTool } from "./apps/hp-app.mjs";
 
 /** The actor sub-types this library adds to the system (named in constants.mjs). */
 export { ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE };
@@ -110,8 +113,8 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
-  // 18: repair — the standing repair tool's registry and runner.
-  apiVersion: 18,
+  // 19: hp — the group hit-point tool.
+  apiVersion: 19,
   vocab,
   fields,
   /**
@@ -159,6 +162,19 @@ const localImpl = Object.freeze({
     open: openRepairTool,
     danglingRefCheck,
     fixEach,
+  },
+  /**
+   * The group hit-point tool (hp.mjs, hp-logic.mjs): `open` shows the window
+   * on tokens, actors or party ids (the selection when given none), `adjust`
+   * makes one change without it, `plan` computes a change as core's
+   * `applyDamage` would, and `eligibility` says why an actor is left out.
+   * `open` and `adjust` are GM only.
+   */
+  hp: {
+    open: openHpTool,
+    adjust: adjustTargets,
+    plan: planHpChange,
+    eligibility: hpEligibility,
   },
   services,
   loadRuledata,
@@ -453,6 +469,9 @@ Hooks.once("init", () => {
     type: RepairMenu,
     restricted: true,
   });
+
+  // The hit-point tool's button on the Tokens layer, for the GM.
+  installHpControl();
 
   // WHOSE DEFAULTS the world opens on — Foundry's, the system's or this
   // module's — for every seat (ui-preset.mjs; docs/lib/MODEL.md's UI preset

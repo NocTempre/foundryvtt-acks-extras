@@ -1,6 +1,6 @@
 /* global game, Roll */
 /**
- * A wandering monster met on the wrong floor (JJ ch. 2). A random encounter
+ * A wandering monster met on the wrong floor (JJ p. 36). A random encounter
  * table is written for a monster level; when the dungeon level it is drawn
  * on differs, the number appearing and the reaction roll both shift with
  * the difference, in exact opposite amounts, so one subtraction drives
@@ -18,6 +18,27 @@ export const LEVEL_FLAG = "monsterLevel";
 export function tableLevel(table) {
   const n = Number(table?.getFlag?.(MODULE_ID, LEVEL_FLAG) ?? table?.flags?.[MODULE_ID]?.[LEVEL_FLAG]);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * The tables a draw's results came from, each with the monster level it is
+ * compared at. A result's `parent` is the table that produced it — the inner
+ * one, when the named table's results are other tables — and a producing
+ * table that states no level takes the named table's.
+ *
+ * @param {RollTable} named the table the zone or formation names
+ * @param {TableResult[]} [results] what the draw produced
+ * @returns {{table: RollTable, level: number}[]} one entry per producing
+ *   table whose level resolves, in draw order
+ */
+export function shiftSources(named, results = []) {
+  const sources = new Map();
+  for (const result of results ?? []) {
+    const table = result?.parent ?? named;
+    const key = table?.uuid ?? table;
+    if (!sources.has(key)) sources.set(key, { table, level: tableLevel(table) ?? tableLevel(named) });
+  }
+  return [...sources.values()].filter((source) => source.level);
 }
 
 /**

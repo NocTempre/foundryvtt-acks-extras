@@ -1,6 +1,6 @@
 /* global game, foundry, ui, ChatMessage, Roll, fromUuid, Hooks */
 import { announceChange, makeLoc, gmIds } from "../lib/util.mjs";
-import { announceShift, tableLevel } from "./encounter-scaling.mjs";
+import { announceShift, shiftSources } from "./encounter-scaling.mjs";
 import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { drawForJudges, postToJudges } from "../lib/roll-audience.mjs";
@@ -218,14 +218,13 @@ export async function encounterCheck(formation, { manual = false, params = null 
   if (encounter) {
     const table = await resolveEncounterTable(formation, zone);
     if (table) {
-      await drawForJudges(table);
-      // A monster met on the wrong floor comes in different numbers and in a
-      // different mood. Only when BOTH levels are known — the zone's and the
-      // table's — so nothing is scaled by a number nobody set.
-      await announceShift(table, {
-        dungeonLevel: zone?.dungeonLevel ?? 0,
-        monsterLevel: tableLevel(table),
-      });
+      const drawn = await drawForJudges(table);
+      // Only when BOTH levels are known — the zone's, and that of the table
+      // that named the monster — so nothing is scaled by a number nobody set.
+      const dungeonLevel = zone?.behavior?.system?.dungeonLevel ?? 0;
+      for (const source of shiftSources(table, drawn?.results)) {
+        await announceShift(source.table, { dungeonLevel, monsterLevel: source.level });
+      }
     }
   }
   return encounter;
@@ -820,7 +819,7 @@ export async function rollPartySave(formation, save, { magical = true } = {}) {
     const actor = game.actors.get(member.actorId);
     const target = actor?.system?.saves?.[save]?.value;
     if (typeof target !== "number") continue;
-    if (isDown(actor)) continue; // the down do not roll
+    if (isDown(actor, member)) continue; // the down do not roll
     let bonus = 0;
     if (magical && actor.type === ACTOR_TYPE.character) {
       bonus += Number(actor.system.save?.mod ?? 0) + Number(actor.system.scores?.wis?.mod ?? 0);

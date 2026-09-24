@@ -364,7 +364,7 @@ export async function rollPartyCheck(formation, checkKey) {
   const incapable = [];
   for (const member of formation.members) {
     const actor = getMemberActor(member);
-    if (!actor || isDown(actor)) continue;
+    if (!actor || isDown(actor, member)) continue;
     const check = resolveCheck(actor, cfg);
     if (!check) {
       incapable.push(actor.name);

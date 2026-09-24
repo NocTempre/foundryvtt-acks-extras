@@ -1,0 +1,111 @@
+{{!-- The hit-point window's body: the change being set up, one row per
+      target, and what the last change did. The part root is the scroller. --}}
+<div class="acks-extras-hp-body">
+  <fieldset class="acks-extras-hp-change">
+    <legend>{{localize "ACKS-LIB.hp.change"}}</legend>
+    <div class="acks-extras-hp-modes">
+      {{#each modes as |m|}}
+      <label><input type="radio" name="mode" value="{{m.value}}" {{checked m.checked}}> {{m.label}}</label>
+      {{/each}}
+    </div>
+    <label class="acks-extras-hp-field">
+      <span>{{localize "ACKS-LIB.hp.amount"}}</span>
+      <input type="text" name="amount" value="{{amount}}" placeholder="{{localize 'ACKS-LIB.hp.amountPlaceholder'}}" autocomplete="off">
+    </label>
+    <label class="acks-extras-hp-field">
+      <span>{{localize "ACKS-LIB.hp.roll"}}</span>
+      <select name="perTarget" {{disabled (not formula)}}>
+        <option value="once" {{#unless perTarget}}selected{{/unless}}>{{localize "ACKS-LIB.hp.rollOnce"}}</option>
+        <option value="each" {{#if perTarget}}selected{{/if}}>{{localize "ACKS-LIB.hp.rollEach"}}</option>
+      </select>
+    </label>
+    <label class="acks-extras-hp-check" data-tooltip="{{localize 'ACKS-LIB.hp.floorAtZeroHint'}}">
+      <input type="checkbox" name="floorAtZero" {{checked floorAtZero}} {{disabled floorDisabled}}>
+      {{localize "ACKS-LIB.hp.floorAtZero"}}
+    </label>
+    <label class="acks-extras-hp-check">
+      <input type="checkbox" name="visible" {{checked visible}}>
+      {{localize "ACKS-LIB.hp.visible"}}
+    </label>
+  </fieldset>
+
+  <div class="acks-extras-hp-bar">
+    <button type="button" data-action="addSelected" {{disabled busy}}>
+      <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+      {{localize "ACKS-LIB.hp.addSelected"}}
+    </button>
+  </div>
+
+  {{#if rows.length}}
+  <table class="acks-extras-hp-rows">
+    <thead>
+      <tr>
+        <th scope="col"><span class="acks-sr-only">{{localize "ACKS-LIB.hp.colInclude"}}</span></th>
+        <th scope="col">{{localize "ACKS-LIB.hp.colName"}}</th>
+        <th scope="col" class="acks-nums">{{localize "ACKS-LIB.hp.colHp"}}</th>
+        <th scope="col">{{localize "ACKS-LIB.hp.colMultiplier"}}</th>
+        <th scope="col">{{localize "ACKS-LIB.hp.colAmount"}}</th>
+        <th scope="col" class="acks-nums">{{localize "ACKS-LIB.hp.colAfter"}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each rows as |row|}}
+      <tr data-row="{{row.key}}" class="{{#if row.unavailable}}is-unavailable{{/if}}{{#if row.down}} is-down{{/if}}">
+        <td>
+          {{#unless row.unavailable}}
+          <input type="checkbox" name="include-{{row.index}}" data-field="include" aria-label="{{row.name}}" {{checked row.include}}>
+          {{/unless}}
+        </td>
+        <td>
+          <div class="acks-extras-hp-who">
+            <img src="{{row.img}}" alt="" class="acks-extras-hp-img">
+            {{#if row.openable}}
+            <button type="button" class="acks-extras-hp-name" data-action="openRow" data-key="{{row.key}}">{{row.name}}</button>
+            {{else}}
+            <span class="acks-extras-hp-name">{{row.name}}</span>
+            {{/if}}
+          </div>
+          {{#if row.partyName}}<div class="acks-extras-hp-note">{{row.partyName}}</div>{{/if}}
+          {{#if row.reason}}<div class="acks-extras-hp-note">{{row.reason}}</div>{{/if}}
+        </td>
+        <td class="acks-nums">{{row.hp}}</td>
+        <td>
+          {{#unless row.unavailable}}
+          <select name="multiplier-{{row.index}}" data-field="multiplier" aria-label="{{localize 'ACKS-LIB.hp.multiplierFor' name=row.name}}">
+            {{#each row.multipliers as |m|}}
+            <option value="{{m.value}}" {{#if m.selected}}selected{{/if}}>{{m.label}}</option>
+            {{/each}}
+          </select>
+          {{/unless}}
+        </td>
+        <td>
+          {{#unless row.unavailable}}
+          <input type="text" name="amount-{{row.index}}" data-field="amount" value="{{row.amount}}" placeholder="{{@root.amount}}"
+                 aria-label="{{localize 'ACKS-LIB.hp.amountFor' name=row.name}}" autocomplete="off">
+          {{/unless}}
+        </td>
+        <td class="acks-nums">{{#unless row.unavailable}}{{row.after}}{{/unless}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="acks-extras-hp-empty">{{localize "ACKS-LIB.hp.empty"}}</p>
+  {{/if}}
+
+  {{#if results.length}}
+  <section class="acks-extras-hp-results" aria-live="polite">
+    <h3>{{localize "ACKS-LIB.hp.lastChange"}}</h3>
+    <ul>
+      {{#each results as |r|}}
+      <li class="{{#if r.failed}}acks-extras-hp-failed{{/if}}">
+        <span>{{r.name}}: {{r.text}}{{#if r.down}} ({{localize "ACKS-LIB.hp.card.down"}}){{/if}}</span>
+        {{#if r.mortalWounds}}
+        <button type="button" data-action="mortalWounds" data-key="{{r.key}}">{{localize "ACKS-LIB.hp.mortalWounds"}}</button>
+        {{/if}}
+      </li>
+      {{/each}}
+    </ul>
+  </section>
+  {{/if}}
+</div>

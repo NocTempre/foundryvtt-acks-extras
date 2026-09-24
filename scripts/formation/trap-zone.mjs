@@ -379,6 +379,9 @@ export function autoSearchers(order) {
   return (order ?? []).filter((row) => row.rank === 0 || ((row.roles ?? []).includes(ROLES.POLE) && row.rank <= 1));
 }
 
+/** The member record behind a marching-order row, which `isDown` reads a member's own hit points from. */
+const memberOf = (formation, actorId) => formation?.members?.find((m) => m?.actorId === actorId) ?? null;
+
 /**
  * How far ahead of the party token this searcher's own reach extends.
  *
@@ -427,7 +430,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
 
   const searchers = autoSearchers(marchingOrder(formation)).filter((row) => {
     const actor = game.actors.get(row.actorId);
-    return actor && !isDown(actor);
+    return actor && !isDown(actor, memberOf(formation, row.actorId));
   });
   if (!searchers.length) return empty;
 
@@ -562,7 +565,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   for (let i = 0; i < probes.length; i++) {
     const probe = probes[i];
     const actor = game.actors.get(probe.actorId);
-    if (actor && isDown(actor)) continue;
+    if (actor && isDown(actor, memberOf(formation, probe.actorId))) continue;
     const die = await new Roll(`1d${TRIGGER_DIE}`).evaluate();
     rolls.push(die);
     const fires = triggerFires(die.total, cfg.triggerOn);

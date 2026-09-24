@@ -23,6 +23,9 @@ sibling modules) — never the import path for this module's own features.
 | `repair-logic.mjs` | The repair registry and its runner: `registerRepairCheck`, scan → fix → rescan (`fixCheck`, where the rescan decides), `fixEach`, `danglingRefCheck`. Foundry-free. |
 | `repair.mjs` | The repair tool's Foundry half: `worldActors` (world actors, then unlinked tokens'), the GM-only `scanRepairs` / `fixRepairs`, and the report whispered to the GMs. Every feature registers its checks through it (docs/lib/MODEL.md, "The repair tool"). |
 | `repair-checks.mjs` | Lib's own checks: embedded bundles, dead attachments, legacy mount pairs, and the report-only stranded coin and merge residue. |
+| `hp-logic.mjs` | Hit-point arithmetic and reads: `planHpChange` (what core's `applyDamage` would store, plus a set and a stop at 0), `hpEligibility` (whose hit points the tool leaves out, and why), and `tokenHitPoints` / `tokenHasStatus` — the ONE read of an unlinked token's own hit points and statuses, on a live token or in token data kept off the canvas. Foundry-free. |
+| `hp.mjs` | The hit-point tool's Foundry half: `resolveTargets` (a party token becomes its members, a stack its bodies on the map, a linked token its actor), `adjustHp` / `restoreHp`, the report card, and the GM-only `adjustTargets` for a macro (docs/lib/MODEL.md, "The hit-point tool"). |
+| `core-windows.mjs` | `openCoreWindow` — the ONE way this module opens one of the system's own character windows (Tweaks, Mortal Wounds, Tampering with Mortality, the Modifiers summary, the Scores Generator) from a window that is not the system's sheet, with a warning when the system no longer has it. |
 | `services.mjs` | Named-contract service registry — providers register at `init`, consumers look up by contract name (contracts: `docs/lib/API.md`). |
 | `sockets.mjs` | The module's ONE cross-client transport (socketlib + handler registry + native fallback). |
 | `util.mjs` | `makeLoc` / `toNum` / `gmIds` / `judgesAndOwners` / `isPrimaryGM` / `libStorage` / `announceChange` / `ownsSheet` / `typeScale` + `atTypeScale` / `unset` + `isUnset` — the helpers every feature used to copy (`gmIds` is the one spelling of "the GMs"; `judgesAndOwners(doc)` adds that document's other owners), the one predicate that tells a sheet this module draws from the system's, the JS twin of `--acks-extras-k` for a window whose opening size is a design-canvas figure, and the one spelling of a forced deletion in an update. |
@@ -70,7 +73,7 @@ sibling modules) — never the import path for this module's own features.
 | `bundles.mjs` | Goods handed to an actor: `deliverItems` (the one delivery path, for the markets too), `unpackBundle` for a dropped bundle, `unpackEmbeddedBundle` for one already embedded. |
 | `place-logic.mjs` | Pure nesting/occupancy/stacking rules for PLACES. Foundry-free half of place. |
 | `place.mjs` | PLACES — nesting, occupancy, stacking over the storage primitive. |
-| `group-logic.mjs` | Pure stacked-actor lifecycle decisions. Foundry-free half of group. |
+| `group-logic.mjs` | Pure stacked-actor lifecycle decisions, the flags a deployed body carries, and `deployedBodies` — the ONE read of which tokens are a stack's bodies. Foundry-free half of group. |
 | `group.mjs` | Group operations — per-stack lifecycle of a stacked actor. |
 | `template-logic.mjs` | Generator actors (dragon by age, elemental by tier): choice rolling + patch resolution. Foundry-free. |
 | `follower-card.mjs` | The printed ACKS II Follower Card: one layout, two surfaces. |
@@ -90,6 +93,7 @@ sibling modules) — never the import path for this module's own features.
 | `apps/group-sheet.mjs` | The group (stacked-actor) sheet. |
 | `apps/template-sheet.mjs` | The template-generator builder sheet. |
 | `apps/repair-app.mjs` | The repair window (GM only): scan all or one check, tick findings, Fix selected; `RepairMenu` is the settings-menu entry, `openRepairTool` the macro's and the API's. |
+| `apps/hp-app.mjs` | The hit-point window (GM only): one change to every ticked row, each row with its own multiplier and amount, Undo while the window is open, and Mortal Wounds for a character it took to 0; `openHpTool` is every entry point's, `installHpControl` the Tokens-layer button. |
 
 ## data/
 

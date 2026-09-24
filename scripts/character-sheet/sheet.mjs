@@ -32,7 +32,7 @@ import { buildMagicTab } from "./tabs/magic.mjs";
 import { buildFollowersTab } from "./tabs/followers.mjs";
 import { buildNotesTab } from "./tabs/notes.mjs";
 import { buildEffectsTab } from "./tabs/effects.mjs";
-import { openCoreWindow } from "./core-bridge.mjs";
+import { openCoreWindow } from "../lib/core-windows.mjs";
 import { drawItem, drawInto, sheatheItem, wearItem, removeItem, prepareTorch, readiedWeaponData } from "../equipment/actions.mjs";
 import { wearLabel } from "../equipment/wear.mjs";
 import { cycleGrip } from "../equipment/loadout.mjs";

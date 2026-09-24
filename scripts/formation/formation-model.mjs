@@ -19,6 +19,7 @@ import {
 } from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { bodyCount, isGroupActor } from "../lib/group-logic.mjs";
+import { tokenHasStatus, tokenHitPoints } from "../lib/hp-logic.mjs";
 import { monsterExplorationSpeed } from "./monster-traits.mjs";
 import { canSeeInDark } from "../lib/senses.mjs";
 import { carriesItem } from "../lib/item-model.mjs";
@@ -353,9 +354,41 @@ export function partyHeadcount(formation) {
   return realMembers(formation).reduce((n, m) => n + cellBodies(m), 0);
 }
 
-/** Down: at or below zero hit points (carried, dead, or dying). */
-export function isDown(actor) {
-  const hp = actor?.system?.hp?.value;
+/**
+ * The token holding an unlinked member's own state: the live token while they
+ * are deployed, else the token stashed when they formed up. Null for a linked
+ * member, and for one who never had a token — their state is the world
+ * actor's. A deployed member whose token is gone falls back to the stash.
+ */
+export function memberOwnToken(member) {
+  const id = member?.deployedTokenId;
+  if (id) {
+    const scenes = game.scenes?.contents ?? [...(game.scenes ?? [])];
+    for (const scene of scenes) {
+      const token = scene?.tokens?.get?.(id);
+      if (token) return token.actorLink ? null : token;
+    }
+  }
+  const stashed = member?.tokenData;
+  return stashed && !stashed.actorLink ? stashed : null;
+}
+
+/**
+ * This member's own hit points: an unlinked member's are kept in their own
+ * token (`memberOwnToken`), anyone else's are the world actor's.
+ * @returns {{value: number, max: number|null}|null}
+ */
+export function memberHp(member, actor = getMemberActor(member)) {
+  return tokenHitPoints(member ? memberOwnToken(member) : null, actor);
+}
+
+/**
+ * Down: at or below zero hit points (carried, dead, or dying). Given the
+ * member, it reads the member's own hit points (`memberHp`), which for an
+ * unlinked member are not the world actor's.
+ */
+export function isDown(actor, member = null) {
+  const hp = member ? memberHp(member, actor)?.value : actor?.system?.hp?.value;
   return typeof hp === "number" && hp <= 0;
 }
 
@@ -364,12 +397,13 @@ export function isDown(actor) {
  * dead member stays on the roster and does not stop the column either way
  * it is handled; an incapacitated member is alive, cannot walk, and stops
  * the column until the party decides to carry or leave them. Read from the
- * `dead` status the system marks, or from the member record when a Judge
- * has said so directly.
+ * `dead` status the system marks — on the member's own token when they are
+ * unlinked — or from the member record when a Judge has said so directly.
  */
 export function isDead(actor, member = null) {
   if (member?.dead) return true;
-  return !!actor?.statuses?.has?.("dead");
+  const own = member ? memberOwnToken(member) : null;
+  return own ? tokenHasStatus(own, actor, "dead") : !!actor?.statuses?.has?.("dead");
 }
 
 /**
@@ -384,7 +418,7 @@ export const isPerson = (actor) => actor?.type === "character" || actor?.type ==
 
 /** Down, alive, and not going anywhere on their own. */
 export const isIncapacitated = (actor, member = null) =>
-  isPerson(actor) && isDown(actor) && !isDead(actor, member);
+  isPerson(actor) && isDown(actor, member) && !isDead(actor, member);
 
 /**
  * Dead or unconscious: either way these legs are worth nothing, and the party
@@ -393,7 +427,7 @@ export const isIncapacitated = (actor, member = null) =>
  * tells the players — but not to arithmetic about walking.
  */
 export const isCasualty = (actor, member = null) =>
-  isPerson(actor) && (isDown(actor) || isDead(actor, member));
+  isPerson(actor) && (isDown(actor, member) || isDead(actor, member));
 
 /** Exploration speed for an encumbrance total (RR speed tiers). */
 function encToExplorationSpeed(enc, strMod = 0) {
@@ -414,7 +448,7 @@ export function carriedLoad(formation) {
   // Casualties the party is actually hauling out. One it has left behind is
   // lying where it fell and weighs on nobody.
   const down = members.filter((e) => isCasualty(e.actor, e.member) && !e.member?.left);
-  const carriers = members.filter((e) => !isDown(e.actor) && e.member.roles?.includes(ROLES.CARRIER));
+  const carriers = members.filter((e) => !isDown(e.actor, e.member) && e.member.roles?.includes(ROLES.CARRIER));
   // Null until the figures are imported: a carry share nobody can compute is
   // reported as unknown rather than as zero, which would read as weightless.
   const body = carriedBody();
@@ -792,6 +826,14 @@ async function recallDeployed(formation, members) {
 }
 
 /**
+ * The creation option a member's token carries when the formation places it
+ * from the roster. The `preCreateToken` hook in module.mjs gives such a token
+ * back the hit points the formation holds for the member, over the new ones
+ * the system rolls a placed unlinked monster.
+ */
+export const MEMBER_TOKEN_OPTION = `${MODULE_ID}.memberToken`;
+
+/**
  * Put stashed member tokens back on the map in one creation call. `grid`
  * restores the marching-order shape; otherwise each token takes the next
  * free square spiralling out from the party. Either way the block is
@@ -834,7 +876,7 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
     return data;
   });
 
-  await scene.createEmbeddedDocuments("Token", toCreate);
+  await scene.createEmbeddedDocuments("Token", toCreate, { [MEMBER_TOKEN_OPTION]: true });
   for (const member of stashed) member.tokenData = null;
   return toCreate.length;
 }

@@ -1144,3 +1144,73 @@ it does not.
 | `formation.shadows` | A true-position marker with no party, on a party no longer lost, or beside the one its episode keeps on its own scene; a marker only on another scene; a lost party with none | Deletes the first three. A marker from a closed episode also names the Lost section of the party's sheet, which can move the party onto it instead. The last two are report-only and point there. |
 | `equipment.railClothing` | An item whose base type and clothing subtype disagree, and an `armor` document declared clothing | Writes the missing half, with the base type winning, or unsets the declaration on the `armor` document |
 
+
+## The hit-point tool
+
+One window for changing the hit points of several creatures at once. It is GM
+only (`apps/hp-app.mjs`). It opens:
+
+- on the selected tokens, from the **Adjust hit points** button on the Tokens
+  layer and from the *Adjust Hit Points (GM)* macro;
+- on a party's members, from the **Hit points** button on the party sheet's
+  Party tab;
+- on whatever `acksExtras.lib.hp.open(from)` names (docs/lib/API.md).
+
+There is one window per world, and opening it again replaces its rows.
+
+**Who a row is** (`resolveTargets`, `hp.mjs`). A linked token is its world
+actor, so two tokens of one character make one row. An unlinked token is its
+own row, under the token's name. A party token stands for its members, through
+the `party-roster` contract that formation provides. A linked member is their
+world actor, and an unlinked member on the map is their token's actor. An
+unlinked member inside the party token has no document to update. Their hit
+points live in the token data the party keeps for them, and formation writes
+them there. A stack becomes its bodies on the map, found by their group flag
+(`deployedBodies`, `group-logic.mjs`), each its own row. **Add selected
+tokens** adds the selection to the rows already listed.
+
+A row that cannot be adjusted is still listed, unticked, with its reason
+(`hpEligibility`, `hp-logic.mjs`):
+
+- a stack with no body on the map, whose hit points belong to one
+  representative body and not to the stack;
+- a template, which is a generator;
+- a vehicle, whose hit points are its own field;
+- an actor with no hit points.
+
+**One change, per-row factors.** The change is damage, healing, or a value
+set outright. Its amount is a whole number or a formula, and a formula is
+rolled once for everyone or once for each row. Each row has a multiplier (×0,
+×½, ×1, ×2), and an amount of its own may replace the shared one. A row's own
+amount is a whole number. **Stop at 0** holds damage at 0 and never raises a
+value that is already below it. The **After** column previews each row with
+`planHpChange` whenever the amount is a whole number.
+
+**Core does the arithmetic.** Damage and healing are written by core's
+`applyDamage`, so the stored value is exactly what core stores. Core rounds
+the multiplied amount up and holds the result between its floor and the
+maximum. `planHpChange` computes the same figure for the preview. A value set
+outright, and damage that Stop at 0 changes, are written as an update of
+`system.hp.value`. Either way the write is an ordinary actor update, and
+everything that reacts to one reacts here. Each row is read again just before
+its write and planned from that value. A row that fails is reported, and the
+rest still land.
+
+**The report.** Every change posts one card (the multi-roller card). It has a
+row per target, with its hit points before and after, the amount and the
+multiplier, and **Down** or **Back above 0** when the change crossed 0. When
+every row came from one party, the party's name is its subtitle. By
+default it is whispered to the GMs, with the dice shown only to them
+(`postToJudges`). **Show the report to players** posts it openly.
+
+**Undo, while the window is open.** **Undo last** sets every row the last
+change wrote back to its value from before, and posts a "restored" card to the
+same audience. The window holds only the last change, and closing the window
+forgets it. A character that the change took to 0 or below gets a **Mortal
+Wounds** button, which opens the system's own window (`openCoreWindow`).
+
+**An unlinked token's own hit points** are read in one place,
+`tokenHitPoints` / `tokenHasStatus` (`hp-logic.mjs`). A live token answers
+through its synthetic actor. For token data kept off the canvas, the delta's
+figures and effects win over the base actor's. Formation's reads of an
+unlinked member go through them (docs/formation/MODEL.md).

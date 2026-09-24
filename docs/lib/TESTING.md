@@ -844,6 +844,113 @@ The scan reads the whole world, so a shared world shows other sessions' rows.
 copies and coin with it. The shadow token went with the fix, so it sweeps as
 missing.
 
+## The hit-point tool
+
+Covers `hp-logic.mjs`, `hp.mjs`, `apps/hp-app.mjs`, the Tokens-layer button,
+the macro, and `api.lib.hp`. The Party tab's entry point, and a member inside
+the party token, are formation's recipe "An unlinked member's own hit points"
+(docs/formation/TESTING.md). Walk it after this one.
+
+**Drive notes:**
+- **Write `system.hp` with an update after the create.** The system's actor
+  create replaces creation-time `system` data (the repair recipe's first
+  drive note).
+- **An unlinked monster token rolls its own hit points when it is placed,**
+  while the system's `autoRollMonsterHP` setting is on. The world actor's 8
+  of 8 does not reach it. Write each token's own with
+  `token.actor.update({"system.hp.max": 8, "system.hp.value": 8})` after
+  placing it.
+- **A batch creation can come back in another order.** Pick the tokens
+  `createEmbeddedDocuments` returns by name, never by position.
+- **Press the Tokens-layer button through the DOM,**
+  `document.querySelector('[data-tool="acksHitPoints"]').click()`, with the
+  Tokens layer active. Calling the tool's `onChange` cannot show a
+  double-fire, which is how a `button: true` tool fails.
+- **The window's controls submit on `change`.** Set a value, then dispatch
+  `new Event("change", {bubbles: true})` on the control. Read the next
+  render's state from `_prepareContext` (`.claude/rules/live-testing.md`,
+  driving techniques).
+- **The report is the newest chat message after Apply.** Read it back at once
+  and `api.track(id, "ChatMessage")` it. The window returns nothing that names
+  it.
+
+**Fixtures (as GM, each id recorded with `api.create` or `api.track`):**
+- "HP Scene", created with `active: false`, `ownership.default` OBSERVER, and
+  viewed with `scene.view()`.
+- "HP Hero", a `character` with `prototypeToken.actorLink: true` and hit
+  points 10 of 10, with two tokens on HP Scene.
+- "HP Goblin", a `monster` with `prototypeToken.actorLink: false` and hit
+  points 8 of 8, with two tokens on HP Scene named "HP Goblin A" and "HP Goblin
+  B", each token's own hit points then written to 8 of 8.
+- "HP Cart", an `acks-extras.vehicle`, with a token on HP Scene.
+- "HP Guards", an `acks-extras.group` made a stack of HP Goblin with
+  `api.lib.groups.setPrototype(guards, goblin, {count: 3})`. Nothing is
+  deployed yet.
+
+1. **Rows from the selection.** Select both HP Hero tokens, both goblins and
+   the cart, and press the Tokens layer's **Adjust hit points**.
+   **Observable:** one window, with rows HP Hero (once), HP Goblin A, HP
+   Goblin B, and HP Cart. HP Cart is unticked and reads "A vehicle. Adjust it
+   on its own sheet." The footer reads 3 of 4 ticked.
+2. **A formula, rolled once each, and a half.** Type `2d6`, choose **Once for
+   each**, set HP Goblin B's multiplier to ×½, and press **Apply**.
+   **Observable:**
+   - While the amount is a formula, the After column reads "?".
+   - The new card is whispered to the GMs and carries no rolls. It has a row
+     per target, with "before → after" and the amount, and "×½" on HP Goblin
+     B's row.
+   - HP Hero's world actor lost its row's amount. Each goblin token's actor
+     lost its own amount, HP Goblin B's halved and rounded up. The HP Goblin
+     world actor still reads 8 of 8, and HP Cart is unchanged.
+3. **Heal, set, an own amount, and Stop at 0.** Heal `100`: before you apply,
+   the After column previews each maximum, and after you apply, each row is at
+   its maximum. Set to `3`, with an own amount of `-2` on HP Goblin A. Then
+   clear that own amount, which a row keeps until it is cleared, tick **Stop at
+   0**, and damage `5`.
+   **Observable:** after the set, HP Hero and HP Goblin B read 3 and HP Goblin
+   A reads −2. After the damage, HP Hero and HP Goblin B read 0 and HP Goblin A
+   is still −2.
+4. **Undo.** Press **Undo last**.
+   **Observable:** HP Hero and HP Goblin B read 3 again and HP Goblin A still
+   reads −2. A "Hit Points Restored" card is whispered to the GMs, and Undo is
+   disabled until the next change.
+5. **Down, and Mortal Wounds.** Untick Stop at 0 and damage `5`.
+   **Observable:** the card rows of HP Hero and HP Goblin B say Down, and HP
+   Goblin A's, already below 0, does not. Under Last change, HP Hero alone has
+   a **Mortal Wounds** button, because the goblins are monsters.
+   Pressing it opens the system's own Mortal Wounds window. Close that window
+   without rolling.
+6. **Shown to players.** Tick **Show the report to players** and heal `1`.
+   **Observable:** the card has no whisper list, and the Player seat (step 9)
+   sees it.
+7. **A stack.** In page context, `api.lib.hp.open({actors: [guards]})`.
+   **Observable:** one HP Guards row, unticked, reading "A group. Deploy it and
+   adjust its members on the map."
+
+   Deploy two bodies with `api.lib.groups.deploy(guards, scene, {count: 2})`,
+   `api.track` each returned token, and `api.track` the stack's
+   `template.uuid` if it names an actor that is not HP Goblin. Then open the
+   tool on HP Guards again.
+   **Observable:** a row per body, under the body's token name. Damage `1`,
+   and each body token's actor loses 1 while HP Guards is unchanged.
+8. **Layout and type size.** Size the window to 480×320, then re-render it.
+   **Observable:** the body scrolls, the footer with Apply stays pinned, and
+   the body keeps its scroll position across the re-render. Raise the type
+   knob, then close and reopen the window: the rows, the controls and the
+   footer buttons all grow with it.
+9. **The player seat.** Join as Player from the capture driver's own browser
+   (`connect({ user: "Player" })`).
+   **Observable:**
+   - The Tokens controls have no **Adjust hit points** button.
+   - Running *Adjust Hit Points (GM)* warns that only a GM can adjust hit
+     points, and no window opens.
+   - `api.lib.hp.open()` returns null.
+   - `await api.lib.hp.adjust({actors: [<HP Hero>]}, {amount: 1})` returns
+     null, and HP Hero's hit points do not change.
+
+**Teardown.** `api.sweepTracked()`. The scene takes every token on it with
+it, the body tokens included, so those sweep as missing.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

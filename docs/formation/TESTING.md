@@ -87,6 +87,14 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   Give your own fixture scene `ownership.default = OBSERVER` and `scene.view()`
   it from the player seat rather than activating it — the scene is deleted at
   teardown, so nothing needs restoring.
+- **Create a fixture scene with `active: false`.** When no scene is active,
+  core activates a newly created one (`Scene._preCreateOperation`), and every
+  joined client, a peer session's included, starts drawing it. A party token
+  placed before that draw finishes throws in `Token._onUpdate` (`reading
+  'OBJECTS'`), which rejects the adoption hook's `setFlag`: the token carries
+  `formationId`, the formation never records its `tokenId`, and no zone is
+  ever found under the party. Zone lookups and throws need no canvas; a step
+  that does (walls, above) views the scene and waits.
 - **A formation that vanishes mid-walk was deleted from outside.** Deleting a
   party actor dissolves its formation, so a record that is gone between
   `setJourneyMode` and the next read was taken by another session sweeping
@@ -332,6 +340,52 @@ recipe, plus one world actor named to match an invented creature name
 Teardown: unregister the invented document, delete the QQ actor, setting
 back off.
 
+## The wrong-floor shift (added with the Monster level row)
+
+Fixtures, all created and tracked: a scene created with `active: false` (Core
+drive mechanics) and the party actor's token placed on it — the throw needs no
+member; an **inner** RollTable with one text result; an
+**outer** RollTable whose only result is a document result naming the inner
+table (`type: "document"`, `documentUuid: inner.uuid`); a Region over the party
+token with an `acks-extras.encounterZone` behavior, `encounterTarget: 1` so
+every throw hits, `tableUuid` the outer table. Levels are invented.
+
+1. **The row.** Open the inner table's sheet, switch it to edit, open its
+   Summary tab.
+   *Observable:* a labelled **Monster level** row with its hint sits under
+   *Display roll*. Type a level and press **Save**:
+   `inner.getFlag("acks-extras", "monsterLevel")` is that number. Blank it and
+   Save: the flag reads `null`. In view mode there is no row.
+2. **The zone's field.** Open the behavior's config.
+   *Observable:* the **Dungeon level** field carries its label and hint. Set a
+   level different from the inner table's.
+3. **The shift.** Press **Check** on the formation window's Party tab
+   (`data-action="encounterNow"`, the wandering-monster throw; the journey
+   panel's **Encounter throw** is the wilderness chain and never shifts).
+   *Observable:* after the table's own card, one card flavored *Wandering
+   monster, off its floor*, spoken as the INNER table, whose line names the
+   inner level and the zone's; its `whisper` is the GM ids and nothing else.
+   A card named for the outer table is the regression: the level was read off
+   the table the zone names.
+4. **No shift.** Set the zone's level equal to the inner table's, throw; then 0,
+   throw.
+   *Observable:* the draw card each time, and no shift card either time.
+5. **The fallback.** Blank the inner table's level, give the outer table one,
+   throw.
+   *Observable:* the shift card is still named for the inner table, at the
+   outer table's level.
+6. **The player seat.** Join the Player seat before the first throw, with its
+   chat tab open, and post one public control message after the last.
+   *Observable:* every card the throws posted shows the three facts of
+   docs/lib/TESTING.md, "A Judge-only card leaves nothing on a player's seat",
+   and the control renders. Reload the seat: the log it renders at join shows
+   none of the cards either.
+
+Teardown: `api.track` every card the throws posted, by the ids read back the
+moment each throw resolves, then `api.sweepTracked()` — the scene, the party
+actor (its formation dissolves with it), both tables, the control message and
+the cards go together.
+
 ## The camp panel
 
 `buildFormationView(record).travel.camp` over a formation-shaped record of REAL
@@ -368,6 +422,61 @@ monster actor carrying a henchman record (`flags.acks-extras.record` with
    back and `api.track` each. Core's `getExperience` returns early for any
    type but `character`, so a monster carrying a henchman record is listed
    with a share and receives nothing; the fixture uses characters.
+
+## An unlinked member's own hit points (added with the hit-point tool)
+
+Covers `memberOwnToken`, `memberHp`, the member-aware `isDown` / `isDead`,
+`party-roster.mjs`, and the Party tab's **Hit points** button. The tool itself
+is lib's recipe "The hit-point tool" (docs/lib/TESTING.md).
+
+**Fixtures (as GM, each id recorded with `api.create` or `api.track`):**
+- A scene created with `active: false`, and a disposable party actor whose
+  token is placed on it and adopted.
+- "HP Hero", a `character` with `prototypeToken.actorLink: true`, and "HP
+  Hireling", a `monster` with `prototypeToken.actorLink: false` and hit points
+  6 of 6, written by an update after the create. Each has a token on the
+  scene, enrolled through the token HUD. Enrolling deletes the token, and the
+  hireling's stash keeps `actorLink: false`.
+- Before enrolling, write the hireling token's own hit points to 6 of 6 with
+  `token.actor.update(...)`. While the system's `autoRollMonsterHP` setting is
+  on, an unlinked monster token rolls its own when placed, and the world
+  actor's 6 never reaches it.
+
+1. **The Party tab opens the tool on the party.** As GM, open the party sheet's
+   Party tab and press **Hit points** (`[data-action="adjustHp"]`).
+   **Observable:** rows HP Hero and HP Hireling, each noting the party's name.
+2. **A member inside the party token is written into the stash.** Damage `4`.
+   **Observable:** in `getFormations()`, the hireling member's
+   `tokenData.delta.system.hp.value` is 2. The HP Hireling world actor still
+   reads 6 of 6. The card's subtitle is the party's name.
+3. **Down by their own hit points.** Damage `2` more.
+   **Observable:** the stash reads 0. On the Order tab, the hireling's row
+   `li.member[data-actor-id=<HP Hireling id>]` has the `casualty` class and the
+   skull badge, and offers **Leave behind**. HP Hero's row has neither. The
+   world actor still reads 6.
+4. **On the map, the live token.** Heal `5`, then detach the hireling
+   (`[data-action="toggleDetach"]`). A down member is carried rather than
+   deployed, so healing comes first. Select the hireling's new token and damage
+   it `6` with the Tokens-layer button.
+   **Observable:** before the damage, the new token reads 5 of 6: the stash's
+   hit points, kept over the system's roll, which would set the value and the
+   maximum alike. The tool's row is the token's actor. After the damage, the
+   Order tab marks the hireling a casualty while they stand on the map, and
+   the world actor still reads 6. Their detach control is still enabled,
+   offering the recall.
+5. **Recalled, still down.** Recall the hireling with that control (re-read
+   `deployedTokenId` rather than trusting the toggle).
+   **Observable:** the stash's `delta.system.hp.value` is −1, and the Order
+   tab still marks the hireling a casualty.
+6. **Dead is the token's too.** Set the hireling's stash to 4 with the tool.
+   Toggle the dead status on a fresh detached token of theirs, which reads 4
+   of 6, then recall them.
+   **Observable:** the Order tab shows the hireling with the dead skull while
+   the world actor carries no dead status, and the stash still reads 4.
+
+**Teardown.** `api.sweepTracked()`. The party actor dissolves its formation.
+The member tokens that enrolling deleted, and the one the recall deleted, sweep
+as missing.
 
 ## End day, the whole tick (added with survival and the throw)
 

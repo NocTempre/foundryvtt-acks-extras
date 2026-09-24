@@ -2406,3 +2406,50 @@ off, it names the package to enable, unless it is one of the retired acks-*
 modules. The region behaviours the retired modules left are reported, and no
 shipped tool removes them. A bundle with a row nothing in the world resolves
 stays whole until the Judge imports the good or edits the bundle.
+
+### Hit points are changed from one GM window, and core does the arithmetic (2026-09-23)
+
+**Ruled.** A Judge changes the hit points of several creatures at once from
+one GM-only window with four entry points: the Tokens-layer button, the party
+sheet's Party tab, a macro and the API (MODEL, "The hit-point tool"). The
+design's defaults, as adopted: GM only; **Stop at 0** is a toggle, and
+nonlethal damage is not tracked; the report is whispered to the GMs, with an
+option to show it to players; vehicles and undeployed stacks are listed and
+left out with a reason; undo is held in memory.
+
+- **Damage and healing are core's `applyDamage`.** The stored value is exactly
+  core's, rounding and clamp included. The preview computes the same figure,
+  and the suite tests it against a transcription of core's method. A set, and
+  damage that Stop at 0 changes, are ordinary updates, because no core call
+  expresses either.
+- **A row's multiplier is ×0, ×½, ×1 or ×2, and a row can take an amount of
+  its own.** An own amount covers what a free multiplier would, with one
+  number box per row. A row's own amount is a whole number. Only the shared
+  amount is rolled.
+- **Formation provides the parties.** The `party-roster` contract (API.md)
+  has the design's `list` and `members`, plus two calls the design did not
+  name. `partyOf` makes a party token on the canvas stand for its members.
+  `adjustStashedHp` writes the one member lib cannot reach: an unlinked member
+  inside the party token has no document an update reaches
+  (docs/formation/DECISIONS.md, "An unlinked member is down by their own
+  token's hit points").
+- **A stack becomes its bodies on the map.** The group flag and
+  `deployedBodies` moved into `group-logic.mjs` so that a Foundry-free file can
+  read them. `recall` and formation's `deployedTokens` read through the same
+  function.
+- **`openCoreWindow` moved into lib** (`core-windows.mjs`) from the character
+  sheet's bridge, because the tool offers the system's Mortal Wounds window
+  too.
+
+**Rejected.**
+- *Writing every change as an update.* That would round and clamp by a copy of
+  core's rule instead of by core, so a change to `applyDamage` in the system
+  would go unmatched here without anything saying so.
+- *A free multiplier per row.* See above.
+- *A player seat.* The tool writes to documents a player does not own, and the
+  design ruled it GM only.
+
+**What it cost.** Undo lasts while the window is open and covers only the last
+change. It restores each row to its value from before that change, even if
+something else has changed that value since. Nonlethal damage stays
+untracked (ROADMAP).

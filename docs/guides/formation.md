@@ -534,6 +534,45 @@ is listed too, with why — a mercenary is paid in wages rather than experience,
 pack mule is not a party member. A fallen member still takes their share. Only
 **Deal XP** writes anything.
 
+## Hit points for the whole party
+
+**Hit points** on the party sheet's **Party** tab opens one window that lists
+every member, and applies damage, healing or a new value to all of them at
+once. Only a GM sees it. The same window opens on the selected tokens from the
+**Adjust hit points** button in the Tokens controls, and from the *Adjust Hit
+Points (GM)* macro.
+
+![](../releases/v8.4.0/lib-hp.png)
+
+*A party's members about to take 7 damage, one of them at half, each row
+showing where it will land.*
+
+Choose **Damage**, **Heal** or **Set to**, and type an amount: a number, or
+dice such as `2d6`, rolled once for everyone or once for each. Each row has its
+own multiplier, for a member who takes half or double, and can take an amount of
+its own instead. The **After** column shows where each row will land whenever
+the amount is a number. **Stop at 0** keeps damage from taking anyone below 0.
+
+The window writes through the system's own damage rule, so each result is what
+the system would store for the same damage. The report goes to the GMs alone
+unless you tick **Show the report to players**. **Undo last** puts the last
+change back while the window stays open. A character the change takes to 0 or
+below gets a **Mortal Wounds** button beside their result.
+
+A hireling or monster whose token is not linked to its actor keeps its own hit
+points on that token, and the party sheet counts them down by those, inside the
+party token or out of it. They keep those hit points when they step out of the
+party token, where the system would otherwise roll a monster new ones.
+
+![](../releases/v8.4.0/formation-unlinked-down.png)
+
+*A torchbearer whose token is not linked, down inside the party token: the
+Order tab offers to leave them, and the column waits for a carrier.*
+
+A group is listed as its bodies on the map. With none
+on the map it is listed and left out, and so is a vehicle, which is adjusted on
+its own sheet.
+
 ## The clock
 
 Moving the party token advances the exploration clock in turns. Torches burn
@@ -546,6 +585,29 @@ leave before it can move.*
 
 Light is real: a lit torch occupies a hand, lights the party token, and goes out
 when it burns through.
+
+### Wandering monsters
+
+The clock also makes the wandering-monster throw and, on an encounter, draws
+from a table only you see. To set the table, how often the throw comes and what
+it needs for one part of a map, draw a Region there and give it an **Encounter
+Zone** behavior. Everywhere else, the formation's own table and the module
+settings apply.
+
+A monster met off its own floor can be adjusted (JJ p. 36). Give the zone its
+**Dungeon level**, and give the table the **Monster level** it is written for:
+open the table, switch it to edit, fill **Monster level** on its **Summary**
+tab, and **Save**. When a monster comes from a table whose level differs from
+the zone's, a second card gives you the adjustment and rolls the reaction. If a
+table's results are other tables, set the level on the tables that name the
+monsters. Nothing is adjusted while either level is blank, and a draw from the
+formation's own table never is, because it has no zone. A table in a locked
+compendium opens read-only: import it into the world, or unlock the pack, to
+set its level.
+
+![](../releases/v8.4.0/formation-monster-level.png)
+
+*A table's Summary tab in edit view, its Monster level filled in and saved.*
 
 ## Handing things out
 
@@ -655,8 +717,9 @@ the limit. This keeps the exploration clock honest: the party token is still
 what spends dungeon turns.
 
 Press the button again to bring them back, with everything that happened to them
-while they were out. If a fight starts, the party deploys around the scout as
-normal and the leash lifts for the combat.
+while they were out. A scout who falls out there can still be brought back, to
+be carried. Only a member who is down cannot step out. If a fight starts, the
+party deploys around the scout as normal and the leash lifts for the combat.
 
 ## Party checks
 

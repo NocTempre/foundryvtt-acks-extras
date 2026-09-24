@@ -1,5 +1,66 @@
 # Changelog
 
+## 8.4.0
+
+### Added
+
+- **Adjust Hit Points changes the hit points of several creatures at once.**
+  Press **Hit points** on the party sheet's **Party** tab to list every
+  member. Or select tokens and press **Adjust hit points** in the Tokens
+  controls, or run *Adjust Hit Points (GM)* from the *ACKS Extras Macros*
+  compendium. Choose **Damage**, **Heal** or **Set to**, and type a number or
+  a dice formula, rolled once for everyone or once for each. Each row can take
+  half, double or nothing, or an amount of its own, and the **After** column
+  shows where it will land. **Stop at 0** keeps damage from taking anyone below
+  0. Damage and healing are applied by the system's own rule, so each result is
+  what the system would store. One card reports the change, whispered to the
+  Judge unless **Show the report to players** is ticked. **Undo last** puts the
+  last change back while the window is open. A character taken to 0 or below
+  gets a **Mortal Wounds** button that opens the system's own window. Two
+  tokens of one linked character make one row, and a group is listed as its
+  bodies on the map. A vehicle, and a group with no body on the map, are listed
+  and left out, with the reason. GM only. For module authors,
+  `acksExtras.lib.hp` opens the window or makes a change without it
+  (apiVersion 19).
+- **A table can say which monster level it is written for, and the
+  wandering-monster throw adjusts an encounter met off its floor.** Open the
+  RollTable, switch it to edit, fill **Monster level** on its **Summary** tab,
+  and **Save**. Then give the Encounter Zone that draws from it its **Dungeon
+  level**. When the throw brings a monster from a table whose level differs
+  from the zone's, a second card, whispered to the Judge, gives the adjustment
+  to the number appearing and rolls the reaction (JJ p. 36). Where a table's
+  results are other tables, the level that counts is the one on the table that
+  names the monster, so set it there. Nothing is adjusted while either level
+  is blank. A draw from the formation's own table is never adjusted, because it
+  has no zone. GM only.
+
+### Fixed
+
+- **A party member whose token is not linked to their actor is down by their
+  own hit points.** A hireling or monster made this way keeps their own hit
+  points on their token, and the formation read the actor's instead. One who
+  fell in a fight was never counted down. The party kept its full speed without
+  carrying or leaving them, and they could still be sent out, probe for traps
+  and roll the party's checks and saves. The formation now reads their own
+  token, on the map or inside the party token, for their hit points and for
+  whether they are dead. Linked characters are unchanged. A member already down
+  inside the party token counts as down the first time the party is read. A
+  monster in the party also keeps their hit points when they step out of the
+  party token, go into a fight or are released by disbanding. The system's
+  automatic roll for a placed monster used to give them new ones each time.
+  A monster you place yourself still rolls.
+- **A member who falls while detached can be recalled.** The **Order** tab's
+  detach control was greyed out for anyone down, including a member already out
+  on the map, so a casualty could only be brought back by leaving them behind and
+  going back for them. The control now recalls them, and the party carries
+  them. Sending out a member who is down stays unavailable.
+- **The wrong-floor adjustment appears.** From 4.2.0 the wandering-monster
+  throw was meant to adjust a monster drawn from a table written for another
+  level, and it never did. Nothing could set a table's level, the throw never
+  read the zone's dungeon level, and the zone's field had no label. The field
+  is now labelled **Dungeon level**, and the adjustment works as described
+  under Added.
+
 ## 8.3.0
 
 ### Added

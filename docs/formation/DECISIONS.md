@@ -2149,3 +2149,108 @@ earlier build holds two or more records for each affected player on that
 scene, and the player sees only the newest. The old revert deleted only
 documents the Judge's client had created, never a player's original, so the
 macro recovers the ground the older copies hold.
+
+### A table's monster level is set on the table (2026-09-23)
+
+**Found.** The wrong-floor shift (JJ p. 36) shipped in 4.2.0 and has never
+fired for anyone. Nothing wrote a table's `monsterLevel`: no sheet control, no
+RollTable field, no importer op, though the 4.2.0 notes told the Judge to set
+it on the table. The encounter throw read the dungeon level off the zone
+lookup's wrapper (`zone.dungeonLevel`) instead of the behavior's data, so it
+was always 0. And the zone's Dungeon level field had no label. A fourth fault
+waited behind those three: the level compared was the zone's named table's.
+When a table's results are other tables, which is the book's own shape (a
+dungeon-level row sends the roll to a monster-level table), the monster comes
+from the inner table, so the named table's level is the wrong one.
+
+**Ruled.**
+- The Judge sets the level on the RollTable itself: a Monster level row in the
+  sheet's Summary tab (edit view, GM only), on the unchanged `monsterLevel`
+  flag.
+- The row is a named input that the sheet's own Save submits. It is added only
+  to a Summary part that lacks it, so a render of the other parts keeps a value
+  the Judge has typed and not yet saved.
+- The level compared is the producing table's (`TableResult.parent`), else the
+  drawn table's. Each producing table whose level resolves gets its own card.
+- The zone's level is read from `zone.behavior.system.dungeonLevel`, and the
+  field is labelled.
+
+**Rejected.**
+- *A monster-level field on the Encounter Zone.* The zone is the dungeon level.
+  A monster level there would be one number for every draw, which undoes the
+  roll that picks the monster level.
+- *A field on the zone's config that writes onto its table.* It writes one
+  document from another's sheet, and it never reaches the inner tables, whose
+  level is the one that counts.
+- *Writing on change, as the scene-config and district rows do.* Any write
+  re-renders the table sheet from the document and discards the Judge's unsaved
+  formula, description and result edits. Those rows write at once because their
+  value is an object flag that needs merging, or a link held on a second
+  document. Neither applies to one number on the table being edited.
+- *Waiting for the importer to write the level.* The level tables and the
+  dungeon-level matrix are not registered (ROADMAP §1). Holding the Judge's
+  path for that project would leave the shift dead for another release.
+
+**What it cost.** Every release from 4.2.0 until this change shipped the shift
+unreachable. Nothing needs migrating: the flag key is unchanged, so a level
+already set through the API is read as it stands. The rate the shift applies
+is still a number in code (ROADMAP §6a).
+
+### An unlinked member is down by their own token's hit points (2026-09-23)
+
+**Found.** An unlinked member keeps their own hit points in their token: the
+live token while they stand on the map, and the stash
+(`members[].tokenData.delta`) while they ride in the party token.
+`recallMembers` refreshes that stash from the live token (2026-08-31, above).
+But every down and dead read took the world actor's hit points, which an
+unlinked token never writes. A hireling who fell in a fight was not counted
+down on the map, came back into the party token still standing, and the party
+marched on at full speed without carrying or leaving them.
+
+**Ruled.**
+- `memberOwnToken(member)` names the token that holds an unlinked member's
+  state: the live one while `deployedTokenId` finds it, else the stash. For a
+  linked member it is null.
+- `isDown` and `isDead` take the member and read through that token (`memberHp`
+  over lib's `tokenHitPoints`, and `tokenHasStatus`), and so do
+  `isIncapacitated` and `isCasualty`. Every caller in the feature passes the
+  member.
+- `getMemberActor` still returns the world actor.
+- The feature provides lib's `party-roster` contract. The hit-point tool
+  writes a stashed member's hit points through it, into the stash, inside the
+  save lock (docs/lib/DECISIONS.md, "Hit points are changed from one GM
+  window").
+- The Order tab's detach control stays open to a detached member who is down,
+  so they can be recalled and carried. Only stepping out needs a member on
+  their feet. The live walk found the control disabled for them. One boolean
+  had served both directions, and before this ruling no unlinked member was
+  ever down on the map.
+- A member's token placed from the roster (a detach, a fight, a disband) is
+  given back the stash's hit points in a `preCreateToken` hook
+  (`MEMBER_TOKEN_OPTION`). The live walk set a hireling's stash to 6, detached
+  them, and recalled them at 3. The system's `_preCreate` had rolled the
+  placed unlinked monster new hit points, as its `autoRollMonsterHP` setting
+  (on by default) does for every placement, and so wiped the wounds this
+  ruling tracks.
+- The stash write builds a `null` delta before writing into it. Foundry
+  stashes a token that matches its actor with `delta: null`, as a hireling at
+  full health is, and `setProperty` throws on the null. The walk found the
+  first damage to such a member failing. The offline scenario had enrolled
+  only a wounded token.
+
+**Rejected.**
+- *`getMemberActor` returning the token's actor.* A member inside the party
+  token has no live token, so the actor would be built from the stash with no
+  parent, and a write to it lands nowhere. It would mend the reads by breaking
+  every writer: lights, rations, rolls and experience.
+- *Folding an unlinked member's hit points onto the world actor at recall.*
+  Every other unlinked token made from that actor would then inherit one
+  creature's wounds.
+- *Turning `autoRollMonsterHP` off around a placement,* or writing the hit
+  points back after the token exists. The setting is the world's, and flipping
+  it races every other client's placement. A second write briefly shows the
+  roll, and fires the hit-point hooks twice.
+
+**What it cost.** Only hit points and death are read from the member's own
+token. An unlinked member's items, effects, rolls, lights, rations and
+experience inside the party token still read the world actor (ROADMAP §3).

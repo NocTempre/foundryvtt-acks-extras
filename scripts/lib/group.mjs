@@ -15,8 +15,12 @@ import { MODULE_ID } from "./constants.mjs";
 import GroupData, { GROUP_CATEGORY, GROUP_STATE } from "./data/group-data.mjs";
 import {
   GROUP_ACTOR_TYPE,
+  GROUP_FLAG,
+  MEMBER_FLAG,
+  STACK_FLAG,
   bodyCount,
   cleanDelta,
+  deployedBodies,
   isDerivedEffect,
   isGroupActor,
   memberName,
@@ -30,19 +34,18 @@ import { isPrimaryGM } from "./util.mjs";
 export {
   GROUP_ACTOR_TYPE,
   GROUP_CATEGORY,
+  GROUP_FLAG,
+  MEMBER_FLAG,
+  STACK_FLAG,
   bodyCount,
   cleanDelta,
+  deployedBodies,
   isDerivedEffect,
   isGroupActor,
   memberName,
   nextOrdinal,
   sizeFromEcology,
 };
-
-/** Token/flag keys linking a deployed token back to its group, stack, and member. */
-export const GROUP_FLAG = "group"; // on the token: the group actor's uuid
-export const STACK_FLAG = "stack"; // on the token: the stack's key within the group
-export const MEMBER_FLAG = "member"; // on the token: the roster member's key
 
 /** Hooks other modules key off. Namespaced per the family convention. */
 export const GROUP_HOOKS = Object.freeze({
@@ -574,7 +577,7 @@ export async function recall(group, { scene = null } = {}) {
   const collected = [];
 
   for (const sc of scenes) {
-    for (const token of sc.tokens.filter((t) => t.getFlag(MODULE_ID, GROUP_FLAG) === group.uuid)) {
+    for (const token of deployedBodies(group, [sc])) {
       folds.push({
         stackKey: token.getFlag(MODULE_ID, STACK_FLAG) ?? group.system.primaryStack?.key,
         memberKey: token.getFlag(MODULE_ID, MEMBER_FLAG),

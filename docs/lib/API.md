@@ -1,4 +1,4 @@
-# lib API (apiVersion 18)
+# lib API (apiVersion 19)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 18,
+  apiVersion: 19,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -50,6 +50,7 @@ acksExtras.lib = {
   // --- domain surfaces ---
   mount, senses, light, perception, storage, places, itemModel, …
   repair,              // lib/repair.mjs — the standing repair tool (below); 18
+  hp,                  // lib/hp.mjs — the group hit-point tool (below); 19
 }
 ```
 
@@ -194,6 +195,37 @@ embeddable ability ItemData — reusing the world's already-imported item,
 else importing the definition from its own pipeline — and reports what it
 could not resolve; it never throws on content. The specialty suffix lands
 on the embedded copy's name only. No provider ⇒ consumers skip granting.
+
+### Contract `party-roster` v1
+
+Provider: formation (`scripts/formation/party-roster.mjs`). Consumer: the
+hit-point tool (`lib/hp.mjs`), which works on a whole party at once. Shape:
+
+```
+{
+  list() → [{id, name}],                    // every party in the world
+  partyOf(tokenDoc) → id | null,            // the party whose token this is
+  members(id) → [{actorId, actor, name, document, stashed, unlinked, hp}],
+  adjustStashedHp(partyId, actorId, next) → Promise<{before, after, max} | null>
+}
+```
+
+A member row:
+
+- `actor` is the world actor the member was made from.
+- `document` is what an update reaches the member through. It is the world
+  actor for a linked member, the token's actor for an unlinked member on the
+  map, and null for an unlinked member inside the party token.
+- `name` is the token's for an unlinked member.
+- `hp` is `{value, max}` from the member's own token, on the map or inside the
+  party token, when the member is unlinked, and from the world actor otherwise.
+  It is null when no value is known.
+
+`adjustStashedHp` writes only a member whose `document` is null. `next(hp)` is
+handed the value found inside formation's save lock and returns the new value,
+or null to write nothing. It returns null for a player, for a member who is
+linked or on the map, and when `next` declines. With no provider, a party token
+is an ordinary token to the tool, and there are no party rows.
 
 ## `vocab` — Foundry-free enums (Node-importable)
 
@@ -431,6 +463,45 @@ reports is returned in `gone` and left alone, and a key the scan reports as
 `fixable: false` is skipped without appearing in any list. Each `failed` entry
 carries `why` (`still`, `refused`, `threw` or `unverified`) and `error`. With
 `report` left true, a fix that changed anything whispers one card to the GMs.
+
+## `hp` — the group hit-point tool (apiVersion 19)
+
+How the tool behaves is docs/lib/MODEL.md, "The hit-point tool". `open` and
+`adjust` warn and return null for a seat that is not a GM.
+
+```
+acksExtras.lib.hp = {
+  open(from?),                // the window, on `from` or on the selected tokens
+  async adjust(from, opts),   // → a result per target; no window
+  plan(hp, change),           // → what a change would write (Foundry-free)
+  eligibility(actor),         // → why an actor is left out, or null
+}
+```
+
+`from` is `{tokens?, actors?, parties?}`: tokens (placeables or documents),
+actors, and party ids from the `party-roster` contract. A party token among the
+tokens stands for its members.
+
+`adjust` takes `{mode, amount, multiplier, perTarget, floorAtZero, report,
+visible}`:
+
+- `mode` is `damage` (the default), `heal` or `set`.
+- `amount` is a whole number or a formula. A formula is rolled once for
+  everyone, or once per target with `perTarget`, and throws when Foundry cannot
+  roll it.
+- `multiplier` (default 1) applies to every target. `floorAtZero` stops damage
+  at 0.
+- `report` (default true) posts the card. `visible` shows it to the players as
+  well as the GMs.
+
+Rows that cannot be adjusted are left out. Each result is `{target, amount,
+multiplier, ok, before, after, max, crossedDown, crossedUp, why, error}`. When
+`ok` is false, `why` is `gone`, `moved`, `noHp` or `failed`.
+
+`plan(hp, {mode, amount, multiplier, floorAtZero})` returns `{before, after,
+max, delta, crossedDown, crossedUp, clamped}`, or null when the hit points or
+the amount are not numbers. `eligibility(actor)` returns `missing`, `stack`,
+`template`, `vehicle`, `noHp`, or null.
 
 ## Versioning
 

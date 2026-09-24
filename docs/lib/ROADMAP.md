@@ -50,6 +50,14 @@ verification, not as drive-by edits:
 - **More checks.** Class-training effects whose class uuid no longer resolves:
   they refuse hand-deletion, and `resetTraining` returns false for them.
 
+## What the hit-point tool does not do
+
+- **Nonlethal damage.** Stop at 0 holds damage at 0, and nothing records which
+  damage was nonlethal or lets it heal on its own schedule.
+- **An undo that outlives the window.** Undo covers the last change while the
+  window is open, and restores values without checking whether anything else
+  changed them since.
+
 ## Who carries `acks`, and whether that is deliberate
 
 Five surfaces do — the two item sheets (abilities, equipment), the roll editor,

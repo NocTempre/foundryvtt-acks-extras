@@ -162,13 +162,16 @@ export function buildFormationView(formation) {
       // A detach places the member's token beside the party token, so with no
       // party token on the canvas there is nowhere to step out to and the
       // deploy returns empty. Without this term the control renders enabled and
-      // does nothing at all when pressed.
+      // does nothing at all when pressed. Only stepping out needs a member on
+      // their feet, since a deploy carries a casualty rather than placing them;
+      // recall is open to anyone out on a detach, down or not, to be carried.
       canDetach:
-        !!formation.tokenId && !formation.combat?.active && !isDown(actor) && (!isMemberDeployed(member) || member.detached),
+        !!formation.tokenId && !formation.combat?.active
+        && (isMemberDeployed(member) ? !!member.detached : !isDown(actor, member)),
       // How far this character sees with no light at all, for the chip that
       // explains why the scout can go where the rest of the party cannot.
       darkSight: senseProfile(actor).sightRange,
-      down: isDown(actor),
+      down: isDown(actor, member),
       blind: dark && !canSeeInDark(actor),
       first: index === 0,
       last: index === formation.members.length - 1,
@@ -327,7 +330,7 @@ function buildWarnings(formation, speed) {
       for (const m of formation.members) {
         if (m?.blank || !m?.actorId) continue;
         const actor = getMemberActor(m);
-        if (!actor || isDown(actor)) continue;
+        if (!actor || isDown(actor, m)) continue;
         (canSeeInDark(actor) ? sighted : blinded).push(actor.name);
       }
       if (blinded.length) {

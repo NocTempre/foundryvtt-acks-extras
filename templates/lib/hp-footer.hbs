@@ -1,0 +1,13 @@
+{{!-- The hit-point window's two writes. A separate part so they stay pinned
+      below the scrolling body. --}}
+<footer class="form-footer acks-extras-hp-footer">
+  <span class="acks-extras-hp-count" aria-live="polite">{{pickedLabel}}</span>
+  <button type="button" data-action="undo" {{disabled cannotUndo}}>
+    <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+    {{localize "ACKS-LIB.hp.undo"}}
+  </button>
+  <button type="button" data-action="apply" {{disabled cannotApply}}>
+    <i class="fa-solid fa-heart-pulse" aria-hidden="true"></i>
+    {{localize "ACKS-LIB.hp.apply"}}
+  </button>
+</footer>

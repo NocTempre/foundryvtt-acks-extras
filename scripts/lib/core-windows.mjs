@@ -2,7 +2,7 @@
 /**
  * Reaching the system's own character windows — Tweaks, Mortal Wounds,
  * Tampering with Mortality, the Modifiers summary, the Scores Generator —
- * from a sheet that is not the system's.
+ * from a window that is not the system's sheet.
  *
  * The system ships as one minified bundle with no exports, so those classes
  * cannot be imported. They can be REACHED: the system's character sheet is in
@@ -13,11 +13,11 @@
  * docs/character-sheet/DECISIONS.md, "Core windows are reached through the
  * sheet registry, not reimplemented".
  */
-import { ACTOR_TYPE } from "../lib/vocab.mjs";
-import { LANG } from "./constants.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { ACTOR_TYPE } from "./vocab.mjs";
+import { LANG_PREFIX } from "./constants.mjs";
+import { makeLoc } from "./util.mjs";
 
-const loc = makeLoc(LANG);
+const loc = makeLoc(LANG_PREFIX);
 
 /**
  * The action handlers a sheet class answers to, merged down its inheritance
@@ -46,7 +46,7 @@ export function coreCharacterSheetClass() {
   return null;
 }
 
-/** Every core action this sheet can hand a character to. */
+/** Every core action a character can be handed to. */
 export const CORE_ACTIONS = Object.freeze({
   tweaks: "showTweaksDialog",
   mortalWounds: "rollMortalWounds",

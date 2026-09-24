@@ -1,0 +1,18 @@
+{
+  "_id": "acksLibHpAdjust0",
+  "_key": "!macros!acksLibHpAdjust0",
+  "name": "Adjust Hit Points (GM)",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/regen.svg",
+  "command": "// Adjust the hit points of the selected tokens, or of a party's members.\nconst api = game.modules.get(\"acks-extras\")?.api?.lib ?? globalThis.acksExtras?.lib;\nif (!api) return ui.notifications.error(\"ACKS Extras is not active.\");\nif (typeof api.hp?.open !== \"function\") {\n  return ui.notifications.warn(\"ACKS Extras | Adjust Hit Points needs a newer build of this module.\");\n}\napi.hp.open();",
+  "ownership": {
+    "default": 0
+  },
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  },
+  "folder": "acks420ff1a0388a"
+}

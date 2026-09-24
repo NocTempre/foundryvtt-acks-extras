@@ -24,6 +24,29 @@ export function isGroupActor(actor) {
   return actor?.type === GROUP_ACTOR_TYPE;
 }
 
+/** Token/flag keys linking a deployed token back to its group, stack, and member. */
+export const GROUP_FLAG = "group"; // on the token: the group actor's uuid
+export const STACK_FLAG = "stack"; // on the token: the stack's key within the group
+export const MEMBER_FLAG = "member"; // on the token: the roster member's key
+
+/**
+ * The tokens on `scenes` that stand for `group`'s bodies, found by the group
+ * flag every deployed body carries. Reads only.
+ * @param {object} group the group actor
+ * @param {Iterable<Scene>} scenes
+ * @returns {TokenDocument[]}
+ */
+export function deployedBodies(group, scenes) {
+  const bodies = [];
+  if (!group?.uuid) return bodies;
+  for (const scene of scenes ?? []) {
+    for (const token of scene?.tokens ?? []) {
+      if (token?.getFlag?.(MODULE_ID, GROUP_FLAG) === group.uuid) bodies.push(token);
+    }
+  }
+  return bodies;
+}
+
 /**
  * How many BODIES an actor stands for: a stack stands for its living bodies
  * across every stack it holds, and any other actor stands for itself.

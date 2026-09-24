@@ -1,5 +1,6 @@
 /* global game, foundry, ui, fromUuidSync */
 import { dealExperience } from "./xp-app.mjs";
+import { openHpTool } from "../lib/apps/hp-app.mjs";
 import {
   addBlank,
   addMember,
@@ -123,6 +124,12 @@ export const SHARED_ACTIONS = {
     if (!formation) return;
     await dealExperience(formation);
     this.render?.();
+  },
+
+  /** Open the hit-point window on this party's members. */
+  adjustHp() {
+    const formation = gmFormation(this);
+    if (formation) openHpTool({ parties: [formation.id] });
   },
 
   /**
