@@ -209,12 +209,24 @@ const FOUNDRY_CORE_HELPERS = {
  * are consumed whole, so a name mentioned inside one is never read as code. A
  * template with ${} holes is a `template` token holding the text before its
  * first hole, then each hole's own tokens, each followed by a `templateMiddle`
- * or `templateTail` token holding the text after it. Whether a `/` opens a
- * regex is decided the usual way, from the token before it. */
+ * or `templateTail` token holding the text after it.
+ *
+ * Whether a `/` opens a regex is decided from the token before it. It opens
+ * one at the start of the source or of a hole, after punctuation other than
+ * `)`, `]`, `}`, `x++` and `x--`, after a word in REGEX_AFTER_WORD that is not
+ * a property name, and after the `)` closing the head of an `if`, `while`,
+ * `for` or `with`. Everywhere else it divides, which misreads a statement
+ * that opens with a regex straight after a block's `}`. A `/` read as opening
+ * a regex that meets a line end before its closing `/` is division instead,
+ * so a misjudged one stays inside its own line. */
 const REGEX_AFTER_WORD = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "do", "else", "yield", "await"]);
+const HEAD_WORDS = new Set(["if", "while", "for", "with"]);
+const LINE_END = /[\n\r\p{Zl}\p{Zp}]/u;
 function tokenizeJs(src) {
   const tokens = [];
   const holes = []; // open ${} holes: brace depth inside each
+  const parens = []; // open parentheses: whether each opens an if/while/for/with head
+  let headClose = -1; // the index of the last `)` that closed such a head
   let i = 0;
   // Advances through template-literal text; "hole" when it stops at a `${`.
   const templateText = () => {
@@ -227,14 +239,39 @@ function tokenizeJs(src) {
     return "end";
   };
   const regexMayStart = () => {
-    const prev = tokens[tokens.length - 1];
-    if (!prev) return true;
-    if (prev.type === "punct") return !")]}".includes(prev.value);
-    return prev.type === "ident" && REGEX_AFTER_WORD.has(prev.value);
+    const k = tokens.length - 1;
+    const prev = tokens[k];
+    if (!prev || prev.type === "template" || prev.type === "templateMiddle") return true;
+    if (prev.type === "ident") return REGEX_AFTER_WORD.has(prev.value) && !punctAt(tokens, k - 1, ".");
+    if (prev.type !== "punct") return false;
+    if (prev.value === ")") return k === headClose;
+    if (prev.value === "]" || prev.value === "}") return false;
+    if (prev.value !== "+" && prev.value !== "-") return true;
+    // A run of `+` or `-` pairs off from its start, so an even run ends in
+    // `++` or `--` and an odd one in an operator: `a+++/x/` is `a++ + /x/`.
+    let run = 1;
+    while (src[prev.start - run] === prev.value) run++;
+    return run % 2 === 1;
+  };
+  // The index past the flags of the regex opening at i, or -1 when a line ends
+  // before its closing `/`.
+  const regexEnd = () => {
+    let inClass = false;
+    for (let j = i + 1; j < src.length && !LINE_END.test(src[j]); j++) {
+      if (src[j] === "\\" && !LINE_END.test(src[j + 1] ?? "")) j++;
+      else if (src[j] === "[") inClass = true;
+      else if (src[j] === "]") inClass = false;
+      else if (src[j] === "/" && !inClass) {
+        for (j++; /[a-z]/i.test(src[j] ?? ""); j++);
+        return j;
+      }
+    }
+    return -1;
   };
   while (i < src.length) {
     const c = src[i];
     const start = i;
+    let end;
     if (/\s/.test(c)) i++;
     else if (c === "/" && src[i + 1] === "/") i = src.indexOf("\n", i) < 0 ? src.length : src.indexOf("\n", i);
     else if (c === "/" && src[i + 1] === "*") i = src.indexOf("*/", i + 2) < 0 ? src.length : src.indexOf("*/", i + 2) + 2;
@@ -257,15 +294,8 @@ function tokenizeJs(src) {
       const hole = templateText() === "hole";
       if (hole) holes.push(0);
       tokens.push({ type: hole ? "templateMiddle" : "templateTail", value: src.slice(textStart, i - (hole ? 2 : 1)), start });
-    } else if (c === "/" && regexMayStart()) {
-      let inClass = false;
-      for (i++; i < src.length && src[i] !== "\n"; i++) {
-        if (src[i] === "\\") i++;
-        else if (src[i] === "[") inClass = true;
-        else if (src[i] === "]") inClass = false;
-        else if (src[i] === "/" && !inClass) break;
-      }
-      for (i++; /[a-z]/i.test(src[i] ?? ""); i++);
+    } else if (c === "/" && regexMayStart() && (end = regexEnd()) >= 0) {
+      i = end;
       tokens.push({ type: "regex", value: null, start });
     } else if (/[A-Za-z_$]/.test(c)) {
       while (/[\w$]/.test(src[i] ?? "")) i++;
@@ -279,6 +309,10 @@ function tokenizeJs(src) {
     } else {
       if (holes.length && c === "{") holes[holes.length - 1]++;
       if (holes.length && c === "}") holes[holes.length - 1]--;
+      if (c === "(") {
+        const word = tokens[tokens.length - 1];
+        parens.push(word?.type === "ident" && HEAD_WORDS.has(word.value) && !punctAt(tokens, tokens.length - 2, "."));
+      } else if (c === ")" && parens.pop()) headClose = tokens.length;
       i++;
       tokens.push({ type: "punct", value: c, start });
     }
