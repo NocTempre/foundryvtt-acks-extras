@@ -50,8 +50,21 @@ const lib = () => globalThis.acksExtras?.lib;
  * back as an override would write the entity into the rules data itself.
  * Decoding is for reading and comparing only — what is STORED is unchanged.
  */
-const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", "#39": "'" };
-const plainText = (s) => String(s ?? "").replace(/&(amp|lt|gt|quot|apos|#39);/g, (_, e) => ENTITIES[e]);
+const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", "#39": "'", nbsp: " ", "#160": " " };
+const plainText = (s) => String(s ?? "").replace(/&(amp|lt|gt|quot|apos|#39|nbsp|#160);/g, (_, e) => ENTITIES[e]);
+
+/**
+ * A dropped result's text as its sheet shows it: the description reduced to
+ * its words, else — for a result that links a document — that document's
+ * name. Foundry's result editor saves every edit as paragraphs (`<p>…</p>`),
+ * and a tag read back as text names no creature and matches no key. Tags go
+ * before entities are decoded, so an escaped `<` in the words stays a
+ * character.
+ */
+const resultText = (r) =>
+  plainText(String(r.description ?? r.text ?? "").replace(/<br\s*\/?>|<\/(p|div|li|h\d)>/gi, " ").replace(/<[^>]*>/g, ""))
+    .replace(/\s+/g, " ")
+    .trim() || String(r.name ?? "").trim();
 
 /** "classPercentages" → "Class Percentages"; digits keep their place. */
 const humanize = (s) =>
@@ -66,11 +79,66 @@ const humanize = (s) =>
  * and the export-description; the sidebar shows "Class Percentages — Level 0"
  * inside a folder named for the doc, because a list of dotted keys in one flat
  * folder is unreadable at exactly the moment a GM goes looking for a table.
+ * A key read this way assumes an undotted table id; entries name themselves
+ * from their parts (`partsLabel`), which holds for a dotted one too.
  */
 export function entryLabel(key) {
   const [, tableId, ...rest] = String(key).split(".");
   if (!tableId) return humanize(key);
-  return rest.length ? `${humanize(tableId)} — ${humanize(rest.join(" "))}` : humanize(tableId);
+  return partsLabel(tableId, rest.length ? rest.join(".") : null);
+}
+
+/** "monsters.hills" + "veryRare" → "Monsters Hills — Very Rare". */
+const partsLabel = (tableId, subId) => (subId ? `${humanize(tableId)} — ${humanize(subId)}` : humanize(tableId));
+
+/* ------------------------- generic projections ------------------------- */
+
+/**
+ * Tables whose data is a set of COLUMNS, each an ascending band list
+ * `[{min, max, <field>}]` read with one die: every column is its own RollTable
+ * and its own drop target, and a column dropped back replaces that column
+ * alone. `keyed` marks a field holding the engine's own keys (an outcome, a
+ * rarity), shown humanized and read back only as a key the table already
+ * holds; any other field is the reader's text as printed. `prefix` matches a
+ * family of dotted table ids (one per terrain).
+ */
+const COLUMN_GRIDS = [
+  { docId: "encounters", tableId: "territory", field: "outcome", keyed: true },
+  { docId: "encounters", tableId: "rarity", field: "rarity", keyed: true },
+  { docId: "encounters", tableId: "civilized", field: "name" },
+  { docId: "encounters", prefix: "monsters.", field: "name" },
+];
+
+/** Tables whose data is a set of LISTS, `{kind: [text, …]}`, each read with one die of its own length. */
+const UNIFORM_LISTS = [{ docId: "encounters", tableId: "terrainEncounters" }];
+
+const gridOf = (docId, tableId) =>
+  COLUMN_GRIDS.find((g) => g.docId === docId && (g.tableId === tableId || (g.prefix && String(tableId).startsWith(g.prefix)))) ?? null;
+const listOf = (docId, tableId) => UNIFORM_LISTS.find((l) => l.docId === docId && l.tableId === tableId) ?? null;
+
+/** A table the column projector can read: an object of band arrays. */
+const isColumnSet = (data) =>
+  !!data && typeof data === "object" && !Array.isArray(data) && Object.values(data).every((col) => Array.isArray(col));
+/** A table the list projector can read: an object of arrays of text. */
+const isListSet = (data) =>
+  !!data && typeof data === "object" && !Array.isArray(data) && Object.values(data).every((l) => Array.isArray(l) && l.every((x) => typeof x === "string"));
+
+/** Case- and punctuation-blind text, for matching a reader's words to a key. */
+const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/** Every key a keyed grid holds in its field, across all its columns. */
+const keysOf = (table, field) => [...new Set(Object.values(table ?? {}).flat().map((b) => b?.[field]).filter(Boolean))];
+
+/**
+ * The key a result's text stands for, among the keys the table already holds
+ * in that field — "Dangerous Terrain" and "dangerousTerrain" alike. Anything
+ * else is refused: the engine branches on these keys, and a word it does not
+ * know would be read as no outcome at all.
+ */
+function keyFor(text, keys) {
+  const hit = keys.find((k) => fold(k) === fold(text));
+  if (hit) return hit;
+  throw new Error(game.i18n.format("ACKS-LOCATION.tables.unknownResult", { text, known: keys.map(humanize).join(", ") }));
 }
 
 /* ------------------------- entry enumeration ------------------------- */
@@ -94,6 +162,17 @@ export function listEntries() {
       continue;
     }
     for (const [tableId, data] of Object.entries(doc.tables ?? {})) {
+      // Present, whatever shape it projects to: a table listed as sub-entries
+      // must not also be listed below as expected-but-absent.
+      seen.add(`${docId}.${tableId}`);
+      if (gridOf(docId, tableId) && isColumnSet(data)) {
+        for (const column of Object.keys(data)) out.push(entryOf(docId, tableId, column));
+        continue;
+      }
+      if (listOf(docId, tableId) && isListSet(data)) {
+        for (const [kind, list] of Object.entries(data)) if (list.length) out.push(entryOf(docId, tableId, kind));
+        continue;
+      }
       if (tableId === "occupationSubTables" && data?.categories) {
         for (const subId of Object.keys(data.categories)) {
           out.push(entryOf(docId, tableId, subId));
@@ -126,7 +205,6 @@ export function listEntries() {
         continue;
       }
       out.push(entryOf(docId, tableId, null));
-      seen.add(`${docId}.${tableId}`);
     }
   }
 
@@ -151,7 +229,7 @@ const OCCUPANT_COLUMNS = ["smallCot", "mediumCot", "mediumTownhouse", "largeTown
 function entryOf(docId, tableId, subId, { absent = false } = {}) {
   const key = subId ? `${docId}.${tableId}.${subId}` : `${docId}.${tableId}`;
   return {
-    docId, tableId, subId, key, label: entryLabel(key),
+    docId, tableId, subId, key, label: partsLabel(tableId, subId),
     rollable: isRollable(docId, tableId, subId),
     /** True when the engine asks for this table and nothing has supplied it. */
     absent,
@@ -162,6 +240,8 @@ function entryOf(docId, tableId, subId, { absent = false } = {}) {
 export function entryData({ docId, tableId, subId }) {
   const data = lib().tables.getTable(docId, tableId);
   if (subId == null) return data;
+  // One column's bands, or one list: the slice its RollTable shows.
+  if (gridOf(docId, tableId) || listOf(docId, tableId)) return data?.[subId] ?? null;
   if (tableId === "occupationSubTables") return data?.categories?.[subId];
   if (tableId === "cultures") {
     const [cultureId, field] = subId.split(".");
@@ -187,15 +267,43 @@ export function entryData({ docId, tableId, subId }) {
  *  - classPercentages: weighted class table per level
  *  - dwarvenCastes: caste → percentage weights (remainder caste = null)
  *  - randomHenchmanLevel: d20 bands {min,max,level}
+ *  - a COLUMN_GRIDS column, or a UNIFORM_LISTS list
  */
 export function isRollable(docId, tableId, subId) {
   if (subId != null)
-    return ["occupationSubTables", "cultures", "classDistribution", "occupationTypes", "classPercentages"].includes(tableId);
+    return (
+      ["occupationSubTables", "cultures", "classDistribution", "occupationTypes", "classPercentages"].includes(tableId) ||
+      !!gridOf(docId, tableId) ||
+      !!listOf(docId, tableId)
+    );
   return (docId === "people" && tableId === "dwarvenCastes") || (docId === "rarity" && tableId === "randomHenchmanLevel");
 }
 
 function rollTableSpec(entry, data) {
   const { docId, tableId } = entry;
+  const grid = entry.subId != null ? gridOf(docId, tableId) : null;
+  if (grid) {
+    // The table's own die, read off its furthest band across every column: a
+    // column whose last rows print nothing still rolls the die the table does.
+    const table = lib().tables.getTable(docId, tableId) ?? {};
+    const top = Math.max(1, ...Object.values(table).flat().map((b) => Number(b?.max ?? b?.min) || 0));
+    return {
+      formula: `1d${top}`,
+      results: (data ?? [])
+        .filter((b) => b?.min != null && b[grid.field] != null)
+        .map((b) => ({
+          range: [b.min, b.max ?? b.min],
+          description: grid.keyed ? humanize(b[grid.field]) : String(b[grid.field]),
+        })),
+    };
+  }
+  if (entry.subId != null && listOf(docId, tableId)) {
+    const list = data ?? [];
+    return {
+      formula: `1d${Math.max(1, list.length)}`,
+      results: list.map((text, i) => ({ range: [i + 1, i + 1], description: text })),
+    };
+  }
   if (entry.subId && tableId === "occupationSubTables") {
     const rows = data?.rows ?? [];
     return {
@@ -281,7 +389,26 @@ function parseRollTable(entry, table) {
   // a table dropped back after editing would otherwise write "grain &amp;
   // vegetables" into the registry, where every later reader — including the
   // name-matching below — sees the entity rather than the "&" it stands for.
-  const textOf = (r) => plainText(r.description ?? r.text).trim();
+  const textOf = resultText;
+  const grid = entry.subId != null ? gridOf(entry.docId, entry.tableId) : null;
+  if (grid) {
+    // Rewrite ONE column; the others are kept as they read now.
+    const current = foundry.utils.deepClone(lib().tables.getTable(entry.docId, entry.tableId) ?? {});
+    const keys = grid.keyed ? keysOf(current, grid.field) : null;
+    current[entry.subId] = results
+      .filter((r) => textOf(r))
+      .map((r) => {
+        const [min, max] = r.range ?? [1, 1];
+        return { min, max, [grid.field]: keys ? keyFor(textOf(r), keys) : textOf(r) };
+      });
+    return current;
+  }
+  if (entry.subId != null && listOf(entry.docId, entry.tableId)) {
+    // A list is its entries in table order; ranges carry no weight in it.
+    const current = foundry.utils.deepClone(lib().tables.getTable(entry.docId, entry.tableId) ?? {});
+    current[entry.subId] = results.map(textOf).filter(Boolean);
+    return current;
+  }
   if (entry.subId && entry.tableId === "occupationSubTables") {
     const rows = results.map((r) => {
       const [min, max] = r.range ?? [1, 100];
@@ -935,16 +1062,42 @@ export async function parseDrop(entry, dropData) {
   throw new Error(game.i18n.format("ACKS-LOCATION.tables.badDropType", { type }));
 }
 
-/** JSON drops for a sub-table entry carry just that category. */
-function reshapeJson(entry, parsed) {
+/**
+ * The whole table a JSON drop or an edit onto an entry stands for — what the
+ * override replaces, since an override holds whole tables. An occupation
+ * category, a grid column or a list may arrive as that slice alone (what the
+ * browser's edit shows) and is merged into the table as it reads now.
+ */
+export function reshapeJson(entry, parsed) {
   if (!entry.subId) return parsed;
   if (entry.tableId === "occupationSubTables") {
     const current = lib().tables.getTable(entry.docId, entry.tableId);
     const category = parsed?.categories ? parsed.categories[entry.subId] : parsed;
     return { categories: { ...(current?.categories ?? {}), [entry.subId]: category } };
   }
+  const grid = gridOf(entry.docId, entry.tableId);
+  if ((grid || listOf(entry.docId, entry.tableId)) && Array.isArray(parsed)) {
+    const current = foundry.utils.deepClone(lib().tables.getTable(entry.docId, entry.tableId) ?? {});
+    const keys = grid?.keyed ? keysOf(current, grid.field) : null;
+    current[entry.subId] = keys ? parsed.map((b) => ({ ...b, [grid.field]: keyFor(b?.[grid.field], keys) })) : parsed;
+    return current;
+  }
   // Other sub-entries (culture lists, distribution buckets, occupant
   // columns, level weights): a JSON drop must carry the WHOLE table's shape
   // — partial JSON merges are ambiguous; use a RollTable drop for one slice.
   return parsed;
+}
+
+/** Sub-entries whose slice `reshapeJson` merges back into the table. */
+const sliceMerges = (entry) =>
+  entry.tableId === "occupationSubTables" || !!gridOf(entry.docId, entry.tableId) || !!listOf(entry.docId, entry.tableId);
+
+/**
+ * What the browser's Edit shows for an entry: the slice where a saved slice
+ * merges back (`reshapeJson`), else the whole table. An override holds whole
+ * tables, so any other slice, saved, would stand in for the entire table.
+ */
+export function editableData(entry) {
+  if (entry.subId == null || sliceMerges(entry)) return entryData(entry);
+  return lib().tables.getTable(entry.docId, entry.tableId);
 }

@@ -273,6 +273,25 @@ reverting the override brings back your book's figure.
 *The entry picker's rules tables: each document ticked as imported, its id and
 the pages it reads on the right.*
 
+The wilderness encounter charts arrive as RollTables, one for each column: the
+territory and rarity throws, each civilized group, each terrain's monsters at
+every rarity, and the terrain-encounter lists. They are filed under
+**Encounters** in the RollTable shelf's **ACKS Imported Tables** folder, and a
+world that imported them before this version gets them the next time it reads
+its rules tables again. Edit one in its sheet and drop it on its row
+in **ACKS Imported Rules Tables**: the travel panel's encounter throw then
+draws from your version, while the chart's other columns keep what your book
+gave them. Every column of that chart then shows **override**, and **Revert**
+on any of them brings back the whole chart. A territory or rarity result has
+to stay one that table already holds, because the throw acts on it, so a word
+it does not know is refused.
+
+![](../releases/v8.5.0/location-encounter-tables.png)
+
+*One terrain's monster chart overridden by a dropped column: all four of its
+columns now read from the override, each with its revert, while the next
+terrain still reads the import.*
+
 ![](../releases/importer/v3.0.0/equipment-prose-price.png)
 
 *An item priced only in prose, its cost read from its own paragraph.*

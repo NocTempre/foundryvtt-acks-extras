@@ -859,9 +859,52 @@ run, and they are the report's only true positives.
 
 ## NPC proficiency tokens the index cannot resolve
 
-An AX3 NPC import logs its statline tokens that match no definition. Of 269, 7
-fail: 2 are extraction defects in the register (a line-break hyphen with the
-throw value inside the word, and an unbalanced specialty parenthesis), and 5
-are names the ability index does not hold. Two of those are spells, which want
-filtering by category before the lookup; the other three are content gaps to
-author.
+An AX3 NPC import logs its statline tokens that match no definition. Three of
+274 remain, each a name no shipped cookbook defines: a class's name standing
+where a proficiency goes (`ax3.npc31`), a variant spelling of a class power
+(`ax3.npc30`), and a proficiency no book in the build defines, carrying a spell
+list as its specialty (`ax3.npc20`). Each wants a ruling of its own: an alias
+authored on the definition it means, a definition, or a documented skip. The
+other four were extraction and text-layer defects (DECISIONS, 2026-09-23).
+
+## An NPC description that carries its own statline
+
+`ax3.npc26`'s last description paragraph holds its own statline and the prose
+that opens the next column's entry: the description box reaches past the
+statline and across the page. The statline itself reads correctly since
+`assists.statColumns`; the description flow is its own fix, and whatever
+closes it must leave the 2026-09-23 recompile's other entries byte-identical.
+
+## The Judges Journal charts not yet read
+
+Each chart takes the route the 2026-09-23 ruling gives it (rules data with a
+RollTable projection, a cookbook RollTable, or a setting table). Wave 1, the
+wilderness encounter charts the `encounters` doc already held, shipped as their
+projection. In order:
+
+2. **The rest of the wilderness chain**, into `encounters`: the terrain
+   sub-tables a terrain-encounter result names, treasure by territory, the ruin
+   modifier, lairs per hex (one source, after checking the Rules Reference's
+   terrain sheet) and climate by terrain. Formation then rolls the sub-table a
+   result names instead of stopping at its name. Several are multi-column die
+   tables, which a RollTable cannot show as one result without a convention
+   for joining the columns.
+3. **Dungeon**: wandering monsters by level as cookbook RollTables carrying the
+   monster-level flag the delve draw reads, the level matrix as a setting
+   table, and the dungeon chapter's stocking and treasure charts.
+4. **Settlement and NPC completions** for the henchmen consumers that already
+   exist. The appearance-by-people tables wait on a hash or ordinal locate for
+   table recipes, since every title is a people's name (see *The culture
+   anchors the generator matches on*).
+5. **The sea chain**, which wants a voyage encounter consumer that no feature
+   owns yet.
+6. **The Judge-only d-tables**: each a small cookbook RollTable.
+7. **Treasure and magic items**, after a ruling on how core's treasure pack,
+   the Treasure Tome and the Judges Journal relate. Gems are this wave (see
+   *Gems are DEFERRED* above).
+8. **The custom-class, custom-spell and magic-type remainders**, gated on the
+   magic work.
+
+Obstacles common to several waves: bands that carry their own dice, two-level
+and operator column headers, and chart titles that are printed names, which a
+plain-string `locate` would put in source.

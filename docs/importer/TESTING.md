@@ -239,6 +239,24 @@ disconnecting the shelf: book locations live in IndexedDB, so the capture
 driver's own profile starts with every book closed and the message can be read
 without touching the seat's shelf.
 
+### An NPC's statline, granted without writing
+
+For a changed statline box or grant when the world already holds the NPC: a
+re-import would rewrite a document this session did not create. Run the
+import's read half in page context instead. Open the staged copy
+(`TEST_ENVIRONMENT.md`) with `openBook` from `scripts/importer/extract.mjs` on
+its fetched bytes. Fetch `cookbook/<book>.json` and `cookbook/registers.json`
+from the module, run `executeEntry(doc, cb, registers, id, {skipOps: ["art"]})`
+from `scripts/importer/executor.mjs`, and hand `node.fields.statline
+.proficiencies` to `acksExtras.lib.services.get("ability-provider").resolve`.
+Arm create hooks first, as an OBSERVER only.
+
+*Observable:* `missing` is empty, or holds only the gaps the ROADMAP names; no
+granted item's name carries two bracketed specialties; the observer recorded
+nothing. A grant that has to import a definition the shelves lack shows up in
+the observer as that one item. Read the world's copy of the NPC to see what a
+re-import would change.
+
 ### Where the importer actually writes
 
 Not the sidebar. Classes, abilities and the rest land in the world compendium

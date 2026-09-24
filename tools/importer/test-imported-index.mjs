@@ -144,5 +144,38 @@ pack.remove("gamma");
 check("a document deleted while the shelf was cold is gone", (await importedItemFor(idOf("gamma"))) === null);
 check("one still on the shelf survives the same eviction", (await importedItemFor(idOf("alpha")))?.id === "alpha");
 
+/* --- a class template's part never answers for its definition --- */
+
+// A part is a copy that kept the definition's claim, under a name carrying
+// one class's specialty; whichever the shelf lists first, the index answers
+// with the definition, or with nothing when only parts are held.
+const shelfOf = (docs) => ({
+  collection: PACK,
+  documentName: "Item",
+  metadata: { packageType: "world", label: "ACKS Cookbook — Item", type: "Item" },
+  index: new Map(docs.map((d) => [d.id, { _id: d.id }])),
+  has: (id) => docs.some((d) => d.id === id),
+  get: (id) => docs.find((d) => d.id === id) ?? null,
+  getDocuments: async () => docs,
+});
+const itemDoc = (id, name, flags) => ({
+  id,
+  name,
+  pack: PACK,
+  flags: { [MODULE_ID]: flags },
+  getFlag(scope, key) {
+    return this.flags?.[scope]?.[key] ?? null;
+  },
+});
+const defId = "def.prof.invented";
+const part = itemDoc("part", "Invented (a specialty)", { cookbook: { id: defId }, templatePart: { classKey: "someClass", kind: "ability" } });
+const definition = itemDoc("definition", "Invented", { cookbook: { id: defId } });
+packs.splice(0, packs.length, shelfOf([part, definition]));
+forgetImportedIndex();
+check("a part listed first does not answer for its definition", (await importedItemFor(defId))?.id === "definition");
+packs.splice(0, packs.length, shelfOf([part]));
+forgetImportedIndex();
+check("a definition held only as a part is not imported", (await importedItemFor(defId)) === null);
+
 delete globalThis.game;
 console.log(`test-imported-index: ${pass} checks passed.`);

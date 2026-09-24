@@ -12,7 +12,7 @@
  *  - EDIT opens the JSON directly for cross-cutting grids.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { listEntries, entryData, exportEntry, parseDrop } from "./table-docs.mjs";
+import { listEntries, entryData, editableData, reshapeJson, exportEntry, parseDrop } from "./table-docs.mjs";
 import { setOverride, clearOverride, hasOverride, overrideMeta } from "./table-store.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
@@ -134,7 +134,7 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onEdit(_event, target) {
     const entry = this.#entry(target.closest("[data-entry-key]")?.dataset.entryKey);
     if (!entry || !game.user.isGM) return;
-    const current = JSON.stringify(entryData(entry), null, 2);
+    const current = JSON.stringify(editableData(entry), null, 2);
     await foundry.applications.api.DialogV2.prompt({
       classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-location-ruledata-edit"],
       window: { title: game.i18n.format("ACKS-LOCATION.browser.editTitle", { key: entry.key }), resizable: true },
@@ -146,11 +146,7 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
         label: game.i18n.localize("ACKS-LOCATION.browser.saveOverride"),
         callback: async (_ev, button) => {
           try {
-            let parsed = JSON.parse(button.form.elements.json.value);
-            if (entry.subId && entry.tableId === "occupationSubTables") {
-              const table = globalThis.acksExtras?.lib.tables.getTable(entry.docId, entry.tableId);
-              parsed = { categories: { ...(table?.categories ?? {}), [entry.subId]: parsed } };
-            }
+            const parsed = reshapeJson(entry, JSON.parse(button.form.elements.json.value));
             await setOverride(entry.docId, entry.tableId, parsed, { sourceName: "manual edit" });
             ui.notifications.info(game.i18n.format("ACKS-LOCATION.browser.overridden", { key: entry.key, name: "edit" }));
           } catch (err) {

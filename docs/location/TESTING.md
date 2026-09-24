@@ -115,6 +115,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    multi-book world completes in seconds, and an immediate second run reports
    the same totals while writing nothing at all — no result rows rebuilt and
    no document touched, so the tables' "last modified" times do not move.
+   Start any materialize check only once the classes registry has published
+   (`acksExtras.lib.tables.docInfo()` lists `acks.class.*` docs, some seconds
+   after `ready` on a fresh seat): a pass before then deletes those docs'
+   pages and the next pass recreates them, which reads as churn
+   ([ROADMAP.md](ROADMAP.md)).
    Check the rows actually carry their labels: blank entries with correct
    ranges is what a broken `description` looks like, and a count-based check
    sails straight past it.
@@ -128,6 +133,40 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    "grain & vegetables") — storage normalizes a bare `&` to `&amp;`; and
    **anything freshly rebuilt** — an embedded collection reads back in its own
    order, not the one it was written in.
+   *The encounter grids (needs an imported `encounters` doc — Import
+   Everything, or the rules tables from the Judges Journal):* after
+   `materializeDocs()`, the shelf's "Encounters" folder holds one RollTable
+   per territory, rarity and civilized column, per terrain × rarity monster
+   column, and per non-empty terrain-encounter list — 92 on a complete JJ
+   import — named "Monsters Hills — Very Rare" and the like; the old
+   `encounters.*` JSON pages for those tables are gone from the ruledata
+   journal. Draw from a monster column in the RollTable sheet: the die is
+   the table's own (1d100 for monsters, 1d20 for territory and rarity).
+   *A column edit reaches formation:* check `hasOverride("encounters",
+   "monsters.<terrain>")` is false first — a Judge's real override is not a
+   fixture. Create a world copy of that terrain's `rare` table (a fixture;
+   never edit the shelf's own), retype one result's text in Foundry's result
+   form, drop the copy on its browser row, then import
+   `/modules/acks-extras/scripts/formation/encounters.mjs` and call
+   `monsterDraw({ terrain, rarity: "rare", rng })` with an `rng` that lands
+   in the edited band. *Observable:* the draw names the edited creature, with
+   no markup; every other band and the other three columns of that terrain
+   read exactly as the WORLD layer does
+   (`acksExtras.lib.tables.getLayer("encounters", 20)`). Retype a territory
+   copy's result as a word the table does not hold and drop it: the drop is
+   refused, naming the outcomes it accepts, and no override is written.
+   Retype it as its own outcome in capitals and drop again: accepted, and the
+   table reads exactly as imported. Revert the row and the draw reads the
+   import again.
+   *Driving the result form:* `result.sheet.render(true)`, then in its
+   `prose-mirror[name="description"]` focus the `.ProseMirror` contenteditable,
+   `document.execCommand("selectAll")`,
+   `document.execCommand("insertText", false, text)`, and call the element's
+   `save()`; the form submits itself on that change and stores `<p>text</p>`,
+   which is what a Judge's edit stores. A copy written with the new text
+   directly skips that shape. The drop is a `DragEvent("drop")` whose
+   `DataTransfer` holds `{type: "RollTable", uuid}` as `text/plain`,
+   dispatched on the row `[data-entry-key="…"]`.
 7. Vault sweep: `runVaultSweep()` with the prune setting on and a location
    holding goods past its window.
    *Observable:* the sweep reports what it would take before taking it, and

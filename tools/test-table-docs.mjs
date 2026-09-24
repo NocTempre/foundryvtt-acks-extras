@@ -312,9 +312,16 @@ function installShelf(type, { contents = [], folders = [] } = {}) {
   return pack;
 }
 
-const { materializeAll, entryLabel, parseDrop, listEntries, listMaterializedDocs, countMaterializedDocs } = await import(
-  "../scripts/location/table-docs.mjs"
-);
+const {
+  materializeAll,
+  entryLabel,
+  parseDrop,
+  listEntries,
+  listMaterializedDocs,
+  countMaterializedDocs,
+  reshapeJson,
+  editableData,
+} = await import("../scripts/location/table-docs.mjs");
 
 /** Write calls only — the folder/journal lookups are reads. */
 const writeCount = () => calls.length;
@@ -637,6 +644,206 @@ await test("a world with no JSON tables gets no empty journal, and no empty shel
   await materializeAll();
   assert.equal(game.journal.length, 0, "an empty ruledata journal is clutter, not a fixture");
   assert.equal(shelf("JournalEntry"), null, "and so is an empty JournalEntry pack");
+});
+
+/* -------------------------------------------- */
+/*  Encounter grids and lists                   */
+/* -------------------------------------------- */
+
+/**
+ * An invented `encounters` doc in the assembled shape. Every column name,
+ * outcome word, creature and band here is made up; only the shapes (and the
+ * engine's rarity keys, which the code itself names) are the module's.
+ * `near` stops short of the die on purpose: its RollTable must still roll the
+ * table's d20, not a d12.
+ */
+const encounterRegistry = () => ({
+  encounters: {
+    territory: {
+      near: [
+        { min: 1, max: 8, outcome: "quiet" },
+        { min: 9, max: 12, outcome: "stirring" },
+      ],
+      far: [
+        { min: 1, max: 5, outcome: "quiet" },
+        { min: 6, max: 17, outcome: "stirring" },
+        { min: 18, max: 20, outcome: "lairAhead" },
+      ],
+    },
+    rarity: {
+      town: [
+        { min: 1, max: 14, rarity: "common" },
+        { min: 15, max: 20, rarity: "uncommon" },
+      ],
+      wild: [
+        { min: 1, max: 10, rarity: "common" },
+        { min: 11, max: 16, rarity: "uncommon" },
+        { min: 17, max: 19, rarity: "rare" },
+        { min: 20, max: 20, rarity: "veryRare" },
+      ],
+    },
+    civilized: {
+      groupA: [
+        { min: 1, max: 50, name: "Alpha Folk" },
+        { min: 51, max: 100, name: "Beta Folk" },
+      ],
+      groupB: [{ min: 1, max: 100, name: "Gamma Folk" }],
+    },
+    ...Object.fromEntries(
+      ["fen", "heath"].map((terrain) => [
+        `monsters.${terrain}`,
+        Object.fromEntries(
+          ["common", "uncommon", "rare", "veryRare"].map((rarity) => [
+            rarity,
+            [
+              { min: 1, max: 60, name: `${terrain} ${rarity} beast one` },
+              { min: 61, max: 100, name: `${terrain} ${rarity} beast two` },
+            ],
+          ]),
+        ),
+      ]),
+    ),
+    terrainEncounters: { valuable: ["Find A", "Find B", "Find C"], dangerous: ["Peril A", "Peril B", "Peril C"], unique: [] },
+    // Neither projects: a per-terrain record, and a column set nobody listed.
+    distance: { fen: { dice: "1d6", mult: 10, avg: 35 } },
+    evasion: { fen: [{ min: null, max: 6, target: 5 }] },
+  },
+});
+
+const entryAt = (key) => listEntries().find((e) => e.key === key);
+const tableNamed = (label) => [...shelf("RollTable").contents].find((t) => t.name === label);
+/** A RollTable as a drop hands it over, with the results the Judge left in it. */
+const droppedTable = (results) => {
+  globalThis.fromUuid = async () => ({ documentName: "RollTable", uuid: "dropped", name: "dropped", results });
+  return { uuid: "dropped" };
+};
+
+await test("an encounter grid lists one rollable entry per column, and a list set one per list", () => {
+  world({ registry: encounterRegistry() });
+  const entries = listEntries();
+  const rollable = entries.filter((e) => e.rollable);
+  // 2 territory + 2 rarity + 2 civilized + 2 terrains × 4 rarities + 2 lists (the empty one skipped)
+  assert.equal(rollable.length, 16, rollable.map((e) => e.key).join(", "));
+  assert.ok(entryAt("encounters.monsters.fen.veryRare")?.rollable, "a dotted table id keeps its column");
+  assert.equal(entryAt("encounters.monsters.fen.veryRare").label, "Monsters Fen — Very Rare");
+  assert.equal(entryAt("encounters.territory.near").label, "Territory — Near");
+  assert.equal(entryAt("encounters.terrainEncounters.unique"), undefined, "an empty list is no table");
+  const pages = entries.filter((e) => !e.rollable).map((e) => e.key).sort();
+  assert.deepEqual(pages, ["encounters.distance", "encounters.evasion"], "only the named tables project");
+});
+
+await test("a table listed by its columns is not also listed as expected-but-absent", () => {
+  world({
+    registry: encounterRegistry(),
+    expected: [{ docId: "encounters", tableIds: ["territory", "rarity", "monsters.fen", "terrainEncounters", "monsters.bog"] }],
+  });
+  const absent = listEntries().filter((e) => e.absent);
+  assert.deepEqual(absent.map((e) => e.key), ["encounters.monsters.bog"], "only the table nothing supplied");
+});
+
+await test("the encounter doc materializes in one create call, each column rolling the table's own die", async () => {
+  world({ registry: encounterRegistry() });
+  await materializeAll();
+  assert.ok(calls.includes("RollTable.createDocuments:16"), calls.join(", "));
+  const near = tableNamed("Territory — Near");
+  assert.equal(near.formula, "1d20", "a short column still rolls the table's die");
+  assert.deepEqual([...near.results].map((r) => r.description).sort(), ["Quiet", "Stirring"], "a keyed field reads humanized");
+  assert.equal(tableNamed("Civilized — Group A").formula, "1d100");
+  const rare = tableNamed("Monsters Heath — Rare");
+  assert.equal(rare.formula, "1d100");
+  assert.ok([...rare.results].some((r) => r.description === "heath rare beast two" && r.range[0] === 61), "names verbatim, bands kept");
+  assert.equal(tableNamed("Terrain Encounters — Valuable").formula, "1d3", "a list rolls a die of its own length");
+  calls = [];
+  await materializeAll();
+  assert.deepEqual(calls, [], `an unchanged encounter doc writes nothing: ${calls.join(", ")}`);
+});
+
+await test("a monster column dropped back replaces that column and keeps the other three", async () => {
+  world({ registry: encounterRegistry() });
+  const before = structuredClone(acksExtras.lib.tables.getTable("encounters", "monsters.fen"));
+  const drop = droppedTable([
+    { range: [51, 100], description: "Delta Beast" },
+    { range: [1, 50], description: "Gamma Beast" },
+    { range: [100, 100], description: "  " }, // a row the Judge blanked out
+  ]);
+  const { data } = await parseDrop(entryAt("encounters.monsters.fen.rare"), drop);
+  assert.deepEqual(data.rare, [
+    { min: 1, max: 50, name: "Gamma Beast" },
+    { min: 51, max: 100, name: "Delta Beast" },
+  ]);
+  for (const col of ["common", "uncommon", "veryRare"]) assert.deepEqual(data[col], before[col], `${col} is untouched`);
+  assert.deepEqual(acksExtras.lib.tables.getTable("encounters", "monsters.fen"), before, "the registry itself is not written");
+});
+
+await test("a keyed column reads back the engine's keys, and refuses a word it does not know", async () => {
+  world({ registry: encounterRegistry() });
+  const entry = entryAt("encounters.territory.far");
+  const ok = droppedTable([
+    { range: [1, 9], description: "QUIET" },
+    { range: [10, 19], description: "Lair Ahead" },
+    { range: [20, 20], description: "stirring" },
+  ]);
+  const { data } = await parseDrop(entry, ok);
+  assert.deepEqual(data.far.map((b) => b.outcome), ["quiet", "lairAhead", "stirring"], "any casing of a known key");
+  assert.deepEqual(data.near, encounterRegistry().encounters.territory.near, "the other column is untouched");
+  const bad = droppedTable([{ range: [1, 20], description: "Ambush" }]);
+  await assert.rejects(parseDrop(entry, bad), /unknownResult/, "an outcome the engine cannot branch on is refused");
+});
+
+await test("a result edited in Foundry's own form drops back as its words", async () => {
+  // The result editor saves paragraphs; a linked document shows its name.
+  world({ registry: encounterRegistry() });
+  const drop = droppedTable([
+    { range: [1, 40], description: "<p>Gamma&nbsp;Beast</p>" },
+    { range: [41, 80], description: "<p>Delta <em>Beast</em></p>" },
+    { range: [81, 99], description: "<p>Beast &lt;3&gt;</p>" },
+    { range: [100, 100], type: "document", name: "Linked Beast", description: "" },
+  ]);
+  const { data } = await parseDrop(entryAt("encounters.monsters.fen.rare"), drop);
+  assert.deepEqual(data.rare.map((b) => b.name), ["Gamma Beast", "Delta Beast", "Beast <3>", "Linked Beast"]);
+  const keyed = droppedTable([{ range: [1, 20], description: "<p>Lair Ahead</p>" }]);
+  const { data: territory } = await parseDrop(entryAt("encounters.territory.far"), keyed);
+  assert.deepEqual(territory.far.map((b) => b.outcome), ["lairAhead"], "a retyped outcome still matches its key");
+});
+
+await test("a list reads back in table order and leaves the other lists alone", async () => {
+  world({ registry: encounterRegistry() });
+  const drop = droppedTable([
+    { range: [2, 2], description: "Find Z" },
+    { range: [1, 1], description: "Find Y" },
+  ]);
+  const { data } = await parseDrop(entryAt("encounters.terrainEncounters.valuable"), drop);
+  assert.deepEqual(data.valuable, ["Find Y", "Find Z"]);
+  assert.deepEqual(data.dangerous, ["Peril A", "Peril B", "Peril C"]);
+});
+
+await test("an edited column saves as its whole table, keyed values checked", () => {
+  world({ registry: encounterRegistry() });
+  const near = entryAt("encounters.territory.near");
+  assert.deepEqual(editableData(near), encounterRegistry().encounters.territory.near, "Edit shows the column");
+  const saved = reshapeJson(near, [{ min: 1, max: 20, outcome: "Stirring" }]);
+  assert.deepEqual(saved.near, [{ min: 1, max: 20, outcome: "stirring" }]);
+  assert.deepEqual(saved.far, encounterRegistry().encounters.territory.far, "the other column is kept");
+  assert.throws(() => reshapeJson(near, [{ min: 1, max: 20, outcome: "Ambush" }]), /unknownResult/);
+  const list = entryAt("encounters.terrainEncounters.dangerous");
+  assert.deepEqual(reshapeJson(list, ["Peril Q"]).valuable, ["Find A", "Find B", "Find C"], "a list merges the same way");
+});
+
+await test("Edit on a slice that cannot merge back shows the whole table", () => {
+  // A culture's name list saved as `{names}` would have replaced every
+  // culture at once: the override holds whole tables.
+  const cultures = { list: { north: { male: ["Name A"], female: ["Name B"] }, south: { male: ["Name C"] } } };
+  world({ registry: { people: { cultures } } });
+  const entry = entryAt("people.cultures.north.male");
+  assert.deepEqual(editableData(entry), cultures, "the whole table, so a save is the whole table");
+  assert.deepEqual(reshapeJson(entry, cultures), cultures);
+});
+
+await test("a projected table whose data is not columns falls back to one JSON page", () => {
+  world({ registry: { encounters: { territory: { note: "not a column set" } } } });
+  const [entry] = listEntries();
+  assert.equal(entry.key, "encounters.territory");
+  assert.equal(entry.rollable, false);
 });
 
 console.log(`test-table-docs: ${passed} tests passed`);

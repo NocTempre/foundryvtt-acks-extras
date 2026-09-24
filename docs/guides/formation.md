@@ -605,7 +605,7 @@ formation's own table never is, because it has no zone. A table in a locked
 compendium opens read-only: import it into the world, or unlock the pack, to
 set its level.
 
-![](../releases/v8.4.0/formation-monster-level.png)
+![](../releases/v8.5.0/formation-monster-level.png)
 
 *A table's Summary tab in edit view, its Monster level filled in and saved.*
 

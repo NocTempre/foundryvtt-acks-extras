@@ -8,7 +8,7 @@
  * test-cookbook-coherence.
  */
 import assert from "node:assert";
-import { abilitySurfaceIndex, preferredId, tokenizeProfs } from "../../scripts/importer/cookbook.mjs";
+import { abilitySurfaceIndex, preferredId, rebracket, tokenizeProfs } from "../../scripts/importer/cookbook.mjs";
 
 let pass = 0;
 const check = (label, cond) => {
@@ -88,5 +88,15 @@ check("a tie inside the best category is a guess",
   (() => { const g = pick(["def.power.renownA", "def.power.renownB", "def.drawback.renown"]); return g.id === "def.power.renownA" && g.ambiguous && !g.ranked; })());
 check("the ranking reads only what the world holds when it holds several",
   (() => { const g = pick(["def.prof.climbing", "def.skill.climbing", "def.power.climbing"], new Set(["def.skill.climbing", "def.power.climbing"])); return g.id === "def.skill.climbing" && g.ranked; })());
+
+/* --- a specialty whose opening bracket the printing lost ------------------ */
+const knows = (name) => ["Siege Engineering", "Art/Craft", "Crafting"].some((n) => n.toLowerCase() === name.toLowerCase());
+check("the lost bracket goes back after the longest known name",
+  rebracket("Siege Engineering moats) 2", knows) === "Siege Engineering (moats) 2");
+check("a one-word name takes the rest as its specialty", rebracket("Crafting tin and brass)", knows) === "Crafting (tin and brass)");
+check("a balanced token is left alone", rebracket("Crafting (tin) 2", knows) === "Crafting (tin) 2");
+check("a token with no bracket is left alone", rebracket("Crafting 2", knows) === "Crafting 2");
+check("words that name nothing are left alone", rebracket("Unheard Of thing)", knows) === "Unheard Of thing)");
+check("a bracket with no specialty before it is left alone", rebracket("Crafting)", knows) === "Crafting)");
 
 console.log(`test-ability-names: ${pass} checks passed.`);

@@ -888,6 +888,10 @@ async function importedIndex() {
   ];
   const byId = new Map();
   for (const doc of docs) {
+    // A class template's part is a copy that kept its definition's claim; it
+    // never answers for the id, or a grant copies one class's specialty name
+    // ("A template part is not an import", docs/importer/DECISIONS.md).
+    if (doc.getFlag(MODULE_ID, TEMPLATE_PART)) continue;
     const flag = doc.getFlag(MODULE_ID, "cookbook");
     // Every id the document answers for: its own, and any it absorbed on merge
     // (see "Same name, two books: merge unless they differ beyond their
@@ -8759,8 +8763,9 @@ export async function resolveAbilities(tokens) {
   const loadedById = await importedIndex();
   const present = new Set(loadedById.keys());
   for (const raw of tokens ?? []) {
-    const token = String(raw).trim();
-    if (!token) continue;
+    const printed = String(raw).trim();
+    if (!printed) continue;
+    const token = rebracket(printed, (name) => nameIndex.has(nameKey(name)));
     const m = token.match(/^(.*?)\s*\(([^)]+)\)\s*\d*$/);
     const base = (m ? m[1] : token.replace(/\s*\d+$/, "")).trim();
     const specialty = m?.[2] ?? null;
@@ -8773,7 +8778,7 @@ export async function resolveAbilities(tokens) {
     let item = id ? loadedById.get(id) : null;
     if (!item && id) item = await importAbility(id).catch(() => null);
     if (!item) {
-      missing.push(token);
+      missing.push(printed);
       continue;
     }
     const data = item.toObject();
@@ -8782,4 +8787,26 @@ export async function resolveAbilities(tokens) {
     items.push(data);
   }
   return { items, missing };
+}
+
+/**
+ * A statline token whose specialty lost its opening bracket in the book's own
+ * text layer ("Name spec) 2"), read as the token it stands for ("Name (spec)
+ * 2"). The name is the longest run of leading words `known` accepts; a token
+ * with both brackets or none, or whose words name nothing, comes back as it
+ * was. No extraction can supply the bracket — the printing does not hold it.
+ * @param {string} token
+ * @param {(name: string) => boolean} known  whether a name is a defined ability
+ * @returns {string}
+ */
+export function rebracket(token, known) {
+  if (!token.includes(")") || token.includes("(")) return token;
+  const m = /^(.*?)\s*\)\s*(\d*)\s*$/.exec(token);
+  if (!m) return token;
+  const words = m[1].split(/\s+/).filter(Boolean);
+  for (let k = words.length - 1; k >= 1; k--) {
+    const name = words.slice(0, k).join(" ");
+    if (known(name)) return `${name} (${words.slice(k).join(" ")})${m[2] ? ` ${m[2]}` : ""}`;
+  }
+  return token;
 }

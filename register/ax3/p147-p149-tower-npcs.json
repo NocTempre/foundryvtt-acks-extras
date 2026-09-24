@@ -17,7 +17,11 @@
     },
     "assists": {
       "statLabelKey": "6ygl5a",
-      "statlineAt": 148
+      "statlineAt": 148,
+      "statColumns": [
+        40,
+        300
+      ]
     }
   },
   {

@@ -3971,6 +3971,7 @@
   "ACKS-LOCATION.tables.exportedFrom": "Exported from imported ruledata table {key} (acks-location Ruledata Browser). Tweak entries, then drop this table onto its browser row to apply.",
   "ACKS-LOCATION.tables.notRollable": "This table is a grid — replace it with a JSON journal page, not a RollTable.",
   "ACKS-LOCATION.tables.badDropType": "Cannot read a {type} — drop a RollTable or a journal page.",
+  "ACKS-LOCATION.tables.unknownResult": "\"{text}\" is not a result this table knows. Use one of: {known}.",
   "ACKS-LOCATION.tables.placeholderHint": "Placeholder — no import provided this expected table yet. Fill the JSON below, or drop a RollTable/journal page onto its Ruledata Browser row to supply it.",
   "ACKS-LOCATION.vault.name": "Vault of {name}",
   "ACKS-LOCATION.vault.region": "Personal vault",

@@ -36,6 +36,26 @@ sibling modules (henchmen today; domains later) read through acks-lib.
     earlier release wrote is retired then and rebuilt on the shelf. The
     contract's `countMaterializedDocs`/`removeMaterializedDocs` remove the
     documents without touching the imported data.
+  - Two generic projections, keyed by a descriptor table in
+    `table-docs.mjs`, carry the `encounters` doc: a **column grid** (every
+    column an ascending band list read with one die) is one RollTable per
+    column, rolling the table's own die, read off its furthest band; a
+    **list set** is one RollTable per non-empty list, a die of the list's
+    length. A column or list dropped back (as a RollTable, or as JSON by
+    drop or Edit) is merged into the table as it reads now, and the
+    override stores that whole table, the other columns frozen as they
+    read at the save. A **keyed** column (outcomes, rarities: words the
+    engine branches on) reads back only a key the table already holds, in
+    any casing, and refuses anything else. The override is what the engine
+    reads, so an edited monster column changes what formation's encounter
+    chain rolls.
+  - The browser's Edit shows a slice only where a saved slice merges back
+    (an occupation category, a grid column, a list); any other sub-entry
+    shows its whole table, because a saved slice would stand in for all
+    of it.
+  - A dropped RollTable's result reads as the words its sheet shows: the
+    description with its markup stripped (Foundry's result form saves every
+    edit as a paragraph), else the name of the document the result links.
 - **Enhance**: the location sheet — contents, roster and nesting on every place,
   plus the market tabs (pools, demographics, postings, candidates, slander) on
   the places that have a market; a "which tables are present / missing, and from

@@ -2316,8 +2316,12 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
   const { labelRun, merged, labelLength, label } = axLabelRun(spd, entry, assists, statPage);
   // The block: contiguous lines at (or right of) the label's indent, WITHIN the
   // label's own column — same-y items of the neighbouring column must not join
-  // the cluster or break it.
-  const scols = statPage === page ? cols : axColumns(spd, assists);
+  // the cluster or break it. Where detection misreads the statline's page,
+  // `assists.statColumns` states that page's columns for the block alone: a
+  // column bound set too far right admits the next column's runs, and the box
+  // drawn around them reads two blocks as one. It is not `flowColumns`, which
+  // also turns the prose flow onto that page and hands it the block as prose.
+  const scols = assists.statColumns ?? (statPage === page ? cols : axColumns(spd, assists));
   const sCol = colOf(labelRun.x, scols);
   const sColX0 = scols[sCol] - 5;
   const sColX1 = scols[sCol + 1] ? scols[sCol + 1] - 6 : spd.width - 40;

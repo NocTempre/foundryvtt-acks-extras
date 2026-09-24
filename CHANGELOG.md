@@ -1,5 +1,63 @@
 # Changelog
 
+## 8.5.0
+
+### Added
+
+- **The wilderness encounter charts are RollTables, and an edited one is what
+  the encounter throw draws from.** Each column of the charts gets its own
+  RollTable: the territory and rarity throws, each civilized group, each
+  terrain's monsters at every rarity, and the terrain-encounter lists. Each
+  rolls the chart's own die. They are filed under **Encounters** in the
+  RollTable shelf's **ACKS Imported Tables** folder. Edit one in its sheet and
+  drop it on its row in **ACKS Imported Rules Tables**. The travel panel's
+  encounter throw then draws from your version, and the chart's other columns
+  keep what your book gave them. A territory or rarity result has to stay one
+  that chart already holds, because the throw acts on it, so a word it does
+  not know is refused and the accepted results are listed. **Revert** on any
+  column brings back your book's whole chart. A world that imported its rules
+  tables before this version gets the RollTables the next time it reads them
+  again, and the journal pages those charts used to appear as are removed
+  then.
+
+### Fixed
+
+- **Two NPCs from AX3 read their own stat block, not the column beside it.**
+  On two pages the importer read an NPC's statline together with the next
+  column. One NPC took another's spells as its proficiencies and another's hit
+  dice. The other took a roll table's numbers into its proficiencies, which
+  broke one of them in two. Each stat block now ends at its own column.
+  Reimport the two from **(Re)import Individual Entries** to replace what an
+  earlier import built.
+- **A proficiency whose specialty lost its opening bracket in the book is
+  still granted.** One AX3 NPC's statline prints a specialty without its
+  opening bracket, so the proficiency matched nothing and the NPC arrived
+  without it. The importer now finds the proficiency's name ahead of the
+  specialty and grants it with the specialty attached.
+- **A proficiency granted on import carries its own specialty, never a class
+  template's.** In a world whose classes have their template packages, an
+  imported NPC's proficiency could be copied from one class's starting package
+  and come out named for two specialties, that class's and its own. The grant
+  now copies the proficiency itself. An NPC imported that way keeps the doubled
+  name until it is imported again.
+- **A RollTable edited in Foundry's own result form drops back as the words
+  you typed.** Foundry saves a result's text as a paragraph, and dropping the
+  table on its row in **ACKS Imported Rules Tables** carried that markup into
+  the rules table, so a retyped name read with its tags and a retyped id
+  matched nothing. A result that links a document now reads as that
+  document's name, where before it was left out.
+- **The Monster level field is as wide as Roll Formula above it.** On a
+  RollTable's **Summary** tab, the Monster level input stretched across the
+  row while Roll Formula keeps its fixed width. It now takes the same width
+  and lines up under it.
+- **Edit in ACKS Imported Rules Tables saves a whole table.** Editing one
+  culture's name list, one class-distribution bucket, one occupant column or
+  one level's class weights showed only that part, and saving made that part
+  the whole table. Until the override was reverted, everything else in the
+  table read as missing. Edit now shows the whole table for those rows. A row
+  whose part merges back into its table shows only its part, as before: an
+  occupation category, and now an encounter column or terrain-encounter list.
+
 ## 8.4.0
 
 ### Added

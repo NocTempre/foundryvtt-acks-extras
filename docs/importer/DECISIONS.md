@@ -4989,3 +4989,84 @@ suite instead.
 *Cost:* none for a world. The picker reads the recipes, so an upgraded world
 shows the corrected citations without a re-read, and every search lands on the
 page it landed on before.
+
+### A Judges Journal chart has one source and at most two projections (2026-09-23)
+
+**Reported.** A Judge wanted the wilderness encounter charts as RollTables. The
+`encounters` rules-table doc already held every row; it reached the world only
+as JSON journal pages, because the projection admitted people and rarity shapes
+alone.
+
+**Ruled.** A chart has ONE reader of its page, and where it lands decides what
+else it may become:
+- **Rules data** (a `TABLE_RECIPES` doc) when a feature computes with it. Where
+  its shape is a column grid or a list set, `location/table-docs.mjs` also
+  projects it as RollTables; a Judge's edit dropped back overrides the doc, so
+  the edit reaches the feature. The encounter charts are this case: 92
+  RollTables from a complete import, and no new extraction.
+- **A cookbook `kind.rolltable`** for a chart only the Judge rolls.
+- **A `kind.settingTable`** for a reference grid or list with no odds (the
+  2026-09-10 ruling).
+
+**Rejected: re-reading the monster grids as cookbook RollTables.** Two readers
+of one page drift apart, and a Judge's edit to the second would never reach
+formation. **Rejected: RollTables as formation's source.** The chain branches on
+structured outcome and rarity keys, which free-text results lose; a keyed column
+therefore reads back only the keys its table already holds.
+
+*Cost:* 92 more documents on the RollTable shelf, filed under the doc's folder.
+The remaining charts, by wave, are in the ROADMAP.
+
+### A statline page's columns are stated for the block alone, and a lost bracket is restored at resolution (2026-09-23)
+
+**Found.** Seven AX3 statline tokens resolved to nothing. The design read two as
+register defects and two as spells printed among proficiencies. The run dump
+said otherwise:
+- **Two NPC statlines read a neighbouring column.** Column detection placed the
+  second column past where that column's text begins, so the block's bound
+  admitted the neighbour's runs, and the box drawn around them read two blocks
+  as one. On one page the neighbour is another NPC's statline: its spell names
+  landed in the first NPC's proficiencies and its hit dice replaced the first
+  NPC's. On the other it is a roll table's number column, whose figure sat
+  inside a hyphenated word.
+- **One token lost its opening bracket in the book's own text layer.** No box
+  and no extraction can supply a character the printing does not hold.
+
+**Ruled.**
+- `assists.statColumns` states the statline page's columns for the block
+  alone. A recompile changes those two statlines and nothing else in the
+  cookbook.
+- `rebracket` restores a specialty's opening bracket when the tokens are
+  resolved: the name is the longest run of leading words the ability index
+  knows. It ships no text and serves any book.
+- No spell filter. The spell names were the neighbour's column, and a filter
+  would have hidden the corruption beneath them.
+
+**Rejected: `flowColumns` for the statline page.** It also turns the prose flow
+onto that page. Recompiled, one NPC's description gained its own statline as a
+paragraph, and the other's lost three hyphen joins. **Rejected: a detector
+change.** The 2026-08-15 and 2026-09-08 rulings stand: per-page authoring over
+a detector that trades one page set for another.
+
+*Cost:* three tokens still resolve to nothing, and each is a content gap
+(ROADMAP).
+
+### A template part never answers for its definition, wherever the index is read (2026-09-23)
+
+**Found.** The 2026-08-21 ruling ("A template part is not an import") stripped
+the importer's claim from gear skins and made the gear menu skip parts. Ability
+parts still carry the claim: a world with class template packages held two dozen
+documents claiming one proficiency, each named for one class's specialty.
+`importedIndex` kept the first document per id in shelf order, so a statline
+grant copied a part and appended its own specialty to the part's.
+
+**Ruled.** `importedIndex` skips any document carrying the `templatePart` flag,
+so every reader of it — statline grants, the by-name lookup, the ability
+picker's present marks, Update Abilities' definitions, the dedupe before an
+ability import — inherits the 2026-08-21 rule. Where a world holds a definition
+only as parts, it now counts as not imported, and the next grant imports the
+definition itself.
+
+*Cost:* a world whose only copy of a definition is a part gains that definition
+on the next grant that needs it. An actor already granted a doubled name keeps
+it until it is imported again.
