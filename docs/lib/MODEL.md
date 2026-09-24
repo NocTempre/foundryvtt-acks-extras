@@ -7,9 +7,10 @@ only one feature needs stays with that feature.
 
 - **Reuse**: the `acks` system's damage/save vocabulary and (via the
   `game.acks?.lib` shim) any surface later upstreamed into core.
-- **Extend**: the shared ACKS effect/ability vocabulary (`vocab.mjs`) and its
-  DataModel field-builders (`fields.mjs`) — the target the abilities feature
-  and (deferred) the monsters feature build their models from.
+- **Extend**: the shared ACKS effect/ability vocabulary (`vocab.mjs`, with
+  the magic families in `magic-vocab.mjs`) and its DataModel field-builders
+  (`fields.mjs`) — the target the abilities feature and (deferred) the
+  monsters feature build their models from.
 - **Enhance**: the plumbing every feature was duplicating before the merge —
   one socket transport (`sockets.mjs`), one effect-scan core
   (`effect-scan.mjs`), one tables registry (`tables.mjs`), one service registry

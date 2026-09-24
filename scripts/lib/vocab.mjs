@@ -21,6 +21,11 @@
 import { getDoc, hasDoc } from "./tables.mjs";
 import { cookbookId } from "./library.mjs";
 
+// The magic families — spell types, stat-line shapes, targeting, saves,
+// frequencies — live in their own Foundry-free file and are re-exported here
+// so every consumer keeps this one import path.
+export * from "./magic-vocab.mjs";
+
 /** `{ key: { label, … } }` → `{ key: label }` for DataModel `choices`. */
 export const choicesOf = (enumObj) =>
   Object.fromEntries(Object.entries(enumObj).map(([k, v]) => [k, v?.label ?? k]));
@@ -590,7 +595,36 @@ export const EFFECT_TYPES = {
   conditionRemove: { label: "Removes Condition" },
   economic: { label: "Economic / Rate" },
   capability: { label: "Capability" }, // marker; detail lives in the (lazy) description
+  // --- Spell effects: what a cast does to its targets. `domain: "spell"`
+  // keeps a kind out of an ability's picker (`effectTypesFor`). The cast
+  // engine dispatches on the kind; a kind it cannot compute is tracked with a
+  // duration and a card line rather than executed.
+  damage: { label: "Damage", domain: "spell" },
+  heal: { label: "Healing", domain: "spell" }, // what it restores: HEAL_KINDS
+  summon: { label: "Summon", domain: "spell" }, // SUMMON_FORMATS + CONTROL_KINDS
+  control: { label: "Control", domain: "spell" }, // dominate, command, enslave
+  transform: { label: "Transform", domain: "spell" },
+  wall: { label: "Wall", domain: "spell" },
+  detect: { label: "Detect", domain: "spell" },
+  dispel: { label: "Dispel", domain: "spell" },
+  ward: { label: "Ward", domain: "spell" },
+  illusion: { label: "Illusion", domain: "spell" },
+  light: { label: "Light", domain: "spell" },
+  teleport: { label: "Teleport", domain: "spell" },
+  createObject: { label: "Create Object", domain: "spell" },
+  structural: { label: "Structural Damage", domain: "spell" },
+  curse: { label: "Curse", domain: "spell" },
 };
+
+/**
+ * The effect types a picker offers for one domain: `"ability"` is every kind
+ * without a domain marker, `"spell"` is every kind. A stored row keeps its
+ * type whatever a picker shows, so widening the table never invalidates a
+ * document.
+ */
+export function effectTypesFor(domain) {
+  return Object.fromEntries(Object.entries(EFFECT_TYPES).filter(([, v]) => !v.domain || v.domain === domain));
+}
 
 /**
  * WHOSE roll an effect modifies. Without this a penalty an ability imposes on
@@ -736,20 +770,6 @@ export function levelFactorLabel(spec) {
 export const RUNG_OUTCOMES = {
   auto: { label: "Automatic — no throw" },
   none: { label: "Not available yet" },
-};
-
-/** Spell-like ability usage frequency. */
-export const SPELL_LIKE_FREQ = {
-  atWill: { label: "At Will" },
-  perRound: { label: "Once per Round" },
-  perTurn: { label: "Once per Turn" },
-  perHour: { label: "Once per Hour" },
-  per8Hours: { label: "Once per 8 Hours" },
-  perDay: { label: "Once per Day" },
-  perWeek: { label: "Once per Week" },
-  perMonth: { label: "Once per Month" },
-  perYear: { label: "Once per Year" },
-  byLevel: { label: "By Caster Level (scheduled)" },
 };
 
 /** Resources an ability spends or grants. */

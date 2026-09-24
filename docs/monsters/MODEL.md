@@ -46,7 +46,7 @@ behavior.
 Set via the "ACKS Monster" fieldset injected into monster-owned item sheets.
 
 - **weapon**: `damageType` (enum), `extraordinary` (bool), `naturalWeapon` (enum)
-- **ability**: `abilityCategory` (enum), `usage` (enum), `xpAsterisks` (optional)
+- **ability**: `abilityCategory` (enum), `usage` (lib's `SPELL_LIKE_FREQ`, re-exported as `USAGE`), `xpAsterisks` (optional)
 - **item (spoil)**: `component` (bool), `researchEffects` (string[])
 
 ## Empty vs. 0

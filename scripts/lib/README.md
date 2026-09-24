@@ -15,6 +15,7 @@ sibling modules) — never the import path for this module's own features.
 | --- | --- |
 | `constants.mjs` | `MODULE_ID`, `LANG_PREFIX`, `FLAG_GEAR` — the module's name constants. The ONLY file that states the module-id literal. |
 | `vocab.mjs` | Canonical ACKS enums (damage/movement/vision/senses/natural weapons/alignment), the `LevelValue` resolver, and the NAME-FORM rules (`nameVariants` / `nameKeys`) that know "Oil, Military (1 pint)" and "Military Oil" are one thing — **the importer subsystem reads those too; a second copy is how one flask became two documents.** Foundry-free. |
+| `magic-vocab.mjs` | The magic families — spell types, the shapes a printed range or duration line takes, units, concentration, casting time, target models and areas, target filters, saves, heal kinds, control, summoning formats, and the ONE frequency table (`SPELL_LIKE_FREQ`; monsters' `USAGE` is it) — plus the `MAGIC_VOCAB` registry and `vocabLabel` / `vocabChoices`, the label from `ACKS-LIB.enum.<family>.<key>`. Re-exported by `vocab.mjs`; `tools/test-magic.mjs` holds it to the lang file. Foundry-free. |
 | `fields.mjs` | DataModel field-builders over vocab. Foundry-only, lazily so Node still evaluates it. |
 | `field-spec.mjs` | Data-described form shapes for fields nobody shipped (importer-supplied metadata). |
 | `choice-spec.mjs` | The family's one "choose N from …" primitive. |

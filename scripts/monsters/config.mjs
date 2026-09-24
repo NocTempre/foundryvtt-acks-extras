@@ -20,6 +20,9 @@
 // NATURAL_WEAPONS is the superset: it carries this sheet's sting / feeler /
 // envelopment beyond its own list, so nothing is lost. Re-exported here so this
 // module's own consumers keep importing them from ./config.mjs unchanged.
+// `USAGE` is lib's `SPELL_LIKE_FREQ`: one frequency vocabulary for monster
+// powers, abilities and item powers, and every key a sheet stored under the
+// former local table is a member of it.
 // Monster-specific enums (types, sizes, body forms, saves LUT, …) stay below.
 export {
   choicesOf,
@@ -31,6 +34,7 @@ export {
   ALIGNMENTS,
   EFFECT_KEYS,
   CONDITION_KEYS,
+  SPELL_LIKE_FREQ as USAGE,
 } from "../lib/vocab.mjs";
 
 /* -------------------------------------------- */
@@ -139,20 +143,6 @@ export const INTERVAL_UNITS = {
   month: { label: "Month(s)" },
   season: { label: "Season(s)" },
   year: { label: "Year(s)" },
-};
-
-/** Spell-like ability usage factors (Creation p.392). */
-export const USAGE = {
-  atWill: { label: "At will", factor: 1 },
-  perTurn: { label: "1/turn", factor: 0.8 },
-  per3Turns: { label: "1/3 turns", factor: 0.7 },
-  perHour: { label: "1/hour", factor: 0.6 },
-  thricePerDay: { label: "3/day", factor: 0.5 },
-  perDay: { label: "1/day", factor: 0.4 },
-  perWeek: { label: "1/week", factor: 0.3 },
-  perMonth: { label: "1/month", factor: 0.2 },
-  perSeason: { label: "1/season", factor: 0.1 },
-  perYear: { label: "1/year", factor: 0.05 },
 };
 
 /* -------------------------------------------- */

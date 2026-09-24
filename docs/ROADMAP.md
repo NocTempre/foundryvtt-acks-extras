@@ -93,6 +93,10 @@ clock.
 ## Magic
 
 The largest unbuilt area, and the reason two primitives already exist unused.
+Scoped 2026-09-24: [magic/wip/20260924-scoping.md](magic/wip/20260924-scoping.md)
+holds the feature decomposition (`magic`, `magic-items`, `research`), the data
+model, the importer recipes, the release phasing and the open questions; its
+substance moves into `docs/magic/` as each release lands.
 
 **A real spell primitive.** `lib/fields.mjs` `spellRefField()` is a placeholder:
 it points at the core system's existing spell item by uuid and carries the
@@ -142,8 +146,12 @@ distribution is imported.
 
 The enum and DataModel migrations are **done** — `monsters/config.mjs`
 re-exports the shared vocabulary, and the extras model stores lib's shared
-field shapes (speeds, senses, vision, defences). Nothing monster-shaped is
-parked here.
+field shapes (speeds, senses, vision, defences).
+
+**Costing a spell-like ability by its usage.** The monster-creation table
+that prices a spell-like ability by how often it can be used imports with the
+creation tables when a monster builder consumes it. Nothing reads a factor
+today, so none ships; the usage itself is the shared frequency vocabulary.
 
 ---
 

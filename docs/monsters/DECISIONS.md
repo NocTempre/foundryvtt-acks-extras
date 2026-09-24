@@ -148,3 +148,18 @@ Recorded from a comment on the `ready` hook in `scripts/monsters/module.mjs`.
 
 **Ruled.** A `monster`-type actor lands by default on lib's Follower Card, which expands into the Full Monster Sheet. This feature's own `registerSheet` call for `monster` registers the sheet as selectable but does not claim `makeDefault` for that type.
 **Rejected.** Claiming the default here too, because which sheet a `monster` lands on would then depend on which subsystem's `ready` handler ran last — an import-order race rather than a choice.
+
+### `USAGE` is the shared frequency vocabulary (2026-09-24)
+
+**Ruled.** `monsters/config.mjs` re-exports lib's `SPELL_LIKE_FREQ` as
+`USAGE`. Every key the annotation fieldset stored under the local table is a
+member of the shared one, so no document changes; the ruling that made the
+tables one is `docs/magic/DECISIONS.md`, "One frequency vocabulary".
+
+**Rejected.** Keeping the local table for its `factor` column. The factors
+were values read off the monster-creation page, shipped in code and read by
+nothing; the value rule forbids the first and the second made it pointless.
+
+**What it cost.** The Usage select offers thirteen options where it offered
+ten. A consumer that prices a spell-like ability by its usage imports the
+factor table when it is built (`docs/ROADMAP.md`, Monsters).

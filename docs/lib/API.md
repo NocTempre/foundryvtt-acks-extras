@@ -257,10 +257,20 @@ to `{ key: label }` for DataModel `choices`.
 - **Shared with the monsters feature** (value-identical mirror until its deferred
   migration): `DAMAGE_TYPES`, `MOVEMENT_TYPES`, `VISION_TYPES`, `SENSE_TYPES`,
   `NATURAL_WEAPONS`, `ALIGNMENTS`.
-- **Ability effect model** (new): `ABILITY_CATEGORIES`, `EFFECT_TYPES`,
-  `MODIFIER_TARGETS`, `EFFECT_KEYS`, `CONDITION_KEYS`, `PROGRESSION_CLASSES`,
-  `PROGRESSION_LEVELS`, `SPELL_LIKE_FREQ`, `RESOURCE_KINDS`, `ROLL_TYPES`,
-  `REROLL_KEEP`, `VALUE_SCALES`, `CONVERSION_STATUS`.
+- **Ability effect model** (new): `ABILITY_CATEGORIES`, `EFFECT_TYPES`
+  (spell kinds marked `domain: "spell"`; `effectTypesFor(domain)` is a
+  picker's list), `MODIFIER_TARGETS`, `EFFECT_KEYS`, `CONDITION_KEYS`,
+  `PROGRESSION_CLASSES`, `PROGRESSION_LEVELS`, `RESOURCE_KINDS`,
+  `ROLL_TYPES`, `REROLL_KEEP`, `VALUE_SCALES`, `CONVERSION_STATUS`.
+- **Magic families** (`magic-vocab.mjs`, re-exported here): `SPELL_TYPES`,
+  `RANGE_SHAPES`, `DISTANCE_UNITS`, `DURATION_SHAPES`, `TIME_UNITS`,
+  `CONCENTRATION_KINDS`, `CASTING_TIME_SHAPES`, `TARGET_MODELS`,
+  `AREA_SHAPES`, `TARGET_FILTERS`, `SAVE_CATEGORIES`, `SAVE_EFFECTS`,
+  `HEAL_KINDS`, `CONTROL_KINDS`, `SUMMON_FORMATS`, `SPELL_LIKE_FREQ` (the
+  one frequency table; the monsters feature's `USAGE` is this), the
+  `MAGIC_VOCAB` registry keyed by lang id, and `vocabLabel(family, key)` /
+  `vocabChoices(family)` — the label from `ACKS-LIB.enum.<family>.<key>`
+  when the client has it, else the inline one.
 - **Scoping** (v0.6): `INFLUENCE_TONES`, `SCOPE_ALIGNMENT_MODES`.
 - **Roll outcomes** (v0.38): `OUTCOME_TRIGGERS` and `outcomeFires(effect, {natural,
   total, target, success})`. An `outcome` effect states "on a roll of X, Y

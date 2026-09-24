@@ -2481,3 +2481,28 @@ left out with a reason; undo is held in memory.
 change. It restores each row to its value from before that change, even if
 something else has changed that value since. Nonlethal damage stays
 untracked (ROADMAP).
+
+### Vocabulary labels live in lang, keyed by family (2026-09-24)
+
+**Ruled.** A family declared in `lib/magic-vocab.mjs` keeps an inline English
+label and takes the label a window shows from `lang/en.json` under
+`ACKS-LIB.enum.<family>.<key>`, through `vocabLabel(family, key)`; the family
+id is its key in the `MAGIC_VOCAB` registry. `tools/test-magic.mjs` walks
+every family against the lang file in both directions, since validate cannot
+see a key built from a family and a member. The magic families re-export
+through `vocab.mjs` (`export *`) so the import path stays one. A member of
+`EFFECT_TYPES` that only a spell may carry is marked `domain: "spell"`, and
+`effectTypesFor(domain)` is what a picker reads.
+
+**Rejected.** Inline-only labels, the convention every earlier family
+follows: a label a translation cannot reach. The scoping's spelling
+`ACKS-LIB.<enum>Label.<key>`: one `enum` parent keeps every key a leaf and
+makes the lang id and the registry id the same word. Lang keys as the
+schema's `choices` labels: `choices` validates membership at `init`, before a
+client's strings are certain, so the inline label serves the schema and
+`vocabLabel` serves the window — the pattern `ACKS-EQUIPMENT.wear.*` already
+uses.
+
+**What it cost.** The English is written twice, inline and in lang. The suite
+holds the two to the same members, not to the same words, and a family added
+without its keys fails `npm test` rather than `npm run validate`.
