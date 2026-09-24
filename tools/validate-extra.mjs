@@ -209,3 +209,13 @@ console.log(`  ok: every registry read is declared (${declared.size} document(s)
   scan("scripts", "free-variables-browser.json");
   scan("tools", "free-variables-node.json");
 }
+
+/* --- 8. Every ruledata read has a producer --------------------------------
+   §1–3 prove a read is declared; a declaration nothing keeps is the same
+   always-null reader arriving one step later. `validate-producers.mjs` proves
+   something writes each read table: a recipe, a binding's assembled table, a
+   registry, or a sample. */
+{
+  const { execFileSync } = await import("node:child_process");
+  execFileSync(process.execPath, [path.join(ROOT, "tools", "validate-producers.mjs")], { stdio: "inherit" });
+}

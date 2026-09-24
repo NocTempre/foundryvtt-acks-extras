@@ -114,7 +114,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // 19: hp — the group hit-point tool.
-  apiVersion: 19,
+  apiVersion: 20,
   vocab,
   fields,
   /**

@@ -19,9 +19,25 @@
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { assembledDoc } from "./produces.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const SURVIVAL_DOC_ID = "survival";
+
+/**
+ * The engine tables this binding assembles, each with the raw table(s) it is
+ * read from: the producer list `tools/validate-producers.mjs` checks readers
+ * against, and the map `assembledDoc` cites the assembled tables by.
+ */
+export const PRODUCES = Object.freeze({
+  [SURVIVAL_DOC_ID]: {
+    food: "starvationProse",
+    water: "dehydrationProse",
+    exposure: "exposureProse",
+    heat: "heatProse",
+    simplified: "simplifiedProse",
+  },
+});
 
 /* ------------------------------------------------------------------ */
 /*  Parsers                                                            */
@@ -241,7 +257,7 @@ export async function applySurvivalImport() {
   const engine = assembleSurvivalTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(
-    { id: SURVIVAL_DOC_ID, source: doc.source, tables: { ...(doc.tables ?? {}), ...engine } },
+    assembledDoc(doc, engine, PRODUCES[SURVIVAL_DOC_ID]),
     { priority: PRIORITY.WORLD, source: MODULE_ID },
   );
   return { assembled: Object.keys(engine) };

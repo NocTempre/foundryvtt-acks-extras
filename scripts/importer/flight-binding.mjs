@@ -16,9 +16,19 @@
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { assembledDoc } from "./produces.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const FLIGHT_DOC_ID = "flight";
+
+/**
+ * The engine tables this binding assembles, each with the raw table(s) it is
+ * read from: the producer list `tools/validate-producers.mjs` checks readers
+ * against, and the map `assembledDoc` cites the assembled tables by.
+ */
+export const PRODUCES = Object.freeze({
+  [FLIGHT_DOC_ID]: { aloftFactor: "airProse", windFactor: "airProse", loadFactors: "loadProse" },
+});
 
 /* ------------------------------------------------------------------ */
 /*  Parsers                                                            */
@@ -91,7 +101,7 @@ export async function applyFlightImport() {
   const engine = assembleFlightTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(
-    { id: FLIGHT_DOC_ID, source: doc.source, tables: { ...(doc.tables ?? {}), ...engine } },
+    assembledDoc(doc, engine, PRODUCES[FLIGHT_DOC_ID]),
     { priority: PRIORITY.WORLD, source: MODULE_ID },
   );
   return { assembled: Object.keys(engine) };

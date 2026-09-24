@@ -216,3 +216,13 @@ export const RARITY_AUTOMATION = {
     },
   },
 };
+
+/**
+ * The tables these two documents register, for `tools/validate-producers.mjs`;
+ * each is read from no page, so none names a raw source.
+ */
+export const PRODUCES = Object.freeze(
+  Object.fromEntries(
+    [THROWS_DATA, RARITY_AUTOMATION].map((doc) => [doc.id, Object.fromEntries(Object.keys(doc.tables).map((k) => [k, null]))]),
+  ),
+);

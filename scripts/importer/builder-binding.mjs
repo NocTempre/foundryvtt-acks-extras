@@ -15,9 +15,30 @@ import { createDoc, ensureItemFolder, importedItemFor, importedItemsByName, refF
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { assembledDoc } from "./produces.mjs";
 import { CLASS_TYPE, RACE_TYPE as RACE_ITEM_TYPE } from "../classes/constants.mjs";
 
 const BUILDER_DOC_ID = "acks.classBuilder";
+
+/**
+ * The engine tables this binding assembles, each with the raw table(s) it is
+ * read from: the producer list `tools/validate-producers.mjs` checks readers
+ * against, and the map `assembledDoc` cites the assembled tables by.
+ */
+export const PRODUCES = Object.freeze({
+  [BUILDER_DOC_ID]: {
+    budget: ["basePoints", "savesRule", "smoothing", "xpRules", "hpAfterNine", "racialCaps", "tradeoffPenalty"],
+    hd: "hdRaw",
+    fighting: "fightingRaw",
+    thievery: "thieveryRaw",
+    magicTypes: [
+      "divineRaw", "divineSlots1", "divineSlots2", "divineSlots3", "divineSlots4",
+      "arcaneRaw", "arcaneSlots1", "arcaneSlots2", "arcaneSlots3", "arcaneSlots4",
+      "arcaneDelayed1", "arcaneDelayed2", "arcaneDelayed3", "savesRule",
+    ],
+    tradeoffs: "tradeoffsRaw",
+  },
+});
 
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 const int = (s) => {
@@ -371,7 +392,7 @@ export async function applyBuilderImport() {
   const { races, ...engineTables } = assembled;
   if (Object.keys(engineTables).length) {
     await svc.importDoc(
-      { id: BUILDER_DOC_ID, source: doc.source, tables: { ...(doc.tables ?? {}), ...engineTables } },
+      assembledDoc(doc, engineTables, PRODUCES[BUILDER_DOC_ID]),
       { priority: PRIORITY.WORLD, source: MODULE_ID },
     );
     report.assembled = Object.keys(engineTables);

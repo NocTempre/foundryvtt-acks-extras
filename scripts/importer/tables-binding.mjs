@@ -12,6 +12,7 @@ import { pageItems } from "./extract.mjs";
 import { extractTable, pdfGuess } from "./table-extract.mjs";
 import { TABLE_RECIPES } from "./table-recipes.mjs";
 import { BOOKS } from "./books.mjs";
+import { recipeCite } from "./produces.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
@@ -200,6 +201,9 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
   for (const [docId, docRec] of Object.entries(TABLE_RECIPES)) {
     if (pick && !pick.has(docId)) continue;
     const fresh = {};
+    // The blocks each gathered table actually read, so its citation names the
+    // pages that were opened and not a supplement's that was not.
+    const readBlocks = {};
     for (const [tableId, recipe] of Object.entries(docRec.tables)) {
       // Every path out of this body — imported, book missing, page not found,
       // extraction threw — has consumed one recipe's worth of the run, so the
@@ -207,17 +211,27 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
       try {
         if (recipe.valueBlocks) {
           const out = await runValueBlocks(recipe);
-          if (out && Object.keys(out.classes ?? out).length) fresh[tableId] = out;
+          const got = out && (recipe.emit?.path?.length ? out[recipe.emit.path[0]] : out);
+          if (got && Object.keys(got).length) {
+            fresh[tableId] = out;
+            readBlocks[tableId] = new Set(Object.keys(got));
+          }
           continue;
         }
         if (recipe.blocks) {
           const out = await runBlocks(recipe);
-          if (Object.keys(out.list).length) fresh[tableId] = out;
+          if (Object.keys(out.list).length) {
+            fresh[tableId] = out;
+            readBlocks[tableId] = new Set(Object.keys(out.list));
+          }
           continue;
         }
         if (recipe.subTables) {
           const out = await runSubTables(recipe);
-          if (out && Object.keys(out.categories).length) fresh[tableId] = out;
+          if (out && Object.keys(out.categories).length) {
+            fresh[tableId] = out;
+            readBlocks[tableId] = new Set(Object.keys(out.categories));
+          }
           continue;
         }
         const session = sessionDocs.get(recipe.book);
@@ -245,9 +259,17 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
 
     // Merge over what the import itself holds for this doc (its own layer,
     // `getLayer`), so partial coverage accumulates instead of replacing, and
-    // no override or sample is carried into it.
+    // no override or sample is carried into it. A kept table keeps the page it
+    // was read from; a fresh one cites its recipe's.
     const existing = ownTables(docId, P);
-    const doc = { id: docId, source: docRec.source, tables: { ...existing, ...fresh } };
+    const prior = getLayer(docId, P)?.cites ?? {};
+    const cites = Object.fromEntries(Object.keys(existing).filter((k) => prior[k]).map((k) => [k, prior[k]]));
+    for (const tableId of Object.keys(fresh)) {
+      const cite = recipeCite(docRec.tables[tableId], readBlocks[tableId]);
+      if (cite) cites[tableId] = cite;
+      else delete cites[tableId];
+    }
+    const doc = { id: docId, source: docRec.source, cites, tables: { ...existing, ...fresh } };
     await svc.importDoc(doc, { priority: P, source: MODULE_ID });
     report.imported.push({ docId, tables: Object.keys(fresh) });
   }

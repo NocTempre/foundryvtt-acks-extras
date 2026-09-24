@@ -41,6 +41,12 @@
 .acks-extras.ruledata-browser .row-actions a {
   margin-right: 0.35rem;
 }
+/* A row's citation sits under its name, so the table stays four columns at any
+   window width; a long page list wraps instead of clipping. */
+.acks-extras.ruledata-browser .ruledata-table .cite {
+  display: block;
+  font-size: 0.85em;
+}
 .acks-extras.ruledata-browser [data-entry-key]:hover {
   background: var(--acks-tint-2);
 }

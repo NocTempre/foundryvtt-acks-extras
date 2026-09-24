@@ -179,3 +179,65 @@ export function getThrowDef(docId, throwId) {
 export function bracketRow(rows, value, minKey = "min", maxKey = "max") {
   return rows.find((r) => value >= (r[minKey] ?? -Infinity) && (r[maxKey] == null || value <= r[maxKey]));
 }
+
+/* ------------------------- where a table was read ------------------------- */
+
+/**
+ * The page a table was read from, as its importer recorded it in the
+ * document's `cites` (`{tableId: "RR p. 505"}`), else the document's own
+ * `source.pages`. Answers for the layer a read takes the table from, and null
+ * when that layer is a Judge's override or a module's sample: neither holds a
+ * page's rows, so neither has a page to point at.
+ */
+export function citeOf(docId, tableId) {
+  const layers = _layers.get(docId);
+  if (!layers?.size) return null;
+  const top = [...layers.keys()].sort((a, b) => b - a).find((p) => layers.get(p)?.tables?.[tableId] != null);
+  if (top == null || top === PRIORITY.OVERRIDE || top === PRIORITY.SAMPLE) return null;
+  const doc = layers.get(top);
+  return doc.cites?.[tableId] ?? doc.source?.pages ?? null;
+}
+
+/* ------------------------- a printed quantity ------------------------- */
+
+/**
+ * A printed quantity in its one stored shape, `{value, atLeast, per}`, from
+ * either form a table holds it in: a bare number, or that object. `atLeast`
+ * marks a floor, met by the value or anything more; `per` names the unit the
+ * value is counted out in, once per unit. Null for anything holding no
+ * number, so a reader refuses instead of reading 0.
+ *
+ * @returns {{value: number, atLeast: boolean, per: string|null}|null}
+ */
+export function quantity(x) {
+  if (typeof x === "number") return Number.isFinite(x) ? { value: x, atLeast: false, per: null } : null;
+  if (x == null || typeof x !== "object" || x.value == null || x.value === "") return null;
+  const value = Number(x.value);
+  if (!Number.isFinite(value)) return null;
+  const per = typeof x.per === "string" && x.per.trim() ? x.per.trim() : null;
+  return { value, atLeast: x.atLeast === true, per };
+}
+
+/**
+ * Whether `amount` meets a quantity read as a threshold: its value or more
+ * when it is a floor, exactly its value otherwise. False when either side
+ * holds no number.
+ */
+export function meetsQuantity(q, amount) {
+  const n = quantity(q);
+  const a = typeof amount === "number" ? amount : Number.NaN;
+  if (!n || !Number.isFinite(a)) return false;
+  return n.atLeast ? a >= n.value : a === n.value;
+}
+
+/**
+ * A quantity counted out: its value once per unit of `count` when it names a
+ * `per` unit, its value alone when it does not. Null when it holds no number,
+ * or names a unit and `count` is not a number.
+ */
+export function scaleQuantity(q, count = 1) {
+  const n = quantity(q);
+  if (!n) return null;
+  if (!n.per) return n.value;
+  return typeof count === "number" && Number.isFinite(count) ? n.value * count : null;
+}

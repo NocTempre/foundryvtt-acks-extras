@@ -17,11 +17,35 @@
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { assembledDoc } from "./produces.mjs";
 import { parseCount, countFrom } from "./survival-binding.mjs";
 import { terrainKeys, keyTerrainMap } from "./terrain-vocab.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const FORAGING_DOC_ID = "foraging";
+
+/**
+ * The engine tables this binding assembles, each with the raw table(s) it is
+ * read from: the producer list `tools/validate-producers.mjs` checks readers
+ * against, and the map `assembledDoc` cites the assembled tables by.
+ */
+export const PRODUCES = Object.freeze({
+  [FORAGING_DOC_ID]: {
+    targets: ["firewoodProse", "waterProse", "foodProse"],
+    yields: ["firewoodProse", "waterProse", "foodProse", "huntProse"],
+    partyGroupSize: "waterProse",
+    forageTerrain: "foodProse",
+    forageTerritory: "foodProse",
+    survivalBonus: ["firewoodProse", "foodProse", "waterProse"],
+    huntTarget: "huntProse",
+    huntTerritory: "huntingProse",
+    dogTarget: "dogsProse",
+    dogHelpPerDog: "dogsProse",
+    dogHelpCap: "dogsProse",
+    efficientGrazers: "grazingRules",
+    barrenTerrains: "grazingRules",
+  },
+});
 
 /* ------------------------------------------------------------------ */
 /*  Parsers                                                            */
@@ -250,7 +274,7 @@ export async function applyForagingImport() {
   const engine = assembleForagingTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(
-    { id: FORAGING_DOC_ID, source: doc.source, tables: { ...(doc.tables ?? {}), ...engine } },
+    assembledDoc(doc, engine, PRODUCES[FORAGING_DOC_ID]),
     { priority: PRIORITY.WORLD, source: MODULE_ID },
   );
   return { assembled: Object.keys(engine) };

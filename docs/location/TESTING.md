@@ -92,6 +92,24 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    books — and says so; with nothing imported it is empty rather than showing
    shipped samples. Entries carry reader-facing labels ("Class Percentages —
    Level 0"), not raw dotted keys.
+   *A row names its page.* Re-read one rules document from the Judge's own
+   book (`acksExtras.importer.cookbookReimportEntries()`, tick
+   `input[value="Tables|travel"]`, **Reimport**), then open the browser. The
+   picker's Reimport raises a confirmation (`button[data-action="yes"]`) before
+   anything runs; a scripted walk that does not answer it imports nothing.
+   *Observable:* every row of that document carries a book-and-page line under
+   its name, and an assembled row (`terrainMultipliers`) carries the page of the
+   raw table its binding reads; `acksExtras.lib.tables.citeOf("travel",
+   "terrainMultipliers")` answers the same string. A class's rows
+   (`acks.class.<key>`) carry the Cite field of the class's sheet, and a class
+   whose Cite is empty carries none. Save a row's own **Edit** unchanged (Export
+   is no fixture: it writes to the library shelf): its line goes and the
+   override badge stands instead. **Revert**: the line returns. A document last
+   imported before 8.6.0 shows its whole page list on every row until it is
+   re-read, which is the upgrade shape; check it before the re-read. Shoot from
+   a capture session holding no book (one holding two PDFs timed out on
+   `Page.captureScreenshot`); the browser scrolls in `.ruledata-browser-body`,
+   not `.window-content`.
 6. With tables imported, materialize and remove:
    `acksExtras.lib.services.get("ruledata-import").materializeDocs()`, then
    `countMaterializedDocs()`, then `removeMaterializedDocs()`. The write COUNTS

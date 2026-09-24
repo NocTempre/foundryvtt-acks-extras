@@ -18,7 +18,12 @@
       <tbody>
         {{#each entries}}
         <tr data-entry-key="{{key}}" class="{{#if overridden}}overridden{{/if}} {{#if absent}}absent{{/if}}" data-tooltip="{{localize 'ACKS-LOCATION.browser.dropHint'}}">
-          <td>{{label}}</td>
+          <td>
+            {{label}}
+            {{#if cite}}
+            <span class="cite hint" data-tooltip="{{localize 'ACKS-LOCATION.browser.citeHint'}}">{{cite}}</span>
+            {{/if}}
+          </td>
           <td>{{kindLabel}}</td>
           <td>
             {{#if overridden}}

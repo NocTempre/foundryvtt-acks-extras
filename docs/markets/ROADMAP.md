@@ -25,3 +25,7 @@
 - **Magic-item commissioning** (3× base cost, Class I/II only).
 - **Source-market ledgers for import hubs** — hubs are abstract markets
   with fresh availability per order.
+- **Economy ruledata has no producer.** `familyIncomeGp` (`engine/till.mjs`)
+  reads `economy.familyIncome`, which no recipe writes, so the till always
+  takes the Judge's setting. `tools/validate-producers.mjs` waives the
+  document against this entry.

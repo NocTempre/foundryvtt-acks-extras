@@ -49,6 +49,10 @@ sibling modules (henchmen today; domains later) read through acks-lib.
     any casing, and refuses anything else. The override is what the engine
     reads, so an edited monster column changes what formation's encounter
     chain rolls.
+  - Each browser row names the book and page its table was read from, under
+    its label (`entryCite` → lib `citeOf`); a class's tables name the page
+    their class item cites. A row an override or a sample supplies names none,
+    and an absent row has none to name.
   - The browser's Edit shows a slice only where a saved slice merges back
     (an occupation category, a grid column, a list); any other sub-entry
     shows its whole table, because a saved slice would stand in for all

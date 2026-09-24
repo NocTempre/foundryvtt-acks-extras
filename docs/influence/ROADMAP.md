@@ -55,3 +55,12 @@ and offers them unticked. That is honest, but it is a permanent banner in a
 shipped surface. Either the classifications get audited and the badge retires,
 or the badge becomes the documented steady state and says so deliberately.
 It is currently neither.
+
+## 3. Influence ruledata has no producer
+
+The feature reads its printed figures from an `influence` document
+(`influence/constants.mjs`), and no recipe reads that document off a page, so
+every figure it asks for is absent in every world. §1's fix is this work seen
+from the other side: a label can drop its magnitude once the magnitude has a
+document to arrive in. `tools/validate-producers.mjs` waives the document
+against this section.

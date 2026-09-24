@@ -12,10 +12,30 @@
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { assembledDoc } from "./produces.mjs";
 import { parseMultiplier } from "./travel-binding.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const VOYAGES_DOC_ID = "voyages";
+
+/**
+ * The engine tables this binding assembles, each with the raw table(s) it is
+ * read from: the producer list `tools/validate-producers.mjs` checks readers
+ * against, and the map `assembledDoc` cites the assembled tables by.
+ */
+export const PRODUCES = Object.freeze({
+  [VOYAGES_DOC_ID]: {
+    windStrength: "windStrengthRaw",
+    tacking: "voyagesProse",
+    berth: "voyagesProse",
+    hazardThrow: "voyagesProse",
+    hazards: "voyagesProse",
+    repair: "voyagesProse",
+    rounding: "voyagesProse",
+    damageShares: "voyagesProse",
+    navigation: "navigationRaw",
+  },
+});
 
 /* ------------------------------------------------------------------ */
 /*  Parsers                                                            */
@@ -203,7 +223,7 @@ export async function applyVoyagesImport() {
   const engine = assembleVoyageTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(
-    { id: VOYAGES_DOC_ID, source: doc.source, tables: { ...(doc.tables ?? {}), ...engine } },
+    assembledDoc(doc, engine, PRODUCES[VOYAGES_DOC_ID]),
     { priority: PRIORITY.WORLD, source: MODULE_ID },
   );
   return { assembled: Object.keys(engine) };

@@ -268,6 +268,20 @@ it reads beside it. Tick one to read just that document again. A table you have
 overridden in **ACKS Imported Rules Tables** keeps your override on top, and
 reverting the override brings back your book's figure.
 
+Each row of **ACKS Imported Rules Tables** names the book and page its table
+was read from, under the table's name, so you can check any figure the module
+applies against your own copy. A table the module works out from others names
+the pages of the tables it was worked out from. A class's tables name the page
+in the **Cite** field of its class sheet, so a class with none there, such as
+a homebrew one, names no page. A table you have overridden names no page while
+your override stands. A world imported before 8.6.0 shows each document's
+whole page list on every row until you read its rules tables again.
+
+![](../releases/v8.6.0/location-table-pages.png)
+
+*A re-read document in ACKS Imported Rules Tables: each table with the page it
+came from, and the overridden one with none.*
+
 ![](../releases/v8.1.0/importer-rules-tables.png)
 
 *The entry picker's rules tables: each document ticked as imported, its id and

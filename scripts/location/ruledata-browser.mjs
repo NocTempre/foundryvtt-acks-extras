@@ -12,7 +12,7 @@
  *  - EDIT opens the JSON directly for cross-cutting grids.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { listEntries, entryData, editableData, reshapeJson, exportEntry, parseDrop } from "./table-docs.mjs";
+import { listEntries, entryCite, entryData, editableData, reshapeJson, exportEntry, parseDrop } from "./table-docs.mjs";
 import { setOverride, clearOverride, hasOverride, overrideMeta } from "./table-store.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
@@ -53,6 +53,7 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
         ...entry,
         overridden,
         sourceName: meta?.sourceName ?? "",
+        cite: entryCite(entry),
         kindLabel: game.i18n.localize(entry.rollable ? "ACKS-LOCATION.browser.rolltable" : "ACKS-LOCATION.browser.journal"),
       };
       if (!docs.has(entry.docId)) docs.set(entry.docId, { docId: entry.docId, entries: [] });

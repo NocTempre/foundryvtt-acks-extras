@@ -11,9 +11,25 @@
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { assembledDoc } from "./produces.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const TRAVEL_DOC_ID = "travel";
+
+/**
+ * The engine tables this binding assembles, each with the raw table(s) it is
+ * read from: the producer list `tools/validate-producers.mjs` checks readers
+ * against, and the map `assembledDoc` cites the assembled tables by.
+ */
+export const PRODUCES = Object.freeze({
+  [TRAVEL_DOC_ID]: {
+    terrainMultipliers: "terrainGroups",
+    roads: "terrainGroups",
+    gettingLost: "gettingLostRaw",
+    draftEquivalents: "draftSubstitutionProse",
+    encounterFrequency: "encounterFrequencyRaw",
+  },
+});
 
 /**
  * Which terrain keys each printed GROUP row stands for. The grouping is the
@@ -179,7 +195,7 @@ export async function applyTravelImport() {
   const engine = assembleTravelTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(
-    { id: TRAVEL_DOC_ID, source: doc.source, tables: { ...(doc.tables ?? {}), ...engine } },
+    assembledDoc(doc, engine, PRODUCES[TRAVEL_DOC_ID]),
     { priority: PRIORITY.WORLD, source: MODULE_ID },
   );
   return { assembled: Object.keys(engine) };

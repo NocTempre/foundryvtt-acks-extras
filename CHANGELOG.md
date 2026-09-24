@@ -1,5 +1,31 @@
 # Changelog
 
+## 8.6.0
+
+### Added
+
+- **Each imported rules table names the book and page it was read from.**
+  Open **Configure Settings → ACKS II — Extras → Open Ruledata Browser**: each
+  row of **ACKS Imported Rules Tables** shows its page under the table's name,
+  so you can check a figure the module applies against your own copy. A table
+  the module works out from others names the pages of the tables it came from,
+  and a class's tables name the page in the **Cite** field of its class sheet.
+  A table you have overridden shows no page while your override stands, and
+  **Revert** brings the page back. A world that imported its rules tables
+  before this version shows each document's whole page list on every row
+  until it reads that document again from **(Re)import Individual Entries**.
+- **`acksExtras.lib` is apiVersion 20**, adding `tables.citeOf` and one shape
+  for a printed amount that can be a floor or a rate (`tables.quantity`,
+  `tables.meetsQuantity`, `tables.scaleQuantity`).
+
+### Fixed
+
+- **Reading the rules tables again never empties the cultures' appearance.**
+  A re-read that found none of the culture descriptions' appearance passages
+  stored an empty table over the one an earlier import had read, and a
+  hireling generated afterwards came without hair or eye colour. The table an
+  earlier import read now stays until a re-read finds something to replace it.
+
 ## 8.5.1
 
 ### Fixed

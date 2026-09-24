@@ -17,11 +17,31 @@
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { assembledDoc } from "./produces.mjs";
 import { parseCount } from "./survival-binding.mjs";
 import { terrainKeys } from "./terrain-vocab.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const SEARCHING_DOC_ID = "searching";
+
+/**
+ * The engine tables this binding assembles, each with the raw table(s) it is
+ * read from: the producer list `tools/validate-producers.mjs` checks readers
+ * against, and the map `assembledDoc` cites the assembled tables by.
+ */
+export const PRODUCES = Object.freeze({
+  [SEARCHING_DOC_ID]: {
+    targets: "searchLadder",
+    specificTarget: "searchProse",
+    aerialTurnsPerThrow: "searchProse",
+    canopyPenalty: "searchProse",
+    canopyTerrains: "searchProse",
+    movingQuarry: ["searchProse", "lostSearchProse"],
+    turnsPerThrow: "cadenceProse",
+    surveyTarget: "surveyProse",
+    surveyPerSearch: "surveyProse",
+  },
+});
 
 /* ------------------------------------------------------------------ */
 /*  Parsers                                                            */
@@ -164,7 +184,7 @@ export async function applySearchingImport() {
   const engine = assembleSearchingTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(
-    { id: SEARCHING_DOC_ID, source: doc.source, tables: { ...(doc.tables ?? {}), ...engine } },
+    assembledDoc(doc, engine, PRODUCES[SEARCHING_DOC_ID]),
     { priority: PRIORITY.WORLD, source: MODULE_ID },
   );
   return { assembled: Object.keys(engine) };

@@ -398,6 +398,45 @@ t("tables: coverage is per TABLE — an id a module claims for itself is not an 
   T.resetTables();
 });
 
+t("tables: a table cites its page from the layer a read takes it from", () => {
+  T.resetTables();
+  T.registerTable(
+    { id: "yards", source: { pages: "ZZ 10-12" }, cites: { ropes: "ZZ p. 10" }, tables: { ropes: { a: 1 }, nets: { b: 2 }, pens: { c: 3 } } },
+    { priority: T.PRIORITY.WORLD },
+  );
+  T.registerTable({ id: "yards", tables: { nets: { b: 9 } } }, { priority: T.PRIORITY.OVERRIDE });
+  T.registerTable({ id: "yards", tables: { sheds: { d: 4 } } });
+  assert.equal(T.citeOf("yards", "ropes"), "ZZ p. 10", "the table's own page");
+  assert.equal(T.citeOf("yards", "pens"), "ZZ 10-12", "no page of its own: the document's pages");
+  assert.equal(T.citeOf("yards", "nets"), null, "an overridden table holds the Judge's rows, not a page's");
+  assert.equal(T.citeOf("yards", "sheds"), null, "a module's sample has no page");
+  assert.equal(T.citeOf("yards", "absent"), null);
+  assert.equal(T.citeOf("nowhere", "ropes"), null);
+  T.unregisterTable("yards", { priority: T.PRIORITY.OVERRIDE });
+  assert.equal(T.citeOf("yards", "nets"), "ZZ 10-12", "reverted, the import's page answers again");
+  T.resetTables();
+});
+
+t("tables: a printed quantity reads in one shape, and refuses what holds no number", () => {
+  assert.deepEqual(T.quantity(3), { value: 3, atLeast: false, per: null });
+  assert.deepEqual(T.quantity({ value: 4, atLeast: true }), { value: 4, atLeast: true, per: null });
+  assert.deepEqual(T.quantity({ value: "-2", per: " banner " }), { value: -2, atLeast: false, per: "banner" });
+  assert.equal(T.quantity({ value: 1, atLeast: "yes" }).atLeast, false, "only true is a floor");
+  for (const bad of [null, undefined, "3", NaN, {}, { value: null }, { value: "" }, { value: "x" }, [3]]) {
+    assert.equal(T.quantity(bad), null, `refused: ${JSON.stringify(bad)}`);
+  }
+  assert.equal(T.meetsQuantity({ value: 4, atLeast: true }, 6), true);
+  assert.equal(T.meetsQuantity({ value: 4, atLeast: true }, 3), false);
+  assert.equal(T.meetsQuantity(4, 4), true);
+  assert.equal(T.meetsQuantity(4, 5), false, "no floor: exactly the value");
+  assert.equal(T.meetsQuantity(4, "4"), false, "an amount that is not a number meets nothing");
+  assert.equal(T.meetsQuantity(null, 4), false);
+  assert.equal(T.scaleQuantity({ value: 2, per: "favour" }, 3), 6);
+  assert.equal(T.scaleQuantity({ value: 2, per: "favour" }, "3"), null, "a rate with no count is not counted once");
+  assert.equal(T.scaleQuantity(5, 3), 5, "no unit: the value alone");
+  assert.equal(T.scaleQuantity({ value: "x" }), null);
+});
+
 t("tables: every ruledata id a feature announces declares the tables it expects", () => {
   // The ready-time notice reports missing TABLES. An announced id with nothing
   // declared for it falls back to id presence — which, for an id the module

@@ -25,10 +25,28 @@
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { assembledDoc } from "./produces.mjs";
 import { parseCount, countFrom } from "./survival-binding.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const CITY_TRAVEL_DOC_ID = "cityTravel";
+
+/**
+ * The engine tables this binding assembles, each with the raw table(s) it is
+ * read from: the producer list `tools/validate-producers.mjs` checks readers
+ * against, and the map `assembledDoc` cites the assembled tables by.
+ */
+export const PRODUCES = Object.freeze({
+  [CITY_TRAVEL_DOC_ID]: {
+    paces: "pacesProse",
+    navigation: "pacesProse",
+    straggling: "stragglingProse",
+    encounters: "streetCadence",
+    districtTravel: "districtProse",
+    encounterIntent: "intentProse",
+    encounterAfterDark: "afterDarkProse",
+  },
+});
 
 /** Turns in an hour, for a cadence the page states in hours. */
 const TURNS_PER_HOUR = 6;
@@ -266,7 +284,7 @@ export async function applyCityTravelImport() {
   const engine = assembleCityTravelTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(
-    { id: CITY_TRAVEL_DOC_ID, source: doc.source, tables: { ...(doc.tables ?? {}), ...engine } },
+    assembledDoc(doc, engine, PRODUCES[CITY_TRAVEL_DOC_ID]),
     { priority: PRIORITY.WORLD, source: MODULE_ID },
   );
   return { assembled: Object.keys(engine) };

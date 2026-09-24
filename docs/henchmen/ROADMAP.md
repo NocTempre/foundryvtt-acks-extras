@@ -39,3 +39,17 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   freeze the sample automation into the world layer, so the same change makes
   the import merge over the written layer only, makes picker presence read the
   world layer, and lists only world and override tables in the journal.
+- **Four reads have nothing to feed them.** `tools/validate-producers.mjs`
+  waives each against this entry until a recipe writes it or the read goes:
+  - **Followers ruledata has no producer.** The followers dialog reads a
+    `followers` document (troop types, followers by class, companion levels,
+    follower loyalty) and stays disabled until it is imported, and no recipe
+    reads it off a page, so no import ever enables it.
+  - `wages.mercenaryOfficers`: an officer's morale modifier and command level
+    (`engine/hire-group.mjs`) read rows no `wages` recipe writes, so both take
+    their fallbacks.
+  - `wages.employerLevelCap`: `maxHenchmanLevel` (`rules/wages.mjs`) reads a
+    cap table no recipe writes, so it takes its fallback below the top rungs.
+  - `people.classRegistry`: `classInfo` (`rules/identity.mjs`) prefers an
+    imported registry that no recipe writes, so the derived entry is what
+    every world gets. Retire the read or add the recipe.

@@ -251,29 +251,45 @@ export const attackBandAt = (classItem, level) => bracketRow(effectiveAttack(cla
 /*  Publication                                                        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * What `publish` registers whatever the world holds, for
+ * `tools/validate-producers.mjs`: the chassis progressions, one table per
+ * chassis. A class's own document is keyed by the world's classes
+ * (`CLASS_DOC_PREFIX` + key), so no static list can name it.
+ */
+export const PRODUCES = Object.freeze({
+  [PROGRESSIONS_DOC_ID]: Object.fromEntries(CHASSIS_KEYS.map((key) => [key, null])),
+});
+
 /** Doc ids this registry currently has registered at WORLD priority. */
 const _published = new Set();
 
 /**
  * Rebuild and publish every class-derived ruledata document. Idempotent:
  * ids that vanished are unregistered, the rest replace their WORLD layer.
+ * Each table cites the page its class item names (`source.cite`); a class
+ * naming none, as a homebrew one does, cites nothing.
  */
 export function publish() {
   const items = classItems();
   const next = new Map();
 
   const chassisTables = {};
+  const chassisCites = {};
   for (const key of CHASSIS_KEYS) {
     const item = classByKey(key);
     if (!item) continue;
     const saves = saveRows(item.system);
     const attack = attackRows(item.system);
-    if (saves.length || attack.length) chassisTables[key] = { saves, attack };
+    if (!saves.length && !attack.length) continue;
+    chassisTables[key] = { saves, attack };
+    if (item.system.source?.cite) chassisCites[key] = item.system.source.cite;
   }
   if (Object.keys(chassisTables).length) {
     next.set(PROGRESSIONS_DOC_ID, {
       id: PROGRESSIONS_DOC_ID,
       source: { book: "rr" },
+      cites: chassisCites,
       tables: chassisTables,
     });
   }
@@ -298,7 +314,9 @@ export function publish() {
     }
     if (Object.keys(tables).length) {
       const id = `${CLASS_DOC_PREFIX}${key}`;
-      next.set(id, { id, source: { book: sys.source?.book || "rr" }, tables });
+      const cite = sys.source?.cite || "";
+      const cites = cite ? Object.fromEntries(Object.keys(tables).map((k) => [k, cite])) : {};
+      next.set(id, { id, source: { book: sys.source?.book || "rr" }, cites, tables });
     }
   }
 

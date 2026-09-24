@@ -3962,6 +3962,7 @@
   "ACKS-LOCATION.browser.revert": "Remove override — fall back to the import",
   "ACKS-LOCATION.browser.overriddenBadge": "override",
   "ACKS-LOCATION.browser.importedBadge": "imported",
+  "ACKS-LOCATION.browser.citeHint": "The book and page this table was read from.",
   "ACKS-LOCATION.browser.dropHint": "Drop a RollTable or journal page here to replace this table",
   "ACKS-LOCATION.browser.exported": "{key} exported as {kind} (prefilled with current values)",
   "ACKS-LOCATION.browser.overridden": "{key} overridden from {name}",

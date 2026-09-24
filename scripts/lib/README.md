@@ -18,7 +18,7 @@ sibling modules) — never the import path for this module's own features.
 | `fields.mjs` | DataModel field-builders over vocab. Foundry-only, lazily so Node still evaluates it. |
 | `field-spec.mjs` | Data-described form shapes for fields nobody shipped (importer-supplied metadata). |
 | `choice-spec.mjs` | The family's one "choose N from …" primitive. |
-| `tables.mjs` | Layered rules-table registry (SAMPLE/CATALOG/WORLD) + `bracketRow(rows, value)` — the ONE min/max bracket lookup. Foundry-free. |
+| `tables.mjs` | Layered rules-table registry (SAMPLE/CATALOG/WORLD/OVERRIDE) + `bracketRow(rows, value)` — the ONE min/max bracket lookup — + `citeOf` (the page a table was read from) + `quantity` / `meetsQuantity` / `scaleQuantity` (a printed figure with its floor and rate). Foundry-free. |
 | `ruledata.mjs` | Foundry-side loader: fetches `ruledata/<id>.json` and registers it into the tables registry. |
 | `repair-logic.mjs` | The repair registry and its runner: `registerRepairCheck`, scan → fix → rescan (`fixCheck`, where the rescan decides), `fixEach`, `danglingRefCheck`. Foundry-free. |
 | `repair.mjs` | The repair tool's Foundry half: `worldActors` (world actors, then unlinked tokens'), the GM-only `scanRepairs` / `fixRepairs`, and the report whispered to the GMs. Every feature registers its checks through it (docs/lib/MODEL.md, "The repair tool"). |

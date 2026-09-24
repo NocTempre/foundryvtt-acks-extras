@@ -768,6 +768,23 @@ function takeProse(window, take) {
       const m = window.match(/-\s?\d+|\+\s?\d+|\d+/);
       return m ? num(m[0].replace(/\s/g, "")) : undefined;
     }
+    case "quantity": {
+      // The first signed figure in the lib's quantity shape (`quantity` in
+      // lib/tables.mjs): a "+" or "or more" straight after it marks a floor,
+      // and a "per" within two words of it names the unit it is counted in —
+      // the clause after it, cut at three words. A "per" always yields a
+      // unit: a rate read without one would be counted once. A "+" followed
+      // by a figure is arithmetic, not a floor.
+      const m = window.match(/([-+])?\s?(\d[\d,]*)(\s*\+(?!\s?\d)|\s+or\s+(?:more|greater|higher))?/);
+      if (!m) return undefined;
+      const value = num(`${m[1] === "-" ? "-" : ""}${m[2]}`);
+      const rest = window.slice(m.index + m[0].length);
+      const perAt = /^\s*(?:[a-z]+\s+){0,2}?per\s+/.exec(rest);
+      const per = perAt
+        ? rest.slice(perAt[0].length).split(/[.,;:)]|\s(?:and|or|if|when|to|for|on)\s/)[0].trim().split(/\s+/).slice(0, 3).join(" ")
+        : "";
+      return { value, ...(m[3] ? { atLeast: true } : {}), ...(per ? { per } : {}) };
+    }
     case "wordInt": {
       const m = window.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\b/);
       return m ? WORD_INTS[m[1]] : undefined;

@@ -460,7 +460,9 @@ step 10, the entry step 7 creates.
    not 138; the confirm's removed count is 0, because rules tables merge into
    the store rather than being deleted and rebuilt; afterwards
    `acksLib.tables.getDoc("weather")` answers and every other document already
-   in the store still answers. A tick on a table row reflects the store's
+   in the store still answers, and `getLayer("weather", 20).cites` names a page
+   for every table the run read or assembled (the browser rows are
+   `docs/location/TESTING.md` step 5). A tick on a table row reflects the store's
    world layer (`getLayer(docId, PRIORITY.WORLD)`), not a document flag, so a
    world that has the store but no imported items shows ticks here and none
    above. `rarity` carries no tick in a world that never read it, although

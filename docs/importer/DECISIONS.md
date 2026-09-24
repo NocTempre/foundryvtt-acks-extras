@@ -5070,3 +5070,47 @@ definition itself.
 *Cost:* a world whose only copy of a definition is a part gains that definition
 on the next grant that needs it. An actor already granted a doubled name keeps
 it until it is imported again.
+
+### A table remembers the page it was read from, and every read has a writer (2026-09-23)
+
+**Found.** An imported table carried no page. A Judge checking a figure the
+module applied had to know which recipe produced it and which page that recipe
+read, and a table assembled from raw ones had no page at all. The declared-table
+gate proved a read was *declared*, never that anything *wrote* it: a scan of
+every reader found eleven documents or tables nothing produces, among them a
+travel figure the formation roadmap listed as built.
+
+**Ruled.**
+- A document carries `cites: {tableId: citation}` beside `tables`, in the
+  cookbook's `"RR p.505"` form. `importTables` cites each fresh table from its
+  recipe (only the blocks a run actually read) and keeps the citation of a table
+  it keeps. `assembledDoc` (`scripts/importer/produces.mjs`) gives an assembled
+  table the joined citations of the raw tables its binding names. `citeOf`
+  answers null for an override or a sample: neither was read off a page.
+- A class's published tables (`acks.class.<key>`, `acks.classProgressions`)
+  cite the class item's `source.cite`, the page its sheet's Cite field shows.
+  A Judge's edits to a class stay under that page, as they do on the sheet;
+  a class with an empty Cite cites nothing. The live walk found all 32 of
+  these documents naming no page, the first sections of the browser.
+- Every binding exports `PRODUCES = {docId: {engineKey: rawKey | rawKey[]}}`.
+  The one map feeds the citation of assembled tables and the producer list of
+  `tools/validate-producers.mjs`, so a binding cannot cite by one map and be
+  checked against another. A registry and a sample declare `PRODUCES` too, with
+  no raw source.
+- `validate-producers.mjs` fails a read whose document or table nothing
+  produces, unless a waiver names the ROADMAP line that owns the gap; a waiver
+  whose gap has closed fails too. It runs as validate-extra §8.
+- A value-block table counts as read only when a block contributed. The old
+  test named the `classes` path, so a culture-appearance read that found no
+  block wrote an empty table over a good one.
+
+**Rejected: `_cite` inside each table** (the design's first shape). A table is
+an array or a scalar as often as an object, and a key inside it changes the
+data every reader receives. **Rejected: leaving assembled tables to the
+`source.pages` fallback.** The whole document's page list on every row is
+accurate and useless: it is the question the Judge was asking, not an answer.
+The fallback stays for a document that carries no `cites` at all.
+
+*Cost:* a world imported before 8.6.0 shows its documents' page lists until it
+re-reads its rules tables. The eleven waived gaps stay gaps; each is a ROADMAP
+line, and the gate fails the day one closes without its waiver going.

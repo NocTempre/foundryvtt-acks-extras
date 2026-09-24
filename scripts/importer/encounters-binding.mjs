@@ -12,6 +12,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { assembledDoc } from "./produces.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const ENCOUNTERS_DOC_ID = "encounters";
@@ -36,6 +37,25 @@ export const MONSTER_RAW_KEYS = Object.freeze({
   monstersScrublandSparseRaw: "scrublandSparse",
   monstersScrublandDenseRaw: "scrublandDense",
   monstersSwampRaw: "swamp",
+});
+
+/**
+ * The engine tables this binding assembles, each with the raw table(s) it is
+ * read from: the producer list `tools/validate-producers.mjs` checks readers
+ * against, and the map `assembledDoc` cites the assembled tables by.
+ */
+export const PRODUCES = Object.freeze({
+  [ENCOUNTERS_DOC_ID]: {
+    territory: "territoryRaw",
+    rarity: "rarityRaw",
+    civilized: ["civilizedUpperRaw", "civilizedLowerRaw"],
+    distance: "distanceRaw",
+    evasion: ["evasionRaw", "evasionSizeProse"],
+    visibility: "visibilityProse",
+    evasionModifiers: "evasionModsProse",
+    terrainEncounters: ["valuableTerrainRaw", "dangerousTerrainRaw", "uniqueTerrainRaw"],
+    ...Object.fromEntries(Object.entries(MONSTER_RAW_KEYS).map(([raw, key]) => [`monsters.${key}`, raw])),
+  },
 });
 
 /** The stacked civilized grids' columns → the engine's column groups. */
@@ -320,7 +340,7 @@ export async function applyEncountersImport() {
   const engine = assembleEncounterTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
   await svc.importDoc(
-    { id: ENCOUNTERS_DOC_ID, source: doc.source, tables: { ...(doc.tables ?? {}), ...engine } },
+    assembledDoc(doc, engine, PRODUCES[ENCOUNTERS_DOC_ID]),
     { priority: PRIORITY.WORLD, source: MODULE_ID },
   );
   return { assembled: Object.keys(engine) };

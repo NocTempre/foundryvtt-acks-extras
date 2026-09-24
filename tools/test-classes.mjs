@@ -26,11 +26,12 @@ import {
   xpSchedule,
 } from "../scripts/classes/builder-logic.mjs";
 import { classUpdateData, damageBonusLadder } from "../scripts/classes/apply.mjs";
-import { classForActor, findByRef } from "../scripts/classes/registry.mjs";
+import { classForActor, findByRef, publish } from "../scripts/classes/registry.mjs";
+import { CLASS_TYPE, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
 import { awardsAt, awardsThrough, choosableGenerals } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
 import { rebuildHitPoints, firstLevelDieMinimum, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
-import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
+import { registerTable, unregisterTable, PRIORITY, getLayer, citeOf } from "../scripts/lib/tables.mjs";
 import { isOffer, offerKey } from "../scripts/classes/pending-choices.mjs";
 import { readFileSync } from "node:fs";
 
@@ -1318,6 +1319,33 @@ try {
       assert.equal(findByRef("uuid:Item.c2"), doc);
     } finally {
       delete globalThis.fromUuidSync;
+    }
+  });
+
+  test("a published class table cites the page its class item names, and a homebrew one none", () => {
+    const cls = (key, cite) => ({
+      type: CLASS_TYPE,
+      name: key,
+      system: {
+        key,
+        source: { book: "rr", cite },
+        saves: [{ minLevel: 1, maxLevel: 4, paralysis: 11, death: 12, blast: 13, implements: 14, spells: 15 }],
+        attack: [{ minLevel: 1, maxLevel: 4, throw: 9 }],
+        ladders: [{ key: "sneak", values: [{ atLevel: 1, value: 7 }] }],
+      },
+    });
+    const items = globalThis.game.items;
+    globalThis.game.items = [cls("fighter", "RR p.9"), cls("tinkerer", "")];
+    try {
+      publish();
+      assert.deepEqual(getLayer(PROGRESSIONS_DOC_ID, PRIORITY.WORLD).cites, { fighter: "RR p.9" });
+      assert.deepEqual(getLayer("acks.class.fighter", PRIORITY.WORLD).cites, { saves: "RR p.9", attack: "RR p.9", "ladder.sneak": "RR p.9" });
+      assert.equal(citeOf("acks.class.fighter", "ladder.sneak"), "RR p.9");
+      assert.deepEqual(getLayer("acks.class.tinkerer", PRIORITY.WORLD).cites, {});
+      assert.equal(citeOf("acks.class.tinkerer", "saves"), null);
+    } finally {
+      globalThis.game.items = items;
+      publish();
     }
   });
 } finally {

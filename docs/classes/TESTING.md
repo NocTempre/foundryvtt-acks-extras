@@ -61,7 +61,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 3. `registry.saveBandAt(cls, 1)` and `(cls, 3)`; the same for
    `attackBandAt`.
    *Observable:* level 1 selects the 1–2 band, level 3 the 3–4 band, and a
-   level past the last band returns null.
+   level past the last band returns null. Type a page in the sheet's **Cite**
+   field: `acksExtras.lib.tables.citeOf("acks.class.<key>", "saves")` answers
+   it, and answers null once the field is emptied (the browser row is
+   `docs/location/TESTING.md` step 5).
 4. `applyClass(actor, cls, {level: 3, confirm: false})`.
    *Observable:* the returned `update` names every field it wrote, and on the
    actor: `system.saves.breath.value` carries the band's `blast` number,

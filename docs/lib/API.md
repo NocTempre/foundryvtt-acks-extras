@@ -1,4 +1,4 @@
-# lib API (apiVersion 19)
+# lib API (apiVersion 20)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 19,
+  apiVersion: 20,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -86,6 +86,28 @@ diagnostics · `bracketRow(rows, value)` (null max = open-ended) ·
 A writer that merges into what it wrote before reads its own layer with
 `getLayer`, never `getDoc`: the merged read would carry an override or a
 sample down into the write.
+
+**Where a table was read** (apiVersion 20). A document may carry
+`cites: { tableId: "RR p.505" }` beside `tables`, one citation per table in the
+cookbook's form. The importer writes it: a raw table cites its recipe's printed
+page (every block's page for a table gathered from several, only the blocks a
+run actually read), and an assembled table cites the raw tables its binding's
+`PRODUCES` map names. The classes registry cites each class table with its
+class item's `source.cite`. `citeOf(docId, tableId)` answers from the layer a read
+takes the table from, falling back to that layer's `source.pages`; it returns
+null for a table no layer holds, and for one a Judge's override or a module's
+sample supplies, since neither was read off a page. A world imported before
+apiVersion 20 has no `cites` until it re-reads, so it shows the document's
+pages.
+
+**A printed quantity** (apiVersion 20) is `{value, atLeast, per}`: a figure,
+whether it is a floor ("4 or more") rather than an exact amount, and the unit a
+rate is counted in ("per banner"), or null. `quantity(x)` reads that shape, or
+a bare number, and returns null for anything holding no figure;
+`meetsQuantity(q, amount)` tests an amount against it, and
+`scaleQuantity(q, count)` multiplies a rate by its count and returns a flat
+figure as it stands. A `proseValues` recipe writes the shape with
+`take: "quantity"` (`scripts/importer/table-extract.mjs`).
 
 `expectTables(docId, tableIds)` at `setup` declares what a consumer reads;
 `expectedTables()` → `[{docId, tableIds}]` drives placeholder generation, and

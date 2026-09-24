@@ -70,3 +70,8 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   owner, as the one client that performs loadout writes. A later phase
   replaces this with explicit socketlib routing to the primary GM so a
   non-GM owner never has to be the writer.
+- **Variation ruledata has no producer.** `variation-defs.mjs` reads base-type
+  fields from a `variations` document that no recipe writes, so a world records
+  nothing extra, as that file's header says, and no import changes it until a
+  recipe reads the fields off a page. `tools/validate-producers.mjs` waives the
+  document against this entry.

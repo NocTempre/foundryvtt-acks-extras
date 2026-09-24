@@ -236,6 +236,12 @@ function entryOf(docId, tableId, subId, { absent = false } = {}) {
   };
 }
 
+/**
+ * The page an entry's table was read from (lib `citeOf`): null for an absent
+ * table, or one a Judge's override or a module sample supplies.
+ */
+export const entryCite = ({ docId, tableId }) => lib()?.tables?.citeOf?.(docId, tableId) ?? null;
+
 /** Current EFFECTIVE data for an entry (override layer included). */
 export function entryData({ docId, tableId, subId }) {
   const data = lib().tables.getTable(docId, tableId);

@@ -90,7 +90,13 @@ report the same symptom.
    `bracketRow` inside and outside its bands, then
    `unregisterTable(id, source)`.
    *Observable:* in-band rows resolve, out-of-band returns null, and the
-   deregistered table is gone from `hasDoc`.
+   deregistered table is gone from `hasDoc`. `citeOf` on a re-read document
+   answers its stored page, and null for an absent table (the browser rows are
+   `docs/location/TESTING.md` step 5). `quantity({value: "4", atLeast: true,
+   per: " banner "})` answers `{value: 4, atLeast: true, per: "banner"}`;
+   `meetsQuantity` of it is true at 4 and false at 3, `scaleQuantity(it, 3)`
+   is 12, and `quantity("none")` is null. Pure functions: an in-page eval
+   after `ready` proves only that the live namespace carries them.
 7. Attack patch: with the `attackRollPatch` setting on, roll an attack.
    *Observable:* the patched path runs; turn the setting off and the system's
    own path returns. An inert setting is a bug.
