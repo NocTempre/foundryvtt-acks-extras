@@ -43,7 +43,10 @@
  *      the camelCased module id; lang keys with "<ID-UPPERCASED>."
  *      (Foundry-owned roots like TYPES.* allowlisted); top-level CSS classes
  *      with the module id; top-level pack _ids with the mandatory
- *      module.json `flags.<id>.idPrefix` short key.
+ *      module.json `flags.<id>.idPrefix` short key. Global, hook and helper
+ *      names are read where they are written — a global or hook name through
+ *      the consts, object members and imports that carry it — and one that
+ *      cannot be read fails; a hook call may state why with `hook-ok: <reason>`.
  *   8. The window contract: every window a module opens stays reachable,
  *      resizable, and legible at the user's chosen type size, and behaves when
  *      two copies of it are open at once — scroll-contract membership, dead
@@ -127,6 +130,17 @@ function walk(dir, cb) {
   }
 }
 
+// The file a relative import specifier names, or null for a bare or absolute
+// one — those are not this module's files to walk.
+function resolveSpecifier(fromFile, specifier) {
+  if (!specifier.startsWith(".")) return null;
+  const base = path.resolve(path.dirname(fromFile), specifier);
+  for (const candidate of [base, `${base}.mjs`, `${base}.js`, path.join(base, "index.mjs")]) {
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
+  }
+  return null;
+}
+
 /* 1. JS syntax of every script/tool module. */
 for (const dir of ["scripts", "tools"]) {
   walk(path.join(ROOT, dir), (full) => {
@@ -190,11 +204,13 @@ const FOUNDRY_CORE_HELPERS = {
   ]),
 };
 
-/* A JavaScript tokenizer just deep enough to find registerHelper calls:
- * comments, strings, template literals (their ${} holes included) and regex
- * literals are consumed whole, so a name mentioned inside one is never read as
- * code. Whether a `/` opens a regex is decided the usual way, from the token
- * before it. */
+/* A JavaScript tokenizer just deep enough to read what a module registers and
+ * exposes: comments, strings, regex literals and the text of template literals
+ * are consumed whole, so a name mentioned inside one is never read as code. A
+ * template with ${} holes is a `template` token holding the text before its
+ * first hole, then each hole's own tokens, each followed by a `templateMiddle`
+ * or `templateTail` token holding the text after it. Whether a `/` opens a
+ * regex is decided the usual way, from the token before it. */
 const REGEX_AFTER_WORD = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "do", "else", "yield", "await"]);
 function tokenizeJs(src) {
   const tokens = [];
@@ -232,12 +248,15 @@ function tokenizeJs(src) {
       const textStart = i;
       if (templateText() === "hole") {
         holes.push(0);
-        tokens.push({ type: "template", value: null, start });
+        tokens.push({ type: "template", value: src.slice(textStart, i - 2), start });
       } else tokens.push({ type: "string", value: src.slice(textStart, i - 1), start });
     } else if (c === "}" && holes.length && holes[holes.length - 1] === 0) {
       holes.pop();
       i++;
-      if (templateText() === "hole") holes.push(0);
+      const textStart = i;
+      const hole = templateText() === "hole";
+      if (hole) holes.push(0);
+      tokens.push({ type: hole ? "templateMiddle" : "templateTail", value: src.slice(textStart, i - (hole ? 2 : 1)), start });
     } else if (c === "/" && regexMayStart()) {
       let inClass = false;
       for (i++; i < src.length && src[i] !== "\n"; i++) {
@@ -267,30 +286,46 @@ function tokenizeJs(src) {
   return tokens;
 }
 
-// The keys of the object literal opening at tokens[open], and the index of its
-// closing brace; null when a key is not literal — a spread or a computed [key]
-// names nothing readable.
+function punctAt(tokens, k, value) {
+  return tokens[k]?.type === "punct" && tokens[k].value === value;
+}
+
+// The keys of the object literal opening at tokens[open], the index of its
+// closing brace, and for each key its token index and the token range
+// [from, to) of its value — the key itself for a shorthand. Null when a key is
+// not literal: a spread or a computed [key] names nothing readable.
 function objectLiteralKeys(tokens, open) {
   const keys = [];
+  const values = [];
   let depth = 1;
   let expectKey = true;
+  const endValue = (k) => {
+    if (values.length) values[values.length - 1].to = k;
+  };
   for (let k = open + 1; k < tokens.length; k++) {
     const tk = tokens[k];
     const p = tk.type === "punct" ? tk.value : null;
     if (depth === 1 && expectKey) {
-      if (p === "}") return { keys, end: k };
+      if (p === "}") return { keys, values, end: k };
       // `async foo() {}`, `get foo() {}`, `*foo() {}` — unless the word is itself the key.
       const modifier = p === "*" || (tk.type === "ident" && ["async", "get", "set"].includes(tk.value));
       if (modifier && ![":", "(", ",", "}"].includes(tokens[k + 1]?.value)) continue;
       if (!["ident", "string", "number"].includes(tk.type)) return null;
       keys.push(tk.value);
+      values.push({ key: k, from: punctAt(tokens, k + 1, ":") ? k + 2 : k, to: k + 1 });
       expectKey = false;
       continue;
     }
     if (p === "(" || p === "[" || p === "{") depth++;
     else if (p === ")" || p === "]" || p === "}") {
-      if (--depth === 0) return { keys, end: k };
-    } else if (p === "," && depth === 1) expectKey = true;
+      if (--depth === 0) {
+        endValue(k);
+        return { keys, values, end: k };
+      }
+    } else if (p === "," && depth === 1) {
+      endValue(k);
+      expectKey = true;
+    }
   }
   return null;
 }
@@ -704,14 +739,6 @@ if (module_?.id && fs.existsSync(path.join(ROOT, "lang", "en.json"))) {
       return value !== undefined && LANG_ROOT_RE.test(value) ? value : whole;
     });
 
-  const resolveSpecifier = (fromFile, specifier) => {
-    if (!specifier.startsWith(".")) return null; // bare/absolute: not ours to walk
-    const base = path.resolve(path.dirname(fromFile), specifier);
-    for (const candidate of [base, `${base}.mjs`, `${base}.js`, path.join(base, "index.mjs")]) {
-      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
-    }
-    return null;
-  };
   // Module-level string constants per file, plus the named-import edges that
   // carry them between files.
   const constsOf = new Map();
@@ -835,6 +862,351 @@ if (module_?.id && fs.existsSync(path.join(ROOT, "lang", "en.json"))) {
   }
 }
 
+/* Reading a name where a module writes it. 7c checks the names of what a module
+ * exposes on globalThis and the hooks it fires, and modules name both through
+ * constants: an object of hook names published on the module's API (TOOLCHAIN
+ * §5b), imported wherever a hook fires and often built from a NAMESPACE const.
+ * So a name is read from source text, never by running anything, through
+ * every shape that hands a string along unchanged — a string or template
+ * literal, a const, an object member, a named import or re-export, either arm
+ * of a conditional. A call, an operator or a parameter ends the reading. */
+
+/* The module-level surface of one source file: each `const` declared outside
+ * every block and parameter list, what the file imports and exports, and every
+ * name it binds any other way. A name bound any other way may be shadowed where
+ * it is used, so it is never read: a parameter sharing a module const's name
+ * reads as the parameter it is. Cached per file. */
+const JS_MODULES = new Map();
+const CONTROL_WORDS = new Set(["if", "for", "while", "switch", "with"]);
+function jsModule(full) {
+  if (JS_MODULES.has(full)) return JS_MODULES.get(full);
+  let src;
+  try {
+    src = fs.readFileSync(full, "utf8");
+  } catch {
+    JS_MODULES.set(full, null);
+    return null;
+  }
+  const t = tokenizeJs(src);
+  const mod = { file: full, src, tokens: t, consts: new Map(), imports: new Map(), exports: new Map(), reexports: new Map(), stars: [], bound: new Set() };
+  JS_MODULES.set(full, mod);
+  const fileAt = (k) => (t[k]?.type === "string" ? resolveSpecifier(full, t[k].value) : null);
+  let depth = 0;
+  // Each name a parameter list or destructuring pattern binds: every
+  // identifier but a key before `:`, with default values skipped.
+  const bindAll = (from, to) => {
+    for (let k = from; k < to; k++) {
+      if (t[k].type === "ident" && !punctAt(t, k + 1, ":") && !punctAt(t, k - 1, ".")) mod.bound.add(t[k].value);
+      else if (punctAt(t, k, "=") && !arrowAt(t, k)) k = Math.min(expressionEnd(t, k + 1), to) - 1;
+    }
+  };
+  const declare = (k) => {
+    const exported = t[k - 1]?.value === "export";
+    for (let j = k + 1; ; j++) {
+      let name = null;
+      if (t[j]?.type === "ident") name = t[j++].value;
+      else if (punctAt(t, j, "{") || punctAt(t, j, "[")) {
+        const close = closerOf(t, j);
+        bindAll(j + 1, close);
+        j = close + 1;
+      } else return;
+      const init = punctAt(t, j, "=") && !punctAt(t, j + 1, "=") ? j + 1 : -1;
+      if (name !== null) {
+        if (t[k].value === "const" && depth === 0 && init >= 0) mod.consts.set(name, init);
+        else mod.bound.add(name);
+        if (exported) mod.exports.set(name, name);
+      }
+      if (init >= 0) j = expressionEnd(t, init);
+      if (!punctAt(t, j, ",")) return;
+    }
+  };
+  // `{ a, b as c }` of an import or export clause: [name, local] pairs, where
+  // `name` is the imported or exported one.
+  const clause = (open, close, importing) => {
+    const pairs = [];
+    for (let e = open + 1; e < close; e++) {
+      if (t[e].type !== "ident" && t[e].type !== "string") continue;
+      const aliased = t[e + 1]?.value === "as";
+      pairs.push(importing ? [t[e].value, aliased ? t[e + 2]?.value : t[e].value] : [aliased ? t[e + 2]?.value : t[e].value, t[e].value]);
+      if (aliased) e += 2;
+    }
+    return pairs;
+  };
+  for (let k = 0; k < t.length; k++) {
+    const tk = t[k];
+    if (tk.type === "punct") {
+      // A parameter list is a group a body or an arrow follows, unless a
+      // control keyword owns it; `catch (err) {` binds like one.
+      if (tk.value === "(") {
+        const close = closerOf(t, k);
+        const owner = t[k - 1];
+        if ((punctAt(t, close + 1, "{") || arrowAt(t, close + 1)) && !(owner?.type === "ident" && CONTROL_WORDS.has(owner.value))) bindAll(k + 1, close);
+      }
+      if ("([{".includes(tk.value)) depth++;
+      else if (")]}".includes(tk.value)) depth--;
+      continue;
+    }
+    if (tk.type !== "ident" || punctAt(t, k - 1, ".")) continue;
+    if (arrowAt(t, k + 1)) mod.bound.add(tk.value);
+    else if (["const", "let", "var"].includes(tk.value)) declare(k);
+    else if (depth === 0 && tk.value === "import" && !punctAt(t, k + 1, "(") && !punctAt(t, k + 1, ".")) {
+      // import D from "s" · import * as N from "s" · import { a, b as c } from "s"
+      let j = k + 1;
+      const pairs = [];
+      if (t[j]?.type === "ident") {
+        mod.bound.add(t[j++].value); // a default import is not followed
+        if (punctAt(t, j, ",")) j++;
+      }
+      if (punctAt(t, j, "*") && t[j + 1]?.value === "as") (pairs.push(["*", t[j + 2]?.value]), (j += 3));
+      else if (punctAt(t, j, "{")) {
+        const close = closerOf(t, j);
+        pairs.push(...clause(j, close, true));
+        j = close + 1;
+      }
+      const from = fileAt(t[j]?.value === "from" ? j + 1 : j);
+      for (const [name, local] of pairs) if (local) mod.imports.set(local, { from, name });
+    } else if (depth === 0 && tk.value === "export") {
+      // export { a, b as c } · export { a as b } from "s" · export * from "s" ·
+      // export * as n from "s". An `export const` is read by declare().
+      if (punctAt(t, k + 1, "*")) {
+        const alias = t[k + 2]?.value === "as" ? t[k + 3]?.value : null;
+        const fromAt = alias ? k + 4 : k + 2;
+        if (t[fromAt]?.value !== "from") continue;
+        const from = fileAt(fromAt + 1);
+        if (alias) mod.reexports.set(alias, { from, name: "*" });
+        else if (from) mod.stars.push(from);
+      } else if (punctAt(t, k + 1, "{")) {
+        const close = closerOf(t, k + 1);
+        const from = t[close + 1]?.value === "from" ? fileAt(close + 2) : undefined;
+        for (const [exported, local] of clause(k + 1, close, false)) {
+          if (from === undefined) mod.exports.set(exported, local);
+          else mod.reexports.set(exported, { from, name: local });
+        }
+      }
+    }
+  }
+  return mod;
+}
+
+// The index of the bracket closing the one opened at tokens[open].
+function closerOf(tokens, open) {
+  for (let depth = 0, k = open; k < tokens.length; k++) {
+    if (tokens[k].type !== "punct") continue;
+    if ("([{".includes(tokens[k].value)) depth++;
+    else if (")]}".includes(tokens[k].value) && --depth === 0) return k;
+  }
+  return tokens.length;
+}
+
+// Whether an arrow `=>` starts at tokens[k]: the tokenizer splits operators into
+// single characters, and adjacent ones are rejoined by position.
+function arrowAt(tokens, k) {
+  return punctAt(tokens, k, "=") && punctAt(tokens, k + 1, ">") && tokens[k + 1].start === tokens[k].start + 1;
+}
+
+const ASSIGNMENT_OPERATORS = new Set(["=", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=", "|=", "^=", "&&=", "||=", "??="]);
+function assignmentAt(tokens, k) {
+  let op = "";
+  for (let j = k; tokens[j]?.type === "punct" && "=+-*/%<>&|^?".includes(tokens[j].value) && (j === k || tokens[j].start === tokens[j - 1].start + 1); j++) {
+    op += tokens[j].value;
+  }
+  for (let n = op.length; n > 0; n--) {
+    if (ASSIGNMENT_OPERATORS.has(op.slice(0, n))) return op[n] !== "=" && op[n] !== ">"; // not `==`, not `=>`
+  }
+  return false;
+}
+
+/* The index just past the expression starting at tokens[from]: the first `,`
+ * or `;` outside every bracket and template, the closer of a bracket opened
+ * before it, or a second operand following the first with no operator between
+ * — the point automatic semicolon insertion ends a statement. */
+function expressionEnd(tokens, from) {
+  const endsOperand = (tk) =>
+    tk.type === "ident" ? !REGEX_AFTER_WORD.has(tk.value) : tk.type === "punct" ? ")]}".includes(tk.value) : tk.type !== "template" && tk.type !== "templateMiddle";
+  const startsOperand = (tk) =>
+    tk.type === "ident" ? !["in", "of", "instanceof"].includes(tk.value) : ["string", "number", "regex", "template"].includes(tk.type);
+  for (let depth = 0, templates = 0, k = from; k < tokens.length; k++) {
+    const tk = tokens[k];
+    if (!depth && !templates) {
+      if (tk.type === "punct" && [",", ";", ")", "]", "}"].includes(tk.value)) return k;
+      if (k > from && endsOperand(tokens[k - 1]) && startsOperand(tk)) return k;
+    }
+    if (tk.type === "template") templates++;
+    else if (tk.type === "templateTail") templates--;
+    else if (tk.type === "punct" && "([{".includes(tk.value)) depth++;
+    else if (tk.type === "punct" && ")]}".includes(tk.value)) depth--;
+  }
+  return tokens.length;
+}
+
+// The `?` and `:` of a conditional at the top level of tokens[from, to), or
+// null. `?.` and `??` are not conditionals.
+function conditionalAt(tokens, from, to) {
+  let question = -1;
+  let inner = 0;
+  for (let depth = 0, templates = 0, k = from; k < to; k++) {
+    const tk = tokens[k];
+    if (tk.type === "template") templates++;
+    else if (tk.type === "templateTail") templates--;
+    if (tk.type !== "punct" || templates) continue;
+    if ("([{".includes(tk.value)) depth++;
+    else if (")]}".includes(tk.value)) depth--;
+    else if (depth) continue;
+    else if (tk.value === "?" && !punctAt(tokens, k + 1, ".") && !punctAt(tokens, k + 1, "?") && !punctAt(tokens, k - 1, "?")) {
+      if (question < 0) question = k;
+      else inner++;
+    } else if (tk.value === ":" && question >= 0) {
+      if (!inner) return { question, colon: k };
+      inner--;
+    }
+  }
+  return null;
+}
+
+// The token range [from, to) of each argument of the call opening at tokens[open].
+function argumentsOf(tokens, open) {
+  const close = closerOf(tokens, open);
+  const ranges = [];
+  for (let from = open + 1; from < close; ) {
+    const to = Math.min(expressionEnd(tokens, from), close);
+    ranges.push([from, to]);
+    from = to + 1;
+  }
+  return ranges;
+}
+
+/**
+ * What the expression tokens[from, to) of `mod` holds, read from source text.
+ * @returns {{ names: { text: string, complete: boolean, mod: object, at: number }[] }
+ *   | { object: { mod: object, literal: object } } | { namespace: object } | null}
+ *   `names` — each string it may be, with the module and token index where it
+ *   is written; a template literal is complete only if every hole reads as one
+ *   complete string, and otherwise keeps its text up to the first hole that
+ *   does not. `object` — an object literal (objectLiteralKeys). `namespace` —
+ *   an `import * as` module. Null — nothing here can be read.
+ */
+function readValue(mod, from, to, depth = 0) {
+  const t = mod.tokens;
+  if (depth > 32 || from >= to) return null;
+  const branch = conditionalAt(t, from, to);
+  if (branch) {
+    const yes = readValue(mod, branch.question + 1, branch.colon, depth + 1);
+    const no = readValue(mod, branch.colon + 1, to, depth + 1);
+    return yes?.names && no?.names ? { names: [...yes.names, ...no.names] } : null;
+  }
+  let k = from;
+  let value = null;
+  if (t[k].type === "string") {
+    value = { names: [{ text: t[k].value, complete: true, mod, at: k }] };
+    k++;
+  } else if (t[k].type === "template") {
+    ({ value, end: k } = readTemplate(mod, k, depth + 1));
+  } else if (punctAt(t, k, "(")) {
+    const close = closerOf(t, k);
+    value = readValue(mod, k + 1, close, depth + 1);
+    k = close + 1;
+  } else if (punctAt(t, k, "{")) {
+    const literal = objectLiteralKeys(t, k);
+    if (!literal) return null;
+    value = { object: { mod, literal } };
+    k = literal.end + 1;
+  } else if (t[k].value === "Object" && t[k].type === "ident" && punctAt(t, k + 1, ".") && t[k + 2]?.value === "freeze" && punctAt(t, k + 3, "(")) {
+    const close = closerOf(t, k + 3);
+    value = readValue(mod, k + 4, close, depth + 1);
+    k = close + 1;
+  } else if (t[k].type === "ident") {
+    value = readBinding(mod, t[k].value, depth + 1);
+    k++;
+  }
+  // Members: `.key`, `?.key`, `[key]`, `?.[key]`. Anything else — a call, an
+  // operator — computes a value this does not read.
+  while (value && k < to) {
+    if (punctAt(t, k, "?") && punctAt(t, k + 1, ".")) k += punctAt(t, k + 2, "[") ? 2 : 1;
+    let key;
+    if (punctAt(t, k, ".") && t[k + 1]?.type === "ident") {
+      key = t[k + 1].value;
+      k += 2;
+    } else if (punctAt(t, k, "[")) {
+      const close = closerOf(t, k);
+      const inner = readValue(mod, k + 1, close, depth + 1)?.names;
+      if (inner?.length !== 1 || !inner[0].complete) return null;
+      key = inner[0].text;
+      k = close + 1;
+    } else return null;
+    value = memberOf(value, key, depth + 1);
+  }
+  return k === to ? value : null;
+}
+
+// The template literal opening at tokens[at]: its text, with each hole that
+// reads as one string spliced in, up to the first hole that does not.
+function readTemplate(mod, at, depth) {
+  const t = mod.tokens;
+  let text = t[at].value;
+  let complete = true;
+  for (let hole = at + 1; ; ) {
+    let close = hole;
+    for (let nested = 0; close < t.length; close++) {
+      const type = t[close].type;
+      if (type === "template") nested++;
+      else if (type === "templateTail" && nested) nested--;
+      else if ((type === "templateTail" || type === "templateMiddle") && !nested) break;
+    }
+    if (complete) {
+      const read = readValue(mod, hole, close, depth)?.names;
+      const one = read?.length === 1 ? read[0] : null;
+      if (one) text += one.text;
+      if (one?.complete) text += t[close]?.value ?? "";
+      else complete = false;
+    }
+    if (close >= t.length || t[close].type === "templateTail") return { value: { names: [{ text, complete, mod, at }] }, end: close + 1 };
+    hole = close + 1;
+  }
+}
+
+// A name at module scope in `mod`: its const's initializer, or what it imports.
+function readBinding(mod, name, depth) {
+  if (mod.bound.has(name)) return null;
+  if (mod.consts.has(name)) {
+    const at = mod.consts.get(name);
+    return readValue(mod, at, expressionEnd(mod.tokens, at), depth);
+  }
+  const imported = mod.imports.get(name);
+  const source = imported?.from ? jsModule(imported.from) : null;
+  if (!source) return null;
+  return imported.name === "*" ? { namespace: source } : readExport(source, imported.name, depth + 1);
+}
+
+// What `mod` exports under `name`, followed through its re-exports.
+function readExport(mod, name, depth) {
+  if (depth > 32) return null;
+  if (mod.exports.has(name)) return readBinding(mod, mod.exports.get(name), depth + 1);
+  const relay = mod.reexports.get(name);
+  if (relay) {
+    const source = relay.from ? jsModule(relay.from) : null;
+    if (!source) return null;
+    return relay.name === "*" ? { namespace: source } : readExport(source, relay.name, depth + 1);
+  }
+  for (const from of mod.stars) {
+    const source = jsModule(from);
+    const value = source && readExport(source, name, depth + 1);
+    if (value) return value;
+  }
+  return null;
+}
+
+// The member `key` of a value readValue returned. A string's members
+// (`.length`, `.replace`) are not names.
+function memberOf(value, key, depth) {
+  if (value.object) {
+    const { mod, literal } = value.object;
+    const i = literal.keys.lastIndexOf(key);
+    return i < 0 ? null : readValue(mod, literal.values[i].from, literal.values[i].to, depth);
+  }
+  if (value.namespace) return readExport(value.namespace, key, depth);
+  return null;
+}
+
 /* 7. Namespacing: shared-registry identifiers carry the module key. */
 if (module_?.id) {
   const id = module_.id;
@@ -875,19 +1247,106 @@ if (module_?.id) {
   }
 
   // 7c. runtime registrations in scripts/: globals, custom hooks, HB helpers.
+  /* Globals and hooks: every assignment to a property of globalThis itself,
+   * every Object.assign/defineProperty/Reflect.set aimed at it, and every
+   * Hooks.call/callAll, in scripts/ (.mjs and .js) — found in 2b's tokens and
+   * named through readValue. A name it cannot read FAILS, as an unreadable
+   * helper does: the name is the whole of what this checks. A hook call alone
+   * may state why with `hook-ok: <reason>` on or just above it — a generic
+   * emitter fires whatever name its caller hands it, which nothing written at
+   * the call can say, while every global write has a spelling this reads. */
+  let globalWrites = 0;
+  let hookCalls = 0;
+  let hookExcused = 0;
+  const reported = new Set();
+  const REMEDY = {
+    global: "write globalThis.<name>, or name it with a string literal or a const or import this check can follow back to one",
+    hook: 'name it with a string literal, or a const, object member or import this check can follow back to one, or state why not with "// hook-ok: <reason>" on or just above the call',
+  };
   walk(path.join(ROOT, "scripts"), (full) => {
-    if (!full.endsWith(".mjs")) return;
-    const text = fs.readFileSync(full, "utf8");
-    for (const m of text.matchAll(/globalThis\.([A-Za-z_$][\w$]*)\s*(?:\?\?=|\|\|=|=(?!=))/g)) {
-      if (!m[1].startsWith(camelNs)) fail(rel(full), `globalThis.${m[1]} must start with "${camelNs}"`);
-    }
-    // One form only: the camelCase module namespace (e.g. "acksInfluenceFoo").
-    for (const m of text.matchAll(/Hooks\.(?:call|callAll)\(\s*["'`]([^"'`]+)["'`]/g)) {
-      if (m[1].startsWith(camelNs)) continue;
-      if (/^acks/i.test(m[1])) warn(rel(full), `hook "${m[1]}" fires under a foreign acks-* namespace — fine only if it's a deliberate cross-module call`);
-      else fail(rel(full), `custom hook "${m[1]}" must start with "${camelNs}"`);
+    if (!/\.m?js$/.test(full)) return;
+    const mod = jsModule(full);
+    if (!mod) return;
+    const t = mod.tokens;
+    const file = rel(full);
+    const lines = mod.src.split("\n");
+    const lineOf = (m, k) => m.src.slice(0, m.tokens[k].start).split("\n").length;
+    const verdict = (name) =>
+      name.text.startsWith(camelNs) ? "ok" : !name.complete && camelNs.startsWith(name.text) ? "unreadable" : /^acks/i.test(name.text) ? "foreign" : "outside";
+    const check = (kind, names, k) => {
+      const line = lineOf(mod, k);
+      if (!names || names.some((name) => verdict(name) === "unreadable")) {
+        if (kind === "hook" && `${lines[line - 2] ?? ""}\n${lines[line - 1]}`.includes("hook-ok:")) hookExcused++;
+        else fail(file, `line ${line}: ${kind === "hook" ? "hook call" : "globalThis write"} whose name this check cannot read, so whether it starts with "${camelNs}" is unchecked — ${REMEDY[kind]}`);
+      }
+      for (const name of names ?? []) {
+        const v = verdict(name);
+        const key = `${file}\0${kind}\0${name.text}`;
+        if (v === "ok" || v === "unreadable" || reported.has(key)) continue;
+        reported.add(key);
+        // A name held in a const or an import is fixed where it is written.
+        const at = lineOf(name.mod, name.at);
+        const text = `${name.text}${name.complete ? "" : "…"}`;
+        const where = name.mod === mod && at === line ? "" : ` (named at ${rel(name.mod.file)}:${at})`;
+        if (kind === "global") fail(file, `line ${line}: globalThis.${text}${where} must start with "${camelNs}"`);
+        else if (v === "foreign") warn(file, `line ${line}: hook "${text}"${where} fires under a foreign acks-* namespace — fine only if it's a deliberate cross-module call`);
+        else fail(file, `line ${line}: custom hook "${text}"${where} must start with "${camelNs}"`);
+      }
+    };
+    const namesAt = (range) => (range ? (readValue(mod, range[0], range[1])?.names ?? null) : null);
+    const keysOf = (value) =>
+      value?.object ? value.object.literal.keys.map((text, i) => ({ text, complete: true, mod: value.object.mod, at: value.object.literal.values[i].key })) : null;
+    for (let k = 0; k < t.length; k++) {
+      if (t[k].type !== "ident") continue;
+      if (t[k].value === "Hooks") {
+        // Hooks.call(…) / Hooks.callAll(…), `?.` allowed at each step.
+        let j = k + (punctAt(t, k + 1, "?") ? 2 : 1);
+        if (!punctAt(t, j, ".") || !["call", "callAll"].includes(t[j + 1]?.value)) continue;
+        j += punctAt(t, j + 2, "?") && punctAt(t, j + 3, ".") ? 4 : 2;
+        if (!punctAt(t, j, "(")) continue;
+        hookCalls++;
+        check("hook", namesAt(argumentsOf(t, j)[0]), k);
+        continue;
+      }
+      if (punctAt(t, k - 1, ".")) continue;
+      if (t[k].value === "globalThis") {
+        // globalThis.name = …, globalThis[name] ??= …: a property of globalThis
+        // itself assigned. A write into one (globalThis.acksX.lib = …) is not.
+        let names;
+        let after;
+        if (punctAt(t, k + 1, ".") && t[k + 2]?.type === "ident") {
+          names = [{ text: t[k + 2].value, complete: true, mod, at: k + 2 }];
+          after = k + 3;
+        } else if (punctAt(t, k + 1, "[")) {
+          after = closerOf(t, k + 1) + 1;
+          names = namesAt([k + 2, after - 1]);
+        } else continue;
+        if (!assignmentAt(t, after)) continue;
+        globalWrites++;
+        check("global", names, k);
+      } else if ((t[k].value === "Object" || t[k].value === "Reflect") && punctAt(t, k + 1, ".") && punctAt(t, k + 3, "(")) {
+        // Object.assign / defineProperty / defineProperties and Reflect.set /
+        // defineProperty with globalThis itself as the target.
+        const method = `${t[k].value}.${t[k + 2].value}`;
+        const [target, ...rest] = argumentsOf(t, k + 3);
+        if (!target || target[1] - target[0] !== 1 || t[target[0]].value !== "globalThis" || t[target[0]].type !== "ident") continue;
+        if (method === "Object.assign" || method === "Object.defineProperties") {
+          globalWrites++;
+          const sources = (method === "Object.assign" ? rest : rest.slice(0, 1)).map(([from, to]) => keysOf(readValue(mod, from, to)));
+          if (sources.includes(null)) check("global", null, k);
+          check("global", sources.filter(Boolean).flat(), k);
+        } else if (["Object.defineProperty", "Reflect.set", "Reflect.defineProperty"].includes(method)) {
+          globalWrites++;
+          check("global", namesAt(rest[0]), k);
+        }
+      }
     }
   });
+  console.log(
+    `validate: global and hook namespacing checked ${globalWrites} globalThis write${globalWrites === 1 ? "" : "s"} and ` +
+      `${hookCalls} hook call${hookCalls === 1 ? "" : "s"} in scripts/ against "${camelNs}"` +
+      (hookExcused ? `; ${hookExcused} hook call${hookExcused === 1 ? "" : "s"} whose name it cannot read passed on hook-ok` : ""),
+  );
   /* Helpers: every name 2b's reader found. A registerHelper call it cannot
    * read FAILS here, where 2b only warns: 2b's backstop is that each template
    * calling the helper still fails, and this check has none — the name is the
