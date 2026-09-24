@@ -38,6 +38,10 @@ assert.equal(g.literacy, LITERACY.ILLITERATE, "an Intellect penalty is illiterat
 assert.equal(g.openSlots, 0, "and buys nothing");
 assert.deepEqual(g.granted, ["Common"], "but still speaks what it was given");
 
+/* --- a row added on the sheet and never named grants nothing ------------- */
+g = languageGrant({ intMod: 0, classLanguages: { granted: ["Common", null, undefined, " "], count: 0 } });
+assert.deepEqual(g.granted, ["Common"], "an empty row is not a tongue called null");
+
 /* --- the carrier counts DOCUMENTS, so a deleted language frees its slot ---
  * The slot record remembers ids; the actor's items are the truth. Both are
  * plain objects here — the model reads a carrier through the same two

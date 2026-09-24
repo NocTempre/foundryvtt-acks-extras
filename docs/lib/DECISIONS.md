@@ -7,6 +7,34 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-09-23 — a sheet writes a list of rows whole, and keeps what its form
+  does not show.** Two data losses on the class and race sheets, one
+  mechanism: an array field is replaced whole on update, and each row is
+  cleaned as a complete value. First, submitOnChange sends every field the
+  sheet renders, and a row renders only some of its own, so one ordinary edit
+  reset every field no input shows — a template's silver and alternates, an
+  ability row's printed name and role, an item's skin name and printed cost,
+  every choice's options and key, a ladder rung's outcome, a tradition's spell
+  list, a templates-sourced path's own options, a race trait's text. The class
+  sheet's header called the round-trip whole-document because every TAB stays
+  in the DOM; that held for the tabs and not for the rows. Second, a row
+  control on a nested list wrote `system.templates.0.abilities`, and an update
+  keyed through a row's index replaces the outer list with that one row:
+  deleting an ability from a template deleted every other template and blanked
+  the template's own fields. Ruled: `sheet-rows.mjs`. `keepUnrenderedFields`
+  fills each submitted row from the stored row at its index before the model
+  cleans it; a sent value always wins, and the form still decides how many rows
+  a list holds, since rows come and go through their own controls.
+  `rowListUpdate` writes the outermost list a control's path runs through, and
+  a control submits the form before it writes, because it writes a whole list
+  from the stored document and an edit still in flight would be lost under it.
+  Rejected: a hidden input for every field a row does not show — each field
+  added to the schema later needs one, and a forgotten one is this loss again,
+  silently; filling in `_prepareSubmitData` — the parent validates with `clean`
+  before it returns, so the rows are already reset there. Cost: nothing brings
+  back a value already cleared. An imported class gets its book's values again
+  from `cookbookUpdateClasses()`, which replaces hand edits with them.
+
 - **2026-09-22 — the attack dialog opens on the chat's mode, and an empty
   audience is everyone to the dice.** Two field reports against the
   attack-roll setting, one cause-pair. A Judge kept the setting off because it

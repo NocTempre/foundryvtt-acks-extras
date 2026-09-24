@@ -9,9 +9,11 @@
  * anything a picker cannot say. Imported documents open in the same sheet, so
  * review-and-tweak and from-scratch homebrew are one workflow.
  *
- * Tabs are sheet-local (a `data-action="tab"` toggle over sections in one
- * form): every field of every tab stays in the DOM, so submitOnChange always
- * carries the whole system object and array round-trips stay whole-document.
+ * Tabs are sheet-local (a `data-action="classTab"` toggle over sections in
+ * one form): every field of every tab stays in the DOM, so submitOnChange
+ * carries every field the sheet renders. An array row renders only some of
+ * its fields and an array update replaces its rows whole, so
+ * `_processFormData` fills the rest from the stored row.
  */
 import { MODULE_ID, LANG_PREFIX, CHASSIS_KEYS, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
 import { pathGroups } from "./paths.mjs";
@@ -23,6 +25,7 @@ import { refOf } from "./grants.mjs";
 import { builderTables, raceItems, raceForClass, planFor, applyBuilder, issueLabel } from "./builder.mjs";
 import { materializeTemplates, detachTemplatePackages } from "./template-packages.mjs";
 import { CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
+import { keepUnrenderedFields, rowListUpdate } from "../lib/sheet-rows.mjs";
 import { ATTRIBUTES, ITEM_TYPE } from "../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -306,6 +309,11 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     return context;
   }
 
+  /** @override — a row's fields the form does not render keep their stored values. */
+  _processFormData(event, form, formData) {
+    return keepUnrenderedFields(super._processFormData(event, form, formData), this.item._source);
+  }
+
   /** @override — reconstruct arrays before the model cleans the submit. */
   _prepareSubmitData(event, form, formData, updateData) {
     const data = super._prepareSubmitData(event, form, formData, updateData);
@@ -392,6 +400,7 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     "templates.N.items": () => ({ qty: 1 }),
     "templates.N.abilities": () => ({ rank: 1 }),
     "templates.N.spells": () => ({}),
+    "languages.granted": () => "",
     "inventory.classProfs": () => "",
     "inventory.powers": () => "",
     "inventory.skills": () => ({}),
@@ -400,23 +409,25 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     "builder.thievery.skills": () => "",
   };
 
+  /* A row control submits the form first: it writes a whole list from the
+   * stored document, so an edit still in flight would be written over. */
   static async #onRowAdd(event, target) {
     const path = target.dataset.array;
     if (!path) return;
+    await this.submit();
     const sys = this.item.system;
-    const current = foundry.utils.deepClone(foundry.utils.getProperty(sys, path) ?? []);
     const make = ClassSheet.#ROW_DEFAULTS[path] ?? ClassSheet.#ROW_DEFAULTS[path.replace(/\.\d+\./g, ".N.")];
-    current.push(make ? make(sys) : {});
-    await this.item.update({ [`system.${path}`]: current });
+    const update = rowListUpdate(sys.toObject(), path, (list) => list.push(make ? make(sys) : {}));
+    if (update) await this.item.update(update);
   }
 
   static async #onRowDelete(event, target) {
     const path = target.dataset.array;
     const index = Number(target.dataset.index);
     if (!path || !Number.isInteger(index)) return;
-    const current = foundry.utils.deepClone(foundry.utils.getProperty(this.item.system, path) ?? []);
-    current.splice(index, 1);
-    await this.item.update({ [`system.${path}`]: current });
+    await this.submit();
+    const update = rowListUpdate(this.item.system.toObject(), path, (list) => list.splice(index, 1));
+    if (update) await this.item.update(update);
   }
 
   /** @override — the inventory ACCEPTS ability items; nothing is offered. */

@@ -50,6 +50,14 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - **Rolling in a loop outruns a 45 s scripted budget.** Each roll awaits a
   chat message; do a handful of attempts per call and carry the state on
   `window`, or the call times out mid-loop and leaves the page half-driven.
+- **Drive a sheet edit through its input, never `item.update`.** Set the
+  input's `value`, dispatch `input` and `change`, then blur: that is the path
+  submitOnChange takes, through `_processFormData`. A scripted `item.update`
+  never touches the form, so it passes on a sheet that loses data on every
+  edit. The fields at risk are those no input renders — read them off the
+  template's `name=` attributes against the data model, since the list moves
+  whenever the template does. Select a row control by its `data-action`,
+  `data-array` and `data-index`, never by its tag.
 
 ## Steps
 
@@ -89,6 +97,25 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    `.missile` with no prompt; the elected key opens the Damage Bonus prompt
    offering melee or missile, writes only the chosen side, and stores
    `flags["acks-extras"].classes.damageBonus` — a third apply does not ask.
+8. **An edit or a row control keeps what the rows do not show.** Fixture: a
+   class whose rows carry fields no input renders — two templates with `sp`
+   and `alt`, items with `skinName` and `cost`, abilities with `name`, `role`
+   and `choice`; a fixed award's `choice`; two ladders whose rungs carry
+   `outcome`; a tradition's `spellList`; a `templates`-sourced path with
+   `options` — and a race with two value rungs, one holding two powers, and a
+   trait with `html`. On the class: change Maximum Level; click the languages
+   **+**; type into template 0's name and, before it saves, click that
+   template's ability **+**; delete its first ability; add a rung to ladder 0;
+   delete ladder 1; change Maximum Level again. On the race: change HP after
+   9th; delete rung 0's first power.
+   *Observable:* after every step each of those fields reads back from
+   `item._source.system` as stored, and each outer list keeps its other rows
+   (both templates, both race rungs, ladder 1 until its own delete). The typed
+   name survives the **+**; the ability that moves into index 0 keeps its own
+   `role` and `choice`. The languages row is empty (`null`), never
+   `[object Object]`, and `grantLanguages(character, class)` (from
+   `scripts/classes/languages.mjs`, imported in page context) with the row
+   still empty grants no tongue called "null".
 
 ## Template packages
 

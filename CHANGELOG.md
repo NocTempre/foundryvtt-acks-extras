@@ -1,5 +1,31 @@
 # Changelog
 
+## 8.6.1
+
+### Fixed
+
+- **An edit on a class or race sheet keeps everything its rows do not show.**
+  Changing any field on a class sheet cleared every value its rows store
+  without showing: a starting template's silver and alternates, an ability
+  row's printed name and role, an item's skin name and printed cost, the
+  options and key of every choice, a ladder rung's outcome, a casting
+  tradition's spell list, and the options of a path that points at the
+  templates. On a race sheet it cleared each trait's text. Those values now
+  stay as they were. What an edit already cleared does not come back by
+  itself: an imported class gets its book's values again from
+  `acksExtras.importer.cookbookUpdateClasses()`, which also replaces your hand
+  edits, and a value you typed has to be typed again.
+- **Adding or removing a row inside another row changes that row only.**
+  Removing an ability from a starting template deleted every other template of
+  the class and blanked the template's own name, coin and gear; adding a rung
+  to a ladder deleted the other ladders; removing a power from a race's value
+  rung deleted the other rungs. Each **+** and delete button now changes its
+  own list and nothing else, and a value you were typing when you pressed it
+  is kept.
+- **The languages + on a class sheet adds an empty row.** It added a row
+  reading "[object Object]". A row left empty grants nothing to a character
+  made from the class.
+
 ## 8.6.0
 
 ### Added

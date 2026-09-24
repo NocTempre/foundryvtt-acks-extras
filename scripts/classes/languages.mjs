@@ -135,8 +135,10 @@ export function languageGrant({
   raceLanguages = null,
   fromAbilities = 0,
 } = {}) {
+  // A row added on the sheet and never named is stored empty (null), never
+  // as a tongue called "null".
   const named = [...(classLanguages?.granted ?? []), ...(raceLanguages?.granted ?? [])]
-    .map((n) => String(n).trim())
+    .map((n) => String(n ?? "").trim())
     .filter(Boolean);
   // Two sources may print the same tongue (a dwarven class and the dwarf race
   // both say Dwarven); a character does not learn it twice.

@@ -54,6 +54,7 @@ import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
 import { mathIsPrivate, mathSection, postToJudges } from "../scripts/lib/roll-audience.mjs";
 import { gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
+import { keepUnrenderedFields, rowListUpdate } from "../scripts/lib/sheet-rows.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import {
   capacityOf,
@@ -2154,6 +2155,78 @@ t("judgesAndOwners: every GM, then each other user who owns the document", () =>
     assert.deepEqual(judgesAndOwners(doc), ["g1", "p1"], "a GM who owns it is listed once");
     assert.deepEqual(judgesAndOwners(null), ["g1"], "no document, the GMs alone");
   });
+});
+
+t("keepUnrenderedFields: a submitted row keeps every stored field its form did not send", () => {
+  const source = {
+    name: "Class",
+    system: {
+      maximumLevel: 14,
+      templates: [
+        {
+          name: "T1", gp: 7, sp: 23,
+          abilities: [{ ref: "a", role: "mandatory", choice: { key: "k1", refs: ["x"], count: 2 } }, { ref: "b", role: "joat" }],
+          items: [{ name: "i", skinName: "S", cost: 12 }],
+        },
+        { name: "T2", sp: 5, abilities: [] },
+      ],
+      languages: { granted: ["One", "Two"], count: 1 },
+      paths: [{ key: "p", source: "templates", options: [{ key: "o", training: { weapons: ["all"] } }] }],
+    },
+  };
+  const sent = {
+    name: "Class",
+    system: {
+      maximumLevel: 13,
+      templates: {
+        0: { name: "T1 renamed", gp: 8, abilities: { 0: { ref: "a2", choice: { count: 3 } }, 1: { ref: "b", role: "" } }, items: { 0: { name: "i" } } },
+        1: { name: "T2" },
+      },
+      languages: { granted: { 0: "One", 1: "Three" } },
+      paths: { 0: { key: "p", source: "templates" } },
+    },
+  };
+  const out = keepUnrenderedFields(sent, source);
+  assert.equal(out, sent, "fills in place and returns what it was given");
+  const [t0, t1] = [out.system.templates[0], out.system.templates[1]];
+  assert.deepEqual([t0.name, t0.gp, t0.sp], ["T1 renamed", 8, 23], "a sent field wins; an unsent one comes back");
+  assert.deepEqual(t0.abilities[0], { ref: "a2", role: "mandatory", choice: { count: 3, key: "k1", refs: ["x"] } }, "a nested row fills at every depth");
+  assert.equal(t0.abilities[1].role, "", "a sent blank is a value, not an absence");
+  assert.deepEqual(t0.items[0], { name: "i", skinName: "S", cost: 12 });
+  assert.deepEqual(t1, { name: "T2", sp: 5, abilities: [] });
+  assert.deepEqual(out.system.paths[0].options, [{ key: "o", training: { weapons: ["all"] } }], "a nested list the form never rendered comes back whole");
+  assert.deepEqual(out.system.languages.granted, { 0: "One", 1: "Three" }, "a list of strings is the form's, as sent");
+  assert.equal("count" in out.system.languages, false, "outside an array nothing is filled: the update keeps it");
+  assert.equal(out.system.maximumLevel, 13);
+  out.system.paths[0].options[0].training.weapons.push("melee:all");
+  assert.deepEqual(source.system.paths[0].options[0].training.weapons, ["all"], "a filled value is a copy, never the stored one");
+});
+
+t("keepUnrenderedFields: the form decides how many rows a list holds, and what a typed value is", () => {
+  const source = { system: { rows: [{ a: 1, b: 2 }, { a: 3, b: 4 }, { a: 5, b: 6 }], tags: ["one", "two"] } };
+  const fill = (system) => keepUnrenderedFields({ system }, source).system;
+  assert.deepEqual(fill({ rows: { 0: { a: 9 } } }).rows, { 0: { a: 9, b: 2 } }, "no stored row is appended");
+  assert.deepEqual(fill({ rows: { 0: { a: 1 }, 3: { a: 7 } } }).rows, { 0: { a: 1, b: 2 }, 3: { a: 7 } }, "a row with no stored twin stays as sent");
+  assert.deepEqual(fill({ rows: [{ a: 0 }] }).rows, [{ a: 0, b: 2 }], "a list sent as an array fills the same way");
+  assert.equal(fill({ tags: "one" }).tags, "one", "a lone checked box, sent as a string, is left as sent");
+  assert.deepEqual(fill({ tags: ["two"] }).tags, ["two"], "a shorter list of strings is the form's");
+  assert.equal(fill({ rows: { 0: { b: "3, 4" } } }).rows[0].b, "3, 4", "a value typed as text is the form's");
+  assert.deepEqual(keepUnrenderedFields({ system: { rows: { 0: { a: 1 } } } }, { system: {} }).system.rows, { 0: { a: 1 } }, "nothing stored, nothing filled");
+});
+
+t("rowListUpdate: a row control writes the outermost list its path runs through, whole", () => {
+  const system = () => ({
+    levels: [{ level: 1 }],
+    languages: { granted: ["One"], count: 0 },
+    templates: [{ name: "T0", gp: 7, abilities: [{ ref: "a" }, { ref: "b" }] }, { name: "T1", abilities: [] }],
+  });
+  const nested = rowListUpdate(system(), "templates.0.abilities", (list) => list.splice(0, 1));
+  assert.deepEqual(Object.keys(nested), ["system.templates"], "a path through a row writes the outer list");
+  assert.deepEqual(nested["system.templates"], [{ name: "T0", gp: 7, abilities: [{ ref: "b" }] }, { name: "T1", abilities: [] }], "every other row and field rides along");
+  assert.deepEqual(rowListUpdate(system(), "levels", (list) => list.push({ level: 2 })), { "system.levels": [{ level: 1 }, { level: 2 }] });
+  assert.deepEqual(rowListUpdate(system(), "languages.granted", (list) => list.push("")), { "system.languages.granted": ["One", ""] }, "a list inside a plain object is written at its own path");
+  assert.deepEqual(rowListUpdate(system(), "templates.1.items", (list) => list.push({ qty: 1 }))["system.templates"][1].items, [{ qty: 1 }], "a list the row lacks starts empty");
+  assert.equal(rowListUpdate(system(), "templates.5.abilities", () => assert.fail("no row, no change")), null, "a row that no longer exists writes nothing");
 });
 
 await (async () => {
