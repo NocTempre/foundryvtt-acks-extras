@@ -15,7 +15,17 @@
  */
 import { MODULE_ID, LANG_PREFIX, ITEM_TYPE, DEFAULT_IMG } from "./constants.mjs";
 import { trainingChanges } from "../classes/training-logic.mjs";
-import { bookText, entryText, entryTable, escapeText, nodeParagraphs, stripBookText } from "./prose.mjs";
+import { bookText, entryText, entryTable, escapeText, nodeParagraphs } from "./prose.mjs";
+import {
+  handWrittenProse,
+  refreshImported,
+  REPAIR,
+  REFILL_STAT_PATHS,
+  repairTally,
+  repairCounts,
+  countRepair,
+  unrepaired,
+} from "./refresh.mjs";
 import { isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData } from "./poi-binding.mjs";
 import {
   isOrganisationRow, organisationData, organisationPlan, owedRelations, controlledRegions,
@@ -1431,6 +1441,276 @@ const sysObject = (doc) =>
   typeof doc?.system?.toObject === "function" ? doc.system.toObject() : foundry.utils.deepClone(doc?.system ?? {});
 
 /* -------------------------------------------- */
+/*  Repair in place                             */
+/* -------------------------------------------- */
+
+/**
+ * Write a fresh read of `id` over one imported document: execute the entry on
+ * this seat, bind it with `build(node)`, and write the build under `policy`
+ * (`refreshImported`). Resolves to the written plan, or to why nothing was
+ * written — `book-closed` when the entry's book is not open here, `no-match`
+ * when its page no longer matches, `error` when the binding threw.
+ */
+async function repairFromEntry(doc, id, build, policy) {
+  const found = cookbookEntry(id);
+  const session = found ? ctx.sessionDocs.get(bookOf(found)) : null;
+  if (!session) return "book-closed";
+  const node = await executeEntry(session.doc, found.cb, data.registers, id).catch(() => null);
+  if (!node?.ok) return "no-match";
+  let built;
+  try {
+    built = await build(node);
+  } catch (err) {
+    console.error(`${MODULE_ID} | repair ${id}: the binding failed`, err);
+    return "error";
+  }
+  return refreshImported(doc, built, policy);
+}
+
+/**
+ * How each refill run repairs instead of rebuilding: given the cookbook ids it
+ * may touch and a tally (`repairTally`) to count into, it writes every held
+ * document over where it stands and imports the ids the world lacks. A run
+ * missing here has no in-place write — the weapons, armour, language and race
+ * shelves are built from whole printed tables — and can only rebuild.
+ */
+const REPAIR_RUNS = {
+  cookbookImportAbilities: async (only, tally) => {
+    await cookbookUpdateAbilities({ only, repair: tally });
+    return cookbookImportAbilities({ only });
+  },
+  importClasses: async (only, tally) => {
+    await cookbookUpdateClasses({ only, confirm: false, repair: tally });
+    return importClasses({ only });
+  },
+  importAllEquipment: (only, tally) => importAllEquipment({ only, repair: tally }),
+  importTraps: (only, tally) => importTraps({ only, repair: tally }),
+  importVariations: (only, tally) => importVariations({ only, repair: tally }),
+  importVehicles: (only, tally) => importVehicles({ only, repair: tally }),
+};
+
+/** Every entry id a repair run can write in place, across the picker's sources. */
+const repairableEntryIds = () =>
+  ENTRY_SOURCES.filter((src) => REPAIR_RUNS[src.refill]).flatMap((src) => src.entries().map(([id]) => id));
+
+/**
+ * Can a monster-picker entry be repaired in place? Only a stat-block monster:
+ * a template, a family, an NPC or a legacy block is built another way and can
+ * only rebuild.
+ */
+const repairableMonster = (id) => {
+  const kind = cookbookEntry(id)?.entry?.kind;
+  return !kind || kind === "kind.monster";
+};
+
+/** The mode control both rebuild dialogs carry, Rebuild chosen. */
+function modeSelect() {
+  const t = (key) => game.i18n.localize(`${LANG_PREFIX}.ui.${key}`);
+  return `<div class="form-group"><label>${t("reimportMode")}</label>
+      <select name="mode">
+        <option value="drop" selected>${t("reimportModeDrop")}</option>
+        <option value="repair">${t("reimportModeRepair")}</option>
+      </select></div>
+      <p class="notes">${t("reimportModeHint")}</p>`;
+}
+
+/** Ask before a repair: one paragraph per line, an empty line left out. */
+function confirmRepair(lines, titleKey = "reimportTitle") {
+  return foundry.applications.api.DialogV2.confirm({
+    window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.${titleKey}`) },
+    classes: ["acks-ui", "acks-extras-importer-dialog"],
+    content: lines
+      .filter(Boolean)
+      .map((line) => `<p>${line}</p>`)
+      .join(""),
+  });
+}
+
+/** The lines every repair confirm closes on: what a repair keeps, and the kinds it writes differently. */
+function repairKeepsLines(runs, { monsters = false } = {}) {
+  const t = (key) => game.i18n.localize(`${LANG_PREFIX}.ui.${key}`);
+  return [
+    monsters ? t("repairMonsters") : "",
+    runs.has("cookbookImportAbilities") ? t("repairAbilities") : "",
+    runs.has("importClasses") ? t("repairClasses") : "",
+    t("repairKeeps"),
+  ];
+}
+
+/** Report a repair run from its tally. */
+function reportRepair(tally) {
+  ui.notifications.info(
+    game.i18n.format(`${LANG_PREFIX}.ui.repairDone`, {
+      replaced: tally.replaced,
+      kept: tally.keptProse,
+      refused: tally.refused,
+    }),
+  );
+  if (tally.refused) ui.notifications.info(game.i18n.localize(`${LANG_PREFIX}.ui.repairRefusedHint`));
+}
+
+/**
+ * Repair ONE shelf in place: every entry filed on it is written over its
+ * document where that stands, and imported where the world lacks it. A
+ * document whose book is not open here is left and counted, as the rebuild
+ * keeps it; one no run writes in place (a price-list row) is left too.
+ */
+async function repairShelf(shelf) {
+  const run = SHELF_REFILL[shelf];
+  if (!REPAIR_RUNS[run]) return ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.repairShelfRebuildOnly`, { shelf }));
+  const prefixes = shelfPrefixes(shelf);
+  const onShelf = (id) => prefixes.some((p) => String(id).startsWith(`${p}.`));
+  const ids = new Set(repairableEntryIds().filter(onShelf));
+  // Actors too: an animal is an equipment entry filed as a creature.
+  const shelved = [...(await importedDocs("Item")), ...(await importedDocs("Actor"))].filter(
+    (d) => !d.flags?.[MODULE_ID]?.templatePart && onShelf(claimedId(d)),
+  );
+  const held = shelved.filter((d) => ids.has(claimedId(d)));
+  const over = held.filter((d) => readableHere(claimedId(d)));
+  const kept = held.length - over.length;
+  const skipped = shelved.length - held.length;
+  const ok = await confirmRepair([
+    game.i18n.format(`${LANG_PREFIX}.ui.repairConfirm`, { n: over.length, shelf }),
+    kept ? game.i18n.format(`${LANG_PREFIX}.ui.reimportKeepsClosed`, { n: kept }) : "",
+    skipped ? game.i18n.format(`${LANG_PREFIX}.ui.repairSkipsDocs`, { n: skipped }) : "",
+    ...repairKeepsLines(new Set([run])),
+  ]);
+  if (!ok) return null;
+  const tally = repairTally();
+  const refill = await REPAIR_RUNS[run](ids, tally);
+  reportRepair(tally);
+  return { shelf, mode: "repair", ...repairCounts(tally), refill: refill ?? null };
+}
+
+/**
+ * Repair everything imported from ONE book in place, over the shelves the
+ * rebuild would empty. Each run takes only this book's entries, so repairing
+ * one book never writes over another book's documents. A document no run
+ * writes in place is left, and its shelf named.
+ */
+async function repairBook(bookId, label) {
+  const runs = new Map();
+  for (const src of ENTRY_SOURCES) {
+    if (src.type !== "Item" || !REPAIR_RUNS[src.refill]) continue;
+    for (const [id] of src.entries()) {
+      if (bookOf(cookbookEntry(id)) !== bookId || !refillShelfOf(id)) continue;
+      if (!runs.has(src.refill)) runs.set(src.refill, new Set());
+      runs.get(src.refill).add(id);
+    }
+  }
+  const touched = new Set([...runs.values()].flatMap((ids) => [...ids]));
+  const ofBook = (d) => {
+    if (d.flags?.[MODULE_ID]?.templatePart) return false;
+    const flag = d.getFlag(MODULE_ID, "cookbook");
+    return !!flag?.id && bookOfFlag(flag) === bookId && !!refillShelfOf(flag.id);
+  };
+  // Actors too: an animal is an equipment entry filed as a creature.
+  const docs = [...(await importedDocs("Item")), ...(await importedDocs("Actor"))].filter(ofBook);
+  const shelfOf = (d) => refillShelfOf(claimedId(d));
+  const over = docs.filter((d) => touched.has(claimedId(d)));
+  const left = docs.filter((d) => !touched.has(claimedId(d)));
+  const shelves = [...new Set(over.map(shelfOf))].sort();
+  const ok = await confirmRepair([
+    game.i18n.format(`${LANG_PREFIX}.ui.repairConfirmBook`, { n: over.length, book: label, shelves: shelves.join(", ") || "—" }),
+    left.length
+      ? game.i18n.format(`${LANG_PREFIX}.ui.repairSkipsShelves`, {
+          n: left.length,
+          shelves: [...new Set(left.map(shelfOf))].sort().join(", "),
+        })
+      : "",
+    ...repairKeepsLines(runs),
+  ]);
+  if (!ok) return null;
+  const tally = repairTally();
+  const refill = {};
+  // In SHELF_REFILL's order, which is Import Everything's.
+  for (const run of new Set(Object.values(SHELF_REFILL))) {
+    if (runs.has(run)) refill[run] = (await REPAIR_RUNS[run](runs.get(run), tally)) ?? null;
+  }
+  reportRepair(tally);
+  return { book: bookId, mode: "repair", ...repairCounts(tally), refill };
+}
+
+/**
+ * Repair the ticked entries in place: a stat-block monster is refilled whole
+ * (`refillMonster`), every other kind's run writes its entries over the
+ * documents that hold them and imports the ones the world lacks, and rules
+ * tables merge as they always do. A kind no run writes in place is counted
+ * and left as it is.
+ *
+ * @param {{key: string, id: string}[]} picked ticked rows whose book is open here
+ * @param {number} closed ticked rows refused for a closed book, counted into the report
+ */
+async function repairEntries(picked, closed) {
+  const docs = { Actor: await importedDocs("Actor"), Item: await importedDocs("Item") };
+  const byKey = new Map();
+  for (const { key, id } of picked) {
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(id);
+  }
+  const runs = new Map();
+  const monsters = [];
+  let rebuildOnly = 0;
+  for (const [key, ids] of byKey) {
+    if (key === "Tables") continue;
+    if (key === "Monsters") {
+      for (const id of ids) {
+        if (repairableMonster(id)) monsters.push(id);
+        else rebuildOnly++;
+      }
+      continue;
+    }
+    const run = ENTRY_SOURCES.find((src) => src.key === key)?.refill;
+    if (!REPAIR_RUNS[run]) {
+      rebuildOnly += ids.length;
+      continue;
+    }
+    if (!runs.has(run)) runs.set(run, new Set());
+    for (const id of ids) runs.get(run).add(id);
+  }
+  const touched = [...monsters, ...[...runs.values()].flatMap((ids) => [...ids])];
+  const claimed = (id) => (doc) => !doc.flags?.[MODULE_ID]?.templatePart && claimsEntry(doc, id);
+  const over = [...docs.Actor, ...docs.Item].filter((doc) => touched.some((id) => claimed(id)(doc))).length;
+
+  const ok = await confirmRepair(
+    [
+      game.i18n.format(`${LANG_PREFIX}.ui.repairConfirmEntries`, { n: over, picked: picked.length }),
+      rebuildOnly ? game.i18n.format(`${LANG_PREFIX}.ui.repairSkipsEntries`, { n: rebuildOnly }) : "",
+      ...repairKeepsLines(runs, { monsters: monsters.length > 0 }),
+    ],
+    "reimportEntriesTitle",
+  );
+  if (!ok) return null;
+
+  const tally = repairTally();
+  tally.refused += closed;
+  const refill = {};
+  // Monsters first, as the rebuild runs them.
+  const missing = [];
+  for (const id of monsters) {
+    const held = docs.Actor.filter(claimed(id));
+    if (!held.length) missing.push(id);
+    for (const actor of held) {
+      if (!unrepaired(tally, actor)) continue;
+      const done = await refillMonster(actor, { whole: true }).catch((err) => {
+        console.error(`${MODULE_ID} | repair ${actor.name}`, err);
+        return null;
+      });
+      countRepair(tally, done?.ok ? done : (done?.reason ?? "error"));
+    }
+  }
+  if (missing.length) refill.Monsters = await importMany(missing, game.i18n.localize(`${LANG_PREFIX}.ui.cookbookWorking`));
+  for (const [run, only] of runs) refill[run] = (await REPAIR_RUNS[run](only, tally)) ?? null;
+  const tables = byKey.get("Tables");
+  if (tables?.length) {
+    const run = ENTRY_SOURCES.find((src) => src.key === "Tables").idsRefill;
+    refill[run] = (await api()[run](tables)) ?? null;
+  }
+  reportRepair(tally);
+  return { picked: picked.length, mode: "repair", rebuildOnly, ...repairCounts(tally), refill };
+}
+
+/* -------------------------------------------- */
 /*  Reimport one shelf                          */
 /* -------------------------------------------- */
 
@@ -1477,14 +1757,22 @@ export const reimportableShelves = () =>
  * put back a stub at best. See docs/importer/DECISIONS.md, "Three controls,
  * not twenty-one".
  *
+ * `mode: "repair"` writes over the shelf's documents in place instead
+ * (`repairShelf`).
+ *
  * @param {string} [shelf] a name from `reimportableShelves()`; omitted, asks.
+ * @param {{mode?: "drop"|"repair"}} [opts]
  */
-export async function cookbookReimportShelf(shelf = null) {
+export async function cookbookReimportShelf(shelf = null, { mode = "drop" } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and re-creates documents).`);
   const shelves = reimportableShelves();
   if (!shelf) {
     const esc = foundry.utils.escapeHTML ?? ((x) => x);
-    const shelfOptions = shelves.map((n) => `<option value="shelf:${esc(n)}">${esc(n)}</option>`).join("");
+    // A shelf no run writes in place says so beside its name.
+    const rebuildOnly = ` (${game.i18n.localize(`${LANG_PREFIX}.ui.reimportRebuildOnly`)})`;
+    const shelfOptions = shelves
+      .map((n) => `<option value="shelf:${esc(n)}">${esc(n)}${REPAIR_RUNS[SHELF_REFILL[n]] ? "" : esc(rebuildOnly)}</option>`)
+      .join("");
     // Books beside shelves, in one picker: the value says which kind it names.
     const books = reimportableBooks();
     const bookOptions = books.map((b) => `<option value="book:${esc(b.id)}">${esc(b.label)}</option>`).join("");
@@ -1500,19 +1788,22 @@ export async function cookbookReimportShelf(shelf = null) {
           <optgroup label="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportGroupShelves`))}">${shelfOptions}</optgroup>
           ${books.length ? `<optgroup label="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportGroupBooks`))}">${bookOptions}</optgroup>` : ""}
           <optgroup label="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportGroupTables`))}">${tablesOption}</optgroup>
-        </select></div>`,
+        </select></div>
+        ${modeSelect()}`,
       ok: {
         label: game.i18n.localize(`${LANG_PREFIX}.ui.reimportGo`),
         callback: (event, button) => {
           const [kind, ...rest] = String(button.form.elements.pick.value).split(":");
           const picked = rest.join(":");
+          const mode = String(button.form.elements.mode?.value ?? "drop");
           if (kind === "tables") return api().cookbookImportTables();
-          return kind === "book" ? cookbookReimportBook(picked) : cookbookReimportShelf(picked);
+          return kind === "book" ? cookbookReimportBook(picked, { mode }) : cookbookReimportShelf(picked, { mode });
         },
       },
     });
   }
   if (!SHELF_REFILL[shelf]) return ui.notifications.warn(`${MODULE_ID} | "${shelf}" is not a shelf that can be rebuilt on its own.`);
+  if (mode === "repair") return repairShelf(shelf);
 
   const prefixes = shelfPrefixes(shelf);
   const mine = (d) =>
@@ -1571,14 +1862,19 @@ export const reimportableBooks = () => {
  * that MERGED one of this book's ids stays, because it is that book's
  * document. See docs/importer/DECISIONS.md, "A book is a reimport unit too".
  *
+ * `mode: "repair"` writes over the book's documents in place instead
+ * (`repairBook`).
+ *
  * @param {string} bookId a key of BOOKS, open on this seat.
+ * @param {{mode?: "drop"|"repair"}} [opts]
  */
-export async function cookbookReimportBook(bookId) {
+export async function cookbookReimportBook(bookId, { mode = "drop" } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and re-creates documents).`);
   const label = BOOKS[bookId]?.label ?? bookId;
   if (!ctx?.sessionDocs?.has(bookId)) {
     return ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportNotConnected`, { book: label }));
   }
+  if (mode === "repair") return repairBook(bookId, label);
   const shelves = new Set();
   const mine = (d) => {
     if (d.flags?.[MODULE_ID]?.templatePart) return false;
@@ -1760,6 +2056,7 @@ export async function cookbookReimportEntries() {
   const esc = foundry.utils.escapeHTML ?? ((x) => x);
   const docs = { Actor: await importedDocs("Actor"), Item: await importedDocs("Item") };
   const have = claimedEntryIds([...docs.Actor, ...docs.Item]);
+  const onlyTip = game.i18n.localize(`${LANG_PREFIX}.ui.reimportRebuildOnlyTip`);
 
   let total = 0;
   const blocks = ENTRY_SOURCES.map((src) => {
@@ -1771,6 +2068,9 @@ export async function cookbookReimportEntries() {
     // index is built from document flags and knows nothing about the ruledata
     // store.
     const held = (id) => (src.present ? src.present(id) : have.has(id));
+    // A row no run writes in place is marked: Repair leaves it as it is.
+    const rebuildOnly = (id) =>
+      src.key === "Monsters" ? !repairableMonster(id) : src.key !== "Tables" && !REPAIR_RUNS[src.refill];
     const rows = entries
       .map(([id, e]) => {
         const name = e?.name ?? id;
@@ -1782,7 +2082,7 @@ export async function cookbookReimportEntries() {
             held(id)
               ? `<i class="fa-solid fa-check" data-tooltip="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.cookbookPresent`))}"></i>`
               : ""
-          }</span>
+          }${rebuildOnly(id) ? `<i class="fa-solid fa-hammer" role="img" aria-label="${esc(onlyTip)}" data-tooltip="${esc(onlyTip)}"></i>` : ""}</span>
           <span class="acks-extras-importer-cite">${esc(e?.cite ? `${id} · ${e.cite}` : id)}</span>
         </label>`;
       })
@@ -1794,6 +2094,7 @@ export async function cookbookReimportEntries() {
 
   const content = `
     <p class="notes">${game.i18n.format(`${LANG_PREFIX}.ui.reimportEntriesHint`, { n: total })}</p>
+    ${modeSelect()}
     <div class="acks-extras-importer-abil-filters">
       <input type="text" name="filter" placeholder="${game.i18n.localize(`${LANG_PREFIX}.ui.cookbookFilter`)}">
       <label><input type="checkbox" name="hideHave"> ${game.i18n.localize(`${LANG_PREFIX}.ui.abilHidePresent`)}</label>
@@ -1823,7 +2124,7 @@ export async function cookbookReimportEntries() {
           return { key, id: rest.join("|") };
         });
         if (!picked.length) return ui.notifications.warn(`${MODULE_ID} | nothing selected.`);
-        return runEntryReimport(picked);
+        return runEntryReimport(picked, { mode: String(button.form.elements.mode?.value ?? "drop") });
       },
     },
   });
@@ -1834,14 +2135,16 @@ export async function cookbookReimportEntries() {
  * narrowed to the picked ids (`only`). An entry whose book is not open on
  * this seat is refused before anything is deleted. See
  * docs/importer/DECISIONS.md, "The entry picker runs each importer over the
- * ticked entries only".
+ * ticked entries only". `mode: "repair"` writes over them in place instead
+ * (`repairEntries`).
  */
-async function runEntryReimport(all) {
+async function runEntryReimport(all, { mode = "drop" } = {}) {
   // Rules tables carry no book to check and delete nothing.
   const closed = all.filter(({ key, id }) => key !== "Tables" && !readableHere(id));
   const picked = all.filter((p) => !closed.includes(p));
   if (closed.length) ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportEntriesClosed`, { n: closed.length }));
   if (!picked.length) return null;
+  if (mode === "repair") return repairEntries(picked, closed.length);
   // Re-read: the dialog's list was drawn when it opened, and another window may
   // have imported or deleted since.
   const docs = { Actor: await importedDocs("Actor"), Item: await importedDocs("Item") };
@@ -2735,44 +3038,19 @@ async function importTemplate(bookId, id, folderId) {
 }
 
 /**
- * Every stat leaf bindMonster writes only when the page yields it. A refill
- * must RETRACT these — `update()` merges nested objects, so a key the
- * re-extraction no longer produces would otherwise keep its stale value.
- * Only binder-owned leaves are listed; everything else on the actor is left
- * alone. See docs/importer/DECISIONS.md, "A refill retracts only what its
- * entry claimed to fill".
+ * Re-read an already-imported monster from this seat's book — same extraction
+ * and binding as `importOne`, but UPDATES rather than creates. Returns null
+ * when the actor is not ours; otherwise `{ ok }` with a `reason` the caller
+ * can explain — `book-closed`, `no-match`, or `no-stats` for an entry this
+ * binding cannot read a stat block from. See docs/importer/DECISIONS.md, "A
+ * refill retracts only what its entry claimed to fill".
+ *
+ * By default only the stats are written and embedded items are left alone.
+ * `whole` repairs the monster in place (`REPAIR.monster`): its minted
+ * attacks are replaced and its prose is rewritten field by field, except a
+ * field a Judge wrote in; `keptProse` names those.
  */
-const REFILL_STAT_PATHS = [
-  "aac.value",
-  "hp.hd",
-  "hp.value",
-  "hp.max",
-  "saves.paralysis.value",
-  "saves.death.value",
-  "saves.blast.value",
-  "saves.implements.value",
-  "saves.spell.value",
-  "details.morale",
-  "details.xp",
-  "details.alignment",
-  "details.treasure.type",
-  "details.appearing.d",
-  "details.appearing.w",
-  "movement.base",
-  "thac0.throw",
-  "attacks",
-];
-
-/**
- * Re-read an already-imported monster's stats from this seat's book — same
- * extraction and binding as `importOne`, but UPDATES rather than creates.
- * Embedded items are left alone. Returns null when the actor is not ours;
- * otherwise `{ ok }` with a `reason` the caller can explain — `book-closed`,
- * `no-match`, or `no-stats` for an entry this binding cannot read a stat
- * block from. See docs/importer/DECISIONS.md, "A refill retracts only what
- * its entry claimed to fill".
- */
-export async function refillMonster(actor) {
+export async function refillMonster(actor, { whole = false } = {}) {
   const id = actor?.getFlag(MODULE_ID, "cookbook")?.id;
   if (!id) return null;
   const found = cookbookEntry(id);
@@ -2790,7 +3068,32 @@ export async function refillMonster(actor) {
   if (!node.fields.stats || !Object.keys(node.fields.stats).length) {
     return { ok: false, reason: "no-stats", book: bookId, name: found.entry.name };
   }
-  const { system, prototypeToken } = bindMonster(node);
+  const { system, items, flags, prototypeToken } = bindMonster(node);
+  if (whole) {
+    const { extras } = monsterProseChannels(node, id, found.entry.cite);
+    const typed = primaryTypeOf(node);
+    const plan = await refreshImported(
+      actor,
+      {
+        type: actor.type,
+        system,
+        ...(prototypeToken ? { prototypeToken } : {}),
+        items,
+        flags: {
+          [MODULE_ID]: {
+            cookbook: { id, cite: found.entry.cite, ...(typed ? { type: typed } : {}) },
+            // Written either way: a stale "no morale" would outlive the morale a
+            // corrected read now finds.
+            moraleNA: !!flags?.[MODULE_ID]?.moraleNA,
+            extras,
+          },
+        },
+      },
+      REPAIR.monster,
+    );
+    if (plan.refused) return { ok: false, reason: plan.refused, book: bookId, name: found.entry.name };
+    return { ok: true, book: bookId, name: found.entry.name, keptProse: plan.keptProse };
+  }
   for (const path of REFILL_STAT_PATHS) {
     if (foundry.utils.getProperty(system, path) !== undefined) continue;
     const field = actor.system?.schema?.getField?.(path);
@@ -6384,8 +6687,12 @@ export function* vehicleEntries() {
  * not per entry — one register entry covers the whole table, so claiming the
  * entry id would make a second run skip every remaining vehicle because the
  * first row already existed.
+ *
+ * `repair`, a tally (`repairTally`), writes each row this world already holds
+ * over its vehicle in place (`REPAIR.vehicle`) instead of passing over it, and
+ * counts into the tally; an entry whose book is not open here counts refused.
  */
-export async function importVehicles({ only = null } = {}) {
+export async function importVehicles({ only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
   if (!CONFIG.Actor.dataModels?.[VEHICLE_ACTOR_TYPE]) {
     ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the vehicle actor type is unavailable.`);
@@ -6398,14 +6705,19 @@ export async function importVehicles({ only = null } = {}) {
     const found = cookbookEntry(id);
     const bookId = found ? bookOf(found) : null;
     const session = bookId ? ctx.sessionDocs.get(bookId) : null;
-    if (!session) continue; // the book is not connected; there is nothing to read
-    const node = await executeEntry(session.doc, found.cb, data.registers, id);
-    if (!node?.ok) continue;
+    const node = session ? await executeEntry(session.doc, found.cb, data.registers, id) : null;
+    // Nothing to read: the book is not connected, or its page no longer matches.
+    if (!node?.ok) {
+      if (repair) countRepair(repair, session ? "no-match" : "book-closed");
+      continue;
+    }
     for (const grid of Object.values(node.fields?.grids ?? {})) {
       for (const row of grid?.rows ?? []) {
         const rowId = `${id}.${rowClaimKey(row)}`;
-        if (await importedActor(rowId, { copies: false })) {
+        const have = await importedActor(rowId, { copies: false });
+        if (have) {
           skipped++;
+          if (repair) countRepair(repair, await refreshImported(have, bindVehicleRow(row, entry, id), REPAIR.vehicle));
           continue;
         }
         const doc = await claimActorImport(rowId, async () => {
@@ -6419,7 +6731,9 @@ export async function importVehicles({ only = null } = {}) {
       }
     }
   }
-  ui.notifications?.info(`${MODULE_ID} | vehicles: ${made.length} imported, ${skipped} already present.`);
+  ui.notifications?.info(
+    `${MODULE_ID} | vehicles: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}.`,
+  );
   return made;
 }
 
@@ -6517,8 +6831,11 @@ export function* variationEntries() {
  * Guarded twice for the same two reasons the traps are: a player pressing a GM
  * macro would mint a second set, and a world without acks-extras has no
  * variation data model to put them in.
+ *
+ * `repair`, a tally, writes each entry this world already holds over its
+ * document in place (`REPAIR.variation`) instead of passing over it.
  */
-export async function importVariations({ only = null } = {}) {
+export async function importVariations({ only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   if (!CONFIG.Item.dataModels?.[VARIATION_ITEM_TYPE]) {
     ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the variation item type is unavailable.`);
@@ -6528,8 +6845,10 @@ export async function importVariations({ only = null } = {}) {
   let skipped = 0;
   for (const [id, entry] of variationEntries()) {
     if (only && !only.has(id)) continue;
-    if (await importedItem(id)) {
+    const have = await importedItem(id);
+    if (have) {
       skipped++;
+      if (repair) countRepair(repair, await repairFromEntry(have, id, (node) => bindVariation(entry, node, id), REPAIR.variation));
       continue;
     }
     const doc = await claimImport(id, async () => {
@@ -6546,7 +6865,9 @@ export async function importVariations({ only = null } = {}) {
     });
     if (doc) made.push(doc);
   }
-  ui.notifications?.info(`${MODULE_ID} | variations: ${made.length} imported, ${skipped} already present.`);
+  ui.notifications?.info(
+    `${MODULE_ID} | variations: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}.`,
+  );
   return made;
 }
 
@@ -6644,8 +6965,11 @@ export function* trapEntries() {
  * Guarded twice, for the two ways this fails without one: a player pressing a
  * GM macro would mint a second set of thirteen, and a world without acks-extras
  * has no trap data model to put them in.
+ *
+ * `repair`, a tally, writes each entry this world already holds over its
+ * document in place (`REPAIR.trap`) instead of passing over it.
  */
-export async function importTraps({ only = null } = {}) {
+export async function importTraps({ only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   if (!CONFIG.Item.dataModels?.[TRAP_ITEM_TYPE]) {
     ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the trap item type is unavailable.`);
@@ -6655,8 +6979,10 @@ export async function importTraps({ only = null } = {}) {
   let skipped = 0;
   for (const [id, entry] of trapEntries()) {
     if (only && !only.has(id)) continue;
-    if (await importedItem(id)) {
+    const have = await importedItem(id);
+    if (have) {
       skipped++;
+      if (repair) countRepair(repair, await repairFromEntry(have, id, (node) => bindTrap(entry, node, id), REPAIR.trap));
       continue;
     }
     const doc = await claimImport(id, async () => {
@@ -6673,45 +6999,59 @@ export async function importTraps({ only = null } = {}) {
     });
     if (doc) made.push(doc);
   }
-  ui.notifications?.info(`${MODULE_ID} | traps: ${made.length} imported, ${skipped} already present.`);
+  ui.notifications?.info(
+    `${MODULE_ID} | traps: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}.`,
+  );
   return made;
 }
 
 /**
  * Re-execute and REWRITE every imported class document's generated surface
- * (name, img, the whole system object). Class documents are wholly generated
- * in this phase — a hand-tuned document keeps its edits only until Update;
- * the confirm says so.
+ * (name, img, the whole system object, its minted effects) through
+ * `refreshImported` under `REPAIR.class`. Class documents are wholly
+ * generated in this phase — a hand-tuned document keeps its edits only until
+ * Update, and the confirm says so. Two things stay: a description a Judge
+ * wrote in, and an effect a Judge took over (the training editor unmints what
+ * it writes), which also stops the build's twin of it being added.
  *
  * A class whose book is not open on this seat, or whose entry read nothing,
- * is left exactly as it is: this write replaces the whole `system`, and a
+ * is left exactly as it is: this write takes the build's rows whole, and a
  * rebuild with nothing read is the entry's shape without its content.
+ *
+ * @param {object} [opts]
+ * @param {Set<string>|null} [opts.only] cookbook ids to consider; every class when null
+ * @param {boolean} [opts.confirm] ask before writing
+ * @param {object|null} [opts.repair] a `repairTally` to count into
+ * @returns {Promise<number>} how many classes were rewritten
  */
-export async function cookbookUpdateClasses() {
+export async function cookbookUpdateClasses({ only = null, confirm = true, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (rewrites items).`);
   const byId = new Map(classEntries());
   const targets = (await importedDocs("Item")).filter((i) => {
     const cid = i.flags?.[MODULE_ID]?.cookbook?.id;
-    return i.type === CLASS_ITEM_TYPE && cid && byId.has(cid);
+    return i.type === CLASS_ITEM_TYPE && cid && byId.has(cid) && (!only || only.has(cid));
   });
   if (!targets.length) {
-    ui.notifications?.info(`${MODULE_ID} | no imported class documents to update.`);
+    if (!repair) ui.notifications?.info(`${MODULE_ID} | no imported class documents to update.`);
     return 0;
   }
   const readable = targets.filter((i) => readableHere(i.flags[MODULE_ID].cookbook.id));
   const closed = targets.length - readable.length;
+  if (repair) repair.refused += closed;
   if (!readable.length) {
     ui.notifications?.info(`${MODULE_ID} | ${closed} imported class document(s) left as they are — their book is not open on this seat.`);
     return 0;
   }
-  const ok = await foundry.applications.api.DialogV2.confirm({
-    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
-    window: { title: "Update Classes" },
-    content:
-      `<p>Rewrite ${readable.length} imported class document(s) from the connected book? Hand edits on them are replaced.</p>` +
-      (closed ? `<p>${closed} more come from a book that is not open on this seat and are left as they are.</p>` : ""),
-    modal: true,
-  });
+  const ok =
+    !confirm ||
+    (await foundry.applications.api.DialogV2.confirm({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      window: { title: "Update Classes" },
+      content:
+        `<p>Rewrite ${readable.length} imported class document(s) from the connected book? Hand edits on them are replaced, except a description you wrote and training you edited.</p>` +
+        (closed ? `<p>${closed} more come from a book that is not open on this seat and are left as they are.</p>` : ""),
+      modal: true,
+    }));
   if (!ok) return 0;
   // The follow-up passes below take only what this loop rewrote: lending a
   // race's tongues gives back a slot each time it runs, so a class it passes
@@ -6734,17 +7074,13 @@ export async function cookbookUpdateClasses() {
     }
     if (bookId && !node) {
       unread++;
+      countRepair(repair, "no-match");
       continue;
     }
     const doc = bindClass(entry, node, id, { gains: classGainsFor(gainsNode, entry.name), commonName, gear });
-    const tongues = doc.flags?.[MODULE_ID]?.tongues;
-    await item.update({
-      name: doc.name,
-      ...(doc.img ? { img: doc.img } : {}),
-      system: doc.system,
-      ...(tongues ? { [`flags.${MODULE_ID}.tongues`]: tongues } : {}),
-    });
-    written.push(item);
+    const plan = await refreshImported(item, doc, REPAIR.class);
+    countRepair(repair, plan);
+    if (!plan.refused) written.push(item);
   }
   await inheritRaceTongues(written);
   await syncRaceTongues(written);
@@ -7090,8 +7426,11 @@ const isAnimalEntry = (entry) => entry?.meta?.group === "animal";
  *
  * Bookless seats still get the document — name, icon, citation stub — the same
  * bring-your-own-book posture as abilities.
+ *
+ * `repair`, a tally, writes the entry over a document this world already
+ * holds for it, in place (`repairEquipment`), instead of returning it as is.
  */
-export async function importEquipment(id, folderId) {
+export async function importEquipment(id, folderId, { repair = null } = {}) {
   const found = cookbookEntry(id);
   if (!found) return null;
 
@@ -7100,7 +7439,10 @@ export async function importEquipment(id, folderId) {
   // `game.actors` directly. An animal is an ACTOR, so it is asked of the
   // actor side of the same target.
   const existing = asActor ? await importedActor(id, { copies: false }) : await importedItem(id);
-  if (existing) return existing;
+  if (existing) {
+    if (unrepaired(repair, existing)) countRepair(repair, await repairEquipment(existing, id, asActor));
+    return existing;
+  }
 
   const build = async () => {
     const bookId = bookOf(found);
@@ -7123,9 +7465,56 @@ export async function importEquipment(id, folderId) {
   return claimImport(id, async () => importEquipmentItem(found, id, folderId, await build()));
 }
 
+/**
+ * Write one equipment entry over the document this world holds for it. A
+ * document another book's printing was merged into answers for its OWN entry
+ * (`cookbook.id`), so it is rebuilt from that one, never from the id it
+ * absorbed. Resolves to `refreshImported`'s plan, or to why nothing was written.
+ */
+async function repairEquipment(doc, id, asActor) {
+  const own = doc.getFlag(MODULE_ID, "cookbook")?.id ?? id;
+  const found = cookbookEntry(own);
+  if (!found) return "no-match";
+  if (asActor) return repairFromEntry(doc, own, (node) => bindAnimal(found.entry, node, own), REPAIR.animal);
+  return repairFromEntry(doc, own, (node) => buildEquipmentItem(found, own, node), REPAIR.equipment);
+}
+
 /** Build and create the ITEM half of an equipment import (the claimed body). */
 async function importEquipmentItem(found, id, folderId, node) {
   const folder = folderId ?? (await ensureItemFolder(id))?.id ?? null;
+  const doc = await buildEquipmentItem(found, id, node);
+  // Two books printing one thing is ONE document (see reconcileByName): merge
+  // when nothing but the source differs, tag both when something does.
+  const verdict = await reconcileByName(doc, id, bookOf(found));
+  if (verdict.skip) return verdict.doc;
+  const item = await createDoc(Item, {
+    ...doc,
+    folder,
+    ...(verdict.name
+      ? {
+          name: verdict.name,
+          flags: foundry.utils.mergeObject(doc.flags ?? {}, { [MODULE_ID]: { cookbook: { printed: verdict.printed } } }, { inplace: false }),
+        }
+      : {}),
+  });
+  // acks-equipment owns the RAW annotation layer (container capacities, the
+  // harness, the bowquiver). Its profiles key off the printed name, so a
+  // generated item annotates exactly like a core one. Reuse, never restate.
+  try {
+    await annotateItem(item);
+  } catch (err) {
+    console.warn(`${MODULE_ID} | equipment annotation skipped for ${item?.name}`, err);
+  }
+  return item;
+}
+
+/**
+ * The creation data for one equipment ITEM: the binding, then the page values
+ * the price grids and the entry's own paragraphs supply. Everything an import
+ * does except deciding where the document goes and writing it, so a repair
+ * builds exactly what an import would.
+ */
+async function buildEquipmentItem(found, id, node) {
   const doc = bindEquipment(found.entry, node, id);
   // Enrich gear/clothing with cost/weight from the RR price grids (p131/p132),
   // materialized per-seat. A general category with several priced variants
@@ -7161,29 +7550,7 @@ async function importEquipmentItem(found, id, folderId, node) {
       if (m) doc.system.damage = m[1].replace(/\s+/g, "");
     }
   }
-  // Two books printing one thing is ONE document (see reconcileByName): merge
-  // when nothing but the source differs, tag both when something does.
-  const verdict = await reconcileByName(doc, id, bookOf(found));
-  if (verdict.skip) return verdict.doc;
-  const item = await createDoc(Item, {
-    ...doc,
-    folder,
-    ...(verdict.name
-      ? {
-          name: verdict.name,
-          flags: foundry.utils.mergeObject(doc.flags ?? {}, { [MODULE_ID]: { cookbook: { printed: verdict.printed } } }, { inplace: false }),
-        }
-      : {}),
-  });
-  // acks-equipment owns the RAW annotation layer (container capacities, the
-  // harness, the bowquiver). Its profiles key off the printed name, so a
-  // generated item annotates exactly like a core one. Reuse, never restate.
-  try {
-    await annotateItem(item);
-  } catch (err) {
-    console.warn(`${MODULE_ID} | equipment annotation skipped for ${item?.name}`, err);
-  }
-  return item;
+  return doc;
 }
 
 /** All equipment ids in the shipped cookbook (empty when none compiled). */
@@ -7288,21 +7655,26 @@ async function repairPricedSubtypes(rows) {
   return repaired;
 }
 
-/** Bulk import: every equipment entry, shared folder, dedup via importEquipment. */
-export async function importAllEquipment({ only = null } = {}) {
+/**
+ * Bulk import: every equipment entry, shared folder, dedup via importEquipment.
+ * `repair`, a tally, writes each entry this world already holds over its
+ * document in place instead of passing over it (`importEquipment`).
+ */
+export async function importAllEquipment({ only = null, repair = null } = {}) {
   // Same reason as importClasses: the macro says "(GM)" but every seat can run
   // it, and a player who does adds a second shop list to the world.
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   // The three repairs each delete what the loop below is trusted to rebuild, so
   // a pass narrowed by `only` makes none of them: it would rebuild only its
-  // own entries and leave the rest deleted.
-  const repaired = only ? 0 : await repairEquipmentAbilities();
+  // own entries and leave the rest deleted. A repair in place deletes nothing.
+  const sweep = !only && !repair;
+  const repaired = sweep ? await repairEquipmentAbilities() : 0;
   // A world imported by an earlier version holds animals as items; drop them so
   // the loop below recreates them as actors (no-op without ACKS Extras).
-  const repairedAnimals = only ? 0 : await repairAnimalItems();
+  const repairedAnimals = sweep ? await repairAnimalItems() : 0;
   // And the shield forms it holds as variations; the loop below imports them as
   // the shields they are.
-  const repairedShields = only ? 0 : await repairShieldVariations();
+  const repairedShields = sweep ? await repairShieldVariations() : 0;
   const ids = cookbookEquipmentIds().filter((id) => !only || only.has(id));
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressEquipment`), ids.length);
   let created = 0;
@@ -7320,7 +7692,7 @@ export async function importAllEquipment({ only = null } = {}) {
       const asActor = isAnimalEntry(entry) && canImportAnimals();
       const before = asActor ? await importedActor(id, { copies: false }) : await importedItem(id);
 
-      const doc = await importEquipment(id, folder);
+      const doc = await importEquipment(id, folder, { repair });
       if (doc && !before) {
         created++;
         if (asActor) animals++;
@@ -7331,8 +7703,9 @@ export async function importAllEquipment({ only = null } = {}) {
     bar.finish();
   }
   // The weapon, armour and price TABLES are no entry's, so a pass narrowed to
-  // entries never reaches them; their shelves rebuild on their own.
-  if (only) {
+  // entries never reaches them; their shelves rebuild on their own, and a
+  // repair in place leaves them to that rebuild.
+  if (only || repair) {
     reportOverlaps();
     return { total: ids.length, created, animals, repaired, repairedAnimals, repairedShields, weapons: null, armor: null, priced: null };
   }
@@ -8030,25 +8403,6 @@ export async function cookbookImportAbilities({ only = null } = {}) {
   return { made, reused };
 }
 
-/**
- * Does this description hold something this module cannot prove it wrote?
- *
- * The test is never "is this worth keeping", it is "is this ours" — a stamped
- * block of imported book text, or the legacy `@PdfText` tag that preceded it,
- * and nothing else. Structure-only markup (the empty paragraph an editor leaves
- * behind) is empty; an image, a heading or a word of text is someone's work and
- * is never overwritten without being offered first.
- *
- * Update writes descriptions in exactly the stamped shape, which is what lets a
- * second run pass over everything the first run settled without asking again.
- */
-function handWrittenProse(html) {
-  return !!stripBookText(html)
-    .replace(/<\/?(?:p|br|div|span)\b[^>]*>/gi, " ")
-    .replace(/&nbsp;|&#160;/gi, " ")
-    .trim();
-}
-
 /** A description reduced to one readable line, so a dialog row fits on screen. */
 function proseExcerpt(html, max = 160) {
   const text = String(html ?? "")
@@ -8180,8 +8534,12 @@ async function placeGeneratedBeside(holder, id, built) {
  * Both outcomes are idempotent — running twice leaves the same world as
  * running once.
  * See docs/importer/DECISIONS.md, "Importing again refreshes what it did not create".
+ *
+ * @param {object} [opts]
+ * @param {Set<string>|null} [opts.only] cookbook ids to refresh; every ability when null
+ * @param {object|null} [opts.repair] a `repairTally` to count into
  */
-export async function cookbookUpdateAbilities() {
+export async function cookbookUpdateAbilities({ only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
   const index = abilityNameIndex();
   if (!index.size) return ui.notifications.warn(`${MODULE_ID} | no abilities in the shipped cookbook.`);
@@ -8243,6 +8601,7 @@ export async function cookbookUpdateAbilities() {
       const flagged = doc.getFlag(MODULE_ID, "cookbook")?.id;
       const guess = flagged ? null : idForName(index, doc.name, present);
       const id = flagged ?? guess?.id;
+      if (only && !only.has(id)) continue;
       if (!id || !cookbookEntry(id)) {
         skipped++;
         continue;
@@ -8348,6 +8707,11 @@ export async function cookbookUpdateAbilities() {
     const line = `${MODULE_ID} | "${name}" (${copies} cop${copies === 1 ? "y" : "ies"})`;
     if (guess.ambiguous) console.warn(`${line} matches several definitions; resolved to ${guess.id}.`);
     else console.debug(`${line} names definitions in several categories; ranked to ${guess.id}.`);
+  }
+  if (repair) {
+    repair.replaced += updated;
+    repair.keptProse += preserved;
+    repair.refused += unread;
   }
   const stale = (await danglingAbilities()).length;
   ui.notifications.info(

@@ -549,6 +549,166 @@ book — and the report says so.
 **Teardown.** `api.sweepTracked()`; quote what it removed, what it could not
 find and what refused.
 
+## Repair in place
+
+Both rebuild dialogs carry a **Mode** select: *Rebuild (delete and import
+again)*, chosen when the dialog opens, and *Repair in place*. The API takes it
+as `cookbookReimportShelf(shelf, { mode: "repair" })` and
+`cookbookReimportBook(bookId, { mode: "repair" })`; the entry picker passes the
+select's value to `runEntryReimport`. Each goes to a confirm that counts what
+it will write over, then to a notice counting what was written over, what kept
+a description the Judge wrote, and what was left.
+
+### Fixtures
+
+A repair writes over whatever document answers for an entry, so the fixtures
+are documents that answer for one: **sidebar copies of library documents** —
+the shape a sidebar-era library has, which the importer still reads
+(`sidebarImports`). Copy with `toObject()` and drop `_id`, `_stats`, `folder`,
+`sort` and `ownership`; a `_stats.compendiumSource` would make the copy a
+Judge's, which no run touches (`isWorldCopy`). Name each `Fixture · <name>`,
+which is also the rename a repair must keep. Create them in page context and
+`api.track` each uuid as it comes back.
+
+- all thirteen **traps** — step 2 repairs the shelf whole;
+- one **equipment stack**: an `item` with no `merged` and no `gear` flag;
+- one **proficiency** no world actor carries, by cookbook id or by folded
+  name — an ability repair rewrites every world actor's copy of it;
+- one **class** whose template parts carry no `unresolved` flag (a class
+  repair retries those on the library's bundles), with `system.templateTable`
+  set to `""`;
+- one **stat-block monster** from `world.acks-cookbook--actor`;
+- a **character** holding a copy of the proficiency fixture;
+- every row of one **land-vehicle** table, a **variation**, and one trap copy
+  made with `game.items.fromCompendium(<library trap>)` — the Judge's dragged
+  copy, which carries `compendiumSource`.
+
+The system's actor create drops `system` from data without items: update a
+vehicle row's `system` from the library row after creating it, and compare.
+
+Then hide each library original from THIS client for the length of the steps,
+so every lookup lands on a fixture. The item lookups ask the packs first
+(`importedIndex`), so give each pack an own `getDocuments` that filters out the
+library ids, delete it afterwards, and call `forgetImportedIndex()` on both
+sides. The actor lookups ask the world first (`importedActor`), so a vehicle
+row fixture answers without a mask; mask the rows anyway, or the confirm counts
+twice. A class repair rebuilds the class's 3d6 template table, found by class
+key: hide the library table from the rolltable pack's `contents` (an own getter
+on the instance), and the run builds the fixture its own table, read back from
+its `system.templateTable` and tracked. `importedItemFor(<trap id>)` answering
+the fixture's uuid is the proof the mask took.
+
+Edit the fixtures as a Judge would, each edit paired with a field the binder
+writes so the re-read is visible:
+
+- the first trap: another level, `<p>Judge note.</p>` appended to its
+  description, and in its first level row a scrambled `damageFormula` (the
+  binder writes it) and an `attackThrow` of 7 (the binder does not);
+- the dragged trap copy: another level and the note;
+- the stack: quantity 7, the note, a scrambled `cost`;
+- the proficiency and the character's copy: the note, a scrambled
+  `extras.category`;
+- the class: the note, one scrambled leaf of its second level row;
+- the monster: a hand-made weapon (no `minted`), the note in one prose field,
+  a scrambled `system.hp.max`;
+- the variation: the note, a scrambled `system.key`;
+- the first vehicle row with crew roles, speed tiers and a hull of 2 or more:
+  `shp.value` one below the library's, `shp.max` raised, its first crew
+  role's `aboard` and first speed tier's `team` raised, a scrambled
+  `feetPerTurn` and `ac`. On a row without roles or tiers, or with a one-point
+  hull, a kept value cannot be told from a re-read one.
+
+Record every library original's `modifiedTime`, the class's effect ids, the
+monster's item ids and the class table's result ids, and arm a
+create/update/delete hook observer — it shows where the writes went, and is
+never a delete list.
+
+### Steps
+
+1. **The control.** Open Reimport One Shelf.
+   *Observable:* the Mode select reads Rebuild; the Weapons, Armor, Languages
+   and Races options end in *(rebuild only)*. Choose Weapons with Repair.
+   *Observable:* a warning that the shelf has no in-place write; no confirm
+   opens and nothing is written.
+2. **A shelf.** Choose Traps with Repair.
+   *Observable:* the confirm counts 13 to write over and says what a repair
+   keeps. Confirm. The notice reads 13 written over, 1 keeping a description
+   the Judge wrote; every fixture keeps its id and its `Fixture · ` name, and
+   the edited one its level and its note. A document already equal to its
+   build is not written at all — Foundry drops an empty diff — so its
+   `modifiedTime` does not move although the notice counts it.
+3. **Picked entries.** Open the entry picker.
+   *Observable:* the Mode select reads Rebuild; a monster family's row and
+   every OSE creature's row carry the hammer mark, whose tooltip and
+   accessible name say *Rebuild only*; a stat-block monster's row does not.
+   Tick the stack, the proficiency, the class and the monster, choose Repair,
+   press *Reimport*.
+   *Observable:* the confirm counts the four documents and carries the
+   monster, ability and class lines. Confirm. The notice counts five written
+   over — the character's copy is the fifth — all five keeping the note.
+   - the stack keeps its id, quantity 7 and note; its cost is the library's;
+   - the proficiency and the character's copy keep their notes; both
+     categories are the library's;
+   - the class carries the library's name and image, keeps its note, its level
+     rows match the library's, exactly one effect carries the training's
+     change keys, and `system.templateTable` names a new table (track it);
+   - the monster keeps its id, name, hand-made weapon and prose note; every
+     other prose field and `hp.max` match the library's; none of its old
+     `minted` items remain and as many new ones stand, with the library's
+     names; its image and token art are unchanged.
+4. **Rows, a variation, a vehicle table, a copy.** Tick the first trap, the
+   variation and the vehicle table's entry, Repair.
+   *Observable:* the trap's first row has the library's `damageFormula` back
+   and still an `attackThrow` of 7 — a row field the binder does not write is
+   the Judge's — and its other rows match the library's; the variation keeps
+   its note and has the library's key; the vehicle row keeps its `shp.value`,
+   its crew and the tier's `team` while its `feetPerTurn`, `ac` and
+   `shp.max` are the library's, and every other row matches its library row
+   (the observer holds one actor update: the untouched rows equal their
+   builds); the dragged copy's `modifiedTime` has not moved.
+5. **A training a Judge took over.** Unset `minted` on the class fixture's
+   training effect and rename it (what the training editor does), then repair
+   the class again.
+   *Observable:* exactly one effect carries the training's keys: the edited
+   one, by id and name. The class keeps the table step 3 made.
+6. **A closed book.** Mask the class's book (*Closing a book on one seat*,
+   above) and repair the class from the picker.
+   *Observable:* the closed-book notice; no confirm; the class's
+   `modifiedTime` is unchanged. Unmask; mask the traps' book, `has` and `get`
+   both, and repair the Traps shelf.
+   *Observable:* the confirm counts 0 to write over and 13 kept; the notice
+   reads 0 written over and 13 left, then the hint to open the book; no trap
+   fixture's `modifiedTime` moved.
+7. **The shared documents.** Remove the masks.
+   *Observable:* every library original's `modifiedTime`, the class's effect
+   ids, the monster's item ids and the class table's result ids are as
+   recorded, and the observer holds nothing outside the run's own documents.
+8. **A book.** Reimport One Shelf, the books group, a book, Repair.
+   *Observable:* the confirm names the count and the shelves it spans (and the
+   documents it leaves on rebuild-only shelves, where the book has any).
+   Answer No: a book repair writes over every document of that book, through
+   the runs steps 2–4 already walked.
+
+### Driving it
+
+- The entry picker loads the whole library before it renders — about ten
+  seconds on a full world. Poll for `.acks-extras-importer-mon-list`.
+- Typing in its filter unticks every row the filter hides; tick after clearing
+  the filter.
+- `bookStatus()` opens the Books window and resolves only when it closes, so a
+  script that awaits it hangs. Count the books open on the seat with
+  `reimportableBooks()`.
+- The dialog's promise resolves with the run's result — `{replaced,
+  keptProse, refused, refill}` — once the confirm is answered and the run
+  ends; wrapping `ui.notifications.notify` records the notices word for word.
+
+### Teardown
+
+Remove the masks if a failed run left them; they live in that client only, and
+closing it removes them too. `api.sweepTracked()` — the fixtures, the character
+and the class's new table; quote what it removed, what it could not find and
+what refused.
+
 ## Rules tables from Reimport One Shelf
 
 **Reimport One Shelf (GM)** — `acksExtras.importer.cookbookReimportShelf()`.

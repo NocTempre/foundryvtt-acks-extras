@@ -5114,3 +5114,80 @@ The fallback stays for a document that carries no `cites` at all.
 *Cost:* a world imported before 8.6.0 shows its documents' page lists until it
 re-reads its rules tables. The eleven waived gaps stay gaps; each is a ROADMAP
 line, and the gate fails the day one closes without its waiver going.
+
+### A rebuild can repair in place instead (2026-09-24)
+
+**Reported.** Every rebuild deletes and imports again. A corrected read reached
+a world only by costing it the documents' ids, and with them every link, grant
+and journal pointer, plus the folder, owners, name and notes a Judge gave them.
+
+**Ruled.** Reimport One Shelf (shelf and book) and the entry picker carry a
+mode: *Rebuild*, the default and the behaviour since 8.0.6, or *Repair in
+place*. Repair writes a fresh read over each held document
+(`refreshImported`, `scripts/importer/refresh.mjs`) and imports what the world
+lacks, as the rebuild's refill does.
+
+- **Kept:** the id, pack, folder, ownership, sort, name and image; the
+  cookbook stamp's identity (`id`, `merged`, `printed`, `book`); every flag
+  the kind's binder does not own; embedded documents the module did not mint;
+  and each kind's fields that play sets (`REPAIR`): a trap's level, a
+  vehicle's crew, damage taken and tier teams, a stack's quantity and equipped
+  state. An equipment item's `subtype`, `melee` and `missile` are kept too:
+  `annotateItem` settles them after creation, and a repair does not run it.
+- **Replaced:** the binder's `system` fields, a stamped description unless a
+  Judge wrote in it (`handWrittenProse`; per field for a monster's prose), the
+  binder's flags, and the minted embedded documents. An array row's unbuilt
+  fields are filled from the stored row at the same index
+  (`keepUnrenderedFields`), because an update replaces rows whole.
+- **Refused:** a document whose book is not open here, whose page no longer
+  matches, or whose build is another document type. A write Foundry rejects is
+  logged and counted with them.
+- A kept document without `minted` stands in for the build's document it
+  matches, so nothing is doubled: an effect by its change keys (a Judge's
+  taken-over training, docs/classes/DECISIONS.md 2026-09-24), an embedded item
+  by its type and name.
+- **Abilities** repair through `cookbookUpdateAbilities` narrowed to the picked
+  ids, so the copies characters carry are refreshed too, as Import Everything
+  already does ("Importing again refreshes what it did not create").
+- **Classes** are written whole, name, image and rows as built, as
+  `cookbookUpdateClasses` always wrote them. A description a Judge wrote and a
+  training effect a Judge took over stay.
+- **A stat-block monster** is refilled whole (`refillMonster(actor, {whole:
+  true})`): stats, token size, minted attacks and abilities, each prose field.
+- **Rebuild only:** monster templates and families, NPCs, adventure appendix
+  blocks, OSE creatures, and the weapon, armour, price-list, language and race
+  documents, each built from a whole printed table or by another binder. The
+  shelf list marks such a shelf, the picker marks such a row, and Repair counts
+  what it left.
+- **Rules tables** merge in both modes.
+- **A book's repair** takes only that book's entries, over the shelves its
+  rebuild empties, and reaches the book's animals, which are equipment entries
+  filed as actors.
+- **A document merged from two books** is written once, from its own entry,
+  whichever of its ids a run meets first (`unrepaired`).
+
+**Rejected.**
+- *An "also repair world copies" option*, from the design. A copy is the
+  Judge's ("A copy of an import is the Judge's", 2026-09-23), and
+  `importedDocs` no longer returns one, so nothing a repair enumerates is a
+  copy.
+- *Keeping a vehicle's cargo whole.* The build reads only the capacity; the
+  update merges, so the passenger figures a Judge set stay.
+- *Retracting absent fields outside a monster's stats.* A field the build
+  leaves out is either one the page states as none or one this seat could not
+  read, and nothing tells the two apart. A monster's stat paths are the one set
+  its entry claims to fill ("A refill retracts only what its entry claimed to
+  fill"). ROADMAP.
+- *Running `annotateItem` again on repair.* It rewrites the gear flag, which
+  holds a Judge's slot choice. ROADMAP.
+- *Removing a rules table's world layer in Rebuild.* It would undo "a re-read
+  that finds nothing keeps what it had" (8.6.0).
+- *Repair as the default.* It is kinder to edits, but it cannot cover the
+  rebuild-only kinds, and a changed default would change what the controls do
+  for every Judge who learned them.
+
+*Cost:* a repair re-reads everything it writes, so it takes as long as the
+rebuild. Outside a monster's stats, a field the page stopped printing keeps its
+old value. A class's whole write still replaces hand edits other than its
+description and taken-over training, and a monster's minted attacks replace a
+Judge's edits to them.

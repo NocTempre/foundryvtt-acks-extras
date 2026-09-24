@@ -1,5 +1,35 @@
 # Changelog
 
+## 8.8.0
+
+### Added
+
+- **A rebuild can repair in place instead.** Reimport One Shelf and (Re)import
+  Individual Entries have a **Mode**: *Rebuild*, which deletes and imports
+  again as before and stays the default, or *Repair in place*, which reads the
+  entries again and writes the fresh reading over the documents you already
+  hold. Each keeps its id, so the characters and links that point at it still
+  find it, and it keeps its folder, owners and name, a description you wrote
+  in, and what play has set on it: a trap's level, a vehicle's crew and
+  damage, a stack's quantity. A class is written whole except a description
+  you wrote and training you edited; a monster's stats, token size and
+  page-read attacks are read again while attacks you added stay; an ability is
+  refreshed on the characters carrying it too. Entries your world lacks are
+  imported as usual. What has no in-place write (the Weapons, Armor, Languages
+  and Races shelves, the price list, monster templates and families, NPCs,
+  adventure stat blocks and OSE creatures) is marked *rebuild only*, and Repair
+  counts it and leaves it, as it leaves anything from a book not open on this
+  seat. A world that keeps choosing Rebuild sees no change, and copies you
+  dragged into the sidebar are left alone in both modes.
+
+### Changed
+
+- **Updating classes keeps a description you wrote, and refreshes the book's
+  training.** `acksExtras.importer.cookbookUpdateClasses()` replaced a class's
+  whole description; it now leaves one you wrote in. It left the training
+  effect as first imported; it now replaces the book's with a fresh reading,
+  and leaves a training you edited as it is.
+
 ## 8.7.0
 
 ### Added

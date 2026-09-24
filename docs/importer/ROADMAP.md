@@ -804,7 +804,9 @@ not settled by it being true today.
 ## An actor keeps whatever the recipe said the day it was imported
 
 Every actor import path asks whether the id is already present and stops there,
-so a release that corrects an entry's geometry reaches new worlds only. The
+so a release that corrects an entry's geometry reaches an existing world only
+when a Judge repairs the actor in place (a stat-block monster, a vehicle or an
+animal; DECISIONS, 2026-09-24). The
 Item side can already carry a withdrawn id forward through the `merged` array;
 the actor side compares ids exactly and has nothing equivalent, and there is no
 per-document prune for an actor whose id no longer resolves — only the
@@ -908,3 +910,29 @@ projection. In order:
 Obstacles common to several waves: bands that carry their own dice, two-level
 and operator column headers, and chart titles that are printed names, which a
 plain-string `locate` would put in source.
+
+## Repair in place: what it does not write yet
+
+Repair (DECISIONS, 2026-09-24) writes what a fresh read yields over a held
+document. Four things it leaves to Rebuild:
+
+- **A field the page stopped printing.** Outside a monster's stat paths, a
+  repair cannot tell a field the page states as none from one this seat could
+  not read, so the old value stays. Each binder would have to declare which
+  fields its entry claims to fill, as `REFILL_STAT_PATHS` does for a monster.
+- **The equipment annotation layer.** `annotateItem` rewrites the whole gear
+  flag, which holds a Judge's slot choice, so a repair does not run it, and a
+  container capacity or ammunition bundle corrected there reaches only new
+  documents. It needs a merge that leaves a Judge's slots before a repair can
+  call it.
+- **The rebuild-only kinds.** Monster templates and families, NPCs, adventure
+  appendix blocks and OSE creatures have no in-place write, and the weapon,
+  armour, price-list, language and race documents are built from whole
+  printed tables. NPC embedded weapons carry no `minted` stamp, which a repair
+  would need first.
+- **Edits to `system` a Judge made.** A repair keeps only the fields each kind
+  lists as the Judge's. A read snapshot stamped at import, under a new flag,
+  would let it tell an edited field from a stale one.
+
+Rules tables merge in both modes. A Rebuild that removed the world layer before
+re-reading would undo "a re-read that finds nothing keeps what it had".

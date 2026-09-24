@@ -111,6 +111,7 @@ const COMMITTED = [
   "importer/test-poi-binding.mjs",
   "importer/test-faction-binding.mjs",
   "importer/test-scene-binding.mjs",
+  "importer/test-refresh.mjs",
   "../discord/test/config.test.mjs",
   "../discord/test/format.test.mjs",
   "../discord/test/seat.test.mjs",

@@ -254,6 +254,41 @@ The same conceptual family imported from a second book gains that book's new
 variants rather than becoming a twin. Two signals identify it: a shared member id
 and a shared family suffix.
 
+### Rebuild or repair
+
+**Reimport One Shelf** and **(Re)import Individual Entries** each have a
+**Mode**. **Rebuild**, the default, deletes what you picked and imports it
+again: fresh documents in their home folders, with nothing of yours on them.
+**Repair in place** reads the entries again and writes the fresh reading over
+the documents you already have. Each keeps its id, so every character carrying
+it and every link to it still finds it. It also keeps its folder, owners and
+name, a description you wrote in, and what play has set on it: a trap's level,
+a vehicle's crew and damage, a stack's quantity. Entries your world does not
+hold yet are imported as usual.
+
+![](../releases/v8.8.0/importer-repair-mode.png)
+
+*Reimport One Shelf with the Traps shelf picked and Repair in place chosen.*
+
+- **A class** is written whole: its name and any edit to it are replaced,
+  except a description you wrote and training you edited on its sheet.
+- **A monster** is read again whole: its stats, its token size, and the
+  attacks and abilities its page yields replace the imported ones. Attacks you
+  added stay, and so does a prose field you wrote in.
+- **An ability** is refreshed wherever it is carried, characters included.
+
+Some things only rebuild: the Weapons, Armor, Languages and Races shelves, the
+price list, monster templates and families, NPCs, adventure stat blocks and OSE
+creatures. The shelf list says *rebuild only* beside such a shelf, and the
+entry picker marks such a row with a hammer. Repair leaves them as they are and
+tells you how many it left. A document whose book is not open on this seat is
+left too; open the book and repair again.
+
+![](../releases/v8.8.0/importer-repair-picker.png)
+
+*The entry picker in Repair mode: a monster family's row carries the hammer,
+its members do not.*
+
 ### Rules tables
 
 The rules tables arrive with **Import Everything**. To read them again on
@@ -351,6 +386,11 @@ folder it was created in.
 library into the sidebar, or duplicated there, is yours. **Reimport One Shelf**
 and **(Re)import Individual Entries** leave it as it is and put the library's
 own document back beside it. Only *Delete Everything Imported* removes it.
+
+**Reimporting lost my edits.** Rebuild deletes the library's documents and
+imports them again, so a name, folder or note you gave one goes with it. Choose
+**Repair in place** instead (see *Rebuild or repair*): the document keeps its
+id, its name and your description, and takes the fresh reading.
 
 **A description shows `@PdfText[...]` instead of the text.** The document was
 written by a version that stored a placeholder and resolved it while you looked
