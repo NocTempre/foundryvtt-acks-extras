@@ -64,7 +64,7 @@ export const EFFECT_DOMAINS = Object.freeze({
 export const INFLUENCE_REACTION_KEY = "flags.acks-extras.reaction";
 
 /** camelCased module id — the namespace custom hooks fire under (TOOLCHAIN §5b). */
-const NAMESPACE = MODULE_ID.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase()); // "acksExtras"
+const NAMESPACE = "acksExtras";
 
 /** Custom hooks fired by this feature. */
 export const HOOKS = Object.freeze({

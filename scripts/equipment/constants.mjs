@@ -177,16 +177,15 @@ export const ENFORCE = Object.freeze({ RESOLVE: "resolve", VETO: "veto", ADVISOR
 /**
  * camelCase namespace for shared registries (globalThis, custom hooks,
  * Handlebars helpers) — the module id camelCased, per acks-module-template
- * docs/TOOLCHAIN.md §5b. Derived, never declared.
+ * docs/TOOLCHAIN.md §5b. A string literal, so validate.mjs can read every
+ * hook name built from it and check it against the id.
  */
-export const NAMESPACE = MODULE_ID.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase()); // "acksExtras"
+export const NAMESPACE = "acksExtras";
 
 /**
  * Custom hooks this feature fires (consumable by sibling features and other
- * modules). Named `acksExtras.*` per the namespacing rule — note the
- * validator's static check only catches string literals passed to
- * Hooks.call/callAll, so these constants are on the honour system: keep the
- * NAMESPACE prefix.
+ * modules). Named `acksExtras.*` per the namespacing rule; validate.mjs reads
+ * each name back through NAMESPACE wherever it is fired.
  */
 export const HOOKS = Object.freeze({
   LOADOUT_CHANGED: `${NAMESPACE}.loadoutChanged`, // (actor, loadout)

@@ -127,6 +127,7 @@ export function fractionLabel(f) {
  */
 export function announceChange(hook, ...args) {
   try {
+    // hook-ok: fires the name its caller passes
     Hooks.callAll(hook, ...args);
   } catch (err) {
     console.error(`acks-extras | ${hook} listener failed`, err);

@@ -276,6 +276,7 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
     manifest,
     userId: game.user?.id,
   };
+  // hook-ok: one of STORAGE_HOOKS, passed by the wrappers below
   Hooks.callAll(hook, payload);
   return { ok: true, manifest };
 }
