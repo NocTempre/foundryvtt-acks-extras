@@ -42,6 +42,41 @@ sheet. Both produce the same document and open in the same sheet.
   entry arrays — abilities, items (with the printed skin descriptor), spells.
   Applied by chargen.
 
+## The constructor sheet
+
+`class-sheet.mjs` and `race-sheet.mjs` are the editable faces; what they
+share at the DOM edge is `sheet-helpers.mjs`.
+
+- **Name first.** A reference row renders the name of the document the ref
+  resolves to (`findByRef`) as a link that opens it (`refOpen`), the ref
+  itself in a narrow field that widens on focus, and a stored ref nothing
+  answers with a warning mark. A template item's `name:` ref shows its name
+  as text: it is matched at build time and names nothing yet.
+- **Drop zones.** Every list is a `[data-accept-drop]` zone, lit under a drag
+  by a delegated listener bound once per sheet element. The class sheet's
+  `#onDrop` routes by the zone under the cursor: a template row takes a
+  bundle (binds the package), an ability, a piece of equipment or a spell
+  (fills the row of its kind under the cursor, else adds one); an award row
+  takes an ability (a listed-options choice adds it to `choice.refs`, any
+  other award becomes it); the awards fieldset appends a fixed grant at the
+  last level listed; the inventory and builder lists append once. A drop a
+  list does not take raises a notice naming what it takes. A row zone sits
+  inside a list zone and both are bound, so the handler stops propagation.
+- **Row controls** are `<button>`s named by `sheet.ctl.add`/`remove` with a
+  `sheet.what.*` noun; a control carrying `data-confirm="<kind>"` asks
+  (`confirmRowDelete`) before a compound row goes. Each submits the form
+  first and writes its outermost list whole (`lib/sheet-rows.mjs`).
+- **Training editor.** The Overview fieldset's three fields are named
+  `training.*`, outside `system`: `_processFormData` drops them from the
+  document update and `_processSubmitData` writes them through
+  `setClassTraining` only when the changed control is inside the fieldset,
+  queued so two quick edits land in order.
+- **Layout.** The frame is in the scroll contract and the body
+  (`.acks-extras-classes-body`) is the scroller under a fixed tab strip;
+  fixed-shape lists are grids whose caption row reuses the row's column
+  template, with fixed trailing columns so an empty control cell cannot
+  shift the captions.
+
 ## Template packages
 
 [template-packages.mjs](../../scripts/classes/template-packages.mjs) is the
@@ -305,7 +340,13 @@ moment their class is re-applied.
 `syncClassTraining` writes the class's combat training onto the character as an
 Active Effect whose changes are three CSV strings (`weaponProf`,
 `armourProficiency`, `styleProficient`); a class stated per path writes a second
-such effect for the chosen option. `training.mjs` reads and rewrites the grants
+such effect for the chosen option. `training-logic.mjs` (Foundry-free) owns
+the shape: `trainingChanges` builds the three changes for every writer — the
+importer's class effect, `pathTrainingChanges`, the class sheet's editor —
+`trainingOf` reads them back, `withTraining` rewrites them on an effect that
+holds other changes too, and `normalizeTraining` turns CSV text or a cast
+array into token lists (`ClassData.normalize` runs it on every path option).
+`training.mjs` reads and rewrites the grants
 inside them — `trainingEffects` finds them, an edit targets the one already
 carrying the group's change — and answers where the rest of a character's
 training came from:
@@ -330,6 +371,10 @@ training came from:
   the `fromClass` uuid), what the effects hold now, and the slots on which the
   two differ — the badge. Unknown, and silent, when the document is gone.
 - **`resetTraining`** re-applies the training alone from the class document.
+- **`setClassTraining(classItem, training)`** writes the CLASS document's own
+  effect — rewritten in place when one carries a training change, created
+  when none does, deleted when every group is blank — and answers what it
+  did. Characters are untouched until the class is applied.
 - **`grantedKeys`** is the class-granularity reading the system sheet's
   injected section (`class-modifiers.mjs`) still draws as chips, through
   `weaponTokenClasses`.

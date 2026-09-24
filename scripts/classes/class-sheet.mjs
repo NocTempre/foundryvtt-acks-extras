@@ -17,10 +17,12 @@
  */
 import { MODULE_ID, LANG_PREFIX, CHASSIS_KEYS, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
 import { pathGroups } from "./paths.mjs";
-import { ARMOR_LADDER, STYLE } from "../equipment/config.mjs";
 import { AWARD_KINDS } from "./class-data.mjs";
 import ClassData from "./class-data.mjs";
-import { findByRef } from "./registry.mjs";
+import { classByKey, findByRef } from "./registry.mjs";
+import { setClassTraining } from "./training.mjs";
+import { classTrainingEffect, trainingOf } from "./training-logic.mjs";
+import { armourOptionsFor, bindDropHighlight, confirmRowDelete, openRef, rejectDrop } from "./sheet-helpers.mjs";
 import { refOf } from "./grants.mjs";
 import { builderTables, raceItems, raceForClass, planFor, applyBuilder, issueLabel } from "./builder.mjs";
 import { materializeTemplates, detachTemplatePackages } from "./template-packages.mjs";
@@ -62,6 +64,7 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       templatesDetach: ClassSheet.#onTemplatesDetach,
       templateOpen: ClassSheet.#onTemplateOpen,
       templateUnbind: ClassSheet.#onTemplateUnbind,
+      refOpen: ClassSheet.#onRefOpen,
     },
   };
 
@@ -71,6 +74,9 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
 
   /** The active sheet-local tab. */
   #tab = "overview";
+
+  /** Training writes land in order: each edit rewrites the effect the last one left. */
+  #trainingWrite = Promise.resolve();
 
   /** @override */
   async _prepareContext(options) {
@@ -86,6 +92,12 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     }));
     context.show = Object.fromEntries(TABS.map((id) => [id, id === this.#tab]));
     context.isStub = sys.isStub;
+    // Ladders are read through the class key; a class with ladders and no key
+    // has tables nothing can reach.
+    context.keyMissing = !sys.key && (sys.ladders ?? []).length > 0;
+    // The keys `apply.mjs` reads a damage-bonus ladder by, offered wherever a
+    // field must match a ladder key.
+    context.ladderKeyHints = ["damageBonus", "meleeDamageBonus", "missileDamageBonus", "electedDamageBonus"];
 
     // Prose renders ENRICHED — an imported class holds its book text in the
     // field, and enrichment is what resolves the links and rolls written
@@ -107,16 +119,11 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
 
     // --- overview ---
     const chassisBlank = game.i18n.localize(`${LANG_PREFIX}.sheet.ownTables`);
-    context.saveChassisOptions = optionsOf(
-      Object.fromEntries(CHASSIS_KEYS.map((k) => [k, { label: k }])),
-      sys.saveChassis,
-      { blankLabel: chassisBlank },
-    );
-    context.attackChassisOptions = optionsOf(
-      Object.fromEntries(CHASSIS_KEYS.map((k) => [k, { label: k }])),
-      sys.attackChassis,
-      { blankLabel: chassisBlank },
-    );
+    // A chassis is named by the class that publishes it, when that class is in
+    // the world or the library; its key stands in until it is.
+    const chassis = Object.fromEntries(CHASSIS_KEYS.map((k) => [k, { label: classByKey(k)?.name ?? k }]));
+    context.saveChassisOptions = optionsOf(chassis, sys.saveChassis, { blankLabel: chassisBlank });
+    context.attackChassisOptions = optionsOf(chassis, sys.attackChassis, { blankLabel: chassisBlank });
     context.keyAttributes = Object.entries(ATTRIBUTES).map(([value, def]) => ({
       value,
       label: def.label ?? value,
@@ -199,6 +206,7 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       kindOptions: optionsOf(AWARD_KINDS, award.kind),
       refName: award.ref ? (findByRef(award.ref)?.name ?? null) : null,
       choice: award.choice,
+      choiceRefs: (award.choice?.refs ?? []).map((ref, ri) => ({ index: ri, ref, name: findByRef(ref)?.name ?? null })),
       fromOptions: optionsOf(CHOICE_SOURCES, award.choice?.from),
       filterOptions: optionsOf(CHOICE_FILTERS, award.choice?.filter),
     }));
@@ -238,8 +246,6 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     // resolved ones are what a `templates` group has instead of options of its
     // own, and are shown read-only because the rows are edited on their own tab.
     const resolved = pathGroups(sys);
-    context.armourRungs = ARMOR_LADDER.map((r) => ({ key: r, label: r }));
-    context.styleKeys = Object.values(STYLE).map((k) => ({ key: k, label: k }));
     context.pathsEdit = (sys.paths ?? []).map((g, index) => {
       const fromTemplates = g.source === "templates";
       return {
@@ -261,10 +267,7 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
               styles: (o.training?.styles ?? []).join(", "),
               // Precomputed the way every other select on this sheet is, so the
               // template needs no comparison helper and no `../../` climbing.
-              armourOptions: [{ key: "", label: "—" }, ...ARMOR_LADDER.map((r) => ({ key: r, label: r }))].map((r) => ({
-                ...r,
-                selected: (o.training?.armour ?? "") === r.key,
-              })),
+              armourOptions: armourOptionsFor(o.training?.armour),
             })),
       };
     });
@@ -300,18 +303,50 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
           ...a,
           refName: a.ref ? (findByRef(a.ref)?.name ?? null) : null,
         })),
-        items: (t.items ?? []).map((it, ii) => ({ index: ii, ...it })),
-        spells: (t.spells ?? []).map((s, si) => ({ index: si, ...s })),
+        items: (t.items ?? []).map((it, ii) => ({
+          index: ii,
+          ...it,
+          // A `name:` reference is matched at build time and names nothing yet.
+          refByName: it.ref?.startsWith("name:") ? it.ref.slice(5) : null,
+          refName: it.ref && !it.ref.startsWith("name:") ? (findByRef(it.ref)?.name ?? null) : null,
+        })),
+        spells: (t.spells ?? []).map((s, si) => ({
+          index: si,
+          ...s,
+          uuidName: s.uuid ? (fromUuidSync(s.uuid)?.name ?? null) : null,
+        })),
       };
     });
     const tableDoc = sys.templateTable ? fromUuidSync(sys.templateTable) : null;
     context.templateTable = tableDoc ? { name: tableDoc.name, uuid: tableDoc.uuid } : null;
+
+    // --- training: the class document's own effect, edited as three fields
+    // named outside `system` so the form's submit leaves them to the effect.
+    const training = trainingOf(classTrainingEffect(this.item)?.changes ?? []);
+    context.training = {
+      weapons: training.weapons.join(", "),
+      armour: training.armour,
+      styles: training.styles.join(", "),
+      armourOptions: armourOptionsFor(training.armour),
+    };
     return context;
   }
 
   /** @override — a row's fields the form does not render keep their stored values. */
   _processFormData(event, form, formData) {
-    return keepUnrenderedFields(super._processFormData(event, form, formData), this.item._source);
+    const data = keepUnrenderedFields(super._processFormData(event, form, formData), this.item._source);
+    delete data.training;
+    return data;
+  }
+
+  /** @override — an edit inside the training fieldset writes the class's effect, after the system update. */
+  async _processSubmitData(event, form, submitData, options) {
+    await super._processSubmitData(event, form, submitData, options);
+    if (!event?.target?.closest?.("[data-class-training]")) return;
+    const read = (name) => form.elements.namedItem(name)?.value ?? "";
+    const training = { weapons: read("training.weapons"), armour: read("training.armour"), styles: read("training.styles") };
+    this.#trainingWrite = this.#trainingWrite.then(() => setClassTraining(this.item, training)).catch((error) => console.error(error));
+    await this.#trainingWrite;
   }
 
   /** @override — reconstruct arrays before the model cleans the submit. */
@@ -425,87 +460,105 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     const path = target.dataset.array;
     const index = Number(target.dataset.index);
     if (!path || !Number.isInteger(index)) return;
+    if (!(await confirmRowDelete(target))) return;
     await this.submit();
     const update = rowListUpdate(this.item.system.toObject(), path, (list) => list.splice(index, 1));
     if (update) await this.item.update(update);
+  }
+
+  static #onRefOpen(event, target) {
+    openRef(target.dataset.ref ?? "");
   }
 
   /** @override — the inventory ACCEPTS ability items; nothing is offered. */
   _onRender(context, options) {
     super._onRender(context, options);
     if (!this.isEditable) return;
+    bindDropHighlight(this.element);
     new foundry.applications.ux.DragDrop.implementation({
       dropSelector: "[data-accept-drop]",
       callbacks: { drop: this.#onDrop.bind(this) },
     }).bind(this.element);
   }
 
-  /** A dropped ability item lands in the list, award row or template ability row under the cursor. */
+  /**
+   * What lands where. On a template: a bundle binds the package, an ability,
+   * a piece of equipment or a spell fills the row of its kind under the cursor
+   * or adds one. Elsewhere only an ability is taken: into the list, into the
+   * award row (a custom choice lists it; a fixed award becomes it), or onto
+   * the awards as a fixed grant at the last level listed. A drop a list does
+   * not take says so.
+   */
   async #onDrop(event) {
+    // A row zone sits inside a list zone and both are bound; the innermost takes the drop alone.
+    event.stopPropagation();
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     if (data?.type !== "Item" || !data.uuid) return;
     const dropped = await fromUuid(data.uuid);
-    // A dropped BUNDLE binds as a template row's package.
-    if (dropped?.type === ITEM_TYPE.bundle) {
-      const row = event.target.closest("[data-template-row]");
-      const index = Number(row?.dataset.templateRow);
-      if (!Number.isInteger(index)) return;
-      const templates = foundry.utils.deepClone(this.item.system.toObject().templates ?? []);
-      if (!templates[index]) return;
-      templates[index].bundle = dropped.uuid;
-      await this.item.update({ "system.templates": templates });
-      return;
-    }
-    if (dropped?.type !== ITEM_TYPE.ability) return;
-    const ref = refOf(dropped);
-    // An ability dropped on a template fills the ability row under the
-    // cursor, or adds one when the cursor is anywhere else on the template.
+    if (!dropped) return;
     const templateRow = event.target.closest("[data-template-row]");
-    if (templateRow) {
-      const index = Number(templateRow.dataset.templateRow);
-      const templates = foundry.utils.deepClone(this.item.system.toObject().templates ?? []);
-      if (!templates[index]) return;
-      const abilities = templates[index].abilities ?? [];
-      const at = Number(event.target.closest("[data-template-ability]")?.dataset.templateAbility);
-      if (Number.isInteger(at) && abilities[at]) abilities[at] = { ...abilities[at], ref, name: dropped.name };
-      else abilities.push({ ref, name: dropped.name, rank: 1 });
-      templates[index].abilities = abilities;
-      await this.item.update({ "system.templates": templates });
-      return;
-    }
+    if (templateRow) return this.#dropOnTemplate(event, templateRow, dropped);
+    if (dropped.type !== ITEM_TYPE.ability) return rejectDrop(dropped, "abilityDoc");
+    const ref = refOf(dropped);
     const zone = event.target.closest("[data-accept-drop]");
     const list = zone?.dataset.list;
+    const sys = this.item.system.toObject();
     if (list === "classProfs" || list === "powers") {
-      const path = `inventory.${list}`;
-      const current = foundry.utils.deepClone(foundry.utils.getProperty(this.item.system, path) ?? []);
-      if (!current.includes(ref)) {
-        current.push(ref);
-        await this.item.update({ [`system.${path}`]: current });
-      }
+      const current = sys.inventory?.[list] ?? [];
+      if (current.includes(ref)) return;
+      await this.item.update({ [`system.inventory.${list}`]: [...current, ref] });
     } else if (list === "builderPowers") {
-      const current = foundry.utils.deepClone(this.item.system.builder?.powers ?? []);
-      if (!current.some((p) => p.ref === ref)) {
-        current.push({ ref, name: dropped.name, cost: null, note: "" });
-        await this.item.update({ "system.builder.powers": current });
-      }
+      const current = sys.builder?.powers ?? [];
+      if (current.some((p) => p.ref === ref)) return;
+      await this.item.update({ "system.builder.powers": [...current, { ref, name: dropped.name, cost: null, note: "" }] });
     } else if (list === "builderSkills") {
-      const current = foundry.utils.deepClone(this.item.system.builder?.thievery?.skills ?? []);
-      if (!current.includes(ref)) {
-        current.push(ref);
-        await this.item.update({ "system.builder.thievery.skills": current });
-      }
+      const current = sys.builder?.thievery?.skills ?? [];
+      if (current.includes(ref)) return;
+      await this.item.update({ "system.builder.thievery.skills": [...current, ref] });
     } else if (list === "skills") {
-      const current = foundry.utils.deepClone(this.item.system.inventory?.skills ?? []);
-      current.push({ ref, ladderKey: "" });
-      await this.item.update({ "system.inventory.skills": current });
+      const current = sys.inventory?.skills ?? [];
+      if (current.some((row) => row.ref === ref)) return;
+      await this.item.update({ "system.inventory.skills": [...current, { ref, ladderKey: "" }] });
     } else if (zone?.dataset.award != null) {
-      const index = Number(zone.dataset.award);
-      const awards = foundry.utils.deepClone(this.item.system.awards ?? []);
-      if (awards[index]) {
-        awards[index].ref = ref;
-        awards[index].name = dropped.name;
-        await this.item.update({ "system.awards": awards });
+      const awards = sys.awards ?? [];
+      const award = awards[Number(zone.dataset.award)];
+      if (!award) return;
+      if (award.kind === "choice" && award.choice?.from === "custom") {
+        const refs = award.choice.refs ?? [];
+        if (refs.includes(ref)) return;
+        award.choice.refs = [...refs, ref];
+      } else {
+        award.ref = ref;
+        award.name = dropped.name;
       }
+      await this.item.update({ "system.awards": awards });
+    } else if (list === "awards") {
+      const awards = sys.awards ?? [];
+      awards.push({ kind: "fixed", ref, name: dropped.name, atLevel: awards.at(-1)?.atLevel ?? 1 });
+      await this.item.update({ "system.awards": awards });
     }
+  }
+
+  /** The template-row half of a drop: the row of the dropped kind under the cursor is filled, else one is added. */
+  async #dropOnTemplate(event, templateRow, dropped) {
+    const templates = this.item.system.toObject().templates ?? [];
+    const t = templates[Number(templateRow.dataset.templateRow)];
+    if (!t) return;
+    const rowUnder = (kind) => {
+      const at = Number(event.target.closest(`[data-template-${kind}]`)?.dataset[`template${kind[0].toUpperCase()}${kind.slice(1)}`]);
+      return Number.isInteger(at) ? at : null;
+    };
+    const fill = (rows, kind, row) => {
+      const at = rowUnder(kind);
+      if (at !== null && rows[at]) rows[at] = { ...rows[at], ...row };
+      else rows.push(row);
+      return rows;
+    };
+    if (dropped.type === ITEM_TYPE.bundle) t.bundle = dropped.uuid;
+    else if (dropped.type === ITEM_TYPE.ability) t.abilities = fill(t.abilities ?? [], "ability", { ref: refOf(dropped), name: dropped.name, rank: 1 });
+    else if ([ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item].includes(dropped.type)) t.items = fill(t.items ?? [], "item", { ref: refOf(dropped), name: dropped.name, qty: 1 });
+    else if (dropped.type === ITEM_TYPE.spell) t.spells = fill(t.spells ?? [], "spell", { uuid: dropped.uuid, name: dropped.name });
+    else return rejectDrop(dropped, "templateDrop");
+    await this.item.update({ "system.templates": templates });
   }
 }

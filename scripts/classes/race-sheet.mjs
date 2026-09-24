@@ -1,4 +1,4 @@
-/* global game, foundry, fromUuid */
+/* global foundry, fromUuid */
 /**
  * The race constructor sheet — the editable face of `acks-extras.race`.
  *
@@ -7,12 +7,13 @@
  * Rung power lists and the traits list ACCEPT ability drops, like the class
  * sheet's inventory — nothing is offered from a catalogue.
  */
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { MODULE_ID } from "./constants.mjs";
 import RaceData from "./race-data.mjs";
 import { findByRef } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../lib/sheet-rows.mjs";
 import { ATTRIBUTES, ITEM_TYPE } from "../lib/vocab.mjs";
+import { bindDropHighlight, confirmRowDelete, openRef, rejectDrop } from "./sheet-helpers.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -27,6 +28,7 @@ export default class RaceSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     actions: {
       rowAdd: RaceSheet.#onRowAdd,
       rowDelete: RaceSheet.#onRowDelete,
+      refOpen: RaceSheet.#onRefOpen,
     },
   };
 
@@ -125,37 +127,48 @@ export default class RaceSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const path = target.dataset.array;
     const index = Number(target.dataset.index);
     if (!path || !Number.isInteger(index)) return;
+    if (!(await confirmRowDelete(target))) return;
     await this.submit();
     const update = rowListUpdate(this.item.system.toObject(), path, (list) => list.splice(index, 1));
     if (update) await this.item.update(update);
+  }
+
+  static #onRefOpen(event, target) {
+    openRef(target.dataset.ref ?? "");
   }
 
   /** @override — rung power lists and traits accept ability drops. */
   _onRender(context, options) {
     super._onRender(context, options);
     if (!this.isEditable) return;
+    bindDropHighlight(this.element);
     new foundry.applications.ux.DragDrop.implementation({
       dropSelector: "[data-accept-drop]",
       callbacks: { drop: this.#onDrop.bind(this) },
     }).bind(this.element);
   }
 
+  /** A dropped ability joins the rung or the traits under the cursor, once; anything else is refused with a notice. */
   async #onDrop(event) {
+    // A row zone sits inside a list zone and both are bound; the innermost takes the drop alone.
+    event.stopPropagation();
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     if (data?.type !== "Item" || !data.uuid) return;
     const dropped = await fromUuid(data.uuid);
-    if (dropped?.type !== ITEM_TYPE.ability) return;
+    if (!dropped) return;
+    if (dropped.type !== ITEM_TYPE.ability) return rejectDrop(dropped, "abilityDoc");
     const ref = refOf(dropped);
     const zone = event.target.closest("[data-accept-drop]");
     if (zone?.dataset.rung != null) {
       const index = Number(zone.dataset.rung);
-      const values = foundry.utils.deepClone(this.item.system.values ?? []);
+      const values = foundry.utils.deepClone(this.item.system.toObject().values ?? []);
       if (values[index] && !(values[index].powers ?? []).includes(ref)) {
         values[index].powers = [...(values[index].powers ?? []), ref];
         await this.item.update({ "system.values": values });
       }
     } else if (zone?.dataset.list === "traits") {
-      const traits = foundry.utils.deepClone(this.item.system.traits ?? []);
+      const traits = foundry.utils.deepClone(this.item.system.toObject().traits ?? []);
+      if (traits.some((t) => t.ref === ref)) return;
       traits.push({ name: dropped.name, ref, html: "" });
       await this.item.update({ "system.traits": traits });
     }

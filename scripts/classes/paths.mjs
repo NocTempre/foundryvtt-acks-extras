@@ -18,7 +18,7 @@
  * documents and writing to actors belongs to the callers.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
-import { CHANGE } from "../lib/effect-scan.mjs";
+import { trainingChanges } from "./training-logic.mjs";
 
 /** Folded for comparison — a printed annotation is prose, not a key. */
 const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -90,16 +90,9 @@ export function chosenOption(system, groupKey, selection) {
  */
 export function pathTrainingChanges(system, selections = {}) {
   const changes = [];
-  const push = (domain, value) => {
-    if (value) changes.push({ key: `flags.${MODULE_ID}.${domain}`, type: CHANGE.ADD, value: String(value), priority: 20 });
-  };
   for (const group of pathGroups(system)) {
     const option = chosenOption(system, group.key, selections?.[group.key]);
-    const t = option?.training;
-    if (!t) continue;
-    push("weaponProf", (t.weapons ?? []).join(","));
-    push("armourProficiency", t.armour);
-    push("styleProficient", (t.styles ?? []).join(","));
+    if (option?.training) changes.push(...trainingChanges(option.training));
   }
   return changes;
 }

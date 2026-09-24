@@ -14,6 +14,7 @@
  * pipeline. This file only maps executor output onto acks system fields.
  */
 import { MODULE_ID, LANG_PREFIX, ITEM_TYPE, DEFAULT_IMG } from "./constants.mjs";
+import { trainingChanges } from "../classes/training-logic.mjs";
 import { bookText, entryText, entryTable, escapeText, nodeParagraphs, stripBookText } from "./prose.mjs";
 import { isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData } from "./poi-binding.mjs";
 import {
@@ -5513,25 +5514,16 @@ export function bindClass(entry, node, id, { gains = null, commonName = null, ge
 
 /**
  * The class's training as one embedded, transferring Active Effect carrying
- * weapon, armour and style proficiency together.
- *
- * `type` is written rather than the older numeric `mode` (on v14 the numeric
- * field is a coercing shim; a string there would silently land as NaN).
+ * weapon, armour and style proficiency together; `training-logic.mjs` builds
+ * the changes, so what the importer writes is what the class sheet edits.
  */
 function trainingEffect(entry, training) {
-  const changes = [];
-  const add = (domain, value) => {
-    if (value) changes.push({ key: `flags.${MODULE_ID}.${domain}`, type: "add", value: String(value), priority: 20 });
-  };
-  add("weaponProf", training.weapons.join(","));
-  add("armourProficiency", training.armour);
-  add("styleProficient", training.styles.join(","));
   return {
     name: game.i18n?.format
       ? game.i18n.format(`${LANG_PREFIX}.ui.classTraining`, { class: entry.name })
       : `${entry.name} Training`,
     img: DEFAULT_IMG.TRAINING,
-    changes,
+    changes: trainingChanges(training),
     transfer: true,
     disabled: false,
     flags: { [MODULE_ID]: { minted: true } },

@@ -117,6 +117,64 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    `scripts/classes/languages.mjs`, imported in page context) with the row
    still empty grants no tongue called "null".
 
+## The constructor sheet's edge
+
+Fixtures: the class and race above, a disposable `ability`, a disposable
+`weapon` and a disposable `spell`. A drop is scripted by dispatching a
+`drop` `DragEvent` whose `DataTransfer` carries `{type: "Item", uuid}` on
+the zone; a row zone inside a list zone must fire the handler ONCE (count the
+notices). A module script edited on disk is picked up only by
+`fetch(path, {cache: "reload"})` followed by `location.reload()`; a
+re-render alone keeps the old module.
+
+10. **Name first.** Fixture rows with a resolvable ref, an unresolvable one
+    (`def.missing`) and, on a template item, `name:Staff`.
+    *Observable:* the resolvable row shows the document's name as an
+    `a[data-action="refOpen"]`, and clicking it renders that document's
+    sheet; the unresolvable row carries `.acks-extras-classes-refname--unresolved`;
+    the `name:` row shows "Staff" as text with no mark. No raw
+    `ACKS-CLASSES.` key anywhere on any tab.
+11. **Every drop route.** Ability on the awards legend → a fixed award is
+    appended at the last level listed; on a listed-options choice row → its
+    `choice.refs` gains the ref once (a second drop adds nothing); on a
+    fixed award row → that row's `ref` and `name`. Weapon on a template's
+    header → an item row `{name, qty: 1, ref: uuid:…}` appended; on an item
+    row → that row filled; spell on a spell row → `{name, uuid}`; ability on
+    the template → an ability row appended. Weapon on an award row, and the
+    class item on a template → one notice naming what the list takes, and
+    nothing written. Ability on the skills list twice → one row. Dispatch a
+    `dragover` on a zone's legend → the zone carries
+    `acks-extras-classes-dropping`; a `dragleave` whose `relatedTarget` is
+    outside the sheet clears it.
+12. **Confirm before a compound delete.** Click the ladder's delete
+    (`button[data-action="rowDelete"][data-array="ladders"]`): a DialogV2
+    opens naming the control ("Remove a ladder") and asking; **No** keeps the
+    ladder and closes the dialog, **Yes** removes it. The dialog's buttons
+    are reachable in a hidden pane through `document.querySelector("dialog")`.
+13. **The training editor.** On Overview, type `sword, bow` into
+    `training.weapons`: the class gains one effect named
+    "<class> Training" with one `add` change on `flags.acks-extras.weaponProf`
+    valued `sword,bow`, `transfer: false`, no `minted` flag. Choose an
+    armour rung and type a style: the same effect gains the two changes.
+    Change the hit die: the effect count is unchanged. Stamp the effect
+    `flags.acks-extras.minted: true` by hand and edit the weapons again: the
+    stamp is gone. Blank all three: the effect is deleted.
+14. **A path option's list is split.** On Paths, type `dagger, sling` into an
+    option's weapons and ` twoHanded , ` into its styles; leave another
+    option's styles blank. *Observable:* `training.weapons` reads
+    `["dagger", "sling"]`, styles `["twoHanded"]`, the blank one `[]` — never
+    `["dagger, sling"]` or `[null]` — and `pathTrainingChanges(system,
+    {group: option})` (from `scripts/classes/paths.mjs`, imported in page
+    context) yields the joined tokens.
+15. **Captions over their columns.** For every `.acks-extras-classes-caps`
+    row, compare each caption cell's left edge with the same cell of the first
+    data row of the same grid modifier; the drift is at most 2 px at a 700 px
+    sheet width. The race rung's XP cost and maximum level inputs are at least
+    4 em wide.
+16. **The race sheet.** An ability dropped on the traits list twice → one
+    trait; a weapon there → one notice and no row; the rung's delete asks
+    ("Remove a racial value rung"), and **No** keeps it.
+
 ## Template packages
 
 Fixtures: a disposable class Item with two template rows — one whose items

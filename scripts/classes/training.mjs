@@ -35,13 +35,7 @@ import { coveredUnits, grantTokens, toggledGrant } from "../equipment/training-v
 import { bridgeContributions } from "../equipment/abilities-bridge.mjs";
 import { pathTrainingChanges, actorPaths } from "./paths.mjs";
 import { syncClassTraining } from "./apply.mjs";
-
-/** Change keys the training effect writes, one per slot group. */
-const KEY = Object.freeze({
-  weapons: `flags.${MODULE_ID}.weaponProf`,
-  armour: `flags.${MODULE_ID}.armourProficiency`,
-  styles: `flags.${MODULE_ID}.styleProficient`,
-});
+import { TRAINING_KEYS as KEY, trainingChanges, trainingOf, withTraining, classTrainingEffect, trainingIsBlank } from "./training-logic.mjs";
 
 /** The stamp a hand-made training effect carries instead of a class uuid. */
 export const MANUAL_TRAINING = "manual";
@@ -281,19 +275,49 @@ export function printedTraining(actor) {
   if (!classItem) return null;
   // A document's `effects` is an EmbeddedCollection — iterable, with `map`
   // and `filter`, but no `flatMap`; spread it to an array before reading.
-  const changes = [
+  return trainingOf([
     ...Array.from(classItem.effects ?? []).flatMap((e) => e.changes ?? []),
     ...pathTrainingChanges(classItem.system, actorPaths(actor)),
-  ];
-  const of = (group) => changes.filter((c) => c.key === KEY[group]).flatMap((c) => csvTokens(c.value));
-  return { weapons: of("weapons"), armour: of("armour").at(-1) ?? "", styles: of("styles") };
+  ]);
 }
 
 /** The class effects' own grant per group, the same shape as `printedTraining`. */
 export function classTraining(actor) {
-  const mine = trainingEffects(actor);
-  const of = (group) => mine.flatMap((e) => csvTokens(rawValue(e, group)));
-  return { weapons: of("weapons"), armour: of("armour").at(-1) ?? "", styles: of("styles") };
+  return trainingOf(trainingEffects(actor).flatMap((e) => e.changes ?? []));
+}
+
+/**
+ * Write `training` onto the CLASS document as its training effect: the
+ * effect already carrying a training change is rewritten in place (its other
+ * changes kept), a class with none gets one, and a training blank in every
+ * group deletes it. Characters are untouched — a class's training reaches
+ * them only when the class is applied (`syncClassTraining`).
+ * @returns {Promise<"created"|"updated"|"deleted"|null>} what was written; null when nothing changed
+ */
+export async function setClassTraining(classItem, training) {
+  if (!classItem) return null;
+  const have = classTrainingEffect(classItem);
+  if (trainingIsBlank(training)) {
+    if (!have) return null;
+    await have.delete();
+    return "deleted";
+  }
+  if (have) {
+    // A Judge's edit is theirs: the importer's `minted` stamp comes off, so an
+    // Update Classes or a repair rebuilds every minted effect and leaves this one.
+    await have.update({ changes: withTraining(have.changes ?? [], training), [`flags.${MODULE_ID}.-=minted`]: null });
+    return "updated";
+  }
+  await classItem.createEmbeddedDocuments("ActiveEffect", [
+    {
+      name: game.i18n.format(`${LANG_PREFIX}.training.classEffect`, { class: classItem.name ?? "" }),
+      img: "icons/svg/upgrade.svg",
+      changes: trainingChanges(training),
+      transfer: false,
+      disabled: false,
+    },
+  ]);
+  return "created";
 }
 
 /**

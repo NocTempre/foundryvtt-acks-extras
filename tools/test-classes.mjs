@@ -33,6 +33,7 @@ import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/clas
 import { rebuildHitPoints, firstLevelDieMinimum, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
 import { registerTable, unregisterTable, PRIORITY, getLayer, citeOf } from "../scripts/lib/tables.mjs";
 import { isOffer, offerKey } from "../scripts/classes/pending-choices.mjs";
+import { TRAINING_KEYS, normalizeTraining, trainingChanges, trainingOf, withTraining, classTrainingEffect, trainingIsBlank } from "../scripts/classes/training-logic.mjs";
 import { readFileSync } from "node:fs";
 
 let passed = 0;
@@ -1351,5 +1352,82 @@ try {
 } finally {
   globalThis.acksExtras = savedNamespace;
 }
+
+test("normalizeTraining splits CSV text, keeps arrays, and never keeps an empty token", () => {
+  assert.deepEqual(normalizeTraining({ weapons: "sword, dagger ,, ", armour: " chain ", styles: "" }), { weapons: ["sword", "dagger"], armour: "chain", styles: [] });
+  assert.deepEqual(normalizeTraining({ weapons: ["all", ""], styles: [" twoHanded "] }), { weapons: ["all"], armour: "", styles: ["twoHanded"] });
+  // The model has already cast the text box to a one-element array by the time the sheet normalizes.
+  assert.deepEqual(normalizeTraining({ weapons: ["dagger, sling"], styles: [null] }), { weapons: ["dagger", "sling"], armour: "", styles: [] });
+  assert.deepEqual(normalizeTraining(undefined), { weapons: [], armour: "", styles: [] });
+  assert.equal(trainingIsBlank({ weapons: "", armour: "", styles: [] }), true);
+  assert.equal(trainingIsBlank({ armour: "leather" }), false);
+});
+
+test("trainingChanges writes one add per non-empty group under the training keys", () => {
+  const changes = trainingChanges({ weapons: ["melee:medium", "bow"], armour: "", styles: "twoHanded" });
+  assert.deepEqual(changes, [
+    { key: TRAINING_KEYS.weapons, type: "add", value: "melee:medium,bow", priority: 20 },
+    { key: TRAINING_KEYS.styles, type: "add", value: "twoHanded", priority: 20 },
+  ]);
+  assert.deepEqual(trainingChanges({}), []);
+  assert.deepEqual(trainingOf(changes), { weapons: ["melee:medium", "bow"], armour: "", styles: ["twoHanded"] });
+});
+
+test("trainingOf reads every change on a key and takes the last armour rung", () => {
+  const read = trainingOf([
+    { key: TRAINING_KEYS.weapons, type: "add", value: "sword" },
+    { key: "flags.acks-extras.other", type: "add", value: "x" },
+    { key: TRAINING_KEYS.armour, type: "add", value: "leather" },
+    { key: TRAINING_KEYS.weapons, type: "add", value: "bow,dagger" },
+    { key: TRAINING_KEYS.armour, type: "add", value: "chain" },
+  ]);
+  assert.deepEqual(read, { weapons: ["sword", "bow", "dagger"], armour: "chain", styles: [] });
+});
+
+test("withTraining rewrites the training keys and keeps every other change", () => {
+  const before = [
+    { key: "flags.acks-extras.other", type: "add", value: "x", priority: 5 },
+    { key: TRAINING_KEYS.weapons, type: "add", value: "sword", priority: 20 },
+    { key: TRAINING_KEYS.styles, type: "add", value: "twoHanded", priority: 20 },
+  ];
+  const after = withTraining(before, { weapons: "bow", armour: "plate", styles: "" });
+  assert.deepEqual(after, [
+    { key: "flags.acks-extras.other", type: "add", value: "x", priority: 5 },
+    { key: TRAINING_KEYS.weapons, type: "add", value: "bow", priority: 20 },
+    { key: TRAINING_KEYS.armour, type: "add", value: "plate", priority: 20 },
+  ]);
+  assert.equal(before.length, 3, "the input is not mutated");
+});
+
+test("classTrainingEffect finds the effect carrying a training change, else null", () => {
+  const plain = { id: "a", changes: [{ key: "flags.acks-extras.other", value: "1" }] };
+  const training = { id: "b", changes: [{ key: TRAINING_KEYS.armour, value: "leather" }] };
+  assert.equal(classTrainingEffect({ effects: [plain, training] }), training);
+  assert.equal(classTrainingEffect({ effects: [plain] }), null);
+  assert.equal(classTrainingEffect(null), null);
+});
+
+// The data model touches Foundry only when its schema is built, so a stub of
+// the base class and the utils `normalize` reads is enough to import it.
+globalThis.foundry ??= {};
+foundry.abstract ??= { TypeDataModel: class {} };
+foundry.data ??= { fields: {} };
+foundry.utils = {
+  ...(foundry.utils ?? {}),
+  deepClone: (o) => structuredClone(o),
+  getProperty: (o, p) => p.split(".").reduce((a, k) => (a == null ? a : a[k]), o),
+  setProperty: (o, p, v) => { const ks = p.split("."); const last = ks.pop(); const t = ks.reduce((a, k) => (a[k] ??= {}), o); t[last] = v; return true; },
+};
+const { default: ClassData } = await import("../scripts/classes/class-data.mjs");
+
+test("a path option's CSV training normalizes on submit and flows into the path effect", () => {
+  const system = ClassData.normalize({
+    paths: { 0: { key: "origin", label: "Origin", options: { 0: { key: "hills", label: "Hills", training: { weapons: "dagger, sling", armour: "", styles: "" } }, 1: { key: "plains", label: "Plains", training: { weapons: "", armour: "leather", styles: "" } } } } },
+  });
+  assert.deepEqual(system.paths[0].options[0].training, { weapons: ["dagger", "sling"], armour: "", styles: [] });
+  assert.deepEqual(system.paths[0].options[1].training, { weapons: [], armour: "leather", styles: [] });
+  const changes = pathTrainingChanges(system, { origin: "hills" });
+  assert.deepEqual(changes, [{ key: TRAINING_KEYS.weapons, type: "add", value: "dagger,sling", priority: 20 }]);
+});
 
 console.log(`test-classes: ${passed} assertion groups passed.`);

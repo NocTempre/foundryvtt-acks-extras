@@ -15,6 +15,26 @@ same constructor.
 *The constructor's Casting editor: traditions, slot grid, pool schedule and
 caster-level ladder.*
 
+The constructor is built to be read at a glance: each reference row leads with
+the name of the document it points at — click it to open that document — and
+a reference nothing answers is marked so a broken row looks broken. Every list
+is a drop zone: drag an ability from the Items tab or a compendium onto the
+awards, a template, the inventory or a race's rungs and traits, and drag a
+weapon, armour, an item or a spell onto a starting template to add it to the
+list it belongs in. A drop a list does not take tells you what it does take.
+The Overview tab states the class's combat training — weapons, the heaviest
+armour and the fighting styles — which is what a character made from the class
+is trained in.
+
+![](../releases/v8.7.0/classes-sheet.png)
+
+*The Overview tab: the class's combat training beside its chassis.*
+
+![](../releases/v8.7.0/classes-templates.png)
+
+*A starting template: abilities, gear and spells by name, a reference nothing
+answers marked, the whole row a drop zone.*
+
 The same constructor records what a class speaks and how many more tongues it
 may choose.
 
@@ -218,7 +238,8 @@ anywhere, including one you made, works the same way.
 
 After reconnecting your book, `acksExtras.importer.cookbookUpdateClasses()` rewrites
 imported class documents from the page (hand edits on them are replaced —
-the confirm says so). `repairSaveReferences` under
+the confirm says so). A combat training you edited on the class sheet is the
+one exception: it is kept where the book's would have been rebuilt. `repairSaveReferences` under
 `acksExtras.classes` finds stale save-key references world-wide; dry-run by
 default.
 
@@ -278,6 +299,17 @@ standing rather than spending it on whichever option sorted first.
 Answering is remembered against the character, not against the row's position,
 so re-running the generator or re-applying the class never asks twice and never
 brings a settled pick back.
+
+## Building a race
+
+**Create Item → Race** opens the race constructor: attribute minimums, the
+racial value ladder — each rung an XP cost, a level cap and the powers it
+grants — and the always-on traits. Rungs and traits take an ability dropped
+from the Items tab or a compendium, once each.
+
+![](../releases/v8.7.0/classes-race.png)
+
+*A race's value rungs and traits, each power and trait named.*
 
 ## What a race adds after 9th level
 

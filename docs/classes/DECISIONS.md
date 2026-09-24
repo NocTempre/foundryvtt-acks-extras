@@ -1394,3 +1394,39 @@ RollTable shelves stay unloaded. What remains is the eviction itself, the
 memory-for-correctness trade the 2026-09-07 entry declined inside a hotfix. A text-only class whose name no row carries still resolves to
 nothing, now after one index pass instead of a library download; a name that
 several shelves carry loads each of them.
+
+## 2026-09-24 — One builder of the training effect, and a CSV box is split after the model casts it
+
+**Found (live, Paths tab):** a path option's weapons typed as `dagger, sling`
+was stored as ONE token, and a box left blank as `[null]` — the option's
+effect then granted a weapon named "dagger, sling". The sheet rendered the
+lists as CSV text and nothing split them; three writers (the importer, the
+path effect, the character's edit) each built the three training changes by
+hand.
+
+**Ruled:** `training-logic.mjs` is the one owner of the training shape and of
+the changes that carry it — `trainingChanges`, `trainingOf`, `withTraining`,
+`classTrainingEffect`, `normalizeTraining`. The importer, `pathTrainingChanges`
+and `training.mjs` build and read through it, so what one writes the other
+reads back. `ClassData.normalize` normalizes every path option's training.
+
+**Where the split runs, and why there.** `DocumentSheetV2._prepareSubmitData`
+cleans the submit BEFORE a subclass sees it, so by the time the sheet
+normalizes, the model has already cast the text box to a one-element array
+(`["dagger, sling"]`) and the blank to `[null]`. `trainingTokens` therefore
+splits array elements too. The alternative — splitting in `_processFormData`,
+which runs before the clean — was rejected because the sheet is not the only
+road in: a class built through the API or a migration hands `normalize` the
+same shapes.
+
+**Also ruled:** the class sheet's Overview edits the CLASS document's training
+through `setClassTraining` — the effect already carrying a training change is
+rewritten in place, a class with none gets one, a training blank in every
+group deletes it. Characters are untouched: a class's training reaches them
+only when the class is applied (the 2026-08-22 copy ruling stands). The edit
+takes the importer's `minted` stamp OFF the effect: *Update Classes* and the
+repair rebuild every minted effect from the book and leave an unminted one
+where it is, the way a hand-written description is kept — so a Judge's
+training survives a re-import, and a class never carries two training
+effects because the importer skips building one whose keys an unminted
+effect already holds.

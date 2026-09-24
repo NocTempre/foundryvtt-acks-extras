@@ -1,13 +1,13 @@
-<div class="acks-extras-classes-root">
+<div class="acks-extras-classes-root {{#if editable}}acks-extras-classes-editable{{/if}}">
 <header class="acks-extras-classes-header">
-  <img class="profile-img" src="{{item.img}}" data-edit="img" title="{{item.name}}" />
+  <img class="profile-img" src="{{item.img}}" data-edit="img" data-action="editImage" title="{{item.name}}" />
   <div class="acks-extras-classes-headmain">
     <input name="name" type="text" value="{{item.name}}" placeholder="{{localize "ACKS-CLASSES.sheet.name"}}" />
     <div class="acks-extras-classes-source">
-      <label>{{localize "ACKS-CLASSES.sheet.key"}}</label>
-      <input name="system.key" type="text" value="{{system.key}}" />
+      <label data-tooltip="{{localize "ACKS-CLASSES.sheet.keyHint"}}">{{localize "ACKS-CLASSES.sheet.key"}}</label>
+      <input name="system.key" type="text" value="{{system.key}}" aria-label="{{localize "ACKS-CLASSES.sheet.key"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.keyHint"}}" />
       <label>{{localize "ACKS-CLASSES.sheet.cite"}}</label>
-      <input name="system.source.cite" type="text" value="{{system.source.cite}}" />
+      <input name="system.source.cite" type="text" value="{{system.source.cite}}" aria-label="{{localize "ACKS-CLASSES.sheet.cite"}}" />
       <input name="system.source.book" type="hidden" value="{{system.source.book}}" />
       <input name="system.source.ref" type="hidden" value="{{system.source.ref}}" />
     </div>
@@ -15,12 +15,20 @@
 </header>
 
 {{#if isStub}}<p class="notification info">{{localize "ACKS-CLASSES.sheet.stubNotice"}}</p>{{/if}}
+{{#if keyMissing}}<p class="notification warning">{{localize "ACKS-CLASSES.sheet.keyMissing"}}</p>{{/if}}
 
 <nav class="acks-extras-classes-tabs">
   {{#each tabs}}
     <button type="button" data-action="classTab" data-tab="{{id}}" class="{{#if active}}active{{/if}}">{{label}}</button>
   {{/each}}
 </nav>
+
+{{!-- Every ladder key this class already names, plus the keys apply.mjs reads
+      as the damage bonus — offered wherever a field must match a ladder. --}}
+<datalist id="{{@root.partId}}-ladder-keys">
+  {{#each ladders}}<option value="{{key}}"></option>{{/each}}
+  {{#each ladderKeyHints}}<option value="{{this}}"></option>{{/each}}
+</datalist>
 
 <div class="acks-extras-classes-body">
 
@@ -43,15 +51,15 @@
     </div>
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.requirements"}}
-        <a data-action="rowAdd" data-array="requirements"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="requirements" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.requirement")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.requirement")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       {{#unless requirements.length}}<p class="hint">{{localize "ACKS-CLASSES.sheet.noRequirements"}}</p>{{/unless}}
       {{#each requirements}}
         <div class="acks-extras-classes-row">
-          <select name="system.requirements.{{index}}.attr">
+          <select name="system.requirements.{{index}}.attr" aria-label="{{localize "ACKS-CLASSES.sheet.keyAttributes"}}">
             {{#each attrOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
           </select>
-          <input name="system.requirements.{{index}}.min" type="number" value="{{min}}" placeholder="{{localize "ACKS-CLASSES.sheet.min"}}" />
-          <a data-action="rowDelete" data-array="requirements" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          <input name="system.requirements.{{index}}.min" type="number" value="{{min}}" placeholder="{{localize "ACKS-CLASSES.sheet.min"}}" aria-label="{{localize "ACKS-CLASSES.sheet.min"}}" />
+          <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="requirements" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.requirement")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.requirement")}}"><i class="fa-solid fa-trash" inert></i></button>
         </div>
       {{/each}}
     </fieldset>
@@ -65,6 +73,24 @@
         {{#each attackChassisOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
       </select>
     </div>
+    <fieldset data-class-training>
+      <legend>{{localize "ACKS-CLASSES.sheet.training.legend"}}</legend>
+      <p class="hint">{{localize "ACKS-CLASSES.sheet.training.hint"}}</p>
+      <div class="form-group">
+        <label>{{localize "ACKS-CLASSES.sheet.training.weapons"}}</label>
+        <input name="training.weapons" type="text" value="{{training.weapons}}" placeholder="{{localize "ACKS-CLASSES.sheet.training.weaponsHint"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.training.weaponsHint"}}" />
+      </div>
+      <div class="form-group">
+        <label>{{localize "ACKS-CLASSES.sheet.training.armour"}}</label>
+        <select name="training.armour">
+          {{#each training.armourOptions}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>{{localize "ACKS-CLASSES.sheet.training.styles"}}</label>
+        <input name="training.styles" type="text" value="{{training.styles}}" placeholder="{{localize "ACKS-CLASSES.sheet.training.stylesHint"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.training.stylesHint"}}" />
+      </div>
+    </fieldset>
     <div class="form-group">
       <label class="checkbox" data-tooltip="{{localize "ACKS-CLASSES.sheet.factoredHint"}}">
         <input type="checkbox" name="system.factored" {{#if system.factored}}checked{{/if}} />
@@ -80,6 +106,7 @@
     <div class="form-group">
       <label data-tooltip="{{localize "ACKS-CLASSES.sheet.sortOrderHint"}}">{{localize "ACKS-CLASSES.sheet.sortOrder"}}</label>
       <input name="system.sortOrder" type="number" value="{{system.sortOrder}}" min="0" step="1" />
+      <p class="hint">{{localize "ACKS-CLASSES.sheet.sortOrderHint"}}</p>
     </div>
     <div class="form-group stacked">
       <label>{{localize "ACKS-CLASSES.sheet.description"}}</label>
@@ -93,10 +120,11 @@
 
   <section class="acks-extras-classes-tabpane" {{#unless show.builder}}hidden{{/unless}}>
     <div class="form-group">
-      <label class="checkbox" data-tooltip="{{localize "ACKS-CLASSES.builder.enabledHint"}}">
+      <label class="checkbox">
         <input type="checkbox" name="system.builder.enabled" {{#if builderState.enabled}}checked{{/if}} />
         {{localize "ACKS-CLASSES.builder.enabled"}}
       </label>
+      <p class="hint">{{localize "ACKS-CLASSES.builder.enabledHint"}}</p>
     </div>
     {{#unless builderHasTables}}<p class="notification warning">{{localize "ACKS-CLASSES.builder.noTables"}}</p>{{/unless}}
 
@@ -116,7 +144,7 @@
           </ul>
         {{/if}}
         <button type="button" data-action="builderDerive" {{#unless builderHasTables}}disabled{{/unless}}>
-          <i class="fa-solid fa-gears"></i> {{localize "ACKS-CLASSES.builder.derive"}}
+          <i class="fa-solid fa-gears" inert></i> {{localize "ACKS-CLASSES.builder.derive"}}
         </button>
         <p class="hint">{{localize "ACKS-CLASSES.builder.deriveHint"}}</p>
       </fieldset>
@@ -129,31 +157,32 @@
         <input name="system.builder.hdValue" type="number" value="{{builderState.hdValue}}" min="0" step="1" />
         <label>{{localize "ACKS-CLASSES.builder.fightingValue"}}</label>
         <input name="system.builder.fighting.value" type="number" value="{{builderState.fighting.value}}" min="0" step="1" />
-        <input name="system.builder.fighting.sub" type="text" value="{{builderState.fighting.sub}}" maxlength="1" placeholder="a/b" title="{{localize "ACKS-CLASSES.builder.fightingSub"}}" class="acks-extras-classes-subinput" />
+        <input name="system.builder.fighting.sub" type="text" value="{{builderState.fighting.sub}}" maxlength="1" placeholder="a/b" aria-label="{{localize "ACKS-CLASSES.builder.fightingSub"}}" data-tooltip="{{localize "ACKS-CLASSES.builder.fightingSub"}}" class="acks-extras-classes-subinput" />
         <label>{{localize "ACKS-CLASSES.builder.thieveryValue"}}</label>
         <input name="system.builder.thievery.value" type="number" value="{{builderState.thievery.value}}" min="0" step="1" />
       </div>
       <div class="form-group">
         <label data-tooltip="{{localize "ACKS-CLASSES.builder.damageBonusHint"}}">{{localize "ACKS-CLASSES.builder.damageBonus"}}</label>
         <input name="system.builder.fighting.damageBonus" type="text" value="{{builderState.fighting.damageBonus}}" />
+        <p class="hint">{{localize "ACKS-CLASSES.builder.damageBonusHint"}}</p>
       </div>
     </fieldset>
 
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.builder.magicValues"}}
-        <a data-action="rowAdd" data-array="builder.magic"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="builder.magic" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.magicValue")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.magicValue")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       <p class="hint">{{localize "ACKS-CLASSES.builder.magicHint"}}</p>
       {{#each builderMagic}}
         <div class="acks-extras-classes-row">
-          <input name="system.builder.magic.{{index}}.type" type="text" value="{{type}}" list="{{@root.partId}}-magic-types" placeholder="{{localize "ACKS-CLASSES.builder.magicType"}}" />
+          <input name="system.builder.magic.{{index}}.type" type="text" value="{{type}}" list="{{@root.partId}}-magic-types" placeholder="{{localize "ACKS-CLASSES.builder.magicType"}}" aria-label="{{localize "ACKS-CLASSES.builder.magicType"}}" />
           <span class="acks-extras-classes-refname">{{typeLabel}}</span>
-          <input name="system.builder.magic.{{index}}.label" type="text" value="{{label}}" placeholder="{{localize "ACKS-CLASSES.sheet.label"}}" />
-          <input name="system.builder.magic.{{index}}.value" type="number" value="{{value}}" min="0" step="1" title="{{localize "ACKS-CLASSES.builder.value"}}" />
+          <input name="system.builder.magic.{{index}}.label" type="text" value="{{label}}" placeholder="{{localize "ACKS-CLASSES.sheet.label"}}" aria-label="{{localize "ACKS-CLASSES.sheet.label"}}" />
+          <input name="system.builder.magic.{{index}}.value" type="number" value="{{value}}" min="0" step="1" aria-label="{{localize "ACKS-CLASSES.builder.value"}}" data-tooltip="{{localize "ACKS-CLASSES.builder.value"}}" />
           <label class="checkbox" data-tooltip="{{localize "ACKS-CLASSES.builder.delayedHint"}}">
             <input type="checkbox" name="system.builder.magic.{{index}}.delayed" {{#if delayed}}checked{{/if}} />
             {{localize "ACKS-CLASSES.builder.delayed"}}
           </label>
-          <a data-action="rowDelete" data-array="builder.magic" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="builder.magic" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.magicValue")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.magicValue")}}"><i class="fa-solid fa-trash" inert></i></button>
         </div>
       {{/each}}
       <datalist id="{{@root.partId}}-magic-types">
@@ -177,14 +206,15 @@
 
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.builder.thieverySkills"}}
-        <a data-action="rowAdd" data-array="builder.thievery.skills"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="builder.thievery.skills" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.builderSkill")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.builderSkill")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       <div data-accept-drop data-list="builderSkills">
         <p class="hint">{{localize "ACKS-CLASSES.sheet.dropHere"}}</p>
         {{#each builderSkills}}
           <div class="acks-extras-classes-row">
-            <input name="system.builder.thievery.skills.{{index}}" type="text" value="{{ref}}" />
-            <span class="acks-extras-classes-refname">{{name}}</span>
-            <a data-action="rowDelete" data-array="builder.thievery.skills" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+            {{#if name}}<a class="acks-extras-classes-refname" data-action="refOpen" data-ref="{{ref}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refOpen"}}">{{name}}</a>
+            {{else if ref}}<span class="acks-extras-classes-refname acks-extras-classes-refname--unresolved" data-tooltip="{{localize "ACKS-CLASSES.sheet.unresolvedRef"}}"><i class="fa-solid fa-triangle-exclamation" inert></i> {{ref}}</span>{{/if}}
+            <input class="acks-extras-classes-ref" name="system.builder.thievery.skills.{{index}}" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" aria-label="{{localize "ACKS-CLASSES.sheet.refField"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refField"}}" />
+            <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="builder.thievery.skills" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.builderSkill")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.builderSkill")}}"><i class="fa-solid fa-trash" inert></i></button>
           </div>
         {{/each}}
       </div>
@@ -206,16 +236,17 @@
 
     <fieldset data-accept-drop data-list="builderPowers">
       <legend>{{localize "ACKS-CLASSES.builder.powers"}}
-        <a data-action="rowAdd" data-array="builder.powers"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="builder.powers" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.builderPower")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.builderPower")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       <p class="hint">{{localize "ACKS-CLASSES.sheet.dropHere"}}</p>
       {{#each builderPowers}}
         <div class="acks-extras-classes-row">
-          <input name="system.builder.powers.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" />
-          <span class="acks-extras-classes-refname">{{#if refName}}{{refName}}{{else}}{{name}}{{/if}}</span>
+          {{#if refName}}<a class="acks-extras-classes-refname" data-action="refOpen" data-ref="{{ref}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refOpen"}}">{{refName}}</a>
+          {{else if ref}}<span class="acks-extras-classes-refname acks-extras-classes-refname--unresolved" data-tooltip="{{localize "ACKS-CLASSES.sheet.unresolvedRef"}}"><i class="fa-solid fa-triangle-exclamation" inert></i> {{#if name}}{{name}}{{else}}{{ref}}{{/if}}</span>{{/if}}
+          <input class="acks-extras-classes-ref" name="system.builder.powers.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" aria-label="{{localize "ACKS-CLASSES.sheet.refField"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refField"}}" />
           <input name="system.builder.powers.{{index}}.name" type="hidden" value="{{name}}" />
-          <input name="system.builder.powers.{{index}}.cost" type="number" value="{{cost}}" step="0.5" title="{{localize "ACKS-CLASSES.builder.powerCost"}}" />
-          <input name="system.builder.powers.{{index}}.note" type="text" value="{{note}}" placeholder="{{localize "ACKS-CLASSES.sheet.note"}}" />
-          <a data-action="rowDelete" data-array="builder.powers" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          <input name="system.builder.powers.{{index}}.cost" type="number" value="{{cost}}" step="0.5" aria-label="{{localize "ACKS-CLASSES.builder.powerCost"}}" data-tooltip="{{localize "ACKS-CLASSES.builder.powerCost"}}" />
+          <input name="system.builder.powers.{{index}}.note" type="text" value="{{note}}" placeholder="{{localize "ACKS-CLASSES.sheet.note"}}" aria-label="{{localize "ACKS-CLASSES.sheet.note"}}" />
+          <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="builder.powers" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.builderPower")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.builderPower")}}"><i class="fa-solid fa-trash" inert></i></button>
         </div>
       {{/each}}
     </fieldset>
@@ -232,75 +263,79 @@
   <section class="acks-extras-classes-tabpane" {{#unless show.progression}}hidden{{/unless}}>
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.levels"}}
-        <a data-action="rowAdd" data-array="levels"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="levels" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.level")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.level")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       <table class="acks-extras-classes-table">
         <tr><th>{{localize "ACKS-CLASSES.sheet.level"}}</th><th>{{localize "ACKS-CLASSES.sheet.xp"}}</th><th>{{localize "ACKS-CLASSES.sheet.title"}}</th><th>{{localize "ACKS-CLASSES.sheet.hd"}}</th><th></th></tr>
         {{#each levels}}
           <tr>
-            <td><input name="system.levels.{{index}}.level" type="number" value="{{level}}" /></td>
-            <td><input name="system.levels.{{index}}.xp" type="number" value="{{xp}}" /></td>
-            <td><input name="system.levels.{{index}}.title" type="text" value="{{title}}" /></td>
-            <td><input name="system.levels.{{index}}.hd" type="text" value="{{hd}}" /></td>
-            <td><a data-action="rowDelete" data-array="levels" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a></td>
+            <td><input name="system.levels.{{index}}.level" type="number" value="{{level}}" aria-label="{{localize "ACKS-CLASSES.sheet.level"}}" /></td>
+            <td><input name="system.levels.{{index}}.xp" type="number" value="{{xp}}" class="acks-extras-classes-num-wide" aria-label="{{localize "ACKS-CLASSES.sheet.xp"}}" /></td>
+            <td><input name="system.levels.{{index}}.title" type="text" value="{{title}}" aria-label="{{localize "ACKS-CLASSES.sheet.title"}}" /></td>
+            <td><input name="system.levels.{{index}}.hd" type="text" value="{{hd}}" aria-label="{{localize "ACKS-CLASSES.sheet.hd"}}" /></td>
+            <td><button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="levels" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.level")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.level")}}"><i class="fa-solid fa-trash" inert></i></button></td>
           </tr>
         {{/each}}
       </table>
     </fieldset>
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.saves"}}
-        <a data-action="rowAdd" data-array="saves"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="saves" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.saveBand")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.saveBand")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       <table class="acks-extras-classes-table">
         <tr><th>{{localize "ACKS-CLASSES.sheet.minLevel"}}</th><th>{{localize "ACKS-CLASSES.sheet.maxLevel"}}</th><th>{{localize "ACKS-CLASSES.sheet.paralysis"}}</th><th>{{localize "ACKS-CLASSES.sheet.death"}}</th><th>{{localize "ACKS-CLASSES.sheet.blast"}}</th><th>{{localize "ACKS-CLASSES.sheet.implements"}}</th><th>{{localize "ACKS-CLASSES.sheet.spells"}}</th><th></th></tr>
         {{#each saves}}
           <tr>
-            <td><input name="system.saves.{{index}}.minLevel" type="number" value="{{minLevel}}" /></td>
-            <td><input name="system.saves.{{index}}.maxLevel" type="number" value="{{maxLevel}}" /></td>
-            <td><input name="system.saves.{{index}}.paralysis" type="number" value="{{paralysis}}" /></td>
-            <td><input name="system.saves.{{index}}.death" type="number" value="{{death}}" /></td>
-            <td><input name="system.saves.{{index}}.blast" type="number" value="{{blast}}" /></td>
-            <td><input name="system.saves.{{index}}.implements" type="number" value="{{implements}}" /></td>
-            <td><input name="system.saves.{{index}}.spells" type="number" value="{{spells}}" /></td>
-            <td><a data-action="rowDelete" data-array="saves" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a></td>
+            <td><input name="system.saves.{{index}}.minLevel" type="number" value="{{minLevel}}" aria-label="{{localize "ACKS-CLASSES.sheet.minLevel"}}" /></td>
+            <td><input name="system.saves.{{index}}.maxLevel" type="number" value="{{maxLevel}}" aria-label="{{localize "ACKS-CLASSES.sheet.maxLevel"}}" /></td>
+            <td><input name="system.saves.{{index}}.paralysis" type="number" value="{{paralysis}}" aria-label="{{localize "ACKS-CLASSES.sheet.paralysis"}}" /></td>
+            <td><input name="system.saves.{{index}}.death" type="number" value="{{death}}" aria-label="{{localize "ACKS-CLASSES.sheet.death"}}" /></td>
+            <td><input name="system.saves.{{index}}.blast" type="number" value="{{blast}}" aria-label="{{localize "ACKS-CLASSES.sheet.blast"}}" /></td>
+            <td><input name="system.saves.{{index}}.implements" type="number" value="{{implements}}" aria-label="{{localize "ACKS-CLASSES.sheet.implements"}}" /></td>
+            <td><input name="system.saves.{{index}}.spells" type="number" value="{{spells}}" aria-label="{{localize "ACKS-CLASSES.sheet.spells"}}" /></td>
+            <td><button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="saves" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.saveBand")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.saveBand")}}"><i class="fa-solid fa-trash" inert></i></button></td>
           </tr>
         {{/each}}
       </table>
     </fieldset>
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.attack"}}
-        <a data-action="rowAdd" data-array="attack"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="attack" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.attackBand")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.attackBand")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       <table class="acks-extras-classes-table">
         <tr><th>{{localize "ACKS-CLASSES.sheet.minLevel"}}</th><th>{{localize "ACKS-CLASSES.sheet.maxLevel"}}</th><th>{{localize "ACKS-CLASSES.sheet.throw"}}</th><th></th></tr>
         {{#each attack}}
           <tr>
-            <td><input name="system.attack.{{index}}.minLevel" type="number" value="{{minLevel}}" /></td>
-            <td><input name="system.attack.{{index}}.maxLevel" type="number" value="{{maxLevel}}" /></td>
-            <td><input name="system.attack.{{index}}.throw" type="number" value="{{throw}}" /></td>
-            <td><a data-action="rowDelete" data-array="attack" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a></td>
+            <td><input name="system.attack.{{index}}.minLevel" type="number" value="{{minLevel}}" aria-label="{{localize "ACKS-CLASSES.sheet.minLevel"}}" /></td>
+            <td><input name="system.attack.{{index}}.maxLevel" type="number" value="{{maxLevel}}" aria-label="{{localize "ACKS-CLASSES.sheet.maxLevel"}}" /></td>
+            <td><input name="system.attack.{{index}}.throw" type="number" value="{{throw}}" aria-label="{{localize "ACKS-CLASSES.sheet.throw"}}" /></td>
+            <td><button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="attack" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.attackBand")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.attackBand")}}"><i class="fa-solid fa-trash" inert></i></button></td>
           </tr>
         {{/each}}
       </table>
     </fieldset>
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.ladders"}}
-        <a data-action="rowAdd" data-array="ladders"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="ladders" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.ladder")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.ladder")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
+      <p class="hint">{{localize "ACKS-CLASSES.sheet.ladderKeyHint"}}</p>
       {{#each ladders}}
         <div class="acks-extras-classes-ladder">
           <div class="acks-extras-classes-row">
-            <input name="system.ladders.{{index}}.key" type="text" value="{{key}}" placeholder="{{localize "ACKS-CLASSES.sheet.ladderKey"}}" />
-            <input name="system.ladders.{{index}}.label" type="text" value="{{label}}" placeholder="{{localize "ACKS-CLASSES.sheet.label"}}" />
-            <a data-action="rowAdd" data-array="ladders.{{index}}.values"><i class="fa-solid fa-plus"></i></a>
-            <a data-action="rowDelete" data-array="ladders" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+            <input name="system.ladders.{{index}}.key" type="text" value="{{key}}" list="{{@root.partId}}-ladder-keys" placeholder="{{localize "ACKS-CLASSES.sheet.ladderKey"}}" aria-label="{{localize "ACKS-CLASSES.sheet.ladderKey"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ladderKey"}}" />
+            <input name="system.ladders.{{index}}.label" type="text" value="{{label}}" placeholder="{{localize "ACKS-CLASSES.sheet.label"}}" aria-label="{{localize "ACKS-CLASSES.sheet.label"}}" />
+            <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="ladders.{{index}}.values" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.rung")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.rung")}}"><i class="fa-solid fa-plus" inert></i></button>
+            <button type="button" class="acks-extras-classes-ctl acks-extras-classes-ctl--danger" data-action="rowDelete" data-array="ladders" data-index="{{index}}" data-confirm="ladder" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.ladder")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.ladder")}}"><i class="fa-solid fa-trash" inert></i></button>
           </div>
-          <div class="acks-extras-classes-rungs">
+          {{#if values.length}}
+          <table class="acks-extras-classes-table acks-extras-classes-table--rungs">
+            <tr><th>{{localize "ACKS-CLASSES.sheet.atLevel"}}</th><th>{{localize "ACKS-CLASSES.sheet.value"}}</th><th>{{localize "ACKS-CLASSES.sheet.text"}}</th><th></th></tr>
             {{#each values}}
-              <span class="acks-extras-classes-rung">
-                <input name="system.ladders.{{../index}}.values.{{index}}.atLevel" type="number" value="{{atLevel}}" title="{{localize "ACKS-CLASSES.sheet.atLevel"}}" />
-                <input name="system.ladders.{{../index}}.values.{{index}}.value" type="number" value="{{value}}" title="{{localize "ACKS-CLASSES.sheet.value"}}" />
-                <input name="system.ladders.{{../index}}.values.{{index}}.text" type="text" value="{{text}}" title="{{localize "ACKS-CLASSES.sheet.text"}}" />
-                <a data-action="rowDelete" data-array="ladders.{{../index}}.values" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></a>
-              </span>
+              <tr>
+                <td><input name="system.ladders.{{../index}}.values.{{index}}.atLevel" type="number" value="{{atLevel}}" aria-label="{{localize "ACKS-CLASSES.sheet.atLevel"}}" /></td>
+                <td><input name="system.ladders.{{../index}}.values.{{index}}.value" type="number" value="{{value}}" aria-label="{{localize "ACKS-CLASSES.sheet.value"}}" /></td>
+                <td><input name="system.ladders.{{../index}}.values.{{index}}.text" type="text" value="{{text}}" aria-label="{{localize "ACKS-CLASSES.sheet.text"}}" /></td>
+                <td><button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="ladders.{{../index}}.values" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.rung")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.rung")}}"><i class="fa-solid fa-xmark" inert></i></button></td>
+              </tr>
             {{/each}}
-          </div>
+          </table>
+          {{/if}}
         </div>
       {{/each}}
     </fieldset>
@@ -312,46 +347,69 @@
           the character and never authored here. --}}
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.languages"}}
-        <a data-action="rowAdd" data-array="languages.granted"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="languages.granted" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.language")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.language")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       {{#each languageRows}}
         <div class="acks-extras-classes-row">
           <input name="system.languages.granted.{{index}}" type="text" value="{{ref}}"
-                 placeholder="{{localize "ACKS-CLASSES.sheet.languageName"}}" />
-          <a data-action="rowDelete" data-array="languages.granted" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+                 placeholder="{{localize "ACKS-CLASSES.sheet.languageName"}}" aria-label="{{localize "ACKS-CLASSES.sheet.languageName"}}" />
+          <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="languages.granted" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.language")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.language")}}"><i class="fa-solid fa-trash" inert></i></button>
         </div>
       {{/each}}
       <div class="acks-extras-classes-row">
         <label>{{localize "ACKS-CLASSES.sheet.languageCount"}}</label>
         <input name="system.languages.count" type="number" min="0" value="{{system.languages.count}}"
-               title="{{localize "ACKS-CLASSES.sheet.languageCountHint"}}" />
+               aria-label="{{localize "ACKS-CLASSES.sheet.languageCount"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.languageCountHint"}}" />
       </div>
+      <p class="hint">{{localize "ACKS-CLASSES.sheet.languageCountHint"}}</p>
     </fieldset>
 
-    <fieldset>
+    <fieldset data-accept-drop data-list="awards">
       <legend>{{localize "ACKS-CLASSES.sheet.awards"}}
-        <a data-action="rowAdd" data-array="awards"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="awards" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.award")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.award")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
+      <p class="hint">{{localize "ACKS-CLASSES.sheet.dropAward"}}</p>
+      {{#if awards.length}}
+      <div class="acks-extras-classes-grid acks-extras-classes-grid--award acks-extras-classes-caps" aria-hidden="true">
+        <span>{{localize "ACKS-CLASSES.sheet.atLevel"}}</span><span>{{localize "ACKS-CLASSES.sheet.awardRow.kind"}}</span><span>{{localize "ACKS-CLASSES.sheet.awardRow.what"}}</span><span>{{localize "ACKS-CLASSES.sheet.note"}}</span><span></span>
+      </div>
+      {{/if}}
       {{#each awards}}
-        <div class="acks-extras-classes-award" data-accept-drop data-award="{{index}}">
-          <input name="system.awards.{{index}}.atLevel" type="number" value="{{atLevel}}" title="{{localize "ACKS-CLASSES.sheet.atLevel"}}" />
-          <select name="system.awards.{{index}}.kind">
+        <div class="acks-extras-classes-grid acks-extras-classes-grid--award" data-accept-drop data-award="{{index}}">
+          <input name="system.awards.{{index}}.atLevel" type="number" value="{{atLevel}}" aria-label="{{localize "ACKS-CLASSES.sheet.atLevel"}}" />
+          <select name="system.awards.{{index}}.kind" aria-label="{{localize "ACKS-CLASSES.sheet.awardRow.kind"}}">
             {{#each kindOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
           </select>
+          <div class="acks-extras-classes-award-body">
           {{#if isChoice}}
-            <select name="system.awards.{{index}}.choice.from">
+            <select name="system.awards.{{index}}.choice.from" aria-label="{{localize "ACKS-CLASSES.sheet.awardRow.from"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.awardRow.from"}}">
               {{#each fromOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
             </select>
-            <select name="system.awards.{{index}}.choice.filter">
+            {{#if (eq choice.from "classInventory")}}
+            <select name="system.awards.{{index}}.choice.filter" aria-label="{{localize "ACKS-CLASSES.sheet.awardRow.filter"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.awardRow.filter"}}">
               {{#each filterOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
             </select>
-            <input name="system.awards.{{index}}.choice.count" type="number" value="{{choice.count}}" min="1" title="{{localize "ACKS-CLASSES.sheet.count"}}" />
-            <input name="system.awards.{{index}}.choice.label" type="text" value="{{choice.label}}" placeholder="{{localize "ACKS-CLASSES.sheet.choiceLabel"}}" />
+            {{/if}}
+            <input name="system.awards.{{index}}.choice.count" type="number" value="{{choice.count}}" min="1" aria-label="{{localize "ACKS-CLASSES.sheet.count"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.count"}}" />
+            <input name="system.awards.{{index}}.choice.label" type="text" value="{{choice.label}}" placeholder="{{localize "ACKS-CLASSES.sheet.choiceLabel"}}" aria-label="{{localize "ACKS-CLASSES.sheet.choiceLabel"}}" />
+            {{#if (eq choice.from "custom")}}
+              <div class="acks-extras-classes-listed" data-award-refs="{{index}}">
+                <span class="acks-extras-classes-refname">{{localize "ACKS-CLASSES.sheet.awardRow.listedHint"}}</span>
+                {{#each choiceRefs}}
+                  <span class="acks-extras-classes-chip">
+                    {{#if name}}<a data-action="refOpen" data-ref="{{ref}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refOpen"}}">{{name}}</a>{{else}}<span class="acks-extras-classes-refname--unresolved" data-tooltip="{{localize "ACKS-CLASSES.sheet.unresolvedRef"}}"><i class="fa-solid fa-triangle-exclamation" inert></i> {{ref}}</span>{{/if}}
+                    <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="awards.{{../index}}.choice.refs" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.choiceRef")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.choiceRef")}}"><i class="fa-solid fa-xmark" inert></i></button>
+                  </span>
+                {{/each}}
+              </div>
+            {{/if}}
           {{else}}
-            <input name="system.awards.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" />
-            <span class="acks-extras-classes-refname">{{#if refName}}{{refName}}{{else}}{{name}}{{/if}}</span>
+            {{#if refName}}<a class="acks-extras-classes-refname" data-action="refOpen" data-ref="{{ref}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refOpen"}}">{{refName}}</a>
+            {{else if ref}}<span class="acks-extras-classes-refname acks-extras-classes-refname--unresolved" data-tooltip="{{localize "ACKS-CLASSES.sheet.unresolvedRef"}}"><i class="fa-solid fa-triangle-exclamation" inert></i> {{#if name}}{{name}}{{else}}{{ref}}{{/if}}</span>{{/if}}
+            <input class="acks-extras-classes-ref" name="system.awards.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" aria-label="{{localize "ACKS-CLASSES.sheet.refField"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refField"}}" />
             <input name="system.awards.{{index}}.name" type="hidden" value="{{name}}" />
           {{/if}}
-          <input name="system.awards.{{index}}.note" type="text" value="{{note}}" placeholder="{{localize "ACKS-CLASSES.sheet.note"}}" />
-          <a data-action="rowDelete" data-array="awards" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          </div>
+          <input name="system.awards.{{index}}.note" type="text" value="{{note}}" placeholder="{{localize "ACKS-CLASSES.sheet.note"}}" aria-label="{{localize "ACKS-CLASSES.sheet.note"}}" />
+          <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="awards" data-index="{{index}}" data-confirm="award" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.award")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.award")}}"><i class="fa-solid fa-trash" inert></i></button>
         </div>
       {{/each}}
     </fieldset>
@@ -360,51 +418,51 @@
   <section class="acks-extras-classes-tabpane" {{#unless show.casting}}hidden{{/unless}}>
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.casting.traditions"}}
-        <a data-action="rowAdd" data-array="casting"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="casting" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.tradition")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.tradition")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       {{#unless casting.length}}<p class="hint">{{localize "ACKS-CLASSES.sheet.casting.none"}}</p>{{/unless}}
       {{#each casting}}
         <div class="acks-extras-classes-tradition-edit">
           <div class="acks-extras-classes-row">
-            <input name="system.casting.{{index}}.key" type="text" value="{{key}}" placeholder="{{localize "ACKS-CLASSES.sheet.casting.key"}}" />
-            <input name="system.casting.{{index}}.label" type="text" value="{{label}}" placeholder="{{localize "ACKS-CLASSES.sheet.label"}}" />
-            <select name="system.casting.{{index}}.kind">
+            <input name="system.casting.{{index}}.key" type="text" value="{{key}}" placeholder="{{localize "ACKS-CLASSES.sheet.casting.key"}}" aria-label="{{localize "ACKS-CLASSES.sheet.casting.key"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.casting.key"}}" />
+            <input name="system.casting.{{index}}.label" type="text" value="{{label}}" placeholder="{{localize "ACKS-CLASSES.sheet.label"}}" aria-label="{{localize "ACKS-CLASSES.sheet.label"}}" />
+            <select name="system.casting.{{index}}.kind" aria-label="{{localize "ACKS-CLASSES.sheet.casting.kind"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.casting.kind"}}">
               {{#each kindOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
             </select>
-            <select name="system.casting.{{index}}.repertoire">
+            <select name="system.casting.{{index}}.repertoire" aria-label="{{localize "ACKS-CLASSES.sheet.casting.repertoire"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.casting.repertoire"}}">
               {{#each repertoireOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
             </select>
-            <input name="system.casting.{{index}}.casterLevel" type="text" value="{{casterLevel}}" placeholder="{{localize "ACKS-CLASSES.sheet.casting.casterLevel"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.casting.casterLevelHint"}}" />
-            <a data-action="rowDelete" data-array="casting" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+            <input name="system.casting.{{index}}.casterLevel" type="text" value="{{casterLevel}}" list="{{@root.partId}}-ladder-keys" placeholder="{{localize "ACKS-CLASSES.sheet.casting.casterLevel"}}" aria-label="{{localize "ACKS-CLASSES.sheet.casting.casterLevel"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.casting.casterLevelHint"}}" />
+            <button type="button" class="acks-extras-classes-ctl acks-extras-classes-ctl--danger" data-action="rowDelete" data-array="casting" data-index="{{index}}" data-confirm="tradition" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.tradition")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.tradition")}}"><i class="fa-solid fa-trash" inert></i></button>
           </div>
           <fieldset>
             <legend>{{localize "ACKS-CLASSES.sheet.casting.slots"}}
-              <a data-action="rowAdd" data-array="casting.{{index}}.slots"><i class="fa-solid fa-plus"></i></a></legend>
+              <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="casting.{{index}}.slots" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.slotRow")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.slotRow")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
             <table class="acks-extras-classes-table">
               <tr><th>{{localize "ACKS-CLASSES.sheet.atLevel"}}</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th></th></tr>
               {{#each slots}}
                 <tr>
-                  <td><input name="system.casting.{{../index}}.slots.{{index}}.atLevel" type="number" value="{{atLevel}}" /></td>
-                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s1" type="number" value="{{s1}}" /></td>
-                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s2" type="number" value="{{s2}}" /></td>
-                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s3" type="number" value="{{s3}}" /></td>
-                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s4" type="number" value="{{s4}}" /></td>
-                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s5" type="number" value="{{s5}}" /></td>
-                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s6" type="number" value="{{s6}}" /></td>
-                  <td><a data-action="rowDelete" data-array="casting.{{../index}}.slots" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.atLevel" type="number" value="{{atLevel}}" aria-label="{{localize "ACKS-CLASSES.sheet.atLevel"}}" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s1" type="number" value="{{s1}}" aria-label="1" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s2" type="number" value="{{s2}}" aria-label="2" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s3" type="number" value="{{s3}}" aria-label="3" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s4" type="number" value="{{s4}}" aria-label="4" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s5" type="number" value="{{s5}}" aria-label="5" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s6" type="number" value="{{s6}}" aria-label="6" /></td>
+                  <td><button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="casting.{{../index}}.slots" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.slotRow")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.slotRow")}}"><i class="fa-solid fa-trash" inert></i></button></td>
                 </tr>
               {{/each}}
             </table>
           </fieldset>
           <fieldset>
             <legend>{{localize "ACKS-CLASSES.sheet.casting.pool"}}
-              <a data-action="rowAdd" data-array="casting.{{index}}.pool"><i class="fa-solid fa-plus"></i></a></legend>
+              <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="casting.{{index}}.pool" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.poolRow")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.poolRow")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
             <table class="acks-extras-classes-table">
               <tr><th>{{localize "ACKS-CLASSES.sheet.atLevel"}}</th><th>{{localize "ACKS-CLASSES.sheet.casting.points"}}</th><th></th></tr>
               {{#each pool}}
                 <tr>
-                  <td><input name="system.casting.{{../index}}.pool.{{index}}.atLevel" type="number" value="{{atLevel}}" /></td>
-                  <td><input name="system.casting.{{../index}}.pool.{{index}}.value" type="number" value="{{value}}" /></td>
-                  <td><a data-action="rowDelete" data-array="casting.{{../index}}.pool" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a></td>
+                  <td><input name="system.casting.{{../index}}.pool.{{index}}.atLevel" type="number" value="{{atLevel}}" aria-label="{{localize "ACKS-CLASSES.sheet.atLevel"}}" /></td>
+                  <td><input name="system.casting.{{../index}}.pool.{{index}}.value" type="number" value="{{value}}" aria-label="{{localize "ACKS-CLASSES.sheet.casting.points"}}" /></td>
+                  <td><button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="casting.{{../index}}.pool" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.poolRow")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.poolRow")}}"><i class="fa-solid fa-trash" inert></i></button></td>
                 </tr>
               {{/each}}
             </table>
@@ -417,24 +475,24 @@
   <section class="acks-extras-classes-tabpane" {{#unless show.paths}}hidden{{/unless}}>
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.paths.list"}}
-        <a data-action="rowAdd" data-array="paths"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="paths" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.pathGroup")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.pathGroup")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       <p class="hint">{{localize "ACKS-CLASSES.sheet.paths.hint"}}</p>
       {{#unless pathsEdit.length}}<p class="hint">{{localize "ACKS-CLASSES.sheet.paths.none"}}</p>{{/unless}}
       {{#each pathsEdit}}
         <div class="acks-extras-classes-path-group">
           <div class="acks-extras-classes-row">
             <input type="text" name="system.paths.{{index}}.label" value="{{label}}"
-                   placeholder="{{localize 'ACKS-CLASSES.sheet.paths.label'}}" />
-            <input type="text" name="system.paths.{{index}}.key" value="{{key}}"
-                   placeholder="{{localize 'ACKS-CLASSES.sheet.paths.key'}}" />
-            <select name="system.paths.{{index}}.source">
+                   placeholder="{{localize 'ACKS-CLASSES.sheet.paths.label'}}" aria-label="{{localize 'ACKS-CLASSES.sheet.paths.label'}}" />
+            <input type="text" name="system.paths.{{index}}.key" value="{{key}}" class="acks-extras-classes-ref"
+                   placeholder="{{localize 'ACKS-CLASSES.sheet.paths.key'}}" aria-label="{{localize 'ACKS-CLASSES.sheet.paths.key'}}" data-tooltip="{{localize 'ACKS-CLASSES.sheet.paths.key'}}" />
+            <select name="system.paths.{{index}}.source" aria-label="{{localize "ACKS-CLASSES.sheet.paths.options"}}">
               <option value="" {{#unless fromTemplates}}selected{{/unless}}>{{localize "ACKS-CLASSES.sheet.paths.sourceOwn"}}</option>
               <option value="templates" {{#if fromTemplates}}selected{{/if}}>{{localize "ACKS-CLASSES.sheet.paths.sourceTemplates"}}</option>
             </select>
-            <a data-action="rowDelete" data-array="paths" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+            <button type="button" class="acks-extras-classes-ctl acks-extras-classes-ctl--danger" data-action="rowDelete" data-array="paths" data-index="{{index}}" data-confirm="pathGroup" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.pathGroup")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.pathGroup")}}"><i class="fa-solid fa-trash" inert></i></button>
           </div>
           <input type="text" name="system.paths.{{index}}.note" value="{{note}}"
-                 placeholder="{{localize 'ACKS-CLASSES.sheet.paths.note'}}" />
+                 placeholder="{{localize 'ACKS-CLASSES.sheet.paths.note'}}" aria-label="{{localize 'ACKS-CLASSES.sheet.paths.note'}}" />
 
           {{#if fromTemplates}}
             <p class="hint">{{localize "ACKS-CLASSES.sheet.paths.fromTemplates"}}</p>
@@ -444,25 +502,25 @@
           {{else}}
             <div class="acks-extras-classes-row">
               <span class="hint">{{localize "ACKS-CLASSES.sheet.paths.options"}}</span>
-              <a data-action="rowAdd" data-array="paths.{{index}}.options"><i class="fa-solid fa-plus"></i></a>
+              <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="paths.{{index}}.options" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.pathOption")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.pathOption")}}"><i class="fa-solid fa-plus" inert></i></button>
             </div>
             {{#each options}}
               <div class="acks-extras-classes-path-option">
                 <div class="acks-extras-classes-row">
                   <input type="text" name="system.paths.{{../index}}.options.{{oIndex}}.label" value="{{label}}"
-                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.optionLabel'}}" />
-                  <input type="text" name="system.paths.{{../index}}.options.{{oIndex}}.key" value="{{key}}"
-                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.key'}}" />
-                  <a data-action="rowDelete" data-array="paths.{{../index}}.options" data-index="{{oIndex}}"><i class="fa-solid fa-trash"></i></a>
+                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.optionLabel'}}" aria-label="{{localize 'ACKS-CLASSES.sheet.paths.optionLabel'}}" />
+                  <input type="text" name="system.paths.{{../index}}.options.{{oIndex}}.key" value="{{key}}" class="acks-extras-classes-ref"
+                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.key'}}" aria-label="{{localize 'ACKS-CLASSES.sheet.paths.key'}}" data-tooltip="{{localize 'ACKS-CLASSES.sheet.paths.key'}}" />
+                  <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="paths.{{../index}}.options" data-index="{{oIndex}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.pathOption")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.pathOption")}}"><i class="fa-solid fa-trash" inert></i></button>
                 </div>
-                <div class="acks-extras-classes-row acks-extras-classes-path-training">
+                <div class="acks-extras-classes-path-training">
                   <input type="text" name="system.paths.{{../index}}.options.{{oIndex}}.training.weapons" value="{{weapons}}"
-                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.weapons'}}" />
-                  <select name="system.paths.{{../index}}.options.{{oIndex}}.training.armour">
+                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.weapons'}}" aria-label="{{localize 'ACKS-CLASSES.sheet.paths.weaponsLabel'}}" data-tooltip="{{localize 'ACKS-CLASSES.sheet.paths.weapons'}}" />
+                  <select name="system.paths.{{../index}}.options.{{oIndex}}.training.armour" aria-label="{{localize 'ACKS-CLASSES.sheet.paths.armourLabel'}}" data-tooltip="{{localize 'ACKS-CLASSES.sheet.paths.armourLabel'}}">
                     {{#each armourOptions}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
                   </select>
                   <input type="text" name="system.paths.{{../index}}.options.{{oIndex}}.training.styles" value="{{styles}}"
-                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.styles'}}" />
+                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.styles'}}" aria-label="{{localize 'ACKS-CLASSES.sheet.paths.stylesLabel'}}" data-tooltip="{{localize 'ACKS-CLASSES.sheet.paths.styles'}}" />
                 </div>
               </div>
             {{/each}}
@@ -475,13 +533,13 @@
   <section class="acks-extras-classes-tabpane" {{#unless show.templates}}hidden{{/unless}}>
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.templates.list"}}
-        <a data-action="rowAdd" data-array="templates"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="templates" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.template")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.template")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       {{#if editable}}
         <div class="acks-extras-classes-row">
           <button type="button" data-action="templatesBuild">{{localize "ACKS-CLASSES.sheet.templates.package.build"}}</button>
           <button type="button" data-action="templatesDetach">{{localize "ACKS-CLASSES.sheet.templates.package.detach"}}</button>
           {{#if templateTable}}
-            <a data-action="templateOpen" data-uuid="{{templateTable.uuid}}"><i class="fa-solid fa-dice"></i> {{templateTable.name}}</a>
+            <a data-action="templateOpen" data-uuid="{{templateTable.uuid}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.openTable"}}"><i class="fa-solid fa-dice" inert></i> {{templateTable.name}}</a>
           {{/if}}
         </div>
         <p class="hint">{{localize "ACKS-CLASSES.sheet.templates.package.buildHint"}}</p>
@@ -491,73 +549,106 @@
       {{#each templatesEdit}}
         <div class="acks-extras-classes-template-edit" data-accept-drop data-template-row="{{index}}">
           <input type="hidden" name="system.templates.{{index}}.bundle" value="{{bundle}}" />
-          <div class="acks-extras-classes-row">
-            <input name="system.templates.{{index}}.rollMin" type="number" value="{{rollMin}}" title="{{localize "ACKS-CLASSES.sheet.templates.rollMin"}}" />
-            <input name="system.templates.{{index}}.rollMax" type="number" value="{{rollMax}}" title="{{localize "ACKS-CLASSES.sheet.templates.rollMax"}}" />
-            <input name="system.templates.{{index}}.name" type="text" value="{{name}}" placeholder="{{localize "ACKS-CLASSES.sheet.name"}}" />
-            <input name="system.templates.{{index}}.annotation" type="text" value="{{annotation}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.annotation"}}" />
-            <input name="system.templates.{{index}}.caste" type="text" value="{{caste}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.caste"}}" />
-            <input name="system.templates.{{index}}.gp" type="number" value="{{gp}}" title="gp" />
-            <input name="system.templates.{{index}}.enc" type="text" value="{{enc}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.enc"}}" />
-            <a data-action="rowDelete" data-array="templates" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          <div class="acks-extras-classes-grid acks-extras-classes-grid--tplhead acks-extras-classes-caps" aria-hidden="true">
+            <span>{{localize "ACKS-CLASSES.sheet.templates.band"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.bandTo"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.name"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.annotation"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.caste"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.gp"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.enc"}}</span><span></span>
+          </div>
+          <div class="acks-extras-classes-grid acks-extras-classes-grid--tplhead">
+            <input name="system.templates.{{index}}.rollMin" type="number" value="{{rollMin}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.rollMin"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.rollMin"}}" />
+            <input name="system.templates.{{index}}.rollMax" type="number" value="{{rollMax}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.rollMax"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.rollMax"}}" />
+            <input name="system.templates.{{index}}.name" type="text" value="{{name}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.name"}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.name"}}" />
+            <input name="system.templates.{{index}}.annotation" type="text" value="{{annotation}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.annotation"}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.annotation"}}" />
+            <input name="system.templates.{{index}}.caste" type="text" value="{{caste}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.caste"}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.caste"}}" />
+            <input name="system.templates.{{index}}.gp" type="number" value="{{gp}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.gp"}}" />
+            <input name="system.templates.{{index}}.enc" type="text" value="{{enc}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.enc"}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.enc"}}" />
+            <button type="button" class="acks-extras-classes-ctl acks-extras-classes-ctl--danger" data-action="rowDelete" data-array="templates" data-index="{{index}}" data-confirm="template" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.template")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.template")}}"><i class="fa-solid fa-trash" inert></i></button>
           </div>
           {{#if bundle}}
-            <div class="acks-extras-classes-row">
-              <strong>{{localize "ACKS-CLASSES.sheet.templates.package.label"}}</strong>
-              {{#if bundleMissing}}
-                <span class="hint">{{localize "ACKS-CLASSES.sheet.templates.package.missing"}}</span>
-              {{else}}
-                <a data-action="templateOpen" data-uuid="{{bundle}}"><i class="fa-solid fa-box-open"></i> {{bundleName}}</a>
-              {{/if}}
-              <a data-action="templateUnbind" data-index="{{index}}" title="{{localize "ACKS-CLASSES.sheet.templates.package.unbind"}}"><i class="fa-solid fa-link-slash"></i></a>
-            </div>
-            {{#if bundleContents.length}}<p class="hint">{{#each bundleContents}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</p>{{/if}}
-            {{#if leftoverNames}}<p class="hint"><em>{{localize "ACKS-CLASSES.sheet.templates.package.leftovers"}}</em> {{leftoverNames}}</p>{{/if}}
+            {{#if bundleMissing}}
+              <p class="notification warning">{{localize "ACKS-CLASSES.sheet.templates.package.missing"}}
+                <a data-action="templateUnbind" data-index="{{index}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.package.unbind"}}"><i class="fa-solid fa-link-slash" inert></i> {{localize "ACKS-CLASSES.sheet.templates.package.unbindShort"}}</a></p>
+            {{else}}
+              <div class="acks-extras-classes-row">
+                <strong>{{localize "ACKS-CLASSES.sheet.templates.package.label"}}</strong>
+                <a data-action="templateOpen" data-uuid="{{bundle}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.openPackage"}}"><i class="fa-solid fa-box-open" inert></i> {{bundleName}}</a>
+                <a data-action="templateUnbind" data-index="{{index}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.package.unbind"}}"><i class="fa-solid fa-link-slash" inert></i> {{localize "ACKS-CLASSES.sheet.templates.package.unbindShort"}}</a>
+              </div>
+              {{#if bundleContents.length}}<p class="hint">{{#each bundleContents}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</p>{{/if}}
+            {{/if}}
+            {{#if leftoverNames}}<p class="hint"><em>{{localize "ACKS-CLASSES.sheet.templates.package.leftovers"}}</em></p>{{/if}}
           {{else}}
             <p class="hint">{{localize "ACKS-CLASSES.sheet.templates.package.dropHint"}}</p>
           {{/if}}
-          <fieldset {{#if bundle}}hidden{{/if}}>
+          <p class="hint">{{localize "ACKS-CLASSES.sheet.dropTemplate"}}</p>
+          <fieldset>
             <legend>{{localize "ACKS-CLASSES.sheet.templates.abilities"}}
-              <a data-action="rowAdd" data-array="templates.{{index}}.abilities"><i class="fa-solid fa-plus"></i></a></legend>
+              <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="templates.{{index}}.abilities" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.templateAbility")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.templateAbility")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
+            {{#if abilities.length}}
+            <div class="acks-extras-classes-grid acks-extras-classes-grid--tplability acks-extras-classes-caps" aria-hidden="true">
+              <span>{{localize "ACKS-CLASSES.sheet.awardRow.what"}}</span><span>{{localize "ACKS-CLASSES.sheet.refShort"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.rank"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.selection"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.offer"}}</span><span></span>
+            </div>
+            {{/if}}
             {{#each abilities}}
-              <div class="acks-extras-classes-row" data-template-ability="{{index}}">
-                <input name="system.templates.{{../index}}.abilities.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" />
-                <span class="acks-extras-classes-refname">{{#if refName}}{{refName}}{{else}}{{name}}{{/if}}</span>
-                <input name="system.templates.{{../index}}.abilities.{{index}}.rank" type="number" value="{{rank}}" title="{{localize "ACKS-CLASSES.sheet.templates.rank"}}" />
-                <input name="system.templates.{{../index}}.abilities.{{index}}.selection" type="text" value="{{selection}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.selection"}}" />
+              <div class="acks-extras-classes-grid acks-extras-classes-grid--tplability" data-template-ability="{{index}}">
+                <span class="acks-extras-classes-refbox">
+                  {{#if refName}}<a class="acks-extras-classes-refname" data-action="refOpen" data-ref="{{ref}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refOpen"}}">{{refName}}</a>
+                  {{else if ref}}<span class="acks-extras-classes-refname acks-extras-classes-refname--unresolved" data-tooltip="{{localize "ACKS-CLASSES.sheet.unresolvedRef"}}"><i class="fa-solid fa-triangle-exclamation" inert></i> {{#if name}}{{name}}{{else}}{{ref}}{{/if}}</span>
+                  {{else if name}}<span class="acks-extras-classes-refname acks-extras-classes-refname--unresolved" data-tooltip="{{localize "ACKS-CLASSES.sheet.unresolvedName"}}"><i class="fa-solid fa-triangle-exclamation" inert></i> {{name}}</span>{{/if}}
+                </span>
+                <input class="acks-extras-classes-ref" name="system.templates.{{../index}}.abilities.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" aria-label="{{localize "ACKS-CLASSES.sheet.refField"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refField"}}" />
+                <input name="system.templates.{{../index}}.abilities.{{index}}.rank" type="number" value="{{rank}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.rank"}}" />
+                <input name="system.templates.{{../index}}.abilities.{{index}}.selection" type="text" value="{{selection}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.selection"}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.selection"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.selectionHint"}}" />
                 <label class="checkbox" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.offerHint"}}">
                   <input type="checkbox" name="system.templates.{{../index}}.abilities.{{index}}.offer" {{#if offer}}checked{{/if}} />
                   {{localize "ACKS-CLASSES.sheet.templates.offer"}}
                 </label>
-                <a data-action="rowDelete" data-array="templates.{{../index}}.abilities" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></a>
+                <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="templates.{{../index}}.abilities" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.templateAbility")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.templateAbility")}}"><i class="fa-solid fa-xmark" inert></i></button>
               </div>
             {{/each}}
           </fieldset>
-          <fieldset {{#if bundle}}hidden{{/if}}>
+          <fieldset>
             <legend>{{localize "ACKS-CLASSES.sheet.templates.items"}}
-              <a data-action="rowAdd" data-array="templates.{{index}}.items"><i class="fa-solid fa-plus"></i></a></legend>
+              <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="templates.{{index}}.items" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.templateItem")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.templateItem")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
+            {{#if items.length}}
+            <div class="acks-extras-classes-grid acks-extras-classes-grid--tplitem acks-extras-classes-caps" aria-hidden="true">
+              <span>{{localize "ACKS-CLASSES.sheet.templates.equipmentName"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.qty"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.baseRef"}}</span><span>{{localize "ACKS-CLASSES.sheet.note"}}</span><span></span>
+            </div>
+            {{/if}}
             {{#each items}}
-              <div class="acks-extras-classes-row">
-                <input name="system.templates.{{../index}}.items.{{index}}.name" type="text" value="{{name}}" placeholder="{{localize "ACKS-CLASSES.sheet.name"}}" />
-                <input name="system.templates.{{../index}}.items.{{index}}.qty" type="number" value="{{qty}}" title="{{localize "ACKS-CLASSES.sheet.templates.qty"}}" />
-                <input name="system.templates.{{../index}}.items.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.baseRef"}}" />
-                <input name="system.templates.{{../index}}.items.{{index}}.note" type="text" value="{{note}}" placeholder="{{localize "ACKS-CLASSES.sheet.note"}}" />
-                <a data-action="rowDelete" data-array="templates.{{../index}}.items" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></a>
+              <div class="acks-extras-classes-grid acks-extras-classes-grid--tplitem" data-template-item="{{index}}">
+                <input name="system.templates.{{../index}}.items.{{index}}.name" type="text" value="{{name}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.equipmentName"}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.equipmentName"}}" />
+                <input name="system.templates.{{../index}}.items.{{index}}.qty" type="number" value="{{qty}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.qty"}}" />
+                <span class="acks-extras-classes-refbox acks-extras-classes-refbox--inline">
+                  {{#if refName}}<a class="acks-extras-classes-refname" data-action="refOpen" data-ref="{{ref}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refOpen"}}">{{refName}}</a>
+                  {{else if refByName}}<span class="acks-extras-classes-refname">{{refByName}}</span>
+                  {{else if ref}}<span class="acks-extras-classes-refname acks-extras-classes-refname--unresolved" data-tooltip="{{localize "ACKS-CLASSES.sheet.unresolvedRef"}}"><i class="fa-solid fa-triangle-exclamation" inert></i> {{ref}}</span>{{/if}}
+                  <input class="acks-extras-classes-ref" name="system.templates.{{../index}}.items.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.baseRefHint"}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.baseRef"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.baseRefHint"}}" />
+                </span>
+                <input name="system.templates.{{../index}}.items.{{index}}.note" type="text" value="{{note}}" placeholder="{{localize "ACKS-CLASSES.sheet.note"}}" aria-label="{{localize "ACKS-CLASSES.sheet.note"}}" />
+                <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="templates.{{../index}}.items" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.templateItem")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.templateItem")}}"><i class="fa-solid fa-xmark" inert></i></button>
               </div>
             {{/each}}
           </fieldset>
-          <fieldset {{#if bundle}}hidden{{/if}}>
+          <fieldset>
             <legend>{{localize "ACKS-CLASSES.sheet.templates.spells"}}
-              <a data-action="rowAdd" data-array="templates.{{index}}.spells"><i class="fa-solid fa-plus"></i></a></legend>
+              <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="templates.{{index}}.spells" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.templateSpell")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.templateSpell")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
+            {{#if spells.length}}
+            <div class="acks-extras-classes-grid acks-extras-classes-grid--tplspell acks-extras-classes-caps" aria-hidden="true">
+              <span>{{localize "ACKS-CLASSES.sheet.templates.spellName"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.spellUuid"}}</span><span>{{localize "ACKS-CLASSES.sheet.templates.offer"}}</span><span></span>
+            </div>
+            {{/if}}
             {{#each spells}}
-              <div class="acks-extras-classes-row">
-                <input name="system.templates.{{../index}}.spells.{{index}}.name" type="text" value="{{name}}" placeholder="{{localize "ACKS-CLASSES.sheet.name"}}" />
-                <input name="system.templates.{{../index}}.spells.{{index}}.uuid" type="text" value="{{uuid}}" placeholder="uuid" />
+              <div class="acks-extras-classes-grid acks-extras-classes-grid--tplspell" data-template-spell="{{index}}">
+                <input name="system.templates.{{../index}}.spells.{{index}}.name" type="text" value="{{name}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.spellName"}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.spellName"}}" />
+                <span class="acks-extras-classes-refbox acks-extras-classes-refbox--inline">
+                  {{#if uuidName}}<a class="acks-extras-classes-refname" data-action="templateOpen" data-uuid="{{uuid}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refOpen"}}">{{uuidName}}</a>
+                  {{else if uuid}}<span class="acks-extras-classes-refname acks-extras-classes-refname--unresolved" data-tooltip="{{localize "ACKS-CLASSES.sheet.unresolvedRef"}}"><i class="fa-solid fa-triangle-exclamation" inert></i> {{uuid}}</span>{{/if}}
+                  <input class="acks-extras-classes-ref" name="system.templates.{{../index}}.spells.{{index}}.uuid" type="text" value="{{uuid}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.spellDrop"}}" aria-label="{{localize "ACKS-CLASSES.sheet.templates.spellUuid"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.spellUuidHint"}}" />
+                </span>
                 <label class="checkbox" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.offerHint"}}">
                   <input type="checkbox" name="system.templates.{{../index}}.spells.{{index}}.offer" {{#if offer}}checked{{/if}} />
                   {{localize "ACKS-CLASSES.sheet.templates.offer"}}
                 </label>
-                <a data-action="rowDelete" data-array="templates.{{../index}}.spells" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></a>
+                <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="templates.{{../index}}.spells" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.templateSpell")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.templateSpell")}}"><i class="fa-solid fa-xmark" inert></i></button>
               </div>
             {{/each}}
           </fieldset>
@@ -569,42 +660,48 @@
   <section class="acks-extras-classes-tabpane" {{#unless show.inventory}}hidden{{/unless}}>
     <fieldset data-accept-drop data-list="classProfs">
       <legend>{{localize "ACKS-CLASSES.sheet.inventory.classProfs"}}
-        <a data-action="rowAdd" data-array="inventory.classProfs"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="inventory.classProfs" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.classProf")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.classProf")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
       <p class="hint">{{localize "ACKS-CLASSES.sheet.dropHere"}}</p>
       {{#each inventory.classProfs}}
         <div class="acks-extras-classes-row">
-          <input name="system.inventory.classProfs.{{index}}" type="text" value="{{ref}}" />
-          <span class="acks-extras-classes-refname">{{name}}</span>
-          <a data-action="rowDelete" data-array="inventory.classProfs" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          {{#if name}}<a class="acks-extras-classes-refname" data-action="refOpen" data-ref="{{ref}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refOpen"}}">{{name}}</a>
+          {{else if ref}}<span class="acks-extras-classes-refname acks-extras-classes-refname--unresolved" data-tooltip="{{localize "ACKS-CLASSES.sheet.unresolvedRef"}}"><i class="fa-solid fa-triangle-exclamation" inert></i> {{ref}}</span>{{/if}}
+          <input class="acks-extras-classes-ref" name="system.inventory.classProfs.{{index}}" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" aria-label="{{localize "ACKS-CLASSES.sheet.refField"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refField"}}" />
+          <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="inventory.classProfs" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.classProf")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.classProf")}}"><i class="fa-solid fa-trash" inert></i></button>
         </div>
       {{/each}}
     </fieldset>
     <fieldset data-accept-drop data-list="powers">
       <legend>{{localize "ACKS-CLASSES.sheet.inventory.powers"}}
-        <a data-action="rowAdd" data-array="inventory.powers"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="inventory.powers" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.power")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.power")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
+      <p class="hint">{{localize "ACKS-CLASSES.sheet.dropHere"}}</p>
       {{#each inventory.powers}}
         <div class="acks-extras-classes-row">
-          <input name="system.inventory.powers.{{index}}" type="text" value="{{ref}}" />
-          <span class="acks-extras-classes-refname">{{name}}</span>
-          <a data-action="rowDelete" data-array="inventory.powers" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          {{#if name}}<a class="acks-extras-classes-refname" data-action="refOpen" data-ref="{{ref}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refOpen"}}">{{name}}</a>
+          {{else if ref}}<span class="acks-extras-classes-refname acks-extras-classes-refname--unresolved" data-tooltip="{{localize "ACKS-CLASSES.sheet.unresolvedRef"}}"><i class="fa-solid fa-triangle-exclamation" inert></i> {{ref}}</span>{{/if}}
+          <input class="acks-extras-classes-ref" name="system.inventory.powers.{{index}}" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" aria-label="{{localize "ACKS-CLASSES.sheet.refField"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refField"}}" />
+          <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="inventory.powers" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.power")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.power")}}"><i class="fa-solid fa-trash" inert></i></button>
         </div>
       {{/each}}
     </fieldset>
     <fieldset data-accept-drop data-list="skills">
       <legend>{{localize "ACKS-CLASSES.sheet.inventory.skills"}}
-        <a data-action="rowAdd" data-array="inventory.skills"><i class="fa-solid fa-plus"></i></a></legend>
+        <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="inventory.skills" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.skill")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.skill")}}"><i class="fa-solid fa-plus" inert></i></button></legend>
+      <p class="hint">{{localize "ACKS-CLASSES.sheet.inventory.skillsHint"}}</p>
       {{#each inventory.skills}}
         <div class="acks-extras-classes-row">
-          <input name="system.inventory.skills.{{index}}.ref" type="text" value="{{ref}}" />
-          <input name="system.inventory.skills.{{index}}.ladderKey" type="text" value="{{ladderKey}}" placeholder="{{localize "ACKS-CLASSES.sheet.ladderKey"}}" />
-          <span class="acks-extras-classes-refname">{{name}}</span>
-          <a data-action="rowDelete" data-array="inventory.skills" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          {{#if name}}<a class="acks-extras-classes-refname" data-action="refOpen" data-ref="{{ref}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refOpen"}}">{{name}}</a>
+          {{else if ref}}<span class="acks-extras-classes-refname acks-extras-classes-refname--unresolved" data-tooltip="{{localize "ACKS-CLASSES.sheet.unresolvedRef"}}"><i class="fa-solid fa-triangle-exclamation" inert></i> {{ref}}</span>{{/if}}
+          <input class="acks-extras-classes-ref" name="system.inventory.skills.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" aria-label="{{localize "ACKS-CLASSES.sheet.refField"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.refField"}}" />
+          <input name="system.inventory.skills.{{index}}.ladderKey" type="text" value="{{ladderKey}}" list="{{@root.partId}}-ladder-keys" placeholder="{{localize "ACKS-CLASSES.sheet.inventory.ladderKey"}}" aria-label="{{localize "ACKS-CLASSES.sheet.inventory.ladderKey"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.inventory.ladderKey"}}" />
+          <button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="inventory.skills" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.skill")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.skill")}}"><i class="fa-solid fa-trash" inert></i></button>
         </div>
       {{/each}}
     </fieldset>
     {{#if unresolvedProfs.length}}
       <fieldset>
         <legend>{{localize "ACKS-CLASSES.sheet.unresolved"}}</legend>
+        <p class="hint">{{localize "ACKS-CLASSES.sheet.unresolvedHint"}}</p>
         <p>{{#each unresolvedProfs}}<span class="acks-extras-classes-chip">{{this}}</span>{{/each}}</p>
       </fieldset>
     {{/if}}

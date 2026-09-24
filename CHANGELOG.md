@@ -1,5 +1,41 @@
 # Changelog
 
+## 8.7.0
+
+### Added
+
+- **A class states its combat training on its own sheet.** The Overview tab
+  carries the weapons, the heaviest armour and the fighting styles a class
+  trains in, written onto the class as its training effect — the same effect
+  an imported class carries from the book, so a character made from the
+  class is trained the same way whichever wrote it. Emptying all three removes
+  the effect. A training you edit is yours: *Update Classes* and the importer's
+  repair leave it in place where they replace the book's.
+- **Every list on the class and race sheets says what it takes and shows what
+  it holds.** A reference row leads with the name of the document it points
+  at, as a link that opens it, and a reference nothing answers is marked. Each
+  list is a visible drop zone that lights under a drag: an ability dropped on
+  the awards adds a fixed grant at the last level listed, on a listed-options
+  choice joins its options, on a starting template fills the row of its kind
+  or adds one — and so do a weapon, armour, an item or a spell dropped there.
+  A drop a list does not take says so instead of doing nothing.
+- **Row controls are buttons with names.** Every **+** and delete reaches from
+  the keyboard and is named for a screen reader, and removing a ladder, a
+  tradition, a path group, a starting template, a racial value rung or an
+  award asks first.
+
+### Fixed
+
+- **A path option's training typed as a list is a list.** Weapons or styles
+  typed as `dagger, sling` were stored as one token, and a box left blank as an
+  empty token, so the option's effect granted a weapon named "dagger, sling".
+  Both are split and trimmed now; a blank box grants nothing.
+- **Captions sit over the columns they name.** The caption row above a
+  template's rows, an award row and a race's value rungs drifted off the
+  fields beneath it, and the racial value rung's XP cost and maximum level
+  columns were too narrow to read. Hints are body-sized, rows wrap instead of
+  clipping, and the sheet's body scrolls under a fixed tab strip.
+
 ## 8.6.1
 
 ### Fixed

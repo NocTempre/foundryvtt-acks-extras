@@ -16,6 +16,7 @@
  * see lib/actor-compat.mjs `savesUpdateData`.
  */
 import { num, str, int, bool, html, choice, choiceSet, refList, levelValueField, spellRefField } from "../lib/fields.mjs";
+import { normalizeTraining } from "./training-logic.mjs";
 import { choiceSpecField } from "../lib/choice-spec.mjs";
 import { ATTRIBUTES, RUNG_OUTCOMES } from "../lib/vocab.mjs";
 import { CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
@@ -424,6 +425,13 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
     const tradeoffs = foundry.utils.getProperty(data, "builder.tradeoffs");
     if (typeof tradeoffs === "string") foundry.utils.setProperty(data, "builder.tradeoffs", tradeoffs ? [tradeoffs] : []);
     for (const ladder of data.ladders ?? []) toArray(ladder, "values");
+    // A path option's training lists arrive from the sheet as CSV text; the
+    // model would keep the text as one token and a blank box as one empty one.
+    for (const group of toArray(data, "paths") ?? []) {
+      for (const option of toArray(group, "options") ?? []) {
+        if (option?.training) option.training = normalizeTraining(option.training);
+      }
+    }
     for (const trad of data.casting ?? []) {
       toArray(trad, "slots");
       toArray(trad, "pool");
