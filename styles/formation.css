@@ -1133,6 +1133,13 @@
   font-size: var(--acks-fs-body);
 }
 
+/* The Monster level row appended to core's RollTable sheet: its input takes
+   the width core fixes on the Roll Formula input above it
+   (`.roll-table-sheet.edit-mode input[name=formula]`). */
+.acks-extras-monster-level input {
+  flex: 0 0 200px; /* px-ok: mirrors core's px formula width, which no type knob moves */
+}
+
 /* A member's mount chip: who is on what, read off the roster row. */
 .acks-extras-formation-mount {
   display: inline-flex;

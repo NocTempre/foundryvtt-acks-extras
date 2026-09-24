@@ -353,9 +353,11 @@ every throw hits, `tableUuid` the outer table. Levels are invented.
 1. **The row.** Open the inner table's sheet, switch it to edit, open its
    Summary tab.
    *Observable:* a labelled **Monster level** row with its hint sits under
-   *Display roll*. Type a level and press **Save**:
-   `inner.getFlag("acks-extras", "monsterLevel")` is that number. Blank it and
-   Save: the flag reads `null`. In view mode there is no row.
+   *Display roll*, its input exactly as wide as the Roll Formula input (compare
+   `getBoundingClientRect().width` of `input[name="formula"]` and
+   `input[name="flags.acks-extras.monsterLevel"]`). Type a level and press
+   **Save**: `inner.getFlag("acks-extras", "monsterLevel")` is that number.
+   Blank it and Save: the flag reads `null`. In view mode there is no row.
 2. **The zone's field.** Open the behavior's config.
    *Observable:* the **Dungeon level** field carries its label and hint. Set a
    level different from the inner table's.
