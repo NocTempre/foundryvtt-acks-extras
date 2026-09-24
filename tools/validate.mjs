@@ -11,6 +11,11 @@
  *   1. JS syntax (node --check) of every .mjs under scripts/ and tools/.
  *   2. Handlebars compilation of every .hbs under templates/ (parse errors
  *      otherwise only surface at render time inside Foundry).
+ *   2b. Handlebars helpers: every helper a template calls is one Foundry core
+ *      registers (a list captured from a live server, versioned beside it) or
+ *      one this module registers in scripts/. Compilation resolves no helper
+ *      names, so a call to anything else compiles, passes every mocked test,
+ *      and throws "Missing helper" on the window's first render.
  *   3. JSON validity: module.json, package.json, lang/*.json, ruledata/**
  *      (which must carry an `id`), packs/_source/**.
  *   4. Pack-source invariants: 16-char alphanumeric _id, _key ending in _id,
@@ -143,6 +148,317 @@ walk(path.join(ROOT, "templates"), (full) => {
     fail(rel(full), err.message.split("\n").slice(0, 2).join(" "));
   }
 });
+
+/* 2b. Every helper a template CALLS is registered by something that runs:
+ *    Foundry core, or this module's own scripts/. A call is what Handlebars'
+ *    compiler treats as one — a block, or a mustache or sub-expression given
+ *    arguments — on a path that is one plain name: not a block param, not an
+ *    @data variable. So a bare {{name}} (a property lookup) is never flagged,
+ *    and a path such as this.format or a.b given arguments — a function held
+ *    on the render context, which only a render can see — is counted and left
+ *    alone.
+ *
+ *    A block with NO arguments is flagged like any other call. Handlebars runs
+ *    it as a section over the context property of that name until a system or
+ *    module registers a helper under that name, which then takes the block
+ *    over, silently.
+ *
+ *    The game system's helpers are on neither list: a call to one fails as
+ *    unknown, and its escape says whose helper it is. The template side is a
+ *    parse (the handlebars package's own parser); the registration side is a
+ *    source-text match (readHelperRegistrations). Escape:
+ *    `{{!-- helper-ok: <reason> --}}` on or just above the call. */
+
+/* The helpers Foundry core registers before any system or module loads:
+ * Handlebars' built-ins, HandlebarsIntl's, and foundry.applications.handlebars
+ * initialize()'s. Captured with Object.keys(Handlebars.helpers) on a live
+ * server's /join page, the one page whose registry holds core and nothing
+ * else (a world page adds the system's and every active module's). One build's
+ * snapshot — a helper a later build drops keeps passing here and throws there,
+ * so it is recaptured whenever `compatibility.verified` is raised (TOOLCHAIN
+ * §5). */
+const FOUNDRY_CORE_HELPERS = {
+  version: "14.367",
+  names: new Set([
+    "and", "blockHelperMissing", "checked", "concat", "disabled", "each", "editor", "eq",
+    "filePicker", "formField", "formGroup", "formInput", "formatDate", "formatHTMLMessage",
+    "formatMessage", "formatNumber", "formatRelative", "formatTime", "gt", "gte", "helperMissing",
+    "if", "ifThen", "intl", "intlDate", "intlGet", "intlHTMLMessage", "intlMessage", "intlNumber",
+    "intlTime", "localize", "log", "lookup", "lt", "lte", "ne", "not", "numberFormat",
+    "numberInput", "object", "or", "radioBoxes", "rangePicker", "selectOptions", "timeSince",
+    "unless", "with",
+  ]),
+};
+
+/* A JavaScript tokenizer just deep enough to find registerHelper calls:
+ * comments, strings, template literals (their ${} holes included) and regex
+ * literals are consumed whole, so a name mentioned inside one is never read as
+ * code. Whether a `/` opens a regex is decided the usual way, from the token
+ * before it. */
+const REGEX_AFTER_WORD = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "do", "else", "yield", "await"]);
+function tokenizeJs(src) {
+  const tokens = [];
+  const holes = []; // open ${} holes: brace depth inside each
+  let i = 0;
+  // Advances through template-literal text; "hole" when it stops at a `${`.
+  const templateText = () => {
+    while (i < src.length) {
+      if (src[i] === "\\") i += 2;
+      else if (src[i] === "`") return (i++, "end");
+      else if (src[i] === "$" && src[i + 1] === "{") return ((i += 2), "hole");
+      else i++;
+    }
+    return "end";
+  };
+  const regexMayStart = () => {
+    const prev = tokens[tokens.length - 1];
+    if (!prev) return true;
+    if (prev.type === "punct") return !")]}".includes(prev.value);
+    return prev.type === "ident" && REGEX_AFTER_WORD.has(prev.value);
+  };
+  while (i < src.length) {
+    const c = src[i];
+    const start = i;
+    if (/\s/.test(c)) i++;
+    else if (c === "/" && src[i + 1] === "/") i = src.indexOf("\n", i) < 0 ? src.length : src.indexOf("\n", i);
+    else if (c === "/" && src[i + 1] === "*") i = src.indexOf("*/", i + 2) < 0 ? src.length : src.indexOf("*/", i + 2) + 2;
+    else if (c === '"' || c === "'") {
+      let value = "";
+      for (i++; i < src.length && src[i] !== c && src[i] !== "\n"; i++) value += src[i] === "\\" ? src[++i] : src[i];
+      i++;
+      tokens.push({ type: "string", value, start });
+    } else if (c === "`") {
+      i++;
+      const textStart = i;
+      if (templateText() === "hole") {
+        holes.push(0);
+        tokens.push({ type: "template", value: null, start });
+      } else tokens.push({ type: "string", value: src.slice(textStart, i - 1), start });
+    } else if (c === "}" && holes.length && holes[holes.length - 1] === 0) {
+      holes.pop();
+      i++;
+      if (templateText() === "hole") holes.push(0);
+    } else if (c === "/" && regexMayStart()) {
+      let inClass = false;
+      for (i++; i < src.length && src[i] !== "\n"; i++) {
+        if (src[i] === "\\") i++;
+        else if (src[i] === "[") inClass = true;
+        else if (src[i] === "]") inClass = false;
+        else if (src[i] === "/" && !inClass) break;
+      }
+      for (i++; /[a-z]/i.test(src[i] ?? ""); i++);
+      tokens.push({ type: "regex", value: null, start });
+    } else if (/[A-Za-z_$]/.test(c)) {
+      while (/[\w$]/.test(src[i] ?? "")) i++;
+      tokens.push({ type: "ident", value: src.slice(start, i), start });
+    } else if (/\d/.test(c)) {
+      while (/[\w.]/.test(src[i] ?? "")) i++;
+      tokens.push({ type: "number", value: src.slice(start, i), start });
+    } else if (src.startsWith("...", i)) {
+      i += 3;
+      tokens.push({ type: "punct", value: "...", start });
+    } else {
+      if (holes.length && c === "{") holes[holes.length - 1]++;
+      if (holes.length && c === "}") holes[holes.length - 1]--;
+      i++;
+      tokens.push({ type: "punct", value: c, start });
+    }
+  }
+  return tokens;
+}
+
+// The keys of the object literal opening at tokens[open], and the index of its
+// closing brace; null when a key is not literal — a spread or a computed [key]
+// names nothing readable.
+function objectLiteralKeys(tokens, open) {
+  const keys = [];
+  let depth = 1;
+  let expectKey = true;
+  for (let k = open + 1; k < tokens.length; k++) {
+    const tk = tokens[k];
+    const p = tk.type === "punct" ? tk.value : null;
+    if (depth === 1 && expectKey) {
+      if (p === "}") return { keys, end: k };
+      // `async foo() {}`, `get foo() {}`, `*foo() {}` — unless the word is itself the key.
+      const modifier = p === "*" || (tk.type === "ident" && ["async", "get", "set"].includes(tk.value));
+      if (modifier && ![":", "(", ",", "}"].includes(tokens[k + 1]?.value)) continue;
+      if (!["ident", "string", "number"].includes(tk.type)) return null;
+      keys.push(tk.value);
+      expectKey = false;
+      continue;
+    }
+    if (p === "(" || p === "[" || p === "{") depth++;
+    else if (p === ")" || p === "]" || p === "}") {
+      if (--depth === 0) return { keys, end: k };
+    } else if (p === "," && depth === 1) expectKey = true;
+  }
+  return null;
+}
+
+/**
+ * Helper names a module's source registers: `registerHelper("name", fn)` and
+ * `registerHelper({ name: fn, other() {} })`, or either argument held in a
+ * same-file `const`/`let`/`var`. A SOURCE-TEXT match, not a parse — it reads
+ * what a registration SAYS, never whether it runs. `unreadable` holds the
+ * offset of every call whose names it cannot read (a parameter, an import, an
+ * interpolated name, a spread), so a template calling one of those helpers
+ * fails as unknown and the report can say why.
+ * @returns {{ names: string[], unreadable: number[] }}
+ */
+function readHelperRegistrations(src) {
+  const tokens = tokenizeJs(src);
+  const names = [];
+  const unreadable = [];
+  const punct = (k, value) => tokens[k]?.type === "punct" && tokens[k].value === value;
+  // Same-file bindings a registration may name instead of a literal.
+  const bindings = new Map();
+  for (let k = 0; k + 3 < tokens.length; k++) {
+    if (tokens[k].type !== "ident" || !["const", "let", "var"].includes(tokens[k].value)) continue;
+    if (tokens[k + 1].type === "ident" && punct(k + 2, "=")) bindings.set(tokens[k + 1].value, k + 3);
+  }
+  // A value is only the name it looks like when nothing continues the
+  // expression after it: `"acks" + suffix` is not the helper "acks". At the
+  // call itself the argument must end at `,` or `)`.
+  const complete = (k, atCall) =>
+    atCall ? punct(k, ",") || punct(k, ")") : !(tokens[k]?.type === "punct" && "+-*/%.[(?|&<>=".includes(tokens[k].value));
+  const readArgument = (at, atCall) => {
+    const arg = tokens[at];
+    if (arg?.type === "string") return complete(at + 1, atCall) ? [arg.value] : null;
+    if (punct(at, "{")) {
+      const literal = objectLiteralKeys(tokens, at);
+      return literal && complete(literal.end + 1, atCall) ? literal.keys : null;
+    }
+    if (arg?.type === "ident" && bindings.has(arg.value) && complete(at + 1, atCall)) {
+      const bound = bindings.get(arg.value);
+      bindings.delete(arg.value); // a binding naming itself is read once, never looped on
+      const read = readArgument(bound, false);
+      bindings.set(arg.value, bound);
+      return read;
+    }
+    return null;
+  };
+  for (let t = 0; t < tokens.length; t++) {
+    if (tokens[t].type !== "ident" || tokens[t].value !== "registerHelper") continue;
+    if (tokens[t - 1]?.value === "function") continue; // a definition, not a call
+    let open = t + 1;
+    if (tokens[open]?.value === "?" && tokens[open + 1]?.value === ".") open += 2;
+    if (tokens[open]?.value !== "(") continue;
+    // A method or function DEFINITION is a parameter list followed by a body.
+    let close = open;
+    for (let depth = 0; close < tokens.length; close++) {
+      if (punct(close, "(") || punct(close, "[") || punct(close, "{")) depth++;
+      else if ((punct(close, ")") || punct(close, "]") || punct(close, "}")) && --depth === 0) break;
+    }
+    if (punct(close + 1, "{")) continue;
+    const read = readArgument(open + 1, true);
+    if (read) names.push(...read);
+    else unreadable.push(tokens[t].start);
+  }
+  return { names, unreadable };
+}
+
+{
+  const lineAt = (text, index) => text.slice(0, index).split("\n").length;
+  const registered = new Set();
+  const unreadable = [];
+  walk(path.join(ROOT, "scripts"), (full) => {
+    if (!/\.m?js$/.test(full)) return;
+    const src = fs.readFileSync(full, "utf8");
+    const read = readHelperRegistrations(src);
+    for (const name of read.names) registered.add(name);
+    for (const at of read.unreadable) unreadable.push(`${rel(full)}:${lineAt(src, at)}`);
+  });
+  for (const where of unreadable) {
+    console.warn(`WARN ${where}: registerHelper call whose helper name this check cannot read — pass it a string literal, an object literal of helpers, or a same-file const holding one; until then a template calling that helper fails as unknown`);
+  }
+  const unreadableNote = unreadable.length
+    ? ` (${unreadable.length} registerHelper call${unreadable.length === 1 ? "" : "s"} in scripts/ could not be read — see the WARN above)`
+    : "";
+
+  let templates = 0;
+  let calls = 0;
+  let contextCalls = 0;
+  const called = new Set();
+  walk(path.join(ROOT, "templates"), (full) => {
+    if (!full.endsWith(".hbs")) return;
+    const source = fs.readFileSync(full, "utf8");
+    let ast;
+    try {
+      ast = Handlebars.parse(source);
+    } catch {
+      return; // section 2 has already failed this file
+    }
+    templates++;
+    const lines = source.split("\n");
+    const escaped = (lineNo) => lines[lineNo - 1]?.includes("helper-ok:") || lines[lineNo - 2]?.includes("helper-ok:");
+
+    const check = (node, blockParams) => {
+      const path_ = node.path;
+      // A literal in path position (`{{"name" x}}`) is looked up by its text.
+      const name = path_.parts ? path_.parts[0] : String(path_.original);
+      const plain = !path_.parts || (path_.parts.length === 1 && !path_.depth && !/^\.|this\b/.test(path_.original));
+      const positional = node.params?.length ?? 0;
+      const hasArgs = node.type === "SubExpression" || positional > 0 || !!node.hash;
+      if (path_.data || (plain && blockParams.has(name))) return;
+      if (!plain) {
+        if (hasArgs) contextCalls++;
+        return;
+      }
+      if (!hasArgs && node.type !== "BlockStatement") return; // a property lookup
+      calls++;
+      called.add(name);
+      if (FOUNDRY_CORE_HELPERS.names.has(name) || registered.has(name)) return;
+      const lineNo = node.loc.start.line;
+      if (escaped(lineNo)) return;
+      const shape = node.type === "SubExpression" ? `(${name} …)` : node.type === "BlockStatement" ? `{{#${name}}}` : `{{${name} …}}`;
+      const effect = !hasArgs
+        ? `with no arguments Handlebars runs this block as a section over the context property "${name}", and the first system or module to register a helper under that name takes it over, silently. Write {{#if ${name}}}, {{#each ${name}}} or {{#with ${name}}} for a section`
+        : positional > 0
+          ? `the template compiles and every offline check passes, then its first render throws "Missing helper: ${name}" and the window or card built from it never appears`
+          : "with no positional argument a missing helper renders nothing, silently — the call is dead rather than loud";
+      fail(
+        rel(full),
+        `line ${lineNo}: ${shape} calls a helper nothing registers — not Foundry ${FOUNDRY_CORE_HELPERS.version} core, not this module's scripts/ — ${effect}. Use a core helper, register it in scripts/ with Handlebars.registerHelper, or state why not with "{{!-- helper-ok: <reason> --}}"${unreadableNote}`,
+      );
+    };
+
+    const visit = (node, blockParams) => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) return node.forEach((n) => visit(n, blockParams));
+      switch (node.type) {
+        case "Program":
+          return visit(node.body, blockParams);
+        case "MustacheStatement":
+        case "SubExpression":
+        case "BlockStatement":
+          check(node, blockParams);
+          break;
+        case "PartialStatement":
+        case "PartialBlockStatement":
+          if (node.name?.type === "SubExpression") visit(node.name, blockParams); // {{> (whichPartial) }}
+          break;
+        case "DecoratorBlock":
+        case "Decorator":
+          break; // decorators (`{{#*inline}}`) live in their own registry
+        default:
+          return;
+      }
+      visit(node.params, blockParams);
+      visit(node.hash?.pairs.map((pair) => pair.value), blockParams);
+      if (node.program) visit(node.program, new Set([...blockParams, ...(node.program.blockParams ?? [])]));
+      if (node.inverse) visit(node.inverse, blockParams);
+    };
+    visit(ast, new Set());
+  });
+  if (templates) {
+    console.log(
+      `validate: helpers checked ${calls} call${calls === 1 ? "" : "s"} to ${called.size} distinct helper${called.size === 1 ? "" : "s"} ` +
+        `across ${templates} template${templates === 1 ? "" : "s"}, against Foundry ${FOUNDRY_CORE_HELPERS.version} core (${FOUNDRY_CORE_HELPERS.names.size}) ` +
+        `+ ${registered.size} registered in scripts/` +
+        (contextCalls ? `; ${contextCalls} call${contextCalls === 1 ? "" : "s"} on a context path (this.x, a.b) left to the render` : ""),
+    );
+  }
+}
 
 /* 3. JSON validity — plus the two silent manifest corruptions (TOOLCHAIN
  * §10n): a UTF-8 BOM (PowerShell's `utf8` writes one; CI's JSON gate rejects
