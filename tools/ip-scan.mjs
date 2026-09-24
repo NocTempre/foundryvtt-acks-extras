@@ -77,8 +77,25 @@ const TEMPLATE_GLOBS = [/^templates[/\\].*\.hbs$/u];
  * IP bar is the human one TOOLCHAIN §4b sets for guides. */
 const CODE_GLOBS = [/^scripts[/\\].*\.mjs$/u, /^tools[/\\].*\.mjs$/u];
 const CODE_SELF_EXCLUDE = /^tools[/\\]ip-scan\.mjs$/u;
-/* Quoted and templated literals, so a long one can be measured without parsing. */
+/* Quoted and templated literals found by pairing quote marks alone. Blind to
+ * comments and regex literals, so a backtick in either opens a "literal" that
+ * runs to the next backtick anywhere in the file. Used only on a file
+ * sourceLiterals() loses its place in: there, over-reporting is the safe
+ * failure, and a file the tokenizer cannot read never goes unmeasured. */
 const STRING_LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/gu;
+/* After these words a `/` opens a regex literal; after any other word it divides. */
+const REGEX_AFTER_WORD = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "do", "else", "yield", "await"]);
+/* A `)` closing the head of one of these is followed by a statement, so a `/`
+ * after it opens a regex: `if (ok) /x/.test(s)`. After any other `)` it divides. */
+const HEAD_KEYWORDS = new Set(["if", "while", "for", "with"]);
+const IDENT_START = /[\p{ID_Start}$_\\]/u;
+const IDENT_PART = /[\p{ID_Continue}$\p{Join_Control}\\]/u;
+const LINE_END = /[\n\r\p{Zl}\p{Zp}]/gu;
+const IS_LINE_END = /^[\n\r\p{Zl}\p{Zp}]$/u;
+const SPACE = /\s/u;
+const DIGIT = /\d/u;
+const NUMBER_PART = /[\w.]/u;
+const CLOSER = new Map([["(", ")"], ["[", "]"], ["{", "}"]]);
 /* A string leaf this long in a data file is a paragraph, not a label. */
 const PROSE_CHARS = 1500;
 /* ...unless it is source code. Macro bodies are authored JS and legitimately
@@ -166,11 +183,165 @@ function scanSource(text, relPath) {
   if (ATTRIBUTION.test(text)) {
     errors.push(`${relPath} — publisher attribution in source; book text belongs in the reader's own PDF, not in a .mjs`);
   }
-  for (const [lit] of text.matchAll(STRING_LITERAL)) {
-    if (lit.length > PROSE_CHARS) {
-      warnings.push(`${relPath}: a ${lit.length}-char string literal — verify this is authored, not transcribed`);
+  const read = sourceLiterals(text);
+  if (read.lost !== undefined) {
+    warnings.push(`${relPath}: line ${lineOf(text, read.lost)}: the literal scan lost its place here, so this file's literals were measured by pairing quote marks, which reads a comment or regex between two quotes as a literal`);
+  }
+  const found = read.literals ?? [...text.matchAll(STRING_LITERAL)].map((m) => [m.index, m[0].length]);
+  for (const [start, length] of found) {
+    if (length > PROSE_CHARS) {
+      warnings.push(`${relPath}: line ${lineOf(text, start)}: a ${length}-char string literal — verify this is authored, not transcribed`);
     }
   }
+}
+
+function lineOf(text, offset) {
+  return text.slice(0, offset).split("\n").length;
+}
+
+/**
+ * The string and template literals in a JavaScript source, read the way the
+ * engine reads them rather than by pairing quote marks. Comments and regex
+ * literals are consumed whole, so a quote or backtick inside one opens
+ * nothing, and a template is followed through its `${}` holes and whatever
+ * braces and literals they nest. Whether a `/` opens a regex is decided from
+ * the token before it; one that meets a line end before its closing `/`
+ * divided after all.
+ *
+ * Standalone on purpose: the pre-commit hook imports this file by relative
+ * path (ip-quarantine.mjs), so anything it imported would be one more file
+ * the hook fails without.
+ *
+ * @returns {{literals: Array<[number, number]>} | {lost: number}} `literals`
+ *   holds each literal's start offset and length, delimiters included. A
+ *   template's length is its own text: a `${}` hole is code, not literal
+ *   content, and a literal nested in one is listed on its own. `lost` is the
+ *   offset where the reading stopped making sense — a quoted string meeting a
+ *   line end, a bracket closing the wrong opener, or a comment, template or
+ *   bracket still open at the end of the file. Valid JavaScript produces none
+ *   of those, so `lost` means a misjudged `/` or a file that does not parse.
+ */
+function sourceLiterals(src) {
+  const literals = [];
+  const open = []; // unclosed brackets and template holes, innermost last
+  let regexOk = true; // a `/` here opens a regex literal
+  let afterDot = false; // the next word is a property name, never a keyword
+  let head = false; // the last word was one of HEAD_KEYWORDS
+  let i = 0;
+  const lineEnd = (from) => {
+    LINE_END.lastIndex = from;
+    return LINE_END.exec(src)?.index ?? src.length;
+  };
+  // Consumes template text from i through its closing backtick or its next
+  // `${`; `text` is how much of the template's own text came before. False
+  // when the file ends first.
+  const templateText = (start, text) => {
+    const from = i;
+    while (i < src.length) {
+      if (src[i] === "\\") i += 2;
+      else if (src[i] === "`") {
+        literals.push([start, text + (i - from) + 2]);
+        i++;
+        regexOk = false;
+        return true;
+      } else if (src[i] === "$" && src[i + 1] === "{") {
+        open.push({ hole: true, start, text: text + (i - from), at: i });
+        i += 2;
+        regexOk = true;
+        return true;
+      } else i++;
+    }
+    return false;
+  };
+  // The offset past the flags of a regex literal opening at i, or -1 when a
+  // line ends before its closing `/`.
+  const regexEnd = () => {
+    let inClass = false;
+    for (let j = i + 1; j < src.length && !IS_LINE_END.test(src[j]); j++) {
+      if (src[j] === "\\") {
+        if (IS_LINE_END.test(src[j + 1] ?? "")) return -1;
+        j++;
+      } else if (src[j] === "[") inClass = true;
+      else if (src[j] === "]") inClass = false;
+      else if (src[j] === "/" && !inClass) {
+        for (j++; j < src.length && IDENT_PART.test(src[j]); j++);
+        return j;
+      }
+    }
+    return -1;
+  };
+
+  if (src.startsWith("#!")) i = lineEnd(0);
+  while (i < src.length) {
+    const c = src[i];
+    const at = i;
+    if (SPACE.test(c)) {
+      i++;
+      continue;
+    }
+    if (c === "/" && src[i + 1] === "/") {
+      i = lineEnd(i);
+      continue;
+    }
+    if (c === "/" && src[i + 1] === "*") {
+      const close = src.indexOf("*/", i + 2);
+      if (close < 0) return { lost: at };
+      i = close + 2;
+      continue;
+    }
+    const regex = c === "/" && regexOk ? regexEnd() : -1;
+    let word = "";
+    let dot = false;
+    if (c === '"' || c === "'") {
+      for (i++; src[i] !== c; i++) {
+        if (i >= src.length || src[i] === "\n" || src[i] === "\r") return { lost: at };
+        if (src[i] === "\\") i += src.startsWith("\r\n", i + 1) ? 2 : 1;
+      }
+      i++;
+      literals.push([at, i - at]);
+      regexOk = false;
+    } else if (c === "`") {
+      i++;
+      if (!templateText(at, 0)) return { lost: at };
+    } else if (c === "}" && open.at(-1)?.hole) {
+      const { start, text } = open.pop();
+      i++;
+      if (!templateText(start, text)) return { lost: start };
+    } else if (regex > 0) {
+      i = regex;
+      regexOk = false;
+    } else if (IDENT_START.test(c)) {
+      do i++;
+      while (i < src.length && IDENT_PART.test(src[i]));
+      if (!afterDot) word = src.slice(at, i);
+      regexOk = REGEX_AFTER_WORD.has(word);
+    } else if (DIGIT.test(c) || (c === "." && DIGIT.test(src[i + 1] ?? ""))) {
+      do i++;
+      while (i < src.length && NUMBER_PART.test(src[i]));
+      regexOk = false;
+    } else if (src.startsWith("...", i)) {
+      i += 3;
+      regexOk = true;
+    } else if ((c === "+" || c === "-") && src[i + 1] === c) {
+      i += 2;
+      regexOk = false; // x++ / y divides
+    } else if (CLOSER.has(c)) {
+      open.push({ closer: CLOSER.get(c), head: c === "(" && head, at });
+      i++;
+      regexOk = true;
+    } else if (c === ")" || c === "]" || c === "}") {
+      if (open.at(-1)?.closer !== c) return { lost: at };
+      regexOk = open.pop().head;
+      i++;
+    } else {
+      dot = c === ".";
+      i++;
+      regexOk = true;
+    }
+    afterDot = dot;
+    head = HEAD_KEYWORDS.has(word);
+  }
+  return open.length ? { lost: open.at(-1).at } : { literals };
 }
 
 function scanStrings(node, relPath, keyPath = "") {
