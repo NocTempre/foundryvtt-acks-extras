@@ -203,6 +203,17 @@ classes may bind one too.
 *A race document's value ladder — rung XP costs, attribute floors, and every
 granted power resolved to the definition its rung names.*
 
+**Adding an ability of your own** — a racial trait for a homebrew race, a
+power no book prints. Abilities are items of the type the system calls
+**Proficiency** (their sheet is *ACKS Ability*): create one in the Items tab,
+fill in its sheet, and it is an ability like any imported one. Any ability
+row on a class — an award on the Awards tab, a template's Abilities list on
+the Templates tab, the Inventory lists — is filled by **dragging the item from
+the Items tab or a compendium onto the row**; the ref writes itself and the
+name appears beside it. The folders the importer files abilities under (Class
+Powers, Class Training, and the rest) are just folders: an ability dragged from
+anywhere, including one you made, works the same way.
+
 ## Keeping documents current
 
 After reconnecting your book, `acksExtras.importer.cookbookUpdateClasses()` rewrites

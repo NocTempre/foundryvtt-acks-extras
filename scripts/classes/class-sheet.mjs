@@ -429,7 +429,7 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     }).bind(this.element);
   }
 
-  /** A dropped ability item lands in the list (or award row) under the cursor. */
+  /** A dropped ability item lands in the list, award row or template ability row under the cursor. */
   async #onDrop(event) {
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     if (data?.type !== "Item" || !data.uuid) return;
@@ -447,6 +447,21 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     }
     if (dropped?.type !== ITEM_TYPE.ability) return;
     const ref = refOf(dropped);
+    // An ability dropped on a template fills the ability row under the
+    // cursor, or adds one when the cursor is anywhere else on the template.
+    const templateRow = event.target.closest("[data-template-row]");
+    if (templateRow) {
+      const index = Number(templateRow.dataset.templateRow);
+      const templates = foundry.utils.deepClone(this.item.system.toObject().templates ?? []);
+      if (!templates[index]) return;
+      const abilities = templates[index].abilities ?? [];
+      const at = Number(event.target.closest("[data-template-ability]")?.dataset.templateAbility);
+      if (Number.isInteger(at) && abilities[at]) abilities[at] = { ...abilities[at], ref, name: dropped.name };
+      else abilities.push({ ref, name: dropped.name, rank: 1 });
+      templates[index].abilities = abilities;
+      await this.item.update({ "system.templates": templates });
+      return;
+    }
     const zone = event.target.closest("[data-accept-drop]");
     const list = zone?.dataset.list;
     if (list === "classProfs" || list === "powers") {

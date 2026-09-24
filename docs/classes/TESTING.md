@@ -165,6 +165,18 @@ gear the world does not hold. A disposable character.
 8. Core's own path: drag a bundle from its pack (or the sidebar) onto the
    character sheet.
    *Observable:* contents arrive via core's bundle-drop.
+9. **An ability dropped on a template row.** Fixture: a disposable `ability`
+   Item the importer never wrote (no cookbook id — a hand-made racial trait).
+   Drag it onto a template's empty ability row, then onto the template's
+   header row.
+   *Observable:* the first drop fills that row's `ref` with `uuid:<its uuid>`
+   and its `name`; the second appends a new `{ref, name, rank: 1}` row. The
+   name renders beside the ref field. Scripted: dispatch a `drop` event with
+   a `DataTransfer` carrying `{type: "Item", uuid}` on `[data-template-ability]`
+   — the handler reads `getDragEventData`, so the synthetic event proves the
+   routing but not the drag; finish with one real drag. Generate a character
+   from the template afterwards: `grantRanked` resolves a `uuid:` ref through
+   `findByRef`, so the hand-made ability lands as an owned copy.
 
 ### Base-vs-descriptor resolution (the whole point of a skin)
 

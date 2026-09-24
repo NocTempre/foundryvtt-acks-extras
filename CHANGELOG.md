@@ -1,5 +1,23 @@
 # Changelog
 
+## 8.5.1
+
+### Fixed
+
+- **A template's ability row takes the ability dropped on it.** The row on a
+  class's Templates tab said "drop an ability here", and an ability dropped
+  there went nowhere: the sheet only knew what to do with a dropped package.
+  Dropping a Proficiency item on an ability row now fills that row, and
+  dropping it anywhere else on the template adds a row for it. A hand-made
+  ability — a homebrew race's trait, made as a Proficiency item in the Items
+  tab — is dropped the same way as an imported one, and a character generated
+  from the template receives it. The guide says where abilities come from.
+- **A class row shows the field that is read.** On the Awards and Templates
+  tabs the one-digit number fields and the kind menu took the row's width,
+  leaving the ref, the ability's name and the placeholder cut to three letters.
+  Numbers are now a few digits wide, a menu is as wide as its longest option,
+  and the ref and note fields hold the rest.
+
 ## 8.5.0
 
 ### Added

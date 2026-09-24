@@ -76,10 +76,34 @@
   flex: 1;
   min-width: 4rem;
 }
-.acks-extras-classes-award input[type="number"] {
-  width: 3rem;
+/* A ref and a note are the fields that get read; the number beside them is
+   one or two digits, and a select is as wide as its longest option. Core
+   sizes every control to its container, which hands the row to the digits
+   and leaves the ref showing three letters of "drop an ability". */
+.acks-extras-classes-row input[name$=".ref"],
+.acks-extras-classes-award input[name$=".ref"],
+.acks-extras-classes-award input[name$=".label"] {
+  flex: 2 1 8rem;
 }
-
+.acks-extras-classes-row input[type="number"],
+.acks-extras-classes-award input[type="number"] {
+  flex: 0 0 auto;
+  width: 3.5rem;
+}
+.acks-extras-classes-row select,
+.acks-extras-classes-award select {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 14rem;
+}
+.acks-extras-classes-row label.checkbox,
+.acks-extras-classes-award label.checkbox {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
 .acks-extras-classes-rungs {
   display: flex;
   flex-wrap: wrap;

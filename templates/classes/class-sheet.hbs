@@ -520,7 +520,7 @@
             <legend>{{localize "ACKS-CLASSES.sheet.templates.abilities"}}
               <a data-action="rowAdd" data-array="templates.{{index}}.abilities"><i class="fa-solid fa-plus"></i></a></legend>
             {{#each abilities}}
-              <div class="acks-extras-classes-row">
+              <div class="acks-extras-classes-row" data-template-ability="{{index}}">
                 <input name="system.templates.{{../index}}.abilities.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" />
                 <span class="acks-extras-classes-refname">{{#if refName}}{{refName}}{{else}}{{name}}{{/if}}</span>
                 <input name="system.templates.{{../index}}.abilities.{{index}}.rank" type="number" value="{{rank}}" title="{{localize "ACKS-CLASSES.sheet.templates.rank"}}" />
