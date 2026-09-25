@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-01T08:26:34.531Z",
+  "updated": "2026-09-25T02:20:48.884Z",
   "kinds": {
     "kind.proficiency": {
       "total": 121,
@@ -65,6 +65,14 @@
       "offFamily": 0,
       "shared": 0
     },
+    "kind.spell": {
+      "total": 330,
+      "placed": 330,
+      "missing": 0,
+      "placeholder": 0,
+      "offFamily": 0,
+      "shared": 0
+    },
     "kind.vehicle": {
       "total": 2,
       "placed": 2,
@@ -75,5 +83,5 @@
     }
   },
   "debt": 0,
-  "total": 819
+  "total": 1149
 }

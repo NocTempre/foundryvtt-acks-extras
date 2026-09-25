@@ -95,6 +95,7 @@ sibling modules) — never the import path for this module's own features.
 | `apps/group-sheet.mjs` | The group (stacked-actor) sheet. |
 | `apps/template-sheet.mjs` | The template-generator builder sheet. |
 | `apps/repair-app.mjs` | The repair window (GM only): scan all or one check, tick findings, Fix selected; `RepairMenu` is the settings-menu entry, `openRepairTool` the macro's and the API's. |
+| `apps/effect-row-editor.mjs` | One row of an `effectsField()` list in a window of its own, over a STORE (`{key, label, domain, read, write}`) so a spell, an ability or any later carrier edits rows through one editor; `effectRowActions(storeOf)` are the sheet's add / edit / delete / move controls, and every editor on a store closes on a delete or a move because an index that survived a splice edits the wrong row. Fields per kind are its `TYPE_FIELDS`; a kind outside the domain's picker stays selectable. |
 | `apps/hp-app.mjs` | The hit-point window (GM only): one change to every ticked row, each row with its own multiplier and amount, Undo while the window is open, and Mortal Wounds for a character it took to 0; `openHpTool` is every entry point's, `installHpControl` the Tokens-layer button. |
 
 ## data/

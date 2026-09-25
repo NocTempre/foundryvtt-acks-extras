@@ -1,0 +1,20 @@
+{
+  "_id": "acksMagicStrip00",
+  "_key": "!macros!acksMagicStrip00",
+  "name": "Uninstall — Strip Spell Data",
+  "type": "script",
+  "img": "icons/svg/hazard.svg",
+  "scope": "global",
+  "command": "// Remove everything the magic feature wrote to this world, so ACKS Extras\n// can be disabled or uninstalled with no spell data left behind: the spell\n// primitive (lists, shapes, target, save, effect rows) on every spell item in\n// the world, on actors and on unlinked tokens. Core's own fields — name,\n// description, level, class, range, duration, save — stay, so a spell keeps\n// the stat line a plain sheet shows.\n// Run this BEFORE disabling the module — the macro needs the module's code.\nif (!game.user.isGM) { ui.notifications.warn(\"GM only.\"); return; }\nconst api = game.modules.get(\"acks-extras\")?.api?.magic ?? globalThis.acksExtras.magic;\nif (!api?.stripModuleData) { ui.notifications.error(\"ACKS Magic is not active.\"); return; }\nconst ok = await foundry.applications.api.DialogV2.confirm({\n  classes: [\"acks-extras\", \"acks-extras-scroll\"],\n  window: { title: \"Strip ACKS spell data from this world?\" },\n  content: `<p>This deletes the spell primitive from every spell item in the\n    world: the lists it prints on, its range, duration, target and save\n    shapes, and its effect rows. The spell's own name, description, level,\n    class, range, duration and save strings stay. It cannot be undone.</p>\n    <p class=\"notes\">Disabling the module takes down every feature, not just\n    magic; this macro does not touch the other features' data.</p>`,\n  rejectClose: false,\n});\nif (!ok) return;\nconst counts = await api.stripModuleData();\nif (!counts) return;\nui.notifications.info(`Stripped spell data from ${counts.items} spell item(s) across ${counts.actors} actor(s) and the world.`);",
+  "folder": "acks420ff1a0388a",
+  "flags": {},
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

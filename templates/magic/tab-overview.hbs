@@ -1,0 +1,379 @@
+{{!
+  The spell's stat line as structure. Each shape picker shows only the
+  controls that shape reads; the line core's own string will hold is shown
+  under it, so a Judge sees what a shape means before the description tab
+  does.
+}}
+<section class="tab acks-magic-overview {{tabs.overview.cssClass}}" data-tab="overview" data-group="primary">
+
+  {{#if provenance.imported}}
+    <p class="notification info acks-magic-notice" data-tooltip="{{localize 'ACKS-MAGIC.overview.importedTip'}}">
+      <i class="fa-solid fa-book" aria-hidden="true"></i>
+      {{localize "ACKS-MAGIC.overview.imported" id=provenance.id}}
+    </p>
+  {{/if}}
+  {{#if extras.unaudited}}
+    <p class="notification info acks-magic-notice" data-tooltip="{{localize 'ACKS-MAGIC.overview.unauditedTip'}}">
+      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+      {{localize "ACKS-MAGIC.overview.unaudited"}}
+    </p>
+  {{/if}}
+
+  <fieldset class="acks-magic-lists">
+    <legend>{{localize "ACKS-MAGIC.overview.lists"}}</legend>
+    <p class="hint">{{localize "ACKS-MAGIC.overview.listsHint"}}</p>
+    {{#if lists.length}}
+      <div class="acks-magic-list-labels" aria-hidden="true">
+        <span>{{localize "ACKS-MAGIC.overview.source"}}</span>
+        <span>{{localize "ACKS-MAGIC.overview.level"}}</span>
+        <span>{{localize "ACKS-MAGIC.overview.classes"}}</span>
+        <span>{{localize "ACKS-MAGIC.overview.listNote"}}</span>
+        <span></span>
+      </div>
+      {{#each lists as |row i|}}
+        <div class="acks-magic-list-row">
+          <input type="text" name="{{@root.x}}.lists.{{i}}.source" value="{{row.source}}"
+                 list="{{@root.partId}}-traditions" aria-label="{{localize 'ACKS-MAGIC.overview.source'}}">
+          <input type="number" step="1" min="0" name="{{@root.x}}.lists.{{i}}.level" value="{{row.level}}"
+                 placeholder="—" aria-label="{{localize 'ACKS-MAGIC.overview.level'}}">
+          <input type="text" name="{{@root.x}}.lists.{{i}}.classes" value="{{row.classesCSV}}"
+                 aria-label="{{localize 'ACKS-MAGIC.overview.classes'}}">
+          <input type="text" name="{{@root.x}}.lists.{{i}}.note" value="{{row.note}}"
+                 aria-label="{{localize 'ACKS-MAGIC.overview.listNote'}}">
+          {{#if @root.editable}}
+            <button type="button" class="acks-magic-ctl acks-magic-ctl--danger" data-action="listDelete" data-index="{{i}}"
+                    aria-label="{{localize 'ACKS-MAGIC.overview.removeList'}}" data-tooltip="{{localize 'ACKS-MAGIC.overview.removeList'}}">
+              <i class="fa-solid fa-trash" inert></i>
+            </button>
+          {{else}}<span></span>{{/if}}
+        </div>
+      {{/each}}
+    {{else}}
+      <p class="hint">{{localize "ACKS-MAGIC.overview.noLists"}}</p>
+    {{/if}}
+    <datalist id="{{@root.partId}}-traditions">
+      {{#each traditions}}<option value="{{this}}"></option>{{/each}}
+    </datalist>
+    {{#if editable}}
+      <button type="button" class="acks-magic-add" data-action="listAdd">
+        <i class="fa-solid fa-plus"></i> {{localize "ACKS-MAGIC.overview.addList"}}
+      </button>
+    {{/if}}
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MAGIC.overview.kind"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.type"}}</label>
+      <div class="form-fields">
+        <select name="{{x}}.type">{{selectOptions choices.type selected=extras.type blank=none}}</select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.schools"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.schools" value="{{schoolsCSV}}">
+      </div>
+      <p class="hint">{{localize "ACKS-MAGIC.overview.schoolsHint"}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.elements"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.elements" value="{{elementsCSV}}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.ritual"}}</label>
+      <div class="form-fields">
+        <input type="checkbox" name="{{x}}.ritual" {{checked extras.ritual}}>
+      </div>
+      <p class="hint">{{localize "ACKS-MAGIC.overview.ritualHint"}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MAGIC.overview.reversal"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.reversible"}}</label>
+      <div class="form-fields">
+        <input type="checkbox" name="{{x}}.reversible" {{checked extras.reversible}}>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.reversedName"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.reversedName" value="{{extras.reversedName}}">
+      </div>
+      <p class="hint">{{localize "ACKS-MAGIC.overview.reversedNameHint"}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.reverseOf"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.reverseOf.name" value="{{extras.reverseOf.name}}"
+               placeholder="{{localize 'ACKS-MAGIC.overview.reverseOfName'}}">
+        <input type="text" name="{{x}}.reverseOf.uuid" value="{{extras.reverseOf.uuid}}"
+               placeholder="{{localize 'ACKS-MAGIC.overview.reverseOfUuid'}}">
+        {{#if reverse.resolved}}
+          <button type="button" class="acks-magic-ctl" data-action="openReverse"
+                  aria-label="{{localize 'ACKS-MAGIC.overview.openReverse'}}" data-tooltip="{{localize 'ACKS-MAGIC.overview.openReverse'}}">
+            <i class="fa-solid fa-arrow-up-right-from-square" inert></i>
+          </button>
+        {{/if}}
+      </div>
+      <p class="hint">{{localize "ACKS-MAGIC.overview.reverseOfHint"}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MAGIC.overview.range"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.shape"}}</label>
+      <div class="form-fields">
+        <select name="{{x}}.range.shape">{{selectOptions choices.rangeShape selected=extras.range.shape blank=none}}</select>
+      </div>
+    </div>
+    {{#if show.distance}}
+      <div class="form-group">
+        <label>{{localize "ACKS-MAGIC.overview.distance"}}</label>
+        <div class="form-fields">
+          <input type="number" step="any" min="0" name="{{x}}.range.value" value="{{extras.range.value}}" placeholder="—">
+          <select name="{{x}}.range.unit">{{selectOptions choices.distanceUnit selected=extras.range.unit}}</select>
+        </div>
+      </div>
+    {{/if}}
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.note"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.range.note" value="{{extras.range.note}}">
+      </div>
+    </div>
+    {{#if rangeText}}
+      <p class="acks-magic-derived">{{localize "ACKS-MAGIC.overview.displayedAs" text=rangeText}}</p>
+    {{/if}}
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MAGIC.overview.duration"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.shape"}}</label>
+      <div class="form-fields">
+        <select name="{{x}}.duration.shape">{{selectOptions choices.durationShape selected=extras.duration.shape blank=none}}</select>
+      </div>
+    </div>
+    {{#if show.concentration}}
+      <div class="form-group">
+        <label>{{localize "ACKS-MAGIC.overview.concentration"}}</label>
+        <div class="form-fields">
+          <select name="{{x}}.duration.concentration">{{selectOptions choices.concentrationKind selected=extras.duration.concentration blank=none}}</select>
+        </div>
+      </div>
+    {{/if}}
+    {{#if show.time}}
+      <div class="form-group">
+        <label>{{localize "ACKS-MAGIC.overview.time"}}</label>
+        <div class="form-fields">
+          <input type="number" step="any" min="0" name="{{x}}.duration.value" value="{{extras.duration.value}}" placeholder="—">
+          <select name="{{x}}.duration.unit">{{selectOptions choices.timeUnit selected=extras.duration.unit blank=none}}</select>
+        </div>
+        {{#if show.maxPerLevel}}
+          <label class="acks-magic-inline">
+            <input type="checkbox" name="{{x}}.duration.maxPerLevel" {{checked extras.duration.maxPerLevel}}>
+            {{localize "ACKS-MAGIC.overview.maxPerLevel"}}
+          </label>
+        {{/if}}
+      </div>
+    {{/if}}
+    {{#if show.dice}}
+      <div class="form-group">
+        <label>{{localize "ACKS-MAGIC.overview.dice"}}</label>
+        <div class="form-fields">
+          <input type="text" name="{{x}}.duration.dice" value="{{extras.duration.dice}}" placeholder="1d6">
+          <select name="{{x}}.duration.unit">{{selectOptions choices.timeUnit selected=extras.duration.unit blank=none}}</select>
+        </div>
+      </div>
+    {{/if}}
+    {{#if show.plus}}
+      <div class="form-group">
+        <label>{{localize "ACKS-MAGIC.overview.plus"}}</label>
+        <div class="form-fields">
+          <input type="number" step="any" min="0" name="{{x}}.duration.plus.value" value="{{extras.duration.plus.value}}" placeholder="—">
+          <select name="{{x}}.duration.plus.unit">{{selectOptions choices.timeUnit selected=extras.duration.plus.unit blank=none}}</select>
+        </div>
+        <p class="hint">{{localize "ACKS-MAGIC.overview.plusHint"}}</p>
+      </div>
+    {{/if}}
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.note"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.duration.note" value="{{extras.duration.note}}">
+      </div>
+    </div>
+    {{#if durationText}}
+      <p class="acks-magic-derived">{{localize "ACKS-MAGIC.overview.displayedAs" text=durationText}}</p>
+    {{/if}}
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MAGIC.overview.casting"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.castingTime"}}</label>
+      <div class="form-fields">
+        <select name="{{x}}.castingTime.shape">{{selectOptions choices.castingTimeShape selected=extras.castingTime.shape blank=none}}</select>
+        {{#if show.castingTimed}}
+          <input type="number" step="any" min="0" name="{{x}}.castingTime.value" value="{{extras.castingTime.value}}" placeholder="—"
+                 aria-label="{{localize 'ACKS-MAGIC.overview.time'}}">
+          <select name="{{x}}.castingTime.unit" aria-label="{{localize 'ACKS-MAGIC.overview.unit'}}">{{selectOptions choices.timeUnit selected=extras.castingTime.unit blank=none}}</select>
+        {{/if}}
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.note"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.castingTime.note" value="{{extras.castingTime.note}}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.components"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.components" value="{{componentsCSV}}">
+      </div>
+      <p class="hint">{{localize "ACKS-MAGIC.overview.componentsHint"}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MAGIC.overview.target"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.model"}}</label>
+      <div class="form-fields">
+        <select name="{{x}}.target.model">{{selectOptions choices.targetModel selected=extras.target.model blank=none}}</select>
+      </div>
+    </div>
+    {{#if show.count}}
+      <div class="form-group">
+        {{!-- label-ok: the control is inside the level-value partial; associateLabels binds it at runtime --}}
+      <label>{{localize "ACKS-MAGIC.overview.count"}}</label>
+        <div class="form-fields">
+          {{> "modules/acks-extras/templates/magic/level-value.hbs" levelValues.count}}
+        </div>
+      </div>
+    {{/if}}
+    {{#if show.hdPool}}
+      <div class="form-group">
+        {{!-- label-ok: the control is inside the level-value partial; associateLabels binds it at runtime --}}
+      <label>{{localize "ACKS-MAGIC.overview.hdPool"}}</label>
+        <div class="form-fields">
+          {{> "modules/acks-extras/templates/magic/level-value.hbs" levelValues.hdPool}}
+        </div>
+      </div>
+    {{/if}}
+    {{#if show.area}}
+      <div class="form-group">
+        <label>{{localize "ACKS-MAGIC.overview.areaShape"}}</label>
+        <div class="form-fields">
+          <select name="{{x}}.target.area.shape">{{selectOptions choices.areaShape selected=extras.target.area.shape blank=none}}</select>
+        </div>
+      </div>
+      <div class="form-group">
+        {{!-- label-ok: the control is inside the level-value partial; associateLabels binds it at runtime --}}
+      <label>{{localize "ACKS-MAGIC.overview.areaSize"}}</label>
+        <div class="form-fields">
+          {{> "modules/acks-extras/templates/magic/level-value.hbs" levelValues.areaSize}}
+        </div>
+        <p class="hint">{{localize "ACKS-MAGIC.overview.areaSizeHint"}}</p>
+      </div>
+      <div class="form-group">
+        <label>{{localize "ACKS-MAGIC.overview.areaHeight"}}</label>
+        <div class="form-fields">
+          <input type="number" step="any" min="0" name="{{x}}.target.area.height" value="{{extras.target.area.height}}" placeholder="—">
+        </div>
+      </div>
+    {{/if}}
+    <fieldset class="acks-magic-filters">
+      <legend>{{localize "ACKS-MAGIC.overview.filters"}}</legend>
+      <div class="acks-magic-picks">
+        {{#each filters}}
+          <label class="acks-magic-pick">
+            <input type="checkbox" name="{{@root.x}}.target.filters.{{this.key}}" {{checked this.checked}}>
+            <span>{{this.label}}</span>
+          </label>
+        {{/each}}
+      </div>
+      <p class="hint">{{localize "ACKS-MAGIC.overview.filtersHint"}}</p>
+    </fieldset>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.beholding"}}</label>
+      <div class="form-fields">
+        <input type="checkbox" name="{{x}}.target.beholding" {{checked extras.target.beholding}}>
+      </div>
+      <p class="hint">{{localize "ACKS-MAGIC.overview.beholdingHint"}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.note"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.target.note" value="{{extras.target.note}}">
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MAGIC.overview.save"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.saveCategory"}}</label>
+      <div class="form-fields">
+        <select name="{{x}}.save.category">{{selectOptions choices.saveCategory selected=extras.save.category blank=none}}</select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.saveEffect"}}</label>
+      <div class="form-fields">
+        <select name="{{x}}.save.effect">{{selectOptions choices.saveEffect selected=extras.save.effect blank=none}}</select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.perTarget"}}</label>
+      <div class="form-fields">
+        <input type="checkbox" name="{{x}}.save.perTarget" {{checked extras.save.perTarget}}>
+      </div>
+    </div>
+    <div class="form-group">
+      {{!-- label-ok: the control is inside the level-value partial; associateLabels binds it at runtime --}}
+      <label>{{localize "ACKS-MAGIC.overview.saveModifier"}}</label>
+      <div class="form-fields">
+        {{> "modules/acks-extras/templates/magic/level-value.hbs" levelValues.saveModifier}}
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.note"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.save.note" value="{{extras.save.note}}">
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MAGIC.overview.provenance"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.cite"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.cite" value="{{extras.cite}}">
+      </div>
+      <p class="hint">{{localize "ACKS-MAGIC.overview.citeHint"}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-MAGIC.overview.notableUse"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.notableUse" value="{{extras.notableUse}}">
+      </div>
+    </div>
+    {{#if isGM}}
+      <div class="form-group">
+        <label>{{localize "ACKS-MAGIC.overview.unauditedField"}}</label>
+        <div class="form-fields">
+          <input type="checkbox" name="{{x}}.unaudited" {{checked extras.unaudited}}>
+        </div>
+      </div>
+    {{/if}}
+  </fieldset>
+
+</section>

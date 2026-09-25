@@ -48,6 +48,7 @@ export const RANGE_SHAPES = Object.freeze({
   touchOrDistance: { label: "Touch, or a distance" },
   distance: { label: "A distance" },
   distancePerLevel: { label: "A distance per caster level" },
+  unlimited: { label: "Unlimited" },
   special: { label: "Special" },
 });
 

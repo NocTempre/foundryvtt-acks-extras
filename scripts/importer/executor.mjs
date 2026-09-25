@@ -32,6 +32,17 @@ export const COOKBOOK_SCHEMA = "acks-cookbook/2";
 const PUA_RE = /[-]/g;
 const clean = (s) => (s ?? "").replace(PUA_RE, "").replace(/\s+/g, " ").trim();
 
+// Prose keeps a damage-type mark as its word: the RR sets "1d6 <fire> damage"
+// with an icon glyph where the MM's tables do, and stripping it leaves "1d6
+// damage" reading as untyped. The shipped `damageGlyph` table names the glyph;
+// one the table does not know is left for clean() to strip. The mark's colour
+// (extraordinary against mundane) is not in the text layer and is not claimed.
+const glyphWords = (s, registers) => {
+  const table = registers?.tables?.damageGlyph;
+  if (!table) return s ?? "";
+  return (s ?? "").replace(PUA_RE, (ch) => (table[ch]?.key ? ` ${table[ch].key} ` : ch));
+};
+
 const inBox = (it, box) => it.x >= box.x0 && it.x <= box.x1 && it.y >= box.y0 && it.y <= box.y1;
 
 /**
@@ -1304,7 +1315,7 @@ async function execInstruction(instr, ctx) {
         const ppd = para.page && para.page !== instr.page ? await getPage(para.page) : pd;
         const runs = runsIn(ppd, para);
         claim(runs, ctx.field);
-        const text = clean(joinRuns(runs, para.fixes ?? instr.fixes, para.dropText));
+        const text = clean(glyphWords(joinRuns(runs, para.fixes ?? instr.fixes, para.dropText), registers));
         if (!text) continue;
         // A box that opens mid-sentence continues the box before it: the
         // passage turned a column or a page there, and the print never broke

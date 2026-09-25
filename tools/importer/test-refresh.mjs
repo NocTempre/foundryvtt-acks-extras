@@ -137,6 +137,32 @@ const gear = refreshPlan(
 );
 check("the quantity is not written", !("quantity" in gear.update.system));
 check("a subtype annotation settled is not written", !("subtype" in gear.update.system));
+
+/* --- a spell: play's counters stay; authored rows survive an empty build --- */
+const spellSource = {
+  type: "spell",
+  system: { lvl: 1, class: "Arcane", cast: 2, memorized: true, favorite: true, description: stamped("Old text.") },
+  flags: {
+    [M]: {
+      cookbook: { id: "def.spell.test" },
+      spell: { lists: [{ source: "arcane", level: 1, classes: [] }], effects: [{ type: "damage", roll: "1d6" }], notableUse: "" },
+    },
+  },
+};
+const spellBuilt = {
+  type: "spell",
+  system: { lvl: 2, class: "Arcane", cast: 0, memorized: false, favorite: false, description: stamped("New text.") },
+  flags: { [M]: { cookbook: { id: "def.spell.test" }, spell: { lists: [{ source: "arcane", level: 2, classes: [] }], effects: [] } } },
+};
+const spell = refreshPlan(spellSource, spellBuilt, REPAIR.spell);
+check("the cast counter, the memorized mark and the star are play's", !("cast" in spell.update.system) && !("memorized" in spell.update.system) && !("favorite" in spell.update.system));
+check("the level is re-read", spell.update.system.lvl === 2);
+check("the primitive is rewritten", spell.update.flags[M].spell.lists[0].level === 2);
+check("authored rows survive a build with none", spell.update.flags[M].spell.effects.length === 1 && spell.update.flags[M].spell.effects[0].roll === "1d6");
+const spellRows = refreshPlan(spellSource, { ...spellBuilt, flags: { [M]: { spell: { effects: [{ type: "heal" }] } } } }, REPAIR.spell);
+check("a build that carries rows writes them", spellRows.update.flags[M].spell.effects[0].type === "heal");
+const spellLost = refreshPlan({ ...spellSource, flags: { [M]: {} } }, spellBuilt, REPAIR.spell);
+check("nothing stored, nothing kept", spellLost.update.flags[M].spell.effects.length === 0);
 const thrown = refreshPlan(
   { type: "weapon", system: { melee: true, missile: true, damage: "1d4" } },
   { type: "weapon", system: { melee: true, missile: false, damage: "1d6" } },

@@ -33,6 +33,17 @@ function dropPath(node, keys) {
   else dropPath(node[head], rest);
 }
 
+/** Write `value` at a dotted path, creating the objects along it. */
+function setPath(node, keys, value) {
+  const [head, ...rest] = keys;
+  if (!rest.length) {
+    node[head] = value;
+    return;
+  }
+  if (node[head] === null || typeof node[head] !== "object") node[head] = {};
+  setPath(node[head], rest, value);
+}
+
 /**
  * Does this description hold something this module cannot prove it wrote?
  *
@@ -107,6 +118,9 @@ const MONSTER_PROSE = ["appearance", "combat", "ecology", "encounterText", "lore
  *   document's own.
  * - `rows: "replace"` — write array rows as built, without filling their
  *   unbuilt fields from the stored rows.
+ * - `keepFlags` — paths under the module's flags that keep their stored value
+ *   when the build leaves them empty (an empty array or an absent key): what
+ *   a Judge authored where the page gave the binder nothing.
  */
 export const REPAIR = Object.freeze({
   trap: { keep: ["level"], prose: ["description"] },
@@ -128,6 +142,15 @@ export const REPAIR = Object.freeze({
   // A class is rewritten whole, as Update Classes always has; only a
   // description a Judge wrote and an effect a Judge took over stay.
   class: { prose: ["description"], flags: ["tongues"], minted: ["effects"], name: true, rows: "replace" },
+  // A spell's cast counter, memorized mark and favourite star are play's;
+  // the primitive is rewritten from the page, except effect rows a Judge
+  // authored on a spell whose build carries none.
+  spell: {
+    keep: ["cast", "memorized", "favorite"],
+    prose: ["description"],
+    flags: ["spell"],
+    keepFlags: ["spell.effects"],
+  },
 });
 
 /** A build's embedded document, stamped as the module's so the next repair replaces it. */
@@ -152,7 +175,7 @@ const asMinted = (doc) => ({
  *   change.
  */
 export function refreshPlan(source, built, policy = {}) {
-  const { keep = [], prose = [], proseFlags = [], retract = [], flags = [], top = [], minted = [] } = policy;
+  const { keep = [], prose = [], proseFlags = [], retract = [], flags = [], top = [], minted = [], keepFlags = [] } = policy;
   const keptProse = [];
   if (built?.type && source?.type && built.type !== source.type) {
     return { refused: "type", update: {}, retract: [], replace: {}, keptProse };
@@ -191,6 +214,14 @@ export function refreshPlan(source, built, policy = {}) {
     if (!handWrittenProse(getPath(source?.flags?.[MODULE_ID], path))) continue;
     dropPath(flagUpdate, path.split("."));
     keptProse.push(`flags.${path}`);
+  }
+  for (const path of keepFlags) {
+    const built = getPath(flagUpdate, path);
+    const empty = built === undefined || built === null || (Array.isArray(built) && built.length === 0);
+    if (!empty) continue;
+    const stored = getPath(source?.flags?.[MODULE_ID], path);
+    if (stored === undefined) continue;
+    setPath(flagUpdate, path.split("."), structuredClone(stored));
   }
   if (Object.keys(flagUpdate).length) update.flags = { [MODULE_ID]: flagUpdate };
 

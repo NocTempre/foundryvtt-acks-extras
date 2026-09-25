@@ -15,6 +15,8 @@ import { findByRef, templatePartOf } from "./registry.mjs";
 import { choiceOptions } from "../lib/choice-spec.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { libraryItems, cookbookId } from "../lib/library.mjs";
+import { foldKey, spellTraditions, spellDedupeKey } from "../magic/spell-logic.mjs";
+import { FLAG_SPELL } from "../magic/constants.mjs";
 
 /** The ref a world item is addressed by (the importer's stamp, else uuid). */
 export const refOf = (item) => cookbookId(item) || `uuid:${item.uuid}`;
@@ -106,22 +108,29 @@ export async function grantAdventuring(actor, grants) {
 export function choosableSpells(classItem) {
   const traditions = classItem?.system?.casting ?? [];
   if (!traditions.length) return [];
-  const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z]/g, "");
-  const wanted = new Set(traditions.flatMap((t) => [fold(t.key), fold(t.label)]).filter(Boolean));
+  const wanted = new Set(traditions.flatMap((t) => [foldKey(t.key), foldKey(t.label)]).filter(Boolean));
   const packed = (game.packs ?? [])
     .filter((p) => p.documentName === "Item")
     .flatMap((p) => [...p.contents].filter((i) => i.type === ITEM_TYPE.spell));
   const seen = new Set();
+  const offered = new Set();
+  // The library first, so an imported copy of a spell stands for a core-pack
+  // copy of the same name: two documents of one spell are one option.
   return [...libraryItems().filter((i) => i.type === ITEM_TYPE.spell), ...packed].filter((doc) => {
     if (seen.has(doc.uuid)) return false;
     seen.add(doc.uuid);
     // A class's own copy of a spell is not a second spell to elect.
     if (templatePartOf(doc)) return false;
-    // The tradition field is free text a Judge may leave blank; an unlabelled
-    // spell is OFFERED rather than hidden, because a hidden option is one the
-    // player cannot pick and cannot see the absence of.
-    const tradition = fold(doc.system?.class);
-    return !tradition || !wanted.size || wanted.has(tradition);
+    // The traditions a spell names — every list it prints on, else core's
+    // free-text class string. An unlabelled spell is OFFERED rather than
+    // hidden, because a hidden option is one the player cannot pick and
+    // cannot see the absence of.
+    const named = spellTraditions(doc.flags?.[MODULE_ID]?.[FLAG_SPELL], doc.system?.class);
+    if (named.length && wanted.size && !named.some((t) => wanted.has(t))) return false;
+    const key = spellDedupeKey(doc.name, cookbookId(doc));
+    if (offered.has(key)) return false;
+    offered.add(key);
+    return true;
   });
 }
 

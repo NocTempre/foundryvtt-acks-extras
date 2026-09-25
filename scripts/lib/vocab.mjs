@@ -639,7 +639,19 @@ export const EFFECT_SUBJECTS = {
   self: { label: "The character" },
   opponent: { label: "The opponent" },
   ally: { label: "An ally" },
+  // A spell's subjects are relative to the CAST, not to an owner: `self` is
+  // the caster, and these three name what the cast is aimed at (RR ch. 5
+  // §V.8 defined terms). `domain: "spell"` keeps them out of an ability's
+  // picker (`effectSubjectsFor`).
+  target: { label: "The target", domain: "spell" },
+  recipient: { label: "The recipient", domain: "spell" },
+  area: { label: "Everything in the area", domain: "spell" },
 };
+
+/** The subjects a picker offers for one domain, on the same rule as `effectTypesFor`. */
+export function effectSubjectsFor(domain) {
+  return Object.fromEntries(Object.entries(EFFECT_SUBJECTS).filter(([, v]) => !v.domain || v.domain === domain));
+}
 
 /** What a `modifier` effect adjusts. */
 export const MODIFIER_TARGETS = {

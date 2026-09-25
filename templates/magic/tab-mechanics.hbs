@@ -1,0 +1,67 @@
+{{!
+  What the spell DOES, as rows in the shared effect vocabulary — each opens in
+  the effect-row editor — with the system's own Active Effects folded in
+  below them, as the abilities sheet lays them out.
+}}
+<section class="tab acks-magic-mechanics {{tabs.mechanics.cssClass}}" data-tab="mechanics" data-group="primary">
+
+  {{#if extras.unaudited}}
+    <p class="notification info acks-magic-notice" data-tooltip="{{localize 'ACKS-MAGIC.overview.unauditedTip'}}">
+      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+      {{localize "ACKS-MAGIC.overview.unaudited"}}
+    </p>
+  {{/if}}
+
+  <fieldset>
+    <legend>{{localize "ACKS-MAGIC.mech.effects"}}</legend>
+    <p class="hint">{{localize "ACKS-MAGIC.mech.effectsHint"}}</p>
+    {{#if effectRows.length}}
+      <ol class="acks-magic-effects">
+        {{#each effectRows as |row|}}
+          <li class="acks-magic-effect">
+            <span class="acks-magic-effect-kind">{{row.kind}}</span>
+            <span class="acks-magic-effect-text">{{row.text}}</span>
+            {{#if @root.editable}}
+              <span class="acks-magic-effect-ctls">
+                {{#unless @first}}
+                  <button type="button" class="acks-magic-ctl" data-action="effectMoveUp" data-index="{{row.index}}"
+                          aria-label="{{localize 'ACKS-MAGIC.mech.moveUp'}}" data-tooltip="{{localize 'ACKS-MAGIC.mech.moveUp'}}">
+                    <i class="fa-solid fa-arrow-up" inert></i>
+                  </button>
+                {{/unless}}
+                {{#unless @last}}
+                  <button type="button" class="acks-magic-ctl" data-action="effectMoveDown" data-index="{{row.index}}"
+                          aria-label="{{localize 'ACKS-MAGIC.mech.moveDown'}}" data-tooltip="{{localize 'ACKS-MAGIC.mech.moveDown'}}">
+                    <i class="fa-solid fa-arrow-down" inert></i>
+                  </button>
+                {{/unless}}
+                <button type="button" class="acks-magic-ctl" data-action="effectEdit" data-index="{{row.index}}"
+                        aria-label="{{localize 'ACKS-MAGIC.mech.edit'}}" data-tooltip="{{localize 'ACKS-MAGIC.mech.edit'}}">
+                  <i class="fa-solid fa-pen-to-square" inert></i>
+                </button>
+                <button type="button" class="acks-magic-ctl acks-magic-ctl--danger" data-action="effectDelete" data-index="{{row.index}}"
+                        aria-label="{{localize 'ACKS-MAGIC.mech.delete'}}" data-tooltip="{{localize 'ACKS-MAGIC.mech.delete'}}">
+                  <i class="fa-solid fa-trash" inert></i>
+                </button>
+              </span>
+            {{/if}}
+          </li>
+        {{/each}}
+      </ol>
+    {{else}}
+      <p class="hint">{{localize "ACKS-MAGIC.mech.noEffects"}}</p>
+    {{/if}}
+    {{#if editable}}
+      <button type="button" class="acks-magic-add" data-action="effectAdd">
+        <i class="fa-solid fa-plus"></i> {{localize "ACKS-MAGIC.mech.add"}}
+      </button>
+    {{/if}}
+  </fieldset>
+
+  {{! Foundry Active Effects — the system's own list through its own partial. }}
+  <fieldset class="acks-magic-active-effects">
+    <legend>{{localize "ACKS.category.effects"}}</legend>
+    {{> (lookup this "coreEffectsPartial")}}
+  </fieldset>
+
+</section>

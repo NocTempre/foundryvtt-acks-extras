@@ -1,5 +1,49 @@
 # Changelog
 
+## 9.0.0
+
+### Added
+
+- **Spells are documents with structure.** Every spell Item carries the spell
+  primitive under the module's flag and opens on the ACKS Spell sheet: an
+  Overview tab with the printed stat line as fields — the lists the spell
+  prints on with a magic type and level each, its spell type, range and
+  duration as a shape with a value and unit, target, save, whether it is
+  reversible and what its reverse is called — the system's own Description
+  tab, and a Mechanics tab of effect rows in the vocabulary the abilities
+  already use, each edited in a window of its own. The system's level, class,
+  range, duration and save strings are written from the fields, so the system
+  sheet, the character sheet and the class spell picker keep reading; a
+  string you typed by hand stays until the field beneath it changes.
+- **Every printed spell imports from your Revised Rulebook.** *Import
+  Everything* gains a step, *Importing spells…*, that writes one document per
+  entry of the spell chapter and each of the sample rituals: the stat line
+  parsed onto the fields, the asterisk read as reversible with the reverse's
+  name taken from the text, the description closing on its page, an icon per
+  spell. `acksExtras.importer.importSpells()` runs it alone; the *Spells*
+  shelf of Reimport One Shelf rebuilds it or repairs it in place, keeping each
+  document's id, its cast count, its favourite mark, a description you wrote
+  and the effect rows you added. Spells import before classes, so a starting
+  template's spellbook resolves to them. A world that imported
+  its classes before this release keeps the printed names on those
+  templates; a coming release relinks them in place.
+- **Uninstall — Strip Spell Data**, a macro that removes the spell primitive
+  from every spell in the world and leaves the system's own strings, for a
+  world that is disabling the module.
+
+### Changed
+
+- **Imported text keeps a damage-type mark as its word.** The Revised
+  Rulebook sets a damage type in running text as the same icon the Monstrous
+  Manual's tables use; every imported description used to drop it, so a typed
+  roll read as untyped. It now reads as the type's word.
+- **A template's spellbook resolves a printed name whole first.** With three
+  hundred spells in the library a short title could land on the longer title
+  that sorted first.
+- **The class spell picker reads a spell's lists** and offers each spell once
+  under every tradition it prints on, an imported copy standing for a
+  compendium copy of the same name.
+
 ## 8.8.0
 
 ### Added

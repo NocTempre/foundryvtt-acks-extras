@@ -15,23 +15,10 @@ import { rankOf, scalesFor, targetOf, rollsOf, rollAbility, defaultKeyOf, setDef
 import { registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheetRolls } from "./sheet-rolls.mjs";
 import { companionSlots, openCompanionPicker, bindCompanion, releaseCompanion, registerCompanions } from "./companions.mjs";
+import { coreItemSheetFor } from "../lib/util.mjs";
 
 /** The dynamically-created sheet class (base is resolved at ready). */
 let AcksAbilitySheet = null;
-
-/** Resolve the system's default `ability` item sheet — our base to extend. */
-function resolveAbilitySheetBase() {
-  const registered = CONFIG.Item?.sheetClasses?.[ABILITY_TYPE] ?? {};
-  const entries = Object.values(registered);
-  const defaulted = entries.find((e) => e.default) ?? null;
-  const chosen = defaulted ?? entries[0] ?? null;
-  // Warn when several entries compete and none is flagged default, naming the
-  // class adopted; a lone entry is unambiguous and stays quiet.
-  if (!defaulted && entries.length > 1) {
-    console.warn(`${MODULE_ID} | no ${ABILITY_TYPE} sheet is flagged default; extending ${chosen.cls?.name} by registry order.`);
-  }
-  return chosen?.cls ?? null;
-}
 
 Hooks.once("init", () => {
   // Public API for consumer modules (the importer writes this flag on import;
@@ -112,7 +99,7 @@ Hooks.once("init", () => {
  */
 Hooks.once("ready", async () => {
   if (!assertAcksSystem("the ACKS Ability sheet expects acks ability items.")) return;
-  const Base = resolveAbilitySheetBase();
+  const Base = coreItemSheetFor(ABILITY_TYPE);
   if (!Base) {
     console.error(`${MODULE_ID} | could not resolve the acks ability sheet; ACKS Ability sheet NOT registered.`);
     return;

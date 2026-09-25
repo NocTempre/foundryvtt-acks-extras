@@ -1,0 +1,186 @@
+/* ACKS Extras — magic: the spell sheet's two tabs.
+   Type rides the --acks-fs-* ramp; every size is a step of it. */
+
+/* A tab panel is `display: none` until it carries `active`; the layout is
+   stated on the active state only, so a hidden panel never claims height. */
+.acks-magic-overview.active,
+.acks-magic-mechanics.active {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+}
+
+/* A notice carries its explanation in a tooltip, so it must look askable. */
+.acks-magic-notice {
+  cursor: help;
+}
+
+/* The lists a spell prints on: one grid row per list, labels above. */
+.acks-magic-list-labels,
+.acks-magic-list-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.5fr 1.6fr 1.2fr 1.75rem;
+  gap: var(--acks-sp-1);
+  align-items: center;
+}
+
+.acks-magic-list-labels {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  margin-bottom: 1px;
+}
+
+.acks-magic-list-row {
+  margin-bottom: 3px;
+}
+
+.acks-magic-list-row input {
+  min-width: 0;
+}
+
+/* A row control: a bare glyph, its outline on focus. */
+.acks-magic-ctl {
+  flex: 0 0 auto;
+  width: 1.6em;
+  height: 1.6em;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.acks-magic-ctl:hover,
+.acks-magic-ctl:focus-visible {
+  opacity: 1;
+}
+
+.acks-magic-ctl--danger:hover,
+.acks-magic-ctl--danger:focus-visible {
+  color: var(--acks-danger-ink);
+}
+
+.acks-magic-add {
+  align-self: flex-start;
+  margin-top: var(--acks-sp-1);
+}
+
+/* What the shape reads as once written to core's string. */
+.acks-magic-derived {
+  margin: var(--acks-sp-1) 0 0;
+  padding: var(--acks-sp-1) var(--acks-sp-2);
+  border-radius: var(--acks-radius);
+  background: var(--acks-tint);
+  color: var(--acks-ink);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+}
+
+/* A level value: kind, then the number or the base + per-level pair. */
+.acks-magic-lv {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-1);
+}
+
+.acks-magic-lv input[type="number"] {
+  flex: 1 1 4em;
+  min-width: 3em;
+}
+
+.acks-magic-lv select {
+  flex: 1 1 6em;
+  min-width: 0;
+}
+
+.acks-magic-lv-sign,
+.acks-magic-lv-unit {
+  flex: 0 0 auto;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-magic-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: var(--acks-sp-1);
+  font-size: var(--acks-fs-label);
+}
+
+/* Target filters: a checkbox per filter, wrapping. */
+.acks-magic-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-1) 10px;
+  margin-bottom: 3px;
+}
+
+.acks-magic-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--acks-fs-label);
+  white-space: nowrap;
+}
+
+.acks-magic-pick input {
+  margin: 0;
+}
+
+/* Effect rows: kind, reading, controls. */
+.acks-magic-effects {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-magic-effect {
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-2);
+  padding: 2px 0;
+  border-bottom: 1px solid var(--acks-rule);
+}
+
+.acks-magic-effect-kind {
+  flex: 0 0 8em;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink-soft);
+}
+
+.acks-magic-effect-text {
+  flex: 1 1 auto;
+}
+
+.acks-magic-effect-ctls {
+  display: inline-flex;
+  gap: 0.25em;
+  align-self: center;
+}
+
+.acks-magic-active-effects {
+  min-inline-size: 0;
+}
+
+/* The filters group is a fieldset of boxes nested in the target fieldset:
+   drawn as a form row, not as a second framed box. */
+.acks-magic-filters {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.acks-magic-filters > legend {
+  padding: 0;
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+}

@@ -164,7 +164,7 @@ const edge = (src, rel, dst, note = null) => {
 };
 
 for (const [file, cb] of Object.entries(cookbooks)) {
-  const isMonsterBook = !["proficiencies", "powers", "skills"].includes(file);
+  const isMonsterBook = !["proficiencies", "powers", "skills", "spells"].includes(file);
   for (const [id, e] of Object.entries(cb.entries ?? {})) {
     const reg = registerRows.get(id) ?? {};
     const meta = e.meta ?? {};

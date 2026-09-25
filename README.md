@@ -118,8 +118,8 @@ anything, and it is safe to run twice.
    automation working.
 4. If you own the books, run **Your ACKS Books (this seat)** from the *ACKS
    Extras Macros* compendium to connect a PDF, then **Import Everything (GM)**:
-   classes, proficiencies, equipment, monsters, tables and more arrive from
-   your own copy. See [Importing from your books](https://noctempre.github.io/foundryvtt-acks-extras/guides/importer/).
+   classes, spells, proficiencies, equipment, monsters, tables and more arrive
+   from your own copy. See [Importing from your books](https://noctempre.github.io/foundryvtt-acks-extras/guides/importer/).
 
 ---
 
@@ -218,6 +218,29 @@ produce the same document in the same sheet.
 
 The module ships **no class values**. Derivation writes the same fields an
 import fills, so applying, levelling and chargen cannot tell the two apart.
+
+### Magic and spells
+
+The spell as a document with structure, not only prose. Every `spell` Item
+opens on the ACKS Spell sheet: the printed stat line as fields — the lists the
+spell prints on, each with its magic type and level; its type; range and
+duration as a shape with a value; target, save, reversal — and a Mechanics tab
+of effect rows in the vocabulary the abilities already use. The system's own
+level, class, range and duration strings follow the fields, so the system
+sheet and the character sheet keep reading.
+
+- **Every printed spell imports.** Connect your Revised Rulebook and *Import
+  Everything* writes one document per entry of the spell chapter and each
+  sample ritual, the stat line parsed onto the fields and the description
+  closing on its page. Spells land before classes, so a starting template's
+  spellbook finds what it names.
+- **Casting stays the system's** in this release: the counter, the chat card
+  and the Save button are unchanged. The cast engine, effect tracking and the
+  spell builder follow.
+- **Leave no trace.** *Uninstall — Strip Spell Data* removes the fields from
+  every spell in the world and keeps the strings.
+
+Guide: [Magic](https://noctempre.github.io/foundryvtt-acks-extras/guides/magic/).
 
 ### Proficiencies, class powers and skills
 
@@ -391,7 +414,7 @@ context menu.
 | Bestiary | Actor | 8 |
 | Spoils | Item | 7 |
 | Treasure | RollTable | 1 |
-| Macros | Macro | 32, in the *ACKS Extras* folder — the importer's four sit in its *Your Books* and *Import from your books* sub-folders |
+| Macros | Macro | 33, in the *ACKS Extras* folder — the importer's four sit in its *Your Books* and *Import from your books* sub-folders |
 
 Compendium descriptions are authored restatements with page citations, never
 transcription. The module ships no book text.

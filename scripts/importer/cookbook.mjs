@@ -65,6 +65,11 @@ import { CLASS_TYPE, RACE_TYPE } from "../classes/constants.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
 import { VARIATION_ITEM_TYPE } from "../equipment/constants.mjs";
 import { TRAP_ITEM_TYPE } from "../formation/constants.mjs";
+// The spell primitive's DataModel is not imported here: this file loads under
+// plain Node in the offline harness, and the model needs `foundry`. The bind
+// writes the plain shape `spellFromStat` returns; the model coerces on read.
+import { SPELL_TYPE, FLAG_SPELL } from "../magic/constants.mjs";
+import { parseStatBlock, spellFromStat, reversedNameFrom, coreFieldsFrom } from "../magic/spell-logic.mjs";
 import { equipmentClass, weaponIdentity } from "../equipment/profiles.mjs";
 import { gearProfileFor } from "../equipment/config.mjs";
 import { annotateItem } from "../equipment/api.mjs";
@@ -1485,6 +1490,7 @@ const REPAIR_RUNS = {
   },
   importAllEquipment: (only, tally) => importAllEquipment({ only, repair: tally }),
   importTraps: (only, tally) => importTraps({ only, repair: tally }),
+  importSpells: (only, tally) => importSpells({ only, repair: tally }),
   importVariations: (only, tally) => importVariations({ only, repair: tally }),
   importVehicles: (only, tally) => importVehicles({ only, repair: tally }),
 };
@@ -1734,6 +1740,7 @@ const SHELF_REFILL = {
   Armor: "importArmor",
   Variations: "importVariations",
   Traps: "importTraps",
+  Spells: "importSpells",
   Classes: "importClasses",
   Languages: "cookbookImportTables",
   Races: "cookbookImportTables",
@@ -1931,6 +1938,7 @@ const ENTRY_SOURCES = [
     entries: () => cookbookEquipmentIds().map((id) => [id, cookbookEntry(id)?.entry ?? {}]),
   },
   { key: "Traps", type: "Item", refill: "importTraps", entries: () => [...trapEntries()] },
+  { key: "Spells", type: "Item", refill: "importSpells", entries: () => [...spellEntries()] },
   { key: "Variations", type: "Item", refill: "importVariations", entries: () => [...variationEntries()] },
   { key: "Vehicles", type: "Actor", refill: "importVehicles", entries: () => [...vehicleEntries()] },
   // A creature an OSE book prints a block per step for is one row, under its
@@ -4252,6 +4260,7 @@ const ITEM_SHELF = {
   "def.weapon": "Weapons",
   "def.armor": "Armor",
   "def.trap": "Traps",
+  "def.spell": "Spells",
   "def.variation": "Variations",
   // The price list's own rows — see importPriceList for why they cannot join
   // the described entries' group shelves.
@@ -4742,6 +4751,7 @@ const NON_ABILITY_KINDS = new Set([
   "kind.trap",
   "kind.variation",
   "kind.vehicle",
+  "kind.spell",
   // A conversion constant is a NUMBER the converter is handed at run time
   // (readScgConstants), never a document.
   "kind.constant",
@@ -7001,6 +7011,91 @@ export async function importTraps({ only = null, repair = null } = {}) {
   }
   ui.notifications?.info(
     `${MODULE_ID} | traps: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}.`,
+  );
+  return made;
+}
+
+/**
+ * Build one core `spell` Item from a spell entry and its materialized text.
+ * The stat block the seat read is parsed into the primitive (`spell-logic.mjs`
+ * `spellFromStat`), core's own strings are written from it, and the prose
+ * becomes the description. A heading that ends in the reversal marker makes
+ * the spell reversible, and the reverse's name is read off the prose where it
+ * states one. A row anchored by hash names the document from the heading the
+ * seat read; with the book closed it keeps the row's numbered label.
+ */
+export function bindSpell(entry, node, id) {
+  const cite = entry.cite ?? "";
+  const heading = node?.fields?.name ?? {};
+  const printed = (typeof heading.title === "string" && heading.title) || entry.name || "";
+  const marker = /\*\s*$/.test(entry.anchor?.subheading ?? "") || /\*\s*$/.test(heading.found ?? "");
+  const paras = (node?.fields?.description ?? []).map((p) => (typeof p === "string" ? p : (p?.text ?? ""))).filter(Boolean);
+  const built = spellFromStat(parseStatBlock(typeof node?.fields?.stat === "string" ? node.fields.stat : ""));
+  const extras = {
+    ...built,
+    reversible: marker,
+    reversedName: marker ? reversedNameFrom(paras.join(" ")) : "",
+    cite,
+  };
+  return {
+    name: printed.replace(/\*\s*$/, "").trim(),
+    type: SPELL_TYPE,
+    ...(entry.icon ? { img: entry.icon } : {}),
+    // The stamp Remove ALL Imports finds documents by; without it a world could
+    // import these and never get them back out.
+    flags: { [MODULE_ID]: { cookbook: { id, cite }, [FLAG_SPELL]: extras } },
+    system: {
+      ...coreFieldsFrom(extras),
+      description: bookText(paras, cite, { id, book: entry.book, page: entry.pages?.[0] }),
+    },
+  };
+}
+
+/** Every kind.spell [id, entry] across the content cookbooks. */
+export function* spellEntries() {
+  for (const cb of data.content.values()) {
+    for (const [defId, e] of Object.entries(cb.entries ?? {})) {
+      if (e.kind === "kind.spell") yield [defId, e];
+    }
+  }
+}
+
+/**
+ * Import the printed spells, one core spell Item per printed entry, its stat
+ * block on the primitive and its prose as the description. GM only: a player
+ * pressing the control would mint a second set.
+ *
+ * `repair`, a tally, writes each entry this world already holds over its
+ * document in place (`REPAIR.spell`) instead of passing over it.
+ */
+export async function importSpells({ only = null, repair = null } = {}) {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
+  const made = [];
+  let skipped = 0;
+  for (const [id, entry] of spellEntries()) {
+    if (only && !only.has(id)) continue;
+    const have = await importedItem(id);
+    if (have) {
+      skipped++;
+      if (repair) countRepair(repair, await repairFromEntry(have, id, (node) => bindSpell(entry, node, id), REPAIR.spell));
+      continue;
+    }
+    const doc = await claimImport(id, async () => {
+      const found = cookbookEntry(id);
+      const bookId = found ? bookOf(found) : null;
+      const session = bookId ? ctx.sessionDocs.get(bookId) : null;
+      let node = null;
+      if (session) {
+        node = await executeEntry(session.doc, found.cb, data.registers, id);
+        if (!node?.ok) node = null;
+      }
+      const folder = (await ensureItemFolder(id))?.id ?? null;
+      return createDoc(Item, { ...bindSpell(entry, node, id), folder });
+    });
+    if (doc) made.push(doc);
+  }
+  ui.notifications?.info(
+    `${MODULE_ID} | spells: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}.`,
   );
   return made;
 }

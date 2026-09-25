@@ -1,0 +1,90 @@
+{{!
+  One effect row of one list. The kind is chosen first; the fields under it
+  are the ones that kind reads, and a change re-renders the window with the
+  new kind's fields. There is no Save button: fields apply as they are made.
+}}
+<div class="acks-extras-effect-editor-body">
+
+  <div class="form-group">
+    <label>{{localize "ACKS-LIB.effectEditor.type"}}</label>
+    <div class="form-fields">
+      <select name="type">{{selectOptions types selected=row.type}}</select>
+    </div>
+    <p class="hint">{{localize "ACKS-LIB.effectEditor.typeHint"}}</p>
+  </div>
+
+  {{#each fields as |f|}}
+    {{#if (eq f.kind "set")}}
+      <fieldset class="acks-extras-effect-set">
+        <legend>{{f.label}}</legend>
+        <div class="acks-extras-effect-picks">
+          {{#each f.options as |o|}}
+            <label class="acks-extras-effect-pick">
+              <input type="checkbox" name="{{f.name}}.{{o.key}}" {{checked o.checked}}>
+              <span>{{o.label}}</span>
+            </label>
+          {{/each}}
+        </div>
+      </fieldset>
+    {{else if (eq f.kind "levelValue")}}
+      <fieldset class="acks-extras-effect-value">
+        <legend>{{f.label}}</legend>
+        <div class="form-group">
+          <label>{{localize "ACKS-LIB.effectEditor.value.kind"}}</label>
+          <div class="form-fields">
+            <select name="{{f.name}}.kind">{{selectOptions f.kinds selected=f.value.kind}}</select>
+          </div>
+        </div>
+        {{#if f.isFlat}}
+          <div class="form-group">
+            <label>{{localize "ACKS-LIB.effectEditor.value.flat"}}</label>
+            <div class="form-fields">
+              <input type="number" step="any" name="{{f.name}}.flat" value="{{f.value.flat}}" placeholder="—">
+            </div>
+          </div>
+        {{else if f.isPerLevel}}
+          <div class="form-group">
+            <label>{{localize "ACKS-LIB.effectEditor.value.base"}}</label>
+            <div class="form-fields">
+              <input type="number" step="any" name="{{f.name}}.base" value="{{f.value.base}}" placeholder="—">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>{{localize "ACKS-LIB.effectEditor.value.per"}}</label>
+            <div class="form-fields">
+              <input type="number" step="any" name="{{f.name}}.per" value="{{f.value.per}}" placeholder="—">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>{{localize "ACKS-LIB.effectEditor.value.round"}}</label>
+            <div class="form-fields">
+              <select name="{{f.name}}.round">{{selectOptions f.rounds selected=f.value.round blank=@root.none}}</select>
+            </div>
+          </div>
+        {{else}}
+          <p class="hint">{{localize "ACKS-LIB.effectEditor.value.ladder"}}</p>
+        {{/if}}
+      </fieldset>
+    {{else}}
+      <div class="form-group">
+        <label>{{f.label}}</label>
+        <div class="form-fields">
+          {{#if (eq f.kind "select")}}
+            <select name="{{f.name}}">{{selectOptions f.choices selected=f.value blank=@root.none}}</select>
+          {{else if (eq f.kind "number")}}
+            <input type="number" step="any" name="{{f.name}}" value="{{f.value}}" placeholder="—">
+          {{else if f.list}}
+            <input type="text" name="{{f.name}}" value="{{f.value}}" list="{{@root.partId}}-{{f.name}}">
+            <datalist id="{{@root.partId}}-{{f.name}}">
+              {{#each f.list as |o|}}<option value="{{o.key}}">{{o.label}}</option>{{/each}}
+            </datalist>
+          {{else}}
+            <input type="text" name="{{f.name}}" value="{{f.value}}">
+          {{/if}}
+        </div>
+      </div>
+    {{/if}}
+  {{/each}}
+
+  <p class="hint">{{localize "ACKS-LIB.effectEditor.hint"}}</p>
+</div>

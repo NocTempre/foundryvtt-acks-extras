@@ -84,6 +84,13 @@ export const FAMILIES = {
     look: "mechanism, or the thing that hits you",
     allow: ["icons/environment/", "icons/weapons/", "icons/magic/", "icons/tools/", "icons/commodities/", "icons/skills/"],
   },
+  // A spell's picture is its effect; the ACKS tree holds a pictogram for many
+  // of the printed spells under an earlier edition's name, and those are
+  // preferred where one exists.
+  "kind.spell": {
+    look: "effect art (magic), or the ACKS pictogram of the same spell",
+    allow: ["icons/magic/", "systems/acks/assets/icons/"],
+  },
   "kind.vehicle": {
     look: "conveyance",
     allow: ["icons/environment/vehicles/", "icons/environment/settlement/", "icons/tools/nautical/", "icons/tools/navigation/", "icons/commodities/wood/"],

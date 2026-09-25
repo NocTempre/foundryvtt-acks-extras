@@ -423,13 +423,12 @@ the price the page printed, which is everything the page said.
 
 What is still genuinely open:
 
-**A choice the cell offers is recorded, not asked.** "and one spell of
-character's choice" survives on the book's note, and is deliberately not minted
-as a spell — but nothing yet turns it into a decision the sheet puts to the
-player. A template's `items` carry a `choice` field and its `spells` do not;
-closing this means the spell list learning the same ChoiceSpec shape the
-ability entries already use, which is the magic model's to own rather than the
-splitter's.
+**A choice the cell offers is asked, but not narrowed.** "and one spell of
+character's choice" is lifted as an offer on the template's spells with a
+ChoiceSpec over the class's spell list, and chargen mints it as a pending
+choice the player answers (`classes/pending-choices.mjs`). What the offer
+cannot yet say is the level a starting character casts at: it offers the
+whole tradition. Narrowing it is the magic roadmap's 1a+.
 
 ## A companion's creature, linked to the actor it names
 
@@ -468,10 +467,10 @@ creature the template gives, which is all the page ever said.
 
 ## The system compendiums this importer does NOT yet replace
 
-acks-extras 4.1 folds a system compendium out of the sidebar once the world
-holds imported documents covering it (`hideSupersededPacks`). The map behind
-that setting is a coverage audit, and every pack ABSENT from it is a gap here
-— content a GM can only get from the system's own pack, which is exactly the
+Every compendium a world holds stays in its sidebar (docs/lib/DECISIONS.md,
+2026-09-02); what follows is a coverage audit of which system packs the
+import can stand in for, and every pack ABSENT from it is a gap here —
+content a GM can only get from the system's own pack, which is exactly the
 dependency materializing from their books is meant to end.
 
 Covered today: weapons and armour (the book's own tables, via
@@ -503,7 +502,7 @@ re-measure before authoring against them.
 
 | Pack | Docs | Not produced by the import | Verdict |
 |---|---|---|---|
-| `acks-languages` | 58 | **0** | **superseded in full** — now hidden by `hideSupersededPacks` |
+| `acks-languages` | 58 | **0** | **superseded in full** |
 | `acks-adventuring-equipment` | 103 | 11 | partial |
 | `acks-all-equipment` | 55 | 15 | partial |
 | `acks-clothing` | 38 | 17 | partial |
@@ -547,13 +546,13 @@ whether the document exists; the module packs are the reverse (41/42, 32/34,
   prints in a book this register has not read. Locate it before deciding
   whether it is a gap at all.
 - **The monster legs were never measured.** Importing 287 monsters exceeded the
-  audit's budget. Until it completes, `acks-monsters` and
-  `acks-monster-abilities` are hidden by `hideSupersededPacks` on a floor of
-  ten imported monsters while nobody has checked what the other 34 contain.
+  audit's budget. Until it completes, nobody has checked what the 34
+  `acks-monsters` documents the import does not produce contain.
 
-- **Spell lists** (system packs: 56 arcane, 19 divine). Deliberately parked —
-  spell references land with the magic major (see the classes and repo
-  roadmaps); the register carries the casting ladders but no spell documents.
+- **Spell lists.** The spell documents land with 9.0.0 (`kind.spell`, one
+  row per printed entry; `docs/magic/MODEL.md`). What is still parked is the
+  class side: a casting row's spell-list references stay empty, and the four
+  printed class repertoires are the magic roadmap's 1a+.
 - **Masterwork gear.** One `masterwork` mention across the register when this
   was measured; the rules are entries now (below), so what is left of this row
   is the sample pack's three demonstrations — a masterwork weapon and armour
@@ -646,10 +645,11 @@ missing by accident.
 
 ## Deferred with the 2026-08-29 surface-index work
 
-- **A "spell" cookbook kind.** Spells are not a cookbook kind, so a printed
-  spell name in a template resolves only against what the world already holds.
-  The open-pick offer sidesteps this for a CHOICE; a named spell still needs
-  the world to hold it.
+- **A "spell" cookbook kind** — DONE 9.0.0 (`kind.spell`). A printed spell
+  name in a template now resolves against the imported spells, which is why
+  the getting-started chain imports spells before classes; the printed pick
+  still offers the whole tradition rather than the level a starting character
+  casts (`docs/magic/ROADMAP.md`, 1a+).
 - **`liftBookSpells` splits on every "and".** A printed title containing the
   word — "purify food and water" — is torn into two entries. Two RR rows carry
   one. The fix is to split on commas and on the LAST "and" only when the clause

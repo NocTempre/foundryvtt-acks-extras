@@ -1,0 +1,6822 @@
+[
+  {
+    "id": "def.spell.adjustSelf",
+    "icon": "icons/magic/nature/elemental-plant-humanoid.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Adjust Self",
+    "anchor": {
+      "subheading": "Adjust Self"
+    },
+    "pages": [
+      196
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.allure",
+    "icon": "icons/magic/control/debuff-energy-hold-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Allure",
+    "anchor": {
+      "subheading": "Allure"
+    },
+    "pages": [
+      196
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.angelicChoir",
+    "icon": "icons/magic/light/beam-deflect-path-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Angelic Choir",
+    "anchor": {
+      "subheading": "Angelic Choir"
+    },
+    "pages": [
+      196
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.animateUndead",
+    "icon": "icons/magic/death/hand-dirt-undead-zombie.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Animate Undead",
+    "anchor": {
+      "subheading": "Animate Undead"
+    },
+    "pages": [
+      196
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.antiMagicSphere",
+    "icon": "icons/magic/defensive/barrier-shield-dome-blue-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Anti-Magic Sphere",
+    "anchor": {
+      "subheading": "Anti-Magic Sphere"
+    },
+    "pages": [
+      196
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.arcaneArmor",
+    "icon": "systems/acks/assets/icons/shield.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Arcane Armor",
+    "anchor": {
+      "subheading": "Arcane Armor"
+    },
+    "pages": [
+      196
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.arcaneShift",
+    "icon": "icons/magic/movement/abstract-ribbons-red-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Arcane Shift",
+    "anchor": {
+      "subheading": "Arcane Shift"
+    },
+    "pages": [
+      197
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.arrowsOfTheSun",
+    "icon": "icons/magic/fire/elemental-fire-flying.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Arrows of the Sun",
+    "anchor": {
+      "subheading": "Arrows of the Sun"
+    },
+    "pages": [
+      197
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.atonement",
+    "icon": "icons/magic/symbols/runes-star-pentagon-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Atonement",
+    "anchor": {
+      "subheading": "Atonement"
+    },
+    "pages": [
+      197
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.auditoryIllusion",
+    "icon": "icons/magic/light/beam-explosion-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Auditory Illusion",
+    "anchor": {
+      "subheading": "Auditory Illusion"
+    },
+    "pages": [
+      197
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.augury",
+    "icon": "systems/acks/assets/icons/augury.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Augury",
+    "anchor": {
+      "subheading": "Augury"
+    },
+    "pages": [
+      197
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.avianMessenger",
+    "icon": "icons/magic/unholy/hand-claw-fire-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Avian Messenger",
+    "anchor": {
+      "subheading": "Avian Messenger"
+    },
+    "pages": [
+      198
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.baneRune",
+    "icon": "systems/acks/assets/icons/bane.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Bane-Rune",
+    "anchor": {
+      "subheading": "Bane-Rune"
+    },
+    "pages": [
+      198
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.bannerOfInvincibility",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-diamond-acid.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Banner of Invincibility",
+    "anchor": {
+      "subheading": "Banner of Invincibility"
+    },
+    "pages": [
+      198
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.barrierOfBlades",
+    "icon": "icons/magic/defensive/shield-barrier-blades-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Barrier of Blades",
+    "anchor": {
+      "subheading": "Barrier of Blades"
+    },
+    "pages": [
+      198
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.bathOfTheGoddess",
+    "icon": "icons/magic/nature/beam-hand-leaves-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Bath of the Goddess",
+    "anchor": {
+      "subheading": "Bath of the Goddess"
+    },
+    "pages": [
+      199
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.batteringRam",
+    "icon": "systems/acks/assets/icons/rock.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Battering Ram",
+    "anchor": {
+      "subheading": "Battering Ram"
+    },
+    "pages": [
+      199
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.beguileHumanoid",
+    "icon": "systems/acks/assets/icons/charm-person.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Beguile Humanoid",
+    "anchor": {
+      "subheading": "Beguile Humanoid"
+    },
+    "pages": [
+      199
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.bewitchBeast",
+    "icon": "icons/magic/control/debuff-energy-hold-levitate-blue-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Bewitch Beast",
+    "anchor": {
+      "subheading": "Bewitch Beast"
+    },
+    "pages": [
+      199
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.bewitchCrowd",
+    "icon": "icons/magic/control/debuff-energy-hold-levitate-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Bewitch Crowd",
+    "anchor": {
+      "subheading": "Bewitch Crowd"
+    },
+    "pages": [
+      199
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.bewitchHumanoid",
+    "icon": "systems/acks/assets/icons/person.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Bewitch Humanoid",
+    "anchor": {
+      "subheading": "Bewitch Humanoid"
+    },
+    "pages": [
+      200
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.bewitchMonster",
+    "icon": "icons/magic/control/encase-creature-monster-hold.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Bewitch Monster",
+    "anchor": {
+      "subheading": "Bewitch Monster"
+    },
+    "pages": [
+      200
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.blastWard",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-diamond-blue-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Blast Ward",
+    "anchor": {
+      "subheading": "Blast Ward"
+    },
+    "pages": [
+      200
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.blastWardGreater",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-diamond-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Blast Ward, Greater",
+    "anchor": {
+      "subheading": "Blast Ward, Greater"
+    },
+    "pages": [
+      200
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.blindingFlash",
+    "icon": "icons/magic/fire/elemental-fire-humanoid.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Blinding Flash",
+    "anchor": {
+      "subheading": "Blinding Flash"
+    },
+    "pages": [
+      200
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.bloodyFlux",
+    "icon": "icons/magic/death/hand-undead-skeleton-fire-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Bloody Flux",
+    "anchor": {
+      "subheading": "Bloody Flux"
+    },
+    "pages": [
+      200
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.bodySwap",
+    "icon": "icons/magic/nature/plant-sprout-hand-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Body Swap",
+    "anchor": {
+      "subheading": "Body Swap"
+    },
+    "pages": [
+      200
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.boilBlood",
+    "icon": "systems/acks/assets/icons/blood.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Boil Blood",
+    "anchor": {
+      "subheading": "Boil Blood"
+    },
+    "pages": [
+      201
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.burningSparks",
+    "icon": "icons/magic/fire/flame-burning-building.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Burning Sparks",
+    "anchor": {
+      "subheading": "Burning Sparks"
+    },
+    "pages": [
+      201
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.callOfTheAerophractSteeds",
+    "icon": "icons/magic/unholy/hand-claw-fire-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Call of the Aerophract Steeds",
+    "anchor": {
+      "subheading": "Call of the Aerophract Steeds"
+    },
+    "pages": [
+      201
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.callOfTheAncientTusk",
+    "icon": "icons/magic/unholy/hand-claw-fog-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Call of the Ancient Tusk",
+    "anchor": {
+      "subheading": "Call of the Ancient Tusk"
+    },
+    "pages": [
+      201
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.callOfTheGallopingHerd",
+    "icon": "icons/magic/unholy/hand-claw-glow-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Call of the Galloping Herd",
+    "anchor": {
+      "subheading": "Call of the Galloping Herd"
+    },
+    "pages": [
+      202
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.callOfTheGreatCats",
+    "icon": "icons/magic/unholy/hand-fire-skeleton-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Call of the Great Cats",
+    "anchor": {
+      "subheading": "Call of the Great Cats"
+    },
+    "pages": [
+      202
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.callOfTheRegalPride",
+    "icon": "icons/magic/unholy/hand-grasping-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Call of the Regal Pride",
+    "anchor": {
+      "subheading": "Call of the Regal Pride"
+    },
+    "pages": [
+      203
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.callOfTheWildBear",
+    "icon": "icons/magic/unholy/hand-light-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Call of the Wild Bear",
+    "anchor": {
+      "subheading": "Call of the Wild Bear"
+    },
+    "pages": [
+      203
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.callOfTheWolf",
+    "icon": "icons/magic/unholy/hand-light-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Call of the Wolf",
+    "anchor": {
+      "subheading": "Call of the Wolf"
+    },
+    "pages": [
+      203
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.callOfTheWolfPack",
+    "icon": "icons/magic/unholy/hand-weapon-glow-black-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Call of the Wolf Pack",
+    "anchor": {
+      "subheading": "Call of the Wolf Pack"
+    },
+    "pages": [
+      204
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.capsizingWave",
+    "icon": "icons/magic/water/wave-water-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Capsizing Wave",
+    "anchor": {
+      "subheading": "Capsizing Wave"
+    },
+    "pages": [
+      204
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.carnage",
+    "icon": "icons/magic/death/blood-corruption-vomit-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Carnage",
+    "anchor": {
+      "subheading": "Carnage"
+    },
+    "pages": [
+      204
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.chameleon",
+    "icon": "systems/acks/assets/icons/chameleon.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Chameleon",
+    "anchor": {
+      "subheading": "Chameleon"
+    },
+    "pages": [
+      205
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.chimericalFigment",
+    "icon": "icons/magic/light/beam-explosion-pink-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Chimerical Figment",
+    "anchor": {
+      "subheading": "Chimerical Figment"
+    },
+    "pages": [
+      205
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.chokingGrip",
+    "icon": "systems/acks/assets/icons/choking-grip.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Choking Grip",
+    "anchor": {
+      "subheading": "Choking Grip"
+    },
+    "pages": [
+      205
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.circleOfAgony",
+    "icon": "icons/magic/death/bones-crossed-gray.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Circle of Agony",
+    "anchor": {
+      "subheading": "Circle of Agony"
+    },
+    "pages": [
+      205
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.circlingWinds",
+    "icon": "icons/magic/air/air-burst-spiral-blue-gray.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Circling Winds",
+    "anchor": {
+      "subheading": "Circling Winds"
+    },
+    "pages": [
+      206
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.clairaudiency",
+    "icon": "icons/magic/perception/eye-ringed-glow-angry-large-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Clairaudiency",
+    "anchor": {
+      "subheading": "Clairaudiency"
+    },
+    "pages": [
+      206
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.clairaudiencyGreater",
+    "icon": "icons/magic/perception/eye-ringed-glow-angry-large-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Clairaudiency, Greater",
+    "anchor": {
+      "subheading": "Clairaudiency, Greater"
+    },
+    "pages": [
+      206
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.clairvoyancy",
+    "icon": "systems/acks/assets/icons/eye.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Clairvoyancy",
+    "anchor": {
+      "subheading": "Clairvoyancy"
+    },
+    "pages": [
+      206
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.clairvoyancyGreater",
+    "icon": "icons/magic/perception/eye-ringed-glow-angry-small-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Clairvoyancy, Greater",
+    "anchor": {
+      "subheading": "Clairvoyancy, Greater"
+    },
+    "pages": [
+      207
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.cloudOfPoison",
+    "icon": "icons/magic/air/air-burst-spiral-large-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cloud of Poison",
+    "anchor": {
+      "subheading": "Cloud of Poison"
+    },
+    "pages": [
+      207
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.communion",
+    "icon": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Communion",
+    "anchor": {
+      "subheading": "Communion"
+    },
+    "pages": [
+      207
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.coneOfFear",
+    "icon": "systems/acks/assets/icons/fear.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cone of Fear",
+    "anchor": {
+      "subheading": "Cone of Fear"
+    },
+    "pages": [
+      207
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.coneOfFrost",
+    "icon": "icons/magic/water/projectile-arrow-water-ice-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cone of Frost",
+    "anchor": {
+      "subheading": "Cone of Frost"
+    },
+    "pages": [
+      207
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.coneOfParalysis",
+    "icon": "icons/magic/control/debuff-energy-hold-levitate-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cone of Paralysis",
+    "anchor": {
+      "subheading": "Cone of Paralysis"
+    },
+    "pages": [
+      207
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.conflagration",
+    "icon": "icons/magic/fire/explosion-flame-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Conflagration",
+    "anchor": {
+      "subheading": "Conflagration"
+    },
+    "pages": [
+      207
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.conjureCacodemonSpawn",
+    "icon": "icons/magic/unholy/strike-hand-glow-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Conjure Cacodemon Spawn",
+    "anchor": {
+      "subheading": "Conjure Cacodemon Spawn"
+    },
+    "pages": [
+      208
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.conjureDybbuk",
+    "icon": "icons/magic/unholy/barrier-fire-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Conjure Dybbuk",
+    "anchor": {
+      "subheading": "Conjure Dybbuk"
+    },
+    "pages": [
+      208
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.conjureFiend",
+    "icon": "icons/magic/unholy/beam-impact-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Conjure Fiend",
+    "anchor": {
+      "subheading": "Conjure Fiend"
+    },
+    "pages": [
+      208
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.conjureGenie",
+    "icon": "icons/magic/unholy/beam-impact-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Conjure Genie",
+    "anchor": {
+      "subheading": "Conjure Genie"
+    },
+    "pages": [
+      208
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.conjureHellion",
+    "icon": "icons/magic/unholy/beam-ringed-impact-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Conjure Hellion",
+    "anchor": {
+      "subheading": "Conjure Hellion"
+    },
+    "pages": [
+      208
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.conjureImp",
+    "icon": "systems/acks/assets/icons/imp.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Conjure Imp",
+    "anchor": {
+      "subheading": "Conjure Imp"
+    },
+    "pages": [
+      208
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.conjureIncubus",
+    "icon": "icons/magic/unholy/beams-impact-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Conjure Incubus",
+    "anchor": {
+      "subheading": "Conjure Incubus"
+    },
+    "pages": [
+      209
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.conjureMajorElemental",
+    "icon": "icons/magic/fire/elemental-creature-horse.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Conjure Major Elemental",
+    "anchor": {
+      "subheading": "Conjure Major Elemental"
+    },
+    "pages": [
+      209
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.conjurePettyElemental",
+    "icon": "icons/magic/fire/explosion-flame-lightning-strike.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Conjure Petty Elemental",
+    "anchor": {
+      "subheading": "Conjure Petty Elemental"
+    },
+    "pages": [
+      209
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.conjureSupremeElemental",
+    "icon": "icons/magic/fire/flame-burning-creature-skeleton.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Conjure Supreme Elemental",
+    "anchor": {
+      "subheading": "Conjure Supreme Elemental"
+    },
+    "pages": [
+      209
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.contactOtherSphere",
+    "icon": "icons/magic/perception/hand-eye-fire-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Contact Other Sphere",
+    "anchor": {
+      "subheading": "Contact Other Sphere"
+    },
+    "pages": [
+      210
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.controlWeather",
+    "icon": "icons/magic/air/air-burst-spiral-large-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Control Weather",
+    "anchor": {
+      "subheading": "Control Weather"
+    },
+    "pages": [
+      211
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.controlWinds",
+    "icon": "icons/magic/air/air-burst-spiral-large-teal-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Control Winds",
+    "anchor": {
+      "subheading": "Control Winds"
+    },
+    "pages": [
+      211
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.counterspell",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-diamond-magenta.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Counterspell",
+    "anchor": {
+      "subheading": "Counterspell"
+    },
+    "pages": [
+      212
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.crafting",
+    "icon": "icons/magic/nature/plant-sprout-hand-flower-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Crafting",
+    "anchor": {
+      "subheading": "Crafting"
+    },
+    "pages": [
+      212
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.createChasm",
+    "icon": "icons/magic/earth/barrier-stone-explosion-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Create Chasm",
+    "anchor": {
+      "subheading": "Create Chasm"
+    },
+    "pages": [
+      212
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.createFood",
+    "icon": "icons/magic/symbols/runes-star-pentagon-magenta.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Create Food",
+    "anchor": {
+      "subheading": "Create Food"
+    },
+    "pages": [
+      212
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.createWater",
+    "icon": "icons/magic/symbols/runes-star-pentagon-orange-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Create Water",
+    "anchor": {
+      "subheading": "Create Water"
+    },
+    "pages": [
+      212
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.cureBlindness",
+    "icon": "icons/magic/life/heart-cross-purple-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cure Blindness",
+    "anchor": {
+      "subheading": "Cure Blindness*"
+    },
+    "pages": [
+      213
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.cureCriticalInjury",
+    "icon": "systems/acks/assets/icons/arm-bandage.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cure Critical Injury",
+    "anchor": {
+      "subheading": "Cure Critical Injury*"
+    },
+    "pages": [
+      213
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.cureDisease",
+    "icon": "icons/magic/life/heart-cross-strong-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cure Disease",
+    "anchor": {
+      "subheading": "Cure Disease*"
+    },
+    "pages": [
+      213
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.cureLightInjury",
+    "icon": "systems/acks/assets/icons/cure-light-wounds.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cure Light Injury",
+    "anchor": {
+      "subheading": "Cure Light Injury*"
+    },
+    "pages": [
+      213
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.cureMajorInjury",
+    "icon": "icons/magic/life/heart-cross-strong-flame-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cure Major Injury",
+    "anchor": {
+      "subheading": "Cure Major Injury*"
+    },
+    "pages": [
+      213
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.cureModerateInjury",
+    "icon": "icons/magic/life/heart-cross-strong-flame-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cure Moderate Injury",
+    "anchor": {
+      "subheading": "Cure Moderate Injury*"
+    },
+    "pages": [
+      213
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.cureSeriousInjury",
+    "icon": "icons/magic/life/heart-cross-strong-flame-purple-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cure Serious Injury",
+    "anchor": {
+      "subheading": "Cure Serious Injury*"
+    },
+    "pages": [
+      213
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.curseOfTheSwine",
+    "icon": "icons/magic/nature/hand-weapon-wood-bark-brown.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Curse of the Swine",
+    "anchor": {
+      "subheading": "Curse of the Swine"
+    },
+    "pages": [
+      213
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.darkWhisper",
+    "icon": "icons/magic/death/grave-tombstone-glow-tan.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Dark Whisper",
+    "anchor": {
+      "subheading": "Dark Whisper"
+    },
+    "pages": [
+      214
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.deathlessMinion",
+    "icon": "icons/magic/symbols/arrowhead-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Deathless Minion",
+    "anchor": {
+      "subheading": "Deathless Minion"
+    },
+    "pages": [
+      214
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.deathWard",
+    "icon": "systems/acks/assets/icons/death-skull.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Death Ward",
+    "anchor": {
+      "subheading": "Death Ward"
+    },
+    "pages": [
+      214
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.deflectOrdinaryMissiles",
+    "icon": "icons/magic/defensive/shield-barrier-deflect-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Deflect Ordinary Missiles",
+    "anchor": {
+      "subheading": "Deflect Ordinary Missiles"
+    },
+    "pages": [
+      214
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.deflectOrdinaryWeapons",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-diamond-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Deflect Ordinary Weapons",
+    "anchor": {
+      "subheading": "Deflect Ordinary Weapons"
+    },
+    "pages": [
+      214
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.delayDeath",
+    "icon": "icons/magic/symbols/cross-circle-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Delay Death",
+    "anchor": {
+      "subheading": "Delay Death"
+    },
+    "pages": [
+      215
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.delayDisease",
+    "icon": "icons/magic/symbols/runes-etched-steel-blade.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Delay Disease",
+    "anchor": {
+      "subheading": "Delay Disease"
+    },
+    "pages": [
+      215
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.delayPoison",
+    "icon": "icons/magic/symbols/runes-triangle-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Delay Poison",
+    "anchor": {
+      "subheading": "Delay Poison"
+    },
+    "pages": [
+      215
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.desiccate",
+    "icon": "icons/magic/water/projectile-water-wave-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Desiccate",
+    "anchor": {
+      "subheading": "Desiccate"
+    },
+    "pages": [
+      215
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.destroyDead",
+    "icon": "icons/magic/death/hand-withered-gray.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Destroy Dead",
+    "anchor": {
+      "subheading": "Destroy Dead"
+    },
+    "pages": [
+      215
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.discernBewitchment",
+    "icon": "systems/acks/assets/icons/detect.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Discern Bewitchment",
+    "anchor": {
+      "subheading": "Discern Bewitchment*"
+    },
+    "pages": [
+      215
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.discernCurse",
+    "icon": "icons/magic/perception/eye-slit-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Discern Curse",
+    "anchor": {
+      "subheading": "Discern Curse*"
+    },
+    "pages": [
+      216
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.discernEvil",
+    "icon": "systems/acks/assets/icons/detect-evil-minion.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Discern Evil",
+    "anchor": {
+      "subheading": "Discern Evil*"
+    },
+    "pages": [
+      216
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.discernGist",
+    "icon": "systems/acks/assets/icons/language.png",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Discern Gist",
+    "anchor": {
+      "subheading": "Discern Gist"
+    },
+    "pages": [
+      216
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.discernInvisible",
+    "icon": "systems/acks/assets/icons/detect-invisible.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Discern Invisible",
+    "anchor": {
+      "subheading": "Discern Invisible"
+    },
+    "pages": [
+      216
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.discernMagic",
+    "icon": "systems/acks/assets/icons/detect-magic.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Discern Magic",
+    "anchor": {
+      "subheading": "Discern Magic"
+    },
+    "pages": [
+      216
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.discernPoison",
+    "icon": "icons/magic/perception/eye-slit-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Discern Poison",
+    "anchor": {
+      "subheading": "Discern Poison"
+    },
+    "pages": [
+      216
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.disfigureBodyAndSoul",
+    "icon": "icons/magic/unholy/strike-body-life-soul-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Disfigure Body and Soul",
+    "anchor": {
+      "subheading": "Disfigure Body and Soul"
+    },
+    "pages": [
+      216
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.dismember",
+    "icon": "icons/magic/death/projectile-skull-animal-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Dismember",
+    "anchor": {
+      "subheading": "Dismember"
+    },
+    "pages": [
+      217
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.disintegration",
+    "icon": "icons/magic/death/projectile-skull-fire-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Disintegration",
+    "anchor": {
+      "subheading": "Disintegration"
+    },
+    "pages": [
+      217
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.dispelEvil",
+    "icon": "icons/magic/symbols/runes-triangle-magenta.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Dispel Evil",
+    "anchor": {
+      "subheading": "Dispel Evil*"
+    },
+    "pages": [
+      218
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.dispelMagic",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-diamond-purple-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Dispel Magic",
+    "anchor": {
+      "subheading": "Dispel Magic"
+    },
+    "pages": [
+      218
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.divination",
+    "icon": "icons/magic/perception/mask-stone-eyes-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Divination",
+    "anchor": {
+      "subheading": "Divination"
+    },
+    "pages": [
+      218
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.divineArmor",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-diamond-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Divine Armor",
+    "anchor": {
+      "subheading": "Divine Armor"
+    },
+    "pages": [
+      218
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.divineGrace",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-diamond-teal-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Divine Grace",
+    "anchor": {
+      "subheading": "Divine Grace"
+    },
+    "pages": [
+      218
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.divineProtection",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-diamond-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Divine Protection",
+    "anchor": {
+      "subheading": "Divine Protection"
+    },
+    "pages": [
+      218
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.dominateBeasts",
+    "icon": "icons/magic/control/debuff-energy-hold-levitate-teal-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Dominate Beasts",
+    "anchor": {
+      "subheading": "Dominate Beasts"
+    },
+    "pages": [
+      219
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.dominateHumanoid",
+    "icon": "icons/magic/control/encase-creature-humanoid-hold.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Dominate Humanoid",
+    "anchor": {
+      "subheading": "Dominate Humanoid"
+    },
+    "pages": [
+      219
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.dominateMonster",
+    "icon": "icons/magic/control/debuff-energy-hold-levitate-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Dominate Monster",
+    "anchor": {
+      "subheading": "Dominate Monster"
+    },
+    "pages": [
+      219
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.dominatePlants",
+    "icon": "icons/magic/control/debuff-energy-hold-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Dominate Plants",
+    "anchor": {
+      "subheading": "Dominate Plants"
+    },
+    "pages": [
+      219
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.earthsExcrescence",
+    "icon": "icons/magic/earth/barrier-stone-explosion-spiked.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Earth’s Excrescence",
+    "anchor": {
+      "subheading": "Earth’s Excrescence"
+    },
+    "pages": [
+      219
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.earthsMire",
+    "icon": "icons/magic/earth/explosion-lava-stone-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Earth’s Mire",
+    "anchor": {
+      "subheading": "Earth’s Mire*"
+    },
+    "pages": [
+      220
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.earthsMovement",
+    "icon": "icons/magic/earth/explosion-lava-stone-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Earth’s Movement",
+    "anchor": {
+      "subheading": "Earth’s Movement"
+    },
+    "pages": [
+      220
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.earthsTeeth",
+    "icon": "icons/magic/earth/explosion-lava-stone-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Earth’s Teeth",
+    "anchor": {
+      "subheading": "Earth’s Teeth"
+    },
+    "pages": [
+      220
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.earthsTremor",
+    "icon": "icons/magic/earth/explosion-lava-stone-yellow-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Earth’s Tremor",
+    "anchor": {
+      "subheading": "Earth’s Tremor"
+    },
+    "pages": [
+      220
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.earthsWave",
+    "icon": "icons/magic/water/wave-water-explosion.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Earth’s Wave",
+    "anchor": {
+      "subheading": "Earth’s Wave"
+    },
+    "pages": [
+      220
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.energyInvulnerability",
+    "icon": "icons/magic/fire/flame-burning-skeleton-explosion.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Energy Invulnerability",
+    "anchor": {
+      "subheading": "Energy Invulnerability"
+    },
+    "pages": [
+      220
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.energyProtection",
+    "icon": "icons/magic/fire/beam-jet-stream-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Energy Protection",
+    "anchor": {
+      "subheading": "Energy Protection"
+    },
+    "pages": [
+      220
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.enslaveHumanoid",
+    "icon": "icons/magic/control/debuff-energy-hold-teal-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Enslave Humanoid",
+    "anchor": {
+      "subheading": "Enslave Humanoid"
+    },
+    "pages": [
+      221
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.faithfulCompanion",
+    "icon": "icons/magic/symbols/runes-triangle-orange-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Faithful Companion",
+    "anchor": {
+      "subheading": "Faithful Companion"
+    },
+    "pages": [
+      221
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.fanOfFlames",
+    "icon": "icons/magic/fire/flame-burning-chain.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Fan of Flames",
+    "anchor": {
+      "subheading": "Fan of Flames"
+    },
+    "pages": [
+      221
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.fate",
+    "icon": "icons/magic/light/explosion-star-glow-blue-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Fate",
+    "anchor": {
+      "subheading": "Fate"
+    },
+    "pages": [
+      221
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.fieryPillar",
+    "icon": "icons/magic/fire/projectile-arrow-fire-gem-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Fiery Pillar",
+    "anchor": {
+      "subheading": "Fiery Pillar"
+    },
+    "pages": [
+      222
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.filletAndServe",
+    "icon": "icons/magic/death/projectile-skull-fire-orange-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Fillet and Serve",
+    "anchor": {
+      "subheading": "Fillet and Serve"
+    },
+    "pages": [
+      222
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.fireball",
+    "icon": "icons/magic/fire/explosion-fireball-large-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Fireball",
+    "anchor": {
+      "subheading": "Fireball"
+    },
+    "pages": [
+      222
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.firestorm",
+    "icon": "icons/magic/fire/projectile-arrow-fire-orange-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Firestorm",
+    "anchor": {
+      "subheading": "Firestorm"
+    },
+    "pages": [
+      222
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.flayTheSlain",
+    "icon": "icons/magic/death/projectile-skull-fire-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Flay the Slain",
+    "anchor": {
+      "subheading": "Flay the Slain"
+    },
+    "pages": [
+      222
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.fleshToAsh",
+    "icon": "icons/magic/death/projectile-skull-fire-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Flesh to Ash",
+    "anchor": {
+      "subheading": "Flesh to Ash"
+    },
+    "pages": [
+      222
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.flight",
+    "icon": "icons/magic/control/buff-flight-wings-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Flight",
+    "anchor": {
+      "subheading": "Flight"
+    },
+    "pages": [
+      222
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.forceOfImpetus",
+    "icon": "icons/magic/earth/explosion-lava-stone-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Force of Impetus",
+    "anchor": {
+      "subheading": "Force of Impetus"
+    },
+    "pages": [
+      223
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.forestEnchantment",
+    "icon": "icons/magic/control/encase-creature-spider-hold.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Forest Enchantment",
+    "anchor": {
+      "subheading": "Forest Enchantment"
+    },
+    "pages": [
+      223
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.forgetfulness",
+    "icon": "icons/magic/control/silhouette-aura-energy.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Forgetfulness",
+    "anchor": {
+      "subheading": "Forgetfulness"
+    },
+    "pages": [
+      224
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.frightenBeast",
+    "icon": "icons/magic/control/silhouette-hold-beam-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Frighten Beast",
+    "anchor": {
+      "subheading": "Frighten Beast"
+    },
+    "pages": [
+      224
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.frightenHumanoid",
+    "icon": "icons/magic/control/debuff-energy-snare-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Frighten Humanoid",
+    "anchor": {
+      "subheading": "Frighten Humanoid"
+    },
+    "pages": [
+      224
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.frostbite",
+    "icon": "icons/magic/water/beam-ice-impact.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Frostbite",
+    "anchor": {
+      "subheading": "Frostbite"
+    },
+    "pages": [
+      224
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.galeOfWind",
+    "icon": "icons/magic/air/air-burst-spiral-large-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Gale of Wind",
+    "anchor": {
+      "subheading": "Gale of Wind"
+    },
+    "pages": [
+      224
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.gaseousForm",
+    "icon": "systems/acks/assets/icons/gaseous-form.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Gaseous Form",
+    "anchor": {
+      "subheading": "Gaseous Form"
+    },
+    "pages": [
+      224
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.giantStrength",
+    "icon": "systems/acks/assets/icons/giant-strength.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Giant Strength",
+    "anchor": {
+      "subheading": "Giant Strength"
+    },
+    "pages": [
+      225
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.growth",
+    "icon": "systems/acks/assets/icons/growth.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Growth",
+    "anchor": {
+      "subheading": "Growth*"
+    },
+    "pages": [
+      225
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.growthBeast",
+    "icon": "icons/magic/nature/instrument-recorder-leaves.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Growth, Beast",
+    "anchor": {
+      "subheading": "Growth, Beast"
+    },
+    "pages": [
+      226
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.growthPlant",
+    "icon": "icons/magic/nature/root-vine-entangled-hand.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Growth, Plant",
+    "anchor": {
+      "subheading": "Growth, Plant*"
+    },
+    "pages": [
+      226
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.guiseOther",
+    "icon": "icons/magic/nature/leaf-hand-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Guise Other",
+    "anchor": {
+      "subheading": "Guise Other"
+    },
+    "pages": [
+      226
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.guiseSelf",
+    "icon": "icons/magic/nature/leaf-juggle-humanoid-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Guise Self",
+    "anchor": {
+      "subheading": "Guise Self"
+    },
+    "pages": [
+      226
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.haltHumanoids",
+    "icon": "icons/magic/control/debuff-energy-snare-brown.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Halt Humanoids",
+    "anchor": {
+      "subheading": "Halt Humanoids"
+    },
+    "pages": [
+      226
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.haltMonsters",
+    "icon": "icons/magic/control/debuff-energy-snare-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Halt Monsters",
+    "anchor": {
+      "subheading": "Halt Monsters"
+    },
+    "pages": [
+      227
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.healingCircle",
+    "icon": "icons/magic/life/heart-area-circle-red-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Healing Circle",
+    "anchor": {
+      "subheading": "Healing Circle"
+    },
+    "pages": [
+      227
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.hiddenHost",
+    "icon": "icons/magic/light/beam-horizon-strike-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Hidden Host",
+    "anchor": {
+      "subheading": "Hidden Host"
+    },
+    "pages": [
+      227
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.holyBlessing",
+    "icon": "icons/magic/symbols/star-inverted-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Holy Blessing",
+    "anchor": {
+      "subheading": "Holy Blessing*"
+    },
+    "pages": [
+      227
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.holyChant",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-pentagon-blue-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Holy Chant",
+    "anchor": {
+      "subheading": "Holy Chant"
+    },
+    "pages": [
+      227
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.holyCircle",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-pentagon-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Holy Circle",
+    "anchor": {
+      "subheading": "Holy Circle*"
+    },
+    "pages": [
+      227
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.holyCircleSustained",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-pentagon-magenta.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Holy Circle, Sustained",
+    "anchor": {
+      "subheading": "Holy Circle, Sustained*"
+    },
+    "pages": [
+      228
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.holyPrayer",
+    "icon": "icons/magic/movement/trail-streak-zigzag-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Holy Prayer",
+    "anchor": {
+      "subheading": "Holy Prayer"
+    },
+    "pages": [
+      228
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.homeWard",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-pentagon-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Home Ward",
+    "anchor": {
+      "subheading": "Home Ward"
+    },
+    "pages": [
+      228
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.hypnoticSigil",
+    "icon": "icons/magic/control/debuff-energy-snare-purple-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Hypnotic Sigil",
+    "anchor": {
+      "subheading": "Hypnotic Sigil"
+    },
+    "pages": [
+      228
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.iceFloe",
+    "icon": "icons/magic/water/barrier-ice-water-cube.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Ice Floe",
+    "anchor": {
+      "subheading": "Ice Floe"
+    },
+    "pages": [
+      228
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.iceSheet",
+    "icon": "icons/magic/water/orb-water-ice-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Ice Sheet",
+    "anchor": {
+      "subheading": "Ice Sheet"
+    },
+    "pages": [
+      229
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.iceStorm",
+    "icon": "icons/magic/water/projectile-water-ice-orb.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Ice Storm",
+    "anchor": {
+      "subheading": "Ice Storm"
+    },
+    "pages": [
+      229
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.illumination",
+    "icon": "icons/magic/symbols/star-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Illumination",
+    "anchor": {
+      "subheading": "Illumination*"
+    },
+    "pages": [
+      229
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.illuminationPerpetual",
+    "icon": "icons/magic/symbols/symbol-lightning-bolt.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Illumination, Perpetual",
+    "anchor": {
+      "subheading": "Illumination, Perpetual*"
+    },
+    "pages": [
+      230
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.illusoryDuplicates",
+    "icon": "icons/magic/light/beam-impact-deflect-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Illusory Duplicates",
+    "anchor": {
+      "subheading": "Illusory Duplicates"
+    },
+    "pages": [
+      230
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.illusoryFigment",
+    "icon": "icons/magic/light/beam-rays-blue-large.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Illusory Figment",
+    "anchor": {
+      "subheading": "Illusory Figment"
+    },
+    "pages": [
+      230
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.illusoryInterior",
+    "icon": "icons/magic/light/beam-rays-blue-small.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Illusory Interior",
+    "anchor": {
+      "subheading": "Illusory Interior"
+    },
+    "pages": [
+      230
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.illusoryTerrain",
+    "icon": "icons/magic/light/beam-rays-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Illusory Terrain",
+    "anchor": {
+      "subheading": "Illusory Terrain"
+    },
+    "pages": [
+      230
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.inaudibility",
+    "icon": "icons/magic/light/beam-rays-green-large.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Inaudibility",
+    "anchor": {
+      "subheading": "Inaudibility"
+    },
+    "pages": [
+      231
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.inciteMadness",
+    "icon": "icons/magic/control/debuff-energy-snare-purple-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Incite Madness",
+    "anchor": {
+      "subheading": "Incite Madness"
+    },
+    "pages": [
+      231
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.indiscernibility",
+    "icon": "icons/magic/time/arrows-circling-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Indiscernibility",
+    "anchor": {
+      "subheading": "Indiscernibility"
+    },
+    "pages": [
+      231
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.inferno",
+    "icon": "icons/magic/fire/projectile-arrow-fire-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Inferno",
+    "anchor": {
+      "subheading": "Inferno"
+    },
+    "pages": [
+      231
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.infuriateBeast",
+    "icon": "icons/magic/control/energy-stream-link-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Infuriate Beast",
+    "anchor": {
+      "subheading": "Infuriate Beast"
+    },
+    "pages": [
+      231
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.infuriateHumanoid",
+    "icon": "icons/magic/control/energy-stream-link-large-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Infuriate Humanoid",
+    "anchor": {
+      "subheading": "Infuriate Humanoid"
+    },
+    "pages": [
+      232
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.infuriateCrowd",
+    "icon": "icons/magic/control/energy-stream-link-large-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Infuriate Crowd",
+    "anchor": {
+      "subheading": "Infuriate Crowd"
+    },
+    "pages": [
+      232
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.inspireAwe",
+    "icon": "icons/magic/control/energy-stream-link-large-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Inspire Awe",
+    "anchor": {
+      "subheading": "Inspire Awe*"
+    },
+    "pages": [
+      232
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.invisibility",
+    "icon": "systems/acks/assets/icons/invisible2.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Invisibility",
+    "anchor": {
+      "subheading": "Invisibility"
+    },
+    "pages": [
+      232
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.invulnerabilityToEvil",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-pentagon-purple-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Invulnerability to Evil",
+    "anchor": {
+      "subheading": "Invulnerability to Evil*"
+    },
+    "pages": [
+      232
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.ironMaiden",
+    "icon": "icons/magic/death/projectile-skull-flaming-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Iron Maiden",
+    "anchor": {
+      "subheading": "Iron Maiden"
+    },
+    "pages": [
+      232
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.kindleFlame",
+    "icon": "systems/acks/assets/icons/flame.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Kindle Flame",
+    "anchor": {
+      "subheading": "Kindle Flame*"
+    },
+    "pages": [
+      233
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.layOfTheLand",
+    "icon": "icons/magic/light/hand-sparks-glow-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Lay of the Land",
+    "anchor": {
+      "subheading": "Lay of the Land"
+    },
+    "pages": [
+      233
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.leaping",
+    "icon": "systems/acks/assets/icons/jump.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Leaping",
+    "anchor": {
+      "subheading": "Leaping"
+    },
+    "pages": [
+      233
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.levelWater",
+    "icon": "icons/magic/water/elemental-water.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Level Water",
+    "anchor": {
+      "subheading": "Level Water"
+    },
+    "pages": [
+      233
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.lifeTransfer",
+    "icon": "icons/magic/death/projectile-skull-flaming-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Life Transfer",
+    "anchor": {
+      "subheading": "Life Transfer"
+    },
+    "pages": [
+      234
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.lightlessVision",
+    "icon": "icons/magic/nature/plant-bamboo-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Lightless Vision",
+    "anchor": {
+      "subheading": "Lightless Vision"
+    },
+    "pages": [
+      234
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.lightlessVisionMass",
+    "icon": "icons/magic/nature/plant-maneater-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Lightless Vision, Mass",
+    "anchor": {
+      "subheading": "Lightless Vision, Mass"
+    },
+    "pages": [
+      234
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.lightningStrike",
+    "icon": "systems/acks/assets/icons/lightning-bolt.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Lightning Strike",
+    "anchor": {
+      "subheading": "Lightning Strike"
+    },
+    "pages": [
+      235
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.locateAnimalOrPlant",
+    "icon": "icons/magic/light/beam-rays-green-small.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Locate Animal or Plant",
+    "anchor": {
+      "subheading": "Locate Animal or Plant"
+    },
+    "pages": [
+      235
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.locateDistantObject",
+    "icon": "icons/magic/light/beam-rays-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Locate Distant Object",
+    "anchor": {
+      "subheading": "Locate Distant Object"
+    },
+    "pages": [
+      235
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.locateHaunting",
+    "icon": "icons/magic/light/beam-rays-magenta-large.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Locate Haunting",
+    "anchor": {
+      "subheading": "Locate Haunting"
+    },
+    "pages": [
+      235
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.locateObject",
+    "icon": "icons/magic/light/beam-rays-magenta-small.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Locate Object",
+    "anchor": {
+      "subheading": "Locate Object"
+    },
+    "pages": [
+      235
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.locatePlaceOfPower",
+    "icon": "icons/magic/light/beam-rays-magenta.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Locate Place of Power",
+    "anchor": {
+      "subheading": "Locate Place of Power"
+    },
+    "pages": [
+      235
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.locateTreasure",
+    "icon": "icons/magic/light/beam-rays-orange-large.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Locate Treasure",
+    "anchor": {
+      "subheading": "Locate Treasure"
+    },
+    "pages": [
+      236
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.madnessOfCrowds",
+    "icon": "icons/magic/control/energy-stream-link-large-white.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Madness of Crowds",
+    "anchor": {
+      "subheading": "Madness of Crowds"
+    },
+    "pages": [
+      236
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.mageMissile",
+    "icon": "systems/acks/assets/icons/magic-missile.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Mage Missile",
+    "anchor": {
+      "subheading": "Mage Missile"
+    },
+    "pages": [
+      236
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.magicCarpet",
+    "icon": "icons/magic/movement/trail-streak-zigzag-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Magic Carpet",
+    "anchor": {
+      "subheading": "Magic Carpet"
+    },
+    "pages": [
+      236
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.magicLock",
+    "icon": "icons/magic/time/clock-analog-gray.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Magic Lock",
+    "anchor": {
+      "subheading": "Magic Lock"
+    },
+    "pages": [
+      237
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.mirage",
+    "icon": "icons/magic/light/beam-rays-orange-small.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Mirage",
+    "anchor": {
+      "subheading": "Mirage"
+    },
+    "pages": [
+      237
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.necromanticInvulnerability",
+    "icon": "icons/magic/light/beam-rays-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Necromantic Invulnerability",
+    "anchor": {
+      "subheading": "Necromantic Invulnerability"
+    },
+    "pages": [
+      237
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.necromanticPotence",
+    "icon": "systems/acks/assets/icons/necromantic-potence.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Necromantic Potence",
+    "anchor": {
+      "subheading": "Necromantic Potence"
+    },
+    "pages": [
+      237
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.neutralizePoison",
+    "icon": "icons/magic/life/heart-cross-strong-purple-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Neutralize Poison",
+    "anchor": {
+      "subheading": "Neutralize Poison*"
+    },
+    "pages": [
+      237
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.noiselessness",
+    "icon": "icons/magic/light/beam-rays-red-large.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Noiselessness",
+    "anchor": {
+      "subheading": "Noiselessness"
+    },
+    "pages": [
+      237
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.ogreStrength",
+    "icon": "icons/magic/nature/plant-poison-spit-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Ogre Strength",
+    "anchor": {
+      "subheading": "Ogre Strength"
+    },
+    "pages": [
+      238
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.panic",
+    "icon": "icons/magic/control/energy-stream-link-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Panic",
+    "anchor": {
+      "subheading": "Panic"
+    },
+    "pages": [
+      238
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.passageway",
+    "icon": "icons/magic/time/clock-stopwatch-white-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Passageway",
+    "anchor": {
+      "subheading": "Passageway"
+    },
+    "pages": [
+      238
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.passWithoutTrace",
+    "icon": "icons/magic/nature/plant-sprout-coconut-brown.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Pass Without Trace",
+    "anchor": {
+      "subheading": "Pass Without Trace"
+    },
+    "pages": [
+      238
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.perpetualFigment",
+    "icon": "icons/magic/light/beam-rays-red-small.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Perpetual Figment",
+    "anchor": {
+      "subheading": "Perpetual Figment"
+    },
+    "pages": [
+      238
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.petrification",
+    "icon": "icons/magic/death/skeleton-bird-skull-gray.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Petrification",
+    "anchor": {
+      "subheading": "Petrification*"
+    },
+    "pages": [
+      238
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.phantasmalFigment",
+    "icon": "icons/magic/light/beam-rays-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Phantasmal Figment",
+    "anchor": {
+      "subheading": "Phantasmal Figment"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.phantasmalHorror",
+    "icon": "icons/magic/light/beam-rays-teal-large.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Phantasmal Horror",
+    "anchor": {
+      "subheading": "Phantasmal Horror"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.phoenixAura",
+    "icon": "icons/magic/fire/projectile-arrow-fire-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Phoenix Aura",
+    "anchor": {
+      "subheading": "Phoenix Aura"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.physicalInvulnerability",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-pentagon-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Physical Invulnerability",
+    "anchor": {
+      "subheading": "Physical Invulnerability"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.physicalProtection",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-pentagon-teal-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Physical Protection",
+    "anchor": {
+      "subheading": "Physical Protection"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.predictWeather",
+    "icon": "icons/magic/light/explosion-star-glow-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Predict Weather",
+    "anchor": {
+      "subheading": "Predict Weather"
+    },
+    "pages": [
+      240
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.propheticDream",
+    "icon": "systems/acks/assets/icons/sleep.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Prophetic Dream",
+    "anchor": {
+      "subheading": "Prophetic Dream"
+    },
+    "pages": [
+      240
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.protectionFromTemperature",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-pentagon-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Protection from Temperature",
+    "anchor": {
+      "subheading": "Protection from Temperature"
+    },
+    "pages": [
+      240
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.purifyFoodAndWater",
+    "icon": "systems/acks/assets/icons/purify-food-and-water.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Purify Food and Water",
+    "anchor": {
+      "subheading": "Purify Food and Water*"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.quest",
+    "icon": "icons/magic/control/buff-flight-wings-runes-blue-white.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Quest",
+    "anchor": {
+      "subheading": "Quest"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.rainOfVitriol",
+    "icon": "icons/magic/water/orb-water-bubbles-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Rain of Vitriol",
+    "anchor": {
+      "subheading": "Rain of Vitriol"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.removeCurse",
+    "icon": "icons/magic/life/ankh-gold-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Remove Curse",
+    "anchor": {
+      "subheading": "Remove Curse*"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.removeFear",
+    "icon": "systems/acks/assets/icons/remove-fear.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Remove Fear",
+    "anchor": {
+      "subheading": "Remove Fear*"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.repairDisfigurementAndDisability",
+    "icon": "icons/magic/life/cross-embers-glow-yellow-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Repair Disfigurement and Disability",
+    "anchor": {
+      "subheading": "Repair Disfigurement and Disability*"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.restoreLifeAndLimb",
+    "icon": "icons/magic/life/cross-yellow-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Restore Life and Limb",
+    "anchor": {
+      "subheading": "Restore Life and Limb*"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.revealRitualMagic",
+    "icon": "icons/magic/light/beam-rays-teal-purple-large.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Reveal Ritual Magic",
+    "anchor": {
+      "subheading": "Reveal Ritual Magic"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.righteousWrath",
+    "icon": "icons/magic/nature/plant-sproutdirt-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Righteous Wrath",
+    "anchor": {
+      "subheading": "Righteous Wrath"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.rouseTheFallen",
+    "icon": "icons/magic/light/beam-rays-teal-purple-small.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Rouse the Fallen",
+    "anchor": {
+      "subheading": "Rouse the Fallen"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.runeOfWarding",
+    "icon": "icons/magic/time/day-night-sunset-sunrise.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Rune of Warding",
+    "anchor": {
+      "subheading": "Rune of Warding"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.safeTravels",
+    "icon": "icons/magic/nature/plant-undersea-orb-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Safe Travels",
+    "anchor": {
+      "subheading": "Safe Travels"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.salvificRain",
+    "icon": "icons/magic/water/orb-water-bubbles-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Salvific Rain",
+    "anchor": {
+      "subheading": "Salvific Rain"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.salvingRest",
+    "icon": "icons/magic/time/hourglass-brown-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Salving Rest",
+    "anchor": {
+      "subheading": "Salving Rest"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.sanctuary",
+    "icon": "systems/acks/assets/icons/sanctuary.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Sanctuary",
+    "anchor": {
+      "subheading": "Sanctuary"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.scouringZephyr",
+    "icon": "icons/magic/air/air-burst-spiral-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Scouring Zephyr",
+    "anchor": {
+      "subheading": "Scouring Zephyr"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.scry",
+    "icon": "icons/magic/light/explosion-star-glow-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Scry",
+    "anchor": {
+      "subheading": "Scry"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.sealPortal",
+    "icon": "icons/magic/time/hourglass-yellow-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Seal Portal",
+    "anchor": {
+      "subheading": "Seal Portal"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.selectiveFire",
+    "icon": "icons/magic/fire/projectile-arrow-fire-red-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Selective Fire",
+    "anchor": {
+      "subheading": "Selective Fire"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.sharpness",
+    "icon": "icons/magic/nature/plant-undersea-seaweed-glow-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Sharpness",
+    "anchor": {
+      "subheading": "Sharpness"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.shatterBlade",
+    "icon": "icons/magic/earth/projectile-orb-asteroid-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Shatter Blade",
+    "anchor": {
+      "subheading": "Shatter Blade"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.shimmer",
+    "icon": "icons/magic/defensive/shield-barrier-glowing-triangle-blue-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Shimmer",
+    "anchor": {
+      "subheading": "Shimmer"
+    },
+    "pages": [
+      246
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.shriekingSkull",
+    "icon": "icons/magic/light/explosion-star-blue-large.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Shrieking Skull",
+    "anchor": {
+      "subheading": "Shrieking Skull"
+    },
+    "pages": [
+      246
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.shroudingFog",
+    "icon": "icons/magic/air/air-burst-spiral-teal-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Shrouding Fog",
+    "anchor": {
+      "subheading": "Shrouding Fog"
+    },
+    "pages": [
+      246
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.silentStep",
+    "icon": "icons/magic/nature/plant-venus-flytrap-blood.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Silent Step",
+    "anchor": {
+      "subheading": "Silent Step"
+    },
+    "pages": [
+      246
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.skinchange",
+    "icon": "icons/magic/nature/root-vine-entangled-humanoid.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Skinchange",
+    "anchor": {
+      "subheading": "Skinchange"
+    },
+    "pages": [
+      246
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.slicingBlow",
+    "icon": "icons/magic/death/undead-ghost-strike-white.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Slicing Blow",
+    "anchor": {
+      "subheading": "Slicing Blow"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.slickness",
+    "icon": "icons/magic/water/barrier-ice-crystal-wall-faceted-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Slickness",
+    "anchor": {
+      "subheading": "Slickness"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.slingStone",
+    "icon": "systems/acks/assets/icons/sling.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Sling Stone",
+    "anchor": {
+      "subheading": "Sling Stone"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.slumber",
+    "icon": "icons/magic/control/energy-stream-link-spiral-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Slumber",
+    "anchor": {
+      "subheading": "Slumber"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.slumberDeep",
+    "icon": "icons/magic/control/energy-stream-link-spiral-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Slumber, Deep",
+    "anchor": {
+      "subheading": "Slumber, Deep"
+    },
+    "pages": [
+      248
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.smiteUndead",
+    "icon": "icons/magic/light/beam-rays-teal-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Smite Undead",
+    "anchor": {
+      "subheading": "Smite Undead*"
+    },
+    "pages": [
+      248
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.snakesToStaffs",
+    "icon": "systems/acks/assets/icons/snake.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Snakes to Staffs",
+    "anchor": {
+      "subheading": "Snakes to Staffs*"
+    },
+    "pages": [
+      248
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.soulEating",
+    "icon": "systems/acks/assets/icons/game-icons/eating.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Soul Eating",
+    "anchor": {
+      "subheading": "Soul Eating"
+    },
+    "pages": [
+      248
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.soulSwap",
+    "icon": "icons/magic/light/explosion-star-blue-small.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Soul Swap",
+    "anchor": {
+      "subheading": "Soul Swap"
+    },
+    "pages": [
+      248
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.speakWithBeasts",
+    "icon": "icons/magic/light/explosion-star-glow-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Speak with Beasts",
+    "anchor": {
+      "subheading": "Speak with Beasts"
+    },
+    "pages": [
+      249
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.speakWithDead",
+    "icon": "icons/magic/light/explosion-star-blue-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Speak with Dead",
+    "anchor": {
+      "subheading": "Speak with Dead"
+    },
+    "pages": [
+      249
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.speakWithPlants",
+    "icon": "icons/magic/light/explosion-star-glow-silhouette.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Speak with Plants",
+    "anchor": {
+      "subheading": "Speak with Plants"
+    },
+    "pages": [
+      249
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.spectralFigment",
+    "icon": "icons/magic/light/beam-rays-teal-small.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Spectral Figment",
+    "anchor": {
+      "subheading": "Spectral Figment"
+    },
+    "pages": [
+      250
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.spectralLegion",
+    "icon": "icons/magic/light/beam-rays-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Spectral Legion",
+    "anchor": {
+      "subheading": "Spectral Legion"
+    },
+    "pages": [
+      250
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.spellward",
+    "icon": "icons/magic/defensive/shield-barrier-glowing-triangle-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Spellward",
+    "anchor": {
+      "subheading": "Spellward"
+    },
+    "pages": [
+      250
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.spellwardOther",
+    "icon": "icons/magic/defensive/shield-barrier-glowing-triangle-magenta.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Spellward Other",
+    "anchor": {
+      "subheading": "Spellward Other"
+    },
+    "pages": [
+      251
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.spellwardedZone",
+    "icon": "icons/magic/defensive/shield-barrier-glowing-triangle-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Spellwarded Zone",
+    "anchor": {
+      "subheading": "Spellwarded Zone"
+    },
+    "pages": [
+      251
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.sphereOfInvulnerabilityGreater",
+    "icon": "icons/magic/defensive/shield-barrier-glowing-triangle-purple-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Sphere of Invulnerability, Greater",
+    "anchor": {
+      "subheading": "Sphere of Invulnerability, Greater"
+    },
+    "pages": [
+      251
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.sphereOfInvulnerabilityLesser",
+    "icon": "icons/magic/defensive/shield-barrier-glowing-triangle-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Sphere of Invulnerability, Lesser",
+    "anchor": {
+      "subheading": "Sphere of Invulnerability, Lesser"
+    },
+    "pages": [
+      251
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.spiderClimbing",
+    "icon": "systems/acks/assets/icons/spider-climbing.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Spider Climbing",
+    "anchor": {
+      "subheading": "Spider Climbing"
+    },
+    "pages": [
+      251
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.spiritOfHealing",
+    "icon": "icons/magic/life/heart-shadow-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Spirit of Healing",
+    "anchor": {
+      "subheading": "Spirit of Healing"
+    },
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.spiritwalk",
+    "icon": "icons/magic/light/explosion-star-large-blue-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Spiritwalk",
+    "anchor": {
+      "subheading": "Spiritwalk"
+    },
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.spiritualWeapon",
+    "icon": "icons/magic/fire/projectile-bolt-zigzag-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Spiritual Weapon",
+    "anchor": {
+      "subheading": "Spiritual Weapon"
+    },
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.strengthOfMind",
+    "icon": "systems/acks/assets/icons/brain.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Strength of Mind",
+    "anchor": {
+      "subheading": "Strength of Mind*"
+    },
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.strengthenTheUnliving",
+    "icon": "icons/magic/light/beam-rays-yellow-blue-large.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Strengthen the Unliving",
+    "anchor": {
+      "subheading": "Strengthen the Unliving"
+    },
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.striking",
+    "icon": "icons/magic/nature/root-vine-hand-strike.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Striking",
+    "anchor": {
+      "subheading": "Striking"
+    },
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.suddenStaircase",
+    "icon": "icons/magic/earth/lava-stone-fire-eye.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Sudden Staircase",
+    "anchor": {
+      "subheading": "Sudden Staircase"
+    },
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.summonHellhounds",
+    "icon": "icons/magic/unholy/hands-circle-light-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Summon Hellhounds",
+    "anchor": {
+      "subheading": "Summon Hellhounds"
+    },
+    "pages": [
+      253
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.summonInsectPlague",
+    "icon": "icons/magic/unholy/orb-beam-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Summon Insect Plague",
+    "anchor": {
+      "subheading": "Summon Insect Plague"
+    },
+    "pages": [
+      253
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.summonInsectSwarm",
+    "icon": "icons/magic/unholy/orb-contained-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Summon Insect Swarm",
+    "anchor": {
+      "subheading": "Summon Insect Swarm"
+    },
+    "pages": [
+      253
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.summonInvisibleStalker",
+    "icon": "systems/acks/assets/icons/invisible.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Summon Invisible Stalker",
+    "anchor": {
+      "subheading": "Summon Invisible Stalker"
+    },
+    "pages": [
+      253
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.summonManes",
+    "icon": "icons/magic/unholy/orb-droplet-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Summon Manes",
+    "anchor": {
+      "subheading": "Summon Manes"
+    },
+    "pages": [
+      253
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.summonOoze",
+    "icon": "icons/magic/unholy/orb-glowing-yellow-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Summon Ooze",
+    "anchor": {
+      "subheading": "Summon Ooze"
+    },
+    "pages": [
+      253
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.summonShadow",
+    "icon": "icons/magic/unholy/orb-hands-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Summon Shadow",
+    "anchor": {
+      "subheading": "Summon Shadow"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.summonWeather",
+    "icon": "icons/magic/air/air-burst-spiral-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Summon Weather",
+    "anchor": {
+      "subheading": "Summon Weather"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.summonWingedHerald",
+    "icon": "icons/magic/unholy/orb-rays-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Summon Winged Herald",
+    "anchor": {
+      "subheading": "Summon Winged Herald"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.sunderStructure",
+    "icon": "systems/acks/assets/icons/sunder.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Sunder Structure",
+    "anchor": {
+      "subheading": "Sunder Structure"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.sunflare",
+    "icon": "icons/magic/fire/projectile-arrow-fire-yellow-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Sunflare",
+    "anchor": {
+      "subheading": "Sunflare"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.swiftSword",
+    "icon": "systems/acks/assets/icons/sword.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Swift Sword",
+    "anchor": {
+      "subheading": "Swift Sword"
+    },
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.swiftSwordSustained",
+    "icon": "icons/magic/movement/chevrons-down-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Swift Sword, Sustained",
+    "anchor": {
+      "subheading": "Swift Sword, Sustained"
+    },
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.swimming",
+    "icon": "icons/magic/water/water-elemental-blue-teeth.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Swimming",
+    "anchor": {
+      "subheading": "Swimming"
+    },
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.swordOfFire",
+    "icon": "icons/magic/fire/flame-burning-hand-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Sword of Fire",
+    "anchor": {
+      "subheading": "Sword of Fire"
+    },
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.telekinesis",
+    "icon": "icons/magic/air/air-pressure-shield-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Telekinesis",
+    "anchor": {
+      "subheading": "Telekinesis"
+    },
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.telepathy",
+    "icon": "icons/magic/light/beam-rays-yellow-blue-small.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Telepathy",
+    "anchor": {
+      "subheading": "Telepathy"
+    },
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.teleportation",
+    "icon": "icons/magic/air/air-wave-gust-smoke-yellow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Teleportation",
+    "anchor": {
+      "subheading": "Teleportation"
+    },
+    "pages": [
+      256
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.thunderbolt",
+    "icon": "icons/magic/air/fog-gas-smoke-blue-gray.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Thunderbolt",
+    "anchor": {
+      "subheading": "Thunderbolt"
+    },
+    "pages": [
+      256
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.thunderclap",
+    "icon": "icons/magic/air/fog-gas-smoke-brown.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Thunderclap",
+    "anchor": {
+      "subheading": "Thunderclap"
+    },
+    "pages": [
+      256
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.tongues",
+    "icon": "icons/magic/light/beams-rays-orange-purple-large.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Tongues",
+    "anchor": {
+      "subheading": "Tongues*"
+    },
+    "pages": [
+      256
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.torpor",
+    "icon": "icons/magic/light/explosion-star-large-orange-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Torpor",
+    "anchor": {
+      "subheading": "Torpor"
+    },
+    "pages": [
+      257
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.transformBeast",
+    "icon": "icons/magic/nature/root-vine-fire-entangled-hand.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Transform Beast",
+    "anchor": {
+      "subheading": "Transform Beast"
+    },
+    "pages": [
+      257
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.transformOther",
+    "icon": "icons/magic/nature/root-vine-leaves-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Transform Other",
+    "anchor": {
+      "subheading": "Transform Other"
+    },
+    "pages": [
+      257
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.transformSelf",
+    "icon": "icons/magic/nature/root-vines-entwined-leaves.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Transform Self",
+    "anchor": {
+      "subheading": "Transform Self"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.trollblood",
+    "icon": "icons/magic/nature/thorns-hand-glow-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Trollblood",
+    "anchor": {
+      "subheading": "Trollblood"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.trueSeeing",
+    "icon": "icons/magic/light/beams-rays-orange-purple-small.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "True Seeing",
+    "anchor": {
+      "subheading": "True Seeing"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.turnToDust",
+    "icon": "icons/magic/death/skeleton-dinosaur-skull-tan.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Turn to Dust",
+    "anchor": {
+      "subheading": "Turn to Dust"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.unlivingPuppet",
+    "icon": "icons/magic/light/beam-red-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Unliving Puppet",
+    "anchor": {
+      "subheading": "Unliving Puppet"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.vigor",
+    "icon": "icons/magic/nature/barrier-shield-wood-vines.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Vigor",
+    "anchor": {
+      "subheading": "Vigor"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.vitriolicInfusion",
+    "icon": "icons/magic/water/water-hand.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Vitriolic Infusion",
+    "anchor": {
+      "subheading": "Vitriolic Infusion"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.wallOfAnnihilation",
+    "icon": "icons/magic/fire/barrier-wall-explosion-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Wall of Annihilation",
+    "anchor": {
+      "subheading": "Wall of Annihilation"
+    },
+    "pages": [
+      259
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.wallOfCorpses",
+    "icon": "icons/magic/lightning/barrier-wall-shield-gray.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Wall of Corpses",
+    "anchor": {
+      "subheading": "Wall of Corpses"
+    },
+    "pages": [
+      259
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.wallOfFlame",
+    "icon": "icons/magic/fire/barrier-wall-flame-ring-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Wall of Flame",
+    "anchor": {
+      "subheading": "Wall of Flame"
+    },
+    "pages": [
+      259
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.wallOfForce",
+    "icon": "icons/magic/water/barrier-ice-wall-snow.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Wall of Force",
+    "anchor": {
+      "subheading": "Wall of Force"
+    },
+    "pages": [
+      259
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.wallOfSmoke",
+    "icon": "systems/acks/assets/icons/wall-of-smoke.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Wall of Smoke",
+    "anchor": {
+      "subheading": "Wall of Smoke"
+    },
+    "pages": [
+      260
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.wallOfStone",
+    "icon": "icons/magic/earth/barrier-lava-stone-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Wall of Stone",
+    "anchor": {
+      "subheading": "Wall of Stone"
+    },
+    "pages": [
+      260
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.wallOfThunder",
+    "icon": "icons/magic/water/barrier-ice-wall-explosion.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Wall of Thunder",
+    "anchor": {
+      "subheading": "Wall of Thunder"
+    },
+    "pages": [
+      260
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.wallOfWood",
+    "icon": "icons/magic/earth/barrier-stone-explosion-debris.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Wall of Wood",
+    "anchor": {
+      "subheading": "Wall of Wood"
+    },
+    "pages": [
+      261
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.warpWood",
+    "icon": "icons/magic/earth/projectile-spiked-stone-boulder-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Warp Wood",
+    "anchor": {
+      "subheading": "Warp Wood"
+    },
+    "pages": [
+      261
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.waterBreathing",
+    "icon": "icons/magic/water/water-jet-wave-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Water Breathing",
+    "anchor": {
+      "subheading": "Water Breathing"
+    },
+    "pages": [
+      261
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.waterWalking",
+    "icon": "icons/magic/water/wave-water-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Water Walking",
+    "anchor": {
+      "subheading": "Water Walking"
+    },
+    "pages": [
+      261
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.weaveFire",
+    "icon": "icons/magic/fire/beam-jet-stream-embers.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Weave Fire",
+    "anchor": {
+      "subheading": "Weave Fire"
+    },
+    "pages": [
+      261
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.weaveSmoke",
+    "icon": "icons/magic/air/air-smoke-casting.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Weave Smoke",
+    "anchor": {
+      "subheading": "Weave Smoke"
+    },
+    "pages": [
+      261
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.weaveWater",
+    "icon": "icons/magic/water/barrier-ice-crystal-wall-faceted-light.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Weave Water",
+    "anchor": {
+      "subheading": "Weave Water"
+    },
+    "pages": [
+      262
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.webbing",
+    "icon": "icons/magic/light/explosion-star-large-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Webbing",
+    "anchor": {
+      "subheading": "Webbing"
+    },
+    "pages": [
+      262
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  }
+]

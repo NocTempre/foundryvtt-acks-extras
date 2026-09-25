@@ -26,6 +26,9 @@ import {
   PROFICIENCY_BREADTH,
   PROGRESSION_LEVELS,
   SPELL_LIKE_FREQ,
+  HEAL_KINDS,
+  SUMMON_FORMATS,
+  CONTROL_KINDS,
   RESOURCE_KINDS,
   ROLL_TYPES,
   THROW_TYPES,
@@ -162,13 +165,18 @@ export function rollField() {
 export const rollsField = () => new (F().ArrayField)(rollField());
 
 /**
- * A pointer to a spell: the core system's spell item by uuid, with the printed
- * name as a fallback. Enough to link and display; it models nothing about the
- * spell itself. Nothing consumes it yet — see docs/ROADMAP.md § Magic.
+ * A pointer to a spell: the core system's spell item by uuid, the importer's
+ * entry id where the spell was imported, and the printed name as the fallback
+ * when neither resolves. Enough to link and display; it models nothing about
+ * the spell itself — the spell primitive is `magic/spell-extras.mjs`, which
+ * uses this for a reversal's other half (`reverseOf`).
  */
 export function spellRefField() {
   return new (F().SchemaField)({
     uuid: str(), // core spell Item uuid, once one exists in the world
+    // The importer's entry id (`flags.acks-extras.cookbook.id`), which
+    // survives a reimport where a uuid does not.
+    cookbookId: str(),
     name: str(), // printed name — the fallback when no item is linked
   });
 }
@@ -270,12 +278,21 @@ export function effectField() {
     // naturalAttack
     routine: str(),
     naturalWeapon: choice(NATURAL_WEAPONS),
-    // spellLike / spellcastingMod
+    // spellLike / spellcastingMod. `spell` is the printed name; `spellRef`
+    // points at the spell document once one exists — readers take the ref's
+    // name where it is set and fall back to the string.
     spell: str(),
+    spellRef: spellRefField(),
     frequency: choice(SPELL_LIKE_FREQ),
     castingTime: str(),
     school: str(),
     casterLevelDelta: num({ integer: true }),
+    // Spell kinds (`domain: "spell"` in EFFECT_TYPES). `roll` carries the dice
+    // a damage or heal effect rolls; `damage` its damage types; `amount` a
+    // summon's creature count and `value` its Hit Dice; `ref` the creature.
+    healKind: choice(HEAL_KINDS),
+    summonFormat: choice(SUMMON_FORMATS),
+    control: choice(CONTROL_KINDS),
     // resource / economic
     resource: choice(RESOURCE_KINDS),
     action: choice({ spend: { label: "Spend" }, gain: { label: "Gain" } }),

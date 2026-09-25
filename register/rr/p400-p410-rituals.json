@@ -1,0 +1,443 @@
+[
+  {
+    "id": "def.spell.apotheosis",
+    "icon": "systems/acks/assets/icons/Light.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Apotheosis",
+    "anchor": {
+      "subheading": "Apotheosis"
+    },
+    "pages": [
+      400
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.cataclysm",
+    "icon": "icons/magic/fire/projectile-meteor-salvo-heavy-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Cataclysm",
+    "anchor": {
+      "subheading": "Cataclysm"
+    },
+    "pages": [
+      401
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.consonantTransit",
+    "icon": "icons/magic/air/fog-gas-smoke-dense-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Consonant Transit",
+    "anchor": {
+      "subheading": "Consonant Transit"
+    },
+    "pages": [
+      401
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.consumePower",
+    "icon": "icons/magic/defensive/shield-barrier-glowing-triangle-teal-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Consume Power",
+    "anchor": {
+      "subheading": "Consume Power"
+    },
+    "pages": [
+      402
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.emissary",
+    "icon": "icons/magic/unholy/orb-smoking-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Emissary",
+    "anchor": {
+      "subheading": "Emissary"
+    },
+    "pages": [
+      404
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.flyingFortress",
+    "icon": "icons/magic/air/fog-gas-smoke-dense-brown.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Flying Fortress",
+    "anchor": {
+      "subheading": "Flying Fortress"
+    },
+    "pages": [
+      404
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.harvest",
+    "icon": "icons/magic/life/crosses-trio-red.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Harvest",
+    "anchor": {
+      "subheading": "Harvest*"
+    },
+    "pages": [
+      405
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.magicMushrooms",
+    "icon": "icons/magic/unholy/orb-stone-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Magic Mushrooms",
+    "anchor": {
+      "subheading": "Magic Mushrooms"
+    },
+    "pages": [
+      405
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.miracle",
+    "icon": "icons/magic/unholy/orb-swirling-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Miracle",
+    "anchor": {
+      "subheading": "Miracle"
+    },
+    "pages": [
+      405
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.ritual10",
+    "icon": "icons/magic/unholy/projectile-bolts-salvo-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Ritual 10",
+    "anchor": {
+      "hash": "1bu7wiw",
+      "as": "subheading"
+    },
+    "pages": [
+      405
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.permanency",
+    "icon": "icons/magic/unholy/projectile-bullet-orb-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Permanency",
+    "anchor": {
+      "subheading": "Permanency"
+    },
+    "pages": [
+      406
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.plague",
+    "icon": "icons/magic/death/skeleton-eye-skull-glow-orange.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Plague",
+    "anchor": {
+      "subheading": "Plague"
+    },
+    "pages": [
+      406
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.ranineRain",
+    "icon": "icons/magic/unholy/projectile-fireball-agile-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Ranine Rain",
+    "anchor": {
+      "subheading": "Ranine Rain"
+    },
+    "pages": [
+      406
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.resurrection",
+    "icon": "icons/magic/holy/chalice-glowing-gold-water.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Resurrection",
+    "anchor": {
+      "subheading": "Resurrection*"
+    },
+    "pages": [
+      407
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.sevenLeagueStride",
+    "icon": "icons/magic/air/fog-gas-smoke-dense-gray.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Seven-League Stride",
+    "anchor": {
+      "subheading": "Seven-League Stride"
+    },
+    "pages": [
+      407
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.shadeveil",
+    "icon": "icons/magic/light/explosion-beam-impact-silhouette.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Shadeveil",
+    "anchor": {
+      "subheading": "Shadeveil"
+    },
+    "pages": [
+      407
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.spawnOfTheDeep",
+    "icon": "icons/magic/unholy/projectile-fireball-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Spawn of the Deep",
+    "anchor": {
+      "subheading": "Spawn of the Deep"
+    },
+    "pages": [
+      408
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.undeadLegion",
+    "icon": "icons/magic/death/skeleton-snake-skull-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Undead Legion",
+    "anchor": {
+      "subheading": "Undead Legion"
+    },
+    "pages": [
+      409
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.wish",
+    "icon": "icons/magic/unholy/projectile-flame-white-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Wish",
+    "anchor": {
+      "subheading": "Wish"
+    },
+    "pages": [
+      410
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.youthfulness",
+    "icon": "icons/magic/light/explosion-star-large-teal-purple.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Youthfulness",
+    "anchor": {
+      "subheading": "Youthfulness"
+    },
+    "pages": [
+      410
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  }
+]

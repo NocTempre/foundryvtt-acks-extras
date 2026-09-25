@@ -5191,3 +5191,26 @@ rebuild. Outside a monster's stats, a field the page stopped printing keeps its
 old value. A class's whole write still replaces hand edits other than its
 description and taken-over training, and a monster's minted attacks replace a
 Judge's edits to them.
+
+### A sub-heading on the page after opens with a capital (2026-09-24)
+
+**Found.** The sub-heading turn ends at the first solo line in a face the
+body is not set in, body-sized, because nothing on the page after is matched
+by name. A ritual whose entry runs overleaf into the stat block of the
+creature it summons carries an italic list of that creature's spells, and the
+list's last line is alone on its line, off the body face and nine points
+tall. The turn ended there, inside the stat block, and the prose-stop gate
+named it.
+
+**Ruled.** The solo-line stop also requires the line to open with a capital
+letter. A sub-heading is a name and does. A wrapped line of an italic passage
+opens with whatever word the wrap fell on, and a list of spell names wraps
+lower-case. Every other cookbook compiles byte-identical under the test.
+
+**Rejected.** *A `descAppend` frame on the row.* It is anchored to the entry's
+own page, and the missing lines are on the page after. *Recording the id as a
+known stop.* The gate's `known` ledger is for truncations not yet authored,
+and this one was a rule short, not an author.
+
+*Cost:* none found. A sub-heading that opens lower-case would now be read as
+prose and the turn would run through it; no book on the shelf prints one.

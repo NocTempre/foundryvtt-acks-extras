@@ -12,6 +12,10 @@
  *   lib        first — everything else reads globalThis.acksExtras?.lib from its
  *              own hooks, and lib owns the shared registries (services, tables)
  *              and the core patches.
+ *   magic      after classes — its sheet reads the class registry for the
+ *              traditions a world's classes cast under, and the class spell
+ *              picker reads the spell primitive; before character-sheet,
+ *              which will draw the Magic tab from it.
  *   influence  before henchmen — henchmen consumes influence's Active Effect
  *              reaction convention (INFLUENCE_REACTION_KEY).
  *   location   after henchmen — the two import each other (henchmen pulls in
@@ -54,6 +58,7 @@ import "./lib/module.mjs";
 import "./abilities/module.mjs";
 import "./equipment/module.mjs";
 import "./classes/module.mjs";
+import "./magic/module.mjs";
 import "./formation/module.mjs";
 import "./influence/module.mjs";
 import "./henchmen/module.mjs";

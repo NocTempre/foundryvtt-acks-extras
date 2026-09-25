@@ -452,10 +452,11 @@ them today; treat a change here as cheap until magic lands.
   it; the abilities feature still stores a plain numeric `powerValue`. **TODO(magic):**
   move `powerValue` onto `levelValueField()`.
 - **`spellRefField()`.** Points at the core system's spell item by uuid with the
-  printed name as a fallback — enough to link and display, but it models nothing
-  about the spell. **TODO(magic):** replace with a real spell primitive (school,
-  range, duration, save, reversibility, ritual cost) and retire the free-text
-  `spell` string on `effectField`.
+  printed name as a fallback — a link, not a model. Consumed since 9.0.0 by the
+  spell primitive's `reverseOf` (`scripts/magic/spell-extras.mjs`, which is the
+  model: lists, type, range and duration shapes, target, save, reversal,
+  ritual, effect rows) and by `effectField.spellRef`, which the free-text
+  `spell` string on `effectField` still shadows for rows written before it.
 
 ## `repair` — the standing repair tool (apiVersion 18)
 

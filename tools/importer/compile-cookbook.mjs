@@ -126,8 +126,13 @@ function headingTop(pd, cols) {
  * test built on the alias silently runs the block to the foot of the page.
  */
 function soloLines(pd, cols) {
+  // A sub-heading may stand half a point ABOVE the body ceiling: the RR sets
+  // its spell names at 10pt over a 9pt body under a ceiling of 10. A run
+  // under 7pt is never a heading and never shares one's line — a chapter
+  // tab's rotated glyphs and a superscript ordinal fall in a heading's line
+  // bucket and read as company, so they are left out before a line is counted.
   const lines = new Map();
-  for (const it of pd.items.filter((i) => i.h < DEF_BODY_MAX_H)) {
+  for (const it of pd.items.filter((i) => i.h >= 7 && i.h < DEF_BODY_MAX_H + 0.5)) {
     const k = `${colOf(it.x, cols)}:${Math.round(it.y / 3)}`;
     if (!lines.has(k)) lines.set(k, []);
     lines.get(k).push(it);
@@ -3806,7 +3811,7 @@ async function compileClassMeta(doc, entry) {
  * extracts, not the source book — a content type spans every book). */
 // kind.class routes through compileClass before the definition branch reads
 // this map — its row here feeds only the index's content list.
-const CONTENT_OF = { "kind.proficiency": "proficiencies", "kind.power": "powers", "kind.skill": "skills", "kind.combatProficiency": "proficiencies", "kind.equipment": "equipment", "kind.class": "classes", "kind.classMeta": "classes", "kind.trap": "traps", "kind.variation": "variations", "kind.vehicle": "vehicles", "kind.constant": "constants" };
+const CONTENT_OF = { "kind.proficiency": "proficiencies", "kind.power": "powers", "kind.skill": "skills", "kind.combatProficiency": "proficiencies", "kind.equipment": "equipment", "kind.class": "classes", "kind.classMeta": "classes", "kind.trap": "traps", "kind.variation": "variations", "kind.vehicle": "vehicles", "kind.constant": "constants", "kind.spell": "spells" };
 
 /** Definition id slug — must match the seeder so alias targets resolve. */
 const slugOf = (s) =>
@@ -3910,7 +3915,9 @@ function marginTabs(pd) {
   const textLeft = (body.length ? Math.min(...body.map((it) => it.x)) : 0) - 10;
   const out = new Set();
   for (const arr of byX.values()) {
-    if (arr.length < 3) continue; // two stray ordinals can share an x; three do not
+    // A tab is two glyph runs at the least: the RR sets its spells chapter as
+    // "S" over "PELLS". A lone small run in the margin is nothing this knows.
+    if (arr.length < 2) continue;
     const x = arr[0].x;
     if (x >= textLeft && x <= textRight) continue; // inside the text block: not a tab
     for (const it of arr) out.add(it);
@@ -4116,29 +4123,56 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
     // that holds exactly that one run; its alias then identifies its siblings,
     // which is where the block ends.
     const want = assists.anchor ?? entry.anchor?.subheading ?? entry.name;
+    // A row that ships no word of its heading locates it by the key of its
+    // letters, among the solo lines exactly as `axOpen` does among display
+    // heads and run-ins; its name is then a `heading`, read for the binding.
+    const hash = entry.anchor?.hash != null ? String(entry.anchor.hash) : null;
     const solo = soloLines(pd, cols);
-    const anchor = solo.find((it) => it.str.trim() === want) ?? solo.find((it) => it.str.trim().startsWith(want));
-    if (!anchor) throw new Error(`subheading anchor "${want}" not found on p.${page}`);
+    const anchor = hash
+      ? solo.find((it) => printKey(it.str) === hash)
+      : (solo.find((it) => it.str.trim() === want) ?? solo.find((it) => it.str.trim().startsWith(want)));
+    if (!anchor) {
+      throw new Error(hash ? `no sub-heading on p.${page} answers to the anchor hash` : `subheading anchor "${want}" not found on p.${page}`);
+    }
     const col = colOf(anchor.x, cols);
     const box = { x0: cols[col] - 5, x1: cols[col + 1] ? cols[col + 1] - 6 : pd.width };
-    const stop = solo
-      .filter((it) => it !== anchor && it.alias === anchor.alias && colOf(it.x, cols) === col && it.y > anchor.y + 2)
-      .sort((a, b) => a.y - b.y)[0];
+    // A sibling shares the anchor's face AND its size, and stands alone on its
+    // line as the anchor does. The RR sets a title's emphasis from the
+    // heading's font resource at body height in the middle of a sentence, and
+    // a run of that shape is not where the next entry starts.
+    const soloSet = new Set(solo);
+    const sibling = (it) =>
+      it !== anchor && soloSet.has(it) && it.alias === anchor.alias && Math.abs((it.h ?? 0) - (anchor.h ?? 0)) < 0.5;
+    const stop = solo.filter((it) => sibling(it) && colOf(it.x, cols) === col && it.y > anchor.y + 2).sort((a, b) => a.y - b.y)[0];
     const nextHead = pd.items
       .filter((it) => it.h >= HEADING_MIN_H && colOf(it.x, cols) === col && it.y > anchor.y + 2)
       .sort((a, b) => a.y - b.y)[0];
     const yMax = Math.min(stop?.y ?? pd.height, nextHead?.y ?? pd.height) - 2;
-    fields.name = {
-      op: "expect", page,
-      box: { x0: anchor.x - 2, x1: anchor.x + (anchor.w ?? 60) + 2, y0: anchor.y - 5, y1: anchor.y + 4 },
-      text: want,
-    };
+    const nameBox = { x0: anchor.x - 2, x1: anchor.x + (anchor.w ?? 60) + 2, y0: anchor.y - 5, y1: anchor.y + 4 };
+    fields.name = hash ? withFixes({ op: "heading", page, box: nameBox, hash }, pd) : { op: "expect", page, box: nameBox, text: want };
     const body = pd.items.filter(
       (it) => it !== anchor && it.h < DEF_BODY_MAX_H && colOf(it.x, cols) === col && it.y > anchor.y + 2 && it.y < yMax,
     );
-    bodyText = joinBody(body);
-    const paras = paragraphBoxes(toLines(body), box.x0, box.x1).map((p) => withFixes(p, pd, tabs));
-    const cont = columnFlow(pd, cols, col, !!stop, (it) => it.alias === anchor.alias, null, bracketDepth(bodyText));
+    let lines = toLines(body);
+    // A kind with a STAT BLOCK opens every entry with labelled lines the seat
+    // reads whole: from the block's first line through the one carrying the
+    // duration label, when that label sits within the first four. It ships as
+    // one raw value and never as prose, and what it says is the page's.
+    if (kindRow.fields?.stat) {
+      const at = lines.findIndex((ln) => ln.items.some((it) => /^Duration:/.test(it.str.trim())));
+      if (at >= 0 && at < 4) {
+        fields.stat = withFixes(
+          { op: "value", page, box: { x0: box.x0, x1: box.x1, y0: lines[0].y - 3, y1: lines[at].y + 3 }, pattern: "raw" },
+          pd,
+          tabs,
+        );
+        lines = lines.slice(at + 1);
+      }
+    }
+    const kept = lines.flatMap((ln) => ln.items);
+    bodyText = joinBody(kept);
+    const paras = paragraphBoxes(lines, box.x0, box.x1).map((p) => withFixes(p, pd, tabs));
+    const cont = columnFlow(pd, cols, col, !!stop, sibling, null, bracketDepth(bodyText));
     if (cont.length) {
       const cx0 = cols[col + 1] - 5;
       const cx1 = cols[col + 2] ? cols[col + 2] - 6 : pd.width;
@@ -4170,9 +4204,13 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
       // to hold: without it the "th" of the very tier being carried over reads
       // as the next entry's heading and stops the flow at the page's first
       // line, which is indistinguishable from the turn not happening at all.
+      // ...and it OPENS WITH A CAPITAL. The last line of a wrapped passage set
+      // in a face of its own — an italic list of names — is alone on its line,
+      // body-sized and off the body face, and it opens lower-case, which no
+      // sub-heading does. Without this test it ends the turn mid-passage.
       const bodyFace = dominantAlias(pd2);
       const stopAt = soloLines(pd2, cols2)
-        .filter((it) => inFirst(it) && it.alias !== bodyFace && (it.h ?? 0) >= 7)
+        .filter((it) => inFirst(it) && it.alias !== bodyFace && (it.h ?? 0) >= 7 && /^[A-Z]/.test(it.str.trim()))
         .sort((a, b) => a.y - b.y)[0];
       const yStop = Math.min(stopAt?.y ? stopAt.y - 2 : pd2.height, headingTop(pd2, cols2) ?? pd2.height);
       // The turn must not carry the page's FURNITURE. Where detection puts a

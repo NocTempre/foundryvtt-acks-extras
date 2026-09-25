@@ -1,0 +1,19 @@
+{
+  "id": "kind.spell",
+  "role": "definition",
+  "note": "RR Spell Descriptions and the sample rituals of the campaigns chapter: a bold sub-heading alone on its line, a point above body size, a STAT BLOCK (magic types with levels, spell type, range, duration), then prose to the next heading. The block ships as one raw field read on the seat; every value in it is a PAGE VALUE. An asterisk on the heading marks a reversible spell. Binds to a core spell Item",
+  "fields": {
+    "name": {
+      "locate": "subheading",
+      "strip": "*",
+      "reversibleMarker": "*"
+    },
+    "stat": {
+      "locate": "statBlock"
+    },
+    "description": {
+      "locate": "subheadingBlock",
+      "type": "blocks"
+    }
+  }
+}

@@ -83,6 +83,9 @@ const GM_STEPS = [
   ["stepVariations", (api) => api.importVariations()],
   ["stepTraps", (api) => api.importTraps()],
   ["stepVehicles", (api) => api.importVehicles()],
+  // Spells stand on nothing; the template packages after the classes resolve
+  // their spellbooks against them, so they land first.
+  ["stepSpells", (api) => api.importSpells()],
   // `cookbookUpdateClasses` is deliberately NOT run here, though it is the
   // matching half of the abilities step above. It has no ownership guard — it
   // asks once and then replaces each class's whole `system`, hand edits with it

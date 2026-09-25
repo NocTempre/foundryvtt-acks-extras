@@ -34,10 +34,10 @@ const OPS = new Set(["expect", "heading", "text", "value", "attacks", "art", "ef
 const KEY_NUMBER = /^[A-Z]?\d+[A-Za-z]?(?:\/[A-Z]?\d+[A-Za-z]?)?\.?$/;
 // `printKey` output: a 32-bit hash in base 36.
 const PRINT_KEY = /^[0-9a-z]{1,7}$/;
-// The sorts of heading a hash anchor may be sought among, as the compiler's
-// `axOpen` searches them: a display heading, a body-size run-in line, or the
-// label a statline opens with.
-const ANCHOR_SORTS = ["display", "runin", "label"];
+// The sorts of heading a hash anchor may be sought among: a display heading, a
+// body-size run-in line, the label a statline opens with (`axOpen`), or a
+// sub-heading alone on its line (the definition compiler).
+const ANCHOR_SORTS = ["display", "runin", "label", "subheading"];
 const PATTERNS = new Set(["raw", "statValue", "int", "dice", "refList", "parenSplit", "spoilList", "statline"]);
 // Grid cell patterns come from table-extract's applyCellPattern library (plus
 // "glyphs", the executor's PUA-char damage-mark map).

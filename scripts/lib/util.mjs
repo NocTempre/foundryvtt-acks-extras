@@ -18,6 +18,25 @@ export const unset = () => new foundry.data.operators.ForcedDeletion();
 /** Whether an update's value is a forced deletion — what `unset()` and core's `unsetFlag` write. */
 export const isUnset = (value) => value instanceof foundry.data.operators.ForcedDeletion;
 
+/**
+ * The system's default sheet class for one core Item type — the base a
+ * feature's extended sheet subclasses. Resolved at READY, never at init:
+ * Foundry queues every `registerSheet` call made before `game.ready`, so the
+ * registry is empty until then. Null when nothing is registered; when several
+ * entries compete and none is flagged default, the first by registry order is
+ * taken and a warning names it.
+ */
+export function coreItemSheetFor(type) {
+  const registered = CONFIG.Item?.sheetClasses?.[type] ?? {};
+  const entries = Object.values(registered);
+  const defaulted = entries.find((e) => e.default) ?? null;
+  const chosen = defaulted ?? entries[0] ?? null;
+  if (!defaulted && entries.length > 1) {
+    console.warn(`acks-extras | no ${type} sheet is flagged default; extending ${chosen.cls?.name} by registry order.`);
+  }
+  return chosen?.cls ?? null;
+}
+
 /** Prefix-bound i18n formatter: `makeLoc("ACKS-FORMATION")` → `loc(key, data)`. */
 export const makeLoc = (prefix) => (key, data = {}) => game.i18n.format(`${prefix}.${key}`, data);
 

@@ -850,7 +850,11 @@ export async function materializeTemplates(
       if (linked) return { doc: linked };
     }
     const f = fold(entry.name);
-    const loose = f.length >= 6 ? libraryItems().find((i) => i.type === ITEM_TYPE.spell && fold(i.name).includes(f)) : null;
+    const spells = libraryItems().filter((i) => i.type === ITEM_TYPE.spell);
+    // The printed name whole before a looser read: "slumber" must not land on
+    // "Slumber, Deep" because that copy sorted first.
+    const exact = f ? spells.find((i) => fold(i.name) === f) : null;
+    const loose = exact ?? (f.length >= 6 ? spells.find((i) => fold(i.name).includes(f)) : null);
     if (loose) return { doc: loose };
     const { doc: source, linkable } = await findSource({ name: entry.name, types: [ITEM_TYPE.spell] });
     if (!source) return {};

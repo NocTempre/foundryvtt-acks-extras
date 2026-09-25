@@ -76,7 +76,7 @@ import {
   cookbookCount, refillMonster, resolveAbilities,
   importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
   importWeapons, importArmor,
-  importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importVariations, importVehicles,
+  importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles,
   cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
 } from "./cookbook.mjs";
 import { registerGettingStartedSettings, runImportEverything, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
@@ -2832,7 +2832,7 @@ Hooks.once("ready", async () => {
     importEverything: () => runImportEverything(),
     importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
     importWeapons, importArmor,
-    importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importVariations, importVehicles,
+    importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles,
     gettingStarted: () => openBooksDialog({ firstRun: true }),
     // Importing another game's books (docs/importer/OSE.md). Separate entry points
     // because a third-party source is registered by the Judge rather than

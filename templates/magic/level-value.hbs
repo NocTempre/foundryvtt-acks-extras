@@ -1,0 +1,22 @@
+{{!
+  One level value: a flat number, or a base plus a per-level rate with its
+  rounding. A stored kind the control cannot edit (a breakpoint ladder, a
+  conditional scale) is shown by name and left as it is.
+}}
+<div class="acks-magic-lv">
+  <select name="{{name}}.kind" aria-label="{{label}}: {{localize 'ACKS-LIB.effectEditor.value.kind'}}">{{selectOptions kinds selected=value.kind}}</select>
+  {{#if isFlat}}
+    <input type="number" step="any" name="{{name}}.flat" value="{{value.flat}}" placeholder="—"
+           aria-label="{{label}}: {{localize 'ACKS-LIB.effectEditor.value.flat'}}">
+  {{else if isPerLevel}}
+    <input type="number" step="any" name="{{name}}.base" value="{{value.base}}" placeholder="—"
+           aria-label="{{label}}: {{localize 'ACKS-LIB.effectEditor.value.base'}}">
+    <span class="acks-magic-lv-sign" aria-hidden="true">+</span>
+    <input type="number" step="any" name="{{name}}.per" value="{{value.per}}" placeholder="—"
+           aria-label="{{label}}: {{localize 'ACKS-LIB.effectEditor.value.per'}}">
+    <span class="acks-magic-lv-unit">{{localize "ACKS-LIB.effectEditor.value.perLevel"}}</span>
+    <select name="{{name}}.round" aria-label="{{label}}: {{localize 'ACKS-LIB.effectEditor.value.round'}}">{{selectOptions rounds selected=value.round blank=@root.none}}</select>
+  {{else}}
+    <span class="hint">{{localize "ACKS-LIB.effectEditor.value.ladder"}}</span>
+  {{/if}}
+</div>

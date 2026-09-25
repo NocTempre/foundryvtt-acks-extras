@@ -84,8 +84,9 @@ whether the caster may move.
 
 **Rejected.** `miles` and `milesPerLevel` as range shapes beside `distance`
 and `distancePerLevel` (the scoping's first cut): the unit was being encoded
-twice. `unlimited` and `sight` as shapes: no printed line takes them.
-`untilSave` as a duration shape: it is a builder row (JJ ch. 14), not a
+twice. `unlimited` and `sight` as shapes: no printed line takes them
+(superseded the same day for `unlimited` — see "An unread stat line reaches
+core's string"). `untilSave` as a duration shape: it is a builder row (JJ ch. 14), not a
 printed duration, and reads as `indefinite` with its end condition.
 
 **What it cost.** A shape the books add later is a new member and a lang
@@ -108,6 +109,143 @@ tables before a cast can execute anything mechanically.
 
 **What it cost.** For one release a Judge can open every spell and price a
 custom one, and still casts through core's counter.
+
+### A spell's stat block is one raw field, parsed at import (2026-09-24)
+
+**Ruled.** The `kind.spell` recipe reads the two-line block under a spell's
+heading — magic types with levels, spell type, range, duration — as a single
+`value` op with `pattern: "raw"`, and the runtime parses it
+(`spell-logic.mjs` `parseStatBlock` → `spellFromStat`) onto the primitive
+the moment the document is bound. The cookbook carries geometry and labels;
+every value in the block arrives from the seat's page.
+
+**Rejected.** Five authored boxes per entry, one per field: the block wraps
+differently on every page and the label positions move with it, so the
+boxes would be hand-fitted three hundred times and broken by the next
+reprint. Parsing in the compiler: that puts page values into the cookbook.
+
+**What it cost.** The parser is runtime code with its own tests, and a
+phrasing it does not know reads as `special` with the printed text kept in
+the note, where a Judge can see what was not understood.
+
+### A body-size heading is found by its line; a proper name by its hash (2026-09-24)
+
+**Ruled.** The spell headings print a half-point above the body ceiling, so
+the compiler's solo-line scan reaches to that ceiling plus a half point while
+the body read stays under it; the heading is the sub-heading anchor, its
+siblings (same face, same size, alone on their line, same column) bound the
+entry. One sample ritual is headed by a proper name: its row carries a
+neutral label and a locator hash (`anchor.hash`), the `heading` op proves the
+box by the hash and hands the printed words back for the document's name, and
+which row that is stays on the rules shelf.
+
+**Rejected.** Raising the body ceiling to the heading size: two pages set a
+sidebar quotation and its attribution at that size, and both would join the
+neighbouring entry's prose. A kind-level body-size override, tried and
+reverted for the same reason. Naming the ritual's row after the page.
+
+**What it cost.** A heading is told from a run of body text only by standing
+alone on its line, so a one-word paragraph in the heading face would anchor
+an entry; none prints in the chapter.
+
+### One document per printed heading; the reverse is a name on it (2026-09-24)
+
+**Ruled.** A reversible spell is one printed entry whose reverse is named
+inside its prose, so it imports as one document: `reversible` from the
+asterisk on the heading, `reversedName` read off the prose by the three
+phrasings the chapter uses, `reverseOf` left for a Judge who keeps the
+reverse as a document of its own. The scoping's open question is closed by
+the page.
+
+**Rejected.** Minting a second document per reverse: nothing on the page
+describes it separately, a class's lists would count it twice, and a repair
+would have to keep two documents in step from one entry.
+
+**What it cost.** The cast dialog, when it comes, offers the reverse as a
+mode of one document rather than as a spell of its own.
+
+### A damage-type mark in prose becomes its word (2026-09-24)
+
+**Ruled.** The RR sets a damage type in running prose as the same icon glyph
+the MM's tables use. The executor's text op reads each such glyph through the
+shipped `damageGlyph` table and keeps the word; a glyph the table does not
+know is stripped as before.
+
+**Rejected.** Stripping the mark, which every prose read did until now: a
+typed roll reads as untyped, and a spell that names two types with "or"
+between them reads as a sentence with a hole in it. Claiming the mark's
+colour, which the book uses for extraordinary against mundane: the text layer
+does not carry it.
+
+**What it cost.** The word lands without its extraordinary or mundane
+qualifier; the rule that decides it is release 2's.
+
+### Spells land before the classes (2026-09-24)
+
+**Ruled.** The getting-started chain imports spells before it imports
+classes, because a class's templates are materialized as it is imported and a
+template's spellbook resolves against the spells the world already holds.
+Template resolution reads the printed name whole before it reads it loosely.
+
+**Rejected.** Resolving spells by a name fragment first: with three hundred
+spells in the library a short title lands on the longer title that sorted
+first.
+
+**What it cost.** A world that imported classes before this release holds
+templates whose spellbooks resolved to nothing; re-materializing the class
+gives them their second chance (`upgradeUnresolved`).
+
+### Core's strings are derived (2026-09-24)
+
+**Ruled.** The acks system's `lvl`, `class`, `range`, `duration` and `save`
+are written from the primitive (`spell-logic.mjs` `coreFieldsFrom`), and
+only where the flag states a shape: a range whose shape is unset writes no
+range string (superseded the same day — an unset shape now writes its note;
+see "An unread stat line reaches core's string"). On the sheet, a submit
+that changes a shape rewrites the string
+it expresses, an empty string is filled from the flag, and a string a Judge
+typed by hand stays until the flag beneath it changes. The importer writes
+both at once.
+
+**Rejected.** Reading the strings back into the flag: a string is free text
+and the flag is structure, and a parse that guesses wrong overwrites a shape
+the Judge set. Hiding core's fields: the system sheet, the character sheet
+and every consumer keyed on `system.class` still read them.
+
+**What it cost.** Two surfaces keep the strings in step, and a Judge who
+edits a string by hand and then a shape sees the string replaced.
+
+### An unread stat line reaches core's string; `unlimited` is a range shape (2026-09-24)
+
+**Ruled.** `displayRange` and `displayDuration` show the note alone when the
+shape is blank, so a printed line the parser could not place still writes
+core's `range` or `duration` string; a blank shape with a blank note still
+states nothing. `RANGE_SHAPES` gains `unlimited`. The reverse-name reader
+knows five more phrasings: "the reverse spell, X,", "the reverse form, X,",
+"the reverse of <spell> is called X", "X, the reverse of <spell>," opening a
+sentence, and "the reverse of this spell (X)".
+
+**Evidence.** The live import of RR ch. 5 (the 1a gate): four ritual stat
+lines print their range as "unlimited" and four print a duration that is a
+phrase rather than a time — the flag kept each as its note, and the system
+sheet showed those spells with no range or no duration at all. Seven of the
+thirty-five reversible spells carried no `reversedName`, because their prose
+names the reverse in a phrasing the three rules did not know. Neither was
+visible offline: the parser suite reads invented lines.
+
+**Supersedes.** In "Range and duration shapes come from the printed lines"
+(same day): the rejection of `unlimited` — a printed line does take it. In
+"Core's strings are derived": "a range whose shape is unset writes no range
+string" — it now writes the note.
+
+**Rejected.** `special` as the fallback shape for an unread duration: it
+would state a shape the page does not print, and the sheet's picker would
+show it as chosen; the blank shape with its note is what the page says.
+`sight` as a range shape: still no printed line takes it.
+
+**What it cost.** Nothing offline. A world imported before this ruling picks
+it up with one repair of the *Spells* shelf, which rewrites the flag from
+the new bind.
 
 ### Where the lang-key convention is recorded
 

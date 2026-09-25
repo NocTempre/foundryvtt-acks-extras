@@ -669,8 +669,8 @@ not copied — one shared document, no duplicate Adventuring per band.
 a source (`importPacks`) — which is exactly what the importer's compendium
 mode creates. A shipped "Staff" carries the SYSTEM's values, so pulling one
 would put content into a template that the reader's own book never supplied;
-extras already treats imported documents as superseding the shipped packs
-(`hideSupersededPacks`), and this is that same rule at the resolution layer.
+an imported document supersedes a shipped pack's copy at the resolution layer
+(the sidebar itself hides nothing — docs/lib/DECISIONS.md, 2026-09-02).
 A world with nothing imported therefore mints placeholders — which is the
 honest answer, and tells the Judge what to import.
 

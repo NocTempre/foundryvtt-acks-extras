@@ -987,3 +987,32 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   color: var(--acks-danger-ink);
 }
 
+
+/* The effect-row editor (lib/apps/effect-row-editor.mjs): its body is the
+   window's scroller, so a kind with many fields still reaches its last one.
+   `min-height: 0` is required — window-content is a column flex parent and a
+   child without it will not shrink below its content. */
+.acks-extras-effect-editor-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* A set field: one box per member, wrapping. */
+.acks-extras-effect-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-1) 10px;
+}
+
+.acks-extras-effect-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--acks-fs-label);
+  white-space: nowrap;
+}
+
+.acks-extras-effect-pick input {
+  margin: 0;
+}
