@@ -35,7 +35,20 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   rendered for it in the 14.0.1 build. Drive it the way the action would:
   `sheet.constructor.DEFAULT_OPTIONS.actions.generateScores.call(sheet, new
   PointerEvent("click"), null)`. Hunting for the button reads as the app being
-  gone.
+  gone. The extras character sheet renders one on its Stats tab
+  (`[data-action="generateScores"]`), opening the same core window.
+- **The Scores Generator drives from its own controls, and a player seat
+  finishes it end to end.** Each attribute row carries three
+  `[data-action="rollScore"]` buttons whose `data-formula` names the die
+  (`3d6`, `4d6kh3`, `5d6kh3`) and `data-score` the attribute; the rule's
+  budget greys the dice it no longer allows. `select[name="acks-class"]`
+  holds a compendium uuid per class; `[data-action="rollTemplate"]` fills
+  `input[name="scores.template"]` and offers `select[name="acks-template"]`
+  options bracketed by their die range; `[data-action="rollGold"]` fills the
+  gold; `button[type="submit"]` (Save) applies class, template gear, awards
+  and scores to the actor and closes the window with no further dialog. The
+  rolled scores survive a class change; the window's id is the core `app-N`,
+  not a named one.
 - **A GM seat may open the Scores Generator already unlocked.** The Judge
   override is remembered on the user document (`chargenJudgeUnlock`), so a
   Gamemaster who ticked it once sees every formula free and the package menu

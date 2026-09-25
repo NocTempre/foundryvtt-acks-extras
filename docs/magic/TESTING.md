@@ -104,6 +104,20 @@ Every step below needs the seat's own RR PDF connected (the *Your ACKS Books
    unchanged, a `cast` count and an effect row kept; a copy on an actor
    stays stripped.
 
+### Drive mechanics (non-obvious, learned live)
+
+- **A shelf repair and the strip macro both open a confirm, so neither is
+  awaited from a page-context call.** `cookbookReimportShelf("Spells",
+  { mode: "repair" })` and `macro.execute()` each raise a `DialogV2`; kick the
+  call off, wait a couple of seconds, click its `button[data-action="yes"]`,
+  and poll a `window` flag the promise sets — a repair of the whole shelf runs
+  well past a driver call's timeout. The macro is read from the module's Macro
+  compendium (`pack.getDocuments()`), not from `game.macros`.
+- **Step 6's inert half is a compendium document, not a second seat.** As the
+  player, `fromUuid` a spell on the imported shelf and render it: `isEditable`
+  is false and every input on the sheet is disabled, which is the observable;
+  the owned copy on the player's actor is the half that submits.
+
 ### Teardown
 
 `api.sweepTracked()`; quote its result. The imported spells are the seat's
