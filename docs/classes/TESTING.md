@@ -802,6 +802,13 @@ disposable `spell` Item of that title.
   rewrites the class documents in place and `pack.contents` may be empty
   until `await pack.getDocuments()`; read the repaired `spellList` off the
   fetched document.
+- **The pending-pick chooser renders late.** `openChoiceDialog(actor, item)`
+  returns before its `DialogV2` exists, and the first one in a session took
+  longer than a fixed three-second wait; poll `foundry.applications.instances`
+  for the newest app whose element holds a `select` (it came within thirty
+  seconds), then read the options off it — `__answered__` dropped, each
+  level off `findByRef(value).system.lvl`. Set `size` on the select to lay
+  the list open for a capture.
 - **The level-up wizard is not awaited.** `openLevelUp(actor)` resolves when
   the wizard closes; kick it off, wait for its `DialogV2`, read
   `select[name="choice-0"]`, close it — the actor's level is untouched.

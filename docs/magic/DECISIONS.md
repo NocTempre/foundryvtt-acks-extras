@@ -288,6 +288,80 @@ whole statement.
 the point; a Judge who wants a particular repertoire edits the actor, and a
 repair redraws it.
 
+### The order, and the scoping's eleven questions, ruled (2026-09-25)
+
+**Ruled.** With 1a shipped as 9.0.0 and 1a+ as 9.1.0, the owner reorders the
+program: **2 (casting and tracking) and 4a (magic items from JJ) come before 1b
+(the math)**; the rest keeps its order — 2, 4a, 1b, 3a, 3b, 3c, 3d, 4b, 5, 6.
+The scoping's open questions are answered as follows, the owner's words first,
+then the reading the build proceeds on.
+
+1. *"Reversed stored as one document."* — confirms "One document per printed
+   heading; the reverse is a name on it": a reversible spell is one document,
+   and the cast dialog offers the reverse as a mode of it.
+2. *"Spells can create effects, but spells track their own vocabulary of
+   effects as well"* — a spell may create Active Effects, which Foundry's own
+   expiry ages; the spell's effect rows are its own vocabulary and stay on the
+   spell. The answer does not name core's `expiryAction`, so the proposal (leave
+   the global alone, react to `duration.expired`, offer deletion as a world
+   setting) stands unopposed and is confirmed or reversed when release 2 lands
+   it.
+3. *"Follow Raw, click-to-place as baseline"* — click-to-place is release 2's
+   baseline, not later polish; where a summoning entry constrains where the
+   creature appears, the constraint is followed and its figures arrive by
+   import. Dismissal keeps its prompt.
+4. *"Follow RAW, Research projects live at locations with the proper
+   facilities, which should be linked to characters"* — a research project is
+   anchored at a location (the `location` actor) whose facilities gate it, and
+   the location is linked to the researching character; a project is not a
+   researcher-owned item. The Judge's ledger over the world stands.
+5. *"new item types as needed, match project's general UI rules"* — the
+   magic-type document and any later document a phase needs are new Item
+   sub-types, and every sheet answers to `.claude/rules/ui-layout.md`.
+   Publication to `acks.magicTypes` and the merge over the builder rows by key
+   stand.
+6. *"Reserve effects for status that can come from multiple sources and let
+   abilities/spells use their own vocab/UI. The infrastructure underneath can be
+   shared."* — Active Effects carry statuses that several sources can impose; an
+   ability's and a spell's effect rows keep their own vocabulary and
+   presentation over the shared row machinery (the effect-row editor 9.0.0
+   shipped, `effectsField()`). What release 2 tracks per target is such a
+   status, so the flag-marked effect keeps its shape.
+7. *"ACKS II supersedes where noted"* — HFH names and rules convert through
+   `register/_refs/conversion.json`; where ACKS II restates a rule, the ACKS II
+   form wins, as it already does for the Treasure Tome.
+8. *"Correct on IP rules"* — oracle discrepancies are settled by the printed
+   page, in the register row, never in a repo doc.
+9. *"sub-agent tasking at your discretion"* — the routing in the scoping is
+   guidance; the session decides.
+10. *"Enum for closed sets in the system rules, register for open sets. For
+    magic the table of spell types is enum but the magic type
+    (arcane/eldrich/etc) is actually a register"* — sharpens "A code enum names
+    a mechanism; a pick-list ships empty": a set the system's rules close is a
+    code enum (`SPELL_TYPES`); a set the books leave open is a register (magic
+    types — `lists[].source` stays an open key validated against the magic-type
+    registry, never an enum). The other families (schools, elements, shades,
+    components, aspects, modes, kinds, properties) are judged by the same test
+    when their engine arrives, and each promotion names the branch that needs
+    it.
+11. *"Needs investigation, flag seems reasonable"* — release 2 starts on the
+    flag; the investigation is its first design step, and a sub-type is taken
+    only with an entry here naming what the flag cannot do.
+
+**Rejected.** The scoping's order, 1b before 2: the argument that casting cannot
+execute anything before the JJ tables arrive holds only for rows priced from
+those tables, and printed spells carry register-authored effect rows with
+locators, which is what release 2 executes. "3 before 4" (engines before the
+items that need them): 4a ships the item flag and the JJ items, and the gnostic
+implements and eldritch codices arrive with their engines in 3b and 3c, on that
+flag. A researcher-owned research item (question 4's proposal).
+
+**What it cost.** The Build tab, the `build` records and the priced effect rows
+wait for 1b; until then a custom spell is authored by hand on the sheet. 3d
+still needs 1b and still follows it. Question 4 moves the facilities check from
+the henchmen "has X" walk to the location document: a researcher without a
+linked location cannot start a project, which is the rule.
+
 ### Where the lang-key convention is recorded
 
 The convention that a magic family's displayed label comes from
