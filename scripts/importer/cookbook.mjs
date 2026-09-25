@@ -70,6 +70,10 @@ import { TRAP_ITEM_TYPE } from "../formation/constants.mjs";
 // writes the plain shape `spellFromStat` returns; the model coerces on read.
 import { SPELL_TYPE, FLAG_SPELL } from "../magic/constants.mjs";
 import { parseStatBlock, spellFromStat, reversedNameFrom, coreFieldsFrom } from "../magic/spell-logic.mjs";
+import { spellNameKey, splitSpellNames, titleIndex, scanMonsterSpells, castsAsClass, castSourceOf } from "../magic/spell-names.mjs";
+import { slotsFromCells, slotsOfClass, coreSlotsPatch, repertoireFor, spellPayload, spellsByName, classNamed } from "../magic/repertoire.mjs";
+import { frequencyOf } from "./executor.mjs";
+import { warmSpellPacks } from "../classes/grants.mjs";
 import { equipmentClass, weaponIdentity } from "../equipment/profiles.mjs";
 import { gearProfileFor } from "../equipment/config.mjs";
 import { annotateItem } from "../equipment/api.mjs";
@@ -436,10 +440,9 @@ export function buildExtras(node) {
 
   /* --- spellcasting (formulaic prose) --- */
   const paras = node.fields.description ?? [];
-  const castM = /casts? spells(?: and uses magic items)? as (?:an? )?(\d+)(?:st|nd|rd|th)?[- ]level (\w+)/i.exec(
-    paras.map((p) => p.text).join(" "),
-  );
-  if (castM) extras.spellcasting = { class: capitalize(castM[2]), level: parseInt(castM[1], 10) };
+  const cast = castsAsClass(paras.map((p) => p.text).join(" "));
+  // The class document's own name where one answers the printed word (a plural, a lower case), the word itself otherwise.
+  if (cast) extras.spellcasting = { class: classNamed(cast.className)?.name ?? capitalize(cast.className), level: cast.level };
 
   return extras;
 }
@@ -507,6 +510,52 @@ export function bindStatsScalars(s) {
   if (nums.length) system.movement = { base: nums[nums.length - 1] };
 
   return { system, moraleNA };
+}
+
+/**
+ * The spells a stat block's prose gives a creature — embedded copies of the
+ * imported documents — and the slot block it casts from.
+ *
+ * Three readings of the prose (`scanMonsterSpells`). A spell named outright
+ * ("(as the spell X)", "X (as the spell)", a "spell-like abilities:" list)
+ * becomes a copy whose usage is the frequency printed beside it. "Casts
+ * spells as a Nth-level <class>" sets the slot block from that class's grid
+ * at that level and, with no printed repertoire, draws one to the slots from
+ * the class's own list. A printed repertoire ("1st - a, b; 2nd - c") is
+ * copied as printed, and its counts are the slots when no class grid says
+ * otherwise. A name no document answers stays in the prose the sheet shows.
+ * A creature that only names spells draws nothing: those are its abilities.
+ * See docs/monsters/DECISIONS.md, "A spellcasting monster carries the imported spells".
+ */
+function bindMonsterSpells(paras) {
+  const prose = (paras ?? []).map((p) => p?.text ?? "").join(" ");
+  const out = { items: [], spells: null };
+  if (!/\bspell/i.test(prose)) return out;
+  const world = spellsByName();
+  const scan = scanMonsterSpells(prose, { known: world.has, freqOf: frequencyOf });
+  const carried = new Set();
+  const carry = (doc, usage = "") => {
+    if (!doc || carried.has(doc.uuid)) return;
+    carried.add(doc.uuid);
+    const payload = spellPayload(doc);
+    if (usage) ((payload.flags ??= {})[MODULE_ID] ??= {}).usage = usage;
+    out.items.push(payload);
+  };
+  for (const { name, frequency } of scan.named) carry(world.resolve(name), frequency);
+  const cast = castsAsClass(prose);
+  const cls = cast ? classNamed(cast.className) : null;
+  let slots = cls ? slotsOfClass(cls, cast.level) : null;
+  if (scan.repertoire.length) {
+    for (const { names } of scan.repertoire) for (const name of names) carry(world.resolve(name));
+    slots ??= Object.fromEntries(scan.repertoire.map((r) => [r.level, r.names.length]));
+  } else if (cls && slots) {
+    for (const doc of repertoireFor(cls, slots, { level: cast.level })) carry(doc);
+  }
+  // The tab that lists them is on for any creature carrying a spell; its
+  // slots stay at zero unless a grid or a printed repertoire fills them.
+  if (slots) out.spells = coreSlotsPatch(slots).spells;
+  else if (out.items.length) out.spells = { enabled: true };
+  return out;
 }
 
 /** Map one executed node to acks actor data + embedded items. */
@@ -634,6 +683,12 @@ export function bindMonster(node) {
       flags: { [MODULE_ID]: { spoil: true, component: true, researchEffects: sp.effects.map((e) => e.text) } },
     });
   }
+
+  // What the prose says the creature casts — by name, as a class of a level,
+  // or from a printed repertoire — rides as the imported spells themselves.
+  const cast = bindMonsterSpells(f.description ?? []);
+  if (cast.spells) system.spells = cast.spells;
+  items.push(...cast.items);
 
   // A Gigantic monster on a 1×1 token is wrong before anyone reads a stat, and
   // the size is right there in the block. Only set what the table actually
@@ -2315,7 +2370,12 @@ function reportImport(done, picked, skipped, ids = []) {
   );
 }
 
+/** Every spell compendium loaded, once a session: what a stat block names is resolved against the loaded packs. */
+let spellPacksWarm = null;
+const warmSpellPacksOnce = () => (spellPacksWarm ??= warmSpellPacks().catch(() => null));
+
 async function importOne(bookId, id, folderId) {
+  await warmSpellPacksOnce();
   const found = cookbookEntry(id);
   // Adventure kinds route to their own binders; journals/tables have their own
   // importers and are never built here.
@@ -2503,7 +2563,7 @@ const fmtCell = (v) =>
   Array.isArray(v) ? v.map((x) => x?.key ?? x?.text ?? String(x)).join(", ") : String(v);
 
 /** Build one axis option (engine-ready patches) from a merged grid row. */
-function templateOption(ax, row, cells, { id, cite, sectionText }) {
+export function templateOption(ax, row, cells, { id, cite, sectionText, spellSource = "" }) {
   const hitDice = cells.hitDice ?? (ax.keyIsHd && /^\d+$/.test(row.key) ? row.key : undefined);
   const { system } = bindStatsScalars({
     armorClass: cells.armorClass,
@@ -2533,6 +2593,17 @@ function templateOption(ax, row, cells, { id, cite, sectionText }) {
     items.push(weaponPayload("Strike", diceOf(cells.damage) || String(cells.damage), { naturalWeapon: "strike" }));
   }
 
+  // A row's slot column is the slot block the generated creature casts from.
+  // What it casts as is the prose's word, kept beside the level the row
+  // prints, so the generator can draw the repertoire the block holds.
+  const slots = slotsFromCells(cells.spells);
+  if (slots) Object.assign(system, coreSlotsPatch(slots));
+  const casterLevel = intFrom(cells.casterLevel);
+  const flags =
+    spellSource && (slots || casterLevel != null)
+      ? { [MODULE_ID]: { extras: { spellcasting: { class: capitalize(spellSource), level: casterLevel ?? null } } } }
+      : {};
+
   const label = capitalize(String(row.label ?? row.key));
   const secKey = sectionText.has(row.key) ? row.key : sectionText.has(`${row.key}s`) ? `${row.key}s` : null;
   const notes = OPTION_NOTE_KEYS.filter((k) => cells[k] != null && cells[k] !== "").map(
@@ -2561,6 +2632,7 @@ function templateOption(ax, row, cells, { id, cite, sectionText }) {
     items,
     html,
     token,
+    flags,
   };
 }
 
@@ -2710,6 +2782,7 @@ async function importFamily(bookId, famId, folderId) {
     // extras); legacy appendix blocks bind through their own translator and
     // carry biography only — the same split the direct importers use.
     const legacy = entry.kind === "kind.monsterLegacy";
+    await warmSpellPacksOnce();
     const { system, items, flags, prototypeToken } = legacy ? bindLegacyMonster(node) : bindMonster(node);
     memberText.set(slugLabel(member.variant), (node.fields.description ?? []).map((p) => p.text).join(" "));
     let extras;
@@ -2929,6 +3002,10 @@ async function importTemplate(bookId, id, folderId) {
     sectionText.set(p.section, `${sectionText.get(p.section) ?? ""} ${p.text}`.trim());
   }
 
+  // What the family casts as — a tradition or a class word — is said once in
+  // the prose and holds for every row that prints a slot column.
+  const spellSource = castSourceOf(paras.map((p) => p.text).join(" "));
+
   const axes = [];
   for (const ax of spec.axes ?? []) {
     const [firstGrid, ...restGrids] = ax.grids ?? [];
@@ -2937,7 +3014,7 @@ async function importTemplate(bookId, id, folderId) {
     const options = rows.map((row) => {
       const cells = { ...row.cells };
       for (const m of restByKey) Object.assign(cells, m.get(row.key) ?? {});
-      return templateOption(ax, row, cells, { id, cite, sectionText });
+      return templateOption(ax, row, cells, { id, cite, sectionText, spellSource });
     });
     if (!options.length) console.warn(`${MODULE_ID} | ${id}: axis "${ax.key}" materialized no options.`);
     // AUTHORED per-option art (the body-form portraits on the dragon's own
@@ -3076,6 +3153,7 @@ export async function refillMonster(actor, { whole = false } = {}) {
   if (!node.fields.stats || !Object.keys(node.fields.stats).length) {
     return { ok: false, reason: "no-stats", book: bookId, name: found.entry.name };
   }
+  await warmSpellPacksOnce();
   const { system, items, flags, prototypeToken } = bindMonster(node);
   if (whole) {
     const { extras } = monsterProseChannels(node, id, found.entry.cite);
@@ -5265,8 +5343,12 @@ export function parseEquipment(cellText, menu, aliases = {}) {
  * See docs/importer/DECISIONS.md, "A printed pick rides as an offer, not as a dropped sentence".
  *
  * A digit after "with" is a load, not a library: "quiver with 20 arrows".
+ *
+ * `known` is a predicate on a printed spell title (a `titleIndex`'s `has`):
+ * with one, an "and" inside a title is the title's own word and does not
+ * split it; without one every conjunction splits.
  */
-export function liftBookSpells(items) {
+export function liftBookSpells(items, { known = null } = {}) {
   const BOOK_CONTENTS = /^(.*?(?:spell\s*book|spellbook|prayer\s*book))\s+with\s+(.+)$/i;
   const CHOICE_PHRASE = /\b(choice|choosing|chooses|any)\b/i;
   const spells = [];
@@ -5276,7 +5358,7 @@ export function liftBookSpells(items) {
     it.name = m[1];
     it.note = it.note ? `${it.note}; holds ${m[2]}` : `holds ${m[2]}`;
     let offered = 0;
-    for (const s of m[2].split(/\s*(?:,|\band\b)\s*/i)) {
+    for (const s of splitSpellNames(m[2], known)) {
       const name = capFirst(s.trim());
       if (!name) continue;
       if (!CHOICE_PHRASE.test(name)) {
@@ -5479,7 +5561,12 @@ export async function laddersFromSpec(spec, { pageCache = null } = {}) {
  * `equipmentMenu`); omitted, a template's cell can name no weapon and no
  * armour, so the caller supplies it.
  */
-export function bindClass(entry, node, id, { gains = null, commonName = null, gear = [] } = {}) {
+export function bindClass(
+  entry,
+  node,
+  id,
+  { gains = null, commonName = null, gear = [], spellTitles = null, printedRepertoire = null } = {},
+) {
   const cite = entry.cite ?? "";
   const f = node?.fields ?? {};
   // Body fields arrive one per page (`body61`) or one per page-column
@@ -5595,7 +5682,7 @@ export function bindClass(entry, node, id, { gains = null, commonName = null, ge
       label: t.label ?? "",
       kind: t.kind ?? "vancian",
       repertoire: t.repertoire ?? "",
-      spellList: [],
+      spellList: repertoireRefs(printedRepertoire, spellTitles, { key, label: t.label ?? "" }, (entry.casting ?? []).length === 1, entry.name),
       slots,
       pool: [],
       casterLevel: t.casterLevel ?? "",
@@ -5748,7 +5835,7 @@ export function bindClass(entry, node, id, { gains = null, commonName = null, ge
       ...(data.registers?.tables?.equipmentPhrase ?? {}),
       ...(entry.equipAliases ?? {}),
     });
-    const spells = liftBookSpells(eq.items);
+    const spells = liftBookSpells(eq.items, { known: spellTitles?.has ?? null });
     // A creature the cell names belongs to the ability whose companion slot it
     // fills, not to the character's pack.
     const abilities = tokenizeProfs(row.cells.proficiencies, tplMenu);
@@ -5861,6 +5948,96 @@ async function executeProfGains() {
   if (!session) return null;
   const node = await executeEntry(session.doc, found.cb, data.registers, id);
   return node?.ok ? node : null;
+}
+
+/**
+ * Execute the per-class Spell Repertoire pages once per run (null without a
+ * book). A band the page did not yield is warned and the rest still bind:
+ * one class's list is not the price of another's.
+ */
+async function executeRepertoires() {
+  const id = "def.classmeta.spellRepertoires";
+  const found = cookbookEntry(id);
+  if (!found) return null;
+  const session = ctx.sessionDocs.get(bookOf(found));
+  if (!session) return null;
+  const node = await executeEntry(session.doc, found.cb, data.registers, id);
+  if (!node?.fields || !Object.keys(node.fields).length) return null;
+  if (!node.ok) console.warn(`${MODULE_ID} | ${id}: ${node.misses?.length ?? 0} repertoire band(s) did not read; the rest bind.`);
+  return node;
+}
+
+/** The register's spell titles as a resolver, so a class binds its printed names to entry ids. */
+const spellTitleIndex = () => titleIndex([...spellEntries()].map(([sid, e]) => [sid, e.name]));
+
+/**
+ * One class's printed repertoire off the executed repertoire pages:
+ * `[{tradition, level, names}]`, one row per list the pages print for it.
+ * A grid `<class>.<tradition>L<levels>` holds the printed numbers as row
+ * labels and a name column `L<level>` per level the table prints abreast;
+ * the executor nests the class's grids under its key. Empty for a class the
+ * pages do not print, or with no pages read.
+ */
+export function classRepertoireFor(node, className) {
+  const cls = spellNameKey(className);
+  if (!cls) return [];
+  const out = [];
+  const read = (key, grid) => {
+    const m = /^([a-z]+)L(\d+)$/i.exec(key);
+    if (!m) return;
+    const byLevel = new Map();
+    for (const row of grid?.rows ?? []) {
+      for (const [ck, v] of Object.entries(row.cells ?? {})) {
+        const lm = /^L(\d)$/i.exec(ck);
+        const name = String(v ?? "").trim();
+        if (!lm || !name) continue;
+        const level = parseInt(lm[1], 10);
+        (byLevel.get(level) ?? byLevel.set(level, []).get(level)).push(name);
+      }
+    }
+    for (const [level, names] of byLevel) out.push({ tradition: m[1].toLowerCase(), level, names });
+  };
+  for (const [field, value] of Object.entries(node?.fields ?? {})) {
+    const dot = field.indexOf(".");
+    if (dot < 0) {
+      if (spellNameKey(field) !== cls) continue;
+      for (const [key, grid] of Object.entries(value ?? {})) read(key, grid);
+    } else if (spellNameKey(field.slice(0, dot)) === cls) {
+      read(field.slice(dot + 1), value);
+    }
+  }
+  return out.sort((a, b) => a.level - b.level);
+}
+
+/**
+ * The spell-list references one casting row takes from a class's printed
+ * repertoire: the entry ids `titles` resolves each printed name to, for the
+ * lists whose tradition the row is — every list when the class casts one
+ * tradition (`only`). A name no title answers is warned and left out; a row
+ * that resolves nothing keeps an empty list, and the picker offers the
+ * tradition whole.
+ */
+function repertoireRefs(repertoire, titles, row, only, who) {
+  if (!repertoire?.length || !titles) return [];
+  const keys = new Set([spellNameKey(row.key), spellNameKey(row.label)].filter(Boolean));
+  const refs = [];
+  const seen = new Set();
+  const missing = [];
+  for (const list of repertoire) {
+    if (!only && !keys.has(spellNameKey(list.tradition))) continue;
+    for (const name of list.names) {
+      const sid = titles.resolve(name);
+      if (!sid) {
+        missing.push(name);
+        continue;
+      }
+      if (seen.has(sid)) continue;
+      seen.add(sid);
+      refs.push(sid);
+    }
+  }
+  if (missing.length) console.warn(`${MODULE_ID} | ${who}: ${missing.length} repertoire name(s) match no spell entry: ${missing.join("; ")}`);
+  return refs;
 }
 
 /**
@@ -6430,6 +6607,8 @@ export async function importClasses({ only = null } = {}) {
   const gainsNode = await executeProfGains();
   const commonName = await executeCommonTongue();
   const gear = await materializedGearMenu();
+  const repertoires = await executeRepertoires();
+  const spellTitles = spellTitleIndex();
   for (const [id, entry] of classEntries()) {
     if (only && !only.has(id)) continue;
     if (await importedItem(id)) {
@@ -6446,7 +6625,13 @@ export async function importClasses({ only = null } = {}) {
         if (!node?.ok) node = null;
       }
       const folder = (await ensureItemFolder(id))?.id ?? null;
-      const built = bindClass(entry, node, id, { gains: classGainsFor(gainsNode, entry.name), commonName, gear });
+      const built = bindClass(entry, node, id, {
+        gains: classGainsFor(gainsNode, entry.name),
+        commonName,
+        gear,
+        spellTitles,
+        printedRepertoire: classRepertoireFor(repertoires, entry.name),
+      });
       return createDoc(Item, { ...built, folder });
     });
     if (doc) made.push(doc);
@@ -7156,6 +7341,8 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
   const gainsNode = await executeProfGains();
   const commonName = await executeCommonTongue();
   const gear = await materializedGearMenu();
+  const repertoires = await executeRepertoires();
+  const spellTitles = spellTitleIndex();
   for (const item of readable) {
     const id = item.flags[MODULE_ID].cookbook.id;
     const entry = byId.get(id);
@@ -7172,7 +7359,13 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
       countRepair(repair, "no-match");
       continue;
     }
-    const doc = bindClass(entry, node, id, { gains: classGainsFor(gainsNode, entry.name), commonName, gear });
+    const doc = bindClass(entry, node, id, {
+      gains: classGainsFor(gainsNode, entry.name),
+      commonName,
+      gear,
+      spellTitles,
+      printedRepertoire: classRepertoireFor(repertoires, entry.name),
+    });
     const plan = await refreshImported(item, doc, REPAIR.class);
     countRepair(repair, plan);
     if (!plan.refused) written.push(item);

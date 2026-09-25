@@ -421,14 +421,12 @@ a bladedancer's head dress, a lute, an ornamental crystal ball — precisely
 because the shop list has no row for them. They import as named items carrying
 the price the page printed, which is everything the page said.
 
-What is still genuinely open:
-
-**A choice the cell offers is asked, but not narrowed.** "and one spell of
-character's choice" is lifted as an offer on the template's spells with a
-ChoiceSpec over the class's spell list, and chargen mints it as a pending
-choice the player answers (`classes/pending-choices.mjs`). What the offer
-cannot yet say is the level a starting character casts at: it offers the
-whole tradition. Narrowing it is the magic roadmap's 1a+.
+Nothing of the pick is open since 9.1.0. "and one spell of character's
+choice" is lifted as an offer on the template's spells with a ChoiceSpec over
+the class's spell list, chargen mints it as a pending choice the player
+answers (`classes/pending-choices.mjs`), and the offer lists the class's
+own repertoire at the level a starting character casts
+(`docs/classes/MODEL.md`, `choosableSpells`).
 
 ## A companion's creature, linked to the actor it names
 
@@ -550,9 +548,11 @@ whether the document exists; the module packs are the reverse (41/42, 32/34,
   `acks-monsters` documents the import does not produce contain.
 
 - **Spell lists.** The spell documents land with 9.0.0 (`kind.spell`, one
-  row per printed entry; `docs/magic/MODEL.md`). What is still parked is the
-  class side: a casting row's spell-list references stay empty, and the four
-  printed class repertoires are the magic roadmap's 1a+.
+  row per printed entry; `docs/magic/MODEL.md`) and the four printed class
+  repertoires with 9.1.0 (`def.classmeta.spellRepertoires`, onto the casting
+  row's spell-list references). What is still parked: a class whose list the
+  book states in prose rather than on a repertoire page keeps an empty list
+  and offers its tradition whole.
 - **Masterwork gear.** One `masterwork` mention across the register when this
   was measured; the rules are entries now (below), so what is left of this row
   is the sample pack's three demonstrations — a masterwork weapon and armour
@@ -647,9 +647,9 @@ missing by accident.
 
 - **A "spell" cookbook kind** — DONE 9.0.0 (`kind.spell`). A printed spell
   name in a template now resolves against the imported spells, which is why
-  the getting-started chain imports spells before classes; the printed pick
-  still offers the whole tradition rather than the level a starting character
-  casts (`docs/magic/ROADMAP.md`, 1a+).
+  the getting-started chain imports spells before classes; since 9.1.0 the
+  printed pick offers the class's list at the level a starting character
+  casts.
 - **`liftBookSpells` splits on every "and".** A printed title containing the
   word — "purify food and water" — is torn into two entries. Two RR rows carry
   one. The fix is to split on commas and on the LAST "and" only when the clause
@@ -910,6 +910,29 @@ projection. In order:
 Obstacles common to several waves: bands that carry their own dice, two-level
 and operator column headers, and chart titles that are printed names, which a
 plain-string `locate` would put in source.
+
+## A monster whose entry runs past its first page
+
+The plain monster recipe reads an entry's description from its anchor page
+alone: the anchor's column down to the next display heading, plus the spill
+columns a chef authored on that page (`assists.descColumns`). Nothing flows
+onto a second page. The Monstrous Manual starts every entry at the top of a
+left column, so any page between an entry's first and its successor's first
+is that entry's continuation — and the register declares one page for all
+but a handful. Seventeen entries lose their tail this way (found 2026-09-25
+by listing every entry whose successor starts two or more pages later, then
+reading the pages between for a display heading: none had one). Among them
+are casters whose spell paragraph sits on the lost page — the draugr, the
+kraken, the leyak, the mummy lord, the vampire, the incarnation on p.36 of
+the PDF — so `bindMonsterSpells` never sees it and the actor imports with
+no spells, which the 9.1.0 readers make visible without having caused.
+
+What it takes: a description page-flow in `compileMonster` keyed on
+`pages[1..]` — each continuation page's columns from the body top to that
+column's first display heading, grids and stat boxes excluded as the template
+flow already does — then the seventeen spans widened in the register and each
+entry's paragraph count read against the page. A refill in place then
+completes every affected actor.
 
 ## Repair in place: what it does not write yet
 

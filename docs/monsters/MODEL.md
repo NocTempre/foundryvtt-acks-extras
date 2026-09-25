@@ -32,7 +32,7 @@ behavior.
 | **Secondary characteristics** | extras | `.secondary.*` (expeditionSpeed, supplyCost, trainingMonths, intelligence, trainingModifier, battleRating, lifespan, oviparous, reproduction, untrainedValue, trainedValue[]) |
 | **Encounter (rich)** | extras | `.encounter.{lairChance, dungeon, wilderness}` |
 | **Immunities / resistances / susceptibilities** | extras | `.defenses.{immunities,resistances,susceptibilities}` = `{damage:Set, mundane, extraordinary, silverFlaw, effects, note}`. `silverFlaw` is RR ch.6's common flaw — silver counts as magic against this defence — and rides immunities and resistances only, never a susceptibility. |
-| **Spellcasting** | extras | `.spellcasting.{class,level,note}` (repertoire = core spell items + `system.spells` slots) |
+| **Spellcasting** | extras + items | `.spellcasting.{class,level,note}`, read off the prose at import; the repertoire is `system.spells` slots plus embedded `spell` items — copies of the imported documents the prose names, or a draw to the slots (`docs/magic/MODEL.md`, Repertoires) — `usage`-flagged where the page prints a frequency beside the name |
 | **HD / save ranges** | extras | `.hd.countMax`, `.saveAs.levelMax` (e.g. hydra "5 to 12") |
 | **Related stat lines** | extras | `.variants[]` = `{label, uuid}` |
 | **Entry prose** | extras | `.description.{appearance,combat,ecology,encounterText,lore,notes}` |

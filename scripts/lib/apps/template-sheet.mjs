@@ -1,4 +1,4 @@
-/* global game, foundry, ui, Actor, Folder, fromUuid */
+/* global game, foundry, ui, Actor, Folder, fromUuid, Hooks */
 /**
  * The `acks-lib.template` BUILDER sheet: one select per axis (defaulting to
  * "Roll"), a drop zone for an optional base actor, and Generate. Pins and the
@@ -6,7 +6,7 @@
  * "The template actor is a generator, never a bulk import" and
  * docs/lib/API.md for the generation engine (template-logic.mjs).
  */
-import { MODULE_ID, LANG_PREFIX, TEMPLATE_TYPE } from "../constants.mjs";
+import { MODULE_ID, LANG_PREFIX, TEMPLATE_TYPE, TEMPLATE_HOOKS } from "../constants.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollMenu } from "../template-logic.mjs";
 import { hitDiceOrLevel } from "../actor-read.mjs";
 
@@ -327,6 +327,9 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
         : {}),
       ...(resolved.token ?? {}),
     };
+    // What a generated creature carries beyond its patches is a listener's
+    // to add before the write — a repertoire drawn onto its slot block.
+    Hooks.callAll(TEMPLATE_HOOKS.RESOLVED, { resolved, template: this.actor, type, choices });
     const created = await Actor.create({
       name: resolved.name || this.actor.name,
       type,

@@ -48,6 +48,7 @@
   "ACKS-CLASSES.sheet.casting.slots": "Slot rows (vancian)",
   "ACKS-CLASSES.sheet.casting.pool": "Point pool (points, ritual, ceremonial)",
   "ACKS-CLASSES.sheet.casting.points": "Points",
+  "ACKS-CLASSES.sheet.casting.spellList": "Spell list: {count} spell(s) referenced; the picker offers only these.",
   "ACKS-CLASSES.sheet.templates.list": "Starting Templates",
   "ACKS-CLASSES.sheet.templates.none": "No templates — add one to offer it at chargen.",
   "ACKS-CLASSES.sheet.templates.rollMin": "Band from (3d6)",

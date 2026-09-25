@@ -125,7 +125,7 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
       atLevel: a.atLevel ?? 1,
       // Only the opening picks can be answered by a package; a rung the
       // character climbed to at 4th is theirs whatever they start with.
-      options: rungOptions(a.choice, cls, this.actor, (a.atLevel ?? 1) <= 1 ? granted : null),
+      options: rungOptions(a.choice, cls, this.actor, (a.atLevel ?? 1) <= 1 ? granted : null, { level }),
       selected: this.binding.answers[a.key] ?? "",
     });
     const opening = choices.filter((a) => (a.atLevel ?? 1) <= 1);

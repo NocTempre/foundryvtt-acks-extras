@@ -28,7 +28,7 @@ import {
 import { classUpdateData, damageBonusLadder } from "../scripts/classes/apply.mjs";
 import { classForActor, findByRef, publish } from "../scripts/classes/registry.mjs";
 import { CLASS_TYPE, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
-import { awardsAt, awardsThrough, choosableGenerals } from "../scripts/classes/grants.mjs";
+import { awardsAt, awardsThrough, choosableGenerals, spellLanes, admitsSpell, choosableSpells } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
 import { rebuildHitPoints, firstLevelDieMinimum, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
 import { registerTable, unregisterTable, PRIORITY, getLayer, citeOf } from "../scripts/lib/tables.mjs";
@@ -769,6 +769,81 @@ await atest("the class picker never wipes what a character already owns", () => 
   const src = readFileSync(new URL("../scripts/classes/assign-app.mjs", import.meta.url), "utf8");
   assert.ok(!/applyChargen/.test(src), "assign-app must not route through the wiping path");
   assert.match(src, /applyTemplate\(/, "it applies a package by merging it");
+});
+
+await atest("a tradition's list narrows the spell offer and its grid caps it by level", () => {
+  // See docs/classes/DECISIONS.md, "A tradition's list narrows the picker,
+  // and a level caps it". Every title here is invented.
+  const row = (atLevel, s1, s2, s3) => ({ atLevel, s1, s2, s3, s4: 0, s5: 0, s6: 0 });
+  const spell = (name, uuid, lvl, source, cid = null) => ({
+    uuid,
+    name,
+    type: "spell",
+    system: { lvl, class: "" },
+    flags: {
+      "acks-extras": {
+        ...(cid ? { cookbook: { id: cid } } : {}),
+        spell: { lists: source ? [{ source, level: lvl }] : [] },
+      },
+    },
+  });
+  const docs = {
+    "def.spell.a": spell("Quiet Step", "Item.a", 1, "divine", "def.spell.a"),
+    "def.spell.b": spell("Loud Bang", "Item.b", 2, "divine", "def.spell.b"),
+  };
+  const resolve = (ref) => docs[ref] ?? null;
+  const classItem = {
+    system: {
+      casting: [
+        {
+          key: "divine",
+          label: "Divine",
+          kind: "vancian",
+          spellList: ["def.spell.a", "def.spell.b", "def.spell.gone"],
+          slots: [row(1, 1, 0, 0), row(3, 2, 1, 0), row(5, 2, 2, 1)],
+        },
+      ],
+    },
+  };
+  const lanes = spellLanes(classItem, { level: 3, resolve });
+  assert.equal(lanes.length, 1);
+  assert.equal(lanes[0].cap, 2, "the highest level the grid grants at 3rd");
+  assert.deepEqual([...lanes[0].narrow.uuids].sort(), ["Item.a", "Item.b"], "a reference nothing resolves narrows nothing");
+  assert.equal(spellLanes(classItem, { resolve })[0].cap, null, "no level asked, no cap");
+  const arcane = (slots, spellList = []) => ({ system: { casting: [{ key: "arcane", slots, spellList }] } });
+  assert.equal(spellLanes(arcane([row(2, 1, 0, 0)]), { level: 1, resolve })[0].cap, 0, "a grid that grants nothing yet caps at zero");
+  assert.equal(spellLanes(arcane([]), { level: 1, resolve })[0].cap, null, "no grid, no cap");
+  assert.equal(spellLanes(arcane([], ["def.spell.none"]), { resolve })[0].narrow, null, "a list none of whose references resolve is no list");
+  assert.deepEqual(spellLanes({ system: {} }, { level: 1, resolve }), []);
+
+  assert.ok(admitsSpell(lanes, docs["def.spell.a"]), "on the list, at a level cast");
+  assert.ok(admitsSpell(lanes, spell("Loud Bang", "Compendium.acks.x.Item.z", 2, "divine")), "a namesake of a listed spell, by name");
+  assert.ok(!admitsSpell(lanes, spell("Dim Lantern", "Item.c", 1, "divine")), "off the list");
+  assert.ok(!admitsSpell(lanes, spell("Loud Bang", "Item.b", 3, "divine")), "above the cap");
+  assert.ok(!admitsSpell(lanes, spell("Quiet Step", "Item.a", 1, "arcane")), "under another tradition");
+  assert.ok(admitsSpell(lanes, spell("Quiet Step", "Item.a", 1, null)), "an unlabelled spell is offered, not hidden");
+  const broad = spellLanes({ system: { casting: [{ key: "divine", slots: [row(1, 1, 0, 0)], spellList: [] }] } }, { level: 1, resolve });
+  assert.ok(admitsSpell(broad, spell("Dim Lantern", "Item.c", 1, "divine")), "no list: the tradition whole");
+  assert.ok(!admitsSpell(broad, spell("Loud Bang", "Item.b", 2, "divine")), "still capped at what 1st casts");
+
+  // The picker's own walk of the library follows the same lanes, resolving
+  // the list through the registry, and offers a spell once however many
+  // copies the library holds.
+  const items = globalThis.game.items;
+  globalThis.game.items = [
+    docs["def.spell.a"],
+    docs["def.spell.b"],
+    spell("Loud Bang", "Item.b2", 2, "divine"),
+    spell("Dim Lantern", "Item.c", 1, "divine"),
+  ];
+  try {
+    assert.deepEqual(choosableSpells(classItem, { level: 3 }).map((i) => i.uuid), ["Item.a", "Item.b"]);
+    assert.deepEqual(choosableSpells(classItem, { level: 1 }).map((i) => i.uuid), ["Item.a"]);
+    assert.deepEqual(choosableSpells(classItem).map((i) => i.uuid), ["Item.a", "Item.b"]);
+    assert.deepEqual(choosableSpells({ system: { casting: [] } }, { level: 1 }), []);
+  } finally {
+    globalThis.game.items = items;
+  }
 });
 
 /* ---------------------- template packages ------------------------- */

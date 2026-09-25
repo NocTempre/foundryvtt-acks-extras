@@ -3710,6 +3710,95 @@ async function compileClass(doc, entry, kindRow) {
 }
 
 /**
+ * kind.classMeta with `repertoires` — the Spells chapter's per-class
+ * repertoire pages: a "<Class> Spell Repertoire" title, then a table per
+ * three levels, headed "First Level <tradition> Spells" abreast: the row's
+ * number printed once at the left, a name under each header, a school line
+ * over each name. One grid per header row, keyed
+ * `<class>.<tradition>L<levels>` (`divineL123`): the label span is the number
+ * column and each header's span is a raw, gap-joined name column keyed
+ * `L<level>`. The school line prints no number, so it falls out as a row with
+ * no label; the row tolerance stays under the school line's offset so it never
+ * merges into the name beside it. The grid closes on its last numbered row.
+ */
+async function compileRepertoires(doc, entry) {
+  const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const LEVELS = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6 };
+  const fields = {};
+  for (const page of entry.pages) {
+    const pd = await pageItems(doc, page);
+    const items = pd.items.filter((i) => i.str.trim() && i.x >= 30 && i.x <= pd.width - 45 && i.y >= 50);
+    const by = new Map();
+    for (const it of items) {
+      const k = Math.round(it.y / 3);
+      (by.get(k) ?? by.set(k, []).get(k)).push(it);
+    }
+    const rows = [...by.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v.sort((a, b) => a.x - b.x));
+    let classKey = null;
+    let table = null;
+    const flush = () => {
+      if (classKey && table && table.lastY != null) {
+        const first = table.bands[0];
+        const cols = table.bands.map((b, i) => {
+          const next = table.bands[i + 1];
+          return { key: `L${b.level}`, x0: b.nameX - 6, x1: next ? next.nameX - 44 : pd.width - 30, pattern: "raw" };
+        });
+        fields[`${classKey}.${first.tradition}L${table.bands.map((b) => b.level).join("")}`] = {
+          op: "grid",
+          page,
+          box: { x0: first.nameX - 40, x1: cols[cols.length - 1].x1, y0: table.y + 3, y1: table.lastY + 5 },
+          label: { x0: first.nameX - 40, x1: first.nameX - 6 },
+          cols,
+          gapMin: 2,
+          rowTol: 2,
+        };
+      }
+      table = null;
+    };
+    for (const r of rows) {
+      const joined = r.map((i) => i.str).join("");
+      const title = /^([a-z]+)spellrepertoire$/.exec(fold(joined));
+      if (title) {
+        flush();
+        classKey = title[1];
+        continue;
+      }
+      const starts = [];
+      let at = 0;
+      for (const it of r) {
+        starts.push(at);
+        at += it.str.length;
+      }
+      const headers = [...joined.toLowerCase().matchAll(/(first|second|third|fourth|fifth|sixth)\s*level\s*([a-z]+)\s*spells/g)];
+      if (headers.length) {
+        flush();
+        const bands = headers.map((m) => {
+          const run = r[Math.max(0, starts.findLastIndex((s) => s <= m.index))];
+          return { level: LEVELS[m[1]], tradition: m[2], nameX: run.x };
+        });
+        table = { bands, y: r[0].y, lastY: null };
+        continue;
+      }
+      if (!table) continue;
+      const first = table.bands[0];
+      const numbered = r.some((it) => /^\d{1,2}\.?$/.test(it.str.trim()) && it.x >= first.nameX - 40 && it.x <= first.nameX - 6);
+      if (numbered) table.lastY = Math.max(table.lastY ?? 0, r[0].y);
+    }
+    flush();
+  }
+  if (!Object.keys(fields).length) throw new Error("no repertoire table found on the pages");
+  return {
+    kind: entry.kind,
+    name: entry.name,
+    book: entry.book,
+    cite: citeFor(entry.book, entry.pages[0]),
+    pages: entry.pages,
+    meta: { ...(entry.meta ?? {}) },
+    fields,
+  };
+}
+
+/**
  * kind.classMeta — the Profs chapter's Proficiencies Gained per Level grid:
  * class-name rows × level columns 1..N, cells "C" / "G" / "C + G" (blank past
  * a class's maximum level). Rows are keyed by class name, so the walk accepts
@@ -3722,6 +3811,7 @@ async function compileClass(doc, entry, kindRow) {
  * of the chargen chapter this way).
  */
 async function compileClassMeta(doc, entry) {
+  if (entry.repertoires) return compileRepertoires(doc, entry);
   if (entry.window) {
     const fields = {};
     for (const p of entry.pages) {
@@ -4150,8 +4240,11 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
     const yMax = Math.min(stop?.y ?? pd.height, nextHead?.y ?? pd.height) - 2;
     const nameBox = { x0: anchor.x - 2, x1: anchor.x + (anchor.w ?? 60) + 2, y0: anchor.y - 5, y1: anchor.y + 4 };
     fields.name = hash ? withFixes({ op: "heading", page, box: nameBox, hash }, pd) : { op: "expect", page, box: nameBox, text: want };
+    // A glyph in the page margin (the chapter tab) falls in the column by x
+    // but outside its box; let in, it leads the lines and the stat block opens
+    // on the heading row, so the title is read as the magic type.
     const body = pd.items.filter(
-      (it) => it !== anchor && it.h < DEF_BODY_MAX_H && colOf(it.x, cols) === col && it.y > anchor.y + 2 && it.y < yMax,
+      (it) => it !== anchor && it.h < DEF_BODY_MAX_H && colOf(it.x, cols) === col && it.x >= box.x0 && it.y > anchor.y + 2 && it.y < yMax,
     );
     let lines = toLines(body);
     // A kind with a STAT BLOCK opens every entry with labelled lines the seat

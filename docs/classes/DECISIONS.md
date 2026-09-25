@@ -1430,3 +1430,51 @@ where it is, the way a hand-written description is kept — so a Judge's
 training survives a re-import, and a class never carries two training
 effects because the importer skips building one whose keys an unminted
 effect already holds.
+
+## 2026-09-25 — A tradition's list narrows the picker, a level caps it, and a kept spell relinks
+
+**Found (the 9.0.0 live walk, and that release's own changelog caveat).** The
+spell picker offered every spell of a tradition at every level: a 1st-level
+template's "one spell of the character's choice" listed sixth-level spells,
+and a class whose page prints its own repertoire — the bladedancer, crusader,
+priestess and shaman — was offered the whole divine list. A class packaged
+before its spells were imported kept printed names on its templates;
+`upgradeUnresolved` gives gear and proficiencies their second chance and never
+looked at a spell, so the 9.0.0 note promised a relink nothing performed.
+
+**Ruled.**
+
+- `grants.mjs` `spellLanes`: one lane per tradition — the keys a spell's lists
+  name it by; a cap, the highest spell level the tradition's slot grid grants
+  at the level asked (null with no level or no grid, 0 where the grid grants
+  nothing yet); a narrowing, the documents the row's `spellList` resolves to,
+  null where none does. `admitsSpell` tests a document against them and
+  `choosableSpells(classItem, {level})` walks the library through it.
+  `optionsForChoice` and `rungOptions` carry the level: the level-up wizard
+  passes the one it climbs to, the picker the one it binds, every other
+  surface the actor's own, a character still being generated a 1st-level one.
+- The importer writes the casting row's `spellList` from the printed
+  repertoire pages (`docs/importer/DECISIONS.md`, "The repertoire pages compile
+  as grids keyed by printed number"): entry ids, resolved through the registry
+  at pick time, so a list a world has not imported yet narrows nothing — an
+  offer nobody can redeem is worse than a broad one. The class sheet's Casting
+  tab shows the count.
+- `relinkSpells` in `materializeTemplates`: a row's named, non-offer spell with
+  no uuid is planned again on every pass where the bundle exists; what
+  resolves joins the bundle's `itemList` and its `asImported` snapshot (the
+  write is this module's, not a Judge's edit), the entry takes the uuid, and
+  `stripRepresented` strips it. An edited bundle is skipped and reported; a
+  copy is written only on a create pass.
+
+**Rejected.** A cap read off `system.lvl` alone: a spell prints on several
+lists at different levels, and the level under the class's own tradition is
+the one that counts (`spell-names.mjs` `levelUnder`). A narrowing stored as
+uuids: a re-import mints new ids and an entry id survives it. Hiding an
+unlabelled spell: the 2026-08-20 rule stands — a hidden option is one the
+player cannot pick and cannot see the absence of.
+
+**What it cost.** A pick at a level the grid does not reach offers nothing —
+a class whose casting opens at 2nd offers no spell at 1st — which is what the
+page says. A world's classes packaged before 9.1.0 relink on the next
+materialize pass: *Build packages*, a class re-import or repair, or
+`importTemplatePackages()`.

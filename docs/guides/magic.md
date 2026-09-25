@@ -39,8 +39,18 @@ fields and the text closing on its page. Run it again and nothing doubles;
 *Repair in place* reads the entries again over the documents you hold,
 keeping every id and what you set on each.
 
+Seven printed spells the 9.0.0 import did not create arrive the same way:
+run the import again, or repair the shelf, and they land beside the rest.
+
+![](../releases/v9.1.0/magic-spell-missed.png)
+
+*One of the seven, on the sheet after the import that adds it.*
+
 Spells import before classes, so a class's starting templates find the
-spells their spellbooks name.
+spells their spellbooks name. A class whose page prints its own repertoire
+carries it as references to the imported spells, and every spell pick the
+class asks is held to that list at the level the character casts
+([classes guide](classes.md#picks-a-character-still-owes)).
 
 ## Disabling
 

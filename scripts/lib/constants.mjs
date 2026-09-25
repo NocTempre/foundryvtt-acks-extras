@@ -20,3 +20,17 @@ export const GROUP_TYPE = `${MODULE_ID}.group`;
 export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
 /** The Item sub-type a variation document is — one way an item differs from its plain self. */
 export const VARIATION_TYPE = `${MODULE_ID}.variation`;
+
+/** The prefix every custom hook this module fires is named under. */
+const NAMESPACE = "acksExtras";
+
+/**
+ * Hooks the template generator fires. `RESOLVED` carries `{resolved,
+ * template, type, choices}` once a generation's patches, items and flags are
+ * merged and before the actor is written, so a feature may add what a
+ * generated creature carries — the magic feature draws a repertoire onto a
+ * slot block there — by mutating `resolved` in place.
+ */
+export const TEMPLATE_HOOKS = Object.freeze({
+  RESOLVED: `${NAMESPACE}.templateResolved`,
+});

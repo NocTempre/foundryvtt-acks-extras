@@ -59,6 +59,25 @@ subclass of the system's own, so it keeps every tab core defines — and core's
 plain sheet is still there under **Sheet Configuration** if you want the lean
 view for a particular actor.
 
+## A monster that casts
+
+An imported creature whose entry names spells carries them. A spell it casts
+"(as the spell)" or lists among its spell-like abilities is a copy of the
+imported document on its Spells tab, marked with the frequency the page
+prints beside it; one that casts as a class of a level gets that class's
+slots at that level and a repertoire drawn from the class's list; one whose
+entry prints a repertoire carries it as printed. A name no imported spell
+answers stays in the prose. The Spells tab is on for any creature that
+carries a spell, its slots at zero unless the entry fills them. A creature
+imported before the spells were gains its spells on *Repair in place*; a
+creature generated from a template whose row prints a spell column gets its
+slots and a drawn repertoire at generation.
+
+![](../releases/v9.1.0/monsters-spellcasting.png)
+
+*A creature that casts as a class: its slots by level and the repertoire
+drawn to them.*
+
 ## Who reads an attack card
 
 With **Attack roll: throw as target** on, as it is unless you turn it off, an

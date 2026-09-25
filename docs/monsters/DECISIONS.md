@@ -163,3 +163,30 @@ nothing; the value rule forbids the first and the second made it pointless.
 **What it cost.** The Usage select offers thirteen options where it offered
 ten. A consumer that prices a spell-like ability by its usage imports the
 factor table when it is built (`docs/ROADMAP.md`, Monsters).
+
+### A spellcasting monster carries the imported spells (2026-09-25)
+
+**Ruled.** At import, `cookbook.mjs` `bindMonsterSpells` reads the stat
+block's prose (`spell-names.mjs` `scanMonsterSpells`): a spell named outright
+— "(as the spell X)", "X (as the spell)", a "spell-like abilities:" list —
+becomes an embedded copy of the imported document, the frequency printed
+beside it as the copy's `usage` flag; "casts spells as a Nth-level <class>"
+sets `system.spells` from that class document's grid at that level and draws
+a repertoire (`docs/magic/DECISIONS.md`, "A creature's repertoire is drawn
+to its slots"); a printed repertoire is copied as printed. A template row's
+spell column writes the generated creature's slot block, and the prose's
+cast-as word rides on the row's `extras.spellcasting` so the generator draws
+at generation. A name no document answers stays in the prose, which the
+sheet shows. The Spells tab is on for any creature carrying a copy — core
+shows it only when `system.spells.enabled` is — and its slots stay at zero
+unless a grid or a printed repertoire fills them.
+
+**Rejected.** A `spellcasting.note` of names for the Judge to resolve by
+hand: the 9.0.0 spell import makes the documents real, and a name the sheet
+cannot roll is not an ability. Resolving against the core packs first: an
+imported copy stands for a compendium namesake, as the class picker rules.
+
+**What it cost.** A monster imported before the spells were carries none
+until it is repaired, and a repair reads the prose again. A world with no
+imported spells and no spell compendium loaded carries printed names only,
+as before.

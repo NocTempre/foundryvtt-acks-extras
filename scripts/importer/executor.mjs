@@ -748,6 +748,27 @@ export function rollScan(paras) {
  * ships only the keyword vocabulary and never which creature has what.
  * Per-entry assists remain the fallback for shapes this cannot classify.
  */
+/**
+ * A frequency phrase's key — "once per week" → `perWeek`. Every key is a
+ * `SPELL_LIKE_FREQ` member (`lib/magic-vocab.mjs`); `tools/test-magic.mjs`
+ * holds the table to that vocabulary. "" when the text carries no phrase.
+ */
+const FREQ = [
+  [/\bat will\b/i, "atWill"],
+  [/\bonce per round\b/i, "perRound"],
+  [/\bonce (?:per|every) (?:three|3) turns\b/i, "per3Turns"],
+  [/\bonce per turn\b/i, "perTurn"],
+  [/\bonce per 8 hours\b/i, "per8Hours"],
+  [/\bonce per hour\b/i, "perHour"],
+  [/\b(?:three|3) times per day\b|\bthrice (?:per|a) day\b/i, "thricePerDay"],
+  [/\bonce per day\b/i, "perDay"],
+  [/\bonce per week\b/i, "perWeek"],
+  [/\bonce per month\b/i, "perMonth"],
+  [/\bonce (?:per|every) season\b/i, "perSeason"],
+  [/\bonce per year\b/i, "perYear"],
+];
+export const frequencyOf = (s) => FREQ.find(([re]) => re.test(String(s ?? "")))?.[1] ?? "";
+
 export function effectScan(paras, registers) {
   const text = (paras ?? []).map((p) => (typeof p === "string" ? p : p.text)).join(" ");
   if (!text) return [];
@@ -938,23 +959,8 @@ export function effectScan(paras, registers) {
   if (armour) push({ type: "limitation", condition: "armor", note: armour[1].toLowerCase() });
 
   /* --- Spell-like abilities: "can cast X (as the spell) once per week".
-   * Every key is a `SPELL_LIKE_FREQ` member (`lib/magic-vocab.mjs`);
-   * `tools/test-magic.mjs` holds the scan to that table. --- */
-  const FREQ = [
-    [/\bat will\b/i, "atWill"],
-    [/\bonce per round\b/i, "perRound"],
-    [/\bonce (?:per|every) (?:three|3) turns\b/i, "per3Turns"],
-    [/\bonce per turn\b/i, "perTurn"],
-    [/\bonce per 8 hours\b/i, "per8Hours"],
-    [/\bonce per hour\b/i, "perHour"],
-    [/\b(?:three|3) times per day\b|\bthrice (?:per|a) day\b/i, "thricePerDay"],
-    [/\bonce per day\b/i, "perDay"],
-    [/\bonce per week\b/i, "perWeek"],
-    [/\bonce per month\b/i, "perMonth"],
-    [/\bonce (?:per|every) season\b/i, "perSeason"],
-    [/\bonce per year\b/i, "perYear"],
-  ];
-  const freqOf = (s) => FREQ.find(([re]) => re.test(s))?.[1] ?? "";
+   * The frequency read is `frequencyOf`, above. --- */
+  const freqOf = frequencyOf;
   for (const m of text.matchAll(
     /can (?:cast|bestow|perform|use) ([a-z][a-z' -]{2,40}?)\s*(?:\(as the (?:\d+(?:st|nd|rd|th)? level )?(?:divine |arcane )?spell\)|as a spell-like ability)([^.]{0,60})/gi,
   )) {

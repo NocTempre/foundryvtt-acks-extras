@@ -748,3 +748,64 @@ import in a page loaded before the fix.
 
 **Teardown.** Delete the `language` item by the id read back in step 4. The
 `ability` was already retired by the upgrade, so a sweep reports it missing.
+
+## A tradition's list and a level cap the spell pick; a kept spell relinks
+
+Needs the seat's RR PDF connected, the spells imported and the classes
+imported after them (the getting-started chain's order).
+
+**Fixtures.** Through the driver's ledger: one disposable `character` bound
+to an imported class whose page prints its own repertoire (a Casting row that
+shows a spell-list count), and a second bound to a class the book gives a
+whole tradition. For the relink, the pre-9.1.0 shape is built on purpose: a
+disposable class (`api.create("Item", …)` from an imported class's
+`toObject()` with a new name and no id) whose starting template's `spells`
+row names an invented title nothing in the world answers; *Build packages*
+on it writes the bundle and keeps that name printed on the row; then a
+disposable `spell` Item of that title.
+
+**Steps.**
+1. Open the repertoire class. *Observable:* the Casting tab's tradition row
+   shows the count line; `system.casting[0].spellList` holds that many entry
+   ids, each resolving through `acksExtras.classes.findByRef` to a spell.
+2. Open the picker on the first character at 1st level and reach a spell
+   rung (the template's "one spell of the character's choice", or a spell
+   award). *Observable:* every option is on the class's list and of a level
+   the slot grid grants at 1st; a spell of the tradition off the list is
+   absent. On the second character the whole tradition is offered, still
+   capped by level.
+3. Bind the first character at a level the grid grants a second spell level
+   at and reopen the rung. *Observable:* second-level spells of the list
+   appear. Run the level-up wizard to a level the grid opens a new spell
+   level at: its spell award offers that level.
+4. Relink: on the disposable class, run *Build packages* again (or
+   `acksExtras.importer.importTemplatePackages()`). *Observable:* the
+   report's `relinked` names the bundle with its spell count; the bundle's
+   `itemList` carries the spell; the row's `spells` no longer prints its
+   name; the bundle's `flags.acks-extras.asImported.system.itemList` matches
+   the live list, so a further pass reports nothing edited and nothing
+   relinked. Apply the template to a fresh disposable character: the spell
+   lands as a copy of the document.
+
+### Drive mechanics (non-obvious, learned live)
+
+- **A class the offer list hides falls back to another.**
+  `openClassPicker(actor)` offers the world's offered classes and, when the
+  actor's bound class is not among them (a disposable probe class, a homebrew
+  one), opens on the FIRST offered class's rungs — the probe reads the wrong
+  class and passes. Force it: `openClassPickerFor(actor, classItem)`, exported
+  by `classes/assign-app.mjs` and not on the api.
+- **A rung select carries a control option.** `select[name="rung-<index>:<atLevel>"]`
+  lists `__answered__` ("already covered") before the spells; drop it before
+  counting, and read each option's level off `findByRef(value).system.lvl`.
+- **After a shelf repair, fetch the pack again.** `cookbookUpdateClasses`
+  rewrites the class documents in place and `pack.contents` may be empty
+  until `await pack.getDocuments()`; read the repaired `spellList` off the
+  fetched document.
+- **The level-up wizard is not awaited.** `openLevelUp(actor)` resolves when
+  the wizard closes; kick it off, wait for its `DialogV2`, read
+  `select[name="choice-0"]`, close it — the actor's level is untouched.
+
+**Teardown.** `api.sweepTracked()`; quote it — the two characters, the
+disposable class, its bundle and table (track their ids off the build report
+and the class's `templateTable`), and the spell.

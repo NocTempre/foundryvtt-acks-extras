@@ -247,6 +247,47 @@ show it as chosen; the blank shape with its note is what the page says.
 it up with one repair of the *Spells* shelf, which rewrites the flag from
 the new bind.
 
+### An "and" can be a title's own word (2026-09-25)
+
+**Ruled.** `spell-names.mjs` `splitSpellNames` splits a printed list on
+commas, semicolons and conjunctions, and rejoins two neighbouring fragments on
+" and " when neither is a known title and the join is. What is known comes
+from a `titleIndex`: the register's spell titles at import (the class
+binder's spellbooks and repertoires), the world's spell documents at bind (a
+monster's prose). A list nothing can vouch for splits on every conjunction,
+as it did before.
+
+**Rejected.** A shipped list of the titles that carry the word: a page value.
+The register's titles are already in the repo as entries, and a world's
+documents are the Judge's own.
+
+**What it cost.** Nothing offline. A title with "and" that a world has not
+imported splits until it is, and a re-import or a package rebuild reads the
+book again.
+
+### A creature's repertoire is drawn to its slots (2026-09-25)
+
+**Ruled.** A creature that casts as a class of a level, with no repertoire
+printed, carries one drawn at random from that class's own picker list at
+that level (`repertoire.mjs` `repertoireFor`), as many distinct spells of
+each level as the slots say. The draw is `Math.random` unless the caller
+supplies a source, and it happens once per build: at import for a stat block,
+at generation for a template (the `acksExtras.templateResolved` hook), and
+again at a repair or a re-generation, which replace the minted items. A
+printed repertoire is copied as printed, and its counts are the slots when no
+class grid says otherwise. A creature that only names spells draws nothing —
+those are its abilities.
+
+**Rejected.** Leaving the slots empty for the Judge: an enabled slot block
+with no spells is a sheet that says "caster" and casts nothing. A fixed pick
+(the first of the list): every dragon of an age would carry the same spells.
+A draw for a creature whose entry names spells: the names are the entry's
+whole statement.
+
+**What it cost.** Two creatures generated from one template differ, which is
+the point; a Judge who wants a particular repertoire edits the actor, and a
+repair redraws it.
+
 ### Where the lang-key convention is recorded
 
 The convention that a magic family's displayed label comes from

@@ -112,3 +112,65 @@ negative half.
 
 Delete both actors and any tokens placed for the vision step. Confirm no
 fixture actors remain.
+
+## A spellcasting monster
+
+Needs the MM PDF connected, and the spells and classes imported: the class
+document supplies the slot grid a level is read off.
+
+**Fixtures.** `api.track` the actor each import below creates, read off the
+import's own result, and the generated creature.
+
+**Steps.**
+1. Import an entry whose prose says it casts spells as a class of a level and
+   prints no repertoire (the entry picker, Monsters). *Observable:*
+   `system.spells.enabled` is true and the `spells.N.max` values are that
+   class document's grid row at that level; the actor carries as many `spell`
+   items of each level as the slots say, each a copy of an imported document
+   (`flags.acks-extras.spell` present, the cookbook id kept, `minted` set);
+   a second import of the same entry draws differently.
+2. Import an entry whose prose lists spell-like abilities with a frequency per
+   group, and one that names a spell "(as the spell X)". *Observable:* one
+   `spell` item per named spell, its `flags.acks-extras.usage` the printed
+   frequency's key (the ACKS Monster fieldset's Usage select shows it); the
+   Spells tab is on with every slot at zero unless the prose also casts as
+   a class.
+3. Import an entry whose prose prints a repertoire by level ("1st - …; 2nd -
+   …"). *Observable:* the named spells as items; the slot maxes equal the
+   printed counts per level where no class grid applies.
+4. Repair the actor from step 1 in place (Reimport One Shelf → Monsters →
+   *Repair in place*, or the picker's repair). *Observable:* the minted spell
+   items are replaced by a fresh draw; the id stays.
+5. Generate a creature from a template family whose row prints a spell column
+   (the generator sheet, *Generate*). *Observable:* the actor has the row's
+   slot block, `flags.acks-extras.extras.spellcasting.class` holds the
+   prose's word and `.level` the row's caster level, and it carries a drawn
+   repertoire; a row printing no spells generates none.
+
+### Drive mechanics (non-obvious, learned live)
+
+- **A repair on a copy.** `refillMonster(actor, {whole: true})` is not on
+  the api; `await import("/modules/acks-extras/scripts/importer/cookbook.mjs")`
+  in page context reaches the same module instance. It reads the entry from
+  the connected book and rewrites the actor it is handed, so a disposable
+  copy of a shelf monster (`toObject()`, the cookbook flag kept, no `_id`)
+  is the fixture and the shelf document is never touched.
+- **`Actor.create` from a `toObject()` needs `items`.** The system's
+  create override replaces `system` unless the data carries an `items`
+  array; a source with no embedded items loses its stats on the copy. Pass
+  `items: []`.
+- **The binder reads the entry's description paragraphs, not the actor.** A
+  stored monster keeps its prose in `flags.acks-extras.extras.description`
+  channels; `bindMonsterSpells` and `castsAsClass` run on the executed
+  entry's paragraphs at import. A creature whose casting paragraph sits on a
+  page the register's span does not reach imports with none — the
+  importer ROADMAP, "A monster whose entry runs past its first page", lists
+  them; check the register's `pages` before reading a missing repertoire
+  as a reader fault.
+- **The generated actor is read off `createActor`.** *Generate* posts
+  nothing that names it; hook `createActor` for `userId === game.user.id`
+  around the click, and track that uuid.
+- **A whole-shelf class repair narrows by a Set.** `cookbookUpdateClasses({
+  only: new Set(ids), confirm: false })` — an array throws.
+
+**Teardown.** `api.sweepTracked()`; quote it.

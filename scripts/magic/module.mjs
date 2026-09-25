@@ -16,7 +16,18 @@ import { createSpellSheet, spellEffectStore, LEVEL_VALUE_PARTIAL } from "./spell
 import { parseRangeLine, parseDurationLine, displayRange, displayDuration, coreFieldsFrom, spellTraditions, spellDedupeKey } from "./spell-logic.mjs";
 import { describeSpellEffect } from "./describe.mjs";
 import { stripModuleData } from "./uninstall.mjs";
+import { splitSpellNames, titleIndex, scanMonsterSpells, castsAsClass, castSourceOf } from "./spell-names.mjs";
+import {
+  repertoireFor,
+  drawRepertoire,
+  slotsOfClass,
+  slotsFromCells,
+  coreSlotsPatch,
+  spellsByName,
+  fillGeneratedRepertoire,
+} from "./repertoire.mjs";
 import { coreItemSheetFor } from "../lib/util.mjs";
+import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 
 /** The dynamically-created sheet class (base is resolved at ready). */
 let AcksSpellSheet = null;
@@ -45,12 +56,38 @@ Hooks.once("init", () => {
     describeSpellEffect,
     /** The effect-row store the shared editor edits for one spell. */
     effectStore: spellEffectStore,
+    // Printed names: a list split without cutting a title on its own "and",
+    // a title resolved from its printing, a creature's spells read off its
+    // prose and what it casts as.
+    splitSpellNames,
+    titleIndex,
+    scanMonsterSpells,
+    castsAsClass,
+    castSourceOf,
+    // Repertoires drawn to a slot count from the imported spells.
+    repertoireFor,
+    drawRepertoire,
+    slotsOfClass,
+    slotsFromCells,
+    coreSlotsPatch,
+    spellsByName,
+    fillGeneratedRepertoire,
     stripModuleData,
     get AcksSpellSheet() {
       return AcksSpellSheet;
     },
   };
   acksExtras.magic = api;
+
+  // A generated creature whose template enabled a slot block and named what
+  // it casts as draws its repertoire here, before the actor is written.
+  Hooks.on(TEMPLATE_HOOKS.RESOLVED, ({ resolved }) => {
+    try {
+      fillGeneratedRepertoire(resolved);
+    } catch (err) {
+      console.warn(`${MODULE_ID} | repertoire draw skipped`, err);
+    }
+  });
 
   try {
     foundry.applications.handlebars.loadTemplates([

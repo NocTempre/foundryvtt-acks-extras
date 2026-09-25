@@ -123,3 +123,26 @@ Every step below needs the seat's own RR PDF connected (the *Your ACKS Books
 `api.sweepTracked()`; quote its result. The imported spells are the seat's
 own world content and stay; the hand-made spell and the actor are the only
 documents the run created.
+
+## Printed names and repertoires (9.1.0)
+
+Needs the RR and MM PDFs connected, the spells imported and the classes
+imported after them. The surfaces are the classes' and the monsters', so the
+recipes live there; this section says which.
+
+### Steps
+
+1. The class side — the repertoire count on the Casting tab, the narrowed and
+   level-capped pick, the relink of a kept spell: `docs/classes/TESTING.md`,
+   "A tradition's list and a level cap the spell pick; a kept spell relinks".
+2. The monster side — a stat block that names spells, one that casts as a
+   class of a level, one that prints a repertoire, and a generated creature
+   whose row prints a spell column: `docs/monsters/TESTING.md`, "A
+   spellcasting monster".
+3. A starting spellbook whose printed title carries "and": apply a template
+   that prints one. *Observable:* the spell lands whole, one document, not
+   two.
+
+### Teardown
+
+Each recipe's own; `api.sweepTracked()` once, quoted.

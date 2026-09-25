@@ -5214,3 +5214,62 @@ and this one was a rule short, not an author.
 
 *Cost:* none found. A sub-heading that opens lower-case would now be read as
 prose and the turn would run through it; no book on the shelf prints one.
+
+### The repertoire pages compile as grids keyed by printed number (2026-09-25)
+
+**Found.** Four classes print their own spell list on the repertoire pages of
+the spell chapter: a title per class, then a table per three levels — the
+row's number once at the left, a name under each level's header, a school
+line over each name. The class binder had no way to reach them, so the picker
+offered those classes the whole divine list.
+
+**Ruled.** `def.classmeta.spellRepertoires` (`kind.classMeta` with
+`repertoires`; `compile-cookbook.mjs` `compileRepertoires`) compiles one
+`grid` per class and header row, keyed `<class>.<tradition>L<levels>`, with a
+raw name column per level: the label span is the number column, the row
+tolerance stays under the school line's offset so that line falls out as a
+row with no label, and the grid closes on its own last numbered row.
+`executeRepertoires` runs the entry once per class import or repair and keeps
+a node whose bands partly missed, warning the misses; `classRepertoireFor`
+reads one class's lists off it; `bindClass` resolves each printed name to a
+spell entry id through the register's own titles (`titleIndex`: whole, in the
+singular, or from a column's closing abbreviation), warns the names no title
+answers, and writes the ids on the casting row's `spellList` — every list for
+a class of one tradition, the matching tradition's lists otherwise.
+
+**Rejected.** One grid per level band: the number is printed once per row
+across the levels abreast, so a per-level box holds no labels of its own (the
+first compile found exactly one band per header row). Authoring the four lists
+in the register: a list of titles a reader picks from is content, and the
+page is on the seat.
+
+*Cost:* a class not on those pages keeps an empty list. Nothing offline reads
+the page; a count of names per class against the seat's own book belongs in
+`tools/rules-tests/`.
+
+### Seven spell headings the 9.0.0 register did not carry (2026-09-25)
+
+**Found.** Repairing the four printed class repertoires left three titles no
+imported spell answered. Not a folding fault: the register had no entry for
+them. Four spell headings share their text row with the chapter's margin tab
+(one glyph at the page's outer edge, level with the heading), which the
+heading pass that authored the register read as a row with a second column
+and skipped; three sit on the chapter's last page, one past the range the
+register file's name declares. Authored, the four compiled with a stat block
+that opened on the heading row: the tab glyph falls in the column by x but
+outside its box, and let in it led the body lines, so the title was read into
+the magic type ("angelicauradivine" as a list source).
+
+**Ruled.** The seven are authored by hand in page order with the
+`subheading` anchor and the page's column assist, and the register file
+keeps its name — the range in a file name says where the file started, not
+what it may hold. When a printed name resolves to nothing, probe the page
+for the heading's own text before assuming a fold: a column-aware read that
+tolerates one stray glyph at the margin finds a heading the whole-row read
+lost. The definition compiler keeps an item outside the column's box out of
+the body lines, so a margin glyph can no longer open a stat block.
+
+**Cost.** A world that imported spells under 9.0.0 lacks the seven until
+`importSpells()` runs again or the Spells shelf is repaired; the class
+repair warns per unresolved name until then, and a monster whose entry names
+one of the seven carries the name in its prose instead of a copy.

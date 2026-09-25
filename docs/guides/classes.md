@@ -35,6 +35,17 @@ is trained in.
 *A starting template: abilities, gear and spells by name, a reference nothing
 answers marked, the whole row a drop zone.*
 
+A row whose spells were still printed names when its package was built — the
+class imported before the spells were — relinks them on the next *Build
+packages* (a class re-import or repair runs the same pass): each spell a
+document now answers joins the package and leaves the printed row. A package
+you edited by hand is left as it is and named in the report.
+
+![](../releases/v9.1.0/classes-templates.png)
+
+*The same template once packaged: the package names what it hands over, the
+relinked spells among them.*
+
 The same constructor records what a class speaks and how many more tongues it
 may choose.
 
@@ -295,6 +306,22 @@ whatever spell compendia the world has, so a table that has imported no spell
 list of its own can still answer the offer. Nothing is chosen for you: the
 control opens on "— choose —", so closing it without deciding leaves the pick
 standing rather than spending it on whichever option sorted first.
+
+Since 9.1.0 the chooser lists what the character casts at the level being
+set — a starting character's first, the level a level-up climbs to — and a
+class whose page prints its own repertoire (the bladedancer, crusader,
+priestess and shaman) offers that list alone; its Casting tab says how many
+spells the list holds.
+
+![](../releases/v9.1.0/classes-spell-pick.png)
+
+*A mage template's spell pick: first-level arcane spells, nothing above, the
+ones already on the sheet grouped first.*
+
+![](../releases/v9.1.0/classes-spell-list.png)
+
+*A class whose page prints its repertoire: the Casting tab counts the list
+every spell pick is held to.*
 
 Answering is remembered against the character, not against the row's position,
 so re-running the generator or re-applying the class never asks twice and never

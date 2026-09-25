@@ -78,7 +78,7 @@ export async function openLevelUp(actor) {
       rungSelectHtml({
         name: `choice-${index}`,
         label: rungLabel(a, "levelup.pick"),
-        options: rungOptions(a.choice, classItem, actor),
+        options: rungOptions(a.choice, classItem, actor, null, { level: next }),
       }),
     )
     .join("");

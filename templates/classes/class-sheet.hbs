@@ -434,6 +434,7 @@
             <input name="system.casting.{{index}}.casterLevel" type="text" value="{{casterLevel}}" list="{{@root.partId}}-ladder-keys" placeholder="{{localize "ACKS-CLASSES.sheet.casting.casterLevel"}}" aria-label="{{localize "ACKS-CLASSES.sheet.casting.casterLevel"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.casting.casterLevelHint"}}" />
             <button type="button" class="acks-extras-classes-ctl acks-extras-classes-ctl--danger" data-action="rowDelete" data-array="casting" data-index="{{index}}" data-confirm="tradition" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.tradition")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.tradition")}}"><i class="fa-solid fa-trash" inert></i></button>
           </div>
+          {{#if spellListCount}}<p class="hint">{{localize "ACKS-CLASSES.sheet.casting.spellList" count=spellListCount}}</p>{{/if}}
           <fieldset>
             <legend>{{localize "ACKS-CLASSES.sheet.casting.slots"}}
               <button type="button" class="acks-extras-classes-ctl" data-action="rowAdd" data-array="casting.{{index}}.slots" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.slotRow")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.add" what=(localize "ACKS-CLASSES.sheet.what.slotRow")}}"><i class="fa-solid fa-plus" inert></i></button></legend>

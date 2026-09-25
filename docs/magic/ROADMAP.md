@@ -15,21 +15,6 @@ ships the Judge tools for what it adds.
   spell's lists and deduplicating core-pack namesakes; template spellbooks
   resolving imported spells; the repair-in-place policy for spells; the
   uninstall path.
-- **1a+ — Starting templates: spells** (release kind to be declared by the
-  owner). A studious caster's printed spellbook resolves each named spell to
-  the imported document by its printed name, whole, with the "and"-split
-  repair for a title that carries the word; the printed pick offers the
-  class's list at the level a starting character casts; a class materialized
-  before its spells existed relinks its bundles when re-materialized; the
-  four printed class repertoires (bladedancer, crusader, priestess, shaman)
-  land as spell-list references on the class's casting row so the picker
-  narrows to them. A prayerful caster's first-level repertoire is release 2's.
-  In the same release, **monster templates that cast spells use the imported
-  spells** (owner's request, 2026-09-24): a Monstrous Manual entry whose
-  stat block or powers name spells, or cast as a class of a level, resolves
-  each named spell to the imported document the way a class template's
-  spellbook does, so a spellcasting monster carries the flagged spell Items
-  rather than printed names.
 - **1b — Foundation: the math.** The `acks.spellBuilder` document from JJ
   ch. 14 (AXIOMS 18 and HFH ch. 8 as alternate producers); the pure cost
   engine; the Build tab; the printed worked builds as build records.
@@ -39,7 +24,8 @@ ships the Judge tools for what it adds.
   spell effects as flag-marked Active Effects aged by Foundry's own expiry
   with the rounds-to-seconds rewrite when a combat ends, damage and healing
   cards, summons with a Judge-confirmed dismissal, concentration and
-  disruption prompts, repertoires and the spellbook migration to references,
+  disruption prompts, repertoires (a prayerful caster's first-level
+  repertoire among them) and the spellbook migration to references,
   the Magic tab redesign, settings and macros. A points or gnosis caster
   keeps today's pool strip until its engine lands.
 - **3a — Magic types.** The `acks-extras.magicType` document, its sheet and

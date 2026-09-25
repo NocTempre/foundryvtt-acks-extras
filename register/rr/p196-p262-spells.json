@@ -132,6 +132,28 @@
     }
   },
   {
+    "id": "def.spell.angelicAura",
+    "icon": "icons/magic/light/projectile-halo-teal.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Angelic Aura",
+    "anchor": {
+      "subheading": "Angelic Aura"
+    },
+    "pages": [
+      196
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
     "id": "def.spell.arcaneShift",
     "icon": "icons/magic/movement/abstract-ribbons-red-orange.webp",
     "kind": "kind.spell",
@@ -3982,6 +4004,28 @@
     }
   },
   {
+    "id": "def.spell.levitation",
+    "icon": "icons/magic/air/wind-stream-purple-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Levitation",
+    "anchor": {
+      "subheading": "Levitation"
+    },
+    "pages": [
+      234
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
     "id": "def.spell.lightningStrike",
     "icon": "systems/acks/assets/icons/lightning-bolt.webp",
     "kind": "kind.spell",
@@ -4627,6 +4671,28 @@
     "name": "Protection from Temperature",
     "anchor": {
       "subheading": "Protection from Temperature"
+    },
+    "pages": [
+      240
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.programmaticFigment",
+    "icon": "icons/magic/light/orbs-smoke-pink.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Programmatic Figment",
+    "anchor": {
+      "subheading": "Programmatic Figment"
     },
     "pages": [
       240
@@ -6644,6 +6710,28 @@
     }
   },
   {
+    "id": "def.spell.wallOfFrost",
+    "icon": "icons/magic/water/barrier-ice-crystal-wall-jagged-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Wall of Frost",
+    "anchor": {
+      "subheading": "Wall of Frost"
+    },
+    "pages": [
+      260
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
     "id": "def.spell.wallOfWood",
     "icon": "icons/magic/earth/barrier-stone-explosion-debris.webp",
     "kind": "kind.spell",
@@ -6816,6 +6904,72 @@
       "columns": [
         45,
         302
+      ]
+    }
+  },
+  {
+    "id": "def.spell.wingedFlight",
+    "icon": "icons/magic/control/buff-flight-wings-runes-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Winged Flight",
+    "anchor": {
+      "subheading": "Winged Flight"
+    },
+    "pages": [
+      263
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.wordOfCommand",
+    "icon": "icons/magic/sonic/projectile-shock-wave-blue.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "Word of Command",
+    "anchor": {
+      "subheading": "Word of Command"
+    },
+    "pages": [
+      263
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.spell.xRayVision",
+    "icon": "icons/magic/nature/stealth-hide-eyes-green.webp",
+    "kind": "kind.spell",
+    "book": "rr",
+    "name": "X-Ray Vision",
+    "anchor": {
+      "subheading": "X-Ray Vision"
+    },
+    "pages": [
+      263
+    ],
+    "meta": {
+      "category": "spell"
+    },
+    "assists": {
+      "columns": [
+        72,
+        329
       ]
     }
   }

@@ -72,15 +72,26 @@ export const answeredByTemplate = (award) => ["classInventory", "generalList"].i
  * spending a free pick on it doubles the proficiency instead of keeping it.
  * The rung stays closable either way, because the surfaces that pass a package
  * also offer the "already on the sheet" and "leave open" answers.
+ *
+ * `level` is the level the answer is for — a spell offer lists what the class
+ * casts there. The level-up wizard passes the one it climbs to and the picker
+ * the one it binds; otherwise the actor's own level stands, and a character
+ * still being generated is a 1st-level one.
  */
-export function rungOptions(choice, classItem, actor = null, granted = null) {
-  return optionsForChoice(choice, classItem)
+export function rungOptions(choice, classItem, actor = null, granted = null, { level = null } = {}) {
+  return optionsForChoice(choice, classItem, { level: level ?? actorLevel(actor) })
     .filter((o) => !isGranted(granted, o))
     .map((o) => ({
       ...o,
       owned: !!actor && ownsRef(actor, o.ref),
     }));
 }
+
+/** The level an actor stands at, 1 for one with none set or none at all. */
+const actorLevel = (actor) => {
+  const n = Number(actor?.system?.details?.level);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+};
 
 /** Does a chosen package already hand this option over? Matched on ref where
  *  the entry carries one and on name otherwise (template-packages.mjs). */

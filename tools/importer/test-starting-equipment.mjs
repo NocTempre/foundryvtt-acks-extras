@@ -11,7 +11,7 @@
  * same punctuation, invented gear.
  */
 import assert from "node:assert";
-import { parseEquipment, nameForms, liftBookSpells, liftCompanions, buildPaths, readTrainingCells } from "../../scripts/importer/cookbook.mjs";
+import { parseEquipment, nameForms, liftBookSpells, liftCompanions, buildPaths, readTrainingCells, classRepertoireFor, templateOption } from "../../scripts/importer/cookbook.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -306,4 +306,51 @@ const same = buildPaths(
 check("a value every option shares is still written on each",
   same[0].options.every((o) => o.training.armour === "medium"));
 
+// --- a title's own "and" (every title below is invented) ---
+const known = (n) => ["mend pot and pan", "quiet step"].includes(String(n).toLowerCase());
+const owned = () => [{ name: "Worn spellbook with mend pot and pan, and quiet step", note: "" }];
+check("an 'and' inside a known title does not split it",
+  liftBookSpells(owned(), { known }).map((s) => s.name).join("|") === "Mend pot and pan|Quiet step");
+check("without a title index every conjunction splits, as before", liftBookSpells(owned()).length === 3);
+
+// --- a class's printed repertoire off the executed pages: one grid per header
+// row, the printed number as the row label, a name column per level ---
+const grid = (levels, ...rows) => ({
+  rows: rows.map((names, i) => ({
+    key: String(i + 1),
+    label: String(i + 1),
+    cells: Object.fromEntries(names.map((name, j) => [`L${levels[j]}`, name]).filter(([, name]) => name)),
+  })),
+});
+const pages = {
+  fields: {
+    bladedancer: { divineL12: grid([1, 2], ["quiet step", "loud bang"], ["mend pot and pan", ""]) },
+    crusader: { divineL123: grid([1, 2, 3]) },
+  },
+};
+const rep = classRepertoireFor(pages, "Bladedancer");
+check("a class's repertoire is read off its nested grid, a column per level, in printed order",
+  rep.length === 2 && rep[0].level === 1 && rep[0].tradition === "divine" && rep[0].names.join("|") === "quiet step|mend pot and pan" && rep[1].level === 2 && rep[1].names.join("|") === "loud bang");
+check("a class the pages do not print has none", classRepertoireFor(pages, "Shaman").length === 0);
+check("an empty grid is no list", classRepertoireFor(pages, "Crusader").length === 0);
+check("a flat dotted field reads the same",
+  classRepertoireFor({ fields: { "shaman.divineL456": grid([4, 5, 6], ["dim lantern", "", ""]) } }, "Shaman")[0].level === 4);
+check("no pages, no repertoire", classRepertoireFor(null, "Shaman").length === 0);
+
+
+// The template binder: a row's spell column is the generated creature's slot
+// block, and the prose's cast-as word rides beside the row's caster level.
+{
+  const ax = { key: "age", keyIsHd: false, budgetCol: null };
+  const opts = { id: "t.probe", cite: "", sectionText: new Map() };
+  const cast = templateOption(ax, { key: "adult", label: "Adult" }, { hitDice: "8", spells: "2 1 - - -", casterLevel: "4th" }, { ...opts, spellSource: "mage" });
+  check("a spell column becomes the option's slot block",
+    cast.merge.spells?.enabled === true && cast.merge.spells[1]?.max === 2 && cast.merge.spells[2]?.max === 1 && cast.merge.spells[3]?.max === 0);
+  check("the cast-as word and the caster level ride on the option's flags",
+    cast.flags["acks-extras"]?.extras?.spellcasting?.class === "Mage" && cast.flags["acks-extras"].extras.spellcasting.level === 4);
+  const mute = templateOption(ax, { key: "young", label: "Young" }, { hitDice: "4", spells: "- - - - -" }, { ...opts, spellSource: "mage" });
+  check("a row printing no slots neither enables the block nor flags a caster", !mute.merge.spells?.enabled && Object.keys(mute.flags).length === 0);
+  const noWord = templateOption(ax, { key: "adult", label: "Adult" }, { hitDice: "8", spells: "1 - - - -" }, opts);
+  check("slots without a cast-as word keep the block and flag nothing", noWord.merge.spells?.enabled === true && Object.keys(noWord.flags).length === 0);
+}
 console.log(`test-starting-equipment: all ${pass} checks passed`);

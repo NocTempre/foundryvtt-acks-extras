@@ -11,7 +11,9 @@ import { readFileSync } from "node:fs";
 import * as V from "../scripts/lib/vocab.mjs";
 import { MAGIC_VOCAB, SPELL_LIKE_FREQ, vocabChoices, vocabLabel } from "../scripts/lib/magic-vocab.mjs";
 import { USAGE } from "../scripts/monsters/config.mjs";
-import { effectScan } from "../scripts/importer/executor.mjs";
+import { effectScan, frequencyOf } from "../scripts/importer/executor.mjs";
+import { splitSpellNames, titleIndex, scanMonsterSpells, castsAsClass, castSourceOf, levelUnder } from "../scripts/magic/spell-names.mjs";
+import { slotsFromCells, coreSlotsPatch, slotsOfSystem, drawRepertoire } from "../scripts/magic/repertoire.mjs";
 import {
   parseRangeLine,
   parseDurationLine,
@@ -300,6 +302,151 @@ t("the reverse's name is read off the prose in each printed phrasing, in heading
   assert.equal(reversedNameFrom("It must not be old. Blight, the reverse of bounty, causes the field to wither."), "Blight");
   assert.equal(reversedNameFrom("This spell has no reverse at all."), "");
   assert.equal(headingCase("wall of the fallen"), "Wall of the Fallen");
+});
+
+// --- printed names (every title below is invented) ---
+
+t("a printed spell list splits on its separators, except an 'and' a title owns", () => {
+  const ix = titleIndex([
+    ["a", "Mend Pot and Pan"],
+    ["b", "Quiet Step"],
+    ["c", "Cure Minor Scrape"],
+  ]);
+  assert.deepEqual(splitSpellNames("mend pot and pan, quiet step and cure minor scrape", ix.has), [
+    "mend pot and pan",
+    "quiet step",
+    "cure minor scrape",
+  ]);
+  assert.deepEqual(splitSpellNames("quiet step; cure minor scrape & mend pot and pan", ix.has), [
+    "quiet step",
+    "cure minor scrape",
+    "mend pot and pan",
+  ]);
+  // Without an index every conjunction splits — the reading a list nothing
+  // can vouch for still gets.
+  assert.deepEqual(splitSpellNames("mend pot and pan, quiet step"), ["mend pot", "pan", "quiet step"]);
+  assert.deepEqual(splitSpellNames(""), []);
+});
+
+t("a title resolves whole, in the singular, and from a column's abbreviation", () => {
+  const ix = titleIndex([
+    ["a", "Cure Minor Scrape"],
+    ["b", "Repair Cracked Tile and Roof"],
+    ["c", "Quiet Step*"],
+  ]);
+  assert.equal(ix.size, 3);
+  assert.equal(ix.resolve("cure minor scrapes"), "a");
+  assert.equal(ix.resolve("Repair Cracked Tile & Ro.*"), "b");
+  assert.equal(ix.resolve("quiet step"), "c");
+  assert.equal(ix.resolve("Quiet Step*"), "c");
+  assert.equal(ix.resolve("repair"), null, "a bare stem is not an abbreviation");
+  assert.equal(ix.has("loud step"), false);
+  assert.equal(ix.resolve(""), null);
+});
+
+t("a creature's spells are read off its prose four ways, each with the frequency beside it", () => {
+  const known = titleIndex([
+    ["a", "Quiet Step"],
+    ["b", "Cure Minor Scrape"],
+    ["c", "Mend Pot and Pan"],
+    ["d", "Loud Bang"],
+    ["e", "Dim Lantern"],
+  ]).has;
+  const prose =
+    "It can perform quiet step (as the spell) three times per day. Once per day it may cause a loud bang (as the spell loud bang). " +
+    "It also possesses the following spell-like abilities: cure minor scrape, mend pot and pan (at will); and dim lantern (once per week). " +
+    "A chieftain has the following spells in its repertoire: 1st - quiet step, mend pot and pan; 2nd – loud bang.";
+  const scan = scanMonsterSpells(prose, { known, freqOf: frequencyOf });
+  assert.deepEqual(scan.named, [
+    { name: "loud bang", frequency: "perDay" },
+    { name: "quiet step", frequency: "thricePerDay" },
+    { name: "cure minor scrape", frequency: "atWill" },
+    { name: "mend pot and pan", frequency: "atWill" },
+    { name: "dim lantern", frequency: "perWeek" },
+  ]);
+  assert.deepEqual(scan.repertoire, [
+    { level: 1, names: ["quiet step", "mend pot and pan"] },
+    { level: 2, names: ["loud bang"] },
+  ]);
+  // Without an index the words after the verb stand, and a name is listed once.
+  const bare = scanMonsterSpells("It can cast quiet step (as the spell) at will, and it can cast quiet step (as the spell) again.");
+  assert.deepEqual(bare.named, [{ name: "quiet step" }]);
+  assert.deepEqual(scanMonsterSpells("It has no magic.").named, []);
+  // A list may open on its frequency, and a creature may print several lists.
+  const opened = scanMonsterSpells(
+    "It has the following spell-like abilities thrice per day: quiet step, loud bang. It has the following spell-like abilities once per week: dim lantern. " +
+      "Its kin have several spell-like abilities, each of which can be used thrice per day: cure minor scrape, mend pot and pan. All function at caster level 9.",
+    { known, freqOf: frequencyOf },
+  );
+  assert.deepEqual(opened.named, [
+    { name: "quiet step", frequency: "thricePerDay" },
+    { name: "loud bang", frequency: "thricePerDay" },
+    { name: "dim lantern", frequency: "perWeek" },
+    { name: "cure minor scrape", frequency: "thricePerDay" },
+    { name: "mend pot and pan", frequency: "thricePerDay" },
+  ]);
+});
+
+t("what a creature casts as: the class and level, or the tradition", () => {
+  assert.deepEqual(castsAsClass("It casts spells as a 13thlevel crusader."), { level: 13, className: "crusader" });
+  assert.deepEqual(castsAsClass("with the spellcasting abilities of a 9th level mage"), { level: 9, className: "mage" });
+  assert.deepEqual(castsAsClass("It casts spells and uses magic items as a 4th-level mage."), { level: 4, className: "mage" });
+  assert.equal(castsAsClass("It casts arcane spells."), null);
+  assert.equal(castSourceOf("It casts divine spells at the level of its hit dice."), "divine");
+  assert.equal(castSourceOf("They cast spells as mages of a level equal to their hit dice."), "mage");
+  assert.equal(castSourceOf("It casts spells as if it were a 4th-level mage."), "mage");
+  assert.equal(castSourceOf("It has the spellcasting abilities of a 9th level mage."), "mage");
+  assert.equal(castSourceOf("It has no magic."), "");
+});
+
+t("a spell's level under a tradition comes off its lists, else core's own", () => {
+  const extras = { lists: [{ source: "divine", level: 3 }, { source: "arcane", level: 4 }] };
+  assert.equal(levelUnder(extras, 2, new Set(["arcane"])), 4);
+  assert.equal(levelUnder(extras, 2, new Set(["divine"])), 3);
+  assert.equal(levelUnder(extras, 2, new Set(["eldritch"])), 2);
+  assert.equal(levelUnder(null, "2", new Set(["arcane"])), 2);
+  assert.equal(levelUnder({ lists: [] }, "", new Set(["arcane"])), null);
+});
+
+t("a slot count reads off a template's cell or a system block, and writes back", () => {
+  assert.deepEqual(slotsFromCells("2 1 - - -"), { 1: 2, 2: 1 });
+  assert.deepEqual(slotsFromCells("3"), { 1: 3 });
+  assert.equal(slotsFromCells("- - - - -"), null);
+  assert.equal(slotsFromCells(""), null);
+  const patch = coreSlotsPatch({ 1: 2, 2: 1 });
+  assert.equal(patch.spells.enabled, true);
+  assert.deepEqual([1, 2, 3, 4, 5, 6].map((lvl) => patch.spells[lvl].max), [2, 1, 0, 0, 0, 0]);
+  assert.deepEqual(slotsOfSystem(patch.spells), { 1: 2, 2: 1 });
+  assert.equal(slotsOfSystem(coreSlotsPatch(null).spells), null);
+  assert.equal(coreSlotsPatch(null).spells.enabled, false);
+});
+
+t("a repertoire is drawn to its slots, distinct per level, never past what exists", () => {
+  const spell = (name, lvl) => ({ name, lvl });
+  const pool = [spell("a", 1), spell("b", 1), spell("c", 1), spell("d", 2), spell("e", 3)];
+  let seed = 0;
+  const random = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const levelOf = (s) => s.lvl;
+  const drawn = drawRepertoire(pool, { 1: 2, 2: 1, 3: 4 }, { levelOf, random });
+  assert.equal(drawn.filter((s) => s.lvl === 1).length, 2);
+  assert.equal(drawn.filter((s) => s.lvl === 2).length, 1);
+  assert.equal(drawn.filter((s) => s.lvl === 3).length, 1, "a level with fewer spells than slots yields what there is");
+  assert.equal(new Set(drawn.map((s) => s.name)).size, drawn.length, "no spell twice");
+  assert.deepEqual(drawRepertoire(pool, { 4: 2 }, { levelOf, random }), []);
+  assert.deepEqual(drawRepertoire(pool, null, { levelOf }), []);
+  // The draw is the random source's: one seed, one repertoire.
+  seed = 0;
+  const once = drawRepertoire(pool, { 1: 2 }, { levelOf, random });
+  seed = 0;
+  assert.deepEqual(drawRepertoire(pool, { 1: 2 }, { levelOf, random }), once);
+});
+
+t("a frequency phrase reads to its key", () => {
+  assert.equal(frequencyOf("usable thrice a day"), "thricePerDay");
+  assert.equal(frequencyOf("once per week"), "perWeek");
+  assert.equal(frequencyOf("at will"), "atWill");
+  assert.equal(frequencyOf("whenever it likes"), "");
+  assert.equal(frequencyOf(null), "");
 });
 
 console.log(`\n${n} magic tests passed`);

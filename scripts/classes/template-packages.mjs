@@ -994,6 +994,54 @@ export async function materializeTemplates(
     for (const doc of stale) await doc.delete();
   };
 
+  /**
+   * A kept printed spell's second chance: an entry the row still states
+   * because no document answered for it when the bundle was built. Each
+   * named, non-offer entry with no document is planned again; what resolves
+   * is written (a copy only when `create` allows one — the relink-only pass
+   * links what exists) and listed on the bundle, and the entry takes the
+   * document's uuid so the represented pass strips it. A bundle a Judge
+   * edited is left as it is and reported. Returns whether the row changed.
+   */
+  const relinkSpells = async (row, bundle) => {
+    const pending = (row.spells ?? []).filter((e) => !isOffer(e) && e.name && !e.uuid);
+    if (!pending.length) return false;
+    if (editedSinceImport(bundle)) {
+      report.skippedEdited.push(bundle.name);
+      return false;
+    }
+    const plans = [];
+    for (const entry of pending) plans.push({ entry, ...(await planSpell(entry)) });
+    if (create) await writeRow(plans);
+    const rows = foundry.utils.deepClone(bundle.system.itemList ?? []);
+    const listed = new Set(rows.map((r) => r.uuid));
+    let changed = false;
+    const names = [];
+    for (const plan of plans) {
+      if (!plan.doc) {
+        if (!plan.data) report.unresolved.push(plan.entry.name);
+        continue;
+      }
+      plan.entry.uuid = plan.doc.uuid;
+      changed = true;
+      if (!listed.has(plan.doc.uuid)) {
+        rows.push(listRow(plan.doc));
+        listed.add(plan.doc.uuid);
+      }
+      names.push(plan.doc.name);
+    }
+    if (names.length) {
+      // The snapshot follows the list: a relink is this module's own write,
+      // and must not read as a Judge's edit on the next pass.
+      await bundle.update({
+        "system.itemList": rows,
+        [`flags.${MODULE_ID}.asImported.system.itemList`]: rows,
+      });
+      report.relinked.push(`${bundle.name} (${names.length} spell${names.length === 1 ? "" : "s"})`);
+    }
+    return changed;
+  };
+
   const templates = foundry.utils.deepClone(classItem.system.toObject?.().templates ?? classItem.system.templates);
   const ownBundles = libraryItems().filter((i) => i.type === ITEM_TYPE.bundle && isMine(i) && partOf(i).kind === "bundle");
   await upgradeUnresolved(ownBundles);
@@ -1014,10 +1062,12 @@ export async function materializeTemplates(
     }
     if (bundle) {
       // Contents already exist (unresolved parts were given their second
-      // chance above, before any row was read). An importer Update rewrites
-      // the whole `system`, putting the printed arrays back on a row whose
-      // bundle already carries them — left there the package would be handed
-      // over twice, so the represented entries go again.
+      // chance above, before any row was read; a spell the row kept because
+      // its document did not exist yet gets its own here). An importer Update
+      // rewrites the whole `system`, putting the printed arrays back on a row
+      // whose bundle already carries them — left there the package would be
+      // handed over twice, so the represented entries go again.
+      if (await relinkSpells(row, bundle)) changed = true;
       if (stripRepresented(row, bundle)) changed = true;
       continue;
     }

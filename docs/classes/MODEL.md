@@ -120,7 +120,14 @@ change), every bundle row repointed and the old document deleted, unless it
 was edited — a Judge's repair is skipped and reported; an upgrade to a
 definition the WORLD holds links it rather than copying, the same rule the
 create path follows, and a gap still unfilled is re-reported on every pass
-rather than only the one that minted it. **An unresolved part is never a
+rather than only the one that minted it. A spell a row still names in print —
+one no document answered for when the bundle was built — gets its second
+chance on every pass too (`relinkSpells`): each named, non-offer entry with
+no uuid is planned again; what resolves is written (a copy only on a create
+pass) and listed on the bundle, its `asImported` snapshot following so the
+write does not read as a Judge's edit, and the entry takes the uuid so the
+represented pass strips it; an edited bundle is skipped and reported.
+**An unresolved part is never a
 source** (`usableAsSource`), and the document being upgraded excludes itself
 by uuid: a placeholder carries the printed name and nothing
 else, so without that it answers its own name search and closes the gap it
@@ -401,7 +408,12 @@ level-up, which asks `awardsAt`, the rung of the level being climbed. The
 wizard says so beside its picks, because the shared control cannot: the picker
 renders the same one and would be naming itself.
 `grantsFrom` and `closesRung` are the two halves that used to be conflated:
-what a rung grants and what closes it are different questions.
+what a rung grants and what closes it are different questions. A rung is
+asked FOR a level — `rungOptions(choice, classItem, actor, granted,
+{level})`: the level-up wizard passes the one it climbs to, the picker the
+one it binds, and without one the actor's own level stands, a character
+still being generated counting as 1st — and a spell rung's offer is capped at
+what the class casts there (*Casting*).
 
 [panels.mjs](../../scripts/classes/panels.mjs) owns the boxes themselves — the
 class box, the package box and the picks box — so the picker and the Scores
@@ -592,6 +604,23 @@ level), and a rest control that DELETES the pools key (update merges
 objects, so writing an empty object resets nothing). It is the only surface
 that can show two traditions at once. The system's own `spells.1..6.max`
 grid stays the single-tradition compatibility surface applyClass writes.
+
+A tradition's `spellList` holds entry ids of the spells the class's own
+printed repertoire lists — written by the importer from the repertoire pages
+of the spell chapter ([DECISIONS.md](DECISIONS.md), 2026-09-25), empty for a
+class the book gives a whole tradition — and the constructor's Casting tab
+shows the count under the row. [grants.mjs](../../scripts/classes/grants.mjs)
+`spellLanes` turns the rows into what the spell picker offers: per tradition,
+the keys a spell's lists name it by; the cap — the highest spell level the
+slot grid grants at the level asked, null with no level or no grid, 0 where
+the grid grants nothing yet; and the narrowing, the documents the list
+resolves to through the registry, null where none does. `admitsSpell` tests
+one document against the lanes: an unlabelled spell under every lane; inside
+the narrowing by document or by name, so a compendium namesake of a listed
+spell still counts; at or under the cap by the level it holds under that
+tradition (`spell-names.mjs` `levelUnder`). `choosableSpells(classItem,
+{level})` walks the library and the loaded spell compendia through it, one
+option per folded name.
 
 ## Languages
 

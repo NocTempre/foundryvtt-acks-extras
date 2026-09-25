@@ -1,0 +1,17 @@
+[
+  {
+    "id": "def.classmeta.spellRepertoires",
+    "kind": "kind.classMeta",
+    "book": "rr",
+    "name": "Spell Repertoires",
+    "anchor": {
+      "label": "Spell Repertoire"
+    },
+    "pages": [192, 193],
+    "meta": {
+      "category": "classMeta"
+    },
+    "repertoires": true,
+    "note": "The per-class Spell Repertoire pages: one grid per class and header row, keyed <class>.<tradition>L<levels>, rows by the printed number, a name column per level. Binds onto the named class document's casting row as spell-list references (entry ids), never as its own item."
+  }
+]

@@ -16,7 +16,9 @@ import { choiceOptions } from "../lib/choice-spec.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { libraryItems, cookbookId } from "../lib/library.mjs";
 import { foldKey, spellTraditions, spellDedupeKey } from "../magic/spell-logic.mjs";
+import { levelUnder } from "../magic/spell-names.mjs";
 import { FLAG_SPELL } from "../magic/constants.mjs";
+import { slotRowAt } from "./casting.mjs";
 
 /** The ref a world item is addressed by (the importer's stamp, else uuid). */
 export const refOf = (item) => cookbookId(item) || `uuid:${item.uuid}`;
@@ -101,14 +103,16 @@ export async function grantAdventuring(actor, grants) {
  * source that reaches past the library into whatever spell compendia the
  * world has, so the offer is never unredeemable in a world that imported no
  * spell list. Narrowed to the class's own traditions where the documents say
- * which they belong to; a class with no casting row offers no spells at all.
+ * which they belong to, to the tradition's own list where the class carries
+ * one, and, given a `level`, to what the class casts at that level; a class
+ * with no casting row offers no spells at all.
  * See docs/classes/DECISIONS.md, "2026-08-20 — a package resolves through
- * the IMPORTS, and mints what it cannot find".
+ * the IMPORTS, and mints what it cannot find", and "2026-09-25 — A tradition's
+ * list narrows the picker, and a level caps it".
  */
-export function choosableSpells(classItem) {
-  const traditions = classItem?.system?.casting ?? [];
-  if (!traditions.length) return [];
-  const wanted = new Set(traditions.flatMap((t) => [foldKey(t.key), foldKey(t.label)]).filter(Boolean));
+export function choosableSpells(classItem, { level = null } = {}) {
+  const lanes = spellLanes(classItem, { level });
+  if (!lanes.length) return [];
   const packed = (game.packs ?? [])
     .filter((p) => p.documentName === "Item")
     .flatMap((p) => [...p.contents].filter((i) => i.type === ITEM_TYPE.spell));
@@ -121,15 +125,60 @@ export function choosableSpells(classItem) {
     seen.add(doc.uuid);
     // A class's own copy of a spell is not a second spell to elect.
     if (templatePartOf(doc)) return false;
-    // The traditions a spell names — every list it prints on, else core's
-    // free-text class string. An unlabelled spell is OFFERED rather than
-    // hidden, because a hidden option is one the player cannot pick and
-    // cannot see the absence of.
-    const named = spellTraditions(doc.flags?.[MODULE_ID]?.[FLAG_SPELL], doc.system?.class);
-    if (named.length && wanted.size && !named.some((t) => wanted.has(t))) return false;
-    const key = spellDedupeKey(doc.name, cookbookId(doc));
+    if (!admitsSpell(lanes, doc)) return false;
+    const key = spellDedupeKey(doc.name);
     if (offered.has(key)) return false;
     offered.add(key);
+    return true;
+  });
+}
+
+/**
+ * One lane per tradition the class casts: the keys a spell's list names it
+ * by; the highest spell level the tradition's grid grants at `level` — null
+ * with no level asked or no grid to ask, 0 where the grid grants nothing yet;
+ * and the documents the tradition's `spellList` resolves to, null where the
+ * class carries no list or none of its references resolves in this world —
+ * an offer nobody can redeem is worse than a broad one. `resolve` turns a
+ * reference into a document; the registry's lookup unless a test supplies
+ * its own.
+ */
+export function spellLanes(classItem, { level = null, resolve = findByRef } = {}) {
+  return (classItem?.system?.casting ?? []).map((t) => {
+    const keys = new Set([foldKey(t.key), foldKey(t.label)].filter(Boolean));
+    let cap = null;
+    if (level != null && (t.slots?.length ?? 0) > 0) {
+      cap = 0;
+      const row = slotRowAt(t, level);
+      if (row) for (let n = 1; n <= 6; n++) if ((row[`s${n}`] ?? 0) > 0) cap = n;
+    }
+    const docs = (t.spellList ?? []).map((ref) => resolve(ref)).filter(Boolean);
+    const narrow = docs.length
+      ? { uuids: new Set(docs.map((d) => d.uuid)), names: new Set(docs.map((d) => foldKey(d.name))) }
+      : null;
+    return { keys, cap, narrow };
+  });
+}
+
+/**
+ * Whether the lanes offer a spell: under a lane whose tradition the spell
+ * names — every list it prints on, else core's free-text class string; an
+ * unlabelled spell is OFFERED under every lane rather than hidden, because a
+ * hidden option is one the player cannot pick and cannot see the absence
+ * of — inside the lane's narrowing where it has one (by document, or by
+ * name for a compendium namesake of a listed spell), and at or below the
+ * lane's cap where it has one and the spell states a level.
+ */
+export function admitsSpell(lanes, doc) {
+  const extras = doc.flags?.[MODULE_ID]?.[FLAG_SPELL];
+  const named = spellTraditions(extras, doc.system?.class);
+  const mine = named.length ? lanes.filter((l) => named.some((k) => l.keys.has(k))) : lanes;
+  return mine.some((lane) => {
+    if (lane.narrow && !lane.narrow.uuids.has(doc.uuid) && !lane.narrow.names.has(foldKey(doc.name))) return false;
+    if (lane.cap != null) {
+      const lvl = levelUnder(extras, doc.system?.lvl, lane.keys);
+      if (lvl != null && lvl > lane.cap) return false;
+    }
     return true;
   });
 }
@@ -149,13 +198,13 @@ export async function warmSpellPacks() {
   await Promise.all(wanted);
 }
 
-/** Resolve a ChoiceSpec's options against this class doc and the world. */
-export function optionsForChoice(choice, classItem) {
+/** Resolve a ChoiceSpec's options against this class doc and the world; `level` caps a spell offer at what the class casts there. */
+export function optionsForChoice(choice, classItem, { level = null } = {}) {
   const generalRefs = choosableGenerals().map(refOf);
   const refs = choiceOptions(choice, {
     inventory: classItem.system.inventory,
     generalRefs,
-    spellRefs: choice?.from === "spellList" ? choosableSpells(classItem).map(refOf) : [],
+    spellRefs: choice?.from === "spellList" ? choosableSpells(classItem, { level }).map(refOf) : [],
   });
   return refs
     .map((ref) => ({ ref, name: findByRef(ref)?.name ?? ref }))

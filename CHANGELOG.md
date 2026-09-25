@@ -1,5 +1,61 @@
 # Changelog
 
+## 9.1.0
+
+### Added
+
+- **The four printed class repertoires narrow the spell pick.** A class whose
+  page prints its own spell list (the bladedancer, crusader, priestess and
+  shaman) imports it onto its casting tradition as references to the imported
+  spells, and every spell pick the class asks — a starting template's "one
+  spell of the character's choice", a level-up's spell award, the picker's
+  opening choices — lists only those. The class sheet's Casting tab shows how
+  many the list holds. A class the book gives a whole tradition keeps the
+  whole list, and a list whose spells a world has not imported yet narrows
+  nothing.
+- **A spell pick offers what the character casts at that level.** The pick
+  reads the class's slot grid at the level being set — the one a level-up
+  climbs to, the one the picker binds, a starting character's first — and
+  offers spells of the levels the grid grants there; a spell's level is the
+  one it holds on the class's own list.
+- **Spellcasting monsters carry the imported spells.** A monster whose entry
+  names spells — "(as the spell X)", "X (as the spell)", a list of spell-like
+  abilities — imports with copies of the imported spell documents on its
+  sheet, each marked with the frequency the page prints beside it; one that
+  casts as a class of a level gets that class's spell slots at that level and
+  a repertoire drawn at random from the class's list; one whose entry prints a
+  repertoire carries it as printed. A creature generated from a template
+  whose row prints a spell column gets its slots and a drawn repertoire at
+  generation. `acksExtras.magic` exposes the readers and the draw.
+- **A spellbook's "and" is not always a split.** A starting spellbook naming
+  a spell whose title carries the word "and" resolves it whole when the title
+  is known, rather than as two spells.
+
+### Changed
+
+- **A class packaged before its spells existed relinks them.** Building a
+  class's packages again — the Templates tab's *Build packages*, a class
+  re-import or repair, `acksExtras.importer.importTemplatePackages()` —
+  resolves the spells a template still names in print, adds them to the
+  bundle and takes them off the printed row: the relink 9.0.0 promised. A
+  bundle you edited is left as it is and reported.
+
+### Fixed
+
+- **Seven printed spells the 9.0.0 import did not create.** Four whose
+  headings share their line with the page's margin tab and three on the spell
+  chapter's last page, past the range the import read. Running the spell
+  import again adds them beside the rest (nothing already imported is
+  touched), as does a repair of the Spells shelf; until a world does, a class
+  repertoire that names one keeps that name unresolved.
+- **A spell-like list whose frequency comes before the colon.** A creature
+  whose entry states the frequency once, for the whole list, imported with
+  none of the named spells; it now carries each of them at that frequency,
+  and a frequency printed beside one group still outranks the list's.
+- **A caster's class is recorded by the class document's own name.** An entry
+  printing the word in the plural or the lower case bound it as printed, so
+  the generator and the draw could not find the class.
+
 ## 9.0.0
 
 ### Added

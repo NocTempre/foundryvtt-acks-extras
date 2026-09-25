@@ -77,6 +77,33 @@ effect rows across a repair. A damage-type mark in the prose lands as its
 word through the shipped `damageGlyph` table (executor `glyphWords`); the
 mark's colour does not.
 
+**Printed names** (`spell-names.mjs`, pure). `titleIndex(pairs)` resolves a
+printed title whole, in the singular, or from a column's closing abbreviation
+— over the register's entries at import, over the world's documents at bind
+(`repertoire.mjs` `spellsByName`). `splitSpellNames(text, known)` splits a
+printed list on commas, semicolons and conjunctions and rejoins an "and"
+that is a title's own word ([DECISIONS.md](DECISIONS.md), "An "and" can be a
+title's own word"); the importer's `liftBookSpells` reads a starting
+spellbook through it. `scanMonsterSpells` reads a creature's prose four ways
+— "(as the spell X)", "X (as the spell)", a spell-like-abilities list opening
+on a frequency or closing each group on one, a printed repertoire by level —
+and
+`castsAsClass` / `castSourceOf` read what it casts as; `levelUnder` gives a
+spell's level under a tradition off its lists, else core's own.
+
+**Repertoires** (`repertoire.mjs`). A slot count read off a template's cell
+(`slotsFromCells`) or a class's grid at a level (`slotsOfClass`) is written
+onto core's `spells` block (`coreSlotsPatch`) and read back
+(`slotsOfSystem`); `drawRepertoire` draws as many distinct spells of each
+level as the slots say, and `repertoireFor(source, slots, {level})` draws
+from the class picker's own list for a class document, a class name or a
+bare tradition ([DECISIONS.md](DECISIONS.md), "A creature's repertoire is
+drawn to its slots"). The importer's monster binder carries the result as
+embedded copies (`spellPayload`; `docs/monsters/MODEL.md`), and
+`fillGeneratedRepertoire` does the same for a generated creature on the
+generator's `acksExtras.templateResolved` hook (`lib/constants.mjs`
+`TEMPLATE_HOOKS`), registered at init. `acksExtras.magic` exposes all of it.
+
 **Uninstall** (`uninstall.mjs`; the *Uninstall — Strip Spell Data* macro)
 strips the flag from every spell item in the world, on world actors and on
 unlinked token actors; core's strings stay, so a spell keeps its stat line.

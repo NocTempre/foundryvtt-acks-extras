@@ -234,6 +234,9 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       casterLevel: t.casterLevel,
       kindOptions: optionsOf(CASTING_KINDS, t.kind),
       repertoireOptions: optionsOf(REPERTOIRE_KINDS, t.repertoire, { blankLabel: "—" }),
+      // The printed list the picker narrows to, by count: the references
+      // themselves are written by the importer and read by the picker.
+      spellListCount: (t.spellList ?? []).length,
       slots: (t.slots ?? []).map((row, rowIndex) => ({ index: rowIndex, ...row })),
       pool: (t.pool ?? []).map((row, rowIndex) => ({ index: rowIndex, ...row })),
     }));
