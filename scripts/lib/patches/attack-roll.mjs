@@ -42,6 +42,12 @@ export const PRE_ATTACK_HOOK = "acksLibPreAttackRoll";
 export const POST_ATTACK_HOOK = "acksLibPostAttackRoll";
 const L = (k, d) => (game.i18n.has(`ACKS-LIB.attack.${k}`) ? game.i18n.localize(`ACKS-LIB.attack.${k}`) : d);
 
+/** An attribute's term label: ours where we carry one, else core's long score name. */
+const abilityLabel = (key) =>
+  game.i18n.has(`ACKS-LIB.attack.${key}`) || !game.i18n.has(`ACKS.scores.${key}.long`)
+    ? L(key, key.toUpperCase())
+    : game.i18n.localize(`ACKS.scores.${key}.long`);
+
 /** Core's rollAttack, captured at install time — the fail-safe fallback. */
 let coreRollAttack = null;
 
@@ -72,11 +78,14 @@ function buildContext(actor, attData, options) {
   // per-weapon path below, where the loadout adjustment and the item's own
   // bonus belong.
   const quick = attData?.item ? null : bestBonus(actor, type);
-  const abilityKey = quick?.abilityKey ?? (type === "missile" ? "dex" : "str");
   // Parts a wrapper already folded into the item's bonus (equipment's
   // non-proficiency package), each labelled: taken back out of the weapon's
-  // term and shown as their own.
+  // term and shown as their own. One keyed "ability" is an attribute swap
+  // (Weapon Finesse): it replaces the default attribute's term instead of
+  // standing beside it.
   const lifted = (Array.isArray(attData?.acksLibTerms) ? attData.acksLibTerms : []).filter((t) => num(t?.value));
+  const swap = lifted.find((t) => t.key === "ability" && t.ability);
+  const abilityKey = swap?.ability ?? quick?.abilityKey ?? (type === "missile" ? "dex" : "str");
   const terms = attackTerms({
     type,
     abilityMod: quick ? quick.abilityMod : sys.scores?.[abilityKey]?.mod,
@@ -86,12 +95,12 @@ function buildContext(actor, attData, options) {
     ...t,
     label:
       t.key === "ability"
-        ? L(abilityKey, abilityKey.toUpperCase())
+        ? abilityLabel(abilityKey)
         : t.key === "adjustment"
           ? L("adjustment", "Attack adjustment")
           : attData?.item?.name || L("weapon", "Weapon"),
   }));
-  for (const t of lifted) terms.push({ key: String(t.key ?? "situational"), value: num(t.value), label: t.label || situationalLabel() });
+  for (const t of lifted) if (t !== swap) terms.push({ key: String(t.key ?? "situational"), value: num(t.value), label: t.label || situationalLabel() });
   const target = attData?.roll?.target ?? null;
   const ctx = {
     actor,
@@ -147,11 +156,20 @@ function damageDie(item) {
   return "1d6";
 }
 
+/**
+ * The damage roll's parts. A wrapper's melee attribute substitution
+ * (`attData.acksLibDamageAbility`: the die before its correction, and the
+ * attribute replacing Strength) rolls that die with the substitute's own term,
+ * so Strength never appears on a roll it no longer modifies.
+ */
 function damageParts(actor, attData, type) {
-  const parts = [{ value: damageDie(attData?.item), label: null }];
+  const sub = type === "melee" ? attData?.acksLibDamageAbility : null;
+  const dieSource = sub?.base ? { name: attData?.item?.name, system: { damage: sub.base } } : attData?.item;
+  const parts = [{ value: damageDie(dieSource), label: null }];
   if (type === "melee") {
-    const str = Number(actor.system.scores?.str?.mod ?? 0);
-    if (str) parts.push({ value: str, label: L("str", "STR") });
+    const key = sub?.attribute ?? "str";
+    const mod = Number(actor.system.scores?.[key]?.mod ?? 0);
+    if (mod) parts.push({ value: mod, label: abilityLabel(key) });
   }
   if (type === "melee" || type === "missile") {
     const mod = Number(actor.system.damage?.mod?.[type] ?? 0);

@@ -1,5 +1,20 @@
 # Changelog
 
+## 9.1.1
+
+### Fixed
+
+- **An attribute that replaces Strength shows in Strength's place.** A
+  bladedancer with Weapon Finesse and a Strength penalty saw the Strength term
+  still printed on the attack roll, with the Dexterity difference folded into
+  the weapon's term, and the Strength of Faith damage roll showed Strength
+  beside a die carrying the Will correction — the totals were right, but the
+  roll read as though Strength still applied. The attack now reads
+  `1d20 + 1[Dexterity]` and the damage `1d6 + 1[Will]`, one term for the
+  attribute in use. Where Strength is the better attack attribute it stays;
+  the roll's totals do not change, and a world running core's own attack roll
+  sees the same numbers it did.
+
 ## 9.1.0
 
 ### Added

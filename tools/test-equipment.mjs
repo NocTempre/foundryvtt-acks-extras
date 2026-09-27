@@ -304,6 +304,8 @@ check("fully proficient loadout → no nonProficientUse state", profLo.nonProfic
 a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("finesse", "1")], system: { scores: { str: { mod: 1 }, dex: { mod: 3 } } } });
 m = computeAttackMods(a, attData(swordItem), { type: "melee" });
 check("Weapon Finesse → +(dex−str) = +2", m && m.bonusDelta === 2);
+check("Weapon Finesse is named as an attribute swap, so the roll shows DEX in STR's place",
+  m.terms.some((t) => t.key === "ability" && t.ability === "dex" && t.value === 2));
 check("Weapon Finesse does not apply to missile attacks", computeAttackMods(a, attData(swordItem), { type: "missile" })?.bonusDelta !== 2);
 
 // Lone medium sword is wielded two-handed → damage upsized 1d6 → 1d8.
@@ -319,6 +321,8 @@ a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [ma
 m = computeAttackMods(a, attData(swordItem), { type: "melee" });
 check("WIS (+3) replaces STR (+1) on melee damage → +2 on the upsized die", m?.damage === "1d8 + 2");
 check("the substitution is named in the roll's notes", m.notes.some((n) => /WIS instead of STR/.test(n)));
+check("the substitution carries the uncorrected die, so the roll can show WIS in STR's place",
+  m.damageAbility?.attribute === "wis" && m.damageAbility?.base === "1d8");
 
 // Equal modifiers cancel to nothing — no note, no phantom "+0".
 a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("damageAttribute", "wis")], system: { scores: { str: { mod: 2 }, wis: { mod: 2 } } } });

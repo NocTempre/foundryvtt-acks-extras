@@ -46,6 +46,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - **A shut lock blocks storing for everyone, the GM included** —
   `canStore` answers `{ok: false, reason: "locked"}`. That is deliberate: a
   lock that silently let the GM through would be decorative.
+- **A fixture's string flag must be an `add` change.** An effect carrying
+  `{key: "flags.acks-extras.damageAttribute", type: "custom", value: "wis"}`
+  is ignored by `collectStringFlags`, so Strength of Faith never fires and the
+  damage roll looks unfixed; `type: "add"` reaches it. A boolean domain
+  (`finesse`) fires on the key alone, whatever the type — which is why one
+  half of a fixture works and the other does not. Roll with
+  `actor.rollAttack({item: weapon.toObject(), roll: {}}, {type: "melee",
+  skipDialog: true})`; the damage box renders only on a hit, so loop until
+  one lands and read both `.dice-formula` elements.
 - **The shipped macros read the canvas selection**, not an actor argument.
   `macro.execute({actor})` runs without throwing and does nothing visible;
   place a token and control it first.

@@ -82,8 +82,12 @@ const withDelta = (formula, delta) => (delta > 0 ? `${formula} + ${delta}` : `${
  * `terms` names the parts of `bonusDelta` that are not the weapon's, so the
  * remodeled roll can show each as its own labelled term; the delta already
  * includes them, which is all core's own roll reads.
- * @returns {{bonusDelta:number, damage:string|null, notes:string[],
- *   terms:{key:string, value:number, label:string}[]}|null}
+ * An attribute swap rides `terms` keyed "ability" (with the attribute it
+ * swaps in); a damage-attribute substitution also returns `damageAbility`,
+ * the die before its correction and the substitute attribute.
+ * @returns {{bonusDelta:number, damage:string|null,
+ *   damageAbility:{attribute:string, base:string}|null, notes:string[],
+ *   terms:{key:string, value:number, label?:string, ability?:string}[]}|null}
  */
 export function computeAttackMods(actor, attData, options = {}) {
   if (actor?.type !== ACTOR_TYPE.character) return null; // monster natural attacks are not proficiency-gated
@@ -102,6 +106,7 @@ export function computeAttackMods(actor, attData, options = {}) {
   const terms = [];
   let bonusDelta = 0;
   let damage = null;
+  let damageAbility = null;
 
   // Non-proficient use (RR p. 15): the trigger is the equipped STATE — any
   // unusable weapon, unusable worn armour, or an untrained fighting style
@@ -163,6 +168,9 @@ export function computeAttackMods(actor, attData, options = {}) {
     const dex = Number(actor.system?.scores?.dex?.mod ?? 0);
     if (dex > str) {
       bonusDelta += dex - str;
+      // Keyed "ability": the remodeled roll merges it into the Strength term,
+      // which then reads as Dexterity, rather than listing it beside Strength.
+      terms.push({ key: "ability", ability: "dex", value: dex - str });
       notes.push(`Weapon Finesse (DEX ${dex >= 0 ? "+" : ""}${dex} instead of STR ${str >= 0 ? "+" : ""}${str})`);
     }
   }
@@ -185,6 +193,10 @@ export function computeAttackMods(actor, attData, options = {}) {
     if (sub) {
       const base = damage ?? item.system?.damage ?? profile.damage ?? "1d6";
       damage = withDelta(base, sub.delta);
+      // The die before the correction, and the attribute that replaces
+      // Strength: the remodeled roll rolls `base` and shows the substitute's
+      // own term where Strength's would be. Core's roll reads only `damage`.
+      damageAbility = { attribute: sub.attribute, base };
       notes.push(`${sub.attribute.toUpperCase()} instead of STR on damage (${sub.delta > 0 ? "+" : "−"}${Math.abs(sub.delta)})`);
     }
   }
@@ -242,7 +254,7 @@ export function computeAttackMods(actor, attData, options = {}) {
   }
 
   if (!bonusDelta && !damage) return null;
-  return { bonusDelta, damage, notes, terms };
+  return { bonusDelta, damage, damageAbility, notes, terms };
 }
 
 /** Apply the modifiers to a COPY of the throwaway plain item object. */
@@ -255,7 +267,10 @@ function applyMods(attData, mods) {
   // The labelled parts ride beside the bonus they are folded into: the
   // remodeled roll lifts them back out as their own terms, and core's roll,
   // which reads only the bonus, never sees them.
-  return mods.terms?.length ? { ...attData, item, acksLibTerms: mods.terms } : { ...attData, item };
+  const out = { ...attData, item };
+  if (mods.terms?.length) out.acksLibTerms = mods.terms;
+  if (mods.damageAbility) out.acksLibDamageAbility = mods.damageAbility;
+  return out;
 }
 
 /**
