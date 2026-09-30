@@ -415,15 +415,22 @@ monster actor carrying a henchman record (`flags.acks-extras.record` with
 2. With the `ownXpDealing` setting on, open the system party sheet.
    *Observable:* its own Deal XP button is hidden and the moved-hint says where
    dealing lives; with the setting off, the system's button is back.
-3. Press **Deal XP**, enter a total, confirm.
-   *Observable:* the dialog lists each share before anything is written; after
-   confirming, each character's `system.details.xp.value` rises by the listed
-   gain plus its own `system.details.xp.bonus` percent, rounded down — core's
-   `getExperience` applies the bonus, and posts a card per character. Those
-   cards and the dialog's summary card are all created by the run: read them
-   back and `api.track` each. Core's `getExperience` returns early for any
-   type but `character`, so a monster carrying a henchman record is listed
-   with a share and receives nothing; the fixture uses characters.
+3. Import the tables (the `experience` document must hold `keyAttributeXp`;
+   check `acksExtras.lib.tables.getDoc("experience")`). Give one character a
+   class with a key attribute and a score in an adjusting band, and a second a
+   non-zero Actor Tweaks `system.details.xp.bonus`.
+   *Observable:* the Class tab's XP label reads the percentage and its source
+   (the attribute, or "Tweaks"); before the import it reads "adjustment not
+   imported".
+4. Press **Deal XP**, enter a total, confirm.
+   *Observable:* the dialog lists each share, its adjustment and the adjusted
+   gain before anything is written; after confirming, each character's
+   `system.details.xp.value` rises by exactly the listed Gains — the Tweaks
+   character included, whose percentage core applies to the unadjusted base.
+   Core posts a card per character. Those cards and the dialog's summary card
+   are all created by the run: read them back and `api.track` each. The
+   monster henchman is listed with a share and a "Not recorded" note, and its
+   sheet is not written — the system keeps no experience for a monster.
 
 ## An unlinked member's own hit points (added with the hit-point tool)
 

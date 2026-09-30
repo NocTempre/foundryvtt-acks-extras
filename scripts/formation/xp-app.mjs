@@ -12,6 +12,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { divideXp, awardXp, participantsOf, reasonLabel } from "./xp-shares.mjs";
 import { gmIds } from "../lib/util.mjs";
+import { xpBonusFor } from "../classes/xp-bonus.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.xp";
 
@@ -22,10 +23,15 @@ const LANG_PREFIX = "ACKS-FORMATION.xp";
 export async function dealExperience(formation) {
   const actors = participantsOf(formation);
 
+  // Read once per dialog: a score or a class cannot change while it is open.
+  const bonuses = new Map(actors.map((a) => [a, xpBonusFor(a)]));
+  const bonusOf = (a) => bonuses.get(a);
+
   const preview = (total) => {
-    const d = divideXp(actors, total);
+    const d = divideXp(actors, total, { bonusOf });
     const rows = d.rows
-      .map((r) => `<tr><td>${foundry.utils.escapeHTML(r.name)}</td><td>${r.share}</td><td><strong>${r.xp}</strong></td></tr>`)
+      .map((r) => `<tr><td>${foundry.utils.escapeHTML(r.name)}</td><td>${r.share}</td><td>${bonusCell(bonuses.get(r.actor))}</td>`
+        + `<td><strong>${r.xp}</strong>${r.unrecorded ? `<br><span class="hint">${game.i18n.localize(`${LANG_PREFIX}.unrecorded`)}</span>` : ""}</td></tr>`)
       .join("");
     const left = d.excluded
       .map((r) => `<li>${foundry.utils.escapeHTML(r.name)} — ${reasonLabel(r.reason)}</li>`)
@@ -33,6 +39,7 @@ export async function dealExperience(formation) {
     return `<table class="acks-extras-xp-table">
         <tr><th>${game.i18n.localize(`${LANG_PREFIX}.who`)}</th>
             <th>${game.i18n.localize(`${LANG_PREFIX}.share`)}</th>
+            <th>${game.i18n.localize(`${LANG_PREFIX}.bonus`)}</th>
             <th>${game.i18n.localize(`${LANG_PREFIX}.gets`)}</th></tr>${rows}</table>
       ${left ? `<p class="hint">${game.i18n.localize(`${LANG_PREFIX}.excluded`)}</p><ul class="acks-extras-xp-excluded">${left}</ul>` : ""}`;
   };
@@ -61,7 +68,7 @@ export async function dealExperience(formation) {
 
   if (!total) return null;
 
-  const division = divideXp(actors, total);
+  const division = divideXp(actors, total, { bonusOf });
   await awardXp(division);
 
   await ChatMessage.create({
@@ -71,6 +78,17 @@ export async function dealExperience(formation) {
   });
   return division;
 }
+
+/** The adjustment column: the percentage and where it was read from. */
+function bonusCell(b) {
+  if (!b) return "—";
+  if (b.source === "tweaks") return `${signed(b.bonus)} <span class="hint">${game.i18n.localize(`${LANG_PREFIX}.bonusTweaks`)}</span>`;
+  if (b.source === "keyAttribute") return `${signed(b.bonus)} <span class="hint">${foundry.utils.escapeHTML(b.attrLabel ?? "")}</span>`;
+  if (b.unread) return `<span class="hint" title="${game.i18n.localize(`${LANG_PREFIX}.bonusUnreadHint`)}">${game.i18n.localize(`${LANG_PREFIX}.bonusUnread`)}</span>`;
+  return "—";
+}
+
+const signed = (n) => `${n > 0 ? "+" : ""}${n}%`;
 
 /**
  * Core's party overview deals XP to every actor carrying its own party flag,

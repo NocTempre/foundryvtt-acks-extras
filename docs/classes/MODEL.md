@@ -463,6 +463,22 @@ flat instead, which takes no Constitution. An imported class carries that flat
 in its printed cell; a class built through the builder has it computed from the
 imported per-level rate (see *Advanced mode*).
 
+## Experience adjustment
+
+A class's `keyAttributes` decide the percentage a character's experience is
+adjusted by (RR ch. 1, Key Attributes; applied to the adventure's total, RR
+ch. 6). `xp-bonus.mjs` owns it: the LOWER of the key attribute scores is read
+against the imported `experience.keyAttributeXp` bands (`[{min, max, bonus}]`,
+assembled by the importer's `experience-binding.mjs`). No table, no derived
+adjustment; a score in no band earns 0.
+
+The system has its own field, `system.details.xp.bonus`, typed in Actor Tweaks
+and applied by core's `getExperience` on every gain. A non-zero value there
+outranks the derived one — `xpBonusFor` reports it as `source: "tweaks"` — so a
+Judge's hand-set figure is never doubled or overridden. The Class tab's XP label
+carries the adjustment and where it came from; the formation's Deal XP applies
+it (`formation/xp-shares.mjs`, recipe in docs/formation/TESTING.md, "Deal XP").
+
 ## Level-up
 
 [scripts/classes/levelup.mjs](../../scripts/classes/levelup.mjs) watches XP

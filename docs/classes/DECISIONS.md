@@ -1431,6 +1431,29 @@ training survives a re-import, and a class never carries two training
 effects because the importer skips building one whose keys an unminted
 effect already holds.
 
+## 2026-09-30 — The key-attribute adjustment is derived, and the Tweaks field outranks it
+
+**Ruled.** A class's key attributes derive the experience adjustment from the
+imported Key Attribute bands, lower score governing. A non-zero Actor Tweaks
+percentage replaces the derived one rather than adding to it. Henchmen with a
+class take the adjustment like any character.
+
+**Why.** The field report: dealing experience from the formation gave an elven
+Knightblade no bonus. Core applies only the Tweaks figure, which nothing ever
+wrote, so every imported class dealt unadjusted experience while the class
+document already held its key attributes. Tweaks outranks rather than stacks
+because core applies it inside `getExperience` — adding the derived figure on
+top would double-count every character a Judge had already set by hand.
+
+**Rejected.** Writing the derived figure INTO `system.details.xp.bonus`: it
+would go stale the moment a score changed, and would erase the difference
+between a Judge's figure and a computed one. Shipping the bands: printed
+values, imported like every other table.
+
+**What it cost.** A world that has not re-run the table import shows "not
+imported" on the Class tab and in the Deal XP dialog, and deals unadjusted
+experience until it does.
+
 ## 2026-09-25 — A tradition's list narrows the picker, a level caps it, and a kept spell relinks
 
 **Found (the 9.0.0 live walk, and that release's own changelog caveat).** The

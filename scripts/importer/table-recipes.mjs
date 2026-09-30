@@ -2654,4 +2654,29 @@ export const TABLE_RECIPES = {
       },
     },
   },
+
+  // The Key Attribute table (RR ch. 1): score bands and the experience
+  // adjustment each earns. Raw reads only; experience-binding.mjs assembles
+  // the `experience` document acks-extras declares.
+  experience: {
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 14" },
+    tables: {
+      keyAttributeRaw: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 14,
+        locate: "Adjustment",
+        // The table floats in the right column with prose wrapped around its
+        // left edge; the window starts past the prose.
+        column: { xMin: 405, xMax: 560 },
+        labelMaxX: 470,
+        rows: [
+          { key: "b1", labelRe: "^9\\s*[–-]", labelPattern: "rollBand" },
+          { key: "b2", labelRe: "^13\\s*[–-]", labelPattern: "rollBand" },
+          { key: "b3", labelRe: "^16\\s*[–-]", labelPattern: "rollBand" },
+        ],
+        cellColumns: [{ key: "adjustment", x: 480, w: 70, pattern: "raw", row: true }],
+      },
+    },
+  },
 };

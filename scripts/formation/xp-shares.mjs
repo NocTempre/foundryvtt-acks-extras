@@ -17,6 +17,10 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { getMemberActor, realMembers } from "./formation-model.mjs";
+import { withXpBonus } from "../classes/xp-bonus.mjs";
+
+/** No key-attribute adjustment: the default for a division with no reader. */
+const NO_BONUS = Object.freeze({ bonus: 0, source: null });
 
 const LANG_PREFIX = "ACKS-FORMATION.xp";
 
@@ -93,11 +97,15 @@ export function shareFor(actor) {
  * whole division before a single point is awarded, and so the rule is
  * testable without a world.
  *
+ * Each row carries its `base` share of the total and, after the key-attribute
+ * adjustment `bonusOf` reports for that actor, the `xp` it actually gains.
+ *
  * @param {Actor[]} actors
  * @param {number} total
+ * @param {{bonusOf?: (actor: Actor) => {bonus: number, source: string|null}}} [opts]
  * @returns {{rows: object[], shares: number, perShare: number, awarded: number, excluded: object[]}}
  */
-export function divideXp(actors = [], total = 0) {
+export function divideXp(actors = [], total = 0, { bonusOf = () => NO_BONUS } = {}) {
   const amount = Math.max(0, Number(total) || 0);
   const scored = actors.filter(Boolean).map((actor) => ({ actor, name: actor.name, ...shareFor(actor) }));
   const taking = scored.filter((r) => r.share > 0);
@@ -110,7 +118,11 @@ export function divideXp(actors = [], total = 0) {
   const perShare = amount / shares;
   // Rounded DOWN per character, as core does — the remainder is the Judge's
   // rounding, not a debt to anybody.
-  const rows = taking.map((r) => ({ ...r, xp: Math.floor(r.share * perShare) }));
+  const rows = taking.map((r) => {
+    const base = Math.floor(r.share * perShare);
+    const { bonus = 0, source = null } = bonusOf(r.actor) ?? NO_BONUS;
+    return { ...r, base, bonus, bonusSource: source, xp: withXpBonus(base, bonus), unrecorded: r.actor.type !== "character" };
+  });
   return {
     rows,
     shares,
@@ -121,14 +133,20 @@ export function divideXp(actors = [], total = 0) {
 }
 
 /**
- * Hand the experience over. Uses the system's own `getExperience` so whatever
- * core does with a gain — prime-requisite bonuses, level-up prompts — keeps
- * happening.
+ * Hand the experience over through the system's own `getExperience`, so its
+ * chat line and whatever else core does with a gain keep happening.
+ *
+ * Core applies only the Actor Tweaks percentage, and applies it itself: a row
+ * whose adjustment came from there hands core the unadjusted base, any other
+ * row the adjusted gain. A row that is not a `character` is skipped — core's
+ * call does nothing for it and the system gives it no experience field to
+ * write — and stays `unrecorded` for the card to name.
  */
 export async function awardXp(division) {
   for (const row of division.rows ?? []) {
-    if (!row.xp) continue;
-    if (typeof row.actor.getExperience === "function") await row.actor.getExperience(row.xp);
+    if (!row.xp || row.unrecorded) continue;
+    const handed = row.bonusSource === "tweaks" ? row.base : row.xp;
+    if (typeof row.actor.getExperience === "function") await row.actor.getExperience(handed);
     else {
       const now = Number(row.actor.system?.details?.xp?.value) || 0;
       await row.actor.update({ "system.details.xp.value": now + row.xp });

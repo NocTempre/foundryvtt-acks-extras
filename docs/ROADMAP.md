@@ -129,6 +129,24 @@ transparently by taking over the first step; nothing else changes.
 
 ---
 
+## Experience beyond the character
+
+**Reserve XP fund, heroic funerals and inheritance (RR ch. 6) — the next minor.**
+The fund belongs to the PLAYER, not the character, so it lives on the
+User (a user flag), with a UI to record spending that buys no tangible benefit
+into it, a heroic funeral's addition for the next character, and the ceiling the
+rule sets against the prior character. Inheritance names an heir and the
+treasure left through a will, less the bank's charge. Both rates are printed
+values and arrive through a table recipe like the Key Attribute bands.
+
+**A monster henchman's experience.** The system gives a `monster` actor no
+experience field (its `details.xp` is what it is worth when defeated), so Deal
+XP lists a monster henchman's share with a "Not recorded" note and writes
+nothing. Where that experience should live, and how it advances Hit Dice, is
+undecided.
+
+---
+
 ## Henchmen
 
 **Candidate generation.** Rolled results are RECORDED today; generating the

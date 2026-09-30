@@ -29,6 +29,7 @@ import { openClassPicker, registerAssignUi } from "./assign.mjs";
 import * as casting from "./casting.mjs";
 import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelup.mjs";
 import { registerHitPointExpectations, firstLevelDieMinimum, HITPOINTS_DOC } from "./hitpoints.mjs";
+import { registerXpBonusExpectations } from "./xp-bonus.mjs";
 import { registerPendingChoices, pendingChoices, isOffer, mintPendingChoices, redeemChoice, openChoiceDialog } from "./pending-choices.mjs";
 import { reopenChargen, registerReopenChargen } from "./reopen-chargen.mjs";
 import {
@@ -74,6 +75,7 @@ Hooks.once("init", () => {
   CONFIG.Item.dataModels[RACE_TYPE] = RaceData;
   builder.registerBuilderExpectations();
   registerHitPointExpectations();
+  registerXpBonusExpectations();
   // Picks a character owes, drawn on the sheet and answerable from it.
   registerPendingChoices();
 

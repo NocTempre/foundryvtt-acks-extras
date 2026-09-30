@@ -14,6 +14,7 @@ import { awardsAt } from "../../classes/grants.mjs";
 import { pathGroups, chosenOption, actorPaths, groupLabel } from "../../classes/paths.mjs";
 import { FLAG_CLASSES } from "../../classes/constants.mjs";
 import { xpBar, storedSystem } from "../view-model.mjs";
+import { xpBonusFor } from "../../classes/xp-bonus.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -55,6 +56,21 @@ function previewRow(actor, classItem, level) {
   return deltas;
 }
 
+/**
+ * The experience adjustment as the XP label's note: "+5% · CON" read from the
+ * key attribute, "+5% · Tweaks" typed by the Judge, or a pointer at the import
+ * when the class names key attributes and no table has been read.
+ */
+function bonusNote(actor) {
+  const b = xpBonusFor(actor);
+  if (b.source) {
+    const from = b.source === "tweaks" ? loc("class.xpBonusTweaks") : b.attrLabel;
+    return { text: `${b.bonus > 0 ? "+" : ""}${b.bonus}% · ${from}`, hint: loc(b.source === "tweaks" ? "class.xpBonusTweaksHint" : "class.xpBonusHint") };
+  }
+  if (b.unread) return { text: loc("class.xpBonusUnread"), hint: loc("class.xpBonusUnreadHint") };
+  return null;
+}
+
 /** Build the tab's data. */
 export function buildClassTab(actor) {
   const sys = actor.system ?? {};
@@ -73,7 +89,7 @@ export function buildClassTab(actor) {
     levelField: num(stored.details?.level, 1),
     title: String(sys.details?.title ?? ""),
     maxLevel: classItem?.system?.maximumLevel ?? null,
-    xp: { ...xp, bonus: num(sys.details?.xp?.bonus), share: num(sys.details?.xp?.share, 100), valueField: num(stored.details?.xp?.value), nextField: num(stored.details?.xp?.next) },
+    xp: { ...xp, bonus: bonusNote(actor), share: num(sys.details?.xp?.share, 100), valueField: num(stored.details?.xp?.value), nextField: num(stored.details?.xp?.next) },
     full: xp.full && !!classItem,
     atCap: !!classItem && level >= (classItem.system?.maximumLevel || 14),
     nextLevel: level + 1,

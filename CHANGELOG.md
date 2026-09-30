@@ -1,5 +1,28 @@
 # Changelog
 
+## 9.3.2
+
+### Fixed
+
+- **A character's key attributes adjust the experience they are dealt.**
+  Dealing experience from the formation gave every character the bare share —
+  an elf whose key attribute earns an adjustment got the same as everyone
+  else — because only a percentage typed into the system's Actor Tweaks was
+  ever applied, and nothing wrote one. The adjustment is now read from the
+  class's key attributes, the lower one governing, against the Key Attribute
+  table (RR ch. 1) imported from the Judge's own book; henchmen with a class
+  take it too. A percentage set in Actor Tweaks still replaces it. The Class
+  tab shows the adjustment beside Experience with where it came from, and says
+  when the table has not been imported yet — re-run the table import to read
+  it.
+- **The Deal XP dialog shows what each character will actually gain.** A new
+  Adjustment column sits between Share and Gains, and Gains and the GM's
+  summary card include it.
+- **A monster henchman's share is named, not lost.** The system keeps no
+  experience for a monster, so its share was shown and then silently dropped.
+  It is still listed with its share, now marked "Not recorded" for the Judge
+  to note by hand.
+
 ## 9.3.1
 
 ### Fixed

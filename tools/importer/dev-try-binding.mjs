@@ -25,6 +25,7 @@ const BINDERS = {
   searching: () => import("../../scripts/importer/searching-binding.mjs").then((m) => m.assembleSearchingTables),
   cityTravel: () => import("../../scripts/importer/city-travel-binding.mjs").then((m) => m.assembleCityTravelTables),
   flight: () => import("../../scripts/importer/flight-binding.mjs").then((m) => m.assembleFlightTables),
+  experience: () => import("../../scripts/importer/experience-binding.mjs").then((m) => m.assembleExperienceTables),
 };
 
 const [docId] = process.argv.slice(2);

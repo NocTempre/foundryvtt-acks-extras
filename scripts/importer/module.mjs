@@ -53,22 +53,25 @@ import { applyForagingImport, FORAGING_DOC_ID } from "./foraging-binding.mjs";
 import { applySearchingImport, SEARCHING_DOC_ID } from "./searching-binding.mjs";
 import { applyCityTravelImport, CITY_TRAVEL_DOC_ID } from "./city-travel-binding.mjs";
 import { applyFlightImport, FLIGHT_DOC_ID } from "./flight-binding.mjs";
+import { applyExperienceImport, EXPERIENCE_DOC_ID } from "./experience-binding.mjs";
 import { progressBar } from "./progress.mjs";
 
 /**
- * The land-travel documents, each with the assembler that turns its raw page
- * reads into the engine tables acks-extras declares.
+ * The single-document bindings — the land-travel documents and experience —
+ * each with the assembler that turns its raw page reads into the engine tables
+ * acks-extras declares.
  *
- * A table rather than five near-identical blocks: they differ only in which
- * document they answer for, and one loop cannot drift the way five copies of
- * a try/catch do.
+ * A table rather than near-identical blocks: they differ only in which
+ * document they answer for, and one loop cannot drift the way copies of a
+ * try/catch do.
  */
-const LAND_BINDINGS = Object.freeze([
+const SIMPLE_BINDINGS = Object.freeze([
   { id: SURVIVAL_DOC_ID, apply: applySurvivalImport },
   { id: FORAGING_DOC_ID, apply: applyForagingImport },
   { id: SEARCHING_DOC_ID, apply: applySearchingImport },
   { id: CITY_TRAVEL_DOC_ID, apply: applyCityTravelImport },
   { id: FLIGHT_DOC_ID, apply: applyFlightImport },
+  { id: EXPERIENCE_DOC_ID, apply: applyExperienceImport },
 ]);
 import {
   initCookbook, loadCookbook, cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities,
@@ -1169,12 +1172,12 @@ async function cookbookImportTables(only = null) {
       ui.notifications.warn(`${MODULE_ID} | voyage tables: ${err.message}`);
     }
   }
-  // The land-travel documents all bind the same way — if this run imported it,
-  // assemble its engine tables and register them — so they are a table rather
-  // than five copies of one try/catch. A failure in one is reported and the
+  // The single-document bindings all bind the same way — if this run imported
+  // it, assemble its engine tables and register them — so they are a table
+  // rather than copies of one try/catch. A failure in one is reported and the
   // rest still run: a party that can forage should not lose the ability
   // because the flight pages would not parse.
-  for (const { id, apply } of LAND_BINDINGS) {
+  for (const { id, apply } of SIMPLE_BINDINGS) {
     if (!report.imported.some((d) => d.docId === id)) continue;
     try {
       const result = await apply();

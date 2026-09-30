@@ -19,6 +19,7 @@ import { PRODUCES as ENCOUNTERS } from "../../scripts/importer/encounters-bindin
 import { PRODUCES as WEATHER } from "../../scripts/importer/weather-binding.mjs";
 import { PRODUCES as VOYAGES } from "../../scripts/importer/voyages-binding.mjs";
 import { PRODUCES as BUILDER } from "../../scripts/importer/builder-binding.mjs";
+import { PRODUCES as EXPERIENCE } from "../../scripts/importer/experience-binding.mjs";
 
 let pass = 0;
 const check = (label, cond) => {
@@ -98,8 +99,8 @@ eq("a layer with no cites yields an empty map, not a throw", assembledDoc({ id: 
 
 // Every raw table a binding names is one some recipe of that document reads,
 // so a renamed recipe cannot leave an engine table citing nothing in silence.
-const maps = { ...FLIGHT, ...SURVIVAL, ...SEARCHING, ...CITY, ...FORAGING, ...TRAVEL, ...ENCOUNTERS, ...WEATHER, ...VOYAGES, ...BUILDER };
-check("ten documents declare what they assemble", Object.keys(maps).length === 10);
+const maps = { ...FLIGHT, ...SURVIVAL, ...SEARCHING, ...CITY, ...FORAGING, ...TRAVEL, ...ENCOUNTERS, ...WEATHER, ...VOYAGES, ...BUILDER, ...EXPERIENCE };
+check("eleven documents declare what they assemble", Object.keys(maps).length === 11);
 for (const [docId, map] of Object.entries(maps)) {
   const recipes = TABLE_RECIPES[docId]?.tables;
   check(`${docId}: a recipe document exists`, !!recipes);
