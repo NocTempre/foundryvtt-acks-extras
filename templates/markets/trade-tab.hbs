@@ -153,6 +153,10 @@
     <button type="button" class="acks-location-btn" data-action="ventureTrade">
       <i class="fas fa-scale-balanced"></i> {{localize "ACKS-MARKETS.ventures.trade"}}
     </button>
+    <button type="button" class="acks-location-btn" data-action="ventureLeave"
+            data-tooltip="{{localize 'ACKS-MARKETS.ventures.leaveHint'}}">
+      <i class="fas fa-door-closed"></i> {{localize "ACKS-MARKETS.ventures.leave"}}
+    </button>
     {{/if}}
     {{#if isGM}}
     <button type="button" class="acks-location-btn" data-action="setDemand"
@@ -168,11 +172,46 @@
   {{#if ventureActions.length}}
   <ul class="acks-extras-markets-queue">
     {{#each ventureActions}}
-    <li>{{kindLabel}}{{#if category}} — {{category}}{{/if}} · {{localize "ACKS-MARKETS.imports.etaDays" days=etaDays}}</li>
+    <li>{{kindLabel}}{{#if category}} — {{category}}{{/if}} · {{localize "ACKS-MARKETS.imports.etaDays" days=etaDays}}{{#if @root.isGM}}{{#if traderName}} · {{traderName}}{{/if}}{{/if}}
+      {{#if canCancel}}
+      <button type="button" class="acks-extras-markets-queue-cancel" data-action="ventureCancel" data-action-id="{{id}}"
+              data-tooltip="{{localize 'ACKS-MARKETS.ventures.cancel'}}" aria-label="{{localize 'ACKS-MARKETS.ventures.cancel'}}"><i class="fas fa-xmark" inert></i></button>
+      {{/if}}
+    </li>
     {{/each}}
   </ul>
   {{/if}}
   </div>
+
+  {{!-- ------------------------- Trade history (this market's ledger) ------------------------- --}}
+  {{#if history.rows.length}}
+  <details class="acks-extras-markets-history">
+    <summary>{{localize "ACKS-MARKETS.history.header"}} ({{history.rows.length}}) · {{localize "ACKS-MARKETS.history.net"}} <span class="acks-nums">{{history.net}}</span> gp</summary>
+    <p class="hint">{{localize "ACKS-MARKETS.history.note"}}</p>
+    <table class="candidates-table acks-extras-markets-table">
+      <thead>
+        <tr>
+          <th>{{localize "ACKS-MARKETS.history.when"}}</th>
+          {{#if isGM}}<th>{{localize "ACKS-MARKETS.history.trader"}}</th>{{/if}}
+          <th>{{localize "ACKS-MARKETS.history.what"}}</th>
+          <th>{{localize "ACKS-MARKETS.report.field.notes"}}</th>
+          <th class="acks-nums">gp</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each history.rows}}
+        <tr>
+          <td>{{when}}</td>
+          {{#if @root.isGM}}<td>{{traderName}}</td>{{/if}}
+          <td>{{typeLabel}}</td>
+          <td>{{note}}</td>
+          <td class="acks-nums">{{gp}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </details>
+  {{/if}}
 
   {{#if isGM}}{{#if partyBlocks.length}}
   <details class="acks-extras-markets-parties">

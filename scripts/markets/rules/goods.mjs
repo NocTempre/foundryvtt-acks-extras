@@ -6,6 +6,7 @@
  */
 import { MODULE_ID, ITEM_FLAG } from "../constants.mjs";
 import { ITEM_FLAGS } from "../../equipment/constants.mjs";
+import { FLAG_TEMPLATE_PART } from "../../classes/constants.mjs";
 
 /** The markets flag bag on plain item data ({magic, apparentValueGp, identified…}). */
 export const marketsFlagOf = (itemData) => itemData?.flags?.[MODULE_ID]?.[ITEM_FLAG] ?? {};
@@ -21,6 +22,17 @@ export function isMasterwork(itemData) {
   const tier = itemData?.flags?.[MODULE_ID]?.[ITEM_FLAGS.MASTERWORK]?.tier;
   if (tier && tier !== "none") return true;
   return /masterwork/i.test(String(itemData?.name ?? ""));
+}
+
+/**
+ * A class template's own copy of a good — a starting-kit skin carrying the
+ * printed descriptor over its base (a described sword over Sword), or any other
+ * template part. Never a catalogue good: the market lists the base it was
+ * skinned from, so one shop item is not listed once per descriptor.
+ */
+export function isTemplateCopy(itemData) {
+  const bag = itemData?.flags?.[MODULE_ID];
+  return !!(bag?.skin || bag?.[FLAG_TEMPLATE_PART]);
 }
 
 /**

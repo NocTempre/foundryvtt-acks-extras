@@ -35,6 +35,7 @@ import {
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
 } from "./scene-binding.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
+import { LOCATION_TYPE } from "../location/constants.mjs";
 import { DISTRICT_TYPE } from "../formation/district-find.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
 import { occupantRow } from "../lib/place.mjs";
@@ -57,8 +58,13 @@ import { hdFormula } from "../lib/actor-read.mjs";
 const foldKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 import { progressBar } from "./progress.mjs";
 import * as services from "../lib/services.mjs";
-import { libraryPackLabel, judgeLine } from "../lib/library.mjs";
+import { libraryPackLabel, judgeLine, findLibraryPack } from "../lib/library.mjs";
 import { ensureLibraryPack } from "../lib/library-target.mjs";
+import {
+  ADVENTURE_TYPE, ADVENTURE_KIND, adventureCookbookId, settlementAdventureId, stableDocId, withWorldIds, adventureRefs,
+  linkFields, seatsLeft, peopleNamed,
+} from "./adventure-binding.mjs";
+import { ensureSceneThumb } from "./settlement-adventure.mjs";
 import { nameKeys, ABILITY_CATEGORIES } from "../lib/vocab.mjs";
 import { materializeTemplates, TEMPLATE_PART } from "../classes/template-packages.mjs";
 import { CLASS_TYPE, RACE_TYPE } from "../classes/constants.mjs";
@@ -3925,7 +3931,9 @@ export async function cookbookImportRollTables() {
           (typeof node.fields.roll === "string" && node.fields.roll) ||
           (Math.min(...lows) === 1 ? `1d${Math.max(...his)}` : "");
         await createDoc(RollTable, {
-          name: e.name,
+          // A table anchored by a hash of its heading ships a neutral name and
+          // takes the printed one from the page it was read off.
+          name: printedNameOf(node, e.name),
           folder: folder?.id ?? null,
           formula,
           description: entryText(node, id, e.cite),
@@ -3994,7 +4002,8 @@ async function ensureWorldFolderPath(type, names, made = []) {
  * and what stands on it are world documents, owned by nobody".
  *
  * @returns {Promise<{actors: Map<string, Actor>, queued: Map<object, {id: string, _id: string}[]>,
- *   worldIds: Map<string, string>, missing: string[], known: Set<string>}>}
+ *   worldIds: Map<string, string>, missing: string[], known: Set<string>,
+ *   shelf: Map<string, {collection: object, _id: string, faction: boolean}>}>}
  */
 async function planCrossing(bookId, cookbookIds) {
   const flagOf = (row) => row?.flags?.[MODULE_ID]?.cookbook ?? {};
@@ -4029,7 +4038,7 @@ async function planCrossing(bookId, cookbookIds) {
     else queued.set(row.collection, [{ id, _id: row._id }]);
   }
   const known = new Set([...wanted].filter((id) => actors.has(id) || shelf.has(id)));
-  return { actors, queued, worldIds, missing: missing.filter((id) => cookbookIds.includes(id)), known };
+  return { actors, queued, worldIds, missing: missing.filter((id) => cookbookIds.includes(id)), known, shelf };
 }
 
 /**
@@ -4078,8 +4087,8 @@ async function bringAcross(bookId, plan, created) {
   return { actors, copied };
 }
 
-/** How many times one map steps its bar: the anchor, the plan, the picture, the scene. */
-const SCENE_STEPS = 4;
+/** How many times one map steps its bar: the anchor, the plan, the picture, the scene, the adventure. */
+const SCENE_STEPS = 5;
 
 /**
  * Maps: a book's scene recipes, stood up as WORLD scenes. A recipe is
@@ -4088,9 +4097,15 @@ const SCENE_STEPS = 4;
  * District region over the quarter's place, each keyed place a token of its
  * own actor. Nothing is drawn until the page answers to the recipe's anchor.
  * A scene the world already holds under the recipe's id is left exactly as
- * it stands. See docs/importer/DECISIONS.md, "A printed map is a recipe of
- * geometry over its page" and "A map and what stands on it are world
- * documents, owned by nobody".
+ * it stands; its Adventure is written only if the shelf lacks it. See
+ * docs/importer/DECISIONS.md, "A printed map is a recipe of geometry over
+ * its page" and "A map and what stands on it are world documents, owned by
+ * nobody".
+ *
+ * Each map is also written to its line's Adventure shelf as one Adventure
+ * (`ensureSettlementAdventure`): the map and what stands on it under the
+ * world's ids, built from the library's documents. An import of it adds what
+ * a world is missing (`settlement-adventure.mjs`).
  */
 export async function cookbookImportScenes() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates scenes).`);
@@ -4111,7 +4126,8 @@ export async function cookbookImportScenes() {
   // say what happened, and the uuids are what a caller can undo it by.
   const counts = {
     made: 0, already: 0, refused: 0, unready: 0, copied: 0, missing: 0, regions: 0, tokens: 0, controlled: 0,
-    created: { scenes: [], actors: [], folders: [] },
+    adventures: 0, adventuresRebuilt: 0, adventuresHeld: 0, adventuresFailed: 0,
+    created: { scenes: [], actors: [], folders: [], adventures: [], packs: [] },
   };
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressScenes`), jobs.length * SCENE_STEPS);
   try {
@@ -4140,8 +4156,12 @@ export async function cookbookImportScenes() {
     counts.missing ? `${counts.missing} place(s) not yet imported` : "",
     counts.unready ? `${counts.unready} waiting on the points of interest step` : "",
     counts.refused ? `${counts.refused} refused (the page did not match the cookbook, or would not render)` : "",
+    counts.adventures ? game.i18n.format(`${LANG_PREFIX}.ui.scenesAdventureMade`, { n: counts.adventures }) : "",
+    counts.adventuresRebuilt ? game.i18n.format(`${LANG_PREFIX}.ui.scenesAdventureRebuilt`, { n: counts.adventuresRebuilt }) : "",
+    counts.adventuresHeld ? game.i18n.format(`${LANG_PREFIX}.ui.scenesAdventureHeld`, { n: counts.adventuresHeld }) : "",
+    counts.adventuresFailed ? game.i18n.format(`${LANG_PREFIX}.ui.scenesAdventureFailed`, { n: counts.adventuresFailed }) : "",
   ].filter(Boolean);
-  const say = counts.made || counts.already ? "info" : "warn";
+  const say = (counts.made || counts.already) && !counts.adventuresFailed ? "info" : "warn";
   ui.notifications[say](`${MODULE_ID} | maps: ${parts.join(", ")}.`);
   return counts;
 }
@@ -4178,37 +4198,37 @@ async function claimControlledQuarters(bookId, scene, recipe, districtIds) {
   return written;
 }
 
-/** One recipe, from anchor to thumbnail. Counts into `counts`; calls `tick` once per stage it reaches. */
-async function importScene({ bookId, id, row }, counts, tick) {
-  const recipe = row.scene;
-  tick();
-  if (game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === id)) return void counts.already++;
+/**
+ * The cookbook ids a map stands on: the city's place, each quarter's, each
+ * keyed place's.
+ * @returns {{cityId: string, districtIds: string[], placeIds: string[], all: string[]}}
+ */
+function settlementIds(bookId, recipe) {
   const cb = data.books.get(bookId);
-  const doc = ctx.sessionDocs.get(bookId).doc;
-  const placements = await pageArtPlacements(doc, recipe.page).catch(() => []);
-  if (!placementMatches(placements, recipe.placement)) return void counts.refused++;
-
-  // Nothing is written until the picture exists.
-  tick();
   const quarterOf = (entryId) => poiGroupOf(cb.entries[entryId]?.meta?.group)?.district ?? "";
   const cityId = oseAdventureId(bookId);
   const districtIds = (recipe.districts ?? []).map((d) => districtPlaceId(bookId, quarterOf(d.place)));
   const placeIds = (recipe.places ?? []).map((p) => p.id);
-  const plan = await planCrossing(bookId, [cityId, ...districtIds, ...placeIds]);
-  if (districtIds.length && !districtIds.some((d) => plan.known.has(d))) return void counts.unready++;
+  return { cityId, districtIds, placeIds, all: [cityId, ...districtIds, ...placeIds] };
+}
 
-  tick();
-  const up = await ctx.uploadSceneMap(doc, id, recipe);
-  if (!up) return void counts.refused++;
-
-  tick();
-  const world = await bringAcross(bookId, plan, counts.created);
-  counts.copied += world.copied;
-  counts.missing += plan.missing.length;
-  // Read from the imported list at import, so neither figure ships. See
-  // docs/importer/DECISIONS.md, "A printed map is a recipe of geometry over
-  // its page".
-  const list = recipe.incidents?.table ? await importedTable(recipe.incidents.table) : null;
+/**
+ * One map's creation data (`sceneData`) over whatever stands for its actors
+ * and lists: the world's own documents when the map is stood up, stand-ins
+ * built from an Adventure's sources when the Adventure is. Each region is
+ * named for its quarter and linked to it, each keyed place's token stands
+ * hidden at its point, and the city's list rides in the battlemap flag. The
+ * list's after-dark shift and deferred band are read from the imported list
+ * here, so neither figure ships (docs/importer/DECISIONS.md, "A printed map is
+ * a recipe of geometry over its page").
+ *
+ * @param {object} p
+ * @param {Map<string, object>} p.actors cookbook id to an Actor-like (`name`, `uuid`, `getTokenDocument`)
+ * @param {(cookbookId: string) => Promise<{uuid: string, results: object[], formula: string}|null>} p.tableOf
+ * @param {{cityId: string, districtIds: string[]}} p.ids `settlementIds`
+ */
+async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, folderId, fallbackName }) {
+  const list = recipe.incidents?.table ? await tableOf(recipe.incidents.table) : null;
   const incidents = list
     ? {
       tableUuid: list.uuid,
@@ -4216,12 +4236,12 @@ async function importScene({ bookId, id, row }, counts, tick) {
       band: bandOfSection(recipe.incidents.band),
     }
     : null;
-  const city = world.actors.get(cityId) ?? null;
+  const city = actors.get(ids.cityId) ?? null;
   const frame = sceneFrame(recipe);
   const regions = [];
   for (const [i, district] of (recipe.districts ?? []).entries()) {
-    const place = world.actors.get(districtIds[i]) ?? null;
-    const special = district.special ? await importedTable(district.special) : null;
+    const place = actors.get(ids.districtIds[i]) ?? null;
+    const special = district.special ? await tableOf(district.special) : null;
     regions.push(districtRegionData(district, frame, {
       name: place?.name ?? game.i18n.format(`${LANG_PREFIX}.ui.sceneQuarter`, { n: i + 1 }),
       districtType: DISTRICT_TYPE,
@@ -4231,18 +4251,51 @@ async function importScene({ bookId, id, row }, counts, tick) {
   }
   const tokens = [];
   for (const spot of recipe.places ?? []) {
-    const actor = world.actors.get(spot.id);
+    const actor = actors.get(spot.id);
     if (!actor) continue;
     tokens.push((await actor.getTokenDocument({ ...placeTokenAt(spot.at, frame), hidden: true })).toObject());
   }
-  const folder = await ensureWorldFolderPath("Scene", [bookLabel(bookId)], counts.created.folders);
-  // ONE create for the whole map (`sceneData` says why); the places' mirrors
-  // are the only thing that has to wait for the documents they name.
-  const scene = await Scene.create(sceneData({
-    id, book: bookId, name: city?.name ?? row.name, recipe, src: up.path, incidents, folderId: folder?.id ?? null,
+  return sceneData({
+    id, book: bookId, name: city?.name ?? fallbackName, recipe, src, incidents, folderId,
     locationUuid: city?.uuid ?? "",
     level: { id: Scene.metadata.defaultLevelId, name: game.i18n.localize(foundry.documents.Level.metadata.label) },
     regions, tokens,
+  });
+}
+
+/** One recipe, from anchor to Adventure. Counts into `counts`; calls `tick` once per stage it reaches. */
+async function importScene({ bookId, id, row }, counts, tick) {
+  const recipe = row.scene;
+  tick();
+  const held = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === id);
+  if (held) {
+    counts.already++;
+    return ensureSettlementAdventure({ bookId, id, row, scene: held, fresh: false }, counts, tick);
+  }
+  const doc = ctx.sessionDocs.get(bookId).doc;
+  const placements = await pageArtPlacements(doc, recipe.page).catch(() => []);
+  if (!placementMatches(placements, recipe.placement)) return void counts.refused++;
+
+  // Nothing is written until the picture exists.
+  tick();
+  const ids = settlementIds(bookId, recipe);
+  const plan = await planCrossing(bookId, ids.all);
+  if (ids.districtIds.length && !ids.districtIds.some((d) => plan.known.has(d))) return void counts.unready++;
+
+  tick();
+  const up = await ctx.uploadSceneMap(doc, id, recipe);
+  if (!up) return void counts.refused++;
+
+  tick();
+  const world = await bringAcross(bookId, plan, counts.created);
+  counts.copied += world.copied;
+  counts.missing += plan.missing.length;
+  const folder = await ensureWorldFolderPath("Scene", [bookLabel(bookId)], counts.created.folders);
+  // ONE create for the whole map (`sceneData` says why); the places' mirrors
+  // are the only thing that has to wait for the documents they name.
+  const scene = await Scene.create(await mapCreateData({
+    bookId, id, recipe, ids, actors: world.actors, tableOf: importedTable, src: up.path, folderId: folder?.id ?? null,
+    fallbackName: row.name,
   }));
   if (!scene) return void counts.refused++;
   counts.made++;
@@ -4250,15 +4303,265 @@ async function importScene({ bookId, id, row }, counts, tick) {
   counts.regions += scene.regions.size;
   counts.tokens += scene.tokens.size;
   await mirrorCreatedLinks(scene);
-  counts.controlled += await claimControlledQuarters(bookId, scene, recipe, districtIds);
+  counts.controlled += await claimControlledQuarters(bookId, scene, recipe, ids.districtIds);
+  await ensureSceneThumb(scene);
+  await ensureSettlementAdventure({ bookId, id, row, scene, fresh: true, plan, src: up.path }, counts, tick);
+}
 
-  // A directory card with no picture reads as a scene that failed. Core draws
-  // one at creation only when a canvas is up, so it is asked for here and
-  // allowed to fail: the picture is already uploaded either way.
-  if (!scene.thumb) {
-    const thumb = await scene.createThumbnail().catch(() => null);
-    if (thumb?.thumb) await scene.update({ thumb: thumb.thumb });
+/**
+ * The map's Adventure on its line's shelf. A map just MADE always writes it,
+ * replacing whatever the shelf holds under its id: new scene and region ids,
+ * possibly a new picture. A map found HELD writes it only when the shelf
+ * lacks it, so an Adventure a Judge edited is not rewritten by a re-run. Every
+ * failure past the shelf check counts `adventuresFailed`; the map itself
+ * stands either way.
+ */
+async function ensureSettlementAdventure({ bookId, id, row, scene, fresh, plan = null, src = null }, counts, tick) {
+  tick();
+  const line = lineOf(bookId);
+  const advId = settlementAdventureId(id);
+  const had = findLibraryPack(ADVENTURE_TYPE, line);
+  if (!fresh && had?.index.has(advId)) return void counts.adventuresHeld++;
+  try {
+    const pack = had ?? (await ensureLibraryPack(ADVENTURE_TYPE, line));
+    if (!pack) throw new Error("the compendium could not be opened");
+    if (!had) counts.created.packs.push(pack.collection);
+    const source = await settlementAdventureSource({ bookId, id, row, scene, plan, src });
+    const rebuilt = pack.index.has(advId);
+    const doc = await writeAdventure(pack, source);
+    if (!doc) throw new Error("the compendium refused the write");
+    if (rebuilt) counts.adventuresRebuilt++;
+    else {
+      counts.adventures++;
+      counts.created.adventures.push(doc.uuid);
+    }
+  } catch (err) {
+    counts.adventuresFailed++;
+    console.error(`${MODULE_ID} | adventure for map ${id} not written`, err);
   }
+}
+
+/** The world folder tree a map's documents are filed in, as the Adventure carries it. */
+const ADVENTURE_FOLDERS = Object.freeze([
+  ["Scene", []],
+  ["Actor", []],
+  ["Actor", ["Places"]],
+  ["Actor", ["Factions"]],
+  ["Actor", ["People"]],
+  ["RollTable", []],
+]);
+
+/**
+ * The Adventure's folders: the world's own where it has them (the same
+ * type-name-parent lookup `ensureWorldFolderPath` makes), else an id derived
+ * from the seed, so a fresh world files a map's documents the way the map
+ * step would have. Answers with the sources and a lookup by type and path.
+ */
+function adventureFolders(bookId, seed) {
+  const label = bookLabel(bookId);
+  const sources = [];
+  const byPath = new Map();
+  for (const [type, rest] of ADVENTURE_FOLDERS) {
+    const names = [label, ...rest];
+    let parent = null;
+    let path = "";
+    for (const name of names) {
+      path = path ? `${path}/${name}` : name;
+      const key = `${type}:${path}`;
+      if (!byPath.has(key)) {
+        const parentId = parent?._id ?? null;
+        const world = game.folders.find((fo) => fo.type === type && fo.name === name && (fo.folder?.id ?? null) === parentId);
+        const source = {
+          _id: world?.id ?? stableDocId(`${seed}|folder|${key}`),
+          name, type, folder: parentId, sorting: "a",
+          flags: { [MODULE_ID]: { cookbook: { id: `folder.${type}.${name}` } } },
+        };
+        byPath.set(key, source);
+        sources.push(source);
+      }
+      parent = byPath.get(key);
+    }
+  }
+  return { sources, idOf: (type, rest = []) => byPath.get(`${type}:${[label, ...rest].join("/")}`)?._id ?? null };
+}
+
+/**
+ * One map's Adventure, assembled from the LIBRARY's documents under the
+ * world's ids: the city, its quarters and every keyed place the map sets down,
+ * every organisation of the book, the people those organisations name, the
+ * lists the map and its quarters roll on, and the folders all of it is filed
+ * in. A place or organisation only the world holds is carried from the
+ * world's source, since it is the only source there is. Every reference
+ * between carried documents is in world form; a seat the map does not set
+ * down stays a library reference and is counted. See
+ * docs/importer/DECISIONS.md, "A settlement's map is in the library too, as
+ * one Adventure".
+ */
+async function settlementAdventureSource({ bookId, id, row, scene, plan, src }) {
+  const recipe = row.scene;
+  const ids = settlementIds(bookId, recipe);
+  plan ??= await planCrossing(bookId, ids.all);
+  const seed = adventureCookbookId(id);
+  const folders = adventureFolders(bookId, seed);
+  const uuidMap = new Map();
+  const templatePart = (d) => !!d.flags?.[MODULE_ID]?.templatePart;
+
+  // The places and organisations: the library's, else the world's.
+  const byCollection = new Map();
+  let worldOnly = 0;
+  for (const cbId of plan.known) {
+    const rowOnShelf = plan.shelf.get(cbId);
+    if (rowOnShelf) {
+      if (!byCollection.has(rowOnShelf.collection)) byCollection.set(rowOnShelf.collection, []);
+      byCollection.get(rowOnShelf.collection).push(rowOnShelf._id);
+    }
+  }
+  const placeDocs = [];
+  for (const [collection, list] of byCollection) placeDocs.push(...(await collection.getDocuments({ _id__in: list })));
+  const shelved = new Set(placeDocs.map((d) => d.getFlag(MODULE_ID, "cookbook")?.id));
+  for (const cbId of plan.known) {
+    if (shelved.has(cbId)) continue;
+    const world = plan.actors.get(cbId);
+    if (!world) continue;
+    placeDocs.push(world);
+    worldOnly++;
+  }
+  const actors = [];
+  const stands = new Map();
+  for (const doc of placeDocs) {
+    const folderId = folders.idOf("Actor", [doc.type === FACTION_TYPE ? "Factions" : "Places"]);
+    const source = worldCopySource(doc.toObject(), plan.worldIds, { folderId, sourceUuid: doc.pack ? doc.uuid : "" });
+    source._id = plan.worldIds.get(doc.id) ?? doc.id;
+    uuidMap.set(doc.uuid, `Actor.${source._id}`);
+    actors.push(source);
+    stands.set(doc.getFlag(MODULE_ID, "cookbook")?.id, source);
+  }
+
+  // The people the organisations name: the library's person, under the id of
+  // a world twin of the same cookbook id and type when the world holds one.
+  const named = new Set(actors.flatMap((a) => peopleNamed(a)));
+  const peopleByPack = new Map();
+  const peopleDocs = [];
+  for (const uuid of named) {
+    const packed = /^Compendium\.([^.]+\.[^.]+)\.Actor\.([A-Za-z0-9]{16})$/.exec(uuid);
+    if (packed) {
+      if (!peopleByPack.has(packed[1])) peopleByPack.set(packed[1], []);
+      peopleByPack.get(packed[1]).push(packed[2]);
+      continue;
+    }
+    const worldId = /^Actor\.([A-Za-z0-9]{16})$/.exec(uuid)?.[1];
+    const world = worldId ? game.actors.get(worldId) : null;
+    if (world) {
+      peopleDocs.push(world);
+      worldOnly++;
+    }
+  }
+  for (const [collection, list] of peopleByPack) {
+    const pack = game.packs.get(collection);
+    if (pack) peopleDocs.push(...(await pack.getDocuments({ _id__in: list })));
+  }
+  const peopleFolder = folders.idOf("Actor", ["People"]);
+  for (const doc of peopleDocs) {
+    const cbId = doc.getFlag(MODULE_ID, "cookbook")?.id;
+    const twin = doc.pack && cbId
+      ? game.actors.find((a) => a.type === doc.type && !templatePart(a) && a.getFlag(MODULE_ID, "cookbook")?.id === cbId)
+      : null;
+    const source = worldCopySource(doc.toObject(), new Map(), { folderId: peopleFolder, sourceUuid: doc.pack ? doc.uuid : "" });
+    source._id = twin?.id ?? doc.id;
+    uuidMap.set(doc.uuid, `Actor.${source._id}`);
+    actors.push(source);
+  }
+
+  // The lists the map and its quarters roll on, undrawn.
+  const tables = [];
+  const tableStands = new Map();
+  const tableFolder = folders.idOf("RollTable");
+  for (const cbId of [recipe.incidents?.table, ...(recipe.districts ?? []).map((d) => d.special)].filter(Boolean)) {
+    if (tableStands.has(cbId)) continue;
+    const doc = await importedTable(cbId);
+    if (!doc) continue;
+    const source = doc.toObject();
+    source.folder = tableFolder;
+    // Owned by nobody, as every world copy the map step makes is.
+    source.ownership = { default: 0 };
+    source.results = (source.results ?? []).map((r) => ({ ...r, drawn: false }));
+    if (doc.pack) source._stats = { ...(source._stats ?? {}), compendiumSource: doc.uuid };
+    uuidMap.set(doc.uuid, `RollTable.${source._id}`);
+    tables.push(source);
+    tableStands.set(cbId, { uuid: `RollTable.${source._id}`, results: source.results, formula: source.formula });
+  }
+
+  // References between the carried documents, in world form.
+  const carried = actors.map((a) => adventureRefs("Actor", a, uuidMap));
+
+  // The map itself, over stand-ins for the actors it links: a temporary
+  // document answers for a world one's name, uuid and token.
+  const standIns = new Map();
+  for (const [cbId, source] of stands) standIns.set(cbId, new Actor.implementation(carried.find((a) => a._id === source._id)));
+  const picture = src ?? (await sceneMapPath(bookId, id, recipe));
+  const built = await mapCreateData({
+    bookId, id, recipe, ids, actors: standIns, tableOf: async (cbId) => tableStands.get(cbId) ?? null,
+    src: picture, folderId: folders.idOf("Scene"), fallbackName: row.name,
+  });
+  const sceneSource = withWorldIds(built, scene?.toObject() ?? null, seed);
+  sceneSource.thumb = null;
+  const linked = linkFields(sceneSource, carried, bookId);
+
+  const say = (key, extra = {}) => game.i18n.format(`${LANG_PREFIX}.adventure.${key}`, { name: sceneSource.name, book: bookLabel(bookId), ...extra });
+  const left = seatsLeft(linked);
+  const places = linked.filter((a) => a.type === LOCATION_TYPE).length;
+  const factions = linked.filter((a) => a.type === FACTION_TYPE).length;
+  const description = [
+    `<p>${say("intro")}</p>`,
+    `<p>${say("contents", { places, factions, people: linked.length - places - factions, tables: tables.length })}</p>`,
+    `<p>${say("fillRule")}</p>`,
+    `<p>${say("resetRule")}</p>`,
+    ...(left ? [`<p>${say("seatsLeft", { n: left })}</p>`] : []),
+  ].join("");
+  if (worldOnly) console.log(`${MODULE_ID} | adventure for map ${id}: ${worldOnly} document(s) carried from the world, the library having no copy.`);
+  return {
+    _id: settlementAdventureId(id),
+    name: sceneSource.name,
+    img: picture,
+    caption: say("caption"),
+    description,
+    actors: linked,
+    scenes: [sceneSource],
+    tables,
+    folders: folders.sources,
+    items: [], journal: [], combats: [], macros: [], cards: [], playlists: [],
+    folder: null,
+    sort: 0,
+    flags: { [MODULE_ID]: { cookbook: { id: seed, book: bookId, kind: ADVENTURE_KIND, scene: id } } },
+  };
+}
+
+/**
+ * The map's picture for a HELD map: the page is checked against the recipe's
+ * anchor first, exactly as a made map is, then the picture the world already
+ * holds answers from the art cache without a render.
+ */
+async function sceneMapPath(bookId, id, recipe) {
+  const doc = ctx.sessionDocs.get(bookId).doc;
+  const placements = await pageArtPlacements(doc, recipe.page).catch(() => []);
+  if (!placementMatches(placements, recipe.placement)) throw new Error("the page does not match the map's recipe");
+  const up = await ctx.uploadSceneMap(doc, id, recipe);
+  if (!up) throw new Error("the map's picture could not be made");
+  return up.path;
+}
+
+/**
+ * Write one Adventure to its shelf: replaced whole when the shelf holds its
+ * id (`diff: false, recursive: false`, as core's exporter writes), created
+ * under its own id otherwise.
+ */
+async function writeAdventure(pack, source) {
+  const Adventure = foundry.utils.getDocumentClass(ADVENTURE_TYPE);
+  if (pack.index.has(source._id)) {
+    const written = await Adventure.updateDocuments([source], { pack: pack.collection, diff: false, recursive: false });
+    return written?.[0] ?? null;
+  }
+  return Adventure.create(source, { pack: pack.collection, keepId: true, keepEmbeddedIds: true });
 }
 
 /** "kw:sensingevil" -> "Sensing Evil"-ish, for the system's requirements field. */

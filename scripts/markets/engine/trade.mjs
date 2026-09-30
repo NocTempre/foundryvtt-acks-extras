@@ -19,7 +19,7 @@ import {
 } from "../rules/availability.mjs";
 import { quote, magicQuote, magicBandValueGp, bargainWinner, toGp } from "../rules/pricing.mjs";
 import { trueDemand } from "../rules/demand.mjs";
-import { marketsFlagOf, isMasterwork, magicBasisOf, capVerdict } from "../rules/goods.mjs";
+import { marketsFlagOf, isMasterwork, isTemplateCopy, magicBasisOf, capVerdict } from "../rules/goods.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
 import { ITEM_TYPE, slug } from "../../lib/vocab.mjs";
 import { judgesAndOwners, gmIds } from "../../lib/util.mjs";
@@ -243,7 +243,8 @@ export function availabilityFor(location, { itemName, costGp, trader = null, dir
  * The purchasable catalog: every distinct tradeable item this world knows —
  * world items first (a Judge's customisation wins), then every Item
  * compendium — priced above zero, masterwork gated behind the market's
- * contact. One row per distinct item key, the identity the ledger caps on.
+ * contact, class-template copies (starting-kit skins) left to their base.
+ * One row per distinct item key, the identity the ledger caps on.
  * Every row says whether it trades as magic stock (`magic`, with the
  * `magicBaseGp` its band and price read; 0 when mundane). The market's own
  * holdings follow: each magic item a sale left embedded on the location is a
@@ -276,6 +277,7 @@ export async function buildCatalog(location) {
     return costGp;
   };
   const consider = (data) => {
+    if (isTemplateCopy(data)) return;
     const costGp = tradeable(data);
     if (!costGp) return;
     const key = itemKeyOf(data.name);
@@ -408,6 +410,8 @@ export async function purchase(location, payload) {
     time: now(),
     type: "purchase",
     note: `${buyer.name}: ${qty}× ${itemData.name} @ ${toGp(priced.unitCp)}gp = ${totalGp}gp${stamp}`,
+    actorUuid: buyer.uuid,
+    gp: -totalGp,
   });
 
   await location.update(
@@ -752,6 +756,8 @@ export async function sell(location, payload) {
     time: now(),
     type: "sale",
     note: `${seller.name}: sold ${qty}× ${itemData.name} @ ${toGp(plan.unitCp)}gp = ${totalGp}gp${stamp}`,
+    actorUuid: seller.uuid,
+    gp: totalGp,
   });
   await location.update({
     "system.market.goods.ledger": goods.ledger,
@@ -810,7 +816,7 @@ export async function postSearchDay(location, { actorUuid, requestUserId = null,
     detail: "",
   });
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
-  const newLog = appendLog(log, { time: t, type: "extraSearch", note: `${trader.name}: extended search day posted` });
+  const newLog = appendLog(log, { time: t, type: "extraSearch", note: `${trader.name}: extended search day posted`, actorUuid: trader.uuid, gp: 0 });
   await location.update({ "system.market.goods.actions": actions, "system.market.marketLog": newLog });
   return { ok: true, resolveTime: t + 86400 };
 }

@@ -357,6 +357,26 @@ terrain still reads the import.*
 
 *The Appendix A taxonomy read from the connected book, filed on its own shelf in the library — none shipped.*
 
+### A settlement's map
+
+Books that key a city to a map bring the map in as a scene, with a region for
+each quarter and a hidden token for each keyed place, in the **getting
+started** run's maps step. Run it after the points of interest and
+organisations steps: the map stands on their places, and hands each
+organisation the quarters it controls.
+
+The same step keeps a copy in your library as an **Adventure**, on the book's
+Adventure shelf. Open it and click **Import** to set the city up again: it
+adds what your world is missing — the map, its places, the book's
+organisations, the people they name and the lists the map rolls on — and
+changes nothing your world already holds. To put a place back as the book has
+it, delete it and import again. The Adventure is kept by this world; its
+places arrive hidden and the map is not activated.
+
+![](../releases/v9.3.0/importer-adventure.png)
+
+*The map's Adventure in the library: what it carries, and the note that importing adds only what a world is missing.*
+
 ### Common problems
 
 **"Missing book."** The entry cites a book this seat has not connected. Connect

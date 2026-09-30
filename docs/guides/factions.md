@@ -136,10 +136,10 @@ words in brackets are the title. Nobody ranked, nothing filled.
 
 Books that describe a settlement's organisations bring them in as factions.
 The importer's **getting started** run has an organisations step: each one
-arrives seated in its quarter's place, with the people the book lists for it
-enrolled from whatever the world already holds. Two things are left for you,
-because the book does not print them: the **kind**, and the **quarters it
-controls**, since which Region is that quarter is your map's business.
+arrives as the kind the importer assigns it, seated at the place the book
+keys it to, with the people the book lists for it enrolled from whatever the
+world already holds. The quarters it controls arrive with the map: the maps
+step hands each organisation the regions its quarters became.
 
 Running the step again makes nothing twice, and a faction you deleted comes
 back with its roster.

@@ -30,6 +30,10 @@ other VTTs) while cookbooks stay valid.
   "memorial wall"). Unrouted kinds
   default to JournalEntry — routing coverage may lag capture without losing
   anything.
+- **A settlement's map:** `kind.scene` → a WORLD Scene plus one Adventure on
+  the line's Adventure shelf, and a `preImportAdventure` hook that narrows
+  core's import of that Adventure to what the world lacks
+  ([MODEL.md](MODEL.md), "A settlement's map").
 - **Field mapping:** executor output → `system.*` paths (the successor of
   `scripts/stats-map.mjs`). E.g. `stats.armorClass` → `system.aac.value`,
   save class+level → the saves LUT, attacks → weapon Items with

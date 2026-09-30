@@ -1,5 +1,63 @@
 # Changelog
 
+## 9.3.0
+
+### Added
+
+- **A settlement's map is kept in the library as an Adventure.** The maps
+  step still stands the map up in the world; beside it, it writes one
+  Adventure per map to the book line's Adventure shelf, carrying the map, the
+  city and its quarters, every keyed place the map sets down, the book's
+  organisations, the people they name and the lists the map rolls on, all
+  under the world's own ids and built from the library's documents rather
+  than the table's copies. A map already held gets its Adventure only when the
+  shelf lacks one, so a Judge's edits to it survive a re-run.
+- **Importing that Adventure adds what the world is missing and changes
+  nothing it holds.** Core's overwrite is never reached: the map and the
+  book's organisations come back when absent, anything else only where
+  something in the world names it, and a person or list the world's library
+  already holds is pointed at, never copied. To put a part of the city back
+  as the book has it, delete that part and import again.
+- **The assessment day's throw is made on the influence page, against the
+  market.** Assess supply & demand opens the influence roller with the
+  market as its target: Charisma, a tone proficiency, Mystic Aura, a bribe
+  (RR 287) and your reaction effects set the Judge's secret throw against the
+  imported assessment bands, and the day is posted with that throw. The
+  bribe goes to the market's merchants as the day is posted, whatever the
+  day brings; a Judge raises its price on the page where a market's
+  merchants are grander. Without the influence feature the day posts bare
+  and the sweep throws Charisma alone, as before.
+- **A queued day can be withdrawn, and a party can leave the market.** Each
+  day waiting in the queue carries a withdraw button for the Judge or the
+  trader's owner; nothing paid for it comes back. Leave the market ends the
+  party's entry for the month — the toll stays paid, what was solicited
+  closes and any queued day is withdrawn — so a wrong cargo declaration can
+  be entered again at a fresh toll. The same trader's same day is refused
+  while one already waits.
+- **A trader's own trade history.** Trade history on a market's Trade tab
+  lists what the viewer's traders did there — bought, sold, ordered,
+  commissioned, searched, entered, assessed, solicited, traded, withdrawn,
+  left — newest first with each row's coin and the net; the Judge sees every
+  trader's rows. The same history across every market is on the trader's
+  character sheet under Trade. Rows written before this release carry no
+  trader stamp and stay in the Judge's market log only.
+
+### Changed
+
+- The AX3 city-wide roll tables — the rumor table, its "behind the rumor"
+  companion and the city encounters table — carry no printed city name in
+  their ids, names, anchor or group; the rumor table takes its name from the
+  page at import. Worlds that imported the two rumor tables before clear the
+  old-id copies with Remove ALL Imports or a Roll tables shelf repair.
+
+### Fixed
+
+- **A market lists each good once.** Class starting kits give their gear the
+  descriptive names the class writeups print, and the Trade tab listed every
+  one of those as a separate good beside the plain item it was made from (a
+  row of differently described swords beside Sword). The market now lists
+  only the plain item.
+
 ## 9.2.1
 
 ### Fixed

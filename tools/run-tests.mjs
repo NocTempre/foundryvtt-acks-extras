@@ -117,6 +117,7 @@ const COMMITTED = [
   "importer/test-market-profiles.mjs",
   "importer/test-faction-binding.mjs",
   "importer/test-scene-binding.mjs",
+  "importer/test-settlement-adventure.mjs",
   "importer/test-refresh.mjs",
   "../discord/test/config.test.mjs",
   "../discord/test/format.test.mjs",

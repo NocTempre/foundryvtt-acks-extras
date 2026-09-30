@@ -80,7 +80,10 @@ party's find.
   carry prices only; the scarce-goods roll record is a separate GM whisper.
   The monthly cap is honoured by every path (`capVerdict`, gated by
   `marketsEnforceCaps`). The masterwork gate reads the markets flag, then the
-  equipment sheet's masterwork tier, then the name (`rules/goods.mjs`).
+  equipment sheet's masterwork tier, then the name (`rules/goods.mjs`). The
+  catalog skips class-template copies (`isTemplateCopy`: a starting-kit skin
+  or any template part), so a shop item is listed once as its base, never
+  once per printed descriptor.
 - **Imports, commissions, searches** (`engine/imports.mjs`): all deliver
   through one due-work sweep the GM time watcher runs (`onTimeAdvanced`,
   watermarked) with an owner-facing process button. Import fates are rolled
@@ -90,7 +93,7 @@ party's find.
 - **Ventures** (`engine/ventures.mjs`): dedicated-day actions post now and
   resolve when their day passes — market entry (toll from the imported
   Market Characteristics; impact from declared cargo over the baseline),
-  assessment (2d6+CHA writes one market REPORT Item holding the assessor's
+  assessment (writes one market REPORT Item holding the assessor's
   demand-modifier beliefs, wrong on a false assessment and indistinguishable
   from truth; see "Market reports and the trade house"), soliciting (opens
   base stones × impact at the month's rolled price: 4d4−10 steps + demand
@@ -98,6 +101,37 @@ party's find.
   negotiation. Merchandise loads are `item` documents, one unit per stone.
   A day that cannot resolve because its imported table is missing posts a
   card to the actor's owners and the GM naming the table.
+  - **The assessment's roll is made on the influence page**, not by the
+    sweep: the tab opens the influence feature's `marketAssessment` mode
+    against the market as target (Charisma, one tone proficiency, Mystic
+    Aura, a bribe, reaction-family effects; the bands are the imported
+    assessment column handed over as `ctx.bands`), and
+    `engine/assessment.mjs` listens for `acksExtras.influenceRollComplete`
+    and posts the day with the roll stored on the action (`natural`,
+    `total`) and the bribe debited to the market as the day is posted. The
+    sweep reads the stored total; a day posted without one (the influence
+    feature below api 9) is rolled bare, 2d6 + Charisma. The bribe's fee
+    is priced against `assessmentBribeBasisHd()` (one hit die: a market's
+    merchants are ordinary people), and the Judge changes it on the page.
+  - **The queue refuses a duplicate and allows a withdrawal**
+    (`rules/arbitrage.mjs` `pendingDuplicate`, `cancelVerdict`): the same
+    trader's same kind of day (same merchandise, for a solicitation) cannot
+    wait twice; a pending day may be withdrawn by the Judge or the trader's
+    owner, its row kept as `cancelled`, nothing refunded.
+  - **A party may leave the market** (`leaveMarket`, `leaveVentureMarket`):
+    the month's row stays with `entered` false and the toll on record, the
+    party's solicitations for the month are dropped, and its waiting
+    enter/assess/solicit days are withdrawn. Entering again overwrites the
+    row with a fresh declaration and pays a fresh toll.
+- **The ledger stamps its actor** (`location-data.mjs` `marketLog`): every
+  row the markets engine writes about a trader carries `actorUuid` and that
+  actor's signed coin movement `gp` (paid negative). `rules/ledger.mjs`
+  reads a trader's history back out of every market's log (`HISTORY_TYPES`,
+  `historyRows`, `historyNetGp`), newest first, own rows only; the location
+  Trade tab shows it for the viewer's own traders (the GM: every stamped
+  trader) and the character Trade tab for that character across every
+  market. The assessment row masks a false outcome as partial, since the
+  trader reads it.
 - **The Trade tab** (`apps/trade-tab.mjs`): the location sheet mounts it
   with one prepare call, one spread of `TRADE_TAB_ACTIONS` into its actions
   and one bind call; markets owns everything behind the buttons. Every action

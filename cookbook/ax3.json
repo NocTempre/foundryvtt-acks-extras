@@ -1019,19 +1019,19 @@
         }
       }
     },
-    "ax3.cyfaraunRumors": {
+    "ax3.cityRumors": {
       "kind": "kind.rolltable",
-      "name": "Rumors of Cyfaraun",
+      "name": "City Rumors",
       "cite": "AX3 p.43",
       "pages": [
         45
       ],
       "meta": {
-        "group": "Cyfaraun"
+        "group": "City"
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 45,
           "box": {
             "x0": 318.84,
@@ -1039,7 +1039,8 @@
             "y0": 69.19979999999998,
             "y1": 88.19979999999998
           },
-          "text": "RUMORS OF CYFARAUN"
+          "hash": "1pzm1sl",
+          "caps": true
         },
         "rows": {
           "op": "text",
@@ -1464,15 +1465,15 @@
         }
       }
     },
-    "ax3.cyfaraunRumorTruths": {
+    "ax3.cityRumorTruths": {
       "kind": "kind.rolltable",
-      "name": "Rumors of Cyfaraun — Behind the Rumor",
+      "name": "City Rumors — Behind the Rumor",
       "cite": "AX3 p.45",
       "pages": [
         47
       ],
       "meta": {
-        "group": "Cyfaraun"
+        "group": "City"
       },
       "fields": {
         "name": {
@@ -1692,7 +1693,7 @@
     },
     "ax3.cityEncounters": {
       "kind": "kind.rolltable",
-      "name": "City Encounters Table (Cyfaraun)",
+      "name": "City Encounters Table",
       "cite": "AX3 p.59",
       "pages": [
         61,
@@ -1702,7 +1703,7 @@
         65
       ],
       "meta": {
-        "group": "Cyfaraun"
+        "group": "City"
       },
       "fields": {
         "name": {
@@ -2749,7 +2750,7 @@
         69
       ],
       "meta": {
-        "group": "Cyfaraun"
+        "group": "City"
       },
       "fields": {
         "name": {

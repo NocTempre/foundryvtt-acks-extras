@@ -372,6 +372,65 @@ the step that wrote it, never by scanning the house.
    *Observable:* its reports remain and are listed under the snapshot name
    they carry; nothing throws when the tab opens.
 
+## The venture queue walk (assess on the influence page, withdraw, leave, history)
+
+**Fixtures**: as the reports walk — character A (Player seat, Bargaining,
+coin minted, a Diplomacy proficiency item helps), market M1 with the
+`assessmentProse`, `impactProse` and `marketCharacteristics` tables imported
+and a base demand written. Read `M1.system.market.marketLog.length` and
+`goods.actions.length` before the run; every row this run adds is what the
+observables below count. Reports the assessment writes are tracked as in the
+reports walk.
+
+**Steps**
+
+1. Player seat, M1's Trade tab, acting as A: **Enter the market**, cargo 0.
+   Advance a day on the GM seat. *Observable:* the status line reads In the
+   market; the ledger row `ventureEntered` carries `actorUuid` A and `gp: 0`;
+   the toll row (`ventureAction`) carries the toll negative.
+2. Player seat: **Assess supply & demand**. *Observable:* the influence page
+   opens against M1 (its name and image as the target), in the assessment
+   mode: Charisma filled, the tone proficiency rows, the bribe select with a
+   fee priced from one hit die. Pick a bribe tier and roll. Then, in order:
+   the page posts nothing itself; a toast reports the day posted; the queue
+   lists Assessing supply & demand with a withdraw button; the action row
+   carries `natural`, `total` (the page's figures) and `bribeGp`; A's coin
+   dropped by the fee; the ledger `ventureAction` row carries `-bribe`.
+   Drive mechanics: the page's roll is scripted through its own controls —
+   `select[name="mod.bribe"]` and `[name="mod.bribeFee"]` changed with a
+   bubbling `change` event, then `[data-action="roll"]` clicked — never by
+   firing the hook by hand, which proves the listener and not the page. The
+   auto fee is 0 in a world without the imported wage ladder; type a figure
+   over it (the Judge's own override path) so the debit is exercised. The
+   page stays open after the roll, as every external page does; close it
+   before the next step or the next click finds two.
+3. Player seat: **Assess** again while the first waits. *Observable:* the
+   page opens and rolls, and the day is refused with `duplicatePending`; no
+   second row, no second fee.
+4. Player seat: the queue's withdraw button on the assessment; confirm.
+   *Observable:* the row's `status` is `cancelled`, A's coin is unchanged (the
+   bribe stayed), the ledger has a `ventureCancelled` row stamped A, and the
+   queue no longer lists the day. Repeat step 2 and let it resolve (advance a
+   day): the report carries the page's outcome, the ledger `ventureAssessed`
+   note reads Partial where the outcome was `false`.
+5. Player seat: **Solicit** one good, then **Leave the market**; confirm.
+   *Observable:* the status line reads Not in the market and Enter is back;
+   `goods.ventures` still holds A's party row with `entered: false` and its
+   `tollCp`; the queued solicit row is `cancelled`; `goods.solicitations` has
+   no row for the party this month; the ledger `ventureLeft` row names the
+   withdrawn action id. Enter again with a different cargo: the row is
+   overwritten, a second toll row lands.
+6. Player seat: the Trade tab's **Trade history** on M1, then A's character
+   sheet Trade tab. *Observable:* both list only rows stamped A, newest
+   first, with the net in the summary equal to the sum of the gp column
+   (negative); B's sheet, opened by the same seat, lists none of A's rows.
+   The GM seat's copy of M1's history lists every stamped trader with a
+   trader column.
+7. Player seat that does not own A: M1's Trade tab shows no withdraw button
+   on A's queued day, and `performVentureCancel(M1, {actionId})` from the
+   console answers `notYours`; `performVentureLeave(M1, {actorUuid: A.uuid})`
+   answers `notYours` too.
+
 ## Teardown
 
 Delete the location, the buyer and the merchandise fixtures by their tracked

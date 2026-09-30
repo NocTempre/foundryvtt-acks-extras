@@ -264,23 +264,19 @@ Not the sidebar. Classes, abilities and the rest land in the world compendium
 `world.acks-cookbook--<book>--actor` — so a presence check written against
 `game.items` or `game.actors` reports "nothing imported" for a world that holds
 the whole corpus, and invites a fixture run that duplicates it. Ask
-`game.packs.get(<pack>).getDocuments()`.
+`game.packs.get(<pack>).getDocuments()`. A map is the exception: its scene,
+and the places and organisations it stands on, are WORLD documents; its
+Adventure is on the line's Adventure shelf.
 
 ### Teardown, when the feature chooses its own ids
 
-A bulk importer names nothing back, so the ledger is built from the writes
-themselves — register the create hooks before the run and delete exactly what
-they recorded:
-
-```js
-const fx = [];
-const off = [["createItem","Item"],["createActor","Actor"],["createFolder","Folder"],
-             ["createJournalEntry","JournalEntry"],["createRollTable","RollTable"]]
-  .map(([h, kind]) => [h, Hooks.on(h, (d) => d?.uuid && fx.push({ kind, uuid: d.uuid, name: d.name }))]);
-// … run the importer …
-for (const f of fx) (await fromUuid(f.uuid))?.delete();
-for (const [h, id] of off) Hooks.off(h, id);
-```
+A bulk importer returns counts, not documents, so the ledger comes from what
+the run REPORTS: `api.track` every uuid a `created` object names the moment
+the call resolves (the map step's `created.scenes`, `.actors`, `.folders` and
+`.adventures`), and for a pass that reports counts only, read its shelf's
+index by the cookbook ids it was asked for. A create hook is an observer,
+never a delete list — `.claude/rules/live-testing.md`, Concurrency, has the
+rule and step 4 the mechanism.
 
 *Observable:* every pack is back to the document count it held before the run,
 and `fromUuid` answers null for every uuid in the ledger. Deleting a hundred
@@ -1810,8 +1806,9 @@ the book's `kind.location` entries in a quarter group, plus `ax3.adventure` and
 each `ax3.district.<slug>`, the actor whose
 `flags["acks-extras"].cookbook.id` is that id, tracked with `api.track`. An
 actor the run reports as already held is the world's and stays. The actors
-land on the library's Actor shelf — a WORLD compendium
-(`world.acks-cookbook--actor`, see "Where the importer actually writes"), so
+land on the library's Actor shelf — a WORLD compendium (for AX3 the Judge's
+Actor shelf, `ACKS Cookbook — Judge — Actor`; find it by label, since the
+collection id differs between worlds), so
 a read-back that scans only `acks-extras`-packaged packs finds nothing and
 leaves the run's documents behind; scan `game.packs` by `documentName`. The
 pass also makes the pack folders `<Book> / Places`: delete `Places` once it
@@ -1887,3 +1884,81 @@ world launched with the module carrying it (`docs/factions/TESTING.md`).
 
 `api.sweepTracked()` over the ids read back — the factions, and the places
 only when this run made them.
+
+## A settlement's map lands, and its Adventure with it
+
+The chain's `stepScenes` — `acksExtras.importer.cookbookImportScenes()`, after
+the POI and organisations steps. Needs the GM seat with AX3 connected, and the
+Player seat for step 9. The Adventure sheet's own **Import** button is the
+real trigger for steps 4–7: a scripted `adventure.import()` proves the hook,
+not the sheet, so script it only to read back.
+
+### Fixtures
+
+Read first, write nothing: the world's scene with `cookbook.id ===
+"ax3.cityMap"`, and the line's Adventure shelf by label (`ACKS Cookbook —
+Judge — Adventure`) with its index size. If the world already holds the map
+and it is not this run's, steps 1, 2 and 5–8 need a **salted fixture
+Adventure** instead of the real one: take the real Adventure's `toObject()`,
+remap every `_id` to `stableDocId(salt + "|" + id)` and every cookbook id to
+`id + "~" + salt` (through `adventureRefs` for the references), strip
+`_stats.compendiumSource` so the library lookup misses and the run emulates a
+world with no library, and write it to a run-created pack labelled OUTSIDE
+`ACKS Cookbook — ` so no library reader sees it. Its ids are known before the
+click, which is what makes it sweepable. The run's own ledger is what the map
+step RETURNS: `created.scenes`, `.actors`, `.folders`, `.adventures` go to
+`api.track`; `created.packs` names a shelf this run made, deleted by that
+collection id at teardown only if its index is empty then.
+
+### Steps
+
+1. Run the map step on a world without the map (or the salted fixture's
+   import, step 7, on the shared world).
+   *Observable:* "1 map(s) created, … 1 adventure(s) written to the
+   library"; the shelf exists, Judge-owned, filed under the line.
+2. Probe the Adventure: `const o = (await pack.getDocument(id)).toObject()`.
+   *Observable:* `o.scenes[0]._id` is the world scene's id, and every region
+   and token id is one the world scene has; tokens all hidden; `active` and
+   `navigation` false; `thumb` null; every actor `ownership.default === 0`;
+   no `Compendium.` uuid in any actor except the seats the description
+   counts; `o.actors.length` equals the built count after a reload (core
+   empties an Adventure's actors silently when its pack lacks
+   `metadata.system`); `JSON.stringify(o).length` recorded.
+3. Run the map step again.
+   *Observable:* "1 already held, 1 adventure(s) already in the library";
+   every `created` list empty.
+4. Arm a createActor/createScene/createRollTable/createFolder OBSERVER. Open
+   the Adventure, click Import.
+   *Observable:* no overwrite dialog; "…nothing was added…"; observer empty.
+5. Note one faction's `system.controls`. Delete this run's scene. Import.
+   *Observable:* "…N document(s) added…"; the scene is back under its old id,
+   with the same region ids; `sceneOfLocation(city)` and each quarter's
+   `regionOfLocation` answer it; the noted controls resolve again; the lists
+   it rolls on point at the library where the library holds them.
+6. Delete one place this run brought across whose token is on the map. Import.
+   *Observable:* that place alone is added, same id; its token's actor resolves.
+7. Delete everything this run made in the world (scene, places, organisations,
+   folders). Import.
+   *Observable:* all of it back under the same ids; the people the
+   organisations name stay the library's where a library exists (the salted
+   fixture, with no library, creates them as world actors of the library's
+   type, each on its rosters once); nothing active, nothing in the navigation
+   bar, places hidden.
+8. Reload (F5).
+   *Observable:* every tracked document is still there (the prune keeps a
+   place with a token or a mirror).
+9. Join as the Player seat.
+   *Observable:* no Adventure shelf in the Compendium tab; none of the places,
+   organisations or people in the Actors directory.
+10. Delete the Adventure; run the map step.
+    *Observable:* "1 adventure(s) written to the library", same Adventure id.
+11. Delete this run's scene; run the map step.
+    *Observable:* "1 map(s) created, … 1 adventure(s) rebuilt for a new map";
+    the Adventure's scene id is the new scene's.
+
+### Teardown
+
+`api.sweepTracked()` over the world documents; the Adventure and the fixture
+pack's documents page-side by id (`pageSweep`); then the fixture pack by its
+collection id, and a shelf `created.packs` named only if its index is empty.
+Quote the sweep result.

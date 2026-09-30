@@ -85,7 +85,7 @@ Hooks.once("init", () => {
   // Public API for macros / other modules. Set this FIRST so nothing below can
   // prevent it from being assigned.
   const api = {
-    apiVersion: 8, // 8: HOOKS.INFLUENCE_MODIFIERS — external modifiers collected via hook
+    apiVersion: 9, // 9: the marketAssessment page — bands from ctx, a bribe priced by ctx.bribeBasisHd, `bribe` on the roll-complete payload
     // Synchronous: a listener's own throw is already caught inside
     // openInfluenceApp, but a constructor throw must reach the caller
     // unaltered. See docs/influence/DECISIONS.md, "Opening the roller stays

@@ -170,19 +170,39 @@ Ventures run on dedicated days that resolve as game time passes:
 
 1. **Enter the market** — declare cargo capacity; the gate takes its toll
    and your market impact is fixed from the imported baselines (RR 371).
-2. **Assess supply & demand** — a throw against the imported bands decides
-   how many demand modifiers you learn, and whether they are true; what you
-   learn lands as a market report (RR 373).
+2. **Assess supply & demand** — opens the influence page against the
+   market: your Charisma, a tone proficiency, a bribe (RR 287) and your
+   reaction effects set the Judge's throw against the imported bands, which
+   decides how many demand modifiers you learn, and whether they are true;
+   what you learn lands as a market report (RR 373). The bribe is paid to
+   the market as the day is posted, whatever the day brings.
 3. **Solicit** a merchandise type — opens base stones × impact to trade and
    reveals the month's price (rolled once per type per month).
 4. **Trade merchandise** — buy or sell stones against your solicitation,
    optionally negotiating the spot price a step your way — or into an
    outraged refusal (RR 376).
+5. **Leave the market** when you are done, or to declare again — the toll
+   stays with the gate, what you solicited closes, and any of your party's
+   days still queued are withdrawn. Entering again pays a fresh toll.
+
+The queue under the buttons lists your party's days still to resolve. The
+same trader cannot queue the same day twice; a queued day has a withdraw
+button (the Judge's, or the owner's of the trader who posted it), and nothing
+paid for it comes back.
 
 A day that cannot resolve because its table is not imported posts the
 table's name to the trader and the Judge. Merchandise loads ride in
 inventory one stone per unit, ready to haul to a market whose demand pays
 better.
+
+## Trade history
+
+**Trade history** on a market's Trade tab lists what your own traders did
+there, newest first, with each row's coin movement and the net; the Judge
+sees every trader's rows with a trader column. The same history, across
+every market, is on a trader's own character sheet under its Trade tab. A
+trader reads their assessment rows as the report said — a false picture is
+listed as partial.
 
 ## The clock
 

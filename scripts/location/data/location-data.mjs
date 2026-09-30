@@ -242,6 +242,11 @@ function marketSchema() {
         time: int(),
         type: str(), // monthRoll | replace | hire | reserve
         note: str(),
+        // The actor a row is about, so a trader can read their own history out
+        // of the market's ledger; gp is that actor's coin movement, signed
+        // (paid negative), where the row is one.
+        actorUuid: str(),
+        gp: num(0),
       })
     ),
     // Hires accepted with no GM online and no actor-create permission —

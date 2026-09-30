@@ -296,3 +296,50 @@ have to know the precedence, which is the bug the one-reader rule prevents.
 Rejected: a report written from a player seat with the relay authorizing on
 the location (a player clicking Process could then stamp a report for another
 player's assessor).
+
+## 2026-09-29 — The assessment is an influence roll; the queue can be undone; the ledger names its trader
+
+Ruled after the first live walk of the venture flow (9.2.x): the assessment
+day rolled 2d6 + Charisma inside the sweep with no way to bribe, tone or
+apply a reaction effect, a mis-posted day could not be taken back, and a
+player had no view of what their trades had cost.
+
+- **The assessment's roll is made on the influence page, against the market
+  as the target actor** (`marketAssessment`, secret, reaction family). RR's
+  assessment is a reaction-style throw, so the influence feature's stack is
+  what applies to it: Charisma, one tone proficiency, Mystic Aura, a bribe
+  (RR 287 "Offering Bribes") and every reaction-family effect, on a page
+  whose bands are the imported assessment column passed in as `ctx.bands`.
+  The roll reaches the sweep stored on the action; the sweep never rolls
+  when a total is there. The bribe is paid as the day is posted, to the
+  market, because the merchants keep it whatever the day brings. Its fee is
+  priced against one hit die (`assessmentBribeBasisHd`): a market's
+  merchants are ordinary people, and the Judge raises the fee on the page
+  where a market's merchants are grander. Rejected: a bribe field on the
+  Trade tab beside the button — a second modifier stack, out of the
+  influence feature's sight, that would have had to re-implement tones.
+- **The queue refuses a duplicate and allows a withdrawal, refunding
+  nothing.** The same trader's same day cannot wait twice; a pending day is
+  withdrawn by the Judge or the trader's owner and its row stays, marked
+  `cancelled`, so the ledger still says the day was bought. Nothing comes
+  back: the gate has the toll and the merchants the bribe, and a refund
+  would be a second write with a failure mode of its own (an action removed
+  and the coin never returned, or returned twice). A resolved day is not
+  withdrawable; it happened.
+- **A party may leave the market, and the toll stays paid.** The month's
+  row keeps `entered` false and its toll; the party's solicitations for the
+  month are dropped (what a day of soliciting opened closes with the party
+  gone) and its waiting venture days are withdrawn (a day cannot resolve for
+  a party that is not there — the sweep would otherwise mark a solicit day
+  done in silence). Entering again is a fresh declaration at a fresh toll.
+  Rejected: refusing to leave while days wait (the mistake the button exists
+  to undo is usually the queued day itself).
+- **A trader's history is the market ledger, read back by actor stamp.**
+  Every ledger row about a trader carries `actorUuid` and that trader's
+  signed coin movement; nothing is written twice. Rejected: a per-actor
+  ledger on the character (a second copy of every row, and a row written to
+  a document a player's seat may not be able to write). Consequence: rows
+  written before 9.3.0 carry no stamp and do not appear in a history — the
+  market log still lists them for the Judge.
+- **The ledger masks a false assessment as partial.** A trader can read
+  their own rows; the truth stays on the Judge's copy of the report.

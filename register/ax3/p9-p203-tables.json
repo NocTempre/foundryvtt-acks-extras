@@ -118,7 +118,7 @@
     "id": "ax3.cityEncounters",
     "kind": "kind.rolltable",
     "book": "ax3",
-    "name": "City Encounters Table (Cyfaraun)",
+    "name": "City Encounters Table",
     "anchor": {
       "runin": "City Encounters Table"
     },
@@ -130,7 +130,7 @@
       65
     ],
     "meta": {
-      "group": "Cyfaraun"
+      "group": "City"
     },
     "assists": {
       "rollAt": {
@@ -159,7 +159,7 @@
       69
     ],
     "meta": {
-      "group": "Cyfaraun"
+      "group": "City"
     },
     "assists": {
       "rollAt": {
@@ -202,18 +202,19 @@
     }
   },
   {
-    "id": "ax3.cyfaraunRumors",
+    "id": "ax3.cityRumors",
     "kind": "kind.rolltable",
     "book": "ax3",
-    "name": "Rumors of Cyfaraun",
+    "name": "City Rumors",
     "anchor": {
-      "display": "RUMORS OF CYFARAUN"
+      "hash": "1pzm1sl",
+      "as": "display"
     },
     "pages": [
       45
     ],
     "meta": {
-      "group": "Cyfaraun"
+      "group": "City"
     },
     "assists": {
       "grid": {
@@ -234,10 +235,10 @@
     }
   },
   {
-    "id": "ax3.cyfaraunRumorTruths",
+    "id": "ax3.cityRumorTruths",
     "kind": "kind.rolltable",
     "book": "ax3",
-    "name": "Rumors of Cyfaraun — Behind the Rumor",
+    "name": "City Rumors — Behind the Rumor",
     "anchor": {
       "label": "Roll"
     },
@@ -245,7 +246,7 @@
       47
     ],
     "meta": {
-      "group": "Cyfaraun"
+      "group": "City"
     },
     "assists": {
       "nameExpect": {

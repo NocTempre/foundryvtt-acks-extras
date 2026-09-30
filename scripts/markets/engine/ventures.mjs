@@ -1,4 +1,4 @@
-/* global game, foundry, Hooks, ChatMessage, Roll, fromUuid */
+/* global game, foundry, Hooks, ChatMessage, Roll, fromUuid, fromUuidSync */
 /**
  * Arbitrage ventures (RR §VIII.6), time-queued: entering the market,
  * assessing supply and demand, and soliciting buyers or sellers are each a
@@ -16,6 +16,9 @@ import {
   merchMarketPriceCp,
   negotiationOutcome,
   solicitedStones,
+  pendingDuplicate,
+  cancelVerdict,
+  leaveMarket,
 } from "../rules/arbitrage.mjs";
 import { toGp } from "../rules/pricing.mjs";
 import { trueDemand } from "../rules/demand.mjs";
@@ -72,7 +75,7 @@ function venturePrerequisite(kind) {
  */
 async function postTableMissing(actor, location, action, tableKey, log, t) {
   const table = game.i18n.localize(`${LANG}.ventures.table.${tableKey}`);
-  log.push({ time: t, type: "ventureFailed", note: `${actor.name}: ${action.kind} could not resolve (${table} table not imported)` });
+  log.push({ time: t, type: "ventureFailed", note: `${actor.name}: ${action.kind} could not resolve (${table} table not imported)`, actorUuid: actor.uuid, gp: 0 });
   await postCard(
     actor,
     `<strong>${game.i18n.format(`${LANG}.ventures.tableMissing`, {
@@ -99,12 +102,16 @@ export function ventureOf(location, partyId, monthStart = marketMonthStart()) {
 }
 
 /**
- * Post a dedicated-day venture action. Entering pays the toll NOW (the
- * gate collects on arrival); the rest of the day's outcome lands when the
- * sweep resolves it.
+ * Post a dedicated-day venture action. Entering pays the toll NOW (the gate
+ * collects on arrival) and an assessment its bribe (the merchants pocket it
+ * whatever the day brings); the rest of the day's outcome lands when the
+ * sweep resolves it. An assessment arrives with the Judge's roll already made
+ * on the influence page (`roll: {natural, total}`); one posted without a roll
+ * is rolled bare (2d6 + Charisma) by the sweep. The same trader's same day
+ * cannot wait in the queue twice.
  */
 export async function postVentureAction(location, payload) {
-  const { kind, actorUuid, category = "", cargoSt = 0, requestUserId = null, resolutionId = "" } = payload;
+  const { kind, actorUuid, category = "", cargoSt = 0, requestUserId = null, resolutionId = "", roll = null, bribeGp = 0 } = payload;
   const actorDoc = await fromUuid(actorUuid).catch(() => null);
   const actor = actorDoc?.actor ?? actorDoc;
   if (!actor) return err("noBuyer");
@@ -116,6 +123,7 @@ export async function postVentureAction(location, payload) {
   }
   const actions = clone(goods.actions);
   if (resolutionId && actions.some((a) => a.id === resolutionId)) return err("duplicate");
+  if (pendingDuplicate(actions, { kind, actorUuid: actor.uuid, category })) return err("duplicatePending");
   // Refused now, before the toll is taken, rather than spent as a day that cannot resolve.
   const unread = venturePrerequisite(kind);
   if (unread) return printedError(unread);
@@ -125,6 +133,7 @@ export async function postVentureAction(location, payload) {
   const party = partyOf(actor);
   const venture = ventureOf(location, party.id, monthStart);
   let tollCp = 0;
+  const bribe = kind === "assess" ? Math.max(0, Number(bribeGp) || 0) : 0;
 
   if (kind === "enter") {
     if (venture?.entered) return err("alreadyEntered");
@@ -139,8 +148,17 @@ export async function postVentureAction(location, payload) {
   } else {
     if (!venture?.entered) return err("notEntered");
     if (kind === "solicit" && !merchandiseFor(category)) return err("noCategory");
+    if (bribe > 0) {
+      const paid = await adapter.spendGold(actor, bribe, game.i18n.localize(`${LANG}.ventures.bribeReason`), { to: location, at: location });
+      if (!paid) return err("insufficientGold");
+    }
   }
 
+  const natural = Number.isInteger(roll?.natural) ? roll.natural : null;
+  const total = Number.isInteger(roll?.total) ? roll.total : null;
+  const detail = [tollCp > 0 ? `toll ${toGp(tollCp)}gp` : "", bribe > 0 ? `bribe ${bribe}gp` : "", total !== null ? `rolled ${natural} → ${total}` : ""]
+    .filter(Boolean)
+    .join("; ");
   const action = {
     id: resolutionId || foundry.utils.randomID(),
     kind,
@@ -151,15 +169,99 @@ export async function postVentureAction(location, payload) {
     postedTime: t,
     resolveTime: t + SECONDS_PER_DAY,
     status: "pending",
-    detail: tollCp > 0 ? `toll ${toGp(tollCp)}gp` : "",
+    detail,
+    natural,
+    total,
+    bribeGp: bribe,
   };
   const log = clone(location.system.market.marketLog);
-  log.push({ time: t, type: "ventureAction", note: `${actor.name}: ${kind}${category ? ` (${category})` : ""} posted [${action.id}]` });
+  const paidGp = toGp(tollCp) + bribe;
+  log.push({
+    time: t,
+    type: "ventureAction",
+    note: `${actor.name}: ${kind}${category ? ` (${category})` : ""} posted${paidGp > 0 ? ` (${paidGp}gp paid)` : ""} [${action.id}]`,
+    actorUuid: actor.uuid,
+    gp: -paidGp,
+  });
   await location.update({
     "system.market.goods.actions": [...actions, action],
     "system.market.marketLog": log.slice(-300),
   });
   return { ok: true, resolveTime: action.resolveTime };
+}
+
+/**
+ * Withdraw a queued day before it resolves. What it cost stays spent: the
+ * toll went to the gate, the bribe to the merchants, and neither comes back.
+ * The row is kept as withdrawn, so the ledger still says the day was bought.
+ */
+export async function cancelVentureAction(location, { actionId, requestUserId = null } = {}) {
+  const goods = location?.system?.market?.goods;
+  if (!goods) return err("noMarket");
+  const actions = clone(goods.actions);
+  const action = actions.find((a) => a.id === actionId);
+  const user = requestUserId ? game.users.get(requestUserId) : game.user;
+  const ownsActor = (uuid) => {
+    const doc = fromUuidSync(uuid);
+    const actor = doc?.actor ?? doc;
+    return !!actor?.testUserPermission?.(user, "OWNER");
+  };
+  const verdict = cancelVerdict(action, { isGM: !!user?.isGM, ownsActor });
+  if (verdict !== "ok") return err(verdict);
+  action.status = "cancelled";
+  const actorDoc = fromUuidSync(action.actorUuid);
+  const actor = actorDoc?.actor ?? actorDoc;
+  const log = clone(location.system.market.marketLog);
+  log.push({
+    time: now(),
+    type: "ventureCancelled",
+    note: `${actor?.name ?? action.actorUuid}: ${action.kind}${action.category ? ` (${action.category})` : ""} withdrawn, nothing refunded [${action.id}]`,
+    actorUuid: action.actorUuid,
+    gp: 0,
+  });
+  await location.update({
+    "system.market.goods.actions": actions,
+    "system.market.marketLog": log.slice(-300),
+  });
+  return { ok: true };
+}
+
+/**
+ * Leave the market this month, as the acting trader's party. What the entry
+ * cost stays spent and the party's waiting days are withdrawn with it
+ * (`rules/arbitrage.mjs` `leaveMarket`); the Enter button then offers a fresh
+ * declaration at a fresh toll. The Judge may leave for any party; anyone else
+ * only through a trader they own.
+ */
+export async function leaveVentureMarket(location, { actorUuid, requestUserId = null } = {}) {
+  const goods = location?.system?.market?.goods;
+  if (!goods) return err("noMarket");
+  const actorDoc = await fromUuid(actorUuid).catch(() => null);
+  const actor = actorDoc?.actor ?? actorDoc;
+  if (!actor) return err("noBuyer");
+  if (requestUserId) {
+    const user = game.users.get(requestUserId);
+    if (!user?.isGM && !actor.testUserPermission(user, "OWNER")) return err("notYours");
+  }
+  const t = now();
+  const state = { ventures: clone(goods.ventures), actions: clone(goods.actions), solicitations: clone(goods.solicitations) };
+  const result = leaveMarket(state, { partyId: partyOf(actor).id, monthStart: marketMonthStart(t) });
+  if (result.error) return err(result.error);
+  const log = clone(location.system.market.marketLog);
+  log.push({
+    time: t,
+    type: "ventureLeft",
+    note: `${actor.name}: left the market, nothing refunded${result.cancelledIds.length ? ` (withdrawn: ${result.cancelledIds.join(", ")})` : ""}`,
+    actorUuid: actor.uuid,
+    gp: 0,
+  });
+  await location.update({
+    "system.market.goods.ventures": state.ventures,
+    "system.market.goods.actions": state.actions,
+    "system.market.goods.solicitations": state.solicitations,
+    "system.market.marketLog": log.slice(-300),
+  });
+  return { ok: true, cancelled: result.cancelledIds.length };
 }
 
 /** Random distinct merchandise categories, from the whole catalogue (a Judge's own goods included). */
@@ -251,7 +353,7 @@ export async function processVentureActions(location, log, t) {
       // The toll was paid when the action was posted; the row records it.
       row.tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * Math.max(0, Number(action.cargoSt) || 0));
       row.entered = true;
-      log.push({ time: t, type: "ventureEntered", note: `${actor.name}: entered the market, impact ${impact}` });
+      log.push({ time: t, type: "ventureEntered", note: `${actor.name}: entered the market, impact ${impact}`, actorUuid: actor.uuid, gp: 0 });
       await postCard(actor, `<strong>${game.i18n.format(`${LANG}.ventures.enteredLine`, { name: actor.name, location: location.name, impact })}</strong>`);
     }
 
@@ -267,8 +369,10 @@ export async function processVentureActions(location, log, t) {
         await postTableMissing(actor, location, action, "assessmentProse", log, t);
         continue;
       }
-      const roll = await new Roll("2d6").evaluate();
-      const total = roll.total + adapter.getChaMod(actor);
+      // The Judge's roll was made on the influence page when the day was
+      // posted (tone, bribe and effects priced there); a bare posting is
+      // rolled here with Charisma alone.
+      const total = Number.isInteger(action.total) ? action.total : (await new Roll("2d6").evaluate()).total + adapter.getChaMod(actor);
       const outcome = assessmentOutcome(total, bands);
       const catalog = merchandiseCatalog();
       const beliefs = [];
@@ -321,7 +425,14 @@ export async function processVentureActions(location, log, t) {
           continue;
         }
       }
-      log.push({ time: t, type: "ventureAssessed", note: `${actor.name}: assessment ${outcome} (${beliefs.length} DMs)` });
+      // The ledger names the outcome as the trader is told it: a false picture reads as partial.
+      log.push({
+        time: t,
+        type: "ventureAssessed",
+        note: `${actor.name}: assessment ${outcome === "false" ? "partial" : outcome} (${beliefs.length} DMs)`,
+        actorUuid: actor.uuid,
+        gp: 0,
+      });
       await postCard(
         actor,
         `<strong>${game.i18n.format(`${LANG}.ventures.assessedLine`, { name: actor.name })}</strong><br>` +
@@ -357,7 +468,13 @@ export async function processVentureActions(location, log, t) {
           return fresh;
         })();
       srow.stones += gained;
-      log.push({ time: t, type: "ventureSolicited", note: `${actor.name}: solicited ${action.category} (+${gained} st @ ${toGp(price.priceCp)}gp/st)` });
+      log.push({
+        time: t,
+        type: "ventureSolicited",
+        note: `${actor.name}: solicited ${action.category} (+${gained} st @ ${toGp(price.priceCp)}gp/st)`,
+        actorUuid: actor.uuid,
+        gp: 0,
+      });
       await postCard(
         actor,
         `<strong>${game.i18n.format(`${LANG}.ventures.solicitedLine`, { name: actor.name, label: merch.label })}</strong><br>` +
@@ -471,6 +588,8 @@ export async function tradeMerchandise(location, payload) {
     time: t,
     type: "ventureTrade",
     note: `${actor.name}: ${direction === "buy" ? "bought" : "sold"} ${stones} st ${category} @ ${toGp(unitCp)}gp/st = ${totalGp}gp${stamp}`,
+    actorUuid: actor.uuid,
+    gp: direction === "buy" ? -totalGp : totalGp,
   });
   await location.update({
     "system.market.goods.solicitations": solicitations,
@@ -517,6 +636,30 @@ async function dispatch(handler, fn, location, payload) {
 /** Local-first dispatch for posting a venture action. */
 export async function performVentureAction(location, payload) {
   return dispatch("marketsVentureAction", postVentureAction, location, payload);
+}
+
+registerHandler("marketsVentureCancel", async ({ locationUuid, ...payload }) => {
+  const doc = await fromUuid(locationUuid).catch(() => null);
+  const location = doc?.actor ?? doc;
+  if (!location) return err("noMarket");
+  return cancelVentureAction(location, payload);
+});
+
+/** Local-first dispatch for withdrawing a queued day (the Judge, or the trader's owner through the relay). */
+export async function performVentureCancel(location, payload) {
+  return dispatch("marketsVentureCancel", cancelVentureAction, location, payload);
+}
+
+registerHandler("marketsVentureLeave", async ({ locationUuid, ...payload }) => {
+  const doc = await fromUuid(locationUuid).catch(() => null);
+  const location = doc?.actor ?? doc;
+  if (!location) return err("noMarket");
+  return leaveVentureMarket(location, payload);
+});
+
+/** Local-first dispatch for leaving the market as the acting trader's party. */
+export async function performVentureLeave(location, payload) {
+  return dispatch("marketsVentureLeave", leaveVentureMarket, location, payload);
 }
 
 /** Local-first dispatch for a merchandise trade. */

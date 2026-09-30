@@ -959,3 +959,21 @@ document. Four things it leaves to Rebuild:
 
 Rules tables merge in both modes. A Rebuild that removed the world layer before
 re-reading would undo "a re-read that finds nothing keeps what it had".
+
+## A map made before its book's organisations
+
+A map imported before the organisations step hands no quarters until the map
+is deleted and imported again (DECISIONS, 2026-09-17, Cost). Wanted: the
+organisations step claims quarters from a held map.
+
+## A settlement Adventure after the book changes
+
+A reimported book is not reflected in the map's Adventure until the Adventure
+is deleted and the map step re-run (DECISIONS, 2026-09-30, Cost). Wanted: the
+map step compares carried sources and rebuilds when stale.
+
+## A settlement Adventure in another world
+
+A world compendium is world-scoped, so a second world needs the pack moved by
+hand, and its picture needs the same server. Wanted: an export path that
+carries the picture, without shipping any of it.

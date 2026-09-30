@@ -385,9 +385,26 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /*  Bribe fee                                   */
   /* -------------------------------------------- */
 
-  /** The gp cost of each bribe tier for the current actor/target pair. */
+  /**
+   * An external page's result bands: the mode's own table, or the opener's
+   * (`ctx.bands`) for a page whose table is printed and imported. Empty when
+   * neither is there, and the roll refuses rather than reading a band off
+   * nothing.
+   */
+  #modeBands() {
+    if (Array.isArray(this.#mode?.bands)) return this.#mode.bands;
+    return Array.isArray(this.#ctx.bands) ? this.#ctx.bands : [];
+  }
+
+  /**
+   * The gp cost of each bribe tier for the current actor/target pair, priced
+   * from the target's hit dice — or from `ctx.bribeBasisHd` when the opener
+   * names the pay the target answers to (a market has no hit dice; its
+   * merchants have a wage).
+   */
   #bribeTiers() {
-    const monthly = monthlyWageForHD(getActorHD(this.#targetActor));
+    const basis = Number(this.#ctx.bribeBasisHd);
+    const monthly = monthlyWageForHD(Number.isFinite(basis) ? basis : getActorHD(this.#targetActor));
     const day = Math.round(monthly / 30);
     const week = Math.round(monthly / 4);
     const year = monthly * 12;
@@ -1096,6 +1113,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /** External-mode resolution: bands + natural clamps, no attitude shift. */
   async #rollExternalMode() {
     this.#recalculate();
+    if (!this.#modeBands().length) {
+      ui.notifications?.warn(game.i18n.localize(`${this.#mode.label.replace(/\.title$/, "")}.noBands`));
+      return;
+    }
     const activeModifiers = this.#activeModifiers();
     const modifier = this.#finalModifier;
     const roll = new Roll(`2d6 + (${modifier})`);
@@ -1103,7 +1124,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     const diceResult = roll.dice[0]?.total ?? roll.total - modifier;
     const total = roll.total;
 
-    const bands = this.#mode.bands;
+    const bands = this.#modeBands();
     const indexFor = (value) =>
       Math.max(
         0,
@@ -1153,6 +1174,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     if (this.#mode.secret) await postToJudges(message);
     else ChatMessage.create(message);
 
+    // The bribe a page priced, for the opener to collect: a gold row never
+    // moves the roll, and an external page never moves the gold.
+    const values = this.#modifiers[this.#system.tone] ?? {};
+    const bribe = Object.hasOwn(values, "bribe")
+      ? { level: Number(values.bribe) || 0, fee: Number(values.bribe) > 0 ? Number(values.bribeFee) || 0 : 0 }
+      : null;
     Hooks.callAll("acksExtras.influenceRollComplete", {
       actor: this.#actor,
       target: this.#targetActor,
@@ -1162,6 +1189,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       modifier,
       total,
       parts: activeModifiers,
+      bribe,
       context: this.#extContext,
       hidden: !!this.#mode.secret,
     });

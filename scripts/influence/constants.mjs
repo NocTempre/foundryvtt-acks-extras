@@ -598,6 +598,60 @@ export const EXTERNAL_MODES = Object.freeze({
   },
 
   /**
+   * Assessment of Supply and Demand (RR §VIII.6, "Assessing Supply and
+   * Demand") — the markets feature's page: the Judge's secret 2d6 + Charisma
+   * for a trader's dedicated day in a market, taken as a reaction throw so a
+   * tone proficiency, Mystic Aura, a bribe (RR 287, "Offering Bribes") and
+   * reaction-family effects apply. The five bands are a printed table the
+   * opener hands over in `ctx.bands` (`{min, max, key}`, worst first), never a
+   * table of this file; a page opened without one cannot roll. The bribe fee is
+   * priced by `ctx.bribeBasisHd` when the target actor (a market location) has
+   * no hit dice of its own; the opener moves the gold, this page only prices it.
+   */
+  marketAssessment: {
+    label: "ACKS-INFLUENCE.mode.assessment.title",
+    secret: true,
+    family: ROLL_FAMILY.REACTION,
+    bands: "ctx",
+    bandLabels: {
+      false: "ACKS-INFLUENCE.mode.assessment.false",
+      failed: "ACKS-INFLUENCE.mode.assessment.failed",
+      expertise: "ACKS-INFLUENCE.mode.assessment.expertise",
+      partial: "ACKS-INFLUENCE.mode.assessment.partial",
+      success: "ACKS-INFLUENCE.mode.assessment.success",
+    },
+    groups: [
+      {
+        group: "ACKS-INFLUENCE.group.character",
+        mods: [
+          { key: "charisma", type: "signed", label: "ACKS-INFLUENCE.mod.charisma", auto: "cha" },
+          { key: "diplomacyProf", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.prof", value: 1, auto: "prof:diplomacy", exclusive: "toneProf" },
+          { key: "intimidationProf", type: "check", label: "ACKS-INFLUENCE.mod.intimidation.prof", value: 1, auto: "prof:intimidation", exclusive: "toneProf" },
+          { key: "seductionProf", type: "check", label: "ACKS-INFLUENCE.mod.seduction.prof", value: 1, auto: "prof:seduction", exclusive: "toneProf" },
+          { key: "mysticAura", type: "check", label: "ACKS-INFLUENCE.mod.mysticAura", value: 1, auto: "prof:mysticAura" },
+        ],
+      },
+      {
+        group: "ACKS-INFLUENCE.mode.assessment.bribe",
+        mods: [
+          {
+            key: "bribe",
+            type: "select",
+            label: "ACKS-INFLUENCE.mod.diplomacy.bribe",
+            options: [
+              { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
+              { label: "ACKS-INFLUENCE.opt.plus1", value: 1 },
+              { label: "ACKS-INFLUENCE.opt.plus2", value: 2 },
+              { label: "ACKS-INFLUENCE.opt.plus3", value: 3 },
+            ],
+          },
+          { key: "bribeFee", type: "gold", label: "ACKS-INFLUENCE.mod.diplomacy.bribeFee", auto: "bribeFee", profModifier: "bribery" },
+        ],
+      },
+    ],
+  },
+
+  /**
    * Hireling Obedience (RR 167) — the secret 2d6 + morale check when a hireling
    * is ordered into unexplored wilderness, a new dungeon, notable danger, or
    * overtime. Three bands only, and explicitly NO auto-failure on a natural 2.

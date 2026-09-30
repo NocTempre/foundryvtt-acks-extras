@@ -99,5 +99,42 @@
   {{else}}
   <div class="acks-extras-character-sheet__hint">{{localize "ACKS-MARKETS.trader.needTwo"}}</div>
   {{/if}}
+
+  <div class="acks-extras-character-sheet__rule is-spaced">
+    <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-MARKETS.history.header"}}</span>
+    <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-MARKETS.history.traderNote"}}</span>
+  </div>
+  {{#if tr.history.rows.length}}
+  <table class="acks-extras-markets-trader-table acks-extras-markets-history-table">
+    <thead>
+      <tr>
+        <th scope="col">{{localize "ACKS-MARKETS.history.when"}}</th>
+        <th scope="col">{{localize "ACKS-MARKETS.history.market"}}</th>
+        <th scope="col">{{localize "ACKS-MARKETS.history.what"}}</th>
+        <th scope="col">{{localize "ACKS-MARKETS.report.field.notes"}}</th>
+        <th scope="col" class="acks-nums">gp</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each tr.history.rows}}
+      <tr>
+        <td>{{when}}</td>
+        <td>{{marketName}}</td>
+        <td>{{typeLabel}}</td>
+        <td>{{note}}</td>
+        <td class="acks-nums">{{gp}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th scope="row" colspan="4">{{localize "ACKS-MARKETS.history.net"}}</th>
+        <td class="acks-nums">{{tr.history.net}}</td>
+      </tr>
+    </tfoot>
+  </table>
+  {{else}}
+  <div class="acks-extras-character-sheet__hint">{{localize "ACKS-MARKETS.history.empty"}}</div>
+  {{/if}}
 </div>
 {{/with}}

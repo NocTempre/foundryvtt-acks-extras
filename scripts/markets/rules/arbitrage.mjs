@@ -88,6 +88,82 @@ export function assessmentOutcome(total, bands) {
 }
 
 /**
+ * The assessment bands as an influence page reads them: `{min, max, key}` rows,
+ * worst first, open ends omitted. Null when the printed column is unread.
+ * @param {{min:number|null, max:number|null}[]|null} bands - `ASSESSMENT_RESULTS` order
+ */
+export function assessmentPageBands(bands) {
+  if (!Array.isArray(bands) || bands.length !== ASSESSMENT_RESULTS.length) return null;
+  return bands.map((b, i) => {
+    const row = { key: ASSESSMENT_RESULTS[i] };
+    if (b?.min !== null && b?.min !== undefined) row.min = b.min;
+    if (b?.max !== null && b?.max !== undefined) row.max = b.max;
+    return row;
+  });
+}
+
+/**
+ * The pending day this one would repeat: the same trader's same kind of day
+ * (and, for a solicitation, the same merchandise) still waiting to resolve.
+ * A day already resolved or withdrawn is no duplicate — the book lets a
+ * trader assess again tomorrow; it is posting the same tomorrow twice that is
+ * refused. Undefined when there is none.
+ * @param {{kind:string, actorUuid:string, category?:string, status:string}[]} actions
+ * @param {{kind:string, actorUuid:string, category?:string}} day
+ */
+export function pendingDuplicate(actions, { kind, actorUuid, category = "" }) {
+  return (actions ?? []).find(
+    (a) => a.status === "pending" && a.kind === kind && a.actorUuid === actorUuid && (kind !== "solicit" || (a.category ?? "") === category)
+  );
+}
+
+/**
+ * Whether a queued day may be withdrawn by this user: a Judge always; anyone
+ * else only their own trader's, and only while it is still pending. What the
+ * day cost stays spent — the gate kept the toll, the merchants the bribe.
+ * @param {{status:string, actorUuid:string}|undefined} action
+ * @param {{isGM:boolean, ownsActor:(uuid:string)=>boolean}} user
+ * @returns {"ok"|"notPending"|"notYours"}
+ */
+export function cancelVerdict(action, { isGM, ownsActor }) {
+  if (!action || action.status !== "pending") return "notPending";
+  if (isGM || ownsActor(action.actorUuid)) return "ok";
+  return "notYours";
+}
+
+/**
+ * A party leaves the market it entered this month. Nothing paid comes back:
+ * the toll stays with the gate, and what a day of soliciting opened closes
+ * with the party gone, so its solicitations are dropped. A venture day of
+ * the party's still waiting to resolve is withdrawn with it — it cannot
+ * resolve for a party that is not there. The month's row is kept, entered
+ * no longer, so a later entry overwrites it with a fresh declaration and a
+ * fresh toll. Mutates the given copies; `error` when the party is not in.
+ * @param {{ventures:object[], actions:object[], solicitations:object[]}} state - cloned goods rows
+ * @param {{partyId:string, monthStart:number}} o
+ * @returns {{ok:true, cancelledIds:string[], droppedSolicitations:number}|{error:"notEntered"}}
+ */
+export function leaveMarket({ ventures, actions, solicitations }, { partyId, monthStart }) {
+  const venture = (ventures ?? []).find((v) => v.partyId === partyId && Number(v.monthStartTime) === monthStart);
+  if (!venture?.entered) return { error: "notEntered" };
+  venture.entered = false;
+  const cancelledIds = [];
+  for (const a of actions ?? []) {
+    if (a.status !== "pending" || a.partyId !== partyId || !["enter", "assess", "solicit"].includes(a.kind)) continue;
+    a.status = "cancelled";
+    cancelledIds.push(a.id);
+  }
+  let droppedSolicitations = 0;
+  for (let i = (solicitations ?? []).length - 1; i >= 0; i--) {
+    const s = solicitations[i];
+    if (s.partyId !== partyId || Number(s.monthStartTime) !== monthStart) continue;
+    solicitations.splice(i, 1);
+    droppedSolicitations++;
+  }
+  return { ok: true, cancelledIds, droppedSolicitations };
+}
+
+/**
  * The monthly market price for one merchandise type (RR §VIII.6 step 4):
  * base price shifted by 4d4−10 steps, the demand modifier, the printed class
  * shifts for the largest and smallest markets, and the grain season. Never

@@ -4388,6 +4388,12 @@ library's copy no longer follows a Judge's edits to it. A map imported before
 its book's factions does not hand them their quarters until it is deleted and
 imported again ([ROADMAP.md](ROADMAP.md)).
 
+> Extended 2026-09-30: the map is also written to the library as an Adventure,
+> and superseded in part — a world with no library holds no person for a
+> roster row to point at, so an Adventure imported there creates the people
+> its organisations name. See "A settlement's map is in the library too, as
+> one Adventure".
+
 ### A printed proper name is not an identifier either (2026-09-17)
 
 **Ruled (the user's).** The name ruling above reaches the people a book names,
@@ -5192,6 +5198,28 @@ old value. A class's whole write still replaces hand edits other than its
 description and taken-over training, and a monster's minted attacks replace a
 Judge's edits to them.
 
+### The city's roll tables carry no city (2026-09-30)
+
+**Ruled.** AX3's city-wide roll tables — the rumor table, its "behind the
+rumor" companion and the city encounters table — shipped the city's printed
+name in their ids, their names, one display anchor and their `meta.group`.
+The name audit found it after the market rows were aliased (the ring now
+knew the word). The rows are `ax3.cityRumors`, `ax3.cityRumorTruths` and
+`ax3.cityEncounters`; the rumor table anchors by `printKey` of its heading
+(`anchor.hash`, `as: "display"`) and the roll-table import names a table from
+the page it read (`printedNameOf`, as places and bodies already do), so the
+printed heading arrives with the Judge's own book; the companion and the
+encounters table keep authored English names; the four city-wide rows file
+under the group `City`.
+
+**Cost.** A world that imported the two rumor tables before this holds them
+under the old ids; they carry the import stamp, so Remove ALL Imports or a
+Roll tables shelf repair clears them, and nothing rewrites them in place. The
+same cost the place and body renames took.
+
+This closes the "group strings that name a city" half of what the 8.0.0
+aliasing parked; the quarters' own group strings still stand.
+
 ### A sub-heading on the page after opens with a capital (2026-09-24)
 
 **Found.** The sub-heading turn ends at the first solo line in a face the
@@ -5273,3 +5301,90 @@ the body lines, so a margin glyph can no longer open a stat block.
 `importSpells()` runs again or the Spells shelf is repaired; the class
 repair warns per unresolved name until then, and a monster whose entry names
 one of the seven carries the name in its prose instead of a copy.
+
+### A settlement's map is in the library too, as one Adventure (2026-09-30)
+
+**Ruled (the user's, 2026-09-18: "The importer should create a compendium
+scene as well… An adventure pack would also be appropriate. The point is to
+use the book to setup the city to be playable"; resumed 2026-09-30 as an
+Adventure document in the library).** The map step still stands the map up in
+the world, exactly as the entry of 2026-09-17 has it, and beside it writes ONE
+Adventure per map to its book line's Adventure shelf (`ACKS Cookbook — <line>
+— Adventure`; a Judge's book on the Judge's line). It carries the map, the
+city and quarters and every place the map sets down, every organisation of
+the book, the people those organisations name, the lists the map and its
+quarters roll on, and the folders all of it is filed in. Its own id is
+derived from the recipe's (`settlementAdventureId`), so a map has one
+Adventure.
+
+**Ids are the world's.** Each document carries the id its world copy has, and
+every reference between them is written in world form
+(`adventure-binding.mjs`). A document the world does not hold keeps its
+library id. Importing it where the copies exist names the same documents;
+importing it where they do not makes them under the ids everything already
+points at, and an organisation's quarters, which name regions, come back live
+with the map they were on.
+
+**The book's city, not the table's.** It is built from the library's
+documents, never the world's copies: a place's goods, a faction's ledger, a
+party's tokens and a Judge's notes are play, and this is the way back to the
+book. A place or organisation only the world holds is carried from the
+world's source, counted and logged, because it is the only source there is.
+
+**Built when the map is.** A step that makes the map writes it, replacing the
+one on the shelf; a step that finds the map held writes it only when the shelf
+lacks it, so an Adventure a Judge edited is not rewritten by a re-run. The
+held path checks the page against the recipe's anchor before it takes the
+picture, as the made path does.
+
+**An import fills; it never overwrites.** Importing one adds only what this
+world is missing: the map and the book's organisations when absent, anything
+else only where something the world holds or is getting names it, and a
+folder only where something created goes in it. Nothing held is written to.
+A document the world holds under another id with the same cookbook id counts
+as held, and what is created points at it; a person or a list the world's
+LIBRARY holds counts as held too, and what is created points at the library —
+so importing into the world that built the Adventure never mints a world twin
+of a library person beside the one every roster already names. Only the
+document types the Judge ticked on the import sheet are created. To put a
+part back as the book has it, delete it and import again. Core's import is
+narrowed this way only for an Adventure carrying `kind.settlementAdventure`;
+every other Adventure imports as core imports it. The hook that narrows it is
+synchronous by necessity: core does not await it, and a promise there would
+leave core's lists whole and send the import into its overwrite (pinned by
+`tools/importer/test-settlement-adventure.mjs`).
+
+**Organisations are roots.** An organisation the world lacks is created by
+every import that includes actors, named or not: nothing else in the
+Adventure names an organisation, so one a Judge deleted could not otherwise
+be put back. **Rejected:** organisations as roots only in a world that holds
+none of them (the critique's alternative) — a Judge who pruned bodies on
+purpose keeps them gone, but a Judge who deleted one to reset it can never
+have it back. The Judge who wants a prune to hold unticks Actors on the
+import sheet.
+
+What this knew that 2026-09-17 did not. The ask for a compendium form of the
+map, to set the city up to play from the book. That the rejected compendium
+scene failed because its links named library actors, and an Adventure carries
+its actors and creates them under their own ids (`keepId`), so its links
+resolve on arrival. And that core's import writes over a held document whole,
+without its hooks: a second import of a played city would erase the goods,
+the standing and the tokens.
+
+**Rejected:** a compendium Scene shelf: a scene dragged from it is the case
+rejected on 2026-09-17. **Rejected:** building it from the world's copies
+(core's exporter): it ships play and the Judge's secrets as the book.
+**Rejected:** core's overwrite: see above. **Rejected:** creating everything
+it carries: the library's people would arrive as twins of the people an
+organisation already rosters, and be rostered twice. **Rejected:** a
+distributable module package carrying the city: it ships book content, and
+Foundry has no client-side path to compile module packs.
+
+*Cost:* a world compendium belongs to its world, so the Adventure opens where
+it was built, or where a Judge moves the pack, and its picture only on the
+same server. It is as old as the step that wrote it: a book reimported is
+not in it until it is deleted and the step run again. Putting something back
+means deleting it first. A person no organisation names is left out, and a
+seat the map does not show stays a library reference (the description counts
+them). The shelf-lock track (2026-09-18, on hold) is not landed, so the
+Adventure is written to an unlocked shelf like every other library document.

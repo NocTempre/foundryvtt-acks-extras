@@ -372,3 +372,18 @@ comments now state the guard; the story is here.
 
 - **A change key names its roll family.** One effect may carry several changes, which is how a rule that spans roll families is expressed. Before this, every effect was implicitly a reaction effect and the loyalty page had to include all of them or none, so a Diplomacy bonus leaked onto loyalty rolls, or an ability spanning several families silently failed to apply to some of them.
 - **`hitDiceOrLevel` anchors the hit-dice parse.** An earlier parse took a die size for a rating, reading a "d8" as 8.
+
+### A page's bands may arrive with the call, and its bribe basis too (2026-09-29)
+
+The markets feature's assessment day is a reaction-style throw whose outcome
+column is imported per world, not printed structure this feature could carry.
+Three seams were opened rather than a markets-owned copy of the roller:
+`bands: "ctx"` reads the column from the caller's bag (a page without one
+refuses to roll, with a warning naming the mode), `ctx.bribeBasisHd` prices a
+bribe for a target with no hit dice, and the roll-complete payload carries
+`bribe: {level, fee}` so the consumer charges what the page priced. The page
+still moves no gold: `#maybePayBribe` stays a core-tone matter, because an
+external page's consumer knows where the fee goes (the market, here) and the
+roller does not. Rejected: a fourth seam letting a consumer supply the whole
+modifier stack — the point of hosting the roll here is that the stack is this
+feature's. `apiVersion` 9.

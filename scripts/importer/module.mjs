@@ -90,6 +90,7 @@ import { isPrimaryGM } from "../lib/util.mjs";
 import { getDoc } from "../lib/tables.mjs";
 import { LEGACY_ID, LEGACY_LOCAL_KEYS, LEGACY_SHELF_DIR, LEGACY_ART_DIR, legacyImporterActive } from "./legacy.mjs";
 import { migrateLegacyScope } from "./migrate.mjs";
+import { registerSettlementAdventureHooks } from "./settlement-adventure.mjs";
 
 const SETTING_DYNAMIC = "dynamicRecipes";
 const SETTING_REFRESH_CACHE = "refreshCacheSeconds";
@@ -2799,6 +2800,8 @@ Hooks.once("init", () => {
   // read once and emptied (`migrateShelfSetting`); nothing else touches it.
   game.settings.register(MODULE_ID, SETTING_SHELF, { scope: "world", config: false, type: Object, default: {} });
   registerGettingStartedSettings();
+  // An Adventure the map step wrote imports as a fill, never an overwrite.
+  registerSettlementAdventureHooks();
   setWorker(`modules/${MODULE_ID}/vendor/pdfjs/pdf.worker.mjs`);
   setWasmUrl(`modules/${MODULE_ID}/vendor/pdfjs/wasm/`);
 });

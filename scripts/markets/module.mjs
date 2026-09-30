@@ -13,6 +13,7 @@ import { missingTablesList } from "../lib/ruledata.mjs";
 import { MODULE_ID, LANG, RULEDATA, HOOKS } from "./constants.mjs";
 import * as config from "./config.mjs";
 import { registerSettings, getSetting } from "./settings.mjs";
+import { registerAssessmentListener } from "./engine/assessment.mjs";
 import * as availabilityRules from "./rules/availability.mjs";
 import * as pricingRules from "./rules/pricing.mjs";
 import * as importRules from "./rules/imports.mjs";
@@ -36,7 +37,17 @@ import {
   registerImportWatcher,
 } from "./engine/imports.mjs";
 import { identifyAttempt, availableMethods, candidateIdentifiers, METHODS } from "./engine/identify.mjs";
-import { postVentureAction, performVentureAction, tradeMerchandise, performVentureTrade, ventureOf } from "./engine/ventures.mjs";
+import {
+  postVentureAction,
+  performVentureAction,
+  cancelVentureAction,
+  performVentureCancel,
+  leaveVentureMarket,
+  performVentureLeave,
+  tradeMerchandise,
+  performVentureTrade,
+  ventureOf,
+} from "./engine/ventures.mjs";
 import { openVentureTradeDialog, VentureTradeDialog } from "./apps/venture-dialog.mjs";
 import { PartyConfigApp } from "./apps/party-config.mjs";
 import { openCommissionDialog, CommissionDialog } from "./apps/commission-dialog.mjs";
@@ -141,6 +152,10 @@ Hooks.once("setup", () => {
     // ventures
     postVentureAction,
     performVentureAction,
+    cancelVentureAction,
+    performVentureCancel,
+    leaveVentureMarket,
+    performVentureLeave,
     tradeMerchandise,
     performVentureTrade,
     ventureOf,
@@ -184,6 +199,8 @@ Hooks.once("ready", () => {
   // GM-side due-processing whenever world time moves: import arrivals and
   // losses reveal on their rolled dates (idempotent per order).
   registerImportWatcher();
+  // The assessment day's roll, made on the influence page, becomes a queued day.
+  registerAssessmentListener();
 
   // Book tables are imported per-world, not shipped. Name the missing
   // documents once to the GM — by the declared TABLES that are readable, never

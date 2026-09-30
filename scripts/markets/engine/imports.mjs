@@ -157,6 +157,8 @@ export async function placeImportOrder(location, payload) {
     time: t,
     type: "importOrder",
     note: `${buyer.name}: ordered ${qty}× ${itemData.name} from ${hub} hub for ${totalGp}gp [${order.id}]`,
+    actorUuid: buyer.uuid,
+    gp: -totalGp,
   });
   await location.update({
     "system.market.goods.imports": [...existing, order],
@@ -208,7 +210,7 @@ export async function processImports(location) {
     const buyer = buyerDoc?.actor ?? buyerDoc;
     if (order.lost) {
       order.status = "lostRevealed";
-      log.push({ time: t, type: "importLost", note: `${order.qty}× ${order.itemName}: lost in transit (${order.rollDetail})` });
+      log.push({ time: t, type: "importLost", note: `${order.qty}× ${order.itemName}: lost in transit (${order.rollDetail})`, actorUuid: order.buyerUuid ?? "", gp: 0 });
       if (buyer) {
         await postCard(buyer, `<strong>${game.i18n.format(`${LANG}.imports.lostLine`, { qty: order.qty, name: order.itemName })}</strong>`);
       }
@@ -224,7 +226,7 @@ export async function processImports(location) {
       }
       await deliverGoods(buyer, { entry, qty: order.qty });
       order.status = "delivered";
-      log.push({ time: t, type: "importArrived", note: `${buyer.name}: ${order.qty}× ${order.itemName} arrived` });
+      log.push({ time: t, type: "importArrived", note: `${buyer.name}: ${order.qty}× ${order.itemName} arrived`, actorUuid: buyer.uuid, gp: 0 });
       await postCard(buyer, `<strong>${game.i18n.format(`${LANG}.imports.arrivedLine`, { buyer: buyer.name, qty: order.qty, name: order.itemName, location: location.name })}</strong>`);
     }
     resolved += 1;
@@ -246,7 +248,7 @@ export async function processImports(location) {
       continue;
     }
     await deliverGoods(buyer, { entry, qty: order.qty });
-    log.push({ time: t, type: "commissionDone", note: `${buyer.name}: ${order.qty}× ${order.itemName} finished` });
+    log.push({ time: t, type: "commissionDone", note: `${buyer.name}: ${order.qty}× ${order.itemName} finished`, actorUuid: buyer.uuid, gp: 0 });
     await postCard(buyer, `<strong>${game.i18n.format(`${LANG}.commissions.doneLine`, { buyer: buyer.name, qty: order.qty, name: order.itemName })}</strong>`);
   }
   if (built.length) updates["system.market.goods.commissions"] = commissions;
@@ -349,6 +351,8 @@ export async function placeCommission(location, payload) {
     time: t,
     type: "commission",
     note: `${buyer.name}: commissioned ${qty}× ${itemData.name} (${worker}, ${plan.days} days, ${wagesGp}gp wages) [${order.id}]`,
+    actorUuid: buyer.uuid,
+    gp: -(Number(wagesGp) || 0),
   });
   await location.update({
     "system.market.goods.commissions": [...existing, order],
@@ -402,7 +406,7 @@ export async function createItemSearch(location, payload) {
     status: "active",
   };
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
-  log.push({ time: t, type: "search", note: `${buyer.name}: searching for ${qty}× ${entry.data.name} [${search.id}]` });
+  log.push({ time: t, type: "search", note: `${buyer.name}: searching for ${qty}× ${entry.data.name} [${search.id}]`, actorUuid: buyer.uuid, gp: 0 });
   await location.update({
     "system.market.goods.searches": [...existing, search],
     "system.market.marketLog": log.slice(-300),
@@ -458,7 +462,7 @@ async function processSearches(location, goodsWrites, log, t) {
     goodsWrites.dirty = true;
     if (state.room.remaining >= Math.max(1, search.qty)) {
       search.status = "found";
-      log.push({ time: t, type: "searchFound", note: `${search.qty}× ${search.itemName}: found for ${buyer.name}` });
+      log.push({ time: t, type: "searchFound", note: `${search.qty}× ${search.itemName}: found for ${buyer.name}`, actorUuid: buyer.uuid, gp: 0 });
       await postCard(buyer, `<strong>${game.i18n.format(`${LANG}.searches.foundLine`, { qty: search.qty, name: search.itemName, location: location.name })}</strong>`);
     }
   }

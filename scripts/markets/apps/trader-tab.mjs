@@ -20,8 +20,25 @@ import { partyOf, partyMembers } from "../engine/parties.mjs";
 import { merchandiseFor } from "../engine/merchandise.mjs";
 import { objectsOf, allReports, plainReport, performGive, performRetire } from "../engine/trade-objects.mjs";
 import { beliefsFor, compareBeliefs, groupByMarket, heldByParty, isTraderProfile } from "../rules/reports.mjs";
+import { historyRows, historyNetGp } from "../rules/ledger.mjs";
 import { resolveActorSync } from "../../lib/storage.mjs";
 import { outcomeLabel, reportDay, ownsReport } from "./report-sheet.mjs";
+
+/** Every market's ledger, as the history reader takes them. */
+export function marketLedgers() {
+  return game.actors
+    .filter((a) => Array.isArray(a.system?.market?.marketLog) && a.system.market.marketLog.length)
+    .map((a) => ({ marketUuid: a.uuid, marketName: a.name, rows: a.system.market.marketLog }));
+}
+
+/** History rows as a table renders them: the day, the kind's label, the note, the signed gp. */
+export function historyContext(rows) {
+  const signedGp = (n) => (n === 0 ? "—" : n > 0 ? `+${n}` : `${n}`);
+  return {
+    rows: rows.map((r) => ({ ...r, when: reportDay(r.time), typeLabel: game.i18n.localize(`${LANG}.history.type.${r.type}`), gp: signedGp(r.gp) })),
+    net: signedGp(historyNetGp(rows)),
+  };
+}
 
 const loc = makeLoc(LANG);
 const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
@@ -110,6 +127,8 @@ export function buildTraderTab(actor, { compare = null } = {}) {
     flagged: !!actor.getFlag(MODULE_ID, ITEM_FLAG)?.[TRADER_FLAG],
     hasResearch: groups.length > 0,
     groups,
+    // This character's own rows only: what the markets' ledgers say they did.
+    history: historyContext(historyRows(marketLedgers(), { actorUuids: [actor.uuid] })),
     compare: {
       available: markets.length >= 2,
       optionsA: options(a),

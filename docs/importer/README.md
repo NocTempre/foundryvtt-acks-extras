@@ -21,8 +21,8 @@ concerns:
 [TESTING.md](TESTING.md) carries the live-test recipes — the go-live gate.
 
 The importer user guide is [docs/guides/importer.md](../guides/importer.md) —
-it explains how to connect books, import content, browse entries and import OSE
-adventures.
+it explains how to connect books, import content, set up a settlement's map,
+browse entries and import OSE adventures.
 
 ## Not shipped
 

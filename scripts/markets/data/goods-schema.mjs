@@ -182,8 +182,13 @@ export function goodsSchema() {
         cargoSt: int(0), // enter: declared cargo capacity
         postedTime: int(),
         resolveTime: int(),
-        status: new f.StringField({ required: true, initial: "pending", choices: ["pending", "done"] }),
+        // A day withdrawn before it resolved keeps its row (and what it cost): the queue is a record.
+        status: new f.StringField({ required: true, initial: "pending", choices: ["pending", "done", "cancelled"] }),
         detail: str(),
+        // assess: the Judge's roll, made when the day was posted (the influence page), read by the sweep.
+        natural: new f.NumberField({ required: false, nullable: true, integer: true, initial: null }),
+        total: new f.NumberField({ required: false, nullable: true, integer: true, initial: null }),
+        bribeGp: num(0),
       })
     ),
     // Venture state per party-month: entered, cargo, impact, toll paid.

@@ -37,7 +37,12 @@ import {
   marketMonthStart,
 } from "../engine/trade.mjs";
 import { processImports, performItemSearch, performSearchCancel } from "../engine/imports.mjs";
-import { performVentureAction, ventureOf } from "../engine/ventures.mjs";
+import { performVentureAction, performVentureCancel, performVentureLeave, ventureOf } from "../engine/ventures.mjs";
+import { assessmentBands, printedError } from "../engine/printed.mjs";
+import { assessmentBribeBasisHd } from "../engine/assessment.mjs";
+import { assessmentPageBands } from "../rules/arbitrage.mjs";
+import { historyRows } from "../rules/ledger.mjs";
+import { historyContext } from "./trader-tab.mjs";
 import { partyOf, partiesConfig, partyMembers, DEFAULT_PARTY_ID } from "../engine/parties.mjs";
 import { objectsAt, plainReport } from "../engine/trade-objects.mjs";
 import { beliefsFor, heldByParty } from "../rules/reports.mjs";
@@ -304,11 +309,30 @@ export async function prepareTradeTab(sheet, context) {
   context.venture = partyId ? (ventureOf(location, partyId, monthStart) ?? null) : null;
   context.ventureActions = (goods.actions ?? [])
     .filter((a) => a.status === "pending" && (isGM || a.partyId === partyId))
-    .map((a) => ({
-      kindLabel: game.i18n.localize(`${LANG}.ventures.kind.${a.kind}`),
-      category: a.category ? goodLabel(a.category) : "",
-      etaDays: daysUntil(a.resolveTime, t),
-    }));
+    .map((a) => {
+      const trader = actorOfUuid(a.actorUuid);
+      return {
+        id: a.id,
+        kindLabel: game.i18n.localize(`${LANG}.ventures.kind.${a.kind}`),
+        category: a.category ? goodLabel(a.category) : "",
+        etaDays: daysUntil(a.resolveTime, t),
+        traderName: trader?.name ?? "",
+        // A queued day can be withdrawn by the Judge, or by whoever owns the trader who posted it.
+        canCancel: isGM || !!trader?.isOwner,
+      };
+    });
+
+  // This market's ledger, for the viewer's own traders (the Judge: every trader's rows).
+  const historyWho = isGM
+    ? (goods.actions ?? []).map((a) => a.actorUuid).concat((location.system.market.marketLog ?? []).map((r) => r.actorUuid))
+    : game.actors.filter((a) => a.isOwner).map((a) => a.uuid);
+  context.history = historyContext(
+    historyRows([{ marketUuid: location.uuid, marketName: location.name, rows: location.system.market.marketLog ?? [] }], {
+      actorUuids: [...new Set(historyWho.filter(Boolean))],
+    })
+  );
+  // The Judge reads every trader's rows, so each names its trader.
+  if (isGM) for (const row of context.history.rows) row.traderName = actorOfUuid(row.actorUuid)?.name ?? "";
   // The catalogue lists a Judge's own goods too.
   context.merchOptions = merchandiseCatalog().map((row) => ({ key: row.key, label: row.label }));
 
@@ -542,9 +566,67 @@ export const TRADE_TAB_ACTIONS = {
     await postVenture(this, "enter", { cargoSt });
   },
 
-  /** Assess supply and demand: a dedicated day. */
+  /**
+   * Assess supply and demand: a dedicated day, its roll made now on the
+   * influence page against this market (Charisma, a tone proficiency, a
+   * bribe, reaction effects) and posted with the day by the roll-complete
+   * listener (`engine/assessment.mjs`). Without the influence feature the day
+   * is posted bare and the sweep rolls Charisma alone.
+   */
   async ventureAssess() {
-    await postVenture(this, "assess");
+    const trader = requireTrader(this);
+    if (!trader) return;
+    const location = this.actor;
+    const bands = assessmentPageBands(assessmentBands());
+    if (!bands) {
+      reportResult(this, printedError("assessmentProse"));
+      return;
+    }
+    const api = globalThis.acksExtras?.influence;
+    if ((api?.apiVersion ?? 0) < 9) {
+      ui.notifications.warn(loc("ventures.assessNoInfluence"));
+      await postVenture(this, "assess");
+      return;
+    }
+    api.open(trader, {
+      mode: "marketAssessment",
+      targetActor: location,
+      ctx: {
+        bands,
+        targetName: location.name,
+        targetImg: location.img,
+        bribeBasisHd: assessmentBribeBasisHd(location),
+      },
+      context: { module: MODULE_ID, kind: "marketAssessment", locationUuid: location.uuid, actorUuid: trader.uuid },
+    });
+  },
+
+  /** Withdraw a queued day. Nothing paid for it comes back. */
+  async ventureCancel(_event, target) {
+    const actionId = target?.dataset?.actionId;
+    if (!actionId) return;
+    const sure = await foundry.applications.api.DialogV2.confirm({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      window: { title: loc("ventures.cancelTitle") },
+      content: `<p>${loc("ventures.cancelBody")}</p>`,
+      rejectClose: false,
+    }).catch(() => false);
+    if (!sure) return;
+    reportResult(this, await performVentureCancel(this.actor, { actionId }), loc("ventures.cancelled"));
+  },
+
+  /** Leave the market as the acting trader's party. The toll stays spent; waiting days are withdrawn. */
+  async ventureLeave() {
+    const trader = requireTrader(this);
+    if (!trader) return;
+    const sure = await foundry.applications.api.DialogV2.confirm({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      window: { title: loc("ventures.leaveTitle") },
+      content: `<p>${loc("ventures.leaveBody")}</p>`,
+      rejectClose: false,
+    }).catch(() => false);
+    if (!sure) return;
+    reportResult(this, await performVentureLeave(this.actor, { actorUuid: trader.uuid }), loc("ventures.left"));
   },
 
   /** Solicit buyers/sellers in the selected merchandise: a dedicated day. */

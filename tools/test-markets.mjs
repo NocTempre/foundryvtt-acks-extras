@@ -29,7 +29,7 @@ const SWING = { buy: 15, sell: 20 };
 const { parseMoneyCp, commissionPlan } =
   await import(new URL("../scripts/markets/rules/commissions.mjs", import.meta.url));
 
-const { isMasterwork, magicBasisOf, marketsFlagOf, capVerdict } =
+const { isMasterwork, isTemplateCopy, magicBasisOf, marketsFlagOf, capVerdict } =
   await import(new URL("../scripts/markets/rules/goods.mjs", import.meta.url));
 
 /* ------------------------- cell grammar ------------------------- */
@@ -485,6 +485,10 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
     "an explicit markets override beats the sheet's tier"
   );
 
+  assert.strictEqual(isTemplateCopy({ name: "Sword" }), false, "a plain shop item is a catalogue good");
+  assert.strictEqual(isTemplateCopy(withFlags({ skin: { base: "uuid:x", descriptor: "Ornate sword" } }, "Ornate sword")), true, "a kit skin is not");
+  assert.strictEqual(isTemplateCopy(withFlags({ templatePart: { kind: "gear" } })), true, "nor is any template part");
+
   assert.deepStrictEqual(magicBasisOf({ system: { cost: 40 } }), { magic: false, baseGp: 0 }, "mundane items report no magic basis");
   assert.deepStrictEqual(
     magicBasisOf({ system: { cost: 40 }, flags: { "acks-extras": { markets: { magic: true, baseCostGp: 900 } } } }),
@@ -613,4 +617,102 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   delete globalThis.game;
 }
 
-console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, item flags, identification, printed reader)");
+// ---- the venture queue: duplicates, withdrawal, the page's bands ----
+{
+  const { pendingDuplicate, cancelVerdict, assessmentPageBands, ASSESSMENT_RESULTS } = await import(
+    new URL("../scripts/markets/rules/arbitrage.mjs", import.meta.url)
+  );
+  const queue = [
+    { id: "a1", kind: "assess", actorUuid: "Actor.A", category: "", status: "pending" },
+    { id: "s1", kind: "solicit", actorUuid: "Actor.A", category: "salt", status: "pending" },
+    { id: "s0", kind: "solicit", actorUuid: "Actor.A", category: "wool", status: "done" },
+    { id: "b1", kind: "assess", actorUuid: "Actor.B", category: "", status: "cancelled" },
+  ];
+  assert.strictEqual(pendingDuplicate(queue, { kind: "assess", actorUuid: "Actor.A" })?.id, "a1", "a second assessment while one waits is a duplicate");
+  assert.strictEqual(pendingDuplicate(queue, { kind: "assess", actorUuid: "Actor.B" }), undefined, "a withdrawn day is no duplicate");
+  assert.strictEqual(pendingDuplicate(queue, { kind: "solicit", actorUuid: "Actor.A", category: "salt" })?.id, "s1", "the same merchandise solicited twice");
+  assert.strictEqual(pendingDuplicate(queue, { kind: "solicit", actorUuid: "Actor.A", category: "wool" }), undefined, "a resolved solicitation may be repeated");
+  assert.strictEqual(pendingDuplicate(queue, { kind: "solicit", actorUuid: "Actor.A", category: "silk" }), undefined, "another merchandise is another day");
+  assert.strictEqual(pendingDuplicate(queue, { kind: "assess", actorUuid: "Actor.C" }), undefined, "another trader's day is theirs");
+
+  const owns = (uuid) => uuid === "Actor.A";
+  assert.strictEqual(cancelVerdict(queue[0], { isGM: false, ownsActor: owns }), "ok", "a player withdraws their own pending day");
+  assert.strictEqual(cancelVerdict(queue[2], { isGM: false, ownsActor: owns }), "notPending", "a resolved day cannot be withdrawn");
+  assert.strictEqual(cancelVerdict(queue[3], { isGM: true, ownsActor: () => false }), "notPending", "nor a withdrawn one, even by the Judge");
+  assert.strictEqual(cancelVerdict({ status: "pending", actorUuid: "Actor.B" }, { isGM: false, ownsActor: owns }), "notYours", "another trader's day is refused");
+  assert.strictEqual(cancelVerdict({ status: "pending", actorUuid: "Actor.B" }, { isGM: true, ownsActor: owns }), "ok", "the Judge withdraws anyone's");
+  assert.strictEqual(cancelVerdict(undefined, { isGM: true, ownsActor: owns }), "notPending", "no such day");
+
+  const page = assessmentPageBands([{ min: null, max: 2 }, { min: 3, max: 5 }, { min: 6, max: 8 }, { min: 9, max: 11 }, { min: 12, max: null }]);
+  assert.deepStrictEqual(page.map((b) => b.key), [...ASSESSMENT_RESULTS], "the page's rows carry the outcome names, worst first");
+  assert.deepStrictEqual(page[0], { key: "false", max: 2 }, "an open low end is omitted");
+  assert.deepStrictEqual(page[4], { key: "success", min: 12 }, "an open high end is omitted");
+  assert.strictEqual(assessmentPageBands(null), null, "an unread column gives no page");
+  assert.strictEqual(assessmentPageBands([{ min: 1, max: 2 }]), null, "a short column is not the table");
+
+  // Leaving: the row stays, entered no longer; the party's waiting days go with it, and its solicitations.
+  const { leaveMarket } = await import(new URL("../scripts/markets/rules/arbitrage.mjs", import.meta.url));
+  const state = {
+    ventures: [
+      { partyId: "p1", monthStartTime: 1000, cargoSt: 40, impact: 2, effectiveClass: 3, tollCp: 400, entered: true },
+      { partyId: "p2", monthStartTime: 1000, cargoSt: 10, impact: 1, effectiveClass: 3, tollCp: 100, entered: true },
+    ],
+    actions: [
+      { id: "q1", kind: "solicit", partyId: "p1", actorUuid: "Actor.A", category: "salt", status: "pending" },
+      { id: "q2", kind: "assess", partyId: "p1", actorUuid: "Actor.A", category: "", status: "pending" },
+      { id: "q3", kind: "extraSearch", partyId: "p1", actorUuid: "Actor.A", category: "", status: "pending" },
+      { id: "q4", kind: "solicit", partyId: "p2", actorUuid: "Actor.B", category: "salt", status: "pending" },
+      { id: "q5", kind: "solicit", partyId: "p1", actorUuid: "Actor.A", category: "wool", status: "done" },
+    ],
+    solicitations: [
+      { partyId: "p1", category: "salt", monthStartTime: 1000, stones: 5 },
+      { partyId: "p1", category: "wool", monthStartTime: 900, stones: 5 },
+      { partyId: "p2", category: "salt", monthStartTime: 1000, stones: 3 },
+    ],
+  };
+  const left = leaveMarket(state, { partyId: "p1", monthStart: 1000 });
+  assert.deepStrictEqual(left, { ok: true, cancelledIds: ["q1", "q2"], droppedSolicitations: 1 }, "the party's own waiting venture days and this month's solicitations go");
+  assert.strictEqual(state.ventures[0].entered, false, "the row stays, entered no longer");
+  assert.strictEqual(state.ventures[0].tollCp, 400, "the toll paid is still on record");
+  assert.strictEqual(state.ventures[1].entered, true, "another party's entry stands");
+  assert.deepStrictEqual(
+    state.actions.map((a) => a.status),
+    ["cancelled", "cancelled", "pending", "pending", "done"],
+    "an extended search, another party's day and a resolved day are untouched"
+  );
+  assert.deepStrictEqual(
+    state.solicitations.map((s) => `${s.partyId}:${s.category}:${s.monthStartTime}`),
+    ["p1:wool:900", "p2:salt:1000"],
+    "only this party's rows for this month are dropped"
+  );
+  assert.deepStrictEqual(leaveMarket(state, { partyId: "p1", monthStart: 1000 }), { error: "notEntered" }, "leaving twice is refused");
+  assert.deepStrictEqual(leaveMarket(state, { partyId: "p3", monthStart: 1000 }), { error: "notEntered" }, "a party never in is refused");
+}
+
+// ---- a trader's history out of the markets' ledgers ----
+{
+  const { historyRows, historyNetGp, HISTORY_TYPES } = await import(new URL("../scripts/markets/rules/ledger.mjs", import.meta.url));
+  const ledgers = [
+    {
+      marketUuid: "Actor.M1",
+      marketName: "First",
+      rows: [
+        { time: 100, type: "purchase", note: "A bought", actorUuid: "Actor.A", gp: -12 },
+        { time: 300, type: "sale", note: "A sold", actorUuid: "Actor.A", gp: 30 },
+        { time: 200, type: "monthRoll", note: "the month rolled", actorUuid: "", gp: 0 },
+        { time: 250, type: "purchase", note: "B bought", actorUuid: "Actor.B", gp: -5 },
+        { time: 260, type: "hire", note: "A hired someone", actorUuid: "Actor.A" },
+      ],
+    },
+    { marketUuid: "Actor.M2", marketName: "Second", rows: [{ time: 400, type: "ventureAction", note: "A: assess posted", actorUuid: "Actor.A", gp: -3 }] },
+  ];
+  const mine = historyRows(ledgers, { actorUuids: ["Actor.A"] });
+  assert.deepStrictEqual(mine.map((r) => [r.time, r.marketName]), [[400, "Second"], [300, "First"], [100, "First"]], "own rows only, newest first, across markets");
+  assert.ok(!HISTORY_TYPES.includes("hire"), "a hire is the market's business, not trade history");
+  assert.strictEqual(historyNetGp(mine), 15, "the net coin movement, paid negative");
+  assert.deepStrictEqual(historyRows(ledgers, { actorUuids: ["Actor.A", "Actor.B"], limit: 2 }).map((r) => r.time), [400, 300], "the cap keeps the newest");
+  assert.deepStrictEqual(historyRows(ledgers, { actorUuids: [] }), [], "nobody, nothing");
+  assert.deepStrictEqual(historyRows(ledgers, { actorUuids: ["Actor.Z"] }), [], "a stranger sees nothing");
+}
+
+console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader)");

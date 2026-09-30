@@ -45,7 +45,16 @@ Every modifier resolves from one of three sources:
 - **manual** — set by the roller.
 
 `ctx:<key>` sources read the caller's own context bag, which is the seam an
-external mode resolves against.
+external mode resolves against. A mode may also take its **bands** from that
+bag (`bands: "ctx"`: the caller passes `ctx.bands` as `[{key, min?, max?}]`
+in band order) where the column is imported per world rather than
+structural — the markets feature's `marketAssessment` page is the first — and
+a page opened without them warns and refuses to roll. The bribe row's fee is
+priced against the target's hit dice, or against `ctx.bribeBasisHd` when the
+caller sets one, for a target that has none (a market). The roll-complete
+hook payload carries `bribe: {level, fee}` for a page with a bribe row, so a
+consumer can charge what the page priced; an external page never moves gold
+itself. `apiVersion` 9 is the first to carry all three.
 
 **An ability counts once per page.** One proficiency can reach the roller by
 every route at once: its name fills a static `prof:` row, an Active Effect on it
