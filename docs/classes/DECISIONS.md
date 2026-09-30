@@ -1431,6 +1431,29 @@ training survives a re-import, and a class never carries two training
 effects because the importer skips building one whose keys an unminted
 effect already holds.
 
+## 2026-09-30 — A legacy is the player's, kept on the User, written by the Judge
+
+**Ruled.** The reserve fund and funerals are one ledger per PLAYER, stored as
+a User flag; only a GM seat records into it. A will is an actor flag its owner
+writes and the Judge settles. The three percentages are imported (RR ch. 6).
+Recording can take the coin from the character's purse in the same act.
+
+**Why.** The book makes the fund the player's and says it cannot pass between
+players (RR ch. 6, Reserve XP Fund); a character flag would die with the
+character it outlives. What counts as spending to no tangible benefit is a
+Judge's ruling, so the write is theirs. The user asked for the fund tied to
+the player with its own window (2026-09-30).
+
+**Rejected.** A player recording their own entries: a User can write its own
+flags, but the ruling is not theirs to make. Moving the deceased's items into
+the heir's hands on settlement: which belongings the will covers and which
+fall to the party is the Judge's call, and a bulk transfer cannot be undone
+cleanly — only the banked sum moves.
+
+**What it cost.** A character no player owns needs a player named in the
+Legacy window before anything records. Heirs receive coin only; an item
+bequest is moved by hand.
+
 ## 2026-09-30 — The key-attribute adjustment is derived, and the Tweaks field outranks it
 
 **Ruled.** A class's key attributes derive the experience adjustment from the

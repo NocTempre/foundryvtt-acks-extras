@@ -193,6 +193,29 @@ what is equipped, so emptying that one lasts only until the next change.
 Deleting the character works exactly as before.
 
 
+## Legacy — the reserve fund, funerals and a will
+
+The **Legacy** chip on the Class tab opens the player's legacy (RR ch. 6,
+Experience). The fund belongs to the player, so every character that player
+owns shows the same ledger; the chip shows the fund once it holds anything.
+
+- **Recording (Judge).** Enter the gold a character spent, choose **Into the
+  reserve** or **Heroic funeral**, and the ledger records the experience it is
+  worth at the imported rate. Leave "pay from the purse" on to take the coin
+  from the character at the same time. A mistaken row can be struck.
+- **Starting a character (Judge).** On the new character's window, pick the
+  character they follow and press **Start**: their experience rises to the
+  figure shown, and any funeral used is marked claimed. The level-up button
+  then climbs them.
+- **A will.** The character's owner names an heir and an estate; the Judge
+  settles it when the time comes, and the heir's bank receives the estate less
+  the bank's charge.
+- **A character nobody owns** (a Judge's back-up character) needs a player
+  assigned at the top of the window before anything records.
+
+Import the rules tables once so the rates are read from your book; until then
+the window says so and records nothing.
+
 ## Advanced mode — the class builder
 
 The constructor's **Builder** tab is the Judges Journal's custom-class

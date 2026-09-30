@@ -15,9 +15,9 @@ import { classForActor } from "./registry.mjs";
 /** The registered ruledata document the adjustment reads. */
 export const EXPERIENCE_DOC = "experience";
 
-/** Declare what is read, so import UX can name the gap. */
+/** Declare what is read — here and by `legacy.mjs` — so import UX can name the gap. */
 export function registerXpBonusExpectations() {
-  expectTables(EXPERIENCE_DOC, ["keyAttributeXp"]);
+  expectTables(EXPERIENCE_DOC, ["keyAttributeXp", "reserveRate", "funeralRate", "bankFee"]);
 }
 
 /** The imported band rows, or null where no book has been read. */

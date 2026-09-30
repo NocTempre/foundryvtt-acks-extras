@@ -1,0 +1,129 @@
+{{!-- A player's legacy (RR ch. 6, Experience): the reserve fund and funerals
+      the player carries between characters, and this character's will. --}}
+<div class="acks-extras-legacy__body">
+  <fieldset data-legacy-section>
+    <legend>{{localize "ACKS-CLASSES.legacy.player"}}</legend>
+    {{#if player}}
+    <p>{{localize "ACKS-CLASSES.legacy.playerIs" name=player.name}}</p>
+    {{else}}
+    <p class="hint">{{localize "ACKS-CLASSES.legacy.noPlayerHint"}}</p>
+    {{/if}}
+    {{#if isGM}}
+    <div class="form-group">
+      <label>{{localize "ACKS-CLASSES.legacy.setPlayer"}}</label>
+      <div class="form-fields">
+        <select name="player">
+          {{#each players}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+        </select>
+        <button type="button" data-action="setPlayer">{{localize "ACKS-CLASSES.legacy.setPlayerButton"}}</button>
+      </div>
+    </div>
+    {{/if}}
+  </fieldset>
+
+  {{#unless imported}}<p class="hint">{{localize "ACKS-CLASSES.legacy.notImportedHint"}}</p>{{/unless}}
+
+  <fieldset>
+    <legend>{{localize "ACKS-CLASSES.legacy.fund"}}</legend>
+    <div class="acks-extras-legacy__totals">
+      <span>{{localize "ACKS-CLASSES.legacy.fundTotal" xp=fund}}</span>
+      <span>{{localize "ACKS-CLASSES.legacy.funeralTotal" xp=funerals}}</span>
+    </div>
+    {{#if entries.length}}
+    <table class="acks-extras-legacy__ledger">
+      <thead><tr>
+        <th>{{localize "ACKS-CLASSES.legacy.col.kind"}}</th>
+        <th>{{localize "ACKS-CLASSES.legacy.col.character"}}</th>
+        <th>{{localize "ACKS-CLASSES.legacy.col.gp"}}</th>
+        <th>{{localize "ACKS-CLASSES.legacy.col.xp"}}</th>
+        <th>{{localize "ACKS-CLASSES.legacy.col.note"}}</th>
+        {{#if @root.isGM}}<th aria-label="{{localize 'ACKS-CLASSES.legacy.delete'}}"></th>{{/if}}
+      </tr></thead>
+      <tbody>
+      {{#each entries}}
+        <tr>
+          <td>{{kindLabel}}</td>
+          <td>{{actorName}}</td>
+          <td>{{gp}}</td>
+          <td>{{xp}}{{#if claimed}} <span class="hint">{{localize "ACKS-CLASSES.legacy.claimedBy" name=claimed}}</span>{{/if}}</td>
+          <td>{{note}}</td>
+          {{#if @root.isGM}}<td><button type="button" class="icon fa-solid fa-trash" data-action="deleteEntry" data-entry-id="{{id}}" aria-label="{{localize 'ACKS-CLASSES.legacy.delete'}}" data-tooltip="{{localize 'ACKS-CLASSES.legacy.delete'}}"></button></td>{{/if}}
+        </tr>
+      {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="hint">{{localize "ACKS-CLASSES.legacy.empty"}}</p>
+    {{/if}}
+  </fieldset>
+
+  {{#if isGM}}
+  <fieldset data-legacy-section>
+    <legend>{{localize "ACKS-CLASSES.legacy.recordLegend"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-CLASSES.legacy.gp"}}</label>
+      <div class="form-fields"><input type="number" name="gp" min="0" step="1" value="0"></div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-CLASSES.legacy.note"}}</label>
+      <div class="form-fields"><input type="text" name="note"></div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-CLASSES.legacy.pay"}}</label>
+      <div class="form-fields"><input type="checkbox" name="pay" checked></div>
+      <p class="hint">{{localize "ACKS-CLASSES.legacy.payHint" name=actorName}}</p>
+    </div>
+    <div class="form-fields">
+      <button type="button" data-action="record" data-kind="reserve" {{#unless player}}disabled{{/unless}}><i class="fa-solid fa-coins" inert></i> {{localize "ACKS-CLASSES.legacy.recordReserve"}}</button>
+      <button type="button" data-action="record" data-kind="funeral" {{#unless player}}disabled{{/unless}}><i class="fa-solid fa-fire" inert></i> {{localize "ACKS-CLASSES.legacy.recordFuneral"}}</button>
+    </div>
+    <p class="hint">{{localize "ACKS-CLASSES.legacy.recordHint"}}</p>
+  </fieldset>
+
+  <fieldset data-legacy-section>
+    <legend>{{localize "ACKS-CLASSES.legacy.startLegend"}}</legend>
+    {{#if priors.length}}
+    <div class="form-group">
+      <label>{{localize "ACKS-CLASSES.legacy.prior"}}</label>
+      <div class="form-fields">
+        <select name="prior">{{#each priors}}<option value="{{uuid}}">{{label}}</option>{{/each}}</select>
+        <button type="button" data-action="start"><i class="fa-solid fa-person-walking-arrow-right" inert></i> {{localize "ACKS-CLASSES.legacy.startButton" name=actorName}}</button>
+      </div>
+      <p class="hint">{{localize "ACKS-CLASSES.legacy.startHint"}}</p>
+    </div>
+    {{else}}
+    <p class="hint">{{localize "ACKS-CLASSES.legacy.noPriors"}}</p>
+    {{/if}}
+  </fieldset>
+  {{/if}}
+
+  <fieldset data-legacy-section>
+    <legend>{{localize "ACKS-CLASSES.legacy.willLegend"}}</legend>
+    {{#if will.settled}}
+    <p>{{localize "ACKS-CLASSES.legacy.settled" heir=will.settled.heirName net=will.settled.net fee=will.settled.fee}}</p>
+    {{else}}
+    <div class="form-group">
+      <label>{{localize "ACKS-CLASSES.legacy.heir"}}</label>
+      <div class="form-fields">
+        <select name="heir" {{#unless canWill}}disabled{{/unless}}>
+          <option value="">{{localize "ACKS-CLASSES.legacy.noHeir"}}</option>
+          {{#each heirs}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-CLASSES.legacy.estate"}}</label>
+      <div class="form-fields"><input type="number" name="estate" min="0" step="1" value="{{will.estateGp}}" {{#unless canWill}}disabled{{/unless}}></div>
+      {{#if settle}}<p class="hint">{{localize "ACKS-CLASSES.legacy.estateHint" fee=settle.fee net=settle.net}}</p>{{/if}}
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-CLASSES.legacy.note"}}</label>
+      <div class="form-fields"><input type="text" name="willNote" value="{{will.note}}" {{#unless canWill}}disabled{{/unless}}></div>
+    </div>
+    <div class="form-fields">
+      {{#if canWill}}<button type="button" data-action="saveWill"><i class="fa-solid fa-scroll" inert></i> {{localize "ACKS-CLASSES.legacy.saveWill"}}</button>{{/if}}
+      {{#if isGM}}<button type="button" data-action="settleWill" {{#unless will.heirName}}disabled{{/unless}}><i class="fa-solid fa-building-columns" inert></i> {{localize "ACKS-CLASSES.legacy.settleWill"}}</button>{{/if}}
+    </div>
+    {{/if}}
+  </fieldset>
+</div>

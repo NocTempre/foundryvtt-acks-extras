@@ -892,3 +892,26 @@ legend > .acks-extras-classes-ctl {
   font-style: italic;
   cursor: pointer;
 }
+
+/* The Legacy window: a player's reserve fund, funerals and a character's will. */
+.acks-extras-legacy__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.acks-extras-legacy__totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-weight: bold;
+}
+
+.acks-extras-legacy__ledger {
+  width: 100%;
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras-legacy__ledger td {
+  overflow-wrap: anywhere;
+}

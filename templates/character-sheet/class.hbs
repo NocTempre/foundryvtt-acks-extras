@@ -16,6 +16,7 @@
     <button type="button" class="acks-extras-character-sheet__chip" data-action="classPick" data-tooltip="{{localize 'ACKS-CLASSES.pick.tooltip'}}"><i class="fa-solid fa-graduation-cap" inert></i>{{localize "ACKS-CHARACTER.class.pick"}}</button>
     {{#unless c.isNew}}<button type="button" class="acks-extras-character-sheet__chip" data-action="classReopen" data-tooltip="{{localize 'ACKS-CLASSES.reopen.tooltip'}}"><i class="fa-solid fa-dice" inert></i>{{localize "ACKS-CHARACTER.class.reopen"}}</button>{{/unless}}
     {{/if}}
+    <button type="button" class="acks-extras-character-sheet__chip" data-action="legacy" data-tooltip="{{localize 'ACKS-CLASSES.legacy.openTooltip'}}"><i class="fa-solid fa-landmark" inert></i>{{localize "ACKS-CLASSES.legacy.open"}}{{#if c.reserveFund}} · {{c.reserveFund}} XP{{/if}}</button>
   </div>
 
   {{#if c.full}}

@@ -15,6 +15,8 @@ import { pathGroups, chosenOption, actorPaths, groupLabel } from "../../classes/
 import { FLAG_CLASSES } from "../../classes/constants.mjs";
 import { xpBar, storedSystem } from "../view-model.mjs";
 import { xpBonusFor } from "../../classes/xp-bonus.mjs";
+import { playerOf, ledgerOf } from "../../classes/legacy.mjs";
+import { legacyTotals } from "../../classes/legacy-logic.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -71,6 +73,14 @@ function bonusNote(actor) {
   return null;
 }
 
+/** The character's player's reserve fund in XP, or null where there is no player or nothing recorded. */
+function legacyFund(actor) {
+  const user = playerOf(actor);
+  if (!user) return null;
+  const { fund, funerals } = legacyTotals(ledgerOf(user));
+  return fund || funerals ? fund + funerals : null;
+}
+
 /** Build the tab's data. */
 export function buildClassTab(actor) {
   const sys = actor.system ?? {};
@@ -97,6 +107,7 @@ export function buildClassTab(actor) {
     paths: [],
     editable: actor.isOwner,
     isNew: !!sys.isNew,
+    reserveFund: legacyFund(actor),
   };
   if (classItem) {
     const taken = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.awardsTaken ?? [];

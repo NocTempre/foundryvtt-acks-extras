@@ -1,5 +1,23 @@
 # Changelog
 
+## 9.4.0
+
+### Added
+
+- **A player's reserve XP fund, heroic funerals and a character's will have a
+  window of their own.** The **Legacy** chip on the Class tab opens it. The
+  ledger belongs to the player, not the character, so every character that
+  player owns shows the same fund. The Judge records gold spent into the
+  reserve or on a heroic funeral, optionally taking the coin from the
+  character's purse, and the ledger records the experience it is worth at the
+  rate read from the Judge's own book (RR ch. 6). Starting a new character
+  from the legacy raises their experience to the figure the window shows and
+  marks the funerals it used; the level-up button then climbs them. A
+  character's owner names an heir and an estate; the Judge settles it, and the
+  heir's bank receives the estate less the bank's charge. A character nobody
+  owns takes a player assigned in the window. Re-run the rules-table import
+  once to read the rates; until then the window records nothing and says why.
+
 ## 9.3.3
 
 ### Fixed

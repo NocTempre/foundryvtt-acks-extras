@@ -816,3 +816,38 @@ disposable `spell` Item of that title.
 **Teardown.** `api.sweepTracked()`; quote it — the two characters, the
 disposable class, its bundle and table (track their ids off the build report
 and the class's `templateTable`), and the spell.
+
+## A player's legacy (reserve fund, funerals, will)
+
+**Fixtures (as GM, every id recorded):** the `experience` tables imported
+(`acksExtras.importer.cookbookImportTables(["experience"])` with the RR
+connected — check `acksExtras.classes.legacy.rates()` holds all three); two
+disposable `character` actors, "Fallen" (experience set high, carrying gp
+coin) and "Successor", both OWNER for the Player seat; a third, "Heir". The
+ledger lives on the Player User: record its `legacy` flag before the run and
+restore exactly that value at teardown — the User is a world seat, not a
+fixture, so this one write is restored rather than swept.
+
+1. Open Fallen's sheet, Class tab. *Observable:* a **Legacy** chip; the window
+   names the Player seat as the player.
+2. Record gp **Into the reserve** with "pay from the purse" on. *Observable:*
+   Fallen's carried coin falls by exactly that gp; the ledger row shows gp and
+   `floor(gp × reserveRate / 100)` XP; a card is whispered to the Judges and
+   the Player; the chip on the sheet shows the fund.
+3. Record a **Heroic funeral**. *Observable:* "Unclaimed funerals" rises by its
+   XP.
+4. Open Successor's Legacy window, choose Fallen under **Following**, press
+   **Start**. *Observable:* Successor's `system.details.xp.value` becomes the
+   option's "grants" figure (fund + funerals, at most Fallen's XP); the funeral
+   row reads "claimed by Successor"; the option now grants the fund alone,
+   and lowering Fallen's experience below it caps the option there. A start
+   that would not raise Successor is refused with a warning and posts no card.
+5. On Fallen, name Heir with an estate and **Save will**, then **Settle
+   estate**. *Observable:* Heir's banked gp rises by the hint's net figure;
+   the will reads settled; pressing settle again does nothing.
+6. **As the Player seat** (a real join): Fallen's Legacy window shows the
+   ledger and the will form, and no record, start, strike or settle control.
+
+**Teardown.** Delete the fixture actors and every card the run posted by the
+ids read back as each resolved; set the Player User's `legacy` flag back to
+the value recorded before the run (unset it if there was none).

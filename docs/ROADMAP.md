@@ -131,13 +131,8 @@ transparently by taking over the first step; nothing else changes.
 
 ## Experience beyond the character
 
-**Reserve XP fund, heroic funerals and inheritance (RR ch. 6) — the next minor.**
-The fund belongs to the PLAYER, not the character, so it lives on the
-User (a user flag), with a UI to record spending that buys no tangible benefit
-into it, a heroic funeral's addition for the next character, and the ceiling the
-rule sets against the prior character. Inheritance names an heir and the
-treasure left through a will, less the bank's charge. Both rates are printed
-values and arrive through a table recipe like the Key Attribute bands.
+**A will's items.** Settling a will moves the banked sum only; bequeathing
+named items to the heir is by hand (docs/classes/DECISIONS.md, 2026-09-30).
 
 **A monster henchman's experience.** The system gives a `monster` actor no
 experience field (its `details.xp` is what it is worth when defeated), so Deal

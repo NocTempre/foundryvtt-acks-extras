@@ -2659,7 +2659,7 @@ export const TABLE_RECIPES = {
   // adjustment each earns. Raw reads only; experience-binding.mjs assembles
   // the `experience` document acks-extras declares.
   experience: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 14" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 14, 311, 313" },
     tables: {
       keyAttributeRaw: {
         shape: "gridRows",
@@ -2676,6 +2676,29 @@ export const TABLE_RECIPES = {
           { key: "b3", labelRe: "^16\\s*[–-]", labelPattern: "rollBand" },
         ],
         cellColumns: [{ key: "adjustment", x: 480, w: 70, pattern: "raw", row: true }],
+      },
+      // What a player's reserve fund, a heroic funeral and a bank holding a
+      // will are each worth, as printed percentages (RR ch. 6, Experience).
+      reserveProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 311,
+        locate: "Reserve XP Fund",
+        values: [{ key: "rate", find: "in the reserve is equal to", take: "pct", span: 40 }],
+      },
+      funeralProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 313,
+        locate: "beneficiary",
+        values: [{ key: "rate", find: "additional experience points equal to", take: "pct", span: 40 }],
+      },
+      bankProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 313,
+        locate: "reputable bank",
+        values: [{ key: "fee", find: "which will charge a total of", take: "pct", span: 40 }],
       },
     },
   },

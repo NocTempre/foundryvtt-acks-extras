@@ -49,6 +49,7 @@ import { skipDialogFor } from "../lib/roll-dialog.mjs";
 import { openClassPicker } from "../classes/assign-app.mjs";
 import { openLevelUp } from "../classes/levelup.mjs";
 import { reopenChargen } from "../classes/reopen-chargen.mjs";
+import { openLegacy } from "../classes/legacy.mjs";
 import { setActorPath } from "../classes/paths.mjs";
 import { classForActor, classForActorAsync } from "../classes/registry.mjs";
 import { castingStripElement, restPools } from "../classes/casting.mjs";
@@ -165,6 +166,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       classReopen: AcksCharacterSheet.#onClassReopen,
       classOpen: AcksCharacterSheet.#onClassOpen,
       levelUp: AcksCharacterSheet.#onLevelUp,
+      legacy: AcksCharacterSheet.#onLegacy,
       abilityFilter: AcksCharacterSheet.#onAbilityFilter,
       pickLanguage: AcksCharacterSheet.#onPickLanguage,
       spellCast: AcksCharacterSheet.#onSpellCast,
@@ -1259,6 +1261,10 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
 
   static #onLevelUp() {
     openLevelUp(this.actor);
+  }
+
+  static #onLegacy() {
+    openLegacy(this.actor);
   }
 
   static #onAbilityFilter(event, target) {

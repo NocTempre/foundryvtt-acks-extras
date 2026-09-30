@@ -479,6 +479,33 @@ Judge's hand-set figure is never doubled or overridden. The Class tab's XP label
 carries the adjustment and where it came from; the formation's Deal XP applies
 it (`formation/xp-shares.mjs`, recipe in docs/formation/TESTING.md, "Deal XP").
 
+## Legacy — the reserve fund, funerals and a will
+
+What a player keeps between characters (RR ch. 6, Experience).
+`legacy-logic.mjs` does the arithmetic and `legacy.mjs` the writes and the
+window; the Class tab's **Legacy** chip opens it, showing the player's fund
+when it holds any.
+
+- **The ledger is the player's.** It is a User flag (`legacy`: `entries`,
+  `starts`). A character feeds the ledger of the player the Judge named on it
+  (actor flag `legacyPlayer`), else its first non-GM owner. Only a GM writes
+  a ledger; a player reads their own.
+- **An entry records its experience when made**, `floor(gp × rate)` from the
+  imported `experience.reserveRate` / `funeralRate`, so a later re-import
+  never rewrites history. With "pay from the purse" the coin leaves the
+  character first (henchmen's `spendGold`, a sink), and nothing is recorded
+  if it falls short.
+- **Reserve entries sum to the fund and are never spent. A funeral entry is
+  claimed once**, by the next character started. Starting a character raises
+  its experience to the fund plus the open funerals, capped at the chosen
+  prior character's experience (`startingXp`); a start that would not raise
+  it is refused and claims nothing. The level-up wizard then climbs it.
+- **A will lives on the character** (actor flag `will`: heir, estate in gp,
+  note), written by the character's owner. Settling it is the Judge's: the
+  heir's bank is credited the estate less `experience.bankFee` (rounded up to
+  whole gp), and the will is marked settled so it pays once. The deceased's
+  own belongings are not moved.
+
 ## Level-up
 
 [scripts/classes/levelup.mjs](../../scripts/classes/levelup.mjs) watches XP

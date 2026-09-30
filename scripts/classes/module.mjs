@@ -29,7 +29,8 @@ import { openClassPicker, registerAssignUi } from "./assign.mjs";
 import * as casting from "./casting.mjs";
 import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelup.mjs";
 import { registerHitPointExpectations, firstLevelDieMinimum, HITPOINTS_DOC } from "./hitpoints.mjs";
-import { registerXpBonusExpectations } from "./xp-bonus.mjs";
+import { registerXpBonusExpectations, xpBonusFor } from "./xp-bonus.mjs";
+import * as legacy from "./legacy.mjs";
 import { registerPendingChoices, pendingChoices, isOffer, mintPendingChoices, redeemChoice, openChoiceDialog } from "./pending-choices.mjs";
 import { reopenChargen, registerReopenChargen } from "./reopen-chargen.mjs";
 import {
@@ -178,6 +179,19 @@ Hooks.once("init", () => {
     pending: { pendingChoices, isOffer, mintPendingChoices, redeemChoice, openChoiceDialog },
     openClassPicker,
     openLevelUp,
+    // A character's experience adjustment and its player's legacy (reserve
+    // fund, funerals, will) — docs/classes/MODEL.md.
+    xpBonusFor,
+    legacy: {
+      open: legacy.openLegacy,
+      record: legacy.recordLegacy,
+      start: legacy.startFromLegacy,
+      saveWill: legacy.saveWill,
+      settleWill: legacy.settleWill,
+      ledgerOf: legacy.ledgerOf,
+      playerOf: legacy.playerOf,
+      rates: legacy.legacyRates,
+    },
     applyChargen,
     applyTemplate,
     // The starting coin, in the denominations a package prints it in, and the
