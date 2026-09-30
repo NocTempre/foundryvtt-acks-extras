@@ -26,7 +26,10 @@ import {
   removeHolding, removeRelation, removeStanding, setRelation, standingFor, standingRowsFor, subjectsOfActor,
   subjectsOfFormation,
 } from "./standing.mjs";
-import { classStepsFor, matchesSubject, subjectsOf, sumStanding } from "./standing-logic.mjs";
+import {
+  classStepsFor, matchesSubject, normalizeStrength, strengthColumnTotals, strengthRevenue, strengthTotal, subjectsOf,
+  sumStanding,
+} from "./standing-logic.mjs";
 
 /** The picture a faction is made with when its maker names none: core's own hanging sign. */
 const FACTION_IMG = "icons/svg/hanging-sign.svg";
@@ -85,7 +88,9 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", () => {
   acksExtras.factions = {
-    apiVersion: 2,
+    // 3 adds the strength readers (normalizeStrength, strengthTotal,
+    // strengthColumnTotals, strengthRevenue).
+    apiVersion: 3,
     FACTION_TYPE,
     FACTION_KINDS,
     RELATION_STANCES,
@@ -122,6 +127,12 @@ Hooks.once("ready", () => {
     // that goes with a rivalry is a `faction`-scope ledger row.
     relationBetween,
     regardedByFactions,
+    // The strength table: the unnamed people, counted. Readers over a stored
+    // block; `normalizeStrength` is the shape a writer hands `system.strength`.
+    normalizeStrength,
+    strengthTotal,
+    strengthColumnTotals,
+    strengthRevenue,
     // The Judge's writers. GM only.
     addStanding,
     removeStanding,

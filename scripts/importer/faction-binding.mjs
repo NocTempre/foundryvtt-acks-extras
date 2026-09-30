@@ -14,10 +14,16 @@
  * more. It is never read for membership: a heading gathers everyone printed
  * under it, a body's quarry beside its members and a guest beside both, and
  * only a row that was read can tell them apart.
+ *
+ * A body's unnamed people arrive by a second row, `kind.strengthGrid`: the
+ * printed table of members by class and level, whose neutral columns name by
+ * id the organisation each belongs to. The figures and the header words are
+ * read off the page and land as the faction's `strength`.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { FACTION_KINDS, FACTION_TYPE, RELATION_STANCES } from "../factions/constants.mjs";
 import { districtPlaceId, poiGroupOf } from "./poi-binding.mjs";
+import { caseCarriesNothing, titleCaseHeading } from "./printed-name.mjs";
 
 /** Whether a cookbook entry is an authored organisation. */
 export const isOrganisationRow = (entry) => entry?.kind === "kind.organisation" && !!entry?.organisation && typeof entry.organisation === "object";
@@ -118,6 +124,81 @@ export function organisationData({
       },
     },
   };
+}
+
+/** Whether a cookbook entry is an authored strength grid. */
+export const isStrengthGridRow = (entry) =>
+  entry?.kind === "kind.strengthGrid" && !!entry?.strength?.columns && typeof entry.strength.columns === "object";
+
+/**
+ * Whose columns a strength grid's are: the grid's `columns` block maps each
+ * neutral column key to an organisation id, and a body may own several (a
+ * temple that is two orders in one). The revenue column, where the grid has
+ * one, belongs to the body only when every column is that body's — a grid
+ * shared between orders prints no revenue anyone could attribute.
+ * @param {object} entry the grid's cookbook entry
+ * @returns {{owners: Map<string, string[]>, revenue: string}} organisation id to its column keys, in grid order
+ */
+export function strengthPlan(entry) {
+  const block = entry?.strength ?? {};
+  const owners = new Map();
+  for (const [key, id] of Object.entries(block.columns ?? {})) {
+    if (typeof id !== "string" || !id || typeof key !== "string" || !key) continue;
+    (owners.get(id) ?? owners.set(id, []).get(id)).push(key);
+  }
+  const revenue = owners.size === 1 && typeof block.revenue === "string" ? block.revenue : "";
+  return { owners, revenue };
+}
+
+const LEVEL_LABEL = /^(\d+)(?:st|nd|rd|th)$/iu;
+const TOTAL_LABEL = /^total$/iu;
+
+/**
+ * A body's strength block from a grid read off the page: its columns' header
+ * words, one row per level with the count under each of its columns and the
+ * revenue where the grid states it. The grid's `Total` row is the page's own
+ * arithmetic and is never stored; it is checked against the column sums, and
+ * a column that disagrees is reported, because that is what a mis-cut column
+ * looks like. A header the page sets in small capitals is set as a name, the
+ * way a heading read off the page is.
+ * @param {{rows: {label: string, cells: object}[], header?: object}} grid the executed grid
+ * @param {string[]} colKeys the body's columns, in grid order
+ * @param {{revenue?: string, note?: string}} [opts] the revenue column's key; the page reference
+ * @returns {{strength: object, problems: string[]}|null} null when the grid has no level row
+ */
+export function strengthFromGrid(grid, colKeys, { revenue = "", note = "" } = {}) {
+  const nameOf = (s) => (caseCarriesNothing(s) ? titleCaseHeading(s) : s);
+  const keys = (colKeys ?? []).filter((k) => typeof k === "string" && k);
+  if (!keys.length) return null;
+  const rows = [];
+  let total = null;
+  for (const r of grid?.rows ?? []) {
+    const label = String(r?.label ?? "").trim();
+    const cells = r?.cells ?? {};
+    if (TOTAL_LABEL.test(label)) {
+      total = keys.map((k) => (Number.isFinite(Number(cells[k])) ? Number(cells[k]) : null));
+      continue;
+    }
+    const m = LEVEL_LABEL.exec(label);
+    if (!m) continue;
+    const rev = revenue ? cells[revenue] : undefined;
+    rows.push({
+      level: Number(m[1]),
+      label: "",
+      counts: keys.map((k) => (Number.isFinite(Number(cells[k])) ? Number(cells[k]) : 0)),
+      revenue: revenue && Number.isFinite(Number(rev)) && rev !== null && rev !== "" ? Number(rev) : null,
+    });
+  }
+  if (!rows.length) return null;
+  const problems = [];
+  if (total) {
+    keys.forEach((k, i) => {
+      const sum = rows.reduce((s, r) => s + r.counts[i], 0);
+      if (total[i] !== null && total[i] !== sum) problems.push(`column ${k} sums to ${sum}, the page's total row says ${total[i]}`);
+    });
+  }
+  const columns = keys.map((k) => ({ label: nameOf(String(grid?.header?.[k] ?? "").trim()) }));
+  return { strength: { columns, rows, note, hidden: false }, problems };
 }
 
 /**

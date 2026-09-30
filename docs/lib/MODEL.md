@@ -814,6 +814,17 @@ table processing the same day twice, so there is exactly one copy of it;
 here. Callbacks are idempotent by contract — the hook fires for a calendar the
 Judge dragged as readily as for a rest — so each keeps its own watermark.
 
+**Reading the hour is the third half, and whether it is dark is read here
+too.** `clockReading()` returns the calendar's hour and minute, the day's
+length, and `dark`. Foundry's calendar keeps no sunrise, so the dark's bounds
+are the two world settings `dawnHour` and `duskHour`, registered here beside
+the switch; a blank one stands at a quarter and three quarters of the day
+(`darkBounds`), which is the day's own arithmetic and not a printed figure. A
+world with no calendar to read answers null, and a feature asking treats that
+as day and says so. The settlement board is the first reader
+(`docs/formation/MODEL.md`, "The hour"); a gate that shuts at dusk will be the
+next.
+
 ## The socket transport
 
 `sockets.mjs` is the module's one cross-client channel: one socketlib

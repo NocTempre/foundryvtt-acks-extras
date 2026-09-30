@@ -705,7 +705,7 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
    *Observable:* `travel.mode === "settlement"` and `clock.paused === false` —
    a city runs the clock; only a journey stops it. The sheet grows
    `.acks-extras-formation-settlement` with controls named
-   `travel.settlement.{pace,where,route,night,intent,conveyance}` and **no
+   `travel.settlement.{pace,where,route,hour,intent,conveyance}` and **no
    button that advances anything**.
 2. Run it once with NO city document registered. **The document's id is
    `acksExtras.formation.settlement.SETTLEMENT_DOC`, which reads `cityTravel`
@@ -753,8 +753,9 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
    `Threw <n> on 1d6 against <t>+`, and `n` is a d6 result. A throw made on the
    navigation die answers roughly four times too often and is indistinguishable
    from a busy street on every other surface — this line is the only place the
-   scale is visible. The card also carries its `Roll` objects: `message.rolls`
-   holds the d6 and, on a hit, the incident die.
+   scale is visible. The `Roll` objects are NOT on the message: `postToJudges`
+   shows them through Dice So Nice and posts the card with `rolls: []`, so
+   every die is read from the card's text.
 
 8b. **A zone drawn over the street wins, per field.** Add a Region covering the
    token with an `acks-extras.encounterZone` behaviour: `encounterEvery: 1`,
@@ -968,7 +969,8 @@ Two spellings, one sub-type, and confusing them is the other silent failure:
     with all four fields at 0 changes nothing at all — which is what makes 0
     safe to leave alone.
 18. **Day and night are two figures, not a figure and a shift.** Give the
-    district a different night pair, then tick `After dark` on the panel.
+    district a different night pair, then set `The hour` to `After dark` on
+    the panel.
     *Observable:* the cadence changes to the night pair on the panel and in the
     tick together. A district that prices only the night pair inherits by day —
     walk that too, because it is the realistic gazetteer case and the one where
@@ -1124,6 +1126,193 @@ places".
     end is outside every district; no figures imported — and the token does
     not move for any of them. Register figures for one pace only and pick the
     other: a fourth warning, no move.
+
+## The city's own list, and the quarter's (added with the map list; the special read walked 2026-09-30)
+
+Rides the city scene from "The city" and one district from steps 15–16.
+Everything the lists say is invented, and their shapes are what matters:
+
+- **The city list**: a RollTable, formula `1d10`, rows `1`–`13` (three rows
+  past the die), QQ-prefixed text. In **Scene Configuration** name it as the
+  map's city table with `3` after dark and the band `8`–`9`.
+- **The special list**: a RollTable, formula `1d6`, rows `1`–`8`, QQ-prefixed
+  text, named on the district's `Special encounters table`, with `2` in
+  `Special table: added after dark`. Leave the district's own table blank.
+- The district's cadence throws every turn on 1+, so every turn is met.
+
+**Drive mechanics, learned live:**
+
+- The dice cannot be forced from a script, so a band that must be hit is
+  widened to the whole die (`1`–`13`) for the step that needs it, and a row
+  that only a shift reaches is proved by taking enough turns for the shifted
+  total to appear on the card. Read the cards' text rather than the dice.
+- `acksExtras.formation.settlement.incidentRouting(pick, nameOf)` with
+  `pick = pickIncidentSource({district, zone, wanted, city})` answers what the
+  panel prints without opening it; the panel is still read once for real.
+- Track both tables by id from creation; the district region and the scene's
+  incident record are step 15's and step 3's fixtures.
+- **A world whose "Advance world time" setting is on moves the SHARED clock
+  600 s for every `advanceTurns`.** Read the setting first; where it is on,
+  tick the card without the clock: import
+  `scripts/formation/settlement-turn.mjs` in page context and call
+  `cityTurnCompleted(f, [])` with a fresh `getFormations()` record — it is the
+  tick the movement path calls, it rolls and posts the card, and it leaves the
+  board unsaved (the turn count stays at what it was, which nothing here
+  reads). The district's cadence at `1` on `1+` meets every turn either way.
+- **The dice stay off the message** (`postToJudges` shows them through Dice So
+  Nice and posts the card with `rolls: []`), so a die is read from the card's
+  own text: the "Rolled N" of each line, and the "(total T)" the hand-over
+  line prints. `message.rolls` is empty on every city card.
+- Neither the district lookup nor the throw needs the canvas: the walk runs
+  with `canvas.ready` false in the capture driver's browser.
+- The district behaviour's sheet round-trips the figure through its own form:
+  set `[name="system.specialAfterDark"]`, dispatch `change`, `app.submit()`,
+  then read `behavior.system.specialAfterDark` — `""` stores `null`, `"0"`
+  stores `0`.
+- *By day* and *after dark* below mean **The hour** set to `By day` or
+  `After dark` (`patchSettlement(id, {hour})`), never left on the clock: the
+  shared clock reads whatever hour a peer's walk left it at.
+
+33. **The map's list is read on its own die, by band.** With the band at
+    `8`–`9`, walk the party until a turn is met, by day.
+    *Observable:* the card's line is "Rolled N on <city list>: text" with no
+    "after the dark" clause, N is 1–10, and the text is the row N names. Set
+    **The hour** to **After dark** and walk again: "Rolled N on <city list> (N+3 after the
+    dark): text", and over several turns a total of 11–13 appears with the row
+    only the shift reaches. The panel prints "Incidents here: <city list>, +3
+    after dark." and "A total of 8 to 9 is handed to <special list>, +2 after
+    dark." before any turn is taken.
+34. **The quarter's special list is thrown on its own die, with its own
+    figure.** Widen the band to `1`–`13` so every total hands over; walk by
+    day, then after dark.
+    *Observable:* every card carries the hand-over line ("Rolled N on <city
+    list> (total N): the district's special table answers.") followed by
+    "Rolled M on <special list>: text" by day with M 1–6, and "Rolled M on
+    <special list> (M+2 after the dark): text" after dark, where over several
+    turns a total of 7 or 8 appears with the row only the figure reaches. Two
+    throws show on the card, each on its list's own die: the city's "Rolled N"
+    never exceeds 10 and the special's "Rolled M" never exceeds 6, where a
+    `1d100` would print totals past both. A special list DRAWN instead would
+    show no shifted total at all.
+35. **A blank figure is none, a typed zero is zero.** Clear `Special table:
+    added after dark` and walk after dark.
+    *Observable:* the special's line carries no "after the dark" clause and
+    its total never exceeds 6; the panel's hand-over line drops its shift.
+    Type `0`: the same. Type `2` again: the shift is back.
+36. **A list that is gone is said, on the panel and on the card.** Delete the
+    special list (by its tracked id) and read the panel; then walk one turn.
+    *Observable:* the panel's warning line says the quarter's special table
+    cannot be read; the card says the same and the city row's own words
+    stand under its own line. Now give the district an ordinary table of its
+    own: the panel says the quarter's table replaces the city's, the card
+    draws from it, and no hand-over line appears whatever the band. Clear it.
+    Delete the CITY list: the panel warns that the city table named here no
+    longer exists, and the next turn's card carries that warning above a line
+    drawn from the world's own list (the Judges Journal import) or the "No
+    incident table yet" line when the world holds none.
+37. **The map step repairs a held map's links.** On the imported AX3 map
+    (the importer's "Maps" step, a held scene), rebuild the roll-table shelf
+    so every list is minted under a new id; read the panel with the party in
+    any quarter; type `9` into one OTHER quarter's `Special table: added
+    after dark`; run the Maps step again.
+    *Observable:* before the step the panel warns that the city table and the
+    quarter's special table no longer exist; the step's summary counts the
+    held map's repaired links; afterwards the panel names both lists again
+    with the figures the lists' own rows give, and the quarter typed `9` still
+    reads `9`. Nothing else about the scene changed: token count, region
+    count, and the scene's picture path are what they were.
+
+    **On a shared world whose held map is another session's**, the Maps step
+    cannot be run — it would write that session's map and mint the line's
+    Adventure shelf. Walk the repair on a map of the run's own instead:
+    `repairHeldMap(recipe, scene)` is exported from
+    `scripts/importer/cookbook.mjs` for it (import the module in page context;
+    `cookbookBookFile("ax3")` non-null proves it is the loaded instance). The
+    scene's district regions carry `flags.acks-extras.cookbook.place`, and
+    the recipe names those places beside the shelf's own cookbook ids
+    (`ax3.cityEncounters`, `ax3.<quarter>SpecialEncounters`, band section
+    `r89-100`). One quarter with a dead uuid, one typed `9` on a live uuid,
+    one blank on a live uuid: the call returns `3`, a second call `0`. What
+    that route leaves unwalked is the count on the Maps step's summary.
+
+## The hour (added with the clock; walked 2026-09-30)
+
+Rides the city scene from "The city", the district from steps 15–16 with a
+different night pair (step 18), and the shifted city list from step 33. The
+board's `hour` is `clock`, `day` or `night`; `lib.worldTime.clockReading()`
+is what the panel and the tick read.
+
+**Drive mechanics, learned live:**
+
+- **Never move the shared clock to cross dusk.** The two bounds are world
+  settings of this module's own, blank until this walk sets them, and moving
+  one across the hour the clock already reads flips `dark` without touching
+  the clock: with the clock at hour H by day, `game.settings.set("acks-extras",
+  "duskHour", H)` makes it dark (dusk itself is dark); `set(…, null)` restores
+  the blank. Leave both blank at the end — blank is the only value they have
+  ever held on this world.
+- The hour picker is `travel.settlement.hour` on the panel's form, so it
+  submits with the other pickers; `patchSettlement(id, {hour})` is the same
+  write from the api.
+- The re-render on `updateWorldTime` needs the REAL hook: `game.time.advance(60)`
+  then `game.time.advance(-60)`, with `game.time.worldTime` read before and
+  after to prove the clock came back. Sixty seconds crosses no day boundary,
+  so no stay is credited and no sky re-rolled. Read the line off the OPEN
+  sheet's DOM (`.acks-extras-formation-settlement-clock`) without calling
+  `render` yourself, or the check proves your render and not the hook's.
+- The settings window is `game.settings.sheet`; the two fields are
+  `[name="acks-extras.dawnHour"]` and `[name="acks-extras.duskHour"]`, number
+  inputs whose blank value reads back as `""`.
+- A legacy board is written with `patchFormation` from
+  `scripts/formation/formation-model.mjs` imported in page context: delete
+  `hour` from the record's `travel.settlement` and set `night` on it.
+
+38. **The clock is the default, and the panel prints what it reads.** Enter
+    settlement mode on a fresh board.
+    *Observable:* `travel.settlement.hour === "clock"` and the record has no
+    `night` key; the panel's `The hour` select shows `As the clock says`
+    selected, with `By day` and `After dark` as its other options; under the
+    pickers a line reads "The clock reads HH:MM: day, light from 6 to 18." (or
+    "after dark") where HH:MM is `game.time.components` and the two bounds are
+    the quarter points of `game.time.calendar.days.hoursPerDay`; the same
+    figures come back from `clockReading()`.
+39. **The clock decides the cadence and the shift.** With the party in the
+    district and the clock reading day, read the panel; set `duskHour` to the
+    hour the clock reads; read it again; take one turn.
+    *Observable:* the cadence figures move from the district's day pair to its
+    night pair without the picker changing; the clock line now says "after
+    dark, light from 6 to H"; the turn's card carries the "(N+3 after the
+    dark)" clause on the city list's line. Set `duskHour` back to blank: the
+    day pair and the day line return, and the next card carries no clause.
+40. **The Judge's word outranks the clock.** With the clock reading day, pick
+    `After dark`; then, with `duskHour` set so the clock reads dark, pick
+    `By day`.
+    *Observable:* each pick puts the pair the picker names on the panel and
+    the card, whatever the clock says, and the clock line changes to "Set by
+    hand; the clock reads HH:MM." Picking `As the clock says` again follows
+    the clock. Restore `duskHour` to blank.
+41. **A clock change reaches an open sheet.** With the sheet open on a `clock`
+    board, advance the world clock a minute and read the clock line without
+    touching the sheet; then take the minute back.
+    *Observable:* the line's HH:MM has moved by one minute on its own — a
+    re-render, not a reopen — and moves back with the clock. The board's
+    record is unchanged by either.
+42. **A board from before the hour had a source.** Write `night: true` with no
+    `hour` onto the run's own formation record (`patchFormation`, or the
+    setting directly) and open the sheet; save the form once.
+    *Observable:* the picker shows `After dark`; `settlementOf` gives
+    `hour: "night"`; after the save the stored record has `hour: "night"` and
+    no `night` key.
+43. **The two settings appear, and gate something.** Open the module's
+    settings.
+    *Observable:* `The hour it gets light` and `The hour it gets dark` are
+    present as number fields, blank; step 39 is what they gate. A value typed
+    outside the day is kept inside it on the panel's clock line.
+
+What this section does not walk: a world whose clock keeps no calendar (the
+"treated as day" line) — core v14 always has one, and stubbing `game.time`
+would be a synthetic trigger; the offline `clockReading` null case stands for
+it.
 
 ## Swimming (added with the registry migration)
 

@@ -56,6 +56,7 @@ import { mathIsPrivate, mathSection, postToJudges } from "../scripts/lib/roll-au
 import { gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../scripts/lib/sheet-rows.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
+import { clockReading, darkBounds, isDarkAt } from "../scripts/lib/world-time.mjs";
 import {
   capacityOf,
   declaresSlots,
@@ -2351,5 +2352,54 @@ await (async () => {
   n++;
   console.log("ok - postToJudges whispers to the GMs with no rolls attached");
 })();
+
+/* --- the world clock: where the dark begins, and whether it is dark now ---- */
+t("darkBounds stands a blank hour at the day's quarter points", () => {
+  assert.deepEqual(darkBounds(24), { dawn: 6, dusk: 18 });
+  assert.deepEqual(darkBounds(24, { dawn: null, dusk: "" }), { dawn: 6, dusk: 18 });
+  assert.deepEqual(darkBounds(20), { dawn: 5, dusk: 15 }, "the day's own arithmetic, not a figure");
+  assert.deepEqual(darkBounds(undefined), { dawn: 6, dusk: 18 }, "no day length reads as a day of 24");
+  assert.deepEqual(darkBounds(24, { dawn: 5, dusk: 21 }), { dawn: 5, dusk: 21 });
+  assert.deepEqual(darkBounds(24, { dawn: "7", dusk: 19 }), { dawn: 7, dusk: 19 }, "a stored string is an hour");
+  assert.deepEqual(darkBounds(24, { dawn: -3, dusk: 40 }), { dawn: 0, dusk: 24 }, "a stated hour is kept inside the day");
+  assert.deepEqual(darkBounds(24, { dawn: "noon" }), { dawn: 6, dusk: 18 }, "not a number: the quarter point");
+});
+
+t("isDarkAt reads light from dawn up to dusk, and over midnight when stated that way round", () => {
+  const b = { dawn: 6, dusk: 18 };
+  assert.equal(isDarkAt(5, b), true);
+  assert.equal(isDarkAt(6, b), false, "dawn itself is light");
+  assert.equal(isDarkAt(12, b), false);
+  assert.equal(isDarkAt(18, b), true, "dusk itself is dark");
+  assert.equal(isDarkAt(23, b), true);
+  assert.equal(isDarkAt(0, b), true);
+  // A dusk before its dawn: light runs over midnight.
+  const over = { dawn: 20, dusk: 4 };
+  assert.equal(isDarkAt(22, over), false);
+  assert.equal(isDarkAt(2, over), false);
+  assert.equal(isDarkAt(12, over), true);
+  assert.equal(isDarkAt(4, over), true);
+  // Equal figures are a day with no dark.
+  assert.equal(isDarkAt(3, { dawn: 6, dusk: 6 }), false);
+  // Not an hour: null, never a guess.
+  assert.equal(isDarkAt("x", b), null);
+  assert.equal(isDarkAt(3, { dawn: NaN, dusk: 18 }), null);
+});
+
+t("clockReading reads the calendar and the two settings, and is null without a calendar", () => {
+  const settings = { dawnHour: null, duskHour: null };
+  const get = (_mod, key) => settings[key];
+  assert.equal(withGlobals({ game: { time: {}, settings: { get } } }, clockReading), null, "no calendar");
+  assert.equal(withGlobals({ game: { time: { calendar: { days: { hoursPerDay: 24 } } }, settings: { get } } }, clockReading), null, "no components");
+  const at = (hour, minute = 0, hoursPerDay = 24) =>
+    withGlobals({ game: { time: { calendar: { days: { hoursPerDay } }, components: { hour, minute } }, settings: { get } } }, clockReading);
+  assert.deepEqual(at(12, 30), { hour: 12, minute: 30, hoursPerDay: 24, dawn: 6, dusk: 18, dark: false });
+  assert.deepEqual(at(21), { hour: 21, minute: 0, hoursPerDay: 24, dawn: 6, dusk: 18, dark: true });
+  settings.dawnHour = 8; settings.duskHour = 22;
+  assert.deepEqual(at(21), { hour: 21, minute: 0, hoursPerDay: 24, dawn: 8, dusk: 22, dark: false }, "the settings move the bounds");
+  assert.equal(at(7).dark, true);
+  settings.dawnHour = null; settings.duskHour = null;
+  assert.deepEqual(at(4, 0, 20), { hour: 4, minute: 0, hoursPerDay: 20, dawn: 5, dusk: 15, dark: true }, "a shorter day keeps its own quarters");
+});
 
 console.log(`\n${n} tests passed (including the location migration)`);

@@ -1463,31 +1463,33 @@ async function execInstruction(instr, ctx) {
       // Gap-aware joining (authored gapMin, page geometry like every bound):
       // small-caps runs need blind joins, but a wide gap is a word space the
       // text layer does not carry ("1d4 + CON drain" arrives as 4 runs).
-      // A rowBands cell spans several printed LINES — the wrap point has no
-      // horizontal gap at all, so each line joins alone and the lines join
+      // A cell that spans several printed LINES — a rowBands cell that wraps,
+      // a header whose words carry a gloss beneath them — has no horizontal
+      // gap at the wrap point, so each line joins alone and the lines join
       // with a space.
+      const spanLines = (items, x0, x1) => {
+        const inSpan = spanItems(items, x0, x1);
+        const lines = new Map();
+        for (const it of inSpan) {
+          const k = Math.round(it.y / 3);
+          (lines.get(k) ?? lines.set(k, []).get(k)).push(it);
+        }
+        // A HYPHEN AT THE END OF A LINE IS INSIDE A WORD, not before a
+        // space. These cells wrap where the compound breaks — "well-",
+        // "blood-", "leather-" — and joining the lines with a space put
+        // "Well- made wool dress" on the character sheet. The hyphen is
+        // kept rather than swallowed: it is a real one in every compound
+        // these tables print, and keeping it can only ever misspell
+        // visibly, where dropping it would silently invent a word.
+        const joinedLines = [...lines.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([, l]) => joinCellRuns(l.sort((p, q) => p.x - q.x), instr.gapMin ?? null));
+        return clean(
+          joinedLines.reduce((acc, line, i) => (i === 0 ? line : acc + (/-$/.test(acc) && /^[a-z]/.test(line) ? "" : " ") + line), ""),
+        );
+      };
       const spanText = instr.rowBands
-        ? (items, x0, x1) => {
-            const inSpan = spanItems(items, x0, x1);
-            const lines = new Map();
-            for (const it of inSpan) {
-              const k = Math.round(it.y / 3);
-              (lines.get(k) ?? lines.set(k, []).get(k)).push(it);
-            }
-            // A HYPHEN AT THE END OF A LINE IS INSIDE A WORD, not before a
-            // space. These cells wrap where the compound breaks — "well-",
-            // "blood-", "leather-" — and joining the lines with a space put
-            // "Well- made wool dress" on the character sheet. The hyphen is
-            // kept rather than swallowed: it is a real one in every compound
-            // these tables print, and keeping it can only ever misspell
-            // visibly, where dropping it would silently invent a word.
-            const joinedLines = [...lines.entries()]
-              .sort((a, b) => a[0] - b[0])
-              .map(([, l]) => joinCellRuns(l.sort((p, q) => p.x - q.x), instr.gapMin ?? null));
-            return clean(
-              joinedLines.reduce((acc, line, i) => (i === 0 ? line : acc + (/-$/.test(acc) && /^[a-z]/.test(line) ? "" : " ") + line), ""),
-            );
-          }
+        ? spanLines
         : (items, x0, x1) => clean(joinCellRuns(spanItems(items, x0, x1), instr.gapMin ?? null));
       const cellValue = (text, col, rawText) => {
         if (col.pattern === "glyphs") {
@@ -1510,14 +1512,16 @@ async function execInstruction(instr, ctx) {
       };
       // A table whose columns ARE its scale carries its header band with it, so
       // the scale is READ here rather than shipped: the compiler said where the
-      // headers sit, the seat's own book says what they are.
+      // headers sit, the seat's own book says what they are. A header is
+      // joined by line whatever the rows are: a column's words may wrap, or
+      // carry a gloss on the line beneath.
       let header = null;
       if (instr.headerBand) {
         const hRuns = runsIn(pd, { box: { ...instr.box, y0: instr.headerBand.y0, y1: instr.headerBand.y1 } });
         claim(hRuns, ctx.field);
         header = {};
         for (const col of instr.cols ?? []) {
-          const text = spanText(hRuns, col.x0, col.x1);
+          const text = spanLines(hRuns, col.x0, col.x1);
           if (text) header[col.key] = text;
         }
       }

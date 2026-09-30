@@ -41,13 +41,15 @@ import { FOLLOWING_KINDS } from "./travel.mjs";
 import { driftSummary } from "./lost.mjs";
 import { shadowsOf } from "./shadow.mjs";
 import { travelOf, DAY_KINDS, ANCILLARY_ACTIVITIES, ROAD_KINDS, TERRITORY_KEYS } from "./travel.mjs";
-import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
+import { sceneBlockFeet, sceneIncidents } from "../battlemap/scene-setup.mjs";
 import { feetPerUnit } from "../lib/distance-units.mjs";
+import { clockReading } from "../lib/world-time.mjs";
 import {
   SETTLEMENT_PACES, SETTLEMENT_LOCATIONS, ROUTE_KNOWLEDGE,
-  SETTLEMENT_INTENTS, CONVEYANCES,
+  SETTLEMENT_INTENTS, CONVEYANCES, HOUR_MODES,
   blocksPerTurn, citySpec, streetCadence, strayBlocks,
   resolveCityCadence, cadenceAttribution, districtReaction,
+  pickIncidentSource, incidentRouting, isNight,
 } from "./settlement.mjs";
 import { streetUnder } from "./zones.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
@@ -529,6 +531,34 @@ function unitFigure(value) {
   return Number(n.toFixed(places));
 }
 
+/**
+ * A document's name by uuid, or null for one this world cannot reach. Read
+ * synchronously off the compendium index, which is what the panel has; a
+ * pack the world no longer holds throws, and that is the same answer.
+ */
+function nameOfUuid(uuid) {
+  try {
+    return fromUuidSync(uuid)?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What the panel says of the clock under the hour picker: the reading the
+ * board follows, or the reading the Judge's word stands in for, or that the
+ * world keeps no calendar to read. `clock` is `clockReading()`'s answer.
+ */
+function clockLine(board, clock) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const time = clock ? `${pad(clock.hour)}:${pad(clock.minute)}` : "";
+  if (board.hour !== "clock") return clock ? game.i18n.format("ACKS-FORMATION.settlement.clock.overridden", { time }) : "";
+  if (!clock) return game.i18n.localize("ACKS-FORMATION.settlement.clock.unread");
+  return game.i18n.format(`ACKS-FORMATION.settlement.clock.${clock.dark ? "night" : "day"}`, {
+    time, dawn: clock.dawn, dusk: clock.dusk,
+  });
+}
+
 /** Why a city turn owes no navigation throw, keyed by `citySpec`'s reason. */
 const NO_THROW_REASONS = Object.freeze({
   route: "noThrowRoute",
@@ -574,9 +604,14 @@ function buildSettlementView(formation, t) {
   const districtHit = findDistrict(formation);
   const zone = zoneHit?.behavior?.system ?? null;
   const district = districtHit?.behavior?.system ?? null;
+  // The hour as the next turn will resolve it: the board's own word, or the
+  // world clock's reading, which the panel also prints beside the picker so a
+  // cadence that changed at dusk is explained where it is shown.
+  const clock = clockReading();
+  const night = isNight(s, { dark: clock?.dark ?? null });
   const cadence = resolveCityCadence(
-    streetCadence({ where: here.where, night: s.night, intent: s.intent }),
-    { zone, district, night: s.night, intent: s.intent },
+    streetCadence({ where: here.where, night, intent: s.intent }),
+    { zone, district, night, intent: s.intent },
   );
   // WHERE the rhythm came from, so a zone or district override never reads as
   // the street's own number. The same reader the turn card uses, and per
@@ -619,8 +654,24 @@ function buildSettlementView(formation, t) {
     : null;
   const poiTargets = scene ? (location?.here?.placesOnScene?.(scene) ?? []).length : 0;
   const mayView = (place) => !!place?.testUserPermission?.(game.user, "LIMITED");
-  // A party with no token anywhere has no map to have said anything: blaming
-  // one that does not exist reads as a scene the Judge forgot to configure.
+
+  // Which list the next incident is read from, by the SAME order the turn
+  // walks (`pickIncidentSource`), with every list named ahead of it that no
+  // longer exists. Judge-only: it names tables the players cannot see. A
+  // party with no token anywhere has no map to have said anything, so the
+  // map's list is asked of the scene the party is on.
+  const listLines = game.user?.isGM
+    ? incidentRouting(
+      pickIncidentSource({ district, zone, wanted: s.wanted, city: sceneIncidents(scene) }),
+      nameOfUuid,
+    ).map((line) => ({
+      warn: !!line.warn,
+      text: game.i18n.format(`ACKS-FORMATION.settlement.lists.${line.key}`, {
+        ...line.data,
+        ...(line.data.list ? { list: loc(`ACKS-FORMATION.settlement.lists.source.${line.data.list}`) } : {}),
+      }),
+    }))
+    : [];
 
   return {
     ...s,
@@ -635,6 +686,12 @@ function buildSettlementView(formation, t) {
     paceOptions: Object.entries(SETTLEMENT_PACES).map(([k, v]) => opt(k, loc(v.label), k === s.pace)),
     whereOptions: Object.entries(SETTLEMENT_LOCATIONS).map(([k, v]) => opt(k, loc(v.label), k === s.where)),
     routeOptions: Object.entries(ROUTE_KNOWLEDGE).map(([k, v]) => opt(k, loc(v.label), k === s.route)),
+    hourOptions: Object.entries(HOUR_MODES).map(([k, v]) => opt(k, loc(v.label), k === s.hour)),
+    // Whether it is dark for the NEXT turn, resolved the way the tick resolves
+    // it, and what the clock says beside the picker: the reading it follows,
+    // or the reading the Judge's word is standing in for.
+    night,
+    clockLine: clockLine(s, clock),
     intentOptions: Object.entries(SETTLEMENT_INTENTS).map(([k, v]) => opt(k, loc(v.label), k === s.intent)),
     conveyanceOptions: Object.entries(CONVEYANCES).map(([k, v]) => opt(k, loc(v.label), k === s.conveyance)),
     // Holing up is measured in DAYS, and the world clock credits them: a party
@@ -662,6 +719,9 @@ function buildSettlementView(formation, t) {
     districtPlace: districtPlace ? { uuid: districtPlace.uuid, name: districtPlace.name, canOpen: mayView(districtPlace) } : null,
     // How many places have a token on this map: what a walk can be made to.
     poiTargets,
+    // Which list answers here, and which named lists are gone — `{text, warn}`
+    // rows, already formatted.
+    listLines,
     // The RATE, kept apart from the tally the spread above carries.
     rateBlocks: rate.blocks,
     blocksUnpriced: rate.blocks == null,

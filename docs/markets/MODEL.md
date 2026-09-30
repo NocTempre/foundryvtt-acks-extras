@@ -165,6 +165,25 @@ party's find.
   qualified through the identifier's own ability items or level; failures
   lock per method and identifier until a level is gained.
 
+## What a party carries
+
+A party's merchandise loads — the items they have bought for resale or trade —
+are read and priced through four API functions on `acksExtras.markets`. Each
+load is a stack of identical merchandise in a character's packs or a vehicle's
+hold, tracked with a `markets` flag marking it as merchandise for a category,
+and priced at the market's rolled price for this month where one exists, else at
+its own base cost.
+
+- `manifestRows(plainItems, {holderUuid, holderName, traderUuid, prices, monthStart, merchFor})` —
+  the loads among plain item data, one row per stack, priced. Pure.
+- `manifestTotals(rows)` — the sum of stones and gp value across a rows array.
+- `manifestOf(holders, {market, traderUuid})` — the loads across holders
+  (character and vehicle actors), returning `{rows: […], stones, valueGp}`.
+- `removeLoads(holder, category, stones, {traderUuid})` — remove exactly
+  `stones` units from the holder's loads of a category, returning
+  `{ok: true, removed: [snapshots]}` or
+  `{ok: false, reason: "noLoads", held: <stones stacked>}`.
+
 ## The merchandise catalogue
 
 One good is one Item of sub-type `acks-extras.merchandise`

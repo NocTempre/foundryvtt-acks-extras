@@ -17,6 +17,10 @@
  * organisation or joins its holdings, a faction becomes a relation, a ledger
  * row or the parent, anyone else joins the membership or opens a ledger row.
  *
+ * Beneath the roster, MEMBERS carries the STRENGTH table: the unnamed people,
+ * counted by level under the headings the Judge (or the page) gave them. The
+ * Judge edits it cell by cell; a player reads it unless it is hidden whole.
+ *
  * Array rows are rewritten whole on every edit. A schema array cannot be
  * patched by index through the form, so the row controls carry no `name` and
  * answer to their own change listeners, which stop the event before the form's
@@ -27,7 +31,10 @@ import {
   addHolding, addStanding, allFactions, isFaction, regardedByFactions, removeHolding, removeRelation, removeStanding,
   setRelation,
 } from "../standing.mjs";
-import { factionRecord, headcountOf, readableLeaderUuid, readableRows, wouldCycleFaction } from "../standing-logic.mjs";
+import {
+  factionRecord, headcountOf, normalizeStrength, readableLeaderUuid, readableRows, strengthColumnTotals, strengthRevenue,
+  strengthTotal, wouldCycleFaction,
+} from "../standing-logic.mjs";
 import { indexPlaces } from "../../lib/place-logic.mjs";
 import { isLocation, occupantRow } from "../../lib/place.mjs";
 import { makeLoc } from "../../lib/util.mjs";
@@ -89,6 +96,11 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       removeControl: FactionSheet.#onRemoveControl,
       removeMember: FactionSheet.#onRemoveMember,
       toggleMemberHidden: FactionSheet.#onToggleMemberHidden,
+      addStrengthRow: FactionSheet.#onAddStrengthRow,
+      removeStrengthRow: FactionSheet.#onRemoveStrengthRow,
+      addStrengthColumn: FactionSheet.#onAddStrengthColumn,
+      removeStrengthColumn: FactionSheet.#onRemoveStrengthColumn,
+      toggleStrengthHidden: FactionSheet.#onToggleStrengthHidden,
       addStanding: FactionSheet.#onAddStanding,
       removeStanding: FactionSheet.#onRemoveStanding,
       addRelation: FactionSheet.#onAddRelation,
@@ -143,6 +155,22 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // What it holds.
     context.seat = refOf(sys.seatUuid);
     context.leader = refOf(readableLeaderUuid(sys, isGM));
+    context.parent = refOf(sys.parentUuid);
+    // The parent picker offers every other faction that would not close a
+    // loop: a chapter cannot belong to its own lodge. The picker is a named
+    // form field, so it must always carry the stored value among its options,
+    // or the next submit-on-change writes the field empty.
+    const factions = allFactions();
+    const index = indexPlaces(factions.map(factionRecord));
+    context.parentOptions = [
+      opt("", loc("sheet.none"), !sys.parentUuid),
+      ...factions
+        .filter((f) => f.uuid !== actor.uuid && (f.uuid === sys.parentUuid || !wouldCycleFaction(actor.uuid, f.uuid, index)))
+        .map((f) => opt(f.uuid, f.name, f.uuid === sys.parentUuid)),
+    ];
+    if (sys.parentUuid && !factions.some((f) => f.uuid === sys.parentUuid)) {
+      context.parentOptions.push(opt(sys.parentUuid, context.parent.name, true));
+    }
 
     const held = new Set(sys.controls ?? []);
     context.controls = (sys.controls ?? []).map((uuid) => {
@@ -184,6 +212,37 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // The tally counts what this reader can see. A total that included the
     // concealed rows would announce that there are some.
     context.headcount = isGM ? sys.headcount : headcountOf(context.members);
+
+    // The strength table: hidden whole or shown whole. A row's head is its
+    // level, its label, or both; the revenue column is offered to the Judge
+    // always and to a reader only when a row states one.
+    const strength = normalizeStrength(sys.strength?.toObject?.() ?? sys.strength);
+    const revenue = strengthRevenue(strength);
+    const rowHead = (r) => {
+      const level = r.level === null ? "" : loc("sheet.strengthLevelOf", { n: r.level });
+      return [level, r.label].filter(Boolean).join(" · ");
+    };
+    context.strength = isGM || !strength.hidden
+      ? {
+        visible: true,
+        hidden: strength.hidden,
+        note: strength.note,
+        columns: strength.columns.map((c, col) => ({ col, label: c.label })),
+        rows: strength.rows.map((r, index) => ({
+          index,
+          level: r.level,
+          label: r.label,
+          head: rowHead(r),
+          counts: r.counts.map((n, col) => ({ col, n })),
+          revenue: r.revenue,
+        })),
+        columnTotals: strengthColumnTotals(strength),
+        total: strengthTotal(strength),
+        revenue,
+        revenueShown: revenue === null ? "" : String(revenue),
+        hasRevenue: revenue !== null || context.canCurate,
+      }
+      : { visible: false };
 
     // The ledger, and the running total per subject.
     const subjectLabel = (subject) => {
@@ -345,6 +404,87 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     await this.actor.update({ "system.members": rows });
   }
 
+  /* -------------------------------------------- */
+  /*  Strength                                     */
+  /* -------------------------------------------- */
+
+  /** The stored strength as a plain, normalised object to edit and write back. */
+  #strength() {
+    const sys = this.actor.system;
+    return normalizeStrength(sys.strength?.toObject?.() ?? sys.strength);
+  }
+
+  /** Write the whole strength block, normalised. GM only, like every curated row. */
+  async #writeStrength(strength) {
+    if (!game.user.isGM) return;
+    await this.actor.update({ "system.strength": normalizeStrength(strength) });
+  }
+
+  static async #onAddStrengthRow() {
+    const s = this.#strength();
+    s.rows.push({ level: null, label: "", counts: s.columns.map(() => 0), revenue: null });
+    await this.#writeStrength(s);
+  }
+
+  static async #onRemoveStrengthRow(_event, target) {
+    const index = Number(target.closest("[data-index]")?.dataset.index);
+    const s = this.#strength();
+    if (!Number.isInteger(index) || index < 0 || index >= s.rows.length) return;
+    s.rows.splice(index, 1);
+    await this.#writeStrength(s);
+  }
+
+  static async #onAddStrengthColumn() {
+    const s = this.#strength();
+    s.columns.push({ label: "" });
+    for (const r of s.rows) r.counts.push(0);
+    await this.#writeStrength(s);
+  }
+
+  static async #onRemoveStrengthColumn(_event, target) {
+    const col = Number(target.closest("[data-col]")?.dataset.col);
+    const s = this.#strength();
+    if (!Number.isInteger(col) || col < 0 || col >= s.columns.length) return;
+    s.columns.splice(col, 1);
+    for (const r of s.rows) r.counts.splice(col, 1);
+    await this.#writeStrength(s);
+  }
+
+  static async #onToggleStrengthHidden() {
+    const s = this.#strength();
+    s.hidden = !s.hidden;
+    await this.#writeStrength(s);
+  }
+
+  /**
+   * One cell of the strength table, named by its path: `column.<c>.label`,
+   * `row.<r>.level|label|revenue`, `row.<r>.count.<c>`, or `note`. The block
+   * is written whole; normalisation turns a blank level or revenue into none
+   * and a blank count into zero.
+   */
+  async #onStrengthField(target) {
+    const [head, i, field, j] = String(target.dataset.strength ?? "").split(".");
+    const s = this.#strength();
+    const value = target.value;
+    if (head === "note") s.note = value;
+    else if (head === "column") {
+      const c = s.columns[Number(i)];
+      if (!c || field !== "label") return;
+      c.label = value;
+    } else if (head === "row") {
+      const r = s.rows[Number(i)];
+      if (!r) return;
+      if (field === "count") {
+        const col = Number(j);
+        if (!(col >= 0 && col < r.counts.length)) return;
+        r.counts[col] = value;
+      } else if (field === "level" || field === "revenue") r[field] = value === "" ? null : value;
+      else if (field === "label") r.label = value;
+      else return;
+    } else return;
+    await this.#writeStrength(s);
+  }
+
   static async #onAddRelation() {
     const uuid = this.element.querySelector('[name="relationPick"]')?.value;
     const other = uuid ? await fromUuid(uuid).catch(() => null) : null;
@@ -383,6 +523,12 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     super._onRender?.(context, options);
     for (const el of this.element.querySelectorAll("[data-row-field]")) {
       el.addEventListener("change", (event) => this.#onRowField(event));
+    }
+    for (const el of this.element.querySelectorAll("[data-strength]")) {
+      el.addEventListener("change", (event) => {
+        event.stopPropagation();
+        this.#onStrengthField(event.currentTarget);
+      });
     }
   }
 

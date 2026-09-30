@@ -977,3 +977,42 @@ map step compares carried sources and rebuilds when stale.
 A world compendium is world-scoped, so a second world needs the pack moved by
 hand, and its picture needs the same server. Wanted: an export path that
 carries the picture, without shipping any of it.
+
+## What the settlement book's register does not yet reach (audited 2026-09-30)
+
+Every keyed place, every quarter's residents section, every list and every
+organisation has a row. What has none, by shape:
+
+- **Stat blocks inside a quarter's special-encounters list** — eleven across
+  five quarters: nine persons and two guard ranks with a count. The list's row
+  names them and the walk lands on them, but no NPC row exists to build them
+  from, so the card cannot open one. Wants NPC rows anchored on the stat
+  label, grouped under the quarter's special encounters.
+- **The two champions of the gladiatorial schools**, whose blocks sit in the
+  residents section beside their school's organisation row.
+- **Occupants of the keyed interiors** (the special-location writeups) — the
+  factions ROADMAP's "People named only in the room-by-room writeups", now
+  counted: eleven blocks in three interiors, two of them persons and nine the
+  interior's own ranks (a guard, a burglar, a torturer) with a block each.
+  They land with the interiors.
+- **The region's gazetteer**: fifty-three keyed sites in the region chapter,
+  keyed exactly as a quarter's points of interest are. Outside the city
+  scope; the same location binding would read them.
+- **The building tables** (size, type and occupants, occupant tables, style,
+  treasure): the printed half of the dynamic-buildings row in
+  `docs/formation/ROADMAP.md`.
+- **The doing-business page** beyond tolls, duties and the smuggling service:
+  moorage, stabling and labour fees, equipment availability, mercantile
+  investment, selling treasure. Printed figures with no register kind yet.
+- **The appendix's new magic items.**
+- **Counts a body's page states in prose** rather than in a strength grid —
+  the factions ROADMAP's "A count the page states in a sentence".
+
+## The next books, in order
+
+AX3's above-ground city is finished first, as one Adventure with its
+features. After it the adventure books are worked in the order **AX1, then
+AX2** — the user's ruling of 2026-09-30, which puts AX1 ahead although AX2
+already has a cookbook (`cookbook/ax2.json`) and AX1 has none. Within the
+AX3 work the slash-key junctions to the underground map come last, and the
+underground city itself is out of scope.

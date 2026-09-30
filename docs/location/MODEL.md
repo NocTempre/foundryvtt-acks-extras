@@ -121,6 +121,12 @@ the claim half). Ownership and a companion's ownership are deliberately not
 grounds: they are world-wide, so a world that leaves its places open puts every
 one of them on every sheet (see [DECISIONS.md](DECISIONS.md), 2026-09-20).
 
+## A place's role
+
+A place may carry a **role** — today, a gate — which marks it as a place of
+significance. A gate is listed as one; the gate action on the settlement board,
+which uses this role, is in [ROADMAP.md](ROADMAP.md).
+
 ## A place on the map
 
 A place's own token is a **point of interest**: the shrine in the square, the

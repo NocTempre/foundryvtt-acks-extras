@@ -1,4 +1,4 @@
-# lib API (apiVersion 21)
+# lib API (apiVersion 22)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -51,6 +51,7 @@ acksExtras.lib = {
   mount, senses, light, perception, storage, places, itemModel, …
   repair,              // lib/repair.mjs — the standing repair tool (below); 18
   hp,                  // lib/hp.mjs — the group hit-point tool (below); 19
+  worldTime,           // lib/world-time.mjs — the clock's reading (below); 22
 }
 ```
 
@@ -545,6 +546,27 @@ multiplier, ok, before, after, max, crossedDown, crossedUp, why, error}`. When
 max, delta, crossedDown, crossedUp, clamped}`, or null when the hit points or
 the amount are not numbers. `eligibility(actor)` returns `missing`, `stack`,
 `template`, `vehicle`, `noHp`, or null.
+
+## `worldTime` — the clock as this module reads it (apiVersion 22)
+
+The policy is docs/lib/MODEL.md, "The world clock".
+
+```
+acksExtras.lib.worldTime = {
+  SETTING_ADVANCE_WORLD_TIME, SETTING_DAWN_HOUR, SETTING_DUSK_HOUR,
+  mayAdvanceWorldTime(),        // → whether this module may move game.time
+  onWorldTimeAdvanced(cb),      // cb(worldTime, dt) on the active GM, forward steps only
+  clockReading(),               // → {hour, minute, hoursPerDay, dawn, dusk, dark} | null
+  darkBounds(hoursPerDay, {dawn?, dusk?}),  // → {dawn, dusk} (Foundry-free)
+  isDarkAt(hour, {dawn, dusk}), // → boolean | null (Foundry-free)
+}
+```
+
+`clockReading` is null when the world clock keeps no calendar to read an hour
+from. `dawn` and `dusk` are the two world settings; a blank one stands at a
+quarter and three quarters of the calendar's day. `isDarkAt` reads light from
+`dawn` up to `dusk`, over midnight when dusk comes first, and no dark at all
+when the two are equal.
 
 ## Versioning
 

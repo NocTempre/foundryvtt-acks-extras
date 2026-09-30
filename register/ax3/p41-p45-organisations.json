@@ -164,6 +164,9 @@
     "organisation": {
       "kind": "syndicate",
       "seat": "ax3.poi11",
+      "services": [
+        "smuggling"
+      ],
       "leader": {
         "id": "ax3.npc1",
         "hidden": true

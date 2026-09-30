@@ -219,9 +219,12 @@ It refuses while a party on that scene is lost and does not know it yet.
 
 **Enter the city** swaps the journey board for a settlement one. Choose a
 **pace**, whether the party is on the **avenues** or in the **alleys**, how
-well it knows **the way**, and whether it is **after dark**.
+well it knows **the way**, and **the hour**, which reads the world clock unless
+you override it. The lines beneath say what the board has worked out: what
+the clock reads, how far a turn carries the party, which quarter it stands in
+and which list the next incident is read from.
 
-![](../releases/v5.8.0/formation-settlement.png)
+![](../releases/v9.7.0/formation-settlement.png)
 
 **A city is walked across, not clicked through.** Move the party's token and
 turns are marked off exactly as they are in a dungeon — so a turn in the
@@ -286,6 +289,18 @@ The table is who is about in this quarter, and the second one is who is about
 when the party is **hunted here** — a tick on the settlement panel. Being
 hunted belongs to the city the party is in: leave and come back and it is
 gone, while the pace, the place, the route and the hour you set are kept.
+
+**The hour follows the world clock.** Whether it is dark picks the quarter's
+day pair or its night pair and whether the city's list adds its after-dark
+figure, and the panel reads that off the calendar: the line under the pickers
+says what the clock reads and whether that counts as day or night. Where dark
+begins and ends are two module settings, **The hour it gets light** and **The
+hour it gets dark**; left blank they stand at a quarter and three quarters of
+the calendar's day. **The hour** picker is your override — *By day* or *After
+dark* for a table that does not keep the clock, or a scene you are narrating
+out of it — and while it is set the line still says what the clock reads, so a
+board left on *After dark* through a morning is visible. *As the clock says*
+hands it back.
 
 The board says what all of this has come to:
 

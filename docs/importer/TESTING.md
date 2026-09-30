@@ -1879,6 +1879,15 @@ world launched with the module carrying it (`docs/factions/TESTING.md`).
    *Observable:* the factions are made with empty rosters and the
    notification says how many members are not yet imported; the actor step
    and a second run fill them.
+7. The strength grids the step reads after the relations: `docs/factions/
+   TESTING.md` step 14 (the figures, the total-row check, the seven-order
+   grid's split, "kept their figures" on a second run). Where the world
+   already holds the book's factions from another session, the write cannot
+   be exercised without writing to documents that are not the run's; the
+   executor half is drivable on the run's own faction instead — execute the
+   grid entries in page context (`executeEntry` on the staged book), build
+   with `strengthFromGrid`, write the block to a tracked fixture, and read it
+   back — which is what the 2026-09-30 walk did.
 
 ### Teardown
 
@@ -1962,3 +1971,39 @@ collection id at teardown only if its index is empty then.
 pack's documents page-side by id (`pageSweep`); then the fixture pack by its
 collection id, and a shelf `created.packs` named only if its index is empty.
 Quote the sweep result.
+
+## The city-travel recipe assembles the business prose
+
+The city-travel tables recipe (`cityTravel`, AX3 p. 56) includes two optional
+prose windows: the first reads a grid of what a gate pass costs per load stone,
+the second reads what the syndicate's smuggling service charges and what risk it
+carries. Both are printed values and arrive through import.
+
+1. With AX3 connected, run `node tools/importer/dev-try-binding.mjs cityTravel`.
+   *Observable:* the output prints every assembled table's keys. Look for
+   `gateTolls` and `smuggling` in the output; both are present or both are absent
+   (the two windows are on the same page, so a box error removes both). The
+   output prints keys and prose windows only — never the values themselves, since
+   every figure is printed. *Names only.* Confirm the values read back through
+   the import: `acksExtras.lib.tables.getDoc("cityTravel").tables` must hold
+   both `gateTolls` and `smuggling` keys after `cookbookImportTables()`.
+
+## Points of interest: roles written on held places
+
+The points-of-interest step writes a role to any place whose `kind.location`
+row in the book carries a role designation. On a world that already holds the
+book's places with blank roles, the step stamps the role without reading the
+page and counts "given a role" in its report.
+
+1. Manually create a location actor in the world carrying
+   `flags["acks-extras"].cookbook.id === "ax3.poiGate"` (a gate POI from the
+   book). Set `system.role` to blank. Track it by id. Then run
+   `acksExtras.importer.cookbookImportPoiPlaces()`.
+   *Observable:* the step reports "N given a role" in its output, and the
+   tracked place's `system.role` is now `"gate"` (the role the book's row
+   designates). *On a shared test world:* the step skips places another session
+   owns; the rule is in `.claude/rules/live-testing.md`, Concurrency —
+   never mutate a peer's documents. If a peer session made the places, this step
+   reports them as held and nothing is written.
+2. Reload the world and confirm the role persists.
+   *Observable:* `game.actors.getName(<place>).system.role === "gate"`.

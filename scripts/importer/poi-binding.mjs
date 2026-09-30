@@ -14,7 +14,7 @@
  * not the book's prose.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { LOCATION_TYPE } from "../location/constants.mjs";
+import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
 
 /** The group suffixes a settlement book prints per quarter, and what each holds. */
 const POI_GROUPS = Object.freeze({ "Points of Interest": "poi", "Notable Residents": "residents", Overview: "overview" });
@@ -71,14 +71,15 @@ export function districtPlaceData({ book, bookLabel = "", district, parentUuid =
  * journal page carried, on the thing a place is.
  */
 export function poiLocationData({
-  name, entryId, notes = "", book, bookLabel = "", district = "", parentUuid = "", folderId = null,
+  name, entryId, notes = "", book, bookLabel = "", district = "", parentUuid = "", folderId = null, role = "",
 }) {
   return {
     name,
     type: LOCATION_TYPE,
     img: "icons/svg/house.svg",
     folder: folderId,
-    system: { region: district || bookLabel, notes, parentUuid },
+    // `role` is written only when it names a registered place role.
+    system: { region: district || bookLabel, notes, parentUuid, ...(isPlaceRole(role) ? { role } : {}) },
     flags: {
       [MODULE_ID]: {
         cookbook: { id: entryId, book, kind: "kind.location", unaudited: true },

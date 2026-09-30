@@ -182,7 +182,67 @@ export function readableLeaderUuid(sys, isGM) {
   return row?.hidden ? "" : leaderUuid;
 }
 
-/** Strength over a set of roster rows: each row is worth its quantity, or one. */
+/** Headcount over a set of roster rows: each row is worth its quantity, or one. */
 export function headcountOf(rows) {
   return (rows ?? []).reduce((sum, row) => sum + (Number(row?.quantity) > 0 ? Number(row.quantity) : 1), 0);
+}
+
+/* -------------------------------------------- */
+/*  Strength — the unnamed people, counted        */
+/* -------------------------------------------- */
+
+const count = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.floor(Number(v)) : 0);
+
+/**
+ * A strength block as the model stores it, from anything shaped like one: a
+ * column per entry of `columns`, every row's `counts` cut or padded to that
+ * width, a level that is a whole number or null, a revenue that is a number or
+ * null. The shape a sheet rewrites and the importer writes are the same one.
+ * @param {object} [raw] `{columns: ({label}|string)[], rows: {level, label, counts, revenue}[], note, hidden}`
+ * @returns {{columns: {label: string}[], rows: {level: number|null, label: string, counts: number[], revenue: number|null}[], note: string, hidden: boolean}}
+ */
+export function normalizeStrength(raw) {
+  const columns = (Array.isArray(raw?.columns) ? raw.columns : [])
+    .map((c) => ({ label: String((typeof c === "string" ? c : c?.label) ?? "").trim() }));
+  const width = columns.length;
+  const rows = (Array.isArray(raw?.rows) ? raw.rows : [])
+    .filter((r) => r && typeof r === "object")
+    .map((r) => {
+      const level = Number(r.level);
+      const revenue = Number(r.revenue);
+      const counts = Array.from({ length: width }, (_, i) => count((Array.isArray(r.counts) ? r.counts : [])[i]));
+      return {
+        level: r.level === null || r.level === undefined || r.level === "" || !Number.isFinite(level) || level < 0 ? null : Math.floor(level),
+        label: String(r.label ?? "").trim(),
+        counts,
+        revenue: r.revenue === null || r.revenue === undefined || r.revenue === "" || !Number.isFinite(revenue) ? null : revenue,
+      };
+    });
+  return { columns, rows, note: String(raw?.note ?? "").trim(), hidden: raw?.hidden === true };
+}
+
+/** Everyone the strength block counts, over every column and row. */
+export function strengthTotal(strength) {
+  return (strength?.rows ?? []).reduce((sum, r) => sum + (r?.counts ?? []).reduce((s, n) => s + count(n), 0), 0);
+}
+
+/** The total under each column, in column order. */
+export function strengthColumnTotals(strength) {
+  const width = (strength?.columns ?? []).length;
+  const totals = Array.from({ length: width }, () => 0);
+  for (const r of strength?.rows ?? []) for (let i = 0; i < width; i++) totals[i] += count(r?.counts?.[i]);
+  return totals;
+}
+
+/** The revenue the rows state, summed; null when no row states one. */
+export function strengthRevenue(strength) {
+  let any = false;
+  let sum = 0;
+  for (const r of strength?.rows ?? []) {
+    const v = Number(r?.revenue);
+    if (r?.revenue === null || r?.revenue === undefined || !Number.isFinite(v)) continue;
+    any = true;
+    sum += v;
+  }
+  return any ? sum : null;
 }

@@ -11,7 +11,8 @@
       163
     ],
     "meta": {
-      "group": "Temple District — Points of Interest"
+      "group": "Temple District — Points of Interest",
+      "role": "gate"
     }
   },
   {
@@ -71,7 +72,8 @@
       163
     ],
     "meta": {
-      "group": "Temple District — Points of Interest"
+      "group": "Temple District — Points of Interest",
+      "role": "gate"
     }
   },
   {

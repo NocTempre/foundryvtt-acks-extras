@@ -1848,6 +1848,13 @@ async function axFlow(doc, entry, assists, start, exclude = new Set(), opts = {}
   // a `stopKeys` key of the whole line's folded letters, as the flow sees it.
   const stops = opts.stops ?? [];
   const stopKeys = new Set((opts.stopKeys ?? []).map(String).filter(Boolean));
+  // A box the flow must not read: a table another entry owns, set at the top
+  // of the column this entry's prose continues in. A column advance restarts
+  // at the top band, so without the box the table's cells read as the prose
+  // that resumes beneath them. Items in it are dropped the way an excluded
+  // statline cluster is; each box names its own page.
+  const excludeBoxes = (assists.excludeBoxes ?? []).filter((b) => typeof b?.page === "number");
+  const boxedOut = (it) => excludeBoxes.some((b) => b.page === page && it.x >= b.x0 && it.x <= b.x1 && it.y >= b.y0 && it.y <= b.y1);
   const siblingStop = (colX0, colX1, yMin) => {
     // A name line hangs left of the body it heads — further than the column
     // edge, where the sibling needed columns of its own to be found — so it is
@@ -1885,7 +1892,7 @@ async function axFlow(doc, entry, assists, start, exclude = new Set(), opts = {}
     );
     const items = pd.items.filter(
       (it) =>
-        it.h <= AX_BODY_MAX_H && !exclude.has(it) &&
+        it.h <= AX_BODY_MAX_H && !exclude.has(it) && !boxedOut(it) &&
         it.x >= x0 && it.x <= x1 && it.y > fromY && it.y < stopY &&
         it.y > AX_TOP_BAND,
     );
@@ -2903,6 +2910,51 @@ async function compileOrganisation(doc, entry, compiled) {
   axAssistSkips(skips, assists, page);
   if (Object.keys(skips).length) out._skips = skips;
   return out;
+}
+
+/**
+ * kind.strengthGrid — a body's printed strength table: level rows by class
+ * columns, a Total row, a revenue column where the page prints one. The
+ * title line is proved by its hash (an authored box, words read at import),
+ * the grid is authored geometry validated by `emitGrids`, and the block names
+ * BY ID the organisation each neutral column belongs to. Runs after the
+ * organisations, like a scene: a column naming a body that did not compile
+ * fails the grid here rather than leaving figures nobody can bind.
+ */
+async function compileStrengthGrid(doc, entry, compiled) {
+  const a = entry.assists ?? {};
+  const page = entry.pages[0];
+  const pd = await pageItems(doc, page);
+  const hash = String(entry.anchor?.hash ?? "");
+  if (!a.anchorBox) throw new Error(`strength grid needs assists.anchorBox`);
+  const titleRuns = runsIn(pd, { box: a.anchorBox });
+  const title = joinRuns(titleRuns).replace(/\s+/g, " ").trim();
+  if (!titleRuns.length || printKey(title) !== hash) throw new Error(`the title box on p.${page} does not read back to the anchor hash`);
+  const fields = { name: { op: "heading", page, box: a.anchorBox, hash, ...(caseCarriesNothing(title) ? { caps: true } : {}) } };
+  const grid = a.grids?.strength;
+  if (!grid) throw new Error(`strength grid needs assists.grids.strength`);
+  const boxes = {};
+  await emitGrids(doc, { strength: grid }, fields, boxes);
+  const keys = new Set((grid.cols ?? []).map((c) => c.key));
+  const block = entry.strength ?? {};
+  for (const [key, id] of Object.entries(block.columns ?? {})) {
+    if (!keys.has(key)) throw new Error(`strength names column "${key}", which the grid does not author`);
+    if (compiled[id]?.kind !== "kind.organisation") throw new Error(`strength names ${id} for column "${key}", which is not a compiled organisation`);
+  }
+  if (block.revenue !== undefined && !keys.has(block.revenue)) throw new Error(`strength names a revenue column "${block.revenue}", which the grid does not author`);
+  // The label span must hold the level rows the binding keys on: a box that
+  // slid off the ordinals would import an empty strength without a word.
+  const inBox = pd.items.filter((it) => it.x >= grid.box.x0 && it.x <= grid.box.x1 && it.y >= grid.box.y0 && it.y <= grid.box.y1);
+  const labels = rowsByY(inBox, grid.rowTol ?? 3)
+    .map((r) => joinRuns(r.items.filter((it) => it.x >= grid.label.x0 && it.x <= grid.label.x1)).trim())
+    .filter(Boolean);
+  const levels = labels.filter((l) => /^\d+(?:st|nd|rd|th)$/iu.test(l)).length;
+  if (!levels) throw new Error(`no level row in the label span on p.${page}`);
+  if (!labels.some((l) => /^total$/iu.test(l))) throw new Error(`no Total row in the label span on p.${page}`);
+  return {
+    kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
+    ...(entry.meta ? { meta: entry.meta } : {}), strength: block, fields,
+  };
 }
 
 /**
@@ -5080,6 +5132,7 @@ async function main() {
     };
     const pendingScenes = [];
     const pendingOrganisations = [];
+    const pendingStrengthGrids = [];
     for (const entry of list.sort((a, b) => a.pages[0] - b.pages[0])) {
       const kindRow = kinds[entry.kind];
       if (!kindRow) {
@@ -5179,6 +5232,11 @@ async function main() {
       if (entry.kind === "kind.organisation") {
         // After the places and people it names, for the same reason.
         pendingOrganisations.push(entry);
+        continue;
+      }
+      if (entry.kind === "kind.strengthGrid") {
+        // After the organisations its columns belong to.
+        pendingStrengthGrids.push(entry);
         continue;
       }
       const axCompile = AX_COMPILERS[entry.kind];
@@ -5316,6 +5374,16 @@ async function main() {
       const kept = block.relations.filter((r) => out.entries[r.to]?.kind === "kind.organisation");
       if (kept.length !== block.relations.length) warn(`${entry.id}: ${block.relations.length - kept.length} relation(s) name an organisation that did not compile — dropped`);
       block.relations = kept;
+    }
+    for (const entry of pendingStrengthGrids) {
+      try {
+        const ship = await compileStrengthGrid(doc, entry, out.entries);
+        out.entries[entry.id] = ship;
+        const owners = new Set(Object.values(ship.strength.columns ?? {}));
+        console.error(`OK   ${entry.id}: strength grid (${Object.keys(ship.strength.columns ?? {}).length} counted column(s) for ${owners.size} organisation(s))`);
+      } catch (err) {
+        warn(`${entry.id}: ${err.message}`);
+      }
     }
     for (const entry of pendingScenes) {
       try {

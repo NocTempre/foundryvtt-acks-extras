@@ -5302,6 +5302,41 @@ the body lines, so a margin glyph can no longer open a stat block.
 repair warns per unresolved name until then, and a monster whose entry names
 one of the seven carries the name in its prose instead of a copy.
 
+### A held map has its links repaired, never its shape (2026-09-30)
+
+**Ruled.** The map step, finding a scene the world already holds under the
+recipe's id, brings its LINKS up to the recipe before writing the Adventure:
+the city list in the battlemap flag is named again where the map names none
+or names one that is gone, each quarter's special list likewise, and a
+quarter's `specialAfterDark` is filled from the list's own rows where it was
+never stated. Nothing else of the scene is read or written — not the
+outlines, the tokens, the picture, or any figure a Judge typed — and the
+step's summary counts what it wrote.
+
+**What this knew that 2026-09-17 did not** ("A printed map is a recipe of
+geometry over its page" left a held scene "exactly as it stands"). Every
+roll-table import mints a fresh id (`createDoc(RollTable, …)`), so a Rebuild
+of the roll-table shelf ("A rebuild can repair in place instead", 2026-09-24)
+leaves a held map naming lists that no longer exist, and the 9.3.0 renaming of
+the city list's id ("The city's roll tables carry no city") did the same to
+every world that imported the map before it. A map so stranded falls to the
+world's generic list at the table with nothing saying so — the report of
+2026-09-30 in `docs/formation/DECISIONS.md`. And the District behaviour
+gained a figure (`specialAfterDark`) that a scene made before it cannot
+carry, which only a write can fill.
+
+**Rejected:** re-creating a held map (the map step's made path) — it costs
+the scene its id, its tokens' positions and every note and region a Judge
+added. **Rejected:** repairing at `ready` for every world — a silent write to
+a Judge's scene on load; the map step is a Judge's own action and reports its
+count. **Rejected:** deriving the figure at the table instead of writing it —
+`docs/formation/DECISIONS.md`, 2026-09-17 and 2026-09-30.
+
+*Cost:* a Judge who blanked a quarter's special list, or the map's city
+list, has it named again by the next map step. To keep the quarter's list
+out of the walk, clear the map's band in Scene Configuration; to keep the
+city's list out, point the district's own table at another list.
+
 ### A settlement's map is in the library too, as one Adventure (2026-09-30)
 
 **Ruled (the user's, 2026-09-18: "The importer should create a compendium
@@ -5425,3 +5460,112 @@ table on a d100.
 *Cost:* lairs per hex and climate by terrain are not read, because nothing
 consumes them yet. The results that hand off to another draw stop at their
 name. Both are in the ROADMAP.
+
+### A body's unnamed people are a grid the page prints (2026-09-30)
+
+The 2026-09-17 ruling above let a printed membership table arrive as
+description text and bound nobody from it. The user named the gap outright:
+the follower tables of a body's unnamed members were missing from the world.
+They now arrive as figures, and the shape they take follows from what the
+page does.
+
+**A grid is read by a second row, not by the organisation's.** A
+`kind.strengthGrid` row anchors on the grid's heading by print key and ships
+geometry: box, label span, header band, column spans. Its `strength.columns`
+block names BY ID the organisation each column belongs to. The organisation
+row is untouched, because the grid is not always the body's alone: one AX3
+page prints seven orders across seven columns under one heading, and the
+column-to-body map is the one fact the geometry cannot state.
+
+**Which column is whose is authored, and the register says only ids.** The
+mapping was read once from the page, on the local shelf, and ships as
+`c<n>: <organisation id>`; the header words are read at import like every
+other printed name. A grid whose columns belong to several bodies attributes
+its revenue column to nobody, since the page prints no income per order.
+
+**The total row is a check.** Every printed strength grid ends in a `Total`
+row, and it is the page's own arithmetic: the column sums are compared with it
+at import and a disagreement is reported by column key, because a column cut
+one span too narrow shows exactly as a sum the page disputes. The row itself
+is never stored; the sheet computes the one it shows. The compiler requires
+the label span to hold both an ordinal level and a `Total`, so a box that
+drifts off the grid fails at compile, not at a Judge's table.
+
+**A dash is a zero.** The grids print a dash for a level with nobody in it.
+`intDash` reads that as null, and a row of dashes then has no parsed cell and
+is dropped by the grid op's `minCells` floor, which `emitGrids` cannot lower
+to zero. The new `dashZero` cell pattern reads the dash as the count it is,
+and a footnote mark on a number ("21*") as not part of it.
+
+**A header band is joined by line.** The seven-order grid sets each heading
+over two lines with a gloss on a third. The band's runs joined in reading
+order interleaved every column's words; the header now joins line by line
+within each column's span, for every grid, which changed no shipped cookbook
+(no other header band had a second line).
+
+**A flow excludes a table it does not own.** The temple quarter's special
+encounter list continues in the column whose top the seven-order grid
+occupies, and the list's fourth row shipped carrying the grid's every number
+as prose. `assists.excludeBoxes` on the list's row drops the grid's box from
+the flow; the row's continuation now starts beneath the table. The verify
+pass caught it as a double claim the moment the grid had an owner, which is
+the coverage argument for claiming every printed table.
+
+**Rejected:** rostering the counts as quantity rows (a table of forty cells as
+forty roster rows, `docs/factions/DECISIONS.md`); reading the counts a page
+states in prose (no geometry finds a number by the phrase before it without
+shipping the phrase); a per-book column map in the compiler (the register
+already carries authored ids; a second place to state them is the dedup law
+broken).
+
+*Cost:* five AX3 bodies whose numbers are prose ship with an empty table
+(`docs/factions/ROADMAP.md`). A world that imported the temple list before
+this fix keeps the bad fourth row until the Judge deletes the list and runs
+the step again; presence is by id, and a held document is never rewritten.
+
+### The doing-business figures ride the city-travel document, and a gate is marked rather than measured (2026-09-30)
+
+**Reported (the user):** "A gates/import tax/smuggling should also be scoped
+in." The design was drawn (a gate action on the settlement board, the
+syndicate's consignment service on the faction) and the release was called
+before the two actions were built; what landed is the half every later piece
+reads from.
+
+**Ruled.**
+- The page's figures arrive through the `cityTravel` table recipe, beside
+  `districtTravel` from the paces page two folios on (AX3 p. 56): `businessProse` reads two windows,
+  and `city-travel-binding.mjs` assembles `gateTolls` (the toll's dice, the
+  stones one throw covers, the duty's dice as a percentage) and `smuggling`
+  (loads a month, the fee, the interception chance, the arrival dice). Both
+  are declared by the formation feature's `expectTables`, so a world that
+  never read the page shows two expected tables that did not arrive rather
+  than a gate that charges nothing. The duty is parsed only beside the word
+  that names it, so a page without a duty sentence yields a toll and no duty
+  instead of the toll's dice twice.
+- A gate is a `kind.location` row with `meta.role: "gate"`, and the role
+  lands on the place (`system.role`) at import, on a fresh import and by a
+  stamp on a place the world already holds. A role is which KIND of place
+  this is to a procedure, not a page value, so the stamp needs no page read.
+  Every gate the book keys is marked, the inner ones included: which of them
+  stand in the wall is the Judge's knowledge at the table, and an action that
+  priced the toll only at some of them would be deciding it from a list the
+  module does not hold.
+- The syndicate that carries goods past the gates is named on its
+  organisation row as `services: ["smuggling"]`, an id-level fact like a
+  seat or a relation; the faction binding's write of it is the consignment
+  service's first step and is not built.
+- A party's loads are read through `acksExtras.markets.manifestOf` and
+  handed over through `removeLoads`, in the markets feature because the load
+  flag is that feature's; the snapshot `removeLoads` returns is what a later
+  delivery re-creates without naming the flag.
+
+**Rejected:** a `kind.constant` row per figure — its compiler asserts an
+integer and its consumer reads a live page (`scg-constants.mjs`), where these
+figures are needed at play with no book open; a per-market copy of the
+figures on the city's place — the trade layer's market-local rules
+(`docs/markets/wip/trade-layer.md`, S3) can shadow the document later.
+
+*Cost:* the figures are world-global like `districtTravel`: a second city in
+the same world charges the first city's gate toll until a market-local layer
+exists. The gate action and the consignment service are `docs/formation/ROADMAP.md`
+and `docs/factions/ROADMAP.md` rows.

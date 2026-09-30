@@ -158,3 +158,57 @@ The market's rarity overrides, which landed with this phase, are the henchmen
 feature's ruling (`docs/henchmen/DECISIONS.md`); the hunt's cadence is the
 formation feature's (`docs/formation/DECISIONS.md`); the organisations the
 importer binds are the importer's (`docs/importer/DECISIONS.md`).
+
+### The unnamed people are a table, and it is the body's (2026-09-30)
+
+**Ruled:** a faction carries a `strength` block — columns of headings, rows of
+levels, a count per cell, a revenue where a row states one — as a second thing
+beside the roster, not as roster rows. It belongs to the faction. A garrison
+is the strength of the body that fields it; the place it stands on keeps the
+roster rows for what is deployed there and no count of its own.
+
+**Why.** A settlement book prints a body's membership as a grid: so many of
+each class at each level, with the order's income beside them. The roster row
+(`occupantField`) has a `quantity`, but a grid of forty cells forced into
+forty rows named "Fighter, 3rd level" loses the table a Judge reads at a
+glance and gains nothing — nobody in it is a document. The grid IS the
+structure the page prints, so the document stores a grid. Placing it on the
+faction rather than the place answers the user's own words: the missing
+piece was "non-named NPC follower's members tables", which are a body's, and
+a watch's strength is one number whether it is read at the barracks or at
+the gate it guards.
+
+**What the page's total row is.** A check, never stored. The columns are
+summed at import and compared with the printed total, and a column that
+disagrees is reported, because that is what a mis-cut column looks like from
+inside. A Judge's own table has no printed total, so the sheet computes the
+row it shows.
+
+**What a shared grid gives.** One AX3 grid prints seven orders across seven
+columns with one total column; each column names its own organisation by id,
+so seven factions read one grid and each keeps only its columns. Revenue is
+attributed only when every column is one body's: a grid shared between orders
+prints no income anyone could assign.
+
+**Rejected:** roster rows with a quantity (the table lost, above); a place-side
+garrison field (two homes for one count); reading the prose counts a page
+states in sentences ("the watch keeps N men at each gate") — those are values
+inside book prose, and the grid op reads geometry, not sentences. They stay
+unbuilt (ROADMAP).
+
+**Cost:** a second editable table on the Members tab, rewritten whole on every
+cell change like the other arrays; and a fixed rule that a count stands under
+a column, so a row wider than the columns is cut to them.
+
+### The parent picker carries its own value (2026-09-30)
+
+**Ruled:** the parent `<select>` on the Overview tab is rebuilt with the
+stored parent always among its options, including a parent that would now
+close a loop or has since been deleted.
+
+**Why.** The 8.0.0 live-seat pass dropped `parent`/`parentOptions` from the
+sheet's context while the template kept the named select. A named select
+with no options submits an empty string on every submit-on-change, so any
+edit anywhere on the sheet silently cleared `system.parentUuid`. The loop
+guard still applies to what the picker OFFERS; it no longer applies to what
+it must DISPLAY.

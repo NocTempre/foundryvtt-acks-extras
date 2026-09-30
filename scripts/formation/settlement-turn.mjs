@@ -11,11 +11,12 @@ import { MODULE_ID } from "../lib/constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { cookbookId } from "../lib/library.mjs";
+import { clockReading } from "../lib/world-time.mjs";
 import { readFormations, patchFormation, realMembers } from "./formation-model.mjs";
 import { travelOf } from "./travel.mjs";
 import {
   advanceSettlementTurn, advanceSettlementDays, citySpec, streetCadence,
-  resolveCityCadence, cadenceAttribution, pickIncidentSource, settlementEncounter, readIncident,
+  resolveCityCadence, cadenceAttribution, pickIncidentSource, settlementEncounter, readIncident, isNight,
   SETTLEMENT_LOCATIONS, NAVIGATION_DIE, STREET_DIE, INCIDENT_DIE,
 } from "./settlement.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
@@ -97,11 +98,14 @@ export async function cityTurnCompleted(formation, notes = []) {
   const stationary = !!SETTLEMENT_LOCATIONS[here.where]?.stationary;
   const nav = stationary ? { throws: false } : citySpec({ pace: board.pace, route: board.route });
   const { zone, zoneName, district, districtName, districtUuid, city } = drawnOver(formation);
+  // The hour, resolved ONCE for the turn: the cadence and the incident read
+  // the same answer, so a clock crossing dusk mid-turn cannot split them.
+  const night = boardNight(board);
   const cadence = stationary
     ? null
     : resolveCityCadence(
-      streetCadence({ where: here.where, night: board.night, intent: board.intent }),
-      { zone, district, night: board.night, intent: board.intent },
+      streetCadence({ where: here.where, night, intent: board.intent }),
+      { zone, district, night, intent: board.intent },
     );
   const willOweEncounter = !!cadence && ((board.turns + 1) % cadence.everyTurns === 0);
 
@@ -135,13 +139,18 @@ export async function cityTurnCompleted(formation, notes = []) {
   // the throw and every other feature's bookkeeping down with it.
   try {
     await whisperTurn(next, events, [navThrow.roll, encThrow.roll].filter(Boolean), {
-      zoneName, districtName, here, formation, regionUuid: districtUuid,
+      zoneName, districtName, here, formation, regionUuid: districtUuid, night,
       incident: pickIncidentSource({ district, zone, wanted: board.wanted, city }),
     });
   } catch (err) {
     console.error(`${MODULE_ID} | city turn card failed`, err);
   }
   return { board: next, events };
+}
+
+/** Whether this board stands after dark now: its own word, or the world clock's. */
+function boardNight(board) {
+  return isNight(board, { dark: clockReading()?.dark ?? null });
 }
 
 /**
@@ -166,9 +175,10 @@ export async function runHoledUpDays(formation, days) {
   if (!n) return null;
   const board = t.settlement;
   const { zone, zoneName, district, districtName } = drawnOver(formation);
+  const night = boardNight(board);
   const cadence = resolveCityCadence(
-    streetCadence({ where: board.where, night: board.night, intent: board.intent }),
-    { zone, district, night: board.night, intent: board.intent },
+    streetCadence({ where: board.where, night, intent: board.intent }),
+    { zone, district, night, intent: board.intent },
   );
 
   const rolls = [];
@@ -380,28 +390,45 @@ async function drawIncident(table, source) {
 }
 
 /**
- * The map's own city list, read by band.
- *
- * Thrown on the table's OWN formula and read by range rather than drawn: the
- * shift after dark reaches rows past the die's last face, which `table.roll()`
- * can never land on. When the total falls in the stretch that defers to the
- * quarter and the quarter has a special list that exists, that list is drawn
- * and answers instead, carrying the city throw as `via` so the card can show
- * both. A band with nothing to hand over to leaves the city row's own words
- * standing. Null for a table with no ranged rows, which sends the walk on.
+ * One list thrown on its OWN formula and read by range, with what it adds
+ * after dark: rows past the die's last face are reached only by that
+ * addition, and `table.roll()` never lands on them. `fallback` is the die for
+ * a list whose formula does not parse. Null for a list with no ranged rows,
+ * or with neither a formula nor a fallback.
  */
-async function readMapIncident(table, { source, afterDark = 0, band = null, specialTableUuid = null }, night) {
+async function throwBanded(table, { afterDark = 0, band = null, fallback = null }, night) {
   const rows = incidentRowsOf(table);
   if (!rows?.length) return null;
-  const formula = table.formula && (Roll.validate?.(table.formula) ?? true) ? table.formula : INCIDENT_DIE;
+  const formula = table.formula && (Roll.validate?.(table.formula) ?? true) ? table.formula : fallback;
+  if (!formula) return null;
   const roll = await new Roll(formula).evaluate();
   const read = readIncident(roll.total, { night, afterDark, rows, band });
+  return read ? { ...read, dice: roll, table: table.name } : null;
+}
+
+/**
+ * The map's own city list, read by band (`throwBanded`).
+ *
+ * When the total falls in the stretch that defers to the quarter and the
+ * quarter has a special list that can be read, that list is thrown the same
+ * way with its OWN after-dark figure and answers instead, carrying the city
+ * throw as `via` so the card can show both. A band with nothing to hand over
+ * to leaves the city row's own words standing, marked `specialMissing` when
+ * the quarter names a list that is gone or has no ranged rows. Null for a
+ * table with no ranged rows, which sends the walk on.
+ */
+async function readMapIncident(
+  table,
+  { source, afterDark = 0, band = null, specialTableUuid = null, specialAfterDark = 0 },
+  night,
+) {
+  const read = await throwBanded(table, { afterDark, band, fallback: INCIDENT_DIE }, night);
   if (!read) return null;
-  const found = { ...read, dice: roll, source, table: table.name };
-  if (!read.special) return found;
+  const found = { ...read, source };
+  if (!read.special || !specialTableUuid) return found;
   const special = await incidentTableAt(specialTableUuid);
-  if (!special) return found;
-  return { ...(await drawIncident(special, "special")), via: found };
+  const answer = special ? await throwBanded(special, { afterDark: specialAfterDark }, night) : null;
+  return answer ? { ...answer, source: "special", via: found } : { ...found, specialMissing: true };
 }
 
 /**
@@ -432,24 +459,36 @@ async function readMapIncident(table, { source, afterDark = 0, band = null, spec
  * @param {Array<{tableUuid: string|null, source: string, banded?: boolean}>} [opts.candidates]
  *   the order to walk; a bare `tableUuid`/`source` pair stands in for a
  *   one-entry order when it is absent.
+ * @param {string[]} [opts.passed] collects the `source` of every NAMED list the
+ *   walk could not read, whatever the walk then answers, so the card can say
+ *   a list was passed over.
  * @returns {Promise<object|null>} the incident; `via` is the city throw that
  *   handed over, on an answer from a quarter's special list.
  */
 export async function rollSettlementIncident({
-  night = false, tableUuid = null, source = "city", candidates = null,
+  night = false, tableUuid = null, source = "city", candidates = null, passed = [],
 } = {}) {
   const order = candidates?.length ? candidates : [{ tableUuid, source }];
   for (const candidate of order) {
+    if (!candidate.tableUuid) continue;
     const table = await incidentTableAt(candidate.tableUuid);
-    if (!table) continue;
+    if (!table) {
+      passed.push(candidate.source);
+      continue;
+    }
     if (!candidate.banded) return drawIncident(table, candidate.source);
     const found = await readMapIncident(table, candidate, night);
-    if (found) return found;
+    if (found) {
+      if (found.specialMissing) passed.push("special");
+      return found;
+    }
+    passed.push(candidate.source);
   }
-  const rows = incidentRowsOf(await findCityIncidentTable());
+  const world = await findCityIncidentTable();
+  const rows = incidentRowsOf(world);
   const roll = await new Roll(INCIDENT_DIE).evaluate();
   const found = settlementEncounter(roll.total, { night, rows });
-  return found ? { ...found, roll: roll.total, dice: roll, source: "city" } : null;
+  return found ? { ...found, roll: roll.total, dice: roll, source: "city", table: world?.name ?? null } : null;
 }
 
 /** A stay as one card: how long it lasted, and which days were interrupted. */
@@ -498,16 +537,14 @@ async function whisperStay(board, events, rolls, {
 }
 
 /**
- * The incident's own line, by how its list was read: the world's d100 names no
- * table, the map's list names itself and its shifted total, a drawn table
- * names itself and nothing else.
+ * The incident's own line: the list that answered, when it has a name (a
+ * list authored into the registry has none), and the shifted total only when
+ * a shift was applied, so a throw by day never claims the dark.
  */
 function incidentLine(incident, text) {
-  if (incident.source === "city") return loc("settlement.card.incident", { roll: incident.roll, total: incident.total, text });
-  if (incident.source === "map" && incident.afterDark) {
-    return loc("settlement.card.incidentBanded", { roll: incident.roll, total: incident.total, text, table: incident.table });
-  }
-  return loc("settlement.card.incidentDrawn", { roll: incident.roll, text, table: incident.table });
+  const data = { roll: incident.roll, total: incident.total, text, table: incident.table };
+  if (!incident.table) return loc(incident.afterDark ? "settlement.card.incident" : "settlement.card.incidentPlain", data);
+  return loc(incident.afterDark ? "settlement.card.incidentBanded" : "settlement.card.incidentDrawn", data);
 }
 
 /** The marker's line on the card: that one was left, and the button that makes it a place. */
@@ -518,7 +555,10 @@ const markerLine = (note) =>
 /** The turn as one Judge-side card. Silent when nothing happened worth saying. */
 async function whisperTurn(
   board, events, rolls,
-  { zoneName = null, districtName = null, here = null, incident: pick = null, formation = null, regionUuid = null } = {},
+  {
+    zoneName = null, districtName = null, here = null, incident: pick = null, formation = null, regionUuid = null,
+    night = false,
+  } = {},
 ) {
   const lines = [];
   lines.push(loc("settlement.card.moved", { blocks: board.blocks, turns: board.turns }));
@@ -578,10 +618,19 @@ async function whisperTurn(
       // outcome.
       const beforeIncident = lines.length;
       let incident = null;
+      // Every named list the walk could not read, said on the card whatever
+      // then answered: a list that is gone sends the throw to the next one,
+      // and the Judge otherwise sees only that the wrong list spoke.
+      const passed = [];
       try {
-        incident = await rollSettlementIncident({ night: board.night, ...(pick ?? {}) });
+        incident = await rollSettlementIncident({ night, ...(pick ?? {}), passed });
       } catch (err) {
         console.error(`${MODULE_ID} | settlement incident lookup failed`, err);
+      }
+      for (const source of passed) {
+        lines.push(source === "special"
+          ? loc("settlement.lists.specialMissing")
+          : loc("settlement.lists.missing", { list: loc(`settlement.lists.source.${source}`) }));
       }
       if (incident) {
         if (incident.source === "wanted") {

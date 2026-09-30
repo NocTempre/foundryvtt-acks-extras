@@ -42,6 +42,16 @@ formation guide's [Points of interest](formation.md#points-of-interest) section
 walks. A quarter drawn as a district can name a place as its own from the
 district's sheet.
 
+## Mark a place's role
+
+Some places have a **Role** — today, marking one as a gate. Pick it on the
+identity line under **Role**. The Judge sees the picker; players see a tag
+instead. The points-of-interest step of a settlement import marks a book's
+gates for you, on a fresh import and on places a world already holds. Nothing
+reads the marking yet; the gate action that will is a future release.
+
+![](../releases/v9.7.0/location-role.png)
+
 ## Store goods there
 
 Drag an item onto the sheet's **Storage** tab, or use **Deposit here**.

@@ -15,9 +15,9 @@
  * value is what the Judge typed, and the one knob that turns standing into a
  * market shift defaults to off.
  */
-import { headcountOf } from "../standing-logic.mjs";
+import { headcountOf, strengthColumnTotals, strengthRevenue, strengthTotal } from "../standing-logic.mjs";
 import { acksCompatStubs } from "../../lib/actor-compat.mjs";
-import { str, int, occupantField } from "../../lib/fields.mjs";
+import { num, str, int, occupantField } from "../../lib/fields.mjs";
 import { FACTION_KINDS, RELATION_STANCES, STANDING_SOURCES, SUBJECT_SCOPES } from "../constants.mjs";
 import { isWanted, rowsFor, sumStanding } from "../standing-logic.mjs";
 
@@ -76,6 +76,34 @@ function holdingField() {
   });
 }
 
+/**
+ * The body's STRENGTH: its unnamed people, counted. A column per kind — a
+ * class, an order, a troop type — and a row per level, or per posting where
+ * no level applies, with a count under each column and the revenue that row
+ * brings in where the page states one. The named roster is the other list;
+ * a printed strength grid counts the named members among its figures, so the
+ * two are shown side by side and never added. Every figure is the page's or
+ * the Judge's: nothing here is derived from a rule.
+ */
+function strengthField() {
+  return new fields.SchemaField({
+    columns: new fields.ArrayField(new fields.SchemaField({ label: str() })),
+    rows: new fields.ArrayField(
+      new fields.SchemaField({
+        level: num({ integer: true, min: 0 }),
+        label: str(),
+        counts: new fields.ArrayField(int(0)),
+        revenue: num(),
+      }),
+    ),
+    // Where the figures come from: a page reference, or the Judge's word.
+    note: str(),
+    // Display gating, like a concealed roster row: a syndicate's true size is
+    // not on its public sheet.
+    hidden: new fields.BooleanField({ initial: false }),
+  });
+}
+
 /** The `acks-extras.faction` actor sub-type. */
 export class FactionData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
@@ -107,6 +135,9 @@ export class FactionData extends foundry.abstract.TypeDataModel {
       // Its members: the roster row a place uses, so a guild's list and an
       // inn's list are one shape.
       members: new fields.ArrayField(occupantField()),
+      // Its unnamed people, counted by kind and level. Empty by default, so
+      // an actor written before the field existed loads with none.
+      strength: strengthField(),
       // The scene Regions it controls — quarters drawn as Districts. Uuids of
       // Region documents; a quarter with no faction over it is simply absent.
       controls: new fields.ArrayField(new fields.StringField({ blank: false })),
@@ -167,5 +198,20 @@ export class FactionData extends foundry.abstract.TypeDataModel {
   /** Members counted with their stacks, the way a place counts its roster. */
   get headcount() {
     return headcountOf(this.members);
+  }
+
+  /** Everyone the strength block counts; 0 when no figures are recorded. */
+  get strengthTotal() {
+    return strengthTotal(this.strength);
+  }
+
+  /** The strength under each column, in column order. */
+  get strengthColumnTotals() {
+    return strengthColumnTotals(this.strength);
+  }
+
+  /** The revenue the strength rows state, summed, or null when none states one. */
+  get strengthRevenue() {
+    return strengthRevenue(this.strength);
   }
 }

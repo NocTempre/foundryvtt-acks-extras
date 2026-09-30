@@ -522,6 +522,27 @@ needs `items: []` ([../vehicles/TESTING.md](../vehicles/TESTING.md)).
    *Observable:* the sale answers `{ok: true}` and W's stack is gone; the
    packs purchase lands on A.
 
+## The manifest and load-removal API
+
+**Fixtures:** a character holding a merchandise load stack (invented category
+name and figures, tracked by id). Create by hand with `system.cost` and
+`flags["acks-extras"].markets = {merchandise: true, category: "sampleGoods"}`.
+
+1. Call `acksExtras.markets.manifestOf([actor])`.
+   *Observable:* `{rows: [{holderUuid, holderName, itemId, category, label, stones, unitGp, valueGp, priced: "base"}], stones, valueGp}`.
+   The row names the category and prices the load at `priced: "base"` (the
+   item's own cost, since no market price exists for an invented category).
+   `label` reads "Sample Goods" or the merchandise item's name if one exists.
+2. Call `acksExtras.markets.removeLoads(actor, "sampleGoods", 3)`.
+   *Observable:* `{ok: true, removed: [{name, type, quantity: 3, …}]}`.
+   The returned snapshot carries the removed quantity and none of the load's
+   `_id` — a snapshot for the ledger, never a document. Reload.
+   *Observable:* the actor's load is gone or reduced by the exact quantity
+   removed. Call remove again on the same quantity: `{ok: false, reason:
+   "noLoads", held: <the remaining stones>}`.
+
+**Teardown:** delete the character by id.
+
 ## Teardown
 
 Delete the location, the buyer and the merchandise fixtures by their tracked

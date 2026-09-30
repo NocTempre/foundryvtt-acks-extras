@@ -25,6 +25,11 @@
           <i class="fas fa-users"></i> {{headcount}}
         </span>
         {{/if}}
+        {{#if strength.total}}
+        <span class="acks-tag" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.strengthTotalHint'}}">
+          <i class="fas fa-shield-halved"></i> {{strength.total}}
+        </span>
+        {{/if}}
         {{#if wantedCount}}
         <span class="acks-tag is-bad" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.wantedHint'}}">
           <i class="fas fa-person-circle-exclamation"></i> {{wantedCount}}
@@ -173,6 +178,99 @@
       <p class="acks-empty">{{localize "ACKS-FACTIONS.sheet.membersEmpty"}}</p>
       {{/if}}
     </details>
+
+    {{#if strength.visible}}
+    <details class="section" open>
+      <summary>{{localize "ACKS-FACTIONS.sheet.strength"}}{{#if strength.total}} ({{strength.total}}){{/if}}{{#if strength.hidden}} <i class="fas fa-eye-slash"></i>{{/if}}</summary>
+      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.strengthHint"}}{{#if strength.note}} {{strength.note}}{{/if}}</p>
+      {{#if strength.columns.length}}
+      <table class="acks-table acks-extras-faction-table acks-extras-faction-strength">
+        <thead>
+          <tr>
+            <th>{{localize "ACKS-FACTIONS.sheet.strengthRow"}}</th>
+            {{#each strength.columns}}
+            <th data-col="{{this.col}}">
+              {{#if @root.canCurate}}
+              <input type="text" data-strength="column.{{this.col}}.label" value="{{this.label}}"
+                     aria-label="{{localize 'ACKS-FACTIONS.sheet.strengthColumn'}}"
+                     placeholder="{{localize 'ACKS-FACTIONS.sheet.strengthColumn'}}" />
+              <a data-action="removeStrengthColumn" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.strengthRemoveColumnHint'}}"><i class="fas fa-xmark"></i></a>
+              {{else}}{{this.label}}{{/if}}
+            </th>
+            {{/each}}
+            {{#if strength.hasRevenue}}<th>{{localize "ACKS-FACTIONS.sheet.strengthRevenue"}}</th>{{/if}}
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each strength.rows}}
+          <tr data-index="{{this.index}}">
+            <td class="strength-head">
+              {{#if @root.canCurate}}
+              <input type="number" class="strength-level" data-strength="row.{{this.index}}.level" value="{{this.level}}" min="0" step="1"
+                     aria-label="{{localize 'ACKS-FACTIONS.sheet.strengthLevel'}}"
+                     placeholder="{{localize 'ACKS-FACTIONS.sheet.strengthLevel'}}" />
+              <input type="text" data-strength="row.{{this.index}}.label" value="{{this.label}}"
+                     aria-label="{{localize 'ACKS-FACTIONS.sheet.strengthLabel'}}"
+                     placeholder="{{localize 'ACKS-FACTIONS.sheet.strengthLabel'}}" />
+              {{else}}{{this.head}}{{/if}}
+            </td>
+            {{#each this.counts}}
+            <td class="strength-count">
+              {{#if @root.canCurate}}
+              <input type="number" data-strength="row.{{../index}}.count.{{this.col}}" value="{{this.n}}" min="0" step="1"
+                     aria-label="{{localize 'ACKS-FACTIONS.sheet.strengthCount'}}" />
+              {{else}}{{this.n}}{{/if}}
+            </td>
+            {{/each}}
+            {{#if @root.strength.hasRevenue}}
+            <td class="strength-count">
+              {{#if @root.canCurate}}
+              <input type="number" data-strength="row.{{this.index}}.revenue" value="{{this.revenue}}" step="any"
+                     aria-label="{{localize 'ACKS-FACTIONS.sheet.strengthRevenue'}}" />
+              {{else}}{{this.revenue}}{{/if}}
+            </td>
+            {{/if}}
+            <td class="row-actions">
+              {{#if @root.canCurate}}
+              <a data-action="removeStrengthRow" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.strengthRemoveRowHint'}}"><i class="fas fa-xmark"></i></a>
+              {{/if}}
+            </td>
+          </tr>
+          {{/each}}
+          {{#if strength.rows.length}}
+          <tr class="strength-total">
+            <td>{{localize "ACKS-FACTIONS.sheet.strengthTotal"}}</td>
+            {{#each strength.columnTotals}}<td class="strength-count">{{this}}</td>{{/each}}
+            {{#if strength.hasRevenue}}<td class="strength-count">{{strength.revenueShown}}</td>{{/if}}
+            <td></td>
+          </tr>
+          {{/if}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="acks-empty">{{localize "ACKS-FACTIONS.sheet.strengthEmpty"}}</p>
+      {{/if}}
+      {{#if canCurate}}
+      <div class="faction-control-pick">
+        <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="addStrengthColumn">
+          <i class="fas fa-plus"></i> {{localize "ACKS-FACTIONS.sheet.strengthAddColumn"}}
+        </button>
+        <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="addStrengthRow" {{#unless strength.columns.length}}disabled{{/unless}}>
+          <i class="fas fa-plus"></i> {{localize "ACKS-FACTIONS.sheet.strengthAddRow"}}
+        </button>
+        <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="toggleStrengthHidden">
+          <i class="fas {{#if strength.hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
+          {{#if strength.hidden}}{{localize "ACKS-FACTIONS.sheet.strengthShow"}}{{else}}{{localize "ACKS-FACTIONS.sheet.strengthHide"}}{{/if}}
+        </button>
+        <label class="strength-note">
+          {{localize "ACKS-FACTIONS.sheet.strengthNote"}}
+          <input type="text" data-strength="note" value="{{strength.note}}" placeholder="{{localize 'ACKS-FACTIONS.sheet.strengthNotePlaceholder'}}" />
+        </label>
+      </div>
+      {{/if}}
+    </details>
+    {{/if}}
   </section>
 
   {{!-- --------------------------- Relations -------------------------- --}}

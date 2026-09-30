@@ -20,7 +20,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
-  isOrganisationRow, organisationPlan, organisationData, owedRelations, controlledRegions,
+  isOrganisationRow, organisationPlan, organisationData, owedRelations, controlledRegions, isStrengthGridRow, strengthPlan,
+  strengthFromGrid,
 } from "../../scripts/importer/faction-binding.mjs";
 import { districtPlaceId, isDistrictOverview, isPoiEntry } from "../../scripts/importer/poi-binding.mjs";
 import { FACTION_KINDS, FACTION_TYPE, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
@@ -169,6 +170,57 @@ check("nothing to change is null, so nothing is written",
 check("a region held and named again is held once",
   controlledRegions(["Scene.s.Region.mill", "Scene.old.Region.keep"], ["bk.district.mill-quarter"], regionOf, exists), null);
 
+// --- a strength grid: the unnamed people, counted ------------------------------
+check("an authored strength grid is its kind and its columns block",
+  isStrengthGridRow({ kind: "kind.strengthGrid", strength: { columns: { c1: "bk.org1" } } }), true);
+check("the kind without columns is not one", isStrengthGridRow({ kind: "kind.strengthGrid", strength: {} }), false);
+check("columns on another kind are not one", isStrengthGridRow({ kind: "kind.organisation", strength: { columns: { c1: "bk.org1" } } }), false);
+
+{
+  // One body owning every column keeps the revenue column; a grid shared
+  // between bodies prints no revenue anyone could attribute, so none is
+  // planned even when the row names one.
+  const own = strengthPlan({ strength: { columns: { c1: "bk.org1", c2: "bk.org1" }, revenue: "revenue" } });
+  check("a single owner's columns, in grid order", [...own.owners], [["bk.org1", ["c1", "c2"]]]);
+  check("and its revenue column", own.revenue, "revenue");
+  const shared = strengthPlan({ strength: { columns: { c1: "bk.org1", c2: "bk.org2", c3: "bk.org1", c4: "" }, revenue: "revenue" } });
+  check("a shared grid splits by owner, keeping each owner's grid order", [...shared.owners], [["bk.org1", ["c1", "c3"]], ["bk.org2", ["c2"]]]);
+  check("a shared grid attributes no revenue", shared.revenue, "");
+  check("no block plans nobody", [...strengthPlan({}).owners], []);
+}
+
+{
+  const grid = {
+    header: { c1: "fighteRs", c2: "Mages", c3: "SCOUTS", revenue: "Revenue" },
+    rows: [
+      { key: "3rd", label: "3rd", cells: { c1: 2, c2: 0, c3: 1, revenue: 500 } },
+      { key: "2nd", label: "2nd", cells: { c1: 4, c2: 1, c3: null, revenue: 300 } },
+      { key: "note", label: "Cost", cells: { c1: "each", c2: "each" } },
+      { key: "1st", label: "1st", cells: { c1: 10, c2: 3, c3: 2, revenue: "N/A" } },
+      { key: "total", label: "Total", cells: { c1: 16, c2: 4, c3: 3, revenue: 800 } },
+    ],
+  };
+  const built = strengthFromGrid(grid, ["c1", "c2"], { revenue: "revenue", note: "p.7" });
+  check("a header set in small capitals is set as a name; a plain one is kept",
+    built.strength.columns.map((c) => c.label), ["Fighters", "Mages"]);
+  check("one row per level label, in grid order, counting the body's columns only",
+    built.strength.rows.map((r) => [r.level, r.counts]), [[3, [2, 0]], [2, [4, 1]], [1, [10, 3]]]);
+  check("revenue is read where the grid states it and is none where it does not",
+    built.strength.rows.map((r) => r.revenue), [500, 300, null]);
+  check("the page reference rides as the note, the table starts shown", [built.strength.note, built.strength.hidden], ["p.7", false]);
+  check("a row that is neither a level nor the total is not a row", built.strength.rows.length, 3);
+  check("the total row is a check that passes when the columns add up", built.problems, []);
+  // The other body's column reads the same grid; a blank cell is a zero.
+  const other = strengthFromGrid(grid, ["c3"], { revenue: "", note: "" });
+  check("a blank cell counts zero", other.strength.rows.map((r) => r.counts[0]), [1, 0, 2]);
+  check("no revenue column, no revenue", other.strength.rows.every((r) => r.revenue === null), true);
+  // A mis-cut column shows as a sum the page's own total row disagrees with.
+  const cut = strengthFromGrid({ ...grid, rows: grid.rows.map((r) => (r.label === "Total" ? { ...r, cells: { ...r.cells, c1: 17 } } : r)) }, ["c1", "c2"]);
+  check("a column whose sum is not the printed total is reported by key", cut.problems, ["column c1 sums to 16, the page's total row says 17"]);
+  check("no level row, no strength", strengthFromGrid({ rows: [{ label: "Total", cells: { c1: 1 } }] }, ["c1"]), null);
+  check("no columns, no strength", strengthFromGrid(grid, []), null);
+}
+
 // --- the shipped AX3 cookbook ------------------------------------------------
 const here = dirname(fileURLToPath(import.meta.url));
 const ax3 = JSON.parse(readFileSync(join(here, "..", "..", "cookbook", "ax3.json"), "utf8"));
@@ -273,6 +325,27 @@ if (concealed) {
   ok("the body whose page turns on nobody knowing it rosters every tie concealed",
     plan.members.length > 0 && plan.members.every((m) => m.hidden),
     plan.members.map((m) => `${m.id}:${m.hidden}`).join(","));
+}
+
+/* The strength grids. Each names its columns by the id of an authored
+ * organisation, is found by its heading's print key, ships a grid op whose
+ * columns are the ones the block names, and attributes revenue only where one
+ * body owns the whole grid. */
+const gridRows = entries.filter(([, e]) => isStrengthGridRow(e));
+ok("AX3 ships strength grids", gridRows.length > 0, `${gridRows.length}`);
+const orgIds = new Set(rows.map(([id]) => id));
+for (const [id, e] of gridRows) {
+  const n = /^ax3\.strength(\d+)$/u.exec(id)?.[1];
+  ok(`${id} is numbered`, !!n && e.name === `Strength grid ${n}`, e.name);
+  ok(`${id} is found by print key`, located(e.fields?.name, "hash"));
+  const op = e.fields?.["grids.strength"];
+  ok(`${id} ships one grid op with a header band and a label span`, op?.op === "grid" && !!op.headerBand && !!op.label);
+  const cols = new Set((op?.cols ?? []).map((c) => c.key));
+  const plan = strengthPlan(e);
+  ok(`${id} names an authored organisation for every counted column`, plan.owners.size > 0 && [...plan.owners.keys()].every((org) => orgIds.has(org)), [...plan.owners.keys()].join(","));
+  ok(`${id} counts only columns its grid op cuts`, [...plan.owners.values()].flat().every((k) => cols.has(k)));
+  ok(`${id} attributes revenue only to a single owner`, !plan.revenue || (plan.owners.size === 1 && cols.has(plan.revenue)), plan.revenue);
+  ok(`${id} ships no header word`, !(op?.cols ?? []).some((c) => typeof c.label === "string" && c.label));
 }
 
 /* A concealed tie is display-gated, never access-gated, so it must survive the

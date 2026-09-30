@@ -187,6 +187,33 @@ Shut the world down and relaunch it, then check again.
     seated in its quarter's place (the city's for the company), with the
     group's imported people on the roster; a second run reports them held and
     rosters nobody twice.
+14. **The strength table, imported.** After step 13, `Actor.get(id).system
+    .strength` on each faction the book prints a strength grid for. *Observable:*
+    the report line "N given their strength"; `columns` carry the page's
+    headings set as names, `rows` one per printed level in page order with
+    integer `counts` and, on the two single-owner grids, a `revenue` per row;
+    `note` cites the page; `strengthColumnTotals` equals the page's total row
+    and the console carried no "sums to" warning. The seven-order grid gives
+    each of its organisations only its own columns and no revenue. Run the
+    step again. *Observable:* "N kept their figures" and no write.
+15. **The strength table, edited.** On the watch faction's Members tab press
+    **Column** twice and **Row** twice, type headings and counts, a level on
+    one row and a label on the other, and a revenue. *Observable:* every cell
+    survives a re-render; the total row shows the column sums and the revenue
+    sum; the header tag shows the grand total; `system.strength` holds
+    integers, a null level where none was typed, and rows exactly as wide as
+    the columns. Drop a column with its ×. *Observable:* every row loses that
+    cell. Type `-1` in a count and a blank in the level. *Observable:* 0 and
+    none. Press **Hide from players**. *Observable:* the summary shows the
+    hidden mark and the button reads **Show to players**.
+16. **The strength table on a Player seat.** Join as the Player seat with
+    ownership of the watch. *Observable:* the Strength section is absent while
+    hidden and, once the Judge shows it, present as read-only text with the
+    total row and no add, drop or hide controls, and the header tag counts it.
+17. **The parent picker holds.** As the Judge, set the guild's **Part of** to
+    the syndicate, then change the guild's kind. *Observable:* the parent is
+    still the syndicate after the re-render (`system.parentUuid` unchanged);
+    the picker offers **none** and every faction that would not close a loop.
 
 ## Teardown
 

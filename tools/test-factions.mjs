@@ -44,7 +44,8 @@ globalThis.acksExtras ??= {};
 
 const {
   subjectsOf, matchesSubject, sumStanding, rowsFor, isWanted, huntersAmong, classStepsFor, wouldCycleFaction, factionRecord,
-  relationOf, regardedBy, placesHeld, readableRows, readableLeaderUuid, headcountOf,
+  relationOf, regardedBy, placesHeld, readableRows, readableLeaderUuid, headcountOf, normalizeStrength, strengthTotal,
+  strengthColumnTotals, strengthRevenue,
 } = await import("../scripts/factions/standing-logic.mjs");
 const { applyHunt, freshSettlement } = await import("../scripts/formation/settlement.mjs");
 const { pushFactionModifiers } = await import("../scripts/factions/influence-listener.mjs");
@@ -431,6 +432,38 @@ standingStep = 0;
     const body = src.slice(at, at + 12000);
     assert.ok(/name: printedNameOf\(|printedNameOf\(node/.test(body), `${fn} names its document from the page`);
   }
+}
+
+// --- strength: the unnamed people, counted --------------------------------------
+{
+  // The sheet writes what its inputs hold — strings, blanks, a level typed
+  // over — and the importer writes what the grid parsed. Both land through
+  // one normaliser, so a stored block is always rectangular: every row as
+  // wide as the columns, a blank count a zero, a blank level or revenue none.
+  const s = normalizeStrength({
+    columns: ["Fighters", { label: " Mages " }, {}],
+    rows: [
+      { level: "3", label: " veterans ", counts: ["4", "", "x", 9], revenue: "12.5" },
+      { level: "", label: "", counts: [1], revenue: "" },
+      { level: -2, counts: [-3, 2.9], revenue: "none" },
+      null,
+    ],
+    note: "  p.7 ",
+    hidden: 1,
+  });
+  assert.deepEqual(s.columns, [{ label: "Fighters" }, { label: "Mages" }, { label: "" }], "columns are labels, trimmed, from strings or objects");
+  assert.deepEqual(s.rows.map((r) => r.counts), [[4, 0, 0], [1, 0, 0], [0, 2, 0]], "every row is cut or padded to the width; blanks and garbage count zero, fractions floor");
+  assert.deepEqual(s.rows.map((r) => r.level), [3, null, null], "a level is a whole number or none; a negative one is none");
+  assert.deepEqual(s.rows.map((r) => r.label), ["veterans", "", ""], "labels are trimmed");
+  assert.deepEqual(s.rows.map((r) => r.revenue), [12.5, null, null], "revenue is a number or none");
+  assert.equal(s.note, "p.7");
+  assert.equal(s.hidden, false, "only a true boolean hides the table");
+  assert.equal(strengthTotal(s), 7);
+  assert.deepEqual(strengthColumnTotals(s), [5, 2, 0]);
+  assert.equal(strengthRevenue(s), 12.5, "revenue sums the rows that state one");
+  assert.equal(strengthRevenue({ columns: [{ label: "a" }], rows: [{ counts: [1], revenue: null }] }), null, "and is none when no row does");
+  assert.deepEqual(normalizeStrength(undefined), { columns: [], rows: [], note: "", hidden: false }, "nothing stored is an empty table");
+  assert.equal(strengthTotal(normalizeStrength({ columns: [], rows: [{ counts: [5] }] })), 0, "a count with no column to stand under is not counted");
 }
 
 console.log("test-factions: all checks passed");

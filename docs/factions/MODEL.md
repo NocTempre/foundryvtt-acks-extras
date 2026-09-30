@@ -16,8 +16,8 @@ print is [DECISIONS.md](DECISIONS.md); what is not built is
 | File | Owns |
 |---|---|
 | `scripts/factions/constants.mjs` | The sub-type id, the kinds, the standing sources and scopes, the relation stances, the setting key, the hook names. |
-| `scripts/factions/data/faction-data.mjs` | `FactionData` — the sub-type's schema and its own readers (`standingFor`, `wants`, `controlsRegion`, `hasMember`, `headcount`, `relationTo`, `holdsPlace`, `placeUuids`). |
-| `scripts/factions/standing-logic.mjs` | The pure derivations: subject sets, row matching, sums, hunters, market steps, the parent-loop guard, and the relation readers (`relationOf`, `regardedBy`, `placesHeld`). Foundry-free. |
+| `scripts/factions/data/faction-data.mjs` | `FactionData` — the sub-type's schema and its own readers (`standingFor`, `wants`, `controlsRegion`, `hasMember`, `headcount`, `relationTo`, `holdsPlace`, `placeUuids`, `strengthTotal`, `strengthColumnTotals`, `strengthRevenue`). |
+| `scripts/factions/standing-logic.mjs` | The pure derivations: subject sets, row matching, sums, hunters, market steps, the parent-loop guard, the relation readers (`relationOf`, `regardedBy`, `placesHeld`) and the strength readers (`normalizeStrength`, `strengthTotal`, `strengthColumnTotals`, `strengthRevenue`). Foundry-free. |
 | `scripts/factions/standing.mjs` | The world-facing readers, the Judge's writers (the ledger's, the relations', the holdings'), and `marketClassShift`. |
 | `scripts/factions/influence-listener.mjs` | The reception rows, pushed through the influence feature's modifier hook. |
 | `scripts/factions/apps/faction-sheet.mjs` | The sheet: overview, members, relations, standing, notes; every drop a faction accepts. |
@@ -35,11 +35,12 @@ print is [DECISIONS.md](DECISIONS.md); what is not built is
 - **Extend**: the `acks-extras.faction` sub-type (TypeDataModel) — `kind`,
   `notes` and a Judge-only `gmNotes`, a `seatUuid` (a place), `holdings` (the
   other places it keeps), a `leaderUuid`, a `parentUuid` (a faction,
-  loop-guarded), `members` (roster rows), `relations` (its stance toward each
-  other organisation), `controls` (district Region uuids) and `standing` (the
-  ledger). Both new arrays default to empty, so an actor written before them
-  loads unchanged and nothing migrates. Its prototype token draws as a marker:
-  hover name, neutral, no bars, no sight.
+  loop-guarded), `members` (roster rows), `strength` (the unnamed people,
+  counted), `relations` (its stance toward each other organisation), `controls`
+  (district Region uuids) and `standing` (the ledger). Every array defaults to
+  empty and the strength block to an empty table, so an actor written before
+  them loads unchanged and nothing migrates. Its prototype token draws as a
+  marker: hover name, neutral, no bars, no sight.
 - **Enhance**: the faction sheet; a listener on the reaction roll; a feed onto
   the settlement board's `wanted`; a market-class seam the henchmen engine
   asks at call time.
@@ -124,6 +125,31 @@ fire `acksExtras.factionRelationsChanged`.
 omitted from a player's view of the sheet; `factionsOfMember(actorUuid)`
 finds the factions rostering an actor, hidden or not.
 
+## Strength
+
+The roster names people; **strength** counts the ones nobody names. It is a
+small table on the document, `{columns, rows, note, hidden}`: a column per
+heading (`{label}` — a class, an order, a troop type, whatever the Judge or the
+page calls it), and a row per level or per kind of row, `{level, label,
+counts, revenue}` — `level` a whole number or null, `label` free text, `counts`
+one integer per column, `revenue` a number or null. A row's head on the sheet
+is its level, its label, or both. The block is always rectangular: whatever a
+writer hands `system.strength` goes through `normalizeStrength`, which cuts or
+pads every row to the columns' width, reads a blank count as zero and a blank
+level or revenue as none.
+
+Three readers, on the document and on the api: `strengthTotal` (every count
+of every row), `strengthColumnTotals` (one sum per column, the row the sheet
+prints under the table) and `strengthRevenue` (the rows' revenue summed, null
+when no row states one). The importer fills the block from a settlement
+book's printed strength grid (`docs/importer/MODEL.md`, "A body's unnamed
+people") and puts the page reference in `note`; the sheet lets the Judge
+change any cell, add or drop a row or a column, and hide the table whole.
+`hidden` is display-gated like a roster row: a player who can open the sheet
+reads the table unless it is hidden, and a hidden table is left out of the
+header tally too. A garrison is a body's strength, not its place's: the place
+keeps the roster rows for what stands on it, the faction keeps the count.
+
 ## What reads the ledger
 
 **The reception.** `influence-listener.mjs` listens on the influence
@@ -174,7 +200,10 @@ Five tabs. **Overview** — image, name, kind; the seat, the leader and the
 parent, each openable and clearable; the places held beneath them, each with a
 note, a Judge's hidden toggle and removal; the districts controlled, with a
 picker listing every district Region on every scene. **Members** — the roster,
-with a hidden toggle and removal. **Relations** — its own rows about the other
+with a hidden toggle and removal, and beneath it the strength table: a column
+per heading, a row per level or label, a total row, revenue where a row states
+one; the Judge edits any cell in place, adds or drops rows and columns, notes
+where the figures come from and hides the table whole. **Relations** — its own rows about the other
 organisations (stance, note, hidden, removal, and a picker of every other
 faction it has no row about), the read-only reverse view beneath them, and the
 ledger's total per subject, so one tab answers how it stands toward an
@@ -183,11 +212,14 @@ and the ledger in order, day-stamped from the world clock, with a **Record
 standing** prompt (scope, party, character, faction, value, source, reason).
 **Notes** — the faction's notes, and the Judge's own beneath them for a GM.
 
-The relations and holdings row controls are the Judge's, like the ledger's:
-another editor reads them. They carry no form `name` and answer to their own
-change listeners, because a schema array cannot be patched by index through the
-form — each edit rewrites the whole array, and the event is stopped before the
-form's submit-on-change sees it.
+The relations, holdings and strength controls are the Judge's, like the
+ledger's: another editor reads them. They carry no form `name` and answer to
+their own change listeners, because a schema array cannot be patched by index
+through the form — each edit rewrites the whole array (the whole strength
+block), and the event is stopped before the form's submit-on-change sees it.
+The parent picker is the one array-free field that IS a form field, so its
+options always carry the stored value, whatever else they leave out: a named
+select that lacks its own value submits empty on the next change.
 
 Drops, read by what is dropped and by the tab showing: a location on the seat
 row, or anywhere while there is no seat, becomes the seat, and otherwise joins
@@ -197,7 +229,7 @@ anywhere else. An actor dropped on the leader row becomes the leader, on the
 Standing tab opens the prompt with that actor as the subject, and anywhere else
 joins the roster.
 
-## Public API — `acksExtras.factions` (apiVersion 2)
+## Public API — `acksExtras.factions` (apiVersion 3)
 
 `FACTION_TYPE`, `FACTION_KINDS`, `RELATION_STANCES`, `STANDING_SOURCES`,
 `SUBJECT_SCOPES`, `HOOKS`, `FactionSheet`; `isFaction`, `allFactions`,
@@ -205,9 +237,10 @@ joins the roster.
 `authoritiesRostering`, `districtRegionOptions`; `subjectsOf`,
 `subjectsOfActor`, `subjectsOfFormation`, `matchesSubject`, `sumStanding`,
 `standingFor`, `standingRowsFor`, `isWantedBy`, `huntersOf`, `classStepsFor`,
-`marketClassShift`; `relationBetween`, `regardedByFactions`; `addStanding`,
-`removeStanding`, `setRelation`, `removeRelation`, `addHolding`,
-`removeHolding`.
+`marketClassShift`; `relationBetween`, `regardedByFactions`;
+`normalizeStrength`, `strengthTotal`, `strengthColumnTotals`,
+`strengthRevenue` (3); `addStanding`, `removeStanding`, `setRelation`,
+`removeRelation`, `addHolding`, `removeHolding`.
 
 Hook `acksExtras.factionStandingChanged` — `{faction, row}` after a row is
 written, `{faction, removed}` after one is removed. Hook

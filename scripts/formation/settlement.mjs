@@ -122,6 +122,30 @@ export const CONVEYANCES = Object.freeze({
   wagon: { label: "ACKS-FORMATION.settlement.conveyance.wagon", private: true },
 });
 
+/**
+ * Where the board takes the hour from. `clock` follows the world clock and
+ * is the default; `day` and `night` are the Judge's word, for a table whose
+ * clock is not kept or a scene the Judge is narrating out of it. Whether it
+ * is dark is resolved by `isNight`, never read off the board directly.
+ */
+export const HOUR_MODES = Object.freeze({
+  clock: { label: "ACKS-FORMATION.settlement.hour.clock", follows: true },
+  day: { label: "ACKS-FORMATION.settlement.hour.day", night: false },
+  night: { label: "ACKS-FORMATION.settlement.hour.night", night: true },
+});
+
+/**
+ * Whether the board stands after dark: the Judge's word where one was given,
+ * the clock's answer otherwise. `dark` is what the world clock says
+ * (`lib/world-time.mjs` `clockReading().dark`), and null where the caller has
+ * no clock to ask — a pure tick, a test — which reads as day.
+ */
+export function isNight(board, { dark = null } = {}) {
+  const mode = HOUR_MODES[board?.hour] ? board.hour : "clock";
+  if (mode === "clock") return !!dark;
+  return !!HOUR_MODES[mode].night;
+}
+
 /** A table read that answers null rather than a guess. */
 function table(key) {
   if (!hasDoc(SETTLEMENT_DOC)) return null;
@@ -152,7 +176,7 @@ export function sceneStamp(value) {
   return typeof value === "string" && value ? value : null;
 }
 
-/** A fresh settlement board: on an avenue, by day, going nowhere in particular. */
+/** A fresh settlement board: on an avenue, at the clock's hour, going nowhere in particular. */
 export function freshSettlement() {
   return {
     /**
@@ -165,7 +189,8 @@ export function freshSettlement() {
     pace: "meandering",
     where: "avenue",
     route: "unknown",
-    night: false,
+    /** Where the hour comes from (`HOUR_MODES`); `isNight` resolves it. */
+    hour: "clock",
     intent: "ordinary",
     conveyance: "onFoot",
     /**
@@ -211,9 +236,16 @@ export function freshSettlement() {
   };
 }
 
-/** Normalize whatever the record holds into the vocabulary above. */
+/**
+ * Normalize whatever the record holds into the vocabulary above.
+ *
+ * A board written before the hour had a source carries `night` as a boolean:
+ * a ticked one was the Judge's word and reads as `night`, a clear one was the
+ * default and reads as the clock. The flag is not kept — the next write stores
+ * `hour` alone.
+ */
 export function settlementOf(travel) {
-  const s = travel?.settlement ?? {};
+  const { night: legacyNight, ...s } = travel?.settlement ?? {};
   const fresh = freshSettlement();
   return {
     ...fresh,
@@ -222,7 +254,7 @@ export function settlementOf(travel) {
     pace: SETTLEMENT_PACES[s.pace] ? s.pace : fresh.pace,
     where: SETTLEMENT_LOCATIONS[s.where] ? s.where : fresh.where,
     route: ROUTE_KNOWLEDGE[s.route] ? s.route : fresh.route,
-    night: !!s.night,
+    hour: HOUR_MODES[s.hour] ? s.hour : (legacyNight ? "night" : fresh.hour),
     intent: SETTLEMENT_INTENTS[s.intent] ? s.intent : fresh.intent,
     conveyance: CONVEYANCES[s.conveyance] ? s.conveyance : fresh.conveyance,
     wanted: !!s.wanted,
@@ -318,7 +350,7 @@ export function reenterSettlement(previous, sceneId = null) {
     pace: s.pace,
     where: s.where,
     route: s.route,
-    night: s.night,
+    hour: s.hour,
     intent: s.intent,
     conveyance: s.conveyance,
   };
@@ -642,8 +674,9 @@ export function cadenceAttribution(cadence, names = {}) {
  * lists and the world's: a gazetteer's city has its own incident table, and a
  * world can hold two cities. That candidate alone is `banded` — read by range
  * with the map's after-dark shift rather than drawn — and carries the band
- * that defers to the quarter together with the quarter's special list, so the
- * walk can hand the roll over without asking the canvas a second time.
+ * that defers to the quarter together with the quarter's special list and
+ * what THAT list adds after dark, so the walk can hand the roll over without
+ * asking the canvas a second time.
  *
  * @param {object} [opts]
  * @param {{tableUuid?: string, afterDark?: number, band?: {from: number, to: number}|null}|null} [opts.city]
@@ -665,10 +698,60 @@ export function pickIncidentSource({ district = null, zone = null, wanted = fals
       afterDark: numOrNull(city.afterDark) ?? 0,
       band: incidentBand(city.band?.from, city.band?.to),
       specialTableUuid: district?.specialTableUuid || null,
+      specialAfterDark: numOrNull(district?.specialAfterDark) ?? 0,
     });
   }
   candidates.push({ tableUuid: null, source: "city" });
   return { ...candidates[0], candidates };
+}
+
+/** A shift as the panel prints it: the sign written out, so a positive one reads as an addition. */
+const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+
+/**
+ * Which list answers for the street here, as lines for the Judge: every list
+ * named ahead of the answer that no longer exists, then the first list in
+ * `pickIncidentSource`'s order that does, with what it adds after dark and
+ * the band it hands to the quarter. The order is the one
+ * `rollSettlementIncident` walks; a named list that exists is taken to
+ * answer.
+ *
+ * @param {{candidates: object[]}|null} pick `pickIncidentSource()`'s answer
+ * @param {(uuid: string) => string|null} nameOf a list's name, or null for one that does not exist
+ * @returns {Array<{key: string, data: object, warn?: boolean}>} `key` names a
+ *   string under the settlement lang block's lists family; `data.list`, on a
+ *   `missing` line, is the source whose list is gone
+ */
+export function incidentRouting(pick, nameOf = () => null) {
+  const lines = [];
+  for (const c of pick?.candidates ?? []) {
+    if (!c.tableUuid) {
+      lines.push({ key: "world", data: {} });
+      break;
+    }
+    const table = nameOf(c.tableUuid);
+    if (table == null) {
+      lines.push({ key: "missing", data: { list: c.source }, warn: true });
+      continue;
+    }
+    if (!c.banded) {
+      lines.push({ key: c.source, data: { table } });
+      break;
+    }
+    lines.push({ key: c.afterDark ? "mapDark" : "map", data: { table, shift: signed(c.afterDark) } });
+    if (c.band) {
+      const special = c.specialTableUuid ? nameOf(c.specialTableUuid) : null;
+      if (c.specialTableUuid && special == null) lines.push({ key: "specialMissing", data: {}, warn: true });
+      lines.push(special == null
+        ? { key: "bandNone", data: { ...c.band } }
+        : {
+          key: c.specialAfterDark ? "bandDark" : "band",
+          data: { ...c.band, table: special, shift: signed(c.specialAfterDark) },
+        });
+    }
+    break;
+  }
+  return lines;
 }
 
 /**
@@ -730,7 +813,7 @@ export function advanceSettlementDays(board, { days = 1, rolls = [], cadence: gi
   const n = Math.max(0, Math.floor(Number(days) || 0));
   // The caller may have resolved what a Judge drew over this spot; a party
   // hiding inside a zone hides at the cadence the zone keeps.
-  const cadence = given ?? streetCadence({ where: s.where, night: s.night, intent: s.intent });
+  const cadence = given ?? streetCadence({ where: s.where, night: isNight(s), intent: s.intent });
   const next = { ...s, days: s.days + n };
   const events = [];
   if (!cadence) {
@@ -857,10 +940,11 @@ export function advanceSettlementTurn(board, {
   // as well would give a holed-up party two chances at the same interruption.
   // The caller resolves what a Judge has drawn over the street and hands the
   // answer in; the bare street is the fallback for a caller that has no canvas
-  // to ask, which is every test and every headless read.
+  // to ask, which is every test and every headless read. It has no clock to
+  // ask either, so a board following the clock reads as day here.
   const cadence = spec?.stationary
     ? null
-    : (given ?? streetCadence({ where: s.where, night: s.night, intent: s.intent }));
+    : (given ?? streetCadence({ where: s.where, night: isNight(s), intent: s.intent }));
   if (spec?.stationary) {
     // Nothing owed and nothing missing: the day tick is the one that answers.
   } else if (!cadence) {

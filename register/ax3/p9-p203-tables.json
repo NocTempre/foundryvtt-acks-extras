@@ -77,6 +77,17 @@
       171,
       172
     ],
+    "assists": {
+      "excludeBoxes": [
+        {
+          "page": 171,
+          "x0": 306,
+          "x1": 572,
+          "y0": 75,
+          "y1": 250
+        }
+      ]
+    },
     "meta": {
       "group": "Temple District"
     }

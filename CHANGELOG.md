@@ -1,5 +1,65 @@
 # Changelog
 
+## 9.7.0
+
+### Added
+
+- **A faction counts the people nobody names.** Beneath the roster, a
+  **Strength** table: a column per heading (a class, an order, a troop
+  type), a row per level, a count in each cell and a revenue where a row has
+  one. The total row and the shield count in the header are worked out for
+  you, and **Hide from players** hides the whole table. The organisations
+  step of the importer fills it from your own copy of the page where a
+  setting book prints a body's strength as a table, and keeps a table you
+  have edited.
+- **The city's hour follows the world clock.** The settlement board's
+  **Hour** picker reads *Clock* by default and says what the clock reads and
+  whether it is dark; *Day* and *Night* are your override. Where the dark
+  begins and ends is two world settings, *Dawn hour* and *Dusk hour*, blank
+  by default at the day's quarter points. After-dark cadence, the after-dark
+  shift on the city's list and the night rows of a quarter's list all follow
+  it.
+- **A place has a role.** A location's **Role** picker marks it a *City
+  gate*; the points-of-interest step of a settlement import marks the book's
+  gates for you, on a fresh import and on places a world already holds.
+- **The doing-business figures arrive with the city.** The gate toll, its
+  unit and the customs duty on imports, and the terms of the syndicate's
+  smuggling service, are read from a setting book's page into the city-travel
+  tables (`gateTolls`, `smuggling`) for the gate action and the consignment
+  service to come.
+- **For macros:** `acksExtras.factions` is apiVersion 3, adding
+  `normalizeStrength`, `strengthTotal`, `strengthColumnTotals` and
+  `strengthRevenue`; `acksExtras.markets` adds `manifestOf`, `removeLoads`,
+  `manifestRows` and `manifestTotals` (what a party carries as merchandise
+  loads and what it is worth at a market); `acksExtras.lib` is apiVersion 22,
+  adding `clockReading`, `darkBounds` and `isDarkAt`; `acksExtras.formation`
+  is apiVersion 14, adding `isNight`, `HOUR_MODES` and `incidentRouting`.
+
+### Changed
+
+- **A quarter's special list is read the way the city's is.** Its throw is
+  made on its own die and read by range with the addition its heading states
+  after dark (the District behaviour's new **Special list after dark**
+  figure, filled by the maps step from the list's shape), so rows past the
+  die are reachable and the night rows apply. The board says which list the
+  next incident is read from, and the turn card names the list that answered
+  and every list named ahead of it that no longer exists.
+- **The maps step repairs a held map's links.** A map a world already holds
+  has its quarters' list links and blank after-dark figures filled from the
+  rebuilt shelf instead of being left pointing at ids a rebuild retired.
+
+### Fixed
+
+- **A faction keeps its parent.** The **Part of** picker had lost its stored
+  value, so changing anything else on the Overview cleared the organisation
+  above. The picker carries its own value again and refuses a loop.
+- **The Temple District's special list.** The list's fourth row read a
+  strength table at the top of the next column as its own prose, in every
+  release since the city arrived. Re-run the maps step to rebuild the list.
+- **The importer's verify report on AX3.** The market grids, market records
+  and strength grids have pass criteria of their own, so the report no
+  longer fails nine entries that read correctly.
+
 ## 9.6.0
 
 ### Added

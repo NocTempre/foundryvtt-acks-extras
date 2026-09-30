@@ -760,3 +760,23 @@ holds many points of interest and none of them is the quarter.
 
 *Cost:* one more mirror to keep true, and one more clause in the prune's
 survival test — a place that IS a quarter is not empty.
+
+## 2026-09-30 — A place has a role
+
+**Ruled.** A location carries `system.role`, one of `PLACE_ROLES` or blank
+(`gate` today). A role is what the place IS to a procedure of the city: the
+settlement board's gate action lists the places marked gates, whatever they
+are called. The sheet offers it as a picker; the importer's points-of-interest
+step writes it from the register's `meta.role`, on a fresh place and as a
+stamp on one the world already holds, because a role is structural and needs
+no page read.
+
+**Rejected:** deriving a gate from its name (a printed name is content, and a
+hand-made place has any name); a flag (`flags["acks-extras"].cookbook` says
+where a place came from, not what it is for, and a Judge's own gate has no
+cookbook entry); a boolean per role (the next role — a quay, a stable —
+would be a second field).
+
+*Cost:* one more field the prune ignores and the sheet shows. An existing
+world's imported gates carry no role until the points-of-interest step is
+run again, which stamps them without rebuilding anything.

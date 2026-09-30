@@ -328,6 +328,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     (empty, but standing on a map — hide its token and run again) survive; an
     empty place with no token, no link and nothing in it goes.
 
+21. **A place's role.** Create a disposable location fixture and track it by
+    id. Open its sheet.
+    *Observable:* the identity line shows a **Role** picker. Select **City gate**.
+    *Observable:* the picker keeps the choice after another field is edited,
+    and `actor.system.role === "gate"` when read back. Join as the Player seat
+    and re-render the sheet.
+    *Observable:* the Player seat sees a **gate** tag on the identity line, not
+    the picker itself.
+
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool".
 

@@ -42,6 +42,17 @@ Actors sidebar → **Create Actor** → type **Faction**.
 hides a member from players, and × strikes one off. The count in the header
 counts a group's whole stack.
 
+Beneath the roster, **Strength** counts the people nobody names: a column per
+heading (a class, an order, a troop type), a row per level or per kind of row,
+a count in each cell, and a revenue where a row has one. Add columns and rows
+with the buttons, type into any cell, and drop a row or column with its ×; the
+total row and the shield count in the header are worked out for you. **Hide
+from players** hides the whole table. A faction imported from a book whose
+page prints its strength arrives with the table filled and the page noted
+beneath it.
+
+![](../releases/v9.7.0/factions.png)
+
 **Notes** has a shared page and a private one only the Judge can read.
 
 ## Who deals with whom
@@ -140,6 +151,11 @@ arrives as the kind the importer assigns it, seated at the place the book
 keys it to, with the people the book lists for it enrolled from whatever the
 world already holds. The quarters it controls arrive with the map: the maps
 step hands each organisation the regions its quarters became.
+
+Where the book prints a body's strength as a table, the step fills the
+faction's Strength table from your own copy of the page, and the step's
+report says how many were given their figures. A table you have edited is
+kept on the next run.
 
 Running the step again makes nothing twice, and a faction you deleted comes
 back with its roster.

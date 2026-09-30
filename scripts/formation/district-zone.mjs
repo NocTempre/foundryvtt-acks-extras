@@ -50,6 +50,10 @@ export class DistrictBehavior extends foundry.data.regionBehaviors.RegionBehavio
       // a replacement for `tableUuid`. See docs/formation/DECISIONS.md, "A
       // city's own list belongs to its map, and hands one band to the quarter".
       specialTableUuid: new fields.DocumentUUIDField({ type: "RollTable" }),
+      // What the special list adds to its own throw once it is dark, which is
+      // how rows past its die are reached. Blank = never stated, read as none;
+      // the importer's map step fills a blank one from the list's own shape.
+      specialAfterDark: new fields.NumberField({ required: true, nullable: true, initial: null, integer: true }),
       // 0 = inherit the layer outside this one, on each field independently.
       encounterEveryDay: new fields.NumberField({ required: true, initial: 0, min: 0, max: 24, integer: true }),
       encounterEveryNight: new fields.NumberField({ required: true, initial: 0, min: 0, max: 24, integer: true }),

@@ -29,14 +29,16 @@ import {
 import { isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData } from "./poi-binding.mjs";
 import {
   isOrganisationRow, organisationData, organisationPlan, owedRelations, controlledRegions,
+  isStrengthGridRow, strengthPlan, strengthFromGrid,
 } from "./faction-binding.mjs";
 import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
 import {
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
 } from "./scene-binding.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
-import { LOCATION_TYPE } from "../location/constants.mjs";
+import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
 import { DISTRICT_TYPE } from "../formation/district-find.mjs";
+import { sceneIncidents, writeSceneIncidents } from "../battlemap/scene-setup.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
 import { occupantRow } from "../lib/place.mjs";
 import { oseAdventureData, oseAdventureId } from "./ose-location.mjs";
@@ -3559,13 +3561,22 @@ export async function cookbookImportPoiPlaces() {
   let made = 0;
   let described = 0;
   let already = 0;
+  let stamped = 0;
   let refused = 0;
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressPoi`), jobs.length);
   try {
     for (const { bookId, id, e, group } of jobs) {
       bar.step(e.name);
       const overview = group.kind === "overview";
-      if (!overview && (await importedActor(id))) {
+      const held = overview ? null : await importedActor(id);
+      if (held) {
+        // A role is structural (which kind of place), not a page value, so a
+        // place imported before the cookbook named it is stamped without a page
+        // read; a role the Judge already set is left standing.
+        if (isPlaceRole(e.meta?.role) && !held.system?.role) {
+          await held.update({ "system.role": e.meta.role });
+          stamped++;
+        }
         already++;
         continue;
       }
@@ -3603,7 +3614,7 @@ export async function cookbookImportPoiPlaces() {
       const place = await claimActorImport(id, () =>
         createDoc(Actor, poiLocationData({
           name: printedNameOf(node, e.name), entryId: id, notes: entryText(node, id, e.cite), book: bookId, bookLabel: label,
-          district: group.district, parentUuid: district?.uuid ?? "", folderId: folder,
+          district: group.district, parentUuid: district?.uuid ?? "", folderId: folder, role: e.meta?.role ?? "",
         })));
       if (place) made++;
     }
@@ -3614,9 +3625,9 @@ export async function cookbookImportPoiPlaces() {
     return ui.notifications.warn(`${MODULE_ID} | points of interest: ${refused} page(s) did not match the cookbook (different printing?) — none written.`);
   }
   ui.notifications.info(
-    `${MODULE_ID} | points of interest: ${made} place(s) created${described ? `, ${described} quarter(s) described` : ""}${already ? `, ${already} already held` : ""}${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}.`,
+    `${MODULE_ID} | points of interest: ${made} place(s) created${described ? `, ${described} quarter(s) described` : ""}${already ? `, ${already} already held` : ""}${stamped ? `, ${stamped} given a role` : ""}${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}.`,
   );
-  return { made, described, already, refused };
+  return { made, described, already, stamped, refused };
 }
 
 /**
@@ -3735,23 +3746,27 @@ export async function cookbookImportMarketProfiles() {
  * block, at its own keyed place or its quarter's. Presence is asked by
  * cookbook id before the page is read, so a re-run tops up only what is
  * absent and never rewrites a row that is there. Relations are written
- * last, once every organisation they could name exists. See
+ * last, once every organisation they could name exists, and then the
+ * strength grids: each read once, its columns written onto the factions they
+ * belong to, and a faction already carrying figures keeps them. See
  * docs/importer/DECISIONS.md, "An organisation the book introduces by name
- * is an authored row" and "A body becomes a faction one way: a row that was
- * read".
+ * is an authored row", "A body becomes a faction one way: a row that was
+ * read" and "A body's unnamed people are a grid the page prints".
  */
 export async function cookbookImportFactions() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
   const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
   const authored = [];
+  const grids = [];
   for (const bookId of openBooks) {
     const entries = data.books.get(bookId).entries;
     for (const [id, e] of Object.entries(entries)) {
       if (isOrganisationRow(e)) authored.push({ bookId, id, e, plan: organisationPlan(bookId, e, entries) });
+      else if (isStrengthGridRow(e)) grids.push({ bookId, id, e, plan: strengthPlan(e) });
     }
   }
   if (!authored.length) return ui.notifications.warn(`${MODULE_ID} | no organisations in any open book — connect AX3 first.`);
-  const counts = { made: 0, already: 0, rostered: 0, missing: 0, refused: 0, related: 0 };
+  const counts = { made: 0, already: 0, rostered: 0, missing: 0, refused: 0, related: 0, counted: 0, figuresKept: 0 };
 
   // The quarter's own place, made the way the POI step makes it, so whichever
   // step runs first the other finds the same document.
@@ -3846,6 +3861,35 @@ export async function cookbookImportFactions() {
       await faction.update({ "system.relations": [...held, ...owed] });
       counts.related += owed.length;
     }
+
+    // The bodies' unnamed people. A grid is read once and its columns land on
+    // the factions its block names; a faction that already carries figures
+    // keeps them, whether the Judge's or an earlier run's. The page's own
+    // total row is checked against the columns, and a column that disagrees
+    // is said on the console — a mis-cut column looks exactly like that.
+    for (const { bookId, id, e, plan } of grids) {
+      if (!plan.owners.size) continue;
+      const node = await executeEntry(ctx.sessionDocs.get(bookId).doc, data.books.get(bookId), data.registers, id).catch(() => null);
+      const grid = node?.ok ? node.fields?.grids?.strength : null;
+      if (!grid?.rows?.length) {
+        counts.refused++;
+        continue;
+      }
+      for (const [orgId, keys] of plan.owners) {
+        const found = await importedActor(orgId);
+        const faction = found?.system ? found : found?.uuid ? await fromUuid(found.uuid) : null;
+        if (!faction) continue;
+        if (faction.system.strength?.rows?.length) {
+          counts.figuresKept++;
+          continue;
+        }
+        const built = strengthFromGrid(grid, keys, { revenue: plan.revenue, note: e.cite ?? "" });
+        if (!built) continue;
+        for (const problem of built.problems) console.warn(`${MODULE_ID} | ${id}: ${problem}`);
+        await faction.update({ "system.strength": built.strength });
+        counts.counted++;
+      }
+    }
   } finally {
     bar.finish();
   }
@@ -3857,6 +3901,8 @@ export async function cookbookImportFactions() {
     counts.already ? `${counts.already} already held` : "",
     counts.rostered ? `${counts.rostered} member(s) rostered` : "",
     counts.related ? `${counts.related} relation(s) written` : "",
+    counts.counted ? `${counts.counted} given their strength` : "",
+    counts.figuresKept ? `${counts.figuresKept} kept their figures` : "",
     counts.missing ? `${counts.missing} member(s) not yet imported` : "",
     counts.refused ? `${counts.refused} skipped (page did not match the cookbook)` : "",
   ].filter(Boolean);
@@ -3958,6 +4004,11 @@ export async function cookbookImportRollTables() {
   }
   ui.notifications.info(`${MODULE_ID} | roll tables: ${made} created, ${skipped} already present, in "${packLabel("RollTable")}".`);
   return { made, skipped };
+}
+
+/** What an imported list adds after dark, read from its own rows and die (`afterDarkShift`). */
+function listAfterDark(list) {
+  return afterDarkShift([...(list.results ?? [])].map((r) => r.range), list.formula);
 }
 
 /** The imported roll table for a cookbook id — the world's own first, then the shelves — or null. */
@@ -4125,7 +4176,7 @@ export async function cookbookImportScenes() {
   // `created` names every world document the run made, by uuid: the counts
   // say what happened, and the uuids are what a caller can undo it by.
   const counts = {
-    made: 0, already: 0, refused: 0, unready: 0, copied: 0, missing: 0, regions: 0, tokens: 0, controlled: 0,
+    made: 0, already: 0, repaired: 0, refused: 0, unready: 0, copied: 0, missing: 0, regions: 0, tokens: 0, controlled: 0,
     adventures: 0, adventuresRebuilt: 0, adventuresHeld: 0, adventuresFailed: 0,
     created: { scenes: [], actors: [], folders: [], adventures: [], packs: [] },
   };
@@ -4150,6 +4201,7 @@ export async function cookbookImportScenes() {
   const parts = [
     `${counts.made} map(s) created`,
     counts.already ? `${counts.already} already held` : "",
+    counts.repaired ? game.i18n.format(`${LANG_PREFIX}.ui.scenesRepaired`, { n: counts.repaired }) : "",
     counts.made ? `${counts.regions} quarter(s), ${counts.tokens} place(s) set down hidden` : "",
     counts.copied ? `${counts.copied} place(s) and organisation(s) brought into the world` : "",
     counts.controlled ? `${counts.controlled} organisation(s) given their quarters` : "",
@@ -4218,9 +4270,10 @@ function settlementIds(bookId, recipe) {
  * built from an Adventure's sources when the Adventure is. Each region is
  * named for its quarter and linked to it, each keyed place's token stands
  * hidden at its point, and the city's list rides in the battlemap flag. The
- * list's after-dark shift and deferred band are read from the imported list
- * here, so neither figure ships (docs/importer/DECISIONS.md, "A printed map is
- * a recipe of geometry over its page").
+ * list's after-dark shift and deferred band, and each quarter's special
+ * list's own shift, are read from the imported lists here, so no figure
+ * ships (docs/importer/DECISIONS.md, "A printed map is a recipe of geometry
+ * over its page").
  *
  * @param {object} p
  * @param {Map<string, object>} p.actors cookbook id to an Actor-like (`name`, `uuid`, `getTokenDocument`)
@@ -4232,7 +4285,7 @@ async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, fo
   const incidents = list
     ? {
       tableUuid: list.uuid,
-      afterDark: afterDarkShift(list.results.map((r) => r.range), list.formula),
+      afterDark: listAfterDark(list),
       band: bandOfSection(recipe.incidents.band),
     }
     : null;
@@ -4246,6 +4299,7 @@ async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, fo
       name: place?.name ?? game.i18n.format(`${LANG_PREFIX}.ui.sceneQuarter`, { n: i + 1 }),
       districtType: DISTRICT_TYPE,
       specialTableUuid: special?.uuid ?? "",
+      specialAfterDark: special ? listAfterDark(special) : 0,
       locationUuid: place?.uuid ?? "",
     }));
   }
@@ -4263,6 +4317,61 @@ async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, fo
   });
 }
 
+/** Whether a uuid still names a document this world can reach. */
+function reachable(uuid) {
+  try {
+    return !!uuid && !!fromUuidSync(uuid);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A held map's LINKS brought up to the recipe, and nothing else of it: the
+ * city list is named again where the map names none or names one that is
+ * gone, each quarter's special list likewise, and a quarter's special
+ * after-dark figure is filled where it was never stated. A rebuilt roll-table
+ * shelf mints new ids, which is what leaves a map naming lists that no longer
+ * exist. What the Judge drew, moved or typed is not read. See
+ * docs/importer/DECISIONS.md, "A held map has its links repaired, never its
+ * shape". Exported so a live check can run it on a map of its own.
+ * @returns {Promise<number>} how many documents were written to
+ */
+export async function repairHeldMap(recipe, scene) {
+  let written = 0;
+  if (recipe.incidents?.table && !reachable(sceneIncidents(scene)?.tableUuid)) {
+    const list = await importedTable(recipe.incidents.table);
+    if (list) {
+      const band = bandOfSection(recipe.incidents.band);
+      await writeSceneIncidents(scene, {
+        tableUuid: list.uuid, afterDark: listAfterDark(list), bandFrom: band?.from ?? "", bandTo: band?.to ?? "",
+      });
+      written++;
+    }
+  }
+  for (const district of recipe.districts ?? []) {
+    if (!district.special) continue;
+    const region = scene.regions.find((r) => r.getFlag(MODULE_ID, "cookbook")?.place === district.place);
+    const behavior = region?.behaviors.find((b) => b.type === DISTRICT_TYPE);
+    if (!behavior) continue;
+    const held = behavior.system;
+    const patch = {};
+    if (!reachable(held.specialTableUuid)) {
+      const special = await importedTable(district.special);
+      if (!special) continue;
+      patch["system.specialTableUuid"] = special.uuid;
+      patch["system.specialAfterDark"] = listAfterDark(special);
+    } else if (held.specialAfterDark == null) {
+      const special = await fromUuid(held.specialTableUuid).catch(() => null);
+      if (!special) continue;
+      patch["system.specialAfterDark"] = listAfterDark(special);
+    } else continue;
+    await behavior.update(patch);
+    written++;
+  }
+  return written;
+}
+
 /** One recipe, from anchor to Adventure. Counts into `counts`; calls `tick` once per stage it reaches. */
 async function importScene({ bookId, id, row }, counts, tick) {
   const recipe = row.scene;
@@ -4270,6 +4379,7 @@ async function importScene({ bookId, id, row }, counts, tick) {
   const held = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === id);
   if (held) {
     counts.already++;
+    counts.repaired += await repairHeldMap(recipe, held);
     return ensureSettlementAdventure({ bookId, id, row, scene: held, fresh: false }, counts, tick);
   }
   const doc = ctx.sessionDocs.get(bookId).doc;

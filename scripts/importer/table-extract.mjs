@@ -100,6 +100,14 @@ export function applyCellPattern(text, pattern = "raw") {
       const m = t.match(/[+-]?\d[\d,]*/);
       return m ? parseInt(m[0].replace(/,/g, ""), 10) : null;
     }
+    case "dashZero": {
+      // A count grid prints a dash for none: the cell is a zero, not a blank,
+      // so a row of dashes still parses as a row. A footnote mark on the
+      // number ("21*") is not part of it.
+      if (t === "-" || t === "—" || t === "–") return 0;
+      const m = t.match(/\d[\d,]*/);
+      return m ? parseInt(m[0].replace(/,/g, ""), 10) : null;
+    }
     case "refListLower": {
       // "Crusader, Mage, Thief, Venturer" -> ["crusader","mage",...]
       return t.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);

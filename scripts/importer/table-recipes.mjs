@@ -1094,7 +1094,7 @@ export const TABLE_RECIPES = {
   // `cityTravel`, not `settlement`: this file already registers a `settlement`
   // document for market class by families, and the two are unrelated.
   cityTravel: {
-    source: { book: "ACKS II Judges Journal + AX3 Capital of the Borderlands", pages: "JJ 79-81; AX3 58" },
+    source: { book: "ACKS II Judges Journal + AX3 Capital of the Borderlands", pages: "JJ 79-81; AX3 56, 58" },
     tables: {
       pacesProse: {
         shape: "proseValues",
@@ -1184,6 +1184,27 @@ export const TABLE_RECIPES = {
         column: { xMin: 300, xMax: 592 },
         values: [
           { key: "paragraph", find: "At commuter speed, it takes", take: "window", span: 1200 },
+        ],
+      },
+      // Doing business at the city's gates (AX3, the same page): what passing a
+      // gate with goods costs, and the syndicate's smuggling service, two folios
+      // before the paces paragraph. Two
+      // windows, each read whole by city-travel-binding.mjs — the toll, its
+      // unit and the duty share one paragraph, and the service's four figures
+      // share another. The section opens at the foot of the left column and
+      // turns into the right one, so both columns are read.
+      businessProse: {
+        shape: "proseValues",
+        book: "ax3",
+        optional: true,
+        printedPage: 56,
+        locate: "must pay a toll",
+        // The left column's runs originate a hair inside 40; a floor at 40
+        // drops the whole column and reads the worked example instead.
+        column: { xMin: 30, xMax: 592 },
+        values: [
+          { key: "tolls", find: "gates with merchandise", take: "window", span: 420 },
+          { key: "smuggling", find: "will smuggle up to", take: "window", span: 320 },
         ],
       },
     },

@@ -17,6 +17,12 @@
  * measures between are a later phase's register rows — so an absent import
  * reads as absent, same as every other table here.
  *
+ * `gateTolls` and `smuggling` are two more figures from the same AX3 page:
+ * what passing one of the city's gates with goods costs, and the terms on
+ * which a syndicate carries goods past the gates instead. The gate action
+ * (`formation/gate.mjs`) and the consignment service (`factions/smuggling.mjs`)
+ * read them; a world that never imported the page refuses rather than prices.
+ *
  * `cityTravel`, NOT `settlement`: the henchmen feature already registers a
  * `settlement` document for market class, and two features writing one id
  * would have them overwrite each other. Like every binding here, no value
@@ -45,6 +51,8 @@ export const PRODUCES = Object.freeze({
     districtTravel: "districtProse",
     encounterIntent: "intentProse",
     encounterAfterDark: "afterDarkProse",
+    gateTolls: "businessProse",
+    smuggling: "businessProse",
   },
 });
 
@@ -191,6 +199,58 @@ export function assembleDistrictTravel(paragraph) {
   return Object.keys(out).length ? out : null;
 }
 
+/** A dice expression with its modifier, spaces closed ("2d8 + 3" → "2d8+3"). */
+const DICE_PART = String.raw`(\d*\s*d\s*\d+(?:\s*[+-]\s*\d+)?)`;
+const tidyDice = (s) => String(s).replace(/\s+/g, "").toLowerCase();
+const intOf = (s) => {
+  const n = Number(String(s).replace(/,/g, ""));
+  return Number.isFinite(n) ? n : null;
+};
+
+/**
+ * What passing a city gate with goods costs, out of the tolls paragraph: the
+ * toll's dice in gp, the stones of merchandise one throw of them covers, and
+ * the customs duty's dice, a percentage of the goods' market price levied on
+ * an import. The duty is read only beside the word that names it, so the
+ * toll's dice can never be taken for it when the duty sentence is missing.
+ * @returns {{toll: {dice: string, perStones: number}, duty?: {dicePercent: string}}|null}
+ */
+export function assembleGateTolls(window) {
+  const t = String(window ?? "").toLowerCase();
+  if (!t) return null;
+  const toll = new RegExp(String.raw`${DICE_PART}\s*gp\s*per\s*([\d,]+)\s*st\b`).exec(t);
+  if (!toll) return null;
+  const perStones = intOf(toll[2]);
+  if (!perStones) return null;
+  const out = { toll: { dice: tidyDice(toll[1]), perStones } };
+  const duty = new RegExp(String.raw`duty[^.]*?${DICE_PART}\s*%`).exec(t);
+  if (duty) out.duty = { dicePercent: tidyDice(duty[1]) };
+  return out;
+}
+
+/**
+ * The syndicate's smuggling service, out of its paragraph: how much it moves
+ * in a month, its fee as a percentage of the goods' value, the chance a
+ * consignment is intercepted, and the dice of days before the goods reach one
+ * of its warehouses. Each figure is optional in the result; a service the
+ * page prices in full carries all four.
+ * @returns {{loadsPerMonth?: number, feePercent?: number, interceptPercent?: number, arrivalDays?: string}|null}
+ */
+export function assembleSmuggling(window) {
+  const t = String(window ?? "").toLowerCase();
+  if (!t) return null;
+  const out = {};
+  const loads = /([\d,]+)\s*loads?\s*of\s*merchandise\s*per\s*month/.exec(t);
+  if (loads && intOf(loads[1]) != null) out.loadsPerMonth = intOf(loads[1]);
+  const fee = /fee\s*of\s*([\d,]+)\s*%/.exec(t);
+  if (fee && intOf(fee[1]) != null) out.feePercent = intOf(fee[1]);
+  const intercept = /([\d,]+)\s*%\s*chance/.exec(t);
+  if (intercept && intOf(intercept[1]) != null) out.interceptPercent = intOf(intercept[1]);
+  const days = new RegExp(String.raw`in\s*${DICE_PART}\s*days`).exec(t);
+  if (days) out.arrivalDays = tidyDice(days[1]);
+  return Object.keys(out).length ? out : null;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Assembly                                                           */
 /* ------------------------------------------------------------------ */
@@ -272,6 +332,11 @@ export function assembleCityTravelTables(raw = {}) {
   // The shift the dark puts on the incident roll — a bare figure, not a row.
   const dark = /adding\s+(\d+)\s+to\s+the\s+roll/i.exec(String(raw.afterDarkProse?.shift ?? ""));
   if (dark) out.encounterAfterDark = Number(dark[1]);
+
+  const gateTolls = assembleGateTolls(raw.businessProse?.tolls);
+  if (gateTolls) out.gateTolls = gateTolls;
+  const smuggling = assembleSmuggling(raw.businessProse?.smuggling);
+  if (smuggling) out.smuggling = smuggling;
 
   return out;
 }

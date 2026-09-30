@@ -367,6 +367,9 @@ Hooks.once("init", () => {
     // table browser lists an expected table that never arrived, where an
     // undeclared one is simply not there and reads as nothing having been meant.
     "districtTravel",
+    // What a gate pass costs a load of merchandise, and what the syndicate's
+    // smuggling service charges and risks. Both are printed, so both arrive by import.
+    "gateTolls", "smuggling",
   ]);
   // Flight: the day-aloft factor, what wind costs a flier, and the load
   // threshold's own factor. All printed, so none of them ship.
@@ -566,8 +569,19 @@ Hooks.once("init", () => {
      * 12 adds `formationCarrying(carrier)` — the formation whose train a
      * vehicle is in — and `getPartyToken(formation)`, which a vehicle deploying
      * as a place reads to stand its marker beside the party (vehicles/deploy.mjs).
+     *
+     * 13 adds `settlement.incidentRouting(pick, nameOf)` — which list the next
+     * incident is read from, and which named lists are gone — and the `map`
+     * candidate's `specialAfterDark`, what the quarter's special list adds
+     * after dark.
+     *
+     * 14 replaces the board's `night` boolean with `hour` (`settlement.HOUR_MODES`:
+     * `clock`, `day`, `night`), resolved by `settlement.isNight(board, {dark})`
+     * against the world clock's `lib.worldTime.clockReading()`. `patchSettlement`
+     * takes `hour`; a `night` boolean is still read as the Judge's word for
+     * night or day.
      */
-    apiVersion: 12,
+    apiVersion: 14,
     travel: { ...travel, closeDay, offerDayEnd },
     weather,
     settlement,
@@ -937,6 +951,13 @@ function onFormationsChanged(setting) {
 // update it. Both must refresh open windows on every client.
 Hooks.on("createSetting", onFormationsChanged);
 Hooks.on("updateSetting", onFormationsChanged);
+
+// A settlement board following the world clock reads the hour off it, so the
+// panel's cadence and its clock line go stale the moment the clock moves —
+// in either direction, on every client, whether or not a formation changed.
+Hooks.on("updateWorldTime", () => {
+  if (Object.values(getFormations()).some((f) => f.travel?.mode === "settlement")) PartySheet.refreshAll();
+});
 
 /* -------------------------------------------- */
 /*  Combat integration                          */

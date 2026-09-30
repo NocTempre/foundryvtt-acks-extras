@@ -142,6 +142,52 @@
 .acks-extras-faction-sheet tr.is-hidden {
   opacity: 0.6;
 }
+
+/* The strength table is figures: counts sit right-aligned under narrow
+   headings, the level input is a short field beside the row's label, and the
+   total row is the sum the reader checks against. Widths are in em so the
+   table follows the type knob and wraps with the window. */
+.acks-extras-faction-sheet .acks-extras-faction-strength th {
+  vertical-align: bottom;
+}
+.acks-extras-faction-sheet .acks-extras-faction-strength th input {
+  width: 100%;
+  min-width: 4em;
+  font-size: inherit;
+}
+.acks-extras-faction-sheet .acks-extras-faction-strength th a {
+  margin-left: 0.25em;
+}
+.acks-extras-faction-sheet .acks-extras-faction-strength td.strength-head {
+  white-space: nowrap;
+}
+.acks-extras-faction-sheet .acks-extras-faction-strength td.strength-head input {
+  font-size: inherit;
+  min-width: 0;
+}
+.acks-extras-faction-sheet .acks-extras-faction-strength td.strength-head input.strength-level {
+  width: 3.5em;
+}
+.acks-extras-faction-sheet .acks-extras-faction-strength td.strength-head input[type="text"] {
+  width: 7em;
+}
+.acks-extras-faction-sheet .acks-extras-faction-strength td.strength-count {
+  text-align: right;
+  white-space: nowrap;
+}
+.acks-extras-faction-sheet .acks-extras-faction-strength td.strength-count input {
+  width: 4.5em;
+  min-width: 0;
+  font-size: inherit;
+  text-align: right;
+}
+.acks-extras-faction-sheet .acks-extras-faction-strength tr.strength-total td {
+  font-weight: bold;
+  border-top: var(--acks-rule-hair) solid var(--acks-rule-color);
+}
+.acks-extras-faction-sheet .faction-control-pick label.strength-note {
+  flex: 2 1 auto;
+}
 .acks-extras-faction-sheet tr.is-wanted td:first-child::before {
   content: "\f2f6";
   font-family: "Font Awesome 6 Free";

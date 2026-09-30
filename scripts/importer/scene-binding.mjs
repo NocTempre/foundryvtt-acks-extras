@@ -354,16 +354,25 @@ export function sceneData({
  * @param {string} p.name the quarter's name in this world
  * @param {string} p.districtType the District behaviour's sub-type id
  * @param {string} [p.specialTableUuid]
+ * @param {number} [p.specialAfterDark] what the special list adds after dark
+ *   (`afterDarkShift` of its own rows); written as stated, zero included, so
+ *   the behaviour never shows a blank the map step would fill again
  * @param {string} [p.locationUuid] the world place this quarter IS
  */
-export function districtRegionData(district, frame, { name, districtType, specialTableUuid = "", locationUuid = "", visibility = 2 }) {
+export function districtRegionData(district, frame, {
+  name, districtType, specialTableUuid = "", specialAfterDark = 0, locationUuid = "", visibility = 2,
+}) {
   return {
     name,
     ...(district.color ? { color: district.color } : {}),
     visibility,
     locked: true,
     shapes: [{ type: "polygon", points: ringToScene(district.outline, frame), hole: false }],
-    behaviors: [{ type: districtType, name, system: specialTableUuid ? { specialTableUuid } : {} }],
+    behaviors: [{
+      type: districtType,
+      name,
+      system: specialTableUuid ? { specialTableUuid, specialAfterDark: Number(specialAfterDark) || 0 } : {},
+    }],
     flags: { [MODULE_ID]: { cookbook: { place: district.place }, ...(locationUuid ? { [SCENE_LINK_FLAG]: locationUuid } : {}) } },
   };
 }

@@ -11,7 +11,8 @@
       139
     ],
     "meta": {
-      "group": "Plaza District — Points of Interest"
+      "group": "Plaza District — Points of Interest",
+      "role": "gate"
     }
   },
   {
@@ -102,7 +103,8 @@
       140
     ],
     "meta": {
-      "group": "Plaza District — Points of Interest"
+      "group": "Plaza District — Points of Interest",
+      "role": "gate"
     }
   },
   {

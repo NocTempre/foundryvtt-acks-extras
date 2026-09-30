@@ -36,6 +36,14 @@ Work that is designed but absent, deliberately. How the feature behaves now is
   choice is seven sibling rows that lose the order, or one row that loses the
   divisions. It ships as one row; the divisions arrive as its description.
 
+- **A count the page states in a sentence.** The strength block reads a
+  printed GRID; a body whose numbers the book gives in prose — a watch's men
+  per gate and per patrol, an order's clergy by house, a garrison stated in a
+  district's overview — has no grid to read and ships with an empty table. Five
+  AX3 bodies are in that position. Closing it is either a Judge typing the
+  rows (the sheet supports it now) or a prose-value op that reads a number
+  after a phrase the recipe locates by geometry, not by the phrase's words.
+
 - **Heat and laying low.** A `crime` row is recorded and shown as a prior
   record; nothing yet cools it with time spent out of sight, and nothing
   raises a search on the party's trail. Needs the crime-and-punishment
@@ -58,3 +66,14 @@ Work that is designed but absent, deliberately. How the feature behaves now is
 - **A relation between an organisation and a person.** What a guild thinks of
   one character is a ledger row and an attitude item, not a stance; a named
   enmity with a person has no row of its own.
+- **The syndicate's consignment service.** A body marked
+  `services.smuggling` (the AX3 import names one) carries a party's loads past
+  the gates for the terms the city-travel document's `smuggling` table
+  imports: a monthly cap, a fee on the goods' value, an interception chance,
+  and an arrival in a rolled number of days at one of its places. The shape
+  drawn on 2026-09-30: `consignments` rows on the faction holding the loads'
+  snapshot from `acksExtras.markets.removeLoads`, the fee spent through the
+  gold adapter, delivery on the world-time watcher by `createEmbeddedDocuments`
+  onto the chosen place stamped for the trader, an intercepted consignment
+  reported to the Judge. The thief's smuggling hijink is the domains module's
+  and is not built here.

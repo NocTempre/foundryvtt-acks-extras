@@ -1,0 +1,337 @@
+[
+  {
+    "id": "ax3.strength1",
+    "kind": "kind.strengthGrid",
+    "book": "ax3",
+    "name": "Strength grid 1",
+    "anchor": {
+      "hash": "2h3s46"
+    },
+    "pages": [
+      77
+    ],
+    "meta": {
+      "group": "Organisations"
+    },
+    "assists": {
+      "anchorBox": {
+        "x0": 390,
+        "x1": 510,
+        "y0": 322,
+        "y1": 329
+      },
+      "grids": {
+        "strength": {
+          "page": 77,
+          "box": {
+            "x0": 328,
+            "x1": 575,
+            "y0": 348,
+            "y1": 503
+          },
+          "expectRows": 12,
+          "headerBand": {
+            "y0": 335,
+            "y1": 344
+          },
+          "label": {
+            "x0": 328,
+            "x1": 358
+          },
+          "cols": [
+            {
+              "key": "c1",
+              "x0": 362,
+              "x1": 402,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c2",
+              "x0": 405,
+              "x1": 435,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c3",
+              "x0": 442,
+              "x1": 475,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c4",
+              "x0": 482,
+              "x1": 528,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "revenue",
+              "x0": 531,
+              "x1": 575,
+              "pattern": "int"
+            }
+          ]
+        }
+      }
+    },
+    "strength": {
+      "columns": {
+        "c1": "ax3.org5",
+        "c2": "ax3.org5",
+        "c3": "ax3.org5",
+        "c4": "ax3.org5"
+      },
+      "revenue": "revenue"
+    }
+  },
+  {
+    "id": "ax3.strength2",
+    "kind": "kind.strengthGrid",
+    "book": "ax3",
+    "name": "Strength grid 2",
+    "anchor": {
+      "hash": "ivmjyh"
+    },
+    "pages": [
+      106
+    ],
+    "meta": {
+      "group": "Organisations"
+    },
+    "assists": {
+      "anchorBox": {
+        "x0": 122,
+        "x1": 210,
+        "y0": 161,
+        "y1": 167
+      },
+      "grids": {
+        "strength": {
+          "page": 106,
+          "box": {
+            "x0": 44,
+            "x1": 295,
+            "y0": 187,
+            "y1": 328
+          },
+          "expectRows": 11,
+          "headerBand": {
+            "y0": 174,
+            "y1": 182
+          },
+          "label": {
+            "x0": 44,
+            "x1": 72
+          },
+          "cols": [
+            {
+              "key": "c1",
+              "x0": 76,
+              "x1": 116,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c2",
+              "x0": 124,
+              "x1": 152,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c3",
+              "x0": 163,
+              "x1": 198,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c4",
+              "x0": 203,
+              "x1": 250,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "revenue",
+              "x0": 252,
+              "x1": 295,
+              "pattern": "int"
+            }
+          ]
+        }
+      }
+    },
+    "strength": {
+      "columns": {
+        "c1": "ax3.org6",
+        "c2": "ax3.org6",
+        "c3": "ax3.org6",
+        "c4": "ax3.org6"
+      },
+      "revenue": "revenue"
+    }
+  },
+  {
+    "id": "ax3.strength3",
+    "kind": "kind.strengthGrid",
+    "book": "ax3",
+    "name": "Strength grid 3",
+    "anchor": {
+      "hash": "s7qdu1"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "group": "Organisations"
+    },
+    "assists": {
+      "anchorBox": {
+        "x0": 402,
+        "x1": 494,
+        "y0": 377,
+        "y1": 384
+      },
+      "grids": {
+        "strength": {
+          "page": 149,
+          "box": {
+            "x0": 350,
+            "x1": 556,
+            "y0": 403,
+            "y1": 558
+          },
+          "expectRows": 12,
+          "headerBand": {
+            "y0": 390,
+            "y1": 399
+          },
+          "label": {
+            "x0": 350,
+            "x1": 378
+          },
+          "cols": [
+            {
+              "key": "c1",
+              "x0": 420,
+              "x1": 476,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c2",
+              "x0": 510,
+              "x1": 556,
+              "pattern": "dashZero"
+            }
+          ]
+        }
+      }
+    },
+    "strength": {
+      "columns": {
+        "c1": "ax3.org16",
+        "c2": "ax3.org16"
+      }
+    }
+  },
+  {
+    "id": "ax3.strength4",
+    "kind": "kind.strengthGrid",
+    "book": "ax3",
+    "name": "Strength grid 4",
+    "anchor": {
+      "hash": "1jiav27"
+    },
+    "pages": [
+      171
+    ],
+    "meta": {
+      "group": "Organisations"
+    },
+    "assists": {
+      "anchorBox": {
+        "x0": 56,
+        "x1": 108,
+        "y0": 87,
+        "y1": 93
+      },
+      "grids": {
+        "strength": {
+          "page": 171,
+          "box": {
+            "x0": 56,
+            "x1": 565,
+            "y0": 105,
+            "y1": 248
+          },
+          "expectRows": 11,
+          "headerBand": {
+            "y0": 79,
+            "y1": 101
+          },
+          "label": {
+            "x0": 56,
+            "x1": 100
+          },
+          "cols": [
+            {
+              "key": "c1",
+              "x0": 115,
+              "x1": 165,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c2",
+              "x0": 172,
+              "x1": 222,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c3",
+              "x0": 228,
+              "x1": 280,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c4",
+              "x0": 283,
+              "x1": 342,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c5",
+              "x0": 350,
+              "x1": 400,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c6",
+              "x0": 405,
+              "x1": 458,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "c7",
+              "x0": 465,
+              "x1": 525,
+              "pattern": "dashZero"
+            },
+            {
+              "key": "total",
+              "x0": 535,
+              "x1": 565,
+              "pattern": "int"
+            }
+          ]
+        }
+      }
+    },
+    "strength": {
+      "columns": {
+        "c1": "ax3.org15",
+        "c2": "ax3.org19",
+        "c3": "ax3.org23",
+        "c4": "ax3.org23",
+        "c5": "ax3.org18",
+        "c6": "ax3.org24",
+        "c7": "ax3.org14"
+      }
+    }
+  }
+]

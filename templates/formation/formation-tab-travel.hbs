@@ -36,10 +36,12 @@
           {{/each}}
         </select>
       </label>
-      <label class="acks-extras-formation-settlement-night">
-        <input type="checkbox" name="travel.settlement.night"
-               {{#if travel.settlement.night}}checked{{/if}}>
-        {{localize "ACKS-FORMATION.settlement.night"}}
+      <label class="acks-extras-formation-settlement-hour">{{localize "ACKS-FORMATION.settlement.hourLabel"}}
+        <select name="travel.settlement.hour">
+          {{#each travel.settlement.hourOptions}}
+            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
       </label>
       <label class="acks-extras-formation-settlement-wanted"
              data-tooltip="{{localize 'ACKS-FORMATION.settlement.wantedHint'}}">
@@ -75,6 +77,11 @@
         picker's own name. }}
     {{#if travel.settlement.whereFromRoad}}
     <span class="hint acks-extras-formation-settlement-road">{{travel.settlement.roadLine}}</span>
+    {{/if}}
+    {{! What the world clock reads, beside the hour picker for the same reason:
+        a cadence that changed at dusk is explained where the hour is chosen. }}
+    {{#if travel.settlement.clockLine}}
+    <span class="hint acks-extras-formation-settlement-clock">{{travel.settlement.clockLine}}</span>
     {{/if}}
     {{/if}}
 
@@ -196,6 +203,11 @@
         {{/if}}
       {{/if}}
     </p>
+    {{! Which list the next incident is read from, in the order the turn walks
+        it, and any list named ahead of it that no longer exists. }}
+    {{#each travel.settlement.listLines}}
+    <p class="hint acks-extras-formation-settlement-lists{{#if warn}} acks-extras-formation-settlement-lists-warn{{/if}}">{{text}}</p>
+    {{/each}}
     {{/if}}
   </section>
   {{/if}}

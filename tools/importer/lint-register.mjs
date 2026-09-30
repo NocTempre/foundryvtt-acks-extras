@@ -41,7 +41,7 @@ const ANCHOR_SORTS = ["display", "runin", "label", "subheading"];
 const PATTERNS = new Set(["raw", "statValue", "int", "dice", "refList", "parenSplit", "spoilList", "statline"]);
 // Grid cell patterns come from table-extract's applyCellPattern library (plus
 // "glyphs", the executor's PUA-char damage-mark map).
-const GRID_PATTERNS = new Set(["raw", "int", "num", "dice", "dashNull", "intDash", "rollBand", "glyphs"]);
+const GRID_PATTERNS = new Set(["raw", "int", "num", "dice", "dashNull", "intDash", "dashZero", "rollBand", "glyphs"]);
 
 const errors = [];
 const err = (s) => errors.push(s);
@@ -126,7 +126,11 @@ function capStrings(obj, label, keyPath = "") {
  * vocabulary. Any other word in the block would be a printed name shipping
  * inside the row that exists to avoid it.
  */
-const ORG_KEYS = new Set(["kind", "nameFrom", "seat", "holdings", "leader", "members", "controls", "relations", "note"]);
+const ORG_KEYS = new Set(["kind", "nameFrom", "seat", "holdings", "leader", "members", "controls", "relations", "services", "note"]);
+/** The services a body may offer, in this module's own vocabulary. */
+const ORG_SERVICES = ["smuggling"];
+/** The functions a place may be tagged with (`meta.role`), a location row only. */
+const PLACE_ROLES = ["gate"];
 const orgRows = []; // checked against every row once all are read
 const rowShapes = new Map(); // id -> {kind, group}
 function checkOrganisation(e, id, bookId) {
@@ -147,6 +151,9 @@ function checkOrganisation(e, id, bookId) {
     && typeof v.hidden === "boolean"
     && Object.keys(v).every((k) => k === "id" || k === "hidden"));
   for (const k of ["seat"]) if (o[k] !== undefined && !idOk(o[k])) err(`${id}: organisation.${k} must be an entry id of this book`);
+  if (o.services !== undefined && (!Array.isArray(o.services) || !o.services.every((s) => ORG_SERVICES.includes(s)))) {
+    err(`${id}: organisation.services must be an array drawn from ${ORG_SERVICES.join("|")}`);
+  }
   if (o.leader !== undefined && !personOk(o.leader)) err(`${id}: organisation.leader must be an entry id of this book, or {id, hidden}`);
   if (o.members !== undefined && (!Array.isArray(o.members) || !o.members.every(personOk))) {
     err(`${id}: organisation.members must be an array of entry ids of this book, each an id or {id, hidden}`);
@@ -165,6 +172,47 @@ function checkOrganisation(e, id, bookId) {
       if (r?.hidden !== undefined && typeof r.hidden !== "boolean") err(`${id}: relation hidden must be a boolean`);
     }
   }
+}
+
+/**
+ * A strength grid is a body's printed table of members by class and level.
+ * The row ships geometry and neutral column keys, and its block names BY ID
+ * the organisation each column belongs to — the header words, being the
+ * book's class and order names, are read at import. A revenue column is
+ * attributable only when the whole grid is one body's.
+ */
+const STRENGTH_KEYS = new Set(["columns", "revenue", "note"]);
+const strengthRows = []; // checked against every row once all are read
+function checkStrengthGrid(e, id, bookId) {
+  const n = /^Strength grid (\d+)$/.exec(e.name ?? "")?.[1];
+  if (!n) err(`${id}: a strength grid is named "Strength grid <n>" — the body it counts is named at import`);
+  else if (id !== `${bookId}.strength${n}`) err(`${id}: a strength grid named "Strength grid ${n}" has the id "${bookId}.strength${n}"`);
+  if (e.anchor?.hash === undefined) err(`${id}: a strength grid anchors by hash, never by its printed words`);
+  const a = e.assists ?? {};
+  if (!a.anchorBox || ["x0", "x1", "y0", "y1"].some((k) => typeof a.anchorBox[k] !== "number")) err(`${id}: strength grid needs assists.anchorBox {x0, x1, y0, y1}`);
+  const g = a.grids?.strength;
+  const cols = Array.isArray(g?.cols) ? g.cols : [];
+  if (!g?.box || !g?.label || !g?.headerBand || !cols.length) err(`${id}: strength grid needs assists.grids.strength {box, label, headerBand, cols}`);
+  const s = e.strength;
+  if (!s || typeof s !== "object") return void err(`${id}: strength grid needs a "strength" block`);
+  for (const k of Object.keys(s)) if (!STRENGTH_KEYS.has(k)) err(`${id}: strength has an unknown key "${k}"`);
+  const keys = new Set(cols.map((c) => c?.key));
+  const idOk = (v) => typeof v === "string" && COMPOSITE_ID.test(v) && v.startsWith(`${bookId}.`);
+  const columns = s.columns && typeof s.columns === "object" ? Object.entries(s.columns) : [];
+  if (!columns.length) err(`${id}: strength.columns maps each counted column key to an organisation id`);
+  for (const [key, org] of columns) {
+    if (!/^c\d+$/.test(key)) err(`${id}: strength column "${key}" is a neutral key like "c1" — a printed class name never ships`);
+    if (!keys.has(key)) err(`${id}: strength names column "${key}", which the grid does not author`);
+    if (!idOk(org)) err(`${id}: strength column "${key}" must name an organisation of this book by id`);
+  }
+  for (const c of cols) {
+    if (!/^(c\d+|revenue|total)$/.test(String(c?.key ?? ""))) err(`${id}: grid column "${c?.key}" is keyed c<n>, revenue or total — never a printed word`);
+  }
+  if (s.revenue !== undefined) {
+    if (!keys.has(s.revenue) || s.revenue in (s.columns ?? {})) err(`${id}: strength.revenue names an authored column that no organisation is counted under`);
+    if (new Set(columns.map(([, org]) => org)).size !== 1) err(`${id}: a revenue column belongs to a body only when every column is that body's`);
+  }
+  strengthRows.push({ id, orgs: columns.map(([, org]) => org) });
 }
 
 /* --- register entries --- */
@@ -245,6 +293,12 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
       if (e.book !== bookId) err(`${id}: book "${e.book}" != directory "${bookId}"`);
       if (!Array.isArray(e.pages) || !e.pages.every((p) => Number.isInteger(p) && p > 0)) err(`${id}: pages must be positive ints`);
       if (!e.name) err(`${id}: name required`);
+      // `meta.role` tags what a place is FOR and is read only off a location row;
+      // a value outside the vocabulary would be carried and never acted on.
+      if (e.meta?.role !== undefined) {
+        if (e.kind !== "kind.location") err(`${id}: meta.role belongs on a location row only`);
+        else if (!PLACE_ROLES.includes(e.meta.role)) err(`${id}: meta.role ${JSON.stringify(e.meta.role)} is not a place role (${PLACE_ROLES.join("|")})`);
+      }
       // An ability-bound kind hands `meta.category` to a CONSTRAINED choice
       // field on the ability model. The runtime clamps a value it does not know
       // to the default and warns on every import and update, so the register is
@@ -339,6 +393,7 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
           err(`${id}: a keyed place in a "— Points of Interest" group anchors by number, never by its printed words`);
         }
         if (e.kind === "kind.organisation") checkOrganisation(e, id, bookId);
+        if (e.kind === "kind.strengthGrid") checkStrengthGrid(e, id, bookId);
       }
       // An alias is a SECOND PRINTED SURFACE for a name this register already
       // owns — never a new name for something the module does not ship. It
@@ -404,6 +459,15 @@ for (const { id, o } of orgRows) {
   for (const v of Array.isArray(o.controls) ? o.controls : []) want("controls", v, isQuarter, "a quarter's overview");
   for (const r of Array.isArray(o.relations) ? o.relations : []) {
     if (typeof r?.to === "string") want("relations", r.to, (s) => s.kind === "kind.organisation", "an organisation");
+  }
+}
+
+/* --- strength grids: every column belongs to an organisation row --- */
+for (const { id, orgs } of strengthRows) {
+  for (const org of new Set(orgs)) {
+    const shape = rowShapes.get(org);
+    if (!shape) err(`${id}: strength names "${org}", which no row defines`);
+    else if (shape.kind !== "kind.organisation") err(`${id}: strength names "${org}", which is not an organisation`);
   }
 }
 

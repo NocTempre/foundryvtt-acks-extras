@@ -74,6 +74,20 @@
         {{localize "ACKS-HENCHMEN.location.region"}}
         <input type="text" name="system.region" value="{{system.region}}" />
       </label>
+      {{#if isGM}}
+      <label data-tooltip="{{localize 'ACKS-LOCATION.place.roleHint'}}">
+        {{localize "ACKS-LOCATION.place.roleLabel"}}
+        <select name="system.role">
+          {{#each roleOptions}}
+          <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+          {{/each}}
+        </select>
+      </label>
+      {{else if roleTag}}
+      <span class="acks-tag" data-tooltip="{{localize 'ACKS-LOCATION.place.roleHint'}}">
+        <i class="fas {{roleTag.icon}}"></i> {{roleTag.label}}
+      </span>
+      {{/if}}
       {{#if coinRollupGC}}
       <span class="acks-tag" data-tooltip="{{localize 'ACKS-LOCATION.place.coinRollupHint'}}">
         <i class="fas fa-coins"></i> {{coinRollupGC}} gp

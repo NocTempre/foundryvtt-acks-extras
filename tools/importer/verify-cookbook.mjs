@@ -224,6 +224,39 @@ for (const file of bookFiles) {
       );
       continue;
     }
+    // The three grid-and-value kinds read no prose at all: a demand grid is
+    // rows, a domain record is its heading and two figures, and a strength
+    // grid is its heading and the level rows the binder counts.
+    if (kind === "kind.marketGrid") {
+      const g = f.grids?.markets;
+      if (!nameOk || !g?.rows?.length) {
+        fail(`markets rows=${g?.rows?.length ?? 0}`);
+        continue;
+      }
+      console.log(`OK   ${id}: ${g.rows.length} market row(s), ${Object.keys(g.header ?? {}).length} header(s)`);
+      continue;
+    }
+    if (kind === "kind.marketRecord") {
+      const families = f.families;
+      const marketClass = f.marketClass;
+      if (!nameOk || families == null || families === "" || marketClass == null || marketClass === "") {
+        fail(`families=${families ?? "none"} marketClass=${marketClass ?? "none"}`);
+        continue;
+      }
+      console.log(`OK   ${id}: heading read, families and market class parsed`);
+      continue;
+    }
+    if (kind === "kind.strengthGrid") {
+      const g = f.grids?.strength;
+      const levels = (g?.rows ?? []).filter((r) => /^\d+(?:st|nd|rd|th)$/iu.test(String(r?.label ?? "").trim())).length;
+      const total = (g?.rows ?? []).some((r) => /^total$/iu.test(String(r?.label ?? "").trim()));
+      if (!nameOk || !levels || !total) {
+        fail(`strength levels=${levels} total=${total ? "ok" : "MISSING"}`);
+        continue;
+      }
+      console.log(`OK   ${id}: ${levels} level row(s) + total, ${Object.keys(g.header ?? {}).length} column(s)`);
+      continue;
+    }
     if (!nameOk || !words || !statCount) {
       fail(`descWords=${words} stats=${statCount}`);
       continue;

@@ -21,7 +21,7 @@ import { dirname, join } from "node:path";
 import {
   poiGroupOf, isPoiEntry, isDistrictOverview, districtPlaceId, districtPlaceData, poiLocationData,
 } from "../../scripts/importer/poi-binding.mjs";
-import { LOCATION_TYPE } from "../../scripts/location/constants.mjs";
+import { LOCATION_TYPE, isPlaceRole } from "../../scripts/location/constants.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 
 let failed = 0;
@@ -105,6 +105,19 @@ check("in the book's folder", place.folder, "F1");
 check("with core's house for a picture", place.img, "icons/svg/house.svg");
 check("a place with no quarter falls back to the book for its region", poiLocationData({ name: "X", entryId: "b.x", book: "b", bookLabel: "Book" }).system.region, "Book");
 
+/* ---------------- a place's role ---------------- */
+
+const base = { name: "X", entryId: "b.x", book: "b", bookLabel: "Book" };
+check("a registered role is written to the place", poiLocationData({ ...base, role: "gate" }).system.role, "gate");
+check("an unknown role is not written", "role" in poiLocationData({ ...base, role: "keep" }).system, false);
+check("no role, no field", "role" in poiLocationData(base).system, false);
+check("a blank role is not written", "role" in poiLocationData({ ...base, role: "" }).system, false);
+check("a registered key is a role", isPlaceRole("gate"), true);
+check("an unregistered key is not", isPlaceRole("keep"), false);
+check("blank is not a role", isPlaceRole(""), false);
+check("a prototype key is not a role", isPlaceRole("toString"), false);
+check("a non-string is not a role", isPlaceRole(undefined), false);
+
 /* ---------------- the shipped AX3 cookbook ---------------- */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -116,6 +129,7 @@ const unbound = locations.filter((e) => !isPoiEntry(e)).map((e) => e.name);
 check("every keyed place in AX3 belongs to some quarter", unbound, []);
 const mistaken = entries.filter((e) => e.kind !== "kind.location" && isPoiEntry(e)).map((e) => e.name);
 check("nothing that is not a place is taken for one", mistaken, []);
+check("every role AX3 names is a registered place role", entries.filter((e) => e.meta?.role && !isPlaceRole(e.meta.role)).map((e) => e.name), []);
 const quarters = new Set(locations.map((e) => poiGroupOf(e.meta?.group)?.district));
 ok("every point of interest names a quarter", ![...quarters].includes(undefined));
 const overviews = locations.filter(isDistrictOverview).map((e) => poiGroupOf(e.meta.group).district);

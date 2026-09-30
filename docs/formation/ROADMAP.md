@@ -271,7 +271,7 @@ cut as a minor rather than held for one major:
 | Not built | What it is | What it needs first |
 |---|---|---|
 | ~~**Points of interest**~~ | **BUILT** — a static point is a place's token with marker defaults; the panel names the place under the party and the quarter's own place; an incident leaves a Judge-only marker that expires on the world clock and is promoted into a place from the card; the walk to a point is priced by quarter from the imported figures; and AX3's keyed places import as places nested quarter → city. `docs/formation/MODEL.md` "Points of interest", `docs/location/MODEL.md` "A place on the map". The organisations' rooms still land as pages until the factions phase binds them. | — |
-| **Factions, reputation and status** | An `acks-extras.faction` Actor sub-type; the henchmen slander registry generalised into a standing ledger. | A world relaunch, as any new sub-type needs (`documentTypes` is server-read). |
+| ~~**Factions, reputation and status**~~ | **BUILT** (8.0.0) — the `acks-extras.faction` Actor sub-type with its standing ledger, the hunt that marks a party wanted in the quarters a faction holds, and the reaction rows it adds. `docs/factions/MODEL.md`; what it still lacks is `docs/factions/ROADMAP.md`. | — |
 
 Three smaller things the same work left open:
 
@@ -282,10 +282,16 @@ Three smaller things the same work left open:
   sub-table (JJ ch. 7 Step 7), is not modelled: it wants the band to become a
   list of `{from, to, table}` on the map, and the world's own imported list to
   take one as well. Core RollTable nesting still covers static routing.
-- **`night` is still a picker, not the calendar.** The hour is trivial to read;
-  the boundary that makes it dark is not printed anywhere and nothing in the
-  family computes one. It wants either a pair of Judge-set hour settings with no
-  default, or a sunrise/sunset pair arriving through the importer.
+- **The gate action.** Passing one of the city's gates with goods charges the
+  toll and, on an import, the customs duty the city-travel document's
+  `gateTolls` table imports (AX3 p. 56): the dice thrown once per unit of
+  stones the page states, the units rounded half to even, the duty rolled as a
+  percentage of the loads' market value from `acksExtras.markets.manifestOf`,
+  the coin spent through the gold adapter to the gate's place. The gates are
+  the places marked `role: gate` (`docs/location/MODEL.md`), open by day and
+  shut after dark by `isNight`, with the Judge's word that the watch opened
+  it. Drawn on 2026-09-30 and not built; the figures, the role and the
+  manifest reader landed ahead of it.
 - **The rest of JJ ch. 7 Step 5 is importer work.** A settlement's dynamic
   buildings and the per-shop availability fractions are printed figures with
   no register yet; the place a point of interest now is has the `market`
@@ -448,19 +454,11 @@ legitimately sit.
   would make that unnecessary and would stop a frontage edit from reading as a
   step. It is a change to the trap geometry, not to the clock — `trap-zone.mjs`
   converts corner to centre and back at three seams that would collapse.
-
-- **The city's "after dark" could follow the calendar, and cannot yet.**
-  `game.time.components.hour` answers the hour trivially (the Auran Imperial
-  Calendar declares a 24-hour day), so a "follow the calendar" toggle beside
-  the manual box is a small change — except that nothing in the world says
-  when dark BEGINS. The calendar's seasons carry `monthStart`/`dayStart` and
-  no sunrise or sunset, and nothing in the module computes one. Gating the
-  imported after-dark shift and the night cadence on an invented boundary
-  would price a printed modifier with an unprinted number. Two honest routes:
-  a pair of Judge-set hour settings with **no default**, so the toggle is
-  offered only once the Judge has said what dark means here; or a sunrise /
-  sunset pair reaching `sky.mjs` through the importer, at which point the
-  toggle follows a figure the Judge's own book supplied.
+- **A sunrise the book supplies.** The dark's bounds are two world settings
+  standing at the day's quarter points (DECISIONS 2026-09-30, "The city's hour
+  follows the world clock"). A season table that printed sunrise and sunset
+  would arrive through the importer and write those two settings by season;
+  no page this feature reads prints one today.
 
 ## Scoped effects for ability matching
 

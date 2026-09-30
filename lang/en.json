@@ -461,6 +461,10 @@
   "ACKS-LIB.animal.training.herding": "Herding",
   "ACKS-LIB.settings.advanceWorldTime.name": "Advance the world clock",
   "ACKS-LIB.settings.advanceWorldTime.hint": "Let this module move Foundry's world time: dungeon turns advance it 10 minutes per turn, and a location's \"Advance 1 week\" button advances it seven days. Keeps Active Effect durations and calendar modules in step. Turn it off if another module (e.g. Simple Timekeeping) is the only clock authority — everything else still works, this module just stops writing the time.",
+  "ACKS-LIB.settings.dawnHour.name": "The hour it gets light",
+  "ACKS-LIB.settings.dawnHour.hint": "On the world clock's own calendar. Blank: a quarter of the way through its day (6 on a 24-hour day). Everything that asks whether it is dark reads this pair.",
+  "ACKS-LIB.settings.duskHour.name": "The hour it gets dark",
+  "ACKS-LIB.settings.duskHour.hint": "On the world clock's own calendar. Blank: three quarters of the way through its day (18 on a 24-hour day). A dusk before its dawn runs the light over midnight.",
   "ACKS-LIB.settings.manageVision.name": "Token vision from ACKS senses",
   "ACKS-LIB.settings.manageVision.hint": "Set each token's sight from its sheet: ordinary eyes see only what is lit, lightless vision and a thief's shadowy senses see their own radius as dim light, and night vision brightens dim light without piercing true dark. Also emits light from a lit torch, lantern or candle the character carries. Edit a token's vision by hand and this leaves that token alone from then on.",
   "ACKS-LIB.vision.lightless": "Lightless Vision",
@@ -2899,7 +2903,18 @@
         "destination": "Been there, not this way",
         "route": "Walked this route before"
       },
-      "night": "After dark",
+      "hourLabel": "The hour",
+      "hour": {
+        "clock": "As the clock says",
+        "day": "By day",
+        "night": "After dark"
+      },
+      "clock": {
+        "day": "The clock reads {time}: day, light from {dawn} to {dusk}.",
+        "night": "The clock reads {time}: after dark, light from {dawn} to {dusk}.",
+        "unread": "The world clock keeps no calendar to read an hour from, so it is treated as day. Choose By day or After dark instead.",
+        "overridden": "Set by hand; the clock reads {time}."
+      },
       "blocks": "Blocks this turn",
       "blocksUnpriced": "No block rate imported — the pace has no distance yet.",
       "straggling": "Crowded: the party is large enough to be slowed",
@@ -2966,6 +2981,7 @@
         "interrupted": "{count} day(s) did not pass quietly — day(s) {days}.",
         "undisturbed": "Nothing found them, over {throws} day(s).",
         "incident": "Rolled {roll} ({total} after the dark): {text}",
+        "incidentPlain": "Rolled {roll}: {text}",
         "incidentDrawn": "Rolled {roll} on {table}: {text}",
         "incidentBanded": "Rolled {roll} on {table} ({total} after the dark): {text}",
         "incidentDeferred": "Rolled {roll} on {table} (total {total}): the district's special table answers.",
@@ -3040,7 +3056,26 @@
       "cadenceSplit": "Not the street's rhythm: every {turns} turn(s) from {turnsFrom}, on {target}+ from {targetFrom}.",
       "strayHint": "If the throw fails, they end up {dice} blocks off course.",
       "strayUnpriced": "No distance imported for a wrong turning — what a failed throw costs is not priced yet.",
-      "stragglingHeadcount": "{headcount} in the party."
+      "stragglingHeadcount": "{headcount} in the party.",
+      "lists": {
+        "wanted": "Incidents here: {table}, the quarter's table while the party is hunted.",
+        "district": "Incidents here: {table}, the quarter's own table. It replaces the city table, so the quarter's special table is never reached.",
+        "zone": "Incidents here: {table}, the zone's table.",
+        "map": "Incidents here: {table}.",
+        "mapDark": "Incidents here: {table}, {shift} after dark.",
+        "band": "A total of {from} to {to} is handed to {table}.",
+        "bandDark": "A total of {from} to {to} is handed to {table}, {shift} after dark.",
+        "bandNone": "A total of {from} to {to} has no special table to go to here.",
+        "world": "Incidents here: the world's own city table. This map names none of its own.",
+        "missing": "{list} named here no longer exists, so the next table answers. Name it again, or run the importer's Maps step to repair the map.",
+        "specialMissing": "The quarter's special table cannot be read, so the city table's own row stands. Name it again, or run the importer's Maps step to repair the map.",
+        "source": {
+          "wanted": "The hunted table",
+          "district": "The district table",
+          "zone": "The zone's table",
+          "map": "The city table"
+        }
+      }
     },
     "lost": {
       "discovered": {
@@ -3191,7 +3226,11 @@
         },
         "specialTableUuid": {
           "label": "Special encounters table",
-          "hint": "Drawn from when the city table named in this scene's configuration rolls inside its district band. Leave the district encounter table empty for this to be reached."
+          "hint": "Read when the city table named in this scene's configuration rolls inside its district band: thrown on its own formula, the figure below added after dark. Leave the district encounter table empty for this to be reached."
+        },
+        "specialAfterDark": {
+          "label": "Special table: added after dark",
+          "hint": "Added to the special table's own throw once the board says after dark, which is how its rows past the die are reached. Blank = nothing added. The importer's Maps step fills a blank one from the table's own rows."
         },
         "encounterEveryDay": {
           "label": "Throw frequency by day (turns)",
@@ -4112,6 +4151,26 @@
   "ACKS-FACTIONS.sheet.memberMissing": "This actor no longer exists.",
   "ACKS-FACTIONS.sheet.hideHint": "Hide this member from players",
   "ACKS-FACTIONS.sheet.removeMemberHint": "No longer a member",
+  "ACKS-FACTIONS.sheet.strength": "Strength",
+  "ACKS-FACTIONS.sheet.strengthHint": "The unnamed people, counted: one column per heading, one row per level or per kind of row. An import fills it from the page.",
+  "ACKS-FACTIONS.sheet.strengthTotalHint": "Strength, counting every row of every column.",
+  "ACKS-FACTIONS.sheet.strengthRow": "Row",
+  "ACKS-FACTIONS.sheet.strengthColumn": "Heading",
+  "ACKS-FACTIONS.sheet.strengthLevel": "Level",
+  "ACKS-FACTIONS.sheet.strengthLevelOf": "Level {n}",
+  "ACKS-FACTIONS.sheet.strengthLabel": "Label",
+  "ACKS-FACTIONS.sheet.strengthCount": "Count",
+  "ACKS-FACTIONS.sheet.strengthRevenue": "Revenue",
+  "ACKS-FACTIONS.sheet.strengthTotal": "Total",
+  "ACKS-FACTIONS.sheet.strengthEmpty": "Nobody is counted yet.",
+  "ACKS-FACTIONS.sheet.strengthAddColumn": "Column",
+  "ACKS-FACTIONS.sheet.strengthAddRow": "Row",
+  "ACKS-FACTIONS.sheet.strengthRemoveColumnHint": "Drop this column and its counts",
+  "ACKS-FACTIONS.sheet.strengthRemoveRowHint": "Drop this row",
+  "ACKS-FACTIONS.sheet.strengthHide": "Hide from players",
+  "ACKS-FACTIONS.sheet.strengthShow": "Show to players",
+  "ACKS-FACTIONS.sheet.strengthNote": "Note",
+  "ACKS-FACTIONS.sheet.strengthNotePlaceholder": "Where the figures come from",
   "ACKS-FACTIONS.sheet.joined": "{name} is enrolled.",
   "ACKS-FACTIONS.sheet.seated": "Seated at {name}.",
   "ACKS-FACTIONS.sheet.cycle": "{name} is already part of this organisation — it cannot also be above it.",
@@ -4577,6 +4636,10 @@
   "ACKS-LOCATION.place.keepHint": "On the linked map right now — click to record them as staying here",
   "ACKS-LOCATION.place.hideHint": "Hide this row from players",
   "ACKS-LOCATION.place.headcountHint": "Living things recorded here",
+  "ACKS-LOCATION.place.roleLabel": "Role",
+  "ACKS-LOCATION.place.roleHint": "What this place is to the city's procedures",
+  "ACKS-LOCATION.place.role.none": "None",
+  "ACKS-LOCATION.place.role.gate": "City gate",
   "ACKS-LOCATION.occupant.kind.actor": "Person",
   "ACKS-LOCATION.occupant.kind.group": "Group",
   "ACKS-LOCATION.occupant.kind.monster": "Monster",
@@ -5974,6 +6037,7 @@
   "ACKS-IMPORTER.ui.progressRollTables": "Importing roll tables…",
   "ACKS-IMPORTER.ui.progressScenes": "Standing up maps…",
   "ACKS-IMPORTER.ui.sceneQuarter": "Quarter {n}",
+  "ACKS-IMPORTER.ui.scenesRepaired": "{n} held map link(s) repaired (lists named again, after-dark figures filled)",
   "ACKS-IMPORTER.ui.scenesAdventureMade": "{n} adventure(s) written to the library",
   "ACKS-IMPORTER.ui.scenesAdventureRebuilt": "{n} adventure(s) rebuilt for a new map",
   "ACKS-IMPORTER.ui.scenesAdventureHeld": "{n} adventure(s) already in the library",

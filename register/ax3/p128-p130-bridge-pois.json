@@ -87,7 +87,8 @@
       129
     ],
     "meta": {
-      "group": "Bridge District — Points of Interest"
+      "group": "Bridge District — Points of Interest",
+      "role": "gate"
     }
   },
   {
@@ -102,7 +103,8 @@
       129
     ],
     "meta": {
-      "group": "Bridge District — Points of Interest"
+      "group": "Bridge District — Points of Interest",
+      "role": "gate"
     }
   },
   {

@@ -1,0 +1,10 @@
+{
+  "id": "kind.strengthGrid",
+  "role": "composite",
+  "note": "A body's printed strength table: its unnamed members counted by class column and level row, a Total row and, where printed, a revenue column. The row ships geometry and neutral column keys (c<n>) that name BY ID the organisation each column belongs to; the header words and every count are read off the Judge's page at import. Binds onto the faction actors the organisation rows built.",
+  "fields": {
+    "name": {
+      "locate": "printKey"
+    }
+  }
+}

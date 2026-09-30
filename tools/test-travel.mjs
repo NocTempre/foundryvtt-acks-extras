@@ -13,6 +13,7 @@ import {
   claimUnstampedSettlements,
   composeLogEntry,
   freshDay,
+  patchSettlement,
   pushLog,
   setJourneyMode,
   travelOf,
@@ -186,7 +187,23 @@ assert.equal(arrived.holeUpSince, null,
   "and the stay stamp goes, or the journey between the two is charged as a stay");
 assert.equal(arrived.pace, "commuting", "what the Judge set still carries");
 assert.equal(arrived.route, "route");
-assert.equal(arrived.night, true);
+assert.equal(arrived.hour, "night", "a board from before the hour had a source arrives on the Judge's word");
+assert.equal("night" in arrived, false, "and the old flag is not written back");
+
+/* The board's own writer takes the hour by name, and still reads the older
+   boolean a caller written to it sends. */
+await patchSettlement("f1", { hour: "day" });
+assert.equal(boardOf("f1").hour, "day");
+await patchSettlement("f1", { hour: "clock" });
+assert.equal(boardOf("f1").hour, "clock");
+await patchSettlement("f1", { hour: "noon" });
+assert.equal(boardOf("f1").hour, "clock", "an hour outside the vocabulary follows the clock");
+await patchSettlement("f1", { night: true });
+assert.equal(boardOf("f1").hour, "night", "the older tick is the Judge's word for night");
+await patchSettlement("f1", { night: false });
+assert.equal(boardOf("f1").hour, "day", "and the older clear their word for day");
+await patchSettlement("f1", { night: true, hour: "clock" });
+assert.equal(boardOf("f1").hour, "clock", "named beside the boolean, the hour wins");
 
 /* A dungeon under the city it is already in: the mode flips, and coming back
    up starts a fresh tally without forgetting what the Judge set. */

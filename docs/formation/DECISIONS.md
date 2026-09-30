@@ -1975,6 +1975,66 @@ be seen and corrected.
 several routed bands is `docs/formation/ROADMAP.md`. The band and the shift
 are not honoured on the world's own list, which has neither.
 
+> Narrowed 2026-09-30: the quarter's special list is read by band with a
+> figure of its own. See "A quarter's special list is read the way the city's
+> is, and the board says which list answers".
+
+### A quarter's special list is read the way the city's is, and the board says which list answers (2026-09-30)
+
+**Reported (the user):** "There seems to be a conflict between the generic
+city table and the district specific encounters."
+
+**Found.** Three things, none of which the board could show. The quarter's
+special list was DRAWN (`table.roll()`), so what it adds after dark never
+applied and its rows past the die could never be reached: each of AX3's
+quarter lists is a d10 whose rows run to 13 and whose heading states the
+addition, exactly as the city's list does at its own scale. Nothing on the
+panel or the card said which list the next incident would be read from, so a
+district whose `tableUuid` REPLACES the city's list, or a world whose generic
+list answered, looked like the wrong list winning. And a list a map or a
+quarter named that no longer existed was passed over in silence: a rebuilt
+roll-table shelf mints new ids (`docs/importer/DECISIONS.md`, "A rebuild can
+repair in place instead"), after which the walk fell to the world's generic
+list with nothing saying the city's own had been skipped.
+
+**Ruled.**
+- The District behaviour carries `specialAfterDark`: what the special list
+  adds to its own throw after dark. `readMapIncident` throws the special list
+  on its own formula and reads it by range with that figure (`throwBanded`,
+  the reader the map's list already had), so the city throw and the special
+  throw are the same procedure at two scales. A quarter that names a special
+  list it cannot read leaves the city row's own words standing and is marked
+  `specialMissing`.
+- The figure is written at import from the list's own shape
+  (`afterDarkShift`), as the map's is, and is BLANK (null) until stated, so a
+  Judge's typed zero and a never-stated figure are different values. A blank is
+  read as none; the importer's map step fills a blank on a held map.
+- `incidentRouting` names the list the next incident is read from, in the
+  order `rollSettlementIncident` walks, and every list named ahead of it that
+  is gone; the panel prints it (`listLines`) and the card prints every list
+  the walk passed over (`passed`). The card's own line names the list that
+  answered, the world's included, and claims a shifted total only when a
+  shift was applied.
+
+**This narrows "A city's own list belongs to its map, and hands one band to
+the quarter" (2026-09-17), which kept the shift off the district because the
+printed figure was the CITY's. The new evidence:** each quarter's list prints
+an addition of its own, and a draw cannot honour it. The figure lands on the
+district because it is the district's list's; the map's figure stays the
+map's.
+
+**Rejected: deriving the special list's shift at the table from its rows** —
+the 2026-09-17 ruling's reason stands: it is right for a list built that way
+and silently wrong for one that is not, and the Judge would have no box
+showing what was assumed. **Rejected: a `specialAfterDark` initialised to
+zero** — an imported map from before this ruling would then state a zero
+nobody typed, and no repair could tell it from a Judge's own.
+
+**Cost:** the live check needs a night roll in the band and the special list's
+own die to land past its top face (`TESTING.md`). A quarter's special list
+with an unparseable formula is unreadable rather than drawn, and the card says
+so.
+
 ### Settlement distances round by magnitude, not by a fixed decimal count (2026-09-22)
 
 Recorded from the comment on `unitFigure` in `scripts/formation/formation-view.mjs`.
@@ -2254,3 +2314,71 @@ marched on at full speed without carrying or leaving them.
 **What it cost.** Only hit points and death are read from the member's own
 token. An unlinked member's items, effects, rolls, lights, rations and
 experience inside the party token still read the world actor (ROADMAP §3).
+
+### The city's hour follows the world clock, and the picker is the Judge's override (2026-09-30)
+
+**Reported (the user):** "The exploration seems a little undercooked (time of
+day should defer to the world clock)."
+
+**Found.** The board's `night` was a checkbox, ticked by hand, that nothing
+read the calendar into. A party that walked from noon to midnight on the
+world clock was on the same cadence pair and the same list rows the whole way
+unless the Judge remembered the box, and the box said nothing about what the
+clock read. ROADMAP had parked the change (two rows, now removed) on the ground
+that nothing in the world says when dark begins: the calendar carries no
+sunrise, and gating a printed after-dark figure on an invented boundary would
+"price a printed modifier with an unprinted number". Its two routes were a pair
+of hour settings **with no default**, or a sunrise pair through the importer.
+
+**Ruled.**
+- The board stores where the hour comes from, not the hour: `hour` is one of
+  `HOUR_MODES` — `clock` (default), `day`, `night`. `isNight(board, {dark})`
+  is the one resolver; the tick, the holed-up credit and the panel ask it with
+  `lib.worldTime.clockReading().dark` in hand. A pure caller with no clock
+  reads `clock` as day.
+- The dark's bounds are two world settings in lib, `dawnHour` and `duskHour`,
+  read against the calendar's own `hoursPerDay`. **A blank one stands at a
+  quarter and three quarters of the day** (`darkBounds`). A dusk stated before
+  its dawn runs the light over midnight; equal hours make a day with no dark.
+- A world with no calendar to read makes `clockReading()` null; the board reads
+  that as day and the panel says so beside the picker, with the two overrides
+  as the way out.
+- The panel prints the clock's reading and the bounds in force under the
+  picker, and keeps printing the clock's reading while the Judge has overridden
+  it. Open party sheets re-render on `updateWorldTime` while any formation is in
+  settlement mode.
+- A stored `night: true` reads as `night`, `false` as `clock`, and the flag is
+  dropped on the next write. `patchSettlement` keeps taking the boolean (tick →
+  `night`, clear → `day`). Formation `apiVersion` 14, lib `apiVersion` 22.
+
+**This supersedes the ROADMAP position of no default (written 2026-09-13,
+with 7.6.0). What changed:** the user's instruction above, and the
+live-testing rule that a control which gates nothing is a defect. With no default, `clock` — the default mode — would read as day on
+every world until a Judge typed two hours, so the picker would ship inert on
+exactly the boards it was built for; and the box it replaces was itself an
+unprinted judgment, made by hand and unrecorded. The quarter points are the
+day's own arithmetic (`hoursPerDay / 4`, `3 · hoursPerDay / 4`) and not a
+figure read off any page — no page prints when dark falls in a given city —
+so nothing printed is being priced with anything copied. The concern the old
+rows raised is met by showing rather than hiding: the bounds in force are
+printed on the panel every time the clock is read, and the Judge moves them
+from Settings.
+
+**Rejected.**
+- *A sunrise pair through the importer.* No page this feature reads prints
+  one to import; the route waits on a book that does, and a season table that
+  did would still want these two settings as its target (ROADMAP).
+- *Reading scene darkness (`isPartyInDark`).* It reads the scene's darkness
+  level and whether the party carries a light, which is the question the
+  dungeon's speed penalty asks; a city map whose darkness slider nobody moves
+  would make every night a day, and a lantern would make it noon.
+- *Keeping the boolean beside the mode.* Two stored fields for one fact, and a
+  writer that sets one and not the other leaves them disagreeing on the next
+  read.
+
+**Cost.** Two world settings every Judge sees, whether or not they run a city.
+A world whose day is not 24 hours gets quarter points on its own day length,
+which is the right shape and a figure nobody has checked against a real
+calendar of that length. The weather's night temperature (`weather.mjs`) is a
+second figure per day and not a reading of the hour; this ruling does not make
+it one.

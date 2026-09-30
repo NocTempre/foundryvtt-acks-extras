@@ -5,6 +5,20 @@ export const LANG_PREFIX = "ACKS-LOCATION";
 /** The location actor sub-type this feature adds to the system. */
 export const LOCATION_TYPE = `${MODULE_ID}.location`;
 
+/**
+ * The roles a place can carry: what a place IS to a city procedure (a gate to
+ * the gate action), never what it sells. Each entry names its lang label and
+ * the Font Awesome icon the sheet shows beside it.
+ */
+export const PLACE_ROLES = Object.freeze({
+  gate: { label: `${LANG_PREFIX}.place.role.gate`, icon: "fa-archway" },
+});
+
+/** Is `value` one of the keys of {@link PLACE_ROLES}? */
+export function isPlaceRole(value) {
+  return typeof value === "string" && Object.hasOwn(PLACE_ROLES, value);
+}
+
 /** The storage tab injected into the core character sheet. */
 export const STORAGE_TAB_ID = "acks-location-storage";
 

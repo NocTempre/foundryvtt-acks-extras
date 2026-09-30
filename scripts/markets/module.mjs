@@ -48,6 +48,7 @@ import {
   performVentureTrade,
   ventureOf,
 } from "./engine/ventures.mjs";
+import { manifestOf, removeLoads, manifestRows, manifestTotals } from "./engine/manifest.mjs";
 import { openVentureTradeDialog, VentureTradeDialog } from "./apps/venture-dialog.mjs";
 import { PartyConfigApp } from "./apps/party-config.mjs";
 import { openCommissionDialog, CommissionDialog } from "./apps/commission-dialog.mjs";
@@ -160,6 +161,11 @@ Hooks.once("setup", () => {
     tradeMerchandise,
     performVentureTrade,
     ventureOf,
+    // the loads a party carries: read and priced, or drawn out as re-creatable snapshots (the gate action, smuggling)
+    manifestOf,
+    removeLoads,
+    manifestRows,
+    manifestTotals,
     // identification
     identifyAttempt,
     availableMethods,

@@ -41,6 +41,7 @@ import { acksCompatStubs } from "../../lib/actor-compat.mjs";
 import { num, str, int, occupantField } from "../../lib/fields.mjs";
 import { goodsSchema } from "../../markets/data/goods-schema.mjs";
 import { migrateLocationSource } from "./location-migrate.mjs";
+import { PLACE_ROLES } from "../constants.mjs";
 
 const fields = foundry.data.fields;
 
@@ -386,6 +387,10 @@ export class LocationData extends foundry.abstract.TypeDataModel {
 
       // --- identity ------------------------------------------------------
       region: str(),
+      // What this place IS to a city procedure (PLACE_ROLES). Blank is the
+      // common case, so it is a listed choice; a key outside the registry is
+      // refused at the write rather than silently ignored by the readers.
+      role: new fields.StringField({ required: true, blank: true, initial: "", choices: ["", ...Object.keys(PLACE_ROLES)] }),
       notes: new fields.HTMLField({ required: false, blank: true, initial: "" }),
       // The Judge's own record of what this place actually is — the faction
       // that really owns the inn, what the cellar door hides. A SECOND field
@@ -447,6 +452,11 @@ export class LocationData extends foundry.abstract.TypeDataModel {
    */
   get hasMarket() {
     return this.market != null;
+  }
+
+  /** The role key this place carries (a key of PLACE_ROLES), or "" when it has none. */
+  get placeRole() {
+    return typeof this.role === "string" && Object.hasOwn(PLACE_ROLES, this.role) ? this.role : "";
   }
 
   /* Read-through conveniences so a caller that only wants to LIST something

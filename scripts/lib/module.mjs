@@ -90,7 +90,10 @@ import {
   syncSceneTokens,
   syncTokenFromActor,
 } from "./token-sync.mjs";
-import { SETTING_ADVANCE_WORLD_TIME } from "./world-time.mjs";
+import {
+  SETTING_ADVANCE_WORLD_TIME, SETTING_DAWN_HOUR, SETTING_DUSK_HOUR,
+  mayAdvanceWorldTime, onWorldTimeAdvanced, clockReading, darkBounds, isDarkAt,
+} from "./world-time.mjs";
 import * as movementModes from "./movement-modes.mjs";
 import * as survival from "./survival.mjs";
 import { danglingRefCheck, fixEach, fixRepairs, registerRepairCheck, repairChecks, scanRepairs } from "./repair.mjs";
@@ -113,8 +116,8 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
-  // 19: hp — the group hit-point tool.
-  apiVersion: 21,
+  // 19: hp — the group hit-point tool. 22: worldTime — the clock's reading.
+  apiVersion: 22,
   vocab,
   fields,
   /**
@@ -175,6 +178,22 @@ const localImpl = Object.freeze({
     adjust: adjustTargets,
     plan: planHpChange,
     eligibility: hpEligibility,
+  },
+  /**
+   * The world clock as this module reads it (world-time.mjs): whether it may
+   * move the clock, the one watcher for a clock that moved, and `clockReading`
+   * — the hour, the day's length, the dark's bounds from the two hour settings,
+   * and whether it is dark now. `isDarkAt` and `darkBounds` are the pure halves.
+   */
+  worldTime: {
+    SETTING_ADVANCE_WORLD_TIME,
+    SETTING_DAWN_HOUR,
+    SETTING_DUSK_HOUR,
+    mayAdvanceWorldTime,
+    onWorldTimeAdvanced,
+    clockReading,
+    darkBounds,
+    isDarkAt,
   },
   services,
   loadRuledata,
@@ -436,6 +455,28 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: true,
+  });
+
+  // The hours that bound the dark on the world clock (world-time.mjs
+  // `clockReading`): the calendar keeps no sunrise, so the Judge states the
+  // pair, and a blank one stands at the day's quarter points. Nullable fields,
+  // because an hour of 0 is midnight and not "unstated". Two literal calls:
+  // the docs site reads registrations statically and cannot follow a loop.
+  game.settings.register(MODULE_ID, SETTING_DAWN_HOUR, {
+    name: `${LANG_PREFIX}.settings.dawnHour.name`,
+    hint: `${LANG_PREFIX}.settings.dawnHour.hint`,
+    scope: "world",
+    config: true,
+    type: new foundry.data.fields.NumberField({ required: false, nullable: true, integer: true, min: 0, initial: null }),
+    default: null,
+  });
+  game.settings.register(MODULE_ID, SETTING_DUSK_HOUR, {
+    name: `${LANG_PREFIX}.settings.duskHour.name`,
+    hint: `${LANG_PREFIX}.settings.duskHour.hint`,
+    scope: "world",
+    config: true,
+    type: new foundry.data.fields.NumberField({ required: false, nullable: true, integer: true, min: 0, initial: null }),
+    default: null,
   });
 
   // Polyglot reads what a character speaks off the system's own language items

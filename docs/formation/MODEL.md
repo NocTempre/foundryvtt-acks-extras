@@ -697,6 +697,11 @@ missing rather than moving the party an invented number of blocks, and a
 figure that never arrived is never shown as a zero — a known destination with
 no imported modifier says so on the panel rather than throwing quietly bare.
 
+The settlement document expects `gateTolls` and `smuggling` tables for the gate
+action (`docs/formation/ROADMAP.md`, "The gate action") — what a pass costs a
+load of merchandise per the city's character, and what the syndicate charges to
+move goods past the gate. Both are printed and arrive through import.
+
 **A city turn is marked off the same way a dungeon turn is: the party walks
 it.** The clock pauses for a JOURNEY only (`setJourneyMode`), because a day is
 the wrong grain for a ten-minute tick; a settlement is timed in the same turns
@@ -765,13 +770,31 @@ because they belong to whichever list is being read.
 
 **A city list can hand its roll to the quarter.** The map states a band of its
 own list, and a total inside it is answered by the `specialTableUuid` of the
-district the party stands in — a plain draw, reported with the city throw that
-sent it there (`via`) so the card shows both dice. The band is asked of the
-TOTAL, so the dark can carry a roll into it or out the far side. A band with
-nothing to hand to — no district, none with a special list, a list that is
-gone — leaves the city row's own words standing. A district's special list is
-not its `tableUuid`: that one REPLACES the city's list for the whole quarter
-and is picked ahead of it, so a quarter that sets both never sees its band.
+district the party stands in — read the same way (`throwBanded`): thrown on
+its own formula, with the district's `specialAfterDark` added once it is
+dark, so its rows past the die are reached exactly as the city's are — and
+reported with the city throw that sent it there (`via`) so the card shows
+both dice. The band is asked of the TOTAL, so the dark can carry a roll into
+it or out the far side. A band with nothing to hand to — no district, none
+with a special list, a list that is gone or has no ranged rows — leaves the
+city row's own words standing and the card says the special list could not
+be read. A district's special list is not its `tableUuid`: that one REPLACES
+the city's list for the whole quarter and is picked ahead of it, so a quarter
+that sets both never sees its band. `specialAfterDark` is blank until stated
+— the importer's map step writes it from the list's own shape, as it writes
+the map's — and a blank is read as none.
+
+**The board says which list answers.** `incidentRouting` walks
+`pickIncidentSource`'s order the way the turn will and names the first list
+that exists, what it adds after dark, and the band it hands to the quarter's
+list; the panel prints those lines to the Judge (`listLines`), and a list
+named ahead of the answer that no longer exists is printed as a warning
+there and on the turn card (`passed`), because a rebuilt roll-table shelf
+leaves a map naming lists that are gone and the walk would otherwise fall to
+the world's generic list in silence. The importer's map step repairs those
+links on a held map (`docs/importer/MODEL.md`, "Maps"). The card's own
+incident line names the list that answered, the world's included, and claims
+a shifted total only when a shift was applied.
 
 **A city walk is measured along the streets.** In settlement mode
 `onPartyTokenMoved` measures a drag with `roadDistance`
@@ -854,6 +877,42 @@ lookup reaches every RollTable compendium in the world — so it is written
 inside a guard, per pack and as a whole. The turn is already resolved on the
 record the caller holds; a card that cannot be written must not take the
 blocks, the throw, and every other feature's bookkeeping down with it.
+
+### The hour
+
+Whether it is dark decides the cadence pair a street or a quarter answers with
+and whether the two city lists add their after-dark figure, so the board
+states **where the hour comes from** rather than the hour itself: `hour` is
+one of `HOUR_MODES` — `clock`, the default, follows the world clock; `day` and
+`night` are the Judge's word, for a table whose clock is not kept or a scene
+narrated out of it. Nothing reads the field directly: `isNight(board, {dark})`
+resolves it, and every consumer — the turn tick, the holed-up credit, the
+panel's cadence line — asks that one function with the clock's answer in hand.
+
+The clock's answer is `lib/world-time.mjs`'s `clockReading()`: the calendar's
+hour against the two world settings that bound the dark, because Foundry's
+calendar keeps no sunrise. A world whose clock keeps no calendar answers null,
+which the board reads as **day** and the panel says so beside the picker, with
+the two overrides as the way out. The pure tick (`advanceSettlementTurn`,
+`advanceSettlementDays`) asks no clock and so also reads a `clock` board as
+day: the live tick resolves the hour once per turn (`boardNight` in
+`settlement-turn.mjs`) and hands the cadence in, which is the same seam a
+Judge's drawn zone arrives through.
+
+The panel prints the clock's reading under the picker — the time, and whether
+that is day or night by the bounds in force — and, while the Judge has
+overridden it, still prints what the clock says, so a board left on *After
+dark* through a morning is visible rather than silent. Open party sheets
+re-render on `updateWorldTime` while any formation is in settlement mode, so a
+clock dragged past dusk moves the line and the cadence figures without a
+reopen; the board is not re-written, because nothing on it changed.
+
+A board written before the hour had a source carries `night` as a boolean.
+`settlementOf` reads a ticked one as the Judge's word (`night`) and a clear one
+as the default (`clock`), and drops the flag; the next write stores `hour`
+alone. `patchSettlement` still accepts the boolean for callers written to it
+and maps a tick to `night` and a clear to `day`, since a caller sending
+`night: false` is stating an hour and not asking for the clock.
 
 ### The districts
 

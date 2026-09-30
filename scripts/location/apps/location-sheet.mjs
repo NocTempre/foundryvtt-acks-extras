@@ -22,7 +22,7 @@
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import * as places from "../../lib/place.mjs";
 import { emptyMarket } from "../data/location-data.mjs";
-import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG } from "../constants.mjs";
+import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG, PLACE_ROLES } from "../constants.mjs";
 import { acksExtras } from "../../namespace.mjs";
 import { HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../../henchmen/constants.mjs";
 import { RARITY_TIERS } from "../../henchmen/config.mjs";
@@ -324,6 +324,19 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.stackCount = actor.system.instanceCount;
     context.isStacked = context.stackCount > 1;
     context.coinRollupGC = places.coinRollupGC(actor, nodes);
+
+    // The role picker: a blank entry plus every role, the current one selected.
+    // A viewer who cannot edit sees only the set role as a tag.
+    const role = actor.system.placeRole;
+    context.roleOptions = [
+      { value: "", label: game.i18n.localize(`${LANG_PREFIX}.place.role.none`), selected: !role },
+      ...Object.entries(PLACE_ROLES).map(([value, def]) => ({
+        value,
+        label: game.i18n.localize(def.label),
+        selected: value === role,
+      })),
+    ];
+    context.roleTag = role ? { icon: PLACE_ROLES[role].icon, label: game.i18n.localize(PLACE_ROLES[role].label) } : null;
   }
 
   /**

@@ -451,7 +451,7 @@ export async function adoptSceneSystem(formationId, scene) {
   return system;
 }
 
-/** The settlement board's own writer: pace, where, route, night, hunted. */
+/** The settlement board's own writer: pace, where, route, hour, hunted. */
 export function patchSettlement(formationId, patch = {}) {
   return patchFormation(formationId, (record) => {
     const t = travelOf(record);
@@ -463,10 +463,12 @@ export function patchSettlement(formationId, patch = {}) {
     // `days` and `holeUpSince` are deliberately absent — the world clock owns
     // the stay, and a caller writing either desynchronises it from the
     // calendar it is counted against.
-    for (const key of ["pace", "where", "route", "intent", "conveyance"]) {
+    for (const key of ["pace", "where", "route", "hour", "intent", "conveyance"]) {
       if (patch[key] !== undefined) next[key] = String(patch[key]);
     }
-    if (patch.night !== undefined) next.night = !!patch.night;
+    // The older boolean form of the hour, kept for callers written to it: a
+    // tick is the Judge's word for night, a clear one their word for day.
+    if (patch.night !== undefined && patch.hour === undefined) next.hour = patch.night ? "night" : "day";
     if (patch.wanted !== undefined) {
       next.wanted = !!patch.wanted;
       // The Judge's untick outranks the ledger: the hunter's name goes with
@@ -759,10 +761,9 @@ export function applyTravelForm(formationId, tv = {}) {
         settlement: {
           ...t.settlement,
           ...tv.settlement,
-          // Both checkboxes are read explicitly rather than left to the spread:
-          // an unticked checkbox is ABSENT from the submit, so a spread keeps
+          // The checkbox is read explicitly rather than left to the spread: an
+          // unticked checkbox is ABSENT from the submit, so a spread keeps
           // whatever was there and the box can be ticked but never cleared.
-          night: !!tv.settlement.night,
           wanted: !!tv.settlement.wanted,
         },
       });
