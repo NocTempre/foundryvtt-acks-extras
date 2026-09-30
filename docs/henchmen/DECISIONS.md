@@ -318,3 +318,9 @@ comments now state the guard; the story is here.
 - **The location schema migration's version markers.** The migration that clears old-shape postings/candidates dates to the v2 schema change that moved availability from per-posting pools to the location's shared market; pre-0.3.0 test data predates that change and cannot be converted.
 - **`installWageGuard`'s libWrapper registration.** It replaced an earlier hand-rolled raw patch; libWrapper's own idempotence now does the job that patch's idempotence check did by hand.
 - **`generateOccupation`'s occupant path.** A retired `people.occupations` category table backed it before the street-column/sub-table system replaced it; the old table is orphaned by that migration and no longer read.
+
+### A troop prototype is created through the base `Actor.create` (2026-09-30)
+
+**Ruled.** Hire as Group creates each troop type's prototype with `Actor.create`, as a single hire already did. `Actor.implementation.create` runs the system's static `create` override, which replaces create-time `system` on any actor created without `items` and seeds a character's coins, so every group hire until 9.3.3 stacked a first-level, classless 1d8 body carrying coins whatever the market row said. `findOrCreateGroup`'s comment had blamed the group's data model for the same loss; the post-create update it describes stays.
+**Rejected.** Passing `items: []` to `Actor.implementation.create`. It dodges the override as well, but it keeps the unit's correctness hanging on the override's own test for `items`.
+**Cost.** A unit hired before 9.3.3 keeps the stat block its stacks copied. The Judge corrects one by editing the troop actor and dropping it onto its stack on the group's sheet, which re-points the stack and keeps its headcount.

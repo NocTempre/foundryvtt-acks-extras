@@ -9,6 +9,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - A disposable `acks-extras.location` actor with a market added — recruitment,
   postings and candidates all hang off the market subtree.
 - A second disposable `character` or `monster` to hire.
+- For a group hire, a troop row written straight into
+  `system.market.candidates` — a posting's weekly roll decides what arrives,
+  and the step needs a troop on the market now: `kind: "mercenary"`, a
+  `troopType`, `status: "available"`, a `quantity` above 1, and a `level`,
+  `classKey`, `hitDice` line and `attributes` a new character does not carry
+  (a 1d6 die, a level above 1), so a stat block the create path emptied cannot
+  pass for the candidate's.
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -97,6 +104,25 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    with no gap, and the draw returns category `hosteller` with the occupation
    of the row whose band holds 51 — not the bare word "Hosteller", which is
    what a world without that sub-table returns.
+10. Hire as a group: on the location's **Mercenaries** tab press **Hire as
+    Group**, choose the employer (a GM seat with no assigned character is
+    asked which), take part of the troop row and press **Hire the unit**.
+    *Observable:* a group actor named for the employer holds one stack of that
+    count, and the candidate's status is `hired`. The stack's
+    `template.snapshot` and the prototype actor its `template.uuid` names carry
+    the candidate's level, class, hit die (read from the `hitDice` line) and
+    scores, and the prototype holds no items. Track the group and the
+    prototype from those two reads; the dialog reports counts, not ids.
+11. A unit hired before 9.3.3, rebuilt on purpose: a disposable
+    `acks-extras.group`, a troop actor made with
+    `Actor.implementation.create` (it comes back first-level, classless, 1d8,
+    carrying coins), and `acksExtras.lib.groups.addStack(group, troop, {count})`.
+    Edit the troop's level, class and hit die, open the group's sheet, and drop
+    the troop onto its stack row (`[data-stack-key]`) — a `DragEvent("drop")`
+    carrying a `DataTransfer` of `{type: "Actor", uuid}` reaches the sheet's own
+    drop handler.
+    *Observable:* the "Re-pointed the stack" notice; the stack's snapshot
+    carries the edits, and its key and headcount are unchanged.
 
 The reference repair's check in the repair tool (`henchmen.references`) is
 walked in docs/lib/TESTING.md, "The repair tool".

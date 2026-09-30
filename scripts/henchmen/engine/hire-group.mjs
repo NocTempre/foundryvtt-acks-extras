@@ -84,7 +84,10 @@ function getCandidate(location, id) {
 }
 
 /** A bare stat-block prototype actor for a troop type — the body every stack
- *  member copies. Hidden, unlinked; the group snapshots it on addStack. */
+ *  member copies; the group snapshots it on addStack. Created
+ *  through the base `Actor.create`, never `Actor.implementation.create`: the
+ *  system's create override replaces `system` (and seeds money items) on a
+ *  character created without `items`. */
 async function createTroopPrototype(candidate, employer) {
   const data = {
     name: candidate.troopType || candidate.occupation || candidate.name || game.i18n.localize("ACKS-HENCHMEN.candidate.unnamed"),
@@ -98,13 +101,13 @@ async function createTroopPrototype(candidate, employer) {
   };
   const scores = scoresFromAttributes(candidate.attributes);
   if (scores) data.system.scores = scores;
-  return Actor.implementation.create(data);
+  return Actor.create(data);
 }
 
 /** Find the employer's existing merc group, else create one named for them.
- *  The unit block is set with a post-create update: create-time nested
- *  `system.unit.*` does not persist for this TypeDataModel (verified live —
- *  category/employer defaulted), but updates do. */
+ *  The unit block is set with a post-create update: the system's create
+ *  override that `Actor.implementation.create` runs replaces create-time
+ *  `system` data on an actor created without `items`; an update keeps it. */
 async function findOrCreateGroup(employer, location) {
   const existing = game.actors.find((a) => a.type === GROUP_TYPE && a.system?.unit?.employerUuid === employer.uuid);
   if (existing) return existing;

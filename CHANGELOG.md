@@ -1,5 +1,20 @@
 # Changelog
 
+## 9.3.3
+
+### Fixed
+
+- **A unit hired as a group carries its troops' level, class, hit die and
+  scores.** Hire as Group gave each troop type a stat block — the body every
+  soldier in its stack copies — that was a first-level character with no
+  class, a 1d8 hit die, the system's default scores and a purse of starting
+  coins, whatever the market's row said. The stat block now carries the row's
+  level, class, hit die and scores, and no coins. A unit hired before this
+  version keeps the stat block it was given: edit the troop actor named for
+  its troop type (and delete its coins), then drop it onto its stack on the
+  group's sheet, and the stack takes the edited block and keeps its
+  headcount.
+
 ## 9.3.2
 
 ### Fixed
