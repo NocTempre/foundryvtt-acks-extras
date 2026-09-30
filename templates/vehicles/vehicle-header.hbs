@@ -1,0 +1,30 @@
+{{! What must never scroll away: which vehicle this is, how fast and how full
+    it is, and the warnings. A warning on another tab is not a warning. }}
+<header class="acks-extras-vehicle-head">
+  <img class="acks-extras-vehicle-portrait" src="{{actor.img}}" alt="{{actor.name}}"
+       {{#if editable}}data-action="editImage" data-edit="img" data-tooltip="{{localize 'ACKS-VEHICLES.header.editImage'}}"{{/if}}>
+  <div class="acks-extras-vehicle-head-main">
+    <input class="acks-extras-vehicle-name" type="text" name="name" value="{{actor.name}}"
+           aria-label="{{localize 'ACKS-VEHICLES.header.name'}}" {{disabled (not editable)}}>
+    <div class="acks-extras-vehicle-tags">
+      <span class="acks-extras-vehicle-tag">{{header.kindLabel}}</span>
+      {{#if header.deployedAt}}
+        <span class="acks-extras-vehicle-tag is-deployed"
+              data-tooltip="{{localize 'ACKS-VEHICLES.header.deployedHint'}}"><i class="fa-solid fa-campground" inert></i> {{header.deployedAt}}</span>
+      {{/if}}
+      {{#if header.sinking}}<span class="acks-extras-vehicle-tag is-alarm">{{localize "ACKS-VEHICLES.header.sinking"}}</span>{{/if}}
+      {{#if header.over}}<span class="acks-extras-vehicle-tag is-alarm">{{localize "ACKS-VEHICLES.header.overloaded"}}</span>{{/if}}
+      {{#if header.short}}<span class="acks-extras-vehicle-tag is-warn">{{localize "ACKS-VEHICLES.header.short"}}</span>{{/if}}
+    </div>
+  </div>
+  <dl class="acks-extras-vehicle-glance">
+    {{#if isLand}}
+      <div><dt>{{localize "ACKS-VEHICLES.header.pace"}}</dt><dd>{{header.pace}}'</dd></div>
+    {{else}}
+      <div><dt>{{localize "ACKS-VEHICLES.speed.sail"}}</dt><dd>{{speed.sail}}'</dd></div>
+    {{/if}}
+    <div class="{{#if header.over}}is-over{{/if}}">
+      <dt>{{localize "ACKS-VEHICLES.header.hold"}}</dt><dd>{{header.holdUsed}} / {{header.holdCapacity}} st</dd>
+    </div>
+  </dl>
+</header>

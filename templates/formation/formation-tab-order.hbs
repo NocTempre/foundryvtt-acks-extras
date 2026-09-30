@@ -124,7 +124,15 @@
       <a class="acks-extras-formation-train-name" data-action="stationChipOpen" data-uuid="{{uuid}}">{{name}}</a>
       {{#if setsPace}}<i class="fa-solid fa-gauge-simple-high"
         data-tooltip="{{localize 'ACKS-FORMATION.app.trainSetsPace'}}"></i>{{/if}}
+      {{#if deployed}}<span class="acks-extras-formation-train-tag"
+        data-tooltip="{{localize 'ACKS-FORMATION.app.trainDeployedHint'}}"><i class="fa-solid fa-campground" inert></i> {{localize "ACKS-FORMATION.app.trainDeployed"}}</span>{{/if}}
       <span class="acks-extras-formation-train-details">{{pace}}{{#if summary}} · {{summary}}{{/if}}</span>
+      {{#if canDeploy}}
+        <button type="button" class="acks-extras-formation-train-deploy" data-action="trainDeploy" data-uuid="{{uuid}}"
+           aria-label="{{#if deployed}}{{localize 'ACKS-FORMATION.app.trainStrike'}}{{else}}{{localize 'ACKS-FORMATION.app.trainDeploy'}}{{/if}}"
+           data-tooltip="{{#if deployed}}{{localize 'ACKS-FORMATION.app.trainStrike'}}{{else}}{{localize 'ACKS-FORMATION.app.trainDeploy'}}{{/if}}"><i
+           class="fa-solid {{#if deployed}}fa-truck-ramp-box{{else}}fa-campground{{/if}}" inert></i></button>
+      {{/if}}
     </div>
     {{/each}}
   </section>

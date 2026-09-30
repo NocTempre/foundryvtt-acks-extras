@@ -163,8 +163,9 @@ export default class VehicleData extends TypeDataModel {
         capacityStone: num({ min: 0 }),
         // A passenger rides as cargo, and cargo can go in place of a crew
         // member at the same printed rate (RR ch. 7) — both directions are
-        // one exchange rate, stored once.
-        passengerStone: num({ min: 0, initial: 50 }),
+        // one exchange rate, stored once. Zero defers to the imported berth
+        // rate; a figure here is this vehicle's own.
+        passengerStone: num({ min: 0, initial: 0 }),
         passengers: int(0, { min: 0 }),
       }),
 
@@ -193,7 +194,7 @@ export default class VehicleData extends TypeDataModel {
         oarCruise: num({ min: 0 }),
         oarSlow: num({ min: 0 }),
         sail: num({ min: 0 }),
-        /** Sea: miles in a twelve-hour day. */
+        /** Sea: miles in a voyage day (voyage.mjs keeps its length). */
         voyageOar: num({ min: 0 }),
         voyageSail: num({ min: 0 }),
       }),
@@ -222,9 +223,10 @@ export default class VehicleData extends TypeDataModel {
       driverProficient: bool(false),
 
       /**
-       * Ranks of Seafaring aboard (RR ch. 3): one to sail or row, two to do
-       * both and captain her, three for a master mariner who alone can tack
-       * in a strong wind.
+       * The best rank of Seafaring aboard (RR ch. 3): the rank that sails or
+       * rows, the one that captains, and the master mariner's, who alone can
+       * tack in a strong wind. The ceiling is the master mariner's rank, a
+       * printed figure tracked in docs/vehicles/ROADMAP.md.
        */
       seafaringRank: int(0, { min: 0, max: 3 }),
     };

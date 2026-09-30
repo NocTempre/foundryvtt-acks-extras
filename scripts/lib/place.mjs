@@ -91,6 +91,16 @@ export const isContainerItem = (doc) =>
 /** Any document that can hold things: a location, a provider actor, a container. */
 export const isPlace = (doc) => isLocation(doc) || isContainerItem(doc) || isProvider(doc);
 
+/**
+ * Is this actor DEPLOYED as a place in its own right — a provider set down
+ * somewhere (a wagon circled for camp, a ship moored at a quay) rather than
+ * one that merely holds goods? A deployed place stands on a map as its own
+ * marker, the way a location's token does. The mark is `deployed` on the
+ * place flag, beside the parent it was set down under; the vehicles feature
+ * writes it (docs/vehicles/MODEL.md, "Deployed as a place").
+ */
+export const isDeployed = (doc) => isProvider(doc) && !!doc?.getFlag?.(MODULE_ID, PLACE_KEY)?.deployed;
+
 /** Which of the three a document is, or null when it is not a place at all. */
 export function kindOf(doc) {
   if (isLocation(doc)) return PLACE_KIND.LOCATION;
@@ -383,8 +393,9 @@ export function sceneOccupants(scene) {
     const actor = token.actor;
     if (!actor || actor.isToken) continue; // unlinked: uuid dies with the token
     // A place's token is a point of interest on the map, not somebody living
-    // here: a shrine standing in the market square is not the square's tenant.
-    if (isLocation(actor)) continue;
+    // here: a shrine standing in the market square is not the square's tenant,
+    // and neither is the wagon deployed beside it.
+    if (isLocation(actor) || isDeployed(actor)) continue;
     if (seen.has(actor.uuid)) continue;
     seen.add(actor.uuid);
     rows.push(occupantRow(actor));

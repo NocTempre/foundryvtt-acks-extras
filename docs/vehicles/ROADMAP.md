@@ -3,6 +3,22 @@
 How it behaves now is [MODEL.md](MODEL.md); rulings are
 [DECISIONS.md](DECISIONS.md).
 
+- **Printed values still in code.** Each is a figure off the page that a
+  derivation reads as a literal, and each moves to the imported `voyages` (or
+  `travel`) document with an importer recipe, the way Path B moved the rest
+  (DECISIONS 2026-08-28):
+  - `conditionMultiplier`'s fractions (vehicle-speed.mjs): an underfed and a
+    starving crew (RR ch. 7);
+  - the stowed mast's cost to the oars (vehicle-speed.mjs `seaSpeeds`, RR ch. 7);
+  - the Seafaring ranks a seat asks (occupants.mjs `handProficiency`,
+    `seatQualification`) and the master mariner's rank (vehicle-speed.mjs
+    `seaSpeeds`) (RR ch. 3);
+  - the voyage and march day lengths (voyage.mjs `VOYAGE_HOURS`,
+    `MARCH_HOURS`, RR ch. 7), deferred to the movement-scales pass.
+- **Venture logistics a vehicle would carry** — moorage and stabling by the
+  day, cargo handling time, warehousing and hiring a hold out as a carrier
+  (RR §VIII.6) are `docs/markets/ROADMAP.md` (Venture logistics). The deploy
+  record and the hold are the pieces each would read.
 - **War machines** — a ballista or catapult rides on a vessel as cargo with its
   own stone cost, and the damage share table already knows what each class of
   engine does to a hull. What is missing is the engine as a THING: an item that
@@ -18,7 +34,7 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   hazard dialogs and the sinking clock all LANDED 2026-08-28 — MODEL.md.)
 - **Automatons are not vehicles.** BtA ch. 6 is a crafting economy — the
   machinist's design / build / repair project system, with blueprints, a
-  proficiency throw sliding 14+ at L1 to 5+ at L10, major/minor ability tiers,
+  proficiency throw that eases with level, major/minor ability tiers,
   workshop values, fuel and maintenance — whose output is an ACTOR. Its binding
   targets are equipment (the crafting) and monsters (the construct). Only two
   register powers exist today (`def.power.personalAutomaton`,
@@ -29,9 +45,10 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   the importer's tree (2026-08-28, all 20 rows cell-perfect), and the
   `voyages` document's recipes joined it the same day (wind grid, tacking,
   navigation, hazard throw and effects, damage shares, repair, rounding,
-  berth — dev-executed oracle-exact), so this closes when that repo releases
-  — AFTER extras tags, per TOOLCHAIN §10e — and the import is live-verified
-  in a world. Still genuinely open: the land vehicle table's crew/cargo
+  berth — dev-executed oracle-exact; the unproficient-crew rate joined
+  2026-09-30, run against the local printing), and the importer now ships
+  inside extras, so this closes when the import is live-verified in a world.
+  Still genuinely open: the land vehicle table's crew/cargo
   pairs, which is what would let a palanquin arrive with its non-linear
   berths already stated.
 
@@ -49,8 +66,8 @@ plus a `pilot` STATION — not a third vehicle family; the stations surface
 above seats a pilot with no new mechanism. Until then, one rule keeps the
 door open: **no new two-way `kind === "sea"` branches** — a branch that
 buckets "sea, else land" must be written so a third kind fails loudly rather
-than silently landing in the wrong arm (`bucketsFor` and
-`poolsPassengersWithCargo` are the two grandfathered cases). The unit-scale
+than silently landing in the wrong arm (`bucketsFor` is the one grandfathered
+case). The unit-scale
 Air Combat layer stays out of scope with the rest of D@W (root
 `docs/DECISIONS.md` §15). Sleds need no design space at all: a sled is a
 homebrew land vehicle whose snow gates arrive with the terrain tables.

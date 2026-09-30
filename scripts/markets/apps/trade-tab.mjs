@@ -37,7 +37,10 @@ import {
   marketMonthStart,
 } from "../engine/trade.mjs";
 import { processImports, performItemSearch, performSearchCancel } from "../engine/imports.mjs";
-import { performVentureAction, performVentureCancel, performVentureLeave, ventureOf } from "../engine/ventures.mjs";
+import { performVentureAction, performVentureCancel, performVentureLeave, ventureOf, ventureVehicles } from "../engine/ventures.mjs";
+import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
+import { holdOf } from "../../vehicles/hold.mjs";
+import { carrierChain } from "../../lib/attachment.mjs";
 import { marketKnownTo, setMarketKnown } from "../engine/known-market.mjs";
 import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
 import { hasEffectFlag } from "../../henchmen/effects.mjs";
@@ -326,6 +329,8 @@ export async function prepareTradeTab(sheet, context) {
   // Venture state for the acting trader's party, and its queue.
   const monthStart = marketMonthStart(t);
   context.venture = partyId ? (ventureOf(location, partyId, monthStart) ?? null) : null;
+  // The vehicles the party entered with, named on its status line.
+  context.ventureVehicles = ventureVehicles(context.venture).map((v) => v.name).join(", ");
   context.ventureActions = (goods.actions ?? [])
     .filter((a) => a.status === "pending" && (isGM || a.partyId === partyId))
     .map((a) => {
@@ -407,13 +412,18 @@ function partyBlocks(goods, monthStart, reports) {
         falseNote: k.outcome === "false" ? loc("report.falseNote") : "",
       })),
       ventureLine: venture
-        ? loc("parties.ventureLine", {
-            state: game.i18n.localize(`${LANG}.ventures.${venture.entered ? "entered" : "notEntered"}`),
-            cargo: venture.cargoSt,
-            impact: venture.impact,
-            marketClass: venture.effectiveClass,
-            toll: Math.round(Number(venture.tollCp) || 0) / 100,
-          })
+        ? [
+            loc("parties.ventureLine", {
+              state: game.i18n.localize(`${LANG}.ventures.${venture.entered ? "entered" : "notEntered"}`),
+              cargo: venture.cargoSt,
+              impact: venture.impact,
+              marketClass: venture.effectiveClass,
+              toll: Math.round(Number(venture.tollCp) || 0) / 100,
+            }),
+            ventureVehicles(venture).map((v) => v.name).join(", "),
+          ]
+            .filter(Boolean)
+            .join(" — ")
         : "",
     });
   }
@@ -448,6 +458,46 @@ async function promptNumber({ title, label, value, min, max }) {
     window: { title },
     content,
     ok: { callback: (_ev, button) => Number(button.form.elements.value?.value) || 0 },
+  }).catch(() => null);
+}
+
+/**
+ * Ask what the party brings to the gate: the vehicles it enters with, each at
+ * the cargo capacity its hold states (vehicles/hold.mjs), and any other
+ * capacity — porters, pack animals — as a number. A vehicle a party member
+ * rides, drives or is harnessed to starts ticked. Null when dismissed.
+ */
+async function promptEntry(trader) {
+  const party = partyOf(trader);
+  const members = [trader, ...partyMembers(party.id)];
+  const aboard = new Set(members.flatMap((a) => carrierChain(a).map((c) => c?.uuid)));
+  const vehicles = game.actors.filter((a) => a.type === VEHICLE_TYPE && a.isOwner).sort((a, b) => a.name.localeCompare(b.name));
+  const rows = vehicles
+    .map((v) => {
+      const stone = Math.round(holdOf(v)?.capacity ?? 0);
+      const ticked = aboard.has(v.uuid) ? " checked" : "";
+      return `<label class="checkbox"><input type="checkbox" name="vehicle" value="${v.uuid}"${ticked}> ${foundry.utils.escapeHTML(v.name)} <span class="hint">${loc("ventures.vehicleCapacity", { stone })}</span></label>`;
+    })
+    .join("");
+  const otherId = foundry.utils.randomID();
+  const content = [
+    vehicles.length
+      ? `<fieldset><legend>${loc("ventures.vehiclesLegend")}</legend>${rows}</fieldset>`
+      : `<p class="hint">${loc("ventures.noVehicles")}</p>`,
+    `<div class="form-group"><label for="${otherId}">${loc("ventures.otherCargo")}</label><input id="${otherId}" type="number" name="other" value="0" min="0" step="1"></div>`,
+    `<p class="hint">${loc("ventures.enterHint")}</p>`,
+  ].join("");
+  return foundry.applications.api.DialogV2.prompt({
+    classes: DIALOG_CLASSES,
+    window: { title: loc("ventures.enter") },
+    content,
+    ok: {
+      label: loc("ventures.enterSubmit"),
+      callback: (_ev, button) => ({
+        vehicleUuids: [...button.form.querySelectorAll('input[name="vehicle"]:checked')].map((el) => el.value),
+        cargoSt: Math.max(0, Number(button.form.elements.other?.value) || 0),
+      }),
+    },
   }).catch(() => null);
 }
 
@@ -578,11 +628,16 @@ export const TRADE_TAB_ACTIONS = {
     reportResult(this, result);
   },
 
-  /** Enter the market: a dedicated day, the toll paid at the gate. */
+  /**
+   * Enter the market: a dedicated day, the toll paid at the gate on the cargo
+   * capacity declared — the vehicles brought, and anything else stated.
+   */
   async ventureEnter() {
-    const cargoSt = await promptNumber({ title: loc("ventures.enter"), label: loc("ventures.cargo"), value: 0, min: 0 });
-    if (cargoSt == null) return;
-    await postVenture(this, "enter", { cargoSt });
+    const trader = requireTrader(this);
+    if (!trader) return;
+    const entry = await promptEntry(trader);
+    if (!entry) return;
+    await postVenture(this, "enter", entry);
   },
 
   /**

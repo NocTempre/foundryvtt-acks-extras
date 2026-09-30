@@ -1,4 +1,4 @@
-/* global CONFIG, Hooks */
+/* global CONFIG, Hooks, fromUuidSync */
 /**
  * Vehicles: carts, wagons, galleys and sailing ships as documents.
  *
@@ -20,7 +20,11 @@ import * as berths from "./berths.mjs";
 import * as occupants from "./occupants.mjs";
 import * as stations from "./stations.mjs";
 import * as seaThrows from "./sea-throws.mjs";
+import * as hold from "./hold.mjs";
+import * as deploy from "./deploy.mjs";
 import { acksExtras } from "../namespace.mjs";
+import { handOver } from "../lib/storage.mjs";
+import { isLocation } from "../lib/place.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TRAVEL_DOC, VOYAGES_DOC } from "./vehicle-speed.mjs";
 
@@ -40,7 +44,27 @@ Hooks.once("init", () => {
     "repair",
     "rounding",
     "berth",
+    "crew",
   ]);
+});
+
+/**
+ * Freight dragged OUT of a vehicle onto another actor's sheet is moved, not
+ * copied. Core's cross-actor item drop creates a copy and leaves the original
+ * where it was, which on a wagon doubles the load; this hands it over through
+ * the family's one transfer instead, which also refuses a seat that does not
+ * control both ends. A vehicle's own sheet never reaches this hook — its drop
+ * handler moves freight the same way — and a location is left to its own,
+ * which stores the goods under whose they are rather than handing them over.
+ */
+Hooks.on("dropActorSheetData", (target, _sheet, data) => {
+  if (data?.type !== "Item" || !data.uuid) return;
+  const item = fromUuidSync(data.uuid);
+  const source = item?.parent;
+  if (source?.documentName !== "Actor" || source.type !== VEHICLE_TYPE) return;
+  if (!target || source.uuid === target.uuid || isLocation(target)) return;
+  void handOver(source, target, [{ id: item.id }]);
+  return false;
 });
 
 /**
@@ -54,7 +78,7 @@ Hooks.once("init", () => {
 // docs/vehicles/DECISIONS.md, "The sea's numbers come off the page too
 // (Path B completes)."
 acksExtras.vehicles = {
-  apiVersion: 2,
+  apiVersion: 3,
   VEHICLE_TYPE,
   ...speed,
   ...boarding,
@@ -65,4 +89,8 @@ acksExtras.vehicles = {
   ...occupants,
   ...stations,
   ...seaThrows,
+  ...hold,
+  // Deploying as a place: `deployVehicle`, `strikeVehicle`, `deploymentOf`,
+  // `deploySite`.
+  ...deploy,
 };

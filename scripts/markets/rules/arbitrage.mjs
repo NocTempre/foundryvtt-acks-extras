@@ -221,3 +221,34 @@ export function negotiationOutcome(total, natural, bands) {
 export function solicitedStones({ baseStones, impact }) {
   return (Number(baseStones) || 0) * Math.max(0, Number(impact) || 0);
 }
+
+/**
+ * Draw `stones` of one kind of load from a hold's stacks, in the order given:
+ * each stack gives what it has until the draw is met, so a sale is not refused
+ * because the loads it needs sit in two sacks rather than one. `rows` are
+ * `{id, qty}`; only whole loads are drawn. The plan takes exactly `stones` —
+ * a stack left with nothing is deleted, one left with a remainder (a broken
+ * stack, or the fraction of a load nobody can sell) is updated — or is
+ * `short`, with the whole loads the stacks hold between them, and takes
+ * nothing.
+ * @returns {{updates: {id: string, qty: number}[], deletes: string[], held: number, short: boolean}}
+ */
+export function planLoadDraw(rows, stones) {
+  const count = (n) => Math.max(0, Math.floor(Number(n) || 0));
+  const want = count(stones);
+  const held = (rows ?? []).reduce((n, r) => n + count(r.qty), 0);
+  if (held < want) return { updates: [], deletes: [], held, short: true };
+  const updates = [];
+  const deletes = [];
+  let left = want;
+  for (const row of rows ?? []) {
+    if (left <= 0) break;
+    const take = Math.min(count(row.qty), left);
+    if (take <= 0) continue;
+    const rest = Math.round((Math.max(0, Number(row.qty) || 0) - take) * 1e6) / 1e6;
+    if (rest > 0) updates.push({ id: row.id, qty: rest });
+    else deletes.push(row.id);
+    left -= take;
+  }
+  return { updates, deletes, held, short: false };
+}

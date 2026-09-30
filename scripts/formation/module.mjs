@@ -67,6 +67,7 @@ import {
   createFormation,
   dissolveFormation,
   formationForToken,
+  formationCarrying,
   getFormation,
   getFormationForActor,
   getFormations,
@@ -561,8 +562,12 @@ Hooks.once("init", () => {
      * read, the shift and the band handed in), `settlement.incidentBand`, and
      * `settlement.pickIncidentSource({city})`, whose `map` candidate carries
      * the district's special list.
+     *
+     * 12 adds `formationCarrying(carrier)` — the formation whose train a
+     * vehicle is in — and `getPartyToken(formation)`, which a vehicle deploying
+     * as a place reads to stand its marker beside the party (vehicles/deploy.mjs).
      */
-    apiVersion: 11,
+    apiVersion: 12,
     travel: { ...travel, closeDay, offerDayEnd },
     weather,
     settlement,
@@ -669,6 +674,11 @@ Hooks.once("init", () => {
     handsOccupied,
     heldLightCount,
     getFormationForActor,
+    // A vehicle deploying as a place stands its marker beside the party whose
+    // train it is in (vehicles/deploy.mjs); vehicles reaches formation through
+    // here rather than by import, since formation imports vehicles.
+    formationCarrying,
+    getPartyToken,
     // lib/light.mjs reads this to decide which record owns an actor's lights.
     // It is consumed through the namespace, so removing it here silently sends
     // every member's token back to reading its own (empty) actor flag.

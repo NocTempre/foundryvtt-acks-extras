@@ -14,8 +14,14 @@
 
 /* A hull reads as a bar first and a number second: "how much is left" is the
    question in a fight, and two integers make the reader do the division. */
-.acks-extras-vehicle-hull {
-  margin-top: 0.5rem;
+.acks-extras-vehicle-hull-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.acks-extras-vehicle-hull-row .acks-extras-vehicle-hull-bar {
+  flex: 1 1 auto;
 }
 
 .acks-extras-vehicle-hull-bar {
@@ -41,14 +47,222 @@
   font-weight: bold;
 }
 
-/* The sheet is one column of fieldsets; the design layer dresses the boxes. */
-.acks-extras-vehicle-sheet > fieldset {
-  margin-bottom: 0.6rem;
+/* The window: a header and a tab strip that stay put over one tab panel that
+   scrolls. The panel is the part root `scrollable: [""]` retains, sized to
+   what is left of the frame, so the frame's own scroller (lib.css) stays the
+   backstop and never engages. `min-height: 0` is what lets it shrink. */
+.acks-extras-vehicle.application .window-content {
+  display: flex;
+  flex-direction: column;
 }
 
-.acks-extras-vehicle-speed,
-.acks-extras-vehicle-team {
+.acks-extras-vehicle-head,
+.acks-extras-vehicle.application nav.tabs {
+  flex: 0 0 auto;
+}
+
+.acks-extras-vehicle-tab {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.35rem 0.25rem;
+}
+
+.acks-extras-vehicle-tab.active {
+  display: block;
+}
+
+/* Each tab is a column of fieldsets; the design layer dresses the boxes. */
+.acks-extras-vehicle-tab > fieldset {
+  margin-bottom: 0.6rem;
   min-inline-size: 0; /* a fieldset will not shrink below its content otherwise */
+}
+
+/* A field row is one line of controls. The sheet is not a `standard-form`, so
+   core's row layout never reaches it, and core's full-width inputs would stack
+   a value/max pair and push a select's trailing control onto a line of its
+   own. Text controls share what the line leaves and wrap before they get too
+   narrow to read; checkbox labels and buttons keep their own size. */
+.acks-extras-vehicle .form-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.acks-extras-vehicle .form-fields > :is(select, input:not([type="checkbox"])) {
+  flex: 1 1 8em;
+  min-width: 0;
+}
+
+.acks-extras-vehicle .form-fields > :is(label.checkbox, button) {
+  flex: 0 0 auto;
+}
+
+/* The header: portrait, the name as the window's title field, the tags that
+   say what state it is in, and the two figures asked of it most. */
+.acks-extras-vehicle-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.25rem 0.25rem 0.4rem;
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-vehicle-portrait {
+  flex: 0 0 auto;
+  width: 4em;
+  height: 4em;
+  object-fit: contain;
+  border: var(--acks-border-ink);
+}
+
+.acks-extras-vehicle-portrait[data-action] {
+  cursor: pointer;
+}
+
+.acks-extras-vehicle-head-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.acks-extras-vehicle .acks-extras-vehicle-head .acks-extras-vehicle-name {
+  width: 100%;
+  font-size: var(--acks-fs-h2);
+  font-weight: bold;
+}
+
+.acks-extras-vehicle-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+/* Icon-only controls are buttons so the keyboard reaches them; drawn as a bare
+   glyph sized to the line rather than to core's input height. */
+.acks-extras-vehicle .acks-extras-vehicle-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0 0.1em;
+  padding: 0.1em 0.3em;
+  line-height: 1;
+  color: inherit;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.acks-extras-vehicle .acks-extras-vehicle-icon:hover {
+  color: var(--acks-burgundy);
+}
+
+.acks-extras-vehicle-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.35rem;
+  border: var(--acks-border-ink);
+  font-size: var(--acks-fs-fine);
+  white-space: nowrap;
+}
+
+.acks-extras-vehicle-tag.is-deployed {
+  background: var(--acks-tint);
+}
+
+.acks-extras-vehicle-tag.is-warn {
+  color: var(--acks-burgundy);
+}
+
+.acks-extras-vehicle-tag.is-alarm {
+  color: var(--acks-danger-ink);
+  font-weight: bold;
+}
+
+.acks-extras-vehicle-glance {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  text-align: right;
+}
+
+.acks-extras-vehicle-glance dt {
+  font-size: var(--acks-fs-fine);
+  opacity: 0.8;
+}
+
+.acks-extras-vehicle-glance dd {
+  margin: 0;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+
+.acks-extras-vehicle-glance .is-over dd {
+  color: var(--acks-danger-ink);
+}
+
+/* What the hold's used figure is made of: a quiet run of parts under the bar. */
+.acks-extras-vehicle-hold-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.8rem;
+  list-style: none;
+  margin: 0.1rem 0 0;
+  padding: 0;
+  font-size: var(--acks-fs-label);
+  opacity: 0.85;
+}
+
+/* The design layer hangs each item's lozenge in the space before it; a part
+   after the first makes that space itself, or the lozenge touches the part
+   before. */
+.acks-extras-vehicle-hold-parts > li + li {
+  margin-inline-start: var(--acks-sp-6);
+}
+
+/* Deployed or on the move: the one line the Place tab exists to answer. */
+.acks-extras-vehicle-place-status {
+  margin: 0.2rem 0;
+  font-weight: bold;
+}
+
+.acks-extras-vehicle-place-status.is-deployed {
+  color: var(--acks-burgundy);
+}
+
+.acks-extras-vehicle-place-actions {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+.acks-extras-vehicle-place-actions button {
+  width: auto;
+}
+
+.acks-extras-vehicle-goods-owner {
+  margin-bottom: 0.35rem;
+}
+
+.acks-extras-vehicle-goods-name {
+  font-weight: bold;
+}
+
+.acks-extras-vehicle-goods-owner ul {
+  margin: 0.1rem 0 0;
+  padding-left: 1.1rem;
 }
 
 .acks-extras-vehicle-landspeed {
@@ -175,6 +389,20 @@
   font-size: var(--acks-fs-label);
 }
 
+/* A vessel's printed speeds: label over input, as many columns as fit. */
+.acks-extras-vehicle-speed-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9em, 1fr));
+  gap: 0.4rem 0.6rem;
+}
+
+.acks-extras-vehicle-speed-inputs label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: var(--acks-fs-label);
+}
+
 .acks-extras-vehicle-boarding {
   display: flex;
   flex-wrap: wrap;
@@ -185,10 +413,6 @@
 /* Stations: the seat-by-seat panel. One block per group — a header carrying
    the filled/required counter, then a wrapping row of chips, empty dashed
    seats and the unnamed stack. */
-.acks-extras-vehicle-stations {
-  min-inline-size: 0; /* a fieldset will not shrink below its content otherwise */
-}
-
 .acks-extras-vehicle-station {
   margin-bottom: 0.45rem;
 }

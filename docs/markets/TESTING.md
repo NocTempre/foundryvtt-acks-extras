@@ -125,8 +125,10 @@ row, a `type: "item"` on A with `system.cost` and
     outside it stays disabled. Core disables every form control on a sheet
     the viewer does not own, and the engine calls in steps 5–8 bypass the
     button, so only a real `element.click()` on **Enter the market** proves
-    the control is reachable. *Observable:* the cargo prompt opens, and
-    confirming 0 posts a pending `enter` action on M through the relay.
+    the control is reachable. *Observable:* the entry dialog opens (the
+    seat's own vehicles, and an other-cargo number), and confirming with no
+    vehicle ticked and other cargo 0 posts a pending `enter` action on M
+    through the relay.
 
 **Not reachable on a shared world with the GM seat online:** the "not sent"
 relay warning (it needs no GM connected), a venture day refused for a missing
@@ -384,7 +386,8 @@ reports walk.
 
 **Steps**
 
-1. Player seat, M1's Trade tab, acting as A: **Enter the market**, cargo 0.
+1. Player seat, M1's Trade tab, acting as A: **Enter the market** with no
+   vehicle ticked and other cargo 0.
    Advance a day on the GM seat. *Observable:* the status line reads In the
    market; the ledger row `ventureEntered` carries `actorUuid` A and `gp: 0`;
    the toll row (`ventureAction`) carries the toll negative.
@@ -418,7 +421,7 @@ reports walk.
    `goods.ventures` still holds A's party row with `entered: false` and its
    `tollCp`; the queued solicit row is `cancelled`; `goods.solicitations` has
    no row for the party this month; the ledger `ventureLeft` row names the
-   withdrawn action id. Enter again with a different cargo: the row is
+   withdrawn action id. Enter again with a different other cargo: the row is
    overwritten, a second toll row lands.
 6. Player seat: the Trade tab's **Trade history** on M1, then A's character
    sheet Trade tab. *Observable:* both list only rows stamped A, newest
@@ -455,10 +458,75 @@ tables imported, holding no row of V's.
 4. Class I stays Class I: set M2's override to 1 and read
    `effectiveMarketClass(M2, V)` — 1.
 
+## The fleet walk (a venture's vehicles, and the hold a load goes in)
+
+**Fixtures** (all through `api.create`, tracked): a location L with a market
+(its sheet's **Add market**, `[data-action="addMarket"]`, then a class
+override); a character A owned by the Player seat, with coin as above and
+`flags["acks-extras"].markets.trader: true`; a land vehicle W owned by the
+Player seat with a cargo capacity, A attached to it as a passenger; a vehicle
+V the Player seat does not own; a world merchandise Item with an invented
+`system.key`, a `pricePerStoneGp` and six `dailyStones` (the Merchandise walk).
+An actor fixture made by a page-side `Actor.create` that carries `system`
+needs `items: []` ([../vehicles/TESTING.md](../vehicles/TESTING.md)).
+
+**Drive mechanics**
+
+- `marketsActingTrader` is a CLIENT setting: set it on the acting seat
+  (`game.settings.set("acks-extras", "marketsActingTrader", A.uuid)`) before
+  opening the Trade tab.
+- The entry dialog is a `DialogV2` found among
+  `foundry.applications.instances` by its `input[name="other"]`; each vehicle
+  is an `input[name="vehicle"]` checkbox whose value is the vehicle's uuid;
+  confirm with `button[data-action="ok"]`.
+- Resolve a pending entry without moving the shared clock: on the GM seat,
+  set that action's `resolveTime` to `game.time.worldTime` (write the whole
+  `system.market.goods.actions` array back) and call
+  `acksExtras.markets.processImports(L)`.
+- Trading needs the month's price and solicitation rows. Write
+  `goods.merchPrices` `[{category, monthStartTime, priceCp, detail: ""}]` and
+  `goods.solicitations` `[{partyId, category, monthStartTime, stones}]`,
+  taking `monthStartTime` and `partyId` from the resolved venture row
+  (`partyId` is `"default"` unless A is in a markets party).
+- The trade dialog is `acksExtras.markets.openVentureTradeDialog(L, A)`
+  (`VentureTradeDialog`): `select[name="category"]`, `input[name="stones"]`,
+  `select[name="direction"]`, and `select[name="hold"]`, whose `""` is the
+  trader's own packs and any other value a vehicle's uuid.
+- The actions post chat cards that speak as the run's own actors; track them
+  by `speaker.actor` against the actor ids the run minted.
+
+**Steps**
+
+1. Player seat: `performVentureAction(L, {kind: "enter", actorUuid: A.uuid,
+   cargoSt: 5, vehicleUuids: [W.uuid, V.uuid], resolutionId})`.
+   *Observable:* `{error: "notYourVehicle"}`; nothing posts.
+2. Player seat, L's Trade tab acting as A: **Enter the market**
+   (`[data-action="ventureEnter"]`).
+   *Observable:* the dialog lists W with its capacity, ticked because A rides
+   it, and does not list V. Type other cargo 5 and confirm: the pending
+   `enter` action carries `cargoSt` equal to W's capacity plus 5,
+   `vehicleUuids` `[W]`, and a detail naming W and the toll.
+3. GM seat: resolve the entry.
+   *Observable:* a `goods.ventures` row with `entered: true` and
+   `vehicleUuids` `[W]`; the Trade tab's venture line names W.
+4. Player seat: open the trade dialog and buy 2 stone of the good into W.
+   *Observable:* the hold select offers A's own packs and W with its free
+   stone, W preselected; a merchandise stack of 2 lands in W's hold.
+5. Player seat, through `performVentureTrade(L, {actorUuid, category, stones,
+   direction, holdUuid, resolutionId})`: buy one stone more than W's free
+   room; buy into V; sell 3 from W.
+   *Observable:* `noRoom` with `remaining` equal to W's free room;
+   `notInVenture`; `noLoads` with `remaining: 2`. Nothing is written by any
+   of the three.
+6. Sell the 2 from W, then buy 1 with `holdUuid: ""`.
+   *Observable:* the sale answers `{ok: true}` and W's stack is gone; the
+   packs purchase lands on A.
+
 ## Teardown
 
 Delete the location, the buyer and the merchandise fixtures by their tracked
 ids (`api.sweepTracked()`), and any items the purchases created. Sweep the
 reports and, when this run made it, the trade house, by their tracked ids;
 after deleting a house this run made, set `marketsTradeHouse` back to `""`. Confirm the
-market log goes with the location.
+market log goes with the location. The fleet walk also tracks the stacks its
+trades made, read back from W's and A's items, and its chat cards (above).

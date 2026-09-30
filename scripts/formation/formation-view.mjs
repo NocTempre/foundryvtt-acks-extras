@@ -36,6 +36,7 @@ import { carrierSpeedFor } from "./formation-model.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
 import { occupantsOf, draftPullOf } from "../vehicles/occupants.mjs";
 import { stationsFor } from "../vehicles/stations.mjs";
+import { deploymentOf } from "../vehicles/deploy.mjs";
 import { FOLLOWING_KINDS } from "./travel.mjs";
 import { driftSummary } from "./lost.mjs";
 import { shadowsOf } from "./shadow.mjs";
@@ -447,6 +448,10 @@ function buildTrain(formation, partyPace) {
       pace: typeof pace === "number" ? `${pace}'/${game.i18n.localize("ACKS-FORMATION.app.turn")}` : "—",
       summary,
       setsPace: typeof pace === "number" && pace === partyPace && formation.members.length > 0,
+      // A vehicle stood as a place beside the party (vehicles/deploy.mjs), and
+      // whether this seat may deploy or strike it.
+      deployed: isVehicle && !!deploymentOf(carrier),
+      canDeploy: isVehicle && carrier.isOwner,
     };
   });
 }

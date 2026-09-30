@@ -36,6 +36,7 @@ const out = assembleVoyageTables({
     openSea: { target: "9+" },
   },
   voyagesProse: {
+    crew: { unproficientMissing: "0.75 missing crew. time" },
     shares: {
       sinkDice: "it will sink in 2d8",
       lightBallista: "1/5 damage to",
@@ -92,6 +93,10 @@ check("damage shares and the sinking die assemble",
   out.damageShares.lightBallista === 0.2 && out.damageShares.heavyThird === 0.25 &&
   out.damageShares.spells === 0.2 && out.damageShares.aoeDivisor === 30 &&
   out.damageShares.sinkDice === "2d8");
+check("an unproficient hand reads as the crew it counts missing", out.crew.unproficientMissing === 0.75);
+check("a fraction reads too", assembleVoyageTables({ voyagesProse: { crew: { unproficientMissing: "1/4 missing crew" } } }).crew.unproficientMissing === 0.25);
+check("a share past a whole hand is a misread, not a rate",
+  assembleVoyageTables({ voyagesProse: { crew: { unproficientMissing: "3 missing crew" } } }).crew === undefined);
 check("empty raws assemble to nothing", Object.keys(assembleVoyageTables({})).length === 0);
 
 console.log(`test-voyage-tables: all ${pass} checks passed`);

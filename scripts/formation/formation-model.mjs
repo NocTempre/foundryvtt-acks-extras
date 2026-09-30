@@ -1,9 +1,10 @@
 /* global game, foundry, ui, Actor, CONST */
-import { rootCarrierOf, attachmentOf, ATTACH_ROLES } from "../lib/attachment.mjs";
+import { rootCarrierOf, attachmentOf, carrierChain, ATTACH_ROLES } from "../lib/attachment.mjs";
 import { landSpeed } from "../vehicles/vehicle-speed.mjs";
 import { draftPullOf } from "../vehicles/occupants.mjs";
+import { holdOf } from "../vehicles/hold.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
-import { load6, borneWeight6 } from "../lib/capacity.mjs";
+import { borneWeight6 } from "../lib/capacity.mjs";
 import { STONE } from "../lib/item-model.mjs";
 import {
   carriedBody,
@@ -88,6 +89,24 @@ export function getFormationForActor(actorId) {
     // Callers write to what they get back (the equipment sheet lights a torch
     // through it), so the match is copied even though the search is not.
     if (f?.members?.some((m) => m?.actorId === actorId)) return foundry.utils.deepClone(f);
+  }
+  return null;
+}
+
+/**
+ * The formation whose train includes this carrier — the party riding it,
+ * leading it, or harnessed to it — or null. Carriers are never members, so
+ * the answer runs through each member's carrier chain, the walk `buildTrain`
+ * makes.
+ */
+export function formationCarrying(carrier) {
+  if (!carrier?.uuid) return null;
+  for (const f of Object.values(readFormations())) {
+    for (const member of f?.members ?? []) {
+      if (member?.blank || !member?.actorId) continue;
+      const actor = getMemberActor(member);
+      if (actor && carrierChain(actor).some((c) => c?.uuid === carrier.uuid)) return foundry.utils.deepClone(f);
+    }
   }
   return null;
 }
@@ -498,10 +517,10 @@ export function carrierSpeedFor(carrier, formation) {
   // with a movement rate, so it answers the same way any member would.
   if (carrier?.type === VEHICLE_TYPE) {
     if (carrier.system?.kind !== "land") return null;
-    const aboardStone = load6(carrier) / STONE;
-    // No ground here — see docs/formation/DECISIONS.md, "Ruled: the party's
+    // The whole load — freight and everyone riding — prices the tier. No
+    // ground here — see docs/formation/DECISIONS.md, "Ruled: the party's
     // speeds are compared on a common UNSCALED base".
-    return landSpeed(carrier.system, aboardStone, formation?.ground ?? null, { pull: draftPullOf(carrier) }).feetPerTurn;
+    return landSpeed(carrier.system, holdOf(carrier).used, formation?.ground ?? null, { pull: draftPullOf(carrier) }).feetPerTurn;
   }
   return explorationSpeedOf(carrier);
 }

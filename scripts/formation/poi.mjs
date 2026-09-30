@@ -25,6 +25,7 @@ import { SETTLEMENT_DOC, SETTLEMENT_PACES, settlementOf } from "./settlement.mjs
 import { travelOf } from "./travel.mjs";
 import { joinTolerance } from "../battlemap/roads.mjs";
 import { LOCATION_TYPE } from "../location/constants.mjs";
+import { isDeployed } from "../lib/place.mjs";
 import {
   districtRelation, expiredNoteIds, noteLabel, poiTravelTurns, promotedPlaceData,
   ringsTouch, transientNoteData, transientOf,
@@ -197,7 +198,9 @@ export async function travelToPlace(formationId, tokenId) {
   const formation = getFormation(formationId);
   const at = formation ? partyPoint(formation) : null;
   const target = at?.scene.tokens.get(tokenId) ?? null;
-  if (!at || !target || target.actor?.type !== LOCATION_TYPE) return { moved: false, reason: "noTarget" };
+  // A place's own marker: a location's, or a vehicle deployed as a place.
+  const isPlaceMarker = target?.actor?.type === LOCATION_TYPE || isDeployed(target?.actor);
+  if (!at || !target || !isPlaceMarker) return { moved: false, reason: "noTarget" };
 
   const gs = at.scene.grid.size;
   const to = { x: target.x + (target.width * gs) / 2, y: target.y + (target.height * gs) / 2 };

@@ -19,6 +19,7 @@ import {
   pendingDuplicate,
   cancelVerdict,
   leaveMarket,
+  planLoadDraw,
 } from "../rules/arbitrage.mjs";
 import { toGp } from "../rules/pricing.mjs";
 import { trueDemand } from "../rules/demand.mjs";
@@ -34,6 +35,9 @@ import { marketMonthStart, abilityRanks } from "./trade.mjs";
 import { impactLimits, assessmentBands, priceShifts, negotiation, printedError } from "./printed.mjs";
 import { merchandiseCatalog, merchandiseFor } from "./merchandise.mjs";
 import { writeReport } from "./trade-objects.mjs";
+import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
+import { holdOf } from "../../vehicles/hold.mjs";
+import { storageFlagOf } from "../../lib/storage-logic.mjs";
 
 const SECONDS_PER_DAY = 86400;
 const err = (error, data = {}) => ({ error, ...data });
@@ -87,11 +91,53 @@ async function postTableMissing(actor, location, action, tableKey, log, t) {
   );
 }
 
-/** Stones of one merchandise category an actor carries as loads (one unit per stone, across every load item). */
-export function loadsHeld(actor, category) {
-  return (actor?.items ?? [])
-    .filter((i) => i.type === ITEM_TYPE.item && i.getFlag(MODULE_ID, ITEM_FLAG)?.merchandise && i.getFlag(MODULE_ID, ITEM_FLAG)?.category === category)
-    .reduce((sum, i) => sum + Math.max(0, Number(i.system?.quantity?.value ?? 0) || 0), 0);
+/**
+ * The loads of one merchandise category a trader may trade from a holder —
+ * their own packs, or a vehicle's hold — in the order a sale draws them.
+ * Goods kept aboard for somebody else (stamped with another owner) are that
+ * owner's, and never counted.
+ */
+export function loadStacks(holder, category, traderUuid = holder?.uuid ?? null) {
+  return (holder?.items ?? []).filter((i) => {
+    if (i.type !== ITEM_TYPE.item) return false;
+    const flag = i.getFlag(MODULE_ID, ITEM_FLAG);
+    if (!flag?.merchandise || flag.category !== category) return false;
+    const owner = storageFlagOf(i)?.ownerUuid;
+    return !owner || owner === traderUuid;
+  });
+}
+
+/** Stones of one merchandise category a holder carries as loads (one unit per stone, across every stack). */
+export function loadsHeld(holder, category, traderUuid = holder?.uuid ?? null) {
+  return loadStacks(holder, category, traderUuid).reduce((sum, i) => sum + Math.max(0, Number(i.system?.quantity?.value ?? 0) || 0), 0);
+}
+
+/**
+ * The vehicles a venture entered with, as documents — where its loads are
+ * bought into and sold from. A vehicle deleted since drops out.
+ */
+export function ventureVehicles(venture) {
+  return (venture?.vehicleUuids ?? []).map((uuid) => fromUuidSync(uuid)).filter((a) => a?.type === VEHICLE_TYPE);
+}
+
+/**
+ * The vehicles a trader declares at entry, checked and weighed. Each must be
+ * a vehicle the requesting seat owns; what they bring is their cargo capacity
+ * (RR §VIII.6, market impact), read from the one hold computation
+ * (vehicles/hold.mjs) so the figure a market counts is the one the sheet shows.
+ */
+async function enteringVehicles(uuids, requestUserId) {
+  const user = requestUserId ? game.users.get(requestUserId) : game.user;
+  const out = { uuids: [], names: [], capacity: 0 };
+  for (const uuid of new Set((uuids ?? []).filter(Boolean))) {
+    const doc = await fromUuid(uuid).catch(() => null);
+    if (doc?.type !== VEHICLE_TYPE) return err("noVehicle");
+    if (!user?.isGM && !doc.testUserPermission(user, "OWNER")) return err("notYourVehicle");
+    out.uuids.push(doc.uuid);
+    out.names.push(doc.name);
+    out.capacity += Math.max(0, holdOf(doc)?.capacity ?? 0);
+  }
+  return out;
 }
 
 /** This party's venture row for the month, if any. */
@@ -111,7 +157,7 @@ export function ventureOf(location, partyId, monthStart = marketMonthStart()) {
  * cannot wait in the queue twice.
  */
 export async function postVentureAction(location, payload) {
-  const { kind, actorUuid, category = "", cargoSt = 0, requestUserId = null, resolutionId = "", roll = null, bribeGp = 0 } = payload;
+  const { kind, actorUuid, category = "", cargoSt = 0, vehicleUuids = [], requestUserId = null, resolutionId = "", roll = null, bribeGp = 0 } = payload;
   const actorDoc = await fromUuid(actorUuid).catch(() => null);
   const actor = actorDoc?.actor ?? actorDoc;
   if (!actor) return err("noBuyer");
@@ -134,13 +180,20 @@ export async function postVentureAction(location, payload) {
   const venture = ventureOf(location, party.id, monthStart);
   let tollCp = 0;
   const bribe = kind === "assess" ? Math.max(0, Number(bribeGp) || 0) : 0;
+  // Entering declares what the party brings: the vehicles' capacity plus any
+  // other (porters, pack animals) stated as a number.
+  let capacitySt = Math.round(Math.max(0, Number(cargoSt) || 0));
+  let brought = { uuids: [], names: [] };
 
   if (kind === "enter") {
     if (venture?.entered) return err("alreadyEntered");
     if (actions.some((a) => a.status === "pending" && a.kind === "enter" && a.partyId === party.id)) return err("alreadyEntered");
     const ch = characteristicsFor(location.system.marketClass);
     if (!ch) return err("noCharacteristics");
-    tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * Math.max(0, Number(cargoSt) || 0));
+    brought = await enteringVehicles(vehicleUuids, requestUserId);
+    if (brought.error) return brought;
+    capacitySt = Math.round(capacitySt + brought.capacity);
+    tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * capacitySt);
     if (tollCp > 0) {
       const paid = await adapter.spendGold(actor, toGp(tollCp), game.i18n.localize(`${LANG}.ventures.tollReason`), { to: location, at: location });
       if (!paid) return err("insufficientGold");
@@ -156,7 +209,12 @@ export async function postVentureAction(location, payload) {
 
   const natural = Number.isInteger(roll?.natural) ? roll.natural : null;
   const total = Number.isInteger(roll?.total) ? roll.total : null;
-  const detail = [tollCp > 0 ? `toll ${toGp(tollCp)}gp` : "", bribe > 0 ? `bribe ${bribe}gp` : "", total !== null ? `rolled ${natural} → ${total}` : ""]
+  const detail = [
+    brought.names.length ? `with ${brought.names.join(", ")}` : "",
+    tollCp > 0 ? `toll ${toGp(tollCp)}gp` : "",
+    bribe > 0 ? `bribe ${bribe}gp` : "",
+    total !== null ? `rolled ${natural} → ${total}` : "",
+  ]
     .filter(Boolean)
     .join("; ");
   const action = {
@@ -165,7 +223,8 @@ export async function postVentureAction(location, payload) {
     partyId: party.id,
     actorUuid: actor.uuid,
     category,
-    cargoSt: Math.max(0, Number(cargoSt) || 0),
+    cargoSt: kind === "enter" ? capacitySt : 0,
+    vehicleUuids: brought.uuids,
     postedTime: t,
     resolveTime: t + SECONDS_PER_DAY,
     status: "pending",
@@ -345,9 +404,10 @@ export async function processVentureActions(location, log, t) {
         baselineOfClass: (cls) => parseStones(characteristicsFor(cls)?.baselineCargo),
       });
       const existing = ventures.find((v) => v.partyId === action.partyId && Number(v.monthStartTime) === monthStart);
-      const row = existing ?? { partyId: action.partyId, monthStartTime: monthStart, cargoSt: 0, impact: 0, effectiveClass: 0, tollCp: 0, entered: false };
+      const row = existing ?? { partyId: action.partyId, monthStartTime: monthStart, cargoSt: 0, vehicleUuids: [], impact: 0, effectiveClass: 0, tollCp: 0, entered: false };
       if (!existing) ventures.push(row);
       row.cargoSt = action.cargoSt;
+      row.vehicleUuids = [...(action.vehicleUuids ?? [])];
       row.impact = impact;
       row.effectiveClass = effectiveClass;
       // The toll was paid when the action was posted; the row records it.
@@ -487,12 +547,16 @@ export async function processVentureActions(location, log, t) {
 }
 
 /**
- * Trade merchandise against a solicitation: buy loads in, or sell loads
- * from the trader's packs, at the month's market price — one optional
- * negotiation swings the spot price a step (or slams the door).
+ * Trade merchandise against a solicitation: buy loads in, or sell loads out,
+ * at the month's market price — one optional negotiation swings the spot
+ * price a step (or slams the door). The loads go into, or come out of, the
+ * trader's own packs or one of the vehicles the party entered with
+ * (`holdUuid`): a buyer loads into their own transport (RR §VIII.6). A
+ * vehicle's hold refuses a purchase it has no room for, at the same line its
+ * sheet's bar turns red.
  */
 export async function tradeMerchandise(location, payload) {
-  const { actorUuid, category, stones: rawStones, direction, negotiate = false, requestUserId = null, resolutionId = "" } = payload;
+  const { actorUuid, category, stones: rawStones, direction, negotiate = false, holdUuid = "", requestUserId = null, resolutionId = "" } = payload;
   const stones = Math.max(1, Math.floor(Number(rawStones) || 1));
   const actorDoc = await fromUuid(actorUuid).catch(() => null);
   const actor = actorDoc?.actor ?? actorDoc;
@@ -515,6 +579,26 @@ export async function tradeMerchandise(location, payload) {
   const solicitations = clone(goods.solicitations);
   const srow = solicitations.find((s) => s.partyId === party.id && s.category === category && Number(s.monthStartTime) === monthStart);
   if (!srow || Math.floor(srow.stones) < stones) return err("notSolicited", { remaining: Math.floor(srow?.stones ?? 0) });
+
+  let hold = actor;
+  if (holdUuid && holdUuid !== actor.uuid) {
+    hold = ventureVehicles(venture).find((v) => v.uuid === holdUuid) ?? null;
+    if (!hold) return err("notInVenture");
+    if (requestUserId) {
+      const user = game.users.get(requestUserId);
+      if (!user?.isGM && !hold.testUserPermission(user, "OWNER")) return err("notYourHold", { hold: hold.name });
+    }
+  }
+  const inVehicle = hold !== actor;
+  // Refused before any negotiation is rolled: a trade that cannot land is not
+  // worth a merchant's patience.
+  const stacks = loadStacks(hold, category, actor.uuid);
+  const draw = direction === "buy" ? null : planLoadDraw(stacks.map((i) => ({ id: i.id, qty: i.system?.quantity?.value })), stones);
+  if (draw?.short) return err("noLoads", { remaining: draw.held });
+  if (direction === "buy" && inVehicle) {
+    const free = Math.floor(holdOf(hold)?.free ?? 0);
+    if (free < stones) return err("noRoom", { remaining: Math.max(0, free), hold: hold.name });
+  }
 
   const merchPrices = clone(goods.merchPrices);
   const price = merchPrices.find((p) => p.category === category && Number(p.monthStartTime) === monthStart);
@@ -549,14 +633,13 @@ export async function tradeMerchandise(location, payload) {
   if (direction === "buy") {
     const paid = await adapter.spendGold(actor, totalGp, game.i18n.format(`${LANG}.ventures.buyReason`, { stones, label }), { to: location, at: location });
     if (!paid) return err("insufficientGold");
-    // Merchandise loads: one item per category, one unit per stone.
-    const carried = actor.items.find(
-      (i) => i.type === ITEM_TYPE.item && i.getFlag(MODULE_ID, ITEM_FLAG)?.merchandise && i.getFlag(MODULE_ID, ITEM_FLAG)?.category === category
-    );
+    // Merchandise loads: one stack per category, one unit per stone — joining
+    // a stack nobody else's stamp is on.
+    const carried = stacks.find((i) => !storageFlagOf(i)) ?? stacks[0] ?? null;
     if (carried) {
       await carried.update({ "system.quantity.value": Number(carried.system.quantity?.value ?? 0) + stones });
     } else {
-      await actor.createEmbeddedDocuments("Item", [
+      await hold.createEmbeddedDocuments("Item", [
         {
           name: label,
           type: ITEM_TYPE.item,
@@ -572,13 +655,10 @@ export async function tradeMerchandise(location, payload) {
       ]);
     }
   } else {
-    const carried = actor.items.find(
-      (i) => i.type === ITEM_TYPE.item && i.getFlag(MODULE_ID, ITEM_FLAG)?.merchandise && i.getFlag(MODULE_ID, ITEM_FLAG)?.category === category
-    );
-    const held = Number(carried?.system?.quantity?.value ?? 0);
-    if (!carried || held < stones) return err("noLoads", { remaining: held });
-    if (held > stones) await carried.update({ "system.quantity.value": held - stones });
-    else await carried.delete();
+    if (draw.updates.length) {
+      await hold.updateEmbeddedDocuments("Item", draw.updates.map((u) => ({ _id: u.id, "system.quantity.value": u.qty })));
+    }
+    if (draw.deletes.length) await hold.deleteEmbeddedDocuments("Item", draw.deletes);
     await adapter.grantGold(actor, totalGp, { from: location, at: location, allowMint: true });
   }
 
@@ -587,7 +667,7 @@ export async function tradeMerchandise(location, payload) {
   log.push({
     time: t,
     type: "ventureTrade",
-    note: `${actor.name}: ${direction === "buy" ? "bought" : "sold"} ${stones} st ${category} @ ${toGp(unitCp)}gp/st = ${totalGp}gp${stamp}`,
+    note: `${actor.name}: ${direction === "buy" ? "bought" : "sold"} ${stones} st ${category} @ ${toGp(unitCp)}gp/st = ${totalGp}gp${inVehicle ? ` (${direction === "buy" ? "into" : "from"} ${hold.name})` : ""}${stamp}`,
     actorUuid: actor.uuid,
     gp: direction === "buy" ? -totalGp : totalGp,
   });
@@ -599,6 +679,7 @@ export async function tradeMerchandise(location, payload) {
     actor,
     [
       `<strong>${game.i18n.format(`${LANG}.ventures.tradeLine.${direction}`, { name: actor.name, stones, label, location: location.name })}</strong>`,
+      inVehicle ? game.i18n.format(`${LANG}.ventures.holdLine.${direction}`, { hold: hold.name }) : null,
       negotiationLine,
       `<strong>${game.i18n.format(direction === "buy" ? `${LANG}.trade.totalLine` : `${LANG}.trade.earnedLine`, { total: totalGp })}</strong>`,
     ]
@@ -626,9 +707,11 @@ registerHandler("marketsVentureTrade", async ({ locationUuid, ...payload }) => {
 
 async function dispatch(handler, fn, location, payload) {
   const target = payload.actorUuid ? await fromUuid(payload.actorUuid).catch(() => null) : null;
-  const canLocal =
-    game.user.isGM ||
-    (location.testUserPermission(game.user, "OWNER") && (target == null || target.testUserPermission?.(game.user, "OWNER")));
+  // A trade that loads a vehicle writes to it too, so its hold must be this
+  // seat's to write before the trade may run here.
+  const hold = payload.holdUuid ? await fromUuid(payload.holdUuid).catch(() => null) : null;
+  const owns = (doc) => doc == null || !!doc.testUserPermission?.(game.user, "OWNER");
+  const canLocal = game.user.isGM || (location.testUserPermission(game.user, "OWNER") && owns(target) && owns(hold));
   if (canLocal) return fn(location, { ...payload, requestUserId: game.user.isGM ? null : game.user.id });
   return executeAsGM(handler, { locationUuid: location.uuid, ...payload, requestUserId: game.user.id });
 }

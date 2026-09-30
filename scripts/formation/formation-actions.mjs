@@ -38,6 +38,7 @@ import {
   saveTemplate,
 } from "./marching-templates.mjs";
 import { rollPartyCheck } from "./party-rolls.mjs";
+import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
 import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } from "./deployment.mjs";
@@ -171,6 +172,18 @@ export const SHARED_ACTIONS = {
   /** A station chip (mount, train carrier) opens the document it names. */
   async stationChipOpen(event, target) {
     fromUuidSync(target.dataset.uuid)?.sheet?.render(true);
+  },
+
+  /**
+   * A vehicle in the train deploys as a place beside the party, or strikes
+   * and rolls on. Its owner's call, as it is on the vehicle's own sheet.
+   */
+  async trainDeploy(event, target) {
+    const vehicle = fromUuidSync(target.dataset.uuid);
+    if (!vehicle?.isOwner) return;
+    if (deploymentOf(vehicle)) await strikeVehicle(vehicle);
+    else await deployVehicle(vehicle);
+    this.render?.();
   },
 
   /**

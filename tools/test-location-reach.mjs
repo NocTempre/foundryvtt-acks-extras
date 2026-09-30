@@ -74,8 +74,8 @@ globalThis.acksExtras.lib = {
   },
 };
 
-const { depositReach, reachablePlaces, reachScan, ownersShare, standingAt, listsWhenEmpty } = await import("../scripts/location/reach.mjs");
-const { placeUnderParty, placeReachesSpot, placeStandsOn } = await import("../scripts/location/here.mjs");
+const { depositReach, reachablePlaces, reachScan, ownersShare, standingAt, listsWhenEmpty, aboard } = await import("../scripts/location/reach.mjs");
+const { placeUnderParty, placeReachesSpot, placeStandsOn, standsAsPlace } = await import("../scripts/location/here.mjs");
 const { LOCATION_TYPE, MODULE_ID, SCENE_LINK_FLAG } = await import("../scripts/location/constants.mjs");
 // `coinReach`'s actor-to-actor branch asks the same question these fixtures are
 // built to answer — which body is on which map — so it is proved here rather
@@ -814,4 +814,66 @@ ok("placeReachesSpot answers about the place it was asked about", () => {
   assert.equal(placeReachesSpot(null, spot), false);
 });
 
-console.log(`\ntest-location-reach: OK (${passed} checks — identity, floors, whose token, the linked half, the coin gate, the scan)`);
+/* -------------------------------------------- */
+/*  Aboard, and a vehicle deployed as a place   */
+/* -------------------------------------------- */
+
+const VEHICLE = `${MODULE_ID}.vehicle`;
+
+/** Module flags a mock actor answers `getFlag` from, as the storage and place readers ask. */
+const flagged = (flags) => ({
+  flags: { [MODULE_ID]: flags },
+  getFlag(ns, key) { return this.flags?.[ns]?.[key] ?? null; },
+});
+const makeWagon = (name, flags = {}) => makeActor(name, VEHICLE, flagged({ storage: { provider: true }, ...flags }));
+
+ok("riding in a place is being at it, on no map at all", () => {
+  const town = makeScene("Town Square");
+  const wagon = makeWagon("The Wagon");
+  const hero = makeHero("Balas", flagged({ attachedTo: { uuid: wagon.uuid, role: "passenger" } }));
+  march(town, [hero], { x: 3000, y: 3000 });
+
+  assert.equal(aboard(hero, wagon), true);
+  assert.equal(depositReach(hero, wagon).can, true, "no marker anywhere, and still within reach");
+  assert.equal(standingAt(hero, wagon), true);
+  assert.equal(depositReach(makeHero("Dolf"), wagon).reason, "notYours", "one who is not aboard is refused");
+});
+
+ok("a chain of carriers reaches the place at its top", () => {
+  const wagon = makeWagon("The Wagon");
+  const horse = makeActor("Dobbin", "monster", flagged({ attachedTo: { uuid: wagon.uuid, role: "draft" } }));
+  const hero = makeHero("Balas", flagged({ attachedTo: { uuid: horse.uuid, role: "rider" } }));
+
+  assert.equal(aboard(hero, wagon), true, "the horse is in the wagon's traces, and the rider is on the horse");
+  assert.equal(aboard(hero, makePlace("Elsewhere")), false);
+  assert.equal(aboard(null, wagon), false);
+});
+
+ok("a deployed vehicle's marker is a place underfoot; a parked one is scenery", () => {
+  const town = makeScene("Town Square");
+  const hero = makeHero("Balas");
+  const wagon = makeWagon("The Wagon");
+  drop(town, wagon, { x: 500, y: 500, linked: true });
+  const formation = march(town, [hero], { x: 600, y: 600 });
+
+  assert.equal(standsAsPlace(wagon), false, "a provider parked on the map is not a place marker");
+  assert.equal(placeUnderParty(formation), null);
+  wagon.flags[MODULE_ID].place = { deployed: { at: 0 } };
+  assert.equal(standsAsPlace(wagon), true);
+  assert.equal(placeUnderParty(formation), wagon, "deployed, it is where the party stands");
+});
+
+ok("a town's marker outranks a deployed wagon beside it", () => {
+  const town = makeScene("Town Square");
+  const hero = makeHero("Balas");
+  const wagon = makeWagon("The Wagon", { place: { deployed: { at: 0 } } });
+  const market = makePlace("Market Town");
+  drop(town, wagon, { x: 500, y: 500, linked: true });
+  drop(town, market, { x: 700, y: 500 });
+  const formation = march(town, [hero], { x: 600, y: 600 });
+
+  assert.equal(placeUnderParty(formation), market, "met second, and still the answer");
+  assert.equal(depositReach(hero, wagon).can, true, "the wagon beside it stays within reach");
+});
+
+console.log(`\ntest-location-reach: OK (${passed} checks — identity, floors, whose token, the linked half, the coin gate, the scan, aboard, deployed)`);

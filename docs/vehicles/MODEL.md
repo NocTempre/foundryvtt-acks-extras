@@ -57,9 +57,15 @@ statement and the real people coexist. Officer seats (captain, navigator) are
 always offered on a vessel, and an empty one states its rules consequence
 where the emptiness shows. Named crew reach the speed derivations through
 `effectiveCrewRoles` — officers counting as sailors toward the complement,
-per RR ch. 7 — and an unqualified body (no Seafaring at a motive bench, no
-Driving at the reins) wears a half-hand badge, the group stating its
-effective strength. Occupants render as compact CHIPS
+per RR ch. 7. An unqualified body (no Seafaring at a motive bench, no
+Driving at the reins) wears an unqualified badge; at a motive bench it is
+also WEIGHED, at the rate the imported `voyages` document's `crew` table
+carries (stations.mjs `unproficientHand`, read once per derivation by the
+group's stated effective strength and by the speed alike). Unimported, every
+body counts whole and the group says the hands are unweighed.
+`effectiveCrewRoles` hands on both figures: `aboard`, what the benches are
+worth to the speed, and `heads`, the bodies a repair gang or a berth counts.
+Occupants render as compact CHIPS
 (`templates/lib/station-chip.hbs`, shared with the formation window), never
 as full follower cards: a bench of named rowers must stay one glance.
 
@@ -79,25 +85,101 @@ read from the seated actor's real abilities; the typed
 authoritative for the derivations, with what the named crew would justify
 shown beside them with provenance.
 
-## Buckets, and which of them share a pool
+## Buckets
 
-[berths.mjs](../../scripts/vehicles/berths.mjs) derives what a given vehicle has
-room for. This is per-vehicle, not per-family:
+[berths.mjs](../../scripts/vehicles/berths.mjs) derives which groups a given
+vehicle has — a wagon is pulled and driven, a vessel is crewed — and who is in
+each. Passengers and cargo share one pool on every vehicle: a wagon carries its
+riders on its bed (RR ch. 4) and a vessel carries hers as cargo at the berth
+rate (RR ch. 7). The rate is the vehicle's own `cargo.passengerStone` where one
+is typed, else the imported berth; it prices only the UNNAMED heads (above). A
+vehicle whose printed passenger/load pairs are not linear states them as speed
+tiers like any other load, so a second passenger can cost speed as well as
+room. A vessel's crew is not cargo, but hands short of her complement free
+their berths for it (The sea, below).
 
-- a **land vehicle** has no berths — passengers and cargo come out of one pool,
-  at the vehicle's own printed rate. The rate is NOT a constant: a small
-  palanquin carries "one passenger (or up to 15 stone) at 60′, or two passengers
-  (up to 35 stone) at 30′" (RR ch. 4), so one berth is 15 stone and two are 17½
-  each, and the second passenger costs speed as well as room. A vehicle whose
-  pairs are non-linear states them as speed tiers like any other load;
-- a **vessel** berths her passengers apart from her hold, and her crew is not
-  cargo — but the two TRADE, at fifty stone a hand (RR ch. 7). Sailing
-  short-handed to carry more is a real decision the model represents.
+**What "crew" means varies by vehicle** (RR ch. 4): a driver, a driver and
+warriors, the passengers themselves, or a crew. `complementMeans()` answers
+which, so a sheet does not label a howdah's passengers "Crew".
 
-**What "crew" means varies by vehicle.** RR ch. 4: the column "indicates the
-driver, driver and warriors (for chariots), or the passengers (for howdahs)".
-`complementMeans()` answers which, so a sheet does not label a howdah's
-passengers "Crew".
+## The hold
+
+[hold.mjs](../../scripts/vehicles/hold.mjs) is the ONE answer to "how full is
+it": `holdFrom` over plain data, `holdOf` over the document. `capacity` is the
+printed capacity plus the crew-trade credit; `used` is the vehicle's own
+inventory (weighed by the capacity primitive), actor-shaped cargo, a
+non-motive crew's gear and the passengers; `free` and `over` follow. The
+sheet's bar, boarding's room check, the land speed tiers (the load a wagon
+is priced on, which is also the pace a party in its train moves at — the
+formation's `carrierSpeedFor`) and a market loading a purchase into the hold
+all read it, so a load is refused at the same line the bar turns red.
+
+## Deployed as a place
+
+A vehicle set down — a wagon circled for camp, a ship moored at a quay — is a
+PLACE ([deploy.mjs](../../scripts/vehicles/deploy.mjs)), built from what the
+place layer already has rather than a new document:
+
+- it becomes a **storage provider** (`lib/storage.mjs`), so characters keep and
+  take back goods there from their Storage tabs, under whose they are;
+- it is **filed under a parent place** (`lib/place.mjs` `setParent`) — by
+  default where the party carrying it stands (the location under the party
+  token, else the location the scene is linked to), or one chosen on the
+  Place tab, or none;
+- its **own linked token** stands beside the party token as its marker: a
+  point of interest on the map (`location/here.mjs` `standsAsPlace`), walked
+  to like any place's (`formation/poi.mjs` `travelToPlace`). A location under
+  the party outranks a deployed vehicle beside it as where the party is.
+
+`deployVehicle` writes one record, `flags.acks-extras.place.deployed =
+{at, tokenUuid, madeProvider, priorParent}`, naming exactly what deploying
+did; `strikeVehicle` reverses that and nothing else — it deletes the marker
+only if deploying created it, restores the prior parent, and turns the
+provider off only if deploying turned it on and nothing is stored aboard.
+`lib/place.mjs` `isDeployed` reads the record. Creating or deleting a token
+takes an Assistant seat, so a player's deploy goes through the GM relay
+(`vehicleMarker`), which acts only for the vehicle's owner, as attested by
+the socket, and strikes only the token the record names.
+
+**Aboard is reach**, deployed or not: a character carried by a place —
+directly, or through a chain such as a rider on a horse in the traces — is at
+it wherever it is, map or none (`location/reach.mjs` `aboard`).
+
+The Place tab deploys and strikes, chooses the parent, and lists the goods
+kept aboard by owner; the formation's train row carries the same toggle
+beside each vehicle the party brings.
+
+## Freight in and out
+
+Freight dragged OUT of a vehicle onto another actor's sheet is moved, not
+copied (`dropActorSheetData` in [module.mjs](../../scripts/vehicles/module.mjs),
+through `lib/storage.mjs` `handOver`, which requires the seat to own both
+ends). A location target is left to its own drop, which stores the goods
+under whose they are. The vehicle sheet's drop moves an item from another
+actor the same way; one from the sidebar or a compendium is copied in.
+
+## Market trade
+
+A party enters a market with its vehicles, whose hold capacity counts toward
+the cargo the toll and the market impact are figured on, and buys loads into
+and sells them from a chosen hold. The venture side is
+`docs/markets/MODEL.md` (Ventures); the vehicle side is only that the hold is
+read through `holdOf`, and the Hold tab tags merchandise rows.
+
+## The sheet
+
+[vehicle-sheet.mjs](../../scripts/vehicles/vehicle-sheet.mjs): a pinned header
+(portrait, editable name, status tags for deployed, sinking, over capacity and
+short-handed, and a glance line of pace and hold) over five tabs — **Travel**
+(speed, conditions, hull, seamanship), **Aboard** (stations, crew complement,
+team), **Hold** (the bar and its parts, the passenger rate, riders, freight),
+**Place** (deploy/strike, parent, goods kept aboard) and **Details** (kind,
+carriage, SHP, AC, source, a vessel's printed speeds or a land vehicle's load
+tiers, description). Each tab's part root is
+its own scroller (`scrollable: [""]`), because fields submit on change and
+the re-render must keep the reader's place. Every icon-only control, and the
+station chip's name and unseat control, is a `<button>`, so the keyboard
+reaches it and a screen reader names it.
 
 ## Speed
 
@@ -110,7 +192,8 @@ ground, the wind and the weather are WORTH comes from the `travel`, `voyages`
 and `weather` registered tables (declared via `expectTables`, imported from
 the reader's own book); with nothing imported every such factor is ×1 and one
 `tablesMissing` reason line says why the weather and the ground are not
-counting. Active weather conditions (the formation feature derives them —
+counting. A land vehicle's tier is chosen by the hold's `used` (above).
+Active weather conditions (the formation feature derives them —
 `docs/formation/MODEL.md` §The weather) each multiply by their imported
 factor, a road row's `ineffectiveIf` may name any of them (the legacy
 raining/snowing flags feed the same vocabulary), and mud alone yields to
@@ -119,9 +202,9 @@ in mud off pavement, and a carried vehicle (`carriage` hand- or back-borne)
 is never asked — it goes where its bearers walk. The wind ladder carries the
 land flags beside the sea ones: still air makes fog of rain, and the top two
 bands impose the windy and stormy conditions. Driving and
-Seafaring are read from the vehicle, and Seafaring taken three times is a
-master mariner, who alone can tack in a strong wind — at the imported
-tacking rate, when there is one to show.
+Seafaring are read from the vehicle, and Seafaring at master-mariner rank
+(RR ch. 3) alone can tack in a strong wind — at the imported tacking rate,
+when there is one to show.
 
 ## The sea
 
@@ -168,8 +251,8 @@ weightless freight beside the named ones' weighed inventories.
   gang of hands, one turn, one point, doing nothing else; only an imported
   fraction of what she took at sea can be put back before a dock.
 - **The clock** ([voyage.mjs](../../scripts/vehicles/voyage.mjs)): a voyage
-  speed is miles over TWELVE hours, because crewing is unstrenuous; a party's
-  expedition speed is miles over EIGHT. The two are only comparable per hour,
+  speed is miles over a longer working day than a party's march, because
+  crewing is unstrenuous (RR ch. 7). The two are only comparable per hour,
   which is what `compareToMarch()` is for. Under sail in open sea with a
   navigator and a full crew she may work around the clock: twice the distance
   in a day, at the same speed.

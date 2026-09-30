@@ -22,6 +22,12 @@
     </select>
   </div>
   <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.ventures.hold"}}</label>
+    <select name="hold">
+      {{#each holds}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+    </select>
+  </div>
+  <div class="form-group">
     <label>{{localize "ACKS-MARKETS.ventures.negotiate"}}</label>
     <input type="checkbox" name="negotiate">
   </div>

@@ -368,3 +368,30 @@ never applied to buying, selling, hiring or imports.
 - **Not built:** the rule's alternative, +1 market impact on a venture
   instead of the class, "whichever is more useful"; the entry keeps the true
   class for its impact arithmetic. ROADMAP.
+
+## 2026-09-30 — A venture enters with its vehicles, and loads go into one of them
+
+RR §VIII.6 figures a party's market impact and the gate toll on the cargo
+capacity of its transport, and has a buyer load purchases into their own
+transport. The entry prompt took one typed number, and every load landed in
+the trader's own inventory, so a wagon train that entered a market could not
+carry what it bought there, and the number it declared was unconnected to the
+wagons it drove in with.
+
+Ruled: the entry dialog lists the seat's own vehicles (a vehicle a party
+member rides starts ticked) beside a number for anything else — porters,
+pack animals. The capacity counted is each chosen vehicle's hold capacity
+(`vehicles/hold.mjs`) plus the number, and the venture row records the
+vehicles (`vehicleUuids`). A trade names its hold: the trader's own packs or
+one of the venture's vehicles. A purchase into a vehicle is refused past its
+free room, before any negotiation is rolled; a sale draws across the hold's
+stacks (`planLoadDraw`), all or nothing, and never touches goods kept aboard
+for someone else. Both directions require the seat to own the hold, and the
+relay checks the attested sender, never the payload.
+
+Rejected: counting a vehicle's FREE room (the rule counts what the transport
+can carry, and a half-full wagon still moves the market by its size);
+loading into the first vehicle automatically (where the salt goes is the
+trader's decision, and the packs stay a choice); taking the vehicles from the
+formation's train (a party can own a wagon that is not travelling with it,
+and a vehicle in the train can belong to someone else).

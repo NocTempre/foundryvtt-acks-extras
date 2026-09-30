@@ -1,5 +1,66 @@
 # Changelog
 
+## 9.6.0
+
+### Added
+
+- **A vehicle can be deployed as a place.** Circle the wagons or tie the
+  ship up at the quay: **Deploy**, on the vehicle's new **Place** tab, stands
+  its token beside the party as a point of interest and files it under the
+  place the party is at, or one you pick, or none. Characters can keep goods
+  aboard from their own Storage tabs, and anyone aboard is at it, on a map or
+  not. **Strike** takes the marker up and undoes only what deploying did. The
+  party's train on the formation sheet has the same toggle beside each
+  vehicle, and a player can deploy and strike a vehicle they own.
+- **A venture enters a market with its vehicles, and a load goes into one of
+  them.** **Enter the market** lists the vehicles you own, ticks the one
+  someone in the party rides, and asks for anything else the party carries
+  on, such as porters and pack animals. The toll and the market impact are
+  figured on the total (RR §VIII.6). Buying or selling a load picks its hold:
+  your packs, or a vehicle you entered with, shown with its free room. A
+  purchase that will not fit, a vehicle that did not enter, or one you do not
+  own is refused before any haggling, and goods someone else keeps aboard are
+  never sold for you.
+
+### Changed
+
+- **The vehicle sheet has tabs.** A header pinned over **Travel**,
+  **Aboard**, **Hold**, **Place** and **Details** keeps the vehicle's
+  picture, name, pace and how full it is in view on every tab, with a tag
+  when it is deployed, sinking, over capacity or short-handed. Every
+  icon-only control on the sheet is a named button, so the keyboard and
+  screen readers reach it.
+- **One hold.** A vehicle's load bar, boarding, the party's pace and the
+  market now weigh the same load: freight, riders, anything lashed on and the
+  marines' gear. A ship carries her passengers in her hold as a cart does
+  (RR ch. 4, ch. 7), and a wagon's speed row counts its riders. A vehicle's
+  own per-head rate is optional; leave it blank to use the one imported with
+  the voyage tables.
+- **An unqualified crew member is weighed.** A hand without the proficiency
+  their seat asks for wears an **unqualified** badge, and the station shows
+  what its hands are effectively worth, at the rate the rules-table import
+  reads from your rulebook (RR ch. 7). Re-run the import once to read it;
+  until then unqualified hands count in full and the station says so.
+- **For macros:** `acksExtras.vehicles` is apiVersion 3, adding `holdOf` and
+  `deployVehicle` / `strikeVehicle` / `deploymentOf`; `acksExtras.formation`
+  is apiVersion 12, adding `formationCarrying` and `getPartyToken`; and
+  `acksExtras.lib.places.isDeployed` tells a deployed vehicle from a parked
+  one.
+
+### Fixed
+
+- **An item dragged out of a vehicle leaves it.** Dropping freight from a
+  vehicle onto a character's sheet copied it and left the original aboard,
+  doubling the load. It is now handed over, and an item dragged onto a
+  vehicle from another actor's sheet moves the same way.
+- **A ship made by hand has speeds.** A vessel's oar, sail and voyage speeds
+  had no inputs, so only an imported ship could move. They are on the
+  **Details** tab.
+- **Paired fields share a line.** A vessel's structural hit points stacked
+  over their maximum with a stray slash between, and the terrain selector
+  pushed its Road and Raining boxes below it. They now sit side by side,
+  wrapping only on a narrow window.
+
 ## 9.5.0
 
 ### Added

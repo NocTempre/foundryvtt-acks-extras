@@ -1,0 +1,82 @@
+<section class="tab acks-extras-vehicle-tab {{tab.cssClass}}" data-tab="place" data-group="primary">
+
+  {{! Deployed, the vehicle stands as a place: its token is a point of interest
+      on the map, goods can be kept aboard, and whoever is aboard reaches it
+      wherever it stands. Struck, it rolls on with everything still aboard. }}
+  <fieldset class="acks-extras-vehicle-place">
+    <legend>{{localize "ACKS-VEHICLES.place.legend"}}</legend>
+
+    {{#if place.deployed}}
+      <p class="acks-extras-vehicle-place-status is-deployed">
+        <i class="fa-solid fa-campground" inert></i>
+        {{#if place.parentName}}
+          {{localize "ACKS-VEHICLES.place.statusAt" place=place.parentName}}
+        {{else}}
+          {{localize "ACKS-VEHICLES.place.status"}}
+        {{/if}}
+      </p>
+      {{#if place.markerScene}}
+        <p class="hint">{{localize "ACKS-VEHICLES.place.markerOn" scene=place.markerScene}}</p>
+      {{else if place.markerMissing}}
+        <p class="hint">{{localize "ACKS-VEHICLES.place.markerGone"}}</p>
+      {{/if}}
+    {{else}}
+      <p class="acks-extras-vehicle-place-status">{{localize "ACKS-VEHICLES.place.onTheMove"}}</p>
+      {{#if place.siteScene}}
+        <p class="hint">{{localize "ACKS-VEHICLES.place.markerWillStand" scene=place.siteScene}}</p>
+      {{else}}
+        <p class="hint">{{localize "ACKS-VEHICLES.place.noScene"}}</p>
+      {{/if}}
+    {{/if}}
+
+    <div class="form-group">
+      <label>{{#if place.provider}}{{localize "ACKS-VEHICLES.place.filedUnder"}}{{else}}{{localize "ACKS-VEHICLES.place.deployUnder"}}{{/if}}</label>
+      <div class="form-fields">
+        <select data-place-parent {{disabled (not editable)}}>
+          {{#if place.siteOption}}
+            <option value="{{place.siteOption.value}}" {{#if place.siteOption.selected}}selected{{/if}}>{{place.siteOption.label}}</option>
+          {{/if}}
+          <option value="" {{#if place.noneSelected}}selected{{/if}}>{{localize "ACKS-VEHICLES.place.noParent"}}</option>
+          {{#each place.options}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        {{#if place.parentUuid}}
+          <button type="button" class="acks-extras-vehicle-icon" data-action="openPlace" data-uuid="{{place.parentUuid}}" aria-label="{{localize 'ACKS-VEHICLES.place.openParent'}}"
+             data-tooltip="{{localize 'ACKS-VEHICLES.place.openParent'}}"><i class="fa-solid fa-arrow-up-right-from-square" inert></i></button>
+        {{/if}}
+      </div>
+    </div>
+
+    {{#if editable}}
+    <div class="acks-extras-vehicle-place-actions">
+      {{#if place.deployed}}
+        <button type="button" data-action="strike" data-tooltip="{{localize 'ACKS-VEHICLES.place.strikeHint'}}">
+          <i class="fa-solid fa-truck-ramp-box" inert></i> {{localize "ACKS-VEHICLES.place.strike"}}
+        </button>
+      {{else}}
+        <button type="button" data-action="deploy" data-tooltip="{{localize 'ACKS-VEHICLES.place.deployHint'}}">
+          <i class="fa-solid fa-campground" inert></i> {{localize "ACKS-VEHICLES.place.deploy"}}
+        </button>
+      {{/if}}
+    </div>
+    {{/if}}
+  </fieldset>
+
+  {{! Goods kept aboard for somebody, by whose they are. Keeping and taking
+      them back happens from each character's own Storage tab. }}
+  {{#if place.provider}}
+  <fieldset class="acks-extras-vehicle-goods">
+    <legend>{{localize "ACKS-VEHICLES.place.goodsLegend"}}</legend>
+    {{#each place.goods}}
+      <div class="acks-extras-vehicle-goods-owner">
+        <span class="acks-extras-vehicle-goods-name">{{ownerName}}</span>
+        <ul>
+          {{#each rows}}<li>{{name}}{{#if qty}} <span class="hint">×{{qty}}</span>{{/if}}</li>{{/each}}
+        </ul>
+      </div>
+    {{else}}
+      <p class="hint">{{localize "ACKS-VEHICLES.place.noGoods"}}</p>
+    {{/each}}
+    <p class="hint">{{localize "ACKS-VEHICLES.place.goodsHint"}}</p>
+  </fieldset>
+  {{/if}}
+</section>

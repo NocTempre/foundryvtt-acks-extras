@@ -20,10 +20,10 @@
   impact on a venture instead of the class, is not built).
   `goods.demandDerived` is reserved for it and unread until then.
 - **Venture logistics**: tariffs on incoming sale cargo, moorage and
-  stabling fees, cargo handling times, warehousing, market impact derived
-  from the party's actual wagons and ships (cargo capacity is declared at
-  entry today), exhaustion-of-arbitrage and price-reset options, passenger
-  and cargo transport, passive investment.
+  stabling fees, cargo handling times, warehousing, exhaustion-of-arbitrage
+  and price-reset options, passenger and cargo transport, passive
+  investment. (The party's own vehicles setting its market impact, and
+  loads bought into their holds, landed 2026-09-30 — MODEL, Ventures.)
 - **Calendar seasons for grain pricing** — the spring/autumn step waits on
   a season source; the engine takes a `season` argument already.
 - **Spell-casting purchases** (RR spell availability by market class).

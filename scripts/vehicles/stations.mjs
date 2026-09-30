@@ -10,6 +10,7 @@
  * typed counts are the unnamed complement; named add."
  */
 import { complementMeans } from "./berths.mjs";
+import { readTable, VOYAGES_DOC } from "./vehicle-speed.mjs";
 
 /** Officer seats a vessel always offers, and the station each assigns. */
 export const OFFICER_STATIONS = Object.freeze(["captain", "navigator"]);
@@ -17,10 +18,29 @@ export const OFFICER_STATIONS = Object.freeze(["captain", "navigator"]);
 /** How many empty seats a group renders before collapsing to a number. */
 const MAX_EMPTY_SLOTS = 12;
 
+/**
+ * What one unproficient body is worth at a motive bench against a proficient
+ * hand's one (RR ch. 7). The page prices it as the crew each counts MISSING,
+ * read from the imported `voyages` document; null until imported.
+ */
+export function unproficientHand() {
+  const missing = Number(readTable(VOYAGES_DOC, "crew")?.unproficientMissing);
+  return Number.isFinite(missing) && missing >= 0 && missing <= 1 ? 1 - missing : null;
+}
+
 const num = (v) => Number(v) || 0;
 
 /** Heads in a list of occupants: a stack counts every body it stands for. */
 const headsOf = (list) => list.reduce((n, o) => n + Math.max(0, o.bodies ?? 1), 0);
+
+/**
+ * Hands a list of crew rows is worth at a motive bench: a proficient body is
+ * one, an unproficient one (`proficient === false`) is worth `weight`, and a
+ * row that does not say counts whole. With no weight — the voyage tables
+ * unimported — every body counts whole.
+ */
+export const handsOf = (list, weight = unproficientHand()) =>
+  list.reduce((n, o) => n + Math.max(0, o.bodies ?? 1) * (o.proficient === false && weight != null ? weight : 1), 0);
 
 /**
  * The station groups of one vehicle, in the order a sheet shows them.
@@ -93,6 +113,7 @@ function landStations(sys, occupants, by, pull) {
 
 function seaStations(sys, occupants, by) {
   const groups = [];
+  const weight = unproficientHand();
 
   // One group per printed crew role. The typed `aboard` is the UNNAMED hands;
   // named crew attach with the row's key as their station and add to it.
@@ -102,6 +123,7 @@ function seaStations(sys, occupants, by) {
     const unnamed = num(row.aboard);
     const filled = unnamed + headsOf(named);
     const required = num(row.required);
+    const motive = row.motive !== false;
     groups.push({
       key: `role:${station}`,
       labelText: row.label || row.key || "",
@@ -109,9 +131,15 @@ function seaStations(sys, occupants, by) {
       role: "crew",
       counts: "people",
       index,
-      motive: row.motive !== false,
+      motive,
       required: required || null,
       filled,
+      // What the bench is worth once unproficient bodies are weighed, the
+      // way `effectiveCrewRoles` weighs them (which also adds the officers
+      // to the sailors' row; this group counts its own seats only).
+      effective: motive ? unnamed + handsOf(named, weight) : filled,
+      // Unproficient hands at this bench that nothing could weigh.
+      unweighed: motive && weight == null && named.some((o) => o.proficient === false),
       named,
       unnamed,
       emptySlots: Math.min(MAX_EMPTY_SLOTS, Math.max(0, required - filled)),
@@ -183,14 +211,21 @@ export function stationKeyOf(row, index) {
  * toward the complement (RR ch. 7: navigators, captains and master mariners
  * are sailors, never rowers), so a named officer adds to the `sailors` row
  * where one exists and to nothing otherwise.
+ *
+ * At a motive row `aboard` is the hands the bench is WORTH — an unproficient
+ * body counts for `unproficientHand()`, or whole while that is unimported —
+ * while `heads` counts every body, which is what a repair gang or a berth
+ * asks. The typed hands are hired mariners and count whole.
  */
 export function effectiveCrewRoles(sys, occupants = []) {
   const roles = sys?.crew?.roles ?? [];
-  const officers = headsOf(occupants.filter((o) => o.role === "crew" && OFFICER_STATIONS.includes(o.station)));
+  const officers = occupants.filter((o) => o.role === "crew" && OFFICER_STATIONS.includes(o.station));
+  const weight = unproficientHand();
   return roles.map((row, index) => {
     const station = stationKeyOf(row, index);
-    let named = headsOf(occupants.filter((o) => o.role === "crew" && o.station === station));
-    if (station === "sailors") named += officers;
-    return { ...row, aboard: num(row.aboard) + named };
+    const named = occupants.filter((o) => o.role === "crew" && o.station === station);
+    if (station === "sailors") named.push(...officers);
+    const worth = row.motive === false ? headsOf(named) : handsOf(named, weight);
+    return { ...row, aboard: num(row.aboard) + worth, heads: num(row.aboard) + headsOf(named) };
   });
 }

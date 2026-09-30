@@ -1283,7 +1283,7 @@ export const TABLE_RECIPES = {
   // engine-shaped tables acks-extras' sea derivations declare on the
   // `voyages` document.
   voyages: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 316-322" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 315-322" },
     tables: {
       // Six band rows: the 2d6 spread and the band name share the label
       // zone — the name claims the row, labelPattern reads the spread's
@@ -1332,6 +1332,17 @@ export const TABLE_RECIPES = {
         shape: "proseValues",
         book: "rr",
         valueBlocks: [
+          {
+            id: "crew",
+            printedPage: 315,
+            locate: "unproficient characters attempt to row",
+            column: { xMin: 40, xMax: 300 },
+            values: [
+              // What an unproficient hand is worth is printed as the crew it
+              // counts MISSING; the binding reads the figure out of the window.
+              { key: "unproficientMissing", find: "each unproficient character counting as", take: "window", span: 24 },
+            ],
+          },
           {
             id: "shares",
             printedPage: 316,

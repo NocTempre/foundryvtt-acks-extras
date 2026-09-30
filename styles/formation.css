@@ -1186,6 +1186,26 @@
   text-align: right;
 }
 
+/* A vehicle deployed as a place: tagged in the row, and one control to deploy
+   or strike it without opening its sheet. */
+.acks-extras-formation-train-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-burgundy);
+}
+
+/* An icon-only button: sized to its glyph rather than to core's input height. */
+.acks-extras-formation-train-row .acks-extras-formation-train-deploy {
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  padding: 0.15em 0.45em;
+  line-height: 1;
+}
+
 /* The journey panel: the pickers and the day board wrap as control rows; the
    readout is the line the table actually reads; the log is the trace. */
 .acks-extras-formation-travel h3 {

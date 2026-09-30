@@ -107,6 +107,7 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 | Checks & rest | Declare listen/search/bash/track and rest turns | `check` / `rest` |
 | Scouting | Step their own character out of the party token, or back in | `detach` |
 | Traps | Work on a trap the party has found, or re-arm one they disarmed, with their own character | `trapbreak` / `trapRearm` |
+| Train | Deploy a vehicle they own as a place beside the party token, or strike it | none: the vehicle is theirs to write (`docs/vehicles/MODEL.md`, "Deployed as a place"); only its marker token goes through the `vehicleMarker` relay |
 
 Judge secrets never reach a player's DOM: map `quality`/`distorted` and the
 mapper's proficiency exist only in the GM render context — a warped map must

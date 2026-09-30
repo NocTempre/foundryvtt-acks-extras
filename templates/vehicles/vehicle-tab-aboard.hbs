@@ -1,0 +1,144 @@
+<section class="tab acks-extras-vehicle-tab {{tab.cssClass}}" data-tab="aboard" data-group="primary">
+
+  {{! The stations: who is in what role, seat by seat. Which groups exist is a
+      property of the vehicle — a wagon is pulled and driven, a ship is crewed
+      — and each group is a drop target for its own seat. }}
+  <fieldset class="acks-extras-vehicle-stations">
+    <legend>{{localize "ACKS-VEHICLES.station.legend"}}</legend>
+    {{#each stations}}
+    <div class="acks-extras-vehicle-station{{#if short}} is-short{{/if}}" data-station="{{dropStation}}">
+      <div class="acks-extras-vehicle-station-head">
+        <span class="acks-extras-vehicle-station-label">{{label}}</span>
+        <span class="acks-extras-vehicle-station-count">{{count}}</span>
+        {{#if effectiveNote}}<span class="hint">{{effectiveNote}}</span>{{/if}}
+        {{#if unweighedNote}}<span class="hint">{{unweighedNote}}</span>{{/if}}
+      </div>
+      <div class="acks-extras-vehicle-station-cells">
+        {{#each named}}
+          {{> "modules/acks-extras/templates/lib/station-chip.hbs"}}
+        {{/each}}
+        {{#if stepperName}}
+          <span class="acks-extras-vehicle-station-unnamed">
+            <input type="number" name="{{stepperName}}" min="0" step="1" value="{{unnamed}}"
+                   aria-label="{{label}} — {{localize 'ACKS-VEHICLES.station.unnamed'}}"
+                   {{#unless @root.editable}}disabled{{/unless}}>
+            <span class="hint">{{localize "ACKS-VEHICLES.station.unnamed"}}</span>
+          </span>
+        {{else if unnamedNote}}
+          <span class="acks-extras-vehicle-station-unnamed"><span class="hint">{{unnamed}} {{unnamedNote}}</span></span>
+        {{/if}}
+        {{#each empties}}
+          <span class="acks-extras-vehicle-station-empty"
+                data-tooltip="{{localize 'ACKS-VEHICLES.station.emptySeat'}}">+</span>
+        {{/each}}
+      </div>
+      {{#if consequence}}<p class="acks-extras-vehicle-station-note">{{consequence}}</p>{{/if}}
+    </div>
+    {{/each}}
+    <p class="hint">{{localize "ACKS-VEHICLES.cargo.boardHint"}}</p>
+    {{#if isLand}}{{#if editable}}
+    <div class="acks-extras-vehicle-boarding">
+      <button type="button" data-action="boardBest" data-tooltip="{{localize 'ACKS-VEHICLES.board.maxSpeedHint'}}">
+        <i class="fa-solid fa-users-line" inert></i> {{localize "ACKS-VEHICLES.board.maxSpeed"}}
+      </button>
+      <button type="button" data-action="reboard" data-tooltip="{{localize 'ACKS-VEHICLES.board.reboardHint'}}">
+        <i class="fa-solid fa-rotate-left" inert></i> {{localize "ACKS-VEHICLES.board.reboard"}}
+      </button>
+    </div>
+    {{/if}}{{/if}}
+  </fieldset>
+
+  {{#if isSea}}
+  {{! The complement. Who is ABOARD each role lives in the stations above (the
+      unnamed stepper writes the same field); this table states what she needs. }}
+  <fieldset>
+    <legend>{{localize "ACKS-VEHICLES.crew.legend"}}
+      {{#if editable}}<button type="button" class="acks-extras-vehicle-icon" data-action="addRole" aria-label="{{localize 'ACKS-VEHICLES.crew.add'}}"><i class="fa-solid fa-plus" inert></i></button>{{/if}}</legend>
+    <table class="acks-extras-vehicle-crew">
+      <tr><th>{{localize "ACKS-VEHICLES.crew.role"}}</th>
+          <th>{{localize "ACKS-VEHICLES.crew.required"}}</th><th>{{localize "ACKS-VEHICLES.crew.motive"}}</th>
+          <th data-tooltip="{{localize 'ACKS-VEHICLES.crew.gearStoneHint'}}">{{localize "ACKS-VEHICLES.crew.gearStone"}}</th><th></th></tr>
+      {{#each roles}}
+      <tr class="{{#if short}}is-short{{/if}}">
+        <td><input type="text" name="system.crew.roles.{{index}}.label" value="{{label}}"
+                   aria-label="{{localize 'ACKS-VEHICLES.crew.role'}}"></td>
+        <td><input type="number" name="system.crew.roles.{{index}}.required" min="0" value="{{required}}"
+                   aria-label="{{localize 'ACKS-VEHICLES.crew.required'}}"></td>
+        <td><input type="checkbox" name="system.crew.roles.{{index}}.motive" {{checked motive}}
+                   aria-label="{{localize 'ACKS-VEHICLES.crew.motive'}}"></td>
+        <td>{{#unless motive}}<input type="number" name="system.crew.roles.{{index}}.gearStone" min="0" step="any"
+                   value="{{gearStone}}" placeholder="—" aria-label="{{localize 'ACKS-VEHICLES.crew.gearStone'}}">{{/unless}}</td>
+        <td>{{#if @root.editable}}<button type="button" class="acks-extras-vehicle-icon" data-action="removeRole" data-index="{{index}}"
+               aria-label="{{localize 'ACKS-VEHICLES.crew.remove'}}"><i class="fa-solid fa-trash" inert></i></button>{{/if}}</td>
+      </tr>
+      {{/each}}
+    </table>
+    <p class="hint">{{localize "ACKS-VEHICLES.crew.hint"}}</p>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-VEHICLES.means.label"}}</label>
+      <div class="form-fields">
+        <select name="system.crew.means">
+          <option value="" {{#unless system.crew.means}}selected{{/unless}}>{{meansAuto}}</option>
+          {{#each meansOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </div>
+      <p class="hint">{{localize "ACKS-VEHICLES.means.hint"}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-VEHICLES.vessel.seafaring"}}</label>
+      <div class="form-fields">
+        <input type="number" name="system.seafaringRank" min="0" max="3" value="{{system.seafaringRank}}">
+      </div>
+      <p class="hint">{{localize "ACKS-VEHICLES.vessel.seafaringHint"}}</p>
+      {{#if skills.seafaring}}<p class="hint">{{skills.seafaring}}</p>{{/if}}
+      {{#if skills.charts}}<p class="hint">{{skills.charts}}</p>{{/if}}
+    </div>
+  </fieldset>
+  {{/if}}
+
+  {{#if isLand}}
+  {{! What is in harness. Drop an animal here to hitch it. Real animals in
+      harness are chips in the stations above; the rows here are the ABSTRACT
+      complement a Judge states by hand. }}
+  <fieldset class="acks-extras-vehicle-team" data-accept-drop>
+    <legend>{{localize "ACKS-VEHICLES.team.legend"}} ({{pull}})</legend>
+    {{#if underTeamed}}
+      <p class="notification warning">{{localize "ACKS-VEHICLES.team.under"}}</p>
+    {{/if}}
+    <ol class="acks-extras-vehicle-animals">
+      {{#each animals}}
+        <li class="{{#unless pulling}}is-idle{{/unless}}">
+          <input class="acks-extras-vehicle-animal-count" type="number" min="1" step="1"
+                 name="system.team.animals.{{index}}.count" value="{{count}}"
+                 aria-label="{{localize 'ACKS-VEHICLES.team.count'}}"
+                 data-tooltip="{{localize 'ACKS-VEHICLES.team.count'}}">
+          <span class="acks-extras-vehicle-animal-name">{{name}}</span>
+          <select name="system.team.animals.{{index}}.kind" aria-label="{{localize 'ACKS-VEHICLES.team.kind'}}">
+            {{#each @root.draftKinds}}<option value="{{value}}" {{#if (eq value ../kind)}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+          <span class="acks-extras-vehicle-pull">{{#if pull}}{{pull}}{{else}}&mdash;{{/if}}</span>
+          {{#if @root.editable}}
+            <button type="button" class="acks-extras-vehicle-icon" data-action="togglePulling" data-index="{{index}}" aria-pressed="{{#if pulling}}true{{else}}false{{/if}}" aria-label="{{localize 'ACKS-VEHICLES.team.togglePulling'}}"
+               data-tooltip="{{localize 'ACKS-VEHICLES.team.togglePulling'}}"><i class="fa-solid {{#if pulling}}fa-link{{else}}fa-link-slash{{/if}}" inert></i></button>
+            <button type="button" class="acks-extras-vehicle-icon" data-action="removeAnimal" data-index="{{index}}" aria-label="{{localize 'ACKS-VEHICLES.team.remove'}}"><i class="fa-solid fa-trash" inert></i></button>
+          {{/if}}
+        </li>
+      {{/each}}
+    </ol>
+    {{#if draftUnpriced}}
+      <p class="hint acks-extras-vehicle-team-unpriced">
+        {{localize "ACKS-VEHICLES.team.unpriced" kinds=draftUnpriced}}
+      </p>
+    {{/if}}
+    <p class="hint">{{localize "ACKS-VEHICLES.team.dropHint"}}</p>
+  </fieldset>
+
+  <div class="form-group">
+    <label>{{localize "ACKS-VEHICLES.vessel.driving"}}</label>
+    <div class="form-fields"><input type="checkbox" name="system.driverProficient" {{checked system.driverProficient}}></div>
+    <p class="hint">{{localize "ACKS-VEHICLES.vessel.drivingHint"}}</p>
+    {{#if skills.driving}}<p class="hint">{{skills.driving}}</p>{{/if}}
+  </div>
+  {{/if}}
+</section>

@@ -92,13 +92,21 @@ party's find.
   month through the same shared rolls the buy flow honors.
 - **Ventures** (`engine/ventures.mjs`): dedicated-day actions post now and
   resolve when their day passes — market entry (toll from the imported
-  Market Characteristics; impact from declared cargo over the baseline),
+  Market Characteristics; impact from the cargo capacity the party brings
+  over the baseline: the hold capacity of each vehicle it enters with, read
+  through `vehicles/hold.mjs`, plus any other capacity it states),
   assessment (writes one market REPORT Item holding the assessor's
   demand-modifier beliefs, wrong on a false assessment and indistinguishable
   from truth; see "Market reports and the trade house"), soliciting (opens
   base stones × impact at the month's rolled price: 4d4−10 steps + demand
   + class shift), and merchandise trades with the optional spot-price
-  negotiation. Merchandise loads are `item` documents, one unit per stone.
+  negotiation. Merchandise loads are `item` documents, one unit per stone,
+  bought into and sold from the hold a trade names — the trader's own packs,
+  or one of the vehicles on the venture row (`vehicleUuids`). A purchase
+  into a vehicle is refused past its free room before anything is rolled; a
+  sale draws across the hold's stacks (`rules/arbitrage.mjs` `planLoadDraw`,
+  all or nothing); a load kept aboard for another character is never counted
+  or drawn. The seat must own the hold as well as the trader.
   A day that cannot resolve because its imported table is missing posts a
   card to the actor's owners and the GM naming the table.
   - **The assessment's roll is made on the influence page**, not by the

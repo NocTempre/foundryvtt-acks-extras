@@ -12,10 +12,11 @@
  */
 import { MODULE_ID, LANG_PREFIX, VEHICLE_TYPE } from "./constants.mjs";
 import { attach, detach, attachedTo, snapshotArrangement, restoreArrangement } from "../lib/attachment.mjs";
-import { borneBy6, load6 } from "../lib/capacity.mjs";
+import { borneBy6 } from "../lib/capacity.mjs";
 import { STONE } from "../lib/item-model.mjs";
-import { landSpeed, cargoRemaining } from "./vehicle-speed.mjs";
+import { landSpeed } from "./vehicle-speed.mjs";
 import { draftPullOf } from "./occupants.mjs";
+import { holdOf } from "./hold.mjs";
 
 /** Where the last arrangement is kept, so it can be put back. */
 export const ARRANGEMENT_FLAG = "lastArrangement";
@@ -48,9 +49,9 @@ export async function boardForBestPace(vehicle, candidates = [], { ground = null
   // Remember where everyone was BEFORE this, so it can be undone.
   await vehicle.setFlag(MODULE_ID, ARRANGEMENT_FLAG, snapshotArrangement(candidates));
 
-  const aboardStone = () => load6(vehicle) / STONE;
-  // The real team, harnessed attachments included, stated to the arithmetic.
-  const paceNow = () => landSpeed(vehicle.system, aboardStone(), ground, { pull: draftPullOf(vehicle) }).feetPerTurn;
+  // The whole load — freight and everyone riding — prices the tier, and the
+  // real team, harnessed attachments included, is stated to the arithmetic.
+  const paceNow = () => landSpeed(vehicle.system, holdOf(vehicle).used, ground, { pull: draftPullOf(vehicle) }).feetPerTurn;
 
   // Slowest first: that member is the one holding the party back.
   const walking = candidates
@@ -62,9 +63,7 @@ export async function boardForBestPace(vehicle, candidates = [], { ground = null
     const pace = paceNow();
     // Riding must be an improvement for THIS member, or they walk.
     if (ownSpeed(actor) >= pace) continue;
-    const named = attachedTo(vehicle, "passenger").reduce((sum, p) => sum + passengerCost(p, vehicle), 0);
-    const hold = cargoRemaining(vehicle.system, aboardStone(), named);
-    if (hold.free < passengerCost(actor, vehicle)) break; // the hold is full
+    if (holdOf(vehicle).free < passengerCost(actor, vehicle)) break; // the hold is full
     await attach(actor, vehicle, "passenger");
     boarded.push(actor.name);
   }

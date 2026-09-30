@@ -39,6 +39,13 @@ second copy would drift the first time somebody moved a sack into a backpack.
 {uuid, parentUuid, name, img, kind, count}
 ```
 
+A provider can also be **deployed**: set down somewhere as a place in its own
+right, standing on a map as its own marker the way a location's token does.
+`isDeployed` reads `deployed` on the same place flag as the parent pointer;
+`sceneOccupants` steps over a deployed provider's token as it does a
+location's, since a marker is not a tenant. The vehicles feature is the one
+writer (`docs/vehicles/MODEL.md`, "Deployed as a place").
+
 ## The one invariant
 
 **No cycles.** Every walk in `place-logic.mjs` is individually cycle-guarded
@@ -120,6 +127,7 @@ the place actually being looked at.
 `acksLib.places` — pure rules (Node-importable, unit-tested in `tools/test-lib.mjs`)
 plus the document layer:
 
+- **kinds** — `isPlace`, `isLocation`, `isContainerItem`, `isDeployed`, `kindOf`
 - **nesting** — `parentUuidOf`, `setParent`, `childPlaces`, `placePath`,
   `ancestorUuids`, `descendantUuids`, `wouldCycle`, `planReparent`
 - **contents** — `contentsOf`, `contentRows`, `coinRollupGC`, `rollup`

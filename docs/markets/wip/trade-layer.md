@@ -13,7 +13,7 @@ profiles) shipped in 9.2.0 and are described in MODEL.
 |---|---|---|
 | P3 | Trade routes as Items; equalisation (JJ Ch6 Step 7E); timed class events | next |
 | S2 | Printed routes (AX3, AX1) | with P3 |
-| P4 | Venture logistics: fleet impact, tariff, moorage, handling, warehousing, optional price rules, seasons, the profit ledger | not started |
+| P4 | Venture logistics: tariff, moorage, handling, warehousing, optional price rules, seasons, the profit ledger (fleet impact landed 2026-09-30 — MODEL) | not started |
 | S3 | Market-local business rules from setting books | with P4 |
 | P5 | Selling loot through merchandise | not started |
 | S4 | Treasure Tome treasure tables and a treasure generator | with P5 |

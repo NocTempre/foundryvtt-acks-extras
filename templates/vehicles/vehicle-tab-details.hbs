@@ -1,0 +1,101 @@
+<section class="tab acks-extras-vehicle-tab {{tab.cssClass}}" data-tab="details" data-group="primary">
+
+  {{! What it is, and what it can take. }}
+  <fieldset>
+    <legend>{{localize "ACKS-VEHICLES.vessel.legend"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-VEHICLES.vessel.kind"}}</label>
+      <div class="form-fields">
+        <select name="system.kind">
+          {{#each kinds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </div>
+    </div>
+    {{#if isLand}}
+    <div class="form-group">
+      <label>{{localize "ACKS-VEHICLES.carriage.label"}}</label>
+      <div class="form-fields">
+        <select name="system.carriage">
+          {{#each carriages}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </div>
+      <p class="hint">{{localize "ACKS-VEHICLES.carriage.hint"}}</p>
+    </div>
+    {{/if}}
+    <div class="form-group">
+      <label>{{localize "ACKS-VEHICLES.vessel.shp"}}</label>
+      <div class="form-fields">
+        <input type="number" name="system.shp.value" value="{{system.shp.value}}"
+               aria-label="{{localize 'ACKS-VEHICLES.vessel.shpValue'}}"> /
+        <input type="number" name="system.shp.max" value="{{system.shp.max}}"
+               aria-label="{{localize 'ACKS-VEHICLES.vessel.shpMax'}}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-VEHICLES.vessel.ac"}}</label>
+      <div class="form-fields"><input type="number" name="system.ac" value="{{system.ac}}"></div>
+    </div>
+    {{#if system.source.book}}
+      <p class="hint acks-extras-vehicle-source">
+        {{localize "ACKS-VEHICLES.details.source" book=system.source.book cite=system.source.cite}}
+      </p>
+    {{/if}}
+  </fieldset>
+
+  {{#if isSea}}
+  {{! The printed speeds; Travel applies the wind, the crew and the hull to them. }}
+  <fieldset>
+    <legend>{{localize "ACKS-VEHICLES.details.speedsLegend"}}</legend>
+    <div class="acks-extras-vehicle-speed-inputs">
+      <label>{{localize "ACKS-VEHICLES.speed.oarSprint"}}
+        <input type="number" name="system.speeds.oarSprint" min="0" value="{{system.speeds.oarSprint}}"></label>
+      <label>{{localize "ACKS-VEHICLES.speed.oarCruise"}}
+        <input type="number" name="system.speeds.oarCruise" min="0" value="{{system.speeds.oarCruise}}"></label>
+      <label>{{localize "ACKS-VEHICLES.speed.oarSlow"}}
+        <input type="number" name="system.speeds.oarSlow" min="0" value="{{system.speeds.oarSlow}}"></label>
+      <label>{{localize "ACKS-VEHICLES.speed.sail"}}
+        <input type="number" name="system.speeds.sail" min="0" value="{{system.speeds.sail}}"></label>
+      <label>{{localize "ACKS-VEHICLES.speed.voyageOar"}}
+        <input type="number" name="system.speeds.voyageOar" min="0" value="{{system.speeds.voyageOar}}"></label>
+      <label>{{localize "ACKS-VEHICLES.speed.voyageSail"}}
+        <input type="number" name="system.speeds.voyageSail" min="0" value="{{system.speeds.voyageSail}}"></label>
+    </div>
+    <p class="hint">{{localize "ACKS-VEHICLES.details.speedsHint"}}</p>
+  </fieldset>
+  {{/if}}
+
+  {{#if isLand}}
+  {{! The printed load/speed rows. }}
+  <fieldset>
+    <legend>{{localize "ACKS-VEHICLES.tiers.legend"}}
+      {{#if editable}}<button type="button" class="acks-extras-vehicle-icon" data-action="addTier" aria-label="{{localize 'ACKS-VEHICLES.tiers.add'}}"><i class="fa-solid fa-plus" inert></i></button>{{/if}}</legend>
+    <table class="acks-extras-vehicle-tiers">
+      <tr><th>{{localize "ACKS-VEHICLES.tiers.team"}}</th><th>{{localize "ACKS-VEHICLES.tiers.upTo"}}</th>
+          <th>{{localize "ACKS-VEHICLES.tiers.at"}}</th><th></th></tr>
+      {{#each tiers}}
+      <tr>
+        <td><input type="number" name="system.speeds.tiers.{{index}}.team" step="0.5" min="0" value="{{team}}"
+                   aria-label="{{localize 'ACKS-VEHICLES.tiers.team'}}"></td>
+        <td><input type="number" name="system.speeds.tiers.{{index}}.maxLoadStone" min="0" value="{{maxLoadStone}}"
+                   aria-label="{{localize 'ACKS-VEHICLES.tiers.upTo'}}"></td>
+        <td><input type="number" name="system.speeds.tiers.{{index}}.feetPerTurn" min="0" step="5" value="{{feetPerTurn}}"
+                   aria-label="{{localize 'ACKS-VEHICLES.tiers.at'}}"></td>
+        <td>{{#if @root.editable}}<button type="button" class="acks-extras-vehicle-icon" data-action="removeTier" data-index="{{index}}"
+               aria-label="{{localize 'ACKS-VEHICLES.tiers.remove'}}"><i class="fa-solid fa-trash" inert></i></button>{{/if}}</td>
+      </tr>
+      {{/each}}
+    </table>
+    <p class="hint">{{localize "ACKS-VEHICLES.tiers.hint"}}</p>
+  </fieldset>
+  {{/if}}
+
+  <fieldset class="acks-extras-vehicle-description">
+    <legend>{{localize "ACKS-VEHICLES.details.description"}}</legend>
+    {{#if editable}}
+      <prose-mirror class="content-sized" name="system.description" value="{{system.description}}" toggled
+                    data-document-uuid="{{actor.uuid}}" style="--min-height: 6rem;">{{{descriptionHTML}}}</prose-mirror>
+    {{else}}
+      <div class="acks-extras-vehicle-description-text">{{{descriptionHTML}}}</div>
+    {{/if}}
+  </fieldset>
+</section>

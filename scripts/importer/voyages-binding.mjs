@@ -28,6 +28,7 @@ export const PRODUCES = Object.freeze({
     windStrength: "windStrengthRaw",
     tacking: "voyagesProse",
     berth: "voyagesProse",
+    crew: "voyagesProse",
     hazardThrow: "voyagesProse",
     hazards: "voyagesProse",
     repair: "voyagesProse",
@@ -117,6 +118,11 @@ export function assembleVoyageTables(raw = {}) {
 
   const berth = Number(flat.berthStone);
   if (Number.isFinite(berth) && berth > 0) out.berth = { stone: berth };
+
+  // The page prices an unproficient hand as the crew it counts MISSING; a
+  // share outside 0–1 is a misread, not a rate.
+  const missing = parseShare(flat.unproficientMissing);
+  if (missing != null && missing >= 0 && missing <= 1) out.crew = { unproficientMissing: missing };
 
   if (raw.navigationRaw) {
     const targets = {};

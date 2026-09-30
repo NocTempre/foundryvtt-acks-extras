@@ -27,6 +27,16 @@
  */
 import { LOCATION_TYPE } from "./constants.mjs";
 import { partyPoint } from "../formation/zones.mjs";
+import { isDeployed } from "../lib/place.mjs";
+
+/**
+ * Does this token's actor stand on the map AS a place: a location, or a
+ * provider deployed as one (a circled wagon, a moored ship)? A deployed
+ * vehicle's marker is its own token exactly as a location's is, so the
+ * points of interest, the place under the party and the walk to a place all
+ * ask this one question.
+ */
+export const standsAsPlace = (actor) => actor?.type === LOCATION_TYPE || isDeployed(actor);
 
 /**
  * A token's centre point, in scene pixels: grid-unit width/height times the
@@ -77,7 +87,8 @@ function sameFloor(a, b, scene) {
 }
 
 /**
- * The visible place tokens on a scene: every location's, or one named place's.
+ * The visible place tokens on a scene: every place's (`standsAsPlace`), or one
+ * named place's.
  *
  * A named place is matched by its BASE actor id, the id a token carries whether
  * or not it is linked. `token.actor` on an unlinked token — Foundry's default,
@@ -92,7 +103,7 @@ function sameFloor(a, b, scene) {
 function* placeTokensOn(scene, place = null) {
   for (const token of scene?.tokens ?? []) {
     if (token.hidden) continue;
-    if (place ? token.actorId !== place.id : token.actor?.type !== LOCATION_TYPE) continue;
+    if (place ? token.actorId !== place.id : !standsAsPlace(token.actor)) continue;
     yield token;
   }
 }
@@ -132,7 +143,8 @@ export function placeStandsOn(scene, place) {
 }
 
 /**
- * The location actor whose own token the party is standing at, or null.
+ * The place actor — a location, or a vehicle deployed as a place — whose own
+ * token the party is standing at, or null.
  *
  * The WORLD actor, resolved from the token's base id — what a caller can
  * compare a uuid against and what holds the place's storage. Where two place
@@ -146,9 +158,15 @@ export function placeUnderParty(formation) {
   const at = partyPoint(formation);
   if (!at) return null;
   const gridSize = at.scene.grid.size;
+  // A location outranks a deployed vehicle: the wagon a party circles beside a
+  // town's marker is where their goods are, but the town is where they are.
+  let deployed = null;
   for (const token of placeTokensOn(at.scene)) {
     if (!sameFloor(token.elevation, at.elevation, at.scene)) continue;
-    if (footprintReaches(token, at.point, gridSize)) return game.actors?.get(token.actorId) ?? null;
+    if (!footprintReaches(token, at.point, gridSize)) continue;
+    const place = game.actors?.get(token.actorId) ?? null;
+    if (place?.type === LOCATION_TYPE) return place;
+    deployed ??= place;
   }
-  return null;
+  return deployed;
 }

@@ -731,4 +731,20 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.deepStrictEqual(historyRows(ledgers, { actorUuids: ["Actor.Z"] }), [], "a stranger sees nothing");
 }
 
-console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader)");
+// ---- a sale draws its loads across a hold's stacks, or takes nothing ----
+{
+  const { planLoadDraw } = await import(new URL("../scripts/markets/rules/arbitrage.mjs", import.meta.url));
+  const sacks = [{ id: "a", qty: 3 }, { id: "b", qty: 4 }, { id: "c", qty: 2 }];
+  assert.deepStrictEqual(planLoadDraw(sacks, 5), { updates: [{ id: "b", qty: 2 }], deletes: ["a"], held: 9, short: false },
+    "the first stack empties and the second breaks");
+  assert.deepStrictEqual(planLoadDraw(sacks, 7), { updates: [], deletes: ["a", "b"], held: 9, short: false },
+    "a draw that lands on a stack's edge breaks nothing");
+  assert.deepStrictEqual(planLoadDraw(sacks, 10), { updates: [], deletes: [], held: 9, short: true },
+    "short: the plan says what is held and takes nothing");
+  assert.deepStrictEqual(planLoadDraw([{ id: "x", qty: 0 }, { id: "y", qty: 2.5 }], 2), { updates: [{ id: "y", qty: 0.5 }], deletes: [], held: 2, short: false },
+    "an empty stack is passed over; a fraction of a load is not sold, and not thrown away");
+  assert.strictEqual(planLoadDraw([{ id: "y", qty: 2.5 }], 3).short, true, "half a load does not make up a third");
+  assert.deepStrictEqual(planLoadDraw(null, 0), { updates: [], deletes: [], held: 0, short: false }, "nothing asked, nothing taken");
+}
+
+console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws)");

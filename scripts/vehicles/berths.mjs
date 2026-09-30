@@ -87,13 +87,13 @@ export function complementMeans(vehicle) {
 }
 
 /**
- * Whether passengers and cargo share one pool of stone on this vehicle.
- *
- * They do on anything that is not a vessel: a cart has a bed, not cabins. A
- * vessel prices her passengers in berths instead, which is why she can be full
- * of people and still have a hold to fill.
+ * Whether passengers and cargo share one pool of stone on this vehicle. They
+ * do on every vehicle: a vessel carries her passengers as cargo at the berth
+ * rate (RR ch. 7) as a wagon carries them on its bed (RR ch. 4), and
+ * `hold.mjs` charges them the same way. Published on the API, so it stays a
+ * function rather than a constant.
  */
-export const poolsPassengersWithCargo = (vehicle) => vehicle?.kind !== "sea";
+export const poolsPassengersWithCargo = (vehicle) => !!vehicle;
 
 /**
  * How much cargo a vessel could carry if she sailed short-handed, and what
@@ -158,7 +158,7 @@ export function fillBuckets(vehicle, occupants = [], cargoStone = 0) {
   // their weapons and armour are freight. The occupant rows say whose gear
   // charges (`cargoGear`), so a homebrew gunner bench behaves like marines —
   // and the UNNAMED complement charges too, at each role's typed rate.
-  const namedCrewCount = occupants.filter((o) => o.role === "crew").length;
+  const namedCrewCount = occupants.filter((o) => o.role === "crew").reduce((n, o) => n + Math.max(0, o.bodies ?? 1), 0);
   const crewGearStone =
     occupants.filter((o) => o.cargoGear).reduce((sum, o) => sum + (Number(o.gearStone) || 0), 0) +
     unnamedCrewGearStone(vehicle);
@@ -177,7 +177,6 @@ export function fillBuckets(vehicle, occupants = [], cargoStone = 0) {
         members: namedPassengers,
         unnamed,
         stone: passengerStone,
-        // On a vessel this is a berth count, not a claim on the hold.
         pooled: pools,
       };
     }
@@ -201,9 +200,8 @@ export function fillBuckets(vehicle, occupants = [], cargoStone = 0) {
     return { key, counts: "animals", members: byRole("draft"), pooled: false };
   });
 
-  // Only what the pool actually holds. On a vessel the passengers are berthed
-  // and the hold is the hold — but actor-shaped cargo and the marines' gear
-  // are in it either way, and the empty benches' berths grow it.
+  // Only what the pool actually holds: freight, actor-shaped cargo, the
+  // marines' gear and the passengers. The empty benches' berths grow it.
   const effectiveCapacity = capacity + (trade?.stone ?? 0);
   const used = cargoStone + cargoActorStone + crewGearStone + (pools ? passengerStone : 0);
   return {

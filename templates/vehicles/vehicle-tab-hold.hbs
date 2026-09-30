@@ -1,0 +1,88 @@
+<section class="tab acks-extras-vehicle-tab {{tab.cssClass}}" data-tab="hold" data-group="primary">
+
+  <fieldset>
+    <legend>{{localize "ACKS-VEHICLES.cargo.legend"}}</legend>
+    <div class="acks-extras-vehicle-hold{{#if hold.over}} is-over{{/if}}" data-accept-drop>
+      <div class="acks-extras-vehicle-bar" role="img" aria-label="{{hold.used}} / {{hold.capacity}}"><span style="width:{{hold.pct}}%"></span></div>
+      <p>{{hold.used}} / {{hold.capacity}} {{localize "ACKS-VEHICLES.cargo.stone"}}
+         <span class="hint">({{localize "ACKS-VEHICLES.cargo.free" free=hold.free}})</span></p>
+      {{! What the used figure is made of, part by part. }}
+      <ul class="acks-extras-vehicle-hold-parts">
+        <li>{{localize "ACKS-VEHICLES.cargo.part.freight" stone=hold.aboardStone}}</li>
+        {{#if hold.passengerStone}}<li>{{localize "ACKS-VEHICLES.cargo.part.passengers" stone=hold.passengerStone}}</li>{{/if}}
+        {{#if hold.cargoActorStone}}<li>{{localize "ACKS-VEHICLES.cargo.part.cargoActors" stone=hold.cargoActorStone}}</li>{{/if}}
+        {{#if hold.marineGear}}<li>{{localize "ACKS-VEHICLES.cargo.part.marineGear" stone=hold.marineGear}}</li>{{/if}}
+      </ul>
+      {{#if hold.trade}}
+        <p class="hint acks-extras-vehicle-trade">
+          {{#if hold.trade.missing}}
+            {{localize "ACKS-VEHICLES.cargo.tradeUnpriced" hands=hold.trade.hands}}
+          {{else}}
+            {{localize "ACKS-VEHICLES.cargo.trade" hands=hold.trade.hands stone=hold.trade.stone}}
+          {{/if}}
+        </p>
+      {{/if}}
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-VEHICLES.cargo.capacity"}}</label>
+      <div class="form-fields"><input type="number" name="system.cargo.capacityStone" min="0" value="{{system.cargo.capacityStone}}"></div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-VEHICLES.cargo.passengerRate"}}</label>
+      <div class="form-fields"><input type="number" name="system.cargo.passengerStone" min="0" step="any"
+           value="{{#if system.cargo.passengerStone}}{{system.cargo.passengerStone}}{{/if}}"
+           placeholder="{{localize 'ACKS-VEHICLES.cargo.passengerRateImported'}}"></div>
+      <p class="hint">{{localize "ACKS-VEHICLES.cargo.passengerRateHint"}}</p>
+    </div>
+  </fieldset>
+
+  {{! Actor-shaped freight — a boat on the wagon. Full mass, no berth. Named
+      passengers sit in the stations on the Aboard tab. }}
+  {{#if cargoRiders.length}}
+  <fieldset>
+    <legend>{{localize "ACKS-VEHICLES.cargo.ridersLegend"}}</legend>
+    <ol class="acks-extras-vehicle-riders">
+      {{#each cargoRiders}}
+        <li><span>{{name}}</span> <span class="hint">{{localize "ACKS-VEHICLES.cargo.asCargo"}}</span>
+          <span class="acks-extras-vehicle-pull">{{stone}} st</span>
+          {{#if @root.editable}}<button type="button" class="acks-extras-vehicle-icon" data-action="disembark" data-uuid="{{uuid}}" aria-label="{{localize 'ACKS-VEHICLES.cargo.unload'}}"
+            data-tooltip="{{localize 'ACKS-VEHICLES.cargo.unload'}}"><i class="fa-solid fa-person-walking-arrow-right" inert></i></button>{{/if}}
+        </li>
+      {{/each}}
+    </ol>
+  </fieldset>
+  {{/if}}
+
+  {{! The freight itself. Its weight is already in the bar above. }}
+  <fieldset>
+    <legend>{{localize "ACKS-VEHICLES.cargo.freightLegend"}}</legend>
+    <ol class="acks-extras-vehicle-cargo" data-accept-drop>
+      {{#each cargo}}
+        <li data-item-id="{{id}}">
+          <img src="{{img}}" alt="" width="24" height="24">
+          <a class="acks-extras-vehicle-cargo-name" data-action="openCargo" data-item-id="{{id}}">{{name}}</a>
+          {{#if merchandise}}<span class="acks-extras-vehicle-tag"
+                data-tooltip="{{localize 'ACKS-VEHICLES.cargo.merchandiseHint'}}">{{localize "ACKS-VEHICLES.cargo.merchandise"}}</span>{{/if}}
+          {{#if ownerName}}<span class="acks-extras-vehicle-tag"
+                data-tooltip="{{localize 'ACKS-VEHICLES.cargo.storedForHint'}}">{{ownerName}}</span>{{/if}}
+          {{#if stacks}}
+            <input class="acks-extras-vehicle-cargo-qty" type="number" min="0" step="1"
+                   data-cargo-qty data-item-id="{{id}}" value="{{qty}}"
+                   aria-label="{{localize 'ACKS-VEHICLES.cargo.qty'}}"
+                   data-tooltip="{{localize 'ACKS-VEHICLES.cargo.qty'}}"
+                   {{#unless @root.editable}}disabled{{/unless}}>
+          {{/if}}
+          <span class="acks-extras-vehicle-pull">{{stone}} st</span>
+          {{#if @root.editable}}
+            <button type="button" class="acks-extras-vehicle-icon" data-action="unloadCargo" data-item-id="{{id}}" aria-label="{{localize 'ACKS-VEHICLES.cargo.unload'}}"
+               data-tooltip="{{localize 'ACKS-VEHICLES.cargo.unload'}}"><i class="fa-solid fa-trash" inert></i></button>
+          {{/if}}
+        </li>
+      {{else}}
+        <li class="hint">{{localize "ACKS-VEHICLES.cargo.empty"}}</li>
+      {{/each}}
+    </ol>
+    <p class="hint">{{localize "ACKS-VEHICLES.cargo.freightHint"}}</p>
+    <p class="hint">{{localize "ACKS-VEHICLES.cargo.handOverHint"}}</p>
+  </fieldset>
+</section>

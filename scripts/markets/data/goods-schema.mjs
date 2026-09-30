@@ -179,7 +179,9 @@ export function goodsSchema() {
         partyId: str(),
         actorUuid: str(),
         category: str(), // solicit: merchandise-type key
-        cargoSt: int(0), // enter: declared cargo capacity
+        cargoSt: int(0), // enter: declared cargo capacity, the vehicles' included
+        // enter: the vehicles the capacity was counted from (vehicles/hold.mjs).
+        vehicleUuids: new f.ArrayField(str()),
         postedTime: int(),
         resolveTime: int(),
         // A day withdrawn before it resolved keeps its row (and what it cost): the queue is a record.
@@ -197,6 +199,9 @@ export function goodsSchema() {
         partyId: str(),
         monthStartTime: int(),
         cargoSt: int(0),
+        // The vehicles the party entered with: where its loads are bought into
+        // and sold from.
+        vehicleUuids: new f.ArrayField(str()),
         impact: int(0),
         effectiveClass: int(0),
         tollCp: int(0),

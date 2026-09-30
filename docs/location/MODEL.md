@@ -74,6 +74,11 @@ a player who cannot get their own goods back is a worse failure than one who
 withdraws from a distance. A refusal returns its reason, because a control that
 has quietly vanished reads as a broken module.
 
+Being **carried by** a place comes before both halves: a character aboard a
+vehicle — directly, or through a chain of carriers, such as a rider on a horse
+in a wagon's traces — is at it wherever it is, on a map or on none
+(`reach.mjs` `aboard`, reading `lib/attachment.mjs`'s carrier chain).
+
 Places come in two shapes and the rule has two halves to match. A place with a
 **linked scene** IS a map, and being on that map — not the *active* map — is
 what reaches it. A place with **no linked scene** answers to a claim (your own
@@ -138,6 +143,14 @@ there steps over a place's: the roster a linked scene derives
 (`tokenSyncDelta`), the battlemap's size-by-creature scaling, and a
 formation's **Add to party**. A shrine standing in the market square is not
 the square's tenant and cannot join a marching order.
+
+**A deployed vehicle's token is one too.** `here.mjs` `standsAsPlace` takes a
+location's token or a vehicle deployed as a place (`lib/place.mjs`
+`isDeployed`; the deploy itself is `docs/vehicles/MODEL.md`, "Deployed as a
+place"), so its marker is found, walked to and stood beside like a
+location's, and `sceneOccupants` steps over it as it does a location's. When
+the party stands at both, `placeUnderParty` names the location: the wagon
+circled beside a town is where the goods are, the town is where the party is.
 
 **It keeps its place alive.** `pruneEmptyLocations` spares an empty place that
 has a token on any scene, hidden or not — a marker the Judge hid is a point of

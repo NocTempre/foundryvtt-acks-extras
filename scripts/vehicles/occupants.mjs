@@ -48,7 +48,7 @@ export function draftKindOf(actor) {
 
 /**
  * Everyone attached to this vehicle, weighed and labelled: the single feeder
- * for the sheet, `fillBuckets`, boarding and the formation's train. A
+ * for the sheet, the hold, boarding and the formation's train. A
  * specific actor costs its true mass; the vehicle's printed per-head rate
  * is the UNNAMED abstraction only. Crew bodies never charge the hold (RR p.
  * 316), but a non-motive role's gear does (`gearStone`, `cargoGear: true`).
@@ -57,7 +57,7 @@ export function draftKindOf(actor) {
  *
  * @param {Actor} vehicle
  * @returns {{actor, uuid, id, name, img, role, station, kind, bodies, stone,
- *   gearStone, cargoGear, qualified}[]}
+ *   gearStone, cargoGear, qualified, proficient}[]}
  */
 export function occupantsOf(vehicle) {
   const sys = vehicle?.system;
@@ -82,9 +82,28 @@ export function occupantsOf(vehicle) {
         cargoGear,
         // true / false / null — null means the seat asks no qualification.
         qualified: seatQualification(actor, role, station, sys),
+        // Whether this body is a full hand at a motive bench; null where no
+        // bench weighs it.
+        proficient: handProficiency(actor, role, station, sys),
       };
     }),
   );
+}
+
+/**
+ * Whether a vessel's crew member is a PROFICIENT hand — Seafaring at all
+ * (RR ch. 7) — the question the speed derivation weighs a body by. It is not
+ * the seat's qualification: an officer short of the rank their seat asks is
+ * still a proficient sailor. Null off a vessel and at a non-motive row
+ * (marines), where no bench weighs the body.
+ */
+export function handProficiency(actor, role, station, sys) {
+  if (role !== "crew" || sys?.kind !== "sea") return null;
+  if (!OFFICER_STATIONS.includes(station)) {
+    const row = (sys?.crew?.roles ?? []).find((r, i) => stationKeyOf(r, i) === station);
+    if (row && row.motive === false) return null;
+  }
+  return abilityRank(actor, "Seafaring", "kw:seafaring") >= 1;
 }
 
 /**
@@ -110,10 +129,10 @@ export { abilityRank } from "../lib/capabilities.mjs";
 /**
  * Whether this actor is qualified for the seat it occupies, or null when the
  * seat asks nothing (passengers, the team, cargo, non-motive crew such as
- * marines). RR ch. 3/7: Driving holds the reins; Seafaring 1 rows or sails
- * (an unproficient body counts as HALF a hand — the badge's meaning);
- * Seafaring 2 captains; a navigator needs Seafaring plus Navigation or
- * Pathfinding.
+ * marines). RR ch. 3/7: Driving holds the reins; Seafaring rows or sails (an
+ * unproficient body is weighed by the imported rate, stations.mjs
+ * `unproficientHand`, and the chip's badge flags it); a captain's seat asks a
+ * higher rank; a navigator needs Seafaring plus Navigation or Pathfinding.
  */
 export function seatQualification(actor, role, station, sys) {
   if (role !== "crew") return null;

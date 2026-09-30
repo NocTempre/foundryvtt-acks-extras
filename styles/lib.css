@@ -622,7 +622,7 @@ body .sheet.acks.actor-v2 .encumbrance-label {
 }
 
 /* The station chip (templates/lib/station-chip.hbs): one occupant as a compact
-   cell — portrait, name, sub-line, the half-hand badge. Shared by the vehicle
+   cell — portrait, name, sub-line, the unqualified badge. Shared by the vehicle
    sheet's station groups and the formation window's mount/train chips. */
 .acks-extras-station-chip {
   display: inline-flex;
@@ -642,7 +642,28 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   flex: 0 0 auto;
 }
 
-.acks-extras-station-chip-name {
+/* The name and the detach control are buttons, so the keyboard reaches them;
+   drawn as the text and the glyph they are rather than as core's buttons. */
+.acks-extras-station-chip .acks-extras-station-chip-name,
+.acks-extras-station-chip .acks-extras-station-chip-detach {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.acks-extras-station-chip .acks-extras-station-chip-name {
+  display: block;
+  min-width: 0;
+  text-align: start;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -654,8 +675,8 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   white-space: nowrap;
 }
 
-/* Unqualified for the seat: the whole chip dims a little and the half-hand
-   badge says why — the rule is a half-crew count, not a refusal. */
+/* Unqualified for the seat: the whole chip dims a little and the badge says
+   why — an unqualified hand still counts, for less, rather than being refused. */
 .acks-extras-station-chip.is-unqualified {
   opacity: 0.85;
 }

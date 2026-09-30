@@ -54,6 +54,7 @@ const SAMPLE_VOYAGES = {
     repair: { crewPerPoint: 4, seaFraction: 0.25 },
     rounding: { voyageMiles: 5, combatFeet: 20 },
     berth: { stone: 40 },
+    crew: { unproficientMissing: 0.75 },
   },
 };
 const registerSamples = () => {
@@ -289,10 +290,10 @@ assert.equal(bucketOf("cargo").members.length, 1, "actor-shaped freight shows in
 assert.equal(bucketOf("cargo").stone, 22, "10 of freight plus the 12-stone canoe");
 assert.equal(packed.pooled.used, 72, "10 freight + 12 canoe + 50 passenger, one pool on a wagon");
 
-/* --- a vessel berths her passengers but her hold still carries the boat --- */
+/* --- a vessel carries her passengers as cargo, and the lashed boat too ----- */
 const packShip = { kind: "sea", cargo: { capacityStone: 100, passengerStone: 50, passengers: 0 }, crew: { roles: [] } };
 packed = fillBuckets(packShip, packAboard.filter((o) => o.role !== "draft"), 10);
-assert.equal(packed.pooled.used, 22, "berthed passengers do not draw on the hold; lashed cargo does");
+assert.equal(packed.pooled.used, 72, "a passenger draws on a vessel's hold exactly as on a wagon's bed");
 
 /* --- what "crew" means is stated, and blank follows the kind -------------- */
 assert.equal(complementMeans({ kind: "land", crew: {} }), "driver");
@@ -491,3 +492,73 @@ assert.equal(fillBuckets(shortShip, [], 0).pooled.capacity, 100, "an unpriced tr
 registerSamples();
 
 console.log("test-vehicles: OK (trade credit, unnamed gear, unpriced degradation)");
+
+/* ========================================================================== */
+/*  One hold, the empty berths, and what an unproficient hand is worth        */
+/* ========================================================================== */
+import { holdFrom } from "../scripts/vehicles/hold.mjs";
+import { handsOf, unproficientHand } from "../scripts/vehicles/stations.mjs";
+
+registerSamples();
+
+/* --- freight, riders and passengers against one capacity ------------------ */
+let theHold = holdFrom(packWagon, { aboardStone: 10, occupants: packAboard });
+assert.equal(theHold.used, 72, "10 freight + 12 canoe + 50 passenger: the figure the land tiers are priced on");
+assert.equal(theHold.free, 28);
+assert.equal(theHold.over, false);
+assert.equal(theHold.cargoActorStone, 12);
+assert.equal(theHold.passengerStone, 50);
+assert.equal(theHold.pct, 72);
+const shipAboard = packAboard.filter((o) => o.role !== "draft");
+assert.equal(holdFrom(packShip, { aboardStone: 10, occupants: shipAboard }).used,
+  fillBuckets(packShip, shipAboard, 10).pooled.used, "the hold and the buckets give one answer");
+theHold = holdFrom(packWagon, { aboardStone: 120 });
+assert.equal(theHold.over, true, "a load past the capacity says so");
+assert.equal(theHold.free, -20);
+assert.equal(theHold.pct, 100, "the bar stops at full; the number says how far over");
+
+/* --- a short-handed vessel's empty berths grow the hold; stacks buy them back */
+theHold = holdFrom(shortShip, {});
+assert.equal(theHold.capacity, 260, "four empty berths at the invented rate grow the hold");
+assert.equal(theHold.marineGear, 12, "and the abstract marines' gear is in it");
+theHold = holdFrom(shortShip, { occupants: [{ role: "crew", station: "rowers", name: "Rower Gang", bodies: 3 }] });
+assert.equal(theHold.capacity, 140, "a named stack of three rowers buys three of those berths back");
+
+/* --- an unproficient body is worth less at a motive bench, whole elsewhere - */
+const greenBench = [
+  { role: "crew", station: "rowers", name: "Aella", proficient: true },
+  { role: "crew", station: "rowers", name: "Landsman", proficient: false },
+  { role: "crew", station: "rowers", name: "Pressed Gang", bodies: 2, proficient: false },
+];
+const worth = unproficientHand();
+assert.equal(worth, 0.25, "the imported rate is the crew a hand counts MISSING, taken from one");
+const weighed = 1 + 3 * worth;
+assert.equal(handsOf(greenBench), weighed, "each unproficient body is weighed, a stack body by body");
+assert.equal(handsOf([{ role: "crew", name: "Unsaid" }]), 1, "a row that does not say counts whole");
+eff = effectiveCrewRoles(galleySys, greenBench);
+assert.equal(eff[1].aboard, weighed, "the speed derivation sees what the bench is worth");
+assert.equal(eff[1].heads, 4, "a repair gang or a berth still counts four bodies");
+assert.equal(crewFraction(eff), Math.min(2 / 3, weighed / 4), "the weighed bench can be the one that governs");
+eff = effectiveCrewRoles(galleySys, [{ role: "crew", station: "marines", name: "Recruit", proficient: false }]);
+assert.equal(eff[2].aboard, 2, "a non-motive seat is never weighed");
+st = stationsFor(galleySys, greenBench);
+assert.equal(g("role:rowers").filled, 4, "the seats count bodies");
+assert.equal(g("role:rowers").effective, weighed, "and the group states what they are worth beside them");
+assert.equal(g("role:rowers").short, false, "four bodies fill four seats: worth is a speed question, not a seat one");
+assert.equal(g("role:marines").effective, g("role:marines").filled, "a non-motive group's worth is its heads");
+assert.equal(g("role:rowers").unweighed, false, "a priced bench is weighed, not flagged");
+
+/* --- unimported, nothing weighs them: every body counts whole, and says so - */
+resetTables();
+assert.equal(unproficientHand(), null, "no voyage tables, no rate — never a remembered one");
+assert.equal(handsOf(greenBench), 4, "an unweighed bench counts every body whole");
+eff = effectiveCrewRoles(galleySys, greenBench);
+assert.equal(eff[1].aboard, 4, "the speed derivation sees the whole bench");
+st = stationsFor(galleySys, greenBench);
+assert.equal(g("role:rowers").effective, g("role:rowers").filled, "the group states no lesser worth");
+assert.equal(g("role:rowers").unweighed, true, "and flags the hands nothing could weigh");
+assert.equal(g("role:marines").unweighed, false, "a non-motive group never asks");
+assert.equal(stationsFor(galleySys, [{ role: "crew", station: "rowers", name: "Aella", proficient: true }])
+  .find((x) => x.key === "role:rowers").unweighed, false, "a proficient bench has nothing to weigh");
+
+console.log("test-vehicles: OK (one hold, empty berths, weighed hands, unweighed hands)");

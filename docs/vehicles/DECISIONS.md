@@ -46,6 +46,9 @@ both has one honest way to get them.
 
 ## 2026-08-15 — Buckets are derived per vehicle, never assumed per family
 
+**Superseded in part (2026-09-30, "One hold, and a vessel's passengers are
+in it"):** a vessel carries her passengers as cargo too.
+
 The owner's pitch was that a wagon pools cargo with passengers. RAW is richer
 and the model follows RAW: the pooling is real, but the exchange rate is
 PRINTED PER VEHICLE and is not linear (a small palanquin's first berth is 15
@@ -102,6 +105,9 @@ statement stays authoritative, and what the named would justify is shown
 BESIDE it with provenance).
 
 ## 2026-08-28 — Station cells are chips, not follower cards
+
+**Badge superseded (2026-09-30, "An unproficient hand is weighed, and the
+badge says why without a number").**
 
 The plan said follower cards; the card is the printed quarter-page — ability
 grid, attack line — and a galley seats dozens. A bench of cards is a page of
@@ -297,3 +303,98 @@ The surface therefore edits exactly what has no other home: **training** and
 **mountability**. Both are separate questions from each other and from load.
 (Where that surface lives was re-ruled the same day —
 `docs/monsters/DECISIONS.md`.)
+
+## 2026-09-30 — One hold, and a vessel's passengers are in it
+
+Four consumers summed four different loads. The sheet's bar counted freight,
+lashed cargo, marines' gear and passengers; boarding's room check left out
+the lashed cargo and the gear; the party's pace priced a wagon's speed tier
+on its inventory alone; and `fillBuckets` berthed a vessel's passengers apart
+from her hold (the 2026-08-15 ruling) although the 2026-08-28 "Weights are
+true" entry had verified against the page that a passenger rides as cargo at
+the per-head rate. The evidence was already in this file; the pooling
+function never followed it.
+
+Ruled: `hold.mjs` answers for all of them (MODEL.md, The hold), and a
+passenger draws on the hold on every vehicle. `fillBuckets` keeps the bucket
+membership and now agrees on the pool; `poolsPassengersWithCargo` answers
+true everywhere but stays a function, because it is published on the API.
+The land speed tier is chosen on the whole load, riders included — which is
+what the printed tiers price. The vehicle's own passenger rate became an
+optional field (blank defers to the imported berth), so a Judge can state a
+palanquin's without the berth being wrong for a ship.
+
+Rejected: leaving each consumer its own sum (they disagreed on screen the
+moment anyone boarded); making the pool a per-vehicle switch (both chapters
+charge a passenger against cargo, so the switch would only ever be wrong).
+
+## 2026-09-30 — An unproficient hand is weighed, and the badge says why without a number
+
+Since the stations shipped, the station chip's badge had stated the printed
+rate in its lang string, while `effectiveCrewRoles` counted every named body
+whole: the sheet stated a rule the speed never applied, and shipped a page
+value to do it. Ruled: the weighing is real, and the rate arrives like every
+other sea figure — a `voyagesProse` capture (RR p. 315, the crew an
+unproficient character counts MISSING), assembled into the `voyages`
+document's `crew` table and read by stations.mjs `unproficientHand` for both
+the speed derivation and the group's stated effective strength. Unimported,
+every body counts whole and the group says its hands are unweighed; the
+badge names the missing proficiency, never a number. `effectiveCrewRoles`
+hands on `aboard` (what the benches are worth) and `heads` (bodies, for a
+repair gang or a berth), because a landsman rows badly but still sleeps
+somewhere. Rejected: removing the badge's claim and leaving the arithmetic
+whole (the rule exists, RR ch. 7, and a bench of landsmen is not a crew); a
+module constant for the rate (a page value in shipped code, which the IP
+doctrine forbids however small).
+
+## 2026-09-30 — A vehicle deploys as a place by composition, and strikes by its own record
+
+"Deploying" a wagon or a ship as a location was asked for. Ruled: deploying
+composes what the place layer already has — the storage provider flag, the
+place tree's parent, and a map marker that is the vehicle's own linked token
+— and writes one record naming what it did (`tokenUuid` of a marker it
+created, `madeProvider`, `priorParent`). Striking reverses exactly that: a
+marker the Judge placed by hand stays, a vehicle that was a provider before
+stays one, and one with goods kept aboard stays a provider whoever turned it
+on. The parent defaults to where the party carrying the vehicle stands, and
+a location there outranks the deployed vehicle as the party's place — the
+wagon is where their goods are, the town is where they are. Being carried
+by a place counts as being at it, deployed or not.
+
+Rejected: minting a location per deployment (a second document to keep in
+step with the vehicle, orphaned the moment either is deleted — the wagon IS
+the place); changing the vehicle's type (loses its sheet and its speed); an
+unlinked marker (reach matches by base actor id either way, but a linked
+token makes the marker's actor the vehicle itself, so the map and the Place
+tab never need syncing). A player's seat cannot create or delete tokens, so
+the marker goes through the GM relay, which authorizes the attested sender
+against the vehicle and never trusts the payload.
+
+## 2026-09-30 — Freight leaves a vehicle as a move, not a copy
+
+Core's cross-actor item drop creates a copy and leaves the original, which on
+a wagon doubles the load and on a market hold duplicates merchandise. Ruled:
+an item dragged out of a vehicle onto another actor's sheet is handed over
+(`handOver`, which drops attribution and requires the seat to own both ends),
+and a drop onto the vehicle sheet from another actor moves too. A location
+target is excluded: its own drop stores goods under whose they are, and
+pre-empting it left embedded items its Storage view could not list.
+
+## 2026-09-30 — The sheet is tabbed; hints say what the field does
+
+The window had grown into one column of nine fieldsets with the hold, the
+hull and the conditions below the fold. Ruled: five tabs under a pinned
+header (MODEL.md, The sheet), each tab its own part-root scroller because
+fields submit on change. The header carries the states that matter on any
+tab — deployed, sinking, over capacity, short-handed — so a Judge on the
+Details tab still sees the ship is going down. A vessel's printed oar, sail
+and voyage speeds gained inputs there: the schema has held them since the
+vessels shipped, but only an import could fill them, so a ship made by hand
+had no speed at all.
+
+The same pass rewrote eight hints that stated printed values (the stowed
+mast's cost, the hunger fractions, the draft substitutions, the road
+multiplier Driving earns, the Seafaring ranks, the voyage and march day
+lengths, the pairing of the load tiers, the crew-shortfall arithmetic) to say
+what the field does, with the reference kept; the arithmetic they described
+still runs, where the table or the constant (ROADMAP) says.

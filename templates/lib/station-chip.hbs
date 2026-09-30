@@ -1,18 +1,19 @@
 {{! One occupant as a compact chip: portrait, name, a sub-line, and the
-    half-hand badge when the seat asks a qualification the occupant lacks.
+    unqualified badge when the seat asks a qualification the occupant lacks.
     Shared by the vehicle sheet's station groups and the formation window's
     mount/train chips. Hosts register the two actions the chip names:
     stationChipOpen (open the actor) and stationChipDetach (unseat/unhitch/
     dismount — the host decides which word it is). }}
 <div class="acks-extras-station-chip{{#if (eq qual false)}} is-unqualified{{/if}}" data-uuid="{{uuid}}">
   <img class="acks-extras-station-chip-img" src="{{img}}" alt="">
-  <a class="acks-extras-station-chip-name" data-action="stationChipOpen" data-uuid="{{uuid}}">{{name}}</a>
+  <button type="button" class="acks-extras-station-chip-name" data-action="stationChipOpen" data-uuid="{{uuid}}">{{name}}</button>
   {{#if sub}}<span class="acks-extras-station-chip-sub">{{sub}}</span>{{/if}}
   {{#if (eq qual false)}}
-    <span class="acks-extras-station-chip-qual" data-tooltip="{{localize 'ACKS-LIB.stationChip.halfHand'}}">&frac12;</span>
+    <span class="acks-extras-station-chip-qual" role="img" aria-label="{{localize 'ACKS-LIB.stationChip.unqualified'}}"
+          data-tooltip="{{localize 'ACKS-LIB.stationChip.unqualified'}}"><i class="fa-solid fa-user-graduate" inert></i></span>
   {{/if}}
   {{#if editable}}
-    <a class="acks-extras-station-chip-detach" data-action="stationChipDetach" data-uuid="{{uuid}}"
-       data-tooltip="{{detachTooltip}}"><i class="fa-solid fa-xmark"></i></a>
+    <button type="button" class="acks-extras-station-chip-detach" data-action="stationChipDetach" data-uuid="{{uuid}}"
+       aria-label="{{detachTooltip}}" data-tooltip="{{detachTooltip}}"><i class="fa-solid fa-xmark" inert></i></button>
   {{/if}}
 </div>

@@ -56,10 +56,17 @@
  *
  * The `acks-extras.group` actor is neither of them: it is a troop stack, not a
  * company of player characters.
+ *
+ * ABOARD IS THERE. A character riding in a place — a passenger in a wagon
+ * deployed as a camp, a hand at a moored ship's bench — stands at it however
+ * the map is laid out, because the attachment says so (`lib/attachment.mjs`):
+ * the carrier chain is walked, so a rider whose horse is harnessed to the
+ * wagon is in the wagon too.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { sceneOfLocation } from "./scene-link.mjs";
 import { libStorage as storage } from "../lib/util.mjs";
+import { carrierChain } from "../lib/attachment.mjs";
 import { getFormations, getFormationForActor } from "../formation/formation-model.mjs";
 import { partyPoint } from "../formation/zones.mjs";
 import { tokenCenter, placeReachesSpot, placeStandsOn } from "./here.mjs";
@@ -267,11 +274,21 @@ function companionOwns(actor, place) {
 }
 
 /**
+ * Is this character carried by this place, directly or through a chain of
+ * carriers? Matched by the place's base actor id, the id every one of its
+ * markers carries.
+ */
+export function aboard(actor, place) {
+  if (!actor || !place?.id) return false;
+  return carrierChain(actor).some((carrier) => carrier?.id === place.id);
+}
+
+/**
  * Is this place where the character is standing?
  *
  * The presence half of `depositReach` alone, without the claim half: the
- * place's linked scene is one this character stands on, or its own token is
- * within reach of where they stand.
+ * character is aboard it, the place's linked scene is one this character
+ * stands on, or its own token is within reach of where they stand.
  *
  * @param {object} [opts]
  * @param {{mine: Map, placedOn: Map}} [opts.scan] one world token pass
@@ -279,6 +296,7 @@ function companionOwns(actor, place) {
  */
 export function standingAt(actor, place, { scan } = {}) {
   if (!actor || !place) return false;
+  if (aboard(actor, place)) return true;
   const spots = standingSpots(actor, scan);
   const linked = sceneOfLocation(place);
   if (linked) return spots.some((spot) => spot.scene.id === linked.id);
@@ -338,6 +356,9 @@ export function depositReach(actor, place, { scan } = {}) {
   // balance the sweep moved.
   const api = storage();
   if (api?.vaultOwnerUuid?.(place) === actor.uuid) return { can: true, reason: null, scene: null };
+
+  // Riding in it is being there, whatever map it is or is not on.
+  if (aboard(actor, place)) return { can: true, reason: null, scene: null };
 
   const linked = sceneOfLocation(place);
   if (linked) {
