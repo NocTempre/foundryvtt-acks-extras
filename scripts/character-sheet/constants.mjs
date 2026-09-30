@@ -26,7 +26,7 @@ export const FOLD_FLAG = "sheetFold";
 export const TRAINING_VIEW_FLAG = "trainingView";
 
 /** The tab keys, in the one order they ever appear. */
-export const TAB_ORDER = Object.freeze(["rolls", "abilities", "equipment", "stats", "class", "magic", "followers", "notes", "effects"]);
+export const TAB_ORDER = Object.freeze(["rolls", "abilities", "equipment", "stats", "class", "magic", "trade", "followers", "notes", "effects"]);
 
 /** The five saving throws, in the printed order, keyed as the released system stores them. */
 export const SAVE_KEYS = Object.freeze(["paralysis", "death", "blast", "implements", "spell"]);

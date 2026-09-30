@@ -6,12 +6,12 @@
  * The target is a stored field (`system.market.tillTargetGp`), not a buried
  * derivation. When unset, the first refresh derives it — urban families ×
  * monthly family income — and writes it back, so the sheet's number becomes
- * the truth and the formula is only ever a default.
+ * the truth and the formula is only ever a default. A market with no stated
+ * `urbanFamilies` has nothing to derive from: its target reads 0 and nothing
+ * is written, so the derivation happens once the families are entered.
  *
  * Family income comes from an imported `economy` table when the GM's books
- * have supplied one, else a placeholder world setting. Families likewise:
- * the stated `urbanFamilies` wins; without one, a placeholder ladder per
- * market class stands in (see PLACEHOLDER_FAMILIES).
+ * have supplied one, else a placeholder world setting.
  */
 import { MODULE_ID } from "../constants.mjs";
 import { getSetting } from "../settings.mjs";
@@ -22,29 +22,32 @@ import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { marketMonthStart } from "./trade.mjs";
 import { now } from "../../henchmen/time.mjs";
 
-/** Placeholder families per market class — a round invented ladder, NOT the
- * book's settlement bands; it exists only until `urbanFamilies` is entered. */
-const PLACEHOLDER_FAMILIES = { 1: 20000, 2: 5000, 3: 1250, 4: 300, 5: 75, 6: 20 };
-
 /** The market's monthly family income in gp: imported RAW when present. */
 export function familyIncomeGp() {
   const table = optTable("economy", "familyIncome");
   const raw = Number(table?.rows?.[0]?.gpPerMonth);
   if (Number.isFinite(raw) && raw > 0) return raw;
-  return Number(getSetting("marketsFamilyIncomeGp")) || 10;
+  const set = Number(getSetting("marketsFamilyIncomeGp"));
+  return Number.isFinite(set) && set > 0 ? set : 0;
 }
 
+/** Whether the till target is a stored field, as opposed to still waiting to be derived. */
+const hasStoredTarget = (market) => {
+  const stored = Number(market.tillTargetGp);
+  return Number.isFinite(stored) && stored >= 0 && market.tillTargetGp !== null;
+};
+
 /** The till target in gp — the stored field, deriving (and persisting) once
- * when unset. Returns 0 for a place with no market. */
+ * when unset and the market's urban families are stated. Returns 0, writing
+ * nothing, for a place with no market or no stated families to derive from. */
 export async function tillTargetGp(location) {
   const market = location.system?.market;
   if (!market || location.system?.marketClass == null) return 0;
-  const stored = Number(market.tillTargetGp);
-  if (Number.isFinite(stored) && stored >= 0 && market.tillTargetGp !== null) return stored;
-  const families = Number(market.urbanFamilies) > 0
-    ? Number(market.urbanFamilies)
-    : PLACEHOLDER_FAMILIES[location.system.marketClass] ?? 100;
-  const target = Math.round(families * familyIncomeGp());
+  if (hasStoredTarget(market)) return Number(market.tillTargetGp);
+  const families = Number(market.urbanFamilies);
+  const income = familyIncomeGp();
+  if (!(families > 0) || !(income > 0)) return 0;
+  const target = Math.round(families * income);
   await location.update({ "system.market.tillTargetGp": target });
   return target;
 }
@@ -71,6 +74,9 @@ export async function refreshTill(location, { force = false } = {}) {
   if (!market || location.system?.marketClass == null) return { refreshed: false };
   const monthStart = marketMonthStart(now());
   if (!force && Number(market.tillRefreshTime) >= monthStart) return { refreshed: false };
+  // No target and nothing to derive one from: leave the month unwatermarked so the
+  // refresh runs as soon as the families are entered.
+  if (!hasStoredTarget(market) && !(Number(market.urbanFamilies) > 0)) return { refreshed: false };
   const targetGp = await tillTargetGp(location);
   const shortCp = targetGp * 100 - tillCoinCp(location);
   if (shortCp > 0) {

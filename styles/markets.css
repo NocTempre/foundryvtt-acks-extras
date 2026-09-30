@@ -73,3 +73,373 @@
 .acks-extras-markets-queue > li:nth-child(odd) {
   background: var(--acks-tint);
 }
+
+/* The acting-trader picker rides the toolbar as one labelled control. */
+.acks-extras-markets-trader {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.acks-extras-markets-party {
+  padding: 0.2rem 0;
+}
+
+/* A pinned demand chip is marked so the Judge can tell an override from the
+   base at a glance. */
+.acks-extras-markets-demand-chip.pinned {
+  border-style: solid;
+  font-weight: bold;
+}
+
+/* The Demand Generator. The state form submits on change and re-renders, so
+   the body is the scroll part and the footer stays pinned beneath it. Sizes
+   that live in boxes are em, so the type knob reaches the boxes as well as the
+   glyphs. */
+.acks-extras-markets-generator .window-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.acks-extras-markets-generator-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-markets-generator-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.25em;
+}
+
+.acks-extras-markets-generator-footer {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5em;
+  padding-top: 0.5em;
+}
+
+.acks-extras-markets-generator .hint {
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-body);
+  line-height: var(--acks-lh-snug);
+  margin: 2px 0;
+}
+
+.acks-extras-markets-generator-notice {
+  margin: 0.25em 0;
+  padding: 0.25em 0.5em;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  border-radius: 3px;
+}
+
+.acks-extras-markets-generator-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  align-items: flex-end;
+}
+
+.acks-extras-markets-generator-field {
+  flex: 1 1 10em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125em;
+  min-width: 6em;
+}
+
+.acks-extras-markets-generator-field > span {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-markets-generator-subhead {
+  margin: 0.5em 0 0.25em;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-markets-generator-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25em 1em;
+}
+
+.acks-extras-markets-generator-race {
+  text-transform: capitalize;
+}
+
+.acks-extras-markets-generator-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin: 0.25em 0;
+}
+
+.acks-extras-markets-generator-counts {
+  margin: 0.25em 0;
+  font-weight: bold;
+}
+
+.acks-extras-markets-generator-picks {
+  list-style: none;
+  margin: 0.25em 0;
+  padding: 0;
+}
+
+.acks-extras-markets-generator-picks > li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.1em 0.25em;
+}
+
+.acks-extras-markets-generator-picks > li:nth-child(odd) {
+  background: var(--acks-tint);
+}
+
+/* Remove is a button, so the keyboard reaches it and a screen reader hears its
+   label; the chrome is stripped so it reads as the glyph it is. */
+.acks-extras-markets-generator-ctl {
+  flex: 0 0 auto;
+  width: 1.6em;
+  height: 1.6em;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.acks-extras-markets-generator-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.acks-extras-markets-generator-table th,
+.acks-extras-markets-generator-table td {
+  padding: 0.1em 0.35em;
+  text-align: center;
+}
+
+.acks-extras-markets-generator-table th:first-child,
+.acks-extras-markets-generator-table td:first-child {
+  text-align: left;
+}
+
+.acks-extras-markets-generator-table input[type="number"] {
+  width: 4.5em;
+  text-align: center;
+}
+
+.acks-extras-markets-generator-base {
+  font-weight: bold;
+}
+
+/* The market report sheet: a plain window, not a form. The body scrolls inside
+   the window; type answers to the ramp, boxes to em so the knob reaches both. */
+
+.acks-extras-markets-report-sheet .window-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.acks-extras-markets-report-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-markets-report-header {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+  margin-bottom: 0.25em;
+}
+
+.acks-extras-markets-report-header .profile-img {
+  width: 3em;
+  height: 3em;
+  object-fit: cover;
+}
+
+.acks-extras-markets-report-headmain {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.acks-extras-markets-report-title {
+  margin: 0;
+  font-size: 1.25em;
+}
+
+.acks-extras-markets-report-line {
+  margin: 0;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-markets-report-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.25em;
+}
+
+.acks-extras-markets-report-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25em 0.75em;
+  margin: 0.5em 0;
+}
+
+.acks-extras-markets-report-facts dt {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-markets-report-facts dd {
+  margin: 0;
+}
+
+.acks-extras-markets-report-subhead {
+  margin: 0.75em 0 0.25em;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-markets-report-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.acks-extras-markets-report-table th,
+.acks-extras-markets-report-table td {
+  padding: 0.2em 0.35em;
+  text-align: start;
+  font-weight: normal;
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-markets-report-table thead th {
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-markets-report-table .acks-extras-markets-report-num {
+  text-align: end;
+  width: 6em;
+}
+
+.acks-extras-markets-report-table input[type="number"] {
+  width: 5em;
+}
+
+.acks-extras-markets-report-hint {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-markets-report-notes {
+  display: block;
+}
+
+.acks-extras-markets-report-notes textarea {
+  width: 100%;
+  min-height: 6em;
+  resize: vertical;
+}
+
+.acks-extras-markets-report-save {
+  margin-top: 0.35em;
+}
+
+/* A caption a control's own label already names: read by a screen reader,
+   drawn nowhere. */
+.acks-extras-markets-report-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.acks-extras-markets-report-prose {
+  overflow-wrap: anywhere;
+}
+
+/* The Trade tab on the character sheet: reports and the two-market compare.
+   The rows and rules are the sheet's own classes; only what they lack is here.
+   Type answers to the ramp; boxes are em. */
+
+.acks-extras-markets-trader-report {
+  align-items: flex-start;
+}
+
+.acks-extras-markets-trader-beliefs summary {
+  cursor: pointer;
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras-markets-trader-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25em;
+  margin-top: 0.25em;
+}
+
+.acks-extras-markets-trader-pickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em 1em;
+}
+
+.acks-extras-markets-trader-pickers label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125em;
+  flex: 1 1 10em;
+  min-width: 0;
+}
+
+.acks-extras-markets-trader-pickers span {
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras-markets-trader-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-markets-trader-table th,
+.acks-extras-markets-trader-table td {
+  padding: 0.2em 0.35em;
+  text-align: start;
+  font-weight: normal;
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-markets-trader-table thead th {
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras-markets-trader-table td {
+  text-align: end;
+}

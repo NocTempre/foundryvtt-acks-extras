@@ -1,0 +1,73 @@
+<div class="acks-extras-markets-report-root">
+  <header class="acks-extras-markets-report-header">
+    <img class="profile-img" src="{{item.img}}" alt="" />
+    <div class="acks-extras-markets-report-headmain">
+      <h2 class="acks-extras-markets-report-title">{{item.name}}</h2>
+      <p class="acks-extras-markets-report-line">
+        {{#if marketLinkHTML}}{{{marketLinkHTML}}}{{else}}{{marketName}}{{/if}}
+      </p>
+    </div>
+  </header>
+
+  <div class="acks-extras-markets-report-body">
+    <dl class="acks-extras-markets-report-facts">
+      <dt>{{localize "ACKS-MARKETS.report.field.when"}}</dt>
+      <dd>{{dayLabel}}</dd>
+      <dt>{{localize "ACKS-MARKETS.report.field.assessor"}}</dt>
+      <dd>{{#if assessorName}}{{assessorName}}{{else}}—{{/if}}</dd>
+      <dt>{{localize "ACKS-MARKETS.report.field.outcome"}}</dt>
+      <dd>
+        {{#if isGM}}
+        <label class="acks-extras-markets-report-inline">
+          <span class="acks-extras-markets-report-sr">{{localize "ACKS-MARKETS.report.field.outcome"}}</span>
+          <select data-report-outcome>
+            {{#each outcomeChoices}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        {{else}}{{outcomeLabel}}{{/if}}
+      </dd>
+    </dl>
+
+    <h3 class="acks-extras-markets-report-subhead">{{localize "ACKS-MARKETS.report.field.beliefs"}}</h3>
+    {{#if beliefs.length}}
+    <table class="acks-extras-markets-report-table">
+      <thead>
+        <tr>
+          <th scope="col">{{localize "ACKS-MARKETS.report.field.good"}}</th>
+          <th scope="col">{{localize "ACKS-MARKETS.report.field.dm"}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each beliefs}}
+        <tr>
+          <th scope="row">{{label}}</th>
+          <td class="acks-extras-markets-report-num">
+            {{#if @root.isGM}}
+            <label class="acks-extras-markets-report-inline">
+              <span class="acks-extras-markets-report-sr">{{label}}</span>
+              <input type="number" step="1" value="{{dm}}" data-report-dm data-index="{{index}}">
+            </label>
+            {{else}}{{dmLabel}}{{/if}}
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="acks-extras-markets-report-hint">{{localize "ACKS-MARKETS.report.noBeliefs"}}</p>
+    {{/if}}
+
+    <h3 class="acks-extras-markets-report-subhead">{{localize "ACKS-MARKETS.report.field.notes"}}</h3>
+    {{#if canEditNotes}}
+    <label class="acks-extras-markets-report-notes">
+      <span class="acks-extras-markets-report-sr">{{localize "ACKS-MARKETS.report.field.notes"}}</span>
+      <textarea data-report-notes rows="6">{{notesText}}</textarea>
+    </label>
+    <button type="button" class="acks-extras-markets-report-save" data-action="saveNotes">
+      <i class="fa-solid fa-floppy-disk" inert></i> {{localize "ACKS-MARKETS.report.saveNotes"}}
+    </button>
+    {{else}}
+    <div class="acks-extras-markets-report-prose">{{{notesHTML}}}</div>
+    {{/if}}
+  </div>
+</div>

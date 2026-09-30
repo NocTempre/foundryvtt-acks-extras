@@ -1,0 +1,188 @@
+<div class="acks-extras-merchandise-root {{#if editable}}acks-extras-merchandise-editable{{/if}}">
+<header class="acks-extras-merchandise-header">
+  <img class="profile-img" src="{{item.img}}" data-edit="img" data-action="editImage" alt="{{item.name}}" />
+  <div class="acks-extras-merchandise-headmain">
+    <input name="name" type="text" value="{{item.name}}" aria-label="{{localize 'ACKS-MARKETS.merchandise.field.name'}}"
+           placeholder="{{localize 'ACKS-MARKETS.merchandise.field.name'}}" {{#unless editable}}disabled{{/unless}} />
+  </div>
+</header>
+
+<div class="acks-extras-merchandise-body">
+
+  <fieldset>
+    <legend>{{localize 'ACKS-MARKETS.merchandise.legend.identity'}}</legend>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.key'}}</label>
+      <input type="text" name="system.key" value="{{system.key}}" data-dtype="String" {{#unless editable}}disabled{{/unless}} />
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.key'}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.tier'}}</label>
+      <select name="system.tier" {{#unless editable}}disabled{{/unless}}>
+        {{#each tierChoices}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.tier'}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.container'}}</label>
+      <input type="text" name="system.container" value="{{system.container}}" data-dtype="String" {{#unless editable}}disabled{{/unless}} />
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.container'}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-MARKETS.merchandise.legend.prices'}}</legend>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.pricePerStoneGp'}}</label>
+      <input type="number" step="any" name="system.pricePerStoneGp" value="{{system.pricePerStoneGp}}" data-dtype="Number" {{#unless editable}}disabled{{/unless}} />
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.pricePerStoneGp'}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.priceStepGp'}}</label>
+      <input type="number" step="any" name="system.priceStepGp" value="{{system.priceStepGp}}" data-dtype="Number" {{#unless editable}}disabled{{/unless}} />
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.priceStepGp'}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-MARKETS.merchandise.legend.dailyStones'}}</legend>
+    <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.dailyStones'}}</p>
+    <div class="acks-extras-merchandise-grid">
+      {{#each dailyStones}}
+      <label class="acks-extras-merchandise-cell">
+        <span>{{label}}</span>
+        <input type="number" step="any" name="system.dailyStones.{{index}}" value="{{value}}" data-dtype="Number" {{#unless @root.editable}}disabled{{/unless}} />
+      </label>
+      {{/each}}
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-MARKETS.merchandise.legend.environment'}}</legend>
+    <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.environment'}}</p>
+    <h4 class="acks-extras-merchandise-subhead">{{localize 'ACKS-MARKETS.merchandise.legend.age'}}</h4>
+    <div class="acks-extras-merchandise-grid">
+      {{#each ageColumns}}
+      <label class="acks-extras-merchandise-cell">
+        <span>{{label}}</span>
+        <input type="number" step="0.5" name="system.environment.{{key}}" value="{{value}}" data-dtype="Number" {{#unless @root.editable}}disabled{{/unless}} />
+      </label>
+      {{/each}}
+    </div>
+    <h4 class="acks-extras-merchandise-subhead">{{localize 'ACKS-MARKETS.merchandise.legend.terrain'}}</h4>
+    <div class="acks-extras-merchandise-grid">
+      {{#each terrainColumns}}
+      <label class="acks-extras-merchandise-cell">
+        <span>{{label}}</span>
+        <input type="number" step="0.5" name="system.environment.{{key}}" value="{{value}}" data-dtype="Number" {{#unless @root.editable}}disabled{{/unless}} />
+      </label>
+      {{/each}}
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-MARKETS.merchandise.legend.racial'}}
+      <button type="button" class="acks-extras-merchandise-ctl" data-action="racialAdd"
+              aria-label="{{localize 'ACKS-MARKETS.merchandise.racial.add'}}" data-tooltip="{{localize 'ACKS-MARKETS.merchandise.racial.add'}}"><i class="fa-solid fa-plus" inert></i></button></legend>
+    <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.racial'}}</p>
+    {{#unless racialRows.length}}<p class="hint">{{localize 'ACKS-MARKETS.merchandise.racial.none'}}</p>{{/unless}}
+    {{#each racialRows}}
+    <div class="acks-extras-merchandise-row">
+      <input type="text" name="racialRows.{{index}}.race" value="{{race}}" data-dtype="String"
+             aria-label="{{localize 'ACKS-MARKETS.merchandise.racial.race'}}" placeholder="{{localize 'ACKS-MARKETS.merchandise.racial.race'}}" {{#unless @root.editable}}disabled{{/unless}} />
+      <input type="number" step="0.5" name="racialRows.{{index}}.value" value="{{value}}" data-dtype="Number"
+             aria-label="{{localize 'ACKS-MARKETS.merchandise.racial.value'}}" {{#unless @root.editable}}disabled{{/unless}} />
+      <button type="button" class="acks-extras-merchandise-ctl" data-action="racialDelete" data-race="{{race}}"
+              aria-label="{{localize 'ACKS-MARKETS.merchandise.racial.remove'}}" data-tooltip="{{localize 'ACKS-MARKETS.merchandise.racial.remove'}}"><i class="fa-solid fa-trash" inert></i></button>
+    </div>
+    {{/each}}
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-MARKETS.merchandise.legend.random'}}</legend>
+    <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.random'}}</p>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.randomTable'}}</label>
+      <select name="system.random.table" {{#unless editable}}disabled{{/unless}}>
+        {{#each randomTableChoices}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </div>
+    <div class="acks-extras-merchandise-grid">
+      <label class="acks-extras-merchandise-cell">
+        <span>{{localize 'ACKS-MARKETS.merchandise.field.randomMin'}}</span>
+        <input type="number" step="1" name="system.random.min" value="{{system.random.min}}" data-dtype="Number" {{#unless editable}}disabled{{/unless}} />
+      </label>
+      <label class="acks-extras-merchandise-cell">
+        <span>{{localize 'ACKS-MARKETS.merchandise.field.randomMax'}}</span>
+        <input type="number" step="1" name="system.random.max" value="{{system.random.max}}" data-dtype="Number" {{#unless editable}}disabled{{/unless}} />
+      </label>
+    </div>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.randomSpecial'}}</label>
+      <input type="checkbox" name="system.random.special" {{checked system.random.special}} {{#unless editable}}disabled{{/unless}} />
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.randomSpecial'}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-MARKETS.merchandise.legend.flags'}}</legend>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.tariffExempt'}}</label>
+      <input type="checkbox" name="system.tariffExempt" {{checked system.tariffExempt}} {{#unless editable}}disabled{{/unless}} />
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.tariffExempt'}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.seasonalPrice'}}</label>
+      <input type="checkbox" name="system.seasonalPrice" {{checked system.seasonalPrice}} {{#unless editable}}disabled{{/unless}} />
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.seasonalPrice'}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-MARKETS.merchandise.legend.names'}}</legend>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.aliases'}}</label>
+      <input type="text" name="system.aliases" value="{{aliasesText}}" data-dtype="String" {{#unless editable}}disabled{{/unless}} />
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.aliases'}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.lootKinds'}}</label>
+      <input type="text" name="system.lootKinds" value="{{lootKindsText}}" data-dtype="String" {{#unless editable}}disabled{{/unless}} />
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.lootKinds'}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.itemCategories'}}</label>
+      <input type="text" name="system.itemCategories" value="{{itemCategoriesText}}" data-dtype="String" {{#unless editable}}disabled{{/unless}} />
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.itemCategories'}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-MARKETS.merchandise.legend.source'}}</legend>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.sourceBook'}}</label>
+      <input type="text" name="system.source.book" value="{{system.source.book}}" data-dtype="String" {{#unless editable}}disabled{{/unless}} />
+    </div>
+    <div class="form-group">
+      <label>{{localize 'ACKS-MARKETS.merchandise.field.sourcePage'}}</label>
+      <input type="text" name="system.source.page" value="{{system.source.page}}" data-dtype="String" {{#unless editable}}disabled{{/unless}} />
+      <p class="hint">{{localize 'ACKS-MARKETS.merchandise.hint.sourcePage'}}</p>
+    </div>
+  </fieldset>
+
+  <div class="form-group stacked">
+    <label>{{localize 'ACKS-MARKETS.merchandise.legend.description'}}</label>
+    {{!-- The sheet's ONLY render of system.description: a second control of the
+          same name in one form is last-write-wins, and a prose-mirror has no
+          `disabled`, so read-only falls through to the enriched render. --}}
+    {{#if editable}}
+    <prose-mirror class="acks-extras-merchandise-description content-sized" name="system.description"
+                  value="{{system.description}}" toggled data-document-uuid="{{item.uuid}}"
+                  style="--min-height: 4rem;">{{{descriptionHTML}}}</prose-mirror>
+    {{else}}
+    <div class="acks-extras-merchandise-description">{{{descriptionHTML}}}</div>
+    {{/if}}
+  </div>
+
+</div>
+</div>

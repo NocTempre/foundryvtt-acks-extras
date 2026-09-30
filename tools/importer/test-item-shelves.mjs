@@ -83,6 +83,7 @@ const NOT_ITEMS = {
   "def.constant": "a printed number passed to the converter, never a document",
   "def.vehicle": "one ACTOR per printed row — actorFolderFor files these, not ensureItemFolder",
   "def.classmeta": "a passage read for one name at import time (executeCommonTongue), never a document",
+  "def.demand": "a grid appended onto the merchandise items by key (appendDemand), never a document of its own",
 };
 
 const shelves = shelfKeysFromSource();

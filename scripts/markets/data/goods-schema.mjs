@@ -16,8 +16,12 @@
  * load (verified live; the offline harness has no DataField mock).
  */
 import { num, str, int } from "../../lib/fields.mjs";
+import { DEMAND_WATER, DEMAND_BIOMES, DEMAND_ELEVATIONS } from "../rules/demand.mjs";
 
 const fields = () => foundry.data.fields;
+
+/** One demand layer: a modifier per merchandise-type key. */
+const demandRows = (f) => new f.ArrayField(new f.SchemaField({ category: str(), modifier: int(0) }));
 
 export function goodsSchema() {
   const f = fields();
@@ -79,14 +83,32 @@ export function goodsSchema() {
     // masterwork gear enters this market's catalog only when the party has
     // the right contact or skilled help here.
     masterworkContact: new f.BooleanField({ initial: false }),
-    // GM-set demand modifiers, one per merchandise-type key (config.mjs
-    // vocabulary); price shifts one step per point.
-    demand: new f.ArrayField(
-      new f.SchemaField({
-        category: str(),
-        modifier: int(0),
-      })
-    ),
+    // Demand modifiers, one row per merchandise-type key; price shifts one
+    // step per point. Three layers, read only through `trueDemand`
+    // (rules/demand.mjs): `demand` is the BASE (generated, or supplied by a
+    // book), `demandDerived` is reserved for route equalisation and nothing
+    // writes it yet, `demandOverrides` are the Judge's pins.
+    demand: demandRows(f),
+    demandOverrides: demandRows(f),
+    demandDerived: demandRows(f),
+    demandDerivedTime: num(),
+    demandInputsKey: str(),
+    // The generator's inputs and its stored Step A and C results, so a
+    // regeneration repeats and a Judge's edit survives it.
+    dmProfile: new f.SchemaField({
+      ageBand: num({ integer: true, min: 1, max: 5 }),
+      water: new f.ArrayField(new f.StringField({ blank: false, choices: [...DEMAND_WATER] })),
+      biome: new f.ArrayField(new f.StringField({ blank: false, choices: [...DEMAND_BIOMES] })),
+      elevation: new f.StringField({ required: false, nullable: true, initial: null, choices: [...DEMAND_ELEVATIONS] }),
+      landRevenueGp: num(),
+      races: new f.ArrayField(new f.StringField({ blank: false })),
+      rolls: new f.ArrayField(new f.SchemaField({ category: str(), a: int(0) })),
+      landPicks: new f.ArrayField(new f.SchemaField({ category: str(), delta: int(0) })),
+      // Set when a book supplied the base ({book, page}); null once the
+      // generator wrote it.
+      source: new f.SchemaField({ book: str(), page: str() }, { required: false, nullable: true, initial: null }),
+      time: num(),
+    }),
     playersSeeDemand: new f.BooleanField({ initial: false }),
     // Import orders in transit. Arrival and loss are rolled AT PLACEMENT
     // (loss stays hidden until due) so resolution is deterministic under
@@ -101,7 +123,8 @@ export function goodsSchema() {
         qty: int(0),
         unitPriceCp: int(0),
         totalCp: int(0),
-        hubShift: num({ integer: true, min: 1, max: 2 }), // +1 local, +2 regional
+        hub: str({ choices: ["", "local", "regional"] }),
+        hubShift: num({ integer: true, min: 1, max: 2 }), // legacy ordinal (1 local, 2 regional) on orders placed before `hub`; never written now
         placedTime: int(),
         arrivalTime: int(),
         lost: new f.BooleanField({ initial: false }),
@@ -175,8 +198,9 @@ export function goodsSchema() {
         entered: new f.BooleanField({ initial: false }),
       })
     ),
-    // What each party BELIEVES the demand modifiers to be (assessment
-    // results; a false assessment writes wrong numbers it cannot tell apart).
+    // LEGACY: the per-party beliefs assessments wrote before reports were Items.
+    // Nothing writes it; `migrateDmKnowledge` moves any rows to report Items and
+    // clears them. The field stays so a world that has not migrated loses nothing.
     dmKnowledge: new f.ArrayField(
       new f.SchemaField({
         partyId: str(),

@@ -1,0 +1,205 @@
+[
+  {
+    "id": "def.merchandise.table",
+    "kind": "kind.merchandise",
+    "book": "rr",
+    "name": "Common and Precious Merchandise",
+    "anchor": {
+      "display": "Common and Precious Merchandise"
+    },
+    "pages": [
+      376,
+      382
+    ],
+    "icon": "icons/containers/boxes/crate-reinforced-brown.webp",
+    "assists": {
+      "headingMinH": 9,
+      "grids": {
+        "common": {
+          "page": 376,
+          "box": {
+            "x0": 45,
+            "x1": 545,
+            "y0": 110,
+            "y1": 330
+          },
+          "label": {
+            "x0": 45,
+            "x1": 137
+          },
+          "expectRows": 19,
+          "cols": [
+            {
+              "key": "container",
+              "x0": 138,
+              "x1": 199,
+              "pattern": "raw"
+            },
+            {
+              "key": "pricePerStone",
+              "x0": 200,
+              "x1": 246,
+              "pattern": "raw"
+            },
+            {
+              "key": "priceStep",
+              "x0": 246,
+              "x1": 288,
+              "pattern": "raw"
+            },
+            {
+              "key": "c1",
+              "x0": 288,
+              "x1": 330,
+              "pattern": "raw"
+            },
+            {
+              "key": "c2",
+              "x0": 330,
+              "x1": 372,
+              "pattern": "raw"
+            },
+            {
+              "key": "c3",
+              "x0": 372,
+              "x1": 414,
+              "pattern": "raw"
+            },
+            {
+              "key": "c4",
+              "x0": 414,
+              "x1": 456,
+              "pattern": "raw"
+            },
+            {
+              "key": "c5",
+              "x0": 456,
+              "x1": 498,
+              "pattern": "raw"
+            },
+            {
+              "key": "c6",
+              "x0": 498,
+              "x1": 545,
+              "pattern": "raw"
+            }
+          ]
+        },
+        "precious": {
+          "page": 376,
+          "box": {
+            "x0": 45,
+            "x1": 545,
+            "y0": 350,
+            "y1": 463
+          },
+          "label": {
+            "x0": 45,
+            "x1": 137
+          },
+          "expectRows": 10,
+          "cols": [
+            {
+              "key": "container",
+              "x0": 138,
+              "x1": 199,
+              "pattern": "raw"
+            },
+            {
+              "key": "pricePerStone",
+              "x0": 200,
+              "x1": 246,
+              "pattern": "raw"
+            },
+            {
+              "key": "priceStep",
+              "x0": 246,
+              "x1": 288,
+              "pattern": "raw"
+            },
+            {
+              "key": "c1",
+              "x0": 288,
+              "x1": 330,
+              "pattern": "raw"
+            },
+            {
+              "key": "c2",
+              "x0": 330,
+              "x1": 372,
+              "pattern": "raw"
+            },
+            {
+              "key": "c3",
+              "x0": 372,
+              "x1": 414,
+              "pattern": "raw"
+            },
+            {
+              "key": "c4",
+              "x0": 414,
+              "x1": 456,
+              "pattern": "raw"
+            },
+            {
+              "key": "c5",
+              "x0": 456,
+              "x1": 498,
+              "pattern": "raw"
+            },
+            {
+              "key": "c6",
+              "x0": 498,
+              "x1": 545,
+              "pattern": "raw"
+            }
+          ]
+        },
+        "randomCommon": {
+          "page": 382,
+          "box": {
+            "x0": 300,
+            "x1": 545,
+            "y0": 120,
+            "y1": 333
+          },
+          "label": {
+            "x0": 343,
+            "x1": 431
+          },
+          "expectRows": 19,
+          "cols": [
+            {
+              "key": "band",
+              "x0": 300,
+              "x1": 342,
+              "pattern": "raw"
+            }
+          ]
+        },
+        "randomPrecious": {
+          "page": 382,
+          "box": {
+            "x0": 300,
+            "x1": 545,
+            "y0": 370,
+            "y1": 481
+          },
+          "label": {
+            "x0": 343,
+            "x1": 431
+          },
+          "expectRows": 10,
+          "cols": [
+            {
+              "key": "band",
+              "x0": 300,
+              "x1": 342,
+              "pattern": "raw"
+            }
+          ]
+        }
+      }
+    }
+  }
+]

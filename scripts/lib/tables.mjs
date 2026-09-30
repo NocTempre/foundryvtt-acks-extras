@@ -82,7 +82,11 @@ export function expectedTables() {
 
 /**
  * Which of the documents a feature reads are NOT fully supplied: one entry per
- * incomplete document, `{docId, expected, present, missing}` (table ids).
+ * incomplete document, `{docId, expected, present, missing, incomplete}`
+ * (table ids). `incomplete` lists `{tableId, rows}` for each present table that
+ * holds rows the import could not read (see `incompleteRows`); a document whose
+ * tables all arrived but not all their rows is still reported, with `missing`
+ * empty. A document nothing declared has every table it holds checked.
  *
  * Registration of an ID is not presence of its tables, so a missing-tables
  * notice asks THIS and never `hasDoc`: a module's own automation layer claims
@@ -98,7 +102,12 @@ export function missingCoverage(docIds = []) {
   for (const docId of docIds) {
     const expected = [...(_expected.get(docId) ?? [])];
     if (!expected.length) {
-      if (!hasDoc(docId)) out.push({ docId, expected, present: [], missing: [] });
+      if (!hasDoc(docId)) {
+        out.push({ docId, expected, present: [], missing: [], incomplete: [] });
+        continue;
+      }
+      const incomplete = incompleteOf(docId, Object.keys(getDoc(docId).tables ?? {}));
+      if (incomplete.length) out.push({ docId, expected, present: [], missing: [], incomplete });
       continue;
     }
     let tables = {};
@@ -108,10 +117,16 @@ export function missingCoverage(docIds = []) {
       tables = {}; // unregistered: every expected table is missing
     }
     const present = expected.filter((id) => tables[id] != null);
-    if (present.length === expected.length) continue;
-    out.push({ docId, expected, present, missing: expected.filter((id) => tables[id] == null) });
+    const incomplete = incompleteOf(docId, present);
+    if (present.length === expected.length && !incomplete.length) continue;
+    out.push({ docId, expected, present, missing: expected.filter((id) => tables[id] == null), incomplete });
   }
   return out;
+}
+
+/** `{tableId, rows}` for each of `tableIds` holding rows an import could not read. */
+function incompleteOf(docId, tableIds) {
+  return tableIds.map((tableId) => ({ tableId, rows: incompleteRows(docId, tableId) })).filter((t) => t.rows.length);
 }
 
 /** @returns {boolean} whether any layer of `docId` is registered */
@@ -173,11 +188,71 @@ export function getThrowDef(docId, throwId) {
 }
 
 /**
+ * Whether a row is the placeholder an import leaves where the page held no such
+ * row (`{__missing: true}`, plus whatever key it was emitted under). The
+ * placeholder stays in the stored table so a later import can see the gap, and
+ * no read may treat it as a row: it carries no bounds and no values.
+ */
+export function isMissingRow(row) {
+  return row != null && typeof row === "object" && row.__missing === true;
+}
+
+/** The first row of `rows` satisfying `test`, never a missing-row placeholder. */
+export function findRow(rows, test) {
+  return (rows ?? []).find((r) => !isMissingRow(r) && test(r));
+}
+
+/**
  * Find the row of a bracket table whose [min, max] contains `value`.
- * Rows with a null/undefined max are open-ended.
+ * Rows with a null/undefined max are open-ended; a missing-row placeholder
+ * (no bounds) never matches.
  */
 export function bracketRow(rows, value, minKey = "min", maxKey = "max") {
-  return rows.find((r) => value >= (r[minKey] ?? -Infinity) && (r[maxKey] == null || value <= r[maxKey]));
+  return findRow(rows, (r) => value >= (r[minKey] ?? -Infinity) && (r[maxKey] == null || value <= r[maxKey]));
+}
+
+/** Deepest nesting `missingRowKeys` follows inside one table. */
+const INCOMPLETE_DEPTH = 6;
+
+/**
+ * The rows of one table value that an import could not read, as identifiers safe
+ * to show a Judge: a keyed row reports its key, an array row its first scalar
+ * field (the key field the extractor emits first) or its index, nested rows their
+ * dotted path. Never row content beyond that key.
+ *
+ * @param {*} table - one table exactly as stored
+ * @returns {string[]}
+ */
+export function missingRowKeys(table) {
+  const out = [];
+  const walk = (node, path, depth) => {
+    if (node == null || typeof node !== "object" || depth > INCOMPLETE_DEPTH) return;
+    const isArray = Array.isArray(node);
+    const entries = isArray ? node.map((v, i) => [i, v]) : Object.entries(node);
+    for (const [k, v] of entries) {
+      if (isMissingRow(v)) {
+        const key = isArray ? Object.values(v).find((x) => typeof x === "string" || typeof x === "number") : null;
+        out.push([...path, key ?? k].join("."));
+      } else walk(v, [...path, k], depth + 1);
+    }
+  };
+  walk(table, [], 0);
+  return out;
+}
+
+/**
+ * The rows of one registered table an import could not read (see
+ * `missingRowKeys`). Reads the merged document, so the layer a read would take
+ * the table from decides. Empty for an unregistered document or table.
+ *
+ * @returns {string[]}
+ */
+export function incompleteRows(docId, tableId) {
+  try {
+    return missingRowKeys(getDoc(docId).tables?.[tableId]);
+  } catch {
+    return [];
+  }
 }
 
 /* ------------------------- where a table was read ------------------------- */

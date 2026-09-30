@@ -30,16 +30,33 @@ export async function loadRuledata(moduleId, ids, { priority = PRIORITY.SAMPLE }
 /**
  * The GM-facing list of documents a feature still needs imported, ready to drop
  * into a notice: a document nothing supplied is named alone, one only part of
- * an import reached is named with how much of it arrived. Empty when every
- * declared table is present — the caller then shows nothing.
+ * an import reached is named with how much of it arrived. A document whose
+ * tables all arrived but that holds rows the import could not read is named
+ * apart, with the tables and how many rows (never their content). Empty when
+ * every declared table is present and complete — the caller then shows nothing.
  *
  * @param {string[]} docIds - the feature's ruledata documents
  * @returns {string[]} localized list items, in the order given
  */
 export function missingTablesList(docIds) {
-  return missingCoverage(docIds).map(({ docId, expected, present }) =>
-    present.length
-      ? game.i18n.format("ACKS-LIB.tables.partialDoc", { doc: docId, have: present.length, total: expected.length })
-      : docId,
-  );
+  return missingCoverage(docIds).flatMap(({ docId, expected, present, missing, incomplete }) => {
+    const items = [];
+    if (missing.length || (!expected.length && !incomplete.length)) {
+      items.push(
+        present.length
+          ? game.i18n.format("ACKS-LIB.tables.partialDoc", { doc: docId, have: present.length, total: expected.length })
+          : docId,
+      );
+    }
+    if (incomplete.length) {
+      items.push(
+        game.i18n.format("ACKS-LIB.tables.partialRows", {
+          doc: docId,
+          tables: incomplete.map((t) => t.tableId).join("/"),
+          count: incomplete.reduce((n, t) => n + t.rows.length, 0),
+        }),
+      );
+    }
+    return items;
+  });
 }

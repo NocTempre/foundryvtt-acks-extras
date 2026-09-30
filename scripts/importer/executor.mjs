@@ -1455,7 +1455,7 @@ async function execInstruction(instr, ctx) {
       // equipment cell wraps over several text lines that are ONE logical row.
       const yRows = instr.rowBands
         ? instr.rowBands
-            .map((b) => ({ y: b.y0, items: runs.filter((it) => it.y >= b.y0 && it.y <= b.y1).sort((p, q) => p.y - q.y || p.x - q.x) }))
+            .map((b) => ({ y: b.y0, key: b.key ?? null, items: runs.filter((it) => it.y >= b.y0 && it.y <= b.y1).sort((p, q) => p.y - q.y || p.x - q.x) }))
             .filter((r) => r.items.length)
         : rowsByY(runs, instr.rowTol ?? 3);
       const spanItems = (items, x0, x1) => items.filter((it) => it.x >= x0 && it.x <= x1);
@@ -1543,9 +1543,12 @@ async function execInstruction(instr, ctx) {
         }
       } else {
         for (const r of yRows) {
-          const label = spanText(r.items, instr.label.x0, instr.label.x1);
-          if (!label) continue;
-          if (instr.dropRows?.includes(slugLabel(label))) continue; // claimed header row
+          // An authored band key names a row whose printed label cannot be
+          // read as text (a rotated table's names): the key is neutral and
+          // the label, if any, is whatever the span holds.
+          const label = instr.label ? spanText(r.items, instr.label.x0, instr.label.x1) : "";
+          if (!label && !r.key) continue;
+          if (!r.key && instr.dropRows?.includes(slugLabel(label))) continue; // claimed header row
           const cells = {};
           let parsed = 0;
           for (const col of instr.cols ?? []) {
@@ -1556,7 +1559,7 @@ async function execInstruction(instr, ctx) {
             }
           }
           // A header row's cells are labels, not values — almost nothing parses.
-          if (parsed >= (instr.minCells ?? 1)) rows.push({ key: slugLabel(label), label, cells });
+          if (parsed >= (instr.minCells ?? 1)) rows.push({ key: r.key ?? slugLabel(label), label, cells });
         }
       }
       if (!rows.length) {

@@ -809,6 +809,31 @@ function takeProse(window, take) {
       const m = window.match(/(\d+)\s*[-–]\s*(\d+)/);
       return m ? [Number(m[1]), Number(m[2])] : undefined;
     }
+    case "times": {
+      // A multiplier written as a word or a count: "twice", "thrice", "ten
+      // times", "3 times", "double".
+      const m = window.match(/\b(twice|double|thrice|triple)\b|\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+times\b/);
+      if (!m) return undefined;
+      if (m[1]) return /twice|double/.test(m[1]) ? 2 : 3;
+      return /^\d+$/.test(m[2]) ? Number(m[2]) : WORD_INTS[m[2]];
+    }
+    case "roman": {
+      // The first market-class numeral ("class ii" → 2). Longest first, so
+      // "iii" is never read as "ii".
+      const m = window.match(/\b(vi|iv|v|iii|ii|i)\b/);
+      return m ? { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6 }[m[1]] : undefined;
+    }
+    case "bandEdges": {
+      // Every band of a 2d6-style result column in reading order: "2-" is
+      // open below, "12+" open above, "3 – 5" closed. Rows are keyed by
+      // their ORDER; what each rung means is the consumer's procedure.
+      const out = [];
+      for (const m of window.matchAll(/(\d+)\s*[-–]\s*(\d+)|(\d+)\s*([-+])(?!\s*\d)/g)) {
+        if (m[1]) out.push({ min: Number(m[1]), max: Number(m[2]) });
+        else out.push(m[4] === "-" ? { min: null, max: Number(m[3]) } : { min: Number(m[3]), max: null });
+      }
+      return out.length ? out : undefined;
+    }
     case "colorList": {
       // "…are deep-set and round, with coloration varying between blue-grey,
       // grey, …, and dark brown." → the COLOUR clause only. The sentence

@@ -17,6 +17,7 @@
  */
 
 import { HIT_POINTS_DOC, HP_AFTER_NINE_TABLE } from "./hitpoint-tables.mjs";
+import { MERCHANDISE_KEYS } from "../markets/merchandise-keys.mjs";
 
 // Henchman/mercenary availability rows share the RR market-class grid: a label
 // column, six market-class cells (dice strings kept raw), and — for henchmen —
@@ -57,40 +58,10 @@ const EQUIP_AVAIL_ROWS = [
 // Common and Precious Merchandise (RR): 19 common + 10 precious rows sharing
 // one page — label, container, price/st, price step, then the market-class
 // grid. The Precious header sits mid-table; row order below skips past it
-// because no spec matches a bare "Precious"/"Merchandise" label row.
-const MERCH_ROWS = [
-  { key: "grainVegetables", labelRe: "^grain", set: { tier: "common" } },
-  { key: "salt", labelRe: "^salt", set: { tier: "common" } },
-  { key: "beerAle", labelRe: "^beer", set: { tier: "common" } },
-  { key: "pottery", labelRe: "^pottery", set: { tier: "common" } },
-  { key: "commonWood", labelRe: "^common wood", set: { tier: "common" } },
-  { key: "wineSpirits", labelRe: "^wine", set: { tier: "common" } },
-  { key: "oilsSauces", labelRe: "^oils", set: { tier: "common" } },
-  { key: "preservedFish", labelRe: "^preserved fish", set: { tier: "common" } },
-  { key: "preservedMeat", labelRe: "^preserved meat", set: { tier: "common" } },
-  { key: "glassware", labelRe: "^glassware", set: { tier: "common" } },
-  { key: "rareWood", labelRe: "^rare wood", set: { tier: "common" } },
-  { key: "commonMetal", labelRe: "^common metal", set: { tier: "common" } },
-  { key: "commonFurs", labelRe: "^common furs", set: { tier: "common" } },
-  { key: "textiles", labelRe: "^textiles", set: { tier: "common" } },
-  { key: "dyesPigments", labelRe: "^dyes?\\s*&", set: { tier: "common" } },
-  { key: "botanicals", labelRe: "^botanicals", set: { tier: "common" } },
-  { key: "clothing", labelRe: "^clothing", set: { tier: "common" } },
-  { key: "tools", labelRe: "^tools", set: { tier: "common" } },
-  { key: "armorWeapons", labelRe: "^armor", set: { tier: "common" } },
-  { key: "monsterParts", labelRe: "^monster parts", set: { tier: "precious" } },
-  { key: "ivory", labelRe: "^ivory", set: { tier: "precious" } },
-  { key: "rareFurs", labelRe: "^rare furs", set: { tier: "precious" } },
-  { key: "spices", labelRe: "^spices", set: { tier: "precious" } },
-  { key: "finePorcelain", labelRe: "^fine porcelain", set: { tier: "precious" } },
-  { key: "preciousMetals", labelRe: "^precious metals", set: { tier: "precious" } },
-  { key: "silk", labelRe: "^silk", set: { tier: "precious" } },
-  { key: "rareBooksArt", labelRe: "^rare books", set: { tier: "precious" } },
-  { key: "semipreciousStones", labelRe: "^semiprecious", set: { tier: "precious" } },
-  // The page's rotated chapter tab y-merges into this last row and pollutes
-  // the label's start — match anywhere in the label, never anchored.
-  { key: "gems", labelRe: "gems", set: { tier: "precious" } },
-];
+// because no spec matches a bare "Precious"/"Merchandise" label row. The row
+// keys, tiers and label patterns are the markets' shared vocabulary
+// (markets/merchandise-keys.mjs), the one the merchandise binding reads too.
+const MERCH_ROWS = MERCHANDISE_KEYS.map(({ key, labelRe, tier }) => ({ key, labelRe, set: { tier } }));
 
 // Class-trajectory percentages (JJ "Leveled NPCs by Percentage"): a level
 // column and six class-weight columns. The reference collapses runs of equal
@@ -2100,8 +2071,39 @@ export const TABLE_RECIPES = {
     },
   },
   availability: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 124, 162-165, 172" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 107, 124, 162-165, 172" },
     tables: {
+      // The market's own arithmetic around the availability grid (RR 124):
+      // the crowd that shops at a multiple, the all-parties ceiling, the hub
+      // shifts an import order sources from, and the transit roll that loses
+      // it. The procedure is in markets; every figure is read here.
+      marketRulesProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 124,
+        locate: "regional hub",
+        values: [
+          { key: "crowdSize", find: "very large parties (", take: "int", span: 12 },
+          { key: "crowdMultiplier", find: "dedicated activity to shopping can purchase", take: "times", span: 20 },
+          { key: "marketTotalMultiplier", find: "across all parties is", take: "times", span: 20 },
+          { key: "localHubShift", find: "local hub (", take: "signedInt", span: 12 },
+          { key: "regionalHubShift", find: "regional hub (", take: "signedInt", span: 12 },
+          { key: "lostOnRoll", find: "on a roll of", take: "int", span: 8 },
+        ],
+      },
+      // The Bargaining proficiency's swing and its per-rank reaction bonus
+      // (RR 107).
+      bargainingProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 107,
+        locate: "Any items the character purchases",
+        values: [
+          { key: "buyPct", find: "the character purchases costs", take: "pct", span: 12 },
+          { key: "sellPct", find: "sells go for", take: "pct", span: 12 },
+          { key: "rankBonus", find: "the character receives a", take: "signedInt", span: 10 },
+        ],
+      },
       equipmentAvailability: {
         shape: "gridRows",
         book: "rr",
@@ -2206,8 +2208,33 @@ export const TABLE_RECIPES = {
   // market class — the same six cost bands as the RR equipment grid, so the
   // row list is shared. acks-extras markets prices magic trades on it.
   magicItems: {
-    source: { book: "ACKS II Judges Journal", pages: "JJ 131" },
+    source: { book: "ACKS II Judges Journal", pages: "JJ 130-131" },
     tables: {
+      // What a magic item trades at against its base cost (JJ 131).
+      priceProse: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 131,
+        locate: "225%",
+        values: [
+          { key: "selfMadeTimes", find: "sell magic items they created to the", take: "times", span: 70 },
+          { key: "buyPct", find: "buy pre-existing magic items from the", take: "pct", span: 80 },
+        ],
+      },
+      // The identification ladder's printed thresholds (JJ 130): who may
+      // research, which tiers the engineering proficiency reaches, and the
+      // dabbling backfire band. The window is parsed by the consumer.
+      identifyProse: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 130,
+        locate: "at least 5 caster levels",
+        values: [
+          { key: "researchCasterLevel", find: "a character with at least", take: "int", span: 8 },
+          { key: "engineeringTiers", find: "magical engineering can recognize a", take: "window", span: 45 },
+          { key: "dabblingBackfire", find: "on an unmodified roll of", take: "band", span: 12 },
+        ],
+      },
       transactionsByMarketClass: {
         shape: "gridRows",
         book: "jj",
@@ -2226,8 +2253,66 @@ export const TABLE_RECIPES = {
   // priceStep for demand-step pricing; the daily-stones grid rides along for
   // the future arbitrage loop.
   mercantile: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 370, 374-375" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 370-376" },
     tables: {
+      // Market impact's ceiling and the largest class's family-scaled
+      // exception (RR 371).
+      impactProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 371,
+        locate: "urban families / 2",
+        values: [
+          { key: "impactCap", find: "their maximum market impact is", take: "int", span: 8 },
+          { key: "familyScaledClass", find: "maximum market impact permitted in a", take: "roman", span: 14 },
+          { key: "familiesPerImpact", find: "urban families /", take: "int", span: 10 },
+        ],
+      },
+      // The Assessment of Supply and Demand result column (RR 373): five
+      // rungs, read in order.
+      assessmentProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 373,
+        locate: "Successful Assessment",
+        // The small-caps header splits its words ("d ie r oll"); the bracketed
+        // die is the one stable run just before the result column.
+        values: [{ key: "bands", find: "supply & demand adjusted", take: "bandEdges", span: 170 }],
+      },
+      // The monthly price's class and season shifts (RR 375).
+      priceShiftProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 375,
+        locate: "sowing season",
+        values: [
+          { key: "largeClassEdge", find: "if the market is a class i or class", take: "roman", span: 6 },
+          // Third of four "shift … by" sentences in the step list: the class
+          // one. Its own opener carries the class numerals being read.
+          { key: "largeClassShift", find: "shift the price upward by", occurrence: 3, take: "wordInt", span: 10 },
+          { key: "smallClassEdge", find: "if the market is class", take: "roman", span: 6 },
+          { key: "smallClassShift", find: "shift the price downward by", occurrence: 3, take: "wordInt", span: 10 },
+          { key: "sowingShift", find: "(sowing season), shift the price upward by", take: "wordInt", span: 10 },
+          { key: "harvestShift", find: "(harvest season), shift the price downward by", take: "wordInt", span: 10 },
+        ],
+      },
+      // The typical merchant across the table, the reaction's per-rank step,
+      // and the Reaction to Negotiation result column (RR 376).
+      negotiationProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 376,
+        locate: "Reaction to Negotiation",
+        values: [
+          { key: "commonCha", find: "selling common merchandise has a", take: "signedInt", span: 8 },
+          { key: "commonRanks", find: "cha bonus and", take: "wordInt", span: 8 },
+          { key: "preciousCha", find: "selling precious merchandise has a", take: "signedInt", span: 8 },
+          { key: "preciousRanks", find: "wil bonus, and", take: "wordInt", span: 8 },
+          { key: "extraRanks", find: "arbitrager is facing has", take: "wordInt", span: 8 },
+          { key: "rankStep", find: "the arbitrager adds a", take: "signedInt", span: 8 },
+          { key: "bands", find: "reaction to negotiation adjusted", take: "bandEdges", span: 170 },
+        ],
+      },
       // Market Characteristics (RR ch. 8): per-class baselines — cargo,
       // toll, tariff, consignments, passengers. Money/dice cells stay raw
       // ("0.2cp/st", "2d6+1 × 10", "none"); the consumer parses.
@@ -2259,9 +2344,9 @@ export const TABLE_RECIPES = {
         shape: "gridRows",
         book: "rr",
         printedPage: 374,
-        // "Common and Precious Merchandise" appears in the preceding prose;
-        // the monster-parts container run only exists on the table's page.
-        locate: "Metamphorae",
+        // The table's title; findPage tries the guessed page first, so the
+        // same words in the preceding page's prose never win.
+        locate: "Common and Precious Merchandise",
         labelMaxX: 138,
         joinCellGap: 12,
         marketCells: 6,
@@ -2273,6 +2358,26 @@ export const TABLE_RECIPES = {
         ],
         rows: MERCH_ROWS,
         emit: { container: "rows", keyField: "type" },
+      },
+    },
+  },
+  // Demand generation inputs (JJ ch. 6 Step 7C): the land-revenue table.
+  // The window holds every row in print order; markets parses each row's
+  // revenue figure and its two signed counts. The table spans both print
+  // columns, so the page is read as one stream.
+  demand: {
+    source: { book: "ACKS II Judges Journal", pages: "JJ 201" },
+    tables: {
+      landRevenueProse: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 201,
+        locate: "Domain Land Revenue Demand Modifiers",
+        column: { xMin: 90, xMax: 570 },
+        colSplit: 600,
+        yMin: 118,
+        yMax: 200,
+        values: [{ key: "rows", find: "", take: "window", span: 700 }],
       },
     },
   },

@@ -1,4 +1,4 @@
-# lib API (apiVersion 20)
+# lib API (apiVersion 21)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -83,6 +83,15 @@ null, never merged · `hasDoc` · `docInfo()` → `[{id, priority, source}]` for
 diagnostics · `bracketRow(rows, value)` (null max = open-ended) ·
 `resetTables()`.
 
+**Rows an import could not read** (apiVersion 21). An importer stores
+`{__missing: true}` where the page held no such row, and a later import
+replaces the table. `isMissingRow(row)` recognises it; `bracketRow` and
+`findRow(rows, test)` never return one, so a keyed or banded lookup answers
+nothing for a gap instead of matching it; a consumer that finds a row by any
+other route filters with `isMissingRow`. `incompleteRows(docId, tableId)` and
+`missingRowKeys(table)` list the gaps as keys (never content), and
+`missingCoverage` reports them per table in `incomplete`.
+
 A writer that merges into what it wrote before reads its own layer with
 `getLayer`, never `getDoc`: the merged read would carry an override or a
 sample down into the write.
@@ -115,7 +124,8 @@ figure as it stands. A `proseValues` recipe writes the shape with
 **missing-tables UX asks** — a shipped SAMPLE layer claims an id while
 supplying none of the book tables, so `hasDoc` cannot answer "has this been
 imported". The Foundry-side `missingTablesList(docIds)` (ruledata.mjs) turns
-that into a localized list for a notice.
+that into a localized list for a notice, naming a table that arrived with rows
+unread apart from a table that did not arrive.
 
 Consumers read ONLY through this registry — never a sibling module's name —
 so any provider can substitute data without consumer changes.
@@ -715,7 +725,8 @@ makes for containers. Anything that must genuinely stay secret belongs on a
 GM-owned actor.
 
 `providersFor(actor)` scans the world's actors once; call it per render and share
-the result rather than per row.
+the result rather than per row. It counts goods only: a stored Item that is not
+goods (a market report on the trade house) never makes its place a row.
 
 ### `wallGeometry` / `wallLayers` — a line the Judge drew (apiVersion 16)
 

@@ -6,6 +6,7 @@
   </div>
   <p class="hint">{{availability.label}}</p>
   <p class="hint">{{localize "ACKS-MARKETS.purchase.previewLabel"}}: {{previewGp}}gp</p>
+  {{#if tableNote}}<p class="hint">{{tableNote}}</p>{{/if}}
 
   <div class="form-group">
     <label>{{localize "ACKS-MARKETS.purchase.buyer"}}</label>
@@ -24,9 +25,9 @@
   <div class="form-group">
     <label>{{localize "ACKS-MARKETS.imports.hub"}}</label>
     <select name="hub">
-      <option value="0">{{localize "ACKS-MARKETS.imports.hubNone"}}</option>
-      <option value="1">{{localize "ACKS-MARKETS.imports.hubLocal"}}</option>
-      <option value="2">{{localize "ACKS-MARKETS.imports.hubRegional"}}</option>
+      <option value="">{{localize "ACKS-MARKETS.imports.hubNone"}}</option>
+      <option value="local">{{localize "ACKS-MARKETS.imports.hubLocal"}}</option>
+      <option value="regional">{{localize "ACKS-MARKETS.imports.hubRegional"}}</option>
     </select>
   </div>
   <p class="hint">{{localize "ACKS-MARKETS.imports.hubHint"}}</p>

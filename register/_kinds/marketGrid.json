@@ -1,0 +1,10 @@
+{
+  "id": "kind.marketGrid",
+  "role": "composite",
+  "note": "A setting book's regional demand-modifier grid: one row per market, one column per good, and a market-class column. Rows carry neutral keys (mkt<n>) authored on their bands; no market name ships. The goods columns are that book's own goods, mapped to merchandise keys at import. Binds base demand and class onto location actors.",
+  "fields": {
+    "name": {
+      "locate": "display"
+    }
+  }
+}

@@ -380,7 +380,7 @@ t("tables: coverage is per TABLE — an id a module claims for itself is not an 
   T.registerTable({ id: "rarity", tables: { alignmentRecruitment: { shifts: {} } } });
   assert.equal(T.hasDoc("rarity"), true, "the id is registered");
   assert.deepEqual(T.missingCoverage(["rarity"]), [
-    { docId: "rarity", expected: ["classRarityTables", "randomHenchmanLevel"], present: [], missing: ["classRarityTables", "randomHenchmanLevel"] },
+    { docId: "rarity", expected: ["classRarityTables", "randomHenchmanLevel"], present: [], missing: ["classRarityTables", "randomHenchmanLevel"], incomplete: [] },
   ]);
 
   // A part-arrived import reports what arrived; a complete one reports nothing.
@@ -393,7 +393,7 @@ t("tables: coverage is per TABLE — an id a module claims for itself is not an 
   // An unregistered doc is missing every declared table. A doc nothing
   // declared can only be judged on its id.
   assert.deepEqual(T.missingCoverage(["wages"])[0].missing, ["ladder"]);
-  assert.deepEqual(T.missingCoverage(["followers"]), [{ docId: "followers", expected: [], present: [], missing: [] }]);
+  assert.deepEqual(T.missingCoverage(["followers"]), [{ docId: "followers", expected: [], present: [], missing: [], incomplete: [] }]);
   T.registerTable({ id: "followers", tables: {} }, { priority: T.PRIORITY.WORLD });
   assert.deepEqual(T.missingCoverage(["followers"]), []);
   T.resetTables();
@@ -436,6 +436,100 @@ t("tables: a printed quantity reads in one shape, and refuses what holds no numb
   assert.equal(T.scaleQuantity({ value: 2, per: "favour" }, "3"), null, "a rate with no count is not counted once");
   assert.equal(T.scaleQuantity(5, 3), 5, "no unit: the value alone");
   assert.equal(T.scaleQuantity({ value: "x" }), null);
+});
+
+t("tables: a missing-row placeholder is never a row a lookup can match", () => {
+  const gap = { __missing: true };
+  // Band rows carry bounds; the placeholder carries none, and no bounds is what
+  // used to make it match every value.
+  const bands = [gap, { minCost: 0, maxCost: 10, r: "low" }, { minCost: 11, maxCost: null, r: "open" }];
+  assert.equal(T.bracketRow(bands, 5, "minCost", "maxCost").r, "low");
+  assert.equal(T.bracketRow(bands, 500, "minCost", "maxCost").r, "open");
+  assert.equal(T.bracketRow([gap], 5), undefined, "a table of only placeholders answers nothing");
+  assert.equal(T.bracketRow([{ ...gap, min: 0 }], 5), undefined, "bounds alongside the flag do not revive it");
+  assert.equal(T.isMissingRow(gap), true);
+  assert.equal(T.isMissingRow({ key: 1 }), false);
+  assert.equal(T.isMissingRow(null), false);
+  // A keyed lookup skips it too, so the next real row with the key wins.
+  const rows = [{ type: "a", __missing: true }, { type: "a", price: 3 }];
+  assert.equal(T.findRow(rows, (r) => r.type === "a").price, 3);
+  assert.equal(T.findRow(undefined, () => true), undefined);
+});
+
+t("tables: incompleteRows names the rows an import could not read, and no content", () => {
+  T.resetTables();
+  T.registerTable(
+    {
+      id: "invented",
+      tables: {
+        keyed: { alpha: { v: 1 }, beta: { __missing: true } },
+        listed: { rows: [{ cls: 1, v: 2 }, { cls: 2, __missing: true }, { cls: 3, __missing: true }] },
+        nested: { group: { inner: { __missing: true } } },
+        whole: { rows: [{ cls: 1, v: 2 }] },
+      },
+    },
+    { priority: T.PRIORITY.WORLD },
+  );
+  assert.deepEqual(T.incompleteRows("invented", "keyed"), ["beta"]);
+  assert.deepEqual(T.incompleteRows("invented", "listed"), ["rows.2", "rows.3"], "an array row reports its key field");
+  assert.deepEqual(T.incompleteRows("invented", "nested"), ["group.inner"]);
+  assert.deepEqual(T.incompleteRows("invented", "whole"), []);
+  assert.deepEqual(T.incompleteRows("invented", "absent"), []);
+  assert.deepEqual(T.incompleteRows("nope", "keyed"), [], "an unregistered document is not an error");
+  assert.deepEqual(T.missingRowKeys({ rows: [{ cls: 7, __missing: true }] }), ["rows.7"]);
+  assert.deepEqual(T.missingRowKeys(undefined), []);
+  T.resetTables();
+});
+
+t("tables: coverage reports a table that arrived with rows unread", () => {
+  T.resetTables();
+  T.expectTables("invented", ["grid", "other"]);
+  T.registerTable(
+    { id: "invented", tables: { grid: { rows: [{ cls: 1 }, { cls: 2, __missing: true }] }, other: { rows: [{ cls: 1 }] } } },
+    { priority: T.PRIORITY.WORLD },
+  );
+  // Every declared table is present, yet the document is not complete.
+  assert.deepEqual(T.missingCoverage(["invented"]), [
+    { docId: "invented", expected: ["grid", "other"], present: ["grid", "other"], missing: [], incomplete: [{ tableId: "grid", rows: ["rows.2"] }] },
+  ]);
+  // A later import that reads the row clears it.
+  T.registerTable(
+    { id: "invented", tables: { grid: { rows: [{ cls: 1 }, { cls: 2 }] }, other: { rows: [{ cls: 1 }] } } },
+    { priority: T.PRIORITY.WORLD },
+  );
+  assert.deepEqual(T.missingCoverage(["invented"]), []);
+  // A document nothing declared has every table it holds checked.
+  T.registerTable({ id: "loose", tables: { t: { x: { __missing: true } } } }, { priority: T.PRIORITY.WORLD });
+  assert.deepEqual(T.missingCoverage(["loose"]), [
+    { docId: "loose", expected: [], present: [], missing: [], incomplete: [{ tableId: "t", rows: ["x"] }] },
+  ]);
+  T.resetTables();
+});
+
+const { missingTablesList } = await import("../scripts/lib/ruledata.mjs");
+t("ruledata: the notice list names a partly-read table apart from a missing one", () => {
+  const prevGame = globalThis.game;
+  globalThis.game = {
+    i18n: {
+      format: (key, d) => `${key}|${Object.entries(d).map(([k, v]) => `${k}=${v}`).join(",")}`,
+    },
+  };
+  try {
+    T.resetTables();
+    T.expectTables("invented", ["grid", "gone"]);
+    T.expectTables("whole", ["grid"]);
+    T.registerTable({ id: "invented", tables: { grid: { rows: [{ cls: 1, __missing: true }] } } }, { priority: T.PRIORITY.WORLD });
+    T.registerTable({ id: "whole", tables: { grid: { rows: [{ cls: 1, __missing: true }] } } }, { priority: T.PRIORITY.WORLD });
+    assert.deepEqual(missingTablesList(["invented", "whole"]), [
+      "ACKS-LIB.tables.partialDoc|doc=invented,have=1,total=2",
+      "ACKS-LIB.tables.partialRows|doc=invented,tables=grid,count=1",
+      "ACKS-LIB.tables.partialRows|doc=whole,tables=grid,count=1",
+    ]);
+  } finally {
+    T.resetTables();
+    if (prevGame === undefined) delete globalThis.game;
+    else globalThis.game = prevGame;
+  }
 });
 
 t("tables: every ruledata id a feature announces declares the tables it expects", () => {

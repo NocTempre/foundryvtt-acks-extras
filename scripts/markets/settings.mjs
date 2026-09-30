@@ -4,7 +4,7 @@
  * `markets`-prefixed to keep clear of the other features' keys; registered
  * at init.
  */
-import { MODULE_ID, LANG } from "./constants.mjs";
+import { MODULE_ID, LANG, TRADE_HOUSE_SETTING } from "./constants.mjs";
 
 export function registerSettings() {
   const reg = (key, data) => game.settings.register(MODULE_ID, key, data);
@@ -23,7 +23,7 @@ export function registerSettings() {
     scope: "world",
     config: true,
     type: Number,
-    default: 10,
+    default: 0,
   });
   reg("marketsEnforceCaps", {
     name: `${LANG}.setting.enforceCaps`,
@@ -41,6 +41,22 @@ export function registerSettings() {
     config: false,
     type: Array,
     default: [],
+  });
+  // The character the Trade tab acts as on this client (an actor uuid; empty
+  // = the user's own character). Read by the tab's acting-trader resolver.
+  reg("marketsActingTrader", {
+    scope: "client",
+    config: false,
+    type: String,
+    default: "",
+  });
+  // The actor that houses every trade Item (reports today). A GM-made location
+  // actor the engine creates on first use; not in the settings screen.
+  reg(TRADE_HOUSE_SETTING, {
+    scope: "world",
+    config: false,
+    type: String,
+    default: "",
   });
 }
 

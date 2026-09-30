@@ -1,0 +1,192 @@
+[
+  {
+    "id": "def.demand.adjustments",
+    "kind": "kind.merchandiseDemand",
+    "book": "jj",
+    "name": "Environmental Adjustments to Demand",
+    "anchor": {
+      "display": "Environmental Adjustments to Demand"
+    },
+    "pages": [
+      204
+    ],
+    "assists": {
+      "headingMinH": 9,
+      "grids": {
+        "environment": {
+          "page": 204,
+          "box": {
+            "x0": 45,
+            "x1": 545,
+            "y0": 200,
+            "y1": 530
+          },
+          "label": {
+            "x0": 45,
+            "x1": 114
+          },
+          "rowTol": 4,
+          "expectRows": 29,
+          "headerBand": {
+            "y0": 193,
+            "y1": 198
+          },
+          "cols": [
+            {
+              "key": "age1",
+              "x0": 115,
+              "x1": 136,
+              "pattern": "raw"
+            },
+            {
+              "key": "age2",
+              "x0": 137,
+              "x1": 157,
+              "pattern": "raw"
+            },
+            {
+              "key": "age3",
+              "x0": 158,
+              "x1": 178,
+              "pattern": "raw"
+            },
+            {
+              "key": "age4",
+              "x0": 179,
+              "x1": 199,
+              "pattern": "raw"
+            },
+            {
+              "key": "age5",
+              "x0": 200,
+              "x1": 223,
+              "pattern": "raw"
+            },
+            {
+              "key": "seaCoast",
+              "x0": 224,
+              "x1": 245,
+              "pattern": "raw"
+            },
+            {
+              "key": "lakeShore",
+              "x0": 246,
+              "x1": 266,
+              "pattern": "raw"
+            },
+            {
+              "key": "riverBank",
+              "x0": 267,
+              "x1": 287,
+              "pattern": "raw"
+            },
+            {
+              "key": "rainforest",
+              "x0": 288,
+              "x1": 308,
+              "pattern": "raw"
+            },
+            {
+              "key": "savanna",
+              "x0": 309,
+              "x1": 329,
+              "pattern": "raw"
+            },
+            {
+              "key": "desert",
+              "x0": 330,
+              "x1": 350,
+              "pattern": "raw"
+            },
+            {
+              "key": "steppe",
+              "x0": 351,
+              "x1": 371,
+              "pattern": "raw"
+            },
+            {
+              "key": "scrub",
+              "x0": 372,
+              "x1": 392,
+              "pattern": "raw"
+            },
+            {
+              "key": "grasslands",
+              "x0": 393,
+              "x1": 413,
+              "pattern": "raw"
+            },
+            {
+              "key": "forest",
+              "x0": 414,
+              "x1": 434,
+              "pattern": "raw"
+            },
+            {
+              "key": "taiga",
+              "x0": 435,
+              "x1": 455,
+              "pattern": "raw"
+            },
+            {
+              "key": "tundra",
+              "x0": 456,
+              "x1": 475,
+              "pattern": "raw"
+            },
+            {
+              "key": "plains",
+              "x0": 476,
+              "x1": 496,
+              "pattern": "raw"
+            },
+            {
+              "key": "hills",
+              "x0": 497,
+              "x1": 517,
+              "pattern": "raw"
+            },
+            {
+              "key": "mountains",
+              "x0": 518,
+              "x1": 545,
+              "pattern": "raw"
+            }
+          ]
+        },
+        "racial": {
+          "page": 204,
+          "box": {
+            "x0": 55,
+            "x1": 565,
+            "y0": 607,
+            "y1": 660
+          },
+          "label": {
+            "x0": 55,
+            "x1": 110
+          },
+          "expectRows": 2,
+          "rowBands": [
+            {
+              "y0": 607,
+              "y1": 632
+            },
+            {
+              "y0": 633,
+              "y1": 660
+            }
+          ],
+          "cols": [
+            {
+              "key": "text",
+              "x0": 111,
+              "x1": 565,
+              "pattern": "raw"
+            }
+          ]
+        }
+      }
+    }
+  }
+]

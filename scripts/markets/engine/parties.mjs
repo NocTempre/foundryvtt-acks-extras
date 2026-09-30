@@ -58,3 +58,16 @@ export function partySize(partyId) {
   for (const actor of members) n += 1 + getHenchmenIds(actor).length;
   return n;
 }
+
+/**
+ * The characters that make up a party: an explicit roster as configured, or
+ * for the implicit party the player characters no explicit roster claims.
+ * @param {string} partyId
+ * @returns {Actor[]}
+ */
+export function partyMembers(partyId) {
+  const explicit = partiesConfig().find((p) => p.id === partyId);
+  if (explicit) return (explicit.memberUuids ?? []).map((u) => fromUuidSync(u)?.actor ?? fromUuidSync(u)).filter(Boolean);
+  const claimed = new Set(partiesConfig().flatMap((p) => p.memberUuids ?? []));
+  return playerCharacters().filter((a) => !claimed.has(a.uuid));
+}

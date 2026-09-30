@@ -1,0 +1,103 @@
+{{!-- The Trade tab on the character sheet: the character's market research and
+      a side-by-side of two markets' believed demand. Beliefs only. --}}
+{{#with panels.trade as |tr|}}
+<div class="acks-extras-character-sheet__stack">
+  <div class="acks-extras-character-sheet__rule">
+    <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-MARKETS.trader.research"}}</span>
+    <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-MARKETS.trader.researchNote"}}</span>
+    {{#if tr.isGM}}
+    <button type="button" class="acks-extras-character-sheet__chip{{#if tr.flagged}} is-gold{{/if}}" data-action="traderFlag"
+            aria-pressed="{{#if tr.flagged}}true{{else}}false{{/if}}" data-tooltip="{{localize 'ACKS-MARKETS.trader.flagTip'}}">
+      <i class="fa-solid fa-scale-balanced" inert></i>{{localize "ACKS-MARKETS.trader.flag"}}
+    </button>
+    {{/if}}
+  </div>
+
+  {{#unless tr.hasResearch}}
+  <div class="acks-empty"><span class="acks-empty-title">{{localize "ACKS-MARKETS.trader.research"}}</span><span class="acks-empty-hint">{{localize "ACKS-MARKETS.trader.empty"}}</span></div>
+  {{/unless}}
+
+  {{#each tr.groups as |group|}}
+  <div class="acks-extras-character-sheet__group">
+    <div class="acks-extras-character-sheet__subhead">{{#if group.marketName}}{{group.marketName}}{{else}}{{localize "ACKS-MARKETS.report.noMarket"}}{{/if}}</div>
+    {{#each group.reports as |r|}}
+    <div class="acks-extras-character-sheet__row acks-extras-markets-trader-report">
+      <span class="acks-extras-character-sheet__row-text">
+        <span class="acks-extras-character-sheet__row-label">{{r.when}}{{#if r.assessorName}} · {{r.assessorName}}{{/if}}</span>
+        <span class="acks-extras-character-sheet__row-line">{{r.outcomeLabel}} · {{localize "ACKS-MARKETS.report.goodsCount" n=r.count}}{{#if tr.isGM}}{{#if r.ownerName}} · {{r.ownerName}}{{/if}}{{/if}}</span>
+        {{#if r.beliefs.length}}
+        <details class="acks-extras-markets-trader-beliefs">
+          <summary>{{localize "ACKS-MARKETS.trader.showBeliefs"}}</summary>
+          <span class="acks-extras-markets-trader-chips">
+            {{#each r.beliefs as |belief|}}<span class="acks-extras-markets-demand-chip">{{belief.label}} <span class="acks-nums">{{belief.dm}}</span></span>{{/each}}
+          </span>
+        </details>
+        {{/if}}
+      </span>
+      <span class="acks-extras-character-sheet__ctls">
+        <span class="acks-extras-character-sheet__grp">
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="traderOpen" data-uuid="{{r.uuid}}"
+                  data-tooltip="{{localize 'ACKS-MARKETS.trader.open'}}" aria-label="{{localize 'ACKS-MARKETS.trader.open'}}"><i class="fa-solid fa-book-open" inert></i></button>
+          {{#if r.canManage}}
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="traderGive" data-uuid="{{r.uuid}}"
+                  data-tooltip="{{localize 'ACKS-MARKETS.trader.give'}}" aria-label="{{localize 'ACKS-MARKETS.trader.give'}}"><i class="fa-solid fa-hand-holding-hand" inert></i></button>
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="traderDiscard" data-uuid="{{r.uuid}}"
+                  data-tooltip="{{localize 'ACKS-MARKETS.trader.discard'}}" aria-label="{{localize 'ACKS-MARKETS.trader.discard'}}"><i class="fa-solid fa-trash" inert></i></button>
+          {{/if}}
+        </span>
+      </span>
+    </div>
+    {{/each}}
+  </div>
+  {{/each}}
+
+  <div class="acks-extras-character-sheet__rule is-spaced">
+    <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-MARKETS.trader.compare"}}</span>
+    <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-MARKETS.trader.compareNote"}}</span>
+  </div>
+  {{#if tr.compare.available}}
+  <div class="acks-extras-markets-trader-pickers">
+    <label>
+      <span>{{localize "ACKS-MARKETS.trader.marketA"}}</span>
+      <select data-trader-compare="a">
+        <option value="">—</option>
+        {{#each tr.compare.optionsA}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+      </select>
+    </label>
+    <label>
+      <span>{{localize "ACKS-MARKETS.trader.marketB"}}</span>
+      <select data-trader-compare="b">
+        <option value="">—</option>
+        {{#each tr.compare.optionsB}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+      </select>
+    </label>
+  </div>
+  {{#if tr.compare.ready}}
+  <table class="acks-extras-markets-trader-table">
+    <thead>
+      <tr>
+        <th scope="col">{{localize "ACKS-MARKETS.report.field.good"}}</th>
+        <th scope="col">{{tr.compare.nameA}}</th>
+        <th scope="col">{{tr.compare.nameB}}</th>
+        <th scope="col">{{localize "ACKS-MARKETS.trader.difference"}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each tr.compare.rows}}
+      <tr>
+        <th scope="row">{{label}}</th>
+        <td class="acks-nums">{{a}}</td>
+        <td class="acks-nums">{{b}}</td>
+        <td class="acks-nums">{{diff}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="acks-extras-character-sheet__hint">{{localize "ACKS-MARKETS.trader.pickTwo"}}</div>
+  {{/if}}
+  {{else}}
+  <div class="acks-extras-character-sheet__hint">{{localize "ACKS-MARKETS.trader.needTwo"}}</div>
+  {{/if}}
+</div>
+{{/with}}

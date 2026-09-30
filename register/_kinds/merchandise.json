@@ -1,0 +1,8 @@
+{
+  "id": "kind.merchandise",
+  "role": "definition",
+  "note": "RR mercantile chapter: the merchandise tables, whose ROWS are the goods, plus the random-merchandise d100 table whose rows name the same goods. One entry covers both pages; the binding makes an acks-extras.merchandise ITEM per good, keyed by the markets merchandise key its label maps to. Geometry is authored; every cell comes from the seat's page.",
+  "fields": {
+    "name": { "locate": "display" }
+  }
+}

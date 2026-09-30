@@ -61,27 +61,44 @@ export class PartyConfigApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return context;
   }
 
-  static #onAddParty() {
-    const parties = this.#load();
-    parties.push({ id: foundry.utils.randomID(8), name: `Party ${parties.length + 1}`, memberUuids: [] });
-    this.render();
-  }
-
-  static #onRemoveParty(_event, target) {
-    const parties = this.#load();
-    parties.splice(Number(target?.dataset?.index ?? -1), 1);
-    this.render();
-  }
-
-  static async #onSubmit(_event, _form, formData) {
-    const data = foundry.utils.expandObject(formData.object);
-    const parties = this.#load().map((p, i) => ({
+  /**
+   * The working copy as the form now shows it: each party's typed name and
+   * ticked members, from expanded form data. Rows follow the working copy's
+   * order, which is the order the form was drawn in.
+   */
+  #collect(data) {
+    return this.#load().map((p, i) => ({
       id: p.id,
       name: String(data.parties?.[i]?.name ?? p.name ?? p.id),
       memberUuids: Object.entries(data.parties?.[i]?.members ?? {})
         .filter(([, on]) => on)
         .map(([k]) => k.replace(/\|/g, ".")),
     }));
+  }
+
+  /** Fold the form's unsaved edits into the working copy, so a re-render keeps them. */
+  #readForm() {
+    if (!this.element) return;
+    const data = foundry.utils.expandObject(new foundry.applications.ux.FormDataExtended(this.element).object);
+    this.#parties = this.#collect(data);
+  }
+
+  static #onAddParty() {
+    this.#readForm();
+    const parties = this.#load();
+    parties.push({ id: foundry.utils.randomID(8), name: `Party ${parties.length + 1}`, memberUuids: [] });
+    this.render();
+  }
+
+  static #onRemoveParty(_event, target) {
+    this.#readForm();
+    const parties = this.#load();
+    parties.splice(Number(target?.dataset?.index ?? -1), 1);
+    this.render();
+  }
+
+  static async #onSubmit(_event, _form, formData) {
+    const parties = this.#collect(foundry.utils.expandObject(formData.object));
     await game.settings.set(MODULE_ID, "marketParties", parties);
     ui.notifications.info(game.i18n.localize(`${LANG}.parties.saved`));
   }

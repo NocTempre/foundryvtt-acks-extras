@@ -11,9 +11,7 @@
  * why it is parsed here and not there.
  */
 import { bracketRow } from "../../lib/tables.mjs";
-
-/** Cross-party monthly market total, as a multiple of the per-party value. */
-export const MARKET_CAP_MULTIPLIER = 10;
+import { requireNumber } from "./required.mjs";
 
 /**
  * @returns {{kind:"qty",n:number}|{kind:"pct",chance:number}|{kind:"none"}}
@@ -51,25 +49,35 @@ export function cellFor(bandRow, marketClass) {
 }
 
 /**
- * A party's monthly cap for one distinct item on a quantity cell.
- * RAW: 12+ adventurers devoting a dedicated activity to shopping purchase
- * twice as much (RR §IV.3); further dedicated days of soliciting expand the
- * daily supply a trader can reach (RR §VIII.6), applied here as one base
- * increment per extended search day (setting-gated).
+ * A party's monthly cap for one distinct item on a quantity cell. A party
+ * large enough to devote a dedicated activity to shopping purchases at a
+ * multiple of the base (RR 124; the head-count and the multiple are printed
+ * and passed in); further dedicated days of soliciting expand the daily
+ * supply a trader can reach (RR §VIII.6), applied here as one base increment
+ * per extended search day (setting-gated).
+ *
+ * @param {object} cell - the parsed cell
+ * @param {object} [o]
+ * @param {boolean} [o.doubled] - the party claimed the dedicated-shopping month
+ * @param {number} [o.crowdMultiplier] - printed multiple that claim earns; required when `doubled`
+ * @param {number} [o.extraSearchDays]
  */
-export function partyCap(cell, { doubled = false, extraSearchDays = 0 } = {}) {
+export function partyCap(cell, { doubled = false, crowdMultiplier, extraSearchDays = 0 } = {}) {
   if (cell.kind !== "qty") return cell.kind === "pct" ? 1 : 0;
-  return cell.n * ((doubled ? 2 : 1) + Math.max(0, extraSearchDays));
+  const base = doubled ? requireNumber("crowdMultiplier", crowdMultiplier) : 1;
+  return cell.n * (base + Math.max(0, extraSearchDays));
 }
 
 /**
  * The whole market's monthly cap for one distinct item (all parties).
- * %-cells pass the market's rolled stock (see `pctMarketStock`) and any
- * party's own successful existence roll, which floors it — the market
- * cannot hold fewer units than a party has already found.
+ * Quantity cells take the printed all-parties multiple as
+ * `marketTotalMultiplier`; %-cells pass the market's rolled stock (see
+ * `pctMarketStock`) and any party's own successful existence roll, which
+ * floors it — the market cannot hold fewer units than a party has already
+ * found.
  */
-export function marketCap(cell, { pctStock = 0, exists = false } = {}) {
-  if (cell.kind === "qty") return cell.n * MARKET_CAP_MULTIPLIER;
+export function marketCap(cell, { pctStock = 0, exists = false, marketTotalMultiplier } = {}) {
+  if (cell.kind === "qty") return cell.n * requireNumber("marketTotalMultiplier", marketTotalMultiplier);
   if (cell.kind === "pct") return Math.max(pctStock, exists ? 1 : 0);
   // A party's find stands even where the town's own class stocks none (a
   // venturer's network reaches past the local stalls).
@@ -77,9 +85,10 @@ export function marketCap(cell, { pctStock = 0, exists = false } = {}) {
 }
 
 /**
- * The market-wide monthly stock for a %-cell: ten times the cell's chance,
- * as guaranteed whole units plus AT MOST ONE roll for the fractional
- * remainder (230% → 2 units, d100 vs 30 for a third). The party's own
+ * The market-wide monthly stock for a %-cell: the printed all-parties
+ * multiple of the cell's chance, as guaranteed whole units plus AT MOST ONE
+ * roll for the fractional remainder (a 230% total → 2 units, d100 vs 30 for
+ * a third). The party's own
  * existence roll comes FIRST: it floors the stock, and when the floor
  * already decides the answer (no whole units, party found one) no market
  * roll is made at all.
@@ -88,20 +97,22 @@ export function marketCap(cell, { pctStock = 0, exists = false } = {}) {
  * and asks again. Once per item per month.
  *
  * @param {number} chance - the cell's percent (1–99)
- * @param {object} [o]
+ * @param {object} o
+ * @param {number} o.marketTotalMultiplier - the printed all-parties multiple
  * @param {boolean} [o.partyFound] - the asking party's existence roll succeeded
  * @param {number|null} [o.d100] - percentile result for the remainder
  * @returns {{stock:number, detail:string}|null}
  */
-export function pctMarketStock(chance, { partyFound = false, d100 = null } = {}) {
-  const tenfold = Math.max(0, Number(chance) || 0) * MARKET_CAP_MULTIPLIER;
-  const base = Math.floor(tenfold / 100);
-  const rem = tenfold % 100;
-  if (rem <= 0) return { stock: base, detail: `${chance}% ×${MARKET_CAP_MULTIPLIER} → ${base}` };
+export function pctMarketStock(chance, { marketTotalMultiplier, partyFound = false, d100 = null } = {}) {
+  const multiple = requireNumber("marketTotalMultiplier", marketTotalMultiplier);
+  const scaled = Math.max(0, Number(chance) || 0) * multiple;
+  const base = Math.floor(scaled / 100);
+  const rem = scaled % 100;
+  if (rem <= 0) return { stock: base, detail: `${chance}% ×${multiple} → ${base}` };
   if (base === 0 && partyFound) return { stock: 1, detail: "party find floors the stock" };
   if (d100 == null) return null;
   const stock = Math.max(base + (d100 <= rem ? 1 : 0), partyFound ? 1 : 0);
-  return { stock, detail: `${chance}% ×${MARKET_CAP_MULTIPLIER} = ${base} + ${rem}%: d100 ${d100} → ${stock}` };
+  return { stock, detail: `${chance}% ×${multiple} = ${base} + ${rem}%: d100 ${d100} → ${stock}` };
 }
 
 /**
@@ -118,17 +129,19 @@ export function pctMarketStock(chance, { partyFound = false, d100 = null } = {})
  * @param {"bought"|"sold"} o.direction - ledger counter to charge
  * @param {object|null} o.ledgerRow - this party's month row (bought/sold)
  * @param {object|null} o.totalsRow - the market's month row (bought/sold)
- * @param {boolean} [o.doubled] - party claimed the 12+ dedicated-shopping day
+ * @param {boolean} [o.doubled] - party claimed the dedicated-shopping month
+ * @param {number} [o.crowdMultiplier] - printed multiple that claim earns; required when `doubled`
+ * @param {number} [o.marketTotalMultiplier] - printed all-parties multiple; required on a quantity cell
  * @param {number} o.extraSearchDays - party's extended-search days this month
  * @param {boolean} o.exists - %-cells: whether the cached roll found the unit
  * @param {number} [o.pctStock] - the market's rolled monthly stock (true-class %-cells)
  * @returns {{remaining:number, capParty:number, capMarket:number}}
  */
-export function remainingFor({ cell, marketCell = null, direction, ledgerRow, totalsRow, doubled = false, extraSearchDays = 0, exists = false, pctStock = 0 }) {
+export function remainingFor({ cell, marketCell = null, direction, ledgerRow, totalsRow, doubled = false, crowdMultiplier, marketTotalMultiplier, extraSearchDays = 0, exists = false, pctStock = 0 }) {
   const mCell = marketCell ?? cell;
   const used = Number(ledgerRow?.[direction] ?? 0);
   const usedMarket = Number(totalsRow?.[direction] ?? 0);
-  const capMarket = marketCap(mCell, { pctStock, exists });
+  const capMarket = marketCap(mCell, { pctStock, exists, marketTotalMultiplier });
   if (cell.kind === "pct") {
     // Buying needs the party's own find; selling only needs the town to
     // have capacity — a failed contact roll does not empty the market of
@@ -136,7 +149,7 @@ export function remainingFor({ cell, marketCell = null, direction, ledgerRow, to
     const cap = direction === "sold" ? (exists || capMarket > 0 ? 1 : 0) : exists ? 1 : 0;
     return { remaining: Math.max(0, Math.min(cap - used, capMarket - usedMarket)), capParty: cap, capMarket };
   }
-  const capParty = partyCap(cell, { doubled, extraSearchDays });
+  const capParty = partyCap(cell, { doubled, crowdMultiplier, extraSearchDays });
   return {
     remaining: Math.max(0, Math.min(capParty - used, capMarket - usedMarket)),
     capParty,

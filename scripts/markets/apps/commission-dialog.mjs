@@ -9,6 +9,7 @@ import { performCommission } from "../engine/imports.mjs";
 import { commissionPlan } from "../rules/commissions.mjs";
 import { toGp } from "../rules/pricing.mjs";
 import { optTable } from "../../henchmen/rules/tables.mjs";
+import { isMissingRow } from "../../lib/tables.mjs";
 import { getSetting as henchmenSetting } from "../../henchmen/settings.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
@@ -46,7 +47,7 @@ export class CommissionDialog extends HandlebarsApplicationMixin(ApplicationV2) 
       .filter((a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && mayUse(a))
       .map((a) => ({ id: a.uuid, name: a.name }));
     const daysPerMonth = Number(henchmenSetting("daysPerMonth")) || 28;
-    context.workers = (optTable("construction", "wageAndConstructionRates")?.rows ?? []).map((row) => {
+    context.workers = (optTable("construction", "wageAndConstructionRates")?.rows ?? []).filter((r) => !isMissingRow(r)).map((row) => {
       const plan = commissionPlan({ costCp: Math.round(this.item.costGp * 100), rateRow: row, daysPerMonth });
       return {
         id: row.worker,
@@ -70,7 +71,7 @@ export class CommissionDialog extends HandlebarsApplicationMixin(ApplicationV2) 
       resolutionId: foundry.utils.randomID(),
     });
     if (result?.error) {
-      ui.notifications.warn(game.i18n.format(`${LANG}.trade.error.${result.error}`, { remaining: result.remaining ?? 0 }));
+      ui.notifications.warn(game.i18n.format(`${LANG}.trade.error.${result.error}`, { remaining: 0, table: "", crowd: "", ...result }));
       return;
     }
     if (result?.ok) {

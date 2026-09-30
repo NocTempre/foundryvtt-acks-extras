@@ -29,6 +29,7 @@ import { buildStatsTab } from "./tabs/stats.mjs";
 import { buildClassTab } from "./tabs/class.mjs";
 import { buildAbilitiesTab } from "./tabs/abilities.mjs";
 import { buildMagicTab } from "./tabs/magic.mjs";
+import { buildTraderTab, bindTraderTab, traderTabShown, TRADER_TAB_ACTIONS } from "../markets/apps/trader-tab.mjs";
 import { buildFollowersTab } from "./tabs/followers.mjs";
 import { buildNotesTab } from "./tabs/notes.mjs";
 import { buildEffectsTab } from "./tabs/effects.mjs";
@@ -183,6 +184,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       effectEdit: AcksCharacterSheet.#onEffectEdit,
       effectDelete: AcksCharacterSheet.#onEffectDelete,
       fateAdjust: AcksCharacterSheet.#onFateAdjust,
+      ...TRADER_TAB_ACTIONS,
     },
   };
 
@@ -299,6 +301,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     // the snapshot, the tabs and the casting strip all deref `classItem.system`.
     await classForActorAsync(actor);
     const snap = snapshotFrame(actor);
+    snap.trader = traderTabShown(actor);
     const frame = buildFrameModel(snap, {
       isGM: gm,
       editable,
@@ -321,6 +324,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     panels.stats = buildStatsTab(actor, { openBuckets: this.#ui.openBuckets, editing: this.#ui.trainingEdit, view: this.#trainingView() });
     panels.class = buildClassTab(actor);
     if (tabs.magic) panels.magic = buildMagicTab(actor);
+    if (tabs.trade) panels.trade = buildTraderTab(actor, { compare: this._traderCompare });
     panels.followers = await buildFollowersTab(actor);
     panels.notes = await buildNotesTab(actor, { editing: this.#ui.editingNotes });
     panels.effects = buildEffectsTab(actor);
@@ -495,6 +499,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     const steps = [
       ["band", () => this.#moveBandIntoHeader()],
       ["casting", () => this.#mountCasting()],
+      ["trader", () => bindTraderTab(this)],
       ["drops", () => this.#markDropZones()],
       ["itemInputs", () => this.#bindItemInputs()],
       ["paths", () => this.#bindPathSelects()],

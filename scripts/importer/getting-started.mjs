@@ -83,6 +83,9 @@ const GM_STEPS = [
   ["stepVariations", (api) => api.importVariations()],
   ["stepTraps", (api) => api.importTraps()],
   ["stepVehicles", (api) => api.importVehicles()],
+  // Goods read the RR table and append the JJ demand layers, so the step
+  // needs no other import and says itself when the JJ is not open.
+  ["stepMerchandise", (api) => api.importMerchandise()],
   // Spells stand on nothing; the template packages after the classes resolve
   // their spellbooks against them, so they land first.
   ["stepSpells", (api) => api.importSpells()],
@@ -113,6 +116,9 @@ const GM_STEPS = [
   // because a page path that also held them would have skipped them already.
   ["stepPoi", (api) => api.cookbookImportPoiPlaces()],
   ["stepFactions", (api) => api.cookbookImportFactions()],
+  // Market profiles land on the places above, and translate goods through
+  // the merchandise catalogue the goods step built.
+  ["stepMarkets", (api) => api.cookbookImportMarketProfiles()],
   ["stepRollTables", (api) => api.cookbookImportRollTables()],
   // A map stands on the places, names the organisations seated in its quarters
   // and wires in the lists, so it follows all three.

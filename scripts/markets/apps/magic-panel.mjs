@@ -11,7 +11,7 @@
  */
 import { MODULE_ID, LANG, ITEM_FLAG } from "../constants.mjs";
 import { RARITIES, MAGIC_KINDS, ID_STATES } from "../config.mjs";
-import { availableMethods, identifyAttempt, candidateIdentifiers } from "../engine/identify.mjs";
+import { availableMethods, methodGaps, identifyAttempt, candidateIdentifiers } from "../engine/identify.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 
 const loc = makeLoc(LANG);
@@ -106,8 +106,15 @@ export function buildMagicPanel(item) {
       box.appendChild(el("h4", null, loc("identify.header")));
       let chosen = identifiers[0];
       const methodSelect = document.createElement("select");
+      // Methods the identifier qualifies for but cannot be offered, each with its reason.
+      const gapNote = el("div", "hint");
       const refreshMethods = () => {
         methodSelect.innerHTML = "";
+        gapNote.replaceChildren(
+          ...methodGaps(item, chosen).map((g) =>
+            el("p", null, loc(`identify.gap.${g.why}`, { method: loc(`identify.method.${g.method}`), table: g.table ?? "", ability: g.ability ?? "" }))
+          )
+        );
         for (const key of availableMethods(item, chosen)) {
           const opt = document.createElement("option");
           opt.value = key;
@@ -128,12 +135,13 @@ export function buildMagicPanel(item) {
       refreshMethods();
       box.appendChild(labeled("identify.who", who));
       box.appendChild(labeled("identify.methodLabel", methodSelect));
+      box.appendChild(gapNote);
       const btn = el("button", "acks-location-btn", loc("identify.attempt"));
       btn.type = "button";
       btn.addEventListener("click", async () => {
         if (!methodSelect.value) return;
         const result = await identifyAttempt(item, { identifier: chosen, method: methodSelect.value });
-        if (result?.error) ui.notifications.warn(loc(`identify.error.${result.error}`));
+        if (result?.error) ui.notifications.warn(loc(`identify.error.${result.error}`, { table: "", ability: "", ...result }));
       });
       box.appendChild(btn);
       root.appendChild(box);

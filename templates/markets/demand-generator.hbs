@@ -1,0 +1,139 @@
+<div class="acks-extras-markets-generator-root">
+<div class="acks-extras-markets-generator-body">
+
+  {{#unless hasCatalog}}
+  <p class="acks-extras-markets-generator-notice">{{localize "ACKS-MARKETS.demand.noCatalog"}}</p>
+  {{/unless}}
+
+  <p class="hint">{{localize "ACKS-MARKETS.demand.intro"}}</p>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MARKETS.demand.legend.settlement"}}</legend>
+    <div class="acks-extras-markets-generator-grid">
+      <label class="acks-extras-markets-generator-field">
+        <span>{{localize "ACKS-MARKETS.demand.ageBand"}}</span>
+        <select name="ageBand">
+          {{#each ageOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label class="acks-extras-markets-generator-field">
+        <span>{{localize "ACKS-MARKETS.demand.elevation"}}</span>
+        <select name="elevation">
+          {{#each elevationOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label class="acks-extras-markets-generator-field">
+        <span>{{localize "ACKS-MARKETS.demand.landRevenue"}}</span>
+        <input type="number" name="landRevenueGp" min="0" step="1" value="{{landRevenueGp}}">
+      </label>
+    </div>
+    <p class="hint">{{localize "ACKS-MARKETS.demand.ageHint"}}</p>
+
+    <h4 class="acks-extras-markets-generator-subhead">{{localize "ACKS-MARKETS.demand.water"}}</h4>
+    <div class="acks-extras-markets-generator-checks">
+      {{#each waterBoxes}}
+      <label class="checkbox"><input type="checkbox" name="water.{{key}}" {{#if checked}}checked{{/if}}> {{label}}</label>
+      {{/each}}
+    </div>
+
+    <h4 class="acks-extras-markets-generator-subhead">{{localize "ACKS-MARKETS.demand.biome"}}</h4>
+    <div class="acks-extras-markets-generator-checks">
+      {{#each biomeBoxes}}
+      <label class="checkbox"><input type="checkbox" name="biome.{{key}}" {{#if checked}}checked{{/if}}> {{label}}</label>
+      {{/each}}
+    </div>
+    <p class="hint">{{localize "ACKS-MARKETS.demand.terrainHint"}}</p>
+
+    <h4 class="acks-extras-markets-generator-subhead">{{localize "ACKS-MARKETS.demand.races"}}</h4>
+    {{#if raceBoxes.length}}
+    <div class="acks-extras-markets-generator-checks">
+      {{#each raceBoxes}}
+      <label class="checkbox acks-extras-markets-generator-race"><input type="checkbox" name="race.{{index}}" {{#if checked}}checked{{/if}}> {{label}}</label>
+      {{/each}}
+    </div>
+    <p class="hint">{{localize "ACKS-MARKETS.demand.racesHint"}}</p>
+    {{else}}
+    <p class="hint">{{localize "ACKS-MARKETS.demand.racesNone"}}</p>
+    {{/if}}
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MARKETS.demand.legend.rolls"}}</legend>
+    <p class="hint">{{localize "ACKS-MARKETS.demand.rollsHint"}} ({{stepARoll}})</p>
+    <div class="acks-extras-markets-generator-actions">
+      <button type="button" data-action="rollA"><i class="fas fa-dice"></i> {{localize "ACKS-MARKETS.demand.rollA"}}</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MARKETS.demand.legend.land"}}</legend>
+    <p class="hint">{{localize "ACKS-MARKETS.demand.landHint"}}</p>
+    {{#if countsLine}}<p class="acks-extras-markets-generator-counts">{{countsLine}}</p>{{/if}}
+    {{#if countsMissing}}<p class="acks-extras-markets-generator-notice">{{localize "ACKS-MARKETS.demand.countsMissing"}}</p>{{/if}}
+    <div class="acks-extras-markets-generator-actions">
+      <button type="button" data-action="rollPicks" {{#unless canRollPicks}}disabled{{/unless}}><i class="fas fa-dice-d20"></i> {{localize "ACKS-MARKETS.demand.rollPicks"}}</button>
+      <button type="button" data-action="clearPicks" {{#unless picks.length}}disabled{{/unless}}><i class="fas fa-eraser"></i> {{localize "ACKS-MARKETS.demand.clearPicks"}}</button>
+    </div>
+    {{#if picks.length}}
+    <ul class="acks-extras-markets-generator-picks">
+      {{#each picks}}
+      <li>
+        <span>{{label}} {{delta}}</span>
+        <button type="button" class="acks-extras-markets-generator-ctl" data-action="removePick" data-index="{{index}}"
+                aria-label="{{localize 'ACKS-MARKETS.demand.removePick'}}" data-tooltip="{{localize 'ACKS-MARKETS.demand.removePick'}}"><i class="fas fa-xmark"></i></button>
+      </li>
+      {{/each}}
+    </ul>
+    {{/if}}
+    <div class="acks-extras-markets-generator-grid">
+      <label class="acks-extras-markets-generator-field">
+        <span>{{localize "ACKS-MARKETS.demand.pickGood"}}</span>
+        <select name="pickCategory">
+          {{#each goodOptions}}<option value="{{value}}">{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label class="acks-extras-markets-generator-field">
+        <span>{{localize "ACKS-MARKETS.demand.pickDelta"}}</span>
+        <input type="number" name="pickDelta" step="1" value="{{pickDelta}}">
+      </label>
+      <div class="acks-extras-markets-generator-field acks-extras-markets-generator-add">
+        <button type="button" data-action="addPick"><i class="fas fa-plus"></i> {{localize "ACKS-MARKETS.demand.addPick"}}</button>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MARKETS.demand.legend.preview"}}</legend>
+    <p class="hint">{{localize "ACKS-MARKETS.demand.previewHint"}}</p>
+    <table class="acks-extras-markets-generator-table">
+      <thead>
+        <tr>
+          <th>{{localize "ACKS-MARKETS.demand.col.good"}}</th>
+          <th>{{localize "ACKS-MARKETS.demand.col.a"}}</th>
+          <th>{{localize "ACKS-MARKETS.demand.col.b"}}</th>
+          <th>{{localize "ACKS-MARKETS.demand.col.c"}}</th>
+          <th>{{localize "ACKS-MARKETS.demand.col.d"}}</th>
+          <th>{{localize "ACKS-MARKETS.demand.col.base"}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each rows}}
+        <tr>
+          <td>{{label}}</td>
+          <td><input type="number" name="a.{{index}}" step="1" value="{{a}}" aria-label="{{label}}"></td>
+          <td>{{b}}</td>
+          <td>{{c}}</td>
+          <td>{{d}}</td>
+          <td class="acks-extras-markets-generator-base">{{base}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </fieldset>
+
+</div>
+
+<footer class="acks-extras-markets-generator-footer form-footer">
+  <button type="button" data-action="apply" {{#unless hasCatalog}}disabled{{/unless}}><i class="fas fa-check"></i> {{localize "ACKS-MARKETS.demand.apply"}}</button>
+</footer>
+</div>

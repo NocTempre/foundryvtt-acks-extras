@@ -1,0 +1,10 @@
+{
+  "id": "kind.marketRecord",
+  "role": "composite",
+  "note": "A gazetteer domain record: the settlement heading (a printKey hash; words read at import), urban families and market class, keyed to the neutral market id of its demand-grid row. meta.place \"adventure\" binds it onto the book city actor instead of a market actor of its own.",
+  "fields": {
+    "name": {
+      "locate": "printKey"
+    }
+  }
+}

@@ -156,6 +156,9 @@ export const storesByOwner = (provider) => groupByOwner(storedItems(provider).ma
 
 /**
  * Every place holding goods for this character, with a coin subtotal each.
+ * Only GOODS count: an Item that is not one (a market report on the trade
+ * house) is stored on a provider and attributed to its owner, but is not
+ * something a character retrieves, so it never makes its place a row here.
  *
  * One pass over the world's actors. Cheap at world scale, but it is a scan —
  * call it once per render and share the result rather than per row.
@@ -165,7 +168,7 @@ export function providersFor(owner) {
   if (!uuid) return [];
   const out = [];
   for (const provider of providers()) {
-    const items = storedItems(provider, { ownerUuid: uuid });
+    const items = storedItems(provider, { ownerUuid: uuid }).filter(isGoods);
     if (!items.length) continue;
     out.push({ provider, items, coinGC: coinTotalGC(items.map((i) => i.toObject())) });
   }

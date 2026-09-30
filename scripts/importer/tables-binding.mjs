@@ -15,7 +15,7 @@ import { BOOKS } from "./books.mjs";
 import { recipeCite } from "./produces.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
-import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { getLayer, missingRowKeys, PRIORITY } from "../lib/tables.mjs";
 
 /**
  * The PDF page whose text holds `recipe.locate`, searched outward from
@@ -129,9 +129,12 @@ export const tableRecipeCount = (only = null) => {
  * @param {string[]|Set<string>} [options.only] - ruledata document ids to read;
  *        omitted, every one. A subset is what makes re-reading ONE document
  *        affordable — a full run scans pages for every recipe there is.
- * @returns {Promise<{imported, missingBooks, optionalBooks, missingTables}>}
+ * @returns {Promise<{imported, missingBooks, optionalBooks, missingTables, incomplete}>}
  *   `missingBooks` and `optionalBooks` are book labels; a book any required
- *   recipe needs is listed only as missing.
+ *   recipe needs is listed only as missing. `incomplete` is one
+ *   `{docId, tableId, rows}` per table this run read whose page held no such
+ *   row, `rows` the missing row keys (a table stores a placeholder there, which
+ *   no read matches).
  */
 export async function importTables(sessionDocs, { priority, onProgress, only = null } = {}) {
   const pick = only ? new Set(only) : null;
@@ -140,7 +143,7 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
     throw new Error(`${MODULE_ID}: no ruledata-import provider — enable acks-location (the table host).`);
   }
   const P = priority ?? PRIORITY.WORLD;
-  const report = { imported: [], missingBooks: new Set(), missingTables: [] };
+  const report = { imported: [], missingBooks: new Set(), missingTables: [], incomplete: [] };
   const optionalBooks = new Set();
   const bookMissing = (book, optional) => (optional ? optionalBooks : report.missingBooks).add(book);
 
@@ -272,6 +275,10 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
     const doc = { id: docId, source: docRec.source, cites, tables: { ...existing, ...fresh } };
     await svc.importDoc(doc, { priority: P, source: MODULE_ID });
     report.imported.push({ docId, tables: Object.keys(fresh) });
+    for (const [tableId, table] of Object.entries(fresh)) {
+      const rows = missingRowKeys(table);
+      if (rows.length) report.incomplete.push({ docId, tableId, rows });
+    }
   }
   const label = (b) => BOOKS[b]?.label ?? b;
   report.optionalBooks = [...optionalBooks].filter((b) => !report.missingBooks.has(b)).map(label);

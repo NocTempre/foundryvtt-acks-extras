@@ -8,7 +8,6 @@
  * negotiation. Steady trade routes/networks are future work (ROADMAP).
  */
 import { MODULE_ID, LANG, ITEM_FLAG } from "../constants.mjs";
-import { MERCHANDISE_TYPES, merchandiseLabel } from "../config.mjs";
 import {
   parseStones,
   parseTollCpPerSt,
@@ -19,14 +18,19 @@ import {
   solicitedStones,
 } from "../rules/arbitrage.mjs";
 import { toGp } from "../rules/pricing.mjs";
+import { trueDemand } from "../rules/demand.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { judgesAndOwners } from "../../lib/util.mjs";
 import { optTable } from "../../henchmen/rules/tables.mjs";
+import { findRow } from "../../lib/tables.mjs";
 import { now } from "../../henchmen/time.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
 import { partyOf } from "./parties.mjs";
 import { marketMonthStart, abilityRanks } from "./trade.mjs";
+import { impactLimits, assessmentBands, priceShifts, negotiation, printedError } from "./printed.mjs";
+import { merchandiseCatalog, merchandiseFor } from "./merchandise.mjs";
+import { writeReport } from "./trade-objects.mjs";
 
 const SECONDS_PER_DAY = 86400;
 const err = (error, data = {}) => ({ error, ...data });
@@ -46,13 +50,45 @@ async function postCard(actor, html) {
 /** The imported Market Characteristics row for a class (null when absent). */
 function characteristicsFor(marketClass) {
   const rows = optTable("mercantile", "marketCharacteristics")?.rows ?? [];
-  return rows.find((r) => Number(r.marketClass) === Number(marketClass)) ?? null;
+  return findRow(rows, (r) => Number(r.marketClass) === Number(marketClass)) ?? null;
 }
 
-/** The imported merchandise row for a category key (null when absent). */
-function merchRowFor(category) {
-  const rows = optTable("mercantile", "merchandiseTypes")?.rows ?? [];
-  return rows.find((r) => r.type === category) ?? null;
+/**
+ * The imported table a dedicated day's kind cannot resolve without, when it is
+ * unread: entering needs the impact limits, assessing its result bands,
+ * soliciting the monthly price shifts. Null when the day can go ahead.
+ */
+function venturePrerequisite(kind) {
+  if (kind === "enter" && !impactLimits()) return "impactProse";
+  if (kind === "assess" && !assessmentBands()) return "assessmentProse";
+  if (kind === "solicit" && !priceShifts()) return "priceShiftProse";
+  return null;
+}
+
+/**
+ * Tell an action's actor (and the GM) that a day could not resolve because an
+ * imported table is absent. The action is spent; the card names the table and
+ * the way to import it, so the failure is never silent.
+ */
+async function postTableMissing(actor, location, action, tableKey, log, t) {
+  const table = game.i18n.localize(`${LANG}.ventures.table.${tableKey}`);
+  log.push({ time: t, type: "ventureFailed", note: `${actor.name}: ${action.kind} could not resolve (${table} table not imported)` });
+  await postCard(
+    actor,
+    `<strong>${game.i18n.format(`${LANG}.ventures.tableMissing`, {
+      name: actor.name,
+      kind: game.i18n.localize(`${LANG}.ventures.kind.${action.kind}`),
+      location: location.name,
+      table,
+    })}</strong>`
+  );
+}
+
+/** Stones of one merchandise category an actor carries as loads (one unit per stone, across every load item). */
+export function loadsHeld(actor, category) {
+  return (actor?.items ?? [])
+    .filter((i) => i.type === ITEM_TYPE.item && i.getFlag(MODULE_ID, ITEM_FLAG)?.merchandise && i.getFlag(MODULE_ID, ITEM_FLAG)?.category === category)
+    .reduce((sum, i) => sum + Math.max(0, Number(i.system?.quantity?.value ?? 0) || 0), 0);
 }
 
 /** This party's venture row for the month, if any. */
@@ -80,6 +116,9 @@ export async function postVentureAction(location, payload) {
   }
   const actions = clone(goods.actions);
   if (resolutionId && actions.some((a) => a.id === resolutionId)) return err("duplicate");
+  // Refused now, before the toll is taken, rather than spent as a day that cannot resolve.
+  const unread = venturePrerequisite(kind);
+  if (unread) return printedError(unread);
 
   const t = now();
   const monthStart = marketMonthStart(t);
@@ -99,7 +138,7 @@ export async function postVentureAction(location, payload) {
     }
   } else {
     if (!venture?.entered) return err("notEntered");
-    if (kind === "solicit" && !MERCHANDISE_TYPES.some((m) => m.key === category)) return err("noCategory");
+    if (kind === "solicit" && !merchandiseFor(category)) return err("noCategory");
   }
 
   const action = {
@@ -123,9 +162,9 @@ export async function postVentureAction(location, payload) {
   return { ok: true, resolveTime: action.resolveTime };
 }
 
-/** Random distinct merchandise categories. */
+/** Random distinct merchandise categories, from the whole catalogue (a Judge's own goods included). */
 function randomCategories(n) {
-  const keys = MERCHANDISE_TYPES.map((m) => m.key);
+  const keys = merchandiseCatalog().map((m) => m.key);
   const out = [];
   while (out.length < Math.min(n, keys.length)) {
     const k = keys[Math.floor(Math.random() * keys.length)];
@@ -134,28 +173,18 @@ function randomCategories(n) {
   return out;
 }
 
-/** Write one believed demand modifier into a party's knowledge. */
-function learn(dmKnowledge, partyId, category, believed, t) {
-  const row = dmKnowledge.find((k) => k.partyId === partyId && k.category === category);
-  if (row) {
-    row.believed = believed;
-    row.time = t;
-  } else {
-    dmKnowledge.push({ partyId, category, believed, time: t });
-  }
-}
-
-/** The truth: the GM-set demand modifier for a category (0 unset). */
-const trueDm = (goods, category) => Number(goods.demand?.find?.((d) => d.category === category)?.modifier ?? 0) || 0;
+/** The truth: the market's true demand modifier for a category (0 unset). */
+const trueDm = (goods, category) => trueDemand(goods, category);
 
 /** Roll and record the month's market price for a category, if not yet. */
 async function ensureMerchPrice(goods, merchPrices, category, marketClass, monthStart) {
   let row = merchPrices.find((p) => p.category === category && Number(p.monthStartTime) === monthStart);
   if (row) return row;
-  const merch = merchRowFor(category);
-  if (!merch) return null;
-  const basePriceCp = Math.round((Number(merch.pricePerStone) || 0) * 100);
-  const stepCp = Math.max(1, Math.round((Number(merch.priceStep) || 0) * 100));
+  const merch = merchandiseFor(category);
+  const shifts = priceShifts();
+  if (!merch || !shifts) return null;
+  const basePriceCp = Math.round((Number(merch.pricePerStoneGp) || 0) * 100);
+  const stepCp = Math.max(1, Math.round((Number(merch.priceStepGp) || 0) * 100));
   const roll = (await new Roll("4d4").evaluate()).total;
   const { priceCp, steps } = merchMarketPriceCp({
     basePriceCp,
@@ -165,6 +194,7 @@ async function ensureMerchPrice(goods, merchPrices, category, marketClass, month
     marketClass,
     grain: category === "grainVegetables",
     season: null, // the Judge's calendar season is future work
+    ...shifts,
   });
   row = { category, monthStartTime: monthStart, priceCp, detail: `4d4 ${roll} → ${steps >= 0 ? "+" : ""}${steps} steps` };
   merchPrices.push(row);
@@ -184,7 +214,6 @@ export async function processVentureActions(location, log, t) {
 
   const monthStart = marketMonthStart(t);
   const ventures = clone(goods.ventures);
-  const dmKnowledge = clone(goods.dmKnowledge);
   const merchPrices = clone(goods.merchPrices);
   const solicitations = clone(goods.solicitations);
 
@@ -196,8 +225,17 @@ export async function processVentureActions(location, log, t) {
 
     if (action.kind === "enter") {
       const ch = characteristicsFor(location.system.marketClass);
-      if (!ch) continue;
+      if (!ch) {
+        await postTableMissing(actor, location, action, "marketCharacteristics", log, t);
+        continue;
+      }
+      const limits = impactLimits();
+      if (!limits) {
+        await postTableMissing(actor, location, action, "impactProse", log, t);
+        continue;
+      }
       const { impact, effectiveClass } = marketImpact({
+        ...limits,
         cargoSt: action.cargoSt,
         baselineCargoSt: parseStones(ch.baselineCargo),
         marketClass: Number(location.system.marketClass) || 6,
@@ -218,22 +256,33 @@ export async function processVentureActions(location, log, t) {
     }
 
     if (action.kind === "assess") {
+      // A report is written on the trade house, which only the GM's seat can
+      // write; a player's client leaves the day for the GM's sweep.
+      if (!game.user.isGM) {
+        action.status = "pending";
+        continue;
+      }
+      const bands = assessmentBands();
+      if (!bands) {
+        await postTableMissing(actor, location, action, "assessmentProse", log, t);
+        continue;
+      }
       const roll = await new Roll("2d6").evaluate();
       const total = roll.total + adapter.getChaMod(actor);
-      const outcome = assessmentOutcome(total);
-      let learned = [];
+      const outcome = assessmentOutcome(total, bands);
+      const catalog = merchandiseCatalog();
+      const beliefs = [];
+      const believe = (category, dm) => beliefs.push({ category, dm });
       if (outcome === "success") {
-        for (const m of MERCHANDISE_TYPES) learn(dmKnowledge, action.partyId, m.key, trueDm(goods, m.key), t);
-        learned = MERCHANDISE_TYPES.map((m) => m.key);
+        for (const m of catalog) believe(m.key, trueDm(goods, m.key));
       } else if (outcome === "partial") {
-        learned = randomCategories((await new Roll("1d6").evaluate()).total);
-        for (const c of learned) learn(dmKnowledge, action.partyId, c, trueDm(goods, c), t);
+        for (const c of randomCategories((await new Roll("1d6").evaluate()).total)) believe(c, trueDm(goods, c));
       } else if (outcome === "expertise") {
         // Expertise reveals only categories the assessor works in: an
         // Art/Craft/Profession ability at 2+ ranks whose name contains the
-        // category's printed label (or vice versa).
-        for (const m of MERCHANDISE_TYPES) {
-          const label = game.i18n.localize(merchandiseLabel(m.key)).toLowerCase();
+        // category's label (or vice versa).
+        for (const m of catalog) {
+          const label = String(m.label).toLowerCase();
           const expert = actor.items.some((i) => {
             if (i.type !== ITEM_TYPE.ability) return false;
             const n = String(i.name).toLowerCase();
@@ -244,36 +293,60 @@ export async function processVentureActions(location, log, t) {
             const related = n.includes(label) || label.includes(n.replace(/^(art\/craft|art|craft|profession)\s*\(?/, "").replace(/\)$/, ""));
             return related && abilityRanks(actor, i.name) >= 2;
           });
-          if (expert) {
-            learn(dmKnowledge, action.partyId, m.key, trueDm(goods, m.key), t);
-            learned.push(m.key);
-          }
+          if (expert) believe(m.key, trueDm(goods, m.key));
         }
       } else if (outcome === "false") {
-        learned = randomCategories((await new Roll("1d6").evaluate()).total);
-        for (const c of learned) {
+        for (const c of randomCategories((await new Roll("1d6").evaluate()).total)) {
           const wrong = trueDm(goods, c) + ((await new Roll("1d6").evaluate()).total >= 4 ? 1 : -1) * (await new Roll("1d3").evaluate()).total;
-          learn(dmKnowledge, action.partyId, c, wrong, t);
+          believe(c, wrong);
         }
       }
-      log.push({ time: t, type: "ventureAssessed", note: `${actor.name}: assessment ${outcome} (${learned.length} DMs)` });
+      // ONE report per assessment that learned anything; the false outcome is
+      // stored as it fell, and every surface shows a non-GM a partial.
+      if (beliefs.length) {
+        const written = await writeReport({
+          ownerUuid: actor.uuid,
+          marketUuid: location.uuid,
+          marketName: location.name,
+          assessorUuid: actor.uuid,
+          partyId: action.partyId,
+          time: t,
+          outcome,
+          beliefs,
+        }).catch((error) => ({ error: String(error?.message ?? error) }));
+        if (written.error) {
+          // The day is kept, not spent: the sweep tries it again.
+          console.error(`${MODULE_ID} | the assessment report could not be written (${written.error}) for ${actor.name} at ${location.name}`);
+          action.status = "pending";
+          continue;
+        }
+      }
+      log.push({ time: t, type: "ventureAssessed", note: `${actor.name}: assessment ${outcome} (${beliefs.length} DMs)` });
       await postCard(
         actor,
         `<strong>${game.i18n.format(`${LANG}.ventures.assessedLine`, { name: actor.name })}</strong><br>` +
           // The FALSE outcome reads as a partial assessment to the party —
           // only the Judge's copy names it (2d6 detail stays GM-side).
-          game.i18n.format(`${LANG}.ventures.assessed.${outcome === "false" ? "partial" : outcome}`, { n: learned.length })
+          game.i18n.format(`${LANG}.ventures.assessed.${outcome === "false" ? "partial" : outcome}`, { n: beliefs.length })
       );
     }
 
     if (action.kind === "solicit") {
       const venture = ventures.find((v) => v.partyId === action.partyId && Number(v.monthStartTime) === monthStart);
-      const merch = merchRowFor(action.category);
-      if (!venture?.entered || !merch) continue;
+      const merch = merchandiseFor(action.category);
+      if (!merch) {
+        await postTableMissing(actor, location, action, "merchandiseTypes", log, t);
+        continue;
+      }
+      if (!priceShifts()) {
+        await postTableMissing(actor, location, action, "priceShiftProse", log, t);
+        continue;
+      }
+      if (!venture?.entered) continue;
       const price = await ensureMerchPrice(goods, merchPrices, action.category, Number(location.system.marketClass) || 6, monthStart);
       if (!price) continue;
       const gained = solicitedStones({
-        baseStones: Number(String(merch.byMarketClass?.[(venture.effectiveClass || location.system.marketClass) - 1] ?? "0").replace(/,/g, "")) || 0,
+        baseStones: Number(merch.dailyStones?.[(venture.effectiveClass || location.system.marketClass) - 1]) || 0,
         impact: venture.impact,
       });
       const srow =
@@ -287,13 +360,13 @@ export async function processVentureActions(location, log, t) {
       log.push({ time: t, type: "ventureSolicited", note: `${actor.name}: solicited ${action.category} (+${gained} st @ ${toGp(price.priceCp)}gp/st)` });
       await postCard(
         actor,
-        `<strong>${game.i18n.format(`${LANG}.ventures.solicitedLine`, { name: actor.name, label: game.i18n.localize(merchandiseLabel(action.category)) })}</strong><br>` +
+        `<strong>${game.i18n.format(`${LANG}.ventures.solicitedLine`, { name: actor.name, label: merch.label })}</strong><br>` +
           game.i18n.format(`${LANG}.ventures.solicitedDetail`, { stones: Math.floor(srow.stones), price: toGp(price.priceCp) })
       );
     }
   }
 
-  return { actions, ventures, dmKnowledge, merchPrices, solicitations };
+  return { actions, ventures, merchPrices, solicitations };
 }
 
 /**
@@ -328,22 +401,24 @@ export async function tradeMerchandise(location, payload) {
 
   const merchPrices = clone(goods.merchPrices);
   const price = merchPrices.find((p) => p.category === category && Number(p.monthStartTime) === monthStart);
-  const merch = merchRowFor(category);
+  const merch = merchandiseFor(category);
   if (!price || !merch) return err("noCategory");
-  const stepCp = Math.max(1, Math.round((Number(merch.priceStep) || 0) * 100));
+  const stepCp = Math.max(1, Math.round((Number(merch.priceStepGp) || 0) * 100));
 
   // Spot-price negotiation (RR §VIII.6 step 5): the merchant profile is the
   // book's typical trader for the tier, sharpened on a 1d6 over the class.
+  const printed = negotiate ? negotiation() : null;
+  if (negotiate && !printed) return printedError("negotiationProse");
   let unitCp = price.priceCp;
   let negotiationLine = null;
   if (negotiate) {
-    const tier = MERCHANDISE_TYPES.find((m) => m.key === category)?.tier ?? "common";
-    const merchantCha = tier === "precious" ? 2 : 1;
-    let merchantRanks = 1;
-    if ((await new Roll("1d6").evaluate()).total > (Number(location.system.marketClass) || 6)) merchantRanks += 1;
+    const typical = merch.tier === "precious" ? printed.precious : printed.common;
+    const merchantCha = typical.cha;
+    let merchantRanks = typical.ranks;
+    if ((await new Roll("1d6").evaluate()).total > (Number(location.system.marketClass) || 6)) merchantRanks += printed.extraRanks;
     const roll = await new Roll("2d6").evaluate();
-    const total = roll.total + adapter.getChaMod(actor) + 2 * abilityRanks(actor, "Bargaining") - merchantCha - 2 * merchantRanks;
-    const outcome = negotiationOutcome(total, roll.total);
+    const total = roll.total + adapter.getChaMod(actor) + printed.rankStep * abilityRanks(actor, "Bargaining") - merchantCha - printed.rankStep * merchantRanks;
+    const outcome = negotiationOutcome(total, roll.total, printed.bands);
     negotiationLine = game.i18n.format(`${LANG}.ventures.negotiation.${outcome}`, { total });
     if (outcome === "outrage") return err("negotiationOutrage");
     if (outcome === "grudging" || outcome === "agreement") {
@@ -352,7 +427,7 @@ export async function tradeMerchandise(location, payload) {
   }
 
   const totalGp = toGp(unitCp * stones);
-  const label = game.i18n.localize(merchandiseLabel(category));
+  const label = merch.label;
 
   if (direction === "buy") {
     const paid = await adapter.spendGold(actor, totalGp, game.i18n.format(`${LANG}.ventures.buyReason`, { stones, label }), { to: location, at: location });
@@ -371,7 +446,7 @@ export async function tradeMerchandise(location, payload) {
           img: "icons/containers/bags/sack-simple-leather-brown.webp",
           system: {
             quantity: { value: stones, max: 0 },
-            cost: Number(merch.pricePerStone) || 0,
+            cost: Number(merch.pricePerStoneGp) || 0,
             weight6: 6, // one stone per unit
             description: game.i18n.format(`${LANG}.ventures.loadDescription`, { label, location: location.name }),
           },

@@ -1,8 +1,8 @@
 /* global game, ui, foundry, Hooks, ChatMessage, Roll, fromUuid */
 /**
- * Merchant importing (RR §IV.3): order goods from a local hub (+1 market
- * class, 2d6 days) or regional hub (+2, 2d6 weeks), paid up front; on a 12
- * the goods are lost in transit and the payment forfeit.
+ * Merchant importing (RR 124): order goods from a local hub (a larger market
+ * class, 2d6 days) or regional hub (larger still, 2d6 weeks), paid up front;
+ * on the printed transit result the goods are lost and the payment forfeit.
  *
  * The order's fate is rolled AT PLACEMENT and stays hidden until due, so
  * resolution is deterministic under clock adjustments. Hubs are abstract in
@@ -11,13 +11,17 @@
  */
 import { MODULE_ID, LANG, HOOKS } from "../constants.mjs";
 import { priceBandOf, cellFor, itemKeyOf } from "../rules/availability.mjs";
-import { quote, toGp, bargainWinner } from "../rules/pricing.mjs";
-import { importPlan, dueImports, hubClass } from "../rules/imports.mjs";
+import { getSetting } from "../settings.mjs";
+import { toGp, bargainWinner } from "../rules/pricing.mjs";
+import { magicBasisOf, capVerdict } from "../rules/goods.mjs";
+import { importPlan, dueImports, hubClass, HUBS } from "../rules/imports.mjs";
+import { marketRules, printedError } from "./printed.mjs";
 import { commissionPlan } from "../rules/commissions.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { judgesAndOwners } from "../../lib/util.mjs";
 import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
+import { findRow } from "../../lib/tables.mjs";
 import { now, onTimeAdvanced } from "../../henchmen/time.mjs";
 import { getSetting as henchmenSetting } from "../../henchmen/settings.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
@@ -30,11 +34,11 @@ import {
   deliverGoods,
   abilityRanks,
   isMasterwork,
-  categoryOf,
-  demandStepsFor,
+  buyQuote,
   marketMonthStart,
   resolveMonthlyAvailability,
   resolveSearchDayActions,
+  bandGridFor,
   goodsOf,
 } from "./trade.mjs";
 
@@ -56,10 +60,14 @@ async function postCard(buyer, html) {
 
 /**
  * Place an import order: pay now, arrival (or hidden loss) already decided.
+ * The hub is `payload.hub` ("local" or "regional"); the legacy `hubShift`
+ * ordinal (1 local, 2 regional) is still read for a caller that sends it. How
+ * far each hub shifts the market class and which transit result loses the
+ * goods are printed figures read from the imported market rules.
  */
 export async function placeImportOrder(location, payload) {
-  const { buyerUuid, itemName, qty: rawQty, hubShift: rawShift, merchantRanks = 0, requestUserId = null, resolutionId = "" } = payload;
-  const hubShift = rawShift === 2 ? 2 : 1;
+  const { buyerUuid, itemName, qty: rawQty, hub: rawHub, hubShift: legacyShift, merchantRanks = 0, requestUserId = null, resolutionId = "" } = payload;
+  const hub = Object.hasOwn(HUBS, rawHub) ? rawHub : legacyShift === 2 ? "regional" : "local";
   const qty = Math.max(1, Math.floor(Number(rawQty) || 1));
 
   const buyerDoc = await fromUuid(buyerUuid).catch(() => null);
@@ -83,12 +91,17 @@ export async function placeImportOrder(location, payload) {
   if (!(costGp > 0)) return err("untradeable");
   if (isMasterwork(itemData) && !goods.masterworkContact) return err("masterworkGated");
 
+  const hubRules = marketRules(["localHubShift", "regionalHubShift", "lostOnRoll"]);
+  if (!hubRules) return printedError("marketRulesProse");
   const localClass = effectiveMarketClass(location, buyer);
   if (localClass == null) return err("noMarket");
-  const sourceClass = hubClass(localClass, hubShift);
-  const rows = optTable("availability", "equipmentAvailability")?.rows;
-  if (!rows?.length) return err("tablesMissing");
-  const band = priceBandOf(costGp, rows);
+  const sourceClass = hubClass(localClass, hub === "regional" ? hubRules.regionalHubShift : hubRules.localHubShift);
+  // A magic item imports on the magic transaction grid and prices as Tower
+  // stock, exactly as a local purchase of it does.
+  const { magic, baseGp: magicBaseGp } = magicBasisOf(itemData);
+  const grid = bandGridFor(magic);
+  if (!grid) return err("tablesMissing");
+  const band = priceBandOf(magic ? magicBaseGp : costGp, grid.rows);
   if (!band) return err("untradeable");
   const cell = cellFor(band, sourceClass);
   if (cell.kind === "none") return err("unavailable");
@@ -96,27 +109,31 @@ export async function placeImportOrder(location, payload) {
   // The importable quantity is the SOURCE market's monthly value (RR §IV.3);
   // %-cells roll one unit's existence fresh per order (abstract hub).
   let sourceDetail = "";
+  let remaining = 1;
   if (cell.kind === "pct") {
     const roll = await d100();
     sourceDetail = `d100 ${roll} vs ${cell.chance}%`;
     if (roll > cell.chance) return err("hubOut", { detail: sourceDetail });
-    if (qty > 1) return err("capExceeded", { remaining: 1 });
-  } else if (qty > cell.n) {
-    return err("capExceeded", { remaining: cell.n });
+  } else {
+    remaining = cell.n;
   }
+  const verdict = capVerdict({ qty, remaining, enforce: !!getSetting("marketsEnforceCaps") });
+  if (verdict === "exceeded") return err("capExceeded", { remaining });
+  if (verdict === "waived") ui?.notifications?.warn(game.i18n.format(`${LANG}.trade.capWaived`, { remaining }));
 
   // Price as a local purchase (demand and Bargaining still apply; the hub's
   // advantage is availability, not price).
   const partyRanks = abilityRanks(buyer, "Bargaining");
-  const bargain = bargainWinner({ partyRanks, merchantRanks, opposedWinner: null });
-  const priced = quote({ costGp, direction: "buy", demandSteps: demandStepsFor(goods, categoryOf(itemData)), bargain });
+  const bargain = magic ? null : bargainWinner({ partyRanks, merchantRanks, opposedWinner: null });
+  const priced = buyQuote({ itemData, costGp, magic, magicBaseGp, goods, bargain });
+  if (priced.error) return priced;
   const totalGp = toGp(priced.unitCp * qty);
   const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.imports.payReason`, { qty, name: itemData.name }), { to: location, at: location });
   if (!paid) return err("insufficientGold");
 
   const roll2d6 = (await new Roll("2d6").evaluate()).total;
   const t = now();
-  const plan = importPlan({ roll2d6, hubShift, placedTime: t });
+  const plan = importPlan({ roll2d6, hub, lostOnRoll: hubRules.lostOnRoll, placedTime: t });
   const order = {
     id: resolutionId || foundry.utils.randomID(),
     partyId: partyOf(buyer).id,
@@ -126,7 +143,7 @@ export async function placeImportOrder(location, payload) {
     qty,
     unitPriceCp: priced.unitCp,
     totalCp: priced.unitCp * qty,
-    hubShift,
+    hub,
     placedTime: t,
     arrivalTime: plan.arrivalTime,
     lost: plan.lost,
@@ -139,7 +156,7 @@ export async function placeImportOrder(location, payload) {
   log.push({
     time: t,
     type: "importOrder",
-    note: `${buyer.name}: ordered ${qty}× ${itemData.name} from ${hubShift === 2 ? "regional" : "local"} hub for ${totalGp}gp [${order.id}]`,
+    note: `${buyer.name}: ordered ${qty}× ${itemData.name} from ${hub} hub for ${totalGp}gp [${order.id}]`,
   });
   await location.update({
     "system.market.goods.imports": [...existing, order],
@@ -152,7 +169,7 @@ export async function placeImportOrder(location, payload) {
       `${game.i18n.format(`${LANG}.imports.paid`, { total: totalGp })}`
   );
   Hooks.callAll(HOOKS.IMPORT_ORDERED, { location, buyer, itemName: itemData.name, qty, totalGp });
-  return { ok: true, totalGp, etaDays: Math.ceil((plan.arrivalTime - t) / 86400) };
+  return { ok: true, totalGp, etaDays: Math.ceil((plan.arrivalTime - t) / 86400), ...(grid.fallback ? { gridFallback: true } : {}) };
 }
 
 /**
@@ -239,7 +256,6 @@ export async function processImports(location) {
   if (ventureSweep) {
     updates["system.market.goods.actions"] = ventureSweep.actions;
     updates["system.market.goods.ventures"] = ventureSweep.ventures;
-    updates["system.market.goods.dmKnowledge"] = ventureSweep.dmKnowledge;
     updates["system.market.goods.merchPrices"] = ventureSweep.merchPrices;
     updates["system.market.goods.solicitations"] = ventureSweep.solicitations;
     resolved += 1;
@@ -301,7 +317,7 @@ export async function placeCommission(location, payload) {
   // A masterwork is a grandmaster's work — the same contact gate (RR §IV.6).
   if (isMasterwork(itemData) && !goods.masterworkContact) return err("masterworkGated");
 
-  const rateRow = (optTable("construction", "wageAndConstructionRates")?.rows ?? []).find((r) => r.worker === worker);
+  const rateRow = findRow(optTable("construction", "wageAndConstructionRates")?.rows ?? [], (r) => r.worker === worker);
   if (!rateRow) return err("noRates");
   const plan = commissionPlan({
     costCp: Math.round(costGp * 100) * qty,
@@ -430,9 +446,11 @@ async function processSearches(location, goodsWrites, log, t) {
     const buyer = buyerDoc?.actor ?? buyerDoc;
     const entry = buyer ? await findGearEntry(search.itemName) : null;
     if (!entry) continue;
+    const { magic, baseGp } = magicBasisOf(entry.data);
     const state = await resolveMonthlyAvailability(location, goodsWrites.goods, {
       itemData: entry.data,
-      bandValueGp: Number(entry.data.system?.cost ?? 0),
+      bandValueGp: magic ? baseGp : Number(entry.data.system?.cost ?? 0),
+      magic,
       trader: buyer,
       direction: "bought",
     });

@@ -1,0 +1,10 @@
+{
+  "id": "kind.merchandiseDemand",
+  "role": "definition",
+  "note": "JJ realms chapter: the environmental demand-adjustment grid (goods as rows) and the racial demand table (race rows, prose cells naming goods). An APPEND onto kind.merchandise items by key; the binding reports any label or named good it cannot map. Age-band headers are read at runtime (headerBand); no column label ships.",
+  "fields": {
+    "name": {
+      "locate": "display"
+    }
+  }
+}

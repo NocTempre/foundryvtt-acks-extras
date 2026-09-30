@@ -22,7 +22,7 @@
  *   formation {name} | null
  *   party     {formation: {name, onScene, membersOnScene}|null, henchmen: [{onScene}],
  *              summons: [{}] on the scene, calamity: number}
- *   caster, pending, followers, timers, hasClass, unansweredPaths
+ *   caster, trader (set by the sheet), pending, followers, timers, hasClass, unansweredPaths
  *   pins      string[]
  */
 import { SAVE_KEYS, SAVE_ICONS, MOVE_MODES, AC_MODES, LIGHT_ICONS, TAB_ORDER, TOOL_CELLS } from "./constants.mjs";
@@ -224,13 +224,14 @@ export function saveCells({ saves = {}, riders = [], saveMods = {} }) {
 /* -------------------------------------------- */
 
 /**
- * Which tabs exist and what each badges. Magic appears for a caster only;
+ * Which tabs exist and what each badges. Magic appears for a caster only,
+ * Trade for a trader;
  * a count sits on Followers and Effects (how many is the reason to open
  * them); a gold pending badge on Abilities and Class is a choice waiting;
  * Class goes gold (`dyn`) while the XP bar is full.
  */
-export function tabList({ caster = false, pending = 0, followers = 0, timers = 0, full = false, hasClass = false, unansweredPaths = 0 }) {
-  return TAB_ORDER.filter((k) => k !== "magic" || caster).map((key) => {
+export function tabList({ caster = false, trader = false, pending = 0, followers = 0, timers = 0, full = false, hasClass = false, unansweredPaths = 0 }) {
+  return TAB_ORDER.filter((k) => (k !== "magic" || caster) && (k !== "trade" || trader)).map((key) => {
     const tab = { key };
     if (key === "abilities" && pending > 0) tab.p = pending;
     if (key === "class") {
@@ -348,6 +349,7 @@ export function buildFrameModel(snap, viewer = {}) {
   const xp = xpBar(snap.xp ?? {});
   const tabs = tabList({
     caster: !!snap.caster,
+    trader: !!snap.trader,
     pending: num(snap.pending),
     followers: num(snap.followers),
     timers: num(snap.timers),

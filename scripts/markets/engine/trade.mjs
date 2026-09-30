@@ -18,9 +18,12 @@ import {
   itemKeyOf,
 } from "../rules/availability.mjs";
 import { quote, magicQuote, magicBandValueGp, bargainWinner, toGp } from "../rules/pricing.mjs";
+import { trueDemand } from "../rules/demand.mjs";
+import { marketsFlagOf, isMasterwork, magicBasisOf, capVerdict } from "../rules/goods.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
 import { ITEM_TYPE, slug } from "../../lib/vocab.mjs";
-import { judgesAndOwners } from "../../lib/util.mjs";
+import { judgesAndOwners, gmIds } from "../../lib/util.mjs";
+import { ownerOf } from "../../lib/storage.mjs";
 import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
 import { now, calendarMonthStart, secondsPerMonth } from "../../henchmen/time.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
@@ -30,6 +33,7 @@ import { deliverItems } from "../../lib/bundles.mjs";
 import { goodsForRow } from "../../lib/bundles-logic.mjs";
 import { quantityOf } from "../../lib/storage-logic.mjs";
 import { partyOf, partySize } from "./parties.mjs";
+import { marketRules, bargaining, magicPrices, stepFractionFor, printedError } from "./printed.mjs";
 
 /** Item types the goods market trades. */
 export const TRADE_TYPES = Object.freeze([ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item, ITEM_TYPE.bundle]);
@@ -49,6 +53,8 @@ export function goodsOf(location) {
     totals: arr(goods?.totals),
     partyMonths: arr(goods?.partyMonths),
     demand: arr(goods?.demand),
+    demandOverrides: arr(goods?.demandOverrides),
+    demandDerived: arr(goods?.demandDerived),
     imports: arr(goods?.imports),
   };
 }
@@ -70,13 +76,8 @@ export function abilityRanks(actor, name) {
   return (actor?.items ?? []).filter((i) => i.type === ITEM_TYPE.ability && slug(i.name) === wanted).length;
 }
 
-/** Masterwork gear is Judge-gated (RR §IV.6), never on the open table. */
-export function isMasterwork(itemData) {
-  if (itemData?.flags?.[MODULE_ID]?.[ITEM_FLAG]?.masterwork != null) {
-    return !!itemData.flags[MODULE_ID][ITEM_FLAG].masterwork;
-  }
-  return /masterwork/i.test(String(itemData?.name ?? ""));
-}
+/** Masterwork gear is Judge-gated (RR §IV.6); the rule reads in `rules/goods.mjs`. */
+export { isMasterwork };
 
 /**
  * Merchandise category for demand pricing: explicit per-item flag override,
@@ -91,22 +92,56 @@ export function categoryOf(itemData) {
   return null;
 }
 
-/** Signed demand steps for a category on this market (0 when unset). */
+/** Signed demand steps for a category on this market (0 when unset): its true demand. */
 export function demandStepsFor(goods, category) {
-  if (!category) return 0;
-  return Number(goods.demand?.find?.((d) => d.category === category)?.modifier ?? 0) || 0;
+  return trueDemand(goods, category);
+}
+
+/**
+ * The unit price of buying one item: the printed Tower price for a magic
+ * item, else base cost with the category's demand steps and the Bargaining
+ * swing (`bargain` names the winner). A price whose printed figures are not
+ * imported comes back `{error: "printedMissing", table}`; nothing is guessed.
+ *
+ * @param {object} o
+ * @param {object} o.itemData - the item's plain data (its category prices demand)
+ * @param {number} o.costGp - the item's cost
+ * @param {boolean} o.magic - whether it trades as magic stock
+ * @param {number} o.magicBaseGp - base cost of a magic item
+ * @param {object} o.goods - the market's goods (its demand layers, read by `trueDemand`)
+ * @param {"party"|"merchant"|null} [o.bargain]
+ * @returns {{unitCp:number, breakdown:{label:string, cp:number}[]}|{error:string, table:string}}
+ */
+export function buyQuote({ itemData, costGp, magic, magicBaseGp, goods, bargain = null }) {
+  if (magic) {
+    const prices = magicPrices(["buyPct"]);
+    if (!prices) return printedError("priceProse");
+    const m = magicQuote({ baseCostGp: magicBaseGp, identified: "full", direction: "buy", buyPct: prices.buyPct });
+    return { unitCp: m.unitCp, breakdown: [{ label: m.basis, cp: m.unitCp }] };
+  }
+  const swing = bargain ? bargaining() : null;
+  if (bargain && !swing) return printedError("bargainingProse");
+  const category = categoryOf(itemData);
+  return quote({
+    costGp,
+    direction: "buy",
+    demandSteps: demandStepsFor(goods, category),
+    stepFraction: stepFractionFor(category),
+    bargain,
+    bargainPct: swing ? { buy: swing.buyPct, sell: swing.sellPct } : null,
+  });
 }
 
 const d100 = async () => (await new Roll("1d100").evaluate()).total;
 
 /**
- * Opposed Bargaining reaction rolls (2d6 + CHA + 2 per rank each side);
- * higher takes the discount, a tie moves nothing. Natural 2/12 need no
- * special floors here — only the comparison matters.
+ * Opposed Bargaining reaction rolls (2d6 + CHA + the printed per-rank bonus
+ * for each side's ranks); higher takes the discount, a tie moves nothing.
+ * Natural extremes need no special floors here — only the comparison matters.
  */
-async function opposedBargain({ trader, partyRanks, merchantRanks, merchantCha }) {
-  const mine = (await new Roll("2d6").evaluate()).total + adapter.getChaMod(trader) + 2 * partyRanks;
-  const theirs = (await new Roll("2d6").evaluate()).total + Number(merchantCha ?? 0) + 2 * merchantRanks;
+async function opposedBargain({ trader, partyRanks, merchantRanks, merchantCha, rankBonus }) {
+  const mine = (await new Roll("2d6").evaluate()).total + adapter.getChaMod(trader) + rankBonus * partyRanks;
+  const theirs = (await new Roll("2d6").evaluate()).total + Number(merchantCha ?? 0) + rankBonus * merchantRanks;
   const winner = mine > theirs ? "party" : theirs > mine ? "merchant" : null;
   return { winner, detail: `opposed Bargaining ${mine} vs ${theirs}` };
 }
@@ -121,6 +156,22 @@ async function postReceipt({ location, trader, html }) {
   });
 }
 
+/** A whisper for the GM alone: roll records and diagnostics a receipt must not carry. */
+async function postGmNote({ trader, html }) {
+  await ChatMessage.create({
+    content: `<div class="acks-extras-markets-receipt">${html}</div>`,
+    whisper: gmIds(),
+    speaker: ChatMessage.getSpeaker({ actor: trader }),
+  });
+}
+
+/** The GM-only lines behind a receipt: the scarce-goods roll record and the grid-fallback note. */
+const gmDetailLines = ({ existRow, gridFallback }) =>
+  [
+    existRow ? `${game.i18n.localize(`${LANG}.trade.existence`)}: ${existRow.detail}` : null,
+    gridFallback ? game.i18n.localize(`${LANG}.trade.gridFallbackNote`) : null,
+  ].filter(Boolean);
+
 /** Append a market-log line, capped to the recent past. */
 function appendLog(logRows, entry) {
   logRows.push(entry);
@@ -132,21 +183,26 @@ const err = (error, data = {}) => ({ error, ...data });
 /**
  * Availability snapshot for one named item, for display and for the
  * pre-purchase check. Read-only: unrolled %-cells report `pending` rather
- * than rolling.
+ * than rolling. A magic item passes `magic` and the value that picks its band
+ * as `magicBaseGp` (base cost when buying, apparent-or-base value when selling,
+ * as `salePlan` reports it); it reads the magic grid, and the result carries
+ * `gridFallback` when only the equipment grid was available.
  */
-export function availabilityFor(location, { itemName, costGp, trader = null, direction = "bought" }) {
+export function availabilityFor(location, { itemName, costGp, trader = null, direction = "bought", magic = false, magicBaseGp = null }) {
   const goods = location.system.market?.goods;
   if (!goods) return { status: "noMarket" };
-  const rows = bandRowsFor(false);
-  if (!rows) return { status: "tablesMissing" };
-  const band = priceBandOf(costGp, rows);
-  if (!band) return { status: "untradeable" };
+  const grid = bandGridFor(magic);
+  const rules = marketRules(["marketTotalMultiplier"]);
+  if (!grid || !rules) return { status: "tablesMissing" };
+  const tag = (result) => (grid.fallback ? { ...result, gridFallback: true } : result);
+  const band = priceBandOf(magic ? magicBaseGp ?? costGp : costGp, grid.rows);
+  if (!band) return tag({ status: "untradeable" });
   const trueClass = location.system.marketClass;
   const marketClass = trader ? effectiveMarketClass(location, trader) : trueClass;
   if (marketClass == null) return { status: "noMarket" };
   const cell = cellFor(band, marketClass);
   const marketCell = cellFor(band, trueClass ?? marketClass);
-  if (cell.kind === "none") return { status: "unavailable", band: band.band };
+  if (cell.kind === "none") return tag({ status: "unavailable", band: band.band });
 
   const monthStart = marketMonthStart();
   const key = itemKeyOf(itemName);
@@ -161,7 +217,11 @@ export function availabilityFor(location, { itemName, costGp, trader = null, dir
   const existRow = (goods.existenceRolls ?? []).find(
     (r) => r.partyId === party.id && r.itemKey === key && Number(r.monthStartTime) === monthStart
   );
-  if (cell.kind === "pct" && !existRow) return { status: "pending", band: band.band, chance: cell.chance };
+  if (cell.kind === "pct" && !existRow) return tag({ status: "pending", band: band.band, chance: cell.chance });
+
+  // A party that claimed the dedicated-shopping month reads its printed multiple.
+  const crowd = partyMonth?.dedicated ? marketRules(["crowdMultiplier"]) : null;
+  if (partyMonth?.dedicated && !crowd) return { status: "tablesMissing" };
 
   const { remaining, capParty, capMarket } = remainingFor({
     cell,
@@ -170,11 +230,13 @@ export function availabilityFor(location, { itemName, costGp, trader = null, dir
     ledgerRow,
     totalsRow,
     doubled: !!partyMonth?.dedicated,
+    crowdMultiplier: crowd?.crowdMultiplier,
+    marketTotalMultiplier: rules.marketTotalMultiplier,
     extraSearchDays: Number(partyMonth?.searchDays ?? 0),
     exists: cell.kind === "qty" ? marketCell.kind !== "qty" : !!existRow?.exists,
     pctStock: Number(totalsRow?.pctStock ?? 0),
   });
-  return { status: remaining > 0 ? "available" : "exhausted", band: band.band, remaining, capParty, capMarket };
+  return tag({ status: remaining > 0 ? "available" : "exhausted", band: band.band, remaining, capParty, capMarket });
 }
 
 /**
@@ -182,26 +244,43 @@ export function availabilityFor(location, { itemName, costGp, trader = null, dir
  * world items first (a Judge's customisation wins), then every Item
  * compendium — priced above zero, masterwork gated behind the market's
  * contact. One row per distinct item key, the identity the ledger caps on.
+ * Every row says whether it trades as magic stock (`magic`, with the
+ * `magicBaseGp` its band and price read; 0 when mundane). The market's own
+ * holdings follow: each magic item a sale left embedded on the location is a
+ * row of its own (`held`, `heldItemId`, `heldQty`), bought by moving that
+ * item rather than copying a source.
  */
 export async function buildCatalog(location) {
   const contact = !!location.system.market?.goods?.masterworkContact;
   const byKey = new Map();
-  const consider = (data) => {
-    if (!TRADE_TYPES.includes(data.type) || data.type === ITEM_TYPE.bundle) return;
-    const costGp = Number(data.system?.cost ?? 0);
-    if (!(costGp > 0)) return;
-    if (isMasterwork(data) && !contact) return;
-    const key = itemKeyOf(data.name);
-    if (byKey.has(key)) return;
-    byKey.set(key, {
-      key,
+  const rowOf = (data, costGp, extra = {}) => {
+    const { magic, baseGp } = magicBasisOf(data);
+    return {
+      key: itemKeyOf(data.name),
       name: data.name,
       img: data.img,
       type: data.type,
       costGp,
       system: { cost: costGp, subtype: data.system?.subtype },
       flags: data.flags ?? {},
-    });
+      magic,
+      magicBaseGp: baseGp,
+      ...extra,
+    };
+  };
+  const tradeable = (data) => {
+    if (!TRADE_TYPES.includes(data.type) || data.type === ITEM_TYPE.bundle) return 0;
+    const costGp = Number(data.system?.cost ?? 0);
+    if (!(costGp > 0)) return 0;
+    if (isMasterwork(data) && !contact) return 0;
+    return costGp;
+  };
+  const consider = (data) => {
+    const costGp = tradeable(data);
+    if (!costGp) return;
+    const key = itemKeyOf(data.name);
+    if (byKey.has(key)) return;
+    byKey.set(key, rowOf(data, costGp));
   };
   for (const item of game.items) consider(item.toObject());
   for (const pack of game.packs) {
@@ -213,7 +292,16 @@ export async function buildCatalog(location) {
       console.warn(`${MODULE_ID} | catalog index failed for ${pack.collection}`, e);
     }
   }
-  return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const held = [];
+  for (const item of location.items ?? []) {
+    if (ownerOf(item)) continue; // stored for a character: never the market's to sell
+    const data = item.toObject();
+    if (!magicBasisOf(data).magic) continue;
+    const costGp = tradeable(data);
+    if (!costGp) continue;
+    held.push(rowOf(data, costGp, { held: true, heldItemId: item.id, heldQty: quantityOf(data)?.value ?? 1 }));
+  }
+  return [...byKey.values(), ...held].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -221,6 +309,10 @@ export async function buildCatalog(location) {
  * buyer (players hold OWNER on both by default); other seats relay via the
  * "marketsPurchase" socket. Delivery is `deliverGoods`: quantity-bearing items
  * merge into the buyer's existing stack, unit items arrive one copy per unit.
+ * A `heldItemId` payload buys one of the market's own holdings (a magic item a
+ * sale left on the location): the embedded item MOVES to the buyer, priced as
+ * magic stock and outside the monthly grid — it is a physical thing on the
+ * shelf, not a roll of the market.
  */
 export async function purchase(location, payload) {
   const {
@@ -232,6 +324,7 @@ export async function purchase(location, payload) {
     merchantCha = 1,
     requestUserId = null,
     resolutionId = "",
+    heldItemId = null,
   } = payload;
 
   const qty = Math.max(1, Math.floor(Number(rawQty) || 1));
@@ -250,65 +343,66 @@ export async function purchase(location, payload) {
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   if (resolutionId && log.some((l) => l.note?.includes(resolutionId))) return err("duplicate");
 
-  const entry = await findGearEntry(itemName);
+  // A held row names an item already on the location: it must still be there
+  // and never a character's stored goods.
+  const held = heldItemId ? location.items.get(heldItemId) ?? null : null;
+  if (heldItemId && (!held || ownerOf(held) || !magicBasisOf(held.toObject()).magic)) return err("heldGone");
+  const entry = held ? { data: held.toObject(), uuid: held.uuid, inCompendium: false } : await findGearEntry(itemName);
   if (!entry) return err("noSource");
   const itemData = entry.data;
   if (!TRADE_TYPES.includes(itemData.type)) return err("untradeable");
   const costGp = Number(itemData.system?.cost ?? 0);
   if (!(costGp > 0)) return err("untradeable");
+  const heldQty = held ? quantityOf(itemData)?.value ?? 1 : Infinity;
+  if (qty > heldQty) return err("heldShort", { remaining: heldQty });
 
   // Masterwork needs the Judge's contact at this market (RR §IV.6).
   if (isMasterwork(itemData) && !location.system.market.goods.masterworkContact) return err("masterworkGated");
 
   // A magic item buys as Tower stock (JJ ch.4): banded by base cost on the
-  // transaction grid, priced at 225% of base, no demand or Bargaining.
-  const mflag = marketsFlag(itemData);
-  const magic = !!mflag.magic;
-  const magicBaseGp = magic ? Number(mflag.baseCostGp ?? costGp) : 0;
+  // transaction grid, priced at the printed share of base, no demand or Bargaining.
+  const { magic, baseGp: magicBaseGp } = magicBasisOf(itemData);
   const goods = goodsOf(location);
-  const monthState = await resolveMonthlyAvailability(location, goods, {
-    itemData,
-    bandValueGp: magic ? magicBaseGp : costGp,
-    magic,
-    trader: buyer,
-    direction: "bought",
-    claimDedicated: dedicated,
-  });
-  if (monthState.error) return monthState;
-  const { existRow, ledgerRow, totalsRow, room } = monthState;
-  if (qty > room.remaining) {
-    if (getSetting("marketsEnforceCaps")) return err("capExceeded", { remaining: room.remaining });
-    ui?.notifications?.warn(game.i18n.format(`${LANG}.trade.capWaived`, { remaining: room.remaining }));
+  let monthState = null;
+  if (!held) {
+    monthState = await resolveMonthlyAvailability(location, goods, {
+      itemData,
+      bandValueGp: magic ? magicBaseGp : costGp,
+      magic,
+      trader: buyer,
+      direction: "bought",
+      claimDedicated: dedicated,
+    });
+    if (monthState.error) return monthState;
+    const { remaining } = monthState.room;
+    const verdict = capVerdict({ qty, remaining, enforce: !!getSetting("marketsEnforceCaps") });
+    if (verdict === "exceeded") return err("capExceeded", { remaining });
+    if (verdict === "waived") ui?.notifications?.warn(game.i18n.format(`${LANG}.trade.capWaived`, { remaining }));
   }
 
   // Price: demand steps by category and the Bargaining swing — or, for a
-  // magic item, the flat 225%-of-base Tower premium.
+  // magic item, the flat Tower price.
   const partyRanks = abilityRanks(buyer, "Bargaining");
+  const swing = !magic && (partyRanks > 0 || merchantRanks > 0) ? bargaining() : null;
+  if (!magic && (partyRanks > 0 || merchantRanks > 0) && !swing) return printedError("bargainingProse");
   let opposed = null;
-  if (!magic && partyRanks > 0 && merchantRanks > 0) {
-    opposed = await opposedBargain({ trader: buyer, partyRanks, merchantRanks, merchantCha });
+  if (swing && partyRanks > 0 && merchantRanks > 0) {
+    opposed = await opposedBargain({ trader: buyer, partyRanks, merchantRanks, merchantCha, rankBonus: swing.rankBonus });
   }
   const bargain = magic ? null : bargainWinner({ partyRanks, merchantRanks, opposedWinner: opposed?.winner ?? null });
-  const priced = magic
-    ? (() => {
-        const m = magicQuote({ baseCostGp: magicBaseGp, identified: "full", direction: "buy" });
-        return { unitCp: m.unitCp, breakdown: [{ label: m.basis, cp: m.unitCp }] };
-      })()
-    : quote({
-        costGp,
-        direction: "buy",
-        demandSteps: demandStepsFor(goods, categoryOf(itemData)),
-        bargain,
-      });
+  const priced = buyQuote({ itemData, costGp, magic, magicBaseGp, goods, bargain });
+  if (priced.error) return priced;
   const totalGp = toGp(priced.unitCp * qty);
 
   const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.trade.buyReason`, { qty, name: itemData.name }), { to: location, at: location });
   if (!paid) return err("insufficientGold");
 
   await deliverGoods(buyer, { entry, qty });
-
-  ledgerRow.bought += qty;
-  totalsRow.bought += qty;
+  if (held) await takeHeld(held, qty);
+  else {
+    monthState.ledgerRow.bought += qty;
+    monthState.totalsRow.bought += qty;
+  }
   const stamp = resolutionId ? ` [${resolutionId}]` : "";
   const newLog = appendLog(log, {
     time: now(),
@@ -316,25 +410,43 @@ export async function purchase(location, payload) {
     note: `${buyer.name}: ${qty}× ${itemData.name} @ ${toGp(priced.unitCp)}gp = ${totalGp}gp${stamp}`,
   });
 
-  await location.update({
-    "system.market.goods.ledger": goods.ledger,
-    "system.market.goods.existenceRolls": goods.existenceRolls,
-    "system.market.goods.totals": goods.totals,
-    "system.market.goods.partyMonths": goods.partyMonths,
-    "system.market.marketLog": newLog,
-  });
+  await location.update(
+    held
+      ? { "system.market.marketLog": newLog }
+      : {
+          "system.market.goods.ledger": goods.ledger,
+          "system.market.goods.existenceRolls": goods.existenceRolls,
+          "system.market.goods.totals": goods.totals,
+          "system.market.goods.partyMonths": goods.partyMonths,
+          "system.market.marketLog": newLog,
+        }
+  );
 
+  // The receipt reaches the buyer's owners, so it carries prices only; the
+  // scarce-goods roll record and any grid diagnostic go to the GM alone.
   const lines = [
     `<strong>${game.i18n.format(`${LANG}.trade.boughtLine`, { buyer: buyer.name, qty, name: itemData.name, location: location.name })}</strong>`,
     ...priced.breakdown.map((b) => `${game.i18n.localize(`${LANG}.trade.stage.${b.label}`)}: ${toGp(b.cp)}gp`),
     opposed ? opposed.detail : null,
-    existRow ? `${game.i18n.localize(`${LANG}.trade.existence`)}: ${existRow.detail}` : null,
     `<strong>${game.i18n.format(`${LANG}.trade.totalLine`, { total: totalGp })}</strong>`,
   ].filter(Boolean);
   await postReceipt({ location, trader: buyer, html: lines.join("<br>") });
+  const gridFallback = !!monthState?.gridFallback;
+  const gmLines = gmDetailLines({ existRow: monthState?.existRow, gridFallback });
+  if (gmLines.length) await postGmNote({ trader: buyer, html: gmLines.join("<br>") });
 
   Hooks.callAll(HOOKS.PURCHASED, { location, buyer, itemName: itemData.name, qty, totalGp });
-  return { ok: true, qty, unitGp: toGp(priced.unitCp), totalGp };
+  return { ok: true, qty, unitGp: toGp(priced.unitCp), totalGp, ...(gridFallback ? { gridFallback } : {}) };
+}
+
+/**
+ * Remove `qty` units of a held item from the location: a stack loses the
+ * units, anything else (or the whole stack) is deleted.
+ */
+async function takeHeld(held, qty) {
+  const stack = quantityOf(held.toObject());
+  if (stack && stack.value > qty) await held.update({ [stack.path]: stack.value - qty });
+  else await held.delete();
 }
 
 /**
@@ -357,11 +469,15 @@ export async function deliverGoods(buyer, { entry, qty }) {
  * cached %-rolls (party find first, then the town's stock), and the room
  * left in `direction`. Shared by purchases, sales, and directed searches;
  * mutates `goods` in place so the caller's write persists what was rolled.
+ * `gridFallback` is true when a magic item was banded on the equipment grid
+ * because the magic transaction grid is not imported.
  */
 export async function resolveMonthlyAvailability(location, goods, { itemData, bandValueGp, magic = false, trader, direction, claimDedicated = false }) {
-  const rows = bandRowsFor(magic);
-  if (!rows) return err("tablesMissing");
-  const band = priceBandOf(bandValueGp, rows);
+  const grid = bandGridFor(magic);
+  if (!grid) return err("tablesMissing");
+  const rules = marketRules(["marketTotalMultiplier"]);
+  if (!rules) return printedError("marketRulesProse");
+  const band = priceBandOf(bandValueGp, grid.rows);
   if (!band) return err("untradeable");
   // The party reads its cell at its EFFECTIVE class (mercantile networks);
   // the market total stays the town's TRUE class — a bigger share, not a
@@ -389,10 +505,17 @@ export async function resolveMonthlyAvailability(location, goods, { itemData, ba
     { partyId: party.id, monthStartTime: monthStart, searchDays: 0, dedicated: false }
   );
 
-  // The 12+-adventurer dedicated-shopping claim, checked against head-count.
-  if (claimDedicated && !partyMonth.dedicated) {
-    if (partySize(party.id) < 12) return err("partyTooSmall");
-    partyMonth.dedicated = true;
+  // The dedicated-shopping claim, checked against the printed head-count; a
+  // month that holds the claim reads the printed multiple it earns.
+  let crowdMultiplier;
+  if ((claimDedicated && !partyMonth.dedicated) || partyMonth.dedicated) {
+    const crowd = marketRules(["crowdSize", "crowdMultiplier"]);
+    if (!crowd) return printedError("marketRulesProse");
+    if (claimDedicated && !partyMonth.dedicated) {
+      if (partySize(party.id) < crowd.crowdSize) return err("partyTooSmall", { crowd: crowd.crowdSize });
+      partyMonth.dedicated = true;
+    }
+    crowdMultiplier = crowd.crowdMultiplier;
   }
 
   const totalsRow = ensureRow(
@@ -407,7 +530,7 @@ export async function resolveMonthlyAvailability(location, goods, { itemData, ba
   );
 
   // %-cells: the party's own find (effective class), then the market's
-  // tenfold stock (true class) — both rolled once per month and cached so a
+  // all-parties stock (true class) — both rolled once per month and cached so a
   // re-ask can never re-roll.
   let existRow = null;
   if (cell.kind === "pct") {
@@ -426,8 +549,9 @@ export async function resolveMonthlyAvailability(location, goods, { itemData, ba
     // Party roll first (above): it floors the stock, and when the floor
     // already decides the answer no market roll is spent.
     const partyFound = !!existRow?.exists;
-    let plan = pctMarketStock(marketCell.chance, { partyFound });
-    if (!plan) plan = pctMarketStock(marketCell.chance, { partyFound, d100: await d100() });
+    const { marketTotalMultiplier } = rules;
+    let plan = pctMarketStock(marketCell.chance, { marketTotalMultiplier, partyFound });
+    if (!plan) plan = pctMarketStock(marketCell.chance, { marketTotalMultiplier, partyFound, d100: await d100() });
     totalsRow.pctStock = plan.stock;
     totalsRow.pctStockRolled = true;
     totalsRow.pctStockDetail = plan.detail;
@@ -440,24 +564,28 @@ export async function resolveMonthlyAvailability(location, goods, { itemData, ba
     ledgerRow,
     totalsRow,
     doubled: !!partyMonth.dedicated,
+    crowdMultiplier,
+    marketTotalMultiplier: rules.marketTotalMultiplier,
     extraSearchDays: Number(partyMonth.searchDays ?? 0),
     exists: cell.kind === "qty" ? marketCell.kind !== "qty" : !!existRow?.exists,
     pctStock: Number(totalsRow.pctStock ?? 0),
   });
-  return { band, cell, marketCell, monthStart, key, party, partyMonth, totalsRow, ledgerRow, existRow, room };
+  return { band, cell, marketCell, monthStart, key, party, partyMonth, totalsRow, ledgerRow, existRow, room, gridFallback: grid.fallback };
 }
 
-/** The markets flag bag on an item ({magic, apparentValueGp, identified…}). */
-const marketsFlag = (itemData) => itemData?.flags?.[MODULE_ID]?.[ITEM_FLAG] ?? {};
+const marketsFlag = marketsFlagOf;
 
 /**
  * Sale pricing and band placement for one owned item. Mundane gear sells at
  * its condition-reduced value (the reduced value also picks its availability
  * band, RR §IV.7) with demand and Bargaining applied; a magic item trades by
  * identification — apparent value short of full identification, base cost
- * (twice if self-made) at full — on the JJ transaction grid, which prints
- * the equipment availability cells and substitutes for them when a world
- * has not imported it separately.
+ * (a printed multiple if self-made) at full — on the JJ transaction grid,
+ * which prints the equipment availability cells and substitutes for them when
+ * a world has not imported it separately. The printed figures are read here;
+ * `missing` names the imported table (`printedError`'s id) a price could not
+ * be worked without, and the price is then zero.
+ * @returns {{unitCp:number, basis:string, bandValueGp:number, magic:boolean, breakdown:object[], missing:string|null}}
  */
 export function salePlan(itemData, { demandSteps = 0, bargain = null } = {}) {
   const costGp = Number(itemData.system?.cost ?? 0);
@@ -469,6 +597,7 @@ export function salePlan(itemData, { demandSteps = 0, bargain = null } = {}) {
       identified: flag.identified ?? "none",
       selfMade: !!flag.selfMade,
       direction: "sell",
+      selfMadeTimes: magicPrices(["selfMadeTimes"])?.selfMadeTimes ?? null,
     });
     return {
       unitCp: m.unitCp,
@@ -476,25 +605,57 @@ export function salePlan(itemData, { demandSteps = 0, bargain = null } = {}) {
       bandValueGp: magicBandValueGp({ baseCostGp: flag.baseCostGp ?? costGp, apparentValueGp: flag.apparentValueGp ?? 0, identified: flag.identified ?? "none" }),
       magic: true,
       breakdown: [{ label: m.basis, cp: m.unitCp }],
+      missing: m.unpriced ? "priceProse" : null,
     };
   }
   const valueMult = Number(itemData.flags?.[MODULE_ID]?.scavenged?.valueMultiplier ?? 1) || 1;
-  const priced = quote({ costGp, direction: "sell", valueMult, demandSteps, bargain });
-  return { unitCp: priced.unitCp, basis: "base", bandValueGp: costGp * valueMult, magic: false, breakdown: priced.breakdown };
+  const swing = bargain ? bargaining() : null;
+  const category = categoryOf(itemData);
+  const priced = quote({
+    costGp,
+    direction: "sell",
+    valueMult,
+    demandSteps,
+    stepFraction: stepFractionFor(category),
+    bargain: swing ? bargain : null,
+    bargainPct: swing ? { buy: swing.buyPct, sell: swing.sellPct } : null,
+  });
+  return {
+    unitCp: priced.unitCp,
+    basis: "base",
+    bandValueGp: costGp * valueMult,
+    magic: false,
+    breakdown: priced.breakdown,
+    missing: bargain && !swing ? "bargainingProse" : null,
+  };
 }
 
+let gridFallbackWarned = false;
+
 /**
- * The availability grid a trade prices volume on, or null when the world
- * has not imported it — a market without its tables must degrade to a
- * message, never break the sheet.
+ * The availability grid a trade prices volume on — `{rows, fallback}` — or
+ * null when the world has not imported it: a market without its tables must
+ * degrade to a message, never break the sheet. A magic trade whose own grid is
+ * missing falls back to the equipment grid (`fallback: true`) and the GM is
+ * told once per session.
  */
-function bandRowsFor(magic) {
+export function bandGridFor(magic) {
   if (magic) {
     const t = optTable("magicItems", "transactionsByMarketClass");
-    if (t?.rows?.length) return t.rows;
+    if (t?.rows?.length) return { rows: t.rows, fallback: false };
   }
   const rows = optTable("availability", "equipmentAvailability")?.rows;
-  return rows?.length ? rows : null;
+  if (!rows?.length) return null;
+  if (magic) noteGridFallback();
+  return { rows, fallback: !!magic };
+}
+
+/** Warn the console, and the GM's screen, once per session that magic trades are on the equipment grid. */
+function noteGridFallback() {
+  if (gridFallbackWarned) return;
+  gridFallbackWarned = true;
+  console.warn(`${MODULE_ID} | the magic-item transaction grid is not imported; magic trades use the equipment availability grid`);
+  if (game.user?.isGM) ui?.notifications?.warn(game.i18n.localize(`${LANG}.trade.gridFallback`));
 }
 
 /**
@@ -540,12 +701,15 @@ export async function sell(location, payload) {
   const goods = goodsOf(location);
   const partyRanks = abilityRanks(seller, "Bargaining");
   const flag = marketsFlag(itemData);
+  const swing = !flag.magic && (partyRanks > 0 || merchantRanks > 0) ? bargaining() : null;
+  if (!flag.magic && (partyRanks > 0 || merchantRanks > 0) && !swing) return printedError("bargainingProse");
   let opposed = null;
-  if (!flag.magic && partyRanks > 0 && merchantRanks > 0) {
-    opposed = await opposedBargain({ trader: seller, partyRanks, merchantRanks, merchantCha });
+  if (swing && partyRanks > 0 && merchantRanks > 0) {
+    opposed = await opposedBargain({ trader: seller, partyRanks, merchantRanks, merchantCha, rankBonus: swing.rankBonus });
   }
   const bargain = flag.magic ? null : bargainWinner({ partyRanks, merchantRanks, opposedWinner: opposed?.winner ?? null });
   const plan = salePlan(itemData, { demandSteps: demandStepsFor(goods, categoryOf(itemData)), bargain });
+  if (plan.missing) return printedError(plan.missing);
   if (!(plan.unitCp > 0) || !(plan.bandValueGp > 0)) return err("untradeable");
 
   const monthState = await resolveMonthlyAvailability(location, goods, {
@@ -556,11 +720,10 @@ export async function sell(location, payload) {
     direction: "sold",
   });
   if (monthState.error) return monthState;
-  const { existRow, ledgerRow, totalsRow, room } = monthState;
-  if (qty > room.remaining) {
-    if (getSetting("marketsEnforceCaps")) return err("capExceeded", { remaining: room.remaining });
-    ui?.notifications?.warn(game.i18n.format(`${LANG}.trade.capWaived`, { remaining: room.remaining }));
-  }
+  const { existRow, ledgerRow, totalsRow, room, gridFallback } = monthState;
+  const verdict = capVerdict({ qty, remaining: room.remaining, enforce: !!getSetting("marketsEnforceCaps") });
+  if (verdict === "exceeded") return err("capExceeded", { remaining: room.remaining });
+  if (verdict === "waived") ui?.notifications?.warn(game.i18n.format(`${LANG}.trade.capWaived`, { remaining: room.remaining }));
 
   const totalGp = toGp(plan.unitCp * qty);
   await adapter.grantGold(seller, totalGp, { from: location, at: location, allowMint: true });
@@ -572,6 +735,8 @@ export async function sell(location, payload) {
   if (plan.magic) {
     const kept = item.toObject();
     delete kept._id;
+    const stack = quantityOf(kept);
+    if (stack) foundry.utils.setProperty(kept, stack.path, qty);
     await location.createEmbeddedDocuments("Item", [kept]);
   }
   if (stackable && carried > qty) {
@@ -600,13 +765,14 @@ export async function sell(location, payload) {
     `<strong>${game.i18n.format(`${LANG}.trade.soldLine`, { seller: seller.name, qty, name: itemData.name, location: location.name })}</strong>`,
     ...plan.breakdown.map((b) => `${game.i18n.localize(`${LANG}.trade.stage.${b.label}`)}: ${toGp(b.cp)}gp`),
     opposed ? opposed.detail : null,
-    existRow ? `${game.i18n.localize(`${LANG}.trade.existence`)}: ${existRow.detail}` : null,
     `<strong>${game.i18n.format(`${LANG}.trade.earnedLine`, { total: totalGp })}</strong>`,
   ].filter(Boolean);
   await postReceipt({ location, trader: seller, html: lines.join("<br>") });
+  const gmLines = gmDetailLines({ existRow, gridFallback });
+  if (gmLines.length) await postGmNote({ trader: seller, html: gmLines.join("<br>") });
 
   Hooks.callAll(HOOKS.SOLD, { location, seller, itemName: itemData.name, qty, totalGp });
-  return { ok: true, qty, unitGp: toGp(plan.unitCp), totalGp };
+  return { ok: true, qty, unitGp: toGp(plan.unitCp), totalGp, ...(gridFallback ? { gridFallback } : {}) };
 }
 
 /**

@@ -1,5 +1,91 @@
 # Changelog
 
+## 9.2.0
+
+### Added
+
+- **Merchandise is a catalogue of Items.** Each trade good is an
+  `acks-extras.merchandise` Item: its price per stone, price step, daily
+  stones by market class, the environment and racial demand columns it
+  answers to, its random-merchandise band and the item kinds it covers. The
+  importer builds the catalogue from the Judge's own books into the cookbook
+  compendium; a world Item with the same key overrides the imported one, and a
+  Judge-made good takes part in every roll and window like a printed one.
+  *Build merchandise items from imported tables* converts a world's earlier
+  table import into Items. A good's **aliases** name older or setting-book
+  goods it stands for.
+- **The Demand Generator.** A market's Trade tab opens a window that builds
+  its base demand modifiers from the settlement's age, water, biome,
+  elevation, land revenue and peoples (JJ Ch6 Step 7 A–D), shows every good's
+  roll and total before anything is written, and keeps the rolls and choices
+  for the next visit. Applying replaces the base and leaves the Judge's pinned
+  modifiers alone; a base typed by hand or imported from a book asks before
+  it is replaced.
+- **Market reports are Items a character holds.** An assessment writes a
+  report — the market, when, who assessed, and the modifiers learned —
+  kept in a trade house (a location actor the module makes on first use) and
+  stamped to the assessor. A false assessment is a report with wrong beliefs
+  that reads, to its holder, as a partial one. A report can be opened, noted,
+  given to another character of the party, or discarded, and moves with the
+  house into an Adventure. Party beliefs recorded before this release become
+  reports at `ready`.
+- **Characters who trade get a Trade tab.** A character with Bargaining,
+  Mercantile Network, a merchant profession or a report of their own — or one
+  the Judge marks as a trader — shows their party's research by market and a
+  side-by-side comparison of what the party believes about two markets. A
+  market's own Trade tab lists the reports held about it.
+- **A setting book's market profiles import onto its places.** Importing a
+  setting book that prints a regional demand grid and domain records (AX3)
+  gives each market its market class, urban families and base demand
+  modifiers; a market with no other entry in the book becomes a location of
+  its own. Older-edition goods translate to this module's merchandise, first
+  through the Judge's aliases; a good that translates nowhere is reported, not
+  dropped. A class, family count or base the Judge already set is kept, and a
+  re-import refreshes only what the same page wrote.
+
+### Changed
+
+- **Markets reads its figures from the page.** Every number the market
+  engine carried as a constant — the crowd threshold, hub shifts and transit
+  loss, Bargaining's swing, the magic-item multipliers, the identification
+  ladder, the impact cap, the assessment and negotiation bands, the price
+  shifts — is now read from the Judge's imported rules tables. Worlds that
+  imported before this release re-run *Rules tables* (Reimport One Shelf) to
+  gain them; until they do, an action that needs a missing table refuses and
+  names it rather than guessing. A table the extractor could not fill is
+  reported at import and shows as incomplete, not as "unavailable".
+- **The market's Trade tab acts as a chosen character.** An **Acting as**
+  picker at the top of the tab names who buys, sells, changes coin, searches
+  and ventures; the choice is remembered per client. Orders, searches and
+  ventures are shown to the party that made them, and the Judge sees every
+  party's, labelled, with a per-party block of beliefs and venture state.
+- **Judge switches for a market.** *Masterwork contact* and *Players see
+  demand* are buttons on the Trade tab; the GM Settings tab gains the coin
+  exchange (derived, market, none) and the till target.
+
+### Fixed
+
+- **Magic items are priced as magic everywhere.** Availability, the purchase
+  preview and import orders used the mundane grid and price for a magic item;
+  all three now use the magic grid and the Tower price. A magic item sold to a
+  market stays on its shelf as a held row and can be bought back; a player no
+  longer sees an empty Storage tab on a market.
+- **Change coin no longer debits before it can fail.** A player seat that
+  cannot write the market relays the whole exchange to the Judge; the coin
+  moves only when both sides do.
+- **A relay with no Judge online no longer reports "posted".** The seat is
+  told nothing was sent.
+- **A venture day that cannot resolve says why.** Entering, assessing or
+  soliciting with the needed table unimported posts the table's name instead
+  of failing silently, and the Judge is warned when the magic grid falls back
+  to the equipment grid.
+- Market log rows for market events carried raw keys; the party
+  configuration dropped unsaved edits on Add or Remove; a directed search
+  always asked for one; a demand row could not be cleared; the import cap
+  ignored the caps setting; the masterwork gate read a flag the equipment
+  sheet never writes; *Process due work* hid unless an import was in transit;
+  an existence roll's detail reached the buyer's receipt.
+
 ## 9.1.1
 
 ### Fixed

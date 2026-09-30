@@ -16,6 +16,7 @@ import { ITEM_TYPE, ACTOR_TYPE } from "./vocab.mjs";
 import { toNum as num } from "./util.mjs";
 import { coinKind, coinSlots, planCoinSpend, planCoinPayUpTo } from "./money-logic.mjs";
 import { STORAGE_KEY } from "./storage-logic.mjs";
+import { registerHandler, executeAsGM } from "./sockets.mjs";
 
 /** The storage owner of a location's own coin and goods. Not a real uuid on
  * purpose: nothing can resolve it, so no character can claim it. */
@@ -250,6 +251,11 @@ export async function transferCoin({ from, to, gp, reason = "", at = null, gate 
  * the new, minting freely); anywhere else the answer is the barter warning.
  * The remainder below the target denomination comes back in standard small
  * coin, so the actor never loses value to the split.
+ *
+ * The exchange writes BOTH sides: the actor's coin goes down and the till's
+ * goes up. A seat that cannot write the place would debit itself and then fail
+ * the credit, so it relays the whole exchange to the GM instead
+ * (`libExchangeCoins`); the result shape is the same either way.
  * @returns {{ok: boolean, reason?: string, paidOutCp?: number}}
  */
 export async function exchangeCoins({ actor, place, itemId, count, toCv, gate = true } = {}) {
@@ -265,6 +271,15 @@ export async function exchangeCoins({ actor, place, itemId, count, toCv, gate = 
       return { ok: false, reason: reach.reason ?? "outOfReach" };
     }
   }
+  if (!game.user.isGM && !place.isOwner) {
+    const relayed = await executeAsGM("libExchangeCoins", { actorUuid: actor.uuid, placeUuid: place.uuid, itemId, count, toCv });
+    return relayed ?? { ok: false, reason: "noGm" };
+  }
+  return applyExchange({ actor, place, itemId, count, toCv });
+}
+
+/** The two writes of a coin exchange, run by a seat that may make both. */
+async function applyExchange({ actor, place, itemId, count, toCv }) {
   const item = actor.items.get(itemId);
   const cv = num(item?.system?.coppervalue, 0);
   const have = num(item?.system?.quantity, 0);
@@ -289,6 +304,26 @@ export async function exchangeCoins({ actor, place, itemId, count, toCv, gate = 
   await creditCoin(actor, out);
   return { ok: true, paidOutCp: totalCp };
 }
+
+/** Resolve an actor or token uuid to its actor, or null. */
+async function actorFromUuid(uuid) {
+  const doc = await foundry.utils.fromUuid(uuid).catch(() => null);
+  return doc?.actor ?? doc ?? null;
+}
+
+// The relayed exchange: the sender must own the actor whose coin moves, and
+// the GM's own preflight (terms, reach) runs again — nothing the seat checked
+// is taken on trust.
+registerHandler("libExchangeCoins", async ({ actorUuid, placeUuid, requestUserId = null, ...rest }) => {
+  const actor = await actorFromUuid(actorUuid);
+  const place = await actorFromUuid(placeUuid);
+  if (!actor || !place) return { ok: false, reason: "missing" };
+  if (requestUserId) {
+    const user = game.users.get(requestUserId);
+    if (!user?.isGM && !actor.testUserPermission(user, "OWNER")) return { ok: false, reason: "notYours" };
+  }
+  return exchangeCoins({ actor, place, ...rest, gate: true });
+});
 
 /** Change minted by a market: standard denominations, largest first. */
 function mintChange(cp) {

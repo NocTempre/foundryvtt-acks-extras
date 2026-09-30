@@ -76,8 +76,8 @@ import {
   cookbookCount, refillMonster, resolveAbilities,
   importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
   importWeapons, importArmor,
-  importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles,
-  cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
+  importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
+  cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportMarketProfiles, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
 } from "./cookbook.mjs";
 import { registerGettingStartedSettings, runImportEverything, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
 import { registerOseSourceSetting } from "./ose-source.mjs";
@@ -1096,6 +1096,15 @@ async function cookbookImportTables(only = null) {
       }),
     );
   }
+  // A table that read but lacks rows the page should hold stores a placeholder
+  // no lookup matches; name the tables and how many rows, never the rows.
+  if (report.incomplete?.length) {
+    ui.notifications.warn(
+      game.i18n.format(`${LANG_PREFIX}.tables.incomplete`, {
+        tables: report.incomplete.map((t) => `${t.docId}.${t.tableId} (${t.rows.length})`).join(", "),
+      }),
+    );
+  }
   // The class-builder tables carry world writes of their own: the assembled
   // engine-shaped doc, race Items, and builder state on the imported classes.
   if (report.imported.some((d) => d.docId === "acks.classBuilder")) {
@@ -1571,6 +1580,10 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
        <div class="acks-extras-importer-gs-action">
          <button type="button" data-gs-import><i class="fa-solid fa-download"></i> ${G("gmGo")}</button>
          <span class="notes" data-gs-import-status></span>
+       </div>
+       <div class="acks-extras-importer-gs-action">
+         <button type="button" data-gs-merch><i class="fa-solid fa-boxes-stacked"></i> ${G("merchGo")}</button>
+         <span class="notes">${G("merchNote")}</span>
        </div>`
     : "";
   const intro = `<details class="acks-extras-importer-gs"${startOpen ? " open" : ""}>
@@ -1825,6 +1838,7 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
       /* -- band 1 ---------------------------------------------------- */
 
       root.querySelector("[data-gs-import]")?.addEventListener("click", () => runImportEverything(root));
+      root.querySelector("[data-gs-merch]")?.addEventListener("click", () => acksExtras.markets?.buildMerchandiseFromTables?.());
       // Persists the moment it is toggled: a dialog closed via Escape or the
       // X never reads its form, and "don't show this again" must stick however
       // the reader leaves.
@@ -2826,13 +2840,13 @@ Hooks.once("ready", async () => {
     cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities, cookbookFillCompanions, cookbookPruneAbilities,
     importAbility, cookbookDebug, cookbookCount,
     cookbookImportTables,
-    cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit,
+    cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportMarketProfiles, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit,
     cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
     /** The whole import chain, in dependency order — the "Import Everything" control. */
     importEverything: () => runImportEverything(),
     importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
     importWeapons, importArmor,
-    importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles,
+    importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
     gettingStarted: () => openBooksDialog({ firstRun: true }),
     // Importing another game's books (docs/importer/OSE.md). Separate entry points
     // because a third-party source is registered by the Judge rather than

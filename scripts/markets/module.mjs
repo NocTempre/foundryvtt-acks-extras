@@ -41,7 +41,18 @@ import { openVentureTradeDialog, VentureTradeDialog } from "./apps/venture-dialo
 import { PartyConfigApp } from "./apps/party-config.mjs";
 import { openCommissionDialog, CommissionDialog } from "./apps/commission-dialog.mjs";
 import * as arbitrageRules from "./rules/arbitrage.mjs";
+import * as demandRules from "./rules/demand.mjs";
+import { writeDemand, applyGenerated } from "./engine/demand.mjs";
+import { openDemandGenerator, DemandGenerator } from "./apps/demand-generator.mjs";
 import { buildMagicPanel } from "./apps/magic-panel.mjs";
+// Registers the merchandise Item sub-type, its sheet and its setting at init.
+import "./merchandise-module.mjs";
+// Registers the market report Item sub-type, its sheet and the belief migration.
+import "./report-module.mjs";
+import { merchandiseCatalog, merchandiseFor, primeMerchandiseCatalog, buildMerchandiseFromTables } from "./engine/merchandise.mjs";
+import * as tradeObjects from "./engine/trade-objects.mjs";
+import * as reportRules from "./rules/reports.mjs";
+import { isTrader } from "./apps/trader-tab.mjs";
 
 Hooks.once("init", () => {
   registerSettings();
@@ -72,6 +83,8 @@ Hooks.once("init", () => {
       `${T}/commission-dialog.hbs`,
       `${T}/venture-dialog.hbs`,
       `${T}/party-config.hbs`,
+      `${T}/demand-generator.hbs`,
+      `${T}/trader-tab.hbs`,
     ]);
   } catch (err) {
     console.warn(`${MODULE_ID} | markets template preload skipped`, err);
@@ -83,10 +96,18 @@ Hooks.once("setup", () => {
   // henchmen entry point for the layering); declaring them here lets the
   // materialize flow generate fillable placeholders for missing ones.
   try {
-    acksExtras.lib?.tables?.expectTables?.("availability", ["equipmentAvailability"]);
-    acksExtras.lib?.tables?.expectTables?.("mercantile", ["merchandiseTypes", "marketCharacteristics"]);
-    acksExtras.lib?.tables?.expectTables?.("magicItems", ["transactionsByMarketClass"]);
+    acksExtras.lib?.tables?.expectTables?.("availability", ["equipmentAvailability", "marketRulesProse", "bargainingProse"]);
+    acksExtras.lib?.tables?.expectTables?.("mercantile", [
+      "merchandiseTypes",
+      "marketCharacteristics",
+      "impactProse",
+      "assessmentProse",
+      "priceShiftProse",
+      "negotiationProse",
+    ]);
+    acksExtras.lib?.tables?.expectTables?.("magicItems", ["transactionsByMarketClass", "priceProse", "identifyProse"]);
     acksExtras.lib?.tables?.expectTables?.("construction", ["wageAndConstructionRates"]);
+    acksExtras.lib?.tables?.expectTables?.("demand", ["landRevenueProse"]);
   } catch (err) {
     console.warn(`${MODULE_ID} | markets expectTables failed`, err);
   }
@@ -138,8 +159,21 @@ Hooks.once("setup", () => {
     openVentureTradeDialog,
     VentureTradeDialog,
     buildMagicPanel,
+    // the merchandise catalogue
+    merchandiseCatalog,
+    merchandiseFor,
+    primeMerchandiseCatalog,
+    buildMerchandiseFromTables,
+    // the trade house: reports and the objects a player owns or hands over
+    tradeObjects,
+    isTrader,
+    // demand: the one writer and the demand generator
+    writeDemand,
+    applyGenerated,
+    openDemandGenerator,
+    DemandGenerator,
     // rules (pure)
-    rules: { ...availabilityRules, ...pricingRules, imports: importRules, commissions: commissionRules, arbitrage: arbitrageRules },
+    rules: { ...availabilityRules, ...pricingRules, imports: importRules, commissions: commissionRules, arbitrage: arbitrageRules, demand: demandRules, reports: reportRules },
   };
   acksExtras.markets = api;
 });

@@ -36,18 +36,7 @@ import { openRecruitDialog, openRecruitSpecial } from "../../henchmen/apps/recru
 import { openHireGroupDialog } from "../../henchmen/apps/hire-group-dialog.mjs";
 import { now, advanceDays, nextMarketRollTime } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
-import { buildCatalog, availabilityFor, performSearchDay, salePlan, demandStepsFor, categoryOf } from "../../markets/engine/trade.mjs";
-import { processImports, performItemSearch, performSearchCancel } from "../../markets/engine/imports.mjs";
-import { openCommissionDialog } from "../../markets/apps/commission-dialog.mjs";
-import { performVentureAction, ventureOf } from "../../markets/engine/ventures.mjs";
-import { openVentureTradeDialog } from "../../markets/apps/venture-dialog.mjs";
-import { marketMonthStart } from "../../markets/engine/trade.mjs";
-import { partyOf } from "../../markets/engine/parties.mjs";
-import { MERCHANDISE_TYPES } from "../../markets/config.mjs";
-import { openPurchaseDialog } from "../../markets/apps/purchase-dialog.mjs";
-import { openSellDialog } from "../../markets/apps/sell-dialog.mjs";
-import { merchandiseLabel } from "../../markets/config.mjs";
-
+import { prepareTradeTab, bindTradeTab, TRADE_TAB_ACTIONS } from "../../markets/apps/trade-tab.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
@@ -133,21 +122,8 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       splitStack: LocationSheet.#onSplitStack,
       openScene: LocationSheet.#onOpenScene,
       unlinkScene: LocationSheet.#onUnlinkScene,
-      // --- trade tab (engine + dialogs live in the markets feature) ---
-      openPurchase: LocationSheet.#onOpenPurchase,
-      openSell: LocationSheet.#onOpenSell,
-      marketsSearchDay: LocationSheet.#onMarketsSearchDay,
-      marketsExchange: LocationSheet.#onMarketsExchange,
-      processImports: LocationSheet.#onProcessImports,
-      openCommission: LocationSheet.#onOpenCommission,
-      postSearch: LocationSheet.#onPostSearch,
-      cancelSearch: LocationSheet.#onCancelSearch,
-      ventureEnter: LocationSheet.#onVentureEnter,
-      ventureAssess: LocationSheet.#onVentureAssess,
-      ventureSolicit: LocationSheet.#onVentureSolicit,
-      ventureTrade: LocationSheet.#onVentureTrade,
-      setDemand: LocationSheet.#onSetDemand,
-      toggleMasterworkContact: LocationSheet.#onToggleMasterworkContact,
+      // --- trade tab (handlers live in the markets feature) ---
+      ...TRADE_TAB_ACTIONS,
       // --- the market gate ---
       addMarket: LocationSheet.#onAddMarket,
       removeMarket: LocationSheet.#onRemoveMarket,
@@ -228,7 +204,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     await this.#preparePlace(context);
     this.#prepareFactions(context);
     if (sys.hasMarket) this.#prepareMarket(context, t);
-    if (sys.hasMarket) await this.#prepareTrade(context);
+    if (sys.hasMarket) await prepareTradeTab(this, context);
 
     // Tabs: labels carry live counts. The market tabs exist only where there is
     // a market, and the GM tabs only for GMs.
@@ -267,6 +243,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const tabs = this._prepareTabs("primary");
     if (!context.hasMarket) for (const id of MARKET_TABS) delete tabs[id];
     if (!game.user.isGM) {
+      delete tabs.storage;
       delete tabs.gmSettings;
       delete tabs.gmView;
     }
@@ -620,7 +597,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       .reverse()
       .map((l) => ({
         ...l,
-        typeLabel: game.i18n.localize(`ACKS-HENCHMEN.marketLog.${l.type}`),
+        typeLabel: game.i18n.localize(game.i18n.has(`ACKS-MARKETS.marketLog.${l.type}`) ? `ACKS-MARKETS.marketLog.${l.type}` : `ACKS-HENCHMEN.marketLog.${l.type}`),
         when: game.i18n.format("ACKS-HENCHMEN.marketLog.day", { day: Math.floor(l.time / SECONDS_PER_DAY) }),
       }));
   }
@@ -637,6 +614,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   _onRender(context, options) {
     super._onRender(context, options);
     const root = this.element;
+    bindTradeTab(this);
 
     // The GM-only permission gates the bind itself: a player's demographics
     // block gets no drop handlers at all.
@@ -1149,318 +1127,6 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 
   /* ---------------------------- the market gate ------------------------- */
-
-  /**
-   * The trade half of the market: the catalog (built once per sheet open,
-   * refreshed by render), each row's live availability for the viewer's
-   * character, the party's month state, and the demand modifiers where the
-   * viewer may see them. All engine logic lives in the markets feature.
-   */
-  async #prepareTrade(context) {
-    const goods = this.actor.system.market.goods;
-    this._tradeCatalog ??= await buildCatalog(this.actor);
-    const trader =
-      game.user.character ??
-      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER")) ??
-      null;
-    context.tradeActor = trader;
-    context.tradeRows = this._tradeCatalog.map((row) => {
-      const avail = availabilityFor(this.actor, { itemName: row.name, costGp: row.costGp, trader });
-      return {
-        ...row,
-        availability: avail,
-        availabilityLabel: game.i18n.format(`ACKS-MARKETS.availability.${avail.status}`, avail),
-        canBuy: avail.status === "available" || avail.status === "pending",
-      };
-    });
-    context.masterworkContact = !!goods.masterworkContact;
-    context.extendedSearchOn = game.settings.get(MODULE_ID, "marketsExtendedSearch");
-    // The viewer's sellable goods: priced mundane gear, or magic items whose
-    // flags give them a market value.
-    context.sellRows = !trader
-      ? []
-      : trader.items
-          // Merchandise loads trade as stones through ventures, never here.
-          .filter((i) => ["weapon", "armor", "item"].includes(i.type) && !i.getFlag(MODULE_ID, "markets")?.merchandise)
-          .map((i) => {
-            const data = i.toObject();
-            const plan = salePlan(data, { demandSteps: demandStepsFor(goods, categoryOf(data)) });
-            return plan.unitCp > 0 && plan.bandValueGp > 0
-              ? {
-                  id: i.id,
-                  name: i.name,
-                  img: i.img,
-                  qty: Number(data.system?.quantity?.value ?? 1) || 1,
-                  estimateGp: Math.round(plan.unitCp) / 100,
-                }
-              : null;
-          })
-          .filter(Boolean);
-    // In-transit orders: players see the expected window, never the roll.
-    // Commissions ride the same table, labeled by their worker.
-    const t = now();
-    context.importRows = [
-      ...(goods.imports ?? [])
-        .filter((o) => o.status === "ordered")
-        .map((o) => ({
-          itemName: o.itemName,
-          qty: o.qty,
-          hubLabel: game.i18n.localize(`ACKS-MARKETS.imports.${o.hubShift === 2 ? "hubRegional" : "hubLocal"}`),
-          etaDays: Math.max(0, Math.ceil((Number(o.arrivalTime) - t) / SECONDS_PER_DAY)),
-        })),
-      ...(goods.commissions ?? [])
-        .filter((o) => o.status === "building")
-        .map((o) => ({
-          itemName: o.itemName,
-          qty: o.qty,
-          hubLabel: game.i18n.localize(`ACKS-MARKETS.commissions.worker.${o.worker}`),
-          etaDays: Math.max(0, Math.ceil((Number(o.completionTime) - t) / SECONDS_PER_DAY)),
-        })),
-    ];
-    // Directed searches: the standing asks and their outcomes.
-    context.searchRows = (goods.searches ?? [])
-      .filter((o) => o.status !== "cancelled")
-      .map((o) => ({
-        id: o.id,
-        itemName: o.itemName,
-        qty: o.qty,
-        statusLabel: game.i18n.localize(`ACKS-MARKETS.searches.status.${o.status}`),
-        active: o.status === "active",
-      }));
-    // Demand modifiers: the GM (or an open market) sees the truth; a party
-    // sees what its assessments taught it — right or wrong, it cannot tell.
-    const fmt = (n) => (n > 0 ? `+${n}` : `${n}`);
-    if (context.isGM || goods.playersSeeDemand) {
-      context.demandRows = (goods.demand ?? []).map((d) => ({
-        label: game.i18n.localize(merchandiseLabel(d.category)),
-        modifier: fmt(d.modifier),
-      }));
-    } else if (trader) {
-      const partyId = partyOf(trader).id;
-      context.demandRows = (goods.dmKnowledge ?? [])
-        .filter((k) => k.partyId === partyId)
-        .map((k) => ({ label: game.i18n.localize(merchandiseLabel(k.category)), modifier: fmt(k.believed) }));
-    } else {
-      context.demandRows = [];
-    }
-    // Venture state for the viewer's party, and its queue.
-    const monthStart = marketMonthStart(t);
-    const partyId = trader ? partyOf(trader).id : null;
-    context.venture = partyId ? ventureOf(this.actor, partyId, monthStart) ?? null : null;
-    context.ventureActions = (goods.actions ?? [])
-      .filter((a) => a.status === "pending" && (context.isGM || a.partyId === partyId))
-      .map((a) => ({
-        kindLabel: game.i18n.localize(`ACKS-MARKETS.ventures.kind.${a.kind}`),
-        category: a.category ? game.i18n.localize(merchandiseLabel(a.category)) : "",
-        etaDays: Math.max(0, Math.ceil((Number(a.resolveTime) - t) / SECONDS_PER_DAY)),
-      }));
-    context.merchOptions = MERCHANDISE_TYPES.map((m) => ({
-      key: m.key,
-      label: game.i18n.localize(merchandiseLabel(m.key)),
-    }));
-  }
-
-  /** Open the purchase dialog for a catalog row. */
-  static async #onOpenPurchase(_event, target) {
-    const key = target?.dataset?.key;
-    const row = (this._tradeCatalog ?? []).find((r) => r.key === key);
-    if (row) openPurchaseDialog(this.actor, row);
-  }
-
-  /** Open the sell dialog for one of the viewer's carried items. */
-  static async #onOpenSell(_event, target) {
-    const trader =
-      game.user.character ??
-      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER"));
-    const item = trader?.items.get(target?.dataset?.itemId);
-    if (trader && item) openSellDialog(this.actor, trader, item);
-  }
-
-  /** Spend a further dedicated day searching this market. */
-  static async #onMarketsSearchDay(_event, _target) {
-    const trader =
-      game.user.character ??
-      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER"));
-    if (!trader) return;
-    const result = await performSearchDay(this.actor, { actorUuid: trader.uuid, resolutionId: foundry.utils.randomID() });
-    if (result?.error) {
-      ui.notifications.warn(game.i18n.localize(`ACKS-MARKETS.trade.error.${result.error}`));
-      return;
-    }
-    if (result?.ok) {
-      ui.notifications.info(game.i18n.localize("ACKS-MARKETS.ventures.posted"));
-      this.render();
-    }
-  }
-
-  /** Change coin at the market's till — the changer's service, face value. */
-  static async #onMarketsExchange(_event, _target) {
-    const trader =
-      game.user.character ??
-      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER"));
-    if (!trader) return;
-    const stacks = trader.items.filter((i) => i.type === "money" && Number(i.system?.quantity ?? 0) > 0 && Number(i.system?.coppervalue ?? 0) > 0);
-    if (!stacks.length) {
-      ui.notifications.warn(loc("market.exchangeNothing", { name: trader.name }));
-      return;
-    }
-    const options = stacks.map((i) => `<option value="${i.id}">${foundry.utils.escapeHTML(i.name)} ×${i.system.quantity} (${i.system.coppervalue} cp)</option>`).join("");
-    const denoms = [[100, loc("market.exchangeGp")], [10, loc("market.exchangeSp")], [1, loc("market.exchangeCp")]]
-      .map(([cv, label]) => `<option value="${cv}">${label}</option>`).join("");
-    const form = await foundry.applications.api.DialogV2.prompt({
-      window: { title: loc("market.exchangeTitle") },
-      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
-      content: `<div class="form-group"><label>${loc("market.exchangeFrom")}</label><select name="itemId">${options}</select></div>
-        <div class="form-group"><label>${loc("market.exchangeCount")}</label><input type="number" name="count" min="1" value="1"/></div>
-        <div class="form-group"><label>${loc("market.exchangeTo")}</label><select name="toCv">${denoms}</select></div>`,
-      ok: { callback: (_e, button) => ({
-        itemId: button.form.elements.itemId.value,
-        count: Number(button.form.elements.count.value),
-        toCv: Number(button.form.elements.toCv.value),
-      }) },
-    }).catch(() => null);
-    if (!form) return;
-    const r = await acksExtras.lib.money.exchangeCoins({ actor: trader, place: this.actor, ...form });
-    if (r.ok) {
-      ui.notifications.info(loc("market.exchanged", { name: trader.name }));
-      this.render();
-    }
-  }
-
-  /** Commission a catalog item's construction. */
-  static async #onOpenCommission(_event, target) {
-    const key = target?.dataset?.key;
-    const row = (this._tradeCatalog ?? []).find((r) => r.key === key);
-    if (row) openCommissionDialog(this.actor, row);
-  }
-
-  /** Post a directed search for a catalog item the market cannot supply now. */
-  static async #onPostSearch(_event, target) {
-    const key = target?.dataset?.key;
-    const row = (this._tradeCatalog ?? []).find((r) => r.key === key);
-    const trader =
-      game.user.character ??
-      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER"));
-    if (!row || !trader) return;
-    const result = await performItemSearch(this.actor, {
-      buyerUuid: trader.uuid,
-      itemName: row.name,
-      qty: 1,
-      resolutionId: foundry.utils.randomID(),
-    });
-    if (result?.error) {
-      ui.notifications.warn(game.i18n.localize(`ACKS-MARKETS.trade.error.${result.error}`));
-      return;
-    }
-    ui.notifications.info(game.i18n.format("ACKS-MARKETS.searches.posted", { name: row.name }));
-    this.render();
-  }
-
-  /** Withdraw a directed search. */
-  static async #onCancelSearch(_event, target) {
-    const result = await performSearchCancel(this.actor, { searchId: target?.dataset?.searchId });
-    if (result?.error) {
-      ui.notifications.warn(game.i18n.localize(`ACKS-MARKETS.trade.error.${result.error}`));
-      return;
-    }
-    this.render();
-  }
-
-  /** The viewer's acting character for venture actions. */
-  #ventureTrader() {
-    return (
-      game.user.character ??
-      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER")) ??
-      null
-    );
-  }
-
-  async #postVenture(kind, extra = {}) {
-    const trader = this.#ventureTrader();
-    if (!trader) return;
-    const result = await performVentureAction(this.actor, {
-      kind,
-      actorUuid: trader.uuid,
-      resolutionId: foundry.utils.randomID(),
-      ...extra,
-    });
-    if (result?.error) {
-      ui.notifications.warn(game.i18n.localize(`ACKS-MARKETS.trade.error.${result.error}`));
-      return;
-    }
-    ui.notifications.info(game.i18n.localize("ACKS-MARKETS.ventures.posted"));
-    this.render();
-  }
-
-  /** Enter the market: a dedicated day, the toll paid at the gate. */
-  static async #onVentureEnter() {
-    const content = `<div class="form-group"><label>${game.i18n.localize("ACKS-MARKETS.ventures.cargo")}</label><input type="number" name="cargoSt" value="0" min="0" step="1"></div>`;
-    const cargoSt = await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
-      window: { title: game.i18n.localize("ACKS-MARKETS.ventures.enter") },
-      content,
-      ok: { callback: (_ev, button) => Number(button.form.elements.cargoSt?.value) || 0 },
-    }).catch(() => null);
-    if (cargoSt == null) return;
-    await this.#postVenture("enter", { cargoSt });
-  }
-
-  /** Assess supply and demand: a dedicated day. */
-  static async #onVentureAssess() {
-    await this.#postVenture("assess");
-  }
-
-  /** Solicit buyers/sellers in the selected merchandise: a dedicated day. */
-  static async #onVentureSolicit() {
-    const category = this.element.querySelector("[data-venture-category]")?.value;
-    if (!category) return;
-    await this.#postVenture("solicit", { category });
-  }
-
-  /** Trade merchandise a solicitation opened. */
-  static async #onVentureTrade() {
-    const trader = this.#ventureTrader();
-    if (trader) openVentureTradeDialog(this.actor, trader);
-  }
-
-  /** GM: set the market's true demand modifier for one category. */
-  static async #onSetDemand() {
-    if (!game.user.isGM) return;
-    const category = this.element.querySelector("[data-venture-category]")?.value;
-    if (!category) return;
-    const goods = this.actor.system.market.goods;
-    const demand = (goods.demand ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
-    const current = demand.find((d) => d.category === category)?.modifier ?? 0;
-    const content = `<div class="form-group"><label>${game.i18n.localize("ACKS-MARKETS.ventures.dmValue")}</label><input type="number" name="modifier" value="${current}" min="-6" max="6" step="1"></div>`;
-    const modifier = await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
-      window: { title: game.i18n.localize("ACKS-MARKETS.ventures.setDemand") },
-      content,
-      ok: { callback: (_ev, button) => Number(button.form.elements.modifier?.value) || 0 },
-    }).catch(() => null);
-    if (modifier == null) return;
-    const row = demand.find((d) => d.category === category);
-    if (row) row.modifier = modifier;
-    else demand.push({ category, modifier });
-    await this.actor.update({ "system.market.goods.demand": demand });
-    this.render();
-  }
-
-  /** Resolve due import orders now (owners may; the clock is the GM's). */
-  static async #onProcessImports() {
-    const result = await processImports(this.actor);
-    ui.notifications.info(game.i18n.format("ACKS-MARKETS.imports.processed", { n: result.resolved }));
-    this.render();
-  }
-
-  /** GM gate: whether masterwork gear has a contact at this market (RR §IV.6). */
-  static async #onToggleMasterworkContact() {
-    if (!game.user.isGM) return;
-    const current = !!this.actor.system.market.goods.masterworkContact;
-    await this.actor.update({ "system.market.goods.masterworkContact": !current });
-    this._tradeCatalog = null;
-    this.render();
-  }
 
   /**
    * Give this place a market. One write of a fully-defaulted subtree — until

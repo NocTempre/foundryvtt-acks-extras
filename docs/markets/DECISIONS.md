@@ -10,7 +10,7 @@ split henchmen recruitment already uses. Rejected: extending equipment
 location (already the largest feature; its docs frame it as place identity).
 
 **Ruled (user):** v1 scope includes selling within caps, merchant importing,
-Bargaining, demand modifiers, extended search time, the market-total (10×)
+Bargaining, demand modifiers, extended search time, the market-total (RR 124)
 vs per-party cap split (all PCs are one party until configured), and the
 magic-item market **with automated identification**. Spell-casting purchases
 and the full arbitrage/trade-route game stay out (ROADMAP).
@@ -28,9 +28,10 @@ where shapes disagree.
 ## 2026-08-13 — %-cell market stock rolls at tenfold chance, floored by a party's find
 
 **Ruled (user):** for a percent availability cell, the market-wide monthly
-stock (the multi-party 10× cap) is its own roll at ten times the cell's
-chance, decomposed into guaranteed units plus a d100 on the remainder
-(23% → 230% → 2 units + 30% for a third), made once per item per month.
+stock (the multi-party cap, RR 124) is its own roll at the cap multiple of
+the cell's chance, decomposed into guaranteed units plus a d100 on the remainder
+(with an invented multiple of ten: 23% → 230% → 2 units + 30% for a
+third), made once per item per month.
 A party's own successful existence roll floors the result at one — the
 market never contradicts what a party already found, so a 5% success
 stands even if the 50% market roll fails. Each party's access stays capped
@@ -121,3 +122,177 @@ Recorded from the header of `scripts/markets/engine/parties.mjs`.
 whose size for the party-size rule counts the player characters and their
 henchmen, because the book counts adventurers, not players. The
 `marketParties` world setting overrides it with explicit rosters.
+
+## 2026-09-29 — The trade layer: RAW demand, trade state as Items, setting data through the register
+
+**Ruled (user):** demand over time follows RAW only. A market's true demand
+modifier is DERIVED — the generated base (JJ Ch6 Step 7 A–D) plus trade-route
+equalisation (Step 7E) — and is recomputed when the route network or a
+market's class changes (urban families, Commerce Disrupted/Improves JJ 111,
+terrain transformation JJ Ch16). Exhaustion of Arbitrage and Price Reset
+(RR 375) are world settings, off by default. Rejected: a saturation house
+rule where trading pushes demand and it recovers monthly — RAW has no such
+mechanic, and Step 7E is a setup step, not a monthly one.
+
+**Ruled (user):** trade state a player owns, inspects or hands over is an
+Item — merchandise definitions, trade routes, market reports, holdings
+(investments, loans, contracts). Owned items are housed as embedded documents
+on one GM-designated location actor through `lib/storage`, stamped with their
+owner, and reached from the owner's actor and from the market location actors.
+Month-scoped mechanics (prices, solicitations, existence rolls, handling) stay
+market state. Rejected: a world setting for routes and per-market rows for
+beliefs — neither can be inspected, handed over or exported with an Adventure.
+
+**Ruled (user):** merchandise is a catalogue Item sub-type imported through the
+register (so values arrive from the Judge's own book) and extendable by the
+Judge: a world item with the same `key` overrides the compendium's. The
+merchandise table recipe and the hard-coded key list retire.
+
+**Ruled (user):** routes are Judge-authored between two market locations, with
+a suggest-from-map helper over battlemap roads and hex routes.
+
+**Ruled (user):** loot goes down the merchandise path — gems, jewelry, special
+treasures and monster parts map to merchandise, sold at base in one click (the
+JJ special-treasure default) or taken through arbitrage.
+
+**Ruled (user):** venturers and other trade specialists get a Trade tab on the
+character sheet for their research, routes and holdings.
+
+**Ruled (user):** official setting data (AX and setting books) is imported
+through the register like core data: printed market classes, families, demand
+modifiers, routes, local business rules. Printed names follow the neutral-label
+rule. Printed demand modifiers land as the BASE layer — equalisation still
+shifts them, and a Judge who wants one frozen pins it.
+
+**Ruled (user):** the trade layer is RAW implemented inside acks-extras. The
+existing guarded read of an external domain module is left as it is and
+nothing new is built on it; every domain-side input RAW takes (land revenue,
+the ruler, urban families) is a field the Judge fills on the market.
+
+Cost: four new Item sub-types, each a world relaunch when it arrives; a housing
+actor the Judge must designate; the `dmKnowledge` rows migrate to report Items.
+Program and phase state: `wip/trade-layer.md`.
+
+### Housing visibility follows the storage attribution ruling (2026-09-29)
+
+Players hold OBSERVER on the housing actor and the UI filters by owner — the
+`lib/storage` ruling that attribution is a UI convention, not a security
+boundary. Nothing secret goes in a trade Item: true demand stays on the market;
+a report holds only what its owner believes.
+
+## 2026-09-29 — Markets reads its figures from the page
+
+**Ruled:** every figure markets v1 carried as a constant is either read from
+the Judge's book through a `proseValues` recipe or derived from an imported
+table; none stays in code. Read: the crowd head-count and its multiplier, the
+all-parties ceiling, hub class shifts and the transit-loss roll (RR 124);
+Bargaining's swing and per-rank bonus (RR 107); the magic-item buy and
+self-made multipliers (JJ 131); the research level, engineering tiers and
+dabbling backfire band (JJ 130); the impact cap and its family-scaled
+exception (RR 371); the assessment and negotiation result bands (RR 373,
+RR 376); the price's class and season shifts (RR 375); the typical merchant
+(RR 376). Derived: an item's demand-step fraction is its merchandise
+category's `priceStep / pricePerStone`. Removed: the placeholder family
+ladder that sized an unset till, and the 11+ throw assumed for an ability
+with no printed target.
+
+**Procedure, kept in code:** dice expressions (2d6, 4d4−10, 1d6, d100); that
+a natural minimum or maximum of 2d6 counts as the first or last band; which
+hub takes days and which weeks; the order of the price-step adjustments.
+
+**Rejected:** keeping round constants because they "look structural". The
+bands and multipliers are exactly the values the doctrine names.
+
+Cost: an action whose value is not imported refuses with the table named
+rather than guessing. Worlds that imported before this release must re-run
+Rules tables (Reimport One Shelf) to gain the new tables. The recipes' result
+bands are read in order and keyed by position; a book that reorders a result
+column would mislabel it, and the content test checks shape, not meaning.
+
+### Family income stays a Judge setting (2026-09-29)
+
+`economy.familyIncome` keeps its producer waiver. The settlement recipe
+leaves the settlement table's income column out on purpose: it is domain
+revenue after expenses, not what the market's till should float, and the
+trade layer does not model domains. The till is this module's device, not a
+printed rule, so its sizing input is the Judge's.
+
+### A market's own held magic items sell off the shelf (2026-09-29)
+
+A magic item sold to a market becomes a row the next buyer can take. It is a
+physical item already present, so buying it skips the monthly transaction
+roll, the caps and the ledger, and writes only the market log. It still
+charges the magic buy price.
+
+## 2026-09-29 — A setting book's market profile lands as the base
+
+**Ruled:** a gazetteer's regional demand grid and domain records import onto
+location actors as the market's printed class (`marketClassOverride`), urban
+families and BASE demand layer, with `dmProfile.source` naming the grid page.
+A market with a domain record takes the record's printed heading as its name;
+a grid-only market keeps its neutral label. The book's own city is bound onto
+the city actor the POI step builds, not a second actor.
+
+**Ruled:** where the domain record and the grid print different classes for
+one market (AX3 has two), the record wins and the Judge is told. The record is
+the market's own entry; the grid summarises many markets on one page.
+
+**Ruled:** the grid speaks ACKS I goods. The System Compatibility Guide has no
+merchandise conversion, so the ACKS I → II translation is module vocabulary
+(`ACKS1_GOODS` in `scripts/importer/market-profile-binding.mjs`). A merchandise
+item's `aliases` outrank it, which is how a Judge maps a good the module leaves
+unmapped. An unmapped good is reported and left out, never priced. Where two
+columns feed one good, a column the Judge aliased stands over one the default
+map sent there (otherwise page order decides), and the other is reported.
+
+**Ruled:** an import never overwrites what the Judge set. Class and families
+are written only where empty; the base only where it is empty or came from the
+same page.
+
+Rejected: writing the class as `urbanFamilies` alone and letting the RR
+bracket derive it — the printed class is the book's statement about that
+market and the bracket can disagree with it.
+
+Cost: the grid's rotated market names are not text, so 18 of 25 AX3 markets
+arrive as `Market N` until the Judge renames them.
+
+## 2026-09-29 — Demand is three layers with one reader
+
+**Ruled:** a market's demand is a base layer (generated by the Demand
+Generator, JJ 199–202, or supplied by a book), a derived layer reserved for
+trade-route equalisation, and the Judge's pins. `trueDemand` is the only
+reader — pin, else derived, else base — and `engine/demand.mjs` the only
+writer. The generator writes the base and never touches a pin.
+
+**Ruled:** a hand write to the base (Set, Clear, or Apply in the generator)
+clears `dmProfile.source`. The base is then the Judge's, and a book re-import
+leaves it standing.
+
+**Ruled:** the land-revenue step reads both the count and the signed size of
+each clause from the imported table, rather than assuming a size of one.
+"Drop any fractions" truncates toward zero, so a sum of −1½ gives −1.
+
+Rejected: a single demand array with a per-row origin tag — every reader would
+have to know the precedence, which is the bug the one-reader rule prevents.
+
+## 2026-09-29 — Market reports: build choices
+
+**Chosen in the build (not yet the user's):**
+
+- Assessment resolves on a GM seat only and writes a report only when it
+  learned something. The trade house is not writable by a player, so a
+  player's "Process now" leaves an assessment pending for the GM's sweep; a
+  *failed* result and an expertise result with no matching ability write no
+  report, and the whispered card still says so.
+- The Trade tab is shown to the GM on every character. The trader flag is
+  only reachable from the tab, and the alternative (a tool cell or menu entry
+  on every sheet) costs more than an extra tab for the GM.
+- The report sheet is a plain window (`tag: "div"`), not a form: a player holds
+  OBSERVER on the house, so the document's own submit is closed to them, and
+  the owner's notes travel through the GM relay as escaped plain text.
+- `lib/storage` `providersFor` counts goods only, so the house does not show as
+  a place a character can retrieve from and a report is never "retrieved".
+
+Rejected: a report written from a player seat with the relay authorizing on
+the location (a player clicking Process could then stamp a report for another
+player's assessor).

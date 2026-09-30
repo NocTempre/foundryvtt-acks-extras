@@ -1,0 +1,145 @@
+/* The merchandise item's own sheet. Every hook is acks-extras-merchandise-*.
+ * The body scrolls inside the window: the sheet submits on change and
+ * re-renders, and only a part's descendant keeps its scroll position across
+ * that. Type answers to the ramp; sizes that live in boxes are em, so the knob
+ * reaches the boxes as well as the glyphs. */
+
+.acks-extras-merchandise-sheet .window-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.acks-extras-merchandise-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-merchandise-header {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+  margin-bottom: 0.25em;
+}
+
+.acks-extras-merchandise-header .profile-img {
+  width: 3em;
+  height: 3em;
+  object-fit: cover;
+}
+
+.acks-extras-merchandise-headmain {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.acks-extras-merchandise-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.25em;
+}
+
+/* An instruction on this sheet is a sentence, so it reads at the body step in
+   soft ink; the vendored form-group hint would otherwise set it fine. */
+.acks-ui.acks-extras-merchandise-sheet .hint,
+.acks-ui.acks-extras-merchandise-sheet .form-group > .hint {
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-body);
+  line-height: var(--acks-lh-snug);
+  margin: 2px 0;
+}
+
+.acks-extras-merchandise-sheet .form-group.stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.acks-extras-merchandise-subhead {
+  margin: 0.5em 0 0.25em;
+  font-size: var(--acks-fs-label);
+}
+
+/* Captioned number boxes flow and wrap: a grid held to a fixed column count
+   would clip its last cell at the width where the Judge can no longer see it. */
+.acks-extras-merchandise-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.acks-extras-merchandise-cell {
+  flex: 0 1 7em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125em;
+  min-width: 5em;
+}
+
+.acks-extras-merchandise-cell > span {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-merchandise-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25em;
+  align-items: center;
+  margin: 2px 0;
+}
+
+.acks-extras-merchandise-row input[type="text"] {
+  flex: 1 1 6em;
+  min-width: 4em;
+}
+
+.acks-extras-merchandise-row input[type="number"] {
+  flex: 0 0 auto;
+  width: 5em;
+}
+
+/* Add and remove are buttons, so the keyboard reaches them and a screen reader
+   hears their label; the chrome is stripped so they render as the glyphs they
+   were. Hidden when the sheet is not editable, since the action would be
+   refused. */
+.acks-extras-merchandise-ctl {
+  flex: 0 0 auto;
+  width: 1.6em;
+  height: 1.6em;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.acks-extras-merchandise-ctl:hover,
+.acks-extras-merchandise-ctl:focus-visible {
+  opacity: 1;
+  color: var(--acks-spot);
+}
+
+.acks-extras-merchandise-root:not(.acks-extras-merchandise-editable) .acks-extras-merchandise-ctl {
+  display: none;
+}
+
+legend > .acks-extras-merchandise-ctl {
+  vertical-align: middle;
+  margin-left: 0.25em;
+}
+
+.acks-extras-merchandise-sheet .acks-extras-merchandise-description {
+  padding: 0.25em;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
+}

@@ -108,7 +108,8 @@ lengths.
 ## The tabs
 
 Rolls · Abilities · Equipment · Stats · Class · Magic (casters only) ·
-Followers · Notes · Effects. Followers and Effects carry a count; Abilities
+Trade (traders only; docs/markets/MODEL.md, "The Trade tab on the character
+sheet") · Followers · Notes · Effects. Followers and Effects carry a count; Abilities
 and Class carry a gold badge for choices waiting; Class goes gold while the
 XP bar is full. The chevron before the strip folds the sheet.
 

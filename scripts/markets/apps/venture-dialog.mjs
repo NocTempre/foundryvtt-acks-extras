@@ -4,8 +4,8 @@
  * stones, direction, and the optional spot-price negotiation.
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
-import { merchandiseLabel } from "../config.mjs";
-import { performVentureTrade, ventureOf } from "../engine/ventures.mjs";
+import { merchandiseFor } from "../engine/merchandise.mjs";
+import { performVentureTrade, ventureOf, loadsHeld } from "../engine/ventures.mjs";
 import { marketMonthStart } from "../engine/trade.mjs";
 import { partyOf } from "../engine/parties.mjs";
 import { toGp } from "../rules/pricing.mjs";
@@ -46,9 +46,15 @@ export class VentureTradeDialog extends HandlebarsApplicationMixin(ApplicationV2
       .filter((s) => s.partyId === party.id && Number(s.monthStartTime) === monthStart && Math.floor(s.stones) >= 1)
       .map((s) => {
         const price = (goods.merchPrices ?? []).find((p) => p.category === s.category && Number(p.monthStartTime) === monthStart);
+        const merch = merchandiseFor(s.category)?.label ?? s.category;
+        const held = loadsHeld(this.trader, s.category);
         return {
           category: s.category,
-          label: game.i18n.localize(merchandiseLabel(s.category)),
+          merchLabel: merch,
+          held,
+          // The option text the template prints: the trader's own loads of
+          // this category ride beside the name, so a seller sees what is in hand.
+          label: game.i18n.format(`${LANG}.ventures.labelCarrying`, { label: merch, held }),
           stones: Math.floor(s.stones),
           priceGp: price ? toGp(price.priceCp) : "?",
         };
@@ -68,7 +74,7 @@ export class VentureTradeDialog extends HandlebarsApplicationMixin(ApplicationV2
       resolutionId: foundry.utils.randomID(),
     });
     if (result?.error) {
-      ui.notifications.warn(game.i18n.format(`${LANG}.trade.error.${result.error}`, { remaining: result.remaining ?? 0 }));
+      ui.notifications.warn(game.i18n.format(`${LANG}.trade.error.${result.error}`, { remaining: 0, table: "", crowd: "", ...result }));
       return;
     }
     if (result?.ok) {

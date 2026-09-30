@@ -162,9 +162,11 @@ test("a modifier in force colours the save green or amber, and splits under a ri
 });
 
 console.log("character sheet: the tab strip");
-test("Magic appears for a caster only, and the order is fixed", () => {
-  assert.deepEqual(tabList({}).map((t) => t.key), TAB_ORDER.filter((k) => k !== "magic"));
-  assert.deepEqual(tabList({ caster: true }).map((t) => t.key), [...TAB_ORDER]);
+test("Magic appears for a caster and Trade for a trader, and the order is fixed", () => {
+  assert.deepEqual(tabList({}).map((t) => t.key), TAB_ORDER.filter((k) => k !== "magic" && k !== "trade"));
+  assert.deepEqual(tabList({ caster: true }).map((t) => t.key), TAB_ORDER.filter((k) => k !== "trade"));
+  assert.deepEqual(tabList({ trader: true }).map((t) => t.key), TAB_ORDER.filter((k) => k !== "magic"));
+  assert.deepEqual(tabList({ caster: true, trader: true }).map((t) => t.key), [...TAB_ORDER]);
 });
 test("counts sit on Followers and Effects; gold badges are choices waiting; Class goes gold when full", () => {
   const tabs = tabList({ pending: 2, followers: 3, timers: 1, full: true, hasClass: true, unansweredPaths: 1 });

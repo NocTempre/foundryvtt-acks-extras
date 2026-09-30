@@ -125,6 +125,9 @@ const MONSTER_PROSE = ["appearance", "combat", "ecology", "encounterText", "lore
 export const REPAIR = Object.freeze({
   trap: { keep: ["level"], prose: ["description"] },
   variation: { prose: ["description"] },
+  // The table's own figures are rewritten; the demand layers, aliases, loot
+  // kinds and categories are not built by a table row and so are left alone.
+  merchandise: { prose: ["description"] },
   vehicle: { keep: ["crew", "shp.value", "speeds.tiers.*.team"], prose: ["description"] },
   equipment: {
     keep: ["quantity", "equipped", "subtype", "melee", "missile"],

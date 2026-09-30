@@ -106,7 +106,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 1. Open the fixture. *Observable:* the band sits in the window header with
    the name field and the XP bar; the art row shows five save cells and the
    six right-rail cells; the tab strip reads Rolls · Abilities · Equipment ·
-   Stats · Class · Followers · Notes · Effects (Magic absent for a non-caster);
+   Stats · Class · Followers · Notes · Effects (Magic absent for a non-caster,
+   Trade for a non-trader);
    no console error at open.
 2. Rails. *Observable:* the heart shows the current HP with a partial fill;
    the AC cell cycles shield → without → unarmoured on click and the figure

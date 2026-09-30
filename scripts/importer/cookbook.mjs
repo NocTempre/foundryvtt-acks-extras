@@ -64,6 +64,13 @@ import { materializeTemplates, TEMPLATE_PART } from "../classes/template-package
 import { CLASS_TYPE, RACE_TYPE } from "../classes/constants.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
 import { VARIATION_ITEM_TYPE } from "../equipment/constants.mjs";
+import { MERCHANDISE_TYPE } from "../markets/constants.mjs";
+import { DEMAND_AGE_HEADERS_SETTING } from "../markets/merchandise-keys.mjs";
+import { planMerchandise, bindMerchandiseRow, planDemand, describeUnmapped } from "./merchandise-binding.mjs";
+import {
+  goodsResolver, marketProfiles, marketProfileUpdate, marketActorData, marketEntryId, marketOrdinal, placeName,
+} from "./market-profile-binding.mjs";
+import { merchandiseCatalog, primeMerchandiseCatalog } from "../markets/engine/merchandise.mjs";
 import { TRAP_ITEM_TYPE } from "../formation/constants.mjs";
 // The spell primitive's DataModel is not imported here: this file loads under
 // plain Node in the offline harness, and the model needs `foundry`. The bind
@@ -1548,6 +1555,7 @@ const REPAIR_RUNS = {
   importSpells: (only, tally) => importSpells({ only, repair: tally }),
   importVariations: (only, tally) => importVariations({ only, repair: tally }),
   importVehicles: (only, tally) => importVehicles({ only, repair: tally }),
+  importMerchandise: (only, tally) => importMerchandise({ only, repair: tally }),
 };
 
 /** Every entry id a repair run can write in place, across the picker's sources. */
@@ -1794,6 +1802,7 @@ const SHELF_REFILL = {
   Weapons: "importWeapons",
   Armor: "importArmor",
   Variations: "importVariations",
+  Merchandise: "importMerchandise",
   Traps: "importTraps",
   Spells: "importSpells",
   Classes: "importClasses",
@@ -1840,7 +1849,14 @@ export async function cookbookReimportShelf(shelf = null, { mode = "drop" } = {}
     const bookOptions = books.map((b) => `<option value="book:${esc(b.id)}">${esc(b.label)}</option>`).join("");
     // The rules tables are no shelf: they are read into the ruledata store and
     // merge there, so the option re-reads them in place and deletes nothing.
-    const tablesOption = `<option value="tables:">${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportTablesAll`))}</option>`;
+    // One document may be re-read alone: the run locates pages for every recipe
+    // it makes, so a single document is seconds where the whole store is minutes.
+    const tablesOption =
+      `<option value="tables:">${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportTablesAll`))}</option>` +
+      Object.keys(TABLE_RECIPES)
+        .sort()
+        .map((docId) => `<option value="tables:${esc(docId)}">${esc(game.i18n.format(`${LANG_PREFIX}.ui.reimportTablesOne`, { doc: docId }))}</option>`)
+        .join("");
     return foundry.applications.api.DialogV2.prompt({
       window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.reimportTitle`) },
       classes: ["acks-ui", "acks-extras-importer-dialog"],
@@ -1858,7 +1874,7 @@ export async function cookbookReimportShelf(shelf = null, { mode = "drop" } = {}
           const [kind, ...rest] = String(button.form.elements.pick.value).split(":");
           const picked = rest.join(":");
           const mode = String(button.form.elements.mode?.value ?? "drop");
-          if (kind === "tables") return api().cookbookImportTables();
+          if (kind === "tables") return api().cookbookImportTables(picked ? [picked] : null);
           return kind === "book" ? cookbookReimportBook(picked, { mode }) : cookbookReimportShelf(picked, { mode });
         },
       },
@@ -1996,6 +2012,9 @@ const ENTRY_SOURCES = [
   { key: "Spells", type: "Item", refill: "importSpells", entries: () => [...spellEntries()] },
   { key: "Variations", type: "Item", refill: "importVariations", entries: () => [...variationEntries()] },
   { key: "Vehicles", type: "Actor", refill: "importVehicles", entries: () => [...vehicleEntries()] },
+  // The demand entry is no row of its own: it appends onto the goods, and the
+  // goods' run reads it, so only the merchandise table is offered.
+  { key: "Merchandise", type: "Item", refill: "importMerchandise", entries: () => [...merchandiseEntries("kind.merchandise")] },
   // A creature an OSE book prints a block per step for is one row, under its
   // generator's id; `oseImportEntries` rebuilds its steps together.
   { key: "OseCreatures", type: "Actor", idsRefill: "oseImportEntries", entries: () => api().oseEntryRows?.() ?? [] },
@@ -3595,6 +3614,116 @@ export async function cookbookImportPoiPlaces() {
 }
 
 /**
+ * Market profiles: a setting book's regional demand grid and domain records,
+ * as market class, urban families and base demand on location actors
+ * (`market-profile-binding.mjs` holds the translation and the write rule). A
+ * market with a domain record is named by the heading the Judge's page prints;
+ * the rest keep their neutral label. A record marked `place: "adventure"`
+ * binds onto the book's own city, the actor the POI step nests under. A
+ * class, family count or base demand the place already holds is the Judge's
+ * and is left standing. Goods that translate to no merchandise, and a record
+ * whose class differs from its grid row, are reported. See
+ * docs/markets/DECISIONS.md, "A setting book's market profile lands as the
+ * base".
+ */
+export async function cookbookImportMarketProfiles() {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
+  const books = [...data.books.keys()]
+    .filter((b) => ctx.sessionDocs.has(b))
+    .map((bookId) => {
+      const entries = Object.entries(data.books.get(bookId).entries);
+      return {
+        bookId,
+        grids: entries.filter(([, e]) => e.kind === "kind.marketGrid"),
+        records: entries.filter(([, e]) => e.kind === "kind.marketRecord"),
+      };
+    })
+    .filter((b) => b.grids.length);
+  if (!books.length) return ui.notifications.warn(`${MODULE_ID} | no market grids in any open book — connect AX3 first.`);
+  await primeMerchandiseCatalog().catch(() => null);
+  const resolve = goodsResolver(merchandiseCatalog());
+  const counts = { made: 0, updated: 0, kept: 0, refused: 0 };
+  const unmapped = new Map();
+  const duplicates = new Map();
+  const conflicts = [];
+  for (const { bookId, grids, records } of books) {
+    const cb = data.books.get(bookId);
+    const read = (id) => executeEntry(ctx.sessionDocs.get(bookId).doc, cb, data.registers, id).catch(() => null);
+    const recordOf = {};
+    for (const [id, e] of records) {
+      const node = await read(id);
+      if (!node?.ok || !e.meta?.market) {
+        counts.refused++;
+        continue;
+      }
+      recordOf[e.meta.market] = {
+        families: node.fields?.families,
+        marketClass: node.fields?.marketClass,
+        name: placeName(printedNameOf(node, "")),
+        place: e.meta.place ?? null,
+      };
+    }
+    const label = bookLabel(bookId);
+    const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressMarkets`), grids.length);
+    try {
+      for (const [id, e] of grids) {
+        bar.step(e.name);
+        const node = await read(id);
+        const grid = node?.ok ? node.fields?.grids?.markets : null;
+        if (!grid) {
+          counts.refused++;
+          continue;
+        }
+        const source = { book: bookId, page: e.cite ?? "" };
+        const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
+        for (const profile of marketProfiles({ grids: [grid], records: recordOf, resolve })) {
+          const record = recordOf[profile.market] ?? null;
+          for (const u of profile.unmapped) unmapped.set(u.column, u.header);
+          for (const column of profile.duplicates) duplicates.set(column, String(grid.header?.[column] ?? column));
+          if (profile.classConflict) conflicts.push(record?.name || profile.market);
+          const entryId = marketEntryId(bookId, profile.market);
+          const name = record?.name
+            || game.i18n.format(`${LANG_PREFIX}.markets.label`, { n: marketOrdinal(profile.market) });
+          let fresh = false;
+          const place = record?.place === "adventure"
+            ? await claimActorImport(oseAdventureId(bookId), () =>
+              createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: folder })))
+            : await claimActorImport(entryId, () => {
+              fresh = true;
+              return createDoc(Actor, marketActorData({ name, entryId, book: bookId, bookLabel: label, folderId: folder }));
+            });
+          if (!place) {
+            counts.refused++;
+            continue;
+          }
+          const { update, wrote } = marketProfileUpdate(place.system?.market ?? null, profile, source);
+          if (Object.keys(update).length) await place.update(update);
+          if (fresh) counts.made++;
+          else if (wrote.marketClass || wrote.families || wrote.demand) counts.updated++;
+          else counts.kept++;
+        }
+      }
+    } finally {
+      bar.finish();
+    }
+  }
+  if (unmapped.size) {
+    const list = [...unmapped].map(([column, header]) => `${header} (${column})`).join("; ");
+    console.warn(`${MODULE_ID} | market profiles: goods with no merchandise match — ${list}`);
+    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.markets.unmapped`, { n: unmapped.size, list }));
+  }
+  if (duplicates.size) {
+    const list = [...duplicates].map(([column, header]) => `${header} (${column})`).join("; ");
+    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.markets.duplicates`, { n: duplicates.size, list }));
+  }
+  if (conflicts.length) {
+    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.markets.classConflict`, { list: conflicts.join(", ") }));
+  }
+  ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.markets.done`, counts));
+  return { ...counts, unmapped: [...unmapped.keys()], duplicates: [...duplicates.keys()], conflicts };
+}
+
+/**
  * Organisations, as FACTION actors (`faction-binding.mjs` says which entries
  * are one, and of which sort): named and seated from the entry's `organisation`
  * block, at its own keyed place or its quarter's. Presence is asked by
@@ -4340,6 +4469,7 @@ const ITEM_SHELF = {
   "def.trap": "Traps",
   "def.spell": "Spells",
   "def.variation": "Variations",
+  "def.merchandise": "Merchandise",
   // The price list's own rows — see importPriceList for why they cannot join
   // the described entries' group shelves.
   "def.priced": "Equipment",
@@ -4829,6 +4959,8 @@ const NON_ABILITY_KINDS = new Set([
   "kind.trap",
   "kind.variation",
   "kind.vehicle",
+  "kind.merchandise",
+  "kind.merchandiseDemand",
   "kind.spell",
   // A conversion constant is a NUMBER the converter is handed at run time
   // (readScgConstants), never a document.
@@ -6930,6 +7062,151 @@ export async function importVehicles({ only = null, repair = null } = {}) {
     `${MODULE_ID} | vehicles: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}.`,
   );
   return made;
+}
+
+/* -------------------------------------------- */
+/*  Merchandise (kind.merchandise → acks-extras.merchandise) */
+/* -------------------------------------------- */
+
+/** Every [id, entry] of one merchandise kind (`kind.merchandise`, `kind.merchandiseDemand`) across the content cookbooks. */
+export function* merchandiseEntries(kind = "kind.merchandise") {
+  for (const cb of data.content.values()) {
+    for (const [defId, e] of Object.entries(cb.entries ?? {})) {
+      if (e.kind === kind) yield [defId, e];
+    }
+  }
+}
+
+/**
+ * Read one entry's grids off the seat's own book: the materialized node, or
+ * `{ node: null, closed }` when nothing can be read (the book is not open
+ * here, or the page no longer matches).
+ */
+async function readEntryGrids(id) {
+  const found = cookbookEntry(id);
+  const bookId = found ? bookOf(found) : null;
+  const session = bookId ? ctx.sessionDocs.get(bookId) : null;
+  const node = session ? await executeEntry(session.doc, found.cb, data.registers, id) : null;
+  return node?.ok ? { node, closed: false } : { node: null, closed: !session };
+}
+
+/**
+ * Import the printed merchandise, one ITEM per good, then append the demand
+ * layers onto them.
+ *
+ * The dedup claim is per GOOD (`<entry id>.<key>`), not per entry: one entry
+ * covers the whole table. A good the world already holds is passed over, or
+ * with `repair` written over in place (`REPAIR.merchandise`). The demand
+ * append runs whenever the goods do and rewrites the environment and racial
+ * layers from the book each time; it is skipped, with a notice, when the book
+ * that prints it is not open. A label or named good that maps to no key is
+ * reported once at the end, on the console and in one GM notification, and
+ * never dropped silently. The age-band header text lands in the world setting
+ * `marketsDemandAgeHeaders`, which is read-only content and never ships.
+ */
+export async function importMerchandise({ only = null, repair = null } = {}) {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
+  if (!CONFIG.Item.dataModels?.[MERCHANDISE_TYPE]) {
+    ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the merchandise item type is unavailable.`);
+    return [];
+  }
+  const made = [];
+  const held = new Map(); // key -> the item a demand layer writes onto
+  const unmapped = [];
+  let skipped = 0;
+  let ran = false;
+  for (const [id, entry] of merchandiseEntries("kind.merchandise")) {
+    if (only && !only.has(id)) continue;
+    ran = true;
+    const { node, closed } = await readEntryGrids(id);
+    if (!node) {
+      if (repair) countRepair(repair, closed ? "book-closed" : "no-match");
+      continue;
+    }
+    const plan = planMerchandise(node.fields?.grids);
+    unmapped.push(...plan.unmapped);
+    for (const planned of plan.rows) {
+      const rowId = `${id}.${planned.key}`;
+      const built = bindMerchandiseRow(planned, entry, id);
+      const have = await importedItem(rowId);
+      if (have) {
+        skipped++;
+        held.set(planned.key, have);
+        if (repair) countRepair(repair, await refreshImported(have, built, REPAIR.merchandise));
+        continue;
+      }
+      const doc = await claimImport(rowId, async () => {
+        const folder = (await ensureItemFolder(id))?.id ?? null;
+        return createDoc(Item, { ...built, folder });
+      });
+      if (doc) {
+        made.push(doc);
+        held.set(planned.key, doc);
+      }
+    }
+  }
+
+  if (ran && held.size) await appendDemand(held, unmapped);
+
+  if (unmapped.length) {
+    const lines = describeUnmapped(unmapped);
+    console.warn(`${MODULE_ID} | merchandise: ${lines.length} printed name(s) map to no good and were left out:\n${lines.join("\n")}`);
+    ui.notifications?.warn(
+      game.i18n.format(`${LANG_PREFIX}.ui.merchUnmapped`, { n: lines.length, list: lines.join("; ") }),
+    );
+  }
+  ui.notifications?.info(
+    `${MODULE_ID} | merchandise: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}.`,
+  );
+  return made;
+}
+
+/**
+ * Write each demand entry's environment and racial layers onto the goods in
+ * `held`, and remember the age-band header text. `unmapped` collects what the
+ * plan could not place, plus any good the grid names that this world holds no
+ * item for.
+ */
+async function appendDemand(held, unmapped) {
+  for (const [id] of merchandiseEntries("kind.merchandiseDemand")) {
+    const { node, closed } = await readEntryGrids(id);
+    if (!node) {
+      ui.notifications?.info(
+        game.i18n.format(`${LANG_PREFIX}.ui.${closed ? "merchDemandClosed" : "merchDemandNoMatch"}`, {
+          book: BOOKS[bookOf(cookbookEntry(id))]?.label ?? id,
+        }),
+      );
+      continue;
+    }
+    const plan = planDemand(node.fields?.grids);
+    unmapped.push(...plan.unmapped);
+    if (Object.keys(plan.ageHeaders).length) {
+      try {
+        const stored = game.settings.get(MODULE_ID, DEMAND_AGE_HEADERS_SETTING) ?? {};
+        await game.settings.set(MODULE_ID, DEMAND_AGE_HEADERS_SETTING, { ...stored, ...plan.ageHeaders });
+      } catch (err) {
+        console.warn(`${MODULE_ID} | merchandise: the age-band headers could not be stored`, err);
+      }
+    }
+    for (const [key, layers] of plan.byKey) {
+      const doc = held.get(key);
+      if (!doc) {
+        unmapped.push({ where: "demand", label: key, reason: "no merchandise item to append to" });
+        continue;
+      }
+      const update = {};
+      if (Object.keys(layers.environment).length) update["system.environment"] = layers.environment;
+      // `==` replaces the whole object: a race the book no longer names for
+      // this good must not survive the merge.
+      if (Object.keys(layers.racial).length) update["system.==racial"] = layers.racial;
+      if (!Object.keys(update).length) continue;
+      try {
+        await doc.update(update);
+      } catch (err) {
+        console.error(`${MODULE_ID} | merchandise: the demand layers could not be written onto ${doc.name}`, err);
+      }
+    }
+  }
 }
 
 /* -------------------------------------------- */

@@ -1107,12 +1107,15 @@ async function emitGrids(doc, grids, fields, boxesByPage) {
       ...(g.gapMin != null ? { gapMin: g.gapMin } : {}),
       ...(g.rowTol ? { rowTol: g.rowTol } : {}),
       ...(g.minCells ? { minCells: g.minCells } : {}),
+      ...(g.headerBand ? { headerBand: g.headerBand } : {}),
+      ...(g.rowBands ? { rowBands: g.rowBands } : {}),
     };
   }
 }
 
 /* -------------------------------------------- */
-/*  Printed-table compilation (kind.vehicle)    */
+/*  Printed-table compilation (kind.vehicle,    */
+/*  kind.merchandise, kind.merchandiseDemand)   */
 /* -------------------------------------------- */
 
 /**
@@ -1131,8 +1134,11 @@ async function compileVehicleTable(doc, entry, _kindRow) {
   const pd = await pageItems(doc, page);
   const cols = defColumns(pd);
   const want = entry.assists?.anchor ?? entry.anchor?.display ?? entry.name;
+  // A table titled in body-size type (the merchandise tables) authors its
+  // own floor; everything else keeps the heading floor.
+  const minH = entry.assists?.headingMinH ?? HEADING_MIN_H;
   const head = pd.items
-    .filter((it) => it.h >= HEADING_MIN_H && it.str.trim().startsWith(want))
+    .filter((it) => it.h >= minH && it.str.trim().startsWith(want))
     .sort((a, b) => a.y - b.y)[0];
   if (!head) throw new Error(`table heading "${want}" not found on p.${page}`);
   const col = colOf(head.x, cols);
@@ -1150,7 +1156,7 @@ async function compileVehicleTable(doc, entry, _kindRow) {
     kind: entry.kind,
     name: entry.name,
     book: entry.book,
-    cite: entry.cite ?? "",
+    cite: entry.cite ?? citeFor(entry.book, page),
     pages: entry.pages,
     ...(entry.meta ? { meta: entry.meta } : {}),
     ...(entry.icon ? { icon: entry.icon } : {}),
@@ -2899,8 +2905,35 @@ async function compileOrganisation(doc, entry, compiled) {
   return out;
 }
 
+/**
+ * kind.marketRecord — one settlement's market figures in a gazetteer's
+ * domain record: the heading (proved by its hash, words read at import), the
+ * urban-family count and the market class. Every box is authored; the
+ * compiler proves the heading reads back to its hash and that each value box
+ * holds a run.
+ */
+async function compileMarketRecord(doc, entry) {
+  const a = entry.assists ?? {};
+  const page = entry.pages[0];
+  const pd = await pageItems(doc, page);
+  const hash = String(entry.anchor?.hash ?? "");
+  const nameRuns = runsIn(pd, { box: a.nameBox });
+  const fixes = a.nameJoinSpace?.length ? { joinSpace: a.nameJoinSpace } : undefined;
+  if (printKey(joinRuns(nameRuns, fixes)) !== hash) throw new Error(`the record heading on p.${page} does not read back to the anchor hash`);
+  const fields = { name: { op: "heading", page, box: a.nameBox, hash, caps: true, ...(fixes ? { fixes } : {}) } };
+  for (const key of ["families", "marketClass"]) {
+    const box = a[`${key}Box`];
+    if (!box) continue;
+    if (!runsIn(pd, { box }).length) throw new Error(`${key} box on p.${page} holds no run`);
+    fields[key] = { op: "value", page, box, pattern: "raw" };
+  }
+  return { id: entry.id, kind: entry.kind, name: entry.name, book: entry.book, cite: citeFor(entry.book, page), pages: entry.pages, ...(entry.meta ? { meta: entry.meta } : {}), fields };
+}
+
 const AX_COMPILERS = {
   "kind.location": compileLocation,
+  "kind.marketGrid": (doc, entry, kindRow) => compileVehicleTable(doc, entry, kindRow),
+  "kind.marketRecord": compileMarketRecord,
   "kind.npc": compileNpc,
   "kind.rolltable": compileRollTable,
   "kind.settingTable": compileSettingTable,
@@ -3901,7 +3934,10 @@ async function compileClassMeta(doc, entry) {
  * extracts, not the source book — a content type spans every book). */
 // kind.class routes through compileClass before the definition branch reads
 // this map — its row here feeds only the index's content list.
-const CONTENT_OF = { "kind.proficiency": "proficiencies", "kind.power": "powers", "kind.skill": "skills", "kind.combatProficiency": "proficiencies", "kind.equipment": "equipment", "kind.class": "classes", "kind.classMeta": "classes", "kind.trap": "traps", "kind.variation": "variations", "kind.vehicle": "vehicles", "kind.constant": "constants", "kind.spell": "spells" };
+/** Kinds whose content IS a printed table: one entry, a document per row. */
+const PRINTED_TABLE_KINDS = new Set(["kind.vehicle", "kind.merchandise", "kind.merchandiseDemand"]);
+
+const CONTENT_OF = { "kind.proficiency": "proficiencies", "kind.power": "powers", "kind.skill": "skills", "kind.combatProficiency": "proficiencies", "kind.equipment": "equipment", "kind.class": "classes", "kind.classMeta": "classes", "kind.trap": "traps", "kind.variation": "variations", "kind.vehicle": "vehicles", "kind.merchandise": "merchandise", "kind.merchandiseDemand": "merchandise", "kind.constant": "constants", "kind.spell": "spells" };
 
 /** Definition id slug — must match the seeder so alias targets resolve. */
 const slugOf = (s) =>
@@ -5070,7 +5106,7 @@ async function main() {
       // A kind whose content is a printed TABLE is a definition by role but
       // not by shape: it has no run-in to anchor on and no prose block to
       // bound, so it never reaches compileDefinition.
-      if (entry.kind === "kind.vehicle") {
+      if (PRINTED_TABLE_KINDS.has(entry.kind)) {
         try {
           const compiled = await compileVehicleTable(doc, entry, kindRow);
           const content = CONTENT_OF[entry.kind];
