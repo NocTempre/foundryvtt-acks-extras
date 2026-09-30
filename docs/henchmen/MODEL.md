@@ -93,7 +93,7 @@ computation):
 | `retainBonus` | henchman limit (4 + CHA + …) | Leadership +1, Blood of Ancient Kings +1 |
 | `baseLoyalty` | starting/effective loyalty of hires | Blood of Ancient Kings +1 |
 | `henchmanMorale` | employer's morale modifier to hirelings | Command +2, Battlefield Prowess +1 (led) |
-| `marketClass` | availability market-class shift | Mercantile Network +1 (known markets) |
+| `marketClass` | availability market-class shift | Mercantile Network +1 — situational; counted where the markets feature says the market is known to the employer (`docs/markets/MODEL.md`, "Known markets") |
 | `moraleBase` | base-morale override for hirelings | Utter Domination +4 |
 | `skipCalamityLoyalty` | boolean: no loyalty rolls on calamity | Utter Domination |
 | `recruitKinds` | unlock henchman kinds (CSV string) | Beast Friendship → `animal` |

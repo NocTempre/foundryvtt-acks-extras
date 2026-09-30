@@ -431,6 +431,30 @@ reports walk.
    console answers `notYours`; `performVentureLeave(M1, {actorUuid: A.uuid})`
    answers `notYours` too.
 
+## The known-market walk (a mercantile network's class)
+
+**Fixtures**: character V (Player seat) with an ability item named
+Mercantile Network and coin; market M2 of class III with the availability
+tables imported, holding no row of V's.
+
+1. Player seat, M2's Trade tab acting as V. *Observable:* the class line
+   reads Class 3 with no shifted class, and says the network is not yet
+   counted here; `acksExtras.markets.marketKnownTo(M2, V)` is false;
+   `acksExtras.henchmen.effectiveMarketClass(M2, V)` is 3, and a catalog
+   row's availability is banded at class 3 (compare `availabilityFor(M2,
+   {itemName, costGp, trader: V})` with `trader: null`: same cell).
+2. GM seat: Known to this trader → On. *Observable:* V's flag lists M2;
+   the Player seat's tab now reads Class 3 · for V: Class 2;
+   `effectiveMarketClass(M2, V)` is 2 and the same row's cell is the class-2
+   one (a rare item pending at class 3 is available at class 2, or its cap
+   is larger). Off again reverts.
+3. Player seat: buy one common item (`purchase`). *Observable:* the ledger
+   row is stamped V, and with the Judge's switch Off the market is still
+   known — the stamp is the visit — so the class stays 2 for V and reads 3
+   for a trader with no network.
+4. Class I stays Class I: set M2's override to 1 and read
+   `effectiveMarketClass(M2, V)` — 1.
+
 ## Teardown
 
 Delete the location, the buyer and the merchandise fixtures by their tracked

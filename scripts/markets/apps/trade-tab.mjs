@@ -38,6 +38,9 @@ import {
 } from "../engine/trade.mjs";
 import { processImports, performItemSearch, performSearchCancel } from "../engine/imports.mjs";
 import { performVentureAction, performVentureCancel, performVentureLeave, ventureOf } from "../engine/ventures.mjs";
+import { marketKnownTo, setMarketKnown } from "../engine/known-market.mjs";
+import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
+import { hasEffectFlag } from "../../henchmen/effects.mjs";
 import { assessmentBands, printedError } from "../engine/printed.mjs";
 import { assessmentBribeBasisHd } from "../engine/assessment.mjs";
 import { assessmentPageBands } from "../rules/arbitrage.mjs";
@@ -177,6 +180,22 @@ export async function prepareTradeTab(sheet, context) {
   context.tradeActor = trader;
   context.tradeTraders = candidates.map((a) => ({ uuid: a.uuid, name: a.name, selected: a === trader }));
   context.tradeShowPicker = candidates.length > 1 || (isGM && candidates.length > 0);
+
+  // The class the acting trader trades at: the town's own, shifted by a
+  // mercantile network where this market is one they have been in before.
+  const trueClass = location.system.marketClass;
+  if (trueClass != null) {
+    const effective = trader ? effectiveMarketClass(location, trader) : trueClass;
+    const network = !!trader && hasEffectFlag(trader, "marketClass");
+    context.tradeClass = {
+      trueLabel: game.i18n.format(`${LANG}.trade.classLabel`, { n: trueClass }),
+      effectiveLabel: game.i18n.format(`${LANG}.trade.classLabel`, { n: effective }),
+      shifted: effective !== trueClass,
+      network,
+      known: network && marketKnownTo(location, trader),
+      traderName: trader?.name ?? "",
+    };
+  }
 
   context.tradeRows = sheet._tradeCatalog.map((row) => {
     // A held row is one physical item on this market's shelf: it is bought
@@ -683,6 +702,15 @@ export const TRADE_TAB_ACTIONS = {
     await this.actor.update({ "system.market.goods.masterworkContact": !current });
     this._tradeCatalog = null;
     this.render();
+  },
+
+  /** The Judge states that the acting trader has (or has not) been in this market before. */
+  async toggleKnownMarket() {
+    if (!game.user.isGM) return;
+    const trader = requireTrader(this);
+    if (!trader) return;
+    const known = marketKnownTo(this.actor, trader);
+    reportResult(this, await setMarketKnown(trader, this.actor, !known));
   },
 
   /** GM gate: whether players see the market's true demand modifiers. */

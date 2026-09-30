@@ -1,5 +1,22 @@
 # Changelog
 
+## 9.3.1
+
+### Fixed
+
+- **A mercantile network now moves the market class it trades at.** The
+  power reached the class shift only as a name-matched modifier marked
+  situational ("in a previously entered market"), and the shift summed the
+  always-on ones alone — so buying, selling, hiring and imports never read
+  the larger class for a venturer. The shift applies where the market is one
+  the trader has been in before: the market's ledger holds a row of theirs,
+  their party has entered it in any month, or the Judge has listed it on the
+  trader. The Trade tab states the town's class and the class the acting
+  trader trades at, says when a network is not yet counted here, and gives
+  the Judge a **Known to this trader** switch for a history older than the
+  ledger's stamps. Class I stays Class I. The "+1 market impact instead"
+  option the rule offers for ventures is not built (ROADMAP).
+
 ## 9.3.0
 
 ### Added

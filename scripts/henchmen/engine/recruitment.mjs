@@ -34,7 +34,7 @@ import { rollClassFromDistribution, rollRandomLevel, rollProficiencyLevel } from
 import { generateIdentity, classInfo } from "../rules/identity.mjs";
 import { henchmanWage } from "../rules/wages.mjs";
 import { getTable, optTable, hasDoc } from "../rules/tables.mjs";
-import { sumEffectModifiers } from "../effects.mjs";
+import { collectEffectModifiers } from "../effects.mjs";
 import { getSetting } from "../settings.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { registerHandler } from "../../lib/sockets.mjs";
@@ -86,7 +86,15 @@ export function effectiveMarketClass(location, employer) {
   // Class I — the LARGEST market there is — which is the worst possible wrong
   // answer to "what can you hire in this cave".
   if (base == null) return null;
-  const shift = employer ? sumEffectModifiers(employer, "marketClass") : 0;
+  // A situational shift (a mercantile network: "in a previously entered
+  // market") counts only where the markets feature says the employer has
+  // been before — asked through the api at call time, like standing below.
+  const known = !!employer && !!globalThis.acksExtras?.markets?.marketKnownTo?.(location, employer);
+  const shift = employer
+    ? collectEffectModifiers(employer, "marketClass")
+        .filter((m) => !m.situational || known)
+        .reduce((sum, m) => sum + m.value, 0)
+    : 0;
   // Standing with the organisations that hold this market moves it too, when
   // the world prices standing at all (the factions feature's knob, off by
   // default). Asked through the api at call time, the way the facts chain

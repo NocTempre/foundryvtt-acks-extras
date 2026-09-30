@@ -38,6 +38,19 @@
     {{/if}}
   </div>
 
+  {{#if tradeClass}}
+  <p class="hint acks-extras-markets-class">
+    {{localize "ACKS-MARKETS.trade.marketClass"}}: {{tradeClass.trueLabel}}{{#if tradeClass.shifted}} · {{localize "ACKS-MARKETS.trade.classFor" name=tradeClass.traderName}}: <strong>{{tradeClass.effectiveLabel}}</strong>{{/if}}{{#if tradeClass.network}}{{#unless tradeClass.known}} · {{localize "ACKS-MARKETS.trade.networkUnknown"}}{{/unless}}{{/if}}
+    {{#if isGM}}{{#if tradeClass.network}}
+    <button type="button" class="acks-location-btn {{#if tradeClass.known}}active{{/if}}" data-action="toggleKnownMarket"
+            data-tooltip="{{localize 'ACKS-MARKETS.trade.knownMarketHint'}}">
+      <i class="fas fa-map-pin"></i> {{localize "ACKS-MARKETS.trade.knownMarket"}}:
+      {{#if tradeClass.known}}{{localize "ACKS-MARKETS.on"}}{{else}}{{localize "ACKS-MARKETS.off"}}{{/if}}
+    </button>
+    {{/if}}{{/if}}
+  </p>
+  {{/if}}
+
   {{#if demandRows.length}}
   <div class="acks-extras-markets-demand">
     <strong>{{localize "ACKS-MARKETS.trade.demandHeader"}}:</strong>

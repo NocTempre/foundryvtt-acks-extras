@@ -343,3 +343,28 @@ player had no view of what their trades had cost.
   market log still lists them for the Judge.
 - **The ledger masks a false assessment as partial.** A trader can read
   their own rows; the truth stays on the Judge's copy of the report.
+
+## 2026-09-30 — A mercantile network counts in a known market, and "known" is evidence the world already holds
+
+Hotfix 9.3.1, from a Judge's report that a venturer's market read the town's
+class on equipment and on sales. The power reached the class domain only as
+the name fallback `marketClass` in henchmen's config, marked situational
+("in a previously entered market"), and `effectiveMarketClass` summed the
+always-on modifiers — nothing ever satisfied the condition, so the shift had
+never applied to buying, selling, hiring or imports.
+
+- **The condition is decided by the markets feature, asked at call time.**
+  Henchmen owns the shift and knows nothing of visits; markets owns the
+  ledger and the venture rows. `effectiveMarketClass` asks
+  `acksExtras.markets.marketKnownTo` the way it asks factions for standing,
+  so the henchmen engine never imports markets.
+- **Known is what the world already records, plus the Judge's word.** A
+  ledger row stamped to the trader, or a venture row for their party in any
+  month, is the visit the rule names; nothing new is written when a trader
+  walks in. The Judge's list on the trader exists because ledger stamps date
+  from 9.3.0 and a venturer's earlier travels are unrecorded. Rejected: a
+  `visits[]` record written on every Trade-tab open (a write on a read, from
+  seats that cannot write the location) and a per-trader "entered" prompt.
+- **Not built:** the rule's alternative, +1 market impact on a venture
+  instead of the class, "whichever is more useful"; the entry keeps the true
+  class for its impact arithmetic. ROADMAP.

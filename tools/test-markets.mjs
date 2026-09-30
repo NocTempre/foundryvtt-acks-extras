@@ -689,6 +689,22 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.deepStrictEqual(leaveMarket(state, { partyId: "p3", monthStart: 1000 }), { error: "notEntered" }, "a party never in is refused");
 }
 
+// ---- known markets: where a mercantile network's shift applies ----
+{
+  const { marketKnownTo } = await import(new URL("../scripts/markets/rules/known.mjs", import.meta.url));
+  const L = "Actor.M1";
+  const who = { actorUuid: "Actor.A", partyId: "p1", locationUuid: L };
+  assert.strictEqual(marketKnownTo({}, who), false, "a market with no record of the trader is unknown");
+  assert.strictEqual(marketKnownTo({ ledger: [{ actorUuid: "Actor.B" }] }, who), false, "another trader's rows say nothing");
+  assert.strictEqual(marketKnownTo({ ledger: [{ actorUuid: "Actor.A" }] }, who), true, "a stamped ledger row is a visit");
+  assert.strictEqual(marketKnownTo({ ventures: [{ partyId: "p1" }] }, who), true, "the party entered it, whatever month");
+  assert.strictEqual(marketKnownTo({ ventures: [{ partyId: "p2" }] }, who), false, "another party's entry is theirs");
+  assert.strictEqual(marketKnownTo({ ventures: [{ partyId: "p1" }] }, { ...who, partyId: null }), false, "no party, no party evidence");
+  assert.strictEqual(marketKnownTo({ knownMarkets: [L] }, who), true, "the Judge's list counts");
+  assert.strictEqual(marketKnownTo({ knownMarkets: ["Actor.M2"] }, who), false, "a listing of another market does not");
+  assert.strictEqual(marketKnownTo({ knownMarkets: [L] }, { ...who, actorUuid: "" }), false, "no trader, nothing known");
+}
+
 // ---- a trader's history out of the markets' ledgers ----
 {
   const { historyRows, historyNetGp, HISTORY_TYPES } = await import(new URL("../scripts/markets/rules/ledger.mjs", import.meta.url));

@@ -123,6 +123,15 @@ party's find.
     party's solicitations for the month are dropped, and its waiting
     enter/assess/solicit days are withdrawn. Entering again overwrites the
     row with a fresh declaration and pays a fresh toll.
+- **Known markets** (`rules/known.mjs`, `engine/known-market.mjs`): a
+  mercantile network's class shift is situational — it counts in a market the
+  trader has been in before — and henchmen's `effectiveMarketClass` asks
+  `marketKnownTo(location, actor)` through the api at call time to decide
+  whether to count it. Known means any of: a ledger row stamped to the trader,
+  a venture row for the trader's party in any month, or the Judge's list on
+  the trader (`flags["acks-extras"].markets.knownMarkets`, set from the Trade
+  tab's Known to this trader switch). The tab states the town's class and
+  the acting trader's effective class beside it.
 - **The ledger stamps its actor** (`location-data.mjs` `marketLog`): every
   row the markets engine writes about a trader carries `actorUuid` and that
   actor's signed coin movement `gp` (paid negative). `rules/ledger.mjs`

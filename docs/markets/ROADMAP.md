@@ -15,7 +15,9 @@
   steady), the suggest-from-map helper, JJ Ch6 Step 7E over the base layer,
   timed class events, and the steady route's +½-level impact and price step
   (the item-market side of mercantile networks — the effect-driven market
-  class shift — already works through henchmen's `effectiveMarketClass`).
+  class shift in a known market — works through henchmen's
+  `effectiveMarketClass` since 9.3.1; the rule's alternative, +1 market
+  impact on a venture instead of the class, is not built).
   `goods.demandDerived` is reserved for it and unread until then.
 - **Venture logistics**: tariffs on incoming sale cargo, moorage and
   stabling fees, cargo handling times, warehousing, market impact derived
