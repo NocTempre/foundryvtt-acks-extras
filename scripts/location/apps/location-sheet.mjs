@@ -74,6 +74,9 @@ function directedSpecMatches(spec, c) {
   return !!name && String(c.notes ?? "").toLowerCase().includes(name);
 }
 
+/** Controls a non-owner viewer acts through: the Trade tab's, and the pure-DOM candidate filters. */
+const VIEWER_CONTROLS = '[data-tab="trade"] :is(button, select, input), [data-candidate-filter]';
+
 export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     // "location-sheet" was unprefixed and only passed validation because the
@@ -600,6 +603,20 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         typeLabel: game.i18n.localize(game.i18n.has(`ACKS-MARKETS.marketLog.${l.type}`) ? `ACKS-MARKETS.marketLog.${l.type}` : `ACKS-HENCHMEN.marketLog.${l.type}`),
         when: game.i18n.format("ACKS-HENCHMEN.marketLog.day", { day: Math.floor(l.time / SECONDS_PER_DAY) }),
       }));
+  }
+
+  /**
+   * Keep the viewer's own controls live on a sheet they cannot edit. Core
+   * disables every form element when the viewer does not own the document,
+   * which leaves a player who only observes a market unable to trade at it.
+   * The Trade tab's handlers authorize per acting trader and relay to a GM,
+   * and the candidate filters touch no document, so neither needs the lock.
+   * @override
+   */
+  _toggleDisabled(disabled) {
+    super._toggleDisabled(disabled);
+    if (!disabled) return;
+    for (const control of this.element.querySelectorAll(VIEWER_CONTROLS)) control.disabled = false;
   }
 
   /** DragDrop instances for the declared configs; _onRender only re-binds them. */

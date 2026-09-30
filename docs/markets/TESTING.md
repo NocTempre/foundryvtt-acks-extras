@@ -120,6 +120,13 @@ row, a `type: "item"` on A with `system.cost` and
    fault.
 9. GM seat: Clear on a demand row (`writeDemand(M, {layer: "base", category,
    modifier: null})`) removes the row.
+10. Player seat, M's sheet opened and switched to Trade: every button, select
+    and input in the tab reads `disabled === false`, while the name field
+    outside it stays disabled. Core disables every form control on a sheet
+    the viewer does not own, and the engine calls in steps 5–8 bypass the
+    button, so only a real `element.click()` on **Enter the market** proves
+    the control is reachable. *Observable:* the cargo prompt opens, and
+    confirming 0 posts a pending `enter` action on M through the relay.
 
 **Not reachable on a shared world with the GM seat online:** the "not sent"
 relay warning (it needs no GM connected), a venture day refused for a missing

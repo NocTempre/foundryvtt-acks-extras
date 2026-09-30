@@ -1,5 +1,17 @@
 # Changelog
 
+## 9.2.1
+
+### Fixed
+
+- **A player can trade at a market they do not own.** On a location the
+  player could only observe, every control on the Trade tab was greyed out:
+  Enter the market, Spend a search day, Change coin, the goods filter and the
+  merchandise picker. Clicking them did nothing and logged nothing. They now
+  work for any player trading as a character they own; what the player may do
+  is still checked when the action reaches the GM. The rest of the location
+  sheet stays read-only for them.
+
 ## 9.2.0
 
 ### Added
