@@ -1035,7 +1035,12 @@ d20 on the column the party's territory, road and the night pick (a Column
 Shift result walks one column right and rolls again), then a civilized
 d100 on the terrain's column group, or a rarity d20 and the
 terrain-and-rarity monster d100, or a terrain-encounter d12 — stood down
-when the party is resting or retracing its own route. Every band, name,
+when the party is resting or retracing its own route. A terrain result the
+chain knows by its common noun (`TERRAIN_FOLLOW_UPS`) goes on. It rolls each
+sub-table it names on the die that table's own bands top out at, and a roll
+on the last band of a table that climbs rolls the next one. Then it reads
+each terrain lookup it names on the row the terrain pick gives. A result the
+chain does not know stops at its name, for the book. Every band, name,
 die and figure reads from the `encounters` registered document through
 the terrain PICKS — a union vocabulary, because the book keys its tables
 at three grains (eighteen biome-split monster sub-tables, seventeen

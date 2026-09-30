@@ -239,6 +239,40 @@ export async function findPage(recipe, numPages, readPage) {
 }
 
 /**
+ * `wrapRows`: the lines of a cell printed over several lines. The label sits
+ * on one of them and the rest carry no run left of `labelMaxX`; each such line
+ * between the grid's first and last claimed rows joins the claimed row nearest
+ * it by y, and one outside them joins only within `wrapRows.tol` (default 12).
+ * A line holding a label-zone run — a heading, prose, another table's label —
+ * is never a continuation. Returns claimed row index → its lines, top to
+ * bottom; empty unless the recipe asks. Windowed `cellColumns` read the lines.
+ */
+function wrapLines(rows, claims, recipe, start, end) {
+  const blocks = new Map();
+  if (!recipe.wrapRows) return blocks;
+  const claimed = claims.filter((c) => c.idx >= 0).map((c) => c.idx);
+  if (!claimed.length) return blocks;
+  const tol = recipe.wrapRows.tol ?? 12;
+  const first = Math.min(...claimed);
+  const last = Math.max(...claimed);
+  for (const idx of claimed) blocks.set(idx, [rows[idx]]);
+  for (let i = start; i < end; i++) {
+    if (blocks.has(i)) continue;
+    const r = rows[i];
+    if (!r.items.length || r.items.some((it) => it.x < recipe.labelMaxX)) continue;
+    let best = null;
+    for (const idx of claimed) {
+      const d = Math.abs(rows[idx].y - r.y);
+      if (!best || d < best.d) best = { idx, d };
+    }
+    if ((i < first || i > last) && best.d > tol) continue;
+    blocks.get(best.idx).push(r);
+  }
+  for (const lines of blocks.values()) lines.sort((a, b) => a.y - b.y);
+  return blocks;
+}
+
+/**
  * `gridRows`: a label column followed by N market-class cells, with optional
  * `leading` columns (container, price…) before the grid and `trailing`
  * columns (wage etc.) after it. Runs left of `labelMaxX` form the row label
@@ -247,11 +281,14 @@ export async function findPage(recipe, numPages, readPage) {
  *
  * Row selection is by ordered label regexes so stray marker runs ("*", "†")
  * between rows are ignored: each spec claims the next row whose joined label
- * matches, scanning downward from the previous claim.
+ * matches, scanning downward from the previous claim. `stopAt` ends the grid
+ * above the first row holding its marker, and `column.yMin`/`yMax` bound it
+ * on the page like `xMin`/`xMax`. `wrapRows` reads cells printed over several
+ * lines (see `wrapLines`).
  */
 export function extractGridRows(items, recipe) {
-  const { xMin = 0, xMax = Infinity } = recipe.column ?? {};
-  items = items.filter((it) => it.x >= xMin && it.x <= xMax);
+  const { xMin = 0, xMax = Infinity, yMin = -Infinity, yMax = Infinity } = recipe.column ?? {};
+  items = items.filter((it) => it.x >= xMin && it.x <= xMax && it.y >= yMin && it.y <= yMax);
   const rows = rowsByY(items, recipe.rowTol ?? 3);
   const out = {};
   let cursor = 0;
@@ -264,11 +301,17 @@ export function extractGridRows(items, recipe) {
     const idx = rows.findIndex((r) => r.items.some((it) => it.str.includes(recipe.startAfter)));
     if (idx >= 0) cursor = idx + 1;
   }
-  for (const spec of recipe.rows) {
+  // stopAt: the same stacking seen from the upper grid — the lower grid's band
+  // labels would otherwise answer for rows the upper one does not have.
+  const start = cursor;
+  let end = rows.length;
+  if (recipe.stopAt) {
+    const idx = rows.findIndex((r, i) => i >= start && r.items.some((it) => it.str.includes(recipe.stopAt)));
+    if (idx >= 0) end = idx;
+  }
+  const claims = recipe.rows.map((spec) => {
     const re = new RegExp(spec.labelRe, "i");
-    let matched = null;
-    let matchedLabel = "";
-    for (let i = cursor; i < rows.length; i++) {
+    for (let i = cursor; i < end; i++) {
       const label = joinRuns(rows[i].items.filter((it) => it.x < recipe.labelMaxX));
       if (label && re.test(label)) {
         // minCells: a prose line can echo a row label (JJ repeats tier names
@@ -277,28 +320,36 @@ export function extractGridRows(items, recipe) {
           const n = rows[i].items.filter((it) => it.x >= recipe.labelMaxX && !/^[*†‡]+$/.test(it.str.trim())).length;
           if (n < recipe.minCells) continue;
         }
-        matched = rows[i];
-        matchedLabel = label;
         cursor = i + 1;
-        break;
+        return { spec, idx: i, label };
       }
     }
-    if (!matched) {
-      out[spec.key] = { __missing: true };
+    return { spec, idx: -1, label: "" };
+  });
+  const blocks = wrapLines(rows, claims, recipe, start, end);
+  for (const { spec, idx, label: matchedLabel } of claims) {
+    if (idx < 0) {
+      // An `optional` spec is one of a generic run that outnumbers the rows a
+      // page prints: finding no row for it is the table ending, not a gap.
+      if (!spec.optional) out[spec.key] = { __missing: true };
       continue;
     }
+    // A wrapped row's lines carry their order, so a windowed cell reads them
+    // top to bottom rather than interleaved by x.
+    const lines = blocks.get(idx) ?? [rows[idx]];
+    const lineItems = lines.flatMap((r, line) => (line ? r.items.map((it) => ({ ...it, _line: line })) : r.items));
     // Footnote markers (*, †, ‡) sit between rows and can y-merge into one;
     // they are never a cell value, so drop lone-marker runs from the band.
-    let cellRuns = matched.items.filter((it) => it.x >= recipe.labelMaxX && !/^[*†‡]+$/.test(it.str.trim()));
+    let cellRuns = lineItems.filter((it) => it.x >= recipe.labelMaxX && !/^[*†‡]+$/.test(it.str.trim()));
     // joinCellGap: the book's small-caps face splits a cell's initial glyph
     // into its own run ("c"+"rates"). A gap smaller than joinCellGap is a
     // glyph boundary, not a column gutter — merge those runs into one cell.
     if (recipe.joinCellGap != null) {
-      const sorted = [...cellRuns].sort((a, b) => a.x - b.x);
+      const sorted = [...cellRuns].sort((a, b) => (a._line ?? 0) - (b._line ?? 0) || a.x - b.x);
       cellRuns = [];
       for (const r of sorted) {
         const prev = cellRuns[cellRuns.length - 1];
-        if (prev && r.x - (prev.x + (prev.w ?? 0)) < recipe.joinCellGap) {
+        if (prev && (prev._line ?? 0) === (r._line ?? 0) && r.x - (prev.x + (prev.w ?? 0)) < recipe.joinCellGap) {
           prev.str += r.str;
           prev.w = r.x + (r.w ?? 0) - prev.x;
         } else cellRuns.push({ ...r });
@@ -345,16 +396,23 @@ export function extractGridRows(items, recipe) {
         else obj[col.key] = v;
       }
       for (const { col, runs } of Object.values(windowed)) {
-        const sorted = runs.sort((a, b) => a.x - b.x);
         // A joinGap makes the windowed join GAP-AWARE: a run starting a real
         // word-space past its neighbour keeps the space, a small-caps weld
         // (near-zero gap) glues — "Herd"+"a"+"nimal" reads "Herd animal",
         // not "Herdanimal". Without one the historical glue-all join stands,
-        // which existing recipes' bindings repair themselves.
+        // which existing recipes' bindings repair themselves. A wrapped
+        // cell's lines join with a space: a line break is a word break.
         const gap = col.joinGap ?? recipe.joinGap;
-        const joined = gap != null
+        const joinLine = (sorted) => (gap != null
           ? joinRuns(sorted, gap)
-          : sorted.map((r) => r.str).join("").replace(/\s+/g, " ").trim();
+          : sorted.map((r) => r.str).join("").replace(/\s+/g, " ").trim());
+        const byLine = new Map();
+        for (const run of runs.sort((a, b) => a.x - b.x)) {
+          const line = run._line ?? 0;
+          if (!byLine.has(line)) byLine.set(line, []);
+          byLine.get(line).push(run);
+        }
+        const joined = [...byLine.keys()].sort((a, b) => a - b).map((line) => joinLine(byLine.get(line))).join(" ").trim();
         const v = applyCellPattern(joined, col.pattern ?? "raw");
         if (col.row) row[col.key] = v;
         else obj[col.key] = v;

@@ -882,15 +882,15 @@ closes it must leave the 2026-09-23 recompile's other entries byte-identical.
 Each chart takes the route the 2026-09-23 ruling gives it (rules data with a
 RollTable projection, a cookbook RollTable, or a setting table). Wave 1, the
 wilderness encounter charts the `encounters` doc already held, shipped as their
-projection. In order:
+projection. Wave 2 read the sub-tables a terrain result names and the treasure
+and ruin lookups, and the throw now rolls them (DECISIONS, 2026-09-30). In order:
 
-2. **The rest of the wilderness chain**, into `encounters`: the terrain
-   sub-tables a terrain-encounter result names, treasure by territory, the ruin
-   modifier, lairs per hex (one source, after checking the Rules Reference's
-   terrain sheet) and climate by terrain. Formation then rolls the sub-table a
-   result names instead of stopping at its name. Several are multi-column die
-   tables, which a RollTable cannot show as one result without a convention
-   for joining the columns.
+2. **The rest of the wilderness chain**, into `encounters`: lairs per hex (one
+   source, after checking the Rules Reference's terrain sheet) and climate by
+   terrain, each read once something consumes it. Also the terrain results
+   that hand off to another draw (to the monster draw, to a further terrain
+   roll, or to two rolls), which stop at their name until the chain can
+   recurse into itself.
 3. **Dungeon**: wandering monsters by level as cookbook RollTables carrying the
    monster-level flag the delve draw reads, the level matrix as a setting
    table, and the dungeon chapter's stocking and treasure charts.

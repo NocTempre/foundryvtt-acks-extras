@@ -100,13 +100,16 @@ const partsLabel = (tableId, subId) => (subId ? `${humanize(tableId)} — ${huma
  * alone. `keyed` marks a field holding the engine's own keys (an outcome, a
  * rarity), shown humanized and read back only as a key the table already
  * holds; any other field is the reader's text as printed. `prefix` matches a
- * family of dotted table ids (one per terrain).
+ * family of dotted table ids (one per terrain). `ownDie` marks a set whose
+ * columns are separate tables on dice of their own, each rolled on its own
+ * furthest band rather than the set's.
  */
 const COLUMN_GRIDS = [
   { docId: "encounters", tableId: "territory", field: "outcome", keyed: true },
   { docId: "encounters", tableId: "rarity", field: "rarity", keyed: true },
   { docId: "encounters", tableId: "civilized", field: "name" },
   { docId: "encounters", prefix: "monsters.", field: "name" },
+  { docId: "encounters", tableId: "terrainSubTables", field: "name", ownDie: true },
 ];
 
 /** Tables whose data is a set of LISTS, `{kind: [text, …]}`, each read with one die of its own length. */
@@ -292,7 +295,8 @@ function rollTableSpec(entry, data) {
     // The table's own die, read off its furthest band across every column: a
     // column whose last rows print nothing still rolls the die the table does.
     const table = lib().tables.getTable(docId, tableId) ?? {};
-    const top = Math.max(1, ...Object.values(table).flat().map((b) => Number(b?.max ?? b?.min) || 0));
+    const bands = grid.ownDie ? (data ?? []) : Object.values(table).flat();
+    const top = Math.max(1, ...bands.map((b) => Number(b?.max ?? b?.min) || 0));
     return {
       formula: `1d${top}`,
       results: (data ?? [])

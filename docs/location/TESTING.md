@@ -155,11 +155,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    Everything, or the rules tables from the Judges Journal):* after
    `materializeDocs()`, the shelf's "Encounters" folder holds one RollTable
    per territory, rarity and civilized column, per terrain × rarity monster
-   column, and per non-empty terrain-encounter list — 92 on a complete JJ
-   import — named "Monsters Hills — Very Rare" and the like; the old
-   `encounters.*` JSON pages for those tables are gone from the ruledata
-   journal. Draw from a monster column in the RollTable sheet: the die is
-   the table's own (1d100 for monsters, 1d20 for territory and rarity).
+   column, per non-empty terrain-encounter list, and per terrain sub-table —
+   104 on a complete JJ import — named "Monsters Hills — Very Rare" and the
+   like; the old `encounters.*` JSON pages for those tables are gone from the
+   ruledata journal. Draw from a monster column in the RollTable sheet: the
+   die is the table's own (1d100 for monsters, 1d20 for territory and
+   rarity). The "Terrain Sub Tables — …" RollTables do not share a die: each
+   formula is its own last band.
    *A column edit reaches formation:* check `hasOverride("encounters",
    "monsters.<terrain>")` is false first — a Judge's real override is not a
    fixture. Create a world copy of that terrain's `rare` table (a fixture;

@@ -7,14 +7,19 @@
 import assert from "node:assert";
 import {
   MONSTER_RAW_KEYS,
+  TERRAIN_SUB_RAW_KEYS,
   assembleColumns,
   assembleEncounterTables,
+  assembleSubTable,
   bandFromKey,
   parseBand,
   parseDistanceCell,
   parseSizeEdges,
   parseTarget,
   repairName,
+  sentenceCell,
+  signedCell,
+  treasureLetters,
 } from "../../scripts/importer/encounters-binding.mjs";
 
 let pass = 0;
@@ -123,6 +128,48 @@ check("modifier sizes store unsigned; the navigation penalty keeps its sign",
 check("a complete d12 list assembles in order",
   out.terrainEncounters.valuable.length === 12 && out.terrainEncounters.valuable[11] === "QQ12");
 check("empty raws assemble to nothing", Object.keys(assembleEncounterTables({})).length === 0);
+
+/* --- terrain sub-tables and lookups ---------------------------------------- */
+check("a result cell raises its first letter and nothing else",
+  sentenceCell("a qq hollow, dry, and hidden.") === "A qq hollow, dry, and hidden.");
+check("treasure letters rise and space out",
+  treasureLetters("n,d") === "N, D" && treasureLetters("o×2") === "O×2" && treasureLetters("Q, n") === "Q, N");
+check("a signed cell keeps its sign", signedCell("+3") === 3 && signedCell("0") === 0 && signedCell("−2") === -2);
+
+const d6 = (cells) => Object.fromEntries(cells.map((c, i) => [`b${i}`, { ...c, min: i + 1, max: i + 1 }]));
+const subs = assembleEncounterTables({
+  structureRaw: d6([{ name: "qq hall" }, { name: "QQ Keepish" }, { name: "qq arch" }, { name: "qq well" }, { name: "qq pit" }, { name: "qq wall" }]),
+  challengeRaw: {
+    b0: { name: "qq climb", example: "qq cliff", dimensions: "1d6 × 10’", min: 1, max: 5 },
+    b1: { name: "QQ Swim", example: "qq river", dimensions: "1d4 × 10’", min: 6, max: 10 },
+  },
+  complexMapRaw: d6([{ name: "q", value: "QQ1" }, { name: "Q, n", value: "QQ2" }, { name: "o×2", value: "QQ3" },
+    { name: "K", value: "QQ4" }, { name: "L", value: "QQ5" }, { name: "P", value: "QQ6" }]),
+  // A row the page held and the read lost: the bands no longer tile the die.
+  oreRaw: { b0: { name: "qq tin", min: 1, max: 40 }, b1: { name: "qq lead", min: 51, max: 100 } },
+  // Every row read but the last: 1–5 is no die, so it is not a d5.
+  hazardRaw: d6([{ name: "qq1" }, { name: "qq2" }, { name: "qq3" }, { name: "qq4" }, { name: "qq5" }]),
+  treasureByTerrainRaw: { forest: { types: "L,d" }, river: { types: "" }, ocean: { __missing: true } },
+  ruinModifierRaw: { clearGrassScrub: { modifier: "0" }, jungleSwampOceanDesertBarren: { modifier: "+4" } },
+});
+check("a sub-table lands under its engine key, first letters raised",
+  subs.terrainSubTables.structure.length === 6 && subs.terrainSubTables.structure[0].name === "Qq hall" &&
+  subs.terrainSubTables.structure[1].name === "QQ Keepish");
+check("a multi-cell result joins its cells in reading order",
+  subs.terrainSubTables.challenge[1].name === "QQ Swim — Qq river — 1d4 × 10’" &&
+  subs.terrainSubTables.challenge[1].min === 6 && subs.terrainSubTables.challenge[1].max === 10);
+check("a treasure cell reads as letters, its value as text",
+  subs.terrainSubTables.complexMap[1].name === "Q, N — QQ2" && subs.terrainSubTables.complexMap[2].name === "O×2 — QQ3");
+check("bands with a gap assemble nothing", !("ore" in subs.terrainSubTables));
+check("bands topping out off a die assemble nothing", !("hazard" in subs.terrainSubTables));
+check("every raw sub-table has an engine key",
+  Object.values(TERRAIN_SUB_RAW_KEYS).every((s) => s.key && s.cells.length));
+check("the treasure lookup keeps the groups it read",
+  subs.treasureByTerrain.forest === "L, D" && !("river" in subs.treasureByTerrain) && !("ocean" in subs.treasureByTerrain));
+check("the ruin lookup parses its modifiers",
+  subs.ruinModifier.clearGrassScrub === 0 && subs.ruinModifier.jungleSwampOceanDesertBarren === 4);
+check("a sub-table with an empty result assembles nothing",
+  assembleSubTable({ b0: { name: "qq", min: 1, max: 1 }, b1: { name: "", min: 2, max: 2 } }) === null);
 
 /* --- partials -------------------------------------------------------------- */
 const partial = assembleEncounterTables({

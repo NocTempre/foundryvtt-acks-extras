@@ -336,6 +336,22 @@ recipe, plus one world actor named to match an invented creature name
    post their cards.
 6. Player seat: throws whisper the Judge only — the player's chat shows
    nothing.
+7. What a terrain result leads to: register the document
+   `tools/test-encounters.mjs` builds for its follow-up checks (SAMPLE plus
+   invented `terrainEncounters` lists, `terrainSubTables` and the two
+   lookups). No button lands a chosen result, so drive it in page context:
+   import `scripts/formation/encounters.mjs` and
+   `scripts/formation/encounter-card.mjs` from `/modules/acks-extras/`, call
+   `runEncounter({ territory, terrain, rng })` with an `rng` whose faces land
+   the territory d20 on a terrain-encounter band and the d12 on a result with
+   follow-ups, and pass the chain to `postEncounterCard(formation, chain,
+   { terrain })`. Faces are `(face - 0.5) / sides`.
+   *Observable:* under the result line, one numbered line per sub-table
+   roll, naming the table, its die and the roll. A power roll on its table's
+   last band adds a third line from the next table. The lookup line gives the
+   terrain's row, with a positive modifier signed. With the terrain select
+   unset, the lookup shows nothing and no book line either. With a sub-table
+   missing from the document, the card names `terrainSubTables` once.
 
 Teardown: unregister the invented document, delete the QQ actor, setting
 back off.

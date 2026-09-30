@@ -40,6 +40,25 @@ export const MONSTER_RAW_KEYS = Object.freeze({
 });
 
 /**
+ * Raw terrain sub-tables → the engine's keys under `terrainSubTables`, each
+ * with its result cells in the order a result reads them.
+ */
+export const TERRAIN_SUB_RAW_KEYS = Object.freeze({
+  structureRaw: { key: "structure", cells: ["name"] },
+  oreRaw: { key: "ore", cells: ["name"] },
+  safeHavenRaw: { key: "safeHaven", cells: ["name"] },
+  usefulHerbsRaw: { key: "usefulHerbs", cells: ["name"] },
+  challengeRaw: { key: "challenge", cells: ["name", "example", "dimensions"] },
+  hazardRaw: { key: "hazard", cells: ["name", "trap"] },
+  poisonRaw: { key: "poison", cells: ["name", "target"] },
+  complexMapRaw: { key: "complexMap", cells: ["name", "value"], letters: "name" },
+  curseRaw: { key: "curse", cells: ["name"] },
+  placeOfPowerRaw: { key: "placeOfPower", cells: ["name"] },
+  powerRaw: { key: "power", cells: ["name"] },
+  majorPowerRaw: { key: "majorPower", cells: ["name"] },
+});
+
+/**
  * The engine tables this binding assembles, each with the raw table(s) it is
  * read from: the producer list `tools/validate-producers.mjs` checks readers
  * against, and the map `assembledDoc` cites the assembled tables by.
@@ -54,6 +73,9 @@ export const PRODUCES = Object.freeze({
     visibility: "visibilityProse",
     evasionModifiers: "evasionModsProse",
     terrainEncounters: ["valuableTerrainRaw", "dangerousTerrainRaw", "uniqueTerrainRaw"],
+    terrainSubTables: Object.keys(TERRAIN_SUB_RAW_KEYS),
+    treasureByTerrain: "treasureByTerrainRaw",
+    ruinModifier: "ruinModifierRaw",
     ...Object.fromEntries(Object.entries(MONSTER_RAW_KEYS).map(([raw, key]) => [`monsters.${key}`, raw])),
   },
 });
@@ -131,6 +153,62 @@ export function parseSizeEdges(window) {
 }
 
 const WORD_FRACTIONS = { half: 0.5, third: 1 / 3, quarter: 0.25 };
+
+/**
+ * A result cell as a reader reads it: whitespace collapsed and the first
+ * letter raised, which the small caps set lowercase ("aqueduct"). Unlike
+ * `repairName` it leaves every other letter alone — a result can be a
+ * sentence, and a comma inside one opens no new name.
+ */
+export function sentenceCell(cell) {
+  const s = String(cell ?? "").replace(/\s+/g, " ").trim();
+  if (!s || s === "-" || s === "–") return null;
+  return s.replace(/^\p{Ll}/u, (c) => c.toUpperCase());
+}
+
+/**
+ * Treasure-type letters out of the small caps: "n,d" → "N, D", "o×2" →
+ * "O×2", "Q, n" → "Q, N" — each comma-separated entry's leading letter
+ * raised, entries joined the way the page sets them.
+ */
+export function treasureLetters(cell) {
+  const s = String(cell ?? "").replace(/\s+/g, "");
+  if (!s || s === "-" || s === "–") return null;
+  const parts = s.split(",").filter(Boolean).map((t) => t.replace(/^\p{L}/u, (c) => c.toUpperCase()));
+  return parts.length ? parts.join(", ") : null;
+}
+
+/** "+2" → 2, "0" → 0, "−1" → -1; junk → null. */
+export function signedCell(cell) {
+  const m = /([+\-−–]?)\s*(\d+)/.exec(String(cell ?? ""));
+  if (!m) return null;
+  return (m[1] && m[1] !== "+" ? -1 : 1) * Number(m[2]);
+}
+
+/** The dice a table can be rolled with; a sub-table must top out on one. */
+const DICE = new Set([2, 3, 4, 6, 8, 10, 12, 20, 100]);
+
+/**
+ * One raw sub-table → ascending `[{min, max, name}]`, each result's cells
+ * joined " — " in reading order. Null unless its bands tile 1 to a die's top
+ * with no gap or overlap: a row lost to the page would otherwise read as a
+ * smaller die, or as a face that rolls nothing.
+ */
+export function assembleSubTable(raw, { cells = ["name"], letters = null } = {}) {
+  const rows = [];
+  for (const cellsOf of Object.values(raw ?? {})) {
+    if (!cellsOf || !Number.isFinite(cellsOf.min) || !Number.isFinite(cellsOf.max)) continue;
+    const parts = cells
+      .map((k) => (k === letters ? treasureLetters(cellsOf[k]) : sentenceCell(cellsOf[k])))
+      .filter(Boolean);
+    if (!parts.length) return null;
+    rows.push({ min: cellsOf.min, max: cellsOf.max, name: parts.join(" — ") });
+  }
+  rows.sort((a, b) => a.min - b.min);
+  if (!rows.length || rows[0].min !== 1 || !DICE.has(rows.at(-1).max)) return null;
+  for (let i = 1; i < rows.length; i++) if (rows[i].min !== rows[i - 1].max + 1) return null;
+  return rows;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Assembly                                                           */
@@ -324,6 +402,28 @@ export function assembleEncounterTables(raw = {}) {
     if (list.length === 12) lists[kind] = list;
   }
   if (Object.keys(lists).length) out.terrainEncounters = lists;
+
+  const subTables = {};
+  for (const [rawKey, spec] of Object.entries(TERRAIN_SUB_RAW_KEYS)) {
+    const rows = raw[rawKey] ? assembleSubTable(raw[rawKey], spec) : null;
+    if (rows) subTables[spec.key] = rows;
+  }
+  if (Object.keys(subTables).length) out.terrainSubTables = subTables;
+
+  // The two lookups keep the terrain groups their rows print, as keyed by
+  // the recipe; formation maps each encounter terrain onto one.
+  const lookup = (rows, field, parse) => {
+    const table = {};
+    for (const [group, cells] of Object.entries(rows ?? {})) {
+      const v = parse(cells?.[field]);
+      if (v != null) table[group] = v;
+    }
+    return Object.keys(table).length ? table : null;
+  };
+  const treasure = lookup(raw.treasureByTerrainRaw, "types", treasureLetters);
+  if (treasure) out.treasureByTerrain = treasure;
+  const ruin = lookup(raw.ruinModifierRaw, "modifier", signedCell);
+  if (ruin) out.ruinModifier = ruin;
 
   return out;
 }

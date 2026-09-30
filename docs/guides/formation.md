@@ -161,6 +161,26 @@ food, water and firewood, hunting, or searching. What is found is deposited on
 the people who found it, and every attempt is reported — including the ones
 that turned up nothing.
 
+### Encounters
+
+**Encounter throw** runs the whole wilderness encounter chain at once and
+whispers it to you as one card. The card shows every roll, the creature or find
+it lands on, how far off it is and the party's chance to evade. A creature your
+world or your imported library holds is linked. With **Journey encounter
+throws** on in the module settings, entering a hex throws by itself, and
+**End day** throws whatever the day owed.
+
+When the throw lands on a terrain encounter, the card also rolls what that
+result leads to. Each table it names is rolled on its own die, and the
+terrain's treasure type or ruin modifier is read from the terrain you picked,
+so the whole find is on one card. A result the module does not follow, or a
+table your import lacks, tells you to draw from your book.
+
+![](../releases/v9.5.0/formation-terrain-encounter.png)
+
+*A terrain encounter's card: the result, each table it led to with its die and
+roll, and the terrain's modifier.*
+
 ### Getting lost
 
 A failed navigation throw is whispered to you, not announced. The party walks

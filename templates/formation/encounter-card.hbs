@@ -42,6 +42,16 @@
   {{#if terrainEncounter}}
   <p class="acks-extras-encounter-card-creature"><strong>{{terrainEncounter.roll}}</strong> → <strong>{{terrainEncounter.name}}</strong>
     <span class="hint">{{localize "ACKS-FORMATION.travel.enc.resolveBook"}}</span></p>
+  {{#if terrainEncounter.follow.length}}
+  <ol class="acks-extras-encounter-card-rolls">
+    {{#each terrainEncounter.follow}}
+    <li>{{label}} <span class="hint">d{{die}}</span> — <strong>{{roll}}</strong> → {{name}}</li>
+    {{/each}}
+  </ol>
+  {{/if}}
+  {{#each terrainEncounter.lookups}}
+  <p>{{label}}: <strong>{{value}}</strong></p>
+  {{/each}}
   {{/if}}
 
   {{#each missing}}

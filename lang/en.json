@@ -2550,6 +2550,24 @@
           "swampMarshy": "Swamp (marshy)",
           "swampScrubby": "Swamp (scrubby)",
           "swampForested": "Swamp (forested)"
+        },
+        "sub": {
+          "structure": "Structure",
+          "ore": "Ore",
+          "safeHaven": "Safe haven",
+          "usefulHerbs": "Useful herbs",
+          "challenge": "Challenge",
+          "hazard": "Hazard",
+          "poison": "Poison",
+          "complexMap": "Treasure",
+          "curse": "Curse",
+          "placeOfPower": "Type",
+          "power": "Power",
+          "majorPower": "Major power"
+        },
+        "lookup": {
+          "treasure": "Treasure type for this terrain",
+          "ruin": "Ruin modifier for this terrain"
         }
       },
       "dayBoard": "The day",

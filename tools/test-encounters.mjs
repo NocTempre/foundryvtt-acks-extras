@@ -9,9 +9,12 @@ import assert from "node:assert/strict";
 import {
   ENCOUNTER_COLUMNS,
   ENCOUNTER_OUTCOMES,
+  ENCOUNTER_TABLE_IDS,
   ENCOUNTER_TERRAINS,
   ENCOUNTERS_DOC,
   MONSTER_TABLE_KEYS,
+  TERRAIN_FOLLOW_UPS,
+  TERRAIN_LOOKUPS,
   aftermath,
   civilizedDraw,
   detection,
@@ -30,6 +33,8 @@ import {
   visibilityMax,
 } from "../scripts/formation/encounters.mjs";
 import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs";
+import { PRODUCES, TERRAIN_SUB_RAW_KEYS } from "../scripts/importer/encounters-binding.mjs";
+import { TABLE_RECIPES } from "../scripts/importer/table-recipes.mjs";
 
 /** A deterministic rng: yields each queued face roll for the die it is asked. */
 const rig = (...values) => {
@@ -266,4 +271,71 @@ assert.ok(!chain.territory.ok && chain.territory.missing === "territory",
   "an empty registry refuses at the first table, by name");
 registerSample();
 
-console.log("test-encounters: OK (columns, shift loop, draws, distance, detection, evasion, runner)");
+/* --- what a terrain result leads to ----------------------------------------- */
+// The halves agree: every table a result rolls is one the binding assembles,
+// every lookup one it produces, every pick's group a row its recipe reads.
+const subKeys = new Set(Object.values(TERRAIN_SUB_RAW_KEYS).map((s) => s.key));
+for (const [name, spec] of Object.entries(TERRAIN_FOLLOW_UPS)) {
+  for (const table of [...(spec.rolls ?? []), ...Object.values(spec.chain ?? {})]) {
+    assert.ok(subKeys.has(table), `${name} rolls ${table}, which the binding assembles`);
+  }
+}
+for (const tableId of Object.values(TERRAIN_LOOKUPS)) {
+  assert.ok(tableId in PRODUCES[ENCOUNTERS_DOC] && ENCOUNTER_TABLE_IDS.includes(tableId), `${tableId} is produced and expected`);
+}
+const recipeGroups = (raw) => new Set(TABLE_RECIPES.encounters.tables[raw].rows.map((row) => row.key));
+const treasureGroups = recipeGroups("treasureByTerrainRaw");
+const ruinGroups = recipeGroups("ruinModifierRaw");
+assert.ok(Object.values(ENCOUNTER_TERRAINS).every((p) => treasureGroups.has(p.treasure) && ruinGroups.has(p.ruin)),
+  "every pick names a treasure group and a ruin group its recipe reads");
+
+const d4 = (...names) => names.map((name, i) => ({ min: i + 1, max: i + 1, name }));
+registerTable({
+  id: ENCOUNTERS_DOC,
+  tables: {
+    ...SAMPLE.tables,
+    terrainEncounters: {
+      valuable: ["Ruin", "Cache", "SAFE  haven", "Ore", "QQ5", "QQ6", "QQ7", "QQ8", "QQ9", "QQ10", "QQ11", "QQ12"],
+      unique: ["Place of Power", "QQ2", "QQ3", "QQ4", "QQ5", "QQ6", "QQ7", "QQ8", "QQ9", "QQ10", "QQ11", "QQ12"],
+    },
+    terrainSubTables: {
+      structure: d4("QQ Hall", "QQ Arch", "QQ Tower", "QQ Well"),
+      safeHaven: [{ min: 1, max: 5, name: "QQ Hollow" }, { min: 6, max: 10, name: "QQ Ledge" }],
+      placeOfPower: d4("QQ Sink", "QQ Peak", "QQ Aerie", "QQ Well"),
+      power: [{ min: 1, max: 3, name: "QQ Minor" }, { min: 4, max: 4, name: "QQ Climb" }],
+      majorPower: [{ min: 1, max: 1, name: "QQ Major" }, { min: 2, max: 2, name: "QQ Supreme" }],
+    },
+    treasureByTerrain: { forest: "X, Y" },
+    ruinModifier: { hillsMountainsForestRiver: 7 },
+  },
+}, { priority: PRIORITY.WORLD, source: "test" });
+
+let tr = terrainEncounterDraw({ kind: "valuable", terrain: "forestDeciduous", rng: rig(face(1, 12), face(3, 4)) });
+assert.deepEqual(tr.follow.map((f) => [f.table, f.die, f.roll, f.name]), [["structure", 4, 3, "QQ Tower"]],
+  "a ruin rolls its structure on the table's own die");
+assert.deepEqual(tr.lookups.map((l) => [l.kind, l.value]), [["ruin", 7]], "…and reads the forest's ruin row");
+tr = terrainEncounterDraw({ kind: "valuable", terrain: "forestTaiga", rng: rig(face(2, 12)) });
+assert.ok(!tr.follow.length && tr.lookups[0].ok && tr.lookups[0].value === "X, Y", "a cache reads the treasure row, rolling nothing");
+tr = terrainEncounterDraw({ kind: "valuable", terrain: "", rng: rig(face(2, 12)) });
+assert.ok(tr.lookups[0].noTerrain && !tr.lookups[0].missing, "no terrain pick is not an unimported table");
+tr = terrainEncounterDraw({ kind: "valuable", terrain: "jungle", rng: rig(face(2, 12)) });
+assert.equal(tr.lookups[0].missing, "treasureByTerrain", "a group the import lacks is a book line");
+tr = terrainEncounterDraw({ kind: "valuable", terrain: "jungle", rng: rig(face(3, 12), face(7, 10)) });
+assert.equal(tr.follow[0].name, "QQ Ledge", "a result's name matches blind to case and spacing");
+tr = terrainEncounterDraw({ kind: "valuable", terrain: "jungle", rng: rig(face(4, 12)) });
+assert.ok(!tr.follow[0].ok && tr.follow[0].missing === "terrainSubTables", "an unimported sub-table is a book line");
+tr = terrainEncounterDraw({ kind: "valuable", terrain: "jungle", rng: rig(face(5, 12)) });
+assert.ok(tr.ok && !tr.follow.length && !tr.lookups.length, "a result leading nowhere adds nothing");
+
+tr = terrainEncounterDraw({ kind: "unique", terrain: "jungle", rng: rig(face(1, 12), face(2, 4), face(2, 4)) });
+assert.deepEqual(tr.follow.map((f) => f.name), ["QQ Peak", "QQ Minor"], "a power below the top band stops");
+tr = terrainEncounterDraw({ kind: "unique", terrain: "jungle", rng: rig(face(1, 12), face(2, 4), face(4, 4), face(2, 2)) });
+assert.deepEqual(tr.follow.map((f) => f.name), ["QQ Peak", "QQ Climb", "QQ Supreme"], "the top band climbs to the next table");
+
+chain = runEncounter({ territory: "unsettled", terrain: "mountainsRocky", rng: rig(face(15, 20), face(1, 12), face(1, 4), face(1, 4)) });
+assert.deepEqual(chain.terrainEncounter.follow.map((f) => f.table), ["placeOfPower", "power"],
+  "the runner hands the party's terrain to the result's follow-ups");
+resetTables();
+registerSample();
+
+console.log("test-encounters: OK (columns, shift loop, draws, distance, detection, evasion, runner, terrain follow-ups)");

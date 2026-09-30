@@ -775,6 +775,35 @@ await test("a monster column dropped back replaces that column and keeps the oth
   assert.deepEqual(acksExtras.lib.tables.getTable("encounters", "monsters.fen"), before, "the registry itself is not written");
 });
 
+await test("a set of separate tables rolls each on its own die, and a drop replaces one of them", async () => {
+  const subTables = {
+    ore: [
+      { min: 1, max: 40, name: "Qq tin" },
+      { min: 41, max: 100, name: "Qq lead" },
+    ],
+    safeHaven: [
+      { min: 1, max: 6, name: "Qq hollow" },
+      { min: 7, max: 10, name: "Qq overhang" },
+    ],
+  };
+  world({ registry: { encounters: { terrainSubTables: subTables } } });
+  assert.ok(entryAt("encounters.terrainSubTables.ore")?.rollable, "each table is its own entry");
+  assert.equal(entryAt("encounters.terrainSubTables.safeHaven").label, "Terrain Sub Tables — Safe Haven");
+  await materializeAll();
+  assert.equal(tableNamed("Terrain Sub Tables — Ore").formula, "1d100");
+  assert.equal(tableNamed("Terrain Sub Tables — Safe Haven").formula, "1d10", "not the set's furthest band");
+  const drop = droppedTable([
+    { range: [1, 5], description: "Qq cave" },
+    { range: [6, 10], description: "Qq hollow" },
+  ]);
+  const { data } = await parseDrop(entryAt("encounters.terrainSubTables.safeHaven"), drop);
+  assert.deepEqual(data.safeHaven, [
+    { min: 1, max: 5, name: "Qq cave" },
+    { min: 6, max: 10, name: "Qq hollow" },
+  ]);
+  assert.deepEqual(data.ore, subTables.ore, "the other table is untouched");
+});
+
 await test("a keyed column reads back the engine's keys, and refuses a word it does not know", async () => {
   world({ registry: encounterRegistry() });
   const entry = entryAt("encounters.territory.far");

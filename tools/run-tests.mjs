@@ -106,6 +106,7 @@ const COMMITTED = [
   "importer/test-travel-tables.mjs",
   "importer/test-weather-tables.mjs",
   "importer/test-encounter-tables.mjs",
+  "importer/test-grid-rows.mjs",
   "importer/test-voyage-tables.mjs",
   "importer/test-land-tables.mjs",
   "importer/test-prose-values.mjs",

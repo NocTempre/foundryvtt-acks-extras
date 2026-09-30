@@ -4,7 +4,8 @@
  *
  * STRUCTURE ships here; the printed content does not. What ships: the
  * chain's ORDER (territory throw → civilized draw, or rarity throw → the
- * terrain-and-rarity monster draw, or a terrain-encounter kind → its d12),
+ * terrain-and-rarity monster draw, or a terrain-encounter kind → its d12 →
+ * the sub-tables and terrain lookups its result leads to),
  * the column-selection rules (a road or navigable river uses the territory's
  * "+ Road" column; night in settled country shifts one column right; a
  * Column Shift result shifts right and re-rolls), the resting/known-route
@@ -17,8 +18,9 @@
  * a navigation throw). What imports (the `encounters` registered document,
  * from the reader's own book): every d20/d100 band, every creature name,
  * every distance die, every visibility figure, every evasion target and
- * modifier size, and the terrain-encounter lists. A missing table resolves
- * to a "draw from your book" line, never a guess.
+ * modifier size, the terrain-encounter lists, and every sub-table and lookup
+ * row a terrain result leads to. A missing table resolves to a "draw from
+ * your book" line, never a guess.
  *
  * Everything here is arithmetic over plain objects plus registry reads —
  * Node-evaluable, no documents, no Foundry.
@@ -68,32 +70,33 @@ export const RARITIES = Object.freeze(["common", "uncommon", "rare", "veryRare"]
  * none — the card hands those steps back), `civilized` its column group.
  * `closed` marks the country that shelters a party from flyers (the aerial
  * evasion exemption); `ground` is the coarse travel-ground key the pick
- * answers for by default.
+ * answers for by default; `treasure` and `ruin` name the terrain-group row
+ * the pick reads in each terrain lookup.
  */
 export const ENCOUNTER_TERRAINS = Object.freeze({
-  barrensRocky: { label: "ACKS-FORMATION.travel.enc.terrain.barrensRocky", ground: "barrens", civilized: "desertBarrens", monsters: "barrensRocky", distance: "barrens", evasion: "barrens" },
-  barrensTundra: { label: "ACKS-FORMATION.travel.enc.terrain.barrensTundra", civilized: "desertBarrens", monsters: "barrensTundra", distance: "barrens", evasion: "barrens" },
-  desertRocky: { label: "ACKS-FORMATION.travel.enc.terrain.desertRocky", civilized: "desertBarrens", monsters: "desert", distance: "desertRocky", evasion: "desertRocky" },
-  desertSandy: { label: "ACKS-FORMATION.travel.enc.terrain.desertSandy", ground: "desert", civilized: "desertBarrens", monsters: "desert", distance: "desertSandy", evasion: "desertSandy" },
-  forestDeciduous: { label: "ACKS-FORMATION.travel.enc.terrain.forestDeciduous", ground: "forest", closed: true, civilized: "forestScrubDense", monsters: "forestDeciduous", distance: "forestDeciduous", evasion: "forestDeciduous" },
-  forestTaiga: { label: "ACKS-FORMATION.travel.enc.terrain.forestTaiga", closed: true, civilized: "taiga", monsters: "forestTaiga", distance: "forestTaiga", evasion: "forestTaiga" },
-  grassland: { label: "ACKS-FORMATION.travel.enc.terrain.grassland", ground: "grassland", civilized: "grasslandScrubSparse", monsters: "grasslandFarm", distance: "grassland", evasion: "grassland" },
-  grasslandSavanna: { label: "ACKS-FORMATION.travel.enc.terrain.grasslandSavanna", civilized: "savannaJungleRiver", monsters: "grasslandSavanna", distance: "grassland", evasion: "grassland" },
-  grasslandSteppe: { label: "ACKS-FORMATION.travel.enc.terrain.grasslandSteppe", civilized: "grasslandScrubSparse", monsters: "grasslandSteppe", distance: "grasslandSteppe", evasion: "grasslandSteppe" },
-  hillsForested: { label: "ACKS-FORMATION.travel.enc.terrain.hillsForested", closed: true, civilized: "hillsMountains", monsters: "hills", distance: "hillsForested", evasion: "hillsForested" },
-  hillsRocky: { label: "ACKS-FORMATION.travel.enc.terrain.hillsRocky", ground: "hills", civilized: "hillsMountains", monsters: "hills", distance: "hillsRocky", evasion: "hillsRocky" },
-  jungle: { label: "ACKS-FORMATION.travel.enc.terrain.jungle", ground: "jungle", closed: true, civilized: "jungle", monsters: "jungle", distance: "jungle", evasion: "jungle" },
-  mountainsForested: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsForested", closed: true, civilized: "hillsMountains", monsters: "mountainsForested", distance: "mountainsForested", evasion: "mountainsForested" },
-  mountainsRocky: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsRocky", ground: "mountains", civilized: "hillsMountains", monsters: "mountainsForested", distance: "mountainsRocky", evasion: "mountainsRocky" },
-  mountainsSnowy: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsSnowy", civilized: "hillsMountains", monsters: "mountainsSnowy", distance: "mountainsRocky", evasion: "mountainsRocky" },
-  mountainsVolcanic: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsVolcanic", civilized: "hillsMountains", monsters: "mountainsVolcanic", distance: "mountainsRocky", evasion: "mountainsRocky" },
-  riverLand: { label: "ACKS-FORMATION.travel.enc.terrain.riverLand", civilized: "grasslandScrubSparse", monsters: "riverLand", distance: null, evasion: null },
-  riverDesertJungle: { label: "ACKS-FORMATION.travel.enc.terrain.riverDesertJungle", civilized: "savannaJungleRiver", monsters: "riverDesertJungle", distance: null, evasion: null },
-  scrublandSparse: { label: "ACKS-FORMATION.travel.enc.terrain.scrublandSparse", ground: "scrubland", civilized: "grasslandScrubSparse", monsters: "scrublandSparse", distance: "scrublandSparse", evasion: "scrublandSparse" },
-  scrublandDense: { label: "ACKS-FORMATION.travel.enc.terrain.scrublandDense", closed: true, civilized: "forestScrubDense", monsters: "scrublandDense", distance: "scrublandDense", evasion: "scrublandDense" },
-  swampMarshy: { label: "ACKS-FORMATION.travel.enc.terrain.swampMarshy", ground: "swamp", closed: true, civilized: "swamp", monsters: "swamp", distance: "swampMarshy", evasion: "swampMarshy" },
-  swampScrubby: { label: "ACKS-FORMATION.travel.enc.terrain.swampScrubby", closed: true, civilized: "swamp", monsters: "swamp", distance: "swampScrubby", evasion: "swampScrubby" },
-  swampForested: { label: "ACKS-FORMATION.travel.enc.terrain.swampForested", closed: true, civilized: "swamp", monsters: "swamp", distance: "swampForested", evasion: "swampForested" },
+  barrensRocky: { label: "ACKS-FORMATION.travel.enc.terrain.barrensRocky", ground: "barrens", civilized: "desertBarrens", monsters: "barrensRocky", distance: "barrens", evasion: "barrens", treasure: "hillsBarrenSwamp", ruin: "jungleSwampOceanDesertBarren" },
+  barrensTundra: { label: "ACKS-FORMATION.travel.enc.terrain.barrensTundra", civilized: "desertBarrens", monsters: "barrensTundra", distance: "barrens", evasion: "barrens", treasure: "hillsBarrenSwamp", ruin: "jungleSwampOceanDesertBarren" },
+  desertRocky: { label: "ACKS-FORMATION.travel.enc.terrain.desertRocky", civilized: "desertBarrens", monsters: "desert", distance: "desertRocky", evasion: "desertRocky", treasure: "desertMountain", ruin: "jungleSwampOceanDesertBarren" },
+  desertSandy: { label: "ACKS-FORMATION.travel.enc.terrain.desertSandy", ground: "desert", civilized: "desertBarrens", monsters: "desert", distance: "desertSandy", evasion: "desertSandy", treasure: "desertMountain", ruin: "jungleSwampOceanDesertBarren" },
+  forestDeciduous: { label: "ACKS-FORMATION.travel.enc.terrain.forestDeciduous", ground: "forest", closed: true, civilized: "forestScrubDense", monsters: "forestDeciduous", distance: "forestDeciduous", evasion: "forestDeciduous", treasure: "forest", ruin: "hillsMountainsForestRiver" },
+  forestTaiga: { label: "ACKS-FORMATION.travel.enc.terrain.forestTaiga", closed: true, civilized: "taiga", monsters: "forestTaiga", distance: "forestTaiga", evasion: "forestTaiga", treasure: "forest", ruin: "hillsMountainsForestRiver" },
+  grassland: { label: "ACKS-FORMATION.travel.enc.terrain.grassland", ground: "grassland", civilized: "grasslandScrubSparse", monsters: "grasslandFarm", distance: "grassland", evasion: "grassland", treasure: "clearGrassScrub", ruin: "clearGrassScrub" },
+  grasslandSavanna: { label: "ACKS-FORMATION.travel.enc.terrain.grasslandSavanna", civilized: "savannaJungleRiver", monsters: "grasslandSavanna", distance: "grassland", evasion: "grassland", treasure: "clearGrassScrub", ruin: "clearGrassScrub" },
+  grasslandSteppe: { label: "ACKS-FORMATION.travel.enc.terrain.grasslandSteppe", civilized: "grasslandScrubSparse", monsters: "grasslandSteppe", distance: "grasslandSteppe", evasion: "grasslandSteppe", treasure: "clearGrassScrub", ruin: "clearGrassScrub" },
+  hillsForested: { label: "ACKS-FORMATION.travel.enc.terrain.hillsForested", closed: true, civilized: "hillsMountains", monsters: "hills", distance: "hillsForested", evasion: "hillsForested", treasure: "hillsBarrenSwamp", ruin: "hillsMountainsForestRiver" },
+  hillsRocky: { label: "ACKS-FORMATION.travel.enc.terrain.hillsRocky", ground: "hills", civilized: "hillsMountains", monsters: "hills", distance: "hillsRocky", evasion: "hillsRocky", treasure: "hillsBarrenSwamp", ruin: "hillsMountainsForestRiver" },
+  jungle: { label: "ACKS-FORMATION.travel.enc.terrain.jungle", ground: "jungle", closed: true, civilized: "jungle", monsters: "jungle", distance: "jungle", evasion: "jungle", treasure: "jungle", ruin: "jungleSwampOceanDesertBarren" },
+  mountainsForested: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsForested", closed: true, civilized: "hillsMountains", monsters: "mountainsForested", distance: "mountainsForested", evasion: "mountainsForested", treasure: "desertMountain", ruin: "hillsMountainsForestRiver" },
+  mountainsRocky: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsRocky", ground: "mountains", civilized: "hillsMountains", monsters: "mountainsForested", distance: "mountainsRocky", evasion: "mountainsRocky", treasure: "desertMountain", ruin: "hillsMountainsForestRiver" },
+  mountainsSnowy: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsSnowy", civilized: "hillsMountains", monsters: "mountainsSnowy", distance: "mountainsRocky", evasion: "mountainsRocky", treasure: "desertMountain", ruin: "hillsMountainsForestRiver" },
+  mountainsVolcanic: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsVolcanic", civilized: "hillsMountains", monsters: "mountainsVolcanic", distance: "mountainsRocky", evasion: "mountainsRocky", treasure: "desertMountain", ruin: "hillsMountainsForestRiver" },
+  riverLand: { label: "ACKS-FORMATION.travel.enc.terrain.riverLand", civilized: "grasslandScrubSparse", monsters: "riverLand", distance: null, evasion: null, treasure: "river", ruin: "hillsMountainsForestRiver" },
+  riverDesertJungle: { label: "ACKS-FORMATION.travel.enc.terrain.riverDesertJungle", civilized: "savannaJungleRiver", monsters: "riverDesertJungle", distance: null, evasion: null, treasure: "river", ruin: "hillsMountainsForestRiver" },
+  scrublandSparse: { label: "ACKS-FORMATION.travel.enc.terrain.scrublandSparse", ground: "scrubland", civilized: "grasslandScrubSparse", monsters: "scrublandSparse", distance: "scrublandSparse", evasion: "scrublandSparse", treasure: "clearGrassScrub", ruin: "clearGrassScrub" },
+  scrublandDense: { label: "ACKS-FORMATION.travel.enc.terrain.scrublandDense", closed: true, civilized: "forestScrubDense", monsters: "scrublandDense", distance: "scrublandDense", evasion: "scrublandDense", treasure: "clearGrassScrub", ruin: "clearGrassScrub" },
+  swampMarshy: { label: "ACKS-FORMATION.travel.enc.terrain.swampMarshy", ground: "swamp", closed: true, civilized: "swamp", monsters: "swamp", distance: "swampMarshy", evasion: "swampMarshy", treasure: "hillsBarrenSwamp", ruin: "jungleSwampOceanDesertBarren" },
+  swampScrubby: { label: "ACKS-FORMATION.travel.enc.terrain.swampScrubby", closed: true, civilized: "swamp", monsters: "swamp", distance: "swampScrubby", evasion: "swampScrubby", treasure: "hillsBarrenSwamp", ruin: "jungleSwampOceanDesertBarren" },
+  swampForested: { label: "ACKS-FORMATION.travel.enc.terrain.swampForested", closed: true, civilized: "swamp", monsters: "swamp", distance: "swampForested", evasion: "swampForested", treasure: "hillsBarrenSwamp", ruin: "jungleSwampOceanDesertBarren" },
 });
 
 /** The eighteen monster sub-tables the picks above draw from. */
@@ -117,8 +120,39 @@ export const ENCOUNTER_TABLE_IDS = Object.freeze([
   "evasion",
   "evasionModifiers",
   "terrainEncounters",
+  "terrainSubTables",
+  "treasureByTerrain",
+  "ruinModifier",
   ...MONSTER_TABLE_KEYS.map((t) => `monsters.${t}`),
 ]);
+
+/**
+ * What a terrain result leads to, keyed by the result's name folded to its
+ * letters: the sub-tables it rolls on, in order, and the terrain lookups it
+ * reads. A key is the result's common noun; the printed list, its order and
+ * every row it leads to arrive with the import. `chain` names a table rolled
+ * next when a roll lands on its table's last band — a power that climbs. A
+ * result not listed here resolves from the book.
+ */
+export const TERRAIN_FOLLOW_UPS = Object.freeze({
+  cache: { lookups: ["treasure"] },
+  ore: { rolls: ["ore"] },
+  ruin: { rolls: ["structure"], lookups: ["ruin"] },
+  safeHaven: { rolls: ["safeHaven"] },
+  usefulHerbs: { rolls: ["usefulHerbs"] },
+  challenge: { rolls: ["challenge"] },
+  hazard: { rolls: ["hazard"] },
+  poison: { rolls: ["poison"] },
+  complexMap: { rolls: ["complexMap"] },
+  curse: { rolls: ["curse"] },
+  placeOfPower: { rolls: ["placeOfPower", "power"], chain: { power: "majorPower" } },
+});
+
+/** The terrain lookups a result can read: the table each lives in. */
+export const TERRAIN_LOOKUPS = Object.freeze({ treasure: "treasureByTerrain", ruin: "ruinModifier" });
+
+const foldName = (s) => String(s ?? "").toLowerCase().replace(/[^a-z]/g, "");
+const FOLLOW_UPS = new Map(Object.entries(TERRAIN_FOLLOW_UPS).map(([k, v]) => [foldName(k), v]));
 
 /* -------------------------------------------------------------------- */
 /*  Dice                                                                */
@@ -209,16 +243,64 @@ export function civilizedDraw({ terrain, rng = Math.random } = {}) {
 }
 
 /**
- * A terrain-encounter draw: 1d12 on the kind's list. Resting or retracing a
- * known route downgrades the whole outcome to none BEFORE this is rolled —
- * that judgment is the caller's (`runEncounter` applies it).
+ * A terrain-encounter draw: 1d12 on the kind's list, then whatever the
+ * result leads to (`terrainFollowUps`) for the party's terrain. Resting or
+ * retracing a known route downgrades the whole outcome to none BEFORE this
+ * is rolled — that judgment is the caller's (`runEncounter` applies it).
  */
-export function terrainEncounterDraw({ kind, rng = Math.random } = {}) {
+export function terrainEncounterDraw({ kind, terrain = "", rng = Math.random } = {}) {
   const list = readTable(ENCOUNTERS_DOC, "terrainEncounters")?.[kind];
   if (!Array.isArray(list) || !list.length) return { ok: false, missing: "terrainEncounters" };
   const roll = d12(rng);
   const name = list[roll - 1] ?? null;
-  return { ok: !!name, ...(name ? { roll, name } : { missing: "terrainEncounters" }) };
+  if (!name) return { ok: false, missing: "terrainEncounters" };
+  return { ok: true, roll, name, ...terrainFollowUps({ name, terrain, rng }) };
+}
+
+/**
+ * One roll on a terrain sub-table, on the die its bands top out at. `top`
+ * marks a roll on the table's last band, which is where a `chain` climbs.
+ */
+export function subTableDraw({ table, rng = Math.random } = {}) {
+  const bands = readTable(ENCOUNTERS_DOC, "terrainSubTables")?.[table];
+  const faces = Math.max(0, ...(Array.isArray(bands) ? bands : []).map((b) => Number(b?.max ?? b?.min) || 0));
+  if (!faces) return { table, ok: false, missing: "terrainSubTables" };
+  const roll = die(faces, rng);
+  const row = bracketRow(bands, roll);
+  if (!row?.name) return { table, ok: false, missing: "terrainSubTables" };
+  return { table, ok: true, die: faces, roll, name: row.name, top: Number(row.max ?? row.min) >= faces };
+}
+
+/**
+ * A terrain lookup for the party's terrain: the row of `TERRAIN_LOOKUPS[kind]`
+ * its encounter-terrain pick names. No pick is a different truth from an
+ * unimported table, and the result says which.
+ */
+export function terrainLookup({ kind, terrain = "" } = {}) {
+  const tableId = TERRAIN_LOOKUPS[kind];
+  const group = ENCOUNTER_TERRAINS[terrain]?.[kind];
+  if (!tableId || !group) return { kind, ok: false, noTerrain: true };
+  const value = readTable(ENCOUNTERS_DOC, tableId)?.[group];
+  return value == null ? { kind, ok: false, missing: tableId } : { kind, ok: true, value };
+}
+
+/**
+ * Everything a terrain result leads to, in the order the Judge resolves it:
+ * each sub-table roll (and the table a roll on a last band climbs to), then
+ * each terrain lookup. A result `TERRAIN_FOLLOW_UPS` does not know leads to
+ * nothing here and resolves from the book.
+ */
+export function terrainFollowUps({ name, terrain = "", rng = Math.random } = {}) {
+  const spec = FOLLOW_UPS.get(foldName(name));
+  const follow = [];
+  for (const table of spec?.rolls ?? []) {
+    const draw = subTableDraw({ table, rng });
+    follow.push(draw);
+    const next = spec.chain?.[table];
+    if (next && draw.ok && draw.top) follow.push(subTableDraw({ table: next, rng }));
+  }
+  const lookups = (spec?.lookups ?? []).map((kind) => terrainLookup({ kind, terrain }));
+  return { follow, lookups };
 }
 
 /**
@@ -392,7 +474,7 @@ export function runEncounter({ territory, road = false, night = false, terrain, 
     chain.rarity = rarityThrow({ territory, rng });
     if (chain.rarity.ok) chain.creature = monsterDraw({ terrain, rarity: chain.rarity.rarity, rng });
   } else if (kind) {
-    chain.terrainEncounter = terrainEncounterDraw({ kind, rng });
+    chain.terrainEncounter = terrainEncounterDraw({ kind, terrain, rng });
   }
 
   if (outcome === "civilized" || outcome === "monster") {

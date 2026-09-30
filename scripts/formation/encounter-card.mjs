@@ -129,11 +129,28 @@ export async function postEncounterCard(formation, chain, { terrain, activity, n
       ? { roll: creature.roll, name: creature.name, link: actor ? `@UUID[${actor.uuid}]{${creature.name}}` : null }
       : null,
     terrainEncounter: chain.terrainEncounter?.ok
-      ? { roll: chain.terrainEncounter.roll, name: chain.terrainEncounter.name }
+      ? {
+          roll: chain.terrainEncounter.roll,
+          name: chain.terrainEncounter.name,
+          follow: (chain.terrainEncounter.follow ?? []).filter((f) => f.ok).map((f) => ({
+            label: loc(`travel.enc.sub.${f.table}`),
+            die: f.die,
+            roll: f.roll,
+            name: f.name,
+          })),
+          lookups: (chain.terrainEncounter.lookups ?? []).filter((l) => l.ok).map((l) => ({
+            label: loc(`travel.enc.lookup.${l.kind}`),
+            value: typeof l.value === "number" && l.value > 0 ? `+${l.value}` : String(l.value),
+          })),
+        }
       : null,
-    missing: [chain.creature, chain.rarity, chain.terrainEncounter, chain.distance]
-      .filter((step) => step && !step.ok && step.missing)
-      .map((step) => step.missing),
+    // A step names its missing table once however many rolls asked for it.
+    missing: [...new Set(
+      [chain.creature, chain.rarity, chain.terrainEncounter, chain.distance,
+        ...(chain.terrainEncounter?.follow ?? []), ...(chain.terrainEncounter?.lookups ?? [])]
+        .filter((step) => step && !step.ok && step.missing)
+        .map((step) => step.missing),
+    )],
     noRow: [chain.distance].some((step) => step && !step.ok && step.noRow),
     distance: chain.distance?.ok
       ? { feet: chain.distance.feet, dice: chain.distance.dice, mult: chain.distance.mult }

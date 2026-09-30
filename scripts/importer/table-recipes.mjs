@@ -444,6 +444,34 @@ const terrainD12 = (locate, side) => ({
   rows: Array.from({ length: 12 }, (_, i) => ({ key: String(i + 1), labelRe: `^${i + 1}$` })),
 });
 
+// A terrain sub-table: rows down one label column, each label a die face or
+// band ("7", "5-6", "01-35") that labelPattern hands to the binding, the
+// result in one window or several (the binding joins them). The label is
+// anchored whole, so a prose line beside the table never claims a row. The
+// specs outnumber every printed table and are optional — the table ends
+// where its rows do — so the binding checks the bands it gets tile a die.
+// Geometry per table, measured off its printing.
+const SUB_BAND_ROWS = Array.from({ length: 20 }, (_, i) => ({
+  key: `b${i}`,
+  labelRe: "^\\d+(\\s*[-–]\\s*\\d+)?$",
+  labelPattern: "rollBand",
+  optional: true,
+}));
+
+const terrainSub = ({ page, locate, column, labelMaxX, cells, ...bounds }) => ({
+  shape: "gridRows",
+  book: "jj",
+  printedPage: page,
+  locate,
+  column,
+  labelMaxX,
+  rowTol: 4,
+  joinGap: 1,
+  ...bounds,
+  cellColumns: cells.map(([key, x, w]) => ({ key, x, w, pattern: "raw", row: true })),
+  rows: SUB_BAND_ROWS,
+});
+
 export const TABLE_RECIPES = {
   // The wilderness encounter chain's pages: the JJ's territory, rarity,
   // civilized and monster grids and the terrain-encounter sidebars, and the
@@ -451,7 +479,7 @@ export const TABLE_RECIPES = {
   // only; encounters-binding.mjs assembles the engine-shaped `encounters`
   // document acks-extras declares.
   encounters: {
-    source: { book: "ACKS II Judges Journal + Revised Rulebook", pages: "JJ 42-67; RR 281-285" },
+    source: { book: "ACKS II Judges Journal + Revised Rulebook", pages: "JJ 42-68; RR 281-285" },
     tables: {
       territoryRaw: {
         shape: "gridRows",
@@ -602,6 +630,97 @@ export const TABLE_RECIPES = {
       valuableTerrainRaw: terrainD12("Valuable Terrain Encounters", "R"),
       dangerousTerrainRaw: terrainD12("Dangerous Terrain Encounters", "L"),
       uniqueTerrainRaw: terrainD12("Unique Terrain Encounters", "L"),
+      // The sub-tables a terrain result sends the Judge to (JJ ch.2, Terrain
+      // Encounters). Two are lookups by terrain group, keyed here by the
+      // groups the rows print; the rest roll.
+      treasureByTerrainRaw: {
+        shape: "gridRows",
+        book: "jj",
+        printedPage: 63,
+        locate: "Treasure Types",
+        startAfter: "Treasure Types",
+        column: { xMin: 70, xMax: 300 },
+        labelMaxX: 212,
+        rowTol: 4,
+        joinGap: 1,
+        rows: [
+          { key: "clearGrassScrub", labelRe: "^c\\s*lear,\\s*grass,\\s*s\\s*crub$" },
+          { key: "hillsBarrenSwamp", labelRe: "^hills,\\s*barren,\\s*s\\s*wamp$" },
+          { key: "desertMountain", labelRe: "^d\\s*esert,\\s*mountain$" },
+          { key: "forest", labelRe: "^forest$" },
+          { key: "jungle", labelRe: "^jungle$" },
+          { key: "river", labelRe: "^r\\s*iver$" },
+          { key: "ocean", labelRe: "^o\\s*cean$" },
+        ],
+        cellColumns: [{ key: "types", x: 213, w: 80, pattern: "raw", row: true }],
+      },
+      ruinModifierRaw: {
+        shape: "gridRows",
+        book: "jj",
+        printedPage: 64,
+        locate: "Ruin:",
+        column: { xMin: 40, xMax: 300 },
+        labelMaxX: 240,
+        rowTol: 4,
+        rows: [
+          { key: "clearGrassScrub", labelRe: "^c\\s*lear,\\s*grass,\\s*s\\s*crub$" },
+          { key: "hillsMountainsForestRiver", labelRe: "^hills,\\s*mountains,\\s*forest,\\s*r\\s*iver$" },
+          { key: "jungleSwampOceanDesertBarren", labelRe: "^jungle,\\s*s\\s*wamp,\\s*o\\s*cean,\\s*d\\s*esert,\\s*barren$" },
+        ],
+        cellColumns: [{ key: "modifier", x: 242, w: 50, pattern: "raw", row: true }],
+      },
+      structureRaw: terrainSub({
+        page: 63, locate: "Structures", startAfter: "Structures",
+        column: { xMin: 70, xMax: 300 }, labelMaxX: 100, cells: [["name", 104, 190]],
+      }),
+      oreRaw: terrainSub({
+        page: 63, locate: "Valuable Terrain Encounters", startAfter: "(1d100)",
+        column: { xMin: 450, xMax: 592 }, labelMaxX: 485, cells: [["name", 488, 100]],
+      }),
+      safeHavenRaw: terrainSub({
+        page: 64, locate: "Safe Haven:", startAfter: "(1d10)", wrapRows: { tol: 12 },
+        column: { xMin: 40, xMax: 298 }, labelMaxX: 75, cells: [["name", 80, 215]],
+      }),
+      usefulHerbsRaw: terrainSub({
+        page: 64, locate: "Useful Herbs:", startAfter: "(1d12)",
+        column: { xMin: 300, xMax: 592 }, labelMaxX: 335, cells: [["name", 338, 150]],
+      }),
+      challengeRaw: terrainSub({
+        page: 65, locate: "Challenge Type", startAfter: "Challenge Type",
+        column: { xMin: 60, xMax: 592 }, labelMaxX: 100,
+        cells: [["name", 104, 125], ["example", 229, 125], ["dimensions", 354, 238]],
+      }),
+      hazardRaw: terrainSub({
+        page: 66, locate: "Hazard:", startAfter: "Hazard",
+        column: { xMin: 40, xMax: 300 }, labelMaxX: 70,
+        cells: [["name", 74, 112], ["trap", 186, 114]],
+      }),
+      poisonRaw: terrainSub({
+        page: 66, locate: "Poison:", startAfter: "(1d20)",
+        column: { xMin: 305, xMax: 592 }, labelMaxX: 335,
+        cells: [["name", 338, 150], ["target", 488, 60]],
+      }),
+      complexMapRaw: terrainSub({
+        page: 67, locate: "Complex Map:", startAfter: "(1d6)",
+        column: { xMin: 60, xMax: 300 }, labelMaxX: 110,
+        cells: [["name", 114, 66], ["value", 180, 118]],
+      }),
+      curseRaw: terrainSub({
+        page: 67, locate: "Complex Map:", startAfter: "(1d10)",
+        column: { xMin: 60, xMax: 320 }, labelMaxX: 105, cells: [["name", 106, 214]],
+      }),
+      placeOfPowerRaw: terrainSub({
+        page: 68, locate: "Place of Power:", startAfter: "(1d10)", stopAt: "(1d12)",
+        column: { xMin: 40, xMax: 298 }, labelMaxX: 82, cells: [["name", 84, 210]],
+      }),
+      powerRaw: terrainSub({
+        page: 68, locate: "Place of Power:", startAfter: "(1d12)",
+        column: { xMin: 40, xMax: 298 }, labelMaxX: 82, cells: [["name", 84, 210]],
+      }),
+      majorPowerRaw: terrainSub({
+        page: 68, locate: "Place of Power:", startAfter: "(1d12)",
+        column: { xMin: 300, xMax: 592 }, labelMaxX: 340, cells: [["name", 342, 150]],
+      }),
       monstersBarrensRockyRaw: monsterGrid(45, "Rarity - Barrens (Rocky/Sandy)", [156, 266, 393, 493]),
       monstersBarrensTundraRaw: monsterGrid(46, "Rarity - Barrens (Tundra)", [141, 264, 384, 472]),
       monstersDesertRaw: monsterGrid(47, "Rarity - Desert (Any)", [156, 266, 393, 493]),

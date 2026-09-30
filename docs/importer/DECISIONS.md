@@ -5388,3 +5388,40 @@ means deleting it first. A person no organisation names is left out, and a
 seat the map does not show stays a library reference (the description counts
 them). The shelf-lock track (2026-09-18, on hold) is not landed, so the
 Adventure is written to an unlocked shelf like every other library document.
+
+### What a terrain result leads to is read into the chart it came from (2026-09-30)
+
+**Ruled.** Wave 2 of the Judges Journal charts takes the 2026-09-23 route of
+rules data with a RollTable projection, because formation computes with it.
+The sub-tables a terrain-encounter result names, the treasure type for each
+terrain and the ruin modifier are read into the `encounters` doc
+(`terrainSubTables`, `treasureByTerrain`, `ruinModifier`), and the throw rolls
+them (formation MODEL, *The encounters*).
+- **A result printed across several columns is one line**, its cells joined
+  in reading order with " — ", as `occupationSubTables` already joins a
+  special note. A RollTable result holds one text, and so does the card's
+  line.
+- **Each sub-table rolls its own die.** The sub-tables share one doc key but
+  not a die, so the projection marks the set `ownDie`: each is rolled on its
+  own furthest band, not the set's.
+- **A read proves its die.** A sub-table is read with a run of optional band
+  specs, so one recipe shape serves a table of any length. The binding keeps
+  it only when its bands tile 1 to a standard die with no gap or overlap. A
+  lost row or a stray line leaves the table out, and the card sends the Judge
+  to the book; it never rolls a die the page did not print.
+- **The link from a result to its tables is keyed by the result's common
+  noun** (`TERRAIN_FOLLOW_UPS`), folded to its letters. The printed list, its
+  order and every row it leads to arrive with the import. A result the key
+  does not name stops at its name.
+- **A terrain lookup reads through the encounter-terrain pick**, which names
+  its row in each lookup. That is how the pick already maps itself into the
+  civilized, monster, distance and evasion tables.
+
+**Rejected:** one recipe spec per printed row. Every table would need its own
+row list, and a table with rows the list lacks would read short and
+unnoticed. **Rejected:** projecting the set on one die, which would roll a d10
+table on a d100.
+
+*Cost:* lairs per hex and climate by terrain are not read, because nothing
+consumes them yet. The results that hand off to another draw stop at their
+name. Both are in the ROADMAP.

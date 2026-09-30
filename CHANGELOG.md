@@ -1,5 +1,22 @@
 # Changelog
 
+## 9.5.0
+
+### Added
+
+- **A terrain encounter rolls what its result leads to.** The travel panel's
+  encounter throw used to stop at a terrain encounter's name and leave the rest
+  to the book. When the result names further tables, the card now rolls each of
+  them on its own die. A roll on the top band of a table that climbs also rolls
+  the next table. The card reads the treasure type or ruin modifier for the
+  terrain you picked (JJ ch. 2) as well. The tables are read from the Judge's
+  own Judges Journal by the rules-table import, so re-run it once to read them.
+  A result that sends you to another draw still names only the result, and a
+  table your import lacks still says to draw from your book.
+- **Those tables are RollTables too**, filed with the encounter charts, each on
+  its own die. Drop an edited one back on its row and the throw uses your
+  version.
+
 ## 9.4.0
 
 ### Added

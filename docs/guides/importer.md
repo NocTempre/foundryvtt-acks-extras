@@ -335,6 +335,12 @@ on any of them brings back the whole chart. A territory or rarity result has
 to stay one that table already holds, because the throw acts on it, so a word
 it does not know is refused.
 
+The tables a terrain encounter leads to arrive the same way, one RollTable
+each and each on its own die, with the treasure type and ruin modifier for
+every terrain beside them in the rules tables. They belong to the same rules
+table as the charts, so a world that imported the charts earlier gets them the
+next time it reads its rules tables again.
+
 ![](../releases/v8.5.0/location-encounter-tables.png)
 
 *One terrain's monster chart overridden by a dropped column: all four of its
