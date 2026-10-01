@@ -87,3 +87,10 @@ morale pages"). The three reaction tones, `loyalty`, `hiring` and
   whatever the employer's effects add, and names no result.
 - **The morale rating's own range is not checked.** The page adds whatever the
   actor holds.
+- **The obedience page takes no conditions.** The morale page lists the
+  subject's conditions because the system's morale roll takes them. Whether a
+  figure on morale rolls reaches the obedience roll of RR 167 is a reading of
+  RR 507-515 nobody has made; until it is, a Judge adds one through the
+  adjustment row.
+- **Conditions are read when the page opens.** The modifier hook fires once
+  per open, so a condition gained while the page is up is not on it.

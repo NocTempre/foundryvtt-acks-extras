@@ -22,6 +22,7 @@ import {
   moraleRatingOf,
 } from "../scripts/influence/actor-data.mjs";
 import { MORALE_DOC, modeRows, printedBands, printedFigure, printedLabel } from "../scripts/influence/printed.mjs";
+import { conditionEntries, conditionRows } from "../scripts/influence/condition-rows.mjs";
 import { PRIORITY, registerTable, resetTables } from "../scripts/lib/tables.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "../scripts/influence/ability-effects.mjs";
 
@@ -382,6 +383,43 @@ t("a group rolls on its command morale, with its one stack's base when it has on
   assert.equal(moraleRatingOf(group([{ baseMorale: -1 }, { baseMorale: 1 }])), 2);
   assert.equal(moraleRatingOf({ system: { details: { morale: -3 } } }), -3);
   assert.equal(moraleRatingOf(null), 0);
+});
+
+/* --- conditions on a page: named rows, and notes for what the roll does not take --- */
+
+t("only a page that names its roll takes conditions", () => {
+  assert.equal(EXTERNAL_MODES.morale.conditions, "morale");
+  for (const id of Object.keys(EXTERNAL_MODES)) {
+    if (id !== "morale") assert.equal(EXTERNAL_MODES[id].conditions, undefined, id);
+  }
+  assert.deepEqual(conditionEntries(null, { statuses: [] }), []);
+  assert.deepEqual(conditionEntries("morale", null), []);
+});
+
+t("a condition's figure is a row, and what the roll leaves out is a note", () => {
+  // A stand-in for the conditions model's answer: the reading is what is pinned.
+  const entries = [
+    { kind: "exempt", condition: "aa" },
+    { kind: "applied", condition: "bb", value: 3 },
+    { kind: "pending", condition: "cc", value: -2, when: "fear" },
+    { kind: "unpriced", condition: "dd" },
+  ];
+  const rows = conditionRows(entries, (e) => `${e.kind}:${e.condition}`);
+  assert.deepEqual(rows, [
+    { label: "exempt:aa", note: true },
+    { label: "applied:bb", value: 3 },
+    { label: "pending:cc", note: true },
+    { label: "unpriced:dd", note: true },
+  ]);
+  // The roller keeps the figure in its total and draws the notes beside it.
+  const kept = externalRows(rows);
+  assert.equal(kept.reduce((sum, r) => sum + r.value, 0), 3);
+  assert.equal(kept.filter((r) => r.note).length, 3);
+});
+
+t("a creature with no conditions adds no row", () => {
+  resetTables();
+  assert.deepEqual(conditionEntries("morale", { statuses: [] }), []);
 });
 
 console.log(`\n${n} tests passed (influence modifier sources)`);

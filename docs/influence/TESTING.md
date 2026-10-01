@@ -97,6 +97,10 @@ Drive mechanics:
   entry labelled `ACKS-HENCHMEN.unitMorale.menu`, and call its `onClick` with
   the directory `li` (`[data-entry-id]`). A group created a moment ago has no
   `li` until `ui.actors.render()` has run.
+- **A priced condition needs no world write.** Register invented figures in
+  the client's own registry — `tables.registerTable({id: "conditions", tables:
+  {modifiers: {<id>: {all: <n>}}}}, {priority})` — and `unregisterTable` them
+  after.
 
 Steps:
 
@@ -130,6 +134,12 @@ Steps:
     authored by the player.
 15. Remove the `morale` document and reopen.
     *Observable:* typed fields, badges and the notice again.
+16. Give the monster two conditions, one that carries a morale figure and one
+    that exempts it, and open the page; then roll with the skip key.
+    *Observable:* with no figures imported, two notes and nothing added; with
+    figures registered, a named row per figure, in the total and on the card.
+    The skip-key roll raises the conditions' own notices and leaves the
+    stored score as it was.
 
 ## Teardown
 
@@ -137,3 +147,4 @@ Delete the influencer, the target, and every `acks-extras.attitude` item the
 rolls minted. Confirm none remain on either actor. For the morale pages:
 every actor and chat message the run made, by its own uuid, and the `morale`
 document, if the run imported it.
+Unregister any condition figures the run registered in the client.

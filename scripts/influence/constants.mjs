@@ -446,6 +446,10 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
  * (`modeRows` in printed.mjs). `cite` is the page a notice points at.
  * `postsWithoutBands` lets such a page roll with no result column read; any
  * other page refuses.
+ *
+ * `conditions` names the roll the page is in the lib's conditions model
+ * (`rollMath` in lib/conditions.mjs); the subject's conditions then reach the
+ * page as rows (condition-rows.mjs).
  */
 export const EXTERNAL_MODES = Object.freeze({
   hiring: {
@@ -545,6 +549,7 @@ export const EXTERNAL_MODES = Object.freeze({
     printed: "monsterMorale",
     cite: "RR 307",
     postsWithoutBands: true,
+    conditions: "morale",
     // RR 307 states no natural-2/12 clamp for this roll, unlike Hireling
     // Loyalty (RR 166). Deliberately absent rather than forgotten.
     bandKeys: ["frightenedRetreat", "faltering", "fightOn", "advancePursue", "victoryOrDeath"],

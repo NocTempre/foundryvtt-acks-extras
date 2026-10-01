@@ -107,6 +107,17 @@ speaks as the subject, and the rating the roll adds is `moraleRatingOf`: a
 creature's own morale, or for a group actor its command morale — its one
 stack's unit morale when it holds exactly one.
 
+The morale page also names the subject's conditions (RR 507-515). A mode that
+declares `conditions` says which roll it is in the lib's conditions model, and
+a listener on the modifier hook (below) pushes what that model answers
+(`condition-rows.mjs`): a figure the roll takes is a named row in the total
+and on the card, and a condition the roll does not take is a note beside it —
+one whose figure is bound to a circumstance the page cannot tell, one whose
+figure the world has not imported, and one under which the creature makes no
+such roll. The system's own roll takes the same figures as a shift of the
+score (`docs/lib/MODEL.md`), so the two paths agree and the page is the one
+that shows its work. Only `morale` declares it.
+
 Three things open the morale page: the system's own morale roll, through the
 lib's `morale-roll` contract (`docs/lib/API.md`); a group actor's directory
 context menu (the henchmen feature's `openMoraleViaInfluence`); and

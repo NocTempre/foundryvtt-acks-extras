@@ -17,7 +17,11 @@ import {
   influenceTimeLadder,
   henchmanMonthlyWage,
   HOOKS,
+  EXTERNAL_MODES,
 } from "./constants.mjs";
+import { conditionEntries, conditionRows } from "./condition-rows.mjs";
+import { subjectOf } from "../lib/conditions.mjs";
+import { conditionNameKey } from "../lib/status-effects.mjs";
 import { getActorHD, monthlyWageForHD, getProficiencies, getEffectReactionMods } from "./actor-data.mjs";
 import { kindOf, matchesKind, registerRaceRelations, relationFor } from "./racial.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
@@ -60,6 +64,27 @@ function openInfluenceApp(actor = null, options = {}) {
   }
   return new InfluenceApp({ actor, ...options, modifiers }).render(true);
 }
+
+const signedFigure = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n)}`;
+
+/** One conditions entry as the wording of its row. */
+function conditionLabel(entry) {
+  return game.i18n.format(`ACKS-INFLUENCE.condition.${entry.kind}`, {
+    condition: game.i18n.localize(conditionNameKey(entry.condition)),
+    when: entry.when ? game.i18n.localize(`ACKS-LIB.conditionRoll.when.${entry.when}`) : "",
+    figure: entry.value == null ? "" : signedFigure(entry.value),
+  });
+}
+
+// A page that names the roll it is takes its subject's conditions as rows.
+// The subject is the creature the roll is for: an external page's target, or
+// its actor where the mode says so.
+Hooks.on(HOOKS.INFLUENCE_MODIFIERS, ({ actor, targetActor, mode, modifiers }) => {
+  const config = EXTERNAL_MODES[mode];
+  if (!config?.conditions) return;
+  const subject = config.subject === "actor" ? actor : targetActor;
+  modifiers.push(...conditionRows(conditionEntries(config.conditions, subjectOf(subject)), conditionLabel));
+});
 
 // GM-side socket handler (via the shared transport): resolve a player's roll
 // against a hidden target on an active GM client, which re-resolves it with
