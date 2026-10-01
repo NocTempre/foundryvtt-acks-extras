@@ -12,6 +12,7 @@ import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import AbilityExtras from "./ability-extras.mjs";
 import { slug, ATTRIBUTES, isMeasure } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
+import { rollMath, subjectOf } from "../lib/conditions.mjs";
 import { auditLine, rollDetailsDialog, situationalTerm, skipDialogFor } from "../lib/roll-dialog.mjs";
 // The classes registry, not lib: lib cannot see the world's class documents,
 // so it answers null for the `progression` kind a borrowed ladder uses.
@@ -219,13 +220,15 @@ export const targetOf = (roll, actor, item) => throwOutcome(roll, actor, item).t
 
 /**
  * A resolved target with the character's standing bonuses folded in: other
- * abilities' modifiers and the throw's score term. A bonus lowers an "above"
- * target and raises a "below" one; an exact-match throw takes neither. Applied
- * here, once, so every surface reads the same number.
+ * abilities' modifiers, the throw's score term, and what the character's
+ * conditions do to a proficiency throw. A bonus lowers an "above" target and
+ * raises a "below" one; an exact-match throw takes neither. Applied here,
+ * once, so every surface reads the same number.
  */
 function withModifiers(target, roll, actor, item) {
   if (typeof target !== "number" || !actor) return target;
-  const bonus = throwModifiers(actor, item, roll).bonus + (scoreTerm(roll, actor)?.bonus ?? 0);
+  const bonus =
+    throwModifiers(actor, item, roll).bonus + (scoreTerm(roll, actor)?.bonus ?? 0) + rollMath("throw", subjectOf(actor)).total;
   if (!bonus) return target;
   const type = roll?.rollType || "above";
   if (type === "result") return target;

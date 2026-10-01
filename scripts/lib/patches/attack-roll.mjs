@@ -30,6 +30,9 @@ import { mathIsPrivate, mathSection, showDice } from "../roll-audience.mjs";
  * Fired before the attack roll, with `(actor, ctx)` — the seam for a combat
  * modifier or a replacer/dedup logic. `ctx.terms` (mutable) is the bonus
  * stack, `ctx.throwTarget` the movable target, `ctx.targetAc` the defender's.
+ * The damage roll takes `ctx.damageTerms` (`{value, label}` rows added to it)
+ * and `ctx.damageFactor` (the whole roll multiplied, rounded down); a truthy
+ * `ctx.autoHit` is the label of what makes the attack hit without its throw.
  */
 export const PRE_ATTACK_HOOK = "acksLibPreAttackRoll";
 
@@ -113,6 +116,9 @@ function buildContext(actor, attData, options) {
     // The defender itself, for listeners that need more than its AC (height
     // advantage compares mounts). Null when the roll had no target.
     targetActor: target?.actor ?? null,
+    damageTerms: [],
+    damageFactor: 1,
+    autoHit: null,
     options,
   };
 
@@ -210,19 +216,26 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   const roll = new Roll(attackParts.join(" + "));
   await roll.evaluate();
 
-  const dmg = damageParts(actor, attData, ctx.type);
-  const dmgRoll = new Roll(dmg.map((p) => (p.label ? termPart(p) : String(p.value))).join(" + "));
+  const dmg = [
+    ...damageParts(actor, attData, ctx.type),
+    ...ctx.damageTerms.filter((t) => num(t?.value)).map((t) => ({ value: num(t.value), label: t.label || situationalLabel() })),
+  ];
+  const dmgFormula = dmg.map((p) => (p.label ? termPart(p) : String(p.value))).join(" + ");
+  const factor = num(ctx.damageFactor, 1);
+  const dmgRoll = new Roll(factor > 0 && factor !== 1 ? `floor((${dmgFormula}) * ${factor})` : dmgFormula);
   await dmgRoll.evaluate();
   if (dmgRoll.total < 1) dmgRoll._total = 1;
 
   const die = roll.dice[0]?.total ?? roll.total;
-  const res = resolveAttack({
+  const thrown = resolveAttack({
     die,
     bonus: termTotal(ctx.terms),
     throwTarget: ctx.throwTarget,
     targetAc: ctx.targetAc ?? 0,
     exploding,
   });
+  // An attack that needs no throw hits whatever the die showed.
+  const res = ctx.autoHit ? { ...thrown, isSuccess: true, isFailure: false, isFumble: false, isCritical: false } : thrown;
   // Consequences of the attack having happened (staying-mounted saves and
   // their kin). After resolution, before display: listeners read, never move
   // the result.
@@ -236,7 +249,10 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   const stack = `${die}${ctx.terms.map((t) => ` ${t.value >= 0 ? "+" : "−"} ${Math.abs(t.value)} (${t.label})`).join("")} = ${res.total}`;
   let outcome;
   let word;
-  if (res.isFumble) outcome = word = game.i18n.localize("ACKS-LIB.attack.fumble");
+  if (ctx.autoHit) {
+    outcome = game.i18n.format("ACKS-LIB.attack.autoHit", { reason: ctx.autoHit });
+    word = game.i18n.localize("ACKS-LIB.attack.hit");
+  } else if (res.isFumble) outcome = word = game.i18n.localize("ACKS-LIB.attack.fumble");
   else if (res.isCritical) outcome = word = game.i18n.localize("ACKS-LIB.attack.critical");
   else if (res.isSuccess) {
     outcome = game.i18n.format("ACKS-LIB.attack.hitsAc", { ac: res.acHit });

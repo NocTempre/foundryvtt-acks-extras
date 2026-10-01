@@ -1578,8 +1578,9 @@ t("senseProfile: several senses all detect, at their own ranges", () => {
 });
 
 t("senseProfile: a condition switches shadowy senses off entirely", () => {
-  // RULES §4: not while deafened, in magical silence, or at running speed.
-  for (const status of ["deaf", "silence", "acks-extras.running"]) {
+  // RULES §4: not while deafened or at running speed — and a condition that
+  // carries Deafened with it deafens as surely as Deafened does.
+  for (const status of ["deafened", "slumbering", "acks-extras.running"]) {
     const profile = senseProfile(mockActor(null, ["Shadowy Senses"], [status]));
     assert.equal(profile.sightRange, 0, `${status} should blind the thief`);
     assert.equal(profile.seesInDark, false, `${status} should blind the thief`);
@@ -1591,8 +1592,8 @@ t("senseProfile: a condition switches shadowy senses off entirely", () => {
 });
 
 t("senseProfile: a condition does NOT switch off lightless vision", () => {
-  // Infravision is not hearing: deafness and silence are irrelevant to it.
-  const profile = senseProfile(mockActor({ vision: ["lightless"], lightlessRange: 60 }, [], ["deaf", "silence"]));
+  // Infravision is not hearing: deafness is irrelevant to it.
+  const profile = senseProfile(mockActor({ vision: ["lightless"], lightlessRange: 60 }, [], ["deafened"]));
   assert.equal(profile.sightRange, 60);
   assert.equal(profile.seesInDark, true);
 });
@@ -1631,7 +1632,7 @@ t("senseProfile: an imported thief reads 30', not the monsters' 60'", () => {
 t("senseProfile: and it is still switched off by deafness", () => {
   // The whole point of getting the sense right: lightless vision is not hearing,
   // so reading it as lightless left the thief seeing through a silence spell.
-  const profile = senseProfile(capableActor(["Shadowy Senses"], ["kw:lightlessvision"], ["deaf"]));
+  const profile = senseProfile(capableActor(["Shadowy Senses"], ["kw:lightlessvision"], ["deafened"]));
   assert.equal(profile.sightRange, 0);
   assert.equal(profile.seesInDark, false);
 });

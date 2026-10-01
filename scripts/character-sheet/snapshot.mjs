@@ -12,6 +12,7 @@
  */
 import { MODULE_ID, SHEET_FLAG, SUMMON_FLAG, CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, CLOCK_MARKS } from "./constants.mjs";
 import { netNumericChange } from "../lib/effect-scan.mjs";
+import { rollMath, subjectOf } from "../lib/conditions.mjs";
 import { FLAG_RECORD } from "../henchmen/constants.mjs";
 import { realMembers } from "../formation/formation-model.mjs";
 import { getLoadout } from "../equipment/loadout.mjs";
@@ -154,10 +155,13 @@ const sourceValue = (actor, path) => num(path.split(".").reduce((o, k) => (o == 
  * makes to the all-save modifier, plus the shift made to that save's own
  * target, each replayed from the field's source value the way Foundry
  * applies the changes (the lib's effect-scan), so a subtraction reads
- * negative and an override reads as the difference it makes.
+ * negative and an override reads as the difference it makes. The character's
+ * conditions join the all-save figure: they reach the throw at the roll and
+ * are stored on no field an effect-scan would find.
  */
 export function saveModifiers(actor) {
-  const all = netNumericChange(actor, "system.save.mod", sourceValue(actor, "system.save.mod"));
+  const all =
+    netNumericChange(actor, "system.save.mod", sourceValue(actor, "system.save.mod")) + rollMath("save", subjectOf(actor)).total;
   return Object.fromEntries(
     SAVE_KEYS.map((k) => {
       const key = `system.saves.${saveSystemKey(k)}.value`;

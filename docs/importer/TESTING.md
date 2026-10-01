@@ -1621,6 +1621,10 @@ document is present, which almost always means the engine reads a key
 `expectTables` does not declare — `validate-extra.mjs` in acks-extras gates
 exactly that.
 
+The `conditions` document (RR Appendix B) walks the same first two joints. Its
+third is step 10 of docs/lib/TESTING.md, "Conditions on the palette and on a
+roll".
+
 **Teardown:** none. Importing tables registers world ruledata; re-running is
 idempotent and no documents are created.
 

@@ -21,6 +21,7 @@ import { FILES } from "./reference-lib.mjs";
 /** Which assembler belongs to which document. */
 const BINDERS = {
   survival: () => import("../../scripts/importer/survival-binding.mjs").then((m) => m.assembleSurvivalTables),
+  conditions: () => import("../../scripts/importer/conditions-binding.mjs").then((m) => m.assembleConditionTables),
   foraging: () => import("../../scripts/importer/foraging-binding.mjs").then((m) => m.assembleForagingTables),
   searching: () => import("../../scripts/importer/searching-binding.mjs").then((m) => m.assembleSearchingTables),
   cityTravel: () => import("../../scripts/importer/city-travel-binding.mjs").then((m) => m.assembleCityTravelTables),

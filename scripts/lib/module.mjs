@@ -83,6 +83,8 @@ import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
 import { registerPerceptionModes } from "./perception.mjs";
+import * as conditions from "./conditions.mjs";
+import { installConditionRolls, registerStatusEffects } from "./status-effects.mjs";
 import {
   SETTING_MANAGE_VISION,
   migrateWorldVision,
@@ -118,7 +120,8 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // 19: hp — the group hit-point tool. 22: worldTime — the clock's reading.
-  apiVersion: 22,
+  // 23: conditions — the condition catalogue and its math.
+  apiVersion: 23,
   vocab,
   fields,
   /**
@@ -318,6 +321,13 @@ const localImpl = Object.freeze({
   // every feature here is the same package.
   wrapRollAttack,
   /**
+   * Conditions (conditions.mjs): the catalogue the token palette is built
+   * from, and what a creature's conditions do to an attack (`attackMath`, both
+   * sides), to its own rolls (`rollMath`), its AC and its speed. Read from an
+   * actor through `subjectOf`.
+   */
+  conditions,
+  /**
    * Weapon damage typing (damage-type.mjs): resolves a type LIVE through
    * acks-equipment's classifier — no annotate step, no second copy of the weapon
    * table — plus per-type icons and the equipped-weapon attack option list.
@@ -364,10 +374,13 @@ Hooks.once("init", () => {
   // into a container or a place at all until the row is bound.
   installGoodsDrag();
 
-  // Vision/detection modes and the two status effects the ACKS senses need.
-  // At init, not ready: a token drawn against an unregistered vision mode
-  // silently falls back to basic.
+  // Vision and detection modes for the ACKS senses. At init, not ready: a
+  // token drawn against an unregistered vision mode silently falls back to
+  // basic.
   registerPerceptionModes();
+
+  // The token palette: the conditions, in place of Foundry's generic list.
+  registerStatusEffects();
 
   // Warm the Follower Card template so the hirelings-tab grid (rendered by
   // acks-henchmen, cross-module) has no fetch miss on first paint — and the
@@ -761,6 +774,10 @@ Hooks.once("ready", () => {
   const useAttackModel = game.settings.get(MODULE_ID, "attackRollPatch");
   installAttackRollPatch(useAttackModel);
   if (useAttackModel) installAttackDisplayPatch();
+
+  // Conditions on every roll they reach. After the attack patch: with the
+  // remodeled roll off, this registers into the chain that install carries.
+  installConditionRolls({ remodeledAttack: useAttackModel });
 
   // The consolidated surprise card; see docs/lib/DECISIONS.md, "2026-08-11 —
   // Surprise results consolidate onto one card".

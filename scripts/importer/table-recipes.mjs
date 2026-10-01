@@ -892,6 +892,173 @@ export const TABLE_RECIPES = {
     },
   },
 
+  // RR Appendix B, Conditions: every modifier a condition applies is printed
+  // inside a bulleted line of that condition's own entry. One window per
+  // FIGURE, anchored on the few words that lead into it and kept short enough
+  // that it cannot reach the next entry; conditions-binding.mjs reads the
+  // sign and the figure out of each window. A table is one column of one page
+  // (the appendix runs in two), named for the first entry it holds. Keys are
+  // `<condition><Slot>` — the slot names are `CONDITION_SLOTS` in
+  // lib/conditions.mjs — and `blessed` serves `inspired`, which shares its
+  // heading.
+  conditions: {
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 507-515" },
+    tables: {
+      berserkProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 507,
+        locate: "Berserk",
+        column: { xMin: 300, xMax: 592 },
+        values: [
+          { key: "berserkAttack", find: "berserk creature gains a", take: "window", span: 40 },
+          { key: "berserkAc", find: "berserk creature suffers a", take: "window", span: 30 },
+        ],
+      },
+      blessedProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 508,
+        locate: "Blessed",
+        column: { xMin: 40, xMax: 300 },
+        values: [
+          { key: "blessedAll", find: "inspired creature gains a", take: "window", span: 40 },
+          { key: "blindedSurprise", find: "blinded creature suffers a", take: "window", span: 40 },
+          // The second "suffers a" of the entry: the proficiency penalty
+          // follows the surprise penalty and has no lead-in of its own.
+          { key: "blindedProficiency", find: "blinded creature suffers a", occurrence: 2, take: "window", span: 40 },
+          { key: "blindedAttack", find: "melee attacks at a", take: "window", span: 30 },
+          { key: "blindedSpeedFactor", find: "speeds reduced to", take: "window", span: 30 },
+          { key: "chargingAttack", find: "charging creature gains a", take: "window", span: 40 },
+          { key: "clamberingAttack", find: "clambering creature gains a", take: "window", span: 40 },
+          { key: "clamberingAgainst", find: "clambering combatant with a", take: "window", span: 40 },
+        ],
+      },
+      deafenedProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 508,
+        locate: "Deafened",
+        column: { xMin: 300, xMax: 592 },
+        values: [
+          { key: "deafenedSurprise", find: "deafened creature suffers a", take: "window", span: 40 },
+          { key: "deafenedProficiency", find: "deafened creature has a", take: "window", span: 50 },
+        ],
+      },
+      disorderedProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 509,
+        locate: "Disordered",
+        column: { xMin: 40, xMax: 300 },
+        // The lead-in stops short of the verb so the window keeps it: an AC
+        // that "is reduced by" carries its sign in that word, not in a mark.
+        values: [
+          { key: "disorderedAc", find: "ac is", take: "window", span: 30 },
+        ],
+      },
+      enlargedProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 509,
+        locate: "Enlarged",
+        column: { xMin: 300, xMax: 592 },
+        values: [
+          { key: "enlargedAttack", find: "enlarged creature gains", take: "window", span: 30 },
+        ],
+      },
+      falteringProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 510,
+        locate: "Faltering",
+        column: { xMin: 300, xMax: 592 },
+        values: [
+          { key: "falteringAll", find: "faltering creature suffers a", take: "window", span: 40 },
+          { key: "fatiguedAll", find: "fatigued creature suffers a", take: "window", span: 40 },
+          { key: "flankedAgainst", find: "against flanked creatures", take: "window", span: 30 },
+        ],
+      },
+      hiddenProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 511,
+        locate: "Hidden",
+        column: { xMin: 40, xMax: 300 },
+        values: [
+          { key: "hiddenAgainst", find: "hidden creature in melee at a", take: "window", span: 30 },
+        ],
+      },
+      hungryProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 511,
+        locate: "Hungry",
+        column: { xMin: 300, xMax: 592 },
+        values: [
+          { key: "hungryAll", find: "hungry creature suffers a", take: "window", span: 40 },
+          { key: "incapacitatedSpeedFactor", find: "creature can move at", take: "window", span: 30 },
+          { key: "infuriatedAttack", find: "infuriated creature gains a", take: "window", span: 40 },
+          { key: "infuriatedAc", find: "but suffers a", take: "window", span: 40 },
+        ],
+      },
+      proneProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 512,
+        locate: "Prone",
+        column: { xMin: 40, xMax: 300 },
+        values: [
+          { key: "proneAttack", find: "but suffers a", take: "window", span: 40 },
+          { key: "queasyAll", find: "queasy creature suffers a", take: "window", span: 30 },
+        ],
+      },
+      restrainedProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 513,
+        locate: "Restrained",
+        column: { xMin: 40, xMax: 300 },
+        values: [
+          { key: "restrainedPerCause", find: "suffers an additional", take: "window", span: 40 },
+          { key: "shakenAll", find: "shaken creature suffers a", take: "window", span: 40 },
+        ],
+      },
+      shrunkProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 513,
+        locate: "Shrunk",
+        column: { xMin: 300, xMax: 592 },
+        values: [
+          { key: "shrunkAttack", find: "such that it suffers", take: "window", span: 40 },
+          { key: "shrunkDamageFactor", find: "melee attack throws, deals", take: "window", span: 40 },
+        ],
+      },
+      subjacentProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 514,
+        locate: "Subjacent",
+        column: { xMin: 40, xMax: 300 },
+        values: [
+          { key: "subjacentAgainst", find: "subjacent creatures gain a", take: "window", span: 30 },
+        ],
+      },
+      vulnerableProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 514,
+        locate: "Vulnerable",
+        column: { xMin: 300, xMax: 592 },
+        values: [
+          { key: "vulnerableAgainst", find: "against vulnerable creatures gain a", take: "window", span: 30 },
+          { key: "webbedPerCause", find: "suffers an additional", take: "window", span: 40 },
+        ],
+      },
+    },
+  },
+
   // Living off the country. All prose again: the forage targets, what Survival
   // is worth, the hunting target and its territory modifiers, the dog pack's
   // help and cap, and what a success yields. foraging-binding.mjs parses the

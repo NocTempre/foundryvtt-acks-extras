@@ -101,6 +101,37 @@ window had just deleted. The fix is electing one CLIENT. Core gives two windows
 of one user no way to agree, so it needs a handshake of the module's own over
 its socket, and a live two-window run proving the loser stays quiet.
 
+## What the conditions do not do yet
+
+The catalogue lists every condition of RR 507-515, and `status-effects.mjs`
+applies the rows a roll can see. The rest of each entry is not automated:
+
+- **Rows that wait on a circumstance.** A save against fear, a throw that
+  needs sight or hearing, and a save against the source of a condition are
+  told to the roller with their figure and not applied. The roll dialog could
+  offer each as a tick-box.
+- **Damage over time and ability drain.** Burning and Vexed deal nothing on
+  their own; Dehydrated, Starving and Hypothermic are driven by `survival.mjs`
+  for a marching order and by nothing for a token marked by hand.
+- **Size.** Enlarged and Shrunk do not change a creature's size category, its
+  extra damage dice, its carrying capacity or its Armor Class. Shrunk's
+  halved damage applies to every attack, not only physical ones.
+- **Concentration.** Nothing ends a concentrating creature's spell when it is
+  struck or moves.
+- **Escapes and spell failure.** No throw is offered to slip a hold, and a
+  condition that forbids casting only warns on an attack.
+- **Monster speed.** The speed share reaches a character's derived speeds
+  through `_calculateMovement`; a monster's speed is a stored field and is
+  left alone.
+- **Core's cards.** A save, an adventuring throw, a morale roll and a surprise
+  roll carry the figure in the target or the modifier and name it only in a
+  notification.
+- **Implied statuses are not on the token.** A slumbering creature is blinded
+  for the math, and for the senses' deafness check, but Foundry's own vision
+  is blinded only by the Blinded status itself.
+- **The Armor Class readout.** `acMath` exists for a sheet to show a
+  conditioned AC; no sheet calls it.
+
 ## A window title cuts what rises above a capital
 
 On an `acks-ui` root the title is one line of `line-height: 1`

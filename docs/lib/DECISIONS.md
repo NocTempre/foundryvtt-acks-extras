@@ -2563,6 +2563,13 @@ system's sheets and this module's alike. The world setting `moralePage`
 the system's skip-dialog key rolls the system's own on a single click, as it
 does on every other roll this module asks about.
 
+The wrapper is the method's only one, so the conditions model reaches a morale
+roll through it rather than beside it: the system's roll runs inside
+`withMoraleConditions` (`status-effects.mjs`), and the provider's page is
+handed the bare score and lists the conditions itself. libWrapper refuses a
+second registration by one package against one method, and the throw lands in
+the `ready` hook, where it takes every registration after it down with it.
+
 **Rejected.**
 - *Wrapping from the influence feature.* A wrapped core method has one owner,
   and a second feature with something to say about a morale roll would have
@@ -2578,6 +2585,70 @@ does on every other roll this module asks about.
 returns, not a Roll, while the page is on. The system's own callers discard
 the return; a caller that reads it passes the skip key's event or turns the
 setting off.
+
+### The token palette is the conditions, and a roll reads them when it is made (2026-10-01)
+
+**Ruled.** `CONFIG.statusEffects` is replaced at `init` with the conditions of
+RR 507-515 (`conditions.mjs`), plus `dead`, `invisible` and Running, which the
+tracker, core's detection modes and the senses read by id. Status ids are the
+plain condition keys, the convention the system's own `surprised` and
+`slumbering` already follow, and Foundry's blindness is pointed at `blinded`.
+A condition's modifiers are stored nowhere: each roll reads the roller's
+statuses, and an attack the target's, closes them under `implies`, and takes
+the figures from the registered `conditions` document. `status-effects.mjs`
+puts them on the roll at one seam per roll; docs/lib/MODEL.md, "Conditions",
+lists the seams.
+
+**Rejected.**
+- *Active Effect changes on each status.* Two effects naming one condition,
+  or one condition reached twice by implication, would count twice, and RR 507
+  says a creature has a condition or does not. A status effect with changes
+  also applies only when created from the palette, so a condition a macro or
+  an imported spell applied would carry no math. Figures imported after the
+  effect was created would never reach it.
+- *Changing the fields at prepare time.* Core's sheets render
+  `saves.*.value`, a monster's `aac.value`, `movement.base` and
+  `details.morale` in editable inputs. A derived change shows in the input and
+  is submitted back as the creature's own on the next edit.
+- *Moving the target's Armor Class.* The same reason, and a moved AC names
+  nothing on the attack card. The target's rows are terms on the attacker's
+  throw, sign reversed.
+- *Blocking a roll a condition rules out.* A condition is a toggle someone set
+  by hand; a wrong one would lock a player out of their turn. The roll warns
+  and is made.
+- *A second wrapper on `rollMorale`.* That method has an owner ("One owner for
+  the morale roll", above). The conditions reach it through
+  `withMoraleConditions`, which the owner calls.
+
+**Open to the owner's ruling.**
+- *Membership ships as code.* The catalogue names all the conditions and what
+  each implies, forbids and reaches; only the sizes are imported. The strongest
+  argument against, rated MEDIUM in docs/magic/wip/20260924-scoping.md for the
+  same question about spell vocabularies: the key names are common words, but
+  the membership of the list is what the page supplies. It is MEDIUM and not
+  HIGH because each key here backs an engine branch (a seam, a closure, a
+  forbidden act), which is the test that ruling used. If it is ruled content,
+  the catalogue becomes a registered document and the palette is empty until
+  import.
+- *Several slowing conditions do not compound.* `speedMath` takes the smallest
+  share. The page states each reduction alone and does not say how two
+  combine; this reading never slows a creature below the worst single
+  condition.
+- *A source-bound row with no recorded source applies to everyone.* A
+  condition toggled by hand names nobody, and a row that then never applied
+  would be a condition with no effect.
+- *A legacy `silence` status becomes Deafened.* The senses read that id as a
+  creature that cannot hear. Foundry's own label for it reads as a creature
+  that cannot speak, which would be Mute. The repair tool shows the rename
+  before it is made.
+
+**What it cost.** Core's own cards (saves, adventuring throws, morale,
+surprise) cannot name a term, so what was applied is told in a notification
+to the roller rather than on the card. The scaled damage roll and the waived
+throw exist only on the remodeled attack roll. Foundry's generic statuses that
+are not conditions (poison, bleeding, stun and the rest) leave the palette; an
+effect already carrying one keeps it and is listed by the repair tool only
+when the id maps to a condition.
 
 ### A window title takes no heading margin (2026-10-01)
 

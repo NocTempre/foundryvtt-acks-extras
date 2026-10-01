@@ -49,6 +49,7 @@ import { applyEncountersImport, ENCOUNTERS_DOC_ID } from "./encounters-binding.m
 import { applyVoyagesImport, VOYAGES_DOC_ID } from "./voyages-binding.mjs";
 import { applyLanguageImport, LANGUAGES_DOC_ID } from "./language-binding.mjs";
 import { applySurvivalImport, SURVIVAL_DOC_ID } from "./survival-binding.mjs";
+import { applyConditionsImport, CONDITIONS_DOC_ID } from "./conditions-binding.mjs";
 import { applyForagingImport, FORAGING_DOC_ID } from "./foraging-binding.mjs";
 import { applySearchingImport, SEARCHING_DOC_ID } from "./searching-binding.mjs";
 import { applyCityTravelImport, CITY_TRAVEL_DOC_ID } from "./city-travel-binding.mjs";
@@ -67,6 +68,7 @@ import { progressBar } from "./progress.mjs";
  */
 const SIMPLE_BINDINGS = Object.freeze([
   { id: SURVIVAL_DOC_ID, apply: applySurvivalImport },
+  { id: CONDITIONS_DOC_ID, apply: applyConditionsImport },
   { id: FORAGING_DOC_ID, apply: applyForagingImport },
   { id: SEARCHING_DOC_ID, apply: applySearchingImport },
   { id: CITY_TRAVEL_DOC_ID, apply: applyCityTravelImport },

@@ -20,6 +20,7 @@
 // file Node-importable by the offline tooling that depends on that.
 import { getDoc, hasDoc } from "./tables.mjs";
 import { cookbookId } from "./library.mjs";
+import { CONDITIONS } from "./conditions.mjs";
 
 // The magic families — spell types, stat-line shapes, targeting, saves,
 // frequencies — live in their own Foundry-free file and are re-exported here
@@ -697,19 +698,16 @@ export const EFFECT_KEYS = {
   surprise: { label: "Surprise" },
 };
 
-/** Conditions an ability can grant or make one immune to. */
+/**
+ * Conditions an ability can grant or make one immune to: the condition
+ * catalogue, and three keys stored abilities already carry that name an
+ * effect and no condition of their own.
+ */
 export const CONDITION_KEYS = {
-  cowering: { label: "Cowering" },
-  faltering: { label: "Faltering" },
-  frightened: { label: "Frightened" },
+  ...Object.fromEntries(Object.entries(CONDITIONS).map(([key, c]) => [key, { label: c.label }])),
   fear: { label: "Fear" },
   sleep: { label: "Sleep" },
-  winded: { label: "Winded" },
-  fatigued: { label: "Fatigued" },
   paralysis: { label: "Paralysis" },
-  mesmerized: { label: "Mesmerized" },
-  blinded: { label: "Blinded" },
-  surprised: { label: "Surprised" },
 };
 
 /** Class progressions a `progressionAs` effect can borrow (thief skills etc.). */

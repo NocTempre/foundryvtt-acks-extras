@@ -3,17 +3,21 @@
 /**
  * The ACKS senses as Foundry perception modes: `senses.mjs` decides WHAT a
  * creature perceives, this file registers what each sense IS to Foundry
- * (vision modes, detection modes, and the two status effects core lacks). See
- * docs/lib/MODEL.md, "Perception: senses, light, and the token".
+ * (vision modes and detection modes), reading the statuses that switch a
+ * sense off. See docs/lib/MODEL.md, "Perception: senses, light, and the token".
  */
 
 import { MODULE_ID } from "./constants.mjs";
 import { hasCapability } from "./capabilities.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
+import { conditionSet } from "./conditions.mjs";
 
-/** Status effect ids this module adds to `CONFIG.statusEffects`. */
-export const STATUS_HIDING = `${MODULE_ID}.hiding`;
+/** The Hidden condition's status id; lightless vision reads it. */
+export const STATUS_HIDDEN = "hidden";
+/** A creature moving at its running speed: a status, and no condition. */
 export const STATUS_RUNNING = `${MODULE_ID}.running`;
+/** The Deafened condition's status id; the hearing senses read it. */
+const STATUS_DEAFENED = "deafened";
 
 /** Vision-mode ids registered in `CONFIG.Canvas.visionModes`. */
 export const VISION_MODES = Object.freeze({
@@ -47,6 +51,10 @@ function hidesFromLightless(actor) {
 
 /** Does the perceiving token currently carry this status? */
 const srcHas = (visionSource, status) => !!visionSource?.object?.document?.hasStatusEffect?.(status);
+
+/** Is the perceiving token deafened, by that condition or by one that carries it? */
+const srcDeaf = (visionSource) =>
+  srcHas(visionSource, STATUS_DEAFENED) || conditionSet(visionSource?.object?.actor?.statuses).has(STATUS_DEAFENED);
 
 /* -------------------------------------------- */
 /*  Vision modes — how each sense looks          */
@@ -120,29 +128,29 @@ function buildDetectionModes() {
       // already handled by core's SIGHT-mode base.
       if (target instanceof Token) {
         const doc = target.document;
-        if (doc.hasStatusEffect(STATUS_HIDING) && hidesFromLightless(target.actor)) return false;
+        if (doc.hasStatusEffect(STATUS_HIDDEN) && hidesFromLightless(target.actor)) return false;
       }
       return true;
     }
   }
 
   /**
-   * Shadowy senses: hearing, scent and touch. Fails while deafened, silenced,
-   * running, or in magical darkness (inherited from core's wall-respecting
+   * Shadowy senses: hearing, scent and touch. Fails while deafened, running,
+   * or in magical darkness (inherited from core's wall-respecting
    * darkness bail); survives blindness and invisibility.
    */
   class ShadowySensesDetection extends DetectionMode {
     /** @override */
     _canDetect(visionSource, target, level) {
       if (!super._canDetect(visionSource, target, level)) return false;
-      if (srcHas(visionSource, "deaf") || srcHas(visionSource, "silence")) return false;
+      if (srcDeaf(visionSource)) return false;
       if (srcHas(visionSource, STATUS_RUNNING)) return false;
       return true;
     }
   }
 
   /**
-   * Echolocation: a sound pulse. Stopped by walls, silence or deafness; not
+   * Echolocation: a sound pulse. Stopped by walls or deafness; not
    * by darkness or invisibility — overrides core's darkness bail, which core
    * keys to `walls` rather than to type.
    */
@@ -151,7 +159,7 @@ function buildDetectionModes() {
     _canDetect(visionSource, target, level) {
       const src = visionSource?.object?.document;
       if (src?.hasStatusEffect(CONFIG.specialStatusEffects.BURROW)) return false;
-      if (srcHas(visionSource, "deaf") || srcHas(visionSource, "silence")) return false;
+      if (srcDeaf(visionSource)) return false;
       if (target instanceof Token && target.document.hasStatusEffect(CONFIG.specialStatusEffects.BURROW)) {
         return false;
       }
@@ -185,7 +193,7 @@ function buildDetectionModes() {
       type: TYPES.SIGHT,
       walls: true,
     }),
-    // Hearing-based; deafness and silence switch it off.
+    // Hearing-based; deafness switches it off.
     [DETECTION_MODES.SHADOWY]: new ShadowySensesDetection({
       id: DETECTION_MODES.SHADOWY,
       label: "ACKS-LIB.detection.shadowy",
@@ -218,11 +226,4 @@ function buildDetectionModes() {
 export function registerPerceptionModes() {
   Object.assign(CONFIG.Canvas.visionModes, buildVisionModes());
   Object.assign(CONFIG.Canvas.detectionModes, buildDetectionModes());
-
-  // The two conditions core does not ship. Toggled from the token HUD like any
-  // other status; nothing infers them.
-  CONFIG.statusEffects.push(
-    { id: STATUS_HIDING, name: "ACKS-LIB.status.hiding", img: "icons/svg/mystery-man.svg" },
-    { id: STATUS_RUNNING, name: "ACKS-LIB.status.running", img: "icons/svg/wingfoot.svg" },
-  );
 }

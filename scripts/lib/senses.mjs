@@ -7,7 +7,8 @@
  */
 
 import { hasCapability } from "./capabilities.mjs";
-import { DETECTION_MODES, VISION_MODES } from "./perception.mjs";
+import { DETECTION_MODES, STATUS_RUNNING, VISION_MODES } from "./perception.mjs";
+import { conditionSet } from "./conditions.mjs";
 
 /** Re-exported so callers name a mode from the file that produced the profile. */
 export { VISION_MODES, DETECTION_MODES };
@@ -130,12 +131,12 @@ export function canSeeInDark(actor) {
 /* -------------------------------------------- */
 
 /**
- * The senses a creature can be suppressed out of, by condition (RULES §4:
- * shadowy senses fail running, deafened, or in magical silence). Magical
- * darkness is enforced in `perception.mjs` instead — a property of the
- * ground, not the creature.
+ * The condition that suppresses the shadowy senses (RULES §4: they fail
+ * running or deafened; a creature in magical silence is marked Deafened).
+ * Magical darkness is enforced in `perception.mjs` instead — a property of
+ * the ground, not the creature.
  */
-const SHADOWY_SUPPRESSORS = ["deaf", "silence", `${MONSTERS_ID}.running`];
+const SHADOWY_SUPPRESSOR = "deafened";
 
 /** Status ids currently on an actor, as a Set (empty for a plain object). */
 function statusesOf(actor) {
@@ -191,7 +192,7 @@ function sensesOf(actor) {
 /** Is this sense switched off by a condition the creature is currently under? */
 function suppressed(key, statuses) {
   if (key !== "shadowy") return false;
-  return SHADOWY_SUPPRESSORS.some((s) => statuses.has(s));
+  return statuses.has(STATUS_RUNNING) || conditionSet(statuses).has(SHADOWY_SUPPRESSOR);
 }
 
 /** Does this creature's stat block record Night Vision? */

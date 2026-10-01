@@ -534,9 +534,9 @@ defeats only *wall-respecting* modes with magical darkness. So:
 
 - **Echolocation** (SOUND, walls) finds an invisible creature and works inside a
   *darkness* spell — its `_canDetect` deliberately skips core's darkness bail,
-  which is keyed to walls rather than to type — but deafness and silence stop it.
+  which is keyed to walls rather than to type — but deafness stops it.
 - **Shadowy senses** (SOUND, walls) survive blindness and invisibility, and stop
-  dead while deafened, silenced, running, or in magical darkness.
+  dead while deafened, running, or in magical darkness.
 - **Lightless vision** (SIGHT, walls) is beaten by a character *proficient in
   Hiding* who is hiding (RULES §4) — a check impossible through core's generic
   `basicSight`.
@@ -558,11 +558,14 @@ with the canvas — a deafened thief takes the blinded ⅓-speed penalty. Condit
 that depend on the *target*, or on where the perceiver is standing, cannot be
 precomputed and live in `_canDetect` instead.
 
-Core ships `blind`, `deaf`, `silence` and `invisible`. It has no notion of
-running or of hiding, so this module registers **Hiding** and **Running** as
-status effects. Both are deliberately toggles: whether a character is running
-flat out this round, or has gone to ground, is a declaration, not something to
-infer from a token's position.
+The statuses the senses read are the condition palette's ("Conditions",
+below): **Blinded**, which Foundry's own blindness is pointed at, **Deafened**
+— by that condition or by one that carries it, so a slumbering creature hears
+nothing — and **Hidden**. A creature in magical silence is marked Deafened;
+the palette has no status of its own for it. **Running** is the one palette
+entry that is a declaration and no condition. All are toggles: whether a
+character is running flat out this round, or has gone to ground, is something
+the table says, not something to infer from a token's position.
 
 **Light ownership is exclusive.** An actor in a formation takes its lights from
 that formation's record (which tracks fuel, shutters and burn-down); only an
@@ -1106,6 +1109,86 @@ covering fewer days without anyone drinking faster.
 An unimported subsystem starves nobody: with no thresholds the ladders do not
 advance, though the clocks still run, so importing later starts from the truth
 rather than from zero.
+
+## Conditions
+
+The token palette is the conditions of RR 507-515 and nothing else
+([conditions.mjs](../../scripts/lib/conditions.mjs) is the catalogue and the
+math, [status-effects.mjs](../../scripts/lib/status-effects.mjs) the Foundry
+half). Foundry's generic list is replaced at `init`. Three entries beside the
+catalogue stay because something reads their id: `dead` (the tracker's
+defeated marker), `invisible` (core's detection modes) and Running (the
+senses).
+
+**The catalogue is structure; every size is imported.** An entry says what a
+condition carries with it (`implies`), what it takes away (`forbids`), what it
+makes the creature immune to (`shuts`), when the tracker lifts it (`ends`),
+and which rolls it reaches (`mods`). A `mods` row names a roll and a SLOT; the
+figure in that slot arrives in the registered `conditions` document's
+`modifiers` table, which the importer's `conditions-binding.mjs` assembles
+from the Judge's book. `CONDITION_SLOTS` is derived from the rows and is the
+contract between the two. A slot nothing registered contributes nothing and is
+reported once per session, so an unimported world toggles conditions and
+applies no figure.
+
+**Nothing is stored on the effect.** A roll reads the creature's statuses at
+the moment it is made and closes them under `implies` (`conditionSet`). Three
+things follow, and each was a reason for the shape:
+
+- A creature has a condition once, however many effects name it and whether it
+  arrived directly or by implication. A prone, webbed and surprised target is
+  vulnerable once.
+- The math applies whoever created the effect: the palette, a macro, another
+  module, an imported spell.
+- Figures imported after a condition was applied reach it.
+
+The exceptions to "once" are the rows marked `per`, where the rule itself
+counts causes. The count is the number of enabled effects carrying the status,
+each weighted by `flags["acks-extras"].conditionStacks` when it has one.
+
+**Active and target.** `attackMath` reads both sides of one attack throw. The
+attacker's own rows become terms on its throw. The target's `against` rows
+become terms on the same throw, and so do the target's own Armor Class rows,
+sign reversed — a throw against a lower AC and a throw with that much added
+are the same throw, and a term carries the condition's name where a moved AC
+would not. A condition the attacker carries can also `expose` its target, and
+a row marked `when: "source"` reaches only the opponent that imposed the
+condition (matched on the effect's `origin`); an effect that names no origin
+reaches everyone.
+
+**Where each roll takes it.**
+
+| Roll | Seam | How the figure rides |
+|---|---|---|
+| Attack, remodeled roll | `PRE_ATTACK_HOOK` | Labelled terms on `ctx.terms`, target-side ones marked; damage rows on `ctx.damageTerms`, a scaled roll on `ctx.damageFactor`, a waived throw on `ctx.autoHit` |
+| Attack, core's roll | `wrapRollAttack` | `thac0.bba` and `damage.mod.<type>` shifted across core's read; told in a notification, since core's card names no term |
+| Saving throw | wrap of `rollSave` | `saves.<save>.value` shifted |
+| Adventuring throw | wrap of `rollAdventuring` | `adventuring.<key>` shifted |
+| Proficiency throw | `withModifiers` in abilities' `ability-rolls.mjs` | Folded into the target every surface shows |
+| Morale | `withMoraleConditions`, called by the morale roll's own wrapper (`patches/morale-roll.mjs`) | `details.morale` shifted |
+| Surprise | `withSurpriseConditions`, from the surprise-card patch | `surprise.avoidsurprise` shifted for the matrix's whole roll |
+| Speed | wrap of `_calculateMovement` | Each derived speed scaled; several reductions do not compound, the slowest governs |
+
+A shift is held on the in-memory field only while core reads it and is put
+back in a `finally`; no document is written. Core's sheets render those same
+fields in editable inputs, so a value changed at prepare time or by an Active
+Effect would be submitted back as the creature's own.
+
+**What a roll cannot see is said, not guessed.** A row waiting on a
+circumstance the roll does not state (a save against fear, a task that needs
+sight) is returned as `pending` and told to the roller with its figure. An
+attack a condition rules out, a target a kind of attack cannot be made
+against, and a creature that makes no morale roll are warned about; the roll
+is still made.
+
+**The tracker lifts what ends.** On `combatTurnChange` the combatant whose
+turn begins loses its `ends: "turn"` conditions, and `deleteCombat` lifts
+`ends: "combat"` from everyone in it. The primary GM's client does it.
+`surprised` is the system's to lift.
+
+**Earlier ids.** An effect carrying one of Foundry's generic status ids, or
+this module's earlier Hiding id, is found by the repair tool's `lib.statusIds`
+check and renamed to the condition it stood for.
 
 ## The repair tool
 

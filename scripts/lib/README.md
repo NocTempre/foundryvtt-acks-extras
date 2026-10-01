@@ -23,7 +23,7 @@ sibling modules) — never the import path for this module's own features.
 | `ruledata.mjs` | Foundry-side loader: fetches `ruledata/<id>.json` and registers it into the tables registry. |
 | `repair-logic.mjs` | The repair registry and its runner: `registerRepairCheck`, scan → fix → rescan (`fixCheck`, where the rescan decides), `fixEach`, `danglingRefCheck`. Foundry-free. |
 | `repair.mjs` | The repair tool's Foundry half: `worldActors` (world actors, then unlinked tokens'), the GM-only `scanRepairs` / `fixRepairs`, and the report whispered to the GMs. Every feature registers its checks through it (docs/lib/MODEL.md, "The repair tool"). |
-| `repair-checks.mjs` | Lib's own checks: embedded bundles, dead attachments, legacy mount pairs, and the report-only stranded coin and merge residue. |
+| `repair-checks.mjs` | Lib's own checks: embedded bundles, dead attachments, legacy mount pairs, and the report-only stranded coin and merge residue. (Status ids from before the conditions palette are `status-effects.mjs`'s check.) |
 | `hp-logic.mjs` | Hit-point arithmetic and reads: `planHpChange` (what core's `applyDamage` would store, plus a set and a stop at 0), `hpEligibility` (whose hit points the tool leaves out, and why), and `tokenHitPoints` / `tokenHasStatus` — the ONE read of an unlinked token's own hit points and statuses, on a live token or in token data kept off the canvas. Foundry-free. |
 | `hp.mjs` | The hit-point tool's Foundry half: `resolveTargets` (a party token becomes its members, a stack its bodies on the map, a linked token its actor), `adjustHp` / `restoreHp`, the report card, and the GM-only `adjustTargets` for a macro (docs/lib/MODEL.md, "The hit-point tool"). |
 | `core-windows.mjs` | `openCoreWindow` — the ONE way this module opens one of the system's own character windows (Tweaks, Mortal Wounds, Tampering with Mortality, the Modifiers summary, the Scores Generator) from a window that is not the system's sheet, with a warning when the system no longer has it. |
@@ -63,6 +63,8 @@ sibling modules) — never the import path for this module's own features.
 | `wall-layers.mjs` | A LAYER over a wall — the module's way of meaning something by a line the Judge drew (a tripwire, a street). The dual flag read, the merge that can empty a field, the all-NONE non-blocking shape, core's ONE wall-drawing preset slot, where a layer's row goes on the wall sheet (whose application root IS its form), and a Region from the loop a selection encloses. What a layer MEANS belongs to the feature owning its key. |
 | `senses.mjs` | What a creature perceives; `canSeeInDark` + `senseProfile`. |
 | `perception.mjs` | Those senses as Foundry vision/detection modes. |
+| `conditions.mjs` | The conditions of RR 507-515: the catalogue (what each implies, forbids and reaches) and the math, both sides of an attack (`attackMath`) and a creature's own rolls (`rollMath`, `acMath`, `speedMath`). Every size is imported. Foundry-free. |
+| `status-effects.mjs` | The token palette built from that catalogue, and the seams that put a condition's figures on each roll: `registerStatusEffects`, `installConditionRolls`, `withMoraleConditions`, `withSurpriseConditions`. |
 | `light.mjs` | The RR light table + "how brightly does this actor's token burn?". |
 | `token-sync.mjs` | The ONLY writer of senses/light onto tokens. |
 | `attack-logic.mjs` | Pure attack model: throw as a moving target, bonuses as an auditable term stack. |

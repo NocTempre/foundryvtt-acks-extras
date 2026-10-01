@@ -23,6 +23,7 @@
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import { makeLoc } from "../util.mjs";
 import { renderRollCard } from "../roll-card.mjs";
+import { withSurpriseConditions } from "../status-effects.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 
@@ -196,7 +197,10 @@ function isSurpriseMatrix(app) {
 }
 
 /**
- * Swap one instance's `rollSurprise` for the consolidating wrapper.
+ * Swap one instance's `rollSurprise` for the consolidating wrapper. Core's
+ * roll runs inside `withSurpriseConditions` whether or not the card is on:
+ * the wrapper is the only handle on that roll, so the combatants' conditions
+ * reach it from here.
  *
  * The setting is read at CLICK time rather than at install, so turning the card
  * off takes effect on the next encounter with no reload. The wrapper is marked
@@ -207,7 +211,10 @@ function wrapRollAction(app) {
   const actions = app?.options?.actions;
   if (actions.rollSurprise[MODULE_ID]) return;
 
-  const original = actions.rollSurprise;
+  const core = actions.rollSurprise;
+  const original = function (event, target) {
+    return withSurpriseConditions(this.options?.pools, () => core.call(this, event, target));
+  };
   const wrapper = async function (event, target) {
     if (!game.settings.get(MODULE_ID, SETTING_SURPRISE_CARD)) return original.call(this, event, target);
     // No readable template means no readable total: leave core's messages be

@@ -63,30 +63,21 @@ export const AC_MODES = Object.freeze(["shield", "armour", "none"]);
 export const ADVENTURING_KEYS = Object.freeze(["dungeonbashing", "climb", "listening", "searching", "trapbreaking"]);
 
 /**
- * Which save a condition rides on, by status id. The book names the save only
- * for escapes (Paralysis) and enervation (Death); the rest take the save of
- * what imposed them, which is what the mapping states for the statuses Foundry
- * and the system ship. A status absent here takes its source's own `save`.
+ * Which save a condition rides on, by status id (the lib's condition
+ * catalogue is the id list). The book names the save only for escapes
+ * (Paralysis) and enervation (Death); the rest take the save of what imposed
+ * them. A status absent here takes its source's own `save`.
  */
 export const CONDITION_SAVES = Object.freeze({
-  paralysis: "paralysis",
-  restrain: "paralysis",
+  paralyzed: "paralysis",
+  restrained: "paralysis",
   petrified: "paralysis",
   webbed: "paralysis",
-  poison: "death",
-  disease: "death",
-  bleeding: "death",
-  degen: "death",
   enervated: "death",
   burning: "blast",
-  frozen: "blast",
-  shock: "blast",
-  corrode: "blast",
-  sleep: "spell",
   slumbering: "spell",
-  fear: "spell",
-  curse: "spell",
-  charmed: "spell",
+  frightened: "spell",
+  bewitched: "spell",
 });
 
 /**
@@ -95,10 +86,10 @@ export const CONDITION_SAVES = Object.freeze({
  */
 export const RAIL_CONDITIONS = Object.freeze({
   prone: "move",
-  stun: "move",
+  stuck: "move",
   unconscious: "hp",
   dead: "hp",
-  blind: "light",
+  blinded: "light",
 });
 
 /** Light-cell glyphs by what the character sees by. */

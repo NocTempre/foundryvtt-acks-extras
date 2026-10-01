@@ -88,7 +88,7 @@ report the same symptom.
 6. Tables: `tables.registerTable({id, rows}, {source})` a ladder — the
    document must carry its own `id` or registration throws — read it with
    `bracketRow` inside and outside its bands, then
-   `unregisterTable(id, source)`.
+   `unregisterTable(id)`.
    *Observable:* in-band rows resolve, out-of-band returns null, and the
    deregistered table is gone from `hasDoc`. `citeOf` on a re-read document
    answers its stored page, and null for an absent table (the browser rows are
@@ -1067,6 +1067,177 @@ named with an invented phrase of about 45 characters, and a `monster` and an
 
 **Teardown.** Close the windows, the constructed system sheet included, and
 `api.sweepTracked()`.
+
+## Conditions on the palette and on a roll
+
+Covers `conditions.mjs`, `status-effects.mjs`, the attack roll's damage terms,
+damage factor and waived throw (`patches/attack-roll.mjs`), the surprise shim
+(`patches/surprise-card.mjs`), the `lib.statusIds` repair check, and the
+importer's `conditions` document. The morale page's condition rows are
+influence's own recipe.
+
+**Drive notes:**
+- **Price the conditions in your own client, not in the world.**
+  `acksExtras.lib.tables.registerTable({id: "conditions", source: "invented",
+  tables: {modifiers: {…}}}, {priority: PRIORITY.OVERRIDE + 1, source:
+  "live-test"})` registers invented figures for this client alone and outranks
+  whatever the world imported. `unregisterTable("conditions", {priority:
+  PRIORITY.OVERRIDE + 1})` ends it. Name the priority: a call without one
+  drops every layer of the document in that client, the world's import
+  included, until the page reloads. A second seat registers its own.
+- **A monster's token is unlinked.** Toggle and read its conditions on
+  `tokenDoc.actor`. The world actor's statuses do not change when the tracker
+  lifts a condition from the token, which reads as the lift having failed.
+- **Read an attack's terms from the hook, not the card.**
+  `Hooks.on("acksLibPostAttackRoll", (actor, ctx, res) => …)` hands over
+  `ctx.terms`, `ctx.damageTerms`, `ctx.damageFactor` and `ctx.autoHit` as the
+  roll used them.
+- **Roll without a dialog.** An attack takes `{skipDialog: true}`. A save, an
+  adventuring throw and a morale roll take
+  `{event: {[game.settings.get("acks", "skip-dialog-key")]: true}}`, and the
+  Roll they resolve to carries the target it used at `roll.data.roll.target`.
+- **Record notifications and rejected promises yourself.** Wrap
+  `ui.notifications.info/warn/error` to collect what the roller is told. A
+  throw inside a clicked action is an unhandled rejection and never reaches
+  `console.error`: listen for `unhandledrejection`.
+- **View the scene before creating tokens on it.** Tokens created first raise
+  `RenderFlags` errors from the token sense sync while the canvas draws, which
+  read as a fault in the code under test.
+- **The Surprise Matrix's cells** are
+  `[data-action='rollSurprise'][data-adventurer-status][data-monster-status]`;
+  `fore`/`fore` rolls both sides. Core's own action, taken from
+  `app.constructor.DEFAULT_OPTIONS.actions.rollSurprise`, is the baseline with
+  no module wrapper. In the capture driver's browser the combat's round stays
+  0 after the roll with or without the wrapper, so do not use it as the
+  observable.
+- **The token HUD** binds with `canvas.hud.token.bind(token)` after
+  `token.control()`; its palette is `[data-status-id]`.
+- **A token's `detectionModes` is a map** of id to range, not a list.
+  `token.object.vision` exists only while the token is controlled, so
+  `token.object.control()` comes before any `_canDetect` or
+  `canvas.visibility.testVisibility(point, {object})` reading.
+- **A creature that hears.** A monster whose stat block records
+  `vision: ["blind"]` and nothing else reads as having shadowy senses; a sense
+  listed under `otherSenses` with an unknown type gives it none, and a check on
+  it then passes for the wrong reason.
+- **Core's own attack roll without touching the world's setting.** The lib
+  reads `attackRollPatch` once, at `ready`. Open a second DevTools socket on
+  the driver's page (`/json/list` on its debugging port,
+  `webSocketDebuggerUrl`), send `Page.addScriptToEvaluateOnNewDocument` with a
+  script that waits for `game.settings` and answers false for that one key,
+  then `location.reload()`. The console line "remodeled attack roll off"
+  confirms the branch. `Hooks.events.acksLibPreAttackRoll` is empty there, so
+  read the throw from the Roll `rollAttack` resolves to: `formula`, and
+  `data.roll.dmg` for the damage parts.
+- **Fire the import into a global** and poll it
+  (`TEST_ENVIRONMENT.md`, chained waits):
+  `cookbookImportTables(["conditions"])` reads one document in seconds.
+
+**Fixtures (as GM, each id recorded with `api.create` or `api.track`):**
+- A scene, created with `active: false`, `ownership.default` OBSERVER, and
+  viewed with `scene.view()`.
+- "Hero", a `character` with `prototypeToken.actorLink: true`, owned by the
+  Player seat, carrying a melee weapon and a missile weapon, with a token on
+  the scene.
+- "Goblin", a `monster` with `flags["acks-extras"].extras.size` set to the
+  character's size, carrying a melee weapon, with a token on the scene.
+- The chat messages the rolls post: collect the ids of messages whose content
+  or speaker names a fixture, and `api.track` them.
+
+1. **The palette.** Read `CONFIG.statusEffects` and open the Hero token's HUD.
+   **Observable:** an entry per catalogue condition plus `dead`, `invisible`
+   and Running, every name localized, none of Foundry's generic ids, and
+   `CONFIG.specialStatusEffects.BLIND` is `blinded`. Clicking Prone in the HUD
+   puts `prone` on the actor; clicking again takes it off.
+2. **Nothing imported.** With no figures registered, mark Hero Prone and
+   attack Goblin twice.
+   **Observable:** no term on either throw; one warning that nothing was
+   applied for Prone, on the first roll only.
+3. **The attacker's own conditions.** Register the invented figures. Attack as
+   a Prone Hero; as a Blinded Hero in melee and with the missile weapon; with
+   two Prone effects and two Fatigued effects, one flagged `conditionStacks:
+   2`; as a Shrunk and Queasy Hero.
+   **Observable:** a Prone term; a Blinded term in melee and, for the missile,
+   no term and a warning that the attack is ruled out; Prone once and Fatigued
+   at three times its figure, on the throw and on the damage; a damage factor
+   and a Queasy damage term.
+4. **The target's conditions.** Attack a Prone Hero as Goblin; a Disordered
+   and Flanked Hero; a Prone Goblin as a Charging Hero; a Paralyzed Goblin in
+   melee; a Hidden Goblin with the missile weapon. Then target the Goblin
+   token and call `hero.targetAttack(…)`.
+   **Observable:** a "Vulnerable (target)" term; a Flanked term and a
+   Disordered term with its sign reversed; the attacker's and the target's
+   terms on one throw; `ctx.autoHit` naming Helpless and the card reading an
+   automatic hit; a warning that the attack cannot be made, with no term. The
+   targeted roll's card line names the target's term.
+5. **The creature's own rolls.** Roll a save as a Hungry and Blessed Hero, an
+   adventuring throw as a Queasy Hero, and morale as a Shaken Goblin token.
+   Read a Blinded Hero's `system.movementacks` before, during and after.
+   **Observable:** the save's and the throw's target moved by the figure, the
+   stored field and `_source` unchanged afterwards, and a notification naming
+   the condition; the fear-only row told as not applied; the morale formula
+   carrying the figure once; every derived speed scaled while Blinded and back
+   afterwards.
+6. **Surprise.** Mark Hero Blinded and the Goblin token Deafened, start a
+   combat holding both, and click the `fore`/`fore` cell.
+   **Observable:** one notification naming both figures; the surprise card's
+   totals lower by them than core's own action gives; both actors'
+   `system.surprise.avoidsurprise` back at their stored value.
+7. **The tracker.** In a started combat, mark both combatants Charging and
+   Berserk and Hero Prone. Advance two turns, mark Hero Charging again, and
+   delete the combat.
+   **Observable:** each combatant loses Charging as its own turn begins and
+   keeps it through the other's; deleting the combat takes Berserk from both
+   and leaves Prone and the re-applied Charging.
+8. **A status from before the palette.** Create an effect on Hero with
+   `statuses: ["blind"]`. Scan the repair tool's "Statuses from before the
+   conditions list" check and fix this run's finding only, by its uuid.
+   **Observable:** the finding reads "blind becomes Blinded.", the effect's
+   statuses become `["blinded"]`, and a second scan no longer lists it.
+9. **The player seat.** Join as Player from the driver's own browser, register
+   the invented figures there, and attack the Prone Goblin with Hero.
+   **Observable:** the same two terms a GM gets. The seat cannot lift the
+   goblin's condition; Foundry refuses the delete.
+10. **The import.** Unregister the invented figures and run
+    `cookbookImportTables(["conditions"])` with the Revised Rulebook connected.
+    **Observable:** the report lists the `conditions` document and no missing
+    book or table; `conditionsReady()` is true; every slot in
+    `CONDITION_SLOTS` holds a number; an attack between conditioned fixtures
+    carries non-zero terms.
+11. **A proficiency throw and the save cell.** Give Hero an `ability` item
+    with a flat target, register the invented figures, and roll it with
+    `acksExtras.abilities.rollAbility(item, null, {skipDialog: true})` clean,
+    Queasy, and Queasy with Blinded. Open Hero's sheet and click the ability's
+    `[data-action='roll']` button with the skip key held. Then mark Hero Hungry
+    and read the sheet's `[data-roll^='save']` cells.
+    **Observable:** the target moves by Queasy's figure and not by Blinded's,
+    whose row waits on sight; the button's tooltip and the posted card carry
+    the moved target; each save cell shows the signed figure, toned as a
+    penalty, and its tooltip names a modifier in force.
+12. **The senses.** In a dark scene, control a token whose creature hears
+    (drive notes) and read `senseProfile`, the token's detection modes, the
+    shadowy mode's `_canDetect` and Hero's visibility: clean, Deafened, clean
+    again, and Slumbering. Then control a token with lightless vision and read
+    the lightless mode against a Hero who has an ability named for hiding:
+    clean, Hidden, clean again.
+    **Observable:** Deafened and Slumbering each suppress the profile, take the
+    shadowy mode off the token, turn `_canDetect` false and hide Hero, and
+    lifting either brings all four back; Slumbering does it with only
+    `slumbering` among the creature's statuses. Hidden turns the lightless
+    reading false and hides Hero, and lifting it restores both.
+13. **Core's own attack roll.** Reload with the setting's read stubbed (drive
+    notes) and attack as in steps 3 and 4.
+    **Observable:** the throw's formula carries the summed figure in place of
+    the base attack bonus, and the damage parts carry the damage row; a
+    notification names each term, the target's marked as the target's;
+    `system.thac0.bba` and `system.damage.mod` read as stored afterwards; a
+    scaled damage roll and a waived throw are each told as something the
+    system's roll cannot carry; a ruled-out attack warns and rolls.
+
+**Teardown.** `unregisterTable("conditions", {priority: PRIORITY.OVERRIDE +
+1})` in every seat that registered, then `api.sweepTracked()`. The scene takes its tokens with it and
+a deleted combat sweeps as missing. The imported `conditions` document is
+world ruledata and stays, like every other imported table.
 
 ## Teardown
 

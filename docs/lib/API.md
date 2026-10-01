@@ -1,4 +1,4 @@
-# lib API (apiVersion 22)
+# lib API (apiVersion 23)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -52,6 +52,7 @@ acksExtras.lib = {
   repair,              // lib/repair.mjs — the standing repair tool (below); 18
   hp,                  // lib/hp.mjs — the group hit-point tool (below); 19
   worldTime,           // lib/world-time.mjs — the clock's reading (below); 22
+  conditions,          // lib/conditions.mjs — the condition catalogue and its math (below); 23
 }
 ```
 
@@ -274,8 +275,10 @@ wrapper of the system's `Actor#rollMorale` (`patches/morale-roll.mjs`). Shape:
 `options` is what the system passed to `rollMorale`. The wrapper calls `open`
 in place of the system's roll when a provider is registered, the world setting
 `moralePage` is on, and the system's skip-dialog key is not held; otherwise,
-and when `open` throws, the system's own roll runs. With no provider the
-system's roll is untouched.
+and when `open` throws, the system's own roll runs, with the creature's
+conditions held on its score (`withMoraleConditions`). `open` is handed the
+actor with its score as stored, and a page that wants the conditions reads
+them from `conditions.rollMath("morale", conditions.subjectOf(actor))`.
 
 ## `vocab` — Foundry-free enums (Node-importable)
 
@@ -584,6 +587,46 @@ from. `dawn` and `dusk` are the two world settings; a blank one stands at a
 quarter and three quarters of the calendar's day. `isDarkAt` reads light from
 `dawn` up to `dusk`, over midnight when dusk comes first, and no dark at all
 when the two are equal.
+
+## `conditions` — the condition catalogue and its math (apiVersion 23, Foundry-free)
+
+The policy is docs/lib/MODEL.md, "Conditions". Every figure is read from the
+registered `conditions` document; with none registered each reader returns no
+parts and names the condition in `unpriced`.
+
+```
+acksExtras.lib.conditions = {
+  CONDITIONS, CONDITION_IDS,    // the catalogue: id → {label, implies?, mods?, forbids?, ends?, …}
+  CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_SLOTS,  // where the figures are read, and which each condition wants
+  ACTS, ATTACK_KINDS, STACKS_FLAG,
+  conditionSet(statuses),       // → Set of ids, closed under `implies`, in catalogue order
+  conditionValues(),            // → the registered rows, {} when none
+  conditionsReady(),            // → whether any row is registered
+  subjectOf(actor),             // → {statuses, counts, sources, id} | null
+  forbiddenBy(set, act),        // → the ids in a closed set that take `act` away
+  attackMath({attacker, target?, kind, attackerSize?, targetSize?, values?}),
+  rollMath(on, subject, values?),   // on: "save" | "throw" | "morale" | "surprise"
+  acMath(subject, values?),     // → {total, parts, unpriced}
+  speedMath(subject, values?),  // → {factor, parts, unpriced}
+  endingAt(statuses, moment),   // moment: "turn" | "combat" → the ids the tracker lifts
+}
+```
+
+`attackMath` returns `{terms, damage, damageFactor, damageFactorBy, forbidden,
+shielded, autoHit, pending, unpriced}`. A term is `{condition, value, side}`
+with `side` `"own"` for the attacker's condition and `"target"` for the
+defender's; a defender's Armor Class row arrives as a term with its sign
+reversed. `autoHit` is the defender's condition that waives the throw, or null.
+
+`rollMath` returns `{total, parts, pending, unpriced, exempt}`. A positive
+total helps the roll. `pending` holds the rows bound to a circumstance the
+roll does not state, as `{condition, value, when}`, unapplied; `exempt` names
+the conditions that take a creature out of morale.
+
+The palette, the roll wrappers and the two helpers a roll's owner calls
+(`withMoraleConditions`, `withSurpriseConditions`) are
+`scripts/lib/status-effects.mjs`, imported directly; `conditionNameKey(id)`
+there is the lang key of a condition's name.
 
 ## Versioning
 
