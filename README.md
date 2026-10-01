@@ -423,27 +423,11 @@ transcription. The module ships no book text.
 
 ## Settings reference
 
-42 settings: 38 configurable, 4 internal (persisted world state, not shown in
-the UI).
-
-**Library** — `attackRollPatch`, `manageVision`, `advanceWorldTime`,
-`storageDeletePolicy`; per-client `theme`, `sheetStyle`, `fontScale`.
-
-**Equipment** — `enforceMode`, `proficiencyEnforcement`, `rollAutomation`,
-`ammoTracking`, `defaultHandBudget`, plus six `overlay*` optional rules.
-
-**Formation** — `partyTokenImage`, `playersMoveParty`, `publicTurnCards`,
-`lightItemEnforcement`, `encounterEvery`, `encounterTarget`, `manageFog`,
-`mapperNeedsLight`, `syncTokenLight`, `signalAffectsEncounters`,
-`fuzzMeasurement`.
-
-**Henchmen** — `daysPerMonth`, `autoRollCalamity`, `enforceHenchmanLimit`,
-`wageReminders`, `autoRepairReferences`, `playerMarketVisibility`,
-`enableExpectedLiving`, `enableSlavery`.
-
-**Influence** — `enableBtaCaste`, `raceRelations`.
-
-**Factions** — `standingPerClassStep`.
+The [settings reference](https://noctempre.github.io/foundryvtt-acks-extras/reference/settings/)
+lists every setting the module registers: what each configurable one does, its
+scope and its default, and the internal ones that only persist world state.
+That page is generated from the registration calls themselves, so no count or
+list is kept here to fall behind it.
 
 ---
 
