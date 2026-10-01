@@ -51,11 +51,12 @@ GitHub follows, and the sync re-points the link at the published page
 ([DECISIONS.md](DECISIONS.md) §18). Anything else in the repo is linked by its
 full GitHub URL: a relative path out of `guides/` has no page on the site.
 
-The sync exits non-zero if a setting key cannot be resolved, `GALLERY.md` points
-at a missing screenshot, the sidebar and `guides/` disagree, or a guide links to
-a guide that is not there. `npm run validate` runs it, so a docs change that
-breaks one is caught before the push and again in CI rather than published
-quietly.
+The sync exits non-zero if a setting key cannot be resolved, a feature that
+registers a setting is missing from the lists in `tools/extract-settings.mjs`,
+`GALLERY.md` points at a missing screenshot, the sidebar and `guides/` disagree,
+or a guide links to a guide that is not there. `npm run validate` runs it, so a
+change that breaks one is caught before the push and again in CI rather than
+published quietly.
 
 ## Not shipped
 

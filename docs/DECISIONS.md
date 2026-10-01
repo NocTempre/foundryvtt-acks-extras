@@ -540,3 +540,38 @@ rest. The section is not checked at all: a heading renamed under a link breaks
 it on GitHub and on the site alike, in silence. Only the build knows the ids it
 gave the headings, so that check belongs over the built pages, and there is
 none.
+
+## 19. The settings reference names every feature that registers a setting (2026-10-01)
+
+**What was found.** The settings reference takes each section's heading and
+its place on the page from two lists in `extract-settings.mjs`,
+`FEATURE_LABEL` and `FEATURE_ORDER`. A feature in neither still rendered:
+headed by its directory name, and first, because a missing position sorts
+ahead of every listed one. Four features began registering settings and were
+never added: `classes` in 3.0.0, `markets` in 3.10.0, `bridge` in 7.0.0 and
+`factions` in 8.0.0. The page therefore opened on `classes`, `markets` and
+`factions`, and `bridge`, whose three keys are all internal, showed its
+directory name in the internal-state table. The importer was added in 6.0.0
+at the end of the order, while that release's README introduced it first.
+
+**Ruled.** Both lists name every feature that registers a setting. The order
+is the README's `## Features` order, which moves the importer's section from
+last to first; `bridge` and `markets` have no section there and sit where the
+sidebar lists their guides. A label is drawn from the name the README or the
+sidebar already gives the feature. Every row reports whether both lists name
+its feature, and `sync.mjs` exits non-zero on a feature they do not, as it
+does on a key it cannot resolve.
+
+**Rejected.**
+
+- *Reading labels and order out of the sidebar.* That is one vocabulary by
+  construction, but the library has no guide of its own to take a label from,
+  and every existing heading would become its guide's full title.
+- *Sorting an unlisted feature last.* The page would still publish a
+  directory name as a heading, in the place it is least likely to be noticed.
+
+**What it costs.** The check is on presence. Neither the order nor the
+vocabulary is checked: a feature listed at the wrong point passes, as the
+importer did, and so does a label coined on the spot. A feature added under
+`scripts/` fails `validate` at its first registered setting until both lists
+name it, which is the gate doing its job.

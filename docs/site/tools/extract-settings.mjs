@@ -23,19 +23,49 @@ import path from "node:path";
 
 import { REPO, walk, matchBrace, cleanExpr, constantIndex, objectConstantIndex, featureOf } from "./parse.mjs";
 
-/** Feature directories in the order the README introduces them. */
-const FEATURE_ORDER = ["lib", "abilities", "equipment", "formation", "henchmen", "influence", "location", "monsters", "importer"];
+/**
+ * Feature directories in the order the root README's `## Features` introduces
+ * them. A feature with no section there sits where the sidebar in
+ * `astro.config.mjs` lists its guide.
+ *
+ * A feature missing from this list sorts ahead of every listed one, and one
+ * missing from `FEATURE_LABEL` is headed by its directory name; a row from
+ * either is marked `featureListed: false`.
+ */
+const FEATURE_ORDER = [
+  "importer",
+  "lib",
+  "classes",
+  "abilities",
+  "equipment",
+  "formation",
+  "bridge",
+  "henchmen",
+  "influence",
+  "location",
+  "factions",
+  "markets",
+  "monsters",
+];
 
+/**
+ * The heading a feature's settings are listed under, drawn from the name the
+ * root README or that sidebar already gives the feature. None is coined here.
+ */
 const FEATURE_LABEL = {
+  importer: "Importer",
   lib: "Library",
+  classes: "Classes",
   abilities: "Proficiencies & class powers",
   equipment: "Equipment",
   formation: "Formations",
+  bridge: "Playing from Discord",
   henchmen: "Henchmen",
   influence: "Influence",
   location: "Locations",
+  factions: "Factions",
+  markets: "Item markets",
   monsters: "Monsters",
-  importer: "Importer",
 };
 
 /**
@@ -333,14 +363,16 @@ function buildRow({ file, key, keyExpr, moduleId, options, langPrefix, literaliz
 
   const nameKey = localized("name");
   const hintKey = localized("hint");
+  const feature = featureOf(file);
 
   return {
     key: key ?? null,
     keyExpr: cleanExpr(keyExpr ?? ""),
     resolved: Boolean(key),
     moduleId,
-    feature: featureOf(file),
-    featureLabel: FEATURE_LABEL[featureOf(file)] ?? featureOf(file),
+    feature,
+    featureLabel: FEATURE_LABEL[feature] ?? feature,
+    featureListed: FEATURE_ORDER.includes(feature) && Object.hasOwn(FEATURE_LABEL, feature),
     source: path.relative(REPO, file).replaceAll(path.sep, "/"),
     name: nameKey ? langGet(lang, nameKey) : null,
     hint: hintKey ? langGet(lang, hintKey) : null,

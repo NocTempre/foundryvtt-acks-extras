@@ -218,6 +218,14 @@ if (unresolved.length) {
   process.exitCode = 1;
 }
 
+// A feature the extractor's lists omit still renders, under its directory name
+// or ahead of every listed section, so nothing on the page reports it.
+const unlisted = [...new Set(settings.filter((r) => !r.featureListed).map((r) => r.feature))];
+if (unlisted.length) {
+  console.error(`sync: feature(s) register a setting but are absent from FEATURE_ORDER or FEATURE_LABEL in extract-settings.mjs: ${unlisted.join(", ")}`);
+  process.exitCode = 1;
+}
+
 const missingShots = gallery.filter((row) => !fs.existsSync(path.join(SITE, "src", "assets", "shots", row.shot)));
 if (missingShots.length) {
   console.error(`sync: GALLERY.md points at ${missingShots.length} missing screenshot(s): ${missingShots.map((r) => r.shot).join(", ")}`);
