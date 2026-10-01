@@ -1200,6 +1200,10 @@ masked under `book` and would surface under `core`.
   would be the destructive reading, and the edits it discarded are not
   recoverable.
 
+  *(Superseded in part 2026-10-01 — "The world sweep ships no macro, and the
+  API is its one route", below: the macro retired at 6.0.1, and the sweep and
+  its opt-in reclaim stand.)*
+
 - **2026-08-11 — the `core` adapter re-points the STATE tokens too.** Reported as
   unreadable warnings on the exploration party sheet. Two faults, found in that
   order, and only the second was the reported one.
@@ -3151,3 +3155,29 @@ coin that moved, with what was booked instead in `arrears`. One more socket
 handler is registered, and every actor sheet render looks for the block. The
 divide prompt's lang keys moved from `ACKS-CHARACTER.equipment` to
 `ACKS-LIB.stack`.
+
+### The world sweep ships no macro, and the API is its one route (2026-10-01)
+
+Recorded from the 6.0.1 changelog and that release's commit (`741cdff`,
+2026-09-01). No entry was written when it happened.
+
+**Ruled.** 6.0.1 retired the *Migrate Token Vision* macro, classed with three
+others as a one-time cleanup for worlds upgrading into the merged module.
+`migrateWorldVision` stayed and is reached only as
+`vision.migrateWorld({reclaim})` on the lib API: no hook runs it and nothing
+in the module calls it. This supersedes in part the 2026-08-11 entry "the
+world sweep is a macro, and reclaiming is opt-in". The sweep stands, and so
+does reclaiming as its opt-in half, now the `reclaim` option. The macro and
+the question it put to the Judge are gone.
+
+**What it cost.** No shipped control sweeps a world. After `manageVision` is
+switched on, or a sense's reading changes, an unopened scene keeps the sight
+its tokens had until the primary GM opens it and the `canvasReady` pass
+re-derives it; a token whose own sheet changes is re-derived wherever it
+stands. The call returns its counts and announces nothing, so what the
+2026-08-11 entry asked of the macro, that a sweep say what it did, is now the
+caller's to do. The formation guide, MODEL, TESTING and the API docstring in
+`scripts/lib/module.mjs` went on naming the macro for a month after it left,
+and are corrected at this date. A copy of the macro imported into a world
+before 6.0.1 still finds the call it makes: `vision.migrateWorld({reclaim})`
+and the fields of its report are unchanged.

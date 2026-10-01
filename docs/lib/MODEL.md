@@ -579,12 +579,14 @@ answer for scenes nobody is looking at.
 Every pass above is local — the scene on screen, the actor just edited. A world
 that switches `manageVision` on mid-campaign, or upgrades into a corrected sense
 model, keeps whatever its untouched scenes were last set to.
-`migrateWorldVision` sweeps every scene in the world and reports what it wrote;
-the **Migrate Token Vision** macro is its one user-facing surface.
+`migrateWorldVision` sweeps every scene in the world and returns what it wrote
+as counts. Nothing in the module calls it and no macro ships for it: it is
+reached as `acksExtras.lib.vision.migrateWorld({reclaim})`. A scene it has not
+swept is re-derived by the `canvasReady` pass when the primary GM opens it.
 
-Taking back tokens released to a hand edit is a second, opt-in answer, never part
-of the sweep: a released token is a Judge's override, and undoing all of them
-silently is the destructive reading of "migrate".
+Taking back tokens released to a hand edit is `reclaim`, off unless passed and
+never part of the plain sweep: a released token is a Judge's override, and
+undoing all of them silently is the destructive reading of "migrate".
 
 ### Why the detection modes matter
 

@@ -114,8 +114,10 @@ report the same symptom.
    whisper's ids for a private one — an empty list there is nobody.
 8. Vision and senses: with `manageVision` on, place a token of an actor with a
    declared lightless range.
-   *Observable:* the token's vision matches `senses.sightRange`, and the
-   "Migrate Token Vision" macro re-derives it for tokens already placed.
+   *Observable:* the token's vision matches `senses.sightRange`, and
+   `await acksExtras.lib.vision.migrateWorld()` re-derives it for tokens
+   already placed, answering `ran: true` with its counts. No macro ships for
+   the sweep, so the call is the step; it writes to every scene in the world.
 9. Follower card: open a plain `monster`.
    *Observable:* `FollowerCardSheet` renders as the compact card, and its
    **Full sheet** control (`data-action="fcOpenFull"`) opens `FullMonsterSheet`

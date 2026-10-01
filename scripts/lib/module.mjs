@@ -286,10 +286,10 @@ const localImpl = Object.freeze({
   perception,
   /**
    * Writing those senses onto tokens (token-sync.mjs). `migrateWorld` is the
-   * world-wide sweep the Migrate Token Vision macro drives — the only one of
-   * these a Judge reaches directly; the rest are the per-scene and per-actor
-   * passes the hooks run, exposed so a world with its own automation can drive
-   * them at a moment this module has no hook for.
+   * world-wide sweep, and this key is its only route: no hook runs it and no
+   * shipped macro calls it. The rest are the per-scene and per-actor passes
+   * the hooks run, exposed so a world with its own automation can drive them
+   * at a moment this module has no hook for.
    */
   vision: {
     SETTING: SETTING_MANAGE_VISION,

@@ -721,20 +721,27 @@ on that token is yours and the module leaves it alone. The world setting
 
 Tokens are re-derived when you open their scene or change the creature's sheet,
 so a campaign already under way has scenes carrying whatever their tokens were
-last set to. The **Migrate Token Vision** macro (in the ACKS Extras macro
-compendium) does the lot at once: it walks every scene in the world, re-derives
-every token from its sheet, and tells you how many it rewrote.
+last set to. Opening a scene is enough to bring that scene up to date.
 
-It asks one question first. Tokens you edited by hand are normally left alone
-forever — that is the override working. Answer **Take hand-edited tokens back**
-and it drops that protection so they follow their sheets again; those edits are
-not recoverable afterwards, so the default is to leave them be. Run it after
+To do every scene at once without opening them, run the sweep from a script
+macro of your own:
+
+```js
+const report = await acksExtras.lib.vision.migrateWorld();
+ui.notifications.info(`${report.written} of ${report.tokens} tokens rewritten on ${report.scenes} scenes.`);
+```
+
+It walks every scene in the world and re-derives every token from its sheet.
+The call says nothing by itself, so the second line prints what it did. A count
+of 0 of 0 in a world that has tokens means it did not run: either *Token vision
+from ACKS senses* is off, or more than one GM is connected and the sweep is
+another's to run.
+
+Tokens you edited by hand are normally left alone forever — that is the
+override working. Call `migrateWorld({ reclaim: true })` instead and it drops
+that protection so they follow their sheets again; those edits are not
+recoverable afterwards, so the default is to leave them be. Run it after
 switching the setting on, or after an update that changes how a sense is read.
-
-![](../releases/v3.7.0/lib-migrate-vision.png)
-
-*The world-wide sweep, and the question it asks before touching a hand-edited
-token.*
 
 ## Sending a scout ahead
 
