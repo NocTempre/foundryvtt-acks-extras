@@ -301,7 +301,7 @@ function stageStartPages() {
   page(
     "getting-started.md",
     "Getting started",
-    "First steps after enabling ACKS II — Extras: the settings menu, the sample compendia, and where to go next.",
+    "First steps after enabling ACKS II — Extras: the settings menu, the character sheet, and importing from your own books.",
     required("Getting started"),
     "",
     );

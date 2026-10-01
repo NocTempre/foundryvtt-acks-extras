@@ -114,8 +114,9 @@ anything, and it is safe to run twice.
 2. Open **Settings → Configure Settings → ACKS II — Extras**. World-scoped
    toggles are grouped by feature; the optional-rule *overlays* are all off
    unless the rule is already core.
-3. Import a couple of items from **ACKS Equipment Samples** to see equipment
-   automation working.
+3. Open a character. It opens on the module's own sheet, and the system's is
+   one **Sheet Config** away. See
+   [The character sheet](https://noctempre.github.io/foundryvtt-acks-extras/guides/character-sheet/).
 4. If you own the books, run **Your ACKS Books (this seat)** from the *ACKS
    Extras Macros* compendium to connect a PDF, then **Import Everything (GM)**:
    classes, spells, proficiencies, equipment, monsters, tables and more arrive
@@ -404,20 +405,12 @@ context menu.
 
 ## Compendia
 
-| Pack | Type | Contents |
-|---|---|---|
-| Equipment Training | Item | 34 |
-| Equipment Proficiencies | Item | 42 |
-| Equipment Samples | Item | 9 |
-| Equipment Actors | Actor | 4 demo characters |
-| Henchmen Proficiencies & Powers | Item | 20 |
-| Bestiary | Actor | 8 |
-| Spoils | Item | 7 |
-| Treasure | RollTable | 1 |
-| Macros | Macro | 33, in the *ACKS Extras* folder — the importer's four sit in its *Your Books* and *Import from your books* sub-folders |
-
-Compendium descriptions are authored restatements with page citations, never
-transcription. The module ships no book text.
+The [compendia reference](https://noctempre.github.io/foundryvtt-acks-extras/reference/compendia/)
+lists every compendium pack the module ships, with the documents in it, and
+the compendiums an import from your own books leaves in a world, with a brief
+of what each one holds. That page is generated from the pack data the build
+compiles, the manifest and the code that names the importer's shelves, so no
+pack name or count is kept here to fall behind it.
 
 ---
 

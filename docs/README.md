@@ -37,7 +37,7 @@ first) stages the content it publishes:
 | Feature gallery | `docs/GALLERY.md` + `docs/releases/**` |
 | What this is / Install / Getting started | the matching `##` sections of the root `README.md` |
 | Settings reference | the `game.settings.register()` calls in `scripts/`, joined with `lang/en.json` |
-| Compendia | `tools/pack-data.mjs` + `module.json` |
+| Compendia | `tools/pack-data.mjs` + `module.json`; what an import leaves, from the shelf code in `scripts/lib/library.mjs` and `scripts/importer/` |
 | Theme | `vendor/acks-design/` tokens and fonts |
 
 Every staged path is gitignored and carries a generated header, and each page's
@@ -57,6 +57,15 @@ registers a setting is missing from the lists in `tools/extract-settings.mjs`,
 or a guide links to a guide that is not there. `npm run validate` runs it, so a
 change that breaks one is caught before the push and again in CI rather than
 published quietly.
+
+Two more conditions belong to the compendia reference. The sync exits non-zero
+when the README, a guide or a hand-written site page names a compendium pack
+`module.json` declared once and declares no longer
+([DECISIONS.md](DECISIONS.md) §20). That check reads the manifest's git
+history, so a shallow checkout, CI's included, prints a note and checks
+nothing. It also exits non-zero when a compendium type the importer keeps has
+no brief in `tools/extract-library.mjs`, which is where the site says in its
+own words what each of those compendiums is (§21).
 
 ## Not shipped
 

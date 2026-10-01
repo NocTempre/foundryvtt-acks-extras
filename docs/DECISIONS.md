@@ -358,7 +358,7 @@ written, and the page follows.
 
 **A compendium that had been renamed.** "Getting started" told readers to open
 **Bestiary**; the pack is `ACKS Full Monsters (Example)`. Nothing links a
-prose pack name to a declared one, and this is the residue.
+prose pack name to a declared one, and this is the residue. (§20 closes it.)
 
 **Rejected:** generating the sidebar from `docs/guides/` with `autogenerate`.
 It would have prevented the orphans, but guide order is the README's feature
@@ -575,3 +575,93 @@ vocabulary is checked: a feature listed at the wrong point passes, as the
 importer did, and so does a label coined on the spot. A feature added under
 `scripts/` fails `validate` at its first registered setting until both lists
 name it, which is the gate doing its job.
+
+## 20. Prose names a compendium pack only while the manifest declares it (2026-10-01)
+
+**What was found.** The module stopped shipping its item, actor and table
+packs in two steps, four at 4.1.0 and four at 6.0.1, which left the macros.
+The README went on describing them. Its `## Compendia` table still listed nine
+packs at 10.0.0, and its `## Getting started` sent a new user to import from
+**ACKS Equipment Samples**, a pack gone since 6.0.1. The site publishes that
+section as its Getting started page. §14 had met the same failure once, when
+the step named **Bestiary**, and corrected it to the label the pack then had;
+that pack was dropped at 4.1.0 and the corrected name went stale in its turn.
+Read against every release tag, the README named a pack the manifest no longer
+declared in 139 of 180.
+
+**Ruled.** Three things.
+
+- The README's `## Compendia` is a pointer to the generated reference, as
+  `## Settings reference` is, and keeps no pack name or count. The sentence
+  about authored restatements went with the table: it described the item
+  packs' descriptions, and a macro has none. That the module ships no book
+  text is still said where the README introduces the importer, and in the
+  note on the generated page.
+- The first step for a user who has imported nothing is to open a character.
+  The sheet is the module's own by default and needs no content.
+- `pack-names.mjs` reads every label `module.json` has declared out of the
+  manifest's own git history. `sync.mjs` exits non-zero when the README, a
+  guide or a hand-written site page names one the manifest declares no longer:
+  the whole label or the label without its trailing parenthetical, wrapped
+  across a line or not. `validate` runs the sync (`validate-extra.mjs` §6).
+
+**Rejected.**
+
+- *An emphasised phrase followed by "compendium" or "pack" that is not a
+  declared label.* It needs no history. Over the same tags it failed 36, all
+  on a short name whose pack was still declared, and passed every tag on which
+  a name was stale.
+- *Every emphasised phrase opening "ACKS " that is not a declared label.* It
+  fails all 180 tags: on the book titles, the licence, the compendium folder
+  and the module's own name. The allowlist it needs is longer than the list it
+  guards.
+- *Keeping the table and checking it against the manifest.* A hand-kept list
+  with a gate on it is still stated twice, and the generated page already
+  holds the list.
+
+**What it costs.** The history is git's, so a checkout without it checks
+nothing. CI checks out at depth 1: there the sync prints a note and passes,
+and the gate is `npm run validate` on a full clone. The match is on a label or
+its stem, so a short name the manifest never held still passes, as "Bestiary"
+would. Nothing exempts a mention. Prose that has to speak of a retired pack, a
+migration note for one, must describe it without its label until the check
+learns an exemption. The changelog is not read, because naming what a release
+removed is its job.
+
+## 21. The compendia reference lists what an import leaves (2026-10-01)
+
+**What was found.** With the library gone from the module, the compendia
+reference listed one pack of macros. Nothing said which compendiums a world
+holds once its Judge has imported, though that is where a world's library now
+lives. The importer guide named three of them, in a table of its own.
+
+**Ruled.** The reference gains a section read from the code that names and
+files those compendiums (`extract-library.mjs`). A label is built by
+`libraryPackLabel` and `judgeLine` themselves. The types come from
+`LIBRARY_TYPES` and `ADVENTURE_TYPE`, the sidebar folder from the manifest and
+`IMPORT_FOLDER`, the Item shelves from `ITEM_SHELF`, and the Adventure
+compendium's set from the books whose cookbook carries a map. One thing is
+authored: `BRIEFS`, a sentence or two for each document type on what its
+compendium is for. A brief states no rule, no figure and no name a book
+prints, and it lists no shelf. `sync.mjs` exits non-zero on a type with no
+brief and on a brief with no type.
+
+**Rejected.**
+
+- *Writing the list in the importer guide and copying it to the page.* Prose
+  belongs in a guide, but a hand-kept table of compendium names is the shape
+  that went stale in the README (§20).
+- *Naming each series' set from the book registry.* The registry knows them.
+  The page would print other publishers' product names and say nothing the
+  pattern does not.
+- *Listing the folders inside the Actor compendium, as the Item shelves are.*
+  The Item shelves are the module's own. The Actor folders are the types a
+  stat block declares, which is a book's taxonomy.
+
+**What it costs.** A brief is prose about behaviour the code decides, and one
+that goes stale fails nothing while its type remains. `lineOf` cannot be
+imported outside Foundry, so its rule for a shipped book is restated in the
+extractor, and the sync stops when the source no longer holds that rule,
+whether it changed or was only rewritten. The page says which compendiums can
+exist. Which of them a world holds depends on the books it imported. The
+guide's own table of three is still kept by hand and nothing checks it.

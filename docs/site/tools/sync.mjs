@@ -3,10 +3,11 @@
  * generated reference pages. Run by `npm run dev` and `npm run build`, so a
  * build can never ship a stale copy.
  *
- * Nothing here authors content. The guides, screenshots and gallery index are
- * copied from `docs/`; the settings and compendium references are derived from
- * the code that registers and builds them. Both generated pages carry a header
- * saying so, and both are gitignored.
+ * The guides, screenshots and gallery index are copied from `docs/`; the
+ * settings and compendium references are derived from the code that registers,
+ * builds and files them. The few words a derived page needs of its own are held
+ * beside its extractor (`FEATURE_LABEL`, `BRIEFS`). Both generated pages carry
+ * a header saying so, and both are gitignored.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -14,6 +15,8 @@ import path from "node:path";
 import { REPO } from "./parse.mjs";
 import { extractSettings } from "./extract-settings.mjs";
 import { extractPacks } from "./extract-packs.mjs";
+import { extractLibrary } from "./extract-library.mjs";
+import { retiredPackNames } from "./pack-names.mjs";
 import { stageContent, GENERATED, write } from "./stage-content.mjs";
 
 const SITE = path.resolve(import.meta.dirname, "..");
@@ -27,6 +30,12 @@ const cell = (s) =>
     .trim();
 
 const code = (s) => `\`${String(s)}\``;
+
+/** A number with its noun, plural unless the number is one. */
+const count = (n, noun) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+
+/** The guide the compendia reference sends a reader to for the import itself. */
+const IMPORT_GUIDE = "importer";
 
 function renderSettings(rows) {
   const configurable = rows.filter((r) => r.config);
@@ -117,25 +126,27 @@ function renderSettings(rows) {
   return out.join("\n");
 }
 
-function renderCompendia(packs) {
+function renderCompendia(packs, library) {
   const total = packs.reduce((n, p) => n + p.count, 0);
 
   const out = [
     "---",
     'title: "Compendia"',
-    `description: "What ships in each of the module's compendium packs — items, actors, macros and tables."`,
+    `description: "Every compendium pack the module ships, and the compendiums an import from your own books leaves in a world."`,
     "editUrl: false",
     "---",
     "",
-    GENERATED("tools/pack-data.mjs and module.json"),
+    GENERATED("tools/pack-data.mjs, module.json and the importer's shelf code in scripts/"),
     "",
-    `The module ships **${packs.length} compendium packs** holding **${total} documents**. Find them`,
-    "in Foundry's **Compendium Packs** sidebar tab.",
+    `The module ships **${count(packs.length, "compendium pack")}** holding **${count(total, "document")}**, and no library:`,
+    `an [import from the Judge's own books](../../guides/${IMPORT_GUIDE}/) builds that in each world. Both are listed`,
+    "here, and both are found in Foundry's **Compendium Packs** sidebar tab.",
     "",
     ":::note",
-    "Compendium descriptions are authored restatements with page citations, never transcription.",
     "The module ships no book text.",
     ":::",
+    "",
+    "## Shipped with the module",
     "",
     "| Pack | Type | Documents | Players can see |",
     "|---|---|---|---|",
@@ -144,17 +155,17 @@ function renderCompendia(packs) {
         `| ${cell(p.label)} | ${code(p.type)} | ${p.count} | ${p.playerOwnership === "OBSERVER" ? "yes" : cell(p.playerOwnership)} |`,
     ),
     "",
-    "## What is in each",
+    "### What is in each",
     "",
   ];
 
   for (const pack of packs) {
     out.push(
       `<details>`,
-      `<summary><strong>${pack.label}</strong> — ${pack.count} ${pack.type === "Macro" ? "macros" : pack.type === "RollTable" ? "tables" : pack.type.toLowerCase() + "s"}</summary>`,
+      `<summary><strong>${pack.label}</strong> — ${count(pack.count, pack.type === "RollTable" ? "table" : pack.type.toLowerCase())}</summary>`,
       "",
     );
-    if (pack.folders.length) out.push(`Delivered in one folder: *${pack.folders.join(", ")}*.`, "");
+    if (pack.folders.length) out.push(`Filed in ${count(pack.folders.length, "folder")}: *${pack.folders.join(", ")}*.`, "");
     for (const doc of pack.documents) {
       const type = doc.type && doc.type !== "script" ? ` *(${doc.type})*` : "";
       out.push(`- **${doc.name}**${type}${doc.summary ? ` — ${doc.summary}` : ""}`);
@@ -162,15 +173,43 @@ function renderCompendia(packs) {
     out.push("", "</details>", "");
   }
 
+  out.push(
+    "## Left by an import",
+    "",
+    "An import creates these in the world, each the first time a book fills it, and files them under",
+    `*${library.folder.join(" › ")}*. A world holds only the ones its books fill.`,
+    "",
+    "| Compendium | Type | What it is |",
+    "|---|---|---|",
+    // A type no shipped book fills yet has no compendium to name.
+    ...library.shelves
+      .filter((shelf) => shelf.labels.length)
+      .map((shelf) => {
+        const shelves = shelf.shelves.length ? `<br />*Shelves:* ${shelf.shelves.map(cell).join(" · ")}` : "";
+        return `| ${shelf.labels.map(cell).join("<br />")} | ${code(shelf.type)} | ${cell(shelf.brief)}${shelves} |`;
+      }),
+    "",
+    "### A set of its own",
+    "",
+    "Two kinds of book fill compendiums of the same types under a longer name:",
+    "",
+    `- **A book the module knows to be the Judge's alone**, an adventure or a gazetteer: ${code(library.judge.label)}, and so on for each type.` +
+      (library.judge.closed ? " No player seat can see these compendiums or open a document in them." : ""),
+    `- **Another game's book**: ${code(library.series.label)}, named for the series it belongs to, or ` +
+      `${code(library.series.unnamed)} when it was registered with none. Where both apply the name carries both: ${code(library.series.judge)}.`,
+    "",
+  );
+
   return out.join("\n");
 }
 
 const { guides, gallery } = stageContent();
 const settings = extractSettings();
 const packs = await extractPacks();
+const library = await extractLibrary();
 
 write(path.join(DOCS, "reference", "settings.md"), renderSettings(settings));
-write(path.join(DOCS, "reference", "compendia.md"), renderCompendia(packs));
+write(path.join(DOCS, "reference", "compendia.md"), renderCompendia(packs, library));
 
 // Counts the hand-authored pages quote. Prose that states "44 settings" is the
 // second place a fact is stated, and it drifts the moment a feature registers
@@ -231,6 +270,35 @@ if (missingShots.length) {
   console.error(`sync: GALLERY.md points at ${missingShots.length} missing screenshot(s): ${missingShots.map((r) => r.shot).join(", ")}`);
   process.exitCode = 1;
 }
+
+// A compendium type with no brief publishes a row that says nothing; a brief
+// for a type the importer dropped is prose no page prints.
+if (library.unbriefed.length) {
+  console.error(`sync: the importer keeps a compendium for type(s) BRIEFS in extract-library.mjs does not describe: ${library.unbriefed.join(", ")}`);
+  process.exitCode = 1;
+}
+if (library.untyped.length) {
+  console.error(`sync: BRIEFS in extract-library.mjs describes type(s) the importer keeps no compendium for: ${library.untyped.join(", ")}`);
+  process.exitCode = 1;
+}
+
+// The compendia reference links a guide from generated prose, which the guide
+// links checked above do not include.
+if (!stagedGuides.includes(IMPORT_GUIDE)) {
+  console.error(`sync: the compendia reference links guides/${IMPORT_GUIDE}, which docs/guides/ does not have`);
+  process.exitCode = 1;
+}
+
+// A pack's name outlives the pack in prose that nothing regenerates.
+const retired = retiredPackNames(packs.map((p) => p.label));
+if (retired.findings.length) {
+  const where = retired.findings.map(
+    (f) => `${f.file}:${f.line} "${f.name}" (${f.removedIn ? `dropped in ${f.removedIn}` : "dropped in the working tree"})`,
+  );
+  console.error(`sync: ${count(where.length, "mention")} of a compendium pack module.json no longer declares: ${where.join(", ")}`);
+  process.exitCode = 1;
+}
+if (retired.note) console.log(`sync: note: ${retired.note}`);
 
 console.log(
   `sync: ${guides.length} guides, ${gallery.length} gallery rows, ${settings.length} settings, ` +
