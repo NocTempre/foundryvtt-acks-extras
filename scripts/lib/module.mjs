@@ -27,7 +27,7 @@
 import { acksExtras } from "../namespace.mjs";
 import * as movementScales from "./movement-scales.mjs";
 import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE } from "./constants.mjs";
-import { isPrimaryGM } from "./util.mjs";
+import { elementOf, isPrimaryGM } from "./util.mjs";
 import { registerUiPresetSettings, promptUiPreset, effectiveLook, refreshSheetDefaults } from "./ui-preset.mjs";
 import * as vocab from "./vocab.mjs";
 import * as wallGeometry from "./wall-geometry.mjs";
@@ -694,7 +694,7 @@ function applyRootPin(mode) {
  * its title watched (window-title.mjs).
  */
 Hooks.on("renderApplicationV2", (app, element) => {
-  const root = element instanceof HTMLElement ? element : element?.[0];
+  const root = elementOf(element);
   if (!root?.classList) return;
   const owned = app?.options?.classes?.includes("acks-ui");
   if (!owned && !root.classList.contains("acks") && !root.classList.contains("acks2")) return;
@@ -712,7 +712,7 @@ Hooks.on("renderApplicationV2", (app, element) => {
  * sheet declining to offer a gesture that is refused.
  */
 Hooks.on("renderApplicationV2", (app, element) => {
-  const root = element instanceof HTMLElement ? element : element?.[0];
+  const root = elementOf(element);
   const doc = app?.document;
   if (!root?.querySelectorAll || !doc?.effects?.get) return;
   try {

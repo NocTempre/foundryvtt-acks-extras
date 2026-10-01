@@ -123,6 +123,24 @@ export const atTypeScale = (px) => Math.round(px * typeScale());
 export const ownsSheet = (app) => !!app?.options?.classes?.includes?.("acks-extras");
 
 /**
+ * The element a render hook, a dialog callback or a context-menu entry was
+ * handed: the element itself, or the first element of a jQuery or array
+ * wrapper, or null. An element is told by its `nodeType`, never by
+ * `instanceof`: a window first rendered inside a detached browser window has
+ * a root that window's document built, and no constructor of this window
+ * calls it an instance. The element test comes before the index, since a
+ * `<form>` indexes its own controls.
+ *
+ * @param {Element|ArrayLike<Element>|null|undefined} target
+ * @returns {Element|null}
+ */
+export function elementOf(target) {
+  if (target?.nodeType === 1) return target;
+  const first = target?.[0];
+  return first?.nodeType === 1 ? first : null;
+}
+
+/**
  * 0.6667 → "2/3", because that is how the book says it. Whole numbers stay
  * whole ("2", not "200%"), so a row of factors reads in one idiom rather than
  * mixing fractions and percentages. The vehicle sheet's speed reasons and the

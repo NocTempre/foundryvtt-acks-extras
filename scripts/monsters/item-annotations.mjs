@@ -13,6 +13,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { DAMAGE_TYPES, NATURAL_WEAPONS, SPECIAL_ABILITIES, USAGE, choicesOf } from "./config.mjs";
 import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 /** Build <option> markup from a { key: i18nLabelKey } choices map. */
 function options(choices, current, blankKey) {
@@ -95,7 +96,7 @@ export function registerItemAnnotations() {
       if (item.parent?.type !== ACTOR_TYPE.monster) return;
       if (![ITEM_TYPE.weapon, ITEM_TYPE.ability, ITEM_TYPE.item].includes(item.type)) return;
 
-      const root = element instanceof HTMLElement ? element : element?.[0];
+      const root = elementOf(element);
       if (!root || root.querySelector(".acks-monsters-flags")) return;
       const inner = fieldsFor(item);
       if (!inner) return;

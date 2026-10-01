@@ -11,7 +11,7 @@ import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { SLOT_VOCAB } from "../lib/proficiency-strip.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { trainingEffect, grantedKeys, toggleTraining, trainingSourceName } from "./training.mjs";
-import { locOr as loc } from "../lib/util.mjs";
+import { elementOf, locOr as loc } from "../lib/util.mjs";
 
 // Written out rather than composed: the CSS/JS gate matches selector classes
 // literally, and a name built with a template literal reads to it as a dead
@@ -116,7 +116,7 @@ function onRenderCharacterSheet(app, element) {
   try {
     const actor = app?.document;
     if (actor?.documentName !== "Actor" || actor.type !== ACTOR_TYPE.character) return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
+    const root = elementOf(element);
     const tab = root?.querySelector?.(".active-effects");
     if (!tab || tab.querySelector(`.${SECTION}`)) return;
 

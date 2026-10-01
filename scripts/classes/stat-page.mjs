@@ -44,7 +44,7 @@ import { choosableGenerals, refOf } from "./grants.mjs";
 import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs";
 import { answeredByTemplate, isGranted, rungLabel, rungOptions } from "./picks.mjs";
 import { templateGrantKeys } from "./template-packages.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { elementOf, makeLoc } from "../lib/util.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
 import { whenReady } from "../lib/library.mjs";
 
@@ -733,7 +733,7 @@ export function registerChargenPage() {
   Hooks.on("renderApplicationV2", async (app, element) => {
     try {
       if (game.system?.id !== "acks") return;
-      const root = element instanceof HTMLElement ? element : element?.[0];
+      const root = elementOf(element);
       if (!root || !isStatPage(root)) return;
       const actor = app.options?.actor ?? app.actor ?? null;
       if (!actor?.isOwner) return;

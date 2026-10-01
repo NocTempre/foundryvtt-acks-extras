@@ -11,7 +11,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { divideXp, awardXp, participantsOf, reasonLabel } from "./xp-shares.mjs";
-import { gmIds } from "../lib/util.mjs";
+import { elementOf, gmIds } from "../lib/util.mjs";
 import { xpBonusFor } from "../classes/xp-bonus.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.xp";
@@ -102,7 +102,7 @@ const signed = (n) => `${n > 0 ? "+" : ""}${n}%`;
 export function installCoreXpSuppression() {
   Hooks.on("renderAcksPartyOverviewApp", (app, html) => {
     if (!game.settings.get(MODULE_ID, "ownXpDealing")) return;
-    const root = html instanceof HTMLElement ? html : html?.[0];
+    const root = elementOf(html);
     const button = root?.querySelector('[data-action="dealXP"]');
     if (!button) return;
     button.hidden = true;

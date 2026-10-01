@@ -1,5 +1,5 @@
 /* global Hooks, game, foundry, canvas, ui, CONFIG, Actor */
-import { isPrimaryGM } from "../lib/util.mjs";
+import { elementOf, isPrimaryGM } from "../lib/util.mjs";
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import {
   DEFAULT_PARTY_IMAGE,
@@ -1059,7 +1059,7 @@ Hooks.on("renderTokenHUD", (hud, html) => {
   if (!game.user.isGM) return;
   const tokenDoc = hud.object?.document;
   if (!tokenDoc?.actor) return;
-  const root = html instanceof HTMLElement ? html : html?.[0];
+  const root = elementOf(html);
   if (!root || root.querySelector(".acks-formation-hud")) return;
 
   const isParty = tokenDoc.actor.type === PARTY_TYPE;

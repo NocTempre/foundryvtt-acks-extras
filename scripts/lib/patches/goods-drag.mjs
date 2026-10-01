@@ -29,6 +29,7 @@
 import { isGoods } from "../item-model.mjs";
 import { MODULE_ID } from "../constants.mjs";
 import { handOver } from "../storage.mjs";
+import { elementOf } from "../util.mjs";
 
 /** The system's item type for coin. Matches `isGoods`'s own rider. */
 const MONEY_TYPE = "money";
@@ -37,7 +38,7 @@ function markGoodsDraggable(app, element) {
   if (game.system?.id !== "acks") return;
   const actor = app?.actor ?? app?.document;
   if (!actor?.items?.size) return;
-  const root = element instanceof HTMLElement ? element : element?.[0];
+  const root = elementOf(element);
   if (!root) return;
 
   let marked = false;

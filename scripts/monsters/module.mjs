@@ -16,6 +16,7 @@ import { createFullMonsterSheet } from "./monster-sheet.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { registerItemAnnotations } from "./item-annotations.mjs";
 import * as config from "./config.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 /** The dynamically-created sheet class (base is resolved at init). */
 let FullMonsterSheet = null;
@@ -192,7 +193,7 @@ async function migrateDefenseBands() {
 /* Actor-directory convenience: open the Full Monster sheet directly. */
 Hooks.on("getActorContextOptions", (_directory, options) => {
   const findActor = (li) => {
-    const el = li instanceof HTMLElement ? li : li?.[0];
+    const el = elementOf(li);
     const id = el?.dataset?.entryId ?? el?.dataset?.documentId;
     return id ? game.actors.get(id) : null;
   };

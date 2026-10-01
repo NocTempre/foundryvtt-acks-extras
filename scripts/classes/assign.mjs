@@ -13,6 +13,7 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { openClassPicker, openClassPickerFor } from "./assign-app.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 export { offeredClasses, openClassPicker } from "./assign-app.mjs";
 
@@ -21,7 +22,7 @@ export { offeredClasses, openClassPicker } from "./assign-app.mjs";
 const SHEET_CLASS = "acks-extras-classes-charsheet";
 
 function onRenderCharacterSheet(app, element) {
-  const root = element instanceof HTMLElement ? element : element?.[0];
+  const root = elementOf(element);
   if (!root) return;
   const doc = app.document;
   if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character || !doc.isOwner) return;

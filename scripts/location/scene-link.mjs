@@ -20,7 +20,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG } from "./constants.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
-import { isUnset } from "../lib/util.mjs";
+import { elementOf, isUnset } from "../lib/util.mjs";
 
 /* -------------------------------------------- */
 /*  Reading the link                             */
@@ -322,7 +322,7 @@ export function registerSceneContextMenu() {
 export function registerSceneConfigRow() {
   Hooks.on("renderSceneConfig", (app, element) => {
     if (game.system?.id !== "acks" || !game.user.isGM) return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
+    const root = elementOf(element);
     if (!root) return;
     root.querySelectorAll(".acks-extras-scene-place").forEach((n) => n.remove());
     // Core's Basics tab renders `navName` through `formGroup`, so the row lands

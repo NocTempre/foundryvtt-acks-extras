@@ -18,7 +18,7 @@
  * destroyed while an injected section (not being a part) survives — removing
  * both and re-adding them is what keeps the two halves consistent.
  */
-import { makeLoc, libStorage as storage, ownsSheet } from "../../lib/util.mjs";
+import { elementOf, makeLoc, libStorage as storage, ownsSheet } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, STORAGE_TAB_ID } from "../constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
 import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan, setPinnedPlace } from "../reach.mjs";
@@ -251,7 +251,7 @@ export function installStorageTab() {
       // The module's own character sheet lists storage under its Equipment
       // tab's "Kept elsewhere" rule; this tab dresses the system's sheet alone.
       if (ownsSheet(app)) return;
-      const root = element instanceof HTMLElement ? element : element?.[0];
+      const root = elementOf(element);
       // The core sheet has a primary tab strip; the Follower Card and our own
       // location sheet do not, and neither wants one bolted on.
       if (!root?.querySelector("nav.tabs") || !root.querySelector('section.tab[data-group="primary"]')) return;
@@ -288,7 +288,7 @@ export function installStorageTab() {
       // Same rule as the column: an item sheet has no storage tab to replace the
       // field with, so a world with no providers keeps core's field.
       if (!worldHasStorage()) return;
-      const root = element instanceof HTMLElement ? element : element?.[0];
+      const root = elementOf(element);
       root?.querySelector('[name="system.quantitybank"]')?.closest(".form-group")?.remove();
     } catch (err) {
       console.error(`${MODULE_ID} | money sheet cleanup failed`, err);

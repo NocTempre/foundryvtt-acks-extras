@@ -22,6 +22,7 @@ import { openLoyaltyRoll } from "../engine/events.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { elementOf } from "../../lib/util.mjs";
 
 const GRID_CLASS = "acks-henchmen-follower-grid";
 
@@ -31,7 +32,7 @@ async function gridifyHirelings(app, element) {
   if (!api?.render) return; // lib subsystem too old — leave the stock list intact
   const employer = app.actor ?? app.document;
   if (employer?.type !== ACTOR_TYPE.character) return;
-  const root = element instanceof HTMLElement ? element : element?.[0];
+  const root = elementOf(element);
   const tab = root?.querySelector('.tab[data-tab="hirelings"]');
   if (!tab) return;
   const col = tab.querySelector(".flexcol") || tab;

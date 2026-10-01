@@ -118,7 +118,7 @@ export class RepairApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** A checkbox changed: one finding, or every fixable finding of a check. */
   #onPick(event) {
     const box = event.target;
-    if (!(box instanceof HTMLInputElement) || box.type !== "checkbox") return;
+    if (!box?.matches?.("input") || box.type !== "checkbox") return;
     if (box.dataset.pick) {
       if (box.checked) this.#picked.add(box.dataset.pick);
       else this.#picked.delete(box.dataset.pick);

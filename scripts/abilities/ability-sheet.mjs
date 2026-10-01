@@ -15,6 +15,7 @@ import AbilityExtras, { selectionsOf } from "./ability-extras.mjs";
 import { keyOf, rollsOf, scalesFor, measures, throwText, throwOutcome, labelOf } from "./ability-rolls.mjs";
 import { ladderRungs, classByKey, effectiveLevel } from "../classes/registry.mjs";
 import { PROGRESSION_CLASSES, levelFactorLabel } from "../lib/vocab.mjs";
+import { elementOf } from "../lib/util.mjs";
 import { ROLL_ACTIONS } from "./roll-editor.mjs";
 import { LANGUAGE_ACTIONS, slotsOf, onDropLanguage } from "./language-slots.mjs";
 import { filledLanguages } from "../classes/languages.mjs";
@@ -532,7 +533,7 @@ export function createAbilitySheet(Base) {
         // array path); folded into the free-text line here, boxes first in
         // vocabulary order, then the fallback line. A typed phrase the
         // vocabulary recognises is stored as its key at once.
-        const root = form instanceof HTMLElement ? form : this.element;
+        const root = elementOf(form) ?? this.element;
         const boxes = [...(root?.querySelectorAll("[data-selection-pick]") ?? [])];
         if (boxes.length) {
           const V = globalThis.acksExtras?.lib?.vocab;

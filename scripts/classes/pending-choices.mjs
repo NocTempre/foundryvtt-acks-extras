@@ -27,6 +27,7 @@ import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { grantAbility, warmSpellPacks } from "./grants.mjs";
 import { whenReady } from "../lib/library.mjs";
 import { rungOptions, rungSelectHtml } from "./picks.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 /**
  * Is this template row an OFFER rather than a grant?
@@ -195,7 +196,7 @@ function onRenderCharacterSheet(app, element) {
   try {
     const actor = app?.document;
     if (actor?.documentName !== "Actor" || actor.type !== ACTOR_TYPE.character) return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
+    const root = elementOf(element);
     if (!root) return;
     for (const item of pendingChoices(actor)) {
       for (const row of root.querySelectorAll(`[data-item-id="${item.id}"]`)) {

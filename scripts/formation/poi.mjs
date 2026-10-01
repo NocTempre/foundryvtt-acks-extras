@@ -16,7 +16,7 @@
  * way (`location/here.mjs` reads this feature's `partyPoint`).
  */
 import { MODULE_ID, TURN_SECONDS } from "./constants.mjs";
-import { makeLoc, gmIds } from "../lib/util.mjs";
+import { elementOf, makeLoc, gmIds } from "../lib/util.mjs";
 import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { getFormation, patchFormation } from "./formation-model.mjs";
 import { partyPoint, regionOutlines } from "./zones.mjs";
@@ -130,7 +130,7 @@ export async function promoteIncident(note, { name = "" } = {}) {
  */
 export function installIncidentCardActions() {
   Hooks.on("renderChatMessageHTML", (_message, html) => {
-    const root = html instanceof HTMLElement ? html : html?.[0];
+    const root = elementOf(html);
     if (!root || !game.user?.isGM) return;
     for (const button of root.querySelectorAll(".acks-extras-poi-promote")) {
       button.addEventListener("click", (event) => {

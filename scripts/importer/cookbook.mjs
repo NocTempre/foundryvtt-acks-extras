@@ -94,7 +94,7 @@ import { gearProfileFor } from "../equipment/config.mjs";
 import { annotateItem } from "../equipment/api.mjs";
 import { ANIMAL_TYPE, TEMPLATE_TYPE } from "../lib/constants.mjs";
 import { acksExtras } from "../namespace.mjs";
-import { unset } from "../lib/util.mjs";
+import { elementOf, unset } from "../lib/util.mjs";
 
 const FOLDER_NAME = "ACKS Cookbook";
 /**
@@ -9759,7 +9759,7 @@ export async function cookbookPruneAbilities() {
 export function registerAbilityDirectoryButtons() {
   Hooks.on("renderItemDirectory", (app, element) => {
     if (!game.user.isGM) return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
+    const root = elementOf(element);
     if (!root || root.querySelector(".acks-extras-importer-ability-tools")) return;
 
     const bar = document.createElement("div");

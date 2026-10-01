@@ -456,7 +456,6 @@ assert.deepEqual(Object.keys(TERRAIN_COLORS).sort(), Object.keys(TERRAIN).sort()
     // raw imported key — which is the case the escaping has to survive.
     i18n: { format: (key) => key, localize: (key) => key, has: () => false },
   };
-  globalThis.HTMLElement = class HTMLElement {};
 
   /** The row the module last built, captured through its only DOM call. */
   let built = null;
@@ -487,13 +486,14 @@ assert.deepEqual(Object.keys(TERRAIN_COLORS).sort(), Object.keys(TERRAIN).sort()
   registerRoadHooks();
   const appended = [];
   const root = {
+    nodeType: 1,
     querySelector: (sel) => (sel === ".window-content .standard-form" ? { append: (r) => appended.push(r) } : null),
   };
   /** Fire the sheet-render hook over one document and report what was added. */
   const render = (wall) => {
     appended.length = 0;
     built = null;
-    for (const fn of hooks.get("renderApplicationV2")) fn({ document: wall, render() {} }, [root]);
+    for (const fn of hooks.get("renderApplicationV2")) fn({ document: wall, render() {} }, root);
     return built;
   };
 

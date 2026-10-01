@@ -612,7 +612,6 @@ test("a rectangle region becomes its four corners; a hole contributes none", () 
 const wallSheetHarness = () => {
   const appended = [];
   const created = [];
-  globalThis.HTMLElement = class HTMLElement {};
   globalThis.game = { user: { isGM: true }, i18n: { localize: (k) => k, format: (k) => k } };
   globalThis.document = {
     createElement: () => {
@@ -632,10 +631,11 @@ const wallSheetHarness = () => {
   globalThis.Hooks = { on: (name, fn) => (name === "renderApplicationV2" ? rendered.push(fn) : null) };
   installTrapDrop();
   const root = {
+    nodeType: 1,
     querySelector: (sel) =>
       (sel === ".window-content .standard-form" ? { append: (r) => appended.push(r) } : null),
   };
-  return { appended, created, render: (wall) => rendered.forEach((fn) => fn({ document: wall, render() {} }, [root])) };
+  return { appended, created, render: (wall) => rendered.forEach((fn) => fn({ document: wall, render() {} }, root)) };
 };
 
 test("the wall palette's id-less preview gets no trap row, so no assignment can be attempted", () => {

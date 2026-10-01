@@ -8,7 +8,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor } from "./registry.mjs";
-import { ownsSheet, unset } from "../lib/util.mjs";
+import { elementOf, ownsSheet, unset } from "../lib/util.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /** The vancian slot row for `level`: exact rung, else the highest below it. */
@@ -151,7 +151,7 @@ export function castingStripElement(actor) {
 }
 
 function onRenderCharacterSheet(app, element) {
-  const root = element instanceof HTMLElement ? element : element?.[0];
+  const root = elementOf(element);
   if (!root) return;
   const doc = app.document;
   if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character) return;

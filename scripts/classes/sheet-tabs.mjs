@@ -18,6 +18,7 @@ import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { classForActor } from "./registry.mjs";
 import { cookbookId } from "../lib/library.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 const ABILITY_ORDER = ["fighting", "thief", "general", "class", "powers", "racial", "language"];
 
@@ -113,7 +114,7 @@ function wireBar(app, root, doc, kind, isKind, catOf) {
 }
 
 function onRenderCharacterSheet(app, element) {
-  const root = element instanceof HTMLElement ? element : element?.[0];
+  const root = elementOf(element);
   if (!root) return;
   const doc = app.document;
   if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character) return;

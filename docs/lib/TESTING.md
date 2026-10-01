@@ -953,6 +953,18 @@ the party token, are formation's recipe "An unlinked member's own hit points"
    - `api.lib.hp.open()` returns null.
    - `await api.lib.hp.adjust({actors: [<HP Hero>]}, {amount: 1})` returns
      null, and HP Hero's hit points do not change.
+10. **First rendered in a detached window.** As GM, take the window's class
+    from an open one, `api.lib.hp.open({actors: [<HP Hero>]}).constructor`,
+    and close it. Detach HP Cart's sheet ("A long window title stays on one
+    line", drive notes), then
+    `cartSheet.renderChild(new Cls({from: {actors: [<HP Hero>]}}))`. With real
+    input in the popup, click the amount, select all, type `7` and press Tab,
+    then click **Show the report to players**.
+    **Observable:** the window's root reads `instanceof HTMLElement` false.
+    The After column reads HP Hero's hit points less 7, and the box is still
+    ticked after the render its click caused. A capture listener for `change`
+    on the root reads `event.target instanceof HTMLInputElement` false for
+    both events, so a guard written that way would have dropped them.
 
 **Teardown.** `api.sweepTracked()`. The scene takes every token on it with
 it, the body tokens included, so those sweep as missing.
@@ -962,10 +974,13 @@ it, the body tokens included, so those sweep as missing.
 Covers the design system's heading rule (`vendor/acks-design/base.css`,
 HEADINGS) where it meets core's window header, and the title rule that
 answers it (`vendor/acks-design/foundry.css` § 2). Nothing offline sees it:
-the fault is a cascade result, and the suite has no cascade. Steps 5 to 9
+the fault is a cascade result, and the suite has no cascade. Steps 5 to 10
 cover the hover that shows a cut-short title whole (`window-title.mjs`):
 `tools/test-window-title.mjs` holds its guards against a stand-in manager, and
-only a real pointer on a real header proves the rest.
+only a real pointer on a real header proves the rest. Step 10 is also the
+walk for `elementOf` (`util.mjs`), which every render hook takes its root
+through: `tools/test-lib.mjs` holds its cases against stand-ins from a second
+realm, and only a window first rendered in a detached one proves the hooks.
 
 **Drive notes:**
 - **Count lines from a `Range`.** Select the title's contents and count the
@@ -1027,13 +1042,31 @@ only a real pointer on a real header proves the rest.
   Attach a session to that target and send the pointer there, in the popup's
   viewport coordinates. State is still read from the main page:
   `app.element.ownerDocument` is the popup's document.
+- **Detach from script with a user gesture.** `app.detachWindow()` opens the
+  popup with `window.open`. Evaluate it on the second session with
+  `Runtime.evaluate` and `userGesture: true`, which the popup blocker lets
+  through.
+- **First rendered in a popup is `parent.renderChild(app)`.** The parent is a
+  window already detached. Nothing in core, the system or this module renders
+  an ACKS window that way, so the walk does it by hand. The known positive is
+  `app.element instanceof HTMLElement === false`. A window detached after it
+  rendered reads true there, and proves nothing about the hooks.
+- **Ask `instanceof` of an element something holds.** The answer belongs to
+  the script object, and an element nothing holds may be given a new one
+  between two readings. `app.element` is held by its application.
+- **Widen the popup before a press.** It opens at its parent's size, and a
+  header control of a wider sheet sits off the page: a press there lands on
+  nothing and reads as a dead control. `Emulation.setDeviceMetricsOverride` on
+  the popup's session sets its viewport, and `elementFromPoint` in the popup's
+  document says whether the control is under the point.
 
 **Fixtures (each id recorded with `api.create`):** an `acks-extras.vehicle`
 named with an invented phrase of about 45 characters, and a `monster` and an
 `acks-extras.marketReport` item named with one of about 85. For steps 7 and 8,
 a `character` owned by every seat (`ownership: {default: 3}`) holding an
 `item` of `system.quantity.value` 6 named with one of about 70, and a plain
-world `item`.
+world `item`. For step 10, a second `acks-extras.vehicle`, a second `monster`
+and two more `character`s, each named with the 85-character phrase.
 
 **The probe.** Run it on a heading element. A window's title is
 `app.element.querySelector(":scope > .window-header .window-title")`.
@@ -1174,9 +1207,39 @@ world `item`.
    shows, and `game.tooltip.tooltip.ownerDocument` is the popup's document. It
    sits below the title: the popup's viewport begins at the window's top.
    Attached again, the title answers in the main window.
+10. **First rendered in a popup.** Detach the first vehicle's sheet from a
+    user-gesture evaluation. Hand its `renderChild`, in turn, a dressed
+    dialog, an unclassed one, the second vehicle's sheet, and the system's
+    sheets for the second monster and for one character, each constructed as
+    the monster's is. In the main window render a dressed dialog and the
+    system's sheets for the first monster and the other character.
+    **Observable:**
+    - Each of the five roots reads `instanceof HTMLElement` false, with
+      `ownerDocument` the popup's.
+    - The system's two sheets wear `acks-ui`. On each, and on the dressed
+      dialog, the dress classes, the computed face of the root and of the
+      title, and the `--acks-*` token values equal the main-window copy's.
+    - The second vehicle's sheet wears the dress on its root, and its first
+      control, `app.element[0]`, wears neither dress class.
+    - The character sheet carries the class picker, the roster button and
+      influence's button, as its main-window copy does, and a second
+      `render()` leaves one of each.
+    - A hover in the popup shows the whole title on the four ACKS surfaces and
+      nothing on the unclassed dialog.
+    - With the popup widened, a real press on the roster button
+      (`.acks-henchmen-roster-button`) opens the roster, in the main window.
+    - `attachWindow()` on the first vehicle's sheet brings its children back
+      with it. The character sheet is then in the main document, still reads
+      `instanceof HTMLElement` false, keeps the dress and one of each control
+      across a `render()`, and its title answers a hover in the main page.
+    - The console holds no error.
 
 **Not reached.** A browser other than the Chromium build the capture driver
-launches.
+launches. In a popup: a scene, region, wall or roll-table configuration
+window, the token HUD, a chat card and a directory context menu, whose hooks
+take their element through the same resolver. The hit-point window is "The
+hit-point tool", step 10; the repair window's own checkbox guard needs a
+finding to tick and was read, not driven.
 
 **Teardown.** Close the windows, the constructed system sheet included, set
 `look` and `sheetStyle` back to what step 7 found, and `api.sweepTracked()`.

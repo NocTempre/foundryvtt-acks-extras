@@ -16,6 +16,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 /**
  * Mark this character new again, so the system offers its generator.
@@ -47,7 +48,7 @@ export async function reopenChargen(actor) {
  * the page in front of them already.
  */
 function onRenderCharacterSheet(app, element) {
-  const root = element instanceof HTMLElement ? element : element?.[0];
+  const root = elementOf(element);
   if (!root) return;
   const doc = app.document;
   if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character || !doc.isOwner) return;

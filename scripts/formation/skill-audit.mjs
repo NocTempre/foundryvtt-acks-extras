@@ -1,5 +1,5 @@
 /* global game, foundry, fromUuidSync, Hooks, document */
-import { makeLoc } from "../lib/util.mjs";
+import { elementOf, makeLoc } from "../lib/util.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
   abilityKey,
@@ -281,7 +281,7 @@ export function registerSkillFlagEditor() {
     try {
       const item = app?.document;
       if (item?.documentName !== "Item" || item.type !== ITEM_TYPE.ability) return;
-      const root = element instanceof HTMLElement ? element : element?.[0];
+      const root = elementOf(element);
       if (!root) return;
       injectSkillUI(app, root, item);
     } catch (err) {

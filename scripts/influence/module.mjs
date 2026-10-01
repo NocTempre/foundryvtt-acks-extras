@@ -29,6 +29,7 @@ import * as services from "../lib/services.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { MORALE_ROLL_CONTRACT } from "../lib/patches/morale-roll.mjs";
 import { MORALE_DOC } from "./printed.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;
 
@@ -218,7 +219,7 @@ function injectSheetButton(app, element) {
     const actor = characterOf(app);
     if (!actor) return;
 
-    const root = element instanceof HTMLElement ? element : element?.[0];
+    const root = elementOf(element);
     if (!root || root.querySelector(".acks-influence-btn")) return;
 
     const anchor = root.querySelector(".sheet-header .health-box") ?? root.querySelector(".sheet-header");
@@ -257,7 +258,7 @@ function injectRelationships(app, element) {
   try {
     const actor = characterOf(app);
     if (!actor) return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
+    const root = elementOf(element);
     if (!root) return;
     // A sheet with no primary tab strip has no Notes tab to extend; not a
     // failure. See docs/influence/DECISIONS.md, "Sheet injectors gate on the

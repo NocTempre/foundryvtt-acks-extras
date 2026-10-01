@@ -39,7 +39,7 @@ import { bindCardListeners, registerCardAction } from "./chat/cards.mjs";
 
 import { registerEventEngine, openLoyaltyRoll, openObedienceRoll, recordCalamity, payWagesFor, enrollNewcomers, forgiveWageDebts, setPermanentCompensated, allEmployers, effectiveLoyaltyFor, effectiveMoraleFor } from "./engine/events.mjs";
 import { openRosterApp } from "./apps/roster-app.mjs";
-import { ownsSheet } from "../lib/util.mjs";
+import { elementOf, ownsSheet } from "../lib/util.mjs";
 import { installHirelingsGrid } from "./apps/hirelings-grid.mjs";
 import { recruitMonster, hireMonster, validateMonsterRecruit } from "./engine/monster.mjs";
 import { openFollowersDialog } from "./apps/followers-dialog.mjs";
@@ -304,7 +304,7 @@ Hooks.on("renderActorSheetV2", (app, element) => {
   // The module's own character sheet carries Roster as a chip on its
   // Followers tab; the header button dresses the system's sheet alone.
   if (ownsSheet(app)) return;
-  const root = element instanceof HTMLElement ? element : element?.[0];
+  const root = elementOf(element);
   const header = root?.querySelector(".window-header");
   if (!header || header.querySelector(".acks-henchmen-roster-button")) return;
   const button = document.createElement("button");
@@ -323,7 +323,7 @@ Hooks.on("renderActorSheetV2", (app, element) => {
  * rolls morale on the Combat Morale page". */
 Hooks.on("getActorContextOptions", (_directory, options) => {
   const findActor = (li) => {
-    const el = li instanceof HTMLElement ? li : li?.[0];
+    const el = elementOf(li);
     const id = el?.dataset?.entryId ?? el?.dataset?.documentId;
     return id ? game.actors.get(id) : null;
   };

@@ -13,6 +13,7 @@ import {
   wallNear,
   wallSheetFields,
 } from "../lib/wall-layers.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 /**
  * Traps laid on WALLS: a tripwire across a corridor, a scything blade in a 10'
@@ -373,7 +374,7 @@ export function installTrapDrop() {
     // document to land on: the write throws and the drop target reverts to
     // empty on the next re-render.
     if (wall?.documentName !== "Wall" || !wall.id) return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
+    const root = elementOf(element);
     if (!root) return;
     // Re-rendering appends a second copy otherwise, and the sheet re-renders
     // on every field the Judge touches.

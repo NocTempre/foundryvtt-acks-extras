@@ -2,6 +2,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { LEVEL_FLAG, tableLevel } from "./encounter-scaling.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 /**
  * A "Monster level" row in a RollTable sheet's Summary tab, beside the
@@ -15,7 +16,7 @@ import { associateLabels } from "../lib/a11y.mjs";
 export function installMonsterLevelRow() {
   Hooks.on("renderRollTableSheet", (app, element) => {
     if (!game.user?.isGM) return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
+    const root = elementOf(element);
     // The Summary part exists only in the edit view of an editable table.
     const summary = root?.querySelector('.tab[data-tab="summary"]');
     if (!summary || summary.querySelector(".acks-extras-monster-level")) return;

@@ -26,6 +26,7 @@ import { grantLanguages } from "./languages.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
 import { resolveBase, templateItemName, buildGearData, expandTemplate, applyShortfall } from "./template-packages.mjs";
 import { isUnidentifiedWeapon } from "../equipment/profiles.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 // The base-resolution and skinning layer lives in template-packages.mjs (the
 // materializer resolves once, at import; this file resolves at grant time only
@@ -493,7 +494,7 @@ export async function applyChargen(
 
 /** A skinned item's sheet names what it is an instance of. */
 function onRenderItemSheet(app, element) {
-  const root = element instanceof HTMLElement ? element : element?.[0];
+  const root = elementOf(element);
   if (!root) return;
   const doc = app.document;
   const skin = doc?.flags?.[MODULE_ID]?.skin;

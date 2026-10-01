@@ -12,7 +12,7 @@
  * See docs/battlemap/DECISIONS.md, "A road is a wall, on every grid."
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { makeLoc, locOr } from "../lib/util.mjs";
+import { elementOf, makeLoc, locOr } from "../lib/util.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { joinSegments, pathLengthAlong } from "../lib/wall-geometry.mjs";
 import {
@@ -358,7 +358,7 @@ function installRoadRow(app, element) {
   // document (id null) — writing a flag there throws and the picker springs
   // back on the next re-render.
   if (wall?.documentName !== "Wall" || !wall.id) return;
-  const root = element instanceof HTMLElement ? element : element?.[0];
+  const root = elementOf(element);
   if (!root) return;
   // Re-rendering appends a second copy otherwise, and the sheet re-renders on
   // every field the Judge touches.

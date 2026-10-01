@@ -20,6 +20,7 @@
  */
 import { MODULE_ID, ABILITY_TYPE } from "./constants.mjs";
 import { rollsOf, keyOf, rollAbility, defaultKeyOf, setDefaultKey, nextKeyAfter, throwText } from "./ability-rolls.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 /** Marks a tag in the strip as one of an ability's throws (carries its key). */
 export const THROW_TAG_CLASS = "acks-extras-abilities-throw";
@@ -157,7 +158,7 @@ export function registerSheetRolls() {
       if (game.system?.id !== "acks") return;
       const actor = app.actor ?? app.document;
       if (!(actor instanceof Actor) || !actor.isOwner) return;
-      const root = element instanceof HTMLElement ? element : element?.[0];
+      const root = elementOf(element);
       if (!root) return;
 
       clear(root);

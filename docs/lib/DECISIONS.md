@@ -2802,3 +2802,105 @@ real browser input.
 **What it cost.** The tooltip is core's, so it does not follow the type knob
 and wraps a long title at core's 320px. Each watched window carries three
 listeners on its title.
+
+### An element is told by its `nodeType`, never by its constructor (2026-10-01)
+
+**Ruled.** Whatever a render hook, a dialog callback or a context-menu entry
+is handed, it takes the element through `elementOf` (`util.mjs`): the element
+as it stands, the first element of a jQuery or array wrapper, or null. The
+test for an element is `nodeType === 1`, and it comes before the index, since
+a `<form>` indexes its own controls. No file under `scripts/` tests a DOM
+node with `instanceof`. 37 call sites in 33 files go through the resolver,
+and the hit-point and repair windows ask a changed control `matches`. The
+check that keeps the test from returning is ruled for the family's validator
+and is the template's to carry. At this date nothing gates it here.
+
+**Found live.** On core 14.367, with a parent sheet detached by core's own
+control and each subject handed to its `renderChild`.
+- The root of a window first rendered inside a detached browser window is an
+  instance of that window's `HTMLElement` and of none in the main one,
+  whatever its tag: a `<dialog>`, a `<form>` and a `<div>` read alike, and so
+  does every element reached through such a root. The retired expression
+  then took `element[0]`, which is nothing for most roots and a `<form>`'s
+  first control.
+- Before the change the marking hook passed by the system's monster and
+  character sheets there, and they drew in core's face with a 13px title. On
+  this module's vehicle sheet the hook dressed the form's first control, a
+  button; the root wore `acks-ui` from its own declaration. The system's
+  character sheet came up without what three features add to it, the class
+  picker, the roster button, and influence's button and relationships
+  section: 18 marker classes against the 22 of the same sheet in the main
+  window. No cut-short title answered a hover.
+- After it each of those windows reads as its main-window copy does: the
+  dress classes, the computed face of the root, the title and the content,
+  the palette tokens, and the set of marker classes. So does the default
+  sheet of each of the 15 item types. A cut-short title answers in the
+  detached page on every ACKS surface, and an unclassed dialog stays silent
+  there.
+- Which window's constructor claims a node belongs to the script object that
+  stands for it, and the browser makes that object again. Of two `<span>`s
+  the main document built and a header in the detached page adopted, the one
+  a script reference held read as the main window's throughout. The other,
+  held by nothing, read as the main window's at once and as the detached
+  window's after a collection.
+- A root keeps its answer while its application holds it. A sheet detached
+  after it rendered stays the main window's. A window first rendered detached
+  and brought back by its parent's `attachWindow()` sits in the main document
+  and is no instance of the main window's `HTMLElement`, and every later
+  render hands the hooks that root. It is dressed there, holds one of each
+  added control, and its title answers in the main page.
+- A control a feature hook adds to a detached sheet takes a real press. The
+  roster button opened its window, in the main window, where every window a
+  feature opens with `render` lands.
+- In the hit-point window first rendered detached, every real change reached
+  the window: 7 typed over the amount left a row of 20 at 13. The retired
+  guard, `instanceof HTMLInputElement`, read false for each of those events
+  and `matches` true. In the same window detached after it rendered, both
+  read true on every event, with a collection before it or without.
+- The detached page carries the module's stylesheets and pins as it opens:
+  three stylesheets in each page, and the same `<html>` attributes, body
+  classes and token values. A type size, a theme or a look set while it is
+  open is written to the main page alone (ROADMAP, "A client setting changed
+  while a window is detached").
+
+**Measured.** From the GM seat, before the change and after it, every
+pointer and key event real browser input.
+- Three windows in the main window, a dressed dialog and the system's monster
+  and character sheets, read the same before and after in every field
+  recorded.
+- A popup-first system sheet's title went from 13px to 15.54px and its ground
+  from `rgba(11, 10, 19, 0.9)` to `rgb(27, 20, 22)`, the main-window copy's
+  readings.
+- A second render of the popup-first character sheet left one roster button,
+  one influence button and one class picker.
+- With the type size raised from 14 to 18 while a detached page was open, a
+  dialog opened fresh there had a 15.54px title against 19.98px in the main
+  window. After core's interface pass both read 19.98px. Under the `light`
+  theme the fresh dialog in the main window stood on `rgb(253, 251, 249)` and
+  the detached one on `rgb(27, 20, 22)`. Under the `core` look the dress
+  classes came off in both pages, and `data-acks-look` and the body class
+  changed in the main page alone.
+- No run logged a console error, and a reload logged none at load, `init`,
+  `setup` or `ready`.
+
+**Rejected.**
+- *Asking the element's own window*,
+  `element instanceof element.ownerDocument.defaultView.HTMLElement`. It is
+  right for a root where that root was built. The held `<span>` sat in the
+  detached document and was the main window's, and the root brought back sat
+  in the main document and failed that very test.
+- *Mending the marking hook alone.* The expression stood in 37 places. A
+  system sheet would have taken the dress in a detached window and still come
+  up without its class, roster and influence additions.
+- *The index first*, `element?.[0] ?? element`. A form's first control is an
+  element too.
+- *Leaving the two control guards*, since a window detached after it rendered
+  passed them on every event measured. First rendered detached, the
+  hit-point window would have ignored every change.
+
+**What it cost.** One import in each of 33 files. `elementOf` answers null
+where the retired expression answered `undefined`; every caller tests for
+falsy. A system window first rendered in a detached window changes face
+there. Nothing renders one that way at this date: the windows core itself
+first renders there are its own, and neither this module nor the system calls
+`renderChild` or passes a `windowId`.

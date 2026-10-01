@@ -8,6 +8,7 @@
 import { MODULE_ID } from "../constants.mjs";
 import { gmIds } from "../acks-adapter.mjs";
 import { postToJudges } from "../../lib/roll-audience.mjs";
+import { elementOf } from "../../lib/util.mjs";
 
 const T = `modules/${MODULE_ID}/templates/henchmen/chat`;
 
@@ -91,7 +92,7 @@ export function registerCardAction(action, handler) {
 }
 
 export function bindCardListeners(html) {
-  const root = html instanceof HTMLElement ? html : html?.[0];
+  const root = elementOf(html);
   if (!root) return;
   root.querySelectorAll(`[data-${MODULE_ID}-action]`).forEach((el) => {
     el.addEventListener("click", async (event) => {

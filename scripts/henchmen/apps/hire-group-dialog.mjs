@@ -8,6 +8,7 @@
  */
 import { hireAsGroup } from "../engine/hire-group.mjs";
 import { pickEmployer } from "./recruit-dialog.mjs";
+import { elementOf } from "../../lib/util.mjs";
 
 const isOfficer = (c) => /^(mercOfficer|marshal)/i.test(c.specialistType ?? "");
 const isTroop = (c) => c.kind === "mercenary" || !!c.troopType;
@@ -32,8 +33,9 @@ function officerLabel(c) {
  * so it survives DialogV2's DOM; a missing root leaves the number inputs
  * (which already carry min/max) as the fallback.
  */
-function wireSteppers(root) {
-  if (!(root instanceof HTMLElement)) return;
+function wireSteppers(element) {
+  const root = elementOf(element);
+  if (!root) return;
   // Set as a property, not an `inputmode` attribute — DialogV2's cleanHTML
   // strips it. See docs/henchmen/DECISIONS.md, "Attributes outside Foundry's
   // allowlist are set from the render callback".

@@ -5,6 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import vm from "node:vm";
 import * as vocab from "../scripts/lib/vocab.mjs";
 import { cleanDelta, isDerivedEffect, memberName, migrateGroupSource, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
@@ -53,7 +54,7 @@ import { sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mj
 import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
 import { mathIsPrivate, mathSection, postToJudges } from "../scripts/lib/roll-audience.mjs";
-import { gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
+import { elementOf, gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../scripts/lib/sheet-rows.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import { clockReading, darkBounds, isDarkAt } from "../scripts/lib/world-time.mjs";
@@ -2251,6 +2252,29 @@ t("judgesAndOwners: every GM, then each other user who owns the document", () =>
     assert.deepEqual(judgesAndOwners(doc), ["g1", "p1"], "a GM who owns it is listed once");
     assert.deepEqual(judgesAndOwners(null), ["g1"], "no document, the GMs alone");
   });
+});
+
+t("elementOf: an element as it stands, a wrapper's first element, and nothing else", () => {
+  const root = { nodeType: 1 };
+  assert.equal(elementOf(root), root);
+  assert.equal(elementOf([root]), root, "an array wrapper");
+  assert.equal(elementOf({ 0: root, length: 1, jquery: "3.7.1" }), root, "a jQuery wrapper");
+  // A form indexes its own controls, and its first control is an element too.
+  const form = { nodeType: 1, 0: { nodeType: 1 }, length: 1 };
+  assert.equal(elementOf(form), form, "a form root comes back whole");
+  const nothing = [null, undefined, "", "div", 7, {}, [], [null], [{}], { nodeType: 3 }, { nodeType: 11 }, [{ nodeType: 3 }]];
+  for (const target of nothing) assert.equal(elementOf(target), null, JSON.stringify(target) ?? "undefined");
+});
+
+t("elementOf: an element another window's document built is still an element", () => {
+  // A second realm, as a detached browser window is: its objects are instances
+  // of no constructor here.
+  const foreign = vm.runInNewContext("({ root: { nodeType: 1 }, form: { nodeType: 1, 0: { nodeType: 1 }, length: 1 }, wrapped: [{ nodeType: 1 }] })");
+  assert.equal(foreign.root instanceof Object, false, "the stand-in really is from another realm");
+  assert.equal(foreign.wrapped instanceof Array, false);
+  assert.equal(elementOf(foreign.root), foreign.root);
+  assert.equal(elementOf(foreign.form), foreign.form, "and a form there is not indexed either");
+  assert.equal(elementOf(foreign.wrapped), foreign.wrapped[0]);
 });
 
 t("keepUnrenderedFields: a submitted row keeps every stored field its form did not send", () => {

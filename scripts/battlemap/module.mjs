@@ -48,6 +48,7 @@ import {
 } from "./roads.mjs";
 import { installRoadMarkers } from "./road-markers.mjs";
 import { convertRoutesToWalls, derivedRoutesOf, nodePoint, routesOf, stepBetweenHexes } from "./hex-routes.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 const TEMPLATES = [
   `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs`,
@@ -276,7 +277,7 @@ function installSceneControls() {
 function installSceneConfigRow() {
   Hooks.on("renderSceneConfig", (app, element) => {
     if (game.system?.id !== "acks" || !game.user.isGM) return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
+    const root = elementOf(element);
     if (!root) return;
     root.querySelectorAll(".acks-extras-battlemap-row").forEach((n) => n.remove());
     // Anchored like the location row: under the Basics tab's navName group,

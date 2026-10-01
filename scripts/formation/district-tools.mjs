@@ -10,6 +10,7 @@ import { DISTRICT_TYPE } from "./district-zone.mjs";
 import { controlledWalls, regionFromWalls } from "../lib/wall-layers.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
 import { LOCATION_TYPE } from "../location/constants.mjs";
+import { elementOf } from "../lib/util.mjs";
 
 /**
  * A "Place" row on the District behaviour's sheet: the location actor the
@@ -26,7 +27,7 @@ export function installDistrictPlaceRow() {
     const region = behavior.parent;
     const scenes = globalThis.acksExtras?.location?.scenes;
     if (!region || typeof scenes?.locationOfRegion !== "function") return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
+    const root = elementOf(element);
     if (!root) return;
     root.querySelectorAll(".acks-extras-district-place").forEach((n) => n.remove());
     // Under the behaviour's own fields, which core renders as the last fieldset.

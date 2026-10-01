@@ -178,7 +178,7 @@ export class HpApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** A control changed: the change being set up, or one row's settings. */
   #onChange(event) {
     const el = event.target;
-    if (!(el instanceof HTMLInputElement || el instanceof HTMLSelectElement)) return;
+    if (!el?.matches?.("input, select")) return;
     const key = el.closest("[data-row]")?.dataset.row;
     if (key) {
       const row = this.#rows.get(key);

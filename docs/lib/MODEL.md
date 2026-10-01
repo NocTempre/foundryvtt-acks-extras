@@ -202,6 +202,16 @@ application this module declares names `acks-ui`, no core application does, and
 an ACKS surface always wears the full dress; `sheetStyle` speaks only for the
 system's.
 
+**A window in a detached browser window is marked like any other.** Core
+builds a window's frame with the document of the browser window that hosts it.
+A window first rendered inside a detached one therefore has a root that
+window's document built, and no constructor of the main window calls that root
+an instance. The hook takes its root through `elementOf` (`util.mjs`), which
+tells an element by its `nodeType`, so the mark lands there as it does in the
+main window, and keeps landing after core brings the window back. The detached
+page has what the mark needs: as it opens, core copies into it the main page's
+stylesheets and the attributes of its `<html>` and `<body>`.
+
 ### The `look` setting: whose palette, not how much of it
 
 `look` sits above both of the above. `book` is everything described here. `core`
@@ -487,8 +497,7 @@ dress: an unclassed core dialog, and every window under the `core` look. The
 character sheet and the item sheet, whose titles are clipped to a 1px box and
 take no pointer. A hover while a tour runs, since the tour holds the manager's
 one tooltip element. A touch pointer, whose arrival and press are one event
-pair. A window first rendered inside a detached browser window, which the
-marking hook does not see.
+pair.
 
 ## Perception: senses, light, and the token
 

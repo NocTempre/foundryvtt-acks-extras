@@ -143,14 +143,17 @@ takes the header's height as its line height and loses nothing. A taller line
 changes the title's box on every window, and wants its own before-and-after
 reading (TESTING, "A long window title stays on one line").
 
-## A window first rendered inside a detached window
+## A client setting changed while a window is detached
 
-A render hook that finds its root with `element instanceof HTMLElement` passes
-by a window whose frame another browser window's document built (DECISIONS, "A
-window title cut short is shown whole on a hover", the last finding). The test
-is written across `scripts/` (grep it: 37 places in 33 files), and where it
-fails the fallback `element?.[0]` is nothing for most roots and a form's first
-control for a `<form>`. Not built: one root resolver in lib that does not ask
-which window's constructor made the element, used at each of those places.
-Once the marking hook resolves such a root, a system window opened inside a
-detached one takes the dress there, which wants its own live look.
+`applyLook`, `applyRootPin` and `applyFontScale` write their pins to the main
+page. Core copies the main page's `<html>` and `<body>` attributes into a
+detached page as it opens and again at its own interface pass, so a type size,
+a theme or a look set in between is missing there until that pass (DECISIONS,
+"An element is told by its `nodeType`, never by its constructor", the last
+finding). Under the `core` look the dress classes do come off a detached
+window, since `applyLook` walks every open application, while the attribute
+and the body class the adapter keys on stay as they were in that page. Not
+built: the three appliers writing to every open detached page as well. Core's
+copy sets each attribute the main element has and removes none (read in its
+`copyAttributes`, not measured), so the look and theme pins, which this module
+removes to release them, would outlive core's pass in a detached page too.
