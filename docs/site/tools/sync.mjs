@@ -204,6 +204,14 @@ if (unlinked.length || dangling.length) {
   process.exitCode = 1;
 }
 
+// A link to a guide that is not there was re-pointed with the rest, at a route
+// the build never emits, and Astro does not follow links to find out.
+const deadLinks = guides.flatMap((g) => g.links.filter((to) => !stagedGuides.includes(to)).map((to) => `${g.slug}.md -> ${to}.md`));
+if (deadLinks.length) {
+  console.error(`sync: ${deadLinks.length} guide link(s) name a guide that docs/guides/ does not have: ${deadLinks.join(", ")}`);
+  process.exitCode = 1;
+}
+
 const unresolved = settings.filter((r) => !r.resolved);
 if (unresolved.length) {
   console.error(`sync: ${unresolved.length} setting key(s) could not be resolved: ${unresolved.map((r) => r.keyExpr).join(", ")}`);

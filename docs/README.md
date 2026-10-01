@@ -46,9 +46,16 @@ the next sync** — change the source instead. Only `index.mdx`, `start/buying.m
 `404.md`, the gallery template, the `Footer` override and the theme CSS are
 authored in `site/`.
 
-The sync fails the build if a setting key cannot be resolved or `GALLERY.md`
-points at a missing screenshot, so a docs change that breaks either is caught in
-CI rather than published quietly.
+A guide links another guide by its file, `other.md#section`, which is the form
+GitHub follows, and the sync re-points the link at the published page
+([DECISIONS.md](DECISIONS.md) §18). Anything else in the repo is linked by its
+full GitHub URL: a relative path out of `guides/` has no page on the site.
+
+The sync exits non-zero if a setting key cannot be resolved, `GALLERY.md` points
+at a missing screenshot, the sidebar and `guides/` disagree, or a guide links to
+a guide that is not there. `npm run validate` runs it, so a docs change that
+breaks one is caught before the push and again in CI rather than published
+quietly.
 
 ## Not shipped
 

@@ -501,3 +501,42 @@ comments now state the guard; the story is here.
 
 - **`tools/audit-imports.mjs` exists because a wrong named import shipped.** An import line copied between two files whose constants live in different places named an export its target did not provide. The browser threw at load and every later hook was dead, while `validate` (which reads files) and the test suite (which imports only the pure modules) both stayed green.
 - **`tools/audit-styles.mjs` strips comments before it scans.** A previous hand-rolled version parsed selectors out of comment prose and reported 85 hits where there were 19.
+
+## 18. A guide links another by its file, and the site re-points the link (2026-10-01)
+
+**What was found.** A guide names another as `other.md#section`. GitHub
+resolves that beside the guide. The site publishes each guide at
+`/guides/<slug>/`, so the same href resolved beneath the page that held it and
+returned 404. The first such link was written for 8.0.0, six weeks after the
+site opened. By 10.0.0 there were fifteen across seven guides, and every one
+had published broken. Nothing failed: Astro does not follow links, and the
+sync's guards covered settings, screenshots and the sidebar.
+
+**Ruled.** The source keeps the file form. `GALLERY.md` sends readers to the
+guides on GitHub, and that is the form GitHub follows. `stageGuides()` rewrites
+a link to a sibling guide into that guide's route and reports which guides each
+one links to, and `sync.mjs` exits non-zero when one of them is not a guide.
+`validate` runs the sync (`validate-extra.mjs` §6), so the check runs before a
+push as well as in the site build.
+
+**Rejected.**
+
+- *A remark plugin in `astro.config.mjs`.* It would read links off the parsed
+  tree, where the sync matches text. It also runs only inside the Astro build,
+  and `validate` runs the sync on the module's own toolchain, without the
+  site's dependencies. The check therefore cannot use a parser, and a rewrite
+  in one file with its check in another is two definitions of what a link to a
+  guide is.
+- *An absolute href carrying the site base.* The base is set once, in
+  `astro.config.mjs`. A relative link needs no copy of it, and relative is the
+  form that file's header already asks of a hand-written href.
+
+**What it costs.** The match is on text, and it recognises the one form the
+guides use: `](name.md#section)`. A reference-style definition, a destination
+with a title, a raw `<a href>` and a relative link out of `docs/guides/` are
+all staged as written, and break on the site with nothing failing. A
+link-shaped string inside a code sample is rewritten, and checked, with the
+rest. The section is not checked at all: a heading renamed under a link breaks
+it on GitHub and on the site alike, in silence. Only the build knows the ids it
+gave the headings, so that check belongs over the built pages, and there is
+none.

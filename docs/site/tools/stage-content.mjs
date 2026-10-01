@@ -88,13 +88,21 @@ function stageDesignSystem() {
 }
 
 /**
- * Guides, verbatim apart from frontmatter and image paths.
+ * Guides, verbatim apart from frontmatter, image paths and links to other
+ * guides.
  *
  * Starlight renders the frontmatter title as the page heading, so the source
  * `# Heading` is lifted out rather than left to render twice. Screenshot
  * references move from `../releases/` to the staged asset tree, where Astro can
  * optimize them and prefix the site base; the italic caption each guide already
  * writes under its images becomes the alt text, which the source leaves empty.
+ * A link to another guide moves from that guide's file (`other.md#section`,
+ * the form GitHub follows) to its route, kept relative so the site base is not
+ * restated here.
+ *
+ * @returns {{slug: string, title: string, description: string, links: string[]}[]}
+ *   one entry per guide; `links` is the slug of every guide it links to,
+ *   whether or not that guide exists
  */
 function stageGuides() {
   const from = path.join(REPO, "docs", "guides");
@@ -129,6 +137,14 @@ function stageGuides() {
       },
     );
 
+    // `](other.md#section)` -> `](../other/#section)`. Only the destination is
+    // matched, so link text wrapped across lines is rewritten like any other.
+    const links = new Set();
+    body = body.replace(/\]\((?:\.\/)?([\w-]+)\.md(#[^)\s]*)?\)/g, (_whole, target, section = "") => {
+      links.add(target);
+      return `](../${target}/${section})`;
+    });
+
     const frontmatter = [
       "---",
       `title: ${yaml(title)}`,
@@ -141,7 +157,7 @@ function stageGuides() {
     ].join("\n");
 
     write(path.join(to, file), frontmatter + body.trimEnd() + "\n");
-    staged.push({ slug, title, description });
+    staged.push({ slug, title, description, links: [...links] });
   }
   return staged;
 }
