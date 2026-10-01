@@ -2551,3 +2551,69 @@ that a `nowrap` rule in `styles/` or the design system selects.
 window is widened, as on a core window. A browser that has
 `text-wrap: balance` and not the longhand drops the declaration: its headings
 wrap unbalanced, and its window titles still hold one line.
+
+### A window title takes no heading margin (2026-10-01)
+
+**Ruled.** The title rule in `vendor/acks-design/foundry.css` § 2 sets
+`margin: 0`. A window title on an `acks-ui` root sits on its header's centre
+line, level with the window icon and the header controls, at every size the
+type knob offers.
+
+**Found live.** The title is an `<h1>`, so the design system's H1 rule
+(`vendor/acks-design/base.css`, HEADINGS) gave it a section head's margins,
+24px above and 8px below. Core sets the title's margin to 0 in
+`@layer applications`, and a module's stylesheets load in a layer that
+outranks core's. The heading rule's `:first-child` reset does not reach the
+title: the window icon is the header's first child, even when it is hidden.
+Core's header is a 36px flex row that centres each child by its margin box,
+so the title's own box sat 8px below the centre line. The fault was one of
+position: at every size measured the capitals' ink stayed inside the header,
+and only the line box ran past its bottom edge. Every `acks-ui` root was
+affected: this module's windows, and the system's under `sheetStyle` `full`.
+
+**Measured.** On core 14.367, before the change and after it, each window
+opened fresh at each type size: the vehicle sheet, a `DialogV2` with the dress
+classes, the follower card and the system's monster sheet. The four read
+alike, at 420px wide and at 1100px.
+- At the default 14px the title's box ran from 18.2px to 33.8px of the
+  header's 36px, its centre 8.0px low. It now runs from 10.2px to 25.8px, its
+  centre on the header's.
+- At 18px, the knob's maximum, the title's box ended on the header's bottom
+  edge and its line box 3.0px past it, the capitals' ink 4.0px inside. The
+  line box now ends 5.0px inside. At 12px, and at 20px set by hand, the centre
+  moved from 8.0px low to 0 as well; at 20px the title's box had run 1.1px
+  past the edge, the ink still 3.1px inside.
+- After the change a minimized sheet reads 0, and so does the system's
+  character sheet.
+- An unclassed core dialog reads −0.5px before and after. Core's header has a
+  1px bottom border, and the dress removes it.
+- The window icon and every header control read 0 before and after.
+- The character sheet and the item sheet hide their title in a 1px box. At
+  all four sizes their header keeps its height and every other child of it
+  keeps its box. At 14px and at 18px a capture of the header is the same byte
+  for byte.
+- On five sheets, every tab walked, the title is the only `h1` to `h4` shown:
+  the vehicle's, the follower card, the system's monster and character sheets,
+  and this module's character sheet.
+
+**Rejected.**
+- *An exception in the heading rule*: `:not(.window-title)` on the H1 rule,
+  or a reset for a heading that follows the window icon. The design system's
+  base would name core's markup in order to step around it. § 2 is where the
+  design system dresses that element, and its two other banner titles,
+  `.acks-banner-title` and `.acks-chat-title`, zero their margin in their own
+  rules. "A heading asks for balanced lines", above, declined a patch on this
+  same rule for a different fault: there the heading rule set a wrap mode no
+  heading needed, and here it sets the margins a section head does need. A
+  window's frame holds one heading, the title.
+- *The header's height as the title's line height, as core has it.* The
+  header centres the margin box whatever the line's height, so the title
+  would still sit 8px low. It answers a different fault (ROADMAP, "A window
+  title cuts what rises above a capital").
+
+**What it cost.** Every release shot and guide image of an `acks-ui` window
+taken before the change shows its title 8px lower than the product draws it.
+Counted on the day, that is 232 of the 369 images under `docs/releases`, the
+earliest in the v1.0.0 folder: 102 of the 154 the guides embed and 18 of the
+gallery's 24. A sheet that draws its own band, a chat card and a window in
+core's look are not among them.

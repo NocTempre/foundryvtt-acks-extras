@@ -139,6 +139,9 @@
   color: var(--acks-on-burgundy);
   text-shadow: none;
   line-height: 1;
+  /* No heading margin. The title is an <h1>, so the section-head margins in
+   * base.css reach it, and the header centres a child by its margin box. */
+  margin: 0;
 }
 
 /* Header controls: square, quiet, white — no pills, no glow. */

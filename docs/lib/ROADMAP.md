@@ -100,3 +100,14 @@ at load was one window's party-ownership write landing on an actor the other
 window had just deleted. The fix is electing one CLIENT. Core gives two windows
 of one user no way to agree, so it needs a handshake of the module's own over
 its socket, and a live two-window run proving the loser stays quiet.
+
+## A window title cuts what rises above a capital
+
+On an `acks-ui` root the title is one line of `line-height: 1`
+(`vendor/acks-design/foundry.css` § 2) inside a box core gives
+`overflow: hidden`, so the box is one em tall and clips at its own edges. At
+the default type size an accent over a capital loses its top 2px and a
+descender half a pixel. The header is not what cuts them. Core's own title
+takes the header's height as its line height and loses nothing. A taller line
+changes the title's box on every window, and wants its own before-and-after
+reading (TESTING, "A long window title stays on one line").

@@ -960,8 +960,9 @@ it, the body tokens included, so those sweep as missing.
 ## A long window title stays on one line
 
 Covers the design system's heading rule (`vendor/acks-design/base.css`,
-HEADINGS) where it meets core's window header. Nothing offline sees it: the
-fault is a cascade result, and the suite has no cascade.
+HEADINGS) where it meets core's window header, and the title rule that
+answers it (`vendor/acks-design/foundry.css` § 2). Nothing offline sees it:
+the fault is a cascade result, and the suite has no cascade.
 
 **Drive notes:**
 - **Count lines from a `Range`.** Select the title's contents and count the
@@ -979,6 +980,18 @@ fault is a cascade result, and the suite has no cascade.
   the instance and close it yourself.
 - **A window refuses a width below its minimum.** The system's sheet stays
   900px wide when asked for 420.
+- **Give the two dialogs a title of about 66 characters.** The unclassed
+  dialog sets its title in core's smaller face: one of 58 characters shows
+  whole there at 420px. One of 66 truncates there, and shows whole on the
+  dressed dialog at 1100px.
+- **Raise the type size in this client alone.**
+  `document.documentElement.style.setProperty("--acks-fs-base", "18px")` pins
+  the `fontScale` setting's maximum without writing the setting. Close the
+  windows and open them again before measuring; `removeProperty` restores the
+  default.
+- **Centre against the header's box.** Core's header has a 1px bottom border
+  and this module's dress has none, so on a core window the title and the
+  controls read −0.5 against the box, and on a dressed one they read 0.
 
 **Fixtures (each id recorded with `api.create`):** an `acks-extras.vehicle`
 named with an invented phrase of about 45 characters, and a `monster` and an
@@ -1016,6 +1029,41 @@ named with an invented phrase of about 45 characters, and a `monster` and an
    probe `.acks-extras-markets-report-title`, the item's name set as a heading
    in the sheet's body.
    **Observable:** `whiteSpace: "normal"` and more than one line.
+4. **The title sits on the header's centre line.** Run the centring probe on
+   the five windows of step 1. Then raise the type size, open the five windows
+   fresh and run it again.
+
+   ```js
+   (app) => {
+     const header = app.element.querySelector(":scope > .window-header");
+     const h = header.querySelector(".window-title");
+     const mid = (el) => {
+       const r = el.getBoundingClientRect();
+       return (r.top + r.bottom) / 2;
+     };
+     const off = (el) => Math.round((mid(el) - mid(header)) * 10) / 10;
+     const range = document.createRange();
+     range.selectNodeContents(h);
+     const line = Math.max(...[...range.getClientRects()].map((r) => r.bottom));
+     const cs = getComputedStyle(h);
+     return {
+       margins: `${cs.marginTop} ${cs.marginBottom}`,
+       title: off(h),
+       controls: [...header.querySelectorAll(".window-icon, .header-control")]
+         .filter((el) => el.getClientRects().length)
+         .map(off),
+       past: Math.round((line - header.getBoundingClientRect().bottom) * 10) / 10,
+     };
+   }
+   ```
+
+   **Observable:** at both sizes the four `acks-ui` windows read
+   `margins: "0px 0px"`, a `title` of 0, every entry of `controls` 0, and a
+   negative `past`: the title's line ends inside the header. The unclassed
+   dialog reads −0.5 for `title` and for each control. A title that takes the
+   heading rule's margins reads `margins: "24px 8px"` and a `title` of 8, and
+   at 18px its `past` is 3: the line's box ends below the header's edge,
+   though the capitals' ink does not.
 
 **Teardown.** Close the windows, the constructed system sheet included, and
 `api.sweepTracked()`.
