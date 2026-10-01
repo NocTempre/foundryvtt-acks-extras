@@ -639,10 +639,11 @@ drops and purchases delivered with it.
 ## Coin: one stack, moved and never copied
 
 Covers `money.mjs` and `money-logic.mjs`, the stack half of `item-model.mjs`
-(`divideStack`, `joinStacks`, `perStoneOf`, `sumWeight6`), `bundles.mjs`
-`landCoin`, and both guards in `patches/goods-drag.mjs`. The banked-coin sweep
-is the location feature's ([location TESTING](../location/TESTING.md)), the
-wage run the henchmen feature's, and the till and the changer the markets
+(`divideStack`, `joinStacks`, `perStoneOf`, `sumWeight6`), `stack-prompt.mjs`,
+`coin-order.mjs` on each sheet that hosts it, `bundles.mjs` `landCoin` and
+`refuseGoods`, and both guards in `patches/goods-drag.mjs`. The banked-coin
+sweep is the location feature's ([location TESTING](../location/TESTING.md)),
+the wage run the henchmen feature's, and the till and the changer the markets
 feature's; each of those recipes carries its own coin steps.
 
 **Drive notes (learned live):**
@@ -672,26 +673,65 @@ feature's; each of those recipes carries its own coin steps.
   delete policy, which whispers a "was destroyed" card to the GMs. Read its id
   back as the newest message naming your fixture and `api.track` it, then
   sweep again.
+- **A choice in the coin-order block is a `change` on its select.** The block
+  is `.acks-extras-coin-order[data-coin-order]`, its selects
+  `[data-coin-order-half="payFrom"]` and `[data-coin-order-half="receiveInto"]`,
+  the fold `[data-coin-order-gather]` and the note
+  `.acks-extras-coin-order__note`. Set the select's `value` to a store key
+  (`""`, `item:<id>`, `place:<uuid>`) and dispatch a bubbling `change`. The
+  write is not awaited by the event, so read
+  `actor.getFlag("acks-extras", "coinOrder")` once it has stopped changing.
+- **Put coin where a step needs it with `into`.**
+  `creditCoin(holder, credits, {into: "item:<id>"})` lands it in that
+  container. No landing reaches a locked container, so coin behind a lock is
+  made as a row of its own carrying `flags.acks-extras.containedIn`.
+- **A place keeps coin for somebody through `storage.depositCoin(place,
+  {ownerUuid, ownerName, coppervalue, quantity, name})`**, and a vault is made
+  by `acksExtras.location.payIntoVault(holder, gp)`, which resolves to the
+  vault's actor. The feature made that actor, so `api.track` it.
+- **The system's own sheet is opened beside the module's**, without changing
+  the actor's sheet: `new (Object.values(CONFIG.Actor.sheetClasses.character)
+  .find((s) => s.id.startsWith("acks.")).cls)({document: actor})`, then
+  `render(true)` and `changeTab("inventory", "primary")`.
+- **The world setting is set in the settings window**, under its own label:
+  `game.settings.sheet`, the field `[name="acks-extras.coinScope"]`, a bubbling
+  `change`, then the form's submit button. Read the value it held first and put
+  that back when the step ends.
+- **No GM seat means no GM page.** Close the GM seat's page and wait on the
+  player's client until `game.users.activeGM` reads null before the step that
+  expects `noGm`.
+- **A sheet's refusal is read off the notification.** Wrap
+  `ui.notifications.warn` for the length of a step and read what it was
+  handed; a warning that fades is otherwise indistinguishable from none.
 
 **Fixtures (as GM, each id recorded with `api.track`):**
 - "Coin Hero", a `character` the Player seat owns, on this module's sheet. It
-  carries a container, and three coin rows made with `money.creditCoin`: Gold
-  ×100 and Silver ×20 loose, and a second Gold row of 50 inside the container
-  (`flags.acks-extras.containedIn`).
+  carries "Coin Pouch", a container, and "Coin Strongbox", a container whose
+  lock is shut (`flags.acks-extras.container = {locked: true, opened: false}`).
+  Its coin is made with `money.creditCoin`: Gold ×100 and Silver ×20 loose, a
+  Gold row of 50 in the pouch, and a Gold row of 30 behind the strongbox's
+  lock.
 - "Coin Payee", a `character` holding one Gold row of 5 and no smaller coin.
-- "Coin Merc", a `monster` the Player seat owns. It opens on the follower
-  card.
-- "Coin Faction", an `acks-extras.faction`, and "Coin Cart", an
-  `acks-extras.vehicle`.
-- "Coin Scene", created with `active: false`, holding one UNLINKED token of a
-  second monster, "Coin Brute".
+- "Coin Merc", a `monster` the Player seat owns, holding a Gold row of 12. It
+  opens on the follower card.
+- "Coin Faction", an `acks-extras.faction`; "Coin Cart", an
+  `acks-extras.vehicle`; "Coin Company", an `acks-extras.group`; and "Coin
+  Party", an `acks-extras.party` created with
+  `flags.acks-extras.formationId` naming a formation that does not exist,
+  which writes no formation record.
+- "Coin Bank", an `acks-extras.location` the Player seat can see and does not
+  own (`ownership.default` at observer), keeping a Gold row of 200 for the
+  Hero. The Hero's vault, keeping 300 gp.
+- "Coin Scene", created with `active: false`, holding tokens of the Hero, the
+  Payee, the Merc and the Bank, and one UNLINKED token of a second monster,
+  "Coin Brute". The vault stands on no scene.
 - The uuid of one `money` document in a system compendium, as the shelf coin.
 
 1. **Weight.** Read `itemModel.perStoneOf(gold)` and
    `itemModel.systemCoinsPerStone()`.
    **Observable:** the two are equal and a whole number. `weight6Of(gold)` is
-   `100 × 6 / rate`, and `sumWeight6` over the Hero's three coin rows equals
-   one division of all their counts, with no row rounded.
+   `100 × 6 / rate`, and `sumWeight6` over the Hero's coin rows equals one
+   division of all their counts, with no row rounded.
    `hero.system.encumbrance.value6` exceeds the same figure with every coin
    row's count at 0 by exactly that sum. Reload the page and read it again
    before touching the Hero: the figure is the same.
@@ -705,22 +745,23 @@ feature's; each of those recipes carries its own coin steps.
 3. **Divide and join.** On the Hero's sheet press the scissors on the loose
    Gold row, enter 30 and confirm.
    **Observable:** two loose Gold rows, 70 and 30, and the same total value.
-   Drag the 30 onto the 70: one row of 100. A count of the whole stack is
-   refused with a warning, and a count of 0 closes the dialog; neither writes.
+   Drag the 30 onto the 70: one row of 100. A count of the whole stack and a
+   count of 0 are each refused with a warning; a dismissed prompt says
+   nothing. None of the three writes.
 4. **A transfer makes exact change.** `await money.transferCoin({from: payee,
-   to: merc, gp: 0.7, gate: false})`: the Payee holds only gold and the Merc
-   holds nothing.
+   to: merc, gp: 0.7, gate: false})`: the Payee and the Merc hold only gold.
    **Observable:** `{ok: false, reason: "noChange"}`, a warning naming the
    Merc, and neither purse changed. Pay the Hero instead (`to: hero`): one
    Gold leaves the Payee and three Silver come back out of the Hero's purse.
    The Payee is down exactly 7 sp in value, the Hero up exactly 7 sp, and no
    coin was created.
-5. **Loose before packed, and no coin from nowhere.**
-   `await money.mintCoin(hero, 10)`, then `await money.sinkCoin(hero, 5)`.
+5. **The standing order, and no coin from nowhere.**
+   `await money.mintCoin(hero, 10)`, then `await money.sinkCoin(hero, 5)`,
+   with the Hero's order unstated.
    **Observable:** the loose Gold row gained 10. The sink leaves the purse
    exactly 5 gp lighter, taken from the Silver and the loose Gold rows. The
-   packed row still reads 50, and no row holds more coin than it did before
-   the sink.
+   pouch's row still reads 50 and the strongbox's 30, and no row holds more
+   coin than it did before the sink.
 6. **A follower card moves coin.** From the Player seat, open Coin Merc's card
    and drop the Hero's Silver row on it. Then drop the shelf coin on it twice.
    **Observable:** the Silver row is gone from the Hero and the Merc holds
@@ -728,16 +769,24 @@ feature's; each of those recipes carries its own coin steps.
    shelf coin adds 2 to the Merc's row of its kind, or makes one row of 2
    where the Merc held none, and the card's equipment list names each coin
    row with its count.
-7. **A token's own actor.** Divide 25 off the Hero's packed Gold and drop the
-   pile on the Brute token's sheet. Then drop the token's Gold row back on the
-   Hero's sheet.
+7. **A token's own actor.** Divide 25 off the Gold in the Hero's pouch and
+   drop the pile on the Brute token's sheet. Then drop the token's Gold row
+   back on the Hero's sheet.
    **Observable:** the pile leaves the Hero and sits on the token's actor,
    while the world actor "Coin Brute" holds no coin. Dropped back, it joins the
    Hero's loose Gold row and the token's row is gone. No warning names a token.
-8. **A sheet that lists no goods.** Drop the Hero's loose Gold row on Coin
-   Faction's sheet, then the shelf coin.
-   **Observable:** one warning per drop, naming the faction. The faction holds
-   no items and the Hero's row is unchanged.
+8. **A sheet that lists no goods.** As GM drop on Coin Faction's sheet the
+   Hero's loose Gold row, the shelf coin, a piece of the Payee's gear, and a
+   world `item` from the sidebar. Drop the same gear on Coin Company's sheet,
+   and the gear and then the Gold row on Coin Party's sheet. Then give the
+   Player seat ownership of the party and of the gear's holder, and drop the
+   gear and the Gold row on the party's sheet from that seat.
+   **Observable:** one warning per drop, in one wording, naming the sheet's
+   actor (`refuseGoods`). None of the three holds an item it did not hold
+   (`actor.items.size`), and the giver still holds what was dragged.
+   `game.settings.get("acks-extras", "formations")` is what it was before the
+   party sheet opened. The Player seat's drops prove the party sheet's
+   `_onDropItem`; the GM's prove its member drop.
 9. **A hold.** Drop the shelf coin on Coin Cart's sheet twice, then a pile
    divided off the Hero's Gold. Drop the hold's Gold row on the Merc's card,
    on the Hero's sheet, and on the faction's sheet.
@@ -751,9 +800,92 @@ feature's; each of those recipes carries its own coin steps.
     from the Hero.
     **Observable:** the pile becomes a second, unstamped row. The stamped
     row's count is unchanged.
+11. **Stores, and how far a payment reaches.** Read
+    `money.coinStores(hero, {within})` and `money.spendableGp(hero, {within})`
+    at `"all"`, at `"hand"`, at the Bank and at Coin Scene.
+    **Observable:** at `"all"` the stores are coin carried loose, the pouch,
+    the strongbox, the vault, then the Bank. The strongbox is `shut` with
+    `takesCoin: false`, the vault is `vault: true`, and from the Player seat
+    the Bank is `writable: false`. At `"hand"` only the first three are
+    listed; the Bank's reach adds the Bank, and so does the scene's, which
+    leaves the vault out. `spendableGp` at each reach is the worth of that
+    reach's rows less the strongbox's, and `purseGp(hero)` is the worth of
+    everything carried, the strongbox's included.
+12. **The order, stated on the sheet.** From the Player seat open the Hero's
+    sheet on its equipment tab. In the Purse rule choose the Bank under **Pay
+    from** and the pouch under **Receive into**.
+    **Observable:** the rule's caption states what is on hand and what is kept
+    elsewhere. Each choice is one `updateActor` whose only change is
+    `flags.acks-extras.coinOrder`, the flag holds `{payFrom: "place:<uuid>",
+    receiveInto: "item:<id>"}`, and a re-render draws both selects on those
+    choices with the sheet still on its equipment tab. **Pay from** offers no
+    strongbox, and neither does **Receive into**.
+13. **A payment the seat cannot write.** Still as the Player, with that order:
+    `transferCoin({from: hero, to: payee, gp: 25})`, then `sinkCoin(hero, 10)`,
+    then a transfer of more than the Bank still keeps.
+    **Observable:** each resolves `{ok: true}`. The first takes 25 gp from the
+    Bank's row for the Hero and lands it on the Payee, neither of which the
+    seat owns. The second takes 10 gp more from the Bank and lands it nowhere.
+    The third empties the Bank's row, which is deleted, and draws the rest
+    from the stores in their standing order, coin carried loose first. The
+    Bank is still among the Hero's stores, with no rows.
+14. **An arrival follows the order.** `transferCoin({from: merc, to: hero,
+    gp: 2})`, then `setCoinOrder(hero, {receiveInto: "place:<Bank uuid>"})` and
+    a second transfer of 6 gp, then `creditCoin(hero, [{cv: 100, count: 2}])`.
+    **Observable:** the first arrival joins the pouch's Gold row. The second
+    becomes a row at the Bank stamped for the Hero by uuid and name. The
+    credit, which is no payment and so is not relayed, is carried loose.
+15. **More than everything.** `transferCoin({from: hero, to: payee, gp:
+    100000})`.
+    **Observable:** `{ok: false, reason: "insufficient"}`, a warning naming the
+    Hero, and no row changed.
+16. **No GM.** Close the GM seat's page. From the Player seat repeat one
+    transfer to the Payee and one sink.
+    **Observable:** both resolve `{ok: false, reason: "noGm"}`, each with the
+    warning that a GM must be connected, and neither purse changed. Bring the
+    GM seat back before the next step.
+17. **The world's standing reach.** As GM open the settings window, find
+    **Paying with coin kept elsewhere**, and set it to each of its three
+    values in turn. At each, read `coinStores(hero)` with no `within`, open the
+    Hero's sheet, `sinkCoin(hero, 5)`, and pay the Hero 1 gp from the Merc.
+    **Observable:** the field is a select of three options under that label
+    with a hint. At the scene value the stores are those on hand and the Bank,
+    the sheet's note states that reach, and the sink draws on the Bank first.
+    At the on-hand value the stores are those on hand alone, the note says
+    so, the sink leaves the Bank's row as it was, and the arrival is carried
+    loose although the order names the Bank. At the widest value there is no
+    note and the arrival lands at the Bank. Put the setting back to what it
+    was.
+18. **The system's own sheet.** Open the system's sheet for the Hero on its
+    inventory tab.
+    **Observable:** `.acks-extras-coin-order-line` sits under the money
+    header, holding the same block on the same choices, beside a summary of
+    what is kept elsewhere. A choice made there writes the same flag, and the
+    module's sheet draws it on its next render. The line is there while coin
+    sits in a carried container.
+19. **The follower card.** From the Player seat open Coin Merc's card.
+    **Observable:** with nothing but loose coin the card draws no order block.
+    Give the Merc a container: the block appears. Each row holding more than
+    one carries a divide control (`[data-action="fcDivide"]`, the row's id in
+    `data-stack-id`). Dismissed, it writes and says nothing; a count of 0 is
+    refused with a warning; a count of 1 makes a second row and the block
+    offers **Gather coin (1)**. Pressing it folds the two rows, says how many,
+    and the control goes. Choose the container under **Receive into**, then
+    pay the Merc 2 gp: the coin lands in the container.
+20. **A group's purse.** Open Coin Company's sheet. Drop the Merc's loose Gold
+    row on it, then make a second Gold row on the group and re-render.
+    **Observable:** the Purse section reads its hint while the group holds no
+    coin. The dropped row is handed over: the group's purse is up by exactly
+    what the Merc's is down. With two rows of one coin the section offers
+    **Gather coin (1)**, and pressing it leaves one row worth the same. A
+    purse row is a drag source: its `dragstart` puts `{type: "Item", uuid}` on
+    the event, and dropped on the Hero's sheet it is handed over into the
+    container the Hero's order names.
 
 **Teardown.** `api.sweepTracked()`. Deleting the actors takes their coin with
-them, and deleting Coin Scene takes the token.
+them, and deleting Coin Scene takes the tokens. The Bank and the vault each
+post a "was destroyed" card as they go (drive notes); track those and sweep
+again. Confirm the world setting reads what it read before step 17.
 
 ## The attack card: a public result, private math
 

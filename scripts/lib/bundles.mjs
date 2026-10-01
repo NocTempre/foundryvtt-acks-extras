@@ -1,4 +1,4 @@
-/* global foundry, game */
+/* global foundry, game, ui */
 /**
  * Goods handed to an actor, and bundles opened onto one. No actor sheet lists
  * an embedded bundle, so nothing here embeds one: a dropped bundle arrives as
@@ -6,23 +6,39 @@
  * an identical stack the actor already carries (`stackSignature`). A bundle
  * already embedded is opened where it lies by `unpackEmbeddedBundle`.
  */
-import { ITEM_TYPE } from "./vocab.mjs";
-import { LIB_ID, planStackMerge } from "./storage-logic.mjs";
-import { handOver } from "./storage.mjs";
+import { ACTOR_TYPE, ITEM_TYPE } from "./vocab.mjs";
+import { ANIMAL_TYPE, LANG_PREFIX } from "./constants.mjs";
+import { LIB_ID } from "./storage-logic.mjs";
+import { coinContainerOf, handOver, landGoods } from "./storage.mjs";
 import { libraryItems, whenReady } from "./library.mjs";
 import { UNPACK_JOURNAL, bundleRows, goodsForDrop, goodsForRow, planEmbeddedUnpack, unpackStage } from "./bundles-logic.mjs";
 
 /**
+ * The actor types whose sheets list what the actor carries: the system's two
+ * creature types and the animal on the monster's chassis.
+ */
+const CARRIER_TYPES = new Set([ACTOR_TYPE.character, ACTOR_TYPE.monster, ANIMAL_TYPE]);
+
+/**
+ * Does this actor's sheet list the goods it carries? Goods handed to one that
+ * does not would leave the giver for an actor nothing shows them on, so every
+ * hand-over onto a sheet asks this first.
+ */
+export const listsGoods = (actor) => CARRIER_TYPES.has(actor?.type);
+
+/**
+ * Tell the user that `actor`'s sheet lists no goods, so what was dropped on
+ * it stays where it was. The one wording every sheet that refuses a drop uses.
+ */
+export const refuseGoods = (actor) => ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.storage.keepsNoGoods`, { name: actor?.name ?? "" }));
+
+/**
  * Create `goods` (arrival-shaped plain item data) on `actor`, folding each
- * stackable into an identical stack it already carries.
+ * stackable into an identical stack it already carries (`landGoods`). Coin
+ * among them goes where the actor keeps arriving coin on their person.
  * @returns {Promise<{created: Item[], updated: Item[]}>}
  */
-export async function deliverItems(actor, goods) {
-  const { creates, targetUpdates } = planStackMerge(goods, actor.items.map((i) => i.toObject()));
-  const updated = targetUpdates.length ? await actor.updateEmbeddedDocuments("Item", targetUpdates) : [];
-  const created = creates.length ? await actor.createEmbeddedDocuments("Item", creates) : [];
-  return { created, updated };
-}
+export const deliverItems = (actor, goods) => landGoods(actor, goods, { coinInto: coinContainerOf(actor) });
 
 /** An item's data as a copy made of it would carry it, compendium bookkeeping cleared. */
 const copyDataOf = (item) => (item.inCompendium ? game.items.fromCompendium(item, { clearFolder: true }) : item.toObject());
@@ -118,7 +134,7 @@ export async function unpackEmbeddedBundle(bundle) {
   if (stage === "fresh") {
     const { goods, missing } = await goodsOfBundle(bundle);
     if (missing.length) return { ok: false, stage, created, missing };
-    const plan = planEmbeddedUnpack(bundle.id, goods, held());
+    const plan = planEmbeddedUnpack(bundle.id, goods, held(), { coinInto: coinContainerOf(actor) });
     await actor.updateEmbeddedDocuments("Item", plan.updates);
     if (plan.creates.length) created = await actor.createEmbeddedDocuments("Item", plan.creates);
   } else if (stage === "create") {

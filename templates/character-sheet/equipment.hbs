@@ -72,6 +72,14 @@
       </div>
       {{/if}}
 
+      {{#if eq.purse}}
+      <div class="acks-extras-character-sheet__rule is-spaced">
+        <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.purse"}}</span>
+        <span class="acks-extras-character-sheet__rule-note acks-nums">{{eq.purse.note}}</span>
+      </div>
+      {{> "modules/acks-extras/templates/lib/coin-order.hbs" eq.purse}}
+      {{/if}}
+
       {{#if eq.companions.length}}
       <div class="acks-extras-character-sheet__rule is-spaced">
         <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-EQUIPMENT.companion.section"}}</span>

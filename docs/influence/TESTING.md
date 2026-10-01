@@ -74,6 +74,22 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    is up by it (`lib.money.purseGp` on both), in coin the influencer held.
    Empty the influencer's purse, arm the tier and roll again: a warning names
    the influencer, and neither purse changed.
+8b. A bribe from the Player seat. The seat owns the influencer and not the
+   target; the influencer keeps coin in a container their order pays from
+   first, loose, and at a vault. Open the page with
+   `acksExtras.influence.open(influencer, {targetActor})`, set
+   `[name="mod.bribe"]` to its first tier and type a fee in
+   `[name="mod.bribeFee"]` (a `change` on each), and press
+   `[data-action="roll"]`. Then roll with no target and a small fee, and with
+   a fee above everything the influencer can pay with.
+   *Observable:* the first roll is resolved at the Judge's seat and its card,
+   whispered there, carries `.influence-chat-bribe` stating the fee, the
+   payer and the payee. The fee left the container first and landed on the
+   target. With no target the line names the payer alone and the coin is
+   gone from the world. Above what can be paid there is no bribe line on the
+   card, no row changed, and the warning shows on the Judge's seat.
+   `api.track` every card the three rolls posted, read on the Judge's seat:
+   a whispered card is not in the Player seat's log.
 
 ## The morale pages
 

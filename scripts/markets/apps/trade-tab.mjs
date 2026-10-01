@@ -22,7 +22,7 @@ import { acksExtras } from "../../namespace.mjs";
 import { SECONDS_PER_DAY } from "../../henchmen/constants.mjs";
 import { now } from "../../henchmen/time.mjs";
 import { makeLoc } from "../../lib/util.mjs";
-import { ownCoin } from "../../lib/money.mjs";
+import { coinStores } from "../../lib/money.mjs";
 import { coinCount, coinRate } from "../../lib/money-logic.mjs";
 import { merchandiseCatalog, merchandiseFor } from "../engine/merchandise.mjs";
 import { writeDemand } from "../engine/demand.mjs";
@@ -567,7 +567,11 @@ export const TRADE_TAB_ACTIONS = {
   async marketsExchange() {
     const trader = requireTrader(this);
     if (!trader) return;
-    const stacks = ownCoin(trader).filter((i) => coinCount(i) > 0 && coinRate(i) > 0);
+    // The coin on the trader's person that no lock shuts away.
+    const stacks = coinStores(trader, { within: "hand" })
+      .filter((store) => !store.shut)
+      .flatMap((store) => store.rows)
+      .filter((i) => coinCount(i) > 0 && coinRate(i) > 0);
     if (!stacks.length) {
       ui.notifications.warn(locationLoc("market.exchangeNothing", { name: trader.name }));
       return;

@@ -1564,3 +1564,38 @@ printed value.
 **What it cost.** Every world character is prepared twice at load. With roll
 automation off the wrapper is not registered, and a character's coin weighs
 as core counts it.
+
+### What a character carries is weighed whatever the roll setting says (2026-10-01)
+
+This amends "A coin states how many make a stone, on its own sheet
+(2026-10-01)", ruled the same day. That entry recorded as a cost that with
+roll automation off a character's coin weighs as core counts it, and the lib
+roadmap listed it as unbuilt. The new evidence is the owner's instruction, the
+same day, to close the roadmap's open coin items in the next release: "Roll in
+any open issues/features to money items specifically that are on the
+roadmap." Read as a defect, the cost was one purse reading two loads, decided
+by a setting that names attack rolls, with no harness, bowquiver or bundle
+counted either.
+
+**Ruled.** The encumbrance wrapper and the attack-roll wrapper are registered
+apart (`registerEncumbranceWrap`, `registerRollWrap`). The first is registered
+at `setup` before the roll-automation setting is read and answers to no
+setting. The setting gates the attack-roll wrapper alone. Every world
+character is reset once the encumbrance wrapper is in place, in every world.
+A failure to register it is logged and leaves core's load standing; the
+attack-roll wrapper is still tried.
+
+Annotate sweeps coin with the carrying gear, from the sheet's control and from
+the macro alike: a coin's weight is a declaration the same pass reads off the
+coin's own text.
+
+**Rejected.** A second setting for weight: how much a purse weighs is not a
+preference a table holds apart from what the page says. Keeping both wrappers
+behind the one setting and documenting the difference: the earlier entry's
+cost line did that, and the difference was a defect.
+
+**What it cost.** The earlier entry's last cost line no longer holds. A world
+with roll automation off now prepares every character twice at load, as a
+world with it on already did, and its characters' loads change by what
+`encumbranceDelta6` corrects: a harness, a bowquiver, a bundle and the
+part-stone of a purse.

@@ -515,6 +515,33 @@ export const contentsIn = (item) => (item?.id ? contentsOf(siblingsOf(item), ite
 export const isContainer = (item) =>
   holdsGear(item) || !!(item?.getFlag?.(MODULE_ID, "container") ?? item?.flags?.[MODULE_ID]?.container);
 
+/**
+ * Is the container locked AND still shut? Two fields rather than one — see
+ * docs/equipment/MODEL.md, "2026-07-24 — containers live on the sheet; locks
+ * roll the character's own proficiency". The lock's writes stay in the
+ * equipment feature; the read is here because what a lock shuts in is asked
+ * by more than that feature (coin inside a shut container is not spent).
+ */
+export function isLocked(item) {
+  const record = item?.getFlag?.(MODULE_ID, "container") ?? item?.flags?.[MODULE_ID]?.container ?? null;
+  return !!record?.locked && !record?.opened;
+}
+
+/**
+ * Is what this container holds out of reach — shut by its own lock, or inside
+ * a container that is? The walk is bounded by the sibling count, so a pointer
+ * loop in the data ends.
+ */
+export function isShutAway(container, siblings = siblingsOf(container)) {
+  let cursor = container;
+  for (let guard = (siblings?.size ?? 0) + 1; cursor && guard > 0; guard--) {
+    if (isLocked(cursor)) return true;
+    const parent = containedIn(cursor);
+    cursor = parent ? (siblings?.get?.(parent) ?? null) : null;
+  }
+  return false;
+}
+
 /** Total weight6 of a container's contents (one level; nesting recurses). */
 export function contentsWeight6(actor, containerId, seen = new Set()) {
   if (seen.has(containerId)) return 0; // guard against a container inside itself

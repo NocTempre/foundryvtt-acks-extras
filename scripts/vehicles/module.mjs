@@ -24,6 +24,7 @@ import * as hold from "./hold.mjs";
 import * as deploy from "./deploy.mjs";
 import { acksExtras } from "../namespace.mjs";
 import { handOver } from "../lib/storage.mjs";
+import { listsGoods, refuseGoods } from "../lib/bundles.mjs";
 import { isCurrency } from "../lib/item-model.mjs";
 import { isLocation } from "../lib/place.mjs";
 import { expectTables } from "../lib/tables.mjs";
@@ -59,6 +60,9 @@ Hooks.once("init", () => {
  * which stores the goods under whose they are rather than handing them over.
  * Coin is left to the sheet it lands on: every sheet hands coin over or
  * refuses it by one rule (the lib's `landCoin`), and that rule moves it too.
+ * A target whose sheet lists no goods is refused the freight, neither moved
+ * nor copied. A faction's sheet reaches this hook; a unit's and a party's
+ * bind their own drop and refuse there, in the same words (`refuseGoods`).
  */
 Hooks.on("dropActorSheetData", (target, _sheet, data) => {
   if (data?.type !== "Item" || !data.uuid) return;
@@ -66,6 +70,10 @@ Hooks.on("dropActorSheetData", (target, _sheet, data) => {
   const source = item?.parent;
   if (source?.documentName !== "Actor" || source.type !== VEHICLE_TYPE) return;
   if (!target || source.uuid === target.uuid || isLocation(target) || isCurrency(item)) return;
+  if (target.type !== VEHICLE_TYPE && !listsGoods(target)) {
+    refuseGoods(target);
+    return false;
+  }
   void handOver(source, target, [{ id: item.id }]);
   return false;
 });

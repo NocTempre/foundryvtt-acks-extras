@@ -481,6 +481,8 @@ async function chargeWeeklyFee(location, employer, week = 1) {
       chat: false, // the roll card above IS the receipt
       to: location,
       at: location,
+      // Paid at this market: with coin on hand, or coin the market keeps.
+      within: location,
     });
   }
   return { gp, paid };

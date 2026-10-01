@@ -43,7 +43,8 @@ import { takeOut, storeIn, setConcealed, setLocked, setOpened, emptyContainer, c
 import { pickLock, bashOpen } from "../equipment/locks.mjs";
 import { annotateItem } from "../equipment/api.mjs";
 import { splitOne } from "../equipment/item-sheet/stack.mjs";
-import { isEquippable, isGoods, isCurrency, stackCountOf, divideStack, joinStacks } from "../lib/item-model.mjs";
+import { isEquippable, isGoods, isCurrency, joinStacks } from "../lib/item-model.mjs";
+import { promptDivide } from "../lib/stack-prompt.mjs";
 import { unpackBundle, landCoin } from "../lib/bundles.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
 import { openClassPicker } from "../classes/assign-app.mjs";
@@ -58,7 +59,7 @@ import { nextTrainingView, TRAINING_VIEWS } from "../equipment/training-view.mjs
 import { LANGUAGE_ACTIONS } from "../abilities/language-slots.mjs";
 import { openRosterApp } from "../henchmen/apps/roster-app.mjs";
 import { dismissMonster } from "../henchmen/apps/hirelings-grid.mjs";
-import { openLoyaltyRoll } from "../henchmen/engine/events.mjs";
+import { openLoyaltyRoll, payWagesFor } from "../henchmen/engine/events.mjs";
 import { openStashDialog } from "../location/apps/stash-dialog.mjs";
 import { setPinnedPlace, pinnedPlaces } from "../location/reach.mjs";
 import { ITEM_TYPE, ACTOR_TYPE, SLOT } from "../lib/vocab.mjs";
@@ -1103,21 +1104,8 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     if (created) ui.notifications.info(game.i18n.format("ACKS-EQUIPMENT.itemSheet.equip.splitDone", { name: created.name }));
   }
 
-  /** Ask how many to take off a stack, and divide that many into a row of their own. */
   static async #onDivideStack(event, target) {
-    const item = this.#itemOf(target);
-    const have = stackCountOf(item) ?? 0;
-    if (!item || have < 2) return;
-    const count = await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
-      window: { title: loc("equipment.divideTitle", { name: item.name }) },
-      content: `<div class="form-group"><label>${loc("equipment.divideCount", { have })}</label>
-        <input type="number" name="count" value="${Math.floor(have / 2)}" min="1" max="${have - 1}" step="1" autofocus></div>`,
-      ok: { label: loc("equipment.divide"), callback: (_event, button) => Number(button.form.elements.count.value) },
-      rejectClose: false,
-    });
-    if (!count) return;
-    if (!(await divideStack(item, count))) ui.notifications.warn(loc("equipment.divideRefused", { have }));
+    await promptDivide(this.#itemOf(target));
   }
 
   static async #onContainerToggle(event, target) {
@@ -1323,7 +1311,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   }
 
   static async #onPayWages() {
-    await this.actor.payWages?.();
+    await payWagesFor(this.actor);
   }
 
   #hirelingOf(target) {

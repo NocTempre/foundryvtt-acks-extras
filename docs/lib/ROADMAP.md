@@ -11,10 +11,6 @@ verification, not as drive-by edits:
   `openXDialog` functions; the loudest missing primitive. Needs a design pass
   over the confirm/prompt/form shapes actually in use (and DialogV2's
   attribute-stripping hazard baked in once).
-- **Coin math onto `lib/money.mjs`.** henchmen's `acks-adapter`
-  `getGold`/`spendGold`/`grantGold` keep a parallel legacy-sink path; four
-  independent copper-total reductions exist. Only two files import
-  `lib/money.mjs` today.
 - **`classLevel`/`abilityMod` bypasses.** ~25 inline reads with drifting
   fallbacks (`?? 0` vs `?? 1` vs `Math.max(1, …)`) — each replacement must
   decide which fallback was load-bearing.
@@ -33,21 +29,15 @@ verification, not as drive-by edits:
 
 ## What coin does not do yet
 
-- **A unit's pay is listed nowhere.** A paid unit's wage lands on the unit's
-  own actor, and neither the group sheet nor the roster shows a purse.
-- **The follower card has no join.** Two rows of one kind on a hireling are
-  joined from the full sheet, or with `itemModel.joinStacks`.
-- **Rows the old paths duplicated.** A drop that copied, and a credit matched
-  by name, left some holders with two rows of one kind. Nothing finds them: a
-  divided pile is a legitimate state and a check cannot tell the two apart.
-- **A spent-out row stays at 0.** A payment that empties a row leaves it
-  listed at none, where a hand-over that empties one deletes it.
-- **A character with roll automation off.** The encumbrance wrapper belongs to
-  that setting, so with it off a character's load counts coin as core does, in
-  whole stones.
-- **Freight onto a sheet that lists no goods.** Coin is refused there. Other
-  freight dragged out of a vehicle is still moved onto it by the vehicles
-  feature's own hook.
+- **A reach chosen for one payment.** A payment's reach is stated by the
+  transaction's own code or by the world setting. No dialog offers the payer
+  "from what I carry" or "from this place" for a single payment.
+- **A ranking of every store.** A coin order names the one store drawn on
+  first and the one store arrivals land in. The rest follow the standing
+  order, which a holder cannot rearrange.
+- **Coin on the road.** The reach rule makes carrying coin to a market
+  necessary. Nothing prices or endangers the carrying; that is played at the
+  table.
 
 ## What the repair tool only reports
 
@@ -65,6 +55,9 @@ verification, not as drive-by edits:
     own id.
 - **Region behaviours the retired modules left.** `lib.mergeResidue` reports
   them. The cleaner macro no longer reaches them, and nothing removes them.
+- **Goods on an actor whose sheet lists none.** Freight dragged out of a hold
+  onto an organisation before 10.1.0 was handed to it, as coin was before
+  10.0.0. No check lists either.
 - **More checks.** Class-training effects whose class uuid no longer resolves:
   they refuse hand-deletion, and `resetTraining` returns false for them.
 

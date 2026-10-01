@@ -396,7 +396,8 @@ export async function purchase(location, payload) {
   if (priced.error) return priced;
   const totalGp = toGp(priced.unitCp * qty);
 
-  const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.trade.buyReason`, { qty, name: itemData.name }), { to: location, at: location });
+  // A purchase is paid at this market: with coin on hand, or coin it keeps.
+  const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.trade.buyReason`, { qty, name: itemData.name }), { to: location, at: location, within: location });
   if (!paid) return err("insufficientGold");
 
   await deliverGoods(buyer, { entry, qty });
@@ -730,7 +731,8 @@ export async function sell(location, payload) {
   if (verdict === "waived") ui?.notifications?.warn(game.i18n.format(`${LANG}.trade.capWaived`, { remaining: room.remaining }));
 
   const totalGp = toGp(plan.unitCp * qty);
-  await adapter.grantGold(seller, totalGp, { from: location, at: location, allowMint: true });
+  // The proceeds are paid out here: onto the seller, or into coin this market keeps for them.
+  await adapter.grantGold(seller, totalGp, { from: location, at: location, allowMint: true, within: location });
 
   // Sold mundane goods leave play. A MAGIC item is the exception: it is a
   // unique physical thing, so it passes into the market's own holdings —

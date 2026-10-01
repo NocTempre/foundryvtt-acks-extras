@@ -68,6 +68,34 @@ Masterwork gear appears only where the Judge switches the **Masterwork
 contact** on (Trade tab). The gate reads the masterwork tier the equipment
 sheet writes.
 
+## Coin at a market
+
+A market deals where it stands. What you buy, import or commission there is
+paid with coin you have **on hand or keep at that market**, drawn in the
+order your sheet states
+([where coin is paid from](character-sheet.md#where-coin-is-paid-from-and-where-it-lands)).
+Coin kept anywhere else — a vault, a bank in another quarter — does not reach
+the counter: fetch it, or leave it at the market first. That holds whatever
+the world's setting for paying with coin kept elsewhere says
+([location storage](location.md#paying-with-coin-kept-elsewhere)), and it is
+what keeps carrying coin across a city a decision somebody has to make.
+
+A purchase that coin cannot cover is refused with **Not enough coin on hand
+or kept at this market**, and nothing moves. What a sale earns you, and what
+the changer hands back, lands where your sheet says arriving coin goes when
+that is on hand or at this market, and is carried loose otherwise. A venture's
+tolls, bribes, purchases and proceeds follow the same rule at the market they
+happen in.
+
+To keep coin at a market, open its **Storage** tab and press **Leave
+something here**, or drag a coin row onto the place. It lists there under your
+name.
+
+![](../releases/v10.1.0/markets-coin.png)
+
+*A market's Storage tab: the coin one character keeps there, which their
+purchases at this market draw on, beside the house's own.*
+
 ## Changing coin
 
 **Change coin** turns one denomination into another at face value: pick the

@@ -222,6 +222,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     *Observable:* one row on the receiver with the whole count, none left on
     the wagon. Coin in and out of a hold is walked in docs/lib/TESTING.md,
     "Coin: one stack, moved and never copied", step 9.
+    Then drag a freight row onto a disposable `acks-extras.faction`'s sheet
+    and onto a disposable `acks-extras.group`'s.
+    *Observable:* one warning each, naming the target and saying it carries
+    no goods; the row is still on the wagon with its whole count and neither
+    target holds an item. A drop is a real `DragEvent("drop")` on the target
+    sheet's `.window-content`, carrying `{type: "Item", uuid}` as
+    `text/plain`.
 17. Taking the wagon to market — an entry that declares it and loads bought
     into its hold — is walked in [../markets/TESTING.md](../markets/TESTING.md),
     "The fleet walk".

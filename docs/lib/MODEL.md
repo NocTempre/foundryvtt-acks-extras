@@ -684,8 +684,9 @@ fields itself.
 
 **One count.** A row holds `system.quantity` coins. `stackCountOf`, and
 `coinCount` for plain data, is every reader's count; `coinTotalCp` /
-`coinTotalGC` is what a set of rows is worth, and `purseGp` what a holder's
-own coin is worth. The system's second field on the row,
+`coinTotalGC` is what a set of rows is worth, `purseGp` what the coin a holder
+has on them is worth, and `spendableGp` what a payment may draw on. The
+system's second field on the row,
 `system.quantitybank`, is counted by nothing. The location feature's sweep
 moves a balance out of it ([location MODEL](../location/MODEL.md)). Until it
 has, a path that would delete an emptied row (`emptyMoneyDeletes`,
@@ -696,8 +697,39 @@ one (`arrivalOf`, `divideStack`, a transfer) carries none.
 mints struck to one value are two stacks, and a local variation stays its own
 stack wherever it travels. At a place that keeps goods for owners the kind is
 per owner, and the place's own coin is owned by the sentinel `HOUSE_OWNER`.
-`ownCoin(holder)` is a holder's own rows: an actor's purse, or a place's
-house-owned stacks.
+`ownCoin(holder)` is the rows a holder has on them and that are their own: an
+actor's purse and what its containers hold, or a place's house-owned stacks.
+
+**Stores.** A holder's coin is kept in stores, and `coinStores(holder)` lists
+them in a standing order: coin carried loose, each container the holder
+carries, then each place that keeps coin for them, their vault first and the
+rest by name. Each store is `{key, kind, name, actor, containerId, rows, shut,
+takesCoin, writable, vault}`. Its key is what an order names: `""` for loose
+(`LOOSE_STORE`), `item:<id>` for a carried container, `place:<uuid>` for a
+place. A container whose lock is shut, or that sits inside one, is `shut`: its
+coin is not spent and nothing is put there, though it still counts as carried
+and still weighs. `takesCoin` is false for a shut container and for one that
+names the kinds it holds and leaves coin out, which the equipment feature
+answers. A place is a store when it holds coin stamped for the holder, is
+their vault, or is named in their order. Coin inside a locked container at a
+place is not among that store's rows. Nothing is kept elsewhere for a
+location or for an unlinked token's own actor (`keepsCoinElsewhere`); a
+location's stores are the house's own.
+
+**Order.** `flags["acks-extras"].coinOrder = {payFrom, receiveInto}` is the
+holder's statement of the store a payment draws on first and the store
+arriving coin lands in (`coinOrderOf`, written by `setCoinOrder`). Unstated,
+both are coin carried loose. A key whose store is gone reads as loose.
+
+**Reach.** A transaction states how far it reaches with `within`: `"all"` for
+every store, `"hand"` for the stores on the holder, a place for those and the
+coin that place keeps, a Scene for those and the places on it. One that
+states nothing takes the world setting `coinScope` (`standingCoinScope`):
+`all` by default, `scene` measured from the scene the payer stands on, or
+`hand`. A place is on a scene when the scene is linked to it or its token
+stands there. The reach bounds both sides of a payment: which of the payer's
+coin is drawn on, and which store an arrival may be sent to. Transactions at
+a market state that market ([markets MODEL](../markets/MODEL.md)).
 
 **Weight.** Currency states how many of it weigh one stone. `perStoneOf`
 reads the item's own `gear.perStone`, which is typed on its sheet or read off
@@ -716,62 +748,120 @@ container's contents (`contentsWeight6`), and a character's burden. Core
 computes a character's encumbrance itself and counts the purse in whole
 stones, so the equipment feature's wrapper on `computeEncumbrance` takes
 core's coin figure back out and puts the item model's in (`encumbranceDelta6`,
-step 5), where every coin row has a rate. The wrapper registers at `setup`,
-after the world's actors were first prepared, so each world character is
-reset once it is in place.
+step 5), where every coin row has a rate. The wrapper registers at `setup`
+and answers to no setting, the roll-automation one included. That is after
+the world's actors were first prepared, so each world character is reset once
+it is in place.
 
 **Landing.** Coin arrives on a holder two ways, and both end on the row of
-its kind. `creditCoin(holder, credits)` lands coin known by a source row, by
-a name, or by its rate alone. A transfer that moves rows (`handOver`,
-`stash`, `retrieve`, `moveStored`) folds them through `planStackMerge`. A
-kind the holder has none of becomes a new row copied from the coin that
-moved, or from a coin of that kind the world or a compendium holds
-(`coinTemplate`), so its rate, art and declared weight come with it. Where
-the holder keeps the kind both loose and inside a container, the loose row
-takes the arrival and is spent from first. A row stamped for an owner takes
-only an arrival stamped for the same owner.
+its kind in the store it lands in. `creditCoin(holder, credits)` lands coin
+known by a source row, by a name, or by its rate alone, in the store the
+holder's order names; `into` overrides the order for one credit. A store that
+is gone, shut, outside the reach or takes no coin is passed over for coin
+carried loose, and so is a place this seat cannot write, except in a payment,
+which is relayed whole (below). Coin credited for a named owner (`ownerUuid`)
+is put on the holder under that owner whatever any order says, which is how
+a place is paid into for somebody. A transfer that moves rows (`handOver`,
+`stash`, `retrieve`, `moveStored`) folds them through `planStackMerge`; one
+that hands coin to a holder puts it in the carried container their order
+names, else loose (`coinContainerOf`), and never sends it on to a place. All
+of these write through `landGoods`. A kind the store has none of becomes a
+new row copied from the coin that moved, else from a coin of that kind the
+holder keeps anywhere, else from one the world or a compendium holds
+(`coinTemplate`), so its rate, art and declared weight come with it. A row
+stamped for an owner takes only an arrival stamped for the same owner.
 
-**Leaving.** A spend takes smallest coins first, whole coins only, and breaks
-one larger coin when the small ones cannot cover the rest (`planCoinSpend`).
-Change has a planner of its own (`planChange`): largest first, never more
-than is owed, and only from stacks somebody holds. A payment plans its change
-over the coins being paid before anything else (`changeKeeping` in
-`money.mjs`), so small coin a larger coin makes unnecessary stays in the
-purse.
+**Leaving.** A spend draws on the stores inside the reach that no lock shuts,
+the store the order names first and then the rest in the standing order. In
+each store it takes smallest coins first, whole coins only, and it breaks one
+larger coin when what came before cannot cover the rest (`planCoinSpend`,
+whose slots carry the store's `rank`). Change has a planner of its own
+(`planChange`): largest first, never more than is owed, and only from stacks
+somebody holds. A payment plans its change over the coins being paid before
+anything else (`changeKeeping` in `money.mjs`), so small coin a larger coin
+makes unnecessary stays in the purse. An order decides which coins go and
+never whether the payment can be made: where the ranked plan needs change
+nobody can make, the plan that spends smallest first across every store is
+tried before the payment is refused. A row a payment empties is deleted
+(`emptyMoneyDeletes`).
+
+**One payment.** `moveCoin` in `money.mjs` is the pipeline every call in the
+table below runs: the reach gate, the reach, the plan, then both landings
+before both takes, so a payment cut short leaves a duplicate and never a
+loss. Where the plan touches a document this seat may not write (a place
+keeping coin for either side, a payee the seat does not own) the whole
+payment is handed to the GM (`libMoveCoin`). The GM's seat checks that the
+sender owns the payer and plans again from the same arguments. A relayed
+payment never mints. With no GM connected the answer is
+`{ok: false, reason: "noGm"}` and nothing is written.
 
 | Call | What moves |
 |---|---|
-| `transferCoin({from, to, gp})` | Coin from one holder to another, after the reach gate. Change is made from the coins being handed over first, which then stay with the payer, and after that from the payee's own stacks. Where neither can make it, a market mints it and anywhere else the transfer is refused. `upTo` pays only what the purse represents exactly and reports the rest as `arrearsCp`; `allowMint` lets a market's till pay out more than it holds. |
-| `mintCoin(holder, gp)` | Coin from nowhere, in standard denominations, each on the holder's row of that rate. |
-| `sinkCoin(holder, gp)` | Coin paid to nobody. Coins the change would hand straight back stay in the purse; the rest of the change comes back in the holder's own denominations, and what those cannot represent as standard small coin. |
-| `exchangeCoins({actor, place, itemId, count, toCv})` | One kind for another at a market's till, at face value. A seat that cannot write the place relays the exchange to the GM. |
+| `transferCoin({from, to, gp, within})` | Coin from one holder to another, after the reach gate. Change is made from the coins being handed over first, which then stay with the payer, and after that from the payee's own stacks. Where neither can make it, a market mints it and anywhere else the transfer is refused. `upTo` pays only what the payer's coin represents exactly and reports the rest as `arrearsCp`; `allowMint` lets a market's till pay out more than it holds. |
+| `mintCoin(holder, gp, opts)` | Coin from nowhere, in standard denominations, each as the holder's coin of that rate, where `creditCoin` puts it. |
+| `sinkCoin(holder, gp, {within})` | Coin paid to nobody. Coins the change would hand straight back stay where they are; the rest of the change comes back in the holder's own denominations, and what those cannot represent as standard small coin. |
+| `exchangeCoins({actor, place, itemId, count, toCv})` | One kind for another at a market's till, at face value. The new coin comes back where the actor keeps arriving coin, on hand or at that place. A seat that cannot write the place relays the exchange to the GM. |
 | `depositCoin(provider, {...})` | Coin put at a place for an owner. |
 
-**Reach.** `coinReach(from, to)` passes a place through the location
-feature's deposit reach, an employer and a hireling through the roster, an
-employer and a paid unit through the employer the unit's own actor names, and
-any other two actors when they stand on one scene.
+**The reach gate.** `coinReach(from, to)` decides whether two holders can pay
+each other at all, before any store is read. It passes a place through the
+location feature's deposit reach, an employer and a hireling through the
+roster, an employer and a paid unit through the employer the unit's own actor
+names, and any other two actors when they stand on one scene.
 
 **Dividing and joining.** `divideStack(item, count)` copies the row at
 `count` beside itself and reduces the original. `joinStacks(item, onto)` adds
 one row to another of the same kind, owner and container, and removes it.
 Both write the gaining side first, so a write cut short leaves a duplicate
 and never a loss. Two rows of one kind are a state the holder may have
-chosen, and nothing joins them unasked.
+chosen, and nothing joins them unasked. `promptDivide(item)`
+(`stack-prompt.mjs`) is the one prompt every sheet asks a division through: a
+dismissed prompt writes nothing and says nothing, and a count outside the
+stack, 0 included, is refused with a warning. `gatherCoin(holder)` is the
+fold a holder asks for: rows of one kind in one store become one, on the
+holder and at each place keeping coin for them that the seat may write.
+
+**The order on a sheet.** `coin-order.mjs` draws the order wherever a
+holder's coin is listed: `coinOrderView(holder, {places})` builds the view,
+`templates/lib/coin-order.hbs` draws it and `bindCoinOrder(root)` listens.
+Both selects offer every store, and each place the sheet lists that may keep
+coin for the holder; the pay select leaves out a shut store and the receive
+select one that takes no coin. A stated key whose store is gone stays as an
+option of its own, so the control shows what the flag says. The gather
+control appears only while a fold would take a row away, and names how many.
+A note states the world's reach when it is narrower than every store. The
+selects carry no `name`, and the listener stops their `change` at the block,
+so a form that submits on change neither writes the choice nor submits for
+it. `installCoinOrder` binds the block on every actor sheet render; a sheet
+that injects the block after its render hooks binds its own. Four sheets host
+it: the module's character sheet, the system's own actor sheets, the follower
+card and the group sheet.
 
 **Dropped on a sheet.** `bundles.mjs` `landCoin(actor, item)` is the one
 statement of where a dropped coin goes. Off another actor it is handed over
 (`handOver`, which debits the giver). From a compendium or the sidebar it
 arrives as its own count on the row of its kind (`deliverDrop`), an empty
-shelf stack counting as one coin. No sheet copies coin. The character sheet
-and the vehicle sheet call `landCoin` from their own drop handlers. Every
-other actor sheet reaches Foundry's `ActorSheetV2#_onDropItem`, which the lib
-wraps (`patches/goods-drag.mjs`): coin from elsewhere goes to `landCoin`
-where the sheet's actor is a character, a monster or an animal, and is
-refused with a warning on any other type, whose sheet lists no goods. The
-same patch guards the system sheets' own money-drop branch. A place's sheet
-keeps what is dropped on it for an owner instead (`stash`, or
-`stockProvider` for goods that come from nobody).
+shelf stack counting as one coin. No sheet copies coin. The character sheet,
+the vehicle sheet and the group sheet call `landCoin` from their own drop
+handlers; the group sheet's replaces the base class's on the same element.
+Every other actor sheet reaches Foundry's `ActorSheetV2#_onDropItem`, which
+the lib wraps (`patches/goods-drag.mjs`): coin from elsewhere goes to
+`landCoin` where the sheet lists the goods its actor carries (`listsGoods`: a
+character, a monster or an animal), and is refused on any other, neither
+moved nor copied. The same patch guards the system sheets' own money-drop
+branch. A place's sheet keeps what is dropped on it for an owner instead
+(`stash`, or `stockProvider` for goods that come from nobody).
+
+**Refused aloud.** `bundles.mjs` `refuseGoods(actor)` is the one warning a
+sheet gives for an item it does not take, naming the actor. The wrapped base
+drop gives it for coin on a sheet that lists no goods. Each sheet that lists
+none gives it for the rest, from its own drop, because Foundry's base drop
+would otherwise create a copy on the actor: the faction sheet for goods of
+any kind (`_onDropItem`), the group sheet for any item that is not coin, and
+the party sheet for any item at all, in the GM's member drop and in
+`_onDropItem` for every other seat. The vehicles feature gives it for freight
+dragged out of a hold onto such a sheet
+([vehicles MODEL](../vehicles/MODEL.md)).
 
 ### Capacity
 

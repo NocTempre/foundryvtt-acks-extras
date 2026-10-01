@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import {
   coinKind, coinKindKey, coinCount, coinRate, coinTotalCp, coinTotalGC, coinSlots,
   planCoinSpend, planCoinPayUpTo, planChange, convertCp,
+  LOOSE_STORE, containerStoreKey, placeStoreKey, readStoreKey, coinOrderOf,
 } from "../scripts/lib/money-logic.mjs";
 
 const coin = (id, name, cv, qty, bank = 0) => ({
@@ -72,6 +73,40 @@ assert.deepEqual([upTo.takes.map((t) => [t.id, t.take]), upTo.shortCp], [[["e", 
 upTo = planCoinPayUpTo(coinSlots([coin("c", "Copper", 1, 10), coin("s", "Silver", 10, 1)]), 10);
 assert.deepEqual(upTo.takes.map((t) => [t.id, t.take]), [["c", 10]], "where the small coin pays it all, the small coin goes");
 
+/* --- a store's rank comes before a coin's size ---------------------------- */
+// The rates in this block are this file's own; none is a coin anybody mints.
+const ranked = (id, cv, qty, rank) => ({ id, cv, qty, rank });
+plan = planCoinSpend([ranked("looseGold", 100, 2, 1), ranked("packedSilver", 10, 30, 0), ranked("looseCopper", 1, 40, 1)], 250);
+assert.deepEqual(plan.takes.map((t) => [t.id, t.take]), [["packedSilver", 25]], "the store named first pays before a smaller coin kept elsewhere");
+plan = planCoinSpend([ranked("far", 1, 500, 2), ranked("near", 100, 1, 0), ranked("mid", 10, 3, 1)], 125);
+assert.deepEqual(plan.takes.map((t) => [t.id, t.take]), [["near", 1], ["mid", 3]], "each store is emptied of what it can pay before the next is opened");
+assert.equal(plan.changeCp, 5, "and the last coin taken may overshoot, whichever store it came from");
+plan = planCoinSpend([ranked("a", 100, 1, 1), ranked("b", 100, 1, 0)], 300);
+assert.equal(plan.shortfallCp, 100, "what a purse can cover does not depend on the order");
+assert.deepEqual(planCoinSpend([{ id: "s", cv: 10, qty: 4 }, ranked("g", 100, 1, 0)], 30).takes.map((t) => t.id), ["s"],
+  "a slot that states no rank shares the first, where the smaller coin goes first");
+
+upTo = planCoinPayUpTo([ranked("near", 6, 1, 0), ranked("far", 4, 3, 1)], 12);
+assert.deepEqual([upTo.takes.map((t) => [t.id, t.take]), upTo.paidCp, upTo.shortCp], [[["far", 3]], 12, 0],
+  "where the stores taken in order strand a remainder, smallest first across all of them is weighed against it");
+upTo = planCoinPayUpTo([ranked("near", 1, 5, 0), ranked("far", 10, 1, 1)], 10);
+assert.deepEqual(upTo.takes.map((t) => [t.id, t.take]), [["far", 1]], "and so is largest first");
+upTo = planCoinPayUpTo([ranked("near", 10, 2, 0), ranked("far", 10, 2, 1)], 30);
+assert.deepEqual(upTo.takes.map((t) => [t.id, t.take]), [["near", 2], ["far", 1]], "the pick in order stands wherever it pays as much");
+
+/* --- naming a store ------------------------------------------------------- */
+assert.equal(LOOSE_STORE, "");
+assert.deepEqual(readStoreKey(containerStoreKey("abc")), { kind: "container", id: "abc" });
+assert.deepEqual(readStoreKey(placeStoreKey("Actor.xyz")), { kind: "place", uuid: "Actor.xyz" });
+for (const nothing of ["", "item:", "place:", "elsewhere", null, undefined, 7]) {
+  assert.deepEqual(readStoreKey(nothing), { kind: "loose" }, `${JSON.stringify(nothing)} names coin carried loose`);
+}
+assert.deepEqual(coinOrderOf({ flags: { "acks-extras": { coinOrder: { payFrom: "item:a", receiveInto: "place:Actor.b" } } } }),
+  { payFrom: "item:a", receiveInto: "place:Actor.b" });
+assert.deepEqual(coinOrderOf({ flags: { "acks-extras": { coinOrder: { payFrom: 3 } } } }), { payFrom: "", receiveInto: "" },
+  "a half that is not stated, or not a key, is coin carried loose");
+assert.deepEqual(coinOrderOf(null), { payFrom: "", receiveInto: "" });
+
 /* --- change, largest first ------------------------------------------------ */
 const kinds = [{ kind: "gold|100", cv: 100 }, { kind: "silver|10", cv: 10 }, { kind: "copper|1", cv: 1 }];
 const change = planChange(kinds, 234);
@@ -96,4 +131,4 @@ assert.equal(convertCp(250, { mode: "market" }), 250, "a market converts at face
 assert.equal(convertCp(250, { mode: "none" }), null, "no changer refuses");
 assert.equal(convertCp(250, null), null);
 
-console.log("test-money: OK (kind identity, one count per row, smallest-first planner, exact pay, change, terms)");
+console.log("test-money: OK (kind identity, one count per row, ranked smallest-first planner, exact pay, store keys, change, terms)");

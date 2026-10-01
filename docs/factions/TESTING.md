@@ -220,12 +220,23 @@ Shut the world down and relaunch it, then check again.
     the syndicate, then change the guild's kind. *Observable:* the parent is
     still the syndicate after the re-render (`system.parentUuid` unchanged);
     the picker offers **none** and every faction that would not close a loop.
+18. **Goods are refused, never copied.** Give the hiring character one piece
+    of gear and some coin (`acksExtras.lib.money.creditCoin`), and make one
+    world `item` on the sidebar. Drop each of the three on the guild's sheet.
+    *Observable:* one warning per drop naming the guild, in the wording every
+    sheet that lists no goods uses; `guild.items.size` is still 0, and the
+    character holds the gear and the same count of coin. A new character
+    carries zero-count coin rows of its own, so drag the row whose count is
+    above zero. The shared recipe is step 8 of the coin walk in
+    [`docs/lib/TESTING.md`](../lib/TESTING.md), which also walks a unit and a
+    party.
 
 ## Teardown
 
 Delete by the run's own ids: the factions (the syndicate with them), the
-locations (the holding with them), the characters, the scene (its Region goes
-with it), the imported factions and the district places the import made.
+locations (the holding with them), the characters, the world item of step 18,
+the scene (its Region goes with it), the imported factions and the district
+places the import made.
 Relations and holdings are rows on the factions, so they go when the factions
 do — nothing is left on a document this run did not create. Quote
 `api.sweepTracked()`'s result. Restore the setting to 0.

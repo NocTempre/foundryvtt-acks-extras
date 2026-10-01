@@ -425,3 +425,30 @@ statement of what a drop does.
 
 *Cost:* other freight dragged onto a sheet that lists no goods is still
 handed over by this hook (docs/lib/ROADMAP.md, "What coin does not do yet").
+
+## 2026-10-01 — Freight is refused on a sheet that lists no goods
+
+Amends "2026-10-01 — Coin crosses a hold by the rule every sheet keeps",
+ruled the same day: its cost line no longer holds.
+
+**The new evidence, which that ruling did not have.** The owner's instruction
+of the same day to close the open coin and freight items the lib roadmap
+listed, of which that cost line was one: "Roll in any open issues/features to
+money items specifically that are on the roadmap."
+
+**Ruled.** The drag-out hook asks the lib's `listsGoods` of its target before
+it hands anything over. A vehicle takes freight, and so does an actor whose
+sheet lists what it carries. Any other target is refused with the warning
+coin already gets there, and the hook returns false, so the item is neither
+moved nor copied and the hold keeps it. `listsGoods` is the one predicate the
+coin guard and this hook both read (`lib/bundles.mjs`), and `refuseGoods` the
+one wording. A unit's sheet and a party's bind their own drop, so the hook
+never sees them; each refuses there in the same words (docs/lib/DECISIONS.md,
+"Coin is kept in stores, and a holder states their order (2026-10-01)").
+
+**Rejected:** a list of refused actor types kept by this feature, which would
+be a second statement of which sheets list goods.
+
+*Cost:* an organisation that was handed freight before 10.1.0 still holds it
+where nothing lists it, and no check reports it (docs/lib/ROADMAP.md, "What
+the repair tool only reports").

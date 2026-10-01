@@ -119,6 +119,42 @@ never copied, and joins the purse it lands in.
 its weight, a Judge's own coin among them, and a pile of gold divided off with
 the scissors, ready to hand over.*
 
+### Where coin is paid from, and where it lands
+
+Coin is kept in stores: what you carry loose, each container you carry, and
+each place keeping coin for you — a vault, a bank, a market's strongroom.
+Under the coin rows, **Purse** states what is on hand and what is kept
+elsewhere, and offers two choices once there is more than one store.
+
+- **Pay from** is the store a payment draws on first. What that store cannot
+  cover is drawn from the rest in their usual order: coin carried loose, then
+  each container, then each place. Choosing a store never stops a payment
+  your coin could make.
+- **Receive into** is where coin handed to you is put — wages, the proceeds
+  of a sale, a share. Coin that cannot be put there is carried loose.
+
+A container locked to you is passed over: its coin still counts as carried
+and still weighs, and no payment opens it. Which stores a payment may reach at
+all is the Judge's to set for the world
+([location storage](location.md#paying-with-coin-kept-elsewhere)), and a
+purchase at a market takes coin on hand or kept at that market
+([markets](markets.md#coin-at-a-market)).
+
+Where one store holds the same coin in more than one row, **Gather coin**
+folds them into one. The same choices sit under the Money header of the
+system's own sheet, on a hireling's card and on a hired unit's sheet.
+
+A payment or a deposit that touches a place your seat cannot write to — a
+bank the Judge runs — is carried out by the Judge's seat on your behalf. With
+no Judge connected it is refused and says so; nothing is taken.
+
+![](../releases/v10.1.0/character-sheet-coin.png)
+
+*A player's Equipment tab: the Purse rule stating what is on hand and what is
+kept elsewhere, a payment set to draw on the bank first and arriving coin to
+go into the pouch, a strongbox the player cannot open, and the two places
+keeping coin under Kept elsewhere.*
+
 ## Stats
 
 ![](../releases/v6.5.0/character-sheet-stats.png)

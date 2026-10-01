@@ -128,7 +128,7 @@ export async function placeImportOrder(location, payload) {
   const priced = buyQuote({ itemData, costGp, magic, magicBaseGp, goods, bargain });
   if (priced.error) return priced;
   const totalGp = toGp(priced.unitCp * qty);
-  const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.imports.payReason`, { qty, name: itemData.name }), { to: location, at: location });
+  const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.imports.payReason`, { qty, name: itemData.name }), { to: location, at: location, within: location });
   if (!paid) return err("insufficientGold");
 
   const roll2d6 = (await new Roll("2d6").evaluate()).total;
@@ -329,7 +329,7 @@ export async function placeCommission(location, payload) {
   if (!plan) return err("noRates");
 
   const wagesGp = toGp(plan.wagesCp);
-  const paid = await adapter.spendGold(buyer, wagesGp, game.i18n.format(`${LANG}.commissions.payReason`, { qty, name: itemData.name }), { to: location, at: location });
+  const paid = await adapter.spendGold(buyer, wagesGp, game.i18n.format(`${LANG}.commissions.payReason`, { qty, name: itemData.name }), { to: location, at: location, within: location });
   if (!paid) return err("insufficientGold");
 
   const t = now();

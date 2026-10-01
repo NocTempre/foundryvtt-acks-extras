@@ -23,7 +23,7 @@ import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { WEAR, WEAR_ICONS } from "./config.mjs";
 import { getLoadout, cycleGrip, heldHandsClause } from "./loadout.mjs";
 import { prepareTorch, rollUnarmed, drawItem, sheatheItem, wearItem, removeItem } from "./actions.mjs";
-import { STONE, slotsOf, isWorn, isEquippable } from "../lib/item-model.mjs";
+import { STONE, slotsOf, isWorn, isEquippable, isCurrency } from "../lib/item-model.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { LIGHT_SOURCES } from "../lib/light.mjs";
 import { profileStripElement } from "../lib/proficiency-strip.mjs";
@@ -640,13 +640,15 @@ function buildStowedSection(actor, tab) {
   head.append(el("span", "acks-equipment-wear__title-text", game.i18n.localize("ACKS-EQUIPMENT.wear.stowedSection")));
 
   // Turning gear into containers is a bulk action over the whole inventory, so
-  // it stays at the section level rather than repeating on every row.
+  // it stays at the section level rather than repeating on every row. Coin is
+  // swept with the carrying gear: its weight is a declaration the same pass
+  // reads off the coin's own text.
   if (actor.isOwner) {
     head.append(
       ctrl("fa-wand-magic-sparkles", "ACKS-EQUIPMENT.container.annotateAll", async () => {
         let n = 0;
         for (const item of actor.items) {
-          if (item.type !== ITEM_TYPE.item || isContainer(item)) continue;
+          if (!isCurrency(item) && (item.type !== ITEM_TYPE.item || isContainer(item))) continue;
           if (await annotateItem(item)) n++;
         }
         ui.notifications.info(game.i18n.format("ACKS-EQUIPMENT.container.annotated", { n }));

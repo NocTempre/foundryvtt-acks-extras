@@ -79,8 +79,7 @@ export async function executeAsGM(action, payload) {
     return;
   }
   if (!firstActiveGm()) {
-    // A henchmen-named lang key reused here; the wording is feature-neutral.
-    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.socket.noGm"));
+    ui.notifications.warn(game.i18n.localize("ACKS-LIB.socket.noGm"));
     return;
   }
   if (socket) return socket.executeAsGM(action, payload);

@@ -3,7 +3,8 @@
  * ACKS II — Equipment & Fighting Styles: bootstrap.
  *
  * init  — settings, public API, template preload.
- * setup — libWrapper roll wrap (Phase 3).
+ * setup — the encumbrance wrapper, and the attack-roll wrapper where rolls
+ *         are automated.
  * ready — system guard, socketlib, paper-doll wiring (Phase 4), initial
  *         loadout sync, equip-enforcement hooks.
  */
@@ -17,7 +18,7 @@ import { registerVariationSheet } from "./variation-sheet.mjs";
 import { onPreUpdateItem, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
 import { unstowOnUse } from "./containers.mjs";
 import { registerClothingDeclaration } from "./clothing-declaration.mjs";
-import { registerRollWrap } from "./roll-wrap.mjs";
+import { registerEncumbranceWrap, registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheet } from "./sheet.mjs";
 import { registerItemSheet, ITEM_SHEET_TEMPLATES } from "./item-sheet/sheet.mjs";
 import { advanceWieldedOnLevelUp } from "./overlays/named.mjs";
@@ -77,9 +78,10 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("setup", () => {
-  if (!game.settings.get(MODULE_ID, SETTINGS.ROLL_AUTOMATION)) return;
+  // A load is weighed the same whatever the roll setting says: the
+  // encumbrance wrapper is registered before that setting is read.
   try {
-    registerRollWrap();
+    registerEncumbranceWrap();
     // The world's actors are prepared before `setup` fires, so every character
     // already in the world was weighed by core alone. Each is derived again
     // now that the encumbrance wrapper is in place, or its load would be one
@@ -87,6 +89,12 @@ Hooks.once("setup", () => {
     for (const actor of game.actors) {
       if (actor.type === ACTOR_TYPE.character) actor.reset();
     }
+  } catch (err) {
+    console.error(`${MODULE_ID} | failed to register the encumbrance wrapper; core's load stands`, err);
+  }
+  if (!game.settings.get(MODULE_ID, SETTINGS.ROLL_AUTOMATION)) return;
+  try {
+    registerRollWrap();
   } catch (err) {
     console.error(`${MODULE_ID} | failed to register roll wrapper`, err);
   }

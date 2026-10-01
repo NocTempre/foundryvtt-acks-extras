@@ -8,6 +8,10 @@
  * (10 swordsmen + 10 spearmen) is several, each with its own prototype, count,
  * and roster. Drop an actor to add a stack; drop onto a stack to re-point it.
  *
+ * The group's coin is listed as its purse: a paid unit's wage lands on the
+ * group's own actor, and this is the sheet that shows it. A purse row drags
+ * off like any goods row, and coin dropped on the sheet joins the purse.
+ *
  * Group-level fields (noun, unit bookkeeping) submit through the default
  * document-sheet pipeline. Per-stack COUNTS do NOT: a partial form write to
  * `system.stacks` would replace the whole array and lose the other stacks'
@@ -19,6 +23,11 @@
 import { MODULE_ID, GROUP_TYPE } from "../constants.mjs";
 import { GROUP_CATEGORY, GROUP_STATE } from "../data/group-data.mjs";
 import * as groups from "../group.mjs";
+import { coinCount, coinTotalGC } from "../money-logic.mjs";
+import { ownCoin } from "../money.mjs";
+import { coinOrderView } from "../coin-order.mjs";
+import { isCurrency } from "../item-model.mjs";
+import { landCoin, refuseGoods } from "../bundles.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -93,6 +102,16 @@ export class GroupSheet extends HandlebarsApplicationMixin(foundry.applications.
       };
     });
 
+    // The purse: the coin the group holds, which is where a unit's pay lands.
+    const coin = ownCoin(this.actor);
+    const order = coinOrderView(this.actor);
+    const gold = (rows) => coinTotalGC(rows).toLocaleString(game.i18n.lang);
+    context.purse = {
+      rows: coin.map((row) => ({ id: row.id, name: row.name, img: row.img, count: coinCount(row), gp: gold([row]) })),
+      gp: gold(coin),
+      order: order.shown ? order : null,
+    };
+
     context.hasStacks = context.stacks.length > 0;
     context.categories = Object.fromEntries(
       Object.entries(GROUP_CATEGORY).map(([k, label]) => [k, game.i18n.has(label) ? game.i18n.localize(label) : k])
@@ -107,15 +126,18 @@ export class GroupSheet extends HandlebarsApplicationMixin(foundry.applications.
   }
 
   /**
-   * @override — bind actor drag-drop (formation's PartySheet pattern) and wire
-   * the per-stack count inputs, which are NOT form fields (see the class note).
+   * @override — bind the sheet's own drop (formation's PartySheet pattern) and
+   * wire the per-stack count inputs, which are NOT form fields (see the class
+   * note). The drop bound here replaces the base class's on the same element,
+   * so an item reaches `#onDropItem` and never the base's copy-on-drop; the
+   * purse rows' drag start is the base class's, bound to `.draggable`.
    */
   async _onRender(context, options) {
     await super._onRender(context, options);
     if (!this.isEditable) return;
     new foundry.applications.ux.DragDrop.implementation({
       permissions: { drop: () => this.isEditable },
-      callbacks: { drop: (event) => this.#onDropActor(event) },
+      callbacks: { drop: (event) => this.#onDrop(event) },
     }).bind(this.element);
 
     // Per-stack headcount edits go straight to that ONE stack (never the form,
@@ -136,8 +158,22 @@ export class GroupSheet extends HandlebarsApplicationMixin(foundry.applications.
     }
   }
 
-  async #onDropActor(event) {
+  /**
+   * Coin dropped from elsewhere joins the purse by the one rule every sheet
+   * uses (`landCoin`). A group lists nothing else it holds, so any other item
+   * is refused in the words every such sheet uses (`refuseGoods`), and a
+   * purse row dropped back on its own sheet moves nothing.
+   */
+  async #onDropItem(data) {
+    const item = await foundry.utils.getDocumentClass("Item").fromDropData(data);
+    if (!item || item.parent?.uuid === this.actor.uuid) return;
+    if (isCurrency(item)) await landCoin(this.actor, item);
+    else refuseGoods(this.actor);
+  }
+
+  async #onDrop(event) {
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+    if (data?.type === "Item") return this.#onDropItem(data);
     if (data?.type !== "Actor") return;
     const source = await foundry.utils.getDocumentClass("Actor").fromDropData(data);
     if (!source) return;

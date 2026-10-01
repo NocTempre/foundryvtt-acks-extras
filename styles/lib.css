@@ -105,6 +105,66 @@
   text-transform: uppercase;
 }
 
+/* --- The coin order (lib/coin-order.mjs) ------------------------------------
+   One block on four hosts: the character sheet, the system's own sheet, the
+   follower card and the group sheet. Two of them carry the module's root class
+   and two do not, so every rule here is keyed on the block's own class and
+   reads tokens alone. The two fields share a line while it is wide enough for
+   both and wrap under each other where it is not; the fold and the reach note
+   take what is left. */
+.acks-extras-coin-order {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.3rem 0.6rem;
+  padding: 0.25rem 0;
+  min-width: 0;
+}
+
+.acks-extras-coin-order__field {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 9rem;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.acks-extras-coin-order__caption {
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+}
+
+/* One class more than a host's own field rule, so the select fills its field
+   on every host instead of taking the width a host gives its other selects. */
+.acks-extras-coin-order .acks-extras-coin-order__field select {
+  width: 100%;
+  min-width: 0;
+}
+
+.acks-extras-coin-order .acks-extras-coin-order__gather {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: auto;
+}
+
+.acks-extras-coin-order__note {
+  flex: 1 1 100%;
+  font-size: var(--acks-fs-label);
+  font-style: italic;
+  color: var(--acks-ink-soft);
+}
+
+/* The block where the system's sheet lists coin: a line under that list's
+   header, inset to the list's own gutter. */
+.acks-extras-coin-order-line {
+  padding: 0.1rem 0.5rem 0.25rem;
+}
+
 /* --- UI preset prompt (lib/ui-preset.mjs) --- */
 
 .acks-extras-ui-preset {
@@ -301,6 +361,18 @@
   font-style: italic;
   font-size: var(--acks-fs-label);
   color: var(--acks-ink-soft);
+}
+/* A purse row is a roster row with the coin's own picture leading it, and is
+   a drag source: the grab cursor is the only thing that says so. */
+.acks-lib-group-sheet .purse-img {
+  flex: 0 0 auto;
+  width: 1.4rem;
+  height: 1.4rem;
+  object-fit: contain;
+  border: none;
+}
+.acks-lib-group-sheet .member.draggable {
+  cursor: grab;
 }
 
 /* --- acks-lib.template builder sheet --- */
@@ -562,6 +634,7 @@ body .sheet.acks.actor-v2 .encumbrance-label {
 }
 
 .acks-lib-group-stack,
+.acks-lib-group-purse,
 .acks-lib-group-unit {
   display: flex;
   flex-direction: column;

@@ -216,6 +216,16 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    system compendium on the location's sheet, twice.
    *Observable:* one house-owned row counting 2, listed on the Contents tab.
    As a player the same drop warns and writes nothing.
+7c. The coin list on the system's sheet. On a character keeping coin at two
+   places and carrying a container, open the system's sheet on its inventory
+   tab; then put a coin row inside the container
+   (`flags.acks-extras.containedIn`) and render again.
+   *Observable:* both times the coin list's header is followed by the
+   summary of what is in storage, naming the gold and the count of places,
+   and by `.acks-extras-coin-order-line` holding the two selects. The row
+   inside the container is listed above, in the container's own section.
+   The block's choices and its writes are docs/lib/TESTING.md, "Coin", step
+   18.
 8. "Recover Coin from Unloadable Locations (GM)": build a pre-upgrade shape
    first — recover an old sub-type's location definition from git
    (`git show <tag>:<path>`) and create it as a world document — then run the

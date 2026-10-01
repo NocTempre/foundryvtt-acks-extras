@@ -1,0 +1,27 @@
+{{!-- A holder's coin order: the store a payment draws on first, the store
+      arriving coin lands in, and the fold of duplicate rows. Handed a
+      `coinOrderView`. The selects carry no `name`: the lib's own listener
+      writes a choice (`bindCoinOrder`), so the block rides no host form and
+      reads the same on every sheet that includes it. --}}
+<div class="acks-extras-coin-order" data-coin-order="{{uuid}}">
+  {{#if choice}}
+  <label class="acks-extras-coin-order__field" data-tooltip="{{localize 'ACKS-LIB.money.order.payFromHint'}}">
+    <span class="acks-extras-coin-order__caption">{{localize "ACKS-LIB.money.order.payFrom"}}</span>
+    <select data-coin-order-half="payFrom"{{#unless editable}} disabled{{/unless}}>
+      {{#each payFrom}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+    </select>
+  </label>
+  <label class="acks-extras-coin-order__field" data-tooltip="{{localize 'ACKS-LIB.money.order.receiveIntoHint'}}">
+    <span class="acks-extras-coin-order__caption">{{localize "ACKS-LIB.money.order.receiveInto"}}</span>
+    <select data-coin-order-half="receiveInto"{{#unless editable}} disabled{{/unless}}>
+      {{#each receiveInto}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+    </select>
+  </label>
+  {{/if}}
+  {{#if foldable}}
+  <button type="button" class="acks-extras-coin-order__gather" data-coin-order-gather data-tooltip="{{localize 'ACKS-LIB.money.order.gatherHint'}}">
+    <i class="fa-solid fa-layer-group" inert></i><span>{{localize "ACKS-LIB.money.order.gather" n=foldable}}</span>
+  </button>
+  {{/if}}
+  {{#if reachNote}}<span class="acks-extras-coin-order__note">{{reachNote}}</span>{{/if}}
+</div>

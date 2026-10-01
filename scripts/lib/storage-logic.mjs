@@ -14,7 +14,7 @@
  */
 import { toNum as num } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
-import { coinKind, coinTotalGC } from "./money-logic.mjs";
+import { coinCount, coinKind, coinTotalGC } from "./money-logic.mjs";
 
 // Coin's worth is money-logic's to compute; it is offered through here as
 // well because the storage surface lists every place's coin beside its goods.
@@ -23,6 +23,13 @@ export { coinTotalGC };
 /** The flag scope/key attribution lives under, on both providers and stored items. */
 export const LIB_ID = "acks-extras";
 export const STORAGE_KEY = "storage";
+
+/**
+ * The storage owner of a holder's OWN coin and goods: a location's house pile,
+ * and what a row that carries no stamp reads as. Not a real uuid on purpose:
+ * nothing can resolve it, so no character can claim it.
+ */
+export const HOUSE_OWNER = `${LIB_ID}:house`;
 
 /** The flag naming the bundle a copy was unpacked from: provenance, never identity. */
 export const UNPACKED_FROM = "unpackedFrom";
@@ -57,6 +64,9 @@ export const containedInOf = (plain) => plain?.flags?.[EQUIPMENT_ID]?.[CONTAINED
 
 /** The attribution stamped on a stored item: whose goods these are. */
 export const storageFlagOf = (plain) => plain?.flags?.[LIB_ID]?.[STORAGE_KEY] ?? null;
+
+/** Whose a row is where goods are kept for owners: its stamp, or the holder's own where it carries none. */
+export const rowOwnerOf = (plain) => storageFlagOf(plain)?.ownerUuid || HOUSE_OWNER;
 
 /* -------------------------------------------- */
 /*  Splitting and closure                        */
@@ -239,11 +249,13 @@ function canon(value) {
  */
 export function stackSignature(plain, { byOwner = false } = {}) {
   if (!quantityOf(plain)) return null; // unstackable: weapons, armour
-  const owner = byOwner ? (storageFlagOf(plain)?.ownerUuid ?? "") : "";
   // Coin identity is the KIND (name and rate together), not the rate alone,
   // and `coinKind` is its one statement. See docs/lib/DECISIONS.md,
-  // "2026-08-14 — Money is physical; four rulings land at once".
-  if (isMoney(plain)) return `money|${owner}|${coinKind(plain)}`;
+  // "2026-08-14 — Money is physical; four rulings land at once". A coin row
+  // that carries no stamp is the holder's own (`rowOwnerOf`), so a house pile
+  // made before house rows were stamped is one owner's with the stamped one.
+  if (isMoney(plain)) return `money|${byOwner ? rowOwnerOf(plain) : ""}|${coinKind(plain)}`;
+  const owner = byOwner ? (storageFlagOf(plain)?.ownerUuid ?? "") : "";
   if (plain.effects?.length) return null;
 
   const wrapper = { system: structuredClone(plain.system ?? {}) };
@@ -266,35 +278,78 @@ export function stackSignature(plain, { byOwner = false } = {}) {
 }
 
 /**
+ * The slot a coin row stacks in: its signature and the container it is really
+ * inside. `present` are the ids of the items it sits among — a pointer at a
+ * container that is not one of them dangles, and the row reads as loose.
+ */
+function coinSlotKey(plain, present, { byOwner = false } = {}) {
+  const signature = stackSignature(plain, { byOwner });
+  if (signature === null) return null;
+  const box = containedInOf(plain);
+  return `${signature}|@${box && present.has(box) ? box : ""}`;
+}
+
+/** A copy of `plain` put inside `containerId`, or made loose when there is none. */
+function inContainer(plain, containerId) {
+  const copy = structuredClone(plain);
+  copy.flags = { ...(copy.flags ?? {}), [EQUIPMENT_ID]: { ...(copy.flags?.[EQUIPMENT_ID] ?? {}) } };
+  if (containerId) copy.flags[EQUIPMENT_ID][CONTAINED_IN] = containerId;
+  else delete copy.flags[EQUIPMENT_ID][CONTAINED_IN];
+  return copy;
+}
+
+/**
  * Fold arriving goods into rows that already exist, instead of duplicating a
  * stack the system's own (document-ID-based) drop-handler merge cannot match —
  * anything that has been through a transfer has a fresh id. See docs/lib/API.md,
  * "storage".
  *
+ * Coin stacks by its kind AND where it is kept (`coinSlotKey`): an arriving
+ * coin joins the row of its kind in the place it lands, and makes a row there
+ * when there is none. It lands loose, or inside `coinInto` — a container among
+ * the target's items — and a coin that travelled inside a container which came
+ * along stays inside it.
+ *
+ * @param {object[]} creates arriving goods, as plain item data
+ * @param {object[]} [targetItems] every item already on the target
+ * @param {{byOwner?: boolean, coinInto?: string|null}} [opts] `byOwner` where
+ *   the target keeps goods for owners; `coinInto` the container arriving coin
+ *   is put inside
  * @returns {{creates: object[], targetUpdates: object[]}}
  */
-export function planStackMerge(creates, targetItems = [], { byOwner = false } = {}) {
+export function planStackMerge(creates, targetItems = [], { byOwner = false, coinInto = null } = {}) {
+  const present = new Set();
+  for (const item of [...targetItems, ...(creates ?? [])]) if (item?._id) present.add(item._id);
+  const slotKey = (plain) => (isMoney(plain) ? coinSlotKey(plain, present, { byOwner }) : stackSignature(plain, { byOwner }));
+  const into = coinInto && present.has(coinInto) ? coinInto : null;
+  // Where an arriving coin row is put: left where it travelled, else inside
+  // `coinInto`, else loose with a pointer at nothing taken off it.
+  const placed = (create) => {
+    if (!isMoney(create)) return create;
+    const box = containedInOf(create);
+    if (box && present.has(box)) return create;
+    return box || into ? inContainer(create, into) : create;
+  };
+
   const slots = new Map();
   for (const target of targetItems) {
-    const key = stackSignature(target, { byOwner });
+    const key = slotKey(target);
     if (!key) continue;
     // A row kept for an owner takes only what arrives stamped as theirs. Where
     // the merge is not by owner the arrival is nobody's, and folding it into
     // such a row would hand it to whoever the row belongs to.
     if (!byOwner && storageFlagOf(target)?.ownerUuid) continue;
-    // Coin's key carries no container, so a holder can keep two rows under
-    // one: the row carried loose takes what arrives before one packed away.
-    const loose = !containedInOf(target);
-    const held = slots.get(key);
-    if (held && (held.loose || !loose)) continue;
+    // Two rows under one key are duplicates; the first takes what arrives.
+    if (slots.has(key)) continue;
     const q = quantityOf(target);
-    slots.set(key, { _id: target._id, path: q.path, quantity: num(q.value), merged: false, loose });
+    slots.set(key, { _id: target._id, path: q.path, quantity: num(q.value), merged: false });
   }
 
   const outCreates = [];
   const firstCreate = new Map();
-  for (const create of creates ?? []) {
-    const key = stackSignature(create, { byOwner });
+  for (const arrival of creates ?? []) {
+    const create = placed(arrival);
+    const key = slotKey(create);
     if (!key) {
       outCreates.push(create);
       continue;
@@ -341,6 +396,46 @@ export function emptyMoneyDeletes(sourceUpdates, plainItems, sourceDeletes = [])
     else updates.push(update);
   }
   return { sourceUpdates: updates, sourceDeletes: deletes };
+}
+
+/**
+ * Fold duplicate coin rows together: rows of one kind, one owner and one
+ * container (`coinSlotKey`) become the first of them. A folded row still
+ * carrying a balance in the system's banked field is emptied and kept, as
+ * `emptyMoneyDeletes` keeps one, and is not counted again once it is empty.
+ * @param {object[]} plainItems every item on the holder, as plain data
+ * @param {(plain: object) => boolean} [mine] which coin rows are folded
+ * @returns {{updates: object[], deletes: string[], merged: number}} `merged`
+ *   counts the rows folded away
+ */
+export function planCoinFold(plainItems, mine = () => true) {
+  const items = plainItems ?? [];
+  const present = new Set(items.map((i) => i._id));
+  const kept = new Map();
+  const updates = new Map();
+  const deletes = [];
+  let merged = 0;
+  for (const row of items) {
+    if (!isMoney(row) || !mine(row)) continue;
+    const key = coinSlotKey(row, present, { byOwner: true });
+    if (key === null) continue;
+    const keep = kept.get(key);
+    if (!keep) {
+      kept.set(key, { _id: row._id, quantity: coinCount(row) });
+      continue;
+    }
+    const count = coinCount(row);
+    const banked = num(row.system?.quantitybank) > 0;
+    if (banked && count <= 0) continue;
+    merged += 1;
+    if (count > 0) {
+      keep.quantity += count;
+      updates.set(keep._id, { _id: keep._id, "system.quantity": keep.quantity });
+    }
+    if (banked) updates.set(row._id, { _id: row._id, "system.quantity": 0 });
+    else deletes.push(row._id);
+  }
+  return { updates: [...updates.values()], deletes, merged };
 }
 
 /**

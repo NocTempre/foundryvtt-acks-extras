@@ -192,7 +192,8 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
         game.i18n.format("ACKS-HENCHMEN.hire.signingBonusReason", { name: entry.name }),
         // The bonus lands in the new hire's hands (they were just added to the
         // roster, which is the reach); a hire that made no actor pays the till.
-        { to: result?.actor ?? location, at: location }
+        // It is paid where the hire is made: coin on hand, or kept there.
+        { to: result?.actor ?? location, at: location, within: location }
       );
     }
   }
@@ -422,7 +423,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
       employer,
       opts.signingBonusGp,
       game.i18n.format("ACKS-HENCHMEN.hire.signingBonusReason", { name: actor.name }),
-      { to: actor }
+      { to: actor, within: location }
     );
   }
 

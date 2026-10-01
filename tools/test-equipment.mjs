@@ -1081,7 +1081,19 @@ globalThis.CONFIG = { Actor: { documentClass: { prototype: {} } } };
 const { registerSettings } = await import(new URL("settings.mjs", S));
 registerSettings();
 check("registerSettings() runs and registers the settings", registered.includes("enforceMode") && registered.includes("overlayNamed"));
-const { registerRollWrap } = await import(new URL("roll-wrap.mjs", S));
+// The load is weighed whatever the roll setting says, so the two wrappers
+// register apart: the encumbrance one names core's method, the attack one is
+// composed by the lib's own patch and registers nothing with libWrapper.
+{
+  const { registerRollWrap, registerEncumbranceWrap } = await import(new URL("roll-wrap.mjs", S));
+  const wrapped = [];
+  globalThis.libWrapper = { register: (_m, path) => wrapped.push(path) };
+  registerEncumbranceWrap();
+  check("the encumbrance wrapper registers on its own", wrapped.length === 1 && wrapped[0].endsWith(".computeEncumbrance"));
+  registerRollWrap();
+  check("the attack wrapper registers nothing more with libWrapper", wrapped.length === 1);
+  globalThis.libWrapper = { register: () => {} };
+}
 // (Paper Doll registration checks removed with the feature.)
 const { registerSheet } = await import(new URL("sheet.mjs", S));
 registerSheet();

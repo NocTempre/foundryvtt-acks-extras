@@ -121,6 +121,22 @@ the claim half). Ownership and a companion's ownership are deliberately not
 grounds: they are world-wide, so a world that leaves its places open puts every
 one of them on every sheet (see [DECISIONS.md](DECISIONS.md), 2026-09-20).
 
+## The coin list on the system's sheet
+
+`installStorageTab` writes two lines under the header of the coin list on the
+system's inventory tab, on any actor's sheet that draws one: the lib's
+coin-order block (`.acks-extras-coin-order-line`; docs/lib/MODEL.md,
+"Currency"), offered every place the Storage tab lists, and for a character
+with goods kept somewhere a summary of what is in storage and at how many
+places, which opens the Storage tab.
+
+The header is found by the count cell it carries (`coinHeader`): the list
+header that holds a `.money__count`. A coin row listed inside a container
+carries the same cell, in a section that comes first and has no header, so a
+search for the first count cell on the tab finds that row and no header at
+all. Both lines are injected after the sheet's render hooks have run, so the
+block's controls are bound here (`bindCoinOrder`).
+
 ## Banked coin
 
 The system's coin rows carry a second count, `system.quantitybank`. Nothing in

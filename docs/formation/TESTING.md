@@ -210,6 +210,19 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    sheet shows the Trapbreaking button; pressing "Work on it" announces
    "… works on the trap." publicly and the disarm question opens on the
    JUDGE's client.
+12. **An item dropped on the party sheet is refused.** As GM drop a piece of
+    a member's gear on the party sheet, then a coin row with a count above
+    zero. Give the Player seat ownership of the party actor and of that member,
+    and drop both again from that seat.
+    *Observable:* one warning per drop naming the party, in the wording every
+    sheet that lists no goods uses; `party.items.size` is still 0 and the
+    member holds what was dragged. The GM's drops prove the member drop
+    (`bindMemberDrop`), the Player seat's prove the sheet's `_onDropItem` —
+    that seat has no member drop bound, so it is the base class's route. Read
+    the warnings by wrapping `ui.notifications.warn` on the seat that drops. A
+    party fixture needed for this step alone can be made with
+    `flags["acks-extras"].formationId` naming no formation: its sheet opens and
+    no formation record is written.
 
 ## Mounts and the train (added with the stations release)
 

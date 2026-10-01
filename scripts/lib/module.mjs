@@ -42,6 +42,8 @@ import * as mount from "./mount.mjs";
 import * as attachment from "./attachment.mjs";
 import * as capacity from "./capacity.mjs";
 import * as money from "./money.mjs";
+import { COIN_SCOPE_SETTING } from "./money.mjs";
+import { COIN_ORDER_TEMPLATE, bindCoinOrder, coinOrderView, installCoinOrder } from "./coin-order.mjs";
 import {
   organizeCompendiumFolders,
   restoreCompendiumLibrary,
@@ -124,7 +126,9 @@ const localImpl = Object.freeze({
   // 23: conditions — the condition catalogue and its math.
   // 24: currency — one count per coin row, weight per stone, a named mint
   // and sink; `toBank` is gone from `transferCoin`.
-  apiVersion: 24,
+  // 25: coin stores — `coinStores`, a holder's coin order, a payment's reach
+  // (`within`), and a payment relayed where the seat cannot write.
+  apiVersion: 25,
   vocab,
   fields,
   /**
@@ -238,10 +242,20 @@ const localImpl = Object.freeze({
    * Money as a physical thing (money.mjs + money-logic.mjs): transferCoin —
    * the location-gated payment that lands coin on the payee's row of its
    * kind and makes exact change — with mintCoin and sinkCoin for coin from
-   * nowhere and to nobody, the smallest-first spend planner and the change
-   * planner, exchange terms by place, the HOUSE_OWNER sentinel and creditCoin.
+   * nowhere and to nobody, the spend planner and the change planner, exchange
+   * terms by place, the HOUSE_OWNER sentinel and creditCoin. Where a holder's
+   * coin is kept is coinStores; the order they pay from and receive into is
+   * coinOrderOf / setCoinOrder, and gatherCoin folds duplicate rows.
    */
   money: { ...moneyLogic, ...money },
+  /**
+   * The coin-order controls a sheet draws (coin-order.mjs): `view` builds what
+   * the `TEMPLATE` partial is handed — the two option lists, the rows a fold
+   * would take away, the world's standing reach — and `bind` wires a block a
+   * sheet injected after its render hooks ran. Every actor sheet's own blocks
+   * are bound as it renders.
+   */
+  coinOrder: { view: coinOrderView, bind: bindCoinOrder, TEMPLATE: COIN_ORDER_TEMPLATE },
   /**
    * The compendium sidebar: where every ACKS pack sits
    * (compendium-folders.mjs). `restoreCompendiumLibrary` is the macro's call
@@ -378,6 +392,9 @@ Hooks.once("init", () => {
   // into a container or a place at all until the row is bound.
   installGoodsDrag();
 
+  // The coin-order block on every actor sheet that includes it.
+  installCoinOrder();
+
   // Vision and detection modes for the ACKS senses. At init, not ready: a
   // token drawn against an unregistered vision mode silently falls back to
   // basic.
@@ -388,10 +405,10 @@ Hooks.once("init", () => {
 
   // Warm the Follower Card template so the hirelings-tab grid (rendered by
   // acks-henchmen, cross-module) has no fetch miss on first paint — and the
-  // station chip, which the vehicle sheet and the formation window both
-  // include as a partial by path.
+  // station chip and the coin-order block, which other sheets include as
+  // partials by path.
   foundry.applications.handlebars
-    .loadTemplates([FOLLOWER_CARD_TEMPLATE, `modules/${MODULE_ID}/templates/lib/station-chip.hbs`])
+    .loadTemplates([FOLLOWER_CARD_TEMPLATE, `modules/${MODULE_ID}/templates/lib/station-chip.hbs`, COIN_ORDER_TEMPLATE])
     .catch((err) => console.warn(`${MODULE_ID} | lib template preload skipped`, err));
 
   // The attack-roll core patch (patches/attack-roll.mjs; docs/lib/DECISIONS.md,
@@ -527,6 +544,22 @@ Hooks.once("init", () => {
       lose: `${LANG_PREFIX}.settings.storageDeletePolicy.lose`,
     },
     default: "return",
+  });
+
+  // How far a payment reaches into coin kept away from the payer, where the
+  // transaction itself states nothing (money.mjs, `scopeOf`).
+  game.settings.register(MODULE_ID, COIN_SCOPE_SETTING, {
+    name: `${LANG_PREFIX}.settings.coinScope.name`,
+    hint: `${LANG_PREFIX}.settings.coinScope.hint`,
+    scope: "world",
+    config: true,
+    type: String,
+    choices: {
+      all: `${LANG_PREFIX}.settings.coinScope.all`,
+      scene: `${LANG_PREFIX}.settings.coinScope.scene`,
+      hand: `${LANG_PREFIX}.settings.coinScope.hand`,
+    },
+    default: "all",
   });
 
   // The repair tool: lib's own checks, and the GM's way in from settings.

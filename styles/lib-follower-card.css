@@ -414,6 +414,24 @@
 .acks-lib-follower-card .fc-equipped-mark {
   color: var(--acks-spot);
 }
+.acks-lib-follower-card .fc-divide {
+  color: var(--acks-ink-faint);
+  text-decoration: none;
+  cursor: pointer;
+}
+.acks-lib-follower-card .fc-divide:hover {
+  color: var(--acks-spot);
+}
+/* The coin order sits in the equipment panel at the panel's own gutter, and
+   its captions take the card's label look — the size and the small caps every
+   other label on the card wears — in place of the block's own. */
+.acks-lib-follower-card .fc-panel .acks-extras-coin-order {
+  padding: 3px 6px;
+}
+.acks-lib-follower-card .acks-extras-coin-order .acks-extras-coin-order__caption {
+  font-size: inherit;
+  text-transform: none;
+}
 .acks-lib-follower-card .fc-roll-link {
   color: var(--acks-ink);
   text-decoration: none;

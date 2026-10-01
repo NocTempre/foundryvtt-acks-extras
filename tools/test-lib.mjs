@@ -18,6 +18,7 @@ import {
   emptyMoneyDeletes,
   expandContainerClosure,
   groupByOwner,
+  planCoinFold,
   planStackMerge,
   quantityOf,
   splitSpec,
@@ -63,6 +64,8 @@ import {
   declaresSlots,
   holdsGear,
   isGoods,
+  isLocked,
+  isShutAway,
   isStowable,
   isWearable,
   isWorn,
@@ -1197,6 +1200,56 @@ t("planStackMerge: two arriving stacks of one denomination land as one row", () 
   const { creates } = planStackMerge([gold("a", 5), gold("b", 7), silver("c", 3)], []);
   assert.equal(creates.length, 2);
   assert.equal(creates.find((c) => c.name === "Gold").system.quantity, 12);
+});
+
+t("planStackMerge: arriving coin lands in the container it is sent to, and stays in one that travels with it", () => {
+  const box = (id) => ({ _id: id, name: "Backpack", type: "item", system: { cost: 2, weight6: 6 }, flags: { "acks-extras": { container: {} } } });
+  const held = [gold("loose", 10), box("pack"), inside(silver("packed", 4), "pack")];
+  const sent = planStackMerge([gold("a", 5), silver("b", 6)], held, { coinInto: "pack" });
+  assert.deepEqual(sent.targetUpdates, [{ _id: "packed", "system.quantity": 10 }], "the row of its kind there takes it");
+  assert.deepEqual(sent.creates.map((c) => [c.name, c.flags["acks-extras"].containedIn]), [["Gold", "pack"]], "a kind with no row there is given one inside it");
+  assert.deepEqual(planStackMerge([gold("a", 5)], held, { coinInto: "gone" }).targetUpdates, [{ _id: "loose", "system.quantity": 15 }],
+    "a container that is not among the target's items is no destination");
+  const travelling = planStackMerge([box("sack"), inside(gold("a", 5), "sack")], held, { coinInto: "pack" });
+  assert.equal(travelling.creates.find((c) => c.type === "money").flags["acks-extras"].containedIn, "sack");
+  assert.equal(travelling.targetUpdates.length, 0);
+  const torch = planStackMerge([gear("t", "Torch", 2)], held, { coinInto: "pack" });
+  assert.equal(torch.creates[0].flags?.["acks-extras"]?.containedIn, undefined, "only coin is sent there");
+  const stray = planStackMerge([gold("a", 5)], [inside(gold("stray", 8), "nowhere")]);
+  assert.deepEqual(stray.targetUpdates, [{ _id: "stray", "system.quantity": 13 }], "a row pointing at a container that is not there is the loose pile");
+});
+
+t("planCoinFold: rows of one kind kept in one place become the first of them", () => {
+  const stamp = (m, uuid) => ({ ...m, flags: { ...(m.flags ?? {}), "acks-extras": { ...(m.flags?.["acks-extras"] ?? {}), storage: { ownerUuid: uuid } } } });
+  const box = { _id: "pack", name: "Backpack", type: "item", system: { cost: 2, weight6: 6 }, flags: { "acks-extras": { container: {} } } };
+  const held = [gold("a", 3), gold("b", 4), box, inside(gold("c", 5), "pack"), inside(gold("d", 6), "pack"), silver("s", 2), stamp(gold("theirs", 9), "Actor.x"), sword("sw")];
+  assert.deepEqual(planCoinFold(held), {
+    updates: [{ _id: "a", "system.quantity": 7 }, { _id: "c", "system.quantity": 11 }],
+    deletes: ["b", "d"],
+    merged: 2,
+  }, "loose with loose, packed with packed, and never across owners");
+  assert.deepEqual(planCoinFold(held, (row) => row._id !== "b").deletes, ["d"], "only the rows the caller names are folded");
+  const banked = planCoinFold([gold("a", 3), gold("b", 4, 50), gold("c", 0, 20)]);
+  assert.deepEqual(banked, { updates: [{ _id: "a", "system.quantity": 7 }, { _id: "b", "system.quantity": 0 }], deletes: [], merged: 1 },
+    "a folded row carrying a banked balance is emptied and kept, and one already empty is left alone");
+  assert.deepEqual(planCoinFold([gold("a", 3), silver("s", 2)]), { updates: [], deletes: [], merged: 0 });
+  assert.deepEqual(planCoinFold(null), { updates: [], deletes: [], merged: 0 });
+});
+
+t("isShutAway: a lock shuts what is inside the container, and inside anything in it", () => {
+  const item = (id, record, parent = null) => ({ id, flags: { "acks-extras": { container: record, ...(parent ? { containedIn: parent } : {}) } } });
+  const all = new Map([
+    ["open", item("open", {})],
+    ["locked", item("locked", { locked: true })],
+    ["sprung", item("sprung", { locked: true, opened: true })],
+    ["pouch", item("pouch", {}, "locked")],
+    ["loopA", item("loopA", {}, "loopB")],
+    ["loopB", item("loopB", {}, "loopA")],
+  ]);
+  assert.deepEqual(["open", "locked", "sprung"].map((id) => isLocked(all.get(id))), [false, true, false], "a lock that has been opened shuts nothing");
+  assert.deepEqual(["open", "locked", "sprung", "pouch", "loopA"].map((id) => isShutAway(all.get(id), all)), [false, true, false, true, false],
+    "and a pointer loop in the data ends");
+  assert.equal(isShutAway(null, all), false);
 });
 
 t("emptyMoneyDeletes: a coin row emptied by the move is deleted, unless coin remains in the bank", () => {

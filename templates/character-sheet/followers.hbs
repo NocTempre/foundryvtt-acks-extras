@@ -6,9 +6,9 @@
     {{#if fw.editable}}{{#unless fw.isRetainer}}
     <button type="button" class="acks-extras-character-sheet__chip" data-action="roster" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.open'}}"><i class="fa-solid fa-people-group" inert></i>{{localize "ACKS-CHARACTER.followers.roster"}}</button>
     {{/unless}}{{/if}}
-    {{#if fw.count}}
-    <span class="acks-extras-character-sheet__rule-note acks-nums">{{localize "ACKS-CHARACTER.followers.wages" gp=fw.wages}}</span>
-    {{#if fw.editable}}<button type="button" class="acks-extras-character-sheet__chip" data-action="payWages"><i class="fa-solid fa-coins" inert></i>{{localize "ACKS-CHARACTER.followers.pay"}}</button>{{/if}}
+    {{#if fw.payroll}}
+    <span class="acks-extras-character-sheet__rule-note acks-nums">{{#if fw.due}}{{localize "ACKS-CHARACTER.followers.wages" gp=fw.due}}{{else}}{{localize "ACKS-CHARACTER.followers.monthly" gp=fw.wages}}{{/if}}</span>
+    {{#if fw.due}}{{#if fw.editable}}<button type="button" class="acks-extras-character-sheet__chip" data-action="payWages"><i class="fa-solid fa-coins" inert></i>{{localize "ACKS-CHARACTER.followers.pay"}}</button>{{/if}}{{/if}}
     {{/if}}
   </div>
   {{#each fw.groups as |g|}}

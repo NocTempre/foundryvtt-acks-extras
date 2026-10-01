@@ -56,6 +56,30 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   — and scope the repair to the fixture:
   `acksExtras.henchmen.repair.repairWorld({actors: [employer]})`. The bare
   call sweeps every actor in the shared world.
+- **A hireling is linked by hand through core's own call.**
+  `employer.addHenchman(hirelingId)` opens a confirm titled "Assign … as a
+  Hireling of … ?" and waits on it; answer it, then set
+  `system.retainer.enabled` and a `system.retainer.wage` on the hireling and
+  call `enrollNewcomers(employer)`, which starts the wage clock. A wage set on
+  the fixture keeps the step off the imported wage table.
+- **A month is made due on the record, never on the clock.** The world's
+  time is shared. Write the hireling's
+  `flags.acks-extras.record.terms.lastPaidTime` to `now() - secondsPerMonth()
+  - 60`, both read from `scripts/henchmen/time.mjs`, and a unit's
+  `flags.acks-extras.groupPay.lastPaidTime` the same way.
+- **The two Pay wages controls are different elements.** On this module's
+  sheet it is the chip `[data-action="payWages"]` in the Followers tab's rule,
+  beside `.acks-extras-character-sheet__rule-note`. On the system's sheet
+  (opened as docs/lib/TESTING.md, "Coin", describes) it is
+  `.tab[data-tab="hirelings"] [data-action="payWages"]`.
+- **A payday's hook fires on the seat that ran it.** Listen for
+  `acksExtras.henchmen.HOOKS.WAGES_PAID` on both seats: a payday the Player
+  seat hands over reports on the GM's.
+- **What a seat was told is read off the notification.** Wrap
+  `ui.notifications.info` and `.warn` for the length of the step.
+- **New Posting is disabled for a seat that does not own the place**, so the
+  posting dialog is driven from a seat that does. Its employer select is
+  `[name="employerId"]` and takes an actor id.
 
 ## Steps
 
@@ -92,13 +116,49 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    both actors, set `flags.acks-extras.groupPay.lastPaidTime` a month back
    and run `payWagesFor(employer)`.
    *Observable:* the employer's purse is down by the unit's wage, the group
-   actor's coin is up by it, and the flag's `lastPaidTime` moved. No "not
-   together" warning: the unit's employer link is the reach. The branch that
-   books nothing for a refused transfer has no route from here, since every
-   due entry is in reach by its roster or its unit link. The refusal itself
-   (a part-payment between two actors who are not together moves nothing) is
-   asserted offline in `tools/test-coin-flows.mjs`; the bookkeeping after it
-   is not walked.
+   actor's coin is up by it, and the flag's `lastPaidTime` moved. The group's
+   sheet lists that coin under **Purse**. No "not together" warning: the
+   unit's employer link is the reach. The branch that books nothing for a
+   refused transfer has no route from here, since every due entry is in reach
+   by its roster or its unit link. The refusal itself (a part-payment between
+   two actors who are not together moves nothing) is asserted offline in
+   `tools/test-coin-flows.mjs`; the bookkeeping after it is not walked.
+5b. The controls, as GM. With a month due and coin that cannot make the wage
+   exactly, open the employer's sheet on its Followers tab and press **Pay
+   wages**. With nothing due, call `employer.payWages()`. With a month due
+   again and enough coin, open the system's sheet on its Hirelings tab and
+   press its Pay Wages button; then once more with too little coin.
+   *Observable:* before the press the Followers line reads the wages due and
+   the chip is drawn; `wageBill(employer)` answers the same `due`. The press
+   moves what the coin can make onto the hireling, books the rest on the
+   record, logs the payment as part-paid, fires `wagesPaid` with what moved
+   and what was booked, and tells the seat both figures. The line then reads
+   the monthly cost and the chip is gone. With nothing due the seat is told
+   so and no coin moves. The system sheet's button moves the wage from the
+   employer onto the hireling and records the payday; with too little coin it
+   warns, moves nothing and leaves the month due. No chat card is posted by
+   any of the four.
+5c. The controls, from the Player seat. The seat owns the employer and not
+   the hireling, and a month is due. Press **Pay wages** on the Followers
+   tab. As GM make a month due again, close the GM seat's page, and press it
+   again. Bring the GM back, give the seat ownership of the hireling, make a
+   month due and press it a third time.
+   *Observable:* the first press pays: the wage leaves the store the
+   employer's order names first and lands on the hireling, the record's
+   payday moved, the Player's seat is told what was paid, and the hook fired
+   on the GM's seat and not the Player's. With no GM connected the seat is
+   warned that one must be, nothing moved and the month is still due. With
+   every document owned the payday runs on the Player's seat and its hook
+   fires there.
+5d. A fee paid where the hire is made, as GM. The employer keeps coin at the
+   market (`storage.depositCoin`) and carries none a payment may draw on.
+   On the market's Recruitment tab press **New Posting**, choose the employer
+   and post.
+   *Observable:* the fee leaves the row the market keeps for the employer and
+   joins the market's own coin; coin the employer keeps at any other place,
+   and coin behind a lock on their person, is as it was. The posting is in
+   `system.market.postings`. A signing bonus states the same reach
+   (`within: location` in `engine/hire.mjs`) and is not walked here.
 6. Loyalty and obedience: `openLoyaltyRoll` / `openObedienceRoll` on a hired
    henchman, and `recordCalamity`.
    *Observable:* each posts its card, and the henchman's stored loyalty moves
@@ -152,6 +212,8 @@ walked in docs/lib/TESTING.md, "The repair tool".
 
 ## Teardown
 
-Delete the employer, the hires, the location and any actors the recruit path
-created. Confirm `location.system.market.candidates` is gone with the
+`api.sweepTracked()`: the employer, the hires, the location, and every actor
+the recruit path created, each tracked from the id read back when it was
+made. Deleting a place that keeps coin posts a "was destroyed" card; track it
+and sweep again. Confirm `location.system.market.candidates` is gone with the
 location.

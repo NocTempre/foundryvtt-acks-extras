@@ -195,14 +195,14 @@ export async function postVentureAction(location, payload) {
     capacitySt = Math.round(capacitySt + brought.capacity);
     tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * capacitySt);
     if (tollCp > 0) {
-      const paid = await adapter.spendGold(actor, toGp(tollCp), game.i18n.localize(`${LANG}.ventures.tollReason`), { to: location, at: location });
+      const paid = await adapter.spendGold(actor, toGp(tollCp), game.i18n.localize(`${LANG}.ventures.tollReason`), { to: location, at: location, within: location });
       if (!paid) return err("insufficientGold");
     }
   } else {
     if (!venture?.entered) return err("notEntered");
     if (kind === "solicit" && !merchandiseFor(category)) return err("noCategory");
     if (bribe > 0) {
-      const paid = await adapter.spendGold(actor, bribe, game.i18n.localize(`${LANG}.ventures.bribeReason`), { to: location, at: location });
+      const paid = await adapter.spendGold(actor, bribe, game.i18n.localize(`${LANG}.ventures.bribeReason`), { to: location, at: location, within: location });
       if (!paid) return err("insufficientGold");
     }
   }
@@ -631,7 +631,7 @@ export async function tradeMerchandise(location, payload) {
   const label = merch.label;
 
   if (direction === "buy") {
-    const paid = await adapter.spendGold(actor, totalGp, game.i18n.format(`${LANG}.ventures.buyReason`, { stones, label }), { to: location, at: location });
+    const paid = await adapter.spendGold(actor, totalGp, game.i18n.format(`${LANG}.ventures.buyReason`, { stones, label }), { to: location, at: location, within: location });
     if (!paid) return err("insufficientGold");
     // Merchandise loads: one stack per category, one unit per stone — joining
     // a stack nobody else's stamp is on.
@@ -659,7 +659,7 @@ export async function tradeMerchandise(location, payload) {
       await hold.updateEmbeddedDocuments("Item", draw.updates.map((u) => ({ _id: u.id, "system.quantity.value": u.qty })));
     }
     if (draw.deletes.length) await hold.deleteEmbeddedDocuments("Item", draw.deletes);
-    await adapter.grantGold(actor, totalGp, { from: location, at: location, allowMint: true });
+    await adapter.grantGold(actor, totalGp, { from: location, at: location, allowMint: true, within: location });
   }
 
   srow.stones -= stones;

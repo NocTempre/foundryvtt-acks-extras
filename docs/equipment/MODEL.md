@@ -346,7 +346,8 @@ binds the same path, and the band's copy submits under its own name
 (`acksBandPerStone`) by the rule above. A coin's value badge is its count at
 its rate and is never a field, its ledger is that one line, and it is offered
 no appraisal mode. A coin row is a stack at any count, so its quantity badge
-shows at none and at one.
+shows at one, and at none on a row a hand emptied; a payment that empties a
+row removes it.
 
 **Sibling changes re-render it.** The sheet shows facts held on other
 documents — what is stored inside it, the variations applied to it, whether
@@ -440,13 +441,18 @@ takes that figure back out and puts in `sumWeight6` of the coin rows, which
 weighs each row's count against how many of that coin make a stone and keeps
 the part-stone (RR ch. 1, Speed and Encumbrance). Where any coin row has no
 rate to weigh by, core's figure stands whole. The wrapper is registered at
-`setup`, after the world's actors were first prepared, so every world
-character is prepared again once it is in place; a load is the same figure
-at world load as after the first edit.
+`setup` (`registerEncumbranceWrap`), apart from the attack-roll wrapper and
+before the roll-automation setting is read, so a load is weighed the same
+with that setting on or off. That is after the world's actors were first
+prepared, so every world character is prepared again once it is in place; a
+load is the same figure at world load as after the first edit.
 
 Annotate reads a coin's rate from the item's own text where it states one
 (`perStoneStated`: a count of coins set against a weight in stone) and writes
-`gear.perStone`, leaving a rate already on the item alone.
+`gear.perStone`, leaving a rate already on the item alone. Both of its
+surfaces sweep coin: the sheet's control beside the stowed section, and the
+macro, whose notice counts coin stacks apart from weapons, carrying devices
+and other items.
 
 The band therefore prints two numbers where they differ: what one bundle weighs,
 and what the whole stack costs the bearer.

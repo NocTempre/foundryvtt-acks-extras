@@ -53,9 +53,18 @@ writes nothing.
 
 **Coin is the lib's.** The till is the place's house-owned coin
 (`lib.money.ownCoin(location)`), valued by `coinTotalCp`, and a monthly
-refresh tops it up with `mintCoin`. The changer lists the trader's own coin
-rows and exchanges through `lib.money.exchangeCoins`. Nothing in this feature
-counts or writes a coin row (docs/lib/MODEL.md, "Currency").
+refresh tops it up with `mintCoin`. The changer lists the coin the trader
+carries that no lock shuts away and exchanges through
+`lib.money.exchangeCoins`. Nothing in this feature counts or writes a coin
+row (docs/lib/MODEL.md, "Currency").
+
+**A market is paid at the market.** Every payment this feature makes states
+the location as its reach (`within: location`): a purchase, an import order,
+a commission, and a venture's toll, bribe and load draw on the payer's coin
+on hand and on the coin this market keeps for them, whatever the world's
+`coinScope` says. A sale's proceeds and a load's price land where the seller
+keeps arriving coin when that is on hand or at this market, and loose on the
+seller otherwise. Coin kept anywhere else has to be carried in.
 
 ## The engine
 

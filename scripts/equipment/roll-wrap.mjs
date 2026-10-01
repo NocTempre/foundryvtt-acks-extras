@@ -368,6 +368,18 @@ function onComputeEncumbrance(wrapped, ...args) {
   return result;
 }
 
+/**
+ * Register the encumbrance wrapper. What a character carries is weighed the
+ * same whether or not rolls are automated, so this is registered apart from
+ * the attack wrapper and answers to no setting.
+ */
+export function registerEncumbranceWrap() {
+  libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.computeEncumbrance", onComputeEncumbrance, "WRAPPER");
+  console.debug(`${MODULE_ID} | encumbrance wrapper registered.`);
+  void CONFIG;
+}
+
+/** Register the attack-roll wrapper: the half the roll-automation setting gates. */
 export function registerRollWrap() {
   // rollAttack is OWNED by the lib feature's patch, which registers the single
   // libWrapper OVERRIDE for it and composes this wrapper around itself. As two
@@ -376,7 +388,5 @@ export function registerRollWrap() {
   // already been registered by module acks-extras") and takes the whole `ready`
   // hook down with it. Same order, same semantics, one registration.
   globalThis.acksExtras?.lib?.wrapRollAttack?.(onRollAttack);
-  libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.computeEncumbrance", onComputeEncumbrance, "WRAPPER");
-  console.debug(`${MODULE_ID} | attack-roll and encumbrance wrappers registered.`);
-  void CONFIG;
+  console.debug(`${MODULE_ID} | attack-roll wrapper registered.`);
 }

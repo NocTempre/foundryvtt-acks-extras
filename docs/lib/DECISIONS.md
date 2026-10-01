@@ -3020,3 +3020,134 @@ falsy. A system window first rendered in a detached window changes face
 there. Nothing renders one that way at this date: the windows core itself
 first renders there are its own, and neither this module nor the system calls
 `renderChild` or passes a `windowId`.
+
+### Coin is kept in stores, and a holder states their order (2026-10-01)
+
+**Reported (owner).** "I do think it should be a character option where they
+pull money from first and where they revieve money first." Then: "Some
+transactions could be restricted to at X location (including locked to scene
+or on hand) but that should be an explicit choice not the default. I do think
+markets require money in the location or on the character so logistics still
+matter." Then: "Can this money handling code be refactoring so there is no
+unnecessary code duplication?"
+
+This amends "Currency is one stack with one count, weighed by how many make a
+stone (2026-10-01)", ruled the same day. The new evidence is those three
+statements, which that entry did not have. It fixed one preference for every
+holder (the loose row before the packed one) and counted only what a holder
+carries; the owner asked for the holder's own choice, and for coin kept at a
+place to pay. Its *One landing* bullet and three lines of its cost are
+superseded below; the rest of it stands. How it works now is
+[MODEL.md](MODEL.md), "Currency".
+
+**Ruled.**
+- *A store.* A holder's coin is carried loose, inside a container they carry,
+  or at a place that keeps it for them. `coinStores` lists those in a standing
+  order: loose, each container, then the places, the holder's vault first. A
+  location's stores are the house's own. Nothing is kept elsewhere for a
+  location or for an unlinked token's own actor.
+- *The holder states an order.* `flags["acks-extras"].coinOrder` names the
+  store a payment draws on first (`payFrom`) and the store arriving coin lands
+  in (`receiveInto`). Unstated, both are coin carried loose. The order ranks
+  the stores and nothing else: within a store a spend still takes the smallest
+  coin first, and what the named store cannot cover is drawn from the rest in
+  the standing order.
+- *An order never refuses a payment.* Where the ranked plan would need change
+  nobody can make, the smallest-first plan across every store is tried before
+  the payment is refused.
+- *A payment reaches every store unless something narrows it.* A transaction
+  may state its reach (`within`): coin on hand, coin on hand and at one place,
+  coin on hand and at the places on one scene, or everything. One that states
+  nothing takes the world setting `coinScope`. The reach bounds both sides:
+  which of the payer's coin is drawn on, and which store arriving coin may be
+  sent to.
+- *The setting is the Judge's, and its default is everything.* `coinScope` is
+  a world setting because how far coin reaches is a ruling about the campaign,
+  not a seat's preference: two seats that disagreed would disagree about
+  whether one payment could be made. Its values are `all`, `scene` and `hand`.
+  At `hand` a payment that states no place does what every payment did before
+  this entry.
+- *A transaction at a place states that place.* Buying and selling at a
+  market, a hire and a recruiting fee take coin on hand or kept there,
+  whatever the setting says (docs/markets/DECISIONS.md, "2026-10-01 — A market
+  takes coin on hand or kept at that market").
+- *A lock keeps coin in and out.* Coin inside a locked container is not spent
+  and no arrival is put there, on a person and at a place alike. It still
+  counts as carried and still weighs.
+- *An arrival lands in the store named.* It joins the row of its kind there
+  and makes one where there is none, copied from a coin of that kind the
+  holder already keeps. A store that is gone, shut, outside the reach or
+  refuses coin is passed over for coin carried loose.
+- *Coin handed over lands on the holder.* A drop or a hand-over goes into the
+  carried container the receiver's order names, else loose. A place named
+  there is not an answer: the coin was put on a sheet and is on that sheet.
+- *One payment.* A transfer, a sink, a mint's change, a wage and a changer's
+  exchange are one pipeline: the reach gate, the reach, the plan, then both
+  landings before both takes. No feature keeps a second path.
+- *A seat that cannot write a document the payment touches hands the whole
+  payment to the GM* (`libMoveCoin`). The GM's seat checks that the sender
+  owns the payer and plans again from the arguments, so nothing the seat
+  worked out is taken on trust. A relayed payment never mints. With no GM
+  connected it is refused and nothing is written.
+- *A row a payment empties is removed*, as a hand-over already removed one. A
+  row still carrying a banked balance is kept.
+- *The fold is asked for.* `gatherCoin` folds rows of one kind in one store
+  into one. A sheet offers it only while there is a row to fold, and names how
+  many. Nothing folds unasked, which the entry this amends ruled and this
+  keeps.
+- *One block draws the order.* One view, one partial and one listener serve
+  the character sheet, the system's own sheet, the follower card and the group
+  sheet (`coin-order.mjs`). Its selects carry no `name`, and their change is
+  stopped at the block, so a sheet whose form submits on change neither writes
+  the choice nor submits for it.
+- *One prompt divides a stack* (`promptDivide`). A count of 0 is an answer and
+  is refused aloud; only a dismissed prompt is silent.
+- *A unit's purse is on its sheet.* The group sheet lists the group's coin and
+  takes coin dropped on it through `landCoin` from its own drop handler. It
+  lists nothing else it holds, so any other item is refused.
+- *A sheet that takes no goods says so, in one wording, and takes none.*
+  `refuseGoods` is the warning a faction's, a unit's and a party's sheet each
+  give for an item they do not take, coin included where the sheet holds
+  none. Two defects were found walking it. Gear dropped on a unit or a party
+  moved nothing and said nothing, which reads as a drop that missed. Gear
+  dropped on a faction was copied onto it by Foundry's base drop, the giver
+  keeping theirs, on an actor whose sheet lists nothing it holds; a party
+  took the same copy from any seat but the GM's. Each of those sheets now
+  refuses from its own drop.
+- *Coin is weighed whatever the roll setting says.* The encumbrance wrapper
+  is registered apart from the attack-roll wrapper and answers to no setting
+  (docs/equipment/DECISIONS.md, "What a character carries is weighed whatever
+  the roll setting says (2026-10-01)").
+
+**Rejected.**
+- *A default that reaches only what is on hand, with places opted into.* The
+  owner: a restriction "should be an explicit choice not the default".
+- *A reach stated per holder.* It would let a seat widen what the Judge had
+  narrowed.
+- *An arrival falling back onto a packed row of its kind.* A holder who named
+  no store had the coin vanish into a pack they did not open, and one who
+  named a store had the choice ignored whenever another row of the kind
+  existed.
+- *Sending a dropped coin on to the place the order names.* The row would
+  leave the sheet it was dropped on with nothing there to say where it went.
+- *Refusing a payment the seat cannot write.* A player's coin at a place the
+  Judge owns could then be spent only from the Judge's seat, which is every
+  bank in a world where players own no locations.
+- *Writing the half the seat owns and relaying the rest.* A relay that failed
+  would leave a payment made by half.
+- *Named selects on the sheet's form.* The form would write the flag on every
+  submit, and a sheet that draws the block twice would write it twice.
+
+**What it cost.** A world that upgrades pays from coin kept at places where it
+refused before: a character short on hand now draws on a vault. That is a
+default that changes behaviour, by the owner's ruling, and `coinScope` at
+`hand` is the way back for every payment that states no place. Loose coin of
+any denomination is now spent before packed coin, where the smallest coin
+went first wherever it lay. A kind held
+only in a container gets a loose row beside it on the next arrival. Coin in a
+locked container no longer pays. Every character is reset once at `setup`
+whatever the roll setting says. The henchmen `wagesPaid` hook's `total` is the
+coin that moved, with what was booked instead in `arrears`. One more socket
+handler is registered, and every actor sheet render looks for the block. The
+divide prompt's lang keys moved from `ACKS-CHARACTER.equipment` to
+`ACKS-LIB.stack`.

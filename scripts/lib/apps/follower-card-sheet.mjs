@@ -19,6 +19,7 @@ import { toNum as num, unset } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
 import { actorProvides, followerCardContext, FOLLOWER_CARD_TEMPLATE } from "../follower-card.mjs";
 import { skipDialogFor } from "../roll-dialog.mjs";
+import { promptDivide } from "../stack-prompt.mjs";
 
 
 export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplicationMixin(
@@ -44,8 +45,14 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       fcToggleAttackEdit: FollowerCardSheet.#onToggleAttackEdit,
       fcOpenFull: FollowerCardSheet.#onOpenFull,
       fcShowItem: FollowerCardSheet.#onShowItem,
+      fcDivide: FollowerCardSheet.#onDivide,
     },
   };
+
+  /** Divide a stack on the card: the lib's one prompt. */
+  static async #onDivide(event, target) {
+    await promptDivide(this.actor.items.get(target.dataset.stackId));
+  }
 
   /** Post a power or spell to chat via the system's own `show()`, which
    * obeys the seat's roll mode. */

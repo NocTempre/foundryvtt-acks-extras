@@ -149,7 +149,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    Annotate, split and the container lock cycle each write. Dividing a
    stack and joining two rows by a drop are walked in docs/lib/TESTING.md,
    "Coin: one stack, moved and never copied", step 3; the coin row there
-   reads its count, its worth and its weight.
+   reads its count, its worth and its weight. The **Purse** rule under the
+   carried rows, with its two selects and the gather control, is step 12 of
+   the same recipe, and the world's reach note step 17.
    The sword drawn alone in the two-handed grip (from the grip cell's menu,
    or by itself with the two-handed style trained) lists as **one row
    spanning Main hand · Off hand** (`.is-span`, both labels behind one
@@ -191,7 +193,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    the title bar; `system.details.xp.value` is unchanged and no tab opens.
    The class glyph before the name still opens the Class tab.
 8. Followers tab. *Observable:* the hireling's Follower Card renders with the
-   four controls; Roster opens the roster app.
+   four controls; Roster opens the roster app. With a waged hireling and
+   nothing due the rule reads what the payroll costs a month and draws no Pay
+   wages chip; with a month due it reads the wages due and draws the chip,
+   whose press is walked in docs/henchmen/TESTING.md, steps 5b and 5c.
 9. Effects tab. *Observable:* every timer lists under Timers with its unit
    mark (`6r`, `3t`, `30m`, `1h`, `3d`, `2mo`, `1y`; seconds climb, `90s` to
    `2m`, `5400s` to `2h`) and a bar in tone, the backdated one part-spent;

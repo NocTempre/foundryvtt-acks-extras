@@ -1,6 +1,7 @@
 {{!-- acks-lib Follower Card — the printed ACKS II henchman/follower card as a
-      compact actor view. Self-contained (no partials); every selector scoped under
-      .acks-follower-card.
+      compact actor view. Self-contained but for the lib's coin-order block,
+      which is a partial preloaded with this template; every selector of the
+      card's own is scoped under .acks-lib-follower-card.
 
       `editable` (the FollowerCardSheet, a hireling's own sheet) swaps display spans
       for `name=` inputs that submit through that sheet's form. Read-only mode (the
@@ -221,7 +222,10 @@
               hue, and a hue-only signal disappears for a colour-blind reader and
               flattens on a dark seat. Read-only mode emits the mark only when
               equipped, so there presence is already the signal. --}}
-        {{#if equipment.length}}<ul>{{#each equipment}}<li>{{#if @root.editable}}{{#if this.equippable}}<a data-action="fcToggleEquip" data-item-id="{{this.id}}" class="fc-equip{{#if this.equipped}} on{{/if}}" data-tooltip="{{localize 'ACKS-LIB.followerCard.equipToggle'}}"><i class="{{#if this.equipped}}fa-solid{{else}}fa-regular{{/if}} fa-shield-halved"></i></a> {{/if}}{{else}}{{#if this.equipped}}<i class="fas fa-shield-halved fc-equipped-mark"></i> {{/if}}{{/if}}{{this.name}}</li>{{/each}}</ul>{{/if}}
+        {{#if equipment.length}}<ul>{{#each equipment}}<li>{{#if @root.editable}}{{#if this.equippable}}<a data-action="fcToggleEquip" data-item-id="{{this.id}}" class="fc-equip{{#if this.equipped}} on{{/if}}" data-tooltip="{{localize 'ACKS-LIB.followerCard.equipToggle'}}"><i class="{{#if this.equipped}}fa-solid{{else}}fa-regular{{/if}} fa-shield-halved"></i></a> {{/if}}{{else}}{{#if this.equipped}}<i class="fas fa-shield-halved fc-equipped-mark"></i> {{/if}}{{/if}}{{this.name}}{{#if this.divisible}} <a data-action="fcDivide" data-stack-id="{{this.id}}" class="fc-divide" data-tooltip="{{localize 'ACKS-LIB.stack.divide'}}"><i class="fa-solid fa-scissors"></i></a>{{/if}}</li>{{/each}}</ul>{{/if}}
+        {{!-- The coin order and the fold of duplicate rows: the lib's one
+              block, drawn only on the card's own sheet. --}}
+        {{#if purse}}{{> "modules/acks-extras/templates/lib/coin-order.hbs" purse}}{{/if}}
       </div>
     </div>
 

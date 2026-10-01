@@ -1,7 +1,7 @@
-{{!-- acks-lib.group sheet body. Self-contained (no partials) so it loads on
-      demand. Every selector is scoped under .acks-lib-group-sheet. A group is a
-      list of STACKS; each renders its own prototype, headcount, controls, and
-      roster. --}}
+{{!-- acks-lib.group sheet body. It loads on demand, and its one partial — the
+      lib's coin-order block — is preloaded at init. Every selector of its own
+      is scoped under .acks-lib-group-sheet. A group is a list of STACKS; each
+      renders its own prototype, headcount, controls, and roster. --}}
 <div class="acks-lib-group-body">
 
   {{#if invariantBroken}}
@@ -133,6 +133,28 @@
       {{#if hasStacks}}{{localize "ACKS-LIB.group.dropAnotherStack"}}{{else}}{{localize "ACKS-LIB.group.dropFirstStack"}}{{/if}}
     </p>
   {{/if}}
+
+  {{!-- The purse: the coin the group holds, which is where a unit's pay lands.
+        A row is a drag source like any goods row, and coin dropped on the
+        sheet joins the row of its kind. The coin order under it is the lib's
+        one block, drawn where there is a choice to make or a row to fold. --}}
+  <section class="acks-lib-group-purse">
+    <header><h3>{{localize "ACKS-LIB.group.purse"}} <span class="muted">{{purse.gp}} gp</span></h3></header>
+    {{#if purse.rows.length}}
+      <ul class="member-list">
+        {{#each purse.rows}}
+          <li class="member draggable" data-item-id="{{this.id}}">
+            <img class="purse-img" src="{{this.img}}" alt="" />
+            <span class="member-name">{{this.name}} ×{{this.count}}</span>
+            <span class="member-hp">{{this.gp}} gp</span>
+          </li>
+        {{/each}}
+      </ul>
+    {{else}}
+      <p class="hint">{{localize "ACKS-LIB.group.purseEmpty"}}</p>
+    {{/if}}
+    {{#if purse.order}}{{> "modules/acks-extras/templates/lib/coin-order.hbs" purse.order}}{{/if}}
+  </section>
 
   {{!-- Unit bookkeeping (mercenary/specialist side), shared across stacks. --}}
   {{#if editable}}

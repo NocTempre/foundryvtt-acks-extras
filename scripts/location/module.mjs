@@ -44,7 +44,7 @@ import {
   unlinkScene,
 } from "./scene-link.mjs";
 import { depositReach, reachablePlaces, pinnedPlaces, setPinnedPlace, companionIds } from "./reach.mjs";
-import { placeUnderParty, placesOnScene } from "./here.mjs";
+import { placeStandsOn, placeUnderParty, placesOnScene } from "./here.mjs";
 import { registerLocationRepairChecks } from "./repair-checks.mjs";
 
 /** The icon a place is made with when its maker names none: core's own house. */
@@ -206,9 +206,9 @@ Hooks.once("ready", () => {
     /**
      * A location actor reached through its own TOKEN rather than a scene
      * link (here.mjs) — the place a party's token happens to be standing on,
-     * and every place standing on a map.
+     * every place standing on a map, and whether one named place does.
      */
-    here: { placeUnderParty, placesOnScene },
+    here: { placeUnderParty, placesOnScene, placeStandsOn },
   };
 
   if (game.system?.id !== "acks") return;

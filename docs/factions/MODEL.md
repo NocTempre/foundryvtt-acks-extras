@@ -229,6 +229,14 @@ anywhere else. An actor dropped on the leader row becomes the leader, on the
 Standing tab opens the prompt with that actor as the subject, and anywhere else
 joins the roster.
 
+Goods are refused. An organisation carries nothing and its sheet lists no
+items, so `_onDropItem` answers goods from anywhere else — gear off a
+character, an item off the sidebar, coin — with the library's one warning
+(`refuseGoods`, [lib MODEL](../lib/MODEL.md), "Refused aloud") and writes
+nothing: neither side's rows change. Left to Foundry's base class the drop
+would create a copy on the faction. An item that is not goods is still the
+base class's.
+
 ## Public API — `acksExtras.factions` (apiVersion 3)
 
 `FACTION_TYPE`, `FACTION_KINDS`, `RELATION_STANCES`, `STANDING_SOURCES`,

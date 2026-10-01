@@ -17,6 +17,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { monsterHd } from "./actor-read.mjs";
 import { isCurrency, isEquippable, isEquipped, stackCountOf } from "./item-model.mjs";
 import { borneWeight6 } from "./capacity.mjs";
+import { coinOrderView } from "./coin-order.mjs";
 import { attackOptionsFor, damageTypeLabel, DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
 import { profileStrips, isProfileAbility, sizePips } from "./proficiency-strip.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
@@ -142,7 +143,8 @@ export async function followerCardContext(actor, { editable = false, interactive
     .filter((i) => i.type === ITEM_TYPE.ability && (!isProfileAbility(i) || !strips.any))
     .map((i) => ({ id: i.id, name: i.name, rollable: !!i.system?.roll, hasText: !!i.system?.description }));
   // Coin is gear like the rest: a purse that holds anything is listed, always
-  // with its count; an emptied one is not.
+  // with its count; an emptied one is not. A stack divides on the card's own
+  // sheet, where the control's action is bound.
   const equipment = items
     .filter((i) => i.type === ITEM_TYPE.weapon || i.type === ITEM_TYPE.armor || i.type === ITEM_TYPE.item || (isCurrency(i) && stackCountOf(i) > 0))
     .map((i) => {
@@ -152,8 +154,12 @@ export async function followerCardContext(actor, { editable = false, interactive
         name: q > 1 || isCurrency(i) ? `${i.name} ×${q}` : i.name,
         equippable: isEquippable(i),
         equipped: isEquipped(i),
+        divisible: editable && interactive && q > 1,
       };
     });
+  // The coin order and the fold, on the same terms: only where there is a
+  // choice to make or a row to fold.
+  const purse = editable && interactive && actor ? coinOrderView(actor) : null;
 
   // Caster strip: one line of per-level slots, no memorize/reset controls
   // (that stays the full sheet's job). Slot shape per the released system:
@@ -206,6 +212,7 @@ export async function followerCardContext(actor, { editable = false, interactive
     attackThrow: num(sys.thac0?.throw, 10),
     powers,
     equipment,
+    purse: purse?.shown ? purse : null,
     notesPath,
     notes,
   };

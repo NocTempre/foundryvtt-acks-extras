@@ -36,6 +36,7 @@ All paths are under `scripts/formation/` unless noted.
 | `formation-model.mjs` | Formation records: storage (world setting `acks-extras.formations`), membership, party actor/token lifecycle, marching order, derived speeds. |
 | `turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
 | `formation-view.mjs`, `formation-actions.mjs` | The formation window (GM controls, player read-only) and its action handlers. |
+| `party-actor.mjs` | The `acks-extras.party` Actor sub-type and its sheet: the same formation body as the window, the GM's member drop, and the refusal of a dropped item. |
 | `zones.mjs` | Point-in-region geometry shared by every zone behavior: core `testPoint` when available, manual shape math as a headless fallback, `findZone(formation, type)` testing the party token's CENTRE, and `streetUnder(formation, board)` — the one reader of what the party is standing on. |
 | `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID, cadence overrides, and the zone's dungeon level). |
 | `encounter-scaling.mjs` | The wrong-floor shift: `tableLevel` reads a table's `monsterLevel` flag, `shiftSources` names the tables a draw came from and the level each is compared at, `encounterShift` / `scaleNumber` do the arithmetic, `announceShift` posts the Judge-only card. Published as `api.formation.encounterScaling`. |
@@ -115,6 +116,15 @@ be indistinguishable from an accurate one to its holders. Removals, blanks,
 frontage, the clock, saves, tables, and session lifecycle stay GM-only.
 Role and light declarations are announced publicly, so the table sees who
 changed the party's posture.
+
+**A drop on the party sheet.** A GM's seat binds its own drop on the sheet
+(`bindMemberDrop`): an actor or a token dropped there joins the party. A party
+carries nothing itself — its members do — so an item is refused with the
+library's one warning (`refuseGoods`, [lib MODEL](../lib/MODEL.md), "Refused
+aloud") and nothing is written. The GM's seat refuses it in the member drop,
+which replaces the base class's on the element; every other seat refuses it in
+`_onDropItem`, where Foundry's base class would create a copy on the party
+actor.
 
 ## The Judge's override
 

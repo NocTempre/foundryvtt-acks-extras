@@ -185,9 +185,14 @@ only ammunition to hand, or spend it by hand on the stack.
 - A container shows its own header, load, and controls next to the gear it
   holds — there is no separate window.
 - Coins are stowable (they go in a pouch), and they weigh: a purse counts
-  toward your load to the coin, wherever it is packed.
+  toward your load to the coin, wherever it is packed, whether the world's
+  roll automation is on or off.
+- A container holding coin is a store a payment can draw on, and can be named
+  as where you pay from or receive into
+  ([where coin is paid from](character-sheet.md#where-coin-is-paid-from-and-where-it-lands)).
 - Locked and concealed containers are supported: picking a lock does not remove
-  it, so the two states are tracked separately.
+  it, so the two states are tracked separately. Coin behind a lock you cannot
+  open still weighs on you, and no payment reaches it.
 - **Emptying** a container leaves its contents loose on the actor rather than
   deleting them.
 
@@ -212,6 +217,12 @@ If a quiver in your world shows a capacity it should not have — *0 / 1 st,
 empty*, next to a name that says twenty arrows — run **Annotate carrying gear**
 from the inventory header once. It clears the capacity and leaves the count
 alone, so a half-empty quiver is not refilled.
+
+The same pass, and the **Annotate Equipment (RAW profiles)** macro, also
+settle coin: where a coin's own description states how many make a stone and
+the coin carries no rate yet, that count becomes its rate. A rate already
+typed on the coin is left alone, and the macro's notice counts coin apart from
+the rest.
 
 ## Proficiency
 

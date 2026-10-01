@@ -1102,32 +1102,34 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   }
 
   /**
-   * The fee leaves the roller's purse as coin. A target this seat may write
-   * receives those same coins (`transferCoin`); any other target is paid
-   * off-stage and the coin leaves the world (`sinkCoin`). Nothing is written
-   * when the purse cannot cover the fee, so nothing is credited that was not
-   * paid. The two are talking, so no reach gate applies.
+   * The fee leaves the roller's coin. A target that is an actor of its own
+   * receives those same coins (`transferCoin`) wherever this seat may write it
+   * or a connected Judge can for it; any other target is paid off-stage and the
+   * coin leaves the world (`sinkCoin`). Nothing is written when the roller
+   * cannot cover the fee. The two are talking, so no reach gate applies.
+   * @returns {Promise<{line: string}|null>} the card's statement of what was
+   *   paid, or null when no coin moved — the card states a bribe only then
    */
   async #moveBribeGold(fee) {
     const from = this.#actor;
     const to = this.#targetActor;
-    const lands = !!to && to !== from && to.isOwner;
-    let paid = false;
+    const lands = !!to && to !== from && (to.isOwner || !!game.users?.activeGM);
+    let result = null;
     try {
       if (from?.isOwner) {
-        const reason = game.i18n.localize("ACKS-INFLUENCE.chat.bribe");
-        const result = lands ? await transferCoin({ from, to, gp: fee, reason, gate: false }) : await sinkCoin(from, fee);
-        paid = !!result.ok;
-        // A transfer says why it refused; a sink leaves that to its caller.
-        if (!paid && lands) return { fee, from: null, to: null };
+        const reason = game.i18n.format("ACKS-INFLUENCE.bribe.reason", { name: to?.name ?? game.i18n.localize("ACKS-INFLUENCE.party.target"), gp: fee });
+        result = lands ? await transferCoin({ from, to, gp: fee, reason, gate: false }) : await sinkCoin(from, fee);
       }
     } catch (err) {
       console.error(`${MODULE_ID} | bribe gold move failed`, err);
     }
-    if (from && !paid) {
-      ui.notifications?.warn(game.i18n.format("ACKS-INFLUENCE.bribe.noGold", { name: from.name }));
+    if (result?.ok) {
+      return { line: game.i18n.format(lands ? "ACKS-INFLUENCE.chat.bribePaidTo" : "ACKS-INFLUENCE.chat.bribePaid", { gp: fee, from: from.name, to: to?.name ?? "" }) };
     }
-    return { fee, from: paid ? from?.name ?? null : null, to: paid && lands ? to?.name ?? null : null };
+    // A transfer says why it refused; a sink leaves that to its caller, and so
+    // does a roller this seat may not pay from.
+    if (from && !(lands && result)) ui.notifications?.warn(game.i18n.format("ACKS-INFLUENCE.bribe.noGold", { name: from.name }));
+    return null;
   }
 
   /**

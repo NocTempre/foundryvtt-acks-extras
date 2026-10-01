@@ -23,10 +23,12 @@ import { MODULE_ID, LANG_PREFIX, STORAGE_TAB_ID } from "../constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
 import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan, setPinnedPlace } from "../reach.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { COIN_ORDER_TEMPLATE, bindCoinOrder, coinOrderView } from "../../lib/coin-order.mjs";
 
 const ANCHOR_CLASS = "acks-location-storage-anchor";
 const TAB_CLASS = "acks-location-storage-tab";
 const SUMMARY_CLASS = "acks-location-coin-summary";
+const ORDER_CLASS = "acks-extras-coin-order-line";
 const TEMPLATE = `modules/${MODULE_ID}/templates/location/storage-tab.hbs`;
 
 const loc = makeLoc(LANG_PREFIX);
@@ -89,7 +91,7 @@ function collect(actor) {
 /* -------------------------------------------- */
 
 const clear = (root) => {
-  for (const el of root.querySelectorAll(`.${ANCHOR_CLASS}, .${TAB_CLASS}, .${SUMMARY_CLASS}`)) el.remove();
+  for (const el of root.querySelectorAll(`.${ANCHOR_CLASS}, .${TAB_CLASS}, .${SUMMARY_CLASS}, .${ORDER_CLASS}`)) el.remove();
 };
 
 /**
@@ -100,9 +102,33 @@ const stripBankColumn = (root) => {
   for (const cell of root.querySelectorAll(".money__count-bank")) cell.remove();
 };
 
+/**
+ * The header of the coin list on the system's inventory tab, or null on a
+ * sheet that draws none. It is found by the count cell the header itself
+ * carries: a coin row listed inside a container carries the same cell, in a
+ * section that comes first and has no header.
+ */
+const coinHeader = (root) =>
+  root.querySelector('.tab[data-tab="inventory"] .list-header .money__count')?.closest(".list-header") ?? null;
+
+/**
+ * The coin order under the coin list's header: the lib's block, rendered by
+ * the caller. It is injected after the sheet's render hooks have run, so its
+ * controls are bound here.
+ */
+function injectCoinOrder(root, html) {
+  const header = coinHeader(root);
+  if (!header || !html) return;
+  const line = document.createElement("div");
+  line.className = ORDER_CLASS;
+  line.innerHTML = html;
+  header.after(line);
+  bindCoinOrder(line);
+}
+
 function injectSummary(root, data) {
   if (!data.hasGoods) return;
-  const header = root.querySelector('.tab[data-tab="inventory"] .money__count')?.closest(".item-list-section")?.querySelector(".list-header");
+  const header = coinHeader(root);
   if (!header) return;
   const line = document.createElement("div");
   line.className = SUMMARY_CLASS;
@@ -238,7 +264,9 @@ function refresh(actor) {
 }
 
 export function installStorageTab() {
-  let epoch = 0;
+  // Rendering is async and a second render of a sheet can start while its
+  // first awaits; only that sheet's newest pass may touch its DOM.
+  const epochs = new WeakMap();
 
   Hooks.on("renderActorSheetV2", async (app, element) => {
     try {
@@ -249,23 +277,32 @@ export function installStorageTab() {
       // dresses the system's sheets alone.
       if (ownsSheet(app)) return;
       const root = elementOf(element);
+      if (!root) return;
       // Banked is not a state coin can be in: the column goes from every sheet
       // the system draws, whoever the actor is and whether or not a Storage
       // tab follows it.
-      if (root) stripBankColumn(root);
-      if (actor?.type !== ACTOR_TYPE.character) return;
-      // The core sheet has a primary tab strip; the Follower Card and our own
-      // location sheet do not, and neither wants one bolted on.
-      if (!root?.querySelector("nav.tabs") || !root.querySelector('section.tab[data-group="primary"]')) return;
+      stripBankColumn(root);
+      // The Storage tab is a character's, on a sheet with a primary tab strip;
+      // the Follower Card and our own location sheet have none, and neither
+      // wants one bolted on.
+      const tabbed = actor?.type === ACTOR_TYPE.character && !!root.querySelector("nav.tabs") && !!root.querySelector('section.tab[data-group="primary"]');
 
-      // Rendering the tab body is async and a second render can start while we
-      // await it. Only the newest pass may touch the DOM.
-      const mine = ++epoch;
-      const data = collect(actor);
-      const html = data.anywhere ? await foundry.applications.handlebars.renderTemplate(TEMPLATE, data) : null;
-      if (mine !== epoch) return;
+      const mine = (epochs.get(app) ?? 0) + 1;
+      epochs.set(app, mine);
+      const data = tabbed ? collect(actor) : null;
+      // The coin order goes wherever the system lists coin, whoever the actor
+      // is, and is offered the places the Storage tab lists.
+      const order = actor && coinHeader(root) ? coinOrderView(actor, { places: data?.places ?? [] }) : null;
+      const render = foundry.applications.handlebars.renderTemplate;
+      const [html, orderHtml] = await Promise.all([
+        data?.anywhere ? render(TEMPLATE, data) : null,
+        order?.shown ? render(COIN_ORDER_TEMPLATE, order) : null,
+      ]);
+      if (epochs.get(app) !== mine) return;
 
       clear(root);
+      injectCoinOrder(root, orderHtml);
+      if (!data) return;
       if (!data.anywhere) {
         restoreTab(app);
         return;

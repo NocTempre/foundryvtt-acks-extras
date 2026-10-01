@@ -16,6 +16,7 @@
  * Drops are read by what is dropped and by the tab showing: a place seats the
  * organisation or joins its holdings, a faction becomes a relation, a ledger
  * row or the parent, anyone else joins the membership or opens a ledger row.
+ * Goods are refused: an organisation carries nothing.
  *
  * Beneath the roster, MEMBERS carries the STRENGTH table: the unnamed people,
  * counted by level under the headings the Judge (or the page) gave them. The
@@ -38,6 +39,8 @@ import {
 import { indexPlaces } from "../../lib/place-logic.mjs";
 import { isLocation, occupantRow } from "../../lib/place.mjs";
 import { makeLoc } from "../../lib/util.mjs";
+import { isGoods } from "../../lib/item-model.mjs";
+import { refuseGoods } from "../../lib/bundles.mjs";
 import { DISTRICT_TYPE } from "../../formation/district-zone.mjs";
 import { readFormations } from "../../formation/formation-model.mjs";
 import { SECONDS_PER_DAY } from "../../henchmen/constants.mjs";
@@ -290,6 +293,20 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /* -------------------------------------------- */
   /*  Drops                                        */
   /* -------------------------------------------- */
+
+  /**
+   * @override — goods from elsewhere are refused in the words every sheet
+   * that lists none uses (`refuseGoods`), neither moved nor copied: the base
+   * class would create a copy here, on an actor whose sheet lists nothing it
+   * holds. Any other item is the base class's.
+   */
+  async _onDropItem(event, item) {
+    if (isGoods(item) && item.parent?.uuid !== this.actor.uuid) {
+      refuseGoods(this.actor);
+      return null;
+    }
+    return super._onDropItem(event, item);
+  }
 
   /** @override */
   async _onDropActor(event, actor) {

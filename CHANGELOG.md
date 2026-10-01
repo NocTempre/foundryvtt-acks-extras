@@ -1,5 +1,115 @@
 # Changelog
 
+## 10.1.0
+
+### Added
+
+- **A character states where their coin is paid from and where it lands.**
+  Coin is kept in stores: carried loose, in a container the character
+  carries, or at a place keeping it for them. Under the coin rows of the
+  Equipment tab, the Purse rule says what is on hand and what is kept
+  elsewhere, and offers **Pay from** and **Receive into** once there is more
+  than one store. A payment draws on the store named first and takes what
+  that cannot cover from the rest: coin carried loose, then each container,
+  then each place. Coin that arrives, a wage or the proceeds of a sale, lands
+  in the store named, and is carried loose where it cannot be put there. The
+  same two choices sit under the Money header of the system's own sheet, on a
+  hireling's card and on a hired unit's sheet. A character who states nothing
+  pays from loose coin first and receives into loose coin.
+- **The Judge sets how far a payment reaches into coin kept elsewhere.** The
+  world setting *Paying with coin kept elsewhere* answers for every payment
+  that does not itself say where it happens: all of a character's coin
+  wherever it is kept, coin on hand with coin kept on the scene the payer
+  stands on, or coin on hand only. It starts at all of it. A world that
+  upgrades therefore pays a wage, a fee or a bribe from coin kept at a place
+  when what is carried runs short, where it refused before; set it to *Coin
+  on hand only* to keep paying as before.
+- **A player's seat pays from, and is paid into, a place it does not own.**
+  A payment that touches coin kept at a place the Judge runs, or a payee the
+  seat cannot write to, is carried out whole by the Judge's seat. With no
+  Judge connected it is refused, says so, and takes nothing.
+- **A hired unit's sheet lists its purse.** The coin a unit holds is listed
+  under **Purse** with its total, which is where the unit's wage lands. Coin
+  dropped on the sheet is handed over to the unit, and a row drags off again.
+- **A hireling's card divides and gathers coin.** Each coin row holding more
+  than one carries the scissors, as on a character's sheet.
+- **Gather coin folds matching rows.** Where one store holds the same coin in
+  more than one row, the sheet offers **Gather coin** and names how many rows
+  it would fold. Nothing folds unasked.
+- **For macros:** `acksExtras.lib` is apiVersion 25. `money` adds
+  `coinStores`, `coinOrderOf`, `setCoinOrder`, `spendableGp`,
+  `standingCoinScope`, `gatherCoin`, `keepsCoinElsewhere` and the store keys
+  (`LOOSE_STORE`, `containerStoreKey`, `placeStoreKey`, `readStoreKey`);
+  `transferCoin`, `sinkCoin`, `creditCoin` and `mintCoin` take `within`, and
+  `creditCoin` and `mintCoin` take `into`. `storage` adds `landGoods`,
+  `coinContainerOf` and `coinMayEnter`. `coinOrder` draws the two choices on
+  a sheet. `acksExtras.henchmen` adds `wageBill`.
+
+### Changed
+
+- **A market takes coin on hand or kept at that market.** A purchase, an
+  import, a commission, a hire, a recruiting fee and a venture's tolls,
+  bribes and purchases are paid with coin the payer carries or keeps at that
+  market, in the payer's order, whatever the world's setting says. What a
+  sale or a venture earns lands the same way. Coin kept anywhere else does
+  not reach the counter: it is fetched, or left at the market first. A
+  purchase the reachable coin cannot cover is refused with *Not enough coin
+  on hand or kept at this market* and moves nothing.
+- **Loose coin is spent before packed coin.** A payment takes the smallest
+  coin first within one store and empties the store before going on to the
+  next, where it took the smallest coin first wherever it lay. Coin behind a
+  lock the payer cannot open is passed over: it still counts as carried and
+  still weighs.
+- **Arriving coin lands where the receiver says.** With nothing stated that
+  is coin carried loose, so a coin kept only inside a container gains a loose
+  row at the next arrival, where the arrival joined the packed row. Name the
+  container under **Receive into** to keep filling it.
+- **A row a payment empties is removed.** It was left listed at none.
+- **A character's load is weighed the same with roll automation on or off.**
+  Coin weighs to the coin, and a harness, a bundle and the other carrying
+  rules count, in every world. With that setting off, a load was the
+  system's own figure; such a world sees its characters' loads change.
+- **A wage is drawn from what the employer can pay with.** A payday takes the
+  employer's stores in their order, inside the world's reach, and lands each
+  wage where that hireling receives coin. The `acksExtras.wagesPaid` hook's
+  `total` is the coin that moved, with what was booked as owed in `arrears`.
+- **A bribe reaches a target the roller's seat does not own.** The Judge's
+  seat hands the coin to the target. With no target actor, or no Judge
+  connected, it is paid off-stage. The result card names the fee, who paid it
+  and who received it, and carries no bribe line when no coin moved.
+
+### Fixed
+
+- **Pay wages is one payday on either sheet, and it pays what is due.** The
+  button on the character sheet's Followers tab and on the system sheet's
+  Hirelings tab took a month's wages off the employer and handed them to
+  nobody, recorded no payday, and did so whether or not a month had gone by.
+  Both now run the payday the roster runs: the coin lands on each hireling,
+  the payday is recorded, and nothing is taken when nothing is due. The
+  Followers tab states what is due, or the monthly wage when nothing is, and
+  offers the button only while something is due. A player who presses it for
+  hirelings the Judge runs has it carried out by the Judge's seat. No chat
+  card is posted. A table that does not advance the world clock has nothing
+  due, so the button pays nothing there.
+- **A part-payment is recorded as one.** A hireling's history says what was
+  paid and what is still owed, where it recorded the whole wage as paid.
+- **A sheet that lists no goods takes none, and says so.** Gear dropped on an
+  organisation's sheet was copied onto it and left with the giver as well. A
+  party's sheet took the same copy from a player's seat, and gear dropped on
+  a unit's or a party's sheet by the Judge did nothing and said nothing.
+  Freight dragged out of a hold onto such a sheet was moved to where no sheet
+  lists it. Each now refuses in one wording, and nothing is moved or copied.
+- **The system sheet's coin lines show when a container holds coin.** With
+  coin inside a carried container, the line stating what is kept in storage
+  was missing from the Inventory tab.
+- **Annotate settles coin.** The sheet's control and the *Annotate Equipment
+  (RAW profiles)* macro both passed coin over; both now read a coin's rate
+  from its own text where it states one. A copy of the macro imported into a
+  world before this release keeps the old sweep: import it again from the
+  compendium.
+- **Dividing off nothing is refused aloud.** A count of none closed the prompt
+  without a word; it now says why nothing was divided.
+
 ## 10.0.0
 
 ### Added

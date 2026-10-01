@@ -12,11 +12,66 @@
  * change when needed) is docs/lib/DECISIONS.md, "2026-08-14 — Money is
  * physical; four rulings land at once". Its shortfall reporting is what
  * every refusing caller (bribes, tolls, wages) shows the player.
+ *
+ * Coin is kept in STORES — carried loose, inside a carried container, or at
+ * a place that keeps it for the holder — and a slot may state the `rank` of
+ * the store its row is in. The keys that name a store and the flag a holder
+ * states their order under are declared here, so the planners and the writers
+ * read one vocabulary; docs/lib/DECISIONS.md, "Coin is kept in stores, and a
+ * holder states their order".
  */
+import { MODULE_ID } from "./constants.mjs";
 import { toNum as num } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
 
 const isCoin = (plain) => plain?.type === ITEM_TYPE.money;
+
+/* -------------------------------------------- */
+/*  Where coin is kept                           */
+/* -------------------------------------------- */
+
+/**
+ * The flag a holder states their coin order under:
+ * `flags["acks-extras"].coinOrder = {payFrom, receiveInto}`, each a store key.
+ */
+export const COIN_ORDER_FLAG = "coinOrder";
+
+/** The key of coin carried loose: the store every holder has, and what both orders default to. */
+export const LOOSE_STORE = "";
+
+/** The key of coin kept inside a container the holder carries. */
+export const containerStoreKey = (itemId) => `item:${itemId}`;
+
+/** The key of coin a place keeps for the holder. */
+export const placeStoreKey = (actorUuid) => `place:${actorUuid}`;
+
+/**
+ * What a store key names. A key that reads as nothing names coin carried
+ * loose, so a flag left pointing at a store that is gone still answers.
+ * @returns {{kind: "loose"}|{kind: "container", id: string}|{kind: "place", uuid: string}}
+ */
+export function readStoreKey(key) {
+  const text = typeof key === "string" ? key : "";
+  if (text.startsWith("item:") && text.length > 5) return { kind: "container", id: text.slice(5) };
+  if (text.startsWith("place:") && text.length > 6) return { kind: "place", uuid: text.slice(6) };
+  return { kind: "loose" };
+}
+
+/**
+ * The order a holder states: the store a payment draws on first, and the store
+ * arriving coin lands in. Reads a document or its plain data; a holder that
+ * states neither answers loose for both.
+ * @returns {{payFrom: string, receiveInto: string}}
+ */
+export function coinOrderOf(holder) {
+  const stated = holder?.flags?.[MODULE_ID]?.[COIN_ORDER_FLAG] ?? null;
+  const key = (value) => (typeof value === "string" ? value : LOOSE_STORE);
+  return { payFrom: key(stated?.payFrom), receiveInto: key(stated?.receiveInto) };
+}
+
+/* -------------------------------------------- */
+/*  Counting and planning                        */
+/* -------------------------------------------- */
 
 /**
  * The key a coin of this name and rate stacks under. Kind comes before rate:
@@ -61,9 +116,17 @@ export function coinSlots(plainItems) {
 }
 
 /**
- * Plan a spend of `needCp` copper: smallest coppervalue first, whole coins
- * only, breaking one larger coin when the small ones cannot cover the
- * remainder.
+ * The slots a spend may draw on, in the order it draws: a lower `rank` before a
+ * higher one, and the smallest coin first within a rank. Slots that state no
+ * rank share one, which is smallest first across all of them.
+ */
+const spendOrder = (slots) => slots.filter((s) => s.cv > 0 && s.qty > 0).sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0) || a.cv - b.cv);
+
+/**
+ * Plan a spend of `needCp` copper: slots in spend order (`spendOrder`), whole
+ * coins only, breaking one larger coin when what came before it cannot cover
+ * the remainder. What a purse can cover does not depend on the order; which
+ * coins leave it does.
  *
  * @returns {{takes: Array<{id,cv,take}>, paidCp: number,
  *            changeCp: number, shortfallCp: number}}
@@ -72,7 +135,7 @@ export function coinSlots(plainItems) {
 export function planCoinSpend(slots, needCp) {
   needCp = Math.max(0, Math.round(needCp));
   if (!needCp) return { takes: [], paidCp: 0, changeCp: 0, shortfallCp: 0 };
-  const pool = slots.filter((s) => s.cv > 0 && s.qty > 0).sort((a, b) => a.cv - b.cv);
+  const pool = spendOrder(slots);
 
   const takes = [];
   let remaining = needCp;
@@ -94,21 +157,8 @@ export function planCoinSpend(slots, needCp) {
   return { takes, paidCp: needCp, changeCp: Math.abs(remaining), shortfallCp: 0 };
 }
 
-/**
- * Pay AS MUCH OF `capCp` as the purse can represent EXACTLY — no coin is
- * broken, no change is owed. The uncovered remainder is the caller's to
- * record (wages book it as arrears until the employer finds a changer).
- *
- * Smallest coins first, as every spend is. Where that pick leaves a remainder
- * — a handful of small coin taken first can strand the last few copper of an
- * amount the larger coins would have met — the largest-first pick is weighed
- * against it (`planChange` over the same stacks) and whichever pays more is
- * the plan.
- * @returns {{takes: Array<{id,cv,take}>, paidCp: number, shortCp: number}}
- */
-export function planCoinPayUpTo(slots, capCp) {
-  capCp = Math.max(0, Math.round(capCp));
-  const pool = slots.filter((s) => s.cv > 0 && s.qty > 0).sort((a, b) => a.cv - b.cv);
+/** Whole coins up to `capCp`, drawn from `pool` in the order given; none is broken. */
+function payWhole(pool, capCp) {
   const takes = [];
   let paid = 0;
   for (const slot of pool) {
@@ -119,17 +169,41 @@ export function planCoinPayUpTo(slots, capCp) {
     takes.push({ id: slot.id, cv: slot.cv, take });
     paid += take * slot.cv;
   }
-  if (paid < capCp) {
+  return { takes, paidCp: paid, shortCp: capCp - paid };
+}
+
+/**
+ * Pay AS MUCH OF `capCp` as the purse can represent EXACTLY — no coin is
+ * broken, no change is owed. The uncovered remainder is the caller's to
+ * record (wages book it as arrears until the employer finds a changer).
+ *
+ * Slots are drawn on in spend order, as every spend is. Where that pick leaves
+ * a remainder — a handful of small coin taken first can strand the last few
+ * copper of an amount the larger coins would have met — two more picks are
+ * weighed against it: smallest first across every rank, then largest first
+ * (`planChange` over the same stacks). Whichever pays most is the plan, the
+ * earlier pick where two pay the same.
+ * @returns {{takes: Array<{id,cv,take}>, paidCp: number, shortCp: number}}
+ */
+export function planCoinPayUpTo(slots, capCp) {
+  capCp = Math.max(0, Math.round(capCp));
+  const pool = spendOrder(slots);
+  let best = payWhole(pool, capCp);
+  if (best.shortCp > 0 && pool.some((s) => s.rank)) {
+    const flat = payWhole([...pool].sort((a, b) => a.cv - b.cv), capCp);
+    if (flat.paidCp > best.paidCp) best = flat;
+  }
+  if (best.shortCp > 0) {
     const largest = planChange(pool.map((s) => ({ kind: s.id, cv: s.cv, qty: s.qty })), capCp);
-    if (capCp - largest.remainderCp > paid) {
-      return {
+    if (capCp - largest.remainderCp > best.paidCp) {
+      best = {
         takes: largest.credits.map((c) => ({ id: c.kind, cv: c.cv, take: c.count })),
         paidCp: capCp - largest.remainderCp,
         shortCp: largest.remainderCp,
       };
     }
   }
-  return { takes, paidCp: paid, shortCp: capCp - paid };
+  return best;
 }
 
 /**

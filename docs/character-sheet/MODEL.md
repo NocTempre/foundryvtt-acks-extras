@@ -192,11 +192,20 @@ lib's `landCoin`). A dropped place is pinned; any other actor is hired, as
 the system's sheet does.
 
 A stack with a wear slot carries the split control, which takes ONE out to
-wear it. Any other stack of two or more carries **Divide the stack**: a
-prompt for a count, and `divideStack` puts that many into a row of their own
-beside it. A count that does not fall strictly inside the stack is refused
-with a warning. A coin row always shows its count, at none as well, and its
-line states what the row is worth and what it weighs.
+wear it. Any other stack of two or more carries **Divide the stack**, which
+asks through the lib's one prompt (`promptDivide`): a count, and that many go
+into a row of their own beside it. A count that does not fall strictly inside
+the stack, none included, is refused with a warning. A coin row shows its
+count, and its line states what the row is worth and what it weighs; a row a
+payment empties is removed.
+
+Under the carried rows, the **Purse** rule states what the coin on hand and
+the coin kept at places are worth, and holds the lib's coin-order block: the
+store a payment draws on first, the store arriving coin lands in, and the
+gather control while a fold would take a row away. The block is offered every
+store the tab lists (loose, each container, each place under *Kept
+elsewhere*) and is absent while there is nothing to choose and nothing to
+fold (docs/lib/MODEL.md, "Currency").
 
 **Stats** is what is not a throw. The six attributes in the design system's
 attribute boxes, editable, with the modifier under each and no die; the
@@ -251,7 +260,11 @@ cast count, a Cast control that spends it, show, edit and delete.
 **Followers** renders the employer's hirelings as Follower Cards in the
 henchmen feature's buckets — the system's character henchmen and the
 module's monster henchmen alike — with show, loyalty, morale and dismiss on
-each, the Roster chip, and the wages due with a Pay button.
+each, and the Roster chip. The wage line beside it is the henchmen feature's
+`wageBill` ([henchmen MODEL](../henchmen/MODEL.md) §4c): what a payday would
+bill now, with the Pay wages chip, while anything is due, and what the
+payroll costs a month otherwise, with no chip. The chip calls `payWagesFor`.
+The line is absent for a character with no follower and no paid unit.
 
 **Notes** is the character's notes as prose with an edit toggle, and the
 influence feature's relationships (attitude items) as rows: open, drag to

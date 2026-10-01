@@ -4,6 +4,7 @@ import { SHARED_ACTIONS, bindMemberDrop, onChangeForm } from "./formation-action
 import { cellBodies, getFormations, getMemberActor, isStackMember, partyHeadcount } from "./formation-model.mjs";
 import { buildFormationView, buildGMExtras, buildPlayerPanel } from "./formation-view.mjs";
 import { acksCompatStubs } from "../lib/actor-compat.mjs";
+import { refuseGoods } from "../lib/bundles.mjs";
 
 /**
  * The dedicated "party" actor sub-type backing party tokens, and its sheet.
@@ -213,6 +214,17 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
       if (game.i18n.has(hint)) badge.dataset.tooltip = game.i18n.localize(hint);
       (cell.querySelector(".info .name") ?? cell).append(badge);
     }
+  }
+
+  /**
+   * @override — a party carries nothing itself; its members do. The GM's
+   * seat refuses an item in the member drop (`bindMemberDrop`), which
+   * replaces the base class's on this element. Every other seat reaches this,
+   * where the base class would create a copy on the party actor.
+   */
+  async _onDropItem(_event, _item) {
+    refuseGoods(this.actor);
+    return null;
   }
 
   /** Preserve the window-content scroll position across live re-renders. */

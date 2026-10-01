@@ -363,3 +363,88 @@ away from its employer.
 `wagesToBank` off sees no change; one that left it on has its hirelings'
 banked wages moved at the next load, a character's to a vault and a monster's
 into its purse (the location feature's sweep).
+
+### A wage draws on what the employer can pay with, and the hook reports what moved (2026-10-01)
+
+Follows docs/lib/DECISIONS.md, "Coin is kept in stores, and a holder states
+their order (2026-10-01)". Amends "A wage is paid into the purse, and a
+refused payment books no payday (2026-10-01)", ruled the same day. The new
+evidence is that lib ruling, which the earlier entry did not have, and a
+part-paid wage read back from the record: the hireling's log named the whole
+wage as paid and the `wagesPaid` hook totalled what was billed, where part of
+it had been booked as owed.
+
+**Ruled.**
+- *A wage states no reach.* It takes the world's standing reach on both
+  sides: an employer's coin at a place pays a wage where the setting allows
+  it, and a hireling's order may send the wage to a place. `getGold` reads
+  what a payment may draw on (the lib's `spendableGp`), so the check that a
+  payday can be covered counts the stores the payday then draws on.
+- *A hire is paid where it is made.* A signing bonus and a week's recruiting
+  fee state the market (`within: location`): coin on hand, or kept there
+  (docs/markets/DECISIONS.md, "2026-10-01 — A market takes coin on hand or
+  kept at that market").
+- *A part-paid wage is logged as part-paid.* The hireling's log line names
+  what moved and what is owed.
+- *`wagesPaid` reports what moved.* Its `total` is the coin that left the
+  employer and `arrears` what was booked as owed instead. `wagesMissed` is
+  unchanged.
+
+**Rejected.** Keeping `total` as the billed sum with the coin moved beside
+it: a listener that books `total` as spent would book coin that never left.
+A wage that states the hireling's place: a hireling has none, and an employer
+pays a roster wherever it stands.
+
+**What it cost.** A listener written against 10.0.0 reads a smaller `total`
+on a payday that booked arrears. The earlier entry's sentence on what
+`getGold` delegates to no longer holds: it reads `spendableGp`.
+
+### Pay wages is one payday on either sheet, and it pays what is due (2026-10-01)
+
+**Found (live walk).** Pressing Pay wages on the Followers tab moved coin off
+the employer and onto nobody. The control called core's `payWages`, as it had
+since the module's own character sheet shipped, and the system sheet's
+Hirelings button calls the same method. Core's method takes a month's total
+off the coin rows on the employer, lands it nowhere, records no payday and
+posts a chat card; the wage clock, which is this feature's, then bills the
+same month again. The line beside the control read "wages due" over core's
+monthly total whether or not a month had gone by.
+
+**Ruled.**
+- *One payday.* Core's `payWages` is wrapped and never called
+  (`installWagePayment`); a character's payday is `payWagesFor`, from the
+  Followers tab, the system sheet, the roster and the Judge's wage card
+  alike. The wrap is this feature's for the reason the `getTotalWages` wrap
+  is ([MODEL.md](MODEL.md) §4b).
+- *It pays what the wage clock says is due*, and says so when that is
+  nothing. `wageBill` is the one reading of what is due and what a month
+  costs, and the Followers line prints the first when something is due and
+  the second otherwise. The control is drawn only while something is due.
+- *A payday the seat cannot write is the GM's to run.* It writes every
+  hireling's record and every unit's, which a player's seat may not own. Such
+  a seat hands the payday over whole (`henchmenPayWages`); the GM's seat
+  checks that the sender owns the employer and takes nothing else on trust.
+  Marking a month missed stays the Judge's and is never handed over.
+- *The seat that pressed is told.* One notification: nothing due, not enough
+  coin, not yours to pay, or what was paid and what is still owed.
+
+**Rejected.**
+- *Leaving the system sheet's button on core's method.* It is the same button
+  to the person pressing it, and it destroyed coin.
+- *Calling core's method and then booking the payday.* Its coin leaves the
+  rows on the employer whatever their order says, a lock included, and lands
+  nowhere; the hireling would be paid in the record and not in the purse.
+- *A control that pays a month ahead of the clock.* The wage is monthly
+  (RR 168) and the wage clock bills the whole months that have gone by; a
+  prepayment would need a credit on the record that nothing reads.
+- *Relaying only the writes the seat lacks.* A relay that failed would leave
+  a payday half recorded.
+- *Keeping the chat card.* It announced a month's total to the table whether
+  or not that was what moved.
+
+**What it cost.** A table that does not advance the world clock can no longer
+take a month's wages with the button: it answers that nothing is due. Coin is
+handed over on the sheets, or the clock is advanced. The public "pays wages"
+card is gone, and the hireling's log, the notification and the `wagesPaid`
+hook are what record a payday. One more socket handler is registered, and a
+relayed payday fires its hook on the GM's seat, not the one that pressed.

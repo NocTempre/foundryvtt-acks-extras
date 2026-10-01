@@ -136,6 +136,58 @@ table (it needs the table un-imported), and the import cap under
 `marketsEnforceCaps` off (a world setting other sessions read). Say so in the
 report rather than toggling shared state.
 
+## Coin at the market walk (reach, proceeds, the changer)
+
+A purchase, a sale, an import, a commission and a venture's tolls, bribes,
+buys and proceeds each state the market as their reach (`within: location`).
+The purchase, the sale and the changer are walked here; the rest pass the
+same argument to the same call and are not walked separately. The reach
+arithmetic itself is asserted offline in `tools/test-coin-flows.mjs`.
+
+**Fixtures (each id recorded with `api.track`):** the market M of the walk
+above; character A, owned by the Player seat, carrying a container and coin,
+with a row M keeps for A (`lib.storage.depositCoin(M, {ownerUuid, ownerName,
+coppervalue: 100, quantity, name: "Gold"})`); a second place B keeping coin
+for A; and A's vault (`acksExtras.location.payIntoVault(A, gp)`, which
+resolves to the vault's actor).
+
+**Drive notes (learned live):**
+- The Purchase dialog opens from `[data-action="openPurchase"]
+  [data-key="<catalogue key>"]` on the Trade tab; its buyer is
+  `select[name="buyerUuid"]` and its count `input[name="qty"]`. The Sell
+  dialog opens from `[data-action="openSell"][data-item-id]` once the
+  **Acting as** picker (`[data-trade-trader]`) reads A.
+- The changer opens from `[data-action="marketsExchange"]`: `select[name=
+  "itemId"]`, `input[name="count"]`, `select[name="toCv"]`. It offers the coin
+  A has on hand.
+- **The month's availability refuses before the purse does.** A refusal for
+  want of coin needs ONE of a row whose `costGp` is above what A can pay
+  with at M; a larger count of a cheap row answers with the monthly cap.
+- The picker writes the client setting `marketsActingTrader`. Read it first
+  and put it back.
+
+1. Player seat, A's order paying from M first: buy one of a cheap row.
+   *Observable:* the price leaves the row M keeps for A and joins M's own
+   coin. Coin at B and in the vault is as it was, and the item is on A.
+2. With what A carries and what M keeps both below a row's price, and more
+   than the price at B and in the vault, buy one of that row.
+   *Observable:* refused with **Not enough coin on hand or kept at this
+   market.** No row changed anywhere. `spendableGp(A, {within: M})` is below
+   the price and `spendableGp(A, {within: "all"})` above it.
+3. As GM set **Paying with coin kept elsewhere** to its on-hand value and
+   read `spendableGp(A)` beside `spendableGp(A, {within: M})`.
+   *Observable:* the first counts what A carries and nothing else; the second
+   still counts the coin M keeps. A purchase still draws on it. Restore the
+   setting.
+4. Sell one item with A's order receiving into the carried container, then
+   one with it receiving into M.
+   *Observable:* the proceeds join the container's row, then a row M keeps
+   for A. M's own coin is down by the price each time.
+5. Change coin three times: with the order receiving into the container, into
+   M, and into B.
+   *Observable:* the new coin lands in the container, then at M. With B
+   named, which a market's reach leaves out, it is carried loose.
+
 ## Demand layers and the Demand Generator walk
 
 **Fixtures** (all created with `api.create`, so `api.sweepTracked()` removes

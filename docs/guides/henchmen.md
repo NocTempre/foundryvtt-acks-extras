@@ -63,11 +63,49 @@ history each score is computed from.
 hireling's history and the Judge's actions on it — a loyalty or obedience
 throw, a calamity or a penalty on the record, a transfer, a dismissal.*
 
-**A wage is coin that changes hands.** On payday the employer's own coins
-leave their purse and land in the hireling's, so the two have to be where
-coin can pass between them: together, or the hireling on the employer's
-roster. What the employer cannot pay exactly is kept as arrears. A payment
-that is refused says why and records no payday.
+**A wage is coin that changes hands.** On payday the employer's coin leaves
+their stores in the order their sheet states
+([where coin is paid from](character-sheet.md#where-coin-is-paid-from-and-where-it-lands))
+and lands where each hireling receives coin, so the two have to be where coin
+can pass between them: together, or the hireling on the employer's roster.
+What the employer cannot pay exactly is kept as arrears, and the hireling's
+history records that payday as a part-payment with what is still owed. A
+payment that is refused says why and records no payday.
+
+**Pay wages is one payday wherever you press it** — on the character sheet's
+Followers tab, on the system sheet's Hirelings tab, in the roster, or on the
+Judge's wage card. It pays what the wage clock says is due — a month's wage
+(RR 168) for each whole month gone by since that hireling was last paid — and
+says so when nothing is. The Followers tab states what is due beside the
+button, and offers the button only while something is. A player who presses it for hirelings the
+Judge runs has the payday carried out by the Judge's seat; with no Judge
+connected it is refused and says so, and no coin moves.
+
+![](../releases/v10.1.0/henchmen-wages.png)
+
+*The Followers tab with a wage due: what is owed stated beside Pay wages, and
+the hireling's card listing the coin they hold.*
+
+**A hireling's coin is theirs to arrange.** Their card lists each coin row;
+a row holding more than one carries the scissors, which divide a pile off to
+hand over, and **Gather coin** folds matching rows back into one. Once they
+have more than one place to keep coin, the card offers the same **Pay from**
+and **Receive into** choices a character has.
+
+![](../releases/v10.1.0/lib-follower-card.png)
+
+*A hireling's card from their player's seat: coin carried loose and coin in a
+satchel, each row with its divide control, wages set to land in the satchel.*
+
+**A hired unit keeps its own purse.** A unit's sheet lists its coin under
+**Purse**, which is where its wage lands. Coin can be dropped onto the sheet
+and dragged off it again like any other purse. A unit carries nothing else, so
+any other item dropped there is refused and stays with whoever held it.
+
+![](../releases/v10.1.0/lib-group-purse.png)
+
+*A hired unit's sheet: its purse totalled above the coin it holds, with Gather
+coin offered because two rows hold the same coin.*
 
 The Judge adds permanents (a rescue, a betrayal), and can mark an entry
 **Compensated** — it stays on record but stops scoring.

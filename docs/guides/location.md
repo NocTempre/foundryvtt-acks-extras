@@ -105,6 +105,44 @@ kept at a place. A balance an older world still holds there is moved out when
 the world next loads: a character's into their vault, and anyone else's (a
 monster, a hired unit, a token) into the coin they carry.
 
+## Paying with coin kept elsewhere
+
+Coin kept at a place is still yours to pay with. A payment draws on your
+stores in the order your sheet states
+([where coin is paid from](character-sheet.md#where-coin-is-paid-from-and-where-it-lands)),
+and coin that arrives can be sent to a place keeping coin for you.
+
+How far that reaches is the Judge's, in **Configure Settings → Paying with
+coin kept elsewhere**. It answers for every payment that does not itself say
+where it happens — a wage, a bribe, a fee:
+
+- **All of it, wherever it is kept** — the default. A vault three days' ride
+  away pays as readily as a purse.
+- **Coin on hand, and coin kept on the scene the payer stands on** — the
+  strongroom of the town you are in counts; the one in the town you left
+  does not.
+- **Coin on hand only** — what you carry, and nothing else. Coin kept at a
+  place has to be fetched before it can be spent.
+
+Some transactions say where they happen, and the setting does not move them.
+What you buy, sell, import or commission at a market is paid with coin on
+hand or kept at that market, whatever the world's setting
+([markets](markets.md#coin-at-a-market)).
+
+![](../releases/v10.1.0/lib-coin-scope.png)
+
+*The world setting as the Judge sees it, at its default.*
+
+On the system's own character sheet the Money header gains two lines: how
+much is kept for the character and at how many places, which opens the Storage
+tab, and the same **Pay from** and **Receive into** choices the module's sheet
+offers.
+
+![](../releases/v10.1.0/location-coin.png)
+
+*The system sheet's Inventory tab: the coin kept elsewhere totalled under the
+Money header, and the two choices above the coin rows.*
+
 ## Be somewhere to leave something there
 
 A character's own sheet lists the places their goods are, under **Kept
@@ -184,9 +222,19 @@ Storage Manager).
 retired bank column is not coin anyone carries — it is moved out at the next
 world load, a character's into their vault.
 
-**"… carries no goods, so coin cannot be handed to it."** The sheet you dropped
-coin on lists no goods (an organisation, a party), so nothing there could show
-the coin again. Drop it on whoever is to carry it, or on a place.
+**"… carries no goods, so nothing can be handed to it."** The sheet you dropped
+something on lists no goods — an organisation, a party, or a hired unit for
+anything but coin — so nothing there could show it again. Nothing was moved
+or copied. Drop it on whoever is to carry it, or on a place.
+
+![](../releases/v10.1.0/lib-refusal.png)
+
+*The warning a rope dropped on an organisation's sheet gives. The rope stays
+with whoever held it.*
+
+**"A GM must be connected for that."** The payment or deposit touches a place
+your seat cannot write to, and the Judge's seat carries those out. Nothing was
+taken; try again once the Judge is connected.
 
 **My character has no vault any more.** Deleting one does not regenerate it. A GM
 makes a new one with **Storage Manager → Give a character a vault**.

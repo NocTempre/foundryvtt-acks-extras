@@ -111,11 +111,12 @@ export function unpackStage(bundle, actorItems) {
  * stackables into the stacks the actor already carries and writes the
  * bundle's journal in the same call; `creates` are the copies, each stamped
  * with the bundle's id. The caller writes `updates`, then `creates`, then
- * deletes the bundle.
+ * deletes the bundle. `coinInto` is the container coin among the goods is put
+ * inside, as `planStackMerge` takes it.
  * @returns {{updates: object[], creates: object[]}}
  */
-export function planEmbeddedUnpack(bundleId, goods, actorItems) {
-  const { creates, targetUpdates } = planStackMerge(goods, actorItems);
+export function planEmbeddedUnpack(bundleId, goods, actorItems, { coinInto = null } = {}) {
+  const { creates, targetUpdates } = planStackMerge(goods, actorItems, { coinInto });
   const stamped = creates.map((c) => stampFrom(c, bundleId));
   const journal = { _id: bundleId, [`flags.${LIB_ID}.${UNPACK_JOURNAL}`]: { merged: true, creates: stamped } };
   return { updates: [...targetUpdates, journal], creates: stamped };

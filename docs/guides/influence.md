@@ -9,9 +9,22 @@ number.
 *A social roll with its modifier stack itemized — here with a bribe armed and
 its fee typed, which only moves gold the payer actually has.*
 
-A bribe is paid in whatever coin the payer carries. A target the Judge is
-running receives those coins; a target nobody at the table can write to is
-paid off-stage, and the coin is gone.
+A bribe is paid in the payer's own coin, drawn in the order their sheet
+states ([where coin is paid from](character-sheet.md#where-coin-is-paid-from-and-where-it-lands)).
+A target who is an actor receives those coins, whoever runs them: where the
+roller's seat cannot write to the target, the Judge's seat hands the coin
+over. With no target actor, or with no Judge connected to hand it over, the
+bribe is paid off-stage and the coin is gone. A payer who cannot cover the
+fee is told so and pays nothing.
+
+The result card says what was paid — the fee, who paid it, and who received
+it where somebody did. A card with no bribe line is a roll on which no coin
+moved.
+
+![](../releases/v10.1.0/influence-bribe.png)
+
+*A result card after a bribe: the fee, the payer and the target who received
+it, above the modifiers that were in force.*
 
 ## Make a roll
 

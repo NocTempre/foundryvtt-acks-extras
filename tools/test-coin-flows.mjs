@@ -42,8 +42,11 @@ const worldItems = new Coll();
 const worldActors = new Coll();
 const worldScenes = [];
 
+/** What was registered for a one-time hook, so a test can fire `socketlib.ready` itself. */
+const onceHooks = new Map();
+
 globalThis.acksExtras ??= {};
-globalThis.Hooks = { on() {}, once() {}, call() {}, callAll() {} };
+globalThis.Hooks = { on() {}, once: (name, fn) => onceHooks.set(name, [...(onceHooks.get(name) ?? []), fn]), call() {}, callAll() {} };
 globalThis.ui = { notifications: { warn: (text) => warnings.push(text), info() {}, error() {} } };
 globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 } };
 globalThis.foundry = { utils: { setProperty, randomID: () => `r${++serial}`, deepClone: (v) => structuredClone(v) } };
@@ -53,9 +56,13 @@ globalThis.game = {
   scenes: worldScenes,
   packs: [],
   user: { isGM: true, id: "gm" },
-  users: { get: () => ({ isGM: true }), filter: () => [] },
+  users: { get: (id) => (id === "player" ? PLAYER : { isGM: true, id: "gm" }), filter: () => [], find: () => null, activeGM: null },
   i18n: { localize: (k) => k, format: (k) => k },
 };
+
+/** The two seats a test sits in: the Judge's, and a player's. */
+const JUDGE = globalThis.game.user;
+const PLAYER = { isGM: false, id: "player" };
 
 let serial = 0;
 
@@ -92,7 +99,17 @@ function makeItem(data, parent = null) {
 
 /** An actor whose items are a collection, recording how many writes it took. */
 function makeActor({ id, name = id, type = "character", items = [] }) {
-  const actor = { id, name, type, documentName: "Actor", uuid: `Actor.${id}`, isOwner: true, isToken: false, system: {}, flags: {}, items: new Coll(), writes: 0 };
+  const actor = { id, name, type, documentName: "Actor", uuid: `Actor.${id}`, isToken: false, system: {}, flags: {}, items: new Coll(), writes: 0 };
+  // Who may write this actor other than the Judge: the ids of its owning seats.
+  // `isOwner` answers for the seat in play, as a live document's does; a test
+  // that assigns it pins the answer.
+  actor.owners = ["player"];
+  let pinned = null;
+  Object.defineProperty(actor, "isOwner", {
+    get: () => pinned ?? (!!game.user?.isGM || actor.owners.includes(game.user?.id)),
+    set: (value) => { pinned = value; },
+  });
+  actor.testUserPermission = (user) => !!user?.isGM || actor.owners.includes(user?.id);
   const add = (data) => {
     const doc = makeItem(data, actor);
     actor.items.set(doc.id, doc);
@@ -114,9 +131,25 @@ function makeActor({ id, name = id, type = "character", items = [] }) {
     for (const itemId of ids) actor.items.delete(itemId);
   };
   actor.getFlag = (scope, key) => actor.flags?.[scope]?.[key];
+  actor.setFlag = async (scope, key, value) => {
+    actor.flags = { ...actor.flags, [scope]: { ...(actor.flags?.[scope] ?? {}), [key]: value } };
+    return actor;
+  };
   for (const data of items) add(data);
   return actor;
 }
+
+/** A place that keeps goods for owners, registered with the world. `vaultOf` makes it one character's vault. */
+function makePlace({ id, name = id, type = LOCATION, items = [], vaultOf = null, market = false }) {
+  const place = makeActor({ id, name, type, items });
+  place.flags = { "acks-extras": { storage: { provider: true, ...(vaultOf ? { vaultOf } : {}) } } };
+  if (market) place.system = { marketClass: 4 };
+  worldActors.set(place.id, place);
+  return place;
+}
+
+/** The flag that stamps a row as kept for `owner`. */
+const keptFor = (owner, extra = {}) => ({ "acks-extras": { storage: { ownerUuid: owner.uuid, ownerName: owner.name }, ...extra } });
 
 const LOCATION = "acks-extras.location";
 const coin = (name, cv, qty, over = {}) => ({
@@ -130,6 +163,17 @@ const coin = (name, cv, qty, over = {}) => ({
 const gold = (qty, over) => coin("Gold", 100, qty, over);
 const silver = (qty, over) => coin("Silver", 10, qty, over);
 const copper = (qty, over) => coin("Copper", 1, qty, over);
+
+/** A container a holder carries, and the flag that puts a row inside one. */
+const pack = (id = "pack", record = {}, over = {}) => ({
+  _id: id,
+  name: over.name ?? "Backpack",
+  type: "item",
+  system: { cost: 2, weight6: 6 },
+  flags: { "acks-extras": { container: record, ...(over.inside ? { containedIn: over.inside } : {}), ...(over.storage ? { storage: over.storage } : {}) } },
+});
+const inside = (id) => ({ "acks-extras": { containedIn: id } });
+const inPack = inside("pack");
 
 /** A holder's coin as `name ×count`, sorted, for one-line assertions. */
 const purse = (holder) => holder.items.filter((i) => i.type === "money").map((i) => `${i.name} ×${i.system.quantity}`).sort();
@@ -204,18 +248,24 @@ await test("a credit of nothing writes nothing", async () => {
   assert.equal(hero.writes, 0);
 });
 await test("coin lands on the pile carried loose before the one packed away, and is spent off it first", async () => {
-  const packed = { "acks-extras": { containedIn: "pack" } };
-  const hero = makeActor({ id: "hero", items: [gold(500, { _id: "packed", flags: packed }), gold(20, { _id: "loose" })] });
-  const count = (id) => hero.items.get(id).system.quantity;
+  const hero = makeActor({ id: "hero", items: [pack(), gold(500, { _id: "packed", flags: inPack }), gold(20, { _id: "loose" })] });
+  const count = (id) => hero.items.get(id)?.system.quantity ?? null;
   await creditCoin(hero, [{ cv: 100, count: 3 }, { source: gold(2), count: 2 }]);
   assert.deepEqual([count("loose"), count("packed")], [25, 500]);
   assert.deepEqual(planStackMerge([gold(4)], hero.items.map((i) => i.toObject())), { creates: [], targetUpdates: [{ _id: "loose", "system.quantity": 29 }] },
     "goods handed over find the same row");
   assert.equal((await sinkCoin(hero, 30)).ok, true);
-  assert.deepEqual([count("loose"), count("packed")], [0, 495], "the pack is opened only for what the loose pile cannot cover");
-  const only = makeActor({ id: "only", items: [gold(500, { _id: "packed", flags: packed })] });
+  assert.deepEqual([count("loose"), count("packed")], [null, 495], "the pack is opened only for what the loose pile cannot cover, and the emptied row is gone");
+  const only = makeActor({ id: "only", items: [pack(), gold(500, { _id: "packed", flags: inPack, img: "packed.webp" })] });
   await creditCoin(only, [{ cv: 100, count: 3 }]);
-  assert.deepEqual(purse(only), ["Gold ×503"], "a packed pile that is the holder's only one is still its row of that kind");
+  assert.deepEqual(purse(only), ["Gold ×3", "Gold ×500"], "coin arrives loose: what was packed away stays as it was counted");
+  assert.equal(only.items.find((i) => i.system.quantity === 3).img, "packed.webp", "and the new row is a copy of the coin the holder already keeps");
+});
+await test("a pointer at a container that is not there reads as coin carried loose", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(8, { _id: "stray", flags: inPack })] });
+  await creditCoin(hero, [{ cv: 100, count: 2 }]);
+  assert.deepEqual(purse(hero), ["Gold ×10"], "the row is the loose pile, so the arrival joins it");
+  assert.deepEqual(money.coinStores(hero).map((s) => [s.key, s.rows.length]), [["", 1]]);
 });
 await test("a coin the holder has none of is copied from one the world already has", async () => {
   const shelf = makeItem(gold(0, { img: "world-gold.webp", flags: { "acks-extras": { gear: { perStone: 40 } } } }));
@@ -273,7 +323,9 @@ await test("an owner's duplicate rows fold together kind by kind", async () => {
   });
   bank.flags = { "acks-extras": { storage: { provider: true } } };
   assert.deepEqual(await storage.consolidateMoney(bank, "Actor.hero"), { merged: 1 });
-  assert.deepEqual(purse(bank), ["Gold ×12", "Gold, debased ×2", "Silver ×3"], "kinds stay apart, and a banked balance adds nothing");
+  assert.deepEqual(purse(bank), ["Gold ×0", "Gold ×12", "Gold, debased ×2", "Silver ×3"], "kinds stay apart, and a banked balance adds nothing");
+  assert.equal(bank.items.find((i) => i.system.quantity === 0).system.quantitybank, 60, "the folded row is emptied and kept while it carries a balance");
+  assert.deepEqual(await storage.consolidateMoney(bank, "Actor.hero"), { merged: 0 }, "and is not folded a second time");
 });
 
 /* -------------------------------------------- */
@@ -297,15 +349,21 @@ await test("the sink spends smallest first and returns change in the purse's own
   const hero = makeActor({ id: "hero", items: [copper(30), silver(4), gold(3)] });
   const before = cp(hero);
   assert.deepEqual(await sinkCoin(hero, 2.5), { ok: true, changeCp: 20 });
-  assert.deepEqual(purse(hero), ["Copper ×0", "Gold ×1", "Silver ×2"]);
+  assert.deepEqual(purse(hero), ["Gold ×1", "Silver ×2"], "the row the payment emptied is removed, not left listed at none");
   assert.equal(cp(hero), before - 250, "exactly what was owed has left");
-  assert.equal(hero.writes, 1, "the takes and the change are one write");
+  assert.equal(hero.writes, 2, "one write for the takes, one for the row they emptied");
 });
 await test("a broken coin never costs more than was owed", async () => {
   const hero = makeActor({ id: "hero", items: [gold(1)] });
   assert.equal((await sinkCoin(hero, 0.3)).ok, true);
   assert.equal(cp(hero), 70, "the change no gold piece can represent comes back as smaller coin");
-  assert.equal(row(hero, "Gold").system.quantity, 0);
+  assert.equal(row(hero, "Gold"), null);
+});
+await test("a row a payment empties is kept only while it carries a banked balance", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(2, { _id: "g", bank: 40 }), silver(5, { _id: "s" })] });
+  assert.equal((await sinkCoin(hero, 2.5)).ok, true);
+  assert.deepEqual(purse(hero), ["Gold ×0"]);
+  assert.equal(hero.items.get("g").system.quantitybank, 40, "the balance is still there for the migration to move");
 });
 await test("small coin the larger coin makes unnecessary never leaves the purse, and none comes back as another kind", async () => {
   const hero = makeActor({ id: "hero", items: [silver(6), coin("Electrum", 50, 0), gold(10)] });
@@ -340,7 +398,7 @@ await test("change comes back out of the payee's purse, by the same arithmetic",
   const payer = makeActor({ id: "payer", items: [gold(1)] });
   const payee = makeActor({ id: "payee", items: [silver(10)] });
   assert.deepEqual(await transferCoin({ from: payer, to: payee, gp: 0.3, gate: false }), { ok: true, changeCp: 70 });
-  assert.deepEqual(purse(payer), ["Gold ×0", "Silver ×7"]);
+  assert.deepEqual(purse(payer), ["Silver ×7"]);
   assert.deepEqual(purse(payee), ["Gold ×1", "Silver ×3"]);
   assert.equal(cp(payer) + cp(payee), 200);
 });
@@ -364,18 +422,34 @@ await test("a coin that would be handed over and handed straight back never leav
   const payer = makeActor({ id: "payer", items: [silver(3), gold(1)] });
   const payee = makeActor({ id: "payee", items: [copper(5)] });
   assert.deepEqual(await transferCoin({ from: payer, to: payee, gp: 1.05, gate: false }), { ok: true, changeCp: 25 });
-  assert.deepEqual(purse(payer), ["Copper ×5", "Gold ×0", "Silver ×2"]);
-  assert.deepEqual(purse(payee), ["Copper ×0", "Gold ×1", "Silver ×1"]);
+  assert.deepEqual(purse(payer), ["Copper ×5", "Silver ×2"]);
+  assert.deepEqual(purse(payee), ["Gold ×1", "Silver ×1"]);
   assert.equal(cp(payee) - 5, 105, "the payee is up by exactly what was owed");
   assert.equal(cp(payer) + cp(payee), 135, "no coin is made or lost");
-  assert.equal(payer.writes, 2, "one write for the coins paid, one for the change");
+  assert.equal(payer.writes, 3, "the change lands, the coins paid leave, and the row they emptied is removed");
+});
+await test("what is paid and what comes back land before anything is taken", async () => {
+  const payer = makeActor({ id: "payer", items: [gold(1)] });
+  const payee = makeActor({ id: "payee", items: [silver(10)] });
+  const order = [];
+  for (const actor of [payer, payee]) {
+    for (const call of ["createEmbeddedDocuments", "updateEmbeddedDocuments", "deleteEmbeddedDocuments"]) {
+      const real = actor[call];
+      actor[call] = async (...args) => {
+        order.push(`${actor.id}:${call.slice(0, 6)}`);
+        return real(...args);
+      };
+    }
+  }
+  await transferCoin({ from: payer, to: payee, gp: 0.3, gate: false });
+  assert.deepEqual(order, ["payee:create", "payer:create", "payer:delete", "payee:update"], "a payment cut short leaves a duplicate, never a loss");
 });
 await test("change is the payer's own coin held back before it is anything out of the payee's purse", async () => {
   const payer = makeActor({ id: "payer", items: [silver(3), gold(1)] });
   const payee = makeActor({ id: "payee", items: [coin("Shillings", 10, 4), copper(5)] });
   assert.deepEqual(await transferCoin({ from: payer, to: payee, gp: 1.05, gate: false }), { ok: true, changeCp: 25 });
-  assert.deepEqual(purse(payer), ["Copper ×5", "Gold ×0", "Silver ×2"], "no shilling changes hands for silver the payer already held");
-  assert.deepEqual(purse(payee), ["Copper ×0", "Gold ×1", "Shillings ×4", "Silver ×1"]);
+  assert.deepEqual(purse(payer), ["Copper ×5", "Silver ×2"], "no shilling changes hands for silver the payer already held");
+  assert.deepEqual(purse(payee), ["Gold ×1", "Shillings ×4", "Silver ×1"]);
 });
 await test("coins the payer could keep are kept before a larger coin of the payee's is asked for", async () => {
   const payer = makeActor({ id: "payer", items: [silver(6), gold(10)] });
@@ -389,8 +463,8 @@ await test("where the kept coins and the payee's cannot make change apart, they 
   const payer = makeActor({ id: "payer", items: [silver(3), gold(1)] });
   const payee = makeActor({ id: "payee", items: [coin("Electrum", 50, 1)] });
   assert.deepEqual(await transferCoin({ from: payer, to: payee, gp: 0.7, gate: false }), { ok: true, changeCp: 60 });
-  assert.deepEqual(purse(payer), ["Electrum ×1", "Gold ×0", "Silver ×1"]);
-  assert.deepEqual(purse(payee), ["Electrum ×0", "Gold ×1", "Silver ×2"]);
+  assert.deepEqual(purse(payer), ["Electrum ×1", "Silver ×1"]);
+  assert.deepEqual(purse(payee), ["Gold ×1", "Silver ×2"]);
   assert.equal(cp(payer), 60, "the payer is down by exactly what was owed");
   assert.equal(cp(payer) + cp(payee), 180, "no coin is made or lost");
 });
@@ -439,6 +513,433 @@ await test("an employer's coin reaches the unit it pays, and no other", async ()
   assert.deepEqual([paid.ok, paid.paidCp, purse(boss), purse(unit)], [true, 400, ["Gold ×5"], ["Gold ×4"]]);
   const refused = await transferCoin({ from: boss, to: stranger, gp: 4, upTo: true });
   assert.deepEqual([refused.ok, refused.reason, purse(boss), purse(stranger)], [false, "notTogether", ["Gold ×5"], []], "a refusal moves nothing and says so");
+});
+
+/* -------------------------------------------- */
+/*  Where coin is kept                          */
+/* -------------------------------------------- */
+
+console.log("coin: where it is kept");
+const { coinStores, setCoinOrder, gatherCoin, spendableGp } = money;
+const LOCKED = { locked: true, opened: false };
+const keysOf = (holder, opts) => coinStores(holder, opts).map((s) => s.key);
+const listed = (rows) => rows.map((i) => `${i.name} ×${i.system.quantity}`).sort();
+/** The coin a holder carries inside one container, or loose for `null`. */
+const inBox = (holder, id) => listed(holder.items.filter((i) => i.type === "money" && (i.flags["acks-extras"]?.containedIn ?? null) === id));
+/** The coin a place keeps for one owner. */
+const keptAt = (place, owner) => listed(place.items.filter((i) => i.type === "money" && i.flags["acks-extras"]?.storage?.ownerUuid === owner.uuid));
+/** Something on a map: a scene the way the reach readers see one. */
+const sceneWith = (id, ...actorIds) => ({ id, uuid: `Scene.${id}`, documentName: "Scene", tokens: actorIds.map((actorId) => ({ actorId, uuid: `Scene.${id}.Token.${actorId}` })) });
+/** The location feature's two answers about a place and a scene, as lib asks for them. */
+const mapAnswers = (linked = {}) => ({
+  scenes: { sceneOfLocation: (place) => linked[place.id] ?? null },
+  here: { placeStandsOn: (scene, place) => scene.tokens.some((t) => t.actorId === place.id) },
+});
+
+await test("a holder's stores are what they carry loose, each container, then the places keeping coin for them", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(3), pack(), silver(8, { flags: inPack }), pack("chest", LOCKED, { name: "Chest" }), gold(90, { flags: inside("chest") })] });
+  worldActors.set(hero.id, hero);
+  makePlace({ id: "bank", name: "Bank", items: [gold(40, { flags: keptFor(hero) })] });
+  makePlace({ id: "vault", name: "Zed's vault", vaultOf: hero.uuid });
+  makePlace({ id: "other", name: "Another bank", items: [gold(99, { flags: keptFor({ uuid: "Actor.rival", name: "Rival" }) })] });
+  const stores = coinStores(hero);
+  assert.deepEqual(stores.map((s) => s.key), ["", "item:pack", "item:chest", "place:Actor.vault", "place:Actor.bank"], "a vault comes before the other places");
+  assert.deepEqual(stores.map((s) => s.kind), ["loose", "container", "container", "place", "place"]);
+  assert.deepEqual(stores.map((s) => s.shut), [false, false, true, false, false]);
+  assert.deepEqual(stores.map((s) => s.takesCoin), [true, true, false, true, true]);
+  assert.deepEqual(stores.map((s) => s.rows.length), [1, 1, 1, 0, 1]);
+  assert.equal(purseGp(hero), 93.8, "what is carried counts the locked chest");
+  assert.equal(spendableGp(hero), 43.8, "what can be paid with does not, and does count the bank");
+  assert.deepEqual(keysOf(hero, { within: "hand" }), ["", "item:pack", "item:chest"]);
+  assert.equal(spendableGp(hero, { within: "hand" }), 3.8);
+  assert.deepEqual(keysOf(worldActors.get("bank")), [""], "nothing is kept for a house elsewhere");
+  const token = makeActor({ id: "orc", items: [gold(4)] });
+  token.isToken = true;
+  token.uuid = "Scene.s.Token.t.Actor.orc";
+  assert.deepEqual(keysOf(token), [""], "nor for a token's own actor");
+});
+await test("coin shut in a locked container is neither spent nor landed in, at a place as on a person", async () => {
+  const hero = makeActor({ id: "hero", items: [pack("chest", LOCKED), gold(90, { flags: inside("chest") })] });
+  worldActors.set(hero.id, hero);
+  const bank = makePlace({ id: "bank", items: [pack("box", LOCKED, { storage: keptFor(hero)["acks-extras"].storage }), gold(40, { flags: keptFor(hero, { containedIn: "box" }) })] });
+  assert.deepEqual(await sinkCoin(hero, 5), { ok: false, reason: "insufficient", shortfallCp: 500 });
+  assert.equal(hero.writes + bank.writes, 0);
+  assert.deepEqual(keysOf(hero), ["", "item:chest"], "a place whose only coin for the holder is locked away keeps none they can reach");
+  await setCoinOrder(hero, { receiveInto: "item:chest" });
+  await creditCoin(hero, [{ cv: 100, count: 2 }]);
+  assert.deepEqual([inBox(hero, null), inBox(hero, "chest")], [["Gold ×2"], ["Gold ×90"]], "a store that is shut is passed over for coin carried loose");
+});
+await test("a payment draws on the store the holder named first, then on the rest in their standing order", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(10, { _id: "loose" }), pack(), gold(10, { _id: "packed", flags: inPack })] });
+  const count = (id) => hero.items.get(id)?.system.quantity ?? null;
+  assert.equal((await sinkCoin(hero, 3)).ok, true);
+  assert.deepEqual([count("loose"), count("packed")], [7, 10], "unstated, coin carried loose goes first");
+  assert.deepEqual(await setCoinOrder(hero, { payFrom: "item:pack" }), { payFrom: "item:pack", receiveInto: "" });
+  assert.equal((await sinkCoin(hero, 12)).ok, true);
+  assert.deepEqual([count("loose"), count("packed")], [5, null], "the named store is emptied before the next is opened");
+  await setCoinOrder(hero, { payFrom: "item:gone" });
+  assert.equal((await sinkCoin(hero, 1)).ok, true);
+  assert.equal(count("loose"), 4, "an order naming a store that is not there is the standing order");
+});
+await test("a holder's order decides which coins go, never whether the payment can be made", async () => {
+  const hero = makeActor({ id: "hero", items: [silver(5), pack(), gold(1, { flags: inPack })] });
+  await setCoinOrder(hero, { payFrom: "item:pack" });
+  const payee = makeActor({ id: "payee" });
+  assert.deepEqual(await transferCoin({ from: hero, to: payee, gp: 0.3, gate: false }), { ok: true, changeCp: 0 });
+  assert.deepEqual([purse(hero), purse(payee)], [["Gold ×1", "Silver ×2"], ["Silver ×3"]], "the packed gold would have needed change nobody there could make");
+  assert.equal(warnings.length, 0);
+});
+await test("arriving coin lands in the store the holder named, on the row of its kind there or a new one", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(10, { _id: "loose" }), pack(), silver(4, { flags: inPack })] });
+  await setCoinOrder(hero, { receiveInto: "item:pack" });
+  assert.deepEqual(await creditCoin(hero, [{ source: silver(1), count: 6 }, { cv: 100, count: 2 }]), { updates: 1, creates: 1 });
+  assert.deepEqual(inBox(hero, "pack"), ["Gold ×2", "Silver ×10"]);
+  assert.equal(hero.items.get("loose").system.quantity, 10, "the loose pile of the same kind is not where it lands");
+  await creditCoin(hero, [{ cv: 100, count: 1 }], { into: "" });
+  assert.equal(hero.items.get("loose").system.quantity, 11, "a caller that names a store overrides the holder's order");
+  const payee = makeActor({ id: "payee", items: [silver(10)] });
+  assert.equal((await transferCoin({ from: hero, to: payee, gp: 0.3, gate: false })).ok, true);
+  assert.deepEqual([inBox(hero, null), inBox(hero, "pack")], [["Gold ×10"], ["Gold ×2", "Silver ×17"]],
+    "a loose gold piece was broken before the pack was opened, and its change is an arrival: it lands where arrivals do");
+  await setCoinOrder(hero, { payFrom: "item:pack" });
+  const taker = makeActor({ id: "taker", items: [copper(50)] });
+  assert.equal((await transferCoin({ from: hero, to: taker, gp: 0.95, gate: false })).ok, true);
+  assert.deepEqual([inBox(hero, null), inBox(hero, "pack")], [["Gold ×10"], ["Copper ×5", "Gold ×2", "Silver ×7"]], "named first, the pack pays and takes its own change");
+});
+await test("coin handed over goes where the receiver keeps arriving coin, and coin in a container that travels stays in it", async () => {
+  const giver = makeActor({ id: "giver", items: [gold(5, { _id: "pile" }), pack("sack", {}, { name: "Sack" }), silver(7, { flags: inside("sack") })] });
+  const taker = makeActor({ id: "taker", items: [gold(9, { _id: "theirs" }), pack()] });
+  await setCoinOrder(taker, { receiveInto: "item:pack" });
+  assert.equal((await storage.handOver(giver, taker, [{ id: "pile" }])).ok, true);
+  assert.deepEqual([inBox(taker, "pack"), taker.items.get("theirs").system.quantity], [["Gold ×5"], 9]);
+  assert.equal((await storage.handOver(giver, taker, [{ id: "sack" }])).ok, true);
+  const sack = taker.items.find((i) => i.name === "Sack");
+  assert.deepEqual([purse(giver), inBox(taker, sack.id), inBox(taker, "pack")], [[], ["Silver ×7"], ["Gold ×5"]]);
+  await setCoinOrder(taker, { receiveInto: "place:Actor.vault" });
+  await storage.handOver(taker, giver, [{ id: "theirs" }]);
+  await storage.handOver(giver, taker, [{ id: giver.items.find((i) => i.type === "money").id }]);
+  assert.deepEqual(inBox(taker, null), ["Gold ×9"], "a place named there is not where a hand-over lands: coin handed to a holder is on the holder");
+});
+await test("coin a holder keeps at a place is paid in there and paid out from there", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero" });
+  worldActors.set(hero.id, hero);
+  const vault = makePlace({ id: "vault", vaultOf: hero.uuid });
+  const boss = makeActor({ id: "boss", items: [gold(30)] });
+  await setCoinOrder(hero, { receiveInto: "place:Actor.vault" });
+  assert.equal((await transferCoin({ from: boss, to: hero, gp: 12, gate: false })).ok, true);
+  assert.deepEqual([purse(hero), keptAt(vault, hero)], [[], ["Gold ×12"]], "the wage lands in the vault, as the hero's");
+  assert.equal(vault.items.contents[0].flags["acks-extras"].storage.ownerName, "Hero");
+  assert.deepEqual([purseGp(hero), spendableGp(hero), purseGp(vault)], [0, 12, 0], "carried by nobody, spendable by the hero, and not the house's");
+  const shop = makeActor({ id: "shop", items: [silver(10)] });
+  assert.deepEqual(await transferCoin({ from: hero, to: shop, gp: 5.5, gate: false }), { ok: true, changeCp: 50 });
+  assert.deepEqual([keptAt(vault, hero), purse(hero), purse(shop)], [["Gold ×6", "Silver ×5"], [], ["Gold ×6", "Silver ×5"]],
+    "what the hero cannot cover from hand is drawn from it, and the change comes back to it");
+  assert.equal((await transferCoin({ from: hero, to: shop, gp: 6.5, gate: false, within: "hand" })).reason, "insufficient", "a payment that reaches no further than the hand finds none");
+});
+await test("a transaction states how far it reaches: on hand, one place, or a scene", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(2)] });
+  worldActors.set(hero.id, hero);
+  const market = makePlace({ id: "market", name: "Market", market: true, items: [gold(10, { flags: keptFor(hero) })] });
+  const bank = makePlace({ id: "bank", name: "Bank", items: [gold(50, { flags: keptFor(hero) })] });
+  const far = makePlace({ id: "far", name: "Far keep", items: [gold(100, { flags: keptFor(hero) })] });
+  assert.deepEqual([spendableGp(hero), spendableGp(hero, { within: "all" }), spendableGp(hero, { within: "hand" }), spendableGp(hero, { within: market }), spendableGp(hero, { within: bank })], [162, 162, 2, 12, 52]);
+  const refused = await transferCoin({ from: hero, to: market, gp: 20, gate: false, within: market });
+  assert.deepEqual([refused.ok, refused.reason, refused.shortfallCp], [false, "insufficient", 800], "coin kept at another place does not pay at this one");
+  assert.equal(hero.writes + market.writes + bank.writes, 0);
+  assert.equal((await transferCoin({ from: hero, to: market, gp: 9, gate: false, within: market })).ok, true);
+  assert.deepEqual([purse(hero), keptAt(market, hero), keptAt(bank, hero)], [[], ["Gold ×3"], ["Gold ×50"]], "what is on hand goes first, then what the market keeps");
+  assert.equal(purseGp(market), 9, "and what was paid is the house's");
+  await setCoinOrder(hero, { receiveInto: "place:Actor.bank" });
+  await mintCoin(hero, 4, { within: market });
+  assert.deepEqual([purse(hero), keptAt(bank, hero)], [["Gold ×4"], ["Gold ×50"]], "coin is not sent to a store outside the reach either");
+  acksExtras.location = mapAnswers({ market: sceneWith("town") });
+  try {
+    const town = sceneWith("town", "bank");
+    assert.deepEqual(keysOf(hero, { within: town }), ["", "place:Actor.bank", "place:Actor.market"], "a place linked to the scene, and one standing on it");
+    assert.equal(spendableGp(hero, { within: town }), 57);
+    assert.deepEqual(keysOf(hero, { within: sceneWith("wilds") }), [""]);
+  } finally {
+    delete acksExtras.location;
+  }
+  assert.equal(far.writes, 0);
+});
+await test("where a transaction states nothing, the world's standing reach decides", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(2)] });
+  worldActors.set(hero.id, hero);
+  const bank = makePlace({ id: "bank", items: [gold(50, { flags: keptFor(hero) })] });
+  makePlace({ id: "far", items: [gold(100, { flags: keptFor(hero) })] });
+  worldScenes.push(sceneWith("wilds", "far"), sceneWith("town", "hero", "bank"));
+  acksExtras.location = mapAnswers();
+  let standing = "all";
+  game.settings = { get: () => standing };
+  try {
+    assert.equal(spendableGp(hero), 152);
+    standing = "scene";
+    assert.equal(spendableGp(hero), 52, "coin on hand, and coin kept on the scene the payer stands on");
+    standing = "hand";
+    assert.equal(spendableGp(hero), 2);
+    assert.equal(spendableGp(hero, { within: "all" }), 152, "a transaction that states its reach is not narrowed");
+    assert.equal(spendableGp(hero, { within: bank }), 52);
+    assert.equal((await sinkCoin(hero, 10)).reason, "insufficient");
+    assert.equal((await sinkCoin(hero, 10, { within: bank })).ok, true);
+    standing = "scene";
+    worldScenes.length = 0;
+    assert.equal(spendableGp(hero), 0, "a payer standing on no scene has what is on hand");
+    game.settings = { get: () => { throw new Error("not registered"); } };
+    assert.equal(spendableGp(hero), 142, "a world that has no such setting reaches everything");
+  } finally {
+    delete game.settings;
+    delete acksExtras.location;
+  }
+});
+await test("gathering folds a holder's duplicate rows store by store", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(3), gold(4), pack(), gold(5, { flags: inPack }), gold(6, { flags: inPack }), silver(2)] });
+  worldActors.set(hero.id, hero);
+  const vault = makePlace({ id: "vault", vaultOf: hero.uuid, items: [gold(10, { flags: keptFor(hero) }), gold(20, { flags: keptFor(hero) }), gold(7, { flags: keptFor({ uuid: "Actor.other", name: "Other" }) })] });
+  assert.deepEqual(await gatherCoin(hero), { merged: 3 });
+  assert.deepEqual([inBox(hero, null), inBox(hero, "pack"), purse(vault)], [["Gold ×7", "Silver ×2"], ["Gold ×11"], ["Gold ×30", "Gold ×7"]]);
+  assert.deepEqual(await gatherCoin(hero), { merged: 0 });
+});
+
+/* -------------------------------------------- */
+/*  The controls a sheet draws                  */
+/* -------------------------------------------- */
+
+console.log("coin: the order a sheet shows and writes");
+const { coinOrderView, bindCoinOrder } = await import("../scripts/lib/coin-order.mjs");
+const keysIn = (options) => options.map((o) => o.key);
+const chosenIn = (options) => options.filter((o) => o.selected).map((o) => o.key);
+/** One coin-order block as the listener meets it: a dataset, and the handlers it was given. */
+const blockFor = (uuid) => {
+  const block = { dataset: { coinOrder: uuid }, handlers: {}, bound: 0 };
+  block.addEventListener = (type, fn) => {
+    block.handlers[type] = fn;
+    block.bound++;
+  };
+  return block;
+};
+const rootOf = (...blocks) => ({ querySelectorAll: (selector) => (selector === "[data-coin-order]" ? blocks : []) });
+const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+await test("the controls offer every store a holder may use, and each place their sheet lists", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(3), pack(), silver(8, { flags: inPack }), pack("chest", LOCKED, { name: "Chest" }), gold(90, { flags: inside("chest") })] });
+  worldActors.set(hero.id, hero);
+  const bank = makePlace({ id: "bank", name: "Bank", items: [gold(40, { flags: keptFor(hero) })] });
+  const inn = makePlace({ id: "inn", name: "Inn" });
+  const view = coinOrderView(hero, { places: [bank, inn, hero] });
+  assert.deepEqual(keysIn(view.payFrom), ["", "item:pack", "place:Actor.bank", "place:Actor.inn"], "a store a lock shuts is not paid from, and a listed place is offered once");
+  assert.deepEqual(keysIn(view.receiveInto), ["", "item:pack", "place:Actor.bank", "place:Actor.inn"], "nor is coin sent into one");
+  assert.deepEqual(view.payFrom.map((o) => o.label), ["ACKS-LIB.money.order.loose", "Backpack", "Bank", "Inn"]);
+  assert.deepEqual([chosenIn(view.payFrom), chosenIn(view.receiveInto)], [[""], [""]], "unstated, both halves read as carried loose");
+  assert.deepEqual([view.uuid, view.editable, view.shown, view.choice, view.foldable], ["Actor.hero", true, true, true, 0]);
+  assert.deepEqual([view.onHandGp, view.keptGp], [93.8, 40], "what is on hand counts the locked chest; what is kept is the bank's");
+  await setCoinOrder(hero, { payFrom: "item:pack", receiveInto: "place:Actor.inn" });
+  const stated = coinOrderView(hero, { places: [bank] });
+  assert.deepEqual([chosenIn(stated.payFrom), chosenIn(stated.receiveInto)], [["item:pack"], ["place:Actor.inn"]]);
+  assert.deepEqual(keysIn(stated.receiveInto), ["", "item:pack", "place:Actor.bank", "place:Actor.inn"], "a place the order names is a store whether or not the sheet lists it");
+});
+await test("an order naming a store that is gone stays shown as what it is", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(3)] });
+  worldActors.set(hero.id, hero);
+  assert.deepEqual([coinOrderView(hero).shown, coinOrderView(hero).choice], [false, false], "coin carried loose and nowhere else leaves nothing to choose");
+  await setCoinOrder(hero, { payFrom: "item:gone" });
+  const view = coinOrderView(hero);
+  assert.deepEqual(view.payFrom, [
+    { key: "", label: "ACKS-LIB.money.order.loose", selected: false },
+    { key: "item:gone", label: "ACKS-LIB.money.order.gone", selected: true },
+  ]);
+  assert.deepEqual([view.shown, view.choice], [true, true], "so the holder can set it back");
+});
+await test("the fold is offered for the rows a gather would take away, to a seat that may fold them", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(3), gold(4), silver(2)] });
+  worldActors.set(hero.id, hero);
+  const vault = makePlace({ id: "vault", vaultOf: hero.uuid, items: [gold(10, { flags: keptFor(hero) }), gold(20, { flags: keptFor(hero) })] });
+  const view = coinOrderView(hero);
+  assert.deepEqual([view.foldable, view.shown], [2, true]);
+  assert.deepEqual(await gatherCoin(hero), { merged: view.foldable }, "the count on the control is the count the fold reports");
+  vault.owners = [];
+  hero.items.set("again", makeItem(gold(1, { _id: "again" }), hero));
+  vault.items.set("more", makeItem(gold(5, { _id: "more", flags: keptFor(hero) }), vault));
+  game.user = PLAYER;
+  try {
+    assert.equal(coinOrderView(hero).foldable, 1, "rows at a place the seat cannot write are not counted");
+    hero.owners = [];
+    const watched = coinOrderView(hero);
+    assert.deepEqual([watched.foldable, watched.editable], [0, false], "and a seat that only reads the sheet is offered no fold");
+  } finally {
+    game.user = JUDGE;
+  }
+});
+await test("a house keeps no coin elsewhere, a shelf actor shows no controls, and a narrowed reach is said", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(3), pack()] });
+  worldActors.set(hero.id, hero);
+  const bank = makePlace({ id: "bank", name: "Bank", items: [gold(9)] });
+  const inn = makePlace({ id: "inn", name: "Inn" });
+  assert.deepEqual(keysIn(coinOrderView(bank, { places: [inn] }).payFrom), [""], "a place is offered no place");
+  assert.equal(coinOrderView(bank, { places: [inn] }).shown, false);
+  assert.equal(coinOrderView(hero).reachNote, "", "the widest reach needs no note");
+  let standing = "hand";
+  game.settings = { get: () => standing };
+  try {
+    assert.equal(coinOrderView(hero).reachNote, "ACKS-LIB.money.order.reach.hand");
+    assert.deepEqual(keysIn(coinOrderView(hero, { places: [inn] }).payFrom), ["", "item:pack", "place:Actor.inn"], "the choice is offered whatever the reach, which is the Judge's to widen");
+    standing = "scene";
+    assert.equal(coinOrderView(hero).reachNote, "ACKS-LIB.money.order.reach.scene");
+  } finally {
+    delete game.settings;
+  }
+  hero.pack = "world.shelf";
+  assert.equal(coinOrderView(hero).shown, false);
+});
+await test("a select writes its half of the order and keeps the change from the sheet's form", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(3), pack()] });
+  worldActors.set(hero.id, hero);
+  const block = blockFor(hero.uuid);
+  bindCoinOrder(rootOf(block));
+  bindCoinOrder(rootOf(block));
+  assert.equal(block.bound, 2, "a block is bound once however often a render reaches it");
+  let stopped = 0;
+  const change = (dataset, value) => block.handlers.change({ target: { dataset, value }, stopPropagation: () => stopped++ });
+  change({ coinOrderHalf: "payFrom" }, "item:pack");
+  await settled();
+  assert.deepEqual([moneyLogic.coinOrderOf(hero), stopped], [{ payFrom: "item:pack", receiveInto: "" }, 1]);
+  change({}, "anything");
+  await settled();
+  assert.deepEqual([moneyLogic.coinOrderOf(hero), stopped], [{ payFrom: "item:pack", receiveInto: "" }, 1], "another control's change is left to the sheet");
+  hero.owners = [];
+  game.user = PLAYER;
+  try {
+    change({ coinOrderHalf: "receiveInto" }, "item:pack");
+    await settled();
+    assert.deepEqual([moneyLogic.coinOrderOf(hero).receiveInto, stopped], ["", 2], "a seat that does not own the holder writes nothing");
+  } finally {
+    game.user = JUDGE;
+  }
+});
+await test("the gather control folds the holder's rows and says how many went", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(3), gold(4)] });
+  worldActors.set(hero.id, hero);
+  const block = blockFor(hero.uuid);
+  bindCoinOrder(rootOf(block));
+  const said = [];
+  const info = ui.notifications.info;
+  ui.notifications.info = (text) => said.push(text);
+  try {
+    const click = (hit) => block.handlers.click({ target: { closest: (selector) => (hit && selector === "[data-coin-order-gather]" ? {} : null) }, preventDefault() {}, stopPropagation() {} });
+    click(false);
+    await settled();
+    assert.deepEqual([purse(hero), said], [["Gold ×3", "Gold ×4"], []], "a click elsewhere in the block does nothing");
+    click(true);
+    await settled();
+    assert.deepEqual([purse(hero), said], [["Gold ×7"], ["ACKS-LIB.money.order.gathered"]]);
+    click(true);
+    await settled();
+    assert.deepEqual(said, ["ACKS-LIB.money.order.gathered", "ACKS-LIB.money.order.nothingToGather"]);
+  } finally {
+    ui.notifications.info = info;
+  }
+});
+
+/* -------------------------------------------- */
+/*  A payment the seat cannot write alone       */
+/* -------------------------------------------- */
+
+console.log("coin: relayed to the Judge");
+
+/** Every call a seat has relayed since the Judge last connected. */
+const relayed = [];
+
+/**
+ * Connect a Judge: the socket the module registers its handlers on, each call
+ * run as the Judge's seat with the sender attested, as socketlib runs one.
+ * The module's socket is made once; connecting again only clears the record.
+ */
+function connectJudge() {
+  relayed.length = 0;
+  game.users.activeGM = JUDGE;
+  const handlers = new Map();
+  globalThis.socketlib = {
+    registerModule: () => ({
+      register: (name, fn) => handlers.set(name, fn),
+      executeAsGM: async (name, payload) => {
+        const seat = game.user;
+        relayed.push(name);
+        game.user = JUDGE;
+        try {
+          return await handlers.get(name).call({ socketdata: { userId: seat.id } }, structuredClone(payload));
+        } finally {
+          game.user = seat;
+        }
+      },
+    }),
+  };
+  for (const fn of onceHooks.get("socketlib.ready") ?? []) fn();
+  onceHooks.delete("socketlib.ready");
+  return relayed;
+}
+
+await test("a payment that writes a document the seat does not own is handed whole to the Judge", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(2)] });
+  const keeper = makeActor({ id: "keeper", items: [silver(20)] });
+  keeper.owners = [];
+  worldActors.set(hero.id, hero);
+  worldActors.set(keeper.id, keeper);
+  game.user = PLAYER;
+  try {
+    assert.deepEqual(await transferCoin({ from: hero, to: keeper, gp: 1.5, gate: false }), { ok: false, reason: "noGm" });
+    assert.equal(hero.writes + keeper.writes, 0, "with no Judge connected nothing is written by half");
+    const calls = connectJudge();
+    assert.deepEqual(await transferCoin({ from: hero, to: keeper, gp: 1.5, gate: false }), { ok: true, changeCp: 50 });
+    assert.deepEqual([purse(hero), purse(keeper), calls], [["Silver ×5"], ["Gold ×2", "Silver ×15"], ["libMoveCoin"]]);
+    const friend = makeActor({ id: "friend" });
+    worldActors.set(friend.id, friend);
+    assert.equal((await transferCoin({ from: hero, to: friend, gp: 0.2, gate: false })).ok, true);
+    assert.equal(calls.length, 1, "a payment between two actors the seat owns is written by the seat");
+  } finally {
+    game.user = JUDGE;
+  }
+});
+await test("coin kept at a place the seat does not own pays and is paid into through the Judge", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero" });
+  const friend = makeActor({ id: "friend", items: [gold(3)] });
+  worldActors.set(hero.id, hero);
+  worldActors.set(friend.id, friend);
+  const bank = makePlace({ id: "bank", items: [gold(40, { flags: keptFor(hero) })] });
+  bank.owners = [];
+  const calls = connectJudge();
+  game.user = PLAYER;
+  try {
+    assert.deepEqual(coinStores(hero).map((s) => [s.key, s.writable]), [["", true], ["place:Actor.bank", false]]);
+    assert.equal((await transferCoin({ from: hero, to: friend, gp: 15, gate: false })).ok, true);
+    assert.deepEqual([keptAt(bank, hero), purse(friend), calls.length], [["Gold ×25"], ["Gold ×18"], 1]);
+    await setCoinOrder(hero, { receiveInto: "place:Actor.bank" });
+    assert.equal((await transferCoin({ from: friend, to: hero, gp: 8, gate: false })).ok, true);
+    assert.deepEqual([keptAt(bank, hero), purse(hero), purse(friend), calls.length], [["Gold ×33"], [], ["Gold ×10"], 2], "the coin is put where its owner keeps it");
+    await creditCoin(hero, [{ cv: 100, count: 1 }]);
+    assert.deepEqual([keptAt(bank, hero), purse(hero)], [["Gold ×33"], ["Gold ×1"]], "a bare credit from a seat that cannot write the place is carried loose instead");
+    assert.deepEqual(await gatherCoin(hero), { merged: 0 }, "and gathering leaves a place the seat cannot write alone");
+  } finally {
+    game.user = JUDGE;
+  }
+});
+await test("the Judge moves coin only for the seat that owns the payer", async () => {
+  const mark = makeActor({ id: "mark", items: [gold(50)] });
+  const hero = makeActor({ id: "hero" });
+  mark.owners = [];
+  worldActors.set(mark.id, mark);
+  worldActors.set(hero.id, hero);
+  connectJudge();
+  game.user = PLAYER;
+  try {
+    assert.deepEqual(await transferCoin({ from: mark, to: hero, gp: 20, gate: false }), { ok: false, reason: "notYours" });
+    assert.deepEqual([purse(mark), purse(hero)], [["Gold ×50"], []]);
+    const till = makePlace({ id: "till", market: true });
+    till.owners = [];
+    assert.equal((await transferCoin({ from: till, to: hero, gp: 20, gate: false, allowMint: true })).ok, false, "nor does a seat mint a till it does not own");
+    assert.deepEqual([purse(till), purse(hero)], [[], []]);
+  } finally {
+    game.user = JUDGE;
+  }
 });
 
 /* -------------------------------------------- */

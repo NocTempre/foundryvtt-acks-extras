@@ -1,4 +1,4 @@
-/* global game, Hooks, foundry, ui */
+/* global game, Hooks, foundry */
 /**
  * Core patch: the goods rows core leaves un-draggable, and the mint bug that
  * opens once they are.
@@ -31,25 +31,20 @@
  * giver's is left alone — and every actor sheet that states no drop handler
  * of its own inherits it. That method is guarded too, so coin is copied by no
  * sheet (`landCoin` is the one statement of where a dropped coin goes). A
- * sheet whose actor is not a creature — a faction's is the one that reaches
- * that method — takes no coin at all: handed over it would leave the giver
- * for an actor no sheet lists goods on.
+ * sheet whose actor lists no goods takes no coin at all: handed over it would
+ * leave the giver for an actor no sheet lists goods on. The module's own such
+ * sheets — a faction's, a unit's, a party's — refuse every kind of goods in
+ * their own drop, ahead of this method; the guard is what a sheet another
+ * module registers falls to.
  * See docs/lib/DECISIONS.md, "Goods the system leaves un-draggable are marked
  * — and only those", "Coin made draggable is guarded against minting
  * itself", and "Currency is one stack with one count, weighed by how many
  * make a stone".
  */
 import { isCurrency, isGoods } from "../item-model.mjs";
-import { ANIMAL_TYPE, LANG_PREFIX, MODULE_ID } from "../constants.mjs";
-import { ACTOR_TYPE } from "../vocab.mjs";
-import { landCoin } from "../bundles.mjs";
+import { MODULE_ID } from "../constants.mjs";
+import { landCoin, listsGoods, refuseGoods } from "../bundles.mjs";
 import { elementOf } from "../util.mjs";
-
-/**
- * The actor types whose sheets list what the actor carries: the system's two
- * creature types and the animal on the monster's chassis.
- */
-const CARRIER_TYPES = new Set([ACTOR_TYPE.character, ACTOR_TYPE.monster, ANIMAL_TYPE]);
 
 function markGoodsDraggable(app, element) {
   if (game.system?.id !== "acks") return;
@@ -106,20 +101,21 @@ function guardMoneySelfDrop(app) {
 
 /**
  * Close the copy on every sheet that takes Foundry's own drop: the follower
- * card, the faction sheet, and any sheet another module registers. Coin from
- * elsewhere goes where `landCoin` sends it when the sheet's actor is one of
- * `CARRIER_TYPES`, and is refused with a warning — neither moved nor copied —
- * when it is not. A drop within one actor is the base class's own re-sort,
- * which writes no count. Wrapped through libWrapper where it is loaded, so
- * another module's wrapper on the same method composes with this one.
+ * card and any sheet another module registers. Coin from
+ * elsewhere goes where `landCoin` sends it when the sheet's actor lists the
+ * goods it carries (`listsGoods`), and is refused with a warning — neither
+ * moved nor copied — when it does not (`refuseGoods`). A drop within one
+ * actor is the base class's own re-sort, which writes no count. Wrapped
+ * through libWrapper where it is loaded, so another module's wrapper on the
+ * same method composes with this one.
  */
 function guardBaseCoinDrop() {
   const base = foundry.applications?.sheets?.ActorSheetV2?.prototype;
   if (typeof base?._onDropItem !== "function") return;
   const guard = async function (wrapped, event, item, ...rest) {
     if (isCurrency(item) && item.parent?.uuid !== this.actor?.uuid) {
-      if (CARRIER_TYPES.has(this.actor?.type)) await landCoin(this.actor, item);
-      else ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.storage.keepsNoGoods`, { name: this.actor?.name ?? "" }));
+      if (listsGoods(this.actor)) await landCoin(this.actor, item);
+      else refuseGoods(this.actor);
       return null;
     }
     return wrapped(event, item, ...rest);

@@ -43,6 +43,7 @@ import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
+import { refuseGoods } from "../lib/bundles.mjs";
 import { runForageDay } from "./forage-run.mjs";
 import { runSearchHour } from "./search-run.mjs";
 import { askStrayAndBegin, confirmDiscovery, confirmEnd, confirmReanchor } from "./lost-dialog.mjs";
@@ -849,7 +850,7 @@ export async function onChangeForm(event, form, formData) {
   if (changed || redraw) this.render();
 }
 
-/** Bind GM drag-drop of actors/tokens as new members. */
+/** Bind GM drag-drop of actors/tokens as new members; a dropped item is refused (`refuseGoods`). */
 export function bindMemberDrop(app) {
   if (!game.user.isGM) return;
   const dragDropConfig = {
@@ -862,6 +863,8 @@ export function bindMemberDrop(app) {
 async function onDropMember(app, event) {
   if (!game.user.isGM) return;
   const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+  // A party carries nothing itself; its members do.
+  if (data.type === "Item") return void refuseGoods(app.actor);
   const formation = app.formation;
   if (!formation) return;
   if (data.type === "Actor") {

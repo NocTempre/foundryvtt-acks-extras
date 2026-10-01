@@ -193,8 +193,11 @@ export function getWageLevel(actor) {
 
 /* ------------------------------ coins ------------------------------ */
 
-/** What the actor's own coin is worth, in gp — the lib's one reading of a purse. */
-export const getGold = (actor) => acksExtras.lib.money.purseGp(actor);
+/**
+ * What the actor can pay with, in gp — the lib's one reading of the coin a
+ * payment may draw on (`spendableGp`), every store inside `within`.
+ */
+export const getGold = (actor, { within = null } = {}) => acksExtras.lib.money.spendableGp(actor, { within });
 
 /**
  * Spend gp from an actor's coin. With `to` (an actor or a location) the coins
@@ -210,15 +213,17 @@ export const getGold = (actor) => acksExtras.lib.money.purseGp(actor);
  * @param {Actor}  [opts.to]   - the payee (actor or location); coin lands there
  * @param {Actor}  [opts.at]   - the place whose exchange terms govern change
  * @param {boolean} [opts.gate=true] - apply the reach gate (Judge: false)
+ * @param {"all"|"hand"|Actor|Scene|null} [opts.within] - how far the payment
+ *   reaches into coin kept away from the actor (the lib's `transferCoin`)
  */
-export async function spendGold(actor, gp, reason, { chat = true, to = null, at = null, gate = true } = {}) {
+export async function spendGold(actor, gp, reason, { chat = true, to = null, at = null, gate = true, within = null } = {}) {
   const money = acksExtras.lib.money;
   if (to) {
-    const r = await money.transferCoin({ from: actor, to, at, gp, reason, gate });
+    const r = await money.transferCoin({ from: actor, to, at, gp, reason, gate, within });
     if (!r.ok) return false;
   } else {
     // The sink reports a short purse and leaves the telling to its caller.
-    const r = await money.sinkCoin(actor, gp);
+    const r = await money.sinkCoin(actor, gp, { within });
     if (!r.ok) {
       ui?.notifications?.warn(
         game.i18n.format("ACKS-HENCHMEN.gold.insufficient", { name: actor.name, gp: gp.toFixed(0), reason })
@@ -239,18 +244,19 @@ export async function spendGold(actor, gp, reason, { chat = true, to = null, at 
 /**
  * Credit gp to an actor's coin. With `from` (a market's till, an employer) it
  * is a transfer out of that payer's coin; without one it is the Judge's mint,
- * in standard denominations, each landing on the actor's own row of that rate
- * (the lib's `mintCoin`).
+ * in standard denominations, each landing as the actor's own coin of that rate
+ * (the lib's `mintCoin`). Either way it lands where the actor keeps arriving
+ * coin, as far as `within` reaches.
  * @returns {Promise<number>} the gp credited — 0 when a transfer was refused
  */
-export async function grantGold(actor, gp, { from = null, at = null, allowMint = false, gate = true } = {}) {
+export async function grantGold(actor, gp, { from = null, at = null, allowMint = false, gate = true, within = null } = {}) {
   if (!(Math.round(gp * 100) > 0)) return 0;
   const money = acksExtras.lib.money;
   if (from) {
-    const r = await money.transferCoin({ from, to: actor, gp, at, allowMint, gate });
+    const r = await money.transferCoin({ from, to: actor, gp, at, allowMint, gate, within });
     return r.ok ? gp : 0;
   }
-  await money.mintCoin(actor, gp);
+  await money.mintCoin(actor, gp, { within });
   return gp;
 }
 

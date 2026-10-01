@@ -395,3 +395,35 @@ loading into the first vehicle automatically (where the salt goes is the
 trader's decision, and the packs stay a choice); taking the vehicles from the
 formation's train (a party can own a wagon that is not travelling with it,
 and a vehicle in the train can belong to someone else).
+
+## 2026-10-01 — A market takes coin on hand or kept at that market
+
+The owner, ruling on where a payment may draw its coin: "Some transactions
+could be restricted to at X location (including locked to scene or on hand)
+but that should be an explicit choice not the default. I do think markets
+require money in the location or on the character so logistics still matter.
+Moving money around the city may not be risk free!" The stores, a holder's
+order and a payment's reach are docs/lib/DECISIONS.md, "Coin is kept in
+stores, and a holder states their order (2026-10-01)". What this feature
+decided under it:
+
+Ruled: every payment made at a market states that market as its reach
+(`within: location`), so it draws on the payer's coin on hand and on the coin
+that market keeps for them, and on nothing kept anywhere else, whatever the
+world's `coinScope` says. That is a purchase, an import order, a commission,
+and a venture's toll, bribe and load. What a market pays out reaches the same
+way: a sale's proceeds and a load's price land where the seller keeps arriving
+coin when that is on hand or at this market, and loose on the seller when
+their order names a place elsewhere. A changer hands the new coin back under
+the same reach, and the stacks it offers to change are the ones carried.
+
+Rejected: leaving a market to the standing reach, which by default is every
+store. Coin in a vault across the city would pay at a stall, and carrying it
+there would never be a decision. A fee or a risk charged on coin drawn from
+elsewhere: the figure would be this module's own invention, and what happens
+to coin on the road is played at the table. A reach set per market: a Judge
+who wants one place to take coin kept elsewhere moves the coin there.
+
+Cost: a buyer whose coin is in a vault elsewhere is refused as short and has
+to withdraw it and carry it in. A world that set `coinScope` to on-hand still
+has a market draw on the coin it keeps for the payer, which 10.0.0 refused.

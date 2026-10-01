@@ -155,8 +155,14 @@ Freight dragged OUT of a vehicle onto another actor's sheet is moved, not
 copied (`dropActorSheetData` in [module.mjs](../../scripts/vehicles/module.mjs),
 through `lib/storage.mjs` `handOver`, which requires the seat to own both
 ends). A location target is left to its own drop, which stores the goods
-under whose they are. The vehicle sheet's drop moves an item from another
-actor the same way; one from the sidebar or a compendium is copied in.
+under whose they are. A target whose sheet lists no goods (the lib's
+`listsGoods`: anything but a vehicle, a character, a monster or an animal) is
+refused: the hook gives the lib's one warning (`refuseGoods`) and returns
+false, so the freight is neither moved nor copied and the hold keeps it. A
+faction's sheet reaches this hook. A unit's and a party's bind their own drop
+and refuse there, in the same words. The vehicle sheet's drop moves an item
+from another actor the same way; one from the sidebar or a compendium is
+copied in.
 
 Coin is the exception at both ends, and the lib's `landCoin` is its one rule
 (docs/lib/MODEL.md, "Currency"). Dragged out of a hold, coin is left to the

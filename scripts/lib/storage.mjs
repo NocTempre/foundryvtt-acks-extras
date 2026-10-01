@@ -30,6 +30,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import {
+  HOUSE_OWNER,
   LIB_ID,
   STORAGE_KEY,
   buildTransferPayload,
@@ -38,16 +39,18 @@ import {
   emptyMoneyDeletes,
   expandContainerClosure,
   groupByOwner,
+  planCoinFold,
   planStackMerge,
   quantityOf,
+  rowOwnerOf,
   splitSpec,
   stackSignature,
   storageFlagOf,
 } from "./storage-logic.mjs";
-import { isGoods } from "./item-model.mjs";
+import { isContainer, isGoods, isShutAway } from "./item-model.mjs";
 import { gmIds } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
-import { coinCount, coinKind } from "./money-logic.mjs";
+import { coinCount, coinOrderOf, readStoreKey } from "./money-logic.mjs";
 
 /**
  * `creditCoin` (money.mjs), reached when coin actually lands. money.mjs
@@ -66,8 +69,10 @@ export {
   emptyMoneyDeletes,
   expandContainerClosure,
   groupByOwner,
+  planCoinFold,
   planStackMerge,
   quantityOf,
+  rowOwnerOf,
   splitSpec,
   stackSignature,
   storageFlagOf,
@@ -188,6 +193,61 @@ export function providersFor(owner) {
 export const storedCoinGC = (owner) => providersFor(owner).reduce((sum, entry) => sum + entry.coinGC, 0);
 
 /* -------------------------------------------- */
+/*  Landing goods                                */
+/* -------------------------------------------- */
+
+/**
+ * The one write that lands goods on an actor: each stackable folds into the
+ * identical stack already there and the rest are created (`planStackMerge`).
+ * A transfer, a place stocked from a shelf, a delivery and a coin credit all
+ * land through it, so they cannot disagree about which row an arrival joins.
+ * Creates go before updates; either order lands the same rows.
+ *
+ * @param {Actor} actor
+ * @param {object[]} arrivals plain item data
+ * @param {{byOwner?: boolean, coinInto?: string|null, keepId?: boolean}} [opts]
+ *   `byOwner` where the actor keeps goods for owners; `coinInto` the container
+ *   arriving coin is put inside; `keepId` where the arrivals carry ids that
+ *   other arrivals point at
+ * @returns {Promise<{created: Item[], updated: Item[]}>}
+ */
+export async function landGoods(actor, arrivals, { byOwner = false, coinInto = null, keepId = false } = {}) {
+  const plan = planStackMerge(arrivals, actor.items.map((i) => i.toObject()), { byOwner, coinInto });
+  const created = plan.creates.length ? ((await actor.createEmbeddedDocuments("Item", plan.creates, keepId ? { keepId: true } : {})) ?? []) : [];
+  const updated = plan.targetUpdates.length ? ((await actor.updateEmbeddedDocuments("Item", plan.targetUpdates)) ?? []) : [];
+  return { created, updated };
+}
+
+/**
+ * May coin be put inside `box`, a container `holder` carries? Not while a lock
+ * shuts it or anything it sits inside, and not where it names the kinds it
+ * takes and coin is not one. The kinds are the equipment feature's to answer;
+ * it is asked through the namespace, and a world without it takes coin.
+ */
+export function coinMayEnter(holder, box) {
+  if (!box || !isContainer(box) || isShutAway(box, holder?.items)) return false;
+  try {
+    return globalThis.acksExtras?.equipment?.canStore?.(holder, { type: ITEM_TYPE.money, name: "" }, box)?.ok !== false;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * The carried container a holder's arriving coin is put inside, or null for
+ * loose: the container their coin order names (`coinOrderOf`), while it is
+ * theirs, on them and takes coin. A place named there is not an answer here —
+ * coin handed to a holder lands on the holder.
+ * @returns {string|null} the container's item id
+ */
+export function coinContainerOf(holder) {
+  const named = readStoreKey(coinOrderOf(holder).receiveInto);
+  if (named.kind !== "container") return null;
+  const box = holder?.items?.get?.(named.id) ?? null;
+  return box && rowOwnerOf(box) === HOUSE_OWNER && coinMayEnter(holder, box) ? box.id : null;
+}
+
+/* -------------------------------------------- */
 /*  Moving goods                                 */
 /* -------------------------------------------- */
 
@@ -236,13 +296,10 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
     newId: () => foundry.utils.randomID(),
   });
 
-  const merged = planStackMerge(
-    planned.creates,
-    target.items.map((i) => i.toObject()),
-    { byOwner: stampOwner },
-  );
   const tidied = emptyMoneyDeletes(planned.sourceUpdates, plainItems, planned.sourceDeletes);
 
+  // Read before the landing is planned: two arriving stacks of one thing are
+  // folded into the first of them there, and the manifest lists what moved.
   const manifest = planned.creates.map((c) => ({
     name: c.name,
     type: c.type,
@@ -254,12 +311,15 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
     return { ok: false, reason: "empty" };
   }
 
+  // Coin handed to a holder goes where they keep arriving coin; goods kept for
+  // an owner at a place are put where the move put them.
   let created = [];
   try {
-    if (merged.creates.length) {
-      created = await target.createEmbeddedDocuments("Item", merged.creates, { keepId: true });
-    }
-    if (merged.targetUpdates.length) await target.updateEmbeddedDocuments("Item", merged.targetUpdates);
+    ({ created } = await landGoods(target, planned.creates, {
+      byOwner: stampOwner,
+      coinInto: stampOwner ? null : coinContainerOf(target),
+      keepId: true,
+    }));
   } catch (err) {
     console.error(`${MODULE_ID} | storage transfer failed before anything moved`, err, manifest);
     warn("moveFailed");
@@ -344,10 +404,8 @@ export async function stockProvider(provider, goods, { ownerUuid, ownerName = ""
     ...g,
     flags: { ...(g.flags ?? {}), [LIB_ID]: { ...(g.flags?.[LIB_ID] ?? {}), [STORAGE_KEY]: { ownerUuid, ownerName } } },
   }));
-  const plan = planStackMerge(stamped, provider.items.map((i) => i.toObject()), { byOwner: true });
-  if (plan.targetUpdates.length) await provider.updateEmbeddedDocuments("Item", plan.targetUpdates);
-  if (plan.creates.length) await provider.createEmbeddedDocuments("Item", plan.creates);
-  return { created: plan.creates.length, merged: plan.targetUpdates.length };
+  const landed = await landGoods(provider, stamped, { byOwner: true });
+  return { created: landed.created.length, merged: landed.updated.length };
 }
 
 /* -------------------------------------------- */
@@ -371,34 +429,19 @@ export async function depositCoin(provider, { ownerUuid, ownerName = "", copperv
 }
 
 /**
- * Fold an owner's duplicate coin rows together, kind by kind. Reassigning
- * goods to a new owner can leave two "Gold" rows attributed to the same
- * character; this is the tidy-up.
+ * Fold one owner's duplicate coin rows on a holder together (`planCoinFold`):
+ * rows of one kind kept in one place become one row. Reassigning goods to a
+ * new owner can leave two "Gold" rows attributed to the same character, and a
+ * purse an earlier version wrote can carry two of its own. `ownerUuid` names
+ * whose rows are folded — the holder's own when none is given.
+ * @returns {Promise<{merged: number}>} how many rows were folded away
  */
-export async function consolidateMoney(provider, ownerUuid) {
-  const rows = storedItems(provider, { ownerUuid }).filter((i) => i.type === ITEM_TYPE.money);
-  const keep = new Map();
-  const updates = [];
-  const deletes = [];
-  for (const row of rows) {
-    const kind = coinKind(row);
-    const first = keep.get(kind);
-    if (!first) {
-      keep.set(kind, { id: row.id, quantity: coinCount(row) });
-      continue;
-    }
-    first.quantity += coinCount(row);
-    deletes.push(row.id);
-  }
-  for (const slot of keep.values()) {
-    const row = provider.items.get(slot.id);
-    if (row && coinCount(row) !== slot.quantity) {
-      updates.push({ _id: slot.id, "system.quantity": slot.quantity });
-    }
-  }
-  if (updates.length) await provider.updateEmbeddedDocuments("Item", updates);
-  if (deletes.length) await provider.deleteEmbeddedDocuments("Item", deletes);
-  return { merged: deletes.length };
+export async function consolidateMoney(holder, ownerUuid = null) {
+  const owner = ownerUuid ?? HOUSE_OWNER;
+  const plan = planCoinFold(holder.items.map((i) => i.toObject()), (row) => rowOwnerOf(row) === owner);
+  if (plan.updates.length) await holder.updateEmbeddedDocuments("Item", plan.updates);
+  if (plan.deletes.length) await holder.deleteEmbeddedDocuments("Item", plan.deletes);
+  return { merged: plan.merged };
 }
 
 /* -------------------------------------------- */
@@ -478,8 +521,9 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
   if (arrivals.length) await owner.createEmbeddedDocuments("Item", arrivals, { keepId: true });
 
   // Coin returning to a character lands on their row of the same kind — never
-  // a second "Gold" row.
-  await creditCoin(owner, coin.map((c) => ({ source: c, count: coinCount(c) })));
+  // a second "Gold" row — and on their person: it is handed back, not sent on
+  // to another place that keeps coin for them.
+  await creditCoin(owner, coin.map((c) => ({ source: c, count: coinCount(c) })), { within: "hand" });
   return { ok: true, containerId };
 }
 

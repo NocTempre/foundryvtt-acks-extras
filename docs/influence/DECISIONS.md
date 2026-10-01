@@ -447,3 +447,31 @@ could. A reach gate between the two: they are in conversation.
 **What it cost.** A bribe to a target the seat cannot write destroys the
 coin, as before. The card still names the fee where the purse fell short;
 the warning says it was not paid.
+
+### A bribe reaches a target the seat does not own, and the card states what was paid (2026-10-01)
+
+Amends "A bribe is paid in the payer's coin, to the target or to nobody
+(2026-10-01)", ruled the same day: both lines of its cost are superseded. The
+new evidence is docs/lib/DECISIONS.md, "Coin is kept in stores, and a holder
+states their order (2026-10-01)", which gave a seat a way to pay somebody it
+cannot write, and a card read back after a purse fell short: it said "Bribe:"
+and the fee, over a roll whose coin had not moved.
+
+**Ruled.**
+- *A target that is an actor is paid.* The fee is a transfer wherever the
+  seat may write the target or a GM is connected to; the lib relays it. The
+  coin leaves the world only where there is no target actor, or nobody to
+  write one.
+- *The card states a bribe only when coin moved*, as one line: the fee, the
+  payer, and the payee where there is one.
+- *The fee follows the payer's coin order* inside the world's standing reach,
+  as any payment that states no place does.
+
+**Rejected.** Naming the fee on the card with a note that it went unpaid: the
+card is what the table reads back later, and a fee on it reads as paid.
+Stating a reach for a bribe: the two are in conversation wherever they are.
+
+**What it cost.** A bribe whose fee cannot be covered still counts its
+modifier on the roll that was made; the warning is the only sign
+([ROADMAP.md](ROADMAP.md)). A hidden target's roll is resolved at the Judge's
+seat, so that warning shows there and not to the player who offered.

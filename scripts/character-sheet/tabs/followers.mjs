@@ -3,12 +3,14 @@
  * The Followers tab's data: the employer's hirelings as Follower Cards —
  * the system's character henchmen and this module's monster henchmen in the
  * same buckets the henchmen feature's grid uses — with the roster chip and
- * the wage line beside them.
+ * the wage line beside them. The wage line reads the wage engine's bill, so
+ * it names what the Pay control beside it would pay.
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { renderFollowerCard } from "../../lib/follower-card.mjs";
 import { FLAG_MONSTER_LIST } from "../../henchmen/constants.mjs";
+import { wageBill } from "../../henchmen/engine/events.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const loc = makeLoc(LANG);
@@ -44,10 +46,13 @@ export async function buildFollowersTab(actor) {
     groups.push({ key: g.key, title: g.title, cards });
   }
   const count = groups.reduce((n, g) => n + g.cards.length, 0);
+  const bill = wageBill(actor);
   return {
     groups,
     count,
-    wages: actor.getTotalWages?.() ?? 0,
+    payroll: count > 0 || bill.monthly > 0,
+    wages: bill.monthly,
+    due: bill.due,
     editable: actor.isOwner,
     isRetainer: !!actor.system?.retainer?.enabled,
     emptyHint: loc("followers.empty"),

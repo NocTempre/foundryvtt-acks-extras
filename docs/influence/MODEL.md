@@ -57,11 +57,18 @@ consumer can charge what the page priced; an external page never moves gold
 itself. `apiVersion` 9 is the first to carry all three.
 
 On the app's own pages an armed bribe moves its fee as coin when the roll is
-made. A target the rolling seat may write receives the payer's own coins
-(`lib.money.transferCoin`, with no reach gate: the two are talking); any
-other target is paid off-stage and the coin leaves the world (`sinkCoin`). A
-purse that cannot cover the fee is warned about and nothing is written, so
-nothing is credited that was not paid.
+made, at the seat that resolves the roll: the roller's own, or the Judge's
+for a target the roller's seat may not see. A target that is an actor
+receives the payer's own coins (`lib.money.transferCoin`, with no reach gate:
+the two are talking) wherever that seat may write it or a GM is connected to
+write it for them; the lib relays the payment whole (docs/lib/MODEL.md,
+"Currency"). With no target actor, or nobody to write one, the fee is paid
+off-stage and the coin leaves the world (`sinkCoin`). The fee is drawn by the
+payer's coin order, inside the world's standing reach. A payer who cannot
+cover it is warned about and nothing is written.
+
+The result card states a bribe only when coin moved: the fee, who paid it,
+and who received it where somebody did.
 
 **An ability counts once per page.** One proficiency can reach the roller by
 every route at once: its name fills a static `prof:` row, an Active Effect on it

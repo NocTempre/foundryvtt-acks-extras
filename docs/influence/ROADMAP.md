@@ -94,3 +94,13 @@ morale pages"). The three reaction tones, `loyalty`, `hiring` and
   adjustment row.
 - **Conditions are read when the page opens.** The modifier hook fires once
   per open, so a condition gained while the page is up is not on it.
+
+## 5. An unpaid bribe still counts
+
+An armed bribe whose fee the roller cannot cover is warned about and moves no
+coin, and its modifier stays on the roll that was made. Nothing unarms the row
+or asks before rolling. A roll against a hidden target resolves at the
+Judge's seat, so the warning shows there, and the player who offered sees a
+card with no bribe line and no reason why. Wanted: the fee checked against
+what the payer can pay with before the roll is made, on the seat that
+offered.

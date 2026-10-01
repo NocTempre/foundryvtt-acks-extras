@@ -23,12 +23,13 @@ import { isHelmet, isShield } from "./profiles.mjs";
 // go through it. `isStowable` is where coin's missing cost/weight6 is
 // reconciled: coin is goods without being physical, so asking `isPhysical`
 // here loses it.
-import { weight6Of, coreWeight6Of, sumWeight6, bundleSizeOf, isCurrency, perStoneOf, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, holdsGear, reliefOf, STONE, containedIn, contentsOf, contentsWeight6 } from "../lib/item-model.mjs";
+import { weight6Of, coreWeight6Of, sumWeight6, bundleSizeOf, isCurrency, perStoneOf, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, holdsGear, reliefOf, STONE, containedIn, contentsOf, contentsWeight6, isLocked } from "../lib/item-model.mjs";
 import { kindsOf, acceptsKinds, cleanAccepts } from "./item-sheet/accept-kinds.mjs";
 import { itemBaseType } from "./variation-items.mjs";
-// Containment READS live in lib now (the capacity primitive needs them);
-// re-exported here so this feature's importers keep one door.
-export { containedIn, contentsOf, contentsWeight6 };
+// Containment READS live in lib now (the capacity primitive needs them, and
+// what a lock shuts in is asked by the coin paths); re-exported here so this
+// feature's importers keep one door.
+export { containedIn, contentsOf, contentsWeight6, isLocked };
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { unset } from "../lib/util.mjs";
 
@@ -62,16 +63,6 @@ export function capacityStone(item) {
 /* -------------------------------------------------------------------------- */
 /*  Locks, concealment, and who may look inside                                */
 /* -------------------------------------------------------------------------- */
-
-/**
- * Is the container locked AND still shut? Two fields rather than one — see
- * docs/equipment/MODEL.md, "2026-07-24 — containers live on the sheet; locks
- * roll the character's own proficiency".
- */
-export function isLocked(item) {
-  const c = containerOf(item);
-  return !!c?.locked && !c?.opened;
-}
 
 /** A display-only fold. It hides nothing from anyone; it just tidies the list. */
 export const isConcealed = (item) => !!containerOf(item)?.concealed;

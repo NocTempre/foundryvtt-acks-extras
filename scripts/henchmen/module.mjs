@@ -37,7 +37,7 @@ import * as identityRules from "./rules/identity.mjs";
 import { onTimeAdvanced, advanceDays, now } from "./time.mjs";
 import { bindCardListeners, registerCardAction } from "./chat/cards.mjs";
 
-import { registerEventEngine, openLoyaltyRoll, openObedienceRoll, recordCalamity, payWagesFor, enrollNewcomers, forgiveWageDebts, setPermanentCompensated, allEmployers, effectiveLoyaltyFor, effectiveMoraleFor } from "./engine/events.mjs";
+import { registerEventEngine, installWagePayment, openLoyaltyRoll, openObedienceRoll, recordCalamity, payWagesFor, wageBill, enrollNewcomers, forgiveWageDebts, setPermanentCompensated, allEmployers, effectiveLoyaltyFor, effectiveMoraleFor } from "./engine/events.mjs";
 import { openRosterApp } from "./apps/roster-app.mjs";
 import { elementOf, ownsSheet } from "../lib/util.mjs";
 import { installHirelingsGrid } from "./apps/hirelings-grid.mjs";
@@ -62,6 +62,9 @@ Hooks.once("init", () => {
   // deleted hireling breaks character-sheet render for everyone. Guard first,
   // repair after (scripts/henchmen/repair.mjs; see docs/henchmen/MODEL.md §4b).
   installWageGuard();
+  // Core's payWages takes coin off the employer and lands it on nobody; the
+  // sheet's own button is handed to the wage engine (MODEL.md §4b).
+  installWagePayment();
   registerDeletionCleanup();
   registerHenchmenRepairChecks();
 
@@ -135,6 +138,7 @@ Hooks.once("setup", async () => {
     openObedienceRoll,
     recordCalamity,
     payWagesFor,
+    wageBill,
     enrollNewcomers,
     forgiveWageDebts,
     setPermanentCompensated,

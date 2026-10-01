@@ -122,42 +122,91 @@ holds come from the Judge's own books through the importer, and the name
 fallbacks above are what makes an imported item — which carries the importer's
 typed effect model, not this feature's change keys — drive the same modifiers.
 
-## 4b. Keeping core's wage math on its feet
+## 4b. Core's two wage methods
 
-Core reads `system.henchmenList` in `getTotalWages` and dereferences each id
-without checking, so one deleted hireling throws inside the character sheet's
-`_prepareContext` and takes the whole sheet down. Core has no deletion cleanup,
-so the ids accumulate. Three layers answer it, all in `repair.mjs`:
+Core's actor class has two wage methods, and this feature wraps both
+(libWrapper MIXED, registered at `init`).
+
+**`getTotalWages`.** Core reads `system.henchmenList` there and dereferences
+each id without checking, so one deleted hireling throws inside the character
+sheet's `_prepareContext` and takes the whole sheet down. Core has no deletion
+cleanup, so the ids accumulate. Three layers answer it, all in `repair.mjs`:
 
 | Layer | What it does |
 | --- | --- |
 | `registerDeletionCleanup()` | on a hireling's delete, clears its id from every employer's list and any `managerid` naming it — the ids never accumulate in the first place |
 | `sweepAtReady()` | one GM-side pass for the ids a world already has, under the `autoRepairReferences` setting (default on) |
-| `installWageGuard()` | a libWrapper MIXED wrap on `getTotalWages` that skips a missing hireling instead of throwing, so a sheet renders even mid-repair |
+| `installWageGuard()` | the wrap on `getTotalWages`: it skips a missing hireling instead of throwing, so a sheet renders even mid-repair |
 
-**The wrap lives here rather than in `lib/`** — the module's default home for
-overrides of core logic — because the method it replaces reads
-`system.henchmenList` and `system.retainer.wage` and recomputes the wage from
-them. That is this feature's rule, and lib would be owning a henchmen formula.
-One owner: nothing else in the module wraps `getTotalWages`.
+**`payWages`.** It is what the system sheet's Hirelings tab calls from its Pay
+Wages button. Core's method takes a month's total off the coin rows on the
+employer, lands it on nobody, records no payday and posts a chat card.
+`installWagePayment()` in `engine/events.mjs` wraps it and never calls it: a
+character's payday goes to `payWagesFor` (§4c), and for any other actor the
+wrap returns undefined, as core's method does. Both sheets' Pay wages controls
+therefore run one payday.
+
+**Both wraps live here rather than in `lib/`** — the module's default home for
+overrides of core logic — because the methods they replace read
+`system.henchmenList` and `system.retainer.wage` and compute a wage from them.
+That is this feature's rule, and lib would be owning a henchmen formula. One
+owner each: nothing else in the module wraps `getTotalWages` or `payWages`.
 
 A wage clock is never given a numeric initial. Zero is a real `worldTime`, so an
 unset clock has to materialize as null or the billing guard cannot tell "never
 enrolled" from "hired at the dawn of the world".
 
-## 4c. Where a wage lands
+## 4c. A payday
 
-`payWagesFor(employer)` pays each due hireling by `transferCoin` with `upTo`:
-the employer's own coins land in the hireling's purse, on the row of their
-kind, and what the purse cannot represent exactly books as arrears on the
-record. A paid unit is billed the same way and its coin sits on the group
-actor. An employer reaches the unit it pays through the unit's
-`system.unit.employerUuid`, as it reaches a hireling through the roster.
+**What is due.** `wagedOf(employer)` is the roster entries paid a wage, each
+with its record and its monthly cost (a vassal is not among them), and
+`unitsOf(employer)` the group actors whose `unit.employerUuid` names the
+employer. `dueOf(employer, time)` is what a payday at that time would bill:
+each entry whose wage clock is a whole month or more behind, for as many
+months as it is behind. `wageBill(employer)` reads those three and answers
+`{due, count, monthly}`: the gold a payday would bill now, how many entries
+that is, and what the roster costs a month. The Followers tab's wage line and
+its Pay wages control read it ([character-sheet MODEL](../character-sheet/MODEL.md)).
+
+**Where a wage lands.** `runPayday` pays each due entry by `transferCoin` with
+`upTo`: the employer's own coins land where the hireling keeps arriving coin,
+on the row of their kind, and what the employer's coin cannot represent
+exactly books as arrears on the record. A wage states no reach, so both sides
+take the world's standing one (docs/lib/MODEL.md, "Currency"); the check that
+a payday can be covered reads `getGold`, which counts the same stores. A paid
+unit is billed the same way and its coin sits on the group actor, whose sheet
+lists it as the unit's purse. An employer reaches the unit it pays through
+the unit's `system.unit.employerUuid`, as it reaches a hireling through the
+roster.
+
+A part-paid wage is logged on the hireling as what moved and what is owed.
 
 A transfer that is refused (the two are not together, the payee cannot make
 change) has said why and moved nothing, so no payday is recorded for that
 entry, its month stays due, and the `wagesPaid` hook counts neither the entry
 nor its gold. When every entry is refused the hook does not fire.
+
+**Which seat runs it.** `payWagesFor(employer)` is the one entry: the
+Followers tab's control, the system sheet's button (§4b), the roster app and
+the Judge's wage card all call it. A payday writes the employer, each managed
+hireling's record and each paid unit (`payrollOf`). The seat runs it itself
+when it is a GM's, or when it owns the employer and every one of those;
+otherwise the whole payday is handed to the GM (`henchmenPayWages`), whose
+seat checks that the sender owns the employer and runs it from the employer's
+uuid alone. Marking a payday missed is the Judge's and is never relayed. With
+no GM connected the lib's transport says so and nothing is written.
+
+**What the seat is told.** `runPayday` answers a status and `tellPayday`
+turns it into one notification on the seat that asked: nothing is due, the
+employer cannot cover the month, the wages are not this seat's to pay, or
+what was paid and, on a part-payment, what is still owed. A refused transfer
+has already said why, on the seat that ran the payday. No chat card is
+posted. The `wagesPaid` and `wagesMissed` hooks fire on the seat that ran the
+payday, which is the GM's when it was relayed.
+
+A signing bonus and a week's recruiting fee are paid where the hire is made:
+they state the market as their reach, so they draw on coin on hand and coin
+that market keeps for the employer.
 
 ## 5. Time model
 
@@ -175,14 +224,16 @@ turns obey, and say so in a notice rather than doing nothing when it is off.
 `game.modules.get("acks-extras").api.henchmen` (mirrored to `globalThis.acksExtras.henchmen`):
 apps (`openPostingDialog`, `openRecruitDialog`, `openThrowDialog`…), engine
 (`createPosting`, `processLocation`, `processAllLocations`, `hire`,
-`checkHenchmanLimit`, candidate rollers), `getRecord(actor)`, pure `rules.*`,
-`tables`, `adapter`, `effects`, `time`.
+`checkHenchmanLimit`, candidate rollers, `payWagesFor`, `wageBill`),
+`getRecord(actor)`, pure `rules.*`, `tables`, `adapter`, `effects`, `time`.
 
 Hooks fired (`Hooks.on("acksExtras.<event>", …)`): `postingCreated`,
 `candidatesArrived`, `candidateRolled`, `hiringOutcome`, **`hired`**
 (`{employer, actor, location, record, candidate}` — the class-autogen
 module's entry point), `loyaltyEvent`, `loyaltyRolled`, `calamity`,
-`wagesPaid`, `wagesMissed`, `rosterChanged`.
+**`wagesPaid`** (`{employer, total, arrears, count}` — `total` is the gold
+that left the employer, `arrears` what was booked as owed instead),
+`wagesMissed` (`{employer, total, count}`), `rosterChanged`.
 
 ## 7. Cross-module facts — the "has X" fallback chain
 

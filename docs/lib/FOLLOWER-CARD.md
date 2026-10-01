@@ -51,7 +51,12 @@ monster stats — lives on the full sheet):
 that holds anything, always with its count, and an emptied row not at all.
 The card's weight counts the purse to the coin and prints the nearest sixth.
 Coin dropped on the card is handed over or lands on the row of its kind
-(docs/lib/MODEL.md, "Currency"); the card has no divide or join of its own.
+(docs/lib/MODEL.md, "Currency"). On the follower's own sheet a row holding
+more than one carries a divide control, which asks through the lib's one
+prompt (`promptDivide`), and the lib's coin-order block sits under the list
+wherever the follower has a store to choose or a row to fold. The read-only
+cards on an employer's sheet carry neither: their actions resolve against the
+employer's form.
 
 ## API — `acksLib.followerCard`
 

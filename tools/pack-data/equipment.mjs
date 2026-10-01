@@ -315,33 +315,35 @@ ui.notifications.info(
 // with no selection, everything in the world):
 //   - weapon size / hands / qualities,
 //   - carrying-device capacity (backpack, sack, saddlebag, bowquiver, harness),
-//   - and WHERE EACH PIECE SITS: the wear slot plus, for anything that holds
+//   - WHERE EACH PIECE SITS: the wear slot plus, for anything that holds
 //     something, whether drawing from it is free or costs an action
-//     (RR pp. 293-294).
+//     (RR pp. 293-294),
+//   - and a coin's weight — how many make a stone — where the coin's own
+//     text states it.
 //
-// All three item types are swept. Carrying devices are type "item" and armour
-// is type "armor", so filtering to weapons alone left both unflagged — and
-// armour is where the head/body distinction is declared.
+// Every goods type is swept. Carrying devices are type "item", armour is type
+// "armor" and coin is type "money", so filtering to weapons alone left all
+// three unflagged — and armour is where the head/body distinction is declared.
 //
 // The slot is a best guess you can correct: open any item and use the Slot
 // control on its Construction tab. Gear that belongs nowhere (rations, tools,
-// loot, coin) is left declaring nothing, which is how it stays plain goods.
+// loot) is left declaring nothing, which is how it stays plain goods.
 const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras.equipment;
 if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
-const ANNOTATABLE = ["weapon", "armor", "item"];
+const ANNOTATABLE = ["weapon", "armor", "item", "money"];
 const source = actor ? actor.items : game.items;
 // annotateItem returns null for anything with no RAW profile, so a broad
 // sweep is safe — it only writes where it recognises the gear.
 const items = source.filter((i) => ANNOTATABLE.includes(i.type));
-const counts = { weapon: 0, container: 0, gear: 0 };
+const counts = { weapon: 0, container: 0, coin: 0, gear: 0 };
 for (const it of items) {
   const key = await api.annotateItem(it);
   if (!key) continue;
-  counts[key === "container" || key === "gear" ? key : "weapon"]++;
+  counts[key === "container" || key === "coin" ? key : it.type === "weapon" ? "weapon" : "gear"]++;
 }
 ui.notifications.info(
-  \`Annotated \${counts.weapon} weapon(s), \${counts.container} carrying device(s) and \${counts.gear} worn item(s)\${actor ? " on " + actor.name : " in the world"}.\`
+  \`Annotated \${counts.weapon} weapon(s), \${counts.container} carrying device(s), \${counts.gear} other item(s) and \${counts.coin} coin stack(s)\${actor ? " on " + actor.name : " in the world"}.\`
 );`,
   },
 ];

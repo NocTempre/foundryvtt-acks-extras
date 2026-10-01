@@ -28,6 +28,7 @@ import { canSplit } from "../../equipment/item-sheet/stack.mjs";
 import { stoneLabel, gpLabel } from "../../equipment/item-sheet/format.mjs";
 import { isEquippable, isWorn, slotsOf, weight6Of, isGoods, isClothing, isCurrency, stackCountOf, slotUse, STONE } from "../../lib/item-model.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
+import { coinOrderView } from "../../lib/coin-order.mjs";
 import { WEAR_SLOT_ORDER, WEAR_SLOTS, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { libStorage } from "../../lib/util.mjs";
 import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan } from "../../location/reach.mjs";
@@ -116,7 +117,7 @@ function rowControls(actor, item, loadout, lights) {
   // A stack with somewhere to be worn splits ONE out to wear it; any other
   // stack divides, a count of the owner's choosing into a row of its own.
   if (canSplit(item)) state.push(ctl("splitStack", "fa-solid fa-scissors", loc("equipment.split")));
-  else if ((stackCountOf(item) ?? 0) > 1) state.push(ctl("divideStack", "fa-solid fa-scissors", loc("equipment.divide")));
+  else if ((stackCountOf(item) ?? 0) > 1) state.push(ctl("divideStack", "fa-solid fa-scissors", game.i18n.localize("ACKS-LIB.stack.divide")));
   if ("favorite" in (item.system ?? {})) {
     state.push(ctl("itemFavorite", item.system.favorite ? "fa-solid fa-star" : "fa-regular fa-star", game.i18n.localize(item.system.favorite ? "ACKS.items.RemoveFromFavorites" : "ACKS.items.AddToFavorites"), {}, item.system.favorite ? "is-on" : ""));
   }
@@ -287,6 +288,12 @@ export function buildEquipmentTab(actor) {
       elsewhere.push(placeRow(actor, p, [], 0, pinned.has(p.uuid), scan));
     }
   }
+  // The coin order is offered every store the tab lists: loose, the
+  // containers, and each place under Kept elsewhere.
+  const order = coinOrderView(actor, { places: elsewhere });
+  const purse = order.shown
+    ? { ...order, note: loc("equipment.purseNote", { hand: gpLabel(order.onHandGp), kept: gpLabel(order.keptGp) }) }
+    : null;
 
   const enc = sys.encumbrance ?? {};
   const pct = num(enc.pct);
@@ -323,6 +330,7 @@ export function buildEquipmentTab(actor) {
     carriedCount: carriedItems.length,
     stowed: stowedContainers.map((i) => rowOf(actor, i, ctx)),
     elsewhere,
+    purse,
     companions,
     companionsNote: companions.length
       ? game.i18n.format("ACKS-EQUIPMENT.companion.count", { n: companions.filter((c) => !c.empty).length, of: companions.length })

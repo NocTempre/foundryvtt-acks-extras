@@ -218,6 +218,19 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   states a count of coins to a stone, run `api.equipment.annotateItem(item)`,
   and read `flags.acks-extras.gear.perStone`; run it again with a rate typed
   on the sheet and the typed rate stands.
+- **Annotate has two surfaces that sweep coin, and each is driven as itself.**
+  The sheet's is the wand in the stowed section's title
+  (`.acks-equipment-stowed .acks-equipment-wear__title`, the anchor around
+  `.fa-wand-magic-sparkles`), on the system sheet's inventory tab and on this
+  module's equipment tab. The macro's is the pack document "Annotate
+  equipment RAW profiles"; the dev install's compiled pack is only as new as
+  its last build, so run the committed source instead: a tracked world
+  `Macro` whose `command` is the `command` of
+  `packs/_source/macros/annotate-equipment-raw-profiles.json`, executed with
+  no token selected so that it sweeps the world's items.
+- **Roll automation is a world setting read at `setup`.** Turning it off takes
+  a page reload to act, and so does turning it back on. Read the value first
+  and restore it.
 
 ### Steps
 
@@ -369,9 +382,28 @@ Fixtures to create and destroy: one disposable `character`, one disposable
 7. **Containers roll up bundled.** Stow the quiver in a container.
    *Observable:* the container's load counts one bundle, and its capacity rail
    is not over-full.
+8. **Coin, from the sheet's control.** Give the character a `money` item whose
+   description states a count of coins to a stone, and no rate of its own.
+   Open the system's sheet on its inventory tab and press the wand in the
+   stowed section's title.
+   *Observable:* the coin's `gear.perStone` is the stated count, the notice
+   counts the items annotated, and the character's `encumbrance.value6` moved
+   by the difference between the two rates.
+9. **Coin, from the macro.** Create a world `money` item with the same
+   description and run the macro's source with no token selected (drive
+   notes).
+   *Observable:* the notice counts a coin stack in the world apart from the
+   other kinds, and the world item's `gear.perStone` is the stated count.
+10. **Weighed with roll automation off.** With a purse of several hundred
+    coins on the character, read `system.encumbrance.value6`. Turn the
+    roll-automation setting off, reload the page and read it again.
+    *Observable:* the same figure, part-stone included, and
+    `CONFIG.Actor.documentClass.prototype.computeEncumbrance` is still
+    libWrapper's wrapper. Turn the setting back on and reload.
 
-Teardown: delete the item, the container and the character; confirm nothing
-named for the fixture remains.
+Teardown: `api.sweepTracked()` takes the item, the container, the character,
+the world coin and the macro; confirm nothing named for the fixture remains
+and that the roll-automation setting reads what it read before step 10.
 
 ## One clothing declaration
 

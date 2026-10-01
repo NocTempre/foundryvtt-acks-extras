@@ -1,4 +1,4 @@
-# lib API (apiVersion 23)
+# lib API (apiVersion 25)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 24,
+  apiVersion: 25,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -54,6 +54,8 @@ acksExtras.lib = {
   worldTime,           // lib/world-time.mjs — the clock's reading (below); 22
   conditions,          // lib/conditions.mjs — the condition catalogue and its math (below); 23
   // 24: currency — `money` and the stack half of `itemModel` (below)
+  coinOrder,           // lib/coin-order.mjs — the coin-order controls a sheet draws (below); 25
+  // 25: coin stores, a holder's order, a payment's reach — `money` (below)
 }
 ```
 
@@ -777,6 +779,7 @@ on the target and never delete from the source. Markets, banks, base camps and
 const { isProvider, setProvider, findVaultOf, storedItems, storesByOwner,
         providersFor, storedCoinGC, stash, retrieve, moveStored, handOver,
         stockProvider, depositCoin, consolidateMoney, returnGoodsTo,
+        landGoods, coinContainerOf, coinMayEnter,
         STORAGE_HOOKS } = acksExtras.lib.storage;
 ```
 
@@ -822,8 +825,12 @@ carrying its own Active Effects each keep their own row, because over-merging
 destroys data silently while under-merging is a tidy-up. At a provider the key
 also carries the owner, so two characters' goods stay two rows. Away from a
 provider an arrival is nobody's, and it never folds into a row that is stamped
-for an owner. Where a holder keeps one kind of coin both loose and inside a
-container, the loose row takes the arrival.
+for an owner. Coin handed to a holder goes inside the carried container their
+coin order names, else loose (`coinContainerOf`); see `money` below. Every
+landing writes through `landGoods(actor, arrivals, {byOwner?, coinInto?,
+keepId?})`, which resolves to `{created, updated}`. `coinMayEnter(holder,
+box)` is whether coin may be put inside a carried container: not while a lock
+shuts it, and not where it names the kinds it holds and leaves coin out.
 
 **When the place is destroyed**, `registerStorageCleanup()` (installed at init)
 applies the world setting **`storageDeletePolicy`**: `return` (default) hands
@@ -844,7 +851,7 @@ GM-owned actor.
 the result rather than per row. It counts goods only: a stored Item that is not
 goods (a market report on the trade house) never makes its place a row.
 
-### `money` — coin as a thing that sits somewhere (apiVersion 24)
+### `money` — coin as a thing that sits somewhere (apiVersion 25)
 
 Every path that counts, values, moves, makes or destroys coin goes through
 this surface. A feature never writes a coin row's count itself.
@@ -852,33 +859,80 @@ this surface. A feature never writes a coin row's count itself.
 ```js
 const { coinKind, coinCount, coinRate, coinTotalCp, coinTotalGC,      // read
         coinSlots, planCoinSpend, planCoinPayUpTo, planChange,        // plan
-        ownCoin, purseGp, coinReach, exchangeTermsAt, HOUSE_OWNER,
+        LOOSE_STORE, containerStoreKey, placeStoreKey, readStoreKey,  // stores
+        coinStores, coinOrderOf, setCoinOrder, keepsCoinElsewhere,
+        ownCoin, purseGp, spendableGp,
+        standingCoinScope, COIN_SCOPE_SETTING,                        // reach
+        coinReach, exchangeTermsAt, HOUSE_OWNER,
         creditCoin, mintCoin, sinkCoin, transferCoin, exchangeCoins,  // write
-        coinTemplate } = acksExtras.lib.money;
+        gatherCoin, coinTemplate } = acksExtras.lib.money;
 ```
 
 The read and plan halves are `money-logic.mjs`, Foundry-free, and take plain
 item data. Everything is integer copper inside.
 
+**`within`** is how far a call reaches into coin kept away from the holder:
+`"all"` (every store), `"hand"` (the stores on the holder), an Actor that is
+a place (those and the coin that place keeps), a Scene (those and the places
+on it). Left out, the call takes the world setting `coinScope`.
+
 | Call | Answers or does |
 |---|---|
 | `coinCount(row)` / `coinRate(row)` / `coinKind(row)` | How many coins a row holds, what one is worth in copper, and the key it stacks under (name and rate together). |
 | `coinTotalCp(rows)` / `coinTotalGC(rows)` | What a set of rows is worth. Rows that are not coin count for nothing. |
-| `ownCoin(holder)` / `purseGp(holder)` | A holder's own coin rows, loose ones first: an actor's purse, or a place's house-owned stacks. And what they are worth in gold. |
+| `coinStores(holder, {within?})` | The stores a holder's coin is kept in, in the standing order: loose, each carried container, each place. Each is `{key, kind, name, actor, containerId, rows, shut, takesCoin, writable, vault}`. |
+| `containerStoreKey(itemId)` / `placeStoreKey(actorUuid)` / `LOOSE_STORE` / `readStoreKey(key)` | The key that names a store, and what a key names: `{kind: "loose"}`, `{kind: "container", id}` or `{kind: "place", uuid}`. A key that reads as nothing names coin carried loose. |
+| `coinOrderOf(holder)` / `setCoinOrder(holder, {payFrom?, receiveInto?})` | The order a holder states, as two store keys, and the write of either half. `setCoinOrder` resolves to the order now stated. |
+| `keepsCoinElsewhere(holder)` | Whether a place may keep coin for this holder: not for a location, and not for an unlinked token's own actor. |
+| `ownCoin(holder)` / `purseGp(holder)` | The coin rows a holder has on them that are their own, loose ones first: an actor's purse and what its containers hold, or a place's house-owned stacks. And what they are worth in gold. |
+| `spendableGp(holder, {within?})` | What a payment may draw on, in gold: every store inside the reach that no lock shuts. |
+| `standingCoinScope()` / `COIN_SCOPE_SETTING` | The world's standing reach, `"all"`, `"scene"` or `"hand"`, and the key of the setting that states it. |
 | `coinReach(from, to)` | `{can, reason}`: may coin get from one holder to the other now. |
-| `creditCoin(holder, credits, {ownerUuid?, ownerName?})` | Lands coin on the holder's row of its kind. A credit is `{count}` plus `source` (a coin row's plain data), or `name` and `cv`, or `cv` alone. Resolves to `{updates, creates}`. |
-| `mintCoin(holder, gp, {ownerUuid?, ownerName?})` | Coin from nowhere, in standard denominations. |
-| `sinkCoin(holder, gp)` | Coin paid to nobody. `{ok, changeCp}`, or `{ok: false, reason: "insufficient", shortfallCp}` with nothing written. It does not warn; the caller says why. |
-| `transferCoin({from, to, gp, reason?, at?, gate?, allowMint?, upTo?})` | Coin from one holder to another. `{ok, changeCp}`, or `{ok, paidCp, arrearsCp}` under `upTo`, or `{ok: false, reason}` after its own warning (`notTogether` and the other reach reasons, `insufficient`, `noChange`). |
+| `creditCoin(holder, credits, {ownerUuid?, ownerName?, into?, within?})` | Lands coin in the store the holder's order names, on the row of its kind there. A credit is `{count}` plus `source` (a coin row's plain data), or `name` and `cv`, or `cv` alone. `into` is a store key that overrides the order; `ownerUuid` puts the coin on the holder under that owner whatever any order says. Resolves to `{updates, creates}`. |
+| `mintCoin(holder, gp, opts?)` | Coin from nowhere, in standard denominations. `opts` are `creditCoin`'s. |
+| `sinkCoin(holder, gp, {within?})` | Coin paid to nobody. `{ok, changeCp}`, or `{ok: false, reason: "insufficient", shortfallCp}` with nothing written. It does not warn; the caller says why. |
+| `transferCoin({from, to, gp, reason?, at?, gate?, allowMint?, upTo?, within?})` | Coin from one holder to another. `{ok, changeCp}`, or `{ok, paidCp, arrearsCp}` under `upTo`, or `{ok: false, reason}` after its own warning (`notTogether` and the other reach reasons, `insufficient`, `noChange`). |
 | `exchangeCoins({actor, place, itemId, count, toCv})` | One kind for another at a market. `{ok, paidOutCp}`. |
+| `gatherCoin(holder)` | Folds rows of one kind in one store into one, on the holder and at each place keeping coin for them that the seat may write. `{merged}`. |
 | `coinTemplate({cv?, name?})` | The plain data a new row of that coin is copied from, or `null` when the world has none. |
 
-`transferCoin` took a `toBank` option until apiVersion 24. It is gone with the
-field it wrote: coin lands in the payee's purse, and coin kept at a place goes
-there through `storage.depositCoin` or `storage.stash`.
+**A payment the seat cannot write.** `transferCoin` and `sinkCoin` hand the
+whole payment to the GM when it touches a document the seat does not own: a
+place keeping coin for either side, or a payee. The result has the same
+shape. With no GM connected it is `{ok: false, reason: "noGm"}`, nothing is
+written, and the relay tells the seat that a GM must be connected. A relayed
+payment never mints: `allowMint` is honoured only at a seat that owns the
+till.
 
-The rules these calls keep (one count, the kind as merge key, loose before
-packed, exact change) are [MODEL.md](MODEL.md), "Currency".
+`transferCoin` took a `toBank` option until apiVersion 24. It is gone with the
+field it wrote: coin lands where the payee keeps arriving coin, and coin kept
+at a place for somebody else goes there through `storage.depositCoin` or
+`storage.stash`.
+
+Until apiVersion 25 `creditCoin` landed coin on the holder's own row of its
+kind, and every payment drew on `ownCoin` alone. A caller that must keep to
+coin on hand passes `within: "hand"`.
+
+The rules these calls keep (one count, the kind as merge key, stores and a
+holder's order, a payment's reach, exact change) are [MODEL.md](MODEL.md),
+"Currency".
+
+### `coinOrder` — the order on a sheet (apiVersion 25)
+
+```js
+const { view, bind, TEMPLATE } = acksExtras.lib.coinOrder;
+```
+
+A sheet that lists a holder's coin draws the order with these and writes none
+of its own. `view(holder, {places?})` builds what the `TEMPLATE` partial is
+handed: `{uuid, editable, shown, choice, payFrom, receiveInto, foldable,
+onHandGp, keptGp, reachNote}`, the two option lists as `{key, label,
+selected}`. `places` are `{uuid, name}` rows for places the sheet lists that
+keep none of the holder's coin yet. Draw the block only while `shown`. Every
+actor sheet's blocks are bound as it renders; `bind(root)` is for a block a
+sheet injects after its render hooks have run. The selects carry no `name`:
+the listener writes the choice through `setCoinOrder` and stops the event, so
+the block is safe inside a form that submits on change.
 
 ### `wallGeometry` / `wallLayers` — a line the Judge drew (apiVersion 16)
 
