@@ -2925,6 +2925,12 @@ and the hit-point and repair windows ask a changed control `matches`. The
 check that keeps the test from returning is ruled for the family's validator
 and is the template's to carry. At this date nothing gates it here.
 
+**Amended 2026-10-01.** The check landed once 10.0.0 was out.
+`tools/validate.mjs` §8g fails an `instanceof` against a DOM node interface
+under `scripts/`, and takes `// realm-ok: <reason>` as its escape
+(`.claude/rules/ui-layout.md`). It reads 24 `instanceof` tests here and fails
+none.
+
 **Found live.** On core 14.367, with a parent sheet detached by core's own
 control and each subject handed to its `renderChild`.
 - The root of a window first rendered inside a detached browser window is an

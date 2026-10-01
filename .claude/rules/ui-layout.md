@@ -5,7 +5,8 @@ scroll**, at the type size its user chose. A user whose display is smaller than
 the one it was built on must still be able to reach every control on it, and a
 user who raises the type size must have it reach every surface. Reaching a
 control also means reaching it from the keyboard and hearing it named, and
-means the window behaves when a second copy of it is open beside the first.
+means the window behaves when a second copy of it is open beside the first,
+and when it is first rendered in a browser window of its own.
 
 This is a field rule, not a preference: the failure is silent. Core caps an
 application frame at the viewport height and gives `.window-content`
@@ -15,7 +16,7 @@ sees it, because nothing offline has a viewport.
 
 ## What the gate enforces
 
-`tools/validate.mjs` §8 fails the build on the six halves that are decidable
+`tools/validate.mjs` §8 fails the build on the seven halves that are decidable
 from source. Read that section for the mechanics; they are not restated here.
 
 - **Scroll-contract membership** — a window whose `classes` array omits
@@ -42,14 +43,23 @@ from source. Read that section for the mechanics; they are not restated here.
   and every `for=`/`list=` naming it then resolves to the FIRST window's
   element. `{{@root.partId}}` is the per-window seed for the cases that
   genuinely need an explicit id, such as a `<datalist>`.
+- **A DOM node told by `instanceof`** — a window first rendered inside a
+  detached browser window is built by that window's document, so its root,
+  every node under it and the target of every event in it are no instance of
+  the main window's `HTMLElement`. A render hook that resolves its root with
+  the test passes that window by, or takes a `<form>`'s first control for the
+  root, and a listener guarded by it drops every event. An element is told by
+  `nodeType === 1` and a control by `matches`.
 
 Each escape is declared on the spot, and they are deliberate and cheap: a
 window outside the scroll contract writes `// no-scroll: <reason>` on or just
 above its `classes:` line, a size that must not move writes
-`/* px-ok: <reason> */` beside itself, and the three template checks answer to
+`/* px-ok: <reason> */` beside itself, the three template checks answer to
 `{{!-- summary-ok: <reason> --}}`, `{{!-- label-ok: <reason> --}}` and
-`{{!-- id-ok: <reason> --}}` on or just above the offending line. An undeclared
-omission is the bug.
+`{{!-- id-ok: <reason> --}}` on or just above the offending line, and a node
+only the window the script runs in can have built writes
+`// realm-ok: <reason>` on or just above its test. An undeclared omission is
+the bug.
 
 ## Type answers to one knob
 

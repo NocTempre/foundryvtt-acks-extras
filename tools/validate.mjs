@@ -1420,10 +1420,11 @@ if (module_?.id) {
 
 /* 8. The window contract — every window a module opens stays reachable and
  *    legible on a small display, at the type size its user chose, and behaves
- *    when a second copy of it is open at the same time. Six failure modes are
- *    decidable from the source, and all six are invisible to every other check
- *    because they need a real viewport, a real setting, or a second open
- *    window:
+ *    when a second copy of it is open at the same time, or when it is first
+ *    rendered in another browser window. Seven failure modes are decidable
+ *    from the source, and all seven are invisible to every other check because
+ *    they need a real viewport, a real setting, a second open window, or a
+ *    second browser window:
  *
  *    a. A window outside the scroll contract. Core caps an application frame at
  *       the viewport height and gives `.window-content` `overflow: hidden`, so a
@@ -1458,13 +1459,25 @@ if (module_?.id) {
  *       element. `{{@root.partId}}` (Foundry sets it to `<app id>-<part id>`
  *       on every HandlebarsApplicationMixin part context) is the fix for the
  *       cases that genuinely need an explicit id, such as a <datalist>.
+ *    g. A DOM node told by `instanceof`. Core builds a window's frame with the
+ *       document of the browser window that hosts it, so a window first
+ *       rendered inside a detached one has a root that window's document
+ *       built: an instance of THAT window's `HTMLElement` and of none in the
+ *       main one, as is every node reached through it and the target of every
+ *       event inside it. `element instanceof HTMLElement ? element :
+ *       element?.[0]` then takes its second arm, which is nothing for most
+ *       roots and a form's first control for a `<form>`, since a form indexes
+ *       its controls. The hook that asked passes the window by or works on
+ *       one of its controls, and reports neither. An element is told by
+ *       `nodeType === 1` and a control by `matches`.
  *
  *    A window that must sit outside the contract says so where it is declared:
  *    `// no-scroll: <reason>` on or just above its `classes:` line; a size that
  *    must not move says `/* px-ok: <reason> *\/` beside itself; d/e/f each carry
  *    their own escape, on or just above the offending line:
  *    `{{!-- summary-ok: <reason> --}}`, `{{!-- label-ok: <reason> --}}`,
- *    `{{!-- id-ok: <reason> --}}`.
+ *    `{{!-- id-ok: <reason> --}}`; a node only the window the script runs in
+ *    can have built says `// realm-ok: <reason>` on or just above its test.
  *
  *    d/e/f strip Handlebars ({{!-- … --}}) and HTML (<!-- … -->) comments
  *    before matching — an existing family gate's known blind spot is matching
@@ -1792,6 +1805,55 @@ walk(path.join(ROOT, "templates"), (full) => {
     );
   }
 });
+
+// 8g. No `instanceof` against a DOM node interface in scripts/ (.mjs and .js),
+// read from 2b's tokens, so a test written in a comment or a string is not
+// one. The right-hand side is read as written: an interface named bare, or
+// off `window`, `globalThis` or `self`. A file that binds the bare name
+// itself, by an import, a declaration or a parameter, is testing a class of
+// its own and is passed by. `Document` is not on the list: in a module the
+// bare word is the document base class far more often than the DOM's.
+const DOM_NODE_INTERFACE = /^(?:Node|Element|CharacterData|Text|Comment|DocumentFragment|ShadowRoot|MathMLElement|(?:HTML|SVG)\w*Element)$/;
+const WINDOW_GLOBALS = new Set(["window", "globalThis", "self"]);
+let instanceofTests = 0;
+let realmExcused = 0;
+walk(path.join(ROOT, "scripts"), (full) => {
+  if (!/\.m?js$/.test(full)) return;
+  const mod = jsModule(full);
+  if (!mod) return;
+  const t = mod.tokens;
+  const lines = mod.src.split("\n");
+  const bindsItself = (name) =>
+    mod.consts.has(name) ||
+    mod.imports.has(name) ||
+    mod.bound.has(name) ||
+    t.some((tk, k) => tk.type === "ident" && tk.value === name && t[k - 1]?.type === "ident" && ["class", "function"].includes(t[k - 1].value));
+  for (let k = 0; k < t.length; k++) {
+    if (t[k].type !== "ident" || t[k].value !== "instanceof" || punctAt(t, k - 1, ".")) continue;
+    instanceofTests++;
+    const qualified = t[k + 1]?.type === "ident" && WINDOW_GLOBALS.has(t[k + 1].value) && punctAt(t, k + 2, ".");
+    const at = qualified ? k + 3 : k + 1;
+    const name = t[at];
+    if (name?.type !== "ident" || !DOM_NODE_INTERFACE.test(name.value) || punctAt(t, at + 1, ".")) continue;
+    if (!qualified && bindsItself(name.value)) continue;
+    const lineNo = mod.src.slice(0, t[k].start).split("\n").length;
+    // The line above excuses the test only as a comment of its own: a comment
+    // trailing the code there is about that line.
+    const above = lines[lineNo - 2] ?? "";
+    if (lines[lineNo - 1].includes("realm-ok:") || (/^\s*(?:\/\/|\/\*|\*)/.test(above) && above.includes("realm-ok:"))) {
+      realmExcused++;
+      continue;
+    }
+    fail(
+      rel(full),
+      `line ${lineNo}: instanceof ${name.value} — false for a node another browser window's document built, which is every node of a window first rendered inside a detached one, so the test passes that window by with nothing to say so. Tell an element by nodeType === 1 and a control by matches(), or state why not with "// realm-ok: <reason>" on or just above the test`,
+    );
+  }
+});
+console.log(
+  `validate: node tests checked ${instanceofTests} instanceof test${instanceofTests === 1 ? "" : "s"} in scripts/ against the DOM node interfaces` +
+    (realmExcused ? `; ${realmExcused} passed on realm-ok` : ""),
+);
 
 /* 9. IP leak scan — licensed book material must never reach a public repo or a
  *    release artifact. CI runs this again against the built zip and quarantines
