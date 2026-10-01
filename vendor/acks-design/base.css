@@ -44,7 +44,10 @@
   letter-spacing: var(--acks-tracking-display);
   text-transform: uppercase;
   margin: 0;
-  text-wrap: balance;
+  /* Balance only. The `text-wrap` shorthand also resets the wrap mode, and
+   * this rule reaches headings a lower layer holds to one line: core's window
+   * title is an <h1>. */
+  text-wrap-style: balance;
 }
 
 /* H1 — a section head. 19pt Trajan Bold in the books. Sits on its own line
@@ -103,7 +106,8 @@
   text-transform: uppercase;
   color: var(--acks-spot);
   text-align: center;
-  text-wrap: balance;
+  /* The longhand, as on the headings above. */
+  text-wrap-style: balance;
 }
 
 /* --------------------------------------------------------------------------

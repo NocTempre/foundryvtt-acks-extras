@@ -2506,3 +2506,48 @@ uses.
 **What it cost.** The English is written twice, inline and in lang. The suite
 holds the two to the same members, not to the same words, and a family added
 without its keys fails `npm test` rather than `npm run validate`.
+
+### A heading asks for balanced lines, never for wrapping (2026-10-01)
+
+**Ruled.** The design system's heading rule and `.acks-display`
+(`vendor/acks-design/base.css`) set `text-wrap-style: balance`. Neither uses
+the `text-wrap` shorthand, and no rule that can land on another stylesheet's
+markup does. A window title on an `acks-ui` root keeps the one line core gives
+it: it ends in an ellipsis when the header is narrower than the title, and
+shows whole when the window is widened.
+
+**Found live.** `text-wrap` is a shorthand for the wrap style and the wrap
+mode, and `white-space: nowrap` sets that same wrap mode. Core holds a window
+title to one line with `white-space: nowrap` in `@layer applications`. The
+title is an `<h1>`, so the heading rule matched it, and a module's stylesheets
+load in a layer that outranks core's, so the title computed
+`white-space: normal`. A title longer than its header wrapped onto two to four
+balanced lines inside a header that core fixes at one line's height and clips.
+Every `acks-ui` root was affected: this module's windows, and the system's
+under `sheetStyle` `full`.
+The 9.6.0 trade dialog, titled with its place, is where it was seen, and that
+release's shots use a short place name because of it.
+
+**Measured.** On 9.7.0, and on 9.7.0 with the one stylesheet changed: one
+actor and one item of every sub-type, 24 sheets, every tab walked, 105 heading
+reads. 65 changed, all of them window titles, from two to four wrapped lines
+to one. The other 27 title reads are the character sheet's and the item
+sheet's, which hide their title and already held it to one line. The 13 body
+headings did not change, and the three that wrap still wrap. A tag-stack
+reading of `templates/` and `scripts/` finds 61 headings, none under an element
+that a `nowrap` rule in `styles/` or the design system selects.
+
+**Rejected.**
+- *`white-space: nowrap` on the title rule in `foundry.css` § 2.* It repairs
+  the one heading that was reported. The shorthand goes on resetting the wrap
+  mode of every other heading, and of every element given `.acks-h1` to
+  `.acks-h3`, that a lower layer or a parent holds to one line.
+- *A header that grows to show the wrapped title.* Each window's body then
+  starts at a height its title's length decides. Core fixes the header with a
+  flex basis, and the character sheet and the item sheet replace that basis
+  for a band of their own.
+
+**What it cost.** A title longer than its header loses its tail until the
+window is widened, as on a core window. A browser that has
+`text-wrap: balance` and not the longhand drops the declaration: its headings
+wrap unbalanced, and its window titles still hold one line.

@@ -957,6 +957,69 @@ the party token, are formation's recipe "An unlinked member's own hit points"
 **Teardown.** `api.sweepTracked()`. The scene takes every token on it with
 it, the body tokens included, so those sweep as missing.
 
+## A long window title stays on one line
+
+Covers the design system's heading rule (`vendor/acks-design/base.css`,
+HEADINGS) where it meets core's window header. Nothing offline sees it: the
+fault is a cascade result, and the suite has no cascade.
+
+**Drive notes:**
+- **Count lines from a `Range`.** Select the title's contents and count the
+  distinct `top`s of `getClientRects()`. The header clips a wrapped title to
+  its own height, so a screenshot shows two lines where there are three.
+- **Take `app.element` as it is.** A sheet's root is a `<form>`, and a form
+  indexes its controls: `app.element[0]` is the first input, not the root.
+- **The character sheet and the item sheet cannot show this.** Both clip
+  their title to a 1px box.
+- **Construct the system's monster sheet.** The world's default for a monster
+  is this module's follower card. The system's own is
+  `Object.values(CONFIG.Actor.sheetClasses.monster).find((r) => r.id.startsWith("acks.")).cls`,
+  built with `{document: actor}`. Under `sheetStyle` `full` its root carries
+  `acks-ui` from the render hook, and its own `classes` do not name it. Keep
+  the instance and close it yourself.
+- **A window refuses a width below its minimum.** The system's sheet stays
+  900px wide when asked for 420.
+
+**Fixtures (each id recorded with `api.create`):** an `acks-extras.vehicle`
+named with an invented phrase of about 45 characters, and a `monster` and an
+`acks-extras.marketReport` item named with one of about 85.
+
+**The probe.** Run it on a heading element. A window's title is
+`app.element.querySelector(":scope > .window-header .window-title")`.
+
+```js
+(h) => {
+  const range = document.createRange();
+  range.selectNodeContents(h);
+  const rects = [...range.getClientRects()].filter((r) => r.width > 0);
+  return {
+    whiteSpace: getComputedStyle(h).whiteSpace,
+    lines: new Set(rects.map((r) => Math.round(r.top))).size,
+    truncated: h.scrollWidth > h.clientWidth + 1,
+  };
+}
+```
+
+1. **Five windows at 420px.** Open the vehicle's sheet and the monster's,
+   render the system's monster sheet, and render two `DialogV2`s whose
+   `window.title` is a few words followed by the 45-character phrase: one with
+   `classes: ["acks-ui", "acks-extras", "acks-extras-scroll"]`, one with no
+   classes. `setPosition({width: 420})` on each and probe each title.
+   **Observable:** all five read
+   `{whiteSpace: "nowrap", lines: 1, truncated: true}`. The unclassed dialog
+   is core's own behaviour, and the other four match it. A wrapped title reads
+   `whiteSpace: "normal"` and two or more lines.
+2. **Widened.** `setPosition({width: 1100})` on each.
+   **Observable:** every title still reads one line. The vehicle's and both
+   dialogs' read `truncated: false`, the whole title showing.
+3. **A heading in a window's body still wraps.** Open the market report and
+   probe `.acks-extras-markets-report-title`, the item's name set as a heading
+   in the sheet's body.
+   **Observable:** `whiteSpace: "normal"` and more than one line.
+
+**Teardown.** Close the windows, the constructed system sheet included, and
+`api.sweepTracked()`.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.
