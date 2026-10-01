@@ -438,6 +438,58 @@ and the literal `id=`, are gated in this repo's own templates by
 `tools/validate.mjs` §8d–f (`.claude/rules/ui-layout.md`); the runtime pass is
 what answers for every window this repo does not author.
 
+## A window title cut short
+
+A window title wider than its header ends in an ellipsis. On an ACKS surface,
+`window-title.mjs` shows such a title whole in Foundry's tooltip while the
+pointer rests on it.
+
+**Bound once per window, from the marking hook.** The `renderApplicationV2`
+hook that marks ACKS roots hands each root it marks to `watchWindowTitle`. A
+window's frame is built once and outlives its renders, so the title element is
+the same on every pass, and a `WeakSet` of watched titles keeps a later render
+from binding again. The watch is three listeners on the title itself:
+`pointerenter`, `pointerleave` and `pointerdown`.
+
+**Everything is read when the delay runs out.** The pointer's arrival starts a
+timer of the manager's own `TOOLTIP_ACTIVATION_MS`. When it runs out,
+`clippedTitle` asks whether the root wears `acks-ui` or `acks-palette` at that
+moment, and whether the text overflows its box. Nothing about the window is
+kept from render time, so a window resized, minimized, re-titled or re-dressed
+by `applyLook` since then is answered as it stands. Arriving from a tooltip
+that is already showing, a header control's for one, the title's follows at
+once, as the manager moves its own.
+
+**Cut short is read twice.** `scrollWidth > clientWidth` is the box's own
+reading, in whole pixels, and it counts a title's padding. The second reading
+is the width of the title's contents, taken from a `Range`, against the width
+of its box, in fractions of a pixel. Either one is enough.
+
+**The tooltip is the manager's.** `game.tooltip.activate` is called with the
+title's text as `text`, which the manager writes as text and never as markup.
+It is asked for above the title. Where the viewport's top leaves no room, the
+manager pins the tooltip inside the viewport and over the title; the watch
+sees the overlap and activates it again below. The manager marks the element
+it shows for with `aria-describedby`, and the watch removes it: the tooltip
+repeats the heading's own words. Leaving is the manager's to handle. It
+dismisses the tooltip half a second after the pointer leaves the title, and
+the same after the element under a still pointer changes, which is what
+happens when the window closes.
+
+**A press is the start of a drag.** The title is part of the header core
+drags the window by. `pointerdown` cancels a pending tooltip and dismisses the
+title's own, and nothing starts another until the pointer arrives again. A
+drag gives the pointer to the header, so a release over the title is a fresh
+arrival; a press that never moved is not one.
+
+**What never answers.** A title that shows whole. A window not wearing the
+dress: an unclassed core dialog, and every window under the `core` look. The
+character sheet and the item sheet, whose titles are clipped to a 1px box and
+take no pointer. A hover while a tour runs, since the tour holds the manager's
+one tooltip element. A touch pointer, whose arrival and press are one event
+pair. A window first rendered inside a detached browser window, which the
+marking hook does not see.
+
 ## Perception: senses, light, and the token
 
 Three files answer "what can this creature see, and how brightly does it burn?"

@@ -142,3 +142,15 @@ descender half a pixel. The header is not what cuts them. Core's own title
 takes the header's height as its line height and loses nothing. A taller line
 changes the title's box on every window, and wants its own before-and-after
 reading (TESTING, "A long window title stays on one line").
+
+## A window first rendered inside a detached window
+
+A render hook that finds its root with `element instanceof HTMLElement` passes
+by a window whose frame another browser window's document built (DECISIONS, "A
+window title cut short is shown whole on a hover", the last finding). The test
+is written across `scripts/` (grep it: 37 places in 33 files), and where it
+fails the fallback `element?.[0]` is nothing for most roots and a form's first
+control for a `<form>`. Not built: one root resolver in lib that does not ask
+which window's constructor made the element, used at each of those places.
+Once the marking hook resolves such a root, a system window opened inside a
+detached one takes the dress there, which wants its own live look.

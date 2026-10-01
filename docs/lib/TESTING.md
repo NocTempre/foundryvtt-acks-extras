@@ -962,7 +962,10 @@ it, the body tokens included, so those sweep as missing.
 Covers the design system's heading rule (`vendor/acks-design/base.css`,
 HEADINGS) where it meets core's window header, and the title rule that
 answers it (`vendor/acks-design/foundry.css` § 2). Nothing offline sees it:
-the fault is a cascade result, and the suite has no cascade.
+the fault is a cascade result, and the suite has no cascade. Steps 5 to 9
+cover the hover that shows a cut-short title whole (`window-title.mjs`):
+`tools/test-window-title.mjs` holds its guards against a stand-in manager, and
+only a real pointer on a real header proves the rest.
 
 **Drive notes:**
 - **Count lines from a `Range`.** Select the title's contents and count the
@@ -992,10 +995,45 @@ the fault is a cascade result, and the suite has no cascade.
 - **Centre against the header's box.** Core's header has a 1px bottom border
   and this module's dress has none, so on a core window the title and the
   controls read −0.5 against the box, and on a dressed one they read 0.
+- **Hover with real input.** Attach a second DevTools session to the page
+  (`Target.attachToTarget` on the `/game` page target, `flatten: true`) and
+  send it `Input.dispatchMouseEvent`: `mouseMoved`, `mousePressed`,
+  `mouseReleased`, and for a drag `mouseMoved` with `buttons: 1` between the
+  two. A `PointerEvent` dispatched from script reaches the title's listeners
+  and skips the browser's hit test, and the hit test is what says a hidden
+  title takes no pointer. A listener that records `event.isTrusted` tells the
+  two apart.
+- **Park the pointer and clear the tray before each hover.** Move the pointer
+  to bare canvas, wait out the manager's half second, clear
+  `ui.notifications`, and check that `document.elementFromPoint` at the
+  title's centre returns the title. A toast over a window near the viewport's
+  top takes the hover, and the result then reads as a title that did not
+  answer.
+- **Read the tooltip off the manager.** `game.tooltip.element` is the element
+  it shows for, and `game.tooltip.tooltip` carries the class `active` while it
+  shows. The tooltip keeps its last text and position after it hides, so
+  neither says one is up.
+- **Sample on both sides of the delay.** Nothing at 250ms, showing at 950ms,
+  still showing 250ms after the pointer leaves, gone by 1150ms. Let the page
+  go quiet before the first hover: after a reload, or after opening several
+  sheets, the delay's timer waits on the thread and the tooltip is late, not
+  absent. A `longtask` `PerformanceObserver` says when the page is quiet.
+- **The probe's `truncated` is coarser than the watch.** Its 1px allowance
+  reads false until the text is 1.5px over, and the watch answers from the
+  first fraction of a pixel. Set a width to a fraction through
+  `app.element.style.width`.
+- **A detached window is its own page.** After core's Detach control the
+  window is in a popup with a page target of its own (`/detached/index.html`).
+  Attach a session to that target and send the pointer there, in the popup's
+  viewport coordinates. State is still read from the main page:
+  `app.element.ownerDocument` is the popup's document.
 
 **Fixtures (each id recorded with `api.create`):** an `acks-extras.vehicle`
 named with an invented phrase of about 45 characters, and a `monster` and an
-`acks-extras.marketReport` item named with one of about 85.
+`acks-extras.marketReport` item named with one of about 85. For steps 7 and 8,
+a `character` owned by every seat (`ownership: {default: 3}`) holding an
+`item` of `system.quantity.value` 6 named with one of about 70, and a plain
+world `item`.
 
 **The probe.** Run it on a heading element. A window's title is
 `app.element.querySelector(":scope > .window-header .window-title")`.
@@ -1064,9 +1102,84 @@ named with an invented phrase of about 45 characters, and a `monster` and an
    heading rule's margins reads `margins: "24px 8px"` and a `title` of 8, and
    at 18px its `past` is 3: the line's box ends below the header's edge,
    though the capitals' ink does not.
+5. **A cut-short title shows whole on a hover.** With the five windows of
+   step 1 at 420px, rest the pointer on each title for a second and move it
+   away. Widen each to 1100px and do the same, then set the vehicle's sheet
+   back to 420px and hover it once more. On the dressed dialog, hover the
+   header 13px above the title's centre as well.
+   **Observable:** at 420px the four `acks-ui` windows show nothing 250ms in.
+   At 950ms `game.tooltip.element` is the title, the tooltip's text is the
+   title's `textContent`, its bottom edge is 5px above the title's box, and
+   the title has no `aria-describedby`. It is gone within 1150ms of the
+   pointer leaving. The unclassed dialog shows nothing. At 1100px the
+   vehicle's sheet and the dressed dialog show nothing, and the monster's two
+   windows, still cut short, still answer. Back at 420px the vehicle's sheet
+   answers again with no render in between. The header above the title's line
+   hit-tests as the header, and shows nothing.
+6. **The title is still the handle.** On the dressed dialog, with its tooltip
+   showing, press on the title, drag 120px right and 70px down, hold for a
+   second, release, and leave the pointer where it is. Then start a fresh
+   hover, press 150ms into it and hold. Then double-click the vehicle sheet's
+   title.
+   **Observable:** the tooltip is gone 60ms after the press. `app.position`
+   has moved by the drag. Nothing shows while the button is held. Half a
+   second after the release the tooltip is back: the title logged a fresh
+   `pointerenter`. The early press shows nothing while it is held, and nothing
+   after its release. The double click minimizes the sheet, and its title, cut
+   short at the minimized width, answers a hover.
+7. **What stays silent, and where the tooltip sits.** Open the character's
+   sheet and the plain item's.
+   **Observable:**
+   - On both, `document.elementFromPoint` at the title's centre returns the
+     sheet's own band, a listener on the title records no pointer event, and
+     nothing shows. The same with each minimized.
+   - `game.settings.set("acks-extras", "look", "core")`: the follower card's
+     root wears neither dress class, its title is still cut short, and nothing
+     shows. Set back, it answers again with no render in between.
+   - `sheetStyle` `palette`: the system's monster sheet wears `acks-palette`
+     and narrows to 420px. Its title is cut short and answers.
+   - The dressed dialog at `top: 0`: the tooltip starts 5px below the title.
+     At `top: 430` it ends 5px above. At no position does it overlap the
+     title.
+   - Rest on the dialog's close button until its tooltip shows, then move
+     onto the title: the title's tooltip replaces it at once and is still up a
+     second later.
+   - With the type size at 18px, a dialog opened fresh answers at 420px.
+   - A touch held on the title for a second (`Input.dispatchTouchEvent`,
+     `touchStart` then `touchEnd`): the title logs `pointerenter` and
+     `pointerdown` together, and nothing shows.
+   - Close the dressed dialog from script while its tooltip shows, the
+     pointer left where it is. Over bare canvas the tooltip is gone within
+     600ms; closed 200ms into a hover, nothing shows at all. Over another
+     window, what lies beneath takes the pointer within a frame and may show
+     a tooltip of its own: the observable there is that the closed title's
+     text is not up.
+   - A middle press on the title while its tooltip shows: the tooltip goes,
+     and the page holds no `.locked-tooltip`.
+   - While a tour's step shows (a `foundry.nue.Tour` of one step, started,
+     its overlay set to `pointer-events: none` so the pointer reaches the
+     title), a long hover on a cut-short title leaves the tooltip the tour's:
+     it keeps the class `tour` and the step's text. After `tour.exit()` the
+     title answers again.
+8. **A dialog a player opens.** From a player's seat, open the character's
+   sheet, click the Equipment tab, and click the stack's Divide control
+   (`[data-action="divideStack"]`).
+   **Observable:** a `DialogV2` wearing `acks-ui`, 400px wide with
+   `options.window.resizable` false, titled "Divide" and the item's name. The
+   name is cut off the end, and a long hover shows the whole title.
+9. **Popped out.** On the dressed dialog, click the header's controls button
+   and then Detach Window. Hover the title in the popup, then call
+   `app.attachWindow()` and hover it in the main window.
+   **Observable:** `app.element.ownerDocument !== document`. The tooltip
+   shows, and `game.tooltip.tooltip.ownerDocument` is the popup's document. It
+   sits below the title: the popup's viewport begins at the window's top.
+   Attached again, the title answers in the main window.
 
-**Teardown.** Close the windows, the constructed system sheet included, and
-`api.sweepTracked()`.
+**Not reached.** A browser other than the Chromium build the capture driver
+launches.
+
+**Teardown.** Close the windows, the constructed system sheet included, set
+`look` and `sheetStyle` back to what step 7 found, and `api.sweepTracked()`.
 
 ## Conditions on the palette and on a roll
 

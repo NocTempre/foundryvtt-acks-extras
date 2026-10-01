@@ -2715,3 +2715,90 @@ Counted on the day, that is 232 of the 369 images under `docs/releases`, the
 earliest in the v1.0.0 folder: 102 of the 154 the guides embed and 18 of the
 gallery's 24. A sheet that draws its own band, a chat card and a window in
 core's look are not among them.
+
+### A window title cut short is shown whole on a hover (2026-10-01)
+
+**Ruled.** On an ACKS surface, a window title its header cuts short shows
+whole in Foundry's tooltip when the pointer rests on it for the tooltip
+manager's own delay. A title that shows whole shows nothing more.
+`window-title.mjs` owns it, bound from the hook that marks ACKS roots. Whether
+the title is cut short, and whether its window wears the dress, are read when
+the delay runs out, so a window resized after it rendered is answered as it
+stands. The tooltip sits above the title, and below it where the viewport's
+top leaves no room. A press on the title cancels a pending tooltip and
+dismisses a showing one. The heading is not described by its tooltip: the
+`aria-describedby` the manager writes is taken off again.
+
+**Found live.**
+- `scrollWidth > clientWidth` reads false while the text overflows its box by
+  under half a pixel, and the browser already ends such a title in an
+  ellipsis. On a dressed dialog sized around the fit, the ellipsis is drawn at
+  0.125px and 0.5px over and the title shows whole at 0 and 0.125px under; the
+  two whole-number widths read equal at 0.125px over. The watch reads the
+  widths in fractions as well.
+- The manager's default direction is below, over the window's own first row.
+- The character sheet's and the item sheet's titles take no pointer at all:
+  the hit test at the title's centre returns the sheet's band, minimized too.
+  Nothing in the watch names those sheets.
+- A window closed under its own tooltip needs no close hook. With the pointer
+  still, the manager dismisses the tooltip 512ms and 530ms after the close.
+- A tooltip that arrives late is the delay's timer waiting on a busy thread.
+  With the thread held for 1200ms from 100ms into a hover, the tooltip arrived
+  1303ms after the pointer.
+- A window first rendered inside a detached browser window is not watched.
+  Its frame is built by that window's document, and the marking hook's
+  `instanceof HTMLElement` is false for it, so the hook passes it by: it is
+  not dressed by the hook either. A window detached after it rendered keeps
+  its watch. Nothing opens an ACKS window that way at this date: neither this
+  module nor the system calls `renderChild` or passes a `windowId`, and the
+  case was reached by passing one by hand.
+
+**Measured.** On core 14.367 at the default type size, every pointer event
+real browser input.
+- A dressed dialog's title runs 11.6px a character against core's 5.9px, and
+  its box is the window's width less 74px. A title of 65 characters needs
+  755px. The character sheet's Divide dialog is 400px wide and cannot be
+  resized: a title of 78 characters needs 896px of its 326px.
+- Over 15 hovers that showed a tooltip, it appeared 501ms to 513ms after the
+  pointer arrived and went 500ms to 509ms after it left.
+- The title's box is 15.5px of the header's 36px. The band above and below it
+  is the header's, and a hover there shows nothing.
+- The tooltip is 48px tall for these titles and sits 5px clear. It goes below
+  the title when the window's top is within 41px of the viewport's, and one
+  pixel further down it sits above, touching the title.
+- At the type knob's maximum the title's face is 19.98px and the tooltip's is
+  still core's 14px.
+- From a player's seat the vehicle sheet and the Divide dialog answer as they
+  do for a GM. In a window detached with core's own control, the tooltip shows
+  in the detached window's own page.
+
+**Rejected.**
+- *A `title` attribute, or `data-tooltip`, written at render.* Neither knows
+  about a later resize: the vehicle sheet's title is cut short at 420px and
+  whole at 1100px. A `title` attribute is also exposed to assistive technology
+  as a description, of a heading that already reads the same words.
+- *One capture listener on the document that hands the manager a
+  `data-tooltip-text`.* It depends on running before the manager's own capture
+  listener, and it cannot take back the `aria-describedby` the manager writes.
+- *The header band as the hover target.* The band also holds the controls,
+  which have tooltips of their own, and on the character sheet and the item
+  sheet it is the sheet's own band over a hidden title.
+- *A hook on close.* See the fourth finding.
+
+**Open to the owner's ruling.**
+- *The target is the title's own box.* A taller title line (ROADMAP, "A window
+  title cuts what rises above a capital") would widen it with no change here.
+- *Above rather than below.* The header controls' own tooltips keep core's
+  direction, so moving from one onto the title moves the tooltip across the
+  header.
+- *The colour-only dress counts.* A system window under `sheetStyle`
+  `palette` answers when its title is cut short.
+- *A touch pointer never sees it.* Its arrival is its press, and a press is
+  the start of a drag: a touch held on the title for 1200ms logged
+  `pointerenter` and `pointerdown` together and showed nothing. Core's own
+  header control showed its tooltip 516ms into the same held touch, so a touch
+  that has not yet moved could be let through.
+
+**What it cost.** The tooltip is core's, so it does not follow the type knob
+and wraps a long title at core's 320px. Each watched window carries three
+listeners on its title.

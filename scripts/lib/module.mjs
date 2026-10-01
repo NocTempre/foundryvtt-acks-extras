@@ -50,6 +50,7 @@ import {
 import { installPolyglotBridge, publishWorldLanguages } from "./polyglot.mjs";
 import { registerManagedEffectGuard, lockManagedEffectRows } from "./managed-effects.mjs";
 import { associateLabels } from "./a11y.mjs";
+import { watchWindowTitle } from "./window-title.mjs";
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
@@ -689,7 +690,8 @@ function applyRootPin(mode) {
  * Mark every ACKS surface the SYSTEM renders as an ACKS surface, so the
  * system's own sheets and dialogs take the same colour remap as this
  * module's windows (docs/lib/MODEL.md's theming section). `acks2` is included
- * because the system's dialogs carry it without `acks`.
+ * because the system's dialogs carry it without `acks`. Every root marked has
+ * its title watched (window-title.mjs).
  */
 Hooks.on("renderApplicationV2", (app, element) => {
   const root = element instanceof HTMLElement ? element : element?.[0];
@@ -699,6 +701,7 @@ Hooks.on("renderApplicationV2", (app, element) => {
   const { ui, palette } = dressFor(owned);
   root.classList.toggle("acks-ui", ui);
   root.classList.toggle("acks-palette", palette);
+  watchWindowTitle(root);
 });
 
 /**
