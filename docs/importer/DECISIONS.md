@@ -5569,3 +5569,31 @@ figures on the city's place — the trade layer's market-local rules
 the same world charges the first city's gate toll until a market-local layer
 exists. The gate action and the consignment service are `docs/formation/ROADMAP.md`
 and `docs/factions/ROADMAP.md` rows.
+
+## 2026-10-01 — A modifier row's wording is read from the reader's page
+
+The influence roller's two morale pages offer rungs a Judge has to tell apart,
+and what tells them apart is the condition each row states, which is the
+page's sentence (`docs/influence/DECISIONS.md`, "The morale pages read the
+Judge's table, and post with no result when it is absent"). So the `morale`
+recipe reads the wording with the figure, and two things were added to
+`proseValues` for it (`extractProseValues`, `table-extract.mjs`):
+
+- **`take: "signed"`** reads only a figure that carries its sign. A modifier
+  row words its condition with bare numbers of its own, and `signedInt`'s
+  bare-number fallback took those for the modifier.
+- **`label: true`** stores the row's wording beside its figure as
+  `<key>Label`, cut between the row edges either side of the anchor
+  (`rowLabel`), with the page's own capitals.
+
+*Rejected:* a per-row `labelFrom`/`labelTo` pair of anchors. Every anchor is a
+fragment of the page in a shipped recipe, and the edges of a row are already
+on the page: its bullet and its figure. *Rejected:* a table shape with a label
+column. One page prints the figure after the wording behind a bullet and the
+other before it in a grid, and the prose reading handles both with one rule.
+
+*Cost:* the label is as good as the text layer. A symbol font's bullet arrives
+as whatever code its slot holds, so the edge class is wide, and a page whose
+rows carry no bullet and no signed figure yields no label at all. A label
+longer than a row is discarded rather than kept, so a missed edge costs the
+wording and never imports a paragraph.

@@ -21,6 +21,10 @@ import {
 import { getActorHD, monthlyWageForHD, getProficiencies, getEffectReactionMods } from "./actor-data.mjs";
 import { kindOf, matchesKind, registerRaceRelations, relationFor } from "./racial.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
+import * as services from "../lib/services.mjs";
+import { expectTables } from "../lib/tables.mjs";
+import { MORALE_ROLL_CONTRACT } from "../lib/patches/morale-roll.mjs";
+import { MORALE_DOC } from "./printed.mjs";
 
 const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;
 
@@ -85,7 +89,7 @@ Hooks.once("init", () => {
   // Public API for macros / other modules. Set this FIRST so nothing below can
   // prevent it from being assigned.
   const api = {
-    apiVersion: 9, // 9: the marketAssessment page — bands from ctx, a bribe priced by ctx.bribeBasisHd, `bribe` on the roll-complete payload
+    apiVersion: 10, // 10: the morale and obedience pages read their figures from the `morale` ruledata document, and roll-complete carries `outcome: null` when the result column is not imported
     // Synchronous: a listener's own throw is already caught inside
     // openInfluenceApp, but a constructor throw must reach the caller
     // unaltered. See docs/influence/DECISIONS.md, "Opening the roller stays
@@ -122,6 +126,16 @@ Hooks.once("init", () => {
   };
   // Also expose globally as a resilient fallback for macros.
   acksExtras.influence = api;
+
+  // The printed tables the morale pages read, declared so the import names
+  // them while a Judge's books have not supplied them.
+  expectTables(MORALE_DOC, ["monsterMorale", "hirelingObedience"]);
+
+  // Every sheet's Morale button (lib's `morale-roll` contract): the creature
+  // is the page's subject, and nobody stands opposite it.
+  services.register(MORALE_ROLL_CONTRACT, {
+    open: (actor) => openInfluenceApp(null, { mode: "morale", targetActor: actor }),
+  });
 
   // Register the stored-attitude Item subtype + its sheet.
   CONFIG.Item.dataModels ??= {};

@@ -834,6 +834,13 @@ function takeProse(window, take) {
       const m = window.match(/-\s?\d+|\+\s?\d+|\d+/);
       return m ? num(m[0].replace(/\s/g, "")) : undefined;
     }
+    case "signed": {
+      // A figure that carries its sign, and nothing else: a row whose own
+      // wording holds bare numbers (a fraction, a ratio) is read past them to
+      // the modifier it prints.
+      const m = window.match(/[-+]\s?\d+/);
+      return m ? num(m[0].replace(/\s/g, "")) : undefined;
+    }
     case "quantity": {
       // The first signed figure in the lib's quantity shape (`quantity` in
       // lib/tables.mjs): a "+" or "or more" straight after it marks a floor,
@@ -957,13 +964,58 @@ function takeProse(window, take) {
   }
 }
 
+/**
+ * Where one row of a modifier list ends: a bullet glyph, or the signed figure
+ * a row prints. A symbol font's bullet reaches the text layer as whatever code
+ * its slot holds, a C1 control or a private-use character as often as U+2022.
+ */
+const ROW_EDGE = /[\u0080-\u009F\u2022\uE000-\uF8FF]|[-+]\s?\d+/g;
+
+/** The longest row label kept; anything longer ran past its row into prose. */
+const ROW_LABEL_MAX = 200;
+
+/**
+ * The wording of the modifier row an anchor sits in: the text between the row
+ * edge before the anchor and the one after it, where an edge is a bullet or a
+ * signed figure (`ROW_EDGE`). A list that prints its figure after the wording
+ * and one that prints it before are both read this way. The row that ends the
+ * page has no edge after it and runs to the end of the text. Undefined when no
+ * edge opens the row inside `span`, or the row is longer than a row is.
+ *
+ * A small-caps initial reaches the text layer as its own lowercase run
+ * ("t ask"), so a label opening with one is rejoined and capitalized.
+ */
+function rowLabel(text, at, len, span) {
+  const head = text.slice(Math.max(0, at - span), at);
+  let open = null;
+  for (const m of head.matchAll(ROW_EDGE)) open = m;
+  if (!open) return undefined;
+  const start = at - head.length + open.index + open[0].length;
+  const tail = text.slice(at + len, at + len + span);
+  const close = tail.search(ROW_EDGE);
+  const end = close >= 0 ? at + len + close : at + len + span >= text.length ? text.length : -1;
+  if (end < 0) return undefined;
+  const label = text
+    .slice(start, end)
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^([a-z]) (?=[a-z])/, "$1");
+  if (!label || label.length > ROW_LABEL_MAX) return undefined;
+  return label[0].toUpperCase() + label.slice(1);
+}
+
 export function extractProseValues(items, recipe) {
   const split = recipe.colSplit ?? 300;
   const { xMin = 20, xMax = 600 } = recipe.column ?? {};
   const its = items
     .filter((i) => i.x >= xMin && i.x < xMax && i.y >= (recipe.yMin ?? 55) && i.y <= (recipe.yMax ?? 765))
     .sort((a, b) => ((a.x < split ? 0 : 1) - (b.x < split ? 0 : 1)) || (a.y - b.y) || (a.x - b.x));
-  const text = its.map((i) => i.str).join(" ").replace(/\s+/g, " ").toLowerCase();
+  const printed = its.map((i) => i.str).join(" ").replace(/\s+/g, " ");
+  const text = printed.toLowerCase();
+  // Anchors are found in the lowercased text and a label is cut from the page
+  // as printed, so the two must index alike; a glyph whose lowercase form is
+  // longer breaks that, and the label is then cut from the lowercased text.
+  const cased = printed.length === text.length ? printed : text;
   const out = {};
   for (const v of recipe.values) {
     const find = v.find.toLowerCase();
@@ -979,13 +1031,20 @@ export function extractProseValues(items, recipe) {
     if (v.before && val !== undefined) {
       // before-windows want the LAST match, not the first
       let last;
-      const re = { pct: /(\d+)\s*%/g, gp: /(-?[\d,]+)\s*gp/g, int: /-?\d[\d,]*/g, signedInt: /[-+]\s?\d+/g }[v.take ?? "int"];
+      const re = { pct: /(\d+)\s*%/g, gp: /(-?[\d,]+)\s*gp/g, int: /-?\d[\d,]*/g, signedInt: /[-+]\s?\d+/g, signed: /[-+]\s?\d+/g }[v.take ?? "int"];
       if (re) {
         for (const m of window.matchAll(re)) last = m[1] ?? m[0];
         if (last !== undefined) val = Number(String(last).replace(/[,\s]/g, ""));
       }
     }
-    if (val !== undefined) out[v.key] = val;
+    if (val === undefined) continue;
+    out[v.key] = val;
+    // `label: true`: the row's own wording rides beside its figure, as
+    // `<key>Label`. It is the reader's page and never a string of this repo.
+    if (v.label) {
+      const label = rowLabel(cased, idx, find.length, v.labelSpan ?? ROW_LABEL_MAX);
+      if (label) out[`${v.key}Label`] = label;
+    }
   }
   return out;
 }

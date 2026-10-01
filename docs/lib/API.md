@@ -260,6 +260,23 @@ or null to write nothing. It returns null for a player, for a member who is
 linked or on the map, and when `next` declines. With no provider, a party token
 is an ordinary token to the tool, and there are no party rows.
 
+### Contract `morale-roll` v1
+
+Provider: the influence feature (its `morale` page). Consumer: the lib's
+wrapper of the system's `Actor#rollMorale` (`patches/morale-roll.mjs`). Shape:
+
+```
+{
+  open(actor, options) → unknown   // open the page for this actor; may throw
+}
+```
+
+`options` is what the system passed to `rollMorale`. The wrapper calls `open`
+in place of the system's roll when a provider is registered, the world setting
+`moralePage` is on, and the system's skip-dialog key is not held; otherwise,
+and when `open` throws, the system's own roll runs. With no provider the
+system's roll is untouched.
+
 ## `vocab` — Foundry-free enums (Node-importable)
 
 Enum objects are `{ key: { label, … } }`; `vocab.choicesOf(enumObj)` maps them

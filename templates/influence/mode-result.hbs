@@ -2,7 +2,7 @@
   <header class="acks-influence-card-header">
     <h3>{{modeLabel}}{{#if secret}} <i class="fa-solid fa-user-secret" data-tooltip="GM"></i>{{/if}}</h3>
     <p class="acks-influence-parties-line">
-      {{influencerName}}{{#if targetName}} &rarr; {{targetName}}{{/if}}
+      {{#if influencerName}}{{influencerName}}{{#if targetName}} &rarr; {{targetName}}{{/if}}{{else}}{{targetName}}{{/if}}
     </p>
   </header>
   <div class="acks-influence-card-content">
@@ -17,8 +17,12 @@
       {{/each}}
     </ul>
     {{/if}}
+    {{#if outcomeLabel}}
     <div class="acks-influence-outcome">
       <strong>{{outcomeLabel}}</strong>
     </div>
+    {{else}}
+    <p class="acks-influence-no-result">{{noResult}}</p>
+    {{/if}}
   </div>
 </div>

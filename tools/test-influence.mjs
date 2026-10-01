@@ -19,7 +19,10 @@ import {
   getProficiencies,
   getProficiencyItems,
   itemsWithProficiencyRows,
+  moraleRatingOf,
 } from "../scripts/influence/actor-data.mjs";
+import { MORALE_DOC, modeRows, printedBands, printedFigure, printedLabel } from "../scripts/influence/printed.mjs";
+import { PRIORITY, registerTable, resetTables } from "../scripts/lib/tables.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "../scripts/influence/ability-effects.mjs";
 
 // The ladder authority is reached through the public global at runtime; the
@@ -265,6 +268,120 @@ t("a roller keeps a pushed row that adds something, and a zero row only when it 
   // What a player's dialog forwards to the Judge's is this same shape, and it
   // must survive the second pass whole.
   assert.deepEqual(externalRows(rows), rows);
+});
+
+/* --- printed morale pages: figures from the import, never from this repo --- */
+
+/** Every row a page declares, across its groups. */
+const rowsOf = (mode) => modeRows(mode).flatMap((g) => g.mods);
+const rowOf = (mode, key) => rowsOf(mode).find((m) => m.key === key);
+
+t("a morale page ships its structure and no figure", () => {
+  for (const id of ["morale", "obedience"]) {
+    const mode = EXTERNAL_MODES[id];
+    assert.equal(mode.bands, undefined, `${id}: no result edges`);
+    assert.ok(mode.printed && mode.cite && mode.bandKeys.length, `${id}: names its page`);
+    for (const mod of mode.groups.flatMap((g) => g.mods)) {
+      assert.equal(mod.value, undefined, `${id}.${mod.key}: no figure`);
+      assert.equal(mod.options, undefined, `${id}.${mod.key}: no option table`);
+    }
+  }
+});
+
+t("an unread page offers typed fields and reads no result column", () => {
+  resetTables();
+  for (const id of ["morale", "obedience"]) {
+    const mode = EXTERNAL_MODES[id];
+    assert.equal(printedBands(mode.printed, mode.bandKeys), null, id);
+    for (const declared of mode.groups.flatMap((g) => g.mods)) {
+      if (declared.type !== "ladder" && declared.type !== "printed") continue;
+      assert.deepEqual(rowOf(mode, declared.key), { key: declared.key, label: declared.label, type: "signed", unread: true }, declared.key);
+    }
+  }
+});
+
+// Invented figures and wording throughout: what is pinned is the reading.
+const INVENTED = {
+  id: MORALE_DOC,
+  tables: {
+    monsterMorale: {
+      bands: [{ min: null, max: 4 }, { min: 5, max: 6 }, { min: 7, max: 7 }, { min: 8, max: 13 }, { min: 14, max: null }],
+      hpLost1: -3,
+      hpLost1Label: "Some of it bled",
+      hpLost2: -3,
+      outnumber2: 9,
+      outnumber2Label: "Far more of them",
+      noRetreat: 7,
+      noRetreatLabel: "Nowhere left to go",
+    },
+    hirelingObedience: {
+      bands: [{ min: null, max: 1 }, { min: 2, max: 9 }],
+      company1: 4,
+      company2: 0,
+      company3: -4,
+      customary: 0,
+    },
+  },
+};
+
+t("a read ladder is a choice of the page's rungs, stored by option", () => {
+  resetTables();
+  registerTable(INVENTED, { priority: PRIORITY.WORLD });
+  const hp = rowOf(EXTERNAL_MODES.morale, "creatureHp");
+  assert.equal(hp.type, "select");
+  assert.equal(hp.byIndex, true);
+  // Two rungs printing one figure stay two options; the blank leads.
+  assert.deepEqual(hp.options.map((o) => [o.value, o.figure]), [[0, 0], [1, -3], [2, -3]]);
+  assert.equal(hp.options[1].printedLabel, "Some of it bled");
+  assert.equal(hp.options[2].printedLabel, null);
+
+  // A rung the page did not yield is left out; the ones it did keep page order.
+  const out = rowOf(EXTERNAL_MODES.morale, "outnumber");
+  assert.deepEqual(out.options.map((o) => [o.value, o.figure]), [[0, 0], [1, 9]]);
+
+  // No rung of this ladder was read, so the Judge types it.
+  assert.equal(rowOf(EXTERNAL_MODES.morale, "groupLosses").unread, true);
+
+  // A rung printing zero is a rung, not the blank.
+  const company = rowOf(EXTERNAL_MODES.obedience, "company");
+  assert.deepEqual(company.options.map((o) => o.figure), [0, 4, 0, -4]);
+});
+
+t("a read figure is a tick worth what the page prints, zero included", () => {
+  const cornered = rowOf(EXTERNAL_MODES.morale, "cornered");
+  assert.deepEqual(
+    { type: cornered.type, value: cornered.value, printedLabel: cornered.printedLabel, showFigure: cornered.showFigure },
+    { type: "check", value: 7, printedLabel: "Nowhere left to go", showFigure: true },
+  );
+  assert.equal(rowOf(EXTERNAL_MODES.obedience, "customary").value, 0);
+  assert.equal(rowOf(EXTERNAL_MODES.obedience, "casualties").unread, true);
+  assert.equal(printedFigure("monsterMorale", "noSuchKey"), null);
+  assert.equal(printedLabel("monsterMorale", "hpLost2"), null);
+});
+
+t("a result column is the page's edges under the mode's rung names", () => {
+  const morale = EXTERNAL_MODES.morale;
+  assert.deepEqual(printedBands(morale.printed, morale.bandKeys), [
+    { max: 4, key: "frightenedRetreat" },
+    { min: 5, max: 6, key: "faltering" },
+    { min: 7, max: 7, key: "fightOn" },
+    { min: 8, max: 13, key: "advancePursue" },
+    { min: 14, key: "victoryOrDeath" },
+  ]);
+  // Two rungs where the page declares three is some other table.
+  const obedience = EXTERNAL_MODES.obedience;
+  assert.equal(printedBands(obedience.printed, obedience.bandKeys), null);
+  resetTables();
+});
+
+t("a group rolls on its command morale, with its one stack's base when it has one", () => {
+  const group = (stacks) => ({
+    system: { stacks, commandMorale: 2, unitMoraleOf: (stack) => stack.baseMorale + 2 },
+  });
+  assert.equal(moraleRatingOf(group([{ baseMorale: -1 }])), 1);
+  assert.equal(moraleRatingOf(group([{ baseMorale: -1 }, { baseMorale: 1 }])), 2);
+  assert.equal(moraleRatingOf({ system: { details: { morale: -3 } } }), -3);
+  assert.equal(moraleRatingOf(null), 0);
 });
 
 console.log(`\n${n} tests passed (influence modifier sources)`);

@@ -58,11 +58,7 @@ acksExtras.henchmen.openThrowDialog("hirelingLoyalty", {
       "icons/svg/combat.svg",
       `const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) return ui.notifications.warn("Select a hireling token first.");
-acksExtras.henchmen.openThrowDialog("hirelingObedience", {
-  title: actor.name,
-  actor,
-  derived: { moraleScore: actor.system?.details?.morale ?? 0 },
-});`
+acksExtras.henchmen.openObedienceRoll(actor);`
     ),
     macro(
       "Generate Followers (Selected)",

@@ -3,12 +3,14 @@
   {{!-- Parties + attitude tracker --}}
   <div class="influence-tracker">
 
+    {{#unless loneSubject}}
     <div class="influence-party" data-side="influencer"
          data-tooltip="{{localize 'ACKS-INFLUENCE.party.dropHint'}}">
       <span class="influence-party-role">{{localize 'ACKS-INFLUENCE.party.characterRole'}}</span>
       <img class="influence-portrait" src="{{parties.influencer.img}}" alt="{{parties.influencer.name}}"/>
       <span class="influence-party-name">{{parties.influencer.name}}</span>
     </div>
+    {{/unless}}
 
     {{#if externalMode}}
     <div class="influence-ladder influence-mode-title">
@@ -101,12 +103,17 @@
     </span>
   </div>
 
+  {{!-- A printed page waiting on its import: what is typed by hand, and why. --}}
+  {{#if unreadNotice}}
+    <p class="influence-unread-notice"><i class="fa-solid fa-book-open" inert></i> {{unreadNotice}}</p>
+  {{/if}}
+
   <div class="influence-groups">
     {{#each groups}}
       <fieldset class="influence-group">
         <legend>{{this.group}}</legend>
         {{#each this.mods}}
-          <div class="influence-mod {{#if this.isOverridden}}overridden{{/if}}">
+          <div class="influence-mod {{#if this.isOverridden}}overridden{{/if}} {{#if this.isWide}}influence-mod-wide{{/if}}">
             <div class="influence-mod-field">
               {{#if this.masked}}
                 <span class="influence-masked" data-tooltip="{{localize 'ACKS-INFLUENCE.hidden.field'}}">
@@ -139,6 +146,10 @@
               {{#if this.unaudited}}
                 <i class="fa-solid fa-triangle-exclamation influence-unaudited-badge"
                    data-tooltip="{{localize 'ACKS-INFLUENCE.unaudited.badge'}}"></i>
+              {{/if}}
+              {{#if this.isUnread}}
+                <i class="fa-solid fa-book-open influence-unread-badge"
+                   data-tooltip="{{localize 'ACKS-INFLUENCE.unread.badge'}}"></i>
               {{/if}}
             </label>
           </div>

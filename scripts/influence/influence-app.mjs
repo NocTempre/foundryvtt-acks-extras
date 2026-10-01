@@ -33,6 +33,7 @@ import {
 } from "./actor-data.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effects.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
+import { modeRows, printedBands } from "./printed.mjs";
 import { ITEM_TYPE, scopeApplies } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 
@@ -48,6 +49,12 @@ const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;
 // Modifier keys whose value depends on the (possibly hidden) target's stats.
 const TARGET_AUTO_SOURCES = new Set(["targetWill", "alignment", "levelGap", "age"]);
 const TARGET_KEYS = new Set(["targetMorale", "bribeFee"]);
+
+/** A figure as a page prints it: always signed, zero included. */
+const signedText = (n) => `${n < 0 ? "−" : "+"}${Math.abs(n)}`;
+
+/** A row's wording with the figure it is worth beside it. */
+const withFigure = (label, figure) => game.i18n.format("ACKS-INFLUENCE.mod.withFigure", { label, figure: signedText(figure) });
 
 /**
  * Resolves the three kinds of ACKS II influence rolls (Diplomacy, Intimidation,
@@ -187,7 +194,17 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /** @override */
   get title() {
     const base = game.i18n.localize(this.#mode ? this.#mode.label : "ACKS-INFLUENCE.app.title");
-    return this.#actor ? `${this.#actor.name}: ${base}` : base;
+    const who = this.#actor ?? this.#loneSubject();
+    return who ? `${who.name}: ${base}` : base;
+  }
+
+  /**
+   * The creature a page is about when nobody stands opposite it: a morale
+   * check opened from the creature's own sheet has a subject and no roller.
+   * Null on every page that has a roller, or whose subject is the roller.
+   */
+  #loneSubject() {
+    return !this.#actor && this.#mode?.subject === "target" ? this.#targetActor : null;
   }
 
   /* -------------------------------------------- */
@@ -311,9 +328,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     };
 
     // External mode: one modifier layout for every tone key (the tone
-    // selector is hidden). `ctxOptions` selects materialize from the ctx bag.
+    // selector is hidden). `ctxOptions` selects materialize from the ctx bag,
+    // a printed page's ladders and figures from its imported table.
     if (this.#mode) {
-      const groups = this.#mode.groups.map((g) => ({
+      const groups = modeRows(this.#mode).map((g) => ({
         group: g.group,
         mods: g.mods
           .map((m) =>
@@ -371,6 +389,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       case "check":
         return value ? mod.value : 0;
       case "select":
+        // A printed ladder stores which option was chosen, never its figure.
+        if (mod.byIndex) return Number(mod.options[Number(value) || 0]?.figure) || 0;
+        return Number(value) || 0;
       case "signed":
         return Number(value) || 0;
       case "factor":
@@ -386,14 +407,36 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /* -------------------------------------------- */
 
   /**
-   * An external page's result bands: the mode's own table, or the opener's
-   * (`ctx.bands`) for a page whose table is printed and imported. Empty when
-   * neither is there, and the roll refuses rather than reading a band off
-   * nothing.
+   * An external page's result bands: the page's own imported column for a mode
+   * naming a `printed` table, else the mode's own table, else the opener's
+   * (`ctx.bands`). Empty when none is there; the roll then names no result,
+   * or refuses on a page that cannot post without one.
    */
   #modeBands() {
+    if (this.#mode?.printed) return printedBands(this.#mode.printed, this.#mode.bandKeys) ?? [];
     if (Array.isArray(this.#mode?.bands)) return this.#mode.bands;
     return Array.isArray(this.#ctx.bands) ? this.#ctx.bands : [];
+  }
+
+  /**
+   * Whether this page is waiting on an import: its result column is unread, or
+   * a row that would carry a printed figure is a typed field instead.
+   */
+  #unread() {
+    if (!this.#mode?.printed) return false;
+    if (!this.#modeBands().length) return true;
+    return this.#modConfig[this.#system.tone].some((group) => group.mods.some((mod) => mod.unread));
+  }
+
+  /**
+   * What a row is called where its contribution is listed: the page's own
+   * wording of the rung chosen or the row ticked when the import read one,
+   * else the row's field name.
+   */
+  #auditLabel(mod, value) {
+    const printed = mod.byIndex ? mod.options[Number(value) || 0]?.printedLabel : mod.printedLabel;
+    // Effect-granted labels are literal; static labels are localization keys.
+    return printed ?? game.i18n.localize(mod.label);
   }
 
   /**
@@ -527,8 +570,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     for (const group of this.#modConfig[this.#system.tone]) {
       for (const mod of group.mods) {
         const contribution = this.#contribution(mod, values[mod.key]);
-        // Effect-granted labels are literal; static labels are localization keys.
-        if (contribution !== 0) list.push({ label: game.i18n.localize(mod.label), value: contribution });
+        if (contribution !== 0) list.push({ label: this.#auditLabel(mod, values[mod.key]), value: contribution });
       }
     }
     // A note adds nothing, and this is the list of what was added.
@@ -684,8 +726,16 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         // a blind "offered payment" guess (bonus computed on GM resolve) and the
         // bribe bonus select is masked instead.
         const isBribeGuess = hidden && mod.key === "bribeFee";
-        let label = L(mod.label);
+        // A printed row reads in the page's own wording when the import
+        // caught it, with the figure it is worth beside it either way.
+        let label = mod.printedLabel ?? L(mod.label);
+        if (mod.showFigure) label = withFigure(label, mod.value);
         if (isBribeGuess) label = L("ACKS-INFLUENCE.mod.diplomacy.bribeOffer");
+        // A rung is named by the page's wording, or by its figure alone.
+        const optionLabel = (opt) => {
+          if (opt.label) return L(opt.label);
+          return opt.printedLabel ? withFigure(opt.printedLabel, opt.figure) : signedText(opt.figure);
+        };
         // A value computed from a proficiency the character has (e.g. Bribery
         // scaling the bribe fee) is flagged so it gets the proficiency badge.
         const isProfModified = Boolean(mod.profModifier && profs[mod.profModifier]);
@@ -701,6 +751,11 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
           // A machine-classified mechanic, badged so the sheet never presents a
           // scan's guess as the book's ruling.
           unaudited: Boolean(mod.unaudited),
+          // A printed figure the import has not supplied: typed by hand.
+          isUnread: Boolean(mod.unread),
+          // A ladder's options are a page's wording, wider than the control
+          // column: the row stacks so the chosen rung can be read.
+          isWide: mod.byIndex === true,
           masked:
             hidden &&
             !isBribeGuess &&
@@ -712,7 +767,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
           checked: mod.type === "check" ? Boolean(value) : false,
           options:
             mod.type === "select"
-              ? mod.options.map((opt) => ({ value: opt.value, label: L(opt.label), selected: Number(opt.value) === Number(value) }))
+              ? mod.options.map((opt) => ({ value: opt.value, label: optionLabel(opt), selected: Number(opt.value) === Number(value) }))
               : null,
           contribution: this.#contribution(mod, value),
           // Show the proficiency badge in place of the generic auto badge.
@@ -773,6 +828,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         context.parties.target = { name: this.#ctx.targetName, img: this.#ctx.targetImg ?? "icons/svg/mystery-man.svg" };
         context.hasTarget = true;
       }
+      // A check the creature makes alone has no second party to show.
+      context.loneSubject = Boolean(this.#loneSubject());
+      context.unreadNotice = this.#unread() ? game.i18n.format("ACKS-INFLUENCE.mode.unreadNotice", { cite: this.#mode.cite }) : "";
     }
 
     return context;
@@ -1110,27 +1168,17 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     return { rawNotes: notes };
   }
 
-  /** External-mode resolution: bands + natural clamps, no attitude shift. */
-  async #rollExternalMode() {
-    this.#recalculate();
-    if (!this.#modeBands().length) {
-      ui.notifications?.warn(game.i18n.localize(`${this.#mode.label.replace(/\.title$/, "")}.noBands`));
-      return;
-    }
-    const activeModifiers = this.#activeModifiers();
-    const modifier = this.#finalModifier;
-    const roll = new Roll(`2d6 + (${modifier})`);
-    await roll.evaluate();
-    const diceResult = roll.dice[0]?.total ?? roll.total - modifier;
-    const total = roll.total;
-
+  /**
+   * The band a total falls in, by key, after the mode's natural clamps; null
+   * when the page has no result column to read it off.
+   */
+  #outcomeFor(total, diceResult) {
     const bands = this.#modeBands();
-    const indexFor = (value) =>
-      Math.max(
-        0,
-        bands.findIndex((b) => (b.min === undefined || value >= b.min) && (b.max === undefined || value <= b.max))
-      );
-    let idx = indexFor(total);
+    if (!bands.length) return null;
+    let idx = Math.max(
+      0,
+      bands.findIndex((b) => (b.min === undefined || total >= b.min) && (b.max === undefined || total <= b.max))
+    );
     const clamps = this.#mode.naturalClamps;
     if (clamps) {
       if (diceResult === 2 && clamps.natural2) {
@@ -1142,7 +1190,28 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         if (floor >= 0 && idx < floor) idx = floor;
       }
     }
-    const outcome = bands[idx]?.key ?? bands[0].key;
+    return bands[idx]?.key ?? bands[0].key;
+  }
+
+  /**
+   * External-mode resolution: bands + natural clamps, no attitude shift. A
+   * page with no result column refuses, unless its mode posts without one:
+   * the card then carries the total and every modifier applied and names no
+   * result, and the roll-complete payload's `outcome` is null.
+   */
+  async #rollExternalMode() {
+    this.#recalculate();
+    if (!this.#modeBands().length && !this.#mode.postsWithoutBands) {
+      ui.notifications?.warn(game.i18n.localize(`${this.#mode.label.replace(/\.title$/, "")}.noBands`));
+      return;
+    }
+    const activeModifiers = this.#activeModifiers();
+    const modifier = this.#finalModifier;
+    const roll = new Roll(`2d6 + (${modifier})`);
+    await roll.evaluate();
+    const diceResult = roll.dice[0]?.total ?? roll.total - modifier;
+    const total = roll.total;
+    const outcome = this.#outcomeFor(total, diceResult);
 
     const result = {
       modeLabel: game.i18n.localize(this.#mode.label),
@@ -1154,11 +1223,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       total,
       activeModifiers,
       outcome,
-      outcomeLabel: game.i18n.localize(this.#mode.bandLabels[outcome] ?? outcome),
+      outcomeLabel: outcome ? game.i18n.localize(this.#mode.bandLabels[outcome] ?? outcome) : "",
+      noResult: outcome ? "" : game.i18n.format("ACKS-INFLUENCE.mode.noResult", { cite: this.#mode.cite }),
       secret: !!this.#mode.secret,
     };
 
-    const speaker = ChatMessage.getSpeaker({ actor: this.#actor });
+    const speaker = ChatMessage.getSpeaker({ actor: this.#actor ?? this.#loneSubject() });
     const content = await foundry.applications.handlebars.renderTemplate(
       `modules/${MODULE_ID}/templates/influence/mode-result.hbs`,
       result

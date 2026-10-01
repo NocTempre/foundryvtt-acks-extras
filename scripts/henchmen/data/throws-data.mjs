@@ -52,13 +52,6 @@ export const THROWS_DATA = {
         natural12: { noWorseThan: "loyal" },
       },
     },
-    hirelingObedienceOutcomes: {
-      outcomes: [
-        { max: 2, effect: "refuses" },
-        { min: 3, max: 5, effect: "begrudging" },
-        { min: 6, effect: "compliant" },
-      ],
-    },
     liberationLoyaltyOutcomes: {
       gatedBy: "enableSlavery",
       outcomes: [
@@ -140,45 +133,18 @@ export const THROWS_DATA = {
         },
       ],
     },
+    // The page that names this throw's modifiers and result is the influence
+    // roller's (RR 167), reading the Judge's imported table. This is what is
+    // left when that page cannot open: the morale score and whatever the
+    // caller adds, a total, and no result named.
     hirelingObedience: {
       label: "ACKS-HENCHMEN.throw.hirelingObedience",
       formula: "2d6",
       secret: true,
-      outcomeTable: "hirelingObedienceOutcomes",
       modifiers: [
         {
           id: "morale", kind: "auto", control: "stepper", valuePerStep: 1,
           min: -10, max: 10, derive: "moraleScore", label: "ACKS-HENCHMEN.mod.morale",
-        },
-        {
-          id: "company", kind: "situational", control: "select", label: "ACKS-HENCHMEN.mod.company",
-          options: [
-            { id: "employer", label: "ACKS-HENCHMEN.mod.companyEmployer", value: 2 },
-            { id: "adventurer", label: "ACKS-HENCHMEN.mod.companyAdventurer", value: 1 },
-            { id: "hirelings", label: "ACKS-HENCHMEN.mod.companyHirelings", value: 0 },
-            { id: "alone", label: "ACKS-HENCHMEN.mod.companyAlone", value: -1 },
-          ],
-        },
-        {
-          id: "customaryTask", kind: "situational", control: "checkbox", value: 2,
-          label: "ACKS-HENCHMEN.mod.customaryTask",
-        },
-        {
-          id: "recentCasualties", kind: "situational", control: "checkbox", value: -1,
-          label: "ACKS-HENCHMEN.mod.recentCasualties",
-        },
-        {
-          id: "risk", kind: "situational", control: "select", label: "ACKS-HENCHMEN.mod.risk",
-          options: [
-            { id: "shared", label: "ACKS-HENCHMEN.mod.riskShared", value: 0 },
-            { id: "more", label: "ACKS-HENCHMEN.mod.riskMore", value: -1 },
-            { id: "great", label: "ACKS-HENCHMEN.mod.riskGreat", value: -2 },
-            { id: "extraordinary", label: "ACKS-HENCHMEN.mod.riskExtraordinary", value: -5 },
-          ],
-        },
-        {
-          id: "mercenaryAdventuring", kind: "situational", control: "checkbox", value: -5,
-          label: "ACKS-HENCHMEN.mod.mercenaryAdventuring",
         },
       ],
     },

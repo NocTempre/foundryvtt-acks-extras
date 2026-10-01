@@ -64,3 +64,26 @@ every figure it asks for is absent in every world. §1's fix is this work seen
 from the other side: a label can drop its magnitude once the magnitude has a
 document to arrive in. `tools/validate-producers.mjs` waives the document
 against this section.
+
+The `morale` document is the exception and the pattern: its two tables have a
+recipe, and the `morale` and `obedience` pages read them (`MODEL.md`, "Printed
+morale pages"). The three reaction tones, `loyalty`, `hiring` and
+`irrefusable` are what §1 still describes.
+
+## 4. What the morale pages left behind
+
+- **An unread obedience page raises no insist card.** The henchmen feature
+  offers the insist action when the roll's outcome is a refusal, and a page
+  with no result column reports none. The Judge reads the result off the page
+  and has no button for what follows it. Wanted: a way to name the result by
+  hand on a card that named none.
+- **The insist penalty is still a shipped figure.** The henchmen feature
+  applies it from a constant in `engine/events.mjs` and prints it in
+  `ACKS-HENCHMEN.card.insist`. RR 167 prints it in prose beside the table the
+  `hirelingObedience` recipe already reads, so it can ride that recipe as one
+  more value.
+- **The obedience fallback has no rows.** When the influence roller cannot
+  open, the henchmen feature's own throw dialog rolls the morale score and
+  whatever the employer's effects add, and names no result.
+- **The morale rating's own range is not checked.** The page adds whatever the
+  actor holds.

@@ -58,6 +58,16 @@ export function openObedienceViaInfluence(o) {
   });
 }
 
+/**
+ * Open the Combat Morale page (RR 307) for a creature or a hired unit. The
+ * page reads the subject's own morale, a group's from its command.
+ */
+export function openMoraleViaInfluence(subject) {
+  const api = influenceApi();
+  if (!api || !subject) return null;
+  return api.open(null, { mode: "morale", targetActor: subject });
+}
+
 /** Open the Irrefusable Offer (MM 351) for a captured monster. */
 export function openIrrefusableViaInfluence(o) {
   const api = influenceApi();

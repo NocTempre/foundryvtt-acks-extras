@@ -1,6 +1,7 @@
 /**
- * LOCAL-ONLY: the markets-read table recipes, run against this machine's own
- * books, must return the SHAPE their consumers parse. Every recipe here is
+ * LOCAL-ONLY: the table recipes the markets feature and the morale pages read,
+ * run against this machine's own books, must return the SHAPE their consumers
+ * parse. Every recipe here is
  * built from anchor phrases and column geometry, so a printing whose layout
  * drifted from those anchors reads a row short, welds two cells, or drops a
  * value, and each of those degrades to a plausible number downstream. This
@@ -35,6 +36,9 @@ const TABLES = {
   ],
   construction: ["wageAndConstructionRates"],
   settlement: ["marketClassByFamilies"],
+  // The influence roller's two morale pages: a result column and a modifier
+  // list each, every modifier with the wording of its own row.
+  morale: ["monsterMorale", "hirelingObedience"],
 };
 
 const NEEDED = [...new Set(
@@ -53,7 +57,7 @@ const isText = (v) => typeof v === "string" && v.trim() !== "";
 const isNone = (t) => /^(?:-|—|–|n\/?a)$/i.test(String(t).trim());
 
 /** `take` micro-patterns whose value is one finite number. */
-const NUMERIC_TAKES = new Set(["int", "signedInt", "wordInt", "roman", "times", "pct", "sp", "gp"]);
+const NUMERIC_TAKES = new Set(["int", "signedInt", "signed", "wordInt", "roman", "times", "pct", "sp", "gp"]);
 
 /**
  * Rows of a `{rows:[…]}` extraction against the recipe's declared row list:
@@ -190,6 +194,26 @@ const VERIFY = {
     if (tiers !== undefined && !(isText(tiers) && /\b(?:common|uncommon|rare)\b/i.test(tiers))) fail("engineeringTiers: names none of common/uncommon/rare");
   },
 };
+/** Every `label: true` value carries the wording of its row, and no two rows share one. */
+function rowLabels(out, recipe, fail) {
+  const seen = new Set();
+  for (const v of recipe.values) {
+    if (!v.label) continue;
+    const label = out?.[`${v.key}Label`];
+    if (!isText(label)) { fail(`${v.key}: no row wording read`); continue; }
+    if (seen.has(label)) fail(`${v.key}: its wording is another row's`);
+    seen.add(label);
+  }
+}
+// A morale page: its modifiers, their wording, and a result column of the
+// length the roller's page names results for.
+for (const [id, count] of [["morale.monsterMorale", 5], ["morale.hirelingObedience", 3]]) {
+  VERIFY[id] = (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    rowLabels(out, recipe, fail);
+    bandLadder(out?.bands, "bands", fail, count);
+  };
+}
 // Prose tables with nothing beyond declared keys and finite numbers.
 for (const id of [
   "availability.marketRulesProse", "availability.bargainingProse", "magicItems.priceProse",

@@ -387,3 +387,46 @@ external page's consumer knows where the fee goes (the market, here) and the
 roller does not. Rejected: a fourth seam letting a consumer supply the whole
 modifier stack — the point of hosting the roll here is that the stack is this
 feature's. `apiVersion` 9.
+
+### The morale pages read the Judge's table, and post with no result when it is absent (2026-10-01)
+
+**Ruled** (owner, 2026-10-01: every morale roll is in scope, so the modifiers
+applied to it are visible and the Judge can audit them). The `morale` page
+(RR 307) and the `obedience` page (RR 167) carry their rows, which rows are
+ladders, and their result names. Every figure, every result edge and the
+wording of every rung arrive from the `morale` ruledata document, which a
+recipe reads off the Judge's own pages. A row the world has not read is a
+typed field with a badge, and a page with no result column still rolls: the
+card lists what was applied and the total, and names no result. The system's
+own morale roll opens the page (`docs/lib/DECISIONS.md`, "One owner for the
+morale roll, and the page is a provider's"), and so does a group actor's
+context menu. `apiVersion` 10.
+
+This is the move the 2026-09-03 entry above requires, made for these two
+pages: each label lost its magnitude in the change that made the magnitude
+arrive registered.
+
+**Rejected.**
+- *A Unit Morale page (RR 468) for a group actor.* `docs/DECISIONS.md` §15
+  puts the battle rules out of scope, and the 2026-08-18 entry above assigns
+  that table to mass combat. A hired group rolls on the RR 307 page with its
+  command morale.
+- *Refusing to roll without a result column,* as `marketAssessment` does. That
+  page's consumer acts on the band; these two exist to show the arithmetic,
+  and a Judge holding the book reads the result off it.
+- *Rung wording in `lang/`.* A rung's wording states its condition, which is
+  the page's sentence. The label names the row and cites the page; the rungs
+  read as the Judge's copy prints them.
+- *Storing a chosen rung's figure.* Two rungs may print one figure, and a rung
+  may print zero; the option's position is the only key that tells them apart.
+- *Moving the insist penalty in the same change.* The henchmen feature applies
+  it from a constant and prints it on a button; the two move together or not
+  at all, and neither is this page's. `ROADMAP.md` §4.
+
+**What it cost.** An upgraded world shows typed fields and names no result on
+both pages until the Judge imports the `morale` tables, where 9.7.0 showed
+ladders and a band. An obedience roll with no result column cannot recognise a
+refusal, so the henchmen feature's insist card does not follow it
+(`ROADMAP.md` §4). A rung's wording is whatever the reader's text layer
+yields, read between the row's own edges; a page that extracts badly words a
+rung by its figure alone.

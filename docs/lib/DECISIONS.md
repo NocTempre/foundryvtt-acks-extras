@@ -2552,6 +2552,33 @@ window is widened, as on a core window. A browser that has
 `text-wrap: balance` and not the longhand drops the declaration: its headings
 wrap unbalanced, and its window titles still hold one line.
 
+### One owner for the morale roll, and the page is a provider's (2026-10-01)
+
+**Ruled.** The lib wraps the system's `Actor#rollMorale`
+(`patches/morale-roll.mjs`) and hands the roll to whichever feature registered
+the `morale-roll` contract; the influence feature registers its `morale` page.
+Every Morale button ends in that one method, so one wrapper reaches the
+system's sheets and this module's alike. The world setting `moralePage`
+(default on) turns the page off for a table that wants the system's roll, and
+the system's skip-dialog key rolls the system's own on a single click, as it
+does on every other roll this module asks about.
+
+**Rejected.**
+- *Wrapping from the influence feature.* A wrapped core method has one owner,
+  and a second feature with something to say about a morale roll would have
+  to wrap it again. The contract lets the page change hands without the
+  wrapper moving.
+- *Replacing the sheet's button at render.* Each sheet that has one would need
+  its own replacement, and a macro or another module calling `rollMorale`
+  would still reach the bare roll.
+- *No setting.* The page returns no Roll, so a world whose macros read the
+  Roll that `rollMorale` returns needs a way back that is not a held key.
+
+**What it cost.** `rollMorale` resolves to whatever the provider's `open`
+returns, not a Roll, while the page is on. The system's own callers discard
+the return; a caller that reads it passes the skip key's event or turns the
+setting off.
+
 ### A window title takes no heading margin (2026-10-01)
 
 **Ruled.** The title rule in `vendor/acks-design/foundry.css` § 2 sets

@@ -70,6 +70,50 @@ the view, so the dialog and the chat card name it identically; a character
 holding both the power and the proficiency keeps the proficiency's name, because
 the two are one non-stacking capability.
 
+## Printed morale pages
+
+The `morale` page (RR 307) and the `obedience` page (RR 167) ship their
+structure and no figure. `EXTERNAL_MODES` states which rows a page has, which
+of them are **ladders** (rungs of one scale, of which at most one applies) and
+which are single **printed** figures, and the names of the page's results in
+band order (`bandKeys`). Each mode names the table it reads (`printed`) in the
+`morale` ruledata document, which the importer's `morale` recipe fills from the
+Judge's own book.
+
+`modeRows` (`printed.mjs`) turns the declared rows into the rows the dialog
+draws, against what the world holds:
+
+| Declared | Read from the page | Not read |
+|---|---|---|
+| `ladder` | a choice among the rungs that were read, each worded as the Judge's page words it and falling back to its figure | a typed signed field |
+| `printed` | a tick worth the figure, shown beside the row's name | a typed signed field |
+
+A ladder stores the **position** of the chosen rung, not its figure, so two
+rungs that print one figure stay two options and a rung printing zero is not
+the blank. A row left as a typed field carries an *unread* badge, and the page
+says once, above its rows, that its table has not been imported. The label of
+every row names the field and cites its page; the wording of a rung is the
+reader's own page and exists in no file of this repo.
+
+The result column is the imported edges under the mode's own result names
+(`printedBands`). Edges arriving in a different count than the names are some
+other table, and the page then has no column. Both pages are
+`postsWithoutBands`: with no column they still roll, and the card lists every
+modifier applied, the dice and the total, and says no result is named. The
+roll-complete payload carries `outcome: null` for such a roll.
+
+Neither page has an influencer. The dialog draws the subject alone, the card
+speaks as the subject, and the rating the roll adds is `moraleRatingOf`: a
+creature's own morale, or for a group actor its command morale — its one
+stack's unit morale when it holds exactly one.
+
+Three things open the morale page: the system's own morale roll, through the
+lib's `morale-roll` contract (`docs/lib/API.md`); a group actor's directory
+context menu (the henchmen feature's `openMoraleViaInfluence`); and
+`open(null, {mode: "morale", targetActor})`. The obedience page is opened by
+the henchmen feature's `openObedienceRoll`.
+`apiVersion` 10 is the first whose two pages read the imported table.
+
 ## The modifier hook
 
 A consumer that holds the roll passes flat rows in `options.modifiers`

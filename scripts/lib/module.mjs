@@ -78,6 +78,7 @@ import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
 import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
 import { installCombatRoundPatch } from "./patches/combat-round.mjs";
+import { installMoraleRollPatch, SETTING_MORALE_PAGE } from "./patches/morale-roll.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
@@ -431,6 +432,18 @@ Hooks.once("init", () => {
     default: true,
   });
 
+  // A sheet's Morale button opens the morale page (patches/morale-roll.mjs;
+  // docs/lib/DECISIONS.md, "One owner for the morale roll, and the page is a
+  // provider's"). Read per roll, so the toggle takes effect on the next one.
+  game.settings.register(MODULE_ID, SETTING_MORALE_PAGE, {
+    name: `${LANG_PREFIX}.settings.moralePage.name`,
+    hint: `${LANG_PREFIX}.settings.moralePage.hint`,
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   // Token vision and light derived from the sheet (senses.mjs / light.mjs;
   // docs/lib/MODEL.md's senses section). Off restores nothing — tokens keep
   // whatever they were last set to.
@@ -761,6 +774,10 @@ Hooks.once("ready", () => {
   // see docs/lib/DECISIONS.md, "2026-09-07 — extras guards the system's
   // round counter, and the guard is scoped to core's synchronous prefix".
   installCombatRoundPatch();
+
+  // The morale roll's one owner; see docs/lib/DECISIONS.md, "One owner for
+  // the morale roll, and the page is a provider's".
+  installMoraleRollPatch();
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
   const entries = Object.values(registered);
   const defaulted = entries.find((e) => e.default) ?? null;

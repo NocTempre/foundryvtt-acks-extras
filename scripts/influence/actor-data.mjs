@@ -171,6 +171,22 @@ export function resolveParties(actor, targetActor) {
   return { influencer, target };
 }
 
+/**
+ * The morale a creature rolls on. A group actor has no single score: it rolls
+ * on its command morale (leader and officer), with its troop type's base
+ * added when the group is one stack and so has one base to add. Anything else
+ * reads the sheet (character -4..+4, monster -6..+4).
+ */
+export function moraleRatingOf(actor) {
+  const system = actor?.system;
+  if (!system) return 0;
+  if (typeof system.unitMoraleOf === "function") {
+    const stacks = Array.isArray(system.stacks) ? system.stacks : [];
+    return Number(stacks.length === 1 ? system.unitMoraleOf(stacks[0]) : system.commandMorale) || 0;
+  }
+  return Number(system.details?.morale ?? 0);
+}
+
 /** The four hardcoded core proficiencies a power may stand in for (`actsAs`). */
 const CORE_PROFS = ["diplomacy", "intimidation", "seduction", "mysticAura"];
 
@@ -185,9 +201,9 @@ function buildContext(actor, targetActor) {
   return {
     cha: actor ? abilityMod(actor, "cha") : 0,
     targetWill: targetActor ? abilityMod(targetActor, "wis") : 0,
-    // Intimidation reads the target's morale straight off the sheet (character
-    // -4..+4, monster -6..+4); the field stays editable as a manual override.
-    targetMorale: targetActor ? Number(targetActor.system?.details?.morale ?? 0) : 0,
+    // Intimidation and the morale pages read the target's morale; the field
+    // stays editable as a manual override.
+    targetMorale: moraleRatingOf(targetActor),
     alignment: alignmentModifier(actor, targetActor),
     levelGap: levelGapModifier(actor, targetActor),
     age: ageModifier(actor, targetActor),

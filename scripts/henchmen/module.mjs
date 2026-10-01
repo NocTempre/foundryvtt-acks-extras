@@ -47,7 +47,7 @@ import * as slaveryRules from "./rules/slavery.mjs";
 import * as facts from "./facts.mjs";
 import * as influenceIntegration from "./integrations/influence.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
-const { registerInfluenceIntegration, openInfluenceFor } = influenceIntegration;
+const { registerInfluenceIntegration, openInfluenceFor, openMoraleViaInfluence } = influenceIntegration;
 
 Hooks.once("init", () => {
   console.log(`${MODULE_ID} | Initializing`);
@@ -317,8 +317,10 @@ Hooks.on("renderActorSheetV2", (app, element) => {
   else header.append(button);
 });
 
-/* "Roll Unit Morale" on a group actor's directory context menu — the group
- * sheet lives in the library half, so this stays out of it. */
+/* "Roll Morale" on a group actor's directory context menu — the group sheet
+ * lives in the library half, so this stays out of it. A hired unit rolls on
+ * the Combat Morale page; see docs/henchmen/DECISIONS.md, "A hired unit
+ * rolls morale on the Combat Morale page". */
 Hooks.on("getActorContextOptions", (_directory, options) => {
   const findActor = (li) => {
     const el = li instanceof HTMLElement ? li : li?.[0];
@@ -329,11 +331,9 @@ Hooks.on("getActorContextOptions", (_directory, options) => {
     label: "ACKS-HENCHMEN.unitMorale.menu",
     icon: '<i class="fas fa-flag"></i>',
     visible: (li) => isGroupActor(findActor(li)),
-    onClick: async (_event, li) => {
+    onClick: (_event, li) => {
       const actor = findActor(li);
-      if (!actor) return;
-      const { openUnitMoraleDialog } = await import("./apps/unit-morale-dialog.mjs");
-      openUnitMoraleDialog(actor);
+      if (actor) openMoraleViaInfluence(actor);
     },
   });
 });

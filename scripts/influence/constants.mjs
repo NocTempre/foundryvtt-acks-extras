@@ -439,6 +439,13 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
  * api.open(actor, { mode, ctx })). `ctxOptions` selects get their options
  * from the ctx bag. Bands resolve worst→best; naturalClamps pin natural
  * 2 / 12 to a band key (never better / never worse).
+ *
+ * A mode naming a `printed` table ships no figure of its own: `bandKeys` names
+ * its result rungs worst first and the page supplies their edges, and its
+ * `ladder` / `printed` rows take their figures from the same table
+ * (`modeRows` in printed.mjs). `cite` is the page a notice points at.
+ * `postsWithoutBands` lets such a page roll with no result column read; any
+ * other page refuses.
  */
 export const EXTERNAL_MODES = Object.freeze({
   hiring: {
@@ -518,27 +525,29 @@ export const EXTERNAL_MODES = Object.freeze({
   },
 
   /**
-   * Combat morale — the Monster Morale table (RR 307): the Judge's roll for
-   * whether monsters and NPCs fight on. Not the Unit Morale table (RR 468) — see
-   * docs/influence/DECISIONS.md, "Three morale subsystems, never conflated".
+   * Combat morale — the Monster Morale table (RR 307): the roll for whether
+   * monsters, NPCs, hirelings and hired units fight on. Not the Unit Morale
+   * table (RR 468) — see docs/influence/DECISIONS.md, "Three morale
+   * subsystems, never conflated".
    *
    * `subject: "target"`: the creature checking morale is the target of the
    * app, not its actor. PCs never roll this — they choose.
+   *
+   * Structure only. The result edges and every modifier's figure are the
+   * page's (`printed`, read through printed.mjs); a page not imported leaves
+   * typed fields and a roll that names no result (`postsWithoutBands`).
    */
   morale: {
     label: "ACKS-INFLUENCE.mode.morale.title",
     secret: false,
     family: ROLL_FAMILY.MORALE,
     subject: "target",
-    bands: [
-      { max: 2, key: "frightenedRetreat" },
-      { min: 3, max: 5, key: "faltering" },
-      { min: 6, max: 8, key: "fightOn" },
-      { min: 9, max: 11, key: "advancePursue" },
-      { min: 12, key: "victoryOrDeath" },
-    ],
+    printed: "monsterMorale",
+    cite: "RR 307",
+    postsWithoutBands: true,
     // RR 307 states no natural-2/12 clamp for this roll, unlike Hireling
     // Loyalty (RR 166). Deliberately absent rather than forgotten.
+    bandKeys: ["frightenedRetreat", "faltering", "fightOn", "advancePursue", "victoryOrDeath"],
     bandLabels: {
       frightenedRetreat: "ACKS-INFLUENCE.mode.morale.frightenedRetreat",
       faltering: "ACKS-INFLUENCE.mode.morale.faltering",
@@ -554,43 +563,14 @@ export const EXTERNAL_MODES = Object.freeze({
         ],
       },
       {
-        // The book calls these "suggested" modifiers, and each pair is a
-        // LADDER, not a sum: two-thirds supersedes one-half, 2:1 supersedes
-        // plain outnumbering. Selects rather than checkboxes so they cannot
-        // both be ticked.
+        // Three of the page's rows come in pairs that are LADDERS, not sums:
+        // the greater rung supersedes the lesser, so each is one choice.
         group: "ACKS-INFLUENCE.mode.morale.circumstances",
         mods: [
-          {
-            key: "creatureHp",
-            type: "select",
-            label: "ACKS-INFLUENCE.mode.morale.creatureHp",
-            options: [
-              { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-              { label: "ACKS-INFLUENCE.mode.morale.lostHalf", value: -2 },
-              { label: "ACKS-INFLUENCE.mode.morale.lostTwoThirds", value: -5 },
-            ],
-          },
-          {
-            key: "outnumber",
-            type: "select",
-            label: "ACKS-INFLUENCE.mode.morale.outnumber",
-            options: [
-              { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-              { label: "ACKS-INFLUENCE.mode.morale.outnumbers", value: 2 },
-              { label: "ACKS-INFLUENCE.mode.morale.outnumbersTwoToOne", value: 5 },
-            ],
-          },
-          {
-            key: "groupLosses",
-            type: "select",
-            label: "ACKS-INFLUENCE.mode.morale.groupLosses",
-            options: [
-              { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-              { label: "ACKS-INFLUENCE.mode.morale.lostHalf", value: -2 },
-              { label: "ACKS-INFLUENCE.mode.morale.lostTwoThirds", value: -5 },
-            ],
-          },
-          { key: "cornered", type: "check", label: "ACKS-INFLUENCE.mode.morale.cornered", value: 5 },
+          { key: "creatureHp", type: "ladder", label: "ACKS-INFLUENCE.mode.morale.creatureHp", rungs: ["hpLost1", "hpLost2"] },
+          { key: "outnumber", type: "ladder", label: "ACKS-INFLUENCE.mode.morale.outnumber", rungs: ["outnumber1", "outnumber2"] },
+          { key: "groupLosses", type: "ladder", label: "ACKS-INFLUENCE.mode.morale.groupLosses", rungs: ["groupLost1", "groupLost2"] },
+          { key: "cornered", type: "printed", label: "ACKS-INFLUENCE.mode.morale.cornered", figure: "noRetreat" },
           { key: "judgeAdj", type: "signed", label: "ACKS-INFLUENCE.mode.morale.judgeAdj" },
         ],
       },
@@ -652,20 +632,21 @@ export const EXTERNAL_MODES = Object.freeze({
   },
 
   /**
-   * Hireling Obedience (RR 167) — the secret 2d6 + morale check when a hireling
-   * is ordered into unexplored wilderness, a new dungeon, notable danger, or
-   * overtime. Three bands only, and explicitly NO auto-failure on a natural 2.
+   * Hireling Obedience (RR 167) — the secret 2d6 + morale check on an order a
+   * hireling may balk at. Three result rungs, and explicitly NO auto-failure
+   * on a natural 2. Structure only, as the `morale` page: edges and figures
+   * are the page's, and unread the roll posts its total with no result named,
+   * which leaves the refusal's consequence to the Judge.
    */
   obedience: {
     label: "ACKS-INFLUENCE.mode.obedience.title",
     secret: true,
     family: ROLL_FAMILY.MORALE,
     subject: "target",
-    bands: [
-      { max: 2, key: "refuses" },
-      { min: 3, max: 5, key: "begrudging" },
-      { min: 6, key: "compliant" },
-    ],
+    printed: "hirelingObedience",
+    cite: "RR 167",
+    postsWithoutBands: true,
+    bandKeys: ["refuses", "begrudging", "compliant"],
     bandLabels: {
       refuses: "ACKS-INFLUENCE.mode.obedience.refuses",
       begrudging: "ACKS-INFLUENCE.mode.obedience.begrudging",
@@ -683,31 +664,23 @@ export const EXTERNAL_MODES = Object.freeze({
       {
         group: "ACKS-INFLUENCE.mode.obedience.circumstances",
         mods: [
+          // Who shares the task and how much risk it carries are each one
+          // choice among the page's rungs; the rest apply or do not.
           {
             key: "company",
-            type: "select",
+            type: "ladder",
             label: "ACKS-INFLUENCE.mode.obedience.company",
-            options: [
-              { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-              { label: "ACKS-INFLUENCE.mode.obedience.withEmployer", value: 2 },
-              { label: "ACKS-INFLUENCE.mode.obedience.withAdventurer", value: 1 },
-              { label: "ACKS-INFLUENCE.mode.obedience.alone", value: -1 },
-            ],
+            rungs: ["company1", "company2", "company3", "company4"],
           },
-          { key: "customary", type: "check", label: "ACKS-INFLUENCE.mode.obedience.customary", value: 2 },
-          { key: "casualties", type: "check", label: "ACKS-INFLUENCE.mode.obedience.casualties", value: -1 },
+          { key: "customary", type: "printed", label: "ACKS-INFLUENCE.mode.obedience.customary", figure: "customary" },
+          { key: "casualties", type: "printed", label: "ACKS-INFLUENCE.mode.obedience.casualties", figure: "casualties" },
           {
             key: "excessRisk",
-            type: "select",
+            type: "ladder",
             label: "ACKS-INFLUENCE.mode.obedience.excessRisk",
-            options: [
-              { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-              { label: "ACKS-INFLUENCE.mode.obedience.risk1", value: -1 },
-              { label: "ACKS-INFLUENCE.mode.obedience.risk2", value: -2 },
-              { label: "ACKS-INFLUENCE.mode.obedience.risk3", value: -5 },
-            ],
+            rungs: ["risk1", "risk2", "risk3", "risk4"],
           },
-          { key: "mercenaryAdventure", type: "check", label: "ACKS-INFLUENCE.mode.obedience.mercenaryAdventure", value: -5 },
+          { key: "mercenaryAdventure", type: "printed", label: "ACKS-INFLUENCE.mode.obedience.mercenaryAdventure", figure: "mercenary" },
           { key: "judgeAdj", type: "signed", label: "ACKS-INFLUENCE.mode.obedience.judgeAdj" },
         ],
       },

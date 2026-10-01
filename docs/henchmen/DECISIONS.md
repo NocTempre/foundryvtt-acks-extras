@@ -272,6 +272,9 @@ sheet shows the rows beside the variant so nothing is hidden.
 
 ### Unit morale interpretation stays with the Judge, not auto-verdicted (2026-09-22)
 
+*Superseded 2026-10-01 by "A hired unit rolls morale on the Combat Morale
+page" below.*
+
 Recorded from the comment on `openUnitMoraleDialog` in `scripts/henchmen/apps/unit-morale-dialog.mjs`.
 
 **Ruled.** The dialog posts the 2d6 roll and total to chat; it does not look up an outcome band itself, so the Judge reads the result off the table by hand.
@@ -324,3 +327,15 @@ comments now state the guard; the story is here.
 **Ruled.** Hire as Group creates each troop type's prototype with `Actor.create`, as a single hire already did. `Actor.implementation.create` runs the system's static `create` override, which replaces create-time `system` on any actor created without `items` and seeds a character's coins, so every group hire until 9.3.3 stacked a first-level, classless 1d8 body carrying coins whatever the market row said. `findOrCreateGroup`'s comment had blamed the group's data model for the same loss; the post-create update it describes stays.
 **Rejected.** Passing `items: []` to `Actor.implementation.create`. It dodges the override as well, but it keeps the unit's correctness hanging on the override's own test for `items`.
 **Cost.** A unit hired before 9.3.3 keeps the stat block its stacks copied. The Judge corrects one by editing the troop actor and dropping it onto its stack on the group's sheet, which re-points the stack and keeps its headcount.
+
+### A hired unit rolls morale on the Combat Morale page (2026-10-01)
+
+Supersedes "Unit morale interpretation stays with the Judge, not auto-verdicted" (2026-09-22).
+
+**Ruled.** A group actor's **Roll Morale** opens the influence roller's `morale` page (RR 307) with the group as its subject and its command morale as the rating, and the unit-morale dialog is gone. The obedience throw's rows and result column left `throws-data.mjs` for the same page family (`docs/influence/DECISIONS.md`, "The morale pages read the Judge's table, and post with no result when it is absent"), and the shipped obedience macro calls `openObedienceRoll` so it reaches that page.
+
+**What changed since the superseded entry.** That entry kept the dialog from naming a result because the module could not tell which morale scale applied. The page now names a result only from the table the Judge imported for it, and names none when the table is absent, so the risk it guarded against is carried by the import rather than by silence. The dialog also asked for one typed number and showed no list of what had been added, which is what the owner's 2026-10-01 ruling asks every morale roll to show.
+
+**Rejected.** A Unit Morale page of its own (RR 468): `docs/DECISIONS.md` §15 puts the battle rules out of scope.
+
+**Cost.** A world that imported the "Obedience Check (Selected)" macro before this release keeps a copy that opens the bare throw dialog, which now rolls the morale score alone and names no result; re-importing the macro from the compendium replaces it.

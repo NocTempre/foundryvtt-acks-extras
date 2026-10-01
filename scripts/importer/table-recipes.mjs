@@ -2853,4 +2853,60 @@ export const TABLE_RECIPES = {
       },
     },
   },
+
+  // The two morale rolls the influence roller hosts: each page's result
+  // column and the figure beside every modifier it lists, with the row's own
+  // wording (`label: true`) so the roller names a rung in the reader's words.
+  // The margin tab sits right of x590 and is windowed out of both.
+  morale: {
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 167, 307" },
+    tables: {
+      // Monster Morale (RR 307): five result rungs and a bulleted list that
+      // prints each figure after its wording. An anchor names its own row and
+      // never a threshold: the two rungs of a ladder share one phrase and are
+      // told apart by `occurrence`, and `signed` reads past the fraction or
+      // ratio a row words itself with.
+      monsterMorale: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 307,
+        locate: "Monster Morale Table",
+        column: { xMin: 20, xMax: 590 },
+        values: [
+          { key: "bands", find: "ie r oll r esult", take: "bandEdges", span: 110 },
+          { key: "hpLost1", find: "of its starting hp", occurrence: 1, take: "signed", span: 8, label: true },
+          { key: "hpLost2", find: "of its starting hp", occurrence: 2, take: "signed", span: 8, label: true },
+          { key: "outnumber1", find: "group outnumbers opponents", occurrence: 1, take: "signed", span: 8, label: true },
+          { key: "outnumber2", find: "group outnumbers opponents", occurrence: 2, take: "signed", span: 30, label: true },
+          { key: "groupLost1", find: "of starting creatures", occurrence: 1, take: "signed", span: 8, label: true },
+          { key: "groupLost2", find: "of starting creatures", occurrence: 2, take: "signed", span: 8, label: true },
+          { key: "noRetreat", find: "accepting surrender", take: "signed", span: 8, label: true },
+        ],
+      },
+      // Hireling Obedience (RR 167): three result rungs and a grid that prints
+      // each figure before its wording, so every row is read backwards from
+      // its opening words. Small caps split a row's first letter off.
+      hirelingObedience: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 167,
+        locate: "Hireling o bedience",
+        column: { xMin: 20, xMax: 590 },
+        values: [
+          { key: "bands", find: "ie r oll (2d6) r esult", take: "bandEdges", span: 50 },
+          { key: "company1", find: "employer personally", before: true, take: "signed", span: 10, label: true },
+          { key: "company2", find: "adventurer other than", before: true, take: "signed", span: 10, label: true },
+          { key: "company3", find: "ther hirelings doing", before: true, take: "signed", span: 10, label: true },
+          { key: "company4", find: "hireling doing task", before: true, take: "signed", span: 10, label: true },
+          { key: "customary", find: "ask is customary", before: true, take: "signed", span: 10, label: true },
+          { key: "casualties", find: "ne or more henchmen", before: true, take: "signed", span: 10, label: true },
+          { key: "risk1", find: "ask exposes hireling to", occurrence: 1, before: true, take: "signed", span: 10, label: true },
+          { key: "risk2", find: "ask exposes hireling to", occurrence: 2, before: true, take: "signed", span: 10, label: true },
+          { key: "risk3", find: "ask exposes hireling to", occurrence: 3, before: true, take: "signed", span: 10, label: true },
+          { key: "risk4", find: "ask exposes hireling to", occurrence: 4, before: true, take: "signed", span: 10, label: true },
+          { key: "mercenary", find: "hireling is a mercenar", before: true, take: "signed", span: 10, label: true },
+        ],
+      },
+    },
+  },
 };
