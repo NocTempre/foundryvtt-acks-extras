@@ -138,6 +138,22 @@ function reliefStated(item) {
   return m ? stoneNumber(m[1]) : null;
 }
 
+/**
+ * How many of a coin weigh one stone, as the item's own name or description
+ * states it — the sentence that sets a count of coins against a weight in
+ * stone — or null when the item does not say, which leaves the coin at the
+ * system's rate until a Judge types one on its sheet.
+ */
+export function perStoneStated(item) {
+  const text = `${item?.name ?? ""} ${item?.system?.description ?? ""}`;
+  // The stone may stand bare ("per stone"), under an article, or under a number.
+  const m = /(\d[\d,]*)\s+(?:\w+\s+)?(?:coins?|pieces?)\s+(?:equals?|weighs?|makes?|to|per)\s+(?:(?:(\d+(?:\.\d+)?(?:\s*\/\s*\d+)?)|an?|one|the)\s*)?stones?\b/i.exec(text);
+  if (!m) return null;
+  const count = Number(m[1].replace(/,/g, ""));
+  const stones = m[2] ? stoneNumber(m[2]) : 1;
+  return count > 0 && stones > 0 ? count / stones : null;
+}
+
 /** Collect the lowercased tag tokens on a core weapon (title or value). */
 function tagTokens(item) {
   const out = new Set();

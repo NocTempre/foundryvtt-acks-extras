@@ -34,8 +34,9 @@ import {
 import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effects.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
 import { modeRows, printedBands } from "./printed.mjs";
-import { ITEM_TYPE, scopeApplies } from "../lib/vocab.mjs";
+import { scopeApplies } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
+import { sinkCoin, transferCoin } from "../lib/money.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -1100,44 +1101,33 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     return this.#moveBribeGold(fee);
   }
 
+  /**
+   * The fee leaves the roller's purse as coin. A target this seat may write
+   * receives those same coins (`transferCoin`); any other target is paid
+   * off-stage and the coin leaves the world (`sinkCoin`). Nothing is written
+   * when the purse cannot cover the fee, so nothing is credited that was not
+   * paid. The two are talking, so no reach gate applies.
+   */
   async #moveBribeGold(fee) {
     const from = this.#actor;
     const to = this.#targetActor;
-    let deducted = false;
-    let credited = false;
+    const lands = !!to && to !== from && to.isOwner;
+    let paid = false;
     try {
-      if (from?.isOwner) deducted = await this.#adjustGold(from, -fee);
-      // Credit only what was actually deducted — an unpaid fee must not mint
-      // gold on the receiving side.
-      if (deducted && to && to !== from && to.isOwner) credited = await this.#adjustGold(to, fee);
+      if (from?.isOwner) {
+        const reason = game.i18n.localize("ACKS-INFLUENCE.chat.bribe");
+        const result = lands ? await transferCoin({ from, to, gp: fee, reason, gate: false }) : await sinkCoin(from, fee);
+        paid = !!result.ok;
+        // A transfer says why it refused; a sink leaves that to its caller.
+        if (!paid && lands) return { fee, from: null, to: null };
+      }
     } catch (err) {
       console.error(`${MODULE_ID} | bribe gold move failed`, err);
     }
-    if (from && !deducted) {
+    if (from && !paid) {
       ui.notifications?.warn(game.i18n.format("ACKS-INFLUENCE.bribe.noGold", { name: from.name }));
     }
-    return { fee, from: deducted ? from?.name ?? null : null, to: credited ? to?.name ?? null : null };
-  }
-
-  /** Adjust an actor's Gold money item by `delta` gp (creating it on credit). */
-  async #adjustGold(actor, delta) {
-    const gold = actor.items.find((i) => i.type === ITEM_TYPE.money && /gold/i.test(i.name));
-    if (!gold) {
-      if (delta > 0) {
-        await actor.createEmbeddedDocuments("Item", [
-          { name: "Gold", type: "money", system: { quantity: delta } },
-        ]);
-        return true;
-      }
-      return false;
-    }
-    const current = Number(gold.system?.quantity) || 0;
-    const next = current + delta;
-    // A deduction the stack cannot cover does not happen at all: report
-    // failure instead of clamping to zero and claiming success.
-    if (next < 0) return false;
-    await gold.update({ "system.quantity": next });
-    return true;
+    return { fee, from: paid ? from?.name ?? null : null, to: paid && lands ? to?.name ?? null : null };
   }
 
   /**

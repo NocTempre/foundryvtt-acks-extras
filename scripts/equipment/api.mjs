@@ -17,9 +17,9 @@ import {
   riderWaivers,
   hasMilitarySaddle,
 } from "./overlays/mounted.mjs";
-import { classifyWeapon, handCost, focusGroup, weaponKey, weaponIdentity, isUnidentifiedWeapon, inferredGrips, equipmentClass, inferGear, isHelmet, isShield } from "./profiles.mjs";
+import { classifyWeapon, handCost, focusGroup, weaponKey, weaponIdentity, isUnidentifiedWeapon, inferredGrips, equipmentClass, inferGear, isHelmet, isShield, perStoneStated } from "./profiles.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
-import { capacityOf, bundleSizeOf } from "../lib/item-model.mjs";
+import { capacityOf, bundleSizeOf, gearOf, isCurrency } from "../lib/item-model.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
 import { refreshLoadout } from "./enforce.mjs";
 import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, MATERIALS } from "./overlays/item-loss.mjs";
@@ -60,11 +60,12 @@ import { ITEM_TYPE } from "../lib/vocab.mjs";
 /**
  * Stamp module profile flags onto a core item from its RAW profile.
  *
- * Three layers, applied in ONE write:
+ * Four layers, applied in ONE write:
  *  - weapons: size and qualities from the RAW weapon table;
  *  - carrying devices: capacity, harness, bowquiver;
  *  - EVERY physical item: where it sits (`gear.slots`) and what it costs to
- *    reach into (`gear.access`), inferred by `inferGear`.
+ *    reach into (`gear.access`), inferred by `inferGear`;
+ *  - coin: how many make a stone (`gear.perStone`), where its own text says.
  *
  * The gear layer is what makes clothing and rigging wearable at all — core
  * declares `system.equipped` on weapon and armor alone — and it is a correctable
@@ -147,6 +148,19 @@ export async function annotateItem(item) {
       if (gearNow) gearNow.per = rounds;
       else updates[`flags.${MODULE_ID}.${FLAG_GEAR}.per`] = rounds;
       key ??= "ammunition";
+    }
+  }
+
+  // A coin's weight is how many of it make a stone. The figure is the item's
+  // own — read off its text, never supplied here — and one already on the
+  // item, a Judge's or an earlier pass's, is left alone.
+  if (isCurrency(item) && gearOf(item).perStone == null) {
+    const perStone = perStoneStated(item);
+    if (perStone != null) {
+      const gearNow = updates[`flags.${MODULE_ID}.${FLAG_GEAR}`];
+      if (gearNow) gearNow.perStone = perStone;
+      else updates[`flags.${MODULE_ID}.${FLAG_GEAR}.perStone`] = perStone;
+      key ??= "coin";
     }
   }
 

@@ -1,7 +1,7 @@
 {{!-- The title band: rendered as a part, then moved into the window header by
       the sheet so Foundry's drag handle and buttons stay where they are. --}}
 <div class="acks-extras-item-sheet__band{{#if band.condition}} is-{{band.condition}}{{/if}}">
-  {{#if band.qtyShown}}
+  {{#if band.showQty}}
   {{!-- Its own form name: the Record panel binds the document path, and two
         inputs of one name reach FormDataExtended as an array. The sheet maps
         this to the quantity path only when THIS control fired the change. --}}
@@ -39,6 +39,20 @@
     </span>
   </span>
   {{/if}}
+  {{#if band.coin}}
+  {{!-- Currency states how many make a stone. Its own form name, as the
+        quantity above: the Record panel binds the flag path itself. --}}
+  <span class="acks-extras-item-sheet__badge" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.perStoneHint'}}">
+    <span class="acks-extras-item-sheet__badge-label">{{localize 'ACKS-EQUIPMENT.itemSheet.band.perStone'}}</span>
+    {{#if editing}}
+    <input class="acks-extras-item-sheet__badge-input acks-nums" type="number" name="acksBandPerStone" value="{{band.coin.declared}}" placeholder="{{band.coin.system}}" min="1" step="any"
+           aria-label="{{localize 'ACKS-EQUIPMENT.itemSheet.band.perStoneHint'}}">
+    <span class="acks-extras-item-sheet__badge-note acks-nums">{{#if band.coin.weighs}}{{band.carried}} st{{else}}{{band.coin.perStone}}{{/if}}</span>
+    {{else}}
+    <span class="acks-extras-item-sheet__badge-value acks-nums">{{band.coin.perStone}}{{#if band.coin.weighs}} · {{band.carried}} st{{/if}}</span>
+    {{/if}}
+  </span>
+  {{else}}
   <span class="acks-extras-item-sheet__badge" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.weightHint'}}">
     <span class="acks-extras-item-sheet__badge-label">{{localize 'ACKS-EQUIPMENT.itemSheet.band.stone'}}</span>
     {{#if (and editing snap.hasWeight)}}
@@ -49,6 +63,7 @@
     <span class="acks-extras-item-sheet__badge-value acks-nums">{{band.weight}}{{#if band.carriedDiffers}} · {{band.carried}}{{/if}}</span>
     {{/if}}
   </span>
+  {{/if}}
   {{#if band.masked}}
   <span class="acks-tag acks-tag--solid" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.maskedHint'}}">{{localize 'ACKS-EQUIPMENT.itemSheet.band.masked'}}</span>
   {{/if}}

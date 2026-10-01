@@ -1433,6 +1433,9 @@ effect already holds.
 
 ## 2026-09-30 — A legacy is the player's, kept on the User, written by the Judge
 
+**Amended 2026-10-01** by "A will pays the heir's vault", at the foot of this
+file: the estate lands in a vault, where this entry says the banked sum.
+
 **Ruled.** The reserve fund and funerals are one ledger per PLAYER, stored as
 a User flag; only a GM seat records into it. A will is an actor flag its owner
 writes and the Judge settles. The three percentages are imported (RR ch. 6).
@@ -1524,3 +1527,29 @@ a class whose casting opens at 2nd offers no spell at 1st — which is what the
 page says. A world's classes packaged before 9.1.0 relink on the next
 materialize pass: *Build packages*, a class re-import or repair, or
 `importTemplatePackages()`.
+
+## 2026-10-01 — A will pays the heir's vault
+
+Amends "2026-09-30 — A legacy is the player's, kept on the User, written by
+the Judge", which paid the heir's bank.
+
+**The new evidence, which that ruling did not have.** The owner's report of
+2026-10-01: "Banked makes no sense anymore now that there are locations to
+bank and needs depreciated as a status." The banked count the estate was
+written to is retired (docs/location/DECISIONS.md, "2026-10-01 — Banked is
+not a state coin can be in"), so a settlement written there would be swept
+out again at the next load.
+
+**Ruled.** Settling a will pays the estate less the bank's charge into the
+heir's vault through the location feature's `payIntoVault`, which makes the
+vault where the heir keeps none. The payment comes before the will is marked,
+so a vault that cannot be made refuses the settlement whole. Starting coin,
+from a template or a bundle, lands through the lib's `creditCoin` on the
+character's row of that coin.
+
+**Rejected.** The heir's purse: an estate would arrive as weight on the heir
+wherever they stand. A vault built here: `vaultFor` is the one definition of
+a vault.
+
+**What it cost.** The classes feature imports from the location feature. A
+world whose Judge deleted an heir's vault gets a new one at settlement.

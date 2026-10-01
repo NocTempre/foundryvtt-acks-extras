@@ -372,6 +372,10 @@ against the vehicle and never trusts the payload.
 
 ## 2026-09-30 — Freight leaves a vehicle as a move, not a copy
 
+**Amended 2026-10-01** by "Coin crosses a hold by the rule every sheet
+keeps", at the foot of this file. Freight is still moved; coin is moved by
+the receiving sheet's rule.
+
 Core's cross-actor item drop creates a copy and leaves the original, which on
 a wagon doubles the load and on a market hold duplicates merchandise. Ruled:
 an item dragged out of a vehicle onto another actor's sheet is handed over
@@ -398,3 +402,26 @@ multiplier Driving earns, the Seafaring ranks, the voyage and march day
 lengths, the pairing of the load tiers, the crew-shortfall arithmetic) to say
 what the field does, with the reference kept; the arithmetic they described
 still runs, where the table or the constant (ROADMAP) says.
+
+## 2026-10-01 — Coin crosses a hold by the rule every sheet keeps
+
+Amends "2026-09-30 — Freight leaves a vehicle as a move, not a copy" for coin
+alone.
+
+**The new evidence, which that ruling did not have.** Walked live on
+2026-10-01: a coin from a compendium dropped on a hold twice made two rows,
+each at the shelf's count; and coin dragged from a hold onto an
+organisation's sheet was handed to an actor whose sheet lists no goods, where
+nothing showed it again.
+
+**Ruled.** Coin is left out of this feature's drag-out hook and goes through
+the lib's `landCoin` on the vehicle sheet's own drop (docs/lib/DECISIONS.md,
+"Currency is one stack with one count, weighed by how many make a stone
+(2026-10-01)"). It is still moved, never copied; it joins the row of its
+kind; and a sheet that lists no goods refuses it with the hold keeping it.
+
+**Rejected:** a coin rule of this feature's own, which would be a second
+statement of what a drop does.
+
+*Cost:* other freight dragged onto a sheet that lists no goods is still
+handed over by this hook (docs/lib/ROADMAP.md, "What coin does not do yet").

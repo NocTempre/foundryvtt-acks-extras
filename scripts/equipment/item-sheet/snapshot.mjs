@@ -27,8 +27,10 @@ import { isWeaponProficient } from "../proficiency.mjs";
 import { isSilvered } from "../silver.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import {
-  isWearable, isWorn, wornSlotOf, capacityOf, contentsIn, weight6Of, bundleSizeOf, isClothing, isAmmoItem, STONE,
+  isWearable, isWorn, wornSlotOf, capacityOf, contentsIn, weight6Of, sumWeight6, bundleSizeOf, isClothing, isAmmoItem, STONE,
+  isCurrency, perStoneOf, systemCoinsPerStone, stackCountOf, gearOf,
 } from "../../lib/item-model.mjs";
+import { coinTotalGC } from "../../lib/money-logic.mjs";
 import { damageGlyphOf } from "../../lib/damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE, WEAR_SLOTS } from "../../lib/vocab.mjs";
 import { rollGroups } from "./rolls.mjs";
@@ -51,6 +53,9 @@ export const SHEET_FLAGS = Object.freeze({
   DISGUISABLE: "disguisable", // the Appearance tab's disguise drop target is offered
   DESTROYED: "destroyed", // the item is wrecked — struck through, tagged, still carried
 });
+
+/** The form path of a currency's own rate — how many of it make a stone. */
+export const PER_STONE_PATH = `flags.${MODULE_ID}.${FLAG_GEAR}.perStone`;
 
 /** Short slot names for the rail cells. */
 const SLOT_SHORT = Object.freeze({
@@ -213,8 +218,20 @@ function ownEffects(item) {
   }));
 }
 
+/** The rate a coin declares for itself, or null when it leaves the weighing to the system. */
+function declaredPerStone(item) {
+  const rate = Number(gearOf(item).perStone);
+  return Number.isFinite(rate) && rate > 0 ? rate : null;
+}
+
 /** The price ledger's inputs, read from the layers. */
 function priceOf(item, marketsFlag) {
+  // Currency has no listed price to build on: it is worth its count at its
+  // rate, and the ledger is that one line.
+  if (isCurrency(item)) {
+    const worth = coinTotalGC([item]);
+    return { base: worth, lines: [{ key: "coin", label: loc("itemSheet.ledger.coin"), op: null, amount: worth, running: worth }], final: worth, apparent: null };
+  }
   const base = Number(pristineOf(item).cost ?? item.system?.cost ?? 0);
   const tier = masterworkTierOf(item);
   const mw = tier && tier !== "none" && MASTERWORK[tier]
@@ -286,8 +303,13 @@ function recordOf(item) {
     case ITEM_TYPE.money:
       return [
         { name: "system.coppervalue", label: loc("itemSheet.field.copperValue"), type: "number", value: sys.coppervalue ?? 1, width: "xs" },
-        { name: "system.quantity", label: loc("itemSheet.field.carried"), type: "number", value: sys.quantity ?? 0, width: "xs" },
-        { name: "system.quantitybank", label: loc("itemSheet.field.banked"), type: "number", value: sys.quantitybank ?? 0, width: "xs" },
+        { name: "system.quantity", label: loc("itemSheet.field.quantity"), type: "number", value: stackCountOf(item) ?? 0, width: "xs" },
+        // Blank leaves the weighing to the system, whose own rate the
+        // placeholder shows; a typed figure is this coin's alone.
+        {
+          name: PER_STONE_PATH, label: loc("itemSheet.field.perStone"), hint: loc("itemSheet.field.perStoneHint"), type: "number",
+          value: declaredPerStone(item) ?? "", placeholder: systemCoinsPerStone() ?? "", width: "xs",
+        },
       ];
     default:
       return [];
@@ -328,7 +350,7 @@ function containerSnapshot(item) {
   if (!holds && !rec) return null;
   const cap = capacityOf(item);
   const contents = contentsIn(item).filter((i) => !variationItemsOf(item).includes(i));
-  const load6 = contents.reduce((n, i) => n + weight6Of(i), 0);
+  const load6 = sumWeight6(contents);
   return {
     holds,
     capacityStone: cap,
@@ -344,7 +366,7 @@ function containerSnapshot(item) {
     refusal: rec?.refusal ?? "",
     canSee: canSeeInside(item),
     contents: canSeeInside(item)
-      ? contents.map((c) => ({ id: c.id, name: c.name, img: c.img, qty: c.system?.quantity?.value ?? c.system?.quantity ?? null, weight6: weight6Of(c) }))
+      ? contents.map((c) => ({ id: c.id, name: c.name, img: c.img, qty: stackCountOf(c), weight6: weight6Of(c) }))
       : [],
   };
 }
@@ -399,8 +421,8 @@ export function snapshotItem(item, { gm = false, descriptionHTML = "", trueDescr
   const markets = item.getFlag(MODULE_ID, MARKETS_FLAG) ?? {};
   const disguise = item.getFlag(MODULE_ID, ITEM_FLAGS.DISGUISE) ?? null;
   const weaponProfile = item.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
-  const stackable = item.type === ITEM_TYPE.item || item.type === ITEM_TYPE.money;
-  const qty = item.type === ITEM_TYPE.money ? Number(item.system?.quantity) : Number(item.system?.quantity?.value);
+  const stackable = item.type === ITEM_TYPE.item || isCurrency(item);
+  const qty = stackCountOf(item);
 
   return {
     id: item.id,
@@ -422,6 +444,9 @@ export function snapshotItem(item, { gm = false, descriptionHTML = "", trueDescr
     // one bundle is rated at, and the two differ for goods sold in bundles.
     per: bundleSizeOf(item),
     carried6: weight6Of(item),
+    // Currency states its weight the other way round — how many make a stone:
+    // the rate in force, the one the coin declares, and the system's own.
+    currency: isCurrency(item) ? { perStone: perStoneOf(item), declared: declaredPerStone(item), system: systemCoinsPerStone() } : null,
     cost: Number(item.system?.cost ?? 0),
     valueMode: item.getFlag(MODULE_ID, SHEET_FLAGS.VALUE_MODE) ?? "priced",
     wearable: declared || gear.slots.length > 0 || item.type === ITEM_TYPE.weapon || item.type === ITEM_TYPE.armor,

@@ -51,6 +51,12 @@ no multiple is `unpriced`, an identification method whose threshold is
 missing is not offered, and a till with no stated families has target 0 and
 writes nothing.
 
+**Coin is the lib's.** The till is the place's house-owned coin
+(`lib.money.ownCoin(location)`), valued by `coinTotalCp`, and a monthly
+refresh tops it up with `mintCoin`. The changer lists the trader's own coin
+rows and exchanges through `lib.money.exchangeCoins`. Nothing in this feature
+counts or writes a coin row (docs/lib/MODEL.md, "Currency").
+
 ## The engine
 
 One writer path: every mutation of `system.market.goods` runs through the

@@ -1540,3 +1540,27 @@ p. 140.
 paraphrase into an uncited one (ip-doctrine, "What a citation does not do").
 
 *Cost:* the hints say less. A Judge who wants the figure turns to the cited page.
+
+### A coin states how many make a stone, on its own sheet (2026-10-01)
+
+The ruling is docs/lib/DECISIONS.md, "Currency is one stack with one count,
+weighed by how many make a stone (2026-10-01)". What this feature decided
+under it:
+
+**Ruled.** The item sheet's band shows **Per stone** on a coin in place of the
+weight field, and the same path is a Record-panel field. The rate is the
+item's own flag and blank means the system's. Annotate fills it only from the
+item's own text. A character's load takes the purse's weight through
+`encumbranceDelta6`, which cancels core's whole-stone figure and adds the
+exact one. A coin is offered no appraisal mode and no listed price.
+
+**Rejected.** A weight field in sixths on a coin, as other goods have: one
+coin is a fraction no sixth states, which is why the rule is stated per stone
+(RR ch. 1, Speed and Encumbrance). A second encumbrance wrapper for coin: one
+owner per wrapped core method, and this feature already owns
+`computeEncumbrance`. A rate read from a table this module ships: it is a
+printed value.
+
+**What it cost.** Every world character is prepared twice at load. With roll
+automation off the wrapper is not registered, and a character's coin weighs
+as core counts it.

@@ -34,7 +34,8 @@ import { routeActorDrop } from "./drop-dialog.mjs";
 import { fractionLabel } from "../lib/util.mjs";
 import { boardForBestPace, reboardLast } from "./boarding.mjs";
 import { explorationSpeedOf } from "../formation/formation-model.mjs";
-import { STONE, encumbering6 } from "../lib/item-model.mjs";
+import { STONE, encumbering6, isCurrency } from "../lib/item-model.mjs";
+import { landCoin } from "../lib/bundles.mjs";
 import { expeditionFrom, TRAVEL_PACE } from "../lib/movement-scales.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../markets/constants.mjs";
 
@@ -408,7 +409,11 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     if (data?.type === "Item") {
       const item = await fromUuid(data.uuid);
       if (!item || item.parent === this.actor) return;
-      if (item.parent instanceof Actor) await handOver(item.parent, this.actor, [{ id: item.id }]);
+      // Coin goes where it goes on every sheet (`landCoin`): moved off an actor
+      // like the rest, and from nobody onto the hold's row of its own kind — a
+      // copy would be a second purse, at whatever count the shelf's is.
+      if (isCurrency(item)) await landCoin(this.actor, item);
+      else if (item.parent instanceof Actor) await handOver(item.parent, this.actor, [{ id: item.id }]);
       else await this.actor.createEmbeddedDocuments("Item", [item.toObject()]);
       return this.render();
     }

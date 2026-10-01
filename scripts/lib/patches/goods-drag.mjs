@@ -1,4 +1,4 @@
-/* global game, Hooks */
+/* global game, Hooks, foundry, ui */
 /**
  * Core patch: the goods rows core leaves un-draggable, and the mint bug that
  * opens once they are.
@@ -22,17 +22,34 @@
  * receiver on a cross-actor drop without debiting the giver. Both are guarded
  * here, beside the class that opened them: a same-actor money drop is routed
  * to a plain sort, and a cross-actor one to `handOver`, the family's existing
- * transfer. See docs/lib/DECISIONS.md, "Goods the system leaves un-draggable
- * are marked — and only those", and "Coin made draggable is guarded against
- * minting itself".
+ * transfer. Coin with no actor behind it takes the same road every other
+ * arrival does (`deliverDrop`), because core's own credit finds the row by
+ * document id and so makes a second row of any coin that has ever travelled.
+ *
+ * Foundry's own `ActorSheetV2._onDropItem` has the same fault by a shorter
+ * road — an item off another actor is created again on this one and the
+ * giver's is left alone — and every actor sheet that states no drop handler
+ * of its own inherits it. That method is guarded too, so coin is copied by no
+ * sheet (`landCoin` is the one statement of where a dropped coin goes). A
+ * sheet whose actor is not a creature — a faction's is the one that reaches
+ * that method — takes no coin at all: handed over it would leave the giver
+ * for an actor no sheet lists goods on.
+ * See docs/lib/DECISIONS.md, "Goods the system leaves un-draggable are marked
+ * — and only those", "Coin made draggable is guarded against minting
+ * itself", and "Currency is one stack with one count, weighed by how many
+ * make a stone".
  */
-import { isGoods } from "../item-model.mjs";
-import { MODULE_ID } from "../constants.mjs";
-import { handOver } from "../storage.mjs";
+import { isCurrency, isGoods } from "../item-model.mjs";
+import { ANIMAL_TYPE, LANG_PREFIX, MODULE_ID } from "../constants.mjs";
+import { ACTOR_TYPE } from "../vocab.mjs";
+import { landCoin } from "../bundles.mjs";
 import { elementOf } from "../util.mjs";
 
-/** The system's item type for coin. Matches `isGoods`'s own rider. */
-const MONEY_TYPE = "money";
+/**
+ * The actor types whose sheets list what the actor carries: the system's two
+ * creature types and the animal on the monster's chassis.
+ */
+const CARRIER_TYPES = new Set([ACTOR_TYPE.character, ACTOR_TYPE.monster, ANIMAL_TYPE]);
 
 function markGoodsDraggable(app, element) {
   if (game.system?.id !== "acks") return;
@@ -71,7 +88,7 @@ function guardMoneySelfDrop(app) {
 
   const inner = proto._onDropItem;
   proto._onDropItem = async function (event, item, ...rest) {
-    if (item?.type === MONEY_TYPE) {
+    if (isCurrency(item)) {
       const source = item.parent;
       if (source?.uuid === this.actor?.uuid) {
         // Exactly what the Foundry base class does for every other type: the
@@ -79,21 +96,51 @@ function guardMoneySelfDrop(app) {
         await this._onSortItem?.(event, item);
         return item;
       }
-      // Coin off another ACTOR is a hand-over. Coin with no actor behind it —
-      // a compendium purse, a bundle's payout — is an arrival with nobody to
-      // debit, and keeps the system's credit.
-      if (source?.documentName === "Actor") {
-        await handOver(source, this.actor, [{ id: item.id }]);
-        return null;
-      }
+      await landCoin(this.actor, item);
+      return null;
     }
     return inner.call(this, event, item, ...rest);
   };
   dropGuarded = true;
 }
 
+/**
+ * Close the copy on every sheet that takes Foundry's own drop: the follower
+ * card, the faction sheet, and any sheet another module registers. Coin from
+ * elsewhere goes where `landCoin` sends it when the sheet's actor is one of
+ * `CARRIER_TYPES`, and is refused with a warning — neither moved nor copied —
+ * when it is not. A drop within one actor is the base class's own re-sort,
+ * which writes no count. Wrapped through libWrapper where it is loaded, so
+ * another module's wrapper on the same method composes with this one.
+ */
+function guardBaseCoinDrop() {
+  const base = foundry.applications?.sheets?.ActorSheetV2?.prototype;
+  if (typeof base?._onDropItem !== "function") return;
+  const guard = async function (wrapped, event, item, ...rest) {
+    if (isCurrency(item) && item.parent?.uuid !== this.actor?.uuid) {
+      if (CARRIER_TYPES.has(this.actor?.type)) await landCoin(this.actor, item);
+      else ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.storage.keepsNoGoods`, { name: this.actor?.name ?? "" }));
+      return null;
+    }
+    return wrapped(event, item, ...rest);
+  };
+  if (globalThis.libWrapper?.register) {
+    globalThis.libWrapper.register(MODULE_ID, "foundry.applications.sheets.ActorSheetV2.prototype._onDropItem", guard, "MIXED");
+    return;
+  }
+  const inner = base._onDropItem;
+  base._onDropItem = function (...args) {
+    return guard.call(this, inner.bind(this), ...args);
+  };
+}
+
 /** Install the patch. Every actor sheet render is checked; only goods are touched. */
 export function installGoodsDrag() {
+  try {
+    guardBaseCoinDrop();
+  } catch (err) {
+    console.error(`${MODULE_ID} | coin drop guard failed`, err);
+  }
   Hooks.on("renderActorSheetV2", (app, element) => {
     try {
       if (game.system?.id === "acks") guardMoneySelfDrop(app);

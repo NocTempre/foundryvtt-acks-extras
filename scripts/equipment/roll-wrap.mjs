@@ -331,9 +331,10 @@ async function onRollAttack(wrapped, attData, options = {}) {
  * resulting system.encumbrance / movementacks for party speed). It is an
  * ENHANCE, not a replacement — core's own sum runs untouched and we adjust the
  * total afterwards, so formation keeps reading one consistent number and the two
- * modules cannot disagree. Only RAW rules a flat sum gets wrong are corrected
- * (adventurer's harness, bowquiver); with no containers in play the delta is 0
- * and this is a pass-through.
+ * modules cannot disagree. Only what a flat sum gets wrong is corrected
+ * (`encumbranceDelta6`: harness, bowquiver, bundles, and the part-stone of a
+ * purse core rounds away); where none of it applies the delta is 0 and this
+ * is a pass-through.
  *
  * Core calls _calculateMovement() at the END of computeEncumbrance, so any
  * adjustment must recompute movement or speed would reflect the pre-correction

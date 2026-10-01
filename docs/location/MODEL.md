@@ -121,6 +121,31 @@ the claim half). Ownership and a companion's ownership are deliberately not
 grounds: they are world-wide, so a world that leaves its places open puts every
 one of them on every sheet (see [DECISIONS.md](DECISIONS.md), 2026-09-20).
 
+## Banked coin
+
+The system's coin rows carry a second count, `system.quantitybank`. Nothing in
+this module reads it as coin: the count a row has is its carried one
+(docs/lib/MODEL.md, "Currency"), and coin that is kept safe is kept at a
+place. So the field has no surface and no standing balance:
+
+- **No sheet shows it.** `installStorageTab` removes the bank cells from every
+  sheet the system draws, for any actor, and the banked field from the
+  system's coin sheet. The module's own sheets never drew either.
+- **A balance found in it is moved** by `runVaultSweep`
+  ([vault-sweep.mjs](../../scripts/location/vault-sweep.mjs)), which a GM's
+  client runs at every `ready`, the repair tool runs for chosen actors, and
+  the shipped macro runs on demand. A character's balance goes into their
+  vault (`vaultFor`, the one definition of a vault), stamped as theirs; the
+  ledger of what is owed is written in the same update that zeroes the field
+  and cleared once the coin has landed, so a client that dies between the two
+  loses nothing and the next pass resumes from the ledger. Any other actor's
+  balance, and an unlinked token's own, joins the carried count on the same
+  row in one write. `planVaultSweep` answers what a run would move without
+  moving it.
+- **`payIntoVault(character, gp)`** lands coin from nowhere in a character's
+  vault as theirs, making the vault if they keep none. The classes feature's
+  will pays an estate through it.
+
 ## A place's role
 
 A place may carry a **role** — today, a gate — which marks it as a place of

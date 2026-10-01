@@ -47,6 +47,12 @@ monster stats — lives on the full sheet):
 `system.spells`) with the Full sheet link beside it — the spell page itself
 (memorize, cast, reset) deliberately stays core's.
 
+**Coin** is listed with the rest of what the follower carries: every coin row
+that holds anything, always with its count, and an emptied row not at all.
+The card's weight counts the purse to the coin and prints the nearest sixth.
+Coin dropped on the card is handed over or lands on the row of its kind
+(docs/lib/MODEL.md, "Currency"); the card has no divide or join of its own.
+
 ## API — `acksLib.followerCard`
 
 | member | purpose |

@@ -31,7 +31,8 @@ import * as named from "../overlays/named.mjs";
 import { containedIn, setWorn, slotsOf, siblingsOf, isEquippable, isWorn } from "../../lib/item-model.mjs";
 import { inferGear } from "../profiles.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
-import { snapshotItem, SHEET_FLAGS } from "./snapshot.mjs";
+import { quantityOf } from "../../lib/storage-logic.mjs";
+import { snapshotItem, SHEET_FLAGS, PER_STONE_PATH } from "./snapshot.mjs";
 import { buildItemSheetModel, togglePin, KNOW_STEPS, VALUE_MODES } from "./view-model.mjs";
 import { rollById, rollIds } from "./rolls.mjs";
 import { bindScene, unbindScene, updateFromExploration, chartScene } from "./chart.mjs";
@@ -230,11 +231,21 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
     if ("acksBandQty" in data) {
       const qty = Number(data.acksBandQty);
       delete data.acksBandQty;
-      if (event?.target?.name === "acksBandQty" && Number.isFinite(qty)) {
-        const qtyPath = this.item.type === ITEM_TYPE.money ? "system.quantity" : "system.quantity.value";
+      // The count lives where the type keeps it; the lib reads which.
+      const qtyPath = quantityOf(this.item)?.path;
+      if (event?.target?.name === "acksBandQty" && Number.isFinite(qty) && qtyPath) {
         foundry.utils.setProperty(data, qtyPath, Math.max(0, Math.round(qty)));
       }
     }
+    // A currency's rate, typed in the band or in the Record panel. Blank, zero
+    // and anything that is not a count all mean "declares none", stored null.
+    if ("acksBandPerStone" in data) {
+      const typed = data.acksBandPerStone;
+      delete data.acksBandPerStone;
+      if (event?.target?.name === "acksBandPerStone") foundry.utils.setProperty(data, PER_STONE_PATH, typed);
+    }
+    const perStone = foundry.utils.getProperty(data, PER_STONE_PATH);
+    if (perStone !== undefined) foundry.utils.setProperty(data, PER_STONE_PATH, Number(perStone) > 0 ? Number(perStone) : null);
     const cap = foundry.utils.getProperty(data, `flags.${MODULE_ID}.gear.capacity`);
     if (cap === "" || cap === null) {
       foundry.utils.setProperty(data, `flags.${MODULE_ID}.gear.capacity`, null);

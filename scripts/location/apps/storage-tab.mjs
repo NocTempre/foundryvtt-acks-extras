@@ -8,7 +8,7 @@
  * competing answer to the same question and the two would drift the first time a
  * player used both. So it is removed from the inventory tab and replaced by a
  * line summarising what is really in storage; the sweep (vault-sweep.mjs) moves
- * the old values into a vault so nothing is lost.
+ * the old values to where coin is kept so nothing is lost.
  *
  * WHY DOM INJECTION AND NOT A SHEET SUBCLASS. The core sheet declares its tabs
  * as statics and the system is an unmodifiable reference; a subclass would fight
@@ -92,16 +92,13 @@ const clear = (root) => {
   for (const el of root.querySelectorAll(`.${ANCHOR_CLASS}, .${TAB_CLASS}, .${SUMMARY_CLASS}`)) el.remove();
 };
 
-/** The retired bank column: one class covers the header cell and every row. */
-const stripBankColumn = (root) => {
-  for (const cell of root.querySelectorAll('.tab[data-tab="inventory"] .money__count-bank')) cell.remove();
-};
-
 /**
- * Is there anywhere in the world to keep coin at all? Nothing about banked coin
- * is retired before storage exists to replace it.
+ * The retired bank column: one class covers the header cell and every row,
+ * on whichever tab the sheet draws its inventory.
  */
-const worldHasStorage = () => !!storage()?.providers?.().length;
+const stripBankColumn = (root) => {
+  for (const cell of root.querySelectorAll(".money__count-bank")) cell.remove();
+};
 
 function injectSummary(root, data) {
   if (!data.hasGoods) return;
@@ -247,11 +244,16 @@ export function installStorageTab() {
     try {
       if (game.system?.id !== "acks") return;
       const actor = app.actor ?? app.document;
-      if (actor?.type !== ACTOR_TYPE.character) return;
-      // The module's own character sheet lists storage under its Equipment
-      // tab's "Kept elsewhere" rule; this tab dresses the system's sheet alone.
+      // The module's own sheets draw no bank column and list storage their own
+      // way (the character sheet's "Kept elsewhere" rule); everything below
+      // dresses the system's sheets alone.
       if (ownsSheet(app)) return;
       const root = elementOf(element);
+      // Banked is not a state coin can be in: the column goes from every sheet
+      // the system draws, whoever the actor is and whether or not a Storage
+      // tab follows it.
+      if (root) stripBankColumn(root);
+      if (actor?.type !== ACTOR_TYPE.character) return;
       // The core sheet has a primary tab strip; the Follower Card and our own
       // location sheet do not, and neither wants one bolted on.
       if (!root?.querySelector("nav.tabs") || !root.querySelector('section.tab[data-group="primary"]')) return;
@@ -271,10 +273,6 @@ export function installStorageTab() {
       injectSummary(root, data);
       injectTab(app, root, actor, html);
       bindPlaceDrop(root, actor);
-      // The bank column is only removed where its replacement is injected: a
-      // sheet that gets no Storage tab keeps core's column, so a world with
-      // nowhere to store coin is never left with neither.
-      stripBankColumn(root);
     } catch (err) {
       console.error(`${MODULE_ID} | storage tab injection failed`, err);
     }
@@ -285,9 +283,6 @@ export function installStorageTab() {
     try {
       if (game.system?.id !== "acks") return;
       if ((app.document ?? app.item)?.type !== ITEM_TYPE.money) return;
-      // Same rule as the column: an item sheet has no storage tab to replace the
-      // field with, so a world with no providers keeps core's field.
-      if (!worldHasStorage()) return;
       const root = elementOf(element);
       root?.querySelector('[name="system.quantitybank"]')?.closest(".form-group")?.remove();
     } catch (err) {

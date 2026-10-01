@@ -11,6 +11,7 @@
  * Shape of the snapshot (see `snapshot.mjs` for the reads behind each field):
  *   identity   id, name, img, type, baseType, description, tags[]
  *   goods      qty (number|null), stackable, weight6, cost
+ *   currency   {perStone, declared, system} | null — how many make a stone
  *   wear       wearable, worn, wornSlot, slotGuess, favorite (bool|null), split
  *   magic      {is, aura, identified}     disguise {enabled, active, trueName,
  *              trueDescription, trueCost, apparentName}
@@ -28,7 +29,7 @@
  *   variations [{id,name,hidden}]
  *   pins       string[] (roll ids the item pins to its art)
  */
-import { DASH, gpLabel, stoneLabel, initialOf, pctLabel } from "./format.mjs";
+import { DASH, gpLabel, stoneLabel, countLabel, initialOf, pctLabel } from "./format.mjs";
 
 /** How many rolls the art can carry. */
 export const MAX_PINS = 2;
@@ -111,7 +112,9 @@ export function listedPrice(price) {
  * the tooltip.
  * @returns {{text:string, reason:string}}
  */
-export function valueBadge({ mode, fullCost, apparentCost, hideMagic, masked, maskedForJudge }) {
+export function valueBadge({ mode, fullCost, apparentCost, hideMagic, masked, maskedForJudge, coin = false }) {
+  // Currency is its own worth: nothing appraises it, and nothing is typed.
+  if (coin) return { text: gpLabel(fullCost), reason: "coin" };
   if (mode === "unknown") return { text: null, reason: "unknown" };
   if (mode === "na") return { text: DASH, reason: "na" };
   if (hideMagic) return { text: gpLabel(apparentCost ?? fullCost), reason: "apparent" };
@@ -182,7 +185,9 @@ export function buildItemSheetModel(snap, viewer = {}) {
 
   /* ---- title band ----------------------------------------------------- */
   const qty = snap.stackable && Number.isFinite(snap.qty) ? snap.qty : null;
-  const isStack = qty !== null && qty > 1;
+  const coin = snap.currency ?? null;
+  // A coin row is a stack at any count — none and one included.
+  const isStack = qty !== null && (qty > 1 || !!coin);
   const fullCost = snap.price?.final ?? snap.cost ?? 0;
   const value = valueBadge({
     mode: snap.valueMode ?? "priced",
@@ -191,6 +196,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
     hideMagic,
     masked,
     maskedForJudge,
+    coin: !!coin,
   });
   const condState = dur?.destroyed ? "destroyed" : dur?.damaged ? "damaged" : null;
   // Damage cannot be disguised: the tag reads off the real condition even
@@ -293,6 +299,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
       // The stack's own count: splitting one out already decremented it, and
       // the split item is a separate document with a count of one.
       qtyShown: isStack && !masked ? qty : null,
+      showQty: isStack && !masked,
       scene: chart ? chart.sceneName : null,
       condition: bandState,
       value: value.text,
@@ -312,6 +319,12 @@ export function buildItemSheetModel(snap, viewer = {}) {
       bundled: (snap.per ?? 1) > 1,
       carried: stoneLabel(snap.carried6 ?? snap.weight6),
       carriedDiffers: (snap.carried6 ?? snap.weight6) !== snap.weight6,
+      // Currency reads the other way round: how many make a stone, the rate
+      // the coin declares for itself (blank when it declares none), and the
+      // system's rate that stands in for a blank.
+      coin: coin
+        ? { perStone: countLabel(coin.perStone), declared: coin.declared ?? "", system: coin.system ?? "", weighs: (snap.carried6 ?? 0) > 0 }
+        : null,
       masked: maskedForJudge,
       striped: maskedForJudge,
     },
@@ -384,7 +397,8 @@ export function buildItemSheetModel(snap, viewer = {}) {
         finalLabel: gpLabel(snap.price?.final ?? 0),
       },
       valueMode: snap.valueMode ?? "priced",
-      valueModes: VALUE_MODES.map((k) => ({ key: k, on: (snap.valueMode ?? "priced") === k })),
+      // Currency is never appraised, so it is offered no mode to be put in.
+      valueModes: coin ? [] : VALUE_MODES.map((k) => ({ key: k, on: (snap.valueMode ?? "priced") === k })),
       variations: snap.variations ?? [],
       holds: !!container?.holds,
       capacityStone: container?.capacityStone ?? null,

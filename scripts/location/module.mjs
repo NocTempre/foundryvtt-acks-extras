@@ -27,7 +27,7 @@ import { LocationData } from "./data/location-data.mjs";
 import { LocationSheet, registerLocationSheet } from "./apps/location-sheet.mjs";
 import { installStorageTab } from "./apps/storage-tab.mjs";
 import { StorageManagerMenu, openStorageManager, installManagerRefresh } from "./apps/storage-manager.mjs";
-import { runVaultSweep } from "./vault-sweep.mjs";
+import { runVaultSweep, vaultFor, payIntoVault } from "./vault-sweep.mjs";
 import {
   createLocationForRegion,
   createLocationForScene,
@@ -180,6 +180,13 @@ Hooks.once("ready", () => {
     openRuledataBrowser,
     openStorageManager,
     runVaultSweep,
+    /**
+     * A character's vault (vault-sweep.mjs): `vaultFor` finds it or makes it,
+     * `payIntoVault` lands coin in it as theirs. The one definition of a vault,
+     * so nothing outside this feature builds a second.
+     */
+    vaultFor,
+    payIntoVault,
     LOCATION_TYPE,
     LocationSheet,
     /**

@@ -111,11 +111,11 @@ silver, material, shield variant, helm), a strip of toggles wherever it takes
 several (grips, qualities, where it is worn), and *Other tags* only for what no
 list names.
 
-![](../releases/v7.5.0/equipment.png)
+![](../releases/v10.0.0/equipment.png)
 
-*The Construction tab armed: Auto naming its guess on every drop-down, the
-grips dashed from the size table, Melee lit from its field, and the axe's
-hands locked at Worn at with a belt declared beside them.*
+*The Details tab armed: under Construction, Auto naming its guess on every
+drop-down, the grips dashed from the size table and Melee lit from its field,
+with the masterwork row beneath.*
 
 **Clothing is declared once.** Set *Base type* to Clothing under
 **Construction** and the rail beside the art shows it. The item then weighs as
@@ -184,7 +184,8 @@ only ammunition to hand, or spend it by hand on the stack.
 
 - A container shows its own header, load, and controls next to the gear it
   holds — there is no separate window.
-- Coins are stowable (they go in a pouch) even though they have no weight.
+- Coins are stowable (they go in a pouch), and they weigh: a purse counts
+  toward your load to the coin, wherever it is packed.
 - Locked and concealed containers are supported: picking a lock does not remove
   it, so the two states are tracked separately.
 - **Emptying** a container leaves its contents loose on the actor rather than
@@ -317,6 +318,13 @@ sixths), a scene chip on a chart, and a Damaged / Destroyed tag when the item
 has taken harm. Damage cannot be disguised, so that tag shows whatever else the
 sheet is hiding.
 
+**On coin the weight reads the other way round.** The badge is **Per stone**:
+how many of that coin make a stone, with what the stack weighs beside it. With
+the pencil pressed it is a field for a rate of the coin's own; left blank, the
+coin weighs as the system weighs coin, and the greyed figure in the field is
+that rate. A coin's value is its count at the worth of one, so it has no price
+to type and no value mode.
+
 **The art row.** Left of the art, a rail of small cells: what the item is (a
 weapon shows its damage-type glyph), where it is worn, and up to two **pinned
 rolls** — click a roll's lozenge on the Rolls tab to pin it, and the art carries
@@ -373,9 +381,11 @@ An item with nothing to roll, no effects, no durability and no contents — coin
 gems, a trinket — drops the tabs and the state rail entirely; a quiet **Details**
 button unfolds that one panel when you need it.
 
-![](../releases/v4.18.0/equipment-item-sheet-simple.png)
+![](../releases/v10.0.0/equipment-coin.png)
 
-*Coin in simple mode: band, art, description and the record — nothing else.*
+*Coin in simple mode: the band with its count, the stack's value and Per stone
+— the rate, then what the stack weighs — the art, and the record of what one is
+worth, how many there are and how many make a stone.*
 
 ## Common problems
 

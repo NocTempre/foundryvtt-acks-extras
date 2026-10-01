@@ -8,7 +8,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { holdsGear } from "./item-model.mjs";
-import { isProvider, storedItems, storageFlagOf, STORAGE_KEY } from "./storage.mjs";
+import { coinTotalGC, isProvider, storedItems, storageFlagOf, STORAGE_KEY } from "./storage.mjs";
 import {
   LIB_ID,
   OCCUPANT_KIND,
@@ -31,7 +31,7 @@ import {
   visibleOccupants,
   wouldCycle,
 } from "./place-logic.mjs";
-import { ITEM_TYPE, ACTOR_TYPE } from "./vocab.mjs";
+import { ACTOR_TYPE } from "./vocab.mjs";
 
 // Re-export the Foundry-free half so consumers reach it all through
 // `acksLib.places`, while the pure half stays independently Node-importable.
@@ -492,11 +492,7 @@ export function coinRollupGC(doc, nodes = null) {
 }
 
 /** Coin stored at one provider, in gold. */
-function coinAt(actor) {
-  return storedItems(actor)
-    .filter((i) => i.type === ITEM_TYPE.money)
-    .reduce((sum, i) => sum + (Number(i.system?.quantity) || 0) * ((Number(i.system?.coppervalue) || 0) / 100), 0);
-}
+const coinAt = (actor) => coinTotalGC(storedItems(actor));
 
 /** Whether any goods at this place belong to somebody — used to warn on delete. */
 export const hasStoredGoods = (doc) => storedItems(doc).some((i) => !!storageFlagOf(i));

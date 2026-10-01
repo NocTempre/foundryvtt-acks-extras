@@ -502,9 +502,11 @@ when it holds any.
   it is refused and claims nothing. The level-up wizard then climbs it.
 - **A will lives on the character** (actor flag `will`: heir, estate in gp,
   note), written by the character's owner. Settling it is the Judge's: the
-  heir's bank is credited the estate less `experience.bankFee` (rounded up to
-  whole gp), and the will is marked settled so it pays once. The deceased's
-  own belongings are not moved.
+  estate less `experience.bankFee` (rounded up to whole gp) is paid into the
+  heir's vault (the location feature's `payIntoVault`, which makes the vault
+  if the heir keeps none), and the will is marked settled so it pays once. A
+  vault that cannot be made refuses the settlement whole. The deceased's own
+  belongings are not moved.
 
 ## Level-up
 
@@ -594,11 +596,13 @@ offer among named alternatives (a warlock's dark path, a witch's tradition) is
 not something a template lists, and stays on offer.
 
 **The template pays the starting coin**, in the denominations it prints — most
-pay gold, a few pay silver, and three pay silver alone. Each lands in the money
-item of that name, which is the only handle `Actor#manageMoney` has on a purse,
-and a missing one is cloned from the world's own item so it keeps that coin's
-valuation. The page's gold row shows the figure that will be written and is
-cleared at submit, so the system is never asked to pay it a second time.
+pay gold, a few pay silver, and three pay silver alone. Each lands on the
+character's own row of that name through the lib's `creditCoin`, which tops a
+purse up and never makes a second; where the character keeps none, the row is
+copied from the world's coin of that name (`coinTemplate`) so it keeps that
+coin's valuation. A bundle's coin row lands the same way. The page's gold row
+shows the figure that will be written and is cleared at submit, so the system
+is never asked to pay it a second time.
 
 **A build with no package** is the Judges Journal's option (JJ Ch. 16), reachable
 only under the Judge unlock: no equipment and no spellbook, every level-1 choice

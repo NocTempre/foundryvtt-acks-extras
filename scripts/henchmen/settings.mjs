@@ -36,14 +36,6 @@ export function registerSettings() {
     },
     default: "warn",
   });
-  reg("wagesToBank", {
-    name: "ACKS-HENCHMEN.setting.wagesToBank",
-    hint: "ACKS-HENCHMEN.setting.wagesToBankHint",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
   reg("wageReminders", {
     name: "ACKS-HENCHMEN.setting.wageReminders",
     hint: "ACKS-HENCHMEN.setting.wageRemindersHint",

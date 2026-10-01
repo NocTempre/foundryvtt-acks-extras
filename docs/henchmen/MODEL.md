@@ -7,8 +7,10 @@ features extend it. Companion to the local rules extract
 ## 1. Design rules
 
 - **Never write the core system's schema** outside `scripts/acks-adapter.mjs`.
-  Sanctioned writes: coin items (`spendGold`/`grantGold`), `system.retainer.*`
-  fields, and roster changes via the system's own `addHenchman`/`delHenchman`.
+  Sanctioned writes: `system.retainer.*` fields, and roster changes via the
+  system's own `addHenchman`/`delHenchman`. Coin is not among them: the
+  adapter's `getGold`/`spendGold`/`grantGold` are callers of the lib's money
+  surface (docs/lib/MODEL.md, "Currency") and write no coin row themselves.
 - **Reuse the core hireling plumbing**: hired candidates become real `character`
   actors with `system.retainer.{enabled, loyalty, wage, managerid, category,
   quantity}` set and are pushed into the employer's `system.henchmenList` by
@@ -142,6 +144,20 @@ One owner: nothing else in the module wraps `getTotalWages`.
 A wage clock is never given a numeric initial. Zero is a real `worldTime`, so an
 unset clock has to materialize as null or the billing guard cannot tell "never
 enrolled" from "hired at the dawn of the world".
+
+## 4c. Where a wage lands
+
+`payWagesFor(employer)` pays each due hireling by `transferCoin` with `upTo`:
+the employer's own coins land in the hireling's purse, on the row of their
+kind, and what the purse cannot represent exactly books as arrears on the
+record. A paid unit is billed the same way and its coin sits on the group
+actor. An employer reaches the unit it pays through the unit's
+`system.unit.employerUuid`, as it reaches a hireling through the roster.
+
+A transfer that is refused (the two are not together, the payee cannot make
+change) has said why and moved nothing, so no payday is recorded for that
+entry, its month stays due, and the `wagesPaid` hook counts neither the entry
+nor its gold. When every entry is refused the hook does not fire.
 
 ## 5. Time model
 

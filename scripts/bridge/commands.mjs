@@ -32,8 +32,8 @@ import { markInflight, drain, chatEvent } from "./events.mjs";
 import { flagsFor } from "./provenance.mjs";
 import { rollInventory, rollById } from "../character-sheet/rolls.mjs";
 import { snapshotFrame } from "../character-sheet/snapshot.mjs";
-import { coinTotalGC } from "../lib/storage-logic.mjs";
-import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
+import { purseGp } from "../lib/money.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { skipDialogKey } from "../lib/roll-dialog.mjs";
 
 /** The autocomplete cap a client can show at once; `characters` and `rolls` list past it only on request. */
@@ -173,7 +173,7 @@ const userNamed = (name) => game.users.find((u) => u.name.toLowerCase() === Stri
 
 /** What `/sheet` shows: the frame snapshot the sheet itself reads, plus the purse. */
 function summary(actor) {
-  const coinGp = coinTotalGC(actor.items.filter((i) => i.type === ITEM_TYPE.money).map((i) => i.toObject()));
+  const coinGp = purseGp(actor);
   let snap = null;
   try {
     snap = actor.type === ACTOR_TYPE.character ? plain(snapshotFrame(actor)) : null;

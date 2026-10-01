@@ -27,10 +27,14 @@ report the same symptom.
   `cv: 1` produces items that look right on the sheet and are worth a
   hundredth of what the test expects — every downstream spend then reports
   `insufficientGold` and the bug looks like it is in the spender.
-- Mint coin with `money.creditCoin(holder, [{name, cv, count}])` — an ARRAY.
-  A bare object is not iterable and throws `credits is not iterable`.
+- Mint coin with `money.mintCoin(holder, gp)`, or a named kind with
+  `money.creditCoin(holder, [{name, cv, count}])` — an ARRAY. A bare object is
+  not iterable and throws `credits is not iterable`.
 - Hand-creating a `money` item instead is not equivalent: `coinSlots` reads
   `system.coppervalue`, which `creditCoin` sets and a hand-made item does not.
+- **Value a purse with `money.purseGp(actor)`.** `money.coinTotalCp` takes
+  plain item ROWS, and handed an actor it throws `(plainItems ?? []) is not
+  iterable`.
 - **A storage round-trip RE-CREATES the item, so a remembered item id is stale
   afterwards.** `stash` then `retrieve` returns an item with a new `_id`;
   `actor.items.get(oldId)` is undefined and every call taking that item then
@@ -632,6 +636,125 @@ path that embedded bundles whole.
 **Teardown.** `api.sweepTracked()`. Deleting Bundle Hero takes everything the
 drops and purchases delivered with it.
 
+## Coin: one stack, moved and never copied
+
+Covers `money.mjs` and `money-logic.mjs`, the stack half of `item-model.mjs`
+(`divideStack`, `joinStacks`, `perStoneOf`, `sumWeight6`), `bundles.mjs`
+`landCoin`, and both guards in `patches/goods-drag.mjs`. The banked-coin sweep
+is the location feature's ([location TESTING](../location/TESTING.md)), the
+wage run the henchmen feature's, and the till and the changer the markets
+feature's; each of those recipes carries its own coin steps.
+
+**Drive notes (learned live):**
+- **A drop is a real `DragEvent` on the sheet's element**, carrying
+  `{type: "Item", uuid}` as `text/plain`:
+  ```js
+  const dt = new DataTransfer();
+  dt.setData("text/plain", JSON.stringify({ type: "Item", uuid }));
+  sheet.element.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+  ```
+  The sheet must be rendered first (`await actor.sheet.render({force: true})`).
+- **Read the result only once it has stopped changing.** A hand-over creates
+  on the receiver and then deletes from the giver, so a read taken straight
+  after the drop shows the coin on both. Poll the two purses until four reads
+  in a row agree.
+- **Count value, not rows.** Sum `coppervalue × quantity` over both actors
+  before and after every step: a copy shows as value that appeared, a loss as
+  value that went.
+- **An unlinked token's actor is reached through the token**
+  (`scene.tokens.get(id).actor`), and a token that still matches its actor has
+  `delta: null`. Its coin is written through `token.actor`, never through a
+  path into the delta.
+- **Foundry stops a drop on a sheet the seat does not own** before the sheet's
+  handler runs, so a player's drop on an observed sheet proves the permission
+  and not the guard.
+- **Deleting a place posts a card.** Sweeping a storage provider runs the
+  delete policy, which whispers a "was destroyed" card to the GMs. Read its id
+  back as the newest message naming your fixture and `api.track` it, then
+  sweep again.
+
+**Fixtures (as GM, each id recorded with `api.track`):**
+- "Coin Hero", a `character` the Player seat owns, on this module's sheet. It
+  carries a container, and three coin rows made with `money.creditCoin`: Gold
+  ×100 and Silver ×20 loose, and a second Gold row of 50 inside the container
+  (`flags.acks-extras.containedIn`).
+- "Coin Payee", a `character` holding one Gold row of 5 and no smaller coin.
+- "Coin Merc", a `monster` the Player seat owns. It opens on the follower
+  card.
+- "Coin Faction", an `acks-extras.faction`, and "Coin Cart", an
+  `acks-extras.vehicle`.
+- "Coin Scene", created with `active: false`, holding one UNLINKED token of a
+  second monster, "Coin Brute".
+- The uuid of one `money` document in a system compendium, as the shelf coin.
+
+1. **Weight.** Read `itemModel.perStoneOf(gold)` and
+   `itemModel.systemCoinsPerStone()`.
+   **Observable:** the two are equal and a whole number. `weight6Of(gold)` is
+   `100 × 6 / rate`, and `sumWeight6` over the Hero's three coin rows equals
+   one division of all their counts, with no row rounded.
+   `hero.system.encumbrance.value6` exceeds the same figure with every coin
+   row's count at 0 by exactly that sum. Reload the page and read it again
+   before touching the Hero: the figure is the same.
+2. **A rate of the coin's own.** Open the Silver row's sheet in edit mode,
+   type a count in the band's **Per stone** field, and close.
+   **Observable:** `flags.acks-extras.gear.perStone` holds the number,
+   `perStoneOf(silver)` returns it, the band reads it back with the stack's
+   weight beside it, and the Hero's `encumbrance.value6` moved by the
+   difference. Clear the field: the flag is `null` and the placeholder shows
+   the system's rate.
+3. **Divide and join.** On the Hero's sheet press the scissors on the loose
+   Gold row, enter 30 and confirm.
+   **Observable:** two loose Gold rows, 70 and 30, and the same total value.
+   Drag the 30 onto the 70: one row of 100. A count of the whole stack is
+   refused with a warning, and a count of 0 closes the dialog; neither writes.
+4. **A transfer makes exact change.** `await money.transferCoin({from: payee,
+   to: merc, gp: 0.7, gate: false})`: the Payee holds only gold and the Merc
+   holds nothing.
+   **Observable:** `{ok: false, reason: "noChange"}`, a warning naming the
+   Merc, and neither purse changed. Pay the Hero instead (`to: hero`): one
+   Gold leaves the Payee and three Silver come back out of the Hero's purse.
+   The Payee is down exactly 7 sp in value, the Hero up exactly 7 sp, and no
+   coin was created.
+5. **Loose before packed, and no coin from nowhere.**
+   `await money.mintCoin(hero, 10)`, then `await money.sinkCoin(hero, 5)`.
+   **Observable:** the loose Gold row gained 10. The sink leaves the purse
+   exactly 5 gp lighter, taken from the Silver and the loose Gold rows. The
+   packed row still reads 50, and no row holds more coin than it did before
+   the sink.
+6. **A follower card moves coin.** From the Player seat, open Coin Merc's card
+   and drop the Hero's Silver row on it. Then drop the shelf coin on it twice.
+   **Observable:** the Silver row is gone from the Hero and the Merc holds
+   every Silver the Hero held; total value is unchanged by the first drop. The
+   shelf coin adds 2 to the Merc's row of its kind, or makes one row of 2
+   where the Merc held none, and the card's equipment list names each coin
+   row with its count.
+7. **A token's own actor.** Divide 25 off the Hero's packed Gold and drop the
+   pile on the Brute token's sheet. Then drop the token's Gold row back on the
+   Hero's sheet.
+   **Observable:** the pile leaves the Hero and sits on the token's actor,
+   while the world actor "Coin Brute" holds no coin. Dropped back, it joins the
+   Hero's loose Gold row and the token's row is gone. No warning names a token.
+8. **A sheet that lists no goods.** Drop the Hero's loose Gold row on Coin
+   Faction's sheet, then the shelf coin.
+   **Observable:** one warning per drop, naming the faction. The faction holds
+   no items and the Hero's row is unchanged.
+9. **A hold.** Drop the shelf coin on Coin Cart's sheet twice, then a pile
+   divided off the Hero's Gold. Drop the hold's Gold row on the Merc's card,
+   on the Hero's sheet, and on the faction's sheet.
+   **Observable:** the shelf coin is one row of 2 on the cart. The pile leaves
+   the Hero. Out of the hold it moves to the Merc and to the Hero, each time
+   joining the row of its kind, and the faction refuses it with the hold
+   keeping it. A crate that is not coin, made on the cart and dragged to the
+   Hero, still moves.
+10. **An unstamped arrival.** Stamp a Gold row on the Payee for an owner
+    (`flags.acks-extras.storage.ownerUuid`), then hand the Payee a Gold pile
+    from the Hero.
+    **Observable:** the pile becomes a second, unstamped row. The stamped
+    row's count is unchanged.
+
+**Teardown.** `api.sweepTracked()`. Deleting the actors takes their coin with
+them, and deleting Coin Scene takes the token.
+
 ## The attack card: a public result, private math
 
 Covers `patches/attack-roll.mjs`'s outcome/math split, `roll-audience.mjs`
@@ -771,6 +894,8 @@ The scan reads the whole world, so a shared world shows other sessions' rows.
     exists.
 - Also on Repair Hero, the gold `money` item the system gave it, updated to a
   nonzero `system.quantitybank`.
+- "Repair Brute", a `monster` carrying one `money` row with a carried count
+  and a nonzero `system.quantitybank`.
 - "Repair Rider", a `character` flagged `flags.acks-extras.attachedTo =
   {uuid: "Actor.<16 characters no actor has>", role: "rider"}` and
   `flags.acks-extras.mount = "Actor.<the same>"`.
@@ -797,7 +922,8 @@ The scan reads the whole world, so a shared world shows other sessions' rows.
    - four bundles: Repair Kit has no tick box and names its missing good, and
      Repair Journal reads "Partly unpacked. Fixing finishes it.";
    - the henchmen list, the attachment and the mount flag, the place link, the
-     scene flag, the shadow and the banked coin;
+     scene flag, the shadow, and the banked coin of both actors, Repair Brute's
+     reading "Banked, with no vault to go to";
    - the orphan vault, marked report only, with no tick box and a line
      pointing at the place's Storage tab;
    - the three clothing items, where Repair Armour names its document type by
@@ -818,8 +944,10 @@ The scan reads the whole world, so a shared world shows other sessions' rows.
    - Repair Scene has no `location` flag and no shadow token.
    - Repair Coat's subtype is `clothing`, Repair Cloak's is `item`, and Repair
      Armour has no `baseType`.
-   - The banked coin is in a vault. `api.track` the vault, read back as the
-     provider whose `vaultOf` is Repair Hero's uuid.
+   - Repair Hero's banked coin is in a vault. `api.track` the vault, read
+     back as the provider whose `vaultOf` is Repair Hero's uuid.
+   - Repair Brute's banked count has joined its carried count on the same
+     row, `system.quantitybank` is 0, and no vault was made for it.
 3. **The rescan decided.** Press **Scan all** again.
    **Observable:** none of the fixed rows is listed, and Repair Kit and Repair
    Vault still are.

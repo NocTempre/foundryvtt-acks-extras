@@ -11,7 +11,7 @@ import assert from "node:assert";
 import { buildItemSheetModel, togglePin, effectivePins, resolveTab, valueBadge, TAB_ORDER } from "../scripts/equipment/item-sheet/view-model.mjs";
 import { kindsOf, acceptsKinds, cleanAccepts, ACCEPT_KINDS } from "../scripts/equipment/item-sheet/accept-kinds.mjs";
 import { priceLedger } from "../scripts/equipment/item-sheet/price-ledger.mjs";
-import { stoneLabel, gpLabel, signed, initialOf } from "../scripts/equipment/item-sheet/format.mjs";
+import { stoneLabel, gpLabel, countLabel, signed, initialOf } from "../scripts/equipment/item-sheet/format.mjs";
 import {
   CHIP, HAND_SLOTS, stripChips, toggledSet, placeChips, nextPlaces, gripChips, nextGrips,
   qualityChips, nextQuality, otherTags, withTag, withoutTag,
@@ -78,6 +78,17 @@ test("stone labels use the books' fractions", () => {
   assert.equal(stoneLabel(6), "1");
   assert.equal(stoneLabel(15), "2¹⁄₂");
   assert.equal(stoneLabel(1.5), "0.25");
+});
+test("a weight too small to print still says it weighs something", () => {
+  assert.equal(stoneLabel(0.3), "0.05");
+  assert.equal(stoneLabel(0.02), "<0.01");
+  assert.equal(stoneLabel(-1), "—");
+});
+test("a count is thousands-separated, and nothing counted is a dash", () => {
+  assert.equal(countLabel(1000), "1,000");
+  assert.equal(countLabel(12.5), "12.5");
+  assert.equal(countLabel(1234567), "1,234,567");
+  for (const none of [0, null, undefined, "", "many"]) assert.equal(countLabel(none), "—");
 });
 test("gold is thousands-separated and a missing price is a dash", () => {
   assert.equal(gpLabel(32000), "32,000 gp");
@@ -173,6 +184,50 @@ test("a player sees no own effects and the apparent value until identified", () 
   const judge = buildItemSheetModel(snap, { isGM: true });
   assert.equal(judge.effects.own.length, 1);
   assert.equal(judge.band.value, "10,000 gp");
+});
+
+console.log("item sheet: currency");
+/** A coin row's snapshot: eighty coins, at a rate of this file's own. */
+const coinSnap = (over = {}) => base({
+  name: "Gold",
+  type: "money",
+  baseType: "coin",
+  qty: 80,
+  weight6: 0,
+  carried6: 12,
+  cost: 0,
+  currency: { perStone: 40, declared: 40, system: null },
+  price: { base: 80, lines: [{ key: "coin", label: "Count at its value", op: null, amount: 80, running: 80 }], final: 80, apparent: null },
+  ...over,
+});
+test("a coin's value is its count at its rate, and nothing types over it", () => {
+  const m = buildItemSheetModel(coinSnap(), { isGM: true, editable: true, editing: true });
+  assert.equal(m.band.value, "80 gp");
+  assert.equal(m.band.valueReason, "coin");
+  assert.equal(m.band.valueEditable, false);
+  assert.deepEqual(m.details.valueModes, [], "currency is offered no value mode");
+  assert.equal(valueBadge({ mode: "unknown", fullCost: 80, coin: true }).text, "80 gp", "a value mode left on the row does not hide what coin is worth");
+  assert.equal(buildItemSheetModel(base(), { isGM: true }).details.valueModes.length, 3, "anything else keeps its modes");
+});
+test("a coin's band states how many make a stone, beside what the stack weighs", () => {
+  const m = buildItemSheetModel(coinSnap(), { isGM: true, editable: true });
+  assert.deepEqual(m.band.coin, { perStone: "40", declared: 40, system: "", weighs: true });
+  assert.equal(m.band.carried, "2");
+  const undeclared = buildItemSheetModel(coinSnap({ currency: { perStone: 37, declared: null, system: 37 }, carried6: 0.5 }), { isGM: true });
+  assert.deepEqual(undeclared.band.coin, { perStone: "37", declared: "", system: 37, weighs: true }, "a blank declaration shows the system's rate behind it");
+  assert.equal(undeclared.band.carried, "0.08", "a part-stone prints as one");
+  const unweighed = buildItemSheetModel(coinSnap({ currency: { perStone: null, declared: null, system: null }, carried6: 0 }), { isGM: true });
+  assert.deepEqual(unweighed.band.coin, { perStone: "—", declared: "", system: "", weighs: false });
+  assert.equal(buildItemSheetModel(base(), { isGM: true }).band.coin, null, "nothing but currency is weighed by the stone");
+});
+test("a coin row shows its count at any size", () => {
+  for (const qty of [0, 1, 250]) {
+    const m = buildItemSheetModel(coinSnap({ qty }), { isGM: true });
+    assert.equal(m.band.showQty, true);
+    assert.equal(m.band.qtyShown, qty);
+  }
+  assert.equal(buildItemSheetModel(base({ qty: 1 }), { isGM: true }).band.showQty, false, "a single ordinary item shows none");
+  assert.equal(buildItemSheetModel(base({ qty: 3 }), { isGM: true }).band.showQty, true);
 });
 
 console.log("item sheet: disguise");

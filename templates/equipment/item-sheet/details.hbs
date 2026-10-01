@@ -6,7 +6,7 @@
       <div class="acks-extras-item-sheet__rule">
         <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.price.title'}}</span>
         <span class="acks-spacer"></span>
-        {{#if editing}}
+        {{#if (and editing details.valueModes.length)}}
         <span class="acks-extras-item-sheet__segmented">
           {{#each details.valueModes}}
           <button type="button" class="acks-extras-item-sheet__seg{{#if on}} is-on{{/if}}" data-action="valueMode" data-mode="{{key}}" aria-pressed="{{#if on}}true{{else}}false{{/if}}"

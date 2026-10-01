@@ -187,10 +187,35 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    directly skips that shape. The drop is a `DragEvent("drop")` whose
    `DataTransfer` holds `{type: "RollTable", uuid}` as `text/plain`,
    dispatched on the row `[data-entry-key="…"]`.
-7. Vault sweep: `runVaultSweep()` with the prune setting on and a location
-   holding goods past its window.
-   *Observable:* the sweep reports what it would take before taking it, and
-   turning the setting off stops it.
+7. Vault sweep. Build the pre-upgrade shape: on a disposable `character`,
+   on a disposable `monster`, and on an unlinked token of that monster
+   (`tokenDoc.actor`'s own row), a `money` row with a carried count and a
+   nonzero `system.quantitybank` (a plain `item.update`). Build it and run
+   the sweep in one page load: the sweep also runs by itself at `ready` on
+   the active GM's client, so a reload in between moves the balances and the
+   plan then reads empty. Read `planVaultSweep()` through
+   `(await import("/modules/acks-extras/scripts/location/vault-sweep.mjs"))`,
+   then `await api.location.runVaultSweep()`.
+   *Observable:* the plan lists all three, the monster and the token's actor
+   marked `carried`. After the run the character's banked count is in a vault
+   whose `vaultOf` is the character's uuid, stamped as theirs, and the
+   character's row keeps its carried count. The monster's banked count has
+   joined its carried count on the same row, the token's has joined the
+   carried count on the token's own row, and no vault was made for either.
+   Every `quantitybank` field reads 0, one GM-whispered card names each move,
+   and a second run answers `{swept: 0, gp: 0}`. `api.track` the vault and
+   the card.
+7a. The bank column. Open the system's own sheet for the character (choose
+   it for that actor in the sheet configuration where the module's sheet is
+   the default), and the system's sheet for one of its `money` items.
+   *Observable:* no `.money__count-bank` cell on the character's sheet and no
+   `system.quantitybank` field on the coin's, in a world with no place to
+   store coin as well as one with. The system's monster sheet never drew the
+   column, so it has nothing to check.
+7b. Stocking a place from the shelf. As GM, drop a `money` document from a
+   system compendium on the location's sheet, twice.
+   *Observable:* one house-owned row counting 2, listed on the Contents tab.
+   As a player the same drop warns and writes nothing.
 8. "Recover Coin from Unloadable Locations (GM)": build a pre-upgrade shape
    first — recover an old sub-type's location definition from git
    (`git show <tag>:<path>`) and create it as a world document — then run the
@@ -338,7 +363,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     the picker itself.
 
 The repair tool's location checks (stale links, banked coin, storage whose
-owner is gone) are walked in docs/lib/TESTING.md, "The repair tool".
+owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin
+moving between holders is docs/lib/TESTING.md, "Coin: one stack, moved and
+never copied".
 
 ## Teardown
 

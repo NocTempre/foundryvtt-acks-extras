@@ -45,7 +45,7 @@ sibling modules) — never the import path for this module's own features.
 | --- | --- |
 | `actor-read.mjs` | `abilityMod` / `classLevel` / `monsterHd` / `monsterHitDice` / `hitDiceOrLevel` — graceful-degradation reads of the system schema. Never inline these. |
 | `actor-compat.mjs` | `acksCompatStubs()` every actor sub-type must spread, + the one BOOK↔RELEASED saving-throw key mapping. |
-| `item-model.mjs` | The shared item baseline: `isPhysical` / `isEquippable` / `weight6Of` / wear slots. |
+| `item-model.mjs` | The shared item baseline: `isPhysical` / `isEquippable` / `weight6Of` / wear slots, and the stack: `stackCountOf`, `divideStack` / `joinStacks`. Currency is `isCurrency`, weighed by how many make a stone (`perStoneOf`, `sumWeight6`). |
 | `capabilities.mjs` | "Does this actor hold an ability that provides X?" — name ∪ `kw:` token matching, and `abilityRank` (a proficiency taken thrice is three items). |
 | `effect-scan.mjs` | Active-Effect scanning core: `appliedEffects` / `makeEffectMeta` / `orderedChanges` / `activeNumericChanges` / `netNumericChange` / `csvFlagSet` / `sumModifiers`, and the `CHANGE` type vocabulary. Changes are read by their v14 string type, replayed in Foundry's priority order from the field's base — the ONE reading of what a change does; never compare a `mode`. |
 | `managed-effects.mjs` | The effects this module maintains and a hand must not delete (class training, equipment loadout): the marker registry, the `preDelete` refusal, and the row lock. |
@@ -70,12 +70,12 @@ sibling modules) — never the import path for this module's own features.
 | `token-sync.mjs` | The ONLY writer of senses/light onto tokens. |
 | `attack-logic.mjs` | Pure attack model: throw as a moving target, bonuses as an auditable term stack. |
 | `damage-type.mjs` | Live damage typing for weapons via equipment's classifier (no second copy of the table). |
-| `money-logic.mjs` | Coin arithmetic in INTEGER COPPER: `coinSlots` / `planCoinSpend` / `planChange` / `convertCp`. Foundry-free. |
-| `money.mjs` | Money as physical: `transferCoin` (location-gated), `creditCoin`, `exchangeCoins`, `HOUSE_OWNER`. The ONE payment path. |
+| `money-logic.mjs` | Coin arithmetic in INTEGER COPPER: `coinKind` / `coinCount` / `coinTotalCp`, `coinSlots` / `planCoinSpend` / `planCoinPayUpTo` / `planChange` / `convertCp`. The ONE reading of what a coin row holds and is worth. Foundry-free. |
+| `money.mjs` | Money as physical: `transferCoin` (location-gated), `mintCoin` / `sinkCoin` (coin from nowhere, coin to nobody), `creditCoin` (the ONE write of coin onto a holder), `ownCoin` / `purseGp`, `coinTemplate`, `exchangeCoins`, `HOUSE_OWNER`. The ONE payment path; never write a coin row's count from a feature. |
 | `storage-logic.mjs` | Pure transfer plans for goods stored off-person. Foundry-free half of storage. |
 | `storage.mjs` | Storage at a place — the document writes over storage-logic's plans. |
 | `bundles-logic.mjs` | What a bundle's rows become on an actor, and the three-write plan that opens one already embedded (`planEmbeddedUnpack`, `unpackStage`). Foundry-free. |
-| `bundles.mjs` | Goods handed to an actor: `deliverItems` (the one delivery path, for the markets too), `unpackBundle` for a dropped bundle, `unpackEmbeddedBundle` for one already embedded. |
+| `bundles.mjs` | Goods handed to an actor: `deliverItems` (the one delivery path, for the markets too), `deliverDrop` for one document dragged from a shelf, `landCoin` (where coin dropped on a sheet goes — every sheet's one answer), `unpackBundle` for a dropped bundle, `unpackEmbeddedBundle` for one already embedded. |
 | `place-logic.mjs` | Pure nesting/occupancy/stacking rules for PLACES. Foundry-free half of place. |
 | `place.mjs` | PLACES — nesting, occupancy, stacking over the storage primitive. |
 | `group-logic.mjs` | Pure stacked-actor lifecycle decisions, the flags a deployed body carries, and `deployedBodies` — the ONE read of which tokens are a stack's bodies. Foundry-free half of group. |
@@ -117,7 +117,7 @@ sibling modules) — never the import path for this module's own features.
 | `patches/attack-display.mjs` | Core patch: the character sheet's Melee/Ranged boxes, replaced at render. |
 | `patches/attack-roll.mjs` | Core patch: the attack roll remodeled as target vs auditable bonus stack; the card states the outcome to every reader and its math to the attacker's owners and the GMs (`rollMath`). |
 | `patches/combat-round.mjs` | Core patch: a combatant whose actor was deleted no longer throws out of `nextRound`, which froze the round counter. |
-| `patches/goods-drag.mjs` | Core patch: drag sources for the goods rows core leaves un-draggable. |
+| `patches/goods-drag.mjs` | Core patch: drag sources for the goods rows core leaves un-draggable, and the two guards that keep a dropped coin from being copied — on the system sheets' money drop and on Foundry's own `ActorSheetV2#_onDropItem`. |
 | `patches/initiative-card.mjs` | Core patch: a round's initiative gathered onto one chat card, a combat group as one row. |
 | `patches/morale-roll.mjs` | Core patch: an actor's morale roll handed to the feature providing the `morale-roll` contract, with the system's own roll behind a setting and the skip key. |
 | `patches/surprise-card.mjs` | Core patch: the Surprise Matrix's results gathered onto one chat card. |

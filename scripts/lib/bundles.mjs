@@ -8,8 +8,9 @@
  */
 import { ITEM_TYPE } from "./vocab.mjs";
 import { LIB_ID, planStackMerge } from "./storage-logic.mjs";
+import { handOver } from "./storage.mjs";
 import { libraryItems, whenReady } from "./library.mjs";
-import { UNPACK_JOURNAL, bundleRows, goodsForRow, planEmbeddedUnpack, unpackStage } from "./bundles-logic.mjs";
+import { UNPACK_JOURNAL, bundleRows, goodsForDrop, goodsForRow, planEmbeddedUnpack, unpackStage } from "./bundles-logic.mjs";
 
 /**
  * Create `goods` (arrival-shaped plain item data) on `actor`, folding each
@@ -21,6 +22,39 @@ export async function deliverItems(actor, goods) {
   const updated = targetUpdates.length ? await actor.updateEmbeddedDocuments("Item", targetUpdates) : [];
   const created = creates.length ? await actor.createEmbeddedDocuments("Item", creates) : [];
   return { created, updated };
+}
+
+/** An item's data as a copy made of it would carry it, compendium bookkeeping cleared. */
+const copyDataOf = (item) => (item.inCompendium ? game.items.fromCompendium(item, { clearFolder: true }) : item.toObject());
+
+/**
+ * What an item dropped from outside any actor — a compendium, the sidebar —
+ * delivers: the stack it is (`goodsForDrop`), arrival-shaped.
+ * @returns {object[]} plain item data, one entry per document to deliver
+ */
+export const droppedGoods = (item) => goodsForDrop(copyDataOf(item));
+
+/**
+ * An item dropped from outside any actor lands on `actor` as the stack it is,
+ * folding into an identical stack the actor already carries rather than
+ * making a second row. A place that keeps goods for owners takes the same
+ * goods through `stockProvider`, which stamps whose they are.
+ * @returns {Promise<{created: Item[], updated: Item[]}>}
+ */
+export const deliverDrop = (actor, item) => deliverItems(actor, droppedGoods(item));
+
+/**
+ * Where coin dropped on `actor`'s sheet from somewhere else goes, for every
+ * sheet that carries goods. Off another actor it is handed over: it leaves the
+ * giver and joins the receiver's row of its kind. With no actor behind it — a
+ * compendium purse, a pile in the sidebar — it is an arrival with nobody to
+ * debit, and lands on the row of its own kind where the seat owns the sheet.
+ * Coin is never copied.
+ */
+export async function landCoin(actor, item) {
+  const source = item?.parent;
+  if (source?.documentName === "Actor") await handOver(source, actor, [{ id: item.id }]);
+  else if (actor?.isOwner) await deliverDrop(actor, item);
 }
 
 /**
@@ -49,8 +83,7 @@ async function goodsOfBundle(bundle) {
       missing.push(row.name || row.uuid);
       continue;
     }
-    const data = source.inCompendium ? game.items.fromCompendium(source, { clearFolder: true }) : source.toObject();
-    goods.push(...goodsForRow(data, row.count));
+    goods.push(...goodsForRow(copyDataOf(source), row.count));
   }
   return { goods, missing };
 }

@@ -146,7 +146,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    drag the sword onto the Main hand slot — it is drawn (`system.equipped`
    true) — and back onto the Carried column — sheathed; drag the rations onto
    the backpack — stored (`containedIn` set) and its take-out control appears.
-   Annotate, split and the container lock cycle each write.
+   Annotate, split and the container lock cycle each write. Dividing a
+   stack and joining two rows by a drop are walked in docs/lib/TESTING.md,
+   "Coin: one stack, moved and never copied", step 3; the coin row there
+   reads its count, its worth and its weight.
    The sword drawn alone in the two-handed grip (from the grip cell's menu,
    or by itself with the two-handed style trained) lists as **one row
    spanning Main hand · Off hand** (`.is-span`, both labels behind one

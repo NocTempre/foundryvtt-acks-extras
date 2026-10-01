@@ -43,8 +43,8 @@ import { takeOut, storeIn, setConcealed, setLocked, setOpened, emptyContainer, c
 import { pickLock, bashOpen } from "../equipment/locks.mjs";
 import { annotateItem } from "../equipment/api.mjs";
 import { splitOne } from "../equipment/item-sheet/stack.mjs";
-import { isEquippable, isGoods } from "../lib/item-model.mjs";
-import { unpackBundle } from "../lib/bundles.mjs";
+import { isEquippable, isGoods, isCurrency, stackCountOf, divideStack, joinStacks } from "../lib/item-model.mjs";
+import { unpackBundle, landCoin } from "../lib/bundles.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
 import { openClassPicker } from "../classes/assign-app.mjs";
 import { openLevelUp } from "../classes/levelup.mjs";
@@ -144,6 +144,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       readyTorch: AcksCharacterSheet.#onReadyTorch,
       takeOut: AcksCharacterSheet.#onTakeOut,
       splitStack: AcksCharacterSheet.#onSplitStack,
+      divideStack: AcksCharacterSheet.#onDivideStack,
       containerToggle: AcksCharacterSheet.#onContainerToggle,
       containerLock: AcksCharacterSheet.#onContainerLock,
       containerPick: AcksCharacterSheet.#onContainerPick,
@@ -647,10 +648,11 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   /**
    * An item of this actor's dropped on a zone moves it: onto a place it is
    * worn there, onto a container it is stored, onto the loose column it is
-   * taken off or out. A bundle arrives as the goods it lists (`unpackBundle`),
-   * never as a bundle this sheet cannot show. Anything else is the ordinary
-   * arrival — coin merging into the stack of the same name rather than
-   * doubling it.
+   * taken off or out. A stack dropped on another row of the same thing joins
+   * it (`joinStacks`). A bundle arrives as the goods it lists (`unpackBundle`),
+   * never as a bundle this sheet cannot show. Coin is never copied: off
+   * another actor it is handed over, and from nobody it lands on the row of
+   * its own kind (`landCoin`). Anything else is the ordinary arrival.
    */
   async _onDropItem(event, item) {
     if (!this.actor.isOwner) return null;
@@ -683,6 +685,10 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
           else if (isEquippable(own) && own.system?.equipped) await own.update({ "system.equipped": false });
           else await removeItem(own);
         }
+        // A stack let go on another row of the same thing joins it, once the
+        // move above has put the two in the same place.
+        const onto = this.#itemOf(event.target);
+        if (onto && onto.id !== own.id) await joinStacks(own, onto);
       } catch (err) {
         console.error(`${MODULE_ID} | drop move failed`, err);
       }
@@ -693,12 +699,9 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       if (missing.length) ui.notifications.warn(loc("equipment.bundleMissing", { names: missing.join(", ") }));
       return [...created, ...updated];
     }
-    if (item.type === ITEM_TYPE.money && item.parent?.documentName !== "Actor") {
-      const mine = this.actor.items.find((i) => i.type === ITEM_TYPE.money && i.name === item.name);
-      if (mine) {
-        await mine.update({ "system.quantity": num(mine.system?.quantity) + Math.max(1, num(item.system?.quantity, 1)) });
-        return mine;
-      }
+    if (isCurrency(item)) {
+      await landCoin(this.actor, item);
+      return null;
     }
     return super._onDropItem(event, item);
   }
@@ -1100,6 +1103,23 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     if (created) ui.notifications.info(game.i18n.format("ACKS-EQUIPMENT.itemSheet.equip.splitDone", { name: created.name }));
   }
 
+  /** Ask how many to take off a stack, and divide that many into a row of their own. */
+  static async #onDivideStack(event, target) {
+    const item = this.#itemOf(target);
+    const have = stackCountOf(item) ?? 0;
+    if (!item || have < 2) return;
+    const count = await foundry.applications.api.DialogV2.prompt({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      window: { title: loc("equipment.divideTitle", { name: item.name }) },
+      content: `<div class="form-group"><label>${loc("equipment.divideCount", { have })}</label>
+        <input type="number" name="count" value="${Math.floor(have / 2)}" min="1" max="${have - 1}" step="1" autofocus></div>`,
+      ok: { label: loc("equipment.divide"), callback: (_event, button) => Number(button.form.elements.count.value) },
+      rejectClose: false,
+    });
+    if (!count) return;
+    if (!(await divideStack(item, count))) ui.notifications.warn(loc("equipment.divideRefused", { have }));
+  }
+
   static async #onContainerToggle(event, target) {
     const item = this.#itemOf(target);
     if (item) await setConcealed(item, !item.getFlag(MODULE_ID, "container")?.concealed);
@@ -1140,7 +1160,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   static async #onAnnotateAll() {
     let n = 0;
     for (const item of this.actor.items) {
-      if (!isGoods(item) || item.type === ITEM_TYPE.money) continue;
+      if (!isGoods(item)) continue;
       if (await annotateItem(item)) n++;
     }
     ui.notifications.info(game.i18n.format("ACKS-EQUIPMENT.container.annotated", { n }));

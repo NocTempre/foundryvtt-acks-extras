@@ -7,7 +7,10 @@
  * properly, so the field is retired — and retiring a field that holds a party's
  * savings means moving the money somewhere real first. Every character with a
  * banked balance gets a vault (a location actor flagged as theirs), the balance
- * lands there attributed to them, and the field is zeroed.
+ * lands there attributed to them, and the field is zeroed. An actor of any
+ * other type — a monster, a unit, a place — and a token that is its own copy
+ * of an actor keep no vault: the balance joins the coin they carry, on the row
+ * it was banked on.
  *
  * The sweep is IDEMPOTENT and SELF-HEALING: it runs at every ready, does nothing
  * when there is nothing banked, and picks up any stray value that arrives later
@@ -24,6 +27,8 @@
 import { makeLoc, gmIds, libStorage as storage } from "../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, FLAG_PENDING_DEPOSIT } from "./constants.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { coinCount } from "../lib/money-logic.mjs";
+import { mintCoin } from "../lib/money.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 
@@ -67,7 +72,19 @@ export async function vaultFor(character) {
   });
 }
 
-/** What this character has banked, as ledger entries. */
+/**
+ * Coin from nowhere, put in a character's vault as theirs — a bequest, a
+ * banker's payment. The vault is made if they keep none.
+ * @returns {Promise<Actor|null>} the vault, or null when none could be made
+ */
+export async function payIntoVault(character, gp) {
+  const vault = await vaultFor(character);
+  if (!vault) return null;
+  await mintCoin(vault, gp, { ownerUuid: character.uuid, ownerName: character.name });
+  return vault;
+}
+
+/** What this actor has banked, as ledger entries. */
 function bankedLedger(character) {
   const ledger = [];
   for (const item of character.items) {
@@ -90,13 +107,17 @@ async function depositLedger(character, ledger) {
   const vault = await vaultFor(character);
   if (!vault) return null;
   for (const entry of ledger) {
+    // The row the balance came off says which coin it is — its art, its text,
+    // its weight — wherever it is still there to ask; the ledger's own name
+    // and rate stand in when it is not.
+    const row = character.items.get(entry.sourceItemId);
     await storage().depositCoin(vault, {
       ownerUuid: character.uuid,
       ownerName: character.name,
       coppervalue: entry.coppervalue,
       quantity: entry.quantity,
       name: entry.name,
-      img: entry.img,
+      source: row?.type === ITEM_TYPE.money ? row.toObject() : null,
     });
   }
   await character.unsetFlag(MODULE_ID, FLAG_PENDING_DEPOSIT);
@@ -117,24 +138,67 @@ function characters(only = null) {
 }
 
 /**
- * What `runVaultSweep` would move, without moving it: per character, the
- * ledger a stopped sweep left owed to a vault and the balance still banked.
- * @returns {{character: Actor, pending: object[], banked: object[]}[]}
+ * Every other actor — the ones that keep no vault — narrowed the same way: the
+ * world's actors that are not characters, and an unlinked token's own actor
+ * where the token's copy of a coin row still holds a balance. A token's copy
+ * is a whole row of its own, so sweeping the actor it was made from never
+ * reaches it; the copies are read off the scene's stored data, and an actor
+ * is built only for a token that has one.
+ */
+function carriers(only = null) {
+  const out = game.actors.filter((a) => a.type !== ACTOR_TYPE.character);
+  for (const scene of game.scenes ?? []) {
+    for (const token of scene.tokens ?? []) {
+      if (token.actorLink) continue;
+      const rows = token._source?.delta?.items ?? [];
+      if (!rows.some((i) => i?.type === ITEM_TYPE.money && Number(i.system?.quantitybank) > 0)) continue;
+      if (token.actor) out.push(token.actor);
+    }
+  }
+  return out.filter((a) => !only || only.has(a.uuid));
+}
+
+/**
+ * Fold a banked balance into the coin its actor carries. One write: the count
+ * moves between two fields of the same row, so there is no instant where it is
+ * in neither and nothing to resume.
+ */
+async function unbank(actor, ledger) {
+  await actor.updateEmbeddedDocuments(
+    "Item",
+    ledger.map((e) => ({
+      _id: e.sourceItemId,
+      "system.quantity": coinCount(actor.items.get(e.sourceItemId)) + e.quantity,
+      "system.quantitybank": 0,
+    })),
+  );
+}
+
+/**
+ * What `runVaultSweep` would move, without moving it: per actor, the ledger a
+ * stopped sweep left owed to a vault and the balance still banked. `carried`
+ * marks an actor that keeps no vault, whose balance joins the coin it carries.
+ * @returns {{character: Actor, pending: object[], banked: object[], carried: boolean}[]}
  */
 export function planVaultSweep() {
   const out = [];
   for (const character of characters()) {
     const pending = character.getFlag(MODULE_ID, FLAG_PENDING_DEPOSIT) ?? [];
     const banked = bankedLedger(character);
-    if (pending.length || banked.length) out.push({ character, pending, banked });
+    if (pending.length || banked.length) out.push({ character, pending, banked, carried: false });
+  }
+  for (const actor of carriers()) {
+    const banked = bankedLedger(actor);
+    if (banked.length) out.push({ character: actor, pending: [], banked, carried: true });
   }
   return out;
 }
 
 /**
- * Move every banked balance in the world into vaults, or only the balances of
- * the characters whose uuids are in `only`. GM-elected; safe to run again at
- * any time (the storage manager's macro does exactly that).
+ * Move every banked balance in the world to where coin is kept now — a
+ * character's into their vault, anyone else's into the coin they carry — or
+ * only the balances of the actors whose uuids are in `only`. GM-elected; safe
+ * to run again at any time (the storage manager's macro does exactly that).
  * @returns {Promise<{swept: number, gp: number}>}
  */
 export async function runVaultSweep({ announce = true, only = null } = {}) {
@@ -164,10 +228,18 @@ export async function runVaultSweep({ announce = true, only = null } = {}) {
     moved.push({ character, vault, ledger, resumed: false });
   }
 
+  for (const actor of carriers(only)) {
+    const ledger = bankedLedger(actor);
+    if (!ledger.length) continue;
+    await unbank(actor, ledger);
+    moved.push({ character: actor, vault: null, ledger, resumed: false, carried: true });
+  }
+
   const gp = moved.reduce((sum, m) => sum + m.ledger.reduce((s, e) => s + (e.quantity * e.coppervalue) / 100, 0), 0);
   if (announce && moved.length) {
+    const where = (m) => (m.carried ? loc("sweep.carried") : m.vault?.name ?? "—");
     const lines = moved
-      .map((m) => `<li><b>${m.character.name}</b> → ${m.vault?.name ?? "—"}: ${m.ledger.map((e) => `${e.quantity} ${e.name}`).join(", ")}</li>`)
+      .map((m) => `<li><b>${m.character.name}</b> → ${where(m)}: ${m.ledger.map((e) => `${e.quantity} ${e.name}`).join(", ")}</li>`)
       .join("");
     await ChatMessage.create({
       content: `<p><b>${loc("sweep.chatTitle")}</b></p><ul>${lines}</ul><p class="notes">${loc("sweep.chatHint")}</p>`,

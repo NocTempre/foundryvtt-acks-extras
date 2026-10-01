@@ -15,7 +15,7 @@ import { sumEffectModifiers } from "./effects.mjs";
 // union also covers the "1/2"-HD form. Henchman-specific reads (retainer,
 // henchmenList, gold) stay here.
 import { abilityMod, classLevel, monsterHd } from "../lib/actor-read.mjs";
-import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 // A bare `export … from` re-export creates no local binding — spendGold's
 // receipt whisper needs the import itself.
 import { gmIds } from "../lib/util.mjs";
@@ -193,24 +193,15 @@ export function getWageLevel(actor) {
 
 /* ------------------------------ coins ------------------------------ */
 
-/** Total funds in gp (carried + banked; coppervalue × quantity is copper). */
-export function getGold(actor) {
-  let copper = 0;
-  for (const item of actor?.items ?? []) {
-    if (item.type !== ITEM_TYPE.money) continue;
-    const cv = Number(item.system?.coppervalue ?? 0);
-    copper += cv * (Number(item.system?.quantity ?? 0) + Number(item.system?.quantitybank ?? 0));
-  }
-  return copper / 100;
-}
+/** What the actor's own coin is worth, in gp — the lib's one reading of a purse. */
+export const getGold = (actor) => acksExtras.lib.money.purseGp(actor);
 
 /**
- * Spend gp from an actor's coin, planned smallest-first with change made from
- * the actor's own denominations.
- * With `to` (an actor or a location), the coins move there as a transfer
- * through the lib subsystem's location-gated transfer; without one, they sink
- * (payee off-stage). Returns false (and warns) when funds are insufficient or
- * the transfer is refused.
+ * Spend gp from an actor's coin. With `to` (an actor or a location) the coins
+ * move there through the lib's location-gated transfer; without one the payee
+ * is off-stage and the coin leaves the world through the lib's sink. Both
+ * plan the spend the same way. Returns false (and warns) when funds are
+ * insufficient or the transfer is refused.
  * @param {Actor} actor
  * @param {number} gp
  * @param {string} reason - for the chat receipt and any refusal warning
@@ -221,43 +212,19 @@ export function getGold(actor) {
  * @param {boolean} [opts.gate=true] - apply the reach gate (Judge: false)
  */
 export async function spendGold(actor, gp, reason, { chat = true, to = null, at = null, gate = true } = {}) {
-  const lib = acksExtras.lib;
+  const money = acksExtras.lib.money;
   if (to) {
-    const r = await lib.money.transferCoin({ from: actor, to, at, gp, reason, gate });
+    const r = await money.transferCoin({ from: actor, to, at, gp, reason, gate });
     if (!r.ok) return false;
   } else {
-    const plan = lib.money.planCoinSpend(
-      lib.money.coinSlots(actor.items.filter((i) => i.type === ITEM_TYPE.money).map((i) => i.toObject())),
-      Math.round(gp * 100),
-    );
-    if (plan.shortfallCp > 0) {
+    // The sink reports a short purse and leaves the telling to its caller.
+    const r = await money.sinkCoin(actor, gp);
+    if (!r.ok) {
       ui?.notifications?.warn(
         game.i18n.format("ACKS-HENCHMEN.gold.insufficient", { name: actor.name, gp: gp.toFixed(0), reason })
       );
       return false;
     }
-    const byItem = new Map();
-    for (const t of plan.takes) {
-      const u = byItem.get(t.id) ?? { _id: t.id };
-      const item = actor.items.get(t.id);
-      u[`system.${t.field}`] = Math.max(0, Number(item?.system?.[t.field] ?? 0) - t.take);
-      byItem.set(t.id, u);
-    }
-    // Change from a sink-spend comes back from the actor's own kinds.
-    if (plan.changeCp > 0) {
-      const kinds = [...new Map(actor.items.filter((i) => i.type === ITEM_TYPE.money && Number(i.system.coppervalue) > 0)
-        .map((i) => [i.id, { id: i.id, kind: i.name, cv: Number(i.system.coppervalue) }])).values()];
-      const { credits, remainderCp } = lib.money.planChange(kinds, plan.changeCp);
-      for (const c of credits) {
-        const item = actor.items.get(kinds.find((k) => k.cv === c.cv && k.kind === c.kind)?.id);
-        if (!item) continue;
-        const u = byItem.get(item.id) ?? { _id: item.id };
-        u["system.quantity"] = Number(u["system.quantity"] ?? item.system.quantity ?? 0) + c.count;
-        byItem.set(item.id, u);
-      }
-      if (remainderCp > 0) console.debug(`${MODULE_ID} | spendGold: ${remainderCp} cp change unrepresentable in ${actor.name}'s denominations, forgone`);
-    }
-    await actor.updateEmbeddedDocuments("Item", [...byItem.values()]);
   }
   if (chat) {
     ChatMessage.create({
@@ -270,43 +237,21 @@ export async function spendGold(actor, gp, reason, { chat = true, to = null, at 
 }
 
 /**
- * Credit gp onto the gp denomination (coppervalue 100), else the largest.
- * Creates a standard gp money item when the actor carries none (freshly
- * hired actors own no coins). `toBank` credits `quantitybank` instead of
- * carried coin — wages land in the bank unless overridden.
+ * Credit gp to an actor's coin. With `from` (a market's till, an employer) it
+ * is a transfer out of that payer's coin; without one it is the Judge's mint,
+ * in standard denominations, each landing on the actor's own row of that rate
+ * (the lib's `mintCoin`).
+ * @returns {Promise<number>} the gp credited — 0 when a transfer was refused
  */
-export async function grantGold(actor, gp, { toBank = false, from = null, at = null, allowMint = false, gate = true } = {}) {
-  const copper = Math.round(gp * 100);
-  if (copper <= 0) return 0;
-  // A named payer makes this a transfer (from a market's till, an employer);
-  // payerless is a mint.
+export async function grantGold(actor, gp, { from = null, at = null, allowMint = false, gate = true } = {}) {
+  if (!(Math.round(gp * 100) > 0)) return 0;
+  const money = acksExtras.lib.money;
   if (from) {
-    const r = await acksExtras.lib.money.transferCoin({ from, to: actor, gp, at, allowMint, toBank, gate });
+    const r = await money.transferCoin({ from, to: actor, gp, at, allowMint, gate });
     return r.ok ? gp : 0;
   }
-  const coins = actor.items.filter((i) => i.type === ITEM_TYPE.money);
-  let target =
-    coins.find((c) => Number(c.system.coppervalue) === 100) ??
-    coins.sort((a, b) => Number(b.system.coppervalue) - Number(a.system.coppervalue))[0];
-  if (!target) {
-    const created = await actor.createEmbeddedDocuments("Item", [
-      {
-        name: game.i18n.localize("ACKS-HENCHMEN.gold.gpItemName"),
-        type: "money",
-        img: "icons/svg/coins.svg",
-        system: { coppervalue: 100, quantity: 0, quantitybank: 0 },
-      },
-    ]);
-    target = created?.[0];
-    if (!target) {
-      ui?.notifications?.warn(game.i18n.format("ACKS-HENCHMEN.gold.noCoins", { name: actor.name }));
-      return 0;
-    }
-  }
-  const add = Math.floor(copper / Number(target.system.coppervalue));
-  const field = toBank ? "quantitybank" : "quantity";
-  await target.update({ [`system.${field}`]: Number(target.system[field] ?? 0) + add });
-  return (add * Number(target.system.coppervalue)) / 100;
+  await money.mintCoin(actor, gp);
+  return gp;
 }
 
 /* ------------------------------ writes ------------------------------ */

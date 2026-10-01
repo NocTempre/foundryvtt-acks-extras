@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 20,
+  apiVersion: 24,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -48,11 +48,12 @@ acksExtras.lib = {
   GroupData, GROUP_TYPE, groups,
   TemplateData, TEMPLATE_TYPE, templateLogic,
   // --- domain surfaces ---
-  mount, senses, light, perception, storage, places, itemModel, …
+  mount, senses, light, perception, storage, places, itemModel, money, …
   repair,              // lib/repair.mjs — the standing repair tool (below); 18
   hp,                  // lib/hp.mjs — the group hit-point tool (below); 19
   worldTime,           // lib/world-time.mjs — the clock's reading (below); 22
   conditions,          // lib/conditions.mjs — the condition catalogue and its math (below); 23
+  // 24: currency — `money` and the stack half of `itemModel` (below)
 }
 ```
 
@@ -714,7 +715,9 @@ const { isPhysical, isEquippable, isEquipped, weight6Of, weightStoneOf,
         isGoods, isStowable, isClothing, encumbering6,
         hasStock, findCarried, carriesItem,
         isWearable, isWorn, slotsOf, declaresSlots, wornSlotOf, setWorn,
-        gearOf, itemsInSlot, slotOverfilled } = acksExtras.lib.itemModel;
+        gearOf, itemsInSlot, slotOverfilled,
+        isCurrency, stackCountOf, perStoneOf, systemCoinsPerStone, sumWeight6,
+        divideStack, joinStacks } = acksExtras.lib.itemModel;
 ```
 
 These read the **schema**, not a type name (`"cost" in item.system`), so they
@@ -724,9 +727,27 @@ keep working when the system adds a physical type this library never heard of.
 to match the system exactly rather than approximately.
 
 `isGoods` is `isPhysical` plus coin: the system gives `money` no cost and no
-weight, so the schema probe alone loses it. `encumbering6` mirrors core's
-`computeEncumbrance` rule (clothing excluded), so anything summing a
-non-character's load matches what core computes for a character.
+weight, so the schema probe alone loses it. `encumbering6` is what core's
+`computeEncumbrance` counts (clothing excluded), with coin weighed to the coin
+where core counts it in whole stones.
+
+**The stack (apiVersion 24).** `stackCountOf(item)` is how many units a row
+holds, read by the field's shape, and `null` for an item that does not stack.
+`divideStack(item, count)` puts `count` into a row of its own beside the stack
+and resolves to the new row, or to `null` when `count` does not fall strictly
+inside the stack. `joinStacks(item, onto)` folds one row into another of the
+same thing on the same holder (same stack signature, owner and container) and
+resolves to `onto`, or to `null` when the two are not one thing.
+
+**Currency (apiVersion 24).** `isCurrency(item)` is the system's `money` type.
+Its weight is stated as how many make a stone: `perStoneOf(item)` is the
+item's own `flags["acks-extras"].gear.perStone`, else
+`systemCoinsPerStone()`, the rate the system weighs coin at, read off the
+system's own arithmetic. `weight6Of` returns a coin row's weight as an exact
+fraction of a sixth. **Sum rows with `sumWeight6(items, each?)`, never by
+adding `weight6Of` and rounding**: it adds coin counts per rate before the one
+division, so a purse in several rows weighs what one stack would. Round only
+where a figure is printed.
 
 `findCarried(actor, pattern)` / `carriesItem` answer "have they got one?" for
 every rule that demands a physical implement — a 10' pole to probe with, a quill
@@ -754,8 +775,9 @@ on the target and never delete from the source. Markets, banks, base camps and
 
 ```js
 const { isProvider, setProvider, findVaultOf, storedItems, storesByOwner,
-        providersFor, storedCoinGC, stash, retrieve, moveStored,
-        depositCoin, consolidateMoney, returnGoodsTo, STORAGE_HOOKS } = acksExtras.lib.storage;
+        providersFor, storedCoinGC, stash, retrieve, moveStored, handOver,
+        stockProvider, depositCoin, consolidateMoney, returnGoodsTo,
+        STORAGE_HOOKS } = acksExtras.lib.storage;
 ```
 
 **The model.** Stored goods are REAL EMBEDDED ITEMS on a provider actor, stamped
@@ -775,21 +797,33 @@ with the flag, so `setProvider(actor)` is the whole of "this can hold goods now"
 deleting from the source: a half-finished move duplicates goods rather than
 destroying them, and the source half failing triggers a compensating delete (with
 a loud error if even that fails). Arrivals are normalised — nothing arrives
-equipped, the retired `quantitybank` never travels, and the equipment feature’s
+equipped, a balance in the system's retired `quantitybank` field never travels
+(the row it sits on is kept when its coin leaves), and the equipment feature’s
 `containedIn` pointers are remapped when a container travels with its contents
 and stripped when it does not. `spec` is `[{id, quantity?}]` — omit `quantity`
 for the whole stack.
+
+`stash`, `retrieve` and `moveStored` cross a place. `handOver(from, to, spec)`
+is actor to actor: nothing is stamped, the goods leave the giver, and the seat
+must own both ends. A move that stamps an owner refuses an unlinked token's own
+actor at either end, because the stamp is a uuid that dies with the token; a
+hand-over stamps nothing and crosses one freely. `stockProvider(provider,
+goods, {ownerUuid, ownerName})` puts goods that come from nobody (a
+compendium, the sidebar) at a place under an owner.
 
 Arriving stacks **merge into matching rows** rather than piling up beside them:
 the system's own merge matches on document ID, which only works for items
 sharing an id lineage, so without this a retrieved 20 gp becomes a second "Gold"
 row and half a stack of torches comes back as a second torch row. Coin is keyed
-on denomination (two gold pieces are the same money whatever their art); every
+on its kind, name and rate together (`money.coinKind`); every
 other stackable is keyed on the whole document minus the quantity, which is
 strict on purpose — a torch in a backpack, a torch that costs more, and an item
 carrying its own Active Effects each keep their own row, because over-merging
 destroys data silently while under-merging is a tidy-up. At a provider the key
-also carries the owner, so two characters' goods stay two rows.
+also carries the owner, so two characters' goods stay two rows. Away from a
+provider an arrival is nobody's, and it never folds into a row that is stamped
+for an owner. Where a holder keeps one kind of coin both loose and inside a
+container, the loose row takes the arrival.
 
 **When the place is destroyed**, `registerStorageCleanup()` (installed at init)
 applies the world setting **`storageDeletePolicy`**: `return` (default) hands
@@ -809,6 +843,42 @@ GM-owned actor.
 `providersFor(actor)` scans the world's actors once; call it per render and share
 the result rather than per row. It counts goods only: a stored Item that is not
 goods (a market report on the trade house) never makes its place a row.
+
+### `money` — coin as a thing that sits somewhere (apiVersion 24)
+
+Every path that counts, values, moves, makes or destroys coin goes through
+this surface. A feature never writes a coin row's count itself.
+
+```js
+const { coinKind, coinCount, coinRate, coinTotalCp, coinTotalGC,      // read
+        coinSlots, planCoinSpend, planCoinPayUpTo, planChange,        // plan
+        ownCoin, purseGp, coinReach, exchangeTermsAt, HOUSE_OWNER,
+        creditCoin, mintCoin, sinkCoin, transferCoin, exchangeCoins,  // write
+        coinTemplate } = acksExtras.lib.money;
+```
+
+The read and plan halves are `money-logic.mjs`, Foundry-free, and take plain
+item data. Everything is integer copper inside.
+
+| Call | Answers or does |
+|---|---|
+| `coinCount(row)` / `coinRate(row)` / `coinKind(row)` | How many coins a row holds, what one is worth in copper, and the key it stacks under (name and rate together). |
+| `coinTotalCp(rows)` / `coinTotalGC(rows)` | What a set of rows is worth. Rows that are not coin count for nothing. |
+| `ownCoin(holder)` / `purseGp(holder)` | A holder's own coin rows, loose ones first: an actor's purse, or a place's house-owned stacks. And what they are worth in gold. |
+| `coinReach(from, to)` | `{can, reason}`: may coin get from one holder to the other now. |
+| `creditCoin(holder, credits, {ownerUuid?, ownerName?})` | Lands coin on the holder's row of its kind. A credit is `{count}` plus `source` (a coin row's plain data), or `name` and `cv`, or `cv` alone. Resolves to `{updates, creates}`. |
+| `mintCoin(holder, gp, {ownerUuid?, ownerName?})` | Coin from nowhere, in standard denominations. |
+| `sinkCoin(holder, gp)` | Coin paid to nobody. `{ok, changeCp}`, or `{ok: false, reason: "insufficient", shortfallCp}` with nothing written. It does not warn; the caller says why. |
+| `transferCoin({from, to, gp, reason?, at?, gate?, allowMint?, upTo?})` | Coin from one holder to another. `{ok, changeCp}`, or `{ok, paidCp, arrearsCp}` under `upTo`, or `{ok: false, reason}` after its own warning (`notTogether` and the other reach reasons, `insufficient`, `noChange`). |
+| `exchangeCoins({actor, place, itemId, count, toCv})` | One kind for another at a market. `{ok, paidOutCp}`. |
+| `coinTemplate({cv?, name?})` | The plain data a new row of that coin is copied from, or `null` when the world has none. |
+
+`transferCoin` took a `toBank` option until apiVersion 24. It is gone with the
+field it wrote: coin lands in the payee's purse, and coin kept at a place goes
+there through `storage.depositCoin` or `storage.stash`.
+
+The rules these calls keep (one count, the kind as merge key, loose before
+packed, exact change) are [MODEL.md](MODEL.md), "Currency".
 
 ### `wallGeometry` / `wallLayers` — a line the Judge drew (apiVersion 16)
 

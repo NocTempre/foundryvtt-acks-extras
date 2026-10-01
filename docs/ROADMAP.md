@@ -131,8 +131,9 @@ transparently by taking over the first step; nothing else changes.
 
 ## Experience beyond the character
 
-**A will's items.** Settling a will moves the banked sum only; bequeathing
-named items to the heir is by hand (docs/classes/DECISIONS.md, 2026-09-30).
+**A will's items.** Settling a will pays coin into the heir's vault only;
+bequeathing named items to the heir is by hand (docs/classes/DECISIONS.md,
+2026-09-30).
 
 **A monster henchman's experience.** The system gives a `monster` actor no
 experience field (its `details.xp` is what it is worth when defeated), so Deal

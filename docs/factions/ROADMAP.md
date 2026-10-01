@@ -57,6 +57,15 @@ Work that is designed but absent, deliberately. How the feature behaves now is
   rooms under the organisation's group; they land as pages, as they always
   did. Binding them as places under the faction's seat is the place binding's
   next consumer.
+- **The target's standing on a roll opened from a sheet.** The roller's
+  modifier hook is handed the target a caller names and nothing else, while the
+  page finds its target from the targeted token after it opens. A roll opened
+  from the Influence button therefore carries the quarter's rows and never the
+  rows or the relation note about the target; those arrive only through
+  `acksExtras.influence.open(actor, {targetActor})`. Handing the hook the
+  target the page finds is the small half. The other half is a ruling: a
+  membership can be hidden, and a row named after the organisation a target
+  secretly belongs to would tell a player's dialog what the roster hides.
 - **Standing on the character sheet.** A player has no view of what the
   factions hold about them beyond the reaction card; a read-only panel of the
   non-hidden rows is the obvious surface.

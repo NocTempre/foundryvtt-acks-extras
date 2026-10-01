@@ -113,7 +113,7 @@ token yet and is waiting for one. That is the expected state at this point.
 
 ### 5. Configure it in Foundry
 
-![The Discord Bot window, with its servers and channels offered as dropdowns and the bot's seat below them](../releases/v7.3.0/bridge.png)
+![The Discord Bot window, with its servers and channels offered as dropdowns and the bot's seat below them](../releases/v10.0.0/bridge.png)
 
 In Foundry, **Settings → Module Settings → ACKS II Extras → Discord Bot**.
 The window opens on the bot's own report: it says the bot is waiting, and

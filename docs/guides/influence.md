@@ -4,10 +4,14 @@ A social roll with its whole modifier stack visible before you commit to it —
 who is rolling, against whom, in what tone, and exactly what is adding to the
 number.
 
-![](../releases/v4.0.0/influence-bribe.png)
+![](../releases/v10.0.0/influence.png)
 
-*A social roll with its modifier stack itemized — here with a bribe armed, which
-only moves gold the payer actually has.*
+*A social roll with its modifier stack itemized — here with a bribe armed and
+its fee typed, which only moves gold the payer actually has.*
+
+A bribe is paid in whatever coin the payer carries. A target the Judge is
+running receives those coins; a target nobody at the table can write to is
+paid off-stage, and the coin is gone.
 
 ## Make a roll
 
@@ -61,15 +65,42 @@ it is dealing with, and they sit read-only under their own heading.
 
 - A quarter's reception comes from the district the party is standing in
   ([streets and quarters](formation.md#streets-and-quarters)).
-- **Standing with …** comes from a faction's ledger: the faction being spoken
-  to, any faction the other party belongs to, and whoever controls the quarter
-  ([factions](factions.md)).
+- **Standing with …** comes from a faction's ledger: whoever controls the
+  quarter, on every reaction roll made there, and — when the roller is opened
+  with its target named — the faction being spoken to and any faction the other
+  party belongs to ([factions](factions.md#what-standing-does)).
 - **Legal authority here** is a note with no number beside it. It says the
   speaker belongs to the watch or the noble house that holds this quarter; the
   authority tick is still yours to set.
 
 The social status row fills itself with how many ranks the speaker stands above
 the other party, when both have a rank ([status](factions.md#status)).
+
+## Combat morale
+
+A sheet's **Morale** button opens the Combat Morale page in place of the bare
+roll, and so does **Roll Morale** on a hired group's entry in the Actors
+sidebar. Choose what applies from each list, tick what is true, add an
+adjustment of your own, and roll: the card lists every modifier by name with
+its figure, the dice and the total, and names the result (RR 307).
+
+The lists and the results are your book's. Until the rules tables are imported
+each modifier is a field you type into, and the card names no result
+([importing from your books](importer.md)).
+
+The page lists the creature's [conditions](character-sheet.md#conditions) under
+their own heading. One that changes the roll is a row in the total and on the
+card; one whose figure this world has not imported is a note with nothing
+added; and one under which the creature makes no morale roll says so.
+
+![](../releases/v10.0.0/influence-morale.png)
+
+*The Combat Morale page for a monster carrying two conditions: two modifiers
+chosen from the imported lists, each condition a row of its own beneath them,
+and the final modifier beside the roll.*
+
+For the system's plain roll, hold the skip-dialog key, or turn off the world
+setting **Morale rolls open the modifier page**.
 
 ## Badged rows
 

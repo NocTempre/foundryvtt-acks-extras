@@ -263,9 +263,11 @@ automating them waits on the abilities→attack effects bridge
   never writes `system.movement.*` and never re-implements encumbrance; it wraps
   `computeEncumbrance` (see §1) only to apply the RAW rules core's flat sum gets
   wrong, so formation keeps reading one consistent core value.
-- **henchmen** owns coin math. The purchase-from-market macro (not yet built)
-  reuses `game.modules.get("acks-extras").api.henchmen.adapter.spendGold/grantGold`
-  rather than re-implementing denomination handling.
+- **lib** owns coin: counting, valuing, weighing and moving it are
+  `lib/money.mjs` and the stack half of `lib/item-model.mjs`
+  (docs/lib/MODEL.md, "Currency"). This feature states a coin's rate on its
+  sheet and puts the purse's weight into a character's encumbrance; it never
+  writes a coin row's count outside the sheet's own quantity field.
 - **monsters** owns gear storage and the `DAMAGE_TYPES`/`NATURAL_WEAPONS`
   enums, read raw/soft so a monster with no stat block still resolves. The classifier's `damageType`
   aligns to them.
@@ -333,6 +335,18 @@ each writes only when it is the control that fired — the same rule as the
 quantity badge (DECISIONS, *A derived control writes back only when it is the
 control that fired*). Where the layers change the price, the worth they make
 of it reads beside the field.
+
+**A coin's band states how many make a stone.** On a `money` document the
+weight badge is replaced by **Per stone**: the rate in force
+(`perStoneOf`), with the stack's weight beside it. In edit mode it is a field
+for the coin's own rate, `flags["acks-extras"].gear.perStone`, whose
+placeholder is the system's rate; blank, zero and anything that is not a
+count store `null`, which leaves the weighing to the system. The Record panel
+binds the same path, and the band's copy submits under its own name
+(`acksBandPerStone`) by the rule above. A coin's value badge is its count at
+its rate and is never a field, its ledger is that one line, and it is offered
+no appraisal mode. A coin row is a stack at any count, so its quantity badge
+shows at none and at one.
 
 **Sibling changes re-render it.** The sheet shows facts held on other
 documents — what is stored inside it, the variations applied to it, whether
@@ -419,6 +433,20 @@ Core's own encumbrance loop multiplies `weight6` by the whole quantity and
 cannot be changed, so `encumbranceDelta6` contributes the difference. That is
 the only place the two sums are reconciled; `coreWeight6Of` exists to say what
 core counted so the delta can cancel exactly it.
+
+Coin is reconciled there too. Core lumps every coin on the actor into one
+purse and counts it in whole stones (`getTotalMoneyEncumbrance`), so the delta
+takes that figure back out and puts in `sumWeight6` of the coin rows, which
+weighs each row's count against how many of that coin make a stone and keeps
+the part-stone (RR ch. 1, Speed and Encumbrance). Where any coin row has no
+rate to weigh by, core's figure stands whole. The wrapper is registered at
+`setup`, after the world's actors were first prepared, so every world
+character is prepared again once it is in place; a load is the same figure
+at world load as after the first edit.
+
+Annotate reads a coin's rate from the item's own text where it states one
+(`perStoneStated`: a count of coins set against a weight in stone) and writes
+`gear.perStone`, leaving a rate already on the item alone.
 
 The band therefore prints two numbers where they differ: what one bundle weighs,
 and what the whole stack costs the bearer.

@@ -24,6 +24,7 @@ import { awardKey, grantAbility, grantAdventuring, refOf } from "./grants.mjs";
 import { isOffer, mintPendingChoices } from "./pending-choices.mjs";
 import { grantLanguages } from "./languages.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
+import { coinTemplate, creditCoin, ownCoin } from "../lib/money.mjs";
 import { resolveBase, templateItemName, buildGearData, expandTemplate, applyShortfall } from "./template-packages.mjs";
 import { isUnidentifiedWeapon } from "../equipment/profiles.mjs";
 import { elementOf } from "../lib/util.mjs";
@@ -43,41 +44,6 @@ const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
  */
 const PURSES = { gp: "gold", sp: "silver" };
 
-/** Coin documents already found this session, by lowercased name. */
-const _coinCache = new Map();
-
-/**
- * The document a purse of this coin is made from.
- *
- * A money item built from nothing takes the schema's copper valuation whatever
- * coin it claims to be, and what a gold piece is worth is a value read off a
- * page — which no repo in this family ships. So the coin is CLONED from the
- * system's own item: the world directory first, then the compendia, which is
- * where a system keeps the coins it shipped.
- */
-async function coinSource(name) {
-  if (_coinCache.has(name)) return _coinCache.get(name);
-  const matches = (i) => i.type === ITEM_TYPE.money && String(i.name).toLowerCase() === name;
-  let found = game.items?.find(matches)?.toObject() ?? null;
-  if (!found) {
-    for (const pack of game.packs?.filter((p) => p.documentName === "Item") ?? []) {
-      const index = await pack.getIndex({ fields: ["type"] }).catch((err) => {
-        console.warn(`${MODULE_ID} | coin source: index of ${pack.metadata.id} unreadable`, err);
-        return null;
-      });
-      const hit = index?.find((e) => e.type === ITEM_TYPE.money && String(e.name).toLowerCase() === name);
-      if (!hit) continue;
-      found = (await pack.getDocument(hit._id).catch((err) => {
-        console.warn(`${MODULE_ID} | coin source: ${name} in ${pack.metadata.id} unreadable`, err);
-        return null;
-      }))?.toObject() ?? null;
-      if (found) break;
-    }
-  }
-  _coinCache.set(name, found);
-  return found;
-}
-
 /** Coin written the way a page prints it: "34 gp, 5 sp", or "" for nothing. */
 export const coinLine = (coin = {}) =>
   Object.keys(PURSES)
@@ -88,29 +54,30 @@ export const coinLine = (coin = {}) =>
 /**
  * Put the starting coin in the character's purses.
  *
- * A pile built from nothing takes the schema's copper valuation rather than the
- * coin's own, so a missing purse is CLONED from the world's item of that name
- * and only its quantity set; an existing one is topped up rather than
- * duplicated. Whether a template pays the coin or a 3d6×10 roll does, it lands
+ * The coin is known here by its NAME and by nothing else: what a gold piece
+ * is worth is a value read off a page, which no repo in this family ships. So
+ * each purse is the character's own row of that name where they keep one,
+ * else a copy of the world's coin of that name (the lib's `coinTemplate`),
+ * and the lib lands the count on it — topping a purse up rather than making
+ * a second. Whether a template pays the coin or a 3d6×10 roll does, it lands
  * here.
  *
  * @param {object} coin - amounts by denomination key (`gp`, `sp`)
  */
 export async function grantCoin(actor, coin = {}) {
+  const credits = [];
   for (const [key, name] of Object.entries(PURSES)) {
-    const amount = Number(coin[key]) || 0;
-    if (!amount) continue;
-    const matches = (i) => i.type === ITEM_TYPE.money && i.name.toLowerCase() === name;
-    const purse = actor.items.find(matches);
-    if (purse) {
-      await purse.update({ "system.quantity": (Number(purse.system.quantity) || 0) + amount });
-      continue;
-    }
-    const data = (await coinSource(name)) ?? { name: name.replace(/^\w/, (c) => c.toUpperCase()), type: "money", system: {} };
-    delete data._id;
-    data.system = { ...(data.system ?? {}), quantity: amount };
-    await actor.createEmbeddedDocuments("Item", [data]);
+    const count = Number(coin[key]) || 0;
+    if (!count) continue;
+    const purse = ownCoin(actor).find((i) => String(i.name).toLowerCase() === name);
+    // A purse built from nothing takes the schema's copper valuation — the
+    // last resort, where neither the character nor the world has the coin.
+    const source = purse?.toObject()
+      ?? (await coinTemplate({ name }))
+      ?? { name: name.replace(/^\w/, (c) => c.toUpperCase()), type: ITEM_TYPE.money, system: {} };
+    credits.push({ source, count });
   }
+  await creditCoin(actor, credits);
 }
 
 /** INT-based bonus general picks per the RR sidebar (13–15/16–17/18). */
@@ -263,8 +230,8 @@ async function grantBundleRows(actor, rows, report) {
       await actor.createEmbeddedDocuments("Item", [data]);
       report.granted.push(data.name);
     } else if (r.type === ITEM_TYPE.money) {
-      data.system = { ...(data.system ?? {}), quantity };
-      await actor.createEmbeddedDocuments("Item", [data]);
+      // Coin lands on the character's row of its own kind, never a second.
+      await creditCoin(actor, [{ source: data, count: quantity }]);
       report.items.push(quantity > 1 ? `${data.name} ×${quantity}` : data.name);
       paidCoin = true;
     } else if (r.type === ITEM_TYPE.item) {

@@ -1,5 +1,126 @@
 # Changelog
 
+## 10.0.0
+
+### Added
+
+- **The token status palette is the ACKS II conditions.** A condition on a
+  creature changes its attack throws, damage, saving throws, proficiency and
+  adventuring throws, morale, surprise and speed, and changes attacks made
+  against it (RR Appendix B). Each change is named on the attack card or
+  beside the roll. Import Conditions from your Revised Rulebook to supply the
+  figures; until then nothing is applied and you are told so.
+- **A sheet's Morale button opens the Combat Morale page**, where each
+  modifier is chosen and then listed on the chat card. A group's Roll Morale
+  opens the same page. It lists the creature's conditions: each one that
+  changes the roll is a named modifier on the card, and each one that does
+  not is noted beside it. The world setting *Morale rolls open the modifier
+  page*, or the skip-dialog key, gives the system's plain roll.
+- **A coin says how many of it make a stone.** A coin's sheet shows **Per
+  stone** where other goods show a weight, with what the stack weighs beside
+  it. With the pencil pressed it is a field for a rate of that coin's own;
+  left blank, the coin weighs as the system weighs coin. Annotate fills it in
+  for a coin whose own text states one.
+- **A stack divides and joins.** The scissors on a coin row, and on any stack
+  that is not worn, ask how many to take off and put them in a row of their
+  own. Dropping a row on another row of the same thing joins the two. A purse
+  is divided to hand part of it over, or to stow part of it.
+- **A window title that is cut short shows whole on a hover.** Rest the
+  pointer on it and the whole title shows in a tooltip.
+- **For macros:** `acksExtras.lib` is apiVersion 24. 23 adds `conditions`,
+  the condition catalogue and its math. 24 is currency: `money` adds
+  `purseGp`, `ownCoin`, `mintCoin`, `sinkCoin`, `coinTemplate`, `coinCount`,
+  `coinRate`, `coinTotalCp` and `coinTotalGC`; `itemModel` adds `isCurrency`,
+  `stackCountOf`, `perStoneOf`, `systemCoinsPerStone`, `sumWeight6`,
+  `divideStack` and `joinStacks`; `storage` adds `stockProvider`.
+  `acksExtras.influence` is apiVersion 10. `acksExtras.location` adds
+  `vaultFor` and `payIntoVault`.
+
+### Changed
+
+- **Coin weighs to the coin.** A character's load counts the purse as each
+  coin row's count against how many of that coin make a stone, part-stones
+  kept, where it used to count whole stones only (RR ch. 1, Speed and
+  Encumbrance). Coin packed in a sack or a chest counts toward what the
+  container holds, and a hireling's card and a vehicle's hold weigh it the
+  same way. With roll automation off, a character's coin weighs as the
+  system counts it.
+- **Banked is not somewhere coin can be.** No sheet shows a bank column, on
+  any actor, and a coin's sheet has no banked count. Coin that is safe is
+  coin kept at a place. A world that upgrades with balances still banked has
+  them moved the next time it loads: a character's into their vault, and a
+  monster's, a hired unit's or a token's into the coin it carries. A card
+  whispered to the Judge lists every move. A world with nothing banked sees
+  no change.
+- **A wage is coin handed to the hireling.** On payday the employer's own
+  coins land in the hireling's purse, where they used to be written to the
+  hireling's banked count. A paid unit's wage lands on the unit.
+- **A will pays the heir's vault.** Settling an estate puts the coin in the
+  heir's vault, making one where the heir keeps none, in place of the heir's
+  banked count.
+- **A bribe is paid in whatever coin the payer carries.** It was taken from a
+  row named Gold alone, and a target holding no such row was credited coins
+  worth a copper each. A target the Judge is running now receives the coins
+  paid; a target no seat at the table can write to is paid off-stage.
+- **The Combat Morale and Hireling Obedience pages read their modifiers and
+  results from your own book.** Run the import to fill them in; until then
+  each modifier is typed by hand and the card names no result. A copy of the
+  Obedience Check macro imported into a world before this release opens the
+  bare throw: import it again from the compendium.
+- **Foundry's generic status icons are replaced by the conditions.** The
+  Hiding status is now the Hidden condition. An effect that carries one of
+  the old statuses applies nothing until it is renamed; the repair tool's
+  *Statuses from before the conditions list* check renames them.
+
+### Fixed
+
+- **Coin is moved, never copied.** Coin dragged from one sheet to another, a
+  hireling's card or a vehicle's hold left the original where it was and
+  made a second purse. It now leaves the giver and joins the receiver's row
+  of that coin. It crosses to and from a token that is its own copy of an
+  actor. A sheet that lists no goods, such as an organisation's, refuses
+  coin and says so, where the coin used to land out of sight.
+- **Coin from a compendium lands as the coin it is.** Dropped on the
+  character sheet it arrived as a stack of none, and a second drop made a
+  row of one. Each drop now adds to the row of that coin.
+- **One purse is one row.** Every way coin arrives matches on the coin's name
+  and worth together, so a payment no longer starts a second row beside the
+  purse and two different coins no longer merge. Arriving coin joins the
+  loose pile before one packed in a container, and never joins a row a place
+  is keeping for somebody. Rows an earlier version already split stay split:
+  drop one on the other to join them.
+- **Change is exact, and a part-payment pays what it can.** A payment that
+  needed change could hand the payer back more than was owed, out of the
+  payee's purse. Change is now made from the coins being paid first, then
+  from the payee's own, and a payee who cannot make it refuses the payment
+  with nothing moved. A wage a purse cannot pay exactly pays the larger part
+  it can and keeps the rest as arrears. An employer pays a hired unit
+  wherever the two stand.
+- **A coin's sheet states its worth and its weight.** It read a value of
+  nothing beside a box that wrote nothing, and no weight. It reads the stack
+  at the worth of one coin, and how many make a stone.
+- **A hireling's card lists the coin they carry.**
+- **A character's load is the same when the world loads as after an edit.**
+  Until the first change to a character, the load left out what this module
+  corrects in the system's sum.
+- **A long window title stays on one line.** A title longer than its window's
+  header wrapped onto two or three lines that the header cut off. It now ends
+  in an ellipsis, as Foundry's own windows do, and shows whole when the
+  window is widened.
+- **A window title sits on its banner's centre line.** On every window in the
+  ACKS dress it sat 8 pixels low, out of line with the window's icon and
+  buttons.
+- **A sheet or dialog first opened inside a detached window gets the ACKS
+  look and every control the module adds, as it does in the main window.**
+
+### Removed
+
+- **The *Pay wages into the bank* setting.** There is one place a wage lands.
+- **The Unit Morale dialog.** A hired unit rolls on the Combat Morale page.
+- **For macros:** `lib.money.transferCoin` and the henchmen adapter's
+  `grantGold` no longer take `toBank`; coin kept at a place goes there
+  through `lib.storage.depositCoin` or `stash`.
+
 ## 9.7.0
 
 ### Added

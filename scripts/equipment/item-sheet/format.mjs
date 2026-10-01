@@ -22,7 +22,11 @@ export const DASH = "—";
 export function stoneLabel(weight6) {
   const w = Number(weight6);
   if (!Number.isFinite(w) || w <= 0) return DASH;
-  if (!Number.isInteger(w)) return String(Math.round((w / 6) * 100) / 100);
+  if (!Number.isInteger(w)) {
+    // A weight too small to print still weighs something, and says so.
+    const stone = Math.round((w / 6) * 100) / 100;
+    return stone > 0 ? String(stone) : "<0.01";
+  }
   const whole = Math.floor(w / 6);
   const rest = w % 6;
   if (!rest) return String(whole);
@@ -41,6 +45,14 @@ export function gpLabel(cost) {
   const [whole, frac] = String(Math.abs(rounded)).split(".");
   const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return `${rounded < 0 ? "−" : ""}${grouped}${frac ? `.${frac}` : ""} gp`;
+}
+
+/** A count, thousands-separated: `1,000`. A dash for none, or for no number at all. */
+export function countLabel(count) {
+  const n = Number(count);
+  if (count === null || count === undefined || count === "" || !Number.isFinite(n) || n <= 0) return DASH;
+  const [whole, frac] = String(Math.round(n * 100) / 100).split(".");
+  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${frac ? `.${frac}` : ""}`;
 }
 
 /** A signed modifier with a real minus sign: `+1`, `−2`, `+0`. */

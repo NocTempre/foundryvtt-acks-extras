@@ -252,6 +252,10 @@ The offline suite was green throughout.
 
 ### The banked-coin column is retired, and the sweep is the migration (2026-08-01)
 
+**Amended 2026-10-01** by "Banked is not a state coin can be in", at the foot
+of this file: the column goes from every sheet, and an actor that is not a
+character keeps no vault. The vault per character stands.
+
 The system's `system.quantitybank` was a competing answer to "where is my
 money": coin that is yours, weighs nothing, and is nowhere. Two answers drift the
 first time a player uses both.
@@ -780,3 +784,44 @@ would be a second field).
 *Cost:* one more field the prune ignores and the sheet shows. An existing
 world's imported gates carry no role until the points-of-interest step is
 run again, which stamps them without rebuilding anything.
+
+## 2026-10-01 — Banked is not a state coin can be in
+
+Reported (owner): "Banked makes no sense anymore now that there are locations
+to bank and needs depreciated as a status." This amends "The banked-coin
+column is retired, and the sweep is the migration (2026-08-01)", whose vault
+per character stands. What a coin row's one count is, and how coin lands and
+leaves, is docs/lib/DECISIONS.md, "Currency is one stack with one count,
+weighed by how many make a stone (2026-10-01)".
+
+**Ruled.**
+
+- **The column goes from every sheet the system draws.** The bank cells are
+  removed for any actor, and the banked field from the system's coin sheet,
+  whether or not the world holds a place to keep coin. Until now the column
+  went only where a Storage tab replaced it, and the field only once the
+  world had a provider.
+- **A balance still banked moves to where its holder keeps coin.** A
+  character's goes into their vault, as before. An actor of any other type,
+  and an unlinked token's own copy of a coin row, keeps no vault: the balance
+  joins the count on the row it was banked on. That is one write to one row,
+  so it has no ledger and nothing to resume.
+- **A will pays the heir's vault.** `payIntoVault(character, gp)` finds or
+  makes the vault and lands the coin in it as theirs. It sits beside
+  `vaultFor` on this feature's api, so the classes feature builds no vault of
+  its own.
+- **Goods from nobody dropped on a place are the house's.** The location
+  sheet stocks them through the lib's `stockProvider`, which stamps the house
+  as their owner and folds a stack into the house's own row.
+
+**Rejected:** keeping the system's column where nothing replaces it (it is a
+count that no payment, weight or valuation reads, so coin typed into it is out
+of play until a sweep finds it); a vault for an actor that is not a character
+(a vault is owned by a character's players, and a token's uuid dies with the
+token); an estate landing in the heir's purse (it would arrive as weight on
+whoever inherits it, wherever they stand); zeroing the field without moving
+what it held.
+
+*Cost:* a world with nowhere to keep coin gains a vault the first time a
+character's balance is swept. A monster or a unit that had coin banked now
+carries it, and it weighs.

@@ -122,7 +122,9 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 const localImpl = Object.freeze({
   // 19: hp — the group hit-point tool. 22: worldTime — the clock's reading.
   // 23: conditions — the condition catalogue and its math.
-  apiVersion: 23,
+  // 24: currency — one count per coin row, weight per stone, a named mint
+  // and sink; `toBank` is gone from `transferCoin`.
+  apiVersion: 24,
   vocab,
   fields,
   /**
@@ -234,9 +236,10 @@ const localImpl = Object.freeze({
   capacity,
   /**
    * Money as a physical thing (money.mjs + money-logic.mjs): transferCoin —
-   * the location-gated payment that lands coin on the payee's stacks and
-   * makes change by the same arithmetic — with the smallest-first planner,
-   * exchange terms by place, the HOUSE_OWNER sentinel and creditCoin.
+   * the location-gated payment that lands coin on the payee's row of its
+   * kind and makes exact change — with mintCoin and sinkCoin for coin from
+   * nowhere and to nobody, the smallest-first spend planner and the change
+   * planner, exchange terms by place, the HOUSE_OWNER sentinel and creditCoin.
    */
   money: { ...moneyLogic, ...money },
   /**

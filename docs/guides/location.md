@@ -96,8 +96,14 @@ named after the place. The GM setting `storageDeletePolicy` can change that to
 "lose", for the campaign where a sacked city takes your warehouse with it.
 
 Coin stows like anything else you carry: drag a coin row onto a place or into a
-pouch, or pick it in **Deposit here**. Coin kept in the old **bank** column is
-not carried, so it cannot be stowed from there — it is swept into a vault first.
+pouch, or pick it in **Deposit here**. To leave part of a purse, divide the
+stack first ([the character sheet](character-sheet.md#coin-and-stacks)) and
+stow the pile.
+
+There is no **bank** column any more, on any sheet. Coin that is safe is coin
+kept at a place. A balance an older world still holds there is moved out when
+the world next loads: a character's into their vault, and anyone else's (a
+monster, a hired unit, a token) into the coin they carry.
 
 ## Be somewhere to leave something there
 
@@ -134,7 +140,7 @@ something NEW that asks where you are standing.
 
 A vault is a place of one character's own: only they and their players can reach
 it. You are given one automatically the first time a banked balance is swept out
-of the retired bank column.
+of the retired bank column, or an estate is settled on you.
 
 That sweep only visits a character who still has a balance to move, so a vault
 that is **deleted does not come back on its own** — by then there is nothing left
@@ -174,9 +180,13 @@ one in an unloaded compendium. The chain renders as far as it resolves.
 own. A GM can reassign attribution in the **Storage Manager** (Settings →
 Storage Manager).
 
-**"Nothing was moved."** The stack you picked is empty. Coin sitting in the old
-bank column is not carried, so it cannot be stowed from there — it is swept into
-a vault at the next world load, and stows from the vault.
+**"Nothing was moved."** The stack you picked is empty. A balance still in the
+retired bank column is not coin anyone carries — it is moved out at the next
+world load, a character's into their vault.
+
+**"… carries no goods, so coin cannot be handed to it."** The sheet you dropped
+coin on lists no goods (an organisation, a party), so nothing there could show
+the coin again. Drop it on whoever is to carry it, or on a place.
 
 **My character has no vault any more.** Deleting one does not regenerate it. A GM
 makes a new one with **Storage Manager → Give a character a vault**.

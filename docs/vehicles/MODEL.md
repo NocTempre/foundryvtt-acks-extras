@@ -158,6 +158,12 @@ ends). A location target is left to its own drop, which stores the goods
 under whose they are. The vehicle sheet's drop moves an item from another
 actor the same way; one from the sidebar or a compendium is copied in.
 
+Coin is the exception at both ends, and the lib's `landCoin` is its one rule
+(docs/lib/MODEL.md, "Currency"). Dragged out of a hold, coin is left to the
+sheet it lands on, which hands it over or refuses it. Dropped on the vehicle
+sheet, coin off an actor is handed over and coin from the sidebar or a
+compendium lands on the hold's row of its own kind.
+
 ## Market trade
 
 A party enters a market with its vehicles, whose hold capacity counts toward

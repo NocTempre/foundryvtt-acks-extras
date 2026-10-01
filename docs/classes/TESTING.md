@@ -833,7 +833,8 @@ fixture, so this one write is restored rather than swept.
 2. Record gp **Into the reserve** with "pay from the purse" on. *Observable:*
    Fallen's carried coin falls by exactly that gp; the ledger row shows gp and
    `floor(gp × reserveRate / 100)` XP; a card is whispered to the Judges and
-   the Player; the chip on the sheet shows the fund.
+   the Player; the chip on the sheet shows the fund once the sheet next
+   renders (re-render it before reading the chip).
 3. Record a **Heroic funeral**. *Observable:* "Unclaimed funerals" rises by its
    XP.
 4. Open Successor's Legacy window, choose Fallen under **Following**, press
@@ -843,8 +844,11 @@ fixture, so this one write is restored rather than swept.
    and lowering Fallen's experience below it caps the option there. A start
    that would not raise Successor is refused with a warning and posts no card.
 5. On Fallen, name Heir with an estate and **Save will**, then **Settle
-   estate**. *Observable:* Heir's banked gp rises by the hint's net figure;
-   the will reads settled; pressing settle again does nothing.
+   estate**. *Observable:* a vault whose `vaultOf` is Heir's uuid holds the
+   hint's net figure in coin stamped as Heir's (made by the settlement where
+   Heir kept none: `api.track` it), Heir's own purse is unchanged, no row's
+   `system.quantitybank` moved, and the card says "in their vault"; the will
+   reads settled, and the window offers no settle control after it.
 6. **As the Player seat** (a real join): Fallen's Legacy window shows the
    ledger and the will form, and no record, start, strike or settle control.
 

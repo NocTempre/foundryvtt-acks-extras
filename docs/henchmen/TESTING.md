@@ -75,9 +75,30 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    hire them.
    *Observable:* the candidate's status leaves `available`, and the hire
    appears on the employer's roster.
-5. Wages: `payWagesFor(employer)` with too little coin, then with enough.
-   *Observable:* the shortfall is booked as arrears rather than silently
-   ignored, and `forgiveWageDebts` clears it.
+5. Wages: `payWagesFor(employer)` with a purse worth less than the wages due,
+   then `payWagesFor(employer, {markMissed: true})`, then with enough, then
+   with enough in coin that cannot make the wage exactly.
+   *Observable:* a purse worth too little warns, moves nothing and books
+   nothing: no payday, no arrears, no calamity. Marking the month missed books
+   the whole wage as arrears with a calamity on the hireling's record, and
+   `forgiveWageDebts` clears both. With enough, the employer's purse is down by
+   the wage and the hireling's purse is up by it, on carried coin rows: read
+   both with `lib.money.purseGp`, and no row's `system.quantitybank` moved. A
+   purse that covers the wage but cannot make it exactly pays the larger part
+   it can and books the rest as arrears. The settings list offers no "pay
+   wages into the bank".
+5a. A paid unit. Take the group step 10 hires (its
+   `system.unit.employerUuid` is the employer's uuid), with no scene holding
+   both actors, set `flags.acks-extras.groupPay.lastPaidTime` a month back
+   and run `payWagesFor(employer)`.
+   *Observable:* the employer's purse is down by the unit's wage, the group
+   actor's coin is up by it, and the flag's `lastPaidTime` moved. No "not
+   together" warning: the unit's employer link is the reach. The branch that
+   books nothing for a refused transfer has no route from here, since every
+   due entry is in reach by its roster or its unit link. The refusal itself
+   (a part-payment between two actors who are not together moves nothing) is
+   asserted offline in `tools/test-coin-flows.mjs`; the bookkeeping after it
+   is not walked.
 6. Loyalty and obedience: `openLoyaltyRoll` / `openObedienceRoll` on a hired
    henchman, and `recordCalamity`.
    *Observable:* each posts its card, and the henchman's stored loyalty moves

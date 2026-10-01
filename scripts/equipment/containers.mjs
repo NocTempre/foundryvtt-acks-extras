@@ -5,10 +5,11 @@
  *
  * Contents stay REAL items on the actor, flagged with `containedIn`, so
  * core's computeEncumbrance already counts each item once and the common
- * case needs no correction. Only RAW rules that genuinely disagree with a
- * flat sum are corrected, in `encumbranceDelta6`: the adventurer's harness
- * (RR p. 142), the bowquiver assembly (RR p. 142), and JJ shield variants
- * (JJ pp. 407–408, overlay-gated).
+ * case needs no correction. Only what genuinely disagrees with a flat sum is
+ * corrected, in `encumbranceDelta6`: the adventurer's harness (RR p. 142),
+ * the bowquiver assembly (RR p. 142), JJ shield variants (JJ pp. 407–408,
+ * overlay-gated), a weight stated for a bundle, and coin — which core counts
+ * in whole stones and the item model weighs to the coin.
  *
  * Capacity is enforced as a warning on the container, not by altering weight.
  */
@@ -17,11 +18,12 @@ import { FLAG_GEAR } from "../lib/constants.mjs";
 import { shieldEncumbranceDelta6 } from "./overlays/shield-variants.mjs";
 import { isHelmet, isShield } from "./profiles.mjs";
 // The family's item primitives. `weight6Of` is quantity-aware and returns 0 for
-// non-physical items — see the notes below on where raw PER-UNIT weight is
-// wanted instead (harness heavy-check, shield baseline), which do NOT go
-// through it. `isStowable` is where coin's missing cost/weight6 is reconciled:
-// coin is goods without being physical, so asking `isPhysical` here loses it.
-import { weight6Of, coreWeight6Of, bundleSizeOf, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, holdsGear, reliefOf, STONE, containedIn, contentsOf, contentsWeight6 } from "../lib/item-model.mjs";
+// what has no weight to state — see the notes below on where raw PER-UNIT
+// weight is wanted instead (harness heavy-check, shield baseline), which do NOT
+// go through it. `isStowable` is where coin's missing cost/weight6 is
+// reconciled: coin is goods without being physical, so asking `isPhysical`
+// here loses it.
+import { weight6Of, coreWeight6Of, sumWeight6, bundleSizeOf, isCurrency, perStoneOf, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, holdsGear, reliefOf, STONE, containedIn, contentsOf, contentsWeight6 } from "../lib/item-model.mjs";
 import { kindsOf, acceptsKinds, cleanAccepts } from "./item-sheet/accept-kinds.mjs";
 import { itemBaseType } from "./variation-items.mjs";
 // Containment READS live in lib now (the capacity primitive needs them);
@@ -405,5 +407,19 @@ export function encumbranceDelta6(actor) {
     delta += weight6Of(i) - coreWeight6Of(i);
   }
 
+  // 5. Coin. Core lumps every coin on the actor into one purse and counts it
+  //    in WHOLE stones, dropping the remainder; that figure cannot be changed,
+  //    so it is taken back out here and what the purse weighs put in its place
+  //    — each row's count over how many of that coin make a stone, part-stones
+  //    kept. Where a row has no rate to weigh by, core's figure stands whole.
+  const coins = actor.items.filter(isCurrency);
+  if (coins.length && coins.every((c) => perStoneOf(c))) delta += sumWeight6(coins) - coreCoin6(actor);
+
   return delta;
+}
+
+/** What core's own encumbrance sum added for the actor's coin, in weight6. */
+function coreCoin6(actor) {
+  const stone = Number(actor.getTotalMoneyEncumbrance?.()?.stone);
+  return Number.isFinite(stone) ? stone * STONE : 0;
 }

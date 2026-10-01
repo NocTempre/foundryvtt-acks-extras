@@ -18,7 +18,7 @@ import {
   STONE,
   capacityOf,
   encumbering6,
-  weight6Of,
+  sumWeight6,
   contentsWeight6,
 } from "./item-model.mjs";
 import { riderOf } from "./mount.mjs";
@@ -34,25 +34,18 @@ export const RIDER_BODY6 = 15 * STONE;
  */
 const isAbsent = (item) => !!item.getFlag?.(MODULE_ID, "spoil") || !!item.getFlag?.(MODULE_ID, "thrownAway");
 
-/** The coin an actor carries, in sixths, or 0 where the system cannot say. */
-function coin6(actor) {
-  const money = actor.getTotalMoneyEncumbrance?.();
-  return Number.isFinite(money?.stone) ? money.stone * STONE : 0;
-}
+/** What is on the body: every item that has not left it. */
+const present = (actor) => [...(actor.items ?? [])].filter((item) => !isAbsent(item));
 
 /**
  * The "borne" reading: the kit a bearer answers for — no carrying overlay,
- * clothing free, nothing that has left the body. See docs/lib/MODEL.md,
+ * clothing free, nothing that has left the body. Coin is part of the kit and
+ * weighs through the item model like the rest. See docs/lib/MODEL.md,
  * "Capacity", the burden/borne/carried table.
  */
 export function borneWeight6(actor) {
   if (!isActor(actor)) return 0;
-  let sum = 0;
-  for (const item of actor.items ?? []) {
-    if (isAbsent(item)) continue;
-    sum += encumbering6(item);
-  }
-  return sum + coin6(actor);
+  return sumWeight6(present(actor), encumbering6);
 }
 
 /**
@@ -61,12 +54,7 @@ export function borneWeight6(actor) {
  */
 export function carriedWeight6(actor) {
   if (!isActor(actor)) return 0;
-  let sum = 0;
-  for (const item of actor.items ?? []) {
-    if (isAbsent(item)) continue;
-    sum += weight6Of(item);
-  }
-  return sum + coin6(actor);
+  return sumWeight6(present(actor));
 }
 
 /**
@@ -87,9 +75,9 @@ const isItem = (doc) => doc?.documentName === "Item";
 
 const monsterLoadSpec = (actor) => actor?.flags?.[MODULE_ID]?.extras?.load ?? null;
 
-/** A monster's own carried weight: items plus coin (core computes neither for
- * monsters, so both are summed here with core's semantics — clothing weighs
- * nothing carried). Spoils are the monster's own harvestable parts, not cargo. */
+/** A monster's own carried weight: items and coin (core computes neither for
+ * monsters, so both are summed here — clothing weighs nothing carried).
+ * Spoils are the monster's own harvestable parts, not cargo. */
 const monsterCarried6 = (actor) => borneWeight6(actor);
 
 /**

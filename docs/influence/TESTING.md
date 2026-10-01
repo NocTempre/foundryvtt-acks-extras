@@ -65,6 +65,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    seat cannot see.
    *Observable:* the result is re-resolved GM-side and the player's card does
    not disclose the target's hidden data.
+8a. A bribe moves coin. As GM, give the influencer silver worth more than the
+   first bribe tier and no gold (`lib.money.creditCoin`), arm that tier on
+   Diplomacy and roll. The fee fills itself from the target's wage only where
+   the wage ladder is imported and has a row for the target; where it reads 0,
+   type the fee before rolling.
+   *Observable:* the influencer's purse is down by the fee and the target's
+   is up by it (`lib.money.purseGp` on both), in coin the influencer held.
+   Empty the influencer's purse, arm the tier and roll again: a warning names
+   the influencer, and neither purse changed.
 
 ## The morale pages
 

@@ -1411,6 +1411,11 @@ any non-`foundry.css` stylesheet that reads a legacy Foundry variable.
 
 ## 2026-08-14 — Money is physical; four rulings land at once
 
+**Amended 2026-10-01** by "Currency is one stack with one count, weighed by
+how many make a stone", below. Change is no longer "returned by the same
+planner": it has a planner of its own and is exact. The Judge's mint and
+sink are functions with names.
+
 **Ruled (owner, this date):** (1) one spend policy — smallest denomination
 first with change made by breaking the larger coin; (2) coin KIND is name and
 rate together, so a local variation is a separate stack everywhere it travels
@@ -2802,6 +2807,111 @@ real browser input.
 **What it cost.** The tooltip is core's, so it does not follow the type knob
 and wraps a long title at core's 320px. Each watched window carries three
 listeners on its title.
+
+### Currency is one stack with one count, weighed by how many make a stone (2026-10-01)
+
+**Reported (owner).** "The coin stacks are not working correctly. Make sure
+that currency is globally an item that can stack and defines weight as items
+per stone instead of stones each (under the hood track properly). Banked makes
+no sense anymore now that there are locations to bank and needs depreciated as
+a status." Then: "hunt down all currency paths to make sure everything is
+consistently using the items model."
+
+This amends "2026-08-14 — Money is physical; four rulings land at once" and
+extends "Coin made draggable is guarded against minting itself (2026-09-22)".
+How it works now is [MODEL.md](MODEL.md), "Currency".
+
+**Ruled.**
+- *One count.* A coin row holds `system.quantity`, and nothing spends, weighs
+  or totals any other number. The system's second number on the row
+  (`system.quantitybank`) is not coin anyone holds. The location feature's
+  sweep moves it out (docs/location/DECISIONS.md, "2026-10-01 — Banked is not
+  a state coin can be in"), and until it has, a path that deletes an emptied
+  coin row keeps one that still carries a balance.
+- *Weight is stated per stone.* Currency declares how many of it weigh one
+  stone (`gear.perStone`), and a coin that declares none weighs at the
+  system's rate (RR ch. 1, Speed and Encumbrance). That rate is the system's
+  figure, so it is read off the system's own purse arithmetic at runtime
+  (`systemCoinsPerStone`) and stated nowhere in this module. A stack's weight
+  is the exact fraction, counts are added per rate before the one division,
+  and rounding belongs to whatever prints the figure.
+- *One landing.* Coin reaches a holder through `creditCoin`, or through
+  `planStackMerge` for a row that moved, and both put it on the holder's row
+  of its kind. A row that has to be made is copied from a coin of that kind,
+  never built from a name and a rate, so it keeps its art, its text and its
+  declared weight. Where a holder keeps one kind both loose and packed in a
+  container, the loose row is landed on and spent from first. A row kept for
+  an owner takes only what arrives stamped as theirs.
+- *A mint and a sink, by name.* `mintCoin` is coin from nowhere and
+  `sinkCoin` is coin paid to nobody. A feature that adjusted a row itself now
+  calls one of them or `transferCoin`.
+- *Change is exact, and it is the payer's own coin first.* Change is the
+  coins being handed over, held back, before it is anything else: a coin the
+  change would hand straight back never leaves the payer. What those cannot
+  make comes from the payee's own stacks, and where the two cannot make it
+  apart they are drawn on together. Where nothing can make it, barter refuses
+  and a market mints, as 2026-08-14 ruled. A sink holds back the same way,
+  takes the rest of its change in the holder's own denominations, and what
+  those cannot represent comes back as standard small coin.
+- *A part-payment takes the better pick.* `upTo` pays smallest coins first.
+  Where that strands a remainder the larger coins would have met,
+  largest-first is weighed against it and whichever pays more is the plan.
+- *A stack divides and joins.* `divideStack` puts a count into a row of its
+  own and `joinStacks` undoes it. Two rows of one kind on one holder are
+  therefore a state somebody may have chosen, and nothing folds them
+  unasked.
+- *One statement of a drop.* `landCoin` says where coin dropped on a sheet
+  goes: off another actor it is handed over, and from nobody it lands on the
+  row of its kind. No sheet copies coin. Foundry's own
+  `ActorSheetV2#_onDropItem` copies an item from another actor and never
+  debits the giver, so the lib wraps it (`patches/goods-drag.mjs`, its one
+  owner): coin from elsewhere is landed where the sheet's actor is a creature
+  and refused with a warning where it is not. A sheet with a drop handler of
+  its own calls `landCoin` itself.
+- *A hand-over crosses a token's own actor.* A move that stamps an owner
+  still refuses an unlinked token, because the stamp is a uuid that dies with
+  the token. A hand-over stamps nothing and is let through at either end.
+- *An employer reaches the unit it pays.* A unit sits on nobody's roster, so
+  `coinReach` also accepts the employer the unit's own actor names. A wage
+  transfer that is refused records no payday.
+
+**Rejected.**
+- *Banked kept as a second count, or as a status on the row.* Two numbers on
+  one row are two answers to "how much have I got", and every reader has to
+  pick one. A place holds banked coin, attributed to whose it is.
+- *Weight stated per coin.* One coin is a small fraction of a sixth of a
+  stone, and `weight6` holds sixths. Per stone is also how the page states
+  it.
+- *Shipping the system's rate, or a fallback beside it.* The figure is read
+  off a page. Where the system weighs no coin at all, a coin that declares no
+  rate weighs nothing.
+- *Rounding each row.* A purse split into several rows would weigh less than
+  the same coins in one, so dividing a stack would lighten the load.
+- *Change planned as a spend.* A spend takes whole coins and overshoots by
+  design. As change the overshoot was the payee's loss: a payee holding only
+  large coin handed the whole payment back.
+- *Change drawn largest first over the paid coins and the payee's
+  together.* A spend takes small coin first, so a payer whose gold covered
+  the amount had their loose silver taken as well, and a larger coin of
+  another kind came back for it: exact in value, in a purse rearranged by a
+  payment that needed no change. Walking the release gate, five gold paid
+  off-stage turned six silver into one silver and an electrum piece.
+- *Folding same-kind rows at load, or as a repair check.* A divided pile is
+  now a legitimate state, and a check cannot tell one from a leftover.
+- *Moving coin onto a sheet that lists no goods.* A faction's sheet reaches
+  Foundry's drop and shows no inventory, so coin landed there would be coin
+  nobody could find. Copying it there was the defect.
+- *A setting for where wages land.* Its other value wrote the retired field.
+
+**What it cost.** The henchmen setting `wagesToBank` is gone, and with it the
+`toBank` option of `transferCoin` and `grantGold`; a caller that passed it
+now pays into the purse. One more Foundry method carries a wrapper. Every
+character in the world is prepared a second time at `setup`, because the
+world's actors are prepared before the encumbrance wrapper exists. Rows left
+duplicated by the paths this replaces stay duplicated until someone joins
+them. With the equipment feature's roll automation off, a character's load
+counts coin as core does, in whole stones. A unit's pay lands on the unit's
+own actor, where no sheet lists it.
 
 ### An element is told by its `nodeType`, never by its constructor (2026-10-01)
 

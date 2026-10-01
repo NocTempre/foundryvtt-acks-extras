@@ -17,7 +17,7 @@
         {{#each choices}}<option value="{{value}}" {{#if (eq value ../value)}}selected{{/if}}>{{label}}</option>{{/each}}
       </select>
       {{else}}
-      <input class="acks-input acks-input--line acks-nums" type="{{type}}" name="{{name}}" value="{{value}}" {{#if (eq type "number")}}step="any"{{/if}} {{disabled (not ../editing)}}>
+      <input class="acks-input acks-input--line acks-nums" type="{{type}}" name="{{name}}" value="{{value}}" {{#if (eq type "number")}}step="any"{{/if}}{{#if placeholder}} placeholder="{{placeholder}}"{{/if}} {{disabled (not ../editing)}}>
       {{/if}}
     {{/if}}
   </label>

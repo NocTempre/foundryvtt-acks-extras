@@ -1,4 +1,3 @@
-/* global game, foundry */
 /**
  * The market's till: the coin float a market keeps on hand, refreshed to its
  * market level each market month.
@@ -13,12 +12,10 @@
  * Family income comes from an imported `economy` table when the GM's books
  * have supplied one, else a placeholder world setting.
  */
-import { MODULE_ID } from "../constants.mjs";
 import { getSetting } from "../settings.mjs";
 import { optTable } from "../../henchmen/rules/tables.mjs";
-import { creditCoin, HOUSE_OWNER } from "../../lib/money.mjs";
-import { STORAGE_KEY } from "../../lib/storage-logic.mjs";
-import { ITEM_TYPE } from "../../lib/vocab.mjs";
+import { mintCoin, ownCoin } from "../../lib/money.mjs";
+import { coinTotalCp } from "../../lib/money-logic.mjs";
 import { marketMonthStart } from "./trade.mjs";
 import { now } from "../../henchmen/time.mjs";
 
@@ -53,15 +50,7 @@ export async function tillTargetGp(location) {
 }
 
 /** The house-owned coin currently in the till, in copper. */
-export function tillCoinCp(location) {
-  let cp = 0;
-  for (const item of location.items) {
-    if (item.type !== ITEM_TYPE.money) continue;
-    if ((item.getFlag(MODULE_ID, STORAGE_KEY)?.ownerUuid ?? HOUSE_OWNER) !== HOUSE_OWNER) continue;
-    cp += Number(item.system?.coppervalue ?? 0) * Number(item.system?.quantity ?? 0);
-  }
-  return cp;
-}
+export const tillCoinCp = (location) => coinTotalCp(ownCoin(location));
 
 /**
  * Top the till up to its target, once per market month (watermarked). A till
@@ -79,19 +68,7 @@ export async function refreshTill(location, { force = false } = {}) {
   if (!hasStoredTarget(market) && !(Number(market.urbanFamilies) > 0)) return { refreshed: false };
   const targetGp = await tillTargetGp(location);
   const shortCp = targetGp * 100 - tillCoinCp(location);
-  if (shortCp > 0) {
-    const credits = [];
-    let owed = shortCp;
-    for (const d of [
-      { name: game.i18n.localize("ACKS-LIB.money.gpName"), cv: 100 },
-      { name: game.i18n.localize("ACKS-LIB.money.spName"), cv: 10 },
-      { name: game.i18n.localize("ACKS-LIB.money.cpName"), cv: 1 },
-    ]) {
-      const count = Math.floor(owed / d.cv);
-      if (count > 0) { credits.push({ ...d, count }); owed -= count * d.cv; }
-    }
-    await creditCoin(location, credits);
-  }
+  if (shortCp > 0) await mintCoin(location, shortCp / 100);
   await location.update({ "system.market.tillRefreshTime": monthStart });
   return { refreshed: true, addedGp: Math.max(0, shortCp) / 100 };
 }

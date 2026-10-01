@@ -14,6 +14,11 @@
  */
 import { toNum as num } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
+import { coinKind, coinTotalGC } from "./money-logic.mjs";
+
+// Coin's worth is money-logic's to compute; it is offered through here as
+// well because the storage surface lists every place's coin beside its goods.
+export { coinTotalGC };
 
 /** The flag scope/key attribution lives under, on both providers and stored items. */
 export const LIB_ID = "acks-extras";
@@ -200,7 +205,11 @@ export function buildTransferPayload(plainItems, spec, opts = {}) {
     }
 
     creates.push(copy);
-    if (plan.whole) sourceDeletes.push(id);
+    // A coin row with a balance still in the system's banked field is emptied,
+    // not removed: `emptyMoneyDeletes` keeps the row for the same balance.
+    const src = byId.get(id);
+    const keepsRow = isMoney(src) && num(src.system?.quantitybank) > 0;
+    if (plan.whole && !keepsRow) sourceDeletes.push(id);
     else sourceUpdates.push({ _id: id, [plan.path]: plan.remain });
   }
 
@@ -224,20 +233,17 @@ function canon(value) {
 /**
  * The merge identity of a stack — what makes two rows "the same thing" for
  * merging. Returns null for anything that must keep its own row (unstackable,
- * or carrying its own Active Effects). Coin keys on denomination; everything
+ * or carrying its own Active Effects). Coin keys on its kind; everything
  * else keys on the whole document minus quantity. At a provider the key also
  * carries the owner. See docs/lib/API.md, "storage".
  */
 export function stackSignature(plain, { byOwner = false } = {}) {
   if (!quantityOf(plain)) return null; // unstackable: weapons, armour
   const owner = byOwner ? (storageFlagOf(plain)?.ownerUuid ?? "") : "";
-  // Coin identity is the KIND (name and rate together), not the rate alone.
-  // See docs/lib/DECISIONS.md, "2026-08-14 — Money is physical; four rulings
-  // land at once".
-  if (isMoney(plain)) {
-    const kind = String(plain.name ?? "").trim().toLowerCase();
-    return `money|${owner}|${num(plain.system?.coppervalue, 1)}|${kind}`;
-  }
+  // Coin identity is the KIND (name and rate together), not the rate alone,
+  // and `coinKind` is its one statement. See docs/lib/DECISIONS.md,
+  // "2026-08-14 — Money is physical; four rulings land at once".
+  if (isMoney(plain)) return `money|${owner}|${coinKind(plain)}`;
   if (plain.effects?.length) return null;
 
   const wrapper = { system: structuredClone(plain.system ?? {}) };
@@ -271,9 +277,18 @@ export function planStackMerge(creates, targetItems = [], { byOwner = false } = 
   const slots = new Map();
   for (const target of targetItems) {
     const key = stackSignature(target, { byOwner });
-    if (!key || slots.has(key)) continue;
+    if (!key) continue;
+    // A row kept for an owner takes only what arrives stamped as theirs. Where
+    // the merge is not by owner the arrival is nobody's, and folding it into
+    // such a row would hand it to whoever the row belongs to.
+    if (!byOwner && storageFlagOf(target)?.ownerUuid) continue;
+    // Coin's key carries no container, so a holder can keep two rows under
+    // one: the row carried loose takes what arrives before one packed away.
+    const loose = !containedInOf(target);
+    const held = slots.get(key);
+    if (held && (held.loose || !loose)) continue;
     const q = quantityOf(target);
-    slots.set(key, { _id: target._id, path: q.path, quantity: num(q.value), merged: false });
+    slots.set(key, { _id: target._id, path: q.path, quantity: num(q.value), merged: false, loose });
   }
 
   const outCreates = [];
@@ -311,8 +326,9 @@ export function planStackMerge(creates, targetItems = [], { byOwner = false } = 
 
 /**
  * A coin row emptied by a transfer is deleted rather than left as a 0 stack.
- * Both halves must be empty: a row with coin still in the (retired) bank field
- * is left alone for the vault sweep to find.
+ * A row still carrying a balance in the system's banked field is kept: that
+ * balance is not coin anyone holds, and deleting the row would destroy it
+ * before the migration that moves it out has run.
  */
 export function emptyMoneyDeletes(sourceUpdates, plainItems, sourceDeletes = []) {
   const byId = new Map((plainItems ?? []).map((i) => [i._id, i]));
@@ -325,16 +341,6 @@ export function emptyMoneyDeletes(sourceUpdates, plainItems, sourceDeletes = [])
     else updates.push(update);
   }
   return { sourceUpdates: updates, sourceDeletes: deletes };
-}
-
-/** Total value of coin rows in gold, the way the system counts it (100cp = 1gp). */
-export function coinTotalGC(moneyItems) {
-  let copper = 0;
-  for (const m of moneyItems ?? []) {
-    if (!isMoney(m)) continue;
-    copper += num(m.system?.quantity) * num(m.system?.coppervalue, 1);
-  }
-  return copper / 100;
 }
 
 /**

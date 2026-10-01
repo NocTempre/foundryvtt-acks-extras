@@ -76,7 +76,7 @@ setTimeout(() => { try { actor.sheet.changeTab("acks-location-storage", "primary
       `if (!game.user.isGM) return ui.notifications.warn("The vault sweep is a GM tool.");
 const result = await game.modules.get("acks-extras").api.location.runVaultSweep();
 ui.notifications.info(result.swept
-  ? "Swept banked coin for " + result.swept + " character(s) — " + result.gp + " gp moved to vaults."
+  ? "Swept banked coin for " + result.swept + " actor(s) — " + result.gp + " gp moved to a vault or a purse."
   : "No banked coin left to sweep.");`,
     ),
   ];

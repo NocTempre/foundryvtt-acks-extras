@@ -649,9 +649,11 @@ re-derives it whole once the draw completes.
 
 The system's eight Item sub-types share no base. `cost`/`weight6` are hand-spread
 into `item`, `weapon` and `armor`; `equipped` is declared **separately on `weapon`
-and `armor` and nowhere else**; `money` has neither cost nor weight. So "is this a
-thing?", "can it be worn?" and "what does it weigh?" had no schema answer, and
-every consumer re-derived them from its own type list.
+and `armor` and nowhere else**; `money` has neither cost nor weight, and keeps
+its count as a bare number where every other stackable keeps `{value, max}`.
+So "is this a thing?", "can it be worn?", "how many are there?" and "what does
+it weigh?" had no schema answer, and every consumer re-derived them from its
+own type list.
 
 `scripts/item-model.mjs` is the one place those questions are answered. It reads
 the **schema** wherever it can (`"cost" in item.system`), so it keeps working when
@@ -662,12 +664,114 @@ the system adds a type this library never heard of.
 | Is it a thing? | `isPhysical` | schema probe |
 | Have they got one? | `findCarried` / `carriesItem` | every "you need a pole / a torch / a quill for this" rule asks the same question; physical-only, so a proficiency named "Spear Fighting" is not an implement, and `hasStock` makes an empty stack read as not carried |
 | Can it be put somewhere? | `isGoods` / `isStowable` | coin is goods without being physical — the gap that grew a `\|\| type === "money"` rider at fifteen sites |
+| Is it currency? | `isCurrency` | the one stackable whose weight is stated per stone — see "Currency" |
+| How many are in the stack? | `stackCountOf` | read by the field's shape, so coin's bare number and a stackable's `{value, max}` answer through one door; `null` for what does not stack |
+| What does it weigh? | `weight6Of` / `sumWeight6` | a stack's weight in sixths, bundle size applied; currency as an exact fraction, summed per rate |
 | Is it clothing? | `isClothing` | core's `system.subtype`, its one sub-classification |
-| What does it add to encumbrance? | `encumbering6` | mirrors core's `computeEncumbrance` exactly, clothing excluded, so a non-character's load matches what core computes for a character |
+| What does it add to encumbrance? | `encumbering6` | what core's `computeEncumbrance` counts, clothing excluded, with coin weighed to the coin where core counts whole stones |
 | Can it be worn? | `isWearable` | core's `equipped` field OR a declared slot |
 | Is it worn now? | `isWorn` | **two stores, one question** |
 | Where? | `wornSlotOf` / `setWorn` | ditto |
 | How much does it hold? | `capacityOf` / `holdsGear` | capacity belongs to gear, not to a category — see below |
+
+### Currency
+
+Currency is a stack like any other and is read through the same model, with
+two differences: its count is a bare number, and its weight is stated the
+other way round. `money-logic.mjs` holds the arithmetic (Foundry-free) and
+`money.mjs` the document writes. No feature reads or writes a coin row's
+fields itself.
+
+**One count.** A row holds `system.quantity` coins. `stackCountOf`, and
+`coinCount` for plain data, is every reader's count; `coinTotalCp` /
+`coinTotalGC` is what a set of rows is worth, and `purseGp` what a holder's
+own coin is worth. The system's second field on the row,
+`system.quantitybank`, is counted by nothing. The location feature's sweep
+moves a balance out of it ([location MODEL](../location/MODEL.md)). Until it
+has, a path that would delete an emptied row (`emptyMoneyDeletes`,
+`joinStacks`) keeps one that still carries a balance, and a row copied from
+one (`arrivalOf`, `divideStack`, a transfer) carries none.
+
+**Kind.** A coin's kind is its name and its rate together (`coinKind`). Two
+mints struck to one value are two stacks, and a local variation stays its own
+stack wherever it travels. At a place that keeps goods for owners the kind is
+per owner, and the place's own coin is owned by the sentinel `HOUSE_OWNER`.
+`ownCoin(holder)` is a holder's own rows: an actor's purse, or a place's
+house-owned stacks.
+
+**Weight.** Currency states how many of it weigh one stone. `perStoneOf`
+reads the item's own `gear.perStone`, which is typed on its sheet or read off
+its text by the annotate pass, and falls back to the rate the system weighs
+coin at (RR ch. 1, Speed and Encumbrance). `systemCoinsPerStone` finds that
+rate by asking the system's own `getTotalMoneyEncumbrance` how heavy a purse
+of N coins is, until it has the smallest N the system calls a stone. The
+figure is never written in this module. `weight6Of` returns
+`count × 6 / rate`, a fraction of a sixth, unrounded. `sumWeight6` adds the
+counts per rate and divides once, so a purse in three rows weighs what one
+stack of the same coins would. Whatever prints a weight rounds it; the item
+sheet's `stoneLabel` writes `<0.01` for a weight too small to show.
+
+Every sum goes through `sumWeight6`: the borne and carried readings below, a
+container's contents (`contentsWeight6`), and a character's burden. Core
+computes a character's encumbrance itself and counts the purse in whole
+stones, so the equipment feature's wrapper on `computeEncumbrance` takes
+core's coin figure back out and puts the item model's in (`encumbranceDelta6`,
+step 5), where every coin row has a rate. The wrapper registers at `setup`,
+after the world's actors were first prepared, so each world character is
+reset once it is in place.
+
+**Landing.** Coin arrives on a holder two ways, and both end on the row of
+its kind. `creditCoin(holder, credits)` lands coin known by a source row, by
+a name, or by its rate alone. A transfer that moves rows (`handOver`,
+`stash`, `retrieve`, `moveStored`) folds them through `planStackMerge`. A
+kind the holder has none of becomes a new row copied from the coin that
+moved, or from a coin of that kind the world or a compendium holds
+(`coinTemplate`), so its rate, art and declared weight come with it. Where
+the holder keeps the kind both loose and inside a container, the loose row
+takes the arrival and is spent from first. A row stamped for an owner takes
+only an arrival stamped for the same owner.
+
+**Leaving.** A spend takes smallest coins first, whole coins only, and breaks
+one larger coin when the small ones cannot cover the rest (`planCoinSpend`).
+Change has a planner of its own (`planChange`): largest first, never more
+than is owed, and only from stacks somebody holds. A payment plans its change
+over the coins being paid before anything else (`changeKeeping` in
+`money.mjs`), so small coin a larger coin makes unnecessary stays in the
+purse.
+
+| Call | What moves |
+|---|---|
+| `transferCoin({from, to, gp})` | Coin from one holder to another, after the reach gate. Change is made from the coins being handed over first, which then stay with the payer, and after that from the payee's own stacks. Where neither can make it, a market mints it and anywhere else the transfer is refused. `upTo` pays only what the purse represents exactly and reports the rest as `arrearsCp`; `allowMint` lets a market's till pay out more than it holds. |
+| `mintCoin(holder, gp)` | Coin from nowhere, in standard denominations, each on the holder's row of that rate. |
+| `sinkCoin(holder, gp)` | Coin paid to nobody. Coins the change would hand straight back stay in the purse; the rest of the change comes back in the holder's own denominations, and what those cannot represent as standard small coin. |
+| `exchangeCoins({actor, place, itemId, count, toCv})` | One kind for another at a market's till, at face value. A seat that cannot write the place relays the exchange to the GM. |
+| `depositCoin(provider, {...})` | Coin put at a place for an owner. |
+
+**Reach.** `coinReach(from, to)` passes a place through the location
+feature's deposit reach, an employer and a hireling through the roster, an
+employer and a paid unit through the employer the unit's own actor names, and
+any other two actors when they stand on one scene.
+
+**Dividing and joining.** `divideStack(item, count)` copies the row at
+`count` beside itself and reduces the original. `joinStacks(item, onto)` adds
+one row to another of the same kind, owner and container, and removes it.
+Both write the gaining side first, so a write cut short leaves a duplicate
+and never a loss. Two rows of one kind are a state the holder may have
+chosen, and nothing joins them unasked.
+
+**Dropped on a sheet.** `bundles.mjs` `landCoin(actor, item)` is the one
+statement of where a dropped coin goes. Off another actor it is handed over
+(`handOver`, which debits the giver). From a compendium or the sidebar it
+arrives as its own count on the row of its kind (`deliverDrop`), an empty
+shelf stack counting as one coin. No sheet copies coin. The character sheet
+and the vehicle sheet call `landCoin` from their own drop handlers. Every
+other actor sheet reaches Foundry's `ActorSheetV2#_onDropItem`, which the lib
+wraps (`patches/goods-drag.mjs`): coin from elsewhere goes to `landCoin`
+where the sheet's actor is a character, a monster or an animal, and is
+refused with a warning on any other type, whose sheet lists no goods. The
+same patch guards the system sheets' own money-drop branch. A place's sheet
+keeps what is dropped on it for an owner instead (`stash`, or
+`stockProvider` for goods that come from nobody).
 
 ### Capacity
 
@@ -752,7 +856,9 @@ actor from outside it: each stackable folds into an identical stack the actor
 already carries (`planStackMerge`, keyed by `stackSignature`), and everything
 else is created. `bundles-logic.mjs` shapes the arrivals: `arrivalOf` strips
 the source's id, folder, sort, ownership, equipped state, container pointer and
-storage attribution.
+storage attribution. `droppedGoods(item)` is what one document dragged from a
+compendium or the sidebar delivers, and `deliverDrop(actor, item)` delivers
+it; coin dropped on a sheet goes through `landCoin` ("Currency", above).
 
 Core's bundle is an Item listing references (`system.itemList`), and no actor
 sheet lists an embedded one. So nothing embeds one:
@@ -1294,7 +1400,7 @@ it does not.
 | `lib.mergeResidue` | What the retired acks-* modules left: Actors, Items and region behaviours of their sub-types that cannot load, their flag scopes, AE change keys into them, sheet choices naming their sheets, and their world settings | Report only. *Clean Up After the Merge (GM)* removes all of it except the region behaviours ([DECISIONS §11](../DECISIONS.md#11-the-cleaner-macro--why-it-is-not-a-migration)). An actor row that holds coin warns that the macro deletes the coin with the actor. |
 | `henchmen.references` | An employer's hireling or monster list, or a hireling's employer, naming a deleted actor, or a hireling listed twice | `repairActor` (henchmen `repair.mjs`) |
 | `location.links` | A place's map or region link naming a scene or region that is gone or names another place, and a scene or region naming a place that is gone | Clears the stale link. The place, scene and region stay. |
-| `location.vaultSweep` | Coin in a character's bank column, or owed to a vault by a sweep that stopped part-way (the `acks` system only) | `runVaultSweep` for the chosen characters |
+| `location.vaultSweep` | Coin in an actor's bank column, on a world actor or an unlinked token's own, or owed to a vault by a sweep that stopped part-way (the `acks` system only) | `runVaultSweep` for the chosen actors: a character's balance goes into their vault, and anyone else's joins the coin they carry |
 | `location.orphanVaults` | A vault whose character is gone, and goods stored for an owner who is gone | Report only. The row points at the place's Storage tab, whose storage manager moves them. |
 | `formation.members` | A marching-order member whose actor is gone | Drops the member, with the lights it bore and the spells it cast |
 | `formation.shadows` | A true-position marker with no party, on a party no longer lost, or beside the one its episode keeps on its own scene; a marker only on another scene; a lost party with none | Deletes the first three. A marker from a closed episode also names the Lost section of the party's sheet, which can move the party onto it instead. The last two are report-only and point there. |

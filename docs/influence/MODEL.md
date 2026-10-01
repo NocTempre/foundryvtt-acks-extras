@@ -56,6 +56,13 @@ hook payload carries `bribe: {level, fee}` for a page with a bribe row, so a
 consumer can charge what the page priced; an external page never moves gold
 itself. `apiVersion` 9 is the first to carry all three.
 
+On the app's own pages an armed bribe moves its fee as coin when the roll is
+made. A target the rolling seat may write receives the payer's own coins
+(`lib.money.transferCoin`, with no reach gate: the two are talking); any
+other target is paid off-stage and the coin leaves the world (`sinkCoin`). A
+purse that cannot cover the fee is warned about and nothing is written, so
+nothing is credited that was not paid.
+
 **An ability counts once per page.** One proficiency can reach the roller by
 every route at once: its name fills a static `prof:` row, an Active Effect on it
 speaks, and its abilities-model effects speak. So each page settles which source

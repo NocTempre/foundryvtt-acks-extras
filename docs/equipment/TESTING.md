@@ -212,6 +212,12 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   add cannot be the only door to the flags that gate it.
 - **`splitOne` / `restack`** are `item-sheet/stack.mjs`; the split item
   carries `flags.acks-extras.splitFrom`.
+- **The coin's band, its rate and its weight in a load** are walked in
+  docs/lib/TESTING.md, "Coin: one stack, moved and never copied", steps 1
+  and 2. Annotate's half is here: give a `money` item a description that
+  states a count of coins to a stone, run `api.equipment.annotateItem(item)`,
+  and read `flags.acks-extras.gear.perStone`; run it again with a rate typed
+  on the sheet and the typed rate stands.
 
 ### Steps
 

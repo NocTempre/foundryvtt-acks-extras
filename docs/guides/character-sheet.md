@@ -6,10 +6,10 @@ the table rather than by document type. The system's sheet is still there —
 Sheet Config, on any actor, switches back — and nothing is migrated: the two
 read and write the same fields.
 
-![](../releases/v6.4.0/character-sheet.png)
+![](../releases/v10.0.0/character-sheet.png)
 
-*Rolls: every throw on the sheet with its target, the wielded weapon ringed,
-and a pin on each row for the folded card.*
+*A character fresh from chargen: the class band across the header, the rails
+around the portrait, and the Stats tab with the Training editor armed.*
 
 ## Rolls
 
@@ -100,6 +100,25 @@ and the rest arrive.
 torches: the swords under Weapons, one stack of eight torches and the rope under
 Gear.*
 
+### Coin and stacks
+
+A coin row always shows how many there are, with what they are worth and what
+they weigh beneath. Your purse counts toward your load to the coin: its sheet
+states how many of that coin make a stone, and the Judge can type a rate of
+the coin's own there.
+
+To hand over part of a purse, or part of any stack that is not worn, press
+the scissors on its row, say how many to take off, and drag the new pile
+where it is going. Drop a pile on another row of the same thing to join them
+again. Coin dropped on another character or a hireling's card is handed over,
+never copied, and joins the purse it lands in.
+
+![](../releases/v10.0.0/character-sheet-coin.png)
+
+*A purse on the Equipment tab: each coin a row with its count, its worth and
+its weight, a Judge's own coin among them, and a pile of gold divided off with
+the scissors, ready to hand over.*
+
 ## Stats
 
 ![](../releases/v6.5.0/character-sheet-stats.png)
@@ -146,3 +165,29 @@ Effects is where the timers live — what is burning, what is blessing you, what
 is riding on a save — with the counts a player checks between fights (rations,
 oil, torches, fate points, a caster's pools) and the modifiers in force. A
 star on any row keeps it on the folded card.
+
+## Conditions
+
+The status palette on a token is the ACKS II conditions (RR Appendix B), in
+place of Foundry's generic list. Click one to put it on the creature and again
+to take it off; rest the pointer on an icon for its name.
+
+![](../releases/v10.0.0/lib-conditions.png)
+
+*A token's status palette: two conditions lit and drawn on the token, with the
+name of the one under the pointer.*
+
+A condition is read by every roll it bears on — the creature's attack throws
+and damage, its saving throws, its proficiency and adventuring throws, its
+morale, surprise and speed — and by attacks made against it. What it changed
+is named where the roll is shown: a term on the attack card, a row on the
+[Combat Morale page](influence.md#combat-morale), a notice beside any other
+roll. A condition that bears on a roll only in a circumstance the roll does not
+state is told to you with its figure and left for you to add.
+
+The figures are your book's. Import the rules tables from your Revised
+Rulebook ([importing from your books](importer.md)) to supply them; until then
+a condition can be set and lifted, nothing is applied, and you are told so.
+
+The combat tracker lifts a condition that ends with the creature's turn when
+that turn begins, and one that ends with the fight when the combat is deleted.

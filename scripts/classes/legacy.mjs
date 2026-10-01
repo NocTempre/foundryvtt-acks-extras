@@ -11,7 +11,8 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { gmIds, makeLoc } from "../lib/util.mjs";
-import { spendGold, grantGold } from "../henchmen/acks-adapter.mjs";
+import { spendGold } from "../henchmen/acks-adapter.mjs";
+import { payIntoVault } from "../location/vault-sweep.mjs";
 import { EXPERIENCE_DOC } from "./xp-bonus.mjs";
 import { LEGACY_KIND, legacyTotals, settleEstate, startingXp, xpForGp } from "./legacy-logic.mjs";
 
@@ -168,9 +169,10 @@ export async function saveWill(actor, { heirUuid = "", estateGp = 0, note = "" }
 }
 
 /**
- * Settle a will: the heir's bank is credited the estate less the bank's
- * charge, and the will is marked settled so it cannot pay twice. The
- * deceased's own belongings are not touched.
+ * Settle a will: the estate less the bank's charge is paid into the heir's
+ * vault — the place their banked coin is kept — and the will is marked
+ * settled so it cannot pay twice. The deceased's own belongings are not
+ * touched.
  * @returns {Promise<object|null>} `{fee, net}`, or null when refused
  */
 export async function settleWill(actor) {
@@ -183,7 +185,9 @@ export async function settleWill(actor) {
     const heir = await fromUuid(will.heirUuid);
     if (!heir) return refuse("heirGone", { name: will.heirName });
     const result = settleEstate(will.estateGp, fee);
-    if (result.net > 0) await grantGold(heir, result.net, { toBank: true });
+    // Paid before the will is marked: a vault that cannot be made refuses the
+    // settlement whole, so nothing is recorded as paid that was not.
+    if (result.net > 0 && !(await payIntoVault(heir, result.net))) return refuse("noVault", { name: heir.name });
     await actor.setFlag(MODULE_ID, FLAG_WILL, { ...will, settled: { at: now(), ...result, heirName: heir.name } });
     announce(playerOf(heir) ?? playerOf(actor), loc("card.settled", { name: actor.name, heir: heir.name, net: result.net, fee: result.fee }), actor);
     return result;

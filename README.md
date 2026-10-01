@@ -423,7 +423,7 @@ transcription. The module ships no book text.
 
 ## Settings reference
 
-43 settings: 39 configurable, 4 internal (persisted world state, not shown in
+42 settings: 38 configurable, 4 internal (persisted world state, not shown in
 the UI).
 
 **Library** — `attackRollPatch`, `manageVision`, `advanceWorldTime`,
@@ -438,7 +438,7 @@ the UI).
 `fuzzMeasurement`.
 
 **Henchmen** — `daysPerMonth`, `autoRollCalamity`, `enforceHenchmanLimit`,
-`wagesToBank`, `wageReminders`, `autoRepairReferences`, `playerMarketVisibility`,
+`wageReminders`, `autoRepairReferences`, `playerMarketVisibility`,
 `enableExpectedLiving`, `enableSlavery`.
 
 **Influence** — `enableBtaCaste`, `raceRelations`.

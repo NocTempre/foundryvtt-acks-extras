@@ -87,19 +87,20 @@ export function registerLocationRepairChecks() {
     order: 20,
     requires: () => game.system?.id === "acks",
     scan: () =>
-      planVaultSweep().map(({ character, pending, banked }) => ({
+      planVaultSweep().map(({ character, pending, banked, carried }) => ({
         key: character.uuid,
         uuid: character.uuid,
         name: character.name,
+        carried,
         detail: [
           pending.length ? loc("repair.check.vaultSweep.pending", { coin: coinText(pending) }) : "",
-          banked.length ? loc("repair.check.vaultSweep.banked", { coin: coinText(banked) }) : "",
+          banked.length ? loc(carried ? "repair.check.vaultSweep.carried" : "repair.check.vaultSweep.banked", { coin: coinText(banked) }) : "",
         ].filter(Boolean).join(" "),
       })),
     fix: (findings) =>
       fixEach(findings, async (f) => {
         const { gp } = await runVaultSweep({ announce: false, only: new Set([f.uuid]) });
-        return loc("repair.check.vaultSweep.done", { gp: Math.round(gp * 100) / 100 });
+        return loc(f.carried ? "repair.check.vaultSweep.doneCarried" : "repair.check.vaultSweep.done", { gp: Math.round(gp * 100) / 100 });
       }),
   });
 

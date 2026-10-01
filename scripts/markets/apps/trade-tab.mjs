@@ -22,6 +22,8 @@ import { acksExtras } from "../../namespace.mjs";
 import { SECONDS_PER_DAY } from "../../henchmen/constants.mjs";
 import { now } from "../../henchmen/time.mjs";
 import { makeLoc } from "../../lib/util.mjs";
+import { ownCoin } from "../../lib/money.mjs";
+import { coinCount, coinRate } from "../../lib/money-logic.mjs";
 import { merchandiseCatalog, merchandiseFor } from "../engine/merchandise.mjs";
 import { writeDemand } from "../engine/demand.mjs";
 import { DEMAND_LAYER, demandSource, trueDemand } from "../rules/demand.mjs";
@@ -565,12 +567,12 @@ export const TRADE_TAB_ACTIONS = {
   async marketsExchange() {
     const trader = requireTrader(this);
     if (!trader) return;
-    const stacks = trader.items.filter((i) => i.type === "money" && Number(i.system?.quantity ?? 0) > 0 && Number(i.system?.coppervalue ?? 0) > 0);
+    const stacks = ownCoin(trader).filter((i) => coinCount(i) > 0 && coinRate(i) > 0);
     if (!stacks.length) {
       ui.notifications.warn(locationLoc("market.exchangeNothing", { name: trader.name }));
       return;
     }
-    const options = stacks.map((i) => `<option value="${i.id}">${foundry.utils.escapeHTML(i.name)} ×${i.system.quantity} (${i.system.coppervalue} cp)</option>`).join("");
+    const options = stacks.map((i) => `<option value="${i.id}">${foundry.utils.escapeHTML(i.name)} ×${coinCount(i)} (${coinRate(i)} cp)</option>`).join("");
     const denoms = [[100, locationLoc("market.exchangeGp")], [10, locationLoc("market.exchangeSp")], [1, locationLoc("market.exchangeCp")]]
       .map(([cv, label]) => `<option value="${cv}">${label}</option>`).join("");
     const form = await foundry.applications.api.DialogV2.prompt({

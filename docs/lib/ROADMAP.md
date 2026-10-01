@@ -31,6 +31,24 @@ verification, not as drive-by edits:
   settings.mjs / feature module.mjs / arbitrary file); pick one, document it,
   move the strays.
 
+## What coin does not do yet
+
+- **A unit's pay is listed nowhere.** A paid unit's wage lands on the unit's
+  own actor, and neither the group sheet nor the roster shows a purse.
+- **The follower card has no join.** Two rows of one kind on a hireling are
+  joined from the full sheet, or with `itemModel.joinStacks`.
+- **Rows the old paths duplicated.** A drop that copied, and a credit matched
+  by name, left some holders with two rows of one kind. Nothing finds them: a
+  divided pile is a legitimate state and a check cannot tell the two apart.
+- **A spent-out row stays at 0.** A payment that empties a row leaves it
+  listed at none, where a hand-over that empties one deletes it.
+- **A character with roll automation off.** The encumbrance wrapper belongs to
+  that setting, so with it off a character's load counts coin as core does, in
+  whole stones.
+- **Freight onto a sheet that lists no goods.** Coin is refused there. Other
+  freight dragged out of a vehicle is still moved onto it by the vehicles
+  feature's own hook.
+
 ## What the repair tool only reports
 
 - **Documents the world cannot load.** `lib.strandedCoin` and

@@ -9,6 +9,7 @@
 
 import { MODULE_ID, FLAG_GEAR, VARIATION_TYPE } from "./constants.mjs";
 import { WEAR_SLOTS, slotCapacity, ITEM_TYPE } from "./vocab.mjs";
+import { containedInOf, quantityOf, stackSignature } from "./storage-logic.mjs";
 
 const F = () => foundry.data.fields;
 
@@ -71,20 +72,119 @@ export function bundleSizeOf(item) {
 }
 
 /**
+ * Is this currency — coin, or anything else the system types as money? The
+ * one stackable whose weight is stated as how many make a stone rather than
+ * as what one weighs.
+ */
+export const isCurrency = (item) => item?.type === ITEM_TYPE.money;
+
+/**
+ * How many units are in the stack, or null for an item that does not stack at
+ * all (a weapon, a suit of armour). Read by the field's SHAPE, so coin — which
+ * keeps a bare number where every other stackable keeps `{value, max}` —
+ * answers through the same door.
+ */
+export function stackCountOf(item) {
+  const q = quantityOf(item);
+  if (!q) return null;
+  return Number.isFinite(q.value) ? q.value : 0;
+}
+
+/** The rate the system weighs coin at once it has been read; `undefined` until then. */
+let systemCoinRate;
+
+/**
+ * How many coins the SYSTEM counts to the stone, or null where it weighs none.
+ *
+ * The figure is the system's, so it is read off the system's own arithmetic —
+ * `getTotalMoneyEncumbrance` is asked how heavy a purse of N coins is until
+ * the smallest N it calls a stone is found — and never stated here. Read once
+ * the actor class exists; an earlier call answers null and asks again later.
+ */
+export function systemCoinsPerStone() {
+  if (systemCoinRate !== undefined) return systemCoinRate;
+  const weigh = globalThis.CONFIG?.Actor?.documentClass?.prototype?.getTotalMoneyEncumbrance;
+  if (typeof weigh !== "function") return null;
+  const stonesFor = (count) => {
+    try {
+      const purse = [{ type: ITEM_TYPE.money, system: { quantity: count, quantitybank: 0, coppervalue: 1 } }];
+      return Number(weigh.call({ items: purse })?.stone) || 0;
+    } catch {
+      return 0;
+    }
+  };
+  // Halve between a count the system calls no stone and one it calls a stone.
+  let none = 0;
+  let stone = 2 ** 24;
+  if (stonesFor(stone) < 1) return (systemCoinRate = null);
+  while (stone - none > 1) {
+    const mid = Math.floor((none + stone) / 2);
+    if (stonesFor(mid) >= 1) stone = mid;
+    else none = mid;
+  }
+  return (systemCoinRate = stone);
+}
+
+/**
+ * How many of this currency weigh one stone, or null when nothing says. The
+ * item's own declaration (`gear.perStone`) wins; a coin that declares none
+ * weighs what the system weighs coin at. Null for anything that is not
+ * currency — every other item states what ONE of it weighs.
+ */
+export function perStoneOf(item) {
+  if (!isCurrency(item)) return null;
+  const declared = gearOf(item).perStone;
+  if (declared !== null && declared !== undefined && declared !== "") {
+    const rate = Number(declared);
+    if (Number.isFinite(rate) && rate > 0) return rate;
+  }
+  return systemCoinsPerStone();
+}
+
+/**
  * Effective weight in `weight6`, honouring quantity the way the system does.
  * Only stackable items multiply (a `weapon`/`armor` has no quantity field, so
  * it is read where it exists, not defaulted). A stated weight covering a
  * BUNDLE of units is counted once per whole bundle used (CEILS, not divides) —
  * see docs/lib/DECISIONS.md, "A bundled good's weight and its count share a
  * denominator, and the size is printed".
+ *
+ * Currency is the other shape: its count over how many make a stone, a
+ * FRACTION of a sixth and never rounded here — rounding belongs to whatever
+ * prints the figure. Sum several rows through `sumWeight6`, which divides
+ * once per rate.
  */
 export function weight6Of(item) {
+  if (isCurrency(item)) {
+    const rate = perStoneOf(item);
+    return rate ? ((stackCountOf(item) ?? 0) * STONE) / rate : 0;
+  }
   if (!isPhysical(item)) return 0;
   const w = Number(item.system.weight6 ?? 0);
   const qty = item.system.quantity?.value;
   if (!Number.isFinite(qty)) return w;
   const per = bundleSizeOf(item);
   return per > 1 ? w * Math.ceil(qty / per) : w * qty;
+}
+
+/**
+ * The weight of a set of items together, in `weight6`. Currency is summed by
+ * COUNT per rate before the one division, so a purse split across many rows
+ * weighs exactly what one stack of the same coins would; everything else adds
+ * what `each` says of it.
+ * @param {Iterable<Item>} items
+ * @param {(item: Item) => number} [each] the per-item reading for what is not currency
+ */
+export function sumWeight6(items, each = weight6Of) {
+  let sum = 0;
+  const counts = new Map();
+  for (const item of items ?? []) {
+    const rate = perStoneOf(item);
+    if (rate) counts.set(rate, (counts.get(rate) ?? 0) + (stackCountOf(item) ?? 0));
+    else sum += each(item);
+  }
+  for (const [rate, count] of counts) sum += (count * STONE) / rate;
+  return sum;
 }
 
 /**
@@ -135,10 +235,9 @@ const AMMO_NAME = /arrow|bolt|quarrel|bullet|sling\s*stone|shot/i;
 export const isAmmoItem = (item) => AMMO_NAME.test(item?.name ?? "");
 
 /**
- * What this item contributes to encumbrance, in `weight6`. Mirrors core's
- * `computeEncumbrance` rule exactly, clothing excluded, so a non-character's
- * load reaches the same number core would for a character. Coin is 0 here by
- * design: core's `getTotalMoneyEncumbrance()` owns coin weight.
+ * What this item contributes to encumbrance, in `weight6`: its weight, with
+ * clothing excluded the way core's `computeEncumbrance` excludes it. Coin
+ * weighs here like anything else — the whole purse, part-stones included.
  */
 export const encumbering6 = (item) => (isClothing(item) ? 0 : weight6Of(item));
 
@@ -154,7 +253,57 @@ export function physicalItems(actor) {
  * Does a stack have anything left? An item the system gives no quantity — a
  * weapon, a suit of armour — is a single thing and always answers yes.
  */
-export const hasStock = (item) => (item?.system?.quantity?.value ?? 1) > 0;
+export const hasStock = (item) => (stackCountOf(item) ?? 1) > 0;
+
+/**
+ * Divide `count` off a stack into a row of its own beside it — the same
+ * thing, in the same container, under the same owner — and leave the rest
+ * where it was. The copy is made before the stack is reduced, so a divide cut
+ * short leaves a duplicate and never a loss. Nothing is written unless the
+ * count falls strictly inside the stack.
+ * @returns {Promise<Item|null>} the new row, or null when nothing was divided
+ */
+export async function divideStack(item, count) {
+  const q = quantityOf(item);
+  const take = Math.floor(Number(count));
+  const holder = item?.parent;
+  if (!q || !holder?.createEmbeddedDocuments || !(take > 0) || !(take < q.value)) return null;
+  const copy = item.toObject();
+  delete copy._id;
+  foundry.utils.setProperty(copy, q.path, take);
+  if (copy.system && "quantitybank" in copy.system) copy.system.quantitybank = 0;
+  if (copy.flags?.[MODULE_ID]?.[FLAG_GEAR]?.wornAt) copy.flags[MODULE_ID][FLAG_GEAR].wornAt = "";
+  const [made] = await holder.createEmbeddedDocuments("Item", [copy]);
+  if (!made) return null;
+  await item.update({ [q.path]: q.value - take });
+  return made;
+}
+
+/**
+ * Join `item` into `onto`, another row of the same thing on the same holder —
+ * `divideStack` undone. Two rows are one thing when they share a stack
+ * signature (coin by its kind, anything else by the whole document but its
+ * count), an owner and a container. `onto` takes the count before `item` is
+ * removed, so a join cut short leaves a duplicate and never a loss. A coin row
+ * still carrying a balance in the system's banked field is emptied and kept,
+ * as `emptyMoneyDeletes` keeps one.
+ * @returns {Promise<Item|null>} `onto`, or null when the two are not one thing
+ */
+export async function joinStacks(item, onto) {
+  const holder = item?.parent;
+  if (!holder || onto?.parent !== holder || item.id === onto.id) return null;
+  const from = item.toObject();
+  const into = onto.toObject();
+  const q = quantityOf(from);
+  const target = quantityOf(into);
+  const signature = stackSignature(from, { byOwner: true });
+  if (!q || !target || signature === null || signature !== stackSignature(into, { byOwner: true })) return null;
+  if ((containedInOf(from) || null) !== (containedInOf(into) || null)) return null;
+  await onto.update({ [target.path]: target.value + q.value });
+  if (Number(from.system?.quantitybank) > 0) await item.update({ [q.path]: 0 });
+  else await item.delete();
+  return onto;
+}
 
 /**
  * The item this actor is carrying whose NAME matches, or null — the one
@@ -370,10 +519,8 @@ export const isContainer = (item) =>
 export function contentsWeight6(actor, containerId, seen = new Set()) {
   if (seen.has(containerId)) return 0; // guard against a container inside itself
   seen.add(containerId);
-  return contentsOf(actor, containerId).reduce(
-    (sum, i) => sum + weight6Of(i) + (isContainer(i) ? contentsWeight6(actor, i.id, seen) : 0),
-    0,
-  );
+  const inside = contentsOf(actor, containerId);
+  return inside.reduce((sum, i) => sum + (isContainer(i) ? contentsWeight6(actor, i.id, seen) : 0), sumWeight6(inside));
 }
 
 /**

@@ -80,6 +80,13 @@ Hooks.once("setup", () => {
   if (!game.settings.get(MODULE_ID, SETTINGS.ROLL_AUTOMATION)) return;
   try {
     registerRollWrap();
+    // The world's actors are prepared before `setup` fires, so every character
+    // already in the world was weighed by core alone. Each is derived again
+    // now that the encumbrance wrapper is in place, or its load would be one
+    // figure at load and another after its first edit.
+    for (const actor of game.actors) {
+      if (actor.type === ACTOR_TYPE.character) actor.reset();
+    }
   } catch (err) {
     console.error(`${MODULE_ID} | failed to register roll wrapper`, err);
   }

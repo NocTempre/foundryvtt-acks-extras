@@ -26,7 +26,7 @@ The Overview tab states the class's combat training — weapons, the heaviest
 armour and the fighting styles — which is what a character made from the class
 is trained in.
 
-![](../releases/v8.7.0/classes-sheet.png)
+![](../releases/v10.0.0/classes-sheet.png)
 
 *The Overview tab: the class's combat training beside its chassis.*
 
@@ -109,10 +109,10 @@ Three small controls appear beside the class field:
   *The level-up wizard: the HP reroll it will apply, the powers granted, the
   picks offered.*
 
-![](../releases/v3.5.0/classes-chargen.png)
+![](../releases/v10.0.0/classes-chargen.png)
 
-*Rolling a starting template: the attribute rule and the scores, the class
-above the template die, and what is left to choose.*
+*Rolling a character: the attribute rule and the scores, the class above the
+template die still to throw, and what is left to choose.*
 
 The graduation cap opens the same three-column page for a character who is
 already played: the level being set and the ladder picks that come with it, the
@@ -208,8 +208,9 @@ owns shows the same ledger; the chip shows the fund once it holds anything.
   figure shown, and any funeral used is marked claimed. The level-up button
   then climbs them.
 - **A will.** The character's owner names an heir and an estate; the Judge
-  settles it when the time comes, and the heir's bank receives the estate less
-  the bank's charge.
+  settles it when the time comes, and the heir's vault receives the estate less
+  the bank's charge. An heir with no vault is given one
+  ([Places and storage](location.md#give-a-character-a-vault)).
 - **A character nobody owns** (a Judge's back-up character) needs a player
   assigned at the top of the window before anything records.
 
@@ -284,7 +285,7 @@ a Zaharan has a dark path; a dwarf has a caste. On the class sheet these are
 **Paths**: named groups, each holding options of which a character takes exactly
 one, and an option can carry its own weapon, armour and fighting-style training.
 
-![Authoring a path group on a class sheet](../releases/v4.17.0/classes-paths.png)
+![A class sheet's Paths tab, with the Starting Template group an imported class arrives with](../releases/v10.0.0/classes-paths.png)
 
 **Imported classes get theirs automatically.** Every class you import has a
 Starting Template group, and a class whose book prints a variant table — the
@@ -357,9 +358,10 @@ racial value ladder — each rung an XP cost, a level cap and the powers it
 grants — and the always-on traits. Rungs and traits take an ability dropped
 from the Items tab or a compendium, once each.
 
-![](../releases/v8.7.0/classes-race.png)
+![](../releases/v10.0.0/classes-race.png)
 
-*A race's value rungs and traits, each power and trait named.*
+*A race's minimum attributes and its value rungs, the powers the first rung
+grants named on it.*
 
 ## What a race adds after 9th level
 

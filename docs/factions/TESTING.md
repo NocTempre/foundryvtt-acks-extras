@@ -89,6 +89,12 @@ Shut the world down and relaunch it, then check again.
   with `acksExtras.influence.open(actor, {targetActor})` and read
   `app._prepareContext({})` — the faction rows are in the external rows with
   their labels — then finish with one real roll.
+- **The rows about the target need the target named at the open.** That same
+  call is the only route that carries them: the Influence button opens the
+  page with no target in the hook's context, so a roll opened from a sheet
+  shows the quarter's rows and neither the target's standing nor the relation
+  note ([ROADMAP](ROADMAP.md)). Steps 7, 9c and 9d open the roller through the
+  api.
 - **Availability with the knob at 0 is the default**; set
   `standingPerClassStep` to a number in the settings UI to see a shift, and
   set it back to 0 (the fixture is the setting's value — restore it).
@@ -119,10 +125,10 @@ Shut the world down and relaunch it, then check again.
    it the ledger is asked again and the watch is named again.
 7. **Record a favour row** (+2, `favour`) on the guild toward the party, and
    roster the target character on the guild. **Open the reaction roller** from
-   the rolling character against the target. *Observable:* an external row
-   "Standing with <guild>: +2" beside the district row; the watch, whose
-   standing toward the party is 0, is absent. Roll once; the card carries the
-   row.
+   the rolling character with the target named at the open. *Observable:* an
+   external row "Standing with <guild>: +2" beside the district row; the
+   watch, whose standing toward the party is 0, is absent. Roll once; the card
+   carries the row.
 8. **Roster the rolling character on the watch** and open the roller again
    inside the district. *Observable:* a "Legal authority here: <watch>" note
    in the dialog's external rows with no figure beside it; the posted card's

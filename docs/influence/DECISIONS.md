@@ -430,3 +430,20 @@ refusal, so the henchmen feature's insist card does not follow it
 (`ROADMAP.md` §4). A rung's wording is whatever the reader's text layer
 yields, read between the row's own edges; a page that extracts badly words a
 rung by its figure alone.
+
+### A bribe is paid in the payer's coin, to the target or to nobody (2026-10-01)
+
+Under docs/lib/DECISIONS.md, "Currency is one stack with one count, weighed
+by how many make a stone (2026-10-01)".
+
+**Ruled.** The fee leaves the roller's purse through the lib: a transfer to a
+target the seat may write, a sink otherwise. The fee is planned over every
+coin the payer holds.
+
+**Rejected.** The row named Gold as the purse: a payer holding the fee in
+another coin could not pay, and a world whose coin is named otherwise never
+could. A reach gate between the two: they are in conversation.
+
+**What it cost.** A bribe to a target the seat cannot write destroys the
+coin, as before. The card still names the fee where the purse fell short;
+the warning says it was not paid.

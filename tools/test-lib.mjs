@@ -22,7 +22,7 @@ import {
   quantityOf,
   splitSpec,
 } from "../scripts/lib/storage-logic.mjs";
-import { arrivalOf, bundleRows, goodsForRow } from "../scripts/lib/bundles-logic.mjs";
+import { arrivalOf, bundleRows, goodsForDrop, goodsForRow } from "../scripts/lib/bundles-logic.mjs";
 import {
   ancestorUuids,
   childrenOf,
@@ -1096,6 +1096,16 @@ t("buildTransferPayload: arrivals are normalised (unequipped, bank zeroed)", () 
   assert.equal(coin.system.totalvalue, 0); // recomputed by the sheet, never carried
 });
 
+t("buildTransferPayload: a coin row moved whole is emptied, not deleted, while a banked balance is still on it", () => {
+  const items = [gold("g", 5, 120), gold("h", 5)];
+  const p = buildTransferPayload(items, [{ id: "g" }, { id: "h" }], { newId: ids() });
+  assert.deepEqual(p.creates.map((c) => c.system.quantity), [5, 5], "what is carried moves either way");
+  assert.deepEqual(p.sourceUpdates, [{ _id: "g", "system.quantity": 0 }]);
+  assert.deepEqual(p.sourceDeletes, ["h"]);
+  // The tidy-up that follows a transfer agrees: the row stays for the sweep to find.
+  assert.deepEqual(emptyMoneyDeletes(p.sourceUpdates, items, p.sourceDeletes), { sourceUpdates: [{ _id: "g", "system.quantity": 0 }], sourceDeletes: ["h"] });
+});
+
 t("buildTransferPayload: containedIn is remapped when the container comes too, stripped when it does not", () => {
   const items = [gear("pack", "Backpack", 1), inside(gear("gem", "Gem", 1), "pack")];
   const together = buildTransferPayload(items, [{ id: "pack" }], { newId: ids() });
@@ -1126,6 +1136,21 @@ t("planStackMerge: folds into an existing row rather than adding a second Gold",
   const { creates, targetUpdates } = planStackMerge([gold("new", 20)], [gold("have", 50)]);
   assert.equal(creates.length, 0);
   assert.deepEqual(targetUpdates, [{ _id: "have", "system.quantity": 70 }]);
+});
+
+t("planStackMerge: coin merges by its kind — name and rate — and by nothing else", () => {
+  const have = [gold("have", 50)];
+  const grown = [{ _id: "have", "system.quantity": 55 }];
+  const reskinned = { ...gold("new", 5), img: "other.webp", flags: { "acks-extras": { gear: { perStone: 12 } } } };
+  reskinned.system.description = "<p>struck elsewhere</p>";
+  assert.deepEqual(planStackMerge([reskinned], have).targetUpdates, grown, "art, text and a stated weight are not identity");
+  assert.deepEqual(planStackMerge([{ ...gold("new", 5), name: "  GOLD " }], have).targetUpdates, grown, "nor is case, or the space around a name");
+  assert.deepEqual(planStackMerge([inside(gold("new", 5), "pack")], have).targetUpdates, grown, "nor is where the arriving coin was kept");
+  assert.equal(planStackMerge([{ ...gold("new", 5), name: "Gold, debased" }], have).creates.length, 1, "another name is another coin");
+  const light = gold("new", 5);
+  light.system.coppervalue = 90;
+  assert.equal(planStackMerge([light], have).creates.length, 1, "another rate is another coin");
+  assert.deepEqual(planStackMerge([gold("new", 5, 300)], have).targetUpdates, grown, "a banked balance on the arriving row adds nothing");
 });
 
 t("planStackMerge: ordinary stackables merge too — split a stack, put it back, get one row", () => {
@@ -1218,6 +1243,26 @@ t("goodsForRow counts as core's drop does: copies, one stack, or coins", () => {
   const coin = goodsForRow(gold("g", 7), 5);
   assert.equal(coin[0].system.quantity, 5, "coin counts coins, not stacks of the source's size");
   assert.equal(coin[0].system.quantitybank, 0);
+});
+
+t("goodsForDrop delivers the stack that was dropped: an empty coin is one coin, a counted pile is the pile", () => {
+  const shelf = goodsForDrop(gold("g", 0));
+  assert.equal(shelf.length, 1);
+  assert.equal(shelf[0].system.quantity, 1, "a coin kept on a shelf as a stack of none arrives as one");
+  assert.equal("_id" in shelf[0], false, "arrival-shaped: the copy has no id of its own");
+  assert.equal(goodsForDrop(gold("g", 250, 40))[0].system.quantity, 250, "a pile counted out beforehand arrives whole");
+  assert.equal(goodsForDrop(gold("g", 250, 40))[0].system.quantitybank, 0, "and brings no banked balance with it");
+  assert.equal(goodsForDrop(gear("ar", "Arrows", 20))[0].system.quantity.value, 20, "any other stack arrives as it stands");
+  assert.equal(goodsForDrop(sword("sw")).length, 1);
+});
+
+t("goodsForDrop feeds planStackMerge: a second coin off the shelf joins the first", () => {
+  const first = planStackMerge(goodsForDrop(gold("shelf", 0)), []);
+  assert.equal(first.creates.length, 1);
+  const held = [{ ...first.creates[0], _id: "held" }];
+  const second = planStackMerge(goodsForDrop(gold("shelf", 0)), held);
+  assert.equal(second.creates.length, 0, "never a second row of the same coin");
+  assert.deepEqual(second.targetUpdates, [{ _id: "held", "system.quantity": 2 }]);
 });
 
 t("goodsForRow feeds planStackMerge: a bundle's arrows join the stack already carried", () => {

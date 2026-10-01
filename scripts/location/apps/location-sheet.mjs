@@ -21,6 +21,7 @@
  */
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import * as places from "../../lib/place.mjs";
+import { droppedGoods } from "../../lib/bundles.mjs";
 import { emptyMarket } from "../data/location-data.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG, PLACE_ROLES } from "../constants.mjs";
 import { acksExtras } from "../../namespace.mjs";
@@ -1396,20 +1397,17 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // A compendium or sidebar item belongs to nobody — which the house pile
       // is exactly the owner for: a Judge stocking a lair ahead of the session
       // drops the treasure straight on, and it files under the house rather
-      // than under a placeholder character. It must be STAMPED, though: an
+      // than under a placeholder character. `stockProvider` stamps it (an
       // unflagged embed sits on the place invisibly, because `storedItems`
-      // lists only flagged rows.
+      // lists only flagged rows) and folds a stack into the house's own.
       if (!game.user.isGM) {
         ui.notifications.warn(loc("storage.dropNeedsOwner"));
         return null;
       }
-      const data = item.toObject();
-      delete data._id;
-      foundry.utils.setProperty(data, `flags.${MODULE_ID}.storage`, {
+      await storage().stockProvider(this.actor, droppedGoods(item), {
         ownerUuid: acksExtras.lib.money.HOUSE_OWNER,
         ownerName: loc("storage.house"),
       });
-      await this.actor.createEmbeddedDocuments("Item", [data]);
       this.render();
       return null;
     }

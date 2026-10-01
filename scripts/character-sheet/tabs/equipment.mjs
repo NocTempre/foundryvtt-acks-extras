@@ -26,7 +26,8 @@ import { lightTypeOf } from "../../equipment/sheet.mjs";
 import { bearerLights } from "../../lib/light.mjs";
 import { canSplit } from "../../equipment/item-sheet/stack.mjs";
 import { stoneLabel, gpLabel } from "../../equipment/item-sheet/format.mjs";
-import { isEquippable, isWorn, slotsOf, weight6Of, isGoods, isClothing, slotUse, STONE } from "../../lib/item-model.mjs";
+import { isEquippable, isWorn, slotsOf, weight6Of, isGoods, isClothing, isCurrency, stackCountOf, slotUse, STONE } from "../../lib/item-model.mjs";
+import { coinTotalGC } from "../../lib/money-logic.mjs";
 import { WEAR_SLOT_ORDER, WEAR_SLOTS, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { libStorage } from "../../lib/util.mjs";
 import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan } from "../../location/reach.mjs";
@@ -34,28 +35,16 @@ import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan } from "../../loc
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
-/** The quantity a row shows: a stack's count, or nothing for a single thing. */
-function quantityOf(item) {
-  if (item.type === ITEM_TYPE.money) return num(item.system?.quantity);
-  const q = item.system?.quantity;
-  if (q && typeof q === "object") return num(q.value, 1);
-  return null;
-}
-
-/** What a row says under its name: damage for a weapon, AC for armour, weight and value for goods. */
+/** What a row says under its name: damage for a weapon, AC for armour, worth for coin, weight for goods. */
 function lineOf(item) {
   const parts = [];
   if (item.type === ITEM_TYPE.weapon) parts.push(item.system?.damage ?? "");
   if (item.type === ITEM_TYPE.armor) parts.push(`AC ${num(item.system?.aac?.value)}`);
-  if (item.type === ITEM_TYPE.money) {
-    const qty = num(item.system?.quantity);
-    const gp = (qty * num(item.system?.coppervalue)) / 100;
-    parts.push(gpLabel(gp));
-  } else {
-    // `weight6Of` already weighs the whole stack (it reads the bundle size).
-    const w6 = weight6Of(item);
-    if (w6 > 0 && !isClothing(item)) parts.push(`${stoneLabel(w6)} st`);
-  }
+  if (isCurrency(item)) parts.push(gpLabel(coinTotalGC([item])));
+  // `weight6Of` already weighs the whole stack (it reads the bundle size, and
+  // a coin's count against how many make a stone).
+  const w6 = weight6Of(item);
+  if (w6 > 0 && !isClothing(item)) parts.push(`${stoneLabel(w6)} st`);
   return parts.filter(Boolean).join(" · ");
 }
 
@@ -124,7 +113,10 @@ function rowControls(actor, item, loadout, lights) {
     }
   }
 
+  // A stack with somewhere to be worn splits ONE out to wear it; any other
+  // stack divides, a count of the owner's choosing into a row of its own.
   if (canSplit(item)) state.push(ctl("splitStack", "fa-solid fa-scissors", loc("equipment.split")));
+  else if ((stackCountOf(item) ?? 0) > 1) state.push(ctl("divideStack", "fa-solid fa-scissors", loc("equipment.divide")));
   if ("favorite" in (item.system ?? {})) {
     state.push(ctl("itemFavorite", item.system.favorite ? "fa-solid fa-star" : "fa-regular fa-star", game.i18n.localize(item.system.favorite ? "ACKS.items.RemoveFromFavorites" : "ACKS.items.AddToFavorites"), {}, item.system.favorite ? "is-on" : ""));
   }
@@ -159,11 +151,12 @@ function rowOf(actor, item, ctx, depth = 0) {
     name: item.name,
     img: item.img,
     line: lineOf(item),
-    qty: quantityOf(item),
-    stack: (quantityOf(item) ?? 1) > 1,
+    qty: stackCountOf(item),
+    // A coin row always shows its count — an empty purse reads as empty.
+    stack: isCurrency(item) || (stackCountOf(item) ?? 1) > 1,
     wielded: wieldedIds.has(item.id),
     controls: rowControls(actor, item, loadout, lights),
-    isMoney: item.type === ITEM_TYPE.money,
+    isMoney: isCurrency(item),
     container: null,
   };
   const report = reports.get(item.id);
@@ -266,7 +259,7 @@ export function buildEquipmentTab(actor) {
   const kinds = [
     { key: "weapons", label: game.i18n.localize("ACKS.items.Weapons"), test: (i) => i.type === ITEM_TYPE.weapon },
     { key: "armour", label: game.i18n.localize("ACKS.items.Armors"), test: (i) => i.type === ITEM_TYPE.armor },
-    { key: "coin", label: loc("equipment.coin"), test: (i) => i.type === ITEM_TYPE.money || !!i.system?.treasure },
+    { key: "coin", label: loc("equipment.coin"), test: (i) => isCurrency(i) || !!i.system?.treasure },
     { key: "gear", label: loc("equipment.gear"), test: () => true },
   ];
   const carried = [];

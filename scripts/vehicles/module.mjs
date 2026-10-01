@@ -24,6 +24,7 @@ import * as hold from "./hold.mjs";
 import * as deploy from "./deploy.mjs";
 import { acksExtras } from "../namespace.mjs";
 import { handOver } from "../lib/storage.mjs";
+import { isCurrency } from "../lib/item-model.mjs";
 import { isLocation } from "../lib/place.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TRAVEL_DOC, VOYAGES_DOC } from "./vehicle-speed.mjs";
@@ -56,13 +57,15 @@ Hooks.once("init", () => {
  * control both ends. A vehicle's own sheet never reaches this hook — its drop
  * handler moves freight the same way — and a location is left to its own,
  * which stores the goods under whose they are rather than handing them over.
+ * Coin is left to the sheet it lands on: every sheet hands coin over or
+ * refuses it by one rule (the lib's `landCoin`), and that rule moves it too.
  */
 Hooks.on("dropActorSheetData", (target, _sheet, data) => {
   if (data?.type !== "Item" || !data.uuid) return;
   const item = fromUuidSync(data.uuid);
   const source = item?.parent;
   if (source?.documentName !== "Actor" || source.type !== VEHICLE_TYPE) return;
-  if (!target || source.uuid === target.uuid || isLocation(target)) return;
+  if (!target || source.uuid === target.uuid || isLocation(target) || isCurrency(item)) return;
   void handOver(source, target, [{ id: item.id }]);
   return false;
 });

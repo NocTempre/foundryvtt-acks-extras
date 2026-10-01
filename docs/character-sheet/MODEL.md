@@ -183,9 +183,20 @@ its row control or its own sheet is placed by the resolver — the main hand,
 unless another one-hand weapon already holds it and no shield holds the off
 hand, then the off hand — so a second weapon lists opposite the first, and
 never both under one hand. Sheathing forgets the hand. The hands badge on the
-Load rule states the hands the party sheet holds beside the count. Coin arriving from a compendium merges into the stack of the same
-name. A dropped place is pinned; any other actor is hired, as the system's
-sheet does.
+Load rule states the hands the party sheet holds beside the count. A stack
+let go on another row of the same thing joins it (`joinStacks`: the same
+stack signature, owner and container), once the move has put the two in the
+same place. Coin is never copied: off another actor it is handed over, and
+from a compendium or the sidebar it lands on the row of its own kind (the
+lib's `landCoin`). A dropped place is pinned; any other actor is hired, as
+the system's sheet does.
+
+A stack with a wear slot carries the split control, which takes ONE out to
+wear it. Any other stack of two or more carries **Divide the stack**: a
+prompt for a count, and `divideStack` puts that many into a row of their own
+beside it. A count that does not fall strictly inside the stack is refused
+with a warning. A coin row always shows its count, at none as well, and its
+line states what the row is worth and what it weighs.
 
 **Stats** is what is not a throw. The six attributes in the design system's
 attribute boxes, editable, with the modifier under each and no die; the

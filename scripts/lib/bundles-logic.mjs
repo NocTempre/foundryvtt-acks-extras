@@ -74,6 +74,18 @@ export function goodsForRow(sourceData, count) {
   return Array.from({ length: n }, (_, i) => (i ? structuredClone(one) : one));
 }
 
+/**
+ * What a stack dropped from outside any actor — a compendium, the sidebar —
+ * delivers: the stack as it stands, an empty one counted as one. The system
+ * ships its coins as stacks of none, so a coin dragged off the shelf is one
+ * coin, and a pile the Judge counted out in the sidebar is the whole pile.
+ * @returns {object[]} plain item data, one entry per document to deliver
+ */
+export function goodsForDrop(sourceData) {
+  if (sourceData?.type !== ITEM_TYPE.money) return goodsForRow(sourceData, 1);
+  return goodsForRow(sourceData, Math.max(1, Math.floor(num(quantityOf(sourceData)?.value, 1))));
+}
+
 /** `data` with the bundle it came out of stamped on it. */
 function stampFrom(data, bundleId) {
   const copy = structuredClone(data);

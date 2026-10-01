@@ -18,6 +18,9 @@
  *    than per-slot.
  *  - `per` is how many units one stated weight covers, for goods the books
  *    rate by the bundle rather than by the piece; defaults to 1.
+ *  - `perStone` is how many of a CURRENCY weigh one stone — the only weight a
+ *    coin states, read through `item-model.mjs`'s `perStoneOf`. Unset means
+ *    the system's own rate.
  *
  * Container `capacity` and the clothing `layer` belong here too and are NOT
  * yet declared: both have a live home today (`flags.acks-extras.container.capacity`
@@ -56,6 +59,10 @@ export default class GearExtras extends foundry.abstract.DataModel {
       // good's weight and its count share a denominator, and the size is
       // printed".
       per: new NumberField({ required: false, nullable: false, initial: 1, min: 1, integer: true }),
+      // How many of a currency weigh one stone. `null` defers to the rate the
+      // system weighs coin at; a fraction is allowed, because an ingot is
+      // currency too and fewer than one of it makes a stone.
+      perStone: new NumberField({ required: false, nullable: true, initial: null, positive: true }),
     };
   }
 

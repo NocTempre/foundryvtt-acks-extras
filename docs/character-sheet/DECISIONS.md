@@ -591,3 +591,22 @@ the card the Abilities tab's eye already posts. Pinning it is the item's own
   dispatched to the item card.
 
 Cost: a character with many passive abilities has a long third column.
+
+### A stack divides by a count and joins by a drop (2026-10-01)
+
+The ruling is docs/lib/DECISIONS.md, "Currency is one stack with one count,
+weighed by how many make a stone (2026-10-01)", which gives a stack
+`divideStack` and `joinStacks`. This sheet is their surface.
+
+**Ruled.** The scissors on a stack with no wear slot ask for a count and
+divide it off. Dropping a row on another row of the same thing joins the two.
+The split control keeps its meaning where a stack can be worn: one out, to
+wear it.
+
+**Rejected.** A separate join control: the drop already says which two rows,
+and a control would need a picker. Dividing through the item's own sheet
+only: the count is on the row, and a purse is divided to hand part of it
+over, which starts from the list.
+
+**What it cost.** Two controls draw the same glyph, told apart by their
+tooltip and by which rows carry them.

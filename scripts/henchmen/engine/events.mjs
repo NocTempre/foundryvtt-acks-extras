@@ -459,9 +459,9 @@ export async function forgiveWageDebts(employer) {
 
 /**
  * Pay all due wages for one employer: gold LEAVES the employer and LANDS on
- * each hireling — into their bank unless the `wagesToBank` setting is off.
- * Paid GROUPS are billed too (gold leaves the employer; a unit has no bank),
- * and unpaid ones accrue arrears and lose morale.
+ * each hireling, as coin in their own purse. Paid GROUPS are billed the same
+ * way (the unit's coin sits on the group actor), and unpaid ones accrue
+ * arrears and lose morale.
  */
 export async function payWagesFor(employer, { markMissed = false } = {}) {
   const currentTime = now();
@@ -484,7 +484,9 @@ export async function payWagesFor(employer, { markMissed = false } = {}) {
     );
     return;
   }
-  const toBank = getSetting("wagesToBank");
+  // A refused transfer has said why and moved nothing: no payday is recorded,
+  // the month stays due, and the hook reports neither the entry nor its gold.
+  const refused = [];
   for (const d of due) {
     if (d.isGroup) {
       // A unit is paid as a body: its wage physically lands on the GROUP
@@ -500,6 +502,10 @@ export async function payWagesFor(employer, { markMissed = false } = {}) {
         await adjustGroupMorale(d.group, -1);
       } else {
         const r = await transferCoin({ from: employer, to: d.group, gp: d.amount, upTo: true, reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: 1 }) });
+        if (!r.ok) {
+          refused.push(d);
+          continue;
+        }
         const arrearsGp = (r.arrearsCp ?? 0) / 100;
         await d.group.setFlag(MODULE_ID, FLAG_GROUP_PAY, {
           ...pay,
@@ -518,10 +524,14 @@ export async function payWagesFor(employer, { markMissed = false } = {}) {
       await HenchmanRecord.logEvent(actor, { type: "wageMissed", note: `${amount} gp` });
       await recordCalamity(actor, game.i18n.localize("ACKS-HENCHMEN.wage.missedCalamity"));
     } else {
-      // The transfer: the employer's coins land on the hireling (bank by
-      // default). What the purse cannot represent exactly — no changer in the
-      // wilderness — books as arrears until one is found.
-      const r = await transferCoin({ from: employer, to: actor, gp: amount, upTo: true, toBank, reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: 1 }) });
+      // The transfer: the employer's coins land on the hireling. What the
+      // purse cannot represent exactly — no changer in the wilderness — books
+      // as arrears until one is found.
+      const r = await transferCoin({ from: employer, to: actor, gp: amount, upTo: true, reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: 1 }) });
+      if (!r.ok) {
+        refused.push(d);
+        continue;
+      }
       const owedGp = (r.arrearsCp ?? 0) / 100;
       await actor.setFlag(MODULE_ID, FLAG_RECORD, {
         ...record,
@@ -533,11 +543,14 @@ export async function payWagesFor(employer, { markMissed = false } = {}) {
       });
       await HenchmanRecord.logEvent(actor, {
         type: "wagePaid",
-        note: game.i18n.format(toBank ? "ACKS-HENCHMEN.wage.paidBank" : "ACKS-HENCHMEN.wage.paidHand", { gp: amount }),
+        note: game.i18n.format("ACKS-HENCHMEN.wage.paid", { gp: amount }),
       });
     }
   }
-  Hooks.callAll(markMissed ? HOOKS.WAGES_MISSED : HOOKS.WAGES_PAID, { employer, total, count: due.length });
+  const count = due.length - refused.length;
+  if (!count) return;
+  const settled = total - refused.reduce((s, d) => s + d.amount, 0);
+  Hooks.callAll(markMissed ? HOOKS.WAGES_MISSED : HOOKS.WAGES_PAID, { employer, total: settled, count });
 }
 
 /** Whisper per-employer wages-due cards (time watcher). */

@@ -57,11 +57,17 @@ hundreds of them, and creating hundreds of actors would be unusable.
 hireling with its loyalty and morale standing, the wage ledger, and the event
 history each score is computed from.
 
-![](../releases/v7.3.0/henchmen.png)
+![](../releases/v10.0.0/henchmen.png)
 
 *An employer's roster: who is hired, on what terms. Open a row for that
 hireling's history and the Judge's actions on it — a loyalty or obedience
 throw, a calamity or a penalty on the record, a transfer, a dismissal.*
+
+**A wage is coin that changes hands.** On payday the employer's own coins
+leave their purse and land in the hireling's, so the two have to be where
+coin can pass between them: together, or the hireling on the employer's
+roster. What the employer cannot pay exactly is kept as arrears. A payment
+that is refused says why and records no payday.
 
 The Judge adds permanents (a rescue, a betrayal), and can mark an entry
 **Compensated** — it stays on record but stops scoring.

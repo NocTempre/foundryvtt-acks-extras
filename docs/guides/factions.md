@@ -51,7 +51,7 @@ from players** hides the whole table. A faction imported from a book whose
 page prints its strength arrives with the table filled and the page noted
 beneath it.
 
-![](../releases/v9.7.0/factions.png)
+![](../releases/v10.0.0/factions.png)
 
 **Notes** has a shared page and a private one only the Judge can read.
 
@@ -114,6 +114,13 @@ When an organisation across the table has written down what it thinks of one
 the speaker belongs to, and that stance is anything but neutral, the roller
 says so — *<Syndicate> regards <Guild> as Hostile* — with no figure beside it.
 It is there so you can see the room before you decide; it adds nothing.
+
+The quarter's organisations are listed on every reaction roll made there. The
+two rows about the target, and the note about what its organisation thinks of
+yours, arrive when the roller is opened with its target already named, which a
+macro does with `acksExtras.influence.open(actor, {targetActor})`. The
+Influence button opens the page first and reads the target from the token you
+have targeted, and a roll opened that way does not carry them.
 
 **It sets the hunt.** A **Wanted** row marks its subject hunted in every
 quarter the organisation controls. When the party enters the city inside one,

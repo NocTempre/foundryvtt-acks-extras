@@ -630,6 +630,53 @@ check("isContainer only true for flagged items", isContainer(pack) && !isContain
 const ingots = gear("Iron Ingots", 30, { id: "ing", flags: { containedIn: "bp" } });
 check("backpack over capacity flagged", overCapacity(withItems([pack, ingots]), pack));
 
+// --- coin: a stack weighed by how many make a stone ---------------------------
+// Core lumps every coin on the actor into one purse and counts it in WHOLE
+// stones; the correction takes that figure back out and puts in what the purse
+// weighs. Every rate here is this file's own — what a coin weighs is a printed
+// figure, and none is stated in the repo.
+const coinRow = (name, qty, over = {}) => {
+  const flags = { ...(over.flags ?? {}), ...(over.perStone === undefined ? {} : { gear: { perStone: over.perStone } }) };
+  return {
+    id: over.id ?? name.replace(/\W/g, ""),
+    name,
+    type: "money",
+    system: { coppervalue: 1, quantity: qty, quantitybank: over.bank ?? 0, description: over.description ?? "" },
+    getFlag: (_m, k) => flags[k],
+    effects: [],
+  };
+};
+// The system's stand-in: whole stones, at forty coins to the stone.
+const withPurse = (items) => {
+  const a = withItems(items);
+  const coins = items.filter((i) => i.type === "money").reduce((n, i) => n + i.system.quantity, 0);
+  a.getTotalMoneyEncumbrance = () => ({ stone: Math.floor(coins / 40), item: 0 });
+  return a;
+};
+check("no coin → no correction", encumbranceDelta6(withPurse([gear("Rope", 6)])) === 0);
+check("whole stones of coin are what core already counted", encumbranceDelta6(withPurse([coinRow("Gold", 80, { perStone: 40 })])) === 0);
+check("the part-stone core dropped is put back", encumbranceDelta6(withPurse([coinRow("Gold", 100, { perStone: 40 })])) === 3);
+check("a purse under a stone still weighs", encumbranceDelta6(withPurse([coinRow("Gold", 10, { perStone: 40 })])) === 1.5);
+check("two rows weigh what one stack of the same coins would",
+  encumbranceDelta6(withPurse([coinRow("Gold", 13, { id: "g1", perStone: 40 }), coinRow("Silver", 7, { id: "s1", perStone: 40 })])) === 3);
+check("a coin weighed at a rate of its own replaces core's figure for it", encumbranceDelta6(withPurse([coinRow("Trade Bar", 80, { perStone: 20 })])) === 24 - 12);
+check("a banked balance weighs nothing", encumbranceDelta6(withPurse([coinRow("Gold", 80, { perStone: 40, bank: 4000 })])) === 0);
+check("a coin nothing weighs leaves core's figure standing", encumbranceDelta6(withPurse([coinRow("Gold", 100)])) === 0);
+check("one unweighed row leaves the whole purse to core",
+  encumbranceDelta6(withPurse([coinRow("Gold", 100, { id: "g2", perStone: 40 }), coinRow("Token", 100, { id: "t2" })])) === 0);
+check("coin in a container loads it, part-stones kept",
+  contentsWeight6(withItems([pack, coinRow("Gold", 60, { perStone: 40, flags: { containedIn: "bp" } })]), "bp") === 9);
+
+// The annotate pass reads a coin's rate off the coin's own sentence.
+const { perStoneStated } = await import(new URL("profiles.mjs", S));
+const coinSays = (description, name = "Coin") => perStoneStated({ name, system: { description } });
+check("a coin's own sentence states how many make a stone", coinSays("<p>60 coins weigh one stone.</p>") === 60);
+check("a thousands separator and a weight other than one stone are read", coinSays("1,200 gold pieces equal 2 stone") === 600);
+check("the stone may stand bare, and the sentence may be the name", perStoneStated({ name: "Trade Token (25 pieces per stone)", system: {} }) === 25);
+check("\"to the stone\" reads as one stone", coinSays("Struck at 90 coins to the stone.") === 90);
+check("a coin that does not say states nothing", coinSays("<p>Stamped with a crowned head.</p>") === null);
+check("a count against no stone is not a rate", coinSays("Worth 10 silver pieces.") === null);
+
 // Adventurer's harness: relieves the wearer of the weight its own text states,
 // drawn from ORDINARY gear (RR p. 142). The figure rides the item as
 // `gear.relief`; the fixture states one stone. WORN VIA THE SLOT, because a

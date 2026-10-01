@@ -220,7 +220,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     sheet's Train row.
 16. Drag-out: drag a freight row from the wagon onto the passenger's sheet.
     *Observable:* one row on the receiver with the whole count, none left on
-    the wagon.
+    the wagon. Coin in and out of a hold is walked in docs/lib/TESTING.md,
+    "Coin: one stack, moved and never copied", step 9.
 17. Taking the wagon to market — an entry that declares it and loads bought
     into its hold — is walked in [../markets/TESTING.md](../markets/TESTING.md),
     "The fleet walk".

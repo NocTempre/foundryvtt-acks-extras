@@ -47,6 +47,15 @@ import {
 import { isGoods } from "./item-model.mjs";
 import { gmIds } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
+import { coinCount, coinKind } from "./money-logic.mjs";
+
+/**
+ * `creditCoin` (money.mjs), reached when coin actually lands. money.mjs
+ * registers a socket relay as it loads, and this file loads where there is no
+ * socket to register on — the offline suites import it — so the import waits
+ * for the call.
+ */
+const creditCoin = async (...args) => (await import("./money.mjs")).creditCoin(...args);
 
 // Re-export the Foundry-free half so consumers reach it all through
 // `acksLib.storage`, while the pure half stays independently Node-importable.
@@ -204,8 +213,11 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
   if (source.uuid === target.uuid) return { ok: false, reason: "same" };
 
   // A synthetic actor's uuid dies with its token, so goods stamped with one
-  // would be unreturnable. Linked tokens are the world actor and pass fine.
-  if (source.isToken || target.isToken) {
+  // would be unreturnable: a move that stamps an owner refuses a token's own
+  // actor at either end. A move that stamps nothing carries no uuid forward
+  // and crosses to and from one freely — coin off a fallen monster's token is
+  // handed over like any other. Linked tokens are the world actor either way.
+  if (stampOwner && (source.isToken || target.isToken)) {
     warn("tokenActor");
     return { ok: false, reason: "token" };
   }
@@ -307,8 +319,9 @@ export const moveStored = (from, to, spec) =>
 /**
  * Character → character. Attribution is dropped, on the same rule as `retrieve`:
  * you own what you carry. This is what a coin row dragged onto somebody else's
- * sheet means — the stack LEAVES the giver, merging into a matching denomination
- * on the receiver rather than making a second row of the same coin.
+ * sheet means — the stack LEAVES the giver, merging into the receiver's row of
+ * the same kind rather than making a second. Either end may be a token's own
+ * actor: nothing is stamped, so nothing has to outlive the token.
  *
  * Both seats must be owned by whoever drags, which is `transfer`'s own check: a
  * player cannot help themselves from a sheet they do not control.
@@ -316,39 +329,51 @@ export const moveStored = (from, to, spec) =>
 export const handOver = (from, to, spec) =>
   transfer(from, to, spec, { hook: STORAGE_HOOKS.HANDED, stampOwner: false });
 
+/**
+ * Goods that come from nobody — a compendium, the sidebar — are put at a
+ * provider under an owner, each stack folding into that owner's identical
+ * one. They are STAMPED on the way in: an unflagged row sits at the place
+ * invisibly, because `storedItems` lists only attributed goods.
+ * @param {Actor} provider
+ * @param {object[]} goods arrival-shaped plain item data
+ * @param {{ownerUuid: string, ownerName?: string}} owner whose they become
+ * @returns {Promise<{created: number, merged: number}>}
+ */
+export async function stockProvider(provider, goods, { ownerUuid, ownerName = "" } = {}) {
+  const stamped = (goods ?? []).map((g) => ({
+    ...g,
+    flags: { ...(g.flags ?? {}), [LIB_ID]: { ...(g.flags?.[LIB_ID] ?? {}), [STORAGE_KEY]: { ownerUuid, ownerName } } },
+  }));
+  const plan = planStackMerge(stamped, provider.items.map((i) => i.toObject()), { byOwner: true });
+  if (plan.targetUpdates.length) await provider.updateEmbeddedDocuments("Item", plan.targetUpdates);
+  if (plan.creates.length) await provider.createEmbeddedDocuments("Item", plan.creates);
+  return { created: plan.creates.length, merged: plan.targetUpdates.length };
+}
+
 /* -------------------------------------------- */
 /*  Coin helpers                                 */
 /* -------------------------------------------- */
 
 /**
- * Put coin at a provider, merging into the owner's existing row of that
- * denomination. Idempotent by construction is NOT claimed here — callers that
- * must not double-credit (the vault sweep) carry their own ledger.
+ * Put coin at a provider for an owner, merging into that owner's row of the
+ * same kind (`creditCoin`). `source` — a coin row's plain data — says which
+ * coin it is and is what a new row is copied from; without one the coin is
+ * known by `name` and `coppervalue`, or by its rate alone. Idempotent by
+ * construction is NOT claimed here — callers that must not double-credit (the
+ * vault sweep) carry their own ledger.
+ * @returns {Promise<boolean>} whether any coin landed
  */
-export async function depositCoin(provider, { ownerUuid, ownerName = "", coppervalue = 100, quantity = 0, name = "Gold", img } = {}) {
-  if (!provider || !(quantity > 0)) return null;
-  const existing = provider.items.find(
-    (i) => i.type === ITEM_TYPE.money && Number(i.system?.coppervalue) === Number(coppervalue) && storageFlagOf(i)?.ownerUuid === ownerUuid,
-  );
-  if (existing) {
-    await existing.update({ "system.quantity": Number(existing.system.quantity ?? 0) + Number(quantity) });
-    return existing;
-  }
-  const [created] = await provider.createEmbeddedDocuments("Item", [
-    {
-      name,
-      type: "money",
-      img: img ?? "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp",
-      system: { coppervalue: Number(coppervalue), quantity: Number(quantity), quantitybank: 0 },
-      flags: { [LIB_ID]: { [STORAGE_KEY]: { ownerUuid, ownerName } } },
-    },
-  ]);
-  return created ?? null;
+export async function depositCoin(provider, { ownerUuid, ownerName = "", coppervalue = 100, quantity = 0, name = null, source = null } = {}) {
+  if (!provider || !(quantity > 0)) return false;
+  const credit = source ? { source, count: quantity } : { cv: Number(coppervalue), count: quantity, ...(name ? { name } : {}) };
+  const done = await creditCoin(provider, [credit], { ownerUuid, ownerName });
+  return done.updates + done.creates > 0;
 }
 
 /**
- * Fold an owner's duplicate coin rows together. Reassigning goods to a new owner
- * can leave two "Gold" rows attributed to the same character; this is the tidy-up.
+ * Fold an owner's duplicate coin rows together, kind by kind. Reassigning
+ * goods to a new owner can leave two "Gold" rows attributed to the same
+ * character; this is the tidy-up.
  */
 export async function consolidateMoney(provider, ownerUuid) {
   const rows = storedItems(provider, { ownerUuid }).filter((i) => i.type === ITEM_TYPE.money);
@@ -356,18 +381,18 @@ export async function consolidateMoney(provider, ownerUuid) {
   const updates = [];
   const deletes = [];
   for (const row of rows) {
-    const cv = Number(row.system?.coppervalue ?? 1);
-    const first = keep.get(cv);
+    const kind = coinKind(row);
+    const first = keep.get(kind);
     if (!first) {
-      keep.set(cv, { id: row.id, quantity: Number(row.system?.quantity ?? 0) });
+      keep.set(kind, { id: row.id, quantity: coinCount(row) });
       continue;
     }
-    first.quantity += Number(row.system?.quantity ?? 0);
+    first.quantity += coinCount(row);
     deletes.push(row.id);
   }
   for (const slot of keep.values()) {
     const row = provider.items.get(slot.id);
-    if (row && Number(row.system?.quantity ?? 0) !== slot.quantity) {
+    if (row && coinCount(row) !== slot.quantity) {
       updates.push({ _id: slot.id, "system.quantity": slot.quantity });
     }
   }
@@ -452,31 +477,10 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
   });
   if (arrivals.length) await owner.createEmbeddedDocuments("Item", arrivals, { keepId: true });
 
-  for (const c of coin) {
-    await depositCoinOnCharacter(owner, c);
-  }
+  // Coin returning to a character lands on their row of the same kind — never
+  // a second "Gold" row.
+  await creditCoin(owner, coin.map((c) => ({ source: c, count: coinCount(c) })));
   return { ok: true, containerId };
-}
-
-/** Coin returning to a character merges by denomination — never a second "Gold" row. */
-async function depositCoinOnCharacter(owner, plainMoney) {
-  const cv = Number(plainMoney.system?.coppervalue ?? 1);
-  const qty = Number(plainMoney.system?.quantity ?? 0);
-  if (!(qty > 0)) return;
-  const existing = owner.items.find((i) => i.type === ITEM_TYPE.money && Number(i.system?.coppervalue) === cv);
-  if (existing) {
-    await existing.update({ "system.quantity": Number(existing.system.quantity ?? 0) + qty });
-    return;
-  }
-  const copy = foundry.utils.deepClone(plainMoney);
-  delete copy._id;
-  copy.system.quantitybank = 0;
-  copy.flags = { ...copy.flags };
-  if (copy.flags[LIB_ID]) {
-    copy.flags[LIB_ID] = { ...copy.flags[LIB_ID] };
-    delete copy.flags[LIB_ID][STORAGE_KEY];
-  }
-  await owner.createEmbeddedDocuments("Item", [copy]);
 }
 
 /**

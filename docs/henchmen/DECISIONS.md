@@ -339,3 +339,27 @@ Supersedes "Unit morale interpretation stays with the Judge, not auto-verdicted"
 **Rejected.** A Unit Morale page of its own (RR 468): `docs/DECISIONS.md` §15 puts the battle rules out of scope.
 
 **Cost.** A world that imported the "Obedience Check (Selected)" macro before this release keeps a copy that opens the bare throw dialog, which now rolls the morale score alone and names no result; re-importing the macro from the compendium replaces it.
+
+### A wage is paid into the purse, and a refused payment books no payday (2026-10-01)
+
+Follows docs/location/DECISIONS.md, "2026-10-01 — Banked is not a state coin
+can be in", and docs/lib/DECISIONS.md, "Currency is one stack with one count,
+weighed by how many make a stone (2026-10-01)".
+
+**Ruled.** Wages land in the hireling's purse. The `wagesToBank` setting is
+removed with the field it chose: there is one place a wage can land.
+`getGold`, `spendGold` and `grantGold` delegate to the lib (`purseGp`,
+`transferCoin` or `sinkCoin`, `transferCoin` or `mintCoin`) and keep no
+denomination handling of their own. A wage transfer that is refused records
+no payday.
+
+**Rejected.** Keeping the setting with a vault as its second choice: a
+hireling's vault is a place per hireling, and a monster keeps none. Recording
+the payday when the transfer refused: the record then said a month was paid
+that no coin moved for, which is what the earlier code did for a unit standing
+away from its employer.
+
+**What it cost.** A hireling's wages weigh on them. A world that set
+`wagesToBank` off sees no change; one that left it on has its hirelings'
+banked wages moved at the next load, a character's to a vault and a monster's
+into its purse (the location feature's sweep).

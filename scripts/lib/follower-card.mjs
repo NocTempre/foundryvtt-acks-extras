@@ -15,7 +15,7 @@
 import { toNum as num } from "./util.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { monsterHd } from "./actor-read.mjs";
-import { isEquippable, isEquipped } from "./item-model.mjs";
+import { isCurrency, isEquippable, isEquipped, stackCountOf } from "./item-model.mjs";
 import { borneWeight6 } from "./capacity.mjs";
 import { attackOptionsFor, damageTypeLabel, DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
 import { profileStrips, isProfileAbility, sizePips } from "./proficiency-strip.mjs";
@@ -47,9 +47,12 @@ const signed = (v) => {
   return n >= 0 ? `+${n}` : `${n}`;
 };
 
-/** 1/6-stone weight → the stone figure the printed sheet writes (e.g. "3 2/6"). */
+/**
+ * 1/6-stone weight → the stone figure the printed sheet writes (e.g. "3 2/6").
+ * A purse weighs a fraction of a sixth; the card prints the nearest whole one.
+ */
 function stones(value6) {
-  const n = Math.max(0, num(value6));
+  const n = Math.max(0, Math.round(num(value6)));
   const whole = Math.floor(n / 6);
   const sixths = n % 6;
   return sixths ? `${whole} ${sixths}/6` : String(whole);
@@ -138,13 +141,15 @@ export async function followerCardContext(actor, { editable = false, interactive
   const powers = items
     .filter((i) => i.type === ITEM_TYPE.ability && (!isProfileAbility(i) || !strips.any))
     .map((i) => ({ id: i.id, name: i.name, rollable: !!i.system?.roll, hasText: !!i.system?.description }));
+  // Coin is gear like the rest: a purse that holds anything is listed, always
+  // with its count; an emptied one is not.
   const equipment = items
-    .filter((i) => i.type === ITEM_TYPE.weapon || i.type === ITEM_TYPE.armor || i.type === ITEM_TYPE.item)
+    .filter((i) => i.type === ITEM_TYPE.weapon || i.type === ITEM_TYPE.armor || i.type === ITEM_TYPE.item || (isCurrency(i) && stackCountOf(i) > 0))
     .map((i) => {
-      const q = num(i.system?.quantity?.value, 1);
+      const q = stackCountOf(i) ?? 1;
       return {
         id: i.id,
-        name: q > 1 ? `${i.name} ×${q}` : i.name,
+        name: q > 1 || isCurrency(i) ? `${i.name} ×${q}` : i.name,
         equippable: isEquippable(i),
         equipped: isEquipped(i),
       };
