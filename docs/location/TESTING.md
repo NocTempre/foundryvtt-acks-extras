@@ -226,14 +226,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    inside the container is listed above, in the container's own section.
    The block's choices and its writes are docs/lib/TESTING.md, "Coin", step
    18.
-8. "Recover Coin from Unloadable Locations (GM)": build a pre-upgrade shape
-   first — recover an old sub-type's location definition from git
-   (`git show <tag>:<path>`) and create it as a world document — then run the
-   macro.
-   *Observable:* the coin inside the unopenable actor is listed and minted
-   onto the chosen actor exactly once; the location itself is left untouched.
-   Running it twice mints twice, which is the documented behaviour and worth
-   confirming rather than discovering.
+8. Coin inside a place the world cannot load. **This step cannot be walked
+   in a shared test world.** The repair tool lists that coin under its
+   `lib.strandedCoin` check and moves none of it. Why no fixture reaches the
+   check, and where it is walked instead, is docs/lib/TESTING.md, "The
+   repair tool".
 
 9. **A place held in a COMPENDIUM.** Import an authored adventure with
    the importer (`acksExtras.importer.oseImportAreas("pc3")` — one adventure plus 32
