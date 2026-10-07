@@ -244,7 +244,12 @@ Observables, all readable off `game.folders` and the setting:
   pack: the reset drops the override, it does not set a value. Read `locked`,
   not the config keys — cleared keys remain present with value `undefined`, so
   `Object.keys(entry).length` lies.
-- run it twice: the second run creates no folders and moves nothing.
+- run it twice: the second run creates no folders and files nothing. Its
+  message reads `0 compendium(s) filed`, and the setting is not written — wrap
+  `game.settings.set` on the instance for the length of the run and count the
+  calls that name `compendiumConfiguration`. Then give one pack an override
+  where it stands (`pack.configure({ ownership: … })`) and run it again:
+  exactly that one is filed, and the override is gone.
 
 **The gentle pass must create NOTHING** in a world that is already right.
 Reload and diff `game.folders.filter(f => f.type === "Compendium")` across the
@@ -265,6 +270,27 @@ Exactly one folder appears (`Test Line`), and the pack is in it. Then exercise
 the DELETE path: `deleteCompendium()` the pack and run the restore again — the
 now-empty line shelf is swept, because a restore also collapses empty shelves
 inside this module's own tree.
+
+**A restore closes a Judge's shelf again, and files it only when it was
+opened.** The door that makes one is not on the api, so import it from the
+address the page loaded:
+
+```js
+const lib = new URL("modules/acks-extras/scripts/lib/", document.baseURI).href;
+// true when this address is the loaded module and not a second copy
+(await import(`${lib}compendium-folders.mjs`)).restoreCompendiumLibrary === acksExtras.lib.packs.restoreCompendiumLibrary;
+const { judgeLine } = await import(`${lib}library.mjs`);
+const { ensureLibraryPack } = await import(`${lib}library-target.mjs`);
+const shelf = await ensureLibraryPack("Item", judgeLine("Test Line"));
+```
+
+With a Player seat joined beside the Judge's, read
+`game.packs.get(shelf.collection).visible` on the Player's client: `false` as
+the shelf is made, and a restore files nothing.
+`shelf.configure({ ownership: { GAMEMASTER: "OWNER", ASSISTANT: "OWNER",
+TRUSTED: "OBSERVER", PLAYER: "OBSERVER" } })` makes it `true`; the next restore
+files exactly one pack and it is `false` again. `deleteCompendium()` and one
+more restore remove the shelf's folder and its configuration entry.
 
 **Join as Player** and call `restoreCompendiumLibrary({confirm:false})`: it
 warns, returns null, and neither the folders nor the setting change. Confirm the

@@ -1,13 +1,15 @@
 /**
  * A Judge's book is shelved where no player seat can open it.
  *
- * Three things this guards. The Judge's line is a LABEL shape, so every reader
+ * Four things this guards. The Judge's line is a LABEL shape, so every reader
  * that takes a shelf's line off its label has to get the same line back, and a
  * shelf of that line has to be recognised by the label alone. A shelf is closed
  * when it is MADE and never afterwards, so a Judge who opens one keeps it open.
- * And the registry is held to the data: a shipped book whose cookbook carries
- * keyed places, people, organisations or a map is a Judge's book, so the next
- * adventure added cannot land on the table's shelf by omission.
+ * The library restore is the one pass that overrules that: it closes a Judge's
+ * shelf again, and files only a shelf that is not already as it would leave
+ * it. And the registry is held to the data: a shipped book whose cookbook
+ * carries keyed places, people, organisations or a map is a Judge's book, so
+ * the next adventure added cannot land on the table's shelf by omission.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -52,22 +54,53 @@ const makePack = (label, type) => {
   return pack;
 };
 packs.find = Array.prototype.find.bind(packs);
+packs.get = (collection) => packs.find((p) => p.collection === collection);
+// The manifest's declared tree, absent until the restore below: with no root
+// a shelf is made without being filed in the sidebar.
+let declared = null;
+const folders = [];
+folders.get = (id) => folders.find((f) => f.id === id);
+globalThis.Folder = {
+  create: async ({ name, type, folder }) => {
+    const made = { id: `folder${folders.length + 1}`, name, type, folder: folders.get(folder) ?? null };
+    folders.push(made);
+    return made;
+  },
+};
+// Core hands a pack's entry back with every key of its schema, the ones never
+// given undefined.
+const ENTRY_KEYS = ["folder", "sort", "locked", "ownership"];
+const asRead = (stored) =>
+  Object.fromEntries(Object.entries(stored).map(([collection, entry]) => [collection, Object.fromEntries(ENTRY_KEYS.map((k) => [k, entry[k]]))]));
 globalThis.game = {
   user: { isGM: true },
   packs,
-  // No declared root: filing a new shelf in the sidebar is another suite's
-  // question, and with none the organizer plans nothing.
-  modules: { get: () => null },
+  modules: { get: () => declared },
   system: null,
-  folders: [],
+  folders,
   settings: {
-    get: (_scope, key) => settings[key],
+    get: (_scope, key) => (key === "compendiumConfiguration" ? asRead(settings[key]) : settings[key]),
     set: async (_scope, key, value) => void (settings[key] = value),
   },
 };
+// Core's comparison counts keys before it reads them, so an entry as read is
+// never the same as one holding fewer. Foundry 14 answers to two names for it
+// and warns on the older; each is counted, so the suite can say which was asked.
+const same = (a, b) => {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => same(a[k], b[k]));
+};
+let asked = 0;
+let askedOlder = 0;
 globalThis.foundry = {
   documents: { collections: { CompendiumCollection: { createCompendium: async ({ label, type }) => makePack(label, type) } } },
-  utils: { deepClone: (v) => structuredClone(v), objectsEqual: (a, b) => JSON.stringify(a) === JSON.stringify(b) },
+  utils: {
+    deepClone: (v) => structuredClone(v),
+    equals: (a, b) => (asked++, same(a, b)),
+    objectsEqual: (a, b) => (askedOlder++, same(a, b)),
+  },
 };
 globalThis.ui = { compendium: { render() {} } };
 
@@ -109,6 +142,30 @@ check("so is the ACKS Judge shelf's", lineOfPack(judges.collection), "Judge");
 check("and the shared shelf has none", lineOfPack(shared.collection), null);
 check("the Judge's shelves are the ones recognised", importedPacks().filter(({ line }) => isJudgeLine(line)).map(({ pack }) => pack.collection).sort(),
   [judges.collection, lined.collection].sort());
+
+/* ---------------- a restore closes a shelf again ---------------- */
+
+declared = { packFolders: [{ name: "Extras" }] };
+const { restoreCompendiumLibrary } = await import("../scripts/lib/compendium-folders.mjs");
+const restore = async () => (await restoreCompendiumLibrary({ confirm: false })).packs;
+check("a restore files every shelf", await restore(), 3);
+check("and closes the one its Judge had opened", settings.compendiumConfiguration[judges.collection].ownership, { ...JUDGE_SHELF_OWNERSHIP });
+const stood = settings.compendiumConfiguration;
+check("a second finds every shelf as it would leave it, and files none", await restore(), 0);
+ok("and writes nothing", settings.compendiumConfiguration === stood);
+settings.compendiumConfiguration[lined.collection].ownership = { ...JUDGE_SHELF_OWNERSHIP, TRUSTED: "OBSERVER" };
+check("a shelf opened where it stands is the one the next files", await restore(), 1);
+check("and closes", settings.compendiumConfiguration[lined.collection].ownership, { ...JUDGE_SHELF_OWNERSHIP });
+check("a shelf in place is compared with what a restore would leave, by the name v14 gives", [asked, askedOlder], [6, 0]);
+delete globalThis.foundry.utils.equals;
+check("and by the older name where a build has no other", [await restore(), asked, askedOlder], [0, 6, 3]);
+
+/* ---------------- a shelf made under a declared root is filed as it is made ---------------- */
+
+const beside = await ensureLibraryPack("Item", judgeLine("Small Delves"));
+const filed = settings.compendiumConfiguration[beside.collection];
+check("it joins its line's folder", filed.folder, settings.compendiumConfiguration[lined.collection].folder);
+check("and filing it keeps it closed", filed.ownership, { ...JUDGE_SHELF_OWNERSHIP });
 
 /* ---------------- the registry, held to the data ---------------- */
 

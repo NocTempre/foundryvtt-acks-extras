@@ -296,11 +296,16 @@ folder, so track what it made through the run's claim ids, never by name.
 1. Open a created item.
    *Observable:* the merchandise sheet renders (not the system's detail
    partial error), scrolls when the window is short, and every field shows.
-2. Edit the price, clear a nullable number, add and delete a racial row, and
-   close.
+2. Edit the price, clear a nullable number, add and delete a racial row,
+   rename a row and clear another row's race box. Add one more row, type
+   `Prototype` into its race box and delete that row as well. Close.
    *Observable:* the stored `system` holds the price, `null` for the cleared
-   field, and only the racial rows left on screen (a deleted row is gone, not
-   zeroed).
+   field, and only the racial rows left on screen: a deleted row is gone, not
+   zeroed, a renamed row's old key is gone, and a row with no race is
+   dropped. The typed row is stored under the key `prototype` and its delete
+   removes it, which a delete written as a dotted path does not
+   (docs/lib/DECISIONS.md, "A key that is data is written nested"). No edit,
+   add or delete logs a compatibility warning.
 3. Run the Books dialog's merchandise re-import (or Getting Started's step).
    *Observable:* one item per printed good in the compendium's Merchandise
    shelf, each with prices, six stones, a random band and (after the demand

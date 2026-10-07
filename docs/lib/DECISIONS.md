@@ -3496,3 +3496,70 @@ the goods leave, so a payment the till refuses leaves the seller's goods
 where they were. The signing bonus of a hire and the deposit controls on a
 sheet are not surfaces this entry reached (ROADMAP, "What coin does not do
 yet").
+
+### A key that is data is written nested (2026-10-07)
+
+**Ruled.** Where a segment of an update's path is user text or imported data,
+the update is written as a nested object and never as a dotted key. The
+merchandise sheet's row delete is the case:
+`{ system: { racial: { [race]: unset() } } }`. A path made only of fixed names
+(`flags.<module>.minted`) stays dotted. This refines "A deletion is the
+operator, spelled once" (2026-09-11), which ruled the operator and left open
+the shape of the key it is assigned to.
+
+Core's path expansion (`foundry.utils.setProperty`) drops a path with a
+segment named `prototype`, `constructor` or `__proto__`, and reports nothing.
+A race typed as "Prototype" is stored as a row keyed `prototype`. With the
+operator under the dotted key the client sent no request and the row stayed;
+written nested, the row went. Both were measured on Foundry 14.367, against
+core's `common/` code run offline and on the markets catalogue walk
+(docs/markets/TESTING.md, step 2). The legacy `-=` key had hidden this,
+because the segment it wrote read `-=prototype`.
+
+**Rejected.**
+- *The dotted key at every call site, so that every deletion reads alike.*
+  Its failure is silent: the control does nothing and nothing is logged.
+
+**What it cost.** One deletion reads unlike the flag deletions beside it, and
+`tools/test-merchandise.mjs` holds its shape. The module's other dotted
+writes were not surveyed for a segment that is data. A row keyed
+`constructor` stays on the client that typed it through its delete and
+through the sheet's whole-object replacement, until that client reloads:
+core's commit of an object field asks `key in value`, and every object
+answers yes for `constructor`. On the one live walk the row was gone after
+the reload; whether the server ever stored it was not isolated.
+
+### A restore passes over what is already as it would leave it (2026-10-07)
+
+A restore asks, of each pack already in its folder, whether its entry is the
+one the restore would leave, and passes over it when it is. On a client the
+answer was never yes. Core hands a pack's entry back with every key of the
+setting's schema (`folder`, `sort`, `locked`, `ownership`), the ones never
+given `undefined`, and its comparison counts keys before it reads them. The
+question has had two forms, a key count of one (6.0.1) and `objectsEqual`
+(8.0.0), and neither is true of an entry as read. So every restore filed
+every pack, counted it in its message and wrote the setting: 26 of 26 on the
+test world (Foundry 14.367), each with a deprecation warning now that v14
+retires `objectsEqual`. No suite ran a restore. The checks first written for
+this fix passed all the same, in a world that handed an entry back as stored
+and compared by JSON, which drops an undefined key. Running the macro twice
+on a client, a step TESTING's recipe already had, showed it.
+
+**Ruled.** The owner, asked whether the count goes into the hotfix that
+renames the comparison: "Fix it too". `filePacks` reads each entry as given
+(`given` drops the keys never given), so the two objects compared hold only
+what was set. The comparison is asked by `foundry.utils.equals`, and by the
+older name on a build that has no other. The suite's world hands entries back
+the way core does and compares the way core does.
+
+**Rejected.**
+- *Renaming the comparison and leaving the count for later.* The warnings
+  would go and the macro would still report, on every run, work it did not
+  do.
+- *`deepClone(config, { prune: true })` at the read.* It drops the same keys
+  where the option exists; that every supported v14 build has it was not
+  established.
+
+**What it cost.** A Judge who restores a library that needed nothing now
+reads "0 compendium(s) filed" where the macro counted every pack, and the
+setting is not written. What a restore does to a pack it files is unchanged.

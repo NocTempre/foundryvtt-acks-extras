@@ -1,5 +1,24 @@
 # Changelog
 
+## 10.2.1
+
+### Fixed
+
+- **A merchandise sheet and a class's training editor raise no deprecation
+  warning.** A good with racial demand rows logged one on every edit and
+  another when a row was deleted, and a class logged one on every edit of
+  weapons, armour or styles it already stated. Each write is spelled the way
+  Foundry v14 asks; what is written is unchanged.
+- **Restoring the compendium library files only what it changes.** The
+  *Restore the Compendium Library (GM)* macro filed every compendium again on
+  every run: a library already in order still read every one of them as
+  filed, and under Foundry v14 each put a deprecation warning in the console.
+  A restore now passes over a compendium that is in its folder with nothing
+  of its own set, and over a Judge's shelf that is still closed, so a library
+  already in order reads 0 filed. A compendium that was moved, given its own
+  order, lock or ownership, or a Judge's shelf opened to players, is filed as
+  before.
+
 ## 10.2.0
 
 ### Added

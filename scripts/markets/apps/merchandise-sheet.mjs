@@ -8,6 +8,7 @@ import {
   MERCHANDISE_TIERS,
 } from "../merchandise-keys.mjs";
 import { listFromLine, racialFromRows, raceKeyOf } from "../merchandise-form.mjs";
+import { unset } from "../../lib/util.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -107,8 +108,8 @@ export default class MerchandiseSheet extends HandlebarsApplicationMixin(ItemShe
   /**
    * Turn the racial rows back into the object the model stores, and the
    * comma-separated lines back into arrays. The racial object replaces the
-   * stored one whole (`==`), so a row the Judge cleared is dropped rather
-   * than merged back in.
+   * stored one whole (a forced replacement), so a row the Judge cleared is
+   * dropped rather than merged back in.
    * @override
    */
   _processFormData(event, form, formData) {
@@ -119,7 +120,7 @@ export default class MerchandiseSheet extends HandlebarsApplicationMixin(ItemShe
     }
     if (data.racialRows !== undefined) {
       data.system ??= {};
-      data.system["==racial"] = racialFromRows(data.racialRows);
+      data.system.racial = foundry.data.operators.ForcedReplacement.create(racialFromRows(data.racialRows));
       delete data.racialRows;
     }
     return data;
@@ -134,12 +135,16 @@ export default class MerchandiseSheet extends HandlebarsApplicationMixin(ItemShe
     await this.item.update({ [`system.racial.race${n}`]: 0 });
   }
 
-  /** Remove one race row by its key. */
+  /**
+   * Remove one race row by its key. The key is written nested, never as a
+   * dotted path: core's path expansion drops a path naming `prototype`, and a
+   * race key is whatever the Judge typed.
+   */
   static async #onRacialDelete(event, target) {
     const race = raceKeyOf(target.dataset.race);
     if (!race) return;
     await this.submit();
-    await this.item.update({ [`system.racial.-=${race}`]: null });
+    await this.item.update({ system: { racial: { [race]: unset() } } });
   }
 }
 

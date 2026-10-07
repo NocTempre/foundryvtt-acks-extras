@@ -31,6 +31,7 @@
 import { MODULE_ID, FLAG_FROM_CLASS, LANG_PREFIX } from "./constants.mjs";
 import { SLOT_VOCAB, weaponTokenClasses, abilityContributions } from "../lib/proficiency-strip.mjs";
 import { appliedEffects } from "../lib/effect-scan.mjs";
+import { unset } from "../lib/util.mjs";
 import { coveredUnits, grantTokens, toggledGrant } from "../equipment/training-view.mjs";
 import { bridgeContributions } from "../equipment/abilities-bridge.mjs";
 import { pathTrainingChanges, actorPaths } from "./paths.mjs";
@@ -305,7 +306,7 @@ export async function setClassTraining(classItem, training) {
   if (have) {
     // A Judge's edit is theirs: the importer's `minted` stamp comes off, so an
     // Update Classes or a repair rebuilds every minted effect and leaves this one.
-    await have.update({ changes: withTraining(have.changes ?? [], training), [`flags.${MODULE_ID}.-=minted`]: null });
+    await have.update({ changes: withTraining(have.changes ?? [], training), [`flags.${MODULE_ID}.minted`]: unset() });
     return "updated";
   }
   await classItem.createEmbeddedDocuments("ActiveEffect", [

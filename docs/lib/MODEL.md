@@ -135,6 +135,12 @@ long ago strands every pack that named it at the sidebar root permanently. Both
 strengths exist to answer that; the gentle one repairs it, the macro overrules
 whatever a world has become.
 
+A restore writes only what it changes. It compares each pack's entry with the
+one it would leave — the folder alone, or for a Judge's shelf the folder and
+the shelf's closed ownership — and passes over an entry already in that state.
+The macro's message counts the packs it filed, and a library already in order
+is not written at all.
+
 Planning is separate from building: a folder is created only where a pack is
 actually being written to it. That is what stops the gentle pass from growing a
 second empty copy of the tree at every load, and it is also how a per-line

@@ -42,10 +42,3 @@
   trade-layer phase that first consumes it (`wip/trade-layer.md`).
 - **Despoilment's demand shift** (AXIOMS) and dwarven ore tables: not trade
   data under the RR; left unless a Judge asks.
-
-## The merchandise sheet's racial rows are written the way v14 retires
-
-The sheet replaces a good's racial demand whole by submitting the `==` key
-prefix (`merchandise-sheet.mjs`, `_processFormData`). v14 logs a deprecation
-for it and v16 removes it; the importer's write of the same field already
-uses `foundry.data.operators.ForcedReplacement`.

@@ -259,6 +259,59 @@ check("a comma line becomes a list", JSON.stringify(listFromLine(" a, b ,, c")) 
   delete globalThis.foundry;
 }
 
+/* ------------------------- the sheet's racial writes ------------------------- */
+
+{
+  // The sheet reads its base classes when it is imported and builds core's
+  // operators when it writes; stand-ins for both are enough to press an action
+  // and to process a submit on a fake sheet. The base sheet's own
+  // `_processFormData` expands the form; this one hands back what it is given.
+  class ForcedDeletion {}
+  class ForcedReplacement {
+    constructor(value) {
+      this.value = value;
+    }
+    static create(value) {
+      return new ForcedReplacement(value);
+    }
+  }
+  class ItemSheetV2 {
+    _processFormData(event, form, formData) {
+      return structuredClone(formData);
+    }
+  }
+  globalThis.foundry = {
+    applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {} }, sheets: { ItemSheetV2 } },
+    data: { operators: { ForcedDeletion, ForcedReplacement } },
+  };
+  const { default: MerchandiseSheet } = await import(new URL("../scripts/markets/apps/merchandise-sheet.mjs", import.meta.url));
+  const steps = [];
+  const sheet = { submit: async () => steps.push("submit"), item: { update: async (data) => steps.push(data) } };
+  const press = (race) => MerchandiseSheet.DEFAULT_OPTIONS.actions.racialDelete.call(sheet, {}, { dataset: { race } });
+  const keys = (object) => JSON.stringify(Object.keys(object ?? {}));
+
+  await press(" Half. Elf ");
+  check("a row delete submits the form, then writes once", steps.length === 2 && steps[0] === "submit");
+  const write = steps[1];
+  check("the write names the row's key nested under system.racial and nothing else", keys(write) === '["system"]' && keys(write.system) === '["racial"]' && keys(write.system.racial) === '["halfelf"]');
+  check("the key's value is the deletion operator, never a stored null", write.system.racial.halfelf instanceof ForcedDeletion);
+
+  steps.length = 0;
+  await press(" . ");
+  check("a row with no usable key neither submits nor writes", steps.length === 0);
+
+  const submit = (form) => MerchandiseSheet.prototype._processFormData.call({}, null, null, form);
+  const sent = submit({
+    system: { aliases: "ale,  beer , " },
+    racialRows: { 0: { race: " Half. Elf ", value: "1.5" }, 1: { race: "", value: "2" }, 2: { race: "dwarf", value: "" } },
+  });
+  check("a submit writes the racial rows as one forced replacement, under no other key", sent.system.racial instanceof ForcedReplacement && keys(sent.system) === '["aliases","racial"]' && keys(sent) === '["system"]');
+  check("the replacement holds what the rows stand for, less a row with no race or no number", JSON.stringify(sent.system.racial.value) === '{"halfelf":1.5}');
+  check("a comma-separated line comes back as a list", JSON.stringify(sent.system.aliases) === '["ale","beer"]');
+  check("a form with no racial rows writes no racial key", keys(submit({ system: { key: "ale" } }).system) === '["key"]');
+  delete globalThis.foundry;
+}
+
 /* ------------------------- the catalogue ------------------------- */
 
 /** A Collection-like list: iterable and filterable, with NO flatMap, as Foundry's collections are. */

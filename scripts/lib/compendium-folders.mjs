@@ -147,6 +147,15 @@ const needsWrite = (entry, reset) =>
   reset || !entry.folder || !game.folders.get(entry.folder);
 
 /**
+ * A pack's configuration entry as it was given. Core hands one back with every
+ * key of its schema, the ones never given undefined, and counts keys when it
+ * compares two objects: an entry as read never equals the one a pass leaves,
+ * which holds only the keys that pass sets.
+ */
+const given = (entry) =>
+  Object.fromEntries(Object.entries(entry ?? {}).filter(([, value]) => value !== undefined));
+
+/**
  * Write the folder assignments and answer what changed.
  *
  * `reset` is the difference between the two strengths (docs/lib/MODEL.md,
@@ -164,7 +173,7 @@ async function filePacks(targets, { reset }) {
   const countFolders = () => game.folders.filter((f) => f.type === "Compendium").length;
   const judges = new Set(importedPacks().filter(({ line }) => isJudgeLine(line)).map(({ pack }) => pack.collection));
   for (const [collection, path] of targets) {
-    const entry = config[collection] ?? {};
+    const entry = given(config[collection]);
     if (!needsWrite(entry, reset)) continue;
     // JSON, not a joined string: a separator is a guess about what a folder
     // name cannot contain, and there is no such character.
@@ -179,7 +188,7 @@ async function filePacks(targets, { reset }) {
     const current = entry.folder ?? null;
     const restored = judges.has(collection) ? { folder: folderId, ownership: { ...JUDGE_SHELF_OWNERSHIP } } : { folder: folderId };
     const next = reset ? restored : { ...entry, folder: folderId };
-    if (current === folderId && foundry.utils.objectsEqual(entry, next)) continue;
+    if (current === folderId && (foundry.utils.equals ?? foundry.utils.objectsEqual)(entry, next)) continue;
     if (current && current !== folderId) vacated.add(current);
     config[collection] = next;
     moved++;

@@ -1204,7 +1204,7 @@ test("the election is asked on every path, not only in the confirm dialog", () =
 });
 
 /* ---- the training editor: units, organisations, the canonical grant ---- */
-const { grantedKeys, toggleTraining, editedSlots, trainingProvenance, classTraining } = await import("../scripts/classes/training.mjs");
+const { grantedKeys, toggleTraining, editedSlots, trainingProvenance, classTraining, setClassTraining } = await import("../scripts/classes/training.mjs");
 const { FLAG_FROM_CLASS } = await import("../scripts/classes/constants.mjs");
 const { WEAPONS: WEAPON_TABLE } = await import("../scripts/equipment/config.mjs");
 const { WEAPON_UNITS, TRAINING_VIEWS, arrangeUnits, coveredUnits, canonicalGrant, toggledGrant, nextTrainingView } = await import(
@@ -1480,6 +1480,38 @@ test("classTrainingEffect finds the effect carrying a training change, else null
   assert.equal(classTrainingEffect({ effects: [plain, training] }), training);
   assert.equal(classTrainingEffect({ effects: [plain] }), null);
   assert.equal(classTrainingEffect(null), null);
+});
+
+await atest("an edit of a class's training rewrites its effect and takes the minted stamp off with the operator", async () => {
+  // `unset()` builds core's deletion operator when it is called, so a stand-in
+  // class is enough to tell the operator from a stored null.
+  class ForcedDeletion {}
+  const saved = globalThis.foundry;
+  globalThis.foundry = { data: { operators: { ForcedDeletion } } };
+  try {
+    const writes = [];
+    const effect = {
+      changes: [
+        { key: "flags.acks-extras.other", type: "add", value: "x", priority: 5 },
+        { key: TRAINING_KEYS.weapons, type: "add", value: "axe", priority: 20 },
+      ],
+      async update(data) {
+        writes.push(data);
+      },
+    };
+    assert.equal(await setClassTraining({ effects: [effect] }, { weapons: "bow", armour: "", styles: "" }), "updated");
+    assert.equal(writes.length, 1);
+    // Two keys and no third: the stamp goes by its own path, with no `-=` key beside it.
+    assert.deepEqual(Object.keys(writes[0]), ["changes", "flags.acks-extras.minted"]);
+    assert.ok(writes[0]["flags.acks-extras.minted"] instanceof ForcedDeletion);
+    assert.deepEqual(writes[0].changes, [
+      { key: "flags.acks-extras.other", type: "add", value: "x", priority: 5 },
+      { key: TRAINING_KEYS.weapons, type: "add", value: "bow", priority: 20 },
+    ]);
+  } finally {
+    if (saved === undefined) delete globalThis.foundry;
+    else globalThis.foundry = saved;
+  }
 });
 
 // The data model touches Foundry only when its schema is built, so a stub of
