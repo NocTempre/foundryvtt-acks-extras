@@ -53,6 +53,7 @@ import { installPolyglotBridge, publishWorldLanguages } from "./polyglot.mjs";
 import { registerManagedEffectGuard, lockManagedEffectRows } from "./managed-effects.mjs";
 import { associateLabels } from "./a11y.mjs";
 import { watchWindowTitle } from "./window-title.mjs";
+import { pinFontScale, pinLook, pinTheme } from "./client-pins.mjs";
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
@@ -679,18 +680,16 @@ function dressFor(owned) {
 }
 
 /**
- * Apply the `look` / `sheetStyle` pair to the whole client, including windows
- * already open — otherwise a setting change appears to do nothing until each
- * window is closed and reopened. The `core` look also withholds
- * `body.acks-lib-sheet-theme`, the only vehicle for surfaces that are not
- * application roots (core's chat cards, every window header).
+ * Apply the `look` / `sheetStyle` pair to the whole client: every page it
+ * draws in (client-pins.mjs), and the windows already open — otherwise a
+ * setting change appears to do nothing until each window is closed and
+ * reopened. The `core` look also withholds `body.acks-lib-sheet-theme`, the
+ * only vehicle for surfaces that are not application roots (core's chat
+ * cards, every window header).
  */
 function applyLook() {
   const core = effectiveLook() === "core";
-  const html = document.documentElement;
-  if (core) html.setAttribute("data-acks-look", "core");
-  else html.removeAttribute("data-acks-look");
-  document.body?.classList.toggle("acks-lib-sheet-theme", !core);
+  pinLook(core);
   applyRootPin(game.settings.get(MODULE_ID, "theme"));
   for (const app of foundry.applications.instances.values()) {
     const root = app.element;
@@ -709,17 +708,15 @@ function applyTheme(mode) {
 }
 
 /**
- * Write (or clear) the `data-acks-theme` pin on <html>, never <body> — see
- * docs/lib/MODEL.md's client-settings section for why the element matters.
- * Split out from applyTheme so applyLook can re-run it without the two
- * calling each other. Stands down under the `core` look, which resolves the
- * ACKS tokens to Foundry's own theme-aware variables.
+ * Write (or clear) the `data-acks-theme` pin on every page's <html>, never
+ * <body> — see docs/lib/MODEL.md's client-settings section for why the
+ * element matters. Split out from applyTheme so applyLook can re-run it
+ * without the two calling each other. Stands down under the `core` look,
+ * which resolves the ACKS tokens to Foundry's own theme-aware variables.
  */
 function applyRootPin(mode) {
-  const root = document.documentElement;
   const core = effectiveLook() === "core";
-  if (!core && (mode === "light" || mode === "dark")) root.setAttribute("data-acks-theme", mode);
-  else root.removeAttribute("data-acks-theme");
+  pinTheme(!core && (mode === "light" || mode === "dark") ? mode : null);
 }
 
 /**
@@ -761,13 +758,19 @@ Hooks.on("renderApplicationV2", (app, element) => {
 /**
  * Drive --acks-fs-base (the family-wide type knob) from the fontScale
  * setting. At the token default (14) the inline property is removed so the
- * stylesheet value governs. The pin lands on <html>, never <body> — see
- * docs/lib/MODEL.md's client-settings section for why the element matters.
+ * stylesheet value governs. The pin lands on every page's <html>, never
+ * <body> — see docs/lib/MODEL.md's client-settings section for why the
+ * element matters.
  */
 function applyFontScale(px) {
   const n = Number(px);
-  if (!Number.isFinite(n) || n === 14) document.documentElement.style.removeProperty("--acks-fs-base");
-  else document.documentElement.style.setProperty("--acks-fs-base", `${n}px`);
+  pinFontScale(Number.isFinite(n) && n !== 14 ? n : null);
+}
+
+/** Apply the client's whole state: the look, the theme, the dress of every open window, and the type size. */
+function applyClientPins() {
+  applyLook();
+  applyFontScale(game.settings.get(MODULE_ID, "fontScale"));
 }
 
 /**
@@ -795,8 +798,12 @@ Hooks.once("ready", () => {
   // `body.acks-lib-sheet-theme` is the marker that ACKS surfaces are themed
   // (docs/lib/MODEL.md's theming section); it stays a class so these rules
   // out-specify the system's own unscoped window-header selectors.
-  applyLook();
-  applyFontScale(game.settings.get(MODULE_ID, "fontScale"));
+  applyClientPins();
+
+  // Core copies the main page's attributes into a detached browser window
+  // before it lists the window, so a setting changed while one opens is
+  // applied to it here.
+  Hooks.on("openDetachedWindow", applyClientPins);
 
   // Bind every caption in every rendered window to the control it fronts —
   // this module's windows, the system's sheets, and Foundry's own config

@@ -210,7 +210,9 @@ an instance. The hook takes its root through `elementOf` (`util.mjs`), which
 tells an element by its `nodeType`, so the mark lands there as it does in the
 main window, and keeps landing after core brings the window back. The detached
 page has what the mark needs: as it opens, core copies into it the main page's
-stylesheets and the attributes of its `<html>` and `<body>`.
+stylesheets and the attributes of its `<html>` and `<body>`, and from then on
+this module writes its pins there as it does in the main page (below, "The
+pins are written to every page the client draws in").
 
 ### The `look` setting: whose palette, not how much of it
 
@@ -353,8 +355,9 @@ an embedded item's sheet is not re-resolved until then.
 
 - `look` — `world` (default), `book` or `core`, per the sections above. Sets
   `data-acks-look` on `<html>`, toggles the body class, and re-dresses open
-  windows. `applyLook()` is the single place the whole client state is applied,
-  and `ready` calls it rather than setting anything itself.
+  windows. `applyLook()` is the single place the look, the theme pin and the
+  dress are applied. `applyClientPins()` adds the type size, and `ready` calls
+  it rather than setting anything itself.
 - `theme` — `follow` (default), `light`, `dark`. Pins `data-acks-theme` on
   `<html>`; `follow` removes the attribute so Foundry's own scheme governs.
   **Stands down under `look: core`**, and must: the tokens then resolve to
@@ -384,6 +387,22 @@ adapter is the one block that must name `body` and `.themed` explicitly in its
 selector for the mirror-image reason — it *reads* the host's variables, and
 Foundry re-declares those on `<body>` (which it does **not** mark `.themed`) and
 again on each themed application root.
+
+**The pins are written to every page the client draws in.** A detached browser
+window is a second document. Core gives it the main page's `<html>` and
+`<body>` attributes as it opens and again at its own interface pass
+(`game.configureUI`), setting each attribute the main element has and removing
+none, so a pin released in the main page alone would stand in a detached one.
+The appliers decide what holds and `client-pins.mjs` writes it. `clientPages()`
+answers the main document and the document of each detached window core lists,
+read at every call, and `pinLook`, `pinTheme` and `pinFontScale` set or release
+one attribute, one class or one custom property on each. None of them copies a
+whole `class` or `style` value: a detached `<body>` carries core's own
+`detached` class, and the main one does not. A window that has closed stays in
+core's list for about a second, and is passed by. `applyClientPins()` runs at
+`ready` and on core's `openDetachedWindow`, because core copies the attributes
+before it lists a window, and a setting changed between the two reaches neither
+the copy nor the list.
 
 ## Label association
 

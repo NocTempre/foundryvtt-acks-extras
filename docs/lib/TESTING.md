@@ -1244,6 +1244,10 @@ only a real pointer on a real header proves the rest. Step 10 is also the
 walk for `elementOf` (`util.mjs`), which every render hook takes its root
 through: `tools/test-lib.mjs` holds its cases against stand-ins from a second
 realm, and only a window first rendered in a detached one proves the hooks.
+Steps 11 to 13 cover the look, theme and type-size pins on a detached page
+(`client-pins.mjs`): `tools/test-lib.mjs` holds the writers against stand-in
+pages, and only a second document that core itself copies into proves the two
+agree.
 
 **Drive notes:**
 - **Count lines from a `Range`.** Select the title's contents and count the
@@ -1322,6 +1326,45 @@ realm, and only a window first rendered in a detached one proves the hooks.
   nothing and reads as a dead control. `Emulation.setDeviceMetricsOverride` on
   the popup's session sets its viewport, and `elementFromPoint` in the popup's
   document says whether the control is under the point.
+- **`detachWindow()` resolves before the window has moved.** Core queues the
+  move behind the render it awaits. Poll until
+  `app.element.ownerDocument !== document` and
+  `foundry.applications.detached.windows.has(app.id)`.
+- **Read a page's pins off its own document.**
+  `foundry.applications.detached.windows` maps an id to `{window}`. The pins
+  are `data-acks-look` and `data-acks-theme` on
+  `window.document.documentElement`, its inline `--acks-fs-base`
+  (`style.getPropertyValue`), and `acks-lib-sheet-theme` on
+  `window.document.body`. Compute a window's styles with its own page's
+  `getComputedStyle`, `el.ownerDocument.defaultView`. Leave `body.detached`
+  out of a comparison: it is core's, the main page never has it, and the
+  popup loses it at core's first interface pass.
+- **Core's interface pass is
+  `game.configureUI(game.settings.get("core", "uiConfig"))`.** After the
+  driver's `api.compose()`, call `ui.hotbar.render({force: true})` first.
+  `compose()` closes core's own interface too, and the pass resizes the
+  hotbar, so it throws on the element that is gone.
+- **Change a setting while a page opens.** For one detach, wrap
+  `copyAttributes` on `Object.getPrototypeOf(foundry.applications.detached)`.
+  When it is handed a `<body>` of another document, put the original back and
+  call `game.settings.set`: a client setting's `onChange` has run by the time
+  `set` returns. The new window joins `detached.windows` only after that.
+- **A closed window stays listed for a second.** `window.closed` is true, the
+  entry is still in `detached.windows`, and its `document` still answers. The
+  closed document's own attributes say whether anything wrote to it.
+- **Drive Configure Settings with keys.**
+  `game.settings.sheet.render({force: true})` opens it. The module's tab is
+  `nav.tabs button[data-action="tab"][data-tab="acks-extras"]`, a control is
+  named `acks-extras.<key>`, and Save is
+  `footer.form-footer button[type="submit"]`. A `<select>` focused from
+  script moves one option for each `ArrowDown` or `ArrowUp`. The type size is
+  a `range-picker`, and its `input[type="range"]` moves half a pixel for each
+  `ArrowRight`. Send a key as
+  `Input.dispatchKeyEvent`, `rawKeyDown` then `keyUp`. The walk had
+  `Emulation.setFocusEmulationEnabled` on, and was not tried without it. The
+  window closes on Save.
+- **The three settings are this browser's alone.** They are client settings,
+  kept in the driver's own profile, and changing them moves no other seat.
 
 **Fixtures (each id recorded with `api.create`):** an `acks-extras.vehicle`
 named with an invented phrase of about 45 characters, and a `monster` and an
@@ -1329,7 +1372,8 @@ named with an invented phrase of about 45 characters, and a `monster` and an
 a `character` owned by every seat (`ownership: {default: 3}`) holding an
 `item` of `system.quantity.value` 6 named with one of about 70, and a plain
 world `item`. For step 10, a second `acks-extras.vehicle`, a second `monster`
-and two more `character`s, each named with the 85-character phrase.
+and two more `character`s, each named with the 85-character phrase. For steps
+11 to 13, three `acks-extras.vehicle`s under any name.
 
 **The probe.** Run it on a heading element. A window's title is
 `app.element.querySelector(":scope > .window-header .window-title")`.
@@ -1496,16 +1540,74 @@ and two more `character`s, each named with the 85-character phrase.
       `instanceof HTMLElement` false, keeps the dress and one of each control
       across a `render()`, and its title answers a hover in the main page.
     - The console holds no error.
+11. **A setting changed while a window is popped out.** Detach a vehicle's
+    sheet and take a reading at the defaults. Then take one after each of
+    these: `fontScale` 18; `theme` `light`, then `dark`, then `follow`;
+    `theme` `dark` with `look` `core`; `look` `book`; `fontScale` 14; `theme`
+    `follow` with `look` `world`. From `dark` on, take another once core's
+    interface pass has run. A reading is each page's pins, a dressed dialog
+    rendered fresh in the main window, one handed to the sheet's
+    `renderChild`, and the detached sheet itself. The figures are with core's
+    colour scheme dark, as the driver's browser has it.
+    **Observable:**
+    - At every reading the popup's pins equal the main page's, and the two
+      fresh dialogs agree in title size, ground, ink and `--acks-paper`.
+    - At 18 both pages carry an inline `--acks-fs-base` of `18px` and both
+      fresh titles read 19.98px. Under `light` both grounds are
+      `rgb(253, 251, 249)`, and under `dark` `rgb(27, 20, 22)`.
+    - Under `core` both pages carry `data-acks-look="core"`, neither carries
+      `data-acks-theme` or the body class, and both fresh dialogs come up
+      undressed, a 13px title on `rgba(11, 10, 19, 0.9)`.
+    - A release arrives with no interface pass. After `follow` neither page
+      has `data-acks-theme`. After `book` neither has `data-acks-look`, both
+      bodies carry the class and both carry `data-acks-theme="dark"` again.
+      After 14 neither has an inline `--acks-fs-base`.
+    - The detached sheet, open since before each change, follows at once. Its
+      title reads 19.98px at 18 and 15.54px at 14, it loses the dress under
+      `core`, and after `book` its ground is `rgb(27, 20, 22)` with
+      `--acks-paper` at `#1b1416`. A sheet dressed in a page that kept
+      `data-acks-look` reads `rgba(0, 0, 0, 0)` and `transparent` there.
+12. **A page that opens, and a window that has closed.**
+    - With `fontScale` 16.5 and `theme` `light` set, detach a second sheet.
+      **Observable:** the new page equals the main one as it opens, a fresh
+      title of 18.315px on `rgb(253, 251, 249)` in all three pages, and the
+      next change reaches both popups.
+    - Set `theme` `dark` and `fontScale` 14, arm the wrap of the drive notes
+      with `theme` `follow` and `fontScale` 18, and detach a third sheet.
+      **Observable:** the wrap finds the page unlisted, carrying
+      `data-acks-theme="dark"` and no inline knob. Once the detach completes,
+      the page carries no theme pin and `18px`, as the main page does, and a
+      fresh title there reads 19.98px.
+    - Call `attachWindow()` on the second sheet and change `fontScale` at
+      once, again 400ms later, and then run core's interface pass. Close the
+      third popup with its window's `close()` and do the same with `theme`.
+      **Observable:** each window reads `closed` and is still listed. No
+      change throws, core's pass does not, and the console holds no error.
+      Through both changes the closed document keeps the knob and the theme
+      attribute it closed with. Core's pass then sets `data-acks-theme` on
+      the popup closed by hand, and that write is core's.
+13. **Through Configure Settings.** With a sheet detached and the defaults in
+    force, open the settings window in the main page and click the module's
+    tab. Set the theme to light and the type size to 18 with the keys of the
+    drive notes, and click Save. Open it again, set the look to core, and
+    save. Open it again, put all three back, and save.
+    **Observable:** before each Save, neither page has changed. After each,
+    the settings window has closed and the two pages carry the same pins, by
+    the figures of step 11: 19.98px on `rgb(253, 251, 249)`, then undressed,
+    then 15.54px on `rgb(27, 20, 22)` with no pin left in either page.
 
 **Not reached.** A browser other than the Chromium build the capture driver
-launches. In a popup: a scene, region, wall or roll-table configuration
+launches. The world's UI preset changed from another seat while a window is
+detached: it arrives through the `look` setting's own applier and was read,
+not driven. In a popup: a scene, region, wall or roll-table configuration
 window, the token HUD, a chat card and a directory context menu, whose hooks
 take their element through the same resolver. The hit-point window is "The
 hit-point tool", step 10; the repair window's own checkbox guard needs a
 finding to tick and was read, not driven.
 
 **Teardown.** Close the windows, the constructed system sheet included, set
-`look` and `sheetStyle` back to what step 7 found, and `api.sweepTracked()`.
+`look` and `sheetStyle` back to what step 7 found and `theme` and `fontScale`
+back to what step 11 found, and `api.sweepTracked()`.
 
 ## Conditions on the palette and on a roll
 

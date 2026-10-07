@@ -2935,6 +2935,10 @@ under `scripts/`, and takes `// realm-ok: <reason>` as its escape
 (`.claude/rules/ui-layout.md`). It reads 24 `instanceof` tests here and fails
 none.
 
+**Amended 2026-10-06.** The gap the last finding names is closed, and its
+ROADMAP section is gone: "A client's pins are written to every page it draws
+in".
+
 **Found live.** On core 14.367, with a parent sheet detached by core's own
 control and each subject handed to its `renderChild`.
 - The root of a window first rendered inside a detached browser window is an
@@ -3024,6 +3028,103 @@ falsy. A system window first rendered in a detached window changes face
 there. Nothing renders one that way at this date: the windows core itself
 first renders there are its own, and neither this module nor the system calls
 `renderChild` or passes a `windowId`.
+
+### A client's pins are written to every page it draws in (2026-10-06)
+
+**Ruled.** The look, the theme and the type size are marks on a page, and a
+client has as many pages as it has browser windows. `client-pins.mjs` holds
+the list, `clientPages()`: the main document, then the document of each
+detached window core lists, read at every call. `pinLook`, `pinTheme` and
+`pinFontScale` set or release one attribute, one class or one custom property
+on each. `applyLook`, `applyRootPin` and `applyFontScale` keep the deciding
+and call them. `applyClientPins()` applies the whole state at `ready` and on
+core's `openDetachedWindow`. This closes the last finding of "An element is
+told by its `nodeType`, never by its constructor".
+
+**Found live.** On core 14.367, before the change: a sheet detached by
+`detachWindow()`, and each setting changed through `game.settings.set`.
+- Core's interface pass sets and never clears. `game.configureUI` copies each
+  attribute the main `<html>` and `<body>` have into every listed window, so
+  a theme pin, a look or a type size set in the main page arrived in the
+  detached one at the next pass. A theme pin released by `follow` stayed in
+  the detached page through that pass, and so did a `data-acks-look` released
+  by `book`. A released type size did arrive: the knob lives in `style`, and
+  `style` is copied whole.
+- A look that outlives its release leaves a dressed window on nothing. Once
+  the detached page held `data-acks-look="core"` and the look went back to
+  `book`, `applyLook` dressed that page's windows again while the adapter
+  there still held every token at Foundry's. A dressed dialog stood on
+  `rgba(0, 0, 0, 0)` with `--acks-paper` `transparent` and ink
+  `rgb(231, 209, 177)`, against `rgb(27, 20, 22)`, `#1b1416` and
+  `rgb(237, 230, 223)` in the main window. It stayed so through every later
+  pass, to the end of the walk.
+- A page opened with pins standing equals the main page. Core's copy as it
+  opens carries them.
+- Core copies before it lists. A setting changed after the copy into a new
+  page's `<body>` found that page absent from `detached.windows`, carrying
+  the old theme pin and no type size. The type size arrived at core's next
+  pass, and the released theme pin stayed.
+- Core's pass copies `class` whole. The detached `<body>` has core's own
+  `detached` class as it opens and has lost it after the first pass: 18 of 26
+  readings lacked it, before the change and after. Four of core's rules key
+  on that class, the one that lifts a window's size cap in a detached page
+  among them. What a player sees of the loss was not measured. It is core's
+  to mend, and it is why no writer here copies a whole attribute.
+- A closed window stays in core's list for a second. It reads `closed`, its
+  `document` still answers with a root and a body, and its `defaultView` is a
+  window at once and null 400ms later. Core's pass threw nothing on it.
+
+**Measured.** From the Assistant GM seat with core's colour scheme dark, the
+same 21 steps before the change and after it: each setting set and released,
+core's pass between, a second page opened under standing pins, a third opened
+mid-change, and two windows closed.
+- Detached pages equal to the main page in their pins: 3 of 26 readings
+  before, 26 of 26 after. A dialog rendered fresh in a detached page equal to
+  the main window's in title size, ground, ink and paper: 7 of 26 before, 26
+  of 26 after.
+- The main page, its fresh dialog and the settings read the same before and
+  after at all 21 steps.
+- The recorded figures reproduced before the change: 15.54px against 19.98px
+  at a type size of 18, and `rgb(27, 20, 22)` against `rgb(253, 251, 249)`
+  under `light`.
+- The page opened mid-change read no theme pin and `18px` after the change,
+  as the main page did. Before it, that page kept `dark` and no type size.
+- A sheet open in the detached page since before each change followed at
+  once: 19.98px at 18, undressed under `core`, `rgb(27, 20, 22)` again after
+  `book`.
+- With a closed window still listed, no setting change threw or logged,
+  whether `attachWindow()` closed it or its own `close()` did. The closed
+  document kept the type size and the theme attribute it closed with. Core's
+  pass then set a theme attribute on it.
+- Through Configure Settings, in a third run: 22 real key presses on three
+  controls, and a real click on Save three times. Neither page changed before
+  a Save, and both carried the same pins after each. That run read 29 of 29
+  on both counts above.
+- `tools/test-lib.mjs` holds three cases against stand-in pages, one page
+  built in a second realm. Eight mutants of the writers each failed the
+  suite: the main page alone, a closed window written to, the page list read
+  once, each of the three releases dropped, the body class left alone, and
+  another class cleared.
+- The three runs logged no console error at load, `init`, `setup`, `ready` or
+  during the walk.
+
+**Rejected.**
+- *Calling `game.configureUI()` from the appliers.* It is core's own carrier,
+  and it did reach the detached page. It never clears, so a released theme or
+  look would stand, and each call costs the detached `<body>` its `detached`
+  class.
+- *Mirroring the main `<html>` with a `MutationObserver`.* It needs the same
+  list of pins to tell a release from an attribute the main page never had,
+  and it runs after the setting's `onChange` has returned.
+- *Each applier writing to `win.document` itself.* Three walks of core's list
+  are three places to forget a closed window.
+
+**What it cost.** One file and one hook. A detached page now changes face
+with the main one, where before it waited for core's next pass. Nothing
+forces a fourth pin through `clientPages()`: one written to
+`document.documentElement` alone opens this gap again, and no test fails. A
+check for that write is the family validator's to carry, and at this date
+nothing gates it.
 
 ### Coin is kept in stores, and a holder states their order (2026-10-01)
 

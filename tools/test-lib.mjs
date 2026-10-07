@@ -56,6 +56,7 @@ import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
 import { mathIsPrivate, mathSection, postToJudges } from "../scripts/lib/roll-audience.mjs";
 import { elementOf, gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
+import { clientPages, pinFontScale, pinLook, pinTheme } from "../scripts/lib/client-pins.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../scripts/lib/sheet-rows.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import { clockReading, darkBounds, isDarkAt } from "../scripts/lib/world-time.mjs";
@@ -2373,6 +2374,126 @@ t("elementOf: an element another window's document built is still an element", (
   assert.equal(elementOf(foreign.root), foreign.root);
   assert.equal(elementOf(foreign.form), foreign.form, "and a form there is not indexed either");
   assert.equal(elementOf(foreign.wrapped), foreign.wrapped[0]);
+});
+
+// --- the client's pins, on every page --------------------------------------
+
+/**
+ * A page as the pin writers see one: an `<html>` holding attributes and an
+ * inline style, and a `<body>` holding classes. `seed` is what the page
+ * already carries.
+ */
+const standInPage = (seed = {}) => {
+  const attrs = new Map(Object.entries(seed.attrs ?? {}));
+  const props = new Map(Object.entries(seed.style ?? {}));
+  const classes = new Set(seed.classes ?? []);
+  return {
+    documentElement: {
+      setAttribute: (k, v) => void attrs.set(k, String(v)),
+      removeAttribute: (k) => void attrs.delete(k),
+      getAttribute: (k) => (attrs.has(k) ? attrs.get(k) : null),
+      style: {
+        setProperty: (k, v) => void props.set(k, String(v)),
+        removeProperty: (k) => void props.delete(k),
+        getPropertyValue: (k) => props.get(k) ?? "",
+      },
+    },
+    body: {
+      classList: {
+        toggle: (c, on) => (on ? classes.add(c) : classes.delete(c), on),
+        contains: (c) => classes.has(c),
+      },
+    },
+  };
+};
+/** The same page built in a second realm, as a detached browser window's document is. */
+const detachedPage = vm.runInNewContext(`(${standInPage})`);
+/** Core's list of detached windows: each entry of `listed` is `[id, page, closed?]`. */
+const listing = (listed) => new Map(listed.map(([id, page, closed = false]) => [id, { window: { closed, document: page } }]));
+const pagesOf = (main, windows) => ({ document: main, foundry: { applications: { detached: { windows } } } });
+const pinsOf = (page) => ({
+  look: page.documentElement.getAttribute("data-acks-look"),
+  theme: page.documentElement.getAttribute("data-acks-theme"),
+  size: page.documentElement.style.getPropertyValue("--acks-fs-base"),
+  themed: page.body.classList.contains("acks-lib-sheet-theme"),
+});
+
+t("clientPages: the main page, then each detached page core lists, less a closed one", () => {
+  const main = standInPage();
+  const [one, two, shut] = [detachedPage(), detachedPage(), detachedPage()];
+  assert.equal(one instanceof Object, false, "the stand-in really is from another realm");
+  const windows = listing([["one", one], ["shut", shut, true], ["two", two]]);
+  withGlobals(pagesOf(main, windows), () => {
+    const pages = clientPages();
+    assert.equal(pages.length, 3, "a window that has closed and is still listed is passed by");
+    assert.ok(pages[0] === main && pages[1] === one && pages[2] === two, "the main page first, then core's order");
+    windows.delete("one");
+    assert.ok(clientPages().length === 2 && clientPages()[1] === two, "the list is read at each call");
+  });
+  withGlobals({ document: main, foundry: { applications: {} } }, () => {
+    const pages = clientPages();
+    assert.ok(pages.length === 1 && pages[0] === main, "a core with no detached windows: the main page alone");
+  });
+});
+
+t("the pin writers set and release each pin on every page, and nothing else there", () => {
+  const main = standInPage();
+  const fresh = detachedPage({ classes: ["detached"] });
+  // A page still carrying what an earlier state left on it.
+  const stale = detachedPage({
+    attrs: { "data-acks-look": "core", "data-acks-theme": "dark", lang: "en" },
+    style: { "--acks-fs-base": "18px", "font-size": "16px" },
+    classes: ["detached", "theme-dark"],
+  });
+  const every = (expected, message) => {
+    for (const page of [main, fresh, stale]) assert.deepEqual(pinsOf(page), expected, message);
+  };
+  withGlobals(pagesOf(main, listing([["fresh", fresh], ["stale", stale]])), () => {
+    pinLook(false);
+    pinTheme(null);
+    pinFontScale(null);
+    every({ look: null, theme: null, size: "", themed: true }, "a release takes the pin off the page that still carried it");
+    pinLook(true);
+    every({ look: "core", theme: null, size: "", themed: false }, "the look's mark goes on as its body class comes off");
+    pinTheme("light");
+    pinFontScale(16.5);
+    every({ look: "core", theme: "light", size: "16.5px", themed: false });
+    pinTheme("dark");
+    pinFontScale(18);
+    pinLook(false);
+    every({ look: null, theme: "dark", size: "18px", themed: true });
+    pinTheme(null);
+    pinFontScale(null);
+    every({ look: null, theme: null, size: "", themed: true });
+  });
+  // One attribute, one class and one property at a time: what else a page carries stays.
+  assert.equal(stale.documentElement.getAttribute("lang"), "en");
+  assert.equal(stale.documentElement.style.getPropertyValue("font-size"), "16px");
+  assert.ok(stale.body.classList.contains("detached") && stale.body.classList.contains("theme-dark"));
+  assert.ok(fresh.body.classList.contains("detached"));
+});
+
+t("the pin writers reach a page listed since the last write, and write nothing to a closed one", () => {
+  const main = standInPage();
+  const windows = listing([]);
+  withGlobals(pagesOf(main, windows), () => {
+    const write = () => {
+      pinLook(true);
+      pinTheme(null);
+      pinFontScale(18);
+    };
+    write();
+    // Core copies the main page's attributes into a page before it lists it:
+    // this one took the state before that write.
+    const late = detachedPage({ attrs: { "data-acks-theme": "dark" }, classes: ["acks-lib-sheet-theme", "detached"] });
+    const shut = detachedPage({ attrs: { "data-acks-theme": "dark" } });
+    windows.set("late", { window: { closed: false, document: late } });
+    windows.set("shut", { window: { closed: true, document: shut } });
+    write();
+    assert.deepEqual(pinsOf(late), { look: "core", theme: null, size: "18px", themed: false });
+    assert.deepEqual(pinsOf(late), pinsOf(main), "the late page reads as the main one does");
+    assert.deepEqual(pinsOf(shut), { look: null, theme: "dark", size: "", themed: false }, "the closed window's page is as it was");
+  });
 });
 
 t("keepUnrenderedFields: a submitted row keeps every stored field its form did not send", () => {
