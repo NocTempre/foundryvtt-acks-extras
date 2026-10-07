@@ -983,7 +983,8 @@ the report), `apps/repair-app.mjs`, the settings menu and the macro, and every
 shipped check a create-and-destroy fixture can reach. `lib.strandedCoin` and
 `lib.mergeResidue` need a document the world cannot load, which no fixture
 here can make. Walk them only in a scratch world, and otherwise report them as
-not exercised.
+not exercised; offline, `tools/test-repair-checks.mjs` holds what both scans
+list for such a document, against stand-in collections.
 
 The scan reads the whole world, so a shared world shows other sessions' rows.
 **Tick only the rows that name your own fixtures.**

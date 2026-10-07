@@ -39,6 +39,7 @@ const COMMITTED = [
   "test-window-title.mjs",
   "test-magic.mjs",
   "test-repair.mjs",
+  "test-repair-checks.mjs",
   "test-hp.mjs",
   "test-battlemap.mjs",
   "test-equipment.mjs",
