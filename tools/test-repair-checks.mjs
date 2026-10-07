@@ -178,14 +178,26 @@ t("an actor with no money rows is not listed", async () => {
 });
 
 t("a row counts what it carries plus what it has banked, and rows are named in order", async () => {
-  const rows = [coin("Brass Bit", 4, 9), { name: "Rope", type: "item", system: { quantity: 2 } }, coin("Tin Chit", "3"), { type: "money" }];
+  const rows = [coin("Brass Bit", 4, 9), { name: "Rope", type: "item", system: { quantity: 2 } }, coin("Tin Chit", "3"), { type: "money", system: { quantitybank: 2 } }];
   world({ actors: { a1: actor("Shut Out", ABSENT, rows) } });
-  assert.deepEqual(await keyed(COIN, "detail"), [["Actor.a1", said(DETAIL, { type: ABSENT, coin: "13 × Brass Bit, 3 × Tin Chit, 0 × ?" })]]);
+  assert.deepEqual(await keyed(COIN, "detail"), [["Actor.a1", said(DETAIL, { type: ABSENT, coin: "13 × Brass Bit, 3 × Tin Chit, 2 × ?" })]]);
 });
 
-t("a money row that counts nothing still lists its actor", async () => {
-  world({ actors: { a1: actor("Shut Out", ABSENT, [coin("Brass Bit", 0, 0)]) } });
-  assert.deepEqual(await keyed(COIN, "detail"), [["Actor.a1", said(DETAIL, { type: ABSENT, coin: "0 × Brass Bit" })]]);
+t("an actor whose money rows count nothing is not listed", async () => {
+  world({
+    actors: {
+      a1: actor("Empty purse", ABSENT, [coin("Brass Bit", 0, 0)]),
+      a2: actor("Bare row", ABSENT, [{ type: "money" }]),
+      a3: actor("Overdrawn", ABSENT, [coin("Brass Bit", -3, 0), coin("Tin Chit", 2, -2)]),
+      a4: actor("Shut Out", ABSENT, PURSE),
+    },
+  });
+  assert.deepEqual(await keys(COIN), ["Actor.a4"]);
+});
+
+t("a row that counts nothing is left out of the coin its actor is listed with", async () => {
+  world({ actors: { a1: actor("Shut Out", ABSENT, [coin("Brass Bit", 0, 0), coin("Tin Chit", 5, 0)]) } });
+  assert.deepEqual(await keyed(COIN, "detail"), [["Actor.a1", said(DETAIL, { type: ABSENT, coin: "5 × Tin Chit" })]]);
 });
 
 t("an actor with no name is listed under its id", async () => {
@@ -232,6 +244,12 @@ t("an Actor or Item of a retired module's sub-type is residue the cleaner macro 
 t("a residue actor that holds coin names the coin in place of the macro", async () => {
   world({ actors: { a1: actor("Old Hand", RETIRED, [coin("Brass Bit", 4, 9)]) } });
   assert.deepEqual(await keyed(RESIDUE, "reason"), [["invalid:Actor:a1", said(HOLDS_COIN, { coin: "13 × Brass Bit" })]]);
+});
+
+t("a residue actor whose money rows count nothing is sent to the macro, and the coin check does not list it", async () => {
+  world({ actors: { a1: actor("Old Hand", RETIRED, [coin("Brass Bit", 0, 0)]) } });
+  assert.deepEqual(await keyed(RESIDUE, "reason"), [["invalid:Actor:a1", said(VIA_MACRO)]]);
+  assert.deepEqual(await COIN.scan(), []);
 });
 
 t("a residue document with no name is listed under its id", async () => {

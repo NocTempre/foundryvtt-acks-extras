@@ -55,14 +55,15 @@ function invalidSources(collection) {
 }
 
 /**
- * An actor's coin as the raw source holds it: `{rows, text}`. A row's count
- * and its banked figure are added: the sweep that moves a banked figure into
- * a vault reaches loaded documents only, so on a source that does not load
- * the banked figure is still coin the actor is owed.
+ * An actor's coin as the raw source holds it: `{rows, text}`, over the money
+ * rows that count more than nothing. A row's count and its banked figure are
+ * added: the sweep that moves a banked figure into a vault reaches loaded
+ * documents only, so on a source that does not load the banked figure is
+ * still coin the actor is owed.
  */
 function strandedCoin(src) {
-  const coin = (Array.isArray(src?.items) ? src.items : []).filter((i) => i?.type === ITEM_TYPE.money);
   const count = (i) => (Number(i.system?.quantity) || 0) + (Number(i.system?.quantitybank) || 0);
+  const coin = (Array.isArray(src?.items) ? src.items : []).filter((i) => i?.type === ITEM_TYPE.money && count(i) > 0);
   return { rows: coin.length, text: coin.map((i) => `${count(i)} × ${i.name ?? "?"}`).join(", ") };
 }
 

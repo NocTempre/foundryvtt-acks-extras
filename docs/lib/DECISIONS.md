@@ -2917,6 +2917,38 @@ them. With the equipment feature's roll automation off, a character's load
 counts coin as core does, in whole stones. A unit's pay lands on the unit's
 own actor, where no sheet lists it.
 
+### A repair scan lists only what it found (2026-10-06)
+
+**Ruled.** A scan lists findings and leaves out what only might be one.
+`strandedCoin` (`repair-checks.mjs`) reads as coin only a money row whose
+carried and banked figures come to more than nothing. So `lib.strandedCoin`
+does not list an unloadable actor whose money rows are all empty, a listed
+actor's coin names no empty row, and `lib.mergeResidue` sends an actor with
+only empty rows to the cleaner macro with no coin warning (MODEL, "The repair
+tool"). This refines "One standing repair tool" (2026-09-23): under it any
+money row listed its actor, as holding 0 of that coin.
+
+Retired modules are retired. A retired acks-* module is still never named as
+the package to enable, as that entry rules, and nothing is built for one that
+is still switched on.
+
+**Rejected.**
+- *Listing every actor that has a money row.* An empty row gives the Judge
+  nothing to act on, and on a residue row it warned against the macro over
+  coin that was not there.
+- *A mode that also lists the near misses.* A debug listing is built when one
+  is asked for, and none was.
+- *Making the two checks agree where a retired module is still enabled.* An
+  actor of its sub-type that still cannot load and holds coin gets a residue
+  row saying its coin is listed under the coin check, while the coin check
+  skips an enabled package and lists nothing. Left as it is.
+
+**What it cost.** An unloadable actor with only empty money rows appears
+nowhere in the coin check, and a count below nothing reads as nothing. No
+fixture in the shared test world can hold a document that does not load, so
+the change rests on `tools/test-repair-checks.mjs` and has not been walked
+(TESTING, "The repair tool").
+
 ### An element is told by its `nodeType`, never by its constructor (2026-10-01)
 
 **Ruled.** Whatever a render hook, a dialog callback or a context-menu entry
