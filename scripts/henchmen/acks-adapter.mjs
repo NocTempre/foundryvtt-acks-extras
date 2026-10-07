@@ -212,14 +212,16 @@ export const getGold = (actor, { within = null } = {}) => acksExtras.lib.money.s
  * @param {boolean} [opts.chat=true] - post a receipt to chat
  * @param {Actor}  [opts.to]   - the payee (actor or location); coin lands there
  * @param {Actor}  [opts.at]   - the place whose exchange terms govern change
- * @param {boolean} [opts.gate=true] - apply the reach gate (Judge: false)
+ * @param {boolean} [opts.gate=true] - apply the reach gate
  * @param {"all"|"hand"|Actor|Scene|null} [opts.within] - how far the payment
  *   reaches into coin kept away from the actor (the lib's `transferCoin`)
+ * @param {boolean} [opts.judge=false] - the Judge declares the payment (the
+ *   lib's `judgeDeclares`): a reach refusal does not stop it
  */
-export async function spendGold(actor, gp, reason, { chat = true, to = null, at = null, gate = true, within = null } = {}) {
+export async function spendGold(actor, gp, reason, { chat = true, to = null, at = null, gate = true, within = null, judge = false } = {}) {
   const money = acksExtras.lib.money;
   if (to) {
-    const r = await money.transferCoin({ from: actor, to, at, gp, reason, gate, within });
+    const r = await money.transferCoin({ from: actor, to, at, gp, reason, gate, within, judge });
     if (!r.ok) return false;
   } else {
     // The sink reports a short purse and leaves the telling to its caller.
@@ -246,14 +248,14 @@ export async function spendGold(actor, gp, reason, { chat = true, to = null, at 
  * is a transfer out of that payer's coin; without one it is the Judge's mint,
  * in standard denominations, each landing as the actor's own coin of that rate
  * (the lib's `mintCoin`). Either way it lands where the actor keeps arriving
- * coin, as far as `within` reaches.
+ * coin, as far as `within` reaches. `judge` is `spendGold`'s.
  * @returns {Promise<number>} the gp credited — 0 when a transfer was refused
  */
-export async function grantGold(actor, gp, { from = null, at = null, allowMint = false, gate = true, within = null } = {}) {
+export async function grantGold(actor, gp, { from = null, at = null, allowMint = false, gate = true, within = null, judge = false } = {}) {
   if (!(Math.round(gp * 100) > 0)) return 0;
   const money = acksExtras.lib.money;
   if (from) {
-    const r = await money.transferCoin({ from, to: actor, gp, at, allowMint, gate, within });
+    const r = await money.transferCoin({ from, to: actor, gp, at, allowMint, gate, within, judge });
     return r.ok ? gp : 0;
   }
   await money.mintCoin(actor, gp, { within });

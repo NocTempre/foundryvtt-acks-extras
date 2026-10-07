@@ -130,7 +130,7 @@ const localImpl = Object.freeze({
   // and sink; `toBank` is gone from `transferCoin`.
   // 25: coin stores — `coinStores`, a holder's coin order, a payment's reach
   // (`within`), and a payment relayed where the seat cannot write.
-  apiVersion: 25,
+  apiVersion: 26,
   vocab,
   fields,
   /**

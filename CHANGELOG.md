@@ -1,5 +1,82 @@
 # Changelog
 
+## 10.2.0
+
+### Added
+
+- **Wages say when they are next due.** With nothing to pay, the Followers tab
+  reads what the payroll costs a month and how many days remain before the
+  next wage falls due, and pressing Pay wages early says the same. An open
+  sheet follows the world's clock: when the month turns, the wages due and
+  the Pay wages button appear without reopening it. A payday still pays only
+  what the clock says is due.
+- **For macros:** `acksExtras.lib` is apiVersion 26. `money.transferCoin` and
+  `money.exchangeCoins` take `judge`, `money.coinReach` names the map in
+  `scene`, and `money.reachRefusalText` words a refusal. The markets engine
+  answers `notAtMarket`, `noMarketAccess` and `payoutRefused`.
+
+### Changed
+
+- **The Judge trades for a character who is not standing at the market.** A
+  market that is on a map, by a linked scene or by its own token, refused
+  every purchase, sale, import order, commission, venture day and exchange
+  for a character with no token there, and refused the Judge exactly as it
+  refused a player. From the Judge's seat the trade now goes through, and a
+  line opening **Judge's override** says which refusal was set aside. So does
+  the fee that opens a recruiting post. A player's own request is refused as
+  before, and so is a payment nobody declares, such as a posting's later
+  weeks.
+- **A refusal says who is not where, and says it once.** The refusal read
+  "The coin cannot reach its destination from here (notHere)", and the market
+  followed it with "Not enough coin on hand or kept at this market" whatever
+  the purse held. It now names the character, the map and the market. A
+  market asks where the trader stands before it rolls bargaining or reads the
+  month's stock, so a trade that cannot be paid costs no roll.
+- **Listen and Search throws roll blind (RR 265).** From a character sheet,
+  the system's sheet or a Follower Card, a player's throw goes to the Judge
+  alone and the player sees only that it was made. A Judge's own is whispered
+  to that Judge. An ability's own Listening or Searching throw still follows
+  that ability's Blind roll box.
+- **The bribe note on a result card marks the risk and cites its page.** A
+  bribe offered without the Bribery proficiency put a line on the card that
+  worded the rule and its figure. The line now says the bribe carries a risk
+  and cites RR 287. The roll is unchanged.
+
+### Fixed
+
+- **Goods leave a seller only once the coin has landed.** A sale the till
+  refused removed the item, or the loads from a hold, and paid nothing. The
+  proceeds are now paid first, and a refusal leaves the goods where they
+  were. Goods already lost that way are not put back by this update.
+- **A player whose payday the Judge's seat refused is told so.** A player who
+  presses Pay wages for an employer whose hireling they do not own has the
+  payday carried out by the Judge's seat. When every wage in it was refused
+  there, the reason was shown to the Judge alone and the press looked as if it
+  had done nothing. The player is now told the wages were not paid, with the
+  reason and the hirelings left unpaid where the module has a sentence for it.
+- **A setting changed while a window is popped out reaches that window.** The
+  look, the theme and the type size changed while a sheet stood in a browser
+  window of its own reached it only when Foundry next redrew its interface,
+  and a look or theme that was switched off stayed on there. Each now reaches
+  every popped-out window as it changes.
+- **A popped-out window keeps its background and its full height.** After a
+  change in Foundry's Configure Interface, or a change of the browser's
+  colour scheme, a popped-out window's page turned black, and in a page
+  taller than 850 pixels a sheet lost 78 pixels of its height. Foundry takes
+  its own mark off the page at that moment; the module now puts it back.
+- **The repair tool lists only coin that is there.** An actor the world
+  cannot load was listed as holding coin for any coin row, so one whose rows
+  were all empty was listed as holding 0 of a coin, and the tool warned that
+  cleaning up would delete that actor's coin. Only a row that counts more
+  than nothing now reads as coin.
+- **The shelf repair rebuilds a class's template table on a shelf that is not
+  loaded.** Once a compendium had dropped its documents the repair stopped
+  with an error partway through the classes. It now loads the table and the
+  package it rewrites.
+- **An import raises no deprecation warning for the way it writes a good's
+  racial demand or compares a package with its snapshot.** Both are spelled
+  the way Foundry v14 asks; what is written is unchanged.
+
 ## 10.1.0
 
 ### Added

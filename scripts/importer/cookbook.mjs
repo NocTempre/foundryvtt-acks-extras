@@ -7609,9 +7609,9 @@ async function appendDemand(held, unmapped) {
       }
       const update = {};
       if (Object.keys(layers.environment).length) update["system.environment"] = layers.environment;
-      // `==` replaces the whole object: a race the book no longer names for
-      // this good must not survive the merge.
-      if (Object.keys(layers.racial).length) update["system.==racial"] = layers.racial;
+      // Replaced whole, never merged: a race the book no longer names for
+      // this good must not survive the write.
+      if (Object.keys(layers.racial).length) update["system.racial"] = foundry.data.operators.ForcedReplacement.create(layers.racial);
       if (!Object.keys(update).length) continue;
       try {
         await doc.update(update);

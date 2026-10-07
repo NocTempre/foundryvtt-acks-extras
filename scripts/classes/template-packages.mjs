@@ -648,7 +648,7 @@ export function editedSinceImport(doc) {
   const snapshot = doc?.flags?.[MODULE_ID]?.asImported;
   if (!snapshot) return true;
   const live = foundry.utils.filterObject(doc.toObject(), snapshot);
-  return !foundry.utils.objectsEqual(live, snapshot);
+  return !(foundry.utils.equals ?? foundry.utils.objectsEqual)(live, snapshot);
 }
 
 /** The comparable creation snapshot for a payload: name, type and the system
@@ -1048,7 +1048,9 @@ export async function materializeTemplates(
   let changed = false;
 
   for (const row of templates) {
-    let bundle = row.bundle ? fromUuidSync(row.bundle) : null;
+    // Loaded, never read off the index: a shelf that is not loaded answers
+    // `fromUuidSync` with an entry that can be neither compared nor written.
+    let bundle = row.bundle ? await fromUuid(row.bundle).catch(() => null) : null;
     if (bundle?.type !== ITEM_TYPE.bundle) bundle = null;
     if (!bundle) {
       // The row's uuid is a cache; the flag on the bundle is the identity an
@@ -1182,6 +1184,10 @@ async function syncTemplateTable(classItem, templates, { stamp = null, tableFold
         return part?.kind === "table" && (part.classUuid === classItem.uuid || part.classKey === classKey);
       }) ?? null;
   }
+  // A shelf that is not loaded answers `fromUuidSync` with its index entry,
+  // which carries none of the table's results and not always its flags, so
+  // the table is loaded before it is asked whose it is.
+  if (table && !table.results) table = await fromUuid(table.uuid);
   if (table && !partOf(table)) return table.uuid;
   const name = loc("templates.tableName", { class: classItem.name }) ?? `${classItem.name} Templates`;
   if (table) {

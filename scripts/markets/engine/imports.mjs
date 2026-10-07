@@ -17,7 +17,7 @@ import { magicBasisOf, capVerdict } from "../rules/goods.mjs";
 import { importPlan, dueImports, hubClass, HUBS } from "../rules/imports.mjs";
 import { marketRules, printedError } from "./printed.mjs";
 import { commissionPlan } from "../rules/commissions.mjs";
-import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
+import { registerHandler, executeAsGM, judgeDeclares } from "../../lib/sockets.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { judgesAndOwners } from "../../lib/util.mjs";
 import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
@@ -40,6 +40,7 @@ import {
   resolveSearchDayActions,
   bandGridFor,
   goodsOf,
+  awayFromMarket,
 } from "./trade.mjs";
 
 const SECONDS_PER_DAY = 86400;
@@ -78,6 +79,8 @@ export async function placeImportOrder(location, payload) {
     const user = game.users.get(requestUserId);
     if (!user?.isGM && !buyer.testUserPermission(user, "OWNER")) return err("notYours");
   }
+  const away = awayFromMarket(buyer, location, requestUserId);
+  if (away) return away;
 
   const goods = location.system.market.goods;
   const existing = (goods.imports ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
@@ -128,7 +131,7 @@ export async function placeImportOrder(location, payload) {
   const priced = buyQuote({ itemData, costGp, magic, magicBaseGp, goods, bargain });
   if (priced.error) return priced;
   const totalGp = toGp(priced.unitCp * qty);
-  const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.imports.payReason`, { qty, name: itemData.name }), { to: location, at: location, within: location });
+  const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.imports.payReason`, { qty, name: itemData.name }), { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
   if (!paid) return err("insufficientGold");
 
   const roll2d6 = (await new Roll("2d6").evaluate()).total;
@@ -307,6 +310,8 @@ export async function placeCommission(location, payload) {
     const user = game.users.get(requestUserId);
     if (!user?.isGM && !buyer.testUserPermission(user, "OWNER")) return err("notYours");
   }
+  const away = awayFromMarket(buyer, location, requestUserId);
+  if (away) return away;
   const existing = (goods.commissions ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   if (resolutionId && existing.some((o) => o.id === resolutionId)) return err("duplicate");
 
@@ -329,7 +334,7 @@ export async function placeCommission(location, payload) {
   if (!plan) return err("noRates");
 
   const wagesGp = toGp(plan.wagesCp);
-  const paid = await adapter.spendGold(buyer, wagesGp, game.i18n.format(`${LANG}.commissions.payReason`, { qty, name: itemData.name }), { to: location, at: location, within: location });
+  const paid = await adapter.spendGold(buyer, wagesGp, game.i18n.format(`${LANG}.commissions.payReason`, { qty, name: itemData.name }), { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
   if (!paid) return err("insufficientGold");
 
   const t = now();

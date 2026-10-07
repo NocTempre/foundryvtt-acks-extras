@@ -3452,3 +3452,47 @@ caller's to do. The formation guide, MODEL, TESTING and the API docstring in
 and are corrected at this date. A copy of the macro imported into a world
 before 6.0.1 still finds the call it makes: `vision.migrateWorld({reclaim})`
 and the fields of its report are unchanged.
+
+### The Judge's own payment is carried past the reach gate (2026-10-01)
+
+Field report against 10.1.0: no purchase could be made at a market that
+stands on a map. The buyer had no token there, the Judge was the one buying,
+and the refusal was followed by a second line saying the buyer was short of
+coin. The owner, asked how the gate should treat the Judge: "Judge overrides
+should be a global rule, guess it was forgotten here".
+
+**Ruled.** A reach refusal does not stop a payment the Judge declares. The
+rule is the lib's and has one expression, `judgeDeclares(requestUserId)`
+(`sockets.mjs`): authority is the declaring user's, so a player's request
+relayed to a GM's seat stays a player's, which is the reading
+docs/formation/MODEL.md, "The Judge's override", already gave gear.
+`transferCoin` and `exchangeCoins` take `judge`; where the reach would have
+refused, the payment is made and the Judge is told which refusal was waived.
+Each surface a user acts through passes it: a market's purchase, sale, import
+order, commission and venture days, its changer, and the fee that opens a
+recruiting post.
+
+This narrows docs/location/DECISIONS.md, "Reach asks about the character, and
+about one body at a time (2026-09-15)". `depositReach` still asks about the
+character and still answers both seats alike. What that entry rejected was a
+`game.user.isGM` test inside the predicate, and it placed an override "at the
+surface where a Judge can see they are using it", which is where this one is.
+
+**Rejected.**
+- *Waiving the gate on any GM client that names no requester.* A sweep the
+  clock runs (a posting's later weeks, a wage) is declared by nobody, and it
+  would have stopped asking whether the payer is there.
+- *A market that never asks.* A player would buy from any market sheet they
+  can open, and the owner's ruling that coin has to be carried to a market
+  would bind nothing.
+- *Leaving the refusal to the payment.* A market reported every refused
+  payment as a short purse, and it rolled bargaining and, on a sale, removed
+  the goods before the payment was tried. The market now asks where the trader
+  stands before it rolls or writes anything.
+
+**What it cost.** A seat difference returns, on purpose: the Judge buys for a
+character who is not at the market and a player cannot. A sale pays before
+the goods leave, so a payment the till refuses leaves the seller's goods
+where they were. The signing bonus of a hire and the deposit controls on a
+sheet are not surfaces this entry reached (ROADMAP, "What coin does not do
+yet").

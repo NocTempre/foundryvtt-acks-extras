@@ -663,6 +663,42 @@ await test("a transaction states how far it reaches: on hand, one place, or a sc
   }
   assert.equal(far.writes, 0);
 });
+await test("a reach refusal stops a payment, and the Judge's own is carried past it and says so", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(30, { _id: "g" })] });
+  worldActors.set(hero.id, hero);
+  const market = makePlace({ id: "market", name: "Market", market: true });
+  acksExtras.location = { ...mapAnswers(), reach: { depositReach: () => ({ can: false, reason: "notHere", scene: { name: "Town" } }) } };
+  const said = [];
+  const info = ui.notifications.info;
+  ui.notifications.info = (text) => said.push(text);
+  game.i18n.has = () => true;
+  try {
+    const refused = await transferCoin({ from: hero, to: market, gp: 5, reason: "buying" });
+    assert.deepEqual([refused.ok, refused.reason, refused.scene], [false, "notHere", "Town"]);
+    assert.deepEqual(warnings, ["ACKS-LIB.money.reach.notHere buying"], "the refusal is a sentence about the place, never the bare code");
+    assert.equal(hero.writes + market.writes, 0);
+    assert.deepEqual(said, []);
+
+    const carried = await transferCoin({ from: hero, to: market, gp: 5, reason: "buying", judge: true });
+    assert.equal(carried.ok, true);
+    assert.deepEqual([purse(hero), purseGp(market)], [["Gold ×25"], 5]);
+    assert.deepEqual(said, ["ACKS-LIB.money.judgeOverride"], "the Judge is told what was waived");
+
+    said.length = 0;
+    assert.equal((await transferCoin({ from: hero, to: market, gp: 1, gate: false, judge: true })).ok, true);
+    assert.deepEqual(said, [], "a payment that states no gate has nothing to waive");
+
+    warnings.length = 0;
+    const turned = await money.exchangeCoins({ actor: hero, place: market, itemId: "g", count: 1, toCv: 10 });
+    assert.deepEqual([turned.ok, turned.reason, warnings], [false, "notHere", ["ACKS-LIB.money.reach.notHere"]], "the changer refuses under the same sentence");
+    assert.equal((await money.exchangeCoins({ actor: hero, place: market, itemId: "g", count: 1, toCv: 10, judge: true })).ok, true);
+    assert.deepEqual(said, ["ACKS-LIB.money.judgeOverride"]);
+  } finally {
+    delete acksExtras.location;
+    delete game.i18n.has;
+    ui.notifications.info = info;
+  }
+});
 await test("where a transaction states nothing, the world's standing reach decides", async () => {
   const hero = makeActor({ id: "hero", items: [gold(2)] });
   worldActors.set(hero.id, hero);

@@ -37,6 +37,16 @@ export function runRelayed(fn, senderId, args) {
   return fn(...args);
 }
 
+/**
+ * Does the Judge declare this act? Authority is the declaring user's, never
+ * the executing client's: a player's request relayed to a GM's seat carries
+ * that player's id (`runRelayed`) and stays a player's, and a GM's own carries
+ * none. A surface the Judge acts through passes the answer to the gate it
+ * would otherwise meet; a sweep no user declared passes nothing.
+ * @param {string|null} [requestUserId]  The relayed sender, as `runRelayed` stamps it.
+ */
+export const judgeDeclares = (requestUserId = null) => !requestUserId && !!game.user?.isGM;
+
 /** socketlib binds `this.socketdata.userId` to the attested sender, locally too. */
 const viaSocketlib = (fn) =>
   function relayed(...args) {

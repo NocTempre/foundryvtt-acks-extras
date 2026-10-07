@@ -1,4 +1,4 @@
-# lib API (apiVersion 25)
+# lib API (apiVersion 26)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 25,
+  apiVersion: 26,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -887,12 +887,13 @@ on it). Left out, the call takes the world setting `coinScope`.
 | `ownCoin(holder)` / `purseGp(holder)` | The coin rows a holder has on them that are their own, loose ones first: an actor's purse and what its containers hold, or a place's house-owned stacks. And what they are worth in gold. |
 | `spendableGp(holder, {within?})` | What a payment may draw on, in gold: every store inside the reach that no lock shuts. |
 | `standingCoinScope()` / `COIN_SCOPE_SETTING` | The world's standing reach, `"all"`, `"scene"` or `"hand"`, and the key of the setting that states it. |
-| `coinReach(from, to)` | `{can, reason}`: may coin get from one holder to the other now. |
+| `coinReach(from, to)` | `{can, reason, scene?}`: may coin get from one holder to the other now. A refusal about a place on a map names the map. |
+| `reachRefusalText(reach, from, to)` | `coinReach`'s refusal as a sentence about the two holders. |
 | `creditCoin(holder, credits, {ownerUuid?, ownerName?, into?, within?})` | Lands coin in the store the holder's order names, on the row of its kind there. A credit is `{count}` plus `source` (a coin row's plain data), or `name` and `cv`, or `cv` alone. `into` is a store key that overrides the order; `ownerUuid` puts the coin on the holder under that owner whatever any order says. Resolves to `{updates, creates}`. |
 | `mintCoin(holder, gp, opts?)` | Coin from nowhere, in standard denominations. `opts` are `creditCoin`'s. |
 | `sinkCoin(holder, gp, {within?})` | Coin paid to nobody. `{ok, changeCp}`, or `{ok: false, reason: "insufficient", shortfallCp}` with nothing written. It does not warn; the caller says why. |
-| `transferCoin({from, to, gp, reason?, at?, gate?, allowMint?, upTo?, within?})` | Coin from one holder to another. `{ok, changeCp}`, or `{ok, paidCp, arrearsCp}` under `upTo`, or `{ok: false, reason}` after its own warning (`notTogether` and the other reach reasons, `insufficient`, `noChange`). |
-| `exchangeCoins({actor, place, itemId, count, toCv})` | One kind for another at a market. `{ok, paidOutCp}`. |
+| `transferCoin({from, to, gp, reason?, at?, gate?, allowMint?, upTo?, within?, judge?})` | Coin from one holder to another. `judge` carries the Judge's own payment past a reach refusal and tells them what was waived (`judgeDeclares`, `lib/sockets.mjs`). `{ok, changeCp}`, or `{ok, paidCp, arrearsCp}` under `upTo`, or `{ok: false, reason}` after its own warning (`notTogether` and the other reach reasons, `insufficient`, `noChange`). |
+| `exchangeCoins({actor, place, itemId, count, toCv, judge?})` | One kind for another at a market. `{ok, paidOutCp}`. `judge` is `transferCoin`'s. |
 | `gatherCoin(holder)` | Folds rows of one kind in one store into one, on the holder and at each place keeping coin for them that the seat may write. `{merged}`. |
 | `coinTemplate({cv?, name?})` | The plain data a new row of that coin is copied from, or `null` when the world has none. |
 

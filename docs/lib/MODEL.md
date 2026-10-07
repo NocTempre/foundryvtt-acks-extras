@@ -841,7 +841,15 @@ payment never mints. With no GM connected the answer is
 each other at all, before any store is read. It passes a place through the
 location feature's deposit reach, an employer and a hireling through the
 roster, an employer and a paid unit through the employer the unit's own actor
-names, and any other two actors when they stand on one scene.
+names, and any other two actors when they stand on one scene. A refusal is a
+sentence naming the holder, the place and the map (`reachRefusalText`).
+
+**The Judge's own payment.** `judgeDeclares(requestUserId)` (`sockets.mjs`)
+says whether the Judge declares an act: a GM's seat acting for itself, never a
+player's request relayed to it. A surface a user acts through passes the
+answer as `judge` to `transferCoin` or `exchangeCoins`. Where the reach
+would have refused, the payment is made and the Judge is told which refusal
+was waived. A payment no user declares, a sweep, passes nothing and is gated.
 
 **Dividing and joining.** `divideStack(item, count)` copies the row at
 `count` beside itself and reduces the original. `joinStacks(item, onto)` adds

@@ -20,10 +20,11 @@ None. The check reads what the module attached; it creates nothing.
    silently dead, so check the console, not the sidebar.
 2. In the console: `Object.keys(globalThis.acksExtras)`.
    *Observable:* one key per subsystem `scripts/module.mjs` imports — `lib`,
-   `abilities`, `equipment`, `classes`, `formation`, `influence`, `henchmen`,
-   `location`, `markets`, `monsters`, `battlemap`, `vehicles`,
-   `characterSheet`, `bridge`, `importer` — each a non-empty object. The importer's api is attached at `ready`, after
-   its cookbook loads; give it a few seconds on a large library.
+   `abilities`, `equipment`, `classes`, `magic`, `formation`, `influence`,
+   `henchmen`, `location`, `factions`, `markets`, `monsters`, `battlemap`,
+   `vehicles`, `characterSheet`, `bridge`, `importer` — each a non-empty
+   object. The importer's api is attached at `ready`, after its cookbook
+   loads; give it a few seconds on a large library.
 3. `game.modules.get("acks-extras").api === globalThis.acksExtras`.
    *Observable:* `true`. The namespace is the api; a feature that assigned its
    own `module.api` would hide every other feature behind one key.

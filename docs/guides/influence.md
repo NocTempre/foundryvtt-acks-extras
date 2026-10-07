@@ -19,12 +19,13 @@ fee is told so and pays nothing.
 
 The result card says what was paid — the fee, who paid it, and who received
 it where somebody did. A card with no bribe line is a roll on which no coin
-moved.
+moved. Where the roller has no Bribery proficiency, the card adds a line
+marking that the bribe carries a risk, with the page that says what (RR 287).
 
-![](../releases/v10.1.0/influence-bribe.png)
+![](../releases/v10.2.0/influence-bribe.png)
 
 *A result card after a bribe: the fee, the payer and the target who received
-it, above the modifiers that were in force.*
+it, the line marking the risk, and the modifiers that were in force.*
 
 ## Make a roll
 

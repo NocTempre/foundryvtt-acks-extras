@@ -38,6 +38,10 @@ verification, not as drive-by edits:
 - **Coin on the road.** The reach rule makes carrying coin to a market
   necessary. Nothing prices or endangers the carrying; that is played at the
   table.
+- **The Judge's override on every surface.** A market's payments, its changer
+  and the fee that opens a recruiting post pass `judge`. A hire's signing
+  bonus paid to the till, and the deposit controls of the Storage tab and the
+  Equipment tab, still answer the Judge as they answer a player.
 
 ## What the repair tool only reports
 

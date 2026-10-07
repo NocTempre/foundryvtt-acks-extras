@@ -85,17 +85,19 @@ function standsOn(scene, actor) {
   return !!own && scene.tokens.some((t) => t.uuid === own);
 }
 
-/** Reach gate: may `from`'s coin get to `to` right now? */
+/**
+ * Reach gate: may `from`'s coin get to `to` right now? A refusal about a place
+ * on a map names that map in `scene`.
+ * @returns {{can: boolean, reason: string|null, scene?: string}}
+ */
 export function coinReach(from, to) {
-  if (isLocation(to)) {
-    const reach = acksExtras.location?.reach?.depositReach?.(from, to);
-    return reach ? { can: !!reach.can, reason: reach.reason ?? null } : { can: true, reason: null };
-  }
-  if (isLocation(from)) {
-    // A till pays out under the same rule the depositor used to reach it.
-    const reach = acksExtras.location?.reach?.depositReach?.(to, from);
-    return reach ? { can: !!reach.can, reason: reach.reason ?? null } : { can: true, reason: null };
-  }
+  const atPlace = (actor, place) => {
+    const reach = acksExtras.location?.reach?.depositReach?.(actor, place);
+    return reach ? { can: !!reach.can, reason: reach.reason ?? null, scene: reach.scene?.name ?? "" } : { can: true, reason: null };
+  };
+  if (isLocation(to)) return atPlace(from, to);
+  // A till pays out under the same rule the depositor used to reach it.
+  if (isLocation(from)) return atPlace(to, from);
   // An employer and their hireling travel together: the roster IS the reach.
   const rosterOf = (a) => (Array.isArray(a?.system?.henchmenList) ? a.system.henchmenList : []);
   const managerOf = (a) => a?.system?.retainer?.managerid ?? null;
@@ -110,6 +112,25 @@ export function coinReach(from, to) {
     if (standsOn(scene, from) && standsOn(scene, to)) return { can: true, reason: null };
   }
   return { can: false, reason: "notTogether" };
+}
+
+/**
+ * A reach refusal as a sentence about the two holders. A reason with no
+ * sentence of its own falls back to the general one, which carries the code.
+ * @param {{reason: string|null, scene?: string}} reach  `coinReach`'s refusal
+ */
+export function reachRefusalText(reach, from, to) {
+  const [who, place] = isLocation(to) ? [from, to] : [to, from];
+  const key = `ACKS-LIB.money.reach.${reach?.reason}`;
+  if (!game.i18n?.has?.(key) || (reach.reason === "notHere" && !reach.scene)) {
+    return game.i18n.format("ACKS-LIB.money.outOfReach", { reason: reach?.reason ?? "?", detail: "" }).trim();
+  }
+  return game.i18n.format(key, { who: who?.name ?? "", place: place?.name ?? "", scene: reach.scene ?? "", from: from?.name ?? "", to: to?.name ?? "" });
+}
+
+/** Tell the Judge which reach refusal their own act was carried past. */
+function noteJudgeOverride(reach, from, to, detail = "") {
+  ui?.notifications?.info(game.i18n.format("ACKS-LIB.money.judgeOverride", { why: reachRefusalText(reach, from, to), detail }).trim());
 }
 
 /* -------------------------------------------- */
@@ -690,7 +711,7 @@ function writesOf(pay, from, to, scope) {
 async function moveCoin({ from, to = null, needCp, at = null, gate = true, allowMint = false, upTo = false, within = null }) {
   if (to && gate) {
     const reach = coinReach(from, to);
-    if (!reach.can) return { ok: false, reason: reach.reason ?? "outOfReach", outOfReach: true };
+    if (!reach.can) return { ok: false, reason: reach.reason ?? "outOfReach", scene: reach.scene ?? "", outOfReach: true };
   }
   const scope = scopeOf(within, from);
   const terms = exchangeTermsAt(at ?? (isLocation(to) ? to : isLocation(from) ? from : null));
@@ -801,15 +822,20 @@ export async function sinkCoin(holder, gp, { within = null } = {}) {
  *                              hand and at one place, or coin on hand and at
  *                              places on a scene. Unstated, the world's
  *                              standing reach (`COIN_SCOPE_SETTING`)
+ * @param {boolean} [opts.judge=false]  the Judge declares this payment
+ *                              (`judgeDeclares`): a reach refusal does not stop
+ *                              it, and the Judge is told what was waived
  * @returns {{ok: boolean, reason?: string, changeCp?: number,
  *            paidCp?: number, arrearsCp?: number}}
  */
-export async function transferCoin({ from, to, gp, reason = "", at = null, gate = true, allowMint = false, upTo = false, within = null } = {}) {
+export async function transferCoin({ from, to, gp, reason = "", at = null, gate = true, allowMint = false, upTo = false, within = null, judge = false } = {}) {
   const needCp = Math.round(num(gp, 0) * 100);
   if (needCp <= 0) return { ok: true };
   if (!from || !to) return { ok: false, reason: "missing" };
-  const { outOfReach, ...result } = await moveCoin({ from, to, needCp, at, gate, allowMint, upTo, within });
-  if (outOfReach) ui?.notifications?.warn(game.i18n.format("ACKS-LIB.money.outOfReach", { reason: result.reason ?? "?", detail: reason }));
+  const waived = gate && judge ? coinReach(from, to) : null;
+  const { outOfReach, ...result } = await moveCoin({ from, to, needCp, at, gate: gate && !judge, allowMint, upTo, within });
+  if (outOfReach) ui?.notifications?.warn(`${reachRefusalText(result, from, to)} ${reason}`.trim());
+  else if (result.ok && waived && !waived.can) noteJudgeOverride(waived, from, to, reason);
   else if (result.reason === "insufficient") ui?.notifications?.warn(game.i18n.format("ACKS-LIB.money.insufficient", { name: from.name, detail: reason }));
   else if (result.reason === "noChange") ui?.notifications?.warn(game.i18n.format("ACKS-LIB.money.noChange", { name: to.name, detail: reason }));
   return result;
@@ -829,9 +855,11 @@ export async function transferCoin({ from, to, gp, reason = "", at = null, gate 
  * The exchange writes BOTH sides: the actor's coin goes down and the till's
  * goes up. A seat that cannot write the place relays the whole exchange to
  * the GM instead (`libExchangeCoins`); the result shape is the same either way.
+ * `judge` is `transferCoin`'s: the Judge's own exchange is carried past a
+ * reach refusal and says so.
  * @returns {{ok: boolean, reason?: string, paidOutCp?: number}}
  */
-export async function exchangeCoins({ actor, place, itemId, count, toCv, gate = true } = {}) {
+export async function exchangeCoins({ actor, place, itemId, count, toCv, gate = true, judge = false } = {}) {
   const terms = exchangeTermsAt(place);
   if (terms.mode !== "market") {
     ui?.notifications?.warn(game.i18n.localize("ACKS-LIB.money.noChanger"));
@@ -839,10 +867,11 @@ export async function exchangeCoins({ actor, place, itemId, count, toCv, gate = 
   }
   if (gate) {
     const reach = coinReach(actor, place);
-    if (!reach.can) {
-      ui?.notifications?.warn(game.i18n.format("ACKS-LIB.money.outOfReach", { reason: reach.reason ?? "?", detail: "" }));
+    if (!reach.can && !judge) {
+      ui?.notifications?.warn(reachRefusalText(reach, actor, place));
       return { ok: false, reason: reach.reason ?? "outOfReach" };
     }
+    if (!reach.can) noteJudgeOverride(reach, actor, place);
   }
   if (!game.user.isGM && !place.isOwner) {
     const relayed = await executeAsGM("libExchangeCoins", { actorUuid: actor.uuid, placeUuid: place.uuid, itemId, count, toCv });
@@ -880,7 +909,7 @@ async function applyExchange({ actor, place, itemId, count, toCv }) {
 
 // The relayed exchange: the sender must own the actor whose coin moves, and
 // the GM's own preflight (terms, reach) runs again — nothing the seat checked
-// is taken on trust.
+// is taken on trust, and a relayed exchange is never the Judge's own.
 registerHandler("libExchangeCoins", async ({ actorUuid, placeUuid, requestUserId = null, ...rest }) => {
   const actor = resolveActorSync(actorUuid);
   const place = resolveActorSync(placeUuid);
@@ -889,5 +918,5 @@ registerHandler("libExchangeCoins", async ({ actorUuid, placeUuid, requestUserId
     const user = game.users.get(requestUserId);
     if (!user?.isGM && !actor.testUserPermission(user, "OWNER")) return { ok: false, reason: "notYours" };
   }
-  return exchangeCoins({ actor, place, ...rest, gate: true });
+  return exchangeCoins({ actor, place, ...rest, gate: true, judge: false });
 });

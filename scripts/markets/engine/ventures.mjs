@@ -23,7 +23,7 @@ import {
 } from "../rules/arbitrage.mjs";
 import { toGp } from "../rules/pricing.mjs";
 import { trueDemand } from "../rules/demand.mjs";
-import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
+import { registerHandler, executeAsGM, judgeDeclares } from "../../lib/sockets.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { judgesAndOwners } from "../../lib/util.mjs";
 import { optTable } from "../../henchmen/rules/tables.mjs";
@@ -31,7 +31,7 @@ import { findRow } from "../../lib/tables.mjs";
 import { now } from "../../henchmen/time.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
 import { partyOf } from "./parties.mjs";
-import { marketMonthStart, abilityRanks } from "./trade.mjs";
+import { marketMonthStart, abilityRanks, awayFromMarket } from "./trade.mjs";
 import { impactLimits, assessmentBands, priceShifts, negotiation, printedError } from "./printed.mjs";
 import { merchandiseCatalog, merchandiseFor } from "./merchandise.mjs";
 import { writeReport } from "./trade-objects.mjs";
@@ -167,6 +167,8 @@ export async function postVentureAction(location, payload) {
     const user = game.users.get(requestUserId);
     if (!user?.isGM && !actor.testUserPermission(user, "OWNER")) return err("notYours");
   }
+  const away = awayFromMarket(actor, location, requestUserId);
+  if (away) return away;
   const actions = clone(goods.actions);
   if (resolutionId && actions.some((a) => a.id === resolutionId)) return err("duplicate");
   if (pendingDuplicate(actions, { kind, actorUuid: actor.uuid, category })) return err("duplicatePending");
@@ -195,14 +197,14 @@ export async function postVentureAction(location, payload) {
     capacitySt = Math.round(capacitySt + brought.capacity);
     tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * capacitySt);
     if (tollCp > 0) {
-      const paid = await adapter.spendGold(actor, toGp(tollCp), game.i18n.localize(`${LANG}.ventures.tollReason`), { to: location, at: location, within: location });
+      const paid = await adapter.spendGold(actor, toGp(tollCp), game.i18n.localize(`${LANG}.ventures.tollReason`), { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
       if (!paid) return err("insufficientGold");
     }
   } else {
     if (!venture?.entered) return err("notEntered");
     if (kind === "solicit" && !merchandiseFor(category)) return err("noCategory");
     if (bribe > 0) {
-      const paid = await adapter.spendGold(actor, bribe, game.i18n.localize(`${LANG}.ventures.bribeReason`), { to: location, at: location, within: location });
+      const paid = await adapter.spendGold(actor, bribe, game.i18n.localize(`${LANG}.ventures.bribeReason`), { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
       if (!paid) return err("insufficientGold");
     }
   }
@@ -567,6 +569,8 @@ export async function tradeMerchandise(location, payload) {
     const user = game.users.get(requestUserId);
     if (!user?.isGM && !actor.testUserPermission(user, "OWNER")) return err("notYours");
   }
+  const away = awayFromMarket(actor, location, requestUserId);
+  if (away) return away;
   const log = clone(location.system.market.marketLog);
   if (resolutionId && log.some((l) => l.note?.includes(resolutionId))) return err("duplicate");
 
@@ -631,7 +635,7 @@ export async function tradeMerchandise(location, payload) {
   const label = merch.label;
 
   if (direction === "buy") {
-    const paid = await adapter.spendGold(actor, totalGp, game.i18n.format(`${LANG}.ventures.buyReason`, { stones, label }), { to: location, at: location, within: location });
+    const paid = await adapter.spendGold(actor, totalGp, game.i18n.format(`${LANG}.ventures.buyReason`, { stones, label }), { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
     if (!paid) return err("insufficientGold");
     // Merchandise loads: one stack per category, one unit per stone — joining
     // a stack nobody else's stamp is on.
@@ -655,11 +659,13 @@ export async function tradeMerchandise(location, payload) {
       ]);
     }
   } else {
+    // The loads leave the hold only once the coin has landed.
+    const earned = await adapter.grantGold(actor, totalGp, { from: location, at: location, allowMint: true, within: location, judge: judgeDeclares(requestUserId) });
+    if (!earned) return err("payoutRefused");
     if (draw.updates.length) {
       await hold.updateEmbeddedDocuments("Item", draw.updates.map((u) => ({ _id: u.id, "system.quantity.value": u.qty })));
     }
     if (draw.deletes.length) await hold.deleteEmbeddedDocuments("Item", draw.deletes);
-    await adapter.grantGold(actor, totalGp, { from: location, at: location, allowMint: true, within: location });
   }
 
   srow.stones -= stones;

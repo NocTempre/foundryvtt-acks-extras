@@ -89,6 +89,11 @@ connected it is refused and says so, and no coin moves.
 *The Followers tab with a wage due: what is owed stated beside Pay wages, and
 the hireling's card listing the coin they hold.*
 
+![](../releases/v10.2.0/henchmen-next-due.png)
+
+*The same tab with nothing due: what the payroll costs a month and the days
+before the next wage, and no Pay wages button until then.*
+
 **A hireling's coin is theirs to arrange.** Their card lists each coin row;
 a row holding more than one carries the scissors, which divide a pile off to
 hand over, and **Gather coin** folds matching rows back into one. Once they

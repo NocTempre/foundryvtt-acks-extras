@@ -592,7 +592,8 @@ export const TRADE_TAB_ACTIONS = {
       }) },
     }).catch(() => null);
     if (!form) return;
-    const r = await acksExtras.lib.money.exchangeCoins({ actor: trader, place: this.actor, ...form });
+    // This seat declares the exchange, so a Judge's is the Judge's own.
+    const r = await acksExtras.lib.money.exchangeCoins({ actor: trader, place: this.actor, ...form, judge: game.user.isGM });
     if (r.ok) {
       ui.notifications.info(locationLoc("market.exchanged", { name: trader.name }));
       this.render();

@@ -66,6 +66,16 @@ on hand and on the coin this market keeps for them, whatever the world's
 keeps arriving coin when that is on hand or at this market, and loose on the
 seller otherwise. Coin kept anywhere else has to be carried in.
 
+**A trader is at the market, or the Judge says so.** Each of those calls asks
+`awayFromMarket` (`engine/trade.mjs`) first, before a bargaining roll, an
+availability roll or any write: a player's trader who does not stand at the
+market is refused with `notAtMarket` (the market is on a map) or
+`noMarketAccess` (it is on none), and the refusal names the map. The Judge's
+own act is not refused; it is paid with `judge` (docs/lib/MODEL.md, "The
+Judge's own payment"). A sale and a load sold are paid before the goods
+leave, and a payment the till refuses answers `payoutRefused` with the goods
+where they were.
+
 ## The engine
 
 One writer path: every mutation of `system.market.goods` runs through the

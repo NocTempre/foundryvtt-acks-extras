@@ -855,3 +855,28 @@ fixture, so this one write is restored rather than swept.
 **Teardown.** Delete the fixture actors and every card the run posted by the
 ids read back as each resolved; set the Player User's `legacy` flag back to
 the value recorded before the run (unset it if there was none).
+
+## The cold-shelf walk (template packages on a shelf that is not loaded)
+
+A compendium keeps its index and drops its documents after an idle window
+(docs/lib/MODEL.md), and `fromUuidSync` then answers with the index entry.
+The repair pass has to run against that state.
+
+**Fixtures (each id recorded):** a world `acks-extras.class` item C with a
+`system.key` of its own; a `bundle` item B and a RollTable T created IN the
+cookbook's Item and RollTable packs (`{pack}`), each flagged
+`flags["acks-extras"].templatePart` with C's uuid and key (`kind: "bundle",
+band: 3` and `kind: "table"`); then C's `system.templates` set to one row
+naming B and `system.templateTable` to T.
+
+1. `await pack.getIndex({fields: ["flags"]})` on both packs, then
+   `pack.clear()` on both. *Observable:* `fromUuidSync(T.uuid)` is no
+   Document, has no `results`, and carries the template flag.
+2. `acksExtras.classes.templates.materializeTemplates(C, {create: false,
+   folder: "x", tableFolder: "x", tablePack})` — the folder arguments keep
+   the pass from making folders on a shared shelf.
+   *Observable:* it resolves without throwing, and T holds one result naming
+   B across the row's range.
+
+**Teardown:** delete T, B and C by uuid; `pack.getDocuments()` on both packs
+puts back what the eviction dropped.

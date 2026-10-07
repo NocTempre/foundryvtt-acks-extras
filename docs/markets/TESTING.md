@@ -188,6 +188,31 @@ resolves to the vault's actor).
    *Observable:* the new coin lands in the container, then at M. With B
    named, which a market's reach leaves out, it is carried loose.
 
+**A trader who is not there (the Judge's override).** Add to the fixtures a
+scene S, created inactive and linked to M (`acksExtras.location.scenes
+.linkScene(S, M)`), with no token of A's on it: `location.reach
+.depositReach(A, M).reason` reads `notHere`. The Player seat needs a GM
+client connected to answer its relay, so it is driven from the capture
+driver's own browser (`connect({user: "Player"})`) while the pane holds the
+GM seat. Wrap `ui.notifications.info` and `.warn` to read what each seat is
+told.
+
+6. Player seat: `performPurchase`, `performSell` of an item A carries, and
+   `lib.money.exchangeCoins`.
+   *Observable:* `{error: "notAtMarket", scene: S.name}` for the purchase and
+   the sale, `{ok: false, reason: "notHere"}` for the changer, and one
+   warning naming A, S and M. A's coin and the item are as they were, and no
+   bargaining card was posted.
+7. GM seat: buy through the Purchase dialog with A as the buyer, then
+   `performSell`, then the changer with `judge: true` (what the Trade tab's
+   button passes on a GM seat).
+   *Observable:* each succeeds; an info line opens **Judge's override:** and
+   states the refusal that was waived; the price is in M's own coin.
+8. GM seat: give A a token on S (`A.getTokenDocument({x, y})`, then
+   `S.createEmbeddedDocuments("Token", …)`), and repeat step 6.
+   *Observable:* all three succeed and no override line is raised on either
+   seat.
+
 ## Demand layers and the Demand Generator walk
 
 **Fixtures** (all created with `api.create`, so `api.sweepTracked()` removes
@@ -603,3 +628,6 @@ reports and, when this run made it, the trade house, by their tracked ids;
 after deleting a house this run made, set `marketsTradeHouse` back to `""`. Confirm the
 market log goes with the location. The fleet walk also tracks the stacks its
 trades made, read back from W's and A's items, and its chat cards (above).
+A market whose till took coin posts a card as it is deleted
+([../henchmen/TESTING.md](../henchmen/TESTING.md), Teardown): track that card
+from the delete and sweep again.

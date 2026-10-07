@@ -96,6 +96,29 @@ name.
 *A market's Storage tab: the coin one character keeps there, which their
 purchases at this market draw on, beside the house's own.*
 
+## Being at the market
+
+A market deals with a character who can reach it, the way any place is
+reached ([being somewhere](location.md#be-somewhere-to-leave-something-there)).
+A player's purchase, sale, import order, commission, venture day or exchange
+for a character who cannot is refused before anything is rolled, and nothing
+moves. Where the market is on a map, the refusal names the character, the map
+and the market.
+
+![](../releases/v10.2.0/markets-away-refusal.png)
+
+*A player's purchase for a character who is not on the market's map: the
+refusal says who is not where.*
+
+The Judge's seat is not held to it. A trade the Judge makes for a character
+who is not there goes through, and a line opening **Judge's override** states
+the refusal that was set aside.
+
+![](../releases/v10.2.0/markets-judge-override.png)
+
+*The same purchase from the Judge's seat: it goes through, and the override
+line states the refusal it set aside.*
+
 ## Changing coin
 
 **Change coin** turns one denomination into another at face value: pick the

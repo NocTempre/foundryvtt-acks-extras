@@ -121,3 +121,11 @@ own decision, and not as a side effect of whatever comes next.
   each sees a row with no `system` and degrades to an empty list rather than
   a crash. One stub-aware read in lib, awaited where a surface builds from
   the answer, would close them together.
+
+## Readers that take an index entry for a document
+
+`materializeTemplates` loads a row's bundle and the class's table before it
+reads them. Two readers still ask `fromUuidSync` and read
+`system.itemList` off the answer: `templateContents`, which on a shelf that
+is not loaded falls back to the row as printed, and `stripRepresented`,
+which then strips nothing. Neither throws; both read a package as absent.

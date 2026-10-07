@@ -20,7 +20,8 @@ import {
 import { quote, magicQuote, magicBandValueGp, bargainWinner, toGp } from "../rules/pricing.mjs";
 import { trueDemand } from "../rules/demand.mjs";
 import { marketsFlagOf, isMasterwork, isTemplateCopy, magicBasisOf, capVerdict } from "../rules/goods.mjs";
-import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
+import { registerHandler, executeAsGM, judgeDeclares } from "../../lib/sockets.mjs";
+import { coinReach } from "../../lib/money.mjs";
 import { ITEM_TYPE, slug } from "../../lib/vocab.mjs";
 import { judgesAndOwners, gmIds } from "../../lib/util.mjs";
 import { ownerOf } from "../../lib/storage.mjs";
@@ -179,6 +180,22 @@ function appendLog(logRows, entry) {
 }
 
 const err = (error, data = {}) => ({ error, ...data });
+
+/**
+ * The refusal a trader meets for not standing at this market, or null. Asked
+ * before anything is rolled or written, so a trade that cannot be paid costs
+ * no bargaining roll and removes no goods. The Judge's own act is never
+ * refused here: the payment carries it and says so (`transferCoin`'s `judge`).
+ * @param {string|null} requestUserId  The relayed sender, null for the seat's own act.
+ * @returns {{error: string, name: string, market: string, scene: string}|null}
+ */
+export function awayFromMarket(trader, location, requestUserId = null) {
+  if (judgeDeclares(requestUserId)) return null;
+  const reach = coinReach(trader, location);
+  if (reach.can) return null;
+  const onMap = reach.reason === "notHere" && !!reach.scene;
+  return err(onMap ? "notAtMarket" : "noMarketAccess", { name: trader.name, market: location.name, scene: reach.scene ?? "" });
+}
 
 /**
  * Availability snapshot for one named item, for display and for the
@@ -340,6 +357,8 @@ export async function purchase(location, payload) {
     const user = game.users.get(requestUserId);
     if (!user?.isGM && !buyer.testUserPermission(user, "OWNER")) return err("notYours");
   }
+  const away = awayFromMarket(buyer, location, requestUserId);
+  if (away) return away;
 
   // Idempotency: a resolution delivered twice (two GM windows) applies once.
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
@@ -397,7 +416,7 @@ export async function purchase(location, payload) {
   const totalGp = toGp(priced.unitCp * qty);
 
   // A purchase is paid at this market: with coin on hand, or coin it keeps.
-  const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.trade.buyReason`, { qty, name: itemData.name }), { to: location, at: location, within: location });
+  const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.trade.buyReason`, { qty, name: itemData.name }), { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
   if (!paid) return err("insufficientGold");
 
   await deliverGoods(buyer, { entry, qty });
@@ -688,6 +707,8 @@ export async function sell(location, payload) {
     const user = game.users.get(requestUserId);
     if (!user?.isGM && !seller.testUserPermission(user, "OWNER")) return err("notYours");
   }
+  const away = awayFromMarket(seller, location, requestUserId);
+  if (away) return away;
   const item = seller.items.get(itemId);
   if (!item) return err("noItem");
   const itemData = item.toObject();
@@ -732,7 +753,9 @@ export async function sell(location, payload) {
 
   const totalGp = toGp(plan.unitCp * qty);
   // The proceeds are paid out here: onto the seller, or into coin this market keeps for them.
-  await adapter.grantGold(seller, totalGp, { from: location, at: location, allowMint: true, within: location });
+  // Goods leave the seller only once the coin has landed.
+  const earned = await adapter.grantGold(seller, totalGp, { from: location, at: location, allowMint: true, within: location, judge: judgeDeclares(requestUserId) });
+  if (!earned) return err("payoutRefused");
 
   // Sold mundane goods leave play. A MAGIC item is the exception: it is a
   // unique physical thing, so it passes into the market's own holdings —

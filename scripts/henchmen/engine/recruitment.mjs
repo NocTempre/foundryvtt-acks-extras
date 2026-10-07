@@ -37,7 +37,7 @@ import { getTable, optTable, hasDoc } from "../rules/tables.mjs";
 import { collectEffectModifiers } from "../effects.mjs";
 import { getSetting } from "../settings.mjs";
 import * as adapter from "../acks-adapter.mjs";
-import { registerHandler } from "../../lib/sockets.mjs";
+import { registerHandler, judgeDeclares } from "../../lib/sockets.mjs";
 import { now, secondsPerMonth, calendarMonthStart, sameMarketMonth } from "../time.mjs";
 import { postSlaveMarketCard } from "./slavery-market.mjs";
 import { postToJudges } from "../../lib/roll-audience.mjs";
@@ -463,8 +463,10 @@ export async function rollMonth(location, anchorTime, rollTime = anchorTime) {
  * @param {Actor} location
  * @param {Actor|null} employer
  * @param {number} week - the week number being charged (for the card)
+ * @param {object} [opts]
+ * @param {boolean} [opts.judge=false] - the Judge declares the post this fee opens (`spendGold`'s `judge`)
  */
-async function chargeWeeklyFee(location, employer, week = 1) {
+async function chargeWeeklyFee(location, employer, week = 1, { judge = false } = {}) {
   const mc = location.system.marketClass;
   const formula = searchFeeFormula(mc);
   const roll = await new Roll(formula).evaluate();
@@ -483,6 +485,7 @@ async function chargeWeeklyFee(location, employer, week = 1) {
       at: location,
       // Paid at this market: with coin on hand, or coin the market keeps.
       within: location,
+      judge,
     });
   }
   return { gp, paid };
@@ -633,7 +636,7 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
   // A GM placement is not a paid search — no weekly fee, no ledger line.
   let fee = { gp: 0 };
   if (!gmAdd) {
-    fee = await chargeWeeklyFee(location, employer, 1);
+    fee = await chargeWeeklyFee(location, employer, 1, { judge: judgeDeclares(requestUserId) });
     posting.feesPaid.push({ time: currentTime, gp: fee.gp });
   }
 
