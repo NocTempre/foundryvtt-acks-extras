@@ -1,5 +1,5 @@
 /**
- * Module-owned validation, run last by `tools/validate.mjs` (its section 9).
+ * Module-owned validation, run last by `tools/validate.mjs` (its last section).
  *
  * ## The declared-table gate
  *
@@ -218,4 +218,16 @@ console.log(`  ok: every registry read is declared (${declared.size} document(s)
 {
   const { execFileSync } = await import("node:child_process");
   execFileSync(process.execPath, [path.join(ROOT, "tools", "validate-producers.mjs")], { stdio: "inherit" });
+}
+
+/* --- 9. No interface text or comment names a retired macro ----------------
+   §6 holds prose to the macro pack's names; `validate-macro-names.mjs` holds
+   the language strings, the strings and the comments in scripts/ and the pack
+   documents' own fields to them. It reads a script's strings and comments
+   from a parse, so it re-execs behind `--expose-internals` as §7 does. Where
+   git has no history of the pack source to read, as in a shallow checkout, it
+   prints a note and passes. */
+{
+  const { execFileSync } = await import("node:child_process");
+  execFileSync(process.execPath, ["--expose-internals", path.join(ROOT, "tools", "validate-macro-names.mjs")], { stdio: "inherit", cwd: ROOT });
 }

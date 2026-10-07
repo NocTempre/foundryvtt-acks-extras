@@ -748,3 +748,135 @@ CI's is one, and nothing exempts a mention. Three are the macro check's own.
 
 The history is read from one directory. A second macro pack would need naming
 in `macro-names.mjs`.
+
+## 23. Interface text and comments name a macro only while the pack holds it (2026-10-06)
+
+**What was found.** §22 holds prose to the macro pack and names what it
+leaves unread: the module's own strings. From 6.0.1, which retired *Repair
+Henchmen References*, through 8.0.6, a setting hint in `lang/en.json` and a
+console warning in `scripts/henchmen/repair.mjs` went on sending the Judge to
+it. Both went at 8.0.7. A comment in `scripts/lib/module.mjs` said *Migrate
+Token Vision*, retired by the same commit, drove the world-wide vision sweep,
+and it stood through 10.1.0. The strings name macros now as they did then: 11
+language strings name four macros, 17 times between them, and nothing tied
+one of those names to the pack.
+
+**Ruled.** Seven things. The owner ruled on a proposal that read the
+interface text alone: its match stands, and comments are read too.
+
+- `tools/validate-macro-names.mjs` reads three kinds of interface text. Each
+  string value of the language files the manifest declares. Each string
+  expression under `scripts/`: a literal, a template, or several joined by
+  `+`, taken as the text it evaluates to, with a mark where a value is
+  interpolated. Each string field of each document the pack build makes,
+  which is where a macro's body is.
+- It reads each comment under `scripts/` besides: a block without the stars
+  that open its lines, or a run of line comments on consecutive lines with
+  nothing between them. A name wrapped across comment lines is found as one
+  wrapped across the lines of a string is.
+- In a comment, the phrase quoted straight after the name of a DECISIONS.md
+  is a decision cited by its heading, and is not read. The owner set this
+  before the check was built: a comment that quotes a DECISIONS heading may
+  name a retired macro on purpose. A DECISIONS.md names what was retired
+  (§22), and a comment that cites one of its headings sends nobody to the
+  macro.
+- The names and the search are §22's, by §22's own functions: a name the pack
+  source's history holds and the build no longer makes, found whole or without
+  its trailing parenthetical, wrapped across a line or not, with every held
+  name blanked first.
+- A name found is a mention only where it stands as words of its own, in a
+  text that has other words. A text that is the name and no more is a title,
+  a window's or a menu entry's, and a `{placeholder}` in it is not a word. A
+  name inside a longer word is part of an identifier or a key. A comment is
+  held to the same two tests, so a banner that is a name alone passes.
+- `validate-extra.mjs` §9 runs it behind `--expose-internals`, as §17's scan
+  runs, because a script's strings and comments come from a parse.
+- A checkout without history prints a note and passes, as §20's and §22's do.
+
+Read against all 181 release tags, the check fails the 74 from 6.0.1 through
+10.1.0 and passes the rest. It reports three places and no other: the two
+strings on the 48 through 8.0.6, and the comment on all 74. The tags cannot
+choose the match: over the strings, each of the first six below fails the
+same 48 on the same two places. Today's text can. With each of the 33 held
+names retired in turn, the 17 places are what a match has to find.
+
+**Rejected.**
+
+- *The word "macro" directly after the name.* Both stale strings wrote it so,
+  and 2 of the 17 do. Fourteen name *Import Everything (GM)* or *Reimport One
+  Shelf (GM)*, none of them that way: either macro could be retired with
+  every string that sends a Judge to it still shipped.
+- *The whole name only.* 3 of the 17 write it. The other 14 leave the
+  parenthetical off.
+- *Quotation marks or emphasis around the name.* None of the 17 has them.
+- *The word "macro" anywhere in the sentence.* It finds 14 of the 17, and 12
+  of those only because the sentence also names the pack, *ACKS Extras
+  Macros*.
+- *§22's match with nothing added.* It finds all 17 and reports 11 places
+  that are right, and no tag is without one. Six are the title of a window or
+  a menu entry that bears its macro's name, four mean the Books dialog's
+  button and not the macro, and one is a language key that ends in a macro's
+  name. A macro retired while its window stays would fail on the window's own
+  title.
+- *A phrase in quotation marks before "macro" that the pack does not hold.*
+  It needs no history, so it would run on CI, and it fails the same 48 tags.
+  It covers none of the 17.
+- *Comments left unread.* The proposal, because a comment is not shown to a
+  Judge. The owner ruled them in. Over the tags they are the difference
+  between 48 failing releases and 74: the stale comment outlived both strings
+  by 26. A macro's body was read whole either way, its comment lines with it,
+  because a Judge opens it.
+- *A cited heading told another way.* By the headings the DECISIONS files
+  hold: of the 293 phrases comments quote in that place, 58 match none of
+  them, even as a heading's opening words and without its number or date. By
+  any quotation in a comment that names a DECISIONS.md: 132 of the 380
+  phrases such comments quote match no heading, and a comment can cite a
+  decision and still send its reader to a macro.
+- *Templates.* The 109 templates write no sentence themselves: beside marks
+  such as `st`, `gp` and `CON`, the words they show are language strings.
+- *The pack data's source in place of the documents it builds.* The documents
+  are the text a Judge is given, and each field says which macro it belongs
+  to.
+- *A pattern in place of a parse.* The warning was two templates joined by
+  `+`. Whether a text says more than a name depends on where the text ends,
+  and a pattern cannot say where a string or a comment does. §17 already
+  depends on this parser.
+- *Failing where there is no history, or a list of once-held names kept in
+  the tree.* The first fails every release, because the release workflow
+  checks out at depth 1. The second is git's history written out a second
+  time, to be kept by hand.
+
+**What it costs.** §22's costs: a shallow checkout checks nothing, CI's is
+one, and nothing exempts a mention but the cited heading. §17's as well: the
+parser is Node's private copy, and without it the check exits 2 and does not
+skip. Seven are this check's own.
+
+- A comment that names a macro in a sentence changes when the macro goes.
+  Eleven do today. Six speak of the macro and would be reported rightly. The
+  other five are among the next two costs.
+- A name that is also a control's label, a window's title or a run's fails
+  where the text means that thing. Four strings and three comments write
+  *Import Everything* of the Books dialog's button or of the run it starts,
+  and one comment writes *Your ACKS Books* of the window. Each would fail
+  with its macro retired. No other held name is written that way today.
+- A name that is also a word fails wherever a sentence writes the word with
+  its capital. *Containers* is the one such name. No string does today, and
+  one comment does: the header of `scripts/equipment/containers.mjs`, which
+  has opened on the word since 0.1.0.
+- A text that is only a name passes, whatever it stands for. A name kept
+  alone in a constant and joined into a sentence as the module runs is such a
+  text, and so is one handed to a `{placeholder}`.
+- The cited heading is told by its form. Whatever a comment quotes straight
+  after the name of a DECISIONS.md passes, a heading or not. A heading cited
+  another way is read: of the 248 headings comments quote today, 13 stand
+  outside the form, as a second phrase or ahead of the file's name. No
+  comment has needed it yet: the 181 tags and the tree after them read the
+  same with it and without.
+- A template is not read, and neither is a comment outside `scripts/`: a
+  template's, a tool's, or the pack data source's.
+- The pack's label and its folders are not macros. Nine language strings send
+  a Judge to *ACKS Extras Macros*, and two of them to a folder inside it. §20
+  reads prose for a pack's label and not these strings, and nothing reads
+  either for a folder.
+
+It adds about five seconds to `validate`.
