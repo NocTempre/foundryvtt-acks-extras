@@ -83,6 +83,7 @@ import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surpr
 import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
 import { installCombatRoundPatch } from "./patches/combat-round.mjs";
 import { installMoraleRollPatch, SETTING_MORALE_PAGE } from "./patches/morale-roll.mjs";
+import { installAdventuringRollPatch } from "./patches/adventuring-roll.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
@@ -841,6 +842,11 @@ Hooks.once("ready", () => {
   // The morale roll's one owner; see docs/lib/DECISIONS.md, "One owner for
   // the morale roll, and the page is a provider's".
   installMoraleRollPatch();
+
+  // The adventuring throw's one owner; see docs/lib/DECISIONS.md, "The throws
+  // the Judge makes in secret are posted blind by the adventuring throw's one
+  // wrapper".
+  installAdventuringRollPatch();
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
   const entries = Object.values(registered);
   const defaulted = entries.find((e) => e.default) ?? null;

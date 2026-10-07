@@ -3257,6 +3257,57 @@ handler is registered, and every actor sheet render looks for the block. The
 divide prompt's lang keys moved from `ACKS-CHARACTER.equipment` to
 `ACKS-LIB.stack`.
 
+### The throws the Judge makes in secret are posted blind by the adventuring throw's one wrapper (2026-10-06)
+
+**Found (field report).** A Listening or Searching throw rolled from a
+character sheet posted under whatever visibility the roller chose. Both are
+Judge-secret throws (RR 265). Every sheet's
+adventuring row ends in the system's `Actor#rollAdventuring`, which builds its
+roll with no blind flag and takes no option that sets one. The system has a
+blind path, and only an ability item marked blind reaches it.
+
+**Ruled.**
+- *The lib owns `rollAdventuring`* (`patches/adventuring-roll.mjs`, MIXED).
+  For the keys in `SECRET_ADVENTURING` it posts the throw and the system's
+  roll is not called; every other key is the system's.
+- *A secret throw follows the system's blind contract on the system's card*,
+  the one the system applies to a blind ability: from a player's seat `blind`
+  and whispered to the GMs, which is what has Foundry show the roller `???`
+  in place of the card, with the body marked as the system marks it; from a
+  GM's seat whispered to that GM. No roll is attached.
+- *The conditions ride the wrapper.* The wrap `status-effects.mjs` registered
+  on this method is now `withAdventuringConditions`, which the wrapper calls.
+  The evidence the 2026-10-01 conditions entry did not have is this report: a
+  second thing has something to say about the method, and one package holds
+  one registration against it ("One owner for the morale roll").
+- *The dialog is the lib's*, stating the visibility and asking for the
+  situational modifier.
+- *The Follower Card's card-only target throws through the same post.* It
+  rolled a plain public d20 and never reached the actor's method.
+
+**Rejected.**
+- *Rewriting the system's message as it is created.* The system awaits its
+  dialog before it posts, so a hook armed for the call can meet another
+  message first. By then the card is rendered unmarked and the dice box has
+  been shown to every seat.
+- *Attaching the Roll.* A whisper that carries one is shown to every seat as a
+  line naming the user who rolled ("Who reads a roll", docs/lib/MODEL.md).
+- *A setting that turns it off.* The report asks for none, and an inert or
+  unasked-for switch is a surface to keep.
+- *Marking secrecy on the throw and telling the table that a throw was made.*
+  It reaches ability throws as well and needs a field, an editor row and an
+  importer reading; these two throws are wrong at every table until it exists,
+  and it will change this wrapper rather than replace it.
+
+**What it cost.** Two throws no longer run the system's roll: a change the
+system makes to its adventuring roll or its roll dialog does not reach
+Listening and Searching until the patch follows. The card is still the
+system's template. The roller of a secret throw is offered no visibility, and
+a Judge cannot post one openly from a sheet. An ability item's throws are
+untouched: a class's Searching or Listening ability, and the Adventuring
+proficiency rolled from its own item, post blind only where the ability's
+Blind roll box is ticked, and nothing in the importer ticks it.
+
 ### The world sweep ships no macro, and the API is its one route (2026-10-01)
 
 Recorded from the 6.0.1 changelog and that release's commit (`741cdff`,

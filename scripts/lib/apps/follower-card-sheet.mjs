@@ -19,6 +19,7 @@ import { toNum as num, unset } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
 import { actorProvides, followerCardContext, FOLLOWER_CARD_TEMPLATE } from "../follower-card.mjs";
 import { skipDialogFor } from "../roll-dialog.mjs";
+import { SECRET_ADVENTURING, rollSecretAdventuring } from "../patches/adventuring-roll.mjs";
 import { promptDivide } from "../stack-prompt.mjs";
 
 
@@ -322,6 +323,10 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       return;
     }
     // Overridden: roll against the card-only target without writing to the actor.
+    if (SECRET_ADVENTURING.includes(key)) {
+      rollSecretAdventuring(this.actor, key, { event, target: num(ov[key]) });
+      return;
+    }
     const label = game.i18n.localize(`ACKS.adventuring.${key}`);
     new Roll("1d20").toMessage({
       speaker: ChatMessage.getSpeaker({ actor: this.actor }),

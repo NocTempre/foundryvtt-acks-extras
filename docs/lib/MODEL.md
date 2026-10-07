@@ -1299,6 +1299,26 @@ and the dice sound off it.
 passes the whisper list as the viewers, or `null` when the list is empty,
 because Dice So Nice reads an empty list as nobody.
 
+**A secret adventuring throw** is Listening or Searching
+(`SECRET_ADVENTURING`), the two Judge-secret throws (RR 265).
+`patches/adventuring-roll.mjs` is the one wrapper of the system's
+`Actor#rollAdventuring`, which every sheet's adventuring row ends in, and it
+posts those two itself: the system's method sets no blind flag and takes no
+option for one. The post follows the system's own blind contract on the
+system's own card. From a player's seat the message is `blind` and whispered
+to `gmIds()`: Foundry shows a blind message's author `???` in place of its
+whole content, and the card's body carries `data-blind`, the mark the
+system's render hook withholds. From a GM's seat it is whispered to that GM.
+No roll is attached, so a seat outside the whisper is shown nothing. The roll
+dialog states the visibility and asks only for the situational modifier, and
+the Roll returned carries its target at `data.roll.target`, as the system's
+does. Every other adventuring key runs the system's roll.
+`rollSecretAdventuring(actor, key, {event, target})` is the same post against
+a target the actor does not store, which the Follower Card's card-only
+override uses. An ability item's throws are not reached: their visibility is
+the ability's own `system.blindroll`
+([abilities MODEL](../abilities/MODEL.md)).
+
 **An attack card's math** — the throw, the bonuses, the target's Armor Class
 and both dice boxes — is wrapped by `mathSection(html)` in Foundry's own secret
 section, unless the `rollMath` world setting is `everyone`. `ChatMessage#renderHTML`
@@ -1441,7 +1461,7 @@ reaches everyone.
 | Attack, remodeled roll | `PRE_ATTACK_HOOK` | Labelled terms on `ctx.terms`, target-side ones marked; damage rows on `ctx.damageTerms`, a scaled roll on `ctx.damageFactor`, a waived throw on `ctx.autoHit` |
 | Attack, core's roll | `wrapRollAttack` | `thac0.bba` and `damage.mod.<type>` shifted across core's read; told in a notification, since core's card names no term |
 | Saving throw | wrap of `rollSave` | `saves.<save>.value` shifted |
-| Adventuring throw | wrap of `rollAdventuring` | `adventuring.<key>` shifted |
+| Adventuring throw | `withAdventuringConditions`, called by the throw's own wrapper (`patches/adventuring-roll.mjs`) | `adventuring.<key>` shifted |
 | Proficiency throw | `withModifiers` in abilities' `ability-rolls.mjs` | Folded into the target every surface shows |
 | Morale | `withMoraleConditions`, called by the morale roll's own wrapper (`patches/morale-roll.mjs`) | `details.morale` shifted |
 | Surprise | `withSurpriseConditions`, from the surprise-card patch | `surprise.avoidsurprise` shifted for the matrix's whole roll |

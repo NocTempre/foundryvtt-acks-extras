@@ -117,6 +117,7 @@ sibling modules) — never the import path for this module's own features.
 
 | File | Owns |
 | --- | --- |
+| `patches/adventuring-roll.mjs` | Core patch: the adventuring throw's one wrapper. The throws the Judge makes in secret post blind on the system's own card; every other throw is the system's. |
 | `patches/attack-display.mjs` | Core patch: the character sheet's Melee/Ranged boxes, replaced at render. |
 | `patches/attack-roll.mjs` | Core patch: the attack roll remodeled as target vs auditable bonus stack; the card states the outcome to every reader and its math to the attacker's owners and the GMs (`rollMath`). |
 | `patches/combat-round.mjs` | Core patch: a combatant whose actor was deleted no longer throws out of `nextRound`, which froze the round counter. |

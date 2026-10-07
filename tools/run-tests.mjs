@@ -84,6 +84,7 @@ const COMMITTED = [
   "test-movement-modes.mjs",
   "test-survival.mjs",
   "test-conditions.mjs",
+  "test-adventuring-roll.mjs",
   "test-provisions.mjs",
   "test-foraging.mjs",
   "test-searching.mjs",

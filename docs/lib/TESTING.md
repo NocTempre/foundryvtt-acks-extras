@@ -976,6 +976,70 @@ features that post Judge-only cards.
 **Teardown.** Delete the messages by the ids the steps read back;
 `api.sweepTracked()` for the table.
 
+## A secret adventuring throw is posted blind
+
+Covers `patches/adventuring-roll.mjs`, and `withAdventuringConditions` through
+it. **Run it from real player seats**: a GM's own throw takes the whisper-to-
+self branch and never posts blind, and the system's hook shows a GM the body
+of every card.
+
+**Fixtures (as GM, each id recorded with `api.track`):**
+- "Secret Thrower", a `character` the Player seat owns, opened on this
+  module's sheet.
+
+Seat A is the Player seat; seat B is a second player seat that does not own
+the character. The Rolls tab's rows are
+`[data-action="roll"][data-roll="adv:listening"]`, `adv:searching` and
+`adv:climb`. Read a message on a seat with `game.messages.get(id)`: `blind`,
+`whisper`, `rolls.length`, `visible`, and
+`(await msg.renderHTML()).querySelector(".blindable")`. The skip key is the
+one "Conditions on the palette and on a roll" describes. A roll window's Roll
+button is `button[data-action="ok"]`; the first `[data-action]` button in the
+window is its header's.
+
+1. **A player listens.** On seat A press the Listen row, enter 2 and roll.
+   **Observable:** the dialog states the visibility in a line and offers no
+   select. One message: `blind === true`, `whisper` equal to the GM ids,
+   `rolls.length === 0`. On seat A the card's whole content is `???`: no
+   title, no `.blindable`, no success or failure line and no total. On the GM
+   seat it
+   shows success or failure against the stored target and the dice with a
+   `+ 2[Situational]` term. On seat B `visible === false` and the log holds no
+   "privately rolled" line.
+2. **A player searches with the skip key held.** On seat A,
+   `actor.rollAdventuring("searching", {event: {[key]: true}})`.
+   **Observable:** no dialog; the same facts as step 1; the Roll it resolves
+   to carries the target at `roll.data.roll.target`.
+3. **Another throw is the system's.** On seat A press the Climb row.
+   **Observable:** the system's dialog with its roll-mode select, and a card
+   posted under the mode chosen there.
+4. **The Judge throws.** On the GM seat, step 2's call for the same actor.
+   **Observable:** `blind === false` and `whisper` is that GM's id alone; on
+   seat A `visible === false`.
+5. **A condition reaches it.** With a condition whose figure moves a throw on
+   the character (the fixtures of "Conditions on the palette and on a roll"),
+   repeat step 2.
+   **Observable:** the GM's card states the moved target, the roller is told
+   which condition applied, and `system.adventuring.searching` reads its
+   stored number afterwards.
+6. **The Follower Card's own target.** Give the character an `ability` item
+   named Adventuring: the card draws its adventuring panel for an actor
+   carrying one. Open the character on the Follower Card on seat A
+   (`new CONFIG.Actor.sheetClasses.character["acks-extras.FollowerCardSheet"].cls({document: actor})`),
+   set `flags.acks-extras.fcOverrides.adventuring.listening` to a number the
+   actor does not store, and press
+   `[data-action="fcRollAdventuring"][data-skill="listening"]`.
+   **Observable:** a blind card against that number; the actor's stored target
+   is unchanged.
+7. **Dice So Nice.** On seat A, stand a stub in:
+   `game.dice3d = {showForRoll: (...a) => (window.__dsn ??= []).push(a)}`, and
+   repeat step 2.
+   **Observable:** the call's fourth argument is the GM ids and its fifth is
+   `true`; the message carries no `sound`. Delete the stub.
+
+**Teardown.** `api.sweepTracked()`; delete the chat messages the steps posted
+by the ids read back from `game.messages`.
+
 ## The repair tool
 
 Covers `repair-logic.mjs` and `repair.mjs` (the registry, scan → fix → rescan,

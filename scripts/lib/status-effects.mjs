@@ -266,15 +266,24 @@ function onRollSave(wrapped, save, ...rest) {
   return withShift(this.system?.saves?.[save], "value", -(math?.total ?? 0), () => wrapped(save, ...rest));
 }
 
-/** An adventuring throw: a bonus lowers the number to roll. */
-function onRollAdventuring(wrapped, advKey, ...rest) {
+/**
+ * Run an adventuring throw with the creature's conditions on it: a bonus
+ * lowers the number to roll, held on the stored target for as long as `run`
+ * reads it. Called by the adventuring throw's one wrapper
+ * (`patches/adventuring-roll.mjs`), which owns that method.
+ *
+ * @param {Actor} actor   the creature rolling
+ * @param {string} advKey the `system.adventuring` key thrown against
+ * @param {() => *} run   the roll; it reads the target before it awaits anything
+ */
+export function withAdventuringConditions(actor, advKey, run) {
   let math = null;
   try {
-    math = ownRoll(this, "throw");
+    math = ownRoll(actor, "throw");
   } catch (err) {
     console.error(`${MODULE_ID} | conditions could not read an adventuring throw; it rolls without them`, err);
   }
-  return withShift(this.system?.adventuring, advKey, -(math?.total ?? 0), () => wrapped(advKey, ...rest));
+  return withShift(actor?.system?.adventuring, advKey, -(math?.total ?? 0), run);
 }
 
 /**
@@ -458,7 +467,6 @@ export function installConditionRolls({ remodeledAttack = true } = {}) {
   if (remodeledAttack) Hooks.on(PRE_ATTACK_HOOK, onPreAttack);
   else wrapRollAttack(coreRollAttack);
   wrapActorMethod("rollSave", onRollSave);
-  wrapActorMethod("rollAdventuring", onRollAdventuring);
   wrapActorMethod("_calculateMovement", onCalculateMovement);
 
   // One client lifts, so two Judges at the table do not both delete an effect.

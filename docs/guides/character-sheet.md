@@ -21,6 +21,13 @@ own favourite star. A throw asks for a situational modifier first
 ([Proficiencies and powers](abilities.md#what-a-throw-looks-like-in-chat));
 hold Shift to roll at once.
 
+**Listen and Search always roll blind** (RR 265), from this sheet, the
+system's and the Follower Card alike. A player's card goes to the Judge with
+its result, and the player sees only that the throw was made; a Judge's own
+throw is whispered to that Judge. The window says so and offers no choice of
+who sees the roll. A class's own Searching or Listening ability is a
+proficiency throw, and follows that ability's **Blind roll** box instead.
+
 ![](../releases/v8.2.0/character-sheet-post-row.png)
 
 *A power with no throw under Post to chat, its eye where a throw's die would
