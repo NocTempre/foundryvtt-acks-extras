@@ -946,7 +946,7 @@ await test("the Judge moves coin only for the seat that owns the payer", async (
 foundry.abstract = { DataModel: class {} };
 foundry.data = { fields: {} };
 foundry.applications = { api: { ApplicationV2: class {}, HandlebarsApplicationMixin: (Base) => class extends Base {} } };
-const { payWagesFor } = await import("../scripts/henchmen/engine/events.mjs");
+const { payWagesFor, wageBill } = await import("../scripts/henchmen/engine/events.mjs");
 const { secondsPerMonth } = await import("../scripts/henchmen/time.mjs");
 const wording = JSON.parse((await import("node:fs")).readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
 
@@ -1045,6 +1045,42 @@ await test("a payday refused whole on the seat that ran it adds nothing to what 
   } finally {
     game.users.activeGM = JUDGE;
   }
+});
+await test("the wage bill names when a payday would next bill more than it does now", async () => {
+  const boss = makeActor({ id: "boss", name: "Boss" });
+  worldActors.set(boss.id, boss);
+  const day = 86400;
+  let month;
+  let bills;
+  await toldBy(async () => {
+    month = secondsPerMonth();
+    const nobody = wageBill(boss, 5 * day);
+    onPayroll(boss, { id: "hand", name: "Hand", wageGp: 4 });
+    onPayroll(boss, { id: "mate", name: "Mate", wageGp: 2 }).flags["acks-extras"].record.terms.lastPaidTime = 10 * day;
+    bills = [nobody, wageBill(boss, 5 * day), wageBill(boss, month - 1), wageBill(boss, month), wageBill(boss, month + 10 * day)];
+  });
+  assert.deepEqual(bills, [
+    { due: 0, count: 0, monthly: 0, nextDue: null },
+    { due: 0, count: 0, monthly: 6, nextDue: month },
+    { due: 0, count: 0, monthly: 6, nextDue: month },
+    { due: 4, count: 1, monthly: 6, nextDue: month + 10 * day },
+    { due: 6, count: 2, monthly: 6, nextDue: 2 * month },
+  ], "no clock, none due, the last second before, one due with the other's month ahead, both due with the first one's second month ahead");
+});
+await test("a payday with nothing due says how many days until something is, while a wage clock runs", async () => {
+  const boss = makeActor({ id: "boss", name: "Boss", items: [gold(9)] });
+  worldActors.set(boss.id, boss);
+  const nobody = await toldBy(() => payWagesFor(boss));
+  assert.deepEqual(nobody, [["gm", "info", `ACKS-HENCHMEN.wage.nothingDue ${JSON.stringify({ name: "Boss" })}`]], "an employer who pays nobody is told only that");
+  const hand = onPayroll(boss, { id: "hand", name: "Hand", wageGp: 4 });
+  const told = await toldBy(async () => {
+    // The press is a month and a minute after the epoch: paid three days before the month turned.
+    hand.flags["acks-extras"].record.terms.lastPaidTime = secondsPerMonth() - 3 * 86400;
+    await payWagesFor(boss);
+  });
+  assert.deepEqual(told, [["gm", "info", `ACKS-HENCHMEN.wage.nothingDueUntil ${JSON.stringify({ name: "Boss", days: 25 })}`]], "a part day counts as a whole one");
+  assert.deepEqual(purse(boss), ["Gold ×9"], "and no coin moved");
+  assert.ok("ACKS-HENCHMEN.wage.nothingDueUntil" in wording && "ACKS-CHARACTER.followers.monthlyNext" in wording, "the language file holds both sentences");
 });
 
 /* -------------------------------------------- */

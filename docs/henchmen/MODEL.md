@@ -164,9 +164,14 @@ with its record and its monthly cost (a vassal is not among them), and
 employer. `dueOf(employer, time)` is what a payday at that time would bill:
 each entry whose wage clock is a whole month or more behind, for as many
 months as it is behind. `wageBill(employer)` reads those three and answers
-`{due, count, monthly}`: the gold a payday would bill now, how many entries
-that is, and what the roster costs a month. The Followers tab's wage line and
-its Pay wages control read it ([character-sheet MODEL](../character-sheet/MODEL.md)).
+`{due, count, monthly, nextDue}`: the gold a payday would bill now, how many
+entries that is, what the roster costs a month, and the world time at which a
+payday would next bill more than it does now. That time is the nearest month
+boundary ahead on any wage clock that has started, and null while none has.
+The Followers tab's wage line and its Pay wages control read the bill
+([character-sheet MODEL](../character-sheet/MODEL.md)), and a payday with
+nothing due tells its seat the days until `nextDue` (`time.mjs` `daysUntil`:
+a part day counts as a whole one).
 
 **Where a wage lands.** `runPayday` pays each due entry by `transferCoin` with
 `upTo`: the employer's own coins land where the hireling keeps arriving coin,

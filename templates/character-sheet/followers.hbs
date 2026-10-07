@@ -7,7 +7,7 @@
     <button type="button" class="acks-extras-character-sheet__chip" data-action="roster" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.open'}}"><i class="fa-solid fa-people-group" inert></i>{{localize "ACKS-CHARACTER.followers.roster"}}</button>
     {{/unless}}{{/if}}
     {{#if fw.payroll}}
-    <span class="acks-extras-character-sheet__rule-note acks-nums">{{#if fw.due}}{{localize "ACKS-CHARACTER.followers.wages" gp=fw.due}}{{else}}{{localize "ACKS-CHARACTER.followers.monthly" gp=fw.wages}}{{/if}}</span>
+    <span class="acks-extras-character-sheet__rule-note acks-nums">{{#if fw.due}}{{localize "ACKS-CHARACTER.followers.wages" gp=fw.due}}{{else if fw.nextDueDays}}{{localize "ACKS-CHARACTER.followers.monthlyNext" gp=fw.wages days=fw.nextDueDays}}{{else}}{{localize "ACKS-CHARACTER.followers.monthly" gp=fw.wages}}{{/if}}</span>
     {{#if fw.due}}{{#if fw.editable}}<button type="button" class="acks-extras-character-sheet__chip" data-action="payWages"><i class="fa-solid fa-coins" inert></i>{{localize "ACKS-CHARACTER.followers.pay"}}</button>{{/if}}{{/if}}
     {{/if}}
   </div>

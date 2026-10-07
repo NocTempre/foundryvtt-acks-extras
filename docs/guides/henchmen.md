@@ -76,8 +76,11 @@ payment that is refused says why and records no payday.
 Followers tab, on the system sheet's Hirelings tab, in the roster, or on the
 Judge's wage card. It pays what the wage clock says is due — a month's wage
 (RR 168) for each whole month gone by since that hireling was last paid — and
-says so when nothing is. The Followers tab states what is due beside the
-button, and offers the button only while something is. A player who presses it for hirelings the
+when nothing is due it says so, with the days until something will be. The
+Followers tab states what is due beside the button, and offers the button
+only while something is; until then it states what the payroll costs a month
+and how many days remain before the next wage falls due. Those days pass as
+the world's clock does. A player who presses it for hirelings the
 Judge runs has the payday carried out by the Judge's seat; with no Judge
 connected it is refused and says so, and no coin moves.
 

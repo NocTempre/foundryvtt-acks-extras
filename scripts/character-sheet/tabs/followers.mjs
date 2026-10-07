@@ -4,16 +4,28 @@
  * the system's character henchmen and this module's monster henchmen in the
  * same buckets the henchmen feature's grid uses — with the roster chip and
  * the wage line beside them. The wage line reads the wage engine's bill, so
- * it names what the Pay control beside it would pay.
+ * it names what the Pay control beside it would pay, and with nothing to pay
+ * the days until there is.
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { renderFollowerCard } from "../../lib/follower-card.mjs";
 import { FLAG_MONSTER_LIST } from "../../henchmen/constants.mjs";
 import { wageBill } from "../../henchmen/engine/events.mjs";
+import { daysUntil } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const loc = makeLoc(LANG);
+
+/**
+ * The figures `actor`'s wage line reads, as one string: what is due, and the
+ * days until more is. Two that are equal draw the same line and the same
+ * Pay control.
+ */
+export function wageLineKey(actor) {
+  const bill = wageBill(actor);
+  return `${bill.due}|${bill.nextDue == null ? "" : daysUntil(bill.nextDue)}`;
+}
 
 /** Build the tab's data (async: the cards render through a template). */
 export async function buildFollowersTab(actor) {
@@ -53,6 +65,7 @@ export async function buildFollowersTab(actor) {
     payroll: count > 0 || bill.monthly > 0,
     wages: bill.monthly,
     due: bill.due,
+    nextDueDays: bill.nextDue == null ? null : daysUntil(bill.nextDue),
     editable: actor.isOwner,
     isRetainer: !!actor.system?.retainer?.enabled,
     emptyHint: loc("followers.empty"),

@@ -263,7 +263,8 @@ module's monster henchmen alike — with show, loyalty, morale and dismiss on
 each, and the Roster chip. The wage line beside it is the henchmen feature's
 `wageBill` ([henchmen MODEL](../henchmen/MODEL.md) §4c): what a payday would
 bill now, with the Pay wages chip, while anything is due, and what the
-payroll costs a month otherwise, with no chip. The chip calls `payWagesFor`.
+payroll costs a month otherwise, with the days until the bill's `nextDue`
+and no chip. The chip calls `payWagesFor`.
 The line is absent for a character with no follower and no paid unit.
 
 **Notes** is the character's notes as prose with an edit toggle, and the
@@ -318,6 +319,12 @@ The sheet re-renders on the actor's own changes as any document sheet does.
 It also watches the actors it shows off other documents — hirelings, storage
 providers — and the formation feature's light and role hooks, and re-renders
 debounced.
+
+The wage line counts days on the world's clock, which no document change
+announces. The sheet keeps the line's figures from its last render
+(`wageLineKey`: what is due, and the days until more is) and on
+`updateWorldTime` re-renders only when they have changed, so a clock that
+moves by rounds or turns re-renders nothing.
 
 ## The magic tone
 

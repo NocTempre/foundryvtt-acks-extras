@@ -194,8 +194,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    The class glyph before the name still opens the Class tab.
 8. Followers tab. *Observable:* the hireling's Follower Card renders with the
    four controls; Roster opens the roster app. With a waged hireling and
-   nothing due the rule reads what the payroll costs a month and draws no Pay
-   wages chip; with a month due it reads the wages due and draws the chip,
+   nothing due the rule reads what the payroll costs a month and the days
+   until the next wage falls due, and draws no Pay wages chip; with a month
+   due it reads the wages due and draws the chip,
    whose press is walked in docs/henchmen/TESTING.md, steps 5b and 5c.
 9. Effects tab. *Observable:* every timer lists under Timers with its unit
    mark (`6r`, `3t`, `30m`, `1h`, `3d`, `2mo`, `1y`; seconds climb, `90s` to

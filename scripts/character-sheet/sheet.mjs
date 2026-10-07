@@ -30,7 +30,7 @@ import { buildClassTab } from "./tabs/class.mjs";
 import { buildAbilitiesTab } from "./tabs/abilities.mjs";
 import { buildMagicTab } from "./tabs/magic.mjs";
 import { buildTraderTab, bindTraderTab, traderTabShown, TRADER_TAB_ACTIONS } from "../markets/apps/trader-tab.mjs";
-import { buildFollowersTab } from "./tabs/followers.mjs";
+import { buildFollowersTab, wageLineKey } from "./tabs/followers.mjs";
 import { buildNotesTab } from "./tabs/notes.mjs";
 import { buildEffectsTab } from "./tabs/effects.mjs";
 import { openCoreWindow } from "../lib/core-windows.mjs";
@@ -219,6 +219,9 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   /** The roll inventory of the last render — what the folded bar and the row ids read against. */
   #rolls = null;
 
+  /** The wage line's figures at the last render (`wageLineKey`). */
+  #wageLine = "";
+
   /** Hook ids for the watch on documents this sheet shows but does not own. */
   #watch = [];
 
@@ -271,6 +274,12 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     const watchSetting = (setting) => {
       if (setting?.key === `${MODULE_ID}.formations`) this.#renderSoon();
     };
+    // The wage line counts days on the world's clock. Nearly every advance of
+    // the clock leaves the line reading what it read, so only one that
+    // changes its figures re-renders.
+    const watchClock = () => {
+      if (wageLineKey(this.actor) !== this.#wageLine) this.#renderSoon();
+    };
     const pairs = [
       ["updateActor", watchActor], ["deleteActor", watchActor],
       ["createItem", watchItem], ["updateItem", watchItem], ["deleteItem", watchItem],
@@ -278,6 +287,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       ["canvasReady", () => this.#renderSoon()], ["updateSetting", watchSetting],
       ["acksExtras.lightChanged", watchMine], ["acksExtras.roleChanged", watchMine],
       ["updateCombat", () => this.#renderSoon()], ["deleteCombat", () => this.#renderSoon()],
+      ["updateWorldTime", watchClock],
     ];
     for (const [hook, fn] of pairs) this.#watch.push([hook, Hooks.on(hook, fn)]);
   }
@@ -330,6 +340,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     if (tabs.magic) panels.magic = buildMagicTab(actor);
     if (tabs.trade) panels.trade = buildTraderTab(actor, { compare: this._traderCompare });
     panels.followers = await buildFollowersTab(actor);
+    this.#wageLine = wageLineKey(actor);
     panels.notes = await buildNotesTab(actor, { editing: this.#ui.editingNotes });
     panels.effects = buildEffectsTab(actor);
 

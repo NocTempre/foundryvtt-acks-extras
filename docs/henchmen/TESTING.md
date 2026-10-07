@@ -150,6 +150,45 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    employer onto the hireling and records the payday; with too little coin it
    warns, moves nothing and leaves the month due. No chat card is posted by
    any of the four.
+5b-i. The days to the next payday, from the Player seat owning both. Leave
+   the wage clock where a hire puts it, then set
+   `flags.acks-extras.record.terms.lastPaidTime` on the hireling so that
+   three days less an hour remain of its month (`now() - secondsPerMonth() +
+   3 * 86400 - 3600`, both from `scripts/henchmen/time.mjs`), then one hour,
+   then a day and a second, re-opening the Followers tab after each. With
+   nothing due press the system sheet's Pay Wages button. Then take the
+   hireling's ownership from the seat and press it again. For an employer
+   with nobody on the payroll call `employer.payWages()`.
+   *Observable:* the line reads the monthly cost and `next due in N day(s)`:
+   the world's `daysPerMonth` for a hireling just hired or just paid, then 3,
+   1 and 2, a part day counting as a whole one; `wageBill(employer).nextDue`
+   is the clock plus one month. Each press with nothing due tells the seat
+   that pressed the same days and moves no coin, whether that seat ran the
+   payday or handed it over. With nobody on the payroll the notice names no
+   days and the tab draws no wage line. A paid unit's clock
+   (`flags.acks-extras.groupPay.lastPaidTime` on the group actor) counts the
+   same way: alone on the payroll it sets the days, beside a hireling the
+   nearer of the two does, and with the unit's month due the line reads the
+   wages due beside the chip. Read the line as
+   `[data-tab="followers"] .acks-extras-character-sheet__rule-note`: other
+   tabs draw rule notes of their own, and the sheet's first is not this one.
+5b-ii. The line under a clock that moves. The world's clock is shared, so
+   move the seat's own reading of it: with five days left on the wage clock
+   and the sheet open on Followers, shadow `game.time.worldTime` on that
+   seat's page with a getter a minute ahead
+   (`Object.defineProperty(game.time, "worldTime", {configurable: true, get,
+   set() {}})`) and call
+   `Hooks.callAll("updateWorldTime", game.time.worldTime, 60)`; repeat two
+   days ahead, then past the month; `delete game.time.worldTime` and call it
+   once more. Count the sheet's renders with a `renderApplicationV2` hook and
+   ask for none yourself. The property is the prototype's, so the instance
+   has no descriptor of its own to save: one read after the first shadow is
+   the shadow, and putting it back leaves the seat's clock ahead.
+   *Observable:* a minute ahead renders nothing and the line reads 5 days;
+   two days ahead renders once and reads 3; past the month it reads the wages
+   due and draws the chip; with the shadow gone it reads 5 again. A real
+   advance of the clock is not walked: it would bill every employer in a
+   shared world.
 5c. The controls, from the Player seat. The seat owns the employer and not
    the hireling, and a month is due. Press **Pay wages** on the Followers
    tab. As GM make a month due again, close the GM seat's page, and press it

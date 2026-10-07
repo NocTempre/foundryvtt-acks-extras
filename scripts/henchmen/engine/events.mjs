@@ -27,7 +27,7 @@ import { resolveActorSync } from "../../lib/storage.mjs";
 import { openThrowDialog } from "../apps/throw-dialog.mjs";
 import { postEventCard, registerCardAction, postRevealCard } from "../chat/cards.mjs";
 import { getSetting } from "../settings.mjs";
-import { now, secondsPerMonth, onTimeAdvanced } from "../time.mjs";
+import { now, secondsPerMonth, daysUntil, onTimeAdvanced } from "../time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 /* ------------------------- effective scores ------------------------- */
@@ -376,16 +376,35 @@ function dueGroups(employer, currentTime) {
 const dueOf = (employer, currentTime) => [...dueHirelings(employer, currentTime), ...dueGroups(employer, currentTime)];
 
 /**
+ * The world time at which a payday would next bill `employer` more than one
+ * at `currentTime` does: the nearest month boundary ahead on any wage clock
+ * that has started. Null while none has.
+ */
+function nextDueOf(employer, currentTime) {
+  const month = secondsPerMonth();
+  const clocks = [
+    ...wagedOf(employer).map(({ record }) => record.terms?.lastPaidTime ?? record.hiredTime),
+    ...unitsOf(employer)
+      .filter((group) => groupMonthlyWage(group) > 0)
+      .map((group) => group.getFlag(MODULE_ID, FLAG_GROUP_PAY)?.lastPaidTime),
+  ].filter((last) => last != null);
+  if (!clocks.length) return null;
+  return Math.min(...clocks.map((last) => last + (Math.max(0, Math.floor((currentTime - last) / month)) + 1) * month));
+}
+
+/**
  * What `employer`'s payroll costs, in gp: `due` is what `payWagesFor` would
  * bill now across `count` entries, and `monthly` what a month of the whole
- * payroll costs whether or not one has elapsed. Reads only, so a hireling
- * whose wage clock has not started is billed nothing.
- * @returns {{due: number, count: number, monthly: number}}
+ * payroll costs whether or not one has elapsed. `nextDue` is the world time
+ * at which a payday would next bill more than it does now, null while no
+ * wage clock has started. Reads only, so a hireling whose wage clock has not
+ * started is billed nothing.
+ * @returns {{due: number, count: number, monthly: number, nextDue: number|null}}
  */
 export function wageBill(employer, currentTime = now()) {
   const due = dueOf(employer, currentTime);
   const monthly = wagedOf(employer).reduce((s, w) => s + w.monthly, 0) + unitsOf(employer).reduce((s, g) => s + groupMonthlyWage(g), 0);
-  return { due: due.reduce((s, d) => s + d.amount, 0), count: due.length, monthly };
+  return { due: due.reduce((s, d) => s + d.amount, 0), count: due.length, monthly, nextDue: nextDueOf(employer, currentTime) };
 }
 
 /** Missed wages sour a unit (RR 166): drop its morale by one, clamped. */
@@ -491,7 +510,8 @@ const payrollOf = (employer) => [...rosterOf(employer).filter((a) => adapter.isR
 
 /**
  * Tell this seat's user what a payday did. One handed to no GM has already
- * said so. One refused whole is told only where another seat ran it
+ * said so. One with nothing due says how many days until something is, while
+ * a wage clock runs. One refused whole is told only where another seat ran it
  * (`relayed`): a seat that ran its own has heard each refused transfer. The
  * refusal names its reason and the payees when the answer carries one the
  * wording knows, and says only that nothing was paid otherwise.
@@ -500,8 +520,10 @@ function tellPayday(employer, result, { relayed = false } = {}) {
   const say = (level, key, data = {}) => ui.notifications[level](game.i18n.format(`ACKS-HENCHMEN.${key}`, { name: employer.name, ...data }));
   const gp = (n) => String(Number(Number(n ?? 0).toFixed(2)));
   switch (result?.status) {
-    case "nothingDue":
-      return say("info", "wage.nothingDue");
+    case "nothingDue": {
+      const next = wageBill(employer).nextDue;
+      return next == null ? say("info", "wage.nothingDue") : say("info", "wage.nothingDueUntil", { days: daysUntil(next) });
+    }
     case "insufficient":
       return say("warn", "gold.insufficient", { gp: result.total.toFixed(0), reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: result.count }) });
     case "notYours":

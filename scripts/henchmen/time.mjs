@@ -115,6 +115,11 @@ export function daysBetween(t0, t1) {
   return Math.floor((t1 - t0) / SECONDS_PER_DAY);
 }
 
+/** Days from `t0` until `t1`, a part day counted as a whole one: 1 at the least. */
+export function daysUntil(t1, t0 = now()) {
+  return Math.max(1, Math.ceil((t1 - t0) / SECONDS_PER_DAY));
+}
+
 export function weeksBetween(t0, t1) {
   return Math.floor((t1 - t0) / SECONDS_PER_WEEK);
 }

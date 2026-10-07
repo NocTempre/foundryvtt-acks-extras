@@ -482,3 +482,42 @@ pressing seat is told left this status out; that walk is the new evidence.
 each refused transfer, not one for the press. A handed-over payday that paid
 some entries still says only what was paid ([ROADMAP.md](ROADMAP.md)). The
 refusal has a sentence here beside the lib's own for the same reach.
+
+### A payday that is not yet due says when it will be (2026-10-06)
+
+**Found (field report, then a live walk).** A Judge reported that paying
+wages from the character sheet does nothing. Walked from a Judge's seat and a
+player's, every press was answered as the 2026-10-01 entry above rules: with
+nothing due the Followers tab draws no control and the system sheet's button
+says that nothing is due. Neither said when anything would be, so a press
+made before the month was up could not be told from a control that does not
+work. An open sheet also kept the line it had drawn while the world's clock
+moved under it: the month could turn and the control stay undrawn until
+something else re-rendered the sheet.
+
+**Ruled (the owner's, between three offered).**
+- *The line counts down.* With nothing due the Followers wage line states
+  what the payroll costs a month and the days until a payday would next bill
+  anything. `wageBill` answers that time as `nextDue`.
+- *The notice says the same days.* A payday with nothing due tells its seat
+  how many days remain, on the seat that pressed, whichever seat ran it.
+- *The line follows the clock.* An open sheet re-renders when the clock has
+  moved far enough to change what the line reads
+  ([character-sheet MODEL](../character-sheet/MODEL.md), "Re-rendering").
+- The 2026-10-01 ruling stands whole: one payday, paying what the wage clock
+  says is due, with the control drawn only while something is.
+
+**Rejected.**
+- *A Judge-only control that pays a month whatever the clock says.* The entry
+  above rejects it as a payment ahead of the clock. It was offered again with
+  the report as new evidence, and not chosen.
+- *Leaving it.* The press was answered, and the answer left the reader to
+  work out the date from the hireling's record.
+- *A date in place of a count of days.* A world with no calendar has none to
+  print, and the wage clock counts months in days of the world's own setting.
+
+**What it cost.** A table that never advances the world clock reads the same
+count at every session; the line now says why nothing is due and still pays
+nothing for it. The roster's Pay wages button is greyed while nothing is due
+and says nothing beside it. Every advance of the clock reads the bill once
+for each open character sheet on each seat.
