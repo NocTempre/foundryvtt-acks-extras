@@ -1,8 +1,18 @@
 /* global document, foundry */
 /**
- * The marks this client's look, theme and type size are written as, on every
- * page the client draws in. See docs/lib/MODEL.md's client-settings section.
+ * The marks a page of this client carries, on every page the client draws in:
+ * its look, theme and type size, and core's own mark on a detached page. See
+ * docs/lib/MODEL.md's client-settings section.
  */
+
+/** The detached browser windows core lists, less any that has closed. */
+function detachedWindows() {
+  const open = [];
+  for (const { window: win } of foundry.applications.detached?.windows.values() ?? []) {
+    if (!win.closed) open.push(win);
+  }
+  return open;
+}
 
 /**
  * Every page this client draws in: the main document, then the document of
@@ -11,11 +21,7 @@
  * @returns {Document[]}
  */
 export function clientPages() {
-  const pages = [document];
-  for (const { window: win } of foundry.applications.detached?.windows.values() ?? []) {
-    if (!win.closed) pages.push(win.document);
-  }
-  return pages;
+  return [document, ...detachedWindows().map((win) => win.document)];
 }
 
 /**
@@ -50,5 +56,31 @@ export function pinFontScale(px) {
   for (const page of clientPages()) {
     if (px == null) page.documentElement.style.removeProperty("--acks-fs-base");
     else page.documentElement.style.setProperty("--acks-fs-base", `${px}px`);
+  }
+}
+
+/** Each detached `<body>` already under watch for core's mark. */
+const watched = new WeakSet();
+
+/**
+ * Keep core's own `detached` class on the `<body>` of every detached page.
+ * Core puts it there as the page opens and writes the main page's whole
+ * `class` over it at each interface pass, which takes it off, and core's
+ * rules for a detached page with it. Each `<body>` is watched once, by an
+ * observer of its own window, and the class goes back when a write leaves it
+ * out. The class is tested for before it is written: a write to `class`
+ * queues a record whether or not it changed the value, so an unconditional
+ * one would answer its own record without end.
+ */
+export function keepDetachedMarks() {
+  for (const win of detachedWindows()) {
+    const { body } = win.document;
+    if (!body || watched.has(body)) continue;
+    watched.add(body);
+    const mark = () => {
+      if (!body.classList.contains("detached")) body.classList.add("detached");
+    };
+    mark();
+    new win.MutationObserver(mark).observe(body, { attributes: true, attributeFilter: ["class"] });
   }
 }

@@ -56,7 +56,7 @@ import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
 import { mathIsPrivate, mathSection, postToJudges } from "../scripts/lib/roll-audience.mjs";
 import { elementOf, gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
-import { clientPages, pinFontScale, pinLook, pinTheme } from "../scripts/lib/client-pins.mjs";
+import { clientPages, keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "../scripts/lib/client-pins.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../scripts/lib/sheet-rows.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import { clockReading, darkBounds, isDarkAt } from "../scripts/lib/world-time.mjs";
@@ -2494,6 +2494,128 @@ t("the pin writers reach a page listed since the last write, and write nothing t
     assert.deepEqual(pinsOf(late), pinsOf(main), "the late page reads as the main one does");
     assert.deepEqual(pinsOf(shut), { look: null, theme: "dark", size: "", themed: false }, "the closed window's page is as it was");
   });
+});
+
+/**
+ * A detached browser window whose `<body>` reports a write to its `class` as
+ * a page does: to every observer of it, whether or not the write changed the
+ * value, and once the write has returned. `flush` delivers what is queued
+ * until nothing is, answers how many rounds that took, and throws past
+ * `limit` of them.
+ */
+const standInWindow = (classes = [], closed = false) => {
+  const held = new Set(classes);
+  const observers = [];
+  let queued = false;
+  const state = { writes: 0 };
+  const wrote = () => {
+    state.writes += 1;
+    queued = true;
+  };
+  const body = {
+    classList: {
+      contains: (c) => held.has(c),
+      add: (c) => (held.add(c), wrote()),
+      toggle: (c, on) => (on ? held.add(c) : held.delete(c), wrote(), on),
+    },
+    // Core's copy of an attribute: the whole value, written over what was there.
+    setAttribute(name, value) {
+      if (name !== "class") return;
+      held.clear();
+      for (const c of String(value).split(" ").filter(Boolean)) held.add(c);
+      wrote();
+    },
+  };
+  class MutationObserver {
+    constructor(callback) {
+      this.callback = callback;
+    }
+    observe(target, options) {
+      observers.push({ observer: this, target, options });
+    }
+  }
+  return {
+    window: { closed, document: { body }, MutationObserver },
+    body,
+    observers,
+    state,
+    flush(limit = 8) {
+      let rounds = 0;
+      while (queued) {
+        rounds += 1;
+        if (rounds > limit) throw new Error("an observer answers its own record without end");
+        queued = false;
+        for (const { observer, target } of observers) if (target === body) observer.callback([], observer);
+      }
+      return rounds;
+    },
+  };
+};
+/** The same window built in a second realm, as a detached browser window is. */
+const detachedWindow = vm.runInNewContext(`(${standInWindow})`);
+/** Core's list holding these windows, each entry `[id, window stand-in]`. */
+const windowsOf = (entries) => new Map(entries.map(([id, { window }]) => [id, { window }]));
+
+t("keepDetachedMarks: a write that leaves core's mark off a detached body puts it back, once", () => {
+  const main = standInPage();
+  const page = detachedWindow(["vtt", "game", "detached"]);
+  assert.equal(page.window instanceof Object, false, "the stand-in really is from another realm");
+  withGlobals(pagesOf(main, windowsOf([["page", page]])), () => {
+    keepDetachedMarks();
+    assert.equal(page.observers.length, 1);
+    assert.equal(page.observers[0].observer instanceof page.window.MutationObserver, true, "the observer is that window's own");
+    assert.equal(page.observers[0].target, page.body);
+    assert.deepEqual({ ...page.observers[0].options }, { attributes: true, attributeFilter: ["class"] });
+    assert.equal(page.state.writes, 0, "a body that carries the mark is not written to");
+
+    // Core's interface pass: the main body's whole class, which has no mark.
+    page.body.setAttribute("class", "vtt game theme-dark");
+    assert.equal(page.body.classList.contains("detached"), false);
+    assert.equal(page.flush(), 2, "one round to put it back, and one that finds it there and writes nothing");
+    assert.equal(page.body.classList.contains("detached"), true);
+    assert.equal(page.body.classList.contains("theme-dark"), true, "what the write brought stays");
+    assert.equal(page.state.writes, 2, "core's write and the one that answers it");
+
+    // Another class changing is answered by no write at all.
+    page.body.classList.toggle("acks-lib-sheet-theme", true);
+    assert.equal(page.flush(), 1);
+    assert.equal(page.state.writes, 3);
+  });
+  assert.equal(main.body.classList.contains("detached"), false, "the main page is never marked");
+});
+
+t("keepDetachedMarks: each body is watched once, a page listed later is taken up, and a closed one is passed by", () => {
+  const main = standInPage();
+  const first = detachedWindow(["detached"]);
+  const windows = windowsOf([["first", first]]);
+  withGlobals(pagesOf(main, windows), () => {
+    keepDetachedMarks();
+    keepDetachedMarks();
+    assert.equal(first.observers.length, 1, "a second call adds no second observer");
+
+    // A page that lost the mark before it came under watch, and a window that has closed.
+    const late = detachedWindow(["vtt", "game"]);
+    const shut = detachedWindow(["vtt", "game"], true);
+    windows.set("late", { window: late.window });
+    windows.set("shut", { window: shut.window });
+    keepDetachedMarks();
+    assert.equal(late.body.classList.contains("detached"), true, "the mark goes back as the watch begins");
+    assert.equal(late.observers.length, 1);
+    assert.equal(late.flush(), 1, "and its own write is answered by none");
+    assert.equal(shut.body.classList.contains("detached"), false);
+    assert.equal(shut.observers.length, 0);
+    assert.equal(first.observers.length, 1);
+
+    late.body.setAttribute("class", "vtt game");
+    first.body.setAttribute("class", "vtt game");
+    late.flush();
+    first.flush();
+    assert.ok(late.body.classList.contains("detached") && first.body.classList.contains("detached"), "each page answers its own write");
+  });
+  withGlobals({ document: main, foundry: { applications: {} } }, () => {
+    assert.doesNotThrow(() => keepDetachedMarks(), "a core with no detached windows");
+  });
+  assert.equal(main.body.classList.contains("detached"), false);
 });
 
 t("keepUnrenderedFields: a submitted row keeps every stored field its form did not send", () => {

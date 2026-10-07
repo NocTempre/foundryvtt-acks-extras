@@ -3158,6 +3158,93 @@ forces a fourth pin through `clientPages()`: one written to
 check for that write is the family validator's to carry, and at this date
 nothing gates it.
 
+**Amended 2026-10-06** by "Core's mark on a detached page is kept", below. The
+loss of core's `detached` class is no longer left for core to mend, and what
+it shows is measured there.
+
+### Core's mark on a detached page is kept (2026-10-06)
+
+**Reported (owner).** Asked what this module should do about core taking its
+own `detached` class off a popped-out window's `<body>`, with three answers
+offered (leave it, put the class back from lib, draft a report for core), the
+owner answered "1B": put it back.
+
+This amends "A client's pins are written to every page it draws in
+(2026-10-06)", ruled the same day, which found the loss, called it core's to
+mend and left what a player sees of it unmeasured. The new evidence is the
+owner's answer, and that measurement.
+
+**Ruled.** `keepDetachedMarks()` in `client-pins.mjs` puts each detached
+`<body>` under a `MutationObserver` of that page's own window, once, and adds
+`detached` back whenever a write to `class` leaves it out. `applyClientPins()`
+calls it, at `ready` and on core's `openDetachedWindow`. No method of core's
+is wrapped.
+
+**Found live.** On core 14.367, before the change, with a sheet detached by
+`detachWindow()`.
+- Every road into core's pass takes the mark off. `game.configureUI` called
+  with the stored configuration did. So did one step of a slider in core's
+  Configure Interface, which previews by running the pass, and so did closing
+  that window unsaved and its Save. So did a change of the browser's colour
+  scheme, which core answers with a pass of its own.
+- The page's ground turns black. A detached `<body>` reads `rgb(46, 44, 41)`
+  with the mark and `rgb(0, 0, 0)` without it, beside a sheet narrower than
+  its page and all round a dialog.
+- A sheet loses 78px in a tall page. Without the mark core's size cap is back
+  on a window there: `max-width: 100%`, and a `max-height` of the viewport
+  less one and a half hotbar heights, which core widens to the whole viewport
+  in one 850px high or less. In a page 1000px high a resizable sheet stood
+  1000px with the mark and 922px without it, over 78px of that black. In the
+  511px page the driver's browser opens, the cap read 511px and the sheet
+  kept its height.
+- A window core sizes by its content is held by the `max-height` and
+  `max-width` core writes inline on it as it detaches, with the mark or
+  without.
+- Two of core's four rules met nothing in the walk. No window there carried
+  `faded-ui`, and none was minimizing or maximizing.
+
+**Measured.** From the Assistant GM seat with core's colour scheme dark, the
+same 15 steps before the change and after it: a sheet detached, each of those
+roads into the pass, a second sheet and a dialog detached, a window closed by
+hand, and the first sheet put back.
+- Detached pages carrying the mark: 3 of 20 readings before, each of them a
+  page just opened, and 20 of 20 after. A third run added the 1000px page and
+  read 24 of 24.
+- The main `<body>` carried the mark at no step of the three runs, and the
+  main page read the same before and after at all 15.
+- The mark is off when core's pass returns and back once the microtasks it
+  queued have run. All eleven probes of the two later runs read so.
+- With a closed window still listed, core's pass ran twice and threw and
+  logged nothing, before and after.
+- `tools/test-lib.mjs` holds two cases against a stand-in window built in a
+  second realm, whose `<body>` reports every write to `class`, changed or
+  not. Seventeen mutants of `client-pins.mjs` each failed the suite. Ten were
+  the watch's: the class written untested, tested and never written, an
+  observer added at every call, the class not put back as the watch begins,
+  no observer, one that is not the window's own, every attribute watched, the
+  main page marked, a closed window watched, and the first page alone
+  watched.
+- The three runs logged no console error at load, `init`, `setup`, `ready` or
+  during the walk.
+
+**Rejected.**
+- *Wrapping `game.configureUI`.* It would put the class back in the call that
+  took it off. It makes lib the one owner of a core method for the sake of a
+  class, it misses a write that reaches the `<body>` by another road, and a
+  renamed method fails where the wrap is installed.
+- *A mark of lib's own, with core's four rules declared again under it.* An
+  attribute set on the detached page alone outlasts core's pass, which sets
+  and never removes. The rules would then be copies of core's values, kept in
+  step by hand.
+- *Leaving it to core*, as the amended entry had ruled.
+
+**What it cost.** One function, and one observer for each detached page,
+which ends with that page. The watch answers any write that drops the class,
+whoever makes it, and at this date nothing takes the class off a detached
+page on purpose. The loss is still core's. Nothing has been reported to it,
+and once it is mended there the watch finds the class in place and writes
+nothing.
+
 ### Coin is kept in stores, and a holder states their order (2026-10-01)
 
 **Reported (owner).** "I do think it should be a character option where they

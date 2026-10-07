@@ -404,6 +404,19 @@ core's list for about a second, and is passed by. `applyClientPins()` runs at
 before it lists a window, and a setting changed between the two reaches neither
 the copy nor the list.
 
+**Core's own mark on a detached page is kept.** Core adds `detached` to a
+detached `<body>` as the page opens, and four of its rules key on it, the
+page's ground and the lift of a window's size cap among them. Its interface
+pass then writes the main `<body>`'s whole `class` over the detached one, and
+the main one has no such class. `keepDetachedMarks()` puts each detached
+`<body>` under a `MutationObserver` of that page's own window, once, and adds
+the class back whenever a write to `class` leaves it out. The answer runs in
+the microtasks the write queued, which the browser empties before it draws
+again. It tests for the class before it writes it: a write to `class` queues a
+record whether or not the value changed, and an untested write would answer
+its own record without end. `applyClientPins()` calls it, so a page comes
+under watch as core lists it. Nothing of core's is wrapped.
+
 ## Label association
 
 Every rendered window binds its captions to their controls. `a11y.mjs`'s

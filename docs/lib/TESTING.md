@@ -1311,7 +1311,9 @@ realm, and only a window first rendered in a detached one proves the hooks.
 Steps 11 to 13 cover the look, theme and type-size pins on a detached page
 (`client-pins.mjs`): `tools/test-lib.mjs` holds the writers against stand-in
 pages, and only a second document that core itself copies into proves the two
-agree.
+agree. Step 14 covers core's own mark on that page, which the same file
+keeps: the suite holds the watch against a stand-in window, and only core's
+own pass over a real page proves the watch answers it.
 
 **Drive notes:**
 - **Count lines from a `Range`.** Select the title's contents and count the
@@ -1401,8 +1403,8 @@ agree.
   (`style.getPropertyValue`), and `acks-lib-sheet-theme` on
   `window.document.body`. Compute a window's styles with its own page's
   `getComputedStyle`, `el.ownerDocument.defaultView`. Leave `body.detached`
-  out of a comparison: it is core's, the main page never has it, and the
-  popup loses it at core's first interface pass.
+  out of a comparison with the main page: it is core's, and the main page
+  never has it.
 - **Core's interface pass is
   `game.configureUI(game.settings.get("core", "uiConfig"))`.** After the
   driver's `api.compose()`, call `ui.hotbar.render({force: true})` first.
@@ -1429,6 +1431,37 @@ agree.
   window closes on Save.
 - **The three settings are this browser's alone.** They are client settings,
   kept in the driver's own profile, and changing them moves no other seat.
+- **Read core's mark in the evaluation that runs the pass, and again after
+  it.** `body.classList.contains("detached")` straight after
+  `game.configureUI(...)` reads what core's write left. Read it again in the
+  `then` of `Promise.resolve()` returned from that evaluation: the watch has
+  answered by then.
+- **What a page shows without the mark, with the watch in place.** Take the
+  class off and read in one evaluation. `getComputedStyle` and
+  `getBoundingClientRect` lay the page out as it stands at that moment, and
+  the watch answers once the evaluation returns.
+- **Make a page taller than 850px to see core's size cap.** Without the mark
+  core caps a window at the whole viewport in one 850px high or less, and at
+  one and a half hotbar heights short of it in a taller one, so only a taller
+  page shows the cap. `Emulation.setDeviceMetricsOverride` on the popup's
+  session (800 by 1000 here) resizes the page, and core's resize listener
+  there sets a resizable first window to the page's size.
+  `Emulation.clearDeviceMetricsOverride` puts the page back.
+- **Core's Configure Interface.**
+  `new foundry.applications.settings.menus.UIConfig().render({force: true})`
+  opens it, with the id `ui-config`. A control is named
+  `core.uiConfig.<path>`. The fade speed is a `range-picker` whose
+  `input[type="range"]` moves 50ms for each `ArrowRight`, and each step
+  previews by running core's pass: the main `<body>`'s inline
+  `--ui-fade-duration` then reads the previewed speed. The header's
+  `[data-action="close"]` closes it unsaved, which runs the pass again with
+  the stored configuration. `core.uiConfig` is a client setting too.
+- **Flip the browser's colour scheme.** `Emulation.setEmulatedMedia` with
+  `features: [{name: "prefers-color-scheme", value: "light"}]` on the main
+  page's session, and an empty `features` to release it. Core answers each
+  change with a pass that is handed no configuration, and the main
+  `<body>`'s `--ui-fade-opacity` reads `undefined` until a pass with the
+  stored one has run.
 
 **Fixtures (each id recorded with `api.create`):** an `acks-extras.vehicle`
 named with an invented phrase of about 45 characters, and a `monster` and an
@@ -1437,7 +1470,7 @@ a `character` owned by every seat (`ownership: {default: 3}`) holding an
 `item` of `system.quantity.value` 6 named with one of about 70, and a plain
 world `item`. For step 10, a second `acks-extras.vehicle`, a second `monster`
 and two more `character`s, each named with the 85-character phrase. For steps
-11 to 13, three `acks-extras.vehicle`s under any name.
+11 to 14, three `acks-extras.vehicle`s under any name.
 
 **The probe.** Run it on a heading element. A window's title is
 `app.element.querySelector(":scope > .window-header .window-title")`.
@@ -1659,19 +1692,55 @@ and two more `character`s, each named with the 85-character phrase. For steps
     the settings window has closed and the two pages carry the same pins, by
     the figures of step 11: 19.98px on `rgb(253, 251, 249)`, then undressed,
     then 15.54px on `rgb(27, 20, 22)` with no pin left in either page.
+14. **Core's own mark outlasts core's pass.** Detach a vehicle's sheet and
+    take a reading: whether each detached `<body>` and the main one carry
+    `detached`, the detached body's computed `background-color`, and the
+    sheet's computed `max-height` and its box. Take one again after each of
+    these: core's interface pass; one `ArrowRight` on the fade speed in
+    core's Configure Interface, then its header close; the same key press
+    saved, then `core.uiConfig` set back; the browser's colour scheme flipped,
+    then released, then core's pass with the stored configuration. Detach a
+    second sheet and run the pass, and a dressed dialog and run it again. Make
+    the first page 1000px tall, run the pass, and take the reading of the
+    drive notes with the mark off. Close the second popup with its window's
+    `close()` and run the pass at once and 400ms later. Put the first sheet
+    back with `attachWindow()` and run the pass once more.
+    **Observable:**
+    - At every reading each detached `<body>` carries `detached` and reads
+      `rgb(46, 44, 41)`, and the main `<body>` never carries it.
+    - Read in the evaluation that runs the pass, the mark is off. Read after
+      it, the mark is back.
+    - A sheet reads `max-height: none` and stands the full height of its
+      page: 511px in the page the driver's browser opens, and 1000px in the
+      one made that tall.
+    - With the mark taken off that tall page, in the same evaluation: the
+      ground reads `rgb(0, 0, 0)`, and the sheet reads `max-height: 922px` and
+      stands 922px high over 78px of ground. The next reading has the mark,
+      and 1000px again.
+    - The dialog keeps the inline `max-height` and `max-width` core wrote on
+      it as it detached, and its page reads `rgb(46, 44, 41)` after the pass.
+    - After the key press the main `<body>`'s `--ui-fade-duration` reads 50ms
+      above the stored speed, and the stored speed changes only at Save.
+    - With the closed window still listed, neither pass throws, and the
+      console holds no error.
 
 **Not reached.** A browser other than the Chromium build the capture driver
 launches. The world's UI preset changed from another seat while a window is
 detached: it arrives through the `look` setting's own applier and was read,
-not driven. In a popup: a scene, region, wall or roll-table configuration
+not driven. In a detached page: a window that carries `faded-ui`, as core's
+placeable palettes do, and one minimizing or maximizing. Core has a `detached`
+rule for each, and the walk met neither. A change of the operating system's
+own colour scheme: the walk stands the browser's media emulation in for it.
+In a popup: a scene, region, wall or roll-table configuration
 window, the token HUD, a chat card and a directory context menu, whose hooks
 take their element through the same resolver. The hit-point window is "The
 hit-point tool", step 10; the repair window's own checkbox guard needs a
 finding to tick and was read, not driven.
 
 **Teardown.** Close the windows, the constructed system sheet included, set
-`look` and `sheetStyle` back to what step 7 found and `theme` and `fontScale`
-back to what step 11 found, and `api.sweepTracked()`.
+`look` and `sheetStyle` back to what step 7 found, `theme` and `fontScale`
+back to what step 11 found and `core.uiConfig` back to what step 14 found,
+and `api.sweepTracked()`.
 
 ## Conditions on the palette and on a roll
 

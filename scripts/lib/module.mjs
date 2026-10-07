@@ -53,7 +53,7 @@ import { installPolyglotBridge, publishWorldLanguages } from "./polyglot.mjs";
 import { registerManagedEffectGuard, lockManagedEffectRows } from "./managed-effects.mjs";
 import { associateLabels } from "./a11y.mjs";
 import { watchWindowTitle } from "./window-title.mjs";
-import { pinFontScale, pinLook, pinTheme } from "./client-pins.mjs";
+import { keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "./client-pins.mjs";
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
@@ -768,10 +768,15 @@ function applyFontScale(px) {
   pinFontScale(Number.isFinite(n) && n !== 14 ? n : null);
 }
 
-/** Apply the client's whole state: the look, the theme, the dress of every open window, and the type size. */
+/**
+ * Apply the client's whole state: the look, the theme, the dress of every
+ * open window and the type size, and put each detached page's own mark from
+ * core under watch.
+ */
 function applyClientPins() {
   applyLook();
   applyFontScale(game.settings.get(MODULE_ID, "fontScale"));
+  keepDetachedMarks();
 }
 
 /**
