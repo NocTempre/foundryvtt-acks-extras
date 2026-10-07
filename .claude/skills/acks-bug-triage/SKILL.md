@@ -114,8 +114,9 @@ than silently absorbing it.
 
 Mechanics are `acks-hotfix` §1–§3, used as written: the two orientation reads
 (`TEST_ENVIRONMENT.md`, the repo table), the rules-lookup order, the routing
-table, the report-kind split, and the parallel Workflow fan-out with one
-investigator per symptom plus the cross-check. Nothing there is repeated here.
+table, the report-kind split, live reproduction before long reading, and the
+Workflow fan-out with one investigator per symptom plus the cross-check.
+Nothing there is repeated here.
 
 The rules-lookup order (`.claude/rules/rules-lookup.md`) matters most in this
 skill, because a **false report** and a **docs gap** both turn on what the

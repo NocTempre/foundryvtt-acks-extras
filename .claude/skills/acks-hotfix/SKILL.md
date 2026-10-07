@@ -88,11 +88,41 @@ Classify every bullet before diagnosing any. The kinds behave differently:
 
 Restate the split back to the user before writing any code.
 
-## 3. Diagnose in parallel
+## 3. Reproduce, then diagnose
 
-Symptoms are independent; investigating them serially wastes the session. Fan
-out with the Workflow tool — **one investigator per symptom**, then one
-cross-check.
+**A defect is reproduced live before its source is read at length.** The test
+world answers what reading cannot: what was actually rendered, whether the
+control is `disabled` or hidden, what the console said, what the document
+holds after the write. Per symptom, where this machine has a test server:
+
+1. Find the entry point and no more: the sheet, dialog or macro the reporter
+   used.
+2. Reproduce it in the seat the reporter held, on fixtures you create
+   (`.claude/rules/live-testing.md`). A player's bug is reproduced as a
+   player.
+3. Keep what shows it: the control's markup and state, the console output,
+   the stored value. The fix is checked against that same capture.
+4. Read the code path the capture points at.
+
+Two attempts that do not reproduce it are a result. Stop and ask the reporter
+for the one thing that would settle it, which they can produce from where they
+sit: the element's markup from devtools, a screenshot, the console. Never ask
+for data they are unlikely to hold. Without a test server, diagnose from
+source and say in the verdict that nothing was reproduced.
+
+**The user's word sets the budget.** "Hotfix", "urgent", or a budget stated as
+tight means the reported symptom, the smallest fix that restores intended
+behaviour, and the gates a release requires. No adjacent clean-up, no
+speculative option, no debug-only surface, and no exploration past the
+symptom's own path. Anything else noticed is one line in the report, for the
+user to schedule.
+
+### Fanning out
+
+One or two symptoms are diagnosed in the session. From about three
+independent symptoms the Workflow fan-out earns its overhead: **one
+investigator per symptom**, then one cross-check. Investigators read; live
+reproduction stays in the main session, which holds the browser.
 
 Every investigator prompt carries: repo path, that `acks-core` is a read-only
 reference, the `scripts/`–`templates/`–`styles/`–`lang/en.json` layout, and
@@ -110,8 +140,10 @@ Force structured output — status, root-cause summary, evidence as
 `{file, line, quote, why}`, proposed minimal fix, `hotfix_safe`, risk,
 confidence — so the cross-check gets data instead of prose.
 
-The **cross-check** stage is where the value is, and it has two jobs beyond
-reconciling:
+The **cross-check** runs whatever the count, in the session when nothing was
+fanned out. It is where the value is, and it has two jobs beyond reconciling.
+Under a tight budget the second job lists the other instances in the report
+and fixes none the user did not ask for:
 
 1. **Find causes that span symptoms.** Several dead form fields, or several
    undersized windows, are usually one broken base class or one CSS rule. A
@@ -132,6 +164,10 @@ Recurring causes in this family, worth checking by name:
   unreachable. Escape hatch: pass an **attribute-less** `<div>` whose `innerHTML`
   is the markup — `DialogV2` treats an element as trusted and skips cleaning.
   Suspect this whenever a control behaves as though an attribute were absent.
+- **Core disables every control in a sheet its viewer cannot edit**
+  (`DocumentSheetV2#_toggleDisabled`), whatever the template says. A button a
+  player is meant to press on a document they do not own is dead for players
+  and live for the GM, so a GM seat never reproduces it.
 - Foundry v14 `<multi-select>` read as a scalar, or a setting registered
   `type: String` that silently collapses an array.
 - `DialogV2.prompt`/`.confirm` default to `width: 400`, `height: "auto"` and
@@ -206,7 +242,9 @@ Reflexes that are wrong here (full statements in the module's `CLAUDE.md`):
 Hand off to **`acks-release`** with kind = **hotfix**. It owns the version bump,
 the live gate, tagging, CI polling and manifest verification; none of that is
 repeated here. A hotfix captures no release snapshots unless the fix is
-UI-visible *and* the user asks.
+UI-visible *and* the user asks. When the user says to commit and hold the
+release, the fix lands through **`acks-commit`** and the ledger row reads
+`fixed-unreleased`.
 
 ### Voice
 

@@ -35,7 +35,9 @@ rather than inventing one.
    the build still needs them released.)
 3. Launch the world, enable the module, and verify at minimum:
    - it reaches `ready` with **no console errors** — check `init`, `setup`,
-     and `ready` specifically; a throw in one leaves the rest silently dead;
+     and `ready` specifically; a throw in one leaves the rest silently dead.
+     A clean console is a statement about a recorder: one attached after
+     `ready` saw none of the three;
    - every registered setting appears in the settings UI AND gates something
      (an inert toggle is a bug, not a placeholder);
    - every shipped macro runs without throwing;
@@ -93,6 +95,13 @@ rather than inventing one.
    close it. Quote the sweep result — removed, could not find, refused — as
    the record of what you created and what became of it.
 
+   **A claim is as wide as the check behind it.** Sort the report three ways:
+   exercised live, checked offline only, not checked. A count is quoted from
+   the output that produced it, never from recall. "No console errors" names
+   what recorded them and when it was attached. Name what the change made
+   stale and did not refresh: a screenshot, a guide step, a generated
+   reference.
+
 ## Driving techniques (scripted checks)
 
 - **Probe a dialog's computation without rendering it**: construct the app
@@ -131,7 +140,10 @@ all** — there is never a malformed population to migrate from that path.
 Parallel sessions share this working tree, this test world, and these
 settings. Expect another session's fixtures and failures in the world log.
 The only world documents a session deletes are the ones its own ledger names
-(step 4), and the only files it acts on are its own. Two more rules that
+(step 4), and the only files it acts on are its own; committing beside a peer
+is `shared-tree.md`. **A shutdown or a relaunch drops every client, a peer's
+included.** Find out who is seated before either, and where a seat is not
+yours, ask its owner. Two more rules that
 exist because they were broken: **never modify an in-force canonical doc
 outside an explicitly authorized phase** (a proposal doc opens with a
 NOT-IN-EFFECT banner until adopted), and **shared ledgers are re-read
