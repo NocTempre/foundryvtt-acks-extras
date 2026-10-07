@@ -17,7 +17,8 @@ import { GENERATED } from "./stage-content.mjs";
 /** The opening every staged page's header shares, whatever source it names. */
 const GENERATED_MARK = GENERATED("").split(" from ")[0];
 
-const git = (...args) =>
+/** What git prints for `args` in the repo, trimmed. It throws when git fails. */
+export const git = (...args) =>
   execFileSync("git", ["-C", REPO, ...args], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
@@ -52,16 +53,19 @@ const mask = (text, pattern) => text.replace(pattern, (found) => found.replace(/
  *   label mapped to the short hash of the commit that last removed it, or to
  *   null while the newest commit still declares it; `shallow` when the
  *   checkout carries no history to read, and `labels` is then empty; null when
- *   git cannot answer at all.
+ *   git cannot answer, or holds no commit of the manifest to read.
  */
 export function manifestLabelHistory() {
   const labels = new Map();
   try {
     if (git("rev-parse", "--is-shallow-repository") === "true") return { labels, shallow: true };
-    // Only a commit whose diff touches a label line can change the set, and
-    // `-m` reads a merge against each parent so a label that arrived or left
-    // in one is seen.
-    const commits = [...new Set(git("log", "-m", "--reverse", "--format=%h", '-G"label"', "--", "module.json").split("\n").filter(Boolean))];
+    // Only a commit whose diff touches a label line can change the set. `-m`
+    // reads a merge against each parent so a label that arrived or left in one
+    // is seen, and `--root` reads the first commit whatever `log.showRoot` says.
+    const commits = [...new Set(git("log", "-m", "--root", "--reverse", "--format=%h", '-G"label"', "--", "module.json").split("\n").filter(Boolean))];
+    // A copy of the tree kept inside another repository is answered by that
+    // repository, which holds no commit of this manifest.
+    if (!commits.length) return null;
     for (const commit of commits) {
       let declared;
       try {
@@ -82,7 +86,8 @@ export function manifestLabelHistory() {
 }
 
 /**
- * Where `text` names a retired label, whole or without its parenthetical.
+ * Where `text` names a retired label, whole or without its parenthetical. A
+ * macro's name is searched for as a pack's label is.
  *
  * A declared label is blanked first, so a retired name that opens a declared
  * one is not found inside it. The retired forms are then taken longest first
@@ -90,10 +95,10 @@ export function manifestLabelHistory() {
  * longest name that fits it.
  *
  * @param {string} text the prose to search
- * @param {string[]} declared the labels the manifest declares now
- * @param {string[]} retired the labels it once declared
- * @returns {{label: string, name: string, line: number}[]} `name` is the form
- *   found, `line` is 1-based
+ * @param {string[]} declared the labels held now
+ * @param {string[]} retired the labels held once and no longer
+ * @returns {{label: string, name: string, line: number}[]} `label` is the
+ *   retired one, `name` is the form of it found, `line` is 1-based
  */
 export function findRetiredNames(text, declared, retired) {
   let rest = text;
@@ -116,7 +121,7 @@ export function findRetiredNames(text, declared, retired) {
  * The prose a reader is sent to, as `[repo-relative path, text]`: the README,
  * the guides, and each site page that is written by hand rather than staged.
  */
-function proseSources() {
+export function proseSources() {
   const files = [path.join(REPO, "README.md")];
   const guides = path.join(REPO, "docs", "guides");
   for (const name of fs.readdirSync(guides).sort()) if (name.endsWith(".md")) files.push(path.join(guides, name));

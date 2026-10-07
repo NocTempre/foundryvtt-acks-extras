@@ -12,7 +12,7 @@ import path from "node:path";
 import { REPO } from "./parse.mjs";
 
 /** Compendium folders travel in the same array as documents, keyed `!folders!`. */
-const isFolder = (doc) => String(doc?._key ?? "").startsWith("!folders!");
+export const isFolder = (doc) => String(doc?._key ?? "").startsWith("!folders!");
 
 /** Strip enriched HTML down to a one-line plain-text summary. */
 function plain(html, limit = 180) {

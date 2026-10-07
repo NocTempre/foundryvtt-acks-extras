@@ -665,3 +665,86 @@ extractor, and the sync stops when the source no longer holds that rule,
 whether it changed or was only rewritten. The page says which compendiums can
 exist. Which of them a world holds depends on the books it imported. The
 guide's own table of three is still kept by hand and nothing checks it.
+
+## 22. Prose names a macro only while the pack holds it (2026-10-06)
+
+**What was found.** 6.0.1 retired six macros in one commit, and prose went on
+naming three of them in five places. The README's `## Installation`, which
+the site publishes as its Install page, told a Judge upgrading from the
+separate modules to run *Clean Up After the Merge (GM)* through 7.2.0, 23
+releases, until 7.3.0 put the macro back. The formation guide sent readers to
+*Migrate Token Vision* through 10.1.0, 74 releases, and docs/lib/MODEL.md and
+docs/lib/TESTING.md named it as long. docs/location/TESTING.md walked *Recover
+Coin from Unloadable Locations (GM)* for the same 74, and still did when this
+check first ran. Nothing failed: §20 reads pack labels, and nothing tied a
+name in prose to a macro in the pack.
+
+**Ruled.** Four things.
+
+- `macro-names.mjs` reads every name a macro under `packs/_source/macros` has
+  carried out of that directory's git history. `sync.mjs` exits non-zero when
+  prose names one the pack build no longer makes. The test is held once and
+  not held now: the cleaner macro was deleted and came back, and is not
+  retired. A folder in the pack is not a macro, and its name is not read.
+- The match is §20's, made by §20's own function: the whole name or the name
+  without its trailing parenthetical, wrapped across a line or not, with every
+  name the pack still holds blanked first.
+- It reads what §20 reads and, besides, `docs/TESTING.md` and each feature's
+  `MODEL.md` and `TESTING.md`.
+- A checkout without history prints a note and passes, as §20's does. Two
+  holes in that are closed for both checks. A copy of the tree kept inside
+  another repository was answered by that repository and passed in silence,
+  and it now prints the note. With git's `log.showRoot` off, §20's reader
+  skipped the first commit and never saw the four labels dropped at 4.1.0,
+  and both readers now ask for that commit by flag.
+
+Read against all 181 release tags, the check fails the 74 from 6.0.1 through
+10.1.0 and passes the rest, and it reports the five places above and no
+other.
+
+**Rejected.**
+
+- *The whole name only.* Over the tags it reports the same five places,
+  because each of them wrote the name in full. Today's prose does not. With
+  each of the 33 held names retired in turn, the check reports 74 places in
+  the scope, and 36 of them leave the parenthetical off, as in "run **Import
+  Everything** from the Macros compendium". The README, the guides and the
+  site pages name two macros only that way. A check that lists half goes green
+  with the other half still published.
+- *Emphasis around the name, or the word "macro" beside it.* Of those 74,
+  emphasis or quotation marks surround 51, and "macro" stands on the same or
+  an adjacent line of 28. The location recipe's step said "macro" three lines
+  below the name, and prose writes "the Disable Storage Here macro" bare.
+- *The sources §20 reads and no more.* Three of the five places were a
+  MODEL.md or a TESTING.md, and one of those was the last to be corrected. A
+  recipe step that runs a macro the pack does not hold cannot be walked. Over
+  the tags the wider scope reported nothing that was not stale.
+- *Every document under `docs/`.* DECISIONS.md names what was retired, as the
+  changelog names what a release removed: docs/henchmen/DECISIONS.md and
+  docs/lib/DECISIONS.md name three of the five retired macros on purpose.
+  ROADMAP.md speaks of what is not there.
+- *A second copy of the search.* The two checks differ in where a name comes
+  from and in which documents they read. What a parenthetical is, what a
+  wrapped name is and which pages are hand-written would otherwise be decided
+  twice.
+
+**What it costs.** §20's costs, unchanged: a shallow checkout checks nothing,
+CI's is one, and nothing exempts a mention. Three are the macro check's own.
+
+- A name that is also a word fails wherever the word is. One held name is a
+  single word, *Containers*. Retired, it would fail a README bullet, a guide
+  heading and two recipe steps, none of them about the macro, under either
+  match. No other held name is written in the scope except of its macro or of
+  the tool that macro opens.
+- A name without its parenthetical is often that tool's title. A macro
+  retired while its tool stays reachable under the same title fails every
+  mention of the tool: 17 for *Reimport One Shelf (GM)*. Such prose must
+  change, or the check must learn an exemption.
+- What it does not read can still go stale. A feature's topic files beside
+  its MODEL.md name no macro today. The interface's own strings are not prose
+  the sync reads: from 6.0.1 through 8.0.6, 48 releases, a setting hint in
+  `lang/en.json` and a warning in `scripts/henchmen/repair.mjs` sent the Judge
+  to *Repair Henchmen References*, and this check would have passed both.
+
+The history is read from one directory. A second macro pack would need naming
+in `macro-names.mjs`.

@@ -58,14 +58,16 @@ or a guide links to a guide that is not there. `npm run validate` runs it, so a
 change that breaks one is caught before the push and again in CI rather than
 published quietly.
 
-Two more conditions belong to the compendia reference. The sync exits non-zero
-when the README, a guide or a hand-written site page names a compendium pack
-`module.json` declared once and declares no longer
-([DECISIONS.md](DECISIONS.md) §20). That check reads the manifest's git
-history, so a shallow checkout, CI's included, prints a note and checks
-nothing. It also exits non-zero when a compendium type the importer keeps has
-no brief in `tools/extract-library.mjs`, which is where the site says in its
-own words what each of those compendiums is (§21).
+Three more conditions belong to the compendia reference. The sync exits
+non-zero when the README, a guide or a hand-written site page names a
+compendium pack `module.json` declared once and declares no longer
+([DECISIONS.md](DECISIONS.md) §20). It does the same for a macro the pack held
+once and holds no longer, and for that name it also reads the repo's own
+`TESTING.md` and each feature's `MODEL.md` and `TESTING.md` (§22). Both checks
+read git history, so a shallow checkout, CI's included, prints a note for each
+and checks nothing. It also exits non-zero when a compendium type the importer
+keeps has no brief in `tools/extract-library.mjs`, which is where the site
+says in its own words what each of those compendiums is (§21).
 
 ## Not shipped
 

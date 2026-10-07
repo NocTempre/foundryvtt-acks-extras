@@ -17,6 +17,7 @@ import { extractSettings } from "./extract-settings.mjs";
 import { extractPacks } from "./extract-packs.mjs";
 import { extractLibrary } from "./extract-library.mjs";
 import { retiredPackNames } from "./pack-names.mjs";
+import { retiredMacroNames } from "./macro-names.mjs";
 import { stageContent, GENERATED, write } from "./stage-content.mjs";
 
 const SITE = path.resolve(import.meta.dirname, "..");
@@ -289,16 +290,27 @@ if (!stagedGuides.includes(IMPORT_GUIDE)) {
   process.exitCode = 1;
 }
 
+/** A finding from either retired-name check, as its message lists it. */
+const mention = (f) => `${f.file}:${f.line} "${f.name}" (${f.removedIn ? `dropped in ${f.removedIn}` : "dropped in the working tree"})`;
+
 // A pack's name outlives the pack in prose that nothing regenerates.
 const retired = retiredPackNames(packs.map((p) => p.label));
 if (retired.findings.length) {
-  const where = retired.findings.map(
-    (f) => `${f.file}:${f.line} "${f.name}" (${f.removedIn ? `dropped in ${f.removedIn}` : "dropped in the working tree"})`,
-  );
+  const where = retired.findings.map(mention);
   console.error(`sync: ${count(where.length, "mention")} of a compendium pack module.json no longer declares: ${where.join(", ")}`);
   process.exitCode = 1;
 }
 if (retired.note) console.log(`sync: note: ${retired.note}`);
+
+// A macro's name outlives the macro the same way, and in the documents that
+// say how the module works and how to walk it.
+const retiredMacros = retiredMacroNames(packs.filter((p) => p.type === "Macro").flatMap((p) => p.documents.map((d) => d.name)));
+if (retiredMacros.findings.length) {
+  const where = retiredMacros.findings.map(mention);
+  console.error(`sync: ${count(where.length, "mention")} of a macro the macro pack no longer holds: ${where.join(", ")}`);
+  process.exitCode = 1;
+}
+if (retiredMacros.note) console.log(`sync: note: ${retiredMacros.note}`);
 
 console.log(
   `sync: ${guides.length} guides, ${gallery.length} gallery rows, ${settings.length} settings, ` +
