@@ -76,7 +76,23 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   `acksExtras.henchmen.HOOKS.WAGES_PAID` on both seats: a payday the Player
   seat hands over reports on the GM's.
 - **What a seat was told is read off the notification.** Wrap
-  `ui.notifications.info` and `.warn` for the length of the step.
+  `ui.notifications.info` and `.warn` for the length of the step. A seat that
+  has just joined also raises the book loader's own toasts ("Reading …",
+  "ACKS Extras | … open") for a minute or more; leave them out of the count.
+- **A payroll entry out of the employer's reach is made by hiring a monster
+  away.** `hireMonster(monster, first)` and then `hireMonster(monster,
+  second)`: the first employer's `monsterHenchmenList` keeps the monster, its
+  `retainer.managerid` names the second, and with no scene holding the first
+  employer and the monster `lib.money.coinReach(first, monster)` answers
+  `notTogether`. Hire while both employers are the GM's and give the Player
+  the employer afterwards: a hire raises the monster's ownership to the
+  employer's owners, and a seat that owns the hireling runs the payday itself.
+- **A hire posts chat cards it does not return.** Wrap `ChatMessage.create`
+  on the seat for the length of the call and `api.track` the ids it made.
+- **What a handed-over payday answered is read on both seats.** The module's
+  socket is `socketlib.modules.get("acks-extras")`: wrap the
+  `henchmenPayWages` entry of its `functions` on the GM's seat for what that
+  seat answered, and its `executeAsGM` on the asking seat for what arrived.
 - **New Posting is disabled for a seat that does not own the place**, so the
   posting dialog is driven from a seat that does. Its employer select is
   `[name="employerId"]` and takes an actor id.
@@ -118,11 +134,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    *Observable:* the employer's purse is down by the unit's wage, the group
    actor's coin is up by it, and the flag's `lastPaidTime` moved. The group's
    sheet lists that coin under **Purse**. No "not together" warning: the
-   unit's employer link is the reach. The branch that books nothing for a
-   refused transfer has no route from here, since every due entry is in reach
-   by its roster or its unit link. The refusal itself (a part-payment between
-   two actors who are not together moves nothing) is asserted offline in
-   `tools/test-coin-flows.mjs`; the bookkeeping after it is not walked.
+   unit's employer link is the reach. A refused transfer is walked in 5e.
 5b. The controls, as GM. With a month due and coin that cannot make the wage
    exactly, open the employer's sheet on its Followers tab and press **Pay
    wages**. With nothing due, call `employer.payWages()`. With a month due
@@ -159,6 +171,26 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    and coin behind a lock on their person, is as it was. The posting is in
    `system.market.postings`. A signing bonus states the same reach
    (`within: location` in `engine/hire.mjs`) and is not walked here.
+5e. A payday refused whole. As GM hire a monster for the employer and then
+   for a second employer (above), set a wage on its record and make a month
+   due; the Player seat owns the employer and not the monster. From the
+   Player seat press **Pay wages** on the Followers tab, then the system
+   sheet's Pay Wages button. As GM press the Followers control. Give the seat
+   ownership of the monster and press it from the Player seat again. Repeat
+   the first press for an employer with two such monsters, and for one with
+   one such monster beside a monster hired once.
+   *Observable:* each press the Player hands over answers `{status:
+   "refused", reason: "notTogether", payees: [the monster's id]}`. The
+   Player's seat is told once that the wages were not paid, in a warning
+   naming the employer and the monster, and the GM's seat hears the
+   transfer's own warning. No coin moves, the month is still due and no hook
+   fires on either seat. The GM's own press is told once, by the transfer,
+   and the Player's seat hears nothing of it. With the monster owned the
+   payday runs on the Player's seat: one warning, the transfer's, and nothing
+   is handed over. With two such monsters the one notification names both and
+   the GM's seat hears two warnings. With one in reach beside one that is
+   not, the Player's seat is told what was paid, the hook fires on the GM's
+   seat, and the refusal is heard there alone.
 6. Loyalty and obedience: `openLoyaltyRoll` / `openObedienceRoll` on a hired
    henchman, and `recordCalamity`.
    *Observable:* each posts its card, and the henchman's stored loyalty moves
@@ -214,6 +246,6 @@ walked in docs/lib/TESTING.md, "The repair tool".
 
 `api.sweepTracked()`: the employer, the hires, the location, and every actor
 the recruit path created, each tracked from the id read back when it was
-made. Deleting a place that keeps coin posts a "was destroyed" card; track it
-and sweep again. Confirm `location.system.market.candidates` is gone with the
-location.
+made, and the chat cards the hires posted. Deleting a place that keeps coin
+posts a "was destroyed" card; track it and sweep again. Confirm
+`location.system.market.candidates` is gone with the location.

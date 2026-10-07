@@ -489,8 +489,14 @@ export async function forgiveWageDebts(employer) {
 /** The documents a payday writes besides the employer: each managed hireling and each paid unit. */
 const payrollOf = (employer) => [...rosterOf(employer).filter((a) => adapter.isRetainer(a)), ...unitsOf(employer)];
 
-/** Tell this seat's user what a payday did. One handed to no GM has already said so. */
-function tellPayday(employer, result) {
+/**
+ * Tell this seat's user what a payday did. One handed to no GM has already
+ * said so. One refused whole is told only where another seat ran it
+ * (`relayed`): a seat that ran its own has heard each refused transfer. The
+ * refusal names its reason and the payees when the answer carries one the
+ * wording knows, and says only that nothing was paid otherwise.
+ */
+function tellPayday(employer, result, { relayed = false } = {}) {
   const say = (level, key, data = {}) => ui.notifications[level](game.i18n.format(`ACKS-HENCHMEN.${key}`, { name: employer.name, ...data }));
   const gp = (n) => String(Number(Number(n ?? 0).toFixed(2)));
   switch (result?.status) {
@@ -500,6 +506,12 @@ function tellPayday(employer, result) {
       return say("warn", "gold.insufficient", { gp: result.total.toFixed(0), reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: result.count }) });
     case "notYours":
       return say("warn", "wage.notYours");
+    case "refused": {
+      if (!relayed) return undefined;
+      const who = (result.payees ?? []).map((id) => game.actors.get(id)?.name).filter(Boolean);
+      const why = `wage.refusedBecause.${result.reason}`;
+      return who.length && game.i18n.has(`ACKS-HENCHMEN.${why}`) ? say("warn", why, { who: who.join(", ") }) : say("warn", "wage.refused");
+    }
     case "paid":
       return say("info", result.arrears > 0 ? "wage.paidPartNote" : "wage.paidNote", { gp: gp(result.paid), owed: gp(result.arrears) });
     default:
@@ -516,7 +528,7 @@ function tellPayday(employer, result) {
 export async function payWagesFor(employer, { markMissed = false } = {}) {
   const here = game.user.isGM || markMissed || [employer, ...payrollOf(employer)].every((a) => a.isOwner);
   const result = here ? await runPayday(employer, { markMissed }) : await executeAsGM("henchmenPayWages", { employerUuid: employer.uuid });
-  tellPayday(employer, result);
+  tellPayday(employer, result, { relayed: !here });
 }
 
 // The relayed payday: the sender must own the employer, and the GM's seat
@@ -553,9 +565,12 @@ export function installWagePayment() {
  * the group actor), and unpaid ones accrue arrears and lose morale. Nothing
  * is said here: the caller's seat tells its user from the result.
  * @returns {Promise<{status: "nothingDue"|"insufficient"|"refused"|"missed"|"paid",
- *   total?: number, count?: number, paid?: number, arrears?: number}>}
+ *   total?: number, count?: number, paid?: number, arrears?: number,
+ *   reason?: string, payees?: string[]}>}
  *   `total` and `count` are what was billed when the purse fell short; `paid`
- *   is the gold that left the employer and `arrears` what was booked as owed
+ *   is the gold that left the employer and `arrears` what was booked as owed;
+ *   `payees` are the ids of the actors left unpaid when every transfer was
+ *   refused, and `reason` the refusal they share, when they share one
  */
 async function runPayday(employer, { markMissed = false } = {}) {
   const currentTime = now();
@@ -589,7 +604,7 @@ async function runPayday(employer, { markMissed = false } = {}) {
       } else {
         const r = await transferCoin({ from: employer, to: d.group, gp: d.amount, upTo: true, reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: 1 }) });
         if (!r.ok) {
-          refused.push(d);
+          refused.push({ amount: d.amount, id: d.group.id, reason: r.reason });
           continue;
         }
         const arrearsGp = (r.arrearsCp ?? 0) / 100;
@@ -617,7 +632,7 @@ async function runPayday(employer, { markMissed = false } = {}) {
       // as arrears until one is found.
       const r = await transferCoin({ from: employer, to: actor, gp: amount, upTo: true, reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: 1 }) });
       if (!r.ok) {
-        refused.push(d);
+        refused.push({ amount, id: actor.id, reason: r.reason });
         continue;
       }
       const paidGp = (r.paidCp ?? 0) / 100;
@@ -641,7 +656,10 @@ async function runPayday(employer, { markMissed = false } = {}) {
     }
   }
   const count = due.length - refused.length;
-  if (!count) return { status: "refused" };
+  if (!count) {
+    const reasons = [...new Set(refused.map((d) => d.reason))];
+    return { status: "refused", ...(reasons.length === 1 && reasons[0] ? { reason: reasons[0] } : {}), payees: refused.map((d) => d.id) };
+  }
   if (markMissed) {
     Hooks.callAll(HOOKS.WAGES_MISSED, { employer, total: total - refused.reduce((s, d) => s + d.amount, 0), count });
     return { status: "missed", count };

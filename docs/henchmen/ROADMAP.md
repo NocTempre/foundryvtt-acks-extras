@@ -53,3 +53,8 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   - `people.classRegistry`: `classInfo` (`rules/identity.mjs`) prefers an
     imported registry that no recipe writes, so the derived entry is what
     every world gets. Retire the read or add the recipe.
+- **A handed-over payday refused in part does not tell the asking seat who
+  went unpaid.** Its answer is `paid` and carries no refusal, so the one
+  notification names only what moved ([MODEL.md](MODEL.md) §4c). The answer
+  would carry the unpaid entries as a payday refused whole does, and the
+  paid notification would name them.

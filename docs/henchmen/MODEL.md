@@ -181,10 +181,12 @@ roster.
 
 A part-paid wage is logged on the hireling as what moved and what is owed.
 
-A transfer that is refused (the two are not together, the payee cannot make
-change) has said why and moved nothing, so no payday is recorded for that
-entry, its month stays due, and the `wagesPaid` hook counts neither the entry
-nor its gold. When every entry is refused the hook does not fire.
+A transfer that is refused (the two are not together) has said why and moved
+nothing, so no payday is recorded for that entry, its month stays due, and
+the `wagesPaid` hook counts neither the entry nor its gold. When every entry
+is refused the hook does not fire, and `runPayday` answers `refused` with the
+ids of the actors left unpaid (`payees`) and the `reason` their refusals
+share, when they share one.
 
 **Which seat runs it.** `payWagesFor(employer)` is the one entry: the
 Followers tab's control, the system sheet's button (§4b), the roster app and
@@ -200,9 +202,15 @@ no GM connected the lib's transport says so and nothing is written.
 turns it into one notification on the seat that asked: nothing is due, the
 employer cannot cover the month, the wages are not this seat's to pay, or
 what was paid and, on a part-payment, what is still owed. A refused transfer
-has already said why, on the seat that ran the payday. No chat card is
-posted. The `wagesPaid` and `wagesMissed` hooks fire on the seat that ran the
-payday, which is the GM's when it was relayed.
+says why on the seat that ran the payday: the warning is `transferCoin`'s
+own. A payday refused whole is therefore told no further on a seat that ran
+it. A seat that handed it over is told once, from the answer: the refusal and
+who went unpaid where the wording holds a sentence for the `reason`
+(`ACKS-HENCHMEN.wage.refusedBecause.<reason>`), and otherwise that nothing
+was paid. A handed-over payday that paid some entries and was refused others
+tells the asking seat what was paid, and its refusals are said on the GM's
+seat alone. No chat card is posted. The `wagesPaid` and `wagesMissed` hooks
+fire on the seat that ran the payday, which is the GM's when it was relayed.
 
 A signing bonus and a week's recruiting fee are paid where the hire is made:
 they state the market as their reach, so they draw on coin on hand and coin

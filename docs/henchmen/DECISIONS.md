@@ -448,3 +448,37 @@ handed over on the sheets, or the clock is advanced. The public "pays wages"
 card is gone, and the hireling's log, the notification and the `wagesPaid`
 hook are what record a payday. One more socket handler is registered, and a
 relayed payday fires its hook on the GM's seat, not the one that pressed.
+
+### A payday handed over and refused whole is told to the seat that asked (2026-10-06)
+
+**Found (live walk).** A Player seat that owned the employer and not the
+hireling pressed Pay wages with a month due and the one due hireling out of
+the employer's reach. The payday went to the GM's seat, the transfer's
+warning was raised there, the answer came back as a bare `refused`, and the
+seat that pressed heard nothing: no coin moved and the control stayed drawn.
+Both sheets' controls did the same. Extends "Pay wages is one payday on
+either sheet, and it pays what is due (2026-10-01)", whose list of what the
+pressing seat is told left this status out; that walk is the new evidence.
+
+**Ruled.**
+- *The answer says what was refused.* A payday refused whole answers the ids
+  of the actors left unpaid and, where the refusals share one, the reason the
+  transfers gave.
+- *The seat that handed the payday over is told once*, from that answer: the
+  reason's sentence with the names where the wording holds one, and otherwise
+  that nothing was paid.
+- *A seat that ran the payday is told nothing more.* Each refused transfer
+  warned there as it was refused.
+
+**Rejected.**
+- *Sending the GM seat's sentence back.* The seat that asked words its own
+  notification, in its own language, from the reason.
+- *One voice for every seat: the payday checks reach itself and the transfer
+  stays silent.* `transferCoin` raises its refusal wherever it runs and has no
+  quiet form, and a payday that checked reach first would hold a second copy
+  of the lib's gate.
+
+**What it cost.** A seat that runs its own payday still hears one warning for
+each refused transfer, not one for the press. A handed-over payday that paid
+some entries still says only what was paid ([ROADMAP.md](ROADMAP.md)). The
+refusal has a sentence here beside the lib's own for the same reach.

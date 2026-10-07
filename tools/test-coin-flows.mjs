@@ -942,6 +942,111 @@ await test("the Judge moves coin only for the seat that owns the payer", async (
   }
 });
 
+// The payday's own module defines a data model and a dialog as it loads.
+foundry.abstract = { DataModel: class {} };
+foundry.data = { fields: {} };
+foundry.applications = { api: { ApplicationV2: class {}, HandlebarsApplicationMixin: (Base) => class extends Base {} } };
+const { payWagesFor } = await import("../scripts/henchmen/engine/events.mjs");
+const { secondsPerMonth } = await import("../scripts/henchmen/time.mjs");
+const wording = JSON.parse((await import("node:fs")).readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+
+/** A monster on `employer`'s payroll list whose wage clock starts at the epoch, managed by `managerid`. */
+function onPayroll(employer, { id, name, wageGp, managerid = employer.id }) {
+  const hireling = makeActor({ id, name, type: "monster" });
+  hireling.system = { retainer: { enabled: true, managerid, wage: String(wageGp), quantity: 1 } };
+  hireling.flags = { "acks-extras": { record: { hiredTime: 0, terms: { wageGp, lastPaidTime: 0 } } } };
+  employer.flags = { "acks-extras": { monsterHenchmenList: [...(employer.flags["acks-extras"]?.monsterHenchmenList ?? []), id] } };
+  worldActors.set(hireling.id, hireling);
+  return hireling;
+}
+
+/**
+ * Run `press` a month after the epoch and answer what each seat was told, as
+ * `[seat, level, text]`. The wording answers with its key and what it was
+ * given, and knows the keys the module's own language file holds.
+ */
+async function toldBy(press) {
+  const told = [];
+  const { notifications } = ui;
+  const { format } = game.i18n;
+  const { lib } = acksExtras;
+  ui.notifications = Object.fromEntries(["info", "warn", "error"].map((level) => [level, (text) => told.push([game.user.id, level, text])]));
+  game.i18n.format = (key, data = {}) => `${key} ${JSON.stringify(data)}`;
+  game.i18n.has ??= (key) => key in wording;
+  game.settings = { get: () => undefined };
+  game.time = { worldTime: secondsPerMonth() + 60 };
+  acksExtras.lib = { ...(lib ?? {}), money };
+  try {
+    await press();
+  } finally {
+    ui.notifications = notifications;
+    game.i18n.format = format;
+    delete game.i18n.has;
+    delete game.settings;
+    delete game.time;
+    if (lib) acksExtras.lib = lib;
+    else delete acksExtras.lib;
+    game.user = JUDGE;
+  }
+  return told;
+}
+
+await test("a payday handed to the Judge and refused whole is told once, on the seat that asked", async () => {
+  const boss = makeActor({ id: "boss", name: "Boss", items: [gold(9)] });
+  worldActors.set(boss.id, boss);
+  const hand = onPayroll(boss, { id: "hand", name: "Hand", wageGp: 4, managerid: "another" });
+  const mate = onPayroll(boss, { id: "mate", name: "Mate", wageGp: 2, managerid: "another" });
+  hand.owners = [];
+  const calls = connectJudge();
+  const told = await toldBy(async () => {
+    game.user = PLAYER;
+    await payWagesFor(boss);
+  });
+  assert.deepEqual(calls, ["henchmenPayWages"], "a seat that does not own every hireling hands the payday over");
+  assert.deepEqual(told.filter(([seat]) => seat === "player"), [
+    ["player", "warn", `ACKS-HENCHMEN.wage.refusedBecause.notTogether ${JSON.stringify({ name: "Boss", who: "Hand, Mate" })}`],
+  ], "one notification, naming the refusal and who went unpaid");
+  assert.deepEqual(told.filter(([seat]) => seat === "gm").map(([, level]) => level), ["warn", "warn"], "each refused transfer said why on the seat that ran it");
+  assert.deepEqual([purse(boss), purse(hand), purse(mate)], [["Gold ×9"], [], []], "nothing moved");
+  assert.deepEqual([hand, mate].map((a) => a.flags["acks-extras"].record.terms.lastPaidTime), [0, 0], "and the month is still due");
+});
+await test("a refusal the wording has no sentence for is told as a payday that paid nothing", async () => {
+  const boss = makeActor({ id: "boss", name: "Boss", items: [gold(9)] });
+  worldActors.set(boss.id, boss);
+  onPayroll(boss, { id: "hand", name: "Hand", wageGp: 4, managerid: "another" }).owners = [];
+  connectJudge();
+  game.i18n.has = () => false;
+  const told = await toldBy(async () => {
+    game.user = PLAYER;
+    await payWagesFor(boss);
+  });
+  assert.deepEqual(told.filter(([seat]) => seat === "player"), [["player", "warn", `ACKS-HENCHMEN.wage.refused ${JSON.stringify({ name: "Boss" })}`]]);
+});
+await test("a payday refused whole on the seat that ran it adds nothing to what its transfers said", async () => {
+  const boss = makeActor({ id: "boss", name: "Boss", items: [gold(9)] });
+  worldActors.set(boss.id, boss);
+  onPayroll(boss, { id: "hand", name: "Hand", wageGp: 4, managerid: "another" });
+  const calls = connectJudge();
+  const judge = await toldBy(() => payWagesFor(boss));
+  assert.deepEqual(judge.map(([seat, level]) => [seat, level]), [["gm", "warn"]], "the Judge's own payday");
+  const owner = await toldBy(async () => {
+    game.user = PLAYER;
+    await payWagesFor(boss);
+  });
+  assert.deepEqual([owner.map(([seat, level]) => [seat, level]), calls], [[["player", "warn"]], []], "a seat that owns every hireling runs its own, and is told by the transfer");
+  game.actors.get("hand").owners = [];
+  game.users.activeGM = null;
+  try {
+    const alone = await toldBy(async () => {
+      game.user = PLAYER;
+      await payWagesFor(boss);
+    });
+    assert.deepEqual(alone, [["player", "warn", "ACKS-LIB.socket.noGm"]], "with no Judge connected the transport's own warning is the one notification");
+  } finally {
+    game.users.activeGM = JUDGE;
+  }
+});
+
 /* -------------------------------------------- */
 /*  One stack, divided                          */
 /* -------------------------------------------- */

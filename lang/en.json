@@ -3749,6 +3749,8 @@
   "ACKS-HENCHMEN.wage.paidNote": "{name} pays {gp} gp in wages.",
   "ACKS-HENCHMEN.wage.paidPartNote": "{name} pays {gp} gp in wages; {owed} gp more is owed and is kept on each hireling's record.",
   "ACKS-HENCHMEN.wage.notYours": "{name}'s wages are not yours to pay.",
+  "ACKS-HENCHMEN.wage.refused": "{name}'s wages were not paid: the coin could not be handed over.",
+  "ACKS-HENCHMEN.wage.refusedBecause.notTogether": "{name}'s wages were not paid: {name} is not on the same scene as {who}.",
   "ACKS-HENCHMEN.fee.reason": "weekly hireling search fees in {name}",
   "ACKS-HENCHMEN.fee.card": "Weekly search fee — {name}, week {week} ({formula} gp)",
   "ACKS-HENCHMEN.location.searchFee": "Search fee",
