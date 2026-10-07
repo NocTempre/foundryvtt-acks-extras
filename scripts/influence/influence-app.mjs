@@ -1135,7 +1135,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /**
    * RAW consequence notes for the chat card (no attitude auto-shifts): the
    * temporary/combat aftermath of intimidation and the bribery crime/failed-bribe
-   * rules. Purely informational, straight from the printed rules.
+   * rules. Purely informational.
    */
   #rawNotes(tone, newIndex, diceResult) {
     const notes = [];
@@ -1149,6 +1149,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       if (hasBribery) {
         if (diceResult === 2) notes.push(game.i18n.localize("ACKS-INFLUENCE.note.bribeCrime"));
       } else {
+        // Offered without the proficiency (RR 287): the note marks the risk and
+        // cites the page, and never words the rule or its figure.
         notes.push(game.i18n.localize("ACKS-INFLUENCE.note.bribeRisk"));
       }
     }

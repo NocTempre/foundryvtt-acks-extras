@@ -4067,7 +4067,7 @@
   "ACKS-INFLUENCE.note.intimidated": "Intimidated: withdraws or escapes at the first opportunity (otherwise acts Indifferent); treated as Neutral for Diplomacy and Seduction; if combat begins, it starts faltering.",
   "ACKS-INFLUENCE.note.overawed": "Overawed: acts as if Friendly while intimidated; treated as Neutral for Diplomacy and Seduction; if combat begins, it starts frightened.",
   "ACKS-INFLUENCE.note.bribeCrime": "Unmodified 2 — the bribe was blatant enough that the character can be charged with the crime of bribery.",
-  "ACKS-INFLUENCE.note.bribeRisk": "No Bribery proficiency: a failed bribe shifts the target's attitude 1 step toward Hostile.",
+  "ACKS-INFLUENCE.note.bribeRisk": "No Bribery proficiency: this bribe carries a risk (RR 287).",
   "ACKS-INFLUENCE.note.hatredDwarfGoblin": "MM: dwarves revile goblins — dwarven sentries automatically have Hostile reactions to any goblins encountered (Judge's call whether it applies here).",
   "ACKS-INFLUENCE.note.hatredGnomeKobold": "MM: gnomes hold a fierce hatred for kobolds (Judge's call whether an automatic Hostile reaction applies here).",
   "ACKS-INFLUENCE.settings.btaCaste.name": "By This Axe: dwarven caste reaction modifiers",

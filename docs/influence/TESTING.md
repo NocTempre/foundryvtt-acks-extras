@@ -77,10 +77,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 8b. A bribe from the Player seat. The seat owns the influencer and not the
    target; the influencer keeps coin in a container their order pays from
    first, loose, and at a vault. Open the page with
-   `acksExtras.influence.open(influencer, {targetActor})`, set
-   `[name="mod.bribe"]` to its first tier and type a fee in
-   `[name="mod.bribeFee"]` (a `change` on each), and press
-   `[data-action="roll"]`. Then roll with no target and a small fee, and with
+   `acksExtras.influence.open(influencer, {targetActor})`. A target the seat
+   cannot observe masks the bribe select (the page has no
+   `[name="mod.bribe"]`), so type the offer in `[name="mod.bribeFee"]` (a
+   `change`) and press `[data-action="roll"]`. Then roll with no target and a
+   small fee, where the select is back and wants its first tier set, and with
    a fee above everything the influencer can pay with.
    *Observable:* the first roll is resolved at the Judge's seat and its card,
    whispered there, carries `.influence-chat-bribe` stating the fee, the
@@ -90,6 +91,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    card, no row changed, and the warning shows on the Judge's seat.
    `api.track` every card the three rolls posted, read on the Judge's seat:
    a whispered card is not in the Player seat's log.
+8c. The bribe note. Roll Diplomacy with a tier armed for an influencer with
+   no `ability` item named Bribery, then for one who has it, then with no
+   tier armed.
+   *Observable:* the first card's notes (`.influence-chat-notes li`) include
+   one that marks the risk and cites its page; the other two cards carry no
+   such note. Against a target the seat cannot observe, the note is on the
+   Judge's whispered card and the public card lists no notes.
 
 ## The morale pages
 
