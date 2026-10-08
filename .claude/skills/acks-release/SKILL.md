@@ -72,7 +72,8 @@ the full pipeline (build + validate, no publish) is available anytime:
    the fix anyway, plus a wasted CI round-trip and a permanently red release
    commit. `ls .github/workflows` says what will fire; the local equivalents:
    - Toolchain check → `node C:\Proj\acks-module-template\bin\sync-toolchain.mjs --check`
-     (zero drift, with the template's `main` already pushed — TOOLCHAIN §9).
+     (zero drift against the template's pushed `main`, which is what the
+     check reads and what CI checks out — TOOLCHAIN §9).
    - Docs site (repos that have `docs/site/`) → the staging gate is
      `node docs/site/tools/sync.mjs`; repos wire it into `npm run validate`
      (validate-extra), so a green validate already covers it.

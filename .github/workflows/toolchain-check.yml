@@ -30,5 +30,7 @@ jobs:
         with:
           node-version: 20
 
+      # The checkout above is the canon, so the check is told to read its files
+      # as they stand: with no flag it would fetch the branch a second time.
       - name: Check canonical files match the template
-        run: node .toolchain-template/bin/sync-toolchain.mjs --check --repo-path "$GITHUB_WORKSPACE"
+        run: node .toolchain-template/bin/sync-toolchain.mjs --check --worktree --repo-path "$GITHUB_WORKSPACE"
