@@ -6,7 +6,8 @@ this file only indexes what this repo has.
 
 - [DECISIONS.md](DECISIONS.md) — repo-level: the merge, namespacing, flag scope.
 - [ROADMAP.md](ROADMAP.md) — repo-level: magic, the domain-module family.
-- [TESTING.md](TESTING.md) — repo-level: the entry point and the namespace load at all.
+- [TESTING.md](TESTING.md) — repo-level: the entry point and the namespace load at all,
+  walking a shipped macro, and the merge cleaner macro.
 - [GALLERY.md](GALLERY.md) — one row per feature: guide, and the release its
   screenshot came from.
 - [guides/](guides/) — user-facing how-to, one per feature area.

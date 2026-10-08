@@ -259,7 +259,7 @@ await actor.update({
   [\`flags.\${MOD}.styles\`]: styles.join(","),
   // Nothing ticked = no declared restriction. Clearing the flag is what says
   // that; an empty list would read as a profile granting nothing.
-  ...(tokens.length ? { [\`flags.\${MOD}.weaponProficiency\`]: tokens.join(",") } : { [\`flags.\${MOD}.-=weaponProficiency\`]: null }),
+  [\`flags.\${MOD}.weaponProficiency\`]: tokens.length ? tokens.join(",") : new foundry.data.operators.ForcedDeletion(),
   [\`flags.\${MOD}.armorMax\`]: state.armour,
 });
 ui.notifications.info(\`\${actor.name}: styles \${styles.join(", ")} · weapons \${tokens.join(", ") || "unrestricted"} · armour up to \${state.armour}.\`);`,

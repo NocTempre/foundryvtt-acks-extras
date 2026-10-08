@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Two macros raise no deprecation warning.** *Configure Proficiencies*
+  logged one whenever a character was saved with no weapon ticked, and
+  *Clean Up After the Merge (GM)* logged one for each old module's flags it
+  cleared from a document. Each write is spelled the way Foundry v14 asks;
+  what is written is unchanged.
+
 ## 10.2.1
 
 ### Fixed

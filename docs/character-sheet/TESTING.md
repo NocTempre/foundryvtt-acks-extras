@@ -274,8 +274,8 @@ Delete both actors, the monster, the scene, any combat and the chat messages
 the rounds and the save roll posted, and confirm `game.actors`,
 `game.scenes`, `game.combats` and `game.messages` no longer hold them; clear
 the user's `sheetFold` flag of the fixture id
-(`update({"flags.acks-extras.sheetFold.-=<id>": null})`), and unset the flag
-itself when that leaves it empty and the run created it.
+(`update({flags: {"acks-extras": {sheetFold: {[id]: new foundry.data.operators.ForcedDeletion()}}}})`),
+and unset the flag itself when that leaves it empty and the run created it.
 
 ## Training on Stats
 

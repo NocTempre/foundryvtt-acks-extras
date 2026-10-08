@@ -517,3 +517,85 @@ does not dereference them.
 
 Sweep by the run's own uuids (`api.create` records them; `api.track` the four
 items after they are made). Quote the sweep result.
+
+## The Configure Proficiencies macro
+
+What the macro stores for a weapon profile that is set, cleared or was never
+stated, from a GM seat and from a player's. The prompt that answers a typed
+name matching no weapon is not walked here.
+
+### Fixtures
+
+Two disposable scenes, each viewed on the driving client alone
+(`scene.view()`; neither is activated), four `character` actors and a token
+for each:
+
+| Actor | `flags.acks-extras` as created | Token |
+|---|---|---|
+| stored | `weaponProficiency: "axe,sword"`, `styles: "single,missile,dual"`, `armorMax: "light"`, and one key the macro does not write | linked |
+| blank | none | linked |
+| base | `weaponProficiency: "bow"` | **unlinked** |
+| player-owned | `weaponProficiency: "axe,sword"`, `styles: "single,missile"`, `armorMax: "light"`, and one key the macro does not write; `ownership.default: 3` | linked, on a scene of its own with `ownership.default: 2` |
+
+`api.create` records every one of them.
+
+### Drive mechanics (learned live)
+
+- **The macro's id** is `acksEqConfig0000`, and its dialog's title is
+  `Proficiencies — <actor name>`. How a shipped macro is run, how an edit is
+  walked before the pack is rebuilt, and how a compatibility warning is heard
+  are docs/TESTING.md, "Walking a shipped macro".
+- **The form** is checkboxes `input[name="style"]` and `input[name="grant"]`,
+  a text field `input[name="named"]` and `select[name="armorMax"]`; Save is
+  `button[data-action="ok"]`. The macro reads the form with `FormData` when
+  Save is pressed, so what the controls hold at that moment is what is stored.
+- **A profile with nothing stored opens with All weapons ticked**, and that
+  box overrides every box under it. Untick it before ticking anything else.
+- **Single-weapon and missile are stated, never offered.** Every save writes
+  `styles` beginning `single,missile`.
+- **Read what is stored from `_source`**
+  (`(await fromUuid(uuid))._source.flags`, and a token's own from
+  `tokenDoc.delta._source.flags`). An unlinked token's actor answers `flags`
+  through its base actor, so the prepared read cannot tell an override from a
+  value it inherits.
+- **A player seat runs it only with `MACRO_SCRIPT` and sight of the
+  compendium.** Read `macro.canExecute` on that seat before the step.
+
+### Steps
+
+Each step controls one token, runs the macro, brings the form to the state
+named and presses Save.
+
+1. **A stored profile is cleared.** On `stored`: untick every weapon box and
+   empty the named field.
+   *Observable:* `weaponProficiency` is absent from the stored flags; `styles`,
+   `armorMax` and the key the macro does not write are unchanged; the notice
+   reads `weapons unrestricted`; no `forced deletion` line.
+2. **A profile is set.** On `stored` again: untick All weapons, tick Axes,
+   Bows and Two-handed, type `sword`, pick Medium.
+   *Observable:* `weaponProficiency: "axe,bow,sword"`,
+   `styles: "single,missile,dual,twoHanded"`, `armorMax: "medium"`.
+3. **Nothing stated, nothing stored.** On `blank`: untick All weapons.
+   *Observable:* `styles: "single,missile"` and `armorMax: "heavy"` are
+   written and no `weaponProficiency` key appears; no `forced deletion` line.
+4. **An unlinked token keeps its own.** On `base`'s token: untick Bows, tick
+   Axes.
+   *Observable:* the token's delta holds `weaponProficiency: "axe"`; the base
+   actor still holds `"bow"`.
+5. **Clearing an unlinked token returns it to its base.** On the same token:
+   untick Axes.
+   *Observable:* the delta holds no `weaponProficiency` and the token's actor
+   reads the base actor's `"bow"` again. The notice still says `unrestricted`:
+   it reports what was saved, which is no longer what the token reads.
+6. **A player's own character.** From the Player seat in a browser of its own,
+   with a GM client connected: step 1 on `player-owned`.
+   *Observable:* the key is gone on the Player's client and on the GM client's
+   copy of the actor; no `forced deletion` line on either console.
+7. **A reload keeps it.** Reload the GM client.
+   *Observable:* `stored`, `blank`, `base` and the token's delta read what
+   steps 2, 3 and 5 left.
+
+### Teardown
+
+`api.sweepTracked()`; quote what it removed, what it could not find and what
+refused.

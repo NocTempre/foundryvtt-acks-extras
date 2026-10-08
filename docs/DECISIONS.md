@@ -254,6 +254,12 @@ scan. The scan includes the region behaviours the macro no longer reaches. The
 macro stays the fix for everything except those behaviours, which nothing
 removes yet (docs/lib/ROADMAP.md).
 
+**Amended 2026-10-07** (docs/lib/DECISIONS.md, "A deletion is the operator,
+spelled once"). The fallback named above no longer writes `flags.-=<scope>`: it
+assigns the deletion operator to each scope, in a nested `flags` object. On
+Foundry 14.367 the two spellings send the same request and leave the same
+flags, and the legacy one logged a compatibility warning for every scope.
+
 ## 12. Single-branch development — RESOLVED (isolation off, guard on)
 
 The convention was always one branch. It read `Branch `main`; tags `v<semver>`.`

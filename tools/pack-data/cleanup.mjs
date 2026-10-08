@@ -116,9 +116,9 @@ for (const r of plan.flags) {
   if (!d) continue;
   try { for (const s of r.scopes) await d.unsetFlag(s, ""); done++; }
   catch (e) {
-    // unsetFlag refuses a scope that is not an active package; go through the
-    // document's own update with the -= deletion syntax instead.
-    try { await d.update(Object.fromEntries(r.scopes.map((s) => ["flags.-=" + s, null]))); done++; }
+    // unsetFlag refuses a scope that is not an active package; the document's
+    // own update takes a forced deletion of each scope instead.
+    try { await d.update({ flags: Object.fromEntries(r.scopes.map((s) => [s, new foundry.data.operators.ForcedDeletion()])) }); done++; }
     catch (e2) { console.error("acks-extras | could not clear flags on " + r.uuid, e2); }
   }
 }
