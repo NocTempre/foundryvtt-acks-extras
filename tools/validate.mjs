@@ -4,7 +4,7 @@
  * do not hand-edit per module. Pure-logic module tests belong in
  * tools/test-logic.mjs (run via `npm test`); a module that needs an extra
  * check to run as PART of validation (e.g. an IP-safety lint) drops a
- * tools/validate-extra.mjs — this validator auto-runs it (section 10), so
+ * tools/validate-extra.mjs — this validator auto-runs it (section 11), so
  * `npm run validate` stays the single canonical entry point everywhere.
  *
  * Checks (each section skips cleanly when the dir/file doesn't exist):
@@ -54,9 +54,17 @@
  *      content nested inside <summary>, a <label> no runtime pass could ever
  *      rescue, and a literal id= that collides the moment a second copy of the
  *      sheet is open.
- *   9. IP leak scan (tools/ip-scan.mjs): local-only rules extracts, extraction
+ *   9. Legacy update keys: Foundry 14 retires the `-=key` (forced deletion)
+ *      and `==key` (forced replacement) spellings of an update key and logs a
+ *      compatibility warning for each one written. A string or template
+ *      literal that spells one fails where it is written, and where nothing
+ *      written beside it says what becomes of it, in scripts/ and in the
+ *      command of every script macro under packs/_source; one that only
+ *      tests, compares or looks the key up passes, and either failure may
+ *      state why with `legacy-key-ok: <reason>`.
+ *   10. IP leak scan (tools/ip-scan.mjs): local-only rules extracts, extraction
  *      pipeline state, and publisher attribution inside data files.
- *   10. Optional module-owned tools/validate-extra.mjs — run last if present;
+ *   11. Optional module-owned tools/validate-extra.mjs — run last if present;
  *      a non-zero exit fails validation.
  *
  * Usage:  npm run validate
@@ -1855,7 +1863,295 @@ console.log(
     (realmExcused ? `; ${realmExcused} passed on realm-ok` : ""),
 );
 
-/* 9. IP leak scan — licensed book material must never reach a public repo or a
+/* 9. Legacy update keys. Foundry 14 retires two spellings of an update key:
+ *    `{"-=key": null}`, a forced deletion, and `{"==key": value}`, a forced
+ *    replacement. Core tells one by its first two characters
+ *    (foundry.utils.isDeletionKey), migrates it wherever it merges, diffs or
+ *    cleans data, and logs a compatibility warning for every such key of every
+ *    write. Each is a value now, under the bare key:
+ *    `new foundry.data.operators.ForcedDeletion()` and
+ *    `foundry.data.operators.ForcedReplacement.create(value)`.
+ *
+ *    A SOURCE-TEXT match on 2b's tokens, so a key in a comment is not one. It
+ *    reads scripts/ (.mjs and .js) and the `command` of every script macro
+ *    under packs/_source: the text that ships, whichever way
+ *    tools/pack-data.mjs builds it, and so only what build:packs last wrote.
+ *
+ *    A legacy key is spelled where a string or template literal holds `-=` or
+ *    `==` after a dot, or at its own start with no `+` joining it to what came
+ *    before, followed by a name, or by a `${}` hole or a `+` that supplies
+ *    one. Where the literal stands says what is done with the key, when it
+ *    says anything:
+ *
+ *      written — a property name of an object literal, quoted or computed; the
+ *                key of a member assignment; the key of a `[key, null]` entry;
+ *                the path handed to setProperty.
+ *      read    — the left operand of `in`; an operand of `===`, `!==`, `==`
+ *                or `!=`; a `case` label; the key of a member that is looked
+ *                up and not assigned; a property that a `{ … } = source`
+ *                destructuring pattern takes; an argument of hasProperty,
+ *                getProperty, hasOwn, hasOwnProperty, has, includes,
+ *                startsWith or endsWith. A hook reads the key for as long as
+ *                another package may still send it.
+ *      neither — bound to a name, returned, an array element, an argument of
+ *                any other call. What becomes of it is settled somewhere this
+ *                does not follow.
+ *
+ *    A read passes. Written and neither both FAIL, and either may state why
+ *    with `// legacy-key-ok: <reason>` on the line, or in a comment of its own
+ *    on the line above; in a macro that is a line of its command. A literal
+ *    that continues a `+` chain is read by what follows the chain and what
+ *    encloses it, never by what stands before the chain.
+ *
+ *    Not seen: an operator that follows a hole or a `+` with no dot written
+ *    before it in the same literal (`${path}-=${key}`), a key put together any
+ *    other way (a prefix held in a name, `["-=", key].join("")`), and source
+ *    outside scripts/ that is no macro command. */
+const LEGACY_KEYS = {
+  "-=": { name: "forced-deletion", value: "new foundry.data.operators.ForcedDeletion()" },
+  "==": { name: "forced-replacement", value: "foundry.data.operators.ForcedReplacement.create(value)" },
+};
+const LEGACY_KEY_NAME = /^[\p{L}\p{N}_$]/u;
+const LEGACY_KEY_READERS = new Set(["hasProperty", "getProperty", "hasOwn", "hasOwnProperty", "has", "includes", "startsWith", "endsWith"]);
+const LEGACY_KEY_WRITERS = new Set(["setProperty"]);
+// Words an expression follows, so a bracket after one opens a value of its own
+// and neither indexes nor calls the word.
+const EXPRESSION_AHEAD = new Set([...REGEX_AFTER_WORD, ...HEAD_WORDS, "switch", "catch"]);
+
+// The first and last token of the literal tokens[k] is part of: a string is
+// its own, and a template runs from its `template` token to its `templateTail`,
+// past any template nested in one of its holes.
+function literalSpan(tokens, k) {
+  let first = k;
+  let last = k;
+  if (tokens[k].type === "string") return [first, last];
+  for (let nested = 0; tokens[k].type !== "template" && first > 0; ) {
+    const type = tokens[--first].type;
+    if (type === "templateTail") nested++;
+    else if (type === "template" && nested-- === 0) break;
+  }
+  for (let nested = 0; tokens[k].type !== "templateTail" && last < tokens.length - 1; ) {
+    const type = tokens[++last].type;
+    if (type === "template") nested++;
+    else if (type === "templateTail" && nested-- === 0) break;
+  }
+  return [first, last];
+}
+
+// Whether tokens[k] ends an operand, so that a `[` or `(` straight after it
+// indexes or calls it.
+function endsOperandAt(tokens, k) {
+  const tk = tokens[k];
+  if (!tk) return false;
+  if (tk.type === "ident") return !EXPRESSION_AHEAD.has(tk.value) || punctAt(tokens, k - 1, ".");
+  if (tk.type !== "punct") return tk.type !== "template" && tk.type !== "templateMiddle";
+  if (tk.value === "]" || (tk.value === "." && punctAt(tokens, k - 1, "?"))) return true;
+  if (tk.value !== ")") return false;
+  // The `)` closing an if, while, for or with head ends no operand: the
+  // statement the head governs opens after it.
+  const open = enclosingAt(tokens, k);
+  return !(tokens[open - 1]?.type === "ident" && HEAD_WORDS.has(tokens[open - 1].value) && !punctAt(tokens, open - 2, "."));
+}
+
+/* The index just past the `+` concatenation that continues at tokens[k], where
+ * k follows an operand: that operand's member accesses and calls, then for
+ * each `+` one more operand — a literal, a name or a bracketed group — with
+ * its own. Two operands with nothing between them end it, as a statement's
+ * end does. */
+function concatenationEnd(tokens, k) {
+  const memberEnd = () => {
+    let j = k;
+    if (punctAt(tokens, j, "?") && punctAt(tokens, j + 1, ".")) j += punctAt(tokens, j + 2, "(") || punctAt(tokens, j + 2, "[") ? 2 : 1;
+    if (punctAt(tokens, j, ".") && tokens[j + 1]?.type === "ident") return j + 2;
+    return punctAt(tokens, j, "(") || punctAt(tokens, j, "[") ? closerOf(tokens, j) + 1 : -1;
+  };
+  for (;;) {
+    for (let next; (next = memberEnd()) >= 0; ) k = next;
+    if (!punctAt(tokens, k, "+")) return k;
+    const operand = tokens[k + 1];
+    if (operand?.type === "template") k = literalSpan(tokens, k + 1)[1] + 1;
+    else if (operand?.type === "string" || operand?.type === "number" || (operand?.type === "ident" && !EXPRESSION_AHEAD.has(operand.value))) k += 2;
+    else if (punctAt(tokens, k + 1, "(") || punctAt(tokens, k + 1, "[")) k = closerOf(tokens, k + 1) + 1;
+    else return k;
+  }
+}
+
+// The index of what directly encloses tokens[at]: the unclosed bracket before
+// it, or the template text opening the ${} hole it stands in; -1 for neither.
+function enclosingAt(tokens, at) {
+  for (let depth = 0, k = at - 1; k >= 0; k--) {
+    const tk = tokens[k];
+    if (tk.type === "templateTail") k = literalSpan(tokens, k)[0];
+    else if (tk.type === "template" || tk.type === "templateMiddle") return k;
+    else if (tk.type !== "punct") continue;
+    else if (")]}".includes(tk.value)) depth++;
+    else if ("([{".includes(tk.value) && depth-- === 0) return k;
+  }
+  return -1;
+}
+
+/**
+ * What the source does with the legacy key that the literal
+ * tokens[first..last] spells, read from where the literal stands.
+ * @returns {{ verdict: "written" | "read" | "neither", how: string }}
+ */
+function legacyKeyUse(tokens, first, last, operator) {
+  const verdict = (verdict, how) => ({ verdict, how });
+  const after = concatenationEnd(tokens, last + 1);
+  const adjacent = (k) => tokens[k + 1]?.start === tokens[k].start + 1;
+  // The right operand of a `+` says nothing by what precedes it: that is the
+  // left operand's neighbour.
+  const joined = punctAt(tokens, first - 1, "+");
+  // Braces that are assigned from, `{ … } = source`, are a destructuring
+  // pattern: a property named in one is taken, and nothing is written.
+  const pattern = (brace) => punctAt(tokens, brace, "{") && assignmentAt(tokens, closerOf(tokens, brace) + 1);
+  const taken = verdict("read", "a property a destructuring pattern takes");
+
+  if (tokens[after]?.type === "ident" && tokens[after].value === "in") return verdict("read", "the left operand of `in`");
+  if ((punctAt(tokens, after, "=") || punctAt(tokens, after, "!")) && punctAt(tokens, after + 1, "=") && adjacent(after)) return verdict("read", "an operand of a comparison");
+  if (!joined && punctAt(tokens, first - 1, "=") && (punctAt(tokens, first - 2, "=") || punctAt(tokens, first - 2, "!")) && adjacent(first - 2)) {
+    return verdict("read", "an operand of a comparison");
+  }
+  if (!joined && tokens[first - 1]?.type === "ident" && tokens[first - 1].value === "case" && !punctAt(tokens, first - 2, ".")) return verdict("read", "a `case` label");
+  if (!joined && after === last + 1 && (punctAt(tokens, first - 1, "{") || punctAt(tokens, first - 1, ",")) && punctAt(tokens, after, ":")) {
+    return pattern(enclosingAt(tokens, first)) ? taken : verdict("written", "a property name of an object literal");
+  }
+
+  const open = enclosingAt(tokens, first);
+  if (open < 0) return verdict("neither", "a value bound, returned or passed on");
+  if (tokens[open].type !== "punct") return verdict("neither", "a part of another template");
+  const close = closerOf(tokens, open);
+  if (tokens[open].value === "[") {
+    if (endsOperandAt(tokens, open - 1)) {
+      return assignmentAt(tokens, close + 1) ? verdict("written", "the key of a member assignment") : verdict("read", "the key of a member looked up");
+    }
+    if ((punctAt(tokens, open - 1, "{") || punctAt(tokens, open - 1, ",")) && punctAt(tokens, close + 1, ":")) {
+      return pattern(enclosingAt(tokens, open)) ? taken : verdict("written", "a computed property name");
+    }
+    const entry = argumentsOf(tokens, open);
+    const nullValue = entry.length === 2 && entry[1][1] - entry[1][0] === 1 && tokens[entry[1][0]].type === "ident" && tokens[entry[1][0]].value === "null";
+    if (operator === "-=" && nullValue && last < entry[0][1]) return verdict("written", "the key of a [key, null] entry");
+    return verdict("neither", "an array element");
+  }
+  if (tokens[open].value === "(") {
+    // A group nothing calls is transparent: `("-=" + key) in changes`.
+    if (!endsOperandAt(tokens, open - 1)) return legacyKeyUse(tokens, open, close, operator);
+    const callee = tokens[punctAt(tokens, open - 1, ".") ? open - 3 : open - 1];
+    const name = callee?.type === "ident" ? callee.value : null;
+    if (LEGACY_KEY_READERS.has(name)) return verdict("read", `an argument of ${name}()`);
+    if (LEGACY_KEY_WRITERS.has(name)) return verdict("written", `the path handed to ${name}()`);
+    return verdict("neither", name ? `an argument of ${name}()` : "an argument of a call");
+  }
+  return verdict("neither", "a value bound, returned or passed on");
+}
+
+/**
+ * Every legacy key the literals of `tokens` spell, with what the source does
+ * with each.
+ * @returns {{ at: number, key: string, operator: string, verdict: string, how: string }[]}
+ *   `at` — the offset of the spelling in the source the tokens were read from
+ */
+function legacyKeyUses(tokens) {
+  const uses = [];
+  tokens.forEach((tk, k) => {
+    if (!["string", "template", "templateMiddle", "templateTail"].includes(tk.type)) return;
+    const text = tk.value;
+    // The literal's own start opens a key unless a `+` joins it to what came
+    // before; the text after a hole never does. Either may end in anything.
+    const opensKey = (tk.type === "string" || tk.type === "template") && !punctAt(tokens, k - 1, "+");
+    const continues = tk.type === "template" || tk.type === "templateMiddle" || punctAt(tokens, k + 1, "+");
+    for (let p = 0; p + 1 < text.length; p++) {
+      const operator = text.slice(p, p + 2);
+      if (!Object.hasOwn(LEGACY_KEYS, operator) || (p ? text[p - 1] !== "." : !opensKey)) continue;
+      const name = /^[^.]*/.exec(text.slice(p + 2))[0];
+      if (name ? !LEGACY_KEY_NAME.test(name) : p + 2 < text.length || !continues) continue;
+      const [first, last] = literalSpan(tokens, k);
+      uses.push({ at: tk.start + 1 + p, key: `${operator}${name || "…"}`, operator, ...legacyKeyUse(tokens, first, last, operator) });
+    }
+  });
+  return uses;
+}
+
+{
+  const tally = { written: 0, neither: 0, read: 0, excused: 0 };
+  // `where` names a macro's command, for a line counted inside one.
+  const check = (file, where, src, tokens) => {
+    const lines = src.split("\n");
+    for (const use of legacyKeyUses(tokens)) {
+      if (use.verdict === "read") {
+        tally.read++;
+        continue;
+      }
+      const lineNo = src.slice(0, use.at).split("\n").length;
+      const above = lines[lineNo - 2] ?? "";
+      if (lines[lineNo - 1].includes("legacy-key-ok:") || (/^\s*(?:\/\/|\/\*|\*)/.test(above) && above.includes("legacy-key-ok:"))) {
+        tally.excused++;
+        continue;
+      }
+      tally[use.verdict]++;
+      const { name, value } = LEGACY_KEYS[use.operator];
+      const found =
+        use.verdict === "written"
+          ? `written as ${use.how}`
+          : `spelled as ${use.how}, where nothing written says whether it is written or only read`;
+      fail(
+        file,
+        `${where}line ${lineNo}: legacy ${name} key "${use.key}" ${found} — Foundry 14 migrates the spelling wherever it merges or diffs data and logs a compatibility warning for every such key of every write. Write the bare key with the operator as its value: {key: ${value}}` +
+          (use.verdict === "written" ? "" : "; spell a key that is only tested where the test is, as `key in changes` or hasProperty(changes, key)") +
+          `; or state why not with "// legacy-key-ok: <reason>" on or just above the line` +
+          (where ? " of the command. packs/_source is what build:packs writes: change the command where tools/pack-data.mjs builds it, then rebuild" : ""),
+      );
+    }
+  };
+
+  let scripts = 0;
+  walk(path.join(ROOT, "scripts"), (full) => {
+    if (!/\.m?js$/.test(full)) return;
+    const mod = jsModule(full);
+    if (!mod) return;
+    scripts++;
+    check(rel(full), "", mod.src, mod.tokens);
+  });
+
+  // A script macro wherever a pack source holds one: a Macro document, or one
+  // embedded in another document.
+  let commands = 0;
+  walk(sourceRoot, (full) => {
+    if (!full.endsWith(".json")) return;
+    let doc;
+    try {
+      doc = JSON.parse(fs.readFileSync(full, "utf8"));
+    } catch {
+      return; // section 4 has already failed this file
+    }
+    const visit = (node) => {
+      if (!node || typeof node !== "object") return;
+      if (node.type === "script" && typeof node.command === "string") {
+        commands++;
+        check(rel(full), `macro "${node.name}" command `, node.command, tokenizeJs(node.command));
+      }
+      Object.values(node).forEach(visit);
+    };
+    visit(doc);
+  });
+  // A Macro pack with no source here ships commands this read none of.
+  for (const pack of module_?.packs ?? []) {
+    if (pack.type !== "Macro" || existsExact(`packs/_source/${pack.name}`)) continue;
+    fail(
+      "module.json",
+      `declared Macro pack "${pack.name}" has no packs/_source/${pack.name}, so the commands it ships were not read for legacy update keys — run npm run build:packs, which writes packs/_source from tools/pack-data.mjs`,
+    );
+  }
+
+  const spellings = tally.written + tally.neither + tally.read + tally.excused;
+  console.log(
+    `validate: legacy update keys checked ${spellings} "-=" or "==" key spelling${spellings === 1 ? "" : "s"} in ${scripts} script${scripts === 1 ? "" : "s"} under scripts/ ` +
+      `and ${commands} macro command${commands === 1 ? "" : "s"} in packs/_source: ${tally.written} written, ${tally.neither} neither written nor read where spelled, ${tally.read} read` +
+      (tally.excused ? `; ${tally.excused} passed on legacy-key-ok` : ""),
+  );
+}
+
+/* 10. IP leak scan — licensed book material must never reach a public repo or a
  *    release artifact. CI runs this again against the built zip and quarantines
  *    the repo if it trips; running it here means you find out before the push. */
 const ipScan = path.join(ROOT, "tools", "ip-scan.mjs");
@@ -1867,7 +2163,7 @@ if (fs.existsSync(ipScan)) {
   }
 }
 
-/* 10. Optional module-owned extra validation. A repo drops tools/validate-extra.mjs
+/* 11. Optional module-owned extra validation. A repo drops tools/validate-extra.mjs
  *    for checks specific to it (e.g. an IP-safety lint); the canonical validator
  *    runs it here so `npm run validate` stays the single entry point. It should
  *    exit non-zero on failure. Modules without the file skip this cleanly. */
