@@ -886,3 +886,71 @@ skip. Seven are this check's own.
   either for a folder.
 
 It adds about five seconds to `validate`.
+
+## 24. The suites and the child checks run side by side (2026-10-08)
+
+**What was found.** The gate did its work one process at a time. `run-tests.mjs`
+ran 102 committed suites one after another, `tools/importer/validate-extra.mjs`
+ran fourteen checks one after another, and `tools/validate-extra.mjs` ran §5 to
+§9 one after another. In the gate of ae71ea0 on 2026-10-07 `npm run validate`
+took 324 s and `npm test` 119 s. On 2026-10-06 seven commits landed here
+between 22:01 and 23:00, six to fifteen minutes apart, under a gate of five to
+nine minutes. The owner ruled that the gate's serial work run side by side,
+with the same checks (acks-module-template `docs/DECISIONS.md`, 2026-10-07 and
+2026-10-08).
+
+**Ruled.**
+
+- `tools/side-by-side.mjs` runs node scripts several at a time, eight at
+  most, and shows what each printed, whole, in the order they were listed. A
+  script's output appears once every script before it has ended, so a green
+  run prints what it printed when the scripts ran in turn.
+- `tools/test-side-by-side.mjs` holds it to that order, to each script's own
+  exit status, to the directory given and to the limit. Nine single edits to
+  the runner each turned it red.
+- `run-tests.mjs` runs every suite through it. Each suite runs to its end,
+  and the ones that failed are named after the last.
+- `tools/importer/validate-extra.mjs` runs the register lint first and
+  alone, as it did, and the thirteen checks after it side by side.
+- `tools/validate-extra.mjs` runs §5 to §9 side by side, once §1 to §4 have
+  passed.
+
+**What this asks of a suite or a check.** It reads the repository, and what
+it writes goes to a scratch directory of its own making. Today four `discord`
+suites and the cookbook drift check write, each under an `mkdtemp`, and the
+docs site's sync writes its staging, which no other check reads.
+
+**Limits.**
+
+- Nothing checks that the next suite keeps to that. Two that share a scratch
+  path would fail one run in some, and pass alone.
+- A failed suite no longer stops the suites after it, so a red run lasts as
+  long as its suites do.
+- The cookbook drift check is one process, a recompile, and is now most of
+  `validate`. Nothing here shortens it.
+
+**Measured** on a copy of ae71ea0 on 2026-10-08, with `validate` and the
+tests started together as the gate starts them, and with the template's
+validator of the same day, which checks syntax eight files at a time:
+
+| | before | after |
+|---|---|---|
+| `validate` | 277 s | 160 s |
+| the tests | 109 s | 40 s |
+| the gate | 277 s | 160 s |
+
+Through the commit tool, in a clone of this repository with its history:
+`npm run validate: exit 0 in 164s` beside `npm test: exit 0 in 41s`. With
+the template's validator alone changed, 199 s and 112 s. The gate of ae71ea0
+the day before, 324 s and 119 s.
+
+Each printed what it had printed, line for line, apart from its timings and
+the count of one more file under `tools/`. With one script and two suites
+broken, both runs exited 1 on the same syntax failure. The side-by-side run
+went on to print what the later checks found and named every failed suite,
+where the run in turn stopped at its first. With one late importer check
+alone made to fail, `validate` exited 1 and named it, and the checks beside
+it ran to their end.
+
+Not checked: the gate's length on a CI runner, which has fewer processors
+than the sixteen of the machine this was measured on.

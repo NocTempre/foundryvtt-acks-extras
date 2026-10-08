@@ -174,23 +174,22 @@ if (errors.length) {
 }
 console.log(`  ok: every registry read is declared (${declared.size} document(s)); no i18n path conflicts`);
 
+/* §5–§9 are processes of their own. Each reads the repository and none reads
+   what another writes, so they are listed here and run side by side below,
+   every one to its end. */
+const apart = [];
+
 /* --- 5. The importer subsystem's own gates --------------------------------
    register lint, icon ledger, OSE tests, cookbook drift — run from its own
    tools directory. Non-zero exit here fails validation the same way. */
-{
-  const { execFileSync } = await import("node:child_process");
-  execFileSync(process.execPath, [path.join(ROOT, "tools", "importer", "validate-extra.mjs")], { stdio: "inherit" });
-}
+apart.push([path.join(ROOT, "tools", "importer", "validate-extra.mjs")]);
 
 /* --- 6. The docs site's staging gate --------------------------------------
    `pages.yml` fires on every push with no `paths:` filter, so a guide the
    sidebar does not name fails CI on the release commit and on every push
    after it. The release procedure tells a session a green `npm run validate`
    already covers this; that is only true while this chain is here. */
-{
-  const { execFileSync } = await import("node:child_process");
-  execFileSync(process.execPath, [path.join(ROOT, "docs", "site", "tools", "sync.mjs")], { stdio: "inherit" });
-}
+apart.push([path.join(ROOT, "docs", "site", "tools", "sync.mjs")]);
 
 /* --- 7. Free variables in the runtime and the tooling ----------------------
    An identifier no enclosing scope binds. `node --check` (§1) parses and is
@@ -199,15 +198,8 @@ console.log(`  ok: every registry read is declared (${declared.size} document(s)
    and dies in a world. Node's bundled acorn is reachable only behind
    `--expose-internals`, which NODE_OPTIONS refuses, so it arrives by one
    re-exec per tree. */
-{
-  const { execFileSync } = await import("node:child_process");
-  const scan = (dir, allow) => execFileSync(
-    process.execPath,
-    ["--expose-internals", path.join(ROOT, "tools", "free-variables.mjs"), path.join(ROOT, dir), `--allow=${path.join(ROOT, "tools", allow)}`],
-    { stdio: "inherit", cwd: ROOT },
-  );
-  scan("scripts", "free-variables-browser.json");
-  scan("tools", "free-variables-node.json");
+for (const [dir, allow] of [["scripts", "free-variables-browser.json"], ["tools", "free-variables-node.json"]]) {
+  apart.push(["--expose-internals", path.join(ROOT, "tools", "free-variables.mjs"), path.join(ROOT, dir), `--allow=${path.join(ROOT, "tools", allow)}`]);
 }
 
 /* --- 8. Every ruledata read has a producer --------------------------------
@@ -215,10 +207,7 @@ console.log(`  ok: every registry read is declared (${declared.size} document(s)
    always-null reader arriving one step later. `validate-producers.mjs` proves
    something writes each read table: a recipe, a binding's assembled table, a
    registry, or a sample. */
-{
-  const { execFileSync } = await import("node:child_process");
-  execFileSync(process.execPath, [path.join(ROOT, "tools", "validate-producers.mjs")], { stdio: "inherit" });
-}
+apart.push([path.join(ROOT, "tools", "validate-producers.mjs")]);
 
 /* --- 9. No interface text or comment names a retired macro ----------------
    §6 holds prose to the macro pack's names; `validate-macro-names.mjs` holds
@@ -227,7 +216,14 @@ console.log(`  ok: every registry read is declared (${declared.size} document(s)
    from a parse, so it re-execs behind `--expose-internals` as §7 does. Where
    git has no history of the pack source to read, as in a shallow checkout, it
    prints a note and passes. */
+apart.push(["--expose-internals", path.join(ROOT, "tools", "validate-macro-names.mjs")]);
+
 {
-  const { execFileSync } = await import("node:child_process");
-  execFileSync(process.execPath, ["--expose-internals", path.join(ROOT, "tools", "validate-macro-names.mjs")], { stdio: "inherit", cwd: ROOT });
+  const { sideBySide } = await import("./side-by-side.mjs");
+  const failed = (await sideBySide(apart, { cwd: ROOT })).filter((check) => check.status !== 0);
+  if (failed.length) {
+    const name = (check) => path.relative(ROOT, check.args.find((arg) => arg.endsWith(".mjs"))).split(path.sep).join("/");
+    console.error(`\nvalidate-extra: FAILED — ${failed.map(name).join(", ")}`);
+    process.exit(1);
+  }
 }

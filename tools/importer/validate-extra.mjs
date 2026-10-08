@@ -34,6 +34,7 @@
  * so in a second, not after a 40s recompile.
  */
 import { execFileSync } from "node:child_process";
+import { sideBySide } from "../side-by-side.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
@@ -150,9 +151,15 @@ if (failed) {
   process.exit(1);
 }
 
-// Re-exec so each check's own output surfaces and its non-zero exit propagates
-// (execFileSync throws, this process exits non-zero). Sequential and
-// fail-fast: a drift report is noise while the register itself is broken.
-for (const [tool, ...args] of [["lint-register.mjs"], ["icon-ledger.mjs", "--check"], ["test-ose-statline.mjs"], ["test-ose-convert.mjs"], ["test-ose-blocks.mjs"], ["test-ose-binding.mjs"], ["test-ose-template.mjs"], ["test-ose-location.mjs"], ["test-ose-manual.mjs"], ["test-ose-lang.mjs"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-prose-stops.mjs"], ["check-cookbook-drift.mjs"]]) {
-  execFileSync(process.execPath, [path.join(ROOT, "tools", "importer", tool), ...args], { stdio: "inherit" });
+// Re-exec so each check's own output surfaces and its non-zero exit
+// propagates. The register lint runs first and alone (execFileSync throws,
+// this process exits non-zero): a drift report is noise while the register
+// itself is broken. The checks after it read the register and write nothing
+// the others read, so they run side by side, each to its end.
+const importerTool = ([tool, ...args]) => [path.join(ROOT, "tools", "importer", tool), ...args];
+execFileSync(process.execPath, importerTool(["lint-register.mjs"]), { stdio: "inherit" });
+const checks = await sideBySide([["icon-ledger.mjs", "--check"], ["test-ose-statline.mjs"], ["test-ose-convert.mjs"], ["test-ose-blocks.mjs"], ["test-ose-binding.mjs"], ["test-ose-template.mjs"], ["test-ose-location.mjs"], ["test-ose-manual.mjs"], ["test-ose-lang.mjs"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-prose-stops.mjs"], ["check-cookbook-drift.mjs"]].map(importerTool));
+if (checks.some((check) => check.status !== 0)) {
+  console.error(`validate-extra: FAILED — ${checks.filter((check) => check.status !== 0).map((check) => path.basename(check.args[0])).join(", ")}`);
+  process.exit(1);
 }

@@ -25,16 +25,21 @@
  * own devDependencies: CI installs only the root package, never
  * `discord/node_modules`, so a suite that needs the bot's dependency needs it
  * declared here too.
+ *
+ * The suites run side by side (`side-by-side.mjs`), each a process of its
+ * own, and their output is shown in the order below. Every suite runs to its
+ * end, and the ones that failed are named after the last.
  */
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { sideBySide } from "./side-by-side.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 /** Suites that assert only what this repo's own code does. */
 const COMMITTED = [
+  "test-side-by-side.mjs",
   "test-lib.mjs",
   "test-window-title.mjs",
   "test-magic.mjs",
@@ -141,21 +146,21 @@ const COMMITTED = [
 
 const RULES_DIR = path.join(HERE, "rules-tests");
 
-let ran = 0;
-for (const suite of COMMITTED) {
+const committed = COMMITTED.map((suite) => {
   const p = path.join(HERE, suite);
   if (!fs.existsSync(p)) throw new Error(`run-tests: committed suite missing — ${suite}`);
-  execFileSync(process.execPath, [p], { stdio: "inherit" });
-  ran++;
-}
+  return p;
+});
+const rules = fs.existsSync(RULES_DIR)
+  ? fs.readdirSync(RULES_DIR).sort().filter((f) => f.endsWith(".mjs")).map((f) => path.join(RULES_DIR, f))
+  : [];
+const ran = committed.length;
+const local = rules.length;
 
-let local = 0;
-if (fs.existsSync(RULES_DIR)) {
-  for (const f of fs.readdirSync(RULES_DIR).sort()) {
-    if (!f.endsWith(".mjs")) continue;
-    execFileSync(process.execPath, [path.join(RULES_DIR, f)], { stdio: "inherit" });
-    local++;
-  }
+const failed = (await sideBySide([...committed, ...rules].map((p) => [p]))).filter((suite) => suite.status !== 0);
+if (failed.length) {
+  console.error(`\nrun-tests: ${failed.length} suite(s) FAILED\n${failed.map((suite) => `  ${path.relative(HERE, suite.args[0])}`).join("\n")}`);
+  process.exit(1);
 }
 
 console.log(
