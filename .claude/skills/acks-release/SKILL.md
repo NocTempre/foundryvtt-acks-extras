@@ -140,6 +140,37 @@ the full pipeline (build + validate, no publish) is available anytime:
    `git tag v<X.Y.Z> <sha> && git push --atomic origin <sha>:refs/heads/<branch> refs/tags/v<X.Y.Z>`
    (CI fails the release if tag and manifest version differ. Never
    `--tags`: it pushes every tag the clone holds.)
+   - If the remote rejects the push with a server error
+     (`! [remote rejected] … (Internal Server Error)`, an HTTP 5xx): GitHub
+     failed, not the release, and it can do so while its reads, its API and
+     its status page all answer. Do not look for a local cause first. The
+     push is atomic, so nothing is published; read both refs once to
+     confirm it:
+     `git ls-remote origin refs/heads/<branch> refs/tags/v<X.Y.Z>`
+     Then repeat the push alone (the tag is made, and the line above would
+     stop at `git tag`) every ~90s for at most ~15 minutes, in the
+     background as step 7 polls. Read both refs before each attempt and
+     push only while they read as they first did: a tag there on `<sha>`
+     is an attempt that landed, and a `<branch>` that moved is the case
+     below. Never push the branch and the tag apart to get one through: a
+     remote failing writes is where one can land without the other. Any
+     other reading, and any other refusal, ends the loop.
+   - If the bound is reached: stop. The release commit and its tag are
+     local and origin holds neither. The checkpoint and the report say so,
+     with what both refs read, the attempts and the remote's lines, and
+     give the one command that completes the release: that push, written
+     out. Undo nothing and bump nothing: the gate holds for that tree, and
+     the preflight would refuse this release's own tag.
+   - If a peer pushed `<branch>` above the release commit before the tag
+     landed: origin already holds the commit (`git fetch -q --tags origin`,
+     then `git branch -r --contains <sha>` names `origin/<branch>`), and
+     the atomic push is refused as a non-fast-forward. Only the tag is
+     left, and it goes alone:
+     `git push origin refs/tags/v<X.Y.Z>`
+     If step 2's read now shows a later version, stop and report instead:
+     an older release is not published behind a newer one. The companion
+     workflows ran on the peer's push, so 7a reads them at the sha origin's
+     `<branch>` holds as well as at the release commit's.
 7. Confirm the release published — **bounded checks only, never
    `gh run watch`** (it blocks forever through GitHub API outages, which
    happen; 2026-07-16 stranded several agents this way). Poll with your
