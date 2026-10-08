@@ -1,6 +1,6 @@
 /**
- * Release preflight gate. Run before tagging; `/acks-release` step 1 invokes
- * it and a red result stops the release.
+ * Release preflight gate. Run before tagging; `/acks-release` invokes it and
+ * a red result stops the release.
  *
  * Checks, in order:
  *   1. The tag (v<module.json version>, or --tag) does not already exist,

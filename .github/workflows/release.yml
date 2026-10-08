@@ -4,8 +4,8 @@ name: Release
 # (.github/workflows/release-module.yml) and propagates here automatically
 # via the @main reference. Synced from acks-module-template; do not hand-edit.
 #
-# Cut a release by pushing a version tag (must equal module.json version):
-#   git tag v0.1.0 && git push origin v0.1.0
+# Runs when a version tag is pushed; the tag must be v<module.json version>.
+# The acks-release skill says how that tag is made and pushed.
 # Manual "Run workflow" performs a dry run: full build + validation, no publish.
 
 on:
