@@ -4,10 +4,11 @@
  * it is built in a private index, checked out over a scratch clone, gated
  * there, and staged on the shared index only once its id is the gated one.
  *
- *   node commit-own-hunks.mjs <mode> --change <dir>
+ *   node commit-own-hunks.mjs <mode> --change <dir> [--session <id>]
  *
- *   record            pick this change's zero-context hunks by pattern, printing every hunk of
- *                     every listed file as MINE or left; hash the whole, added files
+ *   record            pick this change's zero-context hunks, by the edit ledger or by pattern,
+ *                     printing every hunk of every file as MINE, PART or left, with who wrote
+ *                     it where the ledger says; hash the whole, added files
  *   build             HEAD plus the recorded change in a private index; print the tree id
  *   gate              check that tree out over a scratch clone and run the gate there; record
  *                     the green tree and its base
@@ -17,21 +18,38 @@
  *                     change's files and no gate tooling, those files come out as gated, and
  *                     the carry stages pass on the rebuilt tree
  *   postgate <sha>    the full gate on a commit already made
- *   ship [--attempts N]  record, gate and commit, again only while the base moves under the gate;
- *                     needs a `record` already made, and holds whole and added files to it
- *   clean             remove the scratch clone and the private index
+ *   ship [--attempts N]  record, gate and commit, again only while the base moves under the gate.
+ *                     It holds whole and added files to the `record` already made. With none
+ *                     made it goes on only where the ledger accounts for everything it reads,
+ *                     and otherwise prints the listing and stops for it to be read
+ *   clean             remove the scratch clone and the private index; drop the ledger's
+ *                     long-silent sessions
  *
  * Run from the repository root. `<dir>` lies outside the repository and holds
  * the change's inputs, `change.json` and `commit-msg.txt`, beside everything
  * this script writes: the hunk record, the private index, the clone, the gate
  * logs and the gated tree's id.
  *
+ * The edit ledger says which session wrote each line the working tree holds
+ * (`.claude/hooks/edit-ledger.mjs` writes it, `ledger.mjs` beside this file
+ * reads it). This session is `--session <id>`, or `CLAUDE_CODE_SESSION_ID`.
+ *
  * change.json:
- *   files    { "<path>": { "own": "<regex>", "count": <n> } | { "whole": true, "own"?: "<regex>" } }
+ *   files    { "<path>": {} | { "own": "<regex>", "count": <n> } | { "whole": true, "own"?: "<regex>" } }
+ *            `{}` takes the hunks the ledger gives this session. Of a hunk two sessions
+ *            wrote it takes this session's lines, where every line has a writer and no
+ *            other session removed one.
  *            `own` is tested against a hunk's removed and added lines joined by newlines.
+ *            It takes a hunk no record accounts for, and never one holding another
+ *            session's line.
  *            `whole` takes the working copy as it stood at `record`, and refuses any later edit.
  *   added    paths HEAD does not track, each taken whole as recorded
  *   removed  paths HEAD tracks and the working tree no longer holds
+ *   mine     true: beside the paths named, every file this session's records name, read as
+ *            `{}` reads it, and a new file where every line is this session's. A change.json
+ *            that names no path is read this way
+ *   adopt    session ids, or the first eight characters of one, whose records count as this
+ *            session's: the session before a `/clear`, or one whose work this one finishes
  *   gate     stages run in the clone, in order; a stage is one command line or a list of
  *            command lines run side by side. Default: `npm run build:packs`, then
  *            `npm run validate` beside `npm test`, each where package.json names the script
@@ -49,6 +67,7 @@ import { spawn, spawnSync, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { blame, writersOf, soleWriter, readRecords, prune, keyOf, ORIGIN, NOBODY } from "./ledger.mjs";
 
 const EXIT = { refused: 1, usage: 2, movedBase: 3, peerStaging: 4 };
 const LOCK_TRIES = 8;
@@ -67,6 +86,8 @@ const mode = argv[0];
 const option = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : null);
 const DIR = option("--change") ? path.resolve(option("--change")) : null;
 const at = (name) => path.join(DIR, name);
+/** The session whose records in the edit ledger are this change's, where one is known. */
+const SESSION = option("--session") ?? process.env.CLAUDE_CODE_SESSION_ID ?? null;
 
 /** A stop the caller can act on by its exit status; anything else thrown is a fault. */
 class Refusal extends Error {
@@ -104,25 +125,47 @@ const headEntry = (file) => git(["ls-tree", "HEAD", "--", file]).trim();
 const hashOf = (file) => git(["hash-object", "--", file]).trim();
 const inTree = (file) => fs.existsSync(path.join(REPO, file));
 
-/** Parse change.json into the paths, patterns and stages the modes share. */
-function readChange() {
+/**
+ * Parse change.json into the paths, patterns and stages the modes share.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.resolved] Answer the paths the last `record` took
+ *   in place of the ones change.json names, which leave out every file the
+ *   ledger supplied. `record` itself reads the named ones.
+ */
+function readChange({ resolved = true } = {}) {
   if (!fs.existsSync(at("change.json"))) refuse(`no change.json in ${DIR}`, EXIT.usage);
   const raw = JSON.parse(fs.readFileSync(at("change.json"), "utf8"));
-  const files = raw.files ?? {};
-  const added = raw.added ?? [];
+  let files = raw.files ?? {};
+  let added = raw.added ?? [];
   const removed = raw.removed ?? [];
-  for (const [file, spec] of Object.entries(files)) {
-    if (!spec.whole && !spec.own) refuse(`${file}: give "own", a pattern its hunks match, or "whole": true`, EXIT.usage);
+  const adopt = raw.adopt ?? [];
+  const named = [...Object.keys(files), ...added, ...removed];
+  const mine = raw.mine === true || !named.length;
+  // Whose edits the ledger gives is asked at `record` alone; every later mode
+  // reads the paths that record took.
+  if (!resolved && !SESSION && !adopt.length) {
+    const how = "no session id says whose edits the ledger gives (CLAUDE_CODE_SESSION_ID, or --session <id>)";
+    for (const [file, spec] of Object.entries(files)) {
+      if (!spec.whole && !spec.own) refuse(`${file}: give "own", a pattern its hunks match, or "whole": true; ${how}`, EXIT.usage);
+    }
+    if (!named.length) refuse(`change.json names no path, and ${how}`, EXIT.usage);
+    if (mine) refuse(`"mine" is set, and ${how}`, EXIT.usage);
+  }
+  if (new Set(named).size !== named.length) refuse("change.json lists a path twice", EXIT.usage);
+  if (named.some((f) => f.includes("\\") || path.isAbsolute(f))) refuse("paths are repository-relative, with forward slashes", EXIT.usage);
+  if (resolved && fs.existsSync(at("record.json"))) {
+    const taken = JSON.parse(fs.readFileSync(at("record.json"), "utf8")).paths;
+    if (taken) ({ files, added } = taken);
   }
   const all = [...Object.keys(files), ...added, ...removed].sort();
-  if (!all.length) refuse("change.json names no path", EXIT.usage);
-  if (new Set(all).size !== all.length) refuse("change.json lists a path twice", EXIT.usage);
-  if (all.some((f) => f.includes("\\") || path.isAbsolute(f))) refuse("paths are repository-relative, with forward slashes", EXIT.usage);
   return {
     files,
     added,
     removed,
     all,
+    mine,
+    adopt,
     gate: raw.gate ?? null,
     carry: raw.carry ?? null,
     expect: raw.expect ?? [],
@@ -140,7 +183,7 @@ function hunksOf(file) {
     const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
     const m = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line);
     if (m) {
-      hunks.push({ oldStart: Number(m[1]), oldCount: m[2] === undefined ? 1 : Number(m[2]), minus: [], plus: [] });
+      hunks.push({ oldStart: Number(m[1]), oldCount: m[2] === undefined ? 1 : Number(m[2]), newStart: Number(m[3]), minus: [], plus: [] });
     } else if (hunks.length) {
       const h = hunks[hunks.length - 1];
       if (line.startsWith("-")) h.minus.push(line.slice(1));
@@ -182,53 +225,212 @@ function refuseCarriageReturns(sha, file) {
   if (!blob.subarray(0, 8000).includes(0) && blob.includes(13)) refuse(`${file}: a carriage return in the content to commit`);
 }
 
+const short = (session) => session.slice(0, 8);
+/** The git directory every work tree of this repository shares, where the edit ledger lives. */
+const commonDir = () => path.resolve(REPO, git(["rev-parse", "--git-common-dir"]).trim());
+const workingText = (file) => fs.readFileSync(path.join(REPO, file), "utf8");
+
+/**
+ * The edit ledger as this run reads it: every record by file, and the
+ * sessions whose records are this change's.
+ */
+function readLedger(change) {
+  const gitDir = commonDir();
+  const records = readRecords(gitDir);
+  const sessions = new Set([...records.values()].flat().map((r) => r.session));
+  const mine = new Set(SESSION ? [SESSION] : []);
+  for (const given of change.adopt) {
+    const hits = [...sessions].filter((s) => s.startsWith(given));
+    if (String(given).length < 8 || hits.length !== 1) refuse(`"adopt": ${JSON.stringify(given)} names ${hits.length} session(s) in the ledger; give eight characters or more of one session's id`, EXIT.usage);
+    mine.add(hits[0]);
+  }
+  return { gitDir, records, mine };
+}
+
+/**
+ * Whose one hunk is by the ledger.
+ *
+ * @returns {null | {whose: "mine"|"peer"|"nobody"|"mixed", peers: string[], mine: number, unknown: number, keep: number[]|null}}
+ *   null where no record names the file. `mine` and `unknown` count the
+ *   hunk's lines this change's sessions wrote or removed and the lines no
+ *   record accounts for; `peers` are the other sessions with a line in it,
+ *   or among the writers a line given to nobody may belong to.
+ *   `keep` is set on a mixed hunk that can be divided: the added lines that
+ *   are this change's, by index. It can be divided when every line has a
+ *   writer, the writers were read at the place git puts the hunk, and this
+ *   change removed every line the hunk removes, so what is left behind is
+ *   other sessions' added lines alone.
+ */
+function verdictOf(ledger, blamed, hunk) {
+  if (!blamed) return null;
+  const writers = writersOf(blamed, hunk);
+  if (!writers) return { whose: "nobody", peers: [], mine: 0, unknown: hunk.plus.length + hunk.minus.length, keep: null };
+  const all = [...writers.added, ...writers.removed];
+  const isMine = (who) => ledger.mine.has(who);
+  const isPeer = (who) => who !== ORIGIN && who !== NOBODY && !isMine(who);
+  const peers = [...new Set([...all, ...writers.among].filter(isPeer))].sort();
+  const mine = all.filter(isMine).length;
+  const unknown = all.filter((who) => !isMine(who) && !isPeer(who)).length;
+  const whose = mine === all.length ? "mine" : mine ? "mixed" : peers.length ? "peer" : "nobody";
+  const divides = whose === "mixed" && !unknown && !writers.slid && writers.removed.every(isMine);
+  return { whose, peers, mine, unknown, keep: divides ? writers.added.flatMap((who, i) => (isMine(who) ? [i] : [])) : null };
+}
+
+/**
+ * Whether a file's content is one a commit holds: HEAD's, or an earlier
+ * commit's of the same path. Content that is not was written by someone
+ * before the ledger's first record of the file, and is nobody's.
+ */
+function committed(file, content) {
+  if (content === null) return false;
+  const blob = git(["hash-object", "--stdin", "--path", file], { input: content }).trim();
+  if (blob === revParse(`HEAD:${file}`)) return true;
+  try {
+    return git(["log", "-1", "--format=%H", `--find-object=${blob}`, "--", file]).trim() !== "";
+  } catch {
+    return false; // git knows no such object, so no commit holds it
+  }
+}
+
+/** The writers of a hunk as the listing names them. */
+const tagOf = (v) => (v ? ` [${[v.mine && "me", ...v.peers.map((s) => `session ${short(s)}`), v.unknown && "no record"].filter(Boolean).join(" + ")}]` : "");
+
+/**
+ * The files this change's sessions wrote that change.json does not name: a
+ * tracked file that differs from HEAD, read as `{}` reads it, and a new file
+ * where every line is theirs. A file the working tree no longer holds is not
+ * among them; a removal is named.
+ */
+function discover(change, ledger) {
+  const out = { files: {}, added: [] };
+  const named = new Set([...Object.keys(change.files), ...change.added, ...change.removed].map(keyOf));
+  const paths = new Map(git(["ls-files", "-z", "--cached", "--others", "--exclude-standard"]).split("\0").filter(Boolean).map((f) => [keyOf(f), f]));
+  for (const [key, list] of ledger.records) {
+    if (named.has(key) || !list.some((r) => ledger.mine.has(r.session))) continue;
+    const file = paths.get(key);
+    if (!file || !inTree(file)) continue;
+    if (headEntry(file)) {
+      if (hashOf(file) !== revParse(`HEAD:${file}`)) out.files[file] = {};
+      continue;
+    }
+    const { owners } = blame(ledger.gitDir, file, workingText(file), ledger.records);
+    const others = owners.filter((who) => !ledger.mine.has(who)).length;
+    if (others && others < owners.length) refuse(`${file}: new, and ${others} of its ${owners.length} line(s) are not this session's by the ledger; list it under "added" to take it whole`);
+    if (!others) out.added.push(file);
+  }
+  return { files: Object.fromEntries(Object.entries(out.files).sort(([a], [b]) => (a < b ? -1 : 1))), added: out.added.sort() };
+}
+
 /**
  * Pick this change's hunks and hash its whole and added files.
  *
+ * A file with a pattern, a whole file and a named added file are taken on the
+ * caller's word, and none of them can take a line the ledger gives another
+ * session. Every other file is read by the ledger: a hunk is taken where all
+ * of it is this change's, divided where it can be, and left where it is
+ * another session's or nobody's. A file no one else has written since a
+ * committed content is taken entire.
+ *
  * @param {object} [options]
- * @param {object} [options.pin] An earlier record. A whole or added file whose
- *   content differs from it stops the run, so no attempt takes in an edit
- *   made after the listing was read.
+ * @param {object} [options.pin] An earlier record. A file taken on the
+ *   caller's word whose content differs from it stops the run, so no attempt
+ *   takes in an edit made after the listing was read.
+ * @returns {object} The record written. `settled` says nothing in it rests on
+ *   the caller's word and no hunk it read went unaccounted for.
  */
 function record({ pin = null } = {}) {
-  const change = readChange();
-  const rec = { hunks: {}, whole: {}, added: {} };
-  for (const [file, spec] of Object.entries(change.files)) {
+  const change = readChange({ resolved: false });
+  const ledger = readLedger(change);
+  const found = change.mine ? discover(change, ledger) : { files: {}, added: [] };
+  const rec = { hunks: {}, whole: {}, added: {}, claimed: [], paths: { files: {}, added: [] }, settled: !change.adopt.length && !change.removed.length };
+  const claim = (file) => {
+    rec.claimed.push(file);
+    rec.settled = false;
+  };
+  const theirs = (sessions) => `the ledger gives ${sessions.map(short).join(", ")} a line in it. It is that session's to commit; "adopt" takes it where the owner rules it this change's`;
+
+  for (const [file, spec] of Object.entries({ ...found.files, ...change.files })) {
+    const named = file in change.files;
     if (!headEntry(file)) refuse(`${file}: HEAD does not track it; list it under "added"`);
     if (!inTree(file)) refuse(`${file}: the working tree does not hold it; list it under "removed"`);
     const binary = isBinary(file);
     if (binary && !spec.whole) refuse(`${file}: a binary file is taken whole or not at all`);
     const all = binary ? [] : hunksOf(file);
+    const blamed = binary ? null : blame(ledger.gitDir, file, workingText(file), ledger.records);
     const own = spec.own ? new RegExp(spec.own) : null;
-    const mine = own ? all.filter((h) => own.test([...h.minus, ...h.plus].join("\n"))) : all;
-    console.log(`== ${file}: ${binary ? "binary" : `${all.length} hunk(s), ${mine.length} this change's`}${spec.whole ? ", taken whole" : ""}`);
+    const byLedger = !spec.whole && !own;
+    // Where this change's sessions are the file's only writers since a
+    // committed content, every hunk is theirs whatever lines git pairs up to
+    // make it. Elsewhere each hunk is read by the lines it holds.
+    const sole = byLedger && blamed !== null && soleWriter(blamed, ledger.mine) && committed(file, blamed.origin);
+    const read = new Map(all.map((h) => [h, sole ? { whose: "mine", peers: [], mine: h.plus.length + h.minus.length, unknown: 0, keep: null } : verdictOf(ledger, blamed, h)]));
+    let mine = all;
+    if (byLedger) mine = all.filter((h) => read.get(h)?.whose === "mine" || read.get(h)?.keep);
+    else if (own) mine = all.filter((h) => own.test([...h.minus, ...h.plus].join("\n")));
+
+    console.log(`== ${file}: ${binary ? "binary" : `${all.length} hunk(s), ${mine.length} this change's`}${spec.whole ? ", taken whole" : ""}${byLedger ? ", by the ledger" : ""}`);
     for (const h of all) {
       const first = ([...h.plus, ...h.minus].find((l) => l.trim()) ?? "").slice(0, 96);
-      console.log(`  ${mine.includes(h) ? "MINE" : "left"} -${h.oldStart},${h.oldCount} (-${h.minus.length} +${h.plus.length}) ${first}`);
+      const mark = !mine.includes(h) ? "left" : byLedger && read.get(h).keep ? "PART" : "MINE";
+      console.log(`  ${mark} -${h.oldStart},${h.oldCount} (-${h.minus.length} +${h.plus.length})${tagOf(read.get(h))} ${first}`);
     }
+
+    if (byLedger) {
+      for (const h of all) {
+        const v = read.get(h);
+        if (v?.whose !== "mixed" || v.keep) continue;
+        if (v.peers.length) refuse(`${file}: the hunk at -${h.oldStart} holds this session's lines and ${v.peers.map(short).join(", ")}'s, and they do not divide by line; it lands once theirs has, or under "adopt" where the owner rules it this change's`);
+        refuse(`${file}: the hunk at -${h.oldStart} holds this session's lines beside ${v.unknown} no record accounts for; give the file an "own" pattern to take the hunk on your word`);
+      }
+      if (!mine.length) {
+        if (named) refuse(`${file}: the ledger gives this session none of its hunks; give "own", a pattern they match, to take them on your word`);
+        console.log("  nothing of this session's is left in it; not taken");
+        continue;
+      }
+      if (all.some((h) => !mine.includes(h) && read.get(h)?.whose === "nobody")) rec.settled = false;
+    } else {
+      const taken = [...new Set(mine.flatMap((h) => read.get(h)?.peers ?? []))];
+      if (ledger.mine.size && taken.length) refuse(`${file}: ${spec.whole ? "listed whole" : "the pattern picks a hunk"}, and ${theirs(taken)}`);
+      claim(file);
+    }
+    rec.paths.files[file] = spec;
+
     if (spec.whole) {
       if (mine.length !== all.length) refuse(`${file}: listed whole, and ${all.length - mine.length} hunk(s) do not match its pattern`);
       rec.whole[file] = hashOf(file);
       if (rec.whole[file] === revParse(`HEAD:${file}`)) refuse(`${file}: the working copy is what HEAD holds`);
       if (pin && pin.whole?.[file] !== rec.whole[file]) refuse(`${file}: listed whole, and it is not what the last \`record\` hashed; run \`record\` and read its listing again`);
     } else {
-      if (spec.count != null && mine.length !== spec.count) refuse(`${file}: the pattern picks ${mine.length} hunk(s) and ${spec.count} are this change's`);
+      if (spec.count != null && mine.length !== spec.count) refuse(`${file}: ${byLedger ? "the ledger" : "the pattern"} picks ${mine.length} hunk(s) and ${spec.count} are this change's`);
       if (!mine.length) refuse(`${file}: the pattern picks nothing`);
-      rec.hunks[file] = mine.map(({ minus, plus }) => ({ minus, plus }));
+      rec.hunks[file] = mine.map((h) => {
+        const keep = byLedger ? read.get(h).keep : null;
+        return keep ? { minus: h.minus, plus: h.plus, keep } : { minus: h.minus, plus: h.plus };
+      });
     }
   }
-  for (const file of change.added) {
+
+  for (const file of [...change.added, ...found.added]) {
+    const named = change.added.includes(file);
     if (headEntry(file)) refuse(`${file}: listed as added, and HEAD tracks it`);
     if (!inTree(file)) refuse(`${file}: listed as added, and the working tree does not hold it`);
     rec.added[file] = hashOf(file);
-    if (pin && pin.added?.[file] !== rec.added[file]) refuse(`${file}: added, and it is not what the last \`record\` hashed; run \`record\` and read its listing again`);
-    console.log(`== ${file}: added, ${rec.added[file]}`);
+    if (named) {
+      const blamed = ledger.mine.size ? blame(ledger.gitDir, file, workingText(file), ledger.records) : null;
+      const taken = [...new Set((blamed?.owners ?? []).filter((who) => who !== ORIGIN && who !== NOBODY && !ledger.mine.has(who)))];
+      if (taken.length) refuse(`${file}: added, and ${theirs(taken)}`);
+      if (pin && pin.added?.[file] !== rec.added[file]) refuse(`${file}: added, and it is not what the last \`record\` hashed; run \`record\` and read its listing again`);
+      claim(file);
+    }
+    rec.paths.added.push(file);
+    console.log(`== ${file}: added, ${rec.added[file]}${named ? "" : ", by the ledger"}`);
   }
   for (const file of change.removed) {
     if (!headEntry(file)) refuse(`${file}: listed as removed, and HEAD does not track it`);
     if (inTree(file)) refuse(`${file}: listed as removed, and the working tree still holds it`);
     console.log(`== ${file}: removed`);
   }
+  if (!Object.keys(rec.paths.files).length && !rec.paths.added.length && !change.removed.length) refuse("nothing in the working tree is this session's to commit, by the ledger");
   fs.writeFileSync(at("record.json"), JSON.stringify(rec, null, 1));
   console.log("recorded");
   return rec;
@@ -239,8 +441,9 @@ function record({ pin = null } = {}) {
  *
  * A recorded hunk is found in the working tree by its exact lines, so a hunk a
  * peer has since added to the file is left where it is, and one that has run
- * into a recorded hunk stops the build. A whole or added file is taken only
- * while its content is what `record` hashed.
+ * into a recorded hunk stops the build. Of a hunk `record` divided, the lines
+ * it kept are applied and the rest are left. A whole or added file is taken
+ * only while its content is what `record` hashed.
  *
  * @param {object} [options]
  * @param {boolean} [options.shared] Stage on the repository's own index, which
@@ -279,7 +482,13 @@ function build({ shared = false } = {}) {
       });
       if (new Set(picked).size !== picked.length) refuse(`${file}: two recorded hunks matched one working-tree hunk`);
       leftOut[file] = current.length - picked.length;
-      const content = applyHunks(file, git(["show", `HEAD:${file}`]).split("\n"), picked).join("\n");
+      // Of a divided hunk only the lines on record are applied; the rest of it
+      // stays in the working tree for the session that wrote it.
+      const taken = picked.map((h, i) => {
+        const keep = rec.hunks[file][i].keep;
+        return keep ? { ...h, plus: keep.map((k) => h.plus[k]) } : h;
+      });
+      const content = applyHunks(file, git(["show", `HEAD:${file}`]).split("\n"), taken).join("\n");
       sha = git(["hash-object", "-w", "--stdin"], { input: content }).trim();
     }
     refuseCarriageReturns(sha, file);
@@ -571,11 +780,16 @@ async function postgate() {
 
 async function ship() {
   const attempts = Number(option("--attempts") ?? 4);
-  // The listing `record` prints is the one place a peer's hunk taken as this
-  // change's can be seen, so a run starts from a record someone has read, and
-  // every attempt holds whole and added files to it.
-  if (!fs.existsSync(at("record.json"))) refuse("no hunk record; run `record` and read its listing first");
-  let pin = JSON.parse(fs.readFileSync(at("record.json"), "utf8"));
+  // The listing `record` prints is the one place a hunk taken on the caller's
+  // word can be checked against whose it is, so a run that takes one starts
+  // from a record someone has read, and every attempt holds whole and added
+  // files to it. Where the ledger accounts for everything read, no listing
+  // decides anything.
+  let pin = fs.existsSync(at("record.json")) ? JSON.parse(fs.readFileSync(at("record.json"), "utf8")) : null;
+  if (!pin) {
+    pin = record();
+    if (!pin.settled) refuse("the listing above takes something on this change's word, or leaves a hunk no record accounts for; read it, then run `ship` again");
+  }
   for (let n = 1; n <= attempts; n++) {
     console.log(`--- attempt ${n} of ${attempts} on ${revParse("HEAD")}`);
     try {
@@ -601,11 +815,12 @@ const MODES = {
   clean: () => {
     dropClone(readChange());
     fs.rmSync(at("private-index"), { force: true });
+    prune(commonDir());
   },
 };
 
 try {
-  if (!MODES[mode] || !DIR) refuse("usage: node commit-own-hunks.mjs record | build | gate | commit [--carry] | postgate <sha> | ship [--attempts N] | clean, each with --change <dir>", EXIT.usage);
+  if (!MODES[mode] || !DIR) refuse("usage: node commit-own-hunks.mjs record | build | gate | commit [--carry] | postgate <sha> | ship [--attempts N] | clean, each with --change <dir> [--session <id>]", EXIT.usage);
   const real = (p) => fs.realpathSync.native(p).toLowerCase();
   const top = git(["rev-parse", "--show-toplevel"]).trim();
   if (real(top) !== real(REPO)) refuse(`run from the repository root (${top})`, EXIT.usage);

@@ -49,6 +49,37 @@
             "shell": "bash",
             "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/no-windows-path-heredoc.mjs\"",
             "statusMessage": "Checking heredoc for Windows paths"
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "if": "Bash(git *)",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/shared-tree-guard.mjs\"",
+            "statusMessage": "Checking the shared tree"
+          }
+        ]
+      },
+      {
+        "matcher": "PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/shared-tree-guard.mjs\"",
+            "statusMessage": "Checking the shared tree"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/edit-ledger.mjs\"",
+            "timeout": 20
           }
         ]
       }

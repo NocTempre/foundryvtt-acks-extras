@@ -13,7 +13,7 @@ repeated here.
 The user's "commit" is the go-ahead for the commit. A push follows TOOLCHAIN
 §2 unless they said to leave it.
 
-## 1. Look before listing anything
+## 1. Look first
 
 ```bash
 git status --short
@@ -23,9 +23,6 @@ git log --oneline -3
 
 - **A staged path that is not yours** is a peer between `add` and `commit`.
   Wait until the index is empty and `HEAD` has moved, then start.
-- **For each modified file you touched, read `git diff -U0 -- <file>`.** Every
-  hunk is yours, or the file is shared. Decide per file; a file that was
-  wholly yours an hour ago may not be now.
 - **Modified paths you did not write stay where they are.** They are named in
   the report as left out, and at a release they are asked about
   (`shared-tree.md`).
@@ -34,61 +31,78 @@ git log --oneline -3
 ## 2. Describe the change
 
 Make a directory in the session's scratch space, outside the repository, with
-two files.
+two files. `commit-msg.txt` holds the message, in the repo's own voice
+(`acks-hotfix`, "Voice", for a fix).
 
-`change.json`:
+`change.json` for a change made with the Edit and Write tools alone is `{}`:
+the tool takes every line the edit ledger gives this session, in every file,
+and no other. It says more only about what the ledger cannot know:
 
 ```json
 {
+  "mine": true,
   "files": {
-    "docs/lib/MODEL.md": { "own": "strandedCoin", "count": 1 },
-    "scripts/lib/repair-checks.mjs": { "whole": true }
+    "packs/_source/items/rope.json": { "whole": true },
+    "lang/en.json": { "own": "ACKS-LIB\\.repair", "count": 1 }
   },
-  "added": ["tools/test-repair-checks.mjs"],
+  "removed": ["tools/old-check.mjs"],
   "expect": ["ok - a scan lists only coin that is there"]
 }
 ```
 
-- A **shared** file takes `own`, a pattern that matches each of your hunks and
-  none of a peer's, and `count`, how many hunks that is. Pick words only your
-  change wrote.
-- A file where every hunk is yours takes `whole`. So does any binary file.
+- `mine` keeps the ledger's files beside the paths named. A file listed as
+  `{}` takes only that file's lines of yours, for a commit of part of what
+  the session wrote.
+- **A file a script wrote** (a generator, a formatter, a sync) has no record.
+  It takes `whole` where every hunk is this change's, as any binary file
+  does, or `own`, a pattern that matches each of this change's hunks and no
+  other, with `count`, how many hunks that is. A new one is named under
+  `added`.
+- **A removed file** is deleted with `rm` and named under `removed`; `git rm`
+  writes the shared index and is refused.
+- `adopt` names a session whose records are this change's too: the one
+  before a `/clear`, or one whose work the user handed over. The listing
+  shows its lines as `[session 1a2b3c4d]`.
 - A new check or suite names one of its own output lines under `expect`: a
   check that cannot run where the gate runs it often exits 0 with a note.
 - `gate` is needed only where `package.json` does not name the gate
   (`build:packs`, `validate`, `test`). `link` adds any second `node_modules`
   the gate reads, such as a docs site's.
-- A change of many files, a release above all, writes its lists from
-  `git status --porcelain` with every path that is not its own taken out, and
-  then reads `record`'s listing against the session's own account of what it
-  changed. A list built by exclusion takes in whatever a peer wrote since.
 
-`commit-msg.txt` holds the message, in the repo's own voice
-(`acks-hotfix`, "Voice", for a fix).
-
-## 3. Record, read the listing, ship
-
-```bash
-node .claude/skills/acks-commit/commit-own-hunks.mjs record --change <dir>
-```
-
-`record` prints every hunk of every listed file as `MINE` or `left`. **Read
-it.** A `MINE` you did not write, or a `left` you did, is fixed in
-`change.json` and recorded again. It writes nothing to the repository.
+## 3. Ship, and read the listing where it stops for one
 
 ```bash
 node .claude/skills/acks-commit/commit-own-hunks.mjs ship --change <dir>
 ```
 
 Run `ship` in the background and wait for it; a full gate takes minutes, more
-than a foreground command is given. It holds whole and added files to what
-`record` hashed, gates, commits, and goes again on a new base only while a
-peer's commit lands under its gate, four times at most.
+than a foreground command is given. It gates, commits, and goes again on a
+new base only while a peer's commit lands under its gate, four times at most.
+
+Where the ledger accounts for every hunk it read, `ship` goes straight to
+the gate. Where the change takes anything on its own word (a pattern, a whole
+file, a named new file, a removal, `adopt`), or a file it takes holds a hunk
+no record accounts for, the first `ship` prints the listing and exits 1.
+**Read it**, then run `ship` again; from there it holds whole and added
+files to what was listed. `record` prints the same listing and writes
+nothing to the repository.
+
+| Listing | Meaning |
+| --- | --- |
+| `MINE` | taken |
+| `PART` | a hunk two sessions wrote; this change's lines of it are taken |
+| `left` | stays in the working tree |
+| `[me]`, `[session 1a2b3c4d]`, `[no record]` | who wrote the hunk's lines, by the ledger |
+
+A `MINE` that is not this change's, or a `left` that is, is fixed in
+`change.json`. A hunk that holds this session's lines beside ones no record
+accounts for is refused until its file has an `own` pattern. A hunk the
+ledger gives another session is never taken by a pattern.
 
 | Exit | Meaning | Next |
 | --- | --- | --- |
 | 0 | `OK: the commit holds the gated tree on the gated base` | §5 |
-| 1 | `REFUSED:` with the reason; nothing is staged | fix what it names, `record` again |
+| 1 | `REFUSED:` with the reason; nothing is staged | fix what it names, `ship` again |
 | 3 | every attempt lost its base to a landed commit | §4, or `ship` again |
 | 4 | a peer's staging is in the shared index | wait for it to land, `ship` again |
 

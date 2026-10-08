@@ -9,14 +9,16 @@ rulings behind this page are `acks-module-template/docs/DECISIONS.md`
 
 ## What is yours
 
-- **Your change is the hunks you wrote.** A file you edited can hold a peer's
-  hunk by the time you commit, so "this file is mine" is a claim about the
-  moment you looked. Commit by hunk, or by a file whose content you hashed
-  when you last wrote it. Never `git add -A`, `git add .` or `git commit -a`.
-- **A peer's path is not yours to change.** No `restore`, `checkout --`,
-  `stash`, `clean` or `reset --hard` over a path you did not write, and no
-  edit to it to turn a gate green. A gate that is red on a peer's in-flight
-  hunk is run where that hunk is not, and the report says so.
+- **Your change is the lines you wrote.** A hook records every Edit and Write
+  under its session, and the commit tool takes from a file the lines that
+  record gives you. A line no record accounts for, a script's or a
+  formatter's, is nobody's until a session names it. A hand-run `git add` or
+  `git commit` is refused by a hook.
+- **A peer's path is not yours to change.** The same hook refuses `restore`,
+  `stash`, `clean`, `reset` and a `checkout` of paths; an edit of your own
+  is undone with the Edit tool. No edit to a peer's path turns a gate green
+  either: a gate that is red on a peer's in-flight hunk is run where that
+  hunk is not, and the report says so.
 - **At a release, work in the tree that you did not write is asked about
   once.** List the modified paths outside your change and ask whether they
   ship. Neither include them nor leave them out on your own call. Left out,
