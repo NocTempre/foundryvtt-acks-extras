@@ -4,7 +4,7 @@
  * it is built in a private index, checked out over a scratch clone, gated
  * there, and staged on the shared index only once its id is the gated one.
  *
- *   node commit-own-hunks.mjs <mode> --change <dir> [--session <id>]
+ *   node commit-own-hunks.mjs <mode> --change <dir> [--session <id>] [--wait <minutes>]
  *
  *   record            pick this change's zero-context hunks, by the edit ledger or by pattern,
  *                     printing every hunk of every file as MINE, PART or left, with who wrote
@@ -34,6 +34,12 @@
  * (`.claude/hooks/edit-ledger.mjs` writes it, `ledger.mjs` beside this file
  * reads it). This session is `--session <id>`, or `CLAUDE_CODE_SESSION_ID`.
  *
+ * `gate`, `commit` and `ship` hold the landing lease (`lease.mjs` beside this
+ * file) while they run, `ship` from its gate through its commit. One run in a
+ * repository holds it at a time, so a gate starts on a base no other run of
+ * this tool is about to move. A run that finds it held waits `--wait` minutes,
+ * 20 where none is given, and 0 asks once.
+ *
  * change.json:
  *   files    { "<path>": {} | { "own": "<regex>", "count": <n> } | { "whole": true, "own"?: "<regex>" } }
  *            `{}` takes the hunks the ledger gives this session. Of a hunk two sessions
@@ -61,15 +67,19 @@
  *   timeoutMinutes  per command line, default 30
  *
  * Exit status: 0 done, 1 refused, 2 usage, 3 the base moved (gate again), 4 the shared index
- * holds another session's staging (wait for its commit).
+ * holds another session's staging (wait for its commit), 5 the landing lease was still held
+ * when the wait ran out (run it again).
  */
 import { spawn, spawnSync, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { blame, writersOf, soleWriter, readRecords, prune, keyOf, ORIGIN, NOBODY } from "./ledger.mjs";
+import { acquire, holds } from "./lease.mjs";
 
-const EXIT = { refused: 1, usage: 2, movedBase: 3, peerStaging: 4 };
+const EXIT = { refused: 1, usage: 2, movedBase: 3, peerStaging: 4, leaseHeld: 5 };
+/** Minutes a run waits for the landing lease where `--wait` gives none. */
+const WAIT_MINUTES = 20;
 const LOCK_TRIES = 8;
 const LOCK_WAIT_MS = 1500;
 /**
@@ -634,6 +644,39 @@ function defaultStages({ carry = false } = {}) {
   return stages;
 }
 
+/** The lease this run holds, from `landing` until its body returns. */
+let LEASE = null;
+
+/**
+ * Run `body` holding the landing lease, so no other run of this tool gates or
+ * commits in this repository until it returns. A lease another run holds is
+ * waited for, `--wait` minutes at most, and its holder named as the wait
+ * starts.
+ */
+async function landing(body) {
+  const gitDir = commonDir();
+  const minutes = Number(option("--wait") ?? WAIT_MINUTES);
+  if (!(minutes >= 0)) refuse("--wait takes a number of minutes", EXIT.usage);
+  const name = (held) => `${held?.session ? `session ${short(held.session)}` : "another run"}${held?.since ? `, since ${new Date(held.since).toTimeString().slice(0, 8)}` : ""}${held?.change ? `, for ${held.change}` : ""}`;
+  let last = null;
+  const lease = await acquire(gitDir, { session: SESSION, change: DIR }, {
+    waitMs: minutes * 60_000,
+    onWait: (held) => {
+      last = held;
+      console.log(`the landing lease is held by ${name(held)}; waiting ${minutes} minute(s) at most`);
+    },
+  });
+  if (!lease) refuse(`the landing lease is still held by ${name(last)}; nothing gated, nothing staged`, EXIT.leaseHeld);
+  if (lease.waitedMs >= 1000) console.log(`took the landing lease after ${Math.round(lease.waitedMs / 1000)}s`);
+  LEASE = { gitDir, token: lease.token };
+  try {
+    return await body();
+  } finally {
+    LEASE = null;
+    lease.stop();
+  }
+}
+
 async function gate() {
   const change = readChange();
   const built = build();
@@ -733,6 +776,10 @@ async function commit({ carry = false } = {}) {
       console.error(`could not unstage: ${e.stderr ?? e.message}`);
     }
   };
+  // A lease is taken from a run whose heartbeat stopped, and a run that
+  // stopped only for a while is still here. It writes nothing shared once
+  // the lease is another's.
+  if (!LEASE || !holds(LEASE.gitDir, LEASE.token)) refuse("the landing lease is no longer this run's; nothing staged");
   try {
     const onShared = build({ shared: true });
     if (onShared.tree !== want.tree) refuse(`the shared index made ${onShared.tree}, not ${want.tree}`);
@@ -790,26 +837,30 @@ async function ship() {
     pin = record();
     if (!pin.settled) refuse("the listing above takes something on this change's word, or leaves a hunk no record accounts for; read it, then run `ship` again");
   }
-  for (let n = 1; n <= attempts; n++) {
-    console.log(`--- attempt ${n} of ${attempts} on ${revParse("HEAD")}`);
-    try {
-      if (staged().length) refuse(`the shared index holds staged changes: ${staged().join(", ")}`, EXIT.peerStaging);
-      pin = record({ pin });
-      await gate();
-      await commit();
-      return;
-    } catch (e) {
-      if (!(e instanceof Refusal) || e.code !== EXIT.movedBase || n === attempts) throw e;
-      console.log(`${e.message}\nthe base moved under attempt ${n}; going again`);
+  // Under the lease the base moves only by a commit made around this tool, so
+  // a second attempt is the exception it was the rule for.
+  await landing(async () => {
+    for (let n = 1; n <= attempts; n++) {
+      console.log(`--- attempt ${n} of ${attempts} on ${revParse("HEAD")}`);
+      try {
+        if (staged().length) refuse(`the shared index holds staged changes: ${staged().join(", ")}`, EXIT.peerStaging);
+        pin = record({ pin });
+        await gate();
+        await commit();
+        return;
+      } catch (e) {
+        if (!(e instanceof Refusal) || e.code !== EXIT.movedBase || n === attempts) throw e;
+        console.log(`${e.message}\nthe base moved under attempt ${n}; going again`);
+      }
     }
-  }
+  });
 }
 
 const MODES = {
   record: () => void record(),
   build: () => report(build()),
-  gate,
-  commit: () => commit({ carry: argv.includes("--carry") }),
+  gate: () => landing(gate),
+  commit: () => landing(() => commit({ carry: argv.includes("--carry") })),
   postgate,
   ship,
   clean: () => {
@@ -820,7 +871,7 @@ const MODES = {
 };
 
 try {
-  if (!MODES[mode] || !DIR) refuse("usage: node commit-own-hunks.mjs record | build | gate | commit [--carry] | postgate <sha> | ship [--attempts N] | clean, each with --change <dir> [--session <id>]", EXIT.usage);
+  if (!MODES[mode] || !DIR) refuse("usage: node commit-own-hunks.mjs record | build | gate | commit [--carry] | postgate <sha> | ship [--attempts N] | clean, each with --change <dir> [--session <id>] [--wait <minutes>]", EXIT.usage);
   const real = (p) => fs.realpathSync.native(p).toLowerCase();
   const top = git(["rev-parse", "--show-toplevel"]).trim();
   if (real(top) !== real(REPO)) refuse(`run from the repository root (${top})`, EXIT.usage);

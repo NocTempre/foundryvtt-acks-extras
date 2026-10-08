@@ -31,20 +31,21 @@ rulings behind this page are `acks-module-template/docs/DECISIONS.md`
 ## The tree you gate is the tree you commit
 
 - Gates read the files on disk, which hold every session's in-flight hunks;
-  CI checks out the commit. Build the change apart from the shared index,
-  gate that tree in a clone, and stage only when the shared index writes the
-  same tree id.
-- Read `HEAD` and the tag list immediately before the gate and again before
-  the commit. A clean `git status` says nothing about what a peer committed.
-- A path staged in the shared index that is not yours is a peer between `add`
-  and `commit`. Wait for it to land; a gate started under it is lost.
+  CI checks out the commit. The commit tool builds the change apart from the
+  shared index, gates that tree in a clone, and stages only when the shared
+  index writes the same tree id.
+- **One run of the tool gates and commits at a time.** It holds a lease from
+  its gate through its commit. A run that finds the lease held says who holds
+  it, waits its turn, and gates on the commit the run before it landed.
 - Finish every wording pass before the first gate. Each edit after it costs a
   whole gate.
 
 ## When the base moves under a green gate
 
-Gate again on the new base, or carry the result. A base is carried only when
-all three hold:
+Under the lease a base moves only by a commit made around the tool: the
+owner's own, or a session's from before the hooks reached it. Gate again on
+the new base, or carry the result. A base is carried only when all three
+hold:
 
 1. the commits that landed write none of the change's files and no gate
    tooling (a new check that reads your files is gate tooling);

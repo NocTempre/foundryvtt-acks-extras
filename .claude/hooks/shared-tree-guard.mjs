@@ -21,15 +21,18 @@
  * before this hook, or a run that died while staging, comes out of the index.
  *
  * A command is judged by the repository it runs in: the directory the tool
- * call starts in, moved by each `cd` and by `git -C` ahead of the verb. It is
- * denied only where that repository carries the commit tool and its `origin`
- * is a remote URL. A scratch clone's origin is a path on this machine, and a
+ * call starts in, moved by each `cd` and by `git -C` ahead of the verb. A
+ * directory the shell computes cannot be read here, and the command is then
+ * judged in the session's project, which the refusal says. It is denied only
+ * where that repository carries the commit tool and its `origin` is a remote
+ * URL. A scratch clone's origin is a path on this machine, and a
  * repository without the tool has nothing to route a commit through, so both
  * pass. `git add` passes under a `GIT_INDEX_FILE` of its own, which is not
  * the shared index.
  *
- * The commit tool's own git calls are children of `node` and never reach this
- * hook. A payload that does not parse, and a command this cannot read, pass:
+ * The hook reads every Bash and PowerShell command and finds `git` itself,
+ * under whatever path or `.exe` it is spelled. The commit tool's own git calls
+ * are children of `node` and never reach this hook. A payload that does not parse, and a command this cannot read, pass:
  * the guard refuses what it recognises and nothing else.
  */
 import fs from "node:fs";
@@ -178,7 +181,8 @@ function reason(verb, rest, privateIndex) {
   }
 }
 
-function deny(why) {
+/** Refuse the tool call. `assumed` is the directory judged where the command's own could not be read. */
+function deny(why, assumed) {
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
@@ -186,7 +190,8 @@ function deny(why) {
       permissionDecisionReason:
         `${why}. Several sessions write in this working tree. Commit with ` +
         `\`node ${TOOL}\` (the \`acks-commit\` skill), and undo an edit of ` +
-        `your own with the Edit tool. The rule is .claude/rules/shared-tree.md.`,
+        `your own with the Edit tool. The rule is .claude/rules/shared-tree.md.` +
+        (assumed ? ` The command's directory is computed, so it was judged in ${assumed}; spell the path out to have it judged where it runs.` : ""),
     },
   }));
 }
@@ -225,7 +230,7 @@ try {
       const why = reason(args[v], args.slice(v + 1), ownIndex);
       const where = at ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
       if (why && guarded(where)) {
-        deny(why);
+        deny(why, at === null ? where : null);
         break;
       }
     }

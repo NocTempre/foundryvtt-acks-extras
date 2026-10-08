@@ -69,8 +69,9 @@
  *
  * Usage:  npm run validate
  */
-import { execFileSync } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import url from "node:url";
 import Handlebars from "handlebars";
@@ -149,15 +150,54 @@ function resolveSpecifier(fromFile, specifier) {
   return null;
 }
 
-/* 1. JS syntax of every script/tool module. */
-for (const dir of ["scripts", "tools"]) {
-  walk(path.join(ROOT, dir), (full) => {
-    if (!full.endsWith(".mjs")) return;
-    try {
-      execFileSync(process.execPath, ["--check", full], { stdio: "pipe" });
-    } catch (err) {
-      fail(rel(full), String(err.stderr ?? err.message).trim().split("\n")[0]);
+/* The IP scan (§10) and the module's own validator (§11) are processes of
+ * their own that read what the checks here read and write none of it. Both
+ * are started now and run beside those checks; what each printed is shown at
+ * its place below, whole, and its exit status counted there. */
+function runApart(script) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [script], { stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    for (const stream of [child.stdout, child.stderr]) {
+      stream.setEncoding("utf8");
+      stream.on("data", (text) => (output += text));
     }
+    child.on("error", (err) => resolve({ status: null, output: `${output}${err.message}\n` }));
+    child.on("close", (status) => resolve({ status, output }));
+  });
+}
+const ipScan = path.join(ROOT, "tools", "ip-scan.mjs");
+const extraValidator = path.join(ROOT, "tools", "validate-extra.mjs");
+const scanning = fs.existsSync(ipScan) ? runApart(ipScan) : null;
+const validatingExtra = fs.existsSync(extraValidator) ? runApart(extraValidator) : null;
+
+/* 1. JS syntax of every script/tool module. Each file is checked by a node of
+ *    its own, several at a time, and a failure is reported in the order the
+ *    files were walked, whichever check ended first. */
+{
+  const modules = [];
+  for (const dir of ["scripts", "tools"]) {
+    walk(path.join(ROOT, dir), (full) => {
+      if (full.endsWith(".mjs")) modules.push(full);
+    });
+  }
+  const problems = new Array(modules.length).fill(null);
+  const check = (full) =>
+    new Promise((resolve) => {
+      execFile(process.execPath, ["--check", full], (err, _stdout, stderr) => {
+        resolve(err ? String(stderr || err.message).trim().split("\n")[0] : null);
+      });
+    });
+  let next = 0;
+  const worker = async () => {
+    while (next < modules.length) {
+      const n = next++;
+      problems[n] = await check(modules[n]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(8, os.availableParallelism(), modules.length) }, worker));
+  modules.forEach((full, n) => {
+    if (problems[n] !== null) fail(rel(full), problems[n]);
   });
 }
 
@@ -2154,26 +2194,20 @@ function legacyKeyUses(tokens) {
 /* 10. IP leak scan — licensed book material must never reach a public repo or a
  *    release artifact. CI runs this again against the built zip and quarantines
  *    the repo if it trips; running it here means you find out before the push. */
-const ipScan = path.join(ROOT, "tools", "ip-scan.mjs");
-if (fs.existsSync(ipScan)) {
-  try {
-    execFileSync(process.execPath, [ipScan], { stdio: "inherit" });
-  } catch {
-    failed = true; // its own output already names the offending paths
-  }
+if (scanning) {
+  const scan = await scanning;
+  process.stdout.write(scan.output);
+  if (scan.status !== 0) failed = true; // its own output already names the offending paths
 }
 
 /* 11. Optional module-owned extra validation. A repo drops tools/validate-extra.mjs
  *    for checks specific to it (e.g. an IP-safety lint); the canonical validator
  *    runs it here so `npm run validate` stays the single entry point. It should
  *    exit non-zero on failure. Modules without the file skip this cleanly. */
-const extraValidator = path.join(ROOT, "tools", "validate-extra.mjs");
-if (fs.existsSync(extraValidator)) {
-  try {
-    execFileSync(process.execPath, [extraValidator], { stdio: "inherit" });
-  } catch {
-    failed = true; // its own output already explains the failure
-  }
+if (validatingExtra) {
+  const extra = await validatingExtra;
+  process.stdout.write(extra.output);
+  if (extra.status !== 0) failed = true; // its own output already explains the failure
 }
 
 if (failed) process.exit(1);

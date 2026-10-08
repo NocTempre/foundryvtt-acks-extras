@@ -17,12 +17,9 @@ The user's "commit" is the go-ahead for the commit. A push follows TOOLCHAIN
 
 ```bash
 git status --short
-git diff --cached --name-only
 git log --oneline -3
 ```
 
-- **A staged path that is not yours** is a peer between `add` and `commit`.
-  Wait until the index is empty and `HEAD` has moved, then start.
 - **Modified paths you did not write stay where they are.** They are named in
   the report as left out, and at a release they are asked about
   (`shared-tree.md`).
@@ -75,9 +72,16 @@ and no other. It says more only about what the ledger cannot know:
 node .claude/skills/acks-commit/commit-own-hunks.mjs ship --change <dir>
 ```
 
-Run `ship` in the background and wait for it; a full gate takes minutes, more
-than a foreground command is given. It gates, commits, and goes again on a
-new base only while a peer's commit lands under its gate, four times at most.
+Run `ship` in the background, with no timeout of its own, and wait for it. A
+full gate takes minutes, more than a foreground command is given, and a
+background command that is given a timeout is stopped at it.
+
+One run gates and commits in a repository at a time. `ship` holds the landing
+lease from its gate through its commit; where another run holds it, `ship`
+says who, waits its turn, and then gates on the commit that run landed. It
+waits twenty minutes unless `--wait <minutes>` says otherwise. It goes again
+on a new base only where a commit made around the tool lands under its gate,
+four times at most.
 
 Where the ledger accounts for every hunk it read, `ship` goes straight to
 the gate. Where the change takes anything on its own word (a pattern, a whole
@@ -104,7 +108,8 @@ ledger gives another session is never taken by a pattern.
 | 0 | `OK: the commit holds the gated tree on the gated base` | §5 |
 | 1 | `REFUSED:` with the reason; nothing is staged | fix what it names, `ship` again |
 | 3 | every attempt lost its base to a landed commit | §4, or `ship` again |
-| 4 | a peer's staging is in the shared index | wait for it to land, `ship` again |
+| 4 | staging that is not this run's is in the shared index | wait for it to land, `ship` again |
+| 5 | the landing lease was still held when the wait ran out | `ship` again, with a longer `--wait` where the holder's gate is long |
 
 The gate's output is in `<dir>/gate-*.log`. A red gate is read there, never
 guessed at from the last line.
