@@ -1,0 +1,122 @@
+[
+  {
+    "id": "ax5.demonWolf",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Demon Wolf",
+    "anchor": { "display": "DEMON WOLF" },
+    "pages": [45],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "columns": [40, 300] }
+  },
+  {
+    "id": "ax5.monster2",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Monster 2",
+    "anchor": { "hash": "uds8fa" },
+    "pages": [45],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "columns": [40, 300] }
+  },
+  {
+    "id": "ax5.hellWasp",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Hell Wasp",
+    "anchor": { "display": "HELL WASP" },
+    "pages": [46],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "columns": [50, 320] }
+  },
+  {
+    "id": "ax5.mummyAbomination",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Mummy Abomination",
+    "anchor": { "display": "MUMMY ABOMINATION" },
+    "pages": [46],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "columns": [50, 320] }
+  },
+  {
+    "id": "ax5.oculus",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Oculus",
+    "anchor": { "display": "OCULUS" },
+    "pages": [47],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "columns": [40, 310] }
+  },
+  {
+    "id": "ax5.opticFootman",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Optic Footman",
+    "anchor": { "display": "OPTICS" },
+    "pages": [47, 48, 49],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "anchor": "OPTIC", "columns": [40, 310], "variantCol": "Footman", "statBlockY": [235, 455], "descStartY": 650 }
+  },
+  {
+    "id": "ax5.opticSergeant",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Optic Sergeant",
+    "anchor": { "display": "OPTICS" },
+    "pages": [47, 48, 49],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "anchor": "OPTIC", "columns": [40, 310], "variantCol": "Sergeant", "statBlockY": [235, 455], "descStartY": 650 }
+  },
+  {
+    "id": "ax5.opticSeer",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Optic Seer",
+    "anchor": { "display": "OPTICS" },
+    "pages": [47, 48, 49],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "anchor": "OPTIC", "columns": [40, 310], "variantCol": "Seer", "statBlockY": [460, 650], "descStartY": 650 }
+  },
+  {
+    "id": "ax5.opticQuintesson",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Optic Quintesson",
+    "anchor": { "display": "OPTICS" },
+    "pages": [47, 48, 49],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "anchor": "OPTIC", "columns": [40, 310], "variantCol": "Quintesson", "statBlockY": [460, 650], "descStartY": 650 }
+  },
+  {
+    "id": "ax5.protoOoze",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Proto-Ooze",
+    "anchor": { "display": "PROTO-OOZE" },
+    "pages": [49],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "columns": [40, 300], "variantCol": "Ordinary" }
+  },
+  {
+    "id": "ax5.protoOozeGiant",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Proto-Ooze, Giant",
+    "anchor": { "display": "PROTO-OOZE" },
+    "pages": [49],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "columns": [40, 300], "variantCol": "Giant" }
+  },
+  {
+    "id": "ax5.walkingVenusMantrap",
+    "kind": "kind.monsterLegacy",
+    "book": "ax5",
+    "name": "Walking Venus Mantrap",
+    "anchor": { "display": "WALKING VENUS MANTRAP" },
+    "pages": [49],
+    "meta": { "group": "New Monsters" },
+    "assists": { "headingLines": { "minH": 10, "caps": true }, "columns": [40, 300] }
+  }
+]

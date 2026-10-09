@@ -1,4 +1,4 @@
-# lib API (apiVersion 26)
+# lib API (apiVersion 27)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 26,
+  apiVersion: 27,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -56,6 +56,7 @@ acksExtras.lib = {
   // 24: currency — `money` and the stack half of `itemModel` (below)
   coinOrder,           // lib/coin-order.mjs — the coin-order controls a sheet draws (below); 25
   // 25: coin stores, a holder's order, a payment's reach — `money` (below)
+  drawQuietly,         // lib/roll-audience.mjs — a table draw with nothing posted (below); 28
 }
 ```
 
@@ -570,7 +571,7 @@ max, delta, crossedDown, crossedUp, clamped}`, or null when the hit points or
 the amount are not numbers. `eligibility(actor)` returns `missing`, `stack`,
 `template`, `vehicle`, `noHp`, or null.
 
-## `worldTime` — the clock as this module reads it (apiVersion 22)
+## `worldTime` — the clock as this module reads it (apiVersion 27)
 
 The policy is docs/lib/MODEL.md, "The world clock".
 
@@ -579,9 +580,11 @@ acksExtras.lib.worldTime = {
   SETTING_ADVANCE_WORLD_TIME, SETTING_DAWN_HOUR, SETTING_DUSK_HOUR,
   mayAdvanceWorldTime(),        // → whether this module may move game.time
   onWorldTimeAdvanced(cb),      // cb(worldTime, dt) on the active GM, forward steps only
-  clockReading(),               // → {hour, minute, hoursPerDay, dawn, dusk, dark} | null
+  clockReading(),               // → {hour, minute, second, hoursPerDay, secondsPerHour, dawn, dusk, dark} | null
   darkBounds(hoursPerDay, {dawn?, dusk?}),  // → {dawn, dusk} (Foundry-free)
   isDarkAt(hour, {dawn, dusk}), // → boolean | null (Foundry-free)
+  secondsToNextDawn(reading, {secondsPerHour?}),  // → whole seconds, a whole day at the dawn itself | null (Foundry-free)
+  untilNextDawn(),              // → secondsToNextDawn(clockReading()) | null
 }
 ```
 
@@ -589,7 +592,22 @@ acksExtras.lib.worldTime = {
 from. `dawn` and `dusk` are the two world settings; a blank one stands at a
 quarter and three quarters of the calendar's day. `isDarkAt` reads light from
 `dawn` up to `dusk`, over midnight when dusk comes first, and no dark at all
-when the two are equal.
+when the two are equal. `secondsPerHour` is the calendar's minutes per hour
+times its seconds per minute, 3600 when it states neither.
+
+## `drawQuietly` — a table draw for the caller's own card (apiVersion 27)
+
+The policy is docs/lib/MODEL.md, "Who reads a roll".
+
+```
+acksExtras.lib.drawQuietly(table, options?)  // → Promise<{roll, results}>, what table.draw returned
+```
+
+`options` are passed to `table.draw` with `displayChat` forced false, so core
+posts nothing; the caller renders `results` on a card of its own. A draw that
+lands on rows shows its roll to the GMs through Dice So Nice; one that lands on
+none shows nothing. `drawForJudges` (`scripts/lib/roll-audience.mjs`, imported
+directly) is this draw followed by core's own result card, whispered.
 
 ## `conditions` — the condition catalogue and its math (apiVersion 23, Foundry-free)
 

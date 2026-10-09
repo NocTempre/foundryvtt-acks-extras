@@ -199,7 +199,10 @@ Expedition speed and the terrain multiplier; the road rate and its driver's
 rate; mud and snow as footing; the weather bands, conditions and the footing
 state machine; visibility in the wild (`visibilityMax`, `headEquivalents`);
 encounter distance, surprise, evasion and reactions; the encounter cadence by
-territory; the day board and its ancillary slots as a *record*.
+territory; the day board and its ancillary slots as a *record*; the day's march
+as hours walked off the map on any grid, the world clock running with it, the
+imported encounter cadence by grid or by miles, and the day ending at the next
+dawn.
 
 ### Not built — the wilderness
 
@@ -209,19 +212,40 @@ territory; the day board and its ancillary slots as a *record*.
 | ~~**Navigating the Wild**~~ | **BUILT** — the throw is rolled and whispered on End day, reads the imported target, applies the marching order's competence, and is skipped on a road, a river or a known route. |
 | Pathfinding / Navigation bonus | **procedure built, figures unimported** | `navigationCompetence` scans the marching order for either competence and holding both is worth more; the two figures it reads from the `navigationBonus` row have no recipe (see [the figures no import writes](#figures-the-feature-reads-that-no-import-writes)). |
 | ~~Straying direction~~ | **BUILT** — the Judge names the hex face or rolls for it; the grid's own neighbour order IS the face order. |
-| ~~Lost consequence~~ | **BUILT** — the full episode: shadow token, faked reveal, discovery, and re-anchor. UI-complete on the journey panel. |
-| ~~**Searching the Wild**~~ | **BUILT** — the specs (22 checks) and `search-run.mjs`, rolled from the camp panel, paying its encounter throw through the journey's own chain. |
-| Searching for specific points of interest | **built** | A penalty on the same throw. |
-| Aerial reconnaissance | **built** | Two corrections, never both: more throws over open ground, a worse target under canopy. |
-| Land surveying | **built** | Three outcomes: right, confidently wrong on a natural 1, or nothing yet. |
+| ~~Lost consequence~~ | **BUILT** — the full episode: shadow token, faked reveal, discovery, and re-anchor. UI-complete in the Lost group under the strip. |
+| ~~**Searching the Wild**~~ | **BUILT** — the specs (22 checks) and `search-run.mjs`, rolled from the strip's Search an hour button, paying its encounter throw through the journey's own chain. |
+| ~~**Lairs per hex**~~ | **BUILT** — `hex-stock.mjs` performs the imported procedure from the Stock this hex dialog onto the scene, keyed by the cell and read at the party's TRUE hex while astray; a search reads the stock, a find is marked for this formation (several candidates are listed on the card for the Judge to mark one) and can be made a place (DECISIONS 2026-10-09, *A hex's stock lives on its map*, *Stocking runs the book's procedure*, *A search reads the stock*). |
+| ~~Searching for specific points of interest~~ | **BUILT** — the strip's Looking for select targets one unfound point, with the penalty, or Elsewhere, a search for what is not there. |
+| ~~Aerial reconnaissance~~ | **BUILT** — read from the movement mode: more throws over open ground, a worse target under canopy, never both. |
+| ~~Land surveying~~ | **BUILT** — `surveyHex`, from the Survey the hex button and by itself after a search hour while this formation has no assessment: right, confidently wrong on a natural 1, or nothing yet; Tell the party posts one public line of one shape. |
 | Splitting up | **built** | Sub-parties throw and draw encounters separately; mutually supporting groups are not split. |
 | ~~**Flight speed**~~ | **BUILT** — `flight.mjs` composes into the march readout through the movement-mode layer: a *Moving by* picker, hours aloft out of a stated day, and the load band. A flier meets the terrain below it, refuses roads, and its wind rule supersedes the ground's rather than stacking. |
 | ~~**Starvation**~~ | **BUILT** — `runProvisionDay` walks every member's ladder at End day and writes it to the body, not the marching order. |
 | ~~**Dehydration**~~ | **BUILT** — as above, and its toll is ROLLED: the caller throws the registry's die per body, and the heat multiplies it. |
-| ~~Hunting and foraging~~ | **BUILT** — the specs (11 checks) and `forage-run.mjs`, which rolls them from the camp panel and deposits into the foragers' packs. Live-verified the pool then sees it. |
+| ~~Hunting and foraging~~ | **BUILT** — the specs (11 checks) and `forage-run.mjs`, which rolls them from the strip's Work the country button and deposits into the foragers' packs. Live-verified the pool then sees it. |
 | ~~Survival, simplified~~ | **BUILT** — `simplifiedSupply` recommends what to carry; watered country waives the water entirely. |
 | ~~Animal daily food and water~~ | **BUILT** — `animalNeeds` reads each creature's own figures; unstated is null, never zero. |
 | ~~Temperature effects~~ | **BUILT** — hypothermia as an hourly condition, and the heat as modifiers: more water needed, a worse drain, an armour save. Live-felt in the pool. |
+| Hex-click tool and a Region overlay for the stock | not built | The party tab's group is the surface, and a Region per hex was rejected (DECISIONS 2026-10-09, *A hex's stock lives on its map*). |
+| Climate by terrain | not built | The monster sub-tables stay a terrain pick (DECISIONS 2026-10-09, *Climate does not pick the monster sub-table*). |
+| `lost.mjs` `hexKey` duplicates `battlemap/terrain-paint.mjs` `hexKeyOf` | defect | One key, one owner. |
+| Weather penalties on Searching, Land Surveying, Navigation, Tracking, listening and missile attacks; the visibility floor and the halving; the firewood and water foraging penalties; the dust rule in barrens and desert | not built | Which throws each condition touches is printed on the insert (Judges Screen Inserts, *Wilderness Expeditions III*); the one weather effect on a road, the surface a rain cancels, is built through the imported `ineffectiveIf`. |
+| Carrying the stock into a promoted place's notes | not built | |
+| Hunt and forage slots on the day board | not built | Work the country is a day's work (`runForageDay`) and marks no slot `done` nor spends an hour; the day-end throw still counts the slots. A search hour marks its slot and runs the clock. |
+| Substituting only a share of the lairs | not built | `substitute` rolls every lair on the bands, which is the page's own worked example; a cap on the share is the Judge's by hand. |
+| The navigation throw at the start of the day; moonlight on the card; night recovery and fatigue; measuring along waypoints; two journeying parties on one clock; voyages | not built | Named out of scope by the movement ruling (DECISIONS 2026-10-09, *A drag on a journey spends miles*). |
+| Sea encounters | not built | The sea voyage encounter tables (Judges Journal ch. 2, the sea civilized and sea monster grids and their nautical follow-ups) have no recipe, no binding and no pick: `ENCOUNTER_TERRAINS` holds no sea entry, so the chain cannot be stood at sea, and the treasure-by-terrain lookup's ocean row is read by nothing. Voyages themselves are out of scope above; the tables are the import half, which ships first (TOOLCHAIN §10e). |
+| The weather's speed factors | **declared, read by nothing** | `expectTables(WEATHER_DOC, …)` names `conditionSpeed`; no recipe writes it and no consumer reads it, so a frigid, sweltering, foggy, snowy, windy or stormy day moves the march at full speed. The flight's `windFactor` is the one wind factor applied, and the `condition.windy` it `supplants` does not exist (Judges Screen Inserts, *Wilderness Expeditions III*). |
+| Fatigue | not built | Named out of scope above with night recovery; the pieces: the `fatigued` condition exists (`lib/conditions.mjs`) and nothing applies or clears it — the sleep missed per day of activity, the run of days, the forced-march day and the heat's armour save that bring it on, the Labor and Endurance exemptions, and the rest that ends it (*Wilderness Expeditions I* and *III*). |
+| Sleeping in armour; encounters while asleep | not built | The armour throw against encumbrance at camp; `slumbering` (`lib/conditions.mjs`) applied to a party met asleep and lifted by the insert's three endings (*Wilderness Expeditions I*). |
+| Frostbite | not built | The end-of-day save while hypothermic and what a failure rolls; `lib/survival.mjs` stops at hypothermic (*Wilderness Expeditions III*). |
+| Disease from the weather | not built | The per-week chance under cold, frigid, rainy and snowy skies; nothing in the module names disease (*Wilderness Expeditions III*). |
+| When within the period an encounter falls | not built | The time-triggered throw is made as the period begins (the cadence is built); the insert's rolls for the day of the week, the hour of the day and the turn of the hour, and for the mile of the hex a hex-triggered encounter falls in, are not offered, and a terrain encounter is not marked on the regional map (*Wilderness Expeditions II*). |
+| A hazard's trap equivalent | imported, unread | `hazardRaw` imports the row's `trap` cell beside its name; the card prints the name only, and no hand-off places the equivalent trap (*Wilderness Expeditions II*). |
+| Managing traps as an activity | not built | The frequency table's row for it is imported; `ANCILLARY_ACTIVITIES` has no slot kind for it, so the day board cannot owe its throw (*Wilderness Expeditions II*). |
+| Foraging where the crop is somebody's | partial | `forageTerritory` prices settled country; the insert conditions the penalty on a party unwilling to steal, which has no toggle (*Wilderness Expeditions II*). |
+| Water found standing | partial | `standingWater` is true only while following a river; a lake, or a river hex the party is not following, answers nothing (*Wilderness Expeditions II*). |
+| Visibility of terrain and of a fire | partial | `visibilityMax` scales the imported light figure by the formation-size ladder; the insert's two rows that are not formations have no consumer, and raising the distance by elevation is the Judge's (*Wilderness Expeditions I*). |
 
 ### The settlement — complete
 
@@ -391,7 +415,7 @@ the field and cite the page").
 | `lib/light.mjs` | the light-source durations and radii, re-exported into this feature by `constants.mjs` | Owned by `lib`, not formation — rule it there. |
 | `trap-rules.mjs` | the default trigger, the crude-trap modifiers, the botch bands, pit and spike damage | Found by the 2026-09-23 audit. The trap's trigger field falls back to an imported default once one exists. |
 | `formation-model.mjs`, `formation-view.mjs` | the exploration-speed grid, the capacity fallback, the blind speed share, the combat-speed ratio | Found by the 2026-09-23 audit: the grid §6a's first pass deleted survives here with two readers. |
-| `travel.mjs`, `searching.mjs`, `search-run.mjs` | the ancillary-activity count and the hour written as a literal | The hour is the structural unit; the count is printed. |
+| `travel.mjs`, `march.mjs`, `searching.mjs`, `search-run.mjs`, `lib/movement-scales.mjs` | the ancillary-activity count, the hour a slot is worth (`SLOT_HOURS`), the march's hours by pace (`TRAVEL_PACE`), the forced march's factor, and the feet-per-turn-to-miles-per-day ratio | The hour is the structural unit; the count, the pace hours and the ratio are printed. Owned by the movement-scales pass; the march engine (2026-10-09) reads them through `marchBudget` and `expeditionFrom`, so registering them is a change to two readers. |
 | `constants.mjs` `ROLE_GEAR` | the parchment fallback's cost | A printed price; the fallback carries no cost. |
 | `encounter-scaling.mjs` | the number-appearing rate per level step and the reaction step | Found 2026-09-23 while making the shift reachable. Pass them in, as `jumping.mjs` takes its figures. The 4.2.0 CHANGELOG entry states the rate too; the local-only rules test may keep it. |
 
@@ -453,7 +477,9 @@ legitimately sit.
   re-baselines the clock after a pivot (2026-09-07); a centre-based position
   would make that unnecessary and would stop a frontage edit from reading as a
   step. It is a change to the trap geometry, not to the clock — `trap-zone.mjs`
-  converts corner to centre and back at three seams that would collapse.
+  converts corner to centre and back at three seams that would collapse. The
+  journey's miles (`journeyMilesBetween`) measure the same corner, so the same
+  change moves that seam too.
 - **A sunrise the book supplies.** The dark's bounds are two world settings
   standing at the day's quarter points (DECISIONS 2026-09-30, "The city's hour
   follows the world clock"). A season table that printed sunrise and sunset

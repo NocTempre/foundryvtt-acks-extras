@@ -2557,10 +2557,14 @@ async function uploadPageArt(doc, recipe) {
  * world already holds is reused only while the recipe still draws the same
  * one; a recipe that moved its crop or its scale renders again under a new
  * name instead of laying new outlines over old pixels.
+ *
+ * `pixelsPerPoint` is a grid recipe's scale as the map step measured it
+ * (`gridScenePlan`); the picture is cut at exactly that scale. Without one
+ * the picture is cut at the recipe's feet-per-point scale.
  */
-async function uploadSceneMap(doc, id, recipe) {
+async function uploadSceneMap(doc, id, recipe, { pixelsPerPoint } = {}) {
   const FP = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
-  const frame = sceneFrame(recipe);
+  const frame = sceneFrame(recipe, { pixelsPerPoint });
   const stem = `${String(id).replaceAll(".", "-")}-${pictureKey(recipe)}`;
   for (const ext of ["webp", "png"]) {
     const existing = await cachedFile(`${stem}.${ext}`);

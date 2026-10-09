@@ -4,7 +4,8 @@ import { deployedTokens, isMemberDeployed } from "./deployment.mjs";
 import { faceWidthFeet, formationHeading, getFormations, getPartyActor, getPartyToken, mapperIsProficient, partyDepth, patchFormation } from "./formation-model.mjs";
 import { FEET_PER_RANK } from "./trap-rules.mjs";
 import { tokenSpan } from "../battlemap/footprint.mjs";
-import { sceneFeetPerCell } from "../lib/distance-units.mjs";
+import { isExpeditionScale, sceneFeetPerCell } from "../lib/distance-units.mjs";
+import { FLAG_FOOTPRINT_LOCK } from "../battlemap/constants.mjs";
 import { ensureMapSession } from "./map-items.mjs";
 import { MEASURE_FLAG, MEASURE_MODES } from "./measure-fuzz.mjs";
 import { emittedLight } from "../lib/light.mjs";
@@ -294,6 +295,10 @@ function stepFinished(token) {
  * The turn is made ON THE SPOT: the block pivots about its own centre and
  * passes through walls to do it, because a formation that turns has not gone
  * anywhere.
+ *
+ * On a map whose cell is a mile or more across the frontage would be a
+ * fraction of a cell, so the token is one cell square instead, unless the
+ * token carries the footprint lock.
  */
 export async function syncPartyTokenSize(formation) {
   if (!getPartyToken(formation)) return;
@@ -312,12 +317,16 @@ export async function syncPartyTokenSize(formation) {
   // scene's squares are not, so the units convert before the span does.
   const distance = sceneFeetPerCell(token.parent);
   if (!(distance > 0)) return;
-  const across = tokenSpan(faceWidthFeet(formation), distance);
-  const deep = tokenSpan(partyDepth(formation) * FEET_PER_RANK, distance);
-  const heading = formationHeading(formation);
-  const sideways = heading === "east" || heading === "west";
-  const width = sideways ? deep : across;
-  const height = sideways ? across : deep;
+  let width = 1;
+  let height = 1;
+  if (!isExpeditionScale(token.parent) || token.getFlag(MODULE_ID, FLAG_FOOTPRINT_LOCK)) {
+    const across = tokenSpan(faceWidthFeet(formation), distance);
+    const deep = tokenSpan(partyDepth(formation) * FEET_PER_RANK, distance);
+    const heading = formationHeading(formation);
+    const sideways = heading === "east" || heading === "west";
+    width = sideways ? deep : across;
+    height = sideways ? across : deep;
+  }
   if (Math.abs(token.width - width) < 1e-6 && Math.abs(token.height - height) < 1e-6) return;
 
   const before = { x: token.x, y: token.y };

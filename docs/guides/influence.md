@@ -4,7 +4,7 @@ A social roll with its whole modifier stack visible before you commit to it —
 who is rolling, against whom, in what tone, and exactly what is adding to the
 number.
 
-![](../releases/v10.0.0/influence.png)
+![](../releases/v11.0.0/influence.png)
 
 *A social roll with its modifier stack itemized — here with a bribe armed and
 its fee typed, which only moves gold the payer actually has.*

@@ -37,8 +37,9 @@ All paths are under `scripts/formation/` unless noted.
 | `turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
 | `formation-view.mjs`, `formation-actions.mjs` | The formation window (GM controls, player read-only) and its action handlers. |
 | `party-actor.mjs` | The `acks-extras.party` Actor sub-type and its sheet: the same formation body as the window, the GM's member drop, and the refusal of a dropped item. |
-| `zones.mjs` | Point-in-region geometry shared by every zone behavior: core `testPoint` when available, manual shape math as a headless fallback, `findZone(formation, type)` testing the party token's CENTRE, and `streetUnder(formation, board)` — the one reader of what the party is standing on. |
-| `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID, cadence overrides, and the zone's dungeon level). |
+| `zones.mjs` | Point-in-region geometry shared by every zone behavior: core `testPoint` when available, manual shape math as a headless fallback, `findZone(formation, type)` testing the party token's CENTRE, `zonesAt` for every zone over a point, `regionArea`, `truePartyPoint` (the centre of `truePositionToken`), and `streetUnder(formation, board)` — the one reader of what the party is standing on. |
+| `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID, the delve's cadence overrides, the zone's dungeon level, and the journey's cadence and End Day counts), `findEncounterZone` for the delve and `journeyZones` for the journey. |
+| `zone-layers.mjs` | Pure: `polygonArea` and `composeZones`, overlapping zones composed field by field, smallest first. |
 | `encounter-scaling.mjs` | The wrong-floor shift: `tableLevel` reads a table's `monsterLevel` flag, `shiftSources` names the tables a draw came from and the level each is compared at, `encounterShift` / `scaleNumber` do the arithmetic, `announceShift` posts the Judge-only card. Published as `api.formation.encounterScaling`. |
 | `monster-level-row.mjs` | The Judge's writer of `monsterLevel`: a Monster level row in a RollTable sheet's Summary tab, submitted by the sheet's own Save. |
 | `district-zone.mjs` | `acks-extras.district` RegionBehavior subtype: a quarter's day and night cadence pairs, its own and its hunted encounter tables, and how it takes to strangers. |
@@ -58,6 +59,11 @@ All paths are under `scripts/formation/` unless noted.
 | `marching-templates.mjs` | Saved marching orders (world setting `acks-extras.marchingTemplates`): capturing an arrangement, reconciling it against the party as it now stands, and forming up. |
 | `obstacles.mjs`, `swimming.mjs`, `jumping.mjs` | The chapter 6 obstacle derivations, published on `api.formation`. Deep water and chasms sit *beside* the Spelunking table rather than in it; each file's header says what it does not share with the others. |
 | `announce.mjs` | One formation chat card (public, or whispered to the GMs). |
+| `journey.mjs` | The journey's movement engine: the dispatcher on the movement seam, miles measured on any grid, the one record patch for trace and spend, the running world clock, `nextHex`, `spendSearchHour`, `hexContext`, and the two hooks `acksExtras.hexEntered` / `acksExtras.searchHourSpent`. |
+| `march.mjs` | The march as arithmetic, Foundry-free: the day's budget in hours, the cadence by grid or by miles, a spend carried across drags, and whether the day is spent. |
+| `hex-stock.mjs` | A hex's stock as arithmetic, Foundry-free: the stocking procedure, settled shares, substitution, per-formation finds, search credit, assessments and false counts. |
+| `hex-stock-run.mjs` | The stock on the scene: the true hex, read/write/clear of the flag, the stocking dialog, the survey, making a point a place, the chat-card actions, and the "This hex" view. |
+| `templates/formation/hex-stock-dialog.hbs` | The stocking dialog. |
 | `../lib/sockets.mjs` | Module-wide socketlib transport: one registration, one channel, a handler registry that throws on a duplicate name, and a pre-ready queue so handlers can register at import time. Not formation-owned. |
 | `module.mjs` | Settings, hooks, scene-control button, `/formation` chat command, feature API. |
 
@@ -74,7 +80,9 @@ All paths are under `scripts/formation/` unless noted.
 
 ## Movement → turns
 
-`updateToken` (x/y change on a token flagged with `acks-extras.formationId`) is processed **only on the active GM client** (`game.users.activeGM.isSelf`), no matter who dragged the token. Distance = straight-line pixels → feet via the scene grid; accumulated in `clock.carryFeet`; each full exploration-speed's worth pops one call to `advanceTurns`. `clock.lastPosition` anchors measurement (re-anchored when tracking is un-paused, seeded at party-token creation).
+`updateToken` (x/y change on a token flagged with `acks-extras.formationId`) is processed **only on the active GM client** (`game.users.activeGM.isSelf`), no matter who dragged the token. The seam is one hook and one dispatcher: [journey.mjs](../../scripts/formation/journey.mjs)'s `onPartyTokenMoved` hands a journeying formation to the journey's own engine (§The journey) and every other mode to the turn engine's. There, distance = straight-line pixels → feet via the scene grid; accumulated in `clock.carryFeet`; each full exploration-speed's worth pops one call to `advanceTurns`. `clock.lastPosition` anchors measurement (re-anchored when tracking is un-paused, on a mode change, and seeded at party-token creation).
+
+Before the turn engine bills a delve it reads the scene's scale: a declared delve on a map whose cell is a mile or more across (`isExpeditionScale`) bills nothing, follows the token, and whispers the scale guard once per arrival (`clock.scaleWarned`), because a turn per 120 feet of a 31,680-foot cell is not a dungeon turn. A scene that declares no system is inferred on arrival (`inferredTravelSystem`, [travel.mjs](../../scripts/formation/travel.mjs)): a mile-scale cell means a journey and a district Region means a settlement; neither means silence, and the party keeps the mode it arrived in.
 
 ## Turn tick (`advanceTurns`)
 
@@ -386,50 +394,114 @@ may name which one applies on it**: the battlemap setup tool writes
 `mapSystem` into the scene's own record, and `adoptSceneSystem`
 ([travel.mjs](../../scripts/formation/travel.mjs)) switches a formation to it
 when its party token lands there and when the declaration changes underneath
-it. A scene that declares nothing changes nothing — a party mid-march crossing
-an unlabelled map keeps its march. The vocabulary is shared, not copied
-(`lib/vocab.mjs` `TRAVEL_MODES`); what the declaration means to a map is
-`docs/battlemap/MODEL.md`.
+it. A scene that declares nothing is read from what it shows
+(`inferredTravelSystem`, §Movement → turns): a mile-scale cell is a journey
+map, a district a city, and a map with neither changes nothing — a party
+mid-march crossing an unlabelled feet-scale map keeps its march. The
+vocabulary is shared, not copied (`lib/vocab.mjs` `TRAVEL_MODES`); what the
+declaration means to a map is `docs/battlemap/MODEL.md`.
 
-Delve is everything above; **journey**
-pauses movement-driven turn ticking (`clock.paused`) and puts the day on the
-table instead: a `travel` subtree on the record
-([travel.mjs](../../scripts/formation/travel.mjs)) holding the ground, road
-and territory the party is crossing, the day's weather, the hex it believes
-it is in, the DAY BOARD — one day-kind (dedicated march, forced march, camp)
-plus the four ancillary hour slots the wilderness rules budget, a forced
-march consuming all four — and an append-only, capped log of finished days.
+Delve is everything above; **journey** is the same drag billed in miles. The
+record is a `travel` subtree ([travel.mjs](../../scripts/formation/travel.mjs))
+holding the ground, road and territory the party is crossing, the day's
+weather, the hex it believes it is in, where the hour comes from
+(`travel.hour`: the clock, or the Judge's word for day or night), the DAY
+BOARD — one day-kind (dedicated march, forced march, camp) plus the four
+ancillary hour slots the wilderness rules budget, a forced march consuming
+all four, each slot carrying whether it has been resolved (`day.done`) — and an
+append-only, capped log of finished days.
 
-The GM window's journey panel edits all of it through one targeted ledger
-patch per form change; players see the derived march, the hex and the log,
-never the pickers and never the LOST state, which is the Judge's alone. On a
-hex-gridded scene the party token IS the trace: crossing a hex boundary
-names the hex from its grid offset and, where the battlemap feature's
-terrain painting has claimed the cell, sets the ground too (the same
-token-movement seam that ticks dungeon turns hands journeying formations to
-`onJourneyTokenMoved` instead). The
-readout derives in the rules' order — the party's slowest UNSCALED base,
-times terrain, road and weather (one factor per line), times the day-kind's
-pace — and **End day** writes exactly the figures shown into the log, resets
-the board, and advances the world clock a day through `lib/world-time.mjs`'s
-switch. `acksExtras.formation.travel` (apiVersion 4) publishes the mode
-switch, the day board writers, the hex trace and the pure pieces.
+[journey.mjs](../../scripts/formation/journey.mjs) is the engine. A party
+token moved on ANY scene measures its path through `scene.grid.measurePath`
+in the scene's own units — hex steps on a hex grid, the straight line
+elsewhere — and `lib/distance-units.mjs` turns that into miles; the step
+count of the same measure is the hexes the drag crossed, and the per-hex
+cadence and the day tally (`day.hexesEntered`) count each of them, while the
+trace names only the hex the drag ended in (`spendJourneyMiles`, `crossings`).
+Miles become hours at the readout's miles-per-hour (the party's slowest UNSCALED base,
+times terrain, road and weather, one factor per line, times the day-kind's
+pace; a camp day prices at the march pace so its travel slots can be walked),
+and hours become world time: `advanceJourneyClock` moves the calendar by the
+seconds walked and burns lights and tracked spells by whole turns
+(`burnTurns`, shared with the turn engine), carrying the remainder in
+`clock.journeySeconds`; the rest and winded counters and the dungeon's
+wandering throw stay the delve's. ONE record patch per drag writes the trace
+(on a hex scene the hex named from its grid offset, the ground and — painted
+at the book's grain — the encounter pick the battlemap painted there
+(`paintedTerrainAt`), the road step and its winding — `traceStep`, pure) and the
+spend (`travel.day.{miles, hours, cadenceCarry, carrySeconds,
+secondsAdvanced}`, `spendMarch` in [march.mjs](../../scripts/formation/march.mjs),
+pure) together, so a drag that dies half-way leaves nothing half-written. The
+day's `hours` are the march's alone: a search hour marks its slot done and runs
+the clock (`spendSearchHour`) but never counts against the march.
+
+**The day is budgeted in hours**, not hexes: `dayBudget` is the day kind's
+pace hours plus one for every ancillary slot given to travel (`marchBudget`),
+and `dayIsSpent(day, budget, {dark})` (`marchIsSpent`) is true when those
+hours are walked or the step just taken was after dusk. `journeyNight` reads
+`travel.hour` against `clockReading().dark` through the same `isNight` the
+city uses; a world with no calendar reads as day unless the Judge says
+otherwise. **End day** moves the calendar to the next dawn (`untilNextDawn`),
+falling back to a flat day less what the day already advanced, and logs the
+miles and hours actually walked.
+
+**The encounter cadence is the imported one.** `cadenceOf` reads the
+territory's miles-per-hex figure from the registered `encounterFrequency`
+(`cadenceMilesFor`): a grid whose cell is that figure within one percent
+counts a crossing as a unit; any other grid counts miles off and owes a unit
+every so many (`day.cadenceCarry` holds the remainder); with no figure
+registered nothing is priced and the strip says so. Each unit fires
+`acksExtras.hexEntered` (`{formationId, sceneId, hex, ground,
+encounterTerrain, territory, lost, cadence, night, throwOwed}`, after the
+record patch and before the throw) and then, under the `travelEncounters`
+setting, the hex throw — unless the Encounter Zones under the party say
+otherwise (§The encounters, "Zones on a journey"). **Next hex** is the Judge's override for a journey
+with no map: `nextHex` spends one cadence unit with a typed label through the
+same path, and `enterHex` stays the trace-only writer. `hexContext` is what
+the stocking seam reads (§A hex's stock).
+
+**Pause is live on a journey.** `clock.pausedBy === "judge"` is the Judge's
+own flag, separate from the mode; a paused party's drag re-anchors
+`clock.lastPosition` and bills nothing. A record from before this release
+that carries `clock.paused` without `pausedBy` reads as unpaused on a
+journey. `setJourneyMode` clears the pause and re-anchors the token position
+on every mode change, so a change never bills the distance walked under the
+old mode. On a mile-scale scene the party token is one cell square
+(`syncPartyTokenSize`), unless it carries the footprint lock.
+
+**The surface is the party tab's strip**, mode-aware: on a journey it shows
+the miles an hour and a day, the miles and hours walked against the budget,
+the hex and how many were entered today, when the next throw falls, the
+clock with day or night and the hours to dusk or dawn, and the camp's days
+of food and water; the delve's turns and the city's rate and tally take the
+same cells in their modes. Everything the Judge declares — country, movement,
+sky, the day board, camp, lost, the log, the city's pickers — sits under it in
+collapsed groups. A player sees the strip and only the groups that carry what
+the table already read: the sky's chips and night band, the camp's forecast
+and who is suffering, the log, and in a city the places underfoot — never a
+picker, the day board, or the LOST state, which is the Judge's alone. There is
+no Travel tab. `acksExtras.formation.travel`
+(apiVersion 15) publishes the mode switch, the day board writers, the journey's
+functions, the pure march arithmetic and the two hook names.
 
 **The tracker raises the day's end; the Judge answers it.** `dayIsSpent` is
-asked of every hex entered, and when the march has been walked off
-[day-close.mjs](../../scripts/formation/day-close.mjs) puts one question: call
-it a day, push on into a forced march, or not yet. It is not ended
-automatically, because ending a day spends the provisions, settles the ground,
-rolls tomorrow's sky and moves the calendar — consequences of a decision, not
-of arithmetic — and a party may always choose to press on. Asked once: the
-`offered` flag is written BEFORE the dialog is awaited, so a drag across three
-hexes does not stack three prompts. No day-kind change carries the flag, so
-pushing on re-arms the question for the distance it just bought — and what the
-day has already WALKED survives every kind change, since the ground is crossed
-whatever the party decides to do with the rest of the day.
+asked after every drag, and on the first step that spends the budget or falls
+after dusk [day-close.mjs](../../scripts/formation/day-close.mjs) puts one
+question: call it a day, push on into a forced march, or not yet. It is not
+ended automatically, because ending a day spends the provisions, settles the
+ground, rolls tomorrow's sky and moves the calendar — consequences of a
+decision, not of arithmetic — and a party may always choose to press on.
+Asked once: the `offered` flag is written BEFORE the dialog is awaited, so a
+drag across three hexes does not stack three prompts. No day-kind change
+carries the flag, so pushing on re-arms the question for the distance it just
+bought — and what the day has already WALKED survives every kind change,
+since the ground is crossed whatever the party decides to do with the rest of
+the day. A camp day's budget is its travel slots alone, so with none it is
+never spent by hours.
 
-`closeDay` is the one closer: the panel's **End day** button and the tracker's
-own offer both go through it, so a day can never be ended two different ways.
+`closeDay` is the one closer: the strip's **End day** button and the
+tracker's own offer both go through it, so a day can never be ended two
+different ways.
 
 ## Searching the wild
 
@@ -479,13 +551,89 @@ journey's own chain rather than a second one of ours, so a monster met while
 searching is drawn from exactly the tables a monster met while marching would
 be.
 
-Whether the hex actually holds anything is the JUDGE's own answer, ticked on
-the panel — the module never invents one, because that is the Judge's map. From
-the air over open country the hour buys more than one attempt.
+Whether the hex holds anything is read three ways, and the Judge chooses
+which: **Something here** is `stock` (the default on a stocked hex), which
+reads whether an unfound point for this formation stands in the true hex's
+record, or `yes` / `no`, the Judge's own word, under which the stock is
+neither read nor written. **Looking for** narrows the throw to one unfound
+point — the specific-place penalty applies — or to `elsewhere`, a search for
+what is not there. A find with one candidate is marked found for this
+formation; with several, the whispered card lists them and the Judge marks
+one. Every throw that beats the target credits a search to this formation,
+empty hexes included, and the credit feeds the surveyor's target. From the air
+over open country the hour buys more than one attempt; aerial is read from
+the movement mode, and under canopy the ground is the true hex's even while
+the party is astray.
+
+**The search is priced on the march.** The target reads the expedition's
+miles a day at the march pace whatever the day board says
+(`expeditionMiles`, a march-kind copy of the record through `travelReadout`
+with the dark-free speed). A tracker in the order (`kw:tracking`, or the
+ability by name) adds the imported Tracking bonus; when the figure is not
+registered the throw still rolls and the card says the bonus is unpriced.
+
+**A survey runs two ways**: the **Survey the hex** button, and automatically
+after a search hour when a surveyor is in the order, the hex is stocked and
+this formation has no assessment there yet. The thrower is the first member
+with the capability; a success tells the true count, a natural 1 tells a
+false one — the stored dice re-rolled until they differ from the truth,
+bounded, and the card asks the Judge for a figure when the dice are missing
+or the tries run out — and anything else tells nothing, so the automatic
+attempt may try again after the next hour. The card carries the truth beside
+what was told, and its **Tell the party** button posts one public line of the
+same shape either way.
+
+An hour searched is an hour spent: `spendSearchHour` marks the first open
+search slot done and advances the world clock — it is not march budget, so
+`day.hours` stands — and `acksExtras.searchHourSpent` fires with the hex
+context, the subject, the attempts, and whether anything was found.
 
 `searchOutcome` keeps a miss and an empty hex apart for the Judge while giving
 the party the same silence for both, because a party that searches barren
 ground all week never learns that it was barren.
+
+## A hex's stock
+
+A hex's lairs are the map's, not a party's: they live on the scene,
+`flags["acks-extras"].hexStock[<key>]`, keyed `i:j` from the grid offset on a
+hex scene and `label:<folded>` from the trace's label elsewhere
+(`hexStockKey`). The hex read is the TRUE one — the lost episode's marker
+when the party is astray (`trueHexOf`) — so a lost party searches the ground
+it stands on, not the hex it believes in. What is per formation is keyed by
+formation id inside the record: which points it has found, how many searches
+it has to its credit, what its surveyor was told. A write replaces the key
+whole (a forced replacement, never a merge) and a clear is a forced deletion,
+so a restock drops the old finds and credit, which its confirm says.
+
+Stocking is a gesture (**Stock this hex**, a dialog) that performs the
+imported procedure ([hex-stock.mjs](../../scripts/formation/hex-stock.mjs)
+`stockHex`, pure): the terrain row's dice are rolled, the settled share for
+the territory applied (ties round down), each lair's kind substituted by the
+imported bands, and each lair drawn through the encounter chain's hand-off,
+so a lair that is a monster is the monster the chain would meet. A typed
+count replaces the roll and keeps the dice and share for the record, so a
+misread survey can still roll a false figure. A terrain whose row is null, or
+a world with no `lairsPerHex` registered, returns `needsCount` and the dialog
+asks; no `lairSubstitution` returns `needsSubstitution`. The record keeps the
+roll, the share, the count, the draw tree of every point, and the Judge's own
+`placed` points added by hand; `stockSummary` reads it back as "up to N",
+because the party learns what it finds.
+
+A found point can be **made a place**: `placeFromPoint` reuses the
+point-of-interest promotion (`placeTokenAt`, a location actor and its token at
+the hex centre, hidden until someone has found it) and records the
+`placeUuid`; refused while a lost episode is open, for a point already placed,
+and on a label-only hex with no centre. The survey ([hex-stock-run.mjs](../../scripts/formation/hex-stock-run.mjs)
+`surveyHex`) is §Searching the wild's; its truth is the points as they stand,
+not the count rolled, because the Judge adds and removes points. The GM's
+"This hex" group on the party tab shows Stock or Restock always and, once
+the hex is stocked, the summary, the points with Found / Make it a place /
+Remove, Add a point, Clear, and Survey the hex while a surveyor is in the
+order. `api.formation.hexStock` publishes the readers and writers; a
+`formation.hexStock` repair check (order 30) mints missing point ids and drops
+the finds, credit and assessments of formations that no longer exist. Climate
+by terrain, a hex-click tool on the map and carrying the stock into a promoted
+place's notes are [ROADMAP](ROADMAP.md).
 
 ## Living off the country
 
@@ -713,9 +861,10 @@ load of merchandise per the city's character, and what the syndicate charges to
 move goods past the gate. Both are printed and arrive through import.
 
 **A city turn is marked off the same way a dungeon turn is: the party walks
-it.** The clock pauses for a JOURNEY only (`setJourneyMode`), because a day is
-the wrong grain for a ten-minute tick; a settlement is timed in the same turns
-a delve is, so `onPartyTokenMoved` drives it and there is no button to press.
+it.** A journey is timed by the world clock its miles run (§The journey), not
+by the turn tracker; a settlement is timed in the same turns a delve is, so
+the movement seam's dispatcher hands it to the turn engine's
+`onPartyTokenMoved` and there is no button to press.
 One tracker serves both, and only the distance a turn buys differs —
 `turnDistance` asks the mode: a delve spends an exploration move, a city spends
 the pace's blocks at the width the SCENE draws them (`feetPerTurn`, taking
@@ -734,9 +883,11 @@ the torch burns down, the spell runs out, the rest interval accrues, the world
 clock advances. The delve's action surface comes with it — listening, a hasty
 or methodical search, doors and their spikes, traps — because none of those
 ever consulted the mode or the clock: they call `advanceTurns` directly in
-every mode. `clock.paused` gates exactly one thing, `onPartyTokenMoved`, so
-what a journey stops is the party's own WALKING spending turns, and what a
-settlement restores is the same.
+every mode. `clock.paused` gates exactly one thing, the turn engine's
+`onPartyTokenMoved`: the Judge's Pause button stops the party's own WALKING
+from spending turns. On a journey the same button, recorded as
+`clock.pausedBy === "judge"`, stops a drag from spending miles; a mode change
+clears the pause and re-anchors the baseline.
 
 **What the city keeps for itself** is the encounter cadence and the way. The
 street is not the dungeon's every-N-turns throw at a different number: how often
@@ -1110,7 +1261,15 @@ chain knows by its common noun (`TERRAIN_FOLLOW_UPS`) goes on. It rolls each
 sub-table it names on the die that table's own bands top out at, and a roll
 on the last band of a table that climbs rolls the next one. Then it reads
 each terrain lookup it names on the row the terrain pick gives. A result the
-chain does not know stops at its name, for the book. Every band, name,
+chain does not know stops at its name, for the book. A result it knows as a
+HAND-OFF is a draw on the chain (`terrainEncounterDraw`): a double draws
+twice, a double inside a double discards the pair and draws once
+(`DOUBLE_ON_DOUBLE`), a monster result reads the territory's rarity column,
+an either-or reads the imported share, and a despoiling draws one valuable
+with its follow-ups. The draw is a tree; the card flattens it
+(`flattenTerrainDraw`, `terrainDrawLines`) to three levels, and a budget of
+eight draws (`DRAW_BUDGET`) ends a chain that keeps doubling with an
+`exhausted` line. A share of zero reads as missing. Every band, name,
 die and figure reads from the `encounters` registered document through
 the terrain PICKS — a union vocabulary, because the book keys its tables
 at three grains (eighteen biome-split monster sub-tables, seventeen
@@ -1127,11 +1286,49 @@ seen), the party's evasion target with the modifier lines that apply, and
 the hand-off — detection and surprise resolve on the SYSTEM's own Surprise
 Matrix at combat start (core owns the matrix, the rolls and the evade
 permission; nothing here re-derives them), and reactions with the
-influence tools. Cadence: the panel's Encounter throw button always; under
-the `travelEncounters` world setting every hex genuinely entered throws as
-it is entered, and End Day rolls the finished day's owed throws from the
-imported frequency table — one per hunt or search hour, the camp's resting
-cells, a night cell counted in nights gated on a die of that many sides.
+influence tools. Cadence: the strip's Encounter throw button always; under
+the `travelEncounters` world setting (on by default) every cadence unit
+walked — a hex crossed on a grid drawn at the imported frequency's width, or
+that many miles on any other map (§The journey) — throws as it is walked,
+day or night read from the clock, and End Day rolls the finished day's owed
+throws from the imported frequency table — one per hunt or search hour, the
+camp's resting cells, a night cell counted in nights gated on a die of that
+many sides.
+
+**Zones on a journey.** An Encounter Zone region changes a journey's throws
+where the party really is: `journeyZones` reads every zone under
+`truePartyPoint` — the lost episode's shadow while one stands, the marker
+otherwise — and composes them field by field (`composeZones`,
+[zone-layers.mjs](../../scripts/formation/zone-layers.mjs)): for each of
+`tableUuid`, `encounterTarget`, `journeyCadence`, `dayThrows` and
+`nightThrows` the SMALLEST zone that states the field wins it (area by
+`regionArea` over the region's outlines; ties go to scene order), and a zero
+or blank states nothing. The delve takes the first zone under the party token
+(`findEncounterZone`) and composes nothing; the journey never reads
+`encounterEvery`, which is in dungeon turns.
+
+- **Target.** A composed `encounterTarget` replaces the territory d20 with a
+  d6 against it (`runEncounter`'s `zone`): a hit is a monster encounter, a
+  miss is none, and the territory step is a skipped marker. The card shows the
+  zone throw in place of the column rolls.
+- **Table.** A composed `tableUuid` takes the creature step of a creature
+  outcome (`chain.zoneDraw`): after a territory monster outcome's rarity, or
+  straight after the zone's own hit. `postEncounterThrow` draws it with
+  `drawQuietly` and lists the drawn rows on the same card — a row naming a
+  document links it, a blank row says the Judge fills it — and a uuid that no
+  longer resolves gives the missing-table line naming the zone. Terrain
+  outcomes and the distance roll are unchanged.
+- **Cadence.** Blank inherits the per-unit throws. `entry` throws nothing per
+  unit inside the zone and once when the party crosses into the zone that
+  states it: `spendJourneyMiles` keeps the ids of the zones the party stood in
+  after each spend in `clock.zoneIds` (written only once a party has stood in
+  one) and throws when that zone was not among them. `periods` throws nothing
+  per unit; at End Day `rollDayEncounters` throws `dayThrows` times (as travel
+  on a day that travelled, as rest otherwise) in place of the day's hunt,
+  search and resting-day cells, and `nightThrows` night throws in place of the
+  resting night; a count of 0 leaves its half to the imported cells. Under
+  both, `acksExtras.hexEntered` still fires per unit, with `throwOwed: false`.
+- The card names the zones that supplied a field on a line of its own.
 
 Still ahead of this mode — supply consumption at End Day — is
 [ROADMAP.md](ROADMAP.md) item 7.

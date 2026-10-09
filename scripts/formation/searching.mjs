@@ -75,10 +75,12 @@ export function searchTarget(milesPerDay) {
  * `movingQuarry` is the one modifier the rule names: a lost group that is
  * itself moving or searching is harder to find than one sitting still. Its
  * size is printed; that it applies only to a quarry that can move is not.
+ * `tracking` is set when the order holds a tracker; the registered
+ * `trackingBonus` is added, or noted `trackingUnpriced` when it is missing.
  */
 export function searchSpec({
   milesPerDay = 0, subject = "pointOfInterest", movingQuarry = false,
-  mode = "onFoot", terrain = "", specific = false,
+  mode = "onFoot", terrain = "", specific = false, tracking = false,
 } = {}) {
   const spec = SEARCH_SUBJECTS[subject];
   if (!spec) return { ok: false, reason: "subject" };
@@ -102,6 +104,17 @@ export function searchSpec({
     if (penalty == null) return { ok: false, missing: "specificTarget", subject };
     modifier += penalty;
     notes.push("specific");
+  }
+
+  // A tracker in the order helps the throw. The throw never refuses for want of
+  // the figure: it prices without it and says so.
+  if (tracking) {
+    const bonus = numOrNull(table("trackingBonus"));
+    if (bonus == null) notes.push("trackingUnpriced");
+    else {
+      modifier += bonus;
+      notes.push("tracking");
+    }
   }
 
   // A search costs an hour on the ground. From the air over open country it

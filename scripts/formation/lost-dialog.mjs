@@ -70,7 +70,8 @@ export async function askStrayAndBegin(formation) {
       { action: "chosen", label: loc("lost.askChoose"), default: true,
         callback: (_e, button) => ({ face: Number(button.form.elements.face.value) }) },
       { action: "rolled", label: loc("lost.askRoll"), callback: () => ({ roll: true }) },
-      { action: "cancel", label: loc("lost.askCancel"), callback: () => null },
+      // `false`, never null: core resolves a nullish callback result to the button's action string.
+      { action: "cancel", label: loc("lost.askCancel"), callback: () => false },
     ],
     rejectClose: false,
   }).catch(() => null);
@@ -97,7 +98,7 @@ export async function confirmDiscovery(formation) {
 }
 
 /**
- * A yes/no in the module's dialog frame. Resolves null on no, or
+ * A yes/no in the module's dialog frame. Resolves `false` on no, or
  * `{checked: {name: bool}}` for the checkboxes in the content, read before
  * the dialog closes.
  */
@@ -117,7 +118,8 @@ function ask(title, content, yes) {
           ),
         }),
       },
-      { action: "no", label: loc("lost.askCancel"), callback: () => null },
+      // `false`, never null: core resolves a nullish callback result to the button's action string.
+      { action: "no", label: loc("lost.askCancel"), callback: () => false },
     ],
     rejectClose: false,
   }).catch(() => null);

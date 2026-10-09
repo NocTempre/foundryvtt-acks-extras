@@ -9,6 +9,7 @@
       "locate": "labelColumn",
       "rows": {
         "% In Lair": { "field": "lairChance", "pattern": "raw" },
+        "% Lair": { "field": "lairChance", "pattern": "raw" },
         "Dungeon Enc": { "field": "dungeonEnc", "pattern": "raw" },
         "Wilderness Enc": { "field": "wildernessEnc", "pattern": "raw" },
         "Alignment": { "field": "alignment", "pattern": "raw", "table": "alignment" },

@@ -346,9 +346,15 @@ export function extractGridRows(items, recipe) {
     // top to bottom rather than interleaved by x.
     const lines = blocks.get(idx) ?? [rows[idx]];
     const lineItems = lines.flatMap((r, line) => (line ? r.items.map((it) => ({ ...it, _line: line })) : r.items));
+    // Where a run IS, for the label bound and the windows: its start, or its
+    // centre when the recipe says `anchor: "center"`. A grid whose cells are
+    // set centred has starts that wander with each name's width — a long
+    // name opens inside the column before it — while its centre stays over
+    // its own column, first letter and wrap line included.
+    const anchorX = (it) => (recipe.anchor === "center" ? it.x + (it.w ?? 0) / 2 : it.x);
     // Footnote markers (*, †, ‡) sit between rows and can y-merge into one;
     // they are never a cell value, so drop lone-marker runs from the band.
-    let cellRuns = lineItems.filter((it) => it.x >= recipe.labelMaxX && !/^[*†‡]+$/.test(it.str.trim()));
+    let cellRuns = lineItems.filter((it) => anchorX(it) >= recipe.labelMaxX && !/^[*†‡]+$/.test(it.str.trim()));
     // joinCellGap: the book's small-caps face splits a cell's initial glyph
     // into its own run ("c"+"rates"). A gap smaller than joinCellGap is a
     // glyph boundary, not a column gutter — merge those runs into one cell.
@@ -374,14 +380,25 @@ export function extractGridRows(items, recipe) {
       const tol = recipe.columnTol ?? 14;
       const windowed = {};
       const pointCands = {};
+      // The windowed column the previous run on this line went to: a run of
+      // closing punctuation alone (a bracket the text layer split from its
+      // word) continues that cell, because no cell opens with one.
+      let prevCol = null;
+      let prevLine = null;
       for (const run of cellRuns) {
+        const line = run._line ?? 0;
+        if (line !== prevLine) {
+          prevCol = null;
+          prevLine = line;
+        }
         let best = null;
-        for (const col of recipe.cellColumns) {
+        if (prevCol && /^[)\]},.;:'’"”]+$/.test(run.str.trim())) best = { col: prevCol, d: 0 };
+        for (const col of best ? [] : recipe.cellColumns) {
           // Windowed columns (`w`) JOIN every run in [x, x+w] — for cells
           // whose text spans several drop-cap runs; point columns bind the
           // nearest single run.
           if (col.w != null) {
-            if (run.x >= col.x - 2 && run.x < col.x + col.w) best = { col, d: 0 };
+            if (anchorX(run) >= col.x - 2 && anchorX(run) < col.x + col.w) best = { col, d: 0 };
             continue;
           }
           const d = Math.abs(run.x - col.x);
@@ -389,9 +406,11 @@ export function extractGridRows(items, recipe) {
         }
         if (!best) continue;
         if (best.col.w != null) {
+          prevCol = best.col;
           (windowed[best.col.key] ??= { col: best.col, runs: [] }).runs.push(run);
           continue;
         }
+        prevCol = null;
         // Nearest run wins the column: a footnote glyph y-merged into the row
         // sits off-grid and must not displace the real cell beside it.
         const prev = pointCands[best.col.key];

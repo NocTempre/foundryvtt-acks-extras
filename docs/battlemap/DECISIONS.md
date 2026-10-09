@@ -619,3 +619,89 @@ Cost, stated plainly: this is a real topology, not a flag. It is the largest
 single piece of modelling in the travel program, and it makes the terrain
 brush a route editor as well as a fill tool.
 
+## 2026-10-09 — An undeclared map's system is inferred from its scale
+
+**Reported (the user):** "The wilderness party does not currently work while
+traveling, at least in my tests. Could be an unexplained setup step?" The
+step that was missing was the declaration: a party dropped on a map of
+six-mile hexes that nobody had labelled kept its dungeon clock, and a drag
+across one hex billed hundreds of turns.
+
+**Ruled.** A scene that declares no travel system is no longer silent to a
+party arriving on it. `inferredTravelSystem(scene)` (`formation/travel.mjs`)
+answers in a fixed order: the system the Judge DECLARED, else a journey for a
+map whose cell is a mile or more across (`isExpeditionScale`), else a
+settlement for a map with a district Region drawn on it, else nothing. The
+formation adopts the answer on arrival and says what called for it — a
+notice names the scale when the scale decided. A declared delve on a
+mile-scale map is honoured, bills no turns, and whispers the scale guard
+once per arrival (`clock.scaleWarned`).
+
+This supersedes the "Unset is SILENCE, not a default" ruling of 2026-08-30
+(*The tool says what a scene IS*) for the two cases a map answers by itself.
+What was learned: silence was being read as "dungeon" by the only clock
+that runs without a declaration, so an unlabelled wilderness map was never
+silent in effect — it was a dungeon. A feet-scale map with no district still
+says nothing, and a party mid-march crossing one keeps its march, as before.
+
+**Rejected.** *Inferring from the grid type.* A hex grid is a dungeon as
+often as a country, and a square grid of mile cells is a country.
+
+**Cost.** A Judge who draws a mile-scale battle map must declare it a delve,
+or the party will journey across it. The declaration still wins wherever it
+is made.
+
+## 2026-10-09 — The brush paints at the book's grain
+
+The palette offered the nine travel grounds, and the journey derived the
+encounter sub-table from the ground: every forest a deciduous one, every
+mountain rocky, no river at all. The twenty-three kinds the chain can stand a
+party in were reachable only through the strip's pick, by hand, hex by hex.
+
+**Ruled:** the brush's keys are the encounter terrain register itself
+(`formation/encounter-terrains.mjs`), each kind carrying the travel ground
+it stands on, so one paint answers both questions: the journey writes the
+ground and the pick together from a hex painted at that grain
+(`paintedTerrainAt`). A river kind carries no ground and sets the pick alone.
+**A bare ground stays readable, never a swatch:** a map painted before this
+sets the ground and leaves the pick to the Judge or the ground's default,
+exactly as before, and an imported `terrainMultipliers` kind no register
+entry covers stays paintable as a ground (the 2026-08-29 ruling stands for
+those). The register's default per ground (`groundDefault`) is explicit
+rather than the first entry in file order, which the tundra and the forested
+hills would otherwise have taken.
+
+**Rejected:** keeping the nine ground swatches beside the twenty-three (two
+brushes for one forest, and a palette of thirty-two); a second region layer
+for the encounter grain (two regions claiming one hex is the map answering a
+question two ways — the 2026-08-28 ruling); writing the pick from a bare
+ground (it would overwrite a Judge's pick on every step of a map that never
+asked for one).
+
+**Cost:** the pick a painted hex writes carries until the next hex painted
+at that grain or the Judge's own change, as the ground always has; the
+strip's ground picker stays at the coarse grain, since the ground is what
+every travel table reads; the register moved to a leaf module so the brush
+and the chain read it without importing each other.
+
+## 2026-10-09 — A recipe's grid is aligned the way the calibration aligns one
+
+The importer's region map (importer DECISIONS, 2026-10-09) is laid on
+Foundry's hex grid from a `grid` block measured off the page: the hex
+family, the box one hex fills, the centre of one hex, the distance a hex
+spans. **Ruled:** that block is the calibration tool's own answer, so an
+imported map and a map a Judge calibrated by hand carry the same scene
+fields — grid type, size, offset and distance — and every measurement the
+journey makes (the miles of a drag, the hex crossed, the zone under the
+party) reads them the same way. The importer sizes the picture so one
+printed hex is the scene's grid size and keeps the ratio
+(`pixelsPerPoint`) in the scene's cookbook flag, which converts the zones'
+outlines, authored in page points, onto the map.
+
+**Rejected:** a second alignment model for imported maps; aligning by the
+page's hex count alone (the drawn lattice is offset from the crop's corner,
+which the centre carries).
+
+**Cost:** the recipe is measured once per printing; a reprint with a
+different crop needs a row of its own.
+

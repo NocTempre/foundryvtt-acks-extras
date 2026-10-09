@@ -5,7 +5,7 @@ availability and prices — with merchant imports, commissions, directed
 searches, the magic-item market, mercantile ventures, market research, and
 the goods and demand a settlement trades in.
 
-![](../releases/v10.0.0/markets.png)
+![](../releases/v11.0.0/markets.png)
 
 *A market's Trade tab: who the Judge is acting as, the coin, search-day and
 process controls, the two Judge switches, the settlement's demand modifier per

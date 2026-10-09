@@ -54,12 +54,14 @@ import { brightestLightReaching, emittedLight } from "../scripts/lib/light.mjs";
 import { sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
-import { mathIsPrivate, mathSection, postToJudges } from "../scripts/lib/roll-audience.mjs";
+import { drawForJudges, drawQuietly, mathIsPrivate, mathSection, postToJudges } from "../scripts/lib/roll-audience.mjs";
 import { elementOf, gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
 import { clientPages, keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "../scripts/lib/client-pins.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../scripts/lib/sheet-rows.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
-import { clockReading, darkBounds, isDarkAt } from "../scripts/lib/world-time.mjs";
+import { clockReading, darkBounds, isDarkAt, secondsToNextDawn, untilNextDawn } from "../scripts/lib/world-time.mjs";
+import { isExpeditionScale, sceneMilesPerCell } from "../scripts/lib/distance-units.mjs";
+import { expeditionFrom } from "../scripts/lib/movement-scales.mjs";
 import {
   capacityOf,
   declaresSlots,
@@ -2719,6 +2721,57 @@ await (async () => {
   console.log("ok - postToJudges whispers to the GMs with no rolls attached");
 })();
 
+await (async () => {
+  const shown = [];
+  const created = [];
+  const listeners = new Map();
+  const roll = { total: 3 };
+  const table = (results) => ({
+    id: "tbl1",
+    asked: [],
+    async draw(options) {
+      this.asked.push(options);
+      return { roll, results };
+    },
+    async toMessage(results, { roll: drawnRoll }) {
+      const doc = { flags: { core: { RollTable: "tbl1" } }, rolls: [drawnRoll], sound: "dice.wav", getFlag: (ns, key) => doc.flags[ns]?.[key], updateSource(patch) { Object.assign(doc, patch); } };
+      for (const fn of listeners.get("preCreateChatMessage") ?? []) fn(doc, {}, {}, "p1");
+      created.push(doc);
+    },
+  });
+  const restore = swapGlobals({
+    game: { users: [{ id: "g1", isGM: true }, { id: "p1", isGM: false }], user: { id: "p1" }, dice3d: { showForRoll: (...args) => shown.push(args) } },
+    Hooks: {
+      on: (name, fn) => listeners.set(name, [...(listeners.get(name) ?? []), fn]),
+      off: (name, fn) => listeners.set(name, (listeners.get(name) ?? []).filter((f) => f !== fn)),
+    },
+  });
+  try {
+    const quiet = table([{ name: "Row" }]);
+    const drawn = await drawQuietly(quiet, { displayChat: true, rollMode: "gmroll" });
+    assert.deepEqual(quiet.asked, [{ displayChat: false, rollMode: "gmroll" }], "a quiet draw never posts core's card, whatever it is asked");
+    assert.equal(drawn.roll, roll, "and hands back what the table drew");
+    assert.equal(created.length, 0, "nothing is posted");
+    assert.deepEqual(shown.map((args) => [args[0], args[3]]), [[roll, ["g1"]]], "the dice show to the GMs alone");
+
+    shown.length = 0;
+    await drawQuietly(table([]));
+    assert.equal(shown.length, 0, "a draw that lands on no row shows no dice");
+
+    const judged = table([{ name: "Row" }]);
+    await drawForJudges(judged);
+    assert.deepEqual(judged.asked, [{ displayChat: false }], "drawForJudges draws through the same quiet step");
+    assert.equal(shown.length, 1, "showing the dice once");
+    assert.equal(created.length, 1, "then posts core's own card");
+    assert.deepEqual([created[0].rolls, created[0].sound], [[], null], "with the roll and the sound taken off it");
+    assert.equal((listeners.get("preCreateChatMessage") ?? []).length, 0, "and the hook removed");
+  } finally {
+    restore();
+  }
+  n++;
+  console.log("ok - drawQuietly draws without posting, and drawForJudges is built on it");
+})();
+
 /* --- the world clock: where the dark begins, and whether it is dark now ---- */
 t("darkBounds stands a blank hour at the day's quarter points", () => {
   assert.deepEqual(darkBounds(24), { dawn: 6, dusk: 18 });
@@ -2757,15 +2810,69 @@ t("clockReading reads the calendar and the two settings, and is null without a c
   const get = (_mod, key) => settings[key];
   assert.equal(withGlobals({ game: { time: {}, settings: { get } } }, clockReading), null, "no calendar");
   assert.equal(withGlobals({ game: { time: { calendar: { days: { hoursPerDay: 24 } } }, settings: { get } } }, clockReading), null, "no components");
-  const at = (hour, minute = 0, hoursPerDay = 24) =>
-    withGlobals({ game: { time: { calendar: { days: { hoursPerDay } }, components: { hour, minute } }, settings: { get } } }, clockReading);
-  assert.deepEqual(at(12, 30), { hour: 12, minute: 30, hoursPerDay: 24, dawn: 6, dusk: 18, dark: false });
-  assert.deepEqual(at(21), { hour: 21, minute: 0, hoursPerDay: 24, dawn: 6, dusk: 18, dark: true });
+  const at = (hour, minute = 0, hoursPerDay = 24, extra = {}, second) =>
+    withGlobals({ game: { time: { calendar: { days: { hoursPerDay, ...extra } }, components: { hour, minute, second } }, settings: { get } } }, clockReading);
+  assert.deepEqual(at(12, 30), { hour: 12, minute: 30, second: 0, hoursPerDay: 24, secondsPerHour: 3600, dawn: 6, dusk: 18, dark: false });
+  assert.deepEqual(at(21), { hour: 21, minute: 0, second: 0, hoursPerDay: 24, secondsPerHour: 3600, dawn: 6, dusk: 18, dark: true });
   settings.dawnHour = 8; settings.duskHour = 22;
-  assert.deepEqual(at(21), { hour: 21, minute: 0, hoursPerDay: 24, dawn: 8, dusk: 22, dark: false }, "the settings move the bounds");
+  assert.deepEqual(at(21), { hour: 21, minute: 0, second: 0, hoursPerDay: 24, secondsPerHour: 3600, dawn: 8, dusk: 22, dark: false }, "the settings move the bounds");
   assert.equal(at(7).dark, true);
   settings.dawnHour = null; settings.duskHour = null;
-  assert.deepEqual(at(4, 0, 20), { hour: 4, minute: 0, hoursPerDay: 20, dawn: 5, dusk: 15, dark: true }, "a shorter day keeps its own quarters");
+  assert.deepEqual(at(4, 0, 20), { hour: 4, minute: 0, second: 0, hoursPerDay: 20, secondsPerHour: 3600, dawn: 5, dusk: 15, dark: true }, "a shorter day keeps its own quarters");
+  // The second and the calendar's own hour length ride along.
+  const fine = at(9, 15, 24, { minutesPerHour: 50, secondsPerMinute: 30 }, 12);
+  assert.equal(fine.second, 12, "the second is read");
+  assert.equal(fine.secondsPerHour, 1500, "an hour is minutes-per-hour times seconds-per-minute");
+  assert.equal(at(9, 15, 24, { minutesPerHour: 60 }).secondsPerHour, 3600, "one stated factor alone falls back to 3600");
+});
+
+t("secondsToNextDawn counts to the next dawn, strictly after now", () => {
+  const at = (hour, minute = 0, second = 0, hoursPerDay = 24, dawn = 6) => ({ hour, minute, second, hoursPerDay, dawn });
+  assert.equal(secondsToNextDawn(at(8, 30)), 77400, "morning waits out the day");
+  assert.equal(secondsToNextDawn(at(21)), 32400, "after dusk");
+  assert.equal(secondsToNextDawn(at(2)), 14400, "past midnight, dawn is the same day");
+  assert.equal(secondsToNextDawn(at(6, 0, 0)), 86400, "exactly at dawn is a whole day");
+  assert.equal(secondsToNextDawn(at(5, 59, 30)), 30, "half a minute short");
+  assert.equal(secondsToNextDawn(at(10, 0, 0, 20, 5)), 15 * 3600, "a 20-hour day with dawn at 5");
+  assert.equal(secondsToNextDawn(at(8, 30), { secondsPerHour: 60 }), 1290, "a shorter hour scales the answer");
+  assert.equal(secondsToNextDawn(at(0, 0, 0, 24, 0)), 86400, "a dawn at midnight from midnight is a day");
+  assert.equal(secondsToNextDawn(null), null);
+  assert.equal(secondsToNextDawn({ hour: "x", hoursPerDay: 24, dawn: 6 }), null, "not an hour");
+  assert.ok(Number.isInteger(secondsToNextDawn(at(8, 30, 17))), "whole seconds");
+});
+
+t("untilNextDawn reads the clock, and is null without a calendar", () => {
+  const get = () => null;
+  assert.equal(withGlobals({ game: { time: {}, settings: { get } } }, untilNextDawn), null);
+  const on = (hour, days) =>
+    withGlobals({ game: { time: { calendar: { days: { hoursPerDay: 24, ...days } }, components: { hour, minute: 0, second: 0 } }, settings: { get } } }, untilNextDawn);
+  assert.equal(on(21, {}), 32400);
+  assert.equal(on(21, { minutesPerHour: 1, secondsPerMinute: 60 }), 540, "the calendar's own hour is 60 seconds, so nine hours of those");
+});
+
+t("a scene cell is read in miles, and a mile or more is the expedition scale", () => {
+  const cell = (distance, units) => ({ grid: { distance, units } });
+  assert.equal(sceneMilesPerCell(cell(31680, "ft")), 6);
+  assert.equal(isExpeditionScale(cell(31680, "ft")), true);
+  assert.equal(sceneMilesPerCell(cell(6, "mi")), 6);
+  assert.equal(isExpeditionScale(cell(6, "mi")), true);
+  assert.equal(sceneMilesPerCell(cell(0.5, "mi")), 0.5);
+  assert.equal(isExpeditionScale(cell(0.5, "mi")), false);
+  assert.equal(isExpeditionScale(cell(1, "mi")), true, "exactly a mile counts");
+  assert.equal(isExpeditionScale(cell(5279, "ft")), false, "a foot short does not");
+  assert.equal(isExpeditionScale(cell(5, "furlongs")), false, "an unknown unit reads as feet");
+  assert.equal(sceneMilesPerCell({}), 0);
+  assert.equal(isExpeditionScale({}), false, "no grid");
+  assert.equal(isExpeditionScale(null), false);
+});
+
+t("expeditionFrom states hexes per day only against a stated hex", () => {
+  assert.equal(expeditionFrom(120).hexesPerDay, null);
+  assert.equal(expeditionFrom(120, { milesPerHex: 6 }).hexesPerDay, 4);
+  assert.equal(expeditionFrom(120, { milesPerHex: 24 }).hexesPerDay, 1);
+  assert.equal(expeditionFrom(120, { milesPerHex: 0 }).hexesPerDay, null);
+  assert.equal(expeditionFrom(120, { milesPerHex: null }).hexesPerDay, null);
+  assert.equal(expeditionFrom(120, { milesPerHex: 6 }).milesPerDay, expeditionFrom(120).milesPerDay, "the hex changes no mileage");
 });
 
 console.log(`\n${n} tests passed (including the location migration)`);

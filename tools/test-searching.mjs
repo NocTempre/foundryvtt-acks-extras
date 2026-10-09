@@ -34,6 +34,7 @@ const SAMPLE = {
     canopyPenalty: -9,
     surveyTarget: 17,
     surveyPerSearch: 3,
+    trackingBonus: 2,
   },
 };
 const load = () => registerTable(SAMPLE, { priority: PRIORITY.WORLD, source: "test" });
@@ -124,6 +125,34 @@ ok("hunting ONE named place is harder than noticing whatever is there", () => {
   assert.equal(any.modifier, 0);
   assert.equal(named.modifier, -5);
   assert.ok(named.notes.includes("specific"));
+});
+
+ok("a tracker in the order adds the registered figure and says so", () => {
+  unregisterTable(SEARCHING_DOC); load();
+  const plain = searchSpec({ milesPerDay: 30 });
+  const tracked = searchSpec({ milesPerDay: 30, tracking: true });
+  assert.equal(plain.modifier, 0);
+  assert.equal(tracked.modifier, 2);
+  assert.ok(tracked.notes.includes("tracking"));
+  assert.ok(!plain.notes.includes("tracking"), "no tracker, no note");
+});
+
+ok("a missing tracking figure still prices the throw and names the gap", () => {
+  unregisterTable(SEARCHING_DOC);
+  registerTable({ ...SAMPLE, tables: { ...SAMPLE.tables, trackingBonus: undefined } },
+    { priority: PRIORITY.WORLD, source: "test" });
+  const spec = searchSpec({ milesPerDay: 30, tracking: true });
+  assert.equal(spec.ok, true, "the throw is not refused");
+  assert.equal(spec.modifier, 0);
+  assert.ok(spec.notes.includes("trackingUnpriced"));
+  assert.ok(!spec.notes.includes("tracking"));
+});
+
+ok("tracking combines with a named place", () => {
+  unregisterTable(SEARCHING_DOC); load();
+  const spec = searchSpec({ milesPerDay: 30, specific: true, tracking: true });
+  assert.equal(spec.modifier, -5 + 2);
+  assert.deepEqual(spec.notes, ["specific", "tracking"]);
 });
 
 ok("over open country the air buys MORE throws, not a better target", () => {

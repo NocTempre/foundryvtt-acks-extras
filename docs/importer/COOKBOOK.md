@@ -119,7 +119,10 @@ seat's book yielding the content they annotate. Observations are plain data, so
 a chef can hand-author one wherever automatic attribution fails.
 
 **Patterns** (fixed library, part of the frozen set): `raw` (joined, trimmed),
-`int` (first integer), `dice` (first `NdM±k`), `refList` (split on `,`,
+`int` (first integer), `throw` (the first `n+` target, as an integer — `int`
+on a line that opens with a die expression returns the die count), `countWord`
+(a count said in words, "once"/"twice"/"three times", as an integer), `dice`
+(first `NdM±k`), `refList` (split on `,`,
 tokens trimmed), `spoilList` (component regex → `{name, weight6, cost,
 effects[]}`), `statValue` (short run up to the next label), `statline`
 (additive, 2026-07-22: the AX-line inline quick-stat block — top-level `;`

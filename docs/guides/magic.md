@@ -25,7 +25,7 @@ what the row does, whom it applies to, its value flat or per level. Nothing
 casts them yet; they are the record the cast engine will read. The system's
 Active Effects sit below them.
 
-![](../releases/v10.0.0/magic.png)
+![](../releases/v11.0.0/magic.png)
 
 *An imported spell on the Overview tab.*
 

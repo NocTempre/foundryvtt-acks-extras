@@ -1,0 +1,12 @@
+[
+  {
+    "id": "ax1.abomination",
+    "kind": "kind.monsterLegacy",
+    "book": "ax1",
+    "name": "Abomination",
+    "anchor": { "display": "ABOMINATION" },
+    "pages": [67],
+    "meta": { "group": "New Monsters" },
+    "assists": { "columns": [40, 320] }
+  }
+]

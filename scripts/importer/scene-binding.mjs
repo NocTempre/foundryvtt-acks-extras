@@ -9,6 +9,12 @@
  * id and carries no printed word, so what it draws pays out only over the
  * Judge's own copy of the page.
  *
+ * A recipe may also carry a `grid`: one drawn cell's lattice, box and centre,
+ * measured off the page like the rest, and what one cell spans. Such a map is
+ * built on a Foundry grid whose cells are the drawn ones. A zone row
+ * (`kind.sceneZone`) lays one book's rule over another book's recipe as an
+ * outline on the target page.
+ *
  * Everything here is arithmetic and data shapes. The importer supplies the
  * documents (the world's places, the imported tables, the uploaded picture)
  * and does the writing; the compiler and the tests read the same frame and the
@@ -17,14 +23,37 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { SCENE_LINK_FLAG } from "../location/constants.mjs";
-import { isPoiEntry, poiGroupOf } from "./poi-binding.mjs";
+import { isPoiEntry, isRegionSite, poiGroupOf } from "./poi-binding.mjs";
 import { hash36 } from "./printed-name.mjs";
+import { gridTypeFor } from "../battlemap/constants.mjs";
+import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
 
 /** The register kind a scene recipe is filed under. */
 export const SCENE_KIND = "kind.scene";
 
-/** The grid a scene is given: gridless, one cell to a hundred feet. */
+/** The register kind a zone laid over a scene recipe is filed under. */
+export const SCENE_ZONE_KIND = "kind.sceneZone";
+
+/** The grid a scene is given: gridless, one cell to a hundred feet. A grid recipe's cell defaults to the same size. */
 const GRID_PIXELS = 100;
+
+/** The lattices a recipe's `grid` may name, as the map stands upright. */
+export const RECIPE_GRID_FAMILIES = Object.freeze(["hexCols", "hexRows", "square"]);
+
+/** The smallest Foundry cell, in pixels, a recipe's `grid.pixels` may ask for. */
+const MIN_GRID_PIXELS = 50;
+
+/** How far apart a probe's two axes may put the scale, as a fraction of the larger, before the fit is refused. */
+const SCALE_AGREEMENT = 0.02;
+
+/** The values an encounter zone's `journeyCadence` takes; blank inherits. */
+export const ZONE_CADENCES = Object.freeze(["", "entry", "periods"]);
+
+/** Core's `REGION_VISIBILITY.GAMEMASTER`, spelled out because this file loads without Foundry. */
+const REGION_VISIBILITY_GAMEMASTER = 1;
+
+/** The Region behaviour type formation registers as its encounter zone (`encounter-zone.mjs`). */
+const ZONE_BEHAVIOR_TYPE = `${MODULE_ID}.encounterZone`;
 
 /** How far a seat's image placement may sit from the recipe's, in points, and still be the same page. */
 export const PLACEMENT_TOLERANCE = 1.5;
@@ -38,23 +67,83 @@ const OWNERSHIP_NONE = 0;
 /** Whether a cookbook scene row carries a recipe a seat can build. */
 export const isSceneRecipe = (row) => row?.kind === SCENE_KIND && !!row?.scene?.crop;
 
+/** Whether a cookbook scene row is a zone laid over a recipe rather than a recipe. */
+export const isZoneRow = (row) => row?.kind === SCENE_ZONE_KIND && typeof row?.zone?.scene === "string" && !!row.zone.scene;
+
+/** The Foundry cell size a recipe is built on, in pixels: its grid's `pixels`, else the gridless default. */
+const cellPixels = (recipe) => (Number.isInteger(recipe?.grid?.pixels) && recipe.grid.pixels > 0 ? recipe.grid.pixels : GRID_PIXELS);
+
+/**
+ * One drawn cell's size across its flats, in points — the extent Foundry's
+ * `grid.size` spans: the box's height for flat-topped `hexCols`, its width for
+ * pointy-topped `hexRows` and for `square`.
+ */
+const acrossFlats = (grid) => Number(grid?.family === "hexCols" ? grid?.box?.h : grid?.box?.w);
+
+/**
+ * How many feet one page point is worth: the recipe's `feetPerPoint` when it
+ * states one, else what its grid implies (the cell's distance in feet over
+ * its across-flats size in points). NaN when neither says.
+ */
+export function recipeFeetPerPoint(recipe) {
+  if (recipe?.feetPerPoint !== undefined || !recipe?.grid) return Number(recipe?.feetPerPoint);
+  const feet = Number(recipe.grid.distance) * (DISTANCE_UNITS[recipe.grid.units]?.feet ?? NaN);
+  const flats = acrossFlats(recipe.grid);
+  return feet > 0 && flats > 0 ? feet / flats : NaN;
+}
+
+/**
+ * Pixels per page point that make one drawn cell one Foundry cell of the
+ * recipe's `grid.pixels`, or null when the recipe has no usable grid.
+ *
+ * Both answers are one ratio, Foundry's cell extent over the drawn cell's:
+ * - with a live `probe` (`hexProbe`'s `{refW, refH, refSize}`) the extents are
+ *   measured, `pixels * refW / refSize` over `box.w` and `pixels * refH /
+ *   refSize` over `box.h`; the across-flats axis is returned, and the fit is
+ *   refused (null) when the two axes disagree by more than 2%;
+ * - with no probe (offline, a square lattice, or a test) Foundry's `size` IS
+ *   the across-flats extent, so the ratio is `pixels` over the drawn cell's
+ *   across-flats size — the probe's across-flats axis exactly.
+ *
+ * @param {object} recipe a compiled scene recipe
+ * @param {{refW: number, refH: number, refSize: number}|null} [probe]
+ * @returns {number|null}
+ */
+export function gridScale(recipe, probe = null) {
+  const grid = recipe?.grid;
+  const w = Number(grid?.box?.w);
+  const h = Number(grid?.box?.h);
+  if (!grid || !RECIPE_GRID_FAMILIES.includes(grid.family) || !(w > 0) || !(h > 0)) return null;
+  const pixels = cellPixels(recipe);
+  if (probe && grid.family !== "square") {
+    const x = (pixels * (probe.refW / probe.refSize)) / w;
+    const y = (pixels * (probe.refH / probe.refSize)) / h;
+    if (!(x > 0) || !(y > 0) || Math.abs(x - y) > SCALE_AGREEMENT * Math.max(x, y)) return null;
+    return grid.family === "hexCols" ? y : x;
+  }
+  return pixels / acrossFlats(grid);
+}
+
 /**
  * The frame a recipe is drawn in: the picture's size in pixels and the map
  * from a page point to a scene pixel.
  *
- * One point is `feetPerPoint` feet and one pixel is `1 / pixelsPerFoot` feet,
- * so the picture is rendered at `feetPerPoint * pixelsPerFoot` pixels to the
- * point. The crop is cut first and turned second; the rounded pixel sizes are
- * the ones the renderer cuts to, so a point lands on the same pixel here as in
- * the picture.
+ * `pixelsPerPoint`, when given, IS the scale (`gridScale` for a grid recipe).
+ * Otherwise one point is `recipeFeetPerPoint` feet and one pixel is
+ * `1 / pixelsPerFoot` feet, so the picture is rendered at their product in
+ * pixels to the point. The crop is cut first and turned second; the rounded
+ * pixel sizes are the ones the renderer cuts to, so a point lands on the same
+ * pixel here as in the picture. `gridPixels` is the Foundry cell size the
+ * recipe is built on.
  *
  * @param {object} recipe a compiled scene recipe
  * @returns {{scale: number, cut: {w: number, h: number}, width: number,
- *   height: number, turn: number, toScene: (x: number, y: number) => [number, number]}}
+ *   height: number, turn: number, gridPixels: number,
+ *   toScene: (x: number, y: number) => [number, number]}}
  */
-export function sceneFrame(recipe, { pixelsPerFoot = 1 } = {}) {
+export function sceneFrame(recipe, { pixelsPerFoot = 1, pixelsPerPoint } = {}) {
   const { crop } = recipe;
-  const scale = Number(recipe.feetPerPoint) * pixelsPerFoot;
+  const scale = pixelsPerPoint > 0 ? Number(pixelsPerPoint) : recipeFeetPerPoint(recipe) * pixelsPerFoot;
   const turn = (((Number(recipe.turn) || 0) % 4) + 4) % 4;
   const w = Math.round(crop.w * scale);
   const h = Math.round(crop.h * scale);
@@ -68,7 +157,7 @@ export function sceneFrame(recipe, { pixelsPerFoot = 1 } = {}) {
     if (turn === 3) return [h - v, u];
     return [u, v];
   };
-  return { scale, cut: { w, h }, width: sideways ? h : w, height: sideways ? w : h, turn, toScene };
+  return { scale, cut: { w, h }, width: sideways ? h : w, height: sideways ? w : h, turn, gridPixels: cellPixels(recipe), toScene };
 }
 
 /**
@@ -86,14 +175,19 @@ export function turnMatrix(frame) {
 }
 
 /**
- * A short key for the PICTURE a recipe draws — its page, crop, turn and scale
+ * A short key for the PICTURE a recipe draws — its page, crop, turn and scale,
+ * and for a grid recipe every grid field the scale and lattice are read from,
  * and nothing else. It names the uploaded file, so a recipe whose picture
  * changed is rendered again instead of being laid over a stale file whose
- * pixels no longer agree with the outlines.
+ * pixels no longer agree with the outlines. A recipe without a grid keys
+ * exactly as it always has, so its uploaded file is still found.
  */
 export function pictureKey(recipe) {
   const c = recipe?.crop ?? {};
-  return hash36(JSON.stringify([recipe?.page, c.x, c.y, c.w, c.h, (((Number(recipe?.turn) || 0) % 4) + 4) % 4, recipe?.feetPerPoint]));
+  const parts = [recipe?.page, c.x, c.y, c.w, c.h, (((Number(recipe?.turn) || 0) % 4) + 4) % 4, recipe?.feetPerPoint];
+  const g = recipe?.grid;
+  if (g) parts.push(g.family, !!g.even, g.box?.w, g.box?.h, g.centre?.[0], g.centre?.[1], g.pixels);
+  return hash36(JSON.stringify(parts));
 }
 
 /** A flat `[x, y, x, y, …]` ring carried through a frame, rounded to whole pixels. */
@@ -118,6 +212,18 @@ export function pointInRing(x, y, ring) {
     if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
+}
+
+/**
+ * The grid offsets whose cell centre lies inside a ring — how a zone's outline
+ * is snapped to whole cells. Ring and centres are both in scene pixels; the
+ * centres are the live grid's, supplied by the caller.
+ * @param {number[]} ring flat `[x, y, …]`
+ * @param {{i: number, j: number, x: number, y: number}[]} cells
+ * @returns {{i: number, j: number}[]}
+ */
+export function offsetsInside(ring, cells) {
+  return (cells ?? []).filter((c) => pointInRing(c.x, c.y, ring)).map(({ i, j }) => ({ i, j }));
 }
 
 /**
@@ -191,29 +297,61 @@ export function recipeContext(entries) {
   );
 }
 
+const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+
+/** Whether a page point lies inside a crop, edges included. */
+const inCropOf = (crop) => (x, y) => x >= crop.x && x <= crop.x + crop.w && y >= crop.y && y <= crop.y + crop.h;
+
+/**
+ * Everything wrong with a recipe's `grid` block, as sentences; empty when it
+ * holds together. The centre is checked against the crop only when a crop is
+ * given, so the lint can ask before the crop itself is known to be sound.
+ * @param {object} grid the recipe's `grid`
+ * @param {{x: number, y: number, w: number, h: number}|null} [crop]
+ */
+export function gridProblems(grid, crop = null) {
+  if (!grid || typeof grid !== "object" || Array.isArray(grid)) return ["grid must be an object"];
+  const out = [];
+  if (!RECIPE_GRID_FAMILIES.includes(grid.family)) out.push(`grid.family must be ${RECIPE_GRID_FAMILIES.join(", ")}`);
+  if (grid.even !== undefined && typeof grid.even !== "boolean") out.push("grid.even must be true or false when given");
+  if (!isNum(grid.box?.w) || !isNum(grid.box?.h) || !(grid.box.w > 0) || !(grid.box.h > 0)) out.push("grid.box needs positive w and h");
+  const c = grid.centre;
+  if (!Array.isArray(c) || c.length !== 2 || !c.every(isNum)) out.push("grid.centre must be [x, y]");
+  else if (crop && !inCropOf(crop)(c[0], c[1])) out.push(`grid.centre (${c[0]}, ${c[1]}) lies outside the crop`);
+  if (!isNum(grid.distance) || !(grid.distance > 0)) out.push("grid.distance must be a positive number");
+  if (!Object.hasOwn(DISTANCE_UNITS, String(grid.units))) out.push(`grid.units must be one of ${Object.keys(DISTANCE_UNITS).join(", ")}`);
+  if (grid.pixels !== undefined && !(Number.isInteger(grid.pixels) && grid.pixels >= MIN_GRID_PIXELS)) out.push(`grid.pixels must be a whole number of at least ${MIN_GRID_PIXELS} when given`);
+  return out;
+}
+
 /**
  * Everything wrong with a recipe, as sentences; empty when it holds together.
  *
  * Asked by the compiler, the lint and the verifier over `recipeContext` of a
  * book's compiled entries — `{id: {kind, meta, sections?}}` is all the checks
- * read. A place must stand inside the quarter its own group
- * names, because the quarter under a place is found by geometry at the table
- * and a place drawn over its neighbour would be priced as the neighbour's.
+ * read. On a map with quarters a place must stand inside the quarter its own
+ * group names, because the quarter under a place is found by geometry at the
+ * table and a place drawn over its neighbour would be priced as the
+ * neighbour's; a map with no quarters has none to check. A place is a keyed
+ * point of interest or a region site. `feetPerPoint` is required only of a
+ * recipe with no `grid`.
  *
  * @param {object} recipe the row's `scene` block
  * @param {Record<string, {kind?: string, meta?: object, sections?: string[]}>} entries
  */
 export function recipeProblems(recipe, entries = {}) {
   const out = [];
-  const num = (v) => typeof v === "number" && Number.isFinite(v);
+  const num = isNum;
   const crop = recipe?.crop ?? {};
-  if (!["x", "y", "w", "h"].every((k) => num(crop[k])) || !(crop.w > 0) || !(crop.h > 0)) out.push("crop needs numeric x, y and positive w, h");
-  if (!(recipe?.feetPerPoint > 0)) out.push("feetPerPoint must be a positive number");
+  const cropOk = ["x", "y", "w", "h"].every((k) => num(crop[k])) && crop.w > 0 && crop.h > 0;
+  if (!cropOk) out.push("crop needs numeric x, y and positive w, h");
+  if ((recipe?.grid === undefined || recipe?.feetPerPoint !== undefined) && !(recipe?.feetPerPoint > 0)) out.push("feetPerPoint must be a positive number");
+  if (recipe?.grid !== undefined) out.push(...gridProblems(recipe.grid, cropOk ? crop : null));
   if (recipe?.turn !== undefined && ![0, 1, 2, 3].includes(recipe.turn)) out.push("turn must be 0, 1, 2 or 3 quarter turns");
   if (recipe?.blockFeet !== undefined && !(recipe.blockFeet > 0)) out.push("blockFeet must be a positive number when given");
   if (out.length) return out;
 
-  const inCrop = (x, y) => x >= crop.x && x <= crop.x + crop.w && y >= crop.y && y <= crop.y + crop.h;
+  const inCrop = inCropOf(crop);
   const quarterOf = (id) => poiGroupOf(entries[id]?.meta?.group)?.district ?? null;
 
   const table = recipe.incidents?.table;
@@ -252,11 +390,13 @@ export function recipeProblems(recipe, entries = {}) {
   (Array.isArray(recipe.places) ? recipe.places : []).forEach((p, i) => {
     const where = `places[${i}]`;
     const entry = entries[p?.id];
-    if (!entry || !isPoiEntry(entry) || poiGroupOf(entry.meta.group).kind === "overview") return void out.push(`${where}.id "${p?.id}" is not a keyed place of this book`);
+    const keyed = !!entry && ((isPoiEntry(entry) && poiGroupOf(entry.meta.group).kind !== "overview") || isRegionSite(entry));
+    if (!keyed) return void out.push(`${where}.id "${p?.id}" is not a keyed place of this book`);
     if (seenPlaces.has(p.id)) return void out.push(`${where}.id "${p.id}" is placed twice`);
     seenPlaces.add(p.id);
     if (!Array.isArray(p.at) || p.at.length !== 2 || !p.at.every(num)) return void out.push(`${where}.at must be [x, y]`);
     if (!inCrop(p.at[0], p.at[1])) return void out.push(`${where} "${p.id}" stands outside the crop`);
+    if (!districts.length) return;
     const own = quarterOf(p.id);
     const under = districts.filter((d) => Array.isArray(d?.outline) && pointInRing(p.at[0], p.at[1], d.outline)).map((d) => quarterOf(d.place));
     if (under.length !== 1 || under[0] !== own) {
@@ -267,9 +407,14 @@ export function recipeProblems(recipe, entries = {}) {
 }
 
 /**
- * Scene data for a recipe — the WHOLE map, as one create. The grid is gridless
- * at one cell to a hundred feet, so a pixel is a foot and every measure on the
- * map reads in the book's own unit; sight and fog are off, because a city map
+ * Scene data for a recipe — the WHOLE map, as one create. Without a `grid` the
+ * scene is gridless at one cell to a hundred feet, so a pixel is a foot and
+ * every measure on the map reads in the book's own unit, and it is set up for
+ * settlement travel. With one, the scene carries Foundry's lattice of that
+ * family at the grid's cell size, distance and units, the shift that lays it
+ * over the drawn cells, and is set up for journey travel; the picture is
+ * scaled by `pixelsPerPoint` (`gridScale` of the grid unless the caller
+ * measured one live). Sight and fog are off either way, because a printed map
  * is a plan the party reads and not a place its tokens see from. It is kept
  * out of the navigation bar: a map that arrives with a book is for the Judge
  * to put in front of a table, not something a running session finds added to
@@ -295,12 +440,18 @@ export function recipeProblems(recipe, entries = {}) {
  * @param {{id: string, name: string}} [p.level] core's id and name for a scene's first level
  * @param {object[]} [p.regions] `districtRegionData` rows
  * @param {object[]} [p.tokens] token sources, already placed
+ * @param {object|null} [p.grid] the recipe's `grid`, unless the caller passes another
+ * @param {number|null} [p.pixelsPerPoint] a grid recipe's scale, measured live
+ * @param {number} [p.shiftX] the lattice shift, a grid recipe only
+ * @param {number} [p.shiftY]
+ * @param {string|null} [p.mapSystem] the travel system the map declares;
+ *   `journey` for a grid recipe and `settlement` otherwise when not given
  */
 export function sceneData({
   id, book, name, recipe, src, incidents = null, folderId = null, locationUuid = "", level = { id: "defaultLevel0000", name: "Level" },
-  regions = [], tokens = [],
+  regions = [], tokens = [], grid = recipe?.grid ?? null, pixelsPerPoint = null, shiftX = 0, shiftY = 0, mapSystem = null,
 }) {
-  const frame = sceneFrame(recipe);
+  const frame = grid ? sceneFrame({ ...recipe, grid }, { pixelsPerPoint: pixelsPerPoint ?? gridScale({ grid }) }) : sceneFrame(recipe);
   return {
     name,
     folder: folderId,
@@ -311,7 +462,18 @@ export function sceneData({
     padding: 0,
     levels: [{ _id: level.id, name: level.name, background: { src, color: "#ffffff" } }],
     initialLevel: level.id,
-    grid: { type: 0, size: GRID_PIXELS, distance: GRID_PIXELS, units: "ft" },
+    ...(grid
+      ? {
+        grid: {
+          type: gridTypeFor(grid.family, !!grid.even),
+          size: frame.gridPixels,
+          distance: Number(grid.distance),
+          units: DISTANCE_UNITS[grid.units]?.abbr ?? grid.units,
+        },
+        shiftX: Number(shiftX) || 0,
+        shiftY: Number(shiftY) || 0,
+      }
+      : { grid: { type: 0, size: GRID_PIXELS, distance: GRID_PIXELS, units: "ft" } }),
     tokenVision: false,
     fog: { mode: 0 },
     regions,
@@ -322,9 +484,9 @@ export function sceneData({
         ...(locationUuid ? { [SCENE_LINK_FLAG]: locationUuid } : {}),
         battlemap: {
           calibrated: true,
-          distance: GRID_PIXELS,
+          distance: grid ? Number(grid.distance) : GRID_PIXELS,
           autoScale: false,
-          mapSystem: "settlement",
+          mapSystem: mapSystem ?? (grid ? "journey" : "settlement"),
           blockFeet: recipe.blockFeet > 0 ? recipe.blockFeet : null,
           ...(incidents?.tableUuid
             ? {
@@ -379,13 +541,100 @@ export function districtRegionData(district, frame, {
 
 /**
  * Where a place's token goes: its top-left corner, so that the token's middle
- * is the recipe's point.
+ * is the recipe's point. `size` is in cells of `gridPixels`, the frame's own
+ * cell size unless given, so a pin is half a cell on any recipe's grid.
  * @returns {{x: number, y: number, width: number, height: number}}
  */
-export function placeTokenAt(at, frame, { size = PLACE_TOKEN_SIZE } = {}) {
+export function placeTokenAt(at, frame, { size = PLACE_TOKEN_SIZE, gridPixels = frame.gridPixels ?? GRID_PIXELS } = {}) {
   const [cx, cy] = frame.toScene(at[0], at[1]);
-  const half = (size * GRID_PIXELS) / 2;
+  const half = (size * gridPixels) / 2;
   return { x: Math.round(cx - half), y: Math.round(cy - half), width: size, height: size };
+}
+
+/** The boxes a zone row may lay over its printed figures, and the field and pattern each compiles to. */
+export const ZONE_FIGURES = Object.freeze([
+  Object.freeze({ at: "targetAt", field: "target", pattern: "throw" }),
+  Object.freeze({ at: "dayAt", field: "dayThrows", pattern: "countWord" }),
+  Object.freeze({ at: "nightAt", field: "nightThrows", pattern: "countWord" }),
+]);
+
+/**
+ * Everything wrong with a zone row's `zone` block, as sentences; empty when it
+ * holds together. `entries` is `recipeContext` of the ZONE'S OWN book: its
+ * table must be one of that book's lists, while the scene it lies over may be
+ * any book's and is resolved where every cookbook is in view.
+ * @param {object} zone the row's `zone` block
+ * @param {Record<string, {kind?: string}>} [entries]
+ */
+export function zoneProblems(zone, entries = {}) {
+  const out = [];
+  if (typeof zone?.scene !== "string" || !zone.scene) out.push("scene must name a scene recipe by id");
+  if (zone?.table !== undefined && entries[zone.table]?.kind !== "kind.rolltable") out.push(`table "${zone?.table}" is not a roll table of this book`);
+  const ring = zone?.outline;
+  if (!Array.isArray(ring) || ring.length < 6 || ring.length % 2 || !ring.every(isNum)) out.push("outline needs at least three numeric points");
+  if (zone?.cadence !== undefined && !ZONE_CADENCES.includes(zone.cadence)) out.push(`cadence must be one of ${ZONE_CADENCES.map((c) => JSON.stringify(c)).join(", ")}`);
+  for (const { at } of ZONE_FIGURES) {
+    const b = zone?.[at];
+    if (b === undefined) continue;
+    const edges = ["x0", "x1", "y0", "y1"].every((k) => isNum(b?.[k]));
+    if (!Number.isInteger(b?.page) || b.page < 1 || !edges || !(b.x0 < b.x1) || !(b.y0 < b.y1)) out.push(`${at} needs a page and a box with x0 < x1 and y0 < y1`);
+  }
+  return out;
+}
+
+/** A hex's vertices, as `{x, y}` points or a flat list, flattened to whole pixels. */
+const flatVertices = (vertices) => (vertices ?? []).flatMap((v) => (typeof v === "number" ? [v] : [v?.x, v?.y])).map((n) => Math.round(Number(n)));
+
+/**
+ * Region data for one zone: visible to the Judge only and locked against a
+ * stray drag, carrying the encounter-zone behaviour with the zone's list and
+ * figures, and flagged with the zone it answers to and the cells it covers.
+ *
+ * Its shapes are one polygon per snapped cell when `hexes` are given — the
+ * offsets `offsetsInside` kept, with `cells` holding each one's vertices in
+ * scene pixels, index for index, from the live grid — else the outline carried
+ * through the frame.
+ *
+ * @param {object} zone the compiled row's `zone` block
+ * @param {object} frame `sceneFrame` of the recipe it lies over
+ * @param {object} p
+ * @param {string} p.name the zone's name in this world
+ * @param {string} [p.tableUuid] the imported list, when the world holds it
+ * @param {number} [p.target] the encounter target read off the page
+ * @param {string} [p.cadence] defaults to the row's own
+ * @param {number} [p.dayThrows] read off the page; 0 inherits
+ * @param {number} [p.nightThrows]
+ * @param {{i: number, j: number}[]} [p.hexes]
+ * @param {Array<{x: number, y: number}[]|number[]>} [p.cells]
+ * @param {string} p.book the zone's book
+ * @param {string} p.id the zone's cookbook id
+ */
+export function zoneRegionData(zone, frame, {
+  name, tableUuid = "", target = 0, cadence = zone?.cadence ?? "", dayThrows = 0, nightThrows = 0, hexes = [], cells = [], book, id,
+}) {
+  const snapped = (hexes ?? []).map((h, k) => ({ i: h.i, j: h.j, points: flatVertices(cells?.[k]) }))
+    .filter((h) => h.points.length >= 6 && h.points.every(Number.isFinite));
+  const shapes = snapped.length
+    ? snapped.map((h) => ({ type: "polygon", points: h.points, hole: false }))
+    : [{ type: "polygon", points: ringToScene(zone.outline, frame), hole: false }];
+  return {
+    name,
+    visibility: REGION_VISIBILITY_GAMEMASTER,
+    locked: true,
+    shapes,
+    behaviors: [{
+      type: ZONE_BEHAVIOR_TYPE,
+      name,
+      system: {
+        tableUuid: tableUuid || null,
+        encounterTarget: Number(target) || 0,
+        journeyCadence: ZONE_CADENCES.includes(cadence) ? cadence : "",
+        dayThrows: Number(dayThrows) || 0,
+        nightThrows: Number(nightThrows) || 0,
+      },
+    }],
+    flags: { [MODULE_ID]: { cookbook: { zone: id, book }, zoneHexes: snapped.map(({ i, j }) => ({ i, j })) } },
+  };
 }
 
 /**

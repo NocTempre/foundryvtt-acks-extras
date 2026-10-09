@@ -1,0 +1,44 @@
+[
+  {
+    "id": "ax6.rumors",
+    "kind": "kind.rolltable",
+    "book": "ax6",
+    "name": "Rumors",
+    "anchor": { "display": "RANDOM RUMOR TABLE" },
+    "pages": [8],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "grid": { "page": 8, "y0": 138, "y1": 660, "dieX0": 64, "dieX1": 84, "cellX0": 88, "cellX1": 310, "claimDie": true, "centerDies": true, "headerSkip": [95, 136] },
+      "rollAt": { "page": 8, "box": { "x0": 58, "x1": 90, "y0": 123, "y1": 135 } }
+    }
+  },
+  {
+    "id": "ax6.dynamicEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax6",
+    "name": "Dynamic Encounters",
+    "anchor": { "display": "DYNAMIC ENCOUNTER TABLE" },
+    "pages": [14],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "grid": { "page": 14, "y0": 110, "y1": 305, "dieX0": 66, "dieX1": 84, "cellX0": 95, "cellX1": 310, "claimDie": true, "keepEmpty": true, "headerSkip": [95, 109] },
+      "rollAt": { "page": 14, "box": { "x0": 62, "x1": 90, "y0": 96, "y1": 108 } }
+    }
+  },
+  {
+    "id": "ax6.lizardmanClearance",
+    "kind": "kind.rolltable",
+    "book": "ax6",
+    "name": "Lizardman Clearance",
+    "anchor": { "display": "LIZARDMAN CLEARANCE TABLE" },
+    "pages": [14],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "grid": {
+        "page": 14, "y0": 110, "y1": 495, "dieX0": 334, "dieX1": 356, "cellX0": 362, "cellX1": 578, "claimDie": true, "headerSkip": [95, 109],
+        "bands": [[110, 182], [186, 318], [322, 440], [446, 492]]
+      },
+      "rollAt": { "page": 14, "box": { "x0": 332, "x1": 356, "y0": 96, "y1": 108 } }
+    }
+  }
+]

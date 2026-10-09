@@ -1,7 +1,7 @@
 {
   "id": "kind.rolltable",
   "role": "table",
-  "note": "Random table routed to an engine roll table. Two printed shapes: grid (die column + result columns; one entry per result column via assists.grid) and list (numbered prose rows anchored by '<n>:' runs). Row ranges ship as section labels (r<lo> or r<lo>-<hi>); row text stays lazy per seat; the roll formula materializes via a dice box (assists.rollAt).",
+  "note": "Roll table. Shapes: grid (die column + result column, assists.grid) and list ('<n>:' prose rows). Rows ship as r<lo>[-<hi>] sections; text stays lazy; formula via rollAt. Grid keepEmpty ships a blank die row as empty text; bands ([y0,y1] each) or centerDies (die centred in its cell) groups rows. details {by: number|name, regions} appends each row's explaining paragraphs, keyed by its die or name.",
   "fields": {
     "name": { "locate": "display" },
     "roll": { "locate": "diceBox", "pattern": "dice" },

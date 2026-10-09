@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { boxCells, fitGrid, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
 import { footprintFeet, tokenSpan, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
+import { hexAlignment } from "../scripts/battlemap/hex-fit.mjs";
 import { SIZES } from "../scripts/monsters/config.mjs";
 
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a} !~ ${b} (tol ${tol})`);
@@ -354,6 +355,49 @@ for (const [key, entry] of Object.entries(SIZES)) {
   }
 }
 
+/* -------------------------------------------- */
+/*  hexAlignment — the lattice shift             */
+/* -------------------------------------------- */
+
+/**
+ * Proves the shift is solved off a ZERO-SHIFT clone carrying the target size
+ * and grid, from the centre that clone's grid names nearest the point, and that
+ * a grid which cannot answer yields null rather than a shift of nothing.
+ */
+{
+  const asked = [];
+  const sceneWith = (centreOf) => ({
+    clone(data, options) {
+      asked.push({ data, options });
+      return {
+        getDimensions: () => ({ sceneX: 40, sceneY: 60 }),
+        grid: centreOf ? { getCenterPoint: centreOf } : {},
+      };
+    },
+  });
+  // Invented lattice: cell centres every 100 px from the origin.
+  const nearest = ({ x, y }) => ({ x: Math.round(x / 100) * 100, y: Math.round(y / 100) * 100 });
+
+  const shift = hexAlignment(sceneWith(nearest), { width: 900, height: 700, gridSize: 100, type: 4, point: { x: 333.4, y: 471.6 } });
+  assert.deepEqual(shift, { shiftX: 33, shiftY: -28 }, "the shift carries the nearest centre onto the point, rounded");
+  assert.deepEqual(asked[0], {
+    data: { width: 900, height: 700, shiftX: 0, shiftY: 0, "grid.size": 100, "grid.type": 4 },
+    options: { keepId: true },
+  }, "it asks a zero-shift clone of the target size and grid, keeping the id");
+
+  const viaDims = hexAlignment(sceneWith(nearest), {
+    width: 900, height: 700, gridSize: 100, type: 4,
+    point: (dims) => ({ x: dims.sceneX + 293.4, y: dims.sceneY + 411.6 }),
+  });
+  assert.deepEqual(viaDims, shift, "a point measured from the picture's corner is offset by the clone's padded origin");
+  assert.equal(asked.length, 2, "one clone per question, however the point is given");
+
+  assert.equal(hexAlignment(sceneWith(null), { width: 900, height: 700, gridSize: 100, type: 4, point: { x: 1, y: 1 } }), null,
+    "a clone whose grid names no centre gives no shift");
+  assert.equal(hexAlignment(sceneWith(() => ({ x: NaN, y: 0 })), { width: 900, height: 700, gridSize: 100, type: 4, point: { x: 1, y: 1 } }), null,
+    "nor does one that names a centre it cannot place");
+}
+
 console.log("test-battlemap: all assertions passed");
 
 /* ========================================================================== */
@@ -368,8 +412,12 @@ import {
   UNPAINTABLE,
   paintableTerrains,
   colorFor,
+  paintedTerrainAt,
+  TERRAIN_FLAG,
+  HEXES_FLAG,
 } from "../scripts/battlemap/terrain-paint.mjs";
 import { TERRAIN } from "../scripts/vehicles/vehicle-speed.mjs";
+import { ENCOUNTER_TERRAINS } from "../scripts/formation/encounter-terrains.mjs";
 
 assert.equal(hexKeyOf({ i: 3, j: 7 }), "3:7", "a cell's identity is its offset");
 assert.equal(hexLabelFromOffset({ i: 0, j: 0 }), "A1", "columns letter, rows number, one-based");
@@ -390,19 +438,28 @@ assert.ok(pair.changed && pair.hexKeys.length === 1 && pair.shapes.length === 1,
 assert.equal(pair.hexKeys[0], "2:2", "and drops the RIGHT pair — keys and shapes stay aligned");
 assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an unpainted cell writes nothing");
 
-assert.deepEqual(Object.keys(TERRAIN_COLORS).sort(), Object.keys(TERRAIN).sort(),
-  "every terrain kind has a swatch, and no swatch lacks a terrain");
+{
+  const fine = Object.keys(ENCOUNTER_TERRAINS);
+  const bare = Object.keys(TERRAIN);
+  for (const key of [...fine, ...bare]) assert.ok(TERRAIN_COLORS[key], key + " has a swatch colour");
+  for (const key of Object.keys(TERRAIN_COLORS)) {
+    assert.ok(fine.includes(key) || bare.includes(key), "no colour without a kind: " + key);
+  }
+}
 
-/* --- the OPEN terrain vocabulary ------------------------------------------
-   Proves the brush paints the union of shipped and imported terrain keys,
-   minus the two the weather owns. See docs/battlemap/DECISIONS.md for the
-   open-vocabulary ruling. Values below are invented. */
+/* --- the brush vocabulary --------------------------------------------------
+   Proves the brush paints the encounter terrains — the book's grain — plus
+   any imported terrain key no encounter terrain covers, minus the two the
+   weather owns. See docs/battlemap/DECISIONS.md, "The brush paints at the
+   book's grain" and the open-vocabulary ruling. Values below are invented. */
 {
   const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
   unregisterTable("travel");
 
   const shipped = paintableTerrains();
-  assert.ok(shipped.includes("forest"), "a shipped kind is paintable");
+  assert.deepEqual(shipped, Object.keys(ENCOUNTER_TERRAINS),
+    "with nothing imported the brushes are the encounter terrains, in the register's order");
+  assert.ok(!shipped.includes("forest"), "a bare ground is no brush — its kinds are");
   for (const key of UNPAINTABLE) {
     assert.ok(!shipped.includes(key), key + " is weather's, not the brush's");
     assert.ok(TERRAIN[key], key + " stays a valid terrain for the multiplier lookup");
@@ -411,19 +468,20 @@ assert.deepEqual(Object.keys(TERRAIN_COLORS).sort(), Object.keys(TERRAIN).sort()
   registerTable({
     id: "travel",
     source: "invented",
-    tables: { terrainMultipliers: { forest: 0.7, ashWaste: 0.4, saltFlat: 0.9 } },
+    tables: { terrainMultipliers: { forest: 0.7, ashWaste: 0.4, saltFlat: 0.9, mud: 0.5 } },
   }, { priority: PRIORITY.WORLD, source: "test" });
 
   const opened = paintableTerrains();
-  assert.ok(opened.includes("ashWaste"), "an imported kind becomes paintable");
+  assert.ok(opened.includes("ashWaste"), "an imported kind no encounter terrain covers becomes paintable");
   assert.ok(opened.includes("saltFlat"));
-  assert.equal(opened.filter((k) => k === "forest").length, 1, "a kind in both lists appears once");
+  assert.ok(!opened.includes("forest"), "an imported row for a ground the register covers adds no swatch");
   for (const key of UNPAINTABLE) {
     assert.ok(!opened.includes(key), "importing must not re-admit " + key);
   }
 
   // An unknown key still gets a stable, distinguishable colour.
-  assert.equal(colorFor("forest"), TERRAIN_COLORS.forest, "a shipped kind keeps its palette colour");
+  assert.equal(colorFor("forestTaiga"), TERRAIN_COLORS.forestTaiga, "a shipped kind keeps its palette colour");
+  assert.equal(colorFor("forest"), TERRAIN_COLORS.forest, "a bare ground painted before keeps its colour too");
   const a = colorFor("ashWaste");
   assert.ok(/^hsl\(/.test(a), "an imported kind gets a derived hue");
   assert.equal(a, colorFor("ashWaste"), "and the same hue every time");
@@ -431,6 +489,34 @@ assert.deepEqual(Object.keys(TERRAIN_COLORS).sort(), Object.keys(TERRAIN).sort()
 
   unregisterTable("travel");
   assert.ok(!paintableTerrains().includes("ashWaste"), "dropping the table closes the vocabulary again");
+}
+
+/* --- the painted hex, read in both vocabularies ---------------------------
+   A region fake carries only the two flags the read uses; the grid fake maps
+   a point straight to an offset. Keys are the register's; the scene is not. */
+{
+  globalThis.CONST ??= {};
+  CONST.GRID_TYPES ??= { HEXODDR: 2, HEXEVENR: 3, HEXODDQ: 4, HEXEVENQ: 5 };
+  const region = (key, hexes) => ({
+    getFlag: (_ns, flag) => (flag === TERRAIN_FLAG ? key : flag === HEXES_FLAG ? hexes : undefined),
+  });
+  const scene = {
+    grid: { type: CONST.GRID_TYPES.HEXODDR, getOffset: (p) => ({ i: p.y, j: p.x }) },
+    regions: [region("forestTaiga", ["1:1"]), region("forest", ["2:2"]), region("riverLand", ["3:3"]), region("ashWaste", ["4:4"])],
+  };
+  const at = (i, j) => paintedTerrainAt(scene, { x: j, y: i });
+  assert.deepEqual(at(1, 1), { key: "forestTaiga", ground: "forest", encounterTerrain: "forestTaiga" },
+    "a kind of the register answers for its ground and for itself");
+  assert.deepEqual(at(2, 2), { key: "forest", ground: "forest", encounterTerrain: "" },
+    "a bare ground answers for the ground alone");
+  assert.deepEqual(at(3, 3), { key: "riverLand", ground: null, encounterTerrain: "riverLand" },
+    "a river names no ground");
+  assert.deepEqual(at(4, 4), { key: "ashWaste", ground: "ashWaste", encounterTerrain: "" },
+    "an imported kind is a ground");
+  assert.deepEqual(at(9, 9), { key: null, ground: null, encounterTerrain: "" },
+    "an unpainted hex answers nothing");
+  assert.equal(paintedTerrainAt({ grid: { type: 1 }, regions: scene.regions }, { x: 1, y: 1 }).key, null,
+    "a square grid is never painted");
 }
 
 /* --- roads: the wall row, and a wall that the graph split ------------------

@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
   poiGroupOf, isPoiEntry, isDistrictOverview, districtPlaceId, districtPlaceData, poiLocationData,
+  REGION_GROUPS, regionGroupOf, isRegionSite, isRegionOverview, regionPlaceId, regionPlaceData,
 } from "../../scripts/importer/poi-binding.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../../scripts/location/constants.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
@@ -118,6 +119,39 @@ check("blank is not a role", isPlaceRole(""), false);
 check("a prototype key is not a role", isPlaceRole("toString"), false);
 check("a non-string is not a role", isPlaceRole(undefined), false);
 
+/* ---------------- a region's sites ---------------- */
+
+check("the region's sites", regionGroupOf("Region — Sites"), { kind: "site" });
+check("the region's own overview", regionGroupOf("  Region — Overview "), { kind: "overview" });
+check("a quarter's group is no region's", regionGroupOf("Old District — Points of Interest"), null);
+check("a prototype key is no group", regionGroupOf("toString"), null);
+check("no group, no region", regionGroupOf(undefined), null);
+check("the region's overview is never taken for a quarter called Region", poiGroupOf("Region — Overview"), null);
+check("every region group is closed to the quarter parse", Object.keys(REGION_GROUPS).filter((g) => poiGroupOf(g)), []);
+
+const siteRow = { kind: "kind.location", meta: { group: "Region — Sites" } };
+const regionOverviewRow = { kind: "kind.location", meta: { group: "Region — Overview" } };
+ok("a keyed site is a region site", isRegionSite(siteRow));
+ok("and no point of interest", !isPoiEntry(siteRow));
+ok("a region's overview is the region's notes", isRegionOverview(regionOverviewRow));
+ok("and no quarter's", !isPoiEntry(regionOverviewRow) && !isDistrictOverview(regionOverviewRow));
+ok("an overview is not a site", !isRegionSite(regionOverviewRow));
+ok("a site is not an overview", !isRegionOverview(siteRow));
+ok("a point of interest is no region site", !isRegionSite({ kind: "kind.location", meta: poiGroup }));
+ok("nor a quarter's overview a region's", !isRegionOverview({ kind: "kind.location", meta: overviewGroup }));
+ok("a person in the sites group is not a site", !isRegionSite({ kind: "kind.npc", meta: siteRow.meta }));
+ok("nothing is not a site", !isRegionSite(null) && !isRegionOverview(null));
+
+check("a region's place is claimed once per book", regionPlaceId("zz"), "zz.region");
+const regionPlace = regionPlaceData({ book: "zz", bookLabel: "Invented Book", folderId: "F2" });
+check("a region is a place", regionPlace.type, LOCATION_TYPE);
+check("named after its book", regionPlace.name, "Invented Book");
+check("or its id when the book has no label", regionPlaceData({ book: "zz" }).name, "zz");
+check("standing in nothing", regionPlace.system.parentUuid, "");
+check("built empty, for the overview to fill", regionPlace.system.notes, "");
+check("in the book's folder", regionPlace.folder, "F2");
+check("claimed under its id", regionPlace.flags[MODULE_ID].cookbook, { id: "zz.region", book: "zz", kind: "kind.location", unaudited: true });
+
 /* ---------------- the shipped AX3 cookbook ---------------- */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -125,17 +159,31 @@ const ax3 = JSON.parse(readFileSync(join(here, "..", "..", "cookbook", "ax3.json
 const entries = Object.values(ax3.entries ?? {});
 const locations = entries.filter((e) => e.kind === "kind.location");
 ok("AX3 holds keyed places", locations.length > 0);
-const unbound = locations.filter((e) => !isPoiEntry(e)).map((e) => e.name);
-check("every keyed place in AX3 belongs to some quarter", unbound, []);
+const unbound = locations.filter((e) => !isPoiEntry(e) && !isRegionSite(e) && !isRegionOverview(e)).map((e) => e.name);
+check("every keyed place in AX3 belongs to some quarter or to the region", unbound, []);
 const mistaken = entries.filter((e) => e.kind !== "kind.location" && isPoiEntry(e)).map((e) => e.name);
 check("nothing that is not a place is taken for one", mistaken, []);
 check("every role AX3 names is a registered place role", entries.filter((e) => e.meta?.role && !isPlaceRole(e.meta.role)).map((e) => e.name), []);
-const quarters = new Set(locations.map((e) => poiGroupOf(e.meta?.group)?.district));
+const quartered = locations.filter((e) => !isRegionSite(e) && !isRegionOverview(e));
+const quarters = new Set(quartered.map((e) => poiGroupOf(e.meta?.group)?.district));
 ok("every point of interest names a quarter", ![...quarters].includes(undefined));
-const overviews = locations.filter(isDistrictOverview).map((e) => poiGroupOf(e.meta.group).district);
+const overviews = quartered.filter(isDistrictOverview).map((e) => poiGroupOf(e.meta.group).district);
 check("no quarter is described twice", overviews.length, new Set(overviews).size);
 const undescribed = [...quarters].filter((q) => !overviews.includes(q));
 check("every quarter AX3 keys places in has its overview", undescribed, []);
+
+// The region's sites are the book's own place names too: a label built from
+// the site number, a name read off the page by that number, one overview.
+const sites = Object.entries(ax3.entries ?? {}).filter(([, e]) => isRegionSite(e));
+ok("AX3 keys sites in its region", sites.length > 0);
+check("every site ships a label built from its number", sites.filter(([, e]) => !/^Site \d+$/.test(e.name)).map(([id]) => id), []);
+check("under an id built from its number", sites.filter(([id, e]) => id !== `ax3.site${e.name.slice(5)}`).map(([id]) => id), []);
+check(
+  "and reads its printed name off the page by that number",
+  sites.filter(([, e]) => e.fields?.name?.op !== "heading" || e.fields.name.number !== `${e.name.slice(5)}.` || "text" in e.fields.name).map(([id]) => id),
+  [],
+);
+check("the region is described once", entries.filter(isRegionOverview).length, 1);
 
 // A keyed place is the book's own proper name, so the cookbook ships none of
 // it: a label built from the key number, and a name read off the page.

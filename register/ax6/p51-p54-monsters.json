@@ -1,0 +1,62 @@
+[
+  {
+    "id": "ax6.drownedZombie",
+    "kind": "kind.monsterLegacy",
+    "book": "ax6",
+    "name": "Drowned Zombie",
+    "anchor": { "display": "DROWNED ZOMBIE" },
+    "pages": [51],
+    "meta": { "group": "New Monsters" },
+    "assists": { "columns": [40, 310] }
+  },
+  {
+    "id": "ax6.ghast",
+    "kind": "kind.monsterLegacy",
+    "book": "ax6",
+    "name": "Ghast",
+    "anchor": { "display": "GHAST" },
+    "pages": [51],
+    "meta": { "group": "New Monsters" },
+    "assists": { "columns": [40, 310] }
+  },
+  {
+    "id": "ax6.lizardmanZombie",
+    "kind": "kind.monsterLegacy",
+    "book": "ax6",
+    "name": "Lizardman Zombie",
+    "anchor": { "display": "LIZARDMAN ZOMBIE" },
+    "pages": [52],
+    "meta": { "group": "New Monsters" },
+    "assists": { "columns": [54, 310], "statBlockY": [90, 300] }
+  },
+  {
+    "id": "ax6.roper",
+    "kind": "kind.monsterLegacy",
+    "book": "ax6",
+    "name": "Roper",
+    "anchor": { "display": "ROPER" },
+    "pages": [52, 53],
+    "meta": { "group": "New Monsters" },
+    "assists": { "columns": [54, 310], "statBlockY": [370, 570] }
+  },
+  {
+    "id": "ax6.skeletalSlayer",
+    "kind": "kind.monsterLegacy",
+    "book": "ax6",
+    "name": "Skeletal Slayer",
+    "anchor": { "display": "SKELETAL SLAYER" },
+    "pages": [53],
+    "meta": { "group": "New Monsters", "revisedBy": "mm.skeletalSlayer" },
+    "assists": { "columns": [54, 310] }
+  },
+  {
+    "id": "ax6.thrassian",
+    "kind": "kind.monsterLegacy",
+    "book": "ax6",
+    "name": "Thrassian (Greater Lizardman)",
+    "anchor": { "display": "THRASSIAN (GREATER LIZARDMAN)" },
+    "pages": [54],
+    "meta": { "group": "New Monsters", "revisedBy": "mm.thrassianGreaterLizardman" },
+    "assists": { "columns": [50, 320] }
+  }
+]

@@ -16,13 +16,11 @@ import {
   WINDED_EFFECT_NAME,
 } from "./constants.mjs";
 import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, isPartyInDark, realMembers, updateFormation } from "./formation-model.mjs";
-import { onJourneyTokenMoved } from "./travel.mjs";
 import { feetPerTurn, settlementOf } from "./settlement.mjs";
 import { cityTurnCompleted, creditHoledUpDays } from "./settlement-turn.mjs";
 import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
 import { roadDistance } from "../battlemap/roads.mjs";
-import { feetPerUnit, sceneFeetPerCell } from "../lib/distance-units.mjs";
-import { maybeHexThrow } from "./encounter-card.mjs";
+import { feetPerUnit, isExpeditionScale, sceneFeetPerCell, sceneMilesPerCell } from "../lib/distance-units.mjs";
 import { prepareToLight } from "../lib/light.mjs";
 import { equipForLight } from "./judge-override.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
@@ -60,7 +58,7 @@ function memberEffects(actor) {
 }
 
 /** Effects on members that still have time on the clock (duration in seconds/rounds/turns). */
-function snapshotRunningEffects(formation) {
+export function snapshotRunningEffects(formation) {
   const running = [];
   for (const member of formation.members) {
     const actor = getMemberActor(member);
@@ -89,6 +87,16 @@ function findExpiredEffects(formation, snapshot) {
     }
   }
   return expired;
+}
+
+/**
+ * Push a warning note for every snapshotted effect that has run out since the
+ * snapshot was taken (`snapshotRunningEffects`).
+ */
+export function expiredEffectNotes(formation, snapshot, notes) {
+  for (const e of findExpiredEffects(formation, snapshot)) {
+    notes.push({ type: "warn", text: loc("chat.effectExpired", { effect: e.name, actor: e.actorName }) });
+  }
 }
 
 /* -------------------------------------------- */
@@ -315,6 +323,47 @@ async function firePendingEncounter(formation, notes) {
   });
 }
 
+/**
+ * Burn `turns` turns off every lit light and every tracked spell on the
+ * record, noting each one that gutters, goes out or ends. The part of a
+ * completed turn that is only elapsed time, so a journey whose world clock ran
+ * burns its light without a dungeon turn having passed. A spent light stays on
+ * the record, unlit at zero; the caller prunes.
+ */
+export function burnTurns(formation, turns, notes) {
+  formation.spells ??= [];
+  for (let n = 0; n < turns; n++) {
+    /* --- Light sources burn down --- */
+    for (const light of formation.lights) {
+      if (!light.lit) continue;
+      light.remaining -= 1;
+      const bearer = game.actors.get(light.bearerId);
+      const bearerName = bearer?.name ?? "?";
+      const label = game.i18n.localize(LIGHT_SOURCES[light.type]?.label ?? light.type);
+      if (light.remaining <= 0) {
+        light.lit = false;
+        light.remaining = 0;
+        notes.push({ type: "bad", text: loc("chat.lightOut", { light: label, bearer: bearerName }) });
+        lightChanged(light.bearerId, light, "burntOut"); // frees the hand it occupied
+      } else if (light.remaining === 1) {
+        notes.push({ type: "warn", text: loc("chat.lightGuttering", { light: label, bearer: bearerName }) });
+      }
+    }
+
+    /* --- Tracked spell durations burn down --- */
+    for (const spell of formation.spells) {
+      spell.remaining -= 1;
+      const caster = game.actors.get(spell.casterId)?.name ?? "?";
+      if (spell.remaining <= 0) {
+        notes.push({ type: "bad", text: loc("chat.spellExpired", { spell: spell.name, caster }) });
+      } else if (spell.remaining === 1) {
+        notes.push({ type: "warn", text: loc("chat.spellEnding", { spell: spell.name, caster }) });
+      }
+    }
+    formation.spells = formation.spells.filter((s) => s.remaining > 0);
+  }
+}
+
 /** Per-turn bookkeeping: rest, lights, spells, and the encounter throw. */
 async function onTurnCompleted(formation, notes, resting) {
   /* --- Rest & winded (RR p. 271) --- */
@@ -333,35 +382,7 @@ async function onTurnCompleted(formation, notes, resting) {
     }
   }
 
-  /* --- Light sources burn down --- */
-  for (const light of formation.lights) {
-    if (!light.lit) continue;
-    light.remaining -= 1;
-    const bearer = game.actors.get(light.bearerId);
-    const bearerName = bearer?.name ?? "?";
-    const label = game.i18n.localize(LIGHT_SOURCES[light.type]?.label ?? light.type);
-    if (light.remaining <= 0) {
-      light.lit = false;
-      light.remaining = 0;
-      notes.push({ type: "bad", text: loc("chat.lightOut", { light: label, bearer: bearerName }) });
-      lightChanged(light.bearerId, light, "burntOut"); // frees the hand it occupied
-    } else if (light.remaining === 1) {
-      notes.push({ type: "warn", text: loc("chat.lightGuttering", { light: label, bearer: bearerName }) });
-    }
-  }
-
-  /* --- Tracked spell durations burn down --- */
-  formation.spells ??= [];
-  for (const spell of formation.spells) {
-    spell.remaining -= 1;
-    const caster = game.actors.get(spell.casterId)?.name ?? "?";
-    if (spell.remaining <= 0) {
-      notes.push({ type: "bad", text: loc("chat.spellExpired", { spell: spell.name, caster }) });
-    } else if (spell.remaining === 1) {
-      notes.push({ type: "warn", text: loc("chat.spellEnding", { spell: spell.name, caster }) });
-    }
-  }
-  formation.spells = formation.spells.filter((s) => s.remaining > 0);
+  burnTurns(formation, 1, notes);
 
   /* --- Wandering monster throw every N turns (JJ p. 36) ---
    * The throw is made at the turn boundary; on a hit, the minute is
@@ -449,10 +470,7 @@ export async function advanceRounds(formation, rounds, { resting = false, reason
   formation.lights = formation.lights.filter((l) => l.lit || l.remaining > 0);
 
   /* --- Expired spell/effect durations --- */
-  const expired = findExpiredEffects(formation, snapshot);
-  for (const e of expired) {
-    notes.push({ type: "warn", text: loc("chat.effectExpired", { effect: e.name, actor: e.actorName }) });
-  }
+  expiredEffectNotes(formation, snapshot, notes);
 
   /* --- Day boundary: ration reminder --- */
   const dayAfter = Math.floor(formation.clock.turnsTotal / TURNS_PER_DAY);
@@ -467,10 +485,7 @@ export async function advanceRounds(formation, rounds, { resting = false, reason
     await postTurnCard(formation, completedTurns, { resting, reason, notes });
   } else if (notes.length) {
     // Round-level events (mid-turn expiries, fired encounters) reach the GM.
-    let html = `<div class="acks-formation-card"><ul class="notes">`;
-    for (const note of notes) html += `<li class="${note.type}">${note.text}</li>`;
-    html += `</ul></div>`;
-    await ChatMessage.create({ content: html, whisper: gmIds(), speaker: { alias: formation.name } });
+    await postNotesCard(formation, notes);
   }
 
   // Keep the working Map item's record current (skips when the GM is not
@@ -493,6 +508,14 @@ export async function advanceTurns(formation, n = 1, options = {}) {
 /* -------------------------------------------- */
 /*  Chat card                                   */
 /* -------------------------------------------- */
+
+/** A GM-whispered card of bare notes: events that happened between turn cards. */
+export async function postNotesCard(formation, notes) {
+  let html = `<div class="acks-formation-card"><ul class="notes">`;
+  for (const note of notes) html += `<li class="${note.type}">${note.text}</li>`;
+  html += `</ul></div>`;
+  await ChatMessage.create({ content: html, whisper: gmIds(), speaker: { alias: formation.name } });
+}
 
 async function postTurnCard(formation, n, { resting, reason, notes }) {
   const litLights = formation.lights.filter((l) => l.lit);
@@ -582,12 +605,6 @@ export function turnDistance(formation, scene) {
 }
 
 /**
- * Process a party-token position change: convert the distance to feet,
- * accumulate it, and mark off dungeon turns each time a full exploration
- * move's worth of distance is spent. Straight-line distance between the last
- * processed position and the new one (waypoint drags are approximated).
- */
-/**
  * A token's centre, optionally at a corner position it is not standing in.
  *
  * A token's `x`/`y` is its top-LEFT corner, which is the wrong point to ask
@@ -601,25 +618,44 @@ function centreOf(tokenDoc, at = null) {
   return { x: at.x + (centre.x - tokenDoc.x), y: at.y + (centre.y - tokenDoc.y) };
 }
 
+/**
+ * Process a party-token position change on the turn clock: convert the
+ * distance to feet, accumulate it, and mark off turns each time a full
+ * exploration move's (or, in a city, a pace's blocks) worth of distance is
+ * spent. Straight-line distance between the last processed position and the
+ * new one (waypoint drags are approximated). A journeying formation never
+ * reaches here: `journey.mjs` dispatches on the mode and owns its movement.
+ */
 export async function onPartyTokenMoved(tokenDoc, formationId) {
   const formation = getFormation(formationId);
   if (!formation) return;
-  // A journeying formation's movement is the HEX trace, not dungeon turns:
-  // the same seam, handed to the travel engine (which counts hexes on
-  // painted hex scenes and stays silent elsewhere). A hex genuinely ENTERED
-  // — counted, not merely named on first arrival — owes its encounter throw.
-  if (formation.travel?.mode === "journey") {
-    const before = formation.travel?.day?.hexesEntered ?? 0;
-    await onJourneyTokenMoved(tokenDoc, formationId);
-    const fresh = getFormation(formationId);
-    if ((fresh?.travel?.day?.hexesEntered ?? 0) > before) await maybeHexThrow(fresh);
-    return;
-  }
   if (formation.clock.paused) return;
   // While members are deployed for combat, camp moves don't consume turns.
   if (formation.combat?.active) return;
 
   const scene = tokenDoc.parent;
+  // A map whose cell is a mile or more across is walked in days, not turns: a
+  // drag across even one of its cells would bill hundreds of them. Nothing is
+  // billed here; the baseline follows the token and the Judge is told once per
+  // arrival on the scene.
+  if (isExpeditionScale(scene)) {
+    formation.clock.lastPosition = { x: tokenDoc.x, y: tokenDoc.y };
+    const tell = formation.clock.scaleWarned !== scene.id;
+    if (tell) formation.clock.scaleWarned = scene.id;
+    await updateFormation(formation);
+    if (tell) {
+      await ChatMessage.create({
+        content: `<div class="acks-formation-card"><em>${loc("chat.scaleGuard", {
+          name: foundry.utils.escapeHTML(formation.name),
+          miles: Math.round(sceneMilesPerCell(scene) * 100) / 100,
+        })}</em></div>`,
+        whisper: gmIds(),
+        speaker: { alias: formation.name },
+      });
+    }
+    return;
+  }
+  if (formation.clock.scaleWarned) formation.clock.scaleWarned = null;
   const last = formation.clock.lastPosition ?? { x: tokenDoc.x, y: tokenDoc.y };
   const dx = tokenDoc.x - last.x;
   const dy = tokenDoc.y - last.y;

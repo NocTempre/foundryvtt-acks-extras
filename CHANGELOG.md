@@ -1,9 +1,113 @@
 # Changelog
 
-## Unreleased
+## 11.0.0
+
+### Added
+
+- **A journey is walked off the map, on any map.** Dragging the party token
+  on a journey measures miles on a hex, square or gridless scene in the
+  scene's own units, spends them as hours at the party's pace, and runs the
+  world clock with them: lights and spells burn as the hours pass, the
+  encounter throw falls on the imported cadence (a hex crossed on a map of
+  the book's width, or that many miles on any other), day or night read from
+  the clock, and the day's end is offered when the hours are walked or dark
+  falls. End day moves the calendar to the next dawn and logs the miles and
+  hours actually walked.
+- **One surface for every mode.** The party tab's clock strip shows the
+  mode's own figures: the delve's turns, the journey's miles against the
+  day's budget with the hex, the next throw and the clock, the city's rate
+  and tally. What the Judge declares sits under it in collapsed groups. The
+  Travel tab is gone. Pause works on a journey.
+- **Lairs per hex.** The importer reads the hex-stocking procedure from its
+  own page; **Stock this hex** performs it onto the map, a search reads the
+  stock or the Judge's own word, a find is marked and can be made a place,
+  and a surveyor's count, true or confidently false on a natural 1, is told
+  to the party on one public line. A terrain encounter's hand-off (doubles,
+  monsters, either-or, a despoiling) is drawn through the chain on the card.
+- **Tracking** adds the imported bonus to a search when a tracker is in the
+  order; unregistered, the card says so.
+- A scene that declares no travel system is read from its scale: a
+  mile-scale map is a journey map, a district map a settlement map. A
+  declared delve on a mile-scale map bills no turns and says why, once.
+- **Encounter zones answer on a journey.** A journey reads every Encounter
+  Zone under the party's true position, the smallest zone stating each field
+  winning it. A zone's target replaces the territory throw with its own d6, its
+  table is drawn onto the encounter card itself, and a new **Journey cadence**
+  throws once on entering the zone or only at End Day, by the zone's own day
+  and night counts. The delve still reads the first zone under the token.
+- **An imported roll table carries each row's explanation.** Where an
+  adventure prints a table's rows short and explains each one beside it or on
+  the following pages, keyed by the row's die or its name, that text now
+  lands on the row's result; rows a table prints blank on purpose import as
+  blank results, and rows of uneven height beside a centred die import whole.
+- **A region's map imports on its own hex grid, with its encounter zones.**
+  The maps step builds a region map on Foundry's hexes laid exactly over the
+  printed ones, with its sites set down hidden on their own places, and lays
+  each connected book's encounter zones over whichever map they name as
+  GM-only Encounter Zone regions, carrying the zone's list and the target and
+  throws read off your own page. A second run adds nothing twice and links a
+  list imported since. The points-of-interest step imports the region's own
+  place and its sites; a site that is a market or the book's settlement is
+  written onto that place rather than made twice.
+- **The region's adventures.** Four more adventure books are registered for
+  the Judge's own copies: AX1's motivations, rumours, forest and dungeon
+  wandering tables; AX4's forest, ruins, lizardman and ruined-building tables
+  and its forest zone; AX5's new monsters, rumours, cliff, exploration and
+  ruin tables and its hills and cliff zones; AX6's rumours, dynamic encounter
+  and clearance tables and its zone. AX3's region map imports with its
+  fifty-three sites and the region's own overview.
+
+### Changed
+
+- The wilderness encounter throw per hex entered is on by default.
+- Lib: `clockReading()` carries the second and the calendar's seconds per
+  hour; `untilNextDawn()` and `secondsToNextDawn` (apiVersion 27).
+  `expeditionFrom` takes the hex width from the scene and answers no hexes a
+  day without one; the vehicle sheet's hexes-a-day cell is blank off a
+  mile-scale map.
+- Formation: `encounters.journeyZones(formation)` answers the encounter
+  zones under the party's true point, smallest first, with the layers that
+  answered (apiVersion 16).
+- **The terrain brush paints at the book's grain.** The palette offers the
+  twenty-three encounter terrains in place of the nine grounds; a hex
+  painted with one sets the travel ground and the encounter sub-table
+  together, a river hex sets the sub-table alone, and a map painted with the
+  old ground brushes still sets the ground. An imported terrain no encounter
+  terrain covers stays paintable.
 
 ### Fixed
 
+- **Two adventure tables read whole.** AX2's mummy reaction table lost its
+  first result's opening clause, because its band began under the first
+  row's first line; AX3's city rumour truths shipped ten of its twenty keys,
+  the missing rows folded into their neighbours, because two keys print left
+  of the die column's edge and three are fused with their text. A die
+  centred in its cell is now cut by its mirror and a fused die is read off
+  its run. **Re-import the AX2 and AX3 tables documents** to get the
+  repaired rows.
+- **Every monster sub-table reads whole.** Three sub-tables answered some
+  bands with no name, and ten rows across seven more carried a neighbour's
+  first letter or a second name, because a centred cell was bound by where
+  its text began. The grids bind their cells by their centres, and
+  `validate` reads every encounter grid off the book on a machine that holds
+  it. **Re-import the encounters document** to get the repaired names and
+  the four tables this release adds.
+- **Cancel cancels.** On *Stock this hex*, Cancel warned that the count was
+  missing and asked again; on the stray-direction ask, No warned of a missing
+  neighbour; on the lost confirms, No went through as Yes. Foundry hands a
+  dialog whose button answers nothing the button's own name, and the three
+  dialogs read that name as an answer. They answer nothing now.
+- **A party placed on a wilderness map travels as one.** Placing the party
+  token wrote back the mode read before the map's system was adopted, so a
+  party dropped on a mile-scale map stayed a dungeon delve, and its drags
+  billed nothing and whispered about the scale once. The linkage is written
+  as a patch and the adoption stands.
+- **The search target is priced on the march.** It was priced on a party
+  walking 0 miles a day; it reads the march readout at the dark-free speed.
+- **A journey on a square or gridless map walked for free.** Miles are
+  measured on any grid in the scene's own units.
+- **Aerial reconnaissance is applied to a search.** It is read from the
+  movement mode.
 - **Two macros raise no deprecation warning.** *Configure Proficiencies*
   logged one whenever a character was saved with no weapon ticked, and
   *Clean Up After the Merge (GM)* logged one for each old module's flags it

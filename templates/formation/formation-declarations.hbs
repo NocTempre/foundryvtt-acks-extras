@@ -1,0 +1,580 @@
+{{! The Judge's declarations, as collapsed groups under the clock strip. A summary
+    is a plain heading and holds no control: it is the disclosure toggle itself.
+    Players see a group only where it carries something the table already read
+    (the sky, the camp's supplies, the log, where the party stands in a city).
+    The wilderness groups render in journey mode, the City group in settlement
+    mode, and none in the delve. Included by path from formation-tab-party.hbs. }}
+{{#if travel.isJourney}}
+<div class="acks-extras-folds">
+  {{#if isGM}}
+  <details class="acks-extras-fold" data-fold="country">
+    <summary>{{localize "ACKS-FORMATION.strip.details.country"}}</summary>
+    <div class="acks-extras-fold-body">
+      <div class="acks-extras-formation-travel-pickers">
+        {{#unless travel.mapPaints.ground}}
+        <label>{{localize "ACKS-FORMATION.travel.ground"}}
+          <select name="travel.ground">
+            {{#each travel.grounds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        {{/unless}}
+        {{#unless travel.mapPaints.road}}
+        <label>{{localize "ACKS-FORMATION.travel.roadLabel"}}
+          <select name="travel.road">
+            {{#each travel.roads}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        {{/unless}}
+        <label data-tooltip="{{localize 'ACKS-FORMATION.travel.followingHint'}}">
+          {{localize "ACKS-FORMATION.travel.followingLabel"}}
+          <select name="travel.following">
+            {{#each travel.followingOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label>{{localize "ACKS-FORMATION.travel.territoryLabel"}}
+          <select name="travel.territory">
+            {{#each travel.territories}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label data-tooltip="{{localize 'ACKS-FORMATION.travel.enc.terrainHint'}}">{{localize "ACKS-FORMATION.travel.enc.terrainLabel"}}
+          <select name="travel.encounterTerrain">
+            {{#each travel.encounterTerrains}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+      </div>
+    </div>
+  </details>
+
+  <details class="acks-extras-fold" data-fold="movement">
+    <summary>{{localize "ACKS-FORMATION.strip.details.movement"}}</summary>
+    <div class="acks-extras-fold-body">
+      <div class="acks-extras-formation-travel-pickers">
+        <label data-tooltip="{{localize 'ACKS-FORMATION.travel.movement.hint'}}">{{localize "ACKS-FORMATION.travel.movement.label"}}
+          <select name="travel.movement.mode">
+            {{#each travel.movementModes}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        {{#if travel.flying}}
+        <label data-tooltip="{{localize 'ACKS-FORMATION.travel.movement.aloftHint'}}">{{localize "ACKS-FORMATION.travel.movement.aloft"}}
+          <input type="number" min="0" step="1" name="travel.movement.hoursAloft" value="{{travel.movement.hoursAloft}}">
+        </label>
+        <label data-tooltip="{{localize 'ACKS-FORMATION.travel.movement.dayHint'}}">{{localize "ACKS-FORMATION.travel.movement.day"}}
+          <input type="number" min="0" step="1" name="travel.movement.dayHours" value="{{travel.movement.dayHours}}">
+        </label>
+        <label data-tooltip="{{localize 'ACKS-FORMATION.travel.movement.loadHint'}}">{{localize "ACKS-FORMATION.travel.movement.load"}}
+          <select name="travel.movement.load">
+            {{#each travel.flightLoads}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        {{/if}}
+      </div>
+    </div>
+  </details>
+  {{/if}}
+
+  {{#if travel.skyShown}}
+  <details class="acks-extras-fold" data-fold="sky">
+    <summary>{{localize "ACKS-FORMATION.strip.details.sky"}}</summary>
+    <div class="acks-extras-fold-body">
+      {{#if isGM}}
+      <div class="acks-extras-formation-travel-weather">
+        <div class="acks-extras-formation-travel-weather-gen">
+          <label>{{localize "ACKS-FORMATION.travel.weather.climate"}}
+            <select name="travel.weather.climate">
+              <option value="" {{#if travel.weather.climateUnset}}selected{{/if}}>{{localize "ACKS-FORMATION.travel.weather.unset"}}</option>
+              {{#each travel.weather.climateGroups}}
+              <optgroup label="{{label}}">
+                {{#each options}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+              </optgroup>
+              {{/each}}
+            </select>
+          </label>
+          <label>{{localize "ACKS-FORMATION.travel.weather.season"}}
+            <select name="travel.weather.season">
+              {{#each travel.weather.seasons}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+          </label>
+          <label class="checkbox" data-tooltip="{{localize 'ACKS-FORMATION.travel.weather.autoHint'}}">
+            <input type="checkbox" name="travel.weather.auto" {{checked travel.weather.auto}}>
+            {{localize "ACKS-FORMATION.travel.weather.auto"}}
+          </label>
+          <label class="checkbox" data-tooltip="{{localize 'ACKS-FORMATION.travel.weather.frontsHint'}}">
+            <input type="checkbox" name="travel.weather.fronts" {{checked travel.weather.fronts}}>
+            {{localize "ACKS-FORMATION.travel.weather.fronts"}}
+          </label>
+          <button type="button" data-action="travelWeatherRoll" {{#unless travel.weather.ready}}disabled{{/unless}}
+                  data-tooltip="{{localize 'ACKS-FORMATION.travel.weather.generateHint'}}">
+            <i class="fa-solid fa-cloud-sun-rain"></i> {{localize "ACKS-FORMATION.travel.weather.generate"}}
+          </button>
+        </div>
+        {{#unless travel.weather.ready}}
+        <p class="hint acks-extras-formation-travel-weather-missing">{{localize "ACKS-FORMATION.travel.weather.missing"}}</p>
+        {{/unless}}
+        <div class="acks-extras-formation-travel-weather-bands">
+          <label>{{#if travel.weather.temperatureIcon}}<i class="fa-solid {{travel.weather.temperatureIcon}} acks-extras-formation-weather-glyph"></i> {{/if}}{{localize "ACKS-FORMATION.travel.weather.temperature"}}
+            <select name="travel.weather.temperature">
+              {{#each travel.weather.temperatures}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+          </label>
+          <label>{{#if travel.weather.precipitationIcon}}<i class="fa-solid {{travel.weather.precipitationIcon}} acks-extras-formation-weather-glyph"></i> {{/if}}{{localize "ACKS-FORMATION.travel.weather.precipitation"}}
+            <select name="travel.weather.precipitation">
+              {{#each travel.weather.precipitations}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+          </label>
+          <label>{{#if travel.weather.windIcon}}<i class="fa-solid {{travel.weather.windIcon}} acks-extras-formation-weather-glyph"></i> {{/if}}{{localize "ACKS-FORMATION.travel.weather.wind"}}
+            <select name="travel.weather.wind">
+              {{#each travel.weather.winds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+          </label>
+          <label>{{localize "ACKS-FORMATION.travel.weather.footingMud"}}
+            <select name="travel.weather.footingMud">
+              {{#each travel.weather.footingMud}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" name="travel.weather.footingSnow" {{checked travel.weather.footingSnow}}>
+            {{localize "ACKS-FORMATION.travel.weather.footingSnow"}}
+          </label>
+        </div>
+      </div>
+      {{/if}}
+      {{#if travel.weather.night}}
+      <p class="acks-extras-formation-travel-weather-night hint">{{localize "ACKS-FORMATION.travel.weather.night"}}: {{travel.weather.night}}</p>
+      {{/if}}
+      {{#if travel.weather.chips.length}}
+      <div class="acks-extras-formation-travel-weather-chips">
+        {{#each travel.weather.chips}}<span class="acks-extras-formation-travel-weather-chip" data-cond="{{key}}">{{#if icon}}<i class="fa-solid {{icon}}"></i> {{/if}}{{label}}</span>{{/each}}
+      </div>
+      {{/if}}
+      {{#each travel.wheels}}
+      <p class="acks-extras-formation-travel-wheels"><i class="fa-solid fa-triangle-exclamation"></i> {{name}} — {{reason}}</p>
+      {{/each}}
+    </div>
+  </details>
+  {{/if}}
+
+  {{#if isGM}}
+  <details class="acks-extras-fold" data-fold="day">
+    <summary>{{localize "ACKS-FORMATION.strip.details.day"}}</summary>
+    <div class="acks-extras-fold-body">
+      <div class="acks-extras-formation-travel-day">
+        <label>{{localize "ACKS-FORMATION.travel.dayBoard"}}
+          <select name="travel.day.kind">
+            {{#each travel.dayKinds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        {{#each travel.slots}}
+        <span class="acks-extras-slot {{#if done}}acks-extras-slot-done{{/if}}">
+          <select name="travel.day.slot.{{index}}" {{#if @root.travel.forced}}disabled{{/if}}
+                  aria-label="{{localize 'ACKS-FORMATION.travel.slotHint'}}"
+                  data-tooltip="{{localize 'ACKS-FORMATION.travel.slotHint'}}">
+            <option value="" {{#if empty}}selected{{/if}}>—</option>
+            {{#each options}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+          {{#if done}}<i class="fa-solid fa-check" role="img" aria-label="{{localize 'ACKS-FORMATION.strip.slotDone'}}"
+                         data-tooltip="{{localize 'ACKS-FORMATION.strip.slotDone'}}"></i>{{/if}}
+        </span>
+        {{/each}}
+        <label>{{localize "ACKS-FORMATION.settlement.hourLabel"}}
+          <select name="travel.hour">
+            {{#each travel.hourOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+      </div>
+      {{#if travel.winding}}
+      <p class="hint acks-extras-formation-travel-winding"
+         data-tooltip="{{localize 'ACKS-FORMATION.travel.windingHint'}}">
+        {{localize "ACKS-FORMATION.travel.winding" hexes=travel.winding}}
+      </p>
+      {{/if}}
+    </div>
+  </details>
+  {{/if}}
+
+  {{#if travel.camp}}
+  <details class="acks-extras-fold" data-fold="camp">
+    <summary>{{localize "ACKS-FORMATION.strip.details.camp"}}</summary>
+    <div class="acks-extras-fold-body acks-extras-formation-camp">
+      <p class="acks-extras-formation-camp-supply">
+        {{localize "ACKS-FORMATION.camp.food"}}:
+        <strong class="{{#if travel.camp.short}}acks-extras-formation-camp-short{{/if}}">{{travel.camp.forecast.foodDays}}</strong>
+        &middot; {{localize "ACKS-FORMATION.camp.water"}}:
+        <strong class="{{#if travel.camp.short}}acks-extras-formation-camp-short{{/if}}">{{travel.camp.forecast.waterDays}}</strong>
+        <span class="hint">{{localize "ACKS-FORMATION.camp.days" mouths=travel.camp.mouths}}</span>
+        {{#if travel.camp.thirstyWeather}}
+        <span class="acks-extras-formation-camp-short"
+              data-tooltip="{{localize 'ACKS-FORMATION.camp.thirstyHint'}}">{{localize "ACKS-FORMATION.camp.thirsty"}}</span>
+        {{/if}}
+      </p>
+
+      {{#if isGM}}
+      <p class="acks-extras-formation-camp-exposure">
+        <label>
+          {{localize "ACKS-FORMATION.camp.exposureHours"}}
+          <input type="number" min="0" max="24" step="1"
+                 name="travel.exposure.hours" value="{{travel.camp.exposure.hours}}"
+                 {{#unless travel.camp.exposure.bites}}disabled{{/unless}}
+                 data-tooltip="{{localize 'ACKS-FORMATION.camp.exposureHoursHint'}}">
+        </label>
+        <label>
+          <input type="checkbox" name="travel.exposure.atHeatSource"
+                 {{#if travel.camp.exposure.atHeatSource}}checked{{/if}}>
+          {{localize "ACKS-FORMATION.camp.atHeatSource"}}
+        </label>
+        <label>
+          <input type="checkbox" name="travel.exposure.wet"
+                 {{#if travel.camp.exposure.wet}}checked{{/if}}>
+          {{localize "ACKS-FORMATION.camp.wet"}}
+        </label>
+        {{#unless travel.camp.exposure.bites}}
+        <span class="hint">{{localize "ACKS-FORMATION.camp.exposureMild"}}</span>
+        {{/unless}}
+      </p>
+      {{/if}}
+
+      {{#if travel.camp.anySuffering}}
+      <ul class="acks-extras-formation-camp-suffering">
+        {{#each travel.camp.suffering}}
+        <li><strong>{{name}}</strong>
+          {{#if nourishment}}<span>{{nourishment}}</span>{{/if}}
+          {{#if hydration}}<span>{{hydration}}</span>{{/if}}
+          {{#if exposure}}<span>{{exposure}}</span>{{/if}}
+          {{#if conLost}}<span class="acks-extras-formation-camp-short">&minus;{{conLost}} CON</span>{{/if}}
+        </li>
+        {{/each}}
+      </ul>
+      {{/if}}
+
+      {{#if isGM}}
+      {{#each travel.camp.forage}}
+      <p class="acks-extras-formation-camp-throw">
+        {{label}}:
+        {{#if unpriced}}<span class="hint">{{localize "ACKS-FORMATION.camp.unpriced"}}</span>
+        {{else if automatic}}<span>{{localize "ACKS-FORMATION.camp.automatic"}}</span>
+        {{else}}<span>{{localize "ACKS-FORMATION.camp.throw" target=target modifier=bonus}}</span>{{/if}}
+      </p>
+      {{/each}}
+      {{#if travel.camp.hunt}}
+      <p class="acks-extras-formation-camp-throw">
+        {{localize "ACKS-FORMATION.travel.activity.hunt"}}:
+        {{#if travel.camp.hunt.ok}}<span>{{localize "ACKS-FORMATION.camp.throw" target=travel.camp.hunt.target modifier=travel.camp.hunt.bonus}}</span>
+        {{else}}<span class="hint">{{localize "ACKS-FORMATION.camp.unpriced"}}</span>{{/if}}
+      </p>
+      {{/if}}
+      {{#if travel.camp.search}}
+      <p class="acks-extras-formation-camp-throw">
+        {{localize "ACKS-FORMATION.travel.activity.search"}}:
+        {{#if travel.camp.search.ok}}<span>{{localize "ACKS-FORMATION.camp.searchThrow" target=travel.camp.search.target held=travel.camp.searchesHeld}}</span>
+        {{else}}<span class="hint">{{localize "ACKS-FORMATION.camp.unpriced"}}</span>{{/if}}
+      </p>
+      {{/if}}
+      {{/if}}
+    </div>
+  </details>
+  {{/if}}
+
+  {{! The Judge's stock of the hex the party stands in. Point names are the
+      map's secrets, so the whole group sits in the GM branch and the view
+      is null for a player. }}
+  {{#if isGM}}
+  {{#with travel.hexStock as |hs|}}
+  <details class="acks-extras-fold" data-fold="hex">
+    <summary>{{localize "ACKS-FORMATION.hexStock.title"}}</summary>
+    <div class="acks-extras-fold-body acks-extras-hex-stock">
+      {{#if hs.noScene}}
+      <p class="hint">{{localize "ACKS-FORMATION.hexStock.noScene"}}</p>
+      {{else}}
+      {{#if hs.astray}}<p class="hint acks-extras-hex-stock-note">{{localize "ACKS-FORMATION.hexStock.astray"}}</p>{{/if}}
+      <p class="acks-extras-hex-stock-summary">
+        <strong>{{hs.label}}</strong>
+        {{#if hs.stocked}}
+        <span>{{#if hs.summary.upTo}}{{localize "ACKS-FORMATION.hexStock.upTo" count=hs.summary.count}}{{else}}{{hs.summary.count}}{{/if}}</span>
+        {{#if hs.summary.row}}<span class="hint">{{localize "ACKS-FORMATION.hexStock.row" row=hs.summary.row}}</span>{{/if}}
+        {{#if hs.summary.dice}}<span class="hint">{{localize "ACKS-FORMATION.hexStock.dice" dice=hs.summary.dice}}</span>{{/if}}
+        {{else}}
+        <span class="hint">{{localize "ACKS-FORMATION.hexStock.notStocked"}}</span>
+        {{/if}}
+      </p>
+      {{#if hs.points.length}}
+      <ul class="acks-extras-hex-stock-points">
+        {{#each hs.points}}
+        <li class="acks-extras-hex-stock-point">
+          <span class="acks-extras-hex-stock-kind">{{kindLabel}}</span>
+          <span class="acks-extras-hex-stock-name">{{name}}</span>
+          {{#if found}}
+          <i class="fa-solid fa-check acks-extras-hex-stock-tick" role="img"
+             aria-label="{{localize 'ACKS-FORMATION.hexStock.found'}}"
+             data-tooltip="{{localize 'ACKS-FORMATION.hexStock.found'}}"></i>
+          {{else}}
+          <button type="button" data-action="hexFound" data-point-id="{{id}}">
+            <i class="fa-solid fa-eye"></i> {{localize "ACKS-FORMATION.hexStock.found"}}
+          </button>
+          {{/if}}
+          {{#if placeUuid}}
+          <button type="button" data-action="openPlace" data-uuid="{{placeUuid}}"
+                  aria-label="{{localize 'ACKS-FORMATION.hexStock.alreadyPlaced'}}"
+                  data-tooltip="{{localize 'ACKS-FORMATION.hexStock.alreadyPlaced'}}">
+            <i class="fa-solid fa-house"></i>
+          </button>
+          {{else}}
+          <button type="button" data-action="hexPlace" data-point-id="{{id}}">
+            <i class="fa-solid fa-location-dot"></i> {{localize "ACKS-FORMATION.hexStock.makePlace"}}
+          </button>
+          {{/if}}
+          <button type="button" data-action="hexRemovePoint" data-point-id="{{id}}">
+            <i class="fa-solid fa-trash"></i> {{localize "ACKS-FORMATION.hexStock.remove"}}
+          </button>
+        </li>
+        {{/each}}
+      </ul>
+      {{/if}}
+      <div class="acks-extras-hex-stock-actions">
+        {{#if hs.stocked}}
+        <button type="button" data-action="hexAddPoint">
+          <i class="fa-solid fa-plus"></i> {{localize "ACKS-FORMATION.hexStock.addPoint"}}
+        </button>
+        {{/if}}
+        <button type="button" data-action="hexStock">
+          <i class="fa-solid fa-dice"></i> {{#if hs.stocked}}{{localize "ACKS-FORMATION.hexStock.restock"}}{{else}}{{localize "ACKS-FORMATION.hexStock.stock"}}{{/if}}
+        </button>
+        {{#if hs.stocked}}{{#if hs.canSurvey}}
+        <button type="button" data-action="hexSurvey">
+          <i class="fa-solid fa-mountain-sun"></i> {{localize "ACKS-FORMATION.hexStock.surveyHex"}}
+        </button>
+        {{/if}}{{/if}}
+        {{#if hs.stocked}}
+        <button type="button" data-action="hexClear" class="danger">
+          <i class="fa-solid fa-eraser"></i> {{localize "ACKS-FORMATION.hexStock.clear"}}
+        </button>
+        {{/if}}
+      </div>
+      {{/if}}
+    </div>
+  </details>
+  {{/with}}
+  {{/if}}
+
+  {{#if isGM}}
+  <details class="acks-extras-fold" data-fold="lost">
+    <summary>{{localize "ACKS-FORMATION.strip.details.lost"}}</summary>
+    <div class="acks-extras-fold-body acks-extras-formation-lost">
+      {{#if travel.lost.active}}
+        <p class="acks-extras-formation-lost-astray">
+          {{localize "ACKS-FORMATION.lost.astraySince" days=travel.lost.days hexes=travel.lost.fakedHexes}}
+        </p>
+      {{else if travel.lost.aware}}
+        <p class="acks-extras-formation-lost-astray">
+          {{localize "ACKS-FORMATION.lost.awareSince" days=travel.lost.days}}
+        </p>
+      {{else if travel.lost.leftover}}
+        <p class="hint">{{localize "ACKS-FORMATION.lost.leftover"}}</p>
+      {{/if}}
+      {{#if travel.lost.open}}{{#if travel.lost.judgeNote}}<p class="hint">{{travel.lost.judgeNote}}</p>{{/if}}{{/if}}
+      <div class="acks-extras-formation-lost-actions">
+      {{#if travel.lost.active}}
+        <button type="button" data-action="lostDiscover"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.discoverHint'}}">
+          <i class="fa-solid fa-eye"></i> {{localize "ACKS-FORMATION.lost.discover"}}
+        </button>
+      {{/if}}
+      {{#if travel.lost.open}}
+        <button type="button" data-action="lostReanchor"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.reanchorHint'}}">
+          <i class="fa-solid fa-map-pin"></i> {{localize "ACKS-FORMATION.lost.reanchor"}}
+        </button>
+        <button type="button" data-action="lostEnd"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.endHint'}}">
+          <i class="fa-solid fa-person-walking-arrow-loop-left"></i> {{localize "ACKS-FORMATION.lost.end"}}
+        </button>
+      {{else if travel.lost.leftover}}
+        <button type="button" data-action="lostReanchor"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.leftoverMoveHint'}}">
+          <i class="fa-solid fa-map-pin"></i> {{localize "ACKS-FORMATION.lost.leftoverMove"}}
+        </button>
+        <button type="button" data-action="lostEnd"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.leftoverClearHint'}}">
+          <i class="fa-solid fa-eraser"></i> {{localize "ACKS-FORMATION.lost.leftoverClear"}}
+        </button>
+      {{else}}
+        <button type="button" data-action="lostBegin" {{#unless travel.lost.hasHex}}disabled{{/unless}}
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.beginHint'}}">
+          <i class="fa-solid fa-compass-drafting"></i> {{localize "ACKS-FORMATION.lost.begin"}}
+        </button>
+      {{/if}}
+      </div>
+      <div class="acks-extras-formation-travel-lostrow">
+        <input type="text" name="travel.lostNote" value="{{travel.lost.judgeNote}}"
+               aria-label="{{localize 'ACKS-FORMATION.travel.lostNote'}}"
+               placeholder="{{localize 'ACKS-FORMATION.travel.lostNotePlaceholder'}}">
+      </div>
+    </div>
+  </details>
+  {{/if}}
+
+  {{#if travel.log.length}}
+  <details class="acks-extras-fold" data-fold="log">
+    <summary>{{localize "ACKS-FORMATION.strip.details.log"}}</summary>
+    <div class="acks-extras-fold-body">
+      <ol class="acks-extras-formation-travel-log">
+        {{#each travel.log}}
+        <li>
+          <span class="acks-extras-formation-travel-logday">{{localize "ACKS-FORMATION.travel.dayN" n=day}}</span>
+          {{#if hex}}<span>{{hex}}</span>{{/if}}
+          <span>{{kindLabel}}</span>
+          {{#if miles}}<span>{{miles}} {{localize "ACKS-FORMATION.travel.milesShort"}}</span>{{/if}}
+          {{#if @root.isGM}}{{#if lost}}<i class="fa-solid fa-compass acks-extras-formation-travel-lost"></i>{{/if}}{{/if}}
+        </li>
+        {{/each}}
+      </ol>
+    </div>
+  </details>
+  {{/if}}
+</div>
+{{/if}}
+
+{{#if travel.isSettlement}}
+{{#with travel.settlement as |city|}}
+{{#if city.shown}}
+<div class="acks-extras-folds">
+  <details class="acks-extras-fold acks-extras-formation-settlement" data-fold="city">
+    <summary>{{localize "ACKS-FORMATION.strip.details.city"}}</summary>
+    <div class="acks-extras-fold-body">
+      {{#if @root.isGM}}
+      <div class="acks-extras-formation-travel-pickers">
+        <label>{{localize "ACKS-FORMATION.settlement.paceLabel"}}
+          <select name="travel.settlement.pace">
+            {{#each city.paceOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label>{{localize "ACKS-FORMATION.settlement.whereLabel"}}
+          <select name="travel.settlement.where">
+            {{#each city.whereOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label>{{localize "ACKS-FORMATION.settlement.routeLabel"}}
+          <select name="travel.settlement.route">
+            {{#each city.routeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label class="acks-extras-formation-settlement-hour">{{localize "ACKS-FORMATION.settlement.hourLabel"}}
+          <select name="travel.settlement.hour">
+            {{#each city.hourOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label class="acks-extras-formation-settlement-wanted"
+               data-tooltip="{{localize 'ACKS-FORMATION.settlement.wantedHint'}}">
+          <input type="checkbox" name="travel.settlement.wanted"
+                 {{#if city.wanted}}checked{{/if}}>
+          {{localize "ACKS-FORMATION.settlement.wantedLabel"}}
+          {{#if city.huntedByName}}
+          <span class="acks-extras-formation-settlement-hunter">{{localize "ACKS-FORMATION.settlement.huntedBy" name=city.huntedByName}}</span>
+          {{/if}}
+        </label>
+        <label>
+          {{localize "ACKS-FORMATION.settlement.intentLabel"}}
+          <select name="travel.settlement.intent">
+            {{#each city.intentOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label>
+          {{localize "ACKS-FORMATION.settlement.conveyanceLabel"}}
+          <select name="travel.settlement.conveyance"
+                  data-tooltip="{{localize 'ACKS-FORMATION.settlement.conveyanceHint'}}">
+            {{#each city.conveyanceOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+      </div>
+      {{! A road DRAWN under the party overrides the Streets picker above, so the
+          panel says which street the turn will actually be resolved on. It sits
+          outside that label: a label lends its whole text to the control it
+          wraps, so a sentence placed inside one is read out as part of the
+          picker's own name. }}
+      {{#if city.whereFromRoad}}
+      <span class="hint acks-extras-formation-settlement-road">{{city.roadLine}}</span>
+      {{/if}}
+      {{! What the tracker is timing the party BY, so a turn that does not arrive
+          when the Judge expects it is explained where it happens. }}
+      <p class="hint acks-extras-formation-settlement-tracker">
+        {{#if city.stationary}}
+          {{localize "ACKS-FORMATION.settlement.trackHoledUp"}}
+        {{else if city.onMap}}{{#if city.timedByBlocks}}
+          {{localize "ACKS-FORMATION.settlement.trackBlocks" feet=city.blockFeet units=city.units turn=city.turnFeet}}
+        {{else}}
+          {{localize "ACKS-FORMATION.settlement.trackWalk" turn=city.turnFeet units=city.units}}
+        {{/if}}
+        {{else}}
+          {{localize "ACKS-FORMATION.settlement.trackNoMap"}}
+        {{/if}}
+        {{! And whether the last move was counted along the streets or across
+            them: a bend measured as its chord costs the party a turn it never
+            spent, so which happened is said where the turns are shown. }}
+        {{#unless city.stationary}}
+          {{#if city.measuredAlong}}
+            {{localize "ACKS-FORMATION.settlement.road.measuredAlong"}}
+          {{else if city.whereFromRoad}}
+            {{localize "ACKS-FORMATION.settlement.road.measuredStraight"}}
+          {{/if}}
+        {{/unless}}
+      </p>
+      <p class="acks-extras-formation-settlement-nav">
+        {{#if city.throws}}
+          {{#if city.navUnpriced}}
+            <span class="hint">{{localize "ACKS-FORMATION.settlement.navUnpriced"}}</span>
+          {{else}}
+            {{localize "ACKS-FORMATION.settlement.navThrow" target=city.navTarget modifier=city.navModifier}}
+            {{#if city.navRouteUnpriced}}
+              <span class="hint">{{localize "ACKS-FORMATION.settlement.navRouteUnpriced"}}</span>
+            {{/if}}
+            {{#if city.stray}}
+              <span class="hint">{{localize "ACKS-FORMATION.settlement.strayHint" dice=city.stray}}</span>
+            {{else}}
+              <span class="hint">{{localize "ACKS-FORMATION.settlement.strayUnpriced"}}</span>
+            {{/if}}
+          {{/if}}
+        {{else}}
+          <span class="hint">{{city.noThrowReason}}</span>
+        {{/if}}
+      </p>
+      {{/if}}
+      {{#if city.districtName}}
+      <p class="hint acks-extras-formation-settlement-district">
+        {{localize "ACKS-FORMATION.settlement.district.here" name=city.districtName}}
+        {{#if city.districtReactionLine}}
+          &middot; {{city.districtReactionLine}}
+        {{/if}}
+      </p>
+      {{/if}}
+      {{! Where the party is standing, as a PLACE: the token under it, and the
+          quarter's own place. Each opens; a button rather than a link, so it
+          is reachable from the keyboard and named to a reader. }}
+      {{#if city.placeHere}}
+      <p class="hint acks-extras-formation-settlement-place">
+        {{localize "ACKS-FORMATION.settlement.poi.here" name=city.placeHere.name}}
+        {{#if city.placeHere.canOpen}}
+        <button type="button" data-action="openPlace" data-uuid="{{city.placeHere.uuid}}"
+                data-tooltip="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"
+                aria-label="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"><i class="fa-solid fa-house"></i></button>
+        {{/if}}
+      </p>
+      {{/if}}
+      {{#if city.districtPlace}}
+      <p class="hint acks-extras-formation-settlement-place">
+        {{localize "ACKS-FORMATION.settlement.poi.districtPlace" name=city.districtPlace.name}}
+        {{#if city.districtPlace.canOpen}}
+        <button type="button" data-action="openPlace" data-uuid="{{city.districtPlace.uuid}}"
+                data-tooltip="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"
+                aria-label="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"><i class="fa-solid fa-city"></i></button>
+        {{/if}}
+      </p>
+      {{/if}}
+      {{! Which list the next incident is read from, in the order the turn walks
+          it, and any list named ahead of it that no longer exists. }}
+      {{#each city.listLines}}
+      <p class="hint acks-extras-formation-settlement-lists{{#if warn}} acks-extras-formation-settlement-lists-warn{{/if}}">{{text}}</p>
+      {{/each}}
+    </div>
+  </details>
+</div>
+{{/if}}
+{{/with}}
+{{/if}}

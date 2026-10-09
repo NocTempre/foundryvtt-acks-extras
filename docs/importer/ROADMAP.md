@@ -885,12 +885,15 @@ wilderness encounter charts the `encounters` doc already held, shipped as their
 projection. Wave 2 read the sub-tables a terrain result names and the treasure
 and ruin lookups, and the throw now rolls them (DECISIONS, 2026-09-30). In order:
 
-2. **The rest of the wilderness chain**, into `encounters`: lairs per hex (one
-   source, after checking the Rules Reference's terrain sheet) and climate by
-   terrain, each read once something consumes it. Also the terrain results
-   that hand off to another draw (to the monster draw, to a further terrain
-   roll, or to two rolls), which stop at their name until the chain can
-   recurse into itself.
+2. **The rest of the wilderness chain**, into `encounters`. ~~Lairs per hex~~
+   and ~~the terrain results that hand off to another draw~~ are read
+   (DECISIONS 2026-10-09, "Lairs per hex is read from the procedure's own
+   page"): the lairs row, the substitution bands and the settled shares from
+   the procedure's page, the either-or share from the placement page, and the
+   chain recurses into a double, a monster draw, an either-or and a
+   despoiling. **Climate by terrain** stays: read it once something consumes
+   it (the monster sub-tables remain a terrain pick, formation DECISIONS
+   2026-10-09).
 3. **Dungeon**: wandering monsters by level as cookbook RollTables carrying the
    monster-level flag the delve draw reads, the level matrix as a setting
    table, and the dungeon chapter's stocking and treasure charts.
@@ -997,7 +1000,8 @@ organisation has a row. What has none, by shape:
   They land with the interiors.
 - **The region's gazetteer**: fifty-three keyed sites in the region chapter,
   keyed exactly as a quarter's points of interest are. Outside the city
-  scope; the same location binding would read them.
+  scope; the points-of-interest step binds region rows once they are
+  registered (MODEL, "A region's places"), so what is missing is the rows.
 - **The building tables** (size, type and occupants, occupant tables, style,
   treasure): the printed half of the dynamic-buildings row in
   `docs/formation/ROADMAP.md`.
@@ -1010,9 +1014,33 @@ organisation has a row. What has none, by shape:
 
 ## The next books, in order
 
-AX3's above-ground city is finished first, as one Adventure with its
-features. After it the adventure books are worked in the order **AX1, then
-AX2** — the user's ruling of 2026-09-30, which puts AX1 ahead although AX2
-already has a cookbook (`cookbook/ax2.json`) and AX1 has none. Within the
-AX3 work the slash-key junctions to the underground map come last, and the
-underground city itself is out of scope.
+AX3's above-ground city is finished, as one Adventure with its features,
+and its region map imports on its hexes with the gazetteer's sites
+(11.0.0). The four adventures the region holds are registered for what the
+region needs of them — AX1's tables, AX4's tables and forest zone, AX5's new
+monsters, tables and two zones, AX6's tables and zone (the user's ruling of
+2026-10-09: ACKS II supersedes only where identical, else the more specific
+printing is correct) — and AX2 is unchanged. The underground city stays out
+of scope. What each book still owes, in the order it is worth doing:
+
+- **AX1's own map:** the colour map with its hex numbering, and its p.66
+  sites as places (`sameAs` the region's where they coincide); a
+  search-hour zone for its forest.
+- **Dungeon maps** (AX1, AX2, AX4, AX5, AX6) as scenes with their keyed
+  areas placed, the way the city map is.
+- **Terrain from the render:** painting the region's terrain from the page's
+  picture, which a density, orientation and component classifier could not
+  do at the page's resolution; the Judge paints it for now.
+- **The region as an Adventure** collecting its map, sites, zones and
+  tables.
+- **Military forces** the adventures print, as the factions feature's
+  strength grids.
+- **The d100 stocking tables** beyond the ruined-building one, and **AX5's
+  spells**.
+- **Amended terrain multipliers** where an adventure overrides the core's
+  figures.
+- **Zone results as creature links:** a zone's drawn result naming a monster
+  the world holds becomes a link to it.
+- **Adventure links from the sites:** a site that is an adventure's own
+  location (25 to AX4, 27 and 28 to AX1, 44 and 46 to AX5, 52 to AX6) opens
+  that adventure's document.

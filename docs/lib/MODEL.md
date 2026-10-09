@@ -1123,15 +1123,20 @@ here. Callbacks are idempotent by contract — the hook fires for a calendar the
 Judge dragged as readily as for a rest — so each keeps its own watermark.
 
 **Reading the hour is the third half, and whether it is dark is read here
-too.** `clockReading()` returns the calendar's hour and minute, the day's
-length, and `dark`. Foundry's calendar keeps no sunrise, so the dark's bounds
-are the two world settings `dawnHour` and `duskHour`, registered here beside
-the switch; a blank one stands at a quarter and three quarters of the day
-(`darkBounds`), which is the day's own arithmetic and not a printed figure. A
-world with no calendar to read answers null, and a feature asking treats that
-as day and says so. The settlement board is the first reader
-(`docs/formation/MODEL.md`, "The hour"); a gate that shuts at dusk will be the
-next.
+too.** `clockReading()` returns the calendar's hour, minute and second, the
+day's length, the calendar's seconds in an hour, and `dark`. Foundry's
+calendar keeps no sunrise, so the dark's bounds are the two world settings
+`dawnHour` and `duskHour`, registered here beside the switch; a blank one
+stands at a quarter and three quarters of the day (`darkBounds`), which is
+the day's own arithmetic and not a printed figure. A world with no calendar
+to read answers null, and a feature asking treats that as day and says so.
+The settlement board was the first reader (`docs/formation/MODEL.md`, "The
+hour"); the journey is the second: it asks whether the march is in the dark,
+and its **End day** moves the calendar to the next dawn through
+`untilNextDawn()`. `secondsToNextDawn(reading, {secondsPerHour})` is the pure
+arithmetic under it — the seconds from a reading to the next time the clock
+reads the dawn hour, strictly after now, so standing exactly at dawn waits a
+whole day.
 
 ## The socket transport
 
@@ -1316,11 +1321,14 @@ whispered message carrying rolls, and a reader outside the whisper then sees a
 "privately rolled some dice" line naming the author; with no rolls, the message
 is invisible to them. Where the card's content has no markup of its own, the
 rolls' boxes become the content, as Foundry would have drawn them; a card with
-markup keeps it, and states or draws its own totals. `drawForJudges(table)` is
-the same for a table draw: it draws without posting, then posts the table's own
-result card whispered to the GMs, with a `preCreateChatMessage` hook — scoped
-to this user and this table's flag, removed in a `finally` — taking the roll
-and the dice sound off it.
+markup keeps it, and states or draws its own totals. `drawQuietly(table)` is
+the one owner of a table draw: it draws with `displayChat` false, so core posts
+nothing, shows the dice to the GMs when the draw landed on rows, and hands the
+results back for a card of the caller's own — the journey's encounter card
+lists a zone table's rows that way. `drawForJudges(table)` is that draw
+followed by the table's own result card whispered to the GMs, with a
+`preCreateChatMessage` hook — scoped to this user and this table's flag,
+removed in a `finally` — taking the roll and the dice sound off it.
 
 **Dice So Nice** is reached through `showDice(rolls, {whisper, blind})` alone. It
 passes the whisper list as the viewers, or `null` when the list is empty,

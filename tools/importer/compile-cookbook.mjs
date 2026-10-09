@@ -26,7 +26,7 @@ import { openBook, pageItems, listHeadings, detectColumns, colOf, glyphColorRuns
 import { runsIn, joinRuns, attackModel } from "../../scripts/importer/executor.mjs";
 import { rowsByY, slugLabel } from "../../scripts/importer/table-extract.mjs";
 import { BOOKS, citeFor, fingerprintWarning } from "../../scripts/importer/books.mjs";
-import { placementHolding, recipeContext, recipeProblems } from "../../scripts/importer/scene-binding.mjs";
+import { SCENE_ZONE_KIND, ZONE_FIGURES, placementHolding, recipeContext, recipeProblems, zoneProblems } from "../../scripts/importer/scene-binding.mjs";
 import { caseCarriesNothing, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
 import { FILES, OSE_FILES } from "./reference-lib.mjs";
 
@@ -1701,6 +1701,9 @@ const AX_HANG = 12;
 // Die-cell shapes: "7", "3-4", and the comma group "6,7,16" (one result row
 // serving several rolls — the rumor-truth tables).
 const AX_DIE_RE = /^\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*$/;
+// A die the printer fused with the first run of its cell: the die, then the
+// space before the text ("15 The members…" -> "15", 3 characters to strip).
+const AX_DIE_FUSED = /^(\s*\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*)(\s+)(?=\S)/;
 const axColOf = (x, cols) => colOf(x + AX_HANG, cols);
 
 const collapse = (s) => s.replace(/\s+/g, " ").trim();
@@ -1708,39 +1711,63 @@ const collapse = (s) => s.replace(/\s+/g, " ").trim();
 // FINDING must agree with runtime anchor CHECKING or a compiled entry stubs.
 const axFold = (s) => s.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
-/** Heading LINES (>= AX_HEAD_MIN_H runs clustered by y), with joined text.
+/** Heading LINES (runs of heading height clustered by y), with joined text.
  * AX3 prints heading-size chapter banners down the outer margins; they are
- * furniture, not headings, so the margin bands are excluded here. */
-function axHeadingLines(pd) {
+ * furniture, not headings, so the margin bands are excluded here. `geom` is a
+ * row's `assists.headingLines`, for a book whose headings the defaults miss:
+ * `minH` (the smallest run height that is a heading, default AX_HEAD_MIN_H),
+ * `caps` (a heading reads as capitals, for body-size small-caps headings),
+ * `topY` (the band of running heads, default AX_TOP_BAND - 5) and `x0` (the
+ * left margin, default 30). */
+function axHeadingLines(pd, geom = {}) {
+  const minH = geom.minH ?? AX_HEAD_MIN_H;
+  const topY = geom.topY ?? AX_TOP_BAND - 5;
+  const leftX = geom.x0 ?? 30;
   // y > 55: running heads print at y~40 in heading type and MUST NOT anchor or
   // stop anything. x-bands drop the AX3 margin banners (x~22 / x~590); real
   // hanging headings start at x~33.8.
   const heads = pd.items.filter(
-    (it) => it.h >= AX_HEAD_MIN_H && it.y > AX_TOP_BAND - 5 && it.y < AX_FOOT_Y && it.x >= 30 && it.x <= pd.width - 30,
+    (it) => it.h >= minH && it.y > topY && it.y < AX_FOOT_Y && it.x >= leftX && it.x <= pd.width - 30,
   );
   // Two columns often print headings at the SAME y ("12U." beside "14U."); a
   // y-cluster alone would merge them into one phantom line, so split each
-  // y-line on x-gaps wider than a word space.
+  // y-line on x-gaps wider than a word space, and on any gap that crosses the
+  // page's midline: two keyed headings meet across a 20pt gutter.
+  const mid = pd.width / 2;
   const out = [];
   for (const ln of toLines(heads)) {
     const items = [...ln.items].sort((a, b) => a.x - b.x);
     const segs = [[items[0]]];
     for (let i = 1; i < items.length; i++) {
-      const prev = items[i - 1];
-      if (items[i].x - (prev.x + (prev.w ?? 0)) > 30) segs.push([]);
+      const prevEnd = items[i - 1].x + (items[i - 1].w ?? 0);
+      const gap = items[i].x - prevEnd;
+      if (gap > 30 || (gap > 8 && prevEnd < mid && items[i].x >= mid - 6)) segs.push([]);
       segs[segs.length - 1].push(items[i]);
     }
     for (const seg of segs) {
+      const text = collapse(seg.map((i) => i.str).join(" "));
+      if (geom.caps && !readsAsCapitals(text)) continue;
       out.push({
         y: ln.y,
         x0: Math.min(...seg.map((i) => i.x)),
         x1: Math.max(...seg.map((i) => i.x + (i.w ?? 0))),
-        text: collapse(seg.map((i) => i.str).join(" ")),
+        text,
         items: seg,
       });
     }
   }
   return out.sort((a, b) => a.y - b.y || a.x0 - b.x0);
+}
+
+/** Whether a line reads as a capitals heading: four letters or more, capitals
+ * two fifths of them at least, and no lowercase run past four letters. Small
+ * capitals extract as a scatter of case ("O cu L u S"), so a capitals heading
+ * is told by its lowercase being fragments, never words. */
+function readsAsCapitals(text) {
+  const letters = text.replace(/[^\p{L}]/gu, "");
+  if (letters.length < 4) return false;
+  if (letters.replace(/[^\p{Lu}]/gu, "").length < letters.length * 0.4) return false;
+  return !/\p{Ll}{5,}/u.test(text);
 }
 
 // A line-break hyphen set as a run of its own. AX3 hangs them in the gutter, a
@@ -1768,7 +1795,7 @@ function axColumns(pd, assists = {}) {
 
 /** Locate an entry's heading line, absorbing wrapped continuation lines. */
 function axAnchor(pd, cols, entry, assists) {
-  const lines = axHeadingLines(pd);
+  const lines = axHeadingLines(pd, assists?.headingLines);
   let line = null;
   let matched = null;
   const number = entry.anchor?.number;
@@ -1879,7 +1906,7 @@ async function axFlow(doc, entry, assists, start, exclude = new Set(), opts = {}
   for (let guard = 0; guard < 24; guard++) {
     const x0 = cols[col] - AX_HANG - 2;
     const x1 = cols[col + 1] ? cols[col + 1] - AX_HANG - 3 : pd.width - 40;
-    const stopHead = axHeadingLines(pd)
+    const stopHead = axHeadingLines(pd, assists.headingLines)
       .filter((l) => axColOf(l.x0, cols) === col && l.y > fromY + 2)
       .sort((a, b) => a.y - b.y)[0];
     const sibY = siblingStop(x0, x1, fromY + 2);
@@ -2169,7 +2196,7 @@ async function axOpen(doc, entry) {
   let a = null;
   let name = null;
   if (hash) {
-    const lines = axHeadingLines(pd);
+    const lines = axHeadingLines(pd, assists.headingLines);
     const candidates = runin ? axRuninLines(pd, cols) : lines.map((line) => axAnchorFrom(pd, cols, line, lines));
     for (const c of candidates) {
       const instr = nameOf(c, { hash });
@@ -2448,15 +2475,310 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
 }
 
 /**
+ * One grid band's row paragraphs (`assists.grid`, or one entry of
+ * `assists.grids`), each `{box, section, page?, fixes?}`. Rows are found by
+ * die line, by `centerDies` (a die printed vertically centred in its cell
+ * mirrors the cell's top line onto its bottom line), or by authored `bands`
+ * ([y0, y1] pairs, one die each). A die the printer fused with the first run
+ * of its cell ("15 The members…") is read off the run's head and stripped
+ * from the text by character count. A row whose cell column holds no run
+ * throws, naming the die, unless the band carries `keepEmpty`: the row then
+ * ships `empty: true`, which the executor reads as a row with no text.
+ * @param {{items: object[]}} gpd the band's page data
+ * @param {object} g the band's assist
+ * @param {{entryId: string, gpage: number, page: number}} where the entry, the band's page, and the entry's page
+ * @returns {object[]}
+ */
+export function gridBandParas(gpd, g, { entryId, gpage, page }) {
+  const rows = [];
+  // A run in the die column that is a die ("12", "3-4", "8, 18"), or opens
+  // with one and a space before its cell's text: `{label, fusedLen}`, or null.
+  const dieOf = (it) => {
+    if (it.x < g.dieX0 || it.x > g.dieX1) return null;
+    const s = it.str.trim();
+    if (AX_DIE_RE.test(s)) return { label: s, fusedLen: 0 };
+    const m = AX_DIE_FUSED.exec(it.str);
+    return m ? { label: m[1].trim(), fusedLen: m[0].length } : null;
+  };
+  const isDie = (it) => dieOf(it) != null;
+  if (g.bands) {
+    // Authored row bands, for a cell whose leading is too uneven for the
+    // mirror cut below to find its bottom line.
+    g.bands.forEach(([y0, y1], i) => {
+      const dies = gpd.items.filter((it) => it.y >= y0 && it.y <= y1 && isDie(it));
+      if (dies.length !== 1) throw new Error(`${entryId}: grid band ${i + 1} [${y0}, ${y1}] on p.${gpage} holds ${dies.length} dice, not one`);
+      rows.push({ die: dies[0], band: { y0, y1 } });
+    });
+  } else if (g.centerDies) {
+    // A multi-line cell prints its die VERTICALLY CENTRED, so the die's
+    // baseline mirrors the cell's top line onto its bottom line. Rows are cut
+    // in order: a row's top is the first line under the row before it, its
+    // foot the line nearest the top's mirror about the die, within 3pt. A
+    // midpoint cut between dies cannot do this: cells of uneven height put
+    // the midpoint inside the taller cell. A line left under the last row
+    // means the band's y1 reaches into something else, and errs rather than
+    // shipping as a row's tail. A box reaches half the gap towards a
+    // neighbour, never more, so two rows never share a run.
+    const lines = toLines(gpd.items.filter((it) => it.y >= g.y0 && it.y <= g.y1 && it.x >= g.dieX0 && it.x <= g.cellX1));
+    const dies = gpd.items.filter((it) => it.y >= g.y0 && it.y <= g.y1 && isDie(it)).sort((a, b) => a.y - b.y);
+    if (!dies.length) throw new Error(`grid dies empty for ${entryId} p.${gpage}`);
+    let foot = null;
+    for (const die of dies) {
+      const label = dieOf(die).label;
+      const top = lines.find((ln) => (!foot || ln.y > foot.y + 0.5) && ln.y <= die.y + 2.5);
+      if (!top) throw new Error(`${entryId}: die "${label}" at y${Math.round(die.y)} on p.${gpage} has no line of its own under the row before it`);
+      const mirror = 2 * die.y - top.y;
+      const bottom = lines
+        .filter((ln) => ln.y >= die.y - 2.5 && Math.abs(ln.y - mirror) <= 3)
+        .sort((a, b) => Math.abs(a.y - mirror) - Math.abs(b.y - mirror))[0];
+      if (!bottom) {
+        throw new Error(`${entryId}: die "${label}" at y${Math.round(die.y)} on p.${gpage} mirrors its top line y${Math.round(top.y)} onto y${Math.round(mirror)}, where no line prints`);
+      }
+      const next = lines.find((ln) => ln.y > bottom.y + 0.5);
+      const above = foot ? (top.y - foot.y) / 2 : 4;
+      const below = next ? (next.y - bottom.y) / 2 : 4;
+      rows.push({ die, band: { y0: top.y - Math.min(4, above - 0.5), y1: bottom.y + Math.min(4, below - 0.5) } });
+      foot = bottom;
+    }
+    const tail = lines.find((ln) => ln.y > foot.y + 0.5);
+    if (tail) throw new Error(`${entryId}: a line at y${Math.round(tail.y)} on p.${gpage} follows the last row of the band ending at y${g.y1}`);
+  } else {
+    for (const ln of toLines(gpd.items.filter((it) => it.y >= g.y0 && it.y <= g.y1 && it.x >= g.dieX0 && it.x <= g.cellX1))) {
+      const die = ln.items.find(isDie);
+      const cellRuns = ln.items.filter((it) => it.x >= g.cellX0 && it.x <= g.cellX1);
+      if (die) rows.push({ die, lines: [ln], cellRuns: [...cellRuns] });
+      else if (rows.length && cellRuns.length) {
+        rows[rows.length - 1].lines.push(ln);
+        rows[rows.length - 1].cellRuns.push(...cellRuns);
+      }
+    }
+  }
+  if (!rows.length) throw new Error(`grid rows empty for ${entryId} p.${gpage}`);
+  const paras = [];
+  for (const r of rows) {
+    // No x padding: neighbouring result columns abut, and a run starting on
+    // the shared edge must fall in exactly one entry's cell band. A fused die
+    // run starts in the die column and IS the cell's text, so its row's box
+    // reaches the die column whether or not the band claims its dies.
+    const { label: die, fusedLen } = dieOf(r.die);
+    const x0 = g.claimDie || fusedLen ? g.dieX0 : g.cellX0;
+    const [y0, y1] = r.band ? [r.band.y0, r.band.y1] : [r.lines[0].y - 4, r.lines[r.lines.length - 1].y + 4];
+    const para = {
+      box: { x0, x1: g.cellX1, y0, y1 },
+      section: `r${die.replace(/\s*[-–]\s*/g, "-").replace(/\s*,\s*/g, ",")}`,
+    };
+    if (gpage !== page) para.page = gpage;
+    // The cell column alone decides emptiness: a claimed die is in the box
+    // but is not the row's text.
+    if (!fusedLen && !runsIn(gpd, { box: { x0: g.cellX0, x1: g.cellX1, y0, y1 } }).length) {
+      if (g.keepEmpty !== true) {
+        throw new Error(`${entryId}: grid row "${die}" on p.${gpage} has no cell text — a mis-measured cell column, or a row printed empty (keepEmpty)`);
+      }
+      para.empty = true;
+    }
+    const drop = g.claimDie && !fusedLen ? new Set([r.die]) : null;
+    const strip = fusedLen ? new Map([[r.die, fusedLen]]) : null;
+    paras.push(withFixes(para, gpd, drop, strip));
+  }
+  return paras;
+}
+
+// A detail opener's key: "2", "3-4", "3–4".
+const DETAIL_KEY = String.raw`(\d+(?:\s*[-–]\s*\d+)?)`;
+// A pure key heading the paragraph — "(2)", "(3-4):", "5." — after an
+// optional bullet glyph. The whole match is dropped from the text.
+const DETAIL_PURE = new RegExp(String.raw`^\s*(?:[»•·▪►‣]\s*)?(?:\(\s*${DETAIL_KEY}\s*\)\s*[.:]?|${DETAIL_KEY}\s*[.:)])(?!\d)`);
+// A key closing a run of heading words — "… ENCOUNTERS 1-2." — kept whole.
+const DETAIL_HEADED = new RegExp(String.raw`^\s*([^\d()]*[A-Za-z][^\d()]*?)\s*${DETAIL_KEY}\s*[.:](?!\d)`);
+
+/** The key a paragraph's first line opens with, as a section label, or null. */
+function detailKeyOf(text) {
+  const pure = DETAIL_PURE.exec(text);
+  if (pure) return { section: `r${(pure[1] ?? pure[2]).replace(/\s*[-–]\s*/, "-")}`, end: pure[0].length };
+  const headed = DETAIL_HEADED.exec(text);
+  if (!headed) return null;
+  // Heading words are set in capitals; a body line that happens to end a
+  // sentence on a number is mostly lower case. Small capitals extract as
+  // stray lower-case letters, so the test is a majority, not every letter.
+  const letters = headed[1].replace(/[^A-Za-z]/g, "");
+  const upper = letters.replace(/[^A-Z]/g, "").length;
+  if (letters.length < 2 || upper / letters.length < 0.6) return null;
+  return { section: `r${headed[2].replace(/\s*[-–]\s*/, "-")}`, end: 0 };
+}
+
+/**
+ * A roll table's detail blocks (`assists.details = {by, regions}`): the text
+ * explaining each row, printed beside the table or on following pages, read
+ * as the existing paragraph builder reads any flow and appended to the rows.
+ *
+ * A line that opens with a row's key opens that row's block, and starts a
+ * paragraph of its own wherever the paragraph builder set it: `by: "number"`
+ * reads a die key ("(2)", "(3-4):", or one closing a run of heading words),
+ * `by: "name"` a run-in label ending in ":" whose folded letters equal, or
+ * begin with, the row's folded cell text (the longest cell wins). Every later
+ * line belongs to the open block, across regions too, until the next opener.
+ * A key or label that opens nothing — it matches no row, its row already has
+ * a block, or (by number) its row comes no later than the open one — stays
+ * in the open block as text: a sub-table's own numbering and a stat line's
+ * run-in label are that shape. One heading a built paragraph is counted
+ * `unmatched`; one inside a paragraph is not counted. Paragraphs before the
+ * first opener are left unread and counted `skipped`. A region with no text
+ * or overlapping the rows throws. A pure key that opens a block is dropped
+ * from the text; heading words and labels stay.
+ *
+ * Detail paragraphs carry their row's section and `detail: true`, and follow
+ * that row's own paragraphs; a row with no block keeps none.
+ * @param {Map<number, {items: object[]}>} pages page data for every region's page and every row paragraph's page
+ * @param {{by: "number"|"name", regions: {page: number, x0: number, x1: number, y0: number, y1: number}[]}} details
+ * @param {object[]} rowParas the compiled row paragraphs, in row order
+ * @param {number} page the entry's page, which a paragraph on it does not name
+ * @param {string} entryId named in errors
+ * @returns {{paras: object[], unmatched: number, skipped: number}} the row paragraphs with each row's detail paragraphs after it, and the counts above
+ */
+export function rollTableDetails(pages, details, rowParas, page, entryId) {
+  const pageOf = (p) => p.page ?? page;
+  // Each row's position, for the row order number keys must keep.
+  const order = new Map();
+  for (const p of rowParas) if (!order.has(p.section)) order.set(p.section, order.size);
+  let unmatched = 0;
+  let skipped = 0;
+  // Name keys are the row's text exactly as a seat will read it.
+  const byName = new Map();
+  if (details.by === "name") {
+    const text = new Map();
+    for (const p of rowParas) {
+      if (p.empty) continue;
+      const t = joinRuns(runsIn(pages.get(pageOf(p)), p), p.fixes ?? {});
+      text.set(p.section, `${text.get(p.section) ?? ""}${t}`);
+    }
+    for (const [section, t] of text) {
+      const key = axFold(t);
+      if (key) byName.set(key, byName.has(key) ? null : section);
+    }
+  }
+  const blocks = new Map();
+  let open = null;
+  /**
+   * One line, its runs in x order, read as an opener against the blocks
+   * opened so far: `keyed` when it carries a key or label at all, `section`
+   * when that opens a block, and the runs of a pure key to drop or strip.
+   */
+  const detailOpener = (line) => {
+    const out = { keyed: false, section: null, drop: new Set(), strip: new Map() };
+    if (details.by === "name") {
+      // The label is the leading runs up to the first that ends in ":".
+      let label = null;
+      let acc = "";
+      for (const r of line.slice(0, 4)) {
+        acc += r.str;
+        if (/:\s*$/.test(r.str)) {
+          label = acc;
+          break;
+        }
+        if (r.str.includes(":")) break;
+      }
+      const fold = label == null ? "" : axFold(label);
+      if (!fold) return out;
+      out.keyed = true;
+      // A cell may print a shorter name than the label explaining it, so a
+      // label that STARTS WITH a row's fold is that row's; the longest such
+      // row wins. A label shorter than every cell matches nothing.
+      const key = byName.has(fold) ? fold : [...byName.keys()].filter((k) => fold.startsWith(k)).sort((a, b) => b.length - a.length)[0];
+      const hit = key === undefined ? null : byName.get(key);
+      if (hit && !blocks.has(hit)) out.section = hit;
+      return out;
+    }
+    const key = detailKeyOf(line.map((r) => r.str).join(""));
+    if (!key) return out;
+    out.keyed = true;
+    // Detail blocks print in row order, so a key at or before the open row's
+    // is a sub-table's own numbering, not an opener.
+    if (!order.has(key.section) || blocks.has(key.section) || (open != null && order.get(key.section) <= order.get(open))) return out;
+    out.section = key.section;
+    let at = 0;
+    for (const r of line) {
+      if (at >= key.end) break;
+      if (at + r.str.length <= key.end) out.drop.add(r);
+      else out.strip.set(r, key.end - at);
+      at += r.str.length;
+    }
+    return out;
+  };
+  details.regions.forEach((region, ri) => {
+    const pd = pages.get(region.page);
+    const inRegion = (it) => it.x >= region.x0 && it.x <= region.x1 && it.y >= region.y0 && it.y <= region.y1;
+    const items = pd.items.filter(inRegion);
+    if (!items.length) throw new Error(`${entryId}: details region ${ri + 1} on p.${region.page} holds no text`);
+    const rowRuns = new Set(rowParas.filter((p) => pageOf(p) === region.page).flatMap((p) => runsIn(pd, p)));
+    if (items.some((it) => rowRuns.has(it))) throw new Error(`${entryId}: details region ${ri + 1} on p.${region.page} overlaps the table's rows`);
+    const { paras } = axParas([{ page: region.page, pd, x0: region.x0, x1: region.x1, items }], page);
+    for (const built of paras) {
+      // Every line is read as a possible opener, in order, so a column set
+      // without a gap between its entries still splits at each one. A
+      // paragraph's interior line that opens a block starts a paragraph of
+      // its own; one that opens nothing stays where it is, uncounted.
+      const lines = toLines(runsIn(pd, built)).map((ln) => ({ y: ln.y, items: [...ln.items].sort((a, b) => a.x - b.x) }));
+      const segs = [];
+      lines.forEach((ln, li) => {
+        const hit = detailOpener(ln.items);
+        if (li === 0) {
+          if (hit.keyed && !hit.section) unmatched++;
+          segs.push({ lines: [ln], hit, block: hit.section ?? open });
+        } else if (hit.section) {
+          segs.push({ lines: [ln], hit, block: hit.section });
+        } else {
+          segs[segs.length - 1].lines.push(ln);
+        }
+        if (hit.section) {
+          blocks.set(hit.section, []);
+          open = hit.section;
+        }
+      });
+      segs.forEach((seg, si) => {
+        if (seg.block == null) {
+          skipped++;
+          return;
+        }
+        // An unsplit paragraph keeps the builder's box; a split one takes line
+        // bands that reach half the gap to a neighbouring line, never more.
+        const top = seg.lines[0].y;
+        const foot = seg.lines[seg.lines.length - 1].y;
+        const prev = segs[si - 1]?.lines.at(-1).y;
+        const next = segs[si + 1]?.lines[0].y;
+        const box = {
+          x0: built.box.x0, x1: built.box.x1,
+          y0: prev == null ? built.box.y0 : top - Math.min(4, (top - prev) / 2 - 0.5),
+          y1: next == null ? built.box.y1 : foot + Math.min(4, (next - foot) / 2 - 0.5),
+        };
+        const para = { box, ...(built.page ? { page: built.page } : {}), section: seg.block, detail: true };
+        const { drop, strip } = seg.hit;
+        blocks.get(seg.block).push(withFixes(para, pd, drop.size ? drop : null, strip.size ? strip : null));
+      });
+    }
+  });
+  const out = [];
+  rowParas.forEach((p, i) => {
+    out.push(p);
+    if (rowParas[i + 1]?.section === p.section || !blocks.has(p.section)) return;
+    out.push(...blocks.get(p.section));
+    blocks.delete(p.section);
+  });
+  return { paras: out, unmatched, skipped };
+}
+
+/**
  * kind.rolltable — two printed shapes.
  * GRID (assists.grid = {page, y0, y1, dieX0, dieX1, cellX0, cellX1,
- * claimDie?}): a die column beside result columns; one register entry per
- * result column. Rows cluster on lines that carry a die run; the die value is
- * read OFFLINE into the row's section label (r<lo> / r<lo>-<hi>) — structure,
- * like a page number — while the row text stays lazy.
+ * claimDie?, keepEmpty?, and one of centerDies|bands?} — see
+ * gridBandParas): a die column beside result columns; one register
+ * entry per result column. Rows cluster on lines that carry a die run; the die
+ * value is read OFFLINE into the row's section label (r<lo> / r<lo>-<hi>) —
+ * structure, like a page number — while the row text stays lazy.
  * LIST (default): the entry's own flowed prose where each row opens with an
  * "<n>:" run; the intro paragraphs before row 1 become `description` and the
  * roll formula materializes from them (or assists.rollAt).
+ * Either shape takes `assists.details` (rollTableDetails); its regions are
+ * kept out of the entry's own flow.
  */
 async function compileRollTable(doc, entry, kindRow) {
   const assists = entry.assists ?? {};
@@ -2478,6 +2800,9 @@ async function compileRollTable(doc, entry, kindRow) {
     fields.name = opened.name;
   }
 
+  // The detail regions are the rows' text, never the entry's own flow.
+  const regions = assists.details?.regions ?? [];
+  const flowAssists = regions.length ? { ...assists, excludeBoxes: [...(assists.excludeBoxes ?? []), ...regions] } : assists;
   const gridList = assists.grids ?? (assists.grid ? [assists.grid] : null);
   if (gridList) {
     // Several grid configs merge into ONE table: a d% table printed as two
@@ -2487,54 +2812,14 @@ async function compileRollTable(doc, entry, kindRow) {
     for (const g of gridList) {
       const gpage = g.page ?? page;
       const gpd = await pageItems(doc, gpage);
-      const lines = toLines(gpd.items.filter((it) => it.y >= g.y0 && it.y <= g.y1 && it.x >= g.dieX0 && it.x <= g.cellX1));
-      const rows = [];
-      if (g.centerDies) {
-        // Multi-line rows print the die number VERTICALLY CENTERED (the rumor
-        // tables): a row's band runs midpoint-to-midpoint between consecutive
-        // dies, not die-line-downward.
-        const dies = gpd.items
-          .filter((it) => it.y >= g.y0 && it.y <= g.y1 && it.x >= g.dieX0 && it.x <= g.dieX1 && AX_DIE_RE.test(it.str.trim()))
-          .sort((a, b) => a.y - b.y);
-        if (!dies.length) throw new Error(`grid dies empty for ${entry.id} p.${gpage}`);
-        for (let i = 0; i < dies.length; i++) {
-          const y0 = i === 0 ? g.y0 : (dies[i - 1].y + dies[i].y) / 2 + 1;
-          const y1 = i === dies.length - 1 ? g.y1 : (dies[i].y + dies[i + 1].y) / 2 - 1;
-          rows.push({ die: dies[i], band: { y0, y1 } });
-        }
-      } else {
-        for (const ln of lines) {
-          const die = ln.items.find((it) => it.x >= g.dieX0 && it.x <= g.dieX1 && AX_DIE_RE.test(it.str.trim()));
-          const cellRuns = ln.items.filter((it) => it.x >= g.cellX0 && it.x <= g.cellX1);
-          if (die) rows.push({ die, lines: [ln], cellRuns: [...cellRuns] });
-          else if (rows.length && cellRuns.length) {
-            rows[rows.length - 1].lines.push(ln);
-            rows[rows.length - 1].cellRuns.push(...cellRuns);
-          }
-        }
-      }
-      if (!rows.length) throw new Error(`grid rows empty for ${entry.id} p.${gpage}`);
-      for (const r of rows) {
-        // No x padding: neighbouring result columns abut, and a run starting on
-        // the shared edge must fall in exactly one entry's cell band.
-        const x0 = g.claimDie ? g.dieX0 : g.cellX0;
-        const para = {
-          box: r.band
-            ? { x0, x1: g.cellX1, y0: r.band.y0, y1: r.band.y1 }
-            : { x0, x1: g.cellX1, y0: r.lines[0].y - 4, y1: r.lines[r.lines.length - 1].y + 4 },
-          section: `r${r.die.str.trim().replace(/\s*[-–]\s*/g, "-").replace(/\s*,\s*/g, ",")}`,
-        };
-        if (gpage !== page) para.page = gpage;
-        const drop = g.claimDie ? new Set([r.die]) : null;
-        paras.push(withFixes(para, gpd, drop));
-      }
+      paras.push(...gridBandParas(gpd, g, { entryId: entry.id, gpage, page }));
       if (g.headerSkip) (skipsOut[gpage] ??= []).push({ x0: g.dieX0 - 2, x1: g.cellX1 + 2, y0: g.headerSkip[0], y1: g.headerSkip[1], reason: "table-header" });
     }
     fields.rows = { op: "text", page, paras };
     // An anchored grid table may carry section intro prose above/before the
     // grid (bounded by assists.descStopY, which also ends the flow).
     if (opened) {
-      const segs = await axFlow(doc, entry, assists, { page, pd, cols: opened.cols, col: opened.a.col, endY: opened.a.endY });
+      const segs = await axFlow(doc, entry, flowAssists, { page, pd, cols: opened.cols, col: opened.a.col, endY: opened.a.endY });
       const { paras: dparas } = axParas(segs, page, { iconTags: entry.book === "ax2" });
       if (dparas.length) fields.description = { op: "text", page, paras: dparas };
     }
@@ -2546,7 +2831,7 @@ async function compileRollTable(doc, entry, kindRow) {
     // its column's foot continues in the next segment, so each row holds
     // PORTIONS (one per segment touched) that ship as sibling paras under the
     // same r<range> section.
-    const segs = await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: a.endY });
+    const segs = await axFlow(doc, entry, flowAssists, { page, pd, cols, col: a.col, endY: a.endY });
     const intro = [];
     const rows = [];
     for (const seg of segs) {
@@ -2614,6 +2899,15 @@ async function compileRollTable(doc, entry, kindRow) {
       ),
     };
   }
+  let detailsRead = null;
+  if (assists.details) {
+    const pages = new Map();
+    for (const p of new Set([...regions.map((r) => r.page), ...fields.rows.paras.map((r) => r.page ?? page)])) {
+      pages.set(p, await pageItems(doc, p));
+    }
+    detailsRead = rollTableDetails(pages, assists.details, fields.rows.paras, page, entry.id);
+    fields.rows.paras = detailsRead.paras;
+  }
   if (assists.rollAt) {
     fields.roll = { op: "value", page: assists.rollAt.page ?? page, pattern: "dice", box: assists.rollAt.box };
   }
@@ -2621,6 +2915,12 @@ async function compileRollTable(doc, entry, kindRow) {
     kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
     ...(entry.meta ? { meta: entry.meta } : {}), fields,
   };
+  // The compile summary's account of the details; it never ships.
+  if (detailsRead) {
+    const detailed = new Set(detailsRead.paras.filter((p) => p.detail).map((p) => p.section));
+    const rows = new Set(detailsRead.paras.map((p) => p.section));
+    out._details = { unmatched: detailsRead.unmatched, skipped: detailsRead.skipped, without: rows.size - detailed.size };
+  }
   const rSkips = await axResidueAll(doc, entry.id, fields, { [fields.name.page ?? page]: pd });
   for (const [p, boxes] of Object.entries(rSkips)) skipsOut[p] = [...(skipsOut[p] ?? []), ...boxes];
   axAssistSkips(skipsOut, assists, page);
@@ -2645,8 +2945,10 @@ async function compileLegacyMonster(doc, entry, kindRow) {
   // width while the prose flow keeps the page's real columns.
   const bX1 = assists.blockFullWidth ? pd.width - 34 : colX1;
   const rowsMap = kindRow.fields.stats.rows;
-  // Case-insensitive: "% in Lair:" prints lowercase on some pages.
-  const labelRe = new RegExp(`^(${Object.keys(rowsMap).map((k) => k.replace(/[%()]/g, "\\$&")).join("|")})\\s*:$`, "i");
+  // Case-insensitive: "% in Lair:" prints lowercase on some pages. A label may
+  // close with a period ("Wilderness Enc.:") or weld its value onto the colon
+  // ("Armor Class:0"); the welded value is read back off the label's own run.
+  const labelRe = new RegExp(`^(${Object.keys(rowsMap).map((k) => k.replace(/[%()]/g, "\\$&")).join("|")})\\.?\\s*:\\s*(\\S+)?$`, "i");
   const rowsMapLower = Object.fromEntries(Object.entries(rowsMap).map(([k, v]) => [k.toLowerCase(), v]));
   // A page may stack SEVERAL variant blocks under one heading (MUMMY, ANIMAL
   // prints eight variants as two four-column blocks); assists.statBlockY pins
@@ -2665,6 +2967,10 @@ async function compileLegacyMonster(doc, entry, kindRow) {
   const variantRuns = toLines(
     pd.items.filter((it) => it.h <= AX_BODY_MAX_H && it.x >= colX0 && it.x <= bX1 && it.y > (assists.statBlockY ? blockLo : a.endY + 2) && it.y < blockY0 - 3),
   ).flatMap((ln) => ln.items).sort((x, y) => x.x - y.x);
+  // A label the kind does not list leaves its row inside the header band, and
+  // the variant bands are then cut on that row's values: name it instead.
+  const strayLabel = variantRuns.find((r) => /^[A-Za-z%][^:]{1,24}:$/.test(collapse(r.str)) && r.x < labels[0].x + 4);
+  if (strayLabel) throw new Error(`stat label "${collapse(strayLabel.str)}" above the block is not a row of ${kindRow.id} (${entry.id} p.${page})`);
   let bandX0;
   let bandX1 = bX1;
   let claimLabels = true;
@@ -2682,22 +2988,31 @@ async function compileLegacyMonster(doc, entry, kindRow) {
     bandX0 = (valueXs.length ? Math.min(...valueXs) : labels[0].x + 60) - 4;
   }
 
-  for (const l of labels) {
-    const key = collapse(l.str).replace(/\s*:$/, "").toLowerCase();
-    const spec = rowsMapLower[key];
-    if (!spec) continue;
+  labels.forEach((l, i) => {
+    const [, printed, welded] = labelRe.exec(collapse(l.str));
+    const spec = rowsMapLower[printed.toLowerCase()];
+    if (!spec) return;
+    // A value can wrap onto a line either side of its label (a four-column
+    // block's attack line), so a row's band reaches halfway to its neighbours
+    // and its runs join as the page lays them. A label claimed whole is
+    // dropped; one welded to its value is stripped through its colon.
+    const prev = labels[i - 1]?.y;
+    const next = labels[i + 1]?.y;
+    const pitch = next != null ? next - l.y : prev != null ? l.y - prev : 13;
     const instr = {
       op: "value", page, pattern: spec.pattern,
       ...(spec.table ? { table: spec.table } : {}),
       box: {
         x0: claimLabels ? l.x - 2 : bandX0,
         x1: bandX1,
-        y0: l.y - 4.5, y1: l.y + 4.5,
+        y0: (prev != null ? (prev + l.y) / 2 : l.y - pitch / 2) + 0.5,
+        y1: (next != null ? (l.y + next) / 2 : l.y + pitch / 2) - 0.5,
       },
-      ...(claimLabels ? { dropText: collapse(l.str) } : {}),
     };
-    fields[`stats.${spec.field}`] = instr;
-  }
+    if (claimLabels && !welded) instr.dropText = collapse(l.str);
+    const strip = claimLabels && welded ? new Map([[l, l.str.indexOf(":") + 1]]) : null;
+    fields[`stats.${spec.field}`] = withFixes(instr, pd, null, strip);
+  });
   // The variant-header line itself: claimed by the first variant via an expect
   // (integrity: the header should read as the variant name).
   if (assists.variantCol && claimLabels) {
@@ -3013,7 +3328,36 @@ async function compileScene(doc, entry, compiled) {
   if (problems.length) throw new Error(`scene recipe: ${problems.join("; ")}`);
   const placement = placementHolding(await pageArtPlacements(doc, page), recipe.crop);
   if (!placement) throw new Error(`no image on p.${page} holds the crop`);
+  // `grid`, when the recipe has one, rides through `recipe` unchanged.
   return { kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages, scene: { page, placement, ...recipe } };
+}
+
+/**
+ * kind.sceneZone — one book's encounter rule laid over a scene recipe, which
+ * may be another book's. The outline, the scene and table ids and the cadence
+ * pass through, less the authoring note; each box over a printed figure
+ * becomes a value instruction (`ZONE_FIGURES` says which field and pattern),
+ * proved to hold a run on this printing. The table must be a list this book
+ * compiled; the scene is resolved across cookbooks by the coherence test.
+ *
+ * Runs beside `compileScene`, over what the rest of the book compiled to.
+ */
+async function compileSceneZone(doc, entry, compiled) {
+  const { note: _note, ...zone } = entry.zone ?? {};
+  const problems = zoneProblems(zone, recipeContext(compiled));
+  if (problems.length) throw new Error(`scene zone: ${problems.join("; ")}`);
+  const fields = {};
+  for (const { at, field, pattern } of ZONE_FIGURES) {
+    if (!zone[at]) continue;
+    const { page, x0, x1, y0, y1 } = zone[at];
+    const box = { x0, x1, y0, y1 };
+    if (!runsIn(await pageItems(doc, page), { box }).length) throw new Error(`${at} box on p.${page} holds no run`);
+    fields[field] = { op: "value", page, box, pattern };
+  }
+  return {
+    kind: entry.kind, name: entry.name, cite: citeFor(entry.book, entry.pages[0]), pages: entry.pages,
+    zone: { scene: zone.scene, ...(zone.table !== undefined ? { table: zone.table } : {}), outline: zone.outline, cadence: zone.cadence ?? "", fields },
+  };
 }
 
 /* -------------------------------------------- */
@@ -5224,7 +5568,7 @@ async function main() {
         }
         continue;
       }
-      if (entry.kind === "kind.scene") {
+      if (entry.kind === "kind.scene" || entry.kind === SCENE_ZONE_KIND) {
         // Compiled last, over what the rest of the book compiled to.
         pendingScenes.push(entry);
         continue;
@@ -5248,7 +5592,7 @@ async function main() {
         const compiled = axCompile
           ? await axCompile(doc, entry, kindRow, bookCtx)
           : await compileMonster(doc, entry, kindRow, glyphChars);
-        const { _unmappedLabels, _skips, ...ship } = compiled;
+        const { _unmappedLabels, _skips, _details, ...ship } = compiled;
         if (_skips) {
           // Entries sharing a page report the same furniture; dedup on merge.
           for (const [p, boxes] of Object.entries(_skips)) {
@@ -5261,7 +5605,7 @@ async function main() {
         const n = Object.keys(ship.fields).length;
         const paraCount = ship.fields.description?.paras?.length ?? ship.fields.rows?.paras?.length ?? 0;
         console.error(
-          `OK   ${entry.id}: ${n} instructions (${paraCount} paras${ship.fields.spoils ? ", spoils" : ""}${ship.fields.statline ? ", statline" : ""}${ship.fields.rows ? `, ${ship.fields.rows.paras.length} row-paras` : ""}${ship.fields.attacks?.colors ? ", colors" : ""})${_unmappedLabels ? ` — unmapped labels: ${_unmappedLabels.join(", ")}` : ""}`,
+          `OK   ${entry.id}: ${n} instructions (${paraCount} paras${ship.fields.spoils ? ", spoils" : ""}${ship.fields.statline ? ", statline" : ""}${ship.fields.rows ? `, ${ship.fields.rows.paras.length} row-paras` : ""}${ship.fields.attacks?.colors ? ", colors" : ""})${_unmappedLabels ? ` — unmapped labels: ${_unmappedLabels.join(", ")}` : ""}${_details ? ` — details: ${_details.unmatched} unmatched opener(s), ${_details.skipped} para(s) before the first, ${_details.without} row(s) without` : ""}`,
         );
       } catch (err) {
         warn(`${entry.id}: ${err.message}`);
@@ -5387,6 +5731,12 @@ async function main() {
     }
     for (const entry of pendingScenes) {
       try {
+        if (entry.kind === SCENE_ZONE_KIND) {
+          const zone = await compileSceneZone(doc, entry, out.entries);
+          (out.scenes ??= {})[entry.id] = zone;
+          console.error(`OK   ${entry.id}: scene zone over ${zone.zone.scene} (${Object.keys(zone.zone.fields).length} figure(s))`);
+          continue;
+        }
         const scene = await compileScene(doc, entry, out.entries);
         (out.scenes ??= {})[entry.id] = scene;
         console.error(`OK   ${entry.id}: scene (${scene.scene.districts?.length ?? 0} quarter(s), ${scene.scene.places?.length ?? 0} place(s))`);
@@ -5596,7 +5946,10 @@ async function main() {
   console.error(`compile done — ${warns.length} warning(s).`);
 }
 
-main().catch((err) => {
-  console.error(err.stack || err.message);
-  process.exit(1);
-});
+// Compiles only when run; an import (the compiler's tests) gets the exports.
+if (process.argv[1] && import.meta.url.endsWith(path.basename(process.argv[1]))) {
+  main().catch((err) => {
+    console.error(err.stack || err.message);
+    process.exit(1);
+  });
+}

@@ -1,12 +1,13 @@
 /* global game, foundry */
 /**
- * Calling a travel day done. The tracker raises the question when the hex
- * trace shows the day spent; the Judge answers it. See
- * docs/formation/DECISIONS.md, "The day's end is raised by movement and
- * answered by the Judge".
+ * Calling a travel day done. The tracker raises the question when the day's
+ * hours have reached its budget, or the party marched on after dusk; the Judge
+ * answers it. See docs/formation/DECISIONS.md, "The day's end is raised by
+ * movement and answered by the Judge".
  */
-import { travelOf, endDay, setDayKind, dayIsSpent } from "./travel.mjs";
+import { travelOf, endDay, setDayKind, dayBudget, dayIsSpent } from "./travel.mjs";
 import { travelReadout } from "./formation-view.mjs";
+import { journeyNight } from "./journey.mjs";
 import { getFormation, partySpeed, patchFormation } from "./formation-model.mjs";
 import { rollDayEncounters } from "./encounter-card.mjs";
 import { makeLoc } from "../lib/util.mjs";
@@ -19,14 +20,16 @@ const loc = makeLoc("ACKS-FORMATION");
  * offer both go through it.
  */
 export async function closeDay(formation) {
-  const r = travelReadout(formation, partySpeed(formation));
+  const day = travelOf(formation).day;
   const entry = await endDay(formation.id, {
-    miles: r.camp ? 0 : r.milesPerDay,
-    hexes: r.camp ? 0 : r.hexesPerDay,
+    miles: Math.round(day.miles * 100) / 100,
+    hexes: day.hexesEntered,
   });
   if (entry) await rollDayEncounters(getFormation(formation.id), entry);
   return entry;
 }
+
+const oneDecimal = (n) => Math.round((Number(n) || 0) * 10) / 10;
 
 /** Remember that the question has been put, so a drag does not put it again. */
 function markOffered(formationId) {
@@ -49,8 +52,12 @@ export async function offerDayEnd(formationId) {
   const t = travelOf(formation);
   if (t.mode !== "journey" || t.day.offered) return null;
 
-  const readout = travelReadout(formation, partySpeed(formation));
-  if (readout.camp || !dayIsSpent(t.day, readout.hexesPerDay)) return null;
+  // A camp day's budget is its travel slots alone, so with none it is never
+  // spent by hours and only a step after dusk asks.
+  const readout = travelReadout(formation, partySpeed(formation, { dark: false }));
+  const budget = dayBudget(t, readout.milesPerHour ?? 0);
+  const dark = journeyNight(t);
+  if (!dayIsSpent(t.day, budget, { dark })) return null;
 
   await markOffered(formationId);
 
@@ -58,8 +65,8 @@ export async function offerDayEnd(formationId) {
     window: { title: loc("travel.dayEnd.title") },
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     content: `<p>${loc("travel.dayEnd.body", {
-      hexes: t.day.hexesEntered, allowance: readout.hexesPerDay,
-    })}</p>`,
+      miles: oneDecimal(t.day.miles), hours: oneDecimal(t.day.hours), budget: oneDecimal(budget.hours),
+    })}${dark ? ` ${loc("travel.dayEnd.dark")}` : ""}</p>`,
     buttons: [
       { action: "end", label: loc("travel.dayEnd.end"), default: true },
       { action: "push", label: loc("travel.dayEnd.push") },

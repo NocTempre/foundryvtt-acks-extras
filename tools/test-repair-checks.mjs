@@ -298,6 +298,125 @@ t("a retired module's actor that holds coin is on both lists, and both name the 
   assert.deepEqual(await keyed(RESIDUE, "reason"), [["invalid:Actor:a1", said(HOLDS_COIN, { coin: held })]]);
 });
 
+/* -------------------------------------------------------------------- */
+/*  formation.hexStock                                                  */
+/* -------------------------------------------------------------------- */
+
+// The formation module's checks import the party sheet and the zone classes,
+// which extend core's bases as they load: bare stand-ins are all they need here.
+class ForcedReplacement {
+  constructor(value) {
+    this.value = value;
+  }
+
+  static create(value) {
+    return new ForcedReplacement(value);
+  }
+}
+let minted = 0;
+globalThis.foundry = {
+  utils: { randomID: () => `minted${++minted}`, deepClone: (v) => structuredClone(v) },
+  data: {
+    operators: { ForcedReplacement, ForcedDeletion: class {} },
+    fields: new Proxy({}, { get: () => class {} }),
+    regionBehaviors: { RegionBehaviorType: class {} },
+  },
+  abstract: { TypeDataModel: class {}, DataModel: class {} },
+  applications: {
+    api: { ApplicationV2: class {}, DialogV2: {}, HandlebarsApplicationMixin: (Base) => class extends Base {} },
+    sheets: { ActorSheetV2: class {}, ItemSheetV2: class {} },
+    handlebars: {},
+    ux: { DragDrop: { implementation: class {} }, TextEditor: { implementation: {} } },
+    apps: { DocumentSheetConfig: { registerSheet() {} }, FilePicker: { implementation: class {} } },
+    instances: new Map(),
+  },
+};
+globalThis.Hooks = { on() {}, once() {} };
+globalThis.CONFIG = { Actor: { dataModels: {} }, Item: { dataModels: {} }, RegionBehavior: { dataModels: {}, typeIcons: {} } };
+globalThis.CONST = {};
+const { registerFormationRepairChecks } = await import("../scripts/formation/repair-checks.mjs");
+registerFormationRepairChecks();
+const HEX_STOCK = getRepairCheck("formation.hexStock");
+const HEX_FLAG = "flags.acks-extras.hexStock";
+
+/** A scene holding the given hexStock flag; its updates are kept, and applied as a forced replacement per key. */
+function stockScene(id, stock) {
+  const scene = {
+    id, uuid: `Scene.${id}`, name: `QQ Map ${id}`, tokens: new Coll(), updates: [],
+    getFlag: (ns, key) => (ns === "acks-extras" && key === "hexStock" ? stock : undefined),
+    async update(changes) {
+      this.updates.push(changes);
+      for (const [path, value] of Object.entries(changes)) {
+        stock[path.slice(HEX_FLAG.length + 1)] = value.value;
+      }
+    },
+  };
+  return scene;
+}
+
+/** A world of the given scenes and a formation per id. */
+function stockWorld(scenes, formationIds = ["f1"]) {
+  world({ scenes });
+  const formations = Object.fromEntries(formationIds.map((id) => [id, { id, name: `QQ ${id}`, members: [] }]));
+  globalThis.game.settings = { get: () => formations };
+  globalThis.fromUuid = async (uuid) => scenes.find((s) => s.uuid === uuid) ?? null;
+}
+
+const point = (id, found = {}) => ({ id, kind: "lair", name: "QQ Prowler", found });
+const sound = () => ({ stocked: true, points: [point("p1", { f1: 5 })], searches: { f1: 1 }, assessments: { f1: { told: 1 } } });
+const broken = () => ({
+  stocked: true,
+  points: [point("p1", { f1: 5, gone: 9 }), { kind: "lair", name: "QQ Stalker", found: {} }],
+  searches: { f1: 1, gone: 2 },
+  assessments: { gone: { told: 3 } },
+});
+
+t("a scene whose hex stock is sound, or absent, is not listed", async () => {
+  stockWorld([stockScene("s1", { "2:3": sound(), "label:C4": sound() }), stockScene("s2", undefined)]);
+  assert.deepEqual(await HEX_STOCK.scan(), []);
+});
+
+t("a record with a point lacking an id, or naming a party that is gone, is listed once per scene with its count", async () => {
+  stockWorld([stockScene("s1", { "2:3": broken(), "4:4": sound(), "5:5": broken() }), stockScene("s2", { "1:1": sound() })]);
+  assert.deepEqual(await HEX_STOCK.scan(), [
+    {
+      key: "Scene.s1",
+      uuid: "Scene.s1",
+      name: "QQ Map s1",
+      detail: said("ACKS-FORMATION.repair.check.hexStock.detail", { count: 2 }),
+    },
+  ]);
+});
+
+t("the fix mints the missing ids and drops the dead parties' entries in one update, leaving sound hexes alone", async () => {
+  const scene = stockScene("s1", { "2:3": broken(), "4:4": sound() });
+  stockWorld([scene]);
+  const outcome = await fixCheck(HEX_STOCK, (await scanCheck(HEX_STOCK)).findings);
+  assert.equal(outcome.fixed.length, 1);
+  assert.equal(outcome.failed.length, 0);
+  assert.equal(scene.updates.length, 1, "one update for the scene");
+  assert.deepEqual(Object.keys(scene.updates[0]), [`${HEX_FLAG}.2:3`], "only the damaged hex is written");
+  assert.ok(Object.values(scene.updates[0])[0] instanceof ForcedReplacement, "a merge would keep the dead entries");
+  const mended = scene.getFlag("acks-extras", "hexStock")["2:3"];
+  assert.equal(mended.points[0].id, "p1");
+  assert.match(mended.points[1].id, /^minted[0-9]+$/);
+  assert.deepEqual(mended.points[0].found, { f1: 5 });
+  assert.deepEqual(mended.searches, { f1: 1 });
+  assert.deepEqual(mended.assessments, {});
+  assert.equal(mended.points[1].name, "QQ Stalker", "nothing else about a point changes");
+  assert.deepEqual(outcome.rescan.findings, []);
+});
+
+t("every scene with a broken stock is mended by its own update", async () => {
+  const a = stockScene("s1", { "2:3": broken() });
+  const b = stockScene("s2", { "0:0": broken() });
+  stockWorld([a, b]);
+  const found = (await scanCheck(HEX_STOCK)).findings;
+  assert.deepEqual(found.map((f) => f.key), ["Scene.s1", "Scene.s2"]);
+  await fixCheck(HEX_STOCK, found);
+  assert.deepEqual([a.updates.length, b.updates.length], [1, 1]);
+});
+
 for (const [name, fn] of tests) {
   await fn();
   n++;

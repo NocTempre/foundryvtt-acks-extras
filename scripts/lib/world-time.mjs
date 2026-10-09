@@ -15,7 +15,8 @@
  * Whether it is DARK is read here for the same reason: the calendar keeps no
  * sunrise, so the two hours that bound the dark are the world's settings, and a
  * feature asking the clock asks `clockReading()` rather than keeping a boundary
- * of its own.
+ * of its own. The dawn is the one other reading the formation's journey asks
+ * for: the march ends its day at the next dawn (`untilNextDawn`).
  */
 import { MODULE_ID } from "./constants.mjs";
 
@@ -63,11 +64,11 @@ export function isDarkAt(hour, { dawn, dusk }) {
 }
 
 /**
- * What the world clock says: the hour and minute, the day's length, the dark's
- * bounds from the settings, and whether it is dark now. Null when the clock
- * keeps no calendar to read an hour from.
- * @returns {{hour: number, minute: number, hoursPerDay: number, dawn: number,
- *   dusk: number, dark: boolean}|null}
+ * What the world clock says: the hour, minute and second, the day's length, the
+ * seconds in an hour, the dark's bounds from the settings, and whether it is
+ * dark now. Null when the clock keeps no calendar to read an hour from.
+ * @returns {{hour: number, minute: number, second: number, hoursPerDay: number,
+ *   secondsPerHour: number, dawn: number, dusk: number, dark: boolean}|null}
  */
 export function clockReading() {
   const hoursPerDay = Number(game.time?.calendar?.days?.hoursPerDay);
@@ -78,7 +79,46 @@ export function clockReading() {
     dawn: game.settings.get(MODULE_ID, SETTING_DAWN_HOUR),
     dusk: game.settings.get(MODULE_ID, SETTING_DUSK_HOUR),
   });
-  return { hour, minute: Number(components?.minute) || 0, hoursPerDay, ...bounds, dark: !!isDarkAt(hour, bounds) };
+  const days = game.time.calendar.days;
+  const secondsPerHour = Number(days.minutesPerHour) * Number(days.secondsPerMinute) || 3600;
+  return {
+    hour,
+    minute: Number(components?.minute) || 0,
+    second: Number(components?.second) || 0,
+    hoursPerDay,
+    secondsPerHour,
+    ...bounds,
+    dark: !!isDarkAt(hour, bounds),
+  };
+}
+
+/**
+ * Whole seconds from a clock reading to the next time the clock reads the
+ * dawn hour, strictly after now: standing exactly at dawn waits a whole day.
+ * Pure — the reading carries `hoursPerDay` and `dawn`, and a minute is a
+ * sixtieth of the hour.
+ * @param {object|null} reading  a `clockReading()` result
+ * @param {object} [o]
+ * @param {number} [o.secondsPerHour]  the calendar's hour, in seconds
+ * @returns {number|null} null for a reading that is not one.
+ */
+export function secondsToNextDawn(reading, { secondsPerHour = 3600 } = {}) {
+  if (!reading) return null;
+  const { hour, minute, second, hoursPerDay, dawn } = reading;
+  if (![hour, hoursPerDay, dawn].every(Number.isFinite) || !(hoursPerDay > 0) || !(secondsPerHour > 0)) return null;
+  const now = hour * secondsPerHour + (Number(minute) || 0) * (secondsPerHour / 60) + (Number(second) || 0);
+  const day = hoursPerDay * secondsPerHour;
+  const ahead = (dawn * secondsPerHour - now) % day;
+  return Math.round(ahead > 0 ? ahead : ahead + day);
+}
+
+/**
+ * Seconds from the clock now to the next dawn, or null when the clock keeps no
+ * calendar.
+ */
+export function untilNextDawn() {
+  const reading = clockReading();
+  return reading ? secondsToNextDawn(reading, { secondsPerHour: reading.secondsPerHour }) : null;
 }
 
 /**

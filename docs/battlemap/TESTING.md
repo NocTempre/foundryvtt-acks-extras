@@ -241,8 +241,10 @@ square-gridded scene; a disposable party with one member (for the journey
 read).
 
 1. Enter the Battlemap group, arm **Paint terrain**.
-   *Observable:* the palette window opens with one swatch per terrain and
-   the eraser; the toolbar shows the brush armed; calibration modes disarm.
+   *Observable:* the palette window opens with one swatch per encounter
+   terrain (twenty-three, no bare-ground swatch, plus one per imported kind
+   no encounter terrain covers) and the eraser; the toolbar shows the brush
+   armed; calibration modes disarm.
 2. Click and drag across the hex scene with two different brushes.
    *Observable:* one Region per painted terrain kind appears (name = the
    terrain's label, its colour the swatch's), `flags.acks-extras.terrain`
@@ -258,13 +260,49 @@ read).
    token across a painted boundary.
    *Observable:* `travel.hex` picks up the offset and its letter-number
    label, `hexesEntered` counts the crossing (arriving in the FIRST hex
-   names it without counting), and the ground picker follows the painted
-   terrain; an unpainted hex leaves the Judge's pick standing. The panel's
+   names it without counting), the ground follows the painted terrain and
+   the encounter pick (`travel.encounterTerrain`) follows a hex painted at
+   the book's grain; a region flagged with a bare ground key (`terrain:
+   forest`, written by hand for the check — the brush no longer lays one)
+   sets the ground and leaves the pick; a river hex sets the pick and
+   leaves the ground; an unpainted hex leaves both standing. The panel's
    ×-factor lines follow the painted terrain when travel tables are
    registered.
+6. With the party on a hex painted at the book's grain, set the strip's
+   encounter picker back to its unset option and press **Stock this hex**.
+   *Observable:* the dialog's terrain select opens on the hex's painted kind.
+7. Set the party down on a river hex without walking it (the lost episode's
+   step onto the true position is the user's path there).
+   *Observable:* the hex is named, the pick becomes the river's, the ground
+   stands, and `hexesEntered` does not move.
 
 Teardown: delete both scenes (their regions go with them) and the party
 fixtures.
+
+Drive mechanics (walked 2026-10-09 through the capture driver). View the hex
+scene first (`scene.view()`, then wait for `canvas.ready` with
+`canvas.scene.id`); a view requested while the last one is still loading is
+refused with a warning and nothing switches. The palette is
+`openTerrainPalette()`, and its `_prepareContext()` lists the swatches the
+window renders; a swatch press is `button[data-brush="<key>"]` `.click()` in
+the window's DOM, read back from `terrainPaint.brush`. The pointer path is the
+session's catcher, `canvas.stage.children.find((c) => c.zIndex ===
+10000).children[0]`, fed `emit("pointerdown", { getLocalPosition: () => point,
+buttons: 1 })` with `point` from `grid.getCenterPoint(offset)`; `"pointermove"`
+with the same shape is the drag. `paintHexAt(scene, point, key)` (`null` to
+erase) is the brush's own write and resolves `false` when nothing changes;
+`terrainRegionsOf(scene)` lists the regions with their flags. The hex-only
+warning is read through a wrapped `ui.notifications.warn`; one stroke on the
+square scene fires it once, and a `"pointermove"` after it fires nothing. The
+journey read is `tokenDoc.update({ x, y }, { animate: false })` to
+`grid.getTopLeftPoint(offset)`, then `travelOf(formation)` and
+`actor.sheet._prepareContext({})` → `travel.mapPaints`, `travel.grounds`,
+`travel.encounterTerrains` for the pickers. The pick is cleared with
+`applyTravelForm(id, { encounterTerrain: "" })`. A token SET DOWN rather than
+walked is `update(..., { ["acks-extras.lostTruth"]: true })` followed by
+`seatJourneyHex(tokenDoc, formationId)`. A dialog is opened in one evaluate,
+unawaited, and read or pressed in the next — an evaluate that awaits a
+dialog's promise waits for a hand that never comes and times the driver out.
 
 ## Roads (added with the settlement layer)
 

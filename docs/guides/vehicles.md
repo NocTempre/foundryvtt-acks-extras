@@ -47,7 +47,7 @@ asks for wears an **unqualified** badge. Once your voyage tables are imported,
 the group shows what its hands are effectively worth beside their head count
 (RR ch. 7); until then it counts them in full and says so.
 
-![](../releases/v10.0.0/vehicles.png)
+![](../releases/v11.0.0/vehicles.png)
 
 *A galley short of rowers: the sailors at full strength, a named hand without
 the proficiency the seat asks for wearing the unqualified badge beside the

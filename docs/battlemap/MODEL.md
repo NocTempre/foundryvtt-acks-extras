@@ -22,13 +22,20 @@ erasing exact and the journey's lookup geometry-free: "what terrain is this
 hex?" is a flag read that answers identically on a client with no canvas.
 One terrain per hex — painting a cell removes it from every other terrain
 region first; the eraser unpaints, and a region whose last cell goes is
-deleted. A small palette window picks the brush; the terrain vocabulary and
-its labels are the vehicles feature's `TERRAIN` (structure — what a terrain
-is WORTH stays in the registered travel tables). Square-grid scenes refuse
-with a warning rather than approximating. The formation's journey reads the
-painted map: the party token's hex names the trace and its painted terrain
-sets the ground (`travel.mjs onJourneyTokenMoved`, via the same
-token-movement seam that ticks dungeon turns when not journeying).
+deleted. A small palette window picks the brush; the vocabulary is the
+formation's encounter terrain register (`formation/encounter-terrains.mjs` —
+the book's own grain, each kind standing on a travel ground) plus any
+imported `terrainMultipliers` key no kind of the register covers (structure
+— what a terrain is WORTH stays in the registered travel tables); mud and
+snow are the weather's and never brushes. Square-grid scenes refuse with a
+warning rather than approximating. The formation's journey reads the painted
+map through `paintedTerrainAt`, which answers in both vocabularies: the party
+token's hex names the trace; a kind of the register sets the travel ground
+and the encounter pick together; a river sets the pick alone; a bare ground
+(a map painted before the brush took the book's grain, or an imported kind)
+sets the ground alone (`journey.mjs onJourneyTokenMoved` and `travel.mjs
+seatJourneyHex`, via the same token-movement seam that ticks dungeon turns
+when not journeying).
 
 ## Files
 
@@ -43,6 +50,7 @@ token-movement seam that ticks dungeon turns when not journeying).
 | `assistant-app.mjs` | The window, a VIEW over the session: the setup section, the fit card, scale decisions, the token-size hotbar, and a pinned footer carrying the two apply actions. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
 | `apply.mjs` | Scene writes, one per family: `applyGridCalibration` (square), `applyHexCalibration` (hex), `applyScaleOnly` (no geometry), each one `scene.update`; plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
 | `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, the family it already uses, and `hexProbe` — a hex's bounding box, measured off a clone rather than restated. |
+| `hex-fit.mjs` | `hexAlignment` — the shift that lays Foundry's lattice over a drawn cell centre, asked of a zero-shift clone. The one owner of lattice alignment. Document methods only. |
 | `../lib/distance-units.mjs` | What one `grid.units` is worth in FEET. Every feet→squares conversion divides by `sceneFeetPerCell`. |
 | `roads.mjs` | Roads as a WALL LAYER on any grid: the flag, the non-blocking wall shape, the memoised road network, `roadUnder` (which street is the party on) and `roadDistance` (how far along the streets), the drawing presets, and the road row on a wall's own sheet. |
 | `road-markers.mjs` | The GM-side overlay that makes a street visible: tinted by surface, dashed where it is an alley, drawn only while a map-drawing control is open. Presentation only. |
@@ -129,6 +137,15 @@ token-movement seam that ticks dungeon turns when not journeying).
   express packing where every other row starts half a cell over. A clone whose
   hex box comes back square has not rebuilt its grid, and `hexProbe` returns
   null rather than scaling a map by a ratio of one.
+- **Lattice alignment has one owner, `hex-fit.mjs`.** `hexAlignment` builds a
+  zero-shift clone of the scene at the target size and grid, asks its grid
+  for the cell centre nearest a drawn centre given in scene pixels (padded
+  origin included, or as a function of the clone's dimensions so one clone
+  answers both), and returns the rounded `shiftX`/`shiftY`, or null when the
+  grid cannot answer. The hex apply calls it; it needs nothing of the scene
+  but `clone`, so it answers an unsaved Scene — a gridded scene recipe's
+  (`docs/importer/MODEL.md`, "A map on a grid of drawn cells") — the same
+  way, and no second copy of the lattice question exists.
 - **Scale only writes no geometry at all.** `grid.size` and `grid.distance` are
   one ratio — so many px are worth so much distance — and a map with no drawn
   grid offers exactly one measurement, its scale bar. `applyScaleOnly` writes

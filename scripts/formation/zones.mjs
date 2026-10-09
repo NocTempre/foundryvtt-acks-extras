@@ -2,6 +2,8 @@
 import { getPartyToken } from "./formation-model.mjs";
 import { roadUnder } from "../battlemap/roads.mjs";
 import { effectiveWhere } from "./settlement.mjs";
+import { truePositionToken } from "./shadow.mjs";
+import { polygonArea } from "./zone-layers.mjs";
 
 /**
  * Where the party token is standing, in region terms.
@@ -164,6 +166,16 @@ export function regionOutlines(regionDoc) {
   return rings;
 }
 
+/**
+ * The area a region covers, in square canvas pixels: the sum of its solid
+ * outlines' areas. Holes are not subtracted and overlapping shapes count
+ * twice: the figure ranks zones drawn one inside another, and an inner zone's
+ * outlines are the smaller unless it is drawn as several overlapping shapes.
+ */
+export function regionArea(regionDoc) {
+  return regionOutlines(regionDoc).reduce((sum, ring) => sum + polygonArea(ring), 0);
+}
+
 /** Every edge of a region's outlines, as `[x1, y1, x2, y2]` segments. */
 export function regionEdges(regionDoc) {
   const edges = [];
@@ -213,6 +225,21 @@ export function zoneAt(scene, point, elevation, type) {
 }
 
 /**
+ * Every zone of a given behavior type drawn over a point, in the scene's
+ * region order — `zoneAt`'s test without stopping at the first. A region
+ * carrying two enabled behaviors of the type answers once, with the first.
+ * @returns {Array<{region: RegionDocument, behavior: RegionBehavior}>}
+ */
+export function zonesAt(scene, point, elevation, type) {
+  const out = [];
+  for (const region of scene?.regions ?? []) {
+    const behavior = region.behaviors.find((b) => b.type === type && !b.disabled);
+    if (behavior && regionContains(region, point, elevation)) out.push({ region, behavior });
+  }
+  return out;
+}
+
+/**
  * Where the party is standing: the scene, the point, and the elevation.
  *
  * The token's CENTRE, for the reason the zone lookup gives — and ONE
@@ -225,8 +252,13 @@ export function zoneAt(scene, point, elevation, type) {
  */
 export function partyPoint(formation) {
   const token = getPartyToken(formation);
-  if (!token) return null;
+  return token ? tokenPoint(token) : null;
+}
+
+/** A token's centre on its own scene, in `partyPoint`'s shape; null for a token on no scene. */
+function tokenPoint(token) {
   const scene = token.parent;
+  if (!scene?.grid) return null;
   const gs = scene.grid.size;
   return {
     scene,
@@ -234,6 +266,20 @@ export function partyPoint(formation) {
     point: { x: token.x + (token.width * gs) / 2, y: token.y + (token.height * gs) / 2 },
     elevation: token.elevation ?? 0,
   };
+}
+
+/**
+ * Where the party REALLY stands on its scene: the centre of the token
+ * `truePositionToken` names — the lost episode's shadow while one stands
+ * there, else the party's own marker — in `partyPoint`'s shape.
+ * @returns {{scene: Scene, token: TokenDocument, point: {x: number, y: number},
+ *   elevation: number}|null} null for a party with no token placed anywhere.
+ */
+export function truePartyPoint(formation) {
+  const at = partyPoint(formation);
+  if (!at) return null;
+  const truth = truePositionToken(at.scene, formation);
+  return (truth && truth.id !== at.token.id && tokenPoint(truth)) || at;
 }
 
 /**

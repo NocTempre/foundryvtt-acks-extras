@@ -12,6 +12,10 @@
  * other shape (a hideout, a cult, a party) keeps the page path it always had.
  * The group words are the register's own vocabulary for the book's structure,
  * not the book's prose.
+ *
+ * A region's gazetteer is not a settlement: its keyed sites and its overview
+ * sit under the two whole group names in `REGION_GROUPS`, which the quarter
+ * parse never takes, so nothing that reads quarters sees a region.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
@@ -19,12 +23,25 @@ import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
 /** The group suffixes a settlement book prints per quarter, and what each holds. */
 const POI_GROUPS = Object.freeze({ "Points of Interest": "poi", "Notable Residents": "residents", Overview: "overview" });
 
+/** The whole group names a region's gazetteer is filed under, and what each holds. */
+export const REGION_GROUPS = Object.freeze({ "Region — Sites": "site", "Region — Overview": "overview" });
+
+/**
+ * Which part of a region a group names, or null for any other group.
+ * @returns {{kind: "site"|"overview"}|null}
+ */
+export function regionGroupOf(group) {
+  const key = String(group ?? "").trim();
+  return Object.hasOwn(REGION_GROUPS, key) ? { kind: REGION_GROUPS[key] } : null;
+}
+
 /**
  * Which quarter a group names, and which part of it — or null for a group of
- * any other shape.
+ * any other shape, a region's included.
  * @returns {{district: string, kind: "poi"|"residents"|"overview"}|null}
  */
 export function poiGroupOf(group) {
+  if (regionGroupOf(group)) return null;
   const m = /^(.+?)\s+—\s+(Points of Interest|Notable Residents|Overview)\s*$/u.exec(String(group ?? "").trim());
   return m ? { district: m[1].trim(), kind: POI_GROUPS[m[2]] } : null;
 }
@@ -60,6 +77,36 @@ export function districtPlaceData({ book, bookLabel = "", district, parentUuid =
     flags: {
       [MODULE_ID]: {
         cookbook: { id: districtPlaceId(book, district), book, kind: "kind.location", unaudited: true },
+      },
+    },
+  };
+}
+
+/** Whether a cookbook entry is one of a region's keyed sites. */
+export const isRegionSite = (entry) => entry?.kind === "kind.location" && regionGroupOf(entry?.meta?.group)?.kind === "site";
+
+/** Whether a cookbook entry is a region's own overview — the region place's notes, not a site. */
+export const isRegionOverview = (entry) => entry?.kind === "kind.location" && regionGroupOf(entry?.meta?.group)?.kind === "overview";
+
+/** The cookbook id a region's own place is claimed under: one per book. */
+export const regionPlaceId = (book) => `${book}.region`;
+
+/**
+ * Actor data for a region's own place, shaped like a quarter's: built empty
+ * under the book's label (the id when there is none), never a name read off
+ * the page, and given its prose by the region's overview entry when the book
+ * prints one.
+ */
+export function regionPlaceData({ book, bookLabel = "", folderId = null }) {
+  return {
+    name: bookLabel || book,
+    type: LOCATION_TYPE,
+    img: "icons/svg/mountain.svg",
+    folder: folderId,
+    system: { region: bookLabel, notes: "", parentUuid: "" },
+    flags: {
+      [MODULE_ID]: {
+        cookbook: { id: regionPlaceId(book), book, kind: "kind.location", unaudited: true },
       },
     },
   };

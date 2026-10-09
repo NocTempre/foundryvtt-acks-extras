@@ -1,89 +1,9 @@
 <section class="tab acks-formation-tab {{tabs.party.cssClass}}" data-tab="party" data-group="primary">
   {{#if formation}}
-  <section class="clock">
-    <div class="stats">
-      <div class="stat {{#if hurried}}quiet{{/if}}" data-tooltip="{{localize 'ACKS-FORMATION.app.speedHint'}}">
-        <span class="stat-label">{{localize "ACKS-FORMATION.app.speed"}}</span>
-        <span class="value">{{#if hurried}}{{effSpeed}}'{{else}}{{speed}}'{{/if}}</span>
-        <span class="sub">{{#if hurried}}{{localize "ACKS-FORMATION.app.hurriedBadge"}}{{else}}{{localize "ACKS-FORMATION.app.perTurn"}} · {{combatSpeed}}' {{localize "ACKS-FORMATION.app.perRound"}}{{/if}}</span>
-      </div>
-      <div class="stat">
-        <span class="stat-label">{{localize "ACKS-FORMATION.app.elapsed"}}</span>
-        <span class="value">{{clock.turnsTotal}}</span>
-        <span class="sub">{{localize "ACKS-FORMATION.app.turns"}} ({{elapsed}}) · {{localize "ACKS-FORMATION.app.roundShort"}} {{#if clock.roundsPartial}}{{clock.roundsPartial}}{{else}}0{{/if}}/10</span>
-      </div>
-      <div class="stat {{#if clock.winded}}bad{{/if}}">
-        <span class="stat-label">{{localize "ACKS-FORMATION.app.rest"}}</span>
-        <span class="value">{{clock.turnsSinceRest}}/{{restMax}}</span>
-        <span class="sub">{{#if clock.winded}}{{localize "ACKS-FORMATION.app.windedBadge"}}{{else}}{{localize "ACKS-FORMATION.app.sinceRest"}}{{/if}}</span>
-      </div>
-      <div class="stat">
-        <span class="stat-label">{{localize "ACKS-FORMATION.app.carry"}}</span>
-        <span class="value">{{clock.carryFeet}}'</span>
-        <span class="sub">{{localize "ACKS-FORMATION.app.carryHint"}}</span>
-      </div>
-    </div>
-
-    {{#if isGM}}
-    <div class="buttons">
-      <button type="button" data-action="dealXp" data-tooltip="{{localize 'ACKS-FORMATION.xp.hint'}}">
-        <i class="fa-solid fa-star"></i> {{localize "ACKS-FORMATION.xp.deal"}}
-      </button>
-      <button type="button" data-action="adjustHp" data-tooltip="{{localize 'ACKS-FORMATION.app.adjustHpHint'}}">
-        <i class="fa-solid fa-heart-pulse"></i> {{localize "ACKS-FORMATION.app.adjustHp"}}
-      </button>
-      <button type="button" data-action="advanceTurn" data-tooltip="{{localize 'ACKS-FORMATION.app.advanceTurnHint'}}">
-        <i class="fa-solid fa-hourglass-half"></i> {{localize "ACKS-FORMATION.app.advanceTurn"}}
-      </button>
-      <button type="button" data-action="advanceRound" data-tooltip="{{localize 'ACKS-FORMATION.app.advanceRoundHint'}}">
-        <i class="fa-solid fa-hourglass-start"></i> {{localize "ACKS-FORMATION.app.advanceRound"}}
-      </button>
-      <button type="button" data-action="restTurn" data-tooltip="{{localize 'ACKS-FORMATION.app.restTurnHint'}}">
-        <i class="fa-solid fa-campfire"></i> {{localize "ACKS-FORMATION.app.restTurn"}}
-      </button>
-      <button type="button" data-action="encounterNow" data-tooltip="{{localize 'ACKS-FORMATION.app.encounterNowHint'}}">
-        <i class="fa-solid fa-dice-d6"></i> {{localize "ACKS-FORMATION.app.encounterNow"}}
-      </button>
-      <button type="button" data-action="consumeRations" data-tooltip="{{localize 'ACKS-FORMATION.app.rationsHint'}}">
-        <i class="fa-solid fa-drumstick-bite"></i> {{localize "ACKS-FORMATION.app.rations"}}
-      </button>
-      <button type="button" data-action="undoTurn" data-tooltip="{{localize 'ACKS-FORMATION.app.undoTurnHint'}}">
-        <i class="fa-solid fa-rotate-left"></i>
-      </button>
-      <button type="button" data-action="togglePause" class="{{#if clock.paused}}paused{{/if}}"
-              data-tooltip="{{localize 'ACKS-FORMATION.app.pauseHint'}}">
-        <i class="fa-solid {{#if clock.paused}}fa-play{{else}}fa-pause{{/if}}"></i>
-      </button>
-      <button type="button" data-action="togglePace" class="{{#if hurried}}paused{{/if}}"
-              data-tooltip="{{localize 'ACKS-FORMATION.app.paceHint'}}">
-        <i class="fa-solid {{#if hurried}}fa-person-running{{else}}fa-person-walking{{/if}}"></i>
-      </button>
-      <button type="button" data-action="disband" class="danger" data-tooltip="{{localize 'ACKS-FORMATION.app.disbandHint'}}">
-        <i class="fa-solid fa-people-arrows"></i> {{localize "ACKS-FORMATION.app.disband"}}
-      </button>
-    </div>
-    <div class="buttons saves-row">
-      <span class="save-label">{{localize "ACKS-FORMATION.app.partySave"}}</span>
-      {{#each saves}}
-      <button type="button" data-action="partySave" data-save="{{this.key}}" data-tooltip="{{this.tooltip}}">
-        {{this.label}}
-      </button>
-      {{/each}}
-      <label class="magical-toggle" data-tooltip="{{localize 'ACKS-FORMATION.app.magicalHint'}}">
-        <input type="checkbox" class="save-magical" checked />
-        {{localize "ACKS-FORMATION.app.magical"}}
-      </label>
-    </div>
-    <div class="buttons saves-row">
-      <span class="save-label">{{localize "ACKS-FORMATION.rolls.rowLabel"}}</span>
-      {{#each checks}}
-      <button type="button" data-action="partyCheck" data-check="{{this.key}}" data-tooltip="{{this.hint}}">
-        <i class="fa-solid {{this.icon}}"></i> {{this.label}}
-      </button>
-      {{/each}}
-    </div>
-    {{/if}}
-  </section>
+  {{! The play surface: one clock strip, mode-aware, then the Judge's declarations
+      as collapsed groups. Both are partials loaded by the sheet before it renders. }}
+  {{> "modules/acks-extras/templates/formation/formation-strip.hbs"}}
+  {{> "modules/acks-extras/templates/formation/formation-declarations.hbs"}}
   {{#if ownedMembers.length}}
   <section class="player-actions">
     <h3>{{localize "ACKS-FORMATION.request.section"}}</h3>

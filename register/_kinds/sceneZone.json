@@ -1,0 +1,5 @@
+{
+  "id": "kind.sceneZone",
+  "role": "sceneZone",
+  "note": "One book's encounter rule laid over a scene recipe, possibly another book's: an outline in page points of the TARGET page (pre-turn), the scene by id, optionally a roll table of the zone's own book, a cadence, and boxes over the zone's printed figures. Named Zone <n>, no text anchor (a zone is located by its scene). Compiles under the cookbook's scenes; figures are read at import."
+}

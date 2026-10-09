@@ -1,0 +1,83 @@
+[
+  {
+    "id": "ax4.forestEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax4",
+    "name": "Forest Encounters",
+    "anchor": { "display": "TABLE 1: THE FOREST" },
+    "pages": [8],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "grid": {
+        "page": 8, "y0": 266, "y1": 462, "dieX0": 58, "dieX1": 82, "cellX0": 88, "cellX1": 318, "claimDie": true, "headerSkip": [252, 266],
+        "bands": [[268, 326], [327, 337], [338, 368], [369, 399], [400, 462]]
+      },
+      "rollAt": { "page": 8, "box": { "x0": 60, "x1": 85, "y0": 253, "y1": 265 } },
+      "details": { "by": "number", "regions": [{ "page": 8, "x0": 322, "x1": 578, "y0": 88, "y1": 750 }] }
+    }
+  },
+  {
+    "id": "ax4.cityRuinsEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax4",
+    "name": "City Ruins Encounters",
+    "anchor": { "display": "TABLE 2: CITY RUINS" },
+    "pages": [9],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "grid": {
+        "page": 9, "y0": 108, "y1": 322, "dieX0": 44, "dieX1": 66, "cellX0": 69, "cellX1": 300, "claimDie": true, "headerSkip": [94, 107],
+        "bands": [[109, 137], [139, 168], [170, 190], [192, 202], [204, 233], [235, 254], [256, 276], [278, 297], [299, 320]]
+      },
+      "rollAt": { "page": 9, "box": { "x0": 42, "x1": 66, "y0": 94, "y1": 106 } },
+      "details": {
+        "by": "number",
+        "regions": [
+          { "page": 9, "x0": 34, "x1": 300, "y0": 350, "y1": 750 },
+          { "page": 9, "x0": 312, "x1": 578, "y0": 44, "y1": 750 }
+        ]
+      }
+    }
+  },
+  {
+    "id": "ax4.lizardmenTerritoryEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax4",
+    "name": "Lizardmen Territory Encounters",
+    "anchor": { "display": "TABLE 3: LIZARDMEN TERRITORY" },
+    "pages": [10],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "grid": {
+        "page": 10, "y0": 108, "y1": 314, "dieX0": 62, "dieX1": 86, "cellX0": 88, "cellX1": 310, "claimDie": true, "headerSkip": [94, 107],
+        "bands": [[109, 137], [139, 159], [161, 180], [182, 202], [204, 223], [225, 244], [246, 276], [278, 288], [290, 312]]
+      },
+      "rollAt": { "page": 10, "box": { "x0": 60, "x1": 85, "y0": 94, "y1": 106 } },
+      "details": {
+        "by": "number",
+        "regions": [
+          { "page": 10, "x0": 52, "x1": 310, "y0": 333, "y1": 750 },
+          { "page": 10, "x0": 320, "x1": 578, "y0": 44, "y1": 750 }
+        ]
+      }
+    }
+  },
+  {
+    "id": "ax4.ruinedBuildings",
+    "kind": "kind.rolltable",
+    "book": "ax4",
+    "name": "Ruined Buildings",
+    "anchor": { "display": "TABLE 4: RUINED BUILDINGS" },
+    "pages": [11, 12],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "grids": [
+        { "page": 11, "y0": 424, "y1": 740, "dieX0": 42, "dieX1": 72, "cellX0": 78, "cellX1": 312, "claimDie": true, "centerDies": true, "headerSkip": [407, 420] },
+        { "page": 11, "y0": 78, "y1": 760, "dieX0": 314, "dieX1": 346, "cellX0": 348, "cellX1": 578, "claimDie": true, "centerDies": true },
+        { "page": 12, "y0": 78, "y1": 732, "dieX0": 60, "dieX1": 94, "cellX0": 96, "cellX1": 338, "claimDie": true, "centerDies": true },
+        { "page": 12, "y0": 78, "y1": 745, "dieX0": 334, "dieX1": 364, "cellX0": 366, "cellX1": 578, "claimDie": true, "centerDies": true }
+      ],
+      "rollAt": { "page": 11, "box": { "x0": 42, "x1": 70, "y0": 407, "y1": 419 } }
+    }
+  }
+]

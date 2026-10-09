@@ -37,12 +37,18 @@ import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
 import { occupantsOf, draftPullOf } from "../vehicles/occupants.mjs";
 import { stationsFor } from "../vehicles/stations.mjs";
 import { deploymentOf } from "../vehicles/deploy.mjs";
-import { FOLLOWING_KINDS } from "./travel.mjs";
 import { driftSummary } from "./lost.mjs";
 import { shadowsOf } from "./shadow.mjs";
-import { travelOf, DAY_KINDS, ANCILLARY_ACTIVITIES, ROAD_KINDS, TERRITORY_KEYS } from "./travel.mjs";
+import {
+  travelOf, dayBudget, dayIsSpent,
+  DAY_KINDS, ANCILLARY_ACTIVITIES, FOLLOWING_KINDS, ROAD_KINDS, TERRITORY_KEYS,
+} from "./travel.mjs";
+import { cadenceOf } from "./march.mjs";
+import { cadenceMilesFor } from "./encounter-card.mjs";
+import { isHexScene, terrainRegionsOf } from "../battlemap/terrain-paint.mjs";
+import { routesOf } from "../battlemap/hex-routes.mjs";
 import { sceneBlockFeet, sceneIncidents } from "../battlemap/scene-setup.mjs";
-import { feetPerUnit } from "../lib/distance-units.mjs";
+import { feetPerUnit, isExpeditionScale, sceneMilesPerCell } from "../lib/distance-units.mjs";
 import { clockReading } from "../lib/world-time.mjs";
 import {
   SETTLEMENT_PACES, SETTLEMENT_LOCATIONS, ROUTE_KNOWLEDGE,
@@ -82,6 +88,7 @@ import { MOVEMENT_MODES, composeMovement } from "../lib/movement-modes.mjs";
 import { flightMultiplier, FLIGHT_LOADS } from "./flight.mjs";
 import { FORAGE_KINDS, forageSpec, huntSpec } from "./foraging.mjs";
 import { searchSpec, searchesAvailable } from "./searching.mjs";
+import { hexStockView } from "./hex-stock-run.mjs";
 
 /**
  * Build the display context shared by the GM formation window and the party
@@ -89,7 +96,9 @@ import { searchSpec, searchesAvailable } from "./searching.mjs";
  * and rule warnings.
  */
 export function buildFormationView(formation) {
-  const speed = partySpeed(formation);
+  // A journey's speed never reads the scene's darkness: its night is the clock's.
+  const journeying = travelOf(formation).mode === "journey";
+  const speed = partySpeed(formation, journeying ? { dark: false } : undefined);
   const hurried = isHurried(formation);
   const view = {
     speed,
@@ -207,7 +216,10 @@ export function buildFormationView(formation) {
   view.train = buildTrain(formation, speed);
 
   // The JOURNEY: the day board, the ground, the derived day's march, the log.
-  view.travel = buildTravelView(formation, speed);
+  view.travel = buildTravelView(formation);
+  // The strip is the play surface in every mode; it reads the travel view it
+  // sits beside so the camp forecast and the city board are derived once.
+  view.strip = buildStripView(formation, speed, view.travel);
 
   view.lights = formation.lights.map((light) => {
     const bearerActor = game.actors.get(light.bearerId);
@@ -312,22 +324,32 @@ function buildMapsView(formation) {
   return { mapping, mapItems };
 }
 
-function buildWarnings(formation, speed) {
+/**
+ * The warnings strip, header and strip both. On a journey the dark is the
+ * journey's own night (the Judge's word on the hour, else the world clock) and
+ * not the scene's darkness, and the turn tracker's rest and winded warnings are
+ * left out because a march keeps neither, and by daylight it wants no lantern.
+ */
+export function buildWarnings(formation, speed) {
   const warnings = [];
+  const journeying = travelOf(formation).mode === "journey";
+  const inDark = journeying ? journeyIsNight(formation) : isPartyInDark(formation);
+  // By daylight a journey needs no lantern: its light warnings are the night's.
+  const lightMatters = !journeying || inDark;
   // A closed lantern sheds no light at all.
   const anyLitLight = formation.lights.some((l) => l.lit && !l.shielded);
   const mapper = formation.members.find((m) => m.roles?.includes("mapper"));
   if (formation.members.length && !mapper) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.noMapper"));
   }
-  if (mapper && !anyLitLight) {
+  if (mapper && !anyLitLight && lightMatters) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.mapperNoLight"));
   }
   if (mapper && !hasAbility(getMemberActor(mapper), /mapping/i)) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.mapperNoProficiency"));
   }
   if (formation.members.length && !anyLitLight) {
-    if (isPartyInDark(formation)) {
+    if (inDark) {
       const sighted = [];
       const blinded = [];
       for (const m of formation.members) {
@@ -346,13 +368,13 @@ function buildWarnings(formation, speed) {
       } else if (sighted.length) {
         warnings.push(game.i18n.format("ACKS-FORMATION.warnings.darkSighted", { sighted: sighted.join(", ") }));
       }
-    } else {
+    } else if (lightMatters) {
       warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.noLight"));
     }
   }
-  if (formation.clock.winded) {
+  if (!journeying && formation.clock.winded) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.winded"));
-  } else if (restInterval() != null && formation.clock.turnsSinceRest >= restInterval()) {
+  } else if (!journeying && restInterval() != null && formation.clock.turnsSinceRest >= restInterval()) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.restDue"));
   }
   if (speed <= 0 && formation.members.length) {
@@ -462,13 +484,14 @@ function buildTrain(formation, partyPace) {
  * The day's march, derived in the rules' order: the party's slowest UNSCALED
  * base (feet per turn), times the ground, the road and the weather — each
  * factor its own line, the door-helper idiom — times the day-kind's pace.
- * A camp day derives nothing on purpose.
+ * A camp day is priced at the dedicated pace so its travel slots can be walked,
+ * and still reports `camp: true`. Hexes per day are stated only against a party
+ * scene whose cell is a mile or more across.
  */
 export function travelReadout(formation, feet) {
   const t = travelOf(formation);
   const kind = DAY_KINDS[t.day?.kind] ?? DAY_KINDS.march;
   const conditions = conditionsOf(t.weather);
-  if (!kind.travels) return { feet, camp: true, milesPerDay: 0, hexesPerDay: 0, parts: [], multiplier: 1, conditions };
   const m = travelMultiplier({
     terrain: t.ground,
     road: t.road,
@@ -500,9 +523,14 @@ export function travelReadout(formation, feet) {
 
   const composed = composeMovement({ mode, parts });
   const multiplier = composed.multiplier ?? m.multiplier;
-  const e = expeditionFrom(feet, { multiplier, pace: kind.pace ?? "dedicated" });
+  const scene = getPartyScene(formation);
+  const e = expeditionFrom(feet, {
+    multiplier,
+    pace: kind.pace ?? "dedicated",
+    milesPerHex: isExpeditionScale(scene) ? sceneMilesPerCell(scene) : null,
+  });
   return {
-    feet, camp: false, multiplier, parts: composed.parts, conditions,
+    feet, camp: !kind.travels, multiplier, parts: composed.parts, conditions,
     mode,
     modeLabel: game.i18n.localize(MOVEMENT_MODES[mode]?.label ?? ""),
     // What the mode refused or replaced, so a factor that vanished says why
@@ -511,6 +539,201 @@ export function travelReadout(formation, feet) {
     grounded: !!flight?.grounded,
     ...e,
   };
+}
+
+/**
+ * The miles a day the party covers on the march, whatever the day board says:
+ * the figure a search is priced against, since looking is paced on the march
+ * and not on a camp day's dedicated pace. Read from a march-kind copy of the
+ * record through `travelReadout` at the dark-free speed; 0 when the readout
+ * cannot price a day.
+ */
+export function expeditionMiles(formation) {
+  const t = travelOf(formation);
+  const marching = { ...formation, travel: { ...(formation.travel ?? {}), day: { ...t.day, kind: "march" } } };
+  return Number(travelReadout(marching, partySpeed(marching, { dark: false })).milesPerDay) || 0;
+}
+
+/** The modes the strip's select offers, in order, with the label of each. */
+const STRIP_MODES = Object.freeze({
+  delve: "ACKS-FORMATION.strip.modeDelve",
+  journey: "ACKS-FORMATION.travel.legend",
+  settlement: "ACKS-FORMATION.settlement.legend",
+});
+
+const tenths = (n) => Math.round((Number(n) || 0) * 10) / 10;
+
+/**
+ * Whether the journey stands after dark: the Judge's word on the hour, else the
+ * world clock. The same answer as `journeyNight` in journey.mjs, which this
+ * file cannot import (it imports `travelReadout` from here).
+ */
+function journeyIsNight(formation) {
+  return isNight({ hour: travelOf(formation).hour }, { dark: clockReading()?.dark ?? null });
+}
+
+/**
+ * The strip's clock cell for a journey: the time, whether it is night by the
+ * journey's own reckoning, and the hours (in the calendar's own hours) to the
+ * next dusk or dawn. Every figure is null where the world keeps no calendar or
+ * has no dark.
+ */
+function journeyClock(t) {
+  const reading = clockReading();
+  const night = isNight({ hour: t.hour }, { dark: reading?.dark ?? null });
+  const out = {
+    time: "",
+    dark: night,
+    hourMode: t.hour,
+    // The Judge's word on the hour stands in for the clock, and says so.
+    overridden: t.hour !== "clock",
+    hourLabel: game.i18n.localize(HOUR_MODES[t.hour]?.label ?? ""),
+    hoursToDusk: null,
+    hoursToDawn: null,
+  };
+  if (!reading) return out;
+  const pad = (n) => String(n).padStart(2, "0");
+  out.time = `${pad(reading.hour)}:${pad(reading.minute)}`;
+  if (reading.dawn === reading.dusk) return out;
+  const now = reading.hour + (reading.minute + reading.second / 60) / 60;
+  const until = (target) => {
+    const ahead = (target - now) % reading.hoursPerDay;
+    return tenths(ahead > 0 ? ahead : ahead + reading.hoursPerDay);
+  };
+  if (night) out.hoursToDawn = until(reading.dawn);
+  else out.hoursToDusk = until(reading.dusk);
+  return out;
+}
+
+/**
+ * The play surface's context, by mode: the clock strip on the party tab.
+ *
+ * Every mode carries the mode picker, the pause state, and the camp's supplies.
+ * The delve and the city also carry the turn tracker's four stats (the city
+ * keeps the turn clock); a journey carries the speed in miles, the day's walked
+ * tally against its budget, the hex, the next throw, the clock and the supplies;
+ * a city adds the board's rate, tally and cadence lines.
+ *
+ * @param {object} formation
+ * @param {number} speed  `partySpeed` in feet per turn (dark-free on a journey)
+ * @param {object|null} [travelView]  `buildTravelView`'s result when the caller
+ *   already has it, so the camp forecast and the city board are derived once
+ */
+export function buildStripView(formation, speed, travelView = null) {
+  const t = travelOf(formation);
+  const tv = travelView ?? buildTravelView(formation);
+  const clock = formation.clock ?? {};
+  const mode = t.mode;
+  const loc = (key) => game.i18n.localize(key);
+
+  const stock = tv.camp
+    ? { forecast: tv.camp.forecast, short: tv.camp.short }
+    : campSupplies(formation, t);
+  const strip = {
+    mode,
+    isDelve: mode === "delve",
+    isJourney: mode === "journey",
+    isSettlement: mode === "settlement",
+    modeLabel: loc(STRIP_MODES[mode]),
+    modeOptions: Object.entries(STRIP_MODES).map(([value, label]) => ({
+      value, label: loc(label), selected: value === mode,
+    })),
+    // A journey honours only the Judge's own pause; the turn clock's flag is
+    // the one the delve and the city read.
+    paused: mode === "journey" ? clock.pausedBy === "judge" : !!clock.paused,
+    // `known` is false for an order with no mouths in it, whose days are null.
+    supplies: {
+      known: stock.forecast.foodDays != null,
+      foodDays: stock.forecast.foodDays,
+      waterDays: stock.forecast.waterDays,
+      short: stock.short,
+    },
+  };
+
+  if (mode !== "journey") {
+    strip.delve = {
+      speed,
+      effSpeed: effectiveSpeed(formation),
+      hurried: isHurried(formation),
+      combatSpeed: Math.floor((speed / 3) * 10) / 10,
+      turns: clock.turnsTotal,
+      elapsed: formatTurns(clock.turnsTotal),
+      roundsPartial: clock.roundsPartial ?? 0,
+      sinceRest: clock.turnsSinceRest,
+      restMax: restInterval(),
+      winded: !!clock.winded,
+      carryFeet: clock.carryFeet,
+    };
+  }
+
+  if (mode === "settlement") {
+    const s = tv.settlement ?? {};
+    strip.settlement = {
+      clockLine: s.clockLine ?? "",
+      rateBlocks: s.rateBlocks,
+      blocksUnpriced: !!s.blocksUnpriced,
+      straggling: !!s.straggling,
+      headcount: s.headcount,
+      blocks: s.blocks,
+      turns: s.turns,
+      lost: !!s.lost,
+      cadenceLine: s.cadenceLine ?? "",
+      cadence: s.cadence ?? null,
+      cadenceMissing: !!s.cadenceMissing,
+      unpricedIntent: !!s.unpricedIntent,
+      poiTargets: s.poiTargets ?? 0,
+    };
+  }
+
+  if (mode === "journey") {
+    const readout = travelReadout(formation, speed);
+    const milesPerHour = Number(readout.milesPerHour) || 0;
+    const budget = dayBudget(t, milesPerHour);
+    const scene = getPartyScene(formation);
+    const cadence = cadenceOf({
+      isHex: scene ? isHexScene(scene) : false,
+      milesPerCell: scene ? sceneMilesPerCell(scene) : 0,
+      mileHex: cadenceMilesFor(t.territory),
+    });
+    const left = cadence.by === "miles" ? Math.max(0, cadence.miles - (Number(t.day.cadenceCarry) || 0)) : null;
+    let next;
+    if (cadence.by === "grid") next = loc("ACKS-FORMATION.strip.onEnteringHex");
+    else if (cadence.by === "miles") next = `${tenths(left)} ${loc("ACKS-FORMATION.travel.milesShort")}`;
+    else next = loc("ACKS-FORMATION.strip.unpricedCadence");
+
+    strip.speed = {
+      milesPerHour,
+      milesPerDay: Number(readout.milesPerDay) || 0,
+      hexesPerDay: readout.hexesPerDay ?? null,
+      camp: !!readout.camp,
+      // The factors the figure was derived from, for the cell's tooltip. A ×1
+      // factor says nothing, except the NOTE parts (a washed-out road, the
+      // tablesMissing line), whose whole point is explaining a silence.
+      partsLine: [
+        `${readout.feet}'/${loc("ACKS-FORMATION.app.turn")}`,
+        ...(readout.parts ?? [])
+          .filter((p) => p.factor !== 1 || p.note)
+          .map((p) => {
+            const label = loc(`ACKS-VEHICLES.reason.${p.key}`);
+            return p.note && p.factor === 1 ? label : `${label} ×${fractionLabel(p.factor)}`;
+          }),
+      ].join(" · "),
+    };
+    strip.walked = { miles: tenths(t.day.miles), hours: tenths(t.day.hours) };
+    strip.budget = { hours: tenths(budget.hours), miles: tenths(budget.miles) };
+    strip.spent = dayIsSpent(t.day, budget);
+    strip.hex = { label: t.hex.label, entered: t.day.hexesEntered ?? 0 };
+    strip.cadence = {
+      by: cadence.by,
+      miles: cadence.miles,
+      missing: cadence.missing ?? null,
+      next,
+      nextMiles: left == null ? null : tenths(left),
+    };
+    strip.clock = journeyClock(t);
+    strip.dayCount = t.dayCount;
+  }
+  return strip;
 }
 
 /**
@@ -722,6 +945,9 @@ function buildSettlementView(formation, t) {
     // Which list answers here, and which named lists are gone — `{text, warn}`
     // rows, already formatted.
     listLines,
+    // Whether the City group has anything for a player: the pickers and the
+    // tracker are the Judge's, the places underfoot are the table's.
+    shown: !!game.user?.isGM || !!(districtName || placeHere || districtPlace),
     // The RATE, kept apart from the tally the spread above carries.
     rateBlocks: rate.blocks,
     blocksUnpriced: rate.blocks == null,
@@ -765,21 +991,38 @@ function buildSettlementView(formation, t) {
 }
 
 /**
- * The camp: what the party is living on, and who is suffering for it — one
- * section, since a Judge asks how long the packs last, who is going short,
- * and whether tonight's foraging is worth the hours together.
+ * What the packs hold against the mouths in the order: the forecast the camp
+ * block and the strip both print, read by the SAME reader the provisioning uses
+ * so the forecast and the meal can never disagree about what is carried.
  */
-function buildCampView(formation, t) {
-  const members = realMembers(formation ?? {});
-  const actors = members.map(getMemberActor).filter(Boolean);
+function campSupplies(formation, t) {
+  const actors = realMembers(formation ?? {}).map(getMemberActor).filter(Boolean);
   const mouths = actors.length;
-
-  // The SAME reader the provisioning uses, so the forecast and the meal can
-  // never disagree about what is in the packs.
   const food = actors.reduce((n, a) => n + daysCarried(a, FOOD_SOURCES) + daysCarried(a, { foraged: "hunt" }), 0);
   const water = actors.reduce((n, a) => n + daysCarried(a, WATER_SOURCES), 0);
   const burden = heatBurden({ band: t.weather?.temperature ?? "" });
   const forecast = provisionForecast({ mouths, food, water, waterNeed: burden.waterNeed });
+  return {
+    actors,
+    mouths,
+    burden,
+    forecast,
+    short: (forecast.foodDays != null && forecast.foodDays < 1)
+      || (forecast.waterDays != null && forecast.waterDays < 1),
+  };
+}
+
+/**
+ * The camp: what the party is living on, and who is suffering for it — one
+ * section, since a Judge asks how long the packs last, who is going short,
+ * and whether tonight's foraging is worth the hours together. `milesPerDay` is
+ * the expedition's march day (`expeditionMiles`), which prices a search hour.
+ * `stock` is the Judge's `hexStockView`, or null for a player: the search
+ * selects (`presentOptions`, `targetOptions`) and the point names in them are
+ * built only from it.
+ */
+function buildCampView(formation, t, milesPerDay = 0, stock = null) {
+  const { actors, mouths, burden, forecast, short } = campSupplies(formation, t);
 
   // Only the suffering are listed. A roster of well-fed names is noise, and it
   // would bury the one person who is starving.
@@ -815,21 +1058,41 @@ function buildCampView(formation, t) {
   const hunt = slots.includes("hunt") ? huntSpec({ territory: t.territory }) : null;
 
   const search = slots.includes("search")
-    ? searchSpec({ milesPerDay: Number(t.readoutMiles) || 0, terrain: t.ground })
+    ? searchSpec({ milesPerDay: Number(milesPerDay) || 0, terrain: t.ground })
     : null;
+
+  // The Judge's two search answers. The stock is offered only where the hex
+  // holds one, and is then the default; the point list is the unfound ones.
+  const presentOptions = [];
+  const targetOptions = [];
+  if (stock) {
+    const answer = stock.stocked ? "stock" : "no";
+    for (const value of ["stock", "yes", "no"]) {
+      if (value === "stock" && !stock.stocked) continue;
+      presentOptions.push({
+        value, label: game.i18n.localize(`ACKS-FORMATION.searchRun.presentOptions.${value}`), selected: value === answer,
+      });
+    }
+    targetOptions.push(
+      { value: "anything", label: game.i18n.localize("ACKS-FORMATION.searchRun.lookingAnything"), selected: true },
+      ...stock.points.filter((p) => !p.found).map((p) => ({ value: p.id, label: p.name || p.kindLabel, selected: false })),
+      { value: "elsewhere", label: game.i18n.localize("ACKS-FORMATION.searchRun.lookingElsewhere"), selected: false },
+    );
+  }
 
   return {
     mouths,
     forecast,
     waterNeed: burden.waterNeed,
     thirstyWeather: burden.waterNeed > 1,
-    short: (forecast.foodDays != null && forecast.foodDays < 1)
-      || (forecast.waterDays != null && forecast.waterDays < 1),
+    short,
     suffering,
     anySuffering: suffering.length > 0,
     forage,
     hunt,
     search,
+    presentOptions,
+    targetOptions,
     searchesHeld: searchesAvailable({ slots, forced: t.day?.kind === "forced" }),
     // The cold's inputs, so the Judge can declare them and see them applied.
     // `bites` says whether this band has a clock at all — a mild day shows the
@@ -843,12 +1106,14 @@ function buildCampView(formation, t) {
 }
 
 /**
- * The travel panel's context. Outside a journey it is only the mode flag the
- * template needs to offer "Begin journey"; inside one it is the pickers, the
- * day board, the readout, the hex trace, the GM-only lost state, and the
- * newest slice of the log.
+ * The context of the Judge's declarations (the `<details>` groups under the
+ * strip). Outside a journey or a city it is only the mode; inside a journey it
+ * is the pickers, the day board, the camp, the hex trace, the GM-only lost
+ * state, and the newest slice of the log; inside a city, the board's pickers
+ * and place lines. What the strip prints (speed, the walked tally, the clock)
+ * is `buildStripView`'s.
  */
-function buildTravelView(formation, feet) {
+function buildTravelView(formation) {
   const t = travelOf(formation);
   const isJourney = t.mode === "journey";
   const isSettlement = t.mode === "settlement";
@@ -861,7 +1126,17 @@ function buildTravelView(formation, feet) {
   };
   if (isSettlement) return { ...view, settlement: buildSettlementView(formation, t) };
   if (!isJourney) return view;
-  view.camp = buildCampView(formation, t);
+  // The Judge's "This hex" block; a player's view carries none of the stock.
+  view.hexStock = hexStockView(formation);
+  view.camp = buildCampView(formation, t, expeditionMiles(formation), view.hexStock);
+
+  // The ground and the road a painted map already answers for: the pickers
+  // stay for a journey with no map, or whose map is silent about them.
+  const scene = getPartyScene(formation);
+  view.mapPaints = {
+    ground: !!scene && isHexScene(scene) && terrainRegionsOf(scene).length > 0,
+    road: !!scene && routesOf(scene).length > 0,
+  };
 
   const opt = (value, label, selected) => ({ value, label, selected });
   view.grounds = Object.entries(TERRAIN).map(([value, cfg]) =>
@@ -872,6 +1147,9 @@ function buildTravelView(formation, feet) {
     opt(value, game.i18n.localize(`ACKS-FORMATION.travel.territory.${value}`), value === t.territory));
   view.weather = buildWeatherView(t, opt);
   view.wheels = wheelRefusals(formation, t);
+  // The Sky group is the Judge's pickers; a player sees it only for what it
+  // already told the table (the chips, the night band, a wagon that cannot roll).
+  view.skyShown = !!game.user?.isGM || !!(view.weather.chips.length || view.weather.night || view.wheels.length);
 
   // The encounter sub-table: the ground's own default unless the Judge
   // overrides — the unset option NAMES the default it stands for.
@@ -908,20 +1186,10 @@ function buildTravelView(formation, feet) {
     index,
     options: activityOptions.map((o) => ({ ...o, selected: o.value === value })),
     empty: value == null,
+    done: !!t.day.done?.[index],
   }));
-
-  const r = travelReadout(formation, feet);
-  view.readout = {
-    ...r,
-    // A ×1 factor says nothing — except the NOTE parts (a washed-out road,
-    // the tablesMissing line), whose whole point is explaining a silence.
-    parts: (r.parts ?? [])
-      .filter((p) => p.factor !== 1 || p.note)
-      .map((p) => ({
-        label: game.i18n.localize(`ACKS-VEHICLES.reason.${p.key}`),
-        factor: p.note && p.factor === 1 ? null : fractionLabel(p.factor),
-      })),
-  };
+  view.hourOptions = Object.entries(HOUR_MODES).map(([value, cfg]) =>
+    opt(value, game.i18n.localize(cfg.label), value === t.hour));
   // ONE lost view: the fields the episode needs and the fields the panel
   // needs are the same object, filled once.
   const drift = driftSummary(t.lost, t.dayCount);

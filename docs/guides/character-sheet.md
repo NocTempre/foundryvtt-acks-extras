@@ -6,7 +6,7 @@ the table rather than by document type. The system's sheet is still there —
 Sheet Config, on any actor, switches back — and nothing is migrated: the two
 read and write the same fields.
 
-![](../releases/v10.0.0/character-sheet.png)
+![](../releases/v11.0.0/character-sheet.png)
 
 *A character fresh from chargen: the class band across the header, the rails
 around the portrait, and the Stats tab with the Training editor armed.*

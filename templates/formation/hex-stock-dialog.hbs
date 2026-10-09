@@ -1,0 +1,39 @@
+<section class="acks-extras-hex-stock-dialog">
+
+  <div class="form-group">
+    <label for="{{seed}}-terrain">{{localize "ACKS-FORMATION.hexStock.dialog.terrain"}}</label>
+    <div class="form-fields">
+      <select id="{{seed}}-terrain" name="terrain">
+        {{#each terrains}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="{{seed}}-territory">{{localize "ACKS-FORMATION.hexStock.dialog.territory"}}</label>
+    <div class="form-fields">
+      <select id="{{seed}}-territory" name="territory">
+        {{#each territories}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="{{seed}}-substitute">{{localize "ACKS-FORMATION.hexStock.dialog.substitute"}}</label>
+    <div class="form-fields">
+      <input id="{{seed}}-substitute" type="checkbox" name="substitute" {{#if substitute}}checked{{/if}}>
+    </div>
+    <p class="hint">{{localize "ACKS-FORMATION.hexStock.dialog.substituteHint"}}</p>
+  </div>
+
+  <div class="form-group">
+    <label for="{{seed}}-count">{{localize "ACKS-FORMATION.hexStock.dialog.count"}}</label>
+    <div class="form-fields">
+      <input id="{{seed}}-count" type="number" name="judgeCount" min="0" step="1" value="{{count}}" {{#if countRequired}}required{{/if}}>
+    </div>
+    <p class="hint">{{localize "ACKS-FORMATION.hexStock.dialog.countHint"}}</p>
+    {{#if dice}}<p class="hint">{{localize "ACKS-FORMATION.hexStock.dialog.dice" dice=dice}}</p>{{/if}}
+    {{#if needsCount}}<p class="hint">{{localize "ACKS-FORMATION.hexStock.dialog.needsCount"}}</p>{{/if}}
+  </div>
+
+</section>

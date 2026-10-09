@@ -108,18 +108,30 @@ export async function promoteIncident(note, { name = "" } = {}) {
   const scenes = locationApi()?.scenes;
   const region = t.regionUuid ? fromUuidSync(t.regionUuid) : null;
   const parent = (region ? scenes?.locationOfRegion?.(region) : null) ?? scenes?.locationOfScene?.(scene) ?? null;
-  const actor = await Actor.create(promotedPlaceData({
+  const actor = await placeTokenAt({
+    scene, x: note.x, y: note.y,
     name: name || noteLabel(t.text) || loc("settlement.poi.promotedDefault"),
     text: t.text,
     parentUuid: parent?.uuid ?? "",
-    img: PLACE_ICON,
-  }));
+  });
   if (!actor) return null;
-  // A note's x/y is its centre; a token's is its top-left corner.
-  const gs = scene.grid.size;
-  const tokenDoc = await actor.getTokenDocument({ x: note.x - gs / 2, y: note.y - gs / 2 });
-  await scene.createEmbeddedDocuments("Token", [tokenDoc.toObject()]);
   await note.delete();
+  return actor;
+}
+
+/**
+ * Make a place at a point: a location actor named and noted from the given
+ * words under `parentUuid`, and its token on `scene` centred on (`x`, `y`),
+ * hidden from players when `hidden`. A token's own x/y is its top-left
+ * corner, so the centre is shifted by half a grid cell.
+ * @returns {Promise<Actor|null>} the actor, or null when it could not be made
+ */
+export async function placeTokenAt({ scene, x, y, name = "", text = "", parentUuid = "", hidden = false } = {}) {
+  const actor = await Actor.create(promotedPlaceData({ name, text, parentUuid, img: PLACE_ICON }));
+  if (!actor) return null;
+  const gs = scene.grid.size;
+  const tokenDoc = await actor.getTokenDocument({ x: x - gs / 2, y: y - gs / 2, hidden: !!hidden });
+  await scene.createEmbeddedDocuments("Token", [tokenDoc.toObject()]);
   return actor;
 }
 

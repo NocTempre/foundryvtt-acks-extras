@@ -76,7 +76,7 @@ import { followerCardContext, renderFollowerCard, FOLLOWER_CARD_TEMPLATE } from 
 import * as attackLogic from "./attack-logic.mjs";
 import * as damageType from "./damage-type.mjs";
 import { installAttackRollPatch, wrapRollAttack, PRE_ATTACK_HOOK, POST_ATTACK_HOOK } from "./patches/attack-roll.mjs";
-import { installMathReveal, ROLL_MATH, ROLL_MATH_SETTING } from "./roll-audience.mjs";
+import { drawQuietly, installMathReveal, ROLL_MATH, ROLL_MATH_SETTING } from "./roll-audience.mjs";
 import { installAttackDisplayPatch } from "./patches/attack-display.mjs";
 import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
@@ -101,6 +101,7 @@ import {
 import {
   SETTING_ADVANCE_WORLD_TIME, SETTING_DAWN_HOUR, SETTING_DUSK_HOUR,
   mayAdvanceWorldTime, onWorldTimeAdvanced, clockReading, darkBounds, isDarkAt,
+  secondsToNextDawn, untilNextDawn,
 } from "./world-time.mjs";
 import * as movementModes from "./movement-modes.mjs";
 import * as survival from "./survival.mjs";
@@ -130,7 +131,10 @@ const localImpl = Object.freeze({
   // and sink; `toBank` is gone from `transferCoin`.
   // 25: coin stores — `coinStores`, a holder's coin order, a payment's reach
   // (`within`), and a payment relayed where the seat cannot write.
-  apiVersion: 26,
+  // 27: worldTime — the next dawn; movementScales — hexes per day only
+  // against a stated hex; drawQuietly — a table draw for the caller's own
+  // card.
+  apiVersion: 27,
   vocab,
   fields,
   /**
@@ -196,7 +200,9 @@ const localImpl = Object.freeze({
    * The world clock as this module reads it (world-time.mjs): whether it may
    * move the clock, the one watcher for a clock that moved, and `clockReading`
    * — the hour, the day's length, the dark's bounds from the two hour settings,
-   * and whether it is dark now. `isDarkAt` and `darkBounds` are the pure halves.
+   * and whether it is dark now. `isDarkAt`, `darkBounds` and `secondsToNextDawn`
+   * are the pure halves; `untilNextDawn` is the seconds from the clock now to
+   * the next dawn.
    */
   worldTime: {
     SETTING_ADVANCE_WORLD_TIME,
@@ -207,7 +213,14 @@ const localImpl = Object.freeze({
     clockReading,
     darkBounds,
     isDarkAt,
+    secondsToNextDawn,
+    untilNextDawn,
   },
+  /**
+   * A RollTable drawn with nothing posted (roll-audience.mjs): the dice show
+   * to the GMs and the caller renders the results on a card of its own.
+   */
+  drawQuietly,
   services,
   loadRuledata,
   // --- patch layer ---

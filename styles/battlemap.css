@@ -377,7 +377,10 @@
 
 .acks-extras-terrain-swatches {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, …): a bare 1fr track never shrinks below its longest nowrap
+     label, so a long kind pushes the second column past the window's edge,
+     where the scroll contract clips it instead of scrolling. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.25rem;
 }
 

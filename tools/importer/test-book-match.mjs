@@ -77,6 +77,28 @@ const shelf = matchFilesToBooks(
 check("a shelved file is matched with no size to go on", named(shelf).mm === "ACKS II Monstrous Manual.pdf");
 check("a stray PDF on the shelf claims nothing", shelf.unmatched.length === 1 && !shelf.matched.has("tt"));
 
+/* The AX adventures carry no metadata title, so their stock filenames are the
+ * only name a hand-picked file has. Each pattern must claim its own download
+ * — one of them is welded and misspelt as sold — and no other book's. */
+const axStock = [
+  file("AX1Sinister_Stone_of_Sakkara_(hirez).pdf"),
+  file("AX4_Ruined_City_of_Cyfandir.pdf"),
+  file("Autarch_EyrireDreadEye_ACKS_March2019_digital.pdf"),
+  file("AX6_Sepulcher_of_the_Sorceress-Queen.pdf"),
+  file("AX3_Capital_of_the_Borderlands.pdf"),
+];
+const ax = matchFilesToBooks(axStock, ["ax1", "ax3", "ax4", "ax5", "ax6"], NONE);
+assert.deepEqual(named(ax), {
+  ax1: "AX1Sinister_Stone_of_Sakkara_(hirez).pdf",
+  ax3: "AX3_Capital_of_the_Borderlands.pdf",
+  ax4: "AX4_Ruined_City_of_Cyfandir.pdf",
+  ax5: "Autarch_EyrireDreadEye_ACKS_March2019_digital.pdf",
+  ax6: "AX6_Sepulcher_of_the_Sorceress-Queen.pdf",
+});
+pass++;
+check("every AX download placed, none left over", !ax.unmatched.length);
+check("the printed AX5 title also names the book", BOOKS.ax5.titleRe.test("Eyrie of the Dread Eye"));
+
 /* Fingerprints: a title, where the printing carries one, must agree. */
 check("page count + title names the book", identifyBook(BOOKS.jj.pages, "ACKS II Judges Journal") === "jj");
 check("an untitled printing is named by count alone", identifyBook(BOOKS.ax2.pages, "") === "ax2");

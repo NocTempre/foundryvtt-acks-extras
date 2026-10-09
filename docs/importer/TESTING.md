@@ -2011,3 +2011,190 @@ page and counts "given a role" in its report.
    reports them as held and nothing is written.
 2. Reload the world and confirm the role persists.
    *Observable:* `game.actors.getName(<place>).system.role === "gate"`.
+
+## A region map with zones
+
+A region book's scene recipe carries a `grid`; the map step builds it on
+Foundry's lattice of the drawn cells, sets its sites down, and lays every
+open book's zone rows over it as encounter-zone Regions (MODEL, "A map on a
+grid of drawn cells", "A zone over a map", "A region's places"). The offline
+suite `tools/importer/test-region-import.mjs` proves the arithmetic against
+a mocked lattice; only a live run proves core's grid answers the same way.
+
+### Fixtures
+
+1. The region book and the zone book connected (`ax3` carries the region
+   recipe, `ax5` zones over it), with their compiled rows present: read
+   `await foundry.utils.fetchJsonWithTimeout("modules/acks-extras/cookbook/ax3.json")`
+   and confirm its `scenes` holds a row with a `scene.grid`, and that the zone
+   book's file holds `kind.sceneZone` rows naming it.
+2. No scene in the world flagged with the recipe's id
+   (`game.scenes.find((s) => s.getFlag("acks-extras", "cookbook")?.id === <recipe id>)`
+   is undefined) — otherwise the run holds a peer's map and proves nothing
+   about building one. Note every document the steps below create by id as it
+   is created (`api.track`); nothing is swept by name.
+
+### Steps
+
+3. Run `acksExtras.importer.cookbookImportRollTables()`, then
+   `acksExtras.importer.cookbookImportPoiPlaces()`; track what they made by the
+   cookbook ids read back.
+   *Observable:* one location actor flagged `<book>.region`, its
+   `system.notes` holding the overview; a site whose row names a market has
+   written its notes and `parentUuid` (the region place) onto the place
+   flagged `<book>.mkt<n>`, and no actor is flagged with that site's own id; a
+   site marked `place: "adventure"` likewise onto `<book>.adventure`.
+   In a world that already holds the book's places (another session's
+   import), the places step binds sites onto them — parent and role written
+   onto documents that are not yours — so run it only in a world whose places
+   are this run's. Otherwise stand the region's places in as fixtures: the
+   region from `regionPlaceData`, and for each entry of the recipe's `places`
+   the builder its claim names (`regionSiteClaim(book, entry, id, entries)`
+   answers `site` → `poiLocationData`, `market` → `marketActorData`, or
+   `adventure` → the held adventure place, nothing to make), created under
+   those ids in one `Actor.createDocuments` and tracked by the uuids it
+   returns. The map step then finds a document under every placed site and
+   step 7 still holds; the overview and site text are not exercised, and the
+   report says so.
+4. `const counts = await acksExtras.importer.cookbookImportScenes()`; track
+   `counts.created.scenes`, `.actors`, `.folders` and `.regions`.
+   *Observable:* `counts.made` includes the region map, `counts.gridRefused`
+   is 0, no Adventure is counted for it; the scene's `grid.size` equals the
+   recipe's `grid.pixels`, its `grid.type` is the family's hex type, and its
+   battlemap flag says `mapSystem: "journey"` and its cookbook flag carries
+   `pixelsPerPoint`.
+5. A drawn hex centre lies under a Foundry hex centre. In the console, with
+   `{sceneFrame} = await import("/modules/acks-extras/scripts/importer/scene-binding.mjs")`
+   and `pixelsPerPoint` read off the scene's cookbook flag:
+   `frame = sceneFrame(recipe, {pixelsPerPoint})`, `[x, y] = frame.toScene(...recipe.grid.centre)`,
+   `p = {x: scene.dimensions.sceneX + x, y: scene.dimensions.sceneY + y}`;
+   `scene.grid.getCenterPoint(p)` is within a pixel of `p`. Then view the
+   scene: Foundry's grid lines lie on the printed hex lines at the far corners
+   as well as near the centre (drift toward the edges is a scale fault, an
+   even offset everywhere is a shift fault).
+6. A Region per zone row over this map:
+   `scene.regions.filter((r) => r.getFlag("acks-extras", "cookbook")?.zone)`.
+   *Observable:* each carries an `acks-extras.encounterZone` behaviour whose
+   `tableUuid` resolves to its row's list, whose target and day and night
+   throws match the zone's printed figures on the Judge's own page (compare
+   by eye; never copy the figures into a report), and whose shapes cover the
+   hexes inside the zone's printed outline. Visible to the GM only.
+7. A site token stands on its hex: each hidden token sits on the printed site
+   marker, its centre inside the marker's hex; a market-bound site's token is
+   the market's place.
+8. Run step 4 again. *Observable:* `counts.made` 0, `counts.already` counts the
+   map, `counts.zones` 0 and `counts.zonesHeld` counts every zone; the scene's
+   Region count is unchanged.
+
+### Teardown
+
+9. Delete by the tracked ids only: the scene (its Regions and tokens go with
+   it), the world actors and folders the map step made, then the library
+   documents and roll tables steps 3 named. The rendered map picture stays in
+   the importer's art folder and is reused by the next run. A settlement map
+   of the same book the world already held gets its Adventure written in the
+   same run when its shelf lacks one (`counts.adventures`, in
+   `counts.created.adventures`): track it like the rest. The shelf pack it
+   was opened in is not a document and survives the sweep; when the run
+   opened it (`counts.created.packs`) and it is empty afterwards, drop it with
+   `game.packs.get(id).deleteCompendium()`.
+   The run writes to no document it did not make: take every flagged
+   document's `_stats.modifiedTime` before the run and again after, and
+   quote the count that changed (zero), by kind.
+
+## The region's adventures: their tables and monsters
+
+The adventure books' tables, legacy stat-block monsters and encounter zones
+are register rows like any other book's (MODEL, "An entry's heading line"
+and "A roll table's rows"). `verify:cookbook` proves each row's geometry
+against the page offline; only a live run proves the rows become documents
+holding the text a reader expects.
+
+### Fixtures
+
+1. The adventure books open on the GM seat. A copy the server's data
+   directory holds opens without a picker and leaves nothing behind:
+   `acksExtras.importer.connectBookUrl(<id>, <path>, { remember: false })`
+   (`TEST_ENVIRONMENT.md` names this machine's staged copies). A book the
+   server does not hold is read one-off through the Books window.
+2. The world's tables and monsters of those books, noted before the run:
+   `game.tables.filter((t) => t.getFlag("acks-extras", "cookbook")?.book === <id>)`
+   and the line's RollTable and Actor shelves (the packs whose label opens
+   with "ACKS Cookbook — ") indexed with the cookbook flag
+   (`pack.getIndex({ fields: ["flags.acks-extras.cookbook.id"] })`).
+   The table run skips every id already present, so a table a peer imported
+   proves nothing about this build; compare against a world that lacks it.
+   A shelf may also hold tables under ids the tree's cookbook no longer
+   carries (an earlier build's): count against the cookbook's own id list,
+   never against everything flagged with the book.
+
+### Steps
+
+3. `const r = await acksExtras.importer.cookbookImportRollTables()`, then
+   `api.track` every table in `game.tables` whose cookbook flag names an id
+   fixture 2 did not list (the run reports counts only).
+   *Observable:* `r.made` counts the open books' tables the world lacked. Each
+   sits in its book's RollTable folder, its `formula` read off the page or
+   built from the rows when they start at 1, and each result's `range` is one
+   printed die band. A grid cut by its mirror (`centerDies`) has one result
+   per die band the page prints: `ax4.ruinedBuildings` has forty-seven, from
+   a first band of five to a last of one, and its last result opens on its
+   first word although the page welds that band's die onto it.
+4. A row's explanation stands under the row. Open `ax4.cityRuinsEncounters`.
+   *Observable:* nine results; every result whose page prints a statistics
+   paragraph for it carries that paragraph as a `<p>` after the row's own
+   text, and the one printed without (the band of three) carries no `<p>`:
+   `results.filter((x) => x.text.includes("<p>")).length` is 8.
+5. A blank row is a result. Open `ax6.dynamicEncounters`.
+   *Observable:* twelve results under a twelve-sided formula; the last four
+   have empty text (`keepEmpty`), so the Judge's own entries have rows to
+   land in.
+6. The two tables 11.0.0 re-cut. On a world that imported them with an older
+   build, delete the old pair by id if this session made them, or compare
+   against a fresh world. Where the old pair is another session's, read the
+   tree's recipe through the executor in the page instead — the read an
+   import makes, without the document: with `{ openBook }` from
+   `/modules/acks-extras/scripts/importer/extract.mjs` and `{ executeEntry }`
+   from `.../executor.mjs`, open the staged copy's bytes
+   (`openBook(await (await fetch(<path>)).arrayBuffer())`) and run
+   `executeEntry(doc, <the book's cookbook json>, <cookbook/registers.json>, <id>)`;
+   `node.fields.rows` are the results to be.
+   *Observable:* every result of `ax2.mummyReaction`, the first band included,
+   opens with its one-word lead and a period; the older build began the first
+   band on its second line. `ax3.cityRumorTruths` holds sixteen results from
+   twelve printed rows: a key that lists several rolls stands once per roll
+   with the same text, and a roll the page prints no truth for has no result.
+7. Legacy monsters: `await acksExtras.importer.cookbookImportIds(<ids>)` with
+   a book's `kind.monsterLegacy` ids read off its cookbook file; track the
+   actors the shelf's index then answers for those ids.
+   *Observable:* one actor per id in its book's group folder, every stat the
+   page prints a value for read (not blank), and its description the entry's
+   prose with nothing of the next entry's.
+   - A row the Monstrous Manual reprints (`meta.revisedBy`, the two AX6
+     ids) imports that printing instead while the Manual is open on the seat,
+     and is skipped with a notice when the world already holds it: no actor
+     is flagged with the adventure's id either way. With the Manual not open
+     it imports as its own block.
+   - The four `ax5.optic*` ids share one heading, one description that runs
+     overleaf to the next heading, and two four-column stat blocks: the four
+     actors carry the same prose and differ in their stats, column by column,
+     the two whose attack line wraps included. The book-text wrapper names
+     the id it was materialized for, so compare the biographies with each
+     actor's own cookbook id taken out.
+   - `ax5.protoOoze` and `ax5.protoOozeGiant` likewise share a heading and a
+     two-column block.
+   - `ax5.monster2` ships a neutral name (`anchor.hash`) and takes the heading
+     printed on the page; its armour class is read although the page welds
+     the value onto its label.
+   - `ax5.walkingVenusMantrap`'s heading shares a baseline with the previous
+     entry's prose across the gutter; its description is its own.
+8. Zones: the four books' `kind.sceneZone` rows (`ax4.zone1`, `ax5.zone1`,
+   `ax5.zone2`, `ax6.zone1`) are the previous recipe's step 6 over the region
+   map. The two that name a table resolve `tableUuid` to the table step 3
+   made from the same book (`ax4.forestEncounters`, `ax5.cliffEncounters`).
+
+### Teardown
+
+9. `api.sweepTracked()` for the tables and actors; quote what it removed,
+   what it could not find and what refused. A book opened with
+   `{ remember: false }` is closed by a reload.

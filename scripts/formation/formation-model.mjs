@@ -529,11 +529,15 @@ export function carrierSpeedFor(carrier, formation) {
  * The party moves at the pace of its slowest walking member. A member
  * riding in a wagon is not walking and contributes the vehicle's pace
  * instead; down members do not walk either, and Carriers move at the speed
- * of their own encumbrance plus their share of the carried load.
+ * of their own encumbrance plus their share of the carried load. `dark`
+ * defaults to the scene's reading; a journey passes `dark: false` because
+ * daylight is the clock's to say, not the scene's.
+ * @param {object} formation
+ * @param {object} [o]
+ * @param {boolean} [o.dark]  whether the dark slows members who cannot see in it
  */
-export function partySpeed(formation) {
+export function partySpeed(formation, { dark = isPartyInDark(formation) } = {}) {
   const load = carriedLoad(formation);
-  const dark = isPartyInDark(formation);
   const speeds = [];
   for (const member of realMembers(formation)) {
     const actor = getMemberActor(member);
@@ -682,13 +686,21 @@ export async function ensurePartyToken(formation, scene, x, y) {
   delete tokenData._id;
   foundry.utils.setProperty(tokenData, `flags.${MODULE_ID}.${FLAG_FORMATION_ID}`, formation.id);
   const [tokenDoc] = await scene.createEmbeddedDocuments("Token", [tokenData]);
+  // A PATCH, never the caller's whole copy. The createToken hook adopts the
+  // scene's travel system while the create resolves, and its write is queued
+  // ahead of this one; a whole-record write here carried the mode read before
+  // the adoption back over it, and a party placed on a wilderness map stayed
+  // a delve. The caller's copy then takes the ledger's record, so what it
+  // writes next carries the adoption too.
+  const stored = await patchFormation(formation.id, (record) => {
+    record.sceneId = scene.id;
+    record.tokenId = tokenDoc.id;
+    // Seed the movement tracker so the first drag measures from here.
+    record.clock = { ...(record.clock ?? {}), lastPosition: { x: tokenDoc.x, y: tokenDoc.y } };
+  });
+  Object.assign(formation, foundry.utils.deepClone(stored ?? getFormation(formation.id) ?? {}));
   formation.sceneId = scene.id;
   formation.tokenId = tokenDoc.id;
-  // Seed the movement tracker so the first drag measures from here.
-  formation.clock.lastPosition = { x: tokenDoc.x, y: tokenDoc.y };
-  // Persist the token linkage before anything else can read or write the
-  // record (the createToken hook and setting listeners fire concurrently).
-  await updateFormation(formation);
   await syncPartyActorSpeed(formation);
   return tokenDoc;
 }

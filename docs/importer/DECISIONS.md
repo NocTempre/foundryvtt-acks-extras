@@ -5597,3 +5597,261 @@ as whatever code its slot holds, so the edge class is wide, and a page whose
 rows carry no bullet and no signed figure yields no label at all. A label
 longer than a row is discarded rather than kept, so a missed edge costs the
 wording and never imports a paragraph.
+
+## 2026-10-09 — Lairs per hex is read from the procedure's own page
+
+The hex-stocking procedure's three inputs — the lairs-per-terrain row, the
+substitution bands and the settled-territory shares — are read from the page
+that states the procedure (Judges Journal ch. 2), not from the terrain table
+that cites it. `table-recipes.mjs` gains `lairsPerHexRaw` (the grid, one
+cell per terrain row), `lairsProse` (prose values with two `valueBlocks`,
+the substitution bands and the settled shares) and `lesserTerrainProse` (the
+either-or share a terrain hand-off reads, from the chapter's placement page);
+`encounters-binding.mjs` assembles `lairsPerHex` as `NdM±K` strings keyed by
+terrain, `lairSubstitution` as tiling bands of `{min, max, kind}`, and
+`settledLairShare` as fractions by territory, with `lesserTerrainShare` an
+integer percent. `parseLairDice` (exported) reads the three dash seams the
+extraction produces in a dice cell. The settled shares are read in the
+page's order, the first unnamed figure taken as the civilized one — a
+reading to confirm against the page by a reviewer who holds it. The Tracking
+bonus of the searching page is read the same way: `searchProse` gains a
+`tracking` window, and the binding emits `trackingBonus` through
+`parseSigned` only when it reads.
+
+*Rejected:* a hand-authored row in a `ruledata` directory, the IP line;
+reading the lairs figure from the terrain table, which prints it once, on
+the procedure's page, and cites it elsewhere.
+
+*Cost:* `dev-try-recipe.mjs` cannot run a `valueBlocks` recipe, so the two
+prose recipes were proved with a scratch script that follows
+`tables-binding.mjs`; the tiling proof for the bands lives in the binding
+suite. The searching window is cut short on purpose, because the worked
+example after the sentence prints figures of its own.
+
+## 2026-10-09 — A monster grid binds its cells by their centres
+
+The eighteen monster sub-tables are set centred, so a name's start wanders
+with its width; a window opened a fixed distance ahead of each column header
+put a wide rare name's opening, or its small-caps first letter, in the column
+before it, where the join welded it onto that column's own name. Three
+sub-tables answered six bands with nothing (the rare cell gone whole), ten
+rows across seven more carried a torn letter or a second name, and every
+offline suite stayed green because the committed tests feed the assembler
+invented cells.
+
+`extractGridRows` gains `anchor: "center"`: a windowed column claims a run by
+its centre, and a run of closing punctuation alone continues the run before
+it, because no cell opens with a bracket. `monsterGrid` takes the four column
+centres measured off each printing and opens its windows midway between
+neighbours. `tools/importer/check-encounter-grids.mjs` reads every encounter
+grid off the local book and fails on a missing row, an empty cell, a stranded
+letter, a torn bracket, a second name, or a band that does not tile its die;
+`validate` runs it on the machines that hold the PDFs and it skips elsewhere,
+like the cookbook drift check.
+
+*Rejected:* nudging edges per grid (three were nudged first; a geometry scan
+then found the ten rows no nudge could reach without opening a weld on the
+other side); a name dictionary to split welded cells by, which is book
+content.
+
+*Cost:* a world imported before this holds the welded names until the Judge
+re-imports the encounters document; the CHANGELOG says so.
+
+## 2026-10-09 — Between books, identity follows the newest printing and content the most specific
+
+The adventures reprint things the core books print — a monster, a terrain's
+encounter table, a rumour list — and each other's: AX1's forest lies inside
+the region AX3 maps. The user's ruling: ACKS II supersedes only where the
+printing is identical; otherwise the more specific printing is correct. Two
+rules follow. Identity: a thing a newer book prints under the same name is
+that thing, so a monster the core books revised is registered once, from the
+newest printing, and an adventure's row for it is not registered, or carries
+`meta.revisedBy` naming the printing that supersedes it; AX5's register
+holds its appendix's own monsters. Content: where a book prints a rule for a
+narrower place — an adventure's own table for its forest, a cliff's own
+cadence — that printing wins inside that place, which is what an encounter
+zone is (below): the region's terrain table answers everywhere, a zone's
+table answers inside its outline, the smallest zone first.
+
+*Rejected:* importing every printing as a document of its own (two actors
+for one wolf, the Judge choosing by date); the newest printing overriding
+the specific one (the region's rumours replacing an adventure's own).
+
+*Cost:* "identical" is a reviewer's call per row, made when a book is
+registered and recorded in the register, never decided by the compile.
+
+## 2026-10-09 — A region's map is a grid recipe over its page
+
+AX3's region is a hex map printed on one page, and the Judge's copy
+supplies the picture. The `kind.scene` row carries the page, the crop, the
+turn and a `grid` block measured off the printing — the hex family, whether
+the even columns shift, the box one hex fills in page points, the centre of
+one hex, the distance and unit a hex spans, the pixels a hex is given — and
+`places[]`, the sites at their hex centres. The importer crops the page,
+lays Foundry's hex grid over it so the drawn hexes and Foundry's coincide,
+and sets the scene's distance from the block; the block is measured the way
+the battlemap calibration tool measures one (battlemap DECISIONS,
+2026-10-09), so an imported map and a hand-calibrated one answer every
+measurement alike.
+
+*Rejected:* shipping a hex overlay picture (the page is the picture);
+painting the terrain from the render — a density, orientation and
+connected-component classifier was run over the page and did not separate
+forest from hills at the page's resolution; the Judge paints terrain, and
+classifying from the render is ROADMAP.
+
+*Cost:* fifty-three hex centres authored by hand from the lattice; a lattice
+measured a cell off puts every site a cell off, which only the imported
+scene shows.
+
+## 2026-10-09 — A zone is a row of the book that prints its rule
+
+An adventure's local encounter rule — a forest with its own table, a cliff
+with its own cadence, hills with day and night counts — is `kind.sceneZone`:
+a row naming the scene it lies over, its outline in that scene's page
+points, the table it draws (a roll table of the same book), its cadence (on
+entry, or by periods), and the boxes on the page where the target and the
+day and night counts print, read at import by the throw and count-word
+patterns. The outline is geometry the chef traces; the figures arrive from
+the Judge's copy. The formation answers from every zone under the party,
+smallest first, so overlapping zones are drawn to leave room for the one
+that must win: the hills zones are cut around the cliff's.
+
+*Rejected:* zones carrying their figures (page values); zones as painted
+terrain (a cadence and a count are not a terrain's); one zone per terrain
+class from the render (the classifier above).
+
+*Cost:* hand-traced outlines (AX4 one, AX5 two, AX6 one); a zone whose table
+has not compiled waits (`zonesWaiting`) and is linked by a later run.
+
+## 2026-10-09 — A gazetteer site is a place in the region, never a quarter's
+
+AX3's gazetteer keys fifty-three sites by number across the region. They are
+`kind.location` rows in the `Region — Sites` group, with the region's
+overview in `Region — Overview` (`REGION_GROUPS`); a site anchors by its key
+number and ships a neutral label, as a quarter's point of interest does. The
+points-of-interest step claims the region as one place and each site as a
+place under it; a site that is one of the book's markets claims that
+market's place (`meta.market`), and a site the market record calls the
+adventure's own settlement claims the settlement rather than making a second
+place. The AX3 cookbook suite asks the region's sites what it asks a
+quarter's: a label built from the number, an id built from it, a name read
+off the page by it, one overview.
+
+*Rejected:* a quarter called Region (the quarter parse is closed to the
+region's groups); sites as journal pages alone (a site is where the party
+arrives).
+
+*Cost:* the scene keys its markers by site id, so a site whose heading the
+compile misses leaves the scene warning of a place it cannot key — two did,
+across a 20pt gutter (the heading-line entry below).
+
+## 2026-10-09 — Centred dies are cut by their mirror, and a cut by leading is withdrawn
+
+A grid table whose cells run several lines prints each die centred on its
+cell. Two cuts were tried on AX4's and AX5's tables today and both failed on
+the same pages: a midpoint cut between dies puts the midpoint inside a tall
+cell when its neighbour is short, and a cut by leading (`rowGap`, added this
+morning) meets a paragraph break inside a cell set at the same leading as
+the gap between rows (AX4 p.11, second column, die 62-66; AX5 p.10, die 4
+printed on a baseline of its own). The ruling: the die's baseline is the
+cell's centre, so the cell's bottom line is its top line mirrored about the
+die. Rows are cut in order, each row's top the first line under the row
+before, and a line left under the last row is an error naming it, since the
+band's y1 then reaches past the table. The mirror holds on every centred grid
+in the registers (AX2 two, AX3 four, AX4 four, AX5 two, AX6 one, probed off
+the books), and its checks found two tables that had shipped wrong under the
+midpoint: AX2's mummy reaction (p.19), whose band began under the first
+row's first line, so the first result lacked its opening clause since the
+table shipped; and AX3's city rumour truths (p.47), where the die column's
+left edge excluded two keys and three keys were fused with their cell's
+first run, so the table shipped ten of its twenty keys with the missing rows
+folded into their neighbours. A fused die is read off the run's head and
+stripped by character count, in every mode, as a fused list anchor already
+was.
+
+*Rejected:* keeping `rowGap` beside the mirror (two modes for one fact, one
+of them wrong on the first real page); a per-row line count (a value the
+page prints by layout).
+
+*Cost:* a centred grid whose leading is too uneven for the mirror keeps hand
+`bands` (AX1's rumours, 2.4pt off); a world imported before this holds the
+two defective tables until the Judge re-imports the AX2 and AX3 tables
+documents, and the CHANGELOG says so.
+
+## 2026-10-09 — What counts as a heading line is the row's assist
+
+`axHeadingLines` reads an AX page's headings by a shape measured on AX2 and
+AX3: runs 11.5pt and up, below the running heads, inside 30pt margins. The
+new books print headings outside it. AX5 sets its new monsters' names in
+body-size small capitals; AX1 sets two table titles at 11pt, prints a section
+heading in the running-head band (p.37) and starts its even pages' column at
+x 28. And two AX3 site headings sharing a baseline across a 20pt gutter were
+joined into one line, so the second key was never found. The ruling: the
+shape stays the default, and a row says where its book departs from it in
+`assists.headingLines` (`minH`, `caps`, `topY`, `x0`), read by the anchor,
+the hash candidates and the flow's stop alike; a line is split at any gap
+that crosses the page's midline, for every book. A capitals heading is told
+by its lowercase being fragments — four letters or more, two fifths
+capitals, no lowercase run past four letters — because small capitals
+extract as a scatter of case.
+
+*Rejected:* per-book layout constants in `BOOKS` (runtime code carrying
+facts only the compiler reads); lowering the heading height for every book
+(every body line of AX2 and AX3 becomes a heading candidate, and a flow
+stops at each); learning the heading face's font alias from the anchor's
+match (a hash-anchored row has no match to learn from).
+
+*Cost:* the capitals rule is a heuristic a body line of abbreviations could
+pass; the sign is a flow cut short at that line, which the compile's residue
+reports.
+
+## 2026-10-09 — A row's explanation stands as its own paragraph, and an opener line opens one
+
+A table's row text is HTML in Foundry's result, so a detail paragraph
+appended to a row is wrapped as a paragraph of its own rather than joined
+onto the row's sentence with a space: the row reads as its short entry, then
+its explanation. And the compiler reads an opener wherever it prints: a
+column of entries set with no blank line between them is one gap-built
+paragraph, and reading openers on paragraphs' first lines alone found one or
+two keys per table in AX4 and AX1 with the rest logged unmatched; an opener
+line now starts a paragraph wherever the builder set it. A key inside a
+paragraph that opens nothing is not counted unmatched, since a wrapped line
+can open with a number and a stop; a paragraph's first line still is.
+
+*Rejected:* a blank-line rule per book (the gap is the printer's, not the
+book's); joining the explanation onto the row's text (one run-on result).
+
+*Cost:* a paragraph re-cut at an opener line carries a line band for its
+box, not the builder's; the executor still merges a mid-sentence
+continuation across the cut.
+
+## 2026-10-09 — A legacy stat row's band reaches halfway to its neighbours
+
+The ACKS I-style block (`kind.monsterLegacy`) is a label column with a value
+column per variant. The first AX5 compile got three things wrong, found when
+`verify:cookbook` reported the four optic variants with no description and
+the proto-ooze pair with no stats. A label the kind did not list (`% Lair:`,
+where the kind knew `% In Lair:`) left its row above the recognised block,
+so the variant-header band swallowed that row's values and every variant's
+band was cut on them to zero width. A label welded to its value in one run
+(`Armor Class:` with the figure on its heels) matched no label and dropped
+the row. And a value that wraps onto a line either side of its label, the
+footman's and the sergeant's attack lines, fell outside a band of ±4.5
+points. The ruling: the kind row lists every printed spelling of a label; a
+label the kind does not list that prints above the first recognised row
+fails the compile by name rather than mis-cutting silently; a welded value is
+read off the label's own run by a `stripPrefix` count; and a row's band
+reaches halfway to the neighbouring labels, its runs joined as the page lays
+them, which is the band a two-line value needs and a one-line value already
+had.
+
+*Rejected:* a per-row line-count assist (the page says how far a band goes;
+a hand count would say it again, per entry); aliasing printed labels in the
+compiler (the kind row is where printed labels are declared).
+
+*Cost:* the stray-label guard reads the header band for anything shaped like
+a label, so a variant header ending in a colon would fail to compile; none
+prints one. The optic rows lose `descStopY`, which had stopped the flow on
+its first page before it reached the prose overleaf: a flow with a stop floor
+returns after one page, and that is the floor's contract.

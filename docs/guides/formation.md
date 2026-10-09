@@ -97,53 +97,66 @@ else.
 
 ## Overland travel
 
-The party sheet has a second mode. **Return to delve / Begin a journey** at the
-top of the travel panel switches between the dungeon clock and the overland
-one, and a third button takes the order into a city.
+The party sheet has one surface for every kind of travel: the clock strip at
+the top of the Party tab. In a dungeon it counts turns; on a journey it counts
+miles and hours; in a city it counts blocks. The mode is picked from the
+strip's own selector, and a map you have set up as a wilderness or a city map
+picks it for you when the party token lands there — as does a map whose cells
+are a mile or more across, which is read as wilderness unless you have said
+otherwise.
 
 Every number behind this section is printed in your books and arrives through
-**the importer**. Until you have imported them the panel still works, and says
+**the importer**. Until you have imported them the strip still works, and says
 plainly what it cannot price — it never guesses a distance, a target or a toll.
 
 ### The day
 
-Set what the order is crossing and how: the **ground**, whether it is on a
-**road**, whether it is **following** a river or a route it already knows, and
-how settled the **territory** is. **Moving by** says how the party gets about —
-on foot, mounted, by vehicle, flying, or by vessel — and that choice decides
-which of everything else it actually meets. A flier ignores roads entirely; a
-vessel ignores the ground.
+Drag the party token and the day is walked. The strip reads how fast the order
+moves (miles an hour, and miles in a day's march), how far it has come and how
+many hours that took against the hours the day holds, which hex it stands in
+and how many it has entered, when the next encounter throw falls, and the
+world clock with day or night and the hours left to dusk or dawn. The clock
+runs as the miles are spent: torches and tracked spells burn down on the road
+exactly as they do underground.
 
-Below that is the day's sky and the day board: one **kind of day** (a dedicated
-march, a forced march, or a day in camp) and four **ancillary hours** you spend
-on travel, foraging, hunting, searching or rest. A forced march spends them all.
-
-The line under the board is the march itself — miles and hexes for the day,
-with every factor that produced it named. If a factor is missing from that
-list, the mode you picked refused it; a road does nothing for a party in the
-air, and the readout says so rather than quietly including it.
+What the order is crossing and how is set under the strip, in the groups only
+you see: the **ground**, whether it is on a **road**, whether it is **following**
+a river or a route it already knows, how settled the **territory** is, and
+**Moving by** — on foot, mounted, by vehicle, flying, or by vessel — which
+decides which of everything else the party actually meets. A flier ignores
+roads entirely; a vessel ignores the ground. On a map whose hexes are painted
+(see the battlemap guide), the ground and the encounter terrain come from the
+paint and those pickers step aside. The **Sky** group is the day's
+weather; the **Day** group is one **kind of day** (a dedicated march, a forced
+march, or a day in camp), four **ancillary hours** you spend on travel,
+foraging, hunting, searching or rest — a forced march spends them all — and
+the hour's own word, the world clock's or yours. An hour given to travel adds
+an hour to the day's march.
 
 **End day** closes the day: it throws for navigation, feeds the order, walks
-every body's hunger, thirst and exposure one step, and writes the day into the
-log.
+every body's hunger, thirst and exposure one step, writes the miles and hours
+actually walked into the log, and moves the calendar to the next dawn.
 
-You rarely have to notice that the day is done. Once the party has walked off
-the hexes its march carries it, moving the token asks:
+You rarely have to notice that the day is done. Once the hours the day holds
+have been walked, or the party marches on after dark, moving the token asks:
 
 ![](../releases/v5.8.0/formation-day-end.png)
 
 It is never answered for you — ending a day spends the provisions, settles the
 ground, rolls tomorrow's sky and moves the calendar, and pushing on into a
 forced march is a real choice with a real price. The question is put once, and
-put again if pushing on bought more road.
+put again if pushing on bought more road. **Pause** on the strip stops a drag
+from spending anything, for when the token has to be moved and the party has
+not.
 
 ### The camp
 
-Beneath the march is what the party is living on: how many days of food and
+The **Camp** group is what the party is living on: how many days of food and
 water the packs hold across everyone in the order, and who is going short.
 Food and water are **pooled** — one member's rations feed the whole order —
 and dealt by a policy you choose in the module settings: evenly, so everyone
-goes equally short, or by triage, so as many as possible eat properly.
+goes equally short, or by triage, so as many as possible eat properly. The
+strip shows the days of food and water to the players too.
 
 Only the suffering are listed. Someone who is hungry, thirsty, hypothermic or
 losing Constitution appears with what it has cost them; the well-fed do not,
@@ -157,24 +170,67 @@ carrying a cloak or furs is sheltered. In mild weather the field is greyed,
 because there is nothing to count.
 
 **Work the country** rolls whatever the day's hours were spent on: foraging for
-food, water and firewood, hunting, or searching. What is found is deposited on
-the people who found it, and every attempt is reported — including the ones
-that turned up nothing.
+food, water and firewood, or hunting. What is found is deposited on the people
+who found it, and every attempt is reported — including the ones that turned
+up nothing.
+
+**Search an hour** spends one of the day's set-aside hours looking, runs the
+clock an hour, and owes an encounter throw whatever it finds. **Something
+here** is how the hour is answered: *From the stock* reads the hex's own
+stock (below); *Yes* and *No* are your word, and the stock is left alone.
+**Looking for** narrows the search to one point the party has not yet found,
+or to *Elsewhere* — a search for something that is not there. A find with one
+candidate is marked found; with several, the whispered card lists them and
+you mark the one they came upon. A tracker in the order adds the Tracking
+bonus; if that figure is not imported the card says so and throws without it.
+
+### This hex
+
+Lairs are the map's, not the party's. **Stock this hex** rolls the hex's lairs
+by the book's own procedure from your imported tables — the terrain's dice,
+the share a settled territory keeps, and the substitution of valuable,
+dangerous and unique terrain for some of the lairs — and draws each lair
+through the encounter chain, so a lair that is a monster is the monster the
+chain would meet. Type a count to override the roll; a terrain with no imported
+row asks for one. The stock is kept on the scene, under the hex, so two parties
+crossing the same hex find the same things and a party that never comes back
+leaves them where they were.
+
+The group lists each point with its kind, whether this party has found it, and
+three buttons: **Found**, **Make it a place** (a location actor and a hidden
+token at the hex's centre, revealed when the party has found it) and
+**Remove**. Once the hex is stocked, **Add a point** places one of your own.
+**Survey the hex** throws Land Surveying for the first member of the order who
+holds it; a success tells the true count, a natural 1 tells a confidently
+wrong one, and anything else
+tells nothing yet. The card shows you the truth beside what the surveyor
+believes, and **Tell the party** posts the surveyor's count publicly in the
+same words either way. A surveyor also tries by themselves after each search
+hour until they have an assessment. **Clear** removes the stock.
+
+A lost party searches and surveys where it really stands — the hidden marker's
+hex — not where it believes it is, and cannot make a place there until it
+knows.
 
 ### Encounters
 
 **Encounter throw** runs the whole wilderness encounter chain at once and
 whispers it to you as one card. The card shows every roll, the creature or find
 it lands on, how far off it is and the party's chance to evade. A creature your
-world or your imported library holds is linked. With **Journey encounter
-throws** on in the module settings, entering a hex throws by itself, and
-**End day** throws whatever the day owed.
+world or your imported library holds is linked. **Journey encounter throws** is
+on by default: every encounter-table hex the party walks throws by itself —
+a crossing on a map drawn at the table's own hex width, or that many miles on
+any other map; the strip says when the next one falls — and **End day** throws
+whatever the day owed. Day and night are read from the world clock, or from
+the hour you set in the Day group.
 
 When the throw lands on a terrain encounter, the card also rolls what that
 result leads to. Each table it names is rolled on its own die, and the
 terrain's treasure type or ruin modifier is read from the terrain you picked,
-so the whole find is on one card. A result the module does not follow, or a
-table your import lacks, tells you to draw from your book.
+so the whole find is on one card. A result that hands off — a double, a
+monster, an either-or, a despoiling — is drawn through the chain and shown
+indented beneath it. A result the module does not follow, or a table your
+import lacks, tells you to draw from your book.
 
 ![](../releases/v9.5.0/formation-terrain-encounter.png)
 

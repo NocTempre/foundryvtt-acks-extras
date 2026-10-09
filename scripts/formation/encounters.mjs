@@ -5,7 +5,9 @@
  * STRUCTURE ships here; the printed content does not. What ships: the
  * chain's ORDER (territory throw → civilized draw, or rarity throw → the
  * terrain-and-rarity monster draw, or a terrain-encounter kind → its d12 →
- * the sub-tables and terrain lookups its result leads to),
+ * the sub-tables and terrain lookups its result leads to, or back into the
+ * chain: a Double, a creature, a share-split between two kinds, a further
+ * roll — all under a per-draw roll budget),
  * the column-selection rules (a road or navigable river uses the territory's
  * "+ Road" column; night in settled country shifts one column right; a
  * Column Shift result shifts right and re-rolls), the resting/known-route
@@ -29,6 +31,7 @@
 import { bracketRow } from "../lib/tables.mjs";
 import { readTable } from "../vehicles/vehicle-speed.mjs";
 import { TERRITORY_KEYS } from "./travel.mjs";
+import { ENCOUNTER_TERRAINS, MONSTER_TABLE_KEYS, encounterTerrainFor } from "./encounter-terrains.mjs";
 
 /** The registered ruledata document the chain reads. */
 export const ENCOUNTERS_DOC = "encounters";
@@ -61,54 +64,10 @@ export const ENCOUNTER_OUTCOMES = Object.freeze({
 export const RARITIES = Object.freeze(["common", "uncommon", "rare", "veryRare"]);
 
 /**
- * The encounter terrains a Judge can stand a party in — the UNION of the
- * grains the book's tables are printed at, because they differ: the monster
- * sub-tables split by weather biome (tundra barrens, three mountain skies,
- * two rivers), while distance and evasion split by cover and rivers have no
- * row at all. Each pick maps itself onto every consumer: `monsters` names
- * its sub-table, `distance`/`evasion` its RR row (null = the book prints
- * none — the card hands those steps back), `civilized` its column group.
- * `closed` marks the country that shelters a party from flyers (the aerial
- * evasion exemption); `ground` is the coarse travel-ground key the pick
- * answers for by default; `treasure` and `ruin` name the terrain-group row
- * the pick reads in each terrain lookup.
+ * The terrain register and its reads live in `encounter-terrains.mjs`, a
+ * leaf the battlemap's brush reads too; the chain's readers take them here.
  */
-export const ENCOUNTER_TERRAINS = Object.freeze({
-  barrensRocky: { label: "ACKS-FORMATION.travel.enc.terrain.barrensRocky", ground: "barrens", civilized: "desertBarrens", monsters: "barrensRocky", distance: "barrens", evasion: "barrens", treasure: "hillsBarrenSwamp", ruin: "jungleSwampOceanDesertBarren" },
-  barrensTundra: { label: "ACKS-FORMATION.travel.enc.terrain.barrensTundra", civilized: "desertBarrens", monsters: "barrensTundra", distance: "barrens", evasion: "barrens", treasure: "hillsBarrenSwamp", ruin: "jungleSwampOceanDesertBarren" },
-  desertRocky: { label: "ACKS-FORMATION.travel.enc.terrain.desertRocky", civilized: "desertBarrens", monsters: "desert", distance: "desertRocky", evasion: "desertRocky", treasure: "desertMountain", ruin: "jungleSwampOceanDesertBarren" },
-  desertSandy: { label: "ACKS-FORMATION.travel.enc.terrain.desertSandy", ground: "desert", civilized: "desertBarrens", monsters: "desert", distance: "desertSandy", evasion: "desertSandy", treasure: "desertMountain", ruin: "jungleSwampOceanDesertBarren" },
-  forestDeciduous: { label: "ACKS-FORMATION.travel.enc.terrain.forestDeciduous", ground: "forest", closed: true, civilized: "forestScrubDense", monsters: "forestDeciduous", distance: "forestDeciduous", evasion: "forestDeciduous", treasure: "forest", ruin: "hillsMountainsForestRiver" },
-  forestTaiga: { label: "ACKS-FORMATION.travel.enc.terrain.forestTaiga", closed: true, civilized: "taiga", monsters: "forestTaiga", distance: "forestTaiga", evasion: "forestTaiga", treasure: "forest", ruin: "hillsMountainsForestRiver" },
-  grassland: { label: "ACKS-FORMATION.travel.enc.terrain.grassland", ground: "grassland", civilized: "grasslandScrubSparse", monsters: "grasslandFarm", distance: "grassland", evasion: "grassland", treasure: "clearGrassScrub", ruin: "clearGrassScrub" },
-  grasslandSavanna: { label: "ACKS-FORMATION.travel.enc.terrain.grasslandSavanna", civilized: "savannaJungleRiver", monsters: "grasslandSavanna", distance: "grassland", evasion: "grassland", treasure: "clearGrassScrub", ruin: "clearGrassScrub" },
-  grasslandSteppe: { label: "ACKS-FORMATION.travel.enc.terrain.grasslandSteppe", civilized: "grasslandScrubSparse", monsters: "grasslandSteppe", distance: "grasslandSteppe", evasion: "grasslandSteppe", treasure: "clearGrassScrub", ruin: "clearGrassScrub" },
-  hillsForested: { label: "ACKS-FORMATION.travel.enc.terrain.hillsForested", closed: true, civilized: "hillsMountains", monsters: "hills", distance: "hillsForested", evasion: "hillsForested", treasure: "hillsBarrenSwamp", ruin: "hillsMountainsForestRiver" },
-  hillsRocky: { label: "ACKS-FORMATION.travel.enc.terrain.hillsRocky", ground: "hills", civilized: "hillsMountains", monsters: "hills", distance: "hillsRocky", evasion: "hillsRocky", treasure: "hillsBarrenSwamp", ruin: "hillsMountainsForestRiver" },
-  jungle: { label: "ACKS-FORMATION.travel.enc.terrain.jungle", ground: "jungle", closed: true, civilized: "jungle", monsters: "jungle", distance: "jungle", evasion: "jungle", treasure: "jungle", ruin: "jungleSwampOceanDesertBarren" },
-  mountainsForested: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsForested", closed: true, civilized: "hillsMountains", monsters: "mountainsForested", distance: "mountainsForested", evasion: "mountainsForested", treasure: "desertMountain", ruin: "hillsMountainsForestRiver" },
-  mountainsRocky: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsRocky", ground: "mountains", civilized: "hillsMountains", monsters: "mountainsForested", distance: "mountainsRocky", evasion: "mountainsRocky", treasure: "desertMountain", ruin: "hillsMountainsForestRiver" },
-  mountainsSnowy: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsSnowy", civilized: "hillsMountains", monsters: "mountainsSnowy", distance: "mountainsRocky", evasion: "mountainsRocky", treasure: "desertMountain", ruin: "hillsMountainsForestRiver" },
-  mountainsVolcanic: { label: "ACKS-FORMATION.travel.enc.terrain.mountainsVolcanic", civilized: "hillsMountains", monsters: "mountainsVolcanic", distance: "mountainsRocky", evasion: "mountainsRocky", treasure: "desertMountain", ruin: "hillsMountainsForestRiver" },
-  riverLand: { label: "ACKS-FORMATION.travel.enc.terrain.riverLand", civilized: "grasslandScrubSparse", monsters: "riverLand", distance: null, evasion: null, treasure: "river", ruin: "hillsMountainsForestRiver" },
-  riverDesertJungle: { label: "ACKS-FORMATION.travel.enc.terrain.riverDesertJungle", civilized: "savannaJungleRiver", monsters: "riverDesertJungle", distance: null, evasion: null, treasure: "river", ruin: "hillsMountainsForestRiver" },
-  scrublandSparse: { label: "ACKS-FORMATION.travel.enc.terrain.scrublandSparse", ground: "scrubland", civilized: "grasslandScrubSparse", monsters: "scrublandSparse", distance: "scrublandSparse", evasion: "scrublandSparse", treasure: "clearGrassScrub", ruin: "clearGrassScrub" },
-  scrublandDense: { label: "ACKS-FORMATION.travel.enc.terrain.scrublandDense", closed: true, civilized: "forestScrubDense", monsters: "scrublandDense", distance: "scrublandDense", evasion: "scrublandDense", treasure: "clearGrassScrub", ruin: "clearGrassScrub" },
-  swampMarshy: { label: "ACKS-FORMATION.travel.enc.terrain.swampMarshy", ground: "swamp", closed: true, civilized: "swamp", monsters: "swamp", distance: "swampMarshy", evasion: "swampMarshy", treasure: "hillsBarrenSwamp", ruin: "jungleSwampOceanDesertBarren" },
-  swampScrubby: { label: "ACKS-FORMATION.travel.enc.terrain.swampScrubby", closed: true, civilized: "swamp", monsters: "swamp", distance: "swampScrubby", evasion: "swampScrubby", treasure: "hillsBarrenSwamp", ruin: "jungleSwampOceanDesertBarren" },
-  swampForested: { label: "ACKS-FORMATION.travel.enc.terrain.swampForested", closed: true, civilized: "swamp", monsters: "swamp", distance: "swampForested", evasion: "swampForested", treasure: "hillsBarrenSwamp", ruin: "jungleSwampOceanDesertBarren" },
-});
-
-/** The eighteen monster sub-tables the picks above draw from. */
-export const MONSTER_TABLE_KEYS = Object.freeze([
-  ...new Set(Object.values(ENCOUNTER_TERRAINS).map((t) => t.monsters)),
-]);
-
-/** The default encounter terrain for a travel ground, or "" (Judge's pick). */
-export function encounterTerrainFor(ground) {
-  for (const [key, cfg] of Object.entries(ENCOUNTER_TERRAINS)) if (cfg.ground === ground) return key;
-  return "";
-}
+export { ENCOUNTER_TERRAINS, MONSTER_TABLE_KEYS, encounterTerrainFor };
 
 /** The registered table ids the chain reads (expectTables declares these). */
 export const ENCOUNTER_TABLE_IDS = Object.freeze([
@@ -123,6 +82,10 @@ export const ENCOUNTER_TABLE_IDS = Object.freeze([
   "terrainSubTables",
   "treasureByTerrain",
   "ruinModifier",
+  "lesserTerrainShare",
+  "lairsPerHex",
+  "lairSubstitution",
+  "settledLairShare",
   ...MONSTER_TABLE_KEYS.map((t) => `monsters.${t}`),
 ]);
 
@@ -133,6 +96,13 @@ export const ENCOUNTER_TABLE_IDS = Object.freeze([
  * every row it leads to arrive with the import. `chain` names a table rolled
  * next when a roll lands on its table's last band — a power that climbs. A
  * result not listed here resolves from the book.
+ *
+ * Hand-offs back into the chain: `double` rolls the same list twice more
+ * (`DOUBLE_ON_DOUBLE` settles a Double among the pair); `monster` draws a
+ * creature on the CALLER's territory; `either` names two kinds and picks one
+ * by a d100 against the imported `lesserTerrainShare` percent (a roll at or
+ * under it takes the first, JJ 67); `draw` rolls one further result on the
+ * named kind's list.
  */
 export const TERRAIN_FOLLOW_UPS = Object.freeze({
   cache: { lookups: ["treasure"] },
@@ -146,7 +116,28 @@ export const TERRAIN_FOLLOW_UPS = Object.freeze({
   complexMap: { rolls: ["complexMap"] },
   curse: { rolls: ["curse"] },
   placeOfPower: { rolls: ["placeOfPower", "power"], chain: { power: "majorPower" } },
+  double: { double: true },
+  hiddenSettlement: { monster: true },
+  monsterCarcass: { monster: true },
+  monstrousShadow: { monster: true, lookups: ["treasure"] },
+  lesserTerrain: { either: ["valuable", "dangerous"] },
+  awfulDespoiling: { draw: "valuable" },
 });
+
+/**
+ * What a Double does when a roll inside its pair is itself a Double, by the
+ * kind whose list was rolled: a kind name discards the pair and rolls once on
+ * that kind's list instead; "reroll" replaces the inner Double on the same
+ * list.
+ */
+export const DOUBLE_ON_DOUBLE = Object.freeze({ valuable: "unique", dangerous: "unique", unique: "reroll" });
+
+/**
+ * List rolls one top-level terrain draw may make across all its hand-offs;
+ * a node that would roll past it is marked `exhausted` and the Judge
+ * resolves it from the book.
+ */
+export const DRAW_BUDGET = 8;
 
 /** The terrain lookups a result can read: the table each lives in. */
 export const TERRAIN_LOOKUPS = Object.freeze({ treasure: "treasureByTerrain", ruin: "ruinModifier" });
@@ -163,13 +154,17 @@ export const d20 = (rng) => die(20, rng);
 export const d100 = (rng) => die(100, rng);
 export const d12 = (rng) => die(12, rng);
 
-/** "4d6" rolled; junk → null. Multipliers ride separately in the table. */
+/**
+ * "4d6", "2d4+1" or "1d6-3" rolled, a modifier added and the total floored at
+ * zero; junk → null. Multipliers ride separately in the table.
+ */
 export function rollDice(expr, rng) {
-  const m = /^(\d+)\s*d\s*(\d+)$/i.exec(String(expr ?? "").trim());
+  const m = /^(\d+)\s*d\s*(\d+)\s*(?:([+-])\s*(\d+))?$/i.exec(String(expr ?? "").trim());
   if (!m) return null;
   let total = 0;
   for (let i = 0; i < Number(m[1]); i++) total += die(Number(m[2]), rng);
-  return total;
+  if (m[3]) total += (m[3] === "-" ? -1 : 1) * Number(m[4]);
+  return Math.max(0, total);
 }
 
 /* -------------------------------------------------------------------- */
@@ -247,14 +242,114 @@ export function civilizedDraw({ terrain, rng = Math.random } = {}) {
  * result leads to (`terrainFollowUps`) for the party's terrain. Resting or
  * retracing a known route downgrades the whole outcome to none BEFORE this
  * is rolled — that judgment is the caller's (`runEncounter` applies it).
+ *
+ * A result that hands back into the chain recurses: the node carries `then`
+ * (the nested draws, each tagged with the `via` that produced it), plus
+ * `creature` (`{ rarity, rarityRoll, roll, name }`, or `{ missing }`) for a
+ * creature hand-off on the CALLER's `territory`, `either` (`{ roll, share,
+ * kind }`) for a share-split, and `discarded` / `rerolled` (the rolls a
+ * Double set aside, each flagged `setAside` with its array's name). Every
+ * roll on a list spends `budget`; a node past it is `{ ok: false, exhausted:
+ * true }` and rolls nothing. A Double's pair is rolled before either
+ * member's follow-ups.
  */
-export function terrainEncounterDraw({ kind, terrain = "", rng = Math.random } = {}) {
+export function terrainEncounterDraw({ kind, terrain = "", territory, rng = Math.random, budget = DRAW_BUDGET } = {}) {
+  const left = Number.isFinite(Number(budget)) ? Number(budget) : DRAW_BUDGET;
+  return drawNode(kind, { terrain, territory, rng, left });
+}
+
+/** One list roll plus its resolution; `ctx` carries the shared budget. */
+function drawNode(kind, ctx) {
+  return resolveRoll(rollList(kind, ctx), ctx);
+}
+
+/** 1d12 on a kind's list, spending one unit of the budget; no follow-ups. */
+function rollList(kind, ctx) {
   const list = readTable(ENCOUNTERS_DOC, "terrainEncounters")?.[kind];
-  if (!Array.isArray(list) || !list.length) return { ok: false, missing: "terrainEncounters" };
-  const roll = d12(rng);
+  if (!Array.isArray(list) || !list.length) return { ok: false, kind, missing: "terrainEncounters" };
+  if (ctx.left <= 0) return { ok: false, kind, exhausted: true };
+  ctx.left -= 1;
+  const roll = d12(ctx.rng);
   const name = list[roll - 1] ?? null;
-  if (!name) return { ok: false, missing: "terrainEncounters" };
-  return { ok: true, roll, name, ...terrainFollowUps({ name, terrain, rng }) };
+  if (!name) return { ok: false, kind, missing: "terrainEncounters" };
+  return { ok: true, kind, roll, name };
+}
+
+const isDouble = (node) => !!(node?.ok && FOLLOW_UPS.get(foldName(node.name))?.double);
+
+/** A rolled result expanded with its follow-ups and any hand-off it names. */
+function resolveRoll(raw, ctx) {
+  if (!raw.ok) return raw;
+  const spec = FOLLOW_UPS.get(foldName(raw.name));
+  const node = { ...raw, ...terrainFollowUps({ name: raw.name, terrain: ctx.terrain, rng: ctx.rng }) };
+  if (spec?.double) Object.assign(node, resolveDouble(raw.kind, ctx));
+  if (spec?.monster) node.creature = creatureHandOff(ctx);
+  if (spec?.either) Object.assign(node, resolveEither(spec.either, ctx));
+  if (spec?.draw) node.then = [{ ...drawNode(spec.draw, ctx), via: "despoiled" }];
+  return node;
+}
+
+/** A Double's pair, with `DOUBLE_ON_DOUBLE` applied when a Double is in it. */
+function resolveDouble(kind, ctx) {
+  const rule = DOUBLE_ON_DOUBLE[kind];
+  const pair = [rollList(kind, ctx), rollList(kind, ctx)];
+  if (rule === "reroll") {
+    const rerolled = [];
+    for (let i = 0; i < pair.length; i++) {
+      while (isDouble(pair[i])) {
+        rerolled.push({ ...pair[i], setAside: "rerolled" });
+        pair[i] = rollList(kind, ctx);
+      }
+    }
+    return { then: pair.map((n) => ({ ...resolveRoll(n, ctx), via: "double" })), ...(rerolled.length ? { rerolled } : {}) };
+  }
+  if (rule && pair.some(isDouble)) {
+    return {
+      discarded: pair.filter((n) => n.ok).map((n) => ({ ...n, setAside: "discarded" })),
+      then: [{ ...drawNode(rule, ctx), via: "double" }],
+    };
+  }
+  return { then: pair.map((n) => ({ ...resolveRoll(n, ctx), via: "double" })) };
+}
+
+/** A creature drawn on the caller's territory: rarity throw, then the terrain's sub-table. */
+function creatureHandOff(ctx) {
+  const rarity = rarityThrow({ territory: ctx.territory, rng: ctx.rng });
+  if (!rarity.ok) return { missing: rarity.missing };
+  const draw = monsterDraw({ terrain: ctx.terrain, rarity: rarity.rarity, rng: ctx.rng });
+  return draw.ok
+    ? { rarity: rarity.rarity, rarityRoll: rarity.roll, roll: draw.roll, name: draw.name }
+    : { missing: draw.missing };
+}
+
+/**
+ * A d100 against the imported share percent picks one of two kinds (a roll
+ * at or under the share takes the first) and rolls that kind's list once.
+ * An unimported share leaves a missing-table node in `then`.
+ */
+function resolveEither([first, second], ctx) {
+  const share = readTable(ENCOUNTERS_DOC, "lesserTerrainShare");
+  const pct = share == null || share === "" ? NaN : Number(share);
+  if (!Number.isFinite(pct)) return { then: [{ ok: false, missing: "lesserTerrainShare" }] };
+  const roll = d100(ctx.rng);
+  const kind = roll <= pct ? first : second;
+  return { either: { roll, share: pct, kind }, then: [drawNode(kind, ctx)] };
+}
+
+/**
+ * A terrain draw as one list in resolution order, `[{ depth, node }]`: the
+ * root at depth 0, then each node's set-aside rolls (discarded, rerolled),
+ * then its nested draws, each followed by its own children. Takes an
+ * old-shaped draw (no `then`) as a single node; nothing yields an empty list.
+ */
+export function flattenTerrainDraw(draw) {
+  const out = [];
+  const walk = (node, depth) => {
+    out.push({ depth, node });
+    for (const child of [...(node.discarded ?? []), ...(node.rerolled ?? []), ...(node.then ?? [])]) walk(child, depth + 1);
+  };
+  if (draw) walk(draw, 0);
+  return out;
 }
 
 /**
@@ -454,8 +549,22 @@ export function aftermath({ terrain, rng = Math.random } = {}) {
  * (resting or retracing a known route downgrades terrain encounters), and
  * receives every step with its rolls — or the name of the first table the
  * registry could not answer, where the book takes over.
+ *
+ * `zone` is what the encounter zones the party stands in say, `{target,
+ * table}`: `target` (0–6) a d6 target of their own, `table` whether they name
+ * a RollTable. A target replaces the territory throw: the d6 is recorded as
+ * `chain.zone` (`{roll, target, hit}`), `chain.territory` is a skipped marker
+ * (`{ok: true, skipped: true}`), and a hit is a monster encounter. A named
+ * table replaces the creature step of a creature outcome with `chain.zoneDraw`
+ * — the caller draws it, since the table is a document — after the rarity
+ * throw a territory monster outcome still makes; a zone's own hit with a
+ * table stops there. Terrain outcomes and the distance roll are untouched.
  */
-export function runEncounter({ territory, road = false, night = false, terrain, restingOrKnownRoute = false, rng = Math.random } = {}) {
+export function runEncounter({ territory, road = false, night = false, terrain, restingOrKnownRoute = false, zone = null, rng = Math.random } = {}) {
+  const zoneTarget = Math.max(0, Math.min(6, Math.floor(Number(zone?.target) || 0)));
+  const zoneTable = !!zone?.table;
+  if (zoneTarget > 0) return zoneThrow({ territory, terrain, target: zoneTarget, table: zoneTable, rng });
+
   const chain = { territory: territoryThrow({ territory, road, night, rng }) };
   if (!chain.territory.ok) return chain;
   let outcome = chain.territory.outcome;
@@ -469,16 +578,38 @@ export function runEncounter({ territory, road = false, night = false, terrain, 
   if (outcome === "none") return chain;
 
   if (outcome === "civilized") {
-    chain.creature = civilizedDraw({ terrain, rng });
+    if (zoneTable) chain.zoneDraw = true;
+    else chain.creature = civilizedDraw({ terrain, rng });
   } else if (outcome === "monster") {
     chain.rarity = rarityThrow({ territory, rng });
-    if (chain.rarity.ok) chain.creature = monsterDraw({ terrain, rarity: chain.rarity.rarity, rng });
+    if (zoneTable) chain.zoneDraw = true;
+    else if (chain.rarity.ok) chain.creature = monsterDraw({ terrain, rarity: chain.rarity.rarity, rng });
   } else if (kind) {
-    chain.terrainEncounter = terrainEncounterDraw({ kind, terrain, rng });
+    chain.terrainEncounter = terrainEncounterDraw({ kind, terrain, territory, rng });
   }
 
   if (outcome === "civilized" || outcome === "monster") {
     chain.distance = encounterDistance({ terrain, rng });
   }
+  return chain;
+}
+
+/**
+ * A zone's own throw in place of the territory's: a d6 against the zone's
+ * target, a hit being a monster encounter drawn from the zone's table when it
+ * names one, else on the terrain's sub-table at the territory's rarity.
+ */
+function zoneThrow({ territory, terrain, target, table, rng }) {
+  const roll = die(6, rng);
+  const hit = roll >= target;
+  const chain = { territory: { ok: true, skipped: true }, zone: { roll, target, hit }, outcome: hit ? "monster" : "none" };
+  if (!hit) return chain;
+  if (table) {
+    chain.zoneDraw = true;
+  } else {
+    chain.rarity = rarityThrow({ territory, rng });
+    if (chain.rarity.ok) chain.creature = monsterDraw({ terrain, rarity: chain.rarity.rarity, rng });
+  }
+  chain.distance = encounterDistance({ terrain, rng });
   return chain;
 }

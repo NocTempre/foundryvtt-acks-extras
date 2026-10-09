@@ -3563,3 +3563,38 @@ the way core does and compares the way core does.
 **What it cost.** A Judge who restores a library that needed nothing now
 reads "0 compendium(s) filed" where the macro counted every pack, and the
 setting is not written. What a restore does to a pack it files is unchanged.
+
+### The next dawn is read from the calendar, and a hex's width from the scene (2026-10-09)
+
+**Asked.** The journey's day was ending by adding a flat day of seconds to
+the world clock, which woke a party that stopped at two in the afternoon at
+two the next afternoon; and the expedition arithmetic carried a constant
+`MILES_PER_HEX`, a figure that belongs to whichever map the party is on.
+
+**Ruled.**
+- `clockReading()` now carries the second and the calendar's seconds in an
+  hour beside the hour and minute. `secondsToNextDawn(reading,
+  {secondsPerHour})` is pure arithmetic on it: the seconds to the next time
+  the clock reads the dawn hour, strictly after now, so a reading taken
+  exactly at dawn answers a whole day. `untilNextDawn()` reads the clock and
+  converts, and answers null for a world with no calendar; the journey falls
+  back to a flat day there. The settlement board was the first reader of the
+  dark; the journey's end of day is the second.
+- `sceneMilesPerCell(scene)` and `isExpeditionScale(scene)` read a scene's
+  grid through `distance-units.mjs`. A cell of one mile or more is expedition
+  scale: that threshold is a unit definition, not a printed figure.
+- `MILES_PER_HEX` leaves `movement-scales.mjs`. `expeditionFrom(feet,
+  {multiplier, pace, milesPerHex})` takes the hex width from the caller and
+  answers `hexesPerDay` null without one; the formation readout passes the
+  party scene's cell when it is expedition scale, and the vehicle sheet's
+  hexes-per-day cell is blank otherwise. Lib `apiVersion` 27.
+
+**Rejected.**
+- *A flat day at the journey's end* — the reason above.
+- *Keeping `MILES_PER_HEX` as a default.* A default hex width is a printed
+  figure wearing a constant's name, and it was wrong on every map that was not
+  drawn at it.
+
+**Cost.** A world whose calendar keeps no dawn hour still gets the flat day.
+A vehicle sheet shows no hexes a day off a mile-scale scene, which is the
+truth it was previously papering over.

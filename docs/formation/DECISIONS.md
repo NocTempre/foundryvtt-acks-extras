@@ -2382,3 +2382,279 @@ which is the right shape and a figure nobody has checked against a real
 calendar of that length. The weather's night temperature (`weather.mjs`) is a
 second figure per day and not a reading of the hour; this ruling does not make
 it one.
+
+### A drag on a journey spends miles, and the world clock runs with it (2026-10-09)
+
+**Reported (the user):** "The wilderness party does not currently work while
+traveling, at least in my tests. Could be an unexplained setup step? … both
+the urban and wilderness exploration need rolled into the party actor, not as
+separate tabs or calculators, but just managed like dungeon delving where
+moving triggers resource use and appropriate rolls."
+
+**Found.** No setup step was missing; the journey only ever listened on a
+hex-gridded scene. `onJourneyTokenMoved` returned before measuring anything
+on a square or gridless map, so a party dragged across a map of six-mile
+squares walked for free, and on a hex map it counted crossings and nothing
+else: no hours, no world time, a day budgeted in hexes against a figure the
+readout only had when the scene was mile-scaled. Journey mode set
+`clock.paused`, which was the delve clock's own pause, so the Judge's Pause
+button and the mode shared one flag and the button read as pressed on every
+journey. The Travel tab held the pickers, the readout and the day board
+beside a party tab whose clock strip went dark the moment the mode changed.
+Three defects rode along: `buildCampView` and `search-run.mjs` read
+`t.readoutMiles`, which nothing writes, so the search target was priced at 0
+miles a day; `aerial` was never passed into the search; and the scene-scale
+guard for a declared delve did not exist, so a party ticking dungeon turns
+across a mile-scale map billed a turn per 120 feet of a 31,680-foot cell.
+
+**Ruled.**
+- **Every grid measures.** A journey's drag is miles through
+  `scene.grid.measurePath` in the scene's own units, converted by
+  `lib/distance-units.mjs`; hex steps on a hex grid, the straight line
+  elsewhere. Miles become hours at the readout's miles-per-hour, and hours
+  become world time (`advanceJourneyClock`), which burns lights and spells by
+  whole turns and carries the remainder; the rest and winded counters and the
+  dungeon's wandering throw are the delve's and stay out of it.
+- **The day is budgeted in hours.** `marchBudget` is the day kind's hours plus
+  one per slot given to travel; `dayIsSpent(day, budget, {dark})` is true when
+  the hours are walked or the clock says dark. The offer (`day-close.mjs`) is
+  raised on the first spent or dark step, once, and **End day** moves the
+  calendar to the next dawn (`untilNextDawn`), not forward by a flat day.
+- **The encounter cadence is the imported one.** `cadenceOf` reads the
+  territory's mile-per-hex figure from `encounterFrequency.traveling`: on a
+  grid whose cell is that figure within one percent, a crossing is a unit; on
+  any other grid, miles are counted off and a unit falls every so many; with
+  no figure registered nothing is priced and the strip says so. Day and night
+  come from the clock through `travel.hour` and `isNight`, the same reader the
+  city uses. *Superseded in part by "A zone answers on a journey where the
+  party really is" (2026-10-09, below): inside an Encounter Zone that states a
+  cadence, the zone's cadence replaces the per-unit throws.*
+- **One surface.** The party tab's clock strip is the play surface in every
+  mode; what it shows is the mode's: the delve's turns, the journey's miles
+  walked against the budget, the hex, the next throw and the clock, the city's
+  rate and tally. What the Judge declares — country, movement, sky, day board,
+  camp, lost, log, the city's pickers — is collapsed under it. The Travel tab
+  is gone. Pause is live on a journey through `clock.pausedBy === "judge"`,
+  separate from the mode.
+- **A scene's system is inferred when it is not declared**: a declared mode
+  wins; else a mile-scale cell means journey and a district region means
+  settlement; else silence. A declared delve on a mile-scale map bills nothing
+  and whispers once per arrival.
+- `travelEncounters` defaults on: a setting that gates the throw a drag owes
+  is the feature, not an option.
+
+**Supersedes** (in part) *Travel state lives on the formation record, as a
+mode* (2026-08-28): "two clocks, one running at a time" and `clock.paused` as
+the journey's switch. One clock runs on a journey — the world's — and the
+pause is the Judge's own flag. The record-as-store ruling stands. Also *The
+day's end is raised by movement and answered by the Judge* (2026-08-31):
+`dayIsSpent` is asked of every counted step, not every hex, and compares
+hours, not hexes; the Judge still answers.
+
+**Rejected.**
+- *A turn clock for the wilderness* (six turns an hour, every drag a tick):
+  the journey's events are per hour and per mile, and a 600-second tick would
+  post a card per 120 feet of a mile.
+- *Keeping the Travel tab beside a journey-aware strip*: two surfaces for one
+  state, the thing the user named as the failure.
+- *Budgeting the day in hexes*: a map of 24-mile hexes gets a day of a
+  quarter hex, and a square map gets no day at all.
+
+**Cost.** The strip prices the march on a camp day too, and says which day it is;
+a camp day's travel slots can still be walked, priced at the march pace. The
+printed figures the march still relies on (`MARCH_HOURS`, the forced march's
+factor, the one-hour slot) are named in ROADMAP for the movement-scales pass.
+`formation` `apiVersion` 15, lib `apiVersion` 27.
+
+### A hex's stock lives on its map, keyed by the cell (2026-10-09)
+
+**Asked.** Where the lairs a hex holds are kept, now that the procedure that
+rolls them is imported.
+
+**Ruled.** On the scene, `flags["acks-extras"].hexStock[<key>]`, one key per
+hex — `i:j` from the grid offset on a hex scene, `label:<folded>` from the
+trace's label elsewhere. A lair is the map's fact, not a party's: two
+formations crossing the same hex find the same stock, and a formation that
+never comes back leaves it where it was. What is PER FORMATION — which points
+it has found, how many searches it has to its credit, what its surveyor was
+told — is keyed by formation id inside the record. The hex read is the TRUE
+hex (`truePositionToken`, the lost episode's marker), so a party astray
+searches the ground it stands on, not the hex it believes in.
+
+**Rejected.** The formation record (travel is party-scoped; a lair is not);
+a world setting keyed by scene (a second store beside the scene's own flags,
+with its own lock); a Region per hex (a document per cell on a map of
+thousands).
+
+**Cost.** A scene flag write per stock change re-renders every open party
+sheet through `updateScene`; a shared world holds every stocked hex in the
+scene document.
+
+### Stocking runs the book's procedure, and the Judge's count wins (2026-10-09)
+
+**Ruled.** `stockHex` performs the procedure: roll the terrain row's dice,
+apply the settled share for the territory (ties round down), substitute each
+lair's kind by the substitution bands, and draw each lair through the
+encounter chain's hand-off so a lair that is a monster is the monster the
+chain would meet. A typed count (`judgeCount`) replaces the roll and keeps the
+dice and share for the record. A terrain whose row is null, or a world with
+no `lairsPerHex` registered, returns `needsCount` and the dialog asks; a world
+with no `lairSubstitution` returns `needsSubstitution`. Every figure arrives
+through the importer; the module ships the order of operations and the
+`LAIR_KINDS` vocabulary.
+
+**Rejected.** A default count for an unregistered world (a page value in
+disguise); rolling behind the Judge's back on arrival (a hex is stocked on a
+gesture, so the Judge can declare the empty hex empty).
+
+**Cost.** Stocking a hex is a click per hex. A Judge who wants a region
+pre-stocked does it from the API.
+
+### A terrain result's hand-off is a draw on the chain (2026-10-09)
+
+**Ruled.** A terrain-encounter result the chain knows by its common noun hands
+off: a double draws twice, a double inside a double discards the pair and
+draws once (`DOUBLE_ON_DOUBLE`), a monster result reads the territory's rarity
+column, an either-or reads the imported share, and a despoiling draws one
+valuable with its follow-ups. The draw is a tree (`terrainEncounterDraw`), the
+card flattens it to depth three, and a budget of eight draws
+(`DRAW_BUDGET`) stops a chain that keeps doubling. A share of zero reads as
+missing.
+
+**Rejected.** Resolving hand-offs on the card by hand (the chain already owns
+every table the hand-off names).
+
+**Cost.** A missing `lesserTerrainShare` shows as a missing-table line on the
+child node rather than failing the whole throw.
+
+### Climate does not pick the monster sub-table (2026-10-09)
+
+**Ruled.** The biome split of the monster sub-tables stays a terrain pick;
+climate by terrain is ROADMAP. **Rejected** for now: deriving the biome from
+the sky's climate code, because the page keys its tables by terrain and the
+climate is a second axis the register does not yet carry.
+
+### A search reads the stock, and the Judge picks among several finds (2026-10-09)
+
+**Ruled.** "Something here" is a select: `stock` (the default on a stocked hex)
+reads whether an unfound point for this formation exists; `yes` and `no` are
+the Judge's word and touch the stock neither way. "Looking for" narrows the
+search to one unfound point (the specific-place penalty applies) or to
+`elsewhere`, which is a search for what is not there. A find with one
+candidate marks it found for this formation; with several, the whispered card
+lists them and the Judge marks one. Every throw that beats the target credits
+a search to this formation, empty hexes included (a reading of the page's
+prior-searches rule, flagged); the credit feeds the survey. A survey runs on
+the button and automatically after a search hour when a surveyor is present,
+the hex is stocked and this formation has no assessment; a false count
+re-rolls the stored dice until it differs from the truth, bounded, and the
+card asks the Judge when the dice are missing or the tries run out. The
+public **Tell the party** line has one shape for a true and a false count.
+
+**Rejected** (weak–moderate): a random pick among several finds — the Judge
+knows which lair the party was nearest. Also rejected: auto-promoting a found
+point to a place; posting the survey's line automatically.
+
+**Cost.** Two selects where a checkbox was. A `yes` on a stocked hex finds
+nothing in the record, by design.
+
+### The search target reads the expedition's own speed (2026-10-09)
+
+**Found.** `buildCampView` and `search-run.mjs` read `t.readoutMiles`, which
+no writer sets, so the search target was priced as a party walking 0 miles a
+day. **Ruled.** The search is paced on the march readout (`expeditionMiles`:
+a march-kind copy of the record through `travelReadout`, with the dark-free
+speed) whatever the day board says. Aerial is read from the movement mode.
+The canopy's ground is the true hex's while astray.
+
+### The party token's linkage is a patch, so the scene's adoption stands (2026-10-09)
+
+**Found.** Live, a party placed on an undeclared mile-scale hex map read
+"Wilderness" in the adoption notice and `delve` in its record. `ensurePartyToken`
+wrote the caller's whole copy after `createEmbeddedDocuments`; the createToken
+hook's adoption, queued ahead of it while the create resolved, was overwritten
+by the mode read before it. Every drag then ran the turn engine, which on a
+mile-scale map bills nothing and whispers once: the wilderness party "did not
+work while travelling". No offline suite runs the hook and the creator
+together, so every one of them stayed green. **Ruled.** The linkage is a
+`patchFormation`, and the caller's copy is refreshed from the ledger afterwards
+so a later write by the caller carries the adoption too. **Rejected**
+(moderate): running the adoption inside `ensurePartyToken` and silencing the
+hook. It would be sequential, but the hook also serves a token another client
+created, and the queue order already settles the same-client case.
+
+### A drag crosses as many hexes as the grid counts (2026-10-09)
+
+**Found.** For the grid cadence, `traceStep`'s one change of hex stood in for
+the crossings, so a four-hex drag owed one throw and the first drag after
+placement owed none. The miles in cells cannot stand in either: on a hex grid
+`measurePath`'s `distance` measured from a token's corner carries a Euclidean
+remainder (a ten-pixel nudge reads a tenth of a cell, a four-hex drag after it
+3.9), so the cells floor to three. **Ruled.** The crossings are the grid's own
+`spaces` from the same measure, carried into `spendJourneyMiles` as
+`crossings`; the miles in cells stand in only where no count was measured (a
+grid without `measurePath`, an API caller without positions). The day's
+hexes-entered tally counts the same number. **Cost.** A corner-measured drag
+still bills the remainder's minutes: a nudge inside a hex costs a fraction of
+an hour and crosses nothing.
+
+### A dialog's dismissing button answers false, never null (2026-10-09)
+
+**Found.** Pressing Cancel on *Stock this hex* warned that the count was
+missing and asked again, until the window was closed from its title bar. Core's
+`DialogV2._onSubmit` replaces a nullish callback result with the button's
+`action` string, so `callback: () => null` resolves `"cancel"`, which
+`openStockDialog` read as the picked inputs. The same shape sat on the
+stray-direction ask, whose No warned of a missing neighbour, and on the two
+lost confirms, where No went through as Yes. Offline the suite's `DialogV2.wait`
+mock handed back null for a cancel directly, so the comparison it pinned is one
+core never makes. **Ruled.** A dismissing button returns `false`, and the suite
+presses Cancel the way core does: it runs the button's callback and falls back
+to its action. **Rejected** (weak): testing `picked === "cancel"` at each
+consumer — it spells core's fallback at every call site, and a renamed button
+reopens the hole without a word. **Cost.** None at runtime: the no-answer value
+is `false` where it was null, and every consumer tested truthiness.
+
+### A zone answers on a journey where the party really is (2026-10-09)
+
+**Ruled.** Only the journey reads zones this way — `postEncounterThrow`,
+`spendJourneyMiles` and `rollDayEncounters`; the delve keeps the first zone
+under the party token. The journey reads every Encounter Zone under the
+party's TRUE position (`truePositionToken`, the lost episode's shadow while
+one stands), because creatures meet the party where it is, not where it
+believes it is. Overlapping zones compose field by field, the smallest zone
+stating a field winning it and a zero or blank stating nothing — the city's
+"innermost-first and per field" and "a zero means inherit" (2026-09-12),
+with area standing in for nesting because a journey's zones are drawn freely
+rather than in fixed layers. A zone's target is a d6 that replaces the
+territory throw; a zone's table replaces the creature step and is drawn onto
+the encounter card itself (`drawQuietly`). A zone's cadence is new:
+`journeyCadence` blank inherits, `entry` throws once on crossing in and
+nothing per unit inside, `periods` throws only at End Day by the zone's
+`dayThrows` and `nightThrows`. A crossing is read against the zones recorded
+on the formation's clock after the previous spend (`clock.zoneIds`), not
+re-derived from `clock.lastPosition`, which anchors the marker and not the
+true position, and which a Judge's **Next hex** never moves.
+
+**Supersedes** (in part) *A drag on a journey spends miles, and the world
+clock runs with it* (2026-10-09): its clause "the encounter cadence is the
+imported one" holds outside a zone that states a cadence and no longer inside
+one. **New evidence**, since that entry is under a week old: the adventure
+modules print encounter cadences scoped to an AREA of the map — a stretch of
+country whose throws are paced differently from the territory around it —
+which the earlier ruling, written for the territory tables alone, did not
+consider.
+
+**Rejected.**
+- *Reusing `encounterEvery` on a journey*: one field in two units, dungeon
+  turns on a delve and something else on a journey, and a zone drawn for a
+  delve would change a journey that crossed the same map.
+- *Posting core's table card beside the encounter card*: two messages for one
+  encounter, the second with no context; the drawn rows go on the card that
+  asked for them.
+
+**Cost.** A drag inside an `entry` or `periods` zone still fires
+`acksExtras.hexEntered` per unit, with `throwOwed: false`, so a listener that
+counted throws by the hook must read the flag. A drag that crosses into an
+`entry` zone and on through it throws once for the whole drag. The strip's
+next-throw cell reads the imported cadence alone, inside a zone as well.

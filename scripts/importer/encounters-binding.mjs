@@ -76,6 +76,10 @@ export const PRODUCES = Object.freeze({
     terrainSubTables: Object.keys(TERRAIN_SUB_RAW_KEYS),
     treasureByTerrain: "treasureByTerrainRaw",
     ruinModifier: "ruinModifierRaw",
+    lairsPerHex: "lairsPerHexRaw",
+    lairSubstitution: "lairsProse",
+    settledLairShare: "lairsProse",
+    lesserTerrainShare: "lesserTerrainProse",
     ...Object.fromEntries(Object.entries(MONSTER_RAW_KEYS).map(([raw, key]) => [`monsters.${key}`, raw])),
   },
 });
@@ -187,6 +191,90 @@ export function signedCell(cell) {
 
 /** The dice a table can be rolled with; a sub-table must top out on one. */
 const DICE = new Set([2, 3, 4, 6, 8, 10, 12, 20, 100]);
+
+/**
+ * A lairs-per-hex dice cell as the ASCII expression the engine rolls:
+ * `NdM`, `NdM+K` or `NdM-K`. The modifier's sign may arrive as a hyphen, an
+ * en or em dash or a minus sign, and the text layer welds spaces anywhere in
+ * the cell ("2 d 4 + 1"). A zero count or zero faces is no die; junk → null.
+ */
+export function parseLairDice(cell) {
+  const s = String(cell ?? "").replace(/\s+/g, "");
+  const m = /^(\d+)d(\d+)(?:([+\-‐-―−])(\d+))?$/i.exec(s);
+  if (!m) return null;
+  const count = Number(m[1]);
+  const faces = Number(m[2]);
+  if (!count || !faces) return null;
+  const bonus = m[3] ? Number(m[4]) : 0;
+  if (!bonus) return `${count}d${faces}`;
+  return `${count}d${faces}${m[3] === "+" ? "+" : "-"}${bonus}`;
+}
+
+/** The kinds a lair-substitution band can name, matched on the common noun. */
+const LAIR_BAND_KINDS = [["valuable", "valuable"], ["dangerous", "dangerous"], ["unique", "unique"], ["lair", "lair"]];
+
+/**
+ * The random-substitution window → `[{min, max, kind}]`: each `N, words` or
+ * `N-M, words` clause (hyphen, en dash or minus between the faces) read as a
+ * band, its words mapped to a kind by common noun. Null unless every clause
+ * names a kind and the bands tile 1 to a die's top with no gap or overlap —
+ * the same proof `assembleSubTable` makes, since a band lost to the page would
+ * otherwise read as a smaller die.
+ */
+export function parseSubstitutionBands(window) {
+  const bands = [];
+  for (const m of String(window ?? "").toLowerCase().matchAll(/(\d+)\s*(?:[-‐-―−]\s*(\d+))?\s*,\s*([^;.:]+)/g)) {
+    const words = m[3].replace(/\s+/g, "");
+    const kind = LAIR_BAND_KINDS.find(([noun]) => words.includes(noun))?.[1];
+    const min = Number(m[1]);
+    const max = Number(m[2] ?? m[1]);
+    if (!kind || max < min) return null;
+    bands.push({ min, max, kind });
+  }
+  bands.sort((a, b) => a.min - b.min);
+  if (!bands.length || bands[0].min !== 1 || !DICE.has(bands.at(-1).max)) return null;
+  for (let i = 1; i < bands.length; i++) if (bands[i].min !== bands[i - 1].max + 1) return null;
+  return bands;
+}
+
+const FRACTION_WORDS = { half: [1, 2], halves: [1, 2], third: [1, 3], thirds: [1, 3], quarter: [1, 4], quarters: [1, 4], fourth: [1, 4], fourths: [1, 4] };
+const COUNT_WORDS = { one: 1, two: 2, three: 3 };
+
+/**
+ * The settled-territory window → `{ [territory]: fraction }`. A figure is a
+ * percent ("33%"), a numeric fraction ("1/3") or a word fraction ("one-third",
+ * "two thirds", "half"); it belongs to the last territory named between the
+ * previous figure and itself, and a first figure with no name before it is
+ * the civilized share (the page's heading lists the classes in that order).
+ * Fractions are numbers in (0, 1]. Null when a territory is claimed twice or
+ * nothing reads.
+ */
+export function parseSettledShares(window) {
+  const text = String(window ?? "").toLowerCase();
+  const figures = [];
+  const figure = /(\d+)\s*%|(\d+)\s*\/\s*(\d+)|(?:\b(one|two|three)[\s-]*)?\b(halves|half|thirds|third|quarters|quarter|fourths|fourth)\b/g;
+  for (const m of text.matchAll(figure)) {
+    let value;
+    if (m[1] != null) value = Number(m[1]) / 100;
+    else if (m[2] != null) value = Number(m[3]) ? Number(m[2]) / Number(m[3]) : NaN;
+    else {
+      const [n, d] = FRACTION_WORDS[m[5]];
+      value = (COUNT_WORDS[m[4]] ?? n) / d;
+    }
+    figures.push({ at: m.index, end: m.index + m[0].length, value });
+  }
+  const out = {};
+  let from = 0;
+  for (const [i, f] of figures.entries()) {
+    const names = [...text.slice(from, f.at).matchAll(/\b(civilized|borderlands|outlands)\b/g)];
+    const territory = names.at(-1)?.[1] ?? (i === 0 ? "civilized" : null);
+    from = f.end;
+    if (!territory || !(f.value > 0 && f.value <= 1)) continue;
+    if (territory in out) return null;
+    out[territory] = f.value;
+  }
+  return Object.keys(out).length ? out : null;
+}
 
 /**
  * One raw sub-table → ascending `[{min, max, name}]`, each result's cells
@@ -424,6 +512,16 @@ export function assembleEncounterTables(raw = {}) {
   if (treasure) out.treasureByTerrain = treasure;
   const ruin = lookup(raw.ruinModifierRaw, "modifier", signedCell);
   if (ruin) out.ruinModifier = ruin;
+
+  const lairs = lookup(raw.lairsPerHexRaw, "lairs", parseLairDice);
+  if (lairs) out.lairsPerHex = lairs;
+  // The executor keys the prose recipe's results by block id.
+  const bands = parseSubstitutionBands(raw.lairsProse?.substitution?.bands);
+  if (bands) out.lairSubstitution = bands;
+  const shares = parseSettledShares(raw.lairsProse?.settled?.shares);
+  if (shares) out.settledLairShare = shares;
+  const lesser = Number(raw.lesserTerrainProse?.share);
+  if (Number.isInteger(lesser) && lesser >= 1 && lesser <= 100) out.lesserTerrainShare = lesser;
 
   return out;
 }

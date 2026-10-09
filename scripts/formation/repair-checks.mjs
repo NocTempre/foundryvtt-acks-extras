@@ -1,10 +1,12 @@
-/* global game, fromUuid */
+/* global game, fromUuid, foundry */
 /**
  * Formation's repair checks: marching-order members whose actor is gone, and
  * true-position markers (shadows) standing outside the episode they belong to.
  * A shadow the check cannot place on its own — an open episode's only marker on
  * another scene, or an open episode with none — is reported, never moved: the
- * lost panel is where an episode is re-anchored or ended.
+ * lost panel is where an episode is re-anchored or ended. A scene's hex stock
+ * is mended in place: points without an id are given one, and finds, search
+ * credit and assessments naming a formation that no longer exists are dropped.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { fixEach, registerRepairCheck } from "../lib/repair.mjs";
@@ -14,6 +16,7 @@ import { lostOf } from "./lost.mjs";
 import { travelOf } from "./travel.mjs";
 import { episodeScene } from "./lost-episode.mjs";
 import { PartySheet } from "./party-actor.mjs";
+import { STOCK_FLAG } from "./hex-stock-run.mjs";
 
 const loc = (key, data = {}) => game.i18n.format(`ACKS-FORMATION.repair.check.${key}`, data);
 
@@ -34,6 +37,29 @@ function shadowFinding(token, formation, why, { fixable = true, reason = null } 
     fixable,
     reason: reason ? loc(`shadows.${reason}`) : null,
   };
+}
+
+/**
+ * The records of one scene's hex stock that need mending, each under its key
+ * as the mended record: every point carrying an id, and no `found`, `searches`
+ * or `assessments` entry naming a formation absent from `liveIds`. Empty when
+ * the stock is sound.
+ */
+function mendHexStock(stock, liveIds, mint) {
+  const keep = (map) => Object.fromEntries(Object.entries(map ?? {}).filter(([id]) => liveIds.has(id)));
+  const mended = {};
+  for (const [key, record] of Object.entries(stock ?? {})) {
+    if (!record || typeof record !== "object") continue;
+    const points = (record.points ?? []).map((p) => (p?.id ? p : { ...p, id: mint() }));
+    const next = {
+      ...record,
+      points: points.map((p) => ({ ...p, found: keep(p.found) })),
+      searches: keep(record.searches),
+      assessments: keep(record.assessments),
+    };
+    if (JSON.stringify(next) !== JSON.stringify(record)) mended[key] = next;
+  }
+  return mended;
 }
 
 /** Registers formation's checks. Called once, at `init`. */
@@ -121,6 +147,38 @@ export function registerFormationRepairChecks() {
       fixEach(findings, async (f) => {
         const token = await fromUuid(f.uuid);
         if (token) await token.delete();
+      }),
+  });
+
+  registerRepairCheck({
+    id: "formation.hexStock",
+    label: "ACKS-FORMATION.repair.check.hexStock.label",
+    hint: "ACKS-FORMATION.repair.check.hexStock.hint",
+    order: 30,
+    scan: () => {
+      const liveIds = new Set(Object.keys(readFormations()));
+      const out = [];
+      for (const scene of game.scenes) {
+        const mended = mendHexStock(scene.getFlag(MODULE_ID, STOCK_FLAG), liveIds, () => "");
+        const count = Object.keys(mended).length;
+        if (!count) continue;
+        out.push({
+          key: scene.uuid,
+          uuid: scene.uuid,
+          name: scene.name,
+          detail: loc("hexStock.detail", { count }),
+        });
+      }
+      return out;
+    },
+    fix: (findings) =>
+      fixEach(findings, async (f) => {
+        const scene = await fromUuid(f.uuid);
+        if (!scene) return;
+        const mended = mendHexStock(scene.getFlag(MODULE_ID, STOCK_FLAG), new Set(Object.keys(readFormations())), foundry.utils.randomID);
+        const update = Object.fromEntries(Object.entries(mended).map(([key, record]) =>
+          [`flags.${MODULE_ID}.${STOCK_FLAG}.${key}`, foundry.data.operators.ForcedReplacement.create(record)]));
+        if (Object.keys(update).length) await scene.update(update);
       }),
   });
 }

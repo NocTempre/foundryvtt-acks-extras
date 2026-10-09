@@ -22,9 +22,6 @@
 /** Feet per turn that make one mile per day of expedition speed. */
 export const FEET_PER_TURN_PER_MILE_PER_DAY = 5;
 
-/** A wilderness hex, in miles. */
-export const MILES_PER_HEX = 6;
-
 /** Hours of intense marching in a dedicated travel day. */
 export const MARCH_HOURS = 8;
 
@@ -59,16 +56,18 @@ export const TRAVEL_PACE = Object.freeze({
  * @param {object} [o]
  * @param {number} [o.multiplier] terrain, road and the like, already combined
  * @param {string} [o.pace] a key of TRAVEL_PACE
- * @returns {{milesPerDay, hexesPerDay, milesPerHour, explorationFeetPerTurn}}
+ * @param {number|null} [o.milesPerHex] the miles one hex of the map in use spans;
+ *   without it the day is not stated in hexes
+ * @returns {{milesPerDay, hexesPerDay: number|null, milesPerHour, explorationFeetPerTurn}}
  */
-export function expeditionFrom(explorationFeetPerTurn, { multiplier = 1, pace = "dedicated" } = {}) {
+export function expeditionFrom(explorationFeetPerTurn, { multiplier = 1, pace = "dedicated", milesPerHex = null } = {}) {
   const paceSpec = TRAVEL_PACE[pace] ?? TRAVEL_PACE.dedicated;
   const feet = Math.max(0, Number(explorationFeetPerTurn) || 0) * multiplier;
   const milesPerDay = (feet / FEET_PER_TURN_PER_MILE_PER_DAY) * paceSpec.multiplier;
   return {
     explorationFeetPerTurn: round(feet),
     milesPerDay: round(milesPerDay),
-    hexesPerDay: round(milesPerDay / MILES_PER_HEX),
+    hexesPerDay: milesPerHex > 0 ? round(milesPerDay / milesPerHex) : null,
     // Per hour of MARCHING, not per hour of the day — a forced march goes
     // longer, not faster, which dividing by that day's own hours keeps true.
     milesPerHour: round(milesPerDay / paceSpec.hours),

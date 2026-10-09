@@ -79,7 +79,9 @@
       {{#if expedition}}
       <table class="acks-extras-vehicle-speeds">
         <tr><th>{{localize "ACKS-LIB.scale.milesPerDay"}}</th><td>{{expedition.milesPerDay}}</td>
-            <th>{{localize "ACKS-VEHICLES.speed.hexesPerDay"}}</th><td>{{expedition.hexesPerDay}}</td></tr>
+            {{#if expedition.hexesPerDay}}
+            <th>{{localize "ACKS-VEHICLES.speed.hexesPerDay"}}</th><td>{{expedition.hexesPerDay}}</td>
+            {{/if}}</tr>
       </table>
       {{/if}}
       {{#if blockedByGround}}

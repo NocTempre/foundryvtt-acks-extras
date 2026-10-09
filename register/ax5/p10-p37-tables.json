@@ -1,0 +1,93 @@
+[
+  {
+    "id": "ax5.rumors",
+    "kind": "kind.rolltable",
+    "book": "ax5",
+    "name": "Rumors",
+    "anchor": { "label": "RANDOM RUMOR TABLE" },
+    "pages": [10],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "nameExpect": { "page": 10, "box": { "x0": 120, "x1": 335, "y0": 200, "y1": 214 }, "text": "RANDOM RUMOR TABLE" },
+      "grids": [
+        { "page": 10, "y0": 248, "y1": 690, "dieX0": 70, "dieX1": 85, "cellX0": 100, "cellX1": 340, "claimDie": true, "centerDies": true, "headerSkip": [218, 246] },
+        { "page": 10, "y0": 95, "y1": 720, "dieX0": 338, "dieX1": 352, "cellX0": 370, "cellX1": 578, "claimDie": true, "centerDies": true }
+      ],
+      "rollAt": { "page": 10, "box": { "x0": 60, "x1": 100, "y0": 232, "y1": 244 } },
+      "skips": [{ "page": 10, "box": { "x0": 390, "x1": 578, "y0": 78, "y1": 92 }, "reason": "heading-restated" }]
+    }
+  },
+  {
+    "id": "ax5.cliffEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax5",
+    "name": "Cliff Encounters",
+    "anchor": { "hash": "32qyvy" },
+    "pages": [12, 13],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "grid": { "page": 12, "y0": 125, "y1": 216, "dieX0": 54, "dieX1": 100, "cellX0": 105, "cellX1": 300, "claimDie": true, "headerSkip": [96, 123] },
+      "rollAt": { "page": 12, "box": { "x0": 54, "x1": 100, "y0": 110, "y1": 122 } },
+      "details": {
+        "by": "number",
+        "regions": [
+          { "page": 12, "x0": 52, "x1": 306, "y0": 245, "y1": 750 },
+          { "page": 12, "x0": 315, "x1": 578, "y0": 44, "y1": 750 },
+          { "page": 13, "x0": 34, "x1": 300, "y0": 44, "y1": 750 }
+        ]
+      }
+    }
+  },
+  {
+    "id": "ax5.explorationEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax5",
+    "name": "Exploration Encounters",
+    "anchor": { "display": "RANDOM EXPLORATION ENCOUNTERS" },
+    "pages": [27, 28, 29, 30, 31],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "grid": { "page": 27, "y0": 558, "y1": 740, "dieX0": 322, "dieX1": 340, "cellX0": 358, "cellX1": 578, "claimDie": true, "headerSkip": [530, 557] },
+      "rollAt": { "page": 27, "box": { "x0": 315, "x1": 345, "y0": 544, "y1": 556 } },
+      "details": {
+        "by": "number",
+        "regions": [
+          { "page": 28, "x0": 52, "x1": 300, "y0": 170, "y1": 750 },
+          { "page": 29, "x0": 36, "x1": 300, "y0": 44, "y1": 750 },
+          { "page": 29, "x0": 300, "x1": 578, "y0": 44, "y1": 750 },
+          { "page": 30, "x0": 52, "x1": 310, "y0": 44, "y1": 750 },
+          { "page": 30, "x0": 318, "x1": 578, "y0": 44, "y1": 750 },
+          { "page": 31, "x0": 34, "x1": 300, "y0": 44, "y1": 750 },
+          { "page": 31, "x0": 300, "x1": 578, "y0": 44, "y1": 750 }
+        ]
+      }
+    }
+  },
+  {
+    "id": "ax5.ruinEnvironments",
+    "kind": "kind.rolltable",
+    "book": "ax5",
+    "name": "Ruin Environments",
+    "anchor": { "display": "RANDOM RUIN ENVIRONMENTS" },
+    "pages": [32, 33, 34, 36, 37],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "grid": { "page": 32, "y0": 268, "y1": 420, "dieX0": 76, "dieX1": 92, "cellX0": 100, "cellX1": 300, "claimDie": true, "headerSkip": [240, 267] },
+      "rollAt": { "page": 32, "box": { "x0": 60, "x1": 110, "y0": 254, "y1": 266 } },
+      "details": {
+        "by": "number",
+        "regions": [
+          { "page": 32, "x0": 52, "x1": 300, "y0": 436, "y1": 750 },
+          { "page": 32, "x0": 315, "x1": 578, "y0": 44, "y1": 750 },
+          { "page": 33, "x0": 34, "x1": 300, "y0": 44, "y1": 750 },
+          { "page": 33, "x0": 300, "x1": 578, "y0": 44, "y1": 750 },
+          { "page": 34, "x0": 52, "x1": 300, "y0": 44, "y1": 750 },
+          { "page": 34, "x0": 315, "x1": 578, "y0": 44, "y1": 750 },
+          { "page": 36, "x0": 52, "x1": 300, "y0": 44, "y1": 750 },
+          { "page": 36, "x0": 315, "x1": 578, "y0": 44, "y1": 750 },
+          { "page": 37, "x0": 34, "x1": 300, "y0": 44, "y1": 148 }
+        ]
+      }
+    }
+  }
+]

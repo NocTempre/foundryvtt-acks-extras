@@ -53,3 +53,21 @@ export function sceneFeetPerCell(scene) {
   if (!(distance > 0)) return 0;
   return distance * feetPerUnit(scene?.grid?.units);
 }
+
+/**
+ * What one grid cell of this scene is worth in MILES.
+ * @returns {number} 0 when the scene has no usable distance.
+ */
+export function sceneMilesPerCell(scene) {
+  return sceneFeetPerCell(scene) / DISTANCE_UNITS.mi.feet;
+}
+
+/**
+ * Whether one cell of this scene spans at least a mile — the scale a journey is
+ * walked at rather than a delve. The threshold is the definition of the mile,
+ * not a rule's figure.
+ */
+export function isExpeditionScale(scene) {
+  const feet = sceneFeetPerCell(scene);
+  return feet > 0 && feet >= DISTANCE_UNITS.mi.feet;
+}

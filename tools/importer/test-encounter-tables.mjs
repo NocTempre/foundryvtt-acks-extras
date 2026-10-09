@@ -14,7 +14,10 @@ import {
   bandFromKey,
   parseBand,
   parseDistanceCell,
+  parseLairDice,
+  parseSettledShares,
   parseSizeEdges,
+  parseSubstitutionBands,
   parseTarget,
   repairName,
   sentenceCell,
@@ -170,6 +173,76 @@ check("the ruin lookup parses its modifiers",
   subs.ruinModifier.clearGrassScrub === 0 && subs.ruinModifier.jungleSwampOceanDesertBarren === 4);
 check("a sub-table with an empty result assembles nothing",
   assembleSubTable({ b0: { name: "qq", min: 1, max: 1 }, b1: { name: "", min: 2, max: 2 } }) === null);
+
+/* --- lairs per hex ---------------------------------------------------------- */
+check("plain dice parse", parseLairDice("2d6") === "2d6");
+check("a hyphen modifier is a minus", parseLairDice("1d8-2") === "1d8-2");
+check("an en-dash modifier is a minus", parseLairDice("1d8–2") === "1d8-2");
+check("a minus-sign modifier is a minus", parseLairDice("1d8−2") === "1d8-2");
+check("a plus modifier keeps its sign", parseLairDice("3d4+5") === "3d4+5");
+check("welded spaces close up", parseLairDice(" 2 d 4 + 1 ") === "2d4+1");
+check("a zero modifier drops", parseLairDice("1d6+0") === "1d6");
+check("junk and empty cells are null",
+  parseLairDice("see text") === null && parseLairDice("") === null && parseLairDice(null) === null &&
+  parseLairDice("0d6") === null && parseLairDice("1d0") === null && parseLairDice("d6") === null);
+
+const FOURTEEN = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n"];
+const lairsRaw = Object.fromEntries(FOURTEEN.map((k, i) => [k, { lairs: `1d${i + 2}` }]));
+lairsRaw.c = { lairs: "2 d 4 – 1" };
+lairsRaw.h = { lairs: "n/a" };
+lairsRaw.k = { __missing: true };
+const lairs = assembleEncounterTables({ lairsPerHexRaw: lairsRaw }).lairsPerHex;
+check("a 14-row read assembles one dice string per readable row",
+  Object.keys(lairs).length === 12 && lairs.a === "1d2" && lairs.n === "1d15");
+check("a seam-damaged row is normalized, an unreadable row is left out",
+  lairs.c === "2d4-1" && !("h" in lairs) && !("k" in lairs));
+check("a lairs read with no readable row assembles nothing",
+  !("lairsPerHex" in assembleEncounterTables({ lairsPerHexRaw: { a: { lairs: "x" } } })));
+
+const bandsOf = (w) => parseSubstitutionBands(w);
+check("tiling bands map their words to kinds",
+  JSON.stringify(bandsOf("qq: 1-4, qq lair; 5–6, qq Valuable qq; 7-9, qq dangerous; 10, unique qq. then more text, here"))
+  === JSON.stringify([
+    { min: 1, max: 4, kind: "lair" }, { min: 5, max: 6, kind: "valuable" },
+    { min: 7, max: 9, kind: "dangerous" }, { min: 10, max: 10, kind: "unique" },
+  ]));
+check("a small-caps weld inside a band word still maps", bandsOf("1-2, v aluable; 3, unique")?.[0]?.kind === "valuable");
+check("bands that leave a gap are not a table", bandsOf("1-3, lair; 5-6, valuable; 7-8, unique; 9-10, dangerous") === null);
+check("bands that overlap are not a table", bandsOf("1-5, lair; 5-6, valuable; 7-10, unique") === null);
+check("bands that do not start at 1 are not a table", bandsOf("2-5, lair; 6-10, valuable") === null);
+check("bands topping out off a die are not a table", bandsOf("1-5, lair; 6-9, valuable") === null);
+check("a band naming no kind spoils the table", bandsOf("1-5, lair; 6-10, qq") === null);
+check("no band at all is no table", bandsOf("") === null && bandsOf(null) === null);
+
+const sharesOf = (w) => parseSettledShares(w);
+check("percent shares key by the territory named before them",
+  JSON.stringify(sharesOf("qq 30% qq; for borderlands, 55%; and for outlands, 70%."))
+  === JSON.stringify({ civilized: 0.3, borderlands: 0.55, outlands: 0.7 }));
+check("word fractions read",
+  JSON.stringify(sharesOf("one-third qq; for borderlands, half; for outlands, two thirds."))
+  === JSON.stringify({ civilized: 1 / 3, borderlands: 0.5, outlands: 2 / 3 }));
+check("numeric fractions read, in any order the names give",
+  JSON.stringify(sharesOf("for outlands 3/4, for civilized 1/4")) === JSON.stringify({ outlands: 0.75, civilized: 0.25 }));
+check("a territory claimed twice spoils the table", sharesOf("for outlands 30%, for outlands 40%") === null);
+check("a figure over the whole is left out", sharesOf("for outlands 150%, for borderlands 50%").outlands === undefined);
+check("no figure is no table", sharesOf("qq qq") === null && sharesOf(null) === null);
+
+const prose = assembleEncounterTables({
+  lairsProse: {
+    substitution: { bands: "qq: 1-6, lair; 7-8, valuable; 9, dangerous; 10, unique." },
+    settled: { shares: "40% qq; for borderlands, 60%; and for outlands, 80%." },
+  },
+  lesserTerrainProse: { share: 35 },
+});
+check("the substitution bands land under their engine key", prose.lairSubstitution.length === 4 && prose.lairSubstitution[3].kind === "unique");
+check("the settled shares land by territory", prose.settledLairShare.outlands === 0.8 && prose.settledLairShare.civilized === 0.4);
+check("the lesser-terrain percent is an integer", prose.lesserTerrainShare === 35);
+const noPercent = assembleEncounterTables({ lesserTerrainProse: { share: 0 } });
+check("a zero or fractional percent assembles nothing",
+  !("lesserTerrainShare" in noPercent) && !("lesserTerrainShare" in assembleEncounterTables({ lesserTerrainProse: { share: 12.5 } })));
+const lonely = assembleEncounterTables({ lairsProse: { substitution: { bands: "1-4, lair; 6-10, valuable" } } });
+check("a non-tiling window leaves the table absent, not wrong",
+  !("lairSubstitution" in lonely) && !("settledLairShare" in lonely));
 
 /* --- partials -------------------------------------------------------------- */
 const partial = assembleEncounterTables({

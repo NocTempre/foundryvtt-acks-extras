@@ -12,14 +12,20 @@ import {
   adoptSceneSystem,
   claimUnstampedSettlements,
   composeLogEntry,
+  dayBudget,
   freshDay,
+  inferredTravelSystem,
   patchSettlement,
   pushLog,
   setJourneyMode,
+  traceStep,
   travelOf,
   withDayKind,
   dayIsSpent,
 } from "../scripts/formation/travel.mjs";
+import { SLOT_HOURS } from "../scripts/formation/march.mjs";
+import { DISTRICT_TYPE } from "../scripts/formation/district-find.mjs";
+import { TRAVEL_PACE } from "../scripts/lib/movement-scales.mjs";
 
 /* --- the day board ------------------------------------------------------- */
 let day = freshDay();
@@ -52,11 +58,49 @@ assert.equal(freshDay().offered, false, "a fresh day has not been called done");
 assert.equal(withDayKind({ ...freshDay(), offered: true }, "forced").offered, false,
   "and pushing on re-arms the question for the distance it just bought");
 
-/* --- the day is spent when the march has been walked ---------------------- */
-assert.equal(dayIsSpent({ hexesEntered: 2 }, 3), false);
-assert.equal(dayIsSpent({ hexesEntered: 3 }, 3), true, "the allowance is reached, not exceeded");
-assert.equal(dayIsSpent({ hexesEntered: 9 }, 0), false, "a day that carries nowhere is never spent");
-assert.equal(dayIsSpent({ hexesEntered: 9 }, null), false, "nor is one whose march is unpriced");
+/* --- the day carries what it has spent ------------------------------------ */
+const fresh = freshDay();
+for (const key of ["miles", "hours", "cadenceCarry", "carrySeconds", "secondsAdvanced"]) {
+  assert.equal(fresh[key], 0, `a fresh day has spent no ${key}`);
+}
+assert.deepEqual(fresh.done, Array(ANCILLARY_SLOTS).fill(false), "and resolved none of its slots");
+
+const underway = {
+  ...freshDay(), miles: 11.5, hours: 4.6, cadenceCarry: 2, carrySeconds: 0.25, secondsAdvanced: 16560,
+  done: [true, false, false, false],
+};
+for (const kind of ["forced", "camp", "march"]) {
+  const pushedOn = withDayKind(underway, kind);
+  assert.equal(pushedOn.miles, 11.5, `pushing on to ${kind} keeps the miles`);
+  assert.equal(pushedOn.hours, 4.6);
+  assert.equal(pushedOn.cadenceCarry, 2, "and the miles not yet worth a throw");
+  assert.equal(pushedOn.carrySeconds, 0.25, "and the fraction of a second the clock owes");
+  assert.equal(pushedOn.secondsAdvanced, 16560, "and what the clock has advanced");
+  assert.deepEqual(pushedOn.done, [true, false, false, false], "and the slots already resolved");
+}
+const ended = withDayKind(null, "march");
+assert.equal(ended.miles, 0, "ending the day starts a fresh tally");
+assert.equal(ended.secondsAdvanced, 0);
+
+/* --- the budget is in hours ------------------------------------------------ */
+const SPEED = 2.5; // invented miles per hour
+let budget = dayBudget({ day: freshDay("march") }, SPEED);
+assert.equal(budget.hours, TRAVEL_PACE.dedicated.hours, "a dedicated day marches its pace's hours");
+assert.equal(budget.miles, Math.round(TRAVEL_PACE.dedicated.hours * SPEED * 100) / 100);
+budget = dayBudget({ day: withDayKind(null, "forced") }, SPEED);
+assert.equal(budget.hours, TRAVEL_PACE.forced.hours, "a forced march has consumed the slots; they add nothing");
+budget = dayBudget({ day: { ...freshDay("camp"), activities: ["travel", "travel", null, null] } }, SPEED);
+assert.equal(budget.hours, 2 * SLOT_HOURS, "a camp day marches only its travel slots");
+budget = dayBudget({ day: { ...freshDay("march"), activities: ["travel", null, "search", null] } }, SPEED);
+assert.equal(budget.hours, TRAVEL_PACE.dedicated.hours + SLOT_HOURS, "a march day takes a travel slot on top");
+
+/* --- the day is spent when its hours reach the budget ---------------------- */
+assert.equal(dayIsSpent({ hours: 4 }, { hours: 8 }), false);
+assert.equal(dayIsSpent({ hours: 8 }, { hours: 8 }), true, "the budget is reached, not exceeded");
+assert.equal(dayIsSpent({ hours: 9 }, { hours: 0 }), false, "a day with no budget is never spent by hours");
+assert.equal(dayIsSpent({ hours: 9 }, null), false, "nor is one whose budget is unpriced");
+assert.equal(dayIsSpent({ hours: 1 }, { hours: 8 }, { dark: true }), true, "a step taken after dusk spends the day");
+assert.equal(dayIsSpent({ hours: 1 }, { hours: 8 }, { dark: false }), false);
 
 /* --- the activity taxonomy carries its cadence KIND ----------------------- */
 assert.equal(ANCILLARY_ACTIVITIES.travel.frequency, "perHex");
@@ -73,6 +117,19 @@ assert.equal(t.dayCount, 0);
 assert.deepEqual(t.log, []);
 t = travelOf({ ground: "swamp" });
 assert.equal(t.ground, "swamp", "the legacy ground field still answers before a journey begins");
+/* A record from before the day counted miles reads as a day with nothing walked. */
+t = travelOf({ travel: { day: { hexesEntered: 2 } } });
+assert.equal(t.hour, "clock", "the day-or-night source follows the clock unless told otherwise");
+assert.equal(t.day.hexesEntered, 2, "what the legacy day did record stays");
+assert.equal(t.day.miles, 0);
+assert.equal(t.day.hours, 0);
+assert.deepEqual(t.day.done, Array(ANCILLARY_SLOTS).fill(false), "a legacy day has resolved no slots");
+assert.equal(t.day.activities.length, ANCILLARY_SLOTS);
+assert.equal(travelOf({ travel: { hour: "night" } }).hour, "night");
+assert.equal(travelOf({ travel: { hour: "constructor" } }).hour, "clock", "a prototype name is not an hour source");
+assert.equal(travelOf({ travel: { hour: "noon" } }).hour, "clock", "an hour outside the vocabulary follows the clock");
+assert.deepEqual(travelOf({ travel: { day: { done: [true, "yes"] } } }).day.done, [true, true, false, false],
+  "done is always one boolean per slot");
 t = travelOf({ travel: { mode: "journey", ground: "hills", road: "paved", pace: "forced" } });
 assert.equal(t.mode, "journey");
 assert.equal(t.road, "paved");
@@ -95,10 +152,45 @@ assert.equal(entry.hexesEntered, 3);
 assert.equal(entry.weather.raining, true);
 assert.equal(entry.miles, 18);
 
+assert.equal(entry.hours, 0, "the entry records the day's hours beside its miles");
+assert.equal(
+  composeLogEntry(travelOf({ travel: { day: { hours: 7.256 } } }), { miles: 18 }).hours, 7.26,
+  "from the day's own tally, to two decimals",
+);
+assert.equal(composeLogEntry(journeying, { hours: 5 }).hours, 5, "unless the caller states them");
+
 let log = [];
 for (let i = 1; i <= 5; i++) log = pushLog(log, { day: i }, 3);
 assert.equal(log.length, 3, "the cap holds");
 assert.deepEqual(log.map((e) => e.day), [5, 4, 3], "newest first; the oldest days are what trimming eats");
+
+/* --- the hex trace, one step at a time ------------------------------------- */
+const standing = travelOf({});
+const arrival = traceStep(standing, { label: "A1", i: 3, j: 4, ground: "hills" });
+assert.equal(arrival.crossed, 0, "the first arrival names the hex without entering it");
+assert.equal(arrival.travel.hex.label, "A1");
+assert.equal(arrival.travel.hex.i, 3);
+assert.equal(arrival.travel.ground, "hills", "a painted terrain overrides the ground picker");
+assert.equal(arrival.travel.day.hexesEntered, 0);
+assert.equal(traceStep(arrival.travel, { label: "A1", i: 3, j: 4 }).travel, arrival.travel,
+  "a repeat of the same offset returns the very object it was given");
+assert.equal(traceStep(arrival.travel, { label: "A1", i: 3, j: 4 }).crossed, 0);
+const crossing = traceStep(arrival.travel, { label: "A2", i: 3, j: 5, road: "earth", winding: 1.5 });
+assert.equal(crossing.crossed, 1, "a new offset is a hex entered");
+assert.equal(crossing.travel.day.hexesEntered, 1);
+assert.equal(crossing.travel.day.winding, 0.5, "only the excess of a bend is banked");
+assert.equal(crossing.travel.road, "earth", "a drawn network overrides the road picker");
+assert.equal(crossing.travel.ground, "hills", "an unpainted hex leaves the ground standing");
+assert.equal(standing.hex.i, null, "the record passed in is never changed");
+const grained = traceStep(crossing.travel, { label: "A3", i: 3, j: 6, ground: "forest", encounterTerrain: "forestTaiga" });
+assert.equal(grained.travel.ground, "forest");
+assert.equal(grained.travel.encounterTerrain, "forestTaiga", "a hex painted at the book's grain writes the encounter pick");
+const river = traceStep(grained.travel, { label: "A4", i: 3, j: 7, ground: null, encounterTerrain: "riverLand" });
+assert.equal(river.travel.ground, "forest", "a river names no ground: the last one stands");
+assert.equal(river.travel.encounterTerrain, "riverLand");
+const bare = traceStep(river.travel, { label: "A5", i: 3, j: 8, ground: "hills", encounterTerrain: "" });
+assert.equal(bare.travel.ground, "hills", "a bare ground sets the ground");
+assert.equal(bare.travel.encounterTerrain, "riverLand", "and leaves the pick standing");
 
 /* --- the day board has ONE field name -------------------------------------
    `freshDay` writes `activities`; two readers asked for a `slots` that nothing
@@ -157,6 +249,8 @@ globalThis.game.settings = {
 /** A scene that declares itself a city, which is all `adoptSceneSystem` reads. */
 const cityScene = (id) => ({ id, getFlag: () => ({ mapSystem: "settlement" }) });
 const boardOf = (id) => travelOf(settings.formations[id]).settlement;
+/** The mode an adoption landed on, or null when nothing moved. */
+const adopt = async (id, scene) => (await adoptSceneSystem(id, scene))?.mode ?? null;
 
 settings.formations = {
   f1: {
@@ -171,11 +265,11 @@ settings.formations = {
   },
 };
 
-assert.equal(await adoptSceneSystem("f1", cityScene("Scene.riverport")), null,
+assert.equal(await adopt("f1", cityScene("Scene.riverport")), null,
   "arriving where the board already says it is moves nothing");
 assert.equal(boardOf("f1").blocks, 40, "and takes nothing off it");
 
-assert.equal(await adoptSceneSystem("f1", cityScene("Scene.hillfort")), "settlement",
+assert.equal(await adopt("f1", cityScene("Scene.hillfort")), "settlement",
   "another city is an arrival even though the mode does not change");
 const arrived = boardOf("f1");
 assert.equal(arrived.sceneId, "Scene.hillfort");
@@ -209,7 +303,7 @@ assert.equal(boardOf("f1").hour, "clock", "named beside the boolean, the hour wi
    up starts a fresh tally without forgetting what the Judge set. */
 await setJourneyMode("f1", "delve");
 assert.equal(boardOf("f1").pace, "commuting", "leaving a city keeps the board whole");
-assert.equal(await adoptSceneSystem("f1", cityScene("Scene.hillfort")), "settlement");
+assert.equal(await adopt("f1", cityScene("Scene.hillfort")), "settlement");
 assert.equal(boardOf("f1").pace, "commuting", "and coming back up keeps it too");
 assert.equal(boardOf("f1").route, "route");
 assert.equal(boardOf("f1").sceneId, "Scene.hillfort");
@@ -247,12 +341,12 @@ assert.equal(boardOf("f2").wanted, true);
 assert.equal(boardOf("f3").sceneId, null, "a party on no named scene has no city to be claimed for");
 assert.equal(await claimUnstampedSettlements(), 0, "and a second pass has nothing left to claim");
 
-assert.equal(await adoptSceneSystem("f2", cityScene("Scene.hillfort")), null,
+assert.equal(await adopt("f2", cityScene("Scene.hillfort")), null,
   "the city it was claimed for is not an arrival");
 assert.equal(boardOf("f2").blocks, 17, "so the tally the party is standing in the middle of stays");
 
 /* The hop the upgrade used to lose. */
-assert.equal(await adoptSceneSystem("f2", cityScene("Scene.riverport")), "settlement");
+assert.equal(await adopt("f2", cityScene("Scene.riverport")), "settlement");
 const hopped = boardOf("f2");
 assert.equal(hopped.sceneId, "Scene.riverport");
 assert.equal(hopped.blocks, 0);
@@ -266,7 +360,7 @@ assert.equal(hopped.pace, "commuting", "what the Judge set still carries across"
    reaches: a tally counted nowhere anybody can point at has no claim on the
    streets it has just arrived in, and keeping its stay stamp is the failure
    that costs a month. */
-assert.equal(await adoptSceneSystem("f3", cityScene("Scene.hillfort")), "settlement");
+assert.equal(await adopt("f3", cityScene("Scene.hillfort")), "settlement");
 assert.equal(boardOf("f3").sceneId, "Scene.hillfort");
 assert.equal(boardOf("f3").blocks, 0);
 
@@ -289,7 +383,7 @@ await panelToggle("f4");
 assert.equal(settings.formations.f4.travel.mode, "settlement");
 assert.equal(boardOf("f4").sceneId, "Scene.hillfort",
   "a board entered from the panel is claimed by the city the party is standing in");
-assert.equal(await adoptSceneSystem("f4", cityScene("Scene.riverport")), "settlement",
+assert.equal(await adopt("f4", cityScene("Scene.riverport")), "settlement",
   "so the next city is an arrival, not a continuation");
 assert.equal(boardOf("f4").sceneId, "Scene.riverport");
 
@@ -303,9 +397,71 @@ assert.equal(boardOf("f4").sceneId, "Scene.riverport",
    The board's own writer and the arrival's test agree, so nothing is announced
    and nothing is rewritten. */
 settings.formations.f4.travel.settlement.blocks = 11;
-assert.equal(await adoptSceneSystem("f4", { getFlag: () => ({ mapSystem: "settlement" }) }), null,
+assert.equal(await adopt("f4", { getFlag: () => ({ mapSystem: "settlement" }) }), null,
   "a scene with no id names no city, so it is not another one");
 assert.equal(boardOf("f4").blocks, 11, "and the tally is untouched");
 assert.equal(boardOf("f4").sceneId, "Scene.riverport");
 
-console.log("test-travel: OK (day board, forced budget, defaults, log cap, one field name, movement axis, city stamp)");
+/* --- the system a scene calls for -------------------------------------------
+   A declaration wins; else a cell of a mile or more is a journey; else a
+   district drawn on the map is a city; else silence. Invented cells: 7 miles,
+   5 feet. */
+const mapScene = ({ declared = null, distance = 5, units = "ft", districts = false, id = "Scene.x" } = {}) => ({
+  id,
+  getFlag: () => (declared ? { mapSystem: declared } : {}),
+  grid: { distance, units },
+  regions: districts ? [{ behaviors: [{ type: DISTRICT_TYPE, disabled: false }] }] : [],
+});
+assert.deepEqual(inferredTravelSystem(mapScene({ declared: "delve", distance: 7, units: "mi" })),
+  { system: "delve", source: "declared" }, "a declared delve on a 7-mile grid is still a delve");
+assert.deepEqual(inferredTravelSystem(mapScene({ distance: 7, units: "mi" })),
+  { system: "journey", source: "scale" }, "an undeclared 7-mile grid is a journey");
+assert.deepEqual(inferredTravelSystem(mapScene({ districts: true })),
+  { system: "settlement", source: "districts" }, "a district drawn on the map makes it a city");
+assert.deepEqual(inferredTravelSystem(mapScene({ districts: true, distance: 7, units: "mi" })),
+  { system: "journey", source: "scale" }, "scale outranks districts");
+assert.deepEqual(inferredTravelSystem(mapScene({ declared: "settlement", distance: 7, units: "mi" })),
+  { system: "settlement", source: "declared" }, "and a declaration outranks both");
+assert.deepEqual(inferredTravelSystem(mapScene()), { system: null, source: null }, "nothing said, nothing shown: silence");
+assert.deepEqual(inferredTravelSystem(null), { system: null, source: null }, "no scene at all is silence too");
+const disabledDistrict = mapScene();
+disabledDistrict.regions = [{ behaviors: [{ type: DISTRICT_TYPE, disabled: true }] }];
+assert.equal(inferredTravelSystem(disabledDistrict).system, null, "a disabled district is no evidence");
+
+settings.formations.g1 = { id: "g1", travel: { mode: "delve" } };
+assert.deepEqual(await adoptSceneSystem("g1", mapScene({ id: "Scene.shire", distance: 7, units: "mi" })),
+  { mode: "journey", source: "scale" }, "adoption reports the mode and what called for it");
+assert.equal(settings.formations.g1.travel.mode, "journey");
+assert.equal(await adoptSceneSystem("g1", mapScene({ id: "Scene.shire", distance: 7, units: "mi" })), null,
+  "arriving where the mode already holds moves nothing");
+assert.deepEqual(await adoptSceneSystem("g1", mapScene({ id: "Scene.keep", declared: "delve" })),
+  { mode: "delve", source: "declared" });
+assert.equal(await adoptSceneSystem("g1", mapScene({ id: "Scene.blank" })), null, "a blank small map leaves the mode alone");
+
+/* --- a mode change clears any pause and re-anchors the baseline -------------- */
+const moorToken = { x: 640, y: 480 };
+const moor = { id: "Scene.moor", tokens: { get: (id) => (id === "tok.moor" ? moorToken : null) } };
+globalThis.game.scenes = { get: (id) => (id === "Scene.moor" ? moor : null) };
+settings.formations.g2 = {
+  id: "g2", sceneId: "Scene.moor", tokenId: "tok.moor",
+  clock: { paused: true, pausedBy: "judge", lastPosition: { x: 0, y: 0 }, turnsTotal: 4 },
+  travel: { mode: "delve" },
+};
+await setJourneyMode("g2", "journey");
+assert.equal(settings.formations.g2.clock.paused, false, "a journey is not paused by entering it");
+assert.equal(settings.formations.g2.clock.pausedBy, null, "and nobody holds the pause");
+assert.deepEqual(settings.formations.g2.clock.lastPosition, { x: 640, y: 480 },
+  "the next drag is measured from where the token stands now");
+assert.equal(settings.formations.g2.clock.turnsTotal, 4, "nothing else on the clock moves");
+settings.formations.g2.clock.paused = true;
+settings.formations.g2.clock.pausedBy = "judge";
+moorToken.x = 700;
+await setJourneyMode("g2", "delve");
+assert.equal(settings.formations.g2.clock.paused, false, "leaving a journey clears a pause as well");
+assert.equal(settings.formations.g2.clock.pausedBy, null);
+assert.deepEqual(settings.formations.g2.clock.lastPosition, { x: 700, y: 480 }, "and re-anchors to the token's new position");
+settings.formations.g3 = { id: "g3", sceneId: null, clock: { lastPosition: { x: 5, y: 5 } }, travel: { mode: "delve" } };
+await setJourneyMode("g3", "journey");
+assert.deepEqual(settings.formations.g3.clock.lastPosition, { x: 5, y: 5 }, "a party with no token keeps the baseline it had");
+
+console.log("test-travel: OK (day board, hours budget, defaults, log cap, one field name, movement axis, city stamp, inferred system, mode re-anchor)");

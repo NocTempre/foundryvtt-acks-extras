@@ -338,17 +338,17 @@ const BUILD_BLOCKS = [
 // prints wider bands), so the row specs are generic — any "NN-NN" label
 // claims the next band row and labelPattern hands its bounds to the
 // binding. COLUMN GEOMETRY varies per page too (each table sets its own
-// widths, versos sit left of rectos), so every table carries the x of its
-// four rarity headers, measured off its printing; windows open 30pt ahead
-// of each header (a small-caps first letter lands left of its word) and
-// run to the next header's opening, and the label bound is the first
-// window's own edge. KNOWN RESIDUE: a handful of two-line RARE names wrap
-// under the neighbouring column and stay unread (dev-verified at five
-// bands of 1800) — those rolls resolve as the engine's draw-from-your-book
-// line, never a wrong name.
+// widths, versos sit left of rectos), so every table carries the x at which
+// its four rarity columns are CENTRED, measured off its printing. The cells
+// are set centred, so a name's start wanders with its width and only its
+// centre stays put: runs bind by their centres (`anchor: "center"`) to
+// windows that meet midway between neighbouring centres, which is where a
+// small-caps first letter, a long name and a wrap line all still sit over
+// their own column. The label bound is the common window's own edge.
 // The label matches UNANCHORED at its end: a long name's wrap line can
 // tuck under the label zone ("69-70raptor, Medium…"), and the band still
 // reads out of the front while labelPattern discards the rest.
+// `tools/importer/check-encounter-grids.mjs` reads every grid from the book.
 const ENC_BAND_ROWS = Array.from({ length: 50 }, (_, i) => ({
   key: `b${i}`,
   labelRe: "^\\d+\\s*[-–]\\s*\\d+",
@@ -357,10 +357,12 @@ const ENC_BAND_ROWS = Array.from({ length: 50 }, (_, i) => ({
 
 const monsterGrid = (page, locate, [c, u, r, v]) => {
   // The label bound is the common window's own opening: wide enough that
-  // every band label fits, tight enough that a name's stray small-cap
-  // first letter — and a long name's wrap line, which tucks right against
-  // the label — falls to the window. Verso labels end ~80, recto ~108.
-  const lbl = c <= 145 ? 82 : 116;
+  // every band label fits, tight enough that a long name's wrap line, which
+  // tucks right against the label, falls to the window. Verso labels end
+  // ~80, recto ~108 — the printed page's parity says which.
+  const lbl = page % 2 ? 116 : 82;
+  const mid = (a, b) => Math.round((a + b) / 2);
+  const [cu, ur, rv] = [mid(c, u), mid(u, r), mid(r, v)];
   return {
     shape: "gridRows",
     book: "jj",
@@ -370,11 +372,12 @@ const monsterGrid = (page, locate, [c, u, r, v]) => {
     labelMaxX: lbl,
     rowTol: 6,
     joinGap: 1,
+    anchor: "center",
     cellColumns: [
-      { key: "common", x: lbl, w: u - 30 - lbl, pattern: "raw", row: true },
-      { key: "uncommon", x: u - 30, w: r - u, pattern: "raw", row: true },
-      { key: "rare", x: r - 30, w: v - r, pattern: "raw", row: true },
-      { key: "veryRare", x: v - 30, w: 622 - v, pattern: "raw", row: true },
+      { key: "common", x: lbl, w: cu - lbl, pattern: "raw", row: true },
+      { key: "uncommon", x: cu, w: ur - cu, pattern: "raw", row: true },
+      { key: "rare", x: ur, w: rv - ur, pattern: "raw", row: true },
+      { key: "veryRare", x: rv, w: 622 - rv, pattern: "raw", row: true },
     ],
     rows: ENC_BAND_ROWS,
   };
@@ -479,7 +482,7 @@ export const TABLE_RECIPES = {
   // only; encounters-binding.mjs assembles the engine-shaped `encounters`
   // document acks-extras declares.
   encounters: {
-    source: { book: "ACKS II Judges Journal + Revised Rulebook", pages: "JJ 42-68; RR 281-285" },
+    source: { book: "ACKS II Judges Journal + Revised Rulebook", pages: "JJ 42-69; RR 281-285" },
     tables: {
       territoryRaw: {
         shape: "gridRows",
@@ -721,24 +724,84 @@ export const TABLE_RECIPES = {
         page: 68, locate: "Place of Power:", startAfter: "(1d12)",
         column: { xMin: 300, xMax: 592 }, labelMaxX: 340, cells: [["name", 342, 150]],
       }),
-      monstersBarrensRockyRaw: monsterGrid(45, "Rarity - Barrens (Rocky/Sandy)", [156, 266, 393, 493]),
-      monstersBarrensTundraRaw: monsterGrid(46, "Rarity - Barrens (Tundra)", [141, 264, 384, 472]),
-      monstersDesertRaw: monsterGrid(47, "Rarity - Desert (Any)", [156, 266, 393, 493]),
-      monstersForestDeciduousRaw: monsterGrid(48, "Rarity - Forest (Deciduous)", [134, 249, 369, 465]),
-      monstersForestTaigaRaw: monsterGrid(49, "Rarity - Forest (Taiga)", [160, 271, 394, 492]),
-      monstersGrasslandFarmRaw: monsterGrid(50, "Rarity - Grassland (Farmland/Prairie)", [129, 239, 366, 466]),
-      monstersGrasslandSavannaRaw: monsterGrid(51, "Rarity - Grassland (Savannah)", [162, 276, 399, 495]),
-      monstersGrasslandSteppeRaw: monsterGrid(52, "Rarity - Grassland (Steppe)", [133, 252, 374, 466]),
-      monstersHillsRaw: monsterGrid(53, "Rarity - Hills (Any)", [159, 273, 397, 493]),
-      monstersJungleRaw: monsterGrid(54, "Rarity - Jungle (Any)", [135, 252, 374, 468]),
-      monstersMountainsForestedRaw: monsterGrid(55, "Rarity - Mountains (Forested/Rocky)", [158, 271, 395, 493]),
-      monstersMountainsSnowyRaw: monsterGrid(56, "Rarity - Mountains (Snowy)", [129, 242, 368, 466]),
-      monstersMountainsVolcanicRaw: monsterGrid(57, "Rarity - Mountains (Volcanic)", [158, 271, 395, 493]),
-      monstersRiverLandRaw: monsterGrid(58, "Rarity - River (Any but Desert or Jungle)", [129, 240, 366, 465]),
-      monstersRiverDesertJungleRaw: monsterGrid(59, "Rarity - River (Desert and Jungle)", [156, 273, 403, 497]),
-      monstersScrublandSparseRaw: monsterGrid(60, "Rarity - Scrubland (Sparse)", [129, 239, 366, 466]),
-      monstersScrublandDenseRaw: monsterGrid(61, "Rarity - Scrubland (Dense)", [156, 266, 393, 493]),
-      monstersSwampRaw: monsterGrid(62, "Rarity - Swamp (Any)", [129, 239, 366, 466]),
+      // JJ ch.2 "Lairs per Hex": the dice cell per terrain row, then the two
+      // prose clauses around it (the random-substitution instruction in the
+      // left print column, the settled-territory maximum in the right). The
+      // 14 rows are the page's own terrain roster, seam-tolerant.
+      lairsPerHexRaw: {
+        shape: "gridRows",
+        book: "jj",
+        printedPage: 69,
+        locate: "Lairs per Hex",
+        startAfter: "Lairs",
+        column: { xMin: 60, xMax: 300 },
+        labelMaxX: 233,
+        rowTol: 4,
+        joinGap: 1,
+        rows: [
+          ["barrens", "^barrens \\(any\\)$"],
+          ["desertRocky", "^d\\s*esert \\(rocky\\)$"],
+          ["desertSandy", "^d\\s*esert \\(sandy\\)$"],
+          ["forest", "^forest \\(any\\)$"],
+          ["grassland", "^grassland \\(farm/prairie\\)$"],
+          ["grasslandSteppe", "^grassland \\(steppe\\)$"],
+          ["hillsForested", "^hills \\(forested\\)$"],
+          ["hillsRocky", "^hills \\(rocky\\)$"],
+          ["jungle", "^jungle$"],
+          ["mountainsForested", "^mountains \\(forested\\)$"],
+          ["mountainsRocky", "^mountains \\(rocky/snowy\\)$"],
+          ["scrublandSparse", "^s\\s*crubland \\(low, sparse\\)$"],
+          ["scrublandDense", "^s\\s*crubland \\(high, dense\\)$"],
+          ["swamp", "^s\\s*wamp \\(any\\)$"],
+        ].map(([key, labelRe]) => ({ key, labelRe })),
+        cellColumns: [{ key: "lairs", x: 233, w: 60, pattern: "raw", row: true }],
+      },
+      lairsProse: {
+        shape: "proseValues",
+        book: "jj",
+        valueBlocks: [
+          {
+            id: "substitution",
+            printedPage: 69,
+            locate: "Replacing Lairs with Terrain",
+            column: { xMin: 60, xMax: 300 },
+            values: [{ key: "bands", find: "roll 1d10 for each", take: "window", span: 130 }],
+          },
+          {
+            id: "settled",
+            printedPage: 69,
+            locate: "Placing Lairs in Civilized,",
+            column: { xMin: 320, xMax: 592 },
+            values: [{ key: "shares", find: "the maximum number of lairs is", take: "window", span: 110 }],
+          },
+        ],
+      },
+      lesserTerrainProse: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 67,
+        locate: "Lesser Terrain",
+        column: { xMin: 320, xMax: 592 },
+        values: [{ key: "share", find: "dangerous terrain tables instead", take: "pct", span: 40 }],
+      },
+      monstersBarrensRockyRaw: monsterGrid(45, "Rarity - Barrens (Rocky/Sandy)", [165, 290, 403, 513]),
+      monstersBarrensTundraRaw: monsterGrid(46, "Rarity - Barrens (Tundra)", [147, 288, 394, 492]),
+      monstersDesertRaw: monsterGrid(47, "Rarity - Desert (Any)", [162, 290, 403, 513]),
+      monstersForestDeciduousRaw: monsterGrid(48, "Rarity - Forest (Deciduous)", [150, 273, 379, 484]),
+      monstersForestTaigaRaw: monsterGrid(49, "Rarity - Forest (Taiga)", [171, 295, 404, 512]),
+      monstersGrasslandFarmRaw: monsterGrid(50, "Rarity - Grassland (Farmland/Prairie)", [143, 263, 376, 486]),
+      monstersGrasslandSavannaRaw: monsterGrid(51, "Rarity - Grassland (Savannah)", [168, 300, 409, 515]),
+      monstersGrasslandSteppeRaw: monsterGrid(52, "Rarity - Grassland (Steppe)", [139, 276, 384, 486]),
+      monstersHillsRaw: monsterGrid(53, "Rarity - Hills (Any)", [172, 297, 407, 513]),
+      monstersJungleRaw: monsterGrid(54, "Rarity - Jungle (Any)", [147, 275, 384, 488]),
+      monstersMountainsForestedRaw: monsterGrid(55, "Rarity - Mountains (Forested/Rocky)", [169, 295, 405, 513]),
+      monstersMountainsSnowyRaw: monsterGrid(56, "Rarity - Mountains (Snowy)", [140, 266, 378, 486]),
+      monstersMountainsVolcanicRaw: monsterGrid(57, "Rarity - Mountains (Volcanic)", [169, 295, 405, 513]),
+      monstersRiverLandRaw: monsterGrid(58, "Rarity - River (Any but Desert or Jungle)", [145, 264, 376, 485]),
+      monstersRiverDesertJungleRaw: monsterGrid(59, "Rarity - River (Desert and Jungle)", [170, 296, 413, 517]),
+      monstersScrublandSparseRaw: monsterGrid(60, "Rarity - Scrubland (Sparse)", [135, 263, 376, 486]),
+      monstersScrublandDenseRaw: monsterGrid(61, "Rarity - Scrubland (Dense)", [163, 290, 403, 513]),
+      monstersSwampRaw: monsterGrid(62, "Rarity - Swamp (Any)", [145, 263, 376, 486]),
     },
   },
   // The Auran Empire language taxonomy prints as one indented two-column table:
@@ -1212,6 +1275,9 @@ export const TABLE_RECIPES = {
           // searching forest" would eat the first of the three.
           { key: "canopy", find: "however", take: "window", span: 200 },
           { key: "wandering", find: "trigger one random encounter", take: "window", span: 160 },
+          // The Tracking proficiency's bonus on this throw. A short window: the
+          // worked example that follows prints figures of its own.
+          { key: "tracking", find: "has the tracking proficiency", take: "window", span: 70 },
         ],
       },
       // Searching for a LOST GROUP rather than a place. Printed with the

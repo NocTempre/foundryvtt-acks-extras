@@ -743,6 +743,23 @@ await scenario("transfer: adding members converts tokens into the formation", as
   assert.equal(partyActors.length, 1, `exactly one party actor (found ${partyActors.length})`);
 });
 
+await scenario("partySpeed: the dark slows by the scene unless the caller says the clock is the judge", async () => {
+  const formation = model.getFormation(onlyFormation().id);
+  const lit = model.partySpeed(formation);
+  assert.ok(lit > 0, "a lit scene walks at the party's pace");
+  const was = scene.environment.darknessLevel;
+  try {
+    scene.environment.darknessLevel = 0.9;
+    assert.equal(model.partySpeed(formation), Math.floor(lit / 3), "a dark scene slows members who cannot see in it to a third");
+    assert.equal(model.partySpeed(formation, { dark: false }), lit, "a journey that passes dark:false keeps the full pace");
+    scene.environment.darknessLevel = 0;
+    assert.equal(model.partySpeed(formation, { dark: true }), Math.floor(lit / 3), "a lit scene slows when the caller says it is dark");
+    assert.equal(model.partySpeed(formation, { dark: false }), lit);
+  } finally {
+    scene.environment.darknessLevel = was;
+  }
+});
+
 await scenario("deploy survives the environment-sync interleave (mapper active)", async () => {
   // Reproduce the historical race: a mapper with a lit torch makes the
   // settings-triggered environment sync take the ensureMapSession write path —

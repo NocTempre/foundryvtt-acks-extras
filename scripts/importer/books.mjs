@@ -62,7 +62,16 @@ export const BOOKS = {
   },
   // ACKS I adventures (AX line). Metadata titles are EMPTY in these printings,
   // so the fingerprint gates on page count alone; titleRe stays for printings
-  // that do carry one.
+  // that do carry one, and must also match the stock download's filename as
+  // `book-match.mjs` spaces it.
+  ax1: {
+    label: "AX1 The Sinister Stone of Sakkara",
+    short: "AX1",
+    pages: 80,
+    titleRe: /Sinister Stone of Sakkara/i,
+    printedOffset: 1,
+    judge: true,
+  },
   ax2: {
     label: "AX2 Secrets of the Nethercity",
     short: "AX2",
@@ -76,6 +85,32 @@ export const BOOKS = {
     short: "AX3",
     pages: 226,
     titleRe: /Capital of the Borderlands/i,
+    printedOffset: 2,
+    judge: true,
+  },
+  ax4: {
+    label: "AX4 Ruined City of Cyfandir",
+    short: "AX4",
+    pages: 30,
+    titleRe: /Ruined City of Cyfandir/i,
+    printedOffset: 2,
+    judge: true,
+  },
+  ax5: {
+    label: "AX5 Eyrie of the Dread Eye",
+    short: "AX5",
+    pages: 59,
+    // The stock filename welds and misspells the title ("EyrireDreadEye");
+    // the pattern tolerates both it and the printed form.
+    titleRe: /Eyri\w*\s*(?:of the\s*)?Dread\s*Eye/i,
+    printedOffset: 2,
+    judge: true,
+  },
+  ax6: {
+    label: "AX6 Sepulcher of the Sorceress-Queen",
+    short: "AX6",
+    pages: 58,
+    titleRe: /Sepulcher of the Sorceress[\s-]*Queen/i,
     printedOffset: 2,
     judge: true,
   },

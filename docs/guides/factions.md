@@ -51,7 +51,7 @@ from players** hides the whole table. A faction imported from a book whose
 page prints its strength arrives with the table filled and the page noted
 beneath it.
 
-![](../releases/v10.0.0/factions.png)
+![](../releases/v11.0.0/factions.png)
 
 **Notes** has a shared page and a private one only the Judge can read.
 

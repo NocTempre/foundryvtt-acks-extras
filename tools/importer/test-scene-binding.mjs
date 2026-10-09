@@ -20,7 +20,9 @@ import {
   SCENE_KIND, PLACE_TOKEN_SIZE, isSceneRecipe, sceneFrame, ringToScene, pointInRing, bandOfSection, formulaMax,
   afterDarkShift, placementMatches, placementHolding, recipeContext, recipeProblems, sceneData, districtRegionData,
   placeTokenAt, worldCopySource, isWorldCopy, turnMatrix, pictureKey,
+  SCENE_ZONE_KIND, isZoneRow, gridScale, recipeFeetPerPoint, offsetsInside, zoneProblems, zoneRegionData,
 } from "../../scripts/importer/scene-binding.mjs";
+import { readCountWord } from "../../scripts/importer/executor.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 
 let failed = 0;
@@ -299,11 +301,184 @@ const changed = [
 ].filter((r) => pictureKey(r) === keyed);
 check("a changed page, crop, turn or scale is another picture", changed, []);
 
-/* ---------------- the shipped recipe ---------------- */
+/* ---------------- a map on a grid of drawn cells ---------------- */
+
+// An invented region: a flat-topped hex 20 pt wide and 16 pt across its flats,
+// three miles to the cell, built on an 80 px Foundry cell.
+const hexRecipe = () => ({
+  page: 4,
+  crop: { x: 0, y: 0, w: 200, h: 100 },
+  grid: { family: "hexCols", box: { w: 20, h: 16 }, centre: [50, 40], distance: 3, units: "mi", pixels: 80 },
+  places: [{ id: "zz.siteOne", at: [60, 50] }],
+});
+const withGrid = (patch) => ({ ...hexRecipe(), grid: { ...hexRecipe().grid, ...patch } });
+
+const given = sceneFrame(hexRecipe(), { pixelsPerPoint: 5 });
+check("a scale handed to the frame IS the scale", [given.scale, given.width, given.height, given.toScene(60, 50)], [5, 1000, 500, [300, 250]]);
+check("and the frame carries the recipe's cell size", given.gridPixels, 80);
+check("a recipe with no grid is built on the gridless cell", sceneFrame(sound()).gridPixels, 100);
+check("a grid with no cell size is too", sceneFrame(withGrid({ pixels: undefined }), { pixelsPerPoint: 1 }).gridPixels, 100);
+check("a grid recipe with no feetPerPoint takes it from its cell", recipeFeetPerPoint(hexRecipe()), (3 * 5280) / 16);
+check("a stated feetPerPoint wins over the grid's", recipeFeetPerPoint({ ...hexRecipe(), feetPerPoint: 7 }), 7);
+check("a recipe with neither has none", Number.isNaN(recipeFeetPerPoint({ crop: base.crop })), true);
+
+check("offline, a flat-topped cell is scaled across its height", gridScale(hexRecipe()), 80 / 16);
+check("a pointy-topped cell across its width", gridScale(withGrid({ family: "hexRows" })), 80 / 20);
+check("a square across its width", gridScale(withGrid({ family: "square" })), 80 / 20);
+check("a grid with no cell size scales to the gridless cell", gridScale(withGrid({ pixels: undefined })), 100 / 16);
+check("no grid, no grid scale", gridScale(sound()), null);
+check("a grid with no box has no scale", gridScale(withGrid({ box: { w: 0, h: 16 } })), null);
+
+// A probe as a clone reports it: a flat-topped hex is 2/sqrt(3) as wide as it is tall.
+const colsProbe = { refW: 200 / Math.sqrt(3), refH: 100, refSize: 100 };
+const rowsProbe = { refW: 100, refH: 200 / Math.sqrt(3), refSize: 100 };
+check("a probe whose axes agree gives the across-flats axis — the offline answer", gridScale(withGrid({ box: { w: 18.5, h: 16 } }), colsProbe), 80 / 16);
+check("on a pointy-topped grid that is the width", gridScale(withGrid({ family: "hexRows", box: { w: 16, h: 18.5 } }), rowsProbe), 80 / 16);
+check("a probe whose axes disagree refuses the fit", gridScale(hexRecipe(), colsProbe), null);
+check("a square lattice ignores a probe", gridScale(withGrid({ family: "square" }), colsProbe), 80 / 20);
+
+const hexKey = pictureKey(hexRecipe());
+check("a grid's key is not the same recipe's key without one", hexKey === pictureKey({ ...hexRecipe(), grid: undefined }), false);
+const regridded = [
+  withGrid({ family: "hexRows" }),
+  withGrid({ even: true }),
+  withGrid({ box: { w: 21, h: 16 } }),
+  withGrid({ box: { w: 20, h: 17 } }),
+  withGrid({ centre: [51, 40] }),
+  withGrid({ centre: [50, 41] }),
+  withGrid({ pixels: 90 }),
+].filter((r) => pictureKey(r) === hexKey);
+check("a changed family, parity, box, centre or cell size is another picture", regridded, []);
+check("what a cell spans draws no other picture", pictureKey(withGrid({ distance: 6, units: "km" })), hexKey);
+
+const regionBook = recipeContext({
+  "zz.siteOne": { kind: "kind.location", meta: { group: "Region — Sites" } },
+  "zz.regionOverview": { kind: "kind.location", meta: { group: "Region — Overview" } },
+});
+check("a region site on a map with no quarters is placed, and needs no feetPerPoint", recipeProblems(hexRecipe(), regionBook), []);
+check("a map with no quarters checks no place against one", recipeProblems({ crop: { x: 0, y: 0, w: 100, h: 100 }, feetPerPoint: 1, places: [{ id: "zz.well", at: [5, 5] }] }, known), []);
+const gridBroken = (patch) => recipeProblems(withGrid(patch), regionBook);
+says("a lattice the module does not know", gridBroken({ family: "hexagon" }), "grid.family");
+says("a parity that is a word", gridBroken({ even: "yes" }), "grid.even");
+says("a cell of no width", gridBroken({ box: { w: 0, h: 16 } }), "grid.box");
+says("a cell with no box", gridBroken({ box: undefined }), "grid.box");
+says("a centre with half a position", gridBroken({ centre: [50] }), "grid.centre must be");
+says("a centre off the picture", gridBroken({ centre: [250, 40] }), "outside the crop");
+says("a cell that spans nothing", gridBroken({ distance: 0 }), "grid.distance");
+says("a unit the module cannot convert", gridBroken({ units: "leagues" }), "grid.units");
+says("a cell too small to draw", gridBroken({ pixels: 40 }), "grid.pixels");
+says("a cell of part of a pixel", gridBroken({ pixels: 80.5 }), "grid.pixels");
+says("a grid that is a word", recipeProblems({ ...hexRecipe(), grid: "hex" }, regionBook), "grid must be an object");
+says("a stated feetPerPoint must still be one", recipeProblems({ ...hexRecipe(), feetPerPoint: 0 }, regionBook), "feetPerPoint");
+says("a region's overview is no site", recipeProblems({ ...hexRecipe(), places: [{ id: "zz.regionOverview", at: [60, 50] }] }, regionBook), "is not a keyed place");
+
+const hexData = sceneData({ id: "zz.region", book: "zz", name: "Region", recipe: hexRecipe(), src: "r.webp", shiftX: 12, shiftY: -7 });
+check("a grid map is the crop at its grid's scale", [hexData.width, hexData.height], [1000, 500]);
+check("on Foundry's lattice of that family, cell size, distance and units", hexData.grid, { type: 4, size: 80, distance: 3, units: "mi" });
+check("shifted as it was told", [hexData.shiftX, hexData.shiftY], [12, -7]);
+check("and set up for journey travel at its cell's distance", hexData.flags[MODULE_ID].battlemap, {
+  calibrated: true, distance: 3, autoScale: false, mapSystem: "journey", blockFeet: null,
+});
+check("a grid map is still a plan, out of the bar, never active", [hexData.tokenVision, hexData.fog, hexData.navigation, hexData.active, hexData.padding], [false, { mode: 0 }, false, false, 0]);
+check("the even variant is the other Foundry type", sceneData({ id: "zz.region", book: "zz", name: "R", recipe: withGrid({ even: true }), src: "r.webp" }).grid.type, 5);
+check("a pointy-topped grid is a row type", sceneData({ id: "zz.region", book: "zz", name: "R", recipe: withGrid({ family: "hexRows" }), src: "r.webp" }).grid.type, 2);
+const unshiftedHex = sceneData({ id: "zz.region", book: "zz", name: "R", recipe: hexRecipe(), src: "r.webp" });
+check("no shift given is no shift", [unshiftedHex.shiftX, unshiftedHex.shiftY], [0, 0]);
+check("a scale measured live overrides the offline one", sceneData({ id: "zz.region", book: "zz", name: "R", recipe: hexRecipe(), src: "r.webp", pixelsPerPoint: 4 }).width, 800);
+check("a declared travel system is kept", sceneData({ id: "zz.region", book: "zz", name: "R", recipe: hexRecipe(), src: "r.webp", mapSystem: "delve" }).flags[MODULE_ID].battlemap.mapSystem, "delve");
+ok("a city map writes no shift at all", !("shiftX" in data) && !("shiftY" in data));
+
+check("a pin is half of the recipe's own cell", placeTokenAt([60, 50], given), { x: 300 - 20, y: 250 - 20, width: PLACE_TOKEN_SIZE, height: PLACE_TOKEN_SIZE });
+check("or of the cell it is told", placeTokenAt([60, 50], given, { gridPixels: 200 }), { x: 300 - 50, y: 250 - 50, width: PLACE_TOKEN_SIZE, height: PLACE_TOKEN_SIZE });
+
+const box = [0, 0, 100, 0, 100, 100, 0, 100];
+const centres = [{ i: 0, j: 0, x: 50, y: 50 }, { i: 1, j: 0, x: 150, y: 50 }, { i: 0, j: 1, x: 50, y: 99 }];
+check("a ring keeps the cells whose centre it holds", offsetsInside(box, centres), [{ i: 0, j: 0 }, { i: 0, j: 1 }]);
+check("no cells, no offsets", offsetsInside(box, undefined), []);
+
+/* ---------------- a zone laid over another book's map ---------------- */
+
+const zoneBook = recipeContext({
+  "zy.someTable": { kind: "kind.rolltable", fields: { rows: { paras: [] } } },
+  "zy.place": { kind: "kind.location", meta: {} },
+});
+const figure = (page) => ({ page, x0: 1, x1: 9, y0: 2, y1: 8 });
+const soundZone = () => ({
+  scene: "zz.region", table: "zy.someTable", outline: [10, 10, 90, 10, 90, 60], cadence: "periods",
+  targetAt: figure(3), dayAt: figure(3), nightAt: figure(4),
+});
+check("a sound zone has nothing wrong with it", zoneProblems(soundZone(), zoneBook), []);
+check("a zone needs no list, cadence or figures", zoneProblems({ scene: "zz.region", outline: [0, 0, 1, 0, 1, 1] }, zoneBook), []);
+const zoneBroken = (change) => {
+  const z = soundZone();
+  change(z);
+  return zoneProblems(z, zoneBook);
+};
+says("a zone over no scene", zoneBroken((z) => { z.scene = ""; }), "scene must");
+says("a zone whose list is a place", zoneBroken((z) => { z.table = "zy.place"; }), "is not a roll table");
+says("a zone whose list its book does not hold", zoneBroken((z) => { z.table = "zz.someTable"; }), "is not a roll table");
+says("an outline of two points", zoneBroken((z) => { z.outline = [0, 0, 1, 1]; }), "at least three");
+says("an outline with half a point", zoneBroken((z) => { z.outline.push(5); }), "at least three");
+says("an outline of words", zoneBroken((z) => { z.outline[0] = "x"; }), "at least three");
+says("a cadence the behaviour does not take", zoneBroken((z) => { z.cadence = "daily"; }), "cadence must");
+says("a target box that runs backwards", zoneBroken((z) => { z.targetAt.x0 = 10; }), "targetAt needs");
+says("a day box with no page", zoneBroken((z) => { delete z.dayAt.page; }), "dayAt needs");
+says("a night box of no height", zoneBroken((z) => { z.nightAt.y1 = z.nightAt.y0; }), "nightAt needs");
+
+const zoneRow = { kind: SCENE_ZONE_KIND, name: "Zone 1", zone: { ...soundZone(), fields: {} } };
+ok("a compiled zone row is a zone", isZoneRow(zoneRow));
+ok("and not a recipe", !isSceneRecipe(zoneRow));
+ok("a recipe is not a zone", !isZoneRow({ kind: SCENE_KIND, scene: sound() }));
+ok("a zone row over no scene is not a zone", !isZoneRow({ kind: SCENE_ZONE_KIND, zone: { outline: [] } }));
+
+const zoneArgs = { name: "Zone", tableUuid: "RollTable.z", target: 4, dayThrows: 2, nightThrows: 1, book: "zy", id: "zy.zone1" };
+const outlined = zoneRegionData(soundZone(), given, zoneArgs);
+check("a zone is a locked region only the Judge sees", [outlined.name, outlined.visibility, outlined.locked], ["Zone", 1, true]);
+check("with no cells it is its outline, carried into the frame", outlined.shapes, [{ type: "polygon", points: [50, 50, 450, 50, 450, 300], hole: false }]);
+check("it carries the encounter zone with its list, figures and the row's cadence", outlined.behaviors, [{
+  type: "acks-extras.encounterZone", name: "Zone",
+  system: { tableUuid: "RollTable.z", encounterTarget: 4, journeyCadence: "periods", dayThrows: 2, nightThrows: 1 },
+}]);
+check("and remembers which zone it is, covering no cells", outlined.flags[MODULE_ID], { cookbook: { zone: "zy.zone1", book: "zy" }, zoneHexes: [] });
+const hexVerts = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 15, y: 8.6 }, { x: 10, y: 17.3 }, { x: 0, y: 17.3 }, { x: -5, y: 8.6 }];
+const snapped = zoneRegionData(soundZone(), given, { ...zoneArgs, hexes: [{ i: 2, j: 3 }, { i: 3, j: 3 }], cells: [hexVerts, [20, 0, 30, 0, 25, 9]] });
+check("with cells it is one polygon per cell, to whole pixels", snapped.shapes, [
+  { type: "polygon", points: [0, 0, 10, 0, 15, 9, 10, 17, 0, 17, -5, 9], hole: false },
+  { type: "polygon", points: [20, 0, 30, 0, 25, 9], hole: false },
+]);
+check("and records the cells it covers", snapped.flags[MODULE_ID].zoneHexes, [{ i: 2, j: 3 }, { i: 3, j: 3 }]);
+const unvertexed = zoneRegionData(soundZone(), given, { ...zoneArgs, hexes: [{ i: 1, j: 1 }], cells: [] });
+check("a cell the grid gave no vertices for falls back to the outline", [unvertexed.shapes.length, unvertexed.flags[MODULE_ID].zoneHexes], [1, []]);
+const bareZone = zoneRegionData({ scene: "zz.region", outline: [10, 10, 90, 10, 90, 60] }, given, { name: "Zone", book: "zy", id: "zy.zone2" });
+check("a zone with no list or figures says so with a null list and zeroes", bareZone.behaviors[0].system, {
+  tableUuid: null, encounterTarget: 0, journeyCadence: "", dayThrows: 0, nightThrows: 0,
+});
+check("a cadence the behaviour does not take is written blank", zoneRegionData(soundZone(), given, { ...zoneArgs, cadence: "daily" }).behaviors[0].system.journeyCadence, "");
+
+/* ---------------- a count printed as a word ---------------- */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const countWord = JSON.parse(readFileSync(join(HERE, "..", "..", "register", "_refs", "countWord.json"), "utf8"));
+const counts = { tables: { countWord: countWord.table } };
+check("a digit is its count", readCountWord("3", counts), 3);
+check("a word is its count", readCountWord("three", counts), 3);
+check("in any case", readCountWord("Twice", counts), 2);
+check("a compound sums its parts", readCountWord("twenty-one", counts), 21);
+check("the first count in the box wins", readCountWord("x 2 per day, then four", counts), 2);
+check("a compound that is not all count is passed over", readCountWord("one-eyed, two", counts), 2);
+check("an empty box inherits", readCountWord("", counts), 0);
+const missed = [];
+check("a box of other words inherits", readCountWord("see text", counts, missed), 0);
+check("and says it missed", missed, [{ table: "countWord", token: "see text" }]);
+check("with no vocabulary a digit still reads", readCountWord("5", null), 5);
+check("and a word does not", readCountWord("five", null), 0);
+
+/* ---------------- the shipped recipe ---------------- */
+
 const cb = JSON.parse(readFileSync(join(HERE, "..", "..", "cookbook", "ax3.json"), "utf8"));
-const scenes = Object.entries(cb.scenes ?? {});
+// A settlement's recipe carries its quarters; a region map (no districts) is
+// `test-region-import.mjs`'s and does not stand in a quarter.
+const scenes = Object.entries(cb.scenes ?? {}).filter(([, row]) => !isZoneRow(row) && Array.isArray(row.scene?.districts));
 ok("AX3 ships a city map", scenes.length >= 1);
 for (const [id, row] of scenes) {
   const recipe = row.scene;

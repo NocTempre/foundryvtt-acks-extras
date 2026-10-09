@@ -37,6 +37,7 @@ export const PRODUCES = Object.freeze({
     canopyPenalty: "searchProse",
     canopyTerrains: "searchProse",
     movingQuarry: ["searchProse", "lostSearchProse"],
+    trackingBonus: "searchProse",
     turnsPerThrow: "cadenceProse",
     surveyTarget: "surveyProse",
     surveyPerSearch: "surveyProse",
@@ -155,6 +156,9 @@ export function assembleSearchingTables(raw = {}) {
   // the rendezvous rules rather than here.
   const moving = parseSigned(prose.moving ?? raw.lostSearchProse?.moving ?? "");
   if (moving != null) out.movingQuarry = moving;
+
+  const tracking = parseSigned(prose.tracking);
+  if (tracking != null) out.trackingBonus = tracking;
 
   const hour = parseTurns(raw.cadenceProse?.hour);
   if (hour != null) out.turnsPerThrow = hour;

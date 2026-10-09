@@ -12,6 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { citeFor } from "../../scripts/importer/books.mjs";
+import { isSceneRecipe, isZoneRow } from "../../scripts/importer/scene-binding.mjs";
 
 const COOKBOOK = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "cookbook");
 
@@ -23,12 +24,18 @@ const check = (label, cond) => {
 
 /** Every entry in every cookbook, tagged with the book it will be read from. */
 const entries = new Map();
+/** Every compiled scene row — recipes and zones — tagged with the book whose cookbook holds it. */
+const sceneRows = new Map();
+/** Each cookbook file's own entry ids, by file name. */
+const idsByFile = new Map();
 for (const f of fs.readdirSync(COOKBOOK).filter((n) => n.endsWith(".json") && n !== "registers.json" && n !== "index.json")) {
   const c = JSON.parse(fs.readFileSync(path.join(COOKBOOK, f), "utf8"));
   // A book cookbook names its book once at the top; a content cookbook (powers,
   // equipment, …) spans books and names one per entry.
   const fileBook = typeof c.book === "string" ? c.book : c.book?.id;
   for (const [id, e] of Object.entries(c.entries ?? {})) entries.set(id, { ...e, id, file: f, book: e.book ?? fileBook });
+  for (const [id, row] of Object.entries(c.scenes ?? {})) sceneRows.set(id, { ...row, id, book: fileBook });
+  idsByFile.set(f, new Set(Object.keys(c.entries ?? {})));
 }
 check("the shipped cookbook has entries to check", entries.size > 1000);
 
@@ -154,6 +161,66 @@ for (const [key, hit] of byKey) {
   const ids = menu.filter((m) => String(m.surface).toLowerCase().replace(/[^a-z0-9]/g, "") === key);
   if (!ids.length) continue;
   check(`the collision on "${key}" resolves deterministically`, typeof hit.ref === "string" && hit.ref.length > 0);
+}
+
+/* --- a zone lies over a real map, from its own book --- */
+
+// A zone is compiled in its own book's cookbook but names a recipe that may be
+// any book's, so no single compile can see both halves. Its list must be its
+// own book's, and its outline is page points of the target's page, so every
+// point must fall inside the target's crop or the region is drawn off the map.
+const zones = [...sceneRows.values()].filter(isZoneRow);
+for (const z of zones) {
+  const target = sceneRows.get(z.zone.scene);
+  check(`${z.id}: zone lies over ${z.zone.scene}, a compiled scene recipe`, isSceneRecipe(target));
+  if (z.zone.table !== undefined) {
+    const t = entries.get(z.zone.table);
+    check(`${z.id}: its list ${z.zone.table} is a roll table of its own book (${z.book})`, t?.kind === "kind.rolltable" && t.book === z.book);
+  }
+  const crop = target?.scene?.crop;
+  const ring = z.zone.outline ?? [];
+  const outside = [];
+  for (let i = 0; crop && i + 1 < ring.length; i += 2) {
+    const [x, y] = [ring[i], ring[i + 1]];
+    if (!(x >= crop.x && x <= crop.x + crop.w && y >= crop.y && y <= crop.y + crop.h)) outside.push(`(${x}, ${y})`);
+  }
+  check(`${z.id}: every outline point lies inside ${z.zone.scene}'s crop${outside.length ? ` — not ${outside.slice(0, 3).join(", ")}` : ""}`, !!crop && outside.length === 0);
+}
+
+/* --- a revision points into the book its id names --- */
+
+// `meta.revisedBy` sends an import to a later printing of the same creature,
+// and the importer defers only while the book its id's prefix names is open
+// (`deferTarget`): an id that book's cookbook does not hold is a deferral the
+// seat that owns the book is promised and never gets.
+for (const e of entries.values()) {
+  const to = e.meta?.revisedBy;
+  if (to === undefined) continue;
+  const file = `${String(to).split(".")[0]}.json`;
+  check(`${e.id}: revisedBy ${to} is an entry of ${file}`, idsByFile.get(file)?.has(to) === true);
+}
+
+/* --- a roll table's rows are die bands, its details follow their row --- */
+
+// The binding turns each `r<band>` section into result ranges and drops any
+// other, so a row under a different label vanishes from the table. A detail
+// paragraph explains the row it follows, which must be its own: the compiler
+// appends each block after its row's paragraphs, and one under another row's
+// label would read as that row's text. An empty row is a row, never a detail.
+const BAND = /^r\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*$/;
+for (const e of entries.values()) {
+  if (e.kind !== "kind.rolltable") continue;
+  const paras = e.fields?.rows?.paras ?? [];
+  check(`${e.id}: every row paragraph carries a die-band section`, paras.every((p) => BAND.test(p.section ?? "")));
+  let row = null;
+  const stray = [];
+  for (const p of paras) {
+    if (p.detail === true) {
+      if (p.section !== row || p.empty) stray.push(p.section);
+    } else row = p.section;
+  }
+  check(`${e.id}: every detail paragraph follows its own row${stray.length ? ` — not ${stray.slice(0, 3).join(", ")}` : ""}`, stray.length === 0);
+  check(`${e.id}: empty and detail marks are only ever true`, paras.every((p) => (p.empty ?? true) === true && (p.detail ?? true) === true));
 }
 
 console.log(`\ntest-cookbook-coherence: all ${pass} checks passed`);

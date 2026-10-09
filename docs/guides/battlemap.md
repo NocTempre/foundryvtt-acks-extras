@@ -146,6 +146,22 @@ footprint on them. **Reset selected to default** removes the stamp
 and re-derives from the creature's size. A stamped footprint sticks to the
 token and survives rescales.
 
+## Painting terrain
+
+The group's **Paint terrain** tool arms a brush on a hex-gridded map and opens
+the brush palette: one swatch per kind of country the encounter tables know —
+the forests, hills, mountains, scrublands, swamps and rivers at the grain the
+book prints them, with any further kind your imported travel tables name —
+and the eraser. Click or drag to paint hexes; one kind per hex, and painting
+over replaces. Each kind becomes a tinted region everyone can see.
+
+A journeying party reads the paint: the hex it stands in sets the ground its
+speed, road and foraging are priced on and the sub-table its encounters draw
+from, so the pickers under the strip step aside while the map answers. A river
+hex sets only the encounter table; the party keeps the ground it was on. A map
+painted with the older ground brushes still sets the ground, and the encounter
+table stays the ground's usual one unless you pick another.
+
 ## Formations
 
 A party token is as wide as its marching frontage in feet (each body's width

@@ -14,7 +14,7 @@ import {
 } from "./constants.mjs";
 import { onCombatEnd, onCombatRoundChange, onPartyCombatantCreated } from "./combat-bridge.mjs";
 import { SETTING_ABILITY_OVERRIDES, initLadders } from "./ability-bridge.mjs";
-import { registerEncounterZone } from "./encounter-zone.mjs";
+import { journeyZones, registerEncounterZone } from "./encounter-zone.mjs";
 import { installMonsterLevelRow } from "./monster-level-row.mjs";
 import { registerDistrictZone, findDistrict, DISTRICT_TYPE } from "./district-zone.mjs";
 import { districtReaction } from "./settlement.mjs";
@@ -110,7 +110,9 @@ import { registerRequestSocket, requestPartyAction } from "./player-requests.mjs
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
 import { RESIZE_OPTION, syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
 import { SHADOW_FLAG, TRUTH_MOVE_OPTION, clearOrphanShadows } from "./shadow.mjs";
-import { addLight, advanceRounds, advanceTurns, onPartyTokenMoved, removeLight, toggleLight, toggleShield } from "./turn-engine.mjs";
+import { addLight, advanceRounds, advanceTurns, removeLight, toggleLight, toggleShield } from "./turn-engine.mjs";
+import { onPartyTokenMoved } from "./journey.mjs";
+import * as journey from "./journey.mjs";
 import * as travel from "./travel.mjs";
 import * as weather from "./weather.mjs";
 import * as settlement from "./settlement.mjs";
@@ -146,6 +148,12 @@ import { expectTables } from "../lib/tables.mjs";
 import { TRAVEL_DOC, WEATHER_DOC } from "../vehicles/vehicle-speed.mjs";
 import { registerFormationRepairChecks } from "./repair-checks.mjs";
 import { registerPartyRoster } from "./party-roster.mjs";
+import {
+  clearStock, hexStockView, installHexStockCardActions, placeFromPoint, readStock, stockFromInputs, surveyHex, trueHexOf, writeStock,
+} from "./hex-stock-run.mjs";
+import {
+  creditSearch, falseCount, hexStockKey, markFound, recordAssessment, stockHex, stockSummary, unfoundPoints,
+} from "./hex-stock.mjs";
 
 /** Open the formation window. */
 function openPartySheet() {
@@ -177,6 +185,7 @@ Hooks.once("init", () => {
   installDistrictPlaceRow();
   installMonsterLevelRow();
   installIncidentCardActions();
+  installHexStockCardActions();
   installTrapDrop();
   installTrapMarkers();
   // Core's party overview deals XP by its own reckoning; with this module's
@@ -395,7 +404,7 @@ Hooks.once("init", () => {
   expectTables(SEARCHING_DOC, [
     "targets", "movingQuarry", "specificTarget", "turnsPerThrow",
     "canopyTerrains", "canopyPenalty", "aerialTurnsPerThrow",
-    "surveyTarget", "surveyPerSearch",
+    "surveyTarget", "surveyPerSearch", "trackingBonus",
   ]);
 
   // How many finished days a formation's travel log keeps; trimming eats the
@@ -409,16 +418,16 @@ Hooks.once("init", () => {
     default: 120,
   });
 
-  // Journeys throw their own encounters: entering a hex and ending the day
-  // roll the owed throws and whisper the chain to the Judge. Off, the
-  // panel's own button is the only trigger.
+  // Journeys throw their own encounters: each cadence unit walked and the end
+  // of the day roll the owed throws and whisper the chain to the Judge. Off,
+  // the panel's own button is the only trigger.
   game.settings.register(MODULE_ID, SETTING_TRAVEL_ENCOUNTERS, {
     name: "ACKS-FORMATION.settings.travelEncounters.name",
     hint: "ACKS-FORMATION.settings.travelEncounters.hint",
     scope: "world",
     config: true,
     type: Boolean,
-    default: false,
+    default: true,
   });
 
   // Straggling is marked optional in the book, and ships ON: it is the only
@@ -580,9 +589,49 @@ Hooks.once("init", () => {
      * against the world clock's `lib.worldTime.clockReading()`. `patchSettlement`
      * takes `hour`; a `night` boolean is still read as the Judge's word for
      * night or day.
+     *
+     * 15 turns the journey into miles and hours. A drag on any scene is
+     * measured in miles and spends hours at the readout's miles-per-hour; the
+     * world clock runs by those hours and End day jumps to the next dawn.
+     * `travel` gains the journey's functions — `onPartyTokenMoved` (the
+     * dispatcher on the movement seam), `onJourneyTokenMoved`,
+     * `journeyMilesBetween`, `spendJourneyMiles(formationId, miles, {scene,
+     * trace, hex, anchor})`, `nextHex`, `advanceJourneyClock`,
+     * `spendSearchHour`, `hexContext` and `journeyNight` — plus `traceStep`,
+     * `dayBudget`, `inferredTravelSystem` and the day's `miles`, `hours`,
+     * `cadenceCarry`, `carrySeconds`, `secondsAdvanced` and `done` fields and
+     * `travel.hour`. `dayIsSpent(day, budget, {dark})` now compares hours to the
+     * budget `dayBudget` prices, no longer hexes to an allowance.
+     * `adoptSceneSystem` resolves `{mode, source}` (source `declared`, `scale`
+     * or `districts`) instead of the bare mode. `clock.pausedBy` records who
+     * paused the turn clock: only `"judge"` stops a journey. Two hooks announce
+     * the journey: `acksExtras.hexEntered` (once per cadence unit walked, after
+     * the record patch and before the throw) with `{formationId, sceneId, hex,
+     * ground, encounterTerrain, territory, lost, cadence, night, throwOwed}`, and
+     * `acksExtras.searchHourSpent` (after a search hour resolves) with
+     * `{formationId, sceneId, hex, ground, encounterTerrain, territory, lost,
+     * subject, specific, attempts, found, present}`; `hex` is `{i, j, label}` or
+     * null, and `cadence` is `grid` or `miles`.
+     *
+     * 15 also adds `hexStock` — the stock a Judge keeps on one hex of the map
+     * (a scene flag keyed by the cell): `trueHexOf(formation)`, `readStock`,
+     * `writeStock`, `clearStock`, `stockFromInputs`, `surveyHex`,
+     * `placeFromPoint`, `hexStockView`, and `pure` (`stockHex`,
+     * `stockSummary`, `unfoundPoints`, `markFound`, `creditSearch`,
+     * `recordAssessment`, `falseCount`, `hexStockKey`). A consumer of
+     * `acksExtras.hexEntered` that stocks a hex reads `lost` from the payload and
+     * refuses to consume while it is true: the token then stands on the believed
+     * hex, not the one the party is really in.
+     *
+     * 16 adds `encounters.journeyZones(formation)` — the encounter zones under
+     * the party's TRUE point, composed smallest zone first, with the layers
+     * and regions that answered; a zone imported from a book carries its
+     * `journeyCadence` (`entry` or `periods`) and its `dayThrows` /
+     * `nightThrows`, which `spendJourneyMiles` now follows instead of the
+     * terrain's cadence while the party stands in it.
      */
-    apiVersion: 14,
-    travel: { ...travel, closeDay, offerDayEnd },
+    apiVersion: 16,
+    travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,
     district: {
@@ -610,7 +659,18 @@ Hooks.once("init", () => {
     provisions,
     foraging,
     searching,
-    encounters: { ...encounters, maybeHexThrow, postEncounterThrow, resolveCreature, rollDayEncounters },
+    hexStock: {
+      trueHexOf,
+      readStock,
+      writeStock,
+      clearStock,
+      stockFromInputs,
+      surveyHex,
+      placeFromPoint,
+      hexStockView,
+      pure: { stockHex, stockSummary, unfoundPoints, markFound, creditSearch, recordAssessment, falseCount, hexStockKey },
+    },
+    encounters: { ...encounters, maybeHexThrow, postEncounterThrow, resolveCreature, rollDayEncounters, journeyZones },
     traps: {
       ...trapRules,
       runTrapCheck,
@@ -710,7 +770,6 @@ Hooks.once("init", () => {
       `modules/${MODULE_ID}/templates/formation/formation-header.hbs`,
       `modules/${MODULE_ID}/templates/formation/formation-tab-party.hbs`,
       `modules/${MODULE_ID}/templates/formation/formation-tab-order.hbs`,
-      `modules/${MODULE_ID}/templates/formation/formation-tab-travel.hbs`,
       `modules/${MODULE_ID}/templates/formation/formation-tab-kit.hbs`,
       `modules/${MODULE_ID}/templates/formation/skill-audit.hbs`,
     ]);
@@ -846,8 +905,9 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
       if (!formation) return null;
       return runTrapCheck(formation, { from, to: { x: tokenDoc.x, y: tokenDoc.y } });
     })
-    // A journey's tracker counts hexes; when the day's march has been walked
-    // off, the Judge is asked whether it is over. Wired here rather than
+    // A journey's tracker counts miles and hours; when the day's march has
+    // been walked off, or the party marches on after dusk, the Judge is asked
+    // whether the day is over. Wired here rather than
     // inside the tracker: ending a day spends provisions and the calendar, and
     // that is an answer, not an arithmetic consequence.
     .then(() => offerDayEnd(formationId))
@@ -956,7 +1016,7 @@ Hooks.on("updateSetting", onFormationsChanged);
 // panel's cadence and its clock line go stale the moment the clock moves —
 // in either direction, on every client, whether or not a formation changed.
 Hooks.on("updateWorldTime", () => {
-  if (Object.values(getFormations()).some((f) => f.travel?.mode === "settlement")) PartySheet.refreshAll();
+  if (Object.values(getFormations()).some((f) => f.travel?.mode === "settlement" || f.travel?.mode === "journey")) PartySheet.refreshAll();
 });
 
 /* -------------------------------------------- */
@@ -1147,11 +1207,12 @@ Hooks.on("createToken", (tokenDoc) => {
 function adoptSceneSystem(formationId, scene) {
   return travel
     .adoptSceneSystem(formationId, scene)
-    .then((mode) => {
-      if (!mode) return;
+    .then((adopted) => {
+      if (!adopted) return;
+      const { mode, source } = adopted;
       const name = getFormation(formationId)?.name ?? "";
       ui.notifications.info(
-        game.i18n.format("ACKS-FORMATION.travel.sceneSystem", {
+        game.i18n.format(source === "scale" ? "ACKS-FORMATION.travel.sceneSystemScale" : "ACKS-FORMATION.travel.sceneSystem", {
           name,
           system: game.i18n.localize(`ACKS-BATTLEMAP.system.${mode}`),
         })
@@ -1167,4 +1228,18 @@ Hooks.on("updateScene", (scene, changes) => {
   for (const formation of Object.values(getFormations())) {
     if (formation.sceneId === scene.id) adoptSceneSystem(formation.id, scene);
   }
+});
+
+/* A hex's stock changing under an open sheet redraws the "This hex" group,
+ * whoever wrote it. */
+Hooks.on("updateScene", (_scene, changes) => {
+  if (foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.hexStock`)) PartySheet.refreshAll();
+});
+
+/* The lost party's true-position marker moving changes which hex the stock is
+ * read from, so the Judge's group follows it. */
+Hooks.on("updateToken", (tokenDoc, changes) => {
+  if (!game.user.isGM || !tokenDoc.getFlag(MODULE_ID, SHADOW_FLAG)) return;
+  if (!("x" in changes) && !("y" in changes)) return;
+  PartySheet.refreshAll();
 });

@@ -111,6 +111,21 @@ export async function postToJudges({ rolls = [], ...data } = {}) {
 }
 
 /**
+ * Draw from a table without posting anything: the caller shows the results on
+ * a card of its own. A draw that lands on rows shows its dice to the GMs
+ * through Dice So Nice; a draw that lands on none shows nothing.
+ *
+ * @param {RollTable} table
+ * @param {object} [options] passed to `table.draw`; `displayChat` is always false
+ * @returns {Promise<{roll: Roll, results: TableResult[]}>}
+ */
+export async function drawQuietly(table, options = {}) {
+  const drawn = await table.draw({ ...options, displayChat: false });
+  if (drawn?.results?.length) await showDice(drawn.roll, { whisper: gmIds() });
+  return drawn;
+}
+
+/**
  * Draw from a table for the GMs alone: Foundry's own result card, whispered
  * to them, with the roll taken off the message before it is created. The
  * card's own dice box stays in its content.
@@ -120,13 +135,12 @@ export async function postToJudges({ rolls = [], ...data } = {}) {
  * @returns {Promise<{roll: Roll, results: TableResult[]}>}
  */
 export async function drawForJudges(table, options = {}) {
-  const drawn = await table.draw({ ...options, displayChat: false });
+  const drawn = await drawQuietly(table, options);
   if (!drawn?.results?.length) return drawn;
   const strip = (doc, _data, _options, userId) => {
     if (userId !== game.user.id || doc.getFlag?.("core", "RollTable") !== table.id) return;
     doc.updateSource({ rolls: [], sound: null });
   };
-  await showDice(drawn.roll, { whisper: gmIds() });
   Hooks.on("preCreateChatMessage", strip);
   try {
     await table.toMessage(drawn.results, { roll: drawn.roll, messageOptions: { messageMode: "gm" } });

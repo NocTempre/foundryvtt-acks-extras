@@ -15,6 +15,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { TERRAIN, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
+import { ENCOUNTER_TERRAINS } from "../formation/encounter-terrains.mjs";
 
 /** Region flags: the terrain kind, and the painted cells as offset keys. */
 export const TERRAIN_FLAG = "terrain";
@@ -29,20 +30,43 @@ export const HEXES_FLAG = "terrainHexes";
 export const UNPAINTABLE = Object.freeze(["mud", "snow"]);
 
 /**
- * The palette — a fixed UI colour per terrain kind. Presentation, not rules:
- * the keys are the structural terrain vocabulary; the colours are ours.
+ * The palette — a fixed UI colour per terrain key. Presentation, not rules:
+ * the keys are the structural terrain vocabularies, the encounter terrains
+ * (tinted by family) and the bare grounds a map painted before the brush
+ * took the book's grain still carries; the colours are ours.
  *
  * An imported kind the module has never heard of gets a derived hue instead
  * (`colorFor`), so the vocabulary can grow without the palette blocking it.
  */
 export const TERRAIN_COLORS = Object.freeze({
+  barrensRocky: "#b09067",
+  barrensTundra: "#c6b8a4",
+  desertRocky: "#cfae5c",
+  desertSandy: "#e0c060",
+  forestDeciduous: "#2e6b34",
+  forestTaiga: "#205a4c",
   grassland: "#7cb45b",
+  grasslandSavanna: "#b1b85c",
+  grasslandSteppe: "#9db27c",
+  hillsForested: "#6d7f47",
+  hillsRocky: "#8f7b4f",
+  jungle: "#1e5c2e",
+  mountainsForested: "#5c6c58",
+  mountainsRocky: "#7d7d85",
+  mountainsSnowy: "#b8c2cb",
+  mountainsVolcanic: "#6d4f4f",
+  riverLand: "#3f7fb5",
+  riverDesertJungle: "#3f9fb0",
+  scrublandSparse: "#a8a84f",
+  scrublandDense: "#8b8f3f",
+  swampMarshy: "#4f6b52",
+  swampScrubby: "#5f7a4b",
+  swampForested: "#3f5f46",
   scrubland: "#a8a84f",
   barrens: "#b09067",
   desert: "#e0c060",
   hills: "#8f7b4f",
   forest: "#2e6b34",
-  jungle: "#1e5c2e",
   mountains: "#7d7d85",
   swamp: "#4f6b52",
   mud: "#6e5a3e",
@@ -50,21 +74,24 @@ export const TERRAIN_COLORS = Object.freeze({
 });
 
 /**
- * Every terrain the brush may lay down: the shipped structural keys plus
- * any key the imported multiplier table carries, minus the ones weather
- * owns. See docs/battlemap/DECISIONS.md, "The terrain vocabulary opens to
- * imported keys."
+ * Every terrain the brush may lay down: the encounter terrains — the book's
+ * own grain, each standing on a travel ground — plus any key the imported
+ * multiplier table carries that no encounter terrain covers, minus the ones
+ * weather owns. A bare ground an encounter terrain covers is never a brush:
+ * its kinds are. See docs/battlemap/DECISIONS.md, "The brush paints at the
+ * book's grain" and "The terrain vocabulary opens to imported keys."
  */
 export function paintableTerrains() {
-  const shipped = Object.keys(TERRAIN);
+  const fine = Object.keys(ENCOUNTER_TERRAINS);
+  const covered = new Set(Object.values(ENCOUNTER_TERRAINS).map((t) => t.ground).filter(Boolean));
   let imported = [];
   try {
     imported = Object.keys(readTable(TRAVEL_DOC, "terrainMultipliers") ?? {});
   } catch {
     imported = [];
   }
-  const all = [...new Set([...shipped, ...imported])];
-  return all.filter((k) => !UNPAINTABLE.includes(k));
+  const extra = imported.filter((k) => !covered.has(k) && !UNPAINTABLE.includes(k));
+  return [...new Set([...fine, ...extra])];
 }
 
 /**
@@ -80,9 +107,9 @@ export function colorFor(key) {
   return `hsl(${h % 360} 38% 42%)`;
 }
 
-/** The label for any terrain key: the shipped one, or the key made readable. */
+/** The label for any terrain key: the encounter terrain's, the ground's, or the key made readable. */
 export function labelFor(key) {
-  const shipped = TERRAIN[key]?.label;
+  const shipped = ENCOUNTER_TERRAINS[key]?.label ?? TERRAIN[key]?.label;
   if (shipped) return game.i18n.localize(shipped);
   return String(key ?? "").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
 }
@@ -159,6 +186,23 @@ export function terrainAtPoint(scene, point) {
     }
   }
   return null;
+}
+
+/**
+ * The painted terrain of the hex containing `point`, read in both
+ * vocabularies the journey writes: `key` as painted (null when unpainted),
+ * `ground` the travel ground it stands on (null when the key names none —
+ * a river, or nothing painted) and `encounterTerrain` the encounter pick it
+ * names ("" for a bare ground, whose pick stays the Judge's or the ground's
+ * default). A bare ground is a map painted before the brush took the book's
+ * grain, or an imported kind no encounter terrain covers.
+ */
+export function paintedTerrainAt(scene, point) {
+  const key = terrainAtPoint(scene, point);
+  if (!key) return { key: null, ground: null, encounterTerrain: "" };
+  const fine = ENCOUNTER_TERRAINS[key];
+  if (fine) return { key, ground: fine.ground ?? null, encounterTerrain: key };
+  return { key, ground: key, encounterTerrain: "" };
 }
 
 /** The cell's polygon shape data, from the scene's own grid. */
@@ -343,7 +387,8 @@ export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2)
   static DEFAULT_OPTIONS = {
     id: "acks-extras-terrain-palette",
     classes: ["acks-ui", "acks-extras", "acks-extras-terrain-palette", "acks-extras-scroll"],
-    position: { width: 260 },
+    // Two columns of swatches: wide enough that a kind's full name shows.
+    position: { width: 380 },
     window: { title: "ACKS-BATTLEMAP.terrain.palette", icon: "fa-solid fa-paintbrush" },
     actions: { pickBrush: TerrainPaletteApp.#pickBrush },
   };

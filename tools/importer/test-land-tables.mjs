@@ -203,6 +203,16 @@ check("the penalties keep their signs", searching.specificTarget === -6
 check("the survey reads its target and its per-search bonus",
   searching.surveyTarget === 23 && searching.surveyPerSearch === 7);
 
+const tracked = assembleSearchingTables({
+  searchProse: { tracking: ", the party should receive a +6 bonus on the proficiency throw" },
+});
+check("the tracking bonus is assembled from a signed window", tracked.trackingBonus === 6);
+check("a tracking window that does not read leaves the table out",
+  !("trackingBonus" in assembleSearchingTables({ searchProse: { tracking: "no figure here" } }))
+  && !("trackingBonus" in assembleSearchingTables({ searchProse: {} })));
+check("a signed tracking penalty keeps its sign",
+  assembleSearchingTables({ searchProse: { tracking: "a -3 modifier" } }).trackingBonus === -3);
+
 /* --- city travel --------------------------------------------------------- */
 check("blocks are counted from words", parseBlocks("about ten minutes to walk nine city blocks") === 9);
 check("and a single block is one", parseBlocks("to walk one city block") === 1);

@@ -2034,17 +2034,33 @@
           "hint": "RollTable drawn from (privately) when a wandering-monster encounter triggers while the party token is inside this region. Drag a RollTable here or paste its UUID."
         },
         "encounterEvery": {
-          "label": "Throw frequency (turns)",
-          "hint": "Make an encounter throw every N dungeon turns inside this zone. 0 = inherit the module setting."
+          "label": "Throw frequency (dungeon turns)",
+          "hint": "Make an encounter throw every N dungeon turns inside this zone. A journey does not read this field. 0 = inherit the module setting."
         },
         "encounterTarget": {
           "label": "Target value (1d6)",
-          "hint": "Encounter occurs on this value or higher inside this zone. 0 = inherit the module setting."
+          "hint": "Encounter occurs on this value or higher inside this zone. On a journey this d6 replaces the territory throw. 0 = inherit the module setting."
         },
         "dungeonLevel": {
           "label": "Dungeon level",
           "hint": "The dungeon level this zone counts as, compared with the monster level of the table a wandering monster is drawn from (JJ p. 36). 0 = not set: nothing is compared."
+        },
+        "journeyCadence": {
+          "label": "Journey cadence",
+          "hint": "When a journey throws inside this zone. Blank inherits; Entry throws once as the party crosses into the zone and not per hex inside it; Periods throws only at End Day, the day and night counts below."
+        },
+        "dayThrows": {
+          "label": "Day throws (End Day)",
+          "hint": "Throws made for the day at End Day inside this zone when its cadence is Periods; they replace the day's hunting, searching and resting throws. 0 inherits."
+        },
+        "nightThrows": {
+          "label": "Night throws (End Day)",
+          "hint": "Throws made for the night at End Day inside this zone when its cadence is Periods; they replace the resting night's throw. 0 inherits."
         }
+      },
+      "CADENCE": {
+        "entry": "Entry — once on crossing in",
+        "periods": "Periods — at End Day"
       }
     },
     "app": {
@@ -2270,6 +2286,7 @@
       "effectDescription": "Cannot charge or run until rested (RR p. 271)."
     },
     "chat": {
+      "scaleGuard": "{name} stands on a map whose cell is {miles} mi across; the turn clock bills nothing here. Declare the map's system in the battlemap setup, or begin a journey.",
       "turnAdvanced": "{n} dungeon turn(s) pass",
       "turnAdvancedCity": "{n} turn(s) pass in the streets",
       "turnRested": "the party rests for {n} turn(s)",
@@ -2449,7 +2466,7 @@
       },
       "travelEncounters": {
         "name": "Journey encounter throws",
-        "hint": "Entering a hex and ending the day roll their owed encounter throws and whisper the chain to the Judge. Off, the panel's Encounter throw button is the only trigger."
+        "hint": "On by default: each cadence unit the march crosses and each finished day roll their owed encounter throws and whisper the chain to the Judge. Off, the strip's Encounter throw button is the only trigger."
       },
       "straggling": {
         "name": "Crowded streets slow large parties",
@@ -2463,10 +2480,6 @@
     "travel": {
       "legend": "Journey",
       "dayN": "Day {n}",
-      "beginJourney": "Begin journey",
-      "beginJourneyHint": "Switch this formation to the overland day: pauses movement-driven turn tracking and opens the travel panel.",
-      "endJourney": "Return to delve",
-      "endJourneyHint": "Un-pause the dungeon turn clock. The day board holds where it stands.",
       "ground": "Ground",
       "roadLabel": "Road",
       "territoryLabel": "Territory",
@@ -2617,11 +2630,17 @@
         "visibleLine": "The party can be seen from up to {feet}' in daylight ({size} heads).",
         "evasionLine": "Evasion throw {target}+ at {size} heads.",
         "handoff": "Detection and surprise resolve on the system's Surprise Matrix when combat starts; reactions with the influence tools.",
+        "zoneLine": "Encounter zone: {names}",
+        "zoneThrow": "Zone throw",
+        "zoneDrawLine": "Drawn from {table}",
+        "zoneRowBlank": "A blank row — the Judge decides what it holds.",
+        "zoneTableGone": "The table zone {zone} names cannot be found — draw this step by hand.",
         "activity": {
           "travel": "per hex",
           "hunt": "hunting",
           "search": "searching",
-          "rest": "resting"
+          "rest": "resting",
+          "entry": "entering a zone"
         },
         "column": {
           "civilizedRoad": "Civilized + road",
@@ -2693,6 +2712,15 @@
         "lookup": {
           "treasure": "Treasure type for this terrain",
           "ruin": "Ruin modifier for this terrain"
+        },
+        "draw": {
+          "double": "Double",
+          "discarded": "Set aside",
+          "rerolled": "Rerolled",
+          "either": "Lesser terrain",
+          "monster": "Creature",
+          "despoiled": "Despoiled",
+          "exhausted": "Roll limit reached — resolve the rest from your book."
         }
       },
       "dayBoard": "The day",
@@ -2714,14 +2742,13 @@
       "endDayHint": "Log the day as shown, reset the board, and advance the world clock a day (when the module drives it).",
       "dayEnd": {
         "title": "The day's march is walked",
-        "body": "The party has entered {hexes} of the {allowance} hexes this day's march carries it. Call the day done, or push on?",
+        "body": "{miles} mi walked in {hours} of the {budget} hours this day carries. Call the day done, or push on?",
+        "dark": "It is dark.",
         "end": "Call it a day",
         "push": "Push on (forced march)",
         "later": "Not yet"
       },
-      "campDay": "In camp — no travel today.",
-      "milesPerDay": "miles today",
-      "hexesPerDay": "hexes",
+      "campDay": "In camp — only hours given to travel walk.",
       "milesShort": "mi",
       "hex": "Hex",
       "hexPlaceholder": "e.g. K7",
@@ -2751,7 +2778,8 @@
         "refused": "{factor} does not apply when {mode}.",
         "replaced": "{factor} is replaced by the flier's own."
       },
-      "lostNote": "Judge's note on the lost party"
+      "lostNote": "Judge's note on the lost party",
+      "modeSelect": "Mode"
     },
     "audit": {
       "title": "Skill Audit",
@@ -3213,7 +3241,6 @@
       "needHex": "The party has no hex recorded yet, so there is nowhere to stray from.",
       "noNeighbour": "That hex has no neighbour on this grid.",
       "note": "Strayed toward face {face}.",
-      "legend": "Lost",
       "astraySince": "Astray for {days} day(s); {hexes} hex(es) of map they did not earn.",
       "begin": "They strayed…",
       "beginHint": "Open an episode: pick the face they actually took, and the table's map begins filling in the wrong place.",
@@ -3275,7 +3302,6 @@
       "aerial": "From the air"
     },
     "camp": {
-      "legend": "The camp",
       "food": "Food",
       "water": "Water",
       "days": "days, for {mouths} in the order",
@@ -3315,14 +3341,109 @@
       "unpriced": "Not imported: {what}. Nothing was thrown.",
       "search": "Search an hour",
       "searchHint": "Spend one of the day's set-aside hours looking. It owes an encounter throw whatever it finds.",
-      "present": "Something is here to find",
-      "presentHint": "Your map, not the module's: tick this when the hex actually holds a lair, ruin or landmark. Left unticked, a good throw still finds nothing — and the party cannot tell the difference."
+      "present": "Something here",
+      "presentHint": "The stock's answer, or the Judge's own.",
+      "presentOptions": {
+        "stock": "From the stock",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "lookingFor": "Looking for",
+      "lookingAnything": "Anything",
+      "lookingElsewhere": "Elsewhere",
+      "candidates": "Candidates",
+      "markFound": "Mark found",
+      "tracking": "Tracking bonus applied.",
+      "trackingUnpriced": "Tracking is held but its bonus is not imported."
+    },
+    "hexStock": {
+      "title": "This hex",
+      "notStocked": "Not stocked",
+      "upTo": "Up to {count}",
+      "row": "Row: {row}",
+      "dice": "Dice: {dice}",
+      "noScene": "No map hex to keep a stock under. Set the journey's hex, or put the party on a map.",
+      "astray": "The party is astray; this is where it really stands.",
+      "noSurveyor": "Nobody in the order holds Land Surveying.",
+      "unpriced": "Not imported: {what}.",
+      "alreadyPlaced": "This point is already a place.",
+      "stock": "Stock this hex",
+      "restock": "Restock",
+      "restockConfirm": "{hex} is already stocked. Replace its stock, finds and survey?",
+      "surveyHex": "Survey the hex",
+      "clear": "Clear",
+      "clearConfirm": "Clear the stock of {hex}? Its points, finds and survey are removed.",
+      "addPoint": "Add a point",
+      "pointName": "Name",
+      "pointNote": "Note",
+      "remove": "Remove",
+      "found": "Found",
+      "makePlace": "Make it a place",
+      "kinds": {
+        "lair": "Lair",
+        "valuable": "Valuable",
+        "dangerous": "Dangerous",
+        "unique": "Unique",
+        "placed": "Placed"
+      },
+      "dialog": {
+        "title": "Stock the hex",
+        "terrain": "Terrain",
+        "territory": "Territory",
+        "substitute": "Substitute",
+        "substituteHint": "Roll each lair on the substitution table (JJ 69).",
+        "count": "Count",
+        "countHint": "Overrides the roll when set (JJ 69). Required when the terrain has no imported row.",
+        "dice": "Dice: {dice}",
+        "needsCount": "This terrain has no count to roll. Type one.",
+        "submit": "Stock",
+        "cancel": "Cancel"
+      },
+      "survey": {
+        "speaker": "The surveyor",
+        "title": "Land Surveying",
+        "throw": "Threw {total} against {target}+.",
+        "assessed": "Read true.",
+        "misread": "Misread.",
+        "inconclusive": "Inconclusive.",
+        "truth": "Truth: {count}",
+        "told": "Told: {count}",
+        "askJudge": "Supply a count to tell the party.",
+        "tell": "Tell the party",
+        "public": "The surveyor reckons {count} point(s) of interest here."
+      }
     },
     "tab": {
       "party": "Party",
       "order": "Order",
-      "travel": "Travel",
       "kit": "Kit"
+    },
+    "strip": {
+      "modeDelve": "Delve",
+      "milesPerHour": "mi/hour",
+      "milesPerDay": "mi/day",
+      "walked": "Walked",
+      "ofBudget": "of {hours} h, {miles} mi",
+      "nextThrow": "Next throw",
+      "onEnteringHex": "On entering a hex",
+      "unpricedCadence": "No cadence imported",
+      "clock": "Clock",
+      "toDusk": "{hours} h to dusk",
+      "toDawn": "{hours} h to dawn",
+      "supplies": "Supplies",
+      "foodDays": "Food {days} d",
+      "waterDays": "Water {days} d",
+      "slotDone": "Resolved",
+      "details": {
+        "country": "Country",
+        "movement": "Movement",
+        "sky": "Sky",
+        "day": "Day",
+        "camp": "Camp",
+        "lost": "Lost",
+        "log": "Log",
+        "city": "City"
+      }
     },
     "DISTRICT": {
       "anywhere": "Anywhere in the district",
@@ -6039,6 +6160,7 @@
   "ACKS-BATTLEMAP.warn.scaleClamped": "Foundry's grid size has limits, so one cell is worth {distance} {units} instead. What the ruler measures stays exact.",
   "ACKS-BATTLEMAP.warn.repitch": "This scene already has a grid, and writing a scale re-pitches it — its lines will move.",
   "ACKS-FORMATION.travel.sceneSystem": "{name} takes this map's system: {system}.",
+  "ACKS-FORMATION.travel.sceneSystemScale": "{name} takes this map's system from its scale: {system}.",
   "ACKS-FORMATION.repair.check.members.label": "Party members whose actor is gone",
   "ACKS-FORMATION.repair.check.members.hint": "A marching order still holding a member whose actor has been deleted, with the lights and spells that member carried. Fixing removes them from the party.",
   "ACKS-FORMATION.repair.check.members.detail": "{count} member(s) whose actor no longer exists.",
@@ -6051,6 +6173,9 @@
   "ACKS-FORMATION.repair.check.shadows.misplaced": "On {scene}. The episode runs on another scene.",
   "ACKS-FORMATION.repair.check.shadows.missing": "Lost, with no marker for its true position.",
   "ACKS-FORMATION.repair.check.shadows.viaPanel": "Re-anchor or end the episode in the Lost section of the party's sheet.",
+  "ACKS-FORMATION.repair.check.hexStock.label": "Hex stock with broken records",
+  "ACKS-FORMATION.repair.check.hexStock.hint": "A scene's stocked hexes holding a point with no id, or finds, search credit or surveys that name a party which no longer exists. Fixing gives each point an id and drops the entries of the missing parties.",
+  "ACKS-FORMATION.repair.check.hexStock.detail": "{count} stocked hex(es) to mend.",
   "ACKS-BATTLEMAP.scale.gridPxRuler": "Ruler cell size (px)",
   "ACKS-BATTLEMAP.apply.willAddGridHex": "This scene has no grid yet — applying gives it a hex one.",
   "ACKS-ABILITIES.roll.previewMeasure": "Rolls {formula}. The result stands on its own — nothing is scored against it.",
@@ -6142,6 +6267,14 @@
   "ACKS-IMPORTER.ui.scenesAdventureRebuilt": "{n} adventure(s) rebuilt for a new map",
   "ACKS-IMPORTER.ui.scenesAdventureHeld": "{n} adventure(s) already in the library",
   "ACKS-IMPORTER.ui.scenesAdventureFailed": "{n} adventure(s) not written (see the console)",
+  "ACKS-IMPORTER.ui.scenesGridRefused": "{n} map(s) refused (its drawn cell could not be fitted to a Foundry cell)",
+  "ACKS-IMPORTER.ui.sceneZone": "Zone {n} ({book})",
+  "ACKS-IMPORTER.ui.scenesZonesMade": "{n} encounter zone(s) laid over their maps",
+  "ACKS-IMPORTER.ui.scenesZonesHeld": "{n} encounter zone(s) already on their maps",
+  "ACKS-IMPORTER.ui.scenesZonesWaiting": "{n} encounter zone(s) waiting for their map (import the book that prints it)",
+  "ACKS-IMPORTER.ui.scenesZonesRefused": "{n} encounter zone(s) refused (the page did not match the cookbook, or no cell of the map lies inside the outline)",
+  "ACKS-IMPORTER.ui.poiRegionsDescribed": "{n} region(s) described",
+  "ACKS-IMPORTER.ui.poiSitesBound": "{n} site(s) written onto a market or the settlement",
   "ACKS-IMPORTER.adventure.caption": "The map of {name}, with the places, quarters and organisations it shows.",
   "ACKS-IMPORTER.adventure.intro": "Built by the importer from your copy of {book}. Importing it sets this map up in a world: the map itself, the places and quarters on it, the book's organisations, the people they name and the lists the map rolls on.",
   "ACKS-IMPORTER.adventure.contents": "One map, {places} places and quarters, {factions} organisations, {people} people, {tables} lists.",

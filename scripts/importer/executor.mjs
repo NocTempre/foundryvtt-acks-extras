@@ -1085,6 +1085,26 @@ export function mergeDefenses(a, b) {
   return out;
 }
 
+/**
+ * `countWord` pattern: a count printed as a digit or as an English word. The
+ * first digit run or vocabulary word in the box wins; a hyphenated compound
+ * sums its parts when every part is a word of the vocabulary
+ * (`registers.tables.countWord`). A box that reads nothing yields 0, which the
+ * consumer reads as "inherit"; a box that reads only unknown words yields 0
+ * too and records a miss.
+ */
+export function readCountWord(text, registers, misses) {
+  const vocab = registers?.tables?.countWord ?? {};
+  const words = String(text ?? "").toLowerCase().match(/\d+|[a-z]+(?:-[a-z]+)*/g) ?? [];
+  for (const w of words) {
+    if (/^\d+$/.test(w)) return parseInt(w, 10);
+    const parts = w.split("-");
+    if (parts.every((p) => Object.hasOwn(vocab, p) && Number.isInteger(vocab[p]))) return parts.reduce((sum, p) => sum + vocab[p], 0);
+  }
+  if (words.length && misses) misses.push({ table: "countWord", token: text });
+  return 0;
+}
+
 /** Fixed pattern library (frozen with the schema). */
 function applyPattern(raw, instr, registers, misses) {
   let text = clean(raw);
@@ -1114,6 +1134,16 @@ function applyPattern(raw, instr, registers, misses) {
     }
     case "dice":
       return DICE_RE.exec(text)?.[0] ?? null;
+    case "countWord":
+      return readCountWord(text, registers, misses);
+    case "throw": {
+      // A throw target is the first "<n>+", where `int` would read a die
+      // expression's count first. A die's faces ("1d6+2") and a modifier
+      // ("+2") are not targets: the number may not follow a digit or a "d",
+      // and the "+" may not lead into one.
+      const m = /(?<![\dDd])(\d+)\+(?!\d)/.exec(text);
+      return m ? parseInt(m[1], 10) : null;
+    }
     case "refList":
       if (!text || /^none/i.test(text)) return [];
       return splitTop(text).map((t) => {
@@ -1321,6 +1351,12 @@ async function execInstruction(instr, ctx) {
         const ppd = para.page && para.page !== instr.page ? await getPage(para.page) : pd;
         const runs = runsIn(ppd, para);
         claim(runs, ctx.field);
+        // A row the table prints empty on purpose reads as empty text and is
+        // kept, where any other box that reads nothing is dropped.
+        if (para.empty === true) {
+          paras.push({ type: "paragraph", ...(para.section ? { section: para.section } : {}), empty: true, text: "" });
+          continue;
+        }
         const text = clean(glyphWords(joinRuns(runs, para.fixes ?? instr.fixes, para.dropText), registers));
         if (!text) continue;
         // A box that opens mid-sentence continues the box before it: the
@@ -1331,12 +1367,22 @@ async function execInstruction(instr, ctx) {
         // A box marked `continues` is the same case where the turn falls before
         // a capital — a name, which the letter test reads as a fresh start — and
         // the compiler, which could see the page, says so.
+        // A row's detail paragraph (`detail: true`) is the one sectioned box
+        // that continues another: the detail paragraph before it in the same
+        // row's block. Detail paragraphs otherwise stay apart and keep the
+        // mark, which tells them from a row's own text.
         const prev = paras[paras.length - 1];
-        if (prev && !para.section && (para.continues || (/^[a-z]/.test(text) && !/[.!?:;"”’)\]]$/.test(prev.text)))) {
+        const sameBlock = para.detail === true && prev?.detail === true && prev.section === para.section;
+        if (prev && (!para.section || sameBlock) && (para.continues || (/^[a-z]/.test(text) && !/[.!?:;"”’)\]]$/.test(prev.text)))) {
           prev.text = `${prev.text} ${text}`;
           continue;
         }
-        paras.push({ type: "paragraph", ...(para.section ? { section: para.section } : {}), text });
+        paras.push({
+          type: "paragraph",
+          ...(para.section ? { section: para.section } : {}),
+          ...(para.detail === true ? { detail: true } : {}),
+          text,
+        });
       }
       // The JJ closes a custom power with the classes that may take it —
       // "[Beastmaster, Cultist of Atlach-Nacha, Elven Nightblade, Fool]". That
@@ -1344,7 +1390,7 @@ async function execInstruction(instr, ctx) {
       // who may take it. Strip it so the description is the ability itself.
       const last = paras[paras.length - 1];
       if (last) last.text = stripOwnerList(last.text);
-      return paras.filter((p) => p.text);
+      return paras.filter((p) => p.text || p.empty);
     }
     case "value": {
       const runs = runsIn(pd, instr);

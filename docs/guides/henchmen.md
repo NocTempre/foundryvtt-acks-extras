@@ -57,7 +57,7 @@ hundreds of them, and creating hundreds of actors would be unusable.
 hireling with its loyalty and morale standing, the wage ledger, and the event
 history each score is computed from.
 
-![](../releases/v10.0.0/henchmen.png)
+![](../releases/v11.0.0/henchmen.png)
 
 *An employer's roster: who is hired, on what terms. Open a row for that
 hireling's history and the Judge's actions on it — a loyalty or obedience

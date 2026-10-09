@@ -26,7 +26,7 @@ The Overview tab states the class's combat training — weapons, the heaviest
 armour and the fighting styles — which is what a character made from the class
 is trained in.
 
-![](../releases/v10.0.0/classes-sheet.png)
+![](../releases/v11.0.0/classes-sheet.png)
 
 *The Overview tab: the class's combat training beside its chassis.*
 
@@ -285,7 +285,7 @@ a Zaharan has a dark path; a dwarf has a caste. On the class sheet these are
 **Paths**: named groups, each holding options of which a character takes exactly
 one, and an option can carry its own weapon, armour and fighting-style training.
 
-![A class sheet's Paths tab, with the Starting Template group an imported class arrives with](../releases/v10.0.0/classes-paths.png)
+![A class sheet's Paths tab, with the Starting Template group an imported class arrives with](../releases/v11.0.0/classes-paths.png)
 
 **Imported classes get theirs automatically.** Every class you import has a
 Starting Template group, and a class whose book prints a variant table — the
@@ -358,7 +358,7 @@ racial value ladder — each rung an XP cost, a level cap and the powers it
 grants — and the always-on traits. Rungs and traits take an ability dropped
 from the Items tab or a compendium, once each.
 
-![](../releases/v10.0.0/classes-race.png)
+![](../releases/v11.0.0/classes-race.png)
 
 *A race's minimum attributes and its value rungs, the powers the first rung
 grants named on it.*

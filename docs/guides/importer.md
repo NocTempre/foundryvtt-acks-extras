@@ -379,7 +379,7 @@ changes nothing your world already holds. To put a place back as the book has
 it, delete it and import again. The Adventure is kept by this world; its
 places arrive hidden and the map is not activated.
 
-![](../releases/v10.0.0/importer-adventure.png)
+![](../releases/v11.0.0/importer-adventure.png)
 
 *The map's Adventure in the library, from beneath its picture of the map: what it carries, and the note that importing adds only what a world is missing.*
 

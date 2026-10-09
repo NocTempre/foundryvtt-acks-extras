@@ -11,7 +11,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { BOOKS } from "../../scripts/importer/books.mjs";
-import { bandOfSection, recipeContext, recipeProblems } from "../../scripts/importer/scene-binding.mjs";
+import {
+  SCENE_ZONE_KIND, ZONE_FIGURES, bandOfSection, gridProblems, recipeContext, recipeProblems, zoneProblems,
+} from "../../scripts/importer/scene-binding.mjs";
+import { regionGroupOf } from "../../scripts/importer/poi-binding.mjs";
 import { ABILITY_CATEGORIES } from "../../scripts/lib/vocab.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 
@@ -38,7 +41,11 @@ const PRINT_KEY = /^[0-9a-z]{1,7}$/;
 // body-size run-in line, the label a statline opens with (`axOpen`), or a
 // sub-heading alone on its line (the definition compiler).
 const ANCHOR_SORTS = ["display", "runin", "label", "subheading"];
-const PATTERNS = new Set(["raw", "statValue", "int", "dice", "refList", "parenSplit", "spoilList", "statline"]);
+const PATTERNS = new Set(["raw", "statValue", "int", "dice", "countWord", "throw", "refList", "parenSplit", "spoilList", "statline"]);
+// The keys a scene recipe's `grid` block and a zone row's `zone` block may carry.
+const GRID_KEYS = new Set(["family", "even", "box", "centre", "distance", "units", "pixels", "note"]);
+const ZONE_KEYS = new Set(["scene", "table", "outline", "cadence", ...ZONE_FIGURES.map((f) => f.at), "note"]);
+const zoneRows = []; // checked against every row once all are read
 // Grid cell patterns come from table-extract's applyCellPattern library (plus
 // "glyphs", the executor's PUA-char damage-mark map).
 const GRID_PATTERNS = new Set(["raw", "int", "num", "dice", "dashNull", "intDash", "dashZero", "rollBand", "glyphs"]);
@@ -215,6 +222,50 @@ function checkStrengthGrid(e, id, bookId) {
   strengthRows.push({ id, orgs: columns.map(([, org]) => org) });
 }
 
+/**
+ * A roll table's own assist keys: each grid band's `keepEmpty`, and its one
+ * way of finding rows (`bands` or `centerDies`), and the `details`
+ * block (`by` a known reading, every region a page and a
+ * box). The compiler trusts these shapes; a wrong one would compile to rows
+ * that read nothing rather than fail.
+ */
+const DETAIL_BY = ["number", "name"];
+function checkRollTable(e, id) {
+  const a = e.assists ?? {};
+  const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+  const grids = a.grids ?? (a.grid ? [a.grid] : []);
+  if (!Array.isArray(grids)) err(`${id}: assists.grids is a list of grid bands`);
+  for (const [i, g] of (Array.isArray(grids) ? grids : []).entries()) {
+    const at = a.grids ? `assists.grids[${i}]` : "assists.grid";
+    if (g?.keepEmpty !== undefined && typeof g.keepEmpty !== "boolean") err(`${id}: ${at}.keepEmpty is true or false`);
+    // Each of these is a whole way of finding the rows; a band names one.
+    const modes = ["bands", "centerDies"].filter((k) => g?.[k] !== undefined && g[k] !== false);
+    if (modes.length > 1) err(`${id}: ${at} finds its rows by ${modes.join(" and ")} — keep one`);
+    if (g?.bands === undefined) continue;
+    if (!isNum(g.y0) || !isNum(g.y1)) err(`${id}: ${at} with bands still needs y0 and y1 enclosing them`);
+    if (!Array.isArray(g.bands) || !g.bands.length) {
+      err(`${id}: ${at}.bands is a non-empty list of [y0, y1] pairs`);
+      continue;
+    }
+    g.bands.forEach((b, j) => {
+      if (!Array.isArray(b) || b.length !== 2 || !isNum(b[0]) || !isNum(b[1]) || b[0] >= b[1]) err(`${id}: ${at}.bands[${j}] is a [y0, y1] pair with y0 < y1`);
+      else if (isNum(g.y0) && isNum(g.y1) && (b[0] < g.y0 || b[1] > g.y1)) err(`${id}: ${at}.bands[${j}] lies outside the grid's y0..y1`);
+    });
+  }
+  const d = a.details;
+  if (d === undefined) return;
+  if (!d || typeof d !== "object") return void err(`${id}: assists.details is {by, regions}`);
+  for (const k of Object.keys(d)) if (!["by", "regions", "note"].includes(k)) err(`${id}: assists.details has an unknown key "${k}"`);
+  if (!DETAIL_BY.includes(d.by)) err(`${id}: assists.details.by ${JSON.stringify(d.by)} is not a reading the compiler knows (${DETAIL_BY.join("|")})`);
+  if (!Array.isArray(d.regions) || !d.regions.length) return void err(`${id}: assists.details.regions is a non-empty list`);
+  d.regions.forEach((r, j) => {
+    if (!Number.isInteger(r?.page) || r.page < 1) err(`${id}: assists.details.regions[${j}] needs a page`);
+    if (!["x0", "x1", "y0", "y1"].every((k) => isNum(r?.[k])) || r.x0 >= r.x1 || r.y0 >= r.y1) {
+      err(`${id}: assists.details.regions[${j}] needs a box {x0, x1, y0, y1} with x0 < x1 and y0 < y1`);
+    }
+  });
+}
+
 /* --- register entries --- */
 const seenIds = new Set();
 /**
@@ -341,16 +392,45 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
         // shipping inside a row that exists to avoid exactly that.
         if (e.anchor !== undefined) err(`${id}: a scene has no text anchor — the compiler bakes the image placement`);
         if (!e.scene || typeof e.scene !== "object") err(`${id}: scene needs a "scene" block`);
+        // A grid block's family and units are this module's vocabulary, gated
+        // by shape here rather than passed as words.
+        const grid = e.scene?.grid;
+        if (grid !== undefined) {
+          const c = e.scene.crop;
+          const crop = c && ["x", "y", "w", "h"].every((k) => typeof c[k] === "number") ? c : null;
+          for (const problem of gridProblems(grid, crop)) err(`${id}: scene.${problem}`);
+          for (const k of Object.keys(grid && typeof grid === "object" ? grid : {})) if (!GRID_KEYS.has(k)) err(`${id}: scene.grid has an unknown key "${k}"`);
+        }
         const words = [];
-        const walk = (v, key) => {
+        const walk = (v, key, path) => {
           if (typeof v === "string") {
             if (key === "note" || COMPOSITE_ID.test(v) || /^#[0-9a-f]{6}$/i.test(v) || bandOfSection(v)) return;
+            if (path === "scene.grid.family" || path === "scene.grid.units") return;
             words.push(v);
-          } else if (Array.isArray(v)) v.forEach((x) => walk(x, key));
-          else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, k);
+          } else if (Array.isArray(v)) v.forEach((x) => walk(x, key, path));
+          else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, k, `${path}.${k}`);
         };
-        walk(e.scene ?? {}, "scene");
+        walk(e.scene ?? {}, "scene", "scene");
         if (words.length) err(`${id}: a scene names things by id only — found ${words.slice(0, 3).map((w) => JSON.stringify(w.slice(0, 24))).join(", ")}`);
+      } else if (e.kind === SCENE_ZONE_KIND) {
+        // A zone is geometry over another row's page and names everything by
+        // id; its label and id are built from its ordinal, and it has no text
+        // anchor because its scene locates it.
+        if (e.anchor !== undefined) err(`${id}: a zone has no text anchor — it is located by its scene`);
+        const n = /^Zone (\d+)$/.exec(e.name ?? "")?.[1];
+        if (!n) err(`${id}: a zone is named "Zone <n>"`);
+        else if (id !== `${bookId}.zone${n}`) err(`${id}: a zone named "Zone ${n}" has the id "${bookId}.zone${n}"`);
+        const z = e.zone;
+        if (!z || typeof z !== "object") err(`${id}: zone needs a "zone" block`);
+        else {
+          for (const k of Object.keys(z)) if (!ZONE_KEYS.has(k)) err(`${id}: zone has an unknown key "${k}"`);
+          for (const problem of zoneProblems({ ...z, table: undefined })) err(`${id}: zone.${problem}`);
+          if (z.scene !== undefined && !COMPOSITE_ID.test(String(z.scene))) err(`${id}: zone.scene must be a scene row's id`);
+          if (z.table !== undefined && !(typeof z.table === "string" && COMPOSITE_ID.test(z.table) && z.table.startsWith(`${bookId}.`))) {
+            err(`${id}: zone.table must be a roll table id of this book (${bookId}.*)`);
+          }
+          zoneRows.push({ id, scene: z.scene, table: z.table });
+        }
       } else {
         // One locator per anchor. `as` is not a second one: it says which sort
         // of heading a hash is to be sought among, because a hash locates a
@@ -379,18 +459,28 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
         // number is a pointer and ships; the words are read off the Judge's page
         // at import (`printed-name.mjs`), so the row carries neither — a label
         // built from the number, an id built from the number, and no `display`.
+        // A region's keyed site is the same pointer under its own label: "Site
+        // <n>", id "<book>.site<n>".
         const number = e.anchor?.number;
+        const region = e.kind === "kind.location" ? regionGroupOf(e.meta?.group) : null;
+        const [label, stem] = region?.kind === "site" ? ["Site", "site"] : ["POI", "poi"];
         if (number !== undefined) {
           if (typeof number !== "string" || !KEY_NUMBER.test(number)) err(`${id}: anchor.number ${JSON.stringify(number)} is not a printed key number like "30." or "20/20U."`);
           else {
             const bare = number.replace(/\.$/, "");
-            if (e.name !== `POI ${bare}`) err(`${id}: a row anchored by number is named "POI ${bare}" — its printed name is read at import`);
-            if (id !== `${bookId}.poi${bare.split("/")[0]}`) err(`${id}: a row anchored by number has the id "${bookId}.poi${bare.split("/")[0]}"`);
+            if (e.name !== `${label} ${bare}`) err(`${id}: a row anchored by number is named "${label} ${bare}" — its printed name is read at import`);
+            if (id !== `${bookId}.${stem}${bare.split("/")[0]}`) err(`${id}: a row anchored by number has the id "${bookId}.${stem}${bare.split("/")[0]}"`);
           }
         }
         if (e.anchor?.hash !== undefined && !PRINT_KEY.test(String(e.anchor.hash))) err(`${id}: anchor.hash must be a printKey (base-36)`);
         if (e.kind === "kind.location" && / — Points of Interest$/.test(e.meta?.group ?? "") && number === undefined) {
           err(`${id}: a keyed place in a "— Points of Interest" group anchors by number, never by its printed words`);
+        }
+        if (region?.kind === "site" && number === undefined) {
+          err(`${id}: a keyed site in the "Region — Sites" group anchors by number, never by its printed words`);
+        }
+        if (region?.kind === "overview" && e.anchor?.hash === undefined) {
+          err(`${id}: a region's overview in the "Region — Overview" group anchors by hash, never by its printed words`);
         }
         if (e.kind === "kind.organisation") checkOrganisation(e, id, bookId);
         if (e.kind === "kind.strengthGrid") checkStrengthGrid(e, id, bookId);
@@ -434,6 +524,7 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
         }
       }
       for (const [name, t] of Object.entries(e.class?.tables ?? {})) checkColQualifiers(t.cols, id, `table "${name}"`);
+      if (e.kind === "kind.rolltable") checkRollTable(e, id);
       capStrings(e, id);
     }
   }
@@ -448,7 +539,7 @@ for (const { id, o } of orgRows) {
   };
   const isPlace = (s) => s.kind === "kind.location" && !/ — Overview$/.test(s.group);
   const isPerson = (s) => s.kind === "kind.npc";
-  const isQuarter = (s) => s.kind === "kind.location" && / — Overview$/.test(s.group);
+  const isQuarter = (s) => s.kind === "kind.location" && / — Overview$/.test(s.group) && !regionGroupOf(s.group);
   // A person is an id or `{id, hidden}`; the id is what must resolve either way,
   // so an id hidden behind a concealed tie is checked like any other.
   const personId = (v) => (typeof v === "string" ? v : typeof v?.id === "string" ? v.id : "");
@@ -469,6 +560,14 @@ for (const { id, orgs } of strengthRows) {
     if (!shape) err(`${id}: strength names "${org}", which no row defines`);
     else if (shape.kind !== "kind.organisation") err(`${id}: strength names "${org}", which is not an organisation`);
   }
+}
+
+/* --- zones: the scene is a recipe row (any book's), the table a list row --- */
+for (const { id, scene, table } of zoneRows) {
+  const target = rowShapes.get(scene);
+  if (typeof scene === "string" && target?.kind !== "kind.scene") err(`${id}: zone.scene names "${scene}", which is no scene row`);
+  if (table !== undefined && rowShapes.has(table) && rowShapes.get(table).kind !== "kind.rolltable") err(`${id}: zone.table names "${table}", which is not a roll table`);
+  else if (table !== undefined && !rowShapes.has(table)) err(`${id}: zone.table names "${table}", which no row defines`);
 }
 
 /* --- reference registers --- */
@@ -531,8 +630,17 @@ if (fs.existsSync(COOKBOOK)) {
     // row of its list, fails here and not at a Judge's table.
     const known = recipeContext(cb.entries);
     for (const [id, sc] of Object.entries(cb.scenes ?? {})) {
-      if (sc.kind !== "kind.scene") err(`${label}: scenes.${id} has kind "${sc.kind}"`);
       if (cb.entries?.[id]) err(`${label}: scenes.${id} shares its id with an entry`);
+      // A zone row shares the map with the recipes; its figures are value
+      // instructions, checked like an entry's.
+      if (sc.kind === SCENE_ZONE_KIND) {
+        for (const problem of zoneProblems(sc.zone, known)) err(`${label}: scenes.${id} ${problem}`);
+        for (const [field, instr] of Object.entries(sc.zone?.fields ?? {})) {
+          if (instr.op !== "value" || !PATTERNS.has(instr.pattern)) err(`${label}: scenes.${id}.${field} must be a value instruction with a known pattern`);
+        }
+        continue;
+      }
+      if (sc.kind !== "kind.scene") err(`${label}: scenes.${id} has kind "${sc.kind}"`);
       const r = sc.scene ?? {};
       if (!Number.isInteger(r.page) || r.page < 1) err(`${label}: scenes.${id} needs a page`);
       if (!r.placement || ["x", "y", "w", "h"].some((k) => typeof r.placement[k] !== "number")) err(`${label}: scenes.${id} carries no baked image placement`);
@@ -552,6 +660,17 @@ if (fs.existsSync(COOKBOOK)) {
           if (byNumber === byHash) err(`${label}: ${id}.${field} heading needs exactly one of number|hash`);
           if (!instr.box && !(Array.isArray(instr.parts) && instr.parts.length && instr.parts.every((p) => p?.box))) {
             err(`${label}: ${id}.${field} heading needs a box, or parts that each carry one`);
+          }
+        }
+        // A row printed empty and a row's detail paragraph are both marks on a
+        // sectioned paragraph, and only ever `true`.
+        if (instr.op === "text") {
+          for (const [i, p] of (instr.paras ?? []).entries()) {
+            for (const mark of ["empty", "detail"]) {
+              if (p[mark] === undefined) continue;
+              if (p[mark] !== true || !p.section) err(`${label}: ${id}.${field} para ${i} carries ${mark} — it is true, on a sectioned paragraph`);
+            }
+            if (p.empty && p.detail) err(`${label}: ${id}.${field} para ${i} is both an empty row and a detail`);
           }
         }
         if (instr.op === "grid") {

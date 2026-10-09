@@ -6,7 +6,6 @@ import {
   addMember,
   autoArrange,
   disband,
-  getFormation,
   getFrontage,
   getPartyActor,
   getPartyScene,
@@ -19,7 +18,8 @@ import {
   toggleRole,
   updateFormation,
 } from "./formation-model.mjs";
-import { maybeHexThrow, postEncounterThrow } from "./encounter-card.mjs";
+import { postEncounterThrow } from "./encounter-card.mjs";
+import { nextHex } from "./journey.mjs";
 import { closeDay } from "./day-close.mjs";
 import { pickAndTravel } from "./poi.mjs";
 import {
@@ -46,8 +46,18 @@ import { dismount } from "../lib/mount.mjs";
 import { refuseGoods } from "../lib/bundles.mjs";
 import { runForageDay } from "./forage-run.mjs";
 import { runSearchHour } from "./search-run.mjs";
+import {
+  addPlacedPoint,
+  clearStock,
+  markPointFound,
+  openStockDialog,
+  placeFromPoint,
+  removePoint,
+  surveyHex,
+  trueHexOf,
+} from "./hex-stock-run.mjs";
 import { askStrayAndBegin, confirmDiscovery, confirmEnd, confirmReanchor } from "./lost-dialog.mjs";
-import { applyTravelForm, setJourneyMode, enterHex, rollWeatherNow } from "./travel.mjs";
+import { applyTravelForm, setJourneyMode, rollWeatherNow, travelOf, TRAVEL_MODES } from "./travel.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import SkillAuditApp from "./skill-audit.mjs";
 import { openTrapbreakApp } from "./trapbreak-app.mjs";
@@ -199,14 +209,6 @@ export const SHARED_ACTIONS = {
     this.render?.();
   },
 
-  /** Begin a journey, or return to the delve. Couples the two clocks. */
-  async travelMode() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await setJourneyMode(formation.id, formation.travel?.mode !== "journey" ? "journey" : "delve");
-    this.render();
-  },
-
   /**
    * Work the country: roll whatever hours the day board set aside for it, and
    * put what is found into the foragers' own packs.
@@ -227,14 +229,96 @@ export const SHARED_ACTIONS = {
   },
 
   /**
-   * Spend an hour looking. `present` comes from the Judge's own map — the
-   * module never invents whether a hex holds anything.
+   * Spend an hour looking. `present` is the Judge's answer to "is there
+   * anything here" (the hex's stock, or yes, or no) and `target` what the
+   * party is looking for; both are read from the strip's selects.
    */
   async searchHour(event, target) {
     const formation = gmFormation(this);
     if (!formation) return;
-    const present = !!this.element?.querySelector?.('[name="camp.present"]')?.checked;
-    await runSearchHour(formation, { present });
+    const field = (name) => this.element?.querySelector?.(`[name="${name}"]`)?.value;
+    await runSearchHour(formation, { present: field("camp.present") ?? "no", target: field("camp.target") ?? "anything" });
+    this.render();
+  },
+
+  /** Stock the hex the party stands in: the dialog, then the roll. */
+  async hexStock() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await openStockDialog(formation);
+    this.render();
+  },
+
+  /** One Land Surveying attempt on the party's hex. */
+  async hexSurvey() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await surveyHex(formation, { auto: false });
+    this.render();
+  },
+
+  /** The party found this point of the hex's stock. */
+  async hexFound(event, target) {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await markPointFound(formation, target.dataset.pointId);
+    this.render();
+  },
+
+  /** Make a point of the hex's stock a place on the map. */
+  async hexPlace(event, target) {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await placeFromPoint(formation, target.dataset.pointId);
+    this.render();
+  },
+
+  /** Take a point out of the hex's stock. */
+  async hexRemovePoint(event, target) {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await removePoint(formation, target.dataset.pointId);
+    this.render();
+  },
+
+  /** Add a point of the Judge's own to the hex's stock: a name and a note. */
+  async hexAddPoint() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    const picked = await foundry.applications.api.DialogV2.prompt({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      window: { title: loc("hexStock.addPoint"), icon: "fa-solid fa-location-dot" },
+      content: `<div class="form-group"><label>${foundry.utils.escapeHTML(loc("hexStock.pointName"))}
+        <input type="text" name="name" autofocus></label></div>
+        <div class="form-group"><label>${foundry.utils.escapeHTML(loc("hexStock.pointNote"))}
+        <input type="text" name="note"></label></div>`,
+      ok: {
+        label: loc("hexStock.addPoint"),
+        callback: (_event, button) => ({
+          name: button.form.elements.name.value.trim(),
+          note: button.form.elements.note.value.trim(),
+        }),
+      },
+      rejectClose: false,
+    }).catch(() => null);
+    if (!picked) return;
+    await addPlacedPoint(formation, picked);
+    this.render();
+  },
+
+  /** Clear the hex's whole stock, after a confirm. */
+  async hexClear() {
+    const formation = gmFormation(this);
+    const here = formation ? trueHexOf(formation) : null;
+    if (!here) return;
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      window: { title: loc("hexStock.clear") },
+      content: `<p>${foundry.utils.escapeHTML(loc("hexStock.clearConfirm", { hex: here.label }))}</p>`,
+      rejectClose: false,
+    }).catch(() => null);
+    if (!confirmed) return;
+    await clearStock(here.scene, here.key);
     this.render();
   },
 
@@ -270,25 +354,6 @@ export const SHARED_ACTIONS = {
     this.render();
   },
 
-  /**
-   * Enter the city, or leave it. The third mode, on the same clock rule.
-   *
-   * Names the scene the party's token stands on, so a board entered from here
-   * is stamped with its city. A board left unstamped is read as foreign by the
-   * next city the party reaches, and its tally — the stay stamp included — is
-   * dropped there.
-   */
-  async settlementMode() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await setJourneyMode(
-      formation.id,
-      formation.travel?.mode !== "settlement" ? "settlement" : "delve",
-      { sceneId: formation.sceneId },
-    );
-    this.render();
-  },
-
   /** Open a place named on the board: the one underfoot, or the quarter's own. */
   openPlace(_event, target) {
     const uuid = target?.dataset?.uuid ?? "";
@@ -316,13 +381,15 @@ export const SHARED_ACTIONS = {
     this.render();
   },
 
-  /** The party crosses into the next hex; the label input names it. */
+  /**
+   * The party crosses into the next hex; the label input names it. Spends one
+   * encounter-cadence unit's miles, so the clock, the day and the throws follow.
+   */
   async travelEnterHex() {
     const formation = gmFormation(this);
     if (!formation) return;
     const label = this.element?.querySelector('input[name="travel.hexLabel"]')?.value ?? "";
-    await enterHex(formation.id, label);
-    await maybeHexThrow(getFormation(formation.id));
+    await nextHex(formation.id, label);
     this.render();
   },
 
@@ -668,7 +735,14 @@ export const SHARED_ACTIONS = {
   async togglePause() {
     const formation = gmFormation(this);
     if (!formation) return;
-    formation.clock.paused = !formation.clock.paused;
+    // A journey honours only the Judge's own pause, so it toggles on who paused
+    // it; the turn clock's modes toggle the flag itself.
+    const was = travelOf(formation).mode === "journey"
+      ? formation.clock.pausedBy === "judge"
+      : !!formation.clock.paused;
+    formation.clock.paused = !was;
+    // Who paused it is recorded.
+    formation.clock.pausedBy = formation.clock.paused ? "judge" : null;
     // Re-anchor the tracker so distance covered while paused is not counted.
     const token = getPartyToken(formation);
     if (token) formation.clock.lastPosition = { x: token.x, y: token.y };
@@ -844,6 +918,11 @@ export async function onChangeForm(event, form, formData) {
   // TARGETED patch, applied after any whole-record write above so the stale
   // copy cannot clobber what the patch lays down.
   if (game.user.isGM && data.travel) {
+    // The strip's mode picker rides this submit: a select reports its change
+    // here, where an action (which fires on click) would read the old value.
+    if (TRAVEL_MODES.includes(data.travel.mode) && data.travel.mode !== travelOf(formation).mode) {
+      await setJourneyMode(formation.id, data.travel.mode, { sceneId: formation.sceneId });
+    }
     await applyTravelForm(formation.id, data.travel);
     redraw = true;
   }

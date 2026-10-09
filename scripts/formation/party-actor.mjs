@@ -57,6 +57,16 @@ export function formationForActor(actor) {
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
 /**
+ * The partials the party tab includes by path: the mode-aware clock strip and
+ * the Judge's declaration groups. They are not parts of their own, so the
+ * sheet loads them before its first render.
+ */
+const PARTIALS = Object.freeze([
+  `modules/${MODULE_ID}/templates/formation/formation-strip.hbs`,
+  `modules/${MODULE_ID}/templates/formation/formation-declarations.hbs`,
+]);
+
+/**
  * What a stack calls itself: its own collective noun, else the default for the
  * kind of unit it is. The marching order says the same word the group sheet
  * says, so "40 mercenaries" in the party window is "40 mercenaries" on the sheet
@@ -119,7 +129,6 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     tabs: { template: "templates/generic/tab-navigation.hbs" },
     party: { template: `modules/${MODULE_ID}/templates/formation/formation-tab-party.hbs`, scrollable: [""] },
     order: { template: `modules/${MODULE_ID}/templates/formation/formation-tab-order.hbs`, scrollable: [""] },
-    travel: { template: `modules/${MODULE_ID}/templates/formation/formation-tab-travel.hbs`, scrollable: [""] },
     kit: { template: `modules/${MODULE_ID}/templates/formation/formation-tab-kit.hbs`, scrollable: [""] },
   };
 
@@ -128,7 +137,6 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
       tabs: [
         { id: "party", icon: "fa-solid fa-people-group", label: "ACKS-FORMATION.tab.party" },
         { id: "order", icon: "fa-solid fa-list-ol", label: "ACKS-FORMATION.tab.order" },
-        { id: "travel", icon: "fa-solid fa-mountain-sun", label: "ACKS-FORMATION.tab.travel" },
         { id: "kit", icon: "fa-solid fa-fire-flame-simple", label: "ACKS-FORMATION.tab.kit" },
       ],
       initial: "party",
@@ -230,10 +238,28 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
   /** Preserve the window-content scroll position across live re-renders. */
   #scrollTop = 0;
 
+  /**
+   * The declaration groups the Judge has opened, by their `data-fold` key. A
+   * group is closed by default and the sheet re-renders on every field change,
+   * so without this the group a Judge is editing would shut under their hand.
+   */
+  #openFolds = new Set();
+
+  /** @override */
+  async _preFirstRender(context, options) {
+    await super._preFirstRender(context, options);
+    await foundry.applications.handlebars.loadTemplates([...PARTIALS]);
+  }
+
   /** @override */
   async _preRender(context, options) {
     await super._preRender(context, options);
     this.#scrollTop = this.element?.querySelector(".window-content")?.scrollTop ?? this.#scrollTop;
+    if (this.element) {
+      this.#openFolds = new Set(
+        [...this.element.querySelectorAll("details[data-fold][open]")].map((d) => d.dataset.fold),
+      );
+    }
   }
 
   /** @override */
@@ -241,6 +267,10 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     await super._onRender(context, options);
     bindMemberDrop(this);
     this.#markStacks(context);
+    for (const fold of this.#openFolds) {
+      const group = this.element?.querySelector(`details[data-fold="${CSS.escape(fold)}"]`);
+      if (group) group.open = true;
+    }
     const content = this.element?.querySelector(".window-content");
     if (content && this.#scrollTop) content.scrollTop = this.#scrollTop;
   }

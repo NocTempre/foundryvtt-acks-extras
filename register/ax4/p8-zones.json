@@ -1,0 +1,17 @@
+[
+  {
+    "id": "ax4.zone1",
+    "kind": "kind.sceneZone",
+    "book": "ax4",
+    "name": "Zone 1",
+    "pages": [8],
+    "zone": {
+      "scene": "ax3.regionMap",
+      "table": "ax4.forestEncounters",
+      "cadence": "entry",
+      "targetAt": { "page": 8, "x0": 54, "x1": 306, "y0": 101, "y1": 112 },
+      "outline": [496.3, 550.6, 511.0, 601.4, 496.3, 626.8, 481.7, 652.2, 445.0, 665.0, 415.6, 690.4, 408.3, 703.1, 371.6, 715.8, 364.2, 728.5, 202.8, 728.5, 188.1, 703.1, 180.8, 665.0, 202.8, 626.8, 224.8, 614.1, 298.2, 614.1, 334.9, 601.4, 327.6, 563.3, 378.9, 550.6, 437.6, 550.6],
+      "note": "The forest the adventure's wilderness rule covers, traced on the region map along its drawn edge and the river beside it, in that page's points; a cell belongs where its centre falls inside."
+    }
+  }
+]

@@ -26,7 +26,9 @@ import {
   countRepair,
   unrepaired,
 } from "./refresh.mjs";
-import { isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData } from "./poi-binding.mjs";
+import {
+  isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData, isRegionSite, isRegionOverview, regionPlaceId, regionPlaceData,
+} from "./poi-binding.mjs";
 import {
   isOrganisationRow, organisationData, organisationPlan, owedRelations, controlledRegions,
   isStrengthGridRow, strengthPlan, strengthFromGrid,
@@ -34,11 +36,14 @@ import {
 import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
 import {
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
+  isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData,
 } from "./scene-binding.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
 import { DISTRICT_TYPE } from "../formation/district-find.mjs";
-import { sceneIncidents, writeSceneIncidents } from "../battlemap/scene-setup.mjs";
+import { sceneIncidents, writeSceneIncidents, hexProbe } from "../battlemap/scene-setup.mjs";
+import { hexAlignment } from "../battlemap/hex-fit.mjs";
+import { gridTypeFor } from "../battlemap/constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
 import { occupantRow } from "../lib/place.mjs";
 import { oseAdventureData, oseAdventureId } from "./ose-location.mjs";
@@ -3411,11 +3416,12 @@ async function importAdventureActor(bookId, id, folderId) {
 const JOURNAL_KINDS = new Set(["kind.location", "kind.settingTable"]);
 
 /**
- * A page-bound entry. A keyed place of a settlement's quarter is a location
- * ACTOR (`cookbookImportPoiPlaces`) and is not a page as well: two documents
- * for one printed place would be the thing a Judge then keeps in step by hand.
+ * A page-bound entry. A keyed place of a settlement's quarter, and a region's
+ * site or overview, is a location ACTOR or its notes (`cookbookImportPoiPlaces`)
+ * and is not a page as well: two documents for one printed place would be the
+ * thing a Judge then keeps in step by hand.
  */
-const journalBound = (e) => JOURNAL_KINDS.has(e.kind) && !isPoiEntry(e);
+const journalBound = (e) => JOURNAL_KINDS.has(e.kind) && !isPoiEntry(e) && !isRegionSite(e) && !isRegionOverview(e);
 
 /**
  * Journals: one JournalEntry per meta.group, one page per keyed entry. A
@@ -3547,6 +3553,9 @@ export async function cookbookImportJournals() {
  * See docs/importer/DECISIONS.md, "A settlement's keyed places are actors,
  * nested quarter → city" and "A quarter's overview is the notes of the
  * quarter's place".
+ *
+ * A region's rows ride the same step (`importRegionRow`): its sites are places
+ * under the region's own place, and its overview is that place's notes.
  */
 export async function cookbookImportPoiPlaces() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
@@ -3555,6 +3564,7 @@ export async function cookbookImportPoiPlaces() {
   for (const bookId of openBooks) {
     for (const [id, e] of Object.entries(data.books.get(bookId).entries)) {
       if (isPoiEntry(e)) jobs.push({ bookId, id, e, group: poiGroupOf(e.meta?.group) });
+      else if (isRegionSite(e) || isRegionOverview(e)) jobs.push({ bookId, id, e, region: isRegionSite(e) ? "site" : "overview" });
     }
   }
   if (!jobs.length) return ui.notifications.warn(`${MODULE_ID} | no points of interest in any open book — connect AX3 first.`);
@@ -3563,10 +3573,16 @@ export async function cookbookImportPoiPlaces() {
   let already = 0;
   let stamped = 0;
   let refused = 0;
+  const tally = { made: 0, regions: 0, bound: 0, already: 0, stamped: 0, refused: 0 };
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressPoi`), jobs.length);
   try {
-    for (const { bookId, id, e, group } of jobs) {
+    for (const job of jobs) {
+      const { bookId, id, e, group } = job;
       bar.step(e.name);
+      if (job.region) {
+        await importRegionRow(job, tally);
+        continue;
+      }
       const overview = group.kind === "overview";
       const held = overview ? null : await importedActor(id);
       if (held) {
@@ -3621,13 +3637,124 @@ export async function cookbookImportPoiPlaces() {
   } finally {
     bar.finish();
   }
-  if (!made && !described && !already && refused) {
+  made += tally.made;
+  already += tally.already;
+  stamped += tally.stamped;
+  refused += tally.refused;
+  const { regions, bound } = tally;
+  if (!made && !described && !regions && !bound && !already && refused) {
     return ui.notifications.warn(`${MODULE_ID} | points of interest: ${refused} page(s) did not match the cookbook (different printing?) — none written.`);
   }
+  const regionParts = [
+    regions ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiRegionsDescribed`, { n: regions })}` : "",
+    bound ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiSitesBound`, { n: bound })}` : "",
+  ].join("");
   ui.notifications.info(
-    `${MODULE_ID} | points of interest: ${made} place(s) created${described ? `, ${described} quarter(s) described` : ""}${already ? `, ${already} already held` : ""}${stamped ? `, ${stamped} given a role` : ""}${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}.`,
+    `${MODULE_ID} | points of interest: ${made} place(s) created${described ? `, ${described} quarter(s) described` : ""}${regionParts}${already ? `, ${already} already held` : ""}${stamped ? `, ${stamped} given a role` : ""}${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}.`,
   );
-  return { made, described, already, stamped, refused };
+  return { made, described, regions, bound, already, stamped, refused };
+}
+
+/**
+ * Where a region's keyed site lands, as the cookbook id of the place it is
+ * claimed under: the market record's place when its row names a market
+ * (`meta.market`), the book's own settlement when it says `place: "adventure"`
+ * or names a market whose record does, else a place of its own under its own
+ * id. One answer for the place step and the map step, so a site's token stands
+ * on the document its text was written to.
+ *
+ * @param {string} bookId
+ * @param {object} entry the site's cookbook entry
+ * @param {string} id the site's cookbook id
+ * @param {Record<string, object>} [entries] the book's entries, to read a named market's record
+ * @returns {{claimId: string, onto: "market"|"adventure"|"site"}}
+ */
+export function regionSiteClaim(bookId, entry, id, entries = {}) {
+  const market = entry?.meta?.market;
+  if (market) {
+    const claimId = marketEntryId(bookId, market);
+    return entries[claimId]?.meta?.place === "adventure" ? { claimId: oseAdventureId(bookId), onto: "adventure" } : { claimId, onto: "market" };
+  }
+  if (entry?.meta?.place === "adventure") return { claimId: oseAdventureId(bookId), onto: "adventure" };
+  return { claimId: id, onto: "site" };
+}
+
+/**
+ * The update that binds a site onto a place another row already owns: its
+ * notes, its parent and its role, each written only where the place holds
+ * none, so the Judge's text and the record's own writes are left standing.
+ * A place is never made its own parent.
+ * @returns {Record<string, string>} an update payload, empty when nothing is owed
+ */
+export function siteBindPatch(target, { notes = "", parentUuid = "", role = "" } = {}) {
+  const sys = target?.system ?? {};
+  const patch = {};
+  if (notes && !sys.notes) patch["system.notes"] = notes;
+  if (parentUuid && !sys.parentUuid && parentUuid !== target?.uuid) patch["system.parentUuid"] = parentUuid;
+  if (isPlaceRole(role) && !sys.role) patch["system.role"] = role;
+  return patch;
+}
+
+/**
+ * One region row, as `cookbookImportPoiPlaces` takes a quarter's: the
+ * region's place is claimed first (`regionPlaceData`, once per book); its
+ * overview is that place's notes, and a site is a place under it, or is bound
+ * onto the market or settlement its row names (`regionSiteClaim`). Presence
+ * and held notes are asked before the page is read, as for a point of
+ * interest. Counts into `tally`.
+ */
+async function importRegionRow({ bookId, id, e, region }, tally) {
+  const cb = data.books.get(bookId);
+  const label = bookLabel(bookId);
+  const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
+  const place = await claimActorImport(regionPlaceId(bookId), () =>
+    createDoc(Actor, regionPlaceData({ book: bookId, bookLabel: label, folderId: folder })));
+  const read = () => executeEntry(ctx.sessionDocs.get(bookId).doc, cb, data.registers, id).catch(() => null);
+  const role = e.meta?.role ?? "";
+  const parentUuid = place?.uuid ?? "";
+
+  if (region === "overview") {
+    if (!place || place.system?.notes) return void tally.already++;
+    const node = await read();
+    if (!node?.ok) return void tally.refused++;
+    await place.update({ "system.notes": entryText(node, id, e.cite) });
+    return void tally.regions++;
+  }
+
+  const claim = regionSiteClaim(bookId, e, id, cb.entries);
+  const held = await importedActor(claim.claimId);
+  if (claim.onto === "site" && held) {
+    if (isPlaceRole(role) && !held.system?.role) {
+      await held.update({ "system.role": role });
+      tally.stamped++;
+    }
+    return void tally.already++;
+  }
+  // A bound place whose notes are written needs no page: only its parent and
+  // role can still be owed.
+  if (held?.system?.notes) {
+    const patch = siteBindPatch(held, { parentUuid, role });
+    if (Object.keys(patch).length) await held.update(patch);
+    return void tally.already++;
+  }
+  const node = await read();
+  if (!node?.ok) return void tally.refused++;
+  const name = printedNameOf(node, e.name);
+  const notes = entryText(node, id, e.cite);
+  if (claim.onto === "site") {
+    const made = await claimActorImport(id, () =>
+      createDoc(Actor, poiLocationData({ name, entryId: id, notes, book: bookId, bookLabel: label, parentUuid, folderId: folder, role })));
+    if (made) tally.made++;
+    return;
+  }
+  const target = held ?? (await claimActorImport(claim.claimId, () =>
+    createDoc(Actor, claim.onto === "market"
+      ? marketActorData({ name, entryId: claim.claimId, book: bookId, bookLabel: label, folderId: folder })
+      : oseAdventureData({ book: bookId, bookLabel: label, folderId: folder }))));
+  if (!target) return void tally.refused++;
+  const patch = siteBindPatch(target, { notes, parentUuid, role });
+  if (Object.keys(patch).length) await target.update(patch);
+  tally.bound++;
 }
 
 /**
@@ -3949,11 +4076,15 @@ export async function cookbookImportRollTables() {
         }
         const folder = await targetFolder("RollTable", bookId, e.meta?.group);
         // Rows arrive as section-labelled paragraphs; a row that wrapped columns
-        // has several paras under one section, joined here in order.
+        // has several paras under one section, joined here in order. A detail
+        // paragraph (the row's explanation printed elsewhere on the page) stands
+        // under the row as a paragraph of its own: the result's text is HTML.
         const rowText = new Map();
         for (const p of node.fields.rows ?? []) {
           const key = p.section ?? "";
-          rowText.set(key, rowText.has(key) ? `${rowText.get(key)} ${p.text}` : p.text);
+          const prev = rowText.get(key);
+          if (p.detail) rowText.set(key, `${prev ?? ""}<p>${p.text}</p>`);
+          else rowText.set(key, prev === undefined ? p.text : `${prev} ${p.text}`);
         }
         const results = [];
         for (const [sec, text] of rowText) {
@@ -4153,21 +4284,28 @@ const SCENE_STEPS = 5;
  * its page" and "A map and what stands on it are world documents, owned by
  * nobody".
  *
- * Each map is also written to its line's Adventure shelf as one Adventure
- * (`ensureSettlementAdventure`): the map and what stands on it under the
- * world's ids, built from the library's documents. An import of it adds what
- * a world is missing (`settlement-adventure.mjs`).
+ * Each settlement map is also written to its line's Adventure shelf as one
+ * Adventure (`ensureSettlementAdventure`): the map and what stands on it under
+ * the world's ids, built from the library's documents. An import of it adds
+ * what a world is missing (`settlement-adventure.mjs`). A region map (a
+ * recipe with a `grid` and no quarters) is built on Foundry's lattice of its
+ * drawn cells and has no Adventure.
+ *
+ * Zones follow the maps (`ensureZone`): each open book's zone rows are laid
+ * over whichever map they name, made this run or held from an earlier one.
  */
 export async function cookbookImportScenes() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates scenes).`);
   const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
   const jobs = [];
+  const zoneJobs = [];
   for (const bookId of openBooks) {
     for (const [id, row] of Object.entries(data.books.get(bookId).scenes ?? {})) {
       if (isSceneRecipe(row)) jobs.push({ bookId, id, row });
+      else if (isZoneRow(row)) zoneJobs.push({ bookId, id, row });
     }
   }
-  if (!jobs.length) {
+  if (!jobs.length && !zoneJobs.length) {
     const carriers = [...data.books.keys()]
       .filter((b) => Object.keys(data.books.get(b).scenes ?? {}).length)
       .map((b) => BOOKS[b]?.label ?? b.toUpperCase());
@@ -4177,10 +4315,11 @@ export async function cookbookImportScenes() {
   // say what happened, and the uuids are what a caller can undo it by.
   const counts = {
     made: 0, already: 0, repaired: 0, refused: 0, unready: 0, copied: 0, missing: 0, regions: 0, tokens: 0, controlled: 0,
+    gridRefused: 0, zones: 0, zonesHeld: 0, zonesWaiting: 0, zonesRefused: 0,
     adventures: 0, adventuresRebuilt: 0, adventuresHeld: 0, adventuresFailed: 0,
-    created: { scenes: [], actors: [], folders: [], adventures: [], packs: [] },
+    created: { scenes: [], actors: [], folders: [], adventures: [], packs: [], regions: [] },
   };
-  const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressScenes`), jobs.length * SCENE_STEPS);
+  const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressScenes`), jobs.length * SCENE_STEPS + zoneJobs.length);
   try {
     for (const job of jobs) {
       let stepped = 0;
@@ -4195,12 +4334,25 @@ export async function cookbookImportScenes() {
       // A map that stopped early still took its whole share of the bar.
       while (stepped < SCENE_STEPS) tick();
     }
+    for (const job of zoneJobs) {
+      bar.step(job.row.name);
+      await ensureZone(job, counts).catch((err) => {
+        counts.zonesRefused++;
+        console.error(`${MODULE_ID} | zone ${job.id} failed`, err);
+      });
+    }
   } finally {
     bar.finish();
   }
+  const said = (key, n) => (n ? game.i18n.format(`${LANG_PREFIX}.ui.${key}`, { n }) : "");
   const parts = [
     `${counts.made} map(s) created`,
     counts.already ? `${counts.already} already held` : "",
+    said("scenesGridRefused", counts.gridRefused),
+    said("scenesZonesMade", counts.zones),
+    said("scenesZonesHeld", counts.zonesHeld),
+    said("scenesZonesWaiting", counts.zonesWaiting),
+    said("scenesZonesRefused", counts.zonesRefused),
     counts.repaired ? game.i18n.format(`${LANG_PREFIX}.ui.scenesRepaired`, { n: counts.repaired }) : "",
     counts.made ? `${counts.regions} quarter(s), ${counts.tokens} place(s) set down hidden` : "",
     counts.copied ? `${counts.copied} place(s) and organisation(s) brought into the world` : "",
@@ -4213,7 +4365,8 @@ export async function cookbookImportScenes() {
     counts.adventuresHeld ? game.i18n.format(`${LANG_PREFIX}.ui.scenesAdventureHeld`, { n: counts.adventuresHeld }) : "",
     counts.adventuresFailed ? game.i18n.format(`${LANG_PREFIX}.ui.scenesAdventureFailed`, { n: counts.adventuresFailed }) : "",
   ].filter(Boolean);
-  const say = (counts.made || counts.already) && !counts.adventuresFailed ? "info" : "warn";
+  const landed = counts.made || counts.already || counts.zones || counts.zonesHeld;
+  const say = landed && !counts.adventuresFailed && !counts.gridRefused ? "info" : "warn";
   ui.notifications[say](`${MODULE_ID} | maps: ${parts.join(", ")}.`);
   return counts;
 }
@@ -4250,18 +4403,89 @@ async function claimControlledQuarters(bookId, scene, recipe, districtIds) {
   return written;
 }
 
+/** Whether a recipe is a region's map: built on a grid of drawn cells, with no quarters. */
+const isRegionRecipe = (recipe) => !!recipe?.grid && !recipe.districts?.length;
+
 /**
- * The cookbook ids a map stands on: the city's place, each quarter's, each
- * keyed place's.
- * @returns {{cityId: string, districtIds: string[], placeIds: string[], all: string[]}}
+ * The cookbook ids a map stands on. A settlement's: the city's place, each
+ * quarter's, each keyed place's. A region's: the region's own place, no
+ * quarters, and for each placed site the id its text was claimed under
+ * (`regionSiteClaim`). `placeIds` runs index for index with the recipe's
+ * `places`.
+ * @returns {{mapPlaceId: string, districtIds: string[], placeIds: string[], all: string[], region: boolean}}
  */
-function settlementIds(bookId, recipe) {
+function mapIds(bookId, recipe) {
   const cb = data.books.get(bookId);
+  if (isRegionRecipe(recipe)) {
+    const mapPlaceId = regionPlaceId(bookId);
+    const placeIds = (recipe.places ?? []).map((p) => {
+      const entry = cb.entries[p.id];
+      return isRegionSite(entry) ? regionSiteClaim(bookId, entry, p.id, cb.entries).claimId : p.id;
+    });
+    return { mapPlaceId, districtIds: [], placeIds, all: [mapPlaceId, ...placeIds], region: true };
+  }
   const quarterOf = (entryId) => poiGroupOf(cb.entries[entryId]?.meta?.group)?.district ?? "";
-  const cityId = oseAdventureId(bookId);
+  const mapPlaceId = oseAdventureId(bookId);
   const districtIds = (recipe.districts ?? []).map((d) => districtPlaceId(bookId, quarterOf(d.place)));
   const placeIds = (recipe.places ?? []).map((p) => p.id);
-  return { cityId, districtIds, placeIds, all: [cityId, ...districtIds, ...placeIds] };
+  return { mapPlaceId, districtIds, placeIds, all: [mapPlaceId, ...districtIds, ...placeIds], region: false };
+}
+
+/** Whether a book prints a region's gazetteer, which its map waits on as a city's waits on its quarters. */
+const hasRegionRows = (bookId) => Object.values(data.books.get(bookId)?.entries ?? {}).some((e) => isRegionSite(e) || isRegionOverview(e));
+
+/**
+ * A frame whose points land on the scene's canvas: `toScene` plus the
+ * picture's origin there, which a padded or shifted scene moves off zero.
+ */
+const placedFrame = (frame, origin) => (origin && (origin.x || origin.y)
+  ? {
+    ...frame,
+    toScene: (x, y) => {
+      const [u, v] = frame.toScene(x, y);
+      return [u + origin.x, v + origin.y];
+    },
+  }
+  : frame);
+
+/**
+ * How a grid recipe's scene is laid: the scale, the picture's frame, the
+ * lattice shift and where the picture's corner then sits on the canvas, or
+ * null when Foundry's cell cannot be fitted to the drawn one. Asked of an
+ * UNSAVED scene carrying the recipe's padding, so nothing is written to find
+ * out.
+ *
+ * The scale is `gridScale` over `hexProbe`'s measured cell (a square lattice
+ * needs no probe; a hex probe that cannot answer refuses). The shift is
+ * `hexAlignment`'s, solved for the recipe's drawn centre carried through the
+ * frame and set on the clone's padded origin.
+ *
+ * @param {object} recipe a compiled scene recipe with a `grid`
+ * @param {Scene} scene an unsaved Scene document
+ * @returns {{pixelsPerPoint: number, frame: object, type: number, shiftX: number, shiftY: number,
+ *   origin: {x: number, y: number}}|null}
+ */
+export function gridScenePlan(recipe, scene) {
+  const { family, even = false, centre } = recipe?.grid ?? {};
+  const type = gridTypeFor(family, !!even);
+  if (type === null || !Array.isArray(centre)) return null;
+  const probe = family === "square" ? null : hexProbe(scene, family, !!even);
+  if (family !== "square" && !probe) return null;
+  const pixelsPerPoint = gridScale(recipe, probe);
+  if (!(pixelsPerPoint > 0)) return null;
+  const frame = sceneFrame(recipe, { pixelsPerPoint });
+  const [cx, cy] = frame.toScene(centre[0], centre[1]);
+  let padded = null;
+  const shift = hexAlignment(scene, {
+    width: frame.width, height: frame.height, gridSize: frame.gridPixels, type,
+    point: (dims) => {
+      padded = { x: dims.sceneX, y: dims.sceneY };
+      return { x: dims.sceneX + cx, y: dims.sceneY + cy };
+    },
+  });
+  if (!shift || !padded) return null;
+  // The clone's origin is the unshifted one; a shift moves the picture back by itself.
+  return { pixelsPerPoint, frame, type, ...shift, origin: { x: padded.x - shift.shiftX, y: padded.y - shift.shiftY } };
 }
 
 /**
@@ -4275,12 +4499,20 @@ function settlementIds(bookId, recipe) {
  * ships (docs/importer/DECISIONS.md, "A printed map is a recipe of geometry
  * over its page").
  *
+ * A grid recipe is handed its `gridScenePlan`: the picture is framed at the
+ * plan's scale, everything set down on it is moved to the picture's corner,
+ * the lattice and shift ride into `sceneData`, and the scale is kept in the
+ * cookbook flag (`pixelsPerPoint`) so a zone laid later frames the same
+ * picture. Without a plan the data is exactly a settlement map's. Exported so
+ * the offline suite can build both.
+ *
  * @param {object} p
  * @param {Map<string, object>} p.actors cookbook id to an Actor-like (`name`, `uuid`, `getTokenDocument`)
  * @param {(cookbookId: string) => Promise<{uuid: string, results: object[], formula: string}|null>} p.tableOf
- * @param {{cityId: string, districtIds: string[]}} p.ids `settlementIds`
+ * @param {{mapPlaceId: string, districtIds: string[], placeIds: string[]}} p.ids `mapIds`
+ * @param {object|null} [p.grid] `gridScenePlan` of a grid recipe
  */
-async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, folderId, fallbackName }) {
+export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, folderId, fallbackName, grid = null }) {
   const list = recipe.incidents?.table ? await tableOf(recipe.incidents.table) : null;
   const incidents = list
     ? {
@@ -4289,8 +4521,8 @@ async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, fo
       band: bandOfSection(recipe.incidents.band),
     }
     : null;
-  const city = actors.get(ids.cityId) ?? null;
-  const frame = sceneFrame(recipe);
+  const city = actors.get(ids.mapPlaceId) ?? null;
+  const frame = placedFrame(grid ? sceneFrame(recipe, { pixelsPerPoint: grid.pixelsPerPoint }) : sceneFrame(recipe), grid?.origin);
   const regions = [];
   for (const [i, district] of (recipe.districts ?? []).entries()) {
     const place = actors.get(ids.districtIds[i]) ?? null;
@@ -4304,17 +4536,29 @@ async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, fo
     }));
   }
   const tokens = [];
-  for (const spot of recipe.places ?? []) {
-    const actor = actors.get(spot.id);
+  for (const [k, spot] of (recipe.places ?? []).entries()) {
+    const actor = actors.get(ids.placeIds?.[k] ?? spot.id);
     if (!actor) continue;
     tokens.push((await actor.getTokenDocument({ ...placeTokenAt(spot.at, frame), hidden: true })).toObject());
   }
-  return sceneData({
+  const level = { id: Scene.metadata.defaultLevelId, name: game.i18n.localize(foundry.documents.Level.metadata.label) };
+  if (!grid) {
+    return sceneData({
+      id, book: bookId, name: city?.name ?? fallbackName, recipe, src, incidents, folderId,
+      locationUuid: city?.uuid ?? "",
+      level,
+      regions, tokens,
+    });
+  }
+  const made = sceneData({
     id, book: bookId, name: city?.name ?? fallbackName, recipe, src, incidents, folderId,
     locationUuid: city?.uuid ?? "",
-    level: { id: Scene.metadata.defaultLevelId, name: game.i18n.localize(foundry.documents.Level.metadata.label) },
+    level,
     regions, tokens,
+    grid: recipe.grid, pixelsPerPoint: grid.pixelsPerPoint, shiftX: grid.shiftX, shiftY: grid.shiftY,
   });
+  made.flags[MODULE_ID].cookbook.pixelsPerPoint = grid.pixelsPerPoint;
+  return made;
 }
 
 /** Whether a uuid still names a document this world can reach. */
@@ -4369,17 +4613,68 @@ export async function repairHeldMap(recipe, scene) {
     await behavior.update(patch);
     written++;
   }
+  for (const region of scene.regions ?? []) {
+    if (await repairZoneLink(region)) written++;
+  }
   return written;
+}
+
+/**
+ * The encounter-zone behaviour type a zone's Region carries; formation
+ * registers it as `ENCOUNTER_ZONE_TYPE` (`encounter-zone.mjs`, which needs
+ * Foundry at load and so is not imported here).
+ */
+const ZONE_BEHAVIOR_TYPE = `${MODULE_ID}.encounterZone`;
+
+/** The zone id a Region was laid for, or "" for any other Region. */
+const zoneIdOf = (region) => String(region?.getFlag?.(MODULE_ID, "cookbook")?.zone ?? "");
+
+/** A zone row by its cookbook id, in whichever book carries it, or null. */
+function zoneRowById(zoneId, book = null) {
+  const own = data.books.get(bookOfCookbookId(zoneId, book))?.scenes?.[zoneId];
+  if (isZoneRow(own)) return own;
+  for (const cb of data.books.values()) if (isZoneRow(cb.scenes?.[zoneId])) return cb.scenes[zoneId];
+  return null;
+}
+
+/** A scene recipe by its cookbook id, in whichever book carries it, or null. */
+function recipeById(sceneId) {
+  const own = data.books.get(bookOfCookbookId(sceneId))?.scenes?.[sceneId];
+  if (isSceneRecipe(own)) return own.scene;
+  for (const cb of data.books.values()) if (isSceneRecipe(cb.scenes?.[sceneId])) return cb.scenes[sceneId].scene;
+  return null;
+}
+
+/**
+ * A zone Region's list named again where it names none or one that is gone,
+ * as a held map's other links are (`repairHeldMap`). Any other Region, and a
+ * zone whose row names no list or whose list the world does not hold yet, is
+ * left alone.
+ * @returns {Promise<boolean>} whether the behaviour was written to
+ */
+async function repairZoneLink(region) {
+  const zoneId = zoneIdOf(region);
+  if (!zoneId) return false;
+  const behavior = region.behaviors?.find((b) => b.type === ZONE_BEHAVIOR_TYPE);
+  if (!behavior || reachable(behavior.system?.tableUuid)) return false;
+  const table = zoneRowById(zoneId, region.getFlag(MODULE_ID, "cookbook")?.book)?.zone?.table;
+  const list = table ? await importedTable(table) : null;
+  if (!list) return false;
+  await behavior.update({ "system.tableUuid": list.uuid });
+  return true;
 }
 
 /** One recipe, from anchor to Adventure. Counts into `counts`; calls `tick` once per stage it reaches. */
 async function importScene({ bookId, id, row }, counts, tick) {
   const recipe = row.scene;
+  const region = isRegionRecipe(recipe);
   tick();
   const held = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === id);
   if (held) {
     counts.already++;
     counts.repaired += await repairHeldMap(recipe, held);
+    // A region's map has no Adventure.
+    if (region) return;
     return ensureSettlementAdventure({ bookId, id, row, scene: held, fresh: false }, counts, tick);
   }
   const doc = ctx.sessionDocs.get(bookId).doc;
@@ -4388,12 +4683,17 @@ async function importScene({ bookId, id, row }, counts, tick) {
 
   // Nothing is written until the picture exists.
   tick();
-  const ids = settlementIds(bookId, recipe);
+  const ids = mapIds(bookId, recipe);
   const plan = await planCrossing(bookId, ids.all);
   if (ids.districtIds.length && !ids.districtIds.some((d) => plan.known.has(d))) return void counts.unready++;
+  if (region && hasRegionRows(bookId) && !plan.known.has(ids.mapPlaceId)) return void counts.unready++;
+  // A grid's scale and shift are solved on an unsaved scene, before the
+  // picture is cut at that scale.
+  const grid = recipe.grid ? gridScenePlan(recipe, new Scene({ name: row.name, padding: 0 })) : null;
+  if (recipe.grid && !grid) return void counts.gridRefused++;
 
   tick();
-  const up = await ctx.uploadSceneMap(doc, id, recipe);
+  const up = await ctx.uploadSceneMap(doc, id, recipe, { pixelsPerPoint: grid?.pixelsPerPoint });
   if (!up) return void counts.refused++;
 
   tick();
@@ -4405,7 +4705,7 @@ async function importScene({ bookId, id, row }, counts, tick) {
   // are the only thing that has to wait for the documents they name.
   const scene = await Scene.create(await mapCreateData({
     bookId, id, recipe, ids, actors: world.actors, tableOf: importedTable, src: up.path, folderId: folder?.id ?? null,
-    fallbackName: row.name,
+    fallbackName: row.name, grid,
   }));
   if (!scene) return void counts.refused++;
   counts.made++;
@@ -4413,9 +4713,114 @@ async function importScene({ bookId, id, row }, counts, tick) {
   counts.regions += scene.regions.size;
   counts.tokens += scene.tokens.size;
   await mirrorCreatedLinks(scene);
-  counts.controlled += await claimControlledQuarters(bookId, scene, recipe, ids.districtIds);
+  if (!region) counts.controlled += await claimControlledQuarters(bookId, scene, recipe, ids.districtIds);
   await ensureSceneThumb(scene);
+  if (region) return;
   await ensureSettlementAdventure({ bookId, id, row, scene, fresh: true, plan, src: up.path }, counts, tick);
+}
+
+/** The world's map for a recipe id: an import before any copy of one (`isWorldCopy`), or null. */
+const heldMapOf = (sceneId) => {
+  const mine = game.scenes.filter((s) => s.getFlag(MODULE_ID, "cookbook")?.id === sceneId);
+  return mine.find((s) => !isWorldCopy(s)) ?? mine[0] ?? null;
+};
+
+/**
+ * Where a held map's picture sits and how it is framed: the recipe's frame at
+ * the scale the map was made at (the cookbook flag's `pixelsPerPoint`, else
+ * measured again on the live scene for a grid recipe), carried to the
+ * picture's corner on the canvas (`dimensions.sceneX/Y`, padding and shift
+ * included).
+ */
+function liveFrame(recipe, scene) {
+  let pixelsPerPoint = Number(scene.getFlag(MODULE_ID, "cookbook")?.pixelsPerPoint);
+  if (!(pixelsPerPoint > 0) && recipe.grid) {
+    const { family, even = false } = recipe.grid;
+    pixelsPerPoint = gridScale(recipe, family === "square" ? null : hexProbe(scene, family, !!even));
+  }
+  const frame = pixelsPerPoint > 0 ? sceneFrame(recipe, { pixelsPerPoint }) : sceneFrame(recipe);
+  const dims = scene.dimensions ?? scene.getDimensions?.() ?? {};
+  return { placed: placedFrame(frame, { x: Number(dims.sceneX) || 0, y: Number(dims.sceneY) || 0 }), dims };
+}
+
+/**
+ * Every cell of a live hex grid whose centre lies on the picture, with that
+ * centre: core's `getOffsetRange` over the picture's rectangle, else the
+ * grid's rows and columns. A square or gridless scene has none to snap to.
+ * @returns {{i: number, j: number, x: number, y: number}[]}
+ */
+function pictureCells(scene, dims) {
+  const grid = scene.grid;
+  if (!grid?.isHexagonal || !grid.getCenterPoint) return [];
+  const x = Number(dims.sceneX) || 0;
+  const y = Number(dims.sceneY) || 0;
+  const w = Number(dims.sceneWidth ?? scene.width) || 0;
+  const h = Number(dims.sceneHeight ?? scene.height) || 0;
+  const [i0, j0, i1, j1] = grid.getOffsetRange?.({ x, y, width: w, height: h }) ?? [0, 0, Number(dims.rows) || 0, Number(dims.columns) || 0];
+  const cells = [];
+  for (let i = i0; i < i1; i++) {
+    for (let j = j0; j < j1; j++) {
+      const c = grid.getCenterPoint({ i, j });
+      if (c && c.x >= x && c.x <= x + w && c.y >= y && c.y <= y + h) cells.push({ i, j, x: c.x, y: c.y });
+    }
+  }
+  return cells;
+}
+
+/**
+ * A zone's printed figures, read from the ZONE's book through the executor:
+ * its `zone.fields` are value instructions like any entry's, run as the one
+ * entry of a view of that book's cookbook. Null when the book's cookbook is
+ * not one the executor reads.
+ * @returns {Promise<{target: number, dayThrows: number, nightThrows: number}|null>}
+ */
+async function zoneFigures(bookId, id, row) {
+  const cb = data.books.get(bookId);
+  const view = { ...cb, entries: { [id]: { kind: row.kind, name: row.name, cite: row.cite, pages: row.pages, fields: row.zone.fields ?? {} } } };
+  const node = await executeEntry(ctx.sessionDocs.get(bookId).doc, view, data.registers, id).catch(() => null);
+  if (!node?.ok) return null;
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  return { target: num(node.fields?.target), dayThrows: num(node.fields?.dayThrows), nightThrows: num(node.fields?.nightThrows) };
+}
+
+/**
+ * One zone row laid over its map as a Region carrying the encounter-zone
+ * behaviour (`zoneRegionData`). Waits (counted) while the map it names is not
+ * in the world; is held (counted, and its list relinked) when the map already
+ * carries a Region flagged with its id. The figures are read from the zone's
+ * own book; the list is the imported table, or blank until a later run
+ * relinks it. On a hex map the outline is snapped to the live grid's cells
+ * whose centres it holds, and a zone holding no cell is refused; on any other
+ * map the outline is carried through the frame. Counts into `counts`.
+ */
+async function ensureZone({ bookId, id, row }, counts) {
+  const zone = row.zone;
+  const recipe = recipeById(zone.scene);
+  const scene = recipe ? heldMapOf(zone.scene) : null;
+  if (!scene) return void counts.zonesWaiting++;
+  const held = (scene.regions ?? []).find((r) => zoneIdOf(r) === id);
+  if (held) {
+    if (await repairZoneLink(held)) counts.repaired++;
+    return void counts.zonesHeld++;
+  }
+  const figures = await zoneFigures(bookId, id, row);
+  if (!figures) return void counts.zonesRefused++;
+  const list = zone.table ? await importedTable(zone.table) : null;
+  const { placed, dims } = liveFrame(recipe, scene);
+  const ring = ringToScene(zone.outline, placed);
+  const cells = pictureCells(scene, dims);
+  const hexes = cells.length ? offsetsInside(ring, cells) : [];
+  if (cells.length && !hexes.length) return void counts.zonesRefused++;
+  const n = Number(/(\d+)$/.exec(id)?.[1]) || 1;
+  const name = game.i18n.format(`${LANG_PREFIX}.ui.sceneZone`, { n, book: BOOKS[bookId]?.short ?? bookId.toUpperCase() });
+  const source = zoneRegionData(zone, placed, {
+    name, tableUuid: list?.uuid ?? "", ...figures, hexes,
+    cells: hexes.map((h) => scene.grid.getVertices({ i: h.i, j: h.j })), book: bookId, id,
+  });
+  const [made] = (await scene.createEmbeddedDocuments("Region", [source])) ?? [];
+  if (!made) return void counts.zonesRefused++;
+  counts.zones++;
+  counts.created.regions.push(made.uuid);
 }
 
 /**
@@ -4509,7 +4914,7 @@ function adventureFolders(bookId, seed) {
  */
 async function settlementAdventureSource({ bookId, id, row, scene, plan, src }) {
   const recipe = row.scene;
-  const ids = settlementIds(bookId, recipe);
+  const ids = mapIds(bookId, recipe);
   plan ??= await planCrossing(bookId, ids.all);
   const seed = adventureCookbookId(id);
   const folders = adventureFolders(bookId, seed);

@@ -3,16 +3,27 @@
     <i class="fa-solid fa-signs-post"></i>
     <strong>{{localize "ACKS-FORMATION.travel.enc.title"}}</strong>
     <span class="acks-extras-encounter-card-cadence">{{activity}}{{#if night}} · {{localize "ACKS-FORMATION.travel.enc.night"}}{{/if}}</span>
+    {{#if hexLabel}}<span class="hint">{{hexLabel}}</span>{{/if}}
   </header>
+
+  {{#if zone}}
+  <p class="hint">{{localize "ACKS-FORMATION.travel.enc.zoneLine" names=zone}}</p>
+  {{/if}}
 
   {{#if missingTerritory}}
   <p class="acks-extras-encounter-card-book">{{localize "ACKS-FORMATION.travel.enc.importHint"}}</p>
   {{else}}
+  {{#if rolls.length}}
   <ol class="acks-extras-encounter-card-rolls">
     {{#each rolls}}
     <li>{{column}} — <strong>{{roll}}</strong> → {{outcome}}</li>
     {{/each}}
   </ol>
+  {{/if}}
+
+  {{#if zoneThrow}}
+  <p>{{localize "ACKS-FORMATION.travel.enc.zoneThrow"}} <span class="hint">d6</span> — <strong>{{zoneThrow.roll}}</strong> → {{zoneThrow.target}}+</p>
+  {{/if}}
 
   {{#if downgraded}}
   <p class="hint">{{localize "ACKS-FORMATION.travel.enc.downgraded" kind=downgraded}}</p>
@@ -39,19 +50,27 @@
   </p>
   {{/if}}
 
-  {{#if terrainEncounter}}
-  <p class="acks-extras-encounter-card-creature"><strong>{{terrainEncounter.roll}}</strong> → <strong>{{terrainEncounter.name}}</strong>
-    <span class="hint">{{localize "ACKS-FORMATION.travel.enc.resolveBook"}}</span></p>
-  {{#if terrainEncounter.follow.length}}
-  <ol class="acks-extras-encounter-card-rolls">
-    {{#each terrainEncounter.follow}}
-    <li>{{label}} <span class="hint">d{{die}}</span> — <strong>{{roll}}</strong> → {{name}}</li>
+  {{#if zoneDraw}}
+  <p class="acks-extras-encounter-card-creature">{{localize "ACKS-FORMATION.travel.enc.zoneDrawLine" table=zoneDraw.table}}{{#if zoneDraw.total}} — <strong>{{zoneDraw.total}}</strong>{{/if}}</p>
+  <ul class="acks-extras-enc-lines">
+    {{#each zoneDraw.rows}}
+    <li class="acks-extras-enc-line">{{#if link}}{{link}}{{else}}<strong>{{text}}</strong>{{/if}}</li>
     {{/each}}
-  </ol>
+  </ul>
   {{/if}}
-  {{#each terrainEncounter.lookups}}
-  <p>{{label}}: <strong>{{value}}</strong></p>
-  {{/each}}
+  {{#if zoneMissing}}
+  <p class="acks-extras-encounter-card-book">{{localize "ACKS-FORMATION.travel.enc.zoneTableGone" zone=zoneMissing}}</p>
+  {{/if}}
+
+  {{#if terrainLines.length}}
+  <ul class="acks-extras-enc-lines">
+    {{#each terrainLines}}
+    <li class="acks-extras-enc-line acks-extras-enc-depth-{{depth}} acks-extras-enc-{{kind}}">
+      {{text}}{{#if die}} <span class="hint">d{{die}}</span>{{/if}}{{#if roll}} — <strong>{{roll}}</strong>{{/if}}{{#if name}}{{#if roll}} →{{else}}:{{/if}} {{#if link}}{{link}}{{else}}<strong>{{name}}</strong>{{/if}}{{/if}}
+    </li>
+    {{/each}}
+  </ul>
+  <p class="hint">{{localize "ACKS-FORMATION.travel.enc.resolveBook"}}</p>
   {{/if}}
 
   {{#each missing}}

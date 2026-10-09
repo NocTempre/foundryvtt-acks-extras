@@ -244,10 +244,10 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 ## The journey (added with the travel mode)
 
-1. On the GM window, **Begin journey**.
-   *Observable:* the panel opens (pickers, day board, readout, hex row);
-   `travel.mode === "journey"` and `clock.paused === true` on the record —
-   moving the party token ticks NO dungeon turns while journeying.
+1. On the GM window, pick **Journey** in the strip's mode select.
+   *Observable:* the strip shows the journey cells and the declaration groups
+   sit under it; `travel.mode === "journey"` on the record and `clock.paused`
+   is NOT set — moving the party token ticks NO dungeon turns while journeying.
 2. Pick hills + earth road + raining, day kind Forced march. Run it twice:
    once with NO `travel` tables registered, once after registering invented
    rows (`acksExtras.lib.tables.registerTable(…, {priority: 20})`).
@@ -263,15 +263,16 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 4. **End day** twice.
    *Observable:* two log rows, newest first, carrying exactly the miles the
    readout showed (day 2 on top); the day board is fresh each morning; with
-   the world-clock setting on, `game.time.worldTime` advanced 86,400 per
-   day — and with it off, it did not.
+   the world-clock setting on, `game.time.worldTime` stands at the next dawn
+   after each (`untilNextDawn`) — and with it off, it did not move.
 5. Mark **Lost** with a judge note, then join as the provisioned Player.
-   *Observable:* the player sees the readout, the hex label and the log —
-   no pickers, no day board, no lost mark, no note. The GM sees the compass
-   mark on the hex row and in the log rows.
-6. **Return to delve** mid-journey.
-   *Observable:* `clock.paused` false — token movement ticks turns again —
-   and re-entering journey mode finds the day board where it stood.
+   *Observable:* the player sees the strip, the camp's forecast and the log —
+   no pickers, no day board, no lost mark, no note. The GM sees the astray
+   line in the Lost group and the compass mark in the log rows.
+6. Pick **Delve** in the mode select mid-journey.
+   *Observable:* the baseline re-anchors to the token — the first turn card
+   falls one exploration move from where the mode changed — and re-entering
+   journey mode finds the day board where it stood.
 
 ## The weather (added with the generator)
 
@@ -1094,7 +1095,7 @@ places".
 
 27. **The panel names where the party stands.** Stand the party token one
     square from the point's token, inside the district that has a place.
-    *Observable:* the travel tab shows "At <point>." and "The quarter's own
+    *Observable:* the City group shows "At <point>." and "The quarter's own
     place: <quarter>."; each line's button opens that sheet. Move the party off
     the point but not out of the district: the first line goes, the second
     stays. Unlink the quarter's place (location step 19): the second goes.
@@ -1384,6 +1385,228 @@ every call is API-level.
 **Teardown**: delete the actor; unregister the document if step 7 did not.
 Leaving a fabricated `formation` document registered poisons every later check
 in the same world session.
+
+## The march in miles (added with movement-driven travel)
+
+Fixtures, all through `api.create` and swept with `api.sweepTracked()`: a
+hex scene whose cell is a mile-scale hex (`grid.type` hexagonal,
+`grid.distance` a whole number of miles, `grid.units` "mi"), a square scene
+at the same scale, a gridless scene in miles, a hex scene of a wider cell
+(four times the first), a feet-scale scene holding one district Region, a
+party actor with two members (each with an exploration speed, which a bare
+character actor also gets from the system's defaults) and its token on the
+first scene, an invented `travel` document registered at priority 30 carrying
+`encounterFrequency.traveling.<territory>.mileHex` equal to the first scene's
+cell (`cadenceMilesFor` reads that document), and the formation's territory
+set to that key. Record `game.time.worldTime` before the walk and report the
+delta at the end. The dawn and dusk hours default to nothing and the per-hex
+throw setting may be off in the world: read all three, set them for the walk
+(a dawn, a dusk, the throw on) and restore them at teardown, and say so in
+the report.
+
+1. Drop the party token on the undeclared mile-scale hex scene.
+   *Observable:* `travel.mode` reads `journey` with a scale notice in chat;
+   the token is one cell wide; the strip shows the journey cells.
+2. Nudge the token a few pixels.
+   *Observable:* no turn card; `clock.turnsTotal` unchanged; `travel.day
+   .miles` and `.hours` rose by a fraction and `worldTime` by the matching
+   seconds.
+3. Set the clock to a morning hour and drag the token four hexes, centre to
+   centre (`{animate: false}`).
+   *Observable:* four encounter cards (or four `acksExtras.hexEntered`
+   payloads under `Hooks.once`), `day.miles` four cells' worth, the clock
+   advanced by miles ÷ miles-per-hour, and the offer dialog once the hours
+   reach the budget — `day.offered` true before it is answered.
+4. Set the clock past dusk and drag one hex.
+   *Observable:* the card reads the night column; the speed is the day's.
+5. **Call it a day.**
+   *Observable:* `worldTime` is the next dawn, the log's newest row carries
+   the miles and hours walked, the strip's budget is fresh.
+6. Move to the square scene and drag one cell; then the gridless scene and
+   drag two cells' worth of miles.
+   *Observable:* one throw and the cell's hours; two throws on the gridless
+   drag.
+7. Move to the wide-cell hex scene and cross one hex.
+   *Observable:* four throws (the cell is four cadence units); unregister the
+   table and cross again → one throw and the unpriced line on the strip.
+8. Declare the first scene a delve (battlemap setup) and drag.
+   *Observable:* nothing billed, one whisper naming the scale; drag again on
+   the same scene → no second whisper.
+9. **Search an hour** with Something here set to No.
+   *Observable:* `day.secondsAdvanced` up one hour and `day.hours` UNCHANGED
+   (a search hour is not march budget), the first search slot `done`, the
+   `acksExtras.searchHourSpent` payload under `Hooks.once`, `worldTime` up
+   one hour.
+10. Join as the provisioned Player.
+    *Observable:* the strip and the Camp group's forecast; no pickers, no day
+    board, no Lost group (the Sky group shows only when it has chips).
+11. Pick **Delve** in the mode select, then drag.
+    *Observable:* billed from the new anchor — the first turn card falls
+    after one exploration move from where the mode changed, not from the
+    journey's last position.
+12. Drop the token on the district scene.
+    *Observable:* `travel.mode` reads `settlement`.
+13. On the journey scene, **Pause**, then drag a hex.
+    *Observable:* nothing billed, no card; `clock.pausedBy` is `judge`;
+    un-pause and drag → billed from the paused position.
+
+Read the strip's context with `await party.sheet._prepareContext({})` →
+`strip`; finish with one real drag.
+
+Drive mechanics (walked 2026-10-09 through the capture driver). The day-end
+offer is a DialogV2: answer it from page context by clicking
+`dialog button[data-action="end"|"push"|"later"]`, and know that a drag after
+dusk raises it too, so an unanswered offer from an earlier step is the one
+the next click lands on. The strip's controls are on the rendered party
+sheet: `[data-action="travelEndDay"|"searchHour"|"togglePause"]`,
+`select[name="travel.mode"]` (dispatch `change`), and the search's
+`select[name="camp.present"]` / `camp.target`. A scene move is a token delete
+on the old scene, then on the new one
+`scene.createEmbeddedDocuments("Token", [(await actor.getTokenDocument({x, y})).toObject()])`
+with the `_id` stripped: the createToken hook adopts a party-actor token that
+carries no formation flag, and the scene's system with it; poll the record
+for the new `tokenId` before dragging. A declaration is
+`scene.setFlag("acks-extras", "battlemap", {...current, mapSystem})`, and
+`null` un-declares. A ten-pixel nudge inside a hex still bills a fraction of
+a mile (the grid measures from the token's corner) and crosses nothing. Two
+GM clients both run the automation: keep the browser pane off the Gamemaster
+seat while the driver holds it. The Player seat is a second `connect()` on
+another port; render the party sheet there and read `details[data-fold]`.
+
+
+## The hex stock (added with lairs per hex)
+
+Fixtures: the mile-scale hex scene above, a character actor with an
+invented Land Surveying ability item (an Item whose name matches
+`/land\s*surveying/i`), a party actor holding it, invented `encounters` and
+`searching` documents at priority 30 (`lairsPerHex` with one terrain row,
+`lairSubstitution` bands, `settledLairShare`, the monster and terrain
+tables the draw reads, `surveyTarget`, `surveyPerSearch`), a lost episode
+opened and closed in step 7. Teardown: `api.sweepTracked()`,
+`unregisterTable(..., {priority: 30})`, close the episode, restore
+`CONFIG.Dice.randomUniform` if it was rigged.
+
+1. Open This hex with no `lairsPerHex` registered and press **Stock this
+   hex**. *Observable:* the dialog marks the count required; submitting
+   without one warns and re-asks.
+2. Register the tables and stock the hex. *Observable:* the scene's flag
+   holds one key for the hex, the block reads "up to N" with the row and
+   dice, the points list each draw.
+3. Stock again with a typed count. *Observable:* the confirm asks first; the
+   record's `judgeCount` is set and its `dice` kept.
+4. Search an hour with Something here on From the stock and one unfound
+   point, a rigged hit. *Observable:* the point reads Found; `searches` for
+   this formation is 1.
+5. Two unfound points, a rigged hit. *Observable:* the card lists both with a
+   Found button each; nothing is marked until one is pressed.
+6. Looking for a point, then Elsewhere. *Observable:* the first targets that
+   point only; the second never finds.
+7. Open a lost episode, walk the shadow to a neighbouring hex. *Observable:*
+   This hex reads the true hex's label and the astray note; Make it a place
+   is refused.
+8. **Survey the hex** with a surveyor, rigged to a natural 1, then to a hit.
+   *Observable:* a false count differing from the truth, told on the card
+   with the truth beside it; then the truth; Tell the party posts one public
+   line of the same shape both times.
+9. After a search hour with the surveyor in the order and no assessment:
+   *Observable:* the survey throws by itself, once; a second hour throws
+   none.
+10. Make a found point a place. *Observable:* a location actor and a token at
+    the hex centre, visible; an unfound point's token is hidden.
+11. The hand-off card: register a terrain encounter table with a double and
+    throw. *Observable:* the card indents the draw's lines.
+12. Join as the Player. *Observable:* no This hex block; the search selects
+    are absent; the camp's forecast shows.
+13. Break a record by hand (`scene.setFlag` a point without an id) and run
+    the repair macro. *Observable:* the finding names the scene; the fix
+    mints the id. Then **Clear** → the key is gone from the flag.
+
+Drive mechanics (walked 2026-10-09 through the capture driver). Rig the d20
+through `CONFIG.Dice.randomUniform`, never `Math.random` (ids are minted from
+it), and read one `new Roll("1d20")` back after rigging: on core 14.367
+`() => 0.025` threw a 20 and `() => 0.975` a 1 — the face is read from the
+top of the die, and a walk that trusted the arithmetic instead of the probe
+ran every "rigged hit" as a miss. The encounter chain rolls from its own `rng`
+(`Math.random`), so the hour's encounter throw stays unrigged; the survey adds
+`surveyPerSearch` per credited throw, so a rigged 1 totals above the target
+late in a walk — read the card's "Threw N". The stock dialog answers to
+`button[data-action="stock"|"cancel"]`, the restock and Clear confirms to
+`yes`/`no`; the re-ask is reached by switching the terrain select to a row the
+register gives no dice and submitting with the count empty. Core's dialog
+resolves a nullish callback result to the button's action string, so a
+dismissing button's callback returns `false` and a driver reads `false`, never
+null, as the cancel; open a dialog in one evaluate and press it in the next. The search card
+renders once per chat pane, so `button.acks-extras-hex-found` counts double;
+click by `data-point-id`. A lost episode needs the scene VIEWED
+(`scene.view()`, then wait for `canvas.scene.id`) before
+`beginEpisode(f, { day, anchor, trueOffset, judgeNote })` — no walking is
+needed, the offset is the true hex. This hex and Make it a place both read the
+TRUE hex while astray, so step 7 stocks it first: `writeStock(scene, "i:j",
+record)` a copy of the shadow hex's record with a fresh point; a point of the
+shadow hex is never found there and the refusal never fires. Step 11 is
+`terrainEncounterDraw({ kind, terrain, territory, rng })` with a sequenced rng
+(`0` lands the list's first entry) and `postEncounterCard(formation, chain,
+{ terrain, activity, night, hex, travel })` on a hand-built chain
+`{ territory: { ok, outcome, rolls }, outcome, terrainEncounter: draw }`; the
+lines carry `acks-extras-enc-depth-<n>`. The repair check is
+`getRepairCheck("formation.hexStock")`, `scanCheck(check)` → `{ findings }`,
+`fixCheck(check, findings)` — the macro wraps the same three. The Player seat
+is a second `connect({ user, port })` on another port.
+
+## A zone on a journey (added with journey zones)
+
+Fixtures, all created and tracked: the mile-scale hex scene and journeying
+party of *The march in miles* (its invented `travel` document registered, the
+per-hex throw setting on — read it first, restore it at teardown); a
+RollTable with two results, one a document result linking a world actor named
+with an invented `QQ` name and one text result left blank; two Regions with
+an `acks-extras.encounterZone` behavior — a WIDE one over most of the map
+stating only `tableUuid` (the table), and a SMALL one inside it, a few hexes
+across and clear of the party's start, stating only `encounterTarget: 1` so
+every zone throw hits. A Region and its behaviour are one
+`scene.createEmbeddedDocuments("Region", [{ name, shapes: [{ type:
+"rectangle", x, y, width, height }], behaviors: [{ type:
+"acks-extras.encounterZone", system }] }])`; track the region by the uuid it
+returns. Read every card's message id back the moment its throw resolves and
+`api.track` it.
+
+1. **The zone line and the local throw.** Drag the party into the small zone.
+   *Observable:* each card opens with *Encounter zone:* naming both regions,
+   shows *Zone throw d6 — N → 1+* where the column rolls would be, and no
+   column rolls.
+2. **The drawn row.** On the same cards.
+   *Observable:* *Drawn from* the table's name with the draw's total, the
+   linked row as a document link and the blank row as the Judge-fills line —
+   and ONE chat message per throw: no core table card beside it.
+3. **A table that is gone.** Delete the table (keep its id in the ledger),
+   press **Encounter throw**.
+   *Observable:* the missing-table line naming the wide zone, no drawn rows.
+4. **Entry fires once.** Set the small zone's `journeyCadence` to `entry`;
+   drag the party out of it, then back in across two hexes, then one hex
+   further inside.
+   *Observable:* the drag out throws per hex; the drag in posts ONE card whose
+   cadence reads *entering a zone*, and `acksExtras.hexEntered` (under
+   `Hooks.on` for the drag, removed after) fires per hex with `throwOwed:
+   false`; the drag inside posts nothing. `formation.clock.zoneIds` holds the
+   regions under the party.
+5. **Periods throw at End Day.** Set the small zone's cadence to `periods`,
+   `dayThrows: 2`, `nightThrows: 1`; drag inside, then **Call it a day** with a
+   hunt slot on the board.
+   *Observable:* the drag posts nothing; End Day posts two day cards and one
+   night card and no hunting card. Set `nightThrows` back to 0 and end
+   another day: the imported resting night throws again, if the registered
+   `travel` document has a resting-night cell.
+6. **The delve is unchanged.** Pick **Delve** and press **Check**.
+   *Observable:* the wandering-monster throw reads the first zone under the
+   token, as before (§The wrong-floor shift).
+7. **Astray.** Open a lost episode with the true hex inside the small zone
+   and the believed hex outside it (§The hex stock, step 7's mechanics), press
+   **Encounter throw**.
+   *Observable:* the card names the small zone: the throw reads the shadow.
+
+Teardown: `api.sweepTracked()` — the regions, the table, the actor, the cards
+and the scene's own fixtures go together; close the episode; unregister the
+invented documents; restore the throw setting.
 
 ## Teardown
 

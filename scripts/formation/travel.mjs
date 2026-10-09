@@ -11,14 +11,14 @@
  * unshared). The subtree is ADDITIVE: a record without one is a party that
  * has never journeyed, and `travelOf` answers for it without a migration.
  *
- * Two clocks, one paused at a time: journey mode pauses the movement-driven
- * turn tracking (`clock.paused`, the flag the turn engine already
- * honours) and the DAY becomes the unit — one dedicated day-kind plus the
- * ancillary activity slots the wilderness rules budget (RR ch. 6: a forced
- * march spends every ancillary activity). Ending the day advances the
- * world clock a full day through the module's one world-time switch, appends
- * the day to an append-only log, and hands the entry back for the panel to
- * show.
+ * A journey is counted in miles and spent in hours: the day owns a budget of
+ * marching hours (one dedicated day-kind plus the ancillary activity slots
+ * the wilderness rules budget — RR ch. 6: a forced march spends every
+ * ancillary activity), the world clock runs by the hours the miles take, and
+ * the dungeon turn tracker stays out of it. Ending the day advances the
+ * world clock to the next dawn through the module's one world-time switch,
+ * appends the day to an append-only log, and hands the entry back for the
+ * panel to show.
  *
  * The activity taxonomy carries each activity's encounter-frequency KIND —
  * per hex entered, per hour, per attempt, per period — because that is the
@@ -30,14 +30,16 @@
  * committed tests; everything that writes goes through `patchFormation`.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
-import { patchFormation, getFormation, getFormations, realMembers, getMemberActor, hasAbility } from "./formation-model.mjs";
+import { patchFormation, getFormation, getFormations, getPartyToken, realMembers, getMemberActor, hasAbility } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
-import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
+import { mayAdvanceWorldTime, untilNextDawn } from "../lib/world-time.mjs";
 import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
-import { terrainAtPoint, hexLabelFromOffset, isHexScene } from "../battlemap/terrain-paint.mjs";
+import { isExpeditionScale } from "../lib/distance-units.mjs";
+import { paintedTerrainAt, hexLabelFromOffset, isHexScene } from "../battlemap/terrain-paint.mjs";
 import { sceneTravelSystem } from "../battlemap/scene-setup.mjs";
 import { TRAVEL_MODES } from "../lib/vocab.mjs";
-import { routesOf, stepBetweenHexes } from "../battlemap/hex-routes.mjs";
+import { marchBudget, marchIsSpent } from "./march.mjs";
+import { sceneHasDistrict } from "./district-find.mjs";
 import {
   CLIMATES,
   PRECIPITATION_KINDS,
@@ -54,7 +56,7 @@ import {
 /** World setting: how many day entries a formation's travel log keeps. */
 export const SETTING_TRAVEL_LOG_CAP = "travelLogCap";
 
-/** Seconds the world clock advances when a travel day ends. */
+/** A day in seconds: what a travel day ends on when the clock keeps no calendar to read a dawn from. */
 export const DAY_SECONDS = 24 * 60 * 60;
 
 /** How many ancillary activities a day budgets (RR ch. 6). */
@@ -89,7 +91,7 @@ export const ANCILLARY_ACTIVITIES = Object.freeze({
 /** The road vocabulary is the vehicles feature's; re-exported for callers. */
 export { ROAD_KINDS } from "../vehicles/vehicle-speed.mjs";
 import { ROAD_KINDS, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
-import { settlementOf, reenterSettlement, carryStay, sceneStamp } from "./settlement.mjs";
+import { settlementOf, reenterSettlement, carryStay, sceneStamp, HOUR_MODES } from "./settlement.mjs";
 import { withHunt } from "./hunt.mjs";
 import { skyFor, readSkyCache, priorSky } from "./sky.mjs";
 import { runProvisionDay } from "./provision-day.mjs";
@@ -129,6 +131,18 @@ export function freshDay(kind = "march") {
     hexesEntered: 0,
     // Extra distance the day's bends cost over straight crossings, in hexes.
     winding: 0,
+    // What the day has spent, unrounded: miles walked, the hours those miles
+    // took (the march's hours, which the budget is measured against — a
+    // resolved ancillary slot is not among them), the miles and the seconds
+    // not yet worth a cadence unit or a whole second (`spendMarch`), and the
+    // seconds the world clock has advanced for the day so far, slots included.
+    miles: 0,
+    hours: 0,
+    cadenceCarry: 0,
+    carrySeconds: 0,
+    secondsAdvanced: 0,
+    // Which ancillary slots have been resolved (a search hour, a forage).
+    done: Array.from({ length: ANCILLARY_SLOTS }, () => false),
     /**
      * Whether the party has already been asked to call this day done. Deliberately
      * NOT carried across a kind change: pushing on buys more distance, so the
@@ -157,26 +171,49 @@ export function withDayKind(day, kind) {
   if (day) {
     next.hexesEntered = day.hexesEntered ?? 0;
     next.winding = day.winding ?? 0;
+    next.miles = day.miles ?? 0;
+    next.hours = day.hours ?? 0;
+    next.cadenceCarry = day.cadenceCarry ?? 0;
+    next.carrySeconds = day.carrySeconds ?? 0;
+    next.secondsAdvanced = day.secondsAdvanced ?? 0;
+    next.done = Array.from({ length: ANCILLARY_SLOTS }, (_, n) => !!day.done?.[n]);
   }
   return next;
 }
 
 /**
+ * The hours the day's march may spend, and the miles that is at this speed:
+ * the day kind's pace plus one hour per ancillary slot set to travel (unless
+ * the pace already consumes the slots). A camp day marches only its travel
+ * slots.
+ * @param {object} travel         a `travelOf` result
+ * @param {number} milesPerHour   the readout's speed
+ * @returns {{hours: number, miles: number}}
+ */
+export function dayBudget(travel, milesPerHour) {
+  const kind = DAY_KINDS[travel?.day?.kind] ?? DAY_KINDS.march;
+  return marchBudget({
+    pace: kind.pace,
+    travelSlots: (travel?.day?.activities ?? []).filter((a) => a === "travel").length,
+    paceConsumesSlots: !!kind.consumesAncillary,
+    milesPerHour,
+  });
+}
+
+/**
  * Has the day's march been walked?
  *
- * The journey's tracker asks this of every hex the party enters. Pure, and
- * deliberately blind to the kind — a camp day carries no distance to spend,
- * which its zero allowance already says — and false for an allowance nobody
- * could price, because a day that cannot say how far it reaches must never
- * announce itself over.
+ * The day is spent when the hours it has taken reach the budget, or when the
+ * step just taken was after dusk (`dark`). A budget nobody could price never
+ * announces the day over by hours alone.
  *
- * @param {object} day            the day board (`travel.day`)
- * @param {number} hexesPerDay    what the readout says the march carries
+ * @param {object} day              the day board (`travel.day`)
+ * @param {{hours: number}} budget  from `dayBudget`
+ * @param {object} [o]
+ * @param {boolean} [o.dark]        the step just taken was after dusk
  */
-export function dayIsSpent(day, hexesPerDay) {
-  const allowance = Number(hexesPerDay);
-  if (!Number.isFinite(allowance) || allowance <= 0) return false;
-  return (Number(day?.hexesEntered) || 0) >= allowance;
+export function dayIsSpent(day, budget, { dark = false } = {}) {
+  return marchIsSpent(day, budget, { dark });
 }
 
 /** The travel subtree, defaults answered — never mutates the record. */
@@ -207,8 +244,17 @@ export function travelOf(formation) {
     // Validated at USE by the encounter engine's own vocabulary — a plain
     // passthrough here keeps travel free of an import back into encounters.
     encounterTerrain: typeof t.encounterTerrain === "string" ? t.encounterTerrain : "",
+    // Where day-or-night comes from (`HOUR_MODES`): the world clock unless the
+    // Judge says otherwise.
+    hour: Object.hasOwn(HOUR_MODES, t.hour ?? "") ? t.hour : "clock",
     hex: { label: "", note: "", i: null, j: null, ...(t.hex ?? {}) },
-    day: t.day ?? freshDay(),
+    // A record from before the day counted miles reads as a day with nothing
+    // walked; `done` is always one boolean per ancillary slot.
+    day: {
+      ...freshDay(),
+      ...(t.day ?? {}),
+      done: Array.from({ length: ANCILLARY_SLOTS }, (_, n) => !!t.day?.done?.[n]),
+    },
     dayCount: Number(t.dayCount) || 0,
     lost: lostOf(t),
     // HOW the order moves, which decides which factors it meets at all. Named
@@ -244,7 +290,7 @@ export function travelOf(formation) {
  * a seasons-long campaign from growing the settings blob without bound, and
  * trimming eats the OLDEST rows.
  */
-export function composeLogEntry(travel, { miles = null, hexes = null, notes = "", worldTime = null } = {}) {
+export function composeLogEntry(travel, { miles = null, hours = null, hexes = null, notes = "", worldTime = null } = {}) {
   return {
     day: (Number(travel.dayCount) || 0) + 1,
     worldTime,
@@ -269,6 +315,9 @@ export function composeLogEntry(travel, { miles = null, hexes = null, notes = ""
     },
     lost: !!travel.lost?.active,
     miles,
+    // The hours the day took, beside the miles: the day's own tally unless
+    // the caller states another.
+    hours: hours ?? Math.round((Number(travel.day?.hours) || 0) * 100) / 100,
     hexes,
     notes,
   };
@@ -293,10 +342,12 @@ const logCap = () => {
 };
 
 /**
- * Enter or leave journey mode. The turn clock and the day board are two
- * clocks with one running at a time: journeying pauses movement-driven turn
- * ticks; returning to delve mode un-pauses them and holds the day board
- * where it stood (a dungeon on the route does not reset the march).
+ * Enter or leave a mode. A journey is timed by the world clock the miles run
+ * and a delve by the turn tracker, so a mode change clears any pause and
+ * re-anchors the movement baseline at the token's present position: the next
+ * drag is measured from where the party stands now, never from where the
+ * last mode left it. The day board is held where it stood (a dungeon on the
+ * route does not reset the march).
  *
  * @param {string} formationId
  * @param {string|boolean} journey the mode to adopt (a bare boolean is the
@@ -308,10 +359,7 @@ const logCap = () => {
  *   foreign.
  */
 export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
-  // Historically a boolean; a mode string is now accepted and preferred. Only
-  // a JOURNEY pauses the clock: a day is the wrong grain for a ten-minute
-  // tick. A city is timed in the same turns a dungeon is, so its clock runs
-  // and the party's own movement drives it.
+  // Historically a boolean; a mode string is now accepted and preferred.
   const mode = typeof journey === "string"
     ? (TRAVEL_MODES.includes(journey) ? journey : "delve")
     : (journey ? "journey" : "delve");
@@ -325,7 +373,13 @@ export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
       // board whole.
       settlement: mode === "settlement" ? withHunt(enteredSettlement(t, sceneId), record) : t.settlement,
     };
-    record.clock = { ...(record.clock ?? {}), paused: mode === "journey" };
+    const token = getPartyToken(record);
+    record.clock = {
+      ...(record.clock ?? {}),
+      paused: false,
+      pausedBy: null,
+      ...(token ? { lastPosition: { x: token.x, y: token.y } } : {}),
+    };
   });
 }
 
@@ -403,7 +457,7 @@ export async function claimUnstampedSettlements() {
     if (t.mode !== "settlement" || t.settlement.sceneId != null) continue;
     const sceneId = sceneStamp(formation.sceneId);
     if (!sceneId) continue;
-    if (sceneTravelSystem(game.scenes?.get(sceneId)) !== "settlement") continue;
+    if (inferredTravelSystem(game.scenes?.get(sceneId)).system !== "settlement") continue;
     let wrote = false;
     // Re-read under the ledger's lock: the startup sync and every other
     // background writer hold copies of these records, and a board claimed or
@@ -421,25 +475,42 @@ export async function claimUnstampedSettlements() {
 }
 
 /**
- * Take the travel system the SCENE declares (the battlemap setup tool writes
- * it) — a dungeon map runs the turn clock, a wilderness map runs the day, a
+ * The travel system a scene calls for, and what said so: the one the Judge
+ * DECLARED (the battlemap setup tool writes it), else a journey for a map
+ * whose cell is a mile or more across, else a settlement for a map with a
+ * district drawn on it, else nothing. Scale outranks districts, and a
+ * declaration outranks both.
+ * @returns {{system: string|null, source: "declared"|"scale"|"districts"|null}}
+ */
+export function inferredTravelSystem(scene) {
+  const declared = sceneTravelSystem(scene);
+  if (declared) return { system: declared, source: "declared" };
+  if (isExpeditionScale(scene)) return { system: "journey", source: "scale" };
+  if (sceneHasDistrict(scene)) return { system: "settlement", source: "districts" };
+  return { system: null, source: null };
+}
+
+/**
+ * Take the travel system the SCENE calls for (`inferredTravelSystem`) — a
+ * dungeon map runs the turn clock, a wilderness map runs the day, a
  * settlement crosses in blocks.
  *
  * Arriving on a map is the moment the question is answered, so this runs when
  * a party token lands and when the declaration itself changes. A scene that
- * declares nothing changes nothing: silence is "nobody has said", not
- * "dungeon", and a party mid-march must not be reset by crossing an unlabelled
- * scene.
+ * says nothing and shows nothing changes nothing: silence is "nobody has
+ * said", not "dungeon", and a party mid-march must not be reset by crossing
+ * an unlabelled scene.
  *
  * A second CITY is an arrival even though the mode does not change: the board
  * belongs to the scene it was counted in, so a scene declaring settlement
  * while the board names a different one enters afresh — `boardIsElsewhere` is
  * the whole of that test, and is the same one the write itself asks.
  *
- * @returns {Promise<string|null>} the mode adopted, or null if nothing moved.
+ * @returns {Promise<{mode: string, source: string}|null>} the mode adopted and
+ *   what called for it, or null if nothing moved.
  */
 export async function adoptSceneSystem(formationId, scene) {
-  const system = sceneTravelSystem(scene);
+  const { system, source } = inferredTravelSystem(scene);
   if (!system) return null;
   const formation = getFormation(formationId);
   if (!formation) return null;
@@ -448,7 +519,7 @@ export async function adoptSceneSystem(formationId, scene) {
   const elsewhere = system === "settlement" && boardIsElsewhere(t.settlement, sceneId);
   if (t.mode === system && !elsewhere) return null;
   await setJourneyMode(formationId, system, { sceneId });
-  return system;
+  return { mode: system, source };
 }
 
 /** The settlement board's own writer: pace, where, route, hour, hunted. */
@@ -492,6 +563,7 @@ export function patchTravel(formationId, patch = {}) {
     if (patch.road !== undefined && ROAD_KINDS.includes(patch.road)) next.road = patch.road;
     if (patch.territory !== undefined && TERRITORY_KEYS.includes(patch.territory)) next.territory = patch.territory;
     if (patch.pace !== undefined && TRAVEL_PACE[patch.pace]) next.pace = patch.pace;
+    if (patch.hour !== undefined && Object.hasOwn(HOUR_MODES, patch.hour)) next.hour = patch.hour;
     if (patch.weather !== undefined) next.weather = { ...t.weather, ...patch.weather };
     if (patch.hex !== undefined) next.hex = { ...t.hex, ...patch.hex };
     record.travel = next;
@@ -521,9 +593,9 @@ export function setAncillary(formationId, slot, activity) {
 }
 
 /**
- * The party crosses into the next hex: the label updates and the day counts
- * it. The per-hex encounter throw hangs off this count once the frequency
- * tables are registered; until then the count itself is the trace.
+ * Record a hex entered: the label updates and the day counts it. Spends no
+ * miles and moves no clock — the trace alone; `nextHex` (journey.mjs) is the
+ * Judge's override that also spends a cadence unit.
  */
 export function enterHex(formationId, label) {
   return patchFormation(formationId, (record) => {
@@ -537,72 +609,59 @@ export function enterHex(formationId, label) {
 }
 
 /**
- * The party token crossed into a hex on a PAINTED map: the offset is the
- * identity, the label its name, the terrain what the map says. One patch —
- * the first arrival (no prior offset) NAMES the hex without counting it (you
- * do not enter the hex you were already standing in), and a repeat of the
- * same offset writes nothing. A painted terrain overrides the ground picker;
- * an unpainted hex leaves the Judge's pick standing.
+ * One step of the hex trace, pure: the party's token stands in the hex at
+ * offset (`i`, `j`). The offset is the identity, the label its name, the
+ * terrain what the map says. The first arrival (no prior offset) NAMES the
+ * hex without counting it (you do not enter the hex you were already standing
+ * in), and a repeat of the same offset changes nothing and returns the very
+ * object it was given. A painted terrain overrides the ground picker and, a
+ * hex painted at the book's grain, the encounter pick too; an unpainted hex
+ * leaves the Judge's picks standing, and a river (a pick with no ground)
+ * leaves the ground.
+ *
+ * @param {object} travel  a `travelOf` result
+ * @param {object} step    `{label, i, j, ground, encounterTerrain, road,
+ *   winding}`; `road` is `undefined` when no network was drawn, so the picker
+ *   still stands; `ground` and `encounterTerrain` are `paintedTerrainAt`'s
+ * @returns {{travel: object, crossed: 0|1}}  `crossed` is 1 for a hex entered
  */
-export function autoEnterHex(formationId, { label = "", i = null, j = null, ground = null, road = undefined, winding = 1 } = {}) {
-  return patchFormation(formationId, (record) => {
-    const t = travelOf(record);
-    const had = t.hex.i != null && t.hex.j != null;
-    if (had && t.hex.i === i && t.hex.j === j) return false;
-    record.travel = {
-      ...t,
-      hex: { ...t.hex, label: String(label ?? "").trim(), i, j },
+export function traceStep(travel, { label = "", i = null, j = null, ground = null, encounterTerrain = "", road = undefined, winding = 1 } = {}) {
+  const hex = travel.hex ?? {};
+  const had = hex.i != null && hex.j != null;
+  if (had && hex.i === i && hex.j === j) return { travel, crossed: 0 };
+  return {
+    crossed: had ? 1 : 0,
+    travel: {
+      ...travel,
+      hex: { ...hex, label: String(label ?? "").trim(), i, j },
       ...(ground ? { ground: String(ground) } : {}),
+      ...(encounterTerrain ? { encounterTerrain: String(encounterTerrain) } : {}),
       // A drawn network OVERRIDES the day's road picker, exactly as painted
       // terrain overrides the ground picker: the map is the better witness.
-      // `undefined` means no network was drawn, so the picker still stands.
       ...(road !== undefined ? { road: String(road) } : {}),
       day: had
         ? {
-            ...t.day,
-            hexesEntered: (t.day.hexesEntered ?? 0) + 1,
+            ...travel.day,
+            hexesEntered: (travel.day.hexesEntered ?? 0) + 1,
             // Only the EXCESS is banked: a straight crossing costs nothing
             // extra, so a road with no bends never shows a tax.
-            winding: (t.day.winding ?? 0) + Math.max(0, (Number(winding) || 1) - 1),
+            winding: (travel.day.winding ?? 0) + Math.max(0, (Number(winding) || 1) - 1),
           }
-        : t.day,
-    };
-  });
+        : travel.day,
+    },
+  };
 }
 
 /**
- * The journey's movement handler: while a formation journeys on a
- * hex-gridded scene, its party token's position IS the hex trace. Runs on
- * the same seam as the dungeon turn engine (which hands journeying
- * formations here instead of ticking turns); non-hex scenes change nothing —
- * the manual Next-hex button remains their trace.
+ * Write one step of the hex trace (`traceStep`) to the record, alone — no
+ * miles, no clock. Writes nothing when the offset has not changed.
  */
-export async function onJourneyTokenMoved(tokenDoc, formationId) {
-  const scene = tokenDoc?.parent;
-  if (!scene || !isHexScene(scene)) return;
-  const point = tokenDoc.object?.center ?? {
-    x: tokenDoc.x + ((tokenDoc.width ?? 1) * scene.grid.sizeX) / 2,
-    y: tokenDoc.y + ((tokenDoc.height ?? 1) * scene.grid.sizeY) / 2,
-  };
-  const offset = scene.grid.getOffset(point);
-  // Which road, if any, this STEP followed. Only asked when a network exists:
-  // a scene nobody has drawn routes on leaves the Judge's picker alone rather
-  // than declaring every march off-road.
-  let road;
-  let winding = 1;
-  const prior = travelOf(getFormation(formationId) ?? {}).hex;
-  if (routesOf(scene).length && prior.i != null && prior.j != null) {
-    const step = stepBetweenHexes(scene, { i: prior.i, j: prior.j }, offset);
-    road = step.on ? step.road : "none";
-    if (step.on) winding = step.winding ?? 1;
-  }
-  await autoEnterHex(formationId, {
-    label: hexLabelFromOffset(offset),
-    i: offset.i,
-    j: offset.j,
-    ground: terrainAtPoint(scene, point),
-    road,
-    winding,
+export function autoEnterHex(formationId, step = {}) {
+  return patchFormation(formationId, (record) => {
+    const t = travelOf(record);
+    const { travel } = traceStep(t, step);
+    if (travel === t) return false;
+    record.travel = travel;
   });
 }
 
@@ -620,14 +679,15 @@ export function seatJourneyHex(tokenDoc, formationId) {
     y: tokenDoc.y + ((tokenDoc.height ?? 1) * scene.grid.sizeY) / 2,
   };
   const offset = scene.grid.getOffset(point);
-  const ground = terrainAtPoint(scene, point);
+  const painted = paintedTerrainAt(scene, point);
   return patchFormation(formationId, (record) => {
     const t = travelOf(record);
     if (t.mode !== "journey" || (t.hex.i === offset.i && t.hex.j === offset.j)) return false;
     record.travel = {
       ...t,
       hex: { ...t.hex, label: hexLabelFromOffset(offset), i: offset.i, j: offset.j },
-      ...(ground ? { ground: String(ground) } : {}),
+      ...(painted.ground ? { ground: painted.ground } : {}),
+      ...(painted.encounterTerrain ? { encounterTerrain: painted.encounterTerrain } : {}),
     };
   });
 }
@@ -752,6 +812,7 @@ export function applyTravelForm(formationId, tv = {}) {
     if (ROAD_KINDS.includes(tv.road)) next.road = tv.road;
     if (FOLLOWING_KINDS.includes(tv.following)) next.following = tv.following;
     if (TERRITORY_KEYS.includes(tv.territory)) next.territory = tv.territory;
+    if (Object.hasOwn(HOUR_MODES, tv.hour ?? "")) next.hour = tv.hour;
     if (typeof tv.encounterTerrain === "string") next.encounterTerrain = tv.encounterTerrain;
     // The settlement board rides the same submit as the journey pickers: an
     // ApplicationV2 action fires on CLICK, so a select bound to one never
@@ -868,8 +929,8 @@ export async function rollWeatherNow(formationId) {
 
 
 /**
- * End the day: log it, reset the board, advance the world clock a day (when
- * the module may). The caller supplies the derived figures the panel already
+ * End the day: log it, reset the board, advance the world clock to the next
+ * dawn (when the module may). The caller supplies the derived figures the panel already
  * shows — miles and hexes made — so the log records what the Judge saw, not
  * a second derivation that could disagree with it.
  *
@@ -879,10 +940,15 @@ export async function rollWeatherNow(formationId) {
  * fronts drift when asked — before the board resets. A registry that cannot
  * answer leaves the manual picks standing.
  *
+ * The jump is to the next dawn by the calendar. A clock that keeps no calendar
+ * advances what the day has not already advanced of a whole day, so hours the
+ * march ran earlier are absorbed and never charged twice.
+ *
  * @returns the log entry written, or null when the formation is gone
  */
-export async function endDay(formationId, { miles = null, hexes = null, notes = "" } = {}) {
+export async function endDay(formationId, { miles = null, hours = null, hexes = null, notes = "" } = {}) {
   let entry = null;
+  let advancedToday = 0;
   // Tomorrow's sky is settled BEFORE the patch, because the patch callback is
   // synchronous and the cache is not. Same key as any other party crossing the
   // same climate tomorrow, so they wake to one shared morning.
@@ -921,7 +987,8 @@ export async function endDay(formationId, { miles = null, hexes = null, notes = 
 
   const record = await patchFormation(formationId, (rec) => {
     const t = travelOf(rec);
-    entry = composeLogEntry(t, { miles, hexes, notes, worldTime: game.time?.worldTime ?? null });
+    entry = composeLogEntry(t, { miles, hours, hexes, notes, worldTime: game.time?.worldTime ?? null });
+    advancedToday = t.day.secondsAdvanced ?? 0;
     const settled = advanceGround(t.weather.footing, {
       temperature: t.weather.temperature,
       precipitation: t.weather.precipitation,
@@ -950,7 +1017,8 @@ export async function endDay(formationId, { miles = null, hexes = null, notes = 
     };
   });
   if (!record) return null;
-  if (mayAdvanceWorldTime()) await game.time.advance(DAY_SECONDS);
+  const jump = untilNextDawn() ?? Math.max(0, DAY_SECONDS - advancedToday);
+  if (jump > 0 && mayAdvanceWorldTime()) await game.time.advance(jump);
   // The finished day carries how it was fed, so the log can say the party ate
   // short on the fourteenth rather than leaving it to memory.
   if (entry && provisions) {

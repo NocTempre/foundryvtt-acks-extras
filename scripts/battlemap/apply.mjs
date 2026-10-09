@@ -17,6 +17,7 @@ import { MODULE_ID, LANG_PREFIX, FLAG_BATTLEMAP, CALIBRATABLE_GRIDS, GRID_TYPE, 
 import { solveShift } from "./calibrate-logic.mjs";
 import { backgroundSrc, backgroundTexture, setBackgroundSrc } from "./scene-image.mjs";
 import { hexProbe } from "./scene-setup.mjs";
+import { hexAlignment } from "./hex-fit.mjs";
 import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
 import { makeLoc } from "../lib/util.mjs";
 
@@ -172,18 +173,17 @@ export async function applyHexCalibration(scene, fit, { gridSize, outputFeet, he
   const width = Math.round(tex.width * fx);
   const height = Math.round(tex.height * fy);
 
-  // Off a zero-shift clone, asking its grid for the nearest hex centre — a
-  // phase cannot express the row/column offset hex packing needs.
-  const clone = scene.clone({ width, height, shiftX: 0, shiftY: 0, "grid.size": G, "grid.type": type }, { keepId: true });
-  const dims = clone.getDimensions();
-  const point = { x: dims.sceneX + hexCentre.x * fx, y: dims.sceneY + hexCentre.y * fy };
-  const centre = clone.grid?.getCenterPoint?.(point);
-  const shiftX = Number.isFinite(centre?.x) ? Math.round(point.x - centre.x) : null;
-  const shiftY = Number.isFinite(centre?.y) ? Math.round(point.y - centre.y) : null;
-  if (shiftX === null || shiftY === null || !Number.isFinite(width) || !Number.isFinite(height) || !(G > 0)) {
+  // The drawn centre, rescaled into the picture and offset by the clone's
+  // padded origin; `hexAlignment` owns the lattice question.
+  const shift = hexAlignment(scene, {
+    width, height, gridSize: G, type,
+    point: (dims) => ({ x: dims.sceneX + hexCentre.x * fx, y: dims.sceneY + hexCentre.y * fy }),
+  });
+  if (!shift || !Number.isFinite(width) || !Number.isFinite(height) || !(G > 0)) {
     ui.notifications.error(loc("warn.badSolution"));
     return false;
   }
+  const { shiftX, shiftY } = shift;
 
   const body = loc("apply.confirmHex", { size: G, distance: outputFeet, units: unitsWritten(scene, units) });
   if (!(await confirmApply(body, { shifts: true }))) return false;
