@@ -1941,6 +1941,144 @@ influence's own recipe.
 a deleted combat sweeps as missing. The imported `conditions` document is
 world ruledata and stays, like every other imported table.
 
+## A deposit at a place the seat does not own
+
+Covers `storage.mjs` `stash` and `retrieve` where the move is handed to the GM
+(`askJudge`, `moveForSeat`). Two seats, each a driver session of its own: the
+GM builds the fixtures and holds the ledger, and every step is made from the
+PLAYER seat.
+
+**Fixtures (as GM, each id recorded with `api.track`):**
+- "Relay Depositor", a `character` the Player seat owns, carrying a `money`
+  row (`coppervalue` 100, quantity 3500) and two plain `item`s.
+- "Relay Other", a `character` only the GM owns, carrying one plain `item`.
+- "Relay Abbey", a `acks-extras.location` with `ownership: {default: 2}`,
+  made a place with `setProvider`. Give it three rows by
+  `createEmbeddedDocuments`, each stamped under `flags["acks-extras"].storage`:
+  a house row (`ownerUuid` the lib's `money.HOUSE_OWNER`) with
+  `retrievable: true`, a house row without it, and a row whose `ownerUuid` is
+  Relay Other's.
+- Pin the abbey to the depositor (`location.reach.setPinnedPlace`), so it
+  lists under *Kept elsewhere* and is within reach.
+
+**Drive mechanics.**
+- **Foundry stamps the creating user at OWNER on every document it makes**,
+  whatever `ownership` the create states. A character and a place the GM
+  created therefore share an owner, and `depositReach` answers yes for the
+  pair by ownership. For the out-of-reach step take the GM off the place
+  (`place.update({ownership: {[game.user.id]: 0}})`) and unpin it.
+- **Let both pages go quiet before timing anything.** For about a minute after
+  `ready` each page reads the library's books, and a relayed move resolves
+  seconds late while it does. Poll for the state a step expects; a fixed wait
+  followed by one read reported a finished retrieval as half made.
+- The stash dialog's form names its fields `pick_<item id>` and
+  `qty_<item id>`, and its confirm is `button[data-action="ok"]`.
+- The no-GM step needs the GM's driver closed. Wait for the Player page to go
+  quiet first: a page still reading books answers the question later than a
+  thirty-second bound. Then close the driver, wait for
+  `game.users.activeGM` to read null on the Player seat, and on reconnecting
+  `api.track` the fixture uuids again: the ledger lives in the driver handle.
+- **A player's two surfaces are both on the character.** The place's own
+  sheet gives a player no Storage tab. The system's character sheet carries
+  one this module injects: build it from the entry of
+  `CONFIG.Actor.sheetClasses.character` that is not this module's, render it
+  and click `.acks-location-storage-anchor`. The place is `[data-place-uuid]`
+  inside `.acks-location-storage-tab`, its controls
+  `[data-acksl-action="deposit"]`, `"retrieveAll"` and, on a row, `"retrieve"`
+  beside `input[data-quantity]`.
+
+1. **No GM connected.** With the GM's driver closed, press the abbey row's
+   Deposit on the depositor's Equipment tab, tick the coin, type 3000, confirm.
+   **Observable:** the "A GM must be connected" warning, the purse still at
+   3500, the abbey's rows unchanged.
+2. **The deposit.** With the GM back, do the same, ticking one plain item too.
+   **Observable:** the purse reads 500 and the item is gone from the
+   character; the abbey holds a 3000 coin row and the item, both stamped with
+   the depositor's name; the row under *Kept elsewhere* counts them; no
+   notification on the GM's seat.
+3. **The system's sheet.** On its Storage tab, type 1000 beside the coin row
+   and press that row's Retrieve; then press the place's deposit control and
+   tick the other plain item.
+   **Observable:** the purse reads 1500 with 2000 left at the abbey; the
+   second item leaves the character and is kept under the depositor's name.
+4. **Taking it back.** Press Retrieve all on the abbey's row of the
+   depositor's Equipment tab.
+   **Observable:** the purse reads 3500 in one row, both items are back, the
+   abbey holds nothing of the depositor's, and the row (still pinned) reads
+   empty and offers no Retrieve.
+5. **What a relayed retrieval takes.** From the console,
+   `acksExtras.lib.storage.retrieve(abbey, depositor, [{id}])` for each of the
+   three stamped rows, then for the marked house row together with Relay
+   Other's.
+   **Observable:** the marked house row arrives; the unmarked one, Relay
+   Other's and the mixed request each resolve `{ok: false, reason:
+   "permission"}` with the ownership warning, and move nothing.
+6. **A forged request.** `const {executeAsGM} = await
+   import("/modules/acks-extras/scripts/lib/sockets.mjs")`, then
+   `executeAsGM("libMoveGoods", {kind: "stash", sourceUuid: <Relay Other>,
+   targetUuid: <abbey>, spec: [{id: <its item>}], requestUserId: null})`.
+   **Observable:** `{ok: false, reason: "permission"}`, and the item still on
+   Relay Other.
+7. **Out of reach.** With the GM off the place's owners and the pin removed,
+   `acksExtras.location.reach.depositReach(depositor, abbey)` reads
+   `notYours` on both seats. Call `storage.stash(depositor, abbey, [{id:
+   <coin>, quantity: 10}])` from the player's console.
+   **Observable:** `{ok: false, reason: "outOfReach", why: "notYours"}`, the
+   reach refusal as a warning on the Player seat naming the character and the
+   place, the purse unchanged, nothing on the GM's seat.
+
+**Teardown.** `api.sweepTracked()`, which takes the abbey's rows with the
+abbey.
+
+## A mount bound by a drop
+
+Covers `mount.mjs` `registerMountDrop` and `ride`, and the character sheet's
+Mount line. Made from the PLAYER seat on this module's character sheet.
+
+**Fixtures (as GM, each id recorded with `api.track`):**
+- "Mount Rider", a `character` the Player seat owns, carrying one plain
+  `item` ("Mount Rope", `weight6` 6).
+- "Mount Horse", a `acks-extras.animal` the Player seat owns, with
+  `system.animal.mountable: true` and a load of your own invention under
+  `flags["acks-extras"].extras.load.normal`.
+- "Mount Beast", a `monster` the Player seat owns.
+
+**Drive mechanics.** A drop is a `DragEvent("drop", {bubbles: true,
+cancelable: true, dataTransfer})` whose `DataTransfer` carries the drag
+payload as `text/plain` JSON (`{type: "Actor", uuid}` or `{type: "Item",
+uuid}`), dispatched on the target sheet's `.window-content`, or on the element
+a step names. An animal left at the schema's `mountable: false` is still
+mounted and raises the not-marked-mountable warning beside the notice.
+
+1. **On foot.** Open Mount Rider on the Equipment tab.
+   **Observable:** the Mount rule with its on-foot hint and no row.
+2. **The drop.** Drop Mount Horse on the rider's sheet.
+   **Observable:** one notice naming both; `lib.mount.mountOf(rider)` is the
+   horse and `riderOf(horse)` the rider; the rider's `henchmenList` is
+   unchanged; the Mount row names the horse, reads what it bears against what
+   it can, and carries Dismount and Open.
+3. **Kit to the mount.** Drop Mount Rope from the rider onto the horse's
+   sheet.
+   **Observable:** one rope, on the horse; the rider's
+   `system.encumbrance.value6` falls by 6; the horse's load is unchanged,
+   because it bears the rider's kit either way.
+4. **Kit back.** Drop the rope from the horse onto the rider's sheet.
+   **Observable:** one rope, on the rider, and the Mount row reads the same
+   figure `lib.capacity.loadStone(horse)` does.
+5. **The line follows the mount.** As GM, create a heavy `item` on the horse.
+   **Observable:** the row on the Player seat reads the new load without the
+   sheet being touched.
+6. **Dismount.** Press the row's Dismount.
+   **Observable:** `mountOf(rider)` is null and the hint is back. Drop the
+   rope on the horse again: the rider keeps theirs and the horse gains one,
+   the system's own copy.
+7. **A monster.** Drop Mount Beast on the Mount line (`[data-mount-drop]`).
+   **Observable:** the notice, and the row naming the beast with no "of"
+   figure, its load being unstated. The row's name opens the beast's sheet.
+
+**Teardown.** `api.sweepTracked()`. Deleting a mount clears its rider's
+binding.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

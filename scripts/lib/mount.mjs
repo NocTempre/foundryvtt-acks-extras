@@ -1,4 +1,4 @@
-/* global game, Hooks, ui */
+/* global game, Hooks, ui, fromUuidSync */
 /**
  * Mount binding — who is riding what.
  *
@@ -13,8 +13,10 @@
  * A mount need not be an `acks-extras.animal` — a character can ride a
  * monster.
  */
-import { resolveActorSync } from "./storage.mjs";
-import { MODULE_ID } from "./constants.mjs";
+import { resolveActorSync, handOver } from "./storage.mjs";
+import { MODULE_ID, ANIMAL_TYPE } from "./constants.mjs";
+import { ACTOR_TYPE } from "./vocab.mjs";
+import { isGoods, isCurrency } from "./item-model.mjs";
 import { attachmentOf, attachedTo, attach, detach } from "./attachment.mjs";
 
 /** Legacy flag keys. Both ends stored the OTHER actor's uuid; read-only now. */
@@ -100,6 +102,53 @@ export async function mountActor(rider, mount) {
   if (mount.getFlag(MODULE_ID, RIDER_FLAG)) await mount.unsetFlag(MODULE_ID, RIDER_FLAG);
   Hooks.callAll(MOUNT_HOOKS.MOUNTED, rider, mount);
   return true;
+}
+
+/**
+ * `mountActor` as a sheet gesture makes it: the binding is said aloud, naming
+ * both ends, because the drop that made it leaves nothing else on screen.
+ * @returns {Promise<boolean>} whether the binding was made
+ */
+export async function ride(rider, mount) {
+  const bound = await mountActor(rider, mount);
+  if (bound) ui.notifications?.info(game.i18n.format("ACKS-LIB.mount.mounted", { rider: rider.name, mount: mount.name }));
+  return bound;
+}
+
+/** Is `a` riding `b`? */
+const rides = (a, b) => !!b && mountOf(a)?.uuid === b.uuid;
+
+/**
+ * The two drops a mount answers ahead of the sheet they land on, whichever
+ * sheet the world draws the actor with. Registered by module.mjs.
+ *
+ * An animal dropped on a character seats the character on it; the sheet's own
+ * handler, which hires what is dropped on it, never sees a mount.
+ *
+ * Goods dragged between a rider and the mount they ride are handed over, not
+ * copied. Core's cross-actor item drop creates a copy and leaves the original
+ * where it was, which between these two weighs the same kit on both: the
+ * rider's own load, and again on the mount, which already bears the rider's.
+ * Coin is left to the sheet it lands on, which moves it by its own rule
+ * (`landCoin`).
+ */
+export function registerMountDrop() {
+  Hooks.on("dropActorSheetData", (target, _sheet, data) => {
+    if (data?.type === "Actor") {
+      if (target?.type !== ACTOR_TYPE.character) return;
+      const dropped = resolveActorSync(data.uuid);
+      if (dropped?.type !== ANIMAL_TYPE) return;
+      void ride(target, dropped);
+      return false;
+    }
+    if (data?.type !== "Item" || !data.uuid) return;
+    const item = fromUuidSync(data.uuid);
+    const source = item?.parent;
+    if (source?.documentName !== "Actor" || !isGoods(item) || isCurrency(item)) return;
+    if (!rides(source, target) && !rides(target, source)) return;
+    void handOver(source, target, [{ id: item.id }]);
+    return false;
+  });
 }
 
 /**

@@ -1044,6 +1044,17 @@ unification still read: a legacy symmetric mount/rider pair answers
 `mountOf`, and every write converges it to the single flag. A rider whose
 attachment exists is never also read from a stale pair.
 
+The binding is made by a gesture, and the lib answers two drops for it ahead of
+the sheet they land on (`registerMountDrop`, on `dropActorSheetData`). An
+`acks-extras.animal` dropped on a character seats the character on it (`ride`,
+which is `mountActor` with the binding said aloud). Goods dragged between a
+rider and the mount they ride are handed over (`handOver`) where the system's
+drop would copy them; coin is left to the sheet it lands on, and any two
+actors that do not ride each other keep the system's drop. A monster ridden as
+a mount is bound from the character sheet's Mount line
+(`docs/character-sheet/MODEL.md`), because a monster dropped anywhere else on
+a character is a hire.
+
 ### What a mount knows about itself
 
 The `acks-extras.animal` sub-type ([data/animal-data.mjs](../../scripts/lib/data/animal-data.mjs))

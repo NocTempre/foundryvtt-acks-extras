@@ -3598,3 +3598,136 @@ two the next afternoon; and the expedition arithmetic carried a constant
 **Cost.** A world whose calendar keeps no dawn hour still gets the flat day.
 A vehicle sheet shows no hexes a day off a mile-scale scene, which is the
 truth it was previously papering over.
+
+### A deposit or a retrieval at a place the seat cannot write is made by the Judge's seat (2026-10-10)
+
+**Asked.** A player owned their character and not the place. The character
+sheet offered Deposit, because reach is asked about the character
+(docs/location/DECISIONS.md, 2026-09-15), the dialog confirmed, and the
+transfer then refused for want of ownership of the place. The same check
+refused the player their own rows there, and the house rows the Judge had
+marked retrievable. The guide has said since 10.1.0 that a deposit touching a
+place the seat cannot write is carried out by the Judge's seat; only a payment
+was.
+
+**Ruled.**
+- `stash` and `retrieve` hand the whole move to the GM (`libMoveGoods`) where
+  the seat owns the character's end and not the place's. The GM's seat plans
+  it again from the same arguments, as a relayed payment is planned again.
+- The move is made only for a sender who owns the character, read from the
+  attested `requestUserId` ("A relayed call's sender comes from the server",
+  2026-09-23).
+- A relayed deposit is put to the location feature's deposit reach on the
+  GM's seat, for that character. The asking seat's own answer is not taken: a
+  surface hides the control out of reach, and a console call asks nothing.
+- A relayed retrieval takes rows kept for that character and house rows marked
+  retrievable. One row outside those refuses the whole request. It is not put
+  to reach, which a retrieval never is (docs/location/DECISIONS.md,
+  2026-08-06).
+- With no GM connected the answer is `{ok: false, reason: "noGm"}` and nothing
+  is written. Every other refusal is said on the asking seat from the answer;
+  the GM's seat is told nothing of a move it made for another. A move left
+  made by half says the goods are duplicated on the seat that asked.
+- The storage hooks fire on the GM's client, their `userId` the user who
+  asked.
+- `handOver` and `moveStored` are not relayed. A seat that owns both ends
+  writes its own move, and a GM's seat never asks. Lib `apiVersion` 28.
+
+**Rejected.**
+- *Giving players ownership of the places they bank at.* It is what a Judge
+  had to do, and it opens the place's notes, settings and every other owner's
+  rows to them; "Coin is kept in stores" (2026-10-01) rejected it for payments
+  on the same ground.
+- *Relaying a hand-over.* It would let a seat take from an actor it does not
+  own, and nothing states what may be taken from one.
+- *Putting a relayed retrieval to reach.* The standing ruling is that taking
+  one's own goods back is never gated.
+- *Writing the half the seat owns and relaying the rest.* A relay that failed
+  would leave the move made by half.
+
+**What it cost.** One more socket handler. A player's deposit at a place the
+Judge owns needs a GM connected. `stash` called by a seat that owns the place
+still asks nothing about where the character stands; the surfaces ask.
+
+### A mount is bound by a drop, and goods between a rider and their mount are moved (2026-10-10)
+
+**Asked.** A player made an actor for their horse and found no way to make it
+theirs to ride. The guide said to drop an animal on a character, and no code
+answered that drop: nothing on any sheet called `mountActor`. With the binding
+made from the console the rider's kit stayed on the rider, and dragging it to
+the horse copied it.
+
+**Ruled.**
+- An `acks-extras.animal` dropped on a character's sheet seats the character
+  on it. The lib answers the drop (`registerMountDrop`), so the system's own
+  sheet and this module's behave alike.
+- A monster is not claimed by that hook, because a monster dropped on a
+  character is a hire. This module's character sheet reads a monster let go on
+  its Mount line as a mount.
+- The character sheet's Equipment tab states the mount under a rule of its
+  own: its name, what it bears against what it can, Dismount and Open. Mounting
+  changes nothing the rider carries.
+- Goods dragged between a rider and the mount they ride are handed over
+  (`handOver`), as freight dragged out of a vehicle is. Coin is left to the
+  sheet it lands on, which moves it (`landCoin`). Any other two actors keep
+  the system's copy.
+- `ride(rider, mount)` is `mountActor` with the binding said aloud, for a
+  gesture that leaves nothing else on screen.
+
+**Rejected.**
+- *Every monster dropped on a character is a mount.* The drop cannot say
+  whether a hire or a mount was meant, and it is a hire today.
+- *Moving goods between any two actors.* It changes the system's drop on every
+  sheet in the world; the wider question belongs to the creature rework
+  ([ROADMAP.md](ROADMAP.md)).
+- *Moving the rider's kit onto the mount on mounting.* What stays on the body
+  and what goes in the saddlebags is the player's to say.
+
+**What it cost.** A second `dropActorSheetData` listener beside the vehicles
+feature's. A rider who dragged a thing to their mount to copy it now moves it.
+The Mount line is drawn on every character, mounted or not.
+
+### A mount is a role a creature holds, not a kind of actor (2026-10-10)
+
+**Asked.** Whether mounts want an actor class of their own. One horse is
+reached by three library documents and none is whole: a priced item; an
+`acks-extras.animal` that states training and mountability and takes its stat
+block from the schema's defaults; and a `monster` that carries the stat block
+and its load and has nowhere to state training. Who keeps it is a hireling
+record, a companion record, or nothing.
+
+**Ruled,** for now, as the first steps toward the wider change in
+[ROADMAP.md](ROADMAP.md):
+- No new actor sub-type. Being ridden, harnessed or kept is a role any
+  creature holds.
+- Training and mountability are stated on the extras flag every creature
+  has, beside its load, and read through one lib facade. The
+  `acks-extras.animal` fields are read as the older spelling of the same
+  facts.
+- What becomes of the `acks-extras.animal` type is decided once that much is
+  built.
+- A bought animal stays an item, and becomes an actor when it is dropped on a
+  character.
+- A creature bought outright names its keeper in a relation of its own. A
+  henchman and a companion keep their records, each with its one writer, and
+  the same facade answers for all three.
+- Goods between a keeper and a creature they keep are moved.
+
+Not ruled: whether a led animal is a member of the formation, holds an attach
+role of its own, or is only listed.
+
+**Rejected.**
+- *A new sub-type.* A fourth creature shape and another branch at every test
+  of an actor's type; the one option that converts stored actors; and still
+  nowhere for a monster that is ridden to state its training.
+- *Extending `acks-extras.animal` alone.* The same gap for a ridden monster,
+  and a creature's facts stay split between its `system` data and the flag.
+- *Keeping as an attachment role.* `attach` refuses a cycle, so nobody could
+  ride what they keep.
+- *The hireling's `retainer.managerid` for property.* Its category is a
+  closed set of hire kinds, and the system drops the hire when the record is
+  switched off with a manager named.
+
+**What it cost.** A creature's model grows in a flag reached by convention: no
+schema of its own, no derived data, no entry in the Create dialog. This entry
+builds nothing.

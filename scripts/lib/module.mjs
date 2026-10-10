@@ -68,8 +68,8 @@ import * as groups from "./group.mjs";
 import * as templateLogic from "./template-logic.mjs";
 import { GroupSheet } from "./apps/group-sheet.mjs";
 import { TemplateSheet } from "./apps/template-sheet.mjs";
-import { registerMountCleanup } from "./mount.mjs";
-import { registerStorageCleanup, DELETE_POLICY_SETTING } from "./storage.mjs";
+import { registerMountCleanup, registerMountDrop } from "./mount.mjs";
+import { registerStorageCleanup, registerStorageRelay, DELETE_POLICY_SETTING } from "./storage.mjs";
 import { registerGroupCleanup } from "./group.mjs";
 import { FollowerCardSheet } from "./apps/follower-card-sheet.mjs";
 import { followerCardContext, renderFollowerCard, FOLLOWER_CARD_TEMPLATE } from "./follower-card.mjs";
@@ -134,7 +134,9 @@ const localImpl = Object.freeze({
   // 27: worldTime — the next dawn; movementScales — hexes per day only
   // against a stated hex; drawQuietly — a table draw for the caller's own
   // card.
-  apiVersion: 27,
+  // 28: mount — `ride`; storage — a deposit or a retrieval relayed where the
+  // seat cannot write the place.
+  apiVersion: 28,
   vocab,
   fields,
   /**
@@ -396,8 +398,10 @@ Hooks.once("init", () => {
   CONFIG.Actor.dataModels[TEMPLATE_TYPE] = TemplateData;
 
   registerMountCleanup();
+  registerMountDrop();
   attachment.registerAttachmentIndex();
   registerStorageCleanup();
+  void registerStorageRelay();
   registerGroupCleanup();
 
   // Refuse hand-deletion of the effects this module maintains (managed-effects.mjs).

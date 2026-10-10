@@ -166,13 +166,30 @@ it has left.*
 
 ## Mounts, and animals in harness
 
-A mount is an actor, not a piece of gear. Drop an animal onto a character (or
-call `acksExtras.lib.mount.mountActor`) and the two are bound: the rider moves
-at the mount's pace, the party sheet shows a mount chip beside the rider, and
-the mounted-combat rules have something to read. Harness the same animal to a
-wagon instead and it joins the team; a rider on a horse that is itself in
-harness travels at the WAGON's pace, because a carried thing resolves to
-whatever is really doing the moving.
+A mount is an actor, not a piece of gear. Drop an animal from the Actors
+sidebar onto its rider's character sheet and the two are bound, with a notice
+naming both: the rider moves at the mount's pace, the party sheet shows a mount
+chip beside the rider, and the mounted-combat rules have something to read. You
+need to own both. A creature that is a monster rather than an animal is ridden
+by dropping it on the **Mount** line of the rider's Equipment tab; dropped
+anywhere else on a character it is hired. That line names the mount, says what
+it is bearing, and takes you off it again
+([the character sheet](character-sheet.md#equipment)).
+
+Mounting moves none of your kit. While you ride, anything you drag between
+your sheet and your mount's is moved rather than copied, so a pack dragged onto
+the horse comes off your own load. The mount bears you and everything you
+carry either way.
+
+![](../releases/v11.1.0/vehicles-mount-kit.png)
+
+*The mount's own sheet after its rider dragged a bedroll onto it: the bedroll
+is in its inventory, and its load counts the rider and what the rider still
+carries.*
+
+Harness the same animal to a wagon instead and it joins the team; a rider on a
+horse that is itself in harness travels at the WAGON's pace, because a carried
+thing resolves to whatever is really doing the moving.
 
 Two things about an animal decide what the rules do with it, and they are
 different questions. Its **training** — riding, draft, war, hunting, herding —

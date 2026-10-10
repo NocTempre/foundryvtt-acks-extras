@@ -62,6 +62,7 @@ import { dismissMonster } from "../henchmen/apps/hirelings-grid.mjs";
 import { openLoyaltyRoll, payWagesFor } from "../henchmen/engine/events.mjs";
 import { openStashDialog } from "../location/apps/stash-dialog.mjs";
 import { setPinnedPlace, pinnedPlaces } from "../location/reach.mjs";
+import { mountOf, ride, dismount } from "../lib/mount.mjs";
 import { ITEM_TYPE, ACTOR_TYPE, SLOT } from "../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -89,7 +90,7 @@ const PARTY_TOKEN_KEYS = Object.freeze(["actorId", "actorLink", "name", "texture
  */
 const VIEW_ACTIONS = new Set([
   "fold", "goTab", "roll", "moveMenu", "cycleAc", "abilityFilter", "toggleBucket", "trainingView", "formation", "partyMenu", "influence",
-  "placeOpen", "companionOpen", "itemEdit", "hirelingShow", "relationshipOpen", "classOpen", "effectEdit", "source", "tab",
+  "placeOpen", "companionOpen", "mountOpen", "itemEdit", "hirelingShow", "relationshipOpen", "classOpen", "effectEdit", "source", "tab",
 ]);
 
 /** A movement figure in its mode's unit: feet for the round and turn scales, miles for the day. */
@@ -159,6 +160,8 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       placeDeposit: AcksCharacterSheet.#onPlaceDeposit,
       placeRetrieveAll: AcksCharacterSheet.#onPlaceRetrieveAll,
       placePin: AcksCharacterSheet.#onPlacePin,
+      mountOpen: AcksCharacterSheet.#onMountOpen,
+      mountDismount: AcksCharacterSheet.#onMountDismount,
       toggleTraining: AcksCharacterSheet.#onToggleTraining,
       toggleBucket: AcksCharacterSheet.#onToggleBucket,
       trainingEdit: AcksCharacterSheet.#onTrainingEdit,
@@ -238,10 +241,12 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     return !!game.user.getFlag(MODULE_ID, FOLD_FLAG)?.[this.actor.id];
   }
 
-  /** The hirelings, summons and places this sheet shows off other documents. */
+  /** The hirelings, summons, places and mount this sheet shows off other documents. */
   #related() {
     const ids = new Set(henchmanIds(this.actor));
     for (const p of libStorage()?.providers?.() ?? []) ids.add(p.id);
+    const mount = mountOf(this.actor);
+    if (mount) ids.add(mount.id);
     for (const t of currentScene()?.tokens ?? []) if (t.actorId && summonerOf(t.actor) === this.actor.uuid) ids.add(t.actorId);
     return ids;
   }
@@ -718,7 +723,11 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     return super._onDropItem(event, item);
   }
 
-  /** A place dropped on the sheet is pinned to it; any other actor is hired, as core does. */
+  /**
+   * A place dropped on the sheet is pinned to it, a monster let go on the Mount
+   * line is ridden, and any other actor is hired, as core does. An animal never
+   * arrives here: the lib's drop hook seats the character on it first.
+   */
   async _onDropActor(event, dropped) {
     if (!this.actor.isOwner || !dropped) return null;
     const storage = libStorage();
@@ -728,6 +737,10 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       return null;
     }
     if (dropped.id === this.actor.id) return null;
+    if (dropped.type === ACTOR_TYPE.monster && event.target?.closest?.("[data-mount-drop]")) {
+      await ride(this.actor, dropped);
+      return null;
+    }
     if ([ACTOR_TYPE.character, ACTOR_TYPE.monster].includes(dropped.type)) await this.actor.addHenchman?.(dropped.id);
     return null;
   }
@@ -1215,6 +1228,14 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     if (!place) return;
     await setPinnedPlace(this.actor, place.uuid, !pinnedPlaces(this.actor).has(place.uuid));
     this.render();
+  }
+
+  static #onMountOpen() {
+    mountOf(this.actor)?.sheet?.render(true);
+  }
+
+  static async #onMountDismount() {
+    await dismount(this.actor);
   }
 
   /* -------------------------------------------- */

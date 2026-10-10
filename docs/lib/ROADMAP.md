@@ -157,3 +157,58 @@ descender half a pixel. The header is not what cuts them. Core's own title
 takes the header's height as its line height and loses nothing. A taller line
 changes the title's box on every window, and wants its own before-and-after
 reading (TESTING, "A long window title stays on one line").
+
+## A creature that is bought, kept, trained and ridden
+
+A mount is reached by four records and none is whole: a priced livestock row
+is an item; an `acks-extras.animal` states training and mountability and
+takes its stat block from the schema's defaults; a `monster` carries the stat
+block and its load and has nowhere to state training; and who keeps it is a
+hireling record, a companion record, or nothing. The direction is ruled
+([DECISIONS.md](DECISIONS.md), "A mount is a role a creature holds") and none
+of it is built.
+
+First, with no stored document changing shape:
+
+- **One statement of training and mountability for any creature**, on the
+  extras flag beside `extras.load`. They sit on the animal sub-type alone.
+- **One answer to "is this a creature"**, from the same facade. The question
+  is a closed type test in several features, and the animal sub-type fails
+  them. Read from source, not walked: an animal hired through the roster is
+  sent to the system's hire, which takes characters only.
+- **A keeper.** Nothing says a bought animal is anyone's. The relation sits
+  on the kept creature, and a henchman and a companion are answered from the
+  records they have.
+- **An animal's stat block at import.** The importer mints the animal with
+  its shop facts; the monster of the same kind holds the block.
+- **A bought animal that becomes an actor** when its item is dropped on a
+  character.
+- **A control on the creature's own sheet** that seats a rider or a
+  passenger. The binding is made from the rider's sheet alone.
+- **Goods between a keeper and what they keep**, moved. They are moved
+  between a rider and the mount they ride; any other two actors keep the
+  system's copy.
+- **A passenger's weight.** `load6` counts one rider.
+
+Not ruled: whether a led animal is a member of the formation, holds an attach
+role of its own, or is only listed, and so what it does to pace.
+
+After that, each a change to documents a world has stored:
+
+- **The end of the `acks-extras.animal` type**, decided once every reader
+  goes through the facade.
+- **A market that delivers the creature** in place of an item.
+- **One keeper store**, the henchman's and the companion's records folded
+  into it.
+
+### Actors as composed variants
+
+A creature is stated in separate branches: a system type, a module sub-type,
+a flag, a hireling record, a companion record. Each restates part of what the
+creature is, and the branches now collide, which is where the three documents
+for one horse above come from. The direction is to collapse them into
+composed variants: one creature made of the parts it has (a stat block,
+training, a load, a keeper, a seat), where a rider's mount, a hired monster
+and a bought ox are each a combination of parts and none is a branch of its
+own. The first steps above move one fact at a time to a single store read
+through a facade. Nothing beyond them is designed.

@@ -99,6 +99,17 @@ under Stowed, and every place holding your goods lists under Kept elsewhere.
 Drop a thing on a place to wear or draw it, on a container to store it, on
 the right column to take it off or out.
 
+**Mount** names what you ride and what it is bearing, with a control to
+dismount and one to open its sheet. On foot it says how to mount: drop an
+animal anywhere on the sheet, or a monster on that line
+([mounts](vehicles.md#mounts-and-animals-in-harness)).
+
+![](../releases/v11.1.0/character-sheet-mount.png)
+
+*The Equipment tab from a player's seat after an animal was dropped on the
+sheet: the Mount line names it, what it is bearing against what it can, and
+the controls to dismount and to open it.*
+
 Drop a bundle — a kit from the Items directory, a class template's package —
 and its goods arrive, each row as the items it names. A stack you already carry
 is topped up when the arriving goods are identical to it; anything else arrives
@@ -156,9 +167,10 @@ Where one store holds the same coin in more than one row, **Gather coin**
 folds them into one. The same choices sit under the Money header of the
 system's own sheet, on a hireling's card and on a hired unit's sheet.
 
-A payment or a deposit that touches a place your seat cannot write to — a
-bank the Judge runs — is carried out by the Judge's seat on your behalf. With
-no Judge connected it is refused and says so; nothing is taken.
+A payment, a deposit or a withdrawal that touches a place your seat cannot
+write to — a bank the Judge runs, an abbey you left your gold at — is carried
+out by the Judge's seat on your behalf. With no Judge connected it is refused
+and says so; nothing is taken.
 
 ![](../releases/v10.1.0/character-sheet-coin.png)
 

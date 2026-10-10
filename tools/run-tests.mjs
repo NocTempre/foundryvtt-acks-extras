@@ -68,6 +68,7 @@ const COMMITTED = [
   "test-trade.mjs",
   "test-reports.mjs",
   "test-capacity.mjs",
+  "test-mount.mjs",
   "test-money.mjs",
   "test-coin-flows.mjs",
   "test-languages.mjs",

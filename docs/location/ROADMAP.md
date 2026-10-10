@@ -26,6 +26,15 @@ import started by hand normally begins well after that window; a script that
 materializes at `ready` meets it. The unbuilt guard is a pass that waits for
 the registries it sweeps.
 
+### Reach that does not count the Judge who made both
+
+`ownersShare` answers yes for any character and place one Judge created,
+because the creating user is named at OWNER on each
+([DECISIONS.md](DECISIONS.md), 2026-10-10). The unbuilt rule leaves users who
+are Judges out of the question, so that a character reaches a place by a
+player they share, by standing at it, by a pin or by a vault. It changes what
+a payment, a deposit and an exchange reach in a world already being played.
+
 ### The table projection belongs to lib
 
 `table-docs.mjs` projects every feature's rules tables onto the library's

@@ -978,6 +978,131 @@ await test("the Judge moves coin only for the seat that owns the payer", async (
   }
 });
 
+console.log("goods: a place the seat does not own");
+await storage.registerStorageRelay();
+const { getSocket } = await import("../scripts/lib/sockets.mjs");
+const rope = (over = {}) => ({ _id: over._id ?? "rope", name: "Rope", type: "item", system: { quantity: { value: 1, max: 0 }, weight6: 6 }, flags: over.flags ?? {} });
+/** A place no player's seat may write, holding `items`. */
+const judgesPlace = (id, items = []) => {
+  const place = makePlace({ id, items });
+  place.owners = [];
+  return place;
+};
+
+await test("a deposit at a place the seat does not own is made by the Judge, for the character's own seat", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(3500, { _id: "g" }), rope()] });
+  worldActors.set(hero.id, hero);
+  const abbey = judgesPlace("abbey");
+  game.user = PLAYER;
+  game.users.activeGM = null;
+  try {
+    assert.deepEqual(await storage.stash(hero, abbey, [{ id: "g", quantity: 3000 }]), { ok: false, reason: "noGm" });
+    assert.equal(hero.writes + abbey.writes, 0, "with no Judge connected nothing is written by half");
+    const calls = connectJudge();
+    const done = await storage.stash(hero, abbey, [{ id: "g", quantity: 3000 }, { id: "rope" }]);
+    assert.equal(done.ok, true);
+    assert.deepEqual([purse(hero), keptAt(abbey, hero), calls], [["Gold ×500"], ["Gold ×3000"], ["libMoveGoods"]]);
+    assert.deepEqual(abbey.items.filter((i) => i.type === "item").map((i) => [i.name, i.flags["acks-extras"].storage.ownerName]), [["Rope", "Hero"]]);
+    assert.equal(hero.items.some((i) => i.name === "Rope"), false, "the goods leave the character");
+    assert.deepEqual(warnings, ["ACKS-LIB.socket.noGm"], "the Judge's seat is told nothing of a move it made for another");
+  } finally {
+    game.user = JUDGE;
+  }
+});
+await test("a character's rows come back through the Judge; another's, and the place's own, do not", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero" });
+  const rival = makeActor({ id: "rival", name: "Rival" });
+  rival.owners = [];
+  worldActors.set(hero.id, hero);
+  worldActors.set(rival.id, rival);
+  const house = { "acks-extras": { storage: { ownerUuid: HOUSE_OWNER, ownerName: "House" } } };
+  const offered = { "acks-extras": { storage: { ownerUuid: HOUSE_OWNER, ownerName: "House", retrievable: true } } };
+  const abbey = judgesPlace("abbey", [
+    gold(3000, { _id: "mine", flags: keptFor(hero) }),
+    gold(900, { _id: "theirs", flags: keptFor(rival) }),
+    gold(70, { _id: "till", flags: house }),
+    rope({ _id: "gift", flags: offered }),
+  ]);
+  const calls = connectJudge();
+  game.user = PLAYER;
+  try {
+    assert.deepEqual(await storage.retrieve(abbey, hero, [{ id: "theirs" }]), { ok: false, reason: "permission" });
+    assert.deepEqual(await storage.retrieve(abbey, hero, [{ id: "mine" }, { id: "till" }]), { ok: false, reason: "permission" }, "one row that is not theirs refuses the whole move");
+    assert.deepEqual([purse(hero), abbey.items.size, warnings], [[], 4, ["ACKS-LIB.storage.notOwner", "ACKS-LIB.storage.notOwner"]]);
+    assert.equal((await storage.retrieve(abbey, hero, [{ id: "mine", quantity: 1000 }, { id: "gift" }])).ok, true);
+    assert.deepEqual([purse(hero), keptAt(abbey, hero), hero.items.some((i) => i.name === "Rope"), calls.length], [["Gold ×1000"], ["Gold ×2000"], true, 3]);
+    assert.equal(hero.items.find((i) => i.name === "Rope").flags["acks-extras"]?.storage, undefined, "what is carried is nobody's but the carrier's");
+  } finally {
+    game.user = JUDGE;
+  }
+});
+await test("the Judge moves goods only for the seat that owns the character, and only within its reach", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(40, { _id: "g" })] });
+  const mark = makeActor({ id: "mark", items: [gold(50, { _id: "loot" })] });
+  mark.owners = [];
+  worldActors.set(hero.id, hero);
+  worldActors.set(mark.id, mark);
+  const abbey = judgesPlace("abbey", [gold(10, { _id: "kept", flags: keptFor(mark) })]);
+  connectJudge();
+  const { location } = acksExtras;
+  game.user = PLAYER;
+  try {
+    const ask = (payload) => getSocket().executeAsGM("libMoveGoods", payload);
+    assert.deepEqual(await storage.stash(mark, abbey, [{ id: "loot" }]), { ok: false, reason: "permission" }, "a seat that owns neither end asks nobody");
+    assert.equal(relayed.length, 0);
+    assert.deepEqual(await ask({ kind: "stash", sourceUuid: mark.uuid, targetUuid: abbey.uuid, spec: [{ id: "loot" }], requestUserId: null }), { ok: false, reason: "permission" },
+      "a call naming no sender is still the sender's");
+    assert.deepEqual(await ask({ kind: "retrieve", sourceUuid: abbey.uuid, targetUuid: mark.uuid, spec: [{ id: "kept" }] }), { ok: false, reason: "permission" });
+    assert.deepEqual(await ask({ kind: "retrieve", sourceUuid: mark.uuid, targetUuid: hero.uuid, spec: [{ id: "loot" }] }), { ok: false, reason: "permission" }, "nor is another character's pack a place");
+    assert.deepEqual(await ask({ kind: "handOver", sourceUuid: mark.uuid, targetUuid: hero.uuid, spec: [{ id: "loot" }] }), { ok: false, reason: "permission" });
+    assert.deepEqual([purse(mark), purse(hero), abbey.items.size], [["Gold ×50"], ["Gold ×40"], 1]);
+
+    acksExtras.location = { reach: { depositReach: () => ({ can: false, reason: "notHere", scene: { name: "The Road" } }) } };
+    warnings.length = 0;
+    assert.deepEqual(await storage.stash(hero, abbey, [{ id: "g" }]), { ok: false, reason: "outOfReach", why: "notHere", scene: "The Road" });
+    assert.deepEqual([purse(hero), abbey.items.size, warnings], [["Gold ×40"], 1, ["ACKS-LIB.money.reach.notHere"]], "the refusal is said on the asking seat");
+    acksExtras.location = { reach: { depositReach: () => ({ can: true, reason: null, scene: null }) } };
+    assert.equal((await storage.stash(hero, abbey, [{ id: "g" }])).ok, true);
+    assert.deepEqual([purse(hero), keptAt(abbey, hero)], [[], ["Gold ×40"]]);
+  } finally {
+    acksExtras.location = location;
+    game.user = JUDGE;
+  }
+});
+await test("a seat that owns the place writes its own move", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(12, { _id: "g" })] });
+  worldActors.set(hero.id, hero);
+  const cellar = makePlace({ id: "cellar" });
+  const calls = connectJudge();
+  game.user = PLAYER;
+  try {
+    assert.equal((await storage.stash(hero, cellar, [{ id: "g" }])).ok, true);
+    assert.deepEqual([keptAt(cellar, hero), calls.length], [["Gold ×12"], 0]);
+  } finally {
+    game.user = JUDGE;
+  }
+});
+await test("a refusal the Judge's seat reaches is said once, and a hand-over is never asked for", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(0, { _id: "none" }), rope()] });
+  const friend = makeActor({ id: "friend" });
+  friend.owners = [];
+  worldActors.set(hero.id, hero);
+  worldActors.set(friend.id, friend);
+  const abbey = judgesPlace("abbey");
+  const calls = connectJudge();
+  game.user = PLAYER;
+  try {
+    assert.deepEqual(await storage.stash(hero, abbey, [{ id: "none" }]), { ok: false, reason: "empty" });
+    assert.deepEqual([calls.length, warnings], [1, ["ACKS-LIB.storage.nothingToMove"]], "the seat that made the move for another says nothing of it");
+    warnings.length = 0;
+    assert.deepEqual(await storage.handOver(hero, abbey, [{ id: "rope" }]), { ok: false, reason: "permission" }, "a hand-over is the seat's own to write, at a place as anywhere");
+    assert.deepEqual(await storage.handOver(hero, friend, [{ id: "rope" }]), { ok: false, reason: "permission" });
+    assert.deepEqual([calls.length, hero.items.some((i) => i.name === "Rope"), abbey.items.size, friend.items.size], [1, true, 0, 0]);
+  } finally {
+    game.user = JUDGE;
+  }
+});
+
 // The payday's own module defines a data model and a dialog as it loads.
 foundry.abstract = { DataModel: class {} };
 foundry.data = { fields: {} };

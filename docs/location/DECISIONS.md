@@ -664,6 +664,7 @@ belongs at the surface where a Judge can see they are using it.
 **Cost, and it is a real one:** a Judge-owned NPC no longer reaches a
 Judge-owned unlinked place by ownership alone, because the ordinary ownership
 shape names no user at OWNER. They reach it by standing at it, like anyone else.
+*(Not what holds where one Judge created both: see 2026-10-10.)*
 
 **One token is one body.** `reachScan` matched the subject with
 `token.actorId === actor.id`, and a synthetic token actor's `id` IS its base
@@ -825,3 +826,27 @@ what it held.
 *Cost:* a world with nowhere to keep coin gains a vault the first time a
 character's balance is swept. A monster or a unit that had coin banked now
 carries it, and it weighs.
+
+## 2026-10-10 — A Judge named as an owner counts as one, for now
+
+**Asked.** A deposit walked from a player's seat reached a place the
+character shared nothing with: no pin, no token on it, no linked scene, no
+vault. Foundry names the user who creates an actor at OWNER on it, beside
+whatever ownership the create asked for, so a character and a place made by
+one Judge both carry that Judge by name and `ownersShare` reads them as held
+in common. The 2026-09-15 entry states the opposite as its cost. Its
+"ordinary ownership shape names no user at OWNER" is not the shape Foundry
+writes.
+
+**Ruled.** It stays as it is. A character reaches an unlinked place when one
+user is named at OWNER on both, a Judge included. Leaving Judges out of the
+question is [ROADMAP.md](ROADMAP.md) work.
+
+**Rejected:** changing `ownersShare` in the release that found it. Payments,
+deposits and exchanges in a running campaign reach places by this, and that
+release existed so a player could leave coin at a place mid-journey.
+
+*Cost:* the gate refuses less than its record says. Where one Judge made the
+character and the place, where the character stands and what it has pinned
+decide nothing. Seen live: the same pair answered `notYours` once that Judge
+was taken off the place.

@@ -65,7 +65,14 @@ a character first (or to the party's pack mule) and stow it from there.
 Goods are grouped by **whose they are**, because a warehouse holding three
 characters' gear is three inventories in one actor, not a shared pile. Each
 character sees a **Retrieve** button on their own rows; the GM sees it on all of
-them.
+them. A player does not have to own the place to leave goods there or take
+their own back.
+
+![](../releases/v11.1.0/location-storage-player.png)
+
+*A player's seat, on the Storage tab of the system's character sheet: coin and
+a rope kept at a place the Judge runs, with the controls to leave more and to
+take it back.*
 
 ![](../releases/v4.0.0/location-storage-manager.png)
 
@@ -232,9 +239,9 @@ or copied. Drop it on whoever is to carry it, or on a place.
 *The warning a rope dropped on an organisation's sheet gives. The rope stays
 with whoever held it.*
 
-**"A GM must be connected for that."** The payment or deposit touches a place
-your seat cannot write to, and the Judge's seat carries those out. Nothing was
-taken; try again once the Judge is connected.
+**"A GM must be connected for that."** The payment, deposit or withdrawal
+touches a place your seat cannot write to, and the Judge's seat carries those
+out. Nothing was taken; try again once the Judge is connected.
 
 **My character has no vault any more.** Deleting one does not regenerate it. A GM
 makes a new one with **Storage Manager → Give a character a vault**.

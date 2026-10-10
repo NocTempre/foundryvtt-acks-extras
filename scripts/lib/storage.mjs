@@ -60,6 +60,16 @@ import { coinCount, coinOrderOf, readStoreKey } from "./money-logic.mjs";
  */
 const creditCoin = async (...args) => (await import("./money.mjs")).creditCoin(...args);
 
+/**
+ * The socket transport (sockets.mjs), reached when a move is handed to the
+ * Judge's seat or the relay is registered. It registers on the socket as it
+ * loads, so like `creditCoin` the import waits for the call.
+ */
+const transport = () => import("./sockets.mjs");
+
+/** The socket handler that makes a move for a seat that may not write the place. */
+const MOVE_HANDLER = "libMoveGoods";
+
 // Re-export the Foundry-free half so consumers reach it all through
 // `acksLib.storage`, while the pure half stays independently Node-importable.
 export {
@@ -266,24 +276,34 @@ export function coinContainerOf(holder) {
  * persists `system.encumbrance.max` during preparation, and the fewer separate
  * item writes a transfer makes, the fewer times that runs.
  *
+ * A seat that owns the character's end of a deposit or a retrieval and not the
+ * place's hands the whole move to the Judge's seat (`askJudge`), which plans it
+ * again from the same arguments.
+ *
+ * @param {object} [opts]
+ * @param {string} [opts.relay] the move a seat may hand to the Judge: "stash" or "retrieve"
+ * @param {boolean} [opts.quiet] refuse by result alone; the asking seat says why
+ * @param {string|null} [opts.userId] the user the move is made for, where another seat makes it
  * @returns {Promise<{ok: boolean, manifest?: object[], reason?: string}>}
  */
-async function transfer(source, target, spec, { hook, stampOwner, preserveOwner = false } = {}) {
+async function transfer(source, target, spec, { hook, stampOwner, preserveOwner = false, relay = null, quiet = false, userId = null } = {}) {
   if (!source || !target) return { ok: false, reason: "missing" };
   if (source.uuid === target.uuid) return { ok: false, reason: "same" };
+  const refuse = (reason) => {
+    if (!quiet) warn(REFUSALS[reason]);
+    return { ok: false, reason };
+  };
 
   // A synthetic actor's uuid dies with its token, so goods stamped with one
   // would be unreturnable: a move that stamps an owner refuses a token's own
   // actor at either end. A move that stamps nothing carries no uuid forward
   // and crosses to and from one freely — coin off a fallen monster's token is
   // handed over like any other. Linked tokens are the world actor either way.
-  if (stampOwner && (source.isToken || target.isToken)) {
-    warn("tokenActor");
-    return { ok: false, reason: "token" };
-  }
+  if (stampOwner && (source.isToken || target.isToken)) return refuse("token");
   if (!source.isOwner || !target.isOwner) {
-    warn("notOwner");
-    return { ok: false, reason: "permission" };
+    const mine = relay === "stash" ? source : relay === "retrieve" ? target : null;
+    if (mine?.isOwner && !game.user?.isGM) return askJudge(relay, source, target, spec);
+    return refuse("permission");
   }
 
   const ownerActor = stampOwner ? (preserveOwner ? null : source) : target;
@@ -306,10 +326,7 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
     quantity: quantityOf(c)?.value ?? 1,
     coppervalue: c.system?.coppervalue ?? null,
   }));
-  if (!manifest.length) {
-    warn("nothingToMove");
-    return { ok: false, reason: "empty" };
-  }
+  if (!manifest.length) return refuse("empty");
 
   // Coin handed to a holder goes where they keep arriving coin; goods kept for
   // an owner at a place are put where the move put them.
@@ -322,8 +339,7 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
     }));
   } catch (err) {
     console.error(`${MODULE_ID} | storage transfer failed before anything moved`, err, manifest);
-    warn("moveFailed");
-    return { ok: false, reason: "create" };
+    return refuse("create");
   }
 
   try {
@@ -333,14 +349,15 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
     console.error(`${MODULE_ID} | storage transfer failed after arrival — compensating`, err, manifest);
     try {
       if (created.length) await target.deleteEmbeddedDocuments("Item", created.map((d) => d.id));
-      warn("moveFailed");
     } catch (undoErr) {
-      // Both halves failed: the goods exist twice. Say so — a duplicate the
-      // player knows about is recoverable, a silent one is not.
+      // Both halves failed: the goods exist twice. Say so on the seat that made
+      // the writes — a duplicate somebody knows about is recoverable, a silent
+      // one is not.
       console.error(`${MODULE_ID} | compensation failed; goods are duplicated`, undoErr, manifest);
       ui.notifications?.error(loc("storage.duplicated", { name: target.name }));
+      return { ok: false, reason: "duplicated" };
     }
-    return { ok: false, reason: "source" };
+    return refuse("source");
   }
 
   const payload = {
@@ -349,7 +366,7 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
     ownerUuid: ownerActor?.uuid ?? null,
     ownerName: ownerActor?.name ?? "",
     manifest,
-    userId: game.user?.id,
+    userId: userId ?? game.user?.id,
   };
   // hook-ok: one of STORAGE_HOOKS, passed by the wrappers below
   Hooks.callAll(hook, payload);
@@ -362,12 +379,79 @@ export async function stash(source, provider, spec) {
     warn("notProvider");
     return { ok: false, reason: "notProvider" };
   }
-  return transfer(source, provider, spec, { hook: STORAGE_HOOKS.STASHED, stampOwner: true });
+  return transfer(source, provider, spec, { hook: STORAGE_HOOKS.STASHED, stampOwner: true, relay: "stash" });
 }
 
 /** Place → character. Attribution is dropped; you own what you carry. */
 export const retrieve = (provider, target, spec) =>
-  transfer(provider, target, spec, { hook: STORAGE_HOOKS.RETRIEVED, stampOwner: false });
+  transfer(provider, target, spec, { hook: STORAGE_HOOKS.RETRIEVED, stampOwner: false, relay: "retrieve" });
+
+/* -------------------------------------------- */
+/*  A move the seat cannot write alone           */
+/* -------------------------------------------- */
+
+/**
+ * Hand a deposit or a retrieval to the Judge's seat, where this seat owns the
+ * character and may not write the place. A refusal is said here, from the
+ * answer; with no Judge connected the transport says so itself.
+ * @returns {Promise<{ok: boolean, manifest?: object[], reason?: string}>}
+ */
+async function askJudge(kind, source, target, spec) {
+  const { executeAsGM } = await transport();
+  const answer = (await executeAsGM(MOVE_HANDLER, { kind, sourceUuid: source.uuid, targetUuid: target.uuid, spec })) ?? { ok: false, reason: "noGm" };
+  if (answer.ok || answer.reason === "noGm") return answer;
+  if (answer.reason === "outOfReach") {
+    ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.money.reach.${answer.why}`, { who: source.name, place: target.name, scene: answer.scene ?? "" }));
+  } else if (answer.reason === "duplicated") ui.notifications?.error(loc("storage.duplicated", { name: target.name }));
+  else warn(REFUSALS[answer.reason] ?? "moveFailed");
+  return answer;
+}
+
+/**
+ * May a seat that does not own this place take this row from it for
+ * `claimant`? A row kept there for that character, and a row of the place's
+ * own that the Judge marked retrievable.
+ */
+const takeableBy = (row, claimant) =>
+  !!row && (rowOwnerOf(row) === claimant.uuid || (rowOwnerOf(row) === HOUSE_OWNER && !!storageFlagOf(row)?.retrievable));
+
+/**
+ * The move `askJudge` asked for, made on the Judge's seat. A relayed call
+ * (`requestUserId`, set by `lib/sockets.mjs`) is made only for a sender who
+ * owns the character. A deposit must be within that character's reach of the
+ * place, as the location feature answers it; a retrieval takes only rows
+ * `takeableBy` the character, from wherever they stand.
+ * @returns {Promise<{ok: boolean, manifest?: object[], reason?: string, why?: string, scene?: string}>}
+ */
+async function moveForSeat({ kind, sourceUuid, targetUuid, spec, requestUserId = null } = {}) {
+  const source = resolveActorSync(sourceUuid);
+  const target = resolveActorSync(targetUuid);
+  if (!source || !target) return { ok: false, reason: "missing" };
+  const sender = requestUserId ? game.users.get(requestUserId) : null;
+  const owns = (actor) => !requestUserId || (!!sender && actor.testUserPermission(sender, "OWNER"));
+  const made = { quiet: true, userId: requestUserId };
+
+  if (kind === "stash") {
+    if (!owns(source)) return { ok: false, reason: "permission" };
+    if (!isProvider(target)) return { ok: false, reason: "notProvider" };
+    const reach = globalThis.acksExtras?.location?.reach?.depositReach?.(source, target);
+    if (reach && !reach.can) return { ok: false, reason: "outOfReach", why: reach.reason, scene: reach.scene?.name ?? "" };
+    return transfer(source, target, spec, { hook: STORAGE_HOOKS.STASHED, stampOwner: true, ...made });
+  }
+  if (kind === "retrieve") {
+    if (!owns(target) || !isProvider(source)) return { ok: false, reason: "permission" };
+    const asked = (spec ?? []).map((entry) => (typeof entry === "string" ? entry : entry?.id));
+    if (!asked.every((id) => takeableBy(source.items.get(id), target))) return { ok: false, reason: "permission" };
+    return transfer(source, target, spec, { hook: STORAGE_HOOKS.RETRIEVED, stampOwner: false, ...made });
+  }
+  return { ok: false, reason: "permission" };
+}
+
+/** Register the Judge's half of a relayed deposit or retrieval — once, at init. */
+export async function registerStorageRelay() {
+  const { registerHandler } = await transport();
+  registerHandler(MOVE_HANDLER, moveForSeat);
+}
 
 /**
  * Place → place, keeping each item's existing attribution — consolidating two
@@ -602,3 +686,14 @@ function loc(key, data = {}) {
 function warn(key, data = {}) {
   ui.notifications?.warn(loc(`storage.${key}`, data));
 }
+
+/** The warning each refusal of a move is said with, by its `reason`. */
+const REFUSALS = Object.freeze({
+  token: "tokenActor",
+  permission: "notOwner",
+  empty: "nothingToMove",
+  create: "moveFailed",
+  source: "moveFailed",
+  missing: "moveFailed",
+  notProvider: "notProvider",
+});

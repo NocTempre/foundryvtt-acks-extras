@@ -233,6 +233,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     a few squares (`{animate: false}`): *Observable:* the count does not
     move. Rename the token: it rises by one — a move touches nothing the cell
     reads, and a rename does.
+15. The Mount line. Walked with the drop that fills it, from a player's seat:
+    `docs/lib/TESTING.md`, "A mount bound by a drop".
 
 ## Type scale (the `fontScale` knob)
 

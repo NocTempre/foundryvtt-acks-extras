@@ -106,6 +106,28 @@
       {{/each}}
       {{/if}}
 
+      <div class="acks-extras-character-sheet__rule is-spaced" data-mount-drop>
+        <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.mount"}}</span>
+        <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.equipment.mountNote"}}</span>
+      </div>
+      {{#if eq.mount}}
+      <div class="acks-extras-character-sheet__row is-mount" data-mount-drop>
+        <img class="acks-extras-character-sheet__gear-img" src="{{eq.mount.img}}" alt="" inert>
+        <span class="acks-extras-character-sheet__row-text">
+          <a class="acks-extras-character-sheet__gear-name" data-action="mountOpen">{{eq.mount.name}}</a>
+          <span class="acks-extras-character-sheet__row-line acks-nums">{{eq.mount.line}}</span>
+        </span>
+        {{#if eq.editable}}
+        <span class="acks-extras-character-sheet__ctls"><span class="acks-extras-character-sheet__grp">
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="mountDismount" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.dismount'}}"><i class="fa-solid fa-person-walking" inert></i></button>
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="mountOpen" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.openMount'}}"><i class="fa-solid fa-chevron-right" inert></i></button>
+        </span></span>
+        {{/if}}
+      </div>
+      {{else}}
+      <div class="acks-extras-character-sheet__hint" data-mount-drop>{{localize "ACKS-CHARACTER.equipment.onFoot"}}</div>
+      {{/if}}
+
       <div class="acks-extras-character-sheet__rule is-spaced">
         <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.stowed"}}</span>
         <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.equipment.stowedNote"}}</span>

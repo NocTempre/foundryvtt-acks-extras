@@ -1,5 +1,38 @@
 # Changelog
 
+## 11.1.0
+
+### Fixed
+
+- **A player leaves goods at a place the Judge runs, and takes their own
+  back.** Deposit and Retrieve on a character's *Kept elsewhere* row, and on
+  the Storage tab of the system's character sheet, refused a player who owned
+  the character and not the place, with a warning about ownership. The Judge's
+  seat now carries the move out, as it already carried a payment: a deposit
+  is made where the character can reach the place, and a withdrawal takes
+  what is kept there for that character and what the Judge marked for taking.
+  With no Judge connected it is refused and nothing moves. A seat that owns
+  the place moves its goods itself, as before.
+- **An animal dropped on a character is ridden.** The guide said so and
+  nothing answered the drop, on this sheet or the system's. The character is
+  seated on it and a notice names both; the player has to own both.
+
+### Added
+
+- **A character's Equipment tab states their mount.** *Mount* names what the
+  character rides and what it is bearing against what it can, with a control
+  to dismount and one to open its sheet. A monster dropped on that line is
+  ridden; dropped anywhere else on a character it is hired, as before.
+- **Kit dragged between a rider and their mount is moved.** It was copied, so
+  a pack put on the horse stayed on the rider too. While one rides the other,
+  goods dragged from either sheet to the other leave the first, and what
+  leaves the rider comes off the rider's load. Any other two sheets copy, as
+  the system does; coin was already moved.
+- **For macros:** `acksExtras.lib` is apiVersion 28. `mount.ride(rider,
+  mount)` binds the two and says so. `storage.stash` and `storage.retrieve`
+  answer `noGm`, `outOfReach` and `permission` where the Judge's seat made or
+  refused the move.
+
 ## 11.0.0
 
 ### Added

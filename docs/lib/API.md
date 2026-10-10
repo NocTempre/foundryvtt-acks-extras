@@ -709,15 +709,16 @@ reason the compat stubs exist.
 ### `mount` — who is riding what
 
 ```js
-const { mountOf, riderOf, isMounted, mountActor, dismount, unseat } = acksExtras.lib.mount;
+const { mountOf, riderOf, isMounted, mountActor, ride, dismount, unseat } = acksExtras.lib.mount;
 ```
 
-The binding is **symmetric** — stored on both actors — because a combat hook
-holds the rider and an encumbrance calculation holds the animal, and searching
-every actor for the other end on each read is not viable. Both readers verify
-the far end still agrees, so a half-broken pair reads as "not mounted" rather
-than throwing. Hooks: `acksLibMounted`, `acksLibDismounted`. A mount need not be
-an `acks-extras.animal` — in ACKS plenty of people ride monsters.
+Mounting is the `rider` role of the one attachment relationship, stored once on
+the rider ([MODEL.md](MODEL.md), "Carrying: mounts, teams and everything
+aboard"). `mountActor(rider, mount)` makes the binding and resolves to whether
+it was made; the seat must own both. `ride(rider, mount)` is the same call with
+a notice naming both, for a gesture that leaves nothing else on screen. Hooks:
+`acksLibMounted`, `acksLibDismounted`. A mount need not be an
+`acks-extras.animal` — in ACKS plenty of people ride monsters.
 
 This exists because the equipment feature’s mounted-combat overlay was blocked on
 there being any mounted state in the system at all.
@@ -826,7 +827,21 @@ for the whole stack.
 
 `stash`, `retrieve` and `moveStored` cross a place. `handOver(from, to, spec)`
 is actor to actor: nothing is stamped, the goods leave the giver, and the seat
-must own both ends. A move that stamps an owner refuses an unlinked token's own
+must own both ends. `moveStored` asks the same.
+
+A seat that owns the character's end of a `stash` or a `retrieve` and not the
+place's hands the whole move to the GM (the `libMoveGoods` handler), whose seat
+plans it again from the same arguments. It is made only for a sender who owns
+the character. A deposit is put to the location feature's deposit reach there;
+a retrieval takes rows kept for that character and house rows marked
+`retrievable`, and one row outside those refuses the whole request. Every move
+resolves `{ok, manifest?, reason?}`: `noGm` with no GM connected, `outOfReach`
+(with `why` and `scene`) for a deposit the character cannot make from where
+they stand, `permission` for a sender or a row the rule does not allow. The
+refusal is said on the asking seat. The `STORAGE_HOOKS` fire on the client that
+made the writes, their `userId` the user who asked.
+
+A move that stamps an owner refuses an unlinked token's own
 actor at either end, because the stamp is a uuid that dies with the token; a
 hand-over stamps nothing and crosses one freely. `stockProvider(provider,
 goods, {ownerUuid, ownerName})` puts goods that come from nobody (a
