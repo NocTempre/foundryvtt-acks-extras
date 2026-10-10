@@ -37,6 +37,9 @@ script's header says what each flag and exit status means.
      that is not committed yet: run again with `--force`. Another session's,
      or one you cannot account for: leave it, do not force, and report the
      repo as not synced, with the paths.
+   - **`mode`** means the repo's index does not hold a path as executable
+     that the manifest lists as `EXECUTABLE`. The sync writes no index, so
+     the run exits 1 with the files written and the mode left to step 5.
    - **Exit 2** means the run could not do what was asked: a target that is
      missing or is not a module repo, or a branch that could not be fetched.
      It says nothing about drift. Fix the cause and run again.
@@ -53,6 +56,8 @@ script's header says what each flag and exit status means.
    sync leaves the repo's next CI run red against the already-pushed template.
    The files are a script's, and go into the change as that skill says a
    script's do.
+   A path step 3 reported as `mode` goes under that change's `mode` key as
+   `"100755"`, and `--check` then reads the repo level.
 6. Skills sync with everything else (`COPY_DIRS` in the manifest) — there is
    no separate install step. If a stale `~/.claude/skills/acks-*` copy exists
    on this machine, delete it: user-level copies sit outside every drift gate

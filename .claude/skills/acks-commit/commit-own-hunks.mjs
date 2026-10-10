@@ -19,7 +19,7 @@
  *                     the carry stages pass on the rebuilt tree
  *   postgate <sha>    the full gate on a commit already made
  *   ship [--attempts N]  record, gate and commit, again only while the base moves under the gate.
- *                     It holds whole and added files to the `record` already made. With none
+ *                     It holds whole files, added files and modes to the `record` already made. With none
  *                     made it goes on only where the ledger accounts for everything it reads,
  *                     and otherwise prints the listing and stops for it to be read
  *   clean             remove the scratch clone and the private index; drop the ledger's
@@ -51,6 +51,10 @@
  *            `whole` takes the working copy as it stood at `record`, and refuses any later edit.
  *   added    paths HEAD does not track, each taken whole as recorded
  *   removed  paths HEAD tracks and the working tree no longer holds
+ *   mode     { "<path>": "100755" | "100644" }: the mode the commit holds for a file, where
+ *            that is not the mode HEAD holds, or for an added file is not 100644. A path
+ *            named here and nowhere else is committed with the content HEAD holds. The
+ *            mode comes from this key alone: git on Windows reads none from a file
  *   mine     true: beside the paths named, every file this session's records name, read as
  *            `{}` reads it, and a new file where every line is this session's. A change.json
  *            that names no path is read this way
@@ -155,9 +159,10 @@ function readChange({ resolved = true } = {}) {
   let files = raw.files ?? {};
   let added = raw.added ?? [];
   const removed = raw.removed ?? [];
+  const modes = raw.mode ?? {};
   const adopt = raw.adopt ?? [];
   const named = [...Object.keys(files), ...added, ...removed];
-  const mine = raw.mine === true || !named.length;
+  const mine = raw.mine === true || (!named.length && !Object.keys(modes).length);
   // Whose edits the ledger gives is asked at `record` alone; every later mode
   // reads the paths that record took.
   if (!resolved && !SESSION && !adopt.length) {
@@ -165,20 +170,27 @@ function readChange({ resolved = true } = {}) {
     for (const [file, spec] of Object.entries(files)) {
       if (!spec.whole && !spec.own) refuse(`${file}: give "own", a pattern its hunks match, or "whole": true; ${how}`, EXIT.usage);
     }
-    if (!named.length) refuse(`change.json names no path, and ${how}`, EXIT.usage);
+    if (!named.length && !Object.keys(modes).length) refuse(`change.json names no path, and ${how}`, EXIT.usage);
     if (mine) refuse(`"mine" is set, and ${how}`, EXIT.usage);
   }
   if (new Set(named).size !== named.length) refuse("change.json lists a path twice", EXIT.usage);
-  if (named.some((f) => f.includes("\\") || path.isAbsolute(f))) refuse("paths are repository-relative, with forward slashes", EXIT.usage);
+  if ([...named, ...Object.keys(modes)].some((f) => f.includes("\\") || path.isAbsolute(f))) refuse("paths are repository-relative, with forward slashes", EXIT.usage);
+  for (const [file, given] of Object.entries(modes)) {
+    if (given !== "100644" && given !== "100755") refuse(`"mode" gives ${file} ${JSON.stringify(given)}; a file is "100644", or "100755" where it is executable`, EXIT.usage);
+    if (removed.includes(file)) refuse(`"mode" names ${file}, and "removed" lists it`, EXIT.usage);
+  }
   if (resolved && fs.existsSync(at("record.json"))) {
     const taken = JSON.parse(fs.readFileSync(at("record.json"), "utf8")).paths;
     if (taken) ({ files, added } = taken);
   }
-  const all = [...Object.keys(files), ...added, ...removed].sort();
+  const modeOnly = Object.keys(modes).filter((f) => !(f in files) && !added.includes(f));
+  const all = [...Object.keys(files), ...added, ...removed, ...modeOnly].sort();
   return {
     files,
     added,
     removed,
+    modes,
+    modeOnly,
     all,
     mine,
     adopt,
@@ -234,6 +246,8 @@ function applyHunks(file, headLines, picked) {
 }
 
 const same = (a, b) => a.length === b.length && a.every((l, i) => l === b[i]);
+/** A change's modes in one spelling, so that two listings of them compare. */
+const modesAs = (modes) => JSON.stringify(Object.entries(modes ?? {}).sort());
 
 /** Refuse a text blob that holds a carriage return; a binary one is left alone. */
 function refuseCarriageReturns(sha, file) {
@@ -345,7 +359,8 @@ function discover(change, ledger) {
  * session. Every other file is read by the ledger: a hunk is taken where all
  * of it is this change's, divided where it can be, and left where it is
  * another session's or nobody's. A file no one else has written since a
- * committed content is taken entire.
+ * committed content is taken entire. A mode is taken on the caller's word and
+ * listed: no record says who gave a file one.
  *
  * @param {object} [options]
  * @param {object} [options.pin] An earlier record. A file taken on the
@@ -358,7 +373,7 @@ function record({ pin = null } = {}) {
   const change = readChange({ resolved: false });
   const ledger = readLedger(change);
   const found = change.mine ? discover(change, ledger) : { files: {}, added: [] };
-  const rec = { hunks: {}, whole: {}, added: {}, claimed: [], paths: { files: {}, added: [] }, settled: !change.adopt.length && !change.removed.length };
+  const rec = { hunks: {}, whole: {}, added: {}, modes: {}, claimed: [], paths: { files: {}, added: [] }, settled: !change.adopt.length && !change.removed.length };
   const claim = (file) => {
     rec.claimed.push(file);
     rec.settled = false;
@@ -446,7 +461,18 @@ function record({ pin = null } = {}) {
     if (inTree(file)) refuse(`${file}: listed as removed, and the working tree still holds it`);
     console.log(`== ${file}: removed`);
   }
-  if (!Object.keys(rec.paths.files).length && !rec.paths.added.length && !change.removed.length) refuse("nothing in the working tree is this session's to commit, by the ledger");
+  for (const [file, given] of Object.entries(change.modes)) {
+    const isAdded = rec.paths.added.includes(file);
+    const held = isAdded ? "100644" : headEntry(file).split(/\s+/)[0];
+    if (!held) refuse(`${file}: "mode" names it, and HEAD does not track it; list it under "added" as well`);
+    if (held !== "100644" && held !== "100755") refuse(`${file}: HEAD holds it as ${held}, which is not a file's mode`);
+    if (held === given) refuse(`${file}: "mode" gives ${given}, the mode the commit holds for it with no word`);
+    rec.modes[file] = given;
+    rec.settled = false;
+    console.log(`== ${file}: mode ${held} to ${given}${isAdded || file in rec.paths.files ? "" : ", with the content HEAD holds"}`);
+  }
+  if (pin && modesAs(pin.modes) !== modesAs(rec.modes)) refuse('"mode" is not what the last `record` listed; run `record` and read its listing again');
+  if (!Object.keys(rec.paths.files).length && !rec.paths.added.length && !change.removed.length && !Object.keys(rec.modes).length) refuse("nothing in the working tree is this session's to commit, by the ledger");
   fs.writeFileSync(at("record.json"), JSON.stringify(rec, null, 1));
   console.log("recorded");
   return rec;
@@ -459,7 +485,8 @@ function record({ pin = null } = {}) {
  * peer has since added to the file is left where it is, and one that has run
  * into a recorded hunk stops the build. Of a hunk `record` divided, the lines
  * it kept are applied and the rest are left. A whole or added file is taken
- * only while its content is what `record` hashed.
+ * only while its content is what `record` hashed. A file's mode is HEAD's, or
+ * the one change.json gives it, and never the working copy's.
  *
  * @param {object} [options]
  * @param {boolean} [options.shared] Stage on the repository's own index, which
@@ -470,6 +497,7 @@ function build({ shared = false } = {}) {
   const change = readChange();
   if (!fs.existsSync(at("record.json"))) refuse("no hunk record; run `record` first");
   const rec = JSON.parse(fs.readFileSync(at("record.json"), "utf8"));
+  if (modesAs(rec.modes) !== modesAs(change.modes)) refuse('"mode" is not what `record` listed; run `record` again');
   const env = shared ? process.env : { ...process.env, GIT_INDEX_FILE: at("private-index") };
   if (shared) {
     if (staged().length) refuse(`the shared index holds staged changes: ${staged().join(", ")}`, EXIT.peerStaging);
@@ -480,8 +508,9 @@ function build({ shared = false } = {}) {
 
   const leftOut = {};
   for (const [file, spec] of Object.entries(change.files)) {
-    const fileMode = headEntry(file).split(/\s+/)[0];
-    if (!fileMode) refuse(`${file}: HEAD no longer tracks it`);
+    const headMode = headEntry(file).split(/\s+/)[0];
+    if (!headMode) refuse(`${file}: HEAD no longer tracks it`);
+    const fileMode = change.modes[file] ?? headMode;
     let sha;
     if (spec.whole) {
       if (rec.whole[file] === undefined) refuse(`${file}: not on record; run \`record\` again`);
@@ -515,11 +544,18 @@ function build({ shared = false } = {}) {
     const sha = inTree(file) ? git(["hash-object", "-w", "--", file]).trim() : "missing";
     if (sha !== rec.added[file]) refuse(`${file}: added, and its content is ${sha} where ${rec.added[file]} was recorded`);
     refuseCarriageReturns(sha, file);
-    git(["update-index", "--add", "--cacheinfo", `100644,${sha},${file}`], { env });
+    git(["update-index", "--add", "--cacheinfo", `${change.modes[file] ?? "100644"},${sha},${file}`], { env });
   }
   for (const file of change.removed) {
     if (inTree(file)) refuse(`${file}: listed as removed, and the working tree holds it again`);
     git(["update-index", "--force-remove", "--", file], { env });
+  }
+  // A path named for its mode alone keeps the blob HEAD holds, so a hunk the
+  // working tree has in it stays there for the session that wrote it.
+  for (const file of change.modeOnly) {
+    const [headMode, , sha] = headEntry(file).split(/\s+/);
+    if (!headMode) refuse(`${file}: HEAD no longer tracks it`);
+    git(["update-index", "--cacheinfo", `${change.modes[file]},${sha},${file}`], { env });
   }
 
   const tree = git(["write-tree"], { env }).trim();
@@ -757,6 +793,35 @@ async function leakScan(paths, tree) {
   if (errors.length) refuse(`the leak scanner flags the change set:\n${errors.join("\n")}`);
 }
 
+/**
+ * Give the working copy of each file the commit gave a mode that mode, where
+ * this repository's git reads a file's mode from the file. Left as it was, the
+ * copy reads as modified to every session from this commit on. Where git reads
+ * none (`core.fileMode` false, as git on Windows sets it) there is nothing to
+ * level. A copy that cannot be changed is named and the commit stands.
+ */
+function levelModes(change) {
+  const paths = Object.keys(change.modes).filter(inTree);
+  if (!paths.length) return;
+  let reads = "true"; // what git takes it for where no config sets it
+  try {
+    reads = git(["config", "--type=bool", "--get", "core.fileMode"]).trim();
+  } catch {
+    // no config sets it
+  }
+  if (reads !== "true") return;
+  for (const file of paths) {
+    const full = path.join(REPO, file);
+    try {
+      const now = fs.statSync(full).mode & 0o777;
+      const next = change.modes[file] === "100755" ? now | ((now & 0o444) >> 2) : now & ~0o111;
+      if (next !== now) fs.chmodSync(full, next);
+    } catch (e) {
+      console.log(`${file}: the commit holds it as ${change.modes[file]} and its working copy could not be given that mode (${e.message}); \`git status\` lists it until it is`);
+    }
+  }
+}
+
 async function commit({ carry = false } = {}) {
   const change = readChange();
   if (!fs.existsSync(at("gated.json"))) refuse("no gated tree on record; run `gate` first");
@@ -814,6 +879,7 @@ async function commit({ carry = false } = {}) {
   const parent = revParse("HEAD~1");
   console.log(`commit ${sha}\ntree   ${tree}\nparent ${parent}`);
   if (tree !== want.tree || parent !== want.base) refuse("the commit is NOT the gated tree on its base; look at it before anything else");
+  levelModes(change);
   if (want.carried) console.log(`OK: the commit holds the gated files on the moved base; run \`postgate ${sha}\`, and the carry stands once that is green`);
   else console.log("OK: the commit holds the gated tree on the gated base");
 }

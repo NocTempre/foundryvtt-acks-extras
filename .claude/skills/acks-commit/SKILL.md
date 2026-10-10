@@ -57,6 +57,10 @@ and no other. It says more only about what the ledger cannot know:
   `added`.
 - **A removed file** is deleted with `rm` and named under `removed`; `git rm`
   writes the shared index and is refused.
+- **A file's mode** is named under `mode`, as
+  `{ ".githooks/pre-commit": "100755" }`. Git on Windows reads no mode from a
+  file, so nothing else gives a commit one: `git update-index --chmod` writes
+  the shared index, and the tool stops beside staging that is not its own.
 - `adopt` names a session whose records are this change's too: the one
   before a `/clear`, or one whose work the user handed over. The listing
   shows its lines as `[session 1a2b3c4d]`.
@@ -85,11 +89,11 @@ four times at most.
 
 Where the ledger accounts for every hunk it read, `ship` goes straight to
 the gate. Where the change takes anything on its own word (a pattern, a whole
-file, a named new file, a removal, `adopt`), or a file it takes holds a hunk
-no record accounts for, the first `ship` prints the listing and exits 1.
-**Read it**, then run `ship` again; from there it holds whole and added
-files to what was listed. `record` prints the same listing and writes
-nothing to the repository.
+file, a named new file, a removal, a mode, `adopt`), or a file it takes holds
+a hunk no record accounts for, the first `ship` prints the listing and exits
+1. **Read it**, then run `ship` again; from there it holds whole files, added
+files and modes to what was listed. `record` prints the same listing and
+writes nothing to the repository.
 
 | Listing | Meaning |
 | --- | --- |
