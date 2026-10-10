@@ -8,12 +8,19 @@ import {
   WEATHER_DOC_ID,
   applyWeatherImport,
   assembleBands,
+  assembleConditionEffects,
   assembleWeatherTables,
+  cutAtNextEntry,
   parseBandCell,
+  parseConditionEntry,
   parseDaysAfter,
   parseDaysBefore,
+  parseDustTerrains,
   parseModifierCell,
+  parsePenaltyClauses,
   parseSpeedWord,
+  parseVisibilityFactor,
+  parseVisibilityFeet,
 } from "../../scripts/importer/weather-binding.mjs";
 import { PRIORITY, getDoc, registerTable, resetTables, unregisterTable } from "../../scripts/lib/tables.mjs";
 import * as services from "../../scripts/lib/services.mjs";
@@ -136,6 +143,112 @@ check("the frequency grid assembles onto the travel doc",
   trav.encounterFrequency.traveling.civilized.kind === "perHex" &&
   trav.encounterFrequency.restingDay.civilized === null &&
   trav.encounterFrequency.restingDay.unsettled.hours === 18);
+
+/* --- a condition's entry: every clause read on its own ---------------------- */
+// Invented entries shaped like the printed ones — the sentence shapes are what
+// the readers pin; every figure, ground and count is made up.
+const clauses = parsePenaltyClauses(
+  "during the murk, maximum visibility distance drops to half range, all missile attacks suffer a -3 penalty, and roads provide no benefit.",
+);
+check("a clause taxes only the throws its own subject names",
+  clauses.length === 1 && clauses[0].throws.missile === -3 && !("searching" in clauses[0].throws));
+check("a list of throws is read whole",
+  parsePenaltyClauses("land surveying, navigation, and searching proficiency throws suffer a -1 penalty.")[0].throws.navigation === -1);
+check("per hour makes tracking the hourly key",
+  parsePenaltyClauses("tracking proficiency throws suffer a -7 penalty per hour.")[0].throws.trackingPerHour === -7);
+check("a penalty is negative whichever way its sign printed",
+  parsePenaltyClauses("listening proficiency throws suffer a 2 penalty.")[0].throws.listening === -2);
+check("a foraging subject names what it was after",
+  parsePenaltyClauses("foraging proficiency throws to find firewood suffer a -5 penalty.")[0].forage.firewood === -5
+  && parsePenaltyClauses("foraging proficiency throws to find water suffer a -5 penalty.")[0].forage.water === -5);
+check("two clauses in one sentence keep their own subjects",
+  (() => {
+    const two = parsePenaltyClauses("all missile attack throws suffer a -3 penalty and listening proficiency throws suffer a -5 penalty.");
+    return two.length === 2 && two[0].throws.missile === -3 && two[1].throws.listening === -5 && !("missile" in two[1].throws);
+  })());
+check("a ceiling in feet reads, with the page's own quote mark",
+  parseVisibilityFeet("maximum visibility distance drops to 45’ (which matters).") === 45
+  && parseVisibilityFeet("visibility is reduced to 35', all speeds are halved") === 35);
+check("a halving reads as a factor", parseVisibilityFactor("maximum visibility distance drops to half range, all") === 0.5);
+check("no visibility clause is null", parseVisibilityFeet("the sky is grey") === null && parseVisibilityFactor("the sky is grey") === null);
+check("the dust clause names its grounds as terrain keys",
+  JSON.stringify(parseDustTerrains("in barrens or desert terrain only, visibility is reduced")) === '["barrens","desert"]'
+  && parseDustTerrains("in any terrain").length === 0);
+check("the cut falls at the next entry's heading pair, not at a name used in passing",
+  cutAtNextEntry("suffers under frigid temperatures unless warm. the end. Cold Temperatures Cold temperatures are above zero").trim() === "suffers under frigid temperatures unless warm. the end."
+  && cutAtNextEntry("the last entry. Mud and Snow Mud accumulates after a while").trim() === "the last entry.");
+
+const RAINY = "heavy or violent precipitation of at least 3” per day. during rainy conditions, maximum visibility "
+  + "distance drops to half range, all missile attacks suffer a -3 penalty, and earthen roads provide no benefit. "
+  + "land surveying, navigation, and searching proficiency throws suffer a -1 penalty. foraging proficiency throws "
+  + "to find firewood suffer a -5 penalty. tracking proficiency throws suffer a -7 penalty per hour. a wanderer who "
+  + "endures rainy conditions for nine consecutive days has a 13% chance of catching a disease. Snowy Conditions "
+  + "Snowy conditions bring heavy snowfall and land surveying proficiency throws suffer a -9 penalty.";
+const rainy = parseConditionEntry(RAINY);
+check("an entry's throws, forage, eye and week are all read",
+  rainy.throws.missile === -3 && rainy.throws.landSurveying === -1 && rainy.throws.navigation === -1
+  && rainy.throws.searching === -1 && rainy.throws.trackingPerHour === -7 && rainy.forage.firewood === -5
+  && rainy.visibilityFactor === 0.5 && rainy.disease.days === 9 && rainy.disease.pct === 13);
+check("and the next entry's clause is not", rainy.throws.landSurveying === -1 && !("visibilityFeet" in rainy));
+
+const GUSTY = "prevail when wind speeds are high. during gusty conditions, all missile attack throws and listening "
+  + "proficiency throws suffer a -3 penalty. wanderers in gusty conditions have their expedition speed halved. air "
+  + "speed is quartered in any terrain in gusty conditions. in barrens or desert terrain only, visibility is reduced "
+  + "to 35’, all speeds are halved, and land surveying, navigation, searching, and tracking proficiency throws all "
+  + "suffer -9 penalties due to sand.";
+const gusty = parseConditionEntry(GUSTY);
+check("the grounds-only sentence becomes the dust clause with its own figures",
+  gusty.dust.terrains.join(",") === "barrens,desert" && gusty.dust.visibilityFeet === 35 && gusty.dust.speed === 0.5
+  && gusty.dust.throws.searching === -9 && gusty.dust.throws.tracking === -9);
+check("the wind's own clauses stay outside the dust",
+  gusty.throws.missile === -3 && gusty.throws.listening === -3 && !("searching" in gusty.throws)
+  && !("visibilityFeet" in gusty) && gusty.airSpeed === 0.25);
+
+const MURKY = "can arise from mist or smoke. during murky conditions, maximum visibility distance drops to 45’ (which "
+  + "matters). land surveying, navigation, searching, and tracking proficiency throws also suffer a -5 penalty. "
+  + "wanderers in murky conditions have their speeds halved for all purposes.";
+const murky = parseConditionEntry(MURKY);
+check("a flat ceiling and a four-way penalty", murky.visibilityFeet === 45 && murky.throws.tracking === -5 && murky.throws.searching === -5);
+
+const COLD = "are above zero. if the wanderer goes without protective clothing for more than nine hours he becomes "
+  + "hypothermic. a wanderer who becomes hypothermic must make a death saving throw at the end of the day. if the "
+  + "save fails, he is frostbitten and must roll 1d3 on the 9-11 row of the mortal wounds table, possibly losing "
+  + "toes. a wanderer cannot rest under frigid temperatures unless he has either protective clothing or blankets or "
+  + "a campfire or other large heat source. a wanderer who endures cold temperatures for five consecutive days has a "
+  + "3% chance of catching a disease unless immune.";
+const cold = parseConditionEntry(COLD);
+check("the frostbite save and what a failure rolls are read across two sentences",
+  cold.frostbite.save === "death" && cold.frostbite.die === "1d3" && cold.frostbite.row === "9-11");
+check("a night's need reads either, and a neighbour's name in passing does not cut the entry short",
+  cold.rest.both === false && cold.rest.fire && cold.rest.clothing && cold.disease.days === 5 && cold.disease.pct === 3);
+check("both reads both",
+  parseConditionEntry("cannot rest unless he has both protective clothing or blankets and a campfire.").rest.both === true);
+
+const BAKED = "have clear skies. foraging proficiency throws to find water suffer a -5 penalty. wanderers without "
+  + "protective clothing suffer 1 fire damage if they travel or work outdoors for 3 or more hours.";
+const baked = parseConditionEntry(BAKED);
+check("sunburn reads its damage, its kind and its hours", baked.forage.water === -5
+  && baked.sunburn.damage === 1 && baked.sunburn.type === "fire" && baked.sunburn.hours === 3);
+check("a damage type set as an inline glyph leaves the figure and the hours readable",
+  (() => {
+    const burn = parseConditionEntry("wanderers without protective clothing suffer 2 damage if they work outdoors for five or more hours.").sunburn;
+    return burn.damage === 2 && burn.type === null && burn.hours === 5;
+  })());
+check("the air speed factor is read wherever the sentence puts it",
+  parseConditionEntry("air speed in any terrain is quartered.").airSpeed === 0.25
+  && parseConditionEntry("air speed is halved in any terrain in gusty conditions.").airSpeed === 0.5);
+check("an entry with nothing readable is null", parseConditionEntry("the sky is grey and nothing happens.") === null);
+
+const fx = assembleConditionEffects({
+  p1: { rainy: RAINY, cold: COLD },
+  p2: { sunbaked: BAKED, fair: "pleasant, and nothing happens." },
+  windy: GUSTY,
+});
+check("blocks flatten to their condition keys and an empty entry is dropped",
+  Object.keys(fx).sort().join(",") === "cold,rainy,sunbaked,windy");
+check("the whole assembly carries the effects table",
+  assembleWeatherTables({ conditionEffectsProse: { p1: { rainy: RAINY } } }).conditionEffects.rainy.throws.missile === -3);
+check("no entries, no table", assembleConditionEffects({}) === null && assembleConditionEffects(null) === null);
 
 /* --- an import rewrites only its own layer --------------------------------- */
 // A Judge's override and a module's sample share the doc id with the import;

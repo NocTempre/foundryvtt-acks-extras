@@ -114,6 +114,10 @@ export const CONDITIONS = Object.freeze({
   dehydrated: {
     label: "Dehydrated", img: "icons/svg/sun.svg", forbids: ["forceMarch", "naturalHealing"],
   },
+  // `diseased` and `frostbitten` are marks the weather leaves (RR 277-279), not
+  // Appendix B entries: they carry no figures and forbid nothing, and name a
+  // body the Judge resolves from the book.
+  diseased: { label: "Diseased", img: "icons/svg/pill.svg" },
   disfavored: { label: "Disfavored", img: "icons/svg/holy-shield.svg" },
   disordered: { label: "Disordered", img: "icons/svg/downgrade.svg", ends: "turn", mods: [row("ac", "ac")] },
   dominated: { label: "Dominated", img: "icons/svg/direction.svg" },
@@ -145,6 +149,7 @@ export const CONDITIONS = Object.freeze({
   },
   forgetful: { label: "Forgetful", img: "icons/svg/light-off.svg" },
   frightened: { label: "Frightened", img: "icons/svg/terror.svg", forbids: ["attack", "cast", "speak"] },
+  frostbitten: { label: "Frostbitten", img: "icons/svg/ice-aura.svg" },
   grabbed: {
     label: "Grabbed", img: "icons/svg/pawprint.svg", implies: ["vulnerable"], forbids: ["attack", "cast", "move"],
   },

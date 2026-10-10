@@ -27,6 +27,8 @@ import { getFormation, getPartyScene, hasAbility, realMembers } from "./formatio
 import { hasCapability } from "./ability-bridge.mjs";
 import { hexContext, spendSearchHour } from "./journey.mjs";
 import { searchSpec, searchOutcome, SEARCH_SUBJECTS } from "./searching.mjs";
+import { conditionsOf } from "./weather.mjs";
+import { weatherEffects, throwPenalty } from "./weather-effects.mjs";
 import { postEncounterThrow } from "./encounter-card.mjs";
 import { unfoundPoints } from "./hex-stock.mjs";
 import {
@@ -52,6 +54,9 @@ function trackerIn(formation) {
     return !!actor && (hasCapability(actor, "kw:tracking") || hasAbility(actor, /tracking/i));
   });
 }
+
+/** A modifier with its sign written out, so a positive one does not read as a bare number. */
+const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 
 /** A point as the candidate list names it: its own name, else its kind. */
 const candidateOf = (point) => ({ id: point.id, name: point.name || loc(`hexStock.kinds.${point.kind}`) });
@@ -90,6 +95,11 @@ export async function runSearchHour(formation, {
 
   const here = trueHexOf(formation);
   const ground = here?.astray && here.center ? (paintedTerrainAt(here.scene, here.center).ground ?? t.ground) : t.ground;
+  // The sky taxes every hour of looking, and taxes a tracker's help once more
+  // for each hour already spent on the trail today, this one included.
+  const fx = weatherEffects(conditionsOf(t.weather), { terrain: t.ground });
+  const hoursSearchedToday = t.day.activities
+    .filter((a, n) => a === "search" && t.day.done[n]).length + 1;
   const spec = searchSpec({
     milesPerDay: expeditionMiles(formation),
     subject,
@@ -98,6 +108,8 @@ export async function runSearchHour(formation, {
     mode: t.movement?.mode === "flying" ? "aerial" : "onFoot",
     terrain: ground,
     tracking: trackerIn(formation),
+    weather: throwPenalty(fx, "searching"),
+    weatherTracking: throwPenalty(fx, "trackingPerHour") * hoursSearchedToday,
   });
   if (!spec.ok) {
     await whisperSearch({ unpriced: spec.missing ?? spec.reason });
@@ -202,6 +214,11 @@ async function whisperSearch({
     }));
     if (spec.notes?.includes("tracking")) lines.push(loc("searchRun.tracking"));
     if (spec.notes?.includes("trackingUnpriced")) lines.push(loc("searchRun.trackingUnpriced"));
+    for (const part of spec.parts ?? []) {
+      if (part.key === "weather" || part.key === "weatherTracking") {
+        lines.push(loc(`searchRun.${part.key}`, { value: signed(part.value) }));
+      }
+    }
     for (const a of attempts) {
       lines.push(a.found
         ? loc("searchRun.found", { total: a.total })

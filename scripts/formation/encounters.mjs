@@ -29,6 +29,7 @@
  */
 
 import { bracketRow } from "../lib/tables.mjs";
+import { numOrNull } from "../lib/util.mjs";
 import { readTable } from "../vehicles/vehicle-speed.mjs";
 import { TERRITORY_KEYS } from "./travel.mjs";
 import { ENCOUNTER_TERRAINS, MONSTER_TABLE_KEYS, encounterTerrainFor } from "./encounter-terrains.mjs";
@@ -149,7 +150,8 @@ const FOLLOW_UPS = new Map(Object.entries(TERRAIN_FOLLOW_UPS).map(([k, v]) => [f
 /*  Dice                                                                */
 /* -------------------------------------------------------------------- */
 
-const die = (faces, rng) => 1 + Math.floor(rng() * faces);
+/** One face of a die of `faces` sides, 1 to `faces`, from a [0, 1) source. */
+export const die = (faces, rng) => 1 + Math.floor(rng() * faces);
 export const d20 = (rng) => die(20, rng);
 export const d100 = (rng) => die(100, rng);
 export const d12 = (rng) => die(12, rng);
@@ -363,7 +365,10 @@ export function subTableDraw({ table, rng = Math.random } = {}) {
   const roll = die(faces, rng);
   const row = bracketRow(bands, roll);
   if (!row?.name) return { table, ok: false, missing: "terrainSubTables" };
-  return { table, ok: true, die: faces, roll, name: row.name, top: Number(row.max ?? row.min) >= faces };
+  return {
+    table, ok: true, die: faces, roll, name: row.name, top: Number(row.max ?? row.min) >= faces,
+    ...(typeof row.trap === "string" && row.trap ? { trap: row.trap } : {}),
+  };
 }
 
 /**
@@ -437,13 +442,23 @@ export function headEquivalents({ men = 0, mounted = 0, large = 0, huge = 0, gig
  * The farthest a side of `heads` men can be SEEN under the given light —
  * the base light figure scaled by the formation-size ladder. Null when the
  * visibility table is not imported (open country then never caps).
+ *
+ * `weather` is the sky's `{feet, factor}` (the merged effects' `visibility`):
+ * the size scale is applied first, then the factor multiplies the result, then
+ * a stated ceiling in `feet` caps it. An absent or empty `weather` leaves the
+ * figure as the light and the size made it.
  */
-export function visibilityMax({ light = "daylight", heads = 1 } = {}) {
+export function visibilityMax({ light = "daylight", heads = 1, weather = null } = {}) {
   const vis = readTable(ENCOUNTERS_DOC, "visibility");
   const base = Number(vis?.[light]);
   if (!Number.isFinite(base)) return null;
   const scale = bracketRow(vis?.formationScale ?? [], heads)?.pct ?? 0;
-  return Math.round(base * (1 + scale / 100));
+  let feet = Math.round(base * (1 + scale / 100));
+  const factor = numOrNull(weather?.factor);
+  if (factor != null && factor > 0) feet = Math.round(feet * factor);
+  const ceiling = numOrNull(weather?.feet);
+  if (ceiling != null && ceiling > 0) feet = Math.min(feet, ceiling);
+  return feet;
 }
 
 /**
@@ -455,7 +470,7 @@ export function visibilityMax({ light = "daylight", heads = 1 } = {}) {
  * Surprise Matrix. Flyers may open at altitude up to the imported fraction
  * of the distance.
  */
-export function detection({ partyTerrain, monsterTerrain = null, partyHeads = 1, monsterHeads = 1, light = "daylight", rng = Math.random } = {}) {
+export function detection({ partyTerrain, monsterTerrain = null, partyHeads = 1, monsterHeads = 1, light = "daylight", weather = null, rng = Math.random } = {}) {
   const partyRoll = encounterDistance({ terrain: partyTerrain, rng });
   const monsterRoll = monsterTerrain && monsterTerrain !== partyTerrain
     ? encounterDistance({ terrain: monsterTerrain, rng })
@@ -470,8 +485,8 @@ export function detection({ partyTerrain, monsterTerrain = null, partyHeads = 1,
   }
 
   // Each side is visible out to its OWN cap; a side beyond its cap is unseen.
-  const partyVisibleAt = visibilityMax({ light, heads: partyHeads });
-  const monstersVisibleAt = visibilityMax({ light, heads: monsterHeads });
+  const partyVisibleAt = visibilityMax({ light, heads: partyHeads, weather });
+  const monstersVisibleAt = visibilityMax({ light, heads: monsterHeads, weather });
   const start = Math.min(feet, Math.max(partyVisibleAt ?? feet, monstersVisibleAt ?? feet));
   const partySees = monstersVisibleAt == null || start <= monstersVisibleAt;
   const monstersSee = partyVisibleAt == null || start <= partyVisibleAt;

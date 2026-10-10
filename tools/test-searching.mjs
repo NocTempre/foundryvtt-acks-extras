@@ -190,6 +190,50 @@ ok("penalties compound: a named place under canopy from the air", () => {
   unregisterTable(SEARCHING_DOC);
 });
 
+/* --- the sky's modifiers ---------------------------------------------------- */
+ok("the sky's modifier is a part folded into the throw", () => {
+  unregisterTable(SEARCHING_DOC); load();
+  const clear = searchSpec({ milesPerDay: 30 });
+  assert.deepEqual(clear.parts, [], "no sky, no part");
+  const foul = searchSpec({ milesPerDay: 30, weather: -7 });
+  assert.equal(foul.modifier, -7);
+  assert.deepEqual(foul.parts, [{ key: "weather", value: -7 }]);
+  const named = searchSpec({ milesPerDay: 30, specific: true, weather: -7 });
+  assert.equal(named.modifier, -5 + -7, "it adds to the throw's other modifiers");
+  assert.deepEqual(named.parts.map((p) => p.key), ["specific", "weather"]);
+  assert.equal(searchSpec({ milesPerDay: 30, weather: 0 }).parts.length, 0, "a zero is not a part");
+  assert.equal(searchSpec({ milesPerDay: 30, weather: null }).modifier, 0, "an unstated figure adds nothing");
+});
+
+ok("the sky taxes a tracker's help only while a tracker is held", () => {
+  unregisterTable(SEARCHING_DOC); load();
+  const unheld = searchSpec({ milesPerDay: 30, weatherTracking: -11 });
+  assert.equal(unheld.modifier, 0, "no tracker, nothing for the sky to tax");
+  assert.ok(!unheld.parts.some((p) => p.key === "weatherTracking"));
+  const held = searchSpec({ milesPerDay: 30, tracking: true, weather: -3, weatherTracking: -11 });
+  assert.equal(held.modifier, 2 + -3 + -11);
+  assert.deepEqual(held.parts, [
+    { key: "tracking", value: 2 }, { key: "weather", value: -3 }, { key: "weatherTracking", value: -11 },
+  ]);
+  unregisterTable(SEARCHING_DOC);
+  registerTable({ ...SAMPLE, tables: { ...SAMPLE.tables, trackingBonus: undefined } },
+    { priority: PRIORITY.WORLD, source: "test" });
+  const unpriced = searchSpec({ milesPerDay: 30, tracking: true, weatherTracking: -11 });
+  assert.equal(unpriced.modifier, -11, "the held tracker's tax stands though its help was never priced");
+});
+
+ok("the survey takes the sky's modifier as a part of its bonus", () => {
+  unregisterTable(SEARCHING_DOC); load();
+  const plain = surveySpec({ priorSuccesses: 2 });
+  assert.equal(plain.bonus, 6);
+  assert.deepEqual(plain.parts, []);
+  const foul = surveySpec({ priorSuccesses: 2, weather: -23 });
+  assert.equal(foul.bonus, 6 + -23);
+  assert.deepEqual(foul.parts, [{ key: "weather", value: -23 }]);
+  assert.equal(surveySpec({ priorSuccesses: 0, weather: 0 }).parts.length, 0);
+  unregisterTable(SEARCHING_DOC);
+});
+
 /* --- splitting up ---------------------------------------------------------- */
 ok("splitting buys throws and costs safety in equal measure", () => {
   const whole = splitSearch({ groups: 1 });

@@ -19,7 +19,7 @@ import assert from "node:assert";
 import {
   parseCount, countFrom, parseToll, parseShare, parseHours,
   assembleFood, assembleWater, assembleExposure, assembleHeat,
-  assembleSimplified, assembleSurvivalTables,
+  assembleSimplified, assembleSurvivalTables, assembleFatigue, assembleSleep,
 } from "../../scripts/importer/survival-binding.mjs";
 import {
   parseTargetClauses, targetsFromClauses, parseModifierClauses, parseYield,
@@ -134,6 +134,33 @@ const survivalAll = assembleSurvivalTables({
 });
 check("each table assembles independently of the others",
   Object.keys(survivalAll).sort().join(",") === "food,water");
+
+/* --- fatigue's clocks and the armoured sleeper ---------------------------- */
+const FATIGUE_REST = " 9 hours of restful sleep. most parties organize watches around it. wanderers become fatigued "
+  + "after three days of ordinary travel or other strenuous activity if they do not get restful sleep. even with "
+  + "restful sleep, wanderers become fatigued after eleven days of ordinary travel or two days of forced marching. "
+  + "a fatigued wanderer suffers a cumulative -3 penalty until the condition ends.";
+const FATIGUE_PROF = " from ordinary travel or other strenuous activity. they still become fatigued after a day of "
+  + "force marching. wanderers with endurance proficiency can go two days without having to rest, plus three "
+  + "additional days for each point of constitution bonus. if the wanderer has both endurance and labor "
+  + "proficiency, he can go five additional days.";
+const fatigue = assembleFatigue({ rest: FATIGUE_REST, proficiencies: FATIGUE_PROF });
+check("the rest paragraph's four clocks are read", fatigue.sleepHours === 9 && fatigue.sleeplessDays === 3
+  && fatigue.activityDays === 11 && fatigue.forcedMarchDays === 2);
+check("endurance's allowance and its two extras are read", fatigue.enduranceDays === 2
+  && fatigue.endurancePerConPoint === 3 && fatigue.enduranceLaborExtra === 5);
+check("an article is a count of one", assembleFatigue({ proficiencies: "can go a day without having to rest, plus" }).enduranceDays === 1);
+check("one paragraph alone still yields its own clocks",
+  assembleFatigue({ rest: FATIGUE_REST }).forcedMarchDays === 2 && assembleFatigue({}) === null);
+
+check("donning reads rounds per stone", assembleSleep({ paragraph: "wanderers who sleep in armor must make a throw of "
+  + "greater than their encumbrance or the sleep is not restful. it takes 3 full rounds to don one stone worth of armor." })
+  .donRoundsPerStone === 3);
+check("and a count of stone divides it", assembleSleep({ paragraph: "it takes 1 round to don 2 stone of kit." }).donRoundsPerStone === 0.5);
+check("no donning clause is null", assembleSleep({ paragraph: "sleep well." }) === null);
+check("both ride the whole assembly",
+  Object.keys(assembleSurvivalTables({ fatigueProse: { rest: FATIGUE_REST }, sleepProse: { paragraph: "takes 3 rounds to don one stone" } }))
+    .sort().join(",") === "fatigue,sleep");
 
 /* --- foraging: clause lists that punctuation would otherwise cut ---------- */
 const clauses = parseTargetClauses(

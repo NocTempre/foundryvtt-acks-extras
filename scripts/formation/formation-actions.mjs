@@ -19,7 +19,7 @@ import {
   updateFormation,
 } from "./formation-model.mjs";
 import { postEncounterThrow } from "./encounter-card.mjs";
-import { nextHex } from "./journey.mjs";
+import { nextHex, spendActivityHours } from "./journey.mjs";
 import { closeDay } from "./day-close.mjs";
 import { pickAndTravel } from "./poi.mjs";
 import {
@@ -216,15 +216,19 @@ export const SHARED_ACTIONS = {
   async forageDay() {
     const formation = gmFormation(this);
     if (!formation) return;
-    // `activities` is the day board's own field name; there is no `slots`.
-    const slots = formation.travel?.day?.activities ?? [];
+    // `activities` is the day board's own field name; there is no `slots`. Only
+    // the hours not yet spent are worked: a slot already done has had its throws.
+    const day = travelOf(formation).day;
+    const slots = day.activities.map((a, n) => (day.done[n] ? null : a));
     const kinds = slots.includes("forage") ? ["food", "water", "firewood"] : [];
     const hunting = slots.includes("hunt");
     if (!kinds.length && !hunting) {
-      ui.notifications?.info(game.i18n.localize("ACKS-FORMATION.forageRun.noHours"));
+      const spent = day.activities.some((a, n) => (a === "forage" || a === "hunt") && day.done[n]);
+      ui.notifications?.info(game.i18n.localize(`ACKS-FORMATION.forageRun.${spent ? "worked" : "noHours"}`));
       return;
     }
-    await runForageDay(formation, { kinds, hunting });
+    const results = await runForageDay(formation, { kinds, hunting });
+    if (results) await spendActivityHours(formation.id, ["hunt", "forage"], { all: true });
     this.render();
   },
 

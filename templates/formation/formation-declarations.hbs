@@ -146,6 +146,14 @@
         {{#each travel.weather.chips}}<span class="acks-extras-formation-travel-weather-chip" data-cond="{{key}}">{{#if icon}}<i class="fa-solid {{icon}}"></i> {{/if}}{{label}}</span>{{/each}}
       </div>
       {{/if}}
+      {{#if travel.weather.effects.length}}
+      <ul class="acks-extras-sky-effects">
+        {{#each travel.weather.effects}}<li data-effect="{{key}}">{{label}}{{#if value}}: {{value}}{{/if}}</li>{{/each}}
+      </ul>
+      {{/if}}
+      {{#if isGM}}{{#if travel.weather.effectsUnpriced}}
+      <p class="hint acks-extras-sky-effects-unpriced">{{localize "ACKS-FORMATION.travel.weather.effects.unpriced"}}</p>
+      {{/if}}{{/if}}
       {{#each travel.wheels}}
       <p class="acks-extras-formation-travel-wheels"><i class="fa-solid fa-triangle-exclamation"></i> {{name}} — {{reason}}</p>
       {{/each}}
@@ -179,6 +187,14 @@
           <select name="travel.hour">
             {{#each travel.hourOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
           </select>
+        </label>
+        <input type="hidden" name="travel.day.declared" value="1">
+        <label data-tooltip="{{localize 'ACKS-FORMATION.travel.day.trapsHint'}}">{{localize "ACKS-FORMATION.travel.day.trapsLabel"}}
+          <input type="number" min="0" step="1" name="travel.day.traps" value="{{travel.traps}}">
+        </label>
+        <label class="checkbox" data-tooltip="{{localize 'ACKS-FORMATION.travel.day.noSleepHint'}}">
+          <input type="checkbox" name="travel.day.noSleep" {{checked travel.noSleep}}>
+          {{localize "ACKS-FORMATION.travel.day.noSleep"}}
         </label>
       </div>
       {{#if travel.winding}}
@@ -229,6 +245,25 @@
         {{#unless travel.camp.exposure.bites}}
         <span class="hint">{{localize "ACKS-FORMATION.camp.exposureMild"}}</span>
         {{/unless}}
+      </p>
+      {{/if}}
+
+      {{#if isGM}}
+      <p class="acks-extras-formation-camp-declarations">
+        <input type="hidden" name="travel.camp.declared" value="1">
+        <label class="checkbox" data-tooltip="{{localize 'ACKS-FORMATION.travel.camp.stealHint'}}">
+          <input type="checkbox" name="travel.camp.steal" {{checked travel.camp.steal}}>
+          {{localize "ACKS-FORMATION.travel.camp.steal"}}
+        </label>
+        <label class="checkbox" data-tooltip="{{localize 'ACKS-FORMATION.travel.camp.waterHint'}}">
+          <input type="checkbox" name="travel.camp.water" {{checked travel.camp.water}}>
+          {{localize "ACKS-FORMATION.travel.camp.water"}}
+        </label>
+        {{#if travel.camp.waterAuto}}<span class="hint">{{localize "ACKS-FORMATION.travel.camp.waterAuto"}}</span>{{/if}}
+        <label class="checkbox" data-tooltip="{{localize 'ACKS-FORMATION.travel.camp.sleepInArmourHint'}}">
+          <input type="checkbox" name="travel.camp.sleepInArmour" {{checked travel.camp.sleepInArmour}}>
+          {{localize "ACKS-FORMATION.travel.camp.sleepInArmour"}}
+        </label>
       </p>
       {{/if}}
 

@@ -67,10 +67,14 @@
     {{#each terrainLines}}
     <li class="acks-extras-enc-line acks-extras-enc-depth-{{depth}} acks-extras-enc-{{kind}}">
       {{text}}{{#if die}} <span class="hint">d{{die}}</span>{{/if}}{{#if roll}} — <strong>{{roll}}</strong>{{/if}}{{#if name}}{{#if roll}} →{{else}}:{{/if}} {{#if link}}{{link}}{{else}}<strong>{{name}}</strong>{{/if}}{{/if}}
+      {{#if trap}}<br><span class="acks-extras-enc-trap">{{localize "ACKS-FORMATION.travel.enc.draw.trap"}}: <strong>{{trap}}</strong></span>{{/if}}
     </li>
     {{/each}}
   </ul>
   <p class="hint">{{localize "ACKS-FORMATION.travel.enc.resolveBook"}}</p>
+  {{/if}}
+  {{#if marked}}
+  <p class="hint">{{localize "ACKS-FORMATION.travel.enc.marked"}}</p>
   {{/if}}
 
   {{#each missing}}
@@ -84,8 +88,14 @@
   <p>{{localize "ACKS-FORMATION.travel.enc.distanceLine"}}: <strong>{{distance.feet}}'</strong>
     <span class="hint">({{distance.dice}} × {{distance.mult}})</span></p>
   {{/if}}
+  {{#each when}}
+  <p class="acks-extras-encounter-card-when">{{this}}</p>
+  {{/each}}
   {{#if visible}}
   <p class="hint">{{localize "ACKS-FORMATION.travel.enc.visibleLine" feet=visible size=partySize}}</p>
+  {{/if}}
+  {{#if effects.length}}
+  <p>{{#each effects}}<span class="acks-extras-encounter-card-mod">{{label}}{{#if value}} {{value}}{{/if}}</span> {{/each}}</p>
   {{/if}}
 
   {{#if evasion}}

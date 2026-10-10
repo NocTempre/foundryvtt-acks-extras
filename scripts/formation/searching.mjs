@@ -77,10 +77,17 @@ export function searchTarget(milesPerDay) {
  * size is printed; that it applies only to a quarry that can move is not.
  * `tracking` is set when the order holds a tracker; the registered
  * `trackingBonus` is added, or noted `trackingUnpriced` when it is missing.
+ *
+ * `weather` is the sky's signed modifier on the search itself and
+ * `weatherTracking` its signed modifier on a held tracker's help (RR 277-279);
+ * both come from `weather-effects.mjs`, and the second applies only while
+ * `tracking` is set. Each nonzero figure is a `{key, value}` entry of the
+ * returned `parts`, which lists every numeric contribution to `modifier`.
  */
 export function searchSpec({
   milesPerDay = 0, subject = "pointOfInterest", movingQuarry = false,
   mode = "onFoot", terrain = "", specific = false, tracking = false,
+  weather = 0, weatherTracking = 0,
 } = {}) {
   const spec = SEARCH_SUBJECTS[subject];
   if (!spec) return { ok: false, reason: "subject" };
@@ -90,11 +97,16 @@ export function searchSpec({
 
   let modifier = 0;
   const notes = [];
+  const parts = [];
+  const add = (key, value) => {
+    modifier += value;
+    parts.push({ key, value });
+  };
 
   if (spec.canMove && movingQuarry) {
     const penalty = numOrNull(table("movingQuarry"));
     if (penalty == null) return { ok: false, missing: "movingQuarry", subject };
-    modifier += penalty;
+    add("movingQuarry", penalty);
     notes.push("movingQuarry");
   }
 
@@ -102,7 +114,7 @@ export function searchSpec({
   if (specific) {
     const penalty = numOrNull(table("specificTarget"));
     if (penalty == null) return { ok: false, missing: "specificTarget", subject };
-    modifier += penalty;
+    add("specific", penalty);
     notes.push("specific");
   }
 
@@ -112,10 +124,17 @@ export function searchSpec({
     const bonus = numOrNull(table("trackingBonus"));
     if (bonus == null) notes.push("trackingUnpriced");
     else {
-      modifier += bonus;
+      add("tracking", bonus);
       notes.push("tracking");
     }
   }
+
+  // The sky taxes the look itself, and taxes a tracker's help separately: a
+  // party with no tracker has no help for it to tax.
+  const sky = numOrNull(weather) ?? 0;
+  if (sky) add("weather", sky);
+  const skyTracking = tracking ? (numOrNull(weatherTracking) ?? 0) : 0;
+  if (skyTracking) add("weatherTracking", skyTracking);
 
   // A search costs an hour on the ground. From the air over open country it
   // costs less, and over canopy it costs the same but reads worse.
@@ -125,7 +144,7 @@ export function searchSpec({
     if (Array.isArray(closed) && closed.includes(terrain)) {
       const penalty = numOrNull(table("canopyPenalty"));
       if (penalty == null) return { ok: false, missing: "canopyPenalty", subject };
-      modifier += penalty;
+      add("canopy", penalty);
       notes.push("canopy");
     } else {
       const faster = numOrNull(table("aerialTurnsPerThrow"));
@@ -137,7 +156,7 @@ export function searchSpec({
 
   // Structural and unconditional: looking around gets you noticed.
   return {
-    ok: true, target, modifier, subject, mode, notes,
+    ok: true, target, modifier, parts, subject, mode, notes,
     turnsPerThrow, costsHours: turnsPerThrow / 6, owesEncounterThrow: true,
   };
 }
@@ -201,14 +220,25 @@ export function splitSearch({ groups = 1, mutuallySupporting = false } = {}) {
  *
  * The bonus is cumulative in the party's own successful searches of that hex:
  * the more of the ground they have actually walked, the better the read.
+ *
+ * `weather` is the sky's signed modifier on the survey (RR 277-279), folded
+ * into `bonus`; a nonzero figure is also a `{key: "weather", value}` entry of
+ * `parts`.
  */
-export function surveySpec({ priorSuccesses = 0 } = {}) {
+export function surveySpec({ priorSuccesses = 0, weather = 0 } = {}) {
   const target = numOrNull(table("surveyTarget"));
   if (target == null) return { ok: false, missing: "surveyTarget" };
   const per = numOrNull(table("surveyPerSearch"));
   if (per == null) return { ok: false, missing: "surveyPerSearch" };
   const n = Math.max(0, Math.floor(Number(priorSuccesses) || 0));
-  return { ok: true, target, bonus: per * n, priorSuccesses: n };
+  const parts = [];
+  let bonus = per * n;
+  const sky = numOrNull(weather) ?? 0;
+  if (sky) {
+    bonus += sky;
+    parts.push({ key: "weather", value: sky });
+  }
+  return { ok: true, target, bonus, parts, priorSuccesses: n };
 }
 
 /**

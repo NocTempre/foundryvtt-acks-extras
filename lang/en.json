@@ -490,6 +490,7 @@
   "ACKS-LIB.condition.cowering": "Cowering",
   "ACKS-LIB.condition.deafened": "Deafened",
   "ACKS-LIB.condition.dehydrated": "Dehydrated",
+  "ACKS-LIB.condition.diseased": "Diseased",
   "ACKS-LIB.condition.disfavored": "Disfavored",
   "ACKS-LIB.condition.disordered": "Disordered",
   "ACKS-LIB.condition.dominated": "Dominated",
@@ -504,6 +505,7 @@
   "ACKS-LIB.condition.flanked": "Flanked",
   "ACKS-LIB.condition.forgetful": "Forgetful",
   "ACKS-LIB.condition.frightened": "Frightened",
+  "ACKS-LIB.condition.frostbitten": "Frostbitten",
   "ACKS-LIB.condition.grabbed": "Grabbed",
   "ACKS-LIB.condition.helpless": "Helpless",
   "ACKS-LIB.condition.hidden": "Hidden",
@@ -2605,6 +2607,34 @@
           "needsRoad": "roadless for wheels",
           "mudBound": "mud-bound off pavement",
           "snowbound": "snow-bound"
+        },
+        "effects": {
+          "throw": {
+            "searching": "Searching",
+            "landSurveying": "Land surveying",
+            "navigation": "Navigation",
+            "tracking": "Tracking",
+            "trackingPerHour": "Tracking, per hour",
+            "listening": "Listening",
+            "missile": "Missile fire"
+          },
+          "forage": {
+            "firewood": "Foraging firewood",
+            "water": "Foraging water"
+          },
+          "visibility": {
+            "feet": "Sight limited to",
+            "factor": "Sight scaled by"
+          },
+          "airSpeed": "Flight speed",
+          "dust": "Dust-laden wind, speed",
+          "sunburn": "Sunburn, hours",
+          "rest": "Night's rest",
+          "either": "either",
+          "both": "both",
+          "disease": "Disease risk",
+          "frostbite": "Frostbite",
+          "unpriced": "Import the weather pages to apply the sky's effects."
         }
       },
       "enc": {
@@ -2640,7 +2670,21 @@
           "hunt": "hunting",
           "search": "searching",
           "rest": "resting",
-          "entry": "entering a zone"
+          "entry": "entering a zone",
+          "traps": "managing traps"
+        },
+        "when": {
+          "mile": "Mile {n} of the hex",
+          "turn": "Turn {n} of the hour",
+          "hourDawn": "Hour {n} after dawn",
+          "hourDusk": "Hour {n} after dusk",
+          "night": "Night {n} of {of}"
+        },
+        "marked": "Marked on the map.",
+        "effects": {
+          "missile": "Missile fire",
+          "listening": "Listening",
+          "dust": "Dust-laden wind"
         },
         "column": {
           "civilizedRoad": "Civilized + road",
@@ -2720,6 +2764,7 @@
           "either": "Lesser terrain",
           "monster": "Creature",
           "despoiled": "Despoiled",
+          "trap": "Trap equivalent",
           "exhausted": "Roll limit reached — resolve the rest from your book."
         }
       },
@@ -2727,7 +2772,20 @@
       "day": {
         "march": "Dedicated march",
         "forced": "Forced march",
-        "camp": "Camp"
+        "camp": "Camp",
+        "trapsLabel": "Traps managed",
+        "trapsHint": "Traps set or checked today; the day owes an encounter throw per batch.",
+        "noSleep": "No sleep tonight",
+        "noSleepHint": "The order does not take its rest; End day counts it."
+      },
+      "camp": {
+        "steal": "Willing to steal",
+        "stealHint": "Lifts the settled-country foraging penalty.",
+        "water": "Water at hand",
+        "waterHint": "A river or lake beside the camp: water is taken without a throw.",
+        "waterAuto": "Water is already at hand here.",
+        "sleepInArmour": "Sleeping in armour",
+        "sleepInArmourHint": "Each sleeper throws against their encumbrance for a restful night."
       },
       "activity": {
         "travel": "Travel (an hour)",
@@ -2735,7 +2793,8 @@
         "forage": "Forage",
         "search": "Search",
         "rest": "Rest",
-        "other": "Other"
+        "other": "Other",
+        "traps": "Managing traps"
       },
       "slotHint": "One ancillary hour of the day.",
       "endDay": "End day",
@@ -3287,6 +3346,7 @@
       "lost": "They have strayed, and do not know it.",
       "unpriced": "No navigation target imported for this ground.",
       "cannotTest": "The throw cannot be made until the travel tables are imported.",
+      "weather": "The weather: {value}",
       "judgeChooses": "Choose the face they wandered toward — from the landmarks and the lie of the land, or roll for it — then begin the episode."
     },
     "forage": {
@@ -3327,7 +3387,8 @@
       "unpriced": "{kind}: not imported yet, so nothing was thrown.",
       "work": "Work the country",
       "workHint": "Roll the day's foraging and hunting for the whole order, and put what is found into their packs.",
-      "noHours": "No hours were set aside for foraging or hunting today."
+      "noHours": "No hours were set aside for foraging or hunting today.",
+      "worked": "Every hunting and foraging hour is already spent today."
     },
     "searchRun": {
       "title": "An hour of looking",
@@ -3354,7 +3415,9 @@
       "candidates": "Candidates",
       "markFound": "Mark found",
       "tracking": "Tracking bonus applied.",
-      "trackingUnpriced": "Tracking is held but its bonus is not imported."
+      "trackingUnpriced": "Tracking is held but its bonus is not imported.",
+      "weather": "The weather: {value}",
+      "weatherTracking": "The weather on the trail: {value}"
     },
     "hexStock": {
       "title": "This hex",
@@ -3365,6 +3428,7 @@
       "noScene": "No map hex to keep a stock under. Set the journey's hex, or put the party on a map.",
       "astray": "The party is astray; this is where it really stands.",
       "noSurveyor": "Nobody in the order holds Land Surveying.",
+      "weather": "The weather: {value}",
       "unpriced": "Not imported: {what}.",
       "alreadyPlaced": "This point is already a place.",
       "stock": "Stock this hex",
@@ -6090,6 +6154,7 @@
   "ACKS-LIB.survival.hypothermic": "Hypothermic",
   "ACKS-VEHICLES.reason.aloft.share": "Aloft",
   "ACKS-VEHICLES.reason.aloft.windy": "Wind aloft",
+  "ACKS-VEHICLES.reason.aloft.stormy": "Storm aloft",
   "ACKS-VEHICLES.reason.aloft.heavy": "Heavy for a flier",
   "ACKS-VEHICLES.reason.aloft.overloaded": "Too heavy to fly",
   "ACKS-VEHICLES.reason.aloft.unpriced": "Flight speed not imported yet",
@@ -6176,6 +6241,39 @@
   "ACKS-FORMATION.repair.check.hexStock.label": "Hex stock with broken records",
   "ACKS-FORMATION.repair.check.hexStock.hint": "A scene's stocked hexes holding a point with no id, or finds, search credit or surveys that name a party which no longer exists. Fixing gives each point an id and drops the entries of the missing parties.",
   "ACKS-FORMATION.repair.check.hexStock.detail": "{count} stocked hex(es) to mend.",
+  "ACKS-FORMATION.rest.title": "The night's rest",
+  "ACKS-FORMATION.rest.speaker": "Night",
+  "ACKS-FORMATION.rest.colFatigue": "Fatigue",
+  "ACKS-FORMATION.rest.colNight": "Night",
+  "ACKS-FORMATION.rest.restful": "Restful",
+  "ACKS-FORMATION.rest.restless": "Not restful",
+  "ACKS-FORMATION.rest.armourThrow": "Slept in armour: {roll} against {stone} stone",
+  "ACKS-FORMATION.rest.unpriced": "The fatigue thresholds are not imported, so no body is tired by the road.",
+  "ACKS-FORMATION.rest.donRounds": "{name}: {rounds} round(s) to don armour",
+  "ACKS-FORMATION.rest.reason.noSleep": "no sleep",
+  "ACKS-FORMATION.rest.reason.cold": "the cold went unanswered",
+  "ACKS-FORMATION.rest.reason.armour": "slept in armour",
+  "ACKS-FORMATION.rest.fatigue.forcedMarch": "forced march",
+  "ACKS-FORMATION.rest.fatigue.sleepless": "nights without restful sleep",
+  "ACKS-FORMATION.rest.fatigue.run": "days of activity",
+  "ACKS-FORMATION.rest.fatigue.rested": "rested, fatigue ends",
+  "ACKS-FORMATION.rest.fatigue.lingers": "still fatigued",
+  "ACKS-FORMATION.toll.title": "The weather's toll",
+  "ACKS-FORMATION.toll.speaker": "Weather",
+  "ACKS-FORMATION.toll.footnote": "Resolve what the cold and the sickness do from the book (RR 277-279).",
+  "ACKS-FORMATION.toll.saved": "Saved",
+  "ACKS-FORMATION.toll.sunburn.title": "Sunburn",
+  "ACKS-FORMATION.toll.sunburn.outcome": "Burned",
+  "ACKS-FORMATION.toll.heat.title": "Heat and armour",
+  "ACKS-FORMATION.toll.heat.detail": "Hours thrown: {hours}",
+  "ACKS-FORMATION.toll.heat.failed": "Failed at hour {hour}, one more fatigue",
+  "ACKS-FORMATION.toll.frostbite.title": "Frostbite",
+  "ACKS-FORMATION.toll.frostbite.detail": "Cold wounds {die}, row {row} (RR 277)",
+  "ACKS-FORMATION.toll.frostbite.failed": "Frostbitten",
+  "ACKS-FORMATION.toll.disease.title": "Disease",
+  "ACKS-FORMATION.toll.disease.detail": "Caught on {pct} or less",
+  "ACKS-FORMATION.toll.disease.caught": "Diseased",
+  "ACKS-FORMATION.toll.disease.escaped": "Escaped",
   "ACKS-BATTLEMAP.scale.gridPxRuler": "Ruler cell size (px)",
   "ACKS-BATTLEMAP.apply.willAddGridHex": "This scene has no grid yet — applying gives it a hex one.",
   "ACKS-ABILITIES.roll.previewMeasure": "Rolls {formula}. The result stands on its own — nothing is scored against it.",

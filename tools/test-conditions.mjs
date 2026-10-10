@@ -60,7 +60,11 @@ const termOf = (math, condition) => math.terms.find((t) => t.condition === condi
 /* --- the catalogue --------------------------------------------------------- */
 
 ok("the catalogue is internally consistent", () => {
-  assert.equal(CONDITION_IDS.length, 61);
+  assert.equal(CONDITION_IDS.length, 63);
+  for (const mark of ["diseased", "frostbitten"]) {
+    assert.ok(CONDITIONS[mark], mark);
+    assert.deepEqual([CONDITIONS[mark].mods, CONDITIONS[mark].forbids, CONDITIONS[mark].implies], [undefined, undefined, undefined], mark);
+  }
   for (const [key, c] of Object.entries(CONDITIONS)) {
     for (const other of [...(c.implies ?? []), ...(c.shuts ?? []), ...(c.exposes ? [c.exposes] : [])]) {
       assert.ok(CONDITIONS[other], `${key} names ${other}`);
@@ -326,5 +330,61 @@ ok("an actor is read as its statuses, its causes and their sources", () => {
   assert.equal(subjectOf(null), null);
   assert.equal(termOf(attackMath({ attacker: subject, kind: "melee", values: VALUES }), "fatigued").value, -6);
 });
+
+/* --- stacks of one condition on an actor -------------------------------------- */
+
+const { conditionStacksOf, setConditionStacks } = await import("../scripts/lib/status-effects.mjs");
+
+/** An actor stub whose `toggleStatusEffect` makes and removes effects the way the palette does. */
+function stackActor() {
+  const effects = [];
+  const calls = [];
+  const actor = {
+    effects,
+    calls,
+    async toggleStatusEffect(id, { active }) {
+      calls.push([id, active]);
+      const at = effects.findIndex((e) => e.statuses.has(id));
+      if (active && at < 0) {
+        const effect = {
+          statuses: new Set([id]),
+          flags: {},
+          async setFlag(scope, key, value) {
+            calls.push(["flag", scope, key, value]);
+            (effect.flags[scope] ??= {})[key] = value;
+          },
+        };
+        effects.push(effect);
+      } else if (!active && at >= 0) effects.splice(at, 1);
+    },
+  };
+  return actor;
+}
+
+await (async () => {
+  const actor = stackActor();
+  assert.equal(conditionStacksOf(actor, "fatigued"), 0, "no effect, no stacks");
+  assert.equal(await setConditionStacks(actor, "fatigued", 3), 3);
+  assert.deepEqual(actor.calls.filter((c) => c[0] !== "flag"), [["fatigued", true]], "switched on once");
+  assert.equal(conditionStacksOf(actor, "fatigued"), 3, "and the effect records the count");
+  assert.equal(actor.effects[0].flags["acks-extras"][STACKS_FLAG], 3);
+
+  assert.equal(await setConditionStacks(actor, "fatigued", 5), 5);
+  assert.equal(actor.effects.length, 1, "raising the count reuses the effect");
+  assert.equal(conditionStacksOf(actor, "fatigued"), 5);
+  const flagWrites = actor.calls.filter((c) => c[0] === "flag").length;
+  assert.equal(await setConditionStacks(actor, "fatigued", 5), 5);
+  assert.equal(actor.calls.filter((c) => c[0] === "flag").length, flagWrites, "an unchanged count writes nothing");
+
+  actor.effects.push({ statuses: new Set(["hungry"]), flags: {} });
+  assert.equal(conditionStacksOf(actor, "hungry"), 1, "an effect with no count is one cause");
+
+  assert.equal(await setConditionStacks(actor, "fatigued", 0), 0);
+  assert.equal(conditionStacksOf(actor, "fatigued"), 0, "zero lifts the status");
+  assert.equal(await setConditionStacks(actor, "fatigued", -4), 0, "and so does below");
+  assert.equal(await setConditionStacks(null, "fatigued", 2), 0, "no actor, nothing to set");
+  passed++;
+  console.log("ok   a condition's stacks are read from, and written to, the effect carrying it");
+})();
 
 console.log(`\n${passed} condition checks passed.`);

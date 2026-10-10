@@ -9,7 +9,9 @@ import { MODULE_ID, RATION_PATTERN } from "./constants.mjs";
 import { makeLoc, gmIds } from "./../lib/util.mjs";
 import { getMemberActor, realMembers, hasAbility } from "./formation-model.mjs";
 import { travelOf } from "./travel.mjs";
-import { forageSpec, huntSpec, forageYield, partyThrows, FORAGE_KINDS } from "./foraging.mjs";
+import { forageSpec, huntSpec, forageYield, partyThrows, standingWaterOf, FORAGE_KINDS } from "./foraging.mjs";
+import { conditionsOf } from "./weather.mjs";
+import { weatherEffects, foragePenalty } from "./weather-effects.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
 
@@ -70,14 +72,17 @@ export async function runForageDay(formation, { kinds = ["food"], hunting = fals
   const actors = realMembers(formation).map(getMemberActor).filter(Boolean);
   if (!actors.length) return null;
   const survival = actors.some((a) => hasAbility(a, /survival/i));
+  const fx = weatherEffects(conditionsOf(t.weather), { terrain: t.ground });
+  const standingWater = standingWaterOf(t);
 
   const results = [];
 
   for (const kind of kinds) {
     if (!FORAGE_KINDS[kind]) continue;
     const spec = forageSpec({
-      kind, terrain: t.ground, territory: t.territory, survival,
-      standingWater: t.following === "river",
+      kind, terrain: t.ground, territory: t.territory, survival, standingWater,
+      weather: foragePenalty(fx, kind),
+      willingToSteal: t.camp.steal,
     });
     if (!spec.ok) { results.push({ kind, unpriced: spec.missing ?? true }); continue; }
 

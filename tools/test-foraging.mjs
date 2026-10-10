@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
 import {
   FORAGING_DOC, FORAGE_KINDS, forageSpec, partyThrows, huntSpec, dogPack,
-  forageYield, grazingSpec, foragingReady,
+  forageYield, grazingSpec, foragingReady, standingWaterOf,
 } from "../scripts/formation/foraging.mjs";
 
 let passed = 0;
@@ -82,6 +82,46 @@ ok("Survival helps, and only when someone has it", () => {
   unregisterTable(FORAGING_DOC); load();
   assert.equal(forageSpec({ kind: "food", terrain: "any" }).bonus, 0);
   assert.equal(forageSpec({ kind: "food", terrain: "any", survival: true }).bonus, 3);
+});
+
+ok("a party willing to steal pays no settled-country penalty, and no other part moves", () => {
+  unregisterTable(FORAGING_DOC);
+  registerTable({
+    ...SAMPLE,
+    tables: { ...SAMPLE.tables, forageTerrain: { food: { forest: -2 } }, forageTerritory: { food: { civilized: -7 }, firewood: { civilized: -9 } } },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+  const honest = forageSpec({ kind: "food", terrain: "forest", territory: "civilized", survival: true });
+  assert.deepEqual(honest.parts.map((p) => [p.key, p.value]), [["terrain", -2], ["territory", -7], ["survival", 3]]);
+  assert.equal(honest.bonus, -6);
+  const thief = forageSpec({ kind: "food", terrain: "forest", territory: "civilized", survival: true, willingToSteal: true });
+  assert.deepEqual(thief.parts.map((p) => p.key), ["terrain", "survival"], "the territory part is the one dropped");
+  assert.equal(thief.bonus, 1);
+  assert.equal(forageSpec({ kind: "food", terrain: "forest", territory: "borderlands" }).bonus, -2,
+    "a territory with no row never had a part");
+});
+
+ok("the sky taxes firewood and water, and a food forage ignores it", () => {
+  unregisterTable(FORAGING_DOC); load();
+  const wood = forageSpec({ kind: "firewood", terrain: "forest", weather: -11 });
+  assert.deepEqual(wood.parts, [{ key: "weather", value: -11 }]);
+  assert.equal(wood.bonus, -11);
+  assert.equal(forageSpec({ kind: "water", terrain: "hills", weather: -5, survival: true }).bonus, 3 + -5);
+  const food = forageSpec({ kind: "food", terrain: "forest", weather: -11 });
+  assert.equal(food.bonus, 0, "food takes no weather part");
+  assert.deepEqual(food.parts, []);
+  assert.equal(forageSpec({ kind: "firewood", terrain: "forest", weather: 0 }).parts.length, 0, "a zero is not a part");
+  assert.equal(forageSpec({ kind: "water", terrain: "desert", standingWater: true, weather: -5 }).automatic, true,
+    "standing water is still taken without a throw, whatever the sky");
+});
+
+ok("water is at hand by the Judge's word, a followed river, or a river pick", () => {
+  assert.equal(standingWaterOf({}), false);
+  assert.equal(standingWaterOf({ camp: { water: true } }), true, "the Judge's box");
+  assert.equal(standingWaterOf({ following: "river" }), true, "a navigable river being followed");
+  assert.equal(standingWaterOf({ following: "knownRoute" }), false, "another route is not water");
+  assert.equal(standingWaterOf({ encounterTerrain: "riverLand" }), true, "a river pick has no ground of its own");
+  assert.equal(standingWaterOf({ encounterTerrain: "grassland" }), false);
+  assert.equal(standingWaterOf({ encounterTerrain: "" }), false, "no pick is not a river");
 });
 
 ok("a big order throws again for each further group", () => {

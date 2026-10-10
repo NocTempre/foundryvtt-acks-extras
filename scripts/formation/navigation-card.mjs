@@ -43,6 +43,9 @@ export async function postNavigationThrow(formation) {
       rows.push(`<li>${loc(c.navigation && c.pathfinding ? "nav.both" : "nav.one")}</li>`);
     }
     if (c.unpriced) rows.push(`<li>${loc("nav.bonusUnpriced")}</li>`);
+    if (result.weather) {
+      rows.push(`<li>${loc("nav.weather", { value: result.weather > 0 ? `+${result.weather}` : `${result.weather}` })}</li>`);
+    }
     rows.push(`<li>${loc("nav.result", { total: result.total, target: result.target })}</li>`);
     if (result.botched) rows.push(`<li><strong>${loc("nav.botched")}</strong></li>`);
   }

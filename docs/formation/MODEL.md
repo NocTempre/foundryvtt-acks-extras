@@ -665,8 +665,16 @@ country feeds only what already lives there.
 [forage-run.mjs](../../scripts/formation/forage-run.mjs) is the impure half of
 foraging: it rolls what the day board set aside and DEPOSITS what is found.
 Water is thrown for the party once; food and firewood are each forager's own
-attempt; hunting is its own throw again. Standing water — a river the party is
-following — is taken freely with no throw at all.
+attempt; hunting is its own throw again. Standing water is taken freely with
+no throw at all, and `standingWaterOf` says when there is some: the camp's
+*Water at hand* declaration, a river the party is following, or a river picked
+as the encounter terrain. The sky's firewood and water penalties (§The
+weather, *what the sky does beyond speed*) ride each target as a `weather`
+part, and a party *Willing to steal* pays no settled-country part at all: the
+crop is somebody's, and the penalty is for holding back. Work the country
+works only the hunt and forage slots not yet done, marks them done and runs
+the clock by their hours (`spendActivityHours`, the same spend a search hour
+makes); a day whose slots are all spent says so instead of rolling twice.
 
 What is found goes into the FORAGER's own pack, flagged, never into a separate
 party store: the pool is already the sum of what the members carry, and a
@@ -685,6 +693,15 @@ person who is starving — and, Judge-side, what each picked slot is actually
 worth tonight: the forage targets for food, water and firewood, the hunting
 target moved by territory, and the search target with how many hours the board
 is holding for it. Anything unimported says so rather than showing a number.
+
+Judge-side it also carries the camp's three declarations, each a plain yes or
+no on the travel record (`travel.camp`): *Willing to steal*, *Water at hand*
+and *Sleeping in armour*. The day fold beside it takes the day's own two: the
+count of traps managed and a night without sleep (`travel.day.traps`,
+`travel.day.noSleep`), which end with the day and ride its log row, because
+End day resets the board before the throws they owe are rolled. Each group
+submits under a hidden `declared` marker, so an unticked box is written as no
+rather than left as it was.
 
 ## Provisions
 
@@ -719,6 +736,40 @@ each feeds nobody rather than pretending a sip is a meal, and does not spend
 itself on the fiction. That coarseness is the ladder's — it knows three levels
 and no more.
 
+## The weather's toll
+
+After each body's meal and exposure walk, `runProvisionDay` applies what the
+sky does to the body beyond its meals, from the merged effects of the day's
+conditions (§The weather): the sun's burn to a body without protective
+clothing that worked outdoors the imported hours, written through the
+hit-point tool; the heat's armour save, one throw per hour of exposure for a
+body wearing the imported stone or more, a failed hour adding a `fatigued`
+stack; the frostbite save of a body the cold left hypothermic, a failure
+marking it `frostbitten` with the die and the row the Judge resolves from the
+book; and the week's disease, whose run of consecutive days under each sky is
+the PARTY's and lives on the formation (`travel.weatherRuns`, advanced once a
+day and dropped by a day the sky changes), a run that reaches its count
+throwing once per body and marking `diseased`. Every outcome lands on one
+whispered card, posted only on a day that has one; a sheet that states no
+death target makes no save, and an unimported figure fires nothing.
+
+## The night
+
+`closeDay` captures the closing day's sky, ground, exposure and declarations
+BEFORE `endDay` advances them, and once the day's entry and its encounter
+throws are written walks every member through the night
+([rest.mjs](../../scripts/formation/rest.mjs)). Whether the night was restful
+is `lib/fatigue.mjs`'s answer (`restfulNight`): not when the Judge declared no
+sleep, not when the sky asks for a heat source, clothing or both and the body
+had less, and not when a sleeper in armour fails the throw against the stone
+it bears. The body's fatigue ladder then steps once (`fatigueStep`; the clocks
+are `docs/lib/MODEL.md`, Survival) and its `fatigued` stacks are written
+through `setConditionStacks`, so the condition's own math applies them. One
+whispered card says each body's night: the armour throw, why a night was not
+restful, why the stacks moved, and how many rounds an armoured sleeper needs
+to don the kit. A night nobody has priced says so on the card rather than
+tiring anyone.
+
 ## Flight
 
 The expedition above the ground rather than on it
@@ -728,7 +779,9 @@ of the navigation, footing or road machinery, because a flier meets none of it.
 
 A full day aloft collapses to the imported factor; a partial day BLENDS, so the
 grounded hours keep their own speed and only the airborne share is multiplied.
-Wind is the one weather that bites flight specifically. A flying mount is
+Wind is the one weather that bites flight specifically; a storm bites it
+through the air-speed factor its effects entry states, which supplants the
+ground's storm condition the way the wind's factor supplants its own. A flying mount is
 priced by a threshold rather than a slope — full to its normal load, slower
 beyond it, and grounded past its maximum, which needs no table to be true.
 
@@ -1229,6 +1282,20 @@ wheels stop in snow anywhere and in mud off pavement — and the refusals
 render on the panel for the whole table. The finished day's weather goes
 into its log row, display fields only.
 
+**What the sky does beyond speed** is the `conditionEffects` table, one entry
+per condition read from the weather pages' own prose by the importer, and
+[weather-effects.mjs](../../scripts/formation/weather-effects.mjs) merges the
+day's conditions into one answer: throw penalties SUM across conditions (a
+cold, rainy day pays both), a visibility ceiling takes the lowest stated feet
+and a visibility factor the product, the air speed the lowest factor, a
+night's needs the strictest, and the dust rule applies only on a ground its
+entry names. Every reader takes the merged answer: the search, survey and
+navigation throws and a tracker's help by the hour, the forage targets, how
+far the party is seen from on the encounter card, the flier's storm, the
+night's rest and the weather's toll. The list under the sky's chips shows
+what today states, and a sky with conditions but no imported table says so to
+the Judge instead of applying nothing in silence.
+
 **The sky is cached, not stored.** It keys on `(day, climate, season)`
 ([sky.mjs](../../scripts/formation/sky.mjs)), so two parties standing in the
 same weather read one roll, re-rolling a settled day is a cache hit rather than
@@ -1293,7 +1360,23 @@ that many miles on any other map (§The journey) — throws as it is walked,
 day or night read from the clock, and End Day rolls the finished day's owed
 throws from the imported frequency table — one per hunt or search hour, the
 camp's resting cells, a night cell counted in nights gated on a die of that
-many sides.
+many sides. Managing traps is a declared count rather than a slot: End day
+owes one throw per imported batch of the day's count plus the carry of
+earlier days, writes the remainder back as `travel.trapsCarry`, and a cell
+the book prints as none clears it.
+
+**When, where, and what the sky adds.** An encounter that is not "none" says
+where in its period it falls (`encounterWhen`): the mile of the hex on a die
+of the cadence's miles, the turn of the hour on a die of the hour's turns, the
+hour after dawn or dusk on a die of the clock's span, and the night of a rest
+period on a die of its nights; a per-attempt throw places nothing. A terrain
+encounter on a scene is left at the party's true point as a persistent
+Judge-only Note (`markTerrainEncounter`; the `wilds` flag names the outcome,
+the result and the formation), and a hazard row prints the trap equivalent
+its imported row names. The card's visibility line takes the sky's ceiling
+and factor after the size scale, and chips carry the sky's missile and
+listening penalties and the dust wind's speed, so the Judge resolving the
+meeting has them to hand.
 
 **Zones on a journey.** An Encounter Zone region changes a journey's throws
 where the party really is: `journeyZones` reads every zone under
@@ -1329,9 +1412,6 @@ or blank states nothing. The delve takes the first zone under the party token
   resting night; a count of 0 leaves its half to the imported cells. Under
   both, `acksExtras.hexEntered` still fires per unit, with `throwOwed: false`.
 - The card names the zones that supplied a field on a line of its own.
-
-Still ahead of this mode — supply consumption at End Day — is
-[ROADMAP.md](ROADMAP.md) item 7.
 
 ## Deliberate non-features (v0.1)
 

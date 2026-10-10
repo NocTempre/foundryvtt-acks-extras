@@ -508,6 +508,28 @@ await t("a success tells the truth, records it, and the card carries the Tell bu
   assert.match(chat[0].content, /survey\.assessed/);
 });
 
+await t("the sky taxes the survey throw and says so on the card; a fair sky adds no line", async () => {
+  registerTable({
+    id: "weather",
+    tables: { conditionEffects: { foggy: { throws: { landSurveying: -4 } } } },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+  const { formation } = world();
+  await diced(formation);
+  formation.travel.weather = { precipitation: "foggy" };
+  nextNatural = 18;
+  await run.surveyHex(formation);
+  assert.deepEqual(formulas, ["1d20 + -4"], "the throw carries the sky's figure");
+  assert.match(chat[0].content, /hexStock\.weather \{"value":"-4"\}/);
+
+  const fair = world();
+  await diced(fair.formation);
+  nextNatural = 18;
+  await run.surveyHex(fair.formation);
+  assert.deepEqual(formulas, ["1d20"], "with a fair sky the throw is plain");
+  assert.doesNotMatch(chat[0].content, /hexStock\.weather/);
+  register();
+});
+
 await t("a natural 1 tells a count that differs from the truth, after re-rolling the stored dice", async () => {
   const { scene, formation } = world();
   await diced(formation);

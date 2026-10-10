@@ -1608,6 +1608,70 @@ Teardown: `api.sweepTracked()` — the regions, the table, the actor, the cards
 and the scene's own fixtures go together; close the episode; unregister the
 invented documents; restore the throw setting.
 
+## The sky's effects and the night (added with the insert-page rules)
+
+Fixtures: a journey formation over two disposable member actors
+(`api.create`), one wearing an equipped armour item of a few stone, one
+carrying a cloak so `sheltered` answers yes; the `weather` and `survival`
+documents imported from the Judge's own pages (the importer's weather and
+survival steps), or invented `conditionEffects`, `fatigue` and `sleep` tables
+registered at WORLD priority for the check and unregistered after.
+
+1. Declare the sky by hand: a rainy precipitation band. *Observable:* the list
+   under the sky's chips (`.acks-extras-sky-effects`) shows one line per
+   stated effect — the throws, the firewood forage line, the visibility factor,
+   the disease line. A sky with conditions but nothing imported shows the Judge
+   the unpriced hint instead, and nothing else changes.
+2. Search an hour. *Observable:* the search card carries the weather line and,
+   with a tracker seated, the per-hour tracking line, its figure scaled by the
+   hours already searched today. Survey the hex and End day: the survey card
+   and the navigation card each carry their own weather line.
+3. On the camp fold tick *Willing to steal* in civilized country.
+   *Observable:* the forage targets on the panel lose their territory part.
+   Tick *Water at hand*. *Observable:* Work the country takes water with no
+   throw, and the panel's water hint says it is at hand. Work the country
+   twice. *Observable:* the second run says the hours are spent; the hunt and
+   forage slots are `done` and the clock ran by their hours.
+4. Declare a count of traps on the day fold and End day with an imported
+   `managingTraps` cell. *Observable:* one managing-traps encounter card per
+   batch, `travel.trapsCarry` holding the remainder; the next End day with no
+   traps declared spends the carry.
+5. End day under a cold sky with exposure hours set and the uncloaked member.
+   *Observable:* the weather's toll card, whispered, with the frostbite save
+   for the hypothermic body; a failed save puts `frostbitten` in
+   `actor.statuses`. Repeat End day under rainy skies for the imported run of
+   days. *Observable:* the disease throw per body on the day the run comes
+   due, and `travel.weatherRuns` back at zero for that sky. Then declare a
+   sweltering, sunbaked sky. *Observable:* *Hours in the weather* is enabled
+   (it is greyed only on a day whose hours cost nothing); with hours set, End
+   day's toll card carries the sunburn on the uncloaked body, its hit points
+   down by the imported damage, and the heat's armour save by the hour for
+   the body in armour at or over the imported stone, a failure adding one
+   `fatigued` stack.
+6. Tick *Sleeping in armour* and End day. *Observable:* the night's rest card
+   with the armoured sleeper's throw against its stone and its rounds to don;
+   `flags.acks-extras.fatigue` on each actor advanced by one day. Tick *No
+   sleep tonight* for the imported count of nights. *Observable:* `fatigued`
+   on the actor with `conditionStacks` 1, rising by one a day; a camp day with
+   a restful night lifts it and the card says so.
+7. Roll an encounter that is not none on a hex scene. *Observable:* the
+   card's when line(s), the sky's chips, the visibility figure under the
+   ceiling, and a new Note at the party's point carrying
+   `flags.acks-extras.wilds`; track its id.
+
+Drive mechanics: set the declarations through the sheet's own controls (set
+the value, dispatch a bubbling `change`) and re-render the sheet after any
+`patchTravel` first, because every change submits the whole form and a stale
+field writes its old value back; a disabled field submits nothing and reads
+as zero. Make the throws certain with the fixtures: a death save target above
+20 always fails and one of 1 always saves, and armour heavier than 20 stone
+never sleeps well. An invented layer is registered per client, so a second
+seat sees the sky unpriced unless it registers the same layer. `disband`
+deletes the party actor, so the sweep reports it as not found.
+
+Teardown: `api.sweepTracked()` — the actors, the scene, the note and every
+card posted (track each by id as it lands); unregister any invented document.
+
 ## Teardown
 
 `api.sweepTracked()` over the ledger: the scene, the party actor (its

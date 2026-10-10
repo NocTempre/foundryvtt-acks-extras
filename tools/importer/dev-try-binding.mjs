@@ -20,6 +20,7 @@ import { FILES } from "./reference-lib.mjs";
 
 /** Which assembler belongs to which document. */
 const BINDERS = {
+  weather: () => import("../../scripts/importer/weather-binding.mjs").then((m) => m.assembleWeatherTables),
   survival: () => import("../../scripts/importer/survival-binding.mjs").then((m) => m.assembleSurvivalTables),
   conditions: () => import("../../scripts/importer/conditions-binding.mjs").then((m) => m.assembleConditionTables),
   foraging: () => import("../../scripts/importer/foraging-binding.mjs").then((m) => m.assembleForagingTables),
@@ -49,6 +50,24 @@ async function bookFor(id) {
 const raw = {};
 for (const [key, recipe] of Object.entries(doc.tables ?? {})) {
   const { doc: pdf } = await bookFor(recipe.book);
+  // A valueBlocks recipe locates one page per block and keys the result by
+  // block id, the way the import's `runValueBlocks` does.
+  if (recipe.valueBlocks) {
+    const out = {};
+    for (const block of recipe.valueBlocks) {
+      const sub = { ...recipe, valueBlocks: null, emit: null, printedPage: block.printedPage, locate: block.locate, values: block.values, column: block.column ?? recipe.column };
+      const found = await findPage(sub, pdf.numPages, (p) => pageItems(pdf, p));
+      if (!found) { process.stdout.write(`MISS  ${key}/${block.id}: page not found\n`); continue; }
+      try {
+        const got = extractTable(found.items, sub);
+        if (Object.keys(got).length) out[block.id] = got;
+      } catch (err) {
+        process.stdout.write(`ERR   ${key}/${block.id}: ${err.message}\n`);
+      }
+    }
+    if (Object.keys(out).length) raw[key] = recipe.emit?.path?.length ? { [recipe.emit.path[0]]: out } : out;
+    continue;
+  }
   const found = await findPage(recipe, pdf.numPages, (p) => pageItems(pdf, p));
   if (!found) { process.stdout.write(`MISS  ${key}: page not found\n`); continue; }
   try {

@@ -86,8 +86,9 @@ import {
 } from "../lib/survival.mjs";
 import { MOVEMENT_MODES, composeMovement } from "../lib/movement-modes.mjs";
 import { flightMultiplier, FLIGHT_LOADS } from "./flight.mjs";
-import { FORAGE_KINDS, forageSpec, huntSpec } from "./foraging.mjs";
+import { FORAGE_KINDS, forageSpec, huntSpec, standingWaterOf } from "./foraging.mjs";
 import { searchSpec, searchesAvailable } from "./searching.mjs";
+import { weatherEffects, throwPenalty, foragePenalty } from "./weather-effects.mjs";
 import { hexStockView } from "./hex-stock-run.mjs";
 
 /**
@@ -515,6 +516,8 @@ export function travelReadout(formation, feet) {
       // the only reading that invents no figure.
       dayHours: t.movement.dayHours || t.movement.hoursAloft,
       windy: conditions.includes("windy"),
+      stormy: conditions.includes("stormy"),
+      stormyAirSpeed: weatherEffects(["stormy"]).airSpeed,
       load: t.movement.load,
     });
     if (flight.parts) parts.push(...flight.parts);
@@ -1044,9 +1047,15 @@ function buildCampView(formation, t, milesPerDay = 0, stock = null) {
   const slots = Array.isArray(t.day?.activities) ? t.day.activities : [];
   const survival = actors.some((a) => hasAbility(a, /survival/i));
   const kinds = ["food", "water", "firewood"].filter((k) => slots.includes("forage") || k === "food");
+  const fx = weatherEffects(conditionsOf(t.weather), { terrain: t.ground });
   const forage = slots.includes("forage")
     ? kinds.map((kind) => {
-        const spec = forageSpec({ kind, terrain: t.ground, territory: t.territory, survival });
+        const spec = forageSpec({
+          kind, terrain: t.ground, territory: t.territory, survival,
+          standingWater: standingWaterOf(t),
+          weather: foragePenalty(fx, kind),
+          willingToSteal: t.camp.steal,
+        });
         return {
           kind,
           label: game.i18n.localize(FORAGE_KINDS[kind].label),
@@ -1058,7 +1067,7 @@ function buildCampView(formation, t, milesPerDay = 0, stock = null) {
   const hunt = slots.includes("hunt") ? huntSpec({ territory: t.territory }) : null;
 
   const search = slots.includes("search")
-    ? searchSpec({ milesPerDay: Number(milesPerDay) || 0, terrain: t.ground })
+    ? searchSpec({ milesPerDay: Number(milesPerDay) || 0, terrain: t.ground, weather: throwPenalty(fx, "searching") })
     : null;
 
   // The Judge's two search answers. The stock is offered only where the hex
@@ -1094,13 +1103,23 @@ function buildCampView(formation, t, milesPerDay = 0, stock = null) {
     presentOptions,
     targetOptions,
     searchesHeld: searchesAvailable({ slots, forced: t.day?.kind === "forced" }),
-    // The cold's inputs, so the Judge can declare them and see them applied.
-    // `bites` says whether this band has a clock at all — a mild day shows the
-    // control greyed rather than inviting hours that would do nothing.
+    // The camp's declarations. `waterAuto` is the standing-water answer the
+    // rest of the record already gives (a followed river, a river pick), so the
+    // fold can say the water is at hand without the box being ticked.
+    steal: t.camp.steal,
+    water: t.camp.water,
+    waterAuto: standingWaterOf({ ...t, camp: { ...t.camp, water: false } }),
+    sleepInArmour: t.camp.sleepInArmour,
+    // The weather's inputs, so the Judge can declare them and see them applied.
+    // `bites` says whether the hours cost anything today: the band runs a cold
+    // clock, the heat asks an armour save by the hour, or the sky burns. A mild
+    // day shows the control greyed rather than inviting hours that do nothing.
     exposure: {
       ...t.exposure,
       band: t.weather?.temperature ?? "",
-      bites: exposureBites(t.weather?.temperature ?? ""),
+      bites: exposureBites(t.weather?.temperature ?? "")
+        || burden.armourAt != null
+        || !!weatherEffects(conditionsOf(t.weather ?? {}), { terrain: t.ground }).sunburn,
     },
   };
 }
@@ -1178,7 +1197,7 @@ function buildTravelView(formation) {
   view.dayKinds = Object.entries(DAY_KINDS).map(([value, cfg]) =>
     opt(value, game.i18n.localize(cfg.label), value === t.day.kind));
   view.forced = !!DAY_KINDS[t.day.kind]?.consumesAncillary;
-  const activityOptions = Object.entries(ANCILLARY_ACTIVITIES).map(([value, cfg]) => ({
+  const activityOptions = Object.entries(ANCILLARY_ACTIVITIES).filter(([, cfg]) => !cfg.declared).map(([value, cfg]) => ({
     value,
     label: game.i18n.localize(cfg.label),
   }));
@@ -1188,6 +1207,9 @@ function buildTravelView(formation) {
     empty: value == null,
     done: !!t.day.done?.[index],
   }));
+  // The day's own declarations: traps managed, and a night without sleep.
+  view.traps = t.day.traps;
+  view.noSleep = t.day.noSleep;
   view.hourOptions = Object.entries(HOUR_MODES).map(([value, cfg]) =>
     opt(value, game.i18n.localize(cfg.label), value === t.hour));
   // ONE lost view: the fields the episode needs and the fields the panel
@@ -1218,6 +1240,30 @@ function buildTravelView(formation) {
   return view;
 }
 
+/** A modifier with its sign written out, so a positive one does not read as a bare number. */
+const signedFigure = (n) => (n > 0 ? `+${n}` : `${n}`);
+
+/**
+ * One `weather-effects` readout line as the text printed after its label: a
+ * signed modifier for a throw or a forage, feet for a ceiling, a multiplier for
+ * a factor or a speed, the localized word for a night's rest, a percentage
+ * beside its condition for a disease. A line with no figure (a frostbite
+ * clause, a dust wind that states no speed) prints nothing after its label.
+ */
+function effectValue({ key, value, condition }) {
+  const loc = (k) => game.i18n.localize(`ACKS-FORMATION.travel.weather.effects.${k}`);
+  if (key.startsWith("throw.") || key.startsWith("forage.")) return signedFigure(value);
+  if (key === "visibility.feet") return `${value}'`;
+  if (key === "visibility.factor" || key === "airSpeed") return `×${fractionLabel(value)}`;
+  if (key === "dust") return value == null ? "" : `×${fractionLabel(value)}`;
+  if (key === "rest") return loc(value);
+  if (key === "disease") {
+    const cond = CONDITIONS[condition] ? game.i18n.localize(CONDITIONS[condition].label) : "";
+    return [value == null ? "" : `${value}%`, cond ? `(${cond})` : ""].filter(Boolean).join(" ");
+  }
+  return value == null ? "" : String(value);
+}
+
 /**
  * The weather block's context: the generator's pickers, the three band
  * selects (band keys are structural, so a Judge with nothing imported still
@@ -1244,6 +1290,9 @@ function buildWeatherView(t, opt) {
   // sits beside its control. An unset band shows none rather than a stand-in.
   const glyph = (vocab, current) => (current ? vocab[current]?.icon ?? null : null);
 
+  const conditions = conditionsOf(w);
+  const fx = weatherEffects(conditions, { terrain: t.ground });
+
   return {
     auto: !!w.auto,
     fronts: !!w.fronts,
@@ -1259,11 +1308,19 @@ function buildWeatherView(t, opt) {
     night: w.temperatureNight ? game.i18n.localize(TEMPERATURE_BANDS[w.temperatureNight]?.label ?? "") : "",
     // Each chip wears the icon its own condition names, so the strip reads at a
     // glance and a Judge can pick the cold out of a row of five.
-    chips: conditionsOf(w).map((key) => ({
+    chips: conditions.map((key) => ({
       key,
       label: game.i18n.localize(CONDITIONS[key].label),
       icon: CONDITIONS[key].icon ?? null,
     })),
+    // What today's sky does, one line per stated effect; the figures are the
+    // imported table's, and an unimported table says so instead of an empty list.
+    effects: fx.lines.map((line) => ({
+      key: line.key,
+      label: game.i18n.localize(`ACKS-FORMATION.travel.weather.effects.${line.key}`),
+      value: effectValue(line),
+    })),
+    effectsUnpriced: conditions.length > 0 && !fx.ok,
     footingMud: ["none", "muddy", "frozen"].map((m) =>
       opt(m, game.i18n.localize(`ACKS-FORMATION.travel.weather.mud.${m}`), m === w.footing.mud)),
     footingSnow: !!w.footing.snow,

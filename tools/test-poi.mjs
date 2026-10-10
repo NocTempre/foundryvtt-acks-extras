@@ -14,8 +14,8 @@ import { MODULE_ID } from "../scripts/lib/constants.mjs";
 import { LOCATION_TYPE } from "../scripts/location/constants.mjs";
 import { sceneOccupants } from "../scripts/lib/place.mjs";
 import {
-  DISTRICT_RELATION, TRANSIENT_FLAG, districtRelation, expiredNoteIds, noteLabel, poiTravelTurns,
-  promotedPlaceData, ringsTouch, transientNoteData, transientOf,
+  DISTRICT_RELATION, TRANSIENT_FLAG, WILDS_FLAG, districtRelation, expiredNoteIds, noteLabel, poiTravelTurns,
+  promotedPlaceData, ringsTouch, terrainMarkData, transientNoteData, transientOf,
 } from "../scripts/formation/poi-logic.mjs";
 
 let passed = 0;
@@ -156,6 +156,38 @@ ok("the label is cut but the flag keeps the whole text", () => {
 ok("a negative lifetime expires at once, never in the past", () => {
   const data = transientNoteData({ x: 0, y: 0, text: "t", now: 500, turns: -3, turnSeconds: 600, icon: "i.svg" });
   assert.equal(data.flags[MODULE_ID][TRANSIENT_FLAG].expiresAt, 500);
+});
+
+/* ---------------- terrainMarkData ---------------- */
+
+ok("a terrain encounter's marker is Judge-only, persistent, and carries what was met", () => {
+  const data = terrainMarkData({
+    x: 910, y: 770, outcome: "dangerousTerrain", outcomeLabel: "Danger", name: "QQ Slide", table: "dangerous",
+    formationId: "f9", now: 4300, icon: "icons/svg/mountain.svg",
+  });
+  assert.equal(data.entryId, null, "no journal entry, so nobody but a Judge sees it");
+  assert.equal(data.pageId, null);
+  assert.equal(data.global, false);
+  assert.deepEqual(data.texture, { src: "icons/svg/mountain.svg" });
+  assert.equal(data.x, 910);
+  assert.equal(data.y, 770);
+  assert.equal(data.text, "Danger: QQ Slide");
+  assert.deepEqual(data.flags[MODULE_ID][WILDS_FLAG], {
+    outcome: "dangerousTerrain", name: "QQ Slide", table: "dangerous", formationId: "f9", rolledAt: 4300,
+  });
+  assert.equal(transientOf(data), null, "it carries no transient record, so the clock never takes it");
+});
+
+ok("a terrain marker is never collected by the clock, however late", () => {
+  const data = terrainMarkData({ x: 0, y: 0, outcome: "uniqueTerrain", outcomeLabel: "Odd", name: "n", now: 1, icon: "i.svg" });
+  assert.deepEqual(expiredNoteIds([{ id: "wild", ...data }], 10 ** 9), []);
+});
+
+ok("a terrain marker with no name is labelled by its outcome alone, and a long one is cut", () => {
+  assert.equal(terrainMarkData({ x: 0, y: 0, outcomeLabel: "Odd", name: "", icon: "i.svg" }).text, "Odd");
+  const long = terrainMarkData({ x: 0, y: 0, outcomeLabel: "Odd", name: "w".repeat(200), icon: "i.svg" });
+  assert.ok(long.text.length < 200);
+  assert.equal(long.flags[MODULE_ID][WILDS_FLAG].name, "w".repeat(200), "the flag keeps the whole name");
 });
 
 /* ---------------- expiredNoteIds ---------------- */

@@ -11,6 +11,7 @@ import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.
 import {
   FLIGHT_DOC, FLIGHT_LOADS, flightMultiplier, flightLoadBand, flightReady,
 } from "../scripts/formation/flight.mjs";
+import { composeMovement } from "../scripts/lib/movement-modes.mjs";
 
 let passed = 0;
 const ok = (name, fn) => { fn(); passed++; console.log("ok   " + name); };
@@ -75,6 +76,36 @@ ok("wind cuts the flight, and composes with the blend", () => {
   const windy = flightMultiplier({ hoursAloft: 8, dayHours: 8, windy: true });
   assert.equal(windy.multiplier, calm.multiplier * 0.25);
   assert.deepEqual(windy.parts.map((p) => p.key), ["aloft.share", "aloft.windy"]);
+});
+
+ok("a storm's own air-speed factor stands in for the ground's storm", () => {
+  unregisterTable(FLIGHT_DOC); load();
+  const calm = flightMultiplier({ hoursAloft: 8, dayHours: 8 });
+  const stormy = flightMultiplier({ hoursAloft: 8, dayHours: 8, stormy: true, stormyAirSpeed: 0.4 });
+  assert.equal(stormy.multiplier, calm.multiplier * 0.4);
+  assert.deepEqual(stormy.parts.map((p) => p.key), ["aloft.share", "aloft.stormy"]);
+  assert.deepEqual(stormy.parts[1], { key: "aloft.stormy", factor: 0.4, supplants: "condition.stormy" });
+  const both = flightMultiplier({ hoursAloft: 8, dayHours: 8, windy: true, stormy: true, stormyAirSpeed: 0.4, load: "heavy" });
+  assert.deepEqual(both.parts.map((p) => p.key), ["aloft.share", "aloft.windy", "aloft.stormy", "aloft.heavy"]);
+  const composed = composeMovement({
+    mode: "flying",
+    parts: [{ key: "condition.stormy", factor: 0.9 }, ...stormy.parts],
+  });
+  assert.equal(composed.multiplier, 3 * 0.4, "the ground's storm is replaced, not multiplied in");
+  assert.equal(composed.dropped[0].why, "replaced");
+});
+
+ok("a storm that names no air-speed factor adds nothing and the ground's storm stands", () => {
+  unregisterTable(FLIGHT_DOC); load();
+  for (const stormyAirSpeed of [null, undefined, 0, -1, "x"]) {
+    const r = flightMultiplier({ hoursAloft: 8, dayHours: 8, stormy: true, stormyAirSpeed });
+    assert.deepEqual(r.parts.map((p) => p.key), ["aloft.share"], `a factor of ${String(stormyAirSpeed)} adds no part`);
+    assert.equal(r.multiplier, 3);
+  }
+  assert.deepEqual(flightMultiplier({ hoursAloft: 8, dayHours: 8, stormyAirSpeed: 0.4 }).parts.map((p) => p.key), ["aloft.share"],
+    "a factor without a storm adds none either");
+  const kept = composeMovement({ mode: "flying", parts: [{ key: "condition.stormy", factor: 0.9 }, { key: "aloft.share", factor: 3 }] });
+  assert.equal(kept.multiplier, 0.9 * 3);
 });
 
 ok("a heavy load slows it, and stacks with wind", () => {

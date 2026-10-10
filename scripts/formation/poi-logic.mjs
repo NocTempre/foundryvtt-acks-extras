@@ -141,6 +141,36 @@ export function transientNoteData({
   };
 }
 
+/** The flag a terrain-encounter marker carries, under the module's scope on the Note. */
+export const WILDS_FLAG = "wilds";
+
+/**
+ * The Note a terrain encounter on the regional map is left as.
+ *
+ * The same shape as `transientNoteData` with no transient record: nothing
+ * expires it, and the `wilds` record says what the party met, on which list,
+ * for which formation and when. No journal entry, so it is Judge-only by the
+ * same construction.
+ */
+export function terrainMarkData({
+  x, y, outcome = "", outcomeLabel = "", name = "", table = "", formationId = null, now = 0, icon,
+}) {
+  return {
+    x,
+    y,
+    text: noteLabel(name ? `${outcomeLabel}: ${name}` : outcomeLabel),
+    entryId: null,
+    pageId: null,
+    global: false,
+    texture: { src: icon },
+    flags: {
+      [MODULE_ID]: {
+        [WILDS_FLAG]: { outcome, name: String(name ?? ""), table, formationId, rolledAt: now },
+      },
+    },
+  };
+}
+
 /** The transient record on a note, or null for a note that is not one. */
 export const transientOf = (note) => note?.flags?.[MODULE_ID]?.[TRANSIENT_FLAG] ?? null;
 

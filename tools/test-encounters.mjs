@@ -32,6 +32,7 @@ import {
   rarityThrow,
   rollDice,
   runEncounter,
+  subTableDraw,
   territoryThrow,
   terrainEncounterDraw,
   visibilityMax,
@@ -230,6 +231,24 @@ assert.equal(headEquivalents({ men: 3, mounted: 2, colossal: 1 }), 107, "the imp
 assert.equal(visibilityMax({ light: "daylight", heads: 5 }), 500);
 assert.equal(visibilityMax({ light: "daylight", heads: 20 }), 750, "a party-sized formation is seen half again as far");
 assert.equal(visibilityMax({ light: "moonlight", heads: 5 }), null, "an unimported light band caps nothing");
+
+// The sky: the size scale first, then the factor, then a stated ceiling.
+assert.equal(visibilityMax({ light: "daylight", heads: 20, weather: null }), 750, "no sky leaves the figure as it was");
+assert.equal(visibilityMax({ light: "daylight", heads: 20, weather: { feet: null, factor: 1 } }), 750, "a sky stating nothing changes nothing");
+assert.equal(visibilityMax({ light: "daylight", heads: 20, weather: { feet: null, factor: 0.5 } }), 375, "the factor multiplies the scaled figure");
+assert.equal(visibilityMax({ light: "daylight", heads: 20, weather: { feet: 140, factor: 1 } }), 140, "a ceiling caps it");
+assert.equal(visibilityMax({ light: "daylight", heads: 20, weather: { feet: 900, factor: 0.5 } }), 375, "a ceiling above the figure does not raise it");
+assert.equal(visibilityMax({ light: "daylight", heads: 20, weather: { feet: 300, factor: 0.5 } }), 300,
+  "the ceiling is applied after the factor: 375 is capped, not 300 halved");
+assert.equal(visibilityMax({ light: "daylight", heads: 5, weather: { feet: 300, factor: 0.5 } }), 250,
+  "the factor alone binds when it already falls under the ceiling");
+assert.equal(visibilityMax({ light: "moonlight", heads: 5, weather: { feet: 140, factor: 0.5 } }), null,
+  "an unimported light band still caps nothing, whatever the sky");
+const skyDet = detection({
+  partyTerrain: "grassland", partyHeads: 5, monsterHeads: 5, weather: { feet: 140, factor: 1 },
+  rng: rig(face(6, 6), face(6, 6)),
+});
+assert.ok(skyDet.ok && skyDet.rolled === 360 && skyDet.feet === 140, "the sky's ceiling caps where the encounter opens");
 
 // Cross-terrain: each side rolls its OWN country; the longer roll detects.
 const det = detection({
@@ -513,7 +532,7 @@ globalThis.game = {
 };
 // The card module reaches the zone behaviour, whose class extends core's at import.
 globalThis.foundry ??= { data: { regionBehaviors: { RegionBehaviorType: class {} } } };
-const { terrainDrawLines } = await import("../scripts/formation/encounter-card.mjs");
+const { terrainDrawLines, encounterWhen } = await import("../scripts/formation/encounter-card.mjs");
 registerHandoffs({ share: 40 });
 let lines = terrainDrawLines(terrainEncounterDraw({
   kind: "valuable",
@@ -534,6 +553,61 @@ lines = terrainDrawLines(terrainEncounterDraw({ kind: "valuable", terrain: "fore
 assert.equal(Math.max(...lines.map((l) => l.depth)), 3, "a deep chain indents no further than the last class");
 assert.equal(lines.at(-1).kind, "exhausted", "the budget's end is a line of its own");
 assert.deepEqual(terrainDrawLines(terrainEncounterDraw({ kind: "nothing" })), [], "a missing list draws no line");
+
+// A row that names an equivalent trap carries it from the sub-table draw to the card's line.
+registerTable({
+  id: ENCOUNTERS_DOC,
+  tables: {
+    ...SAMPLE.tables,
+    terrainEncounters: { dangerous: ["Hazard", "QQ2", "QQ3", "QQ4", "QQ5", "QQ6", "QQ7", "QQ8", "QQ9", "QQ10", "QQ11", "QQ12"] },
+    terrainSubTables: {
+      hazard: [
+        { min: 1, max: 3, name: "QQ Slide", trap: "QQ trap alpha" },
+        { min: 4, max: 5, name: "QQ Drift" },
+      ],
+    },
+  },
+}, { priority: PRIORITY.WORLD, source: "test" });
+assert.equal(subTableDraw({ table: "hazard", rng: rig(face(2, 5)) }).trap, "QQ trap alpha", "a row's trap rides its draw");
+assert.ok(!("trap" in subTableDraw({ table: "hazard", rng: rig(face(5, 5)) })), "a row without one adds no key");
+lines = terrainDrawLines(terrainEncounterDraw({ kind: "dangerous", terrain: "grassland", rng: rig(face(1, 12), face(1, 5)) }));
+assert.deepEqual(lines.map((l) => [l.kind, l.name, l.trap]), [["roll", "Hazard", null], ["follow", "QQ Slide", "QQ trap alpha"]],
+  "the hazard's follow line carries its trap, the root line none");
+lines = terrainDrawLines(terrainEncounterDraw({ kind: "dangerous", terrain: "grassland", rng: rig(face(1, 12), face(5, 5)) }));
+assert.equal(lines.at(-1).trap, null, "a hazard with no trap carries null");
+
+// Where in its period an encounter falls: one face per unit of the span, never a printed die.
+const clock = { hoursPerDay: 24, dawn: 7, dusk: 19 };
+assert.deepEqual(encounterWhen({ activity: "travel", mileHex: 11, rng: rig(face(9, 11)) }), [{ key: "mile", n: 9 }],
+  "a per-hex throw rolls a face per mile of the cadence");
+assert.deepEqual(encounterWhen({ activity: "travel", mileHex: null }), [], "no cadence, no mile");
+assert.deepEqual(encounterWhen({ activity: "travel", mileHex: 0 }), []);
+assert.deepEqual(encounterWhen({ activity: "search", secondsPerHour: 3600, turnSeconds: 600, rng: rig(face(4, 6)) }), [{ key: "turn", n: 4 }],
+  "an hour of the calendar over the turn is the turn count");
+assert.deepEqual(encounterWhen({ activity: "search", secondsPerHour: 2300, turnSeconds: 100, rng: rig(face(23, 23)) }), [{ key: "turn", n: 23 }],
+  "a calendar with another hour gives another count");
+assert.deepEqual(encounterWhen({ activity: "search", secondsPerHour: 3600, turnSeconds: 600, rng: rig(0.999999) }), [{ key: "turn", n: 6 }],
+  "the top of the die is the last turn");
+assert.deepEqual(encounterWhen({ activity: "search", secondsPerHour: null, turnSeconds: 600, rng: rig(face(2, 6)) }), [{ key: "turn", n: 2 }],
+  "a clock with no calendar falls back to an ordinary hour");
+assert.deepEqual(encounterWhen({ activity: "search", secondsPerHour: 3600, turnSeconds: 7200 }), [], "an hour shorter than a turn has no turns to name");
+assert.deepEqual(encounterWhen({ activity: "rest", night: false, clock, rng: rig(face(5, 12)) }), [{ key: "hourDawn", n: 5 }],
+  "a day's rest is placed in the hours from dawn to dusk");
+assert.deepEqual(encounterWhen({ activity: "rest", night: true, clock, rng: rig(face(12, 12)) }), [{ key: "hourDusk", n: 12 }],
+  "a night's rest is placed in the hours from dusk to dawn");
+assert.deepEqual(encounterWhen({ activity: "rest", night: true, clock: { hoursPerDay: 20, dawn: 3, dusk: 13 }, rng: rig(face(10, 10)) }), [{ key: "hourDusk", n: 10 }],
+  "the span wraps the calendar's own day length");
+assert.deepEqual(encounterWhen({ activity: "rest", night: true, nights: 3, clock, rng: rig(face(2, 3), face(1, 12)) }),
+  [{ key: "night", n: 2, of: 3 }, { key: "hourDusk", n: 1 }], "a period of several nights also names the night");
+assert.deepEqual(encounterWhen({ activity: "rest", night: true, nights: 1, clock, rng: rig(face(3, 12)) }), [{ key: "hourDusk", n: 3 }],
+  "a one-night period names no night");
+assert.deepEqual(encounterWhen({ activity: "rest", night: true, nights: 5, clock: null, rng: rig(face(4, 5)) }), [{ key: "night", n: 4, of: 5 }],
+  "with no calendar the night is still placed in its period");
+assert.deepEqual(encounterWhen({ activity: "rest", clock: { hoursPerDay: 24, dawn: 6, dusk: 6 } }), [], "a day with no dark has no hours to place");
+assert.deepEqual(encounterWhen({ activity: "hunt", clock, nights: 4 }), [], "a per-attempt throw is placed nowhere");
+assert.deepEqual(encounterWhen({ activity: "traps", clock, mileHex: 6 }), []);
+assert.deepEqual(encounterWhen({ activity: "entry", clock, mileHex: 6 }), []);
+
 delete globalThis.game;
 delete globalThis.foundry;
 

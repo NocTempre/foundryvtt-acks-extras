@@ -1443,6 +1443,21 @@ An unimported subsystem starves nobody: with no thresholds the ladders do not
 advance, though the clocks still run, so importing later starts from the truth
 rather than from zero.
 
+**Fatigue is the body's third ladder**
+([fatigue.mjs](../../scripts/lib/fatigue.mjs)), beside hunger and thirst for
+the same reason. Three clocks, each reset by its own answer: days of activity,
+reset by a dedicated rest day; nights without restful sleep, reset by one;
+forced marches in a row, reset by a day not forced. Each tires the body when
+it reaches the imported count. Endurance's allowance (its base, its rate per
+point of Constitution bonus, its extra for a labourer) extends the sleepless
+count, Labor exempts the run of days, and nothing exempts the forced march. A
+fatigued body gains a `fatigued` stack a day until a rest day with a restful
+night ends it. What makes a night restful is the same file's (`restfulNight`):
+sleep at all, the sky's needs met, and an armoured sleeper's throw over the
+stone it bears; the rounds to don the kit are the imported rate per stone.
+The caller rolls the die and writes the body; the ladder is pure. Unimported
+counts tire nobody, and the clocks still run.
+
 ## Conditions
 
 The token palette is the conditions of RR 507-515 and nothing else
@@ -1451,7 +1466,9 @@ math, [status-effects.mjs](../../scripts/lib/status-effects.mjs) the Foundry
 half). Foundry's generic list is replaced at `init`. Three entries beside the
 catalogue stay because something reads their id: `dead` (the tracker's
 defeated marker), `invisible` (core's detection modes) and Running (the
-senses).
+senses). Two more, `diseased` and `frostbitten`, are the marks the weather
+leaves (the formation's toll card applies them): they carry no figures and
+forbid nothing, and name a body the Judge resolves from the book.
 
 **The catalogue is structure; every size is imported.** An entry says what a
 condition carries with it (`implies`), what it takes away (`forbids`), what it
@@ -1478,6 +1495,10 @@ things follow, and each was a reason for the shape:
 The exceptions to "once" are the rows marked `per`, where the rule itself
 counts causes. The count is the number of enabled effects carrying the status,
 each weighted by `flags["acks-extras"].conditionStacks` when it has one.
+`conditionStacksOf` reads that count for one condition and `setConditionStacks`
+writes it, switching the status on when absent and lifting it at zero, so a
+ladder that climbs by the day (fatigue) moves the one effect the palette
+toggles rather than stacking effects of its own.
 
 **Active and target.** `attackMath` reads both sides of one attack throw. The
 attacker's own rows become terms on its throw. The target's `against` rows

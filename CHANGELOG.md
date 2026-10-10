@@ -56,6 +56,29 @@
   ruin tables and its hills and cliff zones; AX6's rumours, dynamic encounter
   and clearance tables and its zone. AX3's region map imports with its
   fifty-three sites and the region's own overview.
+- **The sky's effects, read from the weather pages.** The importer reads each
+  condition's entry on the weather pages into one table, and the day's
+  conditions merge: the search, survey and navigation throws, a tracker's
+  help by the hour, the firewood and water forage targets, how far the party
+  is seen from, the flier's storm, and the dust rule on the grounds it names.
+  A list under the sky's chips shows what today states, and every card that
+  pays a sky penalty says so.
+- **The day and the camp declare more.** The day fold takes the traps managed
+  and a night without sleep; the camp fold takes willing to steal, water at
+  hand and sleeping in armour. End day owes an encounter throw per batch of
+  traps and carries the remainder; Work the country spends the hunt and
+  forage hours it works.
+- **The weather's toll and the night's rest.** End day posts the sun's burn,
+  the heat's armour save, the frostbite save and the week's disease throw on
+  one whispered card, and each body's night on another: whether it was
+  restful, the armoured sleeper's throw and the rounds to don the kit, and
+  the fatigue ladder (days of activity, sleepless nights, forced marches,
+  with Labor's exemption and Endurance's allowance) written to the body as
+  `fatigued` stacks. Every count is the survival pages' own.
+- **An encounter says when.** The card places an encounter in its period (the
+  mile of the hex, the turn of the hour, the hour after dawn or dusk, the
+  night of the period), leaves a terrain encounter on the regional map as a
+  Judge-only marker, and prints a hazard's trap equivalent.
 
 ### Changed
 
@@ -68,6 +91,20 @@
 - Formation: `encounters.journeyZones(formation)` answers the encounter
   zones under the party's true point, smallest first, with the layers that
   answered (apiVersion 16).
+- Lib: `fatigue.mjs` is new (the fatigue ladder, the restful night and the
+  armoured sleeper's throw, every count imported); `survival.mjs` exports its
+  table reader `survivalTable`; `status-effects.mjs` reads and writes one
+  condition's stacks (`conditionStacksOf`, `setConditionStacks`); two
+  conditions, `diseased` and `frostbitten`, carry no figures.
+- Formation: `weather-effects.mjs` merges the day's conditions' effects;
+  `visibilityMax` and `detection` take the sky's ceiling and factor;
+  `flightMultiplier` takes the storm's air-speed factor; `searchSpec`,
+  `surveySpec` and `forageSpec` take the sky's modifier and list their
+  `parts`; `spendActivityHours` spends any ancillary slots; `travelOf` carries
+  `camp`, `trapsCarry`, `weatherRuns` and the day's `traps` and `noSleep`.
+- Importer: the weather document gains `conditionEffects`, read from each
+  condition's entry on the weather pages; the survival document gains
+  `fatigue` and `sleep`.
 - **The terrain brush paints at the book's grain.** The palette offers the
   twenty-three encounter terrains in place of the nine grounds; a hex
   painted with one sets the travel ground and the encounter sub-table

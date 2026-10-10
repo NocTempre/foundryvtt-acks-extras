@@ -131,11 +131,30 @@ weather; the **Day** group is one **kind of day** (a dedicated march, a forced
 march, or a day in camp), four **ancillary hours** you spend on travel,
 foraging, hunting, searching or rest — a forced march spends them all — and
 the hour's own word, the world clock's or yours. An hour given to travel adds
-an hour to the day's march.
+an hour to the day's march. The Day group also takes two declarations of your
+own: how many **traps** the order managed today, and **No sleep tonight**.
+
+Under the sky's chips a list says what today's weather does: the penalty on a
+search, a survey, the navigation throw and a tracker's hours, on foraging for
+firewood or water, how far the party can be seen, a flier's storm, what a
+night's rest needs and the sickness a run of such days risks. Every figure is
+read from your own weather pages by the importer; until they are imported the
+list says the sky is unpriced, and nothing is charged. Each card that pays one
+of these penalties names the weather on its own line.
 
 **End day** closes the day: it throws for navigation, feeds the order, walks
 every body's hunger, thirst and exposure one step, writes the miles and hours
-actually walked into the log, and moves the calendar to the next dawn.
+actually walked into the log, and moves the calendar to the next dawn. It owes
+an encounter throw for each batch of traps managed and carries the odd traps to
+tomorrow. Two whispered cards follow on a day that has them. **The weather's
+toll** carries the sun's burn, the heat's save for a body in heavy armour, the
+frostbite save for a hypothermic one and the sickness throw when a run of bad
+days comes due; a body that fails is marked Frostbitten or Diseased, and what
+that does is resolved from your book (RR 277-279). **The night's rest** says
+for each body whether the night was restful and where its fatigue stands: days
+of activity without a rest day, nights without restful sleep and forced marches
+each bring on the Fatigued condition, it deepens every day it lasts, and a day
+in camp with a restful night ends it.
 
 You rarely have to notice that the day is done. Once the hours the day holds
 have been walked, or the party marches on after dark, moving the token asks:
@@ -166,8 +185,15 @@ because a full roster would bury the one who is starving.
 day spent unprotected, so the module does not assume one: say how long the
 order actually stood in it, tick **At a fire** if they had one, and tick **Got
 wet** if they did — a soaked body is hypothermic however well dressed. Anyone
-carrying a cloak or furs is sheltered. In mild weather the field is greyed,
+carrying a cloak or furs is sheltered. The same hours count under a burning
+sun and for armour worn in the heat. In mild weather the field is greyed,
 because there is nothing to count.
+
+Three more declarations sit in the group. **Willing to steal** forages settled
+country without the penalty for leaving the crops alone. **Water at hand**
+takes water with no throw; following a river says so by itself. **Sleeping in
+armour** has each sleeper throw against the weight they bear, and the night's
+rest card says who slept badly and how many rounds each needs to don their kit.
 
 **Work the country** rolls whatever the day's hours were spent on: foraging for
 food, water and firewood, or hunting. What is found is deposited on the people

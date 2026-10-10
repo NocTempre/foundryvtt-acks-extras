@@ -23,12 +23,13 @@ import { partyPoint, regionOutlines } from "./zones.mjs";
 import { districtAt } from "./district-zone.mjs";
 import { SETTLEMENT_DOC, SETTLEMENT_PACES, settlementOf } from "./settlement.mjs";
 import { travelOf } from "./travel.mjs";
+import { ENCOUNTER_OUTCOMES } from "./encounters.mjs";
 import { joinTolerance } from "../battlemap/roads.mjs";
 import { LOCATION_TYPE } from "../location/constants.mjs";
 import { isDeployed } from "../lib/place.mjs";
 import {
   districtRelation, expiredNoteIds, noteLabel, poiTravelTurns, promotedPlaceData,
-  ringsTouch, transientNoteData, transientOf,
+  ringsTouch, terrainMarkData, transientNoteData, transientOf,
 } from "./poi-logic.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
@@ -46,6 +47,8 @@ export const TRAVEL_OPTION = `${MODULE_ID}.poiTravel`;
 /** Core's own glyphs: the hazard for a marker, the house for a place made from one. */
 const INCIDENT_ICON = "icons/svg/hazard.svg";
 const PLACE_ICON = "icons/svg/house.svg";
+/** The glyph a terrain encounter's persistent marker wears. */
+const WILDS_ICON = "icons/svg/mountain.svg";
 
 const worldNow = () => Math.floor(Number(game.time?.worldTime) || 0);
 
@@ -90,6 +93,27 @@ export async function expireTransientNotes(now = worldNow()) {
     removed += ids.length;
   }
   return removed;
+}
+
+/**
+ * Leave a persistent Judge-only marker at the party's true point for a terrain
+ * encounter the chain just produced: `outcome` is the territory outcome key,
+ * `name` the first result drawn and `table` the list it came from. Nothing
+ * expires it. Resolves the Note, or null for a non-GM client and for a party
+ * with no token on a scene to stand anywhere.
+ * @returns {Promise<NoteDocument|null>}
+ */
+export async function markTerrainEncounter(formation, { outcome, name = "", table = "" } = {}) {
+  if (!game.user?.isGM) return null;
+  const at = partyPoint(formation);
+  if (!at) return null;
+  const data = terrainMarkData({
+    x: at.point.x, y: at.point.y, outcome,
+    outcomeLabel: game.i18n.localize(ENCOUNTER_OUTCOMES[outcome]?.label ?? ""),
+    name, table, formationId: formation.id, now: worldNow(), icon: WILDS_ICON,
+  });
+  const [note] = await at.scene.createEmbeddedDocuments("Note", [data]);
+  return note ?? null;
 }
 
 /** The transient markers on a scene. */

@@ -36,6 +36,8 @@ export const PRODUCES = Object.freeze({
     exposure: "exposureProse",
     heat: "heatProse",
     simplified: "simplifiedProse",
+    fatigue: "fatigueProse",
+    sleep: "sleepProse",
   },
 });
 
@@ -230,6 +232,40 @@ export function assembleSimplified(raw = {}) {
 }
 
 /**
+ * Fatigue's clocks, out of the rest paragraph (its window opens on the
+ * sleep it asks for, so every count sits after the anchor) and the
+ * proficiency paragraph (Labor's exemption, Endurance's allowance).
+ */
+export function assembleFatigue(raw = {}) {
+  const rest = String(raw.rest ?? "").toLowerCase().replace(/\s+/g, " ");
+  const prof = String(raw.proficiencies ?? "").toLowerCase().replace(/\s+/g, " ");
+  if (!rest && !prof) return null;
+  const out = {};
+  const set = (key, v) => { if (v != null) out[key] = v; };
+
+  set("sleepHours", countFrom(rest, /^\s*(\S+)\s+hours?\s+of\s+restful\s+sleep/));
+  set("sleeplessDays", countFrom(rest, /fatigued\s+after\s+(\S+)\s+days?\s+of\s+ordinary\s+travel\s+or\s+other\s+strenuous\s+activity\s+if/));
+  set("activityDays", countFrom(rest, /even\s+with\s+restful\s+sleep,?\s+\w+\s+become\s+fatigued\s+after\s+(\S+)\s+days?/));
+  set("forcedMarchDays", countFrom(rest, /or\s+(\S+)\s+days?\s+of\s+forced\s+march/));
+  set("enduranceDays", countFrom(prof, /can\s+go\s+(\S+)\s+days?\s+without\s+having\s+to\s+rest/));
+  set("endurancePerConPoint", countFrom(prof, /plus\s+(\S+)\s+additional\s+days?\s+for\s+each\s+point/));
+  set("enduranceLaborExtra", countFrom(prof, /(?:he|she|they)\s+can\s+go\s+(\S+)\s+additional\s+days?/));
+
+  return Object.keys(out).length ? out : null;
+}
+
+/** What sleeping armoured costs: the rounds it takes to don a stone of it. */
+export function assembleSleep(raw = {}) {
+  const p = String(raw.paragraph ?? "").toLowerCase().replace(/\s+/g, " ");
+  const m = /takes\s+(\S+)\s+(?:full\s+)?rounds?\s+to\s+don\s+(\S+)\s+stone/.exec(p);
+  if (!m) return null;
+  const rounds = parseCount(m[1]);
+  const stone = parseCount(m[2]);
+  if (rounds == null || !stone) return null;
+  return { donRoundsPerStone: rounds / stone };
+}
+
+/**
  * The engine tables from the raw ones. Pure — the committed tests feed it
  * invented prose. Each table assembles independently, so a page that failed to
  * locate costs only its own table.
@@ -246,6 +282,10 @@ export function assembleSurvivalTables(raw = {}) {
   if (heat) out.heat = heat;
   const simplified = assembleSimplified(raw.simplifiedProse ?? {});
   if (simplified) out.simplified = simplified;
+  const fatigue = assembleFatigue(raw.fatigueProse ?? {});
+  if (fatigue) out.fatigue = fatigue;
+  const sleep = assembleSleep(raw.sleepProse ?? {});
+  if (sleep) out.sleep = sleep;
   return out;
 }
 

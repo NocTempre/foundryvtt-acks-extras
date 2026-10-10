@@ -73,10 +73,17 @@ export const EXPOSURE = Object.freeze({
   },
 });
 
-function table(key) {
+/**
+ * One table of the registered `survival` document, or null when the document
+ * or the table is not registered. The one reader every body-ladder file shares
+ * (`fatigue.mjs` reads its figures through it).
+ */
+export function survivalTable(key) {
   if (!hasDoc(SURVIVAL_DOC)) return null;
   return getDoc(SURVIVAL_DOC)?.tables?.[key] ?? null;
 }
+
+const table = survivalTable;
 
 /** A fresh, fed and watered body. */
 export function freshSurvival() {

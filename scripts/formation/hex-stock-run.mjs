@@ -28,6 +28,8 @@ import { episodeScene } from "./lost-episode.mjs";
 import { truePositionToken } from "./shadow.mjs";
 import { ENCOUNTERS_DOC, ENCOUNTER_TERRAINS, encounterTerrainFor } from "./encounters.mjs";
 import { surveyOutcome, surveySpec } from "./searching.mjs";
+import { conditionsOf } from "./weather.mjs";
+import { weatherEffects, throwPenalty } from "./weather-effects.mjs";
 import { announce } from "./announce.mjs";
 import { placeTokenAt } from "./poi.mjs";
 import {
@@ -359,7 +361,12 @@ export async function surveyHex(formation, { auto = false } = {}) {
     await whisperCard([loc("hexStock.noSurveyor")]);
     return null;
   }
-  const spec = surveySpec({ priorSuccesses: record.searches?.[formation.id] ?? 0 });
+  const t = travelOf(formation);
+  const fx = weatherEffects(conditionsOf(t.weather), { terrain: t.ground });
+  const spec = surveySpec({
+    priorSuccesses: record.searches?.[formation.id] ?? 0,
+    weather: throwPenalty(fx, "landSurveying"),
+  });
   if (!spec.ok) {
     await whisperCard([loc("hexStock.unpriced", { what: spec.missing })]);
     return null;
@@ -379,10 +386,10 @@ export async function surveyHex(formation, { auto = false } = {}) {
     trustworthy = false;
   }
 
-  const lines = [
-    loc("hexStock.survey.throw", { total: roll.total, target: spec.target }),
-    loc(`hexStock.survey.${outcome.state}`),
-  ];
+  const lines = [loc("hexStock.survey.throw", { total: roll.total, target: spec.target })];
+  const sky = spec.parts.find((p) => p.key === "weather");
+  if (sky) lines.push(loc("hexStock.weather", { value: sky.value > 0 ? `+${sky.value}` : `${sky.value}` }));
+  lines.push(loc(`hexStock.survey.${outcome.state}`));
   let tail = "";
   if (outcome.reveals) {
     lines.push(loc("hexStock.survey.truth", { count: truth }));

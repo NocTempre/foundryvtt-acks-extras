@@ -2658,3 +2658,57 @@ consider.
 counted throws by the hook must read the flag. A drag that crosses into an
 `entry` zone and on through it throws once for the whole drag. The strip's
 next-throw cell reads the imported cadence alone, inside a zone as well.
+
+### The insert pages' rules ship with the major (2026-10-09)
+
+**Ruled.** 11.0.0 is held until every rule on the three wilderness insert
+pages (Judges Screen Inserts, *Wilderness Expeditions I–III*) is performed,
+and the gaps are built in the party strip's own surfaces rather than as a tab
+or a calculator: the sky's throw and forage penalties, its visibility and
+air-speed rules and the dust rule; the day's and the camp's declarations
+(traps managed, no sleep, willing to steal, water at hand, sleeping in
+armour); the hunt and forage slot spend; the managing-traps throws; the
+encounter's place in its period and its mark on the map; the hazard's trap
+line; the weather's toll (sunburn, the heat's armour save, frostbite, disease)
+and the night (restful or not, the armoured sleeper's throw, fatigue).
+Rulings within it:
+
+- **Penalties sum across conditions.** A cold, rainy day pays both. The
+  pages print each condition's penalties on its own entry and say nothing of
+  a cap; the merge keeps every part so the card can name each.
+- **The dust rule's speed is a readout, never a second factor.** The
+  condition's own `conditionSpeed` factor already moves the march; the dust
+  clause's speed on the named grounds is shown as a chip and a line.
+- **A hazard's trap equivalent is printed, not placed.** The regional map is
+  not a battlemap; the Judge places the trap where the meeting is fought.
+- **End day posts two more cards, each for one question:** the weather's
+  toll, then the night's rest. Folding either into the day's log entry hides
+  the throws a Judge resolves from the book.
+- **Fatigue keeps three clocks on the body**, each reset by its own answer
+  (activity by a rest day, sleeplessness by a restful night, the forced run
+  by a day not forced), so a count the page states in days of forced march
+  is met by a run and not by a single day.
+- **Disease runs are the party's.** The run of days under a sky is the
+  weather's, so it lives on the formation and every body throws when it
+  comes due.
+
+**Supersedes** (in part) *A drag on a journey spends miles, and the world
+clock runs with it* (2026-10-09): its naming of night recovery and fatigue
+as out of scope. **New evidence**, since that entry is under a week old: the
+release was reviewed against the three insert pages as a checklist, and the
+user ruled that the gaps are built before the major ships rather than after.
+
+**Rejected.**
+- *A separate wilderness tab or calculator*: the standing ruling is one
+  surface, where moving triggers the resource use and the rolls.
+- *One `weather` part per throw with the conditions folded in*: the sum
+  loses its audit; the card names each condition's part.
+- *Placing the hazard's trap*: a scene the party stands on is a map of
+  miles, and a trap placed on it would be at no scale.
+
+**Cost.** Two whispered cards more per End day on a day that has an outcome.
+A new actor flag `fatigue` and the formation's `travel.camp`,
+`travel.day.traps`, `travel.day.noSleep`, `travel.trapsCarry` and
+`travel.weatherRuns`. Every figure waits on the weather and survival pages:
+until they are imported the sky's list says so, the night tires nobody and
+the toll card never posts.

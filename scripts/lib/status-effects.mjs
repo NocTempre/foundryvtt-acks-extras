@@ -23,7 +23,7 @@ import { STATUS_HIDDEN, STATUS_RUNNING } from "./perception.mjs";
 import { fixEach, registerRepairCheck, worldActors } from "./repair.mjs";
 import { PRE_ATTACK_HOOK, wrapRollAttack } from "./patches/attack-roll.mjs";
 import {
-  CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE,
+  CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, STACKS_FLAG,
   attackMath, rollMath, speedMath, subjectOf, endingAt,
 } from "./conditions.mjs";
 
@@ -81,6 +81,49 @@ export function registerStatusEffects() {
   CONFIG.statusEffects.push(...palette);
   CONFIG.specialStatusEffects.BLIND = "blinded";
   expectTables(CONDITIONS_DOC, [CONDITIONS_TABLE]);
+}
+
+/* -------------------------------------------- */
+/*  Stacks of one condition                      */
+/* -------------------------------------------- */
+
+/** The actor's effect that carries status `id`, or null. Spread first: an embedded collection is not an array. */
+const effectCarrying = (actor, id) => [...(actor?.effects ?? [])].find((e) => e?.statuses?.has?.(id)) ?? null;
+
+/**
+ * How many causes the actor's effect for condition `id` stands for: 0 when no
+ * effect carries it, and 1 for an effect that records no count (a condition
+ * toggled by hand), the same reading `subjectOf` gives it.
+ */
+export function conditionStacksOf(actor, id) {
+  const effect = effectCarrying(actor, id);
+  if (!effect) return 0;
+  return Math.max(1, Math.floor(numOrNull(effect.flags?.[MODULE_ID]?.[STACKS_FLAG]) ?? 1));
+}
+
+/**
+ * Put the actor's condition `id` at `n` stacks. At zero or below the status is
+ * lifted; otherwise it is switched on when absent and its effect records the
+ * count. The effect is found by the status it carries, so it is the one a
+ * token's palette toggles.
+ *
+ * @returns {Promise<number>} the stacks the actor carries afterwards
+ */
+export async function setConditionStacks(actor, id, n) {
+  if (!actor) return 0;
+  const want = Math.max(0, Math.floor(Number(n) || 0));
+  let effect = effectCarrying(actor, id);
+  if (want <= 0) {
+    if (effect) await actor.toggleStatusEffect(id, { active: false });
+    return 0;
+  }
+  if (!effect) {
+    await actor.toggleStatusEffect(id, { active: true });
+    effect = effectCarrying(actor, id);
+  }
+  if (!effect) return 0;
+  if (numOrNull(effect.flags?.[MODULE_ID]?.[STACKS_FLAG]) !== want) await effect.setFlag(MODULE_ID, STACKS_FLAG, want);
+  return want;
 }
 
 /* -------------------------------------------- */

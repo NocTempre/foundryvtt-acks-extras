@@ -884,7 +884,7 @@ export const TABLE_RECIPES = {
   },
 
   survival: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 276-277" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 276-277, 279" },
     tables: {
       starvationProse: {
         shape: "proseValues",
@@ -950,6 +950,33 @@ export const TABLE_RECIPES = {
           // Long enough to reach the confidence the recommendation carries —
           // the figure is the last clause of the sentence, well past the days.
           { key: "carry", find: "carries enough food for", take: "window", span: 430 },
+        ],
+      },
+      // Rest and fatigue, in the right column under the weather. The rest
+      // paragraph's window opens on the words before the sleep it asks for,
+      // because every count in it follows them; the proficiency paragraph
+      // opens on its own first words. survival-binding reads the clocks out
+      // of both.
+      fatigueProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 279,
+        locate: "with Labor proficiency do not become fatigued",
+        column: { xMin: 300, xMax: 600 },
+        values: [
+          { key: "rest", find: "day of a wilderness expedition, characters need", take: "window", span: 900 },
+          { key: "proficiencies", find: "with labor proficiency do not become fatigued", take: "window", span: 700 },
+        ],
+      },
+      // Sleeping armoured: the paragraph under its own heading, whole.
+      sleepProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 279,
+        locate: "Sleeping with Equipment",
+        column: { xMin: 300, xMax: 600 },
+        values: [
+          { key: "paragraph", find: "sleeping with equipment", take: "window", span: 500 },
         ],
       },
     },
@@ -1761,6 +1788,67 @@ export const TABLE_RECIPES = {
               { key: "windy", find: "in windy conditions have their expedition speed", take: "window", span: 30 },
               { key: "mud", find: "once mud forms, adventurers have their speeds", take: "window", span: 30 },
               { key: "snowGround", find: "once snow accumulates, adventurers have their speeds", take: "window", span: 30 },
+            ],
+          },
+        ],
+      },
+      // Each condition's entry WHOLE, one window per condition opened on its
+      // first words, so the binding can read every clause of it — the throw
+      // penalties, the visibility ceiling, the grounds-only dust clause, a
+      // night's needs, the week's disease risk, the frostbite save. A window
+      // is cut at the next entry's heading by the binding, so the spans only
+      // need to be long enough. Each block is one print column of one page
+      // (the pages run in two); the anchors carry no values.
+      conditionEffectsProse: {
+        shape: "proseValues",
+        book: "rr",
+        valueBlocks: [
+          {
+            id: "p277",
+            printedPage: 277,
+            locate: "Frigid Temperatures",
+            // The right column stops short of the page edge, where the
+            // chapter's running head stands in fragments that would otherwise
+            // land inside a sentence.
+            column: { xMin: 300, xMax: 580 },
+            values: [
+              { key: "frigid", find: "frigid temperatures occur", take: "window", span: 1600 },
+              { key: "cold", find: "cold temperatures are above", take: "window", span: 1600 },
+              { key: "sweltering", find: "sweltering temperatures are", take: "window", span: 1000 },
+            ],
+          },
+          {
+            id: "p278a",
+            printedPage: 278,
+            locate: "Drizzly conditions represent",
+            // An even page carries the running head at its left edge; the
+            // column starts past it.
+            column: { xMin: 30, xMax: 300 },
+            values: [
+              { key: "drizzly", find: "drizzly conditions represent", take: "window", span: 500 },
+              { key: "flurry", find: "flurry conditions represent", take: "window", span: 500 },
+              { key: "foggy", find: "foggy conditions can arise", take: "window", span: 800 },
+            ],
+          },
+          {
+            id: "p278b",
+            printedPage: 278,
+            locate: "Rainy conditions bring",
+            column: { xMin: 300, xMax: 600 },
+            values: [
+              { key: "rainy", find: "rainy conditions bring", take: "window", span: 1000 },
+              { key: "snowy", find: "snowy conditions bring", take: "window", span: 1000 },
+              { key: "sunbaked", find: "sunbaked conditions have", take: "window", span: 600 },
+            ],
+          },
+          {
+            id: "p279",
+            printedPage: 279,
+            locate: "Windy conditions prevail",
+            column: { xMin: 0, xMax: 300 },
+            values: [
+              { key: "stormy", find: "conditions prevail when wind speeds are", take: "window", span: 1200 },
+              { key: "windy", find: "windy conditions prevail", take: "window", span: 1000 },
             ],
           },
         ],

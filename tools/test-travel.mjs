@@ -10,6 +10,7 @@ import {
   ANCILLARY_SLOTS,
   DAY_KINDS,
   adoptSceneSystem,
+  applyTravelForm,
   claimUnstampedSettlements,
   composeLogEntry,
   dayBudget,
@@ -464,4 +465,88 @@ settings.formations.g3 = { id: "g3", sceneId: null, clock: { lastPosition: { x: 
 await setJourneyMode("g3", "journey");
 assert.deepEqual(settings.formations.g3.clock.lastPosition, { x: 5, y: 5 }, "a party with no token keeps the baseline it had");
 
-console.log("test-travel: OK (day board, hours budget, defaults, log cap, one field name, movement axis, city stamp, inferred system, mode re-anchor)");
+/* --- the day's and camp's declarations ------------------------------------- */
+{
+  const bare = freshDay();
+  assert.equal(bare.traps, 0, "a fresh day declares no traps");
+  assert.equal(bare.noSleep, false, "and no sleepless night");
+  const declared = { ...freshDay(), traps: 5, noSleep: true, activities: ["hunt", null, null, null] };
+  const rolled = withDayKind(declared, "camp");
+  assert.equal(rolled.traps, 5, "changing the kind keeps what was declared");
+  assert.equal(rolled.noSleep, true);
+  assert.equal(withDayKind(null, "march").traps, 0, "ending the day clears the declarations");
+  assert.equal(withDayKind(null, "march").noSleep, false);
+
+  assert.deepEqual(ANCILLARY_ACTIVITIES.traps, {
+    label: "ACKS-FORMATION.travel.activity.traps", frequency: "perAttempt", declared: true,
+  }, "traps are an attempt-cadence activity the day form declares rather than a slot pick");
+
+  const legacy = travelOf({ travel: { day: { traps: "7.9", noSleep: "yes" }, trapsCarry: -3 } });
+  assert.equal(legacy.day.traps, 7, "a declared count is a whole number");
+  assert.equal(legacy.day.noSleep, true);
+  assert.equal(legacy.trapsCarry, 0, "a negative carry reads as none");
+  assert.equal(travelOf({ travel: { day: { traps: "x" } } }).day.traps, 0, "and a non-number as none");
+  assert.deepEqual(travelOf({}).camp, { steal: false, water: false, sleepInArmour: false }, "no camp word is all noes");
+  assert.deepEqual(travelOf({ travel: { camp: { steal: 1, water: "", sleepInArmour: true } } }).camp,
+    { steal: true, water: false, sleepInArmour: true });
+  assert.equal(travelOf({}).trapsCarry, 0);
+  assert.deepEqual(travelOf({ travel: { weatherRuns: { foggy: 3 } } }).weatherRuns, { foggy: 3 }, "the sky's runs are carried untouched");
+  assert.deepEqual(travelOf({}).weatherRuns, {});
+
+  const entry2 = composeLogEntry(travelOf({ travel: { day: { traps: 4, noSleep: true } } }), { miles: 1 });
+  assert.equal(entry2.traps, 4, "the log row keeps the day's trap count, since End day resets the board first");
+  assert.equal(entry2.noSleep, true);
+  assert.equal(composeLogEntry(travelOf({}), {}).traps, 0);
+}
+
+/* --- applyTravelForm: the declaration groups --------------------------------- */
+{
+  settings.formations.d1 = { id: "d1", travel: { mode: "journey", camp: { steal: true, water: true, sleepInArmour: true }, day: { traps: 3, noSleep: true } } };
+  const at = () => travelOf(settings.formations.d1);
+
+  await applyTravelForm("d1", { camp: { declared: "1", water: "on" } });
+  assert.deepEqual(at().camp, { steal: false, water: true, sleepInArmour: false },
+    "an unticked box is absent from the submit, and the group's marker makes it a no");
+
+  await applyTravelForm("d1", { ground: "hills" });
+  assert.deepEqual(at().camp, { steal: false, water: true, sleepInArmour: false }, "a submit without the group leaves the camp alone");
+  assert.equal(at().day.traps, 3, "and the day's declarations");
+  assert.equal(at().day.noSleep, true);
+
+  await applyTravelForm("d1", { day: { declared: "1", traps: "9" } });
+  assert.equal(at().day.traps, 9);
+  assert.equal(at().day.noSleep, false, "an absent sleepless box clears");
+
+  await applyTravelForm("d1", { day: { declared: "1", traps: "-4", noSleep: "on" } });
+  assert.equal(at().day.traps, 0, "a negative count is none");
+  assert.equal(at().day.noSleep, true);
+
+  await applyTravelForm("d1", { day: { kind: "camp" } });
+  assert.equal(at().day.kind, "camp", "the existing day-kind branch still works");
+  assert.equal(at().day.noSleep, true, "and does not touch the declarations");
+  await applyTravelForm("d1", { day: { slot: { 0: "hunt" } } });
+  assert.equal(at().day.activities[0], "hunt", "and so does a slot pick");
+}
+
+/* --- the navigation throw carries the sky ------------------------------------- */
+{
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { landNavigationSpec } = await import("../scripts/formation/travel.mjs");
+  unregisterTable("travel"); unregisterTable("weather");
+  registerTable({ id: "travel", source: "invented", tables: { gettingLost: { hills: 13 } } }, { priority: PRIORITY.WORLD, source: "test" });
+  const lost = (precipitation) => ({ members: [], travel: { ground: "hills", weather: { precipitation } } });
+  assert.equal(landNavigationSpec(lost("foggy")).weather, 0, "an unimported effects table asks for nothing");
+  registerTable({
+    id: "weather", source: "invented",
+    tables: { conditionEffects: { foggy: { throws: { navigation: -3 } }, rainy: { throws: { navigation: -1 } } } },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+  const spec = landNavigationSpec(lost("foggy"));
+  assert.equal(spec.weather, -3, "the sky's modifier rides the spec");
+  assert.equal(spec.target, 13, "and leaves the target alone");
+  assert.equal(landNavigationSpec(lost("rainy")).weather, -1);
+  assert.equal(landNavigationSpec(lost("clear")).weather, 0, "a fair sky costs nothing");
+  assert.equal(landNavigationSpec({ members: [], travel: { road: "earth", ground: "hills" } }).throws, false, "a road still needs no throw");
+  unregisterTable("travel"); unregisterTable("weather");
+}
+
+console.log("test-travel: OK (day board, hours budget, defaults, log cap, one field name, movement axis, city stamp, inferred system, mode re-anchor, declarations, sky on the nav throw)");

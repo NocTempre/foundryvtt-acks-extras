@@ -927,4 +927,103 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   registerFrequency();
 }
 
+/* -------------------------------------------- */
+/*  Hours spent on any activity                 */
+/* -------------------------------------------- */
+
+{
+  const id = makeFormation(null, null, { day: { activities: ["hunt", "search", "hunt", "forage"] } });
+  const one = await observe(() => journey.spendActivityHours(id, ["hunt"]));
+  assert.equal(one.seconds, 3600, "one slot's hour runs the clock");
+  assert.deepEqual(travelOf(getFormation(id)).day.done, [true, false, false, false], "the first open slot of the kind is marked");
+
+  const all = await observe(() => journey.spendActivityHours(id, ["hunt", "forage"], { all: true }));
+  assert.equal(all.seconds, 2 * 3600, "every open slot of the kinds runs the clock, the already-done one excluded");
+  assert.deepEqual(travelOf(getFormation(id)).day.done, [true, false, true, true]);
+  assert.equal(travelOf(getFormation(id)).day.secondsAdvanced, 3 * 3600);
+  assert.equal(travelOf(getFormation(id)).day.hours, 0, "the march's hours stay untouched");
+
+  const none = await observe(() => journey.spendActivityHours(id, ["hunt", "forage"], { all: true }));
+  assert.equal(none.seconds, 0, "with all, a day with none left advances nothing");
+  assert.equal(travelOf(getFormation(id)).day.secondsAdvanced, 3 * 3600);
+  const idle = await observe(() => journey.spendActivityHours(id, [], { all: true }));
+  assert.equal(idle.seconds, 0, "and no kinds is no hours");
+}
+
+/* -------------------------------------------- */
+/*  Managing traps at End Day                   */
+/* -------------------------------------------- */
+
+{
+  const withTraps = (cell) => registerTable({
+    id: "travel",
+    tables: { encounterFrequency: { ...TABLE.tables.encounterFrequency, managingTraps: { borderlands: cell } } },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+  const trapCards = (cards) => cards.filter((c) => keyOf(c.activity) === "ACKS-FORMATION.travel.enc.activity.traps").length;
+  const carryOf = (id) => travelOf(getFormation(id)).trapsCarry;
+  const roll = (id, entry) => observe(() => rollDayEncounters(getFormation(id), { dayKind: "march", activities: [], ...entry }));
+
+  withTraps({ kind: "perAttempt", per: 3 });
+  const id = makeFormation(null, null);
+  let r = await roll(id, { traps: 7 });
+  assert.equal(trapCards(r.cards), 2, "seven traps at three per throw owe two throws");
+  assert.equal(carryOf(id), 1, "and the remainder carries");
+
+  r = await roll(id, { traps: 5 });
+  assert.equal(trapCards(r.cards), 2, "the carry joins the next day's traps: six owes two");
+  assert.equal(carryOf(id), 0);
+
+  r = await roll(id, { traps: 2 });
+  assert.equal(trapCards(r.cards), 0, "a day short of a batch owes nothing");
+  assert.equal(carryOf(id), 2, "and carries all of it");
+
+  const board = makeFormation(null, null, { day: { traps: 4 } });
+  r = await roll(board, {});
+  assert.equal(trapCards(r.cards), 1, "an entry that states no count falls back to the board's");
+  assert.equal(carryOf(board), 1);
+
+  withTraps({ kind: "perAttempt" });
+  const single = makeFormation(null, null);
+  r = await roll(single, { traps: 3 });
+  assert.equal(trapCards(r.cards), 3, "with no batch size each trap is a throw");
+  assert.equal(carryOf(single), 0);
+
+  withTraps(null);
+  const stale = makeFormation(null, null, { travel: { trapsCarry: 2 } });
+  r = await roll(stale, { traps: 9 });
+  assert.equal(trapCards(r.cards), 0, "a stated none owes nothing");
+  assert.equal(carryOf(stale), 0, "and clears what was carried");
+
+  registerFrequency();
+  const absent = makeFormation(null, null, { travel: { trapsCarry: 2 } });
+  r = await roll(absent, { traps: 9 });
+  assert.equal(trapCards(r.cards), 0, "a table that names no traps cell owes none");
+  assert.equal(carryOf(absent), 2, "and leaves the carry alone");
+}
+
+/* -------------------------------------------- */
+/*  The sky on the encounter card               */
+/* -------------------------------------------- */
+
+{
+  registerTable({
+    id: "weather",
+    tables: { conditionEffects: { rainy: { throws: { missile: -3, listening: -5 }, visibilityFeet: 90 }, windy: { dust: { terrains: ["desert"], speed: 0.5 } } } },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+  registerTable({ id: "encounters", tables: { visibility: { daylight: 500, formationScale: [] } } },
+    { priority: PRIORITY.WORLD, source: "test" });
+  const id = makeFormation(null, null, { travel: { ground: "grassland", weather: { precipitation: "rainy" } } });
+  const r = await observe(() => postEncounterThrow(getFormation(id), { activity: "travel" }));
+  const card = r.cards.at(-1);
+  assert.deepEqual(card.effects.map((e) => e.value), ["-3", "-5"], "the missile and listening penalties ride the card as chips");
+  assert.equal(card.visible, 90, "and the sky's ceiling limits the sighting distance");
+
+  const clear = makeFormation(null, null, { travel: { ground: "grassland", weather: { precipitation: "clear" } } });
+  const c = (await observe(() => postEncounterThrow(getFormation(clear), { activity: "travel" }))).cards.at(-1);
+  assert.deepEqual(c.effects, [], "a fair sky puts nothing on the card");
+  assert.ok(c.visible > 90, "and leaves the daylight distance as it was");
+  resetTables();
+  registerFrequency();
+}
+
 console.log("test-journey: OK (miles on hex/square/gridless, cadence by grid or miles, clock hours, pause, scale guard, next hex, token size, search hour, day end, dawn, zones: card, true position, entry, periods)");

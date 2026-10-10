@@ -558,6 +558,43 @@ await t("a tracker in the order adds the figure; a missing figure says so", asyn
   register();
 });
 
+await t("the sky taxes the search, and a tracker's help once more for each hour on the trail", async () => {
+  registerTable({
+    id: "weather",
+    tables: { conditionEffects: { foggy: { throws: { searching: -2, trackingPerHour: -1 } } } },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+  const sky = (formation, done = []) => {
+    const f = settings.formations[formation.id];
+    f.travel.weather = { precipitation: "foggy" };
+    f.travel.day.done = [...done, false, false, false].slice(0, 3);
+  };
+
+  const walker = world();
+  sky(walker.formation);
+  await search(walker.formation, { present: "no" });
+  assert.deepEqual(formulas, ["1d20 + -2"], "the search modifier carries the sky's figure");
+  assert.ok(searchCard().includes('searchRun.weather {"value":"-2"}'), searchCard());
+  assert.ok(!searchCard().includes("searchRun.weatherTracking"), "no tracker, no trail line");
+
+  const first = world({ members: ["walker", "tracker"] });
+  sky(first.formation);
+  await search(first.formation, { present: "no" });
+  assert.deepEqual(formulas, ["1d20"], "the bonus 3 less the sky's 2 and 1 for the first hour nets zero");
+  assert.ok(searchCard().includes('searchRun.weatherTracking {"value":"-1"}'), searchCard());
+
+  const third = world({ members: ["walker", "tracker"] });
+  sky(third.formation, [true, true]);
+  await search(third.formation, { present: "no" });
+  assert.deepEqual(formulas, ["1d20 + -2"], "the trail's tax grows with each hour already spent: 3 - 2 - 3");
+  assert.ok(searchCard().includes('searchRun.weatherTracking {"value":"-3"}'), searchCard());
+
+  const fair = world({ members: ["walker", "tracker"] });
+  await search(fair.formation, { present: "no" });
+  assert.deepEqual(formulas, ["1d20 + 3"], "a fair sky leaves the tracker's figure alone");
+  assert.ok(!searchCard().includes("searchRun.weather"), "and puts no line on the card");
+  register();
+});
+
 await t("the target is priced on the march miles, and a camp day does not lower them", async () => {
   const march = world();
   const miles = view.expeditionMiles(getFormation("f1"));

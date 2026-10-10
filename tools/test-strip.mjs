@@ -514,4 +514,32 @@ const stripOf = (id) => {
   assert.ok(!/name="travel\./.test(playerJourney), "no declared field reaches a player");
 }
 
+{
+  // ---- The hours in the weather are offered on any day they cost something ----
+  const scene = makeScene("S.strip.sky", { kind: "hex", miles: TABLE_MILES });
+  const token = makeToken(scene, "t.strip.sky");
+  const bites = (weather) => {
+    const id = makeFormation(scene, token, {
+      travel: { weather: { auto: false, temperature: "", precipitation: "", wind: "", ...weather } },
+    });
+    const view = buildFormationView(getFormation(id));
+    return view.travel.camp.exposure.bites;
+  };
+  resetTables();
+  registerFrequency();
+  assert.equal(bites({ temperature: "cold" }), false, "nothing imported: no day costs hours");
+  registerTable({ id: "survival", tables: {
+    exposure: { hoursUnprotected: { cold: 3 } },
+    heat: { sweltering: { armourStone: 4 } },
+  } }, { priority: PRIORITY.WORLD, source: "test" });
+  registerTable({ id: "weather", tables: { conditionEffects: { sunbaked: { sunburn: { damage: 1, hours: 2 } } } } },
+    { priority: PRIORITY.WORLD, source: "test" });
+  assert.equal(bites({ temperature: "cold" }), true, "a band with a cold clock");
+  assert.equal(bites({ temperature: "sweltering" }), true, "a band whose heat asks an armour save by the hour");
+  assert.equal(bites({ precipitation: "sunbaked" }), true, "a sky that burns by the hour");
+  assert.equal(bites({ temperature: "balmy" }), false, "a mild day stays greyed");
+  unregisterTable("survival");
+  unregisterTable("weather");
+}
+
 console.log("test-strip: OK (strip by mode, journey tally and clock, cadence next, pause, camp readout, warnings, templates)");

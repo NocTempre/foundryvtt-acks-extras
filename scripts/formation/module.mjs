@@ -350,7 +350,8 @@ Hooks.once("init", () => {
   // and the encounter frequencies — declared now so the import UX names them.
   expectTables(TRAVEL_DOC, ["gettingLost", "encounterFrequency", "navigationBonus"]);
   // The sky's: the daily generator's bands and modifiers, the condition
-  // speed factors, and the footing thresholds.
+  // speed factors, the footing thresholds, and what each condition does to
+  // the throws, the eye and the body (`weather-effects.mjs`).
   expectTables(WEATHER_DOC, [
     "climateModifiers",
     "dailyTemperatureLow",
@@ -359,6 +360,7 @@ Hooks.once("init", () => {
     "dailyWind",
     "conditionSpeed",
     "accumulation",
+    "conditionEffects",
   ]);
 
   // The encounter chain's: every band, name, distance die, visibility
@@ -385,8 +387,10 @@ Hooks.once("init", () => {
   expectTables(FLIGHT_DOC, ["aloftFactor", "windFactor", "loadFactors"]);
   // Hunger and thirst: how long each rung takes to reach, what it drains, how
   // fast the debt comes back, what the heat adds, and the shortcut a Judge can
-  // provision by. Printed to the last figure, so none ships.
-  expectTables(SURVIVAL_DOC, ["food", "water", "exposure", "heat", "simplified"]);
+  // provision by; fatigue's day counts and Endurance's allowance, and what
+  // sleeping armoured costs (`lib/fatigue.mjs`). Printed to the last figure,
+  // so none ships.
+  expectTables(SURVIVAL_DOC, ["food", "water", "exposure", "heat", "simplified", "fatigue", "sleep"]);
   // Living off the country: the forage targets, what Survival is worth, the
   // party size one throw covers, the hunting target and its territory
   // modifiers, the dog pack's help and cap, what a success yields, and which

@@ -313,23 +313,48 @@ export async function advanceJourneyClock(formationId, seconds) {
  * looking is an hour the budget never held — so this leaves them standing.
  * @returns {Promise<{seconds: number, notes: object[]}>}
  */
-export async function spendSearchHour(formationId) {
-  const secondsPerHour = (clockReading()?.secondsPerHour ?? DEFAULT_SECONDS_PER_HOUR) * SLOT_HOURS;
+export function spendSearchHour(formationId) {
+  return spendActivityHours(formationId, ["search"]);
+}
+
+/**
+ * Hours of the day spent on the listed kinds of ancillary slot: marks the first
+ * unresolved slot of those kinds done (every unresolved one with `all`), adds
+ * the slots' hours to the seconds the day has advanced, and runs the journey
+ * clock by them. The day's `hours` stay the march's alone.
+ *
+ * Without `all` one slot's hour always runs the clock, even when no unresolved
+ * slot is left to mark; with `all` only the slots actually marked do, so a day
+ * with none left advances nothing.
+ * @param {string} formationId
+ * @param {string[]} kinds  the activity keys whose slots are spent
+ * @param {{all?: boolean}} [options]
+ * @returns {Promise<{seconds: number, notes: object[]}>}
+ */
+export async function spendActivityHours(formationId, kinds, { all = false } = {}) {
+  const wanted = new Set(kinds ?? []);
+  const secondsPerSlot = (clockReading()?.secondsPerHour ?? DEFAULT_SECONDS_PER_HOUR) * SLOT_HOURS;
+  let seconds = 0;
   await patchFormation(formationId, (record) => {
     const t = travelOf(record);
     const done = [...t.day.done];
-    const slot = t.day.activities.findIndex((a, n) => a === "search" && !done[n]);
-    if (slot >= 0) done[slot] = true;
+    const open = t.day.activities
+      .map((a, n) => (wanted.has(a) && !done[n] ? n : -1))
+      .filter((n) => n >= 0);
+    const marked = all ? open : open.slice(0, 1);
+    for (const n of marked) done[n] = true;
+    seconds = (all ? marked.length : 1) * secondsPerSlot;
+    if (!seconds) return false;
     record.travel = {
       ...t,
       day: {
         ...t.day,
-        secondsAdvanced: (Number(t.day.secondsAdvanced) || 0) + secondsPerHour,
+        secondsAdvanced: (Number(t.day.secondsAdvanced) || 0) + seconds,
         done,
       },
     };
   });
-  return advanceJourneyClock(formationId, secondsPerHour);
+  return advanceJourneyClock(formationId, seconds);
 }
 
 /**

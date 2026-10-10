@@ -38,12 +38,15 @@ const num = numOrNull;
  * gets the factor whole, one aloft half the day gets half of it, and one that
  * never leaves the ground gets none and is simply marching.
  *
+ * `stormy` with a `stormyAirSpeed` factor (the weather effects' `airSpeed`)
+ * adds a part that supplants the ground's storm condition, as the wind's does.
+ *
  * Returns `{multiplier: null, missing}` when the factor was never imported —
  * a flight nobody has priced has no speed, and saying so beats doubling by a
  * number we invented.
  */
 export function flightMultiplier({
-  hoursAloft = 0, dayHours = 0, windy = false, load = "normal",
+  hoursAloft = 0, dayHours = 0, windy = false, load = "normal", stormy = false, stormyAirSpeed = null,
 } = {}) {
   const spec = FLIGHT_LOADS[load] ?? FLIGHT_LOADS.normal;
   if (spec.grounded) return { multiplier: 0, parts: [{ key: "aloft.overloaded", factor: 0 }], grounded: true };
@@ -66,6 +69,13 @@ export function flightMultiplier({
     // condition rather than multiplying with it — RR makes wind the one
     // weather that treats a flier differently, not doubly.
     parts.push({ key: "aloft.windy", factor: windFactor, supplants: "condition.windy" });
+  }
+  // A storm treats a flier as the wind does: its own imported air-speed factor
+  // stands in for the ground's storm condition. A storm that names no such
+  // factor adds nothing, and the ground's condition then stands.
+  const stormFactor = num(stormyAirSpeed);
+  if (stormy && stormFactor != null && stormFactor > 0) {
+    parts.push({ key: "aloft.stormy", factor: stormFactor, supplants: "condition.stormy" });
   }
   if (load === "heavy") {
     const loadFactor = num(table("loadFactors")?.heavy);

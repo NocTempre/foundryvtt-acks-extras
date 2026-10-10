@@ -32,6 +32,7 @@ export const PRODUCES = Object.freeze({
     climateModifiers: "climateModifiersRaw",
     conditionSpeed: "conditionProse",
     accumulation: "accumulationProse",
+    conditionEffects: "conditionEffectsProse",
   },
 });
 
@@ -121,6 +122,206 @@ export function parseDaysAfter(window, verbRe) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  A condition's entry: what the sky does to throws, eye and body      */
+/* ------------------------------------------------------------------ */
+
+/** The throws a clause's subject can name, by the words that name them. */
+const THROW_WORDS = [
+  ["land surveying", "landSurveying"],
+  ["navigation", "navigation"],
+  ["searching", "searching"],
+  ["tracking", "tracking"],
+  ["listening", "listening"],
+  ["missile", "missile"],
+];
+
+/** Ground words a dust clause names → the engine's terrain keys. */
+const GROUND_WORDS = [
+  ["barren", "barrens"], ["desert", "desert"], ["grassland", "grassland"], ["scrub", "scrubland"],
+  ["hill", "hills"], ["forest", "forest"], ["jungle", "jungle"], ["mountain", "mountains"], ["swamp", "swamp"],
+];
+
+/** The condition names a heading can carry; the cut below keys on them. */
+const CONDITION_NAMES = "frigid|cold|sweltering|moderate|drizzly|fair|flurry|foggy|rainy|snowy|sunbaked|stormy|storm|windy";
+
+/**
+ * Lowercase, straight quotes and dashes, single spaces. An inline glyph (the
+ * page sets a damage type as a private-use icon) and a zero-width character
+ * are dropped, so the words either side of one read as neighbours.
+ */
+const normalize = (text) => String(text ?? "")
+  .toLowerCase()
+  .replace(/[​-‍﻿-]/g, " ")
+  .replace(/[‘’′]/g, "'")
+  .replace(/[–—−]/g, "-")
+  .replace(/\s+/g, " ")
+  .trim();
+
+/**
+ * A window ends where the NEXT entry begins. A heading is the one place a
+ * condition's name is printed twice running — the heading, then the entry's
+ * own opening — so that pair is the cut, and a name used mid-sentence inside
+ * an entry (its own, or a neighbour's named in passing) is left alone. The
+ * footing section that follows the last entry opens the same way.
+ */
+export function cutAtNextEntry(window) {
+  const s = normalize(window);
+  const next = new RegExp(`\\b(?:${CONDITION_NAMES}) (?:temperatures|conditions) (?:${CONDITION_NAMES}) (?:temperatures|conditions)\\b|\\bmud and snow mud accumulates\\b`)
+    .exec(s);
+  return next ? s.slice(0, next.index) : s;
+}
+
+/** Sentences of an entry, split at a full stop followed by a space. */
+const sentences = (text) => normalize(text).split(/(?<=[.!?])\s+/).filter(Boolean);
+
+/**
+ * Every "<subject> suffer(s) a N penalty [per hour]" clause of one sentence.
+ * The subject is what the sentence said between the previous clause and
+ * this one; the keys are the throws its words name, and a foraging subject
+ * names what it was foraging for. A penalty is a penalty whichever way the
+ * page printed its sign.
+ *
+ * @returns {Array<{value: number, perHour: boolean, throws: object, forage: object}>}
+ */
+export function parsePenaltyClauses(sentence) {
+  const s = normalize(sentence);
+  const re = /suffers?\s*(?:an?\s*)?([+-]?\s*\d+)\s*penalt(?:y|ies)(\s*per\s*hour)?/g;
+  const out = [];
+  let last = 0;
+  let m;
+  while ((m = re.exec(s))) {
+    const subject = s.slice(last, m.index);
+    const value = -Math.abs(Number(m[1].replace(/\s+/g, "")));
+    const perHour = !!m[2];
+    const throws = {};
+    const forage = {};
+    for (const [word, key] of THROW_WORDS) {
+      if (!subject.includes(word)) continue;
+      if (key === "tracking" && perHour) throws.trackingPerHour = value;
+      else throws[key] = value;
+    }
+    if (/forag/.test(subject)) {
+      if (/firewood/.test(subject)) forage.firewood = value;
+      else if (/water/.test(subject)) forage.water = value;
+    }
+    out.push({ value, perHour, throws, forage });
+    last = re.lastIndex;
+  }
+  return out;
+}
+
+/** "… reduced to 20'" → 20; "… drops to a flat 20 ft" → 20; nothing → null. */
+export function parseVisibilityFeet(sentence) {
+  const m = /visibility(?: distance)?\s*(?:drops|is reduced|reduced)\s*to\s*(?:a\s*flat\s*)?(\d[\d,]*)\s*(?:'|ft\b|feet)/.exec(normalize(sentence));
+  return m ? Number(m[1].replace(/,/g, "")) : null;
+}
+
+/** "… drops to half range" → 0.5; nothing → null. */
+export function parseVisibilityFactor(sentence) {
+  const m = /visibility(?: distance)?\s*(?:drops|is reduced|reduced)\s*to\s*(half|a third|a quarter|quarter)/.exec(normalize(sentence));
+  if (!m) return null;
+  return parseSpeedWord(m[1]) ?? (/third/.test(m[1]) ? 1 / 3 : null);
+}
+
+/** The ground words of "in X or Y terrain only" → terrain keys; nothing → []. */
+export function parseDustTerrains(sentence) {
+  const m = /\bin ([a-z ,]+?) terrain only\b/.exec(normalize(sentence));
+  if (!m) return [];
+  const keys = [];
+  for (const word of m[1].split(/,|\bor\b|\band\b/)) {
+    const w = word.trim();
+    if (!w) continue;
+    const hit = GROUND_WORDS.find(([stem]) => w.startsWith(stem));
+    if (hit && !keys.includes(hit[1])) keys.push(hit[1]);
+  }
+  return keys;
+}
+
+/**
+ * One condition's entry → its effects. Each sentence is read on its own,
+ * so a clause that names a throw taxes only the throws its own subject
+ * names; the sentence that limits itself to certain grounds becomes the
+ * `dust` clause with its own figures. Two-sentence rules (the frostbite
+ * save and what a failure rolls) are read across the whole entry.
+ */
+export function parseConditionEntry(window) {
+  const entry = cutAtNextEntry(window);
+  if (!entry) return null;
+  const out = {};
+  const throws = {};
+  const forage = {};
+  const merge = (into, from) => { for (const [k, v] of Object.entries(from)) into[k] = (into[k] ?? 0) + v; };
+
+  for (const sentence of sentences(entry)) {
+    const dustTerrains = parseDustTerrains(sentence);
+    if (dustTerrains.length) {
+      const dust = { terrains: dustTerrains, throws: {} };
+      for (const clause of parsePenaltyClauses(sentence)) merge(dust.throws, clause.throws);
+      const feet = parseVisibilityFeet(sentence);
+      if (feet != null) dust.visibilityFeet = feet;
+      const speed = /\ball speeds are (\w+)/.exec(sentence);
+      const factor = speed ? parseSpeedWord(speed[1]) : null;
+      if (factor != null) dust.speed = factor;
+      out.dust = dust;
+      continue;
+    }
+    for (const clause of parsePenaltyClauses(sentence)) {
+      merge(throws, clause.throws);
+      merge(forage, clause.forage);
+    }
+    const feet = parseVisibilityFeet(sentence);
+    if (feet != null) out.visibilityFeet = feet;
+    const factor = parseVisibilityFactor(sentence);
+    if (factor != null) out.visibilityFactor = factor;
+    // "air speed is halved …" and "air speed in any terrain is quartered" both
+    // name the factor somewhere after the words; the sentence is the window.
+    const air = /\bair speed\b[^.]*?\b(halved|half|quartered|quarter)\b/.exec(sentence);
+    const airFactor = air ? parseSpeedWord(air[1]) : null;
+    if (airFactor != null) out.airSpeed = airFactor;
+    const burn = /suffers?\s*(\d+)\s*([a-z]+)?\s*damage if they[^.]*?outdoors for\s*(\S+)\s*or more hours/.exec(sentence);
+    if (burn) {
+      const hours = WORD_INTS[burn[3]] ?? Number(burn[3]);
+      if (Number.isFinite(hours)) out.sunburn = { damage: Number(burn[1]), type: burn[2] || null, hours };
+    }
+    const rest = /cannot rest[^.]*?unless (?:he|she|they) (?:has|have) (both|either)\b/.exec(sentence);
+    if (rest) out.rest = { fire: true, clothing: true, both: rest[1] === "both" };
+    const disease = /for (\S+) consecutive days has an? (\d+)\s*% chance of catching a disease/.exec(sentence);
+    if (disease) {
+      const days = WORD_INTS[disease[1]] ?? Number(disease[1]);
+      if (Number.isFinite(days)) out.disease = { days, pct: Number(disease[2]) };
+    }
+  }
+  const frost = /must make an? ([a-z]+) saving throw at the end of the day[^.]*\.\s*if the save fails,? (?:he|she|they) (?:is|are) frostbitten and must roll (\d*d\d+) on the ([\d-]+) row/
+    .exec(entry);
+  if (frost) out.frostbite = { save: frost[1], die: frost[2], row: frost[3] };
+
+  if (Object.keys(throws).length) out.throws = throws;
+  if (Object.keys(forage).length) out.forage = forage;
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * Every captured entry → the `conditionEffects` table, keyed by the
+ * recipe's condition keys. The executor keys valueBlocks by block id; the
+ * blocks are flattened back to their windows first.
+ */
+export function assembleConditionEffects(prose) {
+  if (!prose || typeof prose !== "object") return null;
+  const flat = {};
+  for (const [key, value] of Object.entries(prose)) {
+    if (value && typeof value === "object") Object.assign(flat, value);
+    else if (typeof value === "string") flat[key] = value;
+  }
+  const out = {};
+  for (const [key, window] of Object.entries(flat)) {
+    if (typeof window !== "string") continue;
+    const entry = parseConditionEntry(window);
+    if (entry) out[key] = entry;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Assembly                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -197,6 +398,9 @@ export function assembleWeatherTables(raw = {}) {
     }
     if (Object.keys(factors).length) out.conditionSpeed = factors;
   }
+
+  const effects = assembleConditionEffects(raw.conditionEffectsProse);
+  if (effects) out.conditionEffects = effects;
 
   const acc = raw.accumulationProse;
   if (acc) {

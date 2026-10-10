@@ -86,6 +86,9 @@ export const ANCILLARY_ACTIVITIES = Object.freeze({
   search: { label: "ACKS-FORMATION.travel.activity.search", frequency: "perHour" },
   rest: { label: "ACKS-FORMATION.travel.activity.rest", frequency: "perPeriod" },
   other: { label: "ACKS-FORMATION.travel.activity.other", frequency: "perPeriod" },
+  // Managing traps is declared as a COUNT on the day (`day.traps`), not spent
+  // in a slot, so the slot picker leaves it out.
+  traps: { label: "ACKS-FORMATION.travel.activity.traps", frequency: "perAttempt", declared: true },
 });
 
 /** The road vocabulary is the vehicles feature's; re-exported for callers. */
@@ -99,6 +102,7 @@ import { postNavigationThrow } from "./navigation-card.mjs";
 import { isMode } from "../lib/movement-modes.mjs";
 import { FLIGHT_LOADS } from "./flight.mjs";
 import { lostOf } from "./lost.mjs";
+import { weatherEffects, throwPenalty } from "./weather-effects.mjs";
 
 /**
  * The three things a formation can be doing, re-exported so this feature's
@@ -121,6 +125,9 @@ export const FOLLOWING_KINDS = Object.freeze(["none", "river", "knownRoute"]);
 
 /** The wilderness territory classifications (JJ ch. 2) — keys only. */
 export const TERRITORY_KEYS = Object.freeze(["civilized", "borderlands", "outlands", "unsettled"]);
+
+/** A declared count as a whole number of at least zero. */
+const trapCount = (n) => Math.max(0, Math.floor(Number(n) || 0));
 
 /** A fresh, unspent day board. */
 export function freshDay(kind = "march") {
@@ -149,6 +156,10 @@ export function freshDay(kind = "march") {
      * question becomes worth asking again when that is spent too.
      */
     offered: false,
+    // The day's own declarations: how many traps the order managed, and
+    // whether the order goes without sleep tonight. Both end with the day.
+    traps: 0,
+    noSleep: false,
   };
 }
 
@@ -177,6 +188,8 @@ export function withDayKind(day, kind) {
     next.carrySeconds = day.carrySeconds ?? 0;
     next.secondsAdvanced = day.secondsAdvanced ?? 0;
     next.done = Array.from({ length: ANCILLARY_SLOTS }, (_, n) => !!day.done?.[n]);
+    next.traps = trapCount(day.traps);
+    next.noSleep = !!day.noSleep;
   }
   return next;
 }
@@ -254,7 +267,18 @@ export function travelOf(formation) {
       ...freshDay(),
       ...(t.day ?? {}),
       done: Array.from({ length: ANCILLARY_SLOTS }, (_, n) => !!t.day?.done?.[n]),
+      traps: trapCount(t.day?.traps),
+      noSleep: !!t.day?.noSleep,
     },
+    // The camp's declarations, each a plain yes or no: the Judge's word that
+    // the party takes what is not its own, that water is at hand, and that the
+    // order sleeps armoured.
+    camp: { steal: !!t.camp?.steal, water: !!t.camp?.water, sleepInArmour: !!t.camp?.sleepInArmour },
+    // Traps declared on a day that did not make a whole batch, carried to the
+    // next; and the runs the sky has kept a condition, keyed by condition
+    // (written by the night, carried here untouched).
+    trapsCarry: trapCount(t.trapsCarry),
+    weatherRuns: { ...(t.weatherRuns ?? {}) },
     dayCount: Number(t.dayCount) || 0,
     lost: lostOf(t),
     // HOW the order moves, which decides which factors it meets at all. Named
@@ -301,6 +325,10 @@ export function composeLogEntry(travel, { miles = null, hours = null, hexes = nu
     dayKind: travel.day?.kind ?? "march",
     pace: DAY_KINDS[travel.day?.kind]?.pace ?? null,
     activities: (travel.day?.activities ?? []).filter(Boolean),
+    // The day's declarations ride the row, because End day resets the board
+    // before the day's owed throws and the night's costs are resolved.
+    traps: trapCount(travel.day?.traps),
+    noSleep: !!travel.day?.noSleep,
     hexesEntered: travel.day?.hexesEntered ?? 0,
     // The DISPLAY half of the weather only — the generator's working state
     // (rolls, run counters) has no business in a season of log rows.
@@ -744,10 +772,13 @@ export function landNavigationSpec(formation) {
   const targets = readTable(TRAVEL_DOC, "gettingLost");
   const target = Number(targets?.[t.ground]);
   const competence = navigationCompetence(formation);
+  // The sky's signed modifier on the throw (RR 277-279), from the party's own
+  // weather and ground; 0 while the effects table is unimported.
+  const weather = throwPenalty(weatherEffects(conditionsOf(t.weather), { terrain: t.ground }), "navigation");
   if (!Number.isFinite(target)) {
-    return { throws: true, target: null, missing: "gettingLost", terrain: t.ground, competence };
+    return { throws: true, target: null, missing: "gettingLost", terrain: t.ground, competence, weather };
   }
-  return { throws: true, target, terrain: t.ground, competence };
+  return { throws: true, target, terrain: t.ground, competence, weather };
 }
 
 /**
@@ -769,7 +800,7 @@ export async function rollStrayFace() {
  * The day's navigation throw.
  *
  * A d20 against the terrain's imported target, plus whatever the marching
- * order's competence is worth. An unmodified 1 fails whatever the bonus — the
+ * order's competence is worth and the sky's modifier. An unmodified 1 fails whatever the bonus — the
  * one modifier-proof outcome the rule keeps.
  *
  * Returns `{throws: false}` untouched when a road or river carries the party,
@@ -780,7 +811,7 @@ export async function rollLandNavigation(formation) {
   const spec = landNavigationSpec(formation);
   if (!spec.throws) return { ...spec, rolled: false };
   if (spec.target == null) return { ...spec, rolled: false };
-  const bonus = spec.competence?.bonus ?? 0;
+  const bonus = (spec.competence?.bonus ?? 0) + (spec.weather ?? 0);
   const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${Math.abs(bonus)}` : "1d20";
   const roll = await new Roll(formula).evaluate();
   const natural = roll.dice?.[0]?.results?.[0]?.result ?? null;
@@ -883,7 +914,17 @@ export function applyTravelForm(formationId, tv = {}) {
         }
         day = { ...day, activities };
       }
+      // The day's declarations. An unticked checkbox is absent from the submit,
+      // so they are written explicitly once the group is present (its hidden
+      // `declared` marker makes it so) and left alone when it is not.
+      if (tv.day.declared !== undefined || tv.day.traps !== undefined || tv.day.noSleep !== undefined) {
+        day = { ...day, traps: trapCount(tv.day.traps), noSleep: !!tv.day.noSleep };
+      }
       next.day = day;
+    }
+    // The camp's declarations, read as a group for the same reason.
+    if (tv.camp) {
+      next.camp = { steal: !!tv.camp.steal, water: !!tv.camp.water, sleepInArmour: !!tv.camp.sleepInArmour };
     }
     record.travel = next;
   });

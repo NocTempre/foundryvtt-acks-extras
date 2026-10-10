@@ -10,6 +10,8 @@ import { travelReadout } from "./formation-view.mjs";
 import { journeyNight } from "./journey.mjs";
 import { getFormation, partySpeed, patchFormation } from "./formation-model.mjs";
 import { rollDayEncounters } from "./encounter-card.mjs";
+import { runRestNight } from "./rest.mjs";
+import { MODULE_ID } from "./constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
@@ -20,12 +22,28 @@ const loc = makeLoc("ACKS-FORMATION");
  * offer both go through it.
  */
 export async function closeDay(formation) {
-  const day = travelOf(formation).day;
+  // The night is the closing day's: its sky, camp and kind are captured before
+  // the end of the day advances them.
+  const t0 = travelOf(formation);
+  const day = t0.day;
   const entry = await endDay(formation.id, {
     miles: Math.round(day.miles * 100) / 100,
     hexes: day.hexesEntered,
   });
   if (entry) await rollDayEncounters(getFormation(formation.id), entry);
+  if (entry) {
+    try {
+      await runRestNight(getFormation(formation.id), {
+        weather: t0.weather,
+        ground: t0.ground,
+        exposure: t0.exposure,
+        day: { kind: day.kind, noSleep: !!day?.noSleep },
+        camp: { sleepInArmour: !!t0.camp?.sleepInArmour },
+      });
+    } catch (err) {
+      console.error(`${MODULE_ID} | the night's rest failed; the day still ends`, err);
+    }
+  }
   return entry;
 }
 

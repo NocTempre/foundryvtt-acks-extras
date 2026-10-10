@@ -7,6 +7,7 @@
  */
 import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { numOrNull } from "../lib/util.mjs";
+import { ENCOUNTER_TERRAINS } from "./encounter-terrains.mjs";
 
 /** The registered document these derivations read. */
 export const FORAGING_DOC = "foraging";
@@ -29,6 +30,18 @@ function table(key) {
 }
 
 /**
+ * Whether the party camps beside standing water, from a `travelOf` result: the
+ * Judge's word (`camp.water`), a river being followed, or a river pick for the
+ * encounter terrain (a pick with no ground of its own). Water is then taken
+ * without a throw.
+ */
+export function standingWaterOf(travel) {
+  return !!travel?.camp?.water
+    || travel?.following === "river"
+    || ENCOUNTER_TERRAINS[travel?.encounterTerrain]?.ground === null;
+}
+
+/**
  * The target for one kind of foraging, and what modifies it.
  *
  * Targets are keyed by terrain where the rules vary by terrain and by a single
@@ -37,9 +50,15 @@ function table(key) {
  *
  * `automatic` is the water case: standing water skips the throw rather than
  * easing it, so a caller must check it before rolling anything.
+ *
+ * `willingToSteal` drops the territory part: settled country's forage is
+ * somebody's crop, and a party that takes it anyway pays no penalty for
+ * holding back. `weather` is the sky's signed modifier on the throw (RR
+ * 277-279); it applies to firewood and water only, and a food forage ignores it.
  */
 export function forageSpec({
   kind = "food", terrain = "", territory = "", standingWater = false, survival = false,
+  weather = 0, willingToSteal = false,
 } = {}) {
   const spec = FORAGE_KINDS[kind];
   if (!spec) return { ok: false, reason: "kind" };
@@ -55,8 +74,9 @@ export function forageSpec({
   const parts = [];
   const add = (key, value) => { if (value) parts.push({ key, value }); };
   add("terrain", numOrNull(table("forageTerrain")?.[kind]?.[terrain]));
-  add("territory", numOrNull(table("forageTerritory")?.[kind]?.[territory]));
+  add("territory", willingToSteal ? null : numOrNull(table("forageTerritory")?.[kind]?.[territory]));
   add("survival", survival ? numOrNull(table("survivalBonus")) : null);
+  add("weather", kind === "firewood" || kind === "water" ? numOrNull(weather) : null);
 
   const bonus = parts.reduce((n, part) => n + part.value, 0);
   return { ok: true, target, bonus, parts, perParty: spec.perParty, kind };

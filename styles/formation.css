@@ -1326,6 +1326,17 @@
   background: var(--acks-tint);
 }
 
+/* The sky's stated effects: a compact two-line-at-most list under the chips. */
+.acks-extras-sky-effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.75rem;
+  margin: 0.2rem 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--acks-fs-fine);
+}
+
 /* The sky's chips lean warm or cold by what they say. */
 .acks-extras-formation-travel-weather-chip[data-cond="frigid"],
 .acks-extras-formation-travel-weather-chip[data-cond="cold"],

@@ -22,14 +22,15 @@
  * zone's cadence decides which of the triggers above throw at all.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
-import { makeLoc, gmIds } from "../lib/util.mjs";
+import { makeLoc, gmIds, fractionLabel, numOrNull } from "../lib/util.mjs";
 import { nameKeys } from "../lib/vocab.mjs";
 import { libraryActors } from "../lib/library.mjs";
 import { readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
-import { travelOf, DAY_KINDS } from "./travel.mjs";
+import { DAY_SECONDS, travelOf, DAY_KINDS } from "./travel.mjs";
 import {
   ENCOUNTER_OUTCOMES,
   ENCOUNTER_TERRAINS,
+  die,
   encounterTerrainFor,
   evasionModifiers,
   evasionTarget,
@@ -38,7 +39,15 @@ import {
   runEncounter,
   visibilityMax,
 } from "./encounters.mjs";
-import { getMemberActor } from "./formation-model.mjs";
+import { TURN_SECONDS } from "./constants.mjs";
+import { cadenceOf } from "./march.mjs";
+import { conditionsOf } from "./weather.mjs";
+import { weatherEffects, throwPenalty } from "./weather-effects.mjs";
+import { markTerrainEncounter } from "./poi.mjs";
+import { isHexScene } from "../battlemap/terrain-paint.mjs";
+import { sceneMilesPerCell } from "../lib/distance-units.mjs";
+import { clockReading } from "../lib/world-time.mjs";
+import { getMemberActor, getPartyScene, patchFormation } from "./formation-model.mjs";
 import { mountOf } from "../lib/mount.mjs";
 import { drawQuietly } from "../lib/roll-audience.mjs";
 import { journeyZones } from "./encounter-zone.mjs";
@@ -84,7 +93,8 @@ const kindLabel = (kind) => {
 /**
  * A terrain draw as flat card lines, in resolution order:
  * `{ depth, text, roll, die, name, link, kind }`. `depth` is the nesting
- * depth capped for the CSS class; `kind` is the line's type (roll,
+ * depth capped for the CSS class; `trap` is the equivalent trap a hazard row
+ * names, or null; `kind` is the line's type (roll,
  * discarded, rerolled, follow, lookup, either, creature, exhausted). A node
  * gives its own line, then its sub-table rolls, lookups, share-split and
  * creature one level in; a creature name resolves through
@@ -93,7 +103,7 @@ const kindLabel = (kind) => {
  */
 export function terrainDrawLines(draw) {
   const lines = [];
-  const at = (depth, line) => lines.push({ roll: null, die: null, name: null, link: null, ...line, depth: Math.min(depth, MAX_DEPTH) });
+  const at = (depth, line) => lines.push({ roll: null, die: null, name: null, link: null, trap: null, ...line, depth: Math.min(depth, MAX_DEPTH) });
   for (const { depth, node } of flattenTerrainDraw(draw)) {
     if (node.exhausted) {
       at(depth, { text: loc("travel.enc.draw.exhausted"), kind: "exhausted" });
@@ -111,7 +121,9 @@ export function terrainDrawLines(draw) {
     });
     if (node.setAside) continue;
     for (const f of (node.follow ?? []).filter((x) => x.ok)) {
-      at(depth + 1, { text: loc(`travel.enc.sub.${f.table}`), roll: f.roll, die: f.die, name: f.name, kind: "follow" });
+      at(depth + 1, {
+        text: loc(`travel.enc.sub.${f.table}`), roll: f.roll, die: f.die, name: f.name, kind: "follow", trap: f.trap ?? null,
+      });
     }
     for (const l of (node.lookups ?? []).filter((x) => x.ok)) {
       const value = typeof l.value === "number" && l.value > 0 ? `+${l.value}` : String(l.value);
@@ -178,8 +190,12 @@ function partyHeads(formation) {
  * throw was made in. The zones under the party's true position supply the
  * throw's target and table (`journeyZones`); a creature step the chain hands
  * to the zone's table is drawn here, quietly, and shown on the same card.
+ *
+ * `nights` is the length, in nights, of the period a rest throw stands for
+ * (the imported cadence cell's), so the card can say which night it falls on;
+ * `rng` is a [0, 1) source for every die the throw rolls.
  */
-export async function postEncounterThrow(formation, { activity = "travel", night = false, hex = null } = {}) {
+export async function postEncounterThrow(formation, { activity = "travel", night = false, hex = null, nights = 0, rng = Math.random } = {}) {
   const t = travelOf(formation);
   const terrain = ENCOUNTER_TERRAINS[t.encounterTerrain] ? t.encounterTerrain : encounterTerrainFor(t.ground);
   const zones = journeyZones(formation);
@@ -190,10 +206,61 @@ export async function postEncounterThrow(formation, { activity = "travel", night
     terrain,
     restingOrKnownRoute: t.day?.kind === "camp" || activity === "rest",
     zone: { target: zones.fields.encounterTarget, table: !!zones.fields.tableUuid },
+    rng,
   });
   const zoneDraw = chain.zoneDraw ? await drawZoneTable(zones) : null;
-  await postEncounterCard(formation, chain, { terrain, activity, night, hex, travel: t, zones, zoneDraw });
+  await postEncounterCard(formation, chain, { terrain, activity, night, hex, travel: t, zones, zoneDraw, nights, rng });
   return chain;
+}
+
+/**
+ * Where in its period an encounter falls, as card lines `{key, n, of?}` for
+ * `travel.enc.when.<key>`. Every die has one face per unit of the span it
+ * places the encounter in, counted from the calendar or an imported figure:
+ * the mile of a per-hex throw (`mileHex`, the cadence unit in miles), the turn
+ * of a per-hour throw (`secondsPerHour` over `turnSeconds`), the hour of the
+ * day or night of a rest period (the bounds of `clock`, a `clockReading`) and,
+ * for a rest period of `nights` nights, the night. A per-attempt throw, and a
+ * span nothing states, answers no line.
+ * @param {object} o
+ * @param {string} o.activity  the cadence line the throw cites
+ * @param {boolean} [o.night]  a rest through the dark rather than the light
+ * @param {number|null} [o.mileHex]
+ * @param {number|null} [o.secondsPerHour]
+ * @param {number} [o.turnSeconds]
+ * @param {object|null} [o.clock]
+ * @param {number} [o.nights]
+ * @param {() => number} [o.rng]
+ * @returns {Array<{key: string, n: number, of?: number}>}
+ */
+export function encounterWhen({
+  activity, night = false, mileHex = null, secondsPerHour = null, turnSeconds = TURN_SECONDS,
+  clock = null, nights = 0, rng = Math.random,
+} = {}) {
+  if (activity === "travel") {
+    const miles = numOrNull(mileHex);
+    return miles > 0 ? [{ key: "mile", n: die(Math.max(1, Math.round(miles)), rng) }] : [];
+  }
+  if (activity === "search") {
+    const perHour = numOrNull(secondsPerHour) > 0 ? Number(secondsPerHour) : DAY_SECONDS / 24;
+    const turns = Math.floor(perHour / turnSeconds);
+    return turns >= 1 ? [{ key: "turn", n: die(turns, rng) }] : [];
+  }
+  if (activity !== "rest") return [];
+
+  const lines = [];
+  const period = Math.floor(Number(nights) || 0);
+  if (period > 1) lines.push({ key: "night", n: die(period, rng), of: period });
+  const perDay = numOrNull(clock?.hoursPerDay);
+  const dawn = numOrNull(clock?.dawn);
+  const dusk = numOrNull(clock?.dusk);
+  if (perDay > 0 && dawn != null && dusk != null && dawn !== dusk) {
+    const from = night ? dusk : dawn;
+    const to = night ? dawn : dusk;
+    const span = Math.floor((((to - from) % perDay) + perDay) % perDay);
+    if (span >= 1) lines.push({ key: night ? "hourDusk" : "hourDawn", n: die(span, rng) });
+  }
+  return lines;
 }
 
 /** Tags out of a result's description, which is HTML; the card shows its text. */
@@ -226,17 +293,67 @@ async function drawZoneTable(zones) {
  * The chain as one whispered card. `zones` is `journeyZones`'s answer, named
  * on a line of its own; `zoneDraw` is what the zone's table drew, or names the
  * zone whose table is gone.
+ *
+ * An encounter (a throw that is not "no encounter") also says where in its
+ * period it falls (`encounterWhen`; `nights` and `rng` as `postEncounterThrow`
+ * takes them), and a terrain encounter on a scene is left on the Judge's map as
+ * a persistent marker. The sky's effects the Judge needs at the encounter ride
+ * the card as chips, and its visibility limits the distance the party is seen from.
  */
-export async function postEncounterCard(formation, chain, { terrain, activity, night, hex = null, travel, zones = null, zoneDraw = null } = {}) {
+export async function postEncounterCard(formation, chain, {
+  terrain, activity, night, hex = null, travel, zones = null, zoneDraw = null, nights = 0, rng = Math.random,
+} = {}) {
   const outcomeKey = chain.outcome ?? chain.territory?.outcome ?? "none";
   const creature = chain.creature?.ok ? chain.creature : null;
   const actor = creature ? resolveCreature(creature.name) : null;
+  const t = travel ?? travelOf(formation);
 
   const heads = partyHeads(formation);
   const size = headEquivalents(heads);
   const evasion = terrain ? evasionTarget({ terrain, partySize: size }) : { ok: false };
   const mods = terrain ? evasionModifiers({ terrain }) : { parts: [] };
-  const visible = visibilityMax({ light: "daylight", heads: size });
+  const fx = weatherEffects(conditionsOf(t.weather), { terrain: t.ground });
+  const visible = visibilityMax({ light: "daylight", heads: size, weather: fx.visibility });
+  const isNone = outcomeKey === "none";
+
+  const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+  const effects = [];
+  for (const kind of ["missile", "listening"]) {
+    const value = throwPenalty(fx, kind);
+    if (value) effects.push({ label: loc(`travel.enc.effects.${kind}`), value: signed(value) });
+  }
+  if (fx.dust) {
+    effects.push({
+      label: loc("travel.enc.effects.dust"),
+      value: fx.dust.speed == null ? "" : `×${fractionLabel(fx.dust.speed)}`,
+    });
+  }
+
+  let when = [];
+  if (!isNone) {
+    const scene = getPartyScene(formation);
+    const cadence = cadenceOf({
+      isHex: scene ? isHexScene(scene) : false,
+      milesPerCell: scene ? sceneMilesPerCell(scene) : 0,
+      mileHex: cadenceMilesFor(t.territory),
+    });
+    const clock = clockReading();
+    when = encounterWhen({
+      activity, night, mileHex: cadence.miles, secondsPerHour: clock?.secondsPerHour ?? null, clock, nights, rng,
+    }).map((line) => loc(`travel.enc.when.${line.key}`, { n: line.n, of: line.of }));
+  }
+
+  // A terrain encounter is a place on the map, so it stays there for the Judge.
+  const terrainKind = ENCOUNTER_OUTCOMES[outcomeKey]?.terrainKind;
+  let marked = false;
+  if (terrainKind && !isNone && game.user?.isGM) {
+    const note = await markTerrainEncounter(formation, {
+      outcome: outcomeKey,
+      name: chain.terrainEncounter?.ok ? chain.terrainEncounter.name : "",
+      table: terrainKind,
+    });
+    marked = !!note;
+  }
 
   const view = {
     activity: loc(`travel.enc.activity.${activity}`),
@@ -251,7 +368,7 @@ export async function postEncounterCard(formation, chain, { terrain, activity, n
     })),
     missingTerritory: chain.territory && !chain.territory.ok,
     outcome: game.i18n.localize(ENCOUNTER_OUTCOMES[outcomeKey]?.label ?? ENCOUNTER_OUTCOMES.none.label),
-    isNone: outcomeKey === "none",
+    isNone,
     downgraded: chain.downgraded ? game.i18n.localize(ENCOUNTER_OUTCOMES[chain.downgraded]?.label ?? "") : null,
     rarity: chain.rarity?.ok ? { roll: chain.rarity.roll, label: loc(`travel.enc.rarity.${chain.rarity.rarity}`) } : null,
     creature: creature
@@ -271,6 +388,9 @@ export async function postEncounterCard(formation, chain, { terrain, activity, n
     zoneThrow: chain.zone ? { roll: chain.zone.roll, target: chain.zone.target } : null,
     zoneDraw: zoneDraw && !zoneDraw.missing ? zoneDraw : null,
     zoneMissing: zoneDraw?.missing ? zoneDraw.zone || "?" : null,
+    effects,
+    when,
+    marked,
   };
 
   const content = await foundry.applications.handlebars.renderTemplate(
@@ -319,8 +439,14 @@ export async function maybeHexThrow(formation, { night = false, hex = null, acti
  * with that many throws, as travel on a day that travelled and as rest
  * otherwise; a stated `nightThrows` replaces the resting night with that many
  * night throws. A count of 0 leaves its half to the imported cells.
+ *
+ * Managing traps is its own cell, per attempt: the day owes one throw per
+ * `per` traps declared (`entry.traps`, else the board's) plus the carry of
+ * earlier days, and the remainder is written back to `travel.trapsCarry`. A
+ * stated "none" owes nothing and clears the carry. `rng` is the source the
+ * throws' dice use.
  */
-export async function rollDayEncounters(formation, entry) {
+export async function rollDayEncounters(formation, entry, { rng = Math.random } = {}) {
   if (!formation || !encountersOn()) return;
   const t = travelOf(formation);
   if (t.mode !== "journey") return;
@@ -334,26 +460,42 @@ export async function rollDayEncounters(formation, entry) {
   const cell = (activity) => freq?.[activity]?.[t.territory];
 
   if (dayThrows) {
-    for (let n = 0; n < dayThrows; n++) await postEncounterThrow(formation, { activity: travelled ? "travel" : "rest" });
+    for (let n = 0; n < dayThrows; n++) await postEncounterThrow(formation, { activity: travelled ? "travel" : "rest", rng });
   } else if (freq) {
     for (const slot of entry?.activities ?? []) {
-      if (slot === "hunt" && cell("hunting")) await postEncounterThrow(formation, { activity: "hunt" });
-      if (slot === "search" && cell("searching")) await postEncounterThrow(formation, { activity: "search" });
+      if (slot === "hunt" && cell("hunting")) await postEncounterThrow(formation, { activity: "hunt", rng });
+      if (slot === "search" && cell("searching")) await postEncounterThrow(formation, { activity: "search", rng });
     }
     if (!travelled) {
       const day = cell("restingDay");
-      if (day?.kind === "perPeriod") await postEncounterThrow(formation, { activity: "rest" });
+      if (day?.kind === "perPeriod") await postEncounterThrow(formation, { activity: "rest", rng });
+    }
+  }
+
+  if (freq) {
+    const traps = cell("managingTraps");
+    if (traps === null || traps?.kind === "perAttempt") {
+      const declared = Math.max(0, Math.floor(numOrNull(entry?.traps) ?? t.day.traps));
+      const per = Math.max(1, Math.floor(Number(traps?.per) || 1));
+      const owed = traps ? Math.floor((declared + t.trapsCarry) / per) : 0;
+      const carry = traps ? declared + t.trapsCarry - owed * per : 0;
+      for (let n = 0; n < owed; n++) await postEncounterThrow(formation, { activity: "traps", rng });
+      if (carry !== t.trapsCarry) {
+        await patchFormation(formation.id, (record) => {
+          record.travel = { ...travelOf(record), trapsCarry: carry };
+        });
+      }
     }
   }
 
   if (nightThrows) {
-    for (let n = 0; n < nightThrows; n++) await postEncounterThrow(formation, { activity: "rest", night: true });
+    for (let n = 0; n < nightThrows; n++) await postEncounterThrow(formation, { activity: "rest", night: true, rng });
   } else if (freq) {
     const nightCell = cell("restingNight");
     if (nightCell?.kind === "perPeriod") {
       const nights = Number(nightCell.nights) || 0;
-      const due = nights <= 1 || Math.floor(Math.random() * nights) === 0;
-      if (due) await postEncounterThrow(formation, { activity: "rest", night: true });
+      const due = nights <= 1 || Math.floor(rng() * nights) === 0;
+      if (due) await postEncounterThrow(formation, { activity: "rest", night: true, nights, rng });
     }
   }
 }
