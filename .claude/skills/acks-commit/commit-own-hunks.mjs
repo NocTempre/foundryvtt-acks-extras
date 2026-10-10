@@ -89,6 +89,12 @@ const LOCK_WAIT_MS = 1500;
  * runs it again.
  */
 const GATE_TOOLING = /^(tools\/(validate[^/]*|ip-[^/]*|build-packs)\.mjs$|docs\/site\/tools\/|\.githooks\/|\.claude\/|\.gitattributes$|package(-lock)?\.json$)/;
+/**
+ * Where a repository keeps the leak scanner its pre-commit hook runs. The
+ * first that holds one is asked: a module's is in tools/, and the template
+ * keeps none there and runs the canonical one in skeleton/tools/.
+ */
+const SCANNER_DIRS = ["tools", "skeleton/tools"];
 
 const REPO = process.cwd();
 const argv = process.argv.slice(2);
@@ -737,11 +743,12 @@ async function carryOver(change, gated) {
 /**
  * Ask the repository's leak scanner about the change set before staging. The
  * pre-commit hook takes a flagged file out of the commit, so asking first
- * means the commit either holds the gated tree or is not made.
+ * means the commit either holds the gated tree or is not made. The scanner
+ * asked is the one that hook runs, which `SCANNER_DIRS` finds.
  */
 async function leakScan(paths) {
-  const scanner = path.join(REPO, "tools", "ip-scan.mjs");
-  if (!fs.existsSync(scanner)) return;
+  const scanner = SCANNER_DIRS.map((dir) => path.join(REPO, dir, "ip-scan.mjs")).find((file) => fs.existsSync(file));
+  if (!scanner) return;
   const { scanPaths } = await import(pathToFileURL(scanner).href);
   if (typeof scanPaths !== "function") return;
   const { errors } = scanPaths(REPO, paths);
