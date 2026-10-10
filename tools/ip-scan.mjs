@@ -32,6 +32,11 @@ const CLI = import.meta.url === pathToFileURL(process.argv[1] ?? "").href;
 const ROOT = path.resolve(process.argv.find((a) => !a.startsWith("--") && a !== process.argv[0] && a !== process.argv[1]) ?? ".");
 const STRICT = process.argv.includes("--strict");
 
+/* Every path pattern below is matched without regard to letter case. A
+ * filesystem that folds case opens RuleData/ and Lang/ as ruledata/ and
+ * lang/, and git tracks the spelling it was handed, so a pattern that told
+ * the spellings apart would pass the same file under another one. */
+
 /* Canonical rules extracts are LOCAL-ONLY (C:\Proj\acks-rules\<module-id>\).
  * They were purged from every repo history 2026-07-16 and must never return. */
 const FORBIDDEN_FILES = [/^RULES\.md$/iu, /^PROFICIENCIES\.md$/iu, /Reactions-Reference\.md$/iu];
@@ -43,7 +48,7 @@ const FORBIDDEN_FILES = [/^RULES\.md$/iu, /^PROFICIENCIES\.md$/iu, /Reactions-Re
  * ruledata/ is a mistake, not a judgement call. Note the value signals there
  * were table rows and name lists, all individually short: no prose-length rule
  * would ever have caught them, which is why this is a path ban. */
-const FORBIDDEN_PATHS = [/(^|[/\\])_proposals([/\\]|$)/u, /(^|[/\\])_manifest([/\\]|$)/u, /(^|[/\\])_ledger\.json$/u, /(^|[/\\])acks-rules([/\\]|$)/u, /(^|[/\\])ruledata([/\\]|$)/u];
+const FORBIDDEN_PATHS = [/(^|[/\\])_proposals([/\\]|$)/iu, /(^|[/\\])_manifest([/\\]|$)/iu, /(^|[/\\])_ledger\.json$/iu, /(^|[/\\])acks-rules([/\\]|$)/iu, /(^|[/\\])ruledata([/\\]|$)/iu];
 /* A COPYRIGHT NOTICE inside machine data. Naming the book or its publisher is
  * a reference and is welcome anywhere; a reservation-of-rights line is not one
  * — nobody types "all rights reserved" to cite a page — so in a pack source or
@@ -59,9 +64,9 @@ const ATTRIBUTION = /all rights reserved|(?:©|\(c\)|copyright)\s*(?:\d{4}[\s,�
  * has one. Removing it does not remove the paraphrase it sat beside; it just
  * makes the paraphrase unattributed, which is what the rule's first full
  * application actually produced (extras 6.3.0, 22 strings). */
-const DATA_GLOBS = [/packs[/\\]_source[/\\].*\.json$/u, /^cookbook[/\\].*\.json$/u, /^register[/\\].*\.json$/u, /^lang[/\\].*\.json$/u];
+const DATA_GLOBS = [/packs[/\\]_source[/\\].*\.json$/iu, /^cookbook[/\\].*\.json$/iu, /^register[/\\].*\.json$/iu, /^lang[/\\].*\.json$/iu];
 /* Handlebars is shipped text too, and is not JSON-walkable. */
-const TEMPLATE_GLOBS = [/^templates[/\\].*\.hbs$/u];
+const TEMPLATE_GLOBS = [/^templates[/\\].*\.hbs$/iu];
 /* Source is not JSON-walkable, but book text hides in it just as well: a
  * private sibling module keeps ~1,400 words of another publisher's rules in
  * scripts/rules-data.mjs. Scanned as raw text for the same two signals.
@@ -75,8 +80,8 @@ const TEMPLATE_GLOBS = [/^templates[/\\].*\.hbs$/u];
  * is a gate people mute. docs/ (also tracked and public) stays out because it
  * is legitimate prose — the PROSE_CHARS signal would fire on every guide; its
  * IP bar is the human one TOOLCHAIN §4b sets for guides. */
-const CODE_GLOBS = [/^scripts[/\\].*\.mjs$/u, /^tools[/\\].*\.mjs$/u];
-const CODE_SELF_EXCLUDE = /^tools[/\\]ip-scan\.mjs$/u;
+const CODE_GLOBS = [/^scripts[/\\].*\.mjs$/iu, /^tools[/\\].*\.mjs$/iu];
+const CODE_SELF_EXCLUDE = /^tools[/\\]ip-scan\.mjs$/iu;
 /* Quoted and templated literals found by pairing quote marks alone. Blind to
  * comments and regex literals, so a backtick in either opens a "literal" that
  * runs to the next backtick anywhere in the file. Used only on a file
@@ -101,6 +106,8 @@ const PROSE_CHARS = 1500;
 /* ...unless it is source code. Macro bodies are authored JS and legitimately
  * long; letting them warn every run is how a gate gets tuned out. */
 const CODE_KEYS = new Set(["command"]);
+/* The most git may print in one call: every blob a scan reads, at once. */
+const GIT_OUTPUT_BYTES = 2 ** 30;
 
 const SKIP_DIRS = new Set(["node_modules", ".git", ".github", "dist"]);
 const errors = [];
@@ -138,12 +145,26 @@ function walk(dir, rel = "") {
       }
       walk(abs, relPath);
     } else {
-      inspect(abs, relPath);
+      inspect(relPath, fromDisk(abs));
     }
   }
 }
 
-function inspect(abs, relPath) {
+/** Reads a file of the work tree; null where a tracked file was deleted from it. */
+const fromDisk = (abs) => () => (fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : null);
+
+/** How a path's text is judged, "source", "template" or "data", or null where its name is all the scan reads. */
+function textKind(relPath) {
+  if (CODE_GLOBS.some((re) => re.test(relPath)) && !CODE_SELF_EXCLUDE.test(relPath)) return "source";
+  if (TEMPLATE_GLOBS.some((re) => re.test(relPath))) return "template";
+  return DATA_GLOBS.some((re) => re.test(relPath)) ? "data" : null;
+}
+
+/**
+ * Judge one path: by its name, and then by its text where `textKind` gives it
+ * one. `read` returns that text, or null where there is none to read.
+ */
+function inspect(relPath, read) {
   if (FORBIDDEN_FILES.some((re) => re.test(path.basename(relPath)))) {
     errors.push(`${relPath} — LOCAL-ONLY rules extract; it belongs in C:\\Proj\\acks-rules\\, never in the repo`);
     return;
@@ -152,31 +173,73 @@ function inspect(abs, relPath) {
     errors.push(`${relPath} — extraction-pipeline state must never ship or be committed`);
     return;
   }
-  if (CODE_GLOBS.some((re) => re.test(relPath)) && !CODE_SELF_EXCLUDE.test(relPath)) {
-    if (!fs.existsSync(abs)) return; // tracked but deleted in the work tree
-    scanSource(fs.readFileSync(abs, "utf8"), relPath);
+  const kind = textKind(relPath);
+  const text = kind ? read() : null;
+  if (text === null) return;
+  if (kind === "source") {
+    scanSource(text, relPath);
     return;
   }
-  if (TEMPLATE_GLOBS.some((re) => re.test(relPath))) {
-    if (!fs.existsSync(abs)) return;
+  if (kind === "template") {
     // Scanned whole, comments included: a copyright footer is a paste artifact
     // wherever it landed, and a Handlebars comment is not a safer place to
     // have pasted a page into than the body.
-    if (ATTRIBUTION.test(fs.readFileSync(abs, "utf8"))) {
+    if (ATTRIBUTION.test(text)) {
       errors.push(`${relPath} — copyright notice in a shipped template; a page footer travelled in with the text`);
     }
     return;
   }
-  if (!DATA_GLOBS.some((re) => re.test(relPath))) return;
-  if (!fs.existsSync(abs)) return; // tracked but deleted in the work tree
 
   let data;
   try {
-    data = JSON.parse(fs.readFileSync(abs, "utf8"));
+    data = JSON.parse(text);
   } catch {
-    return; // tools/validate.mjs already reports malformed JSON
+    // tools/validate.mjs reports the malformed JSON. Its strings cannot be
+    // walked, so the notice is looked for in the text as it stands: a file
+    // that fails to parse is committed like any other.
+    if (ATTRIBUTION.test(text)) {
+      errors.push(`${relPath} — copyright notice in a data file that does not parse; copied book text, not authored data`);
+    }
+    return;
   }
   scanStrings(data, relPath);
+}
+
+/**
+ * The text git holds for each of these paths, in the index it is using or in
+ * a tree, keyed by the path as given. Two git calls whatever the count: one
+ * lists what is held, one prints every blob wanted. A path held as no file,
+ * absent or a submodule, gets no entry.
+ */
+function blobTexts(root, from, relPaths) {
+  const texts = new Map();
+  if (!relPaths.length) return texts;
+  const git = (args, input) => execFileSync("git", args, { cwd: root, input, maxBuffer: GIT_OUTPUT_BYTES, stdio: ["pipe", "pipe", "pipe"] });
+  // An index line is "<mode> <blob> <stage>\t<path>", a tree line "<mode> <type> <blob>\t<path>".
+  const listing = from === "index" ? git(["ls-files", "--stage", "-z"]) : git(["ls-tree", "-r", "-z", "--end-of-options", from]);
+  const held = new Map();
+  for (const line of listing.toString("utf8").split("\0")) {
+    const tab = line.indexOf("\t");
+    if (tab < 0) continue;
+    const fields = line.slice(0, tab).split(" ");
+    const [mode, blob, stage] = from === "index" ? fields : [fields[0], fields[2], "0"];
+    if (stage === "0" && !mode.startsWith("16")) held.set(line.slice(tab + 1), blob);
+  }
+  // Git names a path with forward slashes on every platform.
+  const wanted = relPaths.map((relPath) => [relPath, held.get(path.sep === "\\" ? relPath.replaceAll("\\", "/") : relPath)]).filter(([, blob]) => blob);
+  if (!wanted.length) return texts;
+  // Each blob comes back as "<id> blob <bytes>\n", its bytes, and a line end.
+  const out = git(["cat-file", "--batch"], wanted.map(([, blob]) => `${blob}\n`).join(""));
+  let at = 0;
+  for (const [relPath] of wanted) {
+    const lineEnd = out.indexOf(10, at);
+    const header = out.toString("latin1", at, lineEnd < 0 ? out.length : lineEnd);
+    const bytes = Number(/^[0-9a-f]+ blob (\d+)$/u.exec(header)?.[1] ?? NaN);
+    if (lineEnd < 0 || Number.isNaN(bytes)) throw new Error(`git cat-file answered "${header}" for ${relPath}`);
+    texts.set(relPath, out.toString("utf8", lineEnd + 1, lineEnd + 1 + bytes));
+    at = lineEnd + 1 + bytes + 1;
+  }
+  return texts;
 }
 
 function scanSource(text, relPath) {
@@ -361,15 +424,31 @@ function scanStrings(node, relPath, keyPath = "") {
 }
 
 /**
- * Scan an explicit list of repo-relative paths. tools/ip-quarantine.mjs uses
- * this against the *staged* set so a leak is caught before it enters a commit,
- * which is the only moment a .gitignore can still keep it out of history.
+ * Scan an explicit list of repo-relative paths. tools/ip-quarantine.mjs asks
+ * about the staged set as the index holds it, so a leak is caught before it
+ * enters a commit, which is the only moment a .gitignore can still keep it
+ * out of history, and what is judged is what the commit would hold.
+ *
+ * @param {string} root the repository's top directory
+ * @param {string[]} relPaths
+ * @param {{from?: string}} [options] `from` says where each path's text is
+ *   read: "index" for the index git is using, or a tree-ish such as "HEAD"
+ *   or a tree id. With none it is the file in the work tree.
+ * @returns {{errors: string[], warnings: string[], flagged: string[]}}
+ *   `flagged` holds every path an error was raised for, as it was given, so
+ *   a caller acts on paths and never reads one back out of an error's text.
  */
-export function scanPaths(root, relPaths) {
+export function scanPaths(root, relPaths, { from } = {}) {
   errors.length = 0;
   warnings.length = 0;
-  for (const relPath of relPaths) inspect(path.join(root, relPath), relPath);
-  return { errors: [...errors], warnings: [...warnings] };
+  const texts = from === undefined ? null : blobTexts(root, from, relPaths.filter(textKind));
+  const flagged = [];
+  for (const relPath of relPaths) {
+    const before = errors.length;
+    inspect(relPath, texts ? () => texts.get(relPath) ?? null : fromDisk(path.join(root, relPath)));
+    if (errors.length > before) flagged.push(relPath);
+  }
+  return { errors: [...errors], warnings: [...warnings], flagged };
 }
 
 /*
@@ -384,7 +463,7 @@ if (CLI) {
   try {
     const tracked = trackedFiles(ROOT);
     if (tracked) {
-      for (const relPath of tracked) inspect(path.join(ROOT, relPath), relPath);
+      for (const relPath of tracked) inspect(relPath, fromDisk(path.join(ROOT, relPath)));
     } else {
       walk(ROOT);
     }

@@ -744,14 +744,16 @@ async function carryOver(change, gated) {
  * Ask the repository's leak scanner about the change set before staging. The
  * pre-commit hook takes a flagged file out of the commit, so asking first
  * means the commit either holds the gated tree or is not made. The scanner
- * asked is the one that hook runs, which `SCANNER_DIRS` finds.
+ * asked is the one that hook runs, which `SCANNER_DIRS` finds. It is asked
+ * about `tree`, the tree to be committed, as the hook reads the index that
+ * tree is staged to: the working copy holds peers' hunks beside this change's.
  */
-async function leakScan(paths) {
+async function leakScan(paths, tree) {
   const scanner = SCANNER_DIRS.map((dir) => path.join(REPO, dir, "ip-scan.mjs")).find((file) => fs.existsSync(file));
   if (!scanner) return;
   const { scanPaths } = await import(pathToFileURL(scanner).href);
   if (typeof scanPaths !== "function") return;
-  const { errors } = scanPaths(REPO, paths);
+  const { errors } = scanPaths(REPO, paths, { from: tree });
   if (errors.length) refuse(`the leak scanner flags the change set:\n${errors.join("\n")}`);
 }
 
@@ -772,7 +774,7 @@ async function commit({ carry = false } = {}) {
     const again = build();
     if (again.tree !== gated.tree) refuse(`the tree is now ${again.tree}, and ${gated.tree} is what passed:\n${git(["diff", "--stat", gated.tree, again.tree])}`);
   }
-  await leakScan([...Object.keys(change.files), ...change.added]);
+  await leakScan([...Object.keys(change.files), ...change.added], want.tree);
 
   // Past the build below, whatever is staged under the change's paths is this
   // run's own, and is this run's to unstage.
