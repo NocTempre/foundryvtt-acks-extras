@@ -1,5 +1,6 @@
 /**
- * Conditions assembly: the raw RR Appendix B reads (RR 507-515) → the
+ * Conditions assembly: the raw reads of RR Appendix B (RR 507-515) and of the
+ * combat chapter's Defend, countercharge and cover (RR 294-303) → the
  * `conditions` ruledata table `lib/conditions.mjs` reads.
  *
  * The recipes take one short window per FIGURE, anchored on the few words that
@@ -34,6 +35,7 @@ export const CONDITIONS_DOC_ID = CONDITIONS_DOC;
 export const PRODUCES = Object.freeze({
   [CONDITIONS_DOC_ID]: {
     [CONDITIONS_TABLE]: [
+      "defendProse", "counterchargeProse", "coverMissileProse", "coverBlastProse",
       "berserkProse", "blessedProse", "deafenedProse", "disorderedProse", "enlargedProse",
       "falteringProse", "hiddenProse", "hungryProse", "proneProse", "restrainedProse",
       "shrunkProse", "subjacentProse", "vulnerableProse",

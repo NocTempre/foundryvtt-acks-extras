@@ -1,0 +1,22 @@
+{{!-- One status of the Judge's own: its name, its icon and, while it is new,
+      its id. Rendered into a dialog's form. --}}
+<div class="acks-extras-palette-edit">
+  <label>
+    <span>{{localize "ACKS-LIB.statusPalette.edit.name"}}</span>
+    <input type="text" name="name" value="{{name}}" autocomplete="off" autofocus>
+  </label>
+  <label>
+    <span>{{localize "ACKS-LIB.statusPalette.edit.img"}}</span>
+    <file-picker name="img" type="image" value="{{img}}"></file-picker>
+  </label>
+  {{#if isNew}}
+  <label>
+    <span>{{localize "ACKS-LIB.statusPalette.edit.id"}}</span>
+    <input type="text" name="id" value="{{id}}" autocomplete="off" spellcheck="false">
+  </label>
+  <p class="acks-extras-palette-note">{{localize "ACKS-LIB.statusPalette.edit.idHint"}}</p>
+  {{else}}
+  <p class="acks-extras-palette-note">{{localize "ACKS-LIB.statusPalette.edit.idFixed" id=id}}</p>
+  {{/if}}
+  {{#if carries}}<p class="acks-extras-palette-note">{{localize "ACKS-LIB.statusPalette.edit.carries"}}</p>{{/if}}
+</div>

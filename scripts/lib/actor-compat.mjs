@@ -111,6 +111,17 @@ export const BOOK_TO_RELEASED_SAVES = Object.freeze({
 /** Every save key the released actor schema carries. */
 export const RELEASED_SAVE_KEYS = Object.freeze(["paralysis", "death", "breath", "implements", "spell", "wand"]);
 
+/* The released keys whose throw the conditions name otherwise. */
+const RELEASED_SAVE_KINDS = Object.freeze({ breath: "blast", wand: "implements" });
+
+/**
+ * The saving throw a system save key rolls, as the conditions name it
+ * (`conditions.mjs` `SAVE_KINDS`): the released schema's `breath` is the Blast
+ * throw and its `wand` an Implements throw. Any other key answers itself, so
+ * a schema that stores Blast as `blast` reads the same.
+ */
+export const saveKindOf = (systemKey) => RELEASED_SAVE_KINDS[systemKey] ?? systemKey;
+
 /**
  * Update paths for one set of book-vocabulary save values. Null/undefined
  * values are skipped (a band that does not print a cell must not zero the

@@ -156,18 +156,19 @@ const sourceValue = (actor, path) => num(path.split(".").reduce((o, k) => (o == 
  * target, each replayed from the field's source value the way Foundry
  * applies the changes (the lib's effect-scan), so a subtraction reads
  * negative and an override reads as the difference it makes. The character's
- * conditions join the all-save figure: they reach the throw at the roll and
- * are stored on no field an effect-scan would find.
+ * conditions join each save's figure, a condition that reaches only some
+ * saves joining only those: they reach the throw at the roll and are stored
+ * on no field an effect-scan would find.
  */
 export function saveModifiers(actor) {
-  const all =
-    netNumericChange(actor, "system.save.mod", sourceValue(actor, "system.save.mod")) + rollMath("save", subjectOf(actor)).total;
+  const all = netNumericChange(actor, "system.save.mod", sourceValue(actor, "system.save.mod"));
+  const subject = subjectOf(actor);
   return Object.fromEntries(
     SAVE_KEYS.map((k) => {
       const key = `system.saves.${saveSystemKey(k)}.value`;
       // A change that LOWERS the target helps the throw; the cell states the
       // help as a positive number, the way a player reads it.
-      return [k, all - netNumericChange(actor, key, sourceValue(actor, key))];
+      return [k, all + rollMath("save", subject, undefined, { save: k }).total - netNumericChange(actor, key, sourceValue(actor, key))];
     }),
   );
 }

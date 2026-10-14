@@ -1,5 +1,8 @@
 /**
- * Conditions (RR 507-515, Appendix B): the catalogue, and the math it performs.
+ * Conditions: the catalogue, and the math it performs. The catalogue is
+ * Appendix B (RR 507-515) and the states a combatant declares or takes up in a
+ * round (RR 291-303): readied, delayed, casting, defending, countercharging,
+ * in cover, retreating, withdrawing.
  *
  * What ships is the PROCEDURE — which conditions exist, what each carries with
  * it, what it takes away, which rolls it reaches, whose roll that is, and how
@@ -37,8 +40,20 @@ export const ACTS = Object.freeze([
 /** The three ways an attack throw is made, as a modifier's `scope` names them. */
 export const ATTACK_KINDS = Object.freeze(["melee", "missile", "thrown"]);
 
+/** The system's saving throws, by the key each is stored and rolled under, as a modifier's `saves` names them. */
+export const SAVE_KINDS = Object.freeze(["death", "implements", "paralysis", "blast", "spell"]);
+
+/**
+ * What can take a state away before it ends: the creature takes damage, fails
+ * a saving throw, or is moved when it is not its turn to move.
+ */
+export const LOSSES = Object.freeze(["damage", "save", "moved"]);
+
 const MELEE = Object.freeze(["melee"]);
 const MELEE_THROWN = Object.freeze(["melee", "thrown"]);
+const MISSILE_THROWN = Object.freeze(["missile", "thrown"]);
+const BLAST = Object.freeze(["blast"]);
+const HURT_OR_FAILED = Object.freeze(["damage", "save"]);
 
 /**
  * One row per roll a condition reaches.
@@ -48,19 +63,23 @@ const MELEE_THROWN = Object.freeze(["melee", "thrown"]);
  *  - `slot`   the figure's key in the registered row.
  *  - `side`   `against` when the figure belongs to whoever attacks the
  *             creature; absent when it is the creature's own roll.
- *  - `scope`  the attack kinds it reaches; absent for all three.
+ *  - `scope`  the attack kinds it reaches; absent for all three. On an `ac`
+ *             row, the kinds of attack the figure stands against.
+ *  - `saves`  the saving throws a `save` row reaches; absent for all of them.
  *  - `per`    `stack` multiplies by the number of causes, `extraCause` by the
  *             causes past the first.
  *  - `when`   `source`: only against what imposed the condition. Any other
  *             value names a circumstance no roll can see (`fear`, `sight`,
  *             `voice`) and is returned as pending rather than applied.
- *  - `unless` a condition on the same creature that supersedes this row.
+ *  - `unless` a condition that supersedes this row: on the same creature,
+ *             or on whoever gave the creature the state.
  */
 const row = (on, slot, extra = {}) => Object.freeze({ on, slot, ...extra });
 
 /**
- * The conditions, keyed by status id. `surprised` and `slumbering` are the
- * system's own ids for the same two conditions.
+ * The conditions, keyed by status id. `surprised`, `slumbering`, `readied` and
+ * `delayed` are the system's own ids for the same four, so the system's
+ * tracker and this catalogue mark one thing.
  *
  *  - `implies`  conditions the creature also has while it has this one.
  *  - `forbids`  members of `ACTS`.
@@ -68,6 +87,9 @@ const row = (on, slot, extra = {}) => Object.freeze({ on, slot, ...extra });
  *  - `exposes`  a condition the creature's TARGET counts as having.
  *  - `ends`     `turn` (the creature's next initiative) or `combat` — when
  *               the tracker lifts it. The system lifts `surprised` itself.
+ *  - `given`    another combatant can give the creature the state: it then
+ *               ends at the giver's next initiative, not the creature's.
+ *  - `lost`     members of `LOSSES` that take the state away early.
  *  - `shields`  attack kinds that cannot be made against the creature.
  *  - `autoHit`  attack kinds that need no throw against it, from an attacker
  *               its size or larger.
@@ -93,6 +115,9 @@ export const CONDITIONS = Object.freeze({
     ],
   },
   burning: { label: "Burning", img: "icons/svg/fire.svg" },
+  // A spell declared before initiative (RR 291, 293). Declaring one ends what
+  // a Defend action gave (RR 294), which is the `unless` on those rows.
+  casting: { label: "Casting", img: "icons/svg/book.svg", ends: "turn", lost: HURT_OR_FAILED },
   charging: {
     label: "Charging", img: "icons/svg/thrust.svg", implies: ["disordered"], ends: "turn",
     mods: [row("attack", "attack", { scope: MELEE })],
@@ -106,14 +131,49 @@ export const CONDITIONS = Object.freeze({
   concentratingStationary: {
     label: "Concentrating and Stationary", img: "icons/svg/obelisk.svg",
   },
+  // A readied attack made against a charge (RR 295). It leaves its maker
+  // Disordered, whose own figure is the cost.
+  countercharging: {
+    label: "Countercharging", img: "icons/svg/jump.svg", implies: ["disordered"], ends: "turn",
+    mods: [row("attack", "attack")],
+  },
+  // Cover comes in two grades (RR 297, 303); the greater supersedes the lesser.
+  covered: {
+    label: "In Cover", img: "icons/svg/wall-direction.svg",
+    mods: [
+      row("attack", "against", { side: "against", scope: MISSILE_THROWN, unless: "coveredGreater" }),
+      row("save", "blast", { saves: BLAST, unless: "coveredGreater" }),
+    ],
+  },
+  coveredGreater: {
+    label: "In Greater Cover", img: "icons/svg/castle.svg",
+    mods: [row("attack", "against", { side: "against", scope: MISSILE_THROWN }), row("save", "blast", { saves: BLAST })],
+  },
   cowering: { label: "Cowering", img: "icons/svg/cowled.svg", implies: ["vulnerable"], forbids: ["act"] },
   deafened: {
     label: "Deafened", img: "icons/svg/deaf.svg",
     mods: [row("surprise", "surprise"), row("throw", "proficiency", { when: "voice" })],
   },
+  // The Defend action (RR 294), on whoever it protects: the defender, or the
+  // ally it stands beside. A shield adds to what the action gives.
+  defending: {
+    label: "Defending", img: "icons/svg/tower.svg", ends: "turn", given: true,
+    mods: [row("ac", "melee", { scope: MELEE, unless: "casting" })],
+  },
+  defendingShield: {
+    label: "Defending with a Shield", img: "icons/svg/ice-shield.svg", implies: ["defending"], ends: "turn", given: true,
+    mods: [
+      row("ac", "thrown", { scope: ["thrown"], unless: "casting" }),
+      row("ac", "missile", { scope: ["missile"], unless: "casting" }),
+      row("save", "blast", { saves: BLAST, unless: "casting" }),
+    ],
+  },
   dehydrated: {
     label: "Dehydrated", img: "icons/svg/sun.svg", forbids: ["forceMarch", "naturalHealing"],
   },
+  // Holding an initiative for later in the round (RR 292). The system's
+  // tracker sets and clears it.
+  delayed: { label: "Delayed", img: "icons/svg/stone-path.svg" },
   // `diseased` and `frostbitten` are marks the weather leaves (RR 277-279), not
   // Appendix B entries: they carry no figures and forbid nothing, and name a
   // body the Judge resolves from the book.
@@ -191,11 +251,16 @@ export const CONDITIONS = Object.freeze({
     label: "Queasy", img: "icons/svg/poison.svg",
     mods: [row("attack", "all"), row("throw", "all"), row("damage", "all")],
   },
+  // An action held for a trigger (RR 295): it lasts until the creature's own
+  // initiative comes round again.
+  readied: { label: "Readied", img: "icons/svg/lever.svg", ends: "turn", lost: LOSSES },
   resistant: { label: "Resistant", img: "icons/svg/mage-shield.svg" },
   restrained: {
     label: "Restrained", img: "icons/svg/padlock.svg", implies: ["vulnerable"], forbids: ["move"],
     mods: [row("attack", "perCause", { per: "extraCause" })],
   },
+  // The two defensive movements, declared before initiative (RR 291, 293-294).
+  retreating: { label: "Retreating", img: "icons/svg/door-exit.svg", implies: ["disordered"], ends: "turn" },
   shaken: {
     label: "Shaken", img: "icons/svg/lightning.svg",
     mods: [row("attack", "all"), row("ac", "all"), row("morale", "all"), row("save", "all", { when: "fear" })],
@@ -237,6 +302,7 @@ export const CONDITIONS = Object.freeze({
     mods: [row("attack", "perCause", { per: "extraCause" })],
   },
   winded: { label: "Winded", img: "icons/svg/walk.svg", forbids: ["run", "charge"] },
+  withdrawing: { label: "Withdrawing", img: "icons/svg/door-open-outline.svg", ends: "turn" },
   wrestled: {
     label: "Wrestled", img: "icons/svg/stoned.svg", implies: ["vulnerable"], forbids: ["attack", "cast", "move"],
   },
@@ -311,6 +377,7 @@ export const conditionsReady = () => Object.keys(conditionValues()).length > 0;
  * @property {Iterable<string>} statuses  status ids on the creature
  * @property {Record<string, number>} [counts]  causes per condition, where more than one
  * @property {Record<string, string[]>} [sources]  the origin uuid of each effect imposing a condition
+ * @property {Record<string, {statuses: Iterable<string>}>} [gifts]  for a state another combatant gave, that giver's statuses
  * @property {string} [id]  the creature's own uuid, matched against another's `sources`
  */
 
@@ -318,8 +385,28 @@ export const conditionsReady = () => Object.keys(conditionValues()).length > 0;
 export const STACKS_FLAG = "conditionStacks";
 
 /**
+ * Who gave `actor` the state an effect carries: the combatant that was acting
+ * when the effect was made, where that is another creature still in that
+ * fight. Null for a state the creature took up itself, one made outside a
+ * running fight, one made before that round's initiative was rolled (the
+ * tracker's current combatant is not acting then), and one whose giver has
+ * left the fight. Foundry records the acting combatant and its initiative on
+ * every effect an actor is given (`start`).
+ *
+ * @returns {{id: string, actor: object}|null} the giver's combatant
+ */
+export function giverOf(effect, actor) {
+  const start = effect?.start;
+  if (start?.initiative == null) return null;
+  const giver = start.combat?.combatants?.get?.(start.combatant) ?? null;
+  if (!giver?.actor || !actor) return null;
+  return giver.actor === actor || (giver.actor.uuid != null && giver.actor.uuid === actor.uuid) ? null : giver;
+}
+
+/**
  * An actor as a subject: its statuses, how many enabled effects carry each
- * condition, and where those effects came from. Null for no actor.
+ * condition, where those effects came from, and who gave it the states
+ * another can give. Null for no actor.
  *
  * @returns {ConditionSubject|null}
  */
@@ -327,16 +414,25 @@ export function subjectOf(actor) {
   if (!actor) return null;
   const counts = {};
   const sources = {};
+  const gifts = {};
+  const own = new Set(actor.statuses ?? []);
   for (const effect of actor.appliedEffects ?? actor.effects ?? []) {
     if (effect?.disabled) continue;
     const stacks = Math.max(1, Math.floor(numOrNull(effect.flags?.[MODULE_ID]?.[STACKS_FLAG]) ?? 1));
     for (const status of effect.statuses ?? []) {
-      if (!CONDITIONS[status]) continue;
+      const entry = CONDITIONS[status];
+      if (!entry) continue;
       counts[status] = (counts[status] ?? 0) + stacks;
       if (effect.origin) (sources[status] ??= []).push(String(effect.origin));
+      const giver = entry.given ? giverOf(effect, actor) : null;
+      if (!giver) continue;
+      const gift = { statuses: giver.actor.statuses ?? [] };
+      gifts[status] = gift;
+      // What a given state implies came with it, unless the creature has that in its own right.
+      for (const implied of entry.implies ?? []) if (CONDITIONS[implied]?.given && !own.has(implied)) gifts[implied] = gift;
     }
   }
-  return { statuses: actor.statuses ?? [], counts, sources, id: actor.uuid ?? null };
+  return { statuses: actor.statuses ?? [], counts, sources, gifts, id: actor.uuid ?? null };
 }
 
 const emptyMath = () => ({ total: 0, parts: [], pending: [], unpriced: [] });
@@ -369,19 +465,24 @@ function reaches(key, subject, opponent) {
  * @param {ConditionSubject} p.subject
  * @param {string} p.on  the roll
  * @param {"own"|"against"} p.side
- * @param {string} [p.kind]  the attack kind, for `scope`
+ * @param {string} [p.kind]  the attack kind, for `scope`; a scoped row waits on one
+ * @param {string} [p.save]  the saving throw, for `saves`; a row naming saves waits on one
  * @param {ConditionSubject} [p.opponent]  for `when: "source"`
  * @param {object} p.values  the registered rows
  * @param {object} p.out  `{parts, pending, unpriced}` appended to
  * @param {number} [p.sign]  -1 turns a figure on a creature's AC into one on its attacker's roll
  */
-function collect({ set, subject, on, side, kind, opponent, values, out, sign = 1 }) {
+function collect({ set, subject, on, side, kind, save, opponent, values, out, sign = 1 }) {
   for (const key of set) {
+    // A state another gave is superseded by what its giver does, not its bearer.
+    const gift = subject?.gifts?.[key];
+    const superseding = gift ? conditionSet(gift.statuses) : set;
     for (const mod of CONDITIONS[key].mods ?? []) {
       if (mod.on !== on) continue;
       if ((mod.side === "against") !== (side === "against")) continue;
-      if (mod.scope && kind && !mod.scope.includes(kind)) continue;
-      if (mod.unless && set.has(mod.unless)) continue;
+      if (mod.scope && !mod.scope.includes(kind)) continue;
+      if (mod.saves && !mod.saves.includes(save)) continue;
+      if (mod.unless && superseding.has(mod.unless)) continue;
       const figure = numOrNull(values?.[key]?.[mod.slot]);
       if (figure == null) {
         out.unpriced.push(key);
@@ -453,7 +554,7 @@ export function attackMath({ attacker, target = null, kind = "melee", attackerSi
   collect({ set: own, subject: attacker, on: "attack", side: "own", kind, opponent: target, values, out });
   if (target) {
     collect({ set: theirs, subject: target, on: "attack", side: "against", kind, opponent: attacker, values, out });
-    collect({ set: theirs, subject: target, on: "ac", side: "own", values, out, sign: -1 });
+    collect({ set: theirs, subject: target, on: "ac", side: "own", kind, values, out, sign: -1 });
   }
 
   const dmg = { parts: [], pending: [], unpriced: [] };
@@ -484,19 +585,21 @@ export function attackMath({ attacker, target = null, kind = "melee", attackerSi
  * What a creature's conditions add to one of its own rolls: `save`, `throw`
  * (proficiency and adventuring), `morale` or `surprise`. A positive total
  * helps the roll. Rows bound to a circumstance the roll does not state are
- * returned in `pending`, unapplied.
+ * returned in `pending`, unapplied. A row that reaches only some saving throws
+ * is read when `save` names one of them, and left out when no save is named.
  *
  * @param {"save"|"throw"|"morale"|"surprise"} on
  * @param {ConditionSubject} subject
  * @param {object} [values]
+ * @param {{save?: string}} [options]  `save`: which of `SAVE_KINDS` is rolled
  * @returns {{total: number, parts: Array<{condition: string, value: number}>,
  *   pending: Array<{condition: string, value: number, when: string}>,
  *   unpriced: string[], exempt: string[]}}
  */
-export function rollMath(on, subject, values = conditionValues()) {
+export function rollMath(on, subject, values = conditionValues(), { save } = {}) {
   const set = conditionSet(subject?.statuses);
   const out = emptyMath();
-  collect({ set, subject, on, side: "own", values, out });
+  collect({ set, subject, on, side: "own", save, values, out });
   return {
     total: total(out.parts),
     parts: out.parts.map(({ condition, value }) => ({ condition, value })),
@@ -508,11 +611,17 @@ export function rollMath(on, subject, values = conditionValues()) {
 
 /**
  * What a creature's conditions do to its own Armor Class, as a signed total.
- * A sheet's readout; an attack reads the same rows through `attackMath`.
+ * A sheet's readout; an attack reads the same rows through `attackMath`. With
+ * no `kind` it is the Armor Class against every attack, and a row that stands
+ * against only some kinds is left out.
+ *
+ * @param {ConditionSubject} subject
+ * @param {object} [values]
+ * @param {{kind?: "melee"|"missile"|"thrown"}} [options]
  */
-export function acMath(subject, values = conditionValues()) {
+export function acMath(subject, values = conditionValues(), { kind } = {}) {
   const out = emptyMath();
-  collect({ set: conditionSet(subject?.statuses), subject, on: "ac", side: "own", values, out });
+  collect({ set: conditionSet(subject?.statuses), subject, on: "ac", side: "own", kind, values, out });
   return { total: total(out.parts), parts: out.parts.map(({ condition, value }) => ({ condition, value })), unpriced: out.unpriced };
 }
 
@@ -537,4 +646,29 @@ export function speedMath(subject, values = conditionValues()) {
  */
 export function endingAt(statuses, moment) {
   return [...(statuses ?? [])].filter((s) => CONDITIONS[s]?.ends === moment);
+}
+
+/**
+ * Which of a combatant's conditions the tracker lifts as one turn begins: a
+ * state that ends with a turn ends at its bearer's, and one another combatant
+ * gave at the giver's.
+ *
+ * @param {Iterable<string>} statuses  the ids actually on the creature
+ * @param {object} p
+ * @param {string} p.self    the creature's own combatant id
+ * @param {string} p.acting  the combatant whose turn begins
+ * @param {Record<string, string>} [p.givers]  for a state another gave, the giver's combatant id
+ */
+export function endingAtTurn(statuses, { self, acting, givers = {} }) {
+  return endingAt(statuses, "turn").filter((s) => ((CONDITIONS[s].given && givers[s]) || self) === acting);
+}
+
+/**
+ * Which of a creature's states `cause` takes away.
+ *
+ * @param {Iterable<string>} statuses  the ids actually on the creature
+ * @param {"damage"|"save"|"moved"} cause  one of `LOSSES`
+ */
+export function lostTo(statuses, cause) {
+  return [...(statuses ?? [])].filter((s) => CONDITIONS[s]?.lost?.includes(cause));
 }

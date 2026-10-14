@@ -1772,11 +1772,12 @@ and `api.sweepTracked()`.
 
 ## Conditions on the palette and on a roll
 
-Covers `conditions.mjs`, `status-effects.mjs`, the attack roll's damage terms,
-damage factor and waived throw (`patches/attack-roll.mjs`), the surprise shim
-(`patches/surprise-card.mjs`), the `lib.statusIds` repair check, and the
-importer's `conditions` document. The morale page's condition rows are
-influence's own recipe.
+Covers `conditions.mjs`, `status-effects.mjs`, the palette's arrangement
+(`status-palette.mjs`) and its editor (`apps/status-palette-app.mjs`), the
+attack roll's damage terms, damage factor and waived throw
+(`patches/attack-roll.mjs`), the surprise shim (`patches/surprise-card.mjs`),
+the `lib.statusIds` repair check, and the importer's `conditions` document.
+The morale page's condition rows are influence's own recipe.
 
 **Drive notes:**
 - **Price the conditions in your own client, not in the world.**
@@ -1834,6 +1835,81 @@ influence's own recipe.
 - **Fire the import into a global** and poll it
   (`TEST_ENVIRONMENT.md`, chained waits):
   `cookbookImportTables(["conditions"])` reads one document in seconds.
+- **Roll a save under the system's own key.** Read the keys from
+  `CONFIG.Actor.dataModels.character.schema.fields.saves.fields`: the released
+  system rolls Blast as `breath`. A roll under a key the actor does not have
+  proves nothing about the throw it was meant to be.
+- **Start a fixture combat with `combat.update({round: 1, turn: 0})`.** The
+  system's `startCombat` opens the Surprise Matrix and leaves the round at 0,
+  and a `nextTurn` from round 0 begins round 1 on nobody's turn. Print
+  `combat.combatant?.name` beside every reading; a helper that names "the
+  other one" for a null combatant reports a turn that never began.
+- **The system posts a chat line at every new round**, and no fixture speaks
+  it. Wrap `CONFIG.ChatMessage.documentClass.create` in the walk's own client
+  to collect the uuid of everything that client asks Foundry to post, and
+  `api.track` those with the fixtures' own messages.
+- **A missile weapon with no ammunition** tells "Out of ammunition" and still
+  rolls; the hook still hands over the terms.
+- **A real mouse drag through DevTools** (`Input.dispatchMouseEvent` on a
+  second socket to the driver's page): pressed on the source, a dozen moves,
+  **two more moves over the drop point**, released. A move that changes the
+  element under the pointer fires `dragenter` only; the `dragover` that
+  accepts the drop needs a second move over the same element, and without it
+  no `drop` is ever sent. Read both ends' boxes after the last scroll, never
+  with a `scrollIntoView` between them. `Page.bringToFront` first.
+- **Keys and typed text.** With a tile focused, `Input.dispatchKeyEvent`
+  `rawKeyDown` then `keyUp` with `key`, `code` and `windowsVirtualKeyCode`;
+  text goes into the focused box with `Input.insertText`.
+- **The editor's dialogs** carry the class `acks-extras-palette-dialog`: find
+  the newest such application in `foundry.applications.instances`. Click the
+  control that opens one without awaiting the action, which resolves only
+  when the dialog is answered.
+- **The stored arrangement is a `Setting` document, and this run's fixture.**
+  `game.settings.storage.get("world").getSetting("acks-extras.statusPalette")`
+  is null until the first Save. Stop if it is not null before the walk: that
+  arrangement is someone's. `api.track` its uuid after the first Save. Reset
+  and Save before the sweep: deleting the document calls no change handler,
+  so a client still open keeps the arrangement it last heard.
+- **A reloaded page opens on the world's active scene, or on none.** Wait for
+  `game.ready`, read `CONFIG.statusEffects`, then view the fixture scene again
+  before binding a token HUD.
+- **An effect is dragged from the module's character sheet.** One with a
+  duration is a row under Timers, one without a row under Modifiers in force;
+  press on the row's name, clear of its controls. The system's own sheets
+  drag no effect row.
+- **Two clients on one GM seat both lift.** "ActiveEffect … does not exist"
+  at a turn change, once per lifted state, is a second client of the same
+  user lifting beside this one. Rerun alone before reading it as a fault.
+- **Create the fixture combat `active: true`.** `game.combat` is the tracker's
+  viewed combat only while the tracker is rendered; during a re-render it
+  falls back to the first active combat. An inactive fixture then reads as no
+  fight between two status toggles, and the second effect's `start` is all
+  null.
+- **Find a created token by its actor.** `createEmbeddedDocuments("Token", …)`
+  hands the documents back in no promised order, and a walk that indexes them
+  runs every step on the wrong creature without one error.
+- **The system clears initiative at each new round** (`game.settings.get(
+  "acks", "initiativePersistence")`, `reset` by default: read it, never set
+  it) and lists the unrolled with the hostile first. `combat.rollAll()`
+  refuses unless the system's own start ran; `combat.rollInitiative(ids)` is
+  the method its buttons reach, and it puts the tracker on the first
+  combatant 200 ms after its update lands. A direct
+  `updateEmbeddedDocuments("Combatant", [{_id, initiative}])` leaves the
+  tracker on whoever was current, at that one's new place.
+- **Rig the die through `CONFIG.Dice.randomUniform`**, restored in a
+  `finally`: `() => 0.025` throws a 20 on core 14 and `() => 0.975` a 1. Roll
+  once and read `roll.terms[0].total` before trusting either.
+- **A token dragged through DevTools.** Collapse the sidebar,
+  `canvas.animatePan({x, y, scale: 1, duration: 0})` to the token, read both
+  ends with `canvas.clientCoordinatesFromCanvas`, then: pressed, twenty moves
+  90 ms apart each carrying `buttons: 1`, released. Eight quick moves select
+  the token and move nothing. An arrow key sent to the same page moves
+  nothing in the driver's browser.
+- **The tracker's own control** is
+  `ui.combat.element.querySelector('[data-action="nextTurn"]')`, clickable by
+  the pointer once `ui.sidebar.changeTab("combat", "primary")` has shown it.
+- **A player's client sees a fight only on the scene it views.** Call
+  `scene.view()` from that seat before reading what a move there costs.
 
 **Fixtures (as GM, each id recorded with `api.create` or `api.track`):**
 - A scene, created with `active: false`, `ownership.default` OBSERVER, and
@@ -1845,6 +1921,12 @@ influence's own recipe.
   character's size, carrying a melee weapon, with a token on the scene.
 - The chat messages the rolls post: collect the ids of messages whose content
   or speaker names a fixture, and `api.track` them.
+- For steps 14 to 17: a third weapon on Hero that is both melee and missile
+  (a thrown one), the saves' stored targets set to one known number, an Active
+  Effect on Hero with a change and no duration, another with a duration, and
+  the stored arrangement (drive notes).
+- For steps 18 to 20: "Guard", a second linked `character` with a token, and
+  a combat of the three made `active: true` with an initiative on each.
 
 1. **The palette.** Read `CONFIG.statusEffects` and open the Hero token's HUD.
    **Observable:** an entry per catalogue condition plus `dead`, `invisible`
@@ -1935,11 +2017,123 @@ influence's own recipe.
     `system.thac0.bba` and `system.damage.mod` read as stored afterwards; a
     scaled damage roll and a waived throw are each told as something the
     system's roll cannot carry; a ruled-out attack warns and rolls.
+14. **The states of a round on a roll.** With the invented figures: attack a
+    Defending Hero as Goblin, and a Defending Goblin with Hero's missile
+    weapon; a Goblin Defending with a Shield with the missile weapon, the
+    thrown one and the melee one; a Defending and Casting Goblin; a Goblin In
+    Cover with the missile weapon and with the melee one, then In Cover and In
+    Greater Cover; attack as a Countercharging Hero, then attack that Hero,
+    and a Retreating one; attack as a Readied, Delayed, Withdrawing and
+    Casting Hero. Roll the Blast save and another as a Hero In Cover, In both
+    covers, Defending with a Shield, that and Casting, and In Cover and
+    Hungry. Open Hero's sheet and read the `[data-roll^='save']` cells.
+    **Observable:** a "Defending (target)" term in melee and none for the
+    missile; the shield's missile figure, its thrown figure, and Defending's
+    own in melee; no term for the caster; cover's term on the missile and none
+    in melee, and only the greater cover's when both are set; the
+    countercharge's own term, and a "Disordered (target)" term against it and
+    against the retreat; no term and no warning for the four that carry no
+    figure. The Blast target moves by cover's figure, by the greater alone, by
+    the shield's, and not at all for the caster; the other save moves only by
+    Hungry's; the stored target and `_source` read the same afterwards. The
+    sheet's Blast cell shows cover's figure where the other four show none.
+15. **The tracker and the round's states.** In a started combat (drive notes),
+    on Hero's own turn mark Hero with every state of step 14, and on the
+    Goblin's own turn mark its token Defending, Readied, In Cover and Delayed.
+    Advance over the round's end, roll the new round (`combat.rollInitiative`),
+    and advance to each turn.
+    **Observable:** as the round opens, before its roll, Delayed comes off
+    both (the system's doing) and nothing else comes off anyone. In the rolled
+    round each one's turn takes its Readied, Casting, both Defending states,
+    Countercharging, Retreating and Withdrawing, and cover is still on both.
+    No error is logged.
+16. **The palette editor.** Assert nothing is stored. Open **Arrange the
+    palette** from this module's settings and call
+    `acksExtras.lib.statusPalette.open()`. Drag a tile before another, a tile
+    onto *Off the palette* and back to a place, with the mouse. Focus a tile
+    and press Right, Left, Home, End, Delete, Enter. Type in the filter. Press
+    *Add all* on each group. Make a status with **New status** (a typed name,
+    a picked icon, no id); ask again with an id Foundry's generic list used,
+    one a condition has, a misshapen one, and no name, then Cancel; rename the
+    new status. Drag each effect from Hero's sheet onto a tile, the one with a
+    duration from its Timers row. Drop an Actor's drag data. Save.
+    Bind Hero's token HUD on the GM seat and on a Player seat that has not
+    reloaded. Toggle each new status on Hero, from both seats. Reload the GM
+    page. Take a condition off and Save. Move a tile and close: answer No,
+    then Yes. Shrink the window to a phone's width. Delete both statuses,
+    Reset, Save.
+    **Observable:** one window however it is opened, listing the catalogue and
+    the three states by name with Save disabled, and the tracker's two other
+    marks and Foundry's own statuses in groups under *Off the palette*. Each
+    drag and each key moves the one tile, the focus stays on it, and Save
+    comes alive. The filter leaves the matching tiles and keeps the caret.
+    *Add all* empties its group onto the end of the palette. The new status is
+    last on the palette with its icon and its Edit and Delete controls; each
+    refused id is said and asked again with what was typed; Cancel adds
+    nothing; the rename keeps the id. Each effect becomes a tile at the place
+    it was dropped, marked as carrying an effect, and the Actor is refused
+    with a notice. After Save the setting holds the tiles' order, every
+    `CONFIG.statusEffects` entry has its place as `order`, and both seats' HUD
+    lists the statuses in that order. A toggled status of the Judge's own
+    makes an effect with its name and icon, and the adopted ones carry the
+    dropped effect's `system.changes` and duration. The reloaded page builds
+    the same list before any scene is viewed. The condition taken off has
+    `hud: false`, is absent from the HUD, and is still set by
+    `toggleStatusEffect`. No keeps the window and its draft; Yes closes it and
+    stores nothing. The small window shows one column, scrolls, cuts no tile,
+    and keeps both footer buttons inside the frame. After Reset and Save the
+    setting holds no order, the list is the catalogue's again on both seats.
+17. **The Player seat and the palette.** From the Player seat, open the
+    module's settings, call `acksExtras.lib.statusPalette.open()`, and try
+    `game.settings.set("acks-extras", "statusPalette", …)`.
+    **Observable:** no *Arrange the palette* entry; the call returns null with
+    a warning that only a GM arranges the palette; Foundry refuses the write.
+18. **A defence given to an ally.** In a rolled round of the three, on Guard's
+    turn mark Hero Defending with a Shield and Readied. Read each effect's
+    `start`, `subjectOf(hero).gifts`, and the melee terms and the Blast figure
+    against Hero (`attackMath`, `rollMath`). Mark Hero Casting, then Guard
+    Casting, then lift Guard's. Press the tracker's Next Combatant to Hero's
+    turn, on through the round, and to Guard's next turn.
+    **Observable:** both effects' `start.combatant` is Guard's combatant;
+    `gifts` holds `defending` and `defendingShield` and not `readied`. The
+    defence's term and the shield's Blast figure stand while Hero casts, go
+    while Guard casts, and come back. Hero's turn takes its Readied and
+    Casting and leaves the shield; Guard's next turn takes the shield.
+19. **A round opens before it is rolled.** On each round's last turn mark all
+    three Readied, then advance. One round each: roll everyone at once; roll
+    one combatant at a time; roll two of the three and press Next Combatant;
+    roll nobody and press it. In the last two, mark the round's first
+    combatant Defending before pressing. In one opened round, move a Readied
+    token before anything is rolled.
+    **Observable:** as each round opens the tracker stands on a combatant with
+    no initiative, nobody loses anything, and the move costs nothing. Rolled
+    at once, only whoever comes out first loses Readied, and the others at
+    their turns. Rolled one at a time, the tracker goes to each first-so-far
+    and nobody loses anything until the last roll, then only the first. With
+    one unrolled, or none, pressing Next takes Readied from the combatant the
+    tracker left and leaves the Defending it took up that round, and takes
+    Readied from the one it lands on.
+20. **Lost before it ends.** Mark Hero Readied, Casting and In Cover and the
+    Goblin token Readied and In Cover. Heal Hero, then `hero.applyDamage(3,
+    1)`; damage the Goblin token's actor. Mark again and roll a save with the
+    die rigged to 20, then to 1. Mark again and, with Guard acting, drag
+    Hero's token and update the Goblin's position; on Hero's own turn move
+    Hero's. From the Player seat lower Hero's hit points, then move Hero's
+    token while Guard acts.
+    **Observable:** healing costs nothing. Damage takes Readied and Casting
+    from Hero and Readied from the token's own actor, whose world actor keeps
+    its hit points, leaves cover, and tells the client that dealt it who is no
+    longer what, and why. The made save costs nothing; the failed one costs
+    both and says so. A token moved while Guard acts loses Readied and keeps
+    Casting, by a drag (`movement.method` is `dragging`) and by an update;
+    moved on its own turn it keeps both. The Player's client lifts and is told
+    for the changes it makes, and the GM's client says nothing for them.
 
 **Teardown.** `unregisterTable("conditions", {priority: PRIORITY.OVERRIDE +
 1})` in every seat that registered, then `api.sweepTracked()`. The scene takes its tokens with it and
 a deleted combat sweeps as missing. The imported `conditions` document is
-world ruledata and stays, like every other imported table.
+world ruledata and stays, like every other imported table. The stored
+arrangement is swept with the rest, after step 16's Reset and Save.
 
 ## A deposit at a place the seat does not own
 

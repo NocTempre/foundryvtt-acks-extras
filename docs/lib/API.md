@@ -53,6 +53,7 @@ acksExtras.lib = {
   hp,                  // lib/hp.mjs — the group hit-point tool (below); 19
   worldTime,           // lib/world-time.mjs — the clock's reading (below); 22
   conditions,          // lib/conditions.mjs — the condition catalogue and its math (below); 23
+  statusPalette,       // lib/status-palette.mjs — the token palette as the Judge arranged it (below)
   // 24: currency — `money` and the stack half of `itemModel` (below)
   coinOrder,           // lib/coin-order.mjs — the coin-order controls a sheet draws (below); 25
   // 25: coin stores, a holder's order, a payment's reach — `money` (below)
@@ -617,21 +618,30 @@ parts and names the condition in `unpriced`.
 
 ```
 acksExtras.lib.conditions = {
-  CONDITIONS, CONDITION_IDS,    // the catalogue: id → {label, implies?, mods?, forbids?, ends?, …}
+  CONDITIONS, CONDITION_IDS,    // the catalogue: id → {label, implies?, mods?, forbids?, ends?, given?, lost?, …}
   CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_SLOTS,  // where the figures are read, and which each condition wants
-  ACTS, ATTACK_KINDS, STACKS_FLAG,
+  ACTS, ATTACK_KINDS, SAVE_KINDS, LOSSES, STACKS_FLAG,
   conditionSet(statuses),       // → Set of ids, closed under `implies`, in catalogue order
   conditionValues(),            // → the registered rows, {} when none
   conditionsReady(),            // → whether any row is registered
-  subjectOf(actor),             // → {statuses, counts, sources, id} | null
+  subjectOf(actor),             // → {statuses, counts, sources, gifts, id} | null
+  giverOf(effect, actor),       // → the combatant that gave `actor` the effect's state, or null for its own
   forbiddenBy(set, act),        // → the ids in a closed set that take `act` away
   attackMath({attacker, target?, kind, attackerSize?, targetSize?, values?}),
-  rollMath(on, subject, values?),   // on: "save" | "throw" | "morale" | "surprise"
-  acMath(subject, values?),     // → {total, parts, unpriced}
+  rollMath(on, subject, values?, {save}?),   // on: "save" | "throw" | "morale" | "surprise"; save: one of SAVE_KINDS
+  acMath(subject, values?, {kind}?),   // → {total, parts, unpriced}; kind: one of ATTACK_KINDS
   speedMath(subject, values?),  // → {factor, parts, unpriced}
   endingAt(statuses, moment),   // moment: "turn" | "combat" → the ids the tracker lifts
+  endingAtTurn(statuses, {self, acting, givers?}),  // → the ids ending as combatant `acting`'s turn begins
+  lostTo(statuses, cause),      // cause: one of LOSSES → the ids that cause takes away
 }
 ```
+
+`subjectOf(actor).gifts` maps a state another combatant gave the creature to
+`{statuses}`, that giver's statuses, which is where a row's `unless` is read
+for it. `endingAtTurn` takes the bearer's combatant id as `self` and, for
+each given state, its giver's combatant id in `givers`. `giverOf`,
+`endingAtTurn`, `lostTo`, `LOSSES` and `gifts` came with apiVersion 29.
 
 `attackMath` returns `{terms, damage, damageFactor, damageFactorBy, forbidden,
 shielded, autoHit, pending, unpriced}`. A term is `{condition, value, side}`
@@ -644,10 +654,33 @@ total helps the roll. `pending` holds the rows bound to a circumstance the
 roll does not state, as `{condition, value, when}`, unapplied; `exempt` names
 the conditions that take a creature out of morale.
 
-The palette, the roll wrappers and the two helpers a roll's owner calls
+A row narrowed to some saving throws is read only when `save` names one of
+them, and a row narrowed to some kinds of attack only when `kind` does: a call
+that passes neither gets the rows that reach every save, or stand against
+every attack.
+
+The roll wrappers and the two helpers a roll's owner calls
 (`withMoraleConditions`, `withSurpriseConditions`) are
 `scripts/lib/status-effects.mjs`, imported directly; `conditionNameKey(id)`
 there is the lang key of a condition's name.
+
+## `statusPalette` — the token palette as the Judge arranged it (apiVersion 29)
+
+The model is docs/lib/MODEL.md, "The palette is arranged by the Judge".
+
+```
+acksExtras.lib.statusPalette = {
+  read(),   // → every known status: {id, source, name, img, defaultOn, keep, data?, on, order, registered}
+  open(),   // → the editor window, or null for a seat that is not a GM
+}
+```
+
+`read` lists the statuses on the palette first, in palette order, then the
+rest. `source` is `condition`, `state`, `custom`, `system` or `foreign`;
+`order` is the place on the palette or null off it; `registered` is whether
+`CONFIG.statusEffects` holds the status. The arrangement itself is the world
+setting `acks-extras.statusPalette`; the Foundry-free model that reads and
+writes its shape is `scripts/lib/status-palette.mjs`, imported directly.
 
 ## Versioning
 

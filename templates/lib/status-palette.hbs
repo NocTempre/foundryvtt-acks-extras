@@ -1,0 +1,94 @@
+{{!-- The palette editor's body: the statuses on the palette, in order, over the
+      ones off it, grouped by where each comes from. The part root is the
+      scroller. A tile's own buttons stay out of the tab order: the keys the
+      intro names do the same from the tile, which is the tab stop. --}}
+<div class="acks-extras-palette-body">
+  <p class="acks-extras-palette-intro" id="{{@root.partId}}-keys">{{localize "ACKS-LIB.statusPalette.intro"}}</p>
+  <div class="acks-extras-palette-bar">
+    <label class="acks-extras-palette-filter">
+      <span>{{localize "ACKS-LIB.statusPalette.filter"}}</span>
+      <input type="search" data-filter value="{{filter}}" autocomplete="off">
+    </label>
+    <button type="button" data-action="newStatus">
+      <i class="fa-solid fa-plus" aria-hidden="true"></i>
+      {{localize "ACKS-LIB.statusPalette.newStatus"}}
+    </button>
+  </div>
+
+  <section class="acks-extras-palette-on" data-zone="on">
+    <h2>{{onLabel}}</h2>
+    {{#if on.length}}
+    <ol class="acks-extras-palette-tiles">
+      {{#each on as |s|}}
+      <li class="acks-extras-palette-tile" data-status="{{s.id}}" data-key="{{s.key}}" draggable="true" tabindex="0"
+          aria-label="{{s.aria}}" aria-describedby="{{@root.partId}}-keys" data-tooltip="{{s.name}} ({{s.sourceLabel}})">
+        <img src="{{s.img}}" alt="" draggable="false">
+        <span class="acks-extras-palette-name">{{s.name}}</span>
+        {{#if s.carries}}<i class="fa-solid fa-bolt acks-extras-palette-carries" aria-hidden="true"></i>{{/if}}
+        <span class="acks-extras-palette-acts">
+          <button type="button" tabindex="-1" data-action="moveEarlier" aria-label="{{localize 'ACKS-LIB.statusPalette.act.earlier' name=s.name}}">
+            <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+          </button>
+          <button type="button" tabindex="-1" data-action="moveLater" aria-label="{{localize 'ACKS-LIB.statusPalette.act.later' name=s.name}}">
+            <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+          </button>
+          {{#if s.custom}}
+          <button type="button" data-action="editStatus" aria-label="{{localize 'ACKS-LIB.statusPalette.act.edit' name=s.name}}">
+            <i class="fa-solid fa-pen" aria-hidden="true"></i>
+          </button>
+          <button type="button" data-action="deleteStatus" aria-label="{{localize 'ACKS-LIB.statusPalette.act.delete' name=s.name}}">
+            <i class="fa-solid fa-trash" aria-hidden="true"></i>
+          </button>
+          {{/if}}
+          <button type="button" tabindex="-1" data-action="takeOff" aria-label="{{localize 'ACKS-LIB.statusPalette.act.takeOff' name=s.name}}">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </span>
+      </li>
+      {{/each}}
+    </ol>
+    {{else}}
+    <p class="acks-extras-palette-empty">{{localize "ACKS-LIB.statusPalette.emptyOn"}}</p>
+    {{/if}}
+  </section>
+
+  <section class="acks-extras-palette-off" data-zone="off">
+    <h2>{{localize "ACKS-LIB.statusPalette.offLabel"}}</h2>
+    {{#each groups as |g|}}
+    <section class="acks-extras-palette-group">
+      <header>
+        <h3>{{g.label}}</h3>
+        <button type="button" data-action="addAll" data-source="{{g.source}}" aria-label="{{localize 'ACKS-LIB.statusPalette.act.addAllOf' source=g.label}}">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i>
+          {{localize "ACKS-LIB.statusPalette.addAll"}}
+        </button>
+      </header>
+      <ul class="acks-extras-palette-tiles">
+        {{#each g.entries as |s|}}
+        <li class="acks-extras-palette-tile" data-status="{{s.id}}" data-key="{{s.key}}" draggable="true" tabindex="0"
+            aria-label="{{s.aria}}" aria-describedby="{{@root.partId}}-keys" data-tooltip="{{s.name}} ({{s.sourceLabel}})">
+          <img src="{{s.img}}" alt="" draggable="false">
+          <span class="acks-extras-palette-name">{{s.name}}</span>
+          {{#if s.carries}}<i class="fa-solid fa-bolt acks-extras-palette-carries" aria-hidden="true"></i>{{/if}}
+          <span class="acks-extras-palette-acts">
+            {{#if s.custom}}
+            <button type="button" data-action="editStatus" aria-label="{{localize 'ACKS-LIB.statusPalette.act.edit' name=s.name}}">
+              <i class="fa-solid fa-pen" aria-hidden="true"></i>
+            </button>
+            <button type="button" data-action="deleteStatus" aria-label="{{localize 'ACKS-LIB.statusPalette.act.delete' name=s.name}}">
+              <i class="fa-solid fa-trash" aria-hidden="true"></i>
+            </button>
+            {{/if}}
+            <button type="button" tabindex="-1" data-action="putOn" aria-label="{{localize 'ACKS-LIB.statusPalette.act.putOn' name=s.name}}">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            </button>
+          </span>
+        </li>
+        {{/each}}
+      </ul>
+    </section>
+    {{else}}
+    <p class="acks-extras-palette-empty">{{localize "ACKS-LIB.statusPalette.emptyOff"}}</p>
+    {{/each}}
+  </section>
+</div>

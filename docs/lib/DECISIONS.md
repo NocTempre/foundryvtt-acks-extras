@@ -2597,6 +2597,10 @@ setting off.
 
 ### The token palette is the conditions, and a roll reads them when it is made (2026-10-01)
 
+*Superseded in part by "The palette takes the states of a round, and the Judge
+arranges it" (2026-10-10): the catalogue is wider than Appendix B, and the
+statuses that left the palette can be put back. The rest stands.*
+
 **Ruled.** `CONFIG.statusEffects` is replaced at `init` with the conditions of
 RR 507-515 (`conditions.mjs`), plus `dead`, `invisible` and Running, which the
 tracker, core's detection modes and the senses read by id. Status ids are the
@@ -2658,6 +2662,120 @@ throw exist only on the remodeled attack roll. Foundry's generic statuses that
 are not conditions (poison, bleeding, stun and the rest) leave the palette; an
 effect already carrying one keeps it and is listed by the repair tool only
 when the id maps to a condition.
+
+### The palette takes the states of a round, and the Judge arranges it (2026-10-10)
+
+**Asked.** The owner, of the palette above: the positive conditions are
+missing ("Readied, Casting, Defending, etc.", then "all positive effects,
+those were just examples"), and an editor should arrange the effects by drag
+and drop, "including readding in the foundry default list" and "adding other
+effects either core or custom". That request is what the entry above did not
+know; nothing in it was found wrong.
+
+**Ruled.**
+- Ten states of a round join the catalogue (RR 291-303): Readied, Delayed,
+  Casting, Defending, Defending with a Shield, Countercharging, In Cover, In
+  Greater Cover, Retreating, Withdrawing. They are entries like any condition
+  and nothing new stores a modifier. Their figures are imported by four more
+  recipe tables of the `conditions` document (RR 294-303).
+- A row can be narrowed: `scope` on an Armor Class row names the kinds of
+  attack it stands against, and `saves` the saving throws a save row reaches.
+  The narrowing is strict. A roll that states no kind or no save takes no
+  narrowed row, where a missing kind used to let a scoped row through.
+- Countercharging has no Armor Class figure of its own. The page gives its
+  cost as becoming Disordered (RR 295), so it brings that condition and
+  Disordered's own figure is the one applied.
+- The palette is arranged by the Judge, in one world setting that names ids.
+  With nothing arranged it is what the entry above shipped, listed by name.
+  Foundry's own statuses and the tracker's marks are offered off the palette
+  and are registered only while the Judge has them on it.
+- A status of the Judge's own may carry an Active Effect's changes and
+  duration. That is core's mechanism, used as core gives it, and the one
+  place a status stores a modifier; the catalogue's conditions still store
+  none, and no roll seam reads a status that is not in the catalogue.
+- The tracker still lifts what ends from this module's own hooks. Moving
+  conditions onto v14's durations and expiry registry waits until the owner
+  takes up that migration (ROADMAP, "Active Effects on Foundry v14's model").
+
+**Rejected.**
+- *Registering Foundry's statuses and hiding them.* A registered status can be
+  toggled by id from anywhere, so a world would carry statuses its Judge never
+  put on the palette. Off the palette they are as they have been since
+  2026-10-01: not registered.
+- *Offering Foundry's ids for a condition beside the condition.* `blind`,
+  `sleep` and the other earlier ids would give one condition two statuses, and
+  the repair check renames them on sight.
+- *A place on every status from the start.* Names are not localized at `init`,
+  and a palette in catalogue order files In Cover under C. Until the Judge
+  orders it the palette carries no places and core lists it by name.
+- *A write on every drag.* Each write redraws the HUD on every client, and a
+  draft could not be abandoned. The window writes once, on Save.
+- *An editor for changes inside the window.* Core's Active Effect sheet is
+  that editor. An effect made there and dropped on the window keeps its
+  changes.
+- *Running in the catalogue, bringing Disordered.* Its id is dotted, and a
+  catalogue key is also a lang key and an ability's condition choice.
+
+**Put to the owner, and ruled (2026-10-13).**
+- *Cover's bonus reaches every Blast save: it stands.* The page gives it
+  against some causes of a Blast save and not others (RR 303), and a save
+  does not state its cause. The alternative was a `when` on the row, held as
+  `pending` and added by hand. Strongest argument for that, rated MEDIUM: a
+  figure applied to a save it does not belong on is silent, where a pending
+  one is told to the roller. It is MEDIUM and not HIGH because In Cover is
+  toggled by hand for the attack it is taken against and lifted by hand, so
+  the saves it meets are mostly the ones it is for.
+- *A Defend action placed on an ally ends at its defender's turn.* Nothing
+  new records the defender: Foundry already writes the acting combatant on
+  every effect an actor is given, and a state marked while another combatant
+  acts is read as that combatant's. Rejected: a dialog asking who defends,
+  which is one more click on every Defend for an answer the tracker holds;
+  and a flag of this module's own, which is a second record of what `start`
+  says.
+- *Readied and Casting are lost to what the page loses them to* (RR 293-295):
+  damage and a failed saving throw for both, and a move not of its own making
+  for Readied alone. The page gives a declared spell no such clause, so the
+  ruling's "forced move" reaches Readied only. Nothing in a token's movement
+  says it was forced. Core's `displace` action reads like that signal and is
+  not one: no user can select it, and core uses it for a move undone, a
+  paste and a position typed into the token's sheet. The signal taken is a
+  token moved while another combatant acts. Strongest argument against, rated
+  MEDIUM-LOW: a Judge tidying tokens mid-round strips Readied from a creature
+  that neither moved nor was moved. It is low because the loss is told by
+  name and one click restores it, where a Readied that outlives a forced move
+  is silent.
+
+**What it cost.** The states are toggled by hand: the tracker's own Readied
+and Delayed marks are the same statuses, and nothing sets the others. A
+status of the Judge's own acts through core's Active Effects, so its changes
+are not named as terms on a roll card and its duration runs out by core's
+rules, not this module's. A status another package registers after `init` is
+on the palette until the Judge takes it off. A state is given by whoever the
+tracker says is acting, so a Defending marked late on its own bearer, during
+another's turn, is read as that other's and ends at the wrong turn. A fight
+whose combatants never all roll begins each round when the Judge moves the
+tracker on, and the states of that round's first combatant end one turn late.
+
+**Found walking it live.** The Blast rows never reached a save. The released
+system keys that throw `breath`, the rows named it `blast`, and the offline
+suite rolled under the rows' own name, so it was green throughout. The save
+seam now asks `saveKindOf` (`actor-compat.mjs`) what a system key rolls, the
+sheet's save cells are figured per save, and the suite rolls as the system
+does. An effect with a duration had no row to be dragged from: the character
+sheet's timer rows now drag as the effect.
+
+The turn lift fired a phase early in every round of the system's default
+initiative mode. The system clears initiative as a round opens, core fires a
+turn change for whoever a tie-break then puts first, and that combatant lost
+its Defending before anyone had rolled. With initiative rolled one combatant
+at a time the system puts the tracker on each first-so-far, and each of those
+lost theirs too. The offline suite fired a turn change with a combatant id
+and nothing else, so it had no round to open. The first live walk of the
+tracker saw the early lift and read it as that combatant's turn: with two
+combatants and nothing rolled, the tracker shows the same one first either
+way. A round now begins when it is rolled (MODEL, "A round begins when it is
+rolled"), the suite opens one and rolls it each way the tracker can, and the
+recipe rolls each round the way the system does.
 
 ### A window title takes no heading margin (2026-10-01)
 

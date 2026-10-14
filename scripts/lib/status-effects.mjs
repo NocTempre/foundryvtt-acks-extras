@@ -1,10 +1,12 @@
 /* global CONFIG, Hooks, game, ui, fromUuid */
 /**
  * Conditions on the table: the status effects a token can carry, and the
- * seams that put their math on a roll (RR 507-515, Appendix B).
+ * seams that put their math on a roll (RR 291-303, 507-515).
  *
  * The palette is the catalogue in `conditions.mjs` and three states the engine
- * needs beside it; Foundry's generic list is replaced, not extended. Nothing
+ * needs beside it, in the order and with the additions the Judge arranged
+ * (`status-palette.mjs`); Foundry's generic list is off it until the Judge
+ * puts a status back. Nothing
  * here stores a modifier on an effect. Each roll reads the roller's statuses
  * — and the target's, for an attack — at the moment it is made, so a condition
  * applies its math whoever created the effect that carries it, and a figure
@@ -18,14 +20,16 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { expectTables } from "./tables.mjs";
 import { isPrimaryGM, numOrNull } from "./util.mjs";
+import { saveKindOf } from "./actor-compat.mjs";
 import { getMonsterExtras } from "./senses.mjs";
 import { STATUS_HIDDEN, STATUS_RUNNING } from "./perception.mjs";
 import { fixEach, registerRepairCheck, worldActors } from "./repair.mjs";
 import { PRE_ATTACK_HOOK, wrapRollAttack } from "./patches/attack-roll.mjs";
 import {
   CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, STACKS_FLAG,
-  attackMath, rollMath, speedMath, subjectOf, endingAt,
+  attackMath, rollMath, speedMath, subjectOf, endingAt, endingAtTurn, giverOf, lostTo,
 } from "./conditions.mjs";
+import { isArranged, normalizePalette, resolvePalette } from "./status-palette.mjs";
 
 /** The system's own marker for a defeated combatant, kept as Foundry names it. */
 export const STATUS_DEAD = "dead";
@@ -67,18 +71,154 @@ const nameOf = (id) => game.i18n.localize(conditionNameKey(id));
 const signed = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n)}`;
 const sum = (parts) => parts.reduce((total, p) => total + p.value, 0);
 
+/* -------------------------------------------- */
+/*  The palette                                  */
+/* -------------------------------------------- */
+
+/** The world setting that holds the Judge's arrangement of the palette. */
+export const STATUS_PALETTE_SETTING = "statusPalette";
+
+/** What `CONFIG.statusEffects` held when this module took the palette, by id. */
+const foreignAtInit = new Map();
+/** What another package registered after that, by id. */
+const foreignSince = new Map();
+/** The ids this module last wrote to `CONFIG.statusEffects`. */
+const written = new Set();
+let paletteTaken = false;
+
+/** The stored arrangement; an empty one where the setting cannot be read. */
+function storedPalette() {
+  try {
+    return game.settings.get(MODULE_ID, STATUS_PALETTE_SETTING) ?? {};
+  } catch {
+    return {};
+  }
+}
+
 /**
- * Make the token palette the conditions and nothing else, point Foundry's
- * blindness at the Blinded condition, and declare the table the figures come
- * from. At `init`: a token drawn before this runs offers the generic list.
+ * Every status the palette can offer, with where it comes from and whether it
+ * is on the palette before the Judge arranges anything.
+ *
+ * The catalogue, the engine's states and the Judge's own statuses are always
+ * registered, because code toggles them by id; the system's tracker marks and
+ * the statuses Foundry and earlier packages offered are registered only while
+ * they are on the palette. A status another package registered after this
+ * module took the palette is on it by default and stays registered off it. A
+ * status the catalogue already stands for — the same id, or an earlier id for
+ * one of its conditions — is not offered a second time.
+ *
+ * @param {object} [setting]  the arrangement whose Judge-made statuses to include
+ * @returns {import("./status-palette.mjs").KnownStatus[]}
+ */
+export function knownStatuses(setting = storedPalette()) {
+  // Anything on the list that this module did not write arrived from outside.
+  for (const status of [...CONFIG.statusEffects]) {
+    if (status?.id && !written.has(status.id)) foreignSince.set(status.id, status);
+  }
+  const known = [];
+  const seen = new Set();
+  const offer = (entry) => {
+    if (!entry.id || seen.has(entry.id)) return;
+    seen.add(entry.id);
+    known.push(entry);
+  };
+  for (const [id, c] of Object.entries(CONDITIONS)) {
+    offer({ id, source: "condition", name: conditionNameKey(id), img: c.img, defaultOn: true, keep: true });
+  }
+  for (const state of STATES) offer({ ...state, source: "state", defaultOn: true, keep: true });
+  for (const c of normalizePalette(setting).custom) {
+    offer({ id: c.id, source: "custom", name: c.name, img: c.img, defaultOn: true, keep: true, data: c.effect });
+  }
+  const outside = (source, status, late) => {
+    if (!status?.id || Object.hasOwn(LEGACY_STATUS_IDS, status.id)) return;
+    const name = status.name ?? status.label ?? status.id;
+    offer({ id: status.id, source, name, img: status.img ?? status.icon, defaultOn: late, keep: late, data: status });
+  };
+  for (const status of CONFIG.ACKS?.statusEffects ?? []) {
+    outside("system", { id: status.id, name: status.name ?? status.label, img: status.img ?? status.icon }, false);
+  }
+  // The later registration first: a package that registers an id again means it.
+  for (const status of foreignSince.values()) outside("foreign", status, true);
+  for (const status of foreignAtInit.values()) outside("foreign", status, false);
+  return known;
+}
+
+/**
+ * Every id a new status cannot take: the known ones, and the earlier ids the
+ * catalogue's conditions answered to, which the repair check rewrites.
+ *
+ * @param {object} [setting]  the arrangement whose Judge-made statuses count as known
+ * @returns {Set<string>}
+ */
+export function takenStatusIds(setting = storedPalette()) {
+  return new Set([...knownStatuses(setting).map((status) => status.id), ...Object.keys(LEGACY_STATUS_IDS)]);
+}
+
+/**
+ * The palette as stored: every known status with whether it is on the
+ * palette, at which place, and whether it is registered.
+ *
+ * @returns {ReturnType<typeof resolvePalette>}
+ */
+export function readStatusPalette() {
+  const stored = storedPalette();
+  return resolvePalette(stored, knownStatuses(stored));
+}
+
+/**
+ * A palette entry as `CONFIG.statusEffects` holds it: kept off the HUD when
+ * off the palette, and carrying its place when the palette has an order. With
+ * no place the HUD lists by name.
+ */
+function statusConfig(entry, arranged) {
+  const { order: _order, ...data } = entry.data ?? {};
+  const config = { ...data, id: entry.id, name: entry.name, img: entry.img };
+  if (!entry.on) config.hud = false;
+  else if (arranged) config.order = entry.order;
+  return config;
+}
+
+/**
+ * Write the palette to `CONFIG.statusEffects`: every registered status, the
+ * ones on the palette carrying their place. Called again whenever the stored
+ * arrangement changes.
+ *
+ * @returns {ReturnType<typeof resolvePalette>} the palette written
+ */
+export function applyStatusPalette() {
+  const stored = storedPalette();
+  const arranged = isArranged(stored);
+  const palette = resolvePalette(stored, knownStatuses(stored));
+  const registered = palette.filter((entry) => entry.registered);
+  CONFIG.statusEffects.length = 0;
+  CONFIG.statusEffects.push(...registered.map((entry) => statusConfig(entry, arranged)));
+  written.clear();
+  for (const entry of registered) written.add(entry.id);
+  return palette;
+}
+
+/** The stored arrangement changed: rewrite the palette and redraw an open token HUD. */
+export function onStatusPaletteChange() {
+  applyStatusPalette();
+  const hud = globalThis.canvas?.tokens?.hud;
+  if (hud?.rendered) hud.render();
+}
+
+/**
+ * Take the token palette: remember what Foundry and earlier packages offered,
+ * write the conditions in the Judge's arrangement, point Foundry's blindness
+ * at the Blinded condition, and declare the table the figures come from. At
+ * `init`, after the arrangement's setting is registered: a token drawn before
+ * this runs offers the generic list.
  */
 export function registerStatusEffects() {
-  const palette = [
-    ...Object.entries(CONDITIONS).map(([id, c]) => ({ id, name: conditionNameKey(id), img: c.img })),
-    ...STATES,
-  ];
-  CONFIG.statusEffects.length = 0;
-  CONFIG.statusEffects.push(...palette);
+  if (!paletteTaken) {
+    paletteTaken = true;
+    for (const status of [...CONFIG.statusEffects]) if (status?.id) foreignAtInit.set(status.id, status);
+    // Emptied here so what was just remembered is not read back as arriving later.
+    CONFIG.statusEffects.length = 0;
+  }
+  applyStatusPalette();
   CONFIG.specialStatusEffects.BLIND = "blinded";
   expectTables(CONDITIONS_DOC, [CONDITIONS_TABLE]);
 }
@@ -284,11 +424,15 @@ function coreRollAttack(wrapped, attData, options = {}) {
 /*  The rolls core makes from stored fields      */
 /* -------------------------------------------- */
 
-/** One of the creature's own rolls, read and reported; null when nothing applies. */
-function ownRoll(actor, on) {
+/**
+ * One of the creature's own rolls, read and reported; null when nothing
+ * applies. `options.save` names the saving throw, for the rows that reach
+ * only some.
+ */
+function ownRoll(actor, on, options = {}) {
   const subject = subjectOf(actor);
   if (!subject?.statuses?.size) return null;
-  const math = rollMath(on, subject);
+  const math = rollMath(on, subject, undefined, options);
   reportPending(actor.name, math.pending);
   reportUnpriced(math.unpriced);
   reportApplied(actor.name, on, math.parts);
@@ -298,15 +442,25 @@ function ownRoll(actor, on) {
   return math;
 }
 
-/** A saving throw: a bonus lowers the number to roll. */
+/**
+ * A saving throw: a bonus lowers the number to roll. `save` is the system's
+ * key for the throw, which is not always the conditions' name for it. A throw
+ * that comes up under the number it was rolled against takes away the states
+ * a failed save costs.
+ */
 function onRollSave(wrapped, save, ...rest) {
   let math = null;
   try {
-    math = ownRoll(this, "save");
+    math = ownRoll(this, "save", { save: saveKindOf(save) });
   } catch (err) {
     console.error(`${MODULE_ID} | conditions could not read a saving throw; it rolls without them`, err);
   }
-  return withShift(this.system?.saves?.[save], "value", -(math?.total ?? 0), () => wrapped(save, ...rest));
+  const cell = this.system?.saves?.[save];
+  const shift = -(math?.total ?? 0);
+  const target = numOrNull(cell?.value) == null ? null : Number(cell.value) + shift;
+  const rolled = withShift(cell, "value", shift, () => wrapped(save, ...rest));
+  if (target != null && lostTo(this.statuses, "save").length) void loseOnFailedSave(this, rolled, target);
+  return rolled;
 }
 
 /**
@@ -416,16 +570,173 @@ export async function withSurpriseConditions(pools, run) {
 /*  The tracker lifting what it ends             */
 /* -------------------------------------------- */
 
-/** Take off an actor every condition that ends at `moment`. */
-async function liftEnding(actor, moment) {
-  if (!actor) return;
-  for (const id of endingAt(actor.statuses, moment)) {
+/** Take the statuses `ids` off an actor, one at a time. */
+async function lift(actor, ids) {
+  for (const id of ids) {
     try {
       await actor.toggleStatusEffect(id, { active: false });
     } catch (err) {
       console.error(`${MODULE_ID} | could not lift ${id} from ${actor.name}`, err);
     }
   }
+}
+
+/**
+ * For each state on `actor` that another combatant of `combat` gave it, that
+ * giver's combatant id.
+ */
+function giversIn(actor, combat) {
+  const givers = {};
+  for (const effect of actor.effects ?? []) {
+    if (effect?.disabled) continue;
+    for (const status of effect.statuses ?? []) {
+      if (!CONDITIONS[status]?.given) continue;
+      const giver = giverOf(effect, actor);
+      if (giver && combat.combatants.get(giver.id) === giver) givers[status] = giver.id;
+    }
+  }
+  return givers;
+}
+
+/** Whether no effect putting `status` on `actor` was made in round `round` of a fight or later. */
+function carriedInto(actor, status, round) {
+  return [...(actor.effects ?? [])].every((e) => e?.disabled || !e.statuses?.has(status) || !(e.start?.round >= round));
+}
+
+/**
+ * As a combatant's turn begins, take off every combatant what ends there: its
+ * own states that end with a turn, and the states it gave the others. With
+ * `before`, only what was carried into that round: the turn is already over,
+ * and what was taken up during it stands.
+ */
+async function liftAtTurn(combat, acting, { before = null } = {}) {
+  if (!acting) return;
+  const seen = new Set();
+  for (const combatant of combat.combatants) {
+    const actor = combatant.actor;
+    if (!actor) continue;
+    const ending = endingAtTurn(actor.statuses, { self: combatant.id, acting, givers: giversIn(actor, combat) });
+    const ids = before == null ? ending : ending.filter((id) => carriedInto(actor, id, before));
+    // One actor behind two combatants is lifted once.
+    await lift(actor, ids.filter((id) => !seen.has(`${actor.uuid}:${id}`)));
+    for (const id of ids) seen.add(`${actor.uuid}:${id}`);
+  }
+}
+
+/**
+ * Per fight, the round that opened before its initiative was rolled and has
+ * not begun. The system clears initiative as a round opens, and until it is
+ * rolled the tracker's current combatant is not acting: the tracker only
+ * follows the roll. Held by the lifting client; a reload in that window
+ * forgets it.
+ */
+const unrolled = new Map();
+
+/** Whether any combatant of `combat` is still without an initiative. */
+const awaitsRoll = (combat) => combat.combatants.some((c) => c.initiative == null);
+
+/**
+ * The tracker changed who is current. A round that opened unrolled begins when
+ * every combatant has rolled, or when the Judge moves the tracker on without
+ * that; in between, a change of the current combatant is the roll re-sorting
+ * the order and no turn.
+ */
+async function onTurnChange(combat, prior, current) {
+  const now = combat.combatants.get(current?.combatantId);
+  if (!now) return;
+  const opening = prior?.round !== current.round;
+  if (opening && now.initiative == null) {
+    unrolled.set(combat.id, current.round);
+    return;
+  }
+  let passed = null;
+  if (!opening && unrolled.get(combat.id) === current.round) {
+    const advanced = current.turn > prior.turn;
+    if (!advanced && awaitsRoll(combat)) return;
+    if (advanced) passed = prior.combatantId;
+  }
+  unrolled.delete(combat.id);
+  // Moved on by hand: the turn the tracker left has passed.
+  if (passed) await liftAtTurn(combat, passed, { before: current.round });
+  await liftAtTurn(combat, now.id);
+}
+
+/**
+ * An initiative was rolled in a round that opened unrolled. When the last one
+ * lands with the tracker already on the round's first combatant, no turn
+ * change follows, and that turn begins here.
+ */
+function onInitiativeRolled(combat) {
+  if (!unrolled.has(combat?.id)) return;
+  // The tracker re-sorts after the combatants' own update hooks.
+  setTimeout(() => {
+    if (unrolled.get(combat.id) !== combat.round || combat.turn !== 0 || awaitsRoll(combat)) return;
+    unrolled.delete(combat.id);
+    void liftAtTurn(combat, combat.combatant?.id);
+  }, 0);
+}
+
+/* -------------------------------------------- */
+/*  States lost before they end                  */
+/* -------------------------------------------- */
+
+/** The operation key under which a pre-update tells the update that hit points fell. */
+const HP_FELL = "hpFell";
+
+/**
+ * Take off an actor the states `cause` costs it, and say so. Run by the client
+ * that made the change, which is one client and holds the rights the change
+ * itself needed.
+ */
+async function loseTo(actor, cause) {
+  const ids = lostTo(actor?.statuses, cause);
+  if (!ids.length) return;
+  await lift(actor, ids);
+  ui.notifications?.info(loc("notice.lost", { name: actor.name, conditions: list(ids), cause: loc(`lost.${cause}`) }));
+}
+
+/** After a saving throw resolves: one that came up under its number costs what a failed save costs. */
+async function loseOnFailedSave(actor, rolled, target) {
+  try {
+    const roll = await rolled;
+    if (numOrNull(roll?.total) != null && roll.total < target) await loseTo(actor, "save");
+  } catch (err) {
+    console.error(`${MODULE_ID} | could not read a saving throw's result for ${actor?.name}`, err);
+  }
+}
+
+/**
+ * Before an actor's update: mark the operation when it lowers the hit points
+ * of a creature with a state damage costs. The earlier value exists only here.
+ */
+function notePriorHp(actor, changed, options) {
+  const next = numOrNull(changed?.system?.hp?.value ?? changed?.["system.hp.value"]);
+  const prior = numOrNull(actor?.system?.hp?.value);
+  if (next == null || prior == null || next >= prior || !lostTo(actor.statuses, "damage").length) return;
+  options[MODULE_ID] = { ...options[MODULE_ID], [HP_FELL]: true };
+}
+
+/** Listen for what takes a state away early: damage, and a token moved out of its turn. */
+function registerLosses() {
+  Hooks.on("preUpdateActor", notePriorHp);
+  // An unlinked token's actor is updated through its delta, which has its own pre-update.
+  Hooks.on("preUpdateActorDelta", (delta, changed, options) => notePriorHp(delta?.syntheticActor, changed, options));
+  Hooks.on("updateActor", (actor, _changed, options, userId) => {
+    if (userId !== game.user?.id || !options?.[MODULE_ID]?.[HP_FELL]) return;
+    void loseTo(actor, "damage");
+  });
+  // A token that moves while another combatant acts was moved, or spent what it held.
+  // Before a round's initiative is rolled nobody acts, and a move there costs nothing.
+  Hooks.on("moveToken", (token, movement, _operation, user) => {
+    if (!user?.isSelf || movement?.method === "undo") return;
+    const combat = game.combat;
+    if (!combat?.started || !token?.actor) return;
+    const acting = combat.combatant;
+    if (acting?.initiative == null) return;
+    const own = combat.combatants.find((c) => c.tokenId === token.id && c.sceneId === token.parent?.id);
+    if (!own || acting === own) return;
+    void loseTo(token.actor, "moved");
+  });
 }
 
 /* -------------------------------------------- */
@@ -513,14 +824,22 @@ export function installConditionRolls({ remodeledAttack = true } = {}) {
   wrapActorMethod("_calculateMovement", onCalculateMovement);
 
   // One client lifts, so two Judges at the table do not both delete an effect.
-  Hooks.on("combatTurnChange", (combat, _prior, current) => {
+  Hooks.on("combatTurnChange", (combat, prior, current) => {
     if (!isPrimaryGM()) return;
-    liftEnding(combat.combatants.get(current?.combatantId)?.actor, "turn");
+    void onTurnChange(combat, prior, current);
+  });
+  Hooks.on("updateCombatant", (combatant, changed) => {
+    if (!isPrimaryGM() || changed?.initiative == null) return;
+    onInitiativeRolled(combatant.combat);
   });
   Hooks.on("deleteCombat", (combat) => {
+    unrolled.delete(combat.id);
     if (!isPrimaryGM()) return;
-    for (const combatant of combat.combatants) liftEnding(combatant.actor, "combat");
+    for (const combatant of combat.combatants) {
+      if (combatant.actor) void lift(combatant.actor, endingAt(combatant.actor.statuses, "combat"));
+    }
   });
+  registerLosses();
 
   registerStatusIdCheck();
 }

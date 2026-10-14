@@ -112,14 +112,17 @@ token on an undrawn scene should carry in the meantime.
 open in two windows runs every primary-GM hook twice. Compare-before-write
 hooks shrug that off; a write racing a delete does not. T-0184's console error
 at load was one window's party-ownership write landing on an actor the other
-window had just deleted. The fix is electing one CLIENT. Core gives two windows
+window had just deleted. The conditions' turn lift (`status-effects.mjs`) is
+one more: the statuses come off once and the second window logs a missing
+effect for each. The fix is electing one CLIENT. Core gives two windows
 of one user no way to agree, so it needs a handshake of the module's own over
 its socket, and a live two-window run proving the loser stays quiet.
 
 ## What the conditions do not do yet
 
-The catalogue lists every condition of RR 507-515, and `status-effects.mjs`
-applies the rows a roll can see. The rest of each entry is not automated:
+The catalogue lists every condition of RR 507-515 and the states of a round
+(RR 291-303), and `status-effects.mjs` applies the rows a roll can see. The
+rest of each entry is not automated:
 
 - **Rows that wait on a circumstance.** A save against fear, a throw that
   needs sight or hearing, and a save against the source of a condition are
@@ -146,6 +149,64 @@ applies the rows a roll can see. The rest of each entry is not automated:
   is blinded only by the Blinded status itself.
 - **The Armor Class readout.** `acMath` exists for a sheet to show a
   conditioned AC; no sheet calls it.
+- **The states of a round are set by hand.** Nothing marks a combatant
+  Defending, Retreating or Withdrawing from a declaration, and the system's
+  declared spell (a combatant flag) is not read as Casting.
+- **A forced move is not told from a made one.** A token moved while another
+  combatant acts costs its Readied, whoever moved it and why. The arrow keys
+  and a move undone are covered by the suite and have not been driven in a
+  world.
+- **A state marked late is its marker's.** A Defending marked on its own
+  bearer during another combatant's turn is read as given by that combatant.
+  Nothing lets the Judge say otherwise short of marking it on the bearer's
+  turn.
+- **A round nobody finishes rolling** begins when the Judge moves the tracker
+  on, and its first combatant's states end one turn late. A reload of the
+  lifting client between a round's opening and its roll forgets that the
+  round had not begun.
+- **Running does not bring Disordered.** It is a state beside the catalogue
+  and carries nothing.
+- **Cover is one grade or the other, by hand.** Nothing reads it from the
+  scene, and a proficiency that discounts it is not applied.
+
+## Active Effects on Foundry v14's model
+
+Deferred by the owner on 2026-10-10 until the palette and its editor were in.
+Nothing here is built. The notes below were checked against the installed
+core's source (14.367) and are the record the work starts from; the claims
+marked *not run* were read, not exercised in a world.
+
+What the module does today, and what v14 offers in its place:
+
+- **Expiry.** `status-effects.mjs` lifts `ends: "turn"` and `ends: "combat"`
+  conditions from `combatTurnChange` and `deleteCombat`. v14 has a registry
+  (`ActiveEffect.registry.refresh(event, {combat, actors})`) and a
+  `duration.expiry` event per effect. Three things stand in the way of a
+  straight move: the default `CONFIG.ActiveEffect.expiryAction` is `"update"`,
+  which marks the effect `duration.expired` and leaves it on the actor, where
+  the HUD, `toggleStatusEffect` and the system's `hasEffect` still find it; a
+  turn event is anchored on `start.combatant`, the combatant acting when the
+  effect was made, not its bearer; and outside combat any advance of world
+  time expires an effect whose expiry is a combat event.
+- **Legacy shapes still written.** `duration: { rounds: 1 }` in the character
+  sheet's effect-create action; `effect.update({changes})` in
+  `classes/training.mjs` and `lib/actor-compat.mjs` (two each) and
+  `tools/pack-data/cleanup.mjs`. Core migrates each on the way in (*not
+  run*); `effect.changes` reads go through core's getter. `effect-scan.mjs`
+  already reads `system.changes` with string `type`s.
+- **A per-actor clock** cannot drive a finite duration as core ships it:
+  "duration reached" is computed from world time, so it needs an override of
+  the effect's duration preparation or its expiry test.
+
+Checked, for whoever takes it up: changes live at `system.changes`; `mode` is
+a string `type` (`custom`, `multiply`, `add`, `subtract`, `downgrade`,
+`upgrade`, `override`) with a numeric shim until v16; a change has a `phase`
+(`initial` or `final`, more by registration, and a phase nobody applies never
+applies); `duration` is `{value, units, expiry, expired}` beside a separate
+`start`; a change value's `@path` is substituted from roll data, and
+arithmetic on the result is *not confirmed*; a change key prefixed `token.`
+reaches the token document (there is no `tokenOverrides` field); core's
+effect sheet saves on submit only. No pack in this repo holds an effect.
 
 ## A window title cuts what rises above a capital
 

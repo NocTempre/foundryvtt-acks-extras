@@ -1,0 +1,13 @@
+{{!-- The palette editor's one write. A separate part so it stays pinned below
+      the scrolling body. --}}
+<footer class="form-footer acks-extras-palette-footer">
+  <span class="acks-extras-palette-state" aria-live="polite">{{stateLabel}}</span>
+  <button type="button" data-action="reset">
+    <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+    {{localize "ACKS-LIB.statusPalette.reset"}}
+  </button>
+  <button type="button" data-action="save" {{disabled clean}}>
+    <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+    {{localize "ACKS-LIB.statusPalette.save"}}
+  </button>
+</footer>

@@ -203,7 +203,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    `2m`, `5400s` to `2h`) and a bar in tone, the backdated one part-spent;
    the restrained one also lists under Riding on a save; each modifier line
    carries a glyph for its type (`+2`, `−1`, `=10`, `×2`, `≤12`); starring
-   one puts a chip on the folded bar; fate award and spend write.
+   one puts a chip on the folded bar; fate award and spend write. A timer
+   effect's row and a modifier's row each start a drag carrying the effect's
+   uuid (`{type: "ActiveEffect", uuid}`); a light's row starts none.
 10. Fold. *Observable:* the chevron narrows the window to the card — band,
     portrait, rails and the pin bar with the starred rolls and timers — and
     the user flag records it; unfold restores the tabs; the state survives a

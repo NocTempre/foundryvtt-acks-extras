@@ -10,7 +10,7 @@
           <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.effects.timersNote"}}</span>
         </div>
         {{#each ef.timers as |t|}}
-        <div class="acks-extras-character-sheet__timer{{#if t.disabled}} is-disabled{{/if}}" {{#if t.effectId}}data-effect-id="{{t.effectId}}"{{/if}}>
+        <div class="acks-extras-character-sheet__timer{{#if t.effectId}} draggable{{/if}}{{#if t.disabled}} is-disabled{{/if}}" {{#if t.effectId}}data-effect-id="{{t.effectId}}"{{/if}}>
           <div class="acks-extras-character-sheet__row is-bare">
             {{#if t.icon}}<span class="acks-extras-character-sheet__gear-img"><i class="{{t.icon}}" inert></i></span>{{else}}<img class="acks-extras-character-sheet__gear-img" src="{{t.img}}" alt="" inert>{{/if}}
             <span class="acks-extras-character-sheet__row-text"><span class="acks-extras-character-sheet__row-name">{{t.name}}</span><span class="acks-extras-character-sheet__row-line acks-nums">{{t.line}}</span></span>

@@ -1471,26 +1471,51 @@ counts tire nobody, and the clocks still run.
 
 ## Conditions
 
-The token palette is the conditions of RR 507-515 and nothing else
+The token palette opens on the conditions of RR 507-515 and the states a
+combatant declares or takes up in a round (RR 291-303)
 ([conditions.mjs](../../scripts/lib/conditions.mjs) is the catalogue and the
 math, [status-effects.mjs](../../scripts/lib/status-effects.mjs) the Foundry
-half). Foundry's generic list is replaced at `init`. Three entries beside the
-catalogue stay because something reads their id: `dead` (the tracker's
-defeated marker), `invisible` (core's detection modes) and Running (the
-senses). Two more, `diseased` and `frostbitten`, are the marks the weather
-leaves (the formation's toll card applies them): they carry no figures and
-forbid nothing, and name a body the Judge resolves from the book.
+half). Three entries beside the catalogue are there because something reads
+their id: `dead` (the tracker's defeated marker), `invisible` (core's
+detection modes) and Running (the senses). Two more, `diseased` and
+`frostbitten`, are the marks the weather leaves (the formation's toll card
+applies them): they carry no figures and forbid nothing, and name a body the
+Judge resolves from the book. What else the palette offers, and in what order,
+is the Judge's ("The palette is arranged by the Judge", below).
+
+**The states of a round.** Readied, Delayed, Casting, Defending (and Defending
+with a Shield, which brings Defending), Countercharging, In Cover (and In
+Greater Cover), Retreating and Withdrawing are catalogue entries like any
+condition, toggled from the palette. Four of them carry figures: a Defend
+action's are on the Armor Class of whoever it protects, by the kind of attack,
+and on its Blast saves; cover's are on what is shot or thrown at the creature
+behind it and on its Blast saves; a countercharge's is on its maker's throw.
+Countercharging and Retreating bring Disordered with them. A declared spell
+stands down what Defending gave, and the greater cover stands down the lesser.
+The ones a combatant declares or takes up for a round are lifted when its turn
+comes again; cover stands until taken off. A Defend action can be given:
+marked on an ally while its defender acts it is the defender's, and both the
+turn that lifts it and the spell that stands it down are the defender's
+("Whose state it is", below). `readied`, `delayed`, `surprised`
+and `slumbering` are also the ids the system's tracker writes, so a mark the
+tracker sets and one toggled from the palette are one status, and Delayed is
+the system's to lift: its tracker clears it from every combatant as a round
+begins.
 
 **The catalogue is structure; every size is imported.** An entry says what a
 condition carries with it (`implies`), what it takes away (`forbids`), what it
 makes the creature immune to (`shuts`), when the tracker lifts it (`ends`),
-and which rolls it reaches (`mods`). A `mods` row names a roll and a SLOT; the
+whether another combatant can give it (`given`), what takes it away before
+then (`lost`), and which rolls it reaches (`mods`). A `mods` row names a roll and a SLOT; the
 figure in that slot arrives in the registered `conditions` document's
 `modifiers` table, which the importer's `conditions-binding.mjs` assembles
 from the Judge's book. `CONDITION_SLOTS` is derived from the rows and is the
 contract between the two. A slot nothing registered contributes nothing and is
 reported once per session, so an unimported world toggles conditions and
-applies no figure.
+applies no figure. A row can be narrowed two ways: `scope` names the kinds of
+attack it reaches (on an Armor Class row, the kinds it stands against), and
+`saves` the saving throws. A roll that states no kind, or no save, takes no
+row narrowed that way.
 
 **Nothing is stored on the effect.** A roll reads the creature's statuses at
 the moment it is made and closes them under `implies` (`conditionSet`). Three
@@ -1527,7 +1552,7 @@ reaches everyone.
 |---|---|---|
 | Attack, remodeled roll | `PRE_ATTACK_HOOK` | Labelled terms on `ctx.terms`, target-side ones marked; damage rows on `ctx.damageTerms`, a scaled roll on `ctx.damageFactor`, a waived throw on `ctx.autoHit` |
 | Attack, core's roll | `wrapRollAttack` | `thac0.bba` and `damage.mod.<type>` shifted across core's read; told in a notification, since core's card names no term |
-| Saving throw | wrap of `rollSave` | `saves.<save>.value` shifted |
+| Saving throw | wrap of `rollSave` | `saves.<save>.value` shifted; the save rolled is passed to the math, for the rows that name theirs, under the conditions' name for it (`saveKindOf` in `actor-compat.mjs`: the released schema rolls Blast as `breath`) |
 | Adventuring throw | `withAdventuringConditions`, called by the throw's own wrapper (`patches/adventuring-roll.mjs`) | `adventuring.<key>` shifted |
 | Proficiency throw | `withModifiers` in abilities' `ability-rolls.mjs` | Folded into the target every surface shows |
 | Morale | `withMoraleConditions`, called by the morale roll's own wrapper (`patches/morale-roll.mjs`) | `details.morale` shifted |
@@ -1547,13 +1572,101 @@ against, and a creature that makes no morale roll are warned about; the roll
 is still made.
 
 **The tracker lifts what ends.** On `combatTurnChange` the combatant whose
-turn begins loses its `ends: "turn"` conditions, and `deleteCombat` lifts
-`ends: "combat"` from everyone in it. The primary GM's client does it.
-`surprised` is the system's to lift.
+turn begins loses its `ends: "turn"` conditions and the others lose the ones
+it gave them, and `deleteCombat` lifts `ends: "combat"` from everyone in it.
+The primary GM's client does it. `surprised` and `delayed` are the system's
+to lift.
+
+**A round begins when it is rolled.** The system clears every initiative as a
+round opens (its `initiativePersistence` setting, `reset` unless the Judge
+changed it), and core keeps the tracker on one combatant while a roll re-sorts
+the order. A round that opens on a combatant with no initiative has therefore
+not begun, and a change of the current combatant inside it is the roll and no
+turn. It begins when the last combatant has rolled, with the turn of whoever
+then stands at the head of the order. Where the Judge moves the tracker on
+before that, the round begins there: the turn the tracker left has passed, and
+that combatant loses what it carried into the round and keeps what it took up
+in it (`start.round` on the effect). The lifting client holds which rounds
+have opened and not begun (`unrolled`), in memory. A fight whose initiative is
+kept from round to round never opens one.
+
+**Whose state it is.** Foundry writes on every effect an actor is given who
+was acting when it was made (`start.combatant`, `start.initiative`). A `given`
+state made while another combatant of the same fight acts is that combatant's
+(`giverOf`): it is lifted at the giver's turn, and a row's `unless` is read on
+the giver's statuses (`subjectOf(actor).gifts`). Made with nobody acting —
+outside a fight, or before the round's initiative is rolled — it is its
+bearer's own.
+
+**Lost before it ends.** `lost` on an entry names what takes the state away
+early (`LOSSES`, RR 293-295). Each is caught on the client that made the
+change, which is one client and holds the rights the change needed, and that
+client is told what was lost and to what:
+
+- *Damage* is an actor update that lowers `system.hp.value`. The earlier value
+  exists only before the update, so the pre-update hook marks the operation
+  (`options["acks-extras"].hpFell`) and `updateActor` acts on the mark. An
+  unlinked token's actor is updated through its delta, whose pre-update is
+  `preUpdateActorDelta`.
+- *A failed saving throw* is read in the `rollSave` wrap: the roll core
+  resolves to, against the number it was rolled against with the shift in it.
+- *A move* is `moveToken` for a token whose combatant is not the one acting,
+  in a started fight whose acting combatant has an initiative. A move undone
+  is not one. The hook says neither who moved the token nor why, so a move
+  made out of turn and one forced on the creature are the same event.
 
 **Earlier ids.** An effect carrying one of Foundry's generic status ids, or
 this module's earlier Hiding id, is found by the repair tool's `lib.statusIds`
 check and renamed to the condition it stood for.
+
+**The palette is arranged by the Judge.** A status is *known* when something
+offers it, and each source has a default:
+
+| Source | What it is | By default | Off the palette |
+|---|---|---|---|
+| `condition` | the catalogue | on | registered, hidden from the HUD |
+| `state` | `dead`, `invisible`, Running | on | registered, hidden |
+| `custom` | a status the Judge made | on | registered, hidden |
+| `system` | a tracker mark the catalogue does not hold | off | not registered |
+| `foreign` | what `CONFIG.statusEffects` held when this module took it: Foundry's list and earlier packages' | off | not registered |
+| `foreign` | what another package registered afterwards | on | registered, hidden |
+
+A status that code toggles by id stays registered off the palette, so the
+toggle still finds it; the HUD is told to leave it out (`hud: false`). One of
+Foundry's ids that the catalogue already stands for (`blind`, `sleep` and the
+rest of the earlier ids) is not offered a second time.
+
+The arrangement is one world setting, `statusPalette`:
+`{layout, off, custom}`. `layout` is the ids on the palette in order, `off`
+the default statuses the Judge took off, `custom` the Judge's own
+(`{id, name, img, effect?}`). It names ids only, so a status that becomes
+known later takes its source's default and follows the arranged ones, and one
+that stops being known drops out with no write. With no `layout` the palette
+carries no places and the HUD lists it by name, as core does; once the Judge
+orders it every status on it carries its place as `order`.
+[status-palette.mjs](../../scripts/lib/status-palette.mjs) is that model,
+Foundry-free; `applyStatusPalette` in `status-effects.mjs` writes it to
+`CONFIG.statusEffects` at `init` and again on every client when the setting
+changes, redrawing an open token HUD.
+
+A status of the Judge's own is a name, an icon and an id (a letter, then
+letters, digits and hyphens; not a name an array already answers to, since
+core keys the list by id on an array). One made from a dropped Active Effect
+also keeps that effect's `system` (its changes), `duration`, `description` and
+`tint`, which core copies onto the effect a toggle creates. It has no row in
+the catalogue, so the roll seams above read nothing from it: what it does is
+what its changes do, applied by core.
+
+**The editor** (`apps/status-palette-app.mjs`, GM only) opens from the
+restricted settings menu **Token status palette** and from
+`acksExtras.lib.statusPalette.open()`. The palette's tiles are dragged into
+order, and onto or off the palette; the statuses off it are grouped by source,
+each group with an *Add all*. A focused tile takes the same moves from the
+keyboard. *New status* asks for a name, an icon and an id, and an Active
+Effect dropped on the window becomes a status at the place it was dropped.
+The draft lives on the window: nothing is written until *Save*, closing with
+unsaved changes asks first, and *Reset to default* returns every source to
+its default and the order to by-name while keeping the Judge's own statuses.
 
 ## The repair tool
 

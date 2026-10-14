@@ -288,7 +288,9 @@ control — except the training effect, whose control goes to the Stats tab,
 the one editor of what it holds); the
 resources — rations, oil, torches from the stacks on Equipment, fate points
 with spend and award, and a caster's pools — each with a star; and the
-modifiers in force with toggle, edit, delete and an add control.
+modifiers in force with toggle, edit, delete and an add control. An effect's
+timer row and a modifier's row drag as the effect (core's sheet drag, by the
+row's `data-effect-id`); a light's row does not.
 
 ## The fold and the pins
 

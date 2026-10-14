@@ -1,5 +1,56 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **The states of a round are on the token palette.** Readied, Delayed,
+  Casting, Defending, Defending with a Shield, Countercharging, In Cover, In
+  Greater Cover, Retreating and Withdrawing are statuses beside the conditions
+  (RR 291-303). An attack reads the target's state for the kind of attack it
+  is, cover and a shield reach the saving throws they bear on, and a
+  countercharge or a retreat leaves the creature Disordered. The tracker lifts
+  a state that ends with the creature's turn when that turn begins; cover
+  stays until it is taken off. The figures come with the rules tables: a world
+  that imported them before imports them again.
+- **The Judge arranges the token palette.** *Token status palette → Arrange
+  the palette*, in this module's settings, opens a window where a status is
+  dragged to its place, onto the palette or off it, or moved with the
+  keyboard. Foundry's own statuses and the combat tracker's marks can be put
+  back on. A status of your own is made from a name and an icon, and an Active
+  Effect dragged in from a character's Effects tab becomes a status that
+  carries its changes and duration. Nothing changes until Save, and every
+  seat's palette follows without a reload.
+- **A defence given to an ally is its defender's.** Mark an ally Defending
+  during its defender's turn: the tracker lifts it when the defender's turn
+  comes again, and the defender's declared spell is the one that stands it
+  down.
+- **Readied and Casting are lost to what costs them.** Damage and a failed
+  saving throw take both off, and a token moved while another combatant acts
+  is no longer Readied (RR 293-295). Whoever caused the loss is told.
+- **`lib.statusPalette`** (lib apiVersion 29) reads the palette as arranged
+  and opens the window. `rollMath` takes the save it is for and `acMath` the
+  kind of attack it stands against; a row narrowed to some saves or some
+  kinds is read only by a call that names one of them. `conditions` gains
+  `giverOf`, `endingAtTurn`, `lostTo` and `LOSSES`, and a subject carries the
+  states another combatant gave it as `gifts`.
+
+### Changed
+
+- **A timed effect is dragged from the Effects tab.** Its row under Timers
+  drags as the effect, as a row under Modifiers in force already did.
+- **A character's save cells show what reaches each save.** A condition that
+  bears on one saving throw colours that cell alone.
+
+### Fixed
+
+- **A condition that ends with a creature's turn stays until that turn.** The
+  system clears initiative as each round opens, and the combatant the tracker
+  then stood on lost such conditions before anyone had rolled; rolled one at
+  a time, so did each combatant who was first for a moment. A round now
+  begins once its initiative is rolled, or when the Judge moves the tracker
+  on.
+
 ## 11.1.0
 
 ### Fixed

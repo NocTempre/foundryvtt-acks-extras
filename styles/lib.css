@@ -1110,3 +1110,225 @@ body .sheet.acks.actor-v2 .encumbrance-label {
 .acks-extras-effect-pick input {
   margin: 0;
 }
+
+/* --- The palette editor: a scrolling body over a pinned footer ---
+   The body part is the scroller, so the re-render after each move keeps its
+   place; the footer never shrinks, so Save stays in reach. Tiles wrap, so a
+   narrow window comes down to one column of them before anything clips. */
+
+.acks-extras-palette.application .window-content {
+  padding: 0;
+}
+
+.acks-extras-palette .acks-extras-palette-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--acks-sp-3);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-palette .acks-extras-palette-footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2) var(--acks-sp-3);
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border-top: var(--acks-border-soft);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-palette .acks-extras-palette-state {
+  flex: 1 1 auto;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+/* Core pins a button's type size and stretches it, so the window's own
+   buttons re-take both and ride the knob with the text around them. */
+.acks-extras-palette .acks-extras-palette-bar button,
+.acks-extras-palette .acks-extras-palette-group > header button,
+.acks-extras-palette .acks-extras-palette-footer button {
+  flex: 0 0 auto;
+  width: auto;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-palette .acks-extras-palette-intro,
+.acks-extras-palette .acks-extras-palette-empty,
+.acks-extras-palette-dialog .acks-extras-palette-note {
+  margin: 0 0 var(--acks-sp-2);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-palette .acks-extras-palette-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  margin-bottom: var(--acks-sp-3);
+}
+
+.acks-extras-palette .acks-extras-palette-filter {
+  flex: 1 1 12em;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-palette .acks-extras-palette-filter input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--acks-fs-body);
+}
+
+/* The two places a tile can be dropped: on the palette, and off it. */
+.acks-extras-palette .acks-extras-palette-on,
+.acks-extras-palette .acks-extras-palette-off {
+  margin-bottom: var(--acks-sp-3);
+  padding: var(--acks-sp-2);
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+}
+
+.acks-extras-palette .acks-extras-palette-body h2 {
+  margin: 0 0 var(--acks-sp-2);
+  font-size: var(--acks-fs-h2);
+}
+
+.acks-extras-palette .acks-extras-palette-group > header {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  margin: var(--acks-sp-3) 0 var(--acks-sp-1);
+}
+
+.acks-extras-palette .acks-extras-palette-group > header h3 {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--acks-fs-h3);
+}
+
+/* The track's floor is the lesser of its own width and the window's, so the
+   grid never asks for more than the window has. */
+.acks-extras-palette .acks-extras-palette-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13em), 1fr));
+  gap: var(--acks-sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acks-extras-palette .acks-extras-palette-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-1);
+  min-width: 0;
+  margin: 0;
+  padding: var(--acks-sp-1);
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+  background: var(--acks-field);
+  cursor: grab;
+}
+
+/* The filter hides a tile with the attribute, which a display of its own outranks. */
+.acks-extras-palette .acks-extras-palette-tile[hidden] {
+  display: none;
+}
+
+.acks-extras-palette .acks-extras-palette-tile:focus-visible {
+  outline: 2px solid var(--acks-focus-color);
+  outline-offset: 1px;
+}
+
+/* Foundry's status icons are drawn in white, so each sits on a surface that
+   carries white in either theme. */
+.acks-extras-palette .acks-extras-palette-tile img {
+  flex: 0 0 auto;
+  width: 1.7em;
+  height: 1.7em;
+  padding: 0.15em;
+  border: 0;
+  border-radius: var(--acks-radius);
+  background: var(--acks-burgundy);
+  object-fit: contain;
+}
+
+.acks-extras-palette .acks-extras-palette-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acks-extras-palette .acks-extras-palette-carries {
+  flex: 0 0 auto;
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-palette .acks-extras-palette-acts {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 1px;
+}
+
+.acks-extras-palette .acks-extras-palette-acts button {
+  all: unset;
+  padding: 0 0.3em;
+  border-radius: var(--acks-radius);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  cursor: pointer;
+}
+
+.acks-extras-palette .acks-extras-palette-acts button:hover,
+.acks-extras-palette .acks-extras-palette-acts button:focus-visible {
+  color: var(--acks-ink);
+  background: var(--acks-tint);
+}
+
+.acks-extras-palette .acks-extras-palette-acts button:focus-visible {
+  outline: 2px solid var(--acks-focus-color);
+}
+
+/* Where a dragged tile lands: before the marked tile, at the end of the
+   palette, or off it. */
+.acks-extras-palette .acks-extras-palette-before {
+  box-shadow: -3px 0 0 0 var(--acks-spot);
+}
+
+.acks-extras-palette .acks-extras-palette-end,
+.acks-extras-palette .acks-extras-palette-drop {
+  border-color: var(--acks-spot);
+  background: var(--acks-tint);
+}
+
+/* A status of the Judge's own, asked for in a dialog: one field to a row. */
+.acks-extras-palette-dialog .acks-extras-palette-edit label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  margin-bottom: var(--acks-sp-2);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-palette-dialog .acks-extras-palette-edit label > span {
+  flex: 0 0 6em;
+}
+
+.acks-extras-palette-dialog .acks-extras-palette-edit label > input,
+.acks-extras-palette-dialog .acks-extras-palette-edit label > file-picker {
+  flex: 1 1 12em;
+  min-width: 0;
+  font-size: var(--acks-fs-body);
+}

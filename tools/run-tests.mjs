@@ -99,6 +99,7 @@ const COMMITTED = [
   "test-fatigue.mjs",
   "test-rest.mjs",
   "test-conditions.mjs",
+  "test-status-palette.mjs",
   "test-adventuring-roll.mjs",
   "test-provisions.mjs",
   "test-foraging.mjs",

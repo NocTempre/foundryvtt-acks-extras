@@ -3,7 +3,7 @@
  * `lib/conditions.mjs` reads.
  *
  * Every sentence and every figure below is INVENTED — nothing here is the
- * book's wording or the book's numbers (RR 507-515). What this pins is the
+ * book's wording or the book's numbers (RR 294-303, 507-515). What this pins is the
  * reading: a mark before a number decides its sign, a number with no mark takes
  * its direction from the window's own wording and is dropped when the window
  * gives none, shares become fractions strictly inside (0, 1), the one printed
@@ -131,12 +131,17 @@ const signs = rows({
   [rawKey("flanked", "against")]: "gain a +8 bonus",
   [rawKey("hidden", "against")]: "-5 penalty",
   [rawKey("restrained", "perCause")]: "-3 penalty for each",
+  [rawKey("defending", "melee")]: ", whoever it shelters gains a +6 ac against",
+  [rawKey("covered", "blast")]: " +7. if the",
+  [rawKey("coveredGreater", "against")]: " -9 if the",
 });
 eq("an AC reduced by a figure is that figure negated", signs.disordered.ac, -6);
 eq("a penalty to AC is signed as written", signs.berserk.ac, -2);
 eq("a bonus to attackers is positive", signs.flanked.against, 8);
 eq("a penalty on attackers is negative", signs.hidden.against, -5);
 eq("a per-cause penalty is negative", signs.restrained.perCause, -3);
+eq("a bonus to AC against one kind of attack is positive", signs.defending.melee, 6);
+eq("a marked figure with no wording of its own keeps its mark", [signs.covered.blast, signs.coveredGreater.against], [7, -9]);
 
 /* ----------------------- the recipes and the map ----------------------- */
 

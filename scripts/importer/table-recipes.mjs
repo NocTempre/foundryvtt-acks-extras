@@ -990,10 +990,62 @@ export const TABLE_RECIPES = {
   // (the appendix runs in two), named for the first entry it holds. Keys are
   // `<condition><Slot>` — the slot names are `CONDITION_SLOTS` in
   // lib/conditions.mjs — and `blessed` serves `inspired`, which shares its
-  // heading.
+  // heading. The four tables that lead the list read the combat chapter
+  // instead (RR 294-303): what a Defend action, a countercharge and cover give
+  // is printed where each is described, in the same one-figure-per-clause way.
   conditions: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 507-515" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 294-303, 507-515" },
     tables: {
+      defendProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 294,
+        locate: "Defend:",
+        column: { xMin: 300, xMax: 592 },
+        // One sentence states all four, so each window opens on the clause
+        // that leads into its own figure and stops before the next.
+        values: [
+          { key: "defendingMelee", find: "does not have a shield", take: "window", span: 50 },
+          { key: "defendingShieldMissile", find: "combatant has a shield", take: "window", span: 50 },
+          { key: "defendingShieldThrown", find: "other than thrown weapons", take: "window", span: 20 },
+          { key: "defendingShieldBlast", find: "thrown missile attacks", take: "window", span: 30 },
+        ],
+      },
+      counterchargeProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 295,
+        locate: "Countercharge:",
+        column: { xMin: 40, xMax: 300 },
+        values: [
+          { key: "counterchargingAttack", find: "if so, the combatant gains a", take: "window", span: 30 },
+        ],
+      },
+      coverMissileProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 297,
+        locate: "targets in cover",
+        column: { xMin: 40, xMax: 300 },
+        // The second figure has no lead-in of its own: it follows the example
+        // that closes the first.
+        values: [
+          { key: "coveredAgainst", find: "targets in cover suffer a", take: "window", span: 20 },
+          { key: "coveredGreaterAgainst", find: "a hedge) and", take: "window", span: 12 },
+        ],
+      },
+      coverBlastProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 303,
+        locate: "Saving Throw Adjustments from Cover",
+        column: { xMin: 40, xMax: 300 },
+        // The same lead-in twice: the lesser cover's figure, then the greater's.
+        values: [
+          { key: "coveredBlast", find: "the bonus is", take: "window", span: 10 },
+          { key: "coveredGreaterBlast", find: "the bonus is", occurrence: 2, take: "window", span: 10 },
+        ],
+      },
       berserkProse: {
         shape: "proseValues",
         book: "rr",

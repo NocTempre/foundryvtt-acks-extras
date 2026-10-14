@@ -228,9 +228,11 @@ star on any row keeps it on the folded card.
 
 ## Conditions
 
-The status palette on a token is the ACKS II conditions (RR Appendix B), in
-place of Foundry's generic list. Click one to put it on the creature and again
-to take it off; rest the pointer on an icon for its name.
+The status palette on a token is the ACKS II conditions (RR Appendix B) and
+the states a combatant declares or takes up in a round (RR 291-303: Readied,
+Delayed, Casting, Defending, Countercharging, In Cover, Retreating,
+Withdrawing), in place of Foundry's generic list. Click one to put it on the
+creature and again to take it off; rest the pointer on an icon for its name.
 
 ![](../releases/v10.0.0/lib-conditions.png)
 
@@ -251,3 +253,31 @@ a condition can be set and lifted, nothing is applied, and you are told so.
 
 The combat tracker lifts a condition that ends with the creature's turn when
 that turn begins, and one that ends with the fight when the combat is deleted.
+A round begins once its initiative is rolled: while the tracker waits on the
+roll, nothing is lifted. If you play a round without rolling, it begins when
+you move the tracker on.
+
+Mark an ally Defending during its defender's turn and the state is the
+defender's: it is lifted when the defender's turn comes again, and it is the
+defender's declared spell that stands it down. Readied and Casting are also
+taken off by damage and by a failed saving throw, and Readied when the
+creature's token moves while another combatant acts (RR 293-295). Whoever
+caused the loss is told, and one click on the palette puts the state back.
+
+### Arranging the palette
+
+The Judge decides what the palette offers and in what order. In this module's
+settings, **Token status palette → Arrange the palette** opens a window with
+the statuses on the palette above the ones off it. Drag a tile to move it, or
+onto or off the palette; with a tile focused, the arrow keys, Home, End,
+Delete and Enter do the same. Foundry's own statuses and the combat tracker's
+marks wait under *Off the palette*, each group with an *Add all*.
+
+**New status** makes one of your own from a name and an icon. An Active Effect
+dragged onto the window from a character's Effects tab, by its row under
+Timers or Modifiers in force, becomes a status that carries that effect's changes
+and duration; it acts through Foundry's own effects, and the conditions'
+figures are not read for it.
+
+Nothing changes until **Save**. **Reset to default** returns to the list above,
+by name, and keeps the statuses you made.

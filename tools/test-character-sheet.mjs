@@ -279,6 +279,19 @@ test("a disabled effect, a custom change, a non-number or another field counts f
   assert.deepEqual(mods, { paralysis: 0, death: 0, blast: 0, implements: 0, spell: 0 });
   assert.deepEqual(saveModifiers({ appliedEffects: [{ disabled: false, changes: [change("system.save.mod", "add", 1)] }] }).death, 1, "no source at all reads from zero");
 });
+const conditionTables = await import("../scripts/lib/tables.mjs");
+test("a condition joins every save it reaches, and one that reaches a single save colours that cell alone", () => {
+  const { registerTable, unregisterTable, PRIORITY } = conditionTables;
+  // Invented figures.
+  const modifiers = { covered: { against: -3, blast: 3 }, hungry: { all: -2 } };
+  registerTable({ id: "conditions", source: "invented", tables: { modifiers } }, { priority: PRIORITY.WORLD, source: "test" });
+  try {
+    const actor = { ...withEffects(), uuid: "Actor.covered", statuses: new Set(["covered", "hungry"]) };
+    assert.deepEqual(saveModifiers(actor), { paralysis: -2, death: -2, blast: 1, implements: -2, spell: -2 });
+  } finally {
+    unregisterTable("conditions", { priority: PRIORITY.WORLD });
+  }
+});
 
 console.log("character sheet: the clock");
 // A fixture effect as Foundry 14 hands it over: the source duration in

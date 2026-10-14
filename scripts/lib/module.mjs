@@ -89,7 +89,10 @@ import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
 import { registerPerceptionModes } from "./perception.mjs";
 import * as conditions from "./conditions.mjs";
-import { installConditionRolls, registerStatusEffects } from "./status-effects.mjs";
+import {
+  STATUS_PALETTE_SETTING, installConditionRolls, onStatusPaletteChange, readStatusPalette, registerStatusEffects,
+} from "./status-effects.mjs";
+import { StatusPaletteMenu, openStatusPalette, refreshStatusPalette } from "./apps/status-palette-app.mjs";
 import {
   SETTING_MANAGE_VISION,
   migrateWorldVision,
@@ -136,7 +139,11 @@ const localImpl = Object.freeze({
   // card.
   // 28: mount — `ride`; storage — a deposit or a retrieval relayed where the
   // seat cannot write the place.
-  apiVersion: 28,
+  // 29: statusPalette — the token palette as arranged; conditions —
+  // `SAVE_KINDS`, the save a `rollMath` is for and the kind of attack an
+  // `acMath` stands against; `giverOf`, `endingAtTurn`, `lostTo`, `LOSSES`
+  // and a subject's `gifts`.
+  apiVersion: 29,
   vocab,
   fields,
   /**
@@ -363,6 +370,12 @@ const localImpl = Object.freeze({
    */
   conditions,
   /**
+   * The token palette as the Judge arranged it (status-palette.mjs): `read`
+   * lists every status the palette can offer with whether it is on it and
+   * where, and `open` shows the window that arranges it. `open` is GM only.
+   */
+  statusPalette: { read: readStatusPalette, open: openStatusPalette },
+  /**
    * Weapon damage typing (damage-type.mjs): resolves a type LIVE through
    * acks-equipment's classifier — no annotate step, no second copy of the weapon
    * table — plus per-type icons and the equipped-weapon attack option list.
@@ -419,8 +432,28 @@ Hooks.once("init", () => {
   // basic.
   registerPerceptionModes();
 
-  // The token palette: the conditions, in place of Foundry's generic list.
+  // The token palette: the conditions, in the order and with the additions the
+  // Judge arranged. The arrangement is registered first because the palette is
+  // written from it, and at init because a token's HUD reads the palette.
+  game.settings.register(MODULE_ID, STATUS_PALETTE_SETTING, {
+    scope: "world",
+    config: false,
+    type: Object,
+    default: {},
+    onChange: () => {
+      onStatusPaletteChange();
+      refreshStatusPalette();
+    },
+  });
   registerStatusEffects();
+  game.settings.registerMenu(MODULE_ID, "statusPaletteEditor", {
+    name: `${LANG_PREFIX}.statusPalette.menuName`,
+    label: `${LANG_PREFIX}.statusPalette.menuLabel`,
+    hint: `${LANG_PREFIX}.statusPalette.menuHint`,
+    icon: "fa-solid fa-table-cells",
+    type: StatusPaletteMenu,
+    restricted: true,
+  });
 
   // Warm the Follower Card template so the hirelings-tab grid (rendered by
   // acks-henchmen, cross-module) has no fetch miss on first paint — and the
