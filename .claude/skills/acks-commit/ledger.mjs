@@ -205,9 +205,9 @@ function headReader(gitDir, file) {
  * @param {string} working The file's content now.
  * @param {Map<string, object[]>} [records] `readRecords(gitDir)`, where the
  *   caller already holds it.
- * @returns {null | {lines: string[], owners: string[], removed: {text: string, by: string, owner: string, born: number, gone: number, bornAt: string|null, goneAt: string|null}[][], sessions: Map<string, number>, origin: string|null, inHead: (commit: string|null, text: string) => boolean|null}}
- *   null when no record names the file. `owners[i]` wrote `lines[i]`.
- *   `removed[i]` lists, in order, the lines taken out just ahead of line i,
+ * @returns {null | {lines: string[], owners: string[], born: number[], removed: {text: string, by: string, owner: string, born: number, gone: number, bornAt: string|null, goneAt: string|null}[][], sessions: Map<string, number>, origin: string|null, inHead: (commit: string|null, text: string) => boolean|null}}
+ *   null when no record names the file. `owners[i]` wrote `lines[i]`, in
+ *   step `born[i]` of the replay. `removed[i]` lists, in order, the lines taken out just ahead of line i,
  *   each with who removed it and who had written it, the steps of the replay
  *   that wrote and removed it (0 for a line the replay began with), and the
  *   commits HEAD was at in those steps (null where the step's record named
@@ -248,6 +248,7 @@ export function blame(gitDir, file, working, records = readRecords(gitDir)) {
 
   const lines = [];
   const owners = [];
+  const born = [];
   const removed = [[]];
   for (const e of entries) {
     if (e.by !== undefined) {
@@ -255,10 +256,11 @@ export function blame(gitDir, file, working, records = readRecords(gitDir)) {
     } else {
       lines.push(e.text);
       owners.push(e.owner);
+      born.push(e.born);
       removed.push([]);
     }
   }
-  return { lines, owners, removed, sessions, origin, inHead: headReader(gitDir, file) };
+  return { lines, owners, born, removed, sessions, origin, inHead: headReader(gitDir, file) };
 }
 
 /**
@@ -398,6 +400,60 @@ function writtenInPlace(pool, steps) {
 const SLIDE_MAX = 64;
 
 /**
+ * Of the places a hunk of added lines ties at, the nearest the ledger shows
+ * to hold one session's unlanded lines beside lines HEAD holds.
+ *
+ * A session's lines in a file land together. The place's lines are one
+ * session's; some have a text the lines the hunk can slide across hold no
+ * more often than the hunk adds it, so every line of that text there is
+ * added, and the rest were written no earlier than the oldest of those, so
+ * none has landed. Each line the place leaves out is older than the ledger,
+ * the session's own, or another session's shown landed: that session wrote,
+ * no earlier, a line git holds unchanged whose text no other line holds and
+ * no removed line held. Any other line left out may be added, with git
+ * holding a line of HEAD's of the same text in its place. Places shown so
+ * that name different sessions are none.
+ *
+ * @param {ReturnType<typeof blame>} blamed
+ * @param {{added: string[], slid: number}[]} places Every place the hunk can
+ *   slide to; `good` the tied ones among them, nearest git's first.
+ * @param {number} first Where git places the hunk's first line.
+ * @param {string[]} plus The lines the hunk adds.
+ * @param {boolean[]} kept Per line, whether git holds it unchanged.
+ * @returns {object|null} The nearest place shown so, or null.
+ */
+function besideHeadOf({ lines, owners, born, removed }, places, good, first, plus, kept) {
+  const n = plus.length;
+  const starts = places.map((p) => first + p.slid);
+  const lo = Math.min(...starts);
+  const hi = Math.max(...starts) + n;
+  const tally = (list) => list.reduce((m, text) => m.set(text, (m.get(text) ?? 0) + 1), new Map());
+  const there = tally(lines.slice(lo, hi));
+  const added = tally(plus);
+  const sure = (i) => there.get(lines[i]) === added.get(lines[i]);
+  const count = tally(lines);
+  const takenOut = new Set(removed.flat().map((t) => t.text));
+  const headHolds = (x) => kept[x] && count.get(lines[x]) === 1 && !takenOut.has(lines[x]);
+  const landed = (i) => lines.some((_, x) => owners[x] === owners[i] && born[x] >= born[i] && headHolds(x));
+  const shown = good.filter((p) => {
+    const at = first + p.slid;
+    const writer = p.added[0];
+    if (!p.added.every((who) => who === writer && who !== NOBODY)) return false;
+    const anchors = [];
+    for (let i = at; i < at + n; i++) if (sure(i)) anchors.push(born[i]);
+    if (!anchors.length) return false;
+    const oldest = Math.min(...anchors);
+    if (!born.slice(at, at + n).every((step, i) => sure(at + i) || step >= oldest)) return false;
+    for (let i = lo; i < hi; i++) {
+      if ((i >= at && i < at + n) || owners[i] === ORIGIN || owners[i] === writer) continue;
+      if (owners[i] === NOBODY || !landed(i)) return false;
+    }
+    return true;
+  });
+  return shown.length && shown.every((p) => p.added[0] === shown[0].added[0]) ? shown[0] : null;
+}
+
+/**
  * The writers of one zero-context hunk against HEAD.
  *
  * A hunk that only adds or only removes can lie in more than one place where
@@ -406,12 +462,16 @@ const SLIDE_MAX = 64;
  * Git picks one such place and the replay may have picked another, so every
  * place the hunk can slide to is read, and the one where the ledger accounts
  * for most of it answers. Where two such places account for it equally and
- * name different writers, nothing tells them apart and the hunk is nobody's.
+ * name different writers, the hunk lies at the place of added lines
+ * `besideHeadOf` shows, and is nobody's where it shows none.
  *
  * @param {ReturnType<typeof blame>} blamed
  * @param {{newStart: number, plus: string[], minus: string[]}} hunk `newStart`
  *   as git prints it: the first added line, or for a hunk that adds nothing
  *   the line it follows.
+ * @param {{newStart: number, plus: string[]}[]|null} [hunks] Every hunk of
+ *   the file's diff, `hunk` among them: a line none of them adds is one git
+ *   holds unchanged. Without them no line is known unchanged.
  * @returns {null | {added: string[], removed: string[], slid: number, among: string[], replaced: {owner: string, by: string}[]}}
  *   One writer per added line and one remover per removed line, in the order
  *   of the place read; `slid` is how many lines that place lies from git's,
@@ -425,7 +485,7 @@ const SLIDE_MAX = 64;
  *   stands in the removed lines' place is no longer theirs. null when the
  *   lines the hunk adds are not the lines `blamed` holds there.
  */
-export function writersOf(blamed, hunk) {
+export function writersOf(blamed, hunk, hunks = null) {
   const { lines, owners, removed } = blamed;
   const n = hunk.plus.length;
   const first = n ? hunk.newStart - 1 : hunk.newStart;
@@ -464,6 +524,10 @@ export function writersOf(blamed, hunk) {
   const good = places.filter((p) => p.cost === least).sort((a, b) => Math.abs(a.slid) - Math.abs(b.slid));
   const who = (p) => [...p.added, ...p.removed].sort().join("\n");
   if (good.some((p) => who(p) !== who(good[0]))) {
+    const kept = lines.map(() => hunks !== null);
+    for (const h of hunks ?? []) h.plus.forEach((_, i) => (kept[h.newStart - 1 + i] = false));
+    const shown = n ? besideHeadOf(blamed, places, good, first, hunk.plus, kept) : null;
+    if (shown) return { added: shown.added, removed: [], slid: shown.slid, among: [], replaced: [] };
     const among = new Set(good.flatMap((p) => [...p.added, ...p.removed, ...p.among]));
     return { added: hunk.plus.map(() => NOBODY), removed: hunk.minus.map(() => NOBODY), slid: 0, among: [...among], replaced: [] };
   }

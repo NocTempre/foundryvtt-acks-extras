@@ -283,6 +283,7 @@ function readLedger(change) {
  *
  * @param {{mine: Set<string>}} ledger The sessions whose hunk it would be:
  *   this change's, or another session's where the hunk is read from its seat.
+ * @param {object[]} hunks Every hunk of the file, the one read among them.
  * @returns {null | {whose: "mine"|"peer"|"nobody"|"mixed", peers: string[], mine: number, unknown: number, keep: number[]|null}}
  *   null where no record names the file. `mine` and `unknown` count the
  *   hunk's lines this change's sessions wrote or removed and the lines no
@@ -298,9 +299,9 @@ function readLedger(change) {
  *   place: its line stands where this change's stood, and the removal alone
  *   would take HEAD's line out for a line left behind.
  */
-function verdictOf(ledger, blamed, hunk) {
+function verdictOf(ledger, blamed, hunk, hunks) {
   if (!blamed) return null;
-  const writers = writersOf(blamed, hunk);
+  const writers = writersOf(blamed, hunk, hunks);
   if (!writers) return { whose: "nobody", peers: [], mine: 0, unknown: hunk.plus.length + hunk.minus.length, keep: null };
   const all = [...writers.added, ...writers.removed];
   const isMine = (who) => ledger.mine.has(who);
@@ -403,7 +404,7 @@ function record({ pin = null } = {}) {
     // committed content, every hunk is theirs whatever lines git pairs up to
     // make it. Elsewhere each hunk is read by the lines it holds.
     const sole = byLedger && blamed !== null && soleWriter(blamed, ledger.mine) && committed(file, blamed.origin);
-    const read = new Map(all.map((h) => [h, sole ? { whose: "mine", peers: [], mine: h.plus.length + h.minus.length, unknown: 0, keep: null } : verdictOf(ledger, blamed, h)]));
+    const read = new Map(all.map((h) => [h, sole ? { whose: "mine", peers: [], mine: h.plus.length + h.minus.length, unknown: 0, keep: null } : verdictOf(ledger, blamed, h, all)]));
     let mine = all;
     if (byLedger) mine = all.filter((h) => read.get(h)?.whose === "mine" || read.get(h)?.keep);
     else if (own) mine = all.filter((h) => own.test([...h.minus, ...h.plus].join("\n")));
@@ -423,7 +424,7 @@ function record({ pin = null } = {}) {
           // The hunk is read from each other session's seat: one that divides
           // none of it off there has nothing to land first, and a session
           // told to wait for it would wait for good.
-          const lands = v.peers.some((peer) => verdictOf({ mine: new Set([peer]) }, blamed, h).keep !== null);
+          const lands = v.peers.some((peer) => verdictOf({ mine: new Set([peer]) }, blamed, h, all).keep !== null);
           const way = lands ? "it lands once theirs has, or" : "no part of it is theirs to land first by the ledger either, so it lands";
           refuse(`${file}: the hunk at -${h.oldStart} holds this session's lines and ${v.peers.map(short).join(", ")}'s, and they do not divide by line; ${way} under "adopt" where the owner rules it this change's`);
         }
