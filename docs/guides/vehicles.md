@@ -191,6 +191,22 @@ Harness the same animal to a wagon instead and it joins the team; a rider on a
 horse that is itself in harness travels at the WAGON's pace, because a carried
 thing resolves to whatever is really doing the moving.
 
+A token that is not linked to its actor rides the same way: drop the animal on
+that token's own sheet, and the mount counts the token as its rider.
+
+![](../releases/v11.2.0/lib-token-rider.png)
+
+*A mount ridden by an unlinked token: its Inventory counts the rider at body
+plus gear against the load the animal can bear.*
+
+With the mounted-combat overlay on, damage to a rider or its mount brings a
+card asking for the save the overlay reads (RR ch. 6). The card comes once,
+whichever seat dealt the damage, and it needs a Gamemaster connected.
+
+![](../releases/v11.2.0/equipment-mounted-prompt.png)
+
+*The card after a player lowered their own rider's hit points on the sheet.*
+
 Two things about an animal decide what the rules do with it, and they are
 different questions. Its **training** — riding, draft, war, hunting, herding —
 is what it was schooled for, and the mounted-combat overlay reads it (RR

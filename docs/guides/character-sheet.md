@@ -50,6 +50,11 @@ a save clears rides on that cell — its image, its clock, the save's glyph in
 the corner — and a modifier in force on the save colours it with the number.
 Clicking rolls the save.
 
+![](../releases/v11.2.0/character-sheet-saves.png)
+
+*The rails of a character In Cover: the cover reaches one saving throw, and
+only that cell is coloured, with the figure the imported table gives it.*
+
 Down the right: hit points inside the heart with the fill as the fraction
 (red at zero, where a click opens Mortal Wounds); armour class inside the
 shield, the shirt or a dashed box, cycling with the shield, without it and
@@ -234,10 +239,11 @@ Delayed, Casting, Defending, Countercharging, In Cover, Retreating,
 Withdrawing), in place of Foundry's generic list. Click one to put it on the
 creature and again to take it off; rest the pointer on an icon for its name.
 
-![](../releases/v10.0.0/lib-conditions.png)
+![](../releases/v11.2.0/lib-conditions.png)
 
-*A token's status palette: two conditions lit and drawn on the token, with the
-name of the one under the pointer.*
+*A token's status palette with the states of a round among the conditions:
+Defending lit, the tower near the middle, beside Defending with a Shield,
+Delayed and Casting.*
 
 A condition is read by every roll it bears on — the creature's attack throws
 and damage, its saving throws, its proficiency and adventuring throws, its
@@ -264,6 +270,17 @@ taken off by damage and by a failed saving throw, and Readied when the
 creature's token moves while another combatant acts (RR 293-295). Whoever
 caused the loss is told, and one click on the palette puts the state back.
 
+![](../releases/v11.2.0/lib-conditions-tracker.png)
+
+*The tracker on the first combatant's turn: the second was marked Defending
+and Readied during it, and carries both icons. Readied goes when its own turn
+begins; the defence stays until the first combatant acts again.*
+
+![](../releases/v11.2.0/lib-conditions-lost.png)
+
+*The notice on the seat that dealt the damage: the creature is no longer
+Readied or Casting.*
+
 ### Arranging the palette
 
 The Judge decides what the palette offers and in what order. In this module's
@@ -273,11 +290,23 @@ onto or off the palette; with a tile focused, the arrow keys, Home, End,
 Delete and Enter do the same. Foundry's own statuses and the combat tracker's
 marks wait under *Off the palette*, each group with an *Add all*.
 
+![](../releases/v11.2.0/lib-status-palette.png)
+
+*The window as it opens: the statuses on the palette in their order, each with
+the controls that move it or take it off, and Save idle until something
+changes.*
+
 **New status** makes one of your own from a name and an icon. An Active Effect
 dragged onto the window from a character's Effects tab, by its row under
 Timers or Modifiers in force, becomes a status that carries that effect's changes
 and duration; it acts through Foundry's own effects, and the conditions'
 figures are not read for it.
+
+![](../releases/v11.2.0/lib-status-palette-effect.png)
+
+*A timed ward dragged in from a character's Timers row: it lands where it was
+dropped, marked as carrying an effect, with the controls to rename or delete
+it, and the window says the changes are not saved yet.*
 
 Nothing changes until **Save**. **Reset to default** returns to the list above,
 by name, and keeps the statuses you made.

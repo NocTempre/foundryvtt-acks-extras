@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 11.2.0
 
 ### Added
 
@@ -50,6 +50,14 @@
   a time, so did each combatant who was first for a moment. A round now
   begins once its initiative is rolled, or when the Judge moves the tracker
   on.
+- **A mount's damage prompt comes whoever deals the damage.** It came only
+  when the primary Gamemaster's own seat lowered a rider's or a mount's hit
+  points; a Player's own sheet and the Assistant Gamemaster's seat raised
+  none. Every fall now raises it once, whichever seat made it; the prompt
+  still needs a Gamemaster connected.
+- **An unlinked token riding a world mount is its rider.** Such a mount had
+  no rider: its damage prompted nobody, and a token carried as a passenger or
+  a draft animal was missing from the vehicle's lists and its load.
 
 ## 11.1.0
 
