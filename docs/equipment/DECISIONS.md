@@ -751,12 +751,16 @@ on the TESTING recipe as a pointer-driven check.
 **Ruled:** `overlayMounted` registers at last — §15's blocker ("nothing
 models a mounted state") died when acks-lib's attachment layer shipped — and
 what it automates is the bookkeeping: the two staying-mounted save TRIGGERS
-(post-attack via the lib's new `POST_ATTACK_HOOK`; damage via preUpdateActor,
+(post-attack via the lib's new `POST_ATTACK_HOOK`; ~~damage via preUpdateActor,
 where the old hp still exists to compare, spoken by the primary GM's client
-only) as whispered prompts, and the action-economy CARD, including the
+only~~) as whispered prompts, and the action-economy CARD, including the
 vehicle transporters' mirror keyed on the new `carriage` field. The save is
 prompted, never rolled: which die falls and what a failure costs stay at the
 table.
+**Superseded in part 2026-10-13 — see *The damage prompt is marked where the
+change is made and said by the primary GM*: a pre-update runs only on the
+client making the change, so this trigger heard the primary GM's own damage
+and nobody else's.**
 
 **Ruled: the proficiencies' printed numbers are not pushed into the roll.**
 Mounted Combat's attack bonus and subjacency's worth are values that arrive
@@ -1599,3 +1603,46 @@ with roll automation off now prepares every character twice at load, as a
 world with it on already did, and its characters' loads change by what
 `encumbranceDelta6` corrects: a harness, a bowquiver, a bundle and the
 part-stone of a purse.
+
+### The damage prompt is marked where the change is made and said by the primary GM (2026-10-13)
+
+This supersedes the damage half of "The mounted overlay ships its structure;
+the numbers wait (2026-08-28)". That entry ran the damage trigger in
+`preUpdateActor` and returned unless the client was the primary GM's, so a
+table of several clients would not whisper several copies. A pre-update hook
+runs only on the client that makes the change, so the gate left the primary
+GM's own damage as the only damage anyone heard. Found by reading, then
+reproduced live on three seats with the overlay on and no waiver. The primary
+GM's seat produced one prompt per fall, on a linked rider, a linked mount and
+an unlinked token mount or rider. The Player's seat produced none for its own
+rider, whether by a scripted update or by the sheet's hit-point field. The
+Assistant GM's seat produced none for a linked rider or an unlinked token.
+
+**Ruled.** The pre-update marks the operation
+(`options["acks-extras"].mountedHpFell`) on whichever client makes the change.
+`updateActor`, which every client hears, acts on the mark, and only the
+primary GM's client speaks. The setting gates both halves. The mark joins the
+module's other keys in that bag, because the conditions mark `hpFell` there
+from the same hook. A write to an unlinked token's ActorDelta document runs
+the delta's own pre-update, which marks too.
+
+**Rejected.** Speaking from the client that made the change, which is the
+shape the conditions use (docs/lib/MODEL.md, "Lost before it ends"). It works
+with no GM connected, but this prompt is addressed to the Judge. A world can
+also raise `MESSAGE_WHISPER` above Player, and on such a world a player's
+client could not post the prompt at all. A socket relay to the GM was also
+rejected: the update already reaches every client, so there is nothing to
+relay.
+
+**Also learned.** The old gate did prompt for an unlinked token's damage from
+the primary GM's seat. The suspicion that it missed those was wrong: an
+unlinked token's actor update runs `preUpdateActor` (docs/lib/MODEL.md, "Lost
+before it ends").
+
+**What it cost.** With no GM connected nobody is prompted. A primary GM with
+the world open in two windows is prompted twice (`isPrimaryGM`). Every
+hit-point fall carries the mark while the overlay is on. A world mount whose
+rider is an unlinked token was measured silent before and after this change,
+because `riderOf` read an attachment index built from world actors only. The
+lib finds that rider since docs/lib/DECISIONS.md, "An unlinked token is
+attached by its own delta, and found by its uuid (2026-10-14)".

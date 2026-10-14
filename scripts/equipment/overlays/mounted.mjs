@@ -29,11 +29,11 @@
  * come from the reader's own imported proficiency.
  */
 import { overlayGate } from "../settings.mjs";
-import { SETTINGS } from "../constants.mjs";
+import { MODULE_ID, SETTINGS } from "../constants.mjs";
 import { POST_ATTACK_HOOK } from "../../lib/patches/attack-roll.mjs";
 import { mountOf, riderOf } from "../../lib/mount.mjs";
 import { abilityRank } from "../../lib/capabilities.mjs";
-import { gmIds, isPrimaryGM } from "../../lib/util.mjs";
+import { gmIds, isPrimaryGM, numOrNull } from "../../lib/util.mjs";
 import { SIZES } from "../../monsters/config.mjs";
 
 export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_MOUNTED);
@@ -144,6 +144,35 @@ async function whisperSave(rider, mount, reasonKey) {
   });
 }
 
+/** The operation key under which a pre-update tells the update that hit points fell. */
+const HP_FELL = "mountedHpFell";
+
+/**
+ * Before an actor's update: mark the operation when it lowers the hit points.
+ * The earlier value exists only here, and only on the client making the
+ * change; the mark travels with the operation to every client.
+ */
+function markHpFall(actor, changed, options) {
+  if (!overlayEnabled()) return;
+  const next = numOrNull(foundry.utils.getProperty(changed, "system.hp.value"));
+  const prior = numOrNull(actor?.system?.hp?.value);
+  if (next == null || prior == null || next >= prior) return;
+  options[MODULE_ID] = { ...options[MODULE_ID], [HP_FELL]: true };
+}
+
+/** After a marked update: the save either half's damage costs, said by the primary GM's client alone. */
+function promptOnHpFall(actor, _changed, options) {
+  if (!options?.[MODULE_ID]?.[HP_FELL] || !overlayEnabled() || !isPrimaryGM()) return;
+  const asRider = mountOf(actor) ? { rider: actor, mount: mountOf(actor) } : null;
+  const asMount = riderOf(actor) ? { rider: riderOf(actor), mount: actor } : null;
+  const pair = asRider ?? asMount;
+  if (!pair) return;
+  const waivers = riderWaivers(pair.rider);
+  if (damageSaveDue({ militarySaddle: hasMilitarySaddle(pair.mount), hasBothProficiencies: waivers.both })) {
+    void whisperSave(pair.rider, pair.mount, "onDamage");
+  }
+}
+
 /**
  * The seams. Registered once by equipment's module.mjs; every handler gates
  * on the world setting so the toggle works without a reload.
@@ -163,24 +192,14 @@ export function registerMountedOverlay() {
     }
   });
 
-  // On damage to either half of the pair. Pre-update is where the OLD value
-  // still exists to compare against; the primary GM's client speaks so a
-  // table of five does not whisper five copies.
-  Hooks.on("preUpdateActor", (actor, changed) => {
-    if (!overlayEnabled() || !isPrimaryGM()) return;
-    const next = Number(foundry.utils.getProperty(changed, "system.hp.value"));
-    if (!Number.isFinite(next)) return;
-    const prior = Number(actor.system?.hp?.value);
-    if (!Number.isFinite(prior) || next >= prior) return;
-    const asRider = mountOf(actor) ? { rider: actor, mount: mountOf(actor) } : null;
-    const asMount = riderOf(actor) ? { rider: riderOf(actor), mount: actor } : null;
-    const pair = asRider ?? asMount;
-    if (!pair) return;
-    const waivers = riderWaivers(pair.rider);
-    if (damageSaveDue({ militarySaddle: hasMilitarySaddle(pair.mount), hasBothProficiencies: waivers.both })) {
-      void whisperSave(pair.rider, pair.mount, "onDamage");
-    }
-  });
+  // On damage to either half of the pair. A pre-update runs only on the
+  // client making the change, so it marks the fall; the update reaches every
+  // client, and only the primary GM's speaks, so the prompt is said once
+  // whoever dealt the damage. A token actor's update runs the actor's
+  // pre-update; a write to its ActorDelta document runs the delta's.
+  Hooks.on("preUpdateActor", markHpFall);
+  Hooks.on("preUpdateActorDelta", (delta, changed, options) => markHpFall(delta?.syntheticActor, changed, options));
+  Hooks.on("updateActor", promptOnHpFall);
 }
 
 /**

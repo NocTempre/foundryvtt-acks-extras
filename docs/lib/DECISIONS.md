@@ -3849,3 +3849,45 @@ role of its own, or is only listed.
 **What it cost.** A creature's model grows in a flag reached by convention: no
 schema of its own, no derived data, no entry in the Create dialog. This entry
 builds nothing.
+
+### An unlinked token is attached by its own delta, and found by its uuid (2026-10-14)
+
+**Asked.** A world mount whose rider is an unlinked token had no rider:
+`riderOf` returned null, so damage to the mount prompted nobody (measured live
+in docs/equipment/DECISIONS.md, 2026-10-13). `attach` writes the flag on the
+token's actor, where it lands in the token's delta, and `attachedTo` built its
+index from `game.actors` alone. A token passenger was missing from a wagon's
+list and load, and a token in harness from its draft, for the same reason.
+
+**Ruled.**
+- The index walks every scene's tokens beside the world actors. A token counts
+  when it is unlinked and its OWN delta carries the flag, read from the delta's
+  source so that no synthetic actor is built to answer.
+- The index files uuids. A token's actor is `<token uuid>.Actor.<actor id>`;
+  each hit resolves through `resolveActorSync` and counts only when it comes
+  back under the uuid it was filed by. A token linked since resolves to its
+  base, which answers under its own entry.
+- Creating a token or a scene that holds a bound token drops the index, and so
+  does a token linked, re-pointed or given the flag through its own document.
+  Deleting a token or a scene does not drop it: the entries resolve to nothing
+  and the read passes them over.
+- A world carrier deleted frees its token riders through the same
+  `attachedTo`, on the primary GM's client.
+
+**Rejected.**
+- *Counting a token that inherits its base's flag.* The base is one body.
+  With three copies placed it would have been four riders, or four oxen in the
+  traces.
+- *Keying by actor id.* A synthetic actor's id is its base's, so every copy
+  and the base fold into one entry; the reach check met the same thing
+  ("A reach check matches an unlinked token by its own token, never by actor
+  id", 2026-09-22).
+- *Keeping the documents in the index.* A uuid resolves to whatever is current,
+  and needs no rule for a document replaced under it.
+
+**What it cost.** A rebuild walks every token of every scene, once per drop
+of the index rather than per read. A carrier that is itself an unlinked token
+is found by its riders, but nothing frees them when the token is deleted
+([ROADMAP.md](ROADMAP.md)). The live walk read the same answers on a Player
+seat as on both GM seats, for a scene created with the default ownership. A
+scene a player's client does not hold was not tried.

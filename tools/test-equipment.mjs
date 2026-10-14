@@ -2426,6 +2426,7 @@ import {
   heightAdvantage,
   looksWarTrained,
   SIZE_ORDER,
+  registerMountedOverlay,
 } from "../scripts/equipment/overlays/mounted.mjs";
 
 /* --- war training: explicit kind wins, the default falls to the name ------ */
@@ -2479,3 +2480,122 @@ assert.equal(heightAdvantage({ attackerMountSize: "large", defenderSize: "man", 
   "equal mounts confer nothing");
 
 console.log("test-equipment: OK (mounted economy, vehicle mirror, save triggers, height)");
+
+/* --- the damage prompt: said once, by the primary GM, whoever dealt it ---- */
+// A pre-update hook runs only on the client making the change, and an update
+// hook on every client. Each "client" below is the same hooks fired with a
+// different seat marked as self.
+{
+  const handlers = {};
+  const said = [];
+  const saved = { Hooks: globalThis.Hooks, ChatMessage: globalThis.ChatMessage, users: game.users, actors: game.actors, scenes: game.scenes };
+  globalThis.Hooks = { on: (name, fn) => (handlers[name] ??= []).push(fn), once: () => {}, callAll: () => {} };
+  globalThis.ChatMessage = { create: async (data) => said.push(data) };
+  const fire = (name, ...args) => (handlers[name] ?? []).forEach((fn) => fn(...args));
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+
+  const primary = { id: "gm", isGM: true, isSelf: false };
+  const assistant = { id: "agm", isGM: true, isSelf: false };
+  const player = { id: "player", isGM: false, isSelf: false };
+  game.users = Object.assign([primary, assistant, player], { activeGM: primary });
+  const clients = [player, assistant, primary];
+  const on = (seat) => clients.forEach((u) => (u.isSelf = u === seat));
+  const everywhere = async (...args) => {
+    for (const seat of clients) {
+      on(seat);
+      fire("updateActor", ...args);
+    }
+    await settle();
+  };
+
+  const actor = (id, { uuid = `Actor.${id}`, rides = null } = {}) => ({
+    id, uuid, name: id, items: [], system: { hp: { value: 10 } },
+    flags: rides ? { "acks-extras": { attachedTo: { uuid: `Actor.${rides}`, role: "rider" } } } : {},
+    getFlag(scope, key) { return this.flags[scope]?.[key]; },
+    testUserPermission: (u) => u.isGM || (id === "rider" && u.id === "player"),
+  });
+  const steed = actor("steed");
+  const rider = actor("rider", { rides: "steed" });
+  const steed2 = actor("steed2");
+  const loner = actor("loner");
+  const world = [steed, rider, steed2, loner];
+  game.actors = Object.assign([...world], { get: (id) => world.find((a) => a.id === id) });
+  // An unlinked token's actor: not in the world collection, riding a world
+  // mount by a binding in the token's own delta.
+  const cavalier = actor("cavalier", { uuid: "Scene.s.Token.t.Actor.cavalier", rides: "steed2" });
+  const placed = { uuid: "Scene.s.Token.t", actorId: "cavalier", actorLink: false, _source: { delta: { flags: cavalier.flags } }, actor: cavalier };
+  const scene = { tokens: Object.assign([placed], { get: (id) => (id === "t" ? placed : undefined) }) };
+  game.scenes = Object.assign([scene], { get: (id) => (id === "s" ? scene : undefined) });
+
+  registerMountedOverlay();
+  SETTINGS_STATE.overlayMounted = true;
+  const hurt = { system: { hp: { value: 4 } } };
+  const MARK = { "acks-extras": { mountedHpFell: true } };
+
+  // The Player lowers their own rider: only the Player's client runs the pre-update.
+  on(player);
+  const byPlayer = {};
+  fire("preUpdateActor", rider, hurt, byPlayer);
+  assert.deepEqual(byPlayer, MARK, "the pre-update marks the fall on the client that makes it, GM or not");
+  await everywhere(rider, hurt, byPlayer, "player");
+  assert.equal(said.length, 1, "every client hears the update, and exactly one speaks");
+  assert.deepEqual(said[0].whisper, ["gm", "agm", "player"], "to every GM and the rider's player");
+  const shared = { "acks-extras": { hpFell: true } };
+  fire("preUpdateActor", rider, hurt, shared);
+  assert.deepEqual(shared, { "acks-extras": { hpFell: true, mountedHpFell: true } }, "the mark joins the module's other operation keys");
+
+  // The assistant GM's damage, the same.
+  said.length = 0;
+  on(assistant);
+  const byAssistant = {};
+  fire("preUpdateActor", steed, hurt, byAssistant);
+  await settle();
+  assert.equal(said.length, 0, "nothing is said before the update lands");
+  await everywhere(steed, hurt, byAssistant, "agm");
+  assert.equal(said.length, 1, "damage to the mount prompts its rider, once");
+
+  // A write to an unlinked token's delta has the delta's own pre-update.
+  said.length = 0;
+  on(primary);
+  const byDelta = {};
+  fire("preUpdateActorDelta", { syntheticActor: cavalier }, { system: { hp: { value: 2 } } }, byDelta);
+  assert.deepEqual(byDelta, MARK, "a delta's fall is marked through its synthetic actor");
+  await everywhere(cavalier, {}, byDelta, "gm");
+  assert.equal(said.length, 1);
+
+  // The world mount under that token: its rider is found from the mount's side.
+  said.length = 0;
+  await everywhere(steed2, hurt, MARK, "player");
+  assert.equal(said.length, 1, "damage to a world mount prompts its unlinked token rider, once");
+  assert.deepEqual(said[0].whisper, ["gm", "agm"], "to the GMs, who own the token");
+
+  // What is not a fall, or not this overlay's to answer.
+  said.length = 0;
+  for (const [why, who, changed] of [
+    ["healing", rider, { system: { hp: { value: 12 } } }],
+    ["no change of hit points", rider, { name: "Renamed" }],
+  ]) {
+    const options = {};
+    fire("preUpdateActor", who, changed, options);
+    assert.deepEqual(options, {}, why);
+  }
+  await everywhere(loner, hurt, MARK, "gm");
+  await everywhere(rider, hurt, {}, "gm");
+  steed.items = [{ name: "Military Saddle" }];
+  await everywhere(rider, hurt, MARK, "player");
+  steed.items = [];
+  assert.equal(said.length, 0, "nobody riding, an unmarked update, a saddled mount: silence");
+  SETTINGS_STATE.overlayMounted = false;
+  const off = {};
+  fire("preUpdateActor", rider, hurt, off);
+  await everywhere(rider, hurt, MARK, "player");
+  assert.deepEqual(off, {}, "the overlay off marks nothing");
+  assert.equal(said.length, 0, "and says nothing for a mark already made");
+
+  delete SETTINGS_STATE.overlayMounted;
+  Object.assign(globalThis, { Hooks: saved.Hooks, ChatMessage: saved.ChatMessage });
+  game.users = saved.users;
+  game.actors = saved.actors;
+  game.scenes = saved.scenes;
+  console.log("test-equipment: OK (the damage prompt, once, whoever deals it)");
+}

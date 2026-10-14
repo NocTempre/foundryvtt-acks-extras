@@ -245,9 +245,11 @@ automates the STRUCTURE: **staying-mounted save prompts** (after every
 attack by a mounted rider or a ridden mount, unless the rider holds Riding
 or Mounted Combat — the lib's `POST_ATTACK_HOOK` seam; and whenever either
 half of the pair takes damage without a military saddle among the mount's
-tack, waived only by holding both proficiencies — the pre-update seam, the
-primary GM's client speaking), whispered to the Judge and the rider's
-player, rolled and adjudicated at the table; and the **action-economy card**
+tack, waived only by holding both proficiencies — the fall is marked by the
+pre-update on the client that makes the change
+(`options["acks-extras"].mountedHpFell`), and `updateActor` on the primary
+GM's client speaks, once, whoever dealt it), whispered to the Judge and the
+rider's player, rolled and adjudicated at the table; and the **action-economy card**
 (`api.equipment.mounted.mountedCombatCard`): who may act by what the mount
 did, a war-trained mount joining the charge, and the vehicle mirror for
 transporters keyed on the vehicle's `carriage` (a back-carrier fights, a

@@ -2273,6 +2273,70 @@ mounted and raises the not-marked-mountable warning beside the notice.
 **Teardown.** `api.sweepTracked()`. Deleting a mount clears its rider's
 binding.
 
+## An unlinked token in the carry
+
+Covers `attachment.mjs` `attachedTo` and its index for unlinked tokens, and
+through them `mount.riderOf`, a vehicle's passengers and draft, and the mounted
+overlay's damage prompt. Read from the Gamemaster, Assistant Gamemaster and
+Player seats, joined from one capture script.
+
+**Fixtures (as GM, each recorded with `api.create`):** a scene created with
+`active: false, navigation: false`; three `monster`s with
+`prototypeToken.actorLink: false` ("Cavalier", "Goblin", "Ox"); two
+`acks-extras.animal`s ("Steed", "Steed2") with hit points set; a `character`
+"Hero" owned by the Player seat; an `acks-extras.vehicle` "Wagon". Turn on
+"Overlay: mounted saves" and put it back after.
+
+**Drive mechanics.**
+- Place tokens as the mounted overlay's drive notes say
+  (docs/equipment/TESTING.md). Tokens embedded in the fixture scene go with
+  it, so only the scene is tracked. A bound token "pasted" is that placement
+  with `delta.flags["acks-extras"].attachedTo` written into the `toObject()`
+  data before `createEmbeddedDocuments`.
+- Read a token's own binding from `tokenDoc._source.delta.flags`, which is
+  what the index reads. `token.actor.getFlag` also answers a flag the token
+  only inherits.
+- `tokenDoc.update({delta})` and `tokenDoc.update({actorLink: true})` raise
+  `updateToken`, and no `updateActor`, on the seat that makes them (measured
+  on the Gamemaster seat). `token.actor.update` and `token.delta.update` raise
+  `updateActor`.
+- Count the damage prompts as the mounted overlay's drive notes say.
+
+1. **A token rides a world mount.** `mountActor(cavalierToken.actor, steed)`.
+   **Observable:** the token's delta holds `{uuid: steed.uuid, role:
+   "rider"}`; `riderOf(steed)` is `<token uuid>.Actor.<cavalier id>` on all
+   three seats; `lib.capacity.loadStone(steed)` rises from 0; the steed's
+   sheet names the cavalier.
+2. **Its damage prompts the token's rider.** Lower the steed's hit points from
+   the Gamemaster and the Assistant Gamemaster seats.
+   **Observable:** one prompt per fall, naming the cavalier.
+3. **A new rider unseats it.** `mountActor(hero, steed)`, then the token again.
+   **Observable:** the token's delta binding is gone and `riderOf(steed)` is
+   the hero on all three seats; mounted again, the hero rides nothing.
+4. **A paste.** Place a second cavalier token already bound to Steed2.
+   **Observable:** `riderOf(steed2)` is the new token's actor on all three
+   seats with no reload, and Steed2's fall from the Assistant Gamemaster seat
+   prompts once.
+5. **Through the token document.** Place a goblin token and give it the
+   binding with `tokenDoc.update({delta: {flags: …}})`, as a passenger of the
+   wagon.
+   **Observable:** `attachedTo(wagon, "passenger")` lists it on all three seats.
+6. **Two copies board.** Place a second goblin token and `attach` it as a
+   passenger.
+   **Observable:** two distinct uuids, neither the goblin's world uuid.
+7. **A world actor counts once.** Attach Ox as draft, then place two Ox tokens.
+   **Observable:** `attachedTo(wagon, "draft")` is `[ox.uuid]`, once.
+8. **Linked since.** `tokenDoc.update({actorLink: true})` on the second goblin.
+   **Observable:** one passenger left, the first goblin token.
+9. **The rider's token deleted.** Delete the Steed2 rider's token.
+   **Observable:** `riderOf(steed2)` is null on all three seats, and its fall
+   prompts nobody.
+10. **The mount deleted.** Delete Steed.
+    **Observable:** the cavalier token's delta binding is gone, and its
+    `mountOf` is null.
+
+**Teardown.** Put the overlay setting back, then `api.sweepTracked()`. Steed
+reads as `missing`, deleted by step 10.
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

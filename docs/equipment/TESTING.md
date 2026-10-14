@@ -311,11 +311,43 @@ items remain in `game.items`.
 
 ## The mounted overlay (added with its first release)
 
-Fixtures: a disposable character "QA Rider" (no abilities), a second "QA
-Lancer" holding ability items named "Riding" and "Mounted Combat", a
-disposable animal "QA Steed" (give it an Item named "Military Saddle" for
-step 3's second half), and a disposable land vehicle with carriage set to
-each value in turn for step 4. Enable the "Overlay: mounted saves" setting.
+Fixtures: a disposable character "QA Rider" (no abilities) owned by the
+Player seat, a second "QA Lancer" holding ability items named "Riding" and
+"Mounted Combat", a disposable animal "QA Steed" (give it an Item named
+"Military Saddle" for step 2's second half), and a disposable land vehicle
+with carriage set to each value in turn for step 4. For step 2's unlinked
+case, a scene created with `active: false`, a `monster` with
+`prototypeToken.actorLink: false` placed on it as a token, and a second
+character riding that token's actor. Enable the "Overlay: mounted saves"
+setting.
+
+Seats: the Gamemaster seat, which is `game.users.activeGM` and the client
+that speaks the damage prompt; the Player seat; and the Assistant Gamemaster
+seat. Join all three from one capture script, giving each `connect()` its own
+`port`.
+
+Drive notes:
+- **A pre-update hook runs only on the client that makes the change.**
+  Lower hit points with `api.eval` on the connection of the seat under test.
+  An update made from the GM's connection says nothing about another seat's
+  damage.
+- **Place the unlinked token without a canvas.** Use
+  `actor.getTokenDocument({x, y, actorLink: false})`, then
+  `scene.createEmbeddedDocuments("Token", [td.toObject()])`. A monster token
+  rolls its own hit points when placed, so write
+  `token.actor.update({"system.hp.max": 9, "system.hp.value": 9})` before
+  mounting anyone. `mountActor(rider, token.actor)` stores the token actor's
+  own uuid.
+- **An unlinked token's actor update runs `preUpdateActor`, not
+  `preUpdateActorDelta`** (docs/lib/MODEL.md, "Lost before it ends"). Drive
+  the delta's own pre-update with `token.delta.update(...)`, a write to the
+  ActorDelta document. `tokenDoc.update({delta})` is another route
+  (docs/lib/TESTING.md, "An unlinked token in the carry").
+- **Count the prompts by id.** Give every fixture name one random token for
+  the run. Before each fall, list the `game.messages` ids on the GM seat whose
+  content holds the token. After the fall, read the new ids, `api.track` each
+  one, and count them. Read `game.users.activeGM` in the same call as the fall:
+  a peer's GM seat that joins mid-walk speaks in your place.
 
 1. Mount QA Rider on QA Steed (`acksExtras.lib.mount.mountActor`) and make
    an attack roll with the rider (any target).
@@ -323,12 +355,21 @@ each value in turn for step 4. Enable the "Overlay: mounted saves" setting.
    and the rider's owner, naming the attack reason. An attack BY the steed
    prompts the same rider. Repeat with QA Lancer riding: no prompt — either
    proficiency waives it.
-2. Damage either half of the pair (lower the steed's hp).
-   *Observable:* with no military saddle, the prompt names the damage
-   reason; with the saddle item on the steed (or the lancer's two
-   proficiencies), silence. The damage prompt is spoken by the PRIMARY GM's
-   client (`game.users.activeGM`) — if your seat is not it, assert
-   `damageSaveDue`'s four cells directly instead of waiting on a whisper.
+2. Damage either half of the pair, from each seat in turn. From the
+   Gamemaster seat, lower the rider's and then the steed's hp. From the Player
+   seat, lower QA Rider's hp, once by `actor.update` and once by changing the
+   sheet's `system.hp.value` field. From the Assistant Gamemaster seat, lower
+   the rider's hp and then the unlinked mount token's hp. Then heal the rider.
+   Last, mount a second token of the monster on QA Steed, which unseats QA
+   Rider, and lower the steed's hp from the Gamemaster and Assistant
+   Gamemaster seats.
+   *Observable:* every fall produces exactly one prompt naming the damage
+   reason, authored by the Gamemaster seat, whoever lowered the hp; the steed's
+   falls name the token's actor. A prompt
+   about QA Rider is whispered to every GM and to the Player, and it is
+   `visible` on the Player seat. Healing produces none. With the saddle item on
+   the steed, or with the lancer's two proficiencies, a fall from any seat
+   produces none.
 3. Toggle the overlay setting off and repeat step 1.
    *Observable:* silence — every handler gates on the setting live, no
    reload.

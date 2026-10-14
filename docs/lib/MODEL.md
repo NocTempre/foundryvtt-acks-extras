@@ -1035,6 +1035,15 @@ makes the graph a forest by construction, `attach` refuses a carrier whose
 chain already contains the actor, and the reverse index is a cache that is
 re-verified against the flag on every hit — never the truth.
 
+The attached are world actors and the actors of unlinked tokens whose OWN
+delta carries the flag. A token that only inherits a binding from its base
+actor is that base, attached once however many copies are placed; a token
+linked since answers as its base. The index files each by uuid (a token's
+actor is `<token uuid>.Actor.<actor id>`), and a hit counts only when it
+resolves back under that uuid. An actor, a token or a scene that may have
+gained a binding drops the index; a deleted token's entries resolve to nothing
+and are passed over.
+
 [mount.mjs](../../scripts/lib/mount.mjs) is a permanent FACADE over that one
 model, not a second one: it keeps the mounted-combat vocabulary
 (`mountActor`/`dismount`/`mountOf`/`riderOf` and the `acksLibMounted` /
@@ -1606,8 +1615,12 @@ client is told what was lost and to what:
 - *Damage* is an actor update that lowers `system.hp.value`. The earlier value
   exists only before the update, so the pre-update hook marks the operation
   (`options["acks-extras"].hpFell`) and `updateActor` acts on the mark. An
-  unlinked token's actor is updated through its delta, whose pre-update is
-  `preUpdateActorDelta`.
+  unlinked token's actor runs the same hooks: core runs an Actor update's
+  pre-update on the synthetic actor and sends only the server an ActorDelta
+  update (`client/data/client-backend.mjs`, `#adjustActorDeltaRequest`), and
+  `ActorDelta#_onUpdate` calls `updateActor` on every client. A write to the
+  ActorDelta document itself (`token.delta.update`) runs `preUpdateActorDelta`
+  instead, which marks too.
 - *A failed saving throw* is read in the `rollSave` wrap: the roll core
   resolves to, against the number it was rolled against with the shift in it.
 - *A move* is `moveToken` for a token whose combatant is not the one acting,

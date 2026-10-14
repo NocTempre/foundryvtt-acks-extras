@@ -65,6 +65,23 @@ verification, not as drive-by edits:
 - **More checks.** Class-training effects whose class uuid no longer resolves:
   they refuse hand-deletion, and `resetTraining` returns false for them.
 
+## What the carry does not do for a token
+
+An unlinked token is found as a rider, a passenger or a draft animal
+([MODEL.md](MODEL.md), "Carrying"). Not built:
+
+- **A carrier that is an unlinked token.** Deleting a world carrier frees
+  whoever was attached to it. Deleting a token that carried someone leaves
+  their binding naming a uuid that is gone: it reads as unattached, and
+  nothing clears it. A formation recall deletes tokens too, so a cleanup has
+  to tell a recall from a removal.
+- **A token rider through a recall.** Whether a member recalled into the party
+  token and deployed again keeps its delta, and so its binding, is not
+  checked.
+- **Snapshots.** `snapshotArrangement` records world actors only.
+- **The repair tool.** `lib.attachments` lists world actors whose carrier is
+  gone, and no token.
+
 ## What the hit-point tool does not do
 
 - **Nonlethal damage.** Stop at 0 holds damage at 0, and nothing records which

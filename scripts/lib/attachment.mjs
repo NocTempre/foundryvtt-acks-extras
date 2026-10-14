@@ -103,21 +103,43 @@ export function isAttached(actor, role = null) {
 /* -------------------------------------------------------------------- */
 
 /**
- * carrier uuid → Set of attached actor ids. The flag on the attached actor
- * remains the only truth — every index hit is re-verified against it, so a
- * stale index costs a wasted lookup, never a wrong answer. Invalidated whole
- * on any actor create/delete or any update touching the flag; rebuilt lazily
+ * carrier uuid → Set of attached actor uuids, world actors first. The flag on
+ * the attached actor remains the only truth — every index hit is re-verified
+ * against it, so a stale index costs a wasted lookup, never a wrong answer.
+ * Invalidated whole whenever an attachment may have appeared; rebuilt lazily
  * on the next read.
  */
 let index = null;
 
+/**
+ * The carrier an unlinked token's OWN delta binds its actor to, or null. A
+ * flag the token only inherits from its base actor is the base's binding, and
+ * the base is the one body attached by it, however many copies are placed.
+ * Read from the delta's source, so no synthetic actor is built to answer.
+ */
+function tokenBinding(token) {
+  if (!token || token.actorLink) return null;
+  return token._source?.delta?.flags?.[MODULE_ID]?.[ATTACH_FLAG]?.uuid ?? null;
+}
+
+/** The uuid an unlinked token's actor carries. */
+const tokenActorUuid = (token) => `${token.uuid}.Actor.${token.actorId}`;
+
 function buildIndex() {
   const map = new Map();
+  const add = (carrierUuid, uuid) => {
+    if (!map.has(carrierUuid)) map.set(carrierUuid, new Set());
+    map.get(carrierUuid).add(uuid);
+  };
   for (const a of game.actors ?? []) {
     const at = attachmentOf(a);
-    if (!at) continue;
-    if (!map.has(at.uuid)) map.set(at.uuid, new Set());
-    map.get(at.uuid).add(a.id);
+    if (at) add(at.uuid, a.uuid);
+  }
+  for (const scene of game.scenes ?? []) {
+    for (const token of scene.tokens ?? []) {
+      const carrierUuid = tokenBinding(token);
+      if (carrierUuid) add(carrierUuid, tokenActorUuid(token));
+    }
   }
   return map;
 }
@@ -127,20 +149,22 @@ const invalidateIndex = () => {
 };
 
 /**
- * Everyone attached to this carrier, optionally filtered by role. Derived by
- * asking the attached rather than reading a stored list, so the two can never
- * disagree; the index only says where to look.
+ * Everyone attached to this carrier, optionally filtered by role: world
+ * actors, then unlinked tokens' own actors. Derived by asking the attached
+ * rather than reading a stored list, so the two can never disagree; the index
+ * only says where to look.
  */
 export function attachedTo(carrier, role = null) {
   const uuid = uuidOf(carrier);
   if (!uuid || !game?.actors) return [];
   index ??= buildIndex();
-  const ids = index.get(uuid);
-  if (!ids?.size) return [];
+  const keys = index.get(uuid);
+  if (!keys?.size) return [];
   const out = [];
-  for (const id of ids) {
-    const a = game.actors.get(id);
-    const at = a ? attachmentOf(a) : null; // verify: the flag is the truth
+  for (const key of keys) {
+    const a = resolveActorSync(key);
+    // A token linked since resolves to its base actor, which answers for itself.
+    const at = a?.uuid === key ? attachmentOf(a) : null; // verify: the flag is the truth
     if (at?.uuid === uuid && (!role || at.role === role)) out.push(a);
   }
   return out;
@@ -149,11 +173,17 @@ export function attachedTo(carrier, role = null) {
 /**
  * Keeps the index honest and the world tidy. Registered once by lib's
  * module.mjs:
- *  - any actor create/delete, or an update touching the flag, drops the index;
- *  - when a CARRIER is deleted, the primary GM's client detaches everyone who
- *    was attached to it — a dangling uuid already reads as unattached, but
- *    left in place it would rebind if the id were ever reused, and it dirties
- *    every scan until then.
+ *  - any actor create/delete, or an update touching the flag, drops the index.
+ *    A token actor's flag write is an ActorDelta update, and core calls
+ *    `updateActor` for it on every client;
+ *  - a token or scene created already holding a bound token, and a token
+ *    linked, re-pointed or given the flag through its own document, drop it
+ *    too. A token or scene deleted leaves only stale entries, which the read
+ *    drops;
+ *  - when a CARRIER actor is deleted, the primary GM's client detaches
+ *    everyone who was attached to it — a dangling uuid already reads as
+ *    unattached, but left in place it would rebind if the id were ever
+ *    reused, and it dirties every scan until then.
  */
 export function registerAttachmentIndex() {
   const touchesFlag = (changed) => {
@@ -163,6 +193,17 @@ export function registerAttachmentIndex() {
   Hooks.on("createActor", invalidateIndex);
   Hooks.on("updateActor", (_actor, changed) => {
     if (touchesFlag(changed)) invalidateIndex();
+  });
+  Hooks.on("createToken", (token) => {
+    if (tokenBinding(token)) invalidateIndex();
+  });
+  Hooks.on("createScene", (scene) => {
+    for (const token of scene?.tokens ?? []) {
+      if (tokenBinding(token)) return invalidateIndex();
+    }
+  });
+  Hooks.on("updateToken", (_token, changed) => {
+    if ("actorLink" in changed || "actorId" in changed || touchesFlag(changed?.delta)) invalidateIndex();
   });
   Hooks.on("deleteActor", async (actor) => {
     invalidateIndex();

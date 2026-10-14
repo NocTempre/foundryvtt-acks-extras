@@ -719,7 +719,7 @@ function notePriorHp(actor, changed, options) {
 /** Listen for what takes a state away early: damage, and a token moved out of its turn. */
 function registerLosses() {
   Hooks.on("preUpdateActor", notePriorHp);
-  // An unlinked token's actor is updated through its delta, which has its own pre-update.
+  // A token actor's update runs preUpdateActor; a write to its ActorDelta document runs the delta's.
   Hooks.on("preUpdateActorDelta", (delta, changed, options) => notePriorHp(delta?.syntheticActor, changed, options));
   Hooks.on("updateActor", (actor, _changed, options, userId) => {
     if (userId !== game.user?.id || !options?.[MODULE_ID]?.[HP_FELL]) return;

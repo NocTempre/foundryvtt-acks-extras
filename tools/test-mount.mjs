@@ -50,9 +50,10 @@ globalThis.Hooks = {
 };
 globalThis.ui = { notifications: { info: (text) => said.info.push(text), warn: (text) => said.warn.push(text), error() {} } };
 globalThis.foundry = { utils: { setProperty, randomID: () => `r${++serial}`, deepClone: (v) => structuredClone(v) } };
+const scenes = new Coll();
 globalThis.game = {
   actors: worldActors,
-  scenes: [],
+  scenes,
   items: new Coll(),
   packs: [],
   user: { isGM: false, id: "player" },
@@ -128,9 +129,9 @@ const row = (actor, name) => actor.items.find((i) => i.name === name);
 /** Every write the mock makes resolves in a microtask, so one turn of the timer queue outlasts them. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-const { registerAttachmentIndex } = await import("../scripts/lib/attachment.mjs");
+const { registerAttachmentIndex, attach, attachedTo } = await import("../scripts/lib/attachment.mjs");
 const mount = await import("../scripts/lib/mount.mjs");
-const { mountOf, riderOf, ride, dismount, registerMountDrop } = mount;
+const { mountOf, riderOf, ride, dismount, mountActor, registerMountDrop } = mount;
 
 registerAttachmentIndex();
 registerMountDrop();
@@ -150,6 +151,7 @@ const test = async (name, fn) => {
   said.info.length = 0;
   said.warn.length = 0;
   worldActors.clear();
+  scenes.clear();
   fire("createActor"); // a new world: whatever the index held is gone
   await fn();
   passed++;
@@ -290,4 +292,149 @@ await test("a seat that owns only one of the two moves nothing", async () => {
   assert.equal(said.warn.length, 1);
 });
 
+/* -------------------------------------------- */
+/*  An unlinked token in the carry               */
+/* -------------------------------------------- */
+
+console.log("mount: an unlinked token in the carry");
+
+const uuids = (actors) => actors.map((a) => a.uuid);
+
+/**
+ * An unlinked token of `base`, as core stores one: its own flags in the
+ * delta's source, its actor reading the base's flags under the delta's and
+ * writing the delta, and that write calling `updateActor` the way
+ * `ActorDelta#_onUpdate` does. `bound` puts a binding in the delta before the
+ * token exists, as a paste or a redeploy does. Placed silently: a test fires
+ * `createToken` when the hook is the subject.
+ */
+function placeToken(base, { id, scene = "s1", bound = null }) {
+  if (!scenes.has(scene)) scenes.set(scene, { id: scene, uuid: `Scene.${scene}`, tokens: new Coll() });
+  const host = scenes.get(scene);
+  const delta = { flags: bound ? { [MODULE]: { attachedTo: { station: null, kind: null, ...bound } } } : {} };
+  const token = { id, uuid: `${host.uuid}.Token.${id}`, actorId: base.id, actorLink: false, _source: { delta }, parent: host };
+  const own = (scope, key) => delta.flags[scope] && key in delta.flags[scope];
+  const actor = {
+    id: base.id,
+    name: `${base.name} (${id})`,
+    type: base.type,
+    documentName: "Actor",
+    uuid: `${token.uuid}.Actor.${base.id}`,
+    isToken: true,
+    isOwner: true,
+    token,
+    system: {},
+    items: new Coll(),
+    getFlag: (scope, key) => (own(scope, key) ? delta.flags[scope][key] : base.getFlag(scope, key)),
+    setFlag: async (scope, key, value) => {
+      delta.flags = { ...delta.flags, [scope]: { ...(delta.flags[scope] ?? {}), [key]: value } };
+      fire("updateActor", actor, { flags: { [scope]: { [key]: value } } });
+      return actor;
+    },
+    unsetFlag: async (scope, key) => {
+      const { [key]: _gone, ...rest } = delta.flags[scope] ?? {};
+      delta.flags = { ...delta.flags, [scope]: rest };
+      fire("updateActor", actor, { flags: { [scope]: { [`-=${key}`]: null } } });
+      return actor;
+    },
+  };
+  Object.defineProperty(token, "actor", { get: () => (token.actorLink ? base : actor) });
+  host.tokens.set(id, token);
+  return token;
+}
+
+await test("an unlinked token riding a world mount is the mount's rider", async () => {
+  const cavalier = makeActor({ id: "cavalier", type: "monster" });
+  const steed = makeActor({ id: "steed", type: ANIMAL });
+  const token = placeToken(cavalier, { id: "t1" });
+  assert.equal(await mountActor(token.actor, steed), true);
+  assert.equal(mountOf(token.actor), steed);
+  assert.equal(riderOf(steed), token.actor, "found from the mount's side, as the token's own actor");
+  assert.equal(mountOf(cavalier), null, "the world actor rides nothing");
+});
+
+await test("each placed copy that boards is its own passenger, and the base is none of them", async () => {
+  const goblin = makeActor({ id: "goblin", type: "monster" });
+  const wagon = makeActor({ id: "wagon", type: "acks-extras.vehicle" });
+  const a = placeToken(goblin, { id: "ta" });
+  const b = placeToken(goblin, { id: "tb", scene: "s2" });
+  await attach(a.actor, wagon, "passenger");
+  await attach(b.actor, wagon, "passenger");
+  assert.deepEqual(uuids(attachedTo(wagon, "passenger")), [a.actor.uuid, b.actor.uuid]);
+});
+
+await test("an attached world actor counts once, however many of its tokens are placed", async () => {
+  const ox = makeActor({ id: "ox", type: "monster" });
+  const wagon = makeActor({ id: "wagon", type: "acks-extras.vehicle" });
+  await attach(ox, wagon, "draft");
+  for (const id of ["t1", "t2", "t3"]) placeToken(ox, { id });
+  assert.deepEqual(attachedTo(wagon, "draft"), [ox], "the copies inherit the binding and are not counted for it");
+});
+
+await test("a new rider unseats a token rider, and the token's own binding goes", async () => {
+  const cavalier = makeActor({ id: "cavalier", type: "monster" });
+  const hero = makeActor({ id: "hero" });
+  const steed = makeActor({ id: "steed", type: ANIMAL });
+  const token = placeToken(cavalier, { id: "t1" });
+  await mountActor(token.actor, steed);
+  await mountActor(hero, steed);
+  assert.equal(riderOf(steed), hero);
+  assert.equal(token._source.delta.flags[MODULE].attachedTo, undefined, "written to the delta, where the binding was");
+  assert.equal(mountOf(token.actor), null);
+});
+
+await test("a token or a scene that arrives already bound is found without a reload", async () => {
+  const cavalier = makeActor({ id: "cavalier", type: "monster" });
+  const steed = makeActor({ id: "steed", type: ANIMAL });
+  const mule = makeActor({ id: "mule", type: ANIMAL });
+  assert.equal(riderOf(steed), null, "the index is built before either arrives");
+  const pasted = placeToken(cavalier, { id: "t1", bound: { uuid: steed.uuid, role: "rider" } });
+  fire("createToken", pasted, {}, "gm");
+  assert.equal(riderOf(steed), pasted.actor);
+  assert.equal(riderOf(mule), null);
+  const imported = placeToken(cavalier, { id: "t2", scene: "s9", bound: { uuid: mule.uuid, role: "rider" } });
+  fire("createScene", scenes.get("s9"), {}, "gm");
+  assert.equal(riderOf(mule), imported.actor);
+});
+
+await test("a token linked since is its base actor again, and not a second copy of it", async () => {
+  const goblin = makeActor({ id: "goblin", type: "monster" });
+  const wagon = makeActor({ id: "wagon", type: "acks-extras.vehicle" });
+  await attach(goblin, wagon, "passenger");
+  const token = placeToken(goblin, { id: "t1" });
+  await attach(token.actor, wagon, "passenger");
+  assert.deepEqual(uuids(attachedTo(wagon)), [goblin.uuid, token.actor.uuid]);
+  token.actorLink = true;
+  assert.deepEqual(attachedTo(wagon), [goblin], "an entry the index still holds resolves to the base and is dropped");
+  fire("updateToken", token, { actorLink: true }, {}, "gm");
+  assert.deepEqual(attachedTo(wagon), [goblin]);
+});
+
+await test("a binding written through the token's own document is found", async () => {
+  const cavalier = makeActor({ id: "cavalier", type: "monster" });
+  const steed = makeActor({ id: "steed", type: ANIMAL });
+  const token = placeToken(cavalier, { id: "t1" });
+  assert.equal(riderOf(steed), null);
+  const binding = { uuid: steed.uuid, role: "rider", station: null, kind: null };
+  token._source.delta.flags = { [MODULE]: { attachedTo: binding } };
+  fire("updateToken", token, { delta: { flags: { [MODULE]: { attachedTo: binding } } } }, {}, "gm");
+  assert.equal(riderOf(steed), token.actor);
+});
+
+await test("a deleted mount frees its token rider, on the primary GM's client", async () => {
+  const cavalier = makeActor({ id: "cavalier", type: "monster" });
+  const steed = makeActor({ id: "steed", type: ANIMAL });
+  const token = placeToken(cavalier, { id: "t1" });
+  await mountActor(token.actor, steed);
+  const users = game.users;
+  game.users = { activeGM: { isSelf: true } };
+  try {
+    worldActors.delete(steed.id);
+    fire("deleteActor", steed, {}, "gm");
+    await settle();
+  } finally {
+    game.users = users;
+  }
+  assert.equal(token._source.delta.flags[MODULE].attachedTo, undefined);
+});
 console.log(`test-mount: ${passed} checks passed`);
