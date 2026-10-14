@@ -5855,3 +5855,28 @@ a label, so a variant header ending in a colon would fail to compile; none
 prints one. The optic rows lose `descStopY`, which had stopped the flow on
 its first page before it reached the prose overleaf: a flow with a stop floor
 returns after one page, and that is the floor's contract.
+
+## 2026-10-13 — An icon the core build renamed keeps the path it was given, and the gate reads the build's aliases
+
+Core 14.369 serves 21 icons from renamed files and keeps answering for their
+old paths: its server holds `STATIC_FILE_ALIASES` and serves each old path
+from the file it maps to. One register power names one of the 21, and no
+entry names a new spelling. The icon-existence check in
+`tools/importer/validate-extra.mjs` tested the install's files alone, so on
+the day the install was updated it failed `validate`, and every commit gate
+with it, on committed data the running server still answered for: a request
+for the old path returned the renamed file, byte for byte, and a made-up
+name returned 404. The ruling: the entry keeps its path, and the check
+resolves an `icons/` path through the install's alias list where the file is
+not there, naming each path that resolves that way in a line of its output.
+
+*Rejected:* renaming the entry's icon to the new spelling (the install this
+check passed against on 2026-10-10 held the old file, so a seat on a build
+from before the rename would be sent a path that build has no file for, and
+no alias runs backwards); a list of renamed paths kept in this repo (the
+build already holds it).
+
+*Cost:* the check reads a constant out of the server's minified source as
+text. Where a later build words it differently the list reads as empty and
+an aliased path fails the gate again. The ledger's `--free` offers a renamed
+file as unclaimed though an entry spends that picture under its old path.

@@ -16,7 +16,8 @@
  *                       old names.
  *   icon existence      img/icon path literals must resolve — module paths
  *                       in-repo, core/system paths against a discoverable
- *                       install/checkout, with a skip notice when absent.
+ *                       install/checkout, with a skip notice when absent. A
+ *                       core path the install aliases resolves as its file.
  *   lint-register       IP + schema lint of register/ and cookbook/. No PDFs,
  *                       runs everywhere including CI (`npm run lint:register`).
  *   icon-ledger         Ratchet: no entry may lose its icon and no kind may
@@ -82,11 +83,25 @@ const rel = (f) => path.relative(ROOT, f).split(path.sep).join("/");
   }
 }
 
-/* 2. Icon paths resolve (same contract as acks-extras' validate-extra §6). */
+/* 2. Icon paths resolve. A core build that renames an icon keeps answering
+ * for the old path: its server holds STATIC_FILE_ALIASES and serves each key
+ * from the file it maps to. A path the install aliases resolves where that
+ * file exists, and is never rewritten to the new name: on a build from before
+ * the rename the old path is the file and the new one is nothing. */
 {
   const FOUNDRY_PUBLIC = [
     "C:/Program Files/Foundry Virtual Tabletop/resources/app/public",
   ].find((p) => fs.existsSync(path.join(p, "icons")));
+  /** The install's aliases, old path to the path it is served from; none where the build keeps no list. */
+  const aliases = (() => {
+    try {
+      const constants = fs.readFileSync(path.join(FOUNDRY_PUBLIC, "..", "dist", "server", "constants.mjs"), "utf8");
+      return JSON.parse(constants.match(/STATIC_FILE_ALIASES\s*=\s*(\{[^}]*\})/)[1]);
+    } catch {
+      return {};
+    }
+  })();
+  const aliased = new Set();
   const SYSTEM_SRC = [path.join(ROOT, "..", "foundryvtt-acks-core", "src")].find((p) =>
     fs.existsSync(path.join(p, "assets"))
   );
@@ -109,11 +124,14 @@ const rel = (f) => path.relative(ROOT, f).split(path.sep).join("/");
           skipped.add(p.split("/")[0]);
           continue;
         }
-        if (!fs.existsSync(resolved)) fail(`${rel(f)}: icon path does not exist — ${p}`);
+        if (fs.existsSync(resolved)) continue;
+        if (p.startsWith("icons/") && Object.hasOwn(aliases, p) && fs.existsSync(path.join(FOUNDRY_PUBLIC, aliases[p]))) aliased.add(p);
+        else fail(`${rel(f)}: icon path does not exist — ${p}`);
       }
     }
   }
   if (skipped.size) console.log(`validate-extra: icon check skipped for ${[...skipped].join(", ")} paths (no install/checkout found)`);
+  if (aliased.size) console.log(`validate-extra: ${aliased.size} icon path(s) the install serves from a renamed file, kept as written: ${[...aliased].join(", ")}`);
 }
 
 /* 3. The OSE converter carries no printed constant.
