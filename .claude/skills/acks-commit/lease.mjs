@@ -37,6 +37,8 @@ const TAKEOVER_MS = 30_000;
 const GONE_MS = 50;
 /** How many looks in one wait may find a lease gone that the create found there. */
 const GONE_LOOKS = 20;
+/** How many creates in a row may be refused before the refusal is a fault of its own. */
+const REFUSED_LOOKS = 20;
 
 const dirOf = (gitDir) => path.join(gitDir, "acks-lease");
 const fileOf = (gitDir) => path.join(dirOf(gitDir), "landing.json");
@@ -134,7 +136,9 @@ export function clear(gitDir, judged, now = Date.now()) {
   }
   try {
     const stands = readLease(gitDir);
-    if (stands && (stands.token !== judged.token || stands.beat !== judged.beat)) return false;
+    // Nothing read, nothing removed: a lease made after this look is a live run's.
+    if (!stands) return true;
+    if (stands.token !== judged.token || stands.beat !== judged.beat) return false;
     fs.rmSync(fileOf(gitDir), { force: true });
     return true;
   } finally {
@@ -164,9 +168,22 @@ export async function acquire(gitDir, holder, { waitMs = 0, pollMs = 2000, onWai
   let told;
   let silent = null;
   let gone = 0;
+  let refused = 0;
   for (;;) {
     const now = clock();
-    const lease = take(gitDir, holder, now);
+    let lease;
+    try {
+      lease = take(gitDir, holder, now);
+      refused = 0;
+    } catch (e) {
+      // On Windows a create made in the moment a lease is given up or removed
+      // can be refused with EPERM, where one over a lease that stands is
+      // refused with EEXIST. It is asked again; a refusal that goes on is a
+      // fault of its own, and is thrown.
+      if (e.code !== "EPERM" || ++refused > REFUSED_LOOKS) throw e;
+      await pause(GONE_MS);
+      continue;
+    }
     if (lease) {
       const timer = setInterval(() => beat(gitDir, lease.token), beatMs);
       timer.unref();

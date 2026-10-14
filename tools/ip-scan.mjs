@@ -26,9 +26,22 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
-const CLI = import.meta.url === pathToFileURL(process.argv[1] ?? "").href;
+/* Whether node was started on this file, which is what tells the scanner run
+ * as a command from the same file imported by the hook or the commit tool.
+ * The two are compared as the files they are: argv names the file as it was
+ * typed and the module's URL names it by its real path, so a comparison of
+ * the spellings takes a scanner started through a linked directory for an
+ * import, and it prints nothing and exits 0. */
+const realFile = (file) => {
+  try {
+    return fs.realpathSync.native(file);
+  } catch {
+    return path.resolve(file);
+  }
+};
+const CLI = Boolean(process.argv[1]) && realFile(process.argv[1]) === realFile(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(process.argv.find((a) => !a.startsWith("--") && a !== process.argv[0] && a !== process.argv[1]) ?? ".");
 const STRICT = process.argv.includes("--strict");
 

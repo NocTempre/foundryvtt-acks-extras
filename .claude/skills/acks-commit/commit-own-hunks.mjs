@@ -44,7 +44,8 @@
  *   files    { "<path>": {} | { "own": "<regex>", "count": <n> } | { "whole": true, "own"?: "<regex>" } }
  *            `{}` takes the hunks the ledger gives this session. Of a hunk two sessions
  *            wrote it takes this session's lines, where every line has a writer and no
- *            other session removed one.
+ *            other session removed one. It leaves a hunk where another session's line
+ *            stands in place of one this session had written there.
  *            `own` is tested against a hunk's removed and added lines joined by newlines.
  *            It takes a hunk no record accounts for, and never one holding another
  *            session's line.
@@ -280,6 +281,8 @@ function readLedger(change) {
 /**
  * Whose one hunk is by the ledger.
  *
+ * @param {{mine: Set<string>}} ledger The sessions whose hunk it would be:
+ *   this change's, or another session's where the hunk is read from its seat.
  * @returns {null | {whose: "mine"|"peer"|"nobody"|"mixed", peers: string[], mine: number, unknown: number, keep: number[]|null}}
  *   null where no record names the file. `mine` and `unknown` count the
  *   hunk's lines this change's sessions wrote or removed and the lines no
@@ -289,7 +292,11 @@ function readLedger(change) {
  *   are this change's, by index. It can be divided when every line has a
  *   writer, the writers were read at the place git puts the hunk, and this
  *   change removed every line the hunk removes, so what is left behind is
- *   other sessions' added lines alone.
+ *   other sessions' added lines alone. A hunk that would divide into this
+ *   change's removals and none of its added lines is the other session's
+ *   ("peer") where that session removed a line put in the removed lines'
+ *   place: its line stands where this change's stood, and the removal alone
+ *   would take HEAD's line out for a line left behind.
  */
 function verdictOf(ledger, blamed, hunk) {
   if (!blamed) return null;
@@ -303,7 +310,9 @@ function verdictOf(ledger, blamed, hunk) {
   const unknown = all.filter((who) => !isMine(who) && !isPeer(who)).length;
   const whose = mine === all.length ? "mine" : mine ? "mixed" : peers.length ? "peer" : "nobody";
   const divides = whose === "mixed" && !unknown && !writers.slid && writers.removed.every(isMine);
-  return { whose, peers, mine, unknown, keep: divides ? writers.added.flatMap((who, i) => (isMine(who) ? [i] : [])) : null };
+  const keep = divides ? writers.added.flatMap((who, i) => (isMine(who) ? [i] : [])) : null;
+  const overwritten = keep !== null && !keep.length && writers.replaced.some((line) => !isMine(line.by));
+  return overwritten ? { whose: "peer", peers, mine, unknown, keep: null } : { whose, peers, mine, unknown, keep };
 }
 
 /**
@@ -410,7 +419,14 @@ function record({ pin = null } = {}) {
       for (const h of all) {
         const v = read.get(h);
         if (v?.whose !== "mixed" || v.keep) continue;
-        if (v.peers.length) refuse(`${file}: the hunk at -${h.oldStart} holds this session's lines and ${v.peers.map(short).join(", ")}'s, and they do not divide by line; it lands once theirs has, or under "adopt" where the owner rules it this change's`);
+        if (v.peers.length) {
+          // The hunk is read from each other session's seat: one that divides
+          // none of it off there has nothing to land first, and a session
+          // told to wait for it would wait for good.
+          const lands = v.peers.some((peer) => verdictOf({ mine: new Set([peer]) }, blamed, h).keep !== null);
+          const way = lands ? "it lands once theirs has, or" : "no part of it is theirs to land first by the ledger either, so it lands";
+          refuse(`${file}: the hunk at -${h.oldStart} holds this session's lines and ${v.peers.map(short).join(", ")}'s, and they do not divide by line; ${way} under "adopt" where the owner rules it this change's`);
+        }
         refuse(`${file}: the hunk at -${h.oldStart} holds this session's lines beside ${v.unknown} no record accounts for; give the file an "own" pattern to take the hunk on your word`);
       }
       if (!mine.length) {

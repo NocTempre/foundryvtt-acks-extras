@@ -10,7 +10,9 @@
  * writer no hook saw (a script, a formatter, a session older than the hook)
  * came between. A removed line stays in the list as a tombstone naming who
  * removed it, so a removal is attributed by where it happened and not by its
- * text alone.
+ * text alone. Every line carries the step of the replay that wrote it and,
+ * once removed, the step that removed it, so the lines that stood at a place
+ * after any step can be read back.
  *
  * No record is trusted further than its content. A missing blob, a record
  * with no `pre`, and a change too large to align all end as lines that belong
@@ -118,9 +120,10 @@ const holds = (entries, lines) => {
  * Move the list from the lines it holds to `next`. A line both hold keeps its
  * entry. A line only `next` holds enters as `writer`'s, just ahead of the
  * kept line that follows it. A line only the list holds stays where it was,
- * marked as removed by `writer`.
+ * marked as removed by `writer`. `tick` numbers the step: a line it writes is
+ * `born` then, and a line it removes is `gone` then.
  */
-function step(entries, next, writer) {
+function step(entries, next, writer, tick) {
   const a = live(entries).map((e) => e.text);
   let head = 0;
   while (head < a.length && head < next.length && a[head] === next[head]) head++;
@@ -142,7 +145,7 @@ function step(entries, next, writer) {
   let seen = 0;
   let placed = 0;
   const placeUpTo = (j) => {
-    while (placed < j) out.push({ text: next[placed++], owner: who });
+    while (placed < j) out.push({ text: next[placed++], owner: who, born: tick });
   };
   for (const e of entries) {
     if (e.by !== undefined) {
@@ -151,7 +154,7 @@ function step(entries, next, writer) {
     }
     const j = keptAs[seen++];
     if (j === -1) {
-      out.push({ ...e, by: who });
+      out.push({ ...e, by: who, gone: tick });
     } else {
       placeUpTo(j);
       out.push(e);
@@ -170,13 +173,15 @@ function step(entries, next, writer) {
  * @param {string} working The file's content now.
  * @param {Map<string, object[]>} [records] `readRecords(gitDir)`, where the
  *   caller already holds it.
- * @returns {null | {lines: string[], owners: string[], removed: {text: string, by: string, owner: string}[][], sessions: Map<string, number>, origin: string|null}}
+ * @returns {null | {lines: string[], owners: string[], removed: {text: string, by: string, owner: string, born: number, gone: number}[][], sessions: Map<string, number>, origin: string|null}}
  *   null when no record names the file. `owners[i]` wrote `lines[i]`.
  *   `removed[i]` lists, in order, the lines taken out just ahead of line i,
- *   each with who removed it and who had written it, so it has one entry
- *   more than `lines`. `sessions` maps each session with a record of the
- *   file to the time of its latest. `origin` is the content the first
- *   record found, whose lines are `ORIGIN`'s; null where that record had none.
+ *   each with who removed it and who had written it, and the steps of the
+ *   replay that wrote and removed it (0 for a line the replay began with),
+ *   so it has one entry more than `lines`. `sessions` maps each session with
+ *   a record of the file to the time of its latest. `origin` is the content
+ *   the first record found, whose lines are `ORIGIN`'s; null where that
+ *   record had none.
  */
 export function blame(gitDir, file, working, records = readRecords(gitDir)) {
   const list = records.get(keyOf(file));
@@ -185,6 +190,7 @@ export function blame(gitDir, file, working, records = readRecords(gitDir)) {
   const sessions = new Map();
   let entries = null;
   let origin = null;
+  let tick = 0;
   for (const rec of list) {
     sessions.set(rec.session, rec.ts);
     const post = readBlob(gitDir, rec.post, cache);
@@ -192,26 +198,26 @@ export function blame(gitDir, file, working, records = readRecords(gitDir)) {
     const pre = readBlob(gitDir, rec.pre, cache);
     const after = toLines(post);
     if (pre === null) {
-      entries = entries ? step(entries, after, NOBODY) : after.map((text) => ({ text, owner: NOBODY }));
+      entries = entries ? step(entries, after, NOBODY, ++tick) : after.map((text) => ({ text, owner: NOBODY, born: 0 }));
       continue;
     }
     const before = toLines(pre);
     if (!entries) {
-      entries = before.map((text) => ({ text, owner: ORIGIN }));
+      entries = before.map((text) => ({ text, owner: ORIGIN, born: 0 }));
       origin = pre;
-    } else if (!holds(entries, before)) entries = step(entries, before, NOBODY);
-    entries = step(entries, after, rec.session);
+    } else if (!holds(entries, before)) entries = step(entries, before, NOBODY, ++tick);
+    entries = step(entries, after, rec.session, ++tick);
   }
   const now = toLines(working);
-  if (!entries) entries = now.map((text) => ({ text, owner: NOBODY }));
-  else if (!holds(entries, now)) entries = step(entries, now, NOBODY);
+  if (!entries) entries = now.map((text) => ({ text, owner: NOBODY, born: 0 }));
+  else if (!holds(entries, now)) entries = step(entries, now, NOBODY, ++tick);
 
   const lines = [];
   const owners = [];
   const removed = [[]];
   for (const e of entries) {
     if (e.by !== undefined) {
-      removed[removed.length - 1].push({ text: e.text, by: e.by, owner: e.owner });
+      removed[removed.length - 1].push({ text: e.text, by: e.by, owner: e.owner, born: e.born, gone: e.gone });
     } else {
       lines.push(e.text);
       owners.push(e.owner);
@@ -235,26 +241,108 @@ export function soleWriter(blamed, mine) {
   return blamed.owners.every((who) => who === ORIGIN || mine.has(who)) && blamed.removed.every((gap) => gap.every((line) => mine.has(line.by)));
 }
 
+/** Whether a tombstone's line stood once step `s` of the replay was done. */
+const stoodAfter = (e, s) => e.born <= s && e.gone > s;
+
+/**
+ * The last step of the replay that left the lines `minus` holds standing, in
+ * their order, among the lines a place has since lost, or -1 where no step
+ * left them so. `pool` is the place's tombstones, in order.
+ */
+function lastHeld(pool, minus) {
+  const steps = [...new Set(pool.flatMap((e) => [e.born, e.gone]))].sort((a, b) => b - a);
+  for (const s of steps) {
+    const stood = pool.filter((e) => stoodAfter(e, s));
+    if (stood.length === minus.length && stood.every((e, i) => e.text === minus[i])) return s;
+  }
+  return -1;
+}
+
 /**
  * Who removed each of a hunk's removed lines, looked for in order among the
  * tombstones at its place. A line no tombstone holds is nobody's. So is one
  * several tombstones hold with different removers: a line written and removed
- * again leaves a tombstone HEAD never held, and nothing here tells it from
- * the one HEAD did. `among` holds the removers of every such line.
+ * again leaves a tombstone HEAD never held, and its text does not tell it
+ * from the one HEAD did.
+ *
+ * With `stands`, a line left to nobody is read once more, by when. Where some
+ * step of the replay last left the lines `minus` holds standing among the
+ * lines the place has since lost, the place read then as HEAD reads it, apart
+ * from lines that stand there still. The line is then a session's where the
+ * lines of its text that stood after that step went by that session's hand
+ * alone, none has been written at the place since, and every earlier removal
+ * of a line of that text there by another session was undone by that
+ * session's own hand: from each such removal on, it wrote the text there in
+ * later steps at least as often as it took it out. A session that changed a
+ * line and changed it back has no claim on it. One whose removal another
+ * hand undid still has. So has one that took out a line it had written
+ * itself, since nothing here says the line had not landed in between, and so
+ * has a writer no hook saw; a line such a writer removed is left as the text
+ * reads it. A text that stands at the place is not read again, the line
+ * standing not being told from the one removed, and lines of one text that
+ * stood there together are still not told apart, whoever removed each.
+ *
+ * @param {object[]} pool The place's tombstones, in order.
+ * @param {string[]|null} stands The lines standing at the place, or null to
+ *   read by text alone.
+ * @returns {{removers: string[], among: Set<string>, steps: number[]}}
+ *   `among` holds the removers a line left to nobody may have gone by.
+ *   `steps` are the steps of the replay that removed the lines that answered.
  */
-function removersOf(pool, minus) {
+function removersOf(pool, minus, stands) {
   const removers = [];
-  const among = new Set();
+  const held = [];
   let from = 0;
   for (const text of minus) {
     const holding = [];
     for (let k = from; k < pool.length; k++) if (pool[k].text === text) holding.push(k);
     const agreed = holding.length > 0 && holding.every((k) => pool[k].by === pool[holding[0]].by);
     removers.push(agreed ? pool[holding[0]].by : NOBODY);
+    held.push(holding.map((k) => pool[k]));
     if (agreed) from = holding[0] + 1;
-    else for (const k of holding) among.add(pool[k].by);
   }
-  return { removers, among };
+  const since = stands && removers.includes(NOBODY) ? lastHeld(pool, minus) : -1;
+  if (since >= 0) {
+    minus.forEach((text, i) => {
+      if (removers[i] !== NOBODY || stands.includes(text)) return;
+      const same = pool.filter((e) => e.text === text);
+      const stood = same.filter((e) => stoodAfter(e, since));
+      const taker = stood[0].by;
+      if (taker === NOBODY || same.some((e) => e.born > since) || !stood.every((e) => e.by === taker)) return;
+      const before = same.filter((e) => e.gone <= since && e.by !== taker);
+      const undone = (t) => t.by !== NOBODY && same.filter((e) => e.owner === t.by && e.born > t.gone).length >= before.filter((u) => u.by === t.by && u.gone >= t.gone).length;
+      if (!before.every(undone)) return;
+      removers[i] = taker;
+      held[i] = stood;
+    });
+  }
+  const among = new Set();
+  const steps = [];
+  removers.forEach((by, i) => {
+    if (by === NOBODY) for (const e of held[i]) among.add(e.by);
+    else for (const e of held[i]) steps.push(e.gone);
+  });
+  return { removers, among, steps };
+}
+
+/**
+ * The lines written at a place in the steps that removed a hunk's lines, and
+ * on through each such line since removed, in the step that removed it: what
+ * was put in the removed lines' place, however many times it was reworded
+ * and by whom. Only the ones no longer standing are given, each with its
+ * writer and with who removed it. `pool` is the place's tombstones.
+ */
+function writtenInPlace(pool, steps) {
+  const chain = new Set(steps);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const e of pool) {
+      if (!chain.has(e.born) || chain.has(e.gone)) continue;
+      chain.add(e.gone);
+      grew = true;
+    }
+  }
+  return pool.filter((e) => chain.has(e.born)).map((e) => ({ owner: e.owner, by: e.by }));
 }
 
 /** How far a hunk is looked for either side of where git places it. */
@@ -275,14 +363,18 @@ const SLIDE_MAX = 64;
  * @param {{newStart: number, plus: string[], minus: string[]}} hunk `newStart`
  *   as git prints it: the first added line, or for a hunk that adds nothing
  *   the line it follows.
- * @returns {null | {added: string[], removed: string[], slid: number, among: string[]}}
+ * @returns {null | {added: string[], removed: string[], slid: number, among: string[], replaced: {owner: string, by: string}[]}}
  *   One writer per added line and one remover per removed line, in the order
  *   of the place read; `slid` is how many lines that place lies from git's,
  *   and only at 0 do the writers pair with the hunk's own lines. `among`
  *   names everyone a line given to nobody may belong to, where two readings
  *   disagreed: nobody takes such a line by the ledger, and the sessions among
- *   them still have a claim on it. null when the lines the hunk adds are not
- *   the lines `blamed` holds there.
+ *   them still have a claim on it. `replaced` is read for a hunk that both
+ *   removes and adds: each line put in the removed lines' place that has
+ *   since been removed, with its writer (`owner`) and who removed it (`by`).
+ *   Where a line the hunk's removers wrote went by another writer, what
+ *   stands in the removed lines' place is no longer theirs. null when the
+ *   lines the hunk adds are not the lines `blamed` holds there.
  */
 export function writersOf(blamed, hunk) {
   const { lines, owners, removed } = blamed;
@@ -291,8 +383,9 @@ export function writersOf(blamed, hunk) {
   if (hunk.plus.some((text, i) => lines[first + i] !== text)) return null;
 
   if (n && hunk.minus.length) {
-    const gone = removersOf(removed.slice(first, first + n + 1).flat(), hunk.minus);
-    return { added: owners.slice(first, first + n), removed: gone.removers, slid: 0, among: [...gone.among] };
+    const pool = removed.slice(first, first + n + 1).flat();
+    const gone = removersOf(pool, hunk.minus, hunk.plus);
+    return { added: owners.slice(first, first + n), removed: gone.removers, slid: 0, among: [...gone.among], replaced: writtenInPlace(pool, gone.steps) };
   }
 
   const places = [];
@@ -305,8 +398,8 @@ export function writersOf(blamed, hunk) {
     for (let at = first; at + n < lines.length && at - first < SLIDE_MAX && lines[at] === lines[at + n]; ) read(++at);
   } else {
     const read = (gap, block) => {
-      const gone = removersOf(removed[gap] ?? [], block);
-      offer({ added: [], removed: gone.removers, among: gone.among }, gap - first, gone.removers.filter((by) => by === NOBODY).length);
+      const gone = removersOf(removed[gap] ?? [], block, null);
+      offer({ added: [], removed: gone.removers, among: gone.among, gap, block }, gap - first, gone.removers.filter((by) => by === NOBODY).length);
     };
     read(first, hunk.minus);
     for (let gap = first, block = hunk.minus; gap > 0 && first - gap < SLIDE_MAX && lines[gap - 1] === block[block.length - 1]; ) {
@@ -323,9 +416,13 @@ export function writersOf(blamed, hunk) {
   const who = (p) => [...p.added, ...p.removed].sort().join("\n");
   if (good.some((p) => who(p) !== who(good[0]))) {
     const among = new Set(good.flatMap((p) => [...p.added, ...p.removed, ...p.among]));
-    return { added: hunk.plus.map(() => NOBODY), removed: hunk.minus.map(() => NOBODY), slid: 0, among: [...among] };
+    return { added: hunk.plus.map(() => NOBODY), removed: hunk.minus.map(() => NOBODY), slid: 0, among: [...among], replaced: [] };
   }
-  return { added: good[0].added, removed: good[0].removed, slid: good[0].slid, among: [...good[0].among] };
+  // The place is chosen by what the tombstones' text says. Only there, and
+  // only where a removal is still nobody's, is it read by when.
+  const place = good[0];
+  const again = place.removed.includes(NOBODY) ? removersOf(removed[place.gap] ?? [], place.block, []) : null;
+  return { added: place.added, removed: again?.removers ?? place.removed, slid: place.slid, among: [...(again?.among ?? place.among)], replaced: [] };
 }
 
 /**

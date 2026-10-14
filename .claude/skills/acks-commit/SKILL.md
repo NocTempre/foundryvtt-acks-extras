@@ -105,7 +105,10 @@ writes nothing to the repository.
 A `MINE` that is not this change's, or a `left` that is, is fixed in
 `change.json`. A hunk that holds this session's lines beside ones no record
 accounts for is refused until its file has an `own` pattern. A hunk the
-ledger gives another session is never taken by a pattern.
+ledger gives another session is never taken by a pattern. A hunk listed
+`left` under `[me + session 1a2b3c4d]` with no refusal is one where that
+session's line stands in place of one this change wrote there: the hunk is
+that session's to land.
 
 | Exit | Meaning | Next |
 | --- | --- | --- |
