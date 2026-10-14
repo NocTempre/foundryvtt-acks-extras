@@ -29,7 +29,7 @@ export const COOKBOOK_SCHEMA = "acks-cookbook/2";
 
 // Private-use-area glyphs (icons, foot/inch marks) are stripped from prose and
 // raw values; damage handling reads them deliberately before the strip.
-const PUA_RE = /[-]/g;
+const PUA_RE = /[\uE000-\uF8FF]/g;
 const clean = (s) => (s ?? "").replace(PUA_RE, "").replace(/\s+/g, " ").trim();
 
 // Prose keeps a damage-type mark as its word: the RR sets "1d6 <fire> damage"

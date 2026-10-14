@@ -231,7 +231,7 @@ check("sunburn reads its damage, its kind and its hours", baked.forage.water ===
   && baked.sunburn.damage === 1 && baked.sunburn.type === "fire" && baked.sunburn.hours === 3);
 check("a damage type set as an inline glyph leaves the figure and the hours readable",
   (() => {
-    const burn = parseConditionEntry("wanderers without protective clothing suffer 2 damage if they work outdoors for five or more hours.").sunburn;
+    const burn = parseConditionEntry("wanderers without protective clothing suffer 2\uE906 damage if they work outdoors for five or more hours.").sunburn;
     return burn.damage === 2 && burn.type === null && burn.hours === 5;
   })());
 check("the air speed factor is read wherever the sentence puts it",

@@ -151,7 +151,7 @@ const CONDITION_NAMES = "frigid|cold|sweltering|moderate|drizzly|fair|flurry|fog
  */
 const normalize = (text) => String(text ?? "")
   .toLowerCase()
-  .replace(/[​-‍﻿-]/g, " ")
+  .replace(/[\u200B-\u200D\uFEFF\uE000-\uF8FF]/g, " ")
   .replace(/[‘’′]/g, "'")
   .replace(/[–—−]/g, "-")
   .replace(/\s+/g, " ")

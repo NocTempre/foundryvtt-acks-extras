@@ -422,7 +422,7 @@ function contiguousRows(rows, yEnd) {
 
 const LABEL_RE = /^[A-Z][A-Za-z ()'/]{0,28}:$/;
 const DICE_RE = /\d*d\d+(?:[×xX]\d+)?(?:[+-]\d+)?/; // mirrors scripts/executor.mjs
-const cleanSeg = (s) => (s ?? "").replace(/[-′″]/g, "").replace(/\s+/g, " ").trim();
+const cleanSeg = (s) => (s ?? "").replace(/[\uE000-\uF8FF′″]/g, "").replace(/\s+/g, " ").trim();
 // A real damage segment: dice, a flat number, or a "by weapon" placeholder
 // (mirror of executor.isDamageSeg — must stay identical so segment COUNT
 // matches at runtime and color picks line up).
@@ -2243,7 +2243,7 @@ async function axOpen(doc, entry) {
     // The box is what a Judge's copy is read through, so prove here that it
     // opens with the number: a box that caught the tail of the entry above
     // would compile clean and stub on every import.
-    const read = readOf(name).replace(/[-]/g, "").replace(/\s+/g, " ").trim();
+    const read = readOf(name).replace(/[\uE000-\uF8FF]/g, "").replace(/\s+/g, " ").trim();
     if (!opensWithNumber(read, name.number)) throw new Error(`heading box for "${name.number}" on p.${page} opens with other text`);
   }
   return { assists, page, pd, cols, a, name };

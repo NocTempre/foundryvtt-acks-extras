@@ -19,7 +19,7 @@ const SAVE_CLASS_BY_ABBR = { F: "fighter", C: "crusader", M: "mage", T: "thief",
 const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // Private-use-area glyphs (damage-type icons, foot/inch marks) — strip for
 // clean text; kept out of source as codepoints so the file stays ASCII.
-const PUA_RE = /[-]/g;
+const PUA_RE = /[\uE000-\uF8FF]/g;
 const clean = (v) => (v ?? "").replace(PUA_RE, "").replace(/\s+/g, " ").trim();
 
 // Damage-type icon glyph -> acks-monsters DAMAGE_TYPES enum key, decoded from
