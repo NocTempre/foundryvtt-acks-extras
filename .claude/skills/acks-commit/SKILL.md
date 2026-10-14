@@ -3,161 +3,65 @@ name: acks-commit
 description: Commit this session's own change from a working tree other sessions are writing in — its hunks and no peer's, gated as the exact tree that is committed, with a base that moved under the gate refused or carried by rule. Use when the user says "commit", "commit when ready", "commit only your hunks" or "leave it unpushed" in an acks-* repo, and from acks-release step 6. Not the release procedure itself (acks-release) and not a canon sync (acks-sync-toolchain).
 ---
 
-The rule is `.claude/rules/shared-tree.md`; this skill is how it is carried
-out. `commit-own-hunks.mjs`, beside this file, does the work: it builds the
-change in a private index, gates that tree in a scratch clone, and stages on
-the shared index only when the tree id is the gated one. Its header documents
-every mode and every `change.json` key, and is the reference; nothing there is
-repeated here.
+The rule is `.claude/rules/shared-tree.md`; `commit-own-hunks.mjs`, beside this
+file, carries it out, and its header is the reference for every mode and every
+`change.json` key. The user's "commit" is the go-ahead; a push follows
+TOOLCHAIN §2 unless they said to leave it (`--no-push`).
 
-The user's "commit" is the go-ahead for the commit. A push follows TOOLCHAIN
-§2 unless they said to leave it.
+## 1. Describe the change
 
-## 1. Look first
+A directory outside the repository with `commit-msg.txt`, the message in the
+repo's own voice (`acks-hotfix`, "Voice", for a fix), and `change.json`:
 
-```bash
-git status --short
-git log --oneline -3
-```
+- `{}` for a change made with the Edit and Write tools: the tool takes every
+  line the edit ledger gives this session, in every file, and no other.
+- A file a script wrote (a generator, a formatter, a sync) has no record and
+  is named `{ "whole": true }`; a new one goes under `added`, a deleted one
+  (removed with `rm`) under `removed`, an executable under `mode`. The header
+  has the rest: `own`, `adopt`, `expect`, `link`.
+- **A change that touches no gated file takes `"gate": []`**: docs, `.claude/`
+  text, `CHANGELOG.md`. Nothing offline reads them and the default gate is
+  minutes. Where `package.json` names no gate, `gate` lists the commands.
 
-- **Modified paths you did not write stay where they are.** They are named in
-  the report as left out, and at a release they are asked about
-  (`shared-tree.md`).
-- **Finish the wording first.** Any edit after the gate costs another gate.
+Finish the wording first; every edit after the gate costs another gate.
 
-## 2. Describe the change
-
-Make a directory in the session's scratch space, outside the repository, with
-two files. `commit-msg.txt` holds the message, in the repo's own voice
-(`acks-hotfix`, "Voice", for a fix).
-
-`change.json` for a change made with the Edit and Write tools alone is `{}`:
-the tool takes every line the edit ledger gives this session, in every file,
-and no other. It says more only about what the ledger cannot know:
-
-```json
-{
-  "mine": true,
-  "files": {
-    "packs/_source/items/rope.json": { "whole": true },
-    "lang/en.json": { "own": "ACKS-LIB\\.repair", "count": 1 }
-  },
-  "removed": ["tools/old-check.mjs"],
-  "expect": ["ok - a scan lists only coin that is there"]
-}
-```
-
-- `mine` keeps the ledger's files beside the paths named. A file listed as
-  `{}` takes only that file's lines of yours, for a commit of part of what
-  the session wrote.
-- **A file a script wrote** (a generator, a formatter, a sync) has no record.
-  It takes `whole` where every hunk is this change's, as any binary file
-  does, or `own`, a pattern that matches each of this change's hunks and no
-  other, with `count`, how many hunks that is. A new one is named under
-  `added`.
-- **A removed file** is deleted with `rm` and named under `removed`; `git rm`
-  writes the shared index and is refused.
-- **A file's mode** is named under `mode`, as
-  `{ ".githooks/pre-commit": "100755" }`. Git on Windows reads no mode from a
-  file, so nothing else gives a commit one: `git update-index --chmod` writes
-  the shared index, and the tool stops beside staging that is not its own.
-- `adopt` names a session whose records are this change's too: the one
-  before a `/clear`, or one whose work the user handed over. The listing
-  shows its lines as `[session 1a2b3c4d]`.
-- A new check or suite names one of its own output lines under `expect`: a
-  check that cannot run where the gate runs it often exits 0 with a note.
-- `gate` is needed only where `package.json` does not name the gate
-  (`build:packs`, `validate`, `test`). `link` adds any second `node_modules`
-  the gate reads, such as a docs site's.
-
-## 3. Ship, and read the listing where it stops for one
+## 2. Land
 
 ```bash
-node .claude/skills/acks-commit/commit-own-hunks.mjs ship --change <dir>
+node .claude/skills/acks-commit/commit-own-hunks.mjs land --change <dir>
 ```
 
-Run `ship` in the background, with no timeout of its own, and wait for it. A
-full gate takes minutes, more than a foreground command is given, and a
-background command that is given a timeout is stopped at it.
+One command: record, gate in a scratch clone, commit, push the commit's own
+sha, clean. Run it in the foreground with a 10-minute timeout; a gate longer
+than that runs in the background, and its one completion notice is the wait —
+never a polling loop. It prints one line:
 
-One run gates and commits in a repository at a time. `ship` holds the landing
-lease from its gate through its commit; where another run holds it, `ship`
-says who, waits its turn, and then gates on the commit that run landed. It
-waits twenty minutes unless `--wait <minutes>` says otherwise. It goes again
-on a new base only where a commit made around the tool lands under its gate,
-four times at most.
+`landed <sha> pushed; gate: build:packs 2s, validate 153s, test 46s; <dir>/land.log`
 
-Where the ledger accounts for every hunk it read, `ship` goes straight to
-the gate. Where the change takes anything on its own word (a pattern, a whole
-file, a named new file, a removal, a mode, `adopt`), or a file it takes holds
-a hunk no record accounts for, the first `ship` prints the listing and exits
-1. **Read it**, then run `ship` again; from there it holds whole files, added
-files and modes to what was listed. `record` prints the same listing and
-writes nothing to the repository.
-
-| Listing | Meaning |
-| --- | --- |
-| `MINE` | taken |
-| `PART` | a hunk two sessions wrote; this change's lines of it are taken |
-| `left` | stays in the working tree |
-| `[me]`, `[session 1a2b3c4d]`, `[no record]` | who wrote the hunk's lines, by the ledger |
-
-A `MINE` that is not this change's, or a `left` that is, is fixed in
-`change.json`. A hunk that holds this session's lines beside ones no record
-accounts for is refused until its file has an `own` pattern. A hunk the
-ledger gives another session is never taken by a pattern. A hunk listed
-`left` under `[me + session 1a2b3c4d]` with no refusal is one where that
-session's line stands in place of one this change wrote there: the hunk is
-that session's to land.
+Report that line, and the modified paths left out as other sessions'. Any
+other exit prints `REFUSED:` with the reason and the log's last lines, and
+nothing is staged:
 
 | Exit | Meaning | Next |
 | --- | --- | --- |
-| 0 | `OK: the commit holds the gated tree on the gated base` | §5 |
-| 1 | `REFUSED:` with the reason; nothing is staged | fix what it names, `ship` again |
-| 3 | every attempt lost its base to a landed commit | §4, or `ship` again |
-| 4 | staging that is not this run's is in the shared index | wait for it to land, `ship` again |
-| 5 | the landing lease was still held when the wait ran out | `ship` again, with a longer `--wait` where the holder's gate is long |
+| 1 | refused; the reason names it. A listing means the change takes a file on its own word (`whole`, `added`, a pattern): read it in `land.log`, fix `change.json` where a `MINE` is not this change's, and `land` again — it then holds the listing | |
+| 3 | the base moved under every attempt | `land` again |
+| 4 | staging that is not this run's is in the shared index | wait for it to land, `land` again |
+| 5 | the landing lease was held past the wait | `land` again, `--wait <minutes>` where the holder's gate is long |
 
-The gate's output is in `<dir>/gate-*.log`. A red gate is read there, never
-guessed at from the last line.
+In a listing, `MINE` is taken, `PART` takes this change's lines of a hunk two
+sessions wrote, `left` stays; `[me]`, `[session 1a2b3c4d]`, `[no record]` say
+who wrote it. A hunk `left` under two sessions' names with no refusal is one
+where the peer's line stands in place of yours: the peer lands it.
 
-## 4. A base that moved under a green gate
+A red gate is read in `<dir>/gate-*.log`, never guessed from the last line.
+The gate is offline and reads committed files only: a runtime change still
+owes its live walk (`.claude/rules/live-testing.md`), and a gitignored suite
+does not run in the clone.
 
-`shared-tree.md` gives the three conditions. The tool checks the first two and
-runs the third on request:
+## A base that moved under a green gate
 
-```bash
-node .claude/skills/acks-commit/commit-own-hunks.mjs commit --carry --change <dir>
-node .claude/skills/acks-commit/commit-own-hunks.mjs postgate <sha> --change <dir>
-```
-
-`commit --carry` refuses, with exit 3, when a landed commit writes one of the
-change's files or gate tooling, or when the rebuilt tree no longer holds the
-gated content; then the answer is a new gate. `postgate` is the full gate on
-the commit, run in the background. The carry stands once it is green, and a
-red one is this session's to fix before anything else. A release never takes
-this path.
-
-## 5. After the commit
-
-```bash
-git show --stat HEAD
-git status --short
-node .claude/skills/acks-commit/commit-own-hunks.mjs clean --change <dir>
-```
-
-`git status` now shows peers' work and nothing of the change. Push when the
-user's word or TOOLCHAIN §2 says to, naming the commit so nothing above it
-goes with it: `git push origin <sha>:refs/heads/main`.
-
-Report the sha, pushed or not, the gate's stages with their times as the tool
-printed them, whether the base was carried and what `postgate` said, and the
-paths left out as not this change's.
-
-## What a clone gate does not cover
-
-- **It is offline.** A runtime change still owes its live walk
-  (`.claude/rules/live-testing.md`).
-- **It reads committed files only.** A suite or fixture that is gitignored
-  does not exist in the clone, so the count of suites that ran is the
-  committed count.
+`shared-tree.md` gives the three conditions. `commit --carry --change <dir>`
+refuses with exit 3 when a landed commit writes one of the change's files or
+gate tooling, and `postgate <sha> --change <dir>` is the full gate on the
+commit, run in the background. A release never carries.

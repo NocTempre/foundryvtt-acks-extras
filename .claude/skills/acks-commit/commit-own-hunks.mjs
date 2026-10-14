@@ -22,6 +22,8 @@
  *                     It holds whole files, added files and modes to the `record` already made. With none
  *                     made it goes on only where the ledger accounts for everything it reads,
  *                     and otherwise prints the listing and stops for it to be read
+ *   land [--no-push]  ship, push the commit's own sha, clean, and print one line; ship's
+ *                     output goes to <dir>/land.log, and a stop prints its last lines
  *   clean             remove the scratch clone and the private index; drop the ledger's
  *                     long-silent sessions
  *
@@ -78,7 +80,7 @@
 import { spawn, spawnSync, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { blame, writersOf, soleWriter, readRecords, prune, keyOf, ORIGIN, NOBODY } from "./ledger.mjs";
 import { acquire, holds } from "./lease.mjs";
 
@@ -948,6 +950,38 @@ async function ship() {
   });
 }
 
+/**
+ * Ship, push and clean, reported in one line. `ship` runs as a child with its
+ * output in <dir>/land.log, so what a caller reads is the commit, whether it
+ * is pushed, and each gate stage's time. A stop prints the log's last lines
+ * under its reason, the listing among them, and exits as `ship` did. The push
+ * names the commit's own sha, so nothing landed above it goes with it.
+ */
+function land() {
+  const log = at("land.log");
+  const fd = fs.openSync(log, "w");
+  const passed = argv.slice(1).filter((a) => a !== "--no-push");
+  const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "ship", ...passed], { cwd: REPO, stdio: ["ignore", fd, fd] });
+  fs.closeSync(fd);
+  const text = fs.readFileSync(log, "utf8");
+  if (child.status !== 0) refuse(`ship stopped (exit ${child.status}); ${log} holds its run, ending:\n${lines(text).slice(-15).join("\n")}`, child.status || EXIT.refused);
+  const sha = text.match(/^commit ([0-9a-f]{40})$/m)?.[1];
+  if (!sha) refuse(`ship exited 0 and printed no commit; read ${log}`);
+  const last = text.slice(Math.max(0, text.lastIndexOf("--- attempt")));
+  const stages = [...last.matchAll(/^(.+?): exit 0 in (\d+s) \(gate-/gm)].map((m) => `${m[1].replace(/^npm (run )?/, "")} ${m[2]}`);
+  let pushed = "not pushed (--no-push)";
+  if (!argv.includes("--no-push")) {
+    try {
+      git(["push", "origin", `${sha}:refs/heads/${git(["rev-parse", "--abbrev-ref", "HEAD"]).trim()}`]);
+      pushed = "pushed";
+    } catch (e) {
+      pushed = `NOT pushed: ${lines(String(e.stderr ?? e.message)).pop()}`;
+    }
+  }
+  MODES.clean();
+  console.log(`landed ${sha} ${pushed}; gate: ${stages.join(", ") || "no stages"}; ${log}`);
+}
+
 const MODES = {
   record: () => void record(),
   build: () => report(build()),
@@ -955,6 +989,7 @@ const MODES = {
   commit: () => landing(() => commit({ carry: argv.includes("--carry") })),
   postgate,
   ship,
+  land,
   clean: () => {
     dropClone(readChange());
     fs.rmSync(at("private-index"), { force: true });
@@ -963,7 +998,7 @@ const MODES = {
 };
 
 try {
-  if (!MODES[mode] || !DIR) refuse("usage: node commit-own-hunks.mjs record | build | gate | commit [--carry] | postgate <sha> | ship [--attempts N] | clean, each with --change <dir> [--session <id>] [--wait <minutes>]", EXIT.usage);
+  if (!MODES[mode] || !DIR) refuse("usage: node commit-own-hunks.mjs record | build | gate | commit [--carry] | postgate <sha> | ship [--attempts N] | land [--no-push] | clean, each with --change <dir> [--session <id>] [--wait <minutes>]", EXIT.usage);
   const real = (p) => fs.realpathSync.native(p).toLowerCase();
   const top = git(["rev-parse", "--show-toplevel"]).trim();
   if (real(top) !== real(REPO)) refuse(`run from the repository root (${top})`, EXIT.usage);

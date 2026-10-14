@@ -66,7 +66,9 @@ the full pipeline (build + validate, no publish) is available anytime:
 1. Preflight: working tree clean (or only the changes being released);
    `git log origin/<branch>..HEAD` to know what's going out. Modified paths
    that are not this release's are another session's: list them and ask once
-   whether they ship (`.claude/rules/shared-tree.md`).
+   whether they ship (`.claude/rules/shared-tree.md`). That list is read from
+   the tree, never asked of sessions: a session's "done" is not a landing,
+   and the release cuts what `main` holds.
    **Run every push-triggered workflow's gate locally NOW, before anything
    is tagged** — discovering a red companion after publishing means doing
    the fix anyway, plus a wasted CI round-trip and a permanently red release
@@ -129,8 +131,9 @@ the full pipeline (build + validate, no publish) is available anytime:
      so it times out in any backgrounded session. Machine-specific values live
      in `TEST_ENVIRONMENT.md`. If a shot is unreachable, name it in the report
      rather than skipping it silently.
-6. Commit through **`acks-commit`** (snapshots and `docs/GALLERY.md`
-   included). Its gate runs steps 3–4 again on the release's own tree in a
+6. Commit through **`acks-commit`**, `land --no-push` (snapshots and
+   `docs/GALLERY.md` included); the push is this step's own, below. Its gate
+   runs steps 3–4 again on the release's own tree in a
    clone, which is the tree CI will build; step 4's run in the working tree
    read every session's in-flight hunks. A release takes no carried base: a
    commit that lands under the gate means the gate runs again.
