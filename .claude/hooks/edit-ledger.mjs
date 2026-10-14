@@ -20,6 +20,11 @@
  * once. Where none applies `pre` is null and the reader gives the whole write
  * to nobody.
  *
+ * A line also holds `head`, the commit HEAD was at when the record was
+ * written, or null where the repository has none yet. No record marks a
+ * commit: by what HEAD held at each record, the reader can tell a line taken
+ * out before it landed from one taken out after, however HEAD came to move.
+ *
  * Only a repository that carries the commit tool has a ledger, and only for
  * files git does not ignore. The ledger keeps whole copies of what it
  * records, and a file under some other repository, or one kept out of this
@@ -157,6 +162,11 @@ try {
     }
   }
 
+  // The commit is read from the work tree the file is in. A HEAD that names
+  // no commit yet, and a git that could not answer, both leave it null.
+  const at = spawnSync("git", ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], { cwd: where.root, encoding: "utf8", windowsHide: true });
+  const head = at.status === 0 && /^[0-9a-f]{40,64}$/.test(at.stdout.trim()) ? at.stdout.trim() : null;
+
   const dir = path.join(where.gitDir, "acks-ledger");
   fs.mkdirSync(dir, { recursive: true });
   const line = {
@@ -167,6 +177,7 @@ try {
     pre: pre === null ? null : keep(dir, pre),
     post: post === null ? null : keep(dir, post),
     how,
+    head,
   };
   if (payload.agent_id) line.agent = payload.agent_id;
   fs.appendFileSync(path.join(dir, `${session}.jsonl`), `${JSON.stringify(line)}\n`);

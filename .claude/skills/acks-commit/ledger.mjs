@@ -12,13 +12,17 @@
  * removed it, so a removal is attributed by where it happened and not by its
  * text alone. Every line carries the step of the replay that wrote it and,
  * once removed, the step that removed it, so the lines that stood at a place
- * after any step can be read back.
+ * after any step can be read back. A record that names the commit HEAD was at
+ * gives that commit to the lines it writes and removes, and the file as that
+ * commit holds it says whether a line of some text had landed by then.
  *
  * No record is trusted further than its content. A missing blob, a record
  * with no `pre`, and a change too large to align all end as lines that belong
  * to nobody, which the commit tool leaves where they are unless it is told
- * otherwise.
+ * otherwise. A record that names no commit, or one git cannot read the file
+ * from, says nothing of what had landed.
  */
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
@@ -121,9 +125,12 @@ const holds = (entries, lines) => {
  * entry. A line only `next` holds enters as `writer`'s, just ahead of the
  * kept line that follows it. A line only the list holds stays where it was,
  * marked as removed by `writer`. `tick` numbers the step: a line it writes is
- * `born` then, and a line it removes is `gone` then.
+ * `born` then, and a line it removes is `gone` then. `at` is the commit HEAD
+ * was at, where the step is a record that names one: a line it writes is
+ * `bornAt` that commit, and a line it removes is `goneAt` it. A step that
+ * stands for a writer no hook saw names none.
  */
-function step(entries, next, writer, tick) {
+function step(entries, next, writer, tick, at = null) {
   const a = live(entries).map((e) => e.text);
   let head = 0;
   while (head < a.length && head < next.length && a[head] === next[head]) head++;
@@ -145,7 +152,7 @@ function step(entries, next, writer, tick) {
   let seen = 0;
   let placed = 0;
   const placeUpTo = (j) => {
-    while (placed < j) out.push({ text: next[placed++], owner: who, born: tick });
+    while (placed < j) out.push({ text: next[placed++], owner: who, born: tick, bornAt: at });
   };
   for (const e of entries) {
     if (e.by !== undefined) {
@@ -154,7 +161,7 @@ function step(entries, next, writer, tick) {
     }
     const j = keptAs[seen++];
     if (j === -1) {
-      out.push({ ...e, by: who, gone: tick });
+      out.push({ ...e, by: who, gone: tick, goneAt: at });
     } else {
       placeUpTo(j);
       out.push(e);
@@ -165,6 +172,31 @@ function step(entries, next, writer, tick) {
   return out;
 }
 
+/** A commit as a record may name it: a whole object id, and nothing git would read as an option or a path. */
+const COMMIT = /^[0-9a-f]{40,64}$/;
+
+/**
+ * Whether a file, as a commit holds it, holds a line of some text.
+ *
+ * @param {string} gitDir The repository's common git directory.
+ * @param {string} file Path from the repository root, as the commits spell it.
+ * @returns {(commit: string|null|undefined, text: string) => boolean|null}
+ *   null where no commit is named, and where git cannot read the file from
+ *   it: a commit that is gone, or one the path is not in. Each commit is read
+ *   once, and only when asked about.
+ */
+function headReader(gitDir, file) {
+  const held = new Map();
+  return (commit, text) => {
+    if (typeof commit !== "string" || !COMMIT.test(commit)) return null;
+    if (!held.has(commit)) {
+      const r = spawnSync("git", ["--git-dir", gitDir, "cat-file", "blob", `${commit}:${file}`], { encoding: "utf8", windowsHide: true, maxBuffer: 1 << 28 });
+      held.set(commit, r.status === 0 && typeof r.stdout === "string" ? new Set(toLines(r.stdout)) : null);
+    }
+    return held.get(commit)?.has(text) ?? null;
+  };
+}
+
 /**
  * Who wrote and who removed what, for one file as the working tree holds it.
  *
@@ -173,15 +205,17 @@ function step(entries, next, writer, tick) {
  * @param {string} working The file's content now.
  * @param {Map<string, object[]>} [records] `readRecords(gitDir)`, where the
  *   caller already holds it.
- * @returns {null | {lines: string[], owners: string[], removed: {text: string, by: string, owner: string, born: number, gone: number}[][], sessions: Map<string, number>, origin: string|null}}
+ * @returns {null | {lines: string[], owners: string[], removed: {text: string, by: string, owner: string, born: number, gone: number, bornAt: string|null, goneAt: string|null}[][], sessions: Map<string, number>, origin: string|null, inHead: (commit: string|null, text: string) => boolean|null}}
  *   null when no record names the file. `owners[i]` wrote `lines[i]`.
  *   `removed[i]` lists, in order, the lines taken out just ahead of line i,
- *   each with who removed it and who had written it, and the steps of the
- *   replay that wrote and removed it (0 for a line the replay began with),
- *   so it has one entry more than `lines`. `sessions` maps each session with
- *   a record of the file to the time of its latest. `origin` is the content
- *   the first record found, whose lines are `ORIGIN`'s; null where that
- *   record had none.
+ *   each with who removed it and who had written it, the steps of the replay
+ *   that wrote and removed it (0 for a line the replay began with), and the
+ *   commits HEAD was at in those steps (null where the step's record named
+ *   none), so it has one entry more than `lines`. `sessions` maps each
+ *   session with a record of the file to the time of its latest. `origin` is
+ *   the content the first record found, whose lines are `ORIGIN`'s; null
+ *   where that record had none. `inHead` says whether the file held a line of
+ *   a text at one of those commits, and null where that is not known.
  */
 export function blame(gitDir, file, working, records = readRecords(gitDir)) {
   const list = records.get(keyOf(file));
@@ -206,7 +240,7 @@ export function blame(gitDir, file, working, records = readRecords(gitDir)) {
       entries = before.map((text) => ({ text, owner: ORIGIN, born: 0 }));
       origin = pre;
     } else if (!holds(entries, before)) entries = step(entries, before, NOBODY, ++tick);
-    entries = step(entries, after, rec.session, ++tick);
+    entries = step(entries, after, rec.session, ++tick, typeof rec.head === "string" ? rec.head : null);
   }
   const now = toLines(working);
   if (!entries) entries = now.map((text) => ({ text, owner: NOBODY, born: 0 }));
@@ -217,14 +251,14 @@ export function blame(gitDir, file, working, records = readRecords(gitDir)) {
   const removed = [[]];
   for (const e of entries) {
     if (e.by !== undefined) {
-      removed[removed.length - 1].push({ text: e.text, by: e.by, owner: e.owner, born: e.born, gone: e.gone });
+      removed[removed.length - 1].push({ text: e.text, by: e.by, owner: e.owner, born: e.born, gone: e.gone, bornAt: e.bornAt ?? null, goneAt: e.goneAt ?? null });
     } else {
       lines.push(e.text);
       owners.push(e.owner);
       removed.push([]);
     }
   }
-  return { lines, owners, removed, sessions, origin };
+  return { lines, owners, removed, sessions, origin, inHead: headReader(gitDir, file) };
 }
 
 /**
@@ -275,21 +309,34 @@ function lastHeld(pool, minus) {
  * session's own hand: from each such removal on, it wrote the text there in
  * later steps at least as often as it took it out. A session that changed a
  * line and changed it back has no claim on it. One whose removal another
- * hand undid still has. So has one that took out a line it had written
- * itself, since nothing here says the line had not landed in between, and so
- * has a writer no hook saw; a line such a writer removed is left as the text
- * reads it. A text that stands at the place is not read again, the line
- * standing not being told from the one removed, and lines of one text that
- * stood there together are still not told apart, whoever removed each.
+ * hand undid still has, and so has a writer no hook saw; a line such a writer
+ * removed is left as the text reads it.
+ *
+ * An earlier removal that was not undone still does not stand where the
+ * commits say the line it took out had not landed and the line taken out
+ * since is another one, which has: HEAD held no line of the text when the
+ * earlier removal was made, held none when each line that stood after the
+ * step was written, and held one when each of those was taken out. A line
+ * written while HEAD held its text is not such a line: it may stand in for
+ * one that landed after it left the working tree, which is its remover's to
+ * remove. HEAD is asked for the text anywhere in the file: a text it holds at
+ * another place is not told, and neither is one whose commit `inHead` cannot
+ * read.
+ *
+ * A text that stands at the place is not read again, the line standing not
+ * being told from the one removed, and lines of one text that stood there
+ * together are still not told apart, whoever removed each.
  *
  * @param {object[]} pool The place's tombstones, in order.
  * @param {string[]|null} stands The lines standing at the place, or null to
  *   read by text alone.
+ * @param {(commit: string|null, text: string) => boolean|null} [inHead]
+ *   `blame`'s. Without it nothing is known of what had landed.
  * @returns {{removers: string[], among: Set<string>, steps: number[]}}
  *   `among` holds the removers a line left to nobody may have gone by.
  *   `steps` are the steps of the replay that removed the lines that answered.
  */
-function removersOf(pool, minus, stands) {
+function removersOf(pool, minus, stands, inHead = () => null) {
   const removers = [];
   const held = [];
   let from = 0;
@@ -311,7 +358,9 @@ function removersOf(pool, minus, stands) {
       if (taker === NOBODY || same.some((e) => e.born > since) || !stood.every((e) => e.by === taker)) return;
       const before = same.filter((e) => e.gone <= since && e.by !== taker);
       const undone = (t) => t.by !== NOBODY && same.filter((e) => e.owner === t.by && e.born > t.gone).length >= before.filter((u) => u.by === t.by && u.gone >= t.gone).length;
-      if (!before.every(undone)) return;
+      const landedSince = () => stood.every((e) => inHead(e.bornAt, text) === false && inHead(e.goneAt, text) === true);
+      const withdrawn = (t) => inHead(t.goneAt, text) === false && landedSince();
+      if (!before.every((t) => undone(t) || withdrawn(t))) return;
       removers[i] = taker;
       held[i] = stood;
     });
@@ -384,7 +433,7 @@ export function writersOf(blamed, hunk) {
 
   if (n && hunk.minus.length) {
     const pool = removed.slice(first, first + n + 1).flat();
-    const gone = removersOf(pool, hunk.minus, hunk.plus);
+    const gone = removersOf(pool, hunk.minus, hunk.plus, blamed.inHead);
     return { added: owners.slice(first, first + n), removed: gone.removers, slid: 0, among: [...gone.among], replaced: writtenInPlace(pool, gone.steps) };
   }
 
@@ -421,7 +470,7 @@ export function writersOf(blamed, hunk) {
   // The place is chosen by what the tombstones' text says. Only there, and
   // only where a removal is still nobody's, is it read by when.
   const place = good[0];
-  const again = place.removed.includes(NOBODY) ? removersOf(removed[place.gap] ?? [], place.block, []) : null;
+  const again = place.removed.includes(NOBODY) ? removersOf(removed[place.gap] ?? [], place.block, [], blamed.inHead) : null;
   return { added: place.added, removed: again?.removers ?? place.removed, slid: place.slid, among: [...(again?.among ?? place.among)], replaced: [] };
 }
 
