@@ -560,9 +560,11 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     if (band.parentElement !== header) header.insertBefore(band, controls ?? null);
     if (!band.dataset.guarded) {
       band.dataset.guarded = "1";
-      band.addEventListener("pointerdown", (ev) => {
-        if (ev.target.closest("input, button, a, select, textarea, label")) ev.stopPropagation();
-      });
+      for (const type of ["pointerdown", "dblclick"]) {
+        band.addEventListener(type, (ev) => {
+          if (ev.target.closest("input, button, a, select, textarea, label")) ev.stopPropagation();
+        });
+      }
     }
   }
 

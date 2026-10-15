@@ -377,7 +377,12 @@ the permission AND the editor rail's pencil, held on the sheet instance and
 reset on close. Every control that writes the document (the band's fields, the
 Details fields, the construction controls, the effect and key removers, the
 drop zones) is disabled until armed; the use-actions (equip, roll, pin, take
-out, configure an effect, identify) answer to `editable` alone.
+out, configure an effect, identify) answer to `editable` alone. While the
+sheet is locked for a viewer who may edit it, a disabled control with no
+tooltip of its own names the pencil when pointed at (`#hintLockedFields`). A
+control in the header band keeps its pointerdown and double click from the
+window header, so pressing or double-clicking the name neither drags nor
+minimizes the window.
 
 **Construction is one shape.** `item-sheet/construction.mjs` builds the
 Details tab's Construction rule over the pure `construction-model.mjs`: a

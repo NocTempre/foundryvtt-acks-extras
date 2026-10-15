@@ -240,7 +240,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    and St; the left rail shows the type glyph and the slot cell.
 2. Press the pencil (editor rail, first cell). *Observable:* until then the
    band's inputs, every Details field and the construction controls are
-   disabled and a drop only warns; armed, the cell's `aria-pressed` is true
+   disabled and a drop only warns, and a real hover on the band's name (the
+   `computer` hover, not a dispatched event: what is under test is that the
+   browser delivers pointer events to a disabled control) shows the pencil
+   hint, while a field with its own tooltip keeps it; armed, the cell's `aria-pressed` is true
    and the description editor is open. Then edit the name; type `1` in St;
    type `12` in Value. *Observable:*
    `item.name`, `system.weight6 === 6`, `system.cost === 12` and the Details

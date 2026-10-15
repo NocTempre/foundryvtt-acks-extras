@@ -1646,3 +1646,32 @@ rider is an unlinked token was measured silent before and after this change,
 because `riderOf` read an attachment index built from world actors only. The
 lib finds that rider since docs/lib/DECISIONS.md, "An unlinked token is
 attached by its own delta, and found by its uuid (2026-10-14)".
+
+### A locked field names the pencil, and the band keeps its own double click (2026-10-15)
+
+**Asked.** A field report said item names and weapon damage could not be
+changed on the item sheet. Both are behind the pencil, which works as ruled in
+"One control per kind of answer, and the pencil arms the whole sheet
+(2026-09-09)". The reporter never found it, and nothing on a locked field said
+it was locked. The same report surfaced a second fault: a double click on the
+band's name, the gesture that selects a word to retype, reached the window
+header and minimized the window.
+
+**Ruled.** The lock stays. While the sheet is locked for a viewer who may edit
+it, every disabled control without a tooltip of its own carries the existing
+pencil hint. A viewer without permission is told nothing about a pencil. The
+band, now inside the window header, stops a double click on a control from
+reaching the header, as it already stopped a pointerdown. The character sheet's
+band had the same gap and takes the same guard.
+
+**Rejected.** Moving the pencil beside the name: that is a new control on the
+band, which makes it a minor, and this shipped as a hotfix. Leaving the name
+and the record fields always live: that undoes the 2026-09-09 ruling for the
+fields most often brushed by accident, and this report gives no evidence about
+accidental edits.
+
+**What it cost.** One render step and no new string, because the hint reuses
+the refused-drop warning. A real hover proves that Chromium shows a tooltip on
+a disabled input; a dispatched event would not have proved it
+([TESTING.md](TESTING.md#the-item-sheet), step 2). A field that already has a
+tooltip, such as the quantity or a property chip, does not mention the pencil.

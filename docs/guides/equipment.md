@@ -344,7 +344,8 @@ it as a button. Right of the art, the state cells: **EQP** wears or wields it
 favourites it on the character sheet, **CAP** shows how full a container is,
 **LOCK** appears on a locked one. Beside the description, the editor rail:
 the **pencil**, which unlocks the whole sheet (until you press it every field is
-a reading and only the use controls answer; press it again when done), then
+a reading, pointing at one says so, and only the use controls answer; press it
+again when done), then
 art, ownership (on a world item), and for the Judge the item's source and
 identification.
 

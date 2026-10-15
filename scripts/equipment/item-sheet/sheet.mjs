@@ -300,6 +300,7 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
       ["magic", () => this.#mountMagic()],
       ["spellbook", () => this.#wireSpellbook()],
       ["drops", () => this.#markDropZones()],
+      ["lock hint", () => this.#hintLockedFields()],
     ];
     // Each decoration guards itself: one failing must not take the sheet with it.
     for (const [what, step] of steps) {
@@ -330,9 +331,26 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
     if (band.parentElement !== header) header.insertBefore(band, controls ?? null);
     if (!band.dataset.guarded) {
       band.dataset.guarded = "1";
-      band.addEventListener("pointerdown", (ev) => {
-        if (ev.target.closest("input, button, a, select, textarea, label")) ev.stopPropagation();
-      });
+      // Core's header drags the window on a pointerdown and minimizes it on a
+      // double click; a control in the band keeps both gestures for itself.
+      for (const type of ["pointerdown", "dblclick"]) {
+        band.addEventListener(type, (ev) => {
+          if (ev.target.closest("input, button, a, select, textarea, label")) ev.stopPropagation();
+        });
+      }
+    }
+  }
+
+  /**
+   * A field the pencil has not armed says so when pointed at. Runs after the
+   * mounts, so their controls are present; a control with a tooltip of its own
+   * keeps it, and a viewer who may not edit is told nothing about a pencil.
+   */
+  #hintLockedFields() {
+    if (!this.isEditable || this.#model?.editing) return;
+    const hint = loc("itemSheet.locked");
+    for (const control of this.element.querySelectorAll("input:disabled, select:disabled, textarea:disabled, button:disabled")) {
+      if (!control.dataset.tooltip) control.dataset.tooltip = hint;
     }
   }
 
