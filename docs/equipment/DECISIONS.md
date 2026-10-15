@@ -1704,3 +1704,45 @@ submit: the form carries every field, and only the one that fired is an edit.
 `recomputeItemFields`; one routing step in the sheet's form handler. A Judge
 who changes a weapon's die and wants a two-handed figure has no field to
 declare one.
+
+### One loadout effect per actor, whoever writes it (2026-10-15)
+
+**Evidence.** A second connection seated as the Assistant Gamemaster was open
+on the test world. A Fighter holding a shield, re-applied as a Thief, then got
+two `Equipment Loadout` effects of `system.aac.mod -1`, and AC read 3 instead
+of 4. A `preCreateActiveEffect` observer in each page showed one local create
+per page. `primaryResponder` elects the active GM USER, every window of that
+user passes it, and `queueSync` orders one client's writes but not two
+clients'. Each window read "no effect yet" and created its own copy, which
+stayed until a later sync's `collapseDuplicates`. The duplicate in the class
+re-apply's transient (docs/classes/DECISIONS.md, "a re-apply replaces the
+training in place") was the same race.
+
+**Ruled.**
+
+- Every new loadout effect is created under one `_id`, `LOADOUT_EFFECT_ID`,
+  with `keepId`. The server refuses a second create of an id the actor holds;
+  live, three concurrent creates gave one document and two refusals.
+- The refused window then reconciles the effect the first one made, as if it
+  had found it.
+- A write is swallowed only when the effect is already created, or already
+  gone, under it (`writeUnlessRaced`); every other failure still throws.
+- `findLoadoutEffect` prefers the fixed id, so `collapseDuplicates` keeps that
+  copy.
+- An effect made before this keeps its own id and is found by its flag.
+
+**Rejected.**
+
+- Electing one connection (docs/lib/ROADMAP.md, "One automation client, not
+  one automation user"). Core reports presence per user, so the windows of one
+  user cannot see each other leave. An elected window that closes would leave
+  no writer until a heartbeat of the module's own noticed, and a backgrounded
+  tab's throttled timers make such a heartbeat miss. That is worse than a
+  second write, which a fixed id makes harmless.
+- Routing every write to one client: the same election problem.
+
+**What it cost.** The losing window's console shows core's report of the
+refused create, and of a delete or update that the other window overtook. The
+module swallows those refusals, but core logs them first. A window still
+running code from before this ruling creates under a random id until it
+reloads.

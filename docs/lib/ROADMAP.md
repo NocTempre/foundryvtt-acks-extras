@@ -133,7 +133,10 @@ window had just deleted. The conditions' turn lift (`status-effects.mjs`) is
 one more: the statuses come off once and the second window logs a missing
 effect for each. The fix is electing one CLIENT. Core gives two windows
 of one user no way to agree, so it needs a handshake of the module's own over
-its socket, and a live two-window run proving the loser stays quiet.
+its socket, and a live two-window run proving the loser stays quiet. The
+equipment loadout effect no longer waits on it: its create is refused for the
+second window (docs/equipment/DECISIONS.md, "One loadout effect per actor,
+whoever writes it (2026-10-15)").
 
 ## What the conditions do not do yet
 

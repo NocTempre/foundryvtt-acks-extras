@@ -203,3 +203,13 @@ export const HOOKS = Object.freeze({
 export const LOADOUT_EFFECT_NAME = "Equipment Loadout";
 export const LOADOUT_EFFECT_FLAG = "loadout"; // flags.acks-extras.loadout = true marks our managed AE
 
+/**
+ * The `_id` every actor's loadout effect is created under. One id per actor
+ * makes the effect one DOCUMENT however many clients write it: the server
+ * refuses a second create of an id the actor already holds, so two
+ * connections of the active GM user (both pass `primaryResponder`) cannot
+ * each add their own. An effect made before this id keeps its own and is
+ * found by its flag.
+ */
+export const LOADOUT_EFFECT_ID = "acksExtLoadout00";
+

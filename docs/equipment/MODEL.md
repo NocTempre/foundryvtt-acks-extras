@@ -21,9 +21,14 @@ enums; local-only, never in the repo).
   registration is `computeEncumbrance` and nothing else
   (`scripts/equipment/roll-wrap.mjs`); a second registration against the same
   target fails `tools/validate-extra.mjs`.
-- **Single responder.** Loadout writes (auto-unequip, effect sync) run on exactly
-  one client — the active GM if online, else the actor owner — to avoid duplicate
-  effects (`enforce.primaryResponder`).
+- **Single responder.** Loadout writes (auto-unequip, effect sync) run for one
+  user — the active GM if online, else the actor owner
+  (`enforce.primaryResponder`) — and each client serialises its own
+  (`queueSync`). Every window that user has open writes, so the effect itself
+  is made one document: it is created under `LOADOUT_EFFECT_ID`, a second
+  window's create is refused, and that window reconciles the effect the first
+  made. A write another window overtook is swallowed only where the effect is
+  already created or gone under it (`writeUnlessRaced`).
 - **Data-driven, not name-driven.** Proficiency mechanics live as Active-Effect
   changes keyed `flags.acks-extras.<domain>` on `ability` items, read through the
   shared effect-scan core in `scripts/lib/effect-scan.mjs` with this feature's

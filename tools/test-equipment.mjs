@@ -2409,6 +2409,51 @@ check("three duplicates exist before the repair", managedCount(dupes) === 3);
 await syncLE(dupes, getLoadout(dupes));
 check("an ordinary sync collapses them to one", managedCount(dupes) === 1);
 
+// Two connections of the active GM user both pass `primaryResponder`, and
+// `queueSync` serialises one client's writes, never two clients'. Both read "no
+// effect yet"; the fixed `_id` turns the second create into a refusal the
+// server enforces (docs/equipment/DECISIONS.md, "One loadout effect per actor,
+// whoever writes it (2026-10-15)").
+const { LOADOUT_EFFECT_ID: LOADOUT_ID } = await import(new URL("constants.mjs", S));
+/** One world's stored effects and the clients viewing it; a create of an `_id` it holds is refused, as the server refuses one. */
+const sharedWorld = (items) => {
+  const stored = [];
+  const views = [];
+  const view = (doc) => ({ ...doc, id: doc._id, getFlag: (_m, k) => (k === "loadout" ? true : undefined) });
+  const client = () => {
+    const a = withItems(items);
+    a.uuid = "Actor.shared";
+    a.isOwner = true;
+    a.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : undefined);
+    a.effects = stored.map(view);
+    a.effects.has = (id) => a.effects.some((e) => e.id === id);
+    a.createEmbeddedDocuments = async (_t, docs, { keepId = false } = {}) => {
+      await new Promise((r) => setTimeout(r, 5));
+      for (const d of docs) {
+        const id = keepId && d._id ? d._id : `fx${stored.length}`;
+        if (stored.some((s) => s._id === id)) throw new Error(`The _id [${id}] already exists within the parent collection`);
+        stored.push({ ...d, _id: id });
+        for (const v of views) v.effects.push(view({ ...d, _id: id }));
+      }
+      return docs;
+    };
+    views.push(a);
+    return a;
+  };
+  return { stored, client };
+};
+const world = sharedWorld([abil("Combat Reflexes", null, {}), weapon("Sword", { melee: true, id: "ssw" })]);
+const [tabA, tabB] = [world.client(), world.client()];
+let raced = null;
+try {
+  await Promise.all([syncLE(tabA, getLoadout(tabA)), syncLE(tabB, getLoadout(tabB))]);
+} catch (err) {
+  raced = err;
+}
+check("two clients of one GM user leave one loadout effect between them", world.stored.length === 1 && world.stored[0]._id === LOADOUT_ID);
+check("and the refused create is not an error", raced === null);
+check("and each client sees that one", tabA.effects.length === 1 && tabB.effects.length === 1);
+
 /* ---------------------------------------------------------------------- */
 /*  Shipped macros compile                                                 */
 /* ---------------------------------------------------------------------- */

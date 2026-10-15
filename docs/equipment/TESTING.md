@@ -656,3 +656,47 @@ named and presses Save.
 
 `api.sweepTracked()`; quote what it removed, what it could not find and what
 refused.
+
+## Two windows of one GM
+
+Every window of the active GM user writes the loadout, so this walk needs two
+of them. The effect must still be one document.
+
+### Fixtures
+
+- Two capture-driver seats as the SAME GM user, on two debug ports, both
+  loaded after the change under test.
+- A character the run creates, with chain armour, a shield and a sword
+  equipped, made a Fighter through `acksExtras.classes.applyClass`.
+
+### Drive mechanics (learned live)
+
+- Read `/api/status` `users` with every seat of your own closed. Any other
+  connection seated as that GM is a THIRD writer. If its page loaded before
+  the change, it writes the old way and spoils the run; find its owner first.
+  The census's active-user list cannot show this, because it lists users,
+  not connections.
+- In each page, arm a `preCreateActiveEffect` hook on loadout-flagged
+  effects. It fires only in the window that sends the create, so it says
+  which window wrote. A create with no local preCreate in either page came
+  from a connection you do not hold.
+- Core logs the losing window's refused create ("The _id [...] already
+  exists within the parent collection"), and the delete or update another
+  window overtook. Those lines are expected. A line prefixed
+  `acks-extras | ... loadout sync failed` is not.
+
+### Steps
+
+1. From seat A, apply Thief to the Fighter, then wait 3 s.
+   *Observable:* in both pages, exactly one loadout effect, `_id`
+   `acksExtLoadout00`, `system.aac.mod -1`, AC 4. Each page shows at most one
+   local preCreate.
+2. From seat B, unequip the shield and equip it again, then wait 3 s.
+   *Observable:* still one loadout effect under that id, AC 4.
+3. From seat A, apply Fighter, then wait 3 s.
+   *Observable:* no loadout effect in either page, AC 5.
+
+### Teardown
+
+`api.sweepTracked()` on the seat that created the fixture; quote what it
+removed, what it could not find and what refused.

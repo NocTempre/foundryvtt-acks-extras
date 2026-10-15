@@ -11,7 +11,7 @@
  * `system.damage.mod.melee`) so core's own computeAC/rollAttack consume them
  * with zero patching.
  */
-import { EFFECT_PREFIX, MODULE_ID, EFFECT_DOMAINS, LOADOUT_EFFECT_NAME, LOADOUT_EFFECT_FLAG } from "./constants.mjs";
+import { EFFECT_PREFIX, MODULE_ID, EFFECT_DOMAINS, LOADOUT_EFFECT_NAME, LOADOUT_EFFECT_FLAG, LOADOUT_EFFECT_ID } from "./constants.mjs";
 import { STYLE_SPEC_BONUS, STYLE, DUAL_WIELD_ATTACK_BONUS } from "./config.mjs";
 import { shieldACCorrection, specApplies } from "./overlays/shield-variants.mjs";
 import { enclosingHelmActive, HELM_MODIFIERS } from "./overlays/enclosing-helm.mjs";
@@ -172,26 +172,50 @@ function loadoutEffects(actor) {
   return (actor.effects ?? []).filter((e) => e.getFlag?.(MODULE_ID, LOADOUT_EFFECT_FLAG) === true);
 }
 
-/** Find the module-managed loadout effect on an actor, if any. */
+/** Find the module-managed loadout effect on an actor, if any — the one under `LOADOUT_EFFECT_ID` first. */
 export function findLoadoutEffect(actor) {
-  return loadoutEffects(actor)[0] ?? null;
+  const all = loadoutEffects(actor);
+  return all.find((e) => e.id === LOADOUT_EFFECT_ID) ?? all[0] ?? null;
 }
 
 /**
- * Delete every managed loadout effect but the first.
+ * Run a loadout write that a second writer may have overtaken: a refusal is
+ * swallowed when `overtaken()` finds the document already created, or already
+ * gone, under it, and rethrown otherwise. The refusal reaches this client
+ * after the other writer's change does, so the read after it is current.
+ * Swallowing is safe because each writer's last sync reads the settled actor,
+ * and two syncs reading one state write one answer.
+ */
+async function writeUnlessRaced(write, overtaken) {
+  try {
+    return await write();
+  } catch (err) {
+    if (overtaken()) return null;
+    throw err;
+  }
+}
+
+/**
+ * Delete every managed loadout effect but the one `findLoadoutEffect` keeps.
  *
  * There must only ever be one — its changes are the WHOLE loadout, so a
  * second copy doubles every bonus on the actor (see
  * docs/equipment/DECISIONS.md, "Concurrent syncs could create duplicate
- * loadout effects (2026-09-22)"). `queueSync` in enforce.mjs prevents new
- * duplicates; this is the repair for a world that already has them, run on
- * the ordinary sync path.
+ * loadout effects (2026-09-22)"). `queueSync` in enforce.mjs serialises one
+ * client's syncs and `LOADOUT_EFFECT_ID` makes a second client's create
+ * fail; this is the repair for a world that already has copies, run on the
+ * ordinary sync path.
  */
 async function collapseDuplicates(actor) {
-  const extra = loadoutEffects(actor).slice(1);
+  const keep = findLoadoutEffect(actor);
+  const extra = loadoutEffects(actor).filter((e) => e !== keep);
   if (!extra.length) return;
   console.warn(`${MODULE_ID} | ${actor.name} carried ${extra.length + 1} loadout effects; keeping one.`);
-  await actor.deleteEmbeddedDocuments("ActiveEffect", extra.map((e) => e.id), managedDelete());
+  const ids = extra.map((e) => e.id);
+  await writeUnlessRaced(
+    () => actor.deleteEmbeddedDocuments("ActiveEffect", ids, managedDelete()),
+    () => !ids.some((id) => actor.effects.has(id)),
+  );
 }
 
 /**
@@ -204,10 +228,13 @@ export async function syncLoadoutEffect(actor, loadout) {
   if (!actor?.isOwner) return;
   const changes = buildLoadoutChanges(actor, loadout);
   await collapseDuplicates(actor);
-  const existing = findLoadoutEffect(actor);
+  let existing = findLoadoutEffect(actor);
 
   if (!changes.length) {
-    if (existing) await existing.delete(managedDelete());
+    if (existing) {
+      const id = existing.id;
+      await writeUnlessRaced(() => existing.delete(managedDelete()), () => !actor.effects.has(id));
+    }
     return;
   }
 
@@ -222,10 +249,17 @@ export async function syncLoadoutEffect(actor, loadout) {
   };
 
   if (!existing) {
-    await actor.createEmbeddedDocuments("ActiveEffect", [desired]);
-    return;
+    // Refused when another writer created it first; this one then reconciles
+    // the effect that writer made, as if it had been here all along.
+    const made = await writeUnlessRaced(
+      () => actor.createEmbeddedDocuments("ActiveEffect", [{ ...desired, _id: LOADOUT_EFFECT_ID }], { keepId: true }),
+      () => actor.effects.has(LOADOUT_EFFECT_ID),
+    );
+    if (made) return;
+    existing = findLoadoutEffect(actor);
   }
   if (changesHash(existing.changes ?? []) !== changesHash(changes)) {
-    await existing.update({ changes, disabled: false });
+    const id = existing.id;
+    await writeUnlessRaced(() => existing.update({ changes, disabled: false }), () => !actor.effects.has(id));
   }
 }
