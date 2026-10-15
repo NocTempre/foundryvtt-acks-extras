@@ -101,6 +101,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     first assertion. An empty section opens at least 6em tall. Click into a
     paragraph, type, and press Save: the flag holds the typed text, and the
     closed editor grows to fit it.
+    - The toggle has no box until the pointer is over the editor: a pointer
+      click at its centre without a hover first lands on the canvas, and the
+      editor stays shut.
     - The HTML source view (`</>`) moves Save and its own toggle to the
       menu's right end: re-read their rects after toggling, because a
       coordinate read in the rich-text view clicks nothing there. Save from

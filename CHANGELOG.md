@@ -1,5 +1,109 @@
 # Changelog
 
+## 11.3.0
+
+### Added
+
+- **A filled copy of the official ACKS II character sheet imports into a
+  character.** Open it from the character's window menu (*Official sheet
+  (PDF)*), from *Import sheet* in the Actors directory, or with the *Official
+  Character Sheet (PDF)* macro. The window shows what the world holds for
+  each name before anything is written, a value the system works out is
+  offered as a check and never written over, and gear lands where the sheet
+  lists it.
+- **A character exports into the official fillable sheet.** Put your blank
+  copy on the server from *Your Books* (the new *ACKS II Character Sheet*
+  row), and every player can export their own character from it. Names this
+  world does not hold (a language, a spell, a proficiency) are kept from the
+  import and written back. A printed or flattened copy is refused when it is
+  connected.
+- **The Discord bot's guide sets it up on Windows.** The bot starts with the
+  host rather than the world, and keeps retrying until the world answers. The
+  guide's host section gives a Task Scheduler task that starts it at sign-in
+  and again after each update, beside the Linux service.
+- The character sheet guide says that an adventuring throw offers no choice
+  of who sees it, and that the Judge shows one to the table with *Reveal To
+  Everyone* from its chat card's context menu.
+
+### Fixed
+
+- **A field an effect changes on the system's own sheets holds its stored
+  value.** The system's character and monster sheets showed such a field with
+  the effect already applied, and the next change anywhere on the sheet saved
+  that figure as the stored one. The Equipment Loadout's Avoid Surprise
+  adjustment grew by one with every equipment change. The field now shows the
+  stored value, underlined, and its tooltip gives the value in force. A value
+  that has already grown is corrected by hand once.
+- **An open editor's toolbar wraps inside its own band.** A toolbar too wide
+  for its field spilled its second row over the text. The band now grows with
+  its rows, on every sheet of this module and on the follower card.
+- **An open description editor on the Full Monster sheet shows its text below
+  the toolbar.** The text sat under the toolbar, one line tall. The editor now
+  follows its text, up to most of the window, and then scrolls.
+- **A locked item sheet says so.** The item sheet opens locked behind the
+  pencil, and nothing on a locked field said why it would not take a name or
+  a damage roll. Pointing at a locked field now says to unlock the sheet with
+  the pencil. A field with a tooltip of its own keeps it.
+- **A double click on a sheet's name selects the word.** On the item sheet and
+  the character sheet, a double click on the name minimized the window.
+- **A two-handed grip deals the weapon's own die, made larger.** A masterwork
+  Sword at 1d6 + 1 lost its +1 when held in both hands, and a Sword whose
+  damage was changed to 1d10 offered a smaller two-handed row. The two-handed
+  damage now keeps the weapon's own modifier. A weapon whose die is not the
+  one its type prints has no two-handed row, and deals its own damage in
+  either grip.
+- **A figure typed on a layered item stays.** On a weapon or armour carrying
+  masterwork, a condition or silver, a damage, bonus, AC or weight typed on
+  the sheet was put back the next time any of those changed. What you type is
+  now what the item keeps.
+- **An award climbs one level.** Experience added to a bound character stops
+  one point short of the level after next (RR ch. 6), from either sheet, the
+  party sheet, Deal XP or the API. A write that also sets the level keeps its
+  experience. Experience already past that point is never reduced.
+- **A lowered level reopens what the climbs above it closed.** Lowering a
+  level by hand releases the choices above it, so the next climb asks them
+  again, and restores the hit-point maximum the level-up wizard recorded for
+  that level, so a level-down and re-climb no longer ratchets hit points up.
+  Abilities stay.
+- **A class that prints one ability at two levels grants the second copy.**
+- **The level-up wizard applies the level before it grants.** It opens once
+  per character, and applies nothing when the level moved while it was open.
+- **A level typed on either sheet brings its class row with it.** Raised or
+  lowered, the saves, attack throw, title, experience to next level, hit dice,
+  cleaves, damage bonus and spell slots change to that level's row in the same
+  save. A typed raise still rolls no hit points and grants nothing new; the
+  level-up arrow climbs, and the class picker sets a level with everything it
+  owes.
+- **A class that prints one ability at two first-level rungs starts with both
+  copies.** Character generation now grants what the level-up wizard and the
+  class picker already did.
+- **A hireling is the kind its sheet says.** A mercenary or specialist added
+  on the system sheet took a full share of Deal XP, and a henchman's half
+  share once wages had started. Both now take none, and a henchman added by
+  hand takes a henchman's share. A mercenary or specialist with no wage is no
+  longer billed the henchman wage; it costs nothing until a wage is set. A
+  special hire keeps the actor's own category. The apparent-level loyalty
+  penalty applies to henchmen only. Hirelings already enrolled are read
+  correctly, with no migration.
+- **A special hire meets the henchman limit like any other hire.** An
+  employer at the cap took another henchman through a special hire with no
+  word, even with the limit set to block. It now answers to the same setting
+  as a market hire, and a mercenary or specialist takes no slot.
+- **An offer is priced on the wage the hire will pay.** A market candidate
+  with no stated wage had its signing bonus priced on a fixed fallback wage,
+  and a special hire with no wage on its sheet was priced on the henchman
+  ladder even when its sheet said mercenary or specialist. A henchman's offer
+  now uses the wage it states, else the ladder's wage for its level. A
+  mercenary or specialist with no wage set is offered no bonus.
+- **Re-applying the class a character already holds changes nothing.** The
+  re-apply deleted the combat training and made it again, and in the moment
+  between, a Fighter with a shield in hand lost its Weapon & Shield benefit.
+  A class change now rewrites the training in place.
+- **A character carries one Equipment Loadout effect, however many windows of
+  the Judge's game are open.** With the game open in two windows, one change
+  could leave two such effects, so a shield's penalty or a style bonus counted
+  twice until a later change folded them into one.
+
 ## 11.2.0
 
 ### Added

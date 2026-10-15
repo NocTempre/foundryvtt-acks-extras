@@ -51,7 +51,13 @@ sheet replaces core's flat "attributes" and "notes" panes with tabs:
 - **Ecology** — habitat, number appearing, lair chance, treasure.
 - **Spoils** — what a body is worth.
 - **Henchman** — the fields that apply when this creature is hired.
-- **Description** — the prose.
+- **Description** — the prose, a section at a time; each opens for editing
+  in place and grows with its text.
+
+![](../releases/v11.3.0/monsters-description-editor.png)
+
+*The Description tab's Appearance open for editing: the toolbar above, and the
+text below it in full.*
 
 No new actor type is invented: this is core's `monster`, extended through flags,
 so everything that already reads a monster keeps working. The sheet is a

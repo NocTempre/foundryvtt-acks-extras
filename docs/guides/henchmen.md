@@ -48,6 +48,15 @@ The throw dialog shows every modifier that applies, with the situational ones as
 toggles so you decide what is really in play. Roll, and on success the candidate
 becomes a real actor, owned by whoever owns the employer.
 
+The signing bonus on offer is priced on the wage the hire will be paid: the
+wage the hireling states, else, for a henchman, the wage table's for their
+level. A mercenary or specialist with no wage set is offered no bonus.
+
+![](../releases/v11.3.0/henchmen-offer-no-wage.png)
+
+*An offer to a specialist whose sheet sets no wage: the signing bonus offers
+None alone.*
+
 Candidates are plain records until this moment — a Class I market can roll
 hundreds of them, and creating hundreds of actors would be unusable.
 

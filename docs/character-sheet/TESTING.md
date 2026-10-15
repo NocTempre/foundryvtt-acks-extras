@@ -386,7 +386,11 @@ back.
   `sheet._headerControlContextEntries()`. The real gesture is the sheet's
   `toggleControls` button and then the context item.
 - The window's id is `acks-extras-sheetpdf-<actor id>`, or `-new` for a new
-  character. The new-character window keeps that id after an import.
+  character. The new-character window keeps that id after an import, and a
+  new-character window opened while it is still open is `-new-2`.
+- **Arm a console and toast recorder before the import.** An import that
+  lands and then throws shows a complete report; only the error toast and
+  the missing done notice tell the two apart.
 - The import and export take seconds on the colour form. Poll for the
   report or the captured download with a bound of minutes, not a fixed
   sleep.
@@ -419,7 +423,12 @@ back.
    notes carry one block with the domain table. The henchman is created and
    on the roster. `recordedFields(actor)` (`pdf/export.mjs`) returns every
    filled box under its dotted key, and the flag's `unmatched` lists the
-   four unknown names. One chat message lists what was added.
+   four unknown names. One chat message lists what was added. The done
+   notice names the character, and no error is raised; the preview now reads
+   *Writes to* the character and counts the henchman on the roster.
+4a. With that window open, press *Import sheet* again. *Observable:* a second
+    window opens as `-new-2` beside the first, which keeps its report. The
+    character's own *Official sheet (PDF)* brings the first forward.
 5. Pick the same file again and import. *Observable:* nothing is added, no
    check says an item is not worn there, the notes still hold one block,
    and `importedAt` moved.

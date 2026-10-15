@@ -751,3 +751,28 @@ and the sheet has a count and no title, so any five-page file fits it. The
 importer therefore reads the form's fields when the sheet is opened and
 refuses a copy without them. That makes the importer read through the
 character sheet's field table (`form.mjs`).
+
+### A new-character window keeps its key and its id apart (2026-10-15)
+
+The 11.3.0 release gate found two faults in the new-character window that
+the walks before it never recorded, because none of them read the console or
+the toasts. Every import from it raised *Cannot assign to read only property
+'windowKey'*: the window wrote the character's id into its options, which
+Foundry freezes once an application is constructed. The import itself had
+landed. The throw cut off the done notice and left the preview reading
+*A new character* and the henchmen as off the roster. And a second *Import
+sheet* while that window was open built another window under the same id,
+which took over the first's frame: the report vanished, and the character's
+own *Official sheet (PDF)* then brought the detached first window forward,
+so nothing appeared.
+
+**Ruled.** The key a window is kept under is a field of its own, moved by an
+import. A new-character window opens as `-new`, or the first free `-new-<n>`
+while an imported one still holds `-new`.
+
+**Rejected.** *Closing the imported window and opening the character's.* It
+would lose the report the import just wrote, which is the window's purpose
+at that moment.
+
+**What it cost.** A walk that drives the window by id finds the second
+new-character window at `-new-2`.

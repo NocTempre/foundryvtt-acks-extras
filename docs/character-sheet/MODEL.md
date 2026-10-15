@@ -354,7 +354,9 @@ for an owner (`getHeaderControlsActorSheetV2`). The Actors directory carries *Im
 Character Sheet (PDF)* macro in the module's macro compendium opens it on the
 selected token's character, else the user's own. One window per character,
 and one for a new character, which re-keys itself to the character an import
-made. The API is `acksExtras.characterSheet.pdf`.
+made and keeps its id; *Import sheet* pressed while it is open opens the next
+new-character window under a free id. The API is
+`acksExtras.characterSheet.pdf`.
 
 **Reading the form** (`form.mjs`). The file is opened in the browser by the
 vendored pdf.js (`openBook`) and its widgets are read off every page's

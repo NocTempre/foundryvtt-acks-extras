@@ -26,6 +26,16 @@ alone takes the two-handed grip by itself only when the character is trained
 in the two-handed style; otherwise it stays in one hand until you set the grip
 yourself, so a default never walks you into the non-proficient package.
 
+A two-handed grip deals the die the weapon's type prints for that grip, with
+the weapon's own modifier carried over, and the item sheet's Rolls tab lists
+it as its own row. A weapon whose die you changed to one its type does not
+print deals its own damage in either grip.
+
+![](../releases/v11.3.0/equipment-two-handed.png)
+
+*A masterwork Sword's Rolls tab: the melee row at its own damage, and the
+two-handed row at the larger die with the masterwork modifier kept.*
+
 **A shield counts only in trained hands.** The Weapon & Shield style's benefit
 is the shield's own armour class (RR ch. 3): a character with the style gets
 exactly what the shield says, and Fighting Style Specialization in it adds its
@@ -164,6 +174,11 @@ numbers, never its ability to harm something that shrugs off ordinary weapons
 (RR p. 159). The sheet says so under the tier picker. On a weapon with
 masterwork, a condition or silver, a damage, bonus or weight you type is the
 figure it keeps: changing those later works from what you typed.
+
+![](../releases/v11.3.0/equipment-typed-layered.png)
+
+*A masterwork Sword with its damage typed on the sheet, then silvered: the
+figure typed is the one it keeps.*
 
 ![](../releases/v4.9.0/equipment-masterwork-tier.png)
 
@@ -351,10 +366,15 @@ again when done), then
 art, ownership (on a world item), and for the Judge the item's source and
 identification.
 
-![](../releases/v7.5.0/equipment-locked.png)
+![](../releases/v11.3.0/equipment-locked-hint.png)
 
-*A sheet as it opens: the pencil unpressed, every field a reading, and the
-use cells on the rails still live.*
+*A sheet as it opens: the pencil unpressed, every field a reading that says so
+when pointed at, and the use cells on the rails still live.*
+
+![](../releases/v11.3.0/lib-editor-band.png)
+
+*The same sheet with the pencil pressed: the description editor open beside
+the art, its toolbar wrapped onto a second row above the text.*
 
 **The tabs**, always in this order and only when earned:
 

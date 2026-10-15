@@ -198,7 +198,14 @@ never the sum an effect makes of it. Where an effect changes a field (a
 proficiency, an item, an effect written by hand) the field is marked, and
 hovering it names the figure in force. That is why an AC modifier of 0 can sit
 beside an AC that shows the effect applied: the modifier is yours, the AC is
-the sheet's arithmetic.
+the sheet's arithmetic. The system's own character and monster sheets do the
+same, with the field underlined.
+
+![](../releases/v11.3.0/lib-stored-value.png)
+
+*The system's own character sheet, with an effect on Avoid Surprise: the field
+holds the stored figure, underlined, and pointing at it gives the figure in
+force.*
 
 **Training** is where a character's combat training is read and edited. Every
 fighting style, every weapon in the game as its own pill, every armour rung
@@ -253,6 +260,11 @@ henchmen your roster lacks and you may create characters, tick **Create the
 henchmen the roster does not hold** first; otherwise they are written into the
 notes.
 
+![](../releases/v11.3.0/character-sheet-pdf-import.png)
+
+*A filled sheet picked from Import sheet, before anything is written: the class
+and level found, how much of each list this world holds, and the henchmen box.*
+
 The report says what was written and what was added, and lists two more
 things:
 
@@ -289,6 +301,11 @@ Press **Export** and the filled sheet downloads. It shows the character as it
 stands, effects included. What only the sheet held, such as the domain page and
 the ticks, comes from the last import. A list longer than the sheet's rows is
 cut, and the window names what was left off.
+
+![](../releases/v11.3.0/character-sheet-pdf-export.png)
+
+*A character's own window after an export: the sheet open from the server,
+and what the export wrote.*
 
 ## Conditions
 

@@ -29,6 +29,17 @@ const loc = makeLoc(LANG);
 /** Open windows, by actor id ("" for the new-character window). */
 const windows = new Map();
 
+/**
+ * An id for a new-character window. A window that imported keeps the id it
+ * opened with, so the next new one takes a free id beside it: a second window
+ * under the same id would take over the first's frame.
+ */
+function newWindowId() {
+  let id = "acks-extras-sheetpdf-new";
+  for (let n = 2; foundry.applications.instances.has(id); n++) id = `acks-extras-sheetpdf-new-${n}`;
+  return id;
+}
+
 /** The importer's api, absent while it is not running on this seat. */
 const importer = () => globalThis.acksExtras?.importer ?? null;
 
@@ -113,10 +124,17 @@ export class SheetPdfApp extends HandlebarsApplicationMixin(ApplicationV2) {
   #exportNote = null;
   #busy = false;
   #bookHook = null;
+  /**
+   * The key this window is kept under in `windows`. A field of its own:
+   * an application's options are frozen once it is constructed, so the key
+   * an import moves the window to cannot be written back into them.
+   */
+  #windowKey = "";
 
   constructor(options = {}) {
     super(options);
     this.#actor = options.actor ?? null;
+    this.#windowKey = options.windowKey ?? "";
   }
 
   /** @override */
@@ -176,9 +194,8 @@ export class SheetPdfApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (windows.get(this.#key) === this) windows.delete(this.#key);
   }
 
-  /** The key this window is kept under. */
   get #key() {
-    return this.options.windowKey ?? "";
+    return this.#windowKey;
   }
 
   /** A control changed: a file was picked, or the henchmen opt-in toggled. */
@@ -232,7 +249,7 @@ export class SheetPdfApp extends HandlebarsApplicationMixin(ApplicationV2) {
       // the directory's button opens a fresh one for the next.
       if (!this.#key) {
         windows.delete("");
-        this.options.windowKey = this.#actor.id;
+        this.#windowKey = this.#actor.id;
         windows.set(this.#actor.id, this);
       }
       this.#preview = await previewOf(this.#read.values, this.#actor);
@@ -320,7 +337,7 @@ export function openSheetPdf({ actor = null } = {}) {
     open.bringToFront();
     return open;
   }
-  const app = new SheetPdfApp({ actor, windowKey: key, id: `acks-extras-sheetpdf-${key || "new"}` });
+  const app = new SheetPdfApp({ actor, windowKey: key, id: key ? `acks-extras-sheetpdf-${key}` : newWindowId() });
   windows.set(key, app);
   app.render(true);
   return app;
