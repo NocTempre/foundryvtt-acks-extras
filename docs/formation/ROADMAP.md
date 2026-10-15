@@ -210,7 +210,7 @@ dawn.
 |---|---|---|
 | ~~The day's end~~ | **BUILT** — walking off the day's march raises the question (call it a day / push on / not yet); `closeDay` is the one closer behind both it and the button (DECISIONS 2026-08-31). |
 | ~~**Navigating the Wild**~~ | **BUILT** — the throw is rolled and whispered on End day, reads the imported target, applies the marching order's competence, and is skipped on a road, a river or a known route. |
-| Pathfinding / Navigation bonus | **procedure built, figures unimported** | `navigationCompetence` scans the marching order for either competence and holding both is worth more; the two figures it reads from the `navigationBonus` row have no recipe (see [the figures no import writes](#figures-the-feature-reads-that-no-import-writes)). |
+| ~~Pathfinding / Navigation bonus~~ | **BUILT** — `navigationCompetence` scans the marching order for either competence, holding both is worth more, and the two figures arrive with the travel import's `navigationBonus` row. |
 | ~~Straying direction~~ | **BUILT** — the Judge names the hex face or rolls for it; the grid's own neighbour order IS the face order. |
 | ~~Lost consequence~~ | **BUILT** — the full episode: shadow token, faked reveal, discovery, and re-anchor. UI-complete in the Lost group under the strip. |
 | ~~**Searching the Wild**~~ | **BUILT** — the specs (22 checks) and `search-run.mjs`, rolled from the strip's Search an hour button, paying its encounter throw through the journey's own chain. |
@@ -501,16 +501,9 @@ as a boolean.
 ## Figures the feature reads that no import writes
 
 `tools/validate-producers.mjs` checks every ruledata read against what the
-importer and its bindings write. These three have no producer; each is waived
-there against its line below.
+importer and its bindings write. This one has no producer, and is waived there
+against its line below.
 
-- **Formation ruledata has no producer.** `formationValue`
-  (`formation/constants.mjs`) reads the exploration clock's figures from a
-  `formation` document that no recipe reads off a page, so every clock that
-  asks for one counts without it.
 - **The street encounter list has no recipe.** `settlementEncounter` reads
   `cityTravel.encounters100` when no RollTable is handed in. A Judge can author
   it through the Ruledata Browser's absent row; no import writes it.
-- **The navigation competence figures have no recipe.** `navigationCompetence`
-  reads `travel.navigationBonus` (`either`, `both`), which no recipe writes, so
-  a party holding Navigation or Pathfinding has its bonus reported unpriced.

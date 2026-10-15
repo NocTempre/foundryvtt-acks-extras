@@ -2850,3 +2850,54 @@ hand bars or frees a march with no other record.
 the card gives no button for it. A long stay with several met days prints a
 row per day, and a world with no incident list prints the missing-table line
 under each.
+
+### The delve's printed figures arrive by import (2026-10-15)
+
+**Ruled.**
+- The `formation` document has a producer. Two recipes read RR p. 271, the
+  swimming paragraph in six windows and the rest paragraph in one, and
+  `scripts/importer/formation-binding.mjs` assembles the eight keys the
+  feature reads (MODEL, "Data flow"). Each figure assembles on its own, so a
+  window that drifted costs its figure and nothing beside it. The readers
+  degrade as ruled on 2026-09-02, unchanged.
+- The water penalties pair with the conditions in the order the sentence
+  names them, stored negative. On the page this is the pairing the module
+  held before its figures left the code (*Swimming's printed magnitudes move
+  to the register*, 2026-09-02).
+- The rest interval is the count of turns past which an unrested party is
+  winded, the threshold `onTurnCompleted` compares with `>`. The count the
+  rest cadence is stated per is the fallback.
+- A carried body's weight is read with its fraction, and its kit's share only
+  from after that figure, because the weight's own fraction is not the share.
+- `travel.navigationBonus` is read from one sentence on RR p. 275: the first
+  signed figure prices either competence and the second both, the reading
+  `voyages-binding.mjs` makes of the sea's two arts. `navigationCompetence`
+  already read `{either, both}` and is unchanged.
+- `expectTables` declares the eight `formation` keys, so the Ruledata Browser
+  lists one that never arrived and `validate-producers` checks each against
+  `PRODUCES`. Both waivers and their ROADMAP lines are gone.
+
+**Rejected.**
+- *Pairing the penalties by the engine's key order*: right on this page by
+  coincidence, and silently swapped on a printing that names rough water
+  first.
+- *The first number of the rest paragraph*: the length of the rest itself is
+  printed ahead of the count the clock needs.
+- *Reading an unsigned figure as a penalty or a bonus*: in these sentences an
+  unsigned number may be a count or a distance; only a figure that carries
+  its sign is a modifier.
+- *One window over the whole swimming paragraph, as survival reads its
+  paragraphs*: the paragraph runs on through the drowning procedure, and one
+  window per figure is what lets a drifted window cost only its own figure.
+
+**Cost.**
+- A world imported before this release holds no `formation` document and no
+  `navigationBonus` row until its rules tables are read again, all of them or
+  `formation` and `travel` alone from the re-import picker. Nothing migrates.
+- The parsers know one wording per figure. A printing that drops a sign,
+  writes a share the parser has no word for, or moves a figure past its
+  window leaves that key unpriced; the Ruledata Browser shows it absent, and
+  only `tools/importer/dev-try-binding.mjs` says which window missed.
+- The six swimming windows are sized to one page's layout.
+  `test-recipe-pages` proves the page is found, not that each window still
+  reaches its figure.

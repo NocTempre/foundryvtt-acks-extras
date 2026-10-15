@@ -8,6 +8,18 @@
   jammed* are written to the door the moment they are ticked, for the Judge's
   record and for anything reading the door's state; no figure in the dialog
   changes with them.
+- **The delve's figures arrive with your rules tables.** Importing the rules
+  tables now reads from your own Revised Rulebook (RR 271 and 275) how long a
+  party explores before it is winded, what a carried casualty adds to its
+  carriers' load, the swimming figures (the proficiency's bonus, cold and
+  rough water, a swimmer's pace, sinking and breath), and what knowing the
+  country is worth to a party finding its way, one way of knowing it or both.
+  No import wrote them before: the turn clock never winded a party, a carried
+  casualty added nothing to its carriers, a swimming throw that needed one of
+  the figures named it as missing, and the navigation card said the bonus was
+  not imported. A world that imported its rules tables before reads them
+  again: *Rules tables* in *Reimport One Shelf*, every table or *formation
+  only* and *travel only*.
 
 ### Fixed
 

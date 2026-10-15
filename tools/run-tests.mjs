@@ -54,6 +54,7 @@ const COMMITTED = [
   "test-bridge.mjs",
   "test-formation-flows.mjs",
   "test-formation-heading.mjs",
+  "test-formation-binding.mjs",
   "test-marching-templates.mjs",
   "test-trap-rules.mjs",
   "test-wall-geometry.mjs",

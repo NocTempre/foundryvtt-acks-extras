@@ -1481,8 +1481,13 @@ every call is API-level.
 **Steps and observables**
 
 1. Confirm the empty state first: `acksExtras.lib.tables.hasDoc("formation")`
-   is `false`. If a previous session left a document registered, the whole
-   check below reads green for the wrong reason.
+   is `false`; a layer left registered makes the whole check below read green
+   for the wrong reason. A world that imported its rules tables holds the
+   document, and that is the Judge's import (with any override of it), not a
+   leftover: take it off this client alone with
+   `acksExtras.lib.tables.unregisterTable("formation")`, which drops every
+   layer when given no priority. The world's store keeps them, and teardown
+   mirrors them back.
 2. With nothing registered, call `swimmingBonus()`, `swimSpeedShare()`,
    `sinkFeetPerStone()` and `breathRounds()`. **Every one returns `null`.** A
    `0` here is the bug this recipe exists to catch.
@@ -1518,13 +1523,17 @@ every call is API-level.
    it. A `parts` array that still lacks the water row means the throw is
    reading the constant it used to hold rather than the document.
 7. **Exercise the removal**, not only the registration:
-   `t.unregisterTable("formation", t.PRIORITY.OVERRIDE)`, then re-read one
-   accessor. It returns `null` again and `hasDoc("formation")` is `false`. A
-   value that survives here is a cache with no invalidation story.
+   `t.unregisterTable("formation", { priority: t.PRIORITY.OVERRIDE })`, then
+   re-read one accessor. It returns `null` again and `hasDoc("formation")` is
+   `false`. A value that survives here is a cache with no invalidation story.
+   The priority goes in the option bag: a bare number is read as no priority
+   and drops every layer of the document.
 
 **Teardown**: delete the actor; unregister the document if step 7 did not.
 Leaving a fabricated `formation` document registered poisons every later check
-in the same world session.
+in the same world session. Then
+`acksExtras.lib.services.get("ruledata-import").reload()` mirrors the world's
+store back into this client, which restores an import step 1 took off.
 
 ## The march in miles (added with movement-driven travel)
 
@@ -1811,6 +1820,117 @@ deletes the party actor, so the sweep reports it as not found.
 
 Teardown: `api.sweepTracked()` — the actors, the scene, the note and every
 card posted (track each by id as it lands); unregister any invented document.
+
+## The delve's figures, imported (added with the formation binding)
+
+The `formation` document and the travel document's `navigationBonus` row are
+read from the Judge's own book (RR p. 271, RR p. 275); their readers did not
+change. The walk proves that the import writes each key in the shape its
+reader takes, and that every surface that showed the figure as unknown now
+prices it. No number from the page enters the walk or its report: from step 3
+on, each observable compares a reader's answer with the figures read back from
+the world, `w = t.getDoc("formation").tables` and
+`nav = t.getDoc("travel").tables.navigationBonus`, where
+`t = acksExtras.lib.tables`.
+
+Fixtures, all through `api.create` and swept with `api.sweepTracked()`: a party
+actor (its formation comes with it) and four character actors seated as
+members (*Core drive mechanics*, above). Wayfinder carries an `ability` item
+named Navigation; Scout carries nothing yet; Porter holds the Carrier role
+(`[data-action="toggleRole"][data-role="carrier"]` on its row of the Order
+tab); Fallen stands at 0 hit points and carries nothing. The Revised Rulebook
+is connected on the GM seat, which runs every step.
+`f = () => acksExtras.formation.getFormations()[formationId]`.
+
+1. **The world before the import.** *Observable:* `t.getLayer("formation",
+   20)` is null and the travel layer holds no `navigationBonus` (note the keys
+   it does hold). `acksExtras.location.openRuledataBrowser()` lists the eight
+   `formation` rows (`tr[data-entry-key="formation.restInterval"]` and its
+   siblings) with the `absent` class and the *not supplied* badge. The party
+   sheet's Rest stat ends in a bare slash; Porter's carrier line gives the same
+   encumbrance on both sides of its arrow;
+   `acksExtras.formation.swimming.swimmingThrow({encumbrance: 5, proficient:
+   true, water: "cold"}).unknown` names `swimmingBonus` and
+   `swimWaterModifiers`; `acksExtras.formation.travel.navigationCompetence(f())`
+   answers `bonus: 0, unpriced: true`. A world that already ran this import
+   starts at step 2, and the report says so.
+2. **The import, by the Judge's gesture.**
+   `acksExtras.importer.cookbookReimportEntries()`, tick
+   `input[value="Tables|formation"]` and `input[value="Tables|travel"]`,
+   **Reimport**, and answer the confirmation (`button[data-action="yes"]`).
+   *Observable:* the console logs `acks-extras | formation tables assembled`
+   naming all eight keys, and `travel tables assembled` naming
+   `navigationBonus` among its own. Each key has its reader's shape:
+   `restInterval` a positive whole count of turns; `carriedBodyStone`,
+   `swimmingBonus`, `sinkFeetPerStone` and `breathRounds` positive numbers;
+   `carriedGearShare` and `swimSpeedShare` above 0 and at most 1;
+   `swimWaterModifiers` `{cold, rough}`, both negative; `navigationBonus`
+   `{either, both}`, both positive and `both` the larger. `t.citeOf` answers
+   `RR p.271` for each `formation` key and `RR p.275` for `navigationBonus`,
+   and every travel key step 1 noted is still there, with the raw
+   `navigationProse` window beside the new row. The browser's eight rows lose
+   the badge and carry the page line, and the two raw windows (`restProse`,
+   `swimmingProse`) stand beside them as rows of their own; the *ACKS Ruledata
+   (Imported)* journal in the *ACKS Cookbook — JournalEntry* compendium (never
+   the sidebar) holds a `formation.<key>` page for each of the ten, and the
+   picker, reopened, marks both rows present. `t.docInfo()` shows whether a Judge's OVERRIDE
+   layer sits above either document: the readers answer the override, which
+   is why `w` and `nav` read through `getDoc`.
+3. **The clock winds the party one turn past the interval.** Rest a turn
+   (`acksExtras.formation.advanceTurns(f(), 1, {resting: true})`) so the count
+   starts at zero, then `advanceTurns(f(), w.restInterval)`.
+   *Observable:* `f().clock.winded` is false, no member carries an effect
+   flagged `acks-extras.winded`, the Rest stat reads the interval over itself,
+   and the sheet warns that a rest is due. `advanceTurns(f(), 1)`.
+   *Observable:* `winded` is true, every member carries the winded effect (none
+   holds Endurance), the Rest stat turns `bad` under the winded badge, and the
+   turn card carries the winded line; a Player seat given the party actor shows
+   the same stat without a reload. `advanceTurns(f(), 1, {resting: true})`.
+   *Observable:* the flag, the effects and the warning are gone, and the card
+   says the party has recovered.
+4. **The swimming throw is priced.** `s = acksExtras.formation.swimming`.
+   *Observable:* `s.swimmingThrow({encumbrance: 5, proficient: true, water:
+   "cold"})` has an empty `unknown`, a `water.cold` part, and the target
+   `5 - w.swimmingBonus - w.swimWaterModifiers.cold`; `water: "rough"` reads
+   its own entry the same way. `s.swimSpeed(120)` is `120 * w.swimSpeedShare`.
+   `s.drowning({conMod: 1, encumbrance: 3})` gives `rounds`
+   `w.breathRounds + 1`, `feetPerRound` `3 * w.sinkFeetPerStone`, and
+   `depthAtDeath` their product. `s.rescueStone(4)` is
+   `w.carriedBodyStone + 4 * w.carriedGearShare`.
+5. **A carried casualty weighs on its carrier.** The party sheet re-renders on
+   a formation write and never on the store's, so read it after step 3's
+   advances or re-render it. *Observable:* Porter's carrier line gives
+   Porter's own encumbrance left of the arrow and that plus
+   `w.carriedBodyStone`, to a tenth, on the right. Fallen carries nothing, so
+   the body is the whole of the share.
+6. **The navigation bonus is priced.** Journey the formation on `forest`, road
+   `none` (*End day, the whole tick*, step 1). *Observable:*
+   `navigationCompetence(f())` answers `navigation: true, bonus: nav.either,
+   unpriced: false`. Give Scout an `ability` item named Pathfinding
+   (`createEmbeddedDocuments`). *Observable:* `pathfinding: true` and
+   `bonus: nav.both`. End day. *Observable:* the whispered
+   `.acks-extras-nav-card` carries the `nav.both` line and no
+   `nav.bonusUnpriced` line.
+
+Drive mechanics: read `game.settings.get("acks-extras", "advanceWorldTime")`
+before step 3. Where it is on, every turn moves the SHARED world clock ten
+minutes and End day jumps it to the next dawn, so on a shared world ask before
+stepping. Step 6's card can be posted without the day: import
+`scripts/formation/navigation-card.mjs` in page context and call
+`postNavigationThrow(f())`, the throw End day makes; the report names which
+was walked. Each advance posts one whispered turn card, and an encounter card
+whenever the world's wandering-monster cadence comes round. Track every
+message this seat created during a call (`author` is this user) the moment
+the call resolves, the navigation card's too, with
+`api.track(id, "ChatMessage")`.
+
+Teardown: `api.sweepTracked()` — the party actor (its formation goes with it),
+the four characters (their items and effects with them) and every tracked
+card; quote what it returns. The import's product is no fixture: the
+`formation` and `travel` layers in the world's store, and the pages
+materialized from them, are what the Judge's own import leaves, and no sweep
+undoes a re-read. On a shared world step 2 is therefore the owner's call, as
+the importer's *Rules tables from Reimport One Shelf* recipe says.
 
 ## Teardown
 

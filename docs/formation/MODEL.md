@@ -31,7 +31,7 @@ All paths are under `scripts/formation/` unless noted.
 
 | File | Responsibility |
 |---|---|
-| `constants.mjs` | Rules constants (turn length, rest interval, light sources, roles and their kits, speed tiers). |
+| `constants.mjs` | The module's own units (turn and round lengths), roles and their kits, the light sources `lib/light.mjs` owns, and `formationValue`, the one read of the imported `formation` document (`restInterval`, `carriedBody`). |
 | `judge-override.mjs` | What a GM giving a character something means: supply the gear, empty the hands. |
 | `formation-model.mjs` | Formation records: storage (world setting `acks-extras.formations`), membership, party actor/token lifecycle, marching order, derived speeds. |
 | `turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
@@ -71,6 +71,7 @@ All paths are under `scripts/formation/` unless noted.
 
 - **State** lives in one world setting (`formations`, keyed by id — see the shape documented at the top of `formation-model.mjs`). Only GM clients write it; the `updateSetting` hook re-renders the window on every client.
 - **Every write goes through one private `commit(mutate)`**, which reads the ledger inside the save lock — the lock and the read are a single act, so no writer can hold a copy from before its turn in the queue. Three writers sit on it: `createFormation` **inserts** (the only insert, and it mints the id); `updateFormation` writes a record WHOLE and **refuses one the ledger no longer holds**, since a caller arriving with a record that was dissolved while it worked has a moot write, not an urgent one; `patchFormation` re-reads one record and applies a targeted mutation, which is what a hook or any background writer uses so a concurrent field change is not overwritten and its own guards are decided against current reality.
+- **The delve's printed figures** live in the `formation` ruledata document and are read through `formationValue` (`constants.mjs`): the turns an unrested party explores before it is winded (`restInterval`), a carried body's weight and the share of its kit hauled with it (`carriedBodyStone`, `carriedGearShare`), and the swimming throw's five (`swimWaterModifiers` as `{cold, rough}`, stored negative because the throw subtracts a modifier; `swimmingBonus`; `swimSpeedShare`; `sinkFeetPerStone`; `breathRounds`). The importer writes all eight from the Judge's own RR p. 271: [formation-binding.mjs](../../scripts/importer/formation-binding.mjs) reads each out of a short window of the page's prose, pairs the water penalties with the conditions in the order the sentence names them, and leaves a key whose window did not read absent. A reader without its figure says less rather than inventing one: the clock counts turns and asks for no rest, a rescue load and a drowning read as unknown, and a swimming throw that needs a missing figure returns no target and names it in `unknown`.
 - **Marching order** = order of `members[]`. Roles are per-member string arrays.
 - **Member tokens** are stashed as raw `toObject()` snapshots in `members[].tokenData` when the actor joins, and re-created around the party token on removal/disband.
 - **An unlinked member's hit points and death are their own token's.** `memberOwnToken` finds that token: the live one while the member stands on the map, else the stash. `isDown` and `isDead` take the member and read through it (`memberHp`, over lib's `tokenHitPoints` and `tokenHasStatus`), and so do `isIncapacitated` and `isCasualty`. Casualties and the speed they cost, the carried load, who deploys or can detach, who probes or searches for a trap, who rolls a party check or save, and the party sheet's down and dead markers and sight summary all count an unlinked member by the wounds on their own token. A linked member's are the world actor's. `getMemberActor` still returns the world actor, and every other read of an unlinked member inside the party token (items, effects, rolls, lights, rations, experience) goes through it (ROADMAP §3).
@@ -89,7 +90,7 @@ Before the turn engine bills a delve it reads the scene's scale: a declared delv
 Per turn, in order (mirrors JJ sequence of play step 5):
 
 1. `game.time.advance(600)` (setting-gated) — snapshot member effects with `duration.remaining > 0` beforehand, report the ones that hit ≤ 0 after.
-2. Rest counter (or reset when `resting`); winded at `> 5` turns; marker Active Effect applied/removed on members (Endurance-proficient members skipped, matched by item name).
+2. Rest counter (or reset when `resting`); winded once the counter passes the imported `restInterval`, and never while none is imported; marker Active Effect applied/removed on members (Endurance-proficient members skipped, matched by item name).
 3. Lit lights `remaining--`, guttering warning at 1, burnout at 0.
 4. Encounter counter; every N turns roll 1d6 vs target, whispered to GMs; on encounter, pre-roll 2d6×10 distance and 1d10 minute-of-turn, then draw privately from the resolved RollTable. Parameters resolve zone → formation → world settings: an `encounterZone` region behavior under the party token overrides frequency/target (0 = inherit) and supplies a table UUID; else the formation's `tableId`; else announce-only.
    After the draw, the zone's `dungeonLevel` (read from the behavior's `system`) is compared with the monster level of each table that produced a result (`shiftSources`). A result's `parent` is its producing table, which is the inner one when the drawn table's results are other tables; that table's `monsterLevel` counts, else the drawn table's. Each producing table whose level resolves and differs posts one Judge-only card (`announceShift`), named for that table. A draw from the formation's own table has no zone, so no dungeon level, and never shifts; the city tick draws on its own path and never shifts either.
@@ -938,6 +939,13 @@ rule's clothes.
 The throw itself is `rollLandNavigation` — a d20 against the terrain's imported
 target plus the marching order's competence, with an unmodified 1 failing
 whatever the bonus.
+
+The competence is `navigationCompetence`: a member holding the Navigation
+proficiency or the Pathfinding power earns the `travel` document's
+`navigationBonus.either`, the two held between them earn its `both`, and a
+figure not imported counts for nothing while the card says the bonus is
+unpriced. The travel import writes the row from one sentence on RR p. 275, the
+first signed figure for either and the second for both.
 
 ## The city
 

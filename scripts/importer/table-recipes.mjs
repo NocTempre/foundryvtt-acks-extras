@@ -837,6 +837,49 @@ export const TABLE_RECIPES = {
       },
     },
   },
+  // RR ch. 6 delving, one page: the swimming paragraph's figures — what the
+  // named water conditions cost the throw, the proficiency's bonus, a
+  // swimmer's share of speed, the sink rate, a breath's base and the load a
+  // rescuer hauls — and the rest paragraph's count of turns before a party is
+  // winded. Prose, so these are windows that open on the words before each
+  // figure; formation-binding.mjs parses them into the engine shape
+  // acks-extras declares via expectTables.
+  formation: {
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 271" },
+    tables: {
+      swimmingProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 271,
+        locate: "Swimming and Drowning",
+        column: { xMin: 300, xMax: 592 },
+        values: [
+          // The conditions are named before the figures that price them, so
+          // one window holds both and the binding pairs them in order.
+          { key: "water", find: "if the water is", take: "window", span: 120 },
+          { key: "proficiency", find: "has the swimming proficiency", take: "window", span: 40 },
+          { key: "pace", find: "swimming movement", take: "window", span: 130 },
+          { key: "sink", find: "adventurer sinks", take: "window", span: 50 },
+          // The body's figure and its kit's share sit in one parenthesis.
+          { key: "rescue", find: "weight in encumbrance", take: "window", span: 80 },
+          { key: "breath", find: "breath for", take: "window", span: 35 },
+        ],
+      },
+      restProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 271,
+        locate: "Rest and Recuperation",
+        column: { xMin: 300, xMax: 592 },
+        // From the heading, whole: the count the clock needs is printed after
+        // the length of the rest itself, so the binding reads it by the clause
+        // around it rather than by position.
+        values: [
+          { key: "cadence", find: "rest and recuperation", take: "window", span: 220 },
+        ],
+      },
+    },
+  },
   // RR ch. 6 wilderness ground: the grouped Terrain Speed Multiplier table
   // (whose road row carries the Driving rate in its own cell) and the
   // Going without: hunger, thirst, the cold and the heat. RAW prints all of
@@ -1565,6 +1608,19 @@ export const TABLE_RECIPES = {
           { key: "swampForested", labelRe: "^swamp \\(forested" },
         ],
         cellColumns: [{ key: "navigation", x: 499, w: 48, pattern: "raw", row: true }],
+      },
+      // What finding the way is worth: one sentence prices holding either
+      // competence and holding both, and travel-binding reads the two bonuses
+      // out of the one window in printed order.
+      navigationProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 275,
+        locate: "Navigating the Wild",
+        column: { xMin: 300, xMax: 592 },
+        values: [
+          { key: "competence", find: "pathfinding class power", take: "window", span: 120 },
+        ],
       },
       // The draft substitutions the vehicle entries state in prose ("One ox,
       // two mules, or two medium horses can be substituted for 1 heavy

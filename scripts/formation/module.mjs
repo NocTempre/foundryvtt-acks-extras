@@ -6,6 +6,7 @@ import {
   DEFAULT_ENCOUNTER_EVERY,
   DEFAULT_ENCOUNTER_TARGET,
   FLAG_FORMATION_ID,
+  FORMATION_DOC,
   MARCH_FEET_PER_BODY_DEFAULT,
   MODULE_ID,
   ROLES,
@@ -346,6 +347,13 @@ Hooks.once("init", () => {
     default: true,
   });
 
+  // The delve's own: the turns an unrested party explores before it is
+  // winded, the load a carried body adds, and the swimming throw's figures
+  // (`swimming.mjs`). All printed, so none of them ship.
+  expectTables(FORMATION_DOC, [
+    "restInterval", "carriedBodyStone", "carriedGearShare",
+    "swimWaterModifiers", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds",
+  ]);
   // The journey's registry reads still ahead of it — the getting-lost targets
   // and the encounter frequencies — declared now so the import UX names them.
   expectTables(TRAVEL_DOC, ["gettingLost", "encounterFrequency", "navigationBonus"]);

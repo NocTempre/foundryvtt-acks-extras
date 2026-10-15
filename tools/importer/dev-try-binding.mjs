@@ -27,6 +27,8 @@ const BINDERS = {
   searching: () => import("../../scripts/importer/searching-binding.mjs").then((m) => m.assembleSearchingTables),
   cityTravel: () => import("../../scripts/importer/city-travel-binding.mjs").then((m) => m.assembleCityTravelTables),
   flight: () => import("../../scripts/importer/flight-binding.mjs").then((m) => m.assembleFlightTables),
+  formation: () => import("../../scripts/importer/formation-binding.mjs").then((m) => m.assembleFormationTables),
+  travel: () => import("../../scripts/importer/travel-binding.mjs").then((m) => m.assembleTravelTables),
   experience: () => import("../../scripts/importer/experience-binding.mjs").then((m) => m.assembleExperienceTables),
 };
 

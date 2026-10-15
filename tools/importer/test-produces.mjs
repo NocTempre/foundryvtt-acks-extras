@@ -10,6 +10,7 @@ import assert from "node:assert";
 import { joinCites, recipeCite, assembledDoc } from "../../scripts/importer/produces.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { PRODUCES as FLIGHT } from "../../scripts/importer/flight-binding.mjs";
+import { PRODUCES as FORMATION } from "../../scripts/importer/formation-binding.mjs";
 import { PRODUCES as SURVIVAL } from "../../scripts/importer/survival-binding.mjs";
 import { PRODUCES as SEARCHING } from "../../scripts/importer/searching-binding.mjs";
 import { PRODUCES as CITY } from "../../scripts/importer/city-travel-binding.mjs";
@@ -100,8 +101,8 @@ eq("a layer with no cites yields an empty map, not a throw", assembledDoc({ id: 
 
 // Every raw table a binding names is one some recipe of that document reads,
 // so a renamed recipe cannot leave an engine table citing nothing in silence.
-const maps = { ...FLIGHT, ...SURVIVAL, ...SEARCHING, ...CITY, ...FORAGING, ...TRAVEL, ...ENCOUNTERS, ...WEATHER, ...VOYAGES, ...BUILDER, ...EXPERIENCE, ...CONDITIONS };
-check("twelve documents declare what they assemble", Object.keys(maps).length === 12);
+const maps = { ...FLIGHT, ...FORMATION, ...SURVIVAL, ...SEARCHING, ...CITY, ...FORAGING, ...TRAVEL, ...ENCOUNTERS, ...WEATHER, ...VOYAGES, ...BUILDER, ...EXPERIENCE, ...CONDITIONS };
+check("thirteen documents declare what they assemble", Object.keys(maps).length === 13);
 for (const [docId, map] of Object.entries(maps)) {
   const recipes = TABLE_RECIPES[docId]?.tables;
   check(`${docId}: a recipe document exists`, !!recipes);

@@ -55,13 +55,14 @@ import { applyForagingImport, FORAGING_DOC_ID } from "./foraging-binding.mjs";
 import { applySearchingImport, SEARCHING_DOC_ID } from "./searching-binding.mjs";
 import { applyCityTravelImport, CITY_TRAVEL_DOC_ID } from "./city-travel-binding.mjs";
 import { applyFlightImport, FLIGHT_DOC_ID } from "./flight-binding.mjs";
+import { applyFormationImport, FORMATION_DOC_ID } from "./formation-binding.mjs";
 import { applyExperienceImport, EXPERIENCE_DOC_ID } from "./experience-binding.mjs";
 import { progressBar } from "./progress.mjs";
 
 /**
- * The single-document bindings — the land-travel documents and experience —
- * each with the assembler that turns its raw page reads into the engine tables
- * acks-extras declares.
+ * The single-document bindings — the land-travel documents, the delve's, and
+ * experience — each with the assembler that turns its raw page reads into the
+ * engine tables acks-extras declares.
  *
  * A table rather than near-identical blocks: they differ only in which
  * document they answer for, and one loop cannot drift the way copies of a
@@ -74,6 +75,7 @@ const SIMPLE_BINDINGS = Object.freeze([
   { id: SEARCHING_DOC_ID, apply: applySearchingImport },
   { id: CITY_TRAVEL_DOC_ID, apply: applyCityTravelImport },
   { id: FLIGHT_DOC_ID, apply: applyFlightImport },
+  { id: FORMATION_DOC_ID, apply: applyFormationImport },
   { id: EXPERIENCE_DOC_ID, apply: applyExperienceImport },
 ]);
 import {

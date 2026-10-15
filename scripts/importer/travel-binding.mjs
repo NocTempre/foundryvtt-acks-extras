@@ -3,10 +3,11 @@
  * ruledata tables acks-extras reads (its vehicle-speed derivations declare
  * them via `expectTables`). The raw tables keep the page's own grouping;
  * this step fans the terrain groups out to the terrain keys, splits the road
- * cell into its two rates, and strips the throw markers — judgments the
- * recipes must not make and the reader must not repeat. Like every binding
- * here, no value ships: everything is read live from the seat's own book and
- * persists only in their world.
+ * cell into its two rates, strips the throw markers, and reads the two
+ * navigation bonuses out of one sentence — judgments the recipes must not
+ * make and the reader must not repeat. Like every binding here, no value
+ * ships: everything is read live from the seat's own book and persists only
+ * in their world.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -28,6 +29,7 @@ export const PRODUCES = Object.freeze({
     gettingLost: "gettingLostRaw",
     draftEquivalents: "draftSubstitutionProse",
     encounterFrequency: "encounterFrequencyRaw",
+    navigationBonus: "navigationProse",
   },
 });
 
@@ -126,6 +128,24 @@ export function parseDraftSubstitutions(window) {
 }
 
 /**
+ * What finding the way is worth, as `{either, both}` (RR p. 275): one sentence
+ * prices holding either competence and holding both, the first signed figure
+ * for one and the second for both — the reading the voyages binding makes of
+ * the sea's. Magnitudes only: the reader adds them as a bonus. A figure the
+ * sentence does not print is left out, and stays unpriced downstream.
+ */
+export function parseNavigationBonus(window) {
+  const t = String(window ?? "").toLowerCase().replace(/\s+/g, " ");
+  const end = t.search(/\.(?:\s|$)/);
+  const sentence = end === -1 ? t : t.slice(0, end);
+  const [either, both] = [...sentence.matchAll(/[-+−]\s?(\d+)/g)].map((m) => Number(m[1]));
+  const out = {};
+  if (either != null) out.either = either;
+  if (both != null) out.both = both;
+  return Object.keys(out).length ? out : null;
+}
+
+/**
  * The engine tables from the raw ones. Pure — the committed tests feed it
  * invented cells.
  *
@@ -166,6 +186,9 @@ export function assembleTravelTables(raw = {}) {
   }
   const subs = parseDraftSubstitutions(raw.draftSubstitutionProse?.substitutions);
   if (subs) out.draftEquivalents = subs;
+
+  const nav = parseNavigationBonus(raw.navigationProse?.competence);
+  if (nav) out.navigationBonus = nav;
 
   const freq = raw.encounterFrequencyRaw;
   if (freq) {
