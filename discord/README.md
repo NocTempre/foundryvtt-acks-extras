@@ -15,5 +15,6 @@ Setup, the commands and what they may do:
 <https://github.com/NocTempre/foundryvtt-acks-extras/blob/main/docs/guides/bridge.md>.
 In short, on the Foundry host: `sudo npm run install-service` here and press
 Enter through its questions, then paste the token in Foundry — updates need
-nothing further. By hand elsewhere: a `.env` from `.env.example`, then
-`npm start`.
+nothing further. On Windows: a `.env` from `.env.example`, then the Task
+Scheduler task in the guide's *On Windows* section, which starts the bot at
+sign-in and again after each update. By hand anywhere: `npm start`.

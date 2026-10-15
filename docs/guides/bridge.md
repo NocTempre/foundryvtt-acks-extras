@@ -22,11 +22,15 @@ its own.
 
 ### 1. The host
 
-The bot runs on the machine that runs Foundry, as a service beside it. That
-machine needs:
+The bot runs on the machine that runs Foundry, beside it, and it starts with
+that machine rather than with the world: Foundry has no hand on the host, so
+nothing in a world can launch a program there. A bot that comes up before
+its world keeps retrying until the world answers. On Linux a service starts
+it with the host; on Windows, Task Scheduler starts it when you sign in
+([On Windows](#on-windows) takes the place of step 4). That machine needs:
 
 - **Linux with systemd** — Debian, Ubuntu and their relatives; a Proxmox VM
-  or container is fine.
+  or container is fine — **or Windows 10 or 11.**
 - **Node 22 or newer.** `node -v` says which you have; Foundry itself runs
   on Node, so it is usually there already.
 - **A Chromium-family browser the service can run.** Nothing shows on a
@@ -41,6 +45,7 @@ machine needs:
 
   (an ARM host has no Chrome build; use Debian's `chromium` or a Chromium
   from a non-snap PPA). The installer skips the stub and names what it found.
+  On Windows, Microsoft Edge is already there and is found by itself.
 - **The Extras module installed** in Foundry, 7.1.0 or later. The bot's code
   is inside it: `discord/` under the module's directory in your Foundry data
   path, `Data/modules/acks-extras/discord`.
@@ -71,7 +76,8 @@ alone.
 
 ### 4. Install the service
 
-On the host, in the bot's directory:
+On Windows, follow [On Windows](#on-windows) instead and come back for step 5.
+On a Linux host, in the bot's directory:
 
 ```bash
 cd /path/to/foundrydata/Data/modules/acks-extras/discord && sudo npm run install-service
@@ -217,16 +223,59 @@ world reaches only a bot that is already listening. Starting is the service's
 job (`Restart=always`, so a bot that exits or crashes is back within
 seconds, and it comes up with the host), and installing is the one command in
 [Install the service](#4-install-the-service), run again as often as you like.
+On Windows the scheduled task's loop does the service's part.
 
-### Running it by hand instead
+### On Windows
 
-On Windows, or on a test box without systemd, put a `.env` beside `src/`
-(`.env.example` lists every value) and run `npm start` in the bot's
-directory. It installs its own dependencies when they are missing, and it is
-still configured from Foundry — the `.env` carries only how to reach the
-world. Anything you do set there wins over the window, which is the escape
-hatch if you would rather keep the token on the host. After a module update,
-or after a change in the window, you restart it yourself.
+There is no service installer for Windows. Three steps take the place of
+[Install the service](#4-install-the-service); everything else in the
+walkthrough is the same.
+
+1. **Tell it how to reach the world.** In the bot's directory —
+   `Data\modules\acks-extras\discord` under your Foundry data path — copy
+   `.env.example` to `.env` and fill in `FOUNDRY_ORIGIN`, `FOUNDRY_USER` and
+   `FOUNDRY_PASSWORD` for the user from
+   [step 3](#3-the-bots-foundry-user). The bot is still configured from
+   Foundry; the `.env` carries only how to reach the world. Anything else you
+   set there wins over the window, which is the escape hatch if you would
+   rather keep the token on the host.
+2. **Run it once by hand.** Open PowerShell in that directory and run
+   `npm.cmd start`. The first run installs the bot's dependencies (a minute
+   or two), then the log shows the seat joining the world and the bot saying
+   it has no token yet. Stop it with **Ctrl+C**.
+3. **Have Windows start it.** In the same PowerShell window, paste:
+
+   ```powershell
+   $bot = (Get-Location).Path
+   $loop = "Set-Location -LiteralPath '$bot'; while (`$true) { npm.cmd start; Start-Sleep -Seconds 5 }"
+   Register-ScheduledTask -TaskName "ACKS Extras Discord bot" `
+     -Action (New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -WindowStyle Hidden -Command `"$loop`"") `
+     -Trigger (New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME) `
+     -Settings (New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable)
+   Start-ScheduledTask -TaskName "ACKS Extras Discord bot"
+   ```
+
+   The bot now starts whenever you sign in to Windows, and the last line
+   starts it now. The loop is what keeps it running: the bot exits on purpose
+   after a module update, a saved change in the Discord Bot window or
+   **Restart the bot**, and the loop starts it again five seconds later. The
+   zero time limit stops Task Scheduler from ending it after its default three
+   days.
+
+Then carry on at [Configure it in Foundry](#5-configure-it-in-foundry).
+
+To take it off again, stop and remove the task, then end the bot itself,
+which outlives the task's own window:
+
+```powershell
+Stop-ScheduledTask -TaskName "ACKS Extras Discord bot"
+Unregister-ScheduledTask -TaskName "ACKS Extras Discord bot" -Confirm:$false
+Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object CommandLine -match 'src[\\/]main\.mjs' | ForEach-Object { Stop-Process -Id $_.ProcessId }
+```
+
+On a Linux box without systemd, the same `.env` and `npm start` run it by
+hand. After a module update, or after a change in the window, you start it
+again yourself.
 
 ### Removing it
 

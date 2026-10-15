@@ -30,7 +30,9 @@ be.*
 system's and the Follower Card alike. A player's card goes to the Judge with
 its result, and the player sees only that the throw was made; a Judge's own
 throw is whispered to that Judge. The window says so and offers no choice of
-who sees the roll. A class's own Searching or Listening ability is a
+who sees the roll; to show the table a throw once it is made, the Judge
+right-clicks its card in the chat log and chooses **Reveal To Everyone**.
+A class's own Searching or Listening ability is a
 proficiency throw, and follows that ability's **Blind roll** box instead.
 
 ![](../releases/v10.2.0/character-sheet-blind-throw.png)
