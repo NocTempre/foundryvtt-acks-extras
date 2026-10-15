@@ -62,7 +62,8 @@ function markOffered(formationId) {
  * the dialog is awaited, so a multi-hex drag cannot stack one prompt per
  * crossing.
  *
- * @returns {Promise<"ended"|"pushed"|"later"|null>} null when nothing was asked.
+ * @returns {Promise<"ended"|"pushed"|"barred"|"later"|null>} null when nothing
+ *   was asked; "barred" when the push was refused and the day stands as it was.
  */
 export async function offerDayEnd(formationId) {
   const formation = getFormation(formationId);
@@ -101,8 +102,10 @@ export async function offerDayEnd(formationId) {
     return "ended";
   }
   if (answer === "push") {
-    // A forced march is the day-kind, not a modifier; `setDayKind` prices it.
-    await setDayKind(formationId, "forced");
+    // A forced march is the day-kind, not a modifier; `setDayKind` prices it
+    // and refuses it for a party with a barred marcher. The Judge overrides
+    // from the sheet's day-kind control, not from this question.
+    if ((await setDayKind(formationId, "forced")) === false) return "barred";
     return "pushed";
   }
   return "later";

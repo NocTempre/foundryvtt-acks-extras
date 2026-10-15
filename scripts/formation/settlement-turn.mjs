@@ -174,7 +174,7 @@ export async function runHoledUpDays(formation, days) {
   const n = Math.min(MAX_STAY_DAYS_PER_CREDIT, asked);
   if (!n) return null;
   const board = t.settlement;
-  const { zone, zoneName, district, districtName } = drawnOver(formation);
+  const { zone, zoneName, district, districtName, city } = drawnOver(formation);
   const night = boardNight(board);
   const cadence = resolveCityCadence(
     streetCadence({ where: board.where, night, intent: board.intent }),
@@ -200,7 +200,8 @@ export async function runHoledUpDays(formation, days) {
   });
 
   await whisperStay(next, events, dice, {
-    credited: n, asked, cadence, zoneName, districtName,
+    credited: n, asked, cadence, zoneName, districtName, night,
+    incident: pickIncidentSource({ district, zone, wanted: board.wanted, city }),
   });
   // `credited` is the contract with the clock watcher: the stamp may only move
   // forward by days that were actually thrown for.
@@ -491,9 +492,15 @@ export async function rollSettlementIncident({
   return found ? { ...found, roll: roll.total, dice: roll, source: "city", table: world?.name ?? null } : null;
 }
 
-/** A stay as one card: how long it lasted, and which days were interrupted. */
+/**
+ * A stay as one card: how long it lasted, which days were interrupted, and what
+ * found them on each. `incident` is `pickIncidentSource`'s answer and `night`
+ * the hour the stay's cadence was resolved at; every day of a stay is drawn at
+ * that one hour.
+ */
 async function whisperStay(board, events, rolls, {
   credited = null, asked = null, cadence = null, zoneName = null, districtName = null,
+  incident: pick = null, night = false,
 } = {}) {
   const owed = events.filter((e) => e.kind === "encounterOwed");
   const met = owed.filter((e) => e.met);
@@ -528,6 +535,15 @@ async function whisperStay(board, events, rolls, {
     lines.push(loc("settlement.card.undisturbed", { throws: owed.length }));
   }
 
+  // What found them, day by day. Each met day draws through the same order the
+  // street turn walks, at the stay's own hour; the party was indoors, so no
+  // marker is left on the map and the draw is the card's alone.
+  for (const event of met) {
+    const { lines: drawn } = await drawIncidentLines(pick, { night, board, rolls });
+    lines.push(loc("settlement.card.stayDay", { day: event.day })
+      + `<ul>${drawn.map((l) => `<li>${l}</li>`).join("")}</ul>`);
+  }
+
   await postToJudges({
     speaker: { alias: loc("settlement.card.speaker") },
     content: `<div class="acks-extras-settlement-card"><h3>${loc("settlement.card.stayTitle")}</h3>`
@@ -551,6 +567,75 @@ function incidentLine(incident, text) {
 const markerLine = (note) =>
   `${loc("settlement.card.marker")} <button type="button" class="acks-extras-poi-promote" `
   + `data-note-uuid="${foundry.utils.escapeHTML(note.uuid)}">${loc("settlement.card.promote")}</button>`;
+
+/**
+ * One incident drawn through `pick`'s whole candidate order, as the lines a
+ * card prints for it: the hunted line, every named list the walk could not
+ * read, the city throw that handed over to a quarter's special list, and the
+ * incident itself — or the missing-table line when nothing in the order
+ * answered. Shared by the turn card and the stay card, so both draw through
+ * the one order and say the same things about it.
+ *
+ * Every die thrown is pushed onto `rolls`, which the caller shows to the
+ * Judges. The lookup reaches every RollTable compendium in the world, so it is
+ * guarded here: a card that cannot name the incident must not take the
+ * caller's bookkeeping down with it.
+ *
+ * @param {object|null} pick `pickIncidentSource`'s answer
+ * @param {object} opts
+ * @param {boolean} opts.night whether the draw is made after dark
+ * @param {object} opts.board names the faction behind a hunted draw
+ * @param {object[]} opts.rolls collects the dice thrown
+ * @returns {Promise<{incident: object|null, lines: string[]}>} the incident as
+ *   `rollSettlementIncident` returns it, and the card's lines for it
+ */
+async function drawIncidentLines(pick, { night, board, rolls }) {
+  let incident = null;
+  // Every named list the walk could not read, said on the card whatever then
+  // answered: a list that is gone sends the throw to the next one, and the
+  // Judge otherwise sees only that the wrong list spoke.
+  const passed = [];
+  try {
+    incident = await rollSettlementIncident({ night, ...(pick ?? {}), passed });
+  } catch (err) {
+    console.error(`${MODULE_ID} | settlement incident lookup failed`, err);
+  }
+  const lines = [];
+  for (const source of passed) {
+    lines.push(source === "special"
+      ? loc("settlement.lists.specialMissing")
+      : loc("settlement.lists.missing", { list: loc(`settlement.lists.source.${source}`) }));
+  }
+  if (!incident) {
+    lines.push(loc("settlement.card.noIncidentTable"));
+    return { incident, lines };
+  }
+  if (incident.source === "wanted") {
+    // Keyed on the answer and not on the ask: a `wantedTableUuid` pointing at a
+    // table that is gone falls to the next list in the order, and a line
+    // promising the hunted list above another list's entry asserts something
+    // untrue. It leads the lines so the reason still reads before the outcome;
+    // named after the faction whose ledger set the flag, when one did.
+    const hunter = hunterName(board);
+    lines.unshift(hunter
+      ? loc("settlement.card.wantedBy", { name: hunter })
+      : loc("settlement.card.wanted"));
+  }
+  // A quarter's special list answered because the city throw sent it there:
+  // that throw is said first, so the second die has a reason.
+  if (incident.via) {
+    rolls.push(incident.via.dice);
+    lines.push(loc("settlement.card.incidentDeferred", {
+      roll: incident.via.roll, total: incident.via.total, table: incident.via.table,
+    }));
+  }
+  rolls.push(incident.dice);
+  const text = incident.entry ?? loc("settlement.card.incidentUnmatched");
+  // The after-dark shift belongs to a list read by band — the world's d100, or
+  // the map's — so a drawn table's line does not claim one.
+  lines.push(incidentLine(incident, text));
+  return { incident, lines };
+}
 
 /** The turn as one Judge-side card. Silent when nothing happened worth saying. */
 async function whisperTurn(
@@ -610,67 +695,22 @@ async function whisperTurn(
     // guarded here: a card that cannot name the incident must not take the
     // turn's bookkeeping down with it.
     if (owed.met) {
-      // Where the hunted line goes if the hunted table is the one that ANSWERS.
-      // Keyed on the answer and not on the ask: a `wantedTableUuid` pointing at
-      // a table that is gone falls to the next list in the order, and a line
-      // promising the hunted list above another list's entry asserts something
-      // untrue. The index is taken first so the reason still reads before the
-      // outcome.
-      const beforeIncident = lines.length;
-      let incident = null;
-      // Every named list the walk could not read, said on the card whatever
-      // then answered: a list that is gone sends the throw to the next one,
-      // and the Judge otherwise sees only that the wrong list spoke.
-      const passed = [];
-      try {
-        incident = await rollSettlementIncident({ night, ...(pick ?? {}), passed });
-      } catch (err) {
-        console.error(`${MODULE_ID} | settlement incident lookup failed`, err);
-      }
-      for (const source of passed) {
-        lines.push(source === "special"
-          ? loc("settlement.lists.specialMissing")
-          : loc("settlement.lists.missing", { list: loc(`settlement.lists.source.${source}`) }));
-      }
-      if (incident) {
-        if (incident.source === "wanted") {
-          // Named after the faction whose ledger set the flag, when one did;
-          // a Judge's own tick has nobody to name.
-          const hunter = hunterName(board);
-          lines.splice(beforeIncident, 0, hunter
-            ? loc("settlement.card.wantedBy", { name: hunter })
-            : loc("settlement.card.wanted"));
-        }
-        // A quarter's special list answered because the city throw sent it
-        // there: that throw is said first, so the second die has a reason.
-        if (incident.via) {
-          rolls.push(incident.via.dice);
-          lines.push(loc("settlement.card.incidentDeferred", {
-            roll: incident.via.roll, total: incident.via.total, table: incident.via.table,
-          }));
-        }
-        rolls.push(incident.dice);
-        const text = incident.entry ?? loc("settlement.card.incidentUnmatched");
-        // The after-dark shift belongs to a list read by band — the world's
-        // d100, or the map's — so a drawn table's line does not claim one.
-        lines.push(incidentLine(incident, text));
-        // Where it happened, kept on the map: a Judge-only marker the clock
-        // takes away, with the one button that makes it permanent. Guarded
-        // like the lookup above — a marker that cannot be written must not
-        // take the card down with it.
-        if (incident.entry && formation) {
-          const note = await dropIncidentNote(
-            formation,
-            { text: incident.entry, source: incident.source, table: incident.table },
-            { regionUuid },
-          ).catch((err) => {
-            console.error(`${MODULE_ID} | incident marker failed`, err);
-            return null;
-          });
-          if (note) lines.push(markerLine(note));
-        }
-      } else {
-        lines.push(loc("settlement.card.noIncidentTable"));
+      const { incident, lines: drawn } = await drawIncidentLines(pick, { night, board, rolls });
+      lines.push(...drawn);
+      // Where it happened, kept on the map: a Judge-only marker the clock
+      // takes away, with the one button that makes it permanent. Guarded
+      // like the lookup — a marker that cannot be written must not take the
+      // card down with it.
+      if (incident?.entry && formation) {
+        const note = await dropIncidentNote(
+          formation,
+          { text: incident.entry, source: incident.source, table: incident.table },
+          { regionUuid },
+        ).catch((err) => {
+          console.error(`${MODULE_ID} | incident marker failed`, err);
+          return null;
+        });
+        if (note) lines.push(markerLine(note));
       }
     }
   }

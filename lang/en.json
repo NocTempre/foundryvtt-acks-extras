@@ -2458,6 +2458,7 @@
       "noSelection": "No eligible tokens selected.",
       "frontageInvalid": "Frontage is a whole number of ranks, one or more.",
       "frontageMax": "This scene is only {max} squares wide — the party marches {max} abreast at most.",
+      "forcedMarchBarred": "The forced march is refused; the day stays as it was. Barred for: {names}.",
       "overburdened": "Party exploration speed is 0 — someone is overburdened!",
       "needLightItem": "{bearer} needs {items} to light this.",
       "spellNeedsName": "Pick a spell or enter a name to track.",
@@ -2878,6 +2879,13 @@
         "push": "Push on (forced march)",
         "later": "Not yet"
       },
+      "forcedBar": {
+        "title": "Forced march barred",
+        "body": "A forced march is barred for: {names}. Set it anyway?",
+        "override": "Set it anyway",
+        "cancel": "Leave the day as it is",
+        "note": "The Judge set a forced march that was barred for: {names}."
+      },
       "campDay": "In camp — only hours given to travel walk.",
       "milesShort": "mi",
       "hex": "Hex",
@@ -3255,6 +3263,7 @@
         "stillCatchingUp": "{credited} day(s) thrown for so far; {left} still to catch up as the calendar advances.",
         "interrupted": "{count} day(s) did not pass quietly — day(s) {days}.",
         "undisturbed": "Nothing found them, over {throws} day(s).",
+        "stayDay": "Day {day}",
         "incident": "Rolled {roll} ({total} after the dark): {text}",
         "incidentPlain": "Rolled {roll}: {text}",
         "incidentDrawn": "Rolled {roll} on {table}: {text}",

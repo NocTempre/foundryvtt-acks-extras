@@ -268,6 +268,49 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
       no formation holds the basher.
     Teardown by the run's own ids: the actors, the scene (its walls go with
     it) and the formation; track each chat card id as it lands.
+14. **A marcher's survival state bars the forced march; only the Judge
+    overrides it.** Fixtures (each recorded with `api.create`): a disposable
+    scene with a disposable `acks-extras.party` actor on it, and two disposable
+    character actors enrolled through the token HUD (see the drive mechanics
+    above). Put one member on a barring rung by writing that disposable
+    actor's own flag through the API: `await actor.setFlag("acks-extras",
+    "survival", { nourishment: "underfed" })` (`hydration: "dehydrated"` and
+    `exposure: "hypothermic"` are the other two ladders' barring rungs; a flag
+    with no keys, or `nourishment: "hungry"`, is a plain rung). Set the party's
+    mode to journey and open the party sheet's **day** fold on the GM seat.
+    - *Refusal.* With the one member underfed, pick **Forced march** in the day
+      board's select.
+      *Observable:* a confirm dialog names that member (and only them); press
+      **Leave the day as it is**. Re-read `getFormations()[id].travel.day.kind`
+      from the document: still `march`; the select redraws on Dedicated march; no chat
+      note posted.
+    - *Override.* Pick **Forced march** again and press **Set it anyway**.
+      *Observable:* `travel.day.kind` reads `forced`, all four `day.activities`
+      read `travel`, and one Judge-whispered card names the member (its `whisper`
+      holds the GM user ids only, so a Player seat's chat log lacks it). Pick
+      **Dedicated march** and **Forced march** once more with the member still barred:
+      the dialog returns, so the override is per change and never a standing
+      permission.
+    - *A plain rung.* Set the member's flag to `{ nourishment: "hungry" }` and
+      pick **Forced march** from March: no dialog, the kind is `forced`.
+    - *The API obeys the same bar.* With the member underfed again and the kind
+      on March, `await acksExtras.formation.travel.setDayKind(id, "forced")`.
+      *Observable:* it resolves `false`, a warning names the member, the kind
+      stays `march`. From the Player seat, `setDayKind(id, "forced", { override:
+      true })` also resolves `false`; from the GM seat the same call resolves
+      the record, sets `forced` and posts one more whispered card.
+    - *The dusk offer.* Spend the day (set `travel.day.hours` past the day's
+      budget with `patchFormation`, then drag the party token one hex) so the
+      question opens; answer **Push on (forced march)**.
+      *Observable:* a warning naming the member; `travel.day.kind` still
+      `march`; the travel log's length unchanged (the day was not closed).
+    - *A Player seat.* Join the Player seat on the formation's scene.
+      *Observable:* the day fold, its select and the override dialog are absent
+      (the groups are the Judge's alone).
+    Teardown by the run's own ids: `api.sweepTracked()` removes the scene and
+    the actors (the party actor dissolves its formation); track each chat card
+    id as it lands. No world document outside that ledger is touched: the
+    survival flag lives on the disposable actors and goes with them.
 
 ## Mounts and the train (added with the stations release)
 
@@ -868,6 +911,47 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
    and nothing else happens, which reads exactly like a clock that was never
    watched. `getFormations()` returns an OBJECT keyed by id, not an array; the
    first version of the sweep iterated it directly and failed silently that way.
+
+9b. **A stay draws what found it, day by day, and leaves no marker.** Rides
+   the city scene, a city list named in Scene Configuration (the `1d10` list
+   with rows `1`–`13` and `3` after dark from "The city's own list"), and
+   the stay of step 9. Register an invented `cityTravel` document at priority
+   30 whose `encounters.holedUp.any` is `{everyTurns: 1, throw: 1}` and whose
+   `encounterAfterDark` is `3`. **No die needs rigging**: a `1d6` meets a
+   target of 1 every day, and a target of 7 on the same row meets none. Arm
+   the marker setting (`transientIncidentTurns`) to a nonzero value so that a
+   marker the stay should not leave would be left. Track the list by id.
+   With `where` on `holedUp` and `hour` on `By day`
+   (`patchSettlement(id, {hour})`), stamp the stay with an hour's advance,
+   then `game.time.advance(86400 * 3)`.
+   *Observable:* one stay card; under its "did not pass quietly" line, a
+   "Day N" row for each of the three days, N continuing from `days` as the
+   board held it, each carrying "Rolled R on <city list>: text" with R from 1
+   to 10 and the text the row R names, and no "after the dark" clause. The
+   scene's note count is unchanged, and the card carries no "Make it a place"
+   button (compare step 28, where a turn's card does). Set `hour` to
+   `After dark` and advance three days again: each row reads "Rolled R on
+   <city list> (R+3 after the dark): text", and over several days a total of
+   11–13 appears with the row only the shift reaches. The days are labelled by
+   their own number, so the second stay's rows follow the first's.
+   *Quiet and gaps:* set the registered target to 7 and advance a day:
+   "Nothing found them, over 1 day(s)" with no "Day" row and no draw.
+   Re-register the layer with an empty `encounters.holedUp` row (`{}`): the
+   registry merges layers per table, so the empty row hides any imported
+   holed-up cell beneath it, where unregistering the override on a world that
+   imported the settlement document only uncovers that cell and the stay stays
+   priced. Advance a day: "Not imported: encounters." and no "Day" row. The
+   stay card is the client's that credited it, so read the cards by author and
+   by the `acks-extras-settlement-card` class, never by time alone, and track
+   none for the sweep while another formation is holed up. Restore the target of
+   1, clear the city list from Scene Configuration and advance two days: on a
+   world holding no imported incident list each "Day" row says "No incident
+   table yet" in the turn's words and no incident is claimed; on one that
+   holds it, the rows read from the world's own list instead, and the
+   missing-list line is left to the offline suite.
+   *Teardown:* unregister the layer, clear the scene's incident record, sweep
+   the tracked list, restore `transientIncidentTurns`. The advances moved the
+   shared clock, as step 9's do.
 10. Leave with `setJourneyMode(id, "delve")`.
     *Observable:* mode is `delve`, the clock still runs, and the wandering
     monster throw returns. Go straight back in with

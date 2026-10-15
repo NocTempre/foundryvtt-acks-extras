@@ -58,6 +58,7 @@ import {
 } from "./hex-stock-run.mjs";
 import { askStrayAndBegin, confirmDiscovery, confirmEnd, confirmReanchor } from "./lost-dialog.mjs";
 import { applyTravelForm, setJourneyMode, rollWeatherNow, travelOf, TRAVEL_MODES } from "./travel.mjs";
+import { forcedMarchBar, confirmBarOverride } from "./march-bar.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import SkillAuditApp from "./skill-audit.mjs";
 import { openTrapbreakApp } from "./trapbreak-app.mjs";
@@ -916,7 +917,19 @@ export async function onChangeForm(event, form, formData) {
     if (TRAVEL_MODES.includes(data.travel.mode) && data.travel.mode !== travelOf(formation).mode) {
       await setJourneyMode(formation.id, data.travel.mode, { sceneId: formation.sceneId });
     }
-    await applyTravelForm(formation.id, data.travel);
+    // A forced march the survival ladder bars is the Judge's call: ask once,
+    // here, so a Cancel drops the kind from the write and the select redraws
+    // on the day it was.
+    let override = false;
+    const day = data.travel.day;
+    if (day?.kind === "forced" && day.kind !== travelOf(formation).day.kind) {
+      const barred = forcedMarchBar(formation);
+      if (barred.length) {
+        override = await confirmBarOverride(barred);
+        if (!override) delete day.kind;
+      }
+    }
+    await applyTravelForm(formation.id, data.travel, { override });
     redraw = true;
   }
   if (changed || redraw) this.render();

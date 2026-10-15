@@ -2773,3 +2773,80 @@ spending the turns `batterPlan` priced.
 **Cost.** A Judge applies the rebound's point by hand, as for a trap. A batter
 by a token that belongs to no formation is free until the Judge advances the
 clock.
+
+### A forced march is barred by a marcher's survival state (2026-10-15)
+
+**Problem.** The survival ladder's rungs declare `forceMarch` among what they
+take away, and `forbidden(state)` lists it, but nothing in the formation
+asked: the day-kind control and the dusk offer's push answer set a forced march
+for a party whose members could not make one.
+
+**Ruled.**
+- The bar sits on the DAY KIND, not on the march step. `forcedMarchBar`
+  (march-bar.mjs) names the marching members (an actor, not blank, not
+  `left`) whose `survival` flag forbids `forceMarch`; the three writers of the
+  forced kind (`setDayKind`, `applyTravelForm`, the push answer through
+  `setDayKind`) refuse while it is non-empty. The refusal warns the pressing
+  seat with the names and leaves the kind. Checked inside the ledger write, on
+  the fresh record.
+- The bar is read on a change INTO the forced kind only. A day already forced
+  (cleared when set, or overridden) is not asked again, so a pushed-on day
+  that re-arms the dusk question does not trip it a second time.
+- The Judge overrides with `{ override: true }`, honoured only on a
+  Gamemaster's seat; it sets the kind and whispers the Judges the barred
+  names. On the sheet the override is a `DialogV2.confirm` asked when the
+  Gamemaster picks the forced kind against a bar: a Cancel, a closed window
+  and a rejected dialog all resolve to `false` (never `null`, which core turns
+  into the action string), and a declined confirm drops the kind from the
+  submitted form so the select redraws on the day it was.
+- The dusk offer refuses without offering an override and returns `"barred"`;
+  the day is neither forced nor closed, and the Judge overrides from the
+  day-kind control.
+
+**Rejected.**
+- *Bar the march step (the hex a drag crosses)*: the forced pace is a property
+  of the day, priced by `dayBudget`; refusing steps would strand a party
+  mid-drag and leave the board claiming a pace nobody can keep.
+- *Bar a member by the combat conditions ladder (`lib/conditions.mjs`)*: it is
+  a different ladder with its own forbids; this bar reads the survival one.
+- *A second confirm inside the dusk offer*: it stacks a dialog on a dialog for
+  a Judge who has the same override one click away on the sheet.
+- *Honouring `naturalHealing`*: the same rungs forbid it, but no healing
+  mechanic exists to consult.
+
+**Cost.** A Judge who wants a barred party to push on at dusk answers the
+offer, is refused, and then overrides on the sheet. A survival flag edited by
+hand bars or frees a march with no other record.
+
+### A stay draws its incidents, and leaves no marker (2026-10-15)
+
+**Ruled.**
+- A stay's card draws one incident for each met day, through the street
+  turn's own order (`drawIncidentLines`, extracted from `whisperTurn` so the
+  two cards share it): the hunted list, the quarter's, the zone's, the map's
+  city list, then the world's imported table. The rows are labelled with the
+  event's day number, so a second stay's rows continue from the first's.
+- Every day of a stay is drawn at the hour its cadence was resolved at. The
+  `encounterOwed` events carry a day, a target and a throw, and no hour;
+  `boardNight` is read once before the dice and the draws take that answer.
+- No transient Note is placed for a stay's incident, and the stay card
+  carries no promote button. The party was indoors: a marker on the street
+  where they stood would say a thing happened there that did not.
+- A stay with no met day draws nothing, an unimported cadence says "Not
+  imported: encounters" as before, and a met day with no list in the order
+  says there is no incident table, in the turn's words, under its own row.
+
+**Rejected.**
+- *Dropping the turn's Note at the party's token*: it puts the incident on the
+  street, and the one button on the card that makes a marker a place would
+  then promote a place the party never stood at.
+- *One draw for the whole stay*: a stay of several met days is several
+  incidents, and a Judge told "something happened on day 2" would otherwise
+  still be rolling the rest by hand.
+- *Recording the hour on each event*: the stay has one cadence at one hour,
+  and a per-event hour would invite a day count that disagrees with it.
+
+**Cost.** A Judge who wants an indoor incident on the map places it by hand;
+the card gives no button for it. A long stay with several met days prints a
+row per day, and a world with no incident list prints the missing-table line
+under each.

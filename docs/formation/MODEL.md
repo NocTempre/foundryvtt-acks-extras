@@ -532,6 +532,27 @@ since the ground is crossed whatever the party decides to do with the rest of
 the day. A camp day's budget is its travel slots alone, so with none it is
 never spent by hours.
 
+**A marcher's survival state bars the forced march.** The survival ladder
+(`lib/survival.mjs`) lists what each rung takes away, and `forbidden(state)`
+answers for a body's rungs at once. The forced day-kind asks it of every
+marching member — one with an actor, neither blank nor `left` — through
+`forcedMarchBar` ([march-bar.mjs](../../scripts/formation/march-bar.mjs)),
+reading each member's `survival` actor flag the way `survivalStateOf` does. Every
+writer of the kind asks: `setDayKind`, the sheet's day-kind select
+(`applyTravelForm`) and the dusk offer's push answer (which goes through
+`setDayKind` and returns `"barred"`, the day neither forced nor closed). A
+refusal warns the pressing seat, naming the barred members in roster order, and
+leaves the kind where it was; the rest of a submitted form still lands. Only the
+Judge's seat passes `{ override: true }`, which sets the kind and whispers the
+Judges the barred names; a player's override is not heard. On the sheet a
+Gamemaster who picks the forced kind against a bar is asked once through a
+confirm dialog, and a Cancel drops the kind from the write so the select
+redraws on the day it was. A day already forced is not asked again, and the
+bar is read on the change INTO the forced kind alone: the day's close is what
+advances survival states (`runProvisionDay`), so a day already forced was
+either cleared or overridden when it was set. `naturalHealing` is forbidden by the same rungs but has no
+consumer here (no healing mechanic exists).
+
 `closeDay` is the one closer: the strip's **End day** button and the
 tracker's own offer both go through it, so a day can never be ended two
 different ways.
@@ -1099,6 +1120,21 @@ at all — neither the street's throw, which counted by both clocks would come
 round twice for one stay, nor the navigation throw, because a party hiding in a
 room is not going anywhere it can fail to arrive at. Its turns still pass:
 walking about inside is time, and the torch knows it.
+
+**A stay's card draws what found them.** Each day of the stay that met its
+throw draws one incident, listed on the card under a "Day N" row carrying the
+event's own day number. The draw is the street turn's: `drawIncidentLines`
+(`settlement-turn.mjs`) walks the whole `pickIncidentSource` order —
+the hunted list, the quarter's, the zone's, the map's city list, the world's
+imported table — through `rollSettlementIncident`, so a list that is gone,
+a quarter's hand-over and the hunted line read the same on both cards. The
+stay's hour is the one its cadence was resolved at (`boardNight` once, before
+the dice), so every day of a stay is drawn by day or after dark together; the
+events do not record an hour of their own. The party was indoors, so the draw
+leaves no transient Note and the card has no promote button: both belong to the
+street turn's card, which is where the party stood. A cadence nobody imported
+still says "Not imported" and draws nothing, and a met day with no list in the
+order says there is no incident table, in the turn's words.
 
 The pickers ride the journey panel's own submit — `travel.settlement.*` field
 names, applied by `applyTravelForm` — because an ApplicationV2 action fires on

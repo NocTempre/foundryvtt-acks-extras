@@ -30,6 +30,21 @@
   token where the party stands and announces it; *Go back for them* recalls
   the token. A declaration during a fight is refused in a whisper, and the
   Judge decides it.
+- **A forced march is refused for a party that cannot make one.** The
+  survival ladder's rungs took the forced march away, and nothing in the
+  formation asked: the day-kind control and the dusk offer's *Push on* set a
+  forced march for a party whose marchers could not keep it. Both now refuse
+  while a marching member's survival state forbids it, warn with the names,
+  and leave the day as it was. The Judge may set it anyway: picking the
+  forced kind on the sheet asks once, and the override whispers the Judges
+  the names it overrode. A player's override is not heard.
+- **A stay draws what found it, day by day.** A holed-up party's stay card
+  named the days that did not pass quietly and drew nothing for them. Each
+  met day now draws one incident through the order a street turn walks (the
+  hunted list, the quarter's, the zone's, the map's city list, then the
+  world's table), under its own *Day* row, at the hour the stay was priced
+  at. No marker is left on the map and the card carries no *Make it a place*
+  button: the party was indoors.
 
 ## 11.3.0
 

@@ -2255,6 +2255,173 @@ await scenario("one clock advance credits a holed-up stretch exactly once", asyn
   await drain();
 });
 
+/**
+ * Take a stay on a city map and hand back its card.
+ *
+ * An invented incident list is reachable two ways, as in a live world: named by
+ * the map (`map`) or imported as the world's own table (`worldList`). The dice
+ * come off `faces` in the order they are thrown — one a day for the stay, then
+ * one per draw — and every formula thrown is recorded. The transient-marker
+ * setting is armed, so a stay that left a Note would have tried to.
+ */
+async function takeStay({ faces, hour = "day", days = 3, start = 0, cadence = true, map = false, worldList = false }) {
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { SETTLEMENT_DOC, freshSettlement } = await import("../scripts/formation/settlement.mjs");
+  const { writeSceneIncidents } = await import("../scripts/battlemap/scene-setup.mjs");
+  const settlementTurn = await import("../scripts/formation/settlement-turn.mjs");
+  const list = {
+    name: "Invented Stay List",
+    formula: "1d100",
+    results: [
+      { range: [1, 40], text: "Invented low incident." },
+      { range: [41, 80], text: "Invented middle incident." },
+      { range: [81, 200], text: "Invented high incident." },
+    ],
+  };
+  if (cadence) {
+    registerTable(
+      {
+        id: SETTLEMENT_DOC,
+        source: "invented",
+        tables: { encounters: { holedUp: { any: { everyTurns: 1, throw: 4 } } }, encounterAfterDark: 30 },
+      },
+      { priority: PRIORITY.WORLD, source: "test" },
+    );
+  }
+
+  const city = new SceneMock("Stay City");
+  game.scenes.set(city.id, city);
+  if (map) {
+    uuidMap.set("RollTable.stayList", list);
+    await writeSceneIncidents(city, { tableUuid: "RollTable.stayList", afterDark: 30 });
+  }
+  const priorRoll = globalThis.Roll;
+  const priorTables = game.tables;
+  const priorPacks = game.packs;
+  const priorTurns = game.settings.get(MODULE_ID, "transientIncidentTurns");
+  const thrown = [];
+  const queue = [...faces];
+  globalThis.Roll = class {
+    constructor(formula) {
+      this.formula = formula;
+    }
+    async evaluate() {
+      thrown.push(this.formula);
+      this.total = queue.length ? queue.shift() : 1;
+      return this;
+    }
+    async render() {
+      return `<div class="dice-roll">${this.total}</div>`;
+    }
+  };
+  const world = { ...list, flags: { [MODULE_ID]: { cookbook: { id: "jj.settlementEncounters" } } } };
+  game.tables = { contents: [], get: () => null, find: (fn) => (worldList && fn(world) ? world : null) };
+  game.packs = [];
+  await game.settings.set(MODULE_ID, "transientIncidentTurns", 5);
+
+  try {
+    const guest = await member("Lodger");
+    await drain();
+    const [token] = await city.createEmbeddedDocuments("Token", [
+      { name: "Lodger", actorId: guest.id, x: 800, y: 800 },
+    ]);
+    await game.settings.set(MODULE_ID, "formations", {}); // isolate
+    let formation = await model.createFormation("Stay Party");
+    formation = await model.addMember(formation, guest, token);
+    await drain();
+    const id = onlyFormation().id;
+    await model.patchFormation(id, (rec) => {
+      rec.travel = { mode: "settlement", settlement: { ...freshSettlement(), where: "holedUp", hour, days: start } };
+    });
+    await drain();
+
+    const created = [];
+    const place = city.createEmbeddedDocuments.bind(city);
+    city.createEmbeddedDocuments = (type, ...rest) => {
+      created.push(type);
+      return place(type, ...rest);
+    };
+    const from = chat.length;
+    const result = await settlementTurn.runHoledUpDays(model.getFormation(id), days);
+    await drain();
+    const cards = chat.slice(from).filter((m) => String(m.content).includes("settlement.card.stayTitle"));
+    await model.disband(model.getFormation(id));
+    await drain();
+    return { result, cards, content: String(cards.at(-1)?.content ?? ""), thrown, created };
+  } finally {
+    globalThis.Roll = priorRoll;
+    game.tables = priorTables;
+    game.packs = priorPacks;
+    await game.settings.set(MODULE_ID, "transientIncidentTurns", priorTurns);
+    uuidMap.delete("RollTable.stayList");
+    unregisterTable(SETTLEMENT_DOC, { priority: PRIORITY.WORLD });
+    game.scenes.delete(city.id);
+  }
+}
+
+await scenario("a stay draws an incident for each day that was met, on the map's list", async () => {
+  // Days 5, 6 and 7 are thrown for and the first and last are met; the day
+  // between passes quietly and draws nothing. The draws come off the map's own
+  // list, which the street turn also walks ahead of the world's.
+  const stay = await takeStay({ faces: [5, 2, 6, 10, 60], start: 4, map: true });
+  const c = stay.content;
+  assert.equal(stay.result.credited, 3);
+  assert.equal(stay.cards.length, 1, "one stretch, one card");
+  assert.ok(c.includes('interrupted {"count":2,"days":"5, 7"}'), "the card still counts the interrupted days");
+  const at = (s) => c.indexOf(s);
+  assert.ok(at('stayDay {"day":5}') >= 0 && at('stayDay {"day":7}') > at('stayDay {"day":5}'), "a draw under each met day, in order");
+  assert.ok(!c.includes('stayDay {"day":6}'), "the quiet day draws nothing");
+  assert.ok(at("Invented low incident.") > at('stayDay {"day":5}') && at("Invented low incident.") < at('stayDay {"day":7}'),
+    "day 5's face reads the low band, under day 5");
+  assert.ok(at("Invented middle incident.") > at('stayDay {"day":7}'), "day 7's face reads the middle band, under day 7");
+  assert.ok(c.includes('incidentDrawn {"roll":10,"total":10') && !c.includes("incidentBanded"), "by day no after-dark shift is claimed");
+  assert.deepEqual(stay.thrown, ["1d6", "1d6", "1d6", "1d100", "1d100"], "a die a day, then the list's own die per met day");
+  assert.ok(!stay.created.includes("Note"), "the party was indoors: no marker is left on the street");
+  assert.ok(!c.includes("poi-promote") && !c.includes("settlement.card.marker"), "and the card offers none");
+});
+
+await scenario("a stay at night draws with the after-dark shift, for the map's list and the world's", async () => {
+  // The stay's hour is the one its cadence was resolved at, and every draw is
+  // made at it: the same faces that read the middle band by day reach the band
+  // past the die once the shift is added.
+  const mapped = await takeStay({ faces: [5, 2, 6, 20, 70], hour: "night", map: true });
+  const m = mapped.content;
+  assert.ok(m.includes('incidentBanded {"roll":20,"total":50') && m.includes("Invented middle incident."), "roll 20 + 30 reads the middle band");
+  assert.ok(m.includes('incidentBanded {"roll":70,"total":100') && m.includes("Invented high incident."), "roll 70 + 30 reaches the band past the die");
+  assert.ok(m.includes('stayDay {"day":1}') && m.includes('stayDay {"day":3}') && !m.includes('stayDay {"day":2}'));
+
+  const imported = await takeStay({ faces: [6, 55], hour: "night", days: 1, worldList: true });
+  assert.ok(imported.content.includes('incidentBanded {"roll":55,"total":85') && imported.content.includes("Invented high incident."),
+    "the world's imported table reads the registry's shift the same way");
+  const daylight = await takeStay({ faces: [6, 35], hour: "day", days: 1, worldList: true });
+  assert.ok(daylight.content.includes('incidentDrawn {"roll":35,"total":35') && daylight.content.includes("Invented low incident."),
+    "and by day it reads the bare roll");
+});
+
+await scenario("a stay with no met day draws nothing", async () => {
+  const stay = await takeStay({ faces: [1, 2, 3], map: true });
+  assert.ok(stay.content.includes('undisturbed {"throws":3}'), "the card says nothing found them");
+  assert.ok(!stay.content.includes("stayDay") && !stay.content.includes("Invented"), "and carries no draw");
+  assert.deepEqual(stay.thrown, ["1d6", "1d6", "1d6"], "no incident die was thrown");
+});
+
+await scenario("a stay that cannot be priced, or has no incident list, still says so", async () => {
+  // No cadence imported: nothing is thrown, and the card says what is missing
+  // in the turn's words.
+  const unpriced = await takeStay({ faces: [], cadence: false, map: true });
+  assert.ok(unpriced.content.includes('settlement.card.unpriced {"what":"encounters"}'));
+  assert.ok(!unpriced.content.includes("stayDay"));
+  assert.deepEqual(unpriced.thrown, [], "no die was thrown for a street nobody priced");
+
+  // Priced, but no list anywhere in the order: each met day says there is no
+  // incident table, in the turn's words, rather than inventing a draw.
+  const bare = await takeStay({ faces: [5, 6], days: 2 });
+  const said = bare.content.split("settlement.card.noIncidentTable").length - 1;
+  assert.equal(said, 2, "one such line under each met day");
+  assert.ok(bare.content.includes('stayDay {"day":1}') && bare.content.includes('stayDay {"day":2}'));
+  assert.ok(!/incident(Drawn|Banded|Plain)|settlement\.card\.incident \{/.test(bare.content), "and no incident is claimed");
+});
+
 await scenario("a lost episode reads every seat's fog from the server", async () => {
   const lostFog = await import("../scripts/formation/lost-fog.mjs");
   const { exploredDocs, writeExplored, deleteExplored } = await import("../scripts/formation/map-items.mjs");
@@ -2565,6 +2732,129 @@ await scenario("a door's construction and marks persist, a botch reports its dam
     if (!hadSpeaker) delete ChatMessage.getSpeaker;
     if (!hadExpand) delete foundry.utils.expandObject;
   }
+});
+
+await scenario("a forced march is barred by a marcher's survival state; only the Judge overrides it", async () => {
+  const { freshSurvival } = await import("../scripts/lib/survival.mjs");
+  const travelMod = await import("../scripts/formation/travel.mjs");
+  const { offerDayEnd } = await import("../scripts/formation/day-close.mjs");
+  const onRung = (actor, rungs) => actor.setFlag(MODULE_ID, "survival", { ...freshSurvival(), ...rungs });
+
+  const wren = await member("Wren");
+  const moss = await member("Moss");
+  const pike = await member("Pike");
+  await drain();
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Bar Party");
+  for (const actor of [wren, moss, pike]) {
+    formation = await model.addMember(model.getFormation(formation.id), actor, null);
+  }
+  await drain();
+  const id = onlyFormation().id;
+  const dayKind = () => travelMod.travelOf(model.getFormation(id)).day.kind;
+  const lastWarn = () => notices.filter(([level]) => level === "warn").at(-1)?.[1] ?? "";
+  const barNotes = () => chat.filter((m) => String(m.content).includes("travel.forcedBar.note"));
+  const toMarch = () => travelMod.setDayKind(id, "march");
+
+  // A plain rung bars nothing: hunger that only costs throws is not a barred march.
+  await onRung(moss, { nourishment: "hungry" });
+  assert.ok(await travelMod.setDayKind(id, "forced"), "a member on a rung that forbids no march does not block");
+  assert.equal(dayKind(), "forced");
+  await toMarch();
+
+  // Each ladder's forbidding rung bars it, and the warning names exactly those.
+  await onRung(moss, { nourishment: "underfed" });
+  notices.length = 0;
+  assert.equal(await travelMod.setDayKind(id, "forced"), false, "a barred member refuses the forced march");
+  assert.equal(dayKind(), "march", "and the day stays what it was");
+  assert.match(lastWarn(), /forcedMarchBarred.*Moss/, "the warning names the barred member");
+  assert.ok(!/Wren|Pike/.test(lastWarn()), "and not the others");
+  await onRung(pike, { hydration: "dehydrated" });
+  await onRung(wren, { exposure: "hypothermic" });
+  notices.length = 0;
+  assert.equal(await travelMod.setDayKind(id, "forced"), false);
+  assert.match(lastWarn(), /Wren, Moss, Pike/, "thirst and cold bar it as hunger does, named in roster order");
+  assert.equal(barNotes().length, 0, "a refusal whispers nothing");
+
+  // A member left behind is not marching.
+  const leaveBehind = (...actors) => model.patchFormation(id, (rec) => {
+    for (const m of rec.members) m.left = actors.some((a) => a.id === m.actorId);
+  });
+  await leaveBehind(moss, pike);
+  notices.length = 0;
+  assert.equal(await travelMod.setDayKind(id, "forced"), false, "the one still marching is barred");
+  assert.ok(/Wren/.test(lastWarn()) && !/Moss|Pike/.test(lastWarn()), "and only the one marching is named");
+  await onRung(pike, {});
+  await leaveBehind(wren, moss);
+  assert.ok(await travelMod.setDayKind(id, "forced"), "barred members left behind do not bar the march");
+  await toMarch();
+  await onRung(pike, { hydration: "dehydrated" });
+  await leaveBehind();
+
+  // A seat that is not the Judge's gets no override.
+  const gmUser = game.user;
+  game.user = game.users.get("PL1");
+  try {
+    assert.equal(await travelMod.setDayKind(id, "forced", { override: true }), false, "a player's override is not heard");
+  } finally {
+    game.user = gmUser;
+  }
+  assert.equal(dayKind(), "march");
+
+  // The sheet's form obeys the same bar: the kind alone is dropped, the rest lands.
+  notices.length = 0;
+  await travelMod.applyTravelForm(id, { ground: "hills", day: { kind: "forced" } });
+  assert.equal(dayKind(), "march", "the form cannot set a barred forced march");
+  assert.equal(travelMod.travelOf(model.getFormation(id)).ground, "hills", "but the rest of the form still lands");
+  assert.match(lastWarn(), /forcedMarchBarred.*Wren/, "and the seat is told who bars it");
+  await travelMod.applyTravelForm(id, { day: { kind: "camp" } });
+  assert.equal(dayKind(), "camp", "a day-kind the bar does not concern is untouched");
+  await toMarch();
+
+  // The dusk offer's push answer refuses the same way and does not close the day.
+  const DialogV2 = foundry.applications.api.DialogV2;
+  const priorWait = DialogV2.wait;
+  DialogV2.wait = async () => "push";
+  try {
+    await model.patchFormation(id, (rec) => {
+      const t = travelMod.travelOf(rec);
+      rec.travel = { ...t, mode: "journey", day: { ...t.day, hours: 99, miles: 99 } };
+    });
+    const logged = () => travelMod.travelOf(model.getFormation(id)).log.length;
+    const before = logged();
+    notices.length = 0;
+    assert.equal(await offerDayEnd(id), "barred", "the push is refused");
+    assert.equal(dayKind(), "march", "the day is not forced");
+    assert.equal(logged(), before, "and the day is not closed");
+    assert.match(lastWarn(), /forcedMarchBarred/, "the Judge is told why");
+  } finally {
+    DialogV2.wait = priorWait;
+  }
+
+  // The Judge overrides: the kind is set and the Judges are whispered who was barred.
+  assert.ok(await travelMod.setDayKind(id, "forced", { override: true }), "the Judge's override sets the kind");
+  assert.equal(dayKind(), "forced");
+  assert.equal(barNotes().length, 1, "and one note is posted");
+  const note = barNotes()[0];
+  assert.deepEqual(note.whisper, ["GM1"], "to the Judges alone");
+  assert.ok(/Wren/.test(note.content) && /Moss/.test(note.content) && /Pike/.test(note.content), "naming the barred members");
+  assert.ok(await travelMod.setDayKind(id, "forced"), "a day already forced is not asked again");
+  assert.equal(barNotes().length, 1, "and posts nothing more");
+
+  // The form path takes the same override.
+  await toMarch();
+  await travelMod.applyTravelForm(id, { day: { kind: "forced" } }, { override: true });
+  assert.equal(dayKind(), "forced", "the form takes the Judge's override");
+  assert.equal(barNotes().length, 2);
+
+  // Fed again, the party marches without asking.
+  await toMarch();
+  for (const actor of [wren, moss, pike]) await onRung(actor, {});
+  assert.ok(await travelMod.setDayKind(id, "forced"), "no barred member, no bar");
+  assert.equal(barNotes().length, 2);
+
+  await model.disband(model.getFormation(id));
+  await drain();
 });
 
 if (failures) {

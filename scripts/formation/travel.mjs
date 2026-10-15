@@ -98,6 +98,7 @@ import { settlementOf, reenterSettlement, carryStay, sceneStamp, HOUR_MODES } fr
 import { withHunt } from "./hunt.mjs";
 import { skyFor, readSkyCache, priorSky } from "./sky.mjs";
 import { runProvisionDay } from "./provision-day.mjs";
+import { forcedMarchBar, warnForcedMarchBarred, announceBarOverridden } from "./march-bar.mjs";
 import { postNavigationThrow } from "./navigation-card.mjs";
 import { isMode } from "../lib/movement-modes.mjs";
 import { FLIGHT_LOADS } from "./flight.mjs";
@@ -598,12 +599,43 @@ export function patchTravel(formationId, patch = {}) {
   });
 }
 
-/** Choose how the day is spent. Forced marches consume the ancillary budget. */
-export function setDayKind(formationId, kind) {
-  return patchFormation(formationId, (record) => {
+/**
+ * Does the Judge's seat override a barred forced march? `override` is a
+ * request; only a Gamemaster's seat is heard.
+ */
+const overrides = (override) => override === true && !!game.user?.isGM;
+
+/**
+ * Choose how the day is spent. Forced marches consume the ancillary budget.
+ *
+ * Changing INTO a forced march is refused while a marching member's survival
+ * state bars one (`forcedMarchBar`): the seat is warned, naming them, and the
+ * kind stays. The Judge's seat passes `{ override: true }` to set it anyway,
+ * which whispers the Judges who was barred. A day already forced is not asked
+ * again.
+ *
+ * @returns the record written, or `false` when the bar refused the kind
+ */
+export async function setDayKind(formationId, kind, { override = false } = {}) {
+  let barred = [];
+  let refused = false;
+  const result = await patchFormation(formationId, (record) => {
     const t = travelOf(record);
+    if (kind === "forced" && t.day.kind !== "forced") {
+      barred = forcedMarchBar(record);
+      if (barred.length && !overrides(override)) {
+        refused = true;
+        return false;
+      }
+    }
     record.travel = { ...t, day: withDayKind(t.day, kind) };
   });
+  if (refused) {
+    warnForcedMarchBarred(barred);
+    return false;
+  }
+  if (barred.length && result) await announceBarOverridden(result, barred);
+  return result;
 }
 
 /** Fill one ancillary slot (null clears it). Refused under a forced march. */
@@ -834,9 +866,17 @@ export async function rollLandNavigation(formation) {
  * patch per field per keystroke; this applies what the form carries and lets
  * `travelOf` refuse the rest. Slot edits under a forced march are ignored —
  * the march owns the budget.
+ *
+ * A day-kind change INTO a forced march obeys the same bar as `setDayKind`:
+ * barred, the kind alone is dropped (the rest of the form still lands) and the
+ * seat is warned; with `{ override: true }` from a Judge's seat it is set and
+ * the Judges are told who was barred.
  */
-export function applyTravelForm(formationId, tv = {}) {
-  return patchFormation(formationId, (record) => {
+export async function applyTravelForm(formationId, tv = {}, { override = false } = {}) {
+  let barred = [];
+  let refused = false;
+  let forcedHere = false;
+  const result = await patchFormation(formationId, (record) => {
     const t = travelOf(record);
     const next = { ...t };
     if (typeof tv.ground === "string" && tv.ground) next.ground = tv.ground;
@@ -904,7 +944,12 @@ export function applyTravelForm(formationId, tv = {}) {
     if (tv.day) {
       let day = t.day;
       if (typeof tv.day.kind === "string" && DAY_KINDS[tv.day.kind] && tv.day.kind !== day.kind) {
-        day = withDayKind(day, tv.day.kind);
+        if (tv.day.kind === "forced") {
+          barred = forcedMarchBar(record);
+          refused = barred.length > 0 && !overrides(override);
+          forcedHere = !refused;
+        }
+        if (!refused) day = withDayKind(day, tv.day.kind);
       }
       if (tv.day.slot && !DAY_KINDS[day.kind]?.consumesAncillary) {
         const activities = [...day.activities];
@@ -928,6 +973,9 @@ export function applyTravelForm(formationId, tv = {}) {
     }
     record.travel = next;
   });
+  if (refused) warnForcedMarchBarred(barred);
+  else if (forcedHere && barred.length && result) await announceBarOverridden(result, barred);
+  return result;
 }
 
 /**
