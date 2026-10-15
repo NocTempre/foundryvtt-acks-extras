@@ -335,7 +335,6 @@
      a prose-mirror has no intrinsic width — without stretching it collapses to
      a 2px border sliver. */
   align-self: stretch;
-  min-height: 70px;
   border: var(--acks-border-soft);
   border-radius: var(--acks-radius);
   margin-bottom: var(--acks-sp-3);
@@ -343,14 +342,19 @@
 .acks-extras.monster-v2 .acksm-lore prose-mirror .editor-content {
   padding: var(--acks-sp-2) var(--acks-sp-4);
 }
-/* Display (not editing): the editors should grow to fit their content — most
-   importantly the importer's streamed book text — rather than each capping at
-   the 70px floor and scrolling internally. Core lays the editor-content out
-   position:absolute (inset 0) so it never contributes height; return it to flow
-   only while inactive, so the whole tab (part root is scrollable) does the
-   scrolling. The active ProseMirror editor keeps core's bounded/scrolling
-   layout untouched. */
+/* Core lays the editor-content out position:absolute (inset 0), so it never
+   contributes height: the text gets whatever the element's own height leaves
+   it, and nothing sizes the element to the text. Both states below return it
+   to flow.
+
+   Display (not editing): the editors grow to fit their content — most
+   importantly the importer's streamed book text — and the whole tab (part root
+   is scrollable) does the scrolling. The 70px floor keeps an empty field
+   clickable, and applies to this state only: an open editor spends its
+   --menu-height on the toolbar, and this floor would leave the text a single
+   line under it. */
 .acks-extras.monster-v2 .acksm-lore prose-mirror.inactive {
+  min-height: 70px;
   height: auto;
   overflow: visible;
 }
@@ -359,6 +363,14 @@
   height: auto;
   max-height: none;
   overflow: visible;
+}
+/* Editing: the text grows with what it holds, up to a cap past which it
+   scrolls inside the editor, so the toolbar stays above the line being
+   written. */
+.acks-extras.monster-v2 .acksm-lore prose-mirror.active .editor-content {
+  position: static;
+  min-height: 6em;
+  max-height: 40vh;
 }
 
 /* Treasure is edited on the Ecology tab; hide the reused system header's

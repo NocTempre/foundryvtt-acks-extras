@@ -87,6 +87,19 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    older keep rendering into nodes nobody sees. The DOM shows one window
    either way, and `actor.apps` is keyed by that shared id, so neither counts
    instances.
+10. Description tab: create the monster with several paragraphs in
+    `flags["acks-extras"].extras.description.appearance` — the sheet reads
+    `extras.description`, and a bare `flags["acks-extras"].description`
+    renders nothing. `flags.core.sheetClass: "acks-extras.FullMonsterSheet"`
+    at create opens the full sheet without the card. Open the Description tab
+    and press the Appearance editor's toggle.
+    *Observable:* the open editor's `.editor-content` starts at or below the
+    `menu`'s bottom edge and its `clientHeight` equals its `scrollHeight` —
+    all of the text in view, not one line under the toolbar. An empty section
+    opens at least 6em tall; a section holding more than 40vh of text stops
+    at 40vh and scrolls inside the editor. Click into a paragraph, type, and
+    press Save: the flag holds the typed text, and the closed editor grows to
+    fit it.
 
 ### The Animal tab
 
