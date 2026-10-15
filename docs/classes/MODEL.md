@@ -347,7 +347,11 @@ moment their class is re-applied.
 `syncClassTraining` writes the class's combat training onto the character as an
 Active Effect whose changes are three CSV strings (`weaponProf`,
 `armourProficiency`, `styleProficient`); a class stated per path writes a second
-such effect for the chosen option. `training-logic.mjs` (Foundry-free) owns
+such effect for the chosen option. An apply writes them IN PLACE
+(`planTrainingSync`): the class already held writes nothing, a class change
+rewrites the held copy under its own id, and nothing is removed before its
+replacement lands — so no reader ever finds the character untrained mid-swap.
+`training-logic.mjs` (Foundry-free) owns
 the shape: `trainingChanges` builds the three changes for every writer — the
 importer's class effect, `pathTrainingChanges`, the class sheet's editor —
 `trainingOf` reads them back, `withTraining` rewrites them on an effect that

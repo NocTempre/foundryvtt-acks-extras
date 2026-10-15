@@ -25,7 +25,7 @@ import {
   valueRow,
   xpSchedule,
 } from "../scripts/classes/builder-logic.mjs";
-import { classUpdateData, damageBonusLadder } from "../scripts/classes/apply.mjs";
+import { classUpdateData, damageBonusLadder, syncClassTraining } from "../scripts/classes/apply.mjs";
 import { classForActor, findByRef, publish } from "../scripts/classes/registry.mjs";
 import { CLASS_TYPE, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
 import { awardsAt, awardsThrough, choosableGenerals, spellLanes, admitsSpell, choosableSpells } from "../scripts/classes/grants.mjs";
@@ -33,7 +33,7 @@ import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/clas
 import { rebuildHitPoints, firstLevelDieMinimum, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
 import { registerTable, unregisterTable, PRIORITY, getLayer, citeOf } from "../scripts/lib/tables.mjs";
 import { isOffer, offerKey } from "../scripts/classes/pending-choices.mjs";
-import { TRAINING_KEYS, normalizeTraining, trainingChanges, trainingOf, withTraining, classTrainingEffect, trainingIsBlank } from "../scripts/classes/training-logic.mjs";
+import { TRAINING_KEYS, normalizeTraining, trainingChanges, trainingOf, withTraining, classTrainingEffect, trainingIsBlank, planTrainingSync } from "../scripts/classes/training-logic.mjs";
 import { readFileSync } from "node:fs";
 
 let passed = 0;
@@ -1512,6 +1512,124 @@ await atest("an edit of a class's training rewrites its effect and takes the min
     if (saved === undefined) delete globalThis.foundry;
     else globalThis.foundry = saved;
   }
+});
+
+/* A class document whose one effect states `training`, and the copy an apply
+ * leaves on a character: core stamps the copy's start and metadata, and
+ * another module may have flagged it since. */
+const trainingClass = (uuid, name, training, ownFlags = {}) => ({
+  uuid,
+  name,
+  system: {},
+  effects: [
+    {
+      changes: trainingChanges(training),
+      toObject: () => ({
+        _id: `${name}-src`,
+        name: `${name} Combat Training`,
+        img: "icons/svg/upgrade.svg",
+        changes: trainingChanges(training),
+        transfer: true,
+        disabled: false,
+        duration: { value: null, units: "" },
+        start: null,
+        _stats: { createdTime: 1 },
+        flags: { "acks-extras": { ...ownFlags } },
+      }),
+    },
+  ],
+});
+const heldCopy = (id, cls) => {
+  const src = cls.effects[0].toObject();
+  return {
+    ...src,
+    _id: id,
+    transfer: false,
+    start: { time: 4242, combat: null, round: null },
+    _stats: { createdTime: 99 },
+    flags: { ...src.flags, "acks-extras": { ...src.flags["acks-extras"], fromClass: cls.uuid }, other: { pinned: true } },
+  };
+};
+const syncedActor = (held) => {
+  const log = [];
+  return {
+    log,
+    effects: held.map((src) => ({ id: src._id, getFlag: (scope, key) => src.flags?.[scope]?.[key], toObject: () => structuredClone(src) })),
+    getFlag: () => undefined,
+    async updateEmbeddedDocuments(_type, updates) {
+      log.push(["update", updates]);
+    },
+    async createEmbeddedDocuments(_type, data) {
+      log.push(["create", data.map((d) => d.name)]);
+    },
+    async deleteEmbeddedDocuments(_type, ids) {
+      log.push(["remove", ids]);
+    },
+  };
+};
+const withTrainingStubs = async (fn) => {
+  const saved = globalThis.foundry;
+  const merge = (a, b) => {
+    const out = { ...a };
+    for (const [k, v] of Object.entries(b)) out[k] = v && typeof v === "object" && !Array.isArray(v) ? merge(out[k] ?? {}, v) : v;
+    return out;
+  };
+  globalThis.foundry = { utils: { mergeObject: merge }, data: { operators: { ForcedReplacement: { create: (value) => ({ replaced: value }) } } } };
+  try {
+    await fn();
+  } finally {
+    if (saved === undefined) delete globalThis.foundry;
+    else globalThis.foundry = saved;
+  }
+};
+const FIGHTER_TRAINING = { weapons: "all", armour: "heavy", styles: "dual,twohanded,weaponshield" };
+
+await atest("re-applying the class a character holds writes no training at all", async () => {
+  // A write here, even an identical one, sends every loadout reader a change
+  // to react to; see docs/classes/DECISIONS.md, "a re-apply replaces the
+  // training in place".
+  await withTrainingStubs(async () => {
+    const fighter = trainingClass("Item.fighter", "Fighter", FIGHTER_TRAINING, { minted: true });
+    const actor = syncedActor([heldCopy("eff1", fighter)]);
+    await syncClassTraining(actor, fighter);
+    assert.deepEqual(actor.log, []);
+  });
+});
+
+await atest("a class change rewrites the held training in place, its own flags whole, and removes a surplus last", async () => {
+  await withTrainingStubs(async () => {
+    const fighter = trainingClass("Item.fighter", "Fighter", FIGHTER_TRAINING, { minted: true });
+    const thief = trainingClass("Item.thief", "Thief", { weapons: "melee:small", armour: "light", styles: "" });
+    const manual = { _id: "eff2", name: "Training", changes: trainingChanges({ styles: "single" }), flags: { "acks-extras": { fromClass: "manual" } } };
+    const actor = syncedActor([heldCopy("eff1", fighter), manual]);
+    await syncClassTraining(actor, thief);
+    assert.deepEqual(actor.log.map(([kind]) => kind), ["update", "remove"], "nothing is removed before its replacement lands");
+    assert.deepEqual(actor.log[1][1], ["eff2"]);
+    const [kind, [update]] = actor.log[0];
+    assert.equal(kind, "update");
+    assert.equal(update._id, "eff1");
+    assert.equal(update.name, "Thief Combat Training");
+    assert.deepEqual(update.changes, trainingChanges({ weapons: "melee:small", armour: "light" }));
+    // The fighter's `minted` stamp is not the thief's, so it comes off with the replacement.
+    assert.deepEqual(update["flags.acks-extras"], { replaced: { fromClass: "Item.thief" } });
+    assert.ok(!("start" in update) && !("_stats" in update), "core's own stamps are left alone");
+  });
+});
+
+test("training sync pairs by name before position and writes only what an update would change", () => {
+  const fighter = trainingClass("Item.fighter", "Fighter", FIGHTER_TRAINING).effects[0].toObject();
+  const keep = { ...fighter, _id: "keep", start: { time: 7 }, flags: { ...fighter.flags, other: { x: 1 } } };
+  const old = { _id: "old", name: "Retired Training", changes: trainingChanges({ armour: "light" }), flags: {} };
+  const path = { name: "Path Training", changes: trainingChanges({ weapons: "bow" }), flags: { "acks-extras": { fromClass: "x" } } };
+  // The held copy listed second still answers to its own name; the stranger takes the leftover.
+  const plan = planTrainingSync([old, keep], [path, { ...fighter, _id: undefined }]);
+  assert.deepEqual(plan.update.map((u) => u._id), ["old"]);
+  assert.deepEqual(plan.create, []);
+  assert.deepEqual(plan.remove, []);
+  const fewer = planTrainingSync([keep, old], [fighter]);
+  assert.deepEqual([fewer.update, fewer.create, fewer.remove], [[], [], ["old"]]);
+  const more = planTrainingSync([keep], [fighter, path]);
+  assert.deepEqual([more.update, more.create.map((d) => d.name), more.remove], [[], ["Path Training"], []]);
 });
 
 // The data model touches Foundry only when its schema is built, so a stub of

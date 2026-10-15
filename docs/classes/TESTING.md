@@ -336,6 +336,29 @@ character does not own the class document. Assert on the ACTOR.
    *Observable:* still exactly one `fromClass` effect — a re-apply replaces
    rather than stacks, and a change of class removes the previous class's
    training rather than leaving a character trained by both.
+4. Give a Fighter chain, a shield and a sword, all equipped, wait for the
+   loadout to settle, then re-apply Fighter at the level held
+   (`acksExtras.classes.applyClass(actor, cls, {level, confirm: false})`).
+   Run it once with the saves and attack throw left as the class sets them,
+   and once with them hand-edited first, so the apply writes real changes.
+   *Observable:* no create, update or delete hook fires for any ActiveEffect
+   on the actor. `system.aac.value` reads the same immediately and 2 s
+   later. The training effect keeps its id.
+5. On that Fighter, apply Thief (no Weapon & Shield), then Fighter again.
+   *Observable:* each apply is ONE `updateActiveEffect` on the same training
+   id, carrying the new class's `fromClass` stamp. After Thief there is
+   exactly one `Equipment Loadout` effect, removed again after Fighter.
+
+**Drive mechanics.** Observe with `createActiveEffect` /
+`updateActiveEffect` / `deleteActiveEffect` hooks filtered to the fixture's
+id, plus a `preCreateActiveEffect` hook on loadout-flagged effects. A create
+with no local preCreate came from ANOTHER connection. Read
+`/api/status` `users` with your own seat closed first: a GM seat open
+elsewhere is a second loadout writer. It shares the one effect
+(docs/equipment/TESTING.md, "Two windows of one GM"), unless its page loaded
+before that fix: it then adds a second effect under a random id. Find classes
+with `lib/library.mjs` `whenReady()` awaited first: `classItems()` answers
+from what is loaded, and a cold shelf answers empty.
 
 ### Where the difference is VISIBLE (unfinished — read before shooting it)
 

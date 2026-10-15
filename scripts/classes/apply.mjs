@@ -16,6 +16,7 @@ import { savesUpdateData } from "../lib/actor-compat.mjs";
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES, FLAG_FROM_CLASS } from "./constants.mjs";
 import { managedDelete } from "../lib/managed-effects.mjs";
 import { pathGroups, pathTrainingChanges, unansweredGroups, actorPaths } from "./paths.mjs";
+import { planTrainingSync } from "./training-logic.mjs";
 import { saveBandAt, attackBandAt, resolveLevelValue, findByRef } from "./registry.mjs";
 import { normalizeHd, rebuildHitPoints, xpForLevel } from "./hitpoints.mjs";
 import { grantLanguages } from "./languages.mjs";
@@ -185,21 +186,22 @@ async function askDamageBonusElection(actor, classItem) {
  * Carry the class's COMBAT TRAINING onto the character: its training
  * ActiveEffect (`weaponProf`, `armourProficiency`, `styleProficient`) is
  * copied onto the actor, stamped with the class it came from so a re-apply
- * or a class change removes exactly what a previous apply put there. Writes
- * nothing for a class stating no training. See docs/classes/DECISIONS.md,
- * "2026-08-22 — a class's training is copied to the character, because
- * transfer cannot reach one".
+ * or a class change replaces exactly what a previous apply put there — in
+ * place (`planTrainingSync`), so a re-apply of the class held writes nothing
+ * and no read finds the character untrained mid-swap. A class stating no
+ * training leaves none. See docs/classes/DECISIONS.md, "2026-08-22 — a
+ * class's training is copied to the character, because transfer cannot
+ * reach one".
+ * @returns {Promise<ActiveEffect[]>} the class training effects the actor holds after the sync
  */
 export async function syncClassTraining(actor, classItem, selections = null) {
   if (!actor) return [];
   const mine = actor.effects.filter((e) => e.getFlag?.(MODULE_ID, FLAG_FROM_CLASS));
-  if (mine.length) await actor.deleteEmbeddedDocuments("ActiveEffect", mine.map((e) => e.id), managedDelete());
   const source = (classItem?.effects ?? []).filter((e) => (e.changes ?? []).length);
   // A class whose training is stated PER PATH (the Barbarian's regions) carries
   // none of its own, so the chosen option's is the only training there is —
   // which is why this runs whether or not the class itself states one.
   const chosen = pathTrainingChanges(classItem?.system, selections ?? actorPaths(actor));
-  if (!source.length && !chosen.length) return [];
   const data = source.map((e) => {
     const raw = e.toObject();
     delete raw._id;
@@ -220,8 +222,26 @@ export async function syncClassTraining(actor, classItem, selections = null) {
       flags: { [MODULE_ID]: { [FLAG_FROM_CLASS]: classItem?.uuid ?? "" } },
     });
   }
-  const made = await actor.createEmbeddedDocuments("ActiveEffect", data);
-  return made ?? [];
+  // Updates, then creates, then removals: no held effect is gone before every
+  // write that replaces it has landed.
+  const plan = planTrainingSync(mine.map((e) => e.toObject()), data);
+  if (plan.update.length) await actor.updateEmbeddedDocuments("ActiveEffect", plan.update.map(replacingOwnFlags));
+  if (plan.create.length) await actor.createEmbeddedDocuments("ActiveEffect", plan.create);
+  if (plan.remove.length) await actor.deleteEmbeddedDocuments("ActiveEffect", plan.remove, managedDelete());
+  return actor.effects.filter((e) => e.getFlag?.(MODULE_ID, FLAG_FROM_CLASS));
+}
+
+/**
+ * A training update that replaces this module's flags whole, so a stamp the
+ * class's effect no longer carries comes off the copy with the rest; any
+ * other scope merges as an update does.
+ */
+function replacingOwnFlags({ _id, data: { flags = {}, ...rest } }) {
+  const update = { _id, ...rest };
+  for (const [scope, value] of Object.entries(flags)) {
+    update[`flags.${scope}`] = scope === MODULE_ID ? foundry.data.operators.ForcedReplacement.create(value) : value;
+  }
+  return update;
 }
 
 /**

@@ -105,3 +105,66 @@ export function classTrainingEffect(classItem) {
   }
   return null;
 }
+
+/**
+ * Keys a training write never compares or sends: identity, core's metadata,
+ * and the `start` core stamps on an effect the moment an actor receives it
+ * (world time, combat), which no class effect states.
+ */
+const UNCOMPARED = new Set(["_id", "_stats", "start"]);
+
+const isPlain = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+const canon = (v) =>
+  Array.isArray(v) ? v.map(canon) : isPlain(v) ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v;
+const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+
+/** Whether merging `want` into `have` leaves it as it is: objects by the keys `want` names, anything else whole. */
+const covers = (have, want) =>
+  isPlain(want) && isPlain(have) ? Object.keys(want).every((k) => covers(have[k], want[k])) : same(have, want);
+
+/**
+ * Whether writing `want` over the held effect `have` changes it. This module's
+ * flags compare whole, because the write replaces them whole; every other
+ * field compares the way an update merges.
+ */
+function trainingDiffers(have, want) {
+  const { flags: wantFlags = {}, ...wantBody } = want;
+  const { flags: haveFlags = {}, ...haveBody } = have;
+  const { [MODULE_ID]: wantOwn = {}, ...wantOther } = wantFlags;
+  const { [MODULE_ID]: haveOwn = {}, ...haveOther } = haveFlags;
+  const body = Object.keys(wantBody).filter((k) => !UNCOMPARED.has(k));
+  return !(body.every((k) => covers(haveBody[k], wantBody[k])) && same(haveOwn, wantOwn) && covers(haveOther, wantOther));
+}
+
+/**
+ * The writes that turn the training effects a character holds into the ones
+ * an apply wants, made IN PLACE: each wanted effect takes over a held one —
+ * the one of its own name first, else the next unclaimed — and is written
+ * only where that changes it. Only a surplus is created or removed, so a
+ * re-apply of the class already held writes nothing.
+ *
+ * In place is what keeps the character trained through the swap: a removal
+ * ahead of the create leaves a moment holding no training, and a reader that
+ * runs in it (the equipment loadout) writes for an untrained character.
+ *
+ * @param {object[]} held the held effects' source data, each with its `_id`
+ * @param {object[]} wanted the effect data an apply would create
+ * @returns {{update: Array<{_id: string, data: object}>, create: object[], remove: string[]}}
+ */
+export function planTrainingSync(held, wanted) {
+  const free = [...(held ?? [])];
+  const pairs = (wanted ?? []).map((want) => {
+    const at = free.findIndex((h) => h.name === want.name);
+    return { want, have: at < 0 ? null : free.splice(at, 1)[0] };
+  });
+  for (const pair of pairs) pair.have ??= free.shift() ?? null;
+  const update = [];
+  const create = [];
+  for (const { want, have } of pairs) {
+    if (!have) create.push(want);
+    else if (trainingDiffers(have, want)) {
+      update.push({ _id: have._id, data: Object.fromEntries(Object.entries(want).filter(([k]) => !UNCOMPARED.has(k))) });
+    }
+  }
+  return { update, create, remove: free.map((h) => h._id) };
+}

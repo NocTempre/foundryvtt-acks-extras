@@ -615,7 +615,8 @@ is theirs, and editing a class afterwards must not silently retrain everyone who
 ever took it; re-applying is how a Judge asks for that. The stamp is what a
 re-apply deletes, so applying a second class removes the first one's training
 instead of leaving a character trained by both, and a Judge's own effects are
-never touched.
+never touched. *(Amended 2026-10-15: the stamp is what a re-apply replaces,
+in place — "a re-apply replaces the training in place".)*
 
 A class stating no training writes nothing, and the character stays
 unrestricted — which is what an unstated training means.
@@ -1645,3 +1646,48 @@ a vault.
 
 **What it cost.** The classes feature imports from the location feature. A
 world whose Judge deleted an heir's vault gets a new one at settlement.
+
+## 2026-10-15 — a re-apply replaces the training in place
+
+Amends "2026-08-22 — a class's training is copied to the character, because
+transfer cannot reach one", whose re-apply deleted the stamped copies and
+created new ones.
+
+**Evidence.** Re-applying the class a Fighter already held (the official
+sheet's re-import; the picker at the same level) read AC 3 where the
+character had 5, for the moment between the delete and the create. In that
+gap the character held no training. The equipment loadout answered the
+delete by writing its penalty for a shield without the Weapon & Shield
+style, and took it back when the create landed about 40 ms later. A second
+connection seated as the same GM user ran the same writer in the same gap,
+so two penalty effects stood at once.
+
+**Ruled.** `syncClassTraining` writes through `planTrainingSync`
+(`training-logic.mjs`):
+
+- each wanted effect takes over a held one, the one of its own name first;
+- a held effect is written only where the write would change it;
+- updates go first, then creates, then removals;
+- this module's flags are replaced whole, so a stamp the class's effect no
+  longer carries still comes off the copy.
+
+A re-apply of the class held writes nothing, so no reader on any client has
+anything to answer. A class change is one update, which every reader sees in
+its final shape. The compare skips core's `start` stamp (world time and
+combat at receipt) and `_stats`; live, the stamp alone turned every re-apply
+into an update.
+
+**Rejected.**
+
+- Create first, delete after: a class change then passes through a character
+  trained by both classes, and the loadout writes for that state too.
+- Hold the loadout while classes swap: it couples two features over a timing
+  only one of them owns.
+- Leave it to the loadout writer: the gap misleads even ONE writer, which
+  writes the penalty and takes it back. Making the effect one document per
+  actor (docs/equipment/DECISIONS.md, "One loadout effect per actor, whoever
+  writes it (2026-10-15)") stops the duplicate, not the transient.
+
+**What it cost.** The training effect keeps its id across a class change and
+is renamed under it. Another module's flags on the copy now survive a
+re-apply; the delete used to drop them.
