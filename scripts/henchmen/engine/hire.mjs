@@ -141,13 +141,17 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
     // Visibility: the hiring player(s) become owners of their new hireling.
     await target.update({ ownership: { ...target.ownership, ...employerOwnership(employer) } });
     const loyaltyStart = startingLoyalty({ base: opts.baseLoyalty ?? 0, elan: !!opts.elan });
-    const wage = Number(target.system?.retainer?.wage) || henchmanWage(adapter.getWageLevel(target));
+    // The actor's own sheet already says what kind of hireling it is; a hire
+    // never rewrites that, and only a henchman's wage falls back to the ladder.
+    const category = opts.category ?? target.system?.retainer?.category ?? "henchman";
+    const wage =
+      Number(target.system?.retainer?.wage) || (category === "henchman" ? henchmanWage(adapter.getWageLevel(target)) : 0);
     await adapter.setRetainer(target, {
       enabled: true,
       loyalty: loyaltyStart,
-      wage: String(wage),
+      wage: wage ? String(wage) : "",
       managerid: employer.id,
-      category: opts.category ?? "henchman",
+      category,
       quantity: 1,
     });
     try {
@@ -161,7 +165,12 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
       settlementName: location.name,
       employerUuid: employer.uuid,
       hiredTime: now(),
-      terms: { wageGp: wage, wageBasis: "level", lastPaidTime: now(), signingBonusGp: opts.signingBonusGp ?? null },
+      terms: {
+        wageGp: wage || null,
+        wageBasis: category === "henchman" ? "level" : category,
+        lastPaidTime: now(),
+        signingBonusGp: opts.signingBonusGp ?? null,
+      },
       loyalty: { start: loyaltyStart, permanents: [] },
       morale: { base: adapter.getMorale(target) || 0, permanents: [] },
       counters: { calamities: 0, levelsGainedInService: 0, startLevel: adapter.getLevel(target) },

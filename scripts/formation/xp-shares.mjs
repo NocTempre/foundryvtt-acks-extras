@@ -40,6 +40,22 @@ export const SYSTEM_FULL_SHARE = 100;
 export const UNSHARED_BASES = Object.freeze(["mercenary", "specialist"]);
 
 /**
+ * Which kind of hireling `actor` is — `henchman`, `mercenary` or `specialist`
+ * — or null when nobody hired them. While they serve, the system's retainer
+ * category answers: it is what their sheet shows and what core sorts its
+ * Hirelings tab by, and a hireling enrolled by hand carries nothing else. A
+ * record whose hireling has left service answers from how they were paid.
+ */
+export function hirelingKind(actor) {
+  const retainer = actor?.system?.retainer;
+  if (retainer?.enabled) return retainer.category || "henchman";
+  const record = recordOf(actor);
+  if (!record) return null;
+  const basis = record.terms?.wageBasis;
+  return UNSHARED_BASES.includes(basis) ? basis : "henchman";
+}
+
+/**
  * Why a participant takes the share they take. Returned rather than assumed so
  * the dialog can show its working — a Judge dividing 4,000 XP should be able
  * to see that the wagon and the mercenaries were left out on purpose.
@@ -66,25 +82,24 @@ export function shareFor(actor) {
     return { share: 0, reason: SHARE_REASON.notAPerson };
   }
 
-  const record = recordOf(actor);
-  if (record) {
-    // Paid in coin: no experience, however long they marched.
-    if (UNSHARED_BASES.includes(record.terms?.wageBasis)) {
-      return { share: 0, reason: SHARE_REASON.mercenary };
-    }
-    const share = Number(record.terms?.xpShare);
+  const kind = hirelingKind(actor);
+  // Paid in coin: no experience, however long they marched.
+  if (kind && kind !== "henchman") return { share: 0, reason: SHARE_REASON.mercenary };
+  if (kind) {
+    const share = Number(recordOf(actor)?.terms?.xpShare);
     const value = Number.isFinite(share) ? share : 0.5;
     return value > 0
       ? { share: value, reason: SHARE_REASON.henchman }
       : { share: 0, reason: SHARE_REASON.noShare };
   }
 
-  // A monster with no hireling record is not a party member — a summoned bear
-  // and a charmed ogre both land here.
+  // A monster nobody hired is not a party member — a summoned bear and a
+  // charmed ogre both land here.
   if (actor.type !== "character") return { share: 0, reason: SHARE_REASON.notAPerson };
 
-  // A player character takes a full share, scaled by whatever their own sheet
-  // says — the system's `details.xp.share`, read as the percentage it is.
+  // A character nobody hired is a player character and takes a full share,
+  // scaled by whatever their own sheet says — the system's
+  // `details.xp.share`, read as the percentage it is.
   const own = Number(actor.system?.details?.xp?.share);
   const value = Number.isFinite(own) && own > 0 ? own / SYSTEM_FULL_SHARE : 1;
   return { share: value, reason: SHARE_REASON.full };

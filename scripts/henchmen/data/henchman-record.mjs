@@ -84,8 +84,8 @@ export default class HenchmanRecord extends foundry.abstract.DataModel {
         xpShare: new fields.NumberField({ required: true, initial: 0.5 }),
         signingBonusGp: num(),
         // The employer level the hireling BELIEVES (RR 168 presented level);
-        // discovery of the truth prefills the loyalty roll's apparent-level
-        // penalty. null = hired honestly.
+        // discovery of the truth prefills a henchman's loyalty roll with the
+        // apparent-level penalty. null = hired honestly.
         claimedEmployerLevel: num({ integer: true }),
         // Null, not zero — the same wage-clock rule as `hiredTime` above.
         lastPaidTime: num({ integer: true }),

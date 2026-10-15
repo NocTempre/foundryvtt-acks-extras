@@ -15,6 +15,11 @@ features extend it. Companion to the local rules extract
   actors with `system.retainer.{enabled, loyalty, wage, managerid, category,
   quantity}` set and are pushed into the employer's `system.henchmenList` by
   core `addHenchman` — the stock Hirelings tab keeps working.
+- **What kind of hireling an actor is** — henchman, mercenary or specialist —
+  is that `retainer.category`: the sheet shows it and core's Hirelings tab
+  sorts by it. A hire keeps it and writes the record's `terms.wageBasis` to
+  match. Only a henchman's missing wage falls back to the ladder (§4c), and
+  only a henchman takes a share of experience (`formation/xp-shares.mjs`).
 - Module-owned data lives in **module flags** (hirelings) or a **module actor
   sub-type** (locations). Rules math is pure (`scripts/henchmen/rules/`), fed by
   table documents read through `acksExtras.lib.tables`. **No table ships**: a
@@ -159,7 +164,9 @@ enrolled" from "hired at the dawn of the world".
 ## 4c. A payday
 
 **What is due.** `wagedOf(employer)` is the roster entries paid a wage, each
-with its record and its monthly cost (a vassal is not among them), and
+with its record and its monthly cost (a vassal is not among them, nor an
+entry whose wage comes to nothing: a mercenary or specialist whose wage is
+stated nowhere, or a henchman's before the wage table is imported), and
 `unitsOf(employer)` the group actors whose `unit.employerUuid` names the
 employer. `dueOf(employer, time)` is what a payday at that time would bill:
 each entry whose wage clock is a whole month or more behind, for as many

@@ -230,12 +230,24 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    the GM's seat hears two warnings. With one in reach beside one that is
    not, the Player's seat is told what was paid, the hook fires on the GM's
    seat, and the refusal is heard there alone.
+5f. Hirelings enrolled by hand, by kind. Link three `character` actors to a
+   disposable employer as above, `system.retainer.category` `mercenary`
+   (wage 6), `specialist` (no wage) and `henchman` (no wage, level 1), and run
+   `enrollNewcomers(employer)`. Read `wageBill(employer, now() +
+   secondsPerMonth() + 60)`.
+   *Observable:* `monthly` is the mercenary's 6 plus the henchman's ladder
+   wage for 1st level, and `count` is 2. The wageless specialist is not
+   billed and adds nothing to `nextDue`.
 6. Loyalty and obedience: `openLoyaltyRoll` / `openObedienceRoll` on a hired
-   henchman, and `recordCalamity`.
+   henchman, and `recordCalamity`. Then write
+   `flags.acks-extras.record.terms.claimedEmployerLevel` to the employer's
+   level + 2 on a henchman and on a mercenary, and open `openLoyaltyRoll` on
+   each.
    *Observable:* each posts its card, and the henchman's stored loyalty moves
-   by the amount the card reported. The obedience page itself, and a group's
-   **Roll Morale**, are walked from `docs/influence/TESTING.md` (The morale
-   pages).
+   by the amount the card reported. The henchman's roll carries a level
+   difference of 2, and the mercenary's carries 0. The obedience page itself,
+   and a group's **Roll Morale**, are walked from `docs/influence/TESTING.md`
+   (The morale pages).
 7. Followers: `openFollowersDialog(employer)` below 9th level and, with the
    tables imported, at 9th.
    *Observable:* the level gate names the character and their level; with the

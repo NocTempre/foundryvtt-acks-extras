@@ -38,6 +38,34 @@ for (const basis of UNSHARED_BASES) {
   assert.equal(r.reason, SHARE_REASON.mercenary);
 }
 
+/* --- the sheet's hireling category decides while they serve -------------- */
+/* A hireling enrolled on the system sheet carries a category and no record;
+ * the wage engine's adoption later gives it a record with no wage basis. */
+const enrolled = (name, category, terms = null) => ({
+  name, type: "character",
+  system: { details: { xp: { share: 100 } }, retainer: { enabled: true, category } },
+  getFlag: (_m, k) => (k === "record" && terms ? { terms } : null),
+});
+for (const category of ["mercenary", "specialist"]) {
+  for (const terms of [null, {}, { wageBasis: "level" }]) {
+    const r = shareFor(enrolled("Hand-enrolled", category, terms));
+    assert.equal(r.share, 0, `a ${category} by the sheet takes no share (record ${JSON.stringify(terms)})`);
+    assert.equal(r.reason, SHARE_REASON.mercenary);
+  }
+}
+assert.deepEqual(shareFor(enrolled("Sworn", "henchman")), { share: 0.5, reason: SHARE_REASON.henchman },
+  "a henchman by the sheet with no record yet takes a henchman's share, not a full one");
+assert.equal(shareFor(enrolled("Sworn", "henchman", { xpShare: 0.4 })).share, 0.4);
+
+/* out of service, the record answers from how they were paid */
+const dismissed = (terms) => ({
+  name: "Dismissed", type: "character",
+  system: { details: { xp: { share: 100 } }, retainer: { enabled: false, category: "henchman" } },
+  getFlag: (_m, k) => (k === "record" ? { terms } : null),
+});
+assert.equal(shareFor(dismissed({ wageBasis: "mercenary" })).reason, SHARE_REASON.mercenary);
+assert.equal(shareFor(dismissed({})).reason, SHARE_REASON.henchman);
+
 /* --- things that are not people ----------------------------------------- */
 assert.equal(shareFor(beast("Wagon", "acks-extras.vehicle")).reason, SHARE_REASON.notAPerson);
 assert.equal(shareFor(beast("Mule", "acks-extras.animal")).share, 0);
@@ -91,4 +119,4 @@ d = divideXp([pc("Leader")], 0);
 assert.equal(d.rows[0].xp, 0);
 assert.equal(divideXp([pc("Leader")], -100).rows[0].xp, 0, "a negative award is no award");
 
-console.log("test-xp-shares: OK (full, half, own terms, mercenaries, non-persons, dead, rounding)");
+console.log("test-xp-shares: OK (full, half, own terms, mercenaries, sheet category, non-persons, dead, rounding)");

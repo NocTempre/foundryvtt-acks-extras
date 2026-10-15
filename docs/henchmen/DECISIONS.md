@@ -521,3 +521,51 @@ count at every session; the line now says why nothing is due and still pays
 nothing for it. The roster's Pay wages button is greyed while nothing is due
 and says nothing beside it. Every advance of the clock reads the bill once
 for each open character sheet on each seat.
+
+### The sheet's hireling category decides what kind of hireling an actor is (2026-10-15)
+
+**Found (field report, then a live walk).** A Judge reported hirelings
+treated as henchmen: a half share of experience, and wages and loyalty as a
+henchman's. Walked live on 11.2.0 with a mercenary and a specialist enrolled
+on the system sheet. Before the wage engine adopted them, Deal XP gave each a
+FULL share, as if they were player characters. Adoption gave them a record
+with no wage basis, and Deal XP then gave each a henchman's half share. The
+specialist, who had no wage, was billed the henchman ladder's wage for its
+level. A special hire wrote `henchman` over whatever category the actor's
+sheet already held. The category was read by core's Hirelings tab and by the
+henchman limit, and by nothing that paid or shared. On loyalty, the posting
+dialog offers a presented level for every kind of search, and the loyalty
+roll took the apparent-level penalty from any hireling's record.
+
+**Ruled.**
+- *`system.retainer.category` answers while the hireling serves.* Deal XP
+  reads it first. The record's `terms.wageBasis` answers only for someone out
+  of service, and a hire writes the basis to match the category.
+- *A special hire keeps the actor's category.* It wrote none of its own.
+- *The henchman ladder is a henchman's fallback only.* A mercenary or
+  specialist whose wage is stated nowhere is billed nothing. Any entry whose
+  wage comes to nothing is left off the bill, as a paid unit's already was:
+  it is never due, so it can be neither paid nor missed. Missing it would
+  have been a calamity.
+- *The apparent-level penalty is a henchman's.* It is what a henchman does
+  on concluding he outclasses his employer (RR ch. 4). The roll reads the
+  category, so records already holding a presented level stop costing a
+  mercenary or specialist anything. The rest of loyalty is every
+  hireling's — calamities, level gains and the roll itself (RR 166) — and
+  is unchanged.
+
+**Rejected.**
+- *Writing the wage basis at adoption.* It would mend only records adopted
+  after the fix. Reading the category mends every one already adopted, with
+  no migration.
+- *The record's basis over the sheet's category.* A Judge who corrects a
+  hireling's kind does it on the sheet, so the category is the one that
+  stays current.
+- *Hiding the presented level on a mercenary or specialist search.* The
+  dialog's field is shared by every kind of search. A read-time guard also
+  mends the records that already hold one.
+
+**What it cost.** A henchman enrolled by hand takes a half share from the
+first Deal XP, where before adoption it took a full one. A wageless mercenary
+or specialist leaves the payroll until a wage is set. The months it served
+meanwhile are billed then, from the clock its adoption started.

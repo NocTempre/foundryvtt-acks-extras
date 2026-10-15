@@ -160,13 +160,16 @@ export async function applyLoyaltyOutcome(actor, { outcome, total = null, note =
 export function openLoyaltyRoll(actor, opts = {}) {
   const employer = adapter.getManager(actor);
 
-  // RR 168 presented-level lie: once the hireling has cause to doubt, the
-  // roll takes −1 per level of difference between what was CLAIMED at hire
-  // and the truth — auto-applied, GM-overridable like every derived value.
+  // RR 168 presented-level lie: once a henchman has cause to doubt, the roll
+  // takes −1 per level of difference between what was CLAIMED at hire and
+  // the truth — auto-applied, GM-overridable like every derived value. Only
+  // a henchman weighs the employer's level (RR ch. 4), so a mercenary or
+  // specialist told the same lie by the same posting takes none.
   const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
   const claimed = record.terms?.claimedEmployerLevel;
+  const henchman = adapter.getRetainer(actor).category === "henchman";
   const apparentLevelDiff =
-    claimed != null && employer ? Math.max(0, claimed - adapter.getLevel(employer)) : 0;
+    henchman && claimed != null && employer ? Math.max(0, claimed - adapter.getLevel(employer)) : 0;
 
   // Influence-hosted page (loyalty is secret: open GM-side; the completion
   // hook routes back through applyLoyaltyOutcome via the integration).
@@ -304,9 +307,12 @@ const unitsOf = (employer) => game.actors.filter((a) => a.type === GROUP_TYPE &&
 /**
  * The roster entries an employer pays a wage to, each with its record and
  * what a month of it costs. RAW: the FULL monthly wage (RR 168) — the agreed
- * wage, else the sheet's, else the ladder's for the hireling's level — ×
- * retainer quantity for troop-scale entries. A vassal's domain income covers
- * theirs, so a vassal is not listed.
+ * wage, else the sheet's, else, for a henchman, the ladder's for their level —
+ * × retainer quantity for troop-scale entries. The ladder is the henchmen's
+ * alone: a mercenary or specialist whose wage is stated nowhere costs nothing
+ * until one is. An entry whose wage comes to nothing is not listed, as a unit's
+ * is not: it is never due, so it cannot be paid, missed or start a countdown.
+ * A vassal's domain income covers theirs, so a vassal is not listed either.
  */
 function wagedOf(employer) {
   const waged = [];
@@ -315,9 +321,11 @@ function wagedOf(employer) {
     const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
     if (record.terms?.vassalDomain) continue;
     const retainer = adapter.getRetainer(actor);
-    const monthly =
-      (Number(record.terms?.wageGp ?? retainer.wage) || henchmanWage(adapter.getWageLevel(actor))) *
-      Math.max(1, Number(retainer.quantity) || 1);
+    const each =
+      Number(record.terms?.wageGp ?? retainer.wage) ||
+      (retainer.category === "henchman" ? henchmanWage(adapter.getWageLevel(actor)) : 0);
+    const monthly = each * Math.max(1, Number(retainer.quantity) || 1);
+    if (!(monthly > 0)) continue;
     waged.push({ actor, record, monthly });
   }
   return waged;

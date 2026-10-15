@@ -461,6 +461,17 @@ monster actor carrying a henchman record (`flags.acks-extras.record` with
    are all created by the run: read them back and `api.track` each. The
    monster henchman is listed with a share and a "Not recorded" note, and its
    sheet is not written — the system keeps no experience for a monster.
+5. Enrol hirelings by hand on the system sheet: a disposable employer
+   `character`, plus three `character` actors whose `system.retainer` is
+   written by an update after the create (`enabled: true`,
+   `managerid: <employer id>`, `category` `mercenary`, `specialist` and
+   `henchman`). Link each with `employer.addHenchman(id)`. Read
+   `api.formation.xp.shareFor` (or import `formation/xp-shares.mjs`) for each,
+   then run `enrollNewcomers(employer)` from `henchmen/engine/events.mjs` and
+   read them again.
+   *Observable:* both times, the mercenary and the specialist take 0 with the
+   reason `mercenary` and the henchman takes 0.5, never a full share. A
+   `divideXp` over all four lists the two in `excluded`.
 
 ## An unlinked member's own hit points (added with the hit-point tool)
 

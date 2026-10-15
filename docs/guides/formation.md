@@ -651,6 +651,11 @@ is listed too, with why — a mercenary is paid in wages rather than experience,
 pack mule is not a party member. A fallen member still takes their share. Only
 **Deal XP** writes anything.
 
+Whether a hireling is a henchman, a mercenary or a specialist is read from the
+**Category** on the hireling's own sheet, including for a hireling added on the
+system sheet rather than hired through a market. Change it there and Deal XP
+follows.
+
 ## Hit points for the whole party
 
 **Hit points** on the party sheet's **Party** tab opens one window that lists
