@@ -33,8 +33,9 @@
  */
 import { MODULE_ID, LANG_PREFIX, ACTOR_TYPE, DEFAULT_IMG } from "./constants.mjs";
 import { bookText, CITE_CLASS, CITE_LINK_CLASS } from "./prose.mjs";
-import { BOOKS, fingerprintWarning, identifyBook, parseCite } from "./books.mjs";
+import { BOOKS, bookIsForm, fingerprintWarning, identifyBook, parseCite } from "./books.mjs";
 import { matchFilesToBooks } from "./book-match.mjs";
+import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
 import { openBook, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageMap, listHeadings, setWorker, setWasmUrl } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
@@ -486,14 +487,17 @@ async function shelfPut(bookId, record) {
     return shelf();
   }
   const folder = await shelfFolder();
-  // Ownership is left at Foundry's default — the creating GM owns it, nobody
-  // else sees it — so handing a book to a player is a deliberate gesture on
-  // the journal, never a side effect of staging.
+  // A book's ownership is left at Foundry's default — the creating GM owns
+  // it, nobody else sees it — so handing a book to a player is a deliberate
+  // gesture on the journal, never a side effect of staging. A form is the
+  // exception: every player's export writes into it, so it is created shared.
+  const { OBSERVER, OWNER } = CONST.DOCUMENT_OWNERSHIP_LEVELS;
   await game.journal.documentClass.create({
     name: label,
     folder: folder?.id ?? null,
     pages: [shelfPageData(label, record.path)],
     flags: { [MODULE_ID]: { [SHELF_FLAG]: stamp } },
+    ...(bookIsForm(bookId) ? { ownership: { default: OBSERVER, [game.user.id]: OWNER } } : {}),
   });
   return shelf();
 }
@@ -712,6 +716,9 @@ async function restoreShelf() {
   const opened = [];
   for (const [bookId, record] of staged) {
     if (!BOOKS[bookId] || sessionDocs.has(bookId)) continue;
+    // A form's journal decides who exports from it, so a seat it is not
+    // shared with does not open it.
+    if (bookIsForm(bookId) && !game.journal.get(record.journalId)?.testUserPermission(game.user, "OBSERVER")) continue;
     try {
       await connectBookUrl(bookId, record.path, { remember: false, bridge: false });
       opened.push(bookId);
@@ -1022,18 +1029,33 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
       err.wrongBook = actualId;
       throw err;
     }
+    // A form is the form only if its fields are: a printed copy carries the
+    // same pages and no field to write into, and it is refused here, before
+    // the shelf can upload it.
+    if (bookIsForm(bookId)) {
+      const { isForm, share } = await readForm(doc);
+      if (!isForm) {
+        await doc.destroy?.();
+        throw new Error(
+          game.i18n.format(`${LANG_PREFIX}.ui.connectNotForm`, { book: BOOKS[bookId].label, share: Math.round(share * 100) }),
+        );
+      }
+    }
     const warning = fingerprintWarning(bookId, numPages, title);
     if (warning && !silent) ui.notifications.warn(`${MODULE_ID} | ${warning}`);
     sessionDocs.set(bookId, { doc, title });
+    Hooks.callAll("acksExtras.bookOpened", bookId);
     // Only once the book actually opened: a file that failed the read is not
     // worth bridging, and bridging it would keep re-failing every reload.
     await cacheBytes(bookId, cache);
     // A book nothing in this build reads yet says so, rather than counting 0.
     const book = BOOKS[bookId]?.label ?? bookId;
     const read = entries || allRecipes().some((r) => r.book === bookId) || tableRecipeBooks().has(bookId);
-    const message = !read
-      ? game.i18n.format(`${LANG_PREFIX}.ui.bookOpenNothing`, { book })
-      : game.i18n.format(`${LANG_PREFIX}.ui.${entries === 1 ? "bookOpenOne" : "bookOpenMany"}`, { book, n: entries });
+    const message = bookIsForm(bookId)
+      ? game.i18n.format(`${LANG_PREFIX}.ui.bookOpenForm`, { book })
+      : !read
+        ? game.i18n.format(`${LANG_PREFIX}.ui.bookOpenNothing`, { book })
+        : game.i18n.format(`${LANG_PREFIX}.ui.${entries === 1 ? "bookOpenOne" : "bookOpenMany"}`, { book, n: entries });
     if (silent) console.log(message);
     else ui.notifications.info(message);
     return true;
@@ -1727,7 +1749,7 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
         isGM && !staged[id] ? `<button type="button" data-shelve="${esc(id)}">${L("shelfAdd")}</button>` : "";
       return `<div class="acks-extras-importer-reconnect-row acks-extras-importer-reconnect-done" data-row="${esc(id)}">
         <div class="acks-extras-importer-reconnect-head"><strong>${esc(book.label)}</strong>${stage}</div>
-        <p class="notes" data-status="${esc(id)}">${L("booksOpen", { scope })}${where}</p>
+        <p class="notes" data-status="${esc(id)}">${bookIsForm(id) ? L("booksOpenForm") : L("booksOpen", { scope })}${where}</p>
       </div>`;
     }
     return `<div class="acks-extras-importer-reconnect-row" data-row="${esc(id)}">
@@ -1736,7 +1758,7 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
         ${control(id, record)}
         ${stage(id)}
       </div>
-      <p class="notes" data-status="${esc(id)}">${record ? why(record) : L("booksAbsent", { scope })}</p>
+      <p class="notes" data-status="${esc(id)}">${record ? why(record) : bookIsForm(id) ? L("booksAbsentForm") : L("booksAbsent", { scope })}</p>
     </div>`;
   };
 
@@ -2849,6 +2871,10 @@ Hooks.once("ready", async () => {
     stageBook: stageFile,
     /** Open a shelved book at a PDF page — what pressing a citation does. */
     openBookPage,
+    /** Whether a book is open on this seat. */
+    bookOpen: (bookId) => sessionDocs.has(bookId),
+    /** The file of a book open on this seat, as fresh bytes, or null when it is not open. */
+    bookBytes: async (bookId) => (await sessionDocs.get(bookId)?.doc?.getData?.()) ?? null,
     cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities, cookbookFillCompanions, cookbookPruneAbilities,
     importAbility, cookbookDebug, cookbookCount,
     cookbookImportTables,

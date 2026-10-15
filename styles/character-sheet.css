@@ -1817,3 +1817,141 @@ button.acks-extras-character-sheet__pill.is-locked:disabled {
   color: var(--acks-ink-soft);
   font-style: italic;
 }
+
+/* --- The official-sheet window: a scrolling body over a pinned footer ---
+   The body part is the scroller, so a re-render after a pick or a kept check
+   keeps its place; the footer never shrinks, so Import stays in reach. */
+
+.acks-extras-sheetpdf.application .window-content {
+  padding: 0;
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--acks-sp-3);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-footer {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border-top: var(--acks-border-soft);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-footer button,
+.acks-extras-sheetpdf .acks-extras-sheetpdf-bar button {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* Core pins the type size of buttons and form controls, so the window's own
+   re-take it and ride the knob with the text around them. */
+.acks-extras-sheetpdf button,
+.acks-extras-sheetpdf input {
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-sheetpdf fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  margin: 0 0 var(--acks-sp-3);
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-file,
+.acks-extras-sheetpdf .acks-extras-sheetpdf-check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-file input {
+  flex: 1 1 12em;
+  min-width: 0;
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-hint,
+.acks-extras-sheetpdf .acks-extras-sheetpdf-kind {
+  margin: 0;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-error {
+  margin: 0;
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-preview {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--acks-sp-1) var(--acks-sp-3);
+  margin: 0;
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-preview dt {
+  font-weight: bold;
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-preview dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-preview dd.is-warn,
+.acks-extras-sheetpdf .acks-extras-sheetpdf-hint.is-warn {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-report h3,
+.acks-extras-sheetpdf .acks-extras-sheetpdf-report h4 {
+  margin: var(--acks-sp-3) 0 var(--acks-sp-1);
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-checks {
+  width: 100%;
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-checks td {
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-sheetpdf .acks-extras-sheetpdf-list {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+/* An actor's name opens its sheet: a button, so the keyboard reaches it,
+   drawn as the link it reads as. */
+.acks-extras-sheetpdf button.acks-extras-sheetpdf-link {
+  all: unset;
+  cursor: pointer;
+  color: var(--acks-spot);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-sheetpdf button.acks-extras-sheetpdf-link:focus-visible {
+  outline: 2px solid var(--acks-spot);
+}
+
+/* The directory's button, beside core's create buttons. */
+.acks-extras-sheetpdf-open {
+  flex: 0 0 auto;
+}

@@ -42,6 +42,26 @@ the code, not missing from it; the rulings behind the built half are
   could write that flag when its creature is placed, and a duration could
   release it; the initiative card's summoner groups could read it too.
 
+## The official sheet (PDF)
+
+- **The gear boxes' per-line columns.** Each gear place has a column of item
+  counts and a column of weights beside its list. The import reads only the
+  list, where a count is written in the line, and the export writes only the
+  list. The columns want a line-by-line pairing that survives a reader who
+  wrote the count in the list instead.
+- **Which proficiency box an ability belongs in, for one never imported.**
+  The export sorts by the ability's own type, and the record decides only for
+  a name the last import read from the class box. Class proficiencies a class
+  grants as general ones come out in the general box.
+- **A henchman's derived lines.** The export writes a henchman's movement,
+  attack and damage lines from the record. Working them out from the
+  henchman's own weapons and movement, as the character's are, would keep
+  them current.
+- **The domain page as data.** It lands in the notes as tables. A domain
+  feature could take the hexes, structures and vassals as documents.
+- **A weapon's initiative bonus** has no field on the character; it rides
+  the record and the notes.
+
 ## Held for a rulings round
 
 - **The AC cell as a menu.** Built as a three-state cycle (shield → without →

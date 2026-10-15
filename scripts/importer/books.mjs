@@ -14,6 +14,12 @@
  * `judge` marks a book written for the Judge alone — an adventure, a
  * gazetteer: its keyed places, people, organisations and lists are shelved
  * where no player seat can open them (`lineOf` in `cookbook.mjs`).
+ *
+ * `form` marks a fillable form rather than a book: nothing imports from it,
+ * and what connecting it unlocks is the official-sheet export, which writes a
+ * character into it. It is read through its fields, so a copy that is not the
+ * fillable form is refused when it is opened, and its shelf journal is shared
+ * with every player, whose exports read it too.
  */
 
 /**
@@ -221,6 +227,16 @@ export const BOOKS = {
     titleRe: /System Compat/i,
     printedOffset: 4,
   },
+  // Both printings (colour and monochrome) carry no metadata title and the
+  // same count; the stock filename carries the title.
+  sheet: {
+    label: "ACKS II Character Sheet",
+    short: "SHEET",
+    pages: 5,
+    titleRe: /Character\s*Sheet/i,
+    printedOffset: 0,
+    form: true,
+  },
 };
 
 
@@ -295,3 +311,6 @@ export const bookLine = (bookId) => BOOKS[bookId]?.line ?? null;
 
 /** Whether a shipped book is the Judge's alone (`judge` in the registry). */
 export const bookIsJudges = (bookId) => BOOKS[bookId]?.judge === true;
+
+/** Whether a registry entry is a fillable form rather than a book (`form`). */
+export const bookIsForm = (bookId) => BOOKS[bookId]?.form === true;

@@ -64,7 +64,10 @@ location actors, not a second store.
 Serialized DataModel at `actor.flags["acks-extras"].record`
 (`scripts/data/henchman-record.mjs`):
 
-- `origin`, `locationUuid`, `settlementName`, `employerUuid`, `hiredTime`
+- `origin`, `locationUuid`, `settlementName`, `employerUuid`, `hiredTime`.
+  `enrollHenchman` (`engine/hire.mjs`) puts an existing character on a roster
+  with no hire behind it, as an imported official sheet does: origin `manual`,
+  no location, the loyalty start set so the henchman reads the score given
 - `rolled.*` — recorded roll results (attributes 3d6×6, double-d100 class,
   1d20 level, template) for the future class-autogeneration module
 - `terms.*` — wage + basis, shares (½/½), signing bonus, `lastPaidTime`,

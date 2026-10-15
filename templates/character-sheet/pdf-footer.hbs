@@ -1,0 +1,8 @@
+{{!-- The official-sheet window's import button. A separate part so it stays
+      pinned below the scrolling body. --}}
+<footer class="form-footer acks-extras-sheetpdf-footer">
+  <button type="button" data-action="import" {{disabled cannotImport}}>
+    <i class="fa-solid fa-file-import" aria-hidden="true"></i>
+    {{localize "ACKS-CHARACTER.pdf.import.button"}}
+  </button>
+</footer>

@@ -338,6 +338,135 @@ the effect carrying the `fromClass` flag: its `changes`.
 created; clear `trainingView` from your user flags if you want the default
 back.
 
+## The official sheet (PDF)
+
+**Fixtures.**
+- Your own blank copy of the official fillable sheet, in both editions the
+  publisher prints (colour and monochrome), and one printed or flattened
+  sheet to be refused.
+- A filled copy made from the blank by a scratch Node script: open the
+  blank with the vendored `vendor/pdfjs/pdf.mjs` and call
+  `fillForm(doc, values)` (`pdf/form.mjs`) with invented values. Read it back
+  with `readForm` and compare before using it: a value that does not
+  survive the round trip is a fixture fault, not a feature fault. Fill at
+  least: a class the world holds, at a level; scores; saves that disagree
+  with the class; a general proficiency twice (rank two) and one the world
+  lacks; a feature and a language the world lacks; both coin boxes, one as a
+  running tally (`40 - 10 = 30`); a backpack on the back, three lines in the
+  backpack (one with a count), a sword in the main hand, a shield in the off
+  hand, armour, a dagger at the belt, one hidden item; two weapon rows, one
+  the world lacks, one with an initiative bonus; a spell the world holds and
+  a ritual it lacks; ticks; a domain row; and one henchman slot naming no
+  roster member.
+- The PDFs in a Data folder of the run's own, so the page can fetch them.
+- For the player pass, a `character` the Player seat owns
+  (`api.create("Actor", {…, ownership: {[playerId]: 3}})`).
+- No sheet on the shelf: no journal stamped `flags.acks-extras.shelf.book`
+  `"sheet"`, and no `acks-extras-books/sheet.pdf` under the Data directory.
+  Staging writes that file and Foundry offers no delete, so the run removes it
+  from disk by that path at teardown.
+- A GM-level seat no other client holds. Joining a seat another session is
+  driving puts two clients behind one user.
+
+**Drive mechanics.**
+- **A file input takes a real `File`**: fetch the PDF, wrap it in a `File`,
+  add it to a `DataTransfer`, assign `input.files = dt.files` and dispatch
+  `change` (bubbling). The window reads the file on `change`.
+- **`foundry.utils` is a frozen module namespace.** Assigning
+  `foundry.utils.saveDataToFile` fails silently in page code, and the real
+  save then drops the PDF in the browser profile's Downloads folder. Catch
+  the download where core clicks it instead: give
+  `HTMLAnchorElement.prototype` its own `dispatchEvent` that keeps a click on
+  an anchor whose `download` ends `.pdf` (fetch its `href` at once — core
+  revokes it after 100 ms) and passes every other event through; delete the
+  override after the export. Upload the bytes to the run's Data folder with
+  `FilePicker.implementation.upload` and read them back in Node with
+  `readForm`.
+- **The window menu entry** is reachable as
+  `sheet._headerControlContextEntries()`. The real gesture is the sheet's
+  `toggleControls` button and then the context item.
+- The window's id is `acks-extras-sheetpdf-<actor id>`, or `-new` for a new
+  character. The new-character window keeps that id after an import.
+- The import and export take seconds on the colour form. Poll for the
+  report or the captured download with a bound of minutes, not a fixed
+  sleep.
+- **The importer's api arrives after `ready`** (5–17 s on this world): poll
+  `acksExtras.importer` before reading `bookOpen("sheet")`. On a Player seat
+  the sheet opened from the server 18 s later still, behind the other
+  shelved books.
+- **Your Books' row controls are file-system pickers** on localhost and
+  cannot be scripted. The shelf band's `input[data-shelf-bulk]` (GM) and the
+  local band's `input[data-bulk]` take Files as above and match the sheet by
+  its filename. A refusal is written on the row (`[data-status="sheet"]`),
+  not raised as a toast.
+- The window's state is `await app._prepareContext({})`: `sheetOpen`,
+  `cannotExport`, `sheetNote`.
+
+**Steps** (an Assistant GM seat unless named).
+1. Press *Import sheet* in the Actors directory. *Observable:* the window
+   opens on a new character; there is no Export section yet.
+2. Pick the flattened PDF. *Observable:* the error names the file and 0% of
+   the fields; Import stays disabled.
+3. Pick the filled copy. *Observable:* the preview names the class and
+   level, counts what the world holds per list, and offers the henchmen box.
+   Tick it and press Import.
+4. Read the report and the character. *Observable:* the class is bound at
+   the level; the class's saves and attack throw are checks with *Keep*; the
+   unknown names are under *Not found*. The sword is in the main hand, the
+   shield in the off hand, the armour on the body, and the backpack on the
+   back holds its three lines with their counts. The dagger is carried, not
+   drawn, and no AC check appears. The coin rows hold each box's count. The
+   notes carry one block with the domain table. The henchman is created and
+   on the roster. `recordedFields(actor)` (`pdf/export.mjs`) returns every
+   filled box under its dotted key, and the flag's `unmatched` lists the
+   four unknown names. One chat message lists what was added.
+5. Pick the same file again and import. *Observable:* nothing is added, no
+   check says an item is not worn there, the notes still hold one block,
+   and `importedAt` moved.
+6. Delete one packed item, add an Active Effect raising STR by 1, and import
+   again. *Observable:* the deleted item lands again in the backpack; STR is
+   a check carrying the effect mark and no Keep, and the stored STR is
+   unchanged.
+7. Press *Keep* on a save check. *Observable:* the row reads *Kept* and the
+   stored save holds the sheet's value.
+8. With no sheet open anywhere, read the Export section. *Observable:*
+   Export is disabled and the note says the sheet is not open on this seat.
+   *Your Books* opens the Books window, whose sheet row says connecting lets
+   the official-sheet window export into it.
+9. Give the shelf band's input the printed copy. *Observable:* the row says
+   the file is not the fillable sheet (0% of its fields); no journal and no
+   file on the server.
+10. Give it the monochrome blank. *Observable:* a journal named for the sheet
+    in *Your Books*, ownership default Observer, its page at
+    `acks-extras-books/sheet.pdf` (the file's size equals the blank's); the
+    book row reads open, from the server; the official-sheet window
+    re-rendered with Export enabled.
+11. Press Export; capture the download. *Observable:* the note says it was
+    written and counts the items listed under Backpack. Read back in Node,
+    the file is the form. It carries the domain row, the ticks, the weapon's
+    initiative, the dagger at the belt, the hidden item under hidden, and the
+    unknown proficiency, feature, language and ritual in their boxes.
+12. Shrink the window to about 320 px tall. *Observable:* the body scrolls,
+    the footer's Import stays in view, and every input has a label.
+13. As the Player seat: the owned character's window menu carries *Official
+    sheet (PDF)*, and the Actors directory has no *Import sheet*. The sheet
+    opens from the server at join. Import the filled copy. *Observable:*
+    there is no henchmen box, and the henchman goes to the notes. Export
+    works from the server's sheet.
+14. As GM, set the sheet journal's default ownership to None, then join a
+    fresh Player seat. *Observable:* the sheet is not open there and Export
+    is disabled. Give the local band's input the colour blank. *Observable:*
+    the window re-renders with Export enabled, and the export reads back as
+    the form holding the character.
+
+**Teardown.** Sweep by the run's ledger: the imported character, the
+henchman it created, the player's character, the sheet's shelf journal
+(tracked by the id read back once it appears), and every chat message the
+imports posted (found by speaker, tracked by id). Remove
+`acks-extras-books/sheet.pdf` from the Data directory by that path. Delete
+the run's Data folder; check the browser profile's Downloads folder for a
+stray export.
+
 ## A field an effect changes
 
 **Fixtures.** A disposable `character` with `system.aac.mod` and

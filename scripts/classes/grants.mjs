@@ -1,4 +1,4 @@
-/* global game */
+/* global game, foundry */
 /**
  * Granting a class's awards as owned ability items.
  *
@@ -13,7 +13,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { findByRef, templatePartOf } from "./registry.mjs";
 import { choiceOptions } from "../lib/choice-spec.mjs";
-import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
 import { libraryItems, cookbookId } from "../lib/library.mjs";
 import { foldKey, spellTraditions, spellDedupeKey } from "../magic/spell-logic.mjs";
 import { levelUnder } from "../magic/spell-names.mjs";
@@ -71,6 +71,34 @@ export async function grantAbility(actor, ref, grants, { upTo = 1 } = {}) {
   data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), grantedFrom: ref } };
   await actor.createEmbeddedDocuments("Item", [data]);
   grants.push({ ref, name: source.name });
+}
+
+/**
+ * The item data for `rank` owned copies of an ability — a printed rank N is N
+ * copies, the family's convention — with `selection` as its pick, and stamped
+ * `grantedFrom` when a `ref` is given.
+ * @param {Item} source the library definition
+ * @param {{rank?: number, selection?: string|null, ref?: string|null}} [options]
+ * @returns {object[]} one plain item payload per copy
+ */
+export function rankedCopies(source, { rank = 1, selection = null, ref = null } = {}) {
+  const data = source.toObject();
+  delete data._id;
+  const mine = data.flags?.[MODULE_ID] ?? {};
+  if (selection) {
+    // A pick is DATA, not just a label. The name suffix is the family's
+    // display convention and stays, but the selection is also written where
+    // every consumer reads it — the sheet's boxes and the equipment bridge
+    // both read `extras.selections`, and a pick recorded only in the name is
+    // one each of them has to parse back out of it.
+    data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...mine, extras: { ...(mine.extras ?? {}), selections: [selection] } } };
+    // The suffix is derived from the pick, so a template's own phrasing
+    // ("weapon & shield") arrives written the way the shortlist names it.
+    const vocab = selectionVocabFor(source, mine.extras?.category);
+    data.name = vocab ? nameWithSelections(data.name, [selection], vocab) : `${data.name} (${selection})`;
+  }
+  if (ref) data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), grantedFrom: ref } };
+  return Array.from({ length: Math.max(1, rank || 1) }, () => foundry.utils.deepClone(data));
 }
 
 /** The cookbook ref of the proficiency every character already has. */

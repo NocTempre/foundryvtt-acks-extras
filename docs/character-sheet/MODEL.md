@@ -341,3 +341,113 @@ The design's violet has no token in the vendored design system, so the
 stylesheet mixes it from the spot colour and the ink (`--acks-extras-magic`
 on the sheet root) and it follows both seats. A published token would replace
 the mix in one place.
+
+## The official sheet (PDF)
+
+`scripts/character-sheet/pdf/` reads a filled copy of the official fillable
+character sheet onto a character and writes a character into the Judge's own
+blank copy. Both directions use one field table and one record.
+
+**Where it opens.** A character's window menu carries *Official sheet (PDF)*
+for an owner (`getHeaderControlsActorSheetV2`). The Actors directory carries *Import sheet* for a seat with
+`ACTOR_CREATE`, which opens the window on a new character. The *Official
+Character Sheet (PDF)* macro in the module's macro compendium opens it on the
+selected token's character, else the user's own. One window per character,
+and one for a new character, which re-keys itself to the character an import
+made. The API is `acksExtras.characterSheet.pdf`.
+
+**Reading the form** (`form.mjs`). The file is opened in the browser by the
+vendored pdf.js (`openBook`) and its widgets are read off every page's
+annotations. A widget is found by `hash36` of its field name in
+`form-keys.mjs`, which maps the hash to a module key (`score.str`,
+`gear.backpack.list`, `hench.2.hp`) and a kind. A file whose fields cover
+less than `FINGERPRINT_SHARE` of the table is refused; a printed or flattened
+sheet carries none. The same check refuses a blank that is not the form.
+
+**The plan** (`parse.mjs`, `plan.mjs`). The read values become a plan:
+numbers out of `14+` and `40 - 10 = 30`, an ability as name, pick and rank
+(a name written twice is rank two), a gear line as count, name and place, a
+henchman slot as a record. `match.mjs` finds what the world holds for each
+name — class by name then key, an ability with its pick, a spell, a language,
+a roster henchman, the coin a box counts — and writes nothing, so the window
+shows what will match before the Import button is pressed.
+
+**The import** (`apply.mjs`). The order is fixed. The class goes first
+(`applyClass`), because binding one writes what a class decides. A character
+already bound to that class at that level is not bound again. Abilities,
+languages, gear, weapons, coin and spells come next, because their Active
+Effects feed the totals. Then the plain values are written, and then the
+checks are read off the prepared character. A report lists what was written,
+what was added, what to check and what was not found.
+
+- **A check is never a write.** With a class bound, the sheet's saves, attack
+  throw, title, XP to next level, hit die, cleaves and spells per day are
+  compared with the class's and offered with *Keep sheet value*
+  (`keepSheetValue`). A value an Active Effect sets now (`actor.overrides`) is
+  reported with the effect mark and no Keep, because writing it as a base
+  would apply the effect twice. Values the system derives — score modifiers,
+  the attack row, the three ACs, movement while it is automatic, initiative,
+  encumbrance, healing rate, each weapon's and each ability's throw — are
+  checks only.
+- **Gear** lands through the equipment builder (`buildGearData`,
+  `deliverItems`), so a line nothing answers still arrives as a named item.
+  An item the character already carries under a line's name answers that
+  line, and one item answers one line. Things are put on the body before any
+  are packed (`placeItem`), so a backpack on the back can take the backpack's
+  list. A weapon is drawn only into a hand: listed at the belt or on the back,
+  it stays carried. The sheet's backpack, sack and pouch lists go into the
+  character's container whose name carries that word; with none, the item
+  stays loose and is a check. Hidden gear lands and is named in the notes.
+  A stack whose count differs from the sheet's is a check, never changed.
+- **Coin** is credited only up to each box's count (`creditCoin`), copied
+  from the character's own coin of that metal, else the world's coin named
+  for it. A box with neither is *not found*: no coin is built from a rate. A
+  box counting fewer than the character holds is a check; nothing is taken.
+- **Henchmen.** A slot naming a roster member brings that henchman up to the
+  sheet: class, values, powers and equipment. Loyalty is the roster's and is
+  only checked. A slot naming no roster member is made and enrolled
+  (`enrollHenchman`) when the reader ticks *Create the henchmen the roster
+  does not hold* and the seat may create characters; otherwise it goes into
+  the notes whole.
+- **The notes block.** Whatever has no field — unmatched names, the domain
+  page as tables, tick grids, gems, birthplace, magic facilities, a weapon's
+  initiative — is one block in `system.details.notes` (`notes.mjs`). The
+  record keeps the exact block, so a re-import replaces it; once the reader
+  edits it, it no longer matches and the next block is appended.
+- **The record** is `flags.acks-extras.sheetPdf`:
+  `{importedAt, fields, unmatched, notes}`. `fields` is every filled box as
+  read, stored expanded (an update expands dotted keys) and read back flat by
+  `recordedFields`. `unmatched` lists the names in the character's own boxes
+  that the world could not answer. Each import replaces the record whole.
+- A chat message lists what the import added, as chargen does.
+
+Re-importing the same file onto the same character adds nothing, writes
+only what changed, and replaces its own notes block. An item deleted since
+lands again.
+
+**The export** (`export.mjs`). `sheetValues` reads the prepared character,
+so the sheet shows what is in force, effects included. Boxes the character
+keeps no field for come back from the record: the domain page, tick grids,
+magic facilities, birthplace, size, gender, gems, a weapon's initiative and a
+henchman's movement and attack lines. So do the names the record lists as
+unmatched — a homebrew proficiency, a language, a ritual, a coin box in a
+world with no coin — in the boxes the sheet had them in. A name the world
+could answer and the reader deleted since stays deleted. Gear is gathered by
+where it is worn.
+A container's contents go under that container's name, and concealed contents
+go under hidden. A loose item, or one in a container the sheet has no box
+for, goes under the backpack and is counted. A carried weapon the record read
+at the belt or on the back goes back there. A table longer than the form's
+rows is cut, and the window names what was left off. The filled form is
+handed to `saveDataToFile`.
+
+**The blank form** (`blank.mjs`) is a book in the importer's registry
+(`BOOKS.sheet`, marked `form`), so it is put on the server or connected on a
+seat in Your Books like every book. The export writes into a fresh copy of
+the file the importer holds open on this seat (`bookBytes`); with none open,
+Export is disabled and the window offers Your Books. The window re-renders
+on `acksExtras.bookOpened`, which the importer fires as each book opens.
+Because it is a form, the importer refuses a copy without the form's fields
+when it is opened, before the shelf can upload it, and its shelf journal is
+created at Observer for every player. A seat its journal is not shared with
+does not open it from the server and exports only from its own copy.

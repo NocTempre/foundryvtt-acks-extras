@@ -218,6 +218,12 @@ sheet's Equip control, readies one torch into the hand, where the hand count
 charges it like any weapon. Dropped anywhere else the stack is refused as gear
 declaring no such place.
 
+Putting a carried item at a body place is `placement.mjs` `placeItem`: a
+weapon is drawn into the hand named, anything core equips is equipped, a torch
+stack on a hand readies one, and anything else is worn at the place or
+refused. The character sheet's place drop and the official-sheet import both
+call it, so the two never disagree about where a thing ends up.
+
 ### Giving gear, and making room for it — `grant.mjs`
 
 `grantGear(actor, specs)` puts named gear in a character's pack, preferring a

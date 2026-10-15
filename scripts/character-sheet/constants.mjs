@@ -18,6 +18,14 @@ export const SHEET_CLASS = "acks-extras-character-sheet";
 export const SHEET_FLAG = "sheet";
 
 /**
+ * Actor flag recording the last official-sheet import: `importedAt`, `fields`
+ * (every box the form had filled, by module key) and `notes` (the exact block
+ * the import wrote into the notes, so the next one replaces it). The export
+ * reads the boxes the character keeps no field for back out of `fields`.
+ */
+export const PDF_RECORD_FLAG = "sheetPdf";
+
+/**
  * User flag holding the fold state per actor id. A viewing preference lives
  * with the viewer: an observer seat can fold a sheet it cannot edit.
  */

@@ -215,6 +215,44 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
 }
 
 /**
+ * Put a character actor that already exists on an employer's roster, with no
+ * settlement behind the hire — a henchman a player brings with them on an
+ * imported sheet. The record's origin is `manual`; `loyalty` is the score the
+ * henchman HAS, so the record's start is set to whatever gives that score
+ * under this employer, and `morale` is written as the base.
+ * @param {Actor} employer
+ * @param {Actor} actor a character
+ * @param {{loyalty?: number|null, morale?: number|null}} [opts]
+ * @returns {Promise<{actor: Actor}>}
+ */
+export async function enrollHenchman(employer, actor, { loyalty = null, morale = null } = {}) {
+  await actor.update({ ownership: { ...actor.ownership, ...employerOwnership(employer) } });
+  const chaLoyalty = adapter.getChaLoyalty(employer);
+  const baseLoyaltyBonus = sumEffectModifiers(employer, "baseLoyalty");
+  const have = Number.isFinite(Number(loyalty)) && loyalty !== null ? Number(loyalty) : null;
+  const start = have === null ? startingLoyalty({}) : have - chaLoyalty - baseLoyaltyBonus;
+  const wage = Number(actor.system?.retainer?.wage) || henchmanWage(adapter.getWageLevel(actor));
+  await adapter.setRetainer(actor, { enabled: true, wage: String(wage), managerid: employer.id, category: "henchman", quantity: 1 });
+  if (morale !== null && Number.isFinite(Number(morale))) await actor.update({ "system.details.morale": Math.max(-4, Math.min(4, Math.round(Number(morale)))) });
+  await adapter.addHenchman(employer, actor.id);
+  const record = new HenchmanRecord({
+    origin: "manual",
+    employerUuid: employer.uuid,
+    hiredTime: now(),
+    terms: { wageGp: wage, wageBasis: "level", lastPaidTime: now() },
+    loyalty: { start, permanents: [] },
+    morale: { base: adapter.getMorale(actor) || 0, permanents: [] },
+    counters: { calamities: 0, levelsGainedInService: 0, startLevel: adapter.getLevel(actor) },
+    special: { skipCalamityLoyalty: hasEffectFlag(employer, "skipCalamityLoyalty") },
+  });
+  await actor.setFlag(MODULE_ID, FLAG_RECORD, record.toObject());
+  await adapter.setLoyalty(actor, effectiveLoyalty(record.toObject(), { chaLoyalty, baseLoyaltyBonus }));
+  Hooks.callAll(HOOKS.HIRED, { employer, actor, location: null, record: record.toObject(), candidate: null });
+  Hooks.callAll(HOOKS.ROSTER_CHANGED, { employer });
+  return { actor };
+}
+
+/**
  * Henchman-limit check for an employer: 4 + CHA (core cha.retain) + effect
  * bonuses (Leadership, Blood of Kings…), against core henchmenList + our
  * monster roster, minus record.special.noSlot members (follower companions).

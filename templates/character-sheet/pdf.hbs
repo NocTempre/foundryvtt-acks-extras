@@ -1,0 +1,133 @@
+{{!-- The official-sheet window's body: the filled sheet to read and what it
+      will do, what the last import did, and the export. The part root is the
+      scroller. --}}
+<div class="acks-extras-sheetpdf-body">
+  <fieldset class="acks-extras-sheetpdf-import">
+    <legend>{{localize "ACKS-CHARACTER.pdf.import.legend"}}</legend>
+    <p class="acks-extras-sheetpdf-hint">{{importHint}}</p>
+    <label class="acks-extras-sheetpdf-file">
+      <span>{{localize "ACKS-CHARACTER.pdf.import.file"}}</span>
+      <input type="file" name="importFile" accept=".pdf,application/pdf" {{disabled busy}}>
+    </label>
+    {{#if fileName}}<p class="acks-extras-sheetpdf-hint">{{fileName}}</p>{{/if}}
+    {{#if readError}}<p class="acks-extras-sheetpdf-error" role="alert">{{readError}}</p>{{/if}}
+    {{#if preview}}
+    <dl class="acks-extras-sheetpdf-preview">
+      {{#each preview.rows as |r|}}
+      <dt>{{r.label}}</dt>
+      <dd class="{{#if r.warn}}is-warn{{/if}}">{{r.text}}</dd>
+      {{/each}}
+    </dl>
+    {{#if preview.canCreateHenchmen}}
+    <label class="acks-extras-sheetpdf-check">
+      <input type="checkbox" name="createHenchmen" {{checked createHenchmen}} {{disabled busy}}>
+      {{localize "ACKS-CHARACTER.pdf.import.createHenchmen"}}
+    </label>
+    {{/if}}
+    {{/if}}
+  </fieldset>
+
+  {{#if report}}
+  <section class="acks-extras-sheetpdf-report" aria-live="polite">
+    <h3>
+      <button type="button" class="acks-extras-sheetpdf-link" data-action="openActor" data-uuid="{{report.uuid}}">{{report.heading}}</button>
+    </h3>
+    <p class="acks-extras-sheetpdf-hint">{{report.counts}}</p>
+
+    {{#if report.checks.length}}
+    <h4>{{localize "ACKS-CHARACTER.pdf.report.checks"}}</h4>
+    <p class="acks-extras-sheetpdf-hint">{{localize "ACKS-CHARACTER.pdf.report.checksHint"}}</p>
+    <table class="acks-extras-sheetpdf-checks">
+      <thead>
+        <tr>
+          <th scope="col">{{localize "ACKS-CHARACTER.pdf.report.colField"}}</th>
+          <th scope="col">{{localize "ACKS-CHARACTER.pdf.report.colSheet"}}</th>
+          <th scope="col">{{localize "ACKS-CHARACTER.pdf.report.colInForce"}}</th>
+          <th scope="col"><span class="acks-sr-only">{{localize "ACKS-CHARACTER.pdf.report.colAction"}}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each report.checks as |c|}}
+        <tr>
+          <td>{{c.label}}</td>
+          <td>{{c.sheet}}</td>
+          <td>
+            {{c.inForce}}
+            {{#if c.effect}}<i class="fa-solid fa-wand-sparkles" role="img" aria-label="{{localize 'ACKS-CHARACTER.pdf.report.byEffect'}}" data-tooltip="{{localize 'ACKS-CHARACTER.pdf.report.byEffect'}}"></i>{{/if}}
+          </td>
+          <td>
+            {{#if c.canKeep}}
+            <button type="button" data-action="keep" data-index="{{c.index}}" {{disabled @root.busy}}>{{localize "ACKS-CHARACTER.pdf.report.keep"}}</button>
+            {{else if c.kept}}
+            <span class="acks-extras-sheetpdf-hint">{{localize "ACKS-CHARACTER.pdf.report.kept"}}</span>
+            {{/if}}
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{/if}}
+
+    {{#if report.unmatched.length}}
+    <h4>{{localize "ACKS-CHARACTER.pdf.report.unmatched"}}</h4>
+    <p class="acks-extras-sheetpdf-hint">{{localize "ACKS-CHARACTER.pdf.report.unmatchedHint"}}</p>
+    <ul class="acks-extras-sheetpdf-list">
+      {{#each report.unmatched as |u|}}<li><span class="acks-extras-sheetpdf-kind">{{u.kind}}</span> {{u.name}}</li>{{/each}}
+    </ul>
+    {{/if}}
+
+    {{#if report.henchmen.length}}
+    <h4>{{localize "ACKS-CHARACTER.pdf.report.henchmen"}}</h4>
+    <ul class="acks-extras-sheetpdf-list">
+      {{#each report.henchmen as |h|}}
+      <li>
+        {{#if h.uuid}}<button type="button" class="acks-extras-sheetpdf-link" data-action="openActor" data-uuid="{{h.uuid}}">{{h.name}}</button>{{else}}{{h.name}}{{/if}}
+        — {{h.outcome}}
+      </li>
+      {{/each}}
+    </ul>
+    {{/if}}
+
+    {{#if report.granted}}
+    <h4>{{localize "ACKS-CHARACTER.pdf.report.granted"}}</h4>
+    <p>{{report.granted}}</p>
+    {{/if}}
+
+    {{#if report.written.length}}
+    <h4>{{localize "ACKS-CHARACTER.pdf.report.written"}}</h4>
+    <dl class="acks-extras-sheetpdf-preview">
+      {{#each report.written as |w|}}<dt>{{w.label}}</dt><dd>{{w.value}}</dd>{{/each}}
+    </dl>
+    {{/if}}
+  </section>
+  {{/if}}
+
+  {{#if canExport}}
+  <fieldset class="acks-extras-sheetpdf-export">
+    <legend>{{localize "ACKS-CHARACTER.pdf.export.legend"}}</legend>
+    <p class="acks-extras-sheetpdf-hint">{{localize "ACKS-CHARACTER.pdf.export.hint"}}</p>
+    <p class="acks-extras-sheetpdf-hint {{#unless sheetOpen}}is-warn{{/unless}}">{{sheetNote}}</p>
+    <div class="acks-extras-sheetpdf-bar">
+      {{#if canOpenBooks}}
+      <button type="button" data-action="books" {{disabled busy}}>
+        <i class="fa-solid fa-book" aria-hidden="true"></i>
+        {{localize "ACKS-CHARACTER.pdf.export.books"}}
+      </button>
+      {{/if}}
+      <button type="button" data-action="export" {{disabled cannotExport}}>
+        <i class="fa-solid fa-file-export" aria-hidden="true"></i>
+        {{localize "ACKS-CHARACTER.pdf.export.button"}}
+      </button>
+    </div>
+    {{#if exportNote}}
+    {{#if exportNote.error}}
+    <p class="acks-extras-sheetpdf-error" role="alert">{{exportNote.text}}</p>
+    {{else}}
+    <ul class="acks-extras-sheetpdf-list" aria-live="polite">
+      {{#each exportNote.lines as |line|}}<li>{{line}}</li>{{/each}}
+    </ul>
+    {{/if}}
+    {{/if}}
+  </fieldset>
+  {{/if}}
+</div>

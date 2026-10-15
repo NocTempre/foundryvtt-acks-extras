@@ -89,6 +89,12 @@ button on the book's row in the Books window goes to the same place. The
 journal is yours alone until you share it — give a player Observer permission
 on it the way you would on any other journal, and they can read the book too.
 
+The official fillable **character sheet** has a row of its own. Nothing is
+imported from it: the character sheet's export writes characters into it
+(see the character sheet guide, *The official sheet (PDF)*). Its journal is
+created shared with your players, because their exports read it too. A copy
+without the form's fields is refused.
+
 That journal *is* the module's record of the book. Delete it and the book is
 no longer read from the server; the **Remove** button in the Books window does
 the same. Either way the file stays where it was put, and the window tells you

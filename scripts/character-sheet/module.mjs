@@ -16,6 +16,7 @@ import { AcksCharacterSheet, CHARACTER_SHEET_TEMPLATES } from "./sheet.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
 import { snapshotFrame } from "./snapshot.mjs";
 import { buildFrameModel } from "./view-model.mjs";
+import { installSheetPdf, sheetPdfApi } from "./pdf/entry.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 Hooks.once("init", () => {
@@ -35,7 +36,10 @@ Hooks.once("init", () => {
     /** The frame snapshot and the decisions made on it, for a live check. */
     snapshotFrame,
     buildFrameModel,
+    /** The official character sheet's form: the import/export window and its parts. */
+    pdf: sheetPdfApi,
   };
+  installSheetPdf();
 });
 
 Hooks.once("ready", () => {

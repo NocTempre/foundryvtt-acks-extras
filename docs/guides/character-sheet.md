@@ -233,6 +233,63 @@ is riding on a save — with the counts a player checks between fights (rations,
 oil, torches, fate points, a caster's pools) and the modifiers in force. A
 star on any row keeps it on the folded card.
 
+## The official sheet (PDF)
+
+A character kept on the official fillable character sheet comes into Foundry
+from the PDF itself, and goes back out into the blank sheet. You need the
+fillable edition; a printed or flattened sheet has nothing to read and is
+refused.
+
+**Opening it.** On a character you own, the window menu (the ⋮ in its title
+bar) has **Official sheet (PDF)**. To make a new character from a sheet, the
+Actors directory has **Import sheet** for anyone allowed to create
+characters. The *Official Character Sheet (PDF)* macro in the module's macro
+compendium opens it on your selected token's character, or your own.
+
+**Importing.** Pick the filled sheet. Before anything is written, the window
+says what it found: the class and level, and how many of the proficiencies,
+languages and spells this world holds. Press **Import**. If the sheet lists
+henchmen your roster lacks and you may create characters, tick **Create the
+henchmen the roster does not hold** first; otherwise they are written into the
+notes.
+
+The report says what was written and what was added, and lists two more
+things:
+
+- **To check**: where the sheet and the character disagree. Nothing in this
+  list was written. A value the class decides (saves, the attack throw) has
+  **Keep sheet value** for a house ruling. A value with the wand mark is set by
+  an Active Effect, and writing it would count the effect twice. The rest the
+  character works out for itself, so fix the cause instead.
+- **Not found**: names this world has no item for. They are kept in the
+  character's notes, and an export writes them back onto the sheet.
+
+Everything the character has no field for goes into one block in its notes:
+the domain page as tables, the tick boxes, gems, the magic facilities. Import
+the same sheet again after editing it and the character takes what is new.
+Nothing is added twice, and the notes block is replaced, unless you have edited
+it, in which case the new one is added beside it.
+
+**Where gear goes.** Armour goes on the body. The main- and off-hand lists
+are wielded. The backpack, sack and pouch lists go into a container of that
+name, which must be on the character, so list the backpack itself on the
+back. A weapon at the belt or on the back is carried, not drawn. Hidden items
+are carried and named in the notes.
+
+**Exporting.** Export writes into the official sheet from **Your Books**, the
+same window your rulebooks are connected in. The sheet has its own row there.
+As the Judge, put the fillable blank on the server once with **Add to
+server**, and every seat opens it on joining, players included: its journal
+in the *Your Books* folder is shared with them. To keep players from it,
+remove their access on that journal; a player can still connect a copy of
+their own on the sheet's row. The export section's **Your Books** button
+opens that window.
+
+Press **Export** and the filled sheet downloads. It shows the character as it
+stands, effects included. What only the sheet held, such as the domain page and
+the ticks, comes from the last import. A list longer than the sheet's rows is
+cut, and the window names what was left off.
+
 ## Conditions
 
 The status palette on a token is the ACKS II conditions (RR Appendix B) and

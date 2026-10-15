@@ -99,6 +99,17 @@ pass++;
 check("every AX download placed, none left over", !ax.unmatched.length);
 check("the printed AX5 title also names the book", BOOKS.ax5.titleRe.test("Eyrie of the Dread Eye"));
 
+/* The character sheet carries no metadata title in either printing, so its
+ * downloads are named by their filenames: colour, monochrome and welded. */
+const sheets = matchFilesToBooks(
+  [file("ACKSII Character Sheet 5 pages 2024-10-21 MONO Form.pdf"), file("ACKS II Revised Rulebook.pdf")],
+  ["sheet", "rr"],
+  NONE,
+);
+check("the monochrome form download names the sheet", named(sheets).sheet === "ACKSII Character Sheet 5 pages 2024-10-21 MONO Form.pdf");
+check("the sheet leaves the rulebook its own file", named(sheets).rr === "ACKS II Revised Rulebook.pdf");
+check("a welded sheet download names the sheet", matchFilesToBooks([file("ACKSII_Character_Sheet_5_pages.pdf")], ["sheet"], NONE).matched.has("sheet"));
+
 /* Fingerprints: a title, where the printing carries one, must agree. */
 check("page count + title names the book", identifyBook(BOOKS.jj.pages, "ACKS II Judges Journal") === "jj");
 check("an untitled printing is named by count alone", identifyBook(BOOKS.ax2.pages, "") === "ax2");

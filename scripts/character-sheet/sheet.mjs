@@ -34,7 +34,8 @@ import { buildFollowersTab, wageLineKey } from "./tabs/followers.mjs";
 import { buildNotesTab } from "./tabs/notes.mjs";
 import { buildEffectsTab } from "./tabs/effects.mjs";
 import { openCoreWindow } from "../lib/core-windows.mjs";
-import { drawItem, drawInto, sheatheItem, wearItem, removeItem, prepareTorch, readiedWeaponData } from "../equipment/actions.mjs";
+import { drawItem, sheatheItem, wearItem, removeItem, prepareTorch } from "../equipment/actions.mjs";
+import { placeItem } from "../equipment/placement.mjs";
 import { wearLabel } from "../equipment/wear.mjs";
 import { cycleGrip } from "../equipment/loadout.mjs";
 import { cycleStrap } from "../equipment/overlays/shield-variants.mjs";
@@ -63,7 +64,7 @@ import { openLoyaltyRoll, payWagesFor } from "../henchmen/engine/events.mjs";
 import { openStashDialog } from "../location/apps/stash-dialog.mjs";
 import { setPinnedPlace, pinnedPlaces } from "../location/reach.mjs";
 import { mountOf, ride, dismount } from "../lib/mount.mjs";
-import { ITEM_TYPE, ACTOR_TYPE, SLOT } from "../lib/vocab.mjs";
+import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -76,8 +77,6 @@ export const CHARACTER_SHEET_TEMPLATES = Object.freeze([
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
-/** The places a thing is HELD at, where a dropped torch stack readies one into hand. */
-const HAND_PLACES = Object.freeze([SLOT.mainHand, SLOT.offHand, SLOT.bothHands]);
 
 /** The token fields the party cell reads (`partyOf`); an update touching none of them leaves it as it was. */
 const PARTY_TOKEN_KEYS = Object.freeze(["actorId", "actorLink", "name", "texture", "delta"]);
@@ -685,19 +684,11 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
           const box = this.actor.items.get(key);
           if (box && box.id !== own.id && isContainer(box)) await storeIn(this.actor, own, box);
         } else if (kind === "slot") {
-          if (containedIn(own)) await takeOut(own);
-          // A weapon goes into the hand it was dropped on, by name; the
-          // spanning row is keyed by the main hand and draws there.
-          if (own.type === ITEM_TYPE.weapon) await drawInto(own, key === SLOT.offHand ? "off" : key === SLOT.mainHand ? "main" : null);
-          else if (isEquippable(own)) await own.update({ "system.equipped": true });
-          // A torch is carried as a stack and held as a weapon: the stack
-          // dropped on a hand readies one torch into it. A hand place only — a
-          // stack dropped on the belt is still a stack, and is refused below.
-          else if (readiedWeaponData(own) && HAND_PLACES.includes(key)) await prepareTorch(this.actor, own, { draw: true });
-          // A refused wear says so: the model declines gear that declares no
+          // The spanning row is keyed by the main hand and draws there. A
+          // refused wear says so: the model declines gear that declares no
           // place, or not this one, and a drop that bounces in silence reads as
           // a sheet that ignored it.
-          else if (!(await wearItem(own, key))) ui.notifications.warn(loc("equipment.notWearable", { name: own.name, slot: wearLabel(key) }));
+          if (!(await placeItem(this.actor, own, key))) ui.notifications.warn(loc("equipment.notWearable", { name: own.name, slot: wearLabel(key) }));
         } else if (kind === "loose") {
           if (containedIn(own)) await takeOut(own);
           else if (own.type === ITEM_TYPE.weapon && own.system?.equipped) await sheatheItem(own);

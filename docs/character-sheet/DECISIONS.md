@@ -610,3 +610,144 @@ over, which starts from the list.
 
 **What it cost.** Two controls draw the same glyph, told apart by their
 tooltip and by which rows carry them.
+
+### The official sheet's field names ship hashed (2026-10-15)
+
+Asked for: a reader that turns a filled official character sheet into a
+Foundry character. The official sheet is a fillable form of 711 fields.
+
+**Ruled (owner, 2026-09-30).** The form is read through its fields, and the
+field table ships each field's name only as `hash36` of it
+(`pdf/form-keys.mjs`), mapped to this module's own key. The pairing of name
+and hash is kept on the local rules shelf, never in this repo. A field is
+found by hashing the name the reader's own copy carries, which proves the
+field is the one meant without saying what it is called.
+**Rejected.**
+- *Field names verbatim.* They are the publisher's identifiers for its own
+  form: a vocabulary that would ship in this module. The IP doctrine's name
+  rule applies, and the hash costs nothing at runtime.
+- *Position-matching a printed sheet.* The first assessment of the request
+  assumed the sheet had no form fields. A printed sheet would need its label
+  coordinates mapped, which is brittle across printings and ships a map of
+  the page.
+
+**What it cost.** A printing of the form with renamed fields reads as "not
+the form" until the table is regenerated from that copy. The table cannot be
+read back into names, so what a key means lives only in the module key.
+
+### Import and export are one bridge (2026-10-15)
+
+**Ruled (owner, 2026-09-30).** Export — writing a character into the
+Judge's own blank copy of the form — ships with the import: one field table
+both ways, one record. The module ships no copy of the form.
+
+An import records every box it read (`flags.acks-extras.sheetPdf.fields`).
+An export reads everything the character has a field for off the prepared
+actor, and takes everything else from that record. A proficiency the record
+read from the class box goes back there, because nothing on the character
+says which box it came from.
+The record also lists the names the world could not answer, and an export
+writes them back into their boxes.
+**Rejected.**
+- *Export without a record.* The domain page, tick grids and a weapon's
+  initiative would come back blank from a sheet that went in holding them.
+- *Writing back every recorded name the character lacks.* That would bring
+  back a proficiency the reader deleted after the import. Only names that
+  never landed are written back.
+
+### A disagreement is a check, never a write (2026-10-15)
+
+**Ruled.** The import binds the class first, lands abilities, gear and
+spells, and only then writes plain values. A class-decided value the sheet
+disagrees with is a check, with *Keep sheet value* for a house ruling. A
+value an Active Effect sets now is reported and never written ("An editable
+field holds the stored value", 2026-09-16). Values the system derives are
+checks only.
+**Rejected.**
+- *The sheet wins.* A hand-kept sheet carries arithmetic slips and stale
+  values, and would overwrite the class's figures with them in silence.
+- *Writing the base as the sheet's figure less the effect.* Nothing says
+  which effects the sheet's figure already included, or when it was written.
+
+A re-import does not bind a class the character already holds at that
+level. Found live: binding again rewrote a kept save back to the class's.
+It also recreated the class's training, and in the gap the equipment loadout
+wrote a shield penalty that the import's checks read as one less AC. The
+next read was right again.
+
+**What it cost.** A reader importing a house-ruled character presses Keep
+once per value the class disagrees with, once per character.
+
+### What has no field is one notes block, replaced on re-import (2026-10-15)
+
+**Ruled.** Unmatched names, the domain page and everything else with no
+field become one block in the character's notes. The record holds the exact
+block, so a re-import replaces it instead of stacking a second.
+**Rejected.** *A journal entry per character*: another document to find,
+own and delete. *Flags only*: the reader would never see it.
+
+**What it cost.** Once the reader edits the block it no longer matches, and
+the next import appends a fresh one beside it.
+
+### Coin is never built from a rate (2026-10-15)
+
+**Ruled.** Coin is credited from the character's own coin of that metal,
+else the world's coin named for it. A box with neither is *not found*.
+**Rejected.** *Building a coin item.* How many coins make a stone is a
+printed value (`.claude/rules/ip-doctrine.md`).
+
+**What it cost.** A world that holds no coin items imports no coin. The
+box's text is kept in the notes and written back by an export.
+
+### Henchmen are created only on request (2026-10-15)
+
+**Ruled.** A slot naming a roster member updates that henchman. A slot
+naming no one is created and enrolled only when the reader ticks the
+window's box and the seat may create characters; otherwise it is kept in
+the notes whole.
+**Rejected.** *Always create*: one import could make six actors nobody asked
+for. *Never create*: the sheet's henchmen page would come in as text only.
+
+**What it cost.** A created henchman's roster record carries the manual
+origin and no location, as a hand enrollment does.
+
+### A weapon listed off the hands is carried, and exported back there (2026-10-15)
+
+Found live: a sheet listing a dagger at the belt and a shield in the off
+hand imported with the dagger drawn into the off hand and the shield
+unequipped, and the AC check read one lower. `placeItem` draws a weapon put
+at any place, which is the sheet-drop gesture it was lifted from.
+
+**Ruled.** The import draws a weapon only into a hand. A weapon listed at
+the belt, on the back or worn stays carried. The export lists a still-carried
+weapon at the place the record read it.
+**Rejected.** *Changing `placeItem` for the sheet's drop too.* Dropping a
+weapon on a place to draw it is that surface's own gesture.
+
+**What it cost.** A carried weapon the record never named at a place is
+exported under the backpack and counted.
+
+### The blank form is a book in Your Books, shared with players (2026-10-15)
+
+The export first asked each seat to pick its blank, and kept it only until
+the page reloaded.
+
+**Ruled (owner, 2026-10-15).** The blank is loaded to the server the way the
+books are, and that is the default. It is a row in Your Books: the
+importer's registry carries the sheet as a `form` entry, staged and opened
+by the shelf. Its shelf journal is created at Observer for every player, so
+a player's export needs no setup. The owner's reasons: no second export
+format to maintain, and the export promotes the official sheet.
+**Rejected.**
+- *The per-seat pick.* Every reload asked for the file again, and a player
+  needed a copy of their own.
+- *Shelf storage under a record of its own.* It would have left the
+  registry untouched, at the cost of a second staging path beside the books'.
+- *GM-only, like the books.* A player could not export until the Judge
+  shared the journal.
+
+**What it cost.** The registry's fingerprint is a page count and a title,
+and the sheet has a count and no title, so any five-page file fits it. The
+importer therefore reads the form's fields when the sheet is opened and
+refuses a copy without them. That makes the importer read through the
+character sheet's field table (`form.mjs`).
