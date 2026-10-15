@@ -24,7 +24,7 @@ import { buildMagicPanel } from "../../markets/apps/magic-panel.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import { applyVariation, isVariationItem, removeVariation, revealVariation, concealVariation } from "../variation-items.mjs";
 import { disguiseItem, revealItem, setGearCapacity, prepareTorch, readiedWeaponData } from "../actions.mjs";
-import { PRISTINE, recomputeItemFields } from "../properties.mjs";
+import { PRISTINE, recomputeItemFields, layerDeltas, baseForTyped } from "../properties.mjs";
 import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
 import * as named from "../overlays/named.mjs";
@@ -261,7 +261,33 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
       delete data[name];
       if (event?.target?.name === name && Number.isFinite(listed)) this.#writeListedPrice(data, listed);
     }
+    if (this.item.getFlag(MODULE_ID, PRISTINE)) this.#writeLayeredFields(event, data);
     return data;
+  }
+
+  /** The document fields the layers recompute, by the snapshot key each is computed from. */
+  static #LAYERED = { "system.bonus": "bonus", "system.damage": "damage", "system.aac.value": "ac", "system.weight6": "weight6" };
+
+  /**
+   * With layers applied, a field they write is recomputed from the snapshot on
+   * every layer change, so a value typed onto the document would not survive
+   * the next one. The field reads as the layers make it; the snapshot takes
+   * the typed value less their delta, and the fields are recomputed from it.
+   * Only the control that fired moves the snapshot: the rest of the form
+   * carries values the recompute writes anyway.
+   */
+  #writeLayeredFields(event, data) {
+    const delta = layerDeltas(this.item);
+    for (const [path, key] of Object.entries(AcksItemSheet.#LAYERED)) {
+      if (!foundry.utils.hasProperty(data, path)) continue;
+      const typed = foundry.utils.getProperty(data, path);
+      foundry.utils.deleteProperty(data, path);
+      if (event?.target?.name !== path) continue;
+      const base = baseForTyped(key, typed, delta);
+      if (base === null) continue;
+      foundry.utils.setProperty(data, `flags.${MODULE_ID}.${PRISTINE}.${key}`, base);
+      this.#recomputeAfterSubmit = true;
+    }
   }
 
   /** Route a typed listed price to the pristine layer or the document's cost. */

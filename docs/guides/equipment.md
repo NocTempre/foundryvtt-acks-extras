@@ -161,7 +161,9 @@ aside mundane damage do not turn it aside. Mark the flaw on the monster's
 
 Masterwork is a separate thing and does not help here: it edits the weapon's
 numbers, never its ability to harm something that shrugs off ordinary weapons
-(RR p. 159). The sheet says so under the tier picker.
+(RR p. 159). The sheet says so under the tier picker. On a weapon with
+masterwork, a condition or silver, a damage, bonus or weight you type is the
+figure it keeps: changing those later works from what you typed.
 
 ![](../releases/v4.9.0/equipment-masterwork-tier.png)
 

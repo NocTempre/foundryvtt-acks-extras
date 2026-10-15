@@ -1675,3 +1675,32 @@ the refused-drop warning. A real hover proves that Chromium shows a tooltip on
 a disabled input; a dispatched event would not have proved it
 ([TESTING.md](TESTING.md#the-item-sheet), step 2). A field that already has a
 tooltip, such as the quantity or a property chip, does not mention the pencil.
+
+### A typed field survives the layers, and the two-handed die follows the weapon's own (2026-10-15)
+
+**Asked.** Two defects were found in code while diagnosing the field report
+behind the previous entry, and both reproduced live. A Sword typed to 1d10
+offered a two-handed row at 1d8, smaller than its one-handed damage, and a
+masterwork Sword at `1d6 + 1` lost its +1 in a two-handed grip. On a silvered
+Sword, a damage typed through the sheet was rewritten to the snapshot's value
+by the next layer change.
+
+**Ruled.** The two-handed figure is the row's, carrying whatever flat modifier
+the item holds on the row's own die. An item whose die is not the row's has
+none, and its two-handed grip deals its own damage. On a layered item, a typed
+damage, bonus, AC or St goes into the `pristine` snapshot less the layers'
+delta, and the fields are recomputed from it. That is the route the listed
+price already took, and what the field reads afterwards is what was typed.
+
+**Rejected.** Stepping an unknown die up one size for the two-handed grip:
+the size of the step is read off the printed table, and the module cannot know
+it for a weapon the Judge invented. Showing the snapshot value in the record
+fields, as the listed price does: a damage field that reads `1d8` on a weapon
+that deals `1d8 + 1` misstates the weapon. Writing every layered field on every
+submit: the form carries every field, and only the one that fired is an edit.
+
+**What it cost.** `twoHandedDamage` in `profiles.mjs`, which now reads
+`splitDamage`/`joinDamage` from `properties.mjs`; `baseForTyped` beside
+`recomputeItemFields`; one routing step in the sheet's form handler. A Judge
+who changes a weapon's die and wants a two-handed figure has no field to
+declare one.

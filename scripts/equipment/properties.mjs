@@ -181,6 +181,17 @@ export async function recomputeItemFields(item, overrides = {}) {
   await item.update?.(update);
 }
 
+/**
+ * The snapshot value that `recomputeItemFields` turns into `typed` under
+ * `delta`, for one snapshot key (`bonus`, `damage`, `ac`, `weight6`). A blank
+ * damage stays blank; a number that is not one is null.
+ */
+export function baseForTyped(key, typed, delta) {
+  if (key === "damage") return String(typed ?? "").trim() ? withFlatDelta(typed, -(delta?.damage ?? 0)) : "";
+  const base = Number(typed) - (delta?.[key] ?? 0);
+  return Number.isFinite(base) ? base : null;
+}
+
 /** Human summary of what the layers are doing, for the sheet. */
 export function layerSummary(item) {
   const d = layerDeltas(item);

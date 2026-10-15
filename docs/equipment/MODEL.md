@@ -166,6 +166,13 @@ honoured. Anything asking "can this character take up one more object?" reads
 `handsSpare` (API: `spareHands`) — reading `handsFree` tells a swordsman with an
 empty off hand that he has no hands.
 
+**A two-handed grip deals the row's larger die.** `classifyWeapon`'s
+`damage2h` (`twoHandedDamage`) is the row's two-handed figure, carrying any flat
+modifier the item holds on the row's own die (a masterwork tier, a dent, a
+Judge's +1). An item whose die is not the row's has no two-handed figure: the
+item sheet offers no two-handed row, and a two-handed grip deals the item's own
+damage.
+
 A weapon whose minimum cost is both hands — a bow, a crossbow, a great sword —
 is held in both (`wieldTwoHanded`) whatever else is carried; anything beside
 it is a hand overflow, never a one-handed bow. Only a versatile weapon's second
@@ -337,6 +344,13 @@ each writes only when it is the control that fired — the same rule as the
 quantity badge (DECISIONS, *A derived control writes back only when it is the
 control that fired*). Where the layers change the price, the worth they make
 of it reads beside the field.
+
+**A field the layers write is typed as it reads.** With layers applied
+(`properties.mjs`, the `pristine` snapshot), the Record panel's damage, bonus
+and AC and the band's St read as the layers make them. A value typed into one
+goes into the snapshot less the layers' delta (`baseForTyped`), and the fields
+are recomputed from it, so the next layer change keeps what was typed. Only the
+control that fired moves the snapshot.
 
 **A coin's band states how many make a stone.** On a `money` document the
 weight badge is replaced by **Per stone**: the rate in force

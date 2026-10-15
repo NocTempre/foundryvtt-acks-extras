@@ -305,6 +305,19 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     never `rgba(0, 0, 0, 0)`.
 13. Close the sheet. *Observable:* `Hooks.events.updateItem.length` returns
     to its pre-open count (the sibling watch detached).
+14. Layered fields and the two-handed figure. Fixtures: three world weapons
+    named Sword at 1d6. Give one masterwork +1 damage
+    (`api.equipment.setMasterwork(item, "weaponToDamage")`) and type another's
+    damage to 1d10. *Observable:* the first's Rolls tab lists a one-handed row
+    at `1d6 + 1` and a two-handed row at `1d8 + 1`; the 1d10 Sword lists one
+    row. Silver the third (Details → Silver), press the pencil, type `1d8` in
+    Record → Damage with real keys and leave the field, then apply masterwork
+    +1 damage. *Observable:* damage reads `1d8 + 1` (it read `1d6` before the
+    fix). Type `1d10 + 1`, then clear masterwork and silver. *Observable:* the
+    snapshot reads `1d10` after the typing, damage reads `1d10` after each
+    clear, and `flags.acks-extras.pristine` is gone after the last. The
+    importer's library notices stack over the top of a sheet at load; move the
+    sheet below them before clicking the pencil.
 
 ## Teardown
 

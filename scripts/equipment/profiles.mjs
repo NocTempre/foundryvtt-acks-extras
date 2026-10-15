@@ -24,6 +24,7 @@ import {
 } from "./config.mjs";
 import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
 import { SLOT, slug, nameKeys, ITEM_TYPE } from "../lib/vocab.mjs";
+import { splitDamage, joinDamage } from "./properties.mjs";
 
 /* -------------------------------------------- */
 /*  Armour classification                        */
@@ -366,6 +367,23 @@ export const GRIPS = Object.freeze(new Set(["1h", "versatile", "2h"]));
 export const WEAPON_CATEGORY_VALUES = Object.freeze(new Set(Object.values(WEAPON_CATEGORY)));
 
 /**
+ * The damage a weapon deals in a two-handed grip, given the damage it deals in
+ * one. The row prints both for its own die; a flat modifier the item carries on
+ * that die (a masterwork tier, a dent, a Judge's +1) carries onto the larger
+ * one. An item whose die is not the row's is a weapon the row no longer
+ * describes, and has no two-handed figure: its grip deals its own damage.
+ */
+export function twoHandedDamage(damage, row) {
+  if (!row?.damage2h) return null;
+  const die = (s) => String(s).replace(/\s+/g, "").toLowerCase();
+  const own = splitDamage(damage);
+  const printed = splitDamage(row.damage);
+  if (die(own.die) !== die(printed.die)) return null;
+  const larger = splitDamage(row.damage2h);
+  return joinDamage(larger.die, larger.flat + own.flat - printed.flat);
+}
+
+/**
  * Build the resolved profile for a weapon item.
  * @returns {{key,size,melee,missile,thrown,handy,twoHandedForced,damage,damage2h,type,cat,special,reqStr,grips}}
  */
@@ -389,6 +407,7 @@ export function classifyWeapon(item) {
   // (2) overrides win
   const sizeOverride = flag(ITEM_FLAGS.SIZE);
   const size = sizeOverride ?? base?.size ?? (twoHandedTag ? SIZE.LARGE : SIZE.MEDIUM);
+  const damage = item.system?.damage || base?.damage || "1d6";
 
   const profile = {
     key,
@@ -398,8 +417,8 @@ export function classifyWeapon(item) {
     thrown: flag(ITEM_FLAGS.THROWN) ?? base?.thrown ?? thrownTag ?? false,
     handy: flag(ITEM_FLAGS.HANDY) ?? base?.handy ?? handyTag ?? false,
     twoHandedForced: base?.twoHandedForced ?? (twoHandedTag && !base) ?? false,
-    damage: item.system?.damage || base?.damage || "1d6",
-    damage2h: base?.damage2h ?? null,
+    damage,
+    damage2h: twoHandedDamage(damage, base),
     type: flag(ITEM_FLAGS.DAMAGE_TYPE) ?? base?.type ?? "",
     // The declared class outranks the row's, and an unknown value is no
     // declaration at all — a hand-edited flag degrades to the row, never to a

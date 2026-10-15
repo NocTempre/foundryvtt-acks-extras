@@ -116,6 +116,9 @@ const sword = classifyWeapon(weapon("Sword", { melee: true }));
 check("sword medium melee", sword.size === "medium" && sword.melee);
 check("sword 1H=1 / 2H=2", handCost(sword, { twoHanded: false }) === 1 && handCost(sword, { twoHanded: true }) === 2);
 check("sword 2H damage 1d8", sword.damage2h === "1d8");
+check("a flat modifier on the row's die carries onto the two-handed die", classifyWeapon(weapon("Sword", { melee: true, damage: "1d6 + 1" })).damage2h === "1d8 + 1");
+check("a penalty carries too, and the die is read without case or spaces", classifyWeapon(weapon("Sword", { melee: true, damage: "1D6-1" })).damage2h === "1d8 - 1");
+check("a die the row does not print has no two-handed figure", classifyWeapon(weapon("Sword", { melee: true, damage: "1d10" })).damage2h === null);
 check("longbow 2 hands", handCost(classifyWeapon(weapon("Long Bow", { missile: true, melee: false }))) === 2);
 check("sling handy 1 hand", handCost(classifyWeapon(weapon("Sling", { missile: true, melee: false }))) === 1);
 check("dagger tiny thrown", (() => { const d = classifyWeapon(weapon("Dagger", { melee: true })); return d.size === "tiny" && d.thrown; })());
@@ -1963,6 +1966,21 @@ check("clearing masterwork keeps the condition's -1 attack", both.system.bonus =
 await clearScavenged(both);
 check("clearing the LAST layer restores the item exactly + drops the baseline",
   both.system.bonus === 0 && both.system.damage === "1d6" && both.system.weight6 === 6 && both._flags.pristine === undefined);
+
+// A field typed onto a layered item moves the baseline, so the next layer
+// change keeps it (the item sheet routes a typed layered field through here).
+const { baseForTyped, layerDeltas: deltasOf, recomputeItemFields } = await import(new URL("properties.mjs", S));
+const typed = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0, weight6: 6 });
+await setMasterwork(typed, "weaponBoth"); // 1d6 + 1, +1 hit
+const typedDamage = baseForTyped("damage", "1d8 + 1", deltasOf(typed));
+check("a typed damage backs the layers' delta out of the baseline", typedDamage === "1d8");
+typed._flags.pristine = { ...typed._flags.pristine, damage: typedDamage, bonus: baseForTyped("bonus", 3, deltasOf(typed)) };
+await recomputeItemFields(typed);
+check("the recompute writes back exactly what was typed", typed.system.damage === "1d8 + 1" && typed.system.bonus === 3);
+await setMasterwork(typed, "none");
+check("a later layer change keeps the typed values", typed.system.damage === "1d8" && typed.system.bonus === 2);
+check("a blank damage stays blank; a number that is not one is refused",
+  baseForTyped("damage", " ", { damage: 1 }) === "" && baseForTyped("bonus", "x", { bonus: 1 }) === null);
 
 /* --- GOLD VALUE follows the layers (the number on the sheet must move) --- */
 const priced = mockDoc("weapon", { name: "Sword", damage: "1d6", cost: 10, weight6: 6 });

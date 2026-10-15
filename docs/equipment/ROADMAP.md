@@ -42,6 +42,10 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   API each target calls; a real drag onto Contents, the disguise panel, the
   keys row and a Scene onto the band still wants a session with a compositing
   pane.
+- **A declared two-handed damage.** A weapon whose die is not its row's has no
+  two-handed figure (`twoHandedDamage`), so a Judge-made versatile weapon deals
+  the same damage in either grip. A field on the item for its two-handed damage
+  would let one be declared.
 - **Equipment numbers through the importer.** The strings and comments name the
   field and cite the page. The numbers behind them still ship in code:
   `STYLE_SPEC_BONUS`, `DUAL_WIELD_ATTACK_BONUS`, the manoeuvre table,
