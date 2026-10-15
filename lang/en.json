@@ -3971,6 +3971,7 @@
   "ACKS-HENCHMEN.recruit.notAvailable": "That candidate has not arrived yet (or is no longer available).",
   "ACKS-HENCHMEN.recruit.slanderedBlock": "That NPC refused and slandered the party — no further attempts are possible (RR 162).",
   "ACKS-HENCHMEN.recruit.info": "Offering employment to {name} (wage {wage} gp/month). Bribery proficiency: {bribery}.",
+  "ACKS-HENCHMEN.recruit.infoNoWage": "Offering employment to {name} (no wage set, so no signing bonus to offer). Bribery proficiency: {bribery}.",
   "ACKS-HENCHMEN.recruit.briberyYes": "yes (cheaper signing bonuses)",
   "ACKS-HENCHMEN.recruit.briberyNo": "no",
   "ACKS-HENCHMEN.recruit.tryAgainChat": "The candidate is reluctant. {employer} must sweeten the deal (better pay, a magic item…) to earn another roll — otherwise it counts as a refusal.",

@@ -129,6 +129,18 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    and the actor's `retainer` are untouched. Under `warn` it says the same and
    hires. Under `off` it hires and says nothing. The specialist hires under
    `block` without a word: it takes no slot.
+4b. What an offer is priced on, with the `wages` tables imported. Write three
+   candidates straight into `system.market.candidates` with no `wageGp`: kind
+   `henchman` at level 1, kind `mercenary`, kind `specialist`. Register two
+   special hires: a `character` whose sheet says `specialist` with no wage,
+   and a plain one at level 1. Open `openRecruitDialog` /
+   `openRecruitSpecial` on each for a disposable employer, and read the open
+   page's signing-bonus choices: `await app._prepareContext({})` on the
+   influence-hosted page, or the throw dialog's `signingBonus` select.
+   *Observable:* the two henchmen offer the bonus tiers priced on the
+   ladder's 1st-level wage. Both specialists and the mercenary offer only "no
+   bonus", and on the throw dialog the line says no wage is set. Close each
+   page without rolling.
 5. Wages: `payWagesFor(employer)` with a purse worth less than the wages due,
    then `payWagesFor(employer, {markMissed: true})`, then with enough, then
    with enough in coin that cannot make the wage exactly.

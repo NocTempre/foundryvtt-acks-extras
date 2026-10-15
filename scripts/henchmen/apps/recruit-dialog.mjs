@@ -52,11 +52,23 @@ export async function pickEmployer(preferred) {
   return id ? game.actors.get(id) : null;
 }
 
-/** Signing-bonus tiers priced from the wage and Bribery (RR 162 + screen). */
+/**
+ * The monthly wage an offer is priced on: the wage the hireling already
+ * states, else, for a henchman, the imported ladder's for their level. A
+ * mercenary or specialist with no stated wage has none to price on, and
+ * neither does a henchman before the ladder is imported: the answer is 0.
+ */
+function offerWage(stated, henchman, wageLevel) {
+  return Number(stated) || (henchman ? henchmanWage(wageLevel()) : 0);
+}
+
+/** Signing-bonus tiers priced from the wage and Bribery (RR 162 + screen);
+ *  with no wage to price on there are none, only "no bonus". */
 function signingSetup(employer, wage) {
   const bribery = hasBribery(employer);
   const options = [{ label: game.i18n.localize("ACKS-HENCHMEN.mod.signingBonusNone"), value: 0 }];
   const tiers = {};
+  if (!(wage > 0)) return { bribery, options, tiers };
   for (const tier of [1, 2, 3]) {
     const cost = signingBonusCost(tier, wage, bribery);
     if (!cost) continue;
@@ -117,7 +129,7 @@ async function launchOffer({ location, employer, offer }) {
     },
     dynamicModifiers: toDialogModifiers(collectEffectModifiers(employer, "hiring")),
     optionLabels,
-    infoText: game.i18n.format("ACKS-HENCHMEN.recruit.info", {
+    infoText: game.i18n.format(offer.wage > 0 ? "ACKS-HENCHMEN.recruit.info" : "ACKS-HENCHMEN.recruit.infoNoWage", {
       name: offer.name,
       wage: offer.wage,
       bribery: signing.bribery
@@ -163,7 +175,9 @@ export async function openRecruitDialog(location, candidateId, preferredEmployer
     offer: {
       candidateId,
       name: candidate.name,
-      wage: Number(candidate.wageGp) || 12,
+      // A candidate is a henchman unless it was rolled as a mercenary or a
+      // specialist, as `hire` reads the same kind.
+      wage: offerWage(candidate.wageGp, !["mercenary", "specialist"].includes(candidate.kind), () => candidate.level ?? 0),
       refusals: (candidate.refusals ?? []).length,
     },
   });
@@ -188,7 +202,10 @@ export async function openRecruitSpecial(location, specialHireId, preferredEmplo
   }
   const doc = await fromUuid(entry.actorUuid).catch(() => null);
   const target = doc?.actor ?? doc;
-  const wage = Number(target?.system?.retainer?.wage) || henchmanWage(adapter.getWageLevel(target ?? {}));
+  // The hire keeps the actor's own category, and a monster serves as a
+  // henchman (`hireExistingActor`); the offer is priced the same way.
+  const henchman = target?.type === ACTOR_TYPE.monster || (target?.system?.retainer?.category ?? "henchman") === "henchman";
+  const wage = offerWage(target?.system?.retainer?.wage, henchman, () => adapter.getWageLevel(target ?? {}));
   await launchOffer({
     location,
     employer,
