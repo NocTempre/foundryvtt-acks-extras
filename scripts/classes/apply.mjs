@@ -502,7 +502,7 @@ export async function applyClass(
   const grants = [];
   if (grantAwards) {
     await grantAdventuring(actor, grants);
-    for (const a of owed.fixed) await grantAbility(actor, a.ref, grants);
+    for (const a of owed.fixed) await grantAbility(actor, a.ref, grants, { upTo: a.copies });
     // "Already on the sheet" closes its rung without materializing anything,
     // and a ref the character already holds materializes nothing either —
     // `grantAbility` declines it — so a rung answered truthfully costs no item.

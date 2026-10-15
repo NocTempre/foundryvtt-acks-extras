@@ -516,9 +516,18 @@ The wizard rolls HP per the world setting (RAW default: reroll the full Hit
 Dice, Constitution per die and never on the printed flat bonus past 9th,
 minimum one over the old maximum), lists the new level's fixed awards, opens
 a rung control per choice award ([picks.mjs](../../scripts/classes/picks.mjs)),
-then grants the abilities (deduped by cookbook ref), writes HP, applies the
-class row for the new level **carrying the keys of the rungs it closed**, and
-posts a chat summary.
+then applies the class row for the new level **carrying the keys of the rungs
+it closed**, and only once that lands grants the abilities, writes HP with the
+maximum on each side of the climb (`classes.hpAt`), and posts a chat summary.
+A fixed award is owed per rung: the Nth rung printing a ref owes the Nth copy.
+One wizard per character is open at a time, and one whose character's level
+moved while it was open applies nothing.
+
+`guardLevelWrite` runs before every write to a bound character's experience or
+level (DECISIONS 2026-10-15). A gain stops one short of the threshold two
+levels up unless the write also sets the level or passes `uncappedXp()`; a
+lowered level releases the rung keys above it, clears the ready notice and
+restores the recorded maximum for the new level. Abilities stay on the sheet.
 
 ## Chargen
 

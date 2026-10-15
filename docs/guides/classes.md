@@ -144,6 +144,20 @@ picker on their own sheet — the button is theirs whenever they own the
 character — and answer their own. Re-applying rewrites the injected **Class
 modifiers** effects, so hand-edits to that block do not survive it.
 
+**One award climbs one level.** Experience added to a character bound to a class
+— typed into either sheet, dealt from the party sheet or the formation — stops
+one point short of the level after next, and a notice says how much was not
+recorded (RR ch. 6, experience from adventuring). Setting the level at the same
+time (the picker) sets the experience with it, and a successor started from the
+player's legacy fund keeps all of theirs, climbing one press at a time.
+
+**Lowering a level undoes what the climbs above it settled.** Type a lower level
+and the choices those levels asked are asked again at the next level-up — what
+the character still holds is listed first, and answering with it grants nothing
+— and hit points return to the maximum the character had at that level, when the
+level-up wizard recorded one. Abilities those levels granted stay on the sheet:
+delete them by hand if the lost level should take them.
+
 Casters get a per-tradition slot strip under the class field — click a pip to
 spend, click a spent pip to refund, the bed icon to rest. The Nobiran's
 arcane and divine pools sit side by side.

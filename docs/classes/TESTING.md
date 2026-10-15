@@ -714,6 +714,58 @@ injects on ownership, not on GM.
 **Teardown.** `api.sweepTracked()` — the class Item and both actors are the
 run's own.
 
+## Level-up safety: the one-level cap, a lowered level, a repeated rung
+
+**Fixtures (Assistant GM seat is enough; every id recorded).** One disposable
+`character`, bound at 1st through `applyClass(actor, cls, {level: 1, confirm:
+false, rebuildVitals: true, grantAwards: true})` to a cookbook class whose
+ladder prints one ability at two rungs — the Bard (an ability at 1st and again
+at 3rd) is the quick case, since its second copy lands on the second climb.
+
+**Drive mechanics.** The guard runs on the WRITING client, so the checks drive
+real writes from the seat under test, never a mocked hook:
+
+- *Core's award.* `actor.getExperience(n)` is the call both the party sheet and
+  Deal XP make.
+- *The sheet's fields.* Open the module sheet by class name —
+  `Object.values(CONFIG.Actor.sheetClasses.character).find(e => e.cls?.name ===
+  "AcksCharacterSheet").cls` (the first `acks-extras.` key is the follower card,
+  not the character sheet) — set `tabGroups.primary = "class"` and render, then
+  set the `system.details.xp.value` or `system.details.level` input and
+  dispatch a bubbling `change`. The form submits EVERY field, so the write
+  carries the unchanged level and hit points beside the one you edited; that is
+  the shape the guard has to read correctly.
+- *The wizard.* `openLevelUp(actor)` resolves when it closes: fire it, find the
+  new DialogV2 holding `.acks-extras-classes-levelup-body`, set each
+  `choice-<n>` select, click `button[data-action="ok"]`, then await it. Held
+  options sit in the optgroup labelled *Already on the sheet*.
+
+**Steps → observable.**
+1. `getExperience` far past the class's 3rd-level threshold. *Experience reads
+   one short of it, and a toast names the amount not recorded.*
+2. Climb to 2nd, then type an experience past the 4th-level threshold into the
+   sheet. *It stops one short of it; the Level up button shows (one level is
+   owed), and after that climb the experience is under the next threshold, so
+   the button is gone.*
+3. The climb to 3rd lists the repeated ability under *Granted*. *The actor
+   holds two copies.*
+4. Type the level back to 2 on the sheet. *`hp.max` returns to what the climb
+   to 3rd recorded for 2nd, current hit points capped beneath it; the 3rd-level
+   rung key leaves `flags["acks-extras"].classes.awardsTaken`; `notifiedLevel`
+   is null; abilities are untouched.*
+5. Climb to 3rd again, answering the rung with the held option. *The rung is
+   asked again with the held pick first; no item is created and the repeated
+   ability stays at two copies; the hit-point floor reads from the restored
+   maximum.*
+6. Call `openLevelUp` twice in one breath, then raise the level by API before
+   pressing the open wizard's button. *One dialog opens; pressing it applies
+   nothing and warns that the level moved.*
+
+**Not reached by this walk.** The legacy start's exemption (`uncappedXp()`)
+needs a player with a fund; it is pinned offline in `tools/test-classes.mjs`.
+
+**Teardown.** `api.sweepTracked()` — the character is the run's only document.
+
 ## The language upgrade
 
 `language-migration.mjs` retypes a world's imported language abilities to the

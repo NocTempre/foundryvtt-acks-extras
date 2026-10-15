@@ -38,17 +38,27 @@ const nameKey = (doc) => String(doc?.name ?? "").trim().toLowerCase();
  * item, and the dedupe never knew it."
  */
 export function ownsRef(actor, ref) {
-  if (!ref) return false;
-  if (actor.items.some((i) => refOf(i) === ref || grantedFrom(i) === ref)) return true;
-  const source = findByRef(ref);
-  if (!source) return false;
-  const key = nameKey(source);
-  return actor.items.some((i) => i.type === source.type && nameKey(i) === key);
+  return heldCount(actor, ref) > 0;
 }
 
-/** Create one granted ability on the actor from a world item ref. */
-export async function grantAbility(actor, ref, grants) {
-  if (!ref || ownsRef(actor, ref)) return;
+/** How many copies of the ability carrying this ref the actor holds, each
+ *  recognised the way `ownsRef` recognises one. */
+export function heldCount(actor, ref) {
+  if (!ref) return 0;
+  const source = findByRef(ref);
+  const key = source ? nameKey(source) : null;
+  return actor.items.filter(
+    (i) => refOf(i) === ref || grantedFrom(i) === ref || (!!source && i.type === source.type && nameKey(i) === key),
+  ).length;
+}
+
+/**
+ * Create one granted ability on the actor from a world item ref, unless the
+ * actor already holds `upTo` copies of it — a ref the ladder prints at several
+ * rungs owes one more copy at each.
+ */
+export async function grantAbility(actor, ref, grants, { upTo = 1 } = {}) {
+  if (!ref || heldCount(actor, ref) >= upTo) return;
   const source = findByRef(ref);
   if (!source) {
     grants.push({ ref, name: ref, missing: true });
@@ -219,25 +229,50 @@ export function optionsForChoice(choice, classItem, { level = null } = {}) {
  */
 export const awardKey = (award, index) => `${index}:${award.atLevel ?? 1}`;
 
+/** The level an `awardKey` was minted for, or null for a key of another shape. */
+export const awardKeyLevel = (key) => {
+  const level = Number(String(key ?? "").split(":")[1]);
+  return Number.isFinite(level) ? level : null;
+};
+
 /** Every rung of the ladder, each carrying the key it is remembered by. The key
  *  is positional, so it is taken from the FULL list — a caller that filters to
- *  one level must filter these rather than index its own slice. */
-const keyedAwards = (classItem) =>
-  (classItem.system.awards ?? []).map((award, index) => ({ award, key: awardKey(award, index) }));
+ *  one level must filter these rather than index its own slice. A fixed rung
+ *  also carries `copy`: the Nth rung printing its ref, counted by level and
+ *  then by position, owes the Nth copy of it. */
+const keyedAwards = (classItem) => {
+  const awards = classItem.system.awards ?? [];
+  const at = (award) => award.atLevel ?? 1;
+  return awards.map((award, index) => ({
+    award,
+    key: awardKey(award, index),
+    copy:
+      1 +
+      awards.filter(
+        (other, j) =>
+          award.kind === "fixed" &&
+          other.kind === "fixed" &&
+          other.ref === award.ref &&
+          (at(other) < at(award) || (at(other) === at(award) && j < index)),
+      ).length,
+  }));
+};
 
 /**
  * Split a set of rungs into what would actually land.
  *
- * A fixed award whose ability the character already carries is dropped, and a
- * choice rung already answered (`seen`) is not asked twice — so re-applying a
- * class, which is how a character collects what they were owed, adds what is
- * missing instead of handing out a second set.
+ * A fixed award is dropped while the character already holds as many copies
+ * of its ability as its rung owes, and a choice rung already answered (`seen`)
+ * is not asked twice — so re-applying a class, which is how a character
+ * collects what they were owed, adds what is missing instead of handing out a
+ * second set. Each fixed award carries `copies`, the count `grantAbility`
+ * grants up to.
  */
 function splitOwed(actor, rungs, seen) {
   const fixed = rungs
     .filter(({ award }) => award.kind === "fixed" && award.ref)
-    .filter(({ award }) => !ownsRef(actor, award.ref))
-    .map(({ award }) => award);
+    .filter(({ award, copy }) => heldCount(actor, award.ref) < copy)
+    .map(({ award, copy }) => ({ ...award, copies: copy }));
   const choices = rungs
     .filter(({ award, key }) => award.kind === "choice" && award.choice && !seen.has(key))
     .map(({ award, key }) => ({ ...award, key }));

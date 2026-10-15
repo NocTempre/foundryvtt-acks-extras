@@ -3,6 +3,59 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-10-15 — a gain stops at one level, and a lowered level reopens what the climbs above it closed
+
+**Reported (user):** "leveling up with xp does not stop at level +2 -1xp (can't
+double level in one go)", then "leveling down … bugs up the grant when leveling
+back up", and general level-up safety. Reproduced live on a 1st-level Bard:
+core's `getExperience(100000)` stored all of it, and the wizard climbed 1→2→3→4
+one press at a time on the same experience. Nothing anywhere applied RR ch. 6's
+limit on what one adventure can earn.
+
+**Ruled: the cap is a write guard, not a surface's.** `guardLevelWrite`
+(`preUpdateActor`, the writing client only) cuts any experience gain back to
+one short of the threshold two levels above the level held, and tells the
+writer how much was kept off. One guard covers both sheets' fields, core's
+award (which the party sheet and Deal XP both call) and the API. Two kinds of
+write are exempt: one that sets the level too (the picker, chargen, a sheet
+import set the experience that goes with it), and one passing `uncappedXp()` —
+a successor's start from the legacy fund, which is not an award and which the
+wizard is meant to climb as far as it reaches. Experience already past the
+ceiling is never reduced.
+
+**Rejected: clamping in the wizard.** It would have been the smallest change
+and it breaks the legacy start, whose whole point is several climbs on one
+grant. Capping the gain leaves the wizard one level per press and needs no
+exception there.
+
+**A lowered level reopens what the climbs above it closed.** Lowering the level
+by hand left `awardsTaken` holding the rungs above it, so the re-climb asked
+nothing — and a player who had deleted the higher picks to undo the climb could
+never be asked them again, by the wizard or by the picker. It also left the
+higher level's hit points, so the re-climb's floor ("at least one over the old
+maximum") ratcheted the total up on every cycle. Now a lowering releases the
+keys above the new level, clears the ready notice, and restores the maximum the
+character held there where a climb recorded it (`classes.hpAt`, written by the
+wizard on both sides of each climb; a level set together with a rebuilt maximum
+replaces the record).
+
+**Rejected: deleting what the higher rungs granted.** A level field is not a
+place a character's items may vanish from. They stay; the reopened rung offers
+the held option first, and answering with it grants nothing.
+
+**Also found and fixed:** a ladder printing one ability at two rungs (a Bard's
+Jack of All Trades II, a Warlock's Dark Path II — four classes in the
+cookbook) never granted the second copy, because every grant deduped by ref.
+The Nth rung printing a ref now owes the Nth copy (`heldCount`, `copies`).
+The wizard writes its level first and grants only once that write lands,
+refuses to apply when the level moved while it was open, and opens once per
+character.
+
+**Cost:** characters climbed before this release have no `hpAt`, so their
+first lowering leaves hit points as they are. Experience already past the
+ceiling stays until a Judge corrects it. A form submits every field, so the
+guard reads a level or maximum equal to the held one as not written.
+
 ## 2026-09-10 — a package lands beside its class
 
 **Reported (user):** "the class templates items, class templates roll tables

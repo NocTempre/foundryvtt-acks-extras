@@ -272,6 +272,8 @@
   "ACKS-CLASSES.levelup.tooltip": "Level up",
   "ACKS-CLASSES.levelup.noClass": "{name} is not bound to a class document.",
   "ACKS-CLASSES.levelup.atCap": "{name} is at the class maximum (level {max}).",
+  "ACKS-CLASSES.levelup.capped": "{name}'s experience stops at {xp}: {lost} XP was not recorded (RR ch. 6, experience from adventuring).",
+  "ACKS-CLASSES.levelup.moved": "{name} is now level {level}, so this level-up was not applied.",
   "ACKS-CLASSES.settings.levelUpHpMode.name": "Level-up hit points",
   "ACKS-CLASSES.settings.levelUpHpMode.hint": "RAW rerolls the full Hit Dice for the new level (Constitution per die, never on the flat bonus past 9th) and keeps at least one point over the old maximum. Additive rolls one new die instead.",
   "ACKS-CLASSES.settings.levelUpHpMode.raw": "Reroll full Hit Dice (RAW)",

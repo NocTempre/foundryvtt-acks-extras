@@ -1537,4 +1537,178 @@ test("a path option's CSV training normalizes on submit and flows into the path 
   assert.deepEqual(changes, [{ key: TRAINING_KEYS.weapons, type: "add", value: "dagger,sling", priority: 20 }]);
 });
 
+/* ------------- level-up safety: the one-level cap, level down ------------- */
+
+const { xpCeiling, capXpGain, guardLevelWrite, uncappedXp } = await import("../scripts/classes/levelup.mjs");
+const { awardKeyLevel, heldCount } = await import("../scripts/classes/grants.mjs");
+
+/** An invented experience schedule: `nextXp(n)` is what reaching n + 1 takes. */
+const SCHEDULE = { maximumLevel: 5, nextXp: (n) => ({ 1: 100, 2: 200, 3: 400, 4: 800 })[n] ?? null };
+
+test("an award stops one point short of the level after next", () => {
+  assert.equal(xpCeiling(SCHEDULE, 1), 199);
+  assert.equal(xpCeiling(SCHEDULE, 3), 799);
+  // Near the top no second level is left to skip.
+  assert.equal(xpCeiling(SCHEDULE, 4), null);
+  assert.deepEqual(capXpGain(0, 1000, 199), { value: 199, lost: 801 });
+  assert.deepEqual(capXpGain(0, 150, 199), { value: 150, lost: 0 });
+  // A gain on experience already past the ceiling adds nothing and takes nothing.
+  assert.deepEqual(capXpGain(300, 400, 199), { value: 300, lost: 100 });
+  // Lowering is never capped.
+  assert.deepEqual(capXpGain(300, 250, 199), { value: 250, lost: 0 });
+  assert.deepEqual(capXpGain(0, 1000, null), { value: 1000, lost: 0 });
+});
+
+test("an award key names the level it was minted for", () => {
+  assert.equal(awardKeyLevel("10:3"), 3);
+  assert.equal(awardKeyLevel("0:1"), 1);
+  assert.equal(awardKeyLevel("legacy"), null);
+});
+
+/** A ladder printing one ability at two rungs — a second copy owed at 3rd. */
+const RANKED = {
+  system: {
+    awards: [
+      { atLevel: 1, kind: "fixed", ref: "def.power.knack", name: "Knack" },
+      { atLevel: 3, kind: "fixed", ref: "def.power.knack", name: "Knack" },
+      { atLevel: 3, kind: "fixed", ref: "def.power.other", name: "Other" },
+    ],
+  },
+};
+
+test("a ref printed at a second rung owes a second copy, and only that", () => {
+  const one = { items: [stamped("def.power.knack")] };
+  const two = { items: [stamped("def.power.knack"), stamped("def.power.knack")] };
+  assert.equal(heldCount(two, "def.power.knack"), 2);
+  assert.deepEqual(
+    awardsAt(one, RANKED, 3).fixed.map((a) => [a.ref, a.copies]),
+    [["def.power.knack", 2], ["def.power.other", 1]],
+  );
+  assert.deepEqual(awardsAt(two, RANKED, 3).fixed.map((a) => a.ref), ["def.power.other"]);
+  // The whole ladder at 3rd owes both copies to a character holding none.
+  assert.deepEqual(
+    awardsThrough({ items: [] }, RANKED, 3).fixed.map((a) => [a.ref, a.copies]),
+    [["def.power.knack", 1], ["def.power.knack", 2], ["def.power.other", 1]],
+  );
+  assert.deepEqual(awardsThrough(one, RANKED, 1).fixed, []);
+});
+
+/* The guard reads the bound class through the registry, so the world lookup
+ * answers one invented class here, and the toast and its wording are caught. */
+const GUARD_CLASS = { type: CLASS_TYPE, documentName: "Item", name: "Probe", system: SCHEDULE };
+const toasts = [];
+const guarded = (fn) => {
+  const lookup = globalThis.fromUuidSync;
+  const savedUi = globalThis.ui;
+  const savedI18n = globalThis.game.i18n;
+  globalThis.fromUuidSync = (uuid) => (uuid === "Item.probeClass" ? GUARD_CLASS : null);
+  globalThis.ui = { notifications: { info: (m) => toasts.push(m) } };
+  globalThis.game.i18n = { format: (key, data) => `${key} ${JSON.stringify(data)}` };
+  toasts.length = 0;
+  try {
+    fn();
+  } finally {
+    globalThis.fromUuidSync = lookup;
+    globalThis.ui = savedUi;
+    globalThis.game.i18n = savedI18n;
+  }
+};
+const boundAt = (level, xp, flag = {}, hp = { max: 14, value: 10 }) => ({
+  type: "character",
+  name: "Probe",
+  system: { details: { level, xp: { value: xp } }, hp },
+  getFlag: (scope, key) => (scope === "acks-extras" && key === "classes" ? { uuid: "Item.probeClass", ...flag } : undefined),
+});
+const flagOf = (changes) => changes.flags?.["acks-extras"]?.classes ?? {};
+
+test("a write raising experience past the ceiling is cut back, whatever surface made it", () => {
+  guarded(() => {
+    const typed = { system: { details: { xp: { value: 1000 } } } };
+    guardLevelWrite(boundAt(1, 0), typed, {});
+    assert.equal(typed.system.details.xp.value, 199);
+    assert.equal(toasts.length, 1);
+    // A form submits the unchanged level beside the new experience; it sets nothing.
+    const submitted = { system: { details: { level: 1, xp: { value: 1000 } } } };
+    guardLevelWrite(boundAt(1, 0), submitted, {});
+    assert.equal(submitted.system.details.xp.value, 199);
+  });
+});
+
+test("a write that sets the level, or opts out, keeps its experience", () => {
+  guarded(() => {
+    const picker = { system: { details: { level: 3, xp: { value: 400 } } } };
+    guardLevelWrite(boundAt(1, 0), picker, {});
+    assert.equal(picker.system.details.xp.value, 400);
+    const successor = { system: { details: { xp: { value: 5000 } } } };
+    guardLevelWrite(boundAt(1, 0), successor, uncappedXp());
+    assert.equal(successor.system.details.xp.value, 5000);
+    // An actor bound to nothing has no schedule to cap against.
+    const unbound = { system: { details: { xp: { value: 5000 } } } };
+    guardLevelWrite({ ...boundAt(1, 0), getFlag: () => undefined }, unbound, {});
+    assert.equal(unbound.system.details.xp.value, 5000);
+    assert.equal(toasts.length, 0);
+  });
+});
+
+test("lowering a level reopens the rungs above it and puts back the maximum a climb recorded", () => {
+  guarded(() => {
+    const flag = {
+      awardsTaken: ["1:1", "3:3", "5:4", "legacy"],
+      notifiedLevel: 3,
+      hpAt: [{ level: 1, max: 6 }, { level: 2, max: 9 }, { level: 3, max: 12 }, { level: 4, max: 14 }],
+    };
+    const typed = { system: { details: { level: 2 } } };
+    guardLevelWrite(boundAt(4, 900, flag), typed, {});
+    assert.deepEqual(flagOf(typed).awardsTaken, ["1:1", "legacy"]);
+    assert.equal(flagOf(typed).notifiedLevel, null);
+    assert.equal(typed.system.hp.max, 9);
+    assert.equal(typed.system.hp.value, 9, "current hit points are capped beneath the restored maximum");
+    assert.deepEqual(flagOf(typed).hpAt, [{ level: 1, max: 6 }, { level: 2, max: 9 }]);
+    // Experience is left as it was; lowering is not an award.
+    assert.equal(typed.system.details.xp, undefined);
+    // A sheet submits every field: the maximum it already holds rides along
+    // unchanged and must not read as a rebuilt one.
+    const submitted = { system: { details: { level: 2, xp: { value: 900 } }, hp: { max: 14, value: 10 } } };
+    guardLevelWrite(boundAt(4, 900, flag), submitted, {});
+    assert.equal(submitted.system.hp.max, 9);
+    assert.deepEqual(flagOf(submitted).hpAt, [{ level: 1, max: 6 }, { level: 2, max: 9 }]);
+  });
+});
+
+test("a level set with a rebuilt maximum keeps that maximum and starts the record over", () => {
+  guarded(() => {
+    const flag = { awardsTaken: ["1:1", "3:3"], hpAt: [{ level: 2, max: 9 }, { level: 3, max: 12 }] };
+    const picker = {
+      system: { details: { level: 2, xp: { value: 199 } }, hp: { max: 7, value: 7 } },
+      flags: { "acks-extras": { classes: { awardsTaken: ["1:1", "3:3", "2:2"] } } },
+    };
+    guardLevelWrite(boundAt(3, 400, flag), picker, {});
+    assert.equal(picker.system.hp.max, 7);
+    assert.deepEqual(flagOf(picker).awardsTaken, ["1:1", "2:2"]);
+    assert.deepEqual(flagOf(picker).hpAt, [{ level: 2, max: 7 }]);
+    const raised = { system: { details: { level: 5 }, hp: { max: 30, value: 30 } } };
+    guardLevelWrite(boundAt(3, 400, flag), raised, {});
+    assert.deepEqual(flagOf(raised).hpAt, [{ level: 5, max: 30 }]);
+    assert.equal(flagOf(raised).awardsTaken, undefined, "raising a level reopens nothing");
+  });
+});
+
+test("a lowered level with no record leaves hit points alone", () => {
+  guarded(() => {
+    const typed = { system: { details: { level: 2 } } };
+    guardLevelWrite(boundAt(4, 900, {}), typed, {});
+    assert.equal(typed.system.hp, undefined);
+  });
+});
+
+test("the wizard writes its level before anything else, and the successor's start is uncapped", () => {
+  const src = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
+  const body = src.slice(src.indexOf("async function runLevelUp"));
+  assert.ok(body.indexOf("applyClass(") < body.indexOf("grantAbility("), "no grant lands before the level does");
+  assert.match(body, /if \(!applied\?\.applied\) return;/);
+  assert.match(src, /Hooks\.on\("preUpdateActor", guardLevelWrite\)/);
+  const legacy = readFileSync(new URL("../scripts/classes/legacy.mjs", import.meta.url), "utf8");
+  assert.match(legacy, /"system\.details\.xp\.value": result\.xp \}, uncappedXp\(\)\)/);
+});
+
 console.log(`test-classes: ${passed} assertion groups passed.`);

@@ -14,6 +14,7 @@ import { gmIds, makeLoc } from "../lib/util.mjs";
 import { spendGold } from "../henchmen/acks-adapter.mjs";
 import { payIntoVault } from "../location/vault-sweep.mjs";
 import { EXPERIENCE_DOC } from "./xp-bonus.mjs";
+import { uncappedXp } from "./levelup.mjs";
 import { LEGACY_KIND, legacyTotals, settleEstate, startingXp, xpForGp } from "./legacy-logic.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
@@ -144,7 +145,9 @@ export async function startFromLegacy(actor, prior) {
     const current = Number(actor.system?.details?.xp?.value) || 0;
     // Nothing to raise: refuse whole, so no funeral is claimed for a start that gave nothing.
     if (result.xp <= current) return refuse("nothingToGrant", { name: actor.name, xp: current, grant: result.xp });
-    await actor.update({ "system.details.xp.value": result.xp });
+    // A successor's starting experience is not an adventure's award, so the
+    // one-level cap does not reach it; the level-up wizard climbs it.
+    await actor.update({ "system.details.xp.value": result.xp }, uncappedXp());
     const claims = new Set(result.claims);
     ledger.entries = (ledger.entries ?? []).map((e) => (claims.has(e.id) ? { ...e, claimedBy: { uuid: actor.uuid, name: actor.name } } : e));
     ledger.starts = [...(ledger.starts ?? []), { actorUuid: actor.uuid, actorName: actor.name, priorName: prior.name, xp: result.xp, capped: result.capped, at: now() }];
