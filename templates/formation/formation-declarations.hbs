@@ -90,7 +90,7 @@
             </select>
           </label>
           <label>{{localize "ACKS-FORMATION.travel.weather.season"}}
-            <select name="travel.weather.season">
+            <select name="travel.weather.season" {{#if travel.weather.seasonFromCalendar}}disabled data-tooltip="{{travel.weather.seasonHint}}"{{/if}}>
               {{#each travel.weather.seasons}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
             </select>
           </label>
@@ -107,6 +107,9 @@
             <i class="fa-solid fa-cloud-sun-rain"></i> {{localize "ACKS-FORMATION.travel.weather.generate"}}
           </button>
         </div>
+        {{#if travel.weather.seasonFromCalendar}}
+        <p class="hint acks-extras-formation-travel-weather-season">{{travel.weather.seasonHint}}</p>
+        {{/if}}
         {{#unless travel.weather.ready}}
         <p class="hint acks-extras-formation-travel-weather-missing">{{localize "ACKS-FORMATION.travel.weather.missing"}}</p>
         {{/unless}}

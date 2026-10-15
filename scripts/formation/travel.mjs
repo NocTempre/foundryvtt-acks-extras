@@ -32,7 +32,7 @@
 import { MODULE_ID } from "../lib/constants.mjs";
 import { patchFormation, getFormation, getFormations, getPartyToken, realMembers, getMemberActor, hasAbility } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
-import { mayAdvanceWorldTime, untilNextDawn } from "../lib/world-time.mjs";
+import { mayAdvanceWorldTime, untilNextDawn, calendarDay, calendarSeason } from "../lib/world-time.mjs";
 import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
 import { isExpeditionScale } from "../lib/distance-units.mjs";
 import { paintedTerrainAt, hexLabelFromOffset, isHexScene } from "../battlemap/terrain-paint.mjs";
@@ -44,12 +44,14 @@ import {
   CLIMATES,
   PRECIPITATION_KINDS,
   SEASONS,
+  SETTING_SEASON_MAP,
   TEMPERATURE_BANDS,
   WIND_BANDS,
   advanceGround,
   conditionsOf,
   freshFooting,
   generateDay,
+  seasonKeyFor,
   terrainMudProne,
 } from "./weather.mjs";
 
@@ -96,7 +98,7 @@ export { ROAD_KINDS } from "../vehicles/vehicle-speed.mjs";
 import { ROAD_KINDS, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 import { settlementOf, reenterSettlement, carryStay, sceneStamp, HOUR_MODES } from "./settlement.mjs";
 import { withHunt } from "./hunt.mjs";
-import { skyFor, readSkyCache, priorSky } from "./sky.mjs";
+import { skyFor, skyFrom, readSkyCache, writeSkyCache, priorSky } from "./sky.mjs";
 import { runProvisionDay } from "./provision-day.mjs";
 import { forcedMarchBar, warnForcedMarchBarred, announceBarOverridden } from "./march-bar.mjs";
 import { postNavigationThrow } from "./navigation-card.mjs";
@@ -793,9 +795,11 @@ export function navigationCompetence(formation) {
  * table. Otherwise the target is the terrain's, from the imported
  * `gettingLost` row, and a null target means UNIMPORTED, never "no target".
  *
- * This deliberately stops short of the consequence. What a failure DOES to the
- * party's position is an open ruling (`docs/vehicles/DECISIONS.md`), and this
- * returns only what can be decided without it.
+ * This deliberately stops short of the consequence. What a failure does is the
+ * Lost ruling (`docs/formation/DECISIONS.md`, 2026-08-29, "Lost: the players
+ * hold the reckoning"): the throw reports, the Judge opens the episode by
+ * hand, and a success restores no position. This returns only what is decided
+ * before the dice.
  */
 export function landNavigationSpec(formation) {
   const t = travelOf(formation);
@@ -978,6 +982,147 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
   return result;
 }
 
+/** The world's season mapping, "" while unregistered or unset. */
+function seasonMapSetting() {
+  try {
+    return String(game.settings.get(MODULE_ID, SETTING_SEASON_MAP) ?? "");
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * The generator season in force for a party: the calendar's season, when the
+ * calendar declares one and it maps (`seasonKeyFor`), else the season the party
+ * declared. One shape for every reader — the key the sky is cached under, the
+ * day change that settles it, and the sheet that shows it.
+ * @param {object} travel  a `travelOf` result
+ * @returns {{season: string, fromCalendar: boolean, calendarName: string}}
+ *   `calendarName` is the calendar season's localized name when `fromCalendar`.
+ */
+export function effectiveSeason(travel) {
+  const reading = calendarSeason();
+  if (reading) {
+    const labels = Object.fromEntries(SEASONS.map((s) => [s, game.i18n.localize(`ACKS-FORMATION.travel.weather.seasons.${s}`)]));
+    const key = seasonKeyFor(reading, { map: seasonMapSetting(), keys: SEASONS, labels });
+    if (key) return { season: key, fromCalendar: true, calendarName: reading.name };
+  }
+  return { season: travel?.weather?.season ?? "spring", fromCalendar: false, calendarName: "" };
+}
+
+/**
+ * The sky cache key for a party's ground on a day: the calendar day the world
+ * clock stands in, or — only where the clock keeps no calendar — the End-day
+ * counter. `dayCount` keeps numbering the log; it is not the sky's identity.
+ */
+function skyParams(t, season, day = calendarDay() ?? t.dayCount) {
+  return { day, climate: t.weather.climate, season };
+}
+
+/** The last calendar day a party's weather was settled, or null when none was recorded. */
+function settledDayOf(weather) {
+  const n = weather?.settledDay == null ? NaN : Math.floor(Number(weather.settledDay));
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Settle one formation across a change of calendar day: the ground takes each
+ * finished day's weather, and with the generator on, each new day's sky is
+ * read from (or rolled into) the shared cache.
+ *
+ * The formation's `weather.settledDay` is the last day settled. Absent, it is
+ * stamped with `today` and nothing is paid back; at or past `today` it is a
+ * no-op, so a clock that is dragged or a hook that fires twice settles once.
+ * Only a formation in journey mode is settled — any other is stamped, so one
+ * that enters journey mode later does not back-pay. Each crossed day runs in
+ * order against ONE local copy of the cache, which is written once; the
+ * formation takes one patch.
+ *
+ * `counter` is the calendar-less path: End day settles the single day it
+ * names, in any mode, and neither reads nor writes the watermark (a counter and
+ * a calendar day must never meet in it).
+ * @returns {Promise<boolean>} whether the formation was settled
+ */
+export async function settleDayChange(formationId, today, { counter = false } = {}) {
+  const day = Math.floor(Number(today));
+  const record = getFormation(formationId);
+  if (!record || !Number.isFinite(day)) return false;
+  const t = travelOf(record);
+  const settled = settledDayOf(t.weather);
+  if (!counter && settled != null && day <= settled) return false;
+  if (!counter && (settled == null || t.mode !== "journey")) {
+    await patchFormation(formationId, (rec) => {
+      const cur = travelOf(rec);
+      rec.travel = { ...cur, weather: { ...cur.weather, settledDay: day } };
+    });
+    return false;
+  }
+
+  const { climate, fronts, auto } = t.weather;
+  const season = effectiveSeason(t).season;
+  const mudProne = terrainMudProne(t.ground);
+  const cache0 = readSkyCache();
+  let cache = cache0;
+  let footing = t.weather.footing;
+  let bands = {
+    temperature: t.weather.temperature,
+    temperatureNight: t.weather.temperatureNight,
+    precipitation: t.weather.precipitation,
+    wind: t.weather.wind,
+    rolls: t.weather.rolls,
+  };
+  for (let d = counter ? day : settled + 1; d <= day; d++) {
+    // The finished day's bands settle onto the ground first; the new day's sky
+    // is read after, so it governs the NEXT settling.
+    const { mud, snow, runs } = advanceGround(footing, {
+      temperature: bands.temperature,
+      precipitation: bands.precipitation,
+      mudProne,
+    });
+    footing = { mud, snow, runs };
+    if (!auto) continue;
+    const params = { day: d, climate, season };
+    const prior = fronts ? (priorSky(cache, params)?.rolls ?? bands.rolls) : null;
+    const read = skyFrom(cache, params, () => generateDay({ climate, season, prior, fronts: !!fronts }));
+    cache = read.cache;
+    if (read.sky?.ok) {
+      const { temperature, temperatureNight, precipitation, wind, rolls } = read.sky;
+      bands = { temperature, temperatureNight, precipitation, wind, rolls };
+    }
+  }
+  if (cache !== cache0) await writeSkyCache(cache, day);
+  const result = await patchFormation(formationId, (rec) => {
+    const cur = travelOf(rec);
+    if (!counter && (settledDayOf(cur.weather) ?? -Infinity) >= day) return false;
+    const weather = { ...cur.weather, footing, ...(auto ? bands : {}) };
+    if (!counter) weather.settledDay = day;
+    rec.travel = { ...cur, weather };
+  });
+  return !!result;
+}
+
+/** Settles run one at a time, so two clock steps in quick succession read the watermark in turn. */
+let settling = Promise.resolve();
+
+/**
+ * Settle every formation across a change of calendar day (`settleDayChange`),
+ * one at a time and each in its own guard, so one formation's failure does not
+ * stop the rest.
+ */
+export function settleAllOnDayChange(today) {
+  const run = settling.then(async () => {
+    for (const formation of Object.values(getFormations())) {
+      try {
+        await settleDayChange(formation.id, today);
+      } catch (err) {
+        console.error(`${MODULE_ID} | the day change could not settle ${formation.id}`, err);
+      }
+    }
+  });
+  settling = run.catch(() => {});
+  return run;
+}
+
 /**
  * The Judge rolls the sky on demand — the journey's first morning, or a
  * result worth re-rolling. An on-demand roll is a fresh sky, never a front:
@@ -986,18 +1131,20 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
  * already names the missing document.
  */
 export async function rollWeatherNow(formationId) {
-  // The sky is shared: two parties in one climate on one day read a single
-  // roll, and re-rolling the same day is a cache hit rather than new weather.
+  // The sky is shared: two parties in one climate on one calendar day read a
+  // single roll, and re-rolling the same day is a cache hit rather than new
+  // weather.
   const record0 = getFormation(formationId);
   const t0 = travelOf(record0 ?? {});
-  const params = { day: t0.dayCount, climate: t0.weather.climate, season: t0.weather.season };
-  const cache = readSkyCache();
-  const prior = t0.weather.fronts ? priorSky(cache, params) : null;
+  const season = effectiveSeason(t0).season;
+  const params = skyParams(t0, season);
+  // No prior and no drift, whatever the fronts toggle says: the drift belongs
+  // to the day change (`settleDayChange`), and this roll replaces today.
   const { sky: gen } = await skyFor(params, () => generateDay({
     climate: t0.weather.climate,
-    season: t0.weather.season,
-    prior,
-    fronts: !!t0.weather.fronts,
+    season,
+    prior: null,
+    fronts: false,
   }));
   if (!gen?.ok) return false;
   return patchFormation(formationId, (record) => {
@@ -1023,11 +1170,12 @@ export async function rollWeatherNow(formationId) {
  * shows — miles and hexes made — so the log records what the Judge saw, not
  * a second derivation that could disagree with it.
  *
- * The finished day also settles onto the ground and rolls the next one in:
- * its weather advances the footing counters (mud forms, snow lies, roads
- * drown), and with the generator on, tomorrow's sky is rolled — under the
- * fronts drift when asked — before the board resets. A registry that cannot
- * answer leaves the manual picks standing.
+ * The weather does not settle here where the clock keeps a calendar: the
+ * jump to dawn crosses the day change, and the day-change watcher settles the
+ * ground and the new sky (`settleDayChange`). With the module not moving the
+ * clock, End day fakes no day — the sky follows the real clock. Where the
+ * clock keeps NO calendar, End day settles the day itself, keyed on its own
+ * counter, exactly as the one-clock-per-party days always did.
  *
  * The jump is to the next dawn by the calendar. A clock that keeps no calendar
  * advances what the day has not already advanced of a whole day, so hours the
@@ -1038,22 +1186,7 @@ export async function rollWeatherNow(formationId) {
 export async function endDay(formationId, { miles = null, hours = null, hexes = null, notes = "" } = {}) {
   let entry = null;
   let advancedToday = 0;
-  // Tomorrow's sky is settled BEFORE the patch, because the patch callback is
-  // synchronous and the cache is not. Same key as any other party crossing the
-  // same climate tomorrow, so they wake to one shared morning.
   const t0 = travelOf(getFormation(formationId) ?? {});
-  let nextSky = null;
-  if (t0.weather.auto) {
-    const params = { day: t0.dayCount + 1, climate: t0.weather.climate, season: t0.weather.season };
-    const cache = readSkyCache();
-    const { sky } = await skyFor(params, () => generateDay({
-      climate: t0.weather.climate,
-      season: t0.weather.season,
-      prior: t0.weather.fronts ? (priorSky(cache, params) ?? t0.weather.rolls) : null,
-      fronts: !!t0.weather.fronts,
-    }));
-    if (sky?.ok) nextSky = sky;
-  }
   // The day's navigation throw, whispered. Deliberately BEFORE the patch and
   // deliberately not acted on: RAW hands the stray direction to the Judge, so
   // the card reports and the Judge begins the episode.
@@ -1078,34 +1211,23 @@ export async function endDay(formationId, { miles = null, hours = null, hexes = 
     const t = travelOf(rec);
     entry = composeLogEntry(t, { miles, hours, hexes, notes, worldTime: game.time?.worldTime ?? null });
     advancedToday = t.day.secondsAdvanced ?? 0;
-    const settled = advanceGround(t.weather.footing, {
-      temperature: t.weather.temperature,
-      precipitation: t.weather.precipitation,
-      mudProne: terrainMudProne(t.ground),
-    });
-    let weather = { ...t.weather, footing: { mud: settled.mud, snow: settled.snow, runs: settled.runs } };
-    if (weather.auto) {
-      const gen = nextSky ?? { ok: false };
-      if (gen.ok) {
-        weather = {
-          ...weather,
-          temperature: gen.temperature,
-          temperatureNight: gen.temperatureNight,
-          precipitation: gen.precipitation,
-          wind: gen.wind,
-          rolls: gen.rolls,
-        };
-      }
-    }
     rec.travel = {
       ...t,
       dayCount: entry.day,
       day: withDayKind(null, t.day?.kind ?? "march"),
       log: pushLog(t.log, entry, logCap()),
-      weather,
     };
   });
   if (!record) return null;
+  // No calendar, no day change to watch: this day's settling is End day's own,
+  // keyed on the counter the patch just advanced.
+  if (calendarDay() == null) {
+    try {
+      await settleDayChange(formationId, entry.day, { counter: true });
+    } catch (err) {
+      console.error(`${MODULE_ID} | the day's weather could not settle; the day still ends`, err);
+    }
+  }
   const jump = untilNextDawn() ?? Math.max(0, DAY_SECONDS - advancedToday);
   if (jump > 0 && mayAdvanceWorldTime()) await game.time.advance(jump);
   // The finished day carries how it was fed, so the log can say the party ate

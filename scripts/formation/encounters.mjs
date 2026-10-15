@@ -469,9 +469,13 @@ export function visibilityMax({ light = "daylight", heads = 1, weather = null } 
  * hid it counts as undetected — the detection states the Judge feeds core's
  * Surprise Matrix. Flyers may open at altitude up to the imported fraction
  * of the distance.
+ *
+ * `partyRoll` is an `encounterDistance` result already thrown for the party's
+ * terrain (a card that printed its distance passes it): used in place of a
+ * fresh roll when it is `ok`, so the distance shown and the detection agree.
  */
-export function detection({ partyTerrain, monsterTerrain = null, partyHeads = 1, monsterHeads = 1, light = "daylight", weather = null, rng = Math.random } = {}) {
-  const partyRoll = encounterDistance({ terrain: partyTerrain, rng });
+export function detection({ partyTerrain, monsterTerrain = null, partyHeads = 1, monsterHeads = 1, light = "daylight", weather = null, partyRoll: thrown = null, rng = Math.random } = {}) {
+  const partyRoll = thrown?.ok ? thrown : encounterDistance({ terrain: partyTerrain, rng });
   const monsterRoll = monsterTerrain && monsterTerrain !== partyTerrain
     ? encounterDistance({ terrain: monsterTerrain, rng })
     : null;

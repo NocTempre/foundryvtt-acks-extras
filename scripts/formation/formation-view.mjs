@@ -40,7 +40,7 @@ import { deploymentOf } from "../vehicles/deploy.mjs";
 import { driftSummary } from "./lost.mjs";
 import { shadowsOf } from "./shadow.mjs";
 import {
-  travelOf, dayBudget, dayIsSpent,
+  travelOf, dayBudget, dayIsSpent, effectiveSeason,
   DAY_KINDS, ANCILLARY_ACTIVITIES, FOLLOWING_KINDS, ROAD_KINDS, TERRITORY_KEYS,
 } from "./travel.mjs";
 import { cadenceOf } from "./march.mjs";
@@ -1271,6 +1271,7 @@ function effectValue({ key, value, condition }) {
  */
 function buildWeatherView(t, opt) {
   const w = t.weather;
+  const season = effectiveSeason(t);
   const unset = game.i18n.localize("ACKS-FORMATION.travel.weather.unset");
   const bands = (vocab, current) => [
     opt("", unset, !current),
@@ -1301,7 +1302,13 @@ function buildWeatherView(t, opt) {
     windIcon: glyph(WIND_BANDS, w.wind),
     climateUnset: !w.climate,
     climateGroups: [...climateGroups.values()],
-    seasons: SEASONS.map((s) => opt(s, game.i18n.localize(`ACKS-FORMATION.travel.weather.seasons.${s}`), s === w.season)),
+    seasons: SEASONS.map((s) => opt(s, game.i18n.localize(`ACKS-FORMATION.travel.weather.seasons.${s}`), s === season.season)),
+    // When the calendar names the season the select only shows it: a pick the
+    // calendar would override is not a pick.
+    seasonFromCalendar: season.fromCalendar,
+    seasonHint: season.fromCalendar
+      ? game.i18n.format("ACKS-FORMATION.travel.weather.seasonFromCalendar", { name: season.calendarName })
+      : "",
     temperatures: bands(TEMPERATURE_BANDS, w.temperature),
     precipitations: bands(PRECIPITATION_KINDS, w.precipitation),
     winds: bands(WIND_BANDS, w.wind),

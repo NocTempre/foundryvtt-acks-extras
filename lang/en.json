@@ -2479,6 +2479,10 @@
       "open": "Exploration Formation"
     },
     "settings": {
+      "calendarSeasons": {
+        "name": "Calendar seasons",
+        "hint": "Generator seasons in your calendar's season order, comma-separated (spring, summer, fall, winter). Blank matches the calendar's seasons by name."
+      },
       "transientIncidentTurns": {
         "name": "Incident markers last (turns)",
         "hint": "When a city street produces an incident, a Judge-only marker is dropped where the party stood and removed after this many city turns on the world clock. 0 drops no marker."
@@ -2572,8 +2576,9 @@
       "weather": {
         "climate": "Climate",
         "season": "Season",
-        "auto": "Roll at day's end",
-        "autoHint": "Ending the day rolls the next morning's sky from the imported tables.",
+        "seasonFromCalendar": "Season from the calendar: {name}",
+        "auto": "Roll each new day",
+        "autoHint": "When the calendar day changes the sky is rolled from the imported tables.",
         "fronts": "Fronts",
         "frontsHint": "Each day's rolls drift one step toward yesterday's. Natural 2s and 12s stand.",
         "generate": "Roll the sky",
@@ -2730,6 +2735,11 @@
         "resolveBook": "Resolve the entry from your book.",
         "distanceLine": "Encounter distance",
         "visibleLine": "The party can be seen from up to {feet}' in daylight ({size} heads).",
+        "startLine": "Opens at {feet}'.",
+        "partySees": "The party sees them.",
+        "partyBlind": "The party does not see them.",
+        "monstersSee": "They see the party.",
+        "monstersBlind": "They do not see the party.",
         "evasionLine": "Evasion throw {target}+ at {size} heads.",
         "handoff": "Detection and surprise resolve on the system's Surprise Matrix when combat starts; reactions with the influence tools.",
         "zoneLine": "Encounter zone: {names}",

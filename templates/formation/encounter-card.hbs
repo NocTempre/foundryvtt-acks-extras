@@ -94,6 +94,11 @@
   {{#if visible}}
   <p class="hint">{{localize "ACKS-FORMATION.travel.enc.visibleLine" feet=visible size=partySize}}</p>
   {{/if}}
+  {{#if sight}}
+  {{#if startCapped}}<p class="hint">{{localize "ACKS-FORMATION.travel.enc.startLine" feet=start}}</p>{{/if}}
+  <p>{{#if partySees}}{{localize "ACKS-FORMATION.travel.enc.partySees"}}{{else}}{{localize "ACKS-FORMATION.travel.enc.partyBlind"}}{{/if}}
+    {{#if monstersSee}}{{localize "ACKS-FORMATION.travel.enc.monstersSee"}}{{else}}{{localize "ACKS-FORMATION.travel.enc.monstersBlind"}}{{/if}}</p>
+  {{/if}}
   {{#if effects.length}}
   <p>{{#each effects}}<span class="acks-extras-encounter-card-mod">{{label}}{{#if value}} {{value}}{{/if}}</span> {{/each}}</p>
   {{/if}}

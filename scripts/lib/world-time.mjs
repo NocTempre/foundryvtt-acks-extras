@@ -16,7 +16,10 @@
  * sunrise, so the two hours that bound the dark are the world's settings, and a
  * feature asking the clock asks `clockReading()` rather than keeping a boundary
  * of its own. The dawn is the one other reading the formation's journey asks
- * for: the march ends its day at the next dawn (`untilNextDawn`).
+ * for: the march ends its day at the next dawn (`untilNextDawn`). The calendar
+ * day and the calendar's season (`calendarDay`, `calendarSeason`) are read here
+ * too: what the sky is keyed on belongs to the clock, not to a feature's
+ * counter.
  */
 import { MODULE_ID } from "./constants.mjs";
 
@@ -90,6 +93,47 @@ export function clockReading() {
     ...bounds,
     dark: !!isDarkAt(hour, bounds),
   };
+}
+
+/**
+ * The calendar day a world-clock reading falls in: whole days of
+ * `secondsPerDay` since the clock's zero. Pure; negative readings floor
+ * downward. Null unless the clock reading is finite and the day's length is a
+ * positive number.
+ */
+export function calendarDayOf(worldTime, secondsPerDay) {
+  const t = Number(worldTime);
+  const d = Number(secondsPerDay);
+  if (worldTime == null || secondsPerDay == null || !Number.isFinite(t) || !Number.isFinite(d) || !(d > 0)) return null;
+  return Math.floor(t / d);
+}
+
+/**
+ * The calendar day the world clock stands in, by the calendar's own day
+ * length (hours × minutes × seconds). Null when the clock keeps no calendar —
+ * the same condition `clockReading` answers null on.
+ */
+export function calendarDay() {
+  const days = game.time?.calendar?.days;
+  const hoursPerDay = Number(days?.hoursPerDay);
+  const hour = Number(game.time?.components?.hour);
+  if (!Number.isFinite(hoursPerDay) || !Number.isFinite(hour)) return null;
+  return calendarDayOf(game.time.worldTime, hoursPerDay * Number(days.minutesPerHour) * Number(days.secondsPerMinute));
+}
+
+/**
+ * The season the calendar says it is: the index into its season list, the
+ * season's localized name and how many seasons the calendar declares. Null
+ * when the calendar declares none or no season matches today.
+ * @returns {{index: number, name: string, count: number}|null}
+ */
+export function calendarSeason() {
+  const index = game.time?.components?.season;
+  const values = game.time?.calendar?.seasons?.values;
+  if (!Number.isInteger(index) || !Array.isArray(values) || !values.length) return null;
+  const raw = values[index]?.name;
+  if (typeof raw !== "string" || !raw) return null;
+  return { index, name: game.i18n.localize(raw), count: values.length };
 }
 
 /**

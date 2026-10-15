@@ -2901,3 +2901,63 @@ under each.
 - The six swimming windows are sized to one page's layout.
   `test-recipe-pages` proves the page is found, not that each window still
   reaches its figure.
+
+## 2026-10-15 — The sky keys on the calendar day, and the day change settles it
+
+**Evidence.** A reading of the code on 2026-10-14 found `rollWeatherNow` and
+`endDay` both keying the sky cache on the End-day counter (`travel.dayCount`),
+while the 2026-08-29 ruling (*Weather is derived from date and climate*) says
+the key is the date and the ROADMAP recorded that as fixed and built. Two
+parties on one calendar date with different counters rolled different skies,
+and a calendar advanced any way but End day left the sky standing; footing and
+tomorrow's sky moved only inside `endDay`. Season and climate never came from
+the calendar. The owner's 2026-10-14 feedback asked for the clock to drive the
+sheet. Nothing here supersedes a ruling younger than 7 days; it makes the
+2026-08-29 ruling true.
+
+**Ruled.**
+- The sky's day is the calendar day the world clock stands in
+  (`calendarDay`). The End-day counter keeps numbering the log and the lost
+  episode's drift, and keys the sky only where the clock keeps no calendar.
+- The season is the calendar's: its declared season, mapped to a generator
+  season by the *Calendar seasons* setting, then by the season's name (a key,
+  its localized label, or the alias *autumn*), then by position for a calendar
+  of exactly four. Where none maps, the party's declared season stands.
+- One owner settles a day change. The clock watcher calls
+  `settleAllOnDayChange`; `settleDayChange` walks every day crossed since the
+  formation's `travel.weather.settledDay`, in order: the ground takes the
+  finished day's bands, then the new day's sky is read or rolled. Absent
+  watermark: stamp today, settle nothing. Only journeying formations settle;
+  the rest are stamped. The season in force when the step is taken keys every
+  day of a multi-day step.
+- End day no longer settles the weather where a calendar exists: the jump to
+  dawn crosses the day change. With *Advance the world clock* off it fakes no
+  day; the sky follows the real clock. With no calendar there is no watcher, so
+  End day settles its own day under the counter and never reads or writes the
+  watermark (a counter and a calendar day must not meet in one mark).
+- Detection is wired: the encounter card passes the distance it prints to
+  `detection` and says who saw whom; the light stays daylight at every hour
+  (ROADMAP names the gap), and the message carries the card's facts in its
+  flags.
+- The fronts drift reads yesterday's *rolls* (`priorSky(...).rolls`) in the
+  settling loop. Before this both callers handed `generateDay` the whole
+  cached sky, which it read as no prior, so the drift only ever leaned on the
+  day before a cache miss. `rollWeatherNow` now passes no prior and no drift:
+  its docstring already ruled an on-demand roll a fresh sky, and the code said
+  otherwise.
+
+**Rejected.**
+- Keeping the End-day counter as the key and syncing it to the calendar: two
+  clocks to disagree.
+- A cap on the days one step may settle: the per-day loop is pure and the
+  write is single, so a long jump costs arithmetic and not writes.
+- A lock for the settling: calls are chained, and the patch re-checks the
+  mark inside the ledger's own save lock.
+
+**Cost.**
+- Keys made under the counter are orphaned in an existing cache and pruned
+  within the window; a party's next sky after the upgrade is a fresh roll.
+- A multi-day step across a season boundary rolls every crossed day under the
+  season the step ended in.
+- A calendar whose seasons the setting, the name and the position all fail to
+  map leaves the declared season in charge, with no hint on the sheet.

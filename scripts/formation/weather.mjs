@@ -71,6 +71,59 @@ export const PRECIPITATION_KINDS = Object.freeze({
 export const SEASONS = Object.freeze(["winter", "spring", "summer", "fall"]);
 
 /**
+ * World setting: the generator seasons in the calendar's season order,
+ * comma-separated. Blank matches the calendar's seasons by name.
+ */
+export const SETTING_SEASON_MAP = "calendarSeasons";
+
+/** The order of a four-season calendar's seasons when it names none we recognise. */
+const FOUR_SEASON_ORDER = Object.freeze(["spring", "summer", "fall", "winter"]);
+
+/** A calendar's own word for a generator season that the key itself does not spell. */
+const SEASON_ALIASES = Object.freeze({ autumn: "fall" });
+
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Whether `word` stands in `text` as a whole word. */
+const hasWord = (text, word) => !!word && new RegExp(`(^|[^\\p{L}])${escapeRegex(word)}($|[^\\p{L}])`, "u").test(text);
+
+/**
+ * The generator season a calendar season stands for, or null when none does.
+ * Pure. Decided in order: the Judge's map (generator keys, comma-separated, in
+ * the calendar's season order), then the calendar season's name as a whole word
+ * (a generator key, its localized label, or the alias `autumn`), then — only for
+ * a calendar of exactly four — the order Foundry's default calendar keeps.
+ * Null leaves the season the party declared standing.
+ *
+ * @param {{index: number, name: string, count: number}|null} season  a `calendarSeason()` reading
+ * @param {object} [o]
+ * @param {string} [o.map]  the world's mapping setting
+ * @param {readonly string[]} [o.keys]  the generator's season keys
+ * @param {Record<string, string>} [o.labels]  each key's localized label
+ * @returns {string|null}
+ */
+export function seasonKeyFor(season, { map = "", keys = SEASONS, labels = {} } = {}) {
+  if (!season || !Number.isInteger(season.index)) return null;
+  const listed = String(map ?? "").split(",").map((s) => s.trim().toLowerCase());
+  if (listed.some(Boolean)) {
+    const hit = listed[season.index];
+    if (keys.includes(hit)) return hit;
+  }
+  const name = String(season.name ?? "").toLowerCase();
+  for (const key of keys) {
+    if (hasWord(name, key) || hasWord(name, String(labels[key] ?? "").toLowerCase())) return key;
+  }
+  for (const [alias, key] of Object.entries(SEASON_ALIASES)) {
+    if (keys.includes(key) && hasWord(name, alias)) return key;
+  }
+  if (season.count === 4) {
+    const key = FOUR_SEASON_ORDER[season.index];
+    if (keys.includes(key)) return key;
+  }
+  return null;
+}
+
+/**
  * The Köppen climate codes the generator accepts — public science, shipped
  * as keys with their standard climatological names. What each code is WORTH
  * per season is the book's and arrives with the `climateModifiers` table.

@@ -241,6 +241,7 @@ dawn.
 | Encounters while asleep | not built | `slumbering` (`lib/conditions.mjs`) applied to a party met asleep and lifted by the insert's three endings (*Wilderness Expeditions I*). |
 | ~~Frostbite~~ | **BUILT** — a hypothermic body throws the imported save at End day on the weather's toll card and is marked `frostbitten` on a failure, with the die and the row the Judge resolves from the book. |
 | ~~Disease from the weather~~ | **BUILT** — the party's run of days under each sky is kept on the formation; a run that reaches the imported count throws per body on the toll card and marks `diseased`. |
+| Who saw whom after dark | not built | The encounter card's sight lines read the daylight figure at every hour (`postEncounterCard`), because the three night lights need a moon that nothing in the world declares. A party met at night is told it saw, or was seen, by daylight. A lunar source, or a Judge's per-encounter light pick, is the missing input. |
 | ~~When within the period an encounter falls~~ | **BUILT** — the card says the mile of the hex, the turn of the hour, the hour after dawn or dusk and the night of the period, by dice sized from the calendar and the imported cadence, and a terrain encounter on a scene is left on the Judge's map as a persistent marker. |
 | A hazard's trap equivalent | printed, not placed | The card prints the row's `trap` beside the hazard; placing the equivalent trap on a battlemap is the Judge's (DECISIONS 2026-10-09, *The insert pages' rules ship with the major*). |
 | ~~Managing traps as an activity~~ | **BUILT** — declared as a count on the day fold; End day owes one throw per imported batch and carries the remainder to the next day. |
@@ -266,10 +267,12 @@ walk stays honest about what was once outstanding.
 
 ### Cross-cutting defects found in the audit
 
-- ~~**Weather is stored, not derived.**~~ **FIXED 2026-08-29** — `sky.mjs`
-  derives the day from `date × climate` and caches per pair, so advancing the
-  calendar any other way no longer leaves yesterday's sky standing and two
-  parties in the same country get the same day.
+- ~~**Weather is stored, not derived.**~~ **FIXED 2026-08-29, re-made
+  2026-10-15** — `sky.mjs` caches per `(day, climate, season)`. Until
+  2026-10-15 the day in the key was the End-day counter, so the claim held for
+  End day alone; since then it is the calendar day, and the day change settles
+  the sky however the clock moved (DECISIONS 2026-10-15). The live claim is
+  re-made by that phase's walk (`TESTING.md`, *The day change*).
 - ~~**Road and development are per-day pickers.**~~ **FIXED 2026-08-29** —
   roads are drawn, and the hex links are derived from what was drawn
   (`hex-topology.mjs`, `hex-routes.mjs`, `battlemap/roads.mjs`); the picker
@@ -334,7 +337,7 @@ now unblocked:
 | ~~The lost episode~~ | **BUILT** — ledger, shadow token, faked reveal, both endings; live-verified end to end |
 | ~~Hooking the daily throw into End day~~ | **BUILT** — `navigation-card.mjs` whispers the throw on End day. It reports and never steers: RAW hands the stray direction to the Judge |
 | ~~The Wilderness Searching throw for the last known landmark~~ | **BUILT** — it is `searching.mjs`'s `landmark` quarry, and it feeds `reanchorEpisode` |
-| ~~Weather from `date × climate`~~ | **BUILT** — `sky.mjs`, 8 checks; live-verified that two parties share one morning |
+| ~~Weather from `date × climate`~~ | **BUILT** — `sky.mjs`. Keyed on the End-day counter until 2026-10-15 and on the calendar day since (DECISIONS 2026-10-15); the live claim that two parties share one morning is re-made by that phase's walk |
 | ~~Hex topology~~ | **BUILT** — the model (14 checks), the scene storage, the Routes tools, and the march consulting it. Live-verified that a crossing is a crossing: the same hex's other neighbours stay off-road |
 | Route tax | **BUILT** — `routeCost` reports it apart from the speed multiplier. A path's own encounter profile is not built |
 | ~~Survival~~ | **BUILT** — the ladders (12 checks), pooling and sharing (11 checks), and `provision-day.mjs` ticking every body on End day. Live-verified that one carrier's rations feed the whole order |

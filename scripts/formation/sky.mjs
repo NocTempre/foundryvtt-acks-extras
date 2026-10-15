@@ -9,8 +9,9 @@
  * same weather roll independently; and there is no per-day identity at all, so
  * nothing can ask "what was the sky like when we were there".
  *
- * Here the sky is CACHED against `(day, climate, season)`. Everything falls out
- * of that key:
+ * Here the sky is CACHED against `(day, climate, season)`, the day being the
+ * calendar day the world clock stands in (the End-day counter only where the
+ * clock keeps no calendar). Everything falls out of that key:
  *
  *  - Two parties in the same climate on the same day read one roll, because
  *    they compute the same key.
@@ -32,9 +33,10 @@ export const SETTING_SKY_CACHE = "skyCache";
 export const SKY_CACHE_DAYS = 30;
 
 /**
- * The identity of one sky. A blank climate deliberately still produces a key —
- * a world with no climate declared gets one consistent sky per day rather than
- * a fresh roll per party.
+ * The identity of one sky. `day` is the calendar day the world clock stands in
+ * (the End-day counter only where the clock keeps no calendar). A blank
+ * climate deliberately still produces a key — a world with no climate declared
+ * gets one consistent sky per day rather than a fresh roll per party.
  */
 export function skyKey({ day, climate = "", season = "" } = {}) {
   const d = Number(day);

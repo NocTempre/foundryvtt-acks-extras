@@ -124,7 +124,8 @@ import { SETTLEMENT_DOC } from "./settlement.mjs";
 import * as encounters from "./encounters.mjs";
 import { ENCOUNTERS_DOC, ENCOUNTER_TABLE_IDS } from "./encounters.mjs";
 import { SETTING_TRAVEL_ENCOUNTERS, maybeHexThrow, postEncounterThrow, resolveCreature, rollDayEncounters } from "./encounter-card.mjs";
-import { SETTING_TRAVEL_LOG_CAP } from "./travel.mjs";
+import { SETTING_TRAVEL_LOG_CAP, settleAllOnDayChange } from "./travel.mjs";
+import { SETTING_SEASON_MAP } from "./weather.mjs";
 import { SETTING_STRAGGLING } from "./settlement.mjs";
 import { creditHoledUpDays } from "./settlement-turn.mjs";
 import {
@@ -133,7 +134,7 @@ import {
 } from "./poi.mjs";
 import { isLocation } from "../lib/place.mjs";
 import { closeDay, offerDayEnd } from "./day-close.mjs";
-import { onWorldTimeAdvanced } from "../lib/world-time.mjs";
+import { onWorldTimeAdvanced, calendarDay } from "../lib/world-time.mjs";
 import { SETTING_SKY_CACHE } from "./sky.mjs";
 import * as provisions from "./provisions.mjs";
 import * as foraging from "./foraging.mjs";
@@ -453,6 +454,17 @@ Hooks.once("init", () => {
     config: false,
     type: Object,
     default: {},
+  });
+
+  // Which generator season each of the calendar's seasons stands for. Blank
+  // matches by name; the season select on a party's sheet follows the result.
+  game.settings.register(MODULE_ID, SETTING_SEASON_MAP, {
+    name: "ACKS-FORMATION.settings.calendarSeasons.name",
+    hint: "ACKS-FORMATION.settings.calendarSeasons.hint",
+    scope: "world",
+    config: true,
+    type: String,
+    default: "",
   });
 
   // Who goes short when the packs cannot feed everyone. Not a rule the book
@@ -812,6 +824,10 @@ Hooks.once("ready", () => {
   // once for the days it crossed.
   onWorldTimeAdvanced(() => {
     creditHoledUpDays().catch((err) => console.error(`${MODULE_ID} | holed-up day failed`, err));
+    // The sky and the ground's footing move with the calendar day, however the
+    // clock came to move. Idempotent: each formation keeps the day it settled.
+    const today = calendarDay();
+    if (today != null) settleAllOnDayChange(today).catch((err) => console.error(`${MODULE_ID} | day change failed`, err));
     // An incident's marker lasts a stated number of turns of the same clock.
     expireTransientNotes().catch((err) => console.error(`${MODULE_ID} | incident marker expiry failed`, err));
   });

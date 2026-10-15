@@ -156,7 +156,7 @@ const journey = await import("../scripts/formation/journey.mjs");
 const { travelReadout } = await import("../scripts/formation/formation-view.mjs");
 const { partySpeed } = await import("../scripts/formation/formation-model.mjs");
 const { offerDayEnd } = await import("../scripts/formation/day-close.mjs");
-const { cadenceMilesFor, postEncounterThrow, rollDayEncounters } = await import("../scripts/formation/encounter-card.mjs");
+const { cadenceMilesFor, postEncounterThrow, postEncounterCard, rollDayEncounters } = await import("../scripts/formation/encounter-card.mjs");
 
 /* -------------------------------------------- */
 /*  Fixtures                                    */
@@ -1022,6 +1022,63 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   const c = (await observe(() => postEncounterThrow(getFormation(clear), { activity: "travel" }))).cards.at(-1);
   assert.deepEqual(c.effects, [], "a fair sky puts nothing on the card");
   assert.ok(c.visible > 90, "and leaves the daylight distance as it was");
+  resetTables();
+  registerFrequency();
+}
+
+/* -------------------------------------------- */
+/*  Who saw whom, and what the message keeps    */
+/* -------------------------------------------- */
+
+{
+  registerTable({
+    id: "weather",
+    tables: { conditionEffects: { rainy: { visibilityFeet: 90 } } },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+  registerTable({
+    id: "encounters",
+    tables: { visibility: { daylight: 500, formationScale: [] }, evasion: { grassland: [{ min: null, max: null, target: 9 }] } },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+  const thrown = {
+    outcome: "monster",
+    distance: { ok: true, feet: 240, dice: "2d6", mult: 30 },
+  };
+
+  // Under a clear sky the distance stands, and the card says each side sees the other.
+  const clear = makeFormation(null, null, { travel: { ground: "grassland", weather: { precipitation: "clear" } } });
+  const open = await observe(() => postEncounterCard(getFormation(clear), thrown, { terrain: "grassland", activity: "travel", night: false, hex: { label: "B4" } }));
+  const card = open.cards.at(-1);
+  assert.equal(card.sight, true, "a terrain and a thrown distance give the card its sight lines");
+  assert.equal(card.start, 240, "inside the sky's reach the encounter opens where it was thrown");
+  assert.equal(card.startCapped, false);
+  assert.deepEqual([card.partySees, card.monstersSee], [true, true]);
+  const { when, ...kept } = open.chat.at(-1).flags["acks-extras"].encounter;
+  assert.deepEqual(kept, {
+    formationId: clear, hex: "B4", activity: "travel", night: false, terrain: "grassland", outcome: "monster",
+    creature: null, distance: 240, start: 240, partySees: true, monstersSee: true,
+    light: "daylight", evasion: 9,
+  }, "the message carries every fact the card printed");
+  assert.deepEqual(when.map((w) => w.key), ["mile"], "and the keys of the lines that placed it in its period");
+  assert.ok(when[0].n >= 1 && when[0].n <= TABLE_MILES, "the line's die is within the cadence's miles");
+  assert.equal(open.result, open.chat.at(-1), "the card hands back the message it created");
+
+  // A rainy sky's ceiling pulls the opening in, and the card prints that distance.
+  const rain = makeFormation(null, null, { travel: { ground: "grassland", weather: { precipitation: "rainy" } } });
+  const wet = await observe(() => postEncounterCard(getFormation(rain), thrown, { terrain: "grassland", activity: "travel", night: true }));
+  assert.equal(wet.cards.at(-1).start, 90, "the sky's ceiling is where the encounter opens");
+  assert.equal(wet.cards.at(-1).startCapped, true, "and the card says it opened short of the thrown distance");
+  const keptWet = wet.chat.at(-1).flags["acks-extras"].encounter;
+  assert.deepEqual([keptWet.distance, keptWet.start, keptWet.night, keptWet.hex], [240, 90, true, null]);
+
+  // With no terrain picked nothing is thrown or seen, and the message still says so.
+  const bare = await observe(() => postEncounterCard(getFormation(clear), { outcome: "none" }, { terrain: "", activity: "travel", night: false }));
+  assert.equal(bare.cards.at(-1).sight, false);
+  const keptBare = bare.chat.at(-1).flags["acks-extras"].encounter;
+  assert.deepEqual([keptBare.terrain, keptBare.distance, keptBare.start, keptBare.partySees, keptBare.evasion], [null, null, null, null, null]);
+
+  // The throw's own chain carries the message it posted.
+  const chain = await postEncounterThrow(getFormation(clear), { activity: "travel" });
+  assert.equal(chain.message, chat.at(-1), "postEncounterThrow keeps its chain and exposes the posted message on it");
   resetTables();
   registerFrequency();
 }

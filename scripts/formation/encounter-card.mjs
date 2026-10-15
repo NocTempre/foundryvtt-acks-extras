@@ -30,6 +30,7 @@ import { DAY_SECONDS, travelOf, DAY_KINDS } from "./travel.mjs";
 import {
   ENCOUNTER_OUTCOMES,
   ENCOUNTER_TERRAINS,
+  detection,
   die,
   encounterTerrainFor,
   evasionModifiers,
@@ -193,7 +194,8 @@ function partyHeads(formation) {
  *
  * `nights` is the length, in nights, of the period a rest throw stands for
  * (the imported cadence cell's), so the card can say which night it falls on;
- * `rng` is a [0, 1) source for every die the throw rolls.
+ * `rng` is a [0, 1) source for every die the throw rolls. Resolves the chain,
+ * with the card's ChatMessage as `chain.message`.
  */
 export async function postEncounterThrow(formation, { activity = "travel", night = false, hex = null, nights = 0, rng = Math.random } = {}) {
   const t = travelOf(formation);
@@ -209,7 +211,7 @@ export async function postEncounterThrow(formation, { activity = "travel", night
     rng,
   });
   const zoneDraw = chain.zoneDraw ? await drawZoneTable(zones) : null;
-  await postEncounterCard(formation, chain, { terrain, activity, night, hex, travel: t, zones, zoneDraw, nights, rng });
+  chain.message = await postEncounterCard(formation, chain, { terrain, activity, night, hex, travel: t, zones, zoneDraw, nights, rng });
   return chain;
 }
 
@@ -299,6 +301,10 @@ async function drawZoneTable(zones) {
  * takes them), and a terrain encounter on a scene is left on the Judge's map as
  * a persistent marker. The sky's effects the Judge needs at the encounter ride
  * the card as chips, and its visibility limits the distance the party is seen from.
+ * With a terrain and a thrown distance the card also says who saw whom
+ * (`detection`, fed the very distance printed). The message carries the card's
+ * facts in `flags[MODULE_ID].encounter`.
+ * @returns the created ChatMessage
  */
 export async function postEncounterCard(formation, chain, {
   terrain, activity, night, hex = null, travel, zones = null, zoneDraw = null, nights = 0, rng = Math.random,
@@ -314,6 +320,11 @@ export async function postEncounterCard(formation, chain, {
   const mods = terrain ? evasionModifiers({ terrain }) : { parts: [] };
   const fx = weatherEffects(conditionsOf(t.weather), { terrain: t.ground });
   const visible = visibilityMax({ light: "daylight", heads: size, weather: fx.visibility });
+  // Who saw whom, from the distance this very card prints. Light stays daylight
+  // after dark; the night figures need a moon the module cannot read.
+  const sight = terrain && chain.distance?.ok
+    ? detection({ partyTerrain: terrain, partyHeads: size, light: "daylight", weather: fx.visibility, partyRoll: chain.distance, rng })
+    : null;
   const isNone = outcomeKey === "none";
 
   const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
@@ -330,6 +341,7 @@ export async function postEncounterCard(formation, chain, {
   }
 
   let when = [];
+  let whenLines = [];
   if (!isNone) {
     const scene = getPartyScene(formation);
     const cadence = cadenceOf({
@@ -338,9 +350,10 @@ export async function postEncounterCard(formation, chain, {
       mileHex: cadenceMilesFor(t.territory),
     });
     const clock = clockReading();
-    when = encounterWhen({
+    whenLines = encounterWhen({
       activity, night, mileHex: cadence.miles, secondsPerHour: clock?.secondsPerHour ?? null, clock, nights, rng,
-    }).map((line) => loc(`travel.enc.when.${line.key}`, { n: line.n, of: line.of }));
+    });
+    when = whenLines.map((line) => loc(`travel.enc.when.${line.key}`, { n: line.n, of: line.of }));
   }
 
   // A terrain encounter is a place on the map, so it stays there for the Judge.
@@ -381,6 +394,11 @@ export async function postEncounterCard(formation, chain, {
       ? { feet: chain.distance.feet, dice: chain.distance.dice, mult: chain.distance.mult }
       : null,
     visible,
+    sight: !!sight?.ok,
+    start: sight?.ok ? sight.feet : null,
+    startCapped: !!sight?.ok && chain.distance?.ok && sight.feet !== chain.distance.feet,
+    partySees: sight?.ok ? sight.partySees : null,
+    monstersSee: sight?.ok ? sight.monstersSee : null,
     partySize: size,
     evasion: evasion.ok ? evasion.target : null,
     evasionMods: (mods.parts ?? []).map((p) => ({ label: loc(`travel.enc.mod.${p.key}`), value: p.value > 0 ? `+${p.value}` : `${p.value}` })),
@@ -397,10 +415,32 @@ export async function postEncounterCard(formation, chain, {
     `modules/${MODULE_ID}/templates/formation/encounter-card.hbs`,
     view,
   );
-  await ChatMessage.create({
+  // What the card prints also rides the message as data, so anything reading
+  // the chat log later does not parse the HTML to learn who saw whom.
+  return ChatMessage.create({
     speaker: { alias: loc("travel.enc.speaker") },
     whisper: gmIds(),
     content,
+    flags: {
+      [MODULE_ID]: {
+        encounter: {
+          formationId: formation.id,
+          hex: hex?.label ?? null,
+          activity,
+          night: !!night,
+          terrain: terrain || null,
+          outcome: outcomeKey,
+          creature: creature?.name ?? null,
+          distance: chain.distance?.ok ? chain.distance.feet : null,
+          start: view.start,
+          partySees: view.partySees,
+          monstersSee: view.monstersSee,
+          light: "daylight",
+          evasion: view.evasion,
+          when: whenLines,
+        },
+      },
+    },
   });
 }
 

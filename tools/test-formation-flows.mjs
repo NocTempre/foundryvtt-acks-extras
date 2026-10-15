@@ -2255,6 +2255,219 @@ await scenario("one clock advance credits a holed-up stretch exactly once", asyn
   await drain();
 });
 
+await scenario("the day change settles every journeying party once, however the clock was moved", async () => {
+  // Invented tables, registered the way an import registers them: the codes are
+  // science, the grid and the thresholds are made up, so this proves the
+  // machinery and never the book.
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { WEATHER_DOC } = await import("../scripts/vehicles/vehicle-speed.mjs");
+  const { dayOfKey } = await import("../scripts/formation/sky.mjs");
+  const { calendarDay } = await import("../scripts/lib/world-time.mjs");
+  const travelMod = await import("../scripts/formation/travel.mjs");
+  registerTable({
+    id: WEATHER_DOC,
+    tables: {
+      climateModifiers: {
+        Af: {
+          spring: { tDay: -1, tNight: -4, p: 0, w: 0 },
+          summer: { tDay: 3, tNight: 1, p: -2, w: 1 },
+        },
+      },
+      dailyTemperatureLow: [
+        { min: null, max: 3, key: "frigid" },
+        { min: 4, max: 6, key: "cold" },
+        { min: 7, max: 9, key: "balmy" },
+        { min: 10, max: null, key: "sweltering" },
+      ],
+      dailyTemperatureHigh: [
+        { min: null, max: 4, key: "chilly" },
+        { min: 5, max: 9, key: "warm" },
+        { min: 10, max: null, key: "hot" },
+      ],
+      dailyPrecipitation: [
+        { min: null, max: 4, key: "clear" },
+        { min: 5, max: 7, key: "drizzly" },
+        { min: 8, max: null, key: "rainy" },
+      ],
+      dailyWind: [
+        { min: null, max: 4, key: "still" },
+        { min: 5, max: 9, key: "moderate" },
+        { min: 10, max: null, key: "gale" },
+      ],
+      accumulation: {
+        snowFromSnowy: 1, snowFromFlurry: 3, snowMeltModerate: 4, snowMeltSweltering: 1,
+        mudFromRainy: 1, mudFromDrizzly: 3, mudDryModerate: 5, mudDrySweltering: 1, mudFreeze: 1,
+      },
+    },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+
+  const DAY = 86400;
+  const cacheOf = () => game.settings.get(MODULE_ID, "skyCache") ?? {};
+  const weatherOf = (id) => model.getFormation(id).travel.weather;
+  const runsOf = (id) => ({ ...(weatherOf(id).footing?.runs ?? {}) });
+  const setCalendar = (seasons = null) => {
+    game.time.calendar = { days: { hoursPerDay: 24, minutesPerHour: 60, secondsPerMinute: 60 }, ...(seasons ? { seasons: { values: seasons } } : {}) };
+    game.time.components = { hour: 12, minute: 0, second: 0, ...(seasons ? { season: 0 } : {}) };
+  };
+  const dropCalendar = () => {
+    delete game.time.calendar;
+    delete game.time.components;
+  };
+  const advance = async (seconds) => {
+    await game.time.advance(seconds);
+    await drain();
+    await drain();
+  };
+  // Every die reads 8 (a 2d6 of 3 and 3 on top of 2), so each day's sky is the
+  // same band and the footing's run counters climb by exactly one a day. The
+  // counter is what shows how many skies were rolled.
+  const realRandom = Math.random;
+  let dice = 0;
+  Math.random = () => { dice++; return 0.5; };
+  const realSet = game.settings.set;
+  let cacheWrites = 0;
+  game.settings.set = async (ns, key, value) => {
+    if (key === "skyCache") cacheWrites++;
+    return realSet.call(game.settings, ns, key, value);
+  };
+  const advanceSetting = game.settings.get(MODULE_ID, "advanceWorldTime");
+  const clock0 = game.time.worldTime;
+
+  try {
+    await game.settings.set(MODULE_ID, "formations", {}); // isolate
+    await game.settings.set(MODULE_ID, "skyCache", {});
+    const journeying = { mode: "journey", ground: "grassland", weather: {
+      auto: true, climate: "Af", season: "spring", temperature: "balmy", precipitation: "rainy", wind: "moderate",
+    } };
+    const ids = {};
+    for (const [key, travel] of Object.entries({ a: journeying, b: journeying, delve: { ...journeying, mode: "delve" } })) {
+      const made = await model.createFormation(`Sky ${key}`);
+      await model.patchFormation(made.id, (rec) => { rec.travel = JSON.parse(JSON.stringify(travel)); });
+      ids[key] = made.id;
+    }
+    await drain();
+
+    // Noon, so a minute is the same calendar day and a day is the next.
+    game.time.worldTime = Math.ceil((game.time.worldTime + 1) / DAY) * DAY + DAY / 2;
+    setCalendar();
+    const day0 = calendarDay();
+    assert.ok(Number.isInteger(day0), "the mock clock keeps a calendar");
+
+    // No watermark yet: the first sighting is stamped and nothing is paid back.
+    await advance(60);
+    for (const key of ["a", "b", "delve"]) assert.equal(weatherOf(ids[key]).settledDay, day0, `${key} is stamped with today`);
+    assert.deepEqual([runsOf(ids.a), runsOf(ids.b)], [{}, {}], "a first sighting settles no ground");
+    assert.equal(Object.keys(cacheOf()).length, 0, "and rolls no sky");
+    assert.equal(dice, 0);
+
+    // One calendar day: ONE sky for both parties, each ground settled once.
+    dice = 0;
+    cacheWrites = 0;
+    await advance(DAY);
+    assert.equal(calendarDay(), day0 + 1);
+    assert.equal(dice, 6, "three 2d6 throws: the second party read the first's sky instead of rolling");
+    assert.equal(cacheWrites, 1, "and the cache was written once for the step");
+    assert.deepEqual(Object.keys(cacheOf()).map(dayOfKey), [day0 + 1], "under the calendar day, not the End-day counter");
+    const [wa, wb] = [weatherOf(ids.a), weatherOf(ids.b)];
+    assert.deepEqual(wa.rolls, { t: 8, p: 8, w: 8 });
+    assert.deepEqual([wa.rolls, wa.temperature, wa.precipitation], [wb.rolls, wb.temperature, wb.precipitation], "both parties hold one sky");
+    assert.equal(runsOf(ids.a).rainy, 1, "the finished day settled onto the ground once");
+    assert.equal(runsOf(ids.b).tempModerate, 1);
+    assert.equal(wa.settledDay, day0 + 1);
+    assert.equal(wb.settledDay, day0 + 1);
+    assert.equal(model.getFormation(ids.a).travel.dayCount ?? 0, 0, "End day's counter did not move: it numbers the log, not the sky");
+
+    // The same day again — a re-fired hook, a dragged clock, two callers at once.
+    dice = 0;
+    cacheWrites = 0;
+    await advance(60);
+    await Promise.all([travelMod.settleAllOnDayChange(day0 + 1), travelMod.settleAllOnDayChange(day0 + 1)]);
+    await drain();
+    assert.equal(runsOf(ids.a).rainy, 1, "a day already settled pays nothing more");
+    assert.equal(runsOf(ids.b).rainy, 1);
+    assert.equal(dice, 0);
+    assert.equal(cacheWrites, 0);
+    assert.equal(weatherOf(ids.a).settledDay, day0 + 1);
+
+    // Three days in one step: three days of ground, three skies, one cache write.
+    dice = 0;
+    cacheWrites = 0;
+    await advance(3 * DAY);
+    assert.equal(calendarDay(), day0 + 4);
+    assert.equal(runsOf(ids.a).rainy, 4, "each crossed day settled the ground, in order");
+    assert.equal(runsOf(ids.b).tempModerate, 4);
+    assert.deepEqual(Object.keys(cacheOf()).map(dayOfKey).sort((x, y) => x - y), [day0 + 1, day0 + 2, day0 + 3, day0 + 4], "one key per day");
+    assert.equal(dice, 18, "three skies for the two parties");
+    assert.equal(cacheWrites, 1, "the cache is written once for the whole step");
+    assert.equal(weatherOf(ids.a).settledDay, day0 + 4);
+
+    // A party that is not journeying keeps the mark and no weather.
+    assert.equal(weatherOf(ids.delve).settledDay, day0 + 4, "a delving party is stamped each day");
+    assert.deepEqual(runsOf(ids.delve), {}, "and its ground is not settled");
+    assert.equal(weatherOf(ids.delve).rolls ?? null, null, "nor given a sky");
+
+    // The calendar's season, not the declared one, keys the sky it settles.
+    setCalendar([{ name: "Q0" }, { name: "Q1" }, { name: "Q2" }, { name: "Q3" }]);
+    game.time.components.season = 1;
+    const seen = travelMod.effectiveSeason(travelMod.travelOf(model.getFormation(ids.a)));
+    assert.deepEqual(seen, { season: "summer", fromCalendar: true, calendarName: "Q1" }, "a four-season calendar maps by position");
+    await advance(DAY);
+    assert.ok(Object.keys(cacheOf()).includes(`${day0 + 5}|Af|summer`), "the new day's sky is keyed on the calendar's season");
+    assert.equal(weatherOf(ids.a).season, "spring", "the declared season is left as the Judge set it");
+    setCalendar();
+
+    // End day with a calendar but the clock left alone: a log row, no weather.
+    await game.settings.set(MODULE_ID, "advanceWorldTime", false);
+    const before = JSON.stringify(weatherOf(ids.b));
+    const keys = Object.keys(cacheOf()).length;
+    const rows = model.getFormation(ids.b).travel.log?.length ?? 0;
+    const advanced = game.time.advanced.length;
+    await travelMod.endDay(ids.b);
+    await drain();
+    assert.equal(model.getFormation(ids.b).travel.log.length, rows + 1, "the day is logged");
+    assert.equal(game.time.advanced.length, advanced, "the clock was not moved");
+    assert.equal(JSON.stringify(weatherOf(ids.b)), before, "End day fakes no day: the sky and the ground stand");
+    assert.equal(Object.keys(cacheOf()).length, keys);
+
+    // With the clock moved to dawn, the day change settles the new day once.
+    await game.settings.set(MODULE_ID, "advanceWorldTime", true);
+    // The sky B holds is the summer day's, so its drizzle run is the one that climbs.
+    assert.equal(weatherOf(ids.b).precipitation, "drizzly");
+    const drizzleBefore = runsOf(ids.b).drizzly;
+    const day = calendarDay();
+    await travelMod.endDay(ids.b);
+    await drain();
+    await drain();
+    assert.equal(calendarDay(), day + 1, "the jump to dawn crossed one day change");
+    assert.equal(runsOf(ids.b).drizzly, drizzleBefore + 1, "End day itself settled nothing; the day change settled the ground once");
+    assert.equal(weatherOf(ids.b).settledDay, day + 1);
+    assert.ok(Object.keys(cacheOf()).includes(`${day + 1}|Af|spring`));
+
+    // No calendar, no day change to watch: End day settles its own day, by its counter.
+    dropCalendar();
+    assert.equal(calendarDay(), null);
+    const counted = model.getFormation(ids.a).travel.dayCount ?? 0;
+    const rain = runsOf(ids.a).rainy;
+    const mark = weatherOf(ids.a).settledDay;
+    await travelMod.endDay(ids.a);
+    await drain();
+    assert.equal(model.getFormation(ids.a).travel.dayCount, counted + 1);
+    assert.equal(runsOf(ids.a).rainy, rain + 1, "the finished day settled onto the ground");
+    assert.ok(Object.keys(cacheOf()).includes(`${counted + 1}|Af|spring`), "the next sky is keyed on the End-day counter");
+    assert.equal(weatherOf(ids.a).settledDay, mark, "the counter never touches the calendar's watermark");
+  } finally {
+    Math.random = realRandom;
+    game.settings.set = realSet;
+    dropCalendar();
+    await game.settings.set(MODULE_ID, "advanceWorldTime", advanceSetting);
+    await game.settings.set(MODULE_ID, "skyCache", {});
+    unregisterTable(WEATHER_DOC, { priority: PRIORITY.WORLD });
+    for (const f of Object.values(readFormations())) await model.disband(f);
+    await drain();
+    void clock0; // the shared clock only ever moves forward; it is never set back
+  }
+});
+
 /**
  * Take a stay on a city map and hand back its card.
  *

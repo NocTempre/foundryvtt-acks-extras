@@ -522,8 +522,9 @@ functions, the pure march arithmetic and the two hook names.
 asked after every drag, and on the first step that spends the budget or falls
 after dusk [day-close.mjs](../../scripts/formation/day-close.mjs) puts one
 question: call it a day, push on into a forced march, or not yet. It is not
-ended automatically, because ending a day spends the provisions, settles the
-ground, rolls tomorrow's sky and moves the calendar — consequences of a
+ended automatically, because ending a day spends the provisions and moves the
+calendar, and the day change that follows settles the ground and rolls the
+sky — consequences of a
 decision, not of arithmetic — and a party may always choose to press on.
 Asked once: the `offered` flag is written BEFORE the dialog is awaited, so a
 drag across three hexes does not stack three prompts. No day-kind change
@@ -1344,7 +1345,8 @@ ground (mud that forms, freezes, thaws and dries; snow that lies and melts
 to mud). The panel's three band selects work bare-handed: the band keys are
 structural, so a Judge with nothing imported still declares the sky. With
 the `weather` document imported, **Roll the sky** (and, when armed, every
-End day) generates it instead — three 2d6 throws under the hex's Köppen
+day change of the world clock; End day only where the clock keeps no
+calendar) generates it instead — three 2d6 throws under the hex's Köppen
 climate and the season, the day's temperature roll re-read at night under
 its own modifier, freezing air turning drizzle to flurries and rain to
 snow, still air turning them to mist and fog, and an optional fronts drift
@@ -1373,14 +1375,36 @@ night's rest and the weather's toll. The list under the sky's chips shows
 what today states, and a sky with conditions but no imported table says so to
 the Judge instead of applying nothing in silence.
 
-**The sky is cached, not stored.** It keys on `(day, climate, season)`
+**The sky is cached, not stored.** It keys on `(calendarDay, climate, season)`
 ([sky.mjs](../../scripts/formation/sky.mjs)), so two parties standing in the
 same weather read one roll, re-rolling a settled day is a cache hit rather than
 new weather, and yesterday stays addressable for the fronts drift. The book's
 fast-travel allowance — several hexes in a day keeps the roll unless the
 climate changed — is the key changing, or not, and needed no rule of its own.
-Both callers settle the sky BEFORE their ledger patch, because a patch callback
-is synchronous and the cache is not.
+
+*The day* is the calendar day the world clock stands in (`calendarDay`), not
+the End-day counter, which only numbers the log and the lost episode's drift
+(the counter keys the sky only where the clock keeps no calendar). *The
+season* is the calendar's when it maps: `effectiveSeason` reads the calendar's
+season and maps it to a generator season by the world's *Calendar seasons*
+setting, then by the season's name, then — for a calendar of exactly four — by
+position; where none maps, the party's declared season stands, and the sheet's
+season select shows the calendar's and is disabled while one does.
+
+*One owner settles the day change.* The clock watcher calls
+`settleAllOnDayChange`, and each journeying formation carries
+`travel.weather.settledDay`, the last day settled. For every day crossed since
+it, in order, the ground takes the finished day's bands (`advanceGround`) and,
+with the generator on, the new day's sky is read from the cache or rolled into
+it; the cache is written once and the formation patched once. A mark that is
+absent is stamped with today and settles nothing, so no formation is paid back
+from the world's beginning; a day at or below the mark is a no-op, so a
+dragged clock or a re-fired hook pays once. A formation not journeying is
+stamped only. End day no longer settles the weather where the clock keeps a
+calendar: its jump to dawn crosses the day change, and with *Advance the
+world clock* off it fakes no day, so the sky follows the real clock, moved by
+whoever moves it. Where the clock keeps no calendar there is no watcher, and
+End day settles its own day under the counter without touching the mark.
 
 **The road is drawn, not picked.** On a scene carrying a route network
 (`docs/battlemap/MODEL.md`), each step asks `stepBetweenHexes` and the answer
@@ -1453,7 +1477,15 @@ the result and the formation), and a hazard row prints the trap equivalent
 its imported row names. The card's visibility line takes the sky's ceiling
 and factor after the size scale, and chips carry the sky's missile and
 listening penalties and the dust wind's speed, so the Judge resolving the
-meeting has them to hand.
+meeting has them to hand. The card also says who saw whom: `detection` is fed
+the very distance the card prints (`partyRoll`), capped by each side's
+visibility, and the card names whether the party saw the creatures and
+whether they saw the party, with the opening distance when the sky pulled it
+in. The light is daylight at every hour (ROADMAP, *Who saw whom after dark*).
+The message keeps what the card printed in `flags["acks-extras"].encounter`
+(formation, hex, activity, night, terrain, outcome, creature, distance, start,
+both sight results, light, evasion target and the period lines' keys), so
+anything reading the log later does not parse the HTML.
 
 **Zones on a journey.** An Encounter Zone region changes a journey's throws
 where the party really is: `journeyZones` reads every zone under

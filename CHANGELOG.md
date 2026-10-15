@@ -20,6 +20,10 @@
   not imported. A world that imported its rules tables before reads them
   again: *Rules tables* in *Reimport One Shelf*, every table or *formation
   only* and *travel only*.
+- **Calendar seasons setting.** *Calendar seasons* in the Formation settings
+  lists the generator seasons in your calendar's season order, so a calendar
+  whose season names the module does not recognise can still drive the sky;
+  blank matches by name.
 
 ### Fixed
 
@@ -57,6 +61,25 @@
   world's table), under its own *Day* row, at the hour the stay was priced
   at. No marker is left on the map and the card carries no *Make it a place*
   button: the party was indoors.
+- **The sky follows the calendar.** The sky was keyed on End day's own
+  counter, so two parties on one date could meet different weather, and a
+  calendar advanced any other way left the sky standing. It is now keyed on
+  the calendar day of the world clock: however the clock is moved, every
+  party in one climate gets one new sky for the new day, and each party's
+  ground (mud, snow, the roads' state) settles once for every day crossed.
+  The season comes from the calendar when it can be mapped (the new setting,
+  then the season's name, then position for a four-season calendar), and the
+  sheet's season select shows it and is locked while it does. End day no
+  longer carries its own weather clock where a calendar exists: it logs the
+  day and jumps to dawn, and with the clock left alone it changes no weather.
+  A world whose clock keeps no calendar keeps End day's weather as it was.
+- **An encounter card says who saw whom, and keeps what it rolled.** The
+  card now states whether the party saw the creatures and whether they saw
+  the party, from the very distance it prints and the sky's visibility, and
+  says where the encounter opens when the sky pulled it in. The message
+  carries the same facts (the hex, the outcome, the distance, both sight
+  results and the period lines) as data for anything reading the chat log
+  later. The light is daylight at every hour.
 
 ## 11.3.0
 

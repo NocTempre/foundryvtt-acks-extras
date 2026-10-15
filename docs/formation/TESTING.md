@@ -1932,6 +1932,69 @@ materialized from them, are what the Judge's own import leaves, and no sweep
 undoes a re-read. On a shared world step 2 is therefore the owner's call, as
 the importer's *Rules tables from Reimport One Shelf* recipe says.
 
+## The day change (added with the calendar key)
+
+Fixtures: two party actors (`api.create`), each with a formation in journey
+mode and the generator on (*Roll each new day*), one invented climate
+for both; the `weather` document imported from the Judge's own pages, or an
+invented one registered at priority 20 (`climateModifiers` for the climate in
+two seasons, the four band tables and `accumulation`) and unregistered after.
+A third formation left in delve mode is the control. Note each formation's
+`travel.weather.settledDay`, `travel.weather.footing.runs` and
+`travel.weather.rolls`, and the sky cache (`game.settings.get("acks-extras",
+"skyCache")`) key count.
+
+The world clock is shared. Advance it only forward, report the total moved, and
+never set it back.
+
+1. Advance a minute from the GM seat so each formation is stamped.
+   *Observable:* `settledDay` equals the calendar day on every formation,
+   the footing's `runs` and the cache have not moved.
+2. `game.time.advance(<one calendar day in seconds>)`. *Observable:* both
+   journeying formations hold an identical `travel.weather.rolls`, each
+   footing's `runs` moved by one for the finished day's bands, `settledDay` is
+   the new calendar day, and the cache gained exactly one key (its day part
+   the calendar day). The delve formation is stamped and its footing and sky
+   untouched.
+3. Advance a minute again. *Observable:* nothing changed. Then advance three
+   days in one call. *Observable:* `runs` moved by three, three new keys in
+   the cache, the cache setting written once for the step.
+4. End day with *Advance the world clock* on. *Observable:* a new log row, the
+   clock at the next dawn, and one new sky settled by the day change, not by
+   End day. `travel.dayCount` went up by one and is not in the new cache key.
+5. End day with *Advance the world clock* off. *Observable:* a log row, the clock
+   not moved, and the same sky, footing and cache.
+6. The season: set the *Calendar seasons* setting to a map for your calendar,
+   or move the clock across a season boundary (`game.time.advance`). *Observable:*
+   the weather section's season select reads the calendar's season, is
+   disabled, and the hint names the calendar's season; the next cache key
+   carries that season. Blank the setting on a calendar whose seasons carry
+   no recognised name and no count of four. *Observable:* the select is live
+   again and the declared season stands.
+7. Open the party sheet from the player seat. *Observable:* the sky shows,
+   with no controls.
+8. Post an encounter throw on a hex scene with a terrain picked. *Observable:*
+   the card's two sight lines (who saw whom) and, on the created message,
+   `flags["acks-extras"].encounter` carrying the card's facts; track the
+   message by id the moment the call resolves.
+
+Drive mechanics: the watcher runs on the active GM's client and acts only on
+a forward step, so advance from that seat. A formation that was not stamped
+before the step is stamped by it and pays nothing, so step 1 comes first. The
+season select is read from the weather section of the declarations fold. For
+step 8, set a clear sky by hand first: under a snowy or foggy one the imported
+`conditionEffects` ceiling pulls the start in, and the card's opening line
+reads the ceiling rather than the thrown distance. Whether a whispered card
+sits in the player seat's `game.messages` collection varies from run to run
+(one walk found it held there, the next did not), so what proves the whisper
+is the message's `visible` getter on that seat and its absence from that
+seat's chat log, never its presence or absence in the collection.
+
+Teardown: `api.sweepTracked()` over the ledger: the party actors (their
+formations go with them) and every tracked message. Unregister the invented
+`weather` document. The cache keys the run created age out of the window on
+their own; the world clock is not set back.
+
 ## Teardown
 
 `api.sweepTracked()` over the ledger: the scene, the party actor (its

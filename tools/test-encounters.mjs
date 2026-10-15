@@ -264,6 +264,22 @@ assert.equal(det.farSide, "monsters");
 assert.ok(det.monstersSee && det.feet <= 500, "the far side detects; the start respects the caps");
 assert.equal(det.altitude, Math.round(det.feet / 2), "flyers may open at the imported fraction");
 
+// A distance already thrown is the detection's own: the card that printed it
+// and the detection it feeds cannot disagree, and no die is thrown again.
+const noDice = () => { throw new Error("the party's distance was rolled again"); };
+const printed = { ok: true, feet: 240, dice: "2d6", mult: 30, avg: 210 };
+const given = detection({ partyTerrain: "grassland", partyHeads: 5, monsterHeads: 5, partyRoll: printed, rng: noDice });
+assert.ok(given.ok && given.rolled === 240 && given.partyRoll === printed, "the given roll opens the encounter");
+assert.equal(given.feet, 240, "inside both caps, it opens where it was thrown");
+assert.ok(given.partySees && given.monstersSee, "and each side sees the other");
+const capped = detection({
+  partyTerrain: "grassland", partyHeads: 5, monsterHeads: 5, weather: { feet: 140, factor: 1 },
+  partyRoll: { ok: true, feet: 360, dice: "2d6", mult: 30 }, rng: noDice,
+});
+assert.equal(capped.feet, 140, "a given roll is capped by the sky as a rolled one is");
+const refused = detection({ partyTerrain: "grassland", partyHeads: 5, partyRoll: { ok: false, noRow: true }, rng: rig(face(2, 6), face(2, 6)) });
+assert.equal(refused.rolled, 120, "a given roll that is not ok is ignored and the party rolls its own");
+
 /* --- evasion --------------------------------------------------------------- */
 assert.equal(evasionTarget({ terrain: "grassland", partySize: 5 }).target, 8);
 assert.equal(evasionTarget({ terrain: "grassland", partySize: 40 }).target, 12);
