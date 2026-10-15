@@ -94,12 +94,22 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     at create opens the full sheet without the card. Open the Description tab
     and press the Appearance editor's toggle.
     *Observable:* the open editor's `.editor-content` starts at or below the
-    `menu`'s bottom edge and its `clientHeight` equals its `scrollHeight` —
-    all of the text in view, not one line under the toolbar. An empty section
-    opens at least 6em tall; a section holding more than 40vh of text stops
-    at 40vh and scrolls inside the editor. Click into a paragraph, type, and
-    press Save: the flag holds the typed text, and the closed editor grows to
-    fit it.
+    `menu`'s bottom edge. For a section shorter than 40vh its `clientHeight`
+    equals its `scrollHeight` — all of the text in view, not one line under
+    the toolbar; a longer one has `clientHeight` at 40vh and a larger
+    `scrollHeight`, scrolling inside the editor, and is never held to the
+    first assertion. An empty section opens at least 6em tall. Click into a
+    paragraph, type, and press Save: the flag holds the typed text, and the
+    closed editor grows to fit it.
+    - The HTML source view (`</>`) moves Save and its own toggle to the
+      menu's right end: re-read their rects after toggling, because a
+      coordinate read in the rich-text view clicks nothing there. Save from
+      the source view stores the text too.
+    - The flags route above is an API fixture: it proves the layout and
+      never supplies the release shot. For the shot, make the monster in the
+      Actors directory, open the full sheet from the card's **Full sheet**
+      control, press the Appearance toggle and type the text through the
+      editor — or open an imported monster that already holds its text.
 
 ### The Animal tab
 
