@@ -115,6 +115,7 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 | Maps | See the party's maps and session status; consult (anchor) a map their character holds | `anchorMap` |
 | Checks & rest | Declare listen/search/bash/track and rest turns | `check` / `rest` |
 | Scouting | Step their own character out of the party token, or back in | `detach` |
+| Casualties | Leave their own character behind where they fell, or go back for them (refused in combat) | `leftBehind` |
 | Traps | Work on a trap the party has found, or re-arm one they disarmed, with their own character | `trapbreak` / `trapRearm` |
 | Train | Deploy a vehicle they own as a place beside the party token, or strike it | none: the vehicle is theirs to write (`docs/vehicles/MODEL.md`, "Deployed as a place"); only its marker token goes through the `vehicleMarker` relay |
 
@@ -345,6 +346,35 @@ than a throw. Players open the same dialog from the party sheet whenever one of
 their characters could actually make the throw, and their attempt is declared to
 the Judge's client the way every other player action is.
 
+## Doors
+
+A door is a wall with `door > 0`; everything beyond Foundry's own open/closed
+state is the `door` flag under `flags["acks-extras"]` (`doors.mjs`,
+`doorState`): `kind`, `spikes`, `wedged`, `evil`, `jammed`, `batteredTurns`.
+`setDoorState` merges a patch over the whole stored state, so a write to one
+field keeps the rest.
+
+**The dialog edits the door's record.** `door-app.mjs` is GM-only (the
+`acksDoor` scene tool). Its form submits on change; the construction select
+and the **Evil** and **Lock jammed** checkboxes are written through
+`setDoorTraits` to `kind`, `evil` and `jammed`, and only when the submitted
+value differs from the stored one, so the rolling options (crowbar, size,
+Judge's modifier) never touch the wall. The render that follows re-reads
+`doorState`, so the batter figure follows the construction. `evil` and
+`jammed` are records for the Judge; no figure in the dialog changes with them.
+
+**A bash botch is reported, not applied.** `bashDoor` posts one card; on an
+unmodified 1 the card carries a second line, "Damage to {name}", with the point
+`bashDoor` returns as `damage`, and a note that it is reported, not applied.
+Nothing is written to the basher's sheet, as for a trap (see Traps above).
+
+**A batter spends its time.** `batterDoor` opens the wall (`ds: 1`) and charges
+the `batterPlan` turns through `advanceTurns(formation, turns, { reason:
+"action" })` to the formation holding the basher (`getFormationForActor`). With
+no basher selected, or no formation holding them, the door still opens, no
+clock moves, and the notification says so. A construction an axe cannot beat
+opens nothing and spends nothing.
+
 ## Detaching a member
 
 A formation travels as one token. Two things take a member out of it, and both
@@ -359,6 +389,9 @@ like any standalone creature (`lib/token-sync.mjs`), and `bearerLights`
 finds their light in the formation's record. The party token meanwhile drops
 that bearer's light and stops borrowing their eyes — `syncPartyTokenVision`
 gives the party token its best *remaining* member's sight.
+
+Leaving a member behind (`toggleMemberLeft`, which drops their token where the
+party stands or recalls it) is likewise an owner's declaration, relayed as `leftBehind` and refused in combat.
 
 ### The leash
 

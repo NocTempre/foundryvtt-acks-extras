@@ -2712,3 +2712,64 @@ A new actor flag `fatigue` and the formation's `travel.camp`,
 `travel.weatherRuns`. Every figure waits on the weather and survival pages:
 until they are imported the sky's list says so, the night tires nobody and
 the toll card never posts.
+
+### Leaving a member behind is an owner's declaration (2026-10-15)
+
+**Ruled.** The Order tab's leave-behind control renders for a member's owner
+(`canLeave && canControl`), but its handler wrote only for a GM, so a player
+pressed a control that did nothing. It is relayed like `detach`: the sheet
+sends `leftBehind`, and the GM client checks the sender owns the member, that
+the member is in the formation and that the party is not in combat, then
+flips `left` through `toggleMemberLeft` (the same function the GM's own press
+runs) and announces it. A refusal in combat is whispered to the declaring
+seat, as a declined detach is.
+
+**Rejected.**
+- *Hiding the control from players*: an owner is the one who knows whether
+  their character is carried or left, and the detach control already
+  establishes that a player declares what happens to their own character.
+- *Letting the relay act in combat as the GM's press does*: the GM's press
+  records the decision mid-combat for the roster alone; a player's declaration
+  mid-round is the Judge's to adjudicate, so only the Judge's seat decides then.
+
+**Cost.** A player's declaration mid-combat is refused and the control still
+renders; the Judge presses it for them.
+
+### The door dialog writes the door, and a door's two costs are paid (2026-10-15)
+
+**Problem.** Three dead ends in the door dialog. The construction select was
+rendered from `DOOR_KINDS` and the form handler ignored it, so a door's
+construction could not be set from the UI. `doorState` read `evil` and
+`jammed` and nothing wrote them. `bashDoor` returned a botch's `damage` that
+the dialog never used, and a successful batter opened the wall without
+spending the turns `batterPlan` priced.
+
+**Ruled.**
+- The construction, `evil` and `jammed` have an editor: the select and two
+  Judge checkboxes write the `door` wall flag through `setDoorTraits`, on
+  change, only where the value differs from what is stored. They are records
+  for the Judge; nothing in the dialog's arithmetic reads `evil` or `jammed`.
+- A botch's damage is reported on the bash card and not applied, by the trap
+  ruling ("A trap reports its damage; the Judge writes it", 2026-08-15). That
+  ruling's precedent reason holds unchanged: the door is the precedent it
+  names. Its second reason, riders the module does not model, is thin for a
+  door, whose botch has no rider; the first reason alone decides it, since a
+  card that sometimes writes hit points is worse than one that never does.
+- A batter spends the turns `batterPlan` priced, through `advanceTurns` with
+  reason `"action"`, charged to the formation holding the basher. With no
+  basher or no formation holding them nothing is spent, the door still opens,
+  and the notification says so.
+
+**Rejected.**
+- *Applying the botch damage to the basher's sheet*: it breaks the family's
+  one rule that a card never writes hit points, for a single point.
+- *Charging the batter to the only formation on the scene when no formation
+  holds the basher*: it guesses whose clock ran; a Judge who wants the time
+  spent advances it by hand.
+- *Hiding the checkboxes until a rule reads them*: the flags are public API
+  (`api.doors.doorState`), and a companion module reading them has no other
+  way to have them set.
+
+**Cost.** A Judge applies the rebound's point by hand, as for a trap. A batter
+by a token that belongs to no formation is free until the Judge advances the
+clock.

@@ -1,5 +1,36 @@
 # Changelog
 
+## 11.4.0
+
+### Added
+
+- **The door dialog keeps two Judge's marks on the door.** *Evil* and *Lock
+  jammed* are written to the door the moment they are ticked, for the Judge's
+  record and for anything reading the door's state; no figure in the dialog
+  changes with them.
+
+### Fixed
+
+- **The door dialog's construction choice takes effect.** The construction
+  was shown and never written, so every door read as the standard one. The
+  choice is now written to the door, the axe figure follows it, and a
+  construction an axe cannot beat shows why in place of the button.
+- **A botched heave at a door says what it cost.** The bash card carries the
+  rebound's damage line, with the note that it is reported and not applied,
+  as a trap's card does; nothing is written to the sheet. The dialog had
+  dropped the figure.
+- **Battering a door down spends its turns.** The turns the dialog prices are
+  charged to the clock of the formation holding the basher, and the notice
+  says how many and whose. With no formation holding the selected token the
+  door still opens, no clock runs, and the notice says so.
+- **A player leaves their own fallen character behind, or goes back for
+  them.** The Order tab's *Leave behind* control, offered on a casualty's row
+  to the character's owner, did nothing from a player's seat. It now
+  declares the choice to the Judge's client, which drops the character's
+  token where the party stands and announces it; *Go back for them* recalls
+  the token. A declaration during a fight is refused in a whisper, and the
+  Judge decides it.
+
 ## 11.3.0
 
 ### Added

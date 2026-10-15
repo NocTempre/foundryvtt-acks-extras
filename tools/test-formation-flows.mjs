@@ -1214,6 +1214,60 @@ await scenario("players steer their own members via the GM relay", async () => {
   await drain();
 });
 
+await scenario("leaving a member behind is the owner's declaration, refused otherwise and in combat", async () => {
+  const owned = await ActorMock.create({
+    name: "Ferris",
+    type: "character",
+    ownership: { default: 0, PL1: 3 },
+    system: { hp: { value: 5, max: 5 }, details: { level: 1 }, movementacks: { exploration: 120 } },
+  });
+  const other = await member("Gale"); // GM-owned only
+  await drain();
+
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Leave Party");
+  formation = await model.addMember(formation, owned, null);
+  await model.addMember(model.getFormation(formation.id), other, null);
+  await drain();
+  const id = onlyFormation().id;
+  const leftOf = (actor) => onlyFormation().members.find((m) => m.actorId === actor.id)?.left ?? false;
+
+  const gmUser = game.user;
+  game.user = game.users.get("PL1");
+  try {
+    await requests.requestPartyAction(id, "leftBehind", { actorId: other.id });
+    await drain();
+    assert.ok(!leftOf(other), "a member the seat does not own is not left behind");
+    assert.ok(!leftOf(owned), "a refused request writes nothing to the others");
+
+    await requests.requestPartyAction(id, "leftBehind", { actorId: "no-such-actor" });
+    await drain();
+    assert.ok(!leftOf(owned) && !leftOf(other), "a request naming no member writes nothing");
+
+    await requests.requestPartyAction(id, "leftBehind", { actorId: owned.id });
+    await drain();
+    assert.equal(leftOf(owned), true, "the owner leaves their own character behind");
+    await requests.requestPartyAction(id, "leftBehind", { actorId: owned.id });
+    await drain();
+    assert.equal(leftOf(owned), false, "the owner goes back for them");
+
+    game.user = gmUser; // the combat flag is the Judge's write
+    const inCombat = onlyFormation();
+    inCombat.combat = { active: true, combatId: "stub" };
+    await model.updateFormation(inCombat);
+    await drain();
+    game.user = game.users.get("PL1");
+    await requests.requestPartyAction(id, "leftBehind", { actorId: owned.id });
+    await drain();
+    assert.equal(leftOf(owned), false, "a declaration during combat is refused");
+  } finally {
+    game.user = gmUser;
+  }
+
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
 await scenario("a relayed payload carries the sender the server attested", async () => {
   const { runRelayed } = await import("../scripts/lib/sockets.mjs");
   const seen = [];
@@ -2360,6 +2414,156 @@ await scenario("a wandering monster off its floor is compared at the level of th
     uuidMap.delete(outer.uuid);
     await model.disband(model.getFormation(onlyFormation().id));
     await drain();
+  }
+});
+
+await scenario("a door's construction and marks persist, a botch reports its damage, a batter spends its turns", async () => {
+  const doors = await import("../scripts/formation/doors.mjs");
+  const { default: DoorApp } = await import("../scripts/formation/door-app.mjs");
+
+  // A wall document as far as the door code touches one: Foundry merges an
+  // object flag into what is stored, and a wall update writes its fields.
+  const wall = {
+    door: 1,
+    ds: 0,
+    flags: {},
+    getFlag(ns, key) {
+      return this.flags[ns]?.[key];
+    },
+    async setFlag(ns, key, value) {
+      const at = (this.flags[ns] ??= {});
+      at[key] = { ...(at[key] ?? {}), ...foundry.utils.deepClone(value) };
+      return this;
+    },
+    async update(patch) {
+      Object.assign(this, patch);
+      return this;
+    },
+  };
+
+  const basher = await member("Basher");
+  await drain();
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  const priorRoll = globalThis.Roll;
+  const priorControlled = canvas.tokens.controlled;
+  const hadSpeaker = "getSpeaker" in ChatMessage;
+  const hadExpand = "expandObject" in foundry.utils;
+  ChatMessage.getSpeaker = () => ({});
+  // Flat field names only, so a form's object is already its expansion.
+  foundry.utils.expandObject = (o) => o;
+  canvas.tokens.controlled = [{ actor: basher }];
+  /** A d20 that shows `natural`, whatever the modifier asked of it. */
+  const rigRoll = (natural) => {
+    globalThis.Roll = class {
+      constructor(formula) {
+        this.formula = formula;
+      }
+      async evaluate() {
+        const modifier = Number(this.formula.split("+")[1]) || 0;
+        this.dice = [{ results: [{ result: natural }] }];
+        this.total = natural + modifier;
+        return this;
+      }
+      async render() {
+        return `<div class="dice-roll">${this.total}</div>`;
+      }
+    };
+  };
+  const submit = (app, fields) =>
+    DoorApp.DEFAULT_OPTIONS.form.handler.call(app, null, null, {
+      object: { crowbar: false, sizeSteps: 0, extra: 0, partnerId: "", ...fields },
+    });
+
+  try {
+    /* --- the construction, and the two marks, are written to the wall --- */
+    const app = new DoorApp(wall);
+    const defaults = doors.doorState(wall);
+    assert.equal(defaults.evil, false);
+    assert.equal(defaults.jammed, false);
+    const other = Object.keys(doors.DOOR_KINDS).find((k) => k !== defaults.kind);
+    await submit(app, { kind: other, evil: true, jammed: false });
+    let state = doors.doorState(wall);
+    assert.equal(state.kind, other, "the construction select writes the wall");
+    assert.equal(state.evil, true, "the evil mark writes the wall");
+    assert.equal(state.jammed, false);
+    assert.equal(wall.flags[MODULE_ID].door.kind, other, "under the door flag, where doorState reads it");
+    assert.equal(doors.batterPlan(wall).kind, doors.DOOR_KINDS[other], "and the plan follows the construction");
+
+    await submit(app, { kind: other, evil: false, jammed: true });
+    state = doors.doorState(wall);
+    assert.deepEqual([state.kind, state.evil, state.jammed], [other, false, true], "an unticked mark is cleared, a ticked one set");
+
+    const bad = await doors.setDoorTraits(wall, { kind: "notAConstruction" });
+    assert.equal(bad.state.kind, other, "an unknown construction is not stored");
+    await doors.setDoorTraits(wall, { kind: defaults.kind, evil: false, jammed: false });
+    wall.flags[MODULE_ID].door.spikes = 2;
+    await submit(app, { kind: other, evil: true, jammed: true });
+    assert.equal(doors.doorState(wall).spikes, 2, "a write to the marks leaves the spikes alone");
+    await doors.setDoorTraits(wall, { kind: defaults.kind, evil: false, jammed: false });
+
+    /* --- a botch reports its damage on the card and writes nothing --- */
+    const hpBefore = basher.system.hp.value;
+    rigRoll(1);
+    let from = chat.length;
+    const botched = await doors.bashDoor(wall, { actor: basher });
+    assert.equal(botched.botch, true);
+    assert.ok(botched.damage > 0, "a botch deals damage");
+    const [card] = chat.slice(from);
+    assert.ok(card.content.includes("ACKS-FORMATION.doors.damageTo"), "the card carries the damage line");
+    assert.ok(card.content.includes(`"damage":${botched.damage}`), "with the figure the roll returned");
+    assert.ok(card.content.includes("ACKS-FORMATION.doors.damageIsReported"), "and says it is not applied");
+    assert.equal(basher.system.hp.value, hpBefore, "the sheet is untouched");
+
+    rigRoll(9);
+    from = chat.length;
+    const held = await doors.bashDoor(wall, { actor: basher });
+    assert.equal(held.damage, 0);
+    assert.ok(!chat.slice(from)[0].content.includes("damageTo"), "an ordinary miss carries no damage line");
+
+    /* --- a batter charges the basher's formation, and only that one --- */
+    const unheld = await doors.batterDoor(wall, basher);
+    assert.equal(unheld.ok, true);
+    assert.equal(unheld.spent, 0, "no formation holds the basher: nothing is spent");
+    assert.equal(unheld.formation, null);
+    assert.equal(wall.ds, 1, "the door still opens");
+    notices.length = 0;
+    wall.ds = 0;
+    await DoorApp.DEFAULT_OPTIONS.actions.batter.call(app);
+    assert.match(notices.at(-1)[1], /batteredNoClock/, "the notice says no clock ran");
+
+    let formation = await model.createFormation("Door Party");
+    formation = await model.addMember(formation, basher, null);
+    await drain();
+    const id = onlyFormation().id;
+    const plan = doors.batterPlan(wall);
+    assert.ok(plan.ok && plan.turns > 0, "the chosen construction can be battered");
+    const turnsBefore = onlyFormation().clock.turnsTotal;
+    wall.ds = 0;
+    const r = await doors.batterDoor(wall, basher);
+    await drain();
+    assert.equal(r.spent, plan.turns);
+    assert.equal(onlyFormation().clock.turnsTotal, turnsBefore + plan.turns, "the formation's clock advanced by the plan's turns");
+    assert.equal(wall.ds, 1);
+
+    notices.length = 0;
+    wall.ds = 0;
+    await DoorApp.DEFAULT_OPTIONS.actions.batter.call(app);
+    await drain();
+    assert.match(notices.at(-1)[1], new RegExp(`batteredDown.*"turns":${plan.turns}`), "the notice states the turns spent");
+    assert.equal(onlyFormation().clock.turnsTotal, turnsBefore + 2 * plan.turns);
+
+    await doors.setDoorTraits(wall, { kind: "portcullis" });
+    const solid = await doors.batterDoor(wall, basher);
+    assert.deepEqual([solid.ok, solid.reason], [false, "tooSolid"], "a construction an axe cannot beat spends nothing");
+    assert.equal(onlyFormation().clock.turnsTotal, turnsBefore + 2 * plan.turns);
+
+    await model.disband(model.getFormation(id));
+    await drain();
+  } finally {
+    globalThis.Roll = priorRoll;
+    canvas.tokens.controlled = priorControlled;
+    if (!hadSpeaker) delete ChatMessage.getSpeaker;
+    if (!hadExpand) delete foundry.utils.expandObject;
   }
 });
 

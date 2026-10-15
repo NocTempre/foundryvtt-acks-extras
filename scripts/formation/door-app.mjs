@@ -9,7 +9,7 @@
  * and walk away instead of burning rounds finding out.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { bashPlan, bashDoor, spikeDoor, unspikeDoor, batterPlan, doorState, isDoor, selectedDoor, DOOR_KINDS, MAX_SPIKES } from "./doors.mjs";
+import { bashPlan, bashDoor, spikeDoor, unspikeDoor, batterPlan, batterDoor, setDoorTraits, doorState, isDoor, selectedDoor, DOOR_KINDS, MAX_SPIKES } from "./doors.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.doors";
@@ -45,8 +45,16 @@ export default class DoorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return canvas?.tokens?.controlled?.[0]?.actor ?? null;
   }
 
-  static #submit(_event, _form, formData) {
+  static async #submit(_event, _form, formData) {
     const d = foundry.utils.expandObject(formData.object);
+    // The door's own record lives on the wall; only a field that differs from
+    // what is stored is written, so a crowbar tick never touches the wall.
+    const state = doorState(this.wall);
+    const traits = {};
+    if (d.kind && d.kind !== state.kind) traits.kind = d.kind;
+    if (!!d.evil !== state.evil) traits.evil = !!d.evil;
+    if (!!d.jammed !== state.jammed) traits.jammed = !!d.jammed;
+    if (Object.keys(traits).length) await setDoorTraits(this.wall, traits);
     this.opts = {
       crowbar: !!d.crowbar,
       sizeSteps: Number(d.sizeSteps) || 0,
@@ -104,10 +112,13 @@ export default class DoorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   static async #onBatter() {
-    const plan = batterPlan(this.wall);
-    if (!plan.ok) { ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.refuse.tooSolid`)); return; }
-    await this.wall.update({ ds: 1 });
-    ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.batteredDown`, { turns: plan.turns }));
+    const r = await batterDoor(this.wall, this.basher);
+    if (!r.ok) { ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.refuse.${r.reason}`)); return; }
+    // The notification says what the clock was charged: the turns and whose
+    // clock, or that no formation held the basher and nothing was spent.
+    ui.notifications?.info(r.formation
+      ? game.i18n.format(`${LANG_PREFIX}.batteredDown`, { turns: r.spent, formation: r.formation })
+      : game.i18n.format(`${LANG_PREFIX}.batteredNoClock`, { turns: r.turns }));
     this.render();
   }
 }

@@ -1,4 +1,4 @@
-/* global game, canvas, ui, ChatMessage, Roll */
+/* global game, canvas, ui, foundry, ChatMessage, Roll */
 /**
  * Doors, and the four ways past one (RR ch. 6 "Doors"): a key, picking the
  * lock, battering it down, or bashing it open on a Dungeonbashing throw. A
@@ -107,6 +107,25 @@ async function setDoorState(wall, patch) {
 }
 
 /**
+ * The Judge's record of what the door is: its construction, and whether it is
+ * evil or jammed. Only the keys passed are written; a `kind` that is not a
+ * known construction is ignored rather than stored, so `doorState` never has
+ * to read around a bad value. Returns the state as stored afterwards.
+ *
+ * @param {WallDocument} wall
+ * @param {{kind?: string, evil?: boolean, jammed?: boolean}} traits
+ */
+export async function setDoorTraits(wall, { kind, evil, jammed } = {}) {
+  if (!isDoor(wall)) return { ok: false, reason: "notADoor" };
+  const patch = {};
+  if (kind !== undefined && DOOR_KINDS[kind]) patch.kind = kind;
+  if (evil !== undefined) patch.evil = !!evil;
+  if (jammed !== undefined) patch.jammed = !!jammed;
+  if (Object.keys(patch).length) await setDoorState(wall, patch);
+  return { ok: true, state: doorState(wall) };
+}
+
+/**
  * Hammer one spike home. A round per spike, four at most — and a spiked door
  * is the only thing that keeps an evil door from opening for whatever is on
  * the other side.
@@ -154,19 +173,28 @@ export async function bashDoor(wall, { actor = null, partner = null, crowbar = f
     await setDoorState(wall, { spikes: 0, wedged: false });
   }
 
+  const name = actor?.name ?? game.i18n.localize(`${LANG_PREFIX}.someone`);
+  const damage = botch ? 1 : 0;
+  // The rebound's damage is reported on the card and never written to the
+  // sheet, the way a trap reports its own.
+  const damageLine = damage
+    ? `<p><strong>${game.i18n.format(`${LANG_PREFIX}.damageTo`, { name: foundry.utils.escapeHTML(name), damage })}</strong>`
+      + ` <em>${game.i18n.localize(`${LANG_PREFIX}.damageIsReported`)}</em></p>`
+    : "";
+
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     flavor: game.i18n.localize(`${LANG_PREFIX}.bashFlavor`),
     content: `<p>${game.i18n.format(`${LANG_PREFIX}.bashResult`, {
-      name: actor?.name ?? game.i18n.localize(`${LANG_PREFIX}.someone`),
+      name,
       total: roll.total,
       target: plan.target,
       outcome: game.i18n.localize(`${LANG_PREFIX}.${success ? "opened" : botch ? "botched" : "held"}`),
-    })}</p>`,
+    })}</p>${damageLine}`,
     rolls: [roll],
   });
 
-  return { ok: true, success, botch, total: roll.total, plan, damage: botch ? 1 : 0 };
+  return { ok: true, success, botch, total: roll.total, plan, damage };
 }
 
 /**
@@ -179,6 +207,31 @@ export function batterPlan(wall) {
   return kind.batter == null
     ? { ok: false, reason: "tooSolid", kind }
     : { ok: true, turns: kind.batter, kind };
+}
+
+/**
+ * Batter the door down with an axe: Foundry's own door state opens, and the
+ * turns `batterPlan` priced are spent on the clock of the formation holding
+ * the basher (reason "action"). With no basher, or no formation holding them,
+ * the door still opens and no time is spent; `spent` is then 0 and `formation`
+ * null, so the caller can say so.
+ *
+ * @param {WallDocument} wall
+ * @param {Actor|null} actor  the one swinging the axe
+ * @returns {Promise<{ok: boolean, reason?: string, turns?: number, spent?: number, formation?: string|null}>}
+ */
+export async function batterDoor(wall, actor = null) {
+  if (!isDoor(wall)) return { ok: false, reason: "notADoor" };
+  const plan = batterPlan(wall);
+  if (!plan.ok) return { ok: false, reason: plan.reason };
+  await wall.update({ ds: 1 });
+  // Loaded here, not at the top: the turn engine pulls in the Foundry-bound
+  // half of the module, and this file's pure arithmetic is imported without it.
+  const { getFormationForActor } = await import("./formation-model.mjs");
+  const { advanceTurns } = await import("./turn-engine.mjs");
+  const formation = actor?.id ? getFormationForActor(actor.id) : null;
+  if (formation) await advanceTurns(formation, plan.turns, { reason: "action" });
+  return { ok: true, turns: plan.turns, spent: formation ? plan.turns : 0, formation: formation?.name ?? null };
 }
 
 /** A one-line note in chat, for the things that are not rolls. */

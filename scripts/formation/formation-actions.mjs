@@ -41,7 +41,7 @@ import { rollPartyCheck } from "./party-rolls.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
 import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
-import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } from "./deployment.mjs";
+import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
 import { refuseGoods } from "../lib/bundles.mjs";
 import { runForageDay } from "./forage-run.mjs";
@@ -148,31 +148,20 @@ export const SHARED_ACTIONS = {
    * Leave a casualty where they fell, or go back for them. A member left
    * behind sets no pace and weighs on no Carrier, but stays on the roster and
    * keeps their share of the experience — the party owes them that whether or
-   * not it brought the body out.
+   * not it brought the body out. The GM acts directly; a member's owner
+   * relays the declaration to the GM client.
    */
   async toggleLeftBehind(event, target) {
-    const formation = gmFormation(this);
+    const formation = this.formation;
     const actorId = target.closest("[data-actor-id]")?.dataset.actorId;
     if (!formation || !actorId) return;
-    const member = formation.members.find((m) => m.actorId === actorId);
-    if (!member) return;
-    const leaving = !member.left;
-    member.left = leaving;
-    await updateFormation(formation);
-
-    // Leaving someone drops their token where the party stood; going back
-    // for them recalls it. Deployed without the detached flag: that flag
-    // arms the movement leash, and a body on the floor follows nobody.
-    // Never touches the canvas mid-combat — the roster still records the
-    // decision.
-    if (!formation.combat?.active) {
-      if (leaving && !isMemberDeployed(member)) {
-        await deployMembers(formation, { members: [member] });
-      } else if (!leaving && isMemberDeployed(member)) {
-        await recallMembers(formation, { members: [member] });
-      }
+    if (game.user.isGM) {
+      if (await toggleMemberLeft(formation, actorId) === null) return;
+      this.render?.();
+      return;
     }
-    this.render?.();
+    if (!ownsActor(actorId)) return;
+    await requestPartyAction(formation.id, "leftBehind", { actorId });
   },
 
   async openSheet(event, target) {

@@ -3,7 +3,7 @@ import { makeLoc } from "../lib/util.mjs";
 import { getFormation, getFrontage, swapCells, toggleRole } from "./formation-model.mjs";
 import { ROLE_LABELS, LIGHT_SOURCES } from "./constants.mjs";
 import { anchorMap } from "./map-items.mjs";
-import { toggleDetachMember } from "./deployment.mjs";
+import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
 import { attemptDisarm, attemptRearm } from "./trap-zone.mjs";
@@ -21,6 +21,8 @@ import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./t
  * - take up or set down a role for their own character (role);
  * - step their own character out of the party token to scout, or back in
  *   (detach);
+ * - leave their own character behind where they fell, or go back for them
+ *   (leftBehind);
  * - douse/relight or shutter a light their character carries (lightToggle /
  *   lightShield);
  * - consult — anchor — a map their character holds (anchorMap);
@@ -170,6 +172,28 @@ async function executeRequest(formation, user, type, payload) {
         return;
       }
       await announceDeclaration(formation, user, loc(`request.${result}`, {
+        name: foundry.utils.escapeHTML(game.actors.get(payload.actorId)?.name ?? "?"),
+      }));
+      break;
+    }
+
+    /* --- Leave a casualty where they fell, or go back for them --- */
+    case "leftBehind": {
+      if (!userOwnsMember(formation, user, payload.actorId)) return;
+      if (!formation.members.some((m) => m?.actorId === payload.actorId)) return;
+      // The sheet's own GM path records the decision mid-combat; a relayed
+      // declaration is refused there, and the declaring seat is told so.
+      if (formation.combat?.active) {
+        await ChatMessage.create({
+          content: loc("request.leftBehindDeclined"),
+          whisper: [user.id],
+          speaker: { alias: formation.name ?? "" },
+        });
+        return;
+      }
+      const leaving = await toggleMemberLeft(formation, payload.actorId);
+      if (leaving === null) return;
+      await announceDeclaration(formation, user, loc(leaving ? "request.leftBehind" : "request.wentBackFor", {
         name: foundry.utils.escapeHTML(game.actors.get(payload.actorId)?.name ?? "?"),
       }));
       break;

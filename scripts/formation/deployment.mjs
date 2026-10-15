@@ -251,6 +251,33 @@ export async function toggleDetachMember(formation, actorId) {
   return created.length ? "detached" : null;
 }
 
+/**
+ * Leave a member where they stand, or go back for them: flips `left`, writes
+ * the roster, and then drops their token where the party stood (or recalls
+ * it). The roster records the decision mid-combat but the canvas is never
+ * touched then. Deployed without the detached flag: that flag arms the
+ * movement leash, and a body on the floor follows nobody.
+ *
+ * @returns {Promise<boolean|null>} the member's new `left`, or null when no
+ *   such member is in the formation.
+ */
+export async function toggleMemberLeft(formation, actorId) {
+  const member = formation.members.find((m) => m?.actorId === actorId);
+  if (!member) return null;
+  const leaving = !member.left;
+  member.left = leaving;
+  await updateFormation(formation);
+
+  if (!formation.combat?.active) {
+    if (leaving && !isMemberDeployed(member)) {
+      await deployMembers(formation, { members: [member] });
+    } else if (!leaving && isMemberDeployed(member)) {
+      await recallMembers(formation, { members: [member] });
+    }
+  }
+  return leaving;
+}
+
 /** Is any member currently out of the party token? */
 export function anyDeployed(formation) {
   return formation.members.some(isMemberDeployed);

@@ -210,6 +210,20 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    sheet shows the Trapbreaking button; pressing "Work on it" announces
    "… works on the trap." publicly and the disarm question opens on the
    JUDGE's client.
+11a. **A player leaves their own character behind.** Player seat owning one
+    member (a second, GM-owned member beside them), the party token on the
+    scene, the owned member brought to 0 hit points (the control renders for
+    a casualty only): press **Leave behind**
+    (`[data-action="toggleLeftBehind"]`) on the seat's own row on the Order tab.
+    *Observable:* the member's record in `getFormations()` reads `left: true`
+    and carries a `deployedTokenId` for a token standing where the party does
+    (no `detached` flag); the GM seat's chat shows the public line "leaves
+    {name} behind."; the control now reads **Go back for them**, and pressing
+    it recalls the token. Pressing the GM-owned member's control is not
+    offered to this seat. With the formation in combat the press posts nothing
+    public and whispers the seat a refusal. Teardown by the run's own ids: the
+    token the press made is tracked by reading `deployedTokenId` back, and the
+    chat card ids the same way.
 12. **An item dropped on the party sheet is refused.** As GM drop a piece of
     a member's gear on the party sheet, then a coin row with a count above
     zero. Give the Player seat ownership of the party actor and of that member,
@@ -223,6 +237,37 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     party fixture needed for this step alone can be made with
     `flags["acks-extras"].formationId` naming no formation: its sheet opens and
     no formation record is written.
+13. **The door dialog writes the door, reports a botch, and spends a batter.**
+    Fixtures: a disposable scene holding two door walls (`door: 1`); a disposable character with a token on the
+    scene; a disposable formation holding that character (`api.create` the
+    actor, add it with the formation's own add-member path); a second character
+    in no formation. Select the door on the Walls layer, select the first
+    character's token, and press the **ACKS door actions** tool.
+    - *Construction.* Pick another construction in the select.
+      *Observable:* re-read `wall.flags["acks-extras"].door.kind` from the
+      document (not the DOM) and see the new value; the **Turns with an axe**
+      figure follows it, and a construction an axe cannot beat shows the
+      "will not do it" hint in place of the button.
+    - *Marks.* Tick **Evil**, then **Lock jammed**, then untick **Evil**.
+      *Observable:* the wall's `door.evil` and `door.jammed` flags read
+      `false`/`true` after the last change, and `api.doors.doorState(wall)`
+      returns the same; the spikes count is unchanged by each write.
+    - *Botch.* Rig the d20 to show a 1 (the dice rig reads from the top; probe
+      one roll after rigging) and press **Heave**.
+      *Observable:* the card carries a "Damage to {name}" line and the
+      "reported, not applied" note; the character's hit points are unchanged.
+      An ordinary miss carries neither line.
+    - *Batter.* On a construction an axe can beat, read
+      `getFormations()[id].clock.turnsTotal`, press **Batter it down** with the
+      formation's member selected.
+      *Observable:* `turnsTotal` rose by exactly the turns the button showed,
+      a turn card posted, the wall's `ds` reads 1, and
+      the notification names the turns and the formation. Repeat with the
+      unformed character selected on the second door.
+      *Observable:* the door opens, no clock moved, and the notification says
+      no formation holds the basher.
+    Teardown by the run's own ids: the actors, the scene (its walls go with
+    it) and the formation; track each chat card id as it lands.
 
 ## Mounts and the train (added with the stations release)
 
