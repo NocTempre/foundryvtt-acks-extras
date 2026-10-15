@@ -3891,3 +3891,46 @@ is found by its riders, but nothing frees them when the token is deleted
 ([ROADMAP.md](ROADMAP.md)). The live walk read the same answers on a Player
 seat as on both GM seats, for a scene created with the default ownership. A
 scene a player's client does not hold was not tried.
+
+### The system's sheets show the stored value of a field an effect changes (2026-10-15)
+
+**Asked.** A Judge reported that the Equipment Loadout's Avoid Surprise
+penalty kept adding up. The loadout effect applies a heavy helmet's surprise
+penalty, and the character's stored Avoid Surprise kept falling. Reproduced
+live with a −1 effect and the system's character sheet open: three
+unequip/equip cycles left the stored value at 0, and each edit of an
+unrelated field (hit points) took it from 0 to −1 to −2. The system's sheet
+binds its Avoid Surprise input to the prepared value and submits the whole
+form on any change, so the effect's result went back as the base each time.
+This is the mechanism the character sheet's 2026-09-16 ruling closed on this
+module's own sheet ("An editable field holds the stored value",
+docs/character-sheet/DECISIONS.md). That ruling never reached the system's
+sheets.
+
+**Ruled.**
+- The same answer, carried to the system's sheets by a render hook rather
+  than a wrap. `patches/stored-inputs.mjs` fills each actor-field input whose
+  path is in `actor.overrides` from `actor._source`, underlines it, and names
+  the figure in force in its tooltip.
+- The hook keys on core's `actor-v2` class, which survives the minified
+  release where the class names do not. That covers the character and monster
+  sheets and the module's monster sheet built on them.
+- It is not behind a setting. The behaviour it replaces corrupts stored data.
+
+**Rejected.**
+- *Dropping overridden keys the user did not touch from the submit.* The
+  2026-09-16 entry rejects this already: the input would still show the sum,
+  and a deliberate edit would write the sum plus the edit.
+- *Stripping every overridden key on submit,* as Foundry's first-generation
+  sheets did. A field with an effect on it would become silently uneditable,
+  and the Judge's correction of a value already compounded would be thrown
+  away while the helmet is worn.
+- *Moving the helmet's penalty out of the effect and into the surprise roll.*
+  It fixes one field and leaves every other effect on a field the system's
+  sheet edits (saves, throws, cleaves) compounding the same way.
+
+**What it cost.** On the system's sheets, a field with an effect on it now
+shows a figure that differs from the one in force. Only the tooltip and the
+underline say so, the same cost the module's sheet already carries. Values
+that compounded before this are not repaired: the intended base cannot be
+told from a Judge's own entry, so a Judge corrects the field by hand.

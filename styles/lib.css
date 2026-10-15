@@ -606,15 +606,34 @@ body .sheet.acks.actor-v2 .encumbrance-label {
    arithmetic is the same everywhere and only the class names differ.
 
    The menu still wraps rather than trusting the window to be wide enough: a
-   narrow window must cost rows of toolbar, never the toolbar. */
+   narrow window must cost rows of toolbar, never the toolbar. Core sizes the
+   menu band to one row (`flex: 0 0 var(--menu-height)`) and pins the menu
+   inside it with `position: absolute; inset: 0`, so a wrapped row would spill
+   over the text below; the band therefore holds the menu in the flow and grows
+   with its rows. One row measures the same either way. */
 .acks-extras :is([class*="-body"], .form-group):has(> * prose-mirror[open]),
 .acks-extras :is([class*="-body"], .form-group):has(> prose-mirror[open]) {
   grid-column: 1 / -1;
 }
 
-.acks-extras prose-mirror[open] :is(menu, .editor-menu, .ProseMirror-menubar) {
+:is(.acks-extras, .acks-lib-follower-card-sheet) prose-mirror[open] .menu-container {
+  flex: 0 0 auto;
+}
+
+:is(.acks-extras, .acks-lib-follower-card-sheet) prose-mirror[open] :is(menu, .editor-menu, .ProseMirror-menubar) {
+  position: relative;
+  inset: auto;
   flex-wrap: wrap;
   max-width: 100%;
+}
+
+/* A field on the system's actor sheet that an active effect changes holds the
+   stored value, and the effect's result rides in its tooltip
+   (patches/stored-inputs.mjs); the underline says there is one to read. The
+   leading `body` keeps the line out of the top-level-class namespacing check,
+   as on the encumbrance label above. */
+body .actor-v2 :is(input, select).acks-extras-overridden {
+  box-shadow: inset 0 -2px 0 var(--acks-spot);
 }
 
 /* An editor has no intrinsic width — left alone inside a flex or grid cell it

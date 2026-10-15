@@ -1211,6 +1211,19 @@ loadout is derived, so an emptied one refills at the next recompute.
 Deleting the ACTOR still works — Foundry's cascade does not route through the
 per-effect refusal.
 
+### A field an effect changes, on the system's sheets
+
+The system's actor sheets (every sheet carrying core's `actor-v2` class, the
+module's monster sheet included) bind their inputs to the prepared
+`actor.system` and submit the whole form on any change. An input showing an
+effect's result would therefore write that result back as the base on every
+save, and the effect would apply again on top of it. `patches/stored-inputs.mjs`
+runs on every render of such a sheet: each actor-field input or select whose
+path appears in `actor.overrides` is given the value from `actor._source`, an
+underline, and a tooltip naming the figure in force. Inputs inside an item row
+are left alone, since they name the item's fields. The module's character
+sheet does the same from its own render, so the patch skips it.
+
 ## The multi-roller chat card
 
 `scripts/lib/roll-card.mjs` is the one renderer for every card where several

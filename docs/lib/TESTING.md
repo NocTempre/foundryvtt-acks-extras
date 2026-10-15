@@ -2337,6 +2337,42 @@ Player seats, joined from one capture script.
 
 **Teardown.** Put the overlay setting back, then `api.sweepTracked()`. Steed
 reads as `missing`, deleted by step 10.
+
+## A field an effect changes, on the system's sheets
+
+Covers `patches/stored-inputs.mjs`. One GM seat; the helmet overlay need not
+be on, since a hand-made effect on the same field is the same write path.
+
+**Fixtures (each tracked):** a `character` holding an Active Effect that
+adds −1 to `system.surprise.avoidsurprise`, and a weapon; a `monster`
+holding the same effect.
+
+**Drive mechanics.**
+- The system's character sheet is minified. Find it with
+  `Object.values(CONFIG.Actor.sheetClasses.character).find(s => s.id.startsWith("acks.") && s.cls.DEFAULT_OPTIONS?.classes?.includes("character-v2")).cls`
+  and render `new Cls({document: actor})`.
+- A real form submit is a value set on `input[name="system.hp.value"]` and a
+  bubbling `change` event: the sheet submits the whole form on change.
+- Read `actor._source.system.surprise.avoidsurprise` (stored) beside
+  `actor.system.surprise.avoidsurprise` (in force).
+
+1. **The input shows the stored value.** Open the system's character sheet.
+   **Observable:** the Avoid Surprise input reads 0 and carries the
+   `acks-extras-overridden` class, and its tooltip names −1.
+2. **Equipment changes write nothing.** Unequip and re-equip the weapon three
+   times with the sheet open.
+   **Observable:** stored stays 0.
+3. **A save of another field does not compound it.** Lower hit points twice
+   from the sheet.
+   **Observable:** stored stays 0 and in force stays −1. Without the patch,
+   stored reads −1 and then −2.
+4. **A deliberate edit lands as typed.** Set Avoid Surprise to 1.
+   **Observable:** stored 1, in force 0, the tooltip names 0.
+5. **Monster sheets.** Open the monster with each registered monster sheet.
+   **Observable:** on the system's monster sheet and the module's full monster
+   sheet, the input reads 0 and the tooltip names −1.
+
+**Teardown.** Delete both actors by their tracked ids.
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

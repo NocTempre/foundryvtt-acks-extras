@@ -84,6 +84,7 @@ import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/i
 import { installCombatRoundPatch } from "./patches/combat-round.mjs";
 import { installMoraleRollPatch, SETTING_MORALE_PAGE } from "./patches/morale-roll.mjs";
 import { installAdventuringRollPatch } from "./patches/adventuring-roll.mjs";
+import { installStoredInputs } from "./patches/stored-inputs.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
@@ -902,6 +903,12 @@ Hooks.once("ready", () => {
   // the Judge makes in secret are posted blind by the adventuring throw's one
   // wrapper".
   installAdventuringRollPatch();
+
+  // The system's sheets show a field's stored value where an effect changes
+  // it, so a save cannot write the effect back into the base; see
+  // docs/lib/DECISIONS.md, "The system's sheets show the stored value of a
+  // field an effect changes".
+  installStoredInputs();
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
   const entries = Object.values(registered);
   const defaulted = entries.find((e) => e.default) ?? null;

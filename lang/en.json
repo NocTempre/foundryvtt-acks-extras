@@ -942,6 +942,7 @@
   "ACKS-LIB.attack.miss": "Miss",
   "ACKS-LIB.attack.autoHit": "automatic hit ({reason})",
   "ACKS-LIB.attack.displayTooltip": "Attack throw {target}+ — the target, moves with class/level. Roll bonus {bonus}, from {ability}, added to the d20. Base throw and stat only: a weapon's own bonus, anything worn, and fighting-style bonuses are not counted here — roll the weapon itself for those.",
+  "ACKS-LIB.storedInput.effectiveTip": "The stored value; with the effects in force it is {value}",
   "ACKS-LIB.attack.unarmed": "Unarmed",
   "ACKS-LIB.attack.improvised": "Improvised",
   "ACKS-LIB.attack.improvisedThrown": "Improvised (thrown)",

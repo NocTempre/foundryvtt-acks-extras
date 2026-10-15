@@ -323,16 +323,10 @@
    would stretch the card) clipped every control out of existence: the editor
    looked like it had no buttons at all. Editing is a mode, not a column, so the
    right-hand stack spans the full width for as long as it lasts and falls back
-   the moment the editor is closed.
-
-   The menu still wraps rather than trusting the card to be wide enough — a
-   narrow window must cost rows of toolbar, never the toolbar. */
+   the moment the editor is closed. The wrapping menu band is lib.css's ("An
+   open editor takes the width it needs"). */
 .acks-lib-follower-card .fc-body:has(prose-mirror[open]) .fc-right {
   grid-column: 1 / -1;
-}
-.acks-lib-follower-card .fc-notes prose-mirror[open] :is(menu, .editor-menu, .ProseMirror-menubar) {
-  flex-wrap: wrap;
-  max-width: 100%;
 }
 
 /* --- Attacks: Melee / Missile · #AT · DMG --- */

@@ -101,6 +101,7 @@ const COMMITTED = [
   "test-conditions.mjs",
   "test-status-palette.mjs",
   "test-adventuring-roll.mjs",
+  "test-stored-inputs.mjs",
   "test-provisions.mjs",
   "test-foraging.mjs",
   "test-searching.mjs",
