@@ -528,6 +528,10 @@ level (DECISIONS 2026-10-15). A gain stops one short of the threshold two
 levels up unless the write also sets the level or passes `uncappedXp()`; a
 lowered level releases the rung keys above it, clears the ready notice and
 restores the recorded maximum for the new level. Abilities stay on the sheet.
+A level set by any write other than an apply, raised or lowered, carries the
+class row for the new level (`followLevel`): the fields `applyClass` writes,
+recorded in the applied ledger, except any the write sets to a value of its
+own. It rolls no hit points and grants nothing.
 
 ## Chargen
 
@@ -593,8 +597,8 @@ box is a path under a field that submits.
 the class at level 1, then the template bundle — proficiencies as owned
 abilities, equipment as skins over base items, coin, the spellbook's spells —
 then Adventuring (free with every class, RR Ch. 3 §III.4) and the class's own
-first-level awards (fixed grants deduped by ref against what the template
-carried, plus the chosen picks).
+first-level awards (fixed grants counted against what the template carried, the
+Nth 1st-level rung printing a ref owing the Nth copy, plus the chosen picks).
 
 **A template's printed proficiencies ARE the character's level-1 picks.** RR
 Ch. 2 hands a template over "with weapons, armor, equipment, proficiencies, and

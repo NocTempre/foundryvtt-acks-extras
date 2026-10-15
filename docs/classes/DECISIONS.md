@@ -3,6 +3,45 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-10-15 — a level set by hand carries its class row
+
+**Found** while auditing level-up safety, beside the entry below. A level
+typed on either sheet (the class tab's Level field or core's header) wrote the
+level and nothing else. Saves, attack throw, title, XP to next, hit dice,
+cleaves, the damage bonus and the slot grid stayed at the old level until the
+next apply, even though the module sheet's bound note says the title follows
+the level. Live: a Bard typed from 3rd down to 2nd kept 3rd's XP to next.
+
+**Ruled: the guard folds the row into the same write.** `guardLevelWrite`
+already sees every level write. Its `followLevel` merges `classUpdateData` for
+the new level, raised or lowered, under the character's standing damage-bonus
+election. What it folds in joins the applied ledger and `appliedLevel`, so the
+next apply marks none of it as a hand edit. A path the write sets to a value of
+its own keeps that value, and one a form merely submitted gives way. An apply's
+own write already records `appliedLevel`, so the guard leaves it alone.
+
+**Rejected: routing a typed level through the picker.** The picker would roll
+hit points and grant what the level owes. But it turns a number field into a
+dialog, and `preUpdateActor` is synchronous: it cannot await a dialog, so the
+write would have to be refused and replayed. A typed level is a correction. The
+picker stays the surface that sets a level together with everything the level
+owes.
+
+**Not done: hit points and abilities.** A typed raise rolls no hit dice and
+grants no awards. A typed lowering restores a recorded maximum and keeps its
+abilities, as ruled below. The wizard's climb and the picker's rebuild are the
+surfaces for both.
+
+**Also: chargen grants the second copy of a repeated 1st-level rung.** The
+level-1 fixed awards now pass the copy count, as the wizard and the picker
+already do. No imported class prints one ability at two 1st-level rungs: the
+four repeating ladders repeat above 1st. So this guards a class a Judge builds,
+and it was walked live on such a copy.
+
+**Cost:** a write that sets the level while carrying a row field at its held
+value (an importer writing an unchanged save) has that field replaced by the
+class row.
+
 ## 2026-10-15 — a gain stops at one level, and a lowered level reopens what the climbs above it closed
 
 **Reported (user):** "leveling up with xp does not stop at level +2 -1xp (can't

@@ -761,10 +761,39 @@ real writes from the seat under test, never a mocked hook:
    pressing the open wizard's button. *One dialog opens; pressing it applies
    nothing and warns that the level moved.*
 
+**A typed level carries the class row.** Bind a second character at 1st the
+same way. To read what the row should be, `await
+import("/modules/acks-extras/scripts/classes/apply.mjs")` in page context; it
+hands back the loaded module instance, so its `classUpdateData(actor, cls,
+level, {election})` is the live builder. Compare every path it returns
+(except level and class) with the actor, and with
+`flags["acks-extras"].classes.applied`.
+The core sheet is the `CONFIG.Actor.sheetClasses.character` entry whose key
+starts `acks.`; its header holds the `system.details.level` input on every tab.
+
+7. Type 4 into the module sheet's Level field. *Every row path matches 4th and
+   is recorded in the applied ledger; `appliedLevel` is 4; hit points are
+   untouched.*
+8. Type 2 into core's header Level field. *Every path matches 2nd.*
+9. `actor.update({"system.details.level": 3, "system.saves.death.value": 3})`.
+   *The death save stays 3 and is left out of the ledger; every other path
+   matches 3rd.*
+10. `applyClass` at 5th, `confirm: false`. *Clean at 5th, `appliedLevel` 5:
+    an apply's own write is left alone.*
+
+**Chargen and a repeated 1st-level rung.** No imported class prints one
+ability at two 1st-level rungs. Make one instead: `toObject()` a pack class
+whose ladder repeats a ref, move its second rung of that ref to `atLevel: 1`,
+and `api.create("Item", data)`. Then run `applyChargen(actor, cls, null,
+{awardPicks: []})` on a fresh character. *`heldCount` for that ref reads 2,
+and an `applyClass` with `grantAwards: true` after it leaves it at 2.*
+
 **Not reached by this walk.** The legacy start's exemption (`uncappedXp()`)
 needs a player with a fund; it is pinned offline in `tools/test-classes.mjs`.
 
-**Teardown.** `api.sweepTracked()` — the character is the run's only document.
+**Teardown.** `api.sweepTracked()`. The wizard and chargen post chat cards
+spoken by the fixture: `api.track` every `game.messages` entry whose
+`speaker.actor` is one of the run's own actor ids before the sweep.
 
 ## The language upgrade
 

@@ -397,14 +397,17 @@ export async function applyChargen(
     await grantCoin(actor, { gp: report.gp });
   }
   // The class's own first-level awards land with the template: every fixed
-  // award granted, every pick taken above granted as chosen. grantAbility
-  // dedupes by ref, so a power the template already carried is not doubled.
+  // award granted, every pick taken above granted as chosen. The Nth rung
+  // printing a ref owes the Nth copy and grantAbility grants up to that count,
+  // so a power the template already carried is not doubled.
   const startingGrants = [];
   // Adventuring is free with every class (RR Ch. 3 §III.4), so it is granted
   // rather than offered as a pick.
   await grantAdventuring(actor, startingGrants);
-  for (const a of (cls.system.awards ?? []).filter((x) => x.atLevel === 1 && x.kind === "fixed" && x.ref)) {
-    await grantAbility(actor, a.ref, startingGrants);
+  const firstFixed = (cls.system.awards ?? []).filter((x) => x.atLevel === 1 && x.kind === "fixed" && x.ref);
+  for (const [index, a] of firstFixed.entries()) {
+    const copies = firstFixed.slice(0, index + 1).filter((x) => x.ref === a.ref).length;
+    await grantAbility(actor, a.ref, startingGrants, { upTo: copies });
   }
   for (const ref of awardPicks ?? []) {
     await grantAbility(actor, ref, startingGrants);

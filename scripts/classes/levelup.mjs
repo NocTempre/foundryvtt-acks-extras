@@ -21,7 +21,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, classForActorAsync, findByRef } from "./registry.mjs";
-import { applyClass } from "./apply.mjs";
+import { applyClass, classUpdateData } from "./apply.mjs";
 import { normalizeHd, parseHd, rollHitDice } from "./hitpoints.mjs";
 import { awardKeyLevel, awardsAt, grantAbility } from "./grants.mjs";
 import { closesRung, grantableRefs, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
@@ -235,6 +235,8 @@ async function runLevelUp(actor) {
  *   writer is told what was kept off. A write that also sets the level (the
  *   picker, chargen, a sheet import) sets the experience that goes with it,
  *   and `uncappedXp()` exempts a write whose experience is not an award.
+ * - **A level set by hand carries its class row** (`followLevel`), raised or
+ *   lowered. An apply's own write (it records `appliedLevel`) already does.
  * - **A lowered level reopens what the climbs above it closed.** Rung keys
  *   above the new level leave `awardsTaken`, so the next climb asks them again
  *   (an option still held is offered first, and answering with it grants
@@ -270,6 +272,7 @@ export function guardLevelWrite(actor, changes, options) {
   }
 
   if (level === held) return;
+  if (getProperty(changes, `${flagPath}.appliedLevel`) === undefined) followLevel(actor, classItem, changes, level);
   // Likewise a maximum equal to the one held was submitted, not rebuilt.
   const writtenMax = getProperty(changes, "system.hp.max");
   const setsMax = writtenMax !== undefined && Number(writtenMax) !== Number(actor.system?.hp?.max);
@@ -289,6 +292,36 @@ export function guardLevelWrite(actor, changes, options) {
     setProperty(changes, "system.hp.value", Math.min(value, restored));
   }
   setProperty(changes, `${flagPath}.hpAt`, record.filter((r) => r.level <= level));
+}
+
+/** Does a written value equal the held one, a blank matching an unset field? */
+const sameValue = (written, held) => String(written ?? "") === String(held ?? "");
+
+/**
+ * Fold the bound class's row for `level` into a write that sets the level by
+ * hand: saves, attack throw, title, XP to next, hit dice, cleaves, the damage
+ * bonus under the character's standing election, and the slot grid. The
+ * typed level and the class name stay as written. A path the write sets to a
+ * value other than the held one keeps it, while a value a form merely
+ * submitted gives way. What is folded in joins the applied ledger, so the
+ * next apply does not mark it as a hand edit. Hit points and abilities are
+ * not touched: the wizard and the picker roll and grant them.
+ */
+function followLevel(actor, classItem, changes, level) {
+  const { getProperty, setProperty } = foundry.utils;
+  const flagPath = `flags.${MODULE_ID}.${FLAG_CLASSES}`;
+  const classKey = classItem.system.key || classItem.name.toLowerCase();
+  const standing = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.damageBonus;
+  const election = standing?.class === classKey ? standing.applies : null;
+  const { update, level: rowLevel } = classUpdateData(actor, classItem, level, { election });
+  for (const [path, value] of Object.entries(update)) {
+    if (path === "system.details.level" || path === "system.details.class") continue;
+    const written = getProperty(changes, path);
+    if (written !== undefined && !sameValue(written, getProperty(actor, path))) continue;
+    setProperty(changes, path, value);
+    setProperty(changes, `${flagPath}.applied.${path}`, value);
+  }
+  setProperty(changes, `${flagPath}.appliedLevel`, rowLevel);
 }
 
 /** Notify (once per level) when a character's XP reaches its threshold. */

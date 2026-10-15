@@ -158,6 +158,13 @@ the character still holds is listed first, and answering with it grants nothing
 level-up wizard recorded one. Abilities those levels granted stay on the sheet:
 delete them by hand if the lost level should take them.
 
+**A typed level brings its class row with it.** Change the level on either
+sheet, up or down, and the saves, attack throw, title, experience to next
+level, hit dice, cleaves, damage bonus and spell slots change to that level's
+row in the same save. A typed raise rolls no hit points and grants nothing new:
+use the level-up arrow to climb, or the class picker to set a level together
+with everything it owes.
+
 Casters get a per-tradition slot strip under the class field — click a pip to
 spend, click a spent pip to refund, the bed icon to rest. The Nobiran's
 arcane and divine pools sit side by side.

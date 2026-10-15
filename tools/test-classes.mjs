@@ -1595,7 +1595,24 @@ test("a ref printed at a second rung owes a second copy, and only that", () => {
 
 /* The guard reads the bound class through the registry, so the world lookup
  * answers one invented class here, and the toast and its wording are caught. */
-const GUARD_CLASS = { type: CLASS_TYPE, documentName: "Item", name: "Probe", system: SCHEDULE };
+const GUARD_CLASS = {
+  type: CLASS_TYPE,
+  documentName: "Item",
+  name: "Probe",
+  system: {
+    ...SCHEDULE,
+    key: "probe",
+    levelRow: (n) => ({ title: `Rank ${n}`, hd: `${n}d6` }),
+    saves: [
+      { minLevel: 1, maxLevel: 2, paralysis: 15, death: 14, blast: 16, implements: 15, spells: 17 },
+      { minLevel: 3, maxLevel: 5, paralysis: 13, death: 12, blast: 14, implements: 13, spells: 15 },
+    ],
+    attack: [{ minLevel: 1, maxLevel: 2, throw: 10 }, { minLevel: 3, maxLevel: 5, throw: 9 }],
+    cleaves: null,
+    casting: [],
+    ladders: [],
+  },
+};
 const toasts = [];
 const guarded = (fn) => {
   const lookup = globalThis.fromUuidSync;
@@ -1665,7 +1682,7 @@ test("lowering a level reopens the rungs above it and puts back the maximum a cl
     assert.equal(typed.system.hp.value, 9, "current hit points are capped beneath the restored maximum");
     assert.deepEqual(flagOf(typed).hpAt, [{ level: 1, max: 6 }, { level: 2, max: 9 }]);
     // Experience is left as it was; lowering is not an award.
-    assert.equal(typed.system.details.xp, undefined);
+    assert.equal(typed.system.details.xp.value, undefined);
     // A sheet submits every field: the maximum it already holds rides along
     // unchanged and must not read as a rebuilt one.
     const submitted = { system: { details: { level: 2, xp: { value: 900 } }, hp: { max: 14, value: 10 } } };
@@ -1680,7 +1697,7 @@ test("a level set with a rebuilt maximum keeps that maximum and starts the recor
     const flag = { awardsTaken: ["1:1", "3:3"], hpAt: [{ level: 2, max: 9 }, { level: 3, max: 12 }] };
     const picker = {
       system: { details: { level: 2, xp: { value: 199 } }, hp: { max: 7, value: 7 } },
-      flags: { "acks-extras": { classes: { awardsTaken: ["1:1", "3:3", "2:2"] } } },
+      flags: { "acks-extras": { classes: { appliedLevel: 2, awardsTaken: ["1:1", "3:3", "2:2"] } } },
     };
     guardLevelWrite(boundAt(3, 400, flag), picker, {});
     assert.equal(picker.system.hp.max, 7);
@@ -1697,8 +1714,72 @@ test("a lowered level with no record leaves hit points alone", () => {
   guarded(() => {
     const typed = { system: { details: { level: 2 } } };
     guardLevelWrite(boundAt(4, 900, {}), typed, {});
-    assert.equal(typed.system.hp, undefined);
+    assert.equal(typed.system.hp.max, undefined);
+    assert.equal(typed.system.hp.value, undefined);
   });
+});
+
+test("a level typed by hand carries its class row, up or down", () => {
+  guarded(() => {
+    const raised = { system: { details: { level: 3 } } };
+    guardLevelWrite(boundAt(1, 0), raised, {});
+    assert.equal(raised.system.details.level, 3);
+    assert.equal(raised.system.details.class, undefined, "the class name stays as written");
+    assert.equal(raised.system.details.title, "Rank 3");
+    assert.equal(raised.system.details.xp.next, 400);
+    assert.equal(raised.system.hp.hd, "3d6");
+    assert.equal(raised.system.saves.death.value, 12);
+    assert.equal(raised.system.thac0.throw, 9);
+    assert.equal(flagOf(raised).appliedLevel, 3);
+    assert.equal(flagOf(raised).applied.system.saves.death.value, 12, "the next apply reads the row as its own");
+    assert.equal(raised.system.hp.max, undefined, "a typed raise rolls nothing");
+    const lowered = { system: { details: { level: 2 } } };
+    guardLevelWrite(boundAt(4, 900), lowered, {});
+    assert.equal(lowered.system.details.title, "Rank 2");
+    assert.equal(lowered.system.thac0.throw, 10);
+    assert.equal(flagOf(lowered).appliedLevel, 2);
+  });
+});
+
+test("a value the write sets itself outranks the row, and a submitted one gives way", () => {
+  guarded(() => {
+    const actor = boundAt(1, 0);
+    actor.system.saves = { death: { value: 14 }, paralysis: { value: 15 } };
+    const form = { system: { details: { level: 3 }, saves: { death: { value: 14 }, paralysis: { value: 11 } } } };
+    guardLevelWrite(actor, form, {});
+    assert.equal(form.system.saves.death.value, 12);
+    assert.equal(form.system.saves.paralysis.value, 11);
+    assert.equal(flagOf(form).applied.system.saves.paralysis, undefined);
+    // An apply writes its own row and records appliedLevel; the guard adds none.
+    const apply = { system: { details: { level: 3 } }, flags: { "acks-extras": { classes: { appliedLevel: 3 } } } };
+    guardLevelWrite(boundAt(1, 0), apply, {});
+    assert.equal(apply.system.details.title, undefined);
+  });
+});
+
+test("a typed level carries the damage bonus only under the character's standing election", () => {
+  const saved = GUARD_CLASS.system.ladders;
+  GUARD_CLASS.system.ladders = [{ key: "electedDamageBonus", values: [{ atLevel: 1, value: 1 }, { atLevel: 3, value: 2 }] }];
+  try {
+    guarded(() => {
+      const elected = { system: { details: { level: 3 } } };
+      guardLevelWrite(boundAt(1, 0, { damageBonus: { class: "probe", applies: "melee" } }), elected, {});
+      assert.equal(elected.system.damage.mod.melee, 2);
+      assert.equal(elected.system.damage.mod.missile, undefined);
+      // An election made for another class is not this one's.
+      const other = { system: { details: { level: 3 } } };
+      guardLevelWrite(boundAt(1, 0, { damageBonus: { class: "elsewhere", applies: "melee" } }), other, {});
+      assert.equal(other.system.damage, undefined);
+    });
+  } finally {
+    GUARD_CLASS.system.ladders = saved;
+  }
+});
+
+test("chargen grants a ref printed at two first-level rungs twice", () => {
+  const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
+  assert.match(src, /firstFixed\.slice\(0, index \+ 1\)\.filter\(\(x\) => x\.ref === a\.ref\)\.length/);
+  assert.match(src, /grantAbility\(actor, a\.ref, startingGrants, \{ upTo: copies \}\)/);
 });
 
 test("the wizard writes its level before anything else, and the successor's start is uncapped", () => {
