@@ -133,17 +133,22 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
   const target = actor?.actor ?? actor;
   if (!target) return { error: "no-candidate" };
 
+  // A monster always serves as a henchman (`hireMonster`). A character's own
+  // sheet already says what kind of hireling it is, and a hire never rewrites
+  // that. Only a henchman takes a slot, so only a henchman meets the limit.
+  const monster = target.type === ACTOR_TYPE.monster;
+  const category = monster ? "henchman" : (opts.category ?? target.system?.retainer?.category ?? "henchman");
+  if (category === "henchman" && !opts.skipLimit && !admitsHenchman(employer)) return { error: "limit" };
+
   let result;
-  if (target.type === ACTOR_TYPE.monster) {
+  if (monster) {
     const { hireMonster } = await import("./monster.mjs");
     result = await hireMonster(target, employer, { ...opts });
   } else {
     // Visibility: the hiring player(s) become owners of their new hireling.
     await target.update({ ownership: { ...target.ownership, ...employerOwnership(employer) } });
     const loyaltyStart = startingLoyalty({ base: opts.baseLoyalty ?? 0, elan: !!opts.elan });
-    // The actor's own sheet already says what kind of hireling it is; a hire
-    // never rewrites that, and only a henchman's wage falls back to the ladder.
-    const category = opts.category ?? target.system?.retainer?.category ?? "henchman";
+    // Only a henchman's wage falls back to the ladder.
     const wage =
       Number(target.system?.retainer?.wage) || (category === "henchman" ? henchmanWage(adapter.getWageLevel(target)) : 0);
     await adapter.setRetainer(target, {
@@ -234,6 +239,26 @@ export function checkHenchmanLimit(employer) {
 }
 
 /**
+ * Whether the world's `enforceHenchmanLimit` policy lets `employer` take one
+ * more henchman. Over the limit, `warn` says so and lets the hire through, and
+ * `block` says so and refuses. Every hire of a henchman asks this before it
+ * writes anything.
+ */
+function admitsHenchman(employer) {
+  const mode = game.settings.get(MODULE_ID, "enforceHenchmanLimit");
+  if (mode === "off") return true;
+  const limit = checkHenchmanLimit(employer);
+  if (limit.ok) return true;
+  const msg = game.i18n.format("ACKS-HENCHMEN.hire.limitReached", { name: employer.name, count: limit.count, max: limit.max });
+  if (mode === "block") {
+    ui.notifications.error(msg);
+    return false;
+  }
+  ui.notifications.warn(msg);
+  return true;
+}
+
+/**
  * Hire a candidate: create the hireling actor, wire it into the core roster,
  * write the HenchmanRecord, compute and store effective loyalty.
  *
@@ -260,22 +285,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
   const category = opts.category ?? (candidate.kind === "mercenary" ? "mercenary" : candidate.kind === "specialist" ? "specialist" : "henchman");
 
   // Limit enforcement (setting-gated) — only true henchmen consume slots.
-  if (category === "henchman" && !opts.skipLimit) {
-    const mode = game.settings.get(MODULE_ID, "enforceHenchmanLimit");
-    const limit = checkHenchmanLimit(employer);
-    if (!limit.ok && mode !== "off") {
-      const msg = game.i18n.format("ACKS-HENCHMEN.hire.limitReached", {
-        name: employer.name,
-        count: limit.count,
-        max: limit.max,
-      });
-      if (mode === "block") {
-        ui.notifications.error(msg);
-        return { error: "limit" };
-      }
-      ui.notifications.warn(msg);
-    }
-  }
+  if (category === "henchman" && !opts.skipLimit && !admitsHenchman(employer)) return { error: "limit" };
 
   const loyaltyStart = startingLoyalty({
     base: opts.baseLoyalty ?? 0,

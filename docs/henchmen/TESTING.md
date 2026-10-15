@@ -115,6 +115,20 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    hire them.
    *Observable:* the candidate's status leaves `available`, and the hire
    appears on the employer's roster.
+4a. The henchman limit on a special hire. Bring a disposable employer to its
+   limit without enrolling a crowd: write its `flags.acks-extras.retainBonus`
+   to `1 - adapter.getRetainMax(employer)` and link one henchman. Register a
+   plain `character` with `addSpecialHire(location, actor)` and call
+   `hireExistingActor(location, entry.id, employer)`, once per mode of
+   `enforceHenchmanLimit`. The setting is the shared world's: on a world other
+   sessions use, stub `game.settings.get` for that one key on your own client
+   and restore it in a `finally`, rather than writing it. Make a fresh
+   candidate for each mode, and one more whose sheet says `specialist`.
+   *Observable:* under `block` the call answers `{error: "limit"}` after
+   saying the limit is reached. The entry stays `available`, and the roster
+   and the actor's `retainer` are untouched. Under `warn` it says the same and
+   hires. Under `off` it hires and says nothing. The specialist hires under
+   `block` without a word: it takes no slot.
 5. Wages: `payWagesFor(employer)` with a purse worth less than the wages due,
    then `payWagesFor(employer, {markMissed: true})`, then with enough, then
    with enough in coin that cannot make the wage exactly.
