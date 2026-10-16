@@ -13,7 +13,7 @@ import { postToJudges } from "../lib/roll-audience.mjs";
 import { cookbookId } from "../lib/library.mjs";
 import { clockReading } from "../lib/world-time.mjs";
 import { readFormations, patchFormation, realMembers } from "./formation-model.mjs";
-import { travelOf } from "./travel.mjs";
+import { storedTravelOf, travelOf } from "./travel.mjs";
 import {
   advanceSettlementTurn, advanceSettlementDays, citySpec, streetCadence,
   resolveCityCadence, cadenceAttribution, pickIncidentSource, settlementEncounter, readIncident, isNight,
@@ -122,7 +122,7 @@ export async function cityTurnCompleted(formation, notes = []) {
   // The road is a SNAPSHOT of what the map said for this turn, so the card and
   // the panel report the street the turn was actually resolved on.
   next.road = road;
-  formation.travel = { ...t, settlement: next };
+  formation.travel = { ...storedTravelOf(formation), settlement: next };
 
   // The turn card is what the Judge is already reading; the two things a city
   // turn can do that a dungeon turn cannot belong on it.
@@ -195,7 +195,7 @@ export async function runHoledUpDays(formation, days) {
   if (events.some((e) => e.kind === "notHoledUp")) return null;
 
   await patchFormation(formation.id, (record) => {
-    const cur = travelOf(record);
+    const cur = storedTravelOf(record);
     record.travel = { ...cur, settlement: next };
   });
 
@@ -282,7 +282,7 @@ async function creditHoledUpDaysNow() {
     // First sighting: start the clock here rather than at the epoch.
     if (board.holeUpSince == null) {
       await patchFormation(formation.id, (record) => {
-        const cur = travelOf(record);
+        const cur = storedTravelOf(record);
         record.travel = { ...cur, settlement: { ...cur.settlement, holeUpSince: now } };
       });
       continue;
@@ -296,7 +296,7 @@ async function creditHoledUpDaysNow() {
     const credited = (await runHoledUpDays(formation, days))?.credited ?? 0;
     if (credited < 1) continue;
     await patchFormation(formation.id, (record) => {
-      const cur = travelOf(record);
+      const cur = storedTravelOf(record);
       const since = Number(cur.settlement.holeUpSince) + credited * DAY_SECONDS;
       record.travel = { ...cur, settlement: { ...cur.settlement, holeUpSince: since } };
     });

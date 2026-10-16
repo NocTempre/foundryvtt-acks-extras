@@ -17,20 +17,39 @@ import {
   resetSelectedFootprints,
 } from "./token-scale.mjs";
 import { fitGrid, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid } from "./calibrate-logic.mjs";
-import { familyOfScene, sceneSetup, sceneTravelSystem, sceneIncidents, writeSceneIncidents } from "./scene-setup.mjs";
+import { familyOfScene, sceneCountry, sceneSetup, sceneTravelSystem, sceneIncidents, writeSceneIncidents, writeSceneSetup } from "./scene-setup.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
 import { CAPTURE_MODES, session } from "./session.mjs";
 import {
   terrainPaint,
+  openCountryBrush,
   openTerrainPalette,
   terrainAtPoint,
   terrainRegionsOf,
   hexLabelFromOffset,
   paintHexAt,
   isHexScene,
+  layerRegionsOf,
+  layerValueAt,
+  paintableValues,
   registerTerrainPaintHooks,
+  PAINT_LAYERS,
   TERRAIN_COLORS,
+  TERRITORY_COLORS,
 } from "./terrain-paint.mjs";
+import {
+  WATER_KINDS,
+  armWaterPreset,
+  installWaterControls,
+  registerWaterHooks,
+  waterFromSelection,
+  waterKindLabel,
+  waterUnder,
+  waterWallData,
+  waterWallsOf,
+  wallWater,
+} from "./water.mjs";
+import { COUNTRY_KEYS, countryAt } from "./country.mjs";
 import {
   ROAD_SURFACES,
   armAlleyPreset,
@@ -63,6 +82,8 @@ Hooks.once("init", () => {
   registerTerrainPaintHooks();
   registerRoadHooks();
   installRoadControls();
+  registerWaterHooks();
+  installWaterControls();
   installRoadMarkers();
   // The session owns the samples, so it is what a scene change clears — the
   // window is only a view and may not even be open.
@@ -119,16 +140,42 @@ Hooks.once("ready", () => {
       nodePoint,
       stepBetweenHexes,
     },
-    /** Hex terrain painting (terrain-paint.mjs): the map-prep brush and the
-     *  reads the journey hangs off — terrain by hex, labels from offsets. */
+    /** Hex painting (terrain-paint.mjs): the map-prep brush on its three
+     *  layers and the reads the journey hangs off — a value by hex, labels
+     *  from offsets. */
     terrain: {
       paintHexAt,
       terrainAtPoint,
       terrainRegionsOf,
+      layerValueAt,
+      layerRegionsOf,
+      paintableValues,
       hexLabelFromOffset,
       isHexScene,
       openTerrainPalette,
+      openCountryBrush,
+      PAINT_LAYERS,
       TERRAIN_COLORS,
+      TERRITORY_COLORS,
+    },
+    /** Rivers and coasts as walls (water.mjs): the layer and its preset. */
+    water: {
+      WATER_KINDS,
+      waterWallData,
+      waterWallsOf,
+      wallWater,
+      waterUnder,
+      waterKindLabel,
+      armWaterPreset,
+      waterFromSelection,
+    },
+    /** The country under a point (country.mjs) and the scene's own default
+     *  under the brush (scene-setup.mjs), written through the setup record. */
+    country: {
+      COUNTRY_KEYS,
+      countryAt,
+      sceneCountry,
+      writeSceneSetup,
     },
   };
 });
@@ -182,21 +229,18 @@ function installSceneControls() {
         },
       };
     });
-    // The terrain brush is a canvas-arming tool like the capture modes, so
+    // The country brush is a canvas-arming tool like the capture modes, so
     // Foundry's one-active-tool rule is the exclusivity: arming it disarms
-    // calibration, and vice versa. Hex map prep, GM-only, hex grids only.
+    // calibration, and vice versa. Hex map prep, GM-only, hex grids only; the
+    // palette picks which of the three layers it paints.
     tools.terrain = {
       name: "terrain",
       title: game.i18n.localize(`${LANG_PREFIX}.terrain.tool`),
       icon: "fa-solid fa-paintbrush",
       order: CAPTURE_MODES.length + 1,
       onChange: (_event, active) => {
-        if (active) {
-          terrainPaint.arm(terrainPaint.brush ?? "grassland");
-          openTerrainPalette();
-        } else {
-          terrainPaint.disarm();
-        }
+        if (active) openCountryBrush({ by: "tool" });
+        else terrainPaint.disarm();
       },
     };
     // Roads are drawn as WALLS with core's own wall tool. Each of these is a
@@ -232,6 +276,19 @@ function installSceneControls() {
       button: true,
       onChange: () => convertRoutes(),
     };
+    // Rivers and coasts are drawn as WALLS too, armed the way a road is: a
+    // preset for core's wall tool, not a canvas mode.
+    WATER_KINDS.forEach((kind, i) => {
+      tools[`water-${kind}`] = {
+        name: `water-${kind}`,
+        title: game.i18n.localize(`${LANG_PREFIX}.water.preset.${kind}`),
+        icon: kind === "coast" ? "fa-solid fa-umbrella-beach" : "fa-solid fa-water",
+        order: CAPTURE_MODES.length + 4 + ROAD_SURFACES.length + i,
+        button: true,
+        // ONE handler, as for the road presets.
+        onChange: () => armWaterPreset({ kind }),
+      };
+    });
 
     tools.wipe = {
       name: "wipe",

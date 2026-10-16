@@ -59,6 +59,7 @@ const COMMITTED = [
   "test-trap-rules.mjs",
   "test-wall-geometry.mjs",
   "test-wall-layers.mjs",
+  "test-water.mjs",
   "test-variations.mjs",
   "test-influence.mjs",
   "test-classes.mjs",

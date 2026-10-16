@@ -57,7 +57,9 @@ import {
   trueHexOf,
 } from "./hex-stock-run.mjs";
 import { askStrayAndBegin, confirmDiscovery, confirmEnd, confirmReanchor } from "./lost-dialog.mjs";
-import { applyTravelForm, setJourneyMode, rollWeatherNow, travelOf, TRAVEL_MODES } from "./travel.mjs";
+import { applyTravelForm, clearDeclaredCountry, setJourneyMode, rollWeatherNow, travelOf, TRAVEL_MODES } from "./travel.mjs";
+import { openCountryBrush, PAINT_LAYERS } from "../battlemap/terrain-paint.mjs";
+import { COUNTRY_KEYS } from "../battlemap/country.mjs";
 import { forcedMarchBar, confirmBarOverride } from "./march-bar.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import SkillAuditApp from "./skill-audit.mjs";
@@ -374,6 +376,39 @@ export const SHARED_ACTIONS = {
     if (!formation) return;
     await rollWeatherNow(formation.id);
     this.render();
+  },
+
+  /** The Judge takes back their word on one country key; the map's reading stands again. */
+  async clearOverride(_event, target) {
+    const formation = gmFormation(this);
+    const key = target?.dataset?.key ?? "";
+    if (!formation || !COUNTRY_KEYS.includes(key)) return;
+    await applyTravelForm(formation.id, { override: { [key]: "" } });
+    this.render();
+  },
+
+  /** The Judge retires an older record's declaration of one country key; the map or the default answers again. */
+  async clearDeclared(_event, target) {
+    const formation = gmFormation(this);
+    const key = target?.dataset?.key ?? "";
+    if (!formation || !COUNTRY_KEYS.includes(key)) return;
+    await clearDeclaredCountry(formation.id, key);
+    this.render();
+  },
+
+  /**
+   * Paint the hex the party stands in: the party's scene comes into view if
+   * it is not, then the country brush is armed on the card's layer and its
+   * palette opens — the toolbar tool's own path. Nothing is written until the
+   * Judge clicks the map.
+   */
+  async paintThisHex(_event, target) {
+    const formation = gmFormation(this);
+    const scene = formation ? getPartyScene(formation) : null;
+    if (!scene) return;
+    const layer = Object.hasOwn(PAINT_LAYERS, target?.dataset?.layer ?? "") ? target.dataset.layer : "terrain";
+    if (game.scenes?.viewed?.id !== scene.id) await scene.view();
+    openCountryBrush({ layer, brush: target?.dataset?.brush || null, by: "sheet" });
   },
 
   /**

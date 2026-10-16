@@ -8,7 +8,7 @@
  */
 import { makeLoc } from "../lib/util.mjs";
 import { getFormation, patchFormation } from "./formation-model.mjs";
-import { seatJourneyHex, travelOf } from "./travel.mjs";
+import { seatJourneyHex, storedTravelOf, travelOf } from "./travel.mjs";
 import { beginLost, walkBelieving, discoverLost, reanchorLost, endLost, lostOf, driftSummary } from "./lost.mjs";
 import { placeShadow, clearShadows, shadowFor, TRUTH_MOVE_OPTION } from "./shadow.mjs";
 import { snapshotFog, restoreFog, paintFakeReveal, announceDiscovery, canFake } from "./lost-fog.mjs";
@@ -37,7 +37,7 @@ export async function beginEpisode(formation, { day, anchor, trueOffset, judgeNo
   const fogSnapshot = await snapshotFog(scene.id, level);
   await placeShadow(scene, formation, trueOffset ?? anchor);
   await patchFormation(formation.id, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     record.travel = {
       ...t,
       lost: beginLost(t.lost, { day, anchor, fogSnapshot, fogSnapshotComplete: true, judgeNote, sceneId: scene.id, level }),
@@ -60,7 +60,7 @@ export async function walkAstray(formation, { believedOffset, trueOffset } = {})
   if (trueOffset) await placeShadow(scene, formation, trueOffset);
   let faked = [];
   await patchFormation(formation.id, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     const next = walkBelieving(t.lost, believedOffset, trueOffset);
     faked = next.faked;
     record.travel = { ...t, lost: next };
@@ -83,7 +83,7 @@ export async function discoverEpisode(formation) {
   const scene = episodeScene(formation, t.lost);
   if (revert?.fogSnapshot && scene) await restoreFog(scene.id, revert.fogSnapshot, t.lost.level, { complete: revert.complete });
   await patchFormation(formation.id, (record) => {
-    const cur = travelOf(record);
+    const cur = storedTravelOf(record);
     record.travel = { ...cur, lost };
   });
   announceDiscovery({ days: summary?.days ?? null, fakedHexes: summary?.fakedHexes ?? 0 });
@@ -141,7 +141,7 @@ export async function reanchorEpisode(formation, { moveToTruth = true } = {}) {
   const cleared = await clearShadows(formation.id);
   if (reanchored) {
     await patchFormation(formation.id, (record) => {
-      const cur = travelOf(record);
+      const cur = storedTravelOf(record);
       record.travel = { ...cur, lost };
     });
   }
@@ -163,7 +163,7 @@ export async function endEpisode(formation) {
   const cleared = await clearShadows(formation.id);
   if (ended) {
     await patchFormation(formation.id, (record) => {
-      const cur = travelOf(record);
+      const cur = storedTravelOf(record);
       record.travel = { ...cur, lost };
     });
   }

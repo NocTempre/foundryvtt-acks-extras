@@ -922,6 +922,201 @@
   border-top: none;
 }
 
+/* --- The country: the cards and the Judge's hand ----------------------------
+   Four readings side by side, reflowing to fewer columns as the window
+   narrows. A card's swatch takes its colour from the card itself
+   (`--acks-extras-country-swatch`, set inline from the view); a card with no
+   colour to show is hatched. */
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(150px * var(--acks-extras-k))), 1fr));
+  gap: var(--acks-sp-4);
+}
+
+/* The Sky section's one reading, the climate: a card's width, no wider. */
+.acks-extras.acks-extras-party-sheet .acks-extras-country-cards.is-single {
+  grid-template-columns: minmax(0, calc(300px * var(--acks-extras-k)));
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "swatch text" "chips chips";
+  align-items: center;
+  column-gap: var(--acks-sp-3);
+  row-gap: var(--acks-sp-2);
+  min-width: 0;
+  padding: var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-swatch {
+  grid-area: swatch;
+  width: calc(40px * var(--acks-extras-k));
+  height: calc(40px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  background: var(--acks-extras-country-swatch, transparent);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-swatch.is-empty {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent 0 calc(5px * var(--acks-extras-k)),
+    var(--acks-ink-faint) calc(5px * var(--acks-extras-k)) calc(6px * var(--acks-extras-k))
+  );
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-text {
+  grid-area: text;
+  display: flex;
+  flex-direction: column;
+  gap: calc(2px * var(--acks-extras-k));
+  min-width: 0;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-label {
+  font-family: var(--acks-font-display);
+  font-size: calc(9px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-value {
+  font-family: var(--acks-font-ui);
+  font-size: calc(13px * var(--acks-extras-k));
+  line-height: 1.25;
+  color: var(--acks-ink);
+  overflow-wrap: anywhere;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-source {
+  font-family: var(--acks-font-ui);
+  font-size: calc(10.5px * var(--acks-extras-k));
+  line-height: 1.25;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-chips {
+  grid-area: chips;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4px * var(--acks-extras-k));
+  width: auto;
+  height: calc(22px * var(--acks-extras-k));
+  min-height: 0;
+  margin: 0;
+  padding: 0 calc(7px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-ink-soft);
+  font-family: var(--acks-font-display);
+  font-size: calc(9px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-chip.is-override {
+  border-color: var(--acks-burgundy);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-chip.is-declared {
+  border-color: transparent;
+  padding: 0 calc(3px * var(--acks-extras-k));
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-chip.is-paint {
+  cursor: pointer;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-chip.is-paint:hover {
+  border-color: var(--acks-spot);
+  color: var(--acks-ink);
+}
+
+/* The clear rides inside the override chip, and beside each select of the
+   Judge's hand: an icon the size of the type around it. */
+.acks-extras.acks-extras-party-sheet .acks-extras-country-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0 calc(2px * var(--acks-extras-k));
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1em;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-clear:focus-visible {
+  box-shadow: var(--acks-focus-ring);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-draw {
+  margin: 0;
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  line-height: 1.3;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-hand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-hand-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: var(--acks-sp-3);
+  row-gap: calc(2px * var(--acks-extras-k));
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-hand-row label {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2px * var(--acks-extras-k));
+  min-width: 0;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-hand-row .acks-extras-country-clear {
+  height: calc(26px * var(--acks-extras-k));
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-country-hand-map {
+  grid-column: 1 / -1;
+  font-family: var(--acks-font-ui);
+  font-size: calc(10.5px * var(--acks-extras-k));
+  line-height: 1.3;
+  color: var(--acks-ink-soft);
+}
+
 /* --- Marching order controls & ranks --- */
 
 .acks-extras:is(.party-sheet, .skill-audit) .members h3 {

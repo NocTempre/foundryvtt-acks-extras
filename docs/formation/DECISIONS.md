@@ -2968,8 +2968,8 @@ sheet. Nothing here supersedes a ruling younger than 7 days; it makes the
 ## 2026-10-15 — The party sheet takes the character sheet's frame
 
 **Evidence.** The owner's 2026-10-14 feedback on the shipped party sheet
-(11.2.0), read as defects in the redesign proposal
-(`wip/20261014-party-sheet-redesign.md` §0): "The UI is terrible", "Camp as a
+(11.2.0), read as defects in the redesign proposal (its feedback rows,
+2026-10-14): "The UI is terrible", "Camp as a
 new tab when activating camp time", "A sightings for encounter cards". The
 sheet's Judge controls sat in one strip of buttons over a stack of folds, and
 nothing read at a glance. The proposal's frame is the character sheet's,
@@ -2995,6 +2995,9 @@ the surface that ruling built.
   Points of interest, beside the stock they search. The strip keeps its tiles;
   its buttons went to the tab heads and the quick tools, its mode picker to the
   band, its saves to the saves rail and its checks to the Party checks tool.
+  *Superseded in part by "The country is read from the map, and the Judge's
+  word stands over it" (2026-10-15, below): Country's selects are the Judge
+  tab's hand, and the section's readings reach every seat.*
 - **The Judge's tab is a part a player's seat never renders**
   (`framePartIds`), so nothing on it reaches a player's DOM.
 - **Part-root scroll**, with the `// no-scroll:` escape: each tab part's root
@@ -3053,3 +3056,149 @@ the surface that ruling built.
   an auto-height window on every render and tab change: a window the Judge
   shortened springs back at the next field change, where the old sheet's
   fixed 700px opening kept a resize. ROADMAP, "A window height the user set".
+
+## 2026-10-15 — The country is read from the map, and the Judge's word stands over it
+
+**Evidence.** The owner's 2026-10-14 feedback, read as defects in the redesign
+proposal (its feedback rows, 2026-10-14): the terrain should be
+picked up from the map hex under the party, and the palette belongs to a map
+tool, not the party. Ground and road already gave way to the paint and the
+drawn roads; following, territory, the encounter terrain and the climate were
+selects on the sheet, one declaration per party, and the mechanics audit
+(2026-10-15, row 2.1) names the sheet as where
+the climate is set. The owner's answers of the same day (§8, rulings 4a and
+7a) made territory and climate brush layers and a river a drawn line
+(battlemap DECISIONS, 2026-10-15, both entries), so the map can now answer all
+six keys. On that evidence this supersedes in part two rulings under seven
+days old:
+- *The party sheet takes the character sheet's frame* (2026-10-15, "The folds'
+  homes"), where Country stayed a section of the Judge's selects. With the
+  selects in the Judge's hand the section holds readings only, and a reading
+  tells a player nothing the band's chips and the map do not already show, so
+  the section reaches every seat.
+- battlemap *The brush paints at the book's grain* (2026-10-09), where the
+  journey wrote the ground and the pick from a painted hex and a pick carried
+  to the next one. A written key would now stand as a declaration over every
+  later reading, so the trace caches the map's reading instead, and nothing
+  carries past its hex.
+
+**Ruled.**
+- **Four sources, one resolution.** `travelOf` resolves `ground`,
+  `encounterTerrain`, `territory`, `weather.climate`, `road` and `following`
+  as the Judge's word (`travel.override`), then the map (`travel.map`, with the
+  scene's default inside it), then the declared record, then the module's
+  default, and returns `provenance` per key. No consumer changes what it reads
+  (MODEL, "The country"). The declared keys are not migrated, and the trace no
+  longer writes them.
+- **The map's reading is a cache**, `travel.map`, written from `countryAt` by
+  `traceStep` and `seatJourneyHex`, by a drag off a hex grid, and by
+  `setJourneyMode` when a journey begins with the token on the map. It counts
+  only on the party token's own scene. The active GM's client re-reads it when
+  a Region or a Wall changes on that scene, when the scene's default country
+  changes and when a party token arrives: once per scene per burst, writing
+  only a reading that changed. A burst with no Wall in it keeps the road a
+  party still in the same hex walked in on.
+- **The Judge's word is an override, and reads as one only where it beats the
+  map.** The six selects are the Judge tab's hand and write
+  `travel.override.<key>`; a blank or a clear removes the key, and a held word
+  no longer in its vocabulary stays an option. A card wears the burgundy
+  Override chip with a clear where the word stands over a different reading,
+  the pen mark where a word stands with no reading under it, and nothing where
+  the map, the scene or the default answered or the word says what the map
+  says.
+- **Writers spread `storedTravelOf`**, the record as stored.
+- **A declared value equal to the module's default reads as the default.**
+- **The river's table is applied at resolution**, while the party moves by
+  vessel over a water line, so a change of movement mode changes the table
+  with no re-read.
+- **The cadence is the territory's the step arrives in.**
+- **The Country section reaches every seat**; the sources, the chips and the
+  brush are the Judge's. **Paint this hex** brings the party's scene into view
+  and opens the brush on the card's layer through the toolbar's own path, and
+  writes nothing itself.
+
+**Rejected.**
+- *Resolving in each consumer*: six readers already disagreed on the defaults.
+- *A migration of the declared keys*: they stay the fallback, and simply stop
+  being written by the trace.
+- *Reading the canvas at render time*: a player's client may not have the
+  scene viewed, and the encounter throw runs on the GM's.
+- *Keeping the selects on the Wilderness tab beside the cards*: two surfaces
+  for one value; the owner's feedback named the duplicated controls.
+- *Keeping Country the Judge's section*: once the selects left, it guarded
+  nothing a player does not see on the band and the map.
+- *A normalizer on the ledger, or a `declared` sub-object*: the first couples
+  the record's store to travel, the second is a migration.
+- *Writing the resolved values back*: a cleared override would survive in the
+  record it was copied into.
+- *A pen mark on every stored default*: every record from before this phase
+  stores the defaults, so every card would wear one.
+- *Checking the cached hex against the token's on every read*: `travelOf` is
+  pure over the record, and the trace, a paused journey's drag and the
+  refresh re-read where the token or the map moves; the moves none of them
+  sees are ROADMAP rows.
+- *Re-reading the road on every refresh*: a read at the token cannot see the
+  road a step walked between two hexes.
+- *The territory left behind, for the cadence*: the throws a step owes are
+  thrown where it arrives.
+- *Arming the brush through `ui.controls.activate`*: it opens the Battlemap
+  window beside the palette.
+
+**Cost.**
+- On a painted or defaulted map an old record's declared keys are shadowed
+  without a word; on a map that says nothing they still answer.
+- A party with no token, or whose token is on another scene, reads no map;
+  its cards show the declared or the default country.
+- A Judge's word outlives the hex it was given in, until it is cleared.
+- While a lost episode is open the reading is the token's, the hex the party
+  believes it is in; the true hex's is phase 2b.
+- `traceStep` still takes `ground`, `encounterTerrain` and `road` on a step,
+  laid over the reading as the map's own answer, so a caller tracing by hand
+  keeps working. `formation` `apiVersion` 17.
+
+## 2026-10-16 — The Judge's ground takes the encounter table with it
+
+**Evidence.** The phase-2a review, before the change shipped: with a hex
+painted on the map and the hand's ground set to another, `travelOf` resolved
+the ground from the Judge's word and the table from the map, so the throw drew
+on the painted ground's table under the ground the Judge named, and the Ground
+card's paint chip armed the painted ground's brush. The entry above resolved
+each key by its own first source and did not say what a table read with
+another ground is worth. The same review found an older record's declared
+table or following with no way to clear it, a paused journey's drag leaving
+the reading stale, a move inside the party's own hex writing "none" over the
+road its last step walked, and a water line marked again losing its say on
+boats. This amends the entry above on those points; the new evidence is the
+review's failing inputs, each now pinned by a test.
+
+**Ruled.**
+- **An overridden ground skips the map's and the record's tables.** The
+  table resolves as the Judge's own override, else the default, so every
+  consumer that already falls back to the ground's own table
+  (`encounterTerrainFor`) answers with it. The river's table is the water's
+  and stands.
+- **An older record's declaration can be retired.** The pen chip carries a
+  clear: `clearDeclaredCountry` writes the key's default over the stored
+  declaration, which reads as nothing declared. Over the Judge's word with no
+  map under it the same chip clears the override, as before.
+- **A paused journey's drag re-seats the hex and the reading**
+  (`seatJourneyHex`), billing nothing, so what the party stands on when the
+  pause lifts is what it reads.
+- **A move inside the party's own hex keeps the road its last step walked**:
+  the step's road is asked only across hexes, and the held reading's road is
+  laid over the fresh one, which a read at the token cannot see.
+- **A water line marked again keeps its say on boats while its kind stays**;
+  `waterFromSelection` takes the kind's default only for a line changing kind.
+
+**Rejected.**
+- *A migration of the declared tables*: the declaration is live data where
+  the map says nothing, and a clear on the chip costs one press.
+- *Resolving the table as "override" when the ground is*: the hand's row
+  would show as set with nothing to clear.
+- *Carrying every held key on a move inside the hex*: only the road has a
+  walked meaning a read at the token cannot see; the rest read afresh.
+
+**Cost.** A declared table or following needs the chip to clear it, one key
+per press. The moves the token hook passes over (a halt's, a resize's) and
+the arrival on another scene still re-seat nothing (ROADMAP, "The party
+sheet: what the frame leaves").

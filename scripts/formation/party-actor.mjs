@@ -164,7 +164,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     tabs: { template: `${T}/formation-tabs.hbs` },
     mode: {
       template: `${T}/${MODE_TEMPLATES.journey}`,
-      templates: [`${T}/formation-strip.hbs`, `${T}/formation-player-actions.hbs`],
+      templates: [`${T}/formation-strip.hbs`, `${T}/formation-player-actions.hbs`, `${T}/formation-country-card.hbs`],
       scrollable: [""],
     },
     order: { template: `${T}/formation-tab-order.hbs`, scrollable: [""] },

@@ -338,7 +338,8 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    cells and the declaration sections sit under it; `travel.mode === "journey"`
    on the record and `clock.paused`
    is NOT set — moving the party token ticks NO dungeon turns while journeying.
-2. Pick hills + earth road + raining, day kind Forced march. Run it twice:
+2. Pick hills and an earth road in the Judge's hand, raining in Sky, and day
+   kind Forced march. Run it twice:
    once with NO `travel` tables registered, once after registering invented
    rows (`acksExtras.lib.tables.registerTable(…, {priority: 20})`).
    *Observable:* without tables the readout carries the `tablesMissing` line
@@ -356,8 +357,9 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    the world-clock setting on, `game.time.worldTime` stands at the next dawn
    after each (`untilNextDawn`) — and with it off, it did not move.
 5. Mark **Lost** with a judge note, then join as the provisioned Player.
-   *Observable:* the player sees the strip, the camp's forecast and the log on
-   Sightings — no pickers, no day board, no lost mark, no note, no Judge tab.
+   *Observable:* the player sees the strip, the Country cards, the camp's
+   forecast and the log on Sightings — no pickers, no day board, no lost mark,
+   no note, no Judge tab.
    The GM sees the astray line in The episode section of the Judge's tab and
    the compass mark in the log rows.
 6. Pick **Delve** in the band's mode select mid-journey.
@@ -374,13 +376,13 @@ invented, so nothing printed enters the world). The band selects need no
 tables at all — that is step 1's point.
 
 1. With NO weather tables: pick a temperature/precipitation/wind by hand
-   (e.g. the rainy kind), and an earth road.
+   (e.g. the rainy kind), and an earth road in the Judge's hand.
    *Observable:* the "import the weather tables" hint shows, **Roll the
    sky** is disabled, the condition chips render for the hand-picked bands,
    and the readout's road line reads washed out — the manual sky reaches
    the road vocabulary without any import.
-2. Register the invented document, re-render, pick a climate and season,
-   **Roll the sky** several times.
+2. Register the invented document, re-render, pick a climate in the Judge's
+   hand and a season, **Roll the sky** several times.
    *Observable:* the button enables and the hint goes; each roll writes
    bands consistent with the invented rows; the night temperature line
    shows; conditions chip and the readout lists each active condition's
@@ -396,8 +398,8 @@ tables at all — that is step 1's point.
    *Observable:* after the rainy day the Mud select reads Muddy and the
    muddy chip shows; with a land vehicle in the train (harness one from the
    vehicles recipe) the wheels warning line names it — mud-bound off
-   pavement, then snow-bound with snow on; switching the road to paved
-   clears the MUD refusal (the snow one stays) and the readout shows the
+   pavement, then snow-bound with snow on; switching the road to paved in the
+   Judge's hand clears the MUD refusal (the snow one stays) and the readout shows the
    pavement holding.
 5. Join as the provisioned Player.
    *Observable:* chips, night line and wheel warnings render; no selects,
@@ -418,17 +420,19 @@ recipe, plus one world actor named to match an invented creature name
 1. With NO encounters document: press **Encounter throw**.
    *Observable:* one Judge-whispered card saying the encounter tables are
    not imported — no rolls, no errors.
-2. Register the invented document, pick a territory the sample covers,
-   press **Encounter throw** several times.
+2. Register the invented document, pick a territory the sample covers in the
+   Judge's hand, press **Encounter throw** several times.
    *Observable:* each card lists every d20 with its column and outcome
    (Column Shift results show two rolls); a monster outcome adds the
    rarity roll and the d100 draw; the drawn name matching the fixture
    actor renders as a document link, an unmatched one as plain text with
    no link; a draw whose table the sample lacks shows the
    "draw from your book" line naming the table.
-3. The terrain select: leave it unset over a ground with a default (the
-   unset option NAMES the derived sub-table); override it and throw.
-   *Observable:* the card's "Terrain sub-table" line follows the pick.
+3. The encounter terrain in the Judge's hand: leave it blank over a ground
+   with a default (the Country section's *Encounters draw on* line names the
+   derived sub-table); pick another and throw.
+   *Observable:* the card's "Terrain sub-table" line follows the pick, and the
+   Country section's line with it.
 4. Turn ON "Journey encounter throws", enter a hex (button or token move
    on a painted hex scene), then **End day** with a hunt and a search slot
    filled.
@@ -1554,7 +1558,8 @@ character actor also gets from the system's defaults) and its token on the
 first scene, an invented `travel` document registered at priority 30 carrying
 `encounterFrequency.traveling.<territory>.mileHex` equal to the first scene's
 cell (`cadenceMilesFor` reads that document), and the formation's territory
-set to that key. Record `game.time.worldTime` before the walk and report the
+set to that key in the Judge's hand (`applyTravelForm(id, {override:
+{territory}})`), since an unpainted hex scene answers none. Record `game.time.worldTime` before the walk and report the
 delta at the end. The dawn and dusk hours default to nothing and the per-hex
 throw setting may be off in the world: read all three, set them for the walk
 (a dawn, a dusk, the throw on) and restore them at teardown, and say so in
@@ -1594,8 +1599,9 @@ the report.
    `acksExtras.searchHourSpent` payload under `Hooks.once`, `worldTime` up
    one hour.
 10. Join as the provisioned Player.
-    *Observable:* the strip and the Camp section's forecast; no pickers, no day
-    board, no Judge tab (the Sky section shows only when it has chips).
+    *Observable:* the strip, the Country cards (values only) and the Camp
+    section's forecast; no pickers, no day board, no Judge tab (the Sky section
+    shows only when it has chips).
 11. Pick **Delve** in the band's mode select, then drag.
     *Observable:* billed from the new anchor — the first turn card falls
     after one exploration move from where the mode changed, not from the
@@ -2058,13 +2064,14 @@ RollTable for Tweaks to pick. Read each seat's
    |---|---|
    | band | `travel.mode`, `name` |
    | Wilderness head | `travel.hexLabel`, `travelEnterHex`, `forageDay`, `travelEndDay` |
-   | Country | `travel.ground` and `travel.road` (each while the map does not paint it), `travel.following`, `travel.territory`, `travel.encounterTerrain` |
+   | Country | no field (the cards are readings); `paintThisHex` on a card whose layer the party's hex has not painted (since phase 2a, below) |
    | Points of interest | `hexStock`; once stocked `hexAddPoint`, `hexClear` and, while the hex can be surveyed, `hexSurvey`; per point `hexFound`, `hexPlace` (or `openPlace` once placed) and `hexRemovePoint`; `camp.present`, `camp.target` |
    | Movement | `travel.movement.mode`; while flying `travel.movement.hoursAloft`, `travel.movement.dayHours`, `travel.movement.load` |
-   | Sky | `travel.weather.climate`, `.season`, `.auto`, `.fronts`, `.temperature`, `.precipitation`, `.wind`, `.footingMud`, `.footingSnow`; `travelWeatherRoll` |
+   | Sky | `travel.weather.season`, `.auto`, `.fronts`, `.temperature`, `.precipitation`, `.wind`, `.footingMud`, `.footingSnow`; `travelWeatherRoll` |
    | Day | `travel.day.kind`, `travel.day.slot.<n>` (one per slot), `travel.hour`, `travel.day.traps`, `travel.day.noSleep` |
    | Camp | `travel.exposure.hours`, `.atHeatSource`, `.wet`; `travel.camp.steal`, `.water`, `.sleepInArmour` |
    | Judge tab, The episode | `lostBegin` (by state `lostDiscover`, `lostReanchor`, `lostEnd`), `travel.lostNote` |
+   | Judge tab, The Judge's hand | `travel.override.ground`, `.encounterTerrain`, `.territory`, `.climate`, `.road`, `.following`; `clearOverride` beside each one set |
    | Order head | `autoArrange`, `frontage`, `saveMarchingOrder`, `loadMarchingOrder`, `addBlank`, `openTrapbreak`, `openSkillAudit`, `disband` |
 
    In the delve, the Dungeon head holds `advanceTurn`, `advanceRound`,
@@ -2075,7 +2082,7 @@ RollTable for Tweaks to pick. Read each seat's
    `.conveyance`.
    *Observable:* each is found exactly once (a point's own controls once per
    point), where the table says. Change one field per section and re-read the
-   record: `travel.territory`, `camp.present`, `travel.movement.mode`,
+   record: `travel.override.territory`, `camp.present`, `travel.movement.mode`,
    `travel.weather.temperature`, `travel.hour`, `travel.camp.steal`,
    `travel.lost.judgeNote` and, in a district, `travel.settlement.wanted` each
    take the new value. The Camp section renders after Day, its forecast first;
@@ -2143,6 +2150,145 @@ render, so read it once `await sheet.render()` resolves. For the decision
 rather than the DOM, `(await sheet._prepareContext({})).frame` holds the
 rails, the heads and the band as the templates render them; finish each step
 with a real press.
+
+## The country (added with the redesign's phase 2a)
+
+Fixtures, each recorded with `api.create`, or `api.track` for what a call or
+a gesture makes, read back by the id it returns:
+
+- a mile-scale HEX scene created with `active: false` and viewed (the march in
+  miles recipe's first scene), and a second disposable scene of any grid, also
+  `active: false`, for the seat to be looking at in step 6;
+- a disposable `acks-extras.party` actor with two disposable members enrolled
+  through the token HUD, one owned by the provisioned Player user, and the
+  party token placed on the hex scene and adopted (poll the record for
+  `tokenId`);
+- the march in miles recipe's invented `travel` document, registered at
+  priority 30 with `encounterFrequency.traveling.<territory>.mileHex` for TWO
+  territories: X at the scene's cell, Y at twice it;
+- hex C, the one the party token stands in, and three of its neighbours A, B
+  and D, picked by offset and read as points with
+  `scene.grid.getCenterPoint({i, j})`, so every drag below crosses one hex;
+- through `acksExtras.battlemap.terrain.paintHexAt(scene, point, value,
+  layer)`: hex A painted a forest table on `terrain`, Y on `territory` and a
+  climate on `climate`; hex B a hill table on `terrain` alone; C and D left
+  unpainted. Each call creates or updates a region: list
+  `layerRegionsOf(scene, layer)` after the painting and track every region
+  id;
+- one water line across hex D, clear of C:
+  `scene.createEmbeddedDocuments("Wall", [{c, ...acksExtras.battlemap.water.waterWallData({kind: "river"})}])`,
+  its id tracked;
+- the scene's default country, written with
+  `acksExtras.battlemap.country.writeSceneSetup(scene, {country: {ground: "grassland", territory: X, climate: <a second climate>}})`.
+
+Drive mechanics. The record is `acksExtras.formation.getFormation(id)`; its
+reading `.travel.map`; the resolution
+`acksExtras.formation.travel.travelOf(f)` (`.provenance`) and `countryOf(f)`
+(`.mapValues`). The sheet's decision is `(await
+party.sheet._prepareContext({})).travel.country` (`cards`, `climate`,
+`encountersDrawOn`) and `.countryOverrides` (the hand). A drag is the march
+in miles recipe's, centre to centre with `{animate: false}`; a throw it owes
+posts a whispered card, whose id is read back at once (the newest
+`game.messages` entry) and tracked. Count `acksExtras.hexEntered` with a
+`Hooks.on` removed after the step. The Judge's refresh is debounced and runs
+on the active GM's client alone (`game.users.activeGM`): poll the record for
+up to two seconds rather than reading it at once, and keep a second GM client
+off the world while the walk runs. A hand select is
+`select[name="travel.override.<key>"]`: set `.value` and dispatch a bubbling
+`change`.
+
+1. **Entering the journey reads the map.** With the token in hex C, call
+   `acksExtras.formation.travel.setJourneyMode(id, "journey")` (the
+   mile-scale arrival may already have).
+   *Observable:* `travel.map` exists before any drag, its `i`/`j` hex C's,
+   its `ground`, `territory` and `climate` the scene default's with
+   `source.<key>` "scene"; `provenance` reads "scene" for the three; the
+   Country cards show those values, each sourced "The scene's default", with
+   no chip.
+2. **A drag caches the hex and writes no country key.** Record
+   `Object.keys(f.travel)`, then drag into hex A.
+   *Observable:* `travel.map` names hex A with its painted ground and table,
+   Y and the painted climate, each `source` "map"; `following` "none" (the
+   scene has a water line, none under A) and `road` null; `Object.keys(f.travel)`
+   gained none of `ground`, `encounterTerrain`, `territory`, `road` or
+   `following`. No `hexEntered` fired and `travel.day.cadenceCarry` holds one
+   cell's miles: the step was counted in Y, the territory it arrived in. The
+   cards read the painted values, sourced "Read off the map"; the band's
+   territory chip reads Y; the Encounters line names hex A's table.
+3. **The cadence on the way back.** Drag back into hex C.
+   *Observable:* one `hexEntered` with `cadence` "grid" and `territory` X.
+4. **A river.** Drag into hex D, then set **Moving by** to vessel.
+   *Observable:* `travel.map.following` "river" and `water` `{kind: "river",
+   navigable: true}`; the Following card reads the river, sourced from the
+   map; the Camp section says water is already at hand, with its declaration
+   unticked. On the vessel, `travelOf(f).encounterTerrain` is the land river
+   table with `provenance` "map" and the Encounters line names it, while
+   `travel.map.at` is unchanged (no re-read). Back on foot, the ground's own
+   table returns. Pause the journey (`clock.paused` with `pausedBy` "judge")
+   and drag into hex C and back: `travel.hex` and `travel.map` follow each
+   drag, the world clock and `day.miles` do not move, no card is thrown;
+   unpause.
+5. **The Judge's word.** On the Judge tab, set the hand's ground to a ground
+   other than the map's under hex D, and its road to paved.
+   *Observable:* `travel.override` holds both and `travel.ground` stays
+   absent. The Ground card shows the override, sourced "The Judge's word", with
+   the burgundy **Override** chip, whose tooltip names the map's ground; the
+   Encounters line names the overridden ground's own table, not hex D's
+   (`travelOf(f).encounterTerrain` is the default with `provenance` "default",
+   while `countryOf(f).mapValues.encounterTerrain` is still the map's); the
+   Road card shows paved with the pen mark (the scene has no road to read) and
+   no Override chip. The hand's rows say what the map reads, or that it says
+   nothing, and the two set carry a clear. Press the Ground chip's clear: the
+   card reads the map again, with no chip. Set the hand's ground to the map's
+   own: provenance "override" and no chip. Clear both rows from the hand:
+   `travel.override` is gone from the record. Write a declaration an older
+   record holds (`patchFormation(f.id, (r) => { r.travel.road = "earth"; })`
+   from `formation-model.mjs`): the Road card reads it, sourced "Declared on
+   the sheet", with the pen mark and its clear (`clearDeclared`). Press the
+   clear: `travel.road` is the default, the card reads the default with no
+   chip.
+6. **Paint this hex.** Drag back into hex C and view the second scene. On the
+   GM seat the Ground and Territory cards and the Sky's climate card offer
+   **Paint this hex**; Road and Following do not. Press the Territory card's.
+   *Observable:* the party's scene comes into view; the Country brush palette
+   opens with its Territory pill pressed (`aria-pressed="true"`) and X, the
+   card's value, the armed swatch; no region changed (`layerRegionsOf(scene,
+   "territory")` as before). Click hex C on the canvas (the battlemap
+   recipe's pointer mechanics): a territory region for X now holds hex C.
+   Close the palette and click hex B: nothing is painted.
+7. **The Judge's refresh.** Count the `updateSetting` events after which this
+   formation's `travel.map` differs from before (an observer: a peer's
+   formations ride the same setting). Watch the record after step 6's click,
+   with the token still in hex C.
+   *Observable:* within two seconds `travel.map.territory` reads X with
+   `source.territory` "map" where it read "scene" — written by the refresh,
+   not a drag — and the Territory card lost its paint chip. Paint hex C's
+   terrain and climate in quick succession from the console: ONE counted
+   write, after which `travel.map` carries both. Paint hex B (the token is not
+   on it): no write. Change the scene default's ground
+   (`writeSceneSetup(scene, {country: {...sceneCountry(scene), ground:
+   <another>}})`): no write, since hex C's own paint answers the ground. Erase
+   hex C's terrain (`paintHexAt(scene, point, null, "terrain")`): the reading
+   falls to the new default, sourced "scene".
+8. **No token, no map.** Delete the party token.
+   *Observable:* the record's `tokenId` and `sceneId` are null, `travel.map`
+   is still stored, and `provenance` reads "default" for every key (the
+   fixture never declared one). Place the token again in hex A (the march in
+   miles recipe's re-creation) and poll: the arrival re-reads, `travel.map`
+   names hex A, and the provenance returns to "map".
+9. **A player's seat.** Join the provisioned Player seat and open the party
+   sheet.
+   *Observable:* `[data-section="country"]` holds the four cards with their
+   values, and no `.acks-extras-country-source`, no
+   `.acks-extras-country-chip` and no `[data-action]` inside it; no climate
+   card wherever the Sky section shows; no Judge tab.
+
+Teardown: `api.sweepTracked()` — the two scenes with their regions and walls,
+the party actor and with it the formation, the members, every tracked card —
+and quote its result; unregister the invented `travel` document
+(`acksExtras.lib.tables.unregisterTable`). The country brush is client state:
+close the palette, and if the run left the toolbar's brush armed, press any
+other control.
 
 ## Teardown
 

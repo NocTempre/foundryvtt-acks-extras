@@ -16,11 +16,13 @@ import { imageToCanvas } from "./capture.mjs";
 import { session } from "./session.mjs";
 import { boxCells, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid } from "./calibrate-logic.mjs";
 import { applyGridCalibration, applyHexCalibration, applyScaleOnly, bakeCorrectedBackground } from "./apply.mjs";
-import { hexProbe, sceneSetup, writeSceneSetup } from "./scene-setup.mjs";
+import { hexProbe, sceneCountry, sceneSetup, writeSceneSetup } from "./scene-setup.mjs";
 import { rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints } from "./token-scale.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
+import { layerLabelFor, paintableValues } from "./terrain-paint.mjs";
 import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
 import { FEET_PER_RANK } from "../formation/trap-rules.mjs";
+import { CLIMATES } from "../formation/weather.mjs";
 import { makeLoc } from "../lib/util.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
@@ -149,6 +151,13 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
 
   /** Unsubscribes this window from the session; held while it is open. */
   #unsubscribe = null;
+
+  /**
+   * The scene default country just chosen and not yet written back: the
+   * selects show it until the scene's own update lands, so a render in
+   * between does not spring them back to the old values.
+   */
+  #countryDraft = null;
 
   /* -------------------------------------------- */
   /*  Derivations                                 */
@@ -303,6 +312,8 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       familyOptions: GRID_FAMILIES.map((key) => ({ key, label: loc(`family.${key}`), selected: key === this.family })),
       unitOptions: Object.keys(DISTANCE_UNITS).map((key) => ({ key, label: loc(`units.${key}.label`), selected: key === units })),
       systemOptions: TRAVEL_MODES.map((key) => ({ key, label: loc(`system.${key}`), selected: key === session.mapSystem })),
+      countryRows: scene ? this.#countryRows(scene) : [],
+      countryNone: loc("setup.countryNone"),
       unitLabel,
       // Labels and hints are resolved HERE, not composed in the template: a
       // key built from an interpolation in Handlebars is a key no check can
@@ -386,6 +397,31 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     };
   }
 
+  /**
+   * The scene default's three selects: a terrain brush value, a territory and
+   * a climate (grouped as the party sheet groups them). A held value the
+   * vocabulary no longer offers is kept as an option, so a save of another
+   * select does not clear it.
+   */
+  #countryRows(scene) {
+    const held = this.#countryDraft ?? sceneCountry(scene);
+    const options = (layer, current) => {
+      const values = paintableValues(layer);
+      if (current && !values.includes(current)) values.push(current);
+      return values.map((key) => ({ key, label: layerLabelFor(key, layer), selected: key === current }));
+    };
+    const climates = options("climate", held.climate);
+    const groups = [...new Set(climates.map((o) => CLIMATES[o.key]?.group ?? ""))].map((group) => ({
+      label: group ? game.i18n.localize(`ACKS-FORMATION.travel.weather.climateGroup.${group}`) : "",
+      options: climates.filter((o) => (CLIMATES[o.key]?.group ?? "") === group),
+    }));
+    return [
+      { name: "country.ground", label: loc("setup.countryGround"), options: options("terrain", held.ground), groups: [] },
+      { name: "country.territory", label: loc("setup.countryTerritory"), options: options("territory", held.territory), groups: [] },
+      { name: "country.climate", label: loc("setup.countryClimate"), options: [], groups },
+    ];
+  }
+
   /** What each family needs before its apply can run. */
   #canApply({ fit, squareGrid, hasBackground, scale }) {
     if (this.isScaleOnly) return !!scale;
@@ -464,6 +500,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     // A statement ABOUT THE SCENE, not part of the calibration arithmetic,
     // so it lands the moment it is chosen.
     BattlemapAssistant.#writeSystem(d.mapSystem || null);
+    if (present("country")) this.#writeCountry(d.country ?? {});
     this.render();
   }
 
@@ -474,6 +511,29 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     const current = sceneSetup(scene).mapSystem;
     if (current === mapSystem) return;
     writeSceneSetup(scene, { mapSystem }).catch((err) => console.error(`${MODULE_ID} | scene system write failed`, err));
+  }
+
+  /**
+   * Persist the scene's default country, if it changed: the three selects
+   * write the whole record, a blank select clearing its key.
+   */
+  #writeCountry(country) {
+    const scene = canvas?.scene;
+    if (!scene || !game.user.isGM) return;
+    const next = {
+      ground: country.ground || null,
+      territory: country.territory || null,
+      climate: country.climate || null,
+    };
+    const held = sceneCountry(scene);
+    if (next.ground === held.ground && next.territory === held.territory && next.climate === held.climate) return;
+    this.#countryDraft = next;
+    writeSceneSetup(scene, { country: next })
+      .catch((err) => console.error(`${MODULE_ID} | scene country write failed`, err))
+      .finally(() => {
+        this.#countryDraft = null;
+        this.render();
+      });
   }
 
   /** The panel's own way out, for a GM reading numbers rather than the toolbar. */

@@ -1,29 +1,35 @@
 /**
  * The travel engine's pure half: the day board's budget, the subtree's
- * defaults, the log's composition and cap. Invented values throughout — the
- * printed frequencies and multipliers arrive through the registry and are
- * asserted only in the machine-local rules tests.
+ * defaults, the log's composition and cap, the country's one resolver and the
+ * trace's reading of the map. Invented values throughout — the printed
+ * frequencies and multipliers arrive through the registry and are asserted
+ * only in the machine-local rules tests.
  */
 import assert from "node:assert/strict";
 import {
   ANCILLARY_ACTIVITIES,
   ANCILLARY_SLOTS,
+  COUNTRY_DEFAULTS,
   DAY_KINDS,
   adoptSceneSystem,
   applyTravelForm,
   claimUnstampedSettlements,
+  clearDeclaredCountry,
   composeLogEntry,
+  countryOf,
   dayBudget,
   freshDay,
   inferredTravelSystem,
   patchSettlement,
   pushLog,
   setJourneyMode,
+  storedTravelOf,
   traceStep,
   travelOf,
   withDayKind,
   dayIsSpent,
 } from "../scripts/formation/travel.mjs";
+import { CLIMATES } from "../scripts/formation/weather.mjs";
 import { SLOT_HOURS } from "../scripts/formation/march.mjs";
 import { DISTRICT_TYPE } from "../scripts/formation/district-find.mjs";
 import { TRAVEL_PACE } from "../scripts/lib/movement-scales.mjs";
@@ -165,33 +171,168 @@ for (let i = 1; i <= 5; i++) log = pushLog(log, { day: i }, 3);
 assert.equal(log.length, 3, "the cap holds");
 assert.deepEqual(log.map((e) => e.day), [5, 4, 3], "newest first; the oldest days are what trimming eats");
 
-/* --- the hex trace, one step at a time ------------------------------------- */
-const standing = travelOf({});
-const arrival = traceStep(standing, { label: "A1", i: 3, j: 4, ground: "hills" });
+/* --- the hex trace, one step at a time -------------------------------------
+   A step caches the map's reading of the hex it lands in (`travel.map`). It
+   never writes the six country keys: those stay the declared record's, and
+   the map stays a source under the Judge's word. */
+const standing = storedTravelOf({});
+const arrival = traceStep(standing, { label: "A1", i: 3, j: 4, sceneId: "S.trace", ground: "hills" });
 assert.equal(arrival.crossed, 0, "the first arrival names the hex without entering it");
 assert.equal(arrival.travel.hex.label, "A1");
 assert.equal(arrival.travel.hex.i, 3);
-assert.equal(arrival.travel.ground, "hills", "a painted terrain overrides the ground picker");
+assert.equal(arrival.travel.map.ground, "hills", "the step's ground is the map's reading of the hex");
+assert.equal(arrival.travel.map.source.ground, "map");
+assert.deepEqual([arrival.travel.map.sceneId, arrival.travel.map.i, arrival.travel.map.j], ["S.trace", 3, 4],
+  "read on the step's scene, at the step's offset");
+for (const key of ["ground", "road", "following", "territory", "encounterTerrain"]) {
+  assert.equal(key in arrival.travel, false, `the trace never writes the declared ${key}`);
+}
 assert.equal(arrival.travel.day.hexesEntered, 0);
 assert.equal(traceStep(arrival.travel, { label: "A1", i: 3, j: 4 }).travel, arrival.travel,
   "a repeat of the same offset returns the very object it was given");
 assert.equal(traceStep(arrival.travel, { label: "A1", i: 3, j: 4 }).crossed, 0);
+const reread = traceStep(arrival.travel, { label: "A1", i: 3, j: 4, ground: "forest" });
+assert.equal(reread.crossed, 0, "the same offset read differently counts nothing");
+assert.equal(reread.travel.map.ground, "forest", "but its reading is replaced");
+assert.equal(reread.travel.day, arrival.travel.day, "and the day is left as it was");
 const crossing = traceStep(arrival.travel, { label: "A2", i: 3, j: 5, road: "earth", winding: 1.5 });
 assert.equal(crossing.crossed, 1, "a new offset is a hex entered");
 assert.equal(crossing.travel.day.hexesEntered, 1);
 assert.equal(crossing.travel.day.winding, 0.5, "only the excess of a bend is banked");
-assert.equal(crossing.travel.road, "earth", "a drawn network overrides the road picker");
-assert.equal(crossing.travel.ground, "hills", "an unpainted hex leaves the ground standing");
+assert.equal(crossing.travel.map.road, "earth", "the road the step walked is the map's reading of it");
+assert.equal(crossing.travel.map.ground, null, "a crossing reads its own hex: the last hex's ground is not carried");
+assert.equal(crossing.travel.map.sceneId, "S.trace", "a step naming no scene stays on the last reading's");
 assert.equal(standing.hex.i, null, "the record passed in is never changed");
-const grained = traceStep(crossing.travel, { label: "A3", i: 3, j: 6, ground: "forest", encounterTerrain: "forestTaiga" });
-assert.equal(grained.travel.ground, "forest");
-assert.equal(grained.travel.encounterTerrain, "forestTaiga", "a hex painted at the book's grain writes the encounter pick");
-const river = traceStep(grained.travel, { label: "A4", i: 3, j: 7, ground: null, encounterTerrain: "riverLand" });
-assert.equal(river.travel.ground, "forest", "a river names no ground: the last one stands");
-assert.equal(river.travel.encounterTerrain, "riverLand");
-const bare = traceStep(river.travel, { label: "A5", i: 3, j: 8, ground: "hills", encounterTerrain: "" });
-assert.equal(bare.travel.ground, "hills", "a bare ground sets the ground");
-assert.equal(bare.travel.encounterTerrain, "riverLand", "and leaves the pick standing");
+const silent = traceStep(crossing.travel, { label: "A3", i: 3, j: 6 });
+assert.equal(silent.crossed, 1);
+assert.equal(silent.travel.map, null, "a crossing whose step read nothing leaves no reading to mistake for this hex's");
+const drawn = {
+  sceneId: "S.trace", i: 3, j: 7, at: 9,
+  ground: "forest", encounterTerrain: "forestTaiga", territory: "outlands", climate: null, road: null, following: "river",
+  source: { ground: "map", encounterTerrain: "map", territory: "scene", climate: null, road: null, following: "map" },
+  water: { kind: "river", navigable: true },
+};
+const mapped = traceStep(silent.travel, { label: "A4", i: 3, j: 7, map: drawn });
+assert.equal(mapped.travel.map.territory, "outlands", "a reading off the map is cached whole");
+assert.equal(mapped.travel.map.source.territory, "scene", "with the source of each key");
+assert.deepEqual(mapped.travel.map.water, { kind: "river", navigable: true }, "and the water under the hex");
+const walkedRoad = traceStep(mapped.travel, { label: "A5", i: 3, j: 8, map: { ...drawn, i: 3, j: 8, road: null }, road: "paved" });
+assert.equal(walkedRoad.travel.map.road, "paved", "the road a step walked is laid over the map's reading of the hex");
+assert.equal(walkedRoad.travel.map.ground, "forest", "and the rest of the reading stands");
+
+/* --- the country, resolved -------------------------------------------------
+   Each of the six keys answers from the first source that holds a value it
+   may take: the Judge's word (`travel.override`), the map's reading of the
+   party's hex (`travel.map`, the hex's own or the scene default's), the
+   declared record, then the default. The map's reading describes the party
+   only while its token stands on the scene it was read on. */
+const [CLIMATE_A, CLIMATE_B] = Object.keys(CLIMATES);
+const readingOf = (values, source = {}, extra = {}) => ({
+  sceneId: "S.c", i: 0, j: 0, at: 0,
+  ground: null, encounterTerrain: null, territory: null, climate: null, road: null, following: null, water: null,
+  ...values, source, ...extra,
+});
+const placed = (travel, at = { sceneId: "S.c", tokenId: "T.c" }) => ({ ...at, travel: { mode: "journey", ...travel } });
+const KEYS = ["ground", "encounterTerrain", "territory", "climate", "road", "following"];
+const valueOf = (tv, key) => (key === "climate" ? tv.weather.climate : tv[key]);
+
+t = travelOf({});
+for (const key of KEYS) {
+  assert.equal(valueOf(t, key), COUNTRY_DEFAULTS[key], `nothing said, ${key} is the default`);
+  assert.equal(t.provenance[key], "default");
+}
+
+const declaredRecord = {
+  travel: {
+    ground: "hills", encounterTerrain: "hillsRocky", territory: "outlands", road: "paved", following: "river",
+    weather: { climate: CLIMATE_A },
+  },
+};
+t = travelOf(declaredRecord);
+for (const key of KEYS) {
+  assert.equal(valueOf(t, key), valueOf(declaredRecord.travel, key), `a record from before the map was read keeps its ${key}`);
+  assert.equal(t.provenance[key], "declared", `and says the ${key} was declared`);
+}
+t = travelOf({ travel: { territory: "borderlands", road: "none", following: "none" } });
+assert.deepEqual([t.provenance.territory, t.provenance.road, t.provenance.following], ["default", "default", "default"],
+  "a stored default says nothing about what the Judge declared");
+
+const fromMap = readingOf(
+  { ground: "forest", encounterTerrain: "forestTaiga", territory: "civilized", climate: CLIMATE_B, road: "earth", following: "river" },
+  { ground: "map", encounterTerrain: "map", territory: "scene", climate: "scene", road: "map", following: "map" },
+);
+t = travelOf(placed({ ...declaredRecord.travel, map: fromMap }));
+assert.equal(t.ground, "forest", "the map's reading beats the declared record");
+assert.equal(t.provenance.ground, "map");
+assert.equal(t.encounterTerrain, "forestTaiga");
+assert.equal(t.territory, "civilized");
+assert.equal(t.provenance.territory, "scene", "a key the scene's default answered says so");
+assert.equal(t.weather.climate, CLIMATE_B, "the climate is resolved in its own place");
+assert.equal(t.provenance.climate, "scene");
+assert.equal(t.road, "earth");
+assert.equal(t.following, "river");
+
+t = travelOf(placed({ ...declaredRecord.travel, map: readingOf({ ground: "forest" }, { ground: "map" }) }));
+assert.equal(t.ground, "forest");
+assert.equal(t.territory, "outlands", "a key the map is silent on falls to the declared record");
+assert.equal(t.provenance.territory, "declared");
+
+const overridden = placed({
+  ...declaredRecord.travel,
+  map: fromMap,
+  override: { ground: "swamp", territory: "nowhere", climate: CLIMATE_B },
+});
+t = travelOf(overridden);
+assert.equal(t.ground, "swamp", "the Judge's word beats the map");
+assert.equal(t.provenance.ground, "override");
+assert.equal(t.weather.climate, CLIMATE_B);
+assert.equal(t.provenance.climate, "override");
+assert.equal(t.territory, "civilized", "a word outside the vocabulary is no word");
+assert.equal(t.provenance.territory, "scene");
+const { mapValues } = countryOf(overridden);
+assert.equal(mapValues.ground, "forest", "and what the map reads under the Judge's word stays known");
+assert.equal(mapValues.territory, "civilized");
+
+t = travelOf(placed({ ...declaredRecord.travel, map: fromMap }, { sceneId: "S.elsewhere", tokenId: "T.c" }));
+assert.equal(t.ground, "hills", "a reading of another scene says nothing about this one");
+assert.equal(t.provenance.ground, "declared");
+t = travelOf(placed({ ...declaredRecord.travel, map: fromMap }, { sceneId: "S.c", tokenId: null }));
+assert.equal(t.ground, "hills", "nor does any reading while the party has no token");
+assert.equal(countryOf(placed({ map: fromMap }, { sceneId: "S.c", tokenId: null })).mapValues.ground, null);
+
+/* The river's table answers only while the party moves on the water over a
+   water line; the ground it runs through picks which. */
+const riverHex = (ground) => readingOf({ ground, encounterTerrain: "grassland" }, { ground: "map", encounterTerrain: "map" },
+  { water: { kind: "river", navigable: true } });
+assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("desert") })).encounterTerrain, "riverDesertJungle");
+assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("jungle") })).encounterTerrain, "riverDesertJungle");
+assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("forest") })).encounterTerrain, "riverLand");
+assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("forest") })).provenance.encounterTerrain, "map");
+assert.equal(travelOf(placed({ movement: { mode: "foot" }, map: riverHex("forest") })).encounterTerrain, "grassland",
+  "a party on foot beside the river throws on the land's table");
+assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: { ...riverHex("forest"), water: null } })).encounterTerrain, "grassland",
+  "and a boat with no water line under it on the hex's own");
+
+/* An overridden ground takes the table with it: the map's and the record's
+   tables were read with another ground, and the river's is the water's. */
+t = travelOf(placed({ ...declaredRecord.travel, map: fromMap, override: { ground: "desert" } }));
+assert.equal(t.encounterTerrain, "", "the map's table is not the overridden ground's");
+assert.equal(t.provenance.encounterTerrain, "default", "nor is the record's: the ground's own table answers at use");
+assert.equal(countryOf(placed({ map: fromMap, override: { ground: "desert" } })).mapValues.encounterTerrain, "forestTaiga",
+  "what the map reads under the Judge's ground stays known");
+assert.equal(travelOf(placed({ map: fromMap, override: { ground: "desert", encounterTerrain: "hillsRocky" } })).encounterTerrain, "hillsRocky",
+  "the Judge's own table stands over the ground's");
+t = travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("forest"), override: { ground: "desert" } }));
+assert.deepEqual([t.encounterTerrain, t.provenance.encounterTerrain], ["riverDesertJungle", "map"],
+  "afloat, the river's table is read for the overridden ground");
+
+/* A writer's view: the country keys exactly as stored. */
+assert.equal("ground" in storedTravelOf({}), false, "nothing stored, nothing written back");
+assert.equal(storedTravelOf({ travel: { territory: "outlands" } }).territory, "outlands");
+assert.deepEqual(storedTravelOf(overridden).override, overridden.travel.override, "the override is carried as stored");
+assert.equal(storedTravelOf(overridden).weather.climate, CLIMATE_A, "and the declared climate where it was stored, not the Judge's");
+assert.equal(storedTravelOf(placed({ map: fromMap })).weather.climate, "", "a climate the map answered is never written back");
+assert.equal(storedTravelOf(placed({ map: fromMap })).map, fromMap, "and the map's reading");
 
 /* --- the day board has ONE field name -------------------------------------
    `freshDay` writes `activities`; two readers asked for a `slots` that nothing
@@ -464,6 +605,31 @@ assert.deepEqual(settings.formations.g2.clock.lastPosition, { x: 700, y: 480 }, 
 settings.formations.g3 = { id: "g3", sceneId: null, clock: { lastPosition: { x: 5, y: 5 } }, travel: { mode: "delve" } };
 await setJourneyMode("g3", "journey");
 assert.deepEqual(settings.formations.g3.clock.lastPosition, { x: 5, y: 5 }, "a party with no token keeps the baseline it had");
+assert.equal(settings.formations.g3.travel.map, undefined, "and has no country under it to read");
+
+/* A journey begun where the token stands reads the country under it at once:
+   here a gridless scene whose default says the ground and the territory. */
+{
+  globalThis.CONST ??= { GRID_TYPES: { GRIDLESS: 0, SQUARE: 1, HEXODDR: 2, HEXEVENR: 3, HEXODDQ: 4, HEXEVENQ: 5 } };
+  const heath = { id: "Scene.heath", grid: { type: 0, size: 100 }, regions: [], tokens: { get: (id) => (id === "tok.heath" ? heathToken : null) } };
+  heath.getFlag = () => ({ country: { ground: "hills", territory: "outlands" } });
+  const heathToken = { x: 200, y: 300, width: 1, height: 1, parent: heath };
+  globalThis.game.scenes = { get: (id) => (id === "Scene.heath" ? heath : null) };
+  settings.formations.g4 = { id: "g4", sceneId: "Scene.heath", tokenId: "tok.heath", clock: {}, travel: { mode: "delve", ground: "swamp" } };
+  await setJourneyMode("g4", "journey");
+  const map = settings.formations.g4.travel.map;
+  assert.equal(map.sceneId, "Scene.heath", "the reading is of the scene the token stands on");
+  assert.deepEqual([map.i, map.j], [null, null], "off a hex grid it names no hex");
+  assert.equal(map.ground, "hills");
+  assert.equal(map.source.ground, "scene", "and says the scene's default answered");
+  assert.equal(settings.formations.g4.travel.ground, "swamp", "the declared ground is left as it was");
+  const read = travelOf(settings.formations.g4);
+  assert.equal(read.ground, "hills", "the scene's default now answers over the declaration");
+  assert.equal(read.provenance.ground, "scene");
+  assert.equal(read.territory, "outlands");
+  await setJourneyMode("g4", "delve");
+  assert.equal(settings.formations.g4.travel.map.sceneId, "Scene.heath", "leaving the journey reads nothing new and drops nothing");
+}
 
 /* --- the day's and camp's declarations ------------------------------------- */
 {
@@ -528,6 +694,59 @@ assert.deepEqual(settings.formations.g3.clock.lastPosition, { x: 5, y: 5 }, "a p
   assert.equal(at().day.activities[0], "hunt", "and so does a slot pick");
 }
 
+/* --- applyTravelForm: the Judge's word on the country -------------------------
+   The six keys land in `travel.override`, never in the declared record; a blank
+   clears the one key it names, and the last one cleared takes the group with it. */
+{
+  const [CLIMATE] = Object.keys(CLIMATES);
+  settings.formations.o1 = { id: "o1", travel: { mode: "journey", ground: "hills" } };
+  const stored = () => settings.formations.o1.travel;
+  await applyTravelForm("o1", { override: { ground: "swamp", territory: "", climate: CLIMATE } });
+  assert.deepEqual(stored().override, { ground: "swamp", climate: CLIMATE }, "the hand's selects write the Judge's word");
+  assert.equal(stored().ground, "hills", "and leave the declared record alone");
+  assert.equal(travelOf(settings.formations.o1).ground, "swamp");
+  assert.equal(travelOf(settings.formations.o1).provenance.ground, "override");
+  assert.equal(travelOf(settings.formations.o1).weather.climate, CLIMATE);
+
+  await applyTravelForm("o1", { override: { ground: "" } });
+  assert.deepEqual(stored().override, { climate: CLIMATE }, "a blank clears the key it names and no other");
+  assert.equal(travelOf(settings.formations.o1).ground, "hills", "and the declaration under it answers again");
+
+  await applyTravelForm("o1", { road: "paved", weather: { climate: "" } });
+  assert.deepEqual(stored().override, { road: "paved" }, "a key at the form's top level is the same word, routed the same way");
+  assert.equal(stored().road, undefined);
+
+  await applyTravelForm("o1", { override: { territory: "nowhere" } });
+  assert.deepEqual(stored().override, { road: "paved" }, "a value outside the vocabulary is refused");
+
+  await applyTravelForm("o1", { override: { road: "" } });
+  assert.equal("override" in stored(), false, "the last word cleared leaves no override behind");
+
+  await applyTravelForm("o1", { day: { kind: "camp" } });
+  assert.equal("override" in stored(), false, "and a submit naming none of the six leaves the group alone");
+}
+
+/* --- clearDeclaredCountry: an older record's word is retired -------------------
+   The key's default is written over the declaration, which reads as nothing
+   declared; the climate in its own place; the Judge's word is never touched. */
+{
+  const [CLIMATE] = Object.keys(CLIMATES);
+  settings.formations.c1 = {
+    id: "c1",
+    travel: { mode: "journey", following: "river", encounterTerrain: "hillsRocky", weather: { climate: CLIMATE }, override: { road: "paved" } },
+  };
+  const stored = () => settings.formations.c1.travel;
+  assert.equal(travelOf(settings.formations.c1).provenance.following, "declared");
+  await clearDeclaredCountry("c1", "following");
+  assert.equal(stored().following, COUNTRY_DEFAULTS.following, "the default is written over the declaration");
+  assert.equal(travelOf(settings.formations.c1).provenance.following, "default", "which reads as nothing declared");
+  assert.equal(stored().encounterTerrain, "hillsRocky", "and no other key moves");
+  await clearDeclaredCountry("c1", "climate");
+  assert.equal(stored().weather.climate, "", "the climate is cleared in its own place");
+  assert.deepEqual(stored().override, { road: "paved" }, "the Judge's word is not touched");
+  assert.equal(await clearDeclaredCountry("c1", "nowhere"), null, "a key outside the six is refused");
+}
+
 /* --- the navigation throw carries the sky ------------------------------------- */
 {
   const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
@@ -549,4 +768,4 @@ assert.deepEqual(settings.formations.g3.clock.lastPosition, { x: 5, y: 5 }, "a p
   unregisterTable("travel"); unregisterTable("weather");
 }
 
-console.log("test-travel: OK (day board, hours budget, defaults, log cap, one field name, movement axis, city stamp, inferred system, mode re-anchor, declarations, sky on the nav throw)");
+console.log("test-travel: OK (day board, hours budget, defaults, log cap, the trace's reading, the country's resolution and provenance, one field name, movement axis, city stamp, inferred system, mode re-anchor, a journey reads its country, declarations, the Judge's word, sky on the nav throw)");

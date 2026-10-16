@@ -4,8 +4,9 @@
  * formation is on a journey, on every kind of scene.
  *
  * A drag is measured in MILES, whatever the grid. One record patch then writes
- * the hex trace (label, terrain, road — identity only) and the day's spend
- * together; the world clock runs by the hours those miles take; the
+ * the hex trace (the hex's identity and the map's reading of it, `travel.map`)
+ * and the day's spend together; the world clock runs by the hours those miles
+ * take; the
  * `acksExtras.hexEntered` hook fires once per cadence unit walked; and each
  * unit owes its encounter throw. The order is fixed: measure → record patch →
  * clock → hooks → throws, so a hook listener and a throw both read a record
@@ -18,7 +19,7 @@
  */
 import { TURN_SECONDS } from "./constants.mjs";
 import { getFormation, getPartyScene, partySpeed, patchFormation } from "./formation-model.mjs";
-import { travelOf, traceStep } from "./travel.mjs";
+import { mapReadingAt, sameReading, seatJourneyHex, storedTravelOf, tokenCentre, travelOf, traceStep } from "./travel.mjs";
 import { travelReadout } from "./formation-view.mjs";
 import { ENCOUNTER_TERRAINS, encounterTerrainFor } from "./encounters.mjs";
 import { cadenceMilesFor, encountersOn, maybeHexThrow } from "./encounter-card.mjs";
@@ -34,7 +35,7 @@ import {
 } from "./turn-engine.mjs";
 import { DISTANCE_UNITS, feetPerUnit, sceneMilesPerCell } from "../lib/distance-units.mjs";
 import { clockReading, mayAdvanceWorldTime } from "../lib/world-time.mjs";
-import { hexLabelFromOffset, isHexScene, paintedTerrainAt } from "../battlemap/terrain-paint.mjs";
+import { hexLabelFromOffset, isHexScene } from "../battlemap/terrain-paint.mjs";
 import { routesOf, stepBetweenHexes } from "../battlemap/hex-routes.mjs";
 
 /** Seconds in an hour on a clock that keeps no calendar. */
@@ -54,6 +55,9 @@ export async function onPartyTokenMoved(tokenDoc, formationId) {
     await patchFormation(formationId, (record) => {
       record.clock = { ...(record.clock ?? {}), lastPosition: { x: tokenDoc.x, y: tokenDoc.y } };
     });
+    // The hex and the reading follow the token too, so what the party stands
+    // on when the pause lifts is what it reads, with nothing billed.
+    await seatJourneyHex(tokenDoc, formationId);
     return null;
   }
   return onJourneyTokenMoved(tokenDoc, formationId);
@@ -108,9 +112,11 @@ function cadenceFor(territory, scene) {
 }
 
 /**
- * A journeying party token moved: measure the drag in miles, trace the hex it
- * stands in when the scene is a hex grid, and spend the miles. The baseline for
- * the next drag is this position.
+ * A journeying party token moved: measure the drag in miles, read the map
+ * under the token (`mapReadingAt`), trace the hex it stands in when the scene
+ * is a hex grid, and spend the miles. Off a hex grid there is no hex to trace,
+ * and the reading alone is cached. The baseline for the next drag is this
+ * position.
  */
 export async function onJourneyTokenMoved(tokenDoc, formationId) {
   const scene = tokenDoc?.parent;
@@ -118,48 +124,54 @@ export async function onJourneyTokenMoved(tokenDoc, formationId) {
   if (!scene || !formation) return null;
   const here = { x: tokenDoc.x, y: tokenDoc.y };
   const { miles, spaces } = journeyMeasure(scene, formation.clock?.lastPosition ?? here, here);
+  const point = tokenDoc.object?.center ?? tokenCentre(tokenDoc, scene);
+  const map = mapReadingAt(scene, point, { at: game.time?.worldTime ?? null });
 
-  let trace = null;
-  if (isHexScene(scene)) {
-    const point = tokenDoc.object?.center ?? {
-      x: tokenDoc.x + ((tokenDoc.width ?? 1) * scene.grid.sizeX) / 2,
-      y: tokenDoc.y + ((tokenDoc.height ?? 1) * scene.grid.sizeY) / 2,
-    };
-    const offset = scene.grid.getOffset(point);
-    // Which road, if any, this STEP followed. Only asked when a network exists:
-    // a scene nobody has drawn routes on leaves the Judge's picker alone rather
-    // than declaring every march off-road.
-    let road;
-    let winding = 1;
-    const prior = travelOf(formation).hex;
-    if (routesOf(scene).length && prior.i != null && prior.j != null) {
-      const step = stepBetweenHexes(scene, { i: prior.i, j: prior.j }, offset);
-      road = step.on ? step.road : "none";
-      if (step.on) winding = step.winding ?? 1;
-    }
-    const painted = paintedTerrainAt(scene, point);
-    trace = {
-      label: hexLabelFromOffset(offset),
-      i: offset.i,
-      j: offset.j,
-      ground: painted.ground,
-      encounterTerrain: painted.encounterTerrain,
-      road,
-      winding,
-    };
+  if (!isHexScene(scene)) return spendJourneyMiles(formationId, miles, { scene, reading: map, anchor: here, crossings: spaces });
+
+  const offset = scene.grid.getOffset(point);
+  // Which road, if any, this STEP followed. Only asked when a network exists:
+  // a scene nobody has drawn routes on leaves the map's own reading of the
+  // hex standing rather than declaring every march off-road. A move inside
+  // the hex the party already stands in is no step: the road its last step
+  // walked stays the map's answer, which a read at the token cannot see.
+  let road;
+  let winding = 1;
+  const { hex: prior, map: held } = travelOf(formation);
+  const standing = prior.i === offset.i && prior.j === offset.j;
+  if (standing) {
+    if (held?.sceneId === scene.id && held.i === offset.i && held.j === offset.j && held.road != null) road = held.road;
+  } else if (routesOf(scene).length && prior.i != null && prior.j != null) {
+    const step = stepBetweenHexes(scene, { i: prior.i, j: prior.j }, offset);
+    road = step.on ? step.road : "none";
+    if (step.on) winding = step.winding ?? 1;
   }
+  const trace = { label: hexLabelFromOffset(offset), i: offset.i, j: offset.j, map, road, winding };
   return spendJourneyMiles(formationId, miles, { scene, trace, anchor: here, crossings: spaces });
+}
+
+/**
+ * The stored travel subtree once a step's trace or reading is applied, pure:
+ * what the record patch below writes the step from, and what the cadence of
+ * the walk is read from before it.
+ */
+function steppedTravel(t, { trace = null, reading = null } = {}) {
+  if (trace) return traceStep(t, trace);
+  if (reading && !sameReading(t.map, reading)) return { travel: { ...t, map: reading }, crossed: 0 };
+  return { travel: t, crossed: 0 };
 }
 
 /**
  * Spend miles walked on a journey: the day's tally, the clock, the hooks and
  * the throws, in that order.
  *
- * One record patch applies the hex trace (or, for `hex`, a named hex counted as
- * one crossing) and the miles together, and re-anchors the movement baseline
- * when an `anchor` is given. The hours come from the party's speed on the
- * current ground (a camp day is priced at the march pace, so its travel
- * slots can be walked); a speed the readout cannot price moves no clock. The
+ * One record patch applies the hex trace (or, off a hex grid, the map's
+ * `reading` alone; or, for `hex`, a named hex counted as one crossing) and the
+ * miles together, and re-anchors the movement baseline when an `anchor` is
+ * given. The hours come from the party's speed on the current ground (a camp
+ * day is priced at the march pace, so its travel slots can be walked); a speed
+ * the readout cannot price moves no clock. The cadence is the territory's the
+ * step arrives in — the country the throws it owes are thrown in — and the
  * cadence units the walk earned (`cadenceOf`) each fire `acksExtras.hexEntered`
  * and then owe their encounter throw.
  *
@@ -176,6 +188,7 @@ export async function onJourneyTokenMoved(tokenDoc, formationId) {
  * @param {object} [o]
  * @param {Scene|null} [o.scene]      the scene walked on; null for a journey with no map
  * @param {object|null} [o.trace]     a hex trace step (`traceStep`)
+ * @param {object|null} [o.reading]   the map's reading under the party (`mapReadingAt`), where no trace carries one
  * @param {{label: string}|null} [o.hex]  a hex named by the Judge, counted as one crossing
  * @param {{x: number, y: number}|null} [o.anchor]  the token position to measure the next drag from
  * @param {number|null} [o.crossings]  the hex steps the grid measured for the drag; the miles in cells stand in when absent
@@ -184,12 +197,13 @@ export async function onJourneyTokenMoved(tokenDoc, formationId) {
  *   formation is gone; `zoneEntered` is whether the walk crossed into an
  *   `entry` zone
  */
-export async function spendJourneyMiles(formationId, miles, { scene = null, trace = null, hex = null, anchor = null, crossings = null } = {}) {
+export async function spendJourneyMiles(formationId, miles, { scene = null, trace = null, reading = null, hex = null, anchor = null, crossings = null } = {}) {
   const formation = getFormation(formationId);
   if (!formation) return null;
   const readout = travelReadout(formation, partySpeed(formation, { dark: false }));
   const milesPerHour = Number(readout.milesPerHour) || 0;
-  const cadence = cadenceFor(travelOf(formation).territory, scene);
+  const arrived = steppedTravel(storedTravelOf(formation), { trace, reading: hex ? null : reading }).travel;
+  const cadence = cadenceFor(travelOf({ ...formation, travel: arrived }).territory, scene);
   const secondsPerHour = clockReading()?.secondsPerHour ?? DEFAULT_SECONDS_PER_HOUR;
 
   const zones = journeyZones(formation);
@@ -203,10 +217,10 @@ export async function spendJourneyMiles(formationId, miles, { scene = null, trac
   let spent = null;
   let crossed = 0;
   const written = await patchFormation(formationId, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     let travel = t;
     if (trace) {
-      ({ travel, crossed } = traceStep(t, trace));
+      ({ travel, crossed } = steppedTravel(t, { trace }));
       // The trace records one change of hex; a drag spans whole cells. The
       // grid's own count of hex steps is the crossings, and the miles in cells
       // stand in where none was measured. The day's tally and the cadence both
@@ -226,6 +240,8 @@ export async function spendJourneyMiles(formationId, miles, { scene = null, trac
         hex: { ...t.hex, label: String(hex.label ?? "").trim() },
         day: { ...t.day, hexesEntered: (t.day.hexesEntered ?? 0) + 1 },
       };
+    } else if (reading) {
+      ({ travel } = steppedTravel(t, { reading }));
     }
     spent = spendMarch(travel.day, { miles, milesPerHour, cadence, crossed, secondsPerHour });
     record.travel = { ...travel, day: spent.day };
@@ -336,7 +352,7 @@ export async function spendActivityHours(formationId, kinds, { all = false } = {
   const secondsPerSlot = (clockReading()?.secondsPerHour ?? DEFAULT_SECONDS_PER_HOUR) * SLOT_HOURS;
   let seconds = 0;
   await patchFormation(formationId, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     const done = [...t.day.done];
     const open = t.day.activities
       .map((a, n) => (wanted.has(a) && !done[n] ? n : -1))

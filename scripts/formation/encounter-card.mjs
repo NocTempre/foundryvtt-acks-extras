@@ -26,7 +26,7 @@ import { makeLoc, gmIds, fractionLabel, numOrNull } from "../lib/util.mjs";
 import { nameKeys } from "../lib/vocab.mjs";
 import { libraryActors } from "../lib/library.mjs";
 import { readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
-import { DAY_SECONDS, travelOf, DAY_KINDS } from "./travel.mjs";
+import { DAY_SECONDS, travelOf, storedTravelOf, DAY_KINDS } from "./travel.mjs";
 import {
   ENCOUNTER_OUTCOMES,
   ENCOUNTER_TERRAINS,
@@ -522,7 +522,7 @@ export async function rollDayEncounters(formation, entry, { rng = Math.random } 
       for (let n = 0; n < owed; n++) await postEncounterThrow(formation, { activity: "traps", rng });
       if (carry !== t.trapsCarry) {
         await patchFormation(formation.id, (record) => {
-          record.travel = { ...travelOf(record), trapsCarry: carry };
+          record.travel = { ...storedTravelOf(record), trapsCarry: carry };
         });
       }
     }

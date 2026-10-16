@@ -30,13 +30,16 @@
  * committed tests; everything that writes goes through `patchFormation`.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
+import { isPrimaryGM } from "../lib/util.mjs";
 import { patchFormation, getFormation, getFormations, getPartyToken, realMembers, getMemberActor, hasAbility } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { mayAdvanceWorldTime, untilNextDawn, calendarDay, calendarSeason } from "../lib/world-time.mjs";
 import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
 import { isExpeditionScale } from "../lib/distance-units.mjs";
-import { paintedTerrainAt, hexLabelFromOffset, isHexScene } from "../battlemap/terrain-paint.mjs";
+import { hexLabelFromOffset, isHexScene } from "../battlemap/terrain-paint.mjs";
 import { sceneTravelSystem } from "../battlemap/scene-setup.mjs";
+import { COUNTRY_KEYS, countryAt, riverTableFor } from "../battlemap/country.mjs";
+import { FOLLOWING_KINDS, TERRITORY_KEYS } from "./country-keys.mjs";
 import { TRAVEL_MODES } from "../lib/vocab.mjs";
 import { marchBudget, marchIsSpent } from "./march.mjs";
 import { sceneHasDistrict } from "./district-find.mjs";
@@ -116,18 +119,8 @@ import { weatherEffects, throwPenalty } from "./weather-effects.mjs";
  */
 export { TRAVEL_MODES };
 
-/**
- * A route the party is following, which spares it the navigation throw.
- *
- * RAW exempts navigable rivers, roads and other established routes (RR p. 275).
- * Roads are already the road picker's business, so this carries the other two —
- * and `knownRoute` is deliberately vague because the book is: it is the Judge's
- * call what counts as well-established.
- */
-export const FOLLOWING_KINDS = Object.freeze(["none", "river", "knownRoute"]);
-
-/** The wilderness territory classifications (JJ ch. 2) — keys only. */
-export const TERRITORY_KEYS = Object.freeze(["civilized", "borderlands", "outlands", "unsettled"]);
+/** The country's own vocabularies live in a leaf the battlemap reads too; re-exported for callers. */
+export { FOLLOWING_KINDS, TERRITORY_KEYS };
 
 /** A declared count as a whole number of at least zero. */
 const trapCount = (n) => Math.max(0, Math.floor(Number(n) || 0));
@@ -232,15 +225,137 @@ export function dayIsSpent(day, budget, { dark = false } = {}) {
   return marchIsSpent(day, budget, { dark });
 }
 
-/** The travel subtree, defaults answered — never mutates the record. */
-export function travelOf(formation) {
+/**
+ * What each country key answers when no source says anything: the module's
+ * own defaults, the last source `travelOf` consults.
+ */
+export const COUNTRY_DEFAULTS = Object.freeze({
+  ground: "grassland",
+  encounterTerrain: "",
+  territory: "borderlands",
+  climate: "",
+  road: "none",
+  following: "none",
+});
+
+/**
+ * Which values each country key may take, from any source. An encounter
+ * terrain is checked against its own vocabulary at use, by the encounter
+ * engine, so travel takes any non-empty key without importing it.
+ */
+const COUNTRY_VALID = Object.freeze({
+  ground: (v) => typeof v === "string" && v !== "",
+  encounterTerrain: (v) => typeof v === "string" && v !== "",
+  territory: (v) => TERRITORY_KEYS.includes(v),
+  climate: (v) => typeof v === "string" && Object.hasOwn(CLIMATES, v),
+  road: (v) => ROAD_KINDS.includes(v),
+  following: (v) => FOLLOWING_KINDS.includes(v),
+});
+
+/** Is `value` one a country key may take? */
+export const countryValueValid = (key, value) => !!COUNTRY_VALID[key]?.(value);
+
+/** The movement mode that carries a party on the water (`MOVEMENT_MODES.vessel`). */
+const WATER_BORNE = "vessel";
+
+/**
+ * The map's cached reading (`travel.map`) where it still describes the party:
+ * written on the scene the party's token stands on now. Anywhere else, or with
+ * no party token, the map says nothing.
+ */
+function mapReadingOf(formation, t) {
+  const map = t.map;
+  if (!map || typeof map !== "object") return null;
+  if (!map.sceneId || map.sceneId !== formation?.sceneId || !formation?.tokenId) return null;
+  return map;
+}
+
+/**
+ * The six country keys resolved, each by the first source that answers it:
+ * the Judge's override (`travel.override`), the map's reading of the party's
+ * hex (`travel.map`, whose own `source` says whether the hex or the scene's
+ * default answered), the declared record (the six keys as an older record
+ * stores them), then the module's default. A declared value equal to the
+ * default reads as the default: a stored default says nothing about what was
+ * declared.
+ *
+ * While the party moves on the water and a water line runs under it, the map's
+ * encounter terrain is the river's table for the ground. An overridden ground
+ * takes the table with it: the map's and the record's tables describe the
+ * ground they were read with, so neither answers, and the ground's own table
+ * (`encounterTerrainFor`) does wherever the table is consulted. The river's
+ * table is the water's and stands.
+ *
+ * `mapValues` is what the map alone answers for each key — the hex's own or
+ * the scene default's, null where it says nothing — whether or not a source
+ * above it won.
+ *
+ * @returns {{values: Record<string, string>, provenance: Record<string,
+ *   "override"|"map"|"scene"|"declared"|"default">,
+ *   mapValues: Record<string, string|null>, map: object|null}}
+ */
+function resolveCountry(formation, t, movementMode) {
+  const map = mapReadingOf(formation, t);
+  const override = t.override && typeof t.override === "object" ? t.override : {};
+  const declared = {
+    ground: t.ground ?? formation?.ground,
+    encounterTerrain: t.encounterTerrain,
+    territory: t.territory,
+    climate: t.weather?.climate,
+    road: t.road,
+    following: t.following,
+  };
+  const waterBorne = movementMode === WATER_BORNE && !!map?.water;
+  const values = {};
+  const provenance = {};
+  const mapValues = {};
+  for (const key of COUNTRY_KEYS) {
+    const valid = COUNTRY_VALID[key];
+    // `ground` comes first in COUNTRY_KEYS, so the river's table is read for
+    // the ground already resolved.
+    const river = key === "encounterTerrain" && waterBorne;
+    const fromMap = river ? riverTableFor(values.ground) : map?.[key];
+    mapValues[key] = valid(fromMap) ? fromMap : null;
+    if (valid(override[key])) {
+      values[key] = override[key];
+      provenance[key] = "override";
+      continue;
+    }
+    // A table read with another ground is not the overridden ground's.
+    const grounded = key === "encounterTerrain" && !river && provenance.ground === "override";
+    if (mapValues[key] != null && !grounded) {
+      values[key] = fromMap;
+      provenance[key] = !river && map.source?.[key] === "scene" ? "scene" : "map";
+      continue;
+    }
+    if (!grounded && valid(declared[key]) && declared[key] !== COUNTRY_DEFAULTS[key]) {
+      values[key] = declared[key];
+      provenance[key] = "declared";
+      continue;
+    }
+    values[key] = COUNTRY_DEFAULTS[key];
+    provenance[key] = "default";
+  }
+  return { values, provenance, mapValues, map };
+}
+
+/**
+ * The country under the party as `travelOf` resolves it — `values`,
+ * `provenance` — with what the map alone answers beside it (`mapValues`):
+ * the party sheet's chips are the difference between the two.
+ */
+export function countryOf(formation) {
+  return resolveCountry(formation, formation?.travel ?? {}, travelBase(formation).movement.mode);
+}
+
+/**
+ * The travel subtree with every key but the country's answered: what
+ * `travelOf` resolves the country over, and `storedTravelOf` keeps it raw in.
+ */
+function travelBase(formation) {
   const t = formation?.travel ?? {};
   return {
     mode: TRAVEL_MODES.includes(t.mode) ? t.mode : "delve",
-    ground: t.ground ?? formation?.ground ?? "grassland",
-    road: ROAD_KINDS.includes(t.road) ? t.road : "none",
-    following: FOLLOWING_KINDS.includes(t.following) ? t.following : "none",
-    territory: TERRITORY_KEYS.includes(t.territory) ? t.territory : "borderlands",
     pace: TRAVEL_PACE[t.pace] ? t.pace : "dedicated",
     weather: {
       raining: false,
@@ -257,9 +372,6 @@ export function travelOf(formation) {
       ...(t.weather ?? {}),
       footing: { ...freshFooting(), ...(t.weather?.footing ?? {}) },
     },
-    // Validated at USE by the encounter engine's own vocabulary — a plain
-    // passthrough here keeps travel free of an import back into encounters.
-    encounterTerrain: typeof t.encounterTerrain === "string" ? t.encounterTerrain : "",
     // Where day-or-night comes from (`HOUR_MODES`): the world clock unless the
     // Judge says otherwise.
     hour: Object.hasOwn(HOUR_MODES, t.hour ?? "") ? t.hour : "clock",
@@ -310,6 +422,50 @@ export function travelOf(formation) {
     settlement: settlementOf(t),
     log: Array.isArray(t.log) ? t.log : [],
   };
+}
+
+/**
+ * The travel subtree, defaults answered and the country resolved — never
+ * mutates the record. The six country keys (`ground`, `encounterTerrain`,
+ * `territory`, `road`, `following`, and the climate at `weather.climate`)
+ * are each the first answer of override → map → scene default → declared →
+ * default (`resolveCountry`), and `provenance` names which source answered
+ * each. `map` and `override` are the record's own, as stored. This is the
+ * READER's view: a writer spreads `storedTravelOf`, or the resolved values
+ * would be written back as the Judge's declaration.
+ */
+export function travelOf(formation) {
+  const t = formation?.travel ?? {};
+  const base = travelBase(formation);
+  const { values, provenance } = resolveCountry(formation, t, base.movement.mode);
+  return {
+    ...base,
+    ground: values.ground,
+    road: values.road,
+    following: values.following,
+    territory: values.territory,
+    encounterTerrain: values.encounterTerrain,
+    weather: { ...base.weather, climate: values.climate },
+    ...(t.map !== undefined ? { map: t.map } : {}),
+    ...(t.override !== undefined ? { override: t.override } : {}),
+    provenance,
+  };
+}
+
+/**
+ * The travel subtree as a WRITER spreads it: every key `travelOf` defaults is
+ * defaulted the same way, and the country keys are left exactly as stored —
+ * absent where the record holds none — with `map` and `override` carried. A
+ * patch built on this writes back what it changed and nothing the map or the
+ * override only lent the reader.
+ */
+export function storedTravelOf(formation) {
+  const t = formation?.travel ?? {};
+  const stored = travelBase(formation);
+  for (const key of ["ground", "road", "following", "territory", "encounterTerrain", "map", "override"]) {
+    if (t[key] !== undefined) stored[key] = t[key];
+  }
+  return stored;
 }
 
 /**
@@ -395,7 +551,8 @@ export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
     ? (TRAVEL_MODES.includes(journey) ? journey : "delve")
     : (journey ? "journey" : "delve");
   return patchFormation(formationId, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
+    const token = getPartyToken(record);
     record.travel = {
       ...t,
       mode,
@@ -403,8 +560,12 @@ export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
       // party in the quarter it arrives in (hunt.mjs); leaving one keeps the
       // board whole.
       settlement: mode === "settlement" ? withHunt(enteredSettlement(t, sceneId), record) : t.settlement,
+      // A journey begun where the party's token stands reads the country under
+      // it now, not at its first step.
+      ...(mode === "journey" && token?.parent
+        ? { map: mapReadingAt(token.parent, tokenCentre(token), { at: game.time?.worldTime ?? null }) }
+        : {}),
     };
-    const token = getPartyToken(record);
     record.clock = {
       ...(record.clock ?? {}),
       paused: false,
@@ -494,7 +655,7 @@ export async function claimUnstampedSettlements() {
     // background writer hold copies of these records, and a board claimed or
     // re-entered between the read above and here is no longer ours to stamp.
     await patchFormation(formation.id, (record) => {
-      const cur = travelOf(record);
+      const cur = storedTravelOf(record);
       if (cur.mode !== "settlement" || cur.settlement.sceneId != null) return false;
       record.travel = { ...cur, settlement: { ...cur.settlement, sceneId } };
       wrote = true;
@@ -556,7 +717,7 @@ export async function adoptSceneSystem(formationId, scene) {
 /** The settlement board's own writer: pace, where, route, hour, hunted. */
 export function patchSettlement(formationId, patch = {}) {
   return patchFormation(formationId, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     const next = { ...t.settlement };
     // Every picker the panel shows, because this is the api the panel's own
     // vocabulary is reachable through: a key accepted by the form and dropped
@@ -585,10 +746,15 @@ export function patchSettlement(formationId, patch = {}) {
   });
 }
 
-/** The pickers: ground, road, territory, pace, weather flags, hex note. */
+/**
+ * The record's own declarations: ground, road, territory, pace, weather flags,
+ * hex note. The country keys written here are the DECLARED record — the
+ * fallback under the map and the scene default — not the Judge's override,
+ * which is `applyTravelForm`'s `override` group.
+ */
 export function patchTravel(formationId, patch = {}) {
   return patchFormation(formationId, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     const next = { ...t };
     if (patch.ground !== undefined) next.ground = String(patch.ground);
     if (patch.road !== undefined && ROAD_KINDS.includes(patch.road)) next.road = patch.road;
@@ -598,6 +764,23 @@ export function patchTravel(formationId, patch = {}) {
     if (patch.weather !== undefined) next.weather = { ...t.weather, ...patch.weather };
     if (patch.hex !== undefined) next.hex = { ...t.hex, ...patch.hex };
     record.travel = next;
+  });
+}
+
+/**
+ * Retire an older record's declaration of one country key: the key's default
+ * is written over it (`travel.weather.climate` for the climate), so the map
+ * or the module's default answers again. The Judge's override is cleared by
+ * `applyTravelForm` with a blank; this never touches it. Null for a key that
+ * is not one of the six.
+ */
+export function clearDeclaredCountry(formationId, key) {
+  if (!COUNTRY_KEYS.includes(key)) return Promise.resolve(null);
+  return patchFormation(formationId, (record) => {
+    const t = storedTravelOf(record);
+    record.travel = key === "climate"
+      ? { ...t, weather: { ...t.weather, climate: COUNTRY_DEFAULTS.climate } }
+      : { ...t, [key]: COUNTRY_DEFAULTS[key] };
   });
 }
 
@@ -622,7 +805,7 @@ export async function setDayKind(formationId, kind, { override = false } = {}) {
   let barred = [];
   let refused = false;
   const result = await patchFormation(formationId, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     if (kind === "forced" && t.day.kind !== "forced") {
       barred = forcedMarchBar(record);
       if (barred.length && !overrides(override)) {
@@ -643,7 +826,7 @@ export async function setDayKind(formationId, kind, { override = false } = {}) {
 /** Fill one ancillary slot (null clears it). Refused under a forced march. */
 export function setAncillary(formationId, slot, activity) {
   return patchFormation(formationId, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     if (DAY_KINDS[t.day?.kind]?.consumesAncillary) return false;
     const i = Number(slot);
     if (!Number.isInteger(i) || i < 0 || i >= ANCILLARY_SLOTS) return false;
@@ -661,7 +844,7 @@ export function setAncillary(formationId, slot, activity) {
  */
 export function enterHex(formationId, label) {
   return patchFormation(formationId, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     record.travel = {
       ...t,
       hex: { ...t.hex, label: String(label ?? "").trim() },
@@ -670,37 +853,105 @@ export function enterHex(formationId, label) {
   });
 }
 
+/** The centre of a token document on its scene, read off the document alone (no canvas). */
+export function tokenCentre(tokenDoc, scene = tokenDoc?.parent) {
+  const sizeX = scene?.grid?.sizeX ?? scene?.grid?.size ?? 0;
+  const sizeY = scene?.grid?.sizeY ?? scene?.grid?.size ?? 0;
+  return {
+    x: tokenDoc.x + ((tokenDoc.width ?? 1) * sizeX) / 2,
+    y: tokenDoc.y + ((tokenDoc.height ?? 1) * sizeY) / 2,
+  };
+}
+
+/**
+ * The map's reading at a point, in the shape `travel.map` caches it:
+ * `countryAt`'s six keys with their `source` and the `water` under the point,
+ * plus the scene and the hex they were read on (`i`/`j` null off a hex grid)
+ * and the world time `at` which they were read.
+ */
+export function mapReadingAt(scene, point, { at = null } = {}) {
+  const reading = countryAt(scene, point);
+  const offset = isHexScene(scene) ? scene.grid.getOffset(point) : null;
+  return {
+    sceneId: scene?.id ?? null,
+    i: offset?.i ?? null,
+    j: offset?.j ?? null,
+    at,
+    ...Object.fromEntries(COUNTRY_KEYS.map((key) => [key, reading[key] ?? null])),
+    source: { ...reading.source },
+    water: reading.water ?? null,
+  };
+}
+
+/**
+ * Do two map readings say the same thing about the same place? `at` is not
+ * compared: a re-read that found nothing new is not a change worth a write.
+ */
+export function sameReading(a, b) {
+  if (!a || !b) return a === b;
+  if (a.sceneId !== b.sceneId || (a.i ?? null) !== (b.i ?? null) || (a.j ?? null) !== (b.j ?? null)) return false;
+  for (const key of COUNTRY_KEYS) {
+    if ((a[key] ?? null) !== (b[key] ?? null) || (a.source?.[key] ?? null) !== (b.source?.[key] ?? null)) return false;
+  }
+  return (a.water?.kind ?? null) === (b.water?.kind ?? null) && !!a.water?.navigable === !!b.water?.navigable;
+}
+
+/**
+ * The reading a trace step carries, at the step's offset: its `map` (a
+ * `mapReadingAt` result), with any of `ground`, `encounterTerrain` and `road`
+ * the step names laid over it as the map's own answer — the journey's road
+ * walked between two hexes, or a caller tracing by hand, whose reading is of
+ * the step's `sceneId` (else the last reading's scene). Null when the step
+ * reads nothing at all.
+ */
+function stepReading(previous, { map, i, j, sceneId, ground, encounterTerrain, road }) {
+  const told = Object.entries({ ground, encounterTerrain, road }).filter(([, v]) => v !== undefined);
+  if (!map && !told.length) return null;
+  const base = map ?? { sceneId: sceneId ?? previous?.sceneId ?? null, at: null, water: null, source: {} };
+  const reading = { ...base, i, j, source: { ...(base.source ?? {}) } };
+  for (const key of COUNTRY_KEYS) reading[key] ??= null;
+  for (const [key, value] of told) {
+    reading[key] = value == null || value === "" ? null : String(value);
+    reading.source[key] = reading[key] == null ? null : "map";
+  }
+  return reading;
+}
+
 /**
  * One step of the hex trace, pure: the party's token stands in the hex at
- * offset (`i`, `j`). The offset is the identity, the label its name, the
- * terrain what the map says. The first arrival (no prior offset) NAMES the
- * hex without counting it (you do not enter the hex you were already standing
- * in), and a repeat of the same offset changes nothing and returns the very
- * object it was given. A painted terrain overrides the ground picker and, a
- * hex painted at the book's grain, the encounter pick too; an unpainted hex
- * leaves the Judge's picks standing, and a river (a pick with no ground)
- * leaves the ground.
+ * offset (`i`, `j`). The offset is the identity, the label its name, and the
+ * map's reading of it is cached as `travel.map` — the country keys themselves
+ * are never written here, so the map stays a source under the Judge's
+ * override and over the declared record (`travelOf`). The first arrival (no
+ * prior offset) NAMES the hex without counting it (you do not enter the hex
+ * you were already standing in). A repeat of the same offset counts nothing:
+ * it returns the very object it was given unless the step reads the hex
+ * differently (the same offset on another scene), and then only the reading
+ * changes. A crossing whose step read nothing leaves no reading, so the last
+ * hex's is never taken for this one's.
  *
- * @param {object} travel  a `travelOf` result
- * @param {object} step    `{label, i, j, ground, encounterTerrain, road,
- *   winding}`; `road` is `undefined` when no network was drawn, so the picker
- *   still stands; `ground` and `encounterTerrain` are `paintedTerrainAt`'s
+ * @param {object} travel  a `storedTravelOf` result
+ * @param {object} step    `{label, i, j, map, sceneId, ground,
+ *   encounterTerrain, road, winding}`; `map` is `mapReadingAt`'s; `road` is
+ *   the road the step walked along, `undefined` when no network says, so the
+ *   map's own reading stands; `sceneId` names the scene a step traced by hand
+ *   (no `map`) was read on
  * @returns {{travel: object, crossed: 0|1}}  `crossed` is 1 for a hex entered
  */
-export function traceStep(travel, { label = "", i = null, j = null, ground = null, encounterTerrain = "", road = undefined, winding = 1 } = {}) {
+export function traceStep(travel, { label = "", i = null, j = null, map = null, sceneId = null, ground = undefined, encounterTerrain = undefined, road = undefined, winding = 1 } = {}) {
   const hex = travel.hex ?? {};
   const had = hex.i != null && hex.j != null;
-  if (had && hex.i === i && hex.j === j) return { travel, crossed: 0 };
+  const reading = stepReading(travel.map, { map, i, j, sceneId, ground, encounterTerrain, road });
+  if (had && hex.i === i && hex.j === j) {
+    if (!reading || sameReading(travel.map, reading)) return { travel, crossed: 0 };
+    return { travel: { ...travel, map: reading }, crossed: 0 };
+  }
   return {
     crossed: had ? 1 : 0,
     travel: {
       ...travel,
       hex: { ...hex, label: String(label ?? "").trim(), i, j },
-      ...(ground ? { ground: String(ground) } : {}),
-      ...(encounterTerrain ? { encounterTerrain: String(encounterTerrain) } : {}),
-      // A drawn network OVERRIDES the day's road picker, exactly as painted
-      // terrain overrides the ground picker: the map is the better witness.
-      ...(road !== undefined ? { road: String(road) } : {}),
+      map: reading,
       day: had
         ? {
             ...travel.day,
@@ -716,42 +967,117 @@ export function traceStep(travel, { label = "", i = null, j = null, ground = nul
 
 /**
  * Write one step of the hex trace (`traceStep`) to the record, alone — no
- * miles, no clock. Writes nothing when the offset has not changed.
+ * miles, no clock. A step traced by hand is read on the party's own scene.
+ * Writes nothing when the step changes nothing.
  */
 export function autoEnterHex(formationId, step = {}) {
   return patchFormation(formationId, (record) => {
-    const t = travelOf(record);
-    const { travel } = traceStep(t, step);
+    const t = storedTravelOf(record);
+    const { travel } = traceStep(t, { sceneId: record.sceneId ?? null, ...step });
     if (travel === t) return false;
     record.travel = travel;
   });
 }
 
 /**
- * Seat a journeying party's hex under a token that was set down rather than
- * walked — stepped onto its true position — so the hex and its ground change
- * and nothing is counted: no hex entered, no road step. Non-hex scenes and a
- * formation not on a journey change nothing.
+ * Seat a journeying party under a token that was set down rather than walked
+ * — stepped onto its true position — so the hex and the map's reading of it
+ * change and nothing is counted: no hex entered, no road step. Off a hex grid
+ * there is no hex to name, and only the reading is written. A formation not
+ * on a journey changes nothing.
  */
 export function seatJourneyHex(tokenDoc, formationId) {
   const scene = tokenDoc?.parent;
-  if (!scene || !isHexScene(scene)) return Promise.resolve(null);
-  const point = {
-    x: tokenDoc.x + ((tokenDoc.width ?? 1) * scene.grid.sizeX) / 2,
-    y: tokenDoc.y + ((tokenDoc.height ?? 1) * scene.grid.sizeY) / 2,
-  };
-  const offset = scene.grid.getOffset(point);
-  const painted = paintedTerrainAt(scene, point);
+  if (!scene) return Promise.resolve(null);
+  const reading = mapReadingAt(scene, tokenCentre(tokenDoc, scene), { at: game.time?.worldTime ?? null });
+  const hexed = reading.i != null && reading.j != null;
   return patchFormation(formationId, (record) => {
-    const t = travelOf(record);
-    if (t.mode !== "journey" || (t.hex.i === offset.i && t.hex.j === offset.j)) return false;
+    const t = storedTravelOf(record);
+    if (t.mode !== "journey") return false;
+    const moved = hexed && !(t.hex.i === reading.i && t.hex.j === reading.j);
+    if (!moved && sameReading(t.map, reading)) return false;
     record.travel = {
       ...t,
-      hex: { ...t.hex, label: hexLabelFromOffset(offset), i: offset.i, j: offset.j },
-      ...(painted.ground ? { ground: painted.ground } : {}),
-      ...(painted.encounterTerrain ? { encounterTerrain: painted.encounterTerrain } : {}),
+      ...(moved ? { hex: { ...t.hex, label: hexLabelFromOffset(reading), i: reading.i, j: reading.j } } : {}),
+      map: reading,
     };
   });
+}
+
+/**
+ * Re-read the map under every journeying party standing on a scene, and cache
+ * what changed (`travel.map`): the Judge painted the hex a party stands in,
+ * drew a river through it, or set the scene's default country, and the party
+ * has not moved. With `walls` false nothing drawn changed, so a reading of
+ * the same hex keeps its cached road, route and water — the road may be the
+ * one the last step walked, which a re-read at the token cannot see.
+ *
+ * @returns {Promise<string[]>} the ids of the formations whose reading changed
+ */
+export async function refreshCountryOn(sceneId, { walls = true } = {}) {
+  const changed = [];
+  for (const formation of Object.values(getFormations())) {
+    if (!sceneId || formation.sceneId !== sceneId || !formation.tokenId) continue;
+    if (storedTravelOf(formation).mode !== "journey") continue;
+    const token = getPartyToken(formation);
+    const scene = token?.parent;
+    if (!token || !scene) continue;
+    const fresh = mapReadingAt(scene, tokenCentre(token, scene), { at: game.time?.worldTime ?? null });
+    let wrote = false;
+    await patchFormation(formation.id, (record) => {
+      const t = storedTravelOf(record);
+      if (t.mode !== "journey" || record.sceneId !== sceneId) return false;
+      const held = t.map;
+      const sameHex = !!held && fresh.i != null && held.sceneId === fresh.sceneId && held.i === fresh.i && held.j === fresh.j;
+      const reading = !walls && sameHex
+        ? {
+            ...fresh,
+            road: held.road ?? null,
+            following: held.following ?? null,
+            water: held.water ?? null,
+            source: { ...fresh.source, road: held.source?.road ?? null, following: held.source?.following ?? null },
+          }
+        : fresh;
+      if (sameReading(held, reading)) return false;
+      record.travel = { ...t, map: reading };
+      wrote = true;
+    });
+    if (wrote) changed.push(formation.id);
+  }
+  return changed;
+}
+
+/**
+ * A debounced trigger for `refreshCountryOn`, one per client: each call names
+ * a scene and whether a Wall changed on it, and one re-read runs per scene
+ * per burst, `wait` milliseconds after its last call. Only the active GM's
+ * client runs any (`isPrimaryGM`, the guard the world-time watcher's writers
+ * use); `then` receives the ids whose reading changed. `schedule`/`cancel`
+ * are the timers, replaceable by a test.
+ *
+ * @param {object} [o]
+ * @param {number} [o.wait]  quiet milliseconds before a burst is read
+ * @param {Function} [o.then]  called with the changed formation ids
+ * @param {Function} [o.schedule]  `setTimeout`'s shape
+ * @param {Function} [o.cancel]  `clearTimeout`'s shape
+ * @param {Function} [o.primary]  whether this client runs the automation
+ * @returns {(sceneId: string, opts?: {walls?: boolean}) => void}
+ */
+export function countryRefresher({ wait = 250, then = null, schedule = setTimeout, cancel = clearTimeout, primary = isPrimaryGM } = {}) {
+  const pending = new Map();
+  return (sceneId, { walls = false } = {}) => {
+    if (!sceneId || !primary()) return;
+    const held = pending.get(sceneId);
+    if (held) cancel(held.timer);
+    const burst = { walls: walls || !!held?.walls, timer: null };
+    burst.timer = schedule(() => {
+      pending.delete(sceneId);
+      refreshCountryOn(sceneId, { walls: burst.walls })
+        .then((changed) => then?.(changed))
+        .catch((err) => console.error(`${MODULE_ID} | the country under a party could not be re-read`, err));
+    }, wait);
+    pending.set(sceneId, burst);
+  };
 }
 
 /**
@@ -864,12 +1190,35 @@ export async function rollLandNavigation(formation) {
 }
 
 /**
- * The panel's whole form in ONE ledger write: pickers, weather flags, the
- * day board, the hex label, the lost note. The form submits itself entire
- * on every change (submitOnChange), so writing field-by-field would queue a
- * patch per field per keystroke; this applies what the form carries and lets
- * `travelOf` refuse the rest. Slot edits under a forced march are ignored —
- * the march owns the budget.
+ * The Judge's override group of a submit, merged over the record's: each of
+ * the six country keys the form names is set when valid and CLEARED when
+ * blank; one it does not name stands. The group is `tv.override`; a key named
+ * at the form's top level (`tv.ground`, `tv.weather.climate`) is the same
+ * word and routes here too. Null when the submit names none of them.
+ */
+function overrideFromForm(current, tv) {
+  const named = {
+    ...Object.fromEntries(COUNTRY_KEYS.filter((k) => k !== "climate" && typeof tv[k] === "string").map((k) => [k, tv[k]])),
+    ...(typeof tv.weather?.climate === "string" ? { climate: tv.weather.climate } : {}),
+    ...Object.fromEntries(Object.entries(tv.override ?? {}).filter(([k, v]) => COUNTRY_KEYS.includes(k) && typeof v === "string")),
+  };
+  if (!Object.keys(named).length) return null;
+  const next = { ...(current && typeof current === "object" ? current : {}) };
+  for (const [key, value] of Object.entries(named)) {
+    if (value === "") delete next[key];
+    else if (countryValueValid(key, value)) next[key] = value;
+  }
+  return next;
+}
+
+/**
+ * The panel's whole form in ONE ledger write: the Judge's overrides, weather
+ * flags, the day board, the hex label, the lost note. The form submits itself
+ * entire on every change (submitOnChange), so writing field-by-field would
+ * queue a patch per field per keystroke; this applies what the form carries
+ * and lets `travelOf` refuse the rest. The six country keys land in
+ * `travel.override` (`overrideFromForm`), never in the declared record. Slot
+ * edits under a forced march are ignored — the march owns the budget.
  *
  * A day-kind change INTO a forced march obeys the same bar as `setDayKind`:
  * barred, the kind alone is dropped (the rest of the form still lands) and the
@@ -881,14 +1230,14 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
   let refused = false;
   let forcedHere = false;
   const result = await patchFormation(formationId, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     const next = { ...t };
-    if (typeof tv.ground === "string" && tv.ground) next.ground = tv.ground;
-    if (ROAD_KINDS.includes(tv.road)) next.road = tv.road;
-    if (FOLLOWING_KINDS.includes(tv.following)) next.following = tv.following;
-    if (TERRITORY_KEYS.includes(tv.territory)) next.territory = tv.territory;
+    const declaredOver = overrideFromForm(t.override, tv);
+    if (declaredOver) {
+      if (Object.keys(declaredOver).length) next.override = declaredOver;
+      else delete next.override;
+    }
     if (Object.hasOwn(HOUR_MODES, tv.hour ?? "")) next.hour = tv.hour;
-    if (typeof tv.encounterTerrain === "string") next.encounterTerrain = tv.encounterTerrain;
     // The settlement board rides the same submit as the journey pickers: an
     // ApplicationV2 action fires on CLICK, so a select bound to one never
     // reports a change at all.
@@ -910,7 +1259,6 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
       const wv = tv.weather;
       const w = { ...t.weather, auto: !!wv.auto, fronts: !!wv.fronts };
       const pick = (value, vocab) => (value === "" || vocab[value] ? value : undefined);
-      if (typeof wv.climate === "string" && pick(wv.climate, CLIMATES) !== undefined) w.climate = wv.climate;
       if (SEASONS.includes(wv.season)) w.season = wv.season;
       if (typeof wv.temperature === "string" && pick(wv.temperature, TEMPERATURE_BANDS) !== undefined) w.temperature = wv.temperature;
       if (typeof wv.precipitation === "string" && pick(wv.precipitation, PRECIPITATION_KINDS) !== undefined) w.precipitation = wv.precipitation;
@@ -1014,6 +1362,8 @@ export function effectiveSeason(travel) {
  * The sky cache key for a party's ground on a day: the calendar day the world
  * clock stands in, or — only where the clock keeps no calendar — the End-day
  * counter. `dayCount` keeps numbering the log; it is not the sky's identity.
+ * The climate is `t`'s as `travelOf` resolves it — the map's, the scene's or
+ * the Judge's — so `t` is a `travelOf` result, never a stored one.
  */
 function skyParams(t, season, day = calendarDay() ?? t.dayCount) {
   return { day, climate: t.weather.climate, season };
@@ -1052,7 +1402,7 @@ export async function settleDayChange(formationId, today, { counter = false } = 
   if (!counter && settled != null && day <= settled) return false;
   if (!counter && (settled == null || t.mode !== "journey")) {
     await patchFormation(formationId, (rec) => {
-      const cur = travelOf(rec);
+      const cur = storedTravelOf(rec);
       rec.travel = { ...cur, weather: { ...cur.weather, settledDay: day } };
     });
     return false;
@@ -1092,7 +1442,7 @@ export async function settleDayChange(formationId, today, { counter = false } = 
   }
   if (cache !== cache0) await writeSkyCache(cache, day);
   const result = await patchFormation(formationId, (rec) => {
-    const cur = travelOf(rec);
+    const cur = storedTravelOf(rec);
     if (!counter && (settledDayOf(cur.weather) ?? -Infinity) >= day) return false;
     const weather = { ...cur.weather, footing, ...(auto ? bands : {}) };
     if (!counter) weather.settledDay = day;
@@ -1148,7 +1498,7 @@ export async function rollWeatherNow(formationId) {
   }));
   if (!gen?.ok) return false;
   return patchFormation(formationId, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     record.travel = {
       ...t,
       weather: {
@@ -1208,8 +1558,10 @@ export async function endDay(formationId, { miles = null, hours = null, hexes = 
   }
 
   const record = await patchFormation(formationId, (rec) => {
-    const t = travelOf(rec);
-    entry = composeLogEntry(t, { miles, hours, hexes, notes, worldTime: game.time?.worldTime ?? null });
+    const t = storedTravelOf(rec);
+    // The day is logged as the party READ it — the country resolved — while
+    // the record keeps only what it stored.
+    entry = composeLogEntry(travelOf(rec), { miles, hours, hexes, notes, worldTime: game.time?.worldTime ?? null });
     advancedToday = t.day.secondsAdvanced ?? 0;
     rec.travel = {
       ...t,

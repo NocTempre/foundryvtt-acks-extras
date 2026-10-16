@@ -463,6 +463,7 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   assert.equal(r.cards.length, 0);
   assert.equal(travelOf(getFormation(id)).day.miles, 0, "and spends no miles");
   assert.deepEqual(getFormation(id).clock.lastPosition, { x: 3 * CELL, y: 0 }, "but the baseline follows the token");
+  assert.equal(getFormation(id).travel.map?.sceneId, "S.pause", "and so does the map's reading");
 
   const clock = { ...getFormation(id).clock, paused: false, pausedBy: null };
   settings.formations[id].clock = clock;
@@ -473,6 +474,36 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   settings.formations[id].clock = { ...getFormation(id).clock, paused: true, pausedBy: null };
   const legacy = await drag(token, id, 5 * CELL, 0);
   assert.equal(legacy.result.miles, 7, "a legacy paused flag reads as unpaused in journey mode");
+}
+
+// On a hex grid a paused drag seats the hex it lands in as well as its reading.
+{
+  const scene = makeScene("S.pause.hex", { kind: "hex", miles: 7 });
+  const token = makeToken(scene, "t.pause.hex");
+  const id = makeFormation(scene, token, { clock: { paused: true, pausedBy: "judge" } });
+  const r = await drag(token, id, 3 * CELL, 0);
+  assert.equal(r.seconds, 0);
+  const t = getFormation(id).travel;
+  assert.deepEqual([t.hex.i, t.hex.j, t.map.i, t.map.j], [0, 3, 0, 3], "a paused drag seats the hex and its reading, billing nothing");
+  assert.equal(t.day.hexesEntered ?? 0, 0, "and counts no crossing");
+}
+
+// A move inside the party's own hex is no step: the road its last step walked
+// stays the map's answer, which a read at the token cannot see.
+{
+  const scene = makeScene("S.standing", { kind: "hex", miles: 7 });
+  const token = makeToken(scene, "t.standing");
+  const held = {
+    sceneId: "S.standing", i: 0, j: 0, at: 0,
+    ground: null, encounterTerrain: null, territory: null, climate: null, road: "paved", following: null, water: null,
+    source: { road: "map" },
+  };
+  const id = makeFormation(scene, token, { travel: { map: held } });
+  await drag(token, id, 10, 10);
+  assert.deepEqual([getFormation(id).travel.map.road, getFormation(id).travel.map.source.road], ["paved", "map"],
+    "a move inside the hex keeps the road the last step walked");
+  await drag(token, id, CELL, 0);
+  assert.equal(getFormation(id).travel.map.road, null, "the next hex reads its own: no road is drawn here");
 }
 
 /* -------------------------------------------- */
@@ -1083,4 +1114,173 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   registerFrequency();
 }
 
-console.log("test-journey: OK (miles on hex/square/gridless, cadence by grid or miles, clock hours, pause, scale guard, next hex, token size, search hour, day end, dawn, zones: card, true position, entry, periods)");
+/* -------------------------------------------- */
+/*  The country rides the trace as a reading    */
+/* -------------------------------------------- */
+
+/* The map's reading of the hex a party walks into is cached as `travel.map`;
+ * the trace never writes the record's own country keys; the walk's cadence is
+ * the territory's the party arrives in; and the active GM's refresher re-reads
+ * a repainted hex once per burst. Two territory rows of invented sizes tell the
+ * two cadences apart; the painted values are the module's own keys. */
+{
+  const { countryRefresher } = await import("../scripts/formation/travel.mjs");
+  const { patchFormation } = await import("../scripts/formation/formation-model.mjs");
+  const { MODULE_ID } = await import("../scripts/lib/constants.mjs");
+  resetTables();
+  registerTable({
+    id: "travel",
+    tables: {
+      encounterFrequency: {
+        traveling: {
+          borderlands: { kind: "perHex", mileHex: TABLE_MILES },
+          outlands: { kind: "perHex", mileHex: 2 * TABLE_MILES },
+        },
+      },
+    },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+
+  /**
+   * A region painting one layer's value on these hexes; `state` is repainted
+   * in place. A painted region carries no behaviour, so no zone reads it.
+   */
+  const painted = (flag, value, hexes) => {
+    const state = { value, hexes };
+    return {
+      state,
+      behaviors: [],
+      getFlag: (_ns, key) => (key === flag ? state.value : key === `${flag}Hexes` ? state.hexes : undefined),
+    };
+  };
+  const defaults = (ns, key) =>
+    (ns === MODULE_ID && key === "battlemap" ? { country: { ground: "grasslandSteppe", territory: "borderlands" } } : undefined);
+
+  const scene = makeScene("S.country", { kind: "hex", miles: TABLE_MILES });
+  const forest = painted("terrain", "forestTaiga", ["0:1"]);
+  scene.regions.push(forest, painted("territory", "outlands", ["0:1"]));
+  scene.getFlag = defaults;
+  const token = makeToken(scene, "t.country");
+  const id = makeFormation(scene, token, { travel: { ground: "desert" } });
+  const before = travelOf(getFormation(id));
+  assert.deepEqual([before.ground, before.provenance.ground], ["desert", "declared"],
+    "with nothing read yet, the record's declaration answers");
+
+  const r = await drag(token, id, CELL, 0);
+  const stored = getFormation(id).travel;
+  assert.deepEqual([stored.map.sceneId, stored.map.i, stored.map.j], ["S.country", 0, 1], "the reading names its scene and hex");
+  assert.deepEqual(
+    [stored.map.ground, stored.map.encounterTerrain, stored.map.territory, stored.map.climate],
+    ["forest", "forestTaiga", "outlands", null], "the hex's painted country is cached");
+  assert.deepEqual([stored.map.source.ground, stored.map.source.territory], ["map", "map"]);
+  assert.equal(stored.ground, "desert", "the trace writes the reading only: the declaration stays as it was");
+  for (const key of ["encounterTerrain", "road", "following"]) assert.ok(!(key in stored), `and it writes no ${key}`);
+  assert.equal(stored.territory, "borderlands", "nor the record's own territory");
+  const after = travelOf(getFormation(id));
+  assert.deepEqual([after.ground, after.provenance.ground], ["forest", "map"], "the map stands over the declaration");
+  assert.deepEqual([after.territory, after.provenance.territory], ["outlands", "map"]);
+  assert.equal(r.result.units, 0, "seven miles into a country thrown every fourteen owes nothing yet");
+  assert.equal(r.hooks.length, 0, "the cadence is the country arrived in, not the one left");
+  assert.ok(approx(after.day.cadenceCarry, TABLE_MILES), "and the miles are carried toward its throw");
+
+  const back = await drag(token, id, 0, 0);
+  assert.equal(back.hooks.length, 1, "walking back into the borderlands owes the borderlands' throw");
+  assert.equal(back.hooks[0].cadence, "grid", "counted by the hex, the size of that country's distance");
+  const home = travelOf(getFormation(id));
+  assert.deepEqual([home.ground, home.provenance.ground], ["grassland", "scene"],
+    "an unpainted hex reads the scene's default, which stands over the declaration");
+  assert.deepEqual([home.territory, home.provenance.territory], ["borderlands", "scene"]);
+
+  // The Judge repaints the hex the party stands in, and the active GM's
+  // refresher re-reads it once per burst.
+  const timers = [];
+  const changed = [];
+  let primary = true;
+  const refresh = countryRefresher({
+    wait: 5,
+    then: (ids) => changed.push(ids),
+    schedule: (fn, ms) => {
+      const timer = { fn, ms, live: true };
+      timers.push(timer);
+      return timer;
+    },
+    cancel: (timer) => { timer.live = false; },
+    primary: () => primary,
+  });
+  const runTimers = async () => {
+    for (const timer of timers.splice(0)) if (timer.live) timer.fn();
+    for (let n = 0; n < 5; n++) await new Promise((resolve) => setImmediate(resolve));
+  };
+
+  forest.state.hexes = ["0:1", "0:0"];
+  refresh("S.country");
+  refresh("S.country");
+  refresh("S.country", { walls: true });
+  assert.equal(timers.filter((t) => t.live).length, 1, "a burst of changes is one re-read");
+  assert.equal(timers.at(-1).ms, 5, "run once the burst has been quiet for the wait");
+  await runTimers();
+  assert.deepEqual(changed, [[id]], "the party whose hex now reads differently is named");
+  const repainted = getFormation(id).travel.map;
+  assert.deepEqual([repainted.ground, repainted.source.ground], ["forest", "map"]);
+
+  refresh("S.country");
+  await runTimers();
+  assert.deepEqual(changed.at(-1), [], "a re-read that finds nothing new writes nothing");
+
+  // A road the last step walked is one a re-read at the token cannot see: a
+  // burst no wall was part of keeps it, and one that touched a wall reads afresh.
+  await patchFormation(id, (record) => {
+    record.travel.map = { ...record.travel.map, road: "earth", source: { ...record.travel.map.source, road: "map" } };
+  });
+  forest.state.value = "desertSandy";
+  refresh("S.country");
+  await runTimers();
+  let map = getFormation(id).travel.map;
+  assert.deepEqual([map.ground, map.road], ["desert", "earth"], "a repaint re-reads the hex and keeps the walked road");
+  refresh("S.country", { walls: true });
+  await runTimers();
+  map = getFormation(id).travel.map;
+  assert.equal(map.road, null, "a burst that touched a wall reads the lines afresh");
+
+  primary = false;
+  refresh("S.country", { walls: true });
+  assert.equal(timers.length, 0, "only the active GM's client re-reads");
+  primary = true;
+  refresh(null);
+  refresh("");
+  assert.equal(timers.length, 0, "a change on no scene reads nothing");
+
+  // The refresh reads the parties on the scene it was given and no other, and
+  // a seat by hand off a hex grid caches the reading and names no hex.
+  const { seatJourneyHex, refreshCountryOn } = await import("../scripts/formation/travel.mjs");
+  {
+    const sq = makeScene("S.seat.sq", { kind: "square", miles: TABLE_MILES });
+    sq.getFlag = defaults;
+    const tk = makeToken(sq, "t.seat.sq", CELL, 0);
+    const fid = makeFormation(sq, tk, { hex: { label: "B2", i: 4, j: 4 } });
+    const elsewhere = makeScene("S.seat.other", { kind: "hex", miles: TABLE_MILES });
+    elsewhere.getFlag = defaults;
+    const fid2 = makeFormation(elsewhere, makeToken(elsewhere, "t.seat.other"));
+    assert.deepEqual(await refreshCountryOn("S.seat.other"), [fid2], "only the parties on that scene are re-read");
+    assert.equal(getFormation(fid).travel.map, undefined, "a party on another scene is not");
+    await seatJourneyHex(tk, fid);
+    const tv = getFormation(fid).travel;
+    assert.deepEqual([tv.map.sceneId, tv.map.i, tv.map.j, tv.map.ground], ["S.seat.sq", null, null, "grassland"],
+      "off a hex grid the seat caches the reading and names no hex");
+    assert.deepEqual([tv.hex.label, tv.hex.i, tv.hex.j], ["B2", 4, 4], "and leaves the hex the record held");
+  }
+
+  // Off a hex grid the reading is cached all the same, and names no hex.
+  const free = makeScene("S.country.free", { kind: "gridless", miles: TABLE_MILES, measure: false });
+  free.getFlag = defaults;
+  const freeToken = makeToken(free, "t.country.free");
+  const freeId = makeFormation(free, freeToken);
+  await drag(freeToken, freeId, 140, 0);
+  const freeMap = getFormation(freeId).travel.map;
+  assert.deepEqual([freeMap.sceneId, freeMap.i, freeMap.j], ["S.country.free", null, null]);
+  assert.deepEqual([freeMap.territory, freeMap.source.territory], ["borderlands", "scene"]);
+
+  resetTables();
+  registerFrequency();
+}
+
+console.log("test-journey: OK (miles on hex/square/gridless, cadence by grid or miles, clock hours, pause, scale guard, next hex, token size, search hour, day end, dawn, zones: card, true position, entry, periods, the country's reading on the trace, the cadence arrived in, the GM's refresh)");

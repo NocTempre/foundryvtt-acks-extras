@@ -48,6 +48,22 @@
   </div>
   <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.setup.systemHint"}}</p>
 
+  {{! The country under the brush: what a hex nobody painted reads as, and all
+      a map that is not a hex map has. Written to the scene on change. }}
+  <div class="acks-extras-battlemap-row">
+    {{#each countryRows}}
+    <label class="acks-extras-battlemap-field">
+      <span>{{label}}</span>
+      <select name="{{name}}">
+        <option value="">{{@root.countryNone}}</option>
+        {{#each options}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        {{#each groups}}<optgroup label="{{label}}">{{#each options}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</optgroup>{{/each}}
+      </select>
+    </label>
+    {{/each}}
+  </div>
+  <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.setup.countryHint"}}</p>
+
   {{#if warnNotSquare}}
     <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.notSquareGrid"}}</p>
   {{/if}}

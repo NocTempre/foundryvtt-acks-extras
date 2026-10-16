@@ -421,3 +421,38 @@
   white-space: nowrap;
   font-size: var(--acks-fs-label);
 }
+
+/* The layer pills at the palette's head: which question the brush answers.
+   The chosen one takes the reversed band, as an active chip does. */
+.acks-extras-terrain-layers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(4px * var(--acks-extras-k));
+}
+
+.acks-extras-terrain-layer {
+  padding: calc(3px * var(--acks-extras-k)) calc(6px * var(--acks-extras-k));
+  border-radius: calc(999px * var(--acks-extras-k));
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acks-extras-terrain-layer.is-active {
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+  border-color: var(--acks-spot);
+}
+
+/* A group's name over its swatches (the climates). */
+.acks-extras-terrain-group {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--acks-spot);
+  margin-top: calc(4px * var(--acks-extras-k));
+}

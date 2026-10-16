@@ -684,6 +684,12 @@ strip's ground picker stays at the coarse grain, since the ground is what
 every travel table reads; the register moved to a leaf module so the brush
 and the chain read it without importing each other.
 
+**Superseded in part, 2026-10-15** (*A river or a coast is a line*, below, and
+formation DECISIONS *The country is read from the map, and the Judge's word
+stands over it*): the river kinds left the brush for drawn lines, and the
+journey caches the map's reading of a hex (`travel.map`) instead of writing the
+ground and the pick, so nothing carries past its hex.
+
 ## 2026-10-09 — A recipe's grid is aligned the way the calibration aligns one
 
 The importer's region map (importer DECISIONS, 2026-10-09) is laid on
@@ -704,4 +710,110 @@ which the centre carries).
 
 **Cost:** the recipe is measured once per printing; a reprint with a
 different crop needs a row of its own.
+
+## 2026-10-15 — A river or a coast is a line
+
+**Evidence.** The owner's answers of 2026-10-14 to the party-sheet redesign
+(formation `wip/20261014-party-sheet-redesign.md` §8, ruling 7a): a river is
+drawn like a road, not painted as a hex type. Its feedback row on the terrain
+asked for the country to be picked up from the map under the party (§0). A
+painted river claimed a whole hex for a line that runs along and between
+hexes, stood on no ground, and had no coast beside it. This supersedes in part
+*The brush paints at the book's grain* (2026-10-09, six days old), which kept
+the river kinds as brushes that set the encounter pick alone; the new
+evidence is the owner's ruling.
+
+**Ruled.**
+- **Water is a wall layer**, `water.mjs` beside `roads.mjs`: a wall carrying
+  `flags["acks-extras"].water = {kind, navigable, name}`, `kind` a river or a
+  coast, drawn with every restriction NONE and no door (`waterWallData`), read
+  by `wallWater`, `isWaterWall` and `waterWallsOf`. A party is on a line within
+  half a grid cell of it (`waterUnder`).
+- **The road tool's mechanics**: two presets in the Battlemap group
+  (`water-river`, `water-coast`) on core's one preset slot, a from-selection
+  tool on the Walls control, and a row on the wall's own sheet for the kind,
+  whether a boat can follow it, and the name.
+- **A line that does not say is navigable as a river and not as a coast**; the
+  row says otherwise per line. Asked for a navigable line, `waterUnder` passes
+  over a shore.
+- **The two river tables leave the brush** (`paintableTerrains`); a hex
+  already painted with one reads as before (`paintedTerrainAt`), so no scene
+  breaks.
+- **What a line answers** is `countryAt`'s: `following` is `"river"` over a
+  navigable line and `"none"` elsewhere on a scene that has water lines; the
+  encounter table is the river's — the desert-and-jungle one over a desert or
+  jungle ground, the land one elsewhere — only while the party moves on the
+  water and a line is under it. `countryAt` answers so for a caller passing
+  `waterBorne`; the formation applies the same rule at resolution from the
+  reading's `water` (formation MODEL, "The country").
+- **No hex topology links come from water**: a river is not a road.
+- **The overlay draws the water lines** in their own blue, dashed where a boat
+  cannot follow.
+
+**Rejected.**
+- *A coast as a terrain key*: a coast is the edge between a country and the
+  sea, not a country of its own.
+- *Rivers as regions*: a region claims cells, and a river is the line between
+  them.
+- *Links from water*: a crossing is a road's business; a ford or a ferry is
+  drawn as one.
+
+**Cost.**
+- A map whose rivers were painted keeps them: they read their table as before
+  but are no longer brushes, and redrawing one as a line is the Judge's.
+- A vessel along a coast reads the land river's table; the sea's own tables
+  have no pick (formation ROADMAP, *Sea encounters*).
+- Water and roads share the one preset slot with the trap line, so arming a
+  river disarms a street.
+
+## 2026-10-15 — The country brush paints three layers
+
+**Evidence.** The owner's answers of 2026-10-14 (the redesign's §8, ruling
+4a): territory and climate are brush layers per hex, plus a scene default.
+Both were one declaration per party on the sheet (the redesign's mechanics
+audit, row 2.1, lists the climate's editor as the sheet), so a party crossing
+from settled country into the wild, or out of one climate into another,
+stayed where the Judge last set it.
+
+**Ruled.**
+- **One mechanism over a LAYER** (`PAINT_LAYERS`): terrain keeps
+  `terrain`/`terrainHexes`; territory paints `territory`/`territoryHexes`;
+  climate paints `climate`/`climateHexes`. Each layer keeps the 2026-08-28
+  ruling — one region per value, the cell key as the identity, one value per
+  hex — within itself; a write on one layer never touches another's regions,
+  because the layers answer different questions about the same hex.
+- **Territory and climate regions are drawn for a GM only**; terrain stays
+  visible to everyone (2026-08-28).
+- **The vocabularies are the module's keys**: `TERRITORY_KEYS`, labelled by
+  the sheet's territory strings, and `CLIMATES`, by code and name and grouped
+  as the sheet's climate select groups them. The colours are ours, a table per
+  layer; a climate is its group's colour, a step lighter per kin listed before
+  it.
+- **The palette carries the layer as three pills** at its head; the brush's
+  layer is the session's own, never stored. The tool is the Country brush.
+- **A sheet can arm it**: `openCountryBrush` takes a layer, a value and who
+  armed it. Closing the palette disarms a brush the toolbar did not arm.
+- **The scene default**: `flags["acks-extras"].battlemap.country = {ground,
+  territory, climate}`, written through `writeSceneSetup` from three selects in
+  the Battlemap window, read by `sceneCountry`.
+- **One reader**, `countryAt` (MODEL, "Country layers"): per key, the map
+  where it says something, the scene default where it does not, and which of
+  the two answered.
+
+**Rejected.**
+- *A region per hex*: the per-value region with an index-aligned shape list is
+  the 2026-08-28 ruling, and three layers triple the reason for it.
+- *Territory and climate as one combined layer*: a hex's territory and its
+  climate change at different borders.
+- *Territory and climate regions visible to everyone*: the classification of
+  the country is the Judge's bookkeeping, and a player's map would show it.
+- *Leaving the palette's brush armed when a sheet's chip opened it*: an armed
+  brush catches the canvas with nothing on screen to say so once the palette
+  is closed.
+
+**Cost.**
+- A hex can sit in three regions, one per layer, so the Regions tab of a
+  painted map grows by every territory and climate value in use.
+- A square or gridless map has no painted layers; its default speaks for the
+  whole map.
 

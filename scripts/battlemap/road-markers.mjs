@@ -1,20 +1,25 @@
 /* global game, canvas, ui, Hooks, PIXI */
 /**
- * Seeing the streets you drew: a GM-only, presentation-only overlay drawing
- * the road network over the map — tinted by surface, dashed where the road
- * is an alley. Decides nothing; the party's movement is measured off the
- * walls whether or not this ever draws. Drawn only while the Judge is
+ * Seeing the streets and the water you drew: a GM-only, presentation-only
+ * overlay drawing the road network over the map — tinted by surface, dashed
+ * where the road is an alley — and the water lines, blue, dashed where a boat
+ * cannot follow one. Decides nothing; the party's movement is measured off
+ * the walls whether or not this ever draws. Drawn only while the Judge is
  * working the map (the Walls control, or the battlemap's own group), never
  * as a permanent overlay.
  */
 import { MODULE_ID, CONTROL_GROUP } from "./constants.mjs";
 import { roadWallsOf, wallRoad } from "./roads.mjs";
+import { waterWallsOf, wallWater } from "./water.mjs";
 
 /**
  * Road tints by surface. Presentation, not rules — an imported surface nobody
  * shipped a colour for draws as an earthen road.
  */
 export const ROAD_TINT = Object.freeze({ earth: 0x8a6a44, gravel: 0xa8a094, paved: 0xd8d2c6 });
+
+/** Water tints by kind. Presentation, ours. */
+export const WATER_TINT = Object.freeze({ river: 0x3f7fb5, coast: 0x2c5a85 });
 
 /**
  * The controls whose tools work the map, and so want the streets visible.
@@ -72,6 +77,16 @@ export function refreshRoadMarkers() {
     const tint = ROAD_TINT[road.surface] ?? ROAD_TINT.earth;
     g.lineStyle(road.street === "alley" ? 4 : 7, tint, 0.85);
     if (road.street === "alley") dashed(g, { x: x1, y: y1 }, { x: x2, y: y2 });
+    else {
+      g.moveTo(x1, y1);
+      g.lineTo(x2, y2);
+    }
+  }
+  for (const wall of waterWallsOf(scene)) {
+    const water = wallWater(wall);
+    const [x1, y1, x2, y2] = wall.c;
+    g.lineStyle(6, WATER_TINT[water.kind] ?? WATER_TINT.river, 0.85);
+    if (!water.navigable) dashed(g, { x: x1, y: y1 }, { x: x2, y: y2 });
     else {
       g.moveTo(x1, y1);
       g.lineTo(x2, y2);

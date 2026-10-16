@@ -10,16 +10,38 @@
  * by the battlemap control group's terrain tool, a screen-space pointer
  * catcher (capture.mjs's pattern) turning clicks and drags into cell writes.
  *
+ * Terrain is one LAYER of three (`PAINT_LAYERS`): territory and climate are
+ * painted the same way into regions of their own, under flags of their own,
+ * one value per hex per layer. The terrain names below keep their meaning;
+ * each layer-aware form takes a trailing `layer`, "terrain" by default.
+ *
  * See docs/battlemap/DECISIONS.md, "Terrain paints as regions, and the
  * cell key is the identity."
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { TERRAIN, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 import { ENCOUNTER_TERRAINS } from "../formation/encounter-terrains.mjs";
+import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
+import { CLIMATES } from "../formation/weather.mjs";
 
 /** Region flags: the terrain kind, and the painted cells as offset keys. */
 export const TERRAIN_FLAG = "terrain";
 export const HEXES_FLAG = "terrainHexes";
+
+/**
+ * The brush's layers, each a pair of region flags: the value a region paints,
+ * and its painted cells as offset keys. A hex holds one value per layer, and a
+ * layer's write never touches another's regions: a terrain, a territory and a
+ * climate answer different questions about the same hex.
+ */
+export const PAINT_LAYERS = Object.freeze({
+  terrain: Object.freeze({ flag: TERRAIN_FLAG, hexesFlag: HEXES_FLAG }),
+  territory: Object.freeze({ flag: "territory", hexesFlag: "territoryHexes" }),
+  climate: Object.freeze({ flag: "climate", hexesFlag: "climateHexes" }),
+});
+
+/** The flags of a layer the brush knows, or null. */
+const layerSpec = (layer) => (Object.hasOwn(PAINT_LAYERS, layer) ? PAINT_LAYERS[layer] : null);
 
 /**
  * Terrain kinds the brush refuses even though they are valid terrain: mud
@@ -78,11 +100,14 @@ export const TERRAIN_COLORS = Object.freeze({
  * own grain, each standing on a travel ground — plus any key the imported
  * multiplier table carries that no encounter terrain covers, minus the ones
  * weather owns. A bare ground an encounter terrain covers is never a brush:
- * its kinds are. See docs/battlemap/DECISIONS.md, "The brush paints at the
- * book's grain" and "The terrain vocabulary opens to imported keys."
+ * its kinds are. A kind that stands on no ground (a river) is not a hex's at
+ * all: water is drawn as a line (water.mjs), and a hex that holds one still
+ * reads as painted. See docs/battlemap/DECISIONS.md, "The brush
+ * paints at the book's grain", "The terrain vocabulary opens to imported
+ * keys" and "A river or a coast is a line".
  */
 export function paintableTerrains() {
-  const fine = Object.keys(ENCOUNTER_TERRAINS);
+  const fine = Object.keys(ENCOUNTER_TERRAINS).filter((k) => ENCOUNTER_TERRAINS[k].ground);
   const covered = new Set(Object.values(ENCOUNTER_TERRAINS).map((t) => t.ground).filter(Boolean));
   let imported = [];
   try {
@@ -112,6 +137,73 @@ export function labelFor(key) {
   const shipped = ENCOUNTER_TERRAINS[key]?.label ?? TERRAIN[key]?.label;
   if (shipped) return game.i18n.localize(shipped);
   return String(key ?? "").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
+}
+
+/**
+ * A colour per territory, ours: warm where the country is settled, darkening
+ * as it empties. Kept apart from `TERRAIN_COLORS`, whose keys are terrains.
+ */
+export const TERRITORY_COLORS = Object.freeze({
+  civilized: "#d8b04a",
+  borderlands: "#c47a36",
+  outlands: "#9c4a3a",
+  unsettled: "#5e3b5a",
+});
+
+/**
+ * A colour per climate group, ours. Each climate of a group is drawn a step
+ * lighter than the one listed before it (`climateColorFor`), so two climates
+ * of one group still read apart where they meet on the map.
+ */
+export const CLIMATE_GROUP_COLORS = Object.freeze({
+  A: "#1f7a5c",
+  B: "#b8862f",
+  C: "#4a8a3c",
+  D: "#3f6a9e",
+  E: "#6f8798",
+});
+
+/** A `#rrggbb` colour mixed toward white by `t`, from 0 (itself) to 1 (white). */
+function lighten(hex, t) {
+  const n = parseInt(String(hex).slice(1), 16);
+  const mix = (c) => Math.round(c + (255 - c) * t);
+  const rgb = (mix((n >> 16) & 255) << 16) | (mix((n >> 8) & 255) << 8) | mix(n & 255);
+  return `#${rgb.toString(16).padStart(6, "0")}`;
+}
+
+/** A climate's colour: its group's, lightened by its place in the group. */
+export function climateColorFor(code) {
+  const group = CLIMATES[code]?.group;
+  const base = CLIMATE_GROUP_COLORS[group];
+  if (!base) return colorFor(code);
+  const kin = Object.keys(CLIMATES).filter((k) => CLIMATES[k].group === group);
+  return lighten(base, (kin.indexOf(code) / kin.length) * 0.5);
+}
+
+/** Every value a layer's brush may lay down. */
+export function paintableValues(layer = "terrain") {
+  if (layer === "territory") return [...TERRITORY_KEYS];
+  if (layer === "climate") return Object.keys(CLIMATES);
+  return layer === "terrain" ? paintableTerrains() : [];
+}
+
+/** A layer value's colour: the terrain palette, the territory table, or the climate's group. */
+export function layerColorFor(key, layer = "terrain") {
+  if (layer === "territory") return TERRITORY_COLORS[key] ?? colorFor(key);
+  if (layer === "climate") return climateColorFor(key);
+  return colorFor(key);
+}
+
+/**
+ * A layer value's label, from the strings the party sheet already names it by
+ * (a climate as its code and name, as the sheet's climate select reads).
+ */
+export function layerLabelFor(key, layer = "terrain") {
+  if (layer === "territory") {
+    return TERRITORY_KEYS.includes(key) ? game.i18n.localize(`ACKS-FORMATION.travel.territory.${key}`) : String(key ?? "");
+  }
+  if (layer === "climate") return CLIMATES[key] ? `${key} — ${game.i18n.localize(CLIMATES[key].label)}` : String(key ?? "");
+  return labelFor(key);
 }
 
 /* -------------------------------------------------------------------- */
@@ -167,30 +259,43 @@ export function isHexScene(scene) {
   return [T.HEXODDR, T.HEXEVENR, T.HEXODDQ, T.HEXEVENQ].includes(type);
 }
 
+/** Every region a layer has painted on a scene. */
+export function layerRegionsOf(scene, layer = "terrain") {
+  const spec = layerSpec(layer);
+  if (!spec) return [];
+  return (scene?.regions ?? []).filter((r) => !!r.getFlag?.(MODULE_ID, spec.flag));
+}
+
 /** Every terrain region of a scene. */
 export function terrainRegionsOf(scene) {
-  return (scene?.regions ?? []).filter((r) => !!r.getFlag?.(MODULE_ID, TERRAIN_FLAG));
+  return layerRegionsOf(scene, "terrain");
 }
 
 /**
- * The painted terrain of the hex containing `point`, or null. A flag read
+ * A layer's painted value in the hex containing `point`, or null. A flag read
  * over the cell key — exact, and canvas-free, so the journey's movement
  * handler can ask it on any client.
  */
-export function terrainAtPoint(scene, point) {
-  if (!isHexScene(scene)) return null;
+export function layerValueAt(scene, point, layer = "terrain") {
+  const spec = layerSpec(layer);
+  if (!spec || !isHexScene(scene)) return null;
   const key = hexKeyOf(scene.grid.getOffset(point));
-  for (const region of terrainRegionsOf(scene)) {
-    if ((region.getFlag(MODULE_ID, HEXES_FLAG) ?? []).includes(key)) {
-      return region.getFlag(MODULE_ID, TERRAIN_FLAG);
+  for (const region of layerRegionsOf(scene, layer)) {
+    if ((region.getFlag(MODULE_ID, spec.hexesFlag) ?? []).includes(key)) {
+      return region.getFlag(MODULE_ID, spec.flag);
     }
   }
   return null;
 }
 
+/** The painted terrain of the hex containing `point`, or null (`layerValueAt` on the terrain layer). */
+export function terrainAtPoint(scene, point) {
+  return layerValueAt(scene, point, "terrain");
+}
+
 /**
  * The painted terrain of the hex containing `point`, read in both
- * vocabularies the journey writes: `key` as painted (null when unpainted),
+ * vocabularies the journey reads: `key` as painted (null when unpainted),
  * `ground` the travel ground it stands on (null when the key names none —
  * a river, or nothing painted) and `encounterTerrain` the encounter pick it
  * names ("" for a bare ground, whose pick stays the Judge's or the ground's
@@ -211,58 +316,66 @@ function hexShapeAt(scene, offset) {
   return { type: "polygon", hole: false, points: vertices.flatMap((v) => [v.x, v.y]) };
 }
 
-/** Remove one cell from every terrain region it appears in. */
-async function eraseHexEverywhere(scene, key, { except = null } = {}) {
-  for (const region of terrainRegionsOf(scene)) {
+/** Remove one cell from every region of one layer it appears in; the other layers keep theirs. */
+async function eraseHexEverywhere(scene, key, { except = null, layer = "terrain" } = {}) {
+  const { hexesFlag } = layerSpec(layer);
+  for (const region of layerRegionsOf(scene, layer)) {
     if (region.id === except) continue;
-    const next = withHexRemoved(region.getFlag(MODULE_ID, HEXES_FLAG) ?? [], region.toObject().shapes ?? [], key);
+    const next = withHexRemoved(region.getFlag(MODULE_ID, hexesFlag) ?? [], region.toObject().shapes ?? [], key);
     if (!next.changed) continue;
     if (!next.hexKeys.length) {
       await region.delete();
     } else {
-      await region.update({ shapes: next.shapes, [`flags.${MODULE_ID}.${HEXES_FLAG}`]: next.hexKeys });
+      await region.update({ shapes: next.shapes, [`flags.${MODULE_ID}.${hexesFlag}`]: next.hexKeys });
     }
   }
 }
 
 /**
- * Paint the hex containing `point` with a terrain kind (or erase it, when
- * `terrainKey` is null). One terrain per hex; the region is created on first
- * use, tinted, visible to everyone — a hex map's terrain is the map.
+ * Paint the hex containing `point` with a layer's value (or erase it from that
+ * layer, when `value` is null). One value per hex per layer; the region is
+ * created on first use and tinted. A terrain region is visible to everyone —
+ * a hex map's terrain is the map; a territory or a climate is the Judge's
+ * bookkeeping, drawn for a GM only.
  */
-export async function paintHexAt(scene, point, terrainKey) {
-  if (!game.user.isGM || !isHexScene(scene) || !scene.grid.getVertices) return false;
+export async function paintHexAt(scene, point, value, layer = "terrain") {
+  const spec = layerSpec(layer);
+  if (!spec || !game.user.isGM || !isHexScene(scene) || !scene.grid.getVertices) return false;
   const offset = scene.grid.getOffset(point);
   const key = hexKeyOf(offset);
 
-  if (terrainKey == null) {
-    await eraseHexEverywhere(scene, key);
+  if (value == null) {
+    await eraseHexEverywhere(scene, key, { layer });
     return true;
   }
-  if (!paintableTerrains().includes(terrainKey)) return false;
+  if (!paintableValues(layer).includes(value)) return false;
 
-  let region = terrainRegionsOf(scene).find((r) => r.getFlag(MODULE_ID, TERRAIN_FLAG) === terrainKey);
-  const already = region && (region.getFlag(MODULE_ID, HEXES_FLAG) ?? []).includes(key);
+  let region = layerRegionsOf(scene, layer).find((r) => r.getFlag(MODULE_ID, spec.flag) === value);
+  const already = region && (region.getFlag(MODULE_ID, spec.hexesFlag) ?? []).includes(key);
   if (already) return false;
 
-  await eraseHexEverywhere(scene, key, { except: region?.id ?? null });
+  await eraseHexEverywhere(scene, key, { except: region?.id ?? null, layer });
   const shape = hexShapeAt(scene, offset);
   if (!region) {
+    const visibility = layer === "terrain"
+      ? CONST.REGION_VISIBILITY?.ALWAYS ?? 2
+      : CONST.REGION_VISIBILITY?.GAMEMASTER ?? 1;
     const [made] = await scene.createEmbeddedDocuments("Region", [
       {
-        // labelFor/colorFor, never the frozen maps: an imported kind has no
-        // entry in either, and TERRAIN[key].label would throw on it.
-        name: labelFor(terrainKey),
-        color: colorFor(terrainKey),
-        visibility: CONST.REGION_VISIBILITY?.ALWAYS ?? 2,
+        // The layer's label and colour functions, never the frozen maps: an
+        // imported terrain has no entry in either, and TERRAIN[key].label
+        // would throw on it.
+        name: layerLabelFor(value, layer),
+        color: layerColorFor(value, layer),
+        visibility,
         shapes: [shape],
-        flags: { [MODULE_ID]: { [TERRAIN_FLAG]: terrainKey, [HEXES_FLAG]: [key] } },
+        flags: { [MODULE_ID]: { [spec.flag]: value, [spec.hexesFlag]: [key] } },
       },
     ]);
     region = made;
   } else {
-    const next = withHexAdded(region.getFlag(MODULE_ID, HEXES_FLAG) ?? [], region.toObject().shapes ?? [], key, shape);
-    await region.update({ shapes: next.shapes, [`flags.${MODULE_ID}.${HEXES_FLAG}`]: next.hexKeys });
+    const next = withHexAdded(region.getFlag(MODULE_ID, spec.hexesFlag) ?? [], region.toObject().shapes ?? [], key, shape);
+    await region.update({ shapes: next.shapes, [`flags.${MODULE_ID}.${spec.hexesFlag}`]: next.hexKeys });
   }
   return true;
 }
@@ -272,12 +385,25 @@ export async function paintHexAt(scene, point, terrainKey) {
 /* -------------------------------------------------------------------- */
 
 class TerrainPaintSession {
-  /** The brush: a TERRAIN key, "erase", or null (disarmed). */
+  /** The brush: a value of the current layer, "erase", or null (disarmed). */
   brush = null;
+
+  /** The layer the brush paints, a key of `PAINT_LAYERS`; this session's own, never stored. */
+  layer = "terrain";
+
+  /**
+   * What armed the brush: "tool" (the toolbar's terrain tool, which disarms it
+   * when toggled off), "sheet" (a party sheet's paint chip) or "palette" (a
+   * swatch picked while disarmed). Closing the palette disarms any but the
+   * tool's, since nothing else on screen says the canvas is captured.
+   */
+  armedBy = null;
 
   #container = null;
   #lastKey = null;
   #listeners = new Set();
+  /** The last value picked on each layer, so a layer switch or a re-arm comes back to it. */
+  #lastBrush = { terrain: "grassland" };
 
   onChange(fn) {
     this.#listeners.add(fn);
@@ -288,8 +414,15 @@ class TerrainPaintSession {
     for (const fn of this.#listeners) fn(this.brush);
   }
 
-  arm(brush = "grassland") {
-    this.brush = brush;
+  /**
+   * Arm the brush on a layer: `brush` null takes the layer's last value, or
+   * its first.
+   */
+  arm(brush = null, { layer = this.layer, by = "tool" } = {}) {
+    this.layer = layerSpec(layer) ? layer : "terrain";
+    this.brush = brush ?? this.#remembered(this.layer);
+    this.armedBy = by;
+    if (this.brush && this.brush !== "erase") this.#lastBrush[this.layer] = this.brush;
     if (!this.#container) this.#build();
     this.#notify();
   }
@@ -297,15 +430,31 @@ class TerrainPaintSession {
   disarm() {
     if (!this.brush && !this.#container) return;
     this.brush = null;
+    this.armedBy = null;
     this.#teardown();
     this.#notify();
   }
 
   /** The palette changes the brush without re-arming the catcher. */
   setBrush(brush) {
-    if (!this.brush) return this.arm(brush);
+    if (!this.brush) return this.arm(brush, { by: "palette" });
     this.brush = brush;
+    if (brush !== "erase") this.#lastBrush[this.layer] = brush;
     this.#notify();
+  }
+
+  /** Switch the layer; an armed brush moves to that layer's last value. */
+  setLayer(layer) {
+    if (!layerSpec(layer) || layer === this.layer) return;
+    this.layer = layer;
+    if (this.brush) this.brush = this.#remembered(layer);
+    this.#notify();
+  }
+
+  #remembered(layer) {
+    const values = paintableValues(layer);
+    const last = this.#lastBrush[layer];
+    return values.includes(last) ? last : (values[0] ?? null);
   }
 
   #build() {
@@ -356,7 +505,7 @@ class TerrainPaintSession {
     const key = hexKeyOf(canvas.scene.grid.getOffset(point));
     if (key === this.#lastKey) return; // drag-paint: one write per cell
     this.#lastKey = key;
-    await paintHexAt(canvas.scene, point, this.brush === "erase" ? null : this.brush);
+    await paintHexAt(canvas.scene, point, this.brush === "erase" ? null : this.brush, this.layer);
   }
 }
 
@@ -382,7 +531,11 @@ const { ApplicationV2, HandlebarsApplicationMixin } = globalThis.foundry?.applic
   HandlebarsApplicationMixin: (cls) => cls,
 };
 
-/** The brush picker: one swatch per terrain, and the eraser. */
+/**
+ * The brush picker: the three layers as pills at its head, then one swatch per
+ * value of the chosen layer (a climate's grouped as the party sheet groups
+ * them), and the eraser.
+ */
 export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-extras-terrain-palette",
@@ -390,7 +543,7 @@ export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2)
     // Two columns of swatches: wide enough that a kind's full name shows.
     position: { width: 380 },
     window: { title: "ACKS-BATTLEMAP.terrain.palette", icon: "fa-solid fa-paintbrush" },
-    actions: { pickBrush: TerrainPaletteApp.#pickBrush },
+    actions: { pickBrush: TerrainPaletteApp.#pickBrush, pickLayer: TerrainPaletteApp.#pickLayer },
   };
 
   static PARTS = {
@@ -400,13 +553,27 @@ export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2)
   #unsubscribe = null;
 
   async _prepareContext() {
+    const layer = terrainPaint.layer;
+    const swatch = (key) => ({
+      key,
+      label: layerLabelFor(key, layer),
+      color: layerColorFor(key, layer),
+      active: terrainPaint.brush === key,
+    });
+    const values = paintableValues(layer);
+    const groups = layer === "climate"
+      ? [...new Set(values.map((k) => CLIMATES[k].group))].map((group) => ({
+        label: game.i18n.localize(`ACKS-FORMATION.travel.weather.climateGroup.${group}`),
+        swatches: values.filter((k) => CLIMATES[k].group === group).map(swatch),
+      }))
+      : [{ label: null, swatches: values.map(swatch) }];
     return {
-      swatches: paintableTerrains().map((key) => ({
+      layers: Object.keys(PAINT_LAYERS).map((key) => ({
         key,
-        label: labelFor(key),
-        color: colorFor(key),
-        active: terrainPaint.brush === key,
+        label: game.i18n.localize(`${LANG_PREFIX}.terrain.layer.${key}`),
+        active: key === layer,
       })),
+      groups,
       erasing: terrainPaint.brush === "erase",
       armed: !!terrainPaint.brush,
     };
@@ -421,10 +588,15 @@ export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2)
     super._onClose?.(options);
     this.#unsubscribe?.();
     this.#unsubscribe = null;
+    if (terrainPaint.armedBy !== "tool") terrainPaint.disarm();
   }
 
   static async #pickBrush(_event, target) {
     terrainPaint.setBrush(target.dataset.brush);
+  }
+
+  static async #pickLayer(_event, target) {
+    terrainPaint.setLayer(target.dataset.layer);
   }
 }
 
@@ -435,4 +607,15 @@ export function openTerrainPalette() {
   palette ??= new TerrainPaletteApp();
   palette.render({ force: true });
   return palette;
+}
+
+/**
+ * Arm the brush and open the palette: the toolbar's terrain tool and a party
+ * sheet's paint chip both come through here. `layer` and `brush` default to
+ * the session's own; `by` says who armed it (`terrainPaint.armedBy`). Arming
+ * writes nothing — a hex is painted only by a click on the map.
+ */
+export function openCountryBrush({ layer = null, brush = null, by = "tool" } = {}) {
+  terrainPaint.arm(brush, { layer: layer ?? terrainPaint.layer, by });
+  return openTerrainPalette();
 }

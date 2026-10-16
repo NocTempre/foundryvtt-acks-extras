@@ -65,6 +65,8 @@ All paths are under `scripts/formation/` unless noted.
 | `hex-stock.mjs` | A hex's stock as arithmetic, Foundry-free: the stocking procedure, settled shares, substitution, per-formation finds, search credit, assessments and false counts. |
 | `hex-stock-run.mjs` | The stock on the scene: the true hex, read/write/clear of the flag, the stocking dialog, the survey, making a point a place, the chat-card actions, and the "This hex" view. |
 | `templates/formation/hex-stock-dialog.hbs` | The stocking dialog. |
+| `country-keys.mjs` | The country's vocabularies, keys only (`TERRITORY_KEYS`, `FOLLOWING_KINDS`), in a leaf with no imports, so the battlemap's brush and reader and the travel engine name the same keys without importing one another; `travel.mjs` re-exports both. |
+| `templates/formation/formation-country-card.hbs` | One reading of the country (§The country), the partial the Country and Sky sections draw their cards with. |
 | `../lib/sockets.mjs` | Module-wide socketlib transport: one registration, one channel, a handler registry that throws on a duplicate name, and a pre-ready queue so handlers can register at import time. Not formation-owned. |
 | `module.mjs` | Settings, hooks, scene-control button, `/formation` chat command, feature API. |
 
@@ -173,12 +175,12 @@ the image picker. The warnings sit under the art row, on every tab.
 | Tab | Head (the Judge's) | Body |
 |---|---|---|
 | Dungeon | Turn, Round, Rest a turn, Undo, Hurried | the strip; a member-owner's requests |
-| Wilderness | the hex field, Next hex, Work the country, End day | the strip; Country, Points of interest (the search's two selects at its foot) and Movement (GM); Sky (a player's seat while it has a reading; its controls the Judge's); Day (GM); Camp (the forecast and the suffering for every seat; exposure, declarations and throw lines the Judge's); a member-owner's requests |
+| Wilderness | the hex field, Next hex, Work the country, End day | the strip; Country (the cards and the encounters line for every seat; their sources, chips and brush the Judge's; §The country); Points of interest (the search's two selects at its foot) and Movement (GM); Sky (a player's seat while it has a reading; the climate card and the controls the Judge's); Day (GM); Camp (the forecast and the suffering for every seat; exposure, declarations and throw lines the Judge's); a member-owner's requests |
 | City | Hop (while a point of interest is in reach), Hunted here, Turn, Round, Rest a turn, Undo | the strip with the city block; The city; a member-owner's requests |
 | Order, Train or Company | Auto-arrange, Frontage, Save order, Load order, Add a blank, Trapbreaking, Skill audit, Disband | the ranks and the train |
 | Kit | none | the lights and spells |
 | Sightings | none | the journey's log; off a journey, a line saying it is kept there |
-| Judge (GM seat, dashed) | the episode's state | The episode: the lost episode's controls and note; off a journey, a line saying so |
+| Judge (GM seat, dashed) | the episode's state | The episode: the lost episode's controls and note; The Judge's hand: the six country overrides (§The country); off a journey, a line saying so |
 
 Hunted here is the `travel.settlement.wanted` checkbox itself, drawn as a
 toggle pill; who set it stays a hint in The city. Camp is a titled section of
@@ -544,7 +546,8 @@ declaration means to a map is `docs/battlemap/MODEL.md`.
 
 Delve is everything above; **journey** is the same drag billed in miles. The
 record is a `travel` subtree ([travel.mjs](../../scripts/formation/travel.mjs))
-holding the ground, road and territory the party is crossing, the day's
+holding the country the party is crossing (§The country: the map's reading,
+the Judge's word over it, and what an older record declared), the day's
 weather, the hex it believes it is in, where the hour comes from
 (`travel.hour`: the clock, or the Judge's word for day or night), the DAY
 BOARD — one day-kind (dedicated march, forced march, camp) plus the four
@@ -567,9 +570,9 @@ seconds walked and burns lights and tracked spells by whole turns
 (`burnTurns`, shared with the turn engine), carrying the remainder in
 `clock.journeySeconds`; the rest and winded counters and the dungeon's
 wandering throw stay the delve's. ONE record patch per drag writes the trace
-(on a hex scene the hex named from its grid offset, the ground and — painted
-at the book's grain — the encounter pick the battlemap painted there
-(`paintedTerrainAt`), the road step and its winding — `traceStep`, pure) and the
+(on a hex scene the hex named from its grid offset, the map's reading of the
+country there cached as `travel.map` (§The country), the road step and its
+winding — `traceStep`, pure; off a hex grid the reading alone) and the
 spend (`travel.day.{miles, hours, cadenceCarry, carrySeconds,
 secondsAdvanced}`, `spendMarch` in [march.mjs](../../scripts/formation/march.mjs),
 pure) together, so a drag that dies half-way leaves nothing half-written. The
@@ -587,8 +590,9 @@ falling back to a flat day less what the day already advanced, and logs the
 miles and hours actually walked.
 
 **The encounter cadence is the imported one.** `cadenceOf` reads the
-territory's miles-per-hex figure from the registered `encounterFrequency`
-(`cadenceMilesFor`): a grid whose cell is that figure within one percent
+miles-per-hex figure of the territory the step arrives in (§The country) from
+the registered `encounterFrequency` (`cadenceMilesFor`): a grid whose cell is
+that figure within one percent
 counts a crossing as a unit; any other grid counts miles off and owes a unit
 every so many (`day.cadenceCarry` holds the remainder); with no figure
 registered nothing is priced and the strip says so. Each unit fires
@@ -615,16 +619,18 @@ journey's own actions, then the strip reads the miles an hour and a day, the
 miles and hours walked against the budget, the hex and how many were entered
 today, when the next throw falls, the clock with day or night and the hours to
 dusk or dawn, and the camp's days of food and water; the delve's turns and the
-city's rate and tally take the same tiles on their own tabs. Everything the
-Judge declares sits under the strip in titled sections — Country, Points of
-interest, Movement, Sky, Day, Camp — the city's pickers in The city, the lost
-episode on the Judge's tab and the log on Sightings. A player sees the strip
-and only the sections that carry what the table already read: the sky's chips
-and night band, the camp's forecast and who is suffering, the log, and in a
-city the places underfoot — never a picker, the day board, or the LOST state,
-which is the Judge's alone. `acksExtras.formation.travel`
-(apiVersion 15) publishes the mode switch, the day board writers, the journey's
-functions, the pure march arithmetic and the two hook names.
+city's rate and tally take the same tiles on their own tabs. Under the strip
+sit titled sections — Country (the map's readings, §The country), Points of
+interest, Movement, Sky, Day, Camp — with the city's pickers in The city, the
+lost episode and the Judge's word on the country on the Judge's tab, and the
+log on Sightings. A player sees the strip and only the sections that carry
+what the table already read: the country's cards, the sky's chips and night
+band, the camp's forecast and who is suffering, the log, and in a city the
+places underfoot — never a picker, a reading's source, the day board, or the
+LOST state, which is the Judge's alone. `acksExtras.formation.travel`
+(apiVersion 17) publishes the mode switch, the day board writers, the journey's
+functions, the country's resolution, the pure march arithmetic and the two
+hook names.
 
 **The tracker raises the day's end; the Judge answers it.** `dayIsSpent` is
 asked after every drag, and on the first step that spends the budget or falls
@@ -666,6 +672,111 @@ consumer here (no healing mechanic exists).
 `closeDay` is the one closer: the Wilderness tab's **End day** pill and the
 tracker's own offer both go through it, so a day can never be ended two
 different ways.
+
+## The country
+
+What the party is crossing is six keys — `ground`, `encounterTerrain`,
+`territory`, the climate at `weather.climate`, `road` and `following` — and
+`travelOf` ([travel.mjs](../../scripts/formation/travel.mjs)) resolves each in
+one place, as the first of four sources that answers it:
+
+1. **The Judge's word**, `travel.override.<key>`.
+2. **The map**, `travel.map`: the cached reading of the hex the party token
+   stands in. It is `countryAt`'s ([battlemap MODEL](../battlemap/MODEL.md),
+   "Country layers") — the three painted layers, the drawn roads and water
+   lines, and the scene's default country — and its own `source` says, per
+   key, whether the hex or the scene's default answered. It counts only while
+   its `sceneId` is the party's scene and the party has a token; anywhere else
+   the map says nothing and the next source answers.
+3. **The declared record**: the six keys as an older record stores them. A
+   declared value equal to the module's default reads as the default: a
+   stored default says nothing about what was declared.
+4. **The module's default** (`COUNTRY_DEFAULTS`).
+
+`provenance` names the answer per key — `override`, `map`, `scene` (the map's
+reading, answered by the scene's default), `declared` or `default` — and
+every consumer reads the keys it always read; none resolves a source of its
+own. While the party moves by vessel and a water line runs under it, the map's
+encounter terrain is the river's table for the resolved ground
+(`riverTableFor`). That is decided at resolution, so a change of movement mode
+changes the table with no re-read. An overridden ground takes the table with
+it: the map's and the record's tables were read with another ground, so
+neither answers, and the ground's own table does wherever the table is
+consulted (the encounters line, the throw); the river's table is the water's
+and stands. `countryOf(formation)` returns the resolution with what the map
+alone answers beside it (`mapValues`), which is what the sheet's chips
+compare.
+
+**A writer spreads `storedTravelOf`**, never `travelOf`: the record with every
+other key defaulted and the six keys, `map` and `override` exactly as stored.
+A patch built on the resolved view would write the map's reading back as a
+declaration that outlives the paint. No declared key is migrated; a writer
+carries an old record's through untouched, and the pen chip's clear
+(`clearDeclaredCountry`) writes the key's default over one, which is how a
+declaration is retired.
+
+**The map's reading is a cache.** `mapReadingAt(scene, point)` builds it:
+`countryAt`'s six keys and their `source`, the `water` under the point, the
+scene, the hex offset (`i`/`j`, null off a hex grid) and the world time it was
+read at. Three writers keep it current:
+
+- **The trace.** A drag on a journey reads the map under the token and
+  `traceStep` caches the reading; the road a step walked between two hexes
+  (`stepBetweenHexes`, on a scene with routes) is laid over the reading's
+  `road`. A crossing whose step read nothing leaves no reading rather than
+  keeping the last hex's. Off a hex grid the drag caches the reading alone.
+- **The seat.** `seatJourneyHex` (a token set down rather than walked) and
+  `setJourneyMode` entering a journey with a party token on the map each read
+  it once.
+- **The Judge's refresh.** The map changes under a party that has not moved.
+  On the active GM's client (`isPrimaryGM`), a Region or a Wall created,
+  updated or deleted on a scene, a change to the scene's
+  `flags["acks-extras"].battlemap.country`, and a party token's arrival each
+  ask `countryRefresher` for that scene: one `refreshCountryOn` per scene per
+  burst, a quiet interval after the last call, re-reads the map at every
+  journeying party token there and writes only a reading that changed
+  (`sameReading`); the party sheets redraw when one did. A burst with no Wall
+  in it keeps the cached road, route and water of a party still in the same
+  hex, because the road may be the one its last step walked, which a read at
+  the token cannot see.
+
+While a lost episode is open the token stands on the hex the party believes it
+is in, and the reading is that hex's. A journey the Judge has paused follows
+its token the same way (`seatJourneyHex` on each drag) and bills nothing.
+
+**The cadence is the country arrived in.** `spendJourneyMiles` reads the
+encounter cadence from the territory the step arrives in (the stored travel
+with the step applied), because the throws the step owes are thrown there.
+
+**The sheet shows readings.** The Wilderness tab's Country section holds four
+cards — ground, road, following, territory — and the line naming the table the
+encounters draw on (the resolved encounter terrain, else the ground's own
+table); the Sky section carries the climate as a fifth card on the Judge's
+seat. The section reaches every seat, and a player's cards carry the values
+alone. On the Judge's seat each card names its source and wears the chip its
+provenance earns against the map's own value (`countryChip`):
+
+| Provenance | The map under it | Chip |
+|---|---|---|
+| override | a different value | **Override**, with a clear (`clearOverride`) |
+| override | the same value | none |
+| override or declared | nothing | the pen mark, with a clear (`clearOverride` for the Judge's word, `clearDeclared` for an older record's) |
+| map, scene or default | — | none |
+
+A card on a layer the brush paints (ground, territory, climate) offers **Paint
+this hex** (`paintThisHex`) while the party's hex has no paint on that layer:
+the party's scene comes into view, and `openCountryBrush` arms the brush on the
+card's layer with the card's value where that layer's brush lays it, the
+toolbar's own path. Nothing is written until the Judge clicks the map.
+
+**The Judge's hand**, on the Judge tab, holds one select per key
+(`travel.override.<key>`), blank for no word, with what the map reads under it
+written beside it and a clear where a word is held. `applyTravelForm` routes
+the six keys into `travel.override` — and the same keys named at the form's
+top level, the shape the form had before the hand — with a blank clearing the
+key and an invalid value changing nothing. A held word no longer in its
+vocabulary stays an option, so a submit cannot clear it unasked. A known
+route is a word only the Judge gives: nothing on the map draws one.
 
 ## Searching the wild
 
@@ -831,8 +942,10 @@ foraging: it rolls what the day board set aside and DEPOSITS what is found.
 Water is thrown for the party once; food and firewood are each forager's own
 attempt; hunting is its own throw again. Standing water is taken freely with
 no throw at all, and `standingWaterOf` says when there is some: the camp's
-*Water at hand* declaration, a river the party is following, or a river picked
-as the encounter terrain. The sky's firewood and water penalties (§The
+*Water at hand* declaration, a river the party is following, or a river table
+as the encounter terrain — both as the country resolves them (§The country),
+so a navigable water line under the token is standing water. The sky's
+firewood and water penalties (§The
 weather, *what the sky does beyond speed*) ride each target as a `weather`
 part, and a party *Willing to steal* pays no settled-country part at all: the
 crop is somebody's, and the penalty is for holding back. Work the country
@@ -1021,8 +1134,8 @@ still does not know where that is. **Re-anchor** (it finds its last known
 landmark) is the only transition that credits. The false ground closes first,
 then every observation is re-placed at the hex it was really made in. The Judge
 may step the party token onto its shadow, and every shadow retires. The step is
-a truth move, which the movement hook skips, so it seats the journey hex and its
-terrain itself (`seatJourneyHex`). An aware
+a truth move, which the movement hook skips, so it seats the journey hex and the
+map's reading of it itself (`seatJourneyHex`, §The country). An aware
 party has nothing left to credit. **Retreat** (*They turn back*) keeps neither:
 the false ground closes, nothing is credited, the party token stays where it
 stands, and the shadows retire.
@@ -1037,11 +1150,12 @@ closing buttons, which move the party onto it or remove it. The repair tool's
 spares and the members whose actor is gone (`formation.members`)
 (docs/lib/MODEL.md, "The repair tool").
 
-**Following spares the throw.** RAW exempts navigable rivers, roads and "other
-well-established routes" from getting lost. Roads are the road picker's
-business; `following` carries the other two, and `knownRoute` is deliberately
-vague because the book is — what counts as well-established is the Judge's
-call. The branch existed before the field did, so the exemption was
+**Following spares the throw.** RAW spares a party that keeps to a navigable
+river, a road or a route it knows from the lost throw (RR ch. 6). A road
+answers through `road`, and `following` carries the other two. A navigable
+water line under the token reads as `river` by itself (§The country);
+`knownRoute` is deliberately vague because the book is, and what counts as a
+route the party knows is the Judge's call, given in the Judge's hand. The branch existed before the field did, so the exemption was
 unreachable: a check that reads a value nothing writes is dead code wearing a
 rule's clothes.
 
@@ -1454,8 +1568,9 @@ to mud). The panel's three band selects work bare-handed: the band keys are
 structural, so a Judge with nothing imported still declares the sky. With
 the `weather` document imported, **Roll the sky** (and, when armed, every
 day change of the world clock; End day only where the clock keeps no
-calendar) generates it instead — three 2d6 throws under the hex's Köppen
-climate and the season, the day's temperature roll re-read at night under
+calendar) generates it instead — three 2d6 throws under the Köppen climate
+the country resolves for the party (§The country) and the season, the day's
+temperature roll re-read at night under
 its own modifier, freezing air turning drizzle to flurries and rain to
 snow, still air turning them to mist and fog, and an optional fronts drift
 sliding each day one step toward yesterday. What the sky is WORTH is
@@ -1516,8 +1631,8 @@ End day settles its own day under the counter without touching the mark.
 
 **The road is drawn, not picked.** On a scene carrying a route network
 (`docs/battlemap/MODEL.md`), each step asks `stepBetweenHexes` and the answer
-overrides the day's road picker the way painted terrain overrides the ground
-picker. The day also banks the BENDS — only the excess over a straight
+is the road in the map's reading of the hex (§The country), under the Judge's
+word as every map reading is. The day also banks the BENDS — only the excess over a straight
 crossing, so a road with no bends never shows a tax — and the readout carries
 it beside the march rather than inside it, because the road's cost and its
 benefit are different currencies and must read as two numbers.
@@ -1551,7 +1666,7 @@ the terrain PICKS — a union vocabulary, because the book keys its tables
 at three grains (eighteen biome-split monster sub-tables, seventeen
 cover-split distance/evasion rows, eight civilized column groups); each
 pick maps itself into all three, the travel ground derives a default, a
-panel select overrides it, and a missing table — or a step the book
+painted pick or the Judge's word names another (§The country), and a missing table — or a step the book
 prints no row for, like a river's distance — resolves to a "draw from
 your book" line, never a guess. A drawn creature resolves against the
 world's actors and the imported library through the name-form fold, and

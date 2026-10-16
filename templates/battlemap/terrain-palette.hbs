@@ -1,7 +1,16 @@
-{{! The brush picker: one swatch per terrain kind, and the eraser. The armed
-    brush is marked; picking arms the paint session if the toolbar has not.
-    ONE root element — an ApplicationV2 template part renders a single node. }}
+{{! The brush picker: the layers as pills, then one swatch per value of the
+    chosen layer (grouped where the layer has groups), and the eraser. The
+    armed brush is marked; picking arms the paint session if the toolbar has
+    not. ONE root element — an ApplicationV2 template part renders a single node. }}
 <div class="acks-extras-terrain-palette-body">
+  <div class="acks-extras-terrain-layers" role="group" aria-label="{{localize 'ACKS-BATTLEMAP.terrain.layersLabel'}}">
+    {{#each layers}}
+    <button type="button" class="acks-extras-terrain-layer{{#if active}} is-active{{/if}}"
+            data-action="pickLayer" data-layer="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}">{{label}}</button>
+    {{/each}}
+  </div>
+  {{#each groups}}
+  {{#if label}}<div class="acks-extras-terrain-group">{{label}}</div>{{/if}}
   <div class="acks-extras-terrain-swatches">
     {{#each swatches}}
     <button type="button" class="acks-extras-terrain-swatch{{#if active}} is-active{{/if}}"
@@ -10,6 +19,9 @@
       <span class="acks-extras-terrain-name">{{label}}</span>
     </button>
     {{/each}}
+  </div>
+  {{/each}}
+  <div class="acks-extras-terrain-swatches">
     <button type="button" class="acks-extras-terrain-swatch{{#if erasing}} is-active{{/if}}"
             data-action="pickBrush" data-brush="erase" data-tooltip="{{localize 'ACKS-BATTLEMAP.terrain.eraseHint'}}">
       <span class="acks-extras-terrain-chip is-eraser"><i class="fa-solid fa-eraser"></i></span>

@@ -146,21 +146,55 @@ footprint on them. **Reset selected to default** removes the stamp
 and re-derives from the creature's size. A stamped footprint sticks to the
 token and survives rescales.
 
-## Painting terrain
+## Painting the country
 
-The group's **Paint terrain** tool arms a brush on a hex-gridded map and opens
-the brush palette: one swatch per kind of country the encounter tables know —
-the forests, hills, mountains, scrublands, swamps and rivers at the grain the
-book prints them, with any further kind your imported travel tables name —
-and the eraser. Click or drag to paint hexes; one kind per hex, and painting
-over replaces. Each kind becomes a tinted region everyone can see.
+The group's **Country brush** tool arms a brush on a hex-gridded map and opens
+its palette. Three pills at the palette's head pick what the brush paints:
 
-A journeying party reads the paint: the hex it stands in sets the ground its
-speed, road and foraging are priced on and the sub-table its encounters draw
-from, so the pickers under the strip step aside while the map answers. A river
-hex sets only the encounter table; the party keeps the ground it was on. A map
-painted with the older ground brushes still sets the ground, and the encounter
-table stays the ground's usual one unless you pick another.
+- **Terrain** — one swatch per kind of country the encounter tables know: the
+  forests, hills, mountains, scrublands and swamps at the grain the book prints
+  them, with any further kind your imported travel tables name. Each kind
+  becomes a tinted region everyone can see.
+- **Territory** — civilized, borderlands, outlands or unsettled.
+- **Climate** — the climates under their group names.
+
+Click or drag to paint hexes. Each of the three holds one value per hex, and
+painting over replaces it; a hex can be a forest, borderlands and a climate at
+once. The eraser clears the hex on the pill you are on and leaves the other two
+alone. Territory and climate are drawn for you alone.
+
+A hex nobody painted reads as the scene's own country. The Battlemap window
+has **Ground here**, **Territory here** and **Climate here** for it — for a map
+that is one country throughout, or that is not a hex map at all — and each is
+saved the moment you pick it.
+
+A journeying party reads all of it: the hex it stands in answers the ground its
+speed, road and foraging are priced on, the table its encounters draw from,
+its territory and its climate. The party sheet shows each answer and where it
+came from, and the Judge tab overrides any of them (see the formation guide,
+*Overland travel*). A map painted with the older ground brushes still sets the
+ground, with that ground's usual encounter table; a hex painted with a river
+before rivers became lines still sets the river's table.
+
+## Rivers and coasts
+
+A river or a coastline is a line you draw, not a hex you paint. The group's
+**River** and **Coastline** presets arm core's wall tool and hand it to you,
+so the next walls you draw are that water — the same way the road presets
+work. For walls that already exist, the **Walls** control carries **Mark the
+selected walls as water**, which makes each selected wall a river. A water
+line blocks nothing; if a wall you marked still restricts movement, the
+notification says so, because the party cannot travel along it.
+
+The wall's own sheet gains a water row: river or coast, **A boat can follow
+it**, and the line's name. A river starts out one a boat can follow; a
+coastline does not. While you are on the Walls or Battlemap controls the lines
+are drawn over the map for you — a river solid, a line no boat can follow
+dashed — and players see none of it.
+
+A party standing on a river a boat can follow is following it, and the party
+sheet says so without being told. A party travelling by vessel over any water
+line draws its encounters from the river's table.
 
 ## Formations
 

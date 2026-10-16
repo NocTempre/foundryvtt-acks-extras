@@ -166,10 +166,11 @@ Still unbuilt, in likely order:
    (`MODEL.md` §The weather; the `weather` document's importer recipes ride
    the same owed-recipes row as the travel tables above). The scene/hex
    integration LANDED 2026-08-28 exactly as the record
-   shape anticipated: the battlemap feature's terrain painting
-   (`docs/battlemap/MODEL.md` §Terrain painting) names the hex and sets the
-   ground from the party token on painted hex scenes, and the manual
-   Next-hex button remains the trace everywhere else.
+   shape anticipated: the battlemap feature's painting
+   (`docs/battlemap/MODEL.md` §Country layers) names the hex and gives the
+   party the map's reading of its country on painted hex scenes (`MODEL.md`
+   §The country), and the manual Next-hex button remains the trace everywhere
+   else.
 8. Spell "per level" duration parsing (quick win, batch with the next release).
 9. Week-ration uses counter (quick win).
 10. **`levelFactor` stays a free float** in this feature's own skill-audit
@@ -246,7 +247,7 @@ dawn.
 | A hazard's trap equivalent | printed, not placed | The card prints the row's `trap` beside the hazard; placing the equivalent trap on a battlemap is the Judge's (DECISIONS 2026-10-09, *The insert pages' rules ship with the major*). |
 | ~~Managing traps as an activity~~ | **BUILT** — declared as a count in the Day section; End day owes one throw per imported batch and carries the remainder to the next day. |
 | ~~Foraging where the crop is somebody's~~ | **BUILT** — the camp's *Willing to steal* declaration drops the settled-country part. |
-| ~~Water found standing~~ | **BUILT** — `standingWaterOf`: the camp's *Water at hand* declaration, a followed river, or a river pick for the encounter terrain. |
+| ~~Water found standing~~ | **BUILT** — `standingWaterOf`: the camp's *Water at hand* declaration, a followed river (a navigable line drawn under the party, or the Judge's word), or a river table for the encounter terrain. |
 | Visibility of terrain and of a fire | partial | `visibilityMax` scales the imported light figure by the formation-size ladder; the insert's two rows that are not formations have no consumer, and raising the distance by elevation is the Judge's (*Wilderness Expeditions I*). |
 
 ### The settlement — complete
@@ -275,8 +276,10 @@ walk stays honest about what was once outstanding.
   re-made by that phase's walk (`TESTING.md`, *The day change*).
 - ~~**Road and development are per-day pickers.**~~ **FIXED 2026-08-29** —
   roads are drawn, and the hex links are derived from what was drawn
-  (`hex-topology.mjs`, `hex-routes.mjs`, `battlemap/roads.mjs`); the picker
-  remains for a party not travelling a drawn route.
+  (`hex-topology.mjs`, `hex-routes.mjs`, `battlemap/roads.mjs`). Rivers and
+  coasts are drawn the same way since 2026-10-15 (`battlemap/water.mjs`) and
+  link nothing; a party not travelling a drawn route takes its road from the
+  scene's default or the Judge's hand (MODEL "The country").
 - ~~**The terrain vocabulary is frozen.**~~ **FIXED 2026-08-29** — the brush
   now paints the union of shipped and imported keys, with a derived hue for a
   kind the palette has never seen.
@@ -333,7 +336,7 @@ now unblocked:
 
 | Work | Ruling it waited on |
 |---|---|
-| Following a river or known route | **BUILT** — the RAW exemption, now with a picker; the branch had existed with no field to read |
+| Following a river or known route | **BUILT** — the RAW exemption: a navigable river is read off a drawn water line, and a known route is the Judge's word in the Judge's hand (MODEL "The country"); the branch had existed with no field to read |
 | ~~The lost episode~~ | **BUILT** — ledger, shadow token, faked reveal, both endings; live-verified end to end |
 | ~~Hooking the daily throw into End day~~ | **BUILT** — `navigation-card.mjs` whispers the throw on End day. It reports and never steers: RAW hands the stray direction to the Judge |
 | ~~The Wilderness Searching throw for the last known landmark~~ | **BUILT** — it is `searching.mjs`'s `landmark` quarry, and it feeds `reanchorEpisode` |
@@ -525,4 +528,6 @@ The frame shipped first (MODEL, "The frame"). The redesign's later phases are
 | The day-declared chip | The canvas draws a gold chip while the day is declared. | a stored state: `travel.day.declared` is a submit marker and is never kept. |
 | A name for every older control | The frame names every control it adds, but the bodies it carried over keep controls a screen reader announces only by their kind: the Order tab's member arrows and blank-row remove, the Kit tab's light and spell pickers and their removes, and the requests section's pickers. | an accessible name each (a label, or an `aria-label` from the lang file). |
 | A window height the user set | The sheet opens at its content's height (`height: "auto"`, the character sheet's opening), and core re-fits an auto-height window to its content on every render and tab change, so a window the Judge shortened springs back at the next field change. The old sheet opened at a fixed height and kept a resize. | a ruling: a numeric opening height at the type scale, re-fit only when the panel folds, or a height remembered per user beside the panel flag. |
-| The redesign's later phases | the brush layers, the drawn hex on the plate, the Country cards and the Country override, the `travel.map`, `travel.override` and `travel.shown` records, the believed hex, quiet navigation and measure on the Judge's tab (phase 2); the conveyance tiles and Fastest for all (phase 3); the day's boxes and their confirm, camp time's night rows, Make camp and Break camp (phase 4); the train's groups (phase 5); the sightings feed, its flags, reveal and count badges (phase 6); combat and night as gold states, and the Dungeon tab's own lights and spells sections (unscheduled). | each phase's own build. |
+| The arrival on another scene | Placing the party token on a new scene re-reads the map (`refreshCountryOn`) but leaves `travel.hex` as the old scene's, so the first drag counts a crossing against an offset from elsewhere; on the module-created path the refresh can run before the token's linkage is written and pass the party over until it moves. A halt's or a resize's move, which the token hook passes over, re-reads nothing. | the arrival seating the hex as a drag does (`seatJourneyHex`), once the linkage is written; a ruling on which passed-over moves are moves. |
+| The cadence carry across territories | `day.cadenceCarry` banks miles under one territory's cadence and spends them under the next's unscaled, and a grid step leaves a miles carry to fire later. | a ruling: rescale the carry at the border, or clear it. |
+| The redesign's later phases | the drawn hex on the plate, the `travel.shown` record, the believed hex, quiet navigation and measure on the Judge's tab (phase 2; its brush layers, Country cards and override, and the `travel.map` and `travel.override` records are built, MODEL "The country"); the conveyance tiles and Fastest for all (phase 3); the day's boxes and their confirm, camp time's night rows, Make camp and Break camp (phase 4); the train's groups (phase 5); the sightings feed, its flags, reveal and count badges (phase 6); combat and night as gold states, and the Dungeon tab's own lights and spells sections (unscheduled). | each phase's own build. |

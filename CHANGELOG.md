@@ -20,6 +20,33 @@
   not imported. A world that imported its rules tables before reads them
   again: *Rules tables* in *Reimport One Shelf*, every table or *formation
   only* and *travel only*.
+- **The country brush paints territory and climate.** The battlemap group's
+  terrain tool is now the *Country brush*: three pills at the head of its
+  palette choose whether it paints the terrain, the territory or the climate,
+  and each holds one value per hex. Territory and climate are drawn for the
+  Judge alone, and the eraser clears a hex on the chosen layer only.
+- **A scene can say what country it is.** *Ground here*, *Territory here* and
+  *Climate here* in the Battlemap window give the country of every hex the
+  brush has not painted, or of a whole map that is not a hex map.
+- **Rivers and coastlines are drawn as lines.** *River* and *Coastline* in the
+  battlemap group arm the wall tool with that water; *Mark the selected walls
+  as water* on the Walls control turns walls already drawn into a river; and a
+  water row on the wall's own sheet sets the kind, whether a boat can follow
+  it, and its name. A party on a river a boat can follow is following it, and
+  a party moving by vessel over a water line draws its encounters from the
+  river's table. The two river kinds have left the brush's terrain layer; a
+  hex painted with one still reads as it did.
+- **The party sheet shows the country as the map reads it.** On a journey the
+  Wilderness tab's *Country* section is four cards (ground, road, following
+  and territory) and the table the encounters draw on, each read from the hex
+  under the party token, from the scene's own country, or from the Judge's
+  word. Every seat sees the cards. On the Judge's seat each card says where
+  its answer came from, wears an *Override* chip with a clear where the
+  Judge's word stands over the map, a pen mark with a clear where a word
+  stands with nothing on the map under it, and offers *Paint this hex* where
+  the brush has not painted that hex. The Sky section reads the climate the
+  same way. A ground given in the Judge's hand takes the encounter table with
+  it.
 - **Calendar seasons setting.** *Calendar seasons* in the Formation settings
   lists the generator seasons in your calendar's season order, so a calendar
   whose season names the module does not recognise can still drive the sky;
@@ -49,6 +76,16 @@
   sheet remembers that for each user and party. Each tab scrolls on its own
   and keeps its place when a field changes, and the whole window follows the
   type size setting.
+- **The Judge's word on the country is on the Judge tab.** The ground,
+  encounter terrain, territory, climate, road and following selects moved from
+  the Wilderness tab to *The Judge's hand* on the Judge tab, where each stands
+  over the map until it is cleared. What a party was given before this version
+  still answers where the map and the scene say nothing.
+- **A journey no longer writes the country it crosses onto the party.** A drag
+  keeps the map's reading of the hex it ends in, so a painted ground or
+  encounter table no longer carries into the next unpainted hex, which reads
+  the scene's country or the Judge's word instead. The encounter cadence
+  follows the territory the party arrives in.
 - **Camp stays on the Wilderness tab for now.** A Camp tab, shown while camp
   time is on, is the redesign's fourth phase; until it lands, camp is a titled
   section after Day, and *End day* stays at the Wilderness tab's head.

@@ -10,32 +10,80 @@ tools — and a **Battlemap window** (`assistant-app.mjs`) carrying the numbers
 and the apply actions, opened by entering the group, by its panel tool, or
 from the scene-config row, and dismissed by its own close control.
 
-## Terrain painting
+## Country layers
 
-The group's **Paint terrain** tool arms a brush over hex-gridded scenes
-(`terrain-paint.mjs`): clicks and drags paint hex cells into scene REGIONS —
-one region per terrain kind per scene, tinted from the fixed palette,
-visible to everyone (a hex map's terrain is the map), flagged
-`terrain: <key>` with the painted cells stored beside the shapes as OFFSET
-KEYS (`terrainHexes`, aligned index-for-index). The keys are what make
-erasing exact and the journey's lookup geometry-free: "what terrain is this
-hex?" is a flag read that answers identically on a client with no canvas.
-One terrain per hex — painting a cell removes it from every other terrain
-region first; the eraser unpaints, and a region whose last cell goes is
-deleted. A small palette window picks the brush; the vocabulary is the
-formation's encounter terrain register (`formation/encounter-terrains.mjs` —
-the book's own grain, each kind standing on a travel ground) plus any
-imported `terrainMultipliers` key no kind of the register covers (structure
-— what a terrain is WORTH stays in the registered travel tables); mud and
-snow are the weather's and never brushes. Square-grid scenes refuse with a
-warning rather than approximating. The formation's journey reads the painted
-map through `paintedTerrainAt`, which answers in both vocabularies: the party
-token's hex names the trace; a kind of the register sets the travel ground
-and the encounter pick together; a river sets the pick alone; a bare ground
-(a map painted before the brush took the book's grain, or an imported kind)
-sets the ground alone (`journey.mjs onJourneyTokenMoved` and `travel.mjs
-seatJourneyHex`, via the same token-movement seam that ticks dungeon turns
-when not journeying).
+The group's **Country brush** tool arms a brush over hex-gridded scenes
+(`terrain-paint.mjs`) on one of three LAYERS — terrain, territory and climate
+(`PAINT_LAYERS`) — chosen by the pills at the head of its palette window.
+Clicks and drags paint hex cells into scene REGIONS: one region per value per
+layer per scene, tinted from the module's own palette and flagged with the
+layer's pair — the value (`terrain`, `territory`, `climate`) and the painted
+cells as OFFSET KEYS beside the shapes (`terrainHexes`, `territoryHexes`,
+`climateHexes`, aligned index-for-index). The keys are what make erasing
+exact and every read geometry-free: "what territory is this hex?" is a flag
+read that answers identically on a client with no canvas. A hex holds one
+value per layer: painting a cell removes it from every other region of that
+layer first, the eraser unpaints the armed layer alone, and a region whose
+last cell goes is deleted. A terrain, a territory and a climate answer
+different questions about the same hex, so a write on one layer never touches
+another's regions. Terrain regions are visible to everyone (a hex map's
+terrain is the map); territory and climate regions are drawn for a GM only,
+as the Judge's bookkeeping. Square-grid scenes refuse with a warning rather
+than approximating.
+
+Each layer's vocabulary is structural:
+
+- **Terrain** is the formation's encounter terrain register
+  (`formation/encounter-terrains.mjs`, the book's own grain), each kind
+  standing on a travel ground, plus any imported `terrainMultipliers` key no
+  kind covers. Mud and snow are the weather's, and the two river tables stand
+  on no ground — water is a line (§Rivers and coasts) — so none of the four is
+  a brush; a hex painted with a river before then still reads as it did. What
+  a terrain is WORTH stays in the registered travel tables.
+- **Territory** is `TERRITORY_KEYS` (`formation/country-keys.mjs`), named by
+  the party sheet's territory strings and coloured from `TERRITORY_COLORS`.
+- **Climate** is `CLIMATES` (`formation/weather.mjs`), named by code and name
+  and grouped as the sheet's climate select groups them. A climate takes its
+  group's colour (`CLIMATE_GROUP_COLORS`) a step lighter for each kin listed
+  before it, so two climates of a group still read apart where they meet.
+
+`paintedTerrainAt` reads the terrain layer alone in both of its
+vocabularies — the key as painted, the ground it stands on and the encounter
+table it names — for the readers that ask the terrain and nothing else (a
+hex's stock, and a search at the hex a lost party really stands in).
+
+**The scene default.** A map that is one country throughout, or is not a hex
+map, says so once: `flags["acks-extras"].battlemap.country = {ground,
+territory, climate}`, each a key or null, chosen in the Battlemap window's
+three selects and written through `writeSceneSetup` (a read-modify-write of
+the whole setup record). `sceneCountry` reads it and drops a key the module
+does not know. `ground` takes a terrain brush value, read the way a painted
+hex reads it.
+
+**One reader.** `countryAt(scene, point)`
+([country.mjs](../../scripts/battlemap/country.mjs)) answers the six keys the
+journey asks — `ground`, `encounterTerrain`, `territory`, `climate`, `road`,
+`following` — and `source` names, per key, which answered: `"map"` (a painted
+hex, a drawn line), `"scene"` (the default), or null. A painted layer answers
+on a hex scene, and the default answers where the layer does not. A drawn
+layer speaks only on a scene that has one: `road` is the surface of the road
+wall under the point, or `"none"`, where the scene has road walls; `following`
+is `"river"` where a navigable water line is under the point, or `"none"`,
+where the scene has water lines. Each is null on a scene with none — silence
+the next source answers, not a "none" the map never said. A painted hex that
+names no encounter table leaves the table null rather than borrowing the
+default's, which describes other country. With `waterBorne` (the party moving
+on the water) and any water line under the point, the encounter table is the
+river's for the ground (`riverTableFor`); the formation does not pass it, and
+applies the same rule at resolution from the cached `water`. The reader is pure over the scene
+document, so any client holding the scene can ask; the formation caches its
+answer on the party's record (`docs/formation/MODEL.md`, "The country").
+
+**The brush from a sheet.** `openCountryBrush({layer, brush, by})` arms the
+brush on a layer and opens its palette: the toolbar's tool calls it, and so
+does a party sheet's paint chip. Closing the palette disarms a brush the
+toolbar did not arm, because nothing else on screen says the canvas is
+captured.
 
 ## Files
 
@@ -49,16 +97,19 @@ when not journeying).
 | `session.mjs` | The calibration session: samples (each with what it represents), the armed mode, the setup choices (family, hex parity, units, party system), the fit toggles and the GM's entered values, plus the overlay. Owns the state both surfaces read; notifies subscribers on every change. |
 | `assistant-app.mjs` | The window, a VIEW over the session: the setup section, the fit card, scale decisions, the token-size hotbar, and a pinned footer carrying the two apply actions. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
 | `apply.mjs` | Scene writes, one per family: `applyGridCalibration` (square), `applyHexCalibration` (hex), `applyScaleOnly` (no geometry), each one `scene.update`; plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
-| `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, the family it already uses, and `hexProbe` — a hex's bounding box, measured off a clone rather than restated. |
+| `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, its default country (`sceneCountry`), the family it already uses, and `hexProbe` — a hex's bounding box, measured off a clone rather than restated. |
+| `terrain-paint.mjs` | The country brush: the three paint layers as one region per value keyed by cell, each layer's vocabulary, colours and labels, the reads (`layerValueAt`, `paintedTerrainAt`), the writer `paintHexAt`, and the palette window with its layer pills. |
+| `country.mjs` | `countryAt`, the one reader of the country under a point: the painted layers, the drawn lines and the scene default, and which of them answered each key. |
 | `hex-fit.mjs` | `hexAlignment` — the shift that lays Foundry's lattice over a drawn cell centre, asked of a zero-shift clone. The one owner of lattice alignment. Document methods only. |
 | `../lib/distance-units.mjs` | What one `grid.units` is worth in FEET. Every feet→squares conversion divides by `sceneFeetPerCell`. |
 | `roads.mjs` | Roads as a WALL LAYER on any grid: the flag, the non-blocking wall shape, the memoised road network, `roadUnder` (which street is the party on) and `roadDistance` (how far along the streets), the drawing presets, and the road row on a wall's own sheet. |
-| `road-markers.mjs` | The GM-side overlay that makes a street visible: tinted by surface, dashed where it is an alley, drawn only while a map-drawing control is open. Presentation only. |
+| `water.mjs` | Rivers and coasts as a WALL LAYER on any grid: the flag, the open wall shape, `waterUnder` (which water line is under the party), the two drawing presets, the from-selection tool, and the water row on a wall's own sheet. |
+| `road-markers.mjs` | The GM-side overlay that makes a street and a water line visible: a street tinted by surface and dashed where it is an alley, a river or a coast in its own blue and dashed where a boat cannot follow it, drawn only while a map-drawing control is open. Presentation only. |
 | `hex-topology.mjs` | Pure hex nodes and links, and `linksFromRoadSegments` — the links a set of drawn roads implies. No Foundry. |
 | `hex-routes.mjs` | The scene half of the topology: links DERIVED from road walls, the legacy declared flag still read beside them, `convertRoutesToWalls`, `nodeAtPoint` / `nodePoint`. |
 | `../lib/wall-geometry.mjs` | Segments and the graph they draw — the crossing, distance and along-the-lines measurement every wall layer shares. No Foundry. |
 | `../lib/wall-layers.mjs` | What a drawn line MEANS to this module: the flag read and write, the all-NONE shape, core's one drawing-preset slot, a region from an enclosed loop. |
-| `module.mjs` | Registrar: scene-control tool, scene-config row, preCreateToken install, `acksExtras.battlemap` API. |
+| `module.mjs` | Registrar: the scene-control group (the capture modes, the country brush, the road and water presets), the Walls-layer tools, the scene-config row, preCreateToken install, `acksExtras.battlemap` API. |
 
 ## Data flow
 
@@ -177,9 +228,12 @@ flow through the same hook.
 
 ## What the scene declares to the rest of the module
 
-Two of the flag's fields are read by surfaces that never open this panel.
+Three of the flag's fields are read by surfaces that never open this panel.
 
 - `autoScale` gates `preCreateToken` sizing on this scene.
+- `country` is the map's default country, which `countryAt` reads wherever
+  the brush has not painted (§Country layers). Like the system select, its
+  three selects write the moment they are chosen.
 - `mapSystem` is the travel mode a formation adopts on ARRIVAL — a dungeon map
   runs the turn clock, a wilderness map runs the day board, a settlement
   crosses in blocks. The vocabulary is `TRAVEL_MODES` (`lib/vocab.mjs`), shared
@@ -282,10 +336,11 @@ link. A declaration it cannot place stays on the flag; the press never destroys
 what it failed to carry.
 
 The journey consults the union: `onJourneyTokenMoved` asks `stepBetweenHexes`,
-and a drawn network **overrides the day's road picker**, exactly as painted
-terrain overrides the ground picker. A scene with no roads leaves the picker
-alone — an undrawn map is one where the question has not been asked, not one
-where every march is off-road.
+and the road the step followed — or `"none"` for a step that left the network
+— is the map's reading of the road for the hex arrived in, laid over what
+`countryAt` read there. A scene with no roads asks nothing, and its reading of
+the road is silence — an undrawn map is one where the question has not been
+asked, not one where every march is off-road.
 
 Not yet built: a path's own encounter profile, and feeding `routeCost`'s
 winding tax into the day's distance.
@@ -343,4 +398,33 @@ What a surface is WORTH is imported (the `travel` document's `roads` table); a
 wall carries the key. A world whose book names a surface this build never heard
 of can still carry it: `roadSurfaceKeys` widens the wall sheet's choices by
 whatever the registry holds, while the toolbar offers the structural few.
+
+## Rivers and coasts
+
+Water is drawn the way a road is: a **Wall that restricts nothing**, flagged
+`flags["acks-extras"].water = {kind, navigable, name}`
+([water.mjs](../../scripts/battlemap/water.mjs)). `kind` is `river` or `coast`
+(`WATER_KINDS`); `navigable` says whether a boat can follow the line, and a
+line that does not say reads as its kind's default — a river is followed, a
+coast is a shore. A river runs along and between cells, which no hex-painted
+kind could say, and a party is on one by how near its token stands to the
+line: `waterUnder` answers the nearest water line within half a grid cell, and
+asked for a navigable line it passes over a shore, so a coast nearer the party
+does not hide the river beside it.
+
+The road layer's mechanics carry over unchanged. The wall shape states every
+restriction as NONE and the door type as none (`waterWallData`), because the
+preset persists. Marking a selected wall as water (the Walls control's tool)
+never alters the wall itself, keeps a name already on the line, and counts a
+line that still restricts movement so the notification can say the party
+cannot cross it. The water row on a wall's own sheet edits the kind, whether a
+boat can follow it, and the name, and "not water" takes the layer off. The two
+presets (`water-river`, `water-coast`) sit in the Battlemap group beside the
+road presets, and all of them share core's ONE preset slot with the trap line.
+
+What a water line answers lives in `countryAt` (§Country layers): `following`
+is `"river"` over a navigable line, and a party moving on the water over any
+line reads the river's encounter table for the ground. A water line is never a
+road: the hex topology takes its links from road segments alone, so drawing a
+river declares no path through a hex.
 

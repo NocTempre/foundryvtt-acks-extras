@@ -160,15 +160,34 @@ world clock with day or night and the hours left to dusk or dawn. The clock
 runs as the miles are spent: torches and tracked spells burn down on the road
 exactly as they do underground.
 
-What the order is crossing and how is set under the strip, in sections of the
-Wilderness tab only you see. **Country** holds the **ground**, whether it is on
-a **road**, whether it is **following** a river or a route it already knows,
-and how settled the **territory** is; **Movement** holds **Moving by** — on
-foot, mounted, by vehicle, flying, or by vessel — which decides which of
-everything else the party actually meets. A flier ignores roads entirely; a
-vessel ignores the ground. On a map whose hexes are painted (see the battlemap
-guide), the ground and the encounter terrain come from the paint and those
-pickers step aside. The **Sky** section is the day's
+What the order is crossing is read off the map under the party token. The
+Wilderness tab's **Country** section shows it as four cards — the **ground**,
+the **road**, whether the party is **following** a river or a route it already
+knows, and the **territory** — with the table its encounters draw on beneath
+them; on your seat the **Sky** section reads the **climate** the same way. Each
+answer comes from the hex the token stands in, as the battlemap's **Country
+brush** painted it and the roads and rivers you drew cross it (see the
+battlemap guide); where the map says nothing, from what the scene says of its
+own country; and on a map that says nothing at all, from whatever the party had
+been given before. Players see the cards. Your seat also shows where each
+answer came from, and a card whose hex the brush has not painted offers
+**Paint this hex**, which opens the brush on that card's layer.
+
+Your own word goes in **The Judge's hand**, on the Judge tab: one select for
+each of the six — ground, encounter table, territory, climate, road and
+following — with what the map reads there written beside it. A choice there
+stands over the map until you clear it. A card your word overrides wears an
+**Override** chip with its own clear; a card whose word stands where the map
+has nothing to say, yours or one the sheet held from before, wears a pen mark
+with a clear of its own. A ground you give takes the encounter table with it,
+unless you name a table too. A route the party already knows is yours to
+declare there, because nothing on the map draws one.
+
+**Movement**, yours alone, holds **Moving by** — on foot, mounted, by vehicle,
+flying, or by vessel — which decides which of everything else the party
+actually meets. A flier ignores roads entirely; a vessel ignores the ground,
+and over a river or a coast it draws its encounters from the river's table.
+The **Sky** section is the day's
 weather; the **Day** section is one **kind of day** (a dedicated march, a forced
 march, or a day in camp), the **ancillary hours** you give to travel,
 foraging, hunting, searching or rest (how many a day kind leaves you is an
@@ -300,8 +319,8 @@ the hour you set in the Day section.
 
 When the throw lands on a terrain encounter, the card also rolls what that
 result leads to. Each table it names is rolled on its own die, and the
-terrain's treasure type or ruin modifier is read from the terrain you picked,
-so the whole find is on one card. A result that hands off — a double, a
+terrain's treasure type or ruin modifier is read from the terrain the throw
+drew on, so the whole find is on one card. A result that hands off — a double, a
 monster, an either-or, a despoiling — is drawn through the chain and shown
 indented beneath it. A result the module does not follow, or a table your
 import lacks, tells you to draw from your book.

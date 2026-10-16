@@ -1,6 +1,7 @@
 {{!-- The Judge's tab, a GM seat's only part: the sheet never configures it for
       a player, so nothing in it reaches a player's DOM. The head reads the
-      episode's state; The episode section holds the lost episode's controls. --}}
+      episode's state; The episode section holds the lost episode's controls,
+      and The Judge's hand the Judge's word on the country over the map's. --}}
 <div class="tab acks-extras-party-sheet__panel{{#if tabs.judge.active}} active{{/if}}" data-group="primary" data-tab="judge">
   {{#if formation}}
   <header class="acks-extras-party-sheet__head">
@@ -67,6 +68,34 @@
                aria-label="{{localize 'ACKS-FORMATION.travel.lostNote'}}"
                placeholder="{{localize 'ACKS-FORMATION.travel.lostNotePlaceholder'}}">
       </div>
+    </div>
+  </section>
+
+  {{! One select per country key: blank leaves the map's reading standing. }}
+  <section class="acks-extras-party-sheet__section" data-section="hand">
+    <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.hand"}}</h2>
+    <div class="acks-extras-country-hand">
+      {{#each countryOverrides}}
+      <div class="acks-extras-country-hand-row" data-key="{{key}}">
+        <label>{{label}}
+          <select name="{{name}}">
+            <option value="" {{#unless set}}selected{{/unless}}>{{localize "ACKS-FORMATION.country.hand.none"}}</option>
+            {{#each options}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            {{#each groups}}
+            <optgroup label="{{label}}">
+              {{#each options}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </optgroup>
+            {{/each}}
+          </select>
+        </label>
+        {{#if set}}
+        <button type="button" class="acks-extras-country-clear" data-action="clearOverride" data-key="{{key}}"
+                aria-label="{{localize 'ACKS-FORMATION.country.chip.clear'}}"
+                data-tooltip="{{localize 'ACKS-FORMATION.country.chip.clear'}}"><i class="fa-solid fa-xmark" inert></i></button>
+        {{/if}}
+        <span class="acks-extras-country-hand-map">{{#if hasMap}}{{localize "ACKS-FORMATION.country.hand.mapReads" value=mapLabel}}{{else}}{{localize "ACKS-FORMATION.country.hand.mapSilent"}}{{/if}}</span>
+      </div>
+      {{/each}}
     </div>
   </section>
   {{else}}

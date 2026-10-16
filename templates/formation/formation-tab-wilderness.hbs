@@ -1,7 +1,8 @@
 {{!-- The mode tab on a journey (Wilderness): the journey's own actions at its
       head, the strip's tiles, then titled sections — Country, Points of
       interest, Movement, Sky, Day, Camp — and a member-owner's requests. A
-      section a player has no part in is not rendered on a player's seat. --}}
+      section a player has no part in is not rendered on a player's seat; the
+      Country reaches every seat, its sources and chips the Judge's alone. --}}
 <div class="tab acks-extras-party-sheet__panel{{#if tabs.mode.active}} active{{/if}}" data-group="primary" data-tab="mode">
   {{#if formation}}
   <header class="acks-extras-party-sheet__head">
@@ -35,43 +36,21 @@
 
   {{> "modules/acks-extras/templates/formation/formation-strip.hbs"}}
 
-  {{#if isGM}}
+  {{! The country as the map reads it under the party's token. The Judge's word
+      over it is set in the Judge tab's hand; a card only shows it. }}
   <section class="acks-extras-party-sheet__section" data-section="country">
     <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.country"}}</h2>
-    <div class="acks-extras-formation-travel-pickers">
-      {{#unless travel.mapPaints.ground}}
-      <label>{{localize "ACKS-FORMATION.travel.ground"}}
-        <select name="travel.ground">
-          {{#each travel.grounds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-        </select>
-      </label>
-      {{/unless}}
-      {{#unless travel.mapPaints.road}}
-      <label>{{localize "ACKS-FORMATION.travel.roadLabel"}}
-        <select name="travel.road">
-          {{#each travel.roads}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-        </select>
-      </label>
-      {{/unless}}
-      <label data-tooltip="{{localize 'ACKS-FORMATION.travel.followingHint'}}">
-        {{localize "ACKS-FORMATION.travel.followingLabel"}}
-        <select name="travel.following">
-          {{#each travel.followingOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-        </select>
-      </label>
-      <label>{{localize "ACKS-FORMATION.travel.territoryLabel"}}
-        <select name="travel.territory">
-          {{#each travel.territories}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-        </select>
-      </label>
-      <label data-tooltip="{{localize 'ACKS-FORMATION.travel.enc.terrainHint'}}">{{localize "ACKS-FORMATION.travel.enc.terrainLabel"}}
-        <select name="travel.encounterTerrain">
-          {{#each travel.encounterTerrains}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-        </select>
-      </label>
+    <div class="acks-extras-country-cards">
+      {{#each travel.country.cards}}
+      {{> "modules/acks-extras/templates/formation/formation-country-card.hbs"}}
+      {{/each}}
     </div>
+    {{#if travel.country.encountersDrawOn}}
+    <p class="acks-extras-country-draw">{{localize "ACKS-FORMATION.country.drawOn" table=travel.country.encountersDrawOn}}</p>
+    {{/if}}
   </section>
 
+  {{#if isGM}}
   {{! The Judge's stock of the hex the party stands in. Point names are the map's
       secrets, so the section is the Judge's alone and the view is null for a
       player. The search's two selects sit at its foot: a search hour reads them. }}
@@ -195,18 +174,13 @@
   <section class="acks-extras-party-sheet__section" data-section="sky">
     <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.sky"}}</h2>
     {{#if isGM}}
+    {{#with travel.weather.climate}}
+    <div class="acks-extras-country-cards is-single">
+      {{> "modules/acks-extras/templates/formation/formation-country-card.hbs"}}
+    </div>
+    {{/with}}
     <div class="acks-extras-formation-travel-weather">
       <div class="acks-extras-formation-travel-weather-gen">
-        <label>{{localize "ACKS-FORMATION.travel.weather.climate"}}
-          <select name="travel.weather.climate">
-            <option value="" {{#if travel.weather.climateUnset}}selected{{/if}}>{{localize "ACKS-FORMATION.travel.weather.unset"}}</option>
-            {{#each travel.weather.climateGroups}}
-            <optgroup label="{{label}}">
-              {{#each options}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-            </optgroup>
-            {{/each}}
-          </select>
-        </label>
         <label>{{localize "ACKS-FORMATION.travel.weather.season"}}
           <select name="travel.weather.season" {{#if travel.weather.seasonFromCalendar}}disabled data-tooltip="{{travel.weather.seasonHint}}"{{/if}}>
             {{#each travel.weather.seasons}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}

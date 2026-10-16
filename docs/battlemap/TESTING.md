@@ -240,11 +240,12 @@ Fixtures: a disposable HEX-gridded scene (any hex type) and a disposable
 square-gridded scene; a disposable party with one member (for the journey
 read).
 
-1. Enter the Battlemap group, arm **Paint terrain**.
-   *Observable:* the palette window opens with one swatch per encounter
-   terrain (twenty-three, no bare-ground swatch, plus one per imported kind
-   no encounter terrain covers) and the eraser; the toolbar shows the brush
-   armed; calibration modes disarm.
+1. Enter the Battlemap group, arm **Country brush**.
+   *Observable:* the palette window opens on the Terrain pill with one swatch
+   per encounter terrain that stands on a ground (twenty-one: no bare-ground
+   swatch and no river, plus one per imported kind no encounter terrain
+   covers) and the eraser; the toolbar shows the brush armed; calibration
+   modes disarm.
 2. Click and drag across the hex scene with two different brushes.
    *Observable:* one Region per painted terrain kind appears (name = the
    terrain's label, its colour the swatch's), `flags.acks-extras.terrain`
@@ -260,21 +261,23 @@ read).
    token across a painted boundary.
    *Observable:* `travel.hex` picks up the offset and its letter-number
    label, `hexesEntered` counts the crossing (arriving in the FIRST hex
-   names it without counting), the ground follows the painted terrain and
-   the encounter pick (`travel.encounterTerrain`) follows a hex painted at
-   the book's grain; a region flagged with a bare ground key (`terrain:
-   forest`, written by hand for the check — the brush no longer lays one)
-   sets the ground and leaves the pick; a river hex sets the pick and
-   leaves the ground; an unpainted hex leaves both standing. The panel's
-   ×-factor lines follow the painted terrain when travel tables are
-   registered.
-6. With the party on a hex painted at the book's grain, set the strip's
-   encounter picker back to its unset option and press **Stock this hex**.
+   names it without counting), and `travel.map` holds the hex's reading:
+   the ground and the encounter table of a hex painted at the book's grain,
+   `source` "map" for each. A region flagged with a bare ground key
+   (`terrain: forest`, written by hand for the check — the brush no longer
+   lays one) reads that ground and the ground's default table; a river hex
+   painted before rivers were lines reads the river's table and leaves the
+   ground to the next source; an unpainted hex reads nothing from the
+   terrain layer. The record's own `travel.ground` and
+   `travel.encounterTerrain` are never written. The panel's ×-factor lines
+   follow the painted terrain when travel tables are registered.
+6. With the party on a hex painted at the book's grain and no word of the
+   Judge's on the encounter table, press **Stock this hex**.
    *Observable:* the dialog's terrain select opens on the hex's painted kind.
-7. Set the party down on a river hex without walking it (the lost episode's
-   step onto the true position is the user's path there).
-   *Observable:* the hex is named, the pick becomes the river's, the ground
-   stands, and `hexesEntered` does not move.
+7. Set the party down on a painted hex without walking it (the lost
+   episode's step onto the true position is the user's path there).
+   *Observable:* the hex is named, `travel.map` reads the new hex, and
+   `hexesEntered` does not move.
 
 Teardown: delete both scenes (their regions go with them) and the party
 fixtures.
@@ -295,10 +298,10 @@ erase) is the brush's own write and resolves `false` when nothing changes;
 warning is read through a wrapped `ui.notifications.warn`; one stroke on the
 square scene fires it once, and a `"pointermove"` after it fires nothing. The
 journey read is `tokenDoc.update({ x, y }, { animate: false })` to
-`grid.getTopLeftPoint(offset)`, then `travelOf(formation)` and
-`actor.sheet._prepareContext({})` → `travel.mapPaints`, `travel.grounds`,
-`travel.encounterTerrains` for the pickers. The pick is cleared with
-`applyTravelForm(id, { encounterTerrain: "" })`. A token SET DOWN rather than
+`grid.getTopLeftPoint(offset)`, then `getFormation(id).travel.map` for the
+cache and `travelOf(formation)` with its `provenance` for the resolution. The
+Judge's word on the table is cleared with `applyTravelForm(id, { override: {
+encounterTerrain: "" } })`. A token SET DOWN rather than
 walked is `update(..., { ["acks-extras.lostTruth"]: true })` followed by
 `seatJourneyHex(tokenDoc, formationId)`. A dialog is opened in one evaluate,
 unawaited, and read or pressed in the next — an evaluate that awaits a
@@ -430,11 +433,96 @@ as a permission leak.
     declared it reports `{made: 0, skipped: 0}`.
 12. Journey read on the hex scene: move the party across a crossing the drawn
     road makes.
-    *Observable:* the day's road picker follows the drawn road, as it did for
-    a declared link.
+    *Observable:* `travel.map.road` is the drawn road's surface, as it was for
+    a declared link, and the Country section's road card reads it with no
+    chip.
 
 Teardown: delete the three scenes (their walls go with them) and the party
 fixtures. Press a road preset once more if the run left the trap preset armed —
 the preset is CLIENT state — one slot per seat, not per world — so it outlives
 the run on the browser profile that drove it while disturbing no other seat, and
 it is the one thing here a sweep cannot delete.
+
+## The country's layers and water (added with the party-sheet redesign's phase 2a)
+
+Fixtures, each made through the capture driver's ledger (`api.create`, or
+`api.track` for what a tool made) and swept by its ids: a disposable
+HEX-gridded scene and a disposable square-gridded scene, both with a scale in
+miles. Nothing else: every read here is `countryAt` over the scene document,
+and the party's half is `docs/formation/TESTING.md`, "The country".
+
+**Drive mechanics.** View the hex scene first, as for terrain painting. The
+API is `acksExtras.battlemap.terrain` (`paintHexAt(scene, point, value,
+layer)`, `layerValueAt`, `layerRegionsOf`, `openCountryBrush`),
+`acksExtras.battlemap.water` (`waterWallData`, `waterUnder`, the preset and the
+from-selection tool) and `acksExtras.battlemap.country` (`countryAt`,
+`sceneCountry`, `writeSceneSetup`). A palette pill is
+`button[data-action="pickLayer"][data-layer="<layer>"]` `.click()`, a swatch
+`button[data-brush="<value>"]`; the window's `_prepareContext()` lists both. A
+point is `scene.grid.getCenterPoint(offset)`. A water line for the reading
+steps can be `scene.createEmbeddedDocuments("Wall", [{c, ...waterWallData({kind})}])`,
+tracked by the id it returns — but one line must be DRAWN with the preset,
+because the preset is what step 4 proves. The Battlemap window's three country
+selects are driven as its other selects are: set `.value` and dispatch a
+bubbling `change`.
+
+1. Arm **Country brush** and press the **Territory** pill.
+   *Observable:* the swatches become the four territories, each in its own
+   colour, with the eraser; `paintHexAt` and a real click both paint. Paint two
+   hexes one territory and a third, already painted with a terrain, another.
+   One region per territory value appears, flagged `territory` and
+   `territoryHexes`, with `visibility` 1 (GAMEMASTER): a player seat sees no
+   territory drawn. The terrain region of the third hex still lists that hex.
+2. Press the **Climate** pill and paint the same third hex.
+   *Observable:* the climates are grouped under their group names; one climate
+   region, flagged `climate` and `climateHexes`, GM-only. `layerValueAt` reads
+   the hex's terrain, territory and climate apart.
+3. On the Territory pill, erase the third hex; then paint the first hex with
+   the second territory.
+   *Observable:* the erase removes the territory alone — terrain and climate
+   stay; the repaint moves the hex between territory regions, and a region
+   left with no hex is deleted.
+4. Press the **River** preset in the Battlemap group and drag a line across two
+   hexes; press **Coastline** and drag another.
+   *Observable:* the notification names what is armed; core's wall preset holds
+   all-NONE restrictions, `door: 0` and `flags["acks-extras"].water` (`kind`
+   river and `navigable` true, then coast and false); one Wall per line carries
+   the flag; while the Walls or Battlemap controls are active the GM overlay
+   draws the river solid and the coast dashed, and a player seat sees neither
+   drawn.
+5. Open the river's wall sheet.
+   *Observable:* the water row shows its kind, the boat tick and the name; each
+   change writes at once; **Not water** removes the flag and leaves the wall's
+   own restrictions alone. Select an ordinary blocking wall and press **Mark
+   the selected walls as water** on the Walls control: the flag lands, the
+   restrictions do not change, and a warning says the party cannot cross it.
+   Untick the river line's boat tick, select that line and press the tool
+   again: `updated` 1 and `navigable` still false.
+6. In the Battlemap window, set the scene's Ground here, Territory and Climate.
+   *Observable:* `flags["acks-extras"].battlemap.country` holds the three keys
+   at once, with no apply, and the record's other fields are unchanged;
+   `sceneCountry(scene)` returns them; setting a select back to "Not said"
+   clears its key.
+7. Read the country back from the console with `countryAt(scene, point)` at the
+   centres of: the hex painted on all three layers; an unpainted hex well off
+   both lines; a hex the river crosses; a hex the coast crosses.
+   *Observable:* the painted hex answers its painted terrain's ground and
+   table, its territory and its climate, each with `source.<key>` "map"; the
+   unpainted hex answers the scene default's three with "scene", `following`
+   "none" with "map" (the scene has water lines), and `road` null with
+   `source.road` null (no road is drawn here — a road's reading is the Roads
+   recipe above); the river hex answers `following` "river" and `water`
+   `{kind: "river", navigable: true}`; the coast hex answers `following`
+   "none" and `water` with `navigable` false. With `{waterBorne: true}` the
+   river hex's `encounterTerrain` is a river table, the desert-and-jungle one
+   when its ground is a desert or a jungle.
+8. On the square scene, set Ground here in the Battlemap window, arm the brush
+   and click; then call `countryAt` there.
+   *Observable:* the hex-only warning, once per stroke, and no region; the
+   ground reads the default with `source.ground` "scene", and the unset
+   territory and climate read null with a null source.
+
+Teardown: `api.sweepTracked()` — the two scenes take their regions and walls
+with them — and quote its result. The wall preset is client state: arm core's
+ordinary wall once more if the run left a water preset armed, so this seat's
+next wall is not a river.

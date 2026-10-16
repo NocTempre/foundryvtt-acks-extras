@@ -2724,9 +2724,6 @@
         "throw": "Encounter throw",
         "throwHint": "Roll the encounter chain for this hex and whisper the Judge the result.",
         "terrainLabel": "Encounter terrain",
-        "terrainHint": "Which terrain sub-table the chain draws from. Unset follows the ground picker.",
-        "derivedOption": "— {terrain} (from the ground) —",
-        "pickOption": "— pick a terrain —",
         "importHint": "Import the encounter tables to roll the chain here; until then, throw from your book.",
         "missingTable": "The {table} table is not imported — draw this step from your book.",
         "noRow": "No printed row for this terrain — take the distance from the page.",
@@ -2917,7 +2914,6 @@
         "knownRoute": "A well-established route"
       },
       "followingLabel": "Following",
-      "followingHint": "A party following a river or a route it knows does not lose its way. Roads are the road picker's business.",
       "movement": {
         "label": "Moving by",
         "hint": "How the order travels. It decides which factors it meets at all — a flier ignores roads, a vessel ignores the ground.",
@@ -3694,7 +3690,8 @@
         "camp": "Camp",
         "city": "The city",
         "log": "Log",
-        "episode": "The episode"
+        "episode": "The episode",
+        "hand": "The Judge's hand"
       },
       "pill": {
         "restTurn": "Rest a turn",
@@ -3724,6 +3721,30 @@
       "tweaks": {
         "title": "Tweaks",
         "save": "Save"
+      }
+    },
+    "country": {
+      "provenance": {
+        "override": "The Judge's word",
+        "map": "Read off the map",
+        "scene": "The scene's default",
+        "declared": "Declared on the sheet",
+        "default": "Nothing says"
+      },
+      "chip": {
+        "override": "Override",
+        "overrideHint": "The Judge's word stands over the map, which reads {map}.",
+        "declared": "Declared, with nothing on the map under it",
+        "clear": "Clear the Judge's word",
+        "clearDeclared": "Clear what was declared"
+      },
+      "paint": "Paint this hex",
+      "paintHint": "Arms the country brush on this card's layer and opens its palette. Nothing is painted until you click the map.",
+      "drawOn": "Encounters draw on {table}",
+      "hand": {
+        "none": "No word: the map's",
+        "mapReads": "The map reads {value}",
+        "mapSilent": "The map says nothing here"
       }
     },
     "strip": {
@@ -6145,13 +6166,17 @@
   "ACKS-VEHICLES.reason.terrain.mud": "Mud",
   "ACKS-VEHICLES.reason.terrain.snow": "Snow",
   "ACKS-VEHICLES.reason.tablesMissing": "No travel tables imported — ground and wind count as ×1 until they are",
-  "ACKS-BATTLEMAP.terrain.tool": "Paint terrain",
-  "ACKS-BATTLEMAP.terrain.palette": "Terrain Brush",
+  "ACKS-BATTLEMAP.terrain.tool": "Country brush",
+  "ACKS-BATTLEMAP.terrain.palette": "Country Brush",
   "ACKS-BATTLEMAP.terrain.erase": "Erase",
-  "ACKS-BATTLEMAP.terrain.eraseHint": "Unpaint the hex under the brush.",
-  "ACKS-BATTLEMAP.terrain.hexOnly": "Terrain painting works on hex-gridded scenes.",
-  "ACKS-BATTLEMAP.terrain.paintHint": "Click or drag on the map to paint hexes. One terrain per hex; painting over replaces.",
-  "ACKS-BATTLEMAP.terrain.disarmedHint": "Pick a brush to arm painting, or use the toolbar's Paint terrain tool.",
+  "ACKS-BATTLEMAP.terrain.eraseHint": "Unpaint the hex under the brush, on this layer only.",
+  "ACKS-BATTLEMAP.terrain.hexOnly": "The country brush works on hex-gridded scenes.",
+  "ACKS-BATTLEMAP.terrain.paintHint": "Click or drag on the map to paint hexes. One value per hex on each layer; painting over replaces.",
+  "ACKS-BATTLEMAP.terrain.disarmedHint": "Pick a brush to arm painting, or use the toolbar's Country brush tool.",
+  "ACKS-BATTLEMAP.terrain.layersLabel": "Which layer the brush paints",
+  "ACKS-BATTLEMAP.terrain.layer.terrain": "Terrain",
+  "ACKS-BATTLEMAP.terrain.layer.territory": "Territory",
+  "ACKS-BATTLEMAP.terrain.layer.climate": "Climate",
   "ACKS-VEHICLES.reason.mudPaved": "Mud, but the pavement holds",
   "ACKS-VEHICLES.reason.terrain.lakeOrRiver": "Lake or river",
   "ACKS-VEHICLES.reason.terrain.coast": "Coastal waters",
@@ -6387,6 +6412,21 @@
   "ACKS-BATTLEMAP.routes.namePlaceholder": "Street name",
   "ACKS-BATTLEMAP.routes.wallHint": "What this line is for travel. A party's route is measured along roads, and a city reads the street it is standing on off them.",
   "ACKS-BATTLEMAP.routes.wallBlocks": "This road restricts movement, so the party cannot walk along it. Set its Movement restriction to None.",
+  "ACKS-BATTLEMAP.water.river": "River",
+  "ACKS-BATTLEMAP.water.coast": "Coast",
+  "ACKS-BATTLEMAP.water.preset.river": "River",
+  "ACKS-BATTLEMAP.water.preset.coast": "Coastline",
+  "ACKS-BATTLEMAP.water.presetArmed": "The wall tool now draws: {water}.",
+  "ACKS-BATTLEMAP.water.presetUnavailable": "No wall preset is available here — the wall tool is armed, but set the water on the wall after drawing it.",
+  "ACKS-BATTLEMAP.water.toolMark": "Mark the selected walls as water",
+  "ACKS-BATTLEMAP.water.marked": "{added} wall(s) made water, {updated} updated.",
+  "ACKS-BATTLEMAP.water.blocking": "{count} of them still restrict movement, so the party cannot travel along them.",
+  "ACKS-BATTLEMAP.water.wallLabel": "Water",
+  "ACKS-BATTLEMAP.water.notWater": "Not water",
+  "ACKS-BATTLEMAP.water.navigable": "A boat can follow it",
+  "ACKS-BATTLEMAP.water.namePlaceholder": "Name",
+  "ACKS-BATTLEMAP.water.wallHint": "What this line is for travel. The party sheet reads a party standing on a line a boat can follow as following a river.",
+  "ACKS-BATTLEMAP.water.wallBlocks": "This water line restricts movement, so the party cannot travel along it. Set its Movement restriction to None.",
   "ACKS-LIB.survival.sheltered": "Sheltered",
   "ACKS-LIB.survival.hypothermic": "Hypothermic",
   "ACKS-VEHICLES.reason.aloft.share": "Aloft",
@@ -6425,6 +6465,11 @@
   "ACKS-BATTLEMAP.setup.system": "Party system here",
   "ACKS-BATTLEMAP.setup.systemNone": "Leave to the party",
   "ACKS-BATTLEMAP.setup.systemHint": "What a party formation does on this scene — a dungeon runs its turn clock, a wilderness map runs the day's march, a settlement crosses in blocks. A formation arriving here switches to it. Saved the moment you choose.",
+  "ACKS-BATTLEMAP.setup.countryGround": "Ground here",
+  "ACKS-BATTLEMAP.setup.countryTerritory": "Territory here",
+  "ACKS-BATTLEMAP.setup.countryClimate": "Climate here",
+  "ACKS-BATTLEMAP.setup.countryNone": "Not said",
+  "ACKS-BATTLEMAP.setup.countryHint": "The country every hex on this scene reads as where the country brush has not painted it; a painted hex answers for itself. Saved the moment you choose.",
   "ACKS-BATTLEMAP.family.square": "Square grid",
   "ACKS-BATTLEMAP.family.hexRows": "Hex grid — rows (pointy top)",
   "ACKS-BATTLEMAP.family.hexCols": "Hex grid — columns (flat top)",

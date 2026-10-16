@@ -423,13 +423,14 @@ const stripOf = (id) => {
   const { default: Handlebars } = await import("handlebars");
   const fs = await import("node:fs");
   const { MODE_TEMPLATES, framePartIds, frameTabs, buildFrameView } = await import("../scripts/formation/frame-view.mjs");
+  const { COUNTRY_KEYS } = await import("../scripts/battlemap/country.mjs");
   const hb = Handlebars.create();
   const read = (path) => fs.readFileSync(`templates/${path}`, "utf8");
   hb.registerHelper("localize", (key, options) =>
     String(key) + (options?.hash && Object.keys(options.hash).length ? JSON.stringify(options.hash) : ""));
   hb.registerHelper("checked", (v) => (v ? "checked" : ""));
   hb.registerHelper("eq", (a, b) => a === b);
-  for (const path of ["formation/formation-strip.hbs", "formation/formation-player-actions.hbs", "formation/formation-cell.hbs", "lib/station-chip.hbs"]) {
+  for (const path of ["formation/formation-strip.hbs", "formation/formation-player-actions.hbs", "formation/formation-cell.hbs", "formation/formation-country-card.hbs", "lib/station-chip.hbs"]) {
     hb.registerPartial(`modules/acks-extras/templates/${path}`, hb.compile(read(path)));
   }
 
@@ -542,14 +543,16 @@ const stripOf = (id) => {
     band: ['name="travel.mode"', 'name="name"'],
     mode: [
       'name="travel.hexLabel"', 'data-action="travelEnterHex"', 'data-action="forageDay"', 'data-action="travelEndDay"',
-      'name="travel.ground"', 'name="travel.road"', 'name="travel.following"', 'name="travel.territory"', 'name="travel.encounterTerrain"',
       'data-action="hexStock"', 'name="camp.present"', 'name="camp.target"',
       'name="travel.movement.mode"',
-      'name="travel.weather.climate"', 'name="travel.weather.season"', 'data-action="travelWeatherRoll"',
+      'name="travel.weather.season"', 'data-action="travelWeatherRoll"',
       'name="travel.day.kind"', 'name="travel.hour"', 'name="travel.day.traps"', 'name="travel.day.noSleep"',
       'name="travel.exposure.hours"', 'name="travel.camp.steal"', 'name="travel.camp.water"', 'name="travel.camp.sleepInArmour"',
     ],
-    judge: ['name="travel.lostNote"', 'data-action="lostBegin"'],
+    judge: [
+      'name="travel.lostNote"', 'data-action="lostBegin"',
+      ...COUNTRY_KEYS.map((key) => `name="travel.override.${key}"`),
+    ],
     frame: [
       'data-action="partySave"', 'data-action="toggleMagical"', 'data-action="adjustHp"', 'data-action="consumeRations"',
       'data-action="travelEncounterThrow"', 'data-action="partyChecks"', 'data-action="searchHour"', 'data-action="togglePause"',
@@ -587,6 +590,17 @@ const stripOf = (id) => {
   assert.ok(!gmJourney.mode.includes('data-section="city"'), "no city section on a journey");
   assert.ok(sectionOf(gmJourney.judge, "episode").includes('data-action="lostBegin"'), "the lost episode is the Judge tab's");
 
+  // The country: the map's reading as cards, and the Judge's word in the hand.
+  const country = sectionOf(gmJourney.mode, "country");
+  for (const key of ["ground", "road", "following", "territory"]) {
+    assert.ok(country.includes(`data-key="${key}"`), `the ${key} card sits in Country`);
+  }
+  assert.ok(country.includes("ACKS-FORMATION.country.drawOn"), "Country names the table the encounters draw on");
+  assert.ok(sectionOf(gmJourney.mode, "sky").includes('data-key="climate"'), "the climate is read in the Sky");
+  const hand = sectionOf(gmJourney.judge, "hand");
+  for (const key of COUNTRY_KEYS) assert.ok(hand.includes(`name="travel.override.${key}"`), `The Judge's hand holds ${key}`);
+  assert.ok(!hand.includes('data-action="clearOverride"'), "with no word given, the hand has nothing to clear");
+
   // The Judge in the delve: the turn clock at the tab's head, no sections.
   const gmDelve = render(delve, { gm: true });
   const delveHead = gmDelve.mode.slice(0, gmDelve.mode.indexOf("</header>"));
@@ -616,14 +630,90 @@ const stripOf = (id) => {
   assert.ok(!playerHtml.includes('name="travel.mode"'), "but not the mode picker");
   assert.ok(!playerHtml.includes('name="name"'), "nor the name field");
   assert.ok(!playerHtml.includes('data-action="travelEndDay"'), "nor the Judge's buttons");
-  for (const key of ["country", "poi", "movement", "day"]) {
+  for (const key of ["poi", "movement", "day"]) {
     assert.ok(!playerHtml.includes(`data-section="${key}"`), `no ${key} section for a player`);
   }
+  const playerCountry = sectionOf(playerJourney.mode, "country");
+  assert.ok(playerCountry.includes('data-key="territory"'), "the Country cards reach a player");
+  assert.ok(!playerCountry.includes("data-action="), "with nothing to press");
+  assert.ok(!playerCountry.includes("acks-extras-country-source") && !playerCountry.includes("acks-extras-country-chip"),
+    "and no word on where a reading came from, nor any chip");
   assert.ok(sectionOf(playerJourney.mode, "camp").includes("ACKS-FORMATION.camp.food"), "the Camp section reaches a player, with the forecast in it");
   assert.ok(!playerHtml.includes("travel.exposure"), "and none of the Judge's exposure fields");
   assert.ok(!playerHtml.includes('name="camp.present"') && !playerHtml.includes('name="camp.target"'), "nor the search's selects");
   assert.ok(!/name="travel\./.test(playerHtml), "no declared field reaches a player");
   assert.ok(!playerHtml.includes('data-tab="judge"'), "and nothing names the Judge's tab");
+
+  // Each source earns its chip. The map reads a forest of the register's grain
+  // under the scene's default territory; the Judge's word overrides the ground,
+  // repeats the territory and names a road the map has none of; the sheet
+  // declared a route before the map was read. Every value is a module key.
+  const land = makeScene("S.strip.country", { kind: "hex", miles: TABLE_MILES });
+  const walker = makeToken(land, "t.strip.country");
+  const reading = {
+    sceneId: land.id, i: 0, j: 0, at: null,
+    ground: "forest", encounterTerrain: "forestTaiga", territory: "outlands", climate: null, road: null, following: null,
+    source: { ground: "map", encounterTerrain: "map", territory: "scene", climate: null, road: null, following: null },
+    water: null,
+  };
+  const told = makeFormation(land, walker, {
+    travel: { map: reading, following: "knownRoute", override: { ground: "desert", territory: "outlands", road: "paved" } },
+  });
+  const plain = makeFormation(land, walker, { travel: { map: reading } });
+  const cardsOf = (id, gm) => {
+    const was = game.user;
+    game.user = { isGM: gm, id: gm ? "gm1" : "pl1" };
+    try {
+      return Object.fromEntries(buildFormationView(getFormation(id)).travel.country.cards.map((c) => [c.key, c]));
+    } finally {
+      game.user = was;
+    }
+  };
+  const chips = (cards) => Object.fromEntries(Object.entries(cards).map(([k, c]) => [k, [c.provenance, c.chip]]));
+
+  assert.deepEqual(chips(cardsOf(told, true)), {
+    ground: ["override", "override"],
+    road: ["override", "declared"],
+    following: ["declared", "declared"],
+    territory: ["override", null],
+  }, "the Judge's word over a different map, a word or a declaration with no map under it, and a word the map agrees with");
+  assert.deepEqual(chips(cardsOf(plain, true)), {
+    ground: ["map", null], road: ["default", null], following: ["default", null], territory: ["scene", null],
+  }, "the map's and the scene's answers earn no chip, and nor does the default");
+  const toldCards = cardsOf(told, true);
+  assert.deepEqual([toldCards.ground.value, toldCards.ground.mapValue], ["desert", "forest"], "the card shows the word and keeps the map's");
+  assert.deepEqual(
+    Object.values(toldCards).filter((c) => c.paintable).map((c) => [c.key, c.paintLayer, c.paintBrush]),
+    [["ground", "terrain", "desertSandy"], ["territory", "territory", "outlands"]],
+    "an unpainted hex offers the brush for each painted layer, armed with the card's own value: the Judge's ground's own table, not the map's");
+  assert.ok(Object.values(cardsOf(told, false)).every((c) => !c.paintable), "a player is offered no brush");
+  assert.equal(buildFormationView(getFormation(told)).travel.country.encountersDrawOn, "ACKS-FORMATION.travel.enc.terrain.desertSandy",
+    "the encounters draw on the overridden ground's own table, not the one the map read with another ground");
+
+  const toldGM = render(told, { gm: true });
+  const toldCountry = sectionOf(toldGM.mode, "country");
+  assert.equal(count(toldCountry, "is-override"), 1, "one override chip: the ground");
+  assert.ok(toldCountry.includes('data-action="clearOverride" data-key="ground"'), "and it clears the ground");
+  assert.equal(count(toldCountry, "is-declared"), 2, "two pen marks: the road and the route");
+  assert.equal(count(toldCountry, 'data-action="paintThisHex"'), 2, "two brushes: the terrain and the territory");
+  assert.ok(toldCountry.includes('data-layer="territory" data-brush="outlands"'));
+  const toldHand = sectionOf(toldGM.judge, "hand");
+  assert.equal(count(toldHand, 'data-action="clearOverride"'), 3, "each word the Judge gave has its clear in the hand");
+  assert.ok(/<option value="desert" selected>/.test(toldHand), "and its select shows the word");
+  assert.ok(toldHand.includes("ACKS-FORMATION.country.hand.mapSilent"), "a key the map says nothing of is said to be silent");
+
+  const toldPlayer = sectionOf(render(told, { gm: false }).mode, "country");
+  assert.ok(toldPlayer.includes("ACKS-VEHICLES.terrain.desert"), "a player reads the country the Judge's word made");
+  assert.ok(!/is-override|is-declared|is-paint|data-provenance/.test(toldPlayer), "without the Judge's marks");
+
+  // Painted, the hex offers no brush for that layer.
+  land.regions.push({
+    behaviors: [],
+    getFlag: (_ns, key) => (key === "territory" ? "unsettled" : key === "territoryHexes" ? ["0:0"] : undefined),
+  });
+  assert.deepEqual(
+    Object.values(cardsOf(told, true)).filter((c) => c.paintable).map((c) => c.key), ["ground"],
+    "a layer the map has painted under the token is not offered again");
 }
 
 {
@@ -654,4 +744,4 @@ const stripOf = (id) => {
   unregisterTable("weather");
 }
 
-console.log("test-strip: OK (strip by mode, journey tally and clock, cadence next, pause, camp readout, warnings, the sheet's parts by mode and seat)");
+console.log("test-strip: OK (strip by mode, journey tally and clock, cadence next, pause, camp readout, warnings, the sheet's parts by mode and seat, the country's cards, chips and hand)");

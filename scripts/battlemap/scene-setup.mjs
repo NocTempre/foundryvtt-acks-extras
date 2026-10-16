@@ -11,6 +11,8 @@
  */
 
 import { MODULE_ID, FLAG_BATTLEMAP, GRID_TYPE, HEX_TYPES, TRAVEL_MODES, gridTypeFor } from "./constants.mjs";
+import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
+import { CLIMATES } from "../formation/weather.mjs";
 
 /** The grid size a hex is measured at before being scaled; any size would do. */
 const HEX_PROBE_SIZE = 100;
@@ -70,6 +72,25 @@ export function sceneIncidents(scene) {
     tableUuid: String(flag.tableUuid),
     afterDark: Number.isFinite(afterDark) ? afterDark : 0,
     band: from >= 1 && to >= from ? { from, to } : null,
+  };
+}
+
+/**
+ * The country this whole map stands in, under whatever the brush painted: the
+ * answer for an unpainted hex, and the only one on a map that is not a hex
+ * map. `ground` is a terrain brush value (a terrain key, read as a painted
+ * hex's would be), `territory` a territory key, `climate` a climate code; each
+ * is null where the Judge has not said, and a key the module does not know
+ * reads as null.
+ *
+ * @returns {{ground: string|null, territory: string|null, climate: string|null}}
+ */
+export function sceneCountry(scene) {
+  const flag = scene?.getFlag?.(MODULE_ID, FLAG_BATTLEMAP)?.country ?? {};
+  return {
+    ground: typeof flag.ground === "string" && flag.ground ? flag.ground : null,
+    territory: TERRITORY_KEYS.includes(flag.territory) ? flag.territory : null,
+    climate: Object.hasOwn(CLIMATES, flag.climate ?? "") ? flag.climate : null,
   };
 }
 

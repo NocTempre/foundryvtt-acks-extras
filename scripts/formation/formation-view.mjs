@@ -19,6 +19,7 @@ import {
   getMemberActor,
   realMembers,
   getPartyScene,
+  getPartyToken,
   hasAbility,
   isDown,
   isHurried,
@@ -40,13 +41,16 @@ import { deploymentOf } from "../vehicles/deploy.mjs";
 import { driftSummary } from "./lost.mjs";
 import { shadowsOf } from "./shadow.mjs";
 import {
-  travelOf, dayBudget, dayIsSpent, effectiveSeason,
+  travelOf, countryOf, tokenCentre, dayBudget, dayIsSpent, effectiveSeason,
   DAY_KINDS, ANCILLARY_ACTIVITIES, FOLLOWING_KINDS, ROAD_KINDS, TERRITORY_KEYS,
 } from "./travel.mjs";
 import { cadenceOf } from "./march.mjs";
 import { cadenceMilesFor } from "./encounter-card.mjs";
-import { isHexScene, terrainRegionsOf } from "../battlemap/terrain-paint.mjs";
-import { routesOf } from "../battlemap/hex-routes.mjs";
+import {
+  colorFor, isHexScene, labelFor, layerColorFor, layerLabelFor, layerValueAt, paintableValues,
+} from "../battlemap/terrain-paint.mjs";
+import { COUNTRY_KEYS } from "../battlemap/country.mjs";
+import { ROAD_TINT, WATER_TINT } from "../battlemap/road-markers.mjs";
 import { sceneBlockFeet, sceneIncidents } from "../battlemap/scene-setup.mjs";
 import { feetPerUnit, isExpeditionScale, sceneMilesPerCell } from "../lib/distance-units.mjs";
 import { clockReading } from "../lib/world-time.mjs";
@@ -1150,40 +1154,19 @@ function buildTravelView(formation) {
   view.hexStock = hexStockView(formation);
   view.camp = buildCampView(formation, t, expeditionMiles(formation), view.hexStock);
 
-  // The ground and the road a painted map already answers for: the pickers
-  // stay for a journey with no map, or whose map is silent about them.
-  const scene = getPartyScene(formation);
-  view.mapPaints = {
-    ground: !!scene && isHexScene(scene) && terrainRegionsOf(scene).length > 0,
-    road: !!scene && routesOf(scene).length > 0,
-  };
-
   const opt = (value, label, selected) => ({ value, label, selected });
-  view.grounds = Object.entries(TERRAIN).map(([value, cfg]) =>
-    opt(value, game.i18n.localize(cfg.label), value === t.ground));
-  view.roads = ROAD_KINDS.map((value) =>
-    opt(value, game.i18n.localize(`ACKS-FORMATION.travel.road.${value}`), value === t.road));
+  // The country as read: four cards, the climate the Sky section reads, and
+  // the table the encounters draw on. The band's chips read the two lists.
+  view.country = buildCountryView(formation, t);
   view.territories = TERRITORY_KEYS.map((value) =>
     opt(value, game.i18n.localize(`ACKS-FORMATION.travel.territory.${value}`), value === t.territory));
-  view.weather = buildWeatherView(t, opt);
+  view.followingOptions = FOLLOWING_KINDS.map((value) =>
+    opt(value, game.i18n.localize(`ACKS-FORMATION.travel.following.${value}`), value === t.following));
+  view.weather = buildWeatherView(t, opt, view.country.climate);
   view.wheels = wheelRefusals(formation, t);
   // The Sky group is the Judge's pickers; a player sees it only for what it
   // already told the table (the chips, the night band, a wagon that cannot roll).
   view.skyShown = !!game.user?.isGM || !!(view.weather.chips.length || view.weather.night || view.wheels.length);
-
-  // The encounter sub-table: the ground's own default unless the Judge
-  // overrides — the unset option NAMES the default it stands for.
-  const derived = encounterTerrainFor(t.ground);
-  const derivedLabel = derived ? game.i18n.localize(ENCOUNTER_TERRAINS[derived].label) : null;
-  view.encounterTerrains = [
-    opt("", derivedLabel
-      ? game.i18n.format("ACKS-FORMATION.travel.enc.derivedOption", { terrain: derivedLabel })
-      : game.i18n.localize("ACKS-FORMATION.travel.enc.pickOption"), !t.encounterTerrain),
-    ...Object.entries(ENCOUNTER_TERRAINS).map(([value, cfg]) =>
-      opt(value, game.i18n.localize(cfg.label), value === t.encounterTerrain)),
-  ];
-  view.followingOptions = FOLLOWING_KINDS.map((value) =>
-    opt(value, game.i18n.localize(`ACKS-FORMATION.travel.following.${value}`), value === t.following));
 
   // How the order moves. The flight fields appear only for a flier, because
   // hours aloft mean nothing to a party on foot and an always-visible field
@@ -1241,6 +1224,171 @@ function buildTravelView(formation) {
   return view;
 }
 
+/** The country keys the Country section draws as cards, each with the brush layer it is painted on. */
+const COUNTRY_CARDS = Object.freeze([
+  { key: "ground", label: "ACKS-FORMATION.travel.ground", layer: "terrain" },
+  { key: "road", label: "ACKS-FORMATION.travel.roadLabel", layer: null },
+  { key: "following", label: "ACKS-FORMATION.travel.followingLabel", layer: null },
+  { key: "territory", label: "ACKS-FORMATION.travel.territoryLabel", layer: "territory" },
+]);
+
+/** The label each country key is chosen by in the Judge's hand. */
+const COUNTRY_KEY_LABELS = Object.freeze({
+  ground: "ACKS-FORMATION.travel.ground",
+  encounterTerrain: "ACKS-FORMATION.travel.enc.terrainLabel",
+  territory: "ACKS-FORMATION.travel.territoryLabel",
+  climate: "ACKS-FORMATION.travel.weather.climate",
+  road: "ACKS-FORMATION.travel.roadLabel",
+  following: "ACKS-FORMATION.travel.followingLabel",
+});
+
+/** A PIXI tint as the CSS colour a swatch is painted in. */
+const cssTint = (n) => (Number.isFinite(n) ? `#${n.toString(16).padStart(6, "0")}` : null);
+
+/** The words a country key's value is read in on the sheet; the unset dash where it has none. */
+function countryLabel(key, value) {
+  if (value == null || value === "") return game.i18n.localize("ACKS-FORMATION.travel.weather.unset");
+  if (key === "ground") return labelFor(value);
+  if (key === "encounterTerrain") {
+    return ENCOUNTER_TERRAINS[value] ? game.i18n.localize(ENCOUNTER_TERRAINS[value].label) : labelFor(value);
+  }
+  if (key === "climate" || key === "territory") return layerLabelFor(value, key);
+  return game.i18n.localize(`ACKS-FORMATION.travel.${key}.${value}`);
+}
+
+/**
+ * The colour a card's swatch is painted in: the brush's for a ground, a
+ * territory or a climate (a ground in the colour of the encounter terrain it
+ * stands for, where that one is on it), the overlay's for a road or a river,
+ * and none where the party is on neither.
+ */
+function countrySwatch(key, value, t) {
+  if (key === "ground") return colorFor(ENCOUNTER_TERRAINS[t.encounterTerrain]?.ground === value ? t.encounterTerrain : value);
+  if (key === "territory" || key === "climate") return value ? layerColorFor(value, key) : null;
+  if (key === "road") return value && value !== "none" ? cssTint(ROAD_TINT[value] ?? ROAD_TINT.earth) : null;
+  if (key === "following") return value === "river" ? cssTint(WATER_TINT.river) : null;
+  return null;
+}
+
+/**
+ * The chip a reading earns: "override" where the Judge's word stands over a
+ * different reading of the map, "declared" where a word — the Judge's, or an
+ * older record's — stands with no reading under it, and none where the map or
+ * the scene answered, or where the Judge's word says what the map says.
+ */
+function countryChip(provenance, value, mapValue) {
+  if (provenance === "override") {
+    if (mapValue == null) return "declared";
+    return mapValue !== value ? "override" : null;
+  }
+  return provenance === "declared" ? "declared" : null;
+}
+
+/**
+ * The value a paint chip arms its brush with: the card's own where that
+ * layer's brush lays it, a bare ground's own table (`encounterTerrainFor`),
+ * else the brush's last.
+ */
+function paintBrushFor(layer, key, t) {
+  const values = paintableValues(layer);
+  const held = key === "ground"
+    ? [t.encounterTerrain, t.ground, encounterTerrainFor(t.ground)]
+    : [key === "climate" ? t.weather.climate : t[key]];
+  return held.find((v) => v && values.includes(v)) ?? "";
+}
+
+/**
+ * The Country section's context. Each card — ground, road, following,
+ * territory, and the climate the Sky section reads — carries the value
+ * `travelOf` resolved, the source that answered it (`provenance`), what the
+ * map alone says under it (`mapValue`), the chip their difference earns and
+ * the action that retires the word behind the chip (`clearAction`).
+ * `paintable` offers a Judge the brush for the card's layer where the party's
+ * token stands in a hex the map has not painted on it. `encountersDrawOn` names
+ * the table the resolved country throws on.
+ */
+function buildCountryView(formation, t) {
+  const { provenance, mapValues } = countryOf(formation);
+  const scene = getPartyScene(formation);
+  const token = getPartyToken(formation);
+  const centre = game.user?.isGM && scene && token && isHexScene(scene) ? tokenCentre(token, scene) : null;
+  const card = ({ key, label, layer }) => {
+    const value = key === "climate" ? t.weather.climate : t[key];
+    const mapValue = mapValues[key] ?? null;
+    const paintable = !!layer && !!centre && layerValueAt(scene, centre, layer) == null;
+    return {
+      key,
+      label: game.i18n.localize(label),
+      value,
+      valueLabel: countryLabel(key, value),
+      swatch: countrySwatch(key, value, t),
+      provenance: provenance[key],
+      provenanceLabel: game.i18n.localize(`ACKS-FORMATION.country.provenance.${provenance[key]}`),
+      chip: countryChip(provenance[key], value, mapValue),
+      clearAction: provenance[key] === "override" ? "clearOverride" : provenance[key] === "declared" ? "clearDeclared" : null,
+      mapValue,
+      mapLabel: mapValue == null ? null : countryLabel(key, mapValue),
+      paintable,
+      paintLayer: layer,
+      paintBrush: paintable ? paintBrushFor(layer, key, t) : "",
+    };
+  };
+  const table = Object.hasOwn(ENCOUNTER_TERRAINS, t.encounterTerrain) ? t.encounterTerrain : encounterTerrainFor(t.ground);
+  return {
+    cards: COUNTRY_CARDS.map(card),
+    climate: card({ key: "climate", label: "ACKS-FORMATION.travel.weather.climate", layer: "climate" }),
+    encountersDrawOn: table ? game.i18n.localize(ENCOUNTER_TERRAINS[table].label) : null,
+  };
+}
+
+/** Every climate as `<optgroup>`s by group, `current` selected. */
+function climateOptionGroups(current) {
+  const groups = new Map();
+  for (const [code, cfg] of Object.entries(CLIMATES)) {
+    if (!groups.has(cfg.group)) {
+      groups.set(cfg.group, { label: game.i18n.localize(`ACKS-FORMATION.travel.weather.climateGroup.${cfg.group}`), options: [] });
+    }
+    groups.get(cfg.group).options.push({ value: code, label: countryLabel("climate", code), selected: code === current });
+  }
+  return [...groups.values()];
+}
+
+/**
+ * The Judge's hand: one select per country key, holding the Judge's word on
+ * it (`travel.override`) and blank where the Judge has said nothing, each
+ * with whether the map reads anything under it, and what. A word no longer
+ * among the options stays offered, so the select still shows it and a submit
+ * cannot clear it unasked.
+ */
+function countryOverrideRows(formation) {
+  const t = travelOf(formation);
+  const { provenance, mapValues } = countryOf(formation);
+  const vocab = {
+    ground: Object.keys(TERRAIN),
+    encounterTerrain: Object.keys(ENCOUNTER_TERRAINS),
+    territory: [...TERRITORY_KEYS],
+    climate: [],
+    road: [...ROAD_KINDS],
+    following: [...FOLLOWING_KINDS],
+  };
+  return COUNTRY_KEYS.map((key) => {
+    const set = provenance[key] === "override";
+    const current = set ? t.override[key] : "";
+    const offered = key === "climate" || vocab[key].includes(current) || !set ? vocab[key] : [...vocab[key], current];
+    const mapValue = mapValues[key] ?? null;
+    return {
+      key,
+      label: game.i18n.localize(COUNTRY_KEY_LABELS[key]),
+      name: `travel.override.${key}`,
+      options: offered.map((value) => ({ value, label: countryLabel(key, value), selected: value === current })),
+      groups: key === "climate" ? climateOptionGroups(current) : [],
+      set,
+      hasMap: mapValue != null,
+      mapLabel: mapValue == null ? null : countryLabel(key, mapValue),
+    };
+  });
+}
+
 /** A modifier with its sign written out, so a positive one does not read as a bare number. */
 const signedFigure = (n) => (n > 0 ? `+${n}` : `${n}`);
 
@@ -1266,11 +1414,12 @@ function effectValue({ key, value, condition }) {
 }
 
 /**
- * The weather block's context: the generator's pickers, the three band
- * selects (band keys are structural, so a Judge with nothing imported still
- * SETS the sky by hand), the derived condition chips, and the footing.
+ * The weather block's context: the climate as read (`climate`, the country
+ * view's reading of it), the generator's pickers, the three band selects
+ * (band keys are structural, so a Judge with nothing imported still SETS the
+ * sky by hand), the derived condition chips, and the footing.
  */
-function buildWeatherView(t, opt) {
+function buildWeatherView(t, opt, climate = null) {
   const w = t.weather;
   const season = effectiveSeason(t);
   const unset = game.i18n.localize("ACKS-FORMATION.travel.weather.unset");
@@ -1278,16 +1427,6 @@ function buildWeatherView(t, opt) {
     opt("", unset, !current),
     ...Object.entries(vocab).map(([value, cfg]) => opt(value, game.i18n.localize(cfg.label), value === current)),
   ];
-  const climateGroups = new Map();
-  for (const [code, cfg] of Object.entries(CLIMATES)) {
-    if (!climateGroups.has(cfg.group)) {
-      climateGroups.set(cfg.group, {
-        label: game.i18n.localize(`ACKS-FORMATION.travel.weather.climateGroup.${cfg.group}`),
-        options: [],
-      });
-    }
-    climateGroups.get(cfg.group).options.push(opt(code, `${code} — ${game.i18n.localize(cfg.label)}`, code === w.climate));
-  }
   // A <select> cannot draw a glyph per option, so the CURRENT choice's icon
   // sits beside its control. An unset band shows none rather than a stand-in.
   const glyph = (vocab, current) => (current ? vocab[current]?.icon ?? null : null);
@@ -1301,8 +1440,7 @@ function buildWeatherView(t, opt) {
     temperatureIcon: glyph(TEMPERATURE_BANDS, w.temperature),
     precipitationIcon: glyph(PRECIPITATION_KINDS, w.precipitation),
     windIcon: glyph(WIND_BANDS, w.wind),
-    climateUnset: !w.climate,
-    climateGroups: [...climateGroups.values()],
+    climate,
     seasons: SEASONS.map((s) => opt(s, game.i18n.localize(`ACKS-FORMATION.travel.weather.seasons.${s}`), s === season.season)),
     // When the calendar names the season the select only shows it: a pick the
     // calendar would override is not a pick.
@@ -1401,6 +1539,9 @@ export function buildGMExtras(formation) {
     name: t.name,
     active: t.id === formation.tableId,
   }));
+
+  // The Judge's word on a journey's country, over what the map reads.
+  if (travelOf(formation).mode === "journey") extras.countryOverrides = countryOverrideRows(formation);
 
   // Maps and mapping status live in the SHARED view (buildMapsView) so
   // players see the party's maps too; only the GM context carries the

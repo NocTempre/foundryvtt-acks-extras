@@ -5,7 +5,7 @@
  * answers it. See docs/formation/DECISIONS.md, "The day's end is raised by
  * movement and answered by the Judge".
  */
-import { travelOf, endDay, setDayKind, dayBudget, dayIsSpent } from "./travel.mjs";
+import { travelOf, storedTravelOf, endDay, setDayKind, dayBudget, dayIsSpent } from "./travel.mjs";
 import { travelReadout } from "./formation-view.mjs";
 import { journeyNight } from "./journey.mjs";
 import { getFormation, partySpeed, patchFormation } from "./formation-model.mjs";
@@ -52,7 +52,7 @@ const oneDecimal = (n) => Math.round((Number(n) || 0) * 10) / 10;
 /** Remember that the question has been put, so a drag does not put it again. */
 function markOffered(formationId) {
   return patchFormation(formationId, (record) => {
-    const t = travelOf(record);
+    const t = storedTravelOf(record);
     record.travel = { ...t, day: { ...t.day, offered: true } };
   });
 }

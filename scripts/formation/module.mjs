@@ -653,8 +653,23 @@ Hooks.once("init", () => {
      * `journeyCadence` (`entry` or `periods`) and its `dayThrows` /
      * `nightThrows`, which `spendJourneyMiles` now follows instead of the
      * terrain's cadence while the party stands in it.
+     *
+     * 17 reads the country off the map. `travel.travelOf` resolves `ground`,
+     * `encounterTerrain`, `territory`, `weather.climate`, `road` and
+     * `following` as the Judge's word (`travel.override`), then the map's
+     * cached reading (`travel.map`, valid on the party token's own scene),
+     * then the scene's default, then the declared keys, and adds
+     * `provenance` (key → `override`, `map`, `scene`, `declared` or
+     * `default`). `traceStep` takes `{map, sceneId}` and writes `travel.map`,
+     * never the declared keys; `spendJourneyMiles` takes `reading` on a
+     * gridless drag; `applyTravelForm` routes the six keys to
+     * `travel.override`, a blank clearing one. `travel` gains
+     * `storedTravelOf` (the record as stored, for a writer to spread),
+     * `countryOf`, `mapReadingAt`, `sameReading`, `tokenCentre`,
+     * `refreshCountryOn`, `countryRefresher`, `COUNTRY_DEFAULTS` and
+     * `countryValueValid`.
      */
-    apiVersion: 16,
+    apiVersion: 17,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,
@@ -1204,20 +1219,42 @@ Hooks.on("preCreateToken", (tokenDoc, data, options) => {
   if (patch) tokenDoc.delta?.updateSource(patch);
 });
 
+/* The country under a journeying party is the map's (`travel.map`), and the
+ * map changes under a party that has not moved: the Judge paints its hex,
+ * draws a river through it, or sets the scene's default country. The active
+ * GM re-reads it, once per burst of edits, and the sheets redraw only when a
+ * reading changed. */
+const requestCountryRefresh = travel.countryRefresher({
+  then: (changed) => {
+    if (changed.length) PartySheet.refreshAll();
+  },
+});
+for (const hook of ["createRegion", "updateRegion", "deleteRegion"]) {
+  Hooks.on(hook, (region) => requestCountryRefresh(region?.parent?.id));
+}
+for (const hook of ["createWall", "updateWall", "deleteWall"]) {
+  Hooks.on(hook, (wall) => requestCountryRefresh(wall?.parent?.id, { walls: true }));
+}
+Hooks.on("updateScene", (scene, changes) => {
+  if (foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.battlemap.country`)) requestCountryRefresh(scene.id);
+});
+
 /* Placing a party actor's token adopts it as THE party token (also how a
- * formation moves between scenes after its old token was removed). */
+ * formation moves between scenes after its old token was removed), and the
+ * country under it is read once it stands there. */
 Hooks.on("createToken", (tokenDoc) => {
   if (!isPrimaryGM() || tokenDoc.actor?.type !== PARTY_TYPE) return;
   // A lost party's true-position marker is a token of the party actor too,
   // and is never the party token.
   if (tokenDoc.getFlag(MODULE_ID, SHADOW_FLAG)) return;
+  const arrived = () => requestCountryRefresh(tokenDoc.parent?.id);
   // Module-created tokens carry the formation flag in their creation data and
   // ensurePartyToken records their linkage itself. Adopting them here too
   // would write back a STALE settings copy read mid-addMember — the write
   // race that erased freshly added members. Only manual placements (dragged
   // from the sidebar, no flag yet) need adoption.
   const owned = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
-  if (owned) return void adoptSceneSystem(owned, tokenDoc.parent);
+  if (owned) return void adoptSceneSystem(owned, tokenDoc.parent).then(arrived);
   const formation = Object.values(getFormations()).find((f) => f.actorId === tokenDoc.actor.id);
   if (!formation) return;
   const existing = getPartyToken(formation);
@@ -1234,6 +1271,7 @@ Hooks.on("createToken", (tokenDoc) => {
     await syncPartyActorSpeed(formation);
   })()
     .then(() => adoptSceneSystem(formation.id, tokenDoc.parent))
+    .then(arrived)
     .catch((err) => console.error(`${MODULE_ID} | party token adoption failed`, err));
 });
 
