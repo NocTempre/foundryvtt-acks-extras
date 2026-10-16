@@ -1,0 +1,85 @@
+{{!-- The frame above every tab: the art row (the saves rail, the plate, the
+      figures rail, the quick tools, the reading, the sheet tools), the Key
+      legend while it is open, and the warnings, which no tab may hide.
+      frame-view.mjs decides every cell; a player's rails carry no Judge cell. --}}
+<div class="acks-extras-party-sheet__frame">
+  {{#if formation}}
+  <div class="acks-extras-party-sheet__art-row">
+    {{#if frame.rails.saves.length}}
+    <div class="acks-extras-party-sheet__rail acks-extras-party-sheet__rail--saves">
+      {{#each frame.rails.saves}}{{> "modules/acks-extras/templates/formation/formation-cell.hbs"}}{{/each}}
+    </div>
+    {{/if}}
+    <div class="acks-extras-party-sheet__plate">
+      {{#if isGM}}
+      <button type="button" class="acks-extras-party-sheet__plate-edit" data-action="editPartyImage"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.editImageHint'}}" aria-label="{{localize 'ACKS-FORMATION.app.editImageHint'}}">
+        {{#if frame.plate.img}}<img src="{{frame.plate.img}}" alt="" inert>{{else}}<i class="fa-solid fa-people-group" inert></i>{{/if}}
+      </button>
+      {{else if frame.plate.img}}
+      <img src="{{frame.plate.img}}" alt="">
+      {{else}}
+      <i class="fa-solid fa-people-group" inert></i>
+      {{/if}}
+      {{#if frame.plate.hex}}<span class="acks-extras-party-sheet__plate-hex acks-nums">{{frame.plate.hex}}</span>{{/if}}
+    </div>
+    <div class="acks-extras-party-sheet__rail acks-extras-party-sheet__rail--figures">
+      {{#each frame.rails.figures}}{{> "modules/acks-extras/templates/formation/formation-cell.hbs"}}{{/each}}
+    </div>
+    {{#if frame.rails.tools.length}}
+    <div class="acks-extras-party-sheet__rail acks-extras-party-sheet__rail--tools">
+      {{#each frame.rails.tools}}{{> "modules/acks-extras/templates/formation/formation-cell.hbs"}}{{/each}}
+    </div>
+    {{/if}}
+    <div class="acks-extras-party-sheet__reading">
+      <div class="acks-extras-party-sheet__overline">{{frame.reading.overline}}</div>
+      {{#if frame.reading.chips.length}}
+      <div class="acks-extras-party-sheet__chips">
+        {{#each frame.reading.chips}}
+        <span class="acks-extras-party-sheet__chip{{#if cls}} {{cls}}{{/if}}"{{#if title}} data-tooltip="{{title}}"{{/if}}>{{#if icon}}<i class="{{icon}}" inert></i> {{/if}}{{label}}</span>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{#if description.editing}}
+      <prose-mirror class="acks-extras-party-sheet__editor" name="system.description" value="{{description.source}}" toggled
+                    data-document-uuid="{{document.uuid}}">{{{description.html}}}</prose-mirror>
+      {{else if description.html}}
+      <div class="acks-extras-party-sheet__prose acks-prose">{{{description.html}}}</div>
+      {{/if}}
+    </div>
+    <div class="acks-extras-party-sheet__rail acks-extras-party-sheet__rail--sheet">
+      {{#each frame.rails.sheet}}{{> "modules/acks-extras/templates/formation/formation-cell.hbs"}}{{/each}}
+    </div>
+  </div>
+
+  {{#if frame.key.open}}
+  <section class="acks-extras-party-sheet__key" aria-label="{{frame.key.title}}">
+    <header class="acks-extras-party-sheet__key-head">
+      <h2>{{frame.key.title}}</h2>
+      <p>{{frame.key.sub}}</p>
+    </header>
+    {{#each frame.key.groups}}
+    <div class="acks-extras-party-sheet__key-group" data-group-key="{{key}}">
+      <h3>{{title}}</h3>
+      <ul>
+        {{#each rows}}
+        <li><i class="{{icon}}" inert></i><b>{{short}}</b><span>{{label}}</span></li>
+        {{/each}}
+      </ul>
+    </div>
+    {{/each}}
+    <p class="acks-extras-party-sheet__key-foot">{{frame.key.foot}}</p>
+  </section>
+  {{/if}}
+
+  {{#if warnings.length}}
+  <section class="warnings acks-callout acks-callout--warning">
+    {{#each warnings}}
+    <p><i class="fa-solid fa-triangle-exclamation"></i> {{this}}</p>
+    {{/each}}
+  </section>
+  {{/if}}
+  {{else}}
+  <p class="hint empty-state">{{localize "ACKS-FORMATION.app.emptyState"}}</p>
+  {{/if}}
+</div>

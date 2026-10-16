@@ -790,13 +790,24 @@ Hooks.once("init", () => {
 
   /* --- Template preload (best-effort) --- */
   try {
-    foundry.applications.handlebars.loadTemplates([
-      `modules/${MODULE_ID}/templates/formation/formation-header.hbs`,
-      `modules/${MODULE_ID}/templates/formation/formation-tab-party.hbs`,
-      `modules/${MODULE_ID}/templates/formation/formation-tab-order.hbs`,
-      `modules/${MODULE_ID}/templates/formation/formation-tab-kit.hbs`,
-      `modules/${MODULE_ID}/templates/formation/skill-audit.hbs`,
-    ]);
+    foundry.applications.handlebars.loadTemplates(
+      [
+        "formation-band",
+        "formation-frame",
+        "formation-cell",
+        "formation-tabs",
+        "formation-tab-wilderness",
+        "formation-tab-dungeon",
+        "formation-tab-city",
+        "formation-strip",
+        "formation-player-actions",
+        "formation-tab-order",
+        "formation-tab-kit",
+        "formation-tab-sightings",
+        "formation-tab-judge",
+        "skill-audit",
+      ].map((name) => `modules/${MODULE_ID}/templates/formation/${name}.hbs`),
+    );
   } catch (err) {
     console.warn(`${MODULE_ID} | template preload skipped`, err);
   }

@@ -1,37 +1,57 @@
-<section class="tab acks-formation-tab {{tabs.order.cssClass}}" data-tab="order" data-group="primary">
+{{!-- The Order tab (Order, Train or Company by mode): the marching order's own
+      actions at its head, the Judge's alone, Disband last; then the ranks and
+      the train. --}}
+<div class="tab acks-extras-party-sheet__panel{{#if tabs.order.active}} active{{/if}}" data-group="primary" data-tab="order">
   {{#if formation}}
+  <header class="acks-extras-party-sheet__head">
+    <div class="acks-extras-party-sheet__head-lead">
+      <i class="{{frame.heads.order.icon}} acks-extras-party-sheet__head-glyph" inert></i>
+      <div>
+        <h2 class="acks-extras-party-sheet__head-title">{{frame.heads.order.title}}</h2>
+        <p class="acks-extras-party-sheet__head-sub">{{frame.heads.order.sub}}</p>
+      </div>
+    </div>
+    {{#if isGM}}
+    <div class="acks-extras-party-sheet__head-actions">
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="autoArrange"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.autoArrangeHint'}}">
+        <i class="fa-solid fa-arrow-down-wide-short" inert></i> {{localize "ACKS-FORMATION.app.autoArrange"}}
+      </button>
+      <label class="acks-extras-party-sheet__head-field-label" data-tooltip="{{localize 'ACKS-FORMATION.app.frontageHint'}}">
+        {{localize "ACKS-FORMATION.app.frontage"}}
+        <input type="number" class="acks-extras-party-sheet__head-field is-narrow" name="frontage" value="{{frontage}}" min="1" step="1"
+               {{#if frontageMax}}max="{{frontageMax}}"{{/if}}>
+      </label>
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="saveMarchingOrder"
+              data-tooltip="{{localize 'ACKS-FORMATION.marching.saveHint'}}">
+        <i class="fa-solid fa-floppy-disk" inert></i> {{localize "ACKS-FORMATION.marching.save"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="loadMarchingOrder"
+              data-tooltip="{{localize 'ACKS-FORMATION.marching.loadHint'}}">
+        <i class="fa-solid fa-people-line" inert></i> {{localize "ACKS-FORMATION.frame.pill.loadOrder"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="addBlank"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.addBlankHint'}}">
+        <i class="fa-solid fa-border-none" inert></i> {{localize "ACKS-FORMATION.frame.pill.addBlank"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="openTrapbreak"
+              data-tooltip="{{localize 'ACKS-FORMATION.traps.breakHint'}}">
+        <i class="fa-solid fa-screwdriver-wrench" inert></i> {{localize "ACKS-FORMATION.traps.breakTitle"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="openSkillAudit"
+              data-tooltip="{{localize 'ACKS-FORMATION.audit.openHint'}}">
+        <i class="fa-solid fa-list-check" inert></i> {{localize "ACKS-FORMATION.frame.pill.audit"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill danger" data-action="disband"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.disbandHint'}}">
+        <i class="fa-solid fa-people-arrows" inert></i> {{localize "ACKS-FORMATION.app.disband"}}
+      </button>
+    </div>
+    {{/if}}
+  </header>
+
   <section class="members">
-    <h3>
-      {{localize "ACKS-FORMATION.app.marchingOrder"}}
-      {{#if isGM}}
-      <span class="march-controls">
-        <label class="frontage-field" data-tooltip="{{localize 'ACKS-FORMATION.app.frontageHint'}}">
-          {{localize "ACKS-FORMATION.app.frontage"}}
-          <input type="number" name="frontage" value="{{frontage}}" min="1" step="1"
-                 {{#if frontageMax}}max="{{frontageMax}}"{{/if}}
-                 style="width: 4em; height: 22px;" />
-        </label>
-        <button type="button" data-action="autoArrange" data-tooltip="{{localize 'ACKS-FORMATION.app.autoArrangeHint'}}">
-          <i class="fa-solid fa-arrow-down-wide-short"></i> {{localize "ACKS-FORMATION.app.autoArrange"}}
-        </button>
-        <button type="button" data-action="saveMarchingOrder" data-tooltip="{{localize 'ACKS-FORMATION.marching.saveHint'}}">
-          <i class="fa-solid fa-floppy-disk"></i>
-        </button>
-        <button type="button" data-action="loadMarchingOrder" data-tooltip="{{localize 'ACKS-FORMATION.marching.loadHint'}}">
-          <i class="fa-solid fa-people-line"></i>
-        </button>
-        <button type="button" data-action="addBlank" data-tooltip="{{localize 'ACKS-FORMATION.app.addBlankHint'}}">
-          <i class="fa-solid fa-border-none"></i>
-        </button>
-        <button type="button" data-action="openTrapbreak" data-tooltip="{{localize 'ACKS-FORMATION.traps.breakHint'}}">
-          <i class="fa-solid fa-screwdriver-wrench"></i>
-        </button>
-        <button type="button" data-action="openSkillAudit" data-tooltip="{{localize 'ACKS-FORMATION.audit.openHint'}}">
-          <i class="fa-solid fa-list-check"></i>
-        </button>
-      </span>
-      {{/if}}
-    </h3>
+    <h3>{{localize "ACKS-FORMATION.app.marchingOrder"}}</h3>
     {{#if members.length}}
     <ol style="--frontage: {{frontage}}">
       {{#each members}}
@@ -138,4 +158,4 @@
   </section>
   {{/if}}
   {{/if}}
-</section>
+</div>

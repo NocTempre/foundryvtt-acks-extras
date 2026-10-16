@@ -1,0 +1,38 @@
+{{!-- The Sightings tab: the journey's log of days, on every seat. Off a journey
+      there is no log, and the tab says so. --}}
+<div class="tab acks-extras-party-sheet__panel{{#if tabs.sightings.active}} active{{/if}}" data-group="primary" data-tab="sightings">
+  {{#if formation}}
+  <header class="acks-extras-party-sheet__head">
+    <div class="acks-extras-party-sheet__head-lead">
+      <i class="{{frame.heads.sightings.icon}} acks-extras-party-sheet__head-glyph" inert></i>
+      <div>
+        <h2 class="acks-extras-party-sheet__head-title">{{frame.heads.sightings.title}}</h2>
+        <p class="acks-extras-party-sheet__head-sub">{{frame.heads.sightings.sub}}</p>
+      </div>
+    </div>
+  </header>
+
+  {{#if travel.isJourney}}
+  {{#if travel.log.length}}
+  <section class="acks-extras-party-sheet__section" data-section="log">
+    <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.log"}}</h2>
+    <ol class="acks-extras-formation-travel-log">
+      {{#each travel.log}}
+      <li>
+        <span class="acks-extras-formation-travel-logday">{{localize "ACKS-FORMATION.travel.dayN" n=day}}</span>
+        {{#if hex}}<span>{{hex}}</span>{{/if}}
+        <span>{{kindLabel}}</span>
+        {{#if miles}}<span>{{miles}} {{localize "ACKS-FORMATION.travel.milesShort"}}</span>{{/if}}
+        {{#if @root.isGM}}{{#if lost}}<i class="fa-solid fa-compass acks-extras-formation-travel-lost"></i>{{/if}}{{/if}}
+      </li>
+      {{/each}}
+    </ol>
+  </section>
+  {{else}}
+  <p class="hint">{{localize "ACKS-FORMATION.frame.sightings.empty"}}</p>
+  {{/if}}
+  {{else}}
+  <p class="hint">{{localize "ACKS-FORMATION.frame.sightings.offJourney"}}</p>
+  {{/if}}
+  {{/if}}
+</div>

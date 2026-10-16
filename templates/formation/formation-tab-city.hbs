@@ -1,0 +1,190 @@
+{{!-- The mode tab in a settlement (City): the city's own actions at its head —
+      the hop to a point of interest, the Hunted toggle, the turn clock — the
+      strip's tiles with the city block, The city section, and a member-owner's
+      requests. The Hunted pill IS the `travel.settlement.wanted` checkbox,
+      wrapped in its label; it is not drawn a second time below. --}}
+<div class="tab acks-extras-party-sheet__panel{{#if tabs.mode.active}} active{{/if}}" data-group="primary" data-tab="mode">
+  {{#if formation}}
+  <header class="acks-extras-party-sheet__head">
+    <div class="acks-extras-party-sheet__head-lead">
+      <i class="{{frame.heads.mode.icon}} acks-extras-party-sheet__head-glyph" inert></i>
+      <div>
+        <h2 class="acks-extras-party-sheet__head-title">{{frame.heads.mode.title}}</h2>
+        <p class="acks-extras-party-sheet__head-sub">{{frame.heads.mode.sub}}</p>
+      </div>
+    </div>
+    {{#if isGM}}
+    <div class="acks-extras-party-sheet__head-actions">
+      {{#if strip.settlement.poiTargets}}
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="settlementTravelTo"
+              data-tooltip="{{localize 'ACKS-FORMATION.settlement.poi.travelHint'}}">
+        <i class="fa-solid fa-person-walking-arrow-right" inert></i> {{localize "ACKS-FORMATION.frame.pill.hop"}}
+      </button>
+      {{/if}}
+      {{#if travel.settlement}}
+      <label class="acks-extras-party-sheet__head-pill acks-extras-party-sheet__head-toggle{{#if travel.settlement.wanted}} is-on{{/if}}"
+             data-tooltip="{{localize 'ACKS-FORMATION.settlement.wantedHint'}}">
+        <input type="checkbox" name="travel.settlement.wanted" {{#if travel.settlement.wanted}}checked{{/if}}>
+        <i class="fa-solid fa-crosshairs" inert></i> {{localize "ACKS-FORMATION.settlement.wantedLabel"}}
+      </label>
+      {{/if}}
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="advanceTurn"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.advanceTurnHint'}}">
+        <i class="fa-solid fa-hourglass-half" inert></i> {{localize "ACKS-FORMATION.app.advanceTurn"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="advanceRound"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.advanceRoundHint'}}">
+        <i class="fa-solid fa-hourglass-start" inert></i> {{localize "ACKS-FORMATION.app.advanceRound"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="restTurn"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.restTurnHint'}}">
+        <i class="fa-solid fa-campfire" inert></i> {{localize "ACKS-FORMATION.frame.pill.restTurn"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="undoTurn"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.undoTurnHint'}}">
+        <i class="fa-solid fa-rotate-left" inert></i> {{localize "ACKS-FORMATION.frame.pill.undo"}}
+      </button>
+    </div>
+    {{/if}}
+  </header>
+
+  {{> "modules/acks-extras/templates/formation/formation-strip.hbs"}}
+
+  {{#with travel.settlement as |city|}}
+  {{#if city.shown}}
+  <section class="acks-extras-party-sheet__section acks-extras-formation-settlement" data-section="city">
+    <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.city"}}</h2>
+    {{#if @root.isGM}}
+    <div class="acks-extras-formation-travel-pickers">
+      <label>{{localize "ACKS-FORMATION.settlement.paceLabel"}}
+        <select name="travel.settlement.pace">
+          {{#each city.paceOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label>{{localize "ACKS-FORMATION.settlement.whereLabel"}}
+        <select name="travel.settlement.where">
+          {{#each city.whereOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label>{{localize "ACKS-FORMATION.settlement.routeLabel"}}
+        <select name="travel.settlement.route">
+          {{#each city.routeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label class="acks-extras-formation-settlement-hour">{{localize "ACKS-FORMATION.settlement.hourLabel"}}
+        <select name="travel.settlement.hour">
+          {{#each city.hourOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label>
+        {{localize "ACKS-FORMATION.settlement.intentLabel"}}
+        <select name="travel.settlement.intent">
+          {{#each city.intentOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label>
+        {{localize "ACKS-FORMATION.settlement.conveyanceLabel"}}
+        <select name="travel.settlement.conveyance"
+                data-tooltip="{{localize 'ACKS-FORMATION.settlement.conveyanceHint'}}">
+          {{#each city.conveyanceOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+    </div>
+    {{#if city.huntedByName}}
+    <p class="hint acks-extras-formation-settlement-hunter">{{localize "ACKS-FORMATION.settlement.huntedBy" name=city.huntedByName}}</p>
+    {{/if}}
+    {{! A road DRAWN under the party overrides the Streets picker above, so the
+        panel says which street the turn will actually be resolved on. It sits
+        outside that label: a label lends its whole text to the control it
+        wraps, so a sentence placed inside one is read out as part of the
+        picker's own name. }}
+    {{#if city.whereFromRoad}}
+    <span class="hint acks-extras-formation-settlement-road">{{city.roadLine}}</span>
+    {{/if}}
+    {{! What the tracker is timing the party BY, so a turn that does not arrive
+        when the Judge expects it is explained where it happens. }}
+    <p class="hint acks-extras-formation-settlement-tracker">
+      {{#if city.stationary}}
+        {{localize "ACKS-FORMATION.settlement.trackHoledUp"}}
+      {{else if city.onMap}}{{#if city.timedByBlocks}}
+        {{localize "ACKS-FORMATION.settlement.trackBlocks" feet=city.blockFeet units=city.units turn=city.turnFeet}}
+      {{else}}
+        {{localize "ACKS-FORMATION.settlement.trackWalk" turn=city.turnFeet units=city.units}}
+      {{/if}}
+      {{else}}
+        {{localize "ACKS-FORMATION.settlement.trackNoMap"}}
+      {{/if}}
+      {{! And whether the last move was counted along the streets or across
+          them: a bend measured as its chord costs the party a turn it never
+          spent, so which happened is said where the turns are shown. }}
+      {{#unless city.stationary}}
+        {{#if city.measuredAlong}}
+          {{localize "ACKS-FORMATION.settlement.road.measuredAlong"}}
+        {{else if city.whereFromRoad}}
+          {{localize "ACKS-FORMATION.settlement.road.measuredStraight"}}
+        {{/if}}
+      {{/unless}}
+    </p>
+    <p class="acks-extras-formation-settlement-nav">
+      {{#if city.throws}}
+        {{#if city.navUnpriced}}
+          <span class="hint">{{localize "ACKS-FORMATION.settlement.navUnpriced"}}</span>
+        {{else}}
+          {{localize "ACKS-FORMATION.settlement.navThrow" target=city.navTarget modifier=city.navModifier}}
+          {{#if city.navRouteUnpriced}}
+            <span class="hint">{{localize "ACKS-FORMATION.settlement.navRouteUnpriced"}}</span>
+          {{/if}}
+          {{#if city.stray}}
+            <span class="hint">{{localize "ACKS-FORMATION.settlement.strayHint" dice=city.stray}}</span>
+          {{else}}
+            <span class="hint">{{localize "ACKS-FORMATION.settlement.strayUnpriced"}}</span>
+          {{/if}}
+        {{/if}}
+      {{else}}
+        <span class="hint">{{city.noThrowReason}}</span>
+      {{/if}}
+    </p>
+    {{/if}}
+    {{#if city.districtName}}
+    <p class="hint acks-extras-formation-settlement-district">
+      {{localize "ACKS-FORMATION.settlement.district.here" name=city.districtName}}
+      {{#if city.districtReactionLine}}
+        &middot; {{city.districtReactionLine}}
+      {{/if}}
+    </p>
+    {{/if}}
+    {{! Where the party is standing, as a PLACE: the token under it, and the
+        quarter's own place. Each opens; a button rather than a link, so it
+        is reachable from the keyboard and named to a reader. }}
+    {{#if city.placeHere}}
+    <p class="hint acks-extras-formation-settlement-place">
+      {{localize "ACKS-FORMATION.settlement.poi.here" name=city.placeHere.name}}
+      {{#if city.placeHere.canOpen}}
+      <button type="button" data-action="openPlace" data-uuid="{{city.placeHere.uuid}}"
+              data-tooltip="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"
+              aria-label="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"><i class="fa-solid fa-house"></i></button>
+      {{/if}}
+    </p>
+    {{/if}}
+    {{#if city.districtPlace}}
+    <p class="hint acks-extras-formation-settlement-place">
+      {{localize "ACKS-FORMATION.settlement.poi.districtPlace" name=city.districtPlace.name}}
+      {{#if city.districtPlace.canOpen}}
+      <button type="button" data-action="openPlace" data-uuid="{{city.districtPlace.uuid}}"
+              data-tooltip="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"
+              aria-label="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"><i class="fa-solid fa-city"></i></button>
+      {{/if}}
+    </p>
+    {{/if}}
+    {{! Which list the next incident is read from, in the order the turn walks
+        it, and any list named ahead of it that no longer exists. }}
+    {{#each city.listLines}}
+    <p class="hint acks-extras-formation-settlement-lists{{#if warn}} acks-extras-formation-settlement-lists-warn{{/if}}">{{text}}</p>
+    {{/each}}
+  </section>
+  {{/if}}
+  {{/with}}
+
+  {{> "modules/acks-extras/templates/formation/formation-player-actions.hbs"}}
+  {{/if}}
+</div>

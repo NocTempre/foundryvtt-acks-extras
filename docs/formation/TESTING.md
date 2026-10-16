@@ -277,7 +277,8 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     "survival", { nourishment: "underfed" })` (`hydration: "dehydrated"` and
     `exposure: "hypothermic"` are the other two ladders' barring rungs; a flag
     with no keys, or `nourishment: "hungry"`, is a plain rung). Set the party's
-    mode to journey and open the party sheet's **day** fold on the GM seat.
+    mode to journey and find the **Day** section of the party sheet's
+    Wilderness tab on the GM seat.
     - *Refusal.* With the one member underfed, pick **Forced march** in the day
       board's select.
       *Observable:* a confirm dialog names that member (and only them); press
@@ -305,8 +306,8 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
       *Observable:* a warning naming the member; `travel.day.kind` still
       `march`; the travel log's length unchanged (the day was not closed).
     - *A Player seat.* Join the Player seat on the formation's scene.
-      *Observable:* the day fold, its select and the override dialog are absent
-      (the groups are the Judge's alone).
+      *Observable:* the Day section, its select and the override dialog are
+      absent (the section is the Judge's alone).
     Teardown by the run's own ids: `api.sweepTracked()` removes the scene and
     the actors (the party actor dissolves its formation); track each chat card
     id as it lands. No world document outside that ledger is touched: the
@@ -332,9 +333,10 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 ## The journey (added with the travel mode)
 
-1. On the GM window, pick **Journey** in the strip's mode select.
-   *Observable:* the strip shows the journey cells and the declaration groups
-   sit under it; `travel.mode === "journey"` on the record and `clock.paused`
+1. On the GM window, pick **Journey** in the band's mode select.
+   *Observable:* the mode tab becomes Wilderness, its strip shows the journey
+   cells and the declaration sections sit under it; `travel.mode === "journey"`
+   on the record and `clock.paused`
    is NOT set — moving the party token ticks NO dungeon turns while journeying.
 2. Pick hills + earth road + raining, day kind Forced march. Run it twice:
    once with NO `travel` tables registered, once after registering invented
@@ -354,10 +356,11 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    the world-clock setting on, `game.time.worldTime` stands at the next dawn
    after each (`untilNextDawn`) — and with it off, it did not move.
 5. Mark **Lost** with a judge note, then join as the provisioned Player.
-   *Observable:* the player sees the strip, the camp's forecast and the log —
-   no pickers, no day board, no lost mark, no note. The GM sees the astray
-   line in the Lost group and the compass mark in the log rows.
-6. Pick **Delve** in the mode select mid-journey.
+   *Observable:* the player sees the strip, the camp's forecast and the log on
+   Sightings — no pickers, no day board, no lost mark, no note, no Judge tab.
+   The GM sees the astray line in The episode section of the Judge's tab and
+   the compass mark in the log rows.
+6. Pick **Delve** in the band's mode select mid-journey.
    *Observable:* the baseline re-anchors to the token — the first turn card
    falls one exploration move from where the mode changed — and re-entering
    journey mode finds the day board where it stood.
@@ -479,9 +482,10 @@ every throw hits, `tableUuid` the outer table. Levels are invented.
 2. **The zone's field.** Open the behavior's config.
    *Observable:* the **Dungeon level** field carries its label and hint. Set a
    level different from the inner table's.
-3. **The shift.** Press **Check** on the formation window's Party tab
-   (`data-action="encounterNow"`, the wandering-monster throw; the journey
-   panel's **Encounter throw** is the wilderness chain and never shifts).
+3. **The shift.** In the delve, press the party sheet's encounter tool on the
+   quick-tools rail (`data-action="encounterNow"`, the wandering-monster throw;
+   on a journey the same cell is `travelEncounterThrow`, the wilderness chain,
+   which never shifts).
    *Observable:* after the table's own card, one card flavored *Wandering
    monster, off its floor*, spoken as the INNER table, whose line names the
    inner level and the zone's; its `whisper` is the GM ids and nothing else.
@@ -525,10 +529,10 @@ Fixtures: the party actor with two characters enrolled, plus a disposable
 monster actor carrying a henchman record (`flags.acks-extras.record` with
 `terms.xpShare`) enrolled beside them.
 
-1. As the GM, open the party sheet on its **Party** tab.
-   *Observable:* a **Deal XP** button among the clock buttons
-   (`[data-action="dealXp"]`). It is gated on the GM seat alone — the tab's
-   root context carries no `canControl`, so a gate on it hides the button from
+1. As the GM, open the party sheet.
+   *Observable:* the experience cell among the quick tools
+   (`[data-action="dealXp"]`). It is gated on the GM seat alone — the sheet's
+   context carries no `canControl`, so a gate on it hides the cell from
    everyone.
 2. With the `ownXpDealing` setting on, open the system party sheet.
    *Observable:* its own Deal XP button is hidden and the moved-hint says where
@@ -564,7 +568,7 @@ monster actor carrying a henchman record (`flags.acks-extras.record` with
 ## An unlinked member's own hit points (added with the hit-point tool)
 
 Covers `memberOwnToken`, `memberHp`, the member-aware `isDown` / `isDead`,
-`party-roster.mjs`, and the Party tab's **Hit points** button. The tool itself
+`party-roster.mjs`, and the party sheet's **Hit points** figure. The tool itself
 is lib's recipe "The hit-point tool" (docs/lib/TESTING.md).
 
 **Fixtures (as GM, each id recorded with `api.create` or `api.track`):**
@@ -580,13 +584,15 @@ is lib's recipe "The hit-point tool" (docs/lib/TESTING.md).
   on, an unlinked monster token rolls its own when placed, and the world
   actor's 6 never reaches it.
 
-1. **The Party tab opens the tool on the party.** As GM, open the party sheet's
-   Party tab and press **Hit points** (`[data-action="adjustHp"]`).
+1. **The hit-point figure opens the tool on the party.** As GM, open the party
+   sheet and press the **Hit points** cell on the figures rail
+   (`[data-action="adjustHp"]`).
    **Observable:** rows HP Hero and HP Hireling, each noting the party's name.
 2. **A member inside the party token is written into the stash.** Damage `4`.
    **Observable:** in `getFormations()`, the hireling member's
    `tokenData.delta.system.hp.value` is 2. The HP Hireling world actor still
-   reads 6 of 6. The card's subtitle is the party's name.
+   reads 6 of 6. The card's subtitle is the party's name. The Hit points cell
+   reads "1 hurt", on the GM seat and on a player seat that has the sheet open.
 3. **Down by their own hit points.** Damage `2` more.
    **Observable:** the stash reads 0. On the Order tab, the hireling's row
    `li.member[data-actor-id=<HP Hireling id>]` has the `casualty` class and the
@@ -657,7 +663,8 @@ Read fog from the server instead: `FogExploration.database.get(cls, {query:
 {scene, user}})` works from the GM seat, and core loads each seat's NEWEST
 document by timestamp.
 
-1. Viewing A, press **They strayed…** on the journey panel and pick a face.
+1. Viewing A, press **They strayed…** in The episode section of the party
+   sheet's Judge tab and pick a face.
    *Observable:* `lost.phase` is `astray`, `lost.sceneId` is A's id,
    `lost.level` is A's viewed level, `lost.fogSnapshotComplete` is true, and
    the snapshot's entry for the player hashes equal to the player's server
@@ -677,8 +684,8 @@ document by timestamp.
    snapshot's bitmap, on the same `_id`, and the player's seat shows the
    believed hexes dark again. `phase` is `aware`, `believed` is null, the
    shadow REMAINS on A, and the dialog reaches the players without blocking
-   the Judge. The panel now shows **They find the landmark** and **They turn
-   back**, and no Discover button.
+   the Judge. The episode section now shows **They find the landmark** and
+   **They turn back**, and no Discover button.
 4. Still viewing B, press **They find the landmark**, leave "Move the party
    token onto its true position" ticked, and confirm.
    *Observable:* the party token on A now centres on where the shadow stood,
@@ -701,8 +708,8 @@ document by timestamp.
 7. Begin again, then disband the formation (or delete its party actor).
    *Observable:* zero `shadowFor` tokens remain on any scene.
 8. **Leftover.** With no episode open, place a shadow for the formation by hand
-   (`shadow.placeShadow(sceneA, f, offset)`) and re-render the panel.
-   *Observable:* the panel says a marker from an earlier episode is on the
+   (`shadow.placeShadow(sceneA, f, offset)`) and re-render the sheet.
+   *Observable:* The episode section says a marker from an earlier episode is on the
    map. **Remove the marker** deletes it and leaves the party token where it
    is. Placing it again and re-rendering the sheet (placing a token does not
    re-render it), **Move the party onto it** moves the party there, deletes
@@ -774,7 +781,7 @@ with one member, its token placed, `setJourneyMode(id, "journey")`.
    time advanced 86400.
 6. Reach the offer again and answer **Not yet**.
    *Observable:* the day continues, `hexesEntered` counts PAST the allowance,
-   and no further dialog appears. The panel's **End day** button still ends it
+   and no further dialog appears. The Wilderness tab's **End day** pill still ends it
    — click it and confirm it goes through the same closer (a log entry, the
    reset, and the clock).
 
@@ -1235,7 +1242,7 @@ places".
 
 27. **The panel names where the party stands.** Stand the party token one
     square from the point's token, inside the district that has a place.
-    *Observable:* the City group shows "At <point>." and "The quarter's own
+    *Observable:* The city section of the City tab shows "At <point>." and "The quarter's own
     place: <quarter>."; each line's button opens that sheet. Move the party off
     the point but not out of the district: the first line goes, the second
     stays. Unlink the quarter's place (location step 19): the second goes.
@@ -1587,9 +1594,9 @@ the report.
    `acksExtras.searchHourSpent` payload under `Hooks.once`, `worldTime` up
    one hour.
 10. Join as the provisioned Player.
-    *Observable:* the strip and the Camp group's forecast; no pickers, no day
-    board, no Lost group (the Sky group shows only when it has chips).
-11. Pick **Delve** in the mode select, then drag.
+    *Observable:* the strip and the Camp section's forecast; no pickers, no day
+    board, no Judge tab (the Sky section shows only when it has chips).
+11. Pick **Delve** in the band's mode select, then drag.
     *Observable:* billed from the new anchor — the first turn card falls
     after one exploration move from where the mode changed, not from the
     journey's last position.
@@ -1606,10 +1613,14 @@ Drive mechanics (walked 2026-10-09 through the capture driver). The day-end
 offer is a DialogV2: answer it from page context by clicking
 `dialog button[data-action="end"|"push"|"later"]`, and know that a drag after
 dusk raises it too, so an unanswered offer from an earlier step is the one
-the next click lands on. The strip's controls are on the rendered party
-sheet: `[data-action="travelEndDay"|"searchHour"|"togglePause"]`,
-`select[name="travel.mode"]` (dispatch `change`), and the search's
-`select[name="camp.present"]` / `camp.target`. A scene move is a token delete
+the next click lands on. The journey's controls are on the rendered party
+sheet: End day at the Wilderness tab's head (`[data-action="travelEndDay"]`),
+the search and the pause on the quick-tools rail
+(`[data-action="searchHour"|"togglePause"]`), the mode select in the band
+(`select[name="travel.mode"]`, dispatch `change`), and the search's
+`select[name="camp.present"]` / `camp.target` at the foot of Points of
+interest. Every tab part renders whether or not it is the active tab, so a
+query finds a control on an inactive tab. A scene move is a token delete
 on the old scene, then on the new one
 `scene.createEmbeddedDocuments("Token", [(await actor.getTokenDocument({x, y})).toObject()])`
 with the `_id` stripped: the createToken hook adopts a party-actor token that
@@ -1620,7 +1631,8 @@ for the new `tokenId` before dragging. A declaration is
 a mile (the grid measures from the token's corner) and crosses nothing. Two
 GM clients both run the automation: keep the browser pane off the Gamemaster
 seat while the driver holds it. The Player seat is a second `connect()` on
-another port; render the party sheet there and read `details[data-fold]`.
+another port; render the party sheet there and read the mode tab's
+`[data-section]` keys, and that no `[data-application-part="judge"]` exists.
 
 
 ## The hex stock (added with lairs per hex)
@@ -1635,8 +1647,8 @@ opened and closed in step 7. Teardown: `api.sweepTracked()`,
 `unregisterTable(..., {priority: 30})`, close the episode, restore
 `CONFIG.Dice.randomUniform` if it was rigged.
 
-1. Open This hex with no `lairsPerHex` registered and press **Stock this
-   hex**. *Observable:* the dialog marks the count required; submitting
+1. Open the Wilderness tab's Points of interest section with no `lairsPerHex`
+   registered and press **Stock this hex**. *Observable:* the dialog marks the count required; submitting
    without one warns and re-asks.
 2. Register the tables and stock the hex. *Observable:* the scene's flag
    holds one key for the hex, the block reads "up to N" with the row and
@@ -1651,7 +1663,7 @@ opened and closed in step 7. Teardown: `api.sweepTracked()`,
 6. Looking for a point, then Elsewhere. *Observable:* the first targets that
    point only; the second never finds.
 7. Open a lost episode, walk the shadow to a neighbouring hex. *Observable:*
-   This hex reads the true hex's label and the astray note; Make it a place
+   Points of interest reads the true hex's label and the astray note; Make it a place
    is refused.
 8. **Survey the hex** with a surveyor, rigged to a natural 1, then to a hit.
    *Observable:* a false count differing from the truth, told on the card
@@ -1664,8 +1676,8 @@ opened and closed in step 7. Teardown: `api.sweepTracked()`,
     the hex centre, visible; an unfound point's token is hidden.
 11. The hand-off card: register a terrain encounter table with a double and
     throw. *Observable:* the card indents the draw's lines.
-12. Join as the Player. *Observable:* no This hex block; the search selects
-    are absent; the camp's forecast shows.
+12. Join as the Player. *Observable:* no Points of interest section; the
+    search selects are absent; the camp's forecast shows.
 13. Break a record by hand (`scene.setFlag` a point without an id) and run
     the repair macro. *Observable:* the finding names the scene; the fix
     mints the id. Then **Clear** → the key is gone from the flag.
@@ -1689,7 +1701,7 @@ renders once per chat pane, so `button.acks-extras-hex-found` counts double;
 click by `data-point-id`. A lost episode needs the scene VIEWED
 (`scene.view()`, then wait for `canvas.scene.id`) before
 `beginEpisode(f, { day, anchor, trueOffset, judgeNote })` — no walking is
-needed, the offset is the true hex. This hex and Make it a place both read the
+needed, the offset is the true hex. Points of interest and Make it a place both read the
 TRUE hex while astray, so step 7 stocks it first: `writeStock(scene, "i:j",
 record)` a copy of the shadow hex's record with a fresh point; a point of the
 shadow hex is never found there and the refusal never fires. Step 11 is
@@ -1775,13 +1787,14 @@ registered at WORLD priority for the check and unregistered after.
    with a tracker seated, the per-hour tracking line, its figure scaled by the
    hours already searched today. Survey the hex and End day: the survey card
    and the navigation card each carry their own weather line.
-3. On the camp fold tick *Willing to steal* in civilized country.
+3. In the Wilderness tab's Camp section tick *Willing to steal* in civilized
+   country.
    *Observable:* the forage targets on the panel lose their territory part.
    Tick *Water at hand*. *Observable:* Work the country takes water with no
    throw, and the panel's water hint says it is at hand. Work the country
    twice. *Observable:* the second run says the hours are spent; the hunt and
    forage slots are `done` and the clock ran by their hours.
-4. Declare a count of traps on the day fold and End day with an imported
+4. Declare a count of traps in the Day section and End day with an imported
    `managingTraps` cell. *Observable:* one managing-traps encounter card per
    batch, `travel.trapsCarry` holding the remainder; the next End day with no
    traps declared spends the carry.
@@ -1966,7 +1979,7 @@ never set it back.
    not moved, and the same sky, footing and cache.
 6. The season: set the *Calendar seasons* setting to a map for your calendar,
    or move the clock across a season boundary (`game.time.advance`). *Observable:*
-   the weather section's season select reads the calendar's season, is
+   the Sky section's season select reads the calendar's season, is
    disabled, and the hint names the calendar's season; the next cache key
    carries that season. Blank the setting on a calendar whose seasons carry
    no recognised name and no count of four. *Observable:* the select is live
@@ -1981,7 +1994,8 @@ never set it back.
 Drive mechanics: the watcher runs on the active GM's client and acts only on
 a forward step, so advance from that seat. A formation that was not stamped
 before the step is stamped by it and pays nothing, so step 1 comes first. The
-season select is read from the weather section of the declarations fold. For
+season select is `select[name="travel.weather.season"]` in the Sky section of
+the Wilderness tab. For
 step 8, set a clear sky by hand first: under a snowy or foggy one the imported
 `conditionEffects` ceiling pulls the start in, and the card's opening line
 reads the ceiling rather than the thrown distance. Whether a whispered card
@@ -1994,6 +2008,141 @@ Teardown: `api.sweepTracked()` over the ledger: the party actors (their
 formations go with them) and every tracked message. Unregister the invented
 `weather` document. The cache keys the run created age out of the window on
 their own; the world clock is not set back.
+
+## The frame (added with the redesign's phase 1)
+
+Fixtures (each recorded with `api.create`, or `api.track` for what a gesture
+makes): a mile-scale hex scene created with `active: false` and viewed; a
+disposable `acks-extras.party` actor with its token placed there and adopted;
+two disposable character actors enrolled through the token HUD, one owned by
+the provisioned Player user so that seat holds a member; a disposable
+RollTable for Tweaks to pick. Read each seat's
+`flags["acks-extras"].partyPanel` before the walk.
+
+1. **The band is the header.** Open the party sheet on the GM seat.
+   *Observable:* `[data-application-part="band"]` matches one element, inside
+   `:scope > .window-header` and before the header's controls. A drag that
+   starts on the bar (`.acks-extras-party-sheet__bar`, no `data-action`) moves
+   the window: `sheet.position.left` changes. The crest opens the Order tab.
+   A new name typed in the band's field lands in the formation record's `name`
+   and in the party actor's.
+2. **One set of rails.** For each mode
+   (`acksExtras.formation.travel.setJourneyMode(id, mode)`: `delve`,
+   `journey`, `settlement`) and on each tab (press each pill), list the rails:
+   `[...el.querySelectorAll(".acks-extras-party-sheet__rail")].map((r) => [...r.children].map((c) => c.dataset.action ?? "reading"))`.
+   *Observable:* on the GM seat four rails of 6, 5, 5 and 5 cells in every
+   mode and on every tab, the same list on every tab of one mode. Across the
+   modes three presses change and nothing else: the pace figure (`goTab` on a
+   journey, `togglePace` in the delve and the city), the encounter tool
+   (`travelEncounterThrow` on a journey, `encounterNow` elsewhere) and the
+   search tool (`searchHour` on a journey, `partyCheck` with
+   `data-check="searchMethodical"` elsewhere). The readings change with the
+   mode: pace in feet, or in blocks in a city; light as the hours to dusk or
+   dawn, the turns left of the lit lights, or the hour.
+   Then press each cell once on a journey. *Observable:* a save posts its
+   card, and with Magical turned off the next card says so; hit points opens
+   the hit-point tool; supplies rations; mouths, pace and light open Order,
+   Wilderness and Kit; party checks lists the party's checks and rolls the
+   one pressed; pause flips `clock.pausedBy`; experience opens the XP dialog;
+   the description tool opens an editor in the reading column and what is
+   saved lands in the actor's `system.description`; the image tool opens the
+   picker; ownership opens core's ownership window; Tweaks lists the world's
+   tables and the pick lands in the record's `tableId`; the Key opens the
+   legend under the art row, every rail glyph named.
+3. **Every fold's control has one home.** On a journey, on the GM seat, find
+   each control and read its part
+   (`closest("[data-application-part]").dataset.applicationPart`) and section
+   (`closest("[data-section]")?.dataset.section`):
+
+   | Where | Controls (`data-action` or `name`) |
+   |---|---|
+   | band | `travel.mode`, `name` |
+   | Wilderness head | `travel.hexLabel`, `travelEnterHex`, `forageDay`, `travelEndDay` |
+   | Country | `travel.ground` and `travel.road` (each while the map does not paint it), `travel.following`, `travel.territory`, `travel.encounterTerrain` |
+   | Points of interest | `hexStock`; once stocked `hexAddPoint`, `hexClear` and, while the hex can be surveyed, `hexSurvey`; per point `hexFound`, `hexPlace` (or `openPlace` once placed) and `hexRemovePoint`; `camp.present`, `camp.target` |
+   | Movement | `travel.movement.mode`; while flying `travel.movement.hoursAloft`, `travel.movement.dayHours`, `travel.movement.load` |
+   | Sky | `travel.weather.climate`, `.season`, `.auto`, `.fronts`, `.temperature`, `.precipitation`, `.wind`, `.footingMud`, `.footingSnow`; `travelWeatherRoll` |
+   | Day | `travel.day.kind`, `travel.day.slot.<n>` (one per slot), `travel.hour`, `travel.day.traps`, `travel.day.noSleep` |
+   | Camp | `travel.exposure.hours`, `.atHeatSource`, `.wet`; `travel.camp.steal`, `.water`, `.sleepInArmour` |
+   | Judge tab, The episode | `lostBegin` (by state `lostDiscover`, `lostReanchor`, `lostEnd`), `travel.lostNote` |
+   | Order head | `autoArrange`, `frontage`, `saveMarchingOrder`, `loadMarchingOrder`, `addBlank`, `openTrapbreak`, `openSkillAudit`, `disband` |
+
+   In the delve, the Dungeon head holds `advanceTurn`, `advanceRound`,
+   `restTurn`, `undoTurn` and `togglePace`. On a district scene, the City
+   head holds `travel.settlement.wanted` (and `settlementTravelTo` while a
+   point of interest is in reach) and the four turn pills, and The city holds
+   `travel.settlement.pace`, `.where`, `.route`, `.hour`, `.intent` and
+   `.conveyance`.
+   *Observable:* each is found exactly once (a point's own controls once per
+   point), where the table says. Change one field per section and re-read the
+   record: `travel.territory`, `camp.present`, `travel.movement.mode`,
+   `travel.weather.temperature`, `travel.hour`, `travel.camp.steal`,
+   `travel.lost.judgeNote` and, in a district, `travel.settlement.wanted` each
+   take the new value. The Camp section renders after Day, its forecast first;
+   End day pressed once adds one row to `travel.log`, and Sightings lists it.
+4. **The Judge's tab is the Judge's.** Join the provisioned Player seat and
+   open the party sheet.
+   *Observable:* no `[data-application-part="judge"]` and no
+   `[data-tab="judge"]` anywhere in the window; no saves rail and no quick
+   tools; the sheet tools are the Key alone; the hit-point and supplies cells
+   are readings (`span.is-reading`, no `data-action`) while mouths and light
+   still open their tabs; the band's mode word and name are text; the mode tab
+   ends with the requests section (`section.player-actions`, there because
+   the seat owns a member). On the GM seat the Judge pill is dashed and its
+   part is present.
+5. **The chevron.** On the GM seat press `[data-action="togglePanel"]`.
+   *Observable:* the window carries `is-panel-hidden`, no tab panel is
+   displayed, `sheet.element.offsetHeight` drops, and the seat's
+   `partyPanel[<actor id>]` reads `true`. After `sheet.render()` the panel is
+   still hidden; close the sheet and reopen it: still hidden. The Player
+   seat's sheet keeps its panel. Press a pill: the panel shows that tab and
+   the flag reads `false`.
+6. **Two type sizes.** Close the sheet, set `fontScale` to 14, and open it
+   FRESH (`party._sheet = null`, then render: an open window keeps its old
+   sizes). Read the window's width, one rail cell's
+   `getBoundingClientRect().height`, the bar's height and `--acks-extras-k`.
+   Repeat at 18.
+   *Observable:* the width is `920 × base/14` (920, then 1183 unless the
+   viewport is narrower), the cell `32 × base/14` (32, then 41.1), the bar
+   `26 × base/14` (26, then 33.4), k 1 and 1.2857. At 18 the band sits inside
+   its header (its bottom above the header's), every tab scrolls at its own
+   part root and no other element gains an overflow it lacked at 14, and a
+   tab keeps its scroll across a field change (shorten the window first,
+   `sheet.setPosition({height: 520})`: at a tall viewport the frame grows to
+   fit its content and no part scrolls; then scroll the Wilderness tab down,
+   change a select, read `scrollTop` again). In that short window the window
+   content's `clientHeight` stays under the frame's and only the part's
+   `scrollHeight` exceeds its box: content taller than the frame is cut off
+   with no scrollbar to say so. The re-render re-fits the height to auto
+   (core does that to every auto-height window on every render), so the
+   scroll is kept only while the part still overflows at the re-fitted
+   height; close the Key legend first, or its rows crowd the part to a few
+   pixels and the content's backstop scroll takes over. Narrow the window toward
+   its 640px floor: every control still reachable, nothing cut off without a
+   scrollbar.
+7. **Keyboard and names.** From the crest, press Tab through the window.
+   *Observable:* focus reaches every control of the band, the rails, the tab
+   row, the active tab's head and its sections, in reading order; the Hunted
+   here pill shows a focus ring while its checkbox has focus; the reading
+   cells are passed over. Every control of the frame is named by its text, an
+   `aria-label` or a tooltip. Known exceptions, unchanged from before the
+   frame (ROADMAP): the Order tab's member arrows and blank-row remove, the
+   Kit tab's light and spell pickers and removes, and the requests section's
+   pickers.
+
+Teardown: `api.sweepTracked()` (the scene, the party actor and with it the
+formation, the members, the table, every tracked card); remove the fixture
+actor's key from each seat's `partyPanel` flag and read the flag back; set
+`fontScale` back to 14 on every seat that changed it, since a client setting
+follows you into the next session.
+
+Drive mechanics: every tab part renders whether its tab is active or not, so a
+selector finds a control on an inactive tab; when the check is about what is
+SHOWN, read `offsetParent` (null while hidden). The band is moved after each
+render, so read it once `await sheet.render()` resolves. For the decision
+rather than the DOM, `(await sheet._prepareContext({})).frame` holds the
+rails, the heads and the band as the templates render them; finish each step
+with a real press.
 
 ## Teardown
 

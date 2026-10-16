@@ -129,8 +129,8 @@ Still unbuilt, in likely order:
 6. ~~Formation templates (save/load marching orders); token HUD "form up"
    button~~ — SHIPPED as **saved marching orders** (`marching-templates.mjs`,
    world setting `marchingTemplates`), the word *template* being already spoken
-   for by the Monster Manual generator. Save/load live on the party sheet's
-   march controls; the party token's HUD forms the party up, gathering anyone on
+   for by the Monster Manual generator. Save/load live at the head of the party
+   sheet's Order tab; the party token's HUD forms the party up, gathering anyone on
    the map back inside the token. See [MODEL.md](MODEL.md) for how a saved order
    reconciles against a party that has changed since.
    ~~**Open on this row: the API's grip.**~~ CLOSED 4.9.0. The applying calls
@@ -212,21 +212,21 @@ dawn.
 | ~~**Navigating the Wild**~~ | **BUILT** — the throw is rolled and whispered on End day, reads the imported target, applies the marching order's competence, and is skipped on a road, a river or a known route. |
 | ~~Pathfinding / Navigation bonus~~ | **BUILT** — `navigationCompetence` scans the marching order for either competence, holding both is worth more, and the two figures arrive with the travel import's `navigationBonus` row. |
 | ~~Straying direction~~ | **BUILT** — the Judge names the hex face or rolls for it; the grid's own neighbour order IS the face order. |
-| ~~Lost consequence~~ | **BUILT** — the full episode: shadow token, faked reveal, discovery, and re-anchor. UI-complete in the Lost group under the strip. |
-| ~~**Searching the Wild**~~ | **BUILT** — the specs (22 checks) and `search-run.mjs`, rolled from the strip's Search an hour button, paying its encounter throw through the journey's own chain. |
+| ~~Lost consequence~~ | **BUILT** — the full episode: shadow token, faked reveal, discovery, and re-anchor. UI-complete in The episode section of the Judge's tab. |
+| ~~**Searching the Wild**~~ | **BUILT** — the specs (22 checks) and `search-run.mjs`, rolled from the Search an hour tool, paying its encounter throw through the journey's own chain. |
 | ~~**Lairs per hex**~~ | **BUILT** — `hex-stock.mjs` performs the imported procedure from the Stock this hex dialog onto the scene, keyed by the cell and read at the party's TRUE hex while astray; a search reads the stock, a find is marked for this formation (several candidates are listed on the card for the Judge to mark one) and can be made a place (DECISIONS 2026-10-09, *A hex's stock lives on its map*, *Stocking runs the book's procedure*, *A search reads the stock*). |
-| ~~Searching for specific points of interest~~ | **BUILT** — the strip's Looking for select targets one unfound point, with the penalty, or Elsewhere, a search for what is not there. |
+| ~~Searching for specific points of interest~~ | **BUILT** — the Looking for select at the foot of Points of interest targets one unfound point, with the penalty, or Elsewhere, a search for what is not there. |
 | ~~Aerial reconnaissance~~ | **BUILT** — read from the movement mode: more throws over open ground, a worse target under canopy, never both. |
 | ~~Land surveying~~ | **BUILT** — `surveyHex`, from the Survey the hex button and by itself after a search hour while this formation has no assessment: right, confidently wrong on a natural 1, or nothing yet; Tell the party posts one public line of one shape. |
 | Splitting up | **built** | Sub-parties throw and draw encounters separately; mutually supporting groups are not split. |
 | ~~**Flight speed**~~ | **BUILT** — `flight.mjs` composes into the march readout through the movement-mode layer: a *Moving by* picker, hours aloft out of a stated day, and the load band. A flier meets the terrain below it, refuses roads, and its wind rule supersedes the ground's rather than stacking. |
 | ~~**Starvation**~~ | **BUILT** — `runProvisionDay` walks every member's ladder at End day and writes it to the body, not the marching order. |
 | ~~**Dehydration**~~ | **BUILT** — as above, and its toll is ROLLED: the caller throws the registry's die per body, and the heat multiplies it. |
-| ~~Hunting and foraging~~ | **BUILT** — the specs (11 checks) and `forage-run.mjs`, which rolls them from the strip's Work the country button and deposits into the foragers' packs. Live-verified the pool then sees it. |
+| ~~Hunting and foraging~~ | **BUILT** — the specs (11 checks) and `forage-run.mjs`, which rolls them from the Wilderness tab's Work the country pill and deposits into the foragers' packs. Live-verified the pool then sees it. |
 | ~~Survival, simplified~~ | **BUILT** — `simplifiedSupply` recommends what to carry; watered country waives the water entirely. |
 | ~~Animal daily food and water~~ | **BUILT** — `animalNeeds` reads each creature's own figures; unstated is null, never zero. |
 | ~~Temperature effects~~ | **BUILT** — hypothermia as an hourly condition, and the heat as modifiers: more water needed, a worse drain, an armour save. Live-felt in the pool. |
-| Hex-click tool and a Region overlay for the stock | not built | The party tab's group is the surface, and a Region per hex was rejected (DECISIONS 2026-10-09, *A hex's stock lives on its map*). |
+| Hex-click tool and a Region overlay for the stock | not built | The Wilderness tab's Points of interest section is the surface, and a Region per hex was rejected (DECISIONS 2026-10-09, *A hex's stock lives on its map*). |
 | Climate by terrain | not built | The monster sub-tables stay a terrain pick (DECISIONS 2026-10-09, *Climate does not pick the monster sub-table*). |
 | `lost.mjs` `hexKey` duplicates `battlemap/terrain-paint.mjs` `hexKeyOf` | defect | One key, one owner. |
 | ~~Weather penalties on Searching, Land Surveying, Navigation, Tracking, listening and missile attacks; the visibility floor and the halving; the firewood and water foraging penalties; the dust rule in barrens and desert~~ | **BUILT** — the importer reads each condition's entry into the weather document's `conditionEffects` table and `weather-effects.mjs` merges the day's conditions; the search, survey and navigation throws, the forage targets, the encounter card's visibility and chips, and the flier's storm all read it, and the list under the sky's chips shows what the day states (DECISIONS 2026-10-09, *The insert pages' rules ship with the major*). |
@@ -244,7 +244,7 @@ dawn.
 | Who saw whom after dark | not built | The encounter card's sight lines read the daylight figure at every hour (`postEncounterCard`), because the three night lights need a moon that nothing in the world declares. A party met at night is told it saw, or was seen, by daylight. A lunar source, or a Judge's per-encounter light pick, is the missing input. |
 | ~~When within the period an encounter falls~~ | **BUILT** — the card says the mile of the hex, the turn of the hour, the hour after dawn or dusk and the night of the period, by dice sized from the calendar and the imported cadence, and a terrain encounter on a scene is left on the Judge's map as a persistent marker. |
 | A hazard's trap equivalent | printed, not placed | The card prints the row's `trap` beside the hazard; placing the equivalent trap on a battlemap is the Judge's (DECISIONS 2026-10-09, *The insert pages' rules ship with the major*). |
-| ~~Managing traps as an activity~~ | **BUILT** — declared as a count on the day fold; End day owes one throw per imported batch and carries the remainder to the next day. |
+| ~~Managing traps as an activity~~ | **BUILT** — declared as a count in the Day section; End day owes one throw per imported batch and carries the remainder to the next day. |
 | ~~Foraging where the crop is somebody's~~ | **BUILT** — the camp's *Willing to steal* declaration drops the settled-country part. |
 | ~~Water found standing~~ | **BUILT** — `standingWaterOf`: the camp's *Water at hand* declaration, a followed river, or a river pick for the encounter terrain. |
 | Visibility of terrain and of a fire | partial | `visibilityMax` scales the imported light figure by the formation-size ladder; the insert's two rows that are not formations have no consumer, and raising the distance by elevation is the Judge's (*Wilderness Expeditions I*). |
@@ -510,3 +510,19 @@ against its line below.
 - **The street encounter list has no recipe.** `settlementEncounter` reads
   `cityTravel.encounters100` when no RollTable is handed in. A Judge can author
   it through the Ruledata Browser's absent row; no import writes it.
+
+## The party sheet: what the frame leaves
+
+The frame shipped first (MODEL, "The frame"). The redesign's later phases are
+`wip/20261014-party-sheet-redesign.md` §7 until each one lands.
+
+| Not built | What it is | What it needs first |
+|---|---|---|
+| The Camp tab | the Camp tab, gold, while camp time is on; needs the camp-time state | the camp-time state (the redesign's phase 4). Until then camp is a section of the Wilderness tab and End day stays at that tab's head. |
+| The city's stay bar | The City band's bar reads the turns since the last rest, as the Dungeon's does; the redesign's city bar fills with the days credited to a stay. | a figure for the bar to fill against: the board credits days (`creditHoledUpDays`) but keeps no stay's length. |
+| The light cell's press | The light figure opens the Kit tab in every mode; the design canvas names the clock as that cell's press. | a ruling between the two, and a clock control for the press to reach. |
+| Tweaks' other contents | Tweaks holds the encounter table alone. | what else a party's tweak could hold. |
+| The day-declared chip | The canvas draws a gold chip while the day is declared. | a stored state: `travel.day.declared` is a submit marker and is never kept. |
+| A name for every older control | The frame names every control it adds, but the bodies it carried over keep controls a screen reader announces only by their kind: the Order tab's member arrows and blank-row remove, the Kit tab's light and spell pickers and their removes, and the requests section's pickers. | an accessible name each (a label, or an `aria-label` from the lang file). |
+| A window height the user set | The sheet opens at its content's height (`height: "auto"`, the character sheet's opening), and core re-fits an auto-height window to its content on every render and tab change, so a window the Judge shortened springs back at the next field change. The old sheet opened at a fixed height and kept a resize. | a ruling: a numeric opening height at the type scale, re-fit only when the panel folds, or a height remembered per user beside the panel flag. |
+| The redesign's later phases | the brush layers, the drawn hex on the plate, the Country cards and the Country override, the `travel.map`, `travel.override` and `travel.shown` records, the believed hex, quiet navigation and measure on the Judge's tab (phase 2); the conveyance tiles and Fastest for all (phase 3); the day's boxes and their confirm, camp time's night rows, Make camp and Break camp (phase 4); the train's groups (phase 5); the sightings feed, its flags, reveal and count badges (phase 6); combat and night as gold states, and the Dungeon tab's own lights and spells sections (unscheduled). | each phase's own build. |

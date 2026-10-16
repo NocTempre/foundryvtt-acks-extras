@@ -35,8 +35,9 @@ All paths are under `scripts/formation/` unless noted.
 | `judge-override.mjs` | What a GM giving a character something means: supply the gear, empty the hands. |
 | `formation-model.mjs` | Formation records: storage (world setting `acks-extras.formations`), membership, party actor/token lifecycle, marching order, derived speeds. |
 | `turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
-| `formation-view.mjs`, `formation-actions.mjs` | The formation window (GM controls, player read-only) and its action handlers. |
-| `party-actor.mjs` | The `acks-extras.party` Actor sub-type and its sheet: the same formation body as the window, the GM's member drop, and the refusal of a dropped item. |
+| `formation-view.mjs`, `formation-actions.mjs` | The party sheet's context (the strip, the travel and city sections, the members; the Judge's extras) and its action handlers (`SHARED_ACTIONS`). |
+| `frame-view.mjs` | The party sheet's frame, decided offline: the parts and tabs a seat gets, the band's bar, every rail cell with its reading and its press, the reading column, the Key, each tab's head (§The frame). |
+| `party-actor.mjs` | The `acks-extras.party` Actor sub-type (its one field, `description`) and its sheet: the parts, the band moved into the window header, the tab row and its chevron, the GM's member drop, and the refusal of a dropped item. |
 | `zones.mjs` | Point-in-region geometry shared by every zone behavior: core `testPoint` when available, manual shape math as a headless fallback, `findZone(formation, type)` testing the party token's CENTRE, `zonesAt` for every zone over a point, `regionArea`, `truePartyPoint` (the centre of `truePositionToken`), and `streetUnder(formation, board)` — the one reader of what the party is standing on. |
 | `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID, the delve's cadence overrides, the zone's dungeon level, and the journey's cadence and End Day counts), `findEncounterZone` for the delve and `journeyZones` for the journey. |
 | `zone-layers.mjs` | Pure: `polygonArea` and `composeZones`, overlapping zones composed field by field, smallest first. |
@@ -96,6 +97,112 @@ Per turn, in order (mirrors JJ sequence of play step 5):
    After the draw, the zone's `dungeonLevel` (read from the behavior's `system`) is compared with the monster level of each table that produced a result (`shiftSources`). A result's `parent` is its producing table, which is the inner one when the drawn table's results are other tables; that table's `monsterLevel` counts, else the drawn table's. Each producing table whose level resolves and differs posts one Judge-only card (`announceShift`), named for that table. A draw from the formation's own table has no zone, so no dungeon level, and never shifts; the city tick draws on its own path and never shifts either.
 5. Day boundary (144 turns) → ration reminder.
 6. Persist + chat summary card (public or GM-only per setting).
+
+## The frame
+
+The party sheet ([party-actor.mjs](../../scripts/formation/party-actor.mjs))
+takes the character sheet's shape ([its model](../character-sheet/MODEL.md),
+"The frame"): a band in the window header, one art row of rails around a
+plate, and pill tabs under it, each tab carrying its own actions at its head.
+[frame-view.mjs](../../scripts/formation/frame-view.mjs) decides every part,
+cell, tab and head offline over `buildFormationView`'s result
+(`tools/test-party-frame.mjs`); the sheet binds the decisions to Foundry.
+
+**Parts.** `band`, `frame` and `tabs`, then one part per tab: `mode`, `order`,
+`kit`, `sightings`, and `judge` on a GM seat only (`framePartIds`). A player's
+list never names `judge`, so nothing on the Judge's tab reaches a player's DOM.
+With no formation the sheet is the band and the empty-state frame; core never
+removes a part that left the list, so `_onRender` removes any the render did
+not configure. The `mode` part's template follows the travel mode
+(`MODE_TEMPLATES`). Every part renders inside the one form, so a field on an
+inactive or hidden tab still submits.
+
+**The band** is moved into the window header after each render, as the
+character sheet's is. The crest (the party image, else a group glyph) opens
+the Order tab. Beside it the mode word is the Judge's mode select and a
+player's plain text; the name is the Judge's field and a player's text. The
+bar is a reading with no action, so a press on it drags the window
+(`bandBar`): on a journey it fills with the hours walked of the day's budget
+and reads the day being walked (`dayCount + 1`, the number its log row will
+carry), gold once the day is spent; in the delve and the city it fills with
+the turns since the last rest of the imported rest interval, red while the
+party is winded, and stays empty where no interval is imported.
+
+**The rails** are one set in every mode, the same cells in the same order
+pressing the same way: a mode changes what a figure reads, never which cells
+there are, and a seat changes which presses there are.
+
+| Rail | Seat | Cells |
+|---|---|---|
+| Saves | GM | the five party saves (`partySave`), each its glyph and short label, then the Magical toggle (`toggleMagical`) that `partySave` reads: on until turned off, kept on the open sheet |
+| Figures | every seat | hit points, supplies, mouths, pace, light |
+| Quick tools | GM | the encounter throw, party checks, a search, pause, experience |
+| Sheet tools | GM; the Key on every seat | the description, the image, ownership, Tweaks; the Key |
+
+| Figure | Delve | Journey | City | Press |
+|---|---|---|---|---|
+| Hit points | members below a known maximum (`hurtCount`), else a dash | the same | the same | `adjustHp` (GM) |
+| Supplies | days of food; water in the tooltip | the same | the same | `consumeRations` (GM) |
+| Mouths | the headcount (`partyHeadcount`) | the same | the same | the Order tab |
+| Pace | feet a turn, the hurried figure while hurried | feet, the readout's parts in the tooltip | blocks a turn (`rateBlocks`) | delve and city `togglePace` (GM); journey the Wilderness tab |
+| Light | the fewest turns left among the lit lights | the hours to dusk or dawn | the board's hour line, else the clock | the Kit tab |
+
+A press that writes is the Judge's: on a player's seat hit points, supplies
+and the delve's or the city's pace are readings with no action. The quick
+tools press the mode's own action — the throw is `travelEncounterThrow` on a
+journey and `encounterNow` elsewhere, the search `searchHour` on a journey and
+the methodical search check elsewhere — and party checks open a dialog of the
+checks the whole party makes (`partyChecks`). Tweaks is a dialog holding the
+encounter table (`formation.tableId`), written through the form handler. The
+description is the party actor's one field (`system.description`), enriched in
+the reading column and edited there in the editor the description tool opens;
+the form handler routes it to the actor and every other field to the
+formation record. The Key (`toggleKey`) lists every rail glyph with its name,
+grouped as the rails are, and says where a mode's own actions live; every cell
+names itself by tooltip as well.
+
+**The reading** beside the rails carries an overline (the mode, and on a
+journey the day, the hex, the clock and the season), chips (the territory and
+what the party follows, on a journey; the heads; Paused; on a GM seat the lost
+compass while the party is astray), then the description. The plate shows the
+party image, with the hex label over it on a journey; on a GM seat it opens
+the image picker. The warnings sit under the art row, on every tab.
+
+**The tabs** are named by the mode (`frameTabs`):
+
+| Tab | Head (the Judge's) | Body |
+|---|---|---|
+| Dungeon | Turn, Round, Rest a turn, Undo, Hurried | the strip; a member-owner's requests |
+| Wilderness | the hex field, Next hex, Work the country, End day | the strip; Country, Points of interest (the search's two selects at its foot) and Movement (GM); Sky (a player's seat while it has a reading; its controls the Judge's); Day (GM); Camp (the forecast and the suffering for every seat; exposure, declarations and throw lines the Judge's); a member-owner's requests |
+| City | Hop (while a point of interest is in reach), Hunted here, Turn, Round, Rest a turn, Undo | the strip with the city block; The city; a member-owner's requests |
+| Order, Train or Company | Auto-arrange, Frontage, Save order, Load order, Add a blank, Trapbreaking, Skill audit, Disband | the ranks and the train |
+| Kit | none | the lights and spells |
+| Sightings | none | the journey's log; off a journey, a line saying it is kept there |
+| Judge (GM seat, dashed) | the episode's state | The episode: the lost episode's controls and note; off a journey, a line saying so |
+
+Hunted here is the `travel.settlement.wanted` checkbox itself, drawn as a
+toggle pill; who set it stays a hint in The city. Camp is a titled section of
+the Wilderness tab; a Camp tab that appears while camp time is on is the
+redesign's phase 4, and waits on the camp-time state ([ROADMAP](ROADMAP.md)).
+
+**The chevron** at the end of the tab row hides the panel under it for this
+viewer. It is a user flag (`flags["acks-extras"].partyPanel`, keyed by the
+party actor's id), so an observer seat can hide a panel it cannot edit, and
+the window takes its height from what is left. A pill or a figure that opens a
+tab shows the panel again.
+
+**Scroll and size.** The sheet sits outside the shared scroll contract (the
+`// no-scroll:` note on its classes): each tab part's root is the scroller and
+is declared `scrollable: [""]`, so a tab keeps its place across the re-render
+every form change causes. The window content's own `overflow-y: auto` is a
+backstop. Every px figure of the frame is a canvas figure times
+`--acks-extras-k`, the type-size ratio (character-sheet DECISIONS, *The canvas
+figures are a specification, scaled by a ratio*); the opening width follows
+it, the 640px `min-width` floor does not.
+
+**Fresh seats.** The hit-point figure reads members' hit points, which move
+without a formation write, so the sheet watches `updateActor` and
+`updateToken` for a member's hit points and re-renders, debounced.
 
 ## The player surface (v0.22)
 
@@ -503,18 +610,19 @@ on every mode change, so a change never bills the distance walked under the
 old mode. On a mile-scale scene the party token is one cell square
 (`syncPartyTokenSize`), unless it carries the footprint lock.
 
-**The surface is the party tab's strip**, mode-aware: on a journey it shows
-the miles an hour and a day, the miles and hours walked against the budget,
-the hex and how many were entered today, when the next throw falls, the
-clock with day or night and the hours to dusk or dawn, and the camp's days
-of food and water; the delve's turns and the city's rate and tally take the
-same cells in their modes. Everything the Judge declares — country, movement,
-sky, the day board, camp, lost, the log, the city's pickers — sits under it in
-collapsed groups. A player sees the strip and only the groups that carry what
-the table already read: the sky's chips and night band, the camp's forecast
-and who is suffering, the log, and in a city the places underfoot — never a
-picker, the day board, or the LOST state, which is the Judge's alone. There is
-no Travel tab. `acksExtras.formation.travel`
+**The surface is the Wilderness tab** (§The frame): its head carries the
+journey's own actions, then the strip reads the miles an hour and a day, the
+miles and hours walked against the budget, the hex and how many were entered
+today, when the next throw falls, the clock with day or night and the hours to
+dusk or dawn, and the camp's days of food and water; the delve's turns and the
+city's rate and tally take the same tiles on their own tabs. Everything the
+Judge declares sits under the strip in titled sections — Country, Points of
+interest, Movement, Sky, Day, Camp — the city's pickers in The city, the lost
+episode on the Judge's tab and the log on Sightings. A player sees the strip
+and only the sections that carry what the table already read: the sky's chips
+and night band, the camp's forecast and who is suffering, the log, and in a
+city the places underfoot — never a picker, the day board, or the LOST state,
+which is the Judge's alone. `acksExtras.formation.travel`
 (apiVersion 15) publishes the mode switch, the day board writers, the journey's
 functions, the pure march arithmetic and the two hook names.
 
@@ -555,7 +663,7 @@ advances survival states (`runProvisionDay`), so a day already forced was
 either cleared or overridden when it was set. `naturalHealing` is forbidden by the same rungs but has no
 consumer here (no healing mechanic exists).
 
-`closeDay` is the one closer: the strip's **End day** button and the
+`closeDay` is the one closer: the Wilderness tab's **End day** pill and the
 tracker's own offer both go through it, so a day can never be ended two
 different ways.
 
@@ -682,7 +790,7 @@ the hex centre, hidden until someone has found it) and records the
 and on a label-only hex with no centre. The survey ([hex-stock-run.mjs](../../scripts/formation/hex-stock-run.mjs)
 `surveyHex`) is §Searching the wild's; its truth is the points as they stand,
 not the count rolled, because the Judge adds and removes points. The GM's
-"This hex" group on the party tab shows Stock or Restock always and, once
+Points of interest section on the Wilderness tab shows Stock or Restock always and, once
 the hex is stocked, the summary, the points with Found / Make it a place /
 Remove, Add a point, Clear, and Survey the hex while a surveyor is in the
 order. `api.formation.hexStock` publishes the readers and writers; a
@@ -738,7 +846,7 @@ second store would be a second answer to the same question.
 
 ## The camp panel
 
-One section on the journey board rather than three, because a Judge weighs
+One section on the Wilderness tab, Camp, rather than three, because a Judge weighs
 these together: how long the packs last, who is going short, and whether
 tonight's chosen hours are worth spending. Three panels would hide the trade
 between them, and the trade is what the day board exists to make visible.
@@ -752,10 +860,10 @@ is holding for it. Anything unimported says so rather than showing a number.
 
 Judge-side it also carries the camp's three declarations, each a plain yes or
 no on the travel record (`travel.camp`): *Willing to steal*, *Water at hand*
-and *Sleeping in armour*. The day fold beside it takes the day's own two: the
+and *Sleeping in armour*. The Day section before it takes the day's own two: the
 count of traps managed and a night without sleep (`travel.day.traps`,
 `travel.day.noSleep`), which end with the day and ride its log row, because
-End day resets the board before the throws they owe are rolled. Each group
+End day resets the board before the throws they owe are rolled. Each section
 submits under a hidden `declared` marker, so an unticked box is written as no
 rather than left as it was.
 
@@ -923,7 +1031,7 @@ Shadows are cleared from EVERY scene on each ending and when a formation is
 dissolved. A shadow is a token of the party actor, so the party-token adoption
 hook skips it. At `ready`, the primary GM deletes shadows whose formation no
 longer exists. A shadow whose formation exists with no episode open was left by
-an earlier build's discovery. The lost panel says so and offers the same two
+an earlier build's discovery. The Judge tab's episode section says so and offers the same two
 closing buttons, which move the party onto it or remove it. The repair tool's
 `formation.shadows` check lists every such marker across the world, with the
 spares and the members whose actor is gone (`formation.members`)
@@ -1454,7 +1562,7 @@ seen), the party's evasion target with the modifier lines that apply, and
 the hand-off — detection and surprise resolve on the SYSTEM's own Surprise
 Matrix at combat start (core owns the matrix, the rolls and the evade
 permission; nothing here re-derives them), and reactions with the
-influence tools. Cadence: the strip's Encounter throw button always; under
+influence tools. Cadence: the party sheet's Encounter throw tool always; under
 the `travelEncounters` world setting (on by default) every cadence unit
 walked — a hex crossed on a grid drawn at the imported frequency's width, or
 that many miles on any other map (§The journey) — throws as it is walked,

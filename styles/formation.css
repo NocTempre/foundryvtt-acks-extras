@@ -14,20 +14,22 @@
    token fills bars and icons, the -ink token carries text.
 
    The party sheet is not a system sheet, so styles/lib-sheet-theme.css does not
-   reach it and no font-family is set here — typography arrives with the design
-   system's own .acks-ui layer. Sizes ride --acks-fs-base so the lib
-   subsystem's fontScale setting reaches them, and every line-height is a unitless multiple
-   for the same reason: a px leading pins a control row at one height while its
-   label rides the ramp, so a raised fontScale clips the row. */
+   reach it; the tab bodies take their typography from the design system's own
+   .acks-ui layer, and only the frame names its faces, as its canvas draws them.
+   Sizes ride --acks-fs-base so the lib subsystem's fontScale setting reaches
+   them, and every line-height is a unitless multiple for the same reason: a px
+   leading pins a control row at one height while its label rides the ramp, so
+   a raised fontScale clips the row. */
 
-/* One scroller: the window content. The window root is hard-capped to the
-   viewport so the frame can never grow past the screen; the content then
-   overflows and scrolls (position preserved across re-renders by the app). */
-.acks-extras:is(.party-sheet, .skill-audit).application {
+/* The skill audit's one scroller: the window content. The window root is
+   hard-capped to the viewport so the frame can never grow past the screen; the
+   content then overflows and scrolls. The party sheet scrolls at its tab parts
+   instead — "The frame", below. */
+.acks-extras.skill-audit.application {
   max-height: 92vh;
 }
 
-.acks-extras:is(.party-sheet, .skill-audit) .window-content {
+.acks-extras.skill-audit .window-content {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -35,7 +37,7 @@
   padding: 6px;
 }
 
-.acks-extras:is(.party-sheet, .skill-audit) .acks-formation-body {
+.acks-extras.skill-audit .acks-formation-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -46,41 +48,878 @@
   flex: 0 0 auto;
 }
 
-/* --- Tabs -----------------------------------------------------------------
-   The sheet is a fixed header over one scrolling tab. Only the ACTIVE panel
-   scrolls, so the tab strip and the warnings stay put while a long surface —
-   the journey, which alone runs past a tall window — moves under them. The
-   panels use the same column layout the single body used, so every section
-   inside them keeps its spacing. */
+/* --- The frame ---------------------------------------------------------------
+   The party sheet's chrome, transcribed from its design canvas: the band in
+   the window header; the art row (the saves rail, the plate, the figures rail,
+   the quick tools, the reading, the sheet tools); the Key; the pill tab row;
+   and one panel per tab, each a part of its own.
 
-.acks-extras.party-sheet .window-content {
+   Every px figure is the canvas's, multiplied by --acks-extras-k (lib.css), so
+   the type knob scales the drawing instead of growing text inside boxes that
+   stay put. A px literal that survives is a stroke or the frame's min-width
+   floor.
+
+   The vendored design system dresses `.acks-ui` headings, lists, paragraphs,
+   fields, tabs and the window header at up to (0,3,1), and wins a tie, so
+   these rules open on `.acks-extras.acks-extras-party-sheet` — and the
+   header's on `.application > .window-header` as well.
+
+   The scroller is the active tab's PART root (each declares `scrollable:
+   [""]`), so a tab keeps its place across the re-render every change causes,
+   while the frame and the tab row hold still above it. The content box
+   scrolls only when the frame alone outgrows a short window. */
+
+.acks-extras.acks-extras-party-sheet {
+  /* The space ramp, re-declared scaled, as the character sheet does it: the
+     vendor publishes --acks-sp-* as literals at :root, so without this every
+     gap and pad written as a token would hold still while the figures grew. */
+  --acks-sp-1: calc(2px * var(--acks-extras-k));
+  --acks-sp-2: calc(4px * var(--acks-extras-k));
+  --acks-sp-3: calc(6px * var(--acks-extras-k));
+  --acks-sp-4: calc(8px * var(--acks-extras-k));
+  --acks-sp-5: calc(12px * var(--acks-extras-k));
+  --acks-sp-6: calc(16px * var(--acks-extras-k));
+  --acks-extras-cell: calc(32px * var(--acks-extras-k));
+  --acks-extras-rail-saves: calc(38px * var(--acks-extras-k));
+  --acks-extras-rail-figures: calc(40px * var(--acks-extras-k));
+  --acks-extras-rail-tools: calc(32px * var(--acks-extras-k));
+  --acks-extras-plate: calc(202px * var(--acks-extras-k));
+  --acks-extras-fill: 0%;
+  /* A floor, not a figure: narrower, the art row cannot hold its rails beside
+     the plate. The opening width carries the ratio in party-actor.mjs. */
+  min-width: 640px;
+}
+
+/* --- The frame: window chrome. The band IS the header. --------------------- */
+
+.acks-extras.acks-extras-party-sheet.application > .window-header {
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--acks-extras-k));
+  /* The basis, not the height: core pins the header with `flex: 0 0 36px`,
+     and a flex-basis outranks `height: auto` on a flex item, so the band would
+     be cut off at both edges. */
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+  padding: var(--acks-sp-4) calc(10px * var(--acks-extras-k));
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-paper-warm);
+  box-shadow: none;
+  color: var(--acks-ink);
+  /* Core sizes its own chrome, and the band lives inside that chrome rather
+     than in the content, so the knob reaches it only through this. */
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras.acks-extras-party-sheet.application > .window-header :is(.window-icon, .window-title) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.acks-extras.acks-extras-party-sheet.application > .window-header .header-control {
+  flex: none;
+  inline-size: calc(26px * var(--acks-extras-k));
+  min-height: calc(26px * var(--acks-extras-k));
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras.acks-extras-party-sheet.application > .window-header .header-control:hover {
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+}
+
+.acks-extras.acks-extras-party-sheet.application .acks-extras-party-sheet__content {
   display: flex;
   flex-direction: column;
+  /* The content is a <section> (core's contentTag), so the `section` rule
+     above would pin it at its own height and the frame, which clips, would
+     cut the panel off. It takes the frame's remaining height and gives it
+     to the active panel. */
+  flex: 1 1 auto;
   min-height: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* Re-take the type from core, which pins a size on the content box that
+     every panel would otherwise inherit instead of the knob's. */
+  font-size: var(--acks-fs-body);
+}
+
+/* --- The frame: the band ----------------------------------------------------- */
+
+.acks-extras-party-sheet__band {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--acks-extras-k));
+}
+
+.acks-extras.acks-extras-party-sheet.application > .window-header .acks-extras-party-sheet__crest {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(24px * var(--acks-extras-k));
+  height: calc(24px * var(--acks-extras-k));
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: calc(15px * var(--acks-extras-k));
+  cursor: pointer;
+}
+
+.acks-extras.acks-extras-party-sheet.application > .window-header .acks-extras-party-sheet__crest:hover {
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+}
+
+.acks-extras-party-sheet__crest img {
+  width: calc(22px * var(--acks-extras-k));
+  height: calc(22px * var(--acks-extras-k));
+  border: none;
+  object-fit: contain;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__mode {
+  flex: none;
+  font-family: var(--acks-font-display);
+  font-size: calc(10.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+  white-space: nowrap;
+}
+
+/* The Judge's copy of the mode word is the mode picker: the same word, drawn
+   as a select that shows its frame only under the pointer. */
+.acks-extras.acks-extras-party-sheet select.acks-extras-party-sheet__mode {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  padding: var(--acks-sp-1) var(--acks-sp-2);
+  border: var(--acks-rule-hair) solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+.acks-extras.acks-extras-party-sheet select.acks-extras-party-sheet__mode:hover {
+  border-color: var(--acks-spot);
+}
+
+.acks-extras-party-sheet__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding: 0 var(--acks-sp-2);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-ink);
+}
+
+/* The name sits on the title's underline, so the field draws no frame of its
+   own; the vendored field rule it overrides is (0,3,1). */
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__title .acks-extras-party-sheet__name {
+  flex: 1;
+  min-width: 6ch;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: var(--acks-sp-2) 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-ink);
+  font-family: var(--acks-font-display);
+  font-size: calc(19px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The bar: a reading in the header, with no cursor of its own, so a press on
+   it drags the window. Burgundy toward the budget, gold at it, red while the
+   party is winded. */
+.acks-extras-party-sheet__bar {
+  position: relative;
+  flex: none;
+  width: calc(176px * var(--acks-extras-k));
+  height: calc(26px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  overflow: hidden;
+  user-select: none;
+}
+
+.acks-extras-party-sheet__bar-fill {
+  display: block;
+  height: 100%;
+  width: var(--acks-extras-fill);
+  background: var(--acks-burgundy);
+}
+
+.acks-extras-party-sheet__bar > b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--acks-font-display);
+  font-size: calc(9.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--acks-ink);
+  text-shadow: 0 0 calc(2px * var(--acks-extras-k)) var(--acks-paper), 0 0 calc(3px * var(--acks-extras-k)) var(--acks-paper), 0 0 calc(4px * var(--acks-extras-k)) var(--acks-paper);
+}
+
+.acks-extras-party-sheet__bar.is-full {
+  border-color: var(--acks-gold-deep);
+}
+
+.acks-extras-party-sheet__bar.is-full .acks-extras-party-sheet__bar-fill {
+  background: var(--acks-gold);
+}
+
+.acks-extras-party-sheet__bar.is-bad .acks-extras-party-sheet__bar-fill {
+  background: var(--acks-danger);
+}
+
+/* --- The frame: the art row -------------------------------------------------- */
+
+.acks-extras-party-sheet__frame {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.acks-extras-party-sheet__art-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-5) var(--acks-sp-5) var(--acks-sp-4);
+}
+
+.acks-extras-party-sheet__rail {
+  flex: none;
+  display: grid;
+  grid-auto-rows: var(--acks-extras-cell);
+  gap: var(--acks-sp-3);
+  align-content: start;
+}
+
+/* Six cells — five saves and the Magical source they read — so the gap is
+   the one that makes six span the plate's height. */
+.acks-extras-party-sheet__rail--saves {
+  width: var(--acks-extras-rail-saves);
+  gap: var(--acks-sp-1);
+}
+
+.acks-extras-party-sheet__rail--figures {
+  width: var(--acks-extras-rail-figures);
+}
+
+.acks-extras-party-sheet__rail--tools,
+.acks-extras-party-sheet__rail--sheet {
+  width: var(--acks-extras-rail-tools);
+}
+
+.acks-extras-party-sheet__cell {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1px;
+  width: 100%;
+  height: var(--acks-extras-cell);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  border-radius: 0;
+  background: var(--acks-paper-warm);
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.acks-extras-party-sheet__cell:hover:not(.is-reading):not(:disabled) {
+  border-color: var(--acks-spot);
+}
+
+.acks-extras-party-sheet__cell:disabled,
+.acks-extras-party-sheet__cell.is-reading {
+  cursor: default;
+}
+
+.acks-extras-party-sheet__cell-glyph {
+  font-size: calc(13px * var(--acks-extras-k));
+}
+
+.acks-extras-party-sheet__cell-short {
+  font-family: var(--acks-font-ui);
+  font-size: calc(8px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-party-sheet__cell-sub {
+  font-family: var(--acks-font-ui);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink-soft);
+  white-space: nowrap;
+}
+
+.acks-extras-party-sheet__cell.is-bad .acks-extras-party-sheet__cell-sub {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-party-sheet__cell.is-warn .acks-extras-party-sheet__cell-sub {
+  color: var(--acks-warning-ink);
+}
+
+/* A toggle that is on: the Magical source while it counts, the pause, the
+   open Key, the open editor. */
+.acks-extras-party-sheet__cell.is-on {
+  border-color: var(--acks-spot);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-party-sheet__cell.is-on :is(.acks-extras-party-sheet__cell-short, .acks-extras-party-sheet__cell-sub) {
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-party-sheet__plate {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--acks-extras-plate);
+  height: var(--acks-extras-plate);
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  background: var(--acks-paper-deep);
+  color: var(--acks-spot);
+  font-size: calc(48px * var(--acks-extras-k));
   overflow: hidden;
 }
 
-.acks-extras.party-sheet .acks-formation-head {
-  flex: 0 0 auto;
+.acks-extras-party-sheet__plate img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: none;
 }
 
-.acks-extras.party-sheet nav.tabs {
-  flex: 0 0 auto;
+.acks-extras-party-sheet__plate-edit {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  cursor: pointer;
 }
 
-.acks-extras.party-sheet .acks-formation-tab {
-  display: none;
+/* The plate clips what overflows it, so the focus ring is drawn inside. */
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__plate-edit:focus-visible {
+  box-shadow: inset 0 0 0 var(--acks-rule) var(--acks-focus-color);
+}
+
+.acks-extras-party-sheet__plate-hex {
+  position: absolute;
+  inset-inline-start: var(--acks-sp-3);
+  inset-block-start: var(--acks-sp-2);
+  font-family: var(--acks-font-display);
+  font-size: calc(14px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.04em;
+  color: var(--acks-ink);
+  text-shadow: 0 0 calc(3px * var(--acks-extras-k)) var(--acks-paper-deep), 0 0 calc(6px * var(--acks-extras-k)) var(--acks-paper-deep);
+  pointer-events: none;
+}
+
+.acks-extras-party-sheet__reading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 4px;
-  /* The panel is the scroll container, not the window. */
+  gap: var(--acks-sp-4);
+  padding-block-start: var(--acks-sp-1);
+}
+
+.acks-extras-party-sheet__overline {
+  font-family: var(--acks-font-ui);
+  font-size: calc(10px * var(--acks-extras-k));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-party-sheet__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-party-sheet__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  padding: calc(3px * var(--acks-extras-k)) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: calc(9px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.acks-extras-party-sheet__chip.is-gold {
+  border-color: var(--acks-gold-deep);
+  background: var(--acks-warning-tint);
+  color: var(--acks-warning-ink);
+}
+
+/* What only the Judge knows is dashed, as the Judge's tab is. */
+.acks-extras-party-sheet__chip.is-judge {
+  border-style: dashed;
+}
+
+.acks-extras-party-sheet__prose {
+  font-family: var(--acks-font-body);
+  font-size: calc(13px * var(--acks-extras-k));
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--acks-ink-soft);
+  max-height: calc(130px * var(--acks-extras-k));
+  overflow: auto;
+}
+
+.acks-extras-party-sheet__prose > :first-child {
+  margin-block-start: 0;
+}
+
+.acks-extras-party-sheet__prose > :last-child {
+  margin-block-end: 0;
+}
+
+.acks-extras-party-sheet__editor {
+  --min-height: 6rem;
+}
+
+/* The warnings no tab may hide, and the empty state, under the art row. */
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__frame > :is(.warnings, .empty-state) {
+  margin: 0 var(--acks-sp-5) var(--acks-sp-4);
+}
+
+/* --- The frame: the Key ------------------------------------------------------ */
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__key {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(150px * var(--acks-extras-k)), 1fr));
+  gap: var(--acks-sp-3) calc(14px * var(--acks-extras-k));
+  margin: 0 var(--acks-sp-5) calc(10px * var(--acks-extras-k));
+  padding: var(--acks-sp-4) calc(10px * var(--acks-extras-k)) calc(10px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-tint-2);
+  border-radius: 0;
+  background: var(--acks-paper-warm);
+}
+
+.acks-extras-party-sheet__key-head,
+.acks-extras-party-sheet__key-foot {
+  grid-column: 1 / -1;
+}
+
+.acks-extras-party-sheet__key-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--acks-sp-4);
+  padding-block-end: var(--acks-sp-2);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__key-head h2 {
+  margin: 0;
+  font-family: var(--acks-font-display);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-ink);
+}
+
+.acks-extras.acks-extras-party-sheet :is(.acks-extras-party-sheet__key-head p, .acks-extras-party-sheet__key-foot) {
+  margin: 0;
+  font-family: var(--acks-font-body);
+  font-size: calc(11px * var(--acks-extras-k));
+  font-style: italic;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__key-group h3 {
+  margin: 0 0 var(--acks-sp-2);
+  padding: 0;
+  border: none;
+  font-family: var(--acks-font-ui);
+  font-size: calc(9.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__key-group ul {
+  display: grid;
+  gap: var(--acks-sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__key-group li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-3);
+  margin: 0;
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  line-height: 1.3;
+  color: var(--acks-ink);
+}
+
+/* A legend row is not a list item to be read: no lozenge. */
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__key-group li::before {
+  content: none;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__key-group li > i {
+  flex: none;
+  width: calc(14px * var(--acks-extras-k));
+  text-align: center;
+  color: var(--acks-spot);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__key-group li > b {
+  flex: none;
+  min-width: calc(26px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink-soft);
+}
+
+/* --- The frame: the tab row -------------------------------------------------- */
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__tabs {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  margin: 0 var(--acks-sp-5);
+  padding: 0 0 var(--acks-sp-4);
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+/* Core's tab buttons (`data-action="tab"`), drawn as pills. Core keeps their
+   `active` class and `aria-pressed` in step; the vendored tab styles key on
+   `aria-selected`, which a pill never carries. */
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: var(--acks-sp-3) calc(14px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: calc(10.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__pill:hover:not(.active) {
+  background: var(--acks-tint);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__pill.active {
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+/* The Judge's tab is dashed, as everything only the Judge sees is. */
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__pill.is-judge {
+  border-style: dashed;
+}
+
+.acks-extras-party-sheet__tabs-gap {
+  flex: 1;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__chevron {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(28px * var(--acks-extras-k));
+  height: calc(28px * var(--acks-extras-k));
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-ink-soft);
+  font-size: calc(12px * var(--acks-extras-k));
+  line-height: 1;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__chevron:hover {
+  border-color: var(--acks-spot);
+  color: var(--acks-spot);
+}
+
+/* --- The frame: the panels --------------------------------------------------- */
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__panel {
+  display: none;
+}
+
+/* The active panel is the scroller: it takes what height the window has left
+   under the frame and the tab row, and scrolls inside it. */
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__panel.active {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-6);
   flex: 1 1 auto;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  padding: var(--acks-sp-5) var(--acks-sp-5) var(--acks-sp-6);
 }
 
-.acks-extras.party-sheet .acks-formation-tab.active {
+/* The chevron hides the panel for this viewer: the frame and the tab row
+   stay, and the window takes its height from them. */
+.acks-extras.acks-extras-party-sheet.is-panel-hidden .acks-extras-party-sheet__panel.active {
+  display: none;
+}
+
+/* A tab's head: its glyph, its title and the line under it, and the mode's
+   own actions as pills. */
+.acks-extras-party-sheet__head {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(10px * var(--acks-extras-k));
+}
+
+.acks-extras-party-sheet__head-lead {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  min-width: 0;
+}
+
+.acks-extras-party-sheet__head-glyph {
+  flex: none;
+  font-size: calc(16px * var(--acks-extras-k));
+  color: var(--acks-spot);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-title {
+  margin: 0;
+  font-family: var(--acks-font-ui);
+  font-size: calc(13px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.25;
+  color: var(--acks-ink);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-sub {
+  margin: 0;
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  line-height: 1.3;
+  color: var(--acks-ink-soft);
+}
+
+/* The episode's state on the Judge's head: settled while no episode is open,
+   alarmed while one is. */
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-state {
+  margin: 0;
+  padding: calc(3px * var(--acks-extras-k)) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-success);
+  background: var(--acks-success-tint);
+  color: var(--acks-success-ink);
+  font-family: var(--acks-font-display);
+  font-size: calc(9px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-state.is-open {
+  border-color: var(--acks-danger);
+  background: var(--acks-danger-tint);
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-party-sheet__head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5px * var(--acks-extras-k));
+  width: auto;
+  height: calc(26px * var(--acks-extras-k));
+  min-height: 0;
+  margin: 0;
+  padding: 0 calc(9px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-ink-soft);
+  font-family: var(--acks-font-display);
+  font-size: calc(9.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-pill:hover {
+  border-color: var(--acks-spot);
+  color: var(--acks-ink);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-pill.is-on {
+  border-color: var(--acks-spot);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-pill.danger {
+  color: var(--acks-danger-ink);
+}
+
+/* A pill that is a checkbox: the box covers its label unseen, so the pill is
+   one control to the pointer, the keyboard and a screen reader alike. */
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-toggle input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-toggle:focus-within {
+  box-shadow: var(--acks-focus-ring);
+}
+
+.acks-extras-party-sheet__head-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  font-family: var(--acks-font-display);
+  font-size: calc(9.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-party-sheet input.acks-extras-party-sheet__head-field {
+  width: calc(96px * var(--acks-extras-k));
+  height: calc(26px * var(--acks-extras-k));
+  min-height: 0;
+  padding: 0 var(--acks-sp-3);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras.acks-extras-party-sheet input.acks-extras-party-sheet__head-field.is-narrow {
+  width: calc(56px * var(--acks-extras-k));
+}
+
+/* A titled section of a tab. Its title is its rule, so a block that draws a
+   top rule of its own elsewhere drops it here. */
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__section-title {
+  margin: 0;
+  padding: 0 0 calc(3px * var(--acks-extras-k));
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: calc(11px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-ink);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__section > :is(.acks-extras-formation-camp, .acks-extras-formation-lost, .acks-extras-formation-travel-weather) {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 /* --- Marching order controls & ranks --- */
@@ -90,27 +929,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .march-controls {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  font-weight: normal;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .march-controls select {
-  width: auto;
-  font-size: var(--acks-fs-label);
-  height: 22px;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .march-controls button {
-  width: auto;
-  font-size: var(--acks-fs-label);
-  line-height: 1.6;
-  padding: 0 6px;
-  white-space: nowrap;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .rank-divider {
@@ -138,49 +956,6 @@
   width: auto;
   padding: 0 8px;
   line-height: 1.7;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .name-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .name-row input {
-  width: 100%;
-  font-weight: bold;
-}
-
-/* The party portrait is a full-weight keyline, not the soft rule the panels
-   use — it frames an image, so it has to hold its own against the artwork. */
-.acks-extras:is(.party-sheet, .skill-audit) .name-row .party-img {
-  flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
-  object-fit: cover;
-  border: var(--acks-border);
-  border-radius: var(--acks-radius);
-  cursor: pointer;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .name-row .party-img:hover {
-  box-shadow: var(--acks-focus-ring);
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .table-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .table-row label {
-  flex: 0 0 auto;
-  font-size: var(--acks-fs-label);
-  white-space: nowrap;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .table-row select {
-  flex: 1;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) section {
@@ -229,50 +1004,9 @@
   grid-template-columns: repeat(auto-fit, minmax(8em, 1fr));
 }
 
-.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-strip-mode {
-  display: flex;
-  align-items: center;
-  gap: var(--acks-sp-3);
-  margin-bottom: var(--acks-sp-2);
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-strip-mode label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--acks-sp-2);
-  font-size: var(--acks-fs-label);
-}
-
 .acks-extras:is(.party-sheet, .skill-audit) .acks-extras-strip-supplies,
 .acks-extras:is(.party-sheet, .skill-audit) .acks-extras-strip-city p {
   margin: var(--acks-sp-2) 0;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .clock .acks-extras-formation-travel-hex input[name="travel.hexLabel"] {
-  flex: 1 1 6em;
-  min-width: 0;
-}
-
-/* --- The declaration groups -------------------------------------------------
-   Collapsed by default (the template never writes `open`). The summary is the
-   group's heading row and the disclosure toggle in one, so it holds no control;
-   the body is indented under it. */
-.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-folds {
-  display: flex;
-  flex-direction: column;
-  gap: var(--acks-sp-2);
-  margin-top: var(--acks-sp-3);
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-fold > summary {
-  cursor: pointer;
-  font-size: var(--acks-fs-h3);
-  font-weight: bold;
-  border-bottom: var(--acks-border-soft);
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-fold-body {
-  padding: var(--acks-sp-2) 0 var(--acks-sp-2) var(--acks-sp-6);
 }
 
 /* A slot the day has already resolved wears a tick beside its picker. */
@@ -290,22 +1024,6 @@
    state token is a fill and misses AA at this size. */
 .acks-extras:is(.party-sheet, .skill-audit) .clock .stat.bad .value {
   color: var(--acks-danger-ink);
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .clock .buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .clock .buttons button {
-  flex: 1 1 auto;
-  width: auto;
-  font-size: var(--acks-fs-label);
-  line-height: 1.75;
-  padding: 0 6px;
-  white-space: nowrap;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) button.danger {
@@ -662,54 +1380,6 @@
 .acks-extras:is(.party-sheet, .skill-audit) .add-spell select {
   flex: 1 1 90px;
   min-width: 70px;
-}
-
-/* --- Party saves --- */
-
-.acks-extras:is(.party-sheet, .skill-audit) .magical-toggle {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: var(--acks-fs-label);
-  white-space: nowrap;
-  flex: 0 0 auto;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .magical-toggle input {
-  margin: 0;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .save-label {
-  font-size: var(--acks-fs-label);
-  text-transform: uppercase;
-  opacity: 0.75;
-  align-self: center;
-  white-space: nowrap;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .saves-row button,
-.acks-extras:is(.party-sheet, .skill-audit) .party-sheet-body .buttons button {
-  flex: 0 1 auto;
-}
-
-/* --- Party sheet --- */
-
-.acks-extras.party-sheet .window-content {
-  padding: 6px;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .party-sheet-body .buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.acks-extras:is(.party-sheet, .skill-audit) .party-sheet-body .buttons button {
-  width: auto;
-  font-size: var(--acks-fs-label);
-  line-height: 1.75;
-  padding: 0 8px;
 }
 
 /* --- Chat cards --- */
@@ -1272,14 +1942,8 @@
 
 /* The Judge's declarations: the pickers and the day board wrap as control rows;
    the city's rate is the line the table actually reads; the log is the trace. */
-.acks-extras-formation-travel-daycount {
-  font-size: var(--acks-fs-label);
-  opacity: 0.85;
-}
-
 .acks-extras-formation-travel-pickers,
 .acks-extras-formation-travel-day,
-.acks-extras-formation-travel-hex,
 .acks-extras-formation-travel-weather-gen,
 .acks-extras-formation-travel-weather-bands,
 .acks-extras-formation-travel-lostrow {
@@ -1367,7 +2031,6 @@
   margin: 0.25rem 0;
 }
 
-.acks-extras-formation-travel-hex input[name="travel.hexLabel"],
 .acks-extras-formation-travel-lostrow input[name="travel.lostNote"] {
   flex: 0 1 10rem;
 }

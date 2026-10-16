@@ -1,21 +1,9 @@
-{{! The party tab's clock strip: the play surface in every mode. One strip, three
-    branches on the mode — the delve's turn tracker, the journey's miles and
-    clock, the city's block tally. Everyone sees the stats; the buttons and the
-    mode picker are the Judge's. Included by path from formation-tab-party.hbs. }}
+{{! The mode tab's clock strip: the tiles that read the mode, under the tab's
+    head. One strip, three branches on the mode — the delve's turn tracker, the
+    journey's miles and clock, the city's block tally. Every seat reads the same
+    tiles; the actions that move them are the tab head's and the rails'.
+    Included by path from each mode tab. }}
 <section class="clock acks-extras-strip acks-extras-strip-{{strip.mode}}">
-  {{#if isGM}}
-  <div class="acks-extras-strip-mode">
-    <label>{{localize "ACKS-FORMATION.travel.modeSelect"}}
-      <select name="travel.mode">
-        {{#each strip.modeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-      </select>
-    </label>
-    {{#if strip.isJourney}}
-    <span class="acks-extras-formation-travel-daycount">{{localize "ACKS-FORMATION.travel.dayN" n=strip.dayCount}}</span>
-    {{/if}}
-  </div>
-  {{/if}}
-
   {{#if strip.isJourney}}
   {{! ---- The journey: miles, the day's budget, the hex, the clock ---- }}
   <div class="stats acks-extras-strip-stats">
@@ -56,60 +44,6 @@
     </div>
   </div>
   {{#if strip.speed.camp}}<p class="hint">{{localize "ACKS-FORMATION.travel.campDay"}}</p>{{/if}}
-
-  {{#if isGM}}
-  <div class="buttons">
-    <button type="button" data-action="travelEndDay" data-tooltip="{{localize 'ACKS-FORMATION.travel.endDayHint'}}">
-      <i class="fa-solid fa-moon"></i> {{localize "ACKS-FORMATION.travel.endDay"}}
-    </button>
-    <button type="button" data-action="travelEncounterThrow" data-tooltip="{{localize 'ACKS-FORMATION.travel.enc.throwHint'}}">
-      <i class="fa-solid fa-signs-post"></i> {{localize "ACKS-FORMATION.travel.enc.throw"}}
-    </button>
-    <button type="button" data-action="forageDay" data-tooltip="{{localize 'ACKS-FORMATION.forageRun.workHint'}}">
-      <i class="fa-solid fa-wheat-awn"></i> {{localize "ACKS-FORMATION.forageRun.work"}}
-    </button>
-    <button type="button" data-action="searchHour" data-tooltip="{{localize 'ACKS-FORMATION.searchRun.searchHint'}}">
-      <i class="fa-solid fa-magnifying-glass"></i> {{localize "ACKS-FORMATION.searchRun.search"}}
-    </button>
-    <button type="button" data-action="togglePause" class="{{#if strip.paused}}paused{{/if}}"
-            data-tooltip="{{localize 'ACKS-FORMATION.app.pauseHint'}}">
-      <i class="fa-solid {{#if strip.paused}}fa-play{{else}}fa-pause{{/if}}"></i>
-    </button>
-    <button type="button" data-action="dealXp" data-tooltip="{{localize 'ACKS-FORMATION.xp.hint'}}">
-      <i class="fa-solid fa-star"></i> {{localize "ACKS-FORMATION.xp.deal"}}
-    </button>
-    <button type="button" data-action="adjustHp" data-tooltip="{{localize 'ACKS-FORMATION.app.adjustHpHint'}}">
-      <i class="fa-solid fa-heart-pulse"></i> {{localize "ACKS-FORMATION.app.adjustHp"}}
-    </button>
-    <button type="button" data-action="consumeRations" data-tooltip="{{localize 'ACKS-FORMATION.app.rationsHint'}}">
-      <i class="fa-solid fa-drumstick-bite"></i> {{localize "ACKS-FORMATION.app.rations"}}
-    </button>
-    <button type="button" data-action="disband" class="danger" data-tooltip="{{localize 'ACKS-FORMATION.app.disbandHint'}}">
-      <i class="fa-solid fa-people-arrows"></i> {{localize "ACKS-FORMATION.app.disband"}}
-    </button>
-  </div>
-  <div class="buttons acks-extras-formation-travel-hex">
-    <input type="text" name="travel.hexLabel" value="{{strip.hex.label}}"
-           aria-label="{{localize 'ACKS-FORMATION.travel.hex'}}"
-           placeholder="{{localize 'ACKS-FORMATION.travel.hexPlaceholder'}}">
-    <button type="button" data-action="travelEnterHex" data-tooltip="{{localize 'ACKS-FORMATION.travel.enterHexHint'}}">
-      <i class="fa-solid fa-arrow-right"></i> {{localize "ACKS-FORMATION.travel.enterHex"}}
-    </button>
-    <label class="acks-extras-formation-camp-present"
-           data-tooltip="{{localize 'ACKS-FORMATION.searchRun.presentHint'}}">
-      {{localize "ACKS-FORMATION.searchRun.present"}}
-      <select name="camp.present">
-        {{#each travel.camp.presentOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-      </select>
-    </label>
-    <label class="acks-extras-formation-camp-target">
-      {{localize "ACKS-FORMATION.searchRun.lookingFor"}}
-      <select name="camp.target">
-        {{#each travel.camp.targetOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-      </select>
-    </label>
-  </div>
-  {{/if}}
 
   {{else}}
   {{! ---- The delve and the city: the turn tracker ---- }}
@@ -184,74 +118,5 @@
     </p>
   </div>
   {{/if}}
-
-  {{#if isGM}}
-  <div class="buttons">
-    <button type="button" data-action="dealXp" data-tooltip="{{localize 'ACKS-FORMATION.xp.hint'}}">
-      <i class="fa-solid fa-star"></i> {{localize "ACKS-FORMATION.xp.deal"}}
-    </button>
-    <button type="button" data-action="adjustHp" data-tooltip="{{localize 'ACKS-FORMATION.app.adjustHpHint'}}">
-      <i class="fa-solid fa-heart-pulse"></i> {{localize "ACKS-FORMATION.app.adjustHp"}}
-    </button>
-    <button type="button" data-action="advanceTurn" data-tooltip="{{localize 'ACKS-FORMATION.app.advanceTurnHint'}}">
-      <i class="fa-solid fa-hourglass-half"></i> {{localize "ACKS-FORMATION.app.advanceTurn"}}
-    </button>
-    <button type="button" data-action="advanceRound" data-tooltip="{{localize 'ACKS-FORMATION.app.advanceRoundHint'}}">
-      <i class="fa-solid fa-hourglass-start"></i> {{localize "ACKS-FORMATION.app.advanceRound"}}
-    </button>
-    <button type="button" data-action="restTurn" data-tooltip="{{localize 'ACKS-FORMATION.app.restTurnHint'}}">
-      <i class="fa-solid fa-campfire"></i> {{localize "ACKS-FORMATION.app.restTurn"}}
-    </button>
-    <button type="button" data-action="encounterNow" data-tooltip="{{localize 'ACKS-FORMATION.app.encounterNowHint'}}">
-      <i class="fa-solid fa-dice-d6"></i> {{localize "ACKS-FORMATION.app.encounterNow"}}
-    </button>
-    <button type="button" data-action="consumeRations" data-tooltip="{{localize 'ACKS-FORMATION.app.rationsHint'}}">
-      <i class="fa-solid fa-drumstick-bite"></i> {{localize "ACKS-FORMATION.app.rations"}}
-    </button>
-    <button type="button" data-action="undoTurn" data-tooltip="{{localize 'ACKS-FORMATION.app.undoTurnHint'}}">
-      <i class="fa-solid fa-rotate-left"></i>
-    </button>
-    <button type="button" data-action="togglePause" class="{{#if strip.paused}}paused{{/if}}"
-            data-tooltip="{{localize 'ACKS-FORMATION.app.pauseHint'}}">
-      <i class="fa-solid {{#if strip.paused}}fa-play{{else}}fa-pause{{/if}}"></i>
-    </button>
-    <button type="button" data-action="togglePace" class="{{#if strip.delve.hurried}}paused{{/if}}"
-            data-tooltip="{{localize 'ACKS-FORMATION.app.paceHint'}}">
-      <i class="fa-solid {{#if strip.delve.hurried}}fa-person-running{{else}}fa-person-walking{{/if}}"></i>
-    </button>
-    {{#if strip.settlement.poiTargets}}
-    <button type="button" data-action="settlementTravelTo"
-            data-tooltip="{{localize 'ACKS-FORMATION.settlement.poi.travelHint'}}">
-      <i class="fa-solid fa-person-walking-arrow-right"></i> {{localize "ACKS-FORMATION.settlement.poi.travel"}}
-    </button>
-    {{/if}}
-    <button type="button" data-action="disband" class="danger" data-tooltip="{{localize 'ACKS-FORMATION.app.disbandHint'}}">
-      <i class="fa-solid fa-people-arrows"></i> {{localize "ACKS-FORMATION.app.disband"}}
-    </button>
-  </div>
-  {{/if}}
-  {{/if}}
-
-  {{#if isGM}}
-  <div class="buttons saves-row">
-    <span class="save-label">{{localize "ACKS-FORMATION.app.partySave"}}</span>
-    {{#each saves}}
-    <button type="button" data-action="partySave" data-save="{{this.key}}" data-tooltip="{{this.tooltip}}">
-      {{this.label}}
-    </button>
-    {{/each}}
-    <label class="magical-toggle" data-tooltip="{{localize 'ACKS-FORMATION.app.magicalHint'}}">
-      <input type="checkbox" class="save-magical" checked />
-      {{localize "ACKS-FORMATION.app.magical"}}
-    </label>
-  </div>
-  <div class="buttons saves-row">
-    <span class="save-label">{{localize "ACKS-FORMATION.rolls.rowLabel"}}</span>
-    {{#each checks}}
-    <button type="button" data-action="partyCheck" data-check="{{this.key}}" data-tooltip="{{this.hint}}">
-      <i class="fa-solid {{this.icon}}"></i> {{this.label}}
-    </button>
-    {{/each}}
-  </div>
   {{/if}}
 </section>

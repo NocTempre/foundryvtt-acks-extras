@@ -2144,6 +2144,10 @@
       "disbandConfirm": "Disband {name}? Member tokens will be restored around the party token.",
       "marchingOrder": "Marching Order",
       "rank": "Rank",
+      "leaveBehind": "Leave behind",
+      "goBackFor": "Go back for them",
+      "casualtyHint": "Down. The party cannot move until someone carries them or they are left behind.",
+      "leftBehindHint": "Left where they fell. They still take their share of the experience.",
       "addBlankHint": "Add an empty slot to the marching grid (swap it into position with the arrows — gaps are kept in combat deployment)",
       "blankSlot": "— empty —",
       "shieldedBadge": "closed",
@@ -2544,7 +2548,7 @@
       },
       "travelEncounters": {
         "name": "Journey encounter throws",
-        "hint": "On by default: each cadence unit the march crosses and each finished day roll their owed encounter throws and whisper the chain to the Judge. Off, the strip's Encounter throw button is the only trigger."
+        "hint": "On by default: each cadence unit the march crosses and each finished day roll their owed encounter throws and whisper the chain to the Judge. Off, the party sheet's Encounter throw tool is the only trigger."
       },
       "straggling": {
         "name": "Crowded streets slow large parties",
@@ -2726,7 +2730,7 @@
         "importHint": "Import the encounter tables to roll the chain here; until then, throw from your book.",
         "missingTable": "The {table} table is not imported — draw this step from your book.",
         "noRow": "No printed row for this terrain — take the distance from the page.",
-        "pickTerrain": "No encounter terrain for this ground — pick one on the panel for the terrain-keyed steps.",
+        "pickTerrain": "No encounter terrain for this ground — pick one under Country on the Wilderness tab for the terrain-keyed steps.",
         "terrainUsed": "Terrain sub-table",
         "quiet": "The wilds are quiet.",
         "night": "night",
@@ -3568,9 +3572,159 @@
       }
     },
     "tab": {
-      "party": "Party",
+      "dungeon": "Dungeon",
+      "wilderness": "Wilderness",
+      "city": "City",
       "order": "Order",
-      "kit": "Kit"
+      "train": "Train",
+      "company": "Company",
+      "kit": "Kit",
+      "sightings": "Sightings",
+      "judge": "Judge"
+    },
+    "frame": {
+      "tabsLabel": "Party sheet tabs",
+      "crest": "The party · opens the roster",
+      "name": "Party name",
+      "cell": "{name}: {reading}",
+      "press": "{label} · {press}",
+      "bar": {
+        "journey": "Day {day} · {hours} of {budget} h",
+        "journeyTitle": "Hours walked today, of the day's travel budget",
+        "rest": "Rest {since} / {max}",
+        "restUnpriced": "{since} since rest",
+        "restTitle": "Turns since the party last rested, of the rest interval"
+      },
+      "figure": {
+        "hp": "Hit points",
+        "hurt": "{n} hurt",
+        "noneHurt": "nobody hurt",
+        "supplies": "Supplies",
+        "suppliesReading": "food {food} d, water {water} d",
+        "unknown": "not known",
+        "days": "{n} d",
+        "mouths": "Mouths",
+        "pace": "Pace",
+        "blocksReading": "{n} blocks per turn",
+        "blocksSub": "{n} bl",
+        "feetReading": "{n} feet per turn",
+        "light": "Light",
+        "hoursSub": "{n} h",
+        "noClock": "no clock",
+        "noLight": "no light burning",
+        "turnsReading": "{n} turns of light left",
+        "turnsSub": "{n} t"
+      },
+      "presses": {
+        "hp": "press to adjust hit points",
+        "ration": "press to ration",
+        "roster": "opens the roster",
+        "pace": "press to change the pace",
+        "movement": "opens Movement",
+        "kit": "opens the kit"
+      },
+      "saveShort": {
+        "paralysis": "PAR",
+        "death": "DTH",
+        "breath": "BLS",
+        "implements": "IMP",
+        "spell": "SPL",
+        "magical": "MAG"
+      },
+      "magical": {
+        "name": "Magical source",
+        "on": "on",
+        "off": "off",
+        "title": "Magical source: {state} · press to toggle"
+      },
+      "tool": {
+        "encounterJourney": "Encounter throw",
+        "encounter": "Encounter check now",
+        "checks": "Party checks",
+        "searchHour": "Search an hour",
+        "searchTurn": "Methodical search",
+        "pause": "Pause the clock",
+        "resume": "Resume the clock",
+        "xp": "Deal experience"
+      },
+      "sheet": {
+        "description": "Edit the party's description",
+        "image": "Change the party's image",
+        "ownership": "Ownership",
+        "tweaks": "Tweaks",
+        "key": "Key: what each glyph is"
+      },
+      "overline": {
+        "hex": "Hex {hex}"
+      },
+      "chip": {
+        "heads": "{n} heads",
+        "paused": "Paused",
+        "astray": "Astray"
+      },
+      "key": {
+        "title": "Key",
+        "sub": "The rails are the same in every mode and state; only the figures read differently.",
+        "saves": "Saves · left of the plate",
+        "figures": "Figures · right of the plate",
+        "tools": "Quick tools · beside the figures",
+        "sheet": "Sheet tools · right of the reading",
+        "foot": "A mode's own actions sit at the head of its tab."
+      },
+      "head": {
+        "journey": "Day {day} on the road",
+        "journeySub": "The journey's own actions; the rails hold what every mode shares.",
+        "delve": "Turn {turns} · {elapsed}",
+        "delveSub": "The turn clock's own actions; the rails hold what every mode shares.",
+        "city": "Turn {turns} in the city",
+        "citySub": "The city's own actions; the rails hold what every mode shares.",
+        "order": "{heads} heads · {frontage} abreast",
+        "orderSub": "Who walks where, and what each of them does.",
+        "sightings": "Sightings",
+        "sightingsSub": "The road so far, day by day.",
+        "judge": "Judge",
+        "judgeSub": "Only the Judge's seat renders this tab."
+      },
+      "section": {
+        "country": "Country",
+        "poi": "Points of interest",
+        "movement": "Movement",
+        "sky": "Sky",
+        "day": "Day",
+        "camp": "Camp",
+        "city": "The city",
+        "log": "Log",
+        "episode": "The episode"
+      },
+      "pill": {
+        "restTurn": "Rest a turn",
+        "undo": "Undo",
+        "hurried": "Hurried",
+        "hop": "Hop",
+        "loadOrder": "Load order",
+        "addBlank": "Add a blank",
+        "audit": "Skill audit"
+      },
+      "judge": {
+        "closed": "No episode open",
+        "offJourney": "An episode opens on a journey; there is none in this mode."
+      },
+      "sightings": {
+        "empty": "No day has been logged yet.",
+        "offJourney": "The log is kept on a journey."
+      },
+      "chevron": {
+        "hide": "Hide the panel",
+        "show": "Show the panel"
+      },
+      "checks": {
+        "title": "Party checks",
+        "prompt": "Which check does the party make?"
+      },
+      "tweaks": {
+        "title": "Tweaks",
+        "save": "Save"
+      }
     },
     "strip": {
       "modeDelve": "Delve",
@@ -3587,17 +3741,7 @@
       "supplies": "Supplies",
       "foodDays": "Food {days} d",
       "waterDays": "Water {days} d",
-      "slotDone": "Resolved",
-      "details": {
-        "country": "Country",
-        "movement": "Movement",
-        "sky": "Sky",
-        "day": "Day",
-        "camp": "Camp",
-        "lost": "Lost",
-        "log": "Log",
-        "city": "City"
-      }
+      "slotDone": "Resolved"
     },
     "DISTRICT": {
       "anywhere": "Anywhere in the district",
@@ -6090,10 +6234,6 @@
   "ACKS-FORMATION.xp.reason.mercenary": "paid in wages, not experience",
   "ACKS-FORMATION.xp.reason.notAPerson": "not a party member",
   "ACKS-FORMATION.xp.reason.noShare": "share set to none",
-  "ACKS-FORMATION.app.leaveBehind": "Leave behind",
-  "ACKS-FORMATION.app.goBackFor": "Go back for them",
-  "ACKS-FORMATION.app.casualtyHint": "Down. The party cannot move until someone carries them or they are left behind.",
-  "ACKS-FORMATION.app.leftBehindHint": "Left where they fell. They still take their share of the experience.",
   "ACKS-VEHICLES.voyage.legend": "Voyage",
   "ACKS-VEHICLES.voyage.milesPerDay": "miles in a {hours}-hour day",
   "ACKS-VEHICLES.voyage.perHour": "miles per hour",

@@ -1,0 +1,15 @@
+{{!-- The tab row: pills named by the mode, then the chevron that hides the panel
+      for this viewer. The pills are core's tab buttons (`data-action="tab"`),
+      and core keeps their `active` class and `aria-pressed` in step; the
+      chevron is not a tab and carries neither a group nor a tab id. --}}
+<nav class="acks-tabs tabs acks-extras-party-sheet__tabs" data-group="primary" aria-label="{{localize 'ACKS-FORMATION.frame.tabsLabel'}}">
+  {{#each tabs}}
+  <button type="button" class="acks-tab acks-extras-party-sheet__pill{{#if cssClass}} {{cssClass}}{{/if}}" data-action="tab"
+          data-group="primary" data-tab="{{id}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}">{{#if icon}}<i class="{{icon}}" inert></i> {{/if}}{{label}}</button>
+  {{/each}}
+  <span class="acks-extras-party-sheet__tabs-gap"></span>
+  <button type="button" class="acks-extras-party-sheet__chevron" data-action="togglePanel"
+          data-tooltip="{{frame.panel.label}}" aria-label="{{frame.panel.label}}" aria-expanded="{{#if frame.panel.hidden}}false{{else}}true{{/if}}">
+    <i class="fa-solid {{#if frame.panel.hidden}}fa-chevron-down{{else}}fa-chevron-up{{/if}}" inert></i>
+  </button>
+</nav>

@@ -1,0 +1,37 @@
+{{!-- The band: rendered as a part, then moved into the window header by the
+      sheet, so Foundry's drag handle and buttons stay where they are. The crest
+      opens the roster; the mode word beside it is the Judge's mode picker; the
+      name sits on its own underline; the bar is a reading — no action and no
+      cursor, so a press on it drags the window. --}}
+<div class="acks-extras-party-sheet__band">
+  {{#if formation}}
+  <button type="button" class="acks-extras-party-sheet__crest" data-action="goTab" data-tab="order"
+          data-tooltip="{{localize 'ACKS-FORMATION.frame.crest'}}" aria-label="{{localize 'ACKS-FORMATION.frame.crest'}}">
+    {{#if frame.plate.img}}<img src="{{frame.plate.img}}" alt="" inert>{{else}}<i class="fa-solid fa-people-group" inert></i>{{/if}}
+  </button>
+  {{#if isGM}}
+  <select class="acks-extras-party-sheet__mode" name="travel.mode" aria-label="{{localize 'ACKS-FORMATION.travel.modeSelect'}}">
+    {{#each strip.modeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+  </select>
+  {{else}}
+  <span class="acks-extras-party-sheet__mode">{{frame.band.modeLabel}}</span>
+  {{/if}}
+  <div class="acks-extras-party-sheet__title">
+    {{#if isGM}}
+    <input class="acks-input acks-input--line acks-extras-party-sheet__name" type="text" name="name" value="{{formation.name}}"
+           aria-label="{{localize 'ACKS-FORMATION.frame.name'}}">
+    {{else}}
+    <span class="acks-extras-party-sheet__name">{{formation.name}}</span>
+    {{/if}}
+  </div>
+  <div class="acks-extras-party-sheet__bar{{#if frame.band.bar.full}} is-full{{/if}}{{#if frame.band.bar.bad}} is-bad{{/if}}"
+       data-tooltip="{{frame.band.bar.title}}" style="--acks-extras-fill: {{frame.band.bar.pct}}%">
+    <i class="acks-extras-party-sheet__bar-fill"></i>
+    <b class="acks-nums">{{frame.band.bar.label}}</b>
+  </div>
+  {{else}}
+  <div class="acks-extras-party-sheet__title">
+    <span class="acks-extras-party-sheet__name">{{partyName}}</span>
+  </div>
+  {{/if}}
+</div>

@@ -1,0 +1,52 @@
+{{!-- A member-owner's requests to the Judge: a light, a spell, a rest, a check.
+      Each is relayed to the Judge's client, which decides it. Included by path
+      at the foot of the mode tab. --}}
+{{#if ownedMembers.length}}
+<section class="player-actions">
+  <h3>{{localize "ACKS-FORMATION.request.section"}}</h3>
+  <div class="add-light">
+    <select class="player-light-type">
+      {{#each playerLightTypes}}
+      <option value="{{this.key}}">{{this.label}}</option>
+      {{/each}}
+    </select>
+    <select class="player-light-bearer">
+      {{#each ownedMembers}}
+      <option value="{{this.id}}">{{this.name}}</option>
+      {{/each}}
+    </select>
+    <button type="button" data-action="playerLight" data-tooltip="{{localize 'ACKS-FORMATION.request.lightHint'}}">
+      <i class="fa-solid fa-fire"></i> {{localize "ACKS-FORMATION.app.lightIt"}}
+    </button>
+  </div>
+  {{#if playerSpells.length}}
+  <div class="add-light add-spell">
+    <select class="player-spell">
+      {{#each playerSpells}}
+      <option value="{{this.key}}">{{this.label}}</option>
+      {{/each}}
+    </select>
+    <input type="number" class="player-spell-turns" min="1" placeholder="{{localize 'ACKS-FORMATION.app.spellTurns'}}" />
+    <button type="button" data-action="playerSpell" data-tooltip="{{localize 'ACKS-FORMATION.request.spellHint'}}">
+      <i class="fa-solid fa-wand-sparkles"></i> {{localize "ACKS-FORMATION.app.trackSpell"}}
+    </button>
+  </div>
+  {{/if}}
+  <div class="buttons">
+    <button type="button" data-action="playerRest" data-tooltip="{{localize 'ACKS-FORMATION.request.restHint'}}">
+      <i class="fa-solid fa-campfire"></i> {{localize "ACKS-FORMATION.app.restTurn"}}
+    </button>
+    {{#each checks}}
+    <button type="button" data-action="playerCheck" data-check="{{this.key}}" data-tooltip="{{this.hint}}">
+      <i class="fa-solid {{this.icon}}"></i> {{this.label}}
+    </button>
+    {{/each}}
+    {{#if canTrapbreak}}
+    <button type="button" data-action="openTrapbreak" data-tooltip="{{localize 'ACKS-FORMATION.traps.breakHint'}}">
+      <i class="fa-solid fa-screwdriver-wrench"></i> {{localize "ACKS-FORMATION.traps.breakTitle"}}
+    </button>
+    {{/if}}
+  </div>
+  <p class="hint">{{localize "ACKS-FORMATION.request.hint"}}</p>
+</section>
+{{/if}}

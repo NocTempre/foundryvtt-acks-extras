@@ -184,6 +184,13 @@ export const RATION_PATTERN = /ration/i;
 /** Default image used for the party token / party actor. */
 export const DEFAULT_PARTY_IMAGE = "icons/environment/people/group.webp";
 
+/**
+ * User flag holding, per party actor id, whether the party sheet's panel is
+ * hidden under its tab row. A viewing preference lives with the viewer: an
+ * observer seat can hide the panel of a sheet it cannot edit.
+ */
+export const PANEL_FLAG = "partyPanel";
+
 /* Exploration speed reads `actor.system.movementacks.exploration`, which the
    acks system computes. See docs/formation/DECISIONS.md, "Three printed
    figures leave the module; the rest are inventoried". */

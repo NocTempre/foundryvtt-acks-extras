@@ -1208,7 +1208,7 @@ missing.
 ## The hit-point tool
 
 Covers `hp-logic.mjs`, `hp.mjs`, `apps/hp-app.mjs`, the Tokens-layer button,
-the macro, and `api.lib.hp`. The Party tab's entry point, and a member inside
+the macro, and `api.lib.hp`. The party sheet's entry point, and a member inside
 the party token, are formation's recipe "An unlinked member's own hit points"
 (docs/formation/TESTING.md). Walk it after this one.
 

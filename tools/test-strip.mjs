@@ -1,8 +1,9 @@
 /**
- * The party tab's mode-aware strip against mocked Foundry globals: the strip's
- * context in each mode (`buildStripView`), the readout a camp day still prices,
- * the journey's warnings, and the two partial templates rendered with plain
- * Handlebars for a Judge and for a player. Invented figures throughout — cells
+ * The mode tab's strip against mocked Foundry globals: the strip's context in
+ * each mode (`buildStripView`), the readout a camp day still prices, the
+ * journey's warnings, and the party sheet's parts rendered with plain
+ * Handlebars for a Judge and for a player in each mode — where every control
+ * the old folds held now lives, once. Invented figures throughout — cells
  * of 7 and 28 miles, a table distance of 7, an exploration speed made up for the
  * rig — so these prove the MACHINERY and never the book.
  *
@@ -421,43 +422,93 @@ const stripOf = (id) => {
 {
   const { default: Handlebars } = await import("handlebars");
   const fs = await import("node:fs");
+  const { MODE_TEMPLATES, framePartIds, frameTabs, buildFrameView } = await import("../scripts/formation/frame-view.mjs");
   const hb = Handlebars.create();
-  const T = (name) => `templates/formation/${name}.hbs`;
-  const PREFIX = "modules/acks-extras/templates/formation/";
+  const read = (path) => fs.readFileSync(`templates/${path}`, "utf8");
   hb.registerHelper("localize", (key, options) =>
     String(key) + (options?.hash && Object.keys(options.hash).length ? JSON.stringify(options.hash) : ""));
   hb.registerHelper("checked", (v) => (v ? "checked" : ""));
-  for (const name of ["formation-strip", "formation-declarations"]) {
-    hb.registerPartial(`${PREFIX}${name}.hbs`, hb.compile(fs.readFileSync(T(name), "utf8")));
+  hb.registerHelper("eq", (a, b) => a === b);
+  for (const path of ["formation/formation-strip.hbs", "formation/formation-player-actions.hbs", "formation/formation-cell.hbs", "lib/station-chip.hbs"]) {
+    hb.registerPartial(`modules/acks-extras/templates/${path}`, hb.compile(read(path)));
   }
-  const party = hb.compile(fs.readFileSync(T("formation-tab-party"), "utf8"));
 
-  // The handlers the templates may name: SHARED_ACTIONS' own keys, read from source.
+  // Each part's template, read from the sheet's own PARTS; the mode part's
+  // follows the travel mode (MODE_TEMPLATES), as `_configureRenderParts` sets it.
+  const sheet = fs.readFileSync("scripts/formation/party-actor.mjs", "utf8");
+  const partsBlock = sheet.slice(sheet.indexOf("static PARTS = {"));
+  const PART_FILES = Object.fromEntries(
+    [...partsBlock.slice(0, partsBlock.indexOf("\n  };")).matchAll(/^ {4}(\w+): \{\s*template: `\$\{T\}\/([\w.-]+)`/gm)].map((m) => [m[1], m[2]]),
+  );
+  for (const part of ["band", "frame", "tabs", "order", "kit", "sightings", "judge"]) {
+    assert.ok(PART_FILES[part], `the sheet's ${part} part was read`);
+  }
+  const compiled = new Map();
+  const templateOf = (file) => {
+    if (!compiled.has(file)) compiled.set(file, hb.compile(read(`formation/${file}`)));
+    return compiled.get(file);
+  };
+
+  // The handlers a template may name: SHARED_ACTIONS' own keys and the sheet's,
+  // read from source, and core's `tab`.
   const source = fs.readFileSync("scripts/formation/formation-actions.mjs", "utf8");
   const block = source.slice(source.indexOf("export const SHARED_ACTIONS = {"));
-  const handlers = new Set([...block.slice(0, block.indexOf("\n};")).matchAll(/^ {2}(?:async )?(\w+)\(/gm)].map((m) => m[1]));
-  assert.ok(handlers.has("travelEndDay") && handlers.has("togglePause"), "the handler list was read");
+  const handlers = new Set([
+    ...[...block.slice(0, block.indexOf("\n};")).matchAll(/^ {2}(?:async )?(\w+)\(/gm)].map((m) => m[1]),
+    ...[...sheet.matchAll(/^ {6}(\w+): PartySheet\.#/gm)].map((m) => m[1]),
+    "tab",
+  ]);
+  assert.ok(handlers.has("travelEndDay") && handlers.has("togglePause") && handlers.has("goTab"), "the handler list was read");
 
   const scene = makeScene("S.strip.tpl", { kind: "hex", miles: TABLE_MILES });
   const token = makeToken(scene, "t.strip.tpl");
+  /**
+   * The sheet's render for a seat, part by part, from the context the sheet
+   * builds (party-actor.mjs `_prepareContext`), the mode tab active:
+   * `{partId: html}` for every part the seat is configured with.
+   */
   const render = (id, { gm }) => {
     const f = getFormation(id);
     const was = game.user;
     game.user = { isGM: gm, id: gm ? "gm1" : "pl1" };
     try {
-      const view = buildFormationView(f);
-      return party({
+      const mode = travelOf(f).mode;
+      const tabs = Object.fromEntries(frameTabs({ mode, isGM: gm }).map((tab) => {
+        const active = tab.id === "mode";
+        return [tab.id, { ...tab, group: "primary", active, cssClass: [tab.cssClass, active ? "active" : ""].filter(Boolean).join(" ") }];
+      }));
+      const context = {
+        tabs,
         isGM: gm,
         formation: f,
-        ...view,
+        partyName: "The Company",
+        panelHidden: false,
+        ...buildFormationView(f),
         ...(gm ? buildGMExtras(f) : buildPlayerPanel(f)),
         headcount: 1,
-      });
+        description: { source: "", html: "", editing: false },
+        document: { uuid: "Actor.party" },
+      };
+      context.frame = buildFrameView({ view: context, isGM: gm, headcount: 1, hitPoints: [], clockTime: "" });
+      const out = {};
+      for (const part of framePartIds({ isGM: gm, hasFormation: true })) {
+        out[part] = templateOf(part === "mode" ? MODE_TEMPLATES[mode] : PART_FILES[part])(context);
+      }
+      return out;
     } finally {
       game.user = was;
     }
   };
+  const whole = (parts) => Object.values(parts).join("\n");
   const actionsIn = (html) => [...html.matchAll(/data-action="([^"]+)"/g)].map((m) => m[1]);
+  const count = (html, needle) => html.split(needle).length - 1;
+  /** The markup of one titled section of a part, up to the next section or the part's end. */
+  const sectionOf = (html, key) => {
+    const from = html.indexOf(`data-section="${key}"`);
+    if (from < 0) return "";
+    const next = html.indexOf("data-section=", from + 1);
+    return html.slice(from, next < 0 ? undefined : next);
+  };
 
   const journey = makeFormation(scene, token);
   const delve = makeFormation(scene, token, { mode: "delve" });
@@ -465,53 +516,114 @@ const stripOf = (id) => {
 
   for (const [mode, id] of [["journey", journey], ["delve", delve], ["settlement", city]]) {
     for (const gm of [true, false]) {
-      const html = render(id, { gm });
-      assert.ok(!/\bid="/.test(html), `${mode}/${gm ? "GM" : "player"}: no literal id`);
+      const seat = `${mode}/${gm ? "GM" : "player"}`;
+      const parts = render(id, { gm });
+      const html = whole(parts);
+      assert.ok(!/\sid="/.test(html), `${seat}: no literal id`);
       for (const action of actionsIn(html)) {
-        assert.ok(handlers.has(action), `${mode}: data-action "${action}" has a handler`);
+        assert.ok(handlers.has(action), `${seat}: data-action "${action}" has a handler`);
       }
-      for (const [, inner] of html.matchAll(/<summary[^>]*>([^]*?)<\/summary>/g)) {
-        assert.ok(!/<(button|input|select|textarea|a)\b/.test(inner), `${mode}: no control inside a summary`);
+      assert.ok(!/<(details|summary)\b/.test(html), `${seat}: no fold is left; every group is a titled section`);
+      assert.equal("judge" in parts, gm, `${seat}: the Judge's part on a GM seat only`);
+      for (const part of ["mode", "order", "kit", "sightings", "judge"]) {
+        if (!(part in parts)) continue;
+        const root = parts[part].match(/<div class="tab acks-extras-party-sheet__panel( active)?" data-group="primary" data-tab="(\w+)">/);
+        assert.ok(root, `${seat}: the ${part} part's root is a panel of the primary group`);
+        assert.equal(root[2], part, `${seat}: the ${part} panel answers to its own tab`);
+        assert.equal(!!root[1], part === "mode", `${seat}: only the active tab's panel is active`);
       }
-      assert.ok(!/<details[^>]*\bopen\b/.test(html), `${mode}: every group is closed by default`);
     }
   }
 
-  // The Judge: the mode picker, the journey's buttons, the groups by mode.
+  // The Judge on a journey: every control the folds and the old header held has
+  // one home, on one part.
   const gmJourney = render(journey, { gm: true });
-  assert.match(gmJourney, /<select name="travel\.mode">/);
-  for (const action of ["travelEndDay", "travelEnterHex", "travelEncounterThrow", "forageDay", "searchHour", "togglePause", "dealXp", "adjustHp", "consumeRations", "disband"]) {
-    assert.ok(gmJourney.includes(`data-action="${action}"`), `the journey strip offers ${action}`);
+  const HOMES = {
+    band: ['name="travel.mode"', 'name="name"'],
+    mode: [
+      'name="travel.hexLabel"', 'data-action="travelEnterHex"', 'data-action="forageDay"', 'data-action="travelEndDay"',
+      'name="travel.ground"', 'name="travel.road"', 'name="travel.following"', 'name="travel.territory"', 'name="travel.encounterTerrain"',
+      'data-action="hexStock"', 'name="camp.present"', 'name="camp.target"',
+      'name="travel.movement.mode"',
+      'name="travel.weather.climate"', 'name="travel.weather.season"', 'data-action="travelWeatherRoll"',
+      'name="travel.day.kind"', 'name="travel.hour"', 'name="travel.day.traps"', 'name="travel.day.noSleep"',
+      'name="travel.exposure.hours"', 'name="travel.camp.steal"', 'name="travel.camp.water"', 'name="travel.camp.sleepInArmour"',
+    ],
+    judge: ['name="travel.lostNote"', 'data-action="lostBegin"'],
+    frame: [
+      'data-action="partySave"', 'data-action="toggleMagical"', 'data-action="adjustHp"', 'data-action="consumeRations"',
+      'data-action="travelEncounterThrow"', 'data-action="partyChecks"', 'data-action="searchHour"', 'data-action="togglePause"',
+      'data-action="dealXp"', 'data-action="editDescription"', 'data-action="editPartyImage"', 'data-action="ownership"',
+      'data-action="tweaks"', 'data-action="toggleKey"',
+    ],
+    tabs: ['data-action="togglePanel"', 'data-action="tab"'],
+    order: [
+      'data-action="autoArrange"', 'name="frontage"', 'data-action="saveMarchingOrder"', 'data-action="loadMarchingOrder"',
+      'data-action="addBlank"', 'data-action="openTrapbreak"', 'data-action="openSkillAudit"', 'data-action="disband"',
+    ],
+  };
+  for (const [home, needles] of Object.entries(HOMES)) {
+    for (const needle of needles) {
+      assert.ok(gmJourney[home].includes(needle), `${needle} lives on the ${home} part`);
+      for (const [part, html] of Object.entries(gmJourney)) {
+        if (part !== home) assert.ok(!html.includes(needle), `${needle} is not drawn a second time on the ${part} part`);
+      }
+    }
   }
-  assert.ok(!gmJourney.includes('data-action="advanceTurn"'), "a march does not tick dungeon turns");
-  assert.ok(gmJourney.includes('name="travel.hexLabel"'));
-  for (const fold of ["country", "movement", "sky", "day", "camp", "lost"]) {
-    assert.ok(gmJourney.includes(`data-fold="${fold}"`), `the Judge sees the ${fold} group`);
+  assert.equal(count(whole(gmJourney), 'data-action="travelEndDay"'), 1, "End day is pressed in one place");
+  const head = gmJourney.mode.slice(0, gmJourney.mode.indexOf("</header>"));
+  for (const needle of ['name="travel.hexLabel"', 'data-action="travelEnterHex"', 'data-action="forageDay"', 'data-action="travelEndDay"']) {
+    assert.ok(head.includes(needle), `${needle} sits at the Wilderness tab's head`);
   }
-  assert.ok(!gmJourney.includes('data-fold="city"'), "no city group on a journey");
-  assert.ok(gmJourney.includes('name="travel.hour"'), "the hour select sits in the Day group");
-  assert.ok(gmJourney.includes('name="travel.ground"') && gmJourney.includes('name="travel.road"'), "an unpainted map leaves the ground and road pickers");
+  assert.ok(!whole(gmJourney).includes('data-action="advanceTurn"'), "a march does not tick dungeon turns");
+  const order = ["country", "poi", "movement", "sky", "day", "camp"].map((key) => gmJourney.mode.indexOf(`data-section="${key}"`));
+  assert.ok(order.every((at) => at > 0), "the Judge sees every section of the Wilderness tab");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "Country, Points of interest, Movement, Sky, Day, then Camp");
+  for (const needle of ['name="camp.present"', 'name="camp.target"', 'data-action="hexStock"']) {
+    assert.ok(sectionOf(gmJourney.mode, "poi").includes(needle), `${needle} sits in Points of interest`);
+  }
+  assert.ok(sectionOf(gmJourney.mode, "day").includes('name="travel.hour"'), "the hour select sits in the Day section");
+  assert.ok(sectionOf(gmJourney.mode, "camp").includes('name="travel.exposure.hours"'), "the exposure fields sit in the Camp section");
+  assert.ok(!gmJourney.mode.includes('data-section="city"'), "no city section on a journey");
+  assert.ok(sectionOf(gmJourney.judge, "episode").includes('data-action="lostBegin"'), "the lost episode is the Judge tab's");
 
+  // The Judge in the delve: the turn clock at the tab's head, no sections.
   const gmDelve = render(delve, { gm: true });
-  assert.ok(gmDelve.includes('data-action="advanceTurn"'), "the delve keeps its turn buttons");
-  assert.ok(!gmDelve.includes("data-fold="), "no declaration groups in the delve");
+  const delveHead = gmDelve.mode.slice(0, gmDelve.mode.indexOf("</header>"));
+  for (const action of ["advanceTurn", "advanceRound", "restTurn", "undoTurn", "togglePace"]) {
+    assert.ok(delveHead.includes(`data-action="${action}"`), `the Dungeon tab's head offers ${action}`);
+  }
+  assert.ok(!gmDelve.mode.includes("data-section="), "no declaration sections in the delve");
+  assert.ok(!whole(gmDelve).includes('data-action="travelEndDay"'), "the delve ends no day");
+  assert.ok(gmDelve.judge.includes("ACKS-FORMATION.frame.judge.offJourney"), "the Judge's tab says it waits for a journey");
+  assert.ok(gmDelve.sightings.includes("ACKS-FORMATION.frame.sightings.offJourney"), "and so does Sightings");
 
+  // The Judge in a city: The city section, and the Hunted pill at the head.
   const gmCity = render(city, { gm: true });
-  assert.ok(gmCity.includes('data-fold="city"') && !gmCity.includes('data-fold="country"'), "the city has its own group only");
-  assert.ok(gmCity.includes('name="travel.settlement.pace"'));
+  assert.ok(gmCity.mode.includes('data-section="city"') && !gmCity.mode.includes('data-section="country"'), "the city has its own section only");
+  assert.ok(sectionOf(gmCity.mode, "city").includes('name="travel.settlement.pace"'));
+  const cityHead = gmCity.mode.slice(0, gmCity.mode.indexOf("</header>"));
+  assert.ok(cityHead.includes('name="travel.settlement.wanted"'), "the Hunted toggle sits at the City tab's head");
+  assert.equal(count(whole(gmCity), 'name="travel.settlement.wanted"'), 1, "and is not drawn a second time");
+  for (const action of ["advanceTurn", "advanceRound", "restTurn", "undoTurn"]) {
+    assert.ok(cityHead.includes(`data-action="${action}"`), `the City tab's head offers ${action}`);
+  }
 
   // A player: the strip and the camp's forecast, none of the declarations.
   const playerJourney = render(journey, { gm: false });
-  assert.ok(playerJourney.includes("ACKS-FORMATION.strip.milesPerHour"), "a player sees the journey strip");
-  assert.ok(!playerJourney.includes('name="travel.mode"'), "but not the mode picker");
-  assert.ok(!playerJourney.includes('data-action="travelEndDay"'), "nor the Judge's buttons");
-  for (const fold of ["country", "movement", "day", "lost"]) {
-    assert.ok(!playerJourney.includes(`data-fold="${fold}"`), `no ${fold} group for a player`);
+  const playerHtml = whole(playerJourney);
+  assert.ok(playerJourney.mode.includes("ACKS-FORMATION.strip.milesPerHour"), "a player sees the journey strip");
+  assert.ok(!playerHtml.includes('name="travel.mode"'), "but not the mode picker");
+  assert.ok(!playerHtml.includes('name="name"'), "nor the name field");
+  assert.ok(!playerHtml.includes('data-action="travelEndDay"'), "nor the Judge's buttons");
+  for (const key of ["country", "poi", "movement", "day"]) {
+    assert.ok(!playerHtml.includes(`data-section="${key}"`), `no ${key} section for a player`);
   }
-  assert.ok(playerJourney.includes('data-fold="camp"'), "the camp group reaches a player");
-  assert.ok(playerJourney.includes("ACKS-FORMATION.camp.food"), "with the forecast in it");
-  assert.ok(!playerJourney.includes("travel.exposure"), "and none of the Judge's exposure fields");
-  assert.ok(!/name="travel\./.test(playerJourney), "no declared field reaches a player");
+  assert.ok(sectionOf(playerJourney.mode, "camp").includes("ACKS-FORMATION.camp.food"), "the Camp section reaches a player, with the forecast in it");
+  assert.ok(!playerHtml.includes("travel.exposure"), "and none of the Judge's exposure fields");
+  assert.ok(!playerHtml.includes('name="camp.present"') && !playerHtml.includes('name="camp.target"'), "nor the search's selects");
+  assert.ok(!/name="travel\./.test(playerHtml), "no declared field reaches a player");
+  assert.ok(!playerHtml.includes('data-tab="judge"'), "and nothing names the Judge's tab");
 }
 
 {
@@ -542,4 +654,4 @@ const stripOf = (id) => {
   unregisterTable("weather");
 }
 
-console.log("test-strip: OK (strip by mode, journey tally and clock, cadence next, pause, camp readout, warnings, templates)");
+console.log("test-strip: OK (strip by mode, journey tally and clock, cadence next, pause, camp readout, warnings, the sheet's parts by mode and seat)");

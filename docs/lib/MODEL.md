@@ -1751,8 +1751,8 @@ only (`apps/hp-app.mjs`). It opens:
 
 - on the selected tokens, from the **Adjust hit points** button on the Tokens
   layer and from the *Adjust Hit Points (GM)* macro;
-- on a party's members, from the **Hit points** button on the party sheet's
-  Party tab;
+- on a party's members, from the **Hit points** figure on the party sheet's
+  rails;
 - on whatever `acksExtras.lib.hp.open(from)` names (docs/lib/API.md).
 
 There is one window per world, and opening it again replaces its rows.

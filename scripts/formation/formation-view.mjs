@@ -557,7 +557,7 @@ export function expeditionMiles(formation) {
   return Number(travelReadout(marching, partySpeed(marching, { dark: false })).milesPerDay) || 0;
 }
 
-/** The modes the strip's select offers, in order, with the label of each. */
+/** The modes the band's select offers, in order, with the label of each. */
 const STRIP_MODES = Object.freeze({
   delve: "ACKS-FORMATION.strip.modeDelve",
   journey: "ACKS-FORMATION.travel.legend",
@@ -609,7 +609,8 @@ function journeyClock(t) {
 }
 
 /**
- * The play surface's context, by mode: the clock strip on the party tab.
+ * The play surface's context, by mode: the clock strip on the mode tab, which
+ * the frame's band, rails and heads read as well.
  *
  * Every mode carries the mode picker, the pause state, and the camp's supplies.
  * The delve and the city also carry the turn tracker's four stats (the city
@@ -929,8 +930,8 @@ function buildSettlementView(formation, t) {
     cadenceLine,
     // The district the party is standing in, or "" outside one.
     districtName,
-    // Who set the hunted flag, when a faction's ledger did (hunt.mjs): the
-    // tracker names it beside the Judge's own checkbox.
+    // Who set the hunted flag, when a faction's ledger did (hunt.mjs): The
+    // city section names it under the Judge's own Hunted pill.
     huntedByName: hunterName(s),
     // How the quarter's own reputation reads here, or "" when the district is
     // silent about it (no district, no modifier, or a modifier owed somewhere
@@ -948,7 +949,7 @@ function buildSettlementView(formation, t) {
     // Which list answers here, and which named lists are gone — `{text, warn}`
     // rows, already formatted.
     listLines,
-    // Whether the City group has anything for a player: the pickers and the
+    // Whether The city section has anything for a player: the pickers and the
     // tracker are the Judge's, the places underfoot are the table's.
     shown: !!game.user?.isGM || !!(districtName || placeHere || districtPlace),
     // The RATE, kept apart from the tally the spread above carries.
@@ -1105,7 +1106,7 @@ function buildCampView(formation, t, milesPerDay = 0, stock = null) {
     searchesHeld: searchesAvailable({ slots, forced: t.day?.kind === "forced" }),
     // The camp's declarations. `waterAuto` is the standing-water answer the
     // rest of the record already gives (a followed river, a river pick), so the
-    // fold can say the water is at hand without the box being ticked.
+    // Camp section can say the water is at hand without the box being ticked.
     steal: t.camp.steal,
     water: t.camp.water,
     waterAuto: standingWaterOf({ ...t, camp: { ...t.camp, water: false } }),
@@ -1125,12 +1126,12 @@ function buildCampView(formation, t, milesPerDay = 0, stock = null) {
 }
 
 /**
- * The context of the Judge's declarations (the `<details>` groups under the
- * strip). Outside a journey or a city it is only the mode; inside a journey it
- * is the pickers, the day board, the camp, the hex trace, the GM-only lost
- * state, and the newest slice of the log; inside a city, the board's pickers
- * and place lines. What the strip prints (speed, the walked tally, the clock)
- * is `buildStripView`'s.
+ * The context of the Judge's declarations (the titled sections of the mode
+ * tab, the Judge's tab and the Sightings tab). Outside a journey or a city it
+ * is only the mode; inside a journey it is the pickers, the day board, the
+ * camp, the hex trace, the GM-only lost state, and the newest slice of the log;
+ * inside a city, the board's pickers and place lines. What the strip prints
+ * (speed, the walked tally, the clock) is `buildStripView`'s.
  */
 function buildTravelView(formation) {
   const t = travelOf(formation);

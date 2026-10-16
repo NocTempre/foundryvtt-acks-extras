@@ -631,13 +631,20 @@ const PREFIX = "modules/acks-extras/templates/formation/";
 hb.registerHelper("localize", (key, options) =>
   String(key) + (options?.hash && Object.keys(options.hash).length ? JSON.stringify(options.hash) : ""));
 hb.registerHelper("checked", (v) => (v ? "checked" : ""));
-for (const name of ["formation-strip", "formation-declarations"]) {
+for (const name of ["formation-strip", "formation-player-actions"]) {
   hb.registerPartial(`${PREFIX}${name}.hbs`, hb.compile(fs.readFileSync(`templates/formation/${name}.hbs`, "utf8")));
 }
-const party = hb.compile(fs.readFileSync("templates/formation/formation-tab-party.hbs", "utf8"));
+// The journey's mode tab (Wilderness): the stock of the hex is its Points of
+// interest section, with the search's two selects at that section's foot.
+const wilderness = hb.compile(fs.readFileSync("templates/formation/formation-tab-wilderness.hbs", "utf8"));
 const source = fs.readFileSync("scripts/formation/formation-actions.mjs", "utf8");
 const block = source.slice(source.indexOf("export const SHARED_ACTIONS = {"));
-const handlers = new Set([...block.slice(0, block.indexOf("\n};")).matchAll(/^ {2}(?:async )?(\w+)\(/gm)].map((m) => m[1]));
+const sheet = fs.readFileSync("scripts/formation/party-actor.mjs", "utf8");
+const handlers = new Set([
+  ...[...block.slice(0, block.indexOf("\n};")).matchAll(/^ {2}(?:async )?(\w+)\(/gm)].map((m) => m[1]),
+  ...[...sheet.matchAll(/^ {6}(\w+): PartySheet\.#/gm)].map((m) => m[1]),
+  "tab",
+]);
 
 const renderParty = (formation, { gm }) => {
   const was = game.user;
@@ -645,13 +652,13 @@ const renderParty = (formation, { gm }) => {
   try {
     const f = getFormation(formation.id);
     const v = view.buildFormationView(f);
-    return party({ isGM: gm, formation: f, ...v, ...(gm ? view.buildGMExtras(f) : view.buildPlayerPanel(f)), headcount: 1 });
+    return wilderness({ isGM: gm, formation: f, ...v, ...(gm ? view.buildGMExtras(f) : view.buildPlayerPanel(f)), headcount: 1 });
   } finally {
     game.user = was;
   }
 };
 
-await t("every action the strip and the declarations name has a handler, stocked or not", async () => {
+await t("every action the Wilderness tab names has a handler, stocked or not", async () => {
   assert.ok(handlers.has("hexStock") && handlers.has("searchHour"), "the handler list was read");
   const { formation } = world({ members: ["surveyor"] });
   const bare = renderParty(formation, { gm: true });
@@ -662,9 +669,7 @@ await t("every action the strip and the declarations name has a handler, stocked
       assert.ok(handlers.has(action), `${label}: data-action "${action}" has a handler`);
     }
     assert.ok(!/[\s<]id="/.test(html), `${label}: no literal id`);
-    for (const [, inner] of html.matchAll(/<summary[^>]*>([^]*?)<\/summary>/g)) {
-      assert.ok(!/<(button|input|select|textarea|a)\b/.test(inner), `${label}: no control inside a summary`);
-    }
+    assert.ok(!/<(details|summary)\b/.test(html), `${label}: no fold; the stock is a titled section`);
   }
   for (const action of ["hexStock", "hexSurvey", "hexFound", "hexPlace", "hexRemovePoint", "hexAddPoint", "hexClear"]) {
     assert.ok(handlers.has(action), `the handler ${action} exists`);
@@ -673,7 +678,7 @@ await t("every action the strip and the declarations name has a handler, stocked
   assert.ok(bare.includes('data-action="hexStock"') && !bare.includes('data-action="hexClear"'), "an unstocked hex offers only the stocking");
 });
 
-await t("the strip carries the two selects, the stock the default, and the unfound points by id", async () => {
+await t("Points of interest carries the two selects, the stock the default, and the unfound points by id", async () => {
   const { formation } = world();
   const bare = renderParty(formation, { gm: true });
   assert.ok(!bare.includes('<option value="stock"'), "the stock is offered only where there is one");
@@ -688,7 +693,10 @@ await t("the strip carries the two selects, the stock the default, and the unfou
   assert.match(html, /<option value="anything" selected>/);
   assert.match(html, /<option value="elsewhere" >/);
   for (const p of record.points) assert.ok(html.includes(`<option value="${p.id}"`), `${p.name} can be looked for`);
-  assert.ok(html.includes('data-fold="hex"'), "the This hex group");
+  const poi = html.slice(html.indexOf('data-section="poi"'), html.indexOf('data-section="movement"'));
+  assert.ok(poi.length > 0, "the Points of interest section");
+  assert.match(poi, /<select name="camp\.present">/, "the search's selects sit in it");
+  assert.match(poi, /<select name="camp\.target">/);
   assert.ok(html.includes("QQ Point 1"), "the Judge reads the point names");
   assert.ok(!html.includes("ACKS-FORMATION.hexStock.upTo"), "a count the Judge typed is not a ceiling");
   const rolled = await stockRun.stockFromInputs(formation, { terrain: "grassland", territory: "unsettled", rng: () => 0.5 });
@@ -714,7 +722,7 @@ await t("a player's panel carries no stock, no point name, and neither select", 
   await stockHere(formation, 2);
   const html = renderParty(formation, { gm: false });
   assert.ok(!html.includes("QQ Point"), "no point name reaches a player");
-  assert.ok(!html.includes('data-fold="hex"'));
+  assert.ok(!html.includes('data-section="poi"'), "no Points of interest section");
   assert.ok(!html.includes("camp.present") && !html.includes("camp.target"));
   assert.ok(!/data-action="hex/.test(html), "none of the hex actions");
 });

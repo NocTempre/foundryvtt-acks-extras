@@ -2435,7 +2435,10 @@ across a mile-scale map billed a turn per 120 feet of a 31,680-foot cell.
   rate and tally. What the Judge declares — country, movement, sky, day board,
   camp, lost, log, the city's pickers — is collapsed under it. The Travel tab
   is gone. Pause is live on a journey through `clock.pausedBy === "judge"`,
-  separate from the mode.
+  separate from the mode. *Superseded in part by "The party sheet takes the
+  character sheet's frame" (2026-10-15, below): the strip heads the mode's own
+  tab, the declarations are titled sections on it, the lost episode is the
+  Judge's tab's and the log is Sightings'.*
 - **A scene's system is inferred when it is not declared**: a declared mode
   wins; else a mile-scale cell means journey and a district region means
   settlement; else silence. A declared delve on a mile-scale map bills nothing
@@ -2961,3 +2964,92 @@ sheet. Nothing here supersedes a ruling younger than 7 days; it makes the
   season the step ended in.
 - A calendar whose seasons the setting, the name and the position all fail to
   map leaves the declared season in charge, with no hint on the sheet.
+
+## 2026-10-15 — The party sheet takes the character sheet's frame
+
+**Evidence.** The owner's 2026-10-14 feedback on the shipped party sheet
+(11.2.0), read as defects in the redesign proposal
+(`wip/20261014-party-sheet-redesign.md` §0): "The UI is terrible", "Camp as a
+new tab when activating camp time", "A sightings for encounter cards". The
+sheet's Judge controls sat in one strip of buttons over a stack of folds, and
+nothing read at a glance. The proposal's frame is the character sheet's,
+and the rulings that sheet already made carry over unchanged (character-sheet
+DECISIONS): *The design canvas is the specification*, *The rails draw
+Foundry's icons*, *Where the fold and the pins live* (a viewing preference is
+the viewer's flag), *The XP bar is a reading, and a press on it drags the
+window*, and *The canvas figures are a specification, scaled by a ratio*. This
+entry supersedes in part a ruling six days old (*A drag on a journey spends
+miles*, "One surface", 2026-10-09); the new evidence is that feedback, given on
+the surface that ruling built.
+
+**Ruled.**
+- **The frame.** A band in the window header (crest, mode word, name, the
+  day's or the rest's bar, a reading that drags the window); one art row of
+  rails around a plate; pill tabs named by the mode; each tab's own actions at
+  its head. The rails are one set in every mode: a mode changes what a figure
+  reads, never which cells there are (MODEL, "The frame").
+- **The folds' homes.** Each became a titled section where its controls are
+  used: Country, Points of interest, Movement, Sky, Day and Camp on the
+  Wilderness tab, The city on the City tab, the log on Sightings, the lost
+  episode on the Judge's tab. The search's two selects moved to the foot of
+  Points of interest, beside the stock they search. The strip keeps its tiles;
+  its buttons went to the tab heads and the quick tools, its mode picker to the
+  band, its saves to the saves rail and its checks to the Party checks tool.
+- **The Judge's tab is a part a player's seat never renders**
+  (`framePartIds`), so nothing on it reaches a player's DOM.
+- **Part-root scroll**, with the `// no-scroll:` escape: each tab part's root
+  is the scroller and is declared `scrollable: [""]`.
+- **The ratio**: every px figure of the frame is the canvas's times
+  `--acks-extras-k`, as on the character sheet; the opening width follows it
+  and the 640px `min-width` floor does not.
+- **A sixth save cell**, the Magical toggle, on until turned off and kept on
+  the open sheet. A departure from the canvas, which drew five: the toggle
+  changes what the five throw, so it sits beside them.
+- **Tweaks holds the encounter table**, the old header's select, and nothing
+  else yet.
+- **End day stays at the Wilderness tab's head** until the redesign's phase 4
+  replaces it with Make camp and Break camp.
+- **No Camp part in this phase.** `buildTravelView` sets `travel.camp` on every
+  journey, so a part keyed on it would be a Camp tab on every journey, never
+  one that comes with camp time. Camp is a section of the Wilderness tab, after
+  Day, unfolded; the Camp tab is phase 4's, with the camp-time state (ROADMAP).
+- **Sightings holds the journey's log** until the feed (phase 6).
+- **A player's seat** has the figures rail and the Key: no saves, no quick
+  tools, no document tools. A figure whose press writes (hit points, supplies,
+  the delve's and the city's pace) is a reading there; a press that only opens
+  a tab stays.
+- **The party actor gains `system.description`**, an HTML field edited in the
+  reading column; the form handler writes it to the actor and every other
+  field to the formation record, as before.
+- **The chevron's choice is a user flag** keyed by the party actor's id, the
+  shape of the character sheet's fold.
+- **Hunted here is the `travel.settlement.wanted` checkbox itself**, drawn as a
+  toggle pill at the City tab's head and nowhere else.
+- **The canvas's day-declared chip is not built**: `travel.day.declared` is a
+  submit marker and is never stored (ROADMAP).
+
+**Rejected.**
+- *The frame scroll contract* (`acks-extras-scroll`): it makes `.window-content`
+  the scroller, which is not a part, so a sheet whose fields submit on every
+  change would lose its place on every edit.
+- *Snapping the canvas figures to the type ramp*: rejected for the character
+  sheet (*The canvas figures are a specification, scaled by a ratio*) for
+  reasons that hold here unchanged.
+- *Keeping the folds*: each hid its controls behind a click while the Judge
+  works several at once, and they were the layout the feedback named.
+- *A Camp part keyed on `travel.camp`*: present on every journey (above).
+
+**Cost.**
+- Every control the Judge knew moved: the strip's buttons, the header's table
+  select and the folds now sit at the tab heads, on the rails and in sections.
+  The guide's prose is rewritten; its screenshots show the old sheet until the
+  next release's shots.
+- A field on a hidden or inactive tab still submits, so hiding the panel keeps
+  nothing from being written.
+- A macro or module that found a control by `details[data-fold]` or by the
+  strip's markup finds nothing.
+- The window opens at 920px times the ratio and refuses to shrink below 640px.
+- The opening height is auto, as the character sheet's is, and core re-fits
+  an auto-height window on every render and tab change: a window the Judge
+  shortened springs back at the next field change, where the old sheet's
+  fixed 700px opening kept a resize. ROADMAP, "A window height the user set".

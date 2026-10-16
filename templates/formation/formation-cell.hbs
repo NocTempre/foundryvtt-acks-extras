@@ -1,0 +1,19 @@
+{{!-- One rail cell. Context (frame-view.mjs): {key, action, tab, save, check, cls,
+      icon, short, sub, title, toggle, on}. A cell with an action is a button,
+      named by its title; one without is a reading, named the same way to a
+      screen reader, and is not a control. --}}
+{{#if action}}
+<button type="button" class="acks-extras-party-sheet__cell{{#if cls}} {{cls}}{{/if}}" data-action="{{action}}"
+        {{#if tab}}data-tab="{{tab}}"{{/if}} {{#if save}}data-save="{{save}}"{{/if}} {{#if check}}data-check="{{check}}"{{/if}}
+        data-tooltip="{{title}}" aria-label="{{title}}"{{#if toggle}} aria-pressed="{{#if on}}true{{else}}false{{/if}}"{{/if}}>
+  <i class="{{icon}} acks-extras-party-sheet__cell-glyph" inert></i>
+  {{#if short}}<span class="acks-extras-party-sheet__cell-short" aria-hidden="true">{{short}}</span>{{/if}}
+  {{#if sub}}<span class="acks-extras-party-sheet__cell-sub acks-nums" aria-hidden="true">{{sub}}</span>{{/if}}
+</button>
+{{else}}
+<span class="acks-extras-party-sheet__cell is-reading{{#if cls}} {{cls}}{{/if}}" data-tooltip="{{title}}">
+  <i class="{{icon}} acks-extras-party-sheet__cell-glyph" inert></i>
+  {{#if sub}}<span class="acks-extras-party-sheet__cell-sub acks-nums" aria-hidden="true">{{sub}}</span>{{/if}}
+  <span class="acks-sr-only">{{title}}</span>
+</span>
+{{/if}}

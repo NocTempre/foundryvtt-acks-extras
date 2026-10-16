@@ -1,0 +1,76 @@
+{{!-- The Judge's tab, a GM seat's only part: the sheet never configures it for
+      a player, so nothing in it reaches a player's DOM. The head reads the
+      episode's state; The episode section holds the lost episode's controls. --}}
+<div class="tab acks-extras-party-sheet__panel{{#if tabs.judge.active}} active{{/if}}" data-group="primary" data-tab="judge">
+  {{#if formation}}
+  <header class="acks-extras-party-sheet__head">
+    <div class="acks-extras-party-sheet__head-lead">
+      <i class="{{frame.heads.judge.icon}} acks-extras-party-sheet__head-glyph" inert></i>
+      <div>
+        <h2 class="acks-extras-party-sheet__head-title">{{frame.heads.judge.title}}</h2>
+        <p class="acks-extras-party-sheet__head-sub">{{frame.heads.judge.sub}}</p>
+      </div>
+    </div>
+    <p class="acks-extras-party-sheet__head-state{{#if frame.heads.judge.open}} is-open{{/if}}">{{frame.heads.judge.state}}</p>
+  </header>
+
+  {{#if travel.isJourney}}
+  <section class="acks-extras-party-sheet__section" data-section="episode">
+    <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.episode"}}</h2>
+    <div class="acks-extras-formation-lost">
+      {{#if travel.lost.active}}
+        <p class="acks-extras-formation-lost-astray">
+          {{localize "ACKS-FORMATION.lost.astraySince" days=travel.lost.days hexes=travel.lost.fakedHexes}}
+        </p>
+      {{else if travel.lost.aware}}
+        <p class="acks-extras-formation-lost-astray">
+          {{localize "ACKS-FORMATION.lost.awareSince" days=travel.lost.days}}
+        </p>
+      {{else if travel.lost.leftover}}
+        <p class="hint">{{localize "ACKS-FORMATION.lost.leftover"}}</p>
+      {{/if}}
+      {{#if travel.lost.open}}{{#if travel.lost.judgeNote}}<p class="hint">{{travel.lost.judgeNote}}</p>{{/if}}{{/if}}
+      <div class="acks-extras-formation-lost-actions">
+      {{#if travel.lost.active}}
+        <button type="button" data-action="lostDiscover"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.discoverHint'}}">
+          <i class="fa-solid fa-eye"></i> {{localize "ACKS-FORMATION.lost.discover"}}
+        </button>
+      {{/if}}
+      {{#if travel.lost.open}}
+        <button type="button" data-action="lostReanchor"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.reanchorHint'}}">
+          <i class="fa-solid fa-map-pin"></i> {{localize "ACKS-FORMATION.lost.reanchor"}}
+        </button>
+        <button type="button" data-action="lostEnd"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.endHint'}}">
+          <i class="fa-solid fa-person-walking-arrow-loop-left"></i> {{localize "ACKS-FORMATION.lost.end"}}
+        </button>
+      {{else if travel.lost.leftover}}
+        <button type="button" data-action="lostReanchor"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.leftoverMoveHint'}}">
+          <i class="fa-solid fa-map-pin"></i> {{localize "ACKS-FORMATION.lost.leftoverMove"}}
+        </button>
+        <button type="button" data-action="lostEnd"
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.leftoverClearHint'}}">
+          <i class="fa-solid fa-eraser"></i> {{localize "ACKS-FORMATION.lost.leftoverClear"}}
+        </button>
+      {{else}}
+        <button type="button" data-action="lostBegin" {{#unless travel.lost.hasHex}}disabled{{/unless}}
+                data-tooltip="{{localize 'ACKS-FORMATION.lost.beginHint'}}">
+          <i class="fa-solid fa-compass-drafting"></i> {{localize "ACKS-FORMATION.lost.begin"}}
+        </button>
+      {{/if}}
+      </div>
+      <div class="acks-extras-formation-travel-lostrow">
+        <input type="text" name="travel.lostNote" value="{{travel.lost.judgeNote}}"
+               aria-label="{{localize 'ACKS-FORMATION.travel.lostNote'}}"
+               placeholder="{{localize 'ACKS-FORMATION.travel.lostNotePlaceholder'}}">
+      </div>
+    </div>
+  </section>
+  {{else}}
+  <p class="hint">{{localize "ACKS-FORMATION.frame.judge.offJourney"}}</p>
+  {{/if}}
+  {{/if}}
+</div>

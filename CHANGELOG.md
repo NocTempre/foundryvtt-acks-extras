@@ -25,6 +25,34 @@
   whose season names the module does not recognise can still drive the sky;
   blank matches by name.
 
+### Changed
+
+- **The party sheet takes the character sheet's frame.** The party's name,
+  its mode and a bar (the hours walked of the day's march on a journey, the
+  turns since the last rest elsewhere) sit in the window's title bar. Below
+  them the party's picture stands between rails of cells that are the same in
+  every mode: the saves, with a sixth cell that says whether a save is against
+  magic; hit points, supplies, mouths, pace and light; the encounter throw,
+  the party's checks, a search, the pause and experience; and the
+  description, the picture, ownership, *Tweaks* (the party's wandering-monster
+  table) and a *Key* that names every glyph. The party now has a description
+  of its own, written from the sheet.
+- **The party sheet's tabs are named by the mode.** *Dungeon*, *Wilderness*
+  or *City* comes first, with that mode's own actions at its head, then the
+  marching order (*Order*, *Train* or *Company*), *Kit*, *Sightings* and, for
+  the Judge alone, *Judge*. The folds are gone: on a journey their controls
+  are titled sections of the Wilderness tab (*Country*, *Points of interest*,
+  *Movement*, *Sky*, *Day* and *Camp*), the lost episode is on the Judge's
+  tab, and the journey's log is on Sightings. *Hunted here* is a toggle at the
+  head of the City tab. A player's sheet carries none of the Judge's cells and
+  no Judge tab. The chevron at the end of the tab row hides the tabs, and the
+  sheet remembers that for each user and party. Each tab scrolls on its own
+  and keeps its place when a field changes, and the whole window follows the
+  type size setting.
+- **Camp stays on the Wilderness tab for now.** A Camp tab, shown while camp
+  time is on, is the redesign's fourth phase; until it lands, camp is a titled
+  section after Day, and *End day* stays at the Wilderness tab's head.
+
 ### Fixed
 
 - **The door dialog's construction choice takes effect.** The construction

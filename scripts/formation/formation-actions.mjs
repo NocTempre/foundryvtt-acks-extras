@@ -37,7 +37,7 @@ import {
   promptForOrderName,
   saveTemplate,
 } from "./marching-templates.mjs";
-import { rollPartyCheck } from "./party-rolls.mjs";
+import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
 import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
@@ -225,7 +225,8 @@ export const SHARED_ACTIONS = {
   /**
    * Spend an hour looking. `present` is the Judge's answer to "is there
    * anything here" (the hex's stock, or yes, or no) and `target` what the
-   * party is looking for; both are read from the strip's selects.
+   * party is looking for; both are read from the selects at the foot of the
+   * Wilderness tab's Points of interest.
    */
   async searchHour(event, target) {
     const formation = gmFormation(this);
@@ -678,10 +679,11 @@ export const SHARED_ACTIONS = {
     await adjustTrackedSpell(this, target, -1);
   },
 
+  /** Every member rolls the pressed save; the saves rail's Magical toggle (`app.magical`) says against what. */
   async partySave(event, target) {
     const formation = gmFormation(this);
     if (!formation) return;
-    const magical = this.element.querySelector(".save-magical")?.checked ?? true;
+    const magical = this.magical ?? true;
     await rollPartySave(formation, target.dataset.save, { magical });
   },
 
@@ -690,6 +692,60 @@ export const SHARED_ACTIONS = {
     if (!formation) return;
     await rollPartyCheck(formation, target.dataset.check);
     this.render();
+  },
+
+  /**
+   * The party's checks, offered in one dialog: the quick tools rail has one
+   * press for all of them. A `solo` check is one character's action and is
+   * not offered; the dialog's answer is the picked check's key.
+   */
+  async partyChecks() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    const buttons = Object.entries(PARTY_CHECKS)
+      .filter(([, cfg]) => !cfg.solo)
+      .map(([key, cfg]) => ({ action: key, label: game.i18n.localize(cfg.label), icon: `fa-solid ${cfg.icon}` }));
+    const picked = await foundry.applications.api.DialogV2.wait({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      window: { title: loc("frame.checks.title"), icon: "fa-solid fa-ear-listen" },
+      content: `<p>${foundry.utils.escapeHTML(loc("frame.checks.prompt"))}</p>`,
+      buttons,
+      rejectClose: false,
+    }).catch(() => null);
+    if (typeof picked !== "string" || !Object.hasOwn(PARTY_CHECKS, picked) || PARTY_CHECKS[picked].solo) return;
+    await rollPartyCheck(formation, picked);
+    this.render();
+  },
+
+  /**
+   * The sheet's settings that are not figures: the encounter table the party
+   * draws from. The pick is written by the form handler, the route the field
+   * took when it stood on the sheet.
+   */
+  async tweaks() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    const esc = foundry.utils.escapeHTML;
+    const options = [
+      `<option value="">${esc(loc("app.tableNone"))}</option>`,
+      ...game.tables.contents.map(
+        (t) => `<option value="${esc(t.id)}"${t.id === formation.tableId ? " selected" : ""}>${esc(t.name)}</option>`,
+      ),
+    ].join("");
+    const picked = await foundry.applications.api.DialogV2.prompt({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      window: { title: loc("frame.tweaks.title"), icon: "fa-solid fa-sliders" },
+      content: `<div class="form-group"><label>${esc(loc("app.table"))}
+        <select name="tableId">${options}</select></label>
+        <p class="hint">${esc(loc("app.tableHint"))}</p></div>`,
+      ok: {
+        label: loc("frame.tweaks.save"),
+        callback: (_event, button) => ({ tableId: button.form.elements.tableId.value }),
+      },
+      rejectClose: false,
+    }).catch(() => null);
+    if (!picked) return;
+    await onChangeForm.call(this, null, null, { object: { tableId: picked.tableId } });
   },
 
   async advanceTurn() {
@@ -880,7 +936,11 @@ function readFrontage(value, formation) {
   return wanted;
 }
 
-/** Form submit handler: formation rename, default table, frontage (GM only). */
+/**
+ * Form submit handler (GM only): formation rename, default table, frontage,
+ * the travel fields, and the party actor's description — the one field the
+ * sheet writes to the actor itself.
+ */
 export async function onChangeForm(event, form, formData) {
   const data = foundry.utils.expandObject(formData.object);
   const formation = gmFormation(this);
@@ -889,6 +949,12 @@ export async function onChangeForm(event, form, formData) {
   // A refused or clamped entry writes nothing but must still redraw, or the
   // field keeps showing the number the formation did not take.
   let redraw = false;
+  const description = foundry.utils.getProperty(data, "system.description");
+  const actor = typeof description === "string" ? getPartyActor(formation) : null;
+  if (actor && description !== (actor.system?.description ?? "")) {
+    await actor.update({ "system.description": description });
+    redraw = true;
+  }
   if (typeof data.name === "string" && data.name.trim() && data.name !== formation.name) {
     formation.name = data.name.trim();
     // The actor mirrors the formation identity (and vice versa on rename).
@@ -908,11 +974,11 @@ export async function onChangeForm(event, form, formData) {
     }
   }
   if (changed) await updateFormation(formation);
-  // The travel panel's fields ride the same form and write through their own
+  // The travel fields ride the same form and write through their own
   // TARGETED patch, applied after any whole-record write above so the stale
   // copy cannot clobber what the patch lays down.
   if (game.user.isGM && data.travel) {
-    // The strip's mode picker rides this submit: a select reports its change
+    // The band's mode picker rides this submit: a select reports its change
     // here, where an action (which fires on click) would read the old value.
     if (TRAVEL_MODES.includes(data.travel.mode) && data.travel.mode !== travelOf(formation).mode) {
       await setJourneyMode(formation.id, data.travel.mode, { sceneId: formation.sceneId });

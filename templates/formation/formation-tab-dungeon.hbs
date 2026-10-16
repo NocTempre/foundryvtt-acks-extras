@@ -1,0 +1,45 @@
+{{!-- The mode tab in the delve (Dungeon): the turn clock's own actions at its
+      head, the strip's tiles, and a member-owner's requests. The lights and
+      spells stay on the Kit tab. --}}
+<div class="tab acks-extras-party-sheet__panel{{#if tabs.mode.active}} active{{/if}}" data-group="primary" data-tab="mode">
+  {{#if formation}}
+  <header class="acks-extras-party-sheet__head">
+    <div class="acks-extras-party-sheet__head-lead">
+      <i class="{{frame.heads.mode.icon}} acks-extras-party-sheet__head-glyph" inert></i>
+      <div>
+        <h2 class="acks-extras-party-sheet__head-title">{{frame.heads.mode.title}}</h2>
+        <p class="acks-extras-party-sheet__head-sub">{{frame.heads.mode.sub}}</p>
+      </div>
+    </div>
+    {{#if isGM}}
+    <div class="acks-extras-party-sheet__head-actions">
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="advanceTurn"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.advanceTurnHint'}}">
+        <i class="fa-solid fa-hourglass-half" inert></i> {{localize "ACKS-FORMATION.app.advanceTurn"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="advanceRound"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.advanceRoundHint'}}">
+        <i class="fa-solid fa-hourglass-start" inert></i> {{localize "ACKS-FORMATION.app.advanceRound"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="restTurn"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.restTurnHint'}}">
+        <i class="fa-solid fa-campfire" inert></i> {{localize "ACKS-FORMATION.frame.pill.restTurn"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="undoTurn"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.undoTurnHint'}}">
+        <i class="fa-solid fa-rotate-left" inert></i> {{localize "ACKS-FORMATION.frame.pill.undo"}}
+      </button>
+      <button type="button" class="acks-extras-party-sheet__head-pill{{#if strip.delve.hurried}} is-on{{/if}}" data-action="togglePace"
+              aria-pressed="{{#if strip.delve.hurried}}true{{else}}false{{/if}}"
+              data-tooltip="{{localize 'ACKS-FORMATION.app.paceHint'}}">
+        <i class="fa-solid {{#if strip.delve.hurried}}fa-person-running{{else}}fa-person-walking{{/if}}" inert></i> {{localize "ACKS-FORMATION.frame.pill.hurried"}}
+      </button>
+    </div>
+    {{/if}}
+  </header>
+
+  {{> "modules/acks-extras/templates/formation/formation-strip.hbs"}}
+
+  {{> "modules/acks-extras/templates/formation/formation-player-actions.hbs"}}
+  {{/if}}
+</div>

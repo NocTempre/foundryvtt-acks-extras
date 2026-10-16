@@ -22,6 +22,45 @@ When a formation takes the field, member tokens are stashed and one party token
 stands in their place. Disbanding restores every stashed token to where it came
 from.
 
+## The party sheet
+
+The party's name and the mode it travels in sit in the window's title bar,
+beside a bar: on a journey it fills with the hours walked of the day's march,
+in a dungeon or a city with the turns since the last rest. The crest opens the
+marching order. Below is the party's picture between rails of square cells,
+the same cells in every mode:
+
+- **The saves**, left of the picture. Press one and every member throws it,
+  on one card. The sixth cell, **Magical source**, says whether the throws are
+  against magic, which decides whether each member's bonuses against magic
+  count.
+- **The figures**: hit points (how many are hurt), supplies (days of food and
+  water), mouths, pace and light, each read the way the mode reads it. Press
+  hit points to adjust them, supplies to ration, and pace to switch between
+  careful and hurried (on a journey, to open Movement); mouths and light open
+  the marching order and the kit.
+- **The quick tools**: the encounter throw, the party's checks, a search, the
+  pause and experience.
+- **The reading**: the mode, and on a journey the day, the hex and the season;
+  the clock; the territory and what the party follows, its heads, the pause,
+  and on your seat whether it is astray; then the party's description.
+- **The sheet tools**: the description, the picture, ownership, **Tweaks**
+  (the table the party draws wandering monsters from where no zone names one)
+  and the **Key**, which names every glyph on the rails.
+
+The tabs are named by the mode. The first is **Dungeon**, **Wilderness** or
+**City**, with that mode's own actions at its head; then the marching order
+(**Order** in a dungeon, **Train** on a journey, **Company** in a city),
+**Kit**, **Sightings** (the journey's log) and, on your seat alone, the dashed
+**Judge** tab. The chevron at the end of the tab row folds the tabs away and
+leaves the frame, and the sheet remembers that for you, party by party. Each
+tab scrolls on its own and keeps its place, and the whole window follows the
+type size setting.
+
+A player's sheet is the same frame without your parts: no saves, no quick
+tools, the Key alone among the sheet tools, and no Judge tab. Hit points and
+supplies only read there; mouths and light still open their tabs.
+
 ## Deploying, and which way the column points
 
 A combat deploy lays the marching order out as a block: files abreast, ranks
@@ -53,8 +92,9 @@ Turn the column and the token's width and depth swap with it.
 
 ## Saved marching orders
 
-The party sheet's march controls **save** the current arrangement under a name
-and **load** one back; the party token's HUD carries a **form up** button that
+The head of the party sheet's Order tab has **Save order**, which keeps the
+current arrangement under a name, and **Load order**, which puts one back; the
+party token's HUD carries a **form up** button that
 applies a saved order and gathers everyone on the map back inside the token.
 With one order saved the button applies it outright; with several it asks.
 
@@ -97,10 +137,11 @@ else.
 
 ## Overland travel
 
-The party sheet has one surface for every kind of travel: the clock strip at
-the top of the Party tab. In a dungeon it counts turns; on a journey it counts
-miles and hours; in a city it counts blocks. The mode is picked from the
-strip's own selector, and a map you have set up as a wilderness or a city map
+The party sheet has one surface for every kind of travel: its first tab, named
+for the mode, with the clock strip at its top. In a dungeon it counts turns; on
+a journey it counts miles and hours; in a city it counts blocks. The mode is
+picked from the selector beside the party's name in the title bar, and a map
+you have set up as a wilderness or a city map
 picks it for you when the party token lands there — as does a map whose cells
 are a mile or more across, which is read as wilderness unless you have said
 otherwise.
@@ -119,19 +160,21 @@ world clock with day or night and the hours left to dusk or dawn. The clock
 runs as the miles are spent: torches and tracked spells burn down on the road
 exactly as they do underground.
 
-What the order is crossing and how is set under the strip, in the groups only
-you see: the **ground**, whether it is on a **road**, whether it is **following**
-a river or a route it already knows, how settled the **territory** is, and
-**Moving by** — on foot, mounted, by vehicle, flying, or by vessel — which
-decides which of everything else the party actually meets. A flier ignores
-roads entirely; a vessel ignores the ground. On a map whose hexes are painted
-(see the battlemap guide), the ground and the encounter terrain come from the
-paint and those pickers step aside. The **Sky** group is the day's
-weather; the **Day** group is one **kind of day** (a dedicated march, a forced
-march, or a day in camp), four **ancillary hours** you spend on travel,
-foraging, hunting, searching or rest — a forced march spends them all — and
+What the order is crossing and how is set under the strip, in sections of the
+Wilderness tab only you see. **Country** holds the **ground**, whether it is on
+a **road**, whether it is **following** a river or a route it already knows,
+and how settled the **territory** is; **Movement** holds **Moving by** — on
+foot, mounted, by vehicle, flying, or by vessel — which decides which of
+everything else the party actually meets. A flier ignores roads entirely; a
+vessel ignores the ground. On a map whose hexes are painted (see the battlemap
+guide), the ground and the encounter terrain come from the paint and those
+pickers step aside. The **Sky** section is the day's
+weather; the **Day** section is one **kind of day** (a dedicated march, a forced
+march, or a day in camp), the **ancillary hours** you give to travel,
+foraging, hunting, searching or rest (how many a day kind leaves you is an
+imported figure), and
 the hour's own word, the world clock's or yours. An hour given to travel adds
-an hour to the day's march. The Day group also takes two declarations of your
+an hour to the day's march. The Day section also takes two declarations of your
 own: how many **traps** the order managed today, and **No sleep tonight**.
 
 Under the sky's chips a list says what today's weather does: the penalty on a
@@ -142,8 +185,9 @@ read from your own weather pages by the importer; until they are imported the
 list says the sky is unpriced, and nothing is charged. Each card that pays one
 of these penalties names the weather on its own line.
 
-**End day** closes the day: it throws for navigation, feeds the order, walks
-every body's hunger, thirst and exposure one step, writes the miles and hours
+**End day**, at the head of the Wilderness tab, closes the day: it throws for
+navigation, feeds the order, walks every body's hunger, thirst and exposure
+one step, writes the miles and hours
 actually walked into the log, and moves the calendar to the next dawn. It owes
 an encounter throw for each batch of traps managed and carries the odd traps to
 tomorrow. Two whispered cards follow on a day that has them. **The weather's
@@ -164,13 +208,14 @@ have been walked, or the party marches on after dark, moving the token asks:
 It is never answered for you — ending a day spends the provisions, settles the
 ground, rolls tomorrow's sky and moves the calendar, and pushing on into a
 forced march is a real choice with a real price. The question is put once, and
-put again if pushing on bought more road. **Pause** on the strip stops a drag
-from spending anything, for when the token has to be moved and the party has
-not.
+put again if pushing on bought more road. **Pause**, among the quick tools,
+stops a drag from spending anything, for when the token has to be moved and
+the party has not.
 
 ### The camp
 
-The **Camp** group is what the party is living on: how many days of food and
+The **Camp** section, after Day on the Wilderness tab, is what the party is
+living on: how many days of food and
 water the packs hold across everyone in the order, and who is going short.
 Food and water are **pooled** — one member's rations feed the whole order —
 and dealt by a policy you choose in the module settings: evenly, so everyone
@@ -189,20 +234,22 @@ carrying a cloak or furs is sheltered. The same hours count under a burning
 sun and for armour worn in the heat. In mild weather the field is greyed,
 because there is nothing to count.
 
-Three more declarations sit in the group. **Willing to steal** forages settled
+Three more declarations sit in the section. **Willing to steal** forages settled
 country without the penalty for leaving the crops alone. **Water at hand**
 takes water with no throw; following a river says so by itself. **Sleeping in
 armour** has each sleeper throw against the weight they bear, and the night's
 rest card says who slept badly and how many rounds each needs to don their kit.
 
-**Work the country** rolls whatever the day's hours were spent on: foraging for
+**Work the country**, at the head of the Wilderness tab, rolls whatever the
+day's hours were spent on: foraging for
 food, water and firewood, or hunting. What is found is deposited on the people
 who found it, and every attempt is reported — including the ones that turned
 up nothing.
 
-**Search an hour** spends one of the day's set-aside hours looking, runs the
-clock an hour, and owes an encounter throw whatever it finds. **Something
-here** is how the hour is answered: *From the stock* reads the hex's own
+**Search an hour**, the magnifying glass among the quick tools, spends one of
+the day's set-aside hours looking, runs the clock an hour, and owes an
+encounter throw whatever it finds. **Something here**, at the foot of Points
+of interest, is how the hour is answered: *From the stock* reads the hex's own
 stock (below); *Yes* and *No* are your word, and the stock is left alone.
 **Looking for** narrows the search to one point the party has not yet found,
 or to *Elsewhere* — a search for something that is not there. A find with one
@@ -222,7 +269,8 @@ row asks for one. The stock is kept on the scene, under the hex, so two parties
 crossing the same hex find the same things and a party that never comes back
 leaves them where they were.
 
-The group lists each point with its kind, whether this party has found it, and
+The **Points of interest** section of the Wilderness tab lists each point with
+its kind, whether this party has found it, and
 three buttons: **Found**, **Make it a place** (a location actor and a hidden
 token at the hex's centre, revealed when the party has found it) and
 **Remove**. Once the hex is stocked, **Add a point** places one of your own.
@@ -240,15 +288,15 @@ knows.
 
 ### Encounters
 
-**Encounter throw** runs the whole wilderness encounter chain at once and
-whispers it to you as one card. The card shows every roll, the creature or find
-it lands on, how far off it is and the party's chance to evade. A creature your
+**Encounter throw**, the die among the quick tools on a journey, runs the
+whole wilderness encounter chain at once and whispers it to you as one card.
+The card shows every roll, the creature or find it lands on, how far off it is and the party's chance to evade. A creature your
 world or your imported library holds is linked. **Journey encounter throws** is
 on by default: every encounter-table hex the party walks throws by itself —
 a crossing on a map drawn at the table's own hex width, or that many miles on
 any other map; the strip says when the next one falls — and **End day** throws
 whatever the day owed. Day and night are read from the world clock, or from
-the hour you set in the Day group.
+the hour you set in the Day section.
 
 When the throw lands on a terrain encounter, the card also rolls what that
 result leads to. Each table it names is rolled on its own die, and the
@@ -278,11 +326,11 @@ what puts the country they really crossed onto the map, in its right place.
 
 ![](../releases/v8.1.0/formation-lost-aware.png)
 
-From then on the panel offers the two ways out. **They find the landmark**
-credits the ground they really crossed, and can step the party token onto its
-true position. **They turn back** closes the episode and credits nothing. A
-marker left behind by an earlier version is named on the panel, with **Move the
-party onto it** and **Remove the marker**.
+From then on the Judge's tab offers the two ways out. **They find the
+landmark** credits the ground they really crossed, and can step the party token
+onto its true position. **They turn back** closes the episode and credits
+nothing. A marker left behind by an earlier version is named on the same tab,
+with **Move the party onto it** and **Remove the marker**.
 
 ![](../releases/v8.1.0/formation-lost-leftover.png)
 
@@ -299,10 +347,11 @@ It refuses while a party on that scene is lost and does not know it yet.
 
 ### In the city
 
-**Enter the city** swaps the journey board for a settlement one. Choose a
-**pace**, whether the party is on the **avenues** or in the **alleys**, how
-well it knows **the way**, and **the hour**, which reads the world clock unless
-you override it. The lines beneath say what the board has worked out: what
+**In the city**, picked in the mode selector in the title bar, swaps the
+journey board for the City tab. Under *The city* on that tab, choose a **pace**,
+whether the party is on the **avenues** or in the **alleys**, how well it knows
+**the way**, and **the hour**, which reads the world clock unless you override
+it. The lines beneath say what the board has worked out: what
 the clock reads, how far a turn carries the party, which quarter it stands in
 and which list the next incident is read from.
 
@@ -368,7 +417,7 @@ dark fills in the two night boxes and leaves the day pair at zero. A district
 with every box at zero changes nothing at all.
 
 The table is who is about in this quarter, and the second one is who is about
-when the party is **hunted here** — a tick on the settlement panel. Being
+when the party is **hunted here** — the toggle at the head of the City tab. Being
 hunted belongs to the city the party is in: leave and come back and it is
 gone, while the pace, the place, the route and the hour you set are kept.
 
@@ -421,7 +470,7 @@ opened, not duplicated.
 map the way you drop any actor and it arrives as a marker: its name on hover,
 no bars, nobody's side, no eyes, and a house for a picture until you give it
 one. It cannot join a marching order and it is not counted among the map's
-tenants. Stand the party beside it and the settlement panel says **At** it,
+tenants. Stand the party beside it and the City tab says **At** it,
 with a button to open the place — and the deposit rule already knew, so a
 player can leave goods at the shop they are standing outside.
 
@@ -440,7 +489,7 @@ it a place** on the card: name it, and a location actor appears inside the
 quarter's place with the incident's words as its notes and its token where the
 marker stood.
 
-**Go to a point of interest** on the panel walks the party to any place on the
+**Hop**, at the head of the City tab, walks the party to any place on the
 map for the district-travel figure the book gives — within the quarter, or into
 a neighbouring one — spending the turns like any other turns and moving the
 token for you. Two quarters neighbour each other when their regions touch. A
@@ -581,7 +630,8 @@ caught, and what it dealt.*
 
 ### Getting past one
 
-Press **Trapbreaking** on the party sheet. It asks the three questions the book
+Press **Trapbreaking** at the head of the party sheet's Order tab. It asks the
+three questions the book
 asks — who is working on it, which trap, and by which column of the table — and
 shows you the throw before anyone spends the round or the turn.
 
@@ -635,8 +685,8 @@ cost in turns.*
 ## Dealing out experience
 
 **Deal XP** divides an adventure's total between the party and shows the
-division before it is given. It sits among the Judge's controls on the party
-sheet's **Party** tab, and only a GM sees it. While the setting *Deal
+division before it is given. It is the star among the party sheet's quick
+tools, and only a GM sees it. While the setting *Deal
 experience from the formation* is on, the system party sheet's own Deal XP
 button is hidden, so this is the one to use; turn the setting off to go back
 to the system's division.
@@ -658,9 +708,10 @@ follows.
 
 ## Hit points for the whole party
 
-**Hit points** on the party sheet's **Party** tab opens one window that lists
-every member, and applies damage, healing or a new value to all of them at
-once. Only a GM sees it. The same window opens on the selected tokens from the
+**Hit points**, the first of the party sheet's figures, opens one window that
+lists every member, and applies damage, healing or a new value to all of them
+at once. Only a GM can press it; a player's copy reads how many are hurt. The
+same window opens on the selected tokens from the
 **Adjust hit points** button in the Tokens controls, and from the *Adjust Hit
 Points (GM)* macro.
 
@@ -926,7 +977,8 @@ It takes effect on the next roll — no reload.
 
 ## Skill audit
 
-**Skill Audit** (GM) shows how every party roll resolves for every member: which
+**Skill audit**, at the head of the Order tab (GM), shows how every party roll
+resolves for every member: which
 item or target is used, the auto-scaled level and factor, and each bonus in the
 stack.
 
