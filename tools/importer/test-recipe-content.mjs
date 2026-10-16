@@ -39,6 +39,8 @@ const TABLES = {
   // The influence roller's two morale pages: a result column and a modifier
   // list each, every modifier with the wording of its own row.
   morale: ["monsterMorale", "hirelingObedience"],
+  // The hiring offer: a result column and the two penalties beside it.
+  influence: ["hiringOffer"],
 };
 
 const NEEDED = [...new Set(
@@ -214,6 +216,14 @@ for (const [id, count] of [["morale.monsterMorale", 5], ["morale.hirelingObedien
     bandLadder(out?.bands, "bands", fail, count);
   };
 }
+// The hiring offer: its two penalties, each read as the figure a count is
+// multiplied by and so below zero, and a result column of the length the
+// hiring page and the henchmen throw name results for.
+VERIFY["influence.hiringOffer"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  for (const key of ["slanderPenalty", "refusalPenalty"]) if (isNum(out?.[key]) && !(out[key] < 0)) fail(`${key}: not below zero`);
+  bandLadder(out?.bands, "bands", fail, 5);
+};
 // Prose tables with nothing beyond declared keys and finite numbers.
 for (const id of [
   "availability.marketRulesProse", "availability.bargainingProse", "magicItems.priceProse",

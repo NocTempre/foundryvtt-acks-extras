@@ -135,7 +135,18 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "henchmanMorale",
+        "mode": "add",
+        "condition": "when he personally leads them",
+        "from": {
+          "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.castle",
@@ -253,7 +264,18 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "henchmanMorale",
+        "mode": "add",
+        "condition": "on a wilderness adventure he leads",
+        "from": {
+          "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.bribery",
@@ -426,7 +448,18 @@
         328.5
       ],
       "descStopY": 710
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "henchmanMorale",
+        "mode": "add",
+        "condition": "when he personally leads them",
+        "from": {
+          "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.arcaneDabbling",
@@ -490,7 +523,18 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "henchmanMorale",
+        "mode": "add",
+        "condition": "while he witnesses and records their deeds",
+        "from": {
+          "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.inspireHope",
@@ -544,7 +588,18 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "henchmanMorale",
+        "mode": "add",
+        "condition": "hirelings of his religion, when he leads them",
+        "from": {
+          "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.evasion",
@@ -633,7 +688,29 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "marketClass",
+        "mode": "add",
+        "condition": "in a known market",
+        "from": {
+          "pattern": "as\\s*if\\s*it\\s*were\\s*(\\w+)\\s*market\\s*class(?:es)?\\s*larger"
+        },
+        "note": "The class option: the market is treated as that many classes larger. Read by henchmen's effectiveMarketClass and the venture's network options."
+      },
+      {
+        "type": "modifier",
+        "target": "marketImpact",
+        "mode": "add",
+        "condition": "in a known market",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*market\\s*impact"
+        },
+        "note": "The impact option, the alternative to the class option on a venture."
+      }
+    ]
   },
   {
     "id": "def.power.guildhouse",
@@ -3859,7 +3936,26 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "retainBonus",
+        "mode": "add",
+        "from": {
+          "pattern": "hire\\s*(\\w+)\\s*more\\s*henchm[ae]n"
+        },
+        "note": "Henchmen allowed beyond the Charisma limit. Its aliases (Scion of Kings, Soul of the Dragon) read this passage and inherit these specs."
+      },
+      {
+        "type": "modifier",
+        "target": "baseLoyalty",
+        "mode": "add",
+        "from": {
+          "pattern": "base\\s*loyalty\\s*score\\s*of\\s*any\\s*henchm[ae]n\\s*is\\s*increased\\s*by\\s*(\\w+)"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.favorOfTheGods",
@@ -5563,6 +5659,17 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "henchmanMorale",
+        "mode": "add",
+        "condition": "chaotic servants, when he personally leads them",
+        "from": {
+          "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
+        }
+      }
+    ]
   }
 ]

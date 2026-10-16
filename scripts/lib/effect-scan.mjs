@@ -18,12 +18,13 @@
  *
  * DELIBERATELY NOT SHARED — the divergences are semantic, not accidental:
  *  - `hasEffectFlag`: equipment = raw key scan + bridge domains; henchmen =
- *    "would the collector find anything", INCLUDING name fallbacks.
+ *    "would the collector find anything", INCLUDING a power present by name.
  *  - `effectMeta` label chains differ by one legacy link (`effect.label`),
  *    parameterized below rather than silently unioned.
- *  - henchmen's seenItems dedupe, influence-reaction pass and NAME_FALLBACKS
- *    passes; equipment's abilities-bridge pass.
+ *  - henchmen's seenItems dedupe, influence-reaction pass and NAME_PRESENCE
+ *    reads; equipment's abilities-bridge pass.
  */
+import { resolveLevelValue, scopeApplies } from "./vocab.mjs";
 
 /** The change types Foundry applies itself, by the string each carries. */
 export const CHANGE = Object.freeze({
@@ -196,4 +197,55 @@ export function csvFlagSet(actor, key) {
 /** Sum of the always-on (non-situational) modifier values. */
 export function sumModifiers(mods) {
   return mods.filter((m) => !m.situational).reduce((sum, m) => sum + m.value, 0);
+}
+
+/**
+ * The typed modifiers an actor's abilities carry for one target, as the
+ * importer materializes them from the page (`item.flags["acks-extras"].extras
+ * .effects`, type `modifier`): no Active Effect needed. A level value resolves
+ * against the actor's class level. The effect's scope (target kinds,
+ * alignment, tones, optional rule) is judged by `scopeApplies` against what
+ * the reader knows of the roll (`scope`): a scope that fails drops the
+ * modifier, and one the reader cannot settle makes it situational, as a
+ * free-text `condition` does. `tones` and `vsKinds` come back for the reader
+ * to say what an unsettled scope waits on, and `unaudited` for a reader that
+ * offers a draft entry's value rather than applying it. Items in
+ * `skipItemIds` are left out, so an item whose own Active Effect carries the
+ * key stands aside for it. A value that does not resolve to a non-zero number
+ * is no modifier.
+ * @param {Actor|null} actor
+ * @param {string} target - a `MODIFIER_TARGETS` key
+ * @param {{skipItemIds?: Set<string>, scope?: object}} [options] - `scope` is `scopeApplies`' `ctx`
+ * @returns {{itemId: string, index: number, label: string, value: number, situational: boolean, condition: string|null, tones: string[], vsKinds: string[], unaudited: boolean}[]}
+ */
+export function abilityModifiers(actor, target, { skipItemIds = new Set(), scope = {} } = {}) {
+  if (!actor?.items) return [];
+  const raw = Number(actor.system?.details?.level);
+  const level = Number.isFinite(raw) && raw > 0 ? raw : 1;
+  const out = [];
+  for (const item of actor.items) {
+    if (skipItemIds.has(item.id)) continue;
+    const extras = item.getFlag?.("acks-extras", "extras") ?? item.flags?.["acks-extras"]?.extras;
+    const effects = extras?.effects;
+    if (!Array.isArray(effects)) continue;
+    effects.forEach((effect, index) => {
+      if (effect?.type !== "modifier" || effect.target !== target) return;
+      const verdict = scopeApplies(effect, scope);
+      if (!verdict.applies && !verdict.undetermined) return;
+      const value = verdict.sign * resolveLevelValue(effect.value, level, { level, rank: 1 });
+      if (!Number.isFinite(value) || value === 0) return;
+      out.push({
+        itemId: item.id,
+        index,
+        label: item.name || target,
+        value,
+        situational: !!effect.condition || verdict.undetermined,
+        condition: effect.condition || null,
+        tones: Array.isArray(effect.tones) ? effect.tones.map(String) : [],
+        vsKinds: Array.isArray(effect.vsKinds) ? effect.vsKinds.map((kind) => String(kind).toLowerCase()) : [],
+        unaudited: Boolean(extras.unaudited),
+      });
+    });
+  }
+  return out;
 }

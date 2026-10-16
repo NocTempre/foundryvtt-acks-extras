@@ -57,6 +57,22 @@
     <p class="acks-extras-markets-report-hint">{{localize "ACKS-MARKETS.report.noBeliefs"}}</p>
     {{/if}}
 
+    {{#if canChoose}}
+    <fieldset class="acks-extras-markets-report-choose">
+      <legend>{{localize "ACKS-MARKETS.report.choose.legend" n=picks}}</legend>
+      <ul class="acks-extras-markets-report-choices">
+        {{#each chooseOptions}}
+        <li>
+          <label><input type="checkbox" value="{{key}}" data-report-choose> {{label}}</label>
+        </li>
+        {{/each}}
+      </ul>
+      <button type="button" class="acks-extras-markets-report-save" data-action="chooseGoods">
+        <i class="fa-solid fa-magnifying-glass" inert></i> {{localize "ACKS-MARKETS.report.choose.button"}}
+      </button>
+    </fieldset>
+    {{/if}}
+
     <h3 class="acks-extras-markets-report-subhead">{{localize "ACKS-MARKETS.report.field.notes"}}</h3>
     {{#if canEditNotes}}
     <label class="acks-extras-markets-report-notes">

@@ -1,16 +1,17 @@
 /* global game, ui, foundry, Roll */
 /**
  * The shared Throw Dialog — one ApplicationV2 dialog parameterized entirely
- * by a throw definition from `ruledata/throws.json` (ported from the
- * acks-domains throw framework, extended with:)
+ * by a throw definition of the `throws` ruledata document
+ * (`data/throws-data.mjs`), with:
  *
  *  - dynamic modifiers: effect-derived rows injected at open time via
  *    `context.dynamicModifiers` (built by effects.mjs from the actor's
  *    proficiency/power Active Effects — the data-driven modifier contract);
  *  - secret throws: resolved GM-side, whispered to GMs, with a "Reveal
  *    outcome" button that posts a sanitized public card;
- *  - natural-roll clamps by OUTCOME (Hireling Loyalty: a natural 2 is never
- *    better than Resignation, a natural 12 never worse than Loyalty).
+ *  - natural-roll clamps by OUTCOME (an outcome table's `naturalClamps`);
+ *  - an imported outcome table and per-step figures handed in by the opener
+ *    where the definition carries none (`context.outcomes`, `stepValues`).
  *
  * Modifier kinds: "auto" (derived, locked; GM can unlock) and "situational"
  * (the user ticks what applies). Controls: checkbox / stepper / select.
@@ -18,6 +19,7 @@
  */
 import { MODULE_ID } from "../constants.mjs";
 import { getThrowDef, getTable } from "../rules/tables.mjs";
+import { outcomeFromTable } from "../rules/bulk-offer.mjs";
 import { postThrowCard } from "../chat/cards.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
@@ -30,12 +32,17 @@ const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 export class ThrowDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   /**
    * @param {object} options
-   * @param {string} options.throwId - id in ruledata/throws.json
+   * @param {string} options.throwId - a throw of the `throws` ruledata document
    * @param {object} [options.context]
    *   { title?, derived?: {deriveKey: value}, dynamicModifiers?: [],
    *     speaker?, actor?, secretOverride?: boolean, infoText?,
    *     disabledOptions?: {modId: [optionId]}, optionLabels?: {modId: {optionId: text}},
+   *     outcomes?: object, stepValues?: {modId: number},
    *     onResolve?: (result) => void }
+   *   `outcomes` is an outcome table (`outcomeFromTable`'s shape) the caller
+   *   read from an import, used in place of the definition's `outcomeTable`;
+   *   `stepValues` gives a stepper's per-step figure where the definition
+   *   carries none. A stepper with no figure from either adds nothing.
    */
   constructor({ throwId, context = {}, ...options } = {}) {
     super(options);
@@ -88,6 +95,7 @@ export class ThrowDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       const initial = hasDerived ? derived[m.derive] : isDynamic ? m.dynamicInitial : this.#defaultValue(m);
       return {
         ...m,
+        ...(m.control === "stepper" ? { valuePerStep: this.context.stepValues?.[m.id] ?? m.valuePerStep } : {}),
         labelText: m.label?.startsWith?.("ACKS-HENCHMEN.") ? game.i18n.localize(m.label) : m.label,
         hintText: m.hint?.startsWith?.("ACKS-HENCHMEN.") ? game.i18n.localize(m.hint) : (m.hint ?? ""),
         locked: (m.kind === "auto" && hasDerived) || m.dynamicLocked === true,
@@ -138,7 +146,10 @@ export class ThrowDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!input) continue;
       let value = 0;
       if (m.control === "checkbox") value = input.checked ? m.value : 0;
-      else if (m.control === "stepper") value = (parseInt(input.value, 10) || 0) * m.valuePerStep;
+      else if (m.control === "stepper") {
+        const perStep = Number(this.context.stepValues?.[m.id] ?? m.valuePerStep);
+        value = Number.isFinite(perStep) ? (parseInt(input.value, 10) || 0) * perStep : 0;
+      }
       else if (m.control === "select") value = parseInt(input.value, 10) || 0;
       if (value !== 0) {
         const label = m.label?.startsWith?.("ACKS-HENCHMEN.") ? game.i18n.localize(m.label) : m.label;
@@ -187,31 +198,11 @@ export class ThrowDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     return result;
   }
 
-  /**
-   * Outcome lookup with by-outcome natural clamps:
-   * `naturalClamps.natural2.noBetterThan` / `naturalClamps.natural12.noWorseThan`
-   * name outcome effects; ordering = the outcome array (worst → best).
-   */
+  /** The outcome this throw's table gives the roll (`outcomeFromTable`, natural clamps included). */
   #resolveOutcome(natural, adjusted) {
+    if (this.context.outcomes) return outcomeFromTable(this.context.outcomes, natural, adjusted);
     if (!this.def.outcomeTable) return null;
-    const table = getTable("throws", this.def.outcomeTable);
-    const rows = table.outcomes;
-    const rowIndex = (lookup) =>
-      rows.findIndex((o) => (o.min === undefined || lookup >= o.min) && (o.max === undefined || lookup <= o.max));
-    let idx = rowIndex(adjusted);
-    if (idx < 0) idx = adjusted < (rows[0].min ?? -Infinity) ? 0 : rows.length - 1;
-    const clamps = table.naturalClamps;
-    if (clamps) {
-      if (natural === 2 && clamps.natural2?.noBetterThan) {
-        const cap = rows.findIndex((o) => o.effect === clamps.natural2.noBetterThan);
-        if (cap >= 0 && idx > cap) idx = cap;
-      }
-      if (natural === 12 && clamps.natural12?.noWorseThan) {
-        const floor = rows.findIndex((o) => o.effect === clamps.natural12.noWorseThan);
-        if (floor >= 0 && idx < floor) idx = floor;
-      }
-    }
-    return rows[idx]?.effect ?? null;
+    return outcomeFromTable(getTable("throws", this.def.outcomeTable), natural, adjusted);
   }
 }
 

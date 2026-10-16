@@ -29,11 +29,12 @@ const SPECIALIST_PACKAGE_KEYS = Object.freeze({
 });
 import { startingLoyalty, effectiveLoyalty } from "../rules/loyalty.mjs";
 import { rollAttributes } from "../rules/candidates.mjs";
-import { sumEffectModifiers, hasEffectFlag } from "../effects.mjs";
+import { sumEffectModifiers, hasEffectFlag, unvaluedPowers } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { now } from "../time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { appendMarketLog } from "../../location/data/market-log.mjs";
 
 async function roll(formula) {
   return (await new Roll(formula).evaluate()).total;
@@ -253,10 +254,12 @@ export async function enrollHenchman(employer, actor, { loyalty = null, morale =
 }
 
 /**
- * Henchman-limit check for an employer: 4 + CHA (core cha.retain) + effect
- * bonuses (Leadership, Blood of Kings…), against core henchmenList + our
- * monster roster, minus record.special.noSlot members (follower companions).
- * @returns {{count:number, max:number, ok:boolean}}
+ * Henchman-limit check for an employer: `adapter.getRetainMax` against core
+ * henchmenList + our monster roster, minus record.special.noSlot members
+ * (follower companions). `max` is null where core gives the employer no
+ * Charisma allowance, and such an employer is always `ok`. `unvalued` names
+ * the limit powers held with no imported value.
+ * @returns {{count:number, max:number|null, ok:boolean, unvalued: string[]}}
  */
 export function checkHenchmanLimit(employer) {
   const max = adapter.getRetainMax(employer);
@@ -273,7 +276,14 @@ export function checkHenchmanLimit(employer) {
     if (record?.special?.noSlot) continue;
     count += 1;
   }
-  return { count, max, ok: count < max };
+  return { count, max, ok: max === null || count < max, unvalued: unvaluedPowers(employer, "retainBonus") };
+}
+
+/** The over-the-limit notice for `limit`, naming any limit power that holds no imported value. */
+export function limitReachedMessage(employer, limit) {
+  const msg = game.i18n.format("ACKS-HENCHMEN.hire.limitReached", { name: employer.name, count: limit.count, max: limit.max });
+  if (!limit.unvalued?.length) return msg;
+  return `${msg} ${game.i18n.format("ACKS-HENCHMEN.hire.limitUnvalued", { powers: limit.unvalued.join(", ") })}`;
 }
 
 /**
@@ -287,7 +297,7 @@ function admitsHenchman(employer) {
   if (mode === "off") return true;
   const limit = checkHenchmanLimit(employer);
   if (limit.ok) return true;
-  const msg = game.i18n.format("ACKS-HENCHMEN.hire.limitReached", { name: employer.name, count: limit.count, max: limit.max });
+  const msg = limitReachedMessage(employer, limit);
   if (mode === "block") {
     ui.notifications.error(msg);
     return false;
@@ -312,6 +322,8 @@ export async function hire(location, candidateId, employer, opts = {}) {
   if (!candidate) return { error: "no-candidate" };
   const okStatus = candidate.status === "available" || (opts.fromQueue && candidate.status === "reserved");
   if (!okStatus) return { error: "not-available" };
+  // A network find is in its holder's market and nobody else's.
+  if (candidate.networkFor && candidate.networkFor !== employer?.uuid) return { error: "not-yours" };
 
   // Attributes roll ONCE, at hire (3d6 ×6 in order, RR 168) — class and
   // level were fixed when the monthly pool was rolled.
@@ -469,9 +481,8 @@ export async function hire(location, candidateId, employer, opts = {}) {
   // 5. Market ledger (rollback record): who signed with whom, and when.
   try {
     const log = (location.system.marketLog ?? []).map((l) => l.toObject?.() ?? l);
-    const entry = { time: now(), type: "hire", note: `${actor.name} → ${employer.name} (${candidate.wageGp ?? "?"}gp)` };
-    const capped = [...log, entry].slice(-100);
-    await location.update({ "system.market.marketLog": capped });
+    const entry = { time: now(), type: "hire", note: `${actor.name} → ${employer.name} (${candidate.wageGp ?? "?"}gp)`, actorUuid: employer.uuid };
+    await location.update({ "system.market.marketLog": appendMarketLog(log, entry) });
   } catch {
     /* ledger is best-effort */
   }

@@ -1,17 +1,18 @@
-/* global game, ui, foundry, ChatMessage, Hooks */
+/* global game, ui, foundry, ChatMessage, Hooks, Roll */
 /**
  * Recruit flow — the Reaction to Hiring Offer (RR 162) for market candidates
  * AND special hires (real actors). When the influence feature hosts the
  * modes (apiVersion 3+) the roll renders as an influence-hosted "hiring" page
  * (consistent UI, auto subject/target detection, core tones hidden);
- * otherwise the module's own ThrowDialog carries it. Every attempt is
- * tracked PER NPC (refusals build the cumulative −1; refuse-and-slander
- * blocks the party permanently). Mutations (actor creation, location writes)
- * execute on the GM client.
+ * otherwise the module's own ThrowDialog carries it, priced and resolved from
+ * the same imported table (rules/hiring-offer.mjs). Every attempt is tracked
+ * PER NPC (each refusal counts toward the next offer's penalty;
+ * refuse-and-slander blocks the party permanently). Mutations (actor
+ * creation, location writes) execute on the GM client.
  */
 import { MODULE_ID, HOOKS } from "../constants.mjs";
 import { openThrowDialog } from "./throw-dialog.mjs";
-import { collectEffectModifiers, toDialogModifiers } from "../effects.mjs";
+import { collectEffectModifiers, toDialogModifiers, unvaluedDialogModifiers } from "../effects.mjs";
 import { signingBonusCost } from "../rules/wages.mjs";
 import { henchmanWage } from "../rules/wages.mjs";
 import { hire, updateCandidate, hireExistingActor, updateSpecialHire } from "../engine/hire.mjs";
@@ -20,6 +21,10 @@ import { executeAsGM, registerHandler } from "../../lib/sockets.mjs";
 import { hostsModes, openHiringViaInfluence } from "../integrations/influence.mjs";
 import { now } from "../time.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { getThrowDef } from "../rules/tables.mjs";
+import { hiringOffer, hiringOfferComplete } from "../rules/hiring-offer.mjs";
+import { HIRING_OUTCOMES, headAnswers, headsOffered, splitBulkRow, tallyOutcomes } from "../rules/bulk-offer.mjs";
+import { appendMarketLog } from "../../location/data/market-log.mjs";
 
 function hasBribery(employer) {
   return (employer?.items ?? []).some(
@@ -104,12 +109,18 @@ async function launchOffer({ location, employer, offer }) {
         specialHireId: offer.specialHireId ?? null,
         employerUuid: employer.uuid,
         signingTiers: signing.tiers,
+        heads: offer.heads ?? null,
       },
     });
     return;
   }
 
-  // Fallback: the module's own throw dialog.
+  // Fallback: the module's own throw dialog, which needs every printed figure.
+  const printed = hiringOffer();
+  if (!hiringOfferComplete(printed)) {
+    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.recruit.hiringNotImported"));
+    return;
+  }
   const optionLabels = { signingBonus: {} };
   for (const [tier, gp] of Object.entries(signing.tiers)) {
     optionLabels.signingBonus[`tier${tier}`] = game.i18n.format("ACKS-HENCHMEN.mod.signingBonusTierLabel", {
@@ -127,7 +138,9 @@ async function launchOffer({ location, employer, offer }) {
       previousRefusals: offer.refusals,
       slanderCount,
     },
-    dynamicModifiers: toDialogModifiers(collectEffectModifiers(employer, "hiring")),
+    dynamicModifiers: [...toDialogModifiers(collectEffectModifiers(employer, "hiring")), ...unvaluedDialogModifiers(employer, "hiring")],
+    outcomes: printed.outcomes,
+    stepValues: { previousRefusals: printed.refusalPenalty, slander: printed.slanderPenalty },
     optionLabels,
     infoText: game.i18n.format(offer.wage > 0 ? "ACKS-HENCHMEN.recruit.info" : "ACKS-HENCHMEN.recruit.infoNoWage", {
       name: offer.name,
@@ -146,10 +159,53 @@ async function launchOffer({ location, employer, offer }) {
         employerUuid: employer.uuid,
         result: { outcome: result.outcome, natural: result.natural, total: result.total, parts: result.parts },
         signingGp,
+        heads: offer.heads ?? null,
         resolutionId: foundry.utils.randomID(), // multi-GM-socket claim key
       });
     },
   });
+}
+
+/**
+ * Ask how many of a bulk row the offer reaches: 1 to the row's quantity, the
+ * whole row by default. Null when the asker closes the prompt.
+ */
+async function askHeads(candidate) {
+  const max = Math.max(1, Number(candidate.quantity) || 1);
+  const esc = foundry.utils.escapeHTML;
+  const label = esc(game.i18n.format("ACKS-HENCHMEN.recruit.headsLabel", { n: max }));
+  const value = await foundry.applications.api.DialogV2.prompt({
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+    window: { title: game.i18n.format("ACKS-HENCHMEN.recruit.headsTitle", { name: candidate.name ?? "" }) },
+    content: `<label>${label} <input type="number" name="heads" min="1" max="${max}" step="1" value="${max}" autofocus></label>
+      <p class="hint">${esc(game.i18n.localize("ACKS-HENCHMEN.recruit.headsHint"))}</p>`,
+    ok: { callback: (_event, button) => button.form.elements.heads.value },
+  }).catch(() => null);
+  return value == null ? null : headsOffered(value, max);
+}
+
+/**
+ * The answers of every head an offer reached, rolled where the first head's
+ * roll was made: each further head throws the hiring dice with the same
+ * modifiers, and one card shows those dice and how the heads answered.
+ */
+async function rollFurtherHeads({ employer, heads, name, result }) {
+  const table = hiringOffer().outcomes;
+  const formula = getThrowDef("throws", "reactionToHiring")?.formula ?? "2d6";
+  const rolls = [];
+  for (let i = 1; i < heads; i++) rolls.push(await new Roll(formula).evaluate());
+  const answers = headAnswers(result, rolls.map((r) => r.total), table);
+  if (!rolls.length) return answers;
+  const tally = tallyOutcomes(answers);
+  const line = HIRING_OUTCOMES.filter((o) => tally[o])
+    .map((o) => `${tally[o]} ${game.i18n.localize(`ACKS-HENCHMEN.outcome.${o}`)}`)
+    .join(" · ");
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor: employer }),
+    flavor: game.i18n.format("ACKS-HENCHMEN.recruit.headsCard", { employer: employer.name, n: heads, name, tally: line }),
+    rolls,
+  });
+  return answers;
 }
 
 /** Recruit a rolled market candidate. */
@@ -169,12 +225,22 @@ export async function openRecruitDialog(location, candidateId, preferredEmployer
     ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.recruit.noEmployer"));
     return;
   }
+  // Refused before any roll: `hire` would refuse the accepted offer after it.
+  if (candidate.networkFor && candidate.networkFor !== employer.uuid) {
+    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.hire.error.not-yours"));
+    return;
+  }
+  // A bulk row is offered to as many of its heads as the employer names.
+  const bulk = (Number(candidate.quantity) || 1) > 1;
+  const heads = bulk ? await askHeads(candidate) : null;
+  if (bulk && heads == null) return;
   await launchOffer({
     location,
     employer,
     offer: {
       candidateId,
-      name: candidate.name,
+      heads,
+      name: bulk ? game.i18n.format("ACKS-HENCHMEN.recruit.headsName", { name: candidate.name, n: heads }) : candidate.name,
       // A candidate is a henchman unless it was rolled as a mercenary or a
       // specialist, as `hire` reads the same kind.
       wage: offerWage(candidate.wageGp, !["mercenary", "specialist"].includes(candidate.kind), () => candidate.level ?? 0),
@@ -274,6 +340,7 @@ export async function handleHiringOutcomePayload(payload) {
       employer: employer.actor ?? employer,
       result: payload.result,
       signingGp: payload.signingGp,
+      answers: Array.isArray(payload.answers) ? payload.answers : null,
     });
   } finally {
     inFlightOutcomes.delete(key);
@@ -289,6 +356,16 @@ export async function handleHiringOutcomePayload(payload) {
 export async function deliverHiringOutcome(payload) {
   const doc = await fromUuid(payload.locationUuid).catch(() => null);
   const location = doc?.actor ?? doc;
+  // An offer to a bulk row: the further heads answer here, on the seat whose
+  // roll answered for the first.
+  if (payload.candidateId && Number(payload.heads) >= 1 && !payload.answers) {
+    const row = (location?.system?.candidates ?? []).find((c) => c.id === payload.candidateId);
+    const employerDoc = await fromUuid(payload.employerUuid).catch(() => null);
+    if (row && (Number(row.quantity) || 1) > 1) {
+      const heads = headsOffered(payload.heads, row.quantity);
+      payload.answers = await rollFurtherHeads({ employer: employerDoc?.actor ?? employerDoc, heads, name: row.name, result: payload.result });
+    }
+  }
   const canLocal = game.user.isGM || (location?.testUserPermission?.(game.user, "OWNER") ?? false);
   if (canLocal) return handleHiringOutcomePayload(payload);
   return executeAsGM("hiringOutcome", payload);
@@ -321,9 +398,102 @@ export async function materializePendingHires(location) {
 
 registerHandler("hiringOutcome", handleHiringOutcomePayload);
 
-async function handleOutcome({ location, candidateId, specialHireId, employer, result, signingGp }) {
+/**
+ * Hire an accepted candidate or special hire; when this seat cannot create the
+ * actor, reserve the candidate and queue the hire for the next GM connect.
+ */
+async function hireOrQueue({ location, candidateId, specialHireId, employer, outcome, result, signingGp }) {
+  const opts = { elan: outcome === "acceptElan", signingBonusGp: signingGp, origin: "market" };
+  const hired = specialHireId
+    ? await hireExistingActor(location, specialHireId, employer, opts)
+    : await hire(location, candidateId, employer, opts);
+  if (hired.error === "actor-create-denied") {
+    const entry = {
+      id: foundry.utils.randomID(),
+      candidateId: candidateId ?? "",
+      specialHireId: specialHireId ?? "",
+      employerUuid: employer.uuid,
+      signingGp: signingGp ?? 0,
+      time: now(),
+      result: { outcome, natural: result.natural ?? 0, total: result.total ?? 0 },
+    };
+    const queue = [...(location.system.pendingHires ?? []).map((p) => p.toObject?.() ?? p), entry];
+    const log = appendMarketLog(
+      (location.system.marketLog ?? []).map((l) => l.toObject?.() ?? l),
+      { time: now(), type: "reserve", note: `queued hire for ${employer.name}`, actorUuid: employer.uuid }
+    );
+    await location.update({ "system.market.pendingHires": queue, "system.market.marketLog": log });
+    if (candidateId) await updateCandidate(location, candidateId, { status: "reserved" });
+    ChatMessage.create({
+      content: game.i18n.format("ACKS-HENCHMEN.hire.queuedChat", { employer: employer.name }),
+      speaker: ChatMessage.getSpeaker({ actor: employer }),
+    });
+  } else if (hired.error) {
+    ui.notifications.error(game.i18n.localize(`ACKS-HENCHMEN.hire.error.${hired.error}`));
+  }
+}
+
+/** Record one refuse-and-slander against the employer's party at this location. */
+function slanderEntry(employer, npcName) {
+  return {
+    subject: { scope: "party", uuid: employer.uuid },
+    npcName,
+    time: now(),
+    note: game.i18n.localize("ACKS-HENCHMEN.recruit.slanderNote"),
+  };
+}
+
+/**
+ * Apply an offer to a bulk row: the row splits by how its heads answered
+ * (`splitBulkRow`), each head that refused and slandered speaks against the
+ * party as one NPC does, and the heads who accepted are hired together, those
+ * with élan apart from the rest. A signing bonus is paid per head hired.
+ */
+async function handleBulkOutcome({ location, candidateId, employer, result, signingGp, answers }) {
+  const row = (location.system.candidates ?? []).find((c) => c.id === candidateId);
+  const plain = row ? (row.toObject?.() ?? foundry.utils.deepClone(row)) : null;
+  if (!plain || plain.status !== "available") return;
+  const reached = answers.slice(0, Math.max(1, Number(plain.quantity) || 1));
+  const tally = tallyOutcomes(reached);
+  const split = splitBulkRow(plain, tally, { employerUuid: employer.uuid, time: now(), newId: () => foundry.utils.randomID() });
+  const candidates = (location.system.candidates ?? []).flatMap((c) => {
+    const obj = c.toObject?.() ?? foundry.utils.deepClone(c);
+    return obj.id === candidateId ? split.rows : [obj];
+  });
+  const update = { "system.market.candidates": candidates };
+  if (split.slandered) {
+    update["system.market.slander"] = [
+      ...(location.system.slander ?? []).map((s) => s.toObject?.() ?? s),
+      ...Array.from({ length: split.slandered }, () => slanderEntry(employer, plain.name ?? "")),
+    ];
+  }
+  await location.update(update);
+  if (split.slandered) Hooks.callAll(HOOKS.SLANDER_CHANGED, { location, subject: { scope: "party", uuid: employer.uuid } });
+  if (tally.tryAgain) {
+    ChatMessage.create({
+      content: game.i18n.format("ACKS-HENCHMEN.recruit.tryAgainChat", { employer: employer.name }),
+      speaker: ChatMessage.getSpeaker({ actor: employer }),
+    });
+  }
+  for (const h of split.hires) {
+    await hireOrQueue({
+      location,
+      candidateId: h.id,
+      employer,
+      outcome: h.elan ? "acceptElan" : "accept",
+      result,
+      signingGp: (Number(signingGp) || 0) * h.quantity,
+    });
+  }
+}
+
+async function handleOutcome({ location, candidateId, specialHireId, employer, result, signingGp, answers = null }) {
   const outcome = result.outcome;
-  Hooks.callAll(HOOKS.HIRING_OUTCOME, { location, candidateId, specialHireId, employer, result });
+  Hooks.callAll(HOOKS.HIRING_OUTCOME, { location, candidateId, specialHireId, employer, result, answers });
+  if (candidateId && answers?.length) {
+    const row = (location.system.candidates ?? []).find((c) => c.id === candidateId);
+    if ((Number(row?.quantity) || 1) > 1) return handleBulkOutcome({ location, candidateId, employer, result, signingGp, answers });
+  }
 
   const pushRefusal = async (kind) => {
     const refusal = { employerUuid: employer.uuid, time: now(), result: kind };
@@ -343,33 +513,7 @@ async function handleOutcome({ location, candidateId, specialHireId, employer, r
   switch (outcome) {
     case "acceptElan":
     case "accept": {
-      const opts = { elan: outcome === "acceptElan", signingBonusGp: signingGp, origin: "market" };
-      const hired = specialHireId
-        ? await hireExistingActor(location, specialHireId, employer, opts)
-        : await hire(location, candidateId, employer, opts);
-      if (hired.error === "actor-create-denied") {
-        // No GM online and this seat cannot create actors: RESERVE the
-        // candidate and QUEUE the hire — it materializes at next GM connect.
-        const entry = {
-          id: foundry.utils.randomID(),
-          candidateId: candidateId ?? "",
-          specialHireId: specialHireId ?? "",
-          employerUuid: employer.uuid,
-          signingGp: signingGp ?? 0,
-          time: now(),
-          result: { outcome: result.outcome, natural: result.natural ?? 0, total: result.total ?? 0 },
-        };
-        const queue = [...(location.system.pendingHires ?? []).map((p) => p.toObject?.() ?? p), entry];
-        const log = [...(location.system.marketLog ?? []).map((l) => l.toObject?.() ?? l), { time: now(), type: "reserve", note: `queued hire for ${employer.name}` }].slice(-100);
-        await location.update({ "system.market.pendingHires": queue, "system.market.marketLog": log });
-        if (candidateId) await updateCandidate(location, candidateId, { status: "reserved" });
-        ChatMessage.create({
-          content: game.i18n.format("ACKS-HENCHMEN.hire.queuedChat", { employer: employer.name }),
-          speaker: ChatMessage.getSpeaker({ actor: employer }),
-        });
-      } else if (hired.error) {
-        ui.notifications.error(game.i18n.localize(`ACKS-HENCHMEN.hire.error.${hired.error}`));
-      }
+      await hireOrQueue({ location, candidateId, specialHireId, employer, outcome, result, signingGp });
       break;
     }
     case "tryAgain": {
@@ -394,15 +538,7 @@ async function handleOutcome({ location, candidateId, specialHireId, employer, r
       } else if (specialHireId) {
         npcName = (location.system.specialHires ?? []).find((s) => s.id === specialHireId)?.name ?? "";
       }
-      const slander = [
-        ...(location.system.slander ?? []).map((s) => s.toObject?.() ?? s),
-        {
-          subject: { scope: "party", uuid: employer.uuid },
-          npcName,
-          time: now(),
-          note: game.i18n.localize("ACKS-HENCHMEN.recruit.slanderNote"),
-        },
-      ];
+      const slander = [...(location.system.slander ?? []).map((s) => s.toObject?.() ?? s), slanderEntry(employer, npcName)];
       await location.update({ "system.market.slander": slander });
       Hooks.callAll(HOOKS.SLANDER_CHANGED, { location, subject: { scope: "party", uuid: employer.uuid } });
       break;

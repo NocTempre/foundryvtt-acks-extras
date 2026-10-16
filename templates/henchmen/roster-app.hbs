@@ -1,12 +1,15 @@
 <div class="roster-body">
   <header class="roster-header">
-    <div class="limit-meter {{#if limit.over}}over{{/if}}" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.limitHint'}}">
+    <div class="limit-meter {{#if limit.over}}over{{/if}}" data-tooltip="{{#if limit.unknown}}{{localize 'ACKS-HENCHMEN.roster.limitUnknown'}}{{else}}{{localize 'ACKS-HENCHMEN.roster.limitHint'}}{{/if}}">
       <i class="fas fa-users"></i>
-      {{localize "ACKS-HENCHMEN.roster.limit"}}: <strong>{{limit.count}} / {{limit.max}}</strong>
+      {{localize "ACKS-HENCHMEN.roster.limit"}}: <strong>{{limit.count}} / {{#if limit.unknown}}—{{else}}{{limit.max}}{{/if}}</strong>
     </div>
     <div class="employer-mods hint" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.employerModsHint'}}">
       CHA {{employerMods.cha}}{{#if employerMods.effects}}, {{localize "ACKS-HENCHMEN.roster.effects"}} +{{employerMods.effects}}{{/if}}
     </div>
+    {{#if unvaluedNote}}
+    <p class="hint" data-unvalued><i class="fas fa-triangle-exclamation"></i> {{unvaluedNote}}</p>
+    {{/if}}
     <div class="wage-summary">
       {{localize "ACKS-HENCHMEN.roster.totalWages"}}: <strong>{{totalWages}} gp</strong>/{{localize "ACKS-HENCHMEN.roster.month"}}
       {{#if isGM}}

@@ -21,4 +21,335 @@ for (const macro of macros) {
 
 assert.ok(packs && typeof packs === "object", "packs manifest exported");
 
-console.log(`test-henchmen: OK (${macros.length} macros)`);
+// ---- an offer to a bulk row, answered head by head ----
+// The outcome table is invented (its edges are nobody's book), so a pass
+// proves the rule reads the table it is handed.
+{
+  const { outcomeFromTable, headsOffered, headAnswers, tallyOutcomes, splitBulkRow, takeFromRow } = await import(
+    new URL("../scripts/henchmen/rules/bulk-offer.mjs", import.meta.url)
+  );
+  const TABLE = {
+    outcomes: [
+      { max: 4, effect: "refuseSlander" },
+      { min: 5, max: 6, effect: "refuse" },
+      { min: 7, max: 7, effect: "tryAgain" },
+      { min: 8, max: 13, effect: "accept" },
+      { min: 14, effect: "acceptElan" },
+    ],
+  };
+  assert.strictEqual(outcomeFromTable(TABLE, 3, 3), "refuseSlander", "the bottom row takes a low total");
+  assert.strictEqual(outcomeFromTable(TABLE, 7, 7), "tryAgain", "a total inside a row takes that row");
+  assert.strictEqual(outcomeFromTable(TABLE, 12, 20), "acceptElan", "a total past the top takes the top row");
+  assert.strictEqual(outcomeFromTable({ outcomes: [{ min: 5, effect: "x" }] }, 2, 1), "x", "a total under the first row's min takes the first row");
+  const clamped = { ...TABLE, naturalClamps: { natural2: { noBetterThan: "refuse" }, natural12: { noWorseThan: "accept" } } };
+  assert.strictEqual(outcomeFromTable(clamped, 2, 9), "refuse", "a natural 2 is held at its clamp");
+  assert.strictEqual(outcomeFromTable(clamped, 12, 1), "accept", "a natural 12 is raised to its clamp");
+  assert.strictEqual(outcomeFromTable({ outcomes: [] }, 7, 7), null, "an empty table answers nothing");
+
+  assert.strictEqual(headsOffered(6, 40), 6, "an offer reaches the heads named");
+  assert.strictEqual(headsOffered(99, 40), 40, "never more than the row holds");
+  assert.strictEqual(headsOffered(0, 40), 1, "never fewer than one");
+  assert.strictEqual(headsOffered("x", 40), 40, "an unreadable count is the whole row");
+
+  const answers = headAnswers({ natural: 6, total: 9, outcome: "accept" }, [2, 11, 4], TABLE);
+  assert.deepStrictEqual(
+    answers.map((a) => [a.natural, a.total, a.outcome]),
+    [[6, 9, "accept"], [2, 5, "refuse"], [11, 14, "acceptElan"], [4, 7, "tryAgain"]],
+    "each further head keeps the first head's modifier and answers on its own natural"
+  );
+  assert.deepStrictEqual(tallyOutcomes(answers), { accept: 1, refuse: 1, acceptElan: 1, tryAgain: 1 }, "answers tally by outcome");
+  assert.deepStrictEqual(tallyOutcomes(["accept", "nonsense", "accept"]), { accept: 2 }, "an unknown outcome is not counted");
+
+  let n = 0;
+  const newId = () => `new${++n}`;
+  const row = { id: "row1", name: "Laborer", quantity: 40, status: "available", segment: "specialist:x", availableFromTime: 77, refusals: [{ employerUuid: "E0", time: 1, result: "refuse" }] };
+  const split = splitBulkRow(row, { accept: 3, acceptElan: 1, refuse: 1, refuseSlander: 1 }, { employerUuid: "E1", time: 99, newId });
+  assert.strictEqual(split.offered, 6, "six heads answered");
+  assert.strictEqual(split.rows[0].id, "row1", "the heads not offered keep the row's id");
+  assert.strictEqual(split.rows[0].quantity, 34, "and the row's count drops by the heads offered");
+  assert.strictEqual(split.rows.reduce((s, r) => s + r.quantity, 0), 40, "no head is lost or invented");
+  for (const r of split.rows) {
+    assert.strictEqual(r.segment, "specialist:x", `${r.id}: keeps the segment`);
+    assert.strictEqual(r.availableFromTime, 77, `${r.id}: keeps the arrival time the churn reads`);
+  }
+  const slanderRow = split.rows.find((r) => r.status === "slandered");
+  assert.ok(slanderRow && slanderRow.quantity === 1, "the slanderer is a row of its own, marked slandered");
+  assert.strictEqual(split.slandered, 1, "one head refused and slandered");
+  const refused = split.rows.find((r) => r.refusals.some((x) => x.result === "refuse" && x.employerUuid === "E1"));
+  assert.ok(refused && refused.refusals.length === 2, "a refusing group carries the row's earlier refusals and its own");
+  assert.strictEqual(split.rows[0].refusals.length, 1, "the heads not offered record no new refusal");
+  assert.deepStrictEqual(
+    split.hires.map((h) => [h.quantity, h.elan]),
+    [[3, false], [1, true]],
+    "the accepting heads are hired as one group and the élan heads as another"
+  );
+  assert.ok(split.hires.every((h) => split.rows.find((r) => r.id === h.id)?.status === "available"), "the rows to hire are still available to the hire");
+  const whole = splitBulkRow({ ...row, quantity: 2 }, { accept: 2 }, { employerUuid: "E1", time: 99, newId });
+  assert.ok(!whole.rows.some((r) => r.id === "row1"), "an offer to every head leaves no remainder under the old id");
+  assert.throws(() => splitBulkRow({ ...row, quantity: 2 }, { accept: 3 }, { employerUuid: "E1", time: 99, newId }), RangeError, "more answers than heads is refused");
+
+  const part = takeFromRow({ id: "m1", quantity: 30, status: "available" }, 12, newId);
+  assert.deepStrictEqual(
+    part.rows.map((r) => [r.id === "m1", r.quantity, r.status]),
+    [[true, 18, "available"], [false, 12, "hired"]],
+    "a unit taken from a row leaves the rest on the market"
+  );
+  assert.deepStrictEqual(takeFromRow({ id: "m1", quantity: 30, status: "available" }, 30, newId).rows.map((r) => [r.id, r.status]), [["m1", "hired"]], "taking every head hires the row itself");
+  assert.strictEqual(takeFromRow({ id: "m1", quantity: 30, status: "available" }, 0, newId).takenId, null, "taking none changes nothing");
+}
+
+// ---- the network's class step: the page's value or a Judge's effect, never a name's ----
+{
+  const { collectEffectModifiers, hasEffectFlag, unvaluedPowers } = await import(new URL("../scripts/henchmen/effects.mjs", import.meta.url));
+  const power = (id, effects) => ({ id, type: "ability", name: "Mercantile Network", effects: [], flags: effects ? { "acks-extras": { extras: { effects } } } : {} });
+  const named = { items: [power("n")], effects: [], appliedEffects: [] };
+  assert.deepStrictEqual(collectEffectModifiers(named, "marketClass"), [], "a power held by name alone carries no value");
+  assert.strictEqual(hasEffectFlag(named, "marketClass"), true, "but it is present");
+  assert.deepStrictEqual(unvaluedPowers(named, "marketClass"), ["Mercantile Network"], "and is named as missing its value");
+  const imported = { items: [power("i", [{ type: "modifier", target: "marketClass", value: { kind: "flat", flat: 7 }, condition: "in a known market" }])], effects: [], appliedEffects: [] };
+  assert.deepStrictEqual(
+    collectEffectModifiers(imported, "marketClass").map(({ value, situational, source }) => [value, situational, source]),
+    [[7, true, "ability"]],
+    "the located value is read, situational"
+  );
+  assert.deepStrictEqual(unvaluedPowers(imported, "marketClass"), [], "an imported power is not missing anything");
+}
+
+// ---- the other henchmen powers: the page's value or a Judge's effect, never a name's ----
+// The figures below are authored for the test; none is a page's.
+{
+  const { collectEffectModifiers, sumEffectModifiers, hasEffectFlag, unvaluedPowers, unvaluedDialogModifiers } = await import(
+    new URL("../scripts/henchmen/effects.mjs", import.meta.url)
+  );
+  const ability = (id, name, effects) => ({ id, type: "ability", name, effects: [], flags: effects ? { "acks-extras": { extras: { effects } } } : {} });
+  const actor = (items, appliedEffects = []) => ({ items, effects: [], appliedEffects, system: { details: { level: 3 } } });
+  const flat = (n) => ({ kind: "flat", flat: n });
+
+  const named = actor([ability("l", "Leadership"), ability("b", "Blood of Kings"), ability("c", "Command")]);
+  assert.strictEqual(sumEffectModifiers(named, "retainBonus"), 0, "a limit power held by name adds nothing");
+  assert.deepStrictEqual(unvaluedPowers(named, "retainBonus"), ["Leadership", "Blood of Kings"], "and each is named as missing its value");
+  assert.deepStrictEqual(unvaluedPowers(named, "baseLoyalty"), ["Blood of Kings"], "per domain");
+  assert.deepStrictEqual(
+    unvaluedDialogModifiers(named, "henchmanMorale").map(({ label, value, dynamicInitial, dynamicLocked }) => [label, value, dynamicInitial, dynamicLocked]),
+    [["Command", 0, false, true]],
+    "a roll shows the unvalued power as a locked, unticked row at no value"
+  );
+
+  const imported = actor([
+    ability("l", "Leadership", [{ type: "modifier", target: "retainBonus", value: flat(5) }]),
+    ability("f", "Familial Loyalty", [{ type: "modifier", target: "retainBonus", value: flat(3), condition: "a related henchman" }]),
+  ]);
+  assert.strictEqual(sumEffectModifiers(imported, "retainBonus"), 5, "a located value counts; a conditioned one is offered, not summed");
+  assert.deepStrictEqual(unvaluedPowers(imported, "retainBonus"), [], "an imported power is not missing anything");
+
+  const own = ability("o", "Leadership", [{ type: "modifier", target: "retainBonus", value: flat(5) }]);
+  const judged = actor([own], [{ id: "ae", disabled: false, parent: { documentName: "Item", id: "o" }, flags: {}, changes: [{ key: "flags.acks-extras.retainBonus", type: "add", value: "9" }] }]);
+  assert.strictEqual(sumEffectModifiers(judged, "retainBonus"), 9, "an item's own Active Effect stands in for its page value");
+
+  const talker = actor([
+    ability("d", "Diplomacy", [{ type: "modifier", target: "reaction", value: flat(4), tones: ["diplomacy"] }]),
+    ability("m", "Mystic Aura", [{ type: "modifier", target: "reaction", value: flat(6), kickerAt: 11 }]),
+    ability("b", "Beast Friendship", [{ type: "modifier", target: "reaction", value: flat(8), vsKinds: ["animal"] }]),
+  ]);
+  const hiring = collectEffectModifiers(talker, "hiring");
+  assert.deepStrictEqual(
+    hiring.map(({ label, value, situational, condition }) => [label, value, situational, condition]),
+    [["Diplomacy", 4, true, "ACKS-INFLUENCE.tone.diplomacy"], ["Mystic Aura", 6, false, null], ["Beast Friendship", 8, true, "animal"]],
+    "a hiring offer reads reaction modifiers; one limited to a tone or a kind of target is offered, never applied, and says what it waits on"
+  );
+  talker.items.pop();
+  const draftAbility = (id, name, effects) => ({ ...ability(id, name), flags: { "acks-extras": { extras: { unaudited: true, effects } } } });
+  const drafted = actor([
+    draftAbility("v", "Command of Voice", [{ type: "modifier", target: "reaction", value: flat(5) }]),
+    draftAbility("k", "Blood of Kings", [{ type: "modifier", target: "retainBonus", value: flat(2) }]),
+  ]);
+  assert.deepStrictEqual(
+    collectEffectModifiers(drafted, "hiring").map(({ value, situational }) => [value, situational]),
+    [[5, true]],
+    "on a roll, a draft entry's value is offered unticked"
+  );
+  assert.strictEqual(sumEffectModifiers(drafted, "retainBonus"), 2, "a sum has no row to offer, and takes the located value");
+  const reacted = actor(talker.items, [
+    { id: "rx", disabled: false, parent: { documentName: "Item", id: "d" }, flags: {}, changes: [{ key: "flags.acks-extras.reaction", type: "add", value: "2" }] },
+  ]);
+  assert.deepStrictEqual(
+    collectEffectModifiers(reacted, "hiring").map(({ label, value, source }) => [label, value, source]),
+    [["acks-extras", 2, "influence-effect"], ["Mystic Aura", 6, "ability"]],
+    "an item whose reaction effect speaks is not counted a second time from its page"
+  );
+
+  const dominating = actor([ability("u", "Utter Domination")]);
+  assert.strictEqual(hasEffectFlag(dominating, "skipCalamityLoyalty"), true, "a power with no value is present by its name");
+  assert.deepStrictEqual(unvaluedPowers(dominating, "skipCalamityLoyalty"), [], "and has no value to miss");
+
+  const unread = actor([ability("g", "Military Genius"), ability("k", "Familiar Folkways")]);
+  for (const domain of ["hiring", "henchmanMorale"]) {
+    assert.deepStrictEqual(unvaluedPowers(unread, domain), [], `a name no page backs as a ${domain} power is not read`);
+  }
+}
+
+// ---- the henchman limit: core's Charisma allowance or none, never a formula ----
+// The allowances below are authored for the test; none is a page's. Each
+// fixture carries a Charisma mod, so a figure built from it fails here.
+{
+  const { getRetainBase, getRetainMax } = await import(new URL("../scripts/henchmen/acks-adapter.mjs", import.meta.url));
+  const leads = { id: "l", type: "ability", name: "Leadership", effects: [], flags: { "acks-extras": { extras: { effects: [{ type: "modifier", target: "retainBonus", value: { kind: "flat", flat: 2 } }] } } } };
+  const employer = (cha, { bonus, items = [] } = {}) => ({
+    items,
+    effects: [],
+    appliedEffects: [],
+    system: { scores: cha ? { cha } : {} },
+    getFlag: (scope, key) => (scope === "acks-extras" && key === "retainBonus" ? bonus : undefined),
+  });
+  assert.strictEqual(getRetainBase(employer({ mod: 1, retain: 6 })), 6, "core's allowance is read as it stands");
+  assert.strictEqual(getRetainMax(employer({ mod: 1, retain: 6 }, { bonus: 1, items: [leads] })), 9, "a power and the manual flag add to it");
+  assert.strictEqual(getRetainBase(employer({ mod: 2, retain: 0 })), 0, "a zero from core is core's figure, not a gap");
+  assert.strictEqual(getRetainMax(employer({ mod: 2, retain: 0 })), 0, "and limits as one");
+  assert.strictEqual(getRetainBase(employer({ mod: 2 })), null, "a Charisma mod without core's allowance yields no figure");
+  assert.strictEqual(getRetainBase(employer({ mod: 2, retain: null })), null, "a null allowance is not a zero");
+  assert.strictEqual(getRetainMax(employer({ mod: 2 }, { bonus: 3, items: [leads] })), null, "and no limit, whatever the powers add");
+  assert.strictEqual(getRetainMax(employer(null)), null, "an actor with no Charisma score has no limit");
+  assert.strictEqual(getRetainMax({ system: {} }), null, "nor one with no scores at all");
+}
+
+// ---- what a network posting reaches, and what its holder's roll adds ----
+{
+  const { postingSegments, networkSupplement } = await import(new URL("../scripts/henchmen/rules/availability.mjs", import.meta.url));
+  assert.deepStrictEqual(
+    postingSegments("henchman:*"),
+    ["henchman:0", "henchman:1", "henchman:2", "henchman:3", "henchman:4"],
+    "the general henchman post reaches every henchman level"
+  );
+  assert.deepStrictEqual(postingSegments("specialist:x"), ["specialist:x"], "any other post reaches its own segment");
+  assert.deepStrictEqual(postingSegments(""), [], "a directed search reaches no shared segment");
+  assert.strictEqual(networkSupplement(9, 4), 5, "the holder gets what their roll finds beyond the town's");
+  assert.strictEqual(networkSupplement(3, 4), 0, "a smaller roll leaves the holder the town's pool");
+  assert.strictEqual(networkSupplement(undefined, 4), 0, "no roll adds nobody");
+}
+
+// ---- the hiring offer: one imported table for the hosted page, the throw and every further head ----
+// The edges and figures are invented; what is pinned is the reading.
+{
+  const { hiringOutcomeTable, hiringOfferFrom, hiringOffer, hiringOfferComplete, HIRING_OFFER_DOC, HIRING_OFFER_TABLE } = await import(
+    new URL("../scripts/henchmen/rules/hiring-offer.mjs", import.meta.url)
+  );
+  const { outcomeFromTable, headAnswers } = await import(new URL("../scripts/henchmen/rules/bulk-offer.mjs", import.meta.url));
+  const BANDS = [{ min: null, max: 3 }, { min: 4, max: 4 }, { min: 5, max: 10 }, { min: 11, max: 15 }, { min: 16, max: null }];
+  const table = hiringOutcomeTable(BANDS);
+  assert.deepStrictEqual(
+    table.outcomes,
+    [
+      { max: 3, effect: "refuseSlander" },
+      { min: 4, max: 4, effect: "refuse" },
+      { min: 5, max: 10, effect: "tryAgain" },
+      { min: 11, max: 15, effect: "accept" },
+      { min: 16, effect: "acceptElan" },
+    ],
+    "the imported column becomes the outcome table, worst first, open at both ends"
+  );
+  assert.strictEqual(outcomeFromTable(table, 6, 4), "refuse", "a total on a one-wide band takes it");
+  assert.deepStrictEqual(headAnswers({ natural: 6, total: 9, outcome: "tryAgain" }, [10], table).map((a) => a.outcome), ["tryAgain", "accept"], "a further head answers from the same column");
+  assert.strictEqual(hiringOutcomeTable(BANDS.slice(1)), null, "four bands where five outcomes are named is not this table");
+  assert.strictEqual(hiringOutcomeTable([...BANDS.slice(0, 4), { min: null, max: null }]), null, "a band with no edge is not read");
+  assert.strictEqual(hiringOutcomeTable(undefined), null, "no column, no table");
+
+  const read = hiringOfferFrom({ bands: BANDS, refusalPenalty: -7, slanderPenalty: -3 });
+  assert.deepStrictEqual([read.refusalPenalty, read.slanderPenalty], [-7, -3], "both per-count figures are read as printed");
+  assert.strictEqual(hiringOfferComplete(read), true, "a full import can be rolled and priced");
+  const partial = hiringOfferFrom({ bands: BANDS, refusalPenalty: "", slanderPenalty: -3 });
+  assert.strictEqual(partial.refusalPenalty, null, "a blank figure is unread, never zero");
+  assert.strictEqual(hiringOfferComplete(partial), false, "and the throw cannot be priced");
+  assert.strictEqual(hiringOfferComplete(hiringOfferFrom(null)), false, "nothing imported is nothing to roll");
+
+  const { EXTERNAL_MODES } = await import(new URL("../scripts/influence/constants.mjs", import.meta.url));
+  assert.deepStrictEqual(
+    [HIRING_OFFER_DOC, HIRING_OFFER_TABLE],
+    [EXTERNAL_MODES.hiring.printedDoc, EXTERNAL_MODES.hiring.printed],
+    "the throw reads the table the hosted page reads"
+  );
+  const saved = globalThis.acksExtras;
+  try {
+    globalThis.acksExtras = { lib: { tables: { hasDoc: (doc) => doc === HIRING_OFFER_DOC, getTable: (doc, id) => (id === HIRING_OFFER_TABLE ? { bands: BANDS, refusalPenalty: -7, slanderPenalty: -3 } : null) } } };
+    assert.strictEqual(hiringOffer().slanderPenalty, -3, "the world's import is read from the influence document");
+    globalThis.acksExtras = { lib: { tables: { hasDoc: () => false } } };
+    assert.deepStrictEqual(hiringOffer(), { outcomes: null, refusalPenalty: null, slanderPenalty: null }, "a world without it reads nothing");
+  } finally {
+    globalThis.acksExtras = saved;
+  }
+
+  const { THROWS_DATA } = await import(new URL("../scripts/henchmen/data/throws-data.mjs", import.meta.url));
+  assert.strictEqual(THROWS_DATA.tables.reactionToHiringOutcomes, undefined, "the shipped config carries no hiring column");
+  const def = THROWS_DATA.throws.reactionToHiring;
+  assert.strictEqual(def.outcomeTable, undefined, "and the throw names none");
+  for (const id of ["previousRefusals", "slander"]) {
+    assert.strictEqual(def.modifiers.find((m) => m.id === id).valuePerStep, undefined, `${id}: no per-count figure ships`);
+  }
+}
+
+// ---- the hosted pages: an employer's powers offered, and the unvalued ones named by item ----
+// The figures below are authored for the test; none is a page's.
+{
+  const { collectEffectModifiers, unvaluedPowerItems, unvaluedPowers, offeredRows, unvaluedNoteRows } = await import(
+    new URL("../scripts/henchmen/effects.mjs", import.meta.url)
+  );
+  const ability = (id, name, effects) => ({ id, type: "ability", name, effects: [], flags: effects ? { "acks-extras": { extras: { effects } } } : {} });
+  const onItem = (id, item, key, value) => ({ id, disabled: false, parent: { documentName: "Item", id: item.id }, flags: {}, changes: [{ key, type: "add", value: String(value) }] });
+  const voice = ability("v", "Command of Voice");
+  const aura = ability("g", "Glamorous Aura");
+  const charm = ability("c", "Charming Ways");
+  const reactionAe = onItem("rx", aura, "flags.acks-extras.reaction", 2);
+  aura.effects = [reactionAe];
+  const hiringAe = onItem("hx", charm, "flags.acks-extras.hiring", 3);
+  const employer = {
+    items: [voice, aura, charm, ability("d", "Diplomacy", [{ type: "modifier", target: "reaction", value: { kind: "flat", flat: 4 } }])],
+    effects: [],
+    appliedEffects: [reactionAe, hiringAe],
+    system: { details: { level: 3 } },
+  };
+  assert.deepStrictEqual(unvaluedPowerItems(employer, "hiring"), [{ id: "v", name: "Command of Voice" }], "a power held by name alone is named with its item");
+  assert.deepStrictEqual(unvaluedPowers(employer, "hiring"), ["Command of Voice"], "the names are the same walk");
+  assert.deepStrictEqual(
+    collectEffectModifiers(employer, "hiring").map(({ source, itemId }) => [source, itemId]),
+    [["effect", "c"], ["influence-effect", "g"], ["ability", "d"]],
+    "every found modifier names the item it rides"
+  );
+  assert.deepStrictEqual(
+    offeredRows(employer, "hiring", { sources: ["effect"] }).map(({ id, value, situational, itemId }) => ({ id, value, situational, itemId })),
+    [{ id: "fx-hx-hiring", value: 3, situational: false, itemId: "c" }],
+    "a page that reads the reaction key and the page values itself is offered only the rest"
+  );
+  assert.strictEqual(offeredRows(employer, "hiring").length, 3, "with no filter every source is offered");
+  assert.deepStrictEqual(offeredRows(null, "hiring"), [], "no employer, nothing offered");
+  assert.deepStrictEqual(unvaluedNoteRows(employer, "hiring"), [{ label: "Command of Voice", note: true, itemId: "v" }], "a note per unvalued power, carrying its item");
+  const commander = { items: [ability("k", "Command")], effects: [], appliedEffects: [], system: { details: { level: 3 } } };
+  assert.deepStrictEqual(unvaluedNoteRows(commander, "henchmanMorale").map((n) => n.itemId), ["k"], "the obedience page names the morale power it cannot price");
+
+  // What each opener hands the influence page, read off a stand-in api.open.
+  const savedFoundry = globalThis.foundry;
+  const savedExtras = globalThis.acksExtras;
+  globalThis.foundry ??= { abstract: { DataModel: class {} }, data: { fields: {} } };
+  try {
+    const { openObedienceViaInfluence, openHiringViaInfluence } = await import(new URL("../scripts/henchmen/integrations/influence.mjs", import.meta.url));
+    globalThis.acksExtras = { influence: { apiVersion: 11, open: (_actor, opts) => opts } };
+    const steady = ability("o", "Fixture obedience power");
+    const rally = ability("m", "Fixture morale power");
+    const obeyAe = onItem("ox", steady, "flags.acks-extras.obedienceRoll", 1);
+    const moraleAe = onItem("mx", rally, "flags.acks-extras.henchmanMorale", 2);
+    const leader = { items: [steady, rally, ability("k", "Command")], effects: [], appliedEffects: [obeyAe, moraleAe], system: { details: { level: 3 } } };
+    const obedience = openObedienceViaInfluence({ employer: leader, hireling: { name: "H", img: "" } });
+    assert.deepStrictEqual(
+      obedience.ctx.offeredModifiers.map(({ id, value, itemId }) => [id, value, itemId]),
+      [["fx-ox-obedienceRoll", 1, "o"], ["fx-mx-henchmanMorale", 2, "m"]],
+      "obedience is offered the employer's obedience and henchman-morale powers"
+    );
+    assert.deepStrictEqual(obedience.modifiers.map((n) => [n.note, n.itemId]), [[true, "k"]], "obedience names the morale power it cannot price");
+    const hiring = openHiringViaInfluence({ employer, targetActor: null });
+    assert.deepStrictEqual(hiring.ctx.offeredModifiers.map((r) => r.id), ["fx-hx-hiring"], "hiring is offered only what the page does not read itself");
+    assert.deepStrictEqual(hiring.modifiers.map((n) => [n.note, n.itemId]), [[true, "v"]], "hiring names the power it cannot price");
+  } finally {
+    globalThis.foundry = savedFoundry;
+    globalThis.acksExtras = savedExtras;
+  }
+}
+
+console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, hiring offer, hosted pages)`);

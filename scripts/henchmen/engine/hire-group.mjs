@@ -1,4 +1,4 @@
-/* global game, ui, Actor, Hooks, ChatMessage */
+/* global game, ui, foundry, Actor, Hooks, ChatMessage */
 /**
  * Hire a whole unit from the market as ONE `acks-lib.group` (skirmish scale).
  *
@@ -14,10 +14,20 @@
  */
 import { MODULE_ID, HOOKS } from "../constants.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
-import { hire, employerOwnership, updateCandidate } from "./hire.mjs";
+import { hire, employerOwnership } from "./hire.mjs";
 import { mercenaryMorale } from "../rules/wages.mjs";
 import { optTable } from "../rules/tables.mjs";
+import { takeFromRow } from "../rules/bulk-offer.mjs";
 import { now } from "../time.mjs";
+
+/** Mark `count` heads of a market row hired; the rest of the row stays on the market (`takeFromRow`). */
+async function takeCandidateHeads(location, candidateId, count) {
+  const candidates = (location.system.candidates ?? []).flatMap((c) => {
+    const obj = c.toObject?.() ?? foundry.utils.deepClone(c);
+    return obj.id === candidateId ? takeFromRow(obj, count, () => foundry.utils.randomID()).rows : [obj];
+  });
+  await location.update({ "system.market.candidates": candidates });
+}
 
 /** Group pay state lives in a henchmen flag on the group actor — a group is a
  *  paid unit that never enters the core `henchmenList` (so it costs no PC
@@ -154,6 +164,8 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
   for (const pick of troops) {
     const candidate = getCandidate(location, pick.candidateId);
     if (!candidate || candidate.status === "hired") continue;
+    // a network find is in its holder's market and nobody else's
+    if (candidate.networkFor && candidate.networkFor !== employer.uuid) continue;
     const count = Math.max(1, Math.floor(pick.quantity ?? candidate.quantity ?? 1));
     const proto = await createTroopPrototype(candidate, employer);
     if (!proto) continue;
@@ -169,7 +181,7 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
         s.baseMorale = baseMorale;
       });
     }
-    await updateCandidate(location, pick.candidateId, { status: "hired" });
+    await takeCandidateHeads(location, pick.candidateId, count);
   }
 
   // Officer → a lone leveled actor (full individual hire), linked as commander,

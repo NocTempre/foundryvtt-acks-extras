@@ -2,9 +2,10 @@
  * Social-roll AUTOMATION config — this module's own, not an imported book
  * table. Maps the universal ACKS 2d6 outcome ladder onto this module's own
  * effect enums (`refuseSlander`, `tryAgain`, `acceptElan`…) and derive keys
- * (`chaMod`, `effectiveLoyalty`…), so hiring/loyalty/obedience rolls work with
- * no import. Ships at SAMPLE priority: a content catalog or world import may
- * still override it by the `throws` doc id.
+ * (`chaMod`, `effectiveLoyalty`…). The hiring throw is the exception: its
+ * result column and per-count figures are printed, and arrive by import (see
+ * `reactionToHiring` below). Ships at SAMPLE priority: a content catalog or
+ * world import may still override it by the `throws` doc id.
  *
  * Registered at setup via the lib subsystem's table registry; read by
  * ThrowDialog and the influence-hosted pages through getThrowDef/getTable
@@ -20,15 +21,6 @@ export const THROWS_DATA = {
   id: "throws",
   source: { note: "Module roll-automation config (module vocabulary; not book data)." },
   tables: {
-    reactionToHiringOutcomes: {
-      outcomes: [
-        { max: 2, effect: "refuseSlander" },
-        { min: 3, max: 5, effect: "refuse" },
-        { min: 6, max: 8, effect: "tryAgain" },
-        { min: 9, max: 11, effect: "accept" },
-        { min: 12, effect: "acceptElan" },
-      ],
-    },
     irrefusableOfferOutcomes: {
       outcomes: [
         { max: 2, effect: "betrayal" },
@@ -64,11 +56,13 @@ export const THROWS_DATA = {
     },
   },
   throws: {
+    // The result column and both per-count figures are the Judge's imported
+    // `influence.hiringOffer` (rules/hiring-offer.mjs); an opener passes them
+    // in as `outcomes` and `stepValues`, and refuses to open without them.
     reactionToHiring: {
       label: "ACKS-HENCHMEN.throw.reactionToHiring",
       formula: "2d6",
       secret: false,
-      outcomeTable: "reactionToHiringOutcomes",
       modifiers: [
         employerChaMod,
         {
@@ -82,12 +76,12 @@ export const THROWS_DATA = {
           ],
         },
         {
-          id: "previousRefusals", kind: "auto", control: "stepper", valuePerStep: -1,
+          id: "previousRefusals", kind: "auto", control: "stepper",
           min: 0, max: 20, derive: "previousRefusals",
           label: "ACKS-HENCHMEN.mod.previousRefusals", hint: "ACKS-HENCHMEN.mod.previousRefusalsHint",
         },
         {
-          id: "slander", kind: "auto", control: "stepper", valuePerStep: -1,
+          id: "slander", kind: "auto", control: "stepper",
           min: 0, max: 20, derive: "slanderCount",
           label: "ACKS-HENCHMEN.mod.slander", hint: "ACKS-HENCHMEN.mod.slanderHint",
         },

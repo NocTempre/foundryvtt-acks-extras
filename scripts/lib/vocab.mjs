@@ -675,6 +675,16 @@ export const MODIFIER_TARGETS = {
   hp: { label: "Hit Points" },
   research: { label: "Magic Research" },
   cleaves: { label: "Cleaves" },
+  // A market's class as one trader deals in it (henchmen `effectiveMarketClass`),
+  // and a venture's market impact (markets `engine/network.mjs`).
+  marketClass: { label: "Market Class" },
+  marketImpact: { label: "Market Impact" },
+  // What a character's powers do for the hirelings serving them (henchmen
+  // `effects.mjs`): their own targets, never `loyalty` or `morale`, which the
+  // influence pages read as roll modifiers and would count a second time.
+  retainBonus: { label: "Henchmen Allowed" },
+  baseLoyalty: { label: "Henchmen's Base Loyalty" },
+  henchmanMorale: { label: "Hirelings' Morale" },
 };
 
 /** Non-damage effect keywords (mirror the importer's `defenseEffect` register). */

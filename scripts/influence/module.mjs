@@ -18,6 +18,7 @@ import {
   henchmanMonthlyWage,
   HOOKS,
   EXTERNAL_MODES,
+  INFLUENCE_DOC,
 } from "./constants.mjs";
 import { conditionEntries, conditionRows } from "./condition-rows.mjs";
 import { subjectOf } from "../lib/conditions.mjs";
@@ -115,7 +116,7 @@ Hooks.once("init", () => {
   // Public API for macros / other modules. Set this FIRST so nothing below can
   // prevent it from being assigned.
   const api = {
-    apiVersion: 10, // 10: the morale and obedience pages read their figures from the `morale` ruledata document, and roll-complete carries `outcome: null` when the result column is not imported
+    apiVersion: 11, // 11: the hiring page reads its bands and penalties from the `influence` ruledata document, draws a held power's row only when the roller holds it, and takes the opener's own power rows through `ctx.offeredModifiers`
     // Synchronous: a listener's own throw is already caught inside
     // openInfluenceApp, but a constructor throw must reach the caller
     // unaltered. See docs/influence/DECISIONS.md, "Opening the roller stays
@@ -153,9 +154,10 @@ Hooks.once("init", () => {
   // Also expose globally as a resilient fallback for macros.
   acksExtras.influence = api;
 
-  // The printed tables the morale pages read, declared so the import names
-  // them while a Judge's books have not supplied them.
+  // The printed tables the morale and hiring pages read, declared so the
+  // import names them while a Judge's books have not supplied them.
   expectTables(MORALE_DOC, ["monsterMorale", "hirelingObedience"]);
+  expectTables(INFLUENCE_DOC, ["hiringOffer"]);
 
   // Every sheet's Morale button (lib's `morale-roll` contract): the creature
   // is the page's subject, and nobody stands opposite it.

@@ -11,7 +11,7 @@
  */
 import assert from "node:assert/strict";
 import { resolveLevelValue } from "../scripts/lib/vocab.mjs";
-import { EXTERNAL_MODES, INFLUENCE_MODIFIERS, INFLUENCE_TONE, REACTION_CHANGE_KEY, ROLL_FAMILY, externalRows } from "../scripts/influence/constants.mjs";
+import { EXTERNAL_MODES, INFLUENCE_DOC, INFLUENCE_MODIFIERS, INFLUENCE_TONE, REACTION_CHANGE_KEY, ROLL_FAMILY, externalRows } from "../scripts/influence/constants.mjs";
 import {
   effectRowsForPage,
   getActsAsPowers,
@@ -20,6 +20,8 @@ import {
   getProficiencyItems,
   itemsWithProficiencyRows,
   moraleRatingOf,
+  offeredEffectRows,
+  resolveHeldRows,
 } from "../scripts/influence/actor-data.mjs";
 import { MORALE_DOC, modeRows, printedBands, printedFigure, printedLabel } from "../scripts/influence/printed.mjs";
 import { conditionEntries, conditionRows } from "../scripts/influence/condition-rows.mjs";
@@ -373,6 +375,153 @@ t("a result column is the page's edges under the mode's rung names", () => {
   const obedience = EXTERNAL_MODES.obedience;
   assert.equal(printedBands(obedience.printed, obedience.bandKeys), null);
   resetTables();
+});
+
+/* --- the hiring page: the same reading, from the `influence` document --- */
+
+t("the hiring page ships its structure and no figure", () => {
+  const mode = EXTERNAL_MODES.hiring;
+  assert.equal(mode.bands, undefined, "no result edges");
+  assert.equal(mode.printedDoc, INFLUENCE_DOC);
+  assert.ok(mode.printed && mode.cite && mode.bandKeys.length, "names its page");
+  for (const id of ["hiring", "marketAssessment"]) {
+    for (const mod of EXTERNAL_MODES[id].groups.flatMap((g) => g.mods)) {
+      assert.equal(mod.value, undefined, `${id}.${mod.key}: no figure`);
+      assert.equal(mod.factor, undefined, `${id}.${mod.key}: no factor`);
+    }
+  }
+});
+
+t("an unread hiring page types its penalties and reads no result column", () => {
+  resetTables();
+  const mode = EXTERNAL_MODES.hiring;
+  assert.equal(printedBands(mode.printed, mode.bandKeys, mode.printedDoc), null);
+  for (const key of ["previousRefusals", "slander"]) {
+    const declared = mode.groups.flatMap((g) => g.mods).find((m) => m.key === key);
+    assert.deepEqual(rowOf(mode, key), { key, label: declared.label, type: "signed", unread: true }, key);
+  }
+});
+
+// Invented edges and figures: what is pinned is the reading.
+const INVENTED_HIRING = {
+  id: INFLUENCE_DOC,
+  tables: {
+    hiringOffer: {
+      bands: [{ min: null, max: 3 }, { min: 4, max: 4 }, { min: 5, max: 10 }, { min: 11, max: 15 }, { min: 16, max: null }],
+      refusalPenalty: -7,
+      slanderPenalty: -3,
+    },
+  },
+};
+
+t("a read hiring page owes each count the page's figure, under the mode's rung names", () => {
+  resetTables();
+  registerTable(INVENTED_HIRING, { priority: PRIORITY.WORLD });
+  const mode = EXTERNAL_MODES.hiring;
+  const refusals = rowOf(mode, "previousRefusals");
+  assert.deepEqual(
+    { type: refusals.type, factor: refusals.factor, auto: refusals.auto, showFigure: refusals.showFigure },
+    { type: "factor", factor: -7, auto: "ctx:previousRefusals", showFigure: true },
+  );
+  assert.equal(rowOf(mode, "slander").factor, -3);
+  assert.deepEqual(printedBands(mode.printed, mode.bandKeys, mode.printedDoc), [
+    { max: 3, key: "refuseSlander" },
+    { min: 4, max: 4, key: "refuse" },
+    { min: 5, max: 10, key: "tryAgain" },
+    { min: 11, max: 15, key: "accept" },
+    { min: 16, key: "acceptElan" },
+  ]);
+  // The documents are apart: a hiring import says nothing of the morale pages.
+  assert.equal(printedBands(EXTERNAL_MODES.morale.printed, EXTERNAL_MODES.morale.bandKeys), null);
+  resetTables();
+  registerTable({ id: INFLUENCE_DOC, tables: { hiringOffer: { ...INVENTED_HIRING.tables.hiringOffer, bands: INVENTED_HIRING.tables.hiringOffer.bands.slice(1) } } }, { priority: PRIORITY.WORLD });
+  assert.equal(printedBands(mode.printed, mode.bandKeys, mode.printedDoc), null, "four rungs where the page names five is some other table");
+  resetTables();
+});
+
+/** A roller's effect rows as the hiring page reads them: Active Effects, then the abilities model. */
+const rollerRows = (roller) => [...getEffectReactionMods(roller), ...getAbilityReactionMods(roller, itemsWithReactionEffects(roller))];
+const heldRow = (held, key) => held.groups.flatMap((g) => g.mods).find((m) => m.key === key);
+
+t("a held box is drawn only for a roller who holds it, worth what that roller's item carries", () => {
+  const groups = modeRows(EXTERNAL_MODES.hiring);
+  const nobody = { items: [], appliedEffects: [] };
+  const none = resolveHeldRows(groups, nobody, [], ROLL_FAMILY.REACTION);
+  assert.equal(heldRow(none, "diplomacyProf"), undefined, "nobody holds Diplomacy, so no box");
+  assert.equal(heldRow(none, "charisma").type, "signed", "a row that is not held passes through");
+  assert.equal(none.claimed.size, 0);
+
+  const talker = { items: [ability("h-dip", "Diplomacy", [reactionMod(4)]), ability("h-aura", "Mystic Aura")], appliedEffects: [] };
+  const held = resolveHeldRows(groups, talker, rollerRows(talker), ROLL_FAMILY.REACTION);
+  assert.deepEqual(
+    (({ type, value, showFigure, exclusive, auto, heldFrom }) => ({ type, value, showFigure, exclusive, auto, heldFrom }))(heldRow(held, "diplomacyProf")),
+    { type: "check", value: 4, showFigure: true, exclusive: "toneProf", auto: "prof:diplomacy", heldFrom: "diplomacy" },
+  );
+  assert.deepEqual(heldRow(held, "mysticAura"), { key: "mysticAura", label: "ACKS-INFLUENCE.mod.held.mysticAura", heldFrom: "mysticAura", type: "signed", unvalued: true });
+  assert.equal(heldRow(held, "seductionProf"), undefined);
+  assert.deepEqual([...held.claimed].sort(), ["h-aura", "h-dip"]);
+  // A drawn box claims its item, so the item's own row is not offered again.
+  assert.deepEqual([...itemsWithProficiencyRows(talker, held.groups)].sort(), ["h-aura", "h-dip"]);
+});
+
+t("a held box takes the item's Active Effect first, its own family only, and never pre-ticks a draft", () => {
+  const groups = modeRows(EXTERNAL_MODES.hiring);
+  const dip = ability("h-dip", "Diplomacy", [reactionMod(4)]);
+  const judged = { items: [dip], appliedEffects: [reactionEffect(dip, 9)] };
+  assert.equal(heldRow(resolveHeldRows(groups, judged, rollerRows(judged), ROLL_FAMILY.REACTION), "diplomacyProf").value, 9);
+
+  const loyalOnly = { items: [ability("h-dip", "Diplomacy", [{ type: "modifier", target: ROLL_FAMILY.LOYALTY, value: { kind: "flat", flat: 5 }, appliesTo: "self" }])], appliedEffects: [] };
+  assert.equal(heldRow(resolveHeldRows(groups, loyalOnly, rollerRows(loyalOnly), ROLL_FAMILY.REACTION), "diplomacyProf").unvalued, true, "a loyalty figure is not a hiring figure");
+
+  const draft = { items: [ability("h-dip", "Diplomacy", [reactionMod(4)], { unaudited: true })], appliedEffects: [] };
+  const row = heldRow(resolveHeldRows(groups, draft, rollerRows(draft), ROLL_FAMILY.REACTION), "diplomacyProf");
+  assert.deepEqual([row.value, row.unaudited, row.default, row.auto], [4, true, false, undefined]);
+  // An offered row carries its two flags apart; unaudited alone holds the tick back.
+  const dipOnly = { items: [ability("h-dip", "Diplomacy", [reactionMod(4)])], appliedEffects: [] };
+  const offeredDraft = offeredEffectRows([{ id: "fx-d", label: "A draft charm", value: 2, unaudited: true, itemId: "h-dip" }], ROLL_FAMILY.REACTION);
+  const fromOffer = heldRow(resolveHeldRows(groups, dipOnly, [...offeredDraft, ...rollerRows(dipOnly)], ROLL_FAMILY.REACTION), "diplomacyProf");
+  assert.deepEqual([fromOffer.value, fromOffer.unaudited, fromOffer.default, fromOffer.auto], [2, true, false, undefined], "an unaudited row is never pre-ticked, situational or not");
+
+  const conditioned = { items: [ability("h-int", "Intimidation", [reactionMod(3, { condition: "a lesser foe" })])], appliedEffects: [] };
+  const cond = heldRow(resolveHeldRows(groups, conditioned, rollerRows(conditioned), ROLL_FAMILY.REACTION), "intimidationProf");
+  assert.deepEqual([cond.value, cond.unaudited, cond.default, cond.auto], [3, undefined, false, undefined], "a figure with a condition is offered, never pre-ticked");
+});
+
+t("an opener's offered rows join the page's own, and speak for their item", () => {
+  assert.deepEqual(offeredEffectRows(undefined, ROLL_FAMILY.REACTION), []);
+  const offered = offeredEffectRows(
+    [
+      { id: "fx-1", label: "A hiring charm", value: 2, situational: true, itemId: "h-dip" },
+      { id: "fx-2", label: "Worth nothing", value: 0 },
+      { label: "On the actor", value: -1 },
+    ],
+    ROLL_FAMILY.MORALE,
+  );
+  assert.deepEqual(
+    offered.map(({ id, itemId, value, family, situational, source }) => [id, itemId, value, family, situational, source]),
+    [
+      ["offer:fx-1", "h-dip", 2, ROLL_FAMILY.MORALE, true, "offered"],
+      ["offer:2", null, -1, ROLL_FAMILY.MORALE, false, "offered"],
+    ],
+  );
+  // An offered row is its item's Active Effect, so a held box reads it first.
+  const talker = { items: [ability("h-dip", "Diplomacy", [reactionMod(4)])], appliedEffects: [] };
+  const mine = offeredEffectRows([{ id: "fx-1", label: "A hiring charm", value: 2, itemId: "h-dip" }], ROLL_FAMILY.REACTION);
+  const held = resolveHeldRows(modeRows(EXTERNAL_MODES.hiring), talker, [...mine, ...rollerRows(talker)], ROLL_FAMILY.REACTION);
+  assert.equal(heldRow(held, "diplomacyProf").value, 2);
+});
+
+t("a note about one item keeps its id; a figure row does not need one", () => {
+  assert.deepEqual(
+    externalRows([
+      { label: "A power with no value", note: true, itemId: "h-voice" },
+      { label: "A quarter", value: -2, itemId: "h-any" },
+    ]),
+    [
+      { label: "A power with no value", value: 0, note: true, itemId: "h-voice" },
+      { label: "A quarter", value: -2, note: false },
+    ],
+  );
 });
 
 t("a group rolls on its command morale, with its one stack's base when it has one", () => {

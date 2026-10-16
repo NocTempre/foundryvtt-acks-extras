@@ -10,7 +10,7 @@ import * as vocab from "../scripts/lib/vocab.mjs";
 import { cleanDelta, isDerivedEffect, memberName, migrateGroupSource, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
 import { attackTerms, termTotal, resolveAttack, legacyCoreResolves } from "../scripts/lib/attack-logic.mjs";
-import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet } from "../scripts/lib/effect-scan.mjs";
+import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet, abilityModifiers } from "../scripts/lib/effect-scan.mjs";
 import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, rungOrder, withoutLadderPins } from "../scripts/lib/ui-preset-logic.mjs";
 import {
   buildTransferPayload,
@@ -776,6 +776,59 @@ t("effect-scan: CSV grants read the same way — add puts tokens in, subtract ta
   const afterwards = { appliedEffects: [...replaced.appliedEffects, effect([change("g", "add", "mace", { priority: 60 })])] };
   assert.deepEqual([...csvFlagSet(afterwards, "g")].sort(), ["axe", "mace"], "a grant priced above the override lands after it");
   delete globalThis.CONST;
+});
+
+t("effect-scan: an ability's typed modifiers read the page's value for one target, level ladders resolved", () => {
+  const ability = (id, effects) => ({ id, name: `Power ${id}`, flags: { "acks-extras": { extras: { effects } } } });
+  const actor = {
+    system: { details: { level: 5 } },
+    items: [
+      ability("a", [
+        { type: "modifier", target: "marketClass", value: { kind: "flat", flat: 2 }, condition: "somewhere" },
+        { type: "modifier", target: "marketImpact", value: 3 },
+        { type: "throw", target: "marketClass", value: 9 },
+      ]),
+      ability("b", [{ type: "modifier", target: "marketClass", value: { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 4, value: 4 }] } }]),
+      ability("c", [{ type: "modifier", target: "marketClass", value: { kind: "flat", flat: 0 } }]),
+      { id: "d", name: "Plain", flags: {} },
+    ],
+  };
+  assert.deepEqual(
+    abilityModifiers(actor, "marketClass").map(({ itemId, value, situational }) => [itemId, value, situational]),
+    [
+      ["a", 2, true],
+      ["b", 4, false],
+    ],
+    "a condition makes it situational; a ladder resolves at the actor's level; zero and other types are no modifier"
+  );
+  assert.deepEqual(abilityModifiers(actor, "marketClass", { skipItemIds: new Set(["a"]) }).map((m) => m.itemId), ["b"], "an item set aside is not read");
+  assert.deepEqual(abilityModifiers(actor, "marketImpact").map((m) => m.value), [3]);
+  assert.deepEqual(abilityModifiers(null, "marketClass"), []);
+  const scoped = {
+    items: [
+      ability("t", [{ type: "modifier", target: "reaction", value: 2, tones: ["intimidation"] }]),
+      ability("k", [{ type: "modifier", target: "reaction", value: 3, vsKinds: ["Animal"] }]),
+      { ...ability("u", [{ type: "modifier", target: "reaction", value: 4 }]), flags: { "acks-extras": { extras: { unaudited: true, effects: [{ type: "modifier", target: "reaction", value: 4 }] } } } },
+    ],
+  };
+  assert.deepEqual(
+    abilityModifiers(scoped, "reaction").map(({ itemId, tones, vsKinds, situational, unaudited }) => [itemId, tones, vsKinds, situational, unaudited]),
+    [
+      ["t", ["intimidation"], [], true, false],
+      ["k", [], ["animal"], true, false],
+      ["u", [], [], false, true],
+    ],
+    "a scope the reader cannot settle offers the modifier and says what it waits on; a draft entry is marked, not judged"
+  );
+  assert.deepEqual(
+    abilityModifiers(scoped, "reaction", { scope: { tone: "diplomacy", kinds: ["animal"] } }).map(({ itemId, situational }) => [itemId, situational]),
+    [
+      ["k", false],
+      ["u", false],
+    ],
+    "a settled scope applies the modifier or drops it"
+  );
+  assert.deepEqual(abilityModifiers(actor, "marketImpact")[0].tones, []);
 });
 
 t("sizeFromEcology: reads the rich block, falls back to core, else null", () => {

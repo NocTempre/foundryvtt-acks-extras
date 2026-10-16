@@ -56,19 +56,21 @@ shipped surface. Either the classifications get audited and the badge retires,
 or the badge becomes the documented steady state and says so deliberately.
 It is currently neither.
 
-## 3. Influence ruledata has no producer
+## 3. Two influence tables have no producer
 
-The feature reads its printed figures from an `influence` document
-(`influence/constants.mjs`), and no recipe reads that document off a page, so
-every figure it asks for is absent in every world. §1's fix is this work seen
-from the other side: a label can drop its magnitude once the magnitude has a
-document to arrive in. `tools/validate-producers.mjs` waives the document
-against this section.
+The `influence` document's `attemptTime` (the attempt-time ladder) and
+`henchmanWage` (the wage ladder the bribe fee prices on) are read in
+`influence/constants.mjs`, and no recipe writes either, so both are absent in
+every world. `tools/validate-producers.mjs` waives each against this section.
+§1's fix is this work seen from the other side: a label can drop its
+magnitude once the magnitude has a document to arrive in.
 
-The `morale` document is the exception and the pattern: its two tables have a
-recipe, and the `morale` and `obedience` pages read them (`MODEL.md`, "Printed
-morale pages"). The three reaction tones, `loyalty`, `hiring` and
-`irrefusable` are what §1 still describes.
+The `morale` document and the `influence` document's `hiringOffer` are the
+pattern: each has a recipe, and the `morale`, `obedience` and `hiring` pages
+read them (`MODEL.md`, "Printed pages"). The three reaction tones, `loyalty`
+and `irrefusable` are what §1 still describes, and the tone pages'
+proficiency rows still carry a figure each; the hiring page's `held` rows are
+the shape that retires it.
 
 ## 4. What the morale pages left behind
 

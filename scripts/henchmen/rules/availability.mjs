@@ -185,4 +185,23 @@ export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.r
   }
 }
 
+/**
+ * The shared-pool segments one posting reaches: the general henchman post
+ * covers every henchman level, any other post its own segment.
+ */
+export function postingSegments(segment) {
+  if (segment === "henchman:*") return [0, 1, 2, 3, 4].map((level) => `henchman:${level}`);
+  return segment ? [segment] : [];
+}
+
+/**
+ * How many people a mercantile network adds to one segment for its holder:
+ * the holder's market is the town's read one class larger, and everyone the
+ * town's own roll found is in it already. Never negative — a smaller roll at
+ * the larger class leaves the holder the town's pool.
+ */
+export function networkSupplement(networkTotal, sharedTotal) {
+  return Math.max(0, (Number(networkTotal) || 0) - (Number(sharedTotal) || 0));
+}
+
 export { arrivalSplit };

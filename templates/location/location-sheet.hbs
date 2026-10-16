@@ -248,7 +248,7 @@
         <tbody>
           {{#each postings}}
           <tr data-posting-id="{{id}}" class="{{#unless isActive}}inactive{{/unless}}{{#if advertVeteran}} advert-veteran{{/if}}">
-            <td data-tooltip="{{rollDetail}}">{{specLabel}}{{#if advertVeteran}} <i class="fas fa-bullhorn" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.advertVeteranHint'}}"></i>{{/if}}{{#if isPrivate}} <i class="fas fa-user-lock" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.privateHint'}}"></i>{{/if}}{{#if commissioned}} <i class="fas fa-scroll" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.commissioned'}}"></i>{{/if}}{{#if liedLevel}} <i class="fas fa-mask" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.liedLevel'}} {{liedLevel}}"></i>{{/if}}</td>
+            <td data-tooltip="{{rollDetail}}">{{specLabel}}{{#if advertVeteran}} <i class="fas fa-bullhorn" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.advertVeteranHint'}}"></i>{{/if}}{{#if isPrivate}} <i class="fas fa-user-lock" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.privateHint'}}"></i>{{/if}}{{#if commissioned}} <i class="fas fa-scroll" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.commissioned'}}"></i>{{/if}}{{#if network}} <i class="fas fa-network-wired" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.networkUsed'}}"></i>{{/if}}{{#if liedLevel}} <i class="fas fa-mask" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.liedLevel'}} {{liedLevel}}"></i>{{/if}}</td>
             <td>{{employerName}}</td>
             <td>{{feesTotal}} gp</td>
             <td>{{statusLabel}}</td>
@@ -290,7 +290,7 @@
         <tbody>
           {{#each directedRows}}
           <tr data-candidate-id="{{id}}" class="status-{{status}}">
-            <td data-tooltip="{{appearanceTip}}">{{name}} <i class="fas fa-user-lock" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.privateHint'}}"></i></td>
+            <td data-tooltip="{{appearanceTip}}">{{name}} <i class="fas fa-user-lock" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.privateHint'}}"></i>{{#if networkTip}} <i class="fas fa-network-wired" data-tooltip="{{networkTip}}"></i>{{/if}}</td>
             <td>{{age}}</td>
             <td>{{cultureLabel}}</td>
             <td>{{identityLine}}</td>
@@ -378,7 +378,7 @@
       <tbody>
         {{#each henchmenRows}}
         <tr data-candidate-id="{{id}}" class="status-{{status}}{{#if isHighlighted}} search-hit{{/if}}">
-          <td data-tooltip="{{appearanceTip}}">{{#if isHighlighted}}<i class="fas fa-star" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.searchHit'}}"></i> {{/if}}{{name}}</td>
+          <td data-tooltip="{{appearanceTip}}">{{#if isHighlighted}}<i class="fas fa-star" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.searchHit'}}"></i> {{/if}}{{name}}{{#if networkTip}} <i class="fas fa-network-wired" data-tooltip="{{networkTip}}"></i>{{/if}}</td>
           <td>{{age}}</td>
           <td>{{cultureLabel}}</td>
           <td>{{identityLine}}</td>
@@ -423,7 +423,7 @@
       <tbody>
         {{#each mercenaryRows}}
         <tr data-candidate-id="{{id}}" class="status-{{status}}">
-          <td>{{name}}</td>
+          <td>{{name}}{{#if networkTip}} <i class="fas fa-network-wired" data-tooltip="{{networkTip}}"></i>{{/if}}</td>
           <td>{{quantity}}</td>
           <td>{{#if wageGp}}{{wageGp}} gp/{{wageUnit}}{{/if}}</td>
           <td>{{statusLabel}}</td>
@@ -467,7 +467,7 @@
       <tbody>
         {{#each specialistRows}}
         <tr data-candidate-id="{{id}}" class="status-{{status}}">
-          <td data-tooltip="{{appearanceTip}}">{{name}}{{#if isAggregate}} ×{{quantity}}{{/if}}</td>
+          <td data-tooltip="{{appearanceTip}}">{{name}}{{#if isAggregate}} ×{{quantity}}{{/if}}{{#if networkTip}} <i class="fas fa-network-wired" data-tooltip="{{networkTip}}"></i>{{/if}}</td>
           <td>{{age}}</td>
           <td>{{cultureLabel}}</td>
           <td>{{identityLine}}</td>

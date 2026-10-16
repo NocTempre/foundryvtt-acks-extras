@@ -364,6 +364,25 @@
   margin-top: 0.35em;
 }
 
+.acks-extras-markets-report-choose {
+  margin: 0.75em 0 0;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-markets-report-choose legend {
+  font-size: var(--acks-fs-label);
+}
+
+/* The goods to choose from wrap into as many columns as the window holds. */
+.acks-extras-markets-report-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(12em, 100%), 1fr));
+  gap: 0.15em 0.75em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* A caption a control's own label already names: read by a screen reader,
    drawn nowhere. */
 .acks-extras-markets-report-sr {

@@ -37,9 +37,10 @@ One actor per settlement (see `scripts/data/location-data.mjs`):
 | `classRarityTableId` | Which JJ class-rarity variant applies (`default`, `jutland`, or setting-specific additions). |
 | `rarityOverrides[]` | `{classKey, rarity}` — the Judge's word on a class's rarity in THIS market, consulted before the variant on every directed search (`overrideRarity`). |
 | `desertRealm`, `compositeVariant` | Camel-troop gate; composite-vs-longbow either/or (RR 164). |
-| `postings[]` | One per paid search spec: monthly pool (`totalAvailable`), 3-week `arrivalPlan`, `feesPaid[]`, `monthStartTime`, `status`. |
-| `candidates[]` | Plain records (NOT actors): identity, rolled attributes/class/level (feature 4 — recorded, not generated), wage, `availableFromTime`, `status`, `refusals[]`. |
-| `slander[]` | Refuse-and-slander registry — the per-town −1 source (RR 162). |
+| `postings[]` | One per paid search spec: monthly pool (`totalAvailable`), 3-week `arrivalPlan`, `feesPaid[]`, `monthStartTime`, `status`, `network` (searched with the employer's mercantile network). |
+| `candidates[]` | Plain records (NOT actors): identity, rolled attributes/class/level (feature 4 — recorded, not generated), wage, `availableFromTime`, `status`, `refusals[]`, `networkFor` (only that employer's network reaches them). |
+| `networkRolls[]` | One employer's roll of a segment at their network's class, once per market month: `{employerUuid, segment, monthStartTime, marketClass, total, detail}`. Cleared at the month roll. |
+| `slander[]` | Refuse-and-slander registry — the per-town slander count (RR 162). |
 | `searchLedger[]` | Fee history. |
 
 **Extension point**: future domain-family modules (structures/strongholds…)
@@ -58,6 +59,47 @@ employer.uuid}`; the location sheet's ledger adds and edits arbitrary rows,
 default `{scope:"all"}`. The read side — "where am I slandered" — is
 `acksHenchmen.slanderedAt({employerUuid, characterUuid})`, a scan over
 location actors, not a second store.
+
+**Bulk rows.** Mercenaries, and specialists whose largest market counts them
+by a multiple, arrive as one candidate row per week with a `quantity`
+(`isMassSpec`, `engine/recruitment.mjs`). An offer names how many of the row
+it reaches, and each head answers for itself (`rules/bulk-offer.mjs`): the
+hiring page rolls the first head, the same seat rolls the rest with the same
+modifiers on the imported hiring column and posts them on one card, and the
+GM side splits the row by answer (`splitBulkRow`). The heads not offered keep
+the row's id; each answer is a row of its own with the original's segment,
+arrival time and wage, a refusal recorded on the refusing rows, `slandered`
+on the slanderers' (one `slander` entry per head). The accepting heads are
+hired as one actor of that `quantity`, the élan heads as a second, and a
+signing bonus is paid per head hired. A unit assembled by Hire as Group takes
+its count the same way (`takeFromRow`): the taken heads are a hired row, the
+rest stay on the market.
+
+**The hiring figures.** The Reaction to Hiring Offer's result column and the
+figure each earlier refusal and each slander adds are the influence feature's
+imported `hiringOffer` table (`docs/influence/MODEL.md`, "Printed pages"),
+read here by `rules/hiring-offer.mjs`. The hosted hiring page, this feature's
+own `reactionToHiring` throw (handed the column as `outcomes` and the two
+figures as `stepValues`), a peaceful monster offer, every further head of a
+bulk offer and the core influence roller's slander row all read it, so no two
+of them can answer on different edges. The `throws` config carries none of
+it; a throw that needs a figure the world has not imported warns and does not
+open, and the core roller's slander row is a note giving the count.
+
+**A network posting.** A posting made with the employer's mercantile network
+(`network`; the posting dialog offers it to a holder and ticks it where the
+markets feature counts the market as known to them) reads the market at the
+class `effectiveMarketClass` gives that employer. A directed search rolls at
+that class. A generic posting keeps the town's shared pool and adds, for each
+segment it reaches (`postingSegments`), what a roll at the network's class
+finds beyond the town's roll (`networkSupplement`). Those people are ordinary
+shared-pool rows (they arrive by week, churn weekly and go with the month)
+stamped `networkFor`: only that employer's owners see them on the location
+sheet, and only that employer hires them (`hire`, Hire as Group, and the
+recruit dialog before any roll). Each segment rolls once per employer per
+market month, the roll kept in `networkRolls` so a notice taken down and
+posted again finds it. The weekly fee is charged at the class the search
+reads (`feeMarketClass`); without the network it is the town's.
 
 ## 3. `HenchmanRecord` (hireling flag)
 
@@ -89,6 +131,12 @@ Employer-side flags: `monsterHenchmenList[]` (monster roster — core
 `addHenchman` accepts only characters), `retainBonus` (manual extra slots),
 `apparent {monthlySpendGp, lastCheckTime}`.
 
+The henchman limit (`acks-adapter.mjs > getRetainMax`) is core's derived
+Charisma allowance (`system.scores.cha.retain`), plus the typed `retainBonus`
+effects, plus that manual flag. An employer whose system data carries no
+allowance, which is every actor but a character, has no limit: `max` is null,
+no hire is refused or warned for it, and the roster shows the limit as unknown.
+
 ## 4. The Active Effect contract (data-driven modifiers)
 
 **Mechanics live on proficiency/power Items as Active Effect changes — never
@@ -98,13 +146,13 @@ computation):
 
 | Change key (`flags.acks-extras.`) | Feeds | Example |
 |---|---|---|
-| `hiring` | Reaction to Hiring Offer rolls | Diplomacy +1, Beast Friendship +2 (animals) |
-| `loyaltyRoll` / `moraleRoll` / `obedienceRoll` | those 2d6 throws | Inspire Courage +1 morale rolls |
-| `retainBonus` | henchman limit (4 + CHA + …) | Leadership +1, Blood of Ancient Kings +1 |
-| `baseLoyalty` | starting/effective loyalty of hires | Blood of Ancient Kings +1 |
-| `henchmanMorale` | employer's morale modifier to hirelings | Command +2, Battlefield Prowess +1 (led) |
-| `marketClass` | availability market-class shift | Mercantile Network +1 — situational; counted where the markets feature says the market is known to the employer (`docs/markets/MODEL.md`, "Known markets") |
-| `moraleBase` | base-morale override for hirelings | Utter Domination +4 |
+| `hiring` | Reaction to Hiring Offer rolls | Diplomacy, Beast Friendship (animals) |
+| `loyaltyRoll` / `moraleRoll` / `obedienceRoll` | those 2d6 throws | Inspire Courage (morale rolls) |
+| `retainBonus` | henchman limit (Charisma + …) | Leadership, Blood of Kings |
+| `baseLoyalty` | starting/effective loyalty of hires | Blood of Kings |
+| `henchmanMorale` | employer's morale modifier to hirelings | Command, Battlefield Prowess (led) |
+| `marketClass` | market-class shift (equipment, hiring, a venture's class option) | Mercantile Network — situational; counted where the markets feature says the market is known to the employer (`docs/markets/MODEL.md`, "Known markets") |
+| `moraleBase` | added to hirelings' base morale | Utter Domination |
 | `skipCalamityLoyalty` | boolean: no loyalty rolls on calamity | Utter Domination |
 | `recruitKinds` | unlock henchman kinds (CSV string) | Beast Friendship → `animal` |
 | `reactionRollTwice` | roll 2d6 twice, take better/worse | White Luck Presence |
@@ -117,18 +165,53 @@ Effect-level metadata (on the effect's own flags, `flags["acks-extras"]`):
 - `target` — scope note appended to the label (e.g. "animals").
 - `label` — display override (defaults to the effect/item name).
 
+The Judge's tool for a network without a re-import: one Active Effect on the
+power with the change `flags.acks-extras.marketClass` (the class option) and,
+for ventures, `flags.acks-extras.marketImpact` (the impact option, markets'
+key), each with the page's value, and the `condition` flag set.
+
 Interop: hiring rolls **also honor the influence feature’s**
 `flags.acks-extras.reaction` effects (with their `situational`/`tone`/
-`label` flags). Fallback: items named like classic proficiencies with no
-the henchmen feature changes are recovered via `config.mjs > NAME_FALLBACKS`
-regexes (Leadership, Command, Blood of Kings, Diplomacy…); an item with any
-the henchmen feature effect change opts out of name matching. Bribery is detected by
-name to select the cheaper signing-bonus scale.
+`label` flags). Bribery is detected by name to select the cheaper
+signing-bonus scale.
 
-No pack ships ready-made items carrying these effects. The abilities a world
-holds come from the Judge's own books through the importer, and the name
-fallbacks above are what makes an imported item — which carries the importer's
-typed effect model, not this feature's change keys — drive the same modifiers.
+**Imported powers.** No pack ships ready-made items carrying these effects.
+The abilities a world holds come from the Judge's own books through the
+importer, which writes its typed effect model, not these change keys. For
+`hiring` (typed target `reaction`), `retainBonus`, `baseLoyalty`,
+`henchmanMorale` and `marketClass` (`effects.mjs > TYPED_TARGETS`), the
+collector reads the typed modifiers whose value the importer located on the
+power's page (`lib/effect-scan.mjs > abilityModifiers`), wherever the item
+carries no Active Effect on that key; for `hiring`, an influence `reaction`
+effect on the item also sets its typed value aside. These reads know nothing
+of the roll's tone or target, so a typed modifier with a condition, tones or a
+target scope is situational; so, on a roll (`hiring`, `henchmanMorale`), is one
+from an entry the importer marks unaudited. The limit, base loyalty and class
+shift are sums with no row to offer, and take the located value audited or
+not. A "See X." power takes X's located value through the importer's alias.
+
+**Presence without a value.** `config.mjs > NAME_PRESENCE` recognizes these
+powers by name only to say they are held: no name ever supplies a value. A
+power held by name with neither a located value nor an Active Effect on a key
+its domain reads (for `hiring`, the influence `reaction` key counts) adds
+nothing, and `unvaluedPowers` names it where the value would apply — the
+henchman-limit refusal (`hire.mjs > limitReachedMessage`), the roster's note
+over the limit and base loyalty, a locked, unticked row at no value in this
+feature's own hiring and obedience dialogs (`unvaluedDialogModifiers`), and a
+note naming it on the influence-hosted hiring and obedience pages
+(`unvaluedNoteRows`, carrying the item's id). For `skipCalamityLoyalty`, which
+has no value, presence is the whole of the power.
+
+**On the influence-hosted pages.** The influence roller reads its own change
+keys and the abilities' typed values for the page's roll family, and nothing
+of this feature's domains. So each opener (`integrations/influence.mjs`)
+offers the employer's rows for the domains the page would otherwise miss, as
+`ctx.offeredModifiers` (`offeredRows`): `hiring`-key Active Effects alone on
+the hiring page, since its influence reaction effects and reaction values are
+the page's own reads; `obedienceRoll` and `henchmanMorale` on the obedience
+page, whose own reads are the hireling's; `loyaltyRoll` on the loyalty page.
+Every row names the item it rides, so the item's typed value on the page
+stands aside for it, as here.
 
 ## 4b. Core's two wage methods
 

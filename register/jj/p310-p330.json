@@ -941,7 +941,24 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "from": [
+          {
+            "pattern": "([+-]?\\d+)\\s*bonus\\s*to\\s*reaction\\s*rolls\\s*with\\s*creatures"
+          },
+          {
+            "pattern": "a\\s*total\\s*of\\s*(\\d+)\\s*or\\s*more",
+            "into": "kickerAt"
+          }
+        ],
+        "note": "Mystic Aura's shape, as the page says it is. The immunity of a strong-willed subject is a Judge's call, not automated."
+      }
+    ]
   },
   {
     "id": "def.power.commandUndead",
@@ -1752,7 +1769,36 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "retainBonus",
+        "mode": "add",
+        "condition": "a henchman related by blood or marriage",
+        "from": {
+          "pattern": "hire\\s*(\\w+)\\s*more\\s*henchm[ae]n"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "baseLoyalty",
+        "mode": "add",
+        "condition": "a henchman related by blood or marriage",
+        "from": {
+          "pattern": "base\\s*loyalty\\s*score\\s*of\\s*any\\s*henchm[ae]n\\s*is\\s*increased\\s*by\\s*(\\w+)"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "henchmanMorale",
+        "mode": "add",
+        "condition": "kin by blood or marriage, while he is present",
+        "from": {
+          "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.familiarWithTechnology",
@@ -2161,7 +2207,24 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "from": [
+          {
+            "pattern": "([+-]?\\d+)\\s*bonus\\s*to\\s*reaction\\s*rolls\\s*to\\s*impress"
+          },
+          {
+            "pattern": "a\\s*total\\s*of\\s*(\\d+)\\s*or\\s*more",
+            "into": "kickerAt"
+          }
+        ],
+        "note": "Mystic Aura's shape, as the page says it is."
+      }
+    ]
   },
   {
     "id": "def.power.gracefulFighting",
@@ -4508,7 +4571,19 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "henchmanMorale",
+        "mode": "add",
+        "condition": "hirelings of his religion, while he is present",
+        "from": {
+          "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
+        },
+        "note": "An alias of Holy Fervor: the number is read from that passage. Its own spec carries the custom-class power's condition (presence), which differs from the class version's."
+      }
+    ]
   },
   {
     "id": "def.power.unliving",

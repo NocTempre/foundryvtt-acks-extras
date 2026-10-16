@@ -34,6 +34,7 @@ import { deliverItems } from "../../lib/bundles.mjs";
 import { goodsForRow } from "../../lib/bundles-logic.mjs";
 import { quantityOf } from "../../lib/storage-logic.mjs";
 import { partyOf, partySize } from "./parties.mjs";
+import { MARKET_LOG_CAP } from "../../location/data/market-log.mjs";
 import { marketRules, bargaining, magicPrices, stepFractionFor, printedError } from "./printed.mjs";
 
 /** Item types the goods market trades. */
@@ -176,7 +177,7 @@ const gmDetailLines = ({ existRow, gridFallback }) =>
 /** Append a market-log line, capped to the recent past. */
 function appendLog(logRows, entry) {
   logRows.push(entry);
-  return logRows.slice(-300);
+  return logRows.slice(-MARKET_LOG_CAP);
 }
 
 const err = (error, data = {}) => ({ error, ...data });
@@ -883,7 +884,7 @@ export async function resolveSearchDayActions(location, t = now()) {
     "system.market.goods.actions": actions,
     "system.market.goods.partyMonths": goods.partyMonths,
     "system.market.goods.existenceRolls": goods.existenceRolls,
-    "system.market.marketLog": log.slice(-300),
+    "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
   });
   return due.length;
 }

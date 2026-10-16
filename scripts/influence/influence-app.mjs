@@ -28,6 +28,8 @@ import {
   getTargetActor,
   itemsWithProficiencyRows,
   monthlyWageForHD,
+  offeredEffectRows,
+  resolveHeldRows,
   resolveParties,
   toLibAlignment,
 } from "./actor-data.mjs";
@@ -56,6 +58,9 @@ const signedText = (n) => `${n < 0 ? "−" : "+"}${Math.abs(n)}`;
 
 /** A row's wording with the figure it is worth beside it. */
 const withFigure = (label, figure) => game.i18n.format("ACKS-INFLUENCE.mod.withFigure", { label, figure: signedText(figure) });
+
+/** A counted row's wording with the figure each count is worth. */
+const withFigureEach = (label, figure) => game.i18n.format("ACKS-INFLUENCE.mod.withFigureEach", { label, figure: signedText(figure) });
 
 /**
  * Resolves the three kinds of ACKS II influence rolls (Diplomacy, Intimidation,
@@ -90,6 +95,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   #mode = null;
   /** Caller-supplied auto values and select options for the external mode. */
   #ctx = {};
+  /** Items an external page's proficiency boxes draw (`resolveHeldRows`). */
+  #heldItems = new Set();
   /** Opaque correlation payload echoed back in the rollComplete hook. */
   #extContext = null;
   /** Sum of relationship + tone modifiers (before the GM adjustment bucket). */
@@ -254,9 +261,15 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     // name-matched proficiency claims what a static row on this page already
     // offers — always checked against `this.#actor`, since the static rows
     // are the roller's own even on a page whose effects are the subject's.
+    // The opener's offered rows are the roller's, and count as Active Effects
+    // of the roller's items, so only a read of the roller's items yields to them.
+    const family = this.#mode?.family ?? ROLL_FAMILY.REACTION;
+    const offered = this.#mode ? offeredEffectRows(this.#ctx.offeredModifiers, family) : [];
+    const offeredItems = new Set(offered.map((m) => m.itemId).filter(Boolean));
     const aeMods = getEffectReactionMods(subject);
     const aeClaimed = itemsWithReactionEffects(subject);
-    const effectMods = [...aeMods, ...getAbilityReactionMods(subject, aeClaimed)];
+    if (subject === this.#actor) for (const id of offeredItems) aeClaimed.add(id);
+    const effectMods = [...aeMods, ...offered, ...getAbilityReactionMods(subject, aeClaimed)];
     const targetAlign = toLibAlignment(classifyAlignment(this.#targetActor?.system?.details?.alignment));
     const targetCats = this.#targetCategories();
     const config = {};
@@ -332,7 +345,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     // selector is hidden). `ctxOptions` selects materialize from the ctx bag,
     // a printed page's ladders and figures from its imported table.
     if (this.#mode) {
-      const groups = modeRows(this.#mode).map((g) => ({
+      const declared = modeRows(this.#mode).map((g) => ({
         group: g.group,
         mods: g.mods
           .map((m) =>
@@ -340,14 +353,26 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
           )
           .map(nameAfterPower),
       }));
+      // A proficiency box is worth what the ROLLER's item carries, which on a
+      // page whose effects are the subject's is a second read.
+      const rollerMods =
+        subject === this.#actor
+          ? effectMods
+          : [
+              ...getEffectReactionMods(this.#actor),
+              ...offered,
+              ...getAbilityReactionMods(this.#actor, new Set([...itemsWithReactionEffects(this.#actor), ...offeredItems])),
+            ];
+      const held = resolveHeldRows(declared, this.#actor, rollerMods, family);
+      const groups = held.groups.filter((g) => g.mods.length);
+      this.#heldItems = held.claimed;
       // Only effects feeding THIS page's roll family. A hiring offer is a
       // reaction roll; a loyalty roll is not, so a Diplomacy bonus must not
       // reach it while Inhumanity's loyalty change must. An external page has
       // no tone of its own, hence none to gate on.
-      const family = this.#mode.family ?? ROLL_FAMILY.REACTION;
       const forFamily = effectRowsForPage(effectMods, {
         family,
-        claimed: itemsWithProficiencyRows(this.#actor, groups),
+        claimed: new Set([...itemsWithProficiencyRows(this.#actor, groups), ...held.claimed]),
       });
       if (forFamily.length) {
         groups.push({ group: "ACKS-INFLUENCE.group.powers", mods: forFamily.map((m) => effectModRow(m, null)) });
@@ -414,7 +439,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
    * or refuses on a page that cannot post without one.
    */
   #modeBands() {
-    if (this.#mode?.printed) return printedBands(this.#mode.printed, this.#mode.bandKeys) ?? [];
+    if (this.#mode?.printed) return printedBands(this.#mode.printed, this.#mode.bandKeys, this.#mode.printedDoc) ?? [];
     if (Array.isArray(this.#mode?.bands)) return this.#mode.bands;
     return Array.isArray(this.#ctx.bands) ? this.#ctx.bands : [];
   }
@@ -730,7 +755,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         // A printed row reads in the page's own wording when the import
         // caught it, with the figure it is worth beside it either way.
         let label = mod.printedLabel ?? L(mod.label);
-        if (mod.showFigure) label = withFigure(label, mod.value);
+        if (mod.showFigure) label = mod.type === "factor" ? withFigureEach(label, mod.factor) : withFigure(label, mod.value);
         if (isBribeGuess) label = L("ACKS-INFLUENCE.mod.diplomacy.bribeOffer");
         // A rung is named by the page's wording, or by its figure alone.
         const optionLabel = (opt) => {
@@ -754,6 +779,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
           unaudited: Boolean(mod.unaudited),
           // A printed figure the import has not supplied: typed by hand.
           isUnread: Boolean(mod.unread),
+          // A held proficiency whose item carries no figure: typed by hand.
+          isUnvalued: Boolean(mod.unvalued),
           // A ladder's options are a page's wording, wider than the control
           // column: the row stacks so the chosen rung can be read.
           isWide: mod.byIndex === true,
@@ -808,7 +835,11 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     // Externally injected modifiers stay read-only and unmasked. See
     // docs/influence/DECISIONS.md, "External modifiers stay read-only and
     // unmasked".
-    context.externalModifiers = this.#externalModifiers.map((m) => ({ label: m.label, value: m.value, note: m.note }));
+    // A note about an item a proficiency box already draws is that box's to
+    // say: the box shows the figure, or the field to type it in.
+    context.externalModifiers = this.#externalModifiers
+      .filter((m) => !(m.note && m.itemId && this.#heldItems.has(m.itemId)))
+      .map((m) => ({ label: m.label, value: m.value, note: m.note }));
     context.relationshipModifier = this.#relationshipModifier();
     context.finalModifier = this.#finalModifier;
     context.targetHidden = this.#targetHidden();
@@ -831,7 +862,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       }
       // A check the creature makes alone has no second party to show.
       context.loneSubject = Boolean(this.#loneSubject());
-      context.unreadNotice = this.#unread() ? game.i18n.format("ACKS-INFLUENCE.mode.unreadNotice", { cite: this.#mode.cite }) : "";
+      // A page that cannot roll without its result column says so, rather than
+      // offering the result to be read off the page.
+      const notice = this.#mode.postsWithoutBands ? "ACKS-INFLUENCE.mode.unreadNotice" : "ACKS-INFLUENCE.mode.unreadNoticeNoRoll";
+      context.unreadNotice = this.#unread() ? game.i18n.format(notice, { cite: this.#mode.cite }) : "";
     }
 
     return context;

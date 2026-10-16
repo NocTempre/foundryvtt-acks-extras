@@ -814,7 +814,18 @@
       "general": false
     },
     "icon": "systems/acks/assets/icons/command.webp",
-    "iconNiche": "modules/game-icons-net/blacktransparent/knight-banner.svg"
+    "iconNiche": "modules/game-icons-net/blacktransparent/knight-banner.svg",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "henchmanMorale",
+        "mode": "add",
+        "from": {
+          "pattern": "receive\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*morale"
+        },
+        "note": "The morale of the character's henchmen, mercenaries and troops. Read by henchmen's obedience roll."
+      }
+    ]
   },
   {
     "id": "def.prof.contemplation",
@@ -1531,7 +1542,18 @@
       "general": true
     },
     "icon": "systems/acks/assets/icons/rally-the-troops.webp",
-    "iconNiche": "modules/game-icons-net/blacktransparent/tattered-banner.svg"
+    "iconNiche": "modules/game-icons-net/blacktransparent/tattered-banner.svg",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "retainBonus",
+        "mode": "add",
+        "from": {
+          "pattern": "hire\\s*(\\w+)\\s*more\\s*henchm[ae]n"
+        },
+        "note": "Henchmen allowed beyond the Charisma limit. Read by henchmen's limit check. The domain morale half has no reader yet."
+      }
+    ]
   },
   {
     "id": "def.prof.lipReading",

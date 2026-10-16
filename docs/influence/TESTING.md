@@ -174,10 +174,55 @@ Steps:
     The skip-key roll raises the conditions' own notices and leaves the
     stored score as it was.
 
+## The hiring page
+
+Fixtures: three disposable `character` actors, each created with `items: []`
+— one holding a Diplomacy built fresh from the books (docs/henchmen/TESTING.md
+step 14, "Build the powers fresh"), one holding a hand-made `ability` named
+Diplomacy with no effects, one holding nothing; the `influence` document,
+imported by the run and removed by it.
+
+Drive mechanics:
+
+- **Open the page with no hire behind it.**
+  `acksExtras.influence.open(actor, {mode: "hiring", ctx: {previousRefusals,
+  slanderCount, signingBonusOptions: [{label: "—", value: 0}]}})` with no
+  `context`: the henchmen feature applies a result only to a roll whose
+  context names it, so nothing is hired. The hosted page with a real
+  candidate behind it is walked from docs/henchmen/TESTING.md step 15.
+- **Check before importing, and import one document.** Read
+  `acksExtras.lib.tables.hasDoc("influence")` first: a world that already
+  holds the document is not the run's to remove, so register invented figures
+  in the client instead (`registerTable({id: "influence", tables:
+  {hiringOffer: {bands, refusalPenalty, slanderPenalty}}}, {priority})`,
+  unregistered after). Otherwise `cookbookImportTables(["influence"])`, as for
+  `morale` above, and `removeDoc("influence")` at teardown.
+
+Steps:
+
+17. With no `influence` document: open the page with a refusal count and a
+    slander count, and press **Roll**.
+    *Observable:* both count rows are badged typed fields and the notice
+    names the page; the roll warns that the table is not imported, and no
+    card is posted.
+18. Import `influence` and reopen.
+    *Observable:* no badge and no notice; each count row shows the figure
+    each count adds; `_prepareContext({})` totals the count times the figure
+    for each; **Roll** posts a card whose result is the band the total falls
+    in, and the roll-complete payload's `outcome` is that band's key.
+19. Open the page for each fixture actor.
+    *Observable:* the fresh-built Diplomacy draws one Diplomacy box worth the
+    value on its own `flags.acks-extras.extras.effects`, with the figure in
+    its label, and no Intimidation, Seduction or Mystic Aura box; the
+    hand-made Diplomacy draws a typed field with the no-value badge; the actor
+    holding nothing draws no proficiency box at all. The same holds on the
+    markets feature's assessment page.
+
 ## Teardown
 
 Delete the influencer, the target, and every `acks-extras.attitude` item the
 rolls minted. Confirm none remain on either actor. For the morale pages:
 every actor and chat message the run made, by its own uuid, and the `morale`
-document, if the run imported it.
+document, if the run imported it. For the hiring page: the same, and the
+`influence` document if the run imported it, or the figures it registered.
 Unregister any condition figures the run registered in the client.

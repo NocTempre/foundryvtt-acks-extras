@@ -418,7 +418,8 @@ the step that wrote it, never by scanning the house.
    *failed*, which writes none — repeat) exactly one new report stamped to A with
    `partyId` from `partyOf(A)`, `marketUuid` M1, the rolled outcome and the
    learned beliefs; `goods.dmKnowledge` stays empty. The card reads Partial when
-   the roll was a false one. *Expertise* with no matching Art/Craft/Profession
+   the roll was a false one. A partial or false roll writes no beliefs and
+   `system.picks` between 1 and 6, and its card links the report (step 10). *Expertise* with no matching Art/Craft/Profession
    ranks also writes none. Drive mechanics: advancing the clock on the GM seat
    resolves the day by itself (the markets world-time watcher runs
    `processAllImports`), so a player's Process never sees a due assessment and
@@ -455,6 +456,17 @@ the step that wrote it, never by scanning the house.
 9. Delete the market M2 actor.
    *Observable:* its reports remain and are listed under the snapshot name
    they carry; nothing throws when the tab opens.
+10. Choosing the goods. GM seat: `writeReport` a `partial` report for M1
+    stamped to A with `beliefs: []` and `picks: 2`, and a `false` one with
+    `picks: 1` (track both). Player seat: open the partial one from the Trade
+    tab.
+    *Observable:* a "Choose 2 good(s)" box lists every catalogue good. Tick
+    three and press Learn these: a warning, nothing written. Tick two: the
+    beliefs table shows them at M1's true modifiers, `system.picks` is 0 and
+    the box is gone. On the false report, the chosen good's modifier differs
+    from M1's by 1 to 3, and the player seat reads its outcome as Partial
+    throughout. A seat that does not own A calling `performChoose` gets
+    `notYours`, and nothing is written.
 
 ## The venture queue walk (assess on the influence page, withdraw, leave, history)
 
@@ -518,27 +530,80 @@ reports walk.
 
 ## The known-market walk (a mercantile network's class)
 
-**Fixtures**: character V (Player seat) with an ability item named
-Mercantile Network and coin; market M2 of class III with the availability
-tables imported, holding no row of V's.
+**Fixtures**: character V (Player seat) with the Mercantile Network power
+carrying its class step (the re-imported power, or a tracked Active Effect
+on the item with the change `flags.acks-extras.marketClass` and a
+`condition` flag) and coin; character W in another party with no network;
+market M2 of class III and M3 of class III with the availability tables and
+the venture tables imported, neither holding a row of V's. Read the day
+(`Math.floor(game.time.worldTime / 86400)` on a 24-hour calendar) at every
+step and quote it.
 
-1. Player seat, M2's Trade tab acting as V. *Observable:* the class line
-   reads Class 3 with no shifted class, and says the network is not yet
-   counted here; `acksExtras.markets.marketKnownTo(M2, V)` is false;
-   `acksExtras.henchmen.effectiveMarketClass(M2, V)` is 3, and a catalog
-   row's availability is banded at class 3 (compare `availabilityFor(M2,
-   {itemName, costGp, trader: V})` with `trader: null`: same cell).
-2. GM seat: Known to this trader → On. *Observable:* V's flag lists M2;
-   the Player seat's tab now reads Class 3 · for V: Class 2;
-   `effectiveMarketClass(M2, V)` is 2 and the same row's cell is the class-2
-   one (a rare item pending at class 3 is available at class 2, or its cap
-   is larger). Off again reverts.
-3. Player seat: buy one common item (`purchase`). *Observable:* the ledger
-   row is stamped V, and with the Judge's switch Off the market is still
-   known — the stamp is the visit — so the class stays 2 for V and reads 3
-   for a trader with no network.
-4. Class I stays Class I: set M2's override to 1 and read
+1. Day D, Player seat, M2's Trade tab acting as V: buy one common item.
+   *Observable:* the ledger row is stamped V;
+   `acksExtras.markets.marketKnownTo(M2, V)` is false;
+   `acksExtras.henchmen.effectiveMarketClass(M2, V)` is 3; the class line
+   reads Class 3 and "mercantile network: not counted on this visit".
+2. Same day: buy a second item. *Observable:* still class 3 — the visit's
+   own rows never count.
+3. GM seat: advance the clock past the next day boundary. *Observable:*
+   known is true, `knownSource(M2, V)` is `"record"`; the class reads 2 for V
+   and 3 for W; a rare row's `availabilityFor(M2, {itemName, costGp,
+   trader: V})` is the class-2 cell.
+4. Day D+1 at M3: **Enter the market**; advance a day. *Observable:* the
+   party's venture row has `enteredTime` equal to the entry action's
+   `postedTime`; equipment bought at M3 while entered reads class 3.
+5. Leave, then Enter again; advance a day. *Observable:* the second toll
+   equals the first; with the party entered again, `marketKnownTo(M3, V)` is
+   true (the first entry was on an earlier day), and M3 purchases read class 2.
+6. GM seat, a fresh trader with the network on day D: Known to this trader →
+   On. *Observable:* known at once, `knownSource` `"judge"`. Off → back to the
+   record's answer. On M2 for V (known by record) the switch reads Off and the
+   verdict stays known; On then Off leaves it known.
+7. Class I stays Class I: set M2's override to 1 and read
    `effectiveMarketClass(M2, V)` — 1.
+
+**Teardown**: `api.sweepTracked()`; quote what it removed, could not find
+and refused. The clock advances are the shared world's; say how many.
+
+## The network walk (a known market on a venture)
+
+**Fixtures** (through `api.create`, tracked): character V (Player seat, coin)
+holding the re-imported Mercantile Network power (its `extras.effects` carry
+the `marketClass` and `marketImpact` modifiers), or an ability item with a
+tracked Active Effect carrying both keys and a `condition` flag; market M3 of
+class III and M4 overridden to class 1, both with `marketCharacteristics`,
+`impactProse`, `priceShiftProse` and the merchandise imported. Pick two goods
+from the merchandise items' `dailyStones`: X, whose next-larger-class column
+beats one more impact, and Y the other way round. Quote the day at every step.
+
+**Steps**
+
+1. Day D, M3: **Enter the market**. *Observable:* the dialog's network block
+   reads "Not counted on this visit for V"; after a day, the venture row holds
+   `rawImpact`, `impactCap` and `networkMode` `auto`. Solicit X; after a day the
+   ledger note names no network and the stones are the class-III column ×
+   impact.
+2. **Leave the market**, then Enter again on a later day with Auto. *Observable:*
+   the dialog reads "Counted on this visit"; the toll equals step 1's.
+   Solicit X, then Y, a day each: X's note ends `network: class`, Y's
+   `network: impact`, and each card names the class and impact used.
+3. Leave, and Enter on the next day with the mode **More market impact**.
+   *Observable:* X's note ends `network: impact`, at the class-III column ×
+   (impact + step), never past `impactCap`; the GM's party line names the mode.
+4. M4 (class 1), known by the Judge's switch: solicit X with Auto. *Observable:*
+   `network: impact` — the class option opens nothing in Class I.
+5. A first entry with nothing but a number of stone too small for impact 1, in a
+   known market, with the impact mode. *Observable:* the venture row's
+   `effectiveClass` is the dropped class, and the solicitation trades at the
+   market's own class with impact equal to the step.
+6. Remove the `marketImpact` value (delete the AE's change, or use a power
+   named Mercantile Network that carries no effects) and open Enter.
+   *Observable:* the select offers no impact mode, and an item with no value
+   at all is named as having none imported.
+
+**Teardown**: `api.sweepTracked()`; quote what it removed, could not find and
+refused. Count the clock advances.
 
 ## The fleet walk (a venture's vehicles, and the hold a load goes in)
 

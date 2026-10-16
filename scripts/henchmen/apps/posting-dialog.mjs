@@ -12,6 +12,7 @@ import { maxHenchmanLevel } from "../rules/wages.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { executeAsGM } from "../../lib/sockets.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { hasEffectFlag, unvaluedPowers } from "../effects.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -43,13 +44,14 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     context.isGM = game.user.isGM;
     // Players post on behalf of characters they OWN; GMs see every PC.
     const mayUse = (a) => game.user.isGM || a.testUserPermission(game.user, "OWNER");
+    const row = (a) => ({ id: a.id, name: a.name, level: adapter.getLevel(a), ...this.#networkState(a) });
     context.employers = game.actors
       .filter((a) => a.type === ACTOR_TYPE.character && a.hasPlayerOwner && !a.system?.retainer?.enabled && mayUse(a))
-      .map((a) => ({ id: a.id, name: a.name, level: adapter.getLevel(a) }));
+      .map(row);
     if (!context.employers.length) {
       context.employers = game.actors
         .filter((a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && mayUse(a))
-        .map((a) => ({ id: a.id, name: a.name, level: adapter.getLevel(a) }));
+        .map(row);
     }
     context.levels = [0, 1, 2, 3, 4].map((l) => ({ level: l }));
     context.mercTypes = (optTable("availability", "mercenaryAvailability")?.rows ?? []).map((r) => ({
@@ -69,7 +71,20 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     return context;
   }
 
-  /** Show only the fields relevant to the selected posting kind. */
+  /**
+   * Whether an employer can search here with a mercantile network:
+   * `network` is "" (no such power), "counted" (this market is known to them)
+   * or "notCounted"; `networkNote` says which, and names a power with no value.
+   */
+  #networkState(actor) {
+    if (!hasEffectFlag(actor, "marketClass")) return { network: "", networkNote: "" };
+    const known = !!globalThis.acksExtras?.markets?.marketKnownTo?.(this.location, actor);
+    const note = [game.i18n.format(`ACKS-HENCHMEN.posting.network${known ? "Counted" : "NotCounted"}`, { name: actor.name })];
+    for (const power of unvaluedPowers(actor, "marketClass")) note.push(game.i18n.format("ACKS-HENCHMEN.posting.networkMissing", { power }));
+    return { network: known ? "counted" : "notCounted", networkNote: note.join(" ") };
+  }
+
+  /** Show only the fields relevant to the selected posting kind and employer. */
   _onRender(context, options) {
     super._onRender(context, options);
     const sync = () => {
@@ -79,8 +94,24 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
         el.style.display = kinds.includes(kind) ? "" : "none";
       });
     };
+    // The network choice is offered to a holder only, ticked where it counts.
+    const syncNetwork = () => {
+      const option = this.element.querySelector('[name="employerId"]')?.selectedOptions?.[0];
+      const state = option?.dataset.network ?? "";
+      const field = this.element.querySelector("[data-network-field]");
+      const note = this.element.querySelector("p[data-network-status]");
+      const box = this.element.querySelector('[name="network"]');
+      if (field) field.style.display = state ? "" : "none";
+      if (note) {
+        note.style.display = state ? "" : "none";
+        note.textContent = option?.dataset.networkNote ?? "";
+      }
+      if (box) box.checked = state === "counted";
+    };
     this.element.querySelector("[data-posting-kind]")?.addEventListener("change", sync);
+    this.element.querySelector('[name="employerId"]')?.addEventListener("change", syncNetwork);
     sync();
+    syncNetwork();
   }
 
   static async #onSubmit(_event, _form, formData) {
@@ -170,6 +201,7 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
         employerUuid: employer?.uuid ?? "",
         playersSeeDetails: data.playersSeeDetails !== false,
         requestUserId: game.user.id,
+        network: data.network === true,
       });
       ui.notifications.info(game.i18n.localize("ACKS-HENCHMEN.posting.submitted"));
       return;
@@ -178,6 +210,7 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     const result = await createPosting(this.location, spec, employer, {
       playersSeeDetails: data.playersSeeDetails !== false,
       requestUserId: game.user.isGM ? null : game.user.id,
+      network: data.network === true,
     });
     if (result.error) {
       ui.notifications.error(game.i18n.localize(`ACKS-HENCHMEN.posting.error.${result.error}`));

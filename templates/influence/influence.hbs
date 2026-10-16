@@ -151,6 +151,10 @@
                 <i class="fa-solid fa-book-open influence-unread-badge"
                    data-tooltip="{{localize 'ACKS-INFLUENCE.unread.badge'}}"></i>
               {{/if}}
+              {{#if this.isUnvalued}}
+                <i class="fa-solid fa-book-open influence-unread-badge"
+                   data-tooltip="{{localize 'ACKS-INFLUENCE.unvalued.badge'}}"></i>
+              {{/if}}
             </label>
           </div>
         {{/each}}

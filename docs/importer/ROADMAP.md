@@ -565,19 +565,13 @@ whether the document exists; the module packs are the reverse (41/42, 32/34,
   `.armourProficiency` / `.styleProficient`, documented in extras'
   `scripts/equipment/proficiency.mjs`). The training originates from the JJ
   pp. 290–291 class-construction chapters.
-- **Three henchmen mechanics the abilities model cannot yet say.** Imported
-  proficiencies and powers reach effect domains through
-  `scripts/equipment/abilities-bridge.mjs` and the name fallbacks in
-  `scripts/henchmen/config.mjs`. Three cases carry no locators and reach only
-  through the name fallback: **Inspire Courage's morale-roll bonus**, **Utter
-  Domination's morale BASE of 4** (a floor, not a bonus), and **Beast
-  Friendship's hiring magnitude** (the name fallback grants a bonus but not the
-  +2). Additionally `def.prof.command` and `def.prof.leadership` are
-  `audited: false` with no effects, so the two proficiencies most central to
-  henchman morale are carried by the name fallback alone. **Inspire Courage
-  reaches nothing at all**: no locator on its entry and no fallback pattern, so
-  its morale-roll bonus is silently absent since the pack that carried it
-  retired.
+- **Two henchmen mechanics the abilities model cannot yet say.** Imported
+  proficiencies and powers reach henchmen's domains through located typed
+  effects (extras' `docs/henchmen/MODEL.md` §4, "Imported powers"). Two carry
+  no locator: **Utter Domination's morale base** (its shape wants a ruling
+  first: extras' `docs/henchmen/ROADMAP.md`), and **Inspire Courage's
+  morale-roll bonus**, which reaches nothing at all since the pack that carried
+  it retired.
 - **The two slayer proficiencies reach no route.** Goblin-Slaying and
   Vermin-Slaying wrote a `slayer` grant (`group:bonus`) as an Active Effect
   from the pack that retired. Their register entries carry no effect spec, and

@@ -3338,4 +3338,25 @@ export const TABLE_RECIPES = {
       },
     },
   },
+
+  // The hiring offer the influence roller hosts and the henchmen feature's own
+  // throw rolls: the result column, and the two penalties the page states in
+  // prose beside it, one per slander in the town and one per earlier refusal
+  // of the party.
+  influence: {
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 162" },
+    tables: {
+      hiringOffer: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 162,
+        locate: "Reaction to Hiring Offer",
+        values: [
+          { key: "bands", find: "ie r oll r esult", take: "bandEdges", span: 90 },
+          { key: "slanderPenalty", find: "will be at a penalty of", take: "signed", span: 8 },
+          { key: "refusalPenalty", find: "suffers a cumulative", take: "signed", span: 8 },
+        ],
+      },
+    },
+  },
 };

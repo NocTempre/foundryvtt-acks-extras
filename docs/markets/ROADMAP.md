@@ -13,12 +13,14 @@
 
 - **Trade routes and demand equalisation (P3)**: route Items (network and
   steady), the suggest-from-map helper, JJ Ch6 Step 7E over the base layer,
-  timed class events, and the steady route's +½-level impact and price step
-  (the item-market side of mercantile networks — the effect-driven market
-  class shift in a known market — works through henchmen's
-  `effectiveMarketClass` since 9.3.1; the rule's alternative, +1 market
-  impact on a venture instead of the class, is not built).
+  timed class events, and the steady route's impact and price step (a
+  mercantile network itself is built: MODEL, Known markets and Ventures).
   `goods.demandDerived` is reserved for it and unread until then.
+- **A disreputable venturer loses the network** (RR ch. 2, Venturer, Access
+  to Capital): nothing records a missed interest payment, so the network
+  counts wherever the market is known.
+- **The network on carriage and passengers**, which waits on passenger and
+  cargo transport below.
 - **Venture logistics**: tariffs on incoming sale cargo, moorage and
   stabling fees, cargo handling times, warehousing, exhaustion-of-arbitrage
   and price-reset options, passenger and cargo transport, passive

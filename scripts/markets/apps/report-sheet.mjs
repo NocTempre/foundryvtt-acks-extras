@@ -5,14 +5,15 @@
  *
  * Read-mostly. A player holds OBSERVER on the trade house, so the sheet is a
  * plain window rather than a form: nothing on it submits through the document,
- * and the two things a viewer may change are handled here. The owner (or the
- * Judge) saves their notes through the GM relay; the Judge alone edits the
- * outcome and the believed modifiers. The stored outcome `false` is shown to a
- * non-GM as partial, on every surface.
+ * and what a viewer may change is handled here. The owner (or the Judge) saves
+ * their notes and chooses the goods a partial assessment left to choose, both
+ * through the GM relay; the Judge alone edits the outcome and the believed
+ * modifiers. The stored outcome `false` is shown to a non-GM as partial, on
+ * every surface.
  */
 import { MODULE_ID, LANG, REPORT_TYPE } from "../constants.mjs";
-import { merchandiseFor } from "../engine/merchandise.mjs";
-import { plainReport, performNotes } from "../engine/trade-objects.mjs";
+import { merchandiseCatalog, merchandiseFor } from "../engine/merchandise.mjs";
+import { plainReport, performNotes, performChoose } from "../engine/trade-objects.mjs";
 import { ownerOf, resolveActorSync } from "../../lib/storage.mjs";
 import { REPORT_OUTCOMES, shownOutcome, htmlToNotes } from "../rules/reports.mjs";
 import { SECONDS_PER_DAY } from "../../henchmen/constants.mjs";
@@ -46,7 +47,7 @@ export default class ReportSheet extends HandlebarsApplicationMixin(ItemSheetV2)
     position: { width: 480, height: 560 },
     tag: "div",
     window: { resizable: true },
-    actions: { saveNotes: ReportSheet.#onSaveNotes },
+    actions: { saveNotes: ReportSheet.#onSaveNotes, chooseGoods: ReportSheet.#onChooseGoods },
   };
 
   static PARTS = {
@@ -88,6 +89,16 @@ export default class ReportSheet extends HandlebarsApplicationMixin(ItemSheetV2)
       dmLabel: signed(belief.dm),
     }));
     context.canEditNotes = canEditNotes;
+    // The goods still to be chosen: every catalogue good the report holds no belief for.
+    const believed = new Set(report.beliefs.map((b) => b.category));
+    context.picks = report.picks;
+    context.canChoose = canEditNotes && report.picks > 0;
+    context.chooseOptions = context.canChoose
+      ? merchandiseCatalog()
+          .filter((m) => !believed.has(m.key))
+          .map((m) => ({ key: m.key, label: m.label }))
+          .sort((a, b) => a.label.localeCompare(b.label))
+      : [];
     context.notesText = htmlToNotes(report.notes);
     context.notesHTML = await TextEditor.enrichHTML(report.notes, { relativeTo: this.item, secrets: false });
     return context;
@@ -111,6 +122,17 @@ export default class ReportSheet extends HandlebarsApplicationMixin(ItemSheetV2)
         return this.item.update({ "system.beliefs": beliefs });
       });
     }
+  }
+
+  /** Learn the goods ticked, through the GM relay; no more than the picks left. */
+  static async #onChooseGoods() {
+    const chosen = [...this.element.querySelectorAll("[data-report-choose]:checked")].map((input) => input.value);
+    const picks = Number(this.item.system.picks) || 0;
+    if (!chosen.length) return ui.notifications.warn(t("error.noneChosen"));
+    if (chosen.length > picks) return ui.notifications.warn(t("error.tooMany", { left: picks }));
+    const result = await performChoose(this.item, chosen);
+    if (result?.error) ui.notifications.warn(t(`error.${result.error}`, { left: result.left ?? picks }));
+    else if (result?.ok) this.render();
   }
 
   /** Save the owner's notes through the GM relay. */

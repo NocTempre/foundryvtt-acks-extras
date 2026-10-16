@@ -40,7 +40,8 @@ export function parseTollCpPerSt(text) {
  * @param {number} o.impactCap - the printed maximum impact
  * @param {number} o.familyScaledClass - the market class whose cap scales with families
  * @param {number} o.familiesPerImpact - urban families per point of that scaled cap
- * @returns {{impact:number, effectiveClass:number}}
+ * @returns {{impact:number, effectiveClass:number, rawImpact:number, cap:number}} `rawImpact`
+ *   is the figure at the market's own class before any drop, capped; `cap` the maximum
  */
 export function marketImpact({ cargoSt, baselineCargoSt, marketClass, urbanFamilies = 0, baselineOfClass, impactCap, familyScaledClass, familiesPerImpact }) {
   const roundEven = (x) => {
@@ -56,13 +57,14 @@ export function marketImpact({ cargoSt, baselineCargoSt, marketClass, urbanFamil
   let cls = marketClass;
   let baseline = baselineCargoSt;
   let impact = baseline > 0 ? roundEven(cargoSt / baseline) : 0;
+  const raw = impact;
   while (impact < 1 && cls < 6) {
     cls += 1;
     baseline = baselineOfClass ? baselineOfClass(cls) : baseline;
     impact = baseline > 0 ? roundEven(cargoSt / baseline) : 0;
   }
   if (cls === 6 && impact < 1) impact = 1;
-  return { impact: Math.min(cap, impact), effectiveClass: cls };
+  return { impact: Math.min(cap, impact), effectiveClass: cls, rawImpact: Math.min(cap, raw), cap };
 }
 
 /**
@@ -220,6 +222,51 @@ export function negotiationOutcome(total, natural, bands) {
 /** Daily solicited quantity: base stones × market impact (fractions carry). */
 export function solicitedStones({ baseStones, impact }) {
   return (Number(baseStones) || 0) * Math.max(0, Number(impact) || 0);
+}
+
+/** How a venture uses a mercantile network: whichever opens more, or the trader's pick. */
+export const NETWORK_MODES = Object.freeze(["auto", "class", "impact"]);
+
+/**
+ * A mercantile network's two options on a venture in a known market (RR ch. 8,
+ * Entering the Market, Mercantile Networks). The CLASS option reads the
+ * merchandise `classStep` classes larger, never past Class I, at the impact
+ * the cargo earned. The IMPACT option trades at the market's own class with
+ * `impactStep` more impact, counted from the impact earned there before any
+ * drop (so a party with none trades at the step itself) and never past the
+ * maximum. Neither touches the toll, which is figured from the cargo alone. An
+ * option whose step is absent (0, or not imported) is null.
+ * @param {{impact: number, effectiveClass: number, rawImpact: number, trueClass: number, cap: number, classStep?: number, impactStep?: number}} o
+ * @returns {{classOption: {cls: number, imp: number}|null, impactOption: {cls: number, imp: number}|null}}
+ */
+export function networkOptions({ impact, effectiveClass, rawImpact, trueClass, cap, classStep = 0, impactStep = 0 }) {
+  const cs = Math.max(0, Math.floor(Number(classStep) || 0));
+  const is = Math.max(0, Math.floor(Number(impactStep) || 0));
+  return {
+    classOption: cs > 0 ? { cls: Math.max(1, Number(effectiveClass) - cs), imp: Number(impact) } : null,
+    impactOption: is > 0 ? { cls: Number(trueClass), imp: Math.max(1, Math.min(Number(cap), (Number(rawImpact) || 0) + is)) } : null,
+  };
+}
+
+/**
+ * The option a solicitation trades at. `auto` takes whichever opens the most
+ * stones of this good (`stonesAt(cls, imp)`), keeping the plain entry on a tie
+ * and the class option over the impact one; a pinned mode takes its option
+ * where it exists and the plain entry where it does not.
+ * @returns {{cls: number, imp: number, used: "base"|"class"|"impact"}}
+ */
+export function pickNetworkOption({ base, classOption = null, impactOption = null, mode = "auto", stonesAt }) {
+  const as = (opt, used) => ({ cls: opt.cls, imp: opt.imp, used });
+  if (mode === "class") return classOption ? as(classOption, "class") : as(base, "base");
+  if (mode === "impact") return impactOption ? as(impactOption, "impact") : as(base, "base");
+  let best = as(base, "base");
+  for (const [opt, used] of [
+    [classOption, "class"],
+    [impactOption, "impact"],
+  ]) {
+    if (opt && stonesAt(opt.cls, opt.imp) > stonesAt(best.cls, best.imp)) best = as(opt, used);
+  }
+  return best;
 }
 
 /**

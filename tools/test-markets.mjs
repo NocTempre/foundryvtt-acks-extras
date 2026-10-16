@@ -314,49 +314,84 @@ const {
   NEGOTIATION_RESULTS,
 } = await import(new URL("../scripts/markets/rules/arbitrage.mjs", import.meta.url));
 
-assert.strictEqual(parseStones("30,000 st"), 30000, "stones with commas");
-assert.strictEqual(parseTollCpPerSt("0.2cp/st"), 0.2, "toll per stone");
-assert.strictEqual(parseTollCpPerSt("none"), 0, "no toll at class VI");
+// The cells below are invented in the printed formats; none is a page's.
+assert.strictEqual(parseStones("12,345 st"), 12345, "stones with commas");
+assert.strictEqual(parseTollCpPerSt("0.7cp/st"), 0.7, "toll per stone");
+assert.strictEqual(parseTollCpPerSt("none"), 0, "the word none is no toll");
 
 {
-  // Fixture baselines and limits, not book data. The family-scaled class is
-  // deliberately NOT the largest, so the test proves the class is read.
-  const baselines = { 3: 4000, 4: 1000, 5: 400, 6: 150 };
+  // Every figure in this block is invented for it, none of them a page's.
+  // The family-scaled class is deliberately NOT the largest, so the test
+  // proves the class is read.
+  const baselines = { 3: 4200, 4: 1100, 5: 450, 6: 130 };
   const of = (cls) => baselines[cls];
   const LIMITS = { impactCap: 7, familyScaledClass: 2, familiesPerImpact: 900 };
   assert.deepStrictEqual(
-    marketImpact({ cargoSt: 25600, baselineCargoSt: 30000, marketClass: 1, urbanFamilies: 3000, ...LIMITS }),
-    { impact: 1, effectiveClass: 1 },
-    "0.85 rounds to impact 1"
+    marketImpact({ cargoSt: 1300, baselineCargoSt: 2000, marketClass: 1, urbanFamilies: 3000, ...LIMITS }),
+    { impact: 1, effectiveClass: 1, rawImpact: 1, cap: 7 },
+    "0.65 rounds to impact 1"
   );
   assert.strictEqual(
-    marketImpact({ cargoSt: 25600, baselineCargoSt: 150, marketClass: 6, ...LIMITS }).impact,
+    marketImpact({ cargoSt: 5000, baselineCargoSt: 130, marketClass: 6, ...LIMITS }).impact,
     7,
     "small markets cap impact at the passed cap"
   );
   assert.strictEqual(
-    marketImpact({ cargoSt: 900000, baselineCargoSt: 3000, marketClass: 1, urbanFamilies: 90000, ...LIMITS }).impact,
+    marketImpact({ cargoSt: 600000, baselineCargoSt: 2500, marketClass: 1, urbanFamilies: 72000, ...LIMITS }).impact,
     7,
     "only the passed family-scaled class scales its cap; another class keeps the plain cap"
   );
   assert.strictEqual(
-    marketImpact({ cargoSt: 900000, baselineCargoSt: 3000, marketClass: 2, urbanFamilies: 9000, ...LIMITS }).impact,
-    10,
-    "the scaled class takes families over the passed rate (9000 / 900) when larger than the cap"
+    marketImpact({ cargoSt: 600000, baselineCargoSt: 2500, marketClass: 2, urbanFamilies: 9900, ...LIMITS }).impact,
+    11,
+    "the scaled class takes families over the passed rate (9900 / 900) when larger than the cap"
   );
   assert.strictEqual(
-    marketImpact({ cargoSt: 900000, baselineCargoSt: 3000, marketClass: 2, urbanFamilies: 900, ...LIMITS }).impact,
+    marketImpact({ cargoSt: 600000, baselineCargoSt: 2500, marketClass: 2, urbanFamilies: 1800, ...LIMITS }).impact,
     7,
     "the scaled class never falls below the plain cap"
   );
-  const drop = marketImpact({ cargoSt: 300, baselineCargoSt: 4000, marketClass: 3, baselineOfClass: of, ...LIMITS });
-  assert.deepStrictEqual(drop, { impact: 1, effectiveClass: 5 }, "impact 0 trades down the classes until 1");
+  const drop = marketImpact({ cargoSt: 300, baselineCargoSt: 4200, marketClass: 3, baselineOfClass: of, ...LIMITS });
+  assert.deepStrictEqual(drop, { impact: 1, effectiveClass: 5, rawImpact: 0, cap: 7 }, "impact 0 trades down the classes until 1, and the raw figure stays 0");
   assert.deepStrictEqual(
-    marketImpact({ cargoSt: 0, baselineCargoSt: 150, marketClass: 6, baselineOfClass: of, ...LIMITS }),
-    { impact: 1, effectiveClass: 6 },
+    marketImpact({ cargoSt: 0, baselineCargoSt: 130, marketClass: 6, baselineOfClass: of, ...LIMITS }),
+    { impact: 1, effectiveClass: 6, rawImpact: 0, cap: 7 },
     "the smallest class always trades at impact 1"
   );
   assert.throws(() => marketImpact({ cargoSt: 10, baselineCargoSt: 10, marketClass: 3 }), /impactCap/, "no printed limits, no impact");
+
+  // A mercantile network's options, with invented steps and an invented maximum.
+  const { networkOptions, pickNetworkOption } = await import(new URL("../scripts/markets/rules/arbitrage.mjs", import.meta.url));
+  const entry = { impact: 3, effectiveClass: 4, rawImpact: 3, trueClass: 4, cap: 7 };
+  assert.deepStrictEqual(
+    networkOptions({ ...entry, classStep: 2, impactStep: 3 }),
+    { classOption: { cls: 2, imp: 3 }, impactOption: { cls: 4, imp: 6 } },
+    "the class option reads larger at the earned impact; the impact option adds at the market's own class"
+  );
+  assert.deepStrictEqual(networkOptions({ ...entry, impact: 6, rawImpact: 6, classStep: 2, impactStep: 3 }).impactOption, { cls: 4, imp: 7 }, "the maximum binds the impact option");
+  assert.deepStrictEqual(networkOptions({ ...entry, effectiveClass: 1, trueClass: 1, classStep: 2 }).classOption, { cls: 1, imp: 3 }, "Class I stays Class I");
+  assert.deepStrictEqual(
+    networkOptions({ impact: 1, effectiveClass: 5, rawImpact: 0, trueClass: 3, cap: 7, impactStep: 3 }).impactOption,
+    { cls: 3, imp: 3 },
+    "a party with no impact takes the step at the market's own class instead of dropping"
+  );
+  assert.deepStrictEqual(networkOptions({ ...entry, classStep: 0, impactStep: null }), { classOption: null, impactOption: null }, "an absent step is no option");
+
+  // Invented daily stones by class: one good favours the class, the other the impact.
+  const columns = { favoursClass: [90, 40, 20, 10, 5, 2], favoursImpact: [12, 11, 10, 10, 5, 2] };
+  const at = (good) => (cls, imp) => columns[good][cls - 1] * imp;
+  const opts = networkOptions({ ...entry, classStep: 2, impactStep: 3 });
+  const base = { cls: entry.effectiveClass, imp: entry.impact };
+  assert.strictEqual(pickNetworkOption({ base, ...opts, stonesAt: at("favoursClass") }).used, "class", "auto picks the class where it opens more");
+  assert.strictEqual(pickNetworkOption({ base, ...opts, stonesAt: at("favoursImpact") }).used, "impact", "and the impact where that opens more");
+  assert.deepStrictEqual(pickNetworkOption({ base, ...opts, mode: "impact", stonesAt: at("favoursClass") }), { cls: 4, imp: 6, used: "impact" }, "a pinned mode takes its option");
+  assert.strictEqual(pickNetworkOption({ base, classOption: null, impactOption: null, mode: "class", stonesAt: at("favoursClass") }).used, "base", "a pinned mode with no option trades plain");
+  const classOne = networkOptions({ ...entry, effectiveClass: 1, trueClass: 1, classStep: 2, impactStep: 3 });
+  assert.strictEqual(pickNetworkOption({ base: { cls: 1, imp: 3 }, ...classOne, stonesAt: at("favoursClass") }).used, "impact", "in Class I the class option opens nothing more, so auto takes the impact");
+  for (const good of Object.keys(columns)) {
+    const pick = pickNetworkOption({ base, ...opts, stonesAt: at(good) });
+    assert.ok(at(good)(pick.cls, pick.imp) >= at(good)(base.cls, base.imp), `auto never opens less than the plain entry (${good})`);
+  }
 }
 
 // Result columns map BY POSITION: the same total lands in a different named
@@ -691,18 +726,67 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
 
 // ---- known markets: where a mercantile network's shift applies ----
 {
-  const { marketKnownTo } = await import(new URL("../scripts/markets/rules/known.mjs", import.meta.url));
+  const { marketKnownTo, knownSource, visitStartDay } = await import(new URL("../scripts/markets/rules/known.mjs", import.meta.url));
   const L = "Actor.M1";
   const who = { actorUuid: "Actor.A", partyId: "p1", locationUuid: L };
-  assert.strictEqual(marketKnownTo({}, who), false, "a market with no record of the trader is unknown");
-  assert.strictEqual(marketKnownTo({ ledger: [{ actorUuid: "Actor.B" }] }, who), false, "another trader's rows say nothing");
-  assert.strictEqual(marketKnownTo({ ledger: [{ actorUuid: "Actor.A" }] }, who), true, "a stamped ledger row is a visit");
-  assert.strictEqual(marketKnownTo({ ventures: [{ partyId: "p1" }] }, who), true, "the party entered it, whatever month");
-  assert.strictEqual(marketKnownTo({ ventures: [{ partyId: "p2" }] }, who), false, "another party's entry is theirs");
-  assert.strictEqual(marketKnownTo({ ventures: [{ partyId: "p1" }] }, { ...who, partyId: null }), false, "no party, no party evidence");
-  assert.strictEqual(marketKnownTo({ knownMarkets: [L] }, who), true, "the Judge's list counts");
-  assert.strictEqual(marketKnownTo({ knownMarkets: ["Actor.M2"] }, who), false, "a listing of another market does not");
-  assert.strictEqual(marketKnownTo({ knownMarkets: [L] }, { ...who, actorUuid: "" }), false, "no trader, nothing known");
+  // An invented day of 10 seconds; the month opens at 1000 (day 100).
+  const dayOf = (t) => Math.floor(t / 10);
+  const month = 1000;
+  const on = (day) => ({ visitStartDay: day, monthStart: month, dayOf });
+  assert.strictEqual(marketKnownTo({}, who, on(102)), false, "a market with no record of the trader is unknown");
+  assert.strictEqual(marketKnownTo({ ledger: [{ actorUuid: "Actor.A", time: 1015 }] }, who, on(101)), false, "a row from the visit's own day is the visit itself");
+  assert.strictEqual(marketKnownTo({ ledger: [{ actorUuid: "Actor.A", time: 1005 }] }, who, on(101)), true, "a row from an earlier day is a visit before");
+  assert.strictEqual(marketKnownTo({ ledger: [{ actorUuid: "Actor.B", time: 1005 }] }, who, on(101)), false, "another trader's rows say nothing");
+  assert.strictEqual(marketKnownTo({ ledger: [{ actorUuid: "Actor.A", time: 1050 }] }, who, on(101)), false, "a row dated after the visit began (a clock wound back) is not a visit before");
+  assert.strictEqual(marketKnownTo({ actions: [{ kind: "assess", actorUuid: "Actor.A", partyId: "p9", postedTime: 1002 }] }, who, on(101)), true, "a day the trader posted earlier counts");
+  assert.strictEqual(marketKnownTo({ actions: [{ kind: "enter", actorUuid: "Actor.Z", partyId: "p1", postedTime: 1002 }] }, who, on(101)), true, "an entry the party posted earlier counts");
+  assert.strictEqual(marketKnownTo({ actions: [{ kind: "solicit", actorUuid: "Actor.Z", partyId: "p1", postedTime: 1002 }] }, who, on(101)), false, "another member's other days are theirs");
+  assert.strictEqual(marketKnownTo({ actions: [{ kind: "enter", actorUuid: "Actor.Z", partyId: "p1", postedTime: 1012 }] }, who, on(101)), false, "an entry on the visit's own day does not");
+  assert.strictEqual(marketKnownTo({ ventures: [{ partyId: "p1", monthStartTime: 700 }] }, who, on(101)), true, "the party's row from an earlier month counts");
+  assert.strictEqual(marketKnownTo({ ventures: [{ partyId: "p1", monthStartTime: month }] }, who, on(101)), false, "this month's row alone is the visit itself");
+  assert.strictEqual(marketKnownTo({ ventures: [{ partyId: "p2", monthStartTime: 700 }] }, who, on(101)), false, "another party's entry is theirs");
+  assert.strictEqual(marketKnownTo({ ventures: [{ partyId: "p1", monthStartTime: 700 }] }, { ...who, partyId: null }, on(101)), false, "no party, no party evidence");
+  assert.strictEqual(knownSource({ knownMarkets: [L] }, who, on(100)), "judge", "the Judge's list counts on the first day");
+  assert.strictEqual(knownSource({ ledger: [{ actorUuid: "Actor.A", time: 1005 }] }, who, on(101)), "record", "the record says where knowledge came from");
+  assert.strictEqual(marketKnownTo({ knownMarkets: ["Actor.M2"] }, who, on(101)), false, "a listing of another market does not");
+  assert.strictEqual(marketKnownTo({ knownMarkets: [L] }, { ...who, actorUuid: "" }, on(101)), false, "no trader, nothing known");
+
+  // The current visit: an entered party is on the visit its entry opened.
+  const at = 1035; // day 103
+  assert.strictEqual(visitStartDay({ partyId: "p1", monthStart: month, at, dayOf }), 103, "a party not entered is on a visit of one day");
+  assert.strictEqual(visitStartDay({ ventures: [{ partyId: "p1", monthStartTime: month, entered: true, enteredTime: 1012 }], partyId: "p1", monthStart: month, at, dayOf }), 101, "an entered party's visit began the day its entry was posted");
+  const oldRow = [{ partyId: "p1", monthStartTime: month, entered: true, enteredTime: 0 }];
+  const entries = [
+    { kind: "enter", partyId: "p1", status: "done", postedTime: 1004 },
+    { kind: "enter", partyId: "p1", status: "done", postedTime: 1021 },
+    { kind: "enter", partyId: "p1", status: "cancelled", postedTime: 1031 },
+  ];
+  assert.strictEqual(visitStartDay({ ventures: oldRow, actions: entries, partyId: "p1", monthStart: month, at, dayOf }), 102, "a row with no entry time reads the latest entry posted");
+  assert.strictEqual(visitStartDay({ ventures: oldRow, partyId: "p1", monthStart: month, at, dayOf }), 100, "and with none, the month's start");
+  assert.strictEqual(visitStartDay({ ventures: [{ partyId: "p1", monthStartTime: month, entered: false }], partyId: "p1", monthStart: month, at, dayOf }), 103, "a party that left is on a fresh visit");
+
+  // Enter on one day, leave and enter again on a later one: the first entry is a visit before.
+  const plan = { actions: [{ kind: "enter", actorUuid: "Actor.A", partyId: "p1", status: "done", postedTime: 1003 }] };
+  assert.strictEqual(marketKnownTo(plan, who, on(101)), true, "the second entry finds the first");
+  assert.strictEqual(marketKnownTo(plan, who, on(100)), false, "and the first entry never finds itself");
+
+  // The day a past row falls on: the calendar's own day length, else 86400 s.
+  const { dayOfWorldTime } = await import(new URL("../scripts/lib/world-time.mjs", import.meta.url));
+  const savedGame = globalThis.game;
+  globalThis.game = { ...(savedGame ?? {}), time: { worldTime: 0, calendar: { days: { hoursPerDay: 2, minutesPerHour: 10, secondsPerMinute: 6 } } } };
+  assert.strictEqual(dayOfWorldTime(5 * 120 + 1), 5, "a calendar's own day length counts the days");
+  globalThis.game = { ...(savedGame ?? {}), time: { worldTime: 0 } };
+  assert.strictEqual(dayOfWorldTime(86400 * 3 + 5), 3, "a clock with no calendar counts days of 86400 seconds");
+  assert.strictEqual(dayOfWorldTime(undefined), null, "a reading that is no number is no day");
+  globalThis.game = savedGame;
+
+  // One ledger length for every writer.
+  const { appendMarketLog, MARKET_LOG_CAP } = await import(new URL("../scripts/location/data/market-log.mjs", import.meta.url));
+  const full = Array.from({ length: MARKET_LOG_CAP }, (_, i) => ({ time: i }));
+  const appended = appendMarketLog(full, { time: "a" }, { time: "b" });
+  assert.strictEqual(appended.length, MARKET_LOG_CAP, "the ledger keeps its cap");
+  assert.deepStrictEqual([appended[0].time, appended.at(-1).time], [2, "b"], "and cuts from the oldest end");
+  assert.deepStrictEqual(appendMarketLog(undefined, { time: 1 }), [{ time: 1 }], "an empty ledger takes its first row");
 }
 
 // ---- a trader's history out of the markets' ledgers ----

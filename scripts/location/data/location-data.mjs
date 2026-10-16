@@ -101,6 +101,9 @@ function postingField() {
     lastProcessedTime: int(),
     status: new fields.StringField({ required: true, initial: "active", choices: ["active", "closed", "exhausted"] }),
     playersSeeDetails: new fields.BooleanField({ initial: true }),
+    // The employer searches with their mercantile network: the market reads
+    // one class larger for them, at the fee of the class it reads as.
+    network: new fields.BooleanField({ initial: false }),
   });
 }
 
@@ -131,6 +134,10 @@ function candidateField() {
     // for, and month-long availability (exempt from weekly churn).
     highlightFor: str(),
     monthLong: new fields.BooleanField({ initial: false }),
+    // A person only one employer's mercantile network reaches: shown to and
+    // hired by that employer alone, and otherwise a shared-pool row (it churns
+    // weekly and goes with the month).
+    networkFor: str(),
     kind: new fields.StringField({ required: true, initial: "henchman" }),
     quantity: int(1), // >1 only for aggregated troop-scale rows
     level: num({ integer: true }),
@@ -274,6 +281,20 @@ function marketSchema() {
       new fields.SchemaField({
         segment: str(),
         monthStartTime: int(),
+        total: int(0),
+        detail: str(),
+      })
+    ),
+    // One employer's roll of a segment at the class their network reads the
+    // market as, once per market month: what that market holds beyond the
+    // town's own roll is theirs alone (`networkFor`). Kept here, not on the
+    // posting, so closing a notice and posting again finds the month's roll.
+    networkRolls: new fields.ArrayField(
+      new fields.SchemaField({
+        employerUuid: str(),
+        segment: str(),
+        monthStartTime: int(),
+        marketClass: int(0),
         total: int(0),
         detail: str(),
       })
@@ -476,6 +497,9 @@ export class LocationData extends foundry.abstract.TypeDataModel {
   }
   get marketRolls() {
     return this.market?.marketRolls ?? [];
+  }
+  get networkRolls() {
+    return this.market?.networkRolls ?? [];
   }
   get slander() {
     return this.market?.slander ?? [];

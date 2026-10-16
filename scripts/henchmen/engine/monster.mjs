@@ -10,11 +10,12 @@ import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST } from "../constants.m
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { henchmanWage } from "../rules/wages.mjs";
 import { startingLoyalty, effectiveLoyalty } from "../rules/loyalty.mjs";
-import { collectStringFlags, sumEffectModifiers, toDialogModifiers, collectEffectModifiers } from "../effects.mjs";
+import { collectStringFlags, sumEffectModifiers, toDialogModifiers, collectEffectModifiers, unvaluedDialogModifiers } from "../effects.mjs";
 import { getTable } from "../rules/tables.mjs";
+import { hiringOffer } from "../rules/hiring-offer.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { openThrowDialog } from "../apps/throw-dialog.mjs";
-import { checkHenchmanLimit } from "./hire.mjs";
+import { checkHenchmanLimit, limitReachedMessage } from "./hire.mjs";
 import { now } from "../time.mjs";
 
 /** HD for recruitment/wages: monster extras when present, else parsed. */
@@ -42,11 +43,7 @@ export function validateMonsterRecruit(monster, employer) {
     warnings.push(game.i18n.localize("ACKS-HENCHMEN.monster.animalGate"));
   }
   const limit = checkHenchmanLimit(employer);
-  if (!limit.ok) {
-    warnings.push(
-      game.i18n.format("ACKS-HENCHMEN.hire.limitReached", { name: employer.name, count: limit.count, max: limit.max })
-    );
-  }
+  if (!limit.ok) warnings.push(limitReachedMessage(employer, limit));
   return { ok: errors.length === 0, warnings, errors };
 }
 
@@ -83,8 +80,18 @@ export function recruitMonster(monster, employer, { captured = false } = {}) {
     }
   }
 
-  const dynamicModifiers = toDialogModifiers(collectEffectModifiers(employer, "hiring"));
+  // The peaceful offer's result column is the Judge's imported hiring table;
+  // with none read there is no outcome to apply, so the throw does not open.
+  const printed = captured ? null : hiringOffer();
+  if (!captured && !printed.outcomes) {
+    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.recruit.hiringNotImported"));
+    return;
+  }
+  const dynamicModifiers = [...toDialogModifiers(collectEffectModifiers(employer, "hiring")), ...unvaluedDialogModifiers(employer, "hiring")];
   openThrowDialog(throwId, {
+    ...(printed
+      ? { outcomes: printed.outcomes, stepValues: { previousRefusals: printed.refusalPenalty, slander: printed.slanderPenalty } }
+      : {}),
     title: `${monster.name} — ${employer.name}`,
     actor: employer,
     derived: {

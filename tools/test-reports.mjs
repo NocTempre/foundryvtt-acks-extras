@@ -30,6 +30,7 @@ const {
   compareBeliefs,
   groupByMarket,
   handVerdict,
+  chooseVerdict,
   isTraderProfile,
   notesToHtml,
   htmlToNotes,
@@ -303,6 +304,49 @@ same("the new owner may discard it", await objects.retire(item, { requestUserId:
 check("it is gone from the house", objects.objectsOf(stranger.uuid).length === 0 && !objects.allReports().includes(item));
 const elsewhere = makeItem(hero, { name: "Not a report", type: "acks-extras.marketReport", system: {} });
 same("an item that is not on the house is never touched", await objects.retire(elsewhere, { requestUserId: null }), { error: "notFound" });
+
+/* ------------------------- choosing the goods a partial assessment left ------------------------- */
+
+const CATALOG = ["aa", "bb", "cc"];
+same("chooseVerdict: no picks left", chooseVerdict({ picks: 0, chosen: ["aa"], catalog: CATALOG }), { error: "noPicks" });
+same("chooseVerdict: nothing ticked", chooseVerdict({ picks: 2, chosen: [], catalog: CATALOG }), { error: "noneChosen" });
+same("chooseVerdict: only goods already believed", chooseVerdict({ picks: 2, chosen: ["aa"], believed: ["aa"], catalog: CATALOG }), { error: "noneChosen" });
+same("chooseVerdict: a good the catalogue lacks", chooseVerdict({ picks: 2, chosen: ["zz"], catalog: CATALOG }), { error: "unknownGood" });
+same("chooseVerdict: more goods than picks", chooseVerdict({ picks: 1, chosen: ["aa", "bb"], catalog: CATALOG }), { error: "tooMany", left: 1 });
+same(
+  "chooseVerdict: a good named twice or already believed costs nothing",
+  chooseVerdict({ picks: 1, chosen: ["bb", "bb", "aa"], believed: ["aa"], catalog: CATALOG }),
+  { ok: true, categories: ["bb"] }
+);
+
+const merchItem = (key) => ({ id: rid(), type: "acks-extras.merchandise", name: `Good ${key}`, uuid: `Item.${key}`, system: { key } });
+game.items = CATALOG.map(merchItem);
+const market = makeActor({
+  name: "Town D",
+  type: LOCATION,
+  system: { market: { goods: { demand: [{ category: "aa", modifier: 2 }, { category: "bb", modifier: -1 }, { category: "cc", modifier: 0 }] } } },
+});
+const partial = (await objects.writeReport({ ownerUuid: hero.uuid, marketUuid: market.uuid, marketName: market.name, assessorUuid: hero.uuid, partyId: "p1", time: 5, outcome: "partial", beliefs: [], picks: 3 })).item;
+same("a partial report is written holding its picks", objects.plainReport(partial).picks, 3);
+same("a stranger cannot choose on it", await objects.chooseGoods(partial, ["aa"], { requestUserId: "bob" }), { error: "notYours" });
+same("its owner learns the goods chosen", await objects.chooseGoods(partial, ["aa", "bb"], { requestUserId: "alice" }), { ok: true, chosen: 2, left: 1 });
+same("the beliefs are the market's true modifiers", objects.plainReport(partial).beliefs, [{ category: "aa", dm: 2 }, { category: "bb", dm: -1 }]);
+same("a good already learned cannot be chosen again", await objects.chooseGoods(partial, ["aa"], { requestUserId: "alice" }), { error: "noneChosen" });
+same("nor more goods than the picks left", await objects.chooseGoods(partial, ["cc", "aa", "bb"], { requestUserId: "alice" }), { ok: true, chosen: 1, left: 0 });
+same("with no picks left nothing more is learned", await objects.chooseGoods(partial, ["cc"], { requestUserId: "alice" }), { error: "noPicks" });
+
+const faces = [5, 2];
+globalThis.Roll = class {
+  async evaluate() {
+    this.total = faces.shift();
+    return this;
+  }
+};
+const lie = (await objects.writeReport({ ownerUuid: hero.uuid, marketUuid: market.uuid, marketName: market.name, assessorUuid: hero.uuid, partyId: "p1", time: 6, outcome: "false", beliefs: [], picks: 1 })).item;
+same("a false report's choice is believed wrongly", await objects.chooseGoods(lie, ["aa"], { requestUserId: "alice" }), { ok: true, chosen: 1, left: 0 });
+same("by the steps its dice gave, never the truth", objects.plainReport(lie).beliefs, [{ category: "aa", dm: 4 }]);
+const orphan = (await objects.writeReport({ ownerUuid: hero.uuid, marketUuid: "Actor.gone", marketName: "Gone", assessorUuid: hero.uuid, partyId: "p1", time: 7, outcome: "partial", beliefs: [], picks: 1 })).item;
+same("a report whose market is gone learns nothing", await objects.chooseGoods(orphan, ["aa"], { requestUserId: "alice" }), { error: "noMarket" });
 
 /* ------------------------- isTrader on mocked actors ------------------------- */
 

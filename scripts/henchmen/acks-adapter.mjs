@@ -30,16 +30,27 @@ export function getChaLoyalty(actor) {
   return Number(actor?.system?.scores?.cha?.loyalty ?? getChaMod(actor));
 }
 
-/** Core derives cha.retain = cha.mod + 4 (the ACKS 4+CHA henchman cap). */
+/**
+ * Core's own Charisma allowance of henchmen (`system.scores.cha.retain`, which
+ * core derives for characters alone), or null where the actor carries none.
+ * Core's figure is taken as it stands, zero included; nothing stands in for an
+ * absent one.
+ */
 export function getRetainBase(actor) {
-  const retain = Number(actor?.system?.scores?.cha?.retain);
-  return Number.isFinite(retain) && retain !== 0 ? retain : 4 + getChaMod(actor);
+  const retain = actor?.system?.scores?.cha?.retain;
+  return typeof retain === "number" && Number.isFinite(retain) ? retain : null;
 }
 
-/** Max henchmen = 4 + CHA + effect bonuses (Leadership etc.) + manual flag. */
+/**
+ * The most henchmen `actor` may lead: core's Charisma allowance + the typed
+ * `retainBonus` effects + the manual flag. Null where core gives no allowance,
+ * and an unknown limit is never enforced.
+ */
 export function getRetainMax(actor) {
+  const base = getRetainBase(actor);
+  if (base === null) return null;
   const manual = Number(actor?.getFlag?.(MODULE_ID, FLAG_RETAIN_BONUS) ?? 0);
-  return getRetainBase(actor) + sumEffectModifiers(actor, "retainBonus") + (Number.isFinite(manual) ? manual : 0);
+  return base + sumEffectModifiers(actor, "retainBonus") + (Number.isFinite(manual) ? manual : 0);
 }
 
 export const getLevel = classLevel;

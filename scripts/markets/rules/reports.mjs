@@ -125,6 +125,30 @@ export function handVerdict({ isGM, ownsStamp, stampUuid = null, targetUuid = un
   return { ok: true };
 }
 
+/**
+ * Which goods a report's owner may learn now. A partial assessment leaves the
+ * trader a number of goods to choose (RR §VIII.6, step 1 of arbitrage), and a
+ * false one leaves the same, since it must not be told apart. A good named
+ * twice, or already believed on the report, is dropped and costs no pick.
+ * @param {object} o
+ * @param {number} o.picks           Goods the report still lets its owner choose.
+ * @param {string[]} o.chosen        Catalogue keys the owner chose.
+ * @param {string[]} [o.believed]    Keys the report already holds a belief for.
+ * @param {string[]} [o.catalog]     Every key the catalogue knows.
+ * @returns {{ok: true, categories: string[]}|{error: string, left?: number}}
+ */
+export function chooseVerdict({ picks = 0, chosen = [], believed = [], catalog = [] } = {}) {
+  const left = Math.max(0, Math.floor(Number(picks) || 0));
+  if (!left) return { error: "noPicks" };
+  const held = new Set(believed);
+  const categories = [...new Set(chosen ?? [])].filter((c) => c && !held.has(c));
+  if (!categories.length) return { error: "noneChosen" };
+  const known = new Set(catalog);
+  if (categories.some((c) => !known.has(c))) return { error: "unknownGood" };
+  if (categories.length > left) return { error: "tooMany", left };
+  return { ok: true, categories };
+}
+
 /** The proficiency names that make a character a trader (ability names, matched in code). */
 const BARGAINING = /^bargaining\b/i;
 const MERCHANT_PROFESSION = /^profession\b.*\bmerchant/i;

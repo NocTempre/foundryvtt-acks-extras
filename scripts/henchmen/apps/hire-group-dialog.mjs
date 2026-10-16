@@ -71,7 +71,10 @@ export async function openHireGroupDialog(location) {
   const employer = await pickEmployer(game.user.character);
   if (!employer) return ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.group.noEmployer"));
 
-  const available = (location.system.candidates ?? []).map((c) => c.toObject?.() ?? c).filter((c) => c.status === "available");
+  // another employer's network finds are not in this employer's market
+  const available = (location.system.candidates ?? [])
+    .map((c) => c.toObject?.() ?? c)
+    .filter((c) => c.status === "available" && (!c.networkFor || c.networkFor === employer.uuid));
   const troops = available.filter(isTroop);
   const officers = available.filter(isOfficer);
   if (!troops.length && !officers.length) return ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.group.noneAvailable"));

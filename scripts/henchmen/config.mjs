@@ -1,5 +1,5 @@
 /**
- * Pure-data enums and fallback tables. No Foundry imports — importable from
+ * Pure-data enums and name-presence patterns. No Foundry imports — importable from
  * Node tooling (tools/build-packs.mjs) and tests, same pattern as
  * acks-monsters scripts/config.mjs.
  */
@@ -102,42 +102,22 @@ export const RARITY_TIERS = Object.freeze([
 ]);
 
 /**
- * Item-name regexes that recover classic proficiency mechanics from an item
- * carrying no `flags.acks-extras.*` Active Effect change; skipped once an
- * item has any such change. See docs/henchmen/MODEL.md § "The Active Effect
- * contract".
- * `condition` marks the bonus as situational (toggled in the roll dialog);
- * absent means always-on.
+ * Item-name regexes that prove a domain's power is PRESENT and nothing more:
+ * the power's size is read from the page by the importer (a typed effect on
+ * the ability) or set by a Judge's Active Effect, never supplied here. An
+ * item matched only by its name makes `hasEffectFlag` true and contributes no
+ * modifier, and `unvaluedPowers` names it so a surface can say its value is
+ * missing. For a domain with no value (`skipCalamityLoyalty`), presence is the
+ * whole of the power.
  */
-export const NAME_FALLBACKS = Object.freeze({
-  hiring: [
-    { pattern: "^diplomacy", value: 1, condition: "ACKS-HENCHMEN.cond.parley" },
-    { pattern: "^intimidation", value: 1, condition: "ACKS-HENCHMEN.cond.threats" },
-    { pattern: "^mystic aura", value: 1, condition: "ACKS-HENCHMEN.cond.impress" },
-    { pattern: "^seduction", value: 1, condition: "ACKS-HENCHMEN.cond.attracted" },
-    { pattern: "^command of voice|^glamorous aura", value: 1, condition: "ACKS-HENCHMEN.cond.impress" },
-    { pattern: "^familiar folkways", value: 1, condition: "ACKS-HENCHMEN.cond.ownSettlement" },
-  ],
-  retainBonus: [
-    { pattern: "^leadership", value: 1 },
-    { pattern: "^blood of (ancient )?kings|^scion of kings|^soul of the dragon", value: 1 },
-    { pattern: "^familial loyalty", value: 1, condition: "ACKS-HENCHMEN.cond.related" },
-  ],
-  baseLoyalty: [
-    { pattern: "^blood of (ancient )?kings|^scion of kings|^soul of the dragon", value: 1 },
-    { pattern: "^familial loyalty", value: 1, condition: "ACKS-HENCHMEN.cond.related" },
-  ],
-  henchmanMorale: [
-    { pattern: "^command$|^command \\(", value: 2 },
-    { pattern: "^battlefield prowess|^animal magnetism", value: 1, condition: "ACKS-HENCHMEN.cond.personallyLed" },
-    { pattern: "^chronicles of battle", value: 1, condition: "ACKS-HENCHMEN.cond.witnessed" },
-    { pattern: "^holy fervor|^unholy fanaticism", value: 1, condition: "ACKS-HENCHMEN.cond.sameReligion" },
-    { pattern: "^dark charisma", value: 1, condition: "ACKS-HENCHMEN.cond.chaoticServants" },
-    { pattern: "^experience and hardiness", value: 1, condition: "ACKS-HENCHMEN.cond.wilderness" },
-    { pattern: "^military genius", value: 1, condition: "ACKS-HENCHMEN.cond.commanding" },
-  ],
-  marketClass: [{ pattern: "^mercantile network", value: 1, condition: "ACKS-HENCHMEN.cond.knownMarket" }],
-  skipCalamityLoyalty: [{ pattern: "^utter domination", value: 1 }],
+export const NAME_PRESENCE = Object.freeze({
+  hiring: "^diplomacy|^intimidation|^mystic aura|^seduction|^command of voice|^glamorous aura",
+  retainBonus: "^leadership|^blood of (ancient )?kings|^scion of kings|^soul of the dragon|^familial loyalty",
+  baseLoyalty: "^blood of (ancient )?kings|^scion of kings|^soul of the dragon|^familial loyalty",
+  henchmanMorale:
+    "^command$|^command \\(|^battlefield prowess|^animal magnetism|^chronicles of battle|^holy fervor|^unholy fanaticism|^dark charisma|^experience and hardiness",
+  marketClass: "^mercantile network",
+  skipCalamityLoyalty: "^utter domination",
 });
 
 /** Build DataModel `choices` from one of the enum objects above. */

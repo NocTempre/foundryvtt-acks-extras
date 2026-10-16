@@ -16,7 +16,7 @@ export { MODULE_ID };
 const LANG_PREFIX = "ACKS-INFLUENCE";
 
 /** Ruledata document holding this feature's printed tables, once imported. */
-const TABLE_DOC = "influence";
+export const INFLUENCE_DOC = "influence";
 
 /** camelCased module id — the namespace custom hooks fire under (TOOLCHAIN §5b). */
 const NAMESPACE = "acksExtras";
@@ -83,15 +83,23 @@ export function isReactionMode(mode) {
  * computed a quarter's figure as 0 has nothing to show. The exception is a
  * NOTE, a row its pusher marked `note: true` to SAY something with no figure
  * beside it (who holds legal authority here). A note never carries a value,
- * so one pushed with a figure is an ordinary row and its mark is ignored.
- * @param {Array<{label?: string, value?: number, note?: boolean}>} modifiers
+ * so one pushed with a figure is an ordinary row and its mark is ignored. A
+ * note about one item keeps its `itemId`, so a page that draws that item as a
+ * row of its own can leave the note out.
+ * @param {Array<{label?: string, value?: number, note?: boolean, itemId?: string}>} modifiers
  */
 export function externalRows(modifiers) {
   if (!Array.isArray(modifiers)) return [];
   return modifiers
     .map((m) => {
       const value = Number(m?.value) || 0;
-      return { label: String(m?.label ?? "external"), value, note: m?.note === true && value === 0 };
+      const note = m?.note === true && value === 0;
+      return {
+        label: String(m?.label ?? "external"),
+        value,
+        note,
+        ...(note && m?.itemId ? { itemId: String(m.itemId) } : {}),
+      };
     })
     .filter((m) => m.value !== 0 || m.note);
 }
@@ -191,7 +199,7 @@ export const INFLUENCE_BAND_LABELS = Object.freeze({
  * @returns {{steps: Array<{value: number, label: string, time: string}>, maxAttempt: number|null}}
  */
 export function influenceTimeLadder(attempt = 0) {
-  const rows = hasTableDoc(TABLE_DOC) ? getTableDoc(TABLE_DOC)?.tables?.attemptTime : null;
+  const rows = hasTableDoc(INFLUENCE_DOC) ? getTableDoc(INFLUENCE_DOC)?.tables?.attemptTime : null;
   const times = Array.isArray(rows) ? rows : null;
   // One rung per printed row when they are known. Otherwise the rungs this
   // tracker can actually be on — the initial reaction, every attempt already
@@ -216,7 +224,7 @@ export function influenceTimeLadder(attempt = 0) {
  *   simply not pre-filled, and the Judge names the sum
  */
 export function henchmanMonthlyWage(hd) {
-  const rows = hasTableDoc(TABLE_DOC) ? getTableDoc(TABLE_DOC)?.tables?.henchmanWage : null;
+  const rows = hasTableDoc(INFLUENCE_DOC) ? getTableDoc(INFLUENCE_DOC)?.tables?.henchmanWage : null;
   if (!Array.isArray(rows) || !rows.length) return null;
   const level = Math.max(0, Math.min(rows.length - 1, Math.floor(Number(hd) || 0)));
   const row = rows[level];
@@ -430,6 +438,20 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
 });
 
 /**
+ * The tone proficiencies a page lets the roller bring to one throw, each worth
+ * what the roller's own item for it carries (`held`). The three tones are
+ * mutually exclusive: at most one applies, and it stacks only with Mystic
+ * Aura. `exclusive` keeps a character who holds all three from opening a page
+ * with every one of them ticked.
+ */
+const TONE_PROFICIENCY_ROWS = Object.freeze([
+  { key: "diplomacyProf", type: "held", label: "ACKS-INFLUENCE.mod.held.diplomacy", auto: "prof:diplomacy", exclusive: "toneProf" },
+  { key: "intimidationProf", type: "held", label: "ACKS-INFLUENCE.mod.held.intimidation", auto: "prof:intimidation", exclusive: "toneProf" },
+  { key: "seductionProf", type: "held", label: "ACKS-INFLUENCE.mod.held.seduction", auto: "prof:seduction", exclusive: "toneProf" },
+  { key: "mysticAura", type: "held", label: "ACKS-INFLUENCE.mod.held.mysticAura", auto: "prof:mysticAura" },
+]);
+
+/**
  * EXTERNAL MODES — additional roller pages hosted by the influence app for
  * consumer features (the henchmen feature): the Reaction to Hiring Offer (RR 162)
  * and the secret Hireling Loyalty roll (RR 166). An external mode replaces
@@ -442,10 +464,19 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
  *
  * A mode naming a `printed` table ships no figure of its own: `bandKeys` names
  * its result rungs worst first and the page supplies their edges, and its
- * `ladder` / `printed` rows take their figures from the same table
- * (`modeRows` in printed.mjs). `cite` is the page a notice points at.
+ * `ladder` / `printed` / `printedFactor` rows take their figures from the same
+ * table (`modeRows` in printed.mjs), read from the `printedDoc` document
+ * (`morale` when unnamed). `cite` is the page a notice points at.
  * `postsWithoutBands` lets such a page roll with no result column read; any
  * other page refuses.
+ *
+ * A `held` row is a proficiency box worth the figure the roller's own item for
+ * it carries (`resolveHeldRows` in actor-data.mjs): it appears only for a
+ * roller who holds the proficiency, or a power standing in for it.
+ *
+ * An opener may hand the page effect rows of its own in `ctx.offeredModifiers`
+ * (`offeredEffectRows` in actor-data.mjs), for effects this feature's change
+ * keys do not carry; they join the page's own effect rows.
  *
  * `conditions` names the roll the page is in the lib's conditions model
  * (`rollMath` in lib/conditions.mjs); the subject's conditions then reach the
@@ -457,13 +488,13 @@ export const EXTERNAL_MODES = Object.freeze({
     secret: false,
     // RR 162's hiring offer IS a reaction roll, so reaction-family effects apply.
     family: ROLL_FAMILY.REACTION,
-    bands: [
-      { max: 2, key: "refuseSlander" },
-      { min: 3, max: 5, key: "refuse" },
-      { min: 6, max: 8, key: "tryAgain" },
-      { min: 9, max: 11, key: "accept" },
-      { min: 12, key: "acceptElan" },
-    ],
+    // Structure only: the result edges and both penalties are the page's, and
+    // a page whose column is not imported cannot roll, since a hire needs a
+    // result to apply.
+    printed: "hiringOffer",
+    printedDoc: INFLUENCE_DOC,
+    cite: "RR 162",
+    bandKeys: ["refuseSlander", "refuse", "tryAgain", "accept", "acceptElan"],
     bandLabels: {
       refuseSlander: "ACKS-INFLUENCE.mode.hiring.refuseSlander",
       refuse: "ACKS-INFLUENCE.mode.hiring.refuse",
@@ -476,21 +507,15 @@ export const EXTERNAL_MODES = Object.freeze({
         group: "ACKS-INFLUENCE.group.character",
         mods: [
           { key: "charisma", type: "signed", label: "ACKS-INFLUENCE.mod.charisma", auto: "cha" },
-          // The three tone proficiencies are mutually exclusive (RR): at most
-          // one applies, and it stacks only with Mystic Aura. `exclusive` keeps
-          // a character who holds all three from opening this page at +4.
-          { key: "diplomacyProf", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.prof", value: 1, auto: "prof:diplomacy", exclusive: "toneProf" },
-          { key: "intimidationProf", type: "check", label: "ACKS-INFLUENCE.mod.intimidation.prof", value: 1, auto: "prof:intimidation", exclusive: "toneProf" },
-          { key: "seductionProf", type: "check", label: "ACKS-INFLUENCE.mod.seduction.prof", value: 1, auto: "prof:seduction", exclusive: "toneProf" },
-          { key: "mysticAura", type: "check", label: "ACKS-INFLUENCE.mod.mysticAura", value: 1, auto: "prof:mysticAura" },
+          ...TONE_PROFICIENCY_ROWS,
         ],
       },
       {
         group: "ACKS-INFLUENCE.mode.hiring.terms",
         mods: [
           { key: "signingBonus", type: "select", label: "ACKS-INFLUENCE.mode.hiring.signingBonus", ctxOptions: "signingBonusOptions", default: 0 },
-          { key: "previousRefusals", type: "factor", factor: -1, label: "ACKS-INFLUENCE.mode.hiring.previousRefusals", auto: "ctx:previousRefusals" },
-          { key: "slander", type: "factor", factor: -1, label: "ACKS-INFLUENCE.mode.hiring.slander", auto: "ctx:slanderCount" },
+          { key: "previousRefusals", type: "printedFactor", figure: "refusalPenalty", label: "ACKS-INFLUENCE.mode.hiring.previousRefusals", auto: "ctx:previousRefusals" },
+          { key: "slander", type: "printedFactor", figure: "slanderPenalty", label: "ACKS-INFLUENCE.mode.hiring.slander", auto: "ctx:slanderCount" },
         ],
       },
     ],
@@ -610,10 +635,7 @@ export const EXTERNAL_MODES = Object.freeze({
         group: "ACKS-INFLUENCE.group.character",
         mods: [
           { key: "charisma", type: "signed", label: "ACKS-INFLUENCE.mod.charisma", auto: "cha" },
-          { key: "diplomacyProf", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.prof", value: 1, auto: "prof:diplomacy", exclusive: "toneProf" },
-          { key: "intimidationProf", type: "check", label: "ACKS-INFLUENCE.mod.intimidation.prof", value: 1, auto: "prof:intimidation", exclusive: "toneProf" },
-          { key: "seductionProf", type: "check", label: "ACKS-INFLUENCE.mod.seduction.prof", value: 1, auto: "prof:seduction", exclusive: "toneProf" },
-          { key: "mysticAura", type: "check", label: "ACKS-INFLUENCE.mod.mysticAura", value: 1, auto: "prof:mysticAura" },
+          ...TONE_PROFICIENCY_ROWS,
         ],
       },
       {

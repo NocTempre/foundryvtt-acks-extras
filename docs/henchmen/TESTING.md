@@ -300,7 +300,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     Group**, choose the employer (a GM seat with no assigned character is
     asked which), take part of the troop row and press **Hire the unit**.
     *Observable:* a group actor named for the employer holds one stack of that
-    count, and the candidate's status is `hired`. The stack's
+    count. The troop row keeps its id and the heads not taken, still
+    `available`, and a new row of the count taken reads `hired`. The stack's
     `template.snapshot` and the prototype actor its `template.uuid` names carry
     the candidate's level, class, hit die (read from the `hitDice` line) and
     scores, and the prototype holds no items. Track the group and the
@@ -315,6 +316,116 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     drop handler.
     *Observable:* the "Re-pointed the stack" notice; the stack's snapshot
     carries the edits, and its key and headcount are unchanged.
+12. An offer to part of a bulk row, head by head. Write a specialist row
+    straight into `system.market.candidates`: `kind: "specialist"`, a
+    `specialistType`, a `segment` of `specialist:<type>`, `status:
+    "available"`, a `quantity` of 20, a `wageGp`. Give the employer coin. As the
+    Player seat, press the row's Hire button on the location sheet, enter 6 in
+    the **Offer to how many?** prompt, and roll the hiring page with a signing
+    bonus chosen.
+    *Observable:* the page's subject reads the row's name ×6; one chat card
+    shows five further hiring rolls and a tally whose counts sum to 6. The
+    row keeps its id at quantity 14; each outcome that occurred is a row of
+    its own carrying that many heads; a refusal or try-again row carries a
+    refusal naming the employer, a slander row reads `slandered`, and the
+    location's `slander` gains one entry per slandering head. The accepting
+    heads are ONE new actor whose `system.retainer.quantity` is the accept
+    count, an élan group a second actor whose loyalty is one higher, and the
+    employer paid the bonus once per head hired. Rig the dice
+    (`CONFIG.Dice.randomUniform`, read from the top) to force a mix the first
+    time it lands all one way. Track every hired actor from the roster.
+    Then offer all 14 of the remainder: afterwards no row carries the old id.
+13. A posting with a mercantile network. Give the employer an `ability` item
+    named Mercantile Network whose `flags.acks-extras.extras.effects` holds
+    one typed modifier: `target: "marketClass"`, a `condition`, and an
+    invented step of 2 (`{kind: "flat", flat: 2}`), so the walk proves the
+    value is read and not assumed. Set the location's `marketClassOverride`
+    to 5, and put the market on the employer's Judge's list
+    (docs/markets/TESTING.md, the known-market walk). Open the posting dialog
+    from the owning seat and pick the employer.
+    *Observable:* the **Search with the mercantile network** row shows, ticked,
+    with a "Counted here" note; picking an employer without the power hides
+    it. Post a general henchman search with it ticked.
+    *Observable:* `system.market.networkRolls` holds one row per henchman
+    level for the employer at the market's `monthAnchorTime`, each with
+    `marketClass` 3. Every candidate the post added carries `networkFor` set to
+    the employer. The posting's `totalAvailable` is the town's henchman total
+    plus, per level, the network roll's excess over the town's. The fee card's
+    formula is the class-3 fee. From a Player seat owning only a second
+    character, none of the `networkFor` rows show on the sheet, and
+    `openRecruitDialog(location, id, second)` warns "Only the character whose
+    mercantile network…" before any roll. Close the posting and post again:
+    no new `networkRolls` row and no new candidate. Post a mercenary search
+    with the box unticked: no network roll, and the fee is the class-5 fee.
+14. Powers valued from the page, and powers held by name only.
+    - **Build the powers fresh.** `importAbility` hands back a copy the
+      world's shared cookbook shelf already holds, built by whatever version
+      made it, and that copy is not yours to refresh or delete. With the books
+      open on the seat, build each power without a write instead. Import
+      `cookbook.mjs` and `executor.mjs` from `/modules/acks-extras/scripts/
+      importer/` and, for each id, resolve `cookbookEntry(id)`. Its book is
+      `found.cb.book?.id ?? found.entry.book`. Then call
+      `executeEntry(cookbookSessionDoc(book), found.cb, cookbookRegisters(),
+      id)` and `bindAbility(found.entry, node, id, {ladders})`.
+    - **Employer A.** Embed Leadership, Blood of Kings, Command, Diplomacy,
+      Beast Friendship and Command of Voice built that way, at level 5.
+    - **Employer B.** Hand-made `ability` items named Leadership, Command and
+      Diplomacy with no effects, Charisma 3.
+    - **A hireling for each.** Create each with `items: []`: an actor payload
+      with `system` and no items comes back blank. Link it through
+      `addHenchman`.
+    - **A monster.**
+
+    Open the roster for each employer, then `recruitMonster(monster,
+    employer)` from `engine/monster.mjs`.
+    *Observable:*
+    - **Employer A's roster:** the max is the Charisma limit plus the two
+      `retainBonus` values on the embedded copies'
+      `flags.acks-extras.extras.effects`; read the values there, never off
+      the page. `employerLoyaltyMods(A).baseLoyaltyBonus` is Blood of Kings'
+      `baseLoyalty` value. No `[data-unvalued]` note shows.
+    - **Employer A's hiring dialog:** Diplomacy (its tone), Beast Friendship
+      (`animal`) and Command of Voice (unaudited) are unticked.
+    - **Employer B's roster:** it reads `1 / 1` and the note names Leadership.
+    - **Employer B's recruit:** the limit warning names Leadership, and its
+      dialog shows Diplomacy locked at no value with the "No value imported"
+      hint.
+
+    Then reach the obedience fallback in this client only. The integration is
+    a module namespace and cannot be patched. Swap
+    `acksExtras.henchmen.integrations.influence` for `{...ns,
+    hostsMoraleModes: () => false}` around `openObedienceRoll(hireling)`, and
+    put `ns` back in a `finally`.
+    *Observable:* employer A's hireling shows Command unticked at its located
+    value. Employer B's hireling shows Command locked at no value. With `ns`
+    restored, the same call opens the influence page again.
+15. The hosted pages say what the fallback dialogs say, with the `influence`
+    document's `hiringOffer` read (docs/influence/TESTING.md, The hiring
+    page). Employers A and B from step 14, B also holding a hand-made Command
+    of Voice with no effects, and an Active Effect on B's Command of Voice
+    item carrying `flags.acks-extras.hiring` at an invented figure; a
+    candidate on the location; an Active Effect on employer A carrying
+    `flags.acks-extras.loyaltyRoll` at an invented figure.
+    - `openRecruitDialog(location, candidateId, B)`, then read the open
+      `InfluenceApp`'s `_prepareContext({})`.
+      *Observable:* the Powers group holds B's hiring effect at its figure,
+      once; no note names Command of Voice, since that effect values it;
+      Diplomacy is the page's own typed box with the no-value badge and no
+      note beside it. Delete the effect and reopen: the note names Command of
+      Voice and the row is gone.
+    - `openObedienceRoll(hireling)` for each employer's hireling.
+      *Observable:* A's hireling's page offers Command at its located value,
+      unticked; B's names Command in a note and adds nothing.
+    - `openLoyaltyRoll(hireling)` for A's hireling.
+      *Observable:* the loyalty-roll effect is a row on the page.
+    - `recruitMonster(monster, A)` with the document read, and again after it
+      is removed. A monster created with `system.hp.hd: "2d8"` reads HD 2,
+      under A's level. The throw dialog rolls from its form's submit button,
+      which carries no `data-action`; the card's band is its
+      `flags.acks-extras.outcome`.
+      *Observable:* the throw dialog's refusal and slander steppers show the
+      page's figure per step and the card names the imported band; with the
+      document gone, the warning names the table and no dialog opens.
 
 The reference repair's check in the repair tool (`henchmen.references`) is
 walked in docs/lib/TESTING.md, "The repair tool".

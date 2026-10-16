@@ -475,3 +475,41 @@ Stating a reach for a bribe: the two are in conversation wherever they are.
 modifier on the roll that was made; the warning is the only sign
 ([ROADMAP.md](ROADMAP.md)). A hidden target's roll is resolved at the Judge's
 seat, so that warning shows there and not to the player who offered.
+
+### The hiring page reads the Judge's table, and a proficiency box is worth its holder's own item (2026-10-16)
+
+**Ruled** (owner, 2026-10-16: the most rules-accurate solution). The `hiring`
+page (RR 162) ships its rows, its result names and no figure. Its result
+column and the two per-count penalties arrive in the `influence` document's
+`hiringOffer`, which a recipe reads off the Judge's page; the henchmen
+feature's own hiring throw reads the same table, so the hosted page and the
+fallback cannot disagree. Without the column the page refuses to roll, as
+`marketAssessment` does: a hire applies the result. The Diplomacy,
+Intimidation, Seduction and Mystic Aura boxes on the hiring and market
+assessment pages are `held`: drawn only for a roller who holds the
+proficiency, worth what that roller's item carries for the page's family.
+An opener's effects from keys this feature does not read arrive as
+`ctx.offeredModifiers`, and a note about one item carries its id so a held box
+drawing that item silences it. `apiVersion` 11.
+
+This amends "A proficiency row wins over the same item's effects
+(2026-08-03)" on these two pages: the box still wins and claims its item, and
+the exclusive tone set still rides it, but its figure is now the item's.
+
+**Rejected.**
+- *A figure on the box, used where the item carries none.* That is the shipped
+  value the doctrine forbids; such an item draws a typed field with a badge.
+- *A box for every roller, ticked only for a holder.* A roller who does not
+  hold the proficiency brings nothing to the throw, and a box worth nothing
+  invites a tick that means nothing.
+- *Posting with no result, as the morale pages do.* Their consumers act on
+  nothing; the hiring page's consumer hires, refuses or records a slander.
+- *Reading the henchmen feature's change keys here.* The opener knows which of
+  its effects the page has not already read; this feature does not, and would
+  count a reaction effect twice.
+
+**What it cost.** An upgraded world's hiring page, and the henchmen throw
+beside it, refuse to roll until the Judge re-imports the Revised Rulebook's
+tables. A character holding a tone proficiency whose import located no value
+types the figure off the page. The three tone pages still offer their
+proficiency boxes at a shipped figure ([ROADMAP.md](ROADMAP.md) §3).

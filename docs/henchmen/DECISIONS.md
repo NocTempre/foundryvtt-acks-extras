@@ -569,3 +569,216 @@ roll took the apparent-level penalty from any hireling's record.
 first Deal XP, where before adoption it took a full one. A wageless mercenary
 or specialist leaves the payroll until a wage is set. The months it served
 meanwhile are billed then, from the clock its adoption started.
+
+### An offer to a bulk row reaches the heads named, and each answers for itself (2026-10-15)
+
+**Ruled (user).** A bulk market row — mercenaries, or specialists such as
+skilled laborers that the market counts by the score — can be offered in
+part: the employer names how many heads, and each head offered rolls its own
+reaction to the hiring offer (RR 162, the reaction is each potential
+hireling's). Reported as a Judge's plan to hire six skilled laborers from a
+week's arrivals: the Hire button took the whole row as one actor, and Hire as
+Group listed mercenary rows only and marked the whole row hired when it took
+part of it.
+
+- *The row splits by answer.* The heads not offered keep the row's id and its
+  churn clock; each group that answered alike becomes a row of its own, so a
+  refusal attaches to the heads that refused and the next offer to them takes
+  the cumulative penalty, while the rest are untouched.
+- *Each slandering head writes one `slander` entry*, as a single NPC's does.
+- *The accepting heads are one actor*, carrying the count in
+  `retainer.quantity` (wages already multiply by it); élan heads are a second
+  actor, since loyalty is per actor. A signing bonus is paid per head hired.
+- *Hire as Group keeps the remainder* (`takeFromRow`): the stepper's count is
+  hired and the rest of the row stays available.
+
+**Rejected.**
+- *One roll for the whole offer.* The user's call (R2): six heads are six
+  hirelings. One roll would make a group hire all-or-nothing.
+- *An actor per head.* A bulk row is aggregated so that a crew is not six
+  actors; the per-head rolls change how many join, not how they are kept.
+
+**What it cost.** The further heads resolve on this feature's `throws`
+outcome table while the first head resolves on the hiring page's own bands;
+the two carry the same rungs, and a world that overrides one and not the
+other would answer the heads on different edges. *Resolved by "The hiring
+throw reads the Judge's table, and the hosted pages read the employer's
+powers (2026-10-16)": both read one imported column.*
+
+### The network's class step is read from the page, and no name supplies it (2026-10-15)
+
+The owner ruled to retire the value `NAME_FALLBACKS.marketClass` shipped for
+Mercantile Network now, rather than with the rest of that table. The value
+was a printed figure in code, which the IP doctrine forbids however small.
+
+Ruled: the step comes from a typed effect the importer locates on the
+power's page (`register/rr`, `def.power.mercantileNetwork`) and the collector
+reads for the domains in `TYPED_TARGETS`, or from a Judge's Active Effect on
+the key; an item's own effect wins over the located value. The name still
+proves the power is present (`config.NAME_PRESENCE`): `hasEffectFlag` stays
+true, so a trader is still a trader, and `unvaluedPowers` names the item so
+a surface can say the value is missing.
+
+Rejected: keeping the value until every name fallback is retired together
+(a known breach shipping one more release); a value-free fallback row inside
+`NAME_FALLBACKS` (a row that sometimes means a modifier and sometimes only
+presence).
+
+Cost: a world that has not re-imported the class powers loses the shift on
+equipment, hiring and ventures until it re-imports them or the Judge adds an
+Active Effect. The other name-fallback values remain: ROADMAP.
+
+### A mercantile network widens its holder's hiring market, never the town's (2026-10-15)
+
+The owner ruled that the network reaches hiring retainers as the page says
+(RR ch. 2, Mercantile Network), with the most rules-accurate reading of
+the rest. Before this, only directed searches read the shifted class, always,
+and a generic posting saw the town's pool alone.
+
+Ruled:
+- *Using it is the employer's choice*, per posting (`network`): the power says
+  a holder "can" treat the market as larger, and the fee rises with the class.
+- *The fee is the class the search reads.* Hiring there is dealing in the
+  larger market, so the weekly search fee is that class's (`feeMarketClass`).
+  Without the network it stays the town's.
+- *A generic posting adds the difference, privately.* The holder's market is
+  the town's read one class larger, so everyone the town's roll found is in it.
+  A roll at the larger class adds whoever it finds beyond the town's roll, as
+  rows only the holder sees and hires (`networkFor`), once per segment per
+  month (`networkRolls`).
+- *Only the holder hires a network find*, refused before the reaction roll.
+
+Rejected:
+- *Re-rolling the shared pool at the holder's class*: the town's stock does
+  not depend on who is asking, and every other recruiter would see the
+  holder's market.
+- *A whole private pool at the larger class*: it counts the town's people
+  twice, once shared and once private, so the holder could hire both.
+- *Applying the shift without asking*: it bills a larger fee to an employer
+  who may not want the larger market.
+
+Cost: the holder's count is the greater of two rolls, not one roll at the
+larger class, so it runs slightly high. Two holders in one market each get a
+supplement the other cannot see.
+
+### No henchmen power takes its value from its name (2026-10-16)
+
+The owner ruled to retire the rest of `NAME_FALLBACKS`, finishing the move
+the 2026-10-15 entry above made for Mercantile Network alone and left on the
+ROADMAP. That entry is extended, not reversed. What it did not know: the
+"See X." powers, which looked like they needed their own importer work, did
+not. The compiler already resolves an alias to its target's prose and copies
+the target's specs, so each one takes its target's located value with no new
+mechanism.
+
+Ruled:
+- *Every value is the page's or a Judge's.* Hiring reads the abilities'
+  `reaction` modifiers. The limit, a hire's base loyalty and the hirelings'
+  morale read three new typed targets (`lib/vocab.mjs`), each kept apart from
+  the influence feature's `loyalty` and `morale` so that no power is counted
+  twice. The register gains locators for Leadership, Command, and the class
+  and Judge's-journal powers the table held. The "See X." powers inherit
+  theirs. The one alias whose condition differs from its target's (Unholy
+  Fanaticism) carries a spec of its own.
+- *Two rows go with no successor.* Familiar Folkways is printed in no book in
+  the owner's library. Military Genius's morale bonus is a battlefield
+  commander's, not a hireling's. Neither is recognized by name any more.
+- *A missing value is named where it would apply* (owner's choice; the
+  surfaces are MODEL §4, "Presence without a value"), rather than once at
+  import or on the power's sheet.
+- *These reads judge what they can and offer the rest.* A modifier scoped to
+  a tone or a kind of target is offered, since these rolls know neither. So,
+  on a roll, is a value from an entry the register has not signed off. That
+  matches the influence pages, which never pre-tick an unaudited row. The
+  limit, base loyalty and class shift are sums with no row to offer, so they
+  take the located value whether or not its entry is signed off.
+
+Rejected:
+- *Keeping the two unbacked rows as presence only.* A power with no page
+  behind it never has a value to import, so its "no value imported" notice
+  would be permanent and false.
+- *Feeding the influence feature's `loyalty` and `morale` targets.* Those
+  pages read them as roll modifiers, so they would count the same power a
+  second time.
+- *Treating a draft entry's value as situational in the sums.* The limit
+  would then ignore every imported power until the register's audit reached
+  it, which is worse than the name table it replaces: that table asserted a
+  figure with no audit at all.
+
+Cost: a world whose characters hold powers imported before this change
+loses the limit, base-loyalty, hiring and morale bonuses those names
+supplied. Each one is named where it would apply until **Update Abilities**
+refreshes the copies or a Judge gives the power an Active Effect. The limit
+counts a located value the register has not yet signed off. A Beast
+Friendship holder's reaction bonus, which the fallback dialog never read
+before, now appears there unticked on every hiring roll.
+
+### The henchman limit rests on core's Charisma allowance or on nothing (2026-10-16)
+
+`acks-adapter.mjs > getRetainBase` read core's `system.scores.cha.retain`,
+and where that was absent or zero it built the allowance itself from the
+Charisma modifier with the book's own formula. That formula is a printed value
+held in code. The fallback is retired. Core declares `cha.retain` on
+characters alone and derives it on every prepare (`actor.mjs >
+computeModifiers`), so the fallback only ever ran for a non-character
+employer, or replaced a zero that core had derived.
+
+Ruled:
+- *Core's figure stands as it is.* A zero is a zero, never a gap to fill.
+- *No figure from core means no limit.* `getRetainBase` and `getRetainMax`
+  answer null, `checkHenchmanLimit` reports `max: null` and `ok`, every hire
+  path admits the henchman under every `enforceHenchmanLimit` mode, and the
+  roster shows the limit as unknown and says why.
+
+Rejected:
+- *Running core's derivation for the actor.* Core runs it only for characters,
+  and a monster carries no ability scores for it to read. Copying it into the
+  module would only move the same formula.
+- *A zero limit.* That would refuse a non-character leader every henchman,
+  which nothing on the page says.
+
+Cost: an employer that is not a character has no henchman limit. The module
+neither counts nor enforces one for it, and the manual `retainBonus` flag has
+nothing to add to (ROADMAP).
+
+### The hiring throw reads the Judge's table, and the hosted pages read the employer's powers (2026-10-16)
+
+**Ruled** (owner, 2026-10-16: the most rules-accurate solution). The
+`reactionToHiring` throw ships no result column and no per-count figure. Its
+column and the figure each earlier refusal and each slander adds are the
+influence feature's imported `hiringOffer` (`rules/hiring-offer.mjs`), the
+table the hosted hiring page reads; the fallback throw, a peaceful monster
+offer and every further head of a bulk offer read it too, and the core
+influence roller's slander row multiplies its count by the same figure. A
+throw that needs a figure the world has not imported warns and does not open.
+
+The hosted pages now say what the fallback dialogs say:
+- *Obedience* is offered the employer's `obedienceRoll` and `henchmanMorale`
+  rows through `ctx.offeredModifiers`. The page reads the hireling's own
+  morale effects, which these are not, so nothing is counted twice.
+- *Hiring* is offered the employer's `hiring`-key Active Effects alone: the
+  page already reads the influence reaction key and the abilities' reaction
+  values.
+- *Loyalty* is offered the employer's `loyaltyRoll` rows, which the fallback
+  dialog counted and the hosted page did not.
+- A power held by name with no imported value is a note naming it, carrying
+  its item, on the hiring and obedience pages. A Diplomacy-kind proficiency
+  is the influence page's own box (`docs/influence/DECISIONS.md`,
+  2026-10-16), so its note is left out there.
+- An influence reaction effect on a hiring power is a value: such a power is
+  no longer reported as missing one.
+
+The new evidence against the bulk-offer entry's cost (2026-10-15) is the
+`influence` recipe: the column it lacked now arrives with the Revised
+Rulebook's tables.
+
+**Rejected.**
+- *Keeping the shipped column as a fallback for a world without the import.*
+  It is the printed table, and a hire resolved on it is resolved on this
+  repo's copy of the page.
+- *Offering the hiring page every hiring modifier.* Its reaction-effect and
+  ability rows are the page's own reads; offered again they would count twice.
+
+**What it cost.** An upgraded world cannot roll a hiring offer, hosted or
+not, until the Judge re-imports the Revised Rulebook's tables. A peaceful
+monster offer still opens this feature's own dialog, not the hosted page.

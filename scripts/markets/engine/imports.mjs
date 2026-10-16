@@ -29,6 +29,7 @@ import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
 import { findGearEntry } from "../../equipment/grant.mjs";
 import { partyOf } from "./parties.mjs";
 import { processVentureActions } from "./ventures.mjs";
+import { MARKET_LOG_CAP } from "../../location/data/market-log.mjs";
 import {
   TRADE_TYPES,
   deliverGoods,
@@ -165,7 +166,7 @@ export async function placeImportOrder(location, payload) {
   });
   await location.update({
     "system.market.goods.imports": [...existing, order],
-    "system.market.marketLog": log.slice(-300),
+    "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
   });
 
   await postCard(
@@ -287,7 +288,7 @@ export async function processImports(location) {
     return { resolved };
   }
   updates["system.market.goods.lastProcessedTime"] = t;
-  updates["system.market.marketLog"] = log.slice(-300);
+  updates["system.market.marketLog"] = log.slice(-MARKET_LOG_CAP);
   await location.update(updates);
   return { resolved };
 }
@@ -361,7 +362,7 @@ export async function placeCommission(location, payload) {
   });
   await location.update({
     "system.market.goods.commissions": [...existing, order],
-    "system.market.marketLog": log.slice(-300),
+    "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
   });
   await postCard(
     buyer,
@@ -414,7 +415,7 @@ export async function createItemSearch(location, payload) {
   log.push({ time: t, type: "search", note: `${buyer.name}: searching for ${qty}× ${entry.data.name} [${search.id}]`, actorUuid: buyer.uuid, gp: 0 });
   await location.update({
     "system.market.goods.searches": [...existing, search],
-    "system.market.marketLog": log.slice(-300),
+    "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
   });
   return { ok: true };
 }

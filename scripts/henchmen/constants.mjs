@@ -54,7 +54,7 @@ export const EFFECT_DOMAINS = Object.freeze({
   BASE_LOYALTY: "baseLoyalty", // starting loyalty of new hires (Blood of Kings…)
   HENCHMAN_MORALE: "henchmanMorale", // morale-score bonus to hirelings when led/present
   MARKET_CLASS: "marketClass", // availability market-class shift (Mercantile Network)
-  MORALE_BASE: "moraleBase", // base-morale override for hirelings (Utter Domination +4)
+  MORALE_BASE: "moraleBase", // added to hirelings' base morale (Utter Domination)
   SKIP_CALAMITY_LOYALTY: "skipCalamityLoyalty", // bool: no loyalty rolls on calamity
   RECRUIT_KINDS: "recruitKinds", // CSV: unlock henchman kinds (animal, fungal…)
   REACTION_TWICE: "reactionRollTwice", // "better" | "worse" (White Luck Presence)

@@ -39,6 +39,16 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   freeze the sample automation into the world layer, so the same change makes
   the import merge over the written layer only, makes picker presence read the
   world layer, and lists only world and override tables in the journal.
+- **Utter Domination's morale base has no located value.** `moraleBase` is
+  read only from an Active Effect; the importer register carries no locator
+  for it, and the page's figure is a floor rather than a bonus, so the shape a
+  typed effect would take (an override, or an upgrade to the figure) wants a
+  ruling before the locator.
+- **A Judge cannot give a non-character employer a henchman limit.** The limit
+  starts from core's Charisma allowance, which core derives for characters
+  alone, so a monster leading henchmen has none, and the manual `retainBonus`
+  flag only adds to a base ([DECISIONS.md](DECISIONS.md), 2026-10-16). A
+  Judge-set base, from a flag or an Active Effect, would close the gap.
 - **Four reads have nothing to feed them.** `tools/validate-producers.mjs`
   waives each against this entry until a recipe writes it or the read goes:
   - **Followers ruledata has no producer.** The followers dialog reads a
@@ -53,6 +63,10 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   - `people.classRegistry`: `classInfo` (`rules/identity.mjs`) prefers an
     imported registry that no recipe writes, so the derived entry is what
     every world gets. Retire the read or add the recipe.
+- **Hire as Group makes no hiring roll.** The unit dialog takes troops and an
+  officer straight onto the employer's books, where an offer through the Hire
+  button rolls each head's reaction (RR 162; [MODEL.md](MODEL.md) §2, "Bulk
+  rows"). The unit's heads would answer the same way before the stack is made.
 - **A handed-over payday refused in part does not tell the asking seat who
   went unpaid.** Its answer is `paid` and carries no refusal, so the one
   notification names only what moved ([MODEL.md](MODEL.md) §4c). The answer

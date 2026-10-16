@@ -51,6 +51,22 @@
   lists the generator seasons in your calendar's season order, so a calendar
   whose season names the module does not recognise can still drive the sky;
   blank matches by name.
+- **A mercantile network works in a market its holder has visited before.**
+  On a venture, each solicitation reads the goods a market class larger or
+  with more market impact. The module picks whichever opens more, good by
+  good, and the Enter dialog lets the trader choose one for the visit. Tolls
+  and the month's prices never move. In hiring, the posting dialog offers a
+  holder *Search with the mercantile network*, ticked where the market counts.
+  The search fee is the larger market's, and a general posting adds whoever a
+  search at the larger class finds beyond the town's. Only the holder sees
+  and hires those (RR ch. 2, Mercantile Network; RR ch. 8, Entering the
+  Market).
+- **An offer to a bulk row names how many heads, and each answers for
+  itself.** Hire on a mercenary or specialist row asks *Offer to how many?*,
+  and each head offered rolls its own reaction (RR 162). Heads that answered
+  alike become a row of their own, so the next offer to those who refused
+  takes their penalty and the rest are untouched. The heads who accept join
+  as one hireling of that count, and a signing bonus is paid per head.
 
 ### Changed
 
@@ -89,6 +105,60 @@
 - **Camp stays on the Wilderness tab for now.** A Camp tab, shown while camp
   time is on, is the redesign's fourth phase; until it lands, camp is a titled
   section after Day, and *End day* stays at the Wilderness tab's head.
+- **Henchmen powers take their values from your book.** These are now read
+  from the value the importer located on each power's page, or from an Active
+  Effect the Judge gives the power:
+  - the henchman limit;
+  - a hire's base loyalty;
+  - the hirelings' morale bonus;
+  - the hiring-offer bonuses;
+  - a mercantile network's steps.
+
+  The module no longer supplies a figure for a power it knows only by name.
+  Familiar Folkways and Military Genius no longer count as hiring or morale
+  bonuses. Command of Voice, Glamorous Aura and the powers that read as them
+  now carry their reaction bonus to the reaction pages.
+
+  **Characters holding powers imported before this version need them
+  refreshed:** with your books open, press *Update Abilities* at the top of
+  the Items sidebar. Until then, a power held with no value is named where it
+  would apply: the henchman-limit refusal, the roster, and the hiring and
+  obedience rolls. In the henchmen feature's own hiring and obedience dialogs
+  (used when the influence feature is off), a bonus limited to a tone or a
+  kind of target, or read from an entry not yet checked against the page, is
+  offered unticked.
+- **The henchman limit starts from the system's Charisma allowance or not at
+  all.** The acks system works that allowance out for characters. An employer
+  it gives none, such as a monster leading henchmen, now shows no limit on its
+  roster, and none is enforced on its hires. Before, the module built a figure
+  of its own for such an employer.
+- **The hiring offer reads its table from your book.** The Reaction to Hiring
+  Offer's results, and what each earlier refusal and each slander takes off
+  the roll, now come from the Revised Rulebook's tables when you import them
+  (RR 162). The hiring page, the henchmen feature's own hiring dialog, a
+  peaceful offer to a monster and the further heads of a bulk offer all read
+  that one table, and so does the slander row on the influence roller.
+  **Re-import the Revised Rulebook's tables before the next hiring offer:**
+  until then the hiring page and the dialog say the table is missing and do
+  not roll.
+- **The hiring page offers a proficiency only to a character who holds it.**
+  Diplomacy, Intimidation, Seduction and Mystic Aura show on the hiring and
+  market assessment pages only for a character holding that proficiency, or a
+  power standing in for it, and are worth the value on that character's own
+  item. One with no imported value is a field to type, with a badge saying so.
+- **The hosted hiring, obedience and loyalty pages count the employer's
+  henchmen powers.** The obedience page adds the employer's morale powers,
+  such as Command, as the henchmen feature's own dialog did. The hiring page
+  adds the employer's hiring effects, and the loyalty page its loyalty-roll
+  effects. A power held with no imported value is named in a note on the
+  hiring and obedience pages.
+- **A partial assessment lets the trader choose the goods.** A partial result
+  of *Assess Supply and Demand* now leaves the market report holding a number
+  of picks. The report's owner chooses the goods on its sheet and learns their
+  modifiers then (RR ch. 8, Assessing Supply and Demand). A false result asks
+  for the same choice and looks the same, but the modifiers it gives are
+  wrong. The assessment card links the report. Before, a partial assessment
+  drew its goods at random.
 
 ### Fixed
 
@@ -145,6 +215,21 @@
   carries the same facts (the hex, the outcome, the distance, both sight
   results and the period lines) as data for anything reading the chat log
   later. The light is daylight at every hour.
+- **A market is known only from an earlier visit.** The first entry made a
+  market count as previously visited the moment it was posted, so a network
+  applied on a trader's first visit. Now an entry, a hire or a purchase counts
+  only from an earlier visit, and the days of one stay are one visit. The
+  Judge's list still marks a market known, and the Trade tab's switch now
+  changes that list. Henchmen's postings and hires are recorded against their
+  employer.
+- **A market keeps its whole ledger.** Henchmen's monthly row cut every
+  market's ledger to a third of the length the markets feature keeps; both
+  now keep one length.
+- **The Trade tab no longer acts as a hireling by default.** With no trader
+  remembered, the first character who is not a hireling acts. A hireling can
+  still be picked.
+- **Hire as Group takes only the heads it hires.** Taking part of a row
+  marked the whole row hired; the rest of the row now stays available.
 
 ## 11.3.0
 

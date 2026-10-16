@@ -122,6 +122,17 @@ export function calendarDay() {
 }
 
 /**
+ * The calendar day any world-clock reading falls in, a past row's time as
+ * readily as now: the calendar's own day length, else 86400 seconds when the
+ * clock keeps no calendar. Null only for a reading that is not a finite number.
+ */
+export function dayOfWorldTime(worldTime) {
+  const days = game.time?.calendar?.days;
+  const length = Number(days?.hoursPerDay) * Number(days?.minutesPerHour) * Number(days?.secondsPerMinute);
+  return calendarDayOf(worldTime, Number.isFinite(length) && length > 0 ? length : 86400);
+}
+
+/**
  * The season the calendar says it is: the index into its season list, the
  * season's localized name and how many seasons the calendar declares. Null
  * when the calendar declares none or no season matches today.

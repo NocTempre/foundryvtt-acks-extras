@@ -1,4 +1,4 @@
-/* global game, foundry, fromUuid, fromUuidSync, Actor, CONST, ui */
+/* global game, foundry, fromUuid, fromUuidSync, Actor, CONST, ui, Roll */
 /**
  * The trade house: the one GM-designated location actor whose embedded Items
  * are every trade object a player owns, inspects or hands over (today, market
@@ -19,7 +19,9 @@ import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { STORAGE_KEY, setProvider, storedItems, ownerOf, resolveActorSync } from "../../lib/storage.mjs";
 import { HOUSE_OWNER } from "../../lib/money.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
-import { handVerdict, notesToHtml } from "../rules/reports.mjs";
+import { handVerdict, notesToHtml, chooseVerdict } from "../rules/reports.mjs";
+import { trueDemand } from "../rules/demand.mjs";
+import { merchandiseCatalog } from "./merchandise.mjs";
 
 const err = (error, data = {}) => ({ error, ...data });
 
@@ -125,6 +127,7 @@ export function plainReport(item) {
     time: Number(system.time) || 0,
     outcome: system.outcome ?? "",
     beliefs: (system.beliefs ?? []).map((b) => ({ category: b.category, dm: Number(b.dm) || 0 })),
+    picks: Math.max(0, Number(system.picks) || 0),
     notes: system.notes ?? "",
     ownerUuid: owner?.uuid ?? null,
     ownerName: owner?.name ?? "",
@@ -158,6 +161,7 @@ const housed = (item) => !!item && item.parent?.id === tradeHouseSync()?.id && i
  * @param {number} data.time
  * @param {string} data.outcome
  * @param {Array<{category: string, dm: number}>} data.beliefs
+ * @param {number} [data.picks]  Goods the owner may still choose to learn.
  * @returns {Promise<{ok: true, item: Item}|{error: string}>}
  */
 export async function writeReport(data) {
@@ -178,6 +182,7 @@ export async function writeReport(data) {
         time: Math.round(Number(data.time) || 0),
         outcome: data.outcome,
         beliefs: (data.beliefs ?? []).map((b) => ({ category: b.category, dm: Math.round(Number(b.dm) || 0) })),
+        picks: Math.max(0, Math.floor(Number(data.picks) || 0)),
       },
       flags: { [MODULE_ID]: { [STORAGE_KEY]: { ownerUuid: data.ownerUuid, ownerName } } },
     },
@@ -248,6 +253,52 @@ export async function saveNotes(item, text, { requestUserId = null } = {}) {
   return { ok: true };
 }
 
+/**
+ * A modifier that is wrong: the market's true one moved by a few steps either
+ * way, never by none. This is what a false assessment believes.
+ */
+async function wrongBelief(goods, category) {
+  const up = (await new Roll("1d6").evaluate()).total >= 4;
+  const size = (await new Roll("1d3").evaluate()).total;
+  return trueDemand(goods, category) + (up ? size : -size);
+}
+
+/**
+ * The owner chooses goods to learn from the picks a partial assessment left
+ * (`chooseVerdict`). Each chosen good gets the market's true modifier, or a
+ * wrong one when the stored outcome is false; the seat that asked sends only
+ * the keys. Same authority as `give`.
+ * @param {Item} item
+ * @param {string[]} categories  Catalogue keys.
+ * @param {object} [options]
+ * @param {string|null} [options.requestUserId]
+ * @returns {Promise<{ok: true, chosen: number, left: number}|{error: string}>}
+ */
+export async function chooseGoods(item, categories, { requestUserId = null } = {}) {
+  if (!housed(item)) return err("notFound");
+  const user = actingUser(requestUserId);
+  const verdict = handVerdict({ isGM: !!user?.isGM, ownsStamp: ownsStamp(item, user) });
+  if (verdict.error) return verdict;
+  const report = plainReport(item);
+  const choice = chooseVerdict({
+    picks: report.picks,
+    chosen: Array.isArray(categories) ? categories.map(String) : [],
+    believed: report.beliefs.map((b) => b.category),
+    catalog: merchandiseCatalog().map((m) => m.key),
+  });
+  if (choice.error) return choice;
+  const marketDoc = report.marketUuid ? await fromUuid(report.marketUuid).catch(() => null) : null;
+  const goods = (marketDoc?.actor ?? marketDoc)?.system?.market?.goods;
+  if (!goods) return err("noMarket");
+  const beliefs = [...report.beliefs];
+  for (const category of choice.categories) {
+    beliefs.push({ category, dm: report.outcome === "false" ? await wrongBelief(goods, category) : trueDemand(goods, category) });
+  }
+  const left = report.picks - choice.categories.length;
+  await item.update({ "system.beliefs": beliefs, "system.picks": left });
+  return { ok: true, chosen: choice.categories.length, left };
+}
+
 /* ------------------------------ relays ------------------------------ */
 
 registerHandler("marketsReportGive", async ({ itemUuid, toUuid, requestUserId }) => {
@@ -282,6 +333,17 @@ export async function performRetire(item) {
 export async function performNotes(item, text) {
   if (game.user.isGM) return saveNotes(item, text);
   return executeAsGM("marketsReportNotes", { itemUuid: item.uuid, text });
+}
+
+registerHandler("marketsReportChoose", async ({ itemUuid, categories, requestUserId }) => {
+  const item = await fromUuid(itemUuid).catch(() => null);
+  return chooseGoods(item, categories, { requestUserId });
+});
+
+/** Choose goods to learn on a report: directly from a GM seat, else through the GM relay. */
+export async function performChoose(item, categories) {
+  if (game.user.isGM) return chooseGoods(item, categories);
+  return executeAsGM("marketsReportChoose", { itemUuid: item.uuid, categories });
 }
 
 /* ------------------------------ migration ------------------------------ */

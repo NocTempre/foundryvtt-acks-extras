@@ -44,8 +44,9 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
 - **Findings of the comment sweep, not yet fixed.**
   - *Printed values in shipped code:* `WOUND_PENALTIES` in
     `scripts/henchmen/rules/loyalty.mjs` (see
-    [henchmen/ROADMAP.md](henchmen/ROADMAP.md)); the band and value fields in
-    `scripts/henchmen/rules/throws-data.mjs`; the bribe ladder in
+    [henchmen/ROADMAP.md](henchmen/ROADMAP.md)); the loyalty, irrefusable
+    offer and liberation band and value fields in
+    `scripts/henchmen/data/throws-data.mjs`; the bribe ladder in
     `#bribeTiers` (`scripts/influence/influence-app.mjs`); three literals in
     vehicle arithmetic (`seaSpeeds` in `vehicle-speed.mjs`, `repairPlan` in
     `vessel-damage.mjs`, `#stationView` in `vehicle-sheet.mjs`). Unverified:
@@ -56,9 +57,7 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
     fixtures in `tools/test-equipment.mjs`; a masterwork bonus and price in
     the pristine-snapshot ruling of `docs/equipment/DECISIONS.md`; printed
     item strings quoted in `docs/importer/DECISIONS.md`.
-  - *Stale text:* the header of `scripts/henchmen/apps/throw-dialog.mjs`
-    (porting attribution, a `ruledata/` path, outcome names with their
-    natural rolls); the header of `scripts/monsters/config.mjs` (a local-only
+  - *Stale text:* the header of `scripts/monsters/config.mjs` (a local-only
     extract path, the retired sample-monster generation, pre-merge module
     names); the user-visible strings `ACKS-HENCHMEN.migration.wiped` and
     `ACKS-HENCHMEN.repair.swept` (a pre-merge module prefix, a version, a

@@ -84,15 +84,20 @@ the view, so the dialog and the chat card name it identically; a character
 holding both the power and the proficiency keeps the proficiency's name, because
 the two are one non-stacking capability.
 
-## Printed morale pages
+## Printed pages
 
-The `morale` page (RR 307) and the `obedience` page (RR 167) ship their
-structure and no figure. `EXTERNAL_MODES` states which rows a page has, which
-of them are **ladders** (rungs of one scale, of which at most one applies) and
-which are single **printed** figures, and the names of the page's results in
-band order (`bandKeys`). Each mode names the table it reads (`printed`) in the
-`morale` ruledata document, which the importer's `morale` recipe fills from the
-Judge's own book.
+The `morale` page (RR 307), the `obedience` page (RR 167) and the `hiring` page
+(RR 162) ship their structure and no figure. `EXTERNAL_MODES` states which rows
+a page has, which of them are **ladders** (rungs of one scale, of which at most
+one applies), which are single **printed** figures and which are a
+**printedFactor** (a figure owed once per count of something), and the names
+of the page's results in band order (`bandKeys`). Each mode names the table it
+reads (`printed`) and the ruledata document holding it (`printedDoc`, `morale`
+when absent): the morale pages read the `morale` document, which the
+importer's `morale` recipe fills, and the hiring page reads the `influence`
+document's `hiringOffer`, which the `influence` recipe fills. The henchmen
+feature's own hiring throw reads that same table (`docs/henchmen/MODEL.md`
+§2, "The hiring figures").
 
 `modeRows` (`printed.mjs`) turns the declared rows into the rows the dialog
 draws, against what the world holds:
@@ -101,6 +106,7 @@ draws, against what the world holds:
 |---|---|---|
 | `ladder` | a choice among the rungs that were read, each worded as the Judge's page words it and falling back to its figure | a typed signed field |
 | `printed` | a tick worth the figure, shown beside the row's name | a typed signed field |
+| `printedFactor` | the row's count times the figure, the figure shown beside the row's name | a typed signed field |
 
 A ladder stores the **position** of the chosen rung, not its figure, so two
 rungs that print one figure stay two options and a rung printing zero is not
@@ -111,10 +117,30 @@ reader's own page and exists in no file of this repo.
 
 The result column is the imported edges under the mode's own result names
 (`printedBands`). Edges arriving in a different count than the names are some
-other table, and the page then has no column. Both pages are
+other table, and the page then has no column. The two morale pages are
 `postsWithoutBands`: with no column they still roll, and the card lists every
 modifier applied, the dice and the total, and says no result is named. The
-roll-complete payload carries `outcome: null` for such a roll.
+roll-complete payload carries `outcome: null` for such a roll. The hiring page
+is not: a hire needs a result to apply, so with no column it warns and refuses
+to roll.
+
+**Held rows.** A proficiency the hiring page and the market assessment page
+offer — Diplomacy, Intimidation, Seduction, Mystic Aura — is declared `held`
+and carries no figure. `resolveHeldRows` (`actor-data.mjs`) draws the box
+only for a roller who holds the proficiency or a power standing in for it,
+and makes it worth what the roller's own item carries for the page's roll
+family: the item's Active Effect where one speaks, else the value the importer
+located on its page. An item carrying neither draws a typed field with a *no
+value* badge; an unaudited value is offered and never pre-ticked. A drawn box
+claims its item, so the item is not offered a second time below.
+
+**Offered rows.** An opener may hand the page effect rows of its own in
+`ctx.offeredModifiers` (`offeredEffectRows`): rows from change keys this
+feature does not read, such as the henchmen feature's `hiring`,
+`henchmanMorale`, `obedienceRoll` and `loyaltyRoll` effects. They are the
+roller's, join the page's own effect rows, and claim their item as an Active
+Effect does. A note row pushed with an `itemId` (below) is left out where a
+held box draws that item, so the page does not say twice that it has no value.
 
 Neither page has an influencer. The dialog draws the subject alone, the card
 speaks as the subject, and the rating the roll adds is `moraleRatingOf`: a
@@ -137,7 +163,9 @@ lib's `morale-roll` contract (`docs/lib/API.md`); a group actor's directory
 context menu (the henchmen feature's `openMoraleViaInfluence`); and
 `open(null, {mode: "morale", targetActor})`. The obedience page is opened by
 the henchmen feature's `openObedienceRoll`.
-`apiVersion` 10 is the first whose two pages read the imported table.
+`apiVersion` 10 is the first whose two morale pages read the imported table;
+`apiVersion` 11 is the first whose hiring page does, with held and offered
+rows.
 
 ## The modifier hook
 
@@ -157,7 +185,7 @@ row pushed with `note: true` and no value is kept, drawn in the dialog with no
 figure beside it, left out of the subtotal and out of the card's list of what
 was added. It exists for a listener that has something to SAY about the roll and
 nothing to add to it, and a row that carries a figure is never a note whatever
-it was marked.
+it was marked. A note about one item keeps that item's `itemId`.
 
 The call is synchronous by design. A constructor throw — a bad `mode`, an
 invalid actor — has to reach the caller as a real exception, because the

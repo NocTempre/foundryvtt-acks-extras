@@ -1,13 +1,14 @@
 /* global game, ui, foundry, Hooks */
 /**
  * RosterApp — an employer's merged hireling roster: core henchmenList plus
- * the module's monster-henchman list, with the 4+CHA(+effects) limit meter,
+ * the module's monster-henchman list, with the Charisma (+effects) limit meter,
  * effective-loyalty breakdowns, wage status, and per-row actions (loyalty /
  * obedience throws, calamity, pay wages, record view, transfer, dismiss).
  */
 import { MODULE_ID, FLAG_RECORD, FLAG_MONSTER_LIST, HOOKS } from "../constants.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { checkHenchmanLimit } from "../engine/hire.mjs";
+import { unvaluedPowers } from "../effects.mjs";
 import {
   openLoyaltyRoll,
   openObedienceRoll,
@@ -125,12 +126,16 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const limit = checkHenchmanLimit(employer);
     context.employer = employer;
     context.isGM = game.user.isGM;
-    context.limit = { ...limit, over: limit.count >= limit.max };
+    context.limit = { ...limit, over: !limit.ok, unknown: limit.max === null };
     const mods = employerLoyaltyMods(employer);
     context.employerMods = {
       cha: mods.chaLoyalty,
       effects: mods.baseLoyaltyBonus,
     };
+    // The limit and loyalty powers held by name with no imported value: both
+    // figures above leave them out, and the header says so.
+    const unvalued = [...new Set([...limit.unvalued, ...unvaluedPowers(employer, "baseLoyalty")])];
+    context.unvaluedNote = unvalued.length ? game.i18n.format("ACKS-HENCHMEN.roster.unvalued", { powers: unvalued.join(", ") }) : "";
 
     const ids = [
       ...adapter.getHenchmenIds(employer),

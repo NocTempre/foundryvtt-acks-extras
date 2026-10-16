@@ -121,10 +121,12 @@ party's find.
   over the baseline: the hold capacity of each vehicle it enters with, read
   through `vehicles/hold.mjs`, plus any other capacity it states),
   assessment (writes one market REPORT Item holding the assessor's
-  demand-modifier beliefs, wrong on a false assessment and indistinguishable
-  from truth; see "Market reports and the trade house"), soliciting (opens
+  demand-modifier beliefs; a partial or false outcome writes a report holding
+  1d6 PICKS, capped at the catalogue, and no beliefs, and the trader chooses
+  the goods; see "Market reports and the trade house"), soliciting (opens
   base stones × impact at the month's rolled price: 4d4−10 steps + demand
-  + class shift), and merchandise trades with the optional spot-price
+  + class shift; a mercantile network reads it larger, below), and
+  merchandise trades with the optional spot-price
   negotiation. Merchandise loads are `item` documents, one unit per stone,
   bought into and sold from the hold a trade names — the trader's own packs,
   or one of the vehicles on the venture row (`vehicleUuids`). A purchase
@@ -151,6 +153,27 @@ party's find.
     trader's same kind of day (same merchandise, for a solicitation) cannot
     wait twice; a pending day may be withdrawn by the Judge or the trader's
     owner, its row kept as `cancelled`, nothing refunded.
+  - **A mercantile network on a venture** (`engine/network.mjs`,
+    `rules/arbitrage.mjs` `networkOptions` / `pickNetworkOption`): the entry
+    stores the impact earned at the market's own class before any drop
+    (`rawImpact`), the maximum (`impactCap`) and the mode the Enter dialog
+    declared (`networkMode`: `auto`, `class`, `impact`). Each solicitation
+    reads the SOLICITING trader's network, and only where that trader had
+    been in the market before this visit (`marketKnownTo` at the day's
+    posting time). The class option reads the good's daily stones
+    `classStep` classes larger, never past Class I, at the impact the entry
+    earned; the impact option trades at the market's own class with
+    `impactStep` more impact from `rawImpact`, so a party with none trades at
+    the step instead of dropping a class, and never past the maximum. Auto
+    takes whichever opens more stones of that good, keeping the plain entry
+    on a tie; a pinned mode takes its option where it exists. The toll and
+    the month's price never move. The steps are the page's or the Judge's:
+    `classStep` is henchmen's situational `marketClass` modifiers,
+    `impactStep` this feature's `flags.acks-extras.marketImpact` (an Active
+    Effect, or the typed effect the importer locates on the power), every one
+    of which is the network's. A power held by name alone has neither, and
+    the Enter dialog says its value is not imported. The ledger note and
+    the card name the option used.
   - **A party may leave the market** (`leaveMarket`, `leaveVentureMarket`):
     the month's row stays with `entered` false and the toll on record, the
     party's solicitations for the month are dropped, and its waiting
@@ -160,11 +183,25 @@ party's find.
   mercantile network's class shift is situational — it counts in a market the
   trader has been in before — and henchmen's `effectiveMarketClass` asks
   `marketKnownTo(location, actor)` through the api at call time to decide
-  whether to count it. Known means any of: a ledger row stamped to the trader,
-  a venture row for the trader's party in any month, or the Judge's list on
-  the trader (`flags["acks-extras"].markets.knownMarkets`, set from the Trade
-  tab's Known to this trader switch). The tab states the town's class and
-  the acting trader's effective class beside it.
+  whether to count it. The current visit never counts itself: every sign is
+  dated by the calendar day (`lib/world-time.mjs` `dayOfWorldTime`) and counts
+  only when it falls before the day the visit began (`visitStartDay`). A party
+  entered this month is on the visit its entry opened (the venture row's
+  `enteredTime`, the entry's `postedTime`); a party not entered is on a visit
+  of one day. The signs: a ledger row stamped to the trader (a purchase, a
+  sale, an import, a hiring search, a hire); a venture day the trader posted,
+  or an entry their party posted; the party's venture row from an earlier
+  month; or the Judge's list on the trader
+  (`flags["acks-extras"].markets.knownMarkets`), which is undated and counts
+  from the first day. The ledger keeps its latest rows only; venture days and
+  rows are never pruned, so they are the durable half. `knownSource` says
+  which answered (`judge`, `record`). The tab states the town's class, the
+  acting trader's effective class beside it, "not counted on this visit"
+  where the network does not count, and the Judge's Known to this trader
+  switch, which flips the Judge's list and nothing else. A search day posted
+  on a first visit (`postSearchDay`) and a henchmen posting are dealings in the
+  market but are not gated by `awayFromMarket`, so they count as signs without
+  proving the trader stood there.
 - **The ledger stamps its actor** (`location-data.mjs` `marketLog`): every
   row the markets engine writes about a trader carries `actorUuid` and that
   actor's signed coin movement `gp` (paid negative). `rules/ledger.mjs`
@@ -179,7 +216,9 @@ party's find.
   and one bind call; markets owns everything behind the buttons. Every action
   is taken by one ACTING TRADER, picked in the tab (a GM among the player
   characters, a player among their own) and remembered per client in
-  `marketsActingTrader`. A player sees only their own party's imports,
+  `marketsActingTrader`. With none remembered, the first candidate who is not
+  a hireling acts; a hireling stays pickable but never becomes the default by
+  sorting first. A player sees only their own party's imports,
   commissions, searches and queued actions; the GM sees every party's,
   labeled, plus a per-party block of demand beliefs (read from reports) and
   this month's venture, and a list of the reports held at this market.
@@ -330,7 +369,8 @@ market: `acks-extras.marketReport` (`data/report-data.mjs`, sheet
 `marketUuid` and `marketName` (a snapshot, shown when the market is gone),
 `assessorUuid`, `partyId`, `time`, `outcome`
 (`success|partial|expertise|false|rumor|migrated`), `beliefs`
-(`{category, dm}`), `pricesSeen` (reserved, nothing writes it) and `notes`.
+(`{category, dm}`), `picks` (goods still to be chosen), `pricesSeen`
+(reserved, nothing writes it) and `notes`.
 A report holds only what its owner believes: a false assessment is stored as a
 report whose beliefs are wrong, and the market's true demand never enters it.
 
@@ -361,8 +401,16 @@ report whose beliefs are wrong, and the market's true demand never enters it.
   a party's characters: its roster, or for the implicit party the player
   characters no roster claims. The Trade tab's belief chips and the GM's
   per-party block read through it.
-- **Assessment writes one report** when it learned anything, owner and
-  assessor the acting character, `partyId` the party posted under. It stops
+- **Choosing the goods** (`chooseGoods`, GM-side; `performChoose` through the
+  relay): the report's owner or the GM ticks up to `picks` goods on the sheet.
+  `chooseVerdict` (pure) refuses none ticked, more than the picks left, or a
+  good the catalogue lacks, and drops a good already believed at no cost. A
+  partial report learns each chosen good's true modifier (`trueDemand`); a
+  false one learns it moved 1d3 steps up or down (`wrongBelief`), so the two
+  look alike on every surface. The picks left are written with the beliefs.
+- **Assessment writes one report** when it learned anything or left picks,
+  owner and assessor the acting character, `partyId` the party posted under,
+  and the assess card links it when there are picks to spend. It stops
   writing `system.market.goods.dmKnowledge`; the schema field stays, marked
   legacy, so an unmigrated world loses nothing. The house is created by the
   sweep if it is missing. The resolution runs on a GM seat only: a player's

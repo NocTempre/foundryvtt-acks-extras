@@ -128,7 +128,8 @@ export function itemsWithProficiencyRows(actor, groups) {
   const keys = [];
   for (const group of groups ?? []) {
     for (const mod of group.mods ?? []) {
-      if (mod.type === "check" && mod.auto?.startsWith("prof:")) keys.push(mod.auto.slice(5));
+      if (mod.heldFrom) keys.push(mod.heldFrom);
+      else if ((mod.type === "check" || mod.type === "held") && mod.auto?.startsWith("prof:")) keys.push(mod.auto.slice(5));
     }
   }
   if (!keys.length) return new Set();
@@ -446,6 +447,103 @@ export function effectRowsForPage(mods, { family, tone = null, claimed = new Set
       !claimed.has(m.itemId) &&
       (!tone || !m.tones.length || m.tones.includes(tone)),
   );
+}
+
+/**
+ * A page's `held` rows as the rows the roller runs. Each is the box of one
+ * proficiency, filled by the roller's own item for it or by a power standing
+ * in for it (`actsAs`), and is worth that item's figure for the page's roll
+ * family: its Active Effect's where one speaks, else what the importer located
+ * on its page. No figure is this repo's:
+ *
+ *  - nothing fills the box: the row is not drawn, since only a roller who
+ *    holds the proficiency brings it to the throw;
+ *  - the filling item carries no figure: a `signed` field flagged `unvalued`,
+ *    which the Judge types;
+ *  - an unaudited figure, or one its source marks situational: a check that
+ *    is offered and never pre-ticked.
+ *
+ * Every other row passes through. A resolved row names its proficiency in
+ * `heldFrom`, so `itemsWithProficiencyRows` claims its item.
+ * @param {Array<{group: string, mods: object[]}>} groups the page's rows, after `modeRows`
+ * @param {Actor|null} actor the roller, whose items fill the boxes
+ * @param {Array} rollerMods the roller's effect rows in the shared shape
+ * @param {string} family the page's roll family
+ * @returns {{groups: Array<{group: string, mods: object[]}>, claimed: Set<string>}}
+ *   `claimed`: every item a drawn row speaks for
+ */
+export function resolveHeldRows(groups, actor, rollerMods, family) {
+  const claimed = new Set();
+  const profOf = (mod) => (mod.type === "held" && mod.auto?.startsWith("prof:") ? mod.auto.slice(5) : null);
+  const keys = (groups ?? []).flatMap((g) => g.mods ?? []).map(profOf).filter(Boolean);
+  if (!keys.length) return { groups, claimed };
+  const items = getProficiencyItems(actor, keys);
+  const actsAs = getActsAsPowers(actor);
+  // The item's own Active Effect speaks first, as everywhere on this page.
+  const figureOf = (itemId) => {
+    const rows = (rollerMods ?? []).filter((m) => m.itemId === itemId && m.family === family && m.appliesTo === "self");
+    return rows.find((m) => m.source !== "ability") ?? rows[0] ?? null;
+  };
+  const resolve = (mod) => {
+    const prof = profOf(mod);
+    if (!prof) return mod;
+    const standIn = CORE_PROFS.includes(prof) ? actsAs[prof] : null;
+    const itemId = items[prof]?.[0] ?? standIn?.itemId ?? null;
+    if (!itemId && !standIn) return null;
+    if (itemId) claimed.add(itemId);
+    const source = itemId ? figureOf(itemId) : null;
+    const row = { key: mod.key, label: mod.label, heldFrom: prof, ...(mod.actsAs ? { actsAs: true } : {}) };
+    if (!source) return { ...row, type: "signed", unvalued: true };
+    return {
+      ...row,
+      type: "check",
+      value: source.value,
+      showFigure: true,
+      ...(mod.exclusive ? { exclusive: mod.exclusive } : {}),
+      ...(source.unaudited ? { unaudited: true } : {}),
+      ...(source.unaudited || source.situational ? { default: false } : { auto: mod.auto }),
+    };
+  };
+  return { groups: groups.map((g) => ({ ...g, mods: (g.mods ?? []).map(resolve).filter(Boolean) })), claimed };
+}
+
+/**
+ * The effect rows an opener hands a page in `ctx.offeredModifiers`, for
+ * effects this feature's change keys do not carry, in the shared modifier
+ * shape. They are ticked as the page's own are: pre-ticked only when neither
+ * situational nor unaudited. A row naming an `itemId` is that item's Active
+ * Effect, so the item's own page value stands aside for it. A row worth 0 is
+ * dropped.
+ * @param {Array<{id?: string, label?: string, value?: number, situational?: boolean, unaudited?: boolean, itemId?: string}>} rows
+ * @param {string} family the page's roll family
+ * @returns {Array}
+ */
+export function offeredEffectRows(rows, family) {
+  if (!Array.isArray(rows)) return [];
+  const out = [];
+  rows.forEach((row, i) => {
+    const value = Number(row?.value) || 0;
+    if (!value) return;
+    out.push({
+      id: `offer:${row.id ?? i}`,
+      itemId: row.itemId ?? null,
+      label: String(row.label ?? "external"),
+      value,
+      family,
+      appliesTo: "self",
+      situational: Boolean(row.situational),
+      vsKinds: [],
+      vsAlignment: null,
+      vsAlignmentMode: "gate",
+      tones: [],
+      optionalRule: null,
+      kickerAt: null,
+      kickerNote: "",
+      unaudited: Boolean(row.unaudited),
+      source: "offered",
+    });
+  });
+  return out;
 }
 
 /**

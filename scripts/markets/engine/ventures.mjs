@@ -5,7 +5,9 @@
  * DEDICATED DAY — posted now, resolved by the due-work sweep once their day
  * has passed. Trading merchandise spends what a resolved solicitation
  * opened, at the month's rolled market price, with the optional spot-price
- * negotiation. Steady trade routes/networks are future work (ROADMAP).
+ * negotiation. A mercantile network in a known market reads each
+ * solicitation one class larger or at more impact (`engine/network.mjs`);
+ * steady trade routes are future work (ROADMAP).
  */
 import { MODULE_ID, LANG, ITEM_FLAG } from "../constants.mjs";
 import {
@@ -20,7 +22,12 @@ import {
   cancelVerdict,
   leaveMarket,
   planLoadDraw,
+  NETWORK_MODES,
+  networkOptions,
+  pickNetworkOption,
 } from "../rules/arbitrage.mjs";
+import { networkSteps } from "./network.mjs";
+import { marketKnownTo } from "./known-market.mjs";
 import { toGp } from "../rules/pricing.mjs";
 import { trueDemand } from "../rules/demand.mjs";
 import { registerHandler, executeAsGM, judgeDeclares } from "../../lib/sockets.mjs";
@@ -38,6 +45,7 @@ import { writeReport } from "./trade-objects.mjs";
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
 import { storageFlagOf } from "../../lib/storage-logic.mjs";
+import { MARKET_LOG_CAP } from "../../location/data/market-log.mjs";
 
 const SECONDS_PER_DAY = 86400;
 const err = (error, data = {}) => ({ error, ...data });
@@ -157,7 +165,7 @@ export function ventureOf(location, partyId, monthStart = marketMonthStart()) {
  * cannot wait in the queue twice.
  */
 export async function postVentureAction(location, payload) {
-  const { kind, actorUuid, category = "", cargoSt = 0, vehicleUuids = [], requestUserId = null, resolutionId = "", roll = null, bribeGp = 0 } = payload;
+  const { kind, actorUuid, category = "", cargoSt = 0, vehicleUuids = [], requestUserId = null, resolutionId = "", roll = null, bribeGp = 0, networkMode = "auto" } = payload;
   const actorDoc = await fromUuid(actorUuid).catch(() => null);
   const actor = actorDoc?.actor ?? actorDoc;
   if (!actor) return err("noBuyer");
@@ -234,6 +242,7 @@ export async function postVentureAction(location, payload) {
     natural,
     total,
     bribeGp: bribe,
+    networkMode: kind === "enter" && NETWORK_MODES.includes(networkMode) ? networkMode : "auto",
   };
   const log = clone(location.system.market.marketLog);
   const paidGp = toGp(tollCp) + bribe;
@@ -246,7 +255,7 @@ export async function postVentureAction(location, payload) {
   });
   await location.update({
     "system.market.goods.actions": [...actions, action],
-    "system.market.marketLog": log.slice(-300),
+    "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
   });
   return { ok: true, resolveTime: action.resolveTime };
 }
@@ -282,7 +291,7 @@ export async function cancelVentureAction(location, { actionId, requestUserId = 
   });
   await location.update({
     "system.market.goods.actions": actions,
-    "system.market.marketLog": log.slice(-300),
+    "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
   });
   return { ok: true };
 }
@@ -320,20 +329,9 @@ export async function leaveVentureMarket(location, { actorUuid, requestUserId = 
     "system.market.goods.ventures": state.ventures,
     "system.market.goods.actions": state.actions,
     "system.market.goods.solicitations": state.solicitations,
-    "system.market.marketLog": log.slice(-300),
+    "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
   });
   return { ok: true, cancelled: result.cancelledIds.length };
-}
-
-/** Random distinct merchandise categories, from the whole catalogue (a Judge's own goods included). */
-function randomCategories(n) {
-  const keys = merchandiseCatalog().map((m) => m.key);
-  const out = [];
-  while (out.length < Math.min(n, keys.length)) {
-    const k = keys[Math.floor(Math.random() * keys.length)];
-    if (!out.includes(k)) out.push(k);
-  }
-  return out;
 }
 
 /** The truth: the market's true demand modifier for a category (0 unset). */
@@ -397,7 +395,7 @@ export async function processVentureActions(location, log, t) {
         await postTableMissing(actor, location, action, "impactProse", log, t);
         continue;
       }
-      const { impact, effectiveClass } = marketImpact({
+      const { impact, effectiveClass, rawImpact, cap } = marketImpact({
         ...limits,
         cargoSt: action.cargoSt,
         baselineCargoSt: parseStones(ch.baselineCargo),
@@ -406,7 +404,20 @@ export async function processVentureActions(location, log, t) {
         baselineOfClass: (cls) => parseStones(characteristicsFor(cls)?.baselineCargo),
       });
       const existing = ventures.find((v) => v.partyId === action.partyId && Number(v.monthStartTime) === monthStart);
-      const row = existing ?? { partyId: action.partyId, monthStartTime: monthStart, cargoSt: 0, vehicleUuids: [], impact: 0, effectiveClass: 0, tollCp: 0, entered: false };
+      const row = existing ?? {
+        partyId: action.partyId,
+        monthStartTime: monthStart,
+        cargoSt: 0,
+        vehicleUuids: [],
+        impact: 0,
+        effectiveClass: 0,
+        tollCp: 0,
+        entered: false,
+        enteredTime: 0,
+        rawImpact: 0,
+        impactCap: 0,
+        networkMode: "auto",
+      };
       if (!existing) ventures.push(row);
       row.cargoSt = action.cargoSt;
       row.vehicleUuids = [...(action.vehicleUuids ?? [])];
@@ -415,6 +426,10 @@ export async function processVentureActions(location, log, t) {
       // The toll was paid when the action was posted; the row records it.
       row.tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * Math.max(0, Number(action.cargoSt) || 0));
       row.entered = true;
+      row.enteredTime = Number(action.postedTime) || t;
+      row.rawImpact = rawImpact;
+      row.impactCap = cap;
+      row.networkMode = NETWORK_MODES.includes(action.networkMode) ? action.networkMode : "auto";
       log.push({ time: t, type: "ventureEntered", note: `${actor.name}: entered the market, impact ${impact}`, actorUuid: actor.uuid, gp: 0 });
       await postCard(actor, `<strong>${game.i18n.format(`${LANG}.ventures.enteredLine`, { name: actor.name, location: location.name, impact })}</strong>`);
     }
@@ -439,10 +454,14 @@ export async function processVentureActions(location, log, t) {
       const catalog = merchandiseCatalog();
       const beliefs = [];
       const believe = (category, dm) => beliefs.push({ category, dm });
+      // A partial picture is goods of the trader's choosing, and a false one
+      // must look the same: both leave picks on the report, and the trader's
+      // choice writes the beliefs (`chooseGoods`, true or wrong as stored).
+      let picks = 0;
       if (outcome === "success") {
         for (const m of catalog) believe(m.key, trueDm(goods, m.key));
-      } else if (outcome === "partial") {
-        for (const c of randomCategories((await new Roll("1d6").evaluate()).total)) believe(c, trueDm(goods, c));
+      } else if (outcome === "partial" || outcome === "false") {
+        picks = Math.min(catalog.length, (await new Roll("1d6").evaluate()).total);
       } else if (outcome === "expertise") {
         // Expertise reveals only categories the assessor works in: an
         // Art/Craft/Profession ability at 2+ ranks whose name contains the
@@ -461,15 +480,12 @@ export async function processVentureActions(location, log, t) {
           });
           if (expert) believe(m.key, trueDm(goods, m.key));
         }
-      } else if (outcome === "false") {
-        for (const c of randomCategories((await new Roll("1d6").evaluate()).total)) {
-          const wrong = trueDm(goods, c) + ((await new Roll("1d6").evaluate()).total >= 4 ? 1 : -1) * (await new Roll("1d3").evaluate()).total;
-          believe(c, wrong);
-        }
       }
-      // ONE report per assessment that learned anything; the false outcome is
-      // stored as it fell, and every surface shows a non-GM a partial.
-      if (beliefs.length) {
+      // ONE report per assessment that learned anything or left goods to
+      // choose; the false outcome is stored as it fell, and every surface
+      // shows a non-GM a partial.
+      let reportLink = "";
+      if (beliefs.length || picks) {
         const written = await writeReport({
           ownerUuid: actor.uuid,
           marketUuid: location.uuid,
@@ -479,6 +495,7 @@ export async function processVentureActions(location, log, t) {
           time: t,
           outcome,
           beliefs,
+          picks,
         }).catch((error) => ({ error: String(error?.message ?? error) }));
         if (written.error) {
           // The day is kept, not spent: the sweep tries it again.
@@ -486,12 +503,13 @@ export async function processVentureActions(location, log, t) {
           action.status = "pending";
           continue;
         }
+        reportLink = `@UUID[${written.item.uuid}]{${foundry.utils.escapeHTML(written.item.name)}}`;
       }
       // The ledger names the outcome as the trader is told it: a false picture reads as partial.
       log.push({
         time: t,
         type: "ventureAssessed",
-        note: `${actor.name}: assessment ${outcome === "false" ? "partial" : outcome} (${beliefs.length} DMs)`,
+        note: `${actor.name}: assessment ${outcome === "false" ? "partial" : outcome} (${picks ? `${picks} to choose` : `${beliefs.length} DMs`})`,
         actorUuid: actor.uuid,
         gp: 0,
       });
@@ -500,7 +518,9 @@ export async function processVentureActions(location, log, t) {
         `<strong>${game.i18n.format(`${LANG}.ventures.assessedLine`, { name: actor.name })}</strong><br>` +
           // The FALSE outcome reads as a partial assessment to the party —
           // only the Judge's copy names it (2d6 detail stays GM-side).
-          game.i18n.format(`${LANG}.ventures.assessed.${outcome === "false" ? "partial" : outcome}`, { n: beliefs.length })
+          (picks
+            ? game.i18n.format(`${LANG}.ventures.assessed.choose`, { n: picks, report: reportLink })
+            : game.i18n.format(`${LANG}.ventures.assessed.${outcome === "false" ? "partial" : outcome}`, { n: beliefs.length }))
       );
     }
 
@@ -518,10 +538,23 @@ export async function processVentureActions(location, log, t) {
       if (!venture?.entered) continue;
       const price = await ensureMerchPrice(goods, merchPrices, action.category, Number(location.system.marketClass) || 6, monthStart);
       if (!price) continue;
-      const gained = solicitedStones({
-        baseStones: Number(merch.dailyStones?.[(venture.effectiveClass || location.system.marketClass) - 1]) || 0,
-        impact: venture.impact,
+      // The network that counts is the soliciting trader's, in a market they
+      // had been in before this visit; the price stays the market's own.
+      const trueClass = Number(location.system.marketClass) || 6;
+      const base = { cls: Number(venture.effectiveClass) || trueClass, imp: Number(venture.impact) || 0 };
+      const stonesAt = (cls, imp) => solicitedStones({ baseStones: Number(merch.dailyStones?.[cls - 1]) || 0, impact: imp });
+      const known = marketKnownTo(location, actor, { at: Number(action.postedTime) || t });
+      const steps = known ? networkSteps(actor) : { classStep: 0, impactStep: 0 };
+      const options = networkOptions({
+        impact: base.imp,
+        effectiveClass: base.cls,
+        rawImpact: Number(venture.rawImpact) || 0,
+        trueClass,
+        cap: Number(venture.impactCap) || base.imp,
+        ...steps,
       });
+      const pick = pickNetworkOption({ base, ...options, mode: venture.networkMode ?? "auto", stonesAt });
+      const gained = stonesAt(pick.cls, pick.imp);
       const srow =
         solicitations.find((s) => s.partyId === action.partyId && s.category === action.category && Number(s.monthStartTime) === monthStart) ??
         (() => {
@@ -533,14 +566,15 @@ export async function processVentureActions(location, log, t) {
       log.push({
         time: t,
         type: "ventureSolicited",
-        note: `${actor.name}: solicited ${action.category} (+${gained} st @ ${toGp(price.priceCp)}gp/st)`,
+        note: `${actor.name}: solicited ${action.category} (+${gained} st @ ${toGp(price.priceCp)}gp/st${pick.used === "base" ? "" : `; network: ${pick.used}`})`,
         actorUuid: actor.uuid,
         gp: 0,
       });
       await postCard(
         actor,
         `<strong>${game.i18n.format(`${LANG}.ventures.solicitedLine`, { name: actor.name, label: merch.label })}</strong><br>` +
-          game.i18n.format(`${LANG}.ventures.solicitedDetail`, { stones: Math.floor(srow.stones), price: toGp(price.priceCp) })
+          game.i18n.format(`${LANG}.ventures.solicitedDetail`, { stones: Math.floor(srow.stones), price: toGp(price.priceCp) }) +
+          (pick.used === "base" ? "" : `<br>${game.i18n.format(`${LANG}.ventures.network.used.${pick.used}`, { cls: pick.cls, imp: pick.imp })}`)
       );
     }
   }
@@ -679,7 +713,7 @@ export async function tradeMerchandise(location, payload) {
   });
   await location.update({
     "system.market.goods.solicitations": solicitations,
-    "system.market.marketLog": log.slice(-300),
+    "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
   });
   await postCard(
     actor,

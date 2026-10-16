@@ -15,6 +15,11 @@ sibling modules (henchmen today; domains later) read through acks-lib.
     reference roster, a stack count, and — on the places that have one — a
     nullable `market` subtree carrying demographics, market class, the
     Judge's rarity overrides, postings, candidates and slander.
+  - **The market ledger** (`system.market.marketLog`) is shared by every
+    feature that writes about a market, and each appends through
+    `data/market-log.mjs` `appendMarketLog`, which keeps the latest
+    `MARKET_LOG_CAP` rows. A row about one actor's own dealing carries their
+    `actorUuid`.
   - **Storage at a place**: the lib subsystem owns the primitives (providers, stored
     goods, transfers, the deletion fallback); this module owns the experience
     — the location sheet, the character sheet's Storage tab, the retirement of

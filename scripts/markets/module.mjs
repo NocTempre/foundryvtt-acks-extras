@@ -65,7 +65,7 @@ import { merchandiseCatalog, merchandiseFor, primeMerchandiseCatalog, buildMerch
 import * as tradeObjects from "./engine/trade-objects.mjs";
 import * as reportRules from "./rules/reports.mjs";
 import { isTrader } from "./apps/trader-tab.mjs";
-import { marketKnownTo, knownMarketsOf, setMarketKnown } from "./engine/known-market.mjs";
+import { marketKnownTo, knownSource, knownMarketsOf, setMarketKnown } from "./engine/known-market.mjs";
 
 Hooks.once("init", () => {
   registerSettings();
@@ -191,6 +191,7 @@ Hooks.once("setup", () => {
     isTrader,
     // known markets: where a mercantile network's shift applies (asked by henchmen's effectiveMarketClass)
     marketKnownTo,
+    knownSource,
     knownMarketsOf,
     setMarketKnown,
     // demand: the one writer and the demand generator

@@ -518,6 +518,8 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const playerVisible = (c) => {
       if (game.user.isGM) return true;
       if (c.privateToUuid) return ownedUuids.includes(c.privateToUuid) && ["available", "hired"].includes(c.status);
+      // a network find exists only in its holder's market
+      if (c.networkFor && !ownedUuids.includes(c.networkFor)) return false;
       if (!["available", "hired"].includes(c.status)) return false;
       // A replaced candidate is always visible to the recruiter whose
       // directed search found them (highlighted, month-long).
@@ -532,6 +534,13 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
     const cultures = optTable("people", "cultures")?.list ?? {};
     const henchKinds = ["henchman", "henchmanByClass", "henchmanByProficiency"];
+    const holderName = (uuid) => {
+      try {
+        return fromUuidSync(uuid)?.name ?? "?";
+      } catch {
+        return "?";
+      }
+    };
     const rows = candidates
       .filter(playerVisible)
       .filter((c) => game.user.isGM || c.status !== "withdrawn")
@@ -565,6 +574,8 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
                 .join(" — "),
           isAggregate: (c.quantity ?? 1) > 1,
           isPrivate: !!c.privateToUuid,
+          // only the holder and the Judge reach this row, so both may be told whose
+          networkTip: c.networkFor ? game.i18n.format("ACKS-HENCHMEN.candidate.network", { name: holderName(c.networkFor) }) : "",
           // replaced-by-your-search: highlighted for that recruiter (and GM)
           isHighlighted: !!c.highlightFor && (game.user.isGM || ownedUuids.includes(c.highlightFor)),
           refusalCount: (c.refusals ?? []).length,

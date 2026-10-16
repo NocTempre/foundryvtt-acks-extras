@@ -17,6 +17,7 @@
  */
 import { num, str, int } from "../../lib/fields.mjs";
 import { DEMAND_WATER, DEMAND_BIOMES, DEMAND_ELEVATIONS } from "../rules/demand.mjs";
+import { NETWORK_MODES } from "../rules/arbitrage.mjs";
 
 const fields = () => foundry.data.fields;
 
@@ -191,6 +192,8 @@ export function goodsSchema() {
         natural: new f.NumberField({ required: false, nullable: true, integer: true, initial: null }),
         total: new f.NumberField({ required: false, nullable: true, integer: true, initial: null }),
         bribeGp: num(0),
+        // enter: how the party's solicitations use a mercantile network this visit.
+        networkMode: new f.StringField({ required: true, initial: "auto", choices: NETWORK_MODES }),
       })
     ),
     // Venture state per party-month: entered, cargo, impact, toll paid.
@@ -206,6 +209,17 @@ export function goodsSchema() {
         effectiveClass: int(0),
         tollCp: int(0),
         entered: new f.BooleanField({ initial: false }),
+        // When the entry that opened this visit was posted: the day a known
+        // market's earlier visits are counted back from (rules/known.mjs).
+        // 0 on a row written before it was stored.
+        enteredTime: int(0),
+        // What a mercantile network's options are built from at each
+        // solicitation (rules/arbitrage.mjs networkOptions): the impact earned
+        // at the market's own class before any drop, the maximum, and the mode
+        // the entry declared.
+        rawImpact: int(0),
+        impactCap: int(0),
+        networkMode: new f.StringField({ required: true, initial: "auto", choices: NETWORK_MODES }),
       })
     ),
     // LEGACY: the per-party beliefs assessments wrote before reports were Items.

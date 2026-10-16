@@ -358,7 +358,9 @@ never applied to buying, selling, hiring or imports.
   ledger and the venture rows. `effectiveMarketClass` asks
   `acksExtras.markets.marketKnownTo` the way it asks factions for standing,
   so the henchmen engine never imports markets.
-- **Known is what the world already records, plus the Judge's word.** A
+- **Known is what the world already records, plus the Judge's word.**
+  *Superseded in part 2026-10-15: a sign counts only when it is dated before
+  the current visit ("A market is known from an earlier day").* A
   ledger row stamped to the trader, or a venture row for their party in any
   month, is the visit the rule names; nothing new is written when a trader
   walks in. The Judge's list on the trader exists because ledger stamps date
@@ -367,7 +369,8 @@ never applied to buying, selling, hiring or imports.
   seats that cannot write the location) and a per-trader "entered" prompt.
 - **Not built:** the rule's alternative, +1 market impact on a venture
   instead of the class, "whichever is more useful"; the entry keeps the true
-  class for its impact arithmetic. ROADMAP.
+  class for its impact arithmetic. ROADMAP. *Superseded 2026-10-15: built
+  ("A known market gives a venture a larger class or more impact").*
 
 ## 2026-09-30 — A venture enters with its vehicles, and loads go into one of them
 
@@ -427,3 +430,99 @@ who wants one place to take coin kept elsewhere moves the coin there.
 Cost: a buyer whose coin is in a vault elsewhere is refused as short and has
 to withdraw it and carry it in. A world that set `coinScope` to on-hand still
 has a market draw on the coin it keeps for the payer, which 10.0.0 refused.
+
+## 2026-10-15 — A partial assessment is goods of the trader's choosing, and a false one looks the same
+
+**Chosen in the build (not yet the user's):** a partial result leaves the
+report holding a count of PICKS (1d6, capped at the catalogue) and no beliefs;
+the report's owner chooses the goods on its sheet and learns their true
+modifiers then (RR ch. 8, Assessing Supply and Demand: the partial band names
+the goods as the trader's choice). A false result writes the same picks, and
+the choice learns each good moved 1d3 steps up or down from the truth, the
+same wrong belief the sweep used to draw at random. The assess card links the
+report so the choice is one click from the result.
+
+Rejected: drawing the partial goods at random, which is what 11.3.0 did. It
+denies the trader the choice the band gives, and the goods a trader came for
+were rarely among them. Keeping the false result random while the partial
+became a choice: a report that arrived already filled would tell the trader
+it was the false one, and the mask on every other surface would be worth
+nothing.
+
+Cost: a partial or false report is empty until its owner chooses, so a
+trader who never opens it learns nothing, and the Trade tab's chips stay
+blank for that market. Picks are spent per choice and never refunded.
+
+## 2026-10-15 — A market is known from an earlier day; the current visit never counts itself
+
+The owner, ruling on a trader's plan to enter a market and enter it again the
+next day so the network would count: "previously entered" needs an entry on
+an earlier day, the current visit never counts itself, and the module
+granting the network on the first entry is a bug to fix by the rule. The
+evidence that 2026-09-30 named made the market known the second the first
+entry was posted: `postVentureAction` writes a stamped ledger row, and
+`marketKnownTo` counted any stamped row whatever its date.
+
+Ruled, on the owner's instruction to take the reading closest to the rules:
+
+- **A visit is the stay, not the day.** RR ch. 8 says "previously visited":
+  a party entered this month is on the visit its entry opened, so the second
+  day of one stay never counts the first. A party not entered is on a visit
+  of one day. Re-entering on a later day, after leaving, opens a new visit
+  that the first entry precedes.
+- **Hiring and buying count as having been there.** RR ch. 4 uses "enter the
+  market" for hiring, and the power names buying, selling and hiring beside
+  ventures; henchmen's own rows now carry the employer.
+- **Days are calendar days**, dated by `dayOfWorldTime`, the same for a row
+  written a month ago as for now.
+- The Judge's list stays undated and wins, and the Trade tab's switch now
+  flips that list rather than the combined verdict, which could not be
+  switched off where the record already said known.
+
+Rejected: a 24-hour window from the entry (a purchase near midnight would
+read differently from one the next morning for no reason a player sees); the
+current day alone as the visit (the second day of one stay would count its
+first); a `visits[]` record (the record already holds every entry, dated).
+
+Cost: every world loses its first-visit shift until the visit after, which is
+the point and is visible on the tab. Ledger evidence older than the latest
+rows is gone; the Judge's list is the remedy. A search posted on a first
+visit counts from the next day's sweep on.
+
+## 2026-10-15 — A known market gives a venture a larger class or more impact, whichever opens more, or the trader's pick at entry
+
+The owner ruled the network on a venture: a class larger or more impact, the
+module picking the better one by default and the trader able to override it
+at entry; tolls never rise. Asked to settle the open readings, the owner
+said to use the most rules-accurate one. Ruled on that instruction (RR ch. 8,
+Entering the Market, Mercantile Networks and No Market Impact; RR ch. 2,
+Mercantile Network):
+
+- **The class option reads the merchandise a class larger at the impact the
+  cargo earned.** The impact is figured at entry against the market's own
+  baseline and is not refigured. Skepticism in carriage (RR ch. 8) moves
+  class and impact apart in the same way, and the network's own text has
+  the trader rely on reputation instead of caravan size; refiguring the
+  impact at the larger baseline would cancel the benefit the option exists
+  to give. Counter-reading, moderate: No Market Impact refigures the impact
+  when it moves the class.
+- **The maximum binds the impact option.** Steady Trade Routes and the
+  carriage modifiers both stop at it.
+- **Auto picks per solicitation, good by good.** The rule reads "whenever"
+  the venturer engages, and the better option differs by good; the mode the
+  entry declares holds for the whole visit.
+- **The network that counts is the soliciting trader's**, in a market that
+  trader had been in before this visit; the one who deals is the one whose
+  reputation the merchants know.
+- **The steps come from the page or the Judge.** Two located effects on the
+  power in the importer register, `marketClass` and `marketImpact`, or an
+  Active Effect carrying either key. No number for either ships.
+
+Rejected: refiguring the whole entry at the larger class (the reading
+above); one pick at entry for every good; the network moving the toll or the
+month's price; any member's network counting for a solicitation another
+member made.
+
+Cost: a world that has not re-imported the class powers has no impact
+option until it does or until the Judge gives the power an Active Effect,
+and the dialog says so. Supersedes the 2026-09-30 entry's "Not built" bullet.

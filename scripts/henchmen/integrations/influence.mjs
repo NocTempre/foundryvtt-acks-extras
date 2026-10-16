@@ -15,9 +15,11 @@
  * hiring throws (scripts/effects.mjs); influence rolls AGAINST managed
  * hirelings are logged into their HenchmanRecord.
  */
-import { MODULE_ID } from "../constants.mjs";
+import { MODULE_ID, EFFECT_DOMAINS } from "../constants.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import * as adapter from "../acks-adapter.mjs";
+import { offeredRows, unvaluedNoteRows } from "../effects.mjs";
+import { hiringOffer } from "../rules/hiring-offer.mjs";
 
 /* module.api is the whole acksExtras namespace; the influence surface —
  * apiVersion, open() — hangs off its feature key. */
@@ -41,19 +43,27 @@ export function hostsMoraleModes() {
 /**
  * Open the secret Hireling Obedience throw (RR 167) as an influence-hosted
  * page. The morale score comes from this module's record (base + permanents),
- * which the sheet alone does not know.
+ * which the sheet alone does not know. The employer's obedience and
+ * henchman-morale powers ride in as offered rows: the page reads the
+ * hireling's own morale effects, and no change key of its own carries these.
  */
 export function openObedienceViaInfluence(o) {
   const api = influenceApi();
   if (!api) return null;
-  return api.open(o.employer ?? null, {
+  const employer = o.employer ?? null;
+  return api.open(employer, {
     mode: "obedience",
     targetActor: o.hireling ?? null,
     ctx: {
       effectiveMorale: o.effectiveMorale ?? 0,
       targetName: o.hireling?.name ?? "",
       targetImg: o.hireling?.img ?? "",
+      offeredModifiers: [
+        ...offeredRows(employer, EFFECT_DOMAINS.OBEDIENCE_ROLL),
+        ...offeredRows(employer, EFFECT_DOMAINS.HENCHMAN_MORALE),
+      ],
     },
+    modifiers: unvaluedNoteRows(employer, EFFECT_DOMAINS.HENCHMAN_MORALE),
     context: { module: MODULE_ID, ...o.context },
   });
 }
@@ -84,7 +94,9 @@ export function openIrrefusableViaInfluence(o) {
 }
 
 /**
- * Open the Reaction to Hiring Offer as an influence-hosted page.
+ * Open the Reaction to Hiring Offer as an influence-hosted page. The page
+ * reads the influence reaction key and the abilities' reaction values itself;
+ * the employer's hiring-key Active Effects are offered beside them.
  * @param {object} o - { employer, targetActor, targetName, targetImg,
  *   signingBonusOptions, signingTiers, previousRefusals, slanderCount,
  *   context } — context is echoed back on the completion hook.
@@ -101,12 +113,17 @@ export function openHiringViaInfluence(o) {
       slanderCount: o.slanderCount ?? 0,
       targetName: o.targetName ?? "",
       targetImg: o.targetImg ?? "",
+      offeredModifiers: offeredRows(o.employer, EFFECT_DOMAINS.HIRING, { sources: ["effect"] }),
     },
+    modifiers: unvaluedNoteRows(o.employer, EFFECT_DOMAINS.HIRING),
     context: { module: MODULE_ID, ...o.context },
   });
 }
 
-/** Open the secret Hireling Loyalty roll as an influence-hosted page. */
+/**
+ * Open the secret Hireling Loyalty roll as an influence-hosted page, the
+ * employer's loyalty-roll Active Effects offered beside the page's own.
+ */
 export function openLoyaltyViaInfluence(o) {
   const api = influenceApi();
   if (!api) return null;
@@ -118,12 +135,13 @@ export function openLoyaltyViaInfluence(o) {
       apparentLevelDiff: o.apparentLevelDiff ?? 0,
       targetName: o.hireling?.name ?? "",
       targetImg: o.hireling?.img ?? "",
+      offeredModifiers: offeredRows(o.employer ?? null, EFFECT_DOMAINS.LOYALTY_ROLL),
     },
     context: { module: MODULE_ID, ...o.context },
   });
 }
 
-/** The signing-bonus tier (+1..+3) chosen on an influence-hosted roll. */
+/** The signing-bonus tier chosen on an influence-hosted roll. */
 export function signingTierFromParts(parts) {
   const entry = (parts ?? []).find((p) => /signing/i.test(p.label ?? "") || p.key === "signingBonus");
   return Number(entry?.value) || 0;
@@ -159,6 +177,7 @@ export function registerInfluenceIntegration() {
             employerUuid: context.employerUuid,
             result: { outcome: payload.outcome, natural: payload.natural, total: payload.total, parts: payload.parts },
             signingGp,
+            heads: context.heads ?? null,
             // one id per ROLL: every GM socket that receives this delivery
             // claims with the same id, so exactly one applies it
             resolutionId: foundry.utils.randomID(),
@@ -210,8 +229,9 @@ export function registerInfluenceIntegration() {
 }
 
 /**
- * Open the core influence roller for an employer with the location's
- * slander penalty injected (RR 162's town-wide −1).
+ * Open the core influence roller for an employer with the location's slander
+ * against the party injected (RR 162): the count times the imported per-slander
+ * figure, or a note giving the count while that figure is not imported.
  */
 export function openInfluenceFor(employer, location = null, targetActor = null) {
   const api = influenceApi();
@@ -219,10 +239,12 @@ export function openInfluenceFor(employer, location = null, targetActor = null) 
   const modifiers = [];
   const slanderCount = location?.system?.slanderCountFor?.({ employerUuid: employer?.uuid }) ?? 0;
   if (slanderCount > 0) {
-    modifiers.push({
-      label: game.i18n.format("ACKS-HENCHMEN.influence.slanderLabel", { name: location.name }),
-      value: -slanderCount,
-    });
+    const perSlander = hiringOffer().slanderPenalty;
+    modifiers.push(
+      perSlander === null
+        ? { label: game.i18n.format("ACKS-HENCHMEN.influence.slanderUnread", { name: location.name, count: slanderCount }), note: true }
+        : { label: game.i18n.format("ACKS-HENCHMEN.influence.slanderLabel", { name: location.name }), value: slanderCount * perSlander }
+    );
   }
   return api.open(employer, { targetActor, modifiers });
 }

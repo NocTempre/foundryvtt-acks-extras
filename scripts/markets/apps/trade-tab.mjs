@@ -43,9 +43,11 @@ import { performVentureAction, performVentureCancel, performVentureLeave, ventur
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
 import { carrierChain } from "../../lib/attachment.mjs";
-import { marketKnownTo, setMarketKnown } from "../engine/known-market.mjs";
+import { marketKnownTo, knownMarketsOf, setMarketKnown } from "../engine/known-market.mjs";
 import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
 import { hasEffectFlag } from "../../henchmen/effects.mjs";
+import { networkSteps } from "../engine/network.mjs";
+import { dayOfWorldTime } from "../../lib/world-time.mjs";
 import { assessmentBands, printedError } from "../engine/printed.mjs";
 import { assessmentBribeBasisHd } from "../engine/assessment.mjs";
 import { assessmentPageBands } from "../rules/arbitrage.mjs";
@@ -110,7 +112,9 @@ export function tradeCandidates() {
 /**
  * The character every trade action on this sheet is taken as: the picker's
  * remembered choice while it is still a candidate, else the user's own
- * character, else the first candidate; null when the viewer has none.
+ * character, else the first candidate who is nobody's hireling, else the
+ * first; null when the viewer has none. A hireling stays pickable, but a hire
+ * shares its employer's owners and must never become the default by its name.
  * @param {Application} _sheet  The hosting sheet (the choice is per client, not per sheet).
  * @returns {Actor|null}
  */
@@ -126,6 +130,7 @@ export function actingTrader(_sheet) {
   return (
     candidates.find((a) => a.uuid === chosen) ??
     candidates.find((a) => a === game.user.character) ??
+    candidates.find((a) => !a.system?.retainer?.enabled) ??
     candidates[0]
   );
 }
@@ -198,6 +203,8 @@ export async function prepareTradeTab(sheet, context) {
       shifted: effective !== trueClass,
       network,
       known: network && marketKnownTo(location, trader),
+      // The Judge's switch states their own list only; the verdict beside it may also come from the record.
+      judgeListed: network && knownMarketsOf(trader).includes(location.uuid),
       traderName: trader?.name ?? "",
     };
   }
@@ -423,6 +430,9 @@ function partyBlocks(goods, monthStart, reports) {
               toll: Math.round(Number(venture.tollCp) || 0) / 100,
             }),
             ventureVehicles(venture).map((v) => v.name).join(", "),
+            venture.networkMode && venture.networkMode !== "auto"
+              ? `${loc("ventures.network.legend")}: ${loc(`ventures.network.mode.${venture.networkMode}`)}`
+              : "",
           ]
             .filter(Boolean)
             .join(" — ")
@@ -469,9 +479,10 @@ async function promptNumber({ title, label, value, min, max }) {
  * capacity — porters, pack animals — as a number. A vehicle a party member
  * rides, drives or is harnessed to starts ticked. Null when dismissed.
  */
-async function promptEntry(trader) {
+async function promptEntry(trader, location) {
   const party = partyOf(trader);
   const members = [trader, ...partyMembers(party.id)];
+  const network = networkFieldset([...new Set(members)], location);
   const aboard = new Set(members.flatMap((a) => carrierChain(a).map((c) => c?.uuid)));
   const vehicles = game.actors.filter((a) => a.type === VEHICLE_TYPE && a.isOwner).sort((a, b) => a.name.localeCompare(b.name));
   const rows = vehicles
@@ -488,6 +499,7 @@ async function promptEntry(trader) {
       : `<p class="hint">${loc("ventures.noVehicles")}</p>`,
     `<div class="form-group"><label for="${otherId}">${loc("ventures.otherCargo")}</label><input id="${otherId}" type="number" name="other" value="0" min="0" step="1"></div>`,
     `<p class="hint">${loc("ventures.enterHint")}</p>`,
+    network,
   ].join("");
   return foundry.applications.api.DialogV2.prompt({
     classes: DIALOG_CLASSES,
@@ -498,9 +510,37 @@ async function promptEntry(trader) {
       callback: (_ev, button) => ({
         vehicleUuids: [...button.form.querySelectorAll('input[name="vehicle"]:checked')].map((el) => el.value),
         cargoSt: Math.max(0, Number(button.form.elements.other?.value) || 0),
+        networkMode: button.form.elements.networkMode?.value ?? "auto",
       }),
     },
   }).catch(() => null);
+}
+
+/**
+ * The Enter dialog's network block: the mode the party's solicitations use
+ * this visit, offered only where a member holds a network with a value, and
+ * one line per network holder saying whether it counts on the visit this entry
+ * opens. Empty where no member holds one.
+ */
+function networkFieldset(members, location) {
+  const holders = members.filter((a) => hasEffectFlag(a, "marketClass") || networkSteps(a).impactStep > 0);
+  if (!holders.length) return "";
+  const today = dayOfWorldTime(game.time.worldTime);
+  const steps = holders.map((a) => networkSteps(a));
+  const modes = ["auto", ...(steps.some((s) => s.classStep > 0) ? ["class"] : []), ...(steps.some((s) => s.impactStep > 0) ? ["impact"] : [])];
+  const lines = holders.map((a, i) => {
+    const name = foundry.utils.escapeHTML(a.name);
+    const missing = steps[i].missing.map((power) => `<p class="hint">${loc("ventures.network.missing", { power: foundry.utils.escapeHTML(power) })}</p>`).join("");
+    const known = marketKnownTo(location, a, { visitStartDay: today });
+    return `<p class="hint">${loc(known ? "ventures.network.counted" : "ventures.network.notCounted", { name })}</p>${missing}`;
+  });
+  const select =
+    modes.length > 1
+      ? `<label class="form-group">${loc("ventures.network.legend")}<select name="networkMode">${modes
+          .map((m) => `<option value="${m}">${loc(`ventures.network.mode.${m}`)}</option>`)
+          .join("")}</select></label><p class="hint">${loc("ventures.network.hint")}</p>`
+      : "";
+  return `<fieldset><legend>${loc("ventures.network.legend")}</legend>${select}${lines.join("")}</fieldset>`;
 }
 
 /* --------------------------------- handlers ------------------------------- */
@@ -642,7 +682,7 @@ export const TRADE_TAB_ACTIONS = {
   async ventureEnter() {
     const trader = requireTrader(this);
     if (!trader) return;
-    const entry = await promptEntry(trader);
+    const entry = await promptEntry(trader, this.actor);
     if (!entry) return;
     await postVenture(this, "enter", entry);
   },
@@ -771,8 +811,8 @@ export const TRADE_TAB_ACTIONS = {
     if (!game.user.isGM) return;
     const trader = requireTrader(this);
     if (!trader) return;
-    const known = marketKnownTo(this.actor, trader);
-    reportResult(this, await setMarketKnown(trader, this.actor, !known));
+    const listed = knownMarketsOf(trader).includes(this.actor.uuid);
+    reportResult(this, await setMarketKnown(trader, this.actor, !listed));
   },
 
   /** GM gate: whether players see the market's true demand modifiers. */

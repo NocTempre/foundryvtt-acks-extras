@@ -12,6 +12,9 @@
  *  - SPECIFIC searches (by class or proficiency, JJ 118) are paid and rolled
  *    SEPARATELY, privately, per recruiter — once per month per specification,
  *    capped by the market's base henchman availability.
+ *  - A posting made WITH A MERCANTILE NETWORK reads the market at its
+ *    holder's class: the town's pool plus what a roll at that class finds
+ *    beyond it, which only the holder sees and hires.
  *  - Every candidate is a UNIQUE INDIVIDUAL: name, gender, age, culture,
  *    appearance, and (0th level) occupation + class trajectory, generated
  *    from the location's demographics. Class and level are FIXED at pool
@@ -28,6 +31,8 @@ import {
   shiftMarketClass,
   searchFeeFormula,
   clampMarketClass,
+  postingSegments,
+  networkSupplement,
 } from "../rules/availability.mjs";
 import { parseAvailability } from "../rules/dice.mjs";
 import { rollClassFromDistribution, rollRandomLevel, rollProficiencyLevel } from "../rules/candidates.mjs";
@@ -41,6 +46,7 @@ import { registerHandler, judgeDeclares } from "../../lib/sockets.mjs";
 import { now, secondsPerMonth, calendarMonthStart, sameMarketMonth } from "../time.mjs";
 import { postSlaveMarketCard } from "./slavery-market.mjs";
 import { postToJudges } from "../../lib/roll-audience.mjs";
+import { appendMarketLog } from "../../location/data/market-log.mjs";
 
 /** Foundry dice bridge for the pure rules functions. */
 export async function rollDice(formula) {
@@ -76,11 +82,13 @@ export function segmentKeyFor(spec) {
 }
 
 /**
- * Effective market class for a recruiter's own dealings (fees, private
- * searches): Mercantile Network shifts it. The SHARED pool always uses the
- * location's own class — the town's stock doesn't depend on who is asking.
+ * Effective market class for a recruiter's own dealings (directed searches,
+ * and a network posting's fee and supplement). The SHARED pool always uses
+ * the location's own class — the town's stock doesn't depend on who is
+ * asking. `network: false` leaves the mercantile network out: using it on a
+ * posting is the employer's choice.
  */
-export function effectiveMarketClass(location, employer) {
+export function effectiveMarketClass(location, employer, { network = true } = {}) {
   const base = location.system.marketClass;
   // A place with no market has no class. Without this the null would clamp to
   // Class I — the LARGEST market there is — which is the worst possible wrong
@@ -89,7 +97,7 @@ export function effectiveMarketClass(location, employer) {
   // A situational shift (a mercantile network: "in a previously entered
   // market") counts only where the markets feature says the employer has
   // been before — asked through the api at call time, like standing below.
-  const known = !!employer && !!globalThis.acksExtras?.markets?.marketKnownTo?.(location, employer);
+  const known = network && !!employer && !!globalThis.acksExtras?.markets?.marketKnownTo?.(location, employer);
   const shift = employer
     ? collectEffectModifiers(employer, "marketClass")
         .filter((m) => !m.situational || known)
@@ -125,10 +133,13 @@ function demographicsOf(location) {
   return (location.system.demographics ?? []).map((d) => d.toObject?.() ?? d);
 }
 
-/** Append to the location's market ledger (rollback record), capped. */
-export function marketLogAppend(list, time, type, note) {
-  const out = [...list, { time, type, note }];
-  return out.length > 100 ? out.slice(-100) : out;
+/**
+ * Append to the location's market ledger (rollback record), capped at the
+ * ledger's one length. A row about an employer's own dealing carries their
+ * `actorUuid`, which is what lets the markets feature count it as a visit.
+ */
+export function marketLogAppend(list, time, type, note, { actorUuid = "" } = {}) {
+  return appendMarketLog(list, actorUuid ? { time, type, note, actorUuid } : { time, type, note });
 }
 
 /**
@@ -149,6 +160,8 @@ export function applyDirectedReplacement({ location, spec, employerUuid, quantit
       (c.level ?? 0) >= 1 &&
       ["pending", "available"].includes(c.status) &&
       !c.highlightFor &&
+      // another employer's network find is outside this recruiter's market
+      (!c.networkFor || c.networkFor === (employerUuid ?? "")) &&
       (spec.kind !== "henchmanByClass" || spec.level == null || c.level === spec.level)
   );
   // random order among the eligible
@@ -452,22 +465,87 @@ export async function rollMonth(location, anchorTime, rollTime = anchorTime) {
   return { candidates, marketRolls };
 }
 
+/**
+ * What an employer's mercantile network adds to a generic posting's segments
+ * this market month (RR ch. 2, Mercantile Network: hiring retainers in a
+ * market they have entered before, it reads one class larger). Each segment
+ * rolls once per employer per month at that class, wherever the roll is
+ * already in `networkRolls` it stands, and the people beyond the town's own
+ * roll join the pool as the employer's alone (`networkFor`). Pushes onto
+ * `networkRolls`; returns the new candidates.
+ */
+async function rollNetworkSupplement({ location, posting, employer, anchor, marketRolls, networkRolls, rollTime }) {
+  if (!posting.network || !posting.segment || !employer || !anchor) return [];
+  const town = location.system.marketClass;
+  const mc = effectiveMarketClass(location, employer);
+  if (town == null || mc == null || mc >= clampMarketClass(town)) return [];
+  const specs = allSegmentSpecs(location);
+  const found = [];
+  for (const segment of postingSegments(posting.segment)) {
+    const rolled = networkRolls.some((r) => r.employerUuid === employer.uuid && r.segment === segment && r.monthStartTime === anchor);
+    if (rolled) continue;
+    const spec = specs.find((s) => segmentKeyFor(s) === segment);
+    if (!spec) continue;
+    const result = await rollMonthlyPool(spec, mc, rollDice);
+    if (result.error) continue;
+    networkRolls.push({ employerUuid: employer.uuid, segment, monthStartTime: anchor, marketClass: mc, total: result.quantity, detail: result.detail ?? "" });
+    const shared = marketRolls.find((r) => r.segment === segment)?.total ?? 0;
+    const extra = networkSupplement(result.quantity, shared);
+    if (!extra) continue;
+    const built = await buildCandidates({ location, spec, total: extra, marketClass: mc, segment, privateToUuid: "", monthStart: anchor, notBefore: rollTime });
+    for (const c of built) c.networkFor = employer.uuid;
+    found.push(...built);
+  }
+  return found;
+}
+
+/**
+ * A generic posting's pool as its employer reads it this month: the town's
+ * roll of each segment it reaches, and what the employer's network roll
+ * found beyond it.
+ * @returns {{total: number, detail: string}}
+ */
+function postingPool(posting, marketRolls, networkRolls, anchor) {
+  const segments = postingSegments(posting.segment);
+  const rows = marketRolls.filter((r) => segments.includes(r.segment));
+  const shared = rows.reduce((sum, r) => sum + (r.total ?? 0), 0);
+  const detail =
+    posting.segment === "henchman:*" ? rows.map((r) => `${r.segment.split(":")[1]}: ${r.total}`).join(", ") : (rows[0]?.detail ?? "");
+  if (!posting.network) return { total: shared, detail };
+  const own = networkRolls.filter((r) => r.employerUuid === posting.employerUuid && r.monthStartTime === anchor && segments.includes(r.segment));
+  if (!own.length) return { total: shared, detail };
+  const extra = own.reduce((sum, r) => sum + networkSupplement(r.total, marketRolls.find((m) => m.segment === r.segment)?.total ?? 0), 0);
+  const networkDetail = own.map((r) => (posting.segment === "henchman:*" ? `${r.segment.split(":")[1]}: ${r.total}` : r.detail)).join(", ");
+  return { total: shared + extra, detail: `${detail} · network: ${networkDetail}` };
+}
+
 /* ------------------------- postings (paid searches) ------------------------- */
 
 /**
+ * The class a posting's search fee is charged at: the town's own, unless the
+ * employer searches with their mercantile network — then the class the
+ * market reads as for them, since the network makes it that market for every
+ * part of hiring there.
+ */
+function feeMarketClass(location, employer, posting) {
+  const town = location.system.marketClass;
+  return posting?.network ? (effectiveMarketClass(location, employer) ?? town) : town;
+}
+
+/**
  * Roll and charge one week's search fee (RR 162: fee per week per hireling
- * type, rolled). The fee is the TOWN's posted rate — the location's own
- * market class, NOT the employer's Mercantile-Network-shifted class (that
- * shift governs availability, not the cost of advertising here). Rolled once
- * as a VISIBLE dice roll; the same total is shown, deducted, and logged.
+ * type, rolled), at `marketClass` (the town's own unless the caller says;
+ * `feeMarketClass`). Rolled once as a VISIBLE dice roll; the same total is
+ * shown, deducted, and logged.
  * @param {Actor} location
  * @param {Actor|null} employer
  * @param {number} week - the week number being charged (for the card)
  * @param {object} [opts]
  * @param {boolean} [opts.judge=false] - the Judge declares the post this fee opens (`spendGold`'s `judge`)
+ * @param {number} [opts.marketClass] - the class the fee is read at
  */
-async function chargeWeeklyFee(location, employer, week = 1, { judge = false } = {}) {
-  const mc = location.system.marketClass;
+async function chargeWeeklyFee(location, employer, week = 1, { judge = false, marketClass = location.system.marketClass } = {}) {
+  const mc = marketClass;
   const formula = searchFeeFormula(mc);
   const roll = await new Roll(formula).evaluate();
   const gp = roll.total;
@@ -495,9 +573,17 @@ async function chargeWeeklyFee(location, employer, week = 1, { judge = false } =
  * Create a posting (paid search). Generic kinds join the shared segment
  * pool; specific kinds roll a private pool (JJ 118: once per month per
  * specification per recruiter, at the recruiter's effective market class,
- * capped by base henchman availability).
+ * capped by base henchman availability). `network` is the employer's choice
+ * to search with their mercantile network: a directed search reads the
+ * shifted class, a generic one adds `rollNetworkSupplement`'s finds, and the
+ * fee is the shifted class's (`feeMarketClass`).
  */
-export async function createPosting(location, rawSpec, employer, { dedicatedSearcherUuid = "", playersSeeDetails = true, requestUserId = null } = {}) {
+export async function createPosting(
+  location,
+  rawSpec,
+  employer,
+  { dedicatedSearcherUuid = "", playersSeeDetails = true, requestUserId = null, network = false } = {}
+) {
   const currentTime = now();
   // You cannot post a notice in a place that has no market to post it in.
   if (!location.system.hasMarket) return { error: "no-market" };
@@ -576,10 +662,13 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
     lastProcessedTime: currentTime,
     status: "active",
     playersSeeDetails,
+    // a GM placement is nobody's search, so nobody's network
+    network: !!network && !!employer && !gmAdd,
   };
 
   let newCandidates = [];
   let nextRolls = null;
+  let networkRolls = null;
   let anchorUpdate = null;
 
   let replacedCandidates = null;
@@ -597,7 +686,7 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
     // Directed search → pool replacement (applyDirectedReplacement): the
     // roll (final rarity vs. Henchman Availability by Market Class and
     // Rarity) does not mint new people.
-    const mc = effectiveMarketClass(location, employer);
+    const mc = effectiveMarketClass(location, employer, { network: posting.network });
     const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, location.system.market?.classRarityTableId || "default", rarityOverridesOf(location));
     if (result.error) return { error: result.error };
     posting.totalAvailable = result.quantity;
@@ -622,21 +711,26 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
       rolls = month.marketRolls;
       anchorUpdate = currentTime;
     }
-    if (segment === "henchman:*") {
-      const hench = rolls.filter((r) => r.segment.startsWith("henchman:"));
-      posting.totalAvailable = hench.reduce((s2, r) => s2 + (r.total ?? 0), 0);
-      posting.rollDetail = hench.map((r) => `${r.segment.split(":")[1]}: ${r.total}`).join(", ");
-    } else {
-      const entry = rolls.find((r) => r.segment === segment);
-      posting.totalAvailable = entry?.total ?? 0;
-      posting.rollDetail = entry?.detail ?? "";
+    const anchor = anchorUpdate ?? location.system.monthAnchorTime;
+    if (posting.network) {
+      networkRolls = (location.system.networkRolls ?? []).map((r) => r.toObject?.() ?? { ...r });
+      const before = networkRolls.length;
+      const found = await rollNetworkSupplement({ location, posting, employer, anchor, marketRolls: rolls, networkRolls, rollTime: currentTime });
+      newCandidates = [...newCandidates, ...found];
+      if (networkRolls.length === before) networkRolls = null;
     }
+    const pool = postingPool(posting, rolls, networkRolls ?? (location.system.networkRolls ?? []).map((r) => r.toObject?.() ?? r), anchor);
+    posting.totalAvailable = pool.total;
+    posting.rollDetail = pool.detail;
   }
 
   // A GM placement is not a paid search — no weekly fee, no ledger line.
   let fee = { gp: 0 };
   if (!gmAdd) {
-    fee = await chargeWeeklyFee(location, employer, 1, { judge: judgeDeclares(requestUserId) });
+    fee = await chargeWeeklyFee(location, employer, 1, {
+      judge: judgeDeclares(requestUserId),
+      marketClass: feeMarketClass(location, employer, posting),
+    });
     posting.feesPaid.push({ time: currentTime, gp: fee.gp });
   }
 
@@ -647,30 +741,32 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
       { time: currentTime, gp: fee.gp, postingId: posting.id, paidByUuid: employer?.uuid ?? "" },
     ];
   }
+  // The employer's own search is stamped to them; a GM placement is nobody's dealing.
+  const priorLog = (location.system.marketLog ?? []).map((l) => l.toObject?.() ?? l);
+  const stamp = { actorUuid: employer?.uuid ?? "" };
   if (replacedCandidates) {
     // directed search: the pool itself was rewritten (replacements)
     update["system.market.candidates"] = newCandidates.length ? [...replacedCandidates, ...newCandidates] : replacedCandidates;
     update["system.market.marketLog"] = marketLogAppend(
-      (location.system.marketLog ?? []).map((l) => l.toObject?.() ?? l),
+      priorLog,
       currentTime,
       "replace",
-      `${posting.rollDetail || spec.kind}: ${replacedCount} of ${posting.totalAvailable} rolled replaced for ${employer?.name ?? "?"}`
+      `${posting.rollDetail || spec.kind}: ${replacedCount} of ${posting.totalAvailable} rolled replaced for ${employer?.name ?? "?"}`,
+      stamp
     );
-  } else if (newCandidates.length) {
-    update["system.market.candidates"] = [
-      ...(location.system.candidates ?? []).map((c) => c.toObject?.() ?? c),
-      ...newCandidates,
-    ];
-    if (gmAdd) {
-      update["system.market.marketLog"] = marketLogAppend(
-        (location.system.marketLog ?? []).map((l) => l.toObject?.() ?? l),
-        currentTime,
-        "gmPlace",
-        `${posting.rollDetail} — ${newCandidates[0]?.name ?? "?"}`
-      );
+  } else {
+    if (newCandidates.length) {
+      update["system.market.candidates"] = [
+        ...(location.system.candidates ?? []).map((c) => c.toObject?.() ?? c),
+        ...newCandidates,
+      ];
     }
+    update["system.market.marketLog"] = gmAdd
+      ? marketLogAppend(priorLog, currentTime, "gmPlace", `${posting.rollDetail} — ${newCandidates[0]?.name ?? "?"}`)
+      : marketLogAppend(priorLog, currentTime, "posting", `${segment} for ${employer?.name ?? "?"}${posting.network ? " (network)" : ""}`, stamp);
   }
   if (nextRolls) update["system.market.marketRolls"] = nextRolls;
+  if (networkRolls) update["system.market.networkRolls"] = networkRolls;
   if (anchorUpdate) update["system.market.monthAnchorTime"] = anchorUpdate;
   await location.update(update);
   Hooks.callAll(HOOKS.POSTING_CREATED, { location, posting, employer });
@@ -694,6 +790,7 @@ export async function processLocation(location, currentTime = now()) {
   const postings = (sys.postings ?? []).map((p) => p.toObject?.() ?? foundry.utils.deepClone(p));
   let candidates = (sys.candidates ?? []).map((c) => c.toObject?.() ?? foundry.utils.deepClone(c));
   let marketRolls = (sys.marketRolls ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  let networkRolls = (sys.networkRolls ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   const ledger = (sys.searchLedger ?? []).map((l) => l.toObject?.() ?? foundry.utils.deepClone(l));
   let marketLog = (sys.marketLog ?? []).map((l) => l.toObject?.() ?? l);
   let changed = false;
@@ -747,6 +844,8 @@ export async function processLocation(location, currentTime = now()) {
     // until their posting re-rolls.
     candidates = [...candidates.filter((c) => c.privateToUuid && !c.monthLong), ...month.candidates];
     marketRolls = month.marketRolls;
+    // a network roll belongs to its month, as the people it found do
+    networkRolls = networkRolls.filter((r) => r.monthStartTime === monthAnchorTime);
     changed = monthRolled = true;
     marketLog = marketLogAppend(
       marketLog,
@@ -759,25 +858,32 @@ export async function processLocation(location, currentTime = now()) {
   // what the slave market offers. Gated by setting + imported tables.
   // Best-effort: a card failure must never stall market processing.
   if (monthRolled) await postSlaveMarketCard(location).catch((err) => console.warn(`${MODULE_ID} | slave-market card failed`, err));
-  // Keep active generic postings' info in sync with the current month.
+  // Keep active generic postings' info in sync with the current month; a
+  // network posting rolls its supplement once the month has a market.
   for (const posting of postings) {
     if (posting.status !== "active" || !posting.segment) continue;
-    if (posting.segment === "henchman:*") {
-      const hench = marketRolls.filter((r) => r.segment.startsWith("henchman:"));
-      const anchor = hench[0]?.monthStartTime;
-      if (hench.length && posting.monthStartTime !== anchor) {
-        posting.monthStartTime = anchor;
-        posting.totalAvailable = hench.reduce((s2, r) => s2 + (r.total ?? 0), 0);
-        posting.rollDetail = hench.map((r) => `${r.segment.split(":")[1]}: ${r.total}`).join(", ");
-        changed = true;
-      }
-      continue;
+    const segments = postingSegments(posting.segment);
+    const anchor = marketRolls.find((r) => segments.includes(r.segment))?.monthStartTime;
+    if (anchor == null) continue;
+    if (posting.monthStartTime !== anchor) {
+      posting.monthStartTime = anchor;
+      changed = true;
     }
-    const entry = marketRolls.find((r) => r.segment === posting.segment);
-    if (entry && posting.monthStartTime !== entry.monthStartTime) {
-      posting.monthStartTime = entry.monthStartTime;
-      posting.totalAvailable = entry.total;
-      posting.rollDetail = entry.detail;
+    if (posting.network) {
+      try {
+        const employerDoc = posting.employerUuid ? await fromUuid(posting.employerUuid).catch(() => null) : null;
+        const employer = employerDoc?.actor ?? employerDoc;
+        const before = networkRolls.length;
+        candidates.push(...(await rollNetworkSupplement({ location, posting, employer, anchor, marketRolls, networkRolls, rollTime: currentTime })));
+        if (networkRolls.length !== before) changed = true;
+      } catch (err) {
+        console.warn(`${MODULE_ID} | network roll failed for posting ${posting.id}`, err);
+      }
+    }
+    const pool = postingPool(posting, marketRolls, networkRolls, anchor);
+    if (posting.totalAvailable !== pool.total || posting.rollDetail !== pool.detail) {
+      posting.totalAvailable = pool.total;
+      posting.rollDetail = pool.detail;
       changed = true;
     }
   }
@@ -826,7 +932,7 @@ export async function processLocation(location, currentTime = now()) {
       const weeksElapsed = Math.floor((currentTime - posting.createdTime) / SECONDS_PER_WEEK) + 1;
       const feesPaid = posting.feesPaid.length;
       for (let w = feesPaid; w < weeksElapsed; w++) {
-        const fee = await chargeWeeklyFee(location, employer, w + 1);
+        const fee = await chargeWeeklyFee(location, employer, w + 1, { marketClass: feeMarketClass(location, employer, posting) });
         posting.feesPaid.push({ time: currentTime, gp: fee.gp });
         ledger.push({ time: currentTime, gp: fee.gp, postingId: posting.id, paidByUuid: posting.employerUuid });
         changed = true;
@@ -860,7 +966,7 @@ export async function processLocation(location, currentTime = now()) {
       // is load-bearing".
       if (posting.employerUuid) candidates = candidates.filter((c) => c.privateToUuid !== posting.employerUuid);
       else candidates = candidates.filter((c) => !(c.monthLong && !c.privateToUuid && c.highlightFor === ""));
-      const mc = effectiveMarketClass(location, employer);
+      const mc = effectiveMarketClass(location, employer, { network: !!posting.network });
       // Detached copy; a month-old advert re-rolls AS A COMMISSION (its own
       // rarity shifts one step toward common — the JJ mechanic).
       const spec = { ...(posting.spec.toObject?.() ?? posting.spec) };
@@ -899,6 +1005,7 @@ export async function processLocation(location, currentTime = now()) {
       "system.market.postings": postings,
       "system.market.candidates": candidates,
       "system.market.marketRolls": marketRolls,
+      "system.market.networkRolls": networkRolls,
       "system.market.monthAnchorTime": monthAnchorTime,
       "system.market.specialHires": specialHires,
       "system.market.searchLedger": ledger,
@@ -963,12 +1070,12 @@ registerHandler("closePosting", async ({ locationUuid, postingId, requestUserId 
 /** Player posting creation relays through the GM (players cannot write the
  *  location actor); employer ownership + criteria are enforced in
  *  createPosting against requestUserId. */
-registerHandler("createPosting", async ({ locationUuid, spec, employerUuid, playersSeeDetails, requestUserId }) => {
+registerHandler("createPosting", async ({ locationUuid, spec, employerUuid, playersSeeDetails, requestUserId, network }) => {
   const locationDoc = await fromUuid(locationUuid);
   const location = locationDoc?.actor ?? locationDoc;
   const employerDoc = employerUuid ? await fromUuid(employerUuid).catch(() => null) : null;
   if (!location) return;
-  await createPosting(location, spec, employerDoc?.actor ?? employerDoc, { playersSeeDetails, requestUserId });
+  await createPosting(location, spec, employerDoc?.actor ?? employerDoc, { playersSeeDetails, requestUserId, network: !!network });
 });
 
 /** Process every location actor in the world (GM-side time hook target).

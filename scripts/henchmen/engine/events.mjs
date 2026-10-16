@@ -19,7 +19,7 @@ import { effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeave
 import { henchmanWage, mercenaryWage } from "../rules/wages.mjs";
 import { FLAG_GROUP_PAY } from "./hire-group.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
-import { collectEffectModifiers, sumEffectModifiers, toDialogModifiers, hasEffectFlag } from "../effects.mjs";
+import { collectEffectModifiers, sumEffectModifiers, toDialogModifiers, hasEffectFlag, unvaluedDialogModifiers } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { transferCoin } from "../../lib/money.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
@@ -223,7 +223,12 @@ export function openObedienceRoll(actor, opts = {}) {
   const dynamicModifiers = employer ? toDialogModifiers(collectEffectModifiers(employer, "obedienceRoll")) : [];
   // The employer's morale-modifier effects (Command, Battlefield Prowess…)
   // condition on presence/leadership — offered as toggles on the roll.
-  if (employer) dynamicModifiers.push(...toDialogModifiers(collectEffectModifiers(employer, "henchmanMorale")));
+  if (employer) {
+    dynamicModifiers.push(
+      ...toDialogModifiers(collectEffectModifiers(employer, "henchmanMorale")),
+      ...unvaluedDialogModifiers(employer, "henchmanMorale")
+    );
+  }
   openThrowDialog("hirelingObedience", {
     title: opts.title ?? actor.name,
     actor,
