@@ -3437,7 +3437,15 @@
       "unpriced": "No navigation target imported for this ground.",
       "cannotTest": "The throw cannot be made until the travel tables are imported.",
       "weather": "The weather: {value}",
-      "judgeChooses": "Choose the face they wandered toward — from the landmarks and the lie of the land, or roll for it — then begin the episode."
+      "judgeChooses": "Begin it once you are there: the shadow starts on the party's hex, and you shift the truth from the Judge tab as they walk on.",
+      "begin": "Begin the lost episode",
+      "noHex": "The lost episode could not be opened: the party stands on no hex of a map yet. Walk the party token onto a hex, then begin it.",
+      "aware": "They already know they are lost. The episode stays as it is.",
+      "astrayKept": "Thrown true while they are astray. The episode stays open.",
+      "astrayLost": "Thrown false while they are astray. The episode stays open.",
+      "realise": "They realise they are lost",
+      "opened": "The lost episode is open: the shadow stands on the party's hex. Shift the truth from the Judge tab as they walk on.",
+      "notOpened": "The lost episode could not be opened from here: view the party's scene, then begin it from this card."
     },
     "forage": {
       "firewood": "Firewood",
@@ -3517,6 +3525,9 @@
       "dice": "Dice: {dice}",
       "noScene": "No map hex to keep a stock under. Set the journey's hex, or put the party on a map.",
       "astray": "The party is astray; this is where it really stands.",
+      "stockedToday": "Stocked today",
+      "stockedYesterday": "Stocked yesterday",
+      "stockedAgo": "Stocked {days} days ago",
       "noSurveyor": "Nobody in the order holds Land Surveying.",
       "weather": "The weather: {value}",
       "unpriced": "Not imported: {what}.",
@@ -3691,7 +3702,10 @@
         "city": "The city",
         "log": "Log",
         "episode": "The episode",
-        "hand": "The Judge's hand"
+        "hand": "The Judge's hand",
+        "where": "Where they are",
+        "shown": "What the party is shown",
+        "navigation": "Navigation, quietly"
       },
       "pill": {
         "restTurn": "Rest a turn",
@@ -3745,6 +3759,72 @@
         "none": "No word: the map's",
         "mapReads": "The map reads {value}",
         "mapSilent": "The map says nothing here"
+      }
+    },
+    "plate": {
+      "blank": "Nothing shown of this hex",
+      "aria": "Hex {hex}, drawn",
+      "ariaNoHex": "The hex the party stands in, drawn",
+      "ariaOf": "{kind}: hex {hex}, drawn",
+      "ariaOfNoHex": "{kind}: the hex, drawn"
+    },
+    "where": {
+      "true": "True",
+      "believed": "Believed",
+      "compassBadge": "The truth lies {dir}",
+      "same": "The truth and the belief are the same hex.",
+      "shift": "Shift the truth",
+      "roll": "Roll the face blind",
+      "rolled": "The truth moved toward face {face}.",
+      "noShadow": "No shadow stands for this party on the episode's scene.",
+      "compass": {
+        "n": "North",
+        "ne": "North-east",
+        "e": "East",
+        "se": "South-east",
+        "s": "South",
+        "sw": "South-west",
+        "w": "West",
+        "nw": "North-west",
+        "short": {
+          "n": "N",
+          "ne": "NE",
+          "e": "E",
+          "se": "SE",
+          "s": "S",
+          "sw": "SW",
+          "w": "W",
+          "nw": "NW"
+        }
+      }
+    },
+    "shown": {
+      "believed": "The believed hex",
+      "believedHint": "Players see the hex the party token stands in, drawn, with its country.",
+      "unknown": "Unknown country",
+      "unknownHint": "Players see a blank plate, no hex label and no country.",
+      "overline": "Shown as unknown country",
+      "unknownCountry": "Unknown country",
+      "preview": "A player's seat"
+    },
+    "navigation": {
+      "owed": "Owed at the day's first step off the road.",
+      "thrown": "Thrown today.",
+      "following": "Nothing owed: following {what}.",
+      "throwNow": "Throw now",
+      "throwNowHint": "Makes the navigation throw now, whispered to the Judge. It counts as the day's throw.",
+      "nothingOwed": "Nothing to throw: the party is following a road or a route.",
+      "none": "No throw made yet.",
+      "day": "Day {day}",
+      "figures": "{total} against {target}",
+      "verdict": {
+        "kept": "Kept the way",
+        "strayed": "Strayed",
+        "unmade": "Not thrown: nothing imported"
+      },
+      "by": {
+        "step": "First step",
+        "judge": "The Judge"
       }
     },
     "strip": {

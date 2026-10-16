@@ -47,6 +47,34 @@
   the brush has not painted that hex. The Sky section reads the climate the
   same way. A ground given in the Judge's hand takes the encounter table with
   it.
+- **The party's picture draws the hex it stands in.** On a journey the
+  picture on the party sheet is a drawing of the hex under the party token:
+  the scene's own background, tinted by the ground painted there, with the
+  roads and rivers that cross it, the points of interest the party has found
+  and, on the Judge's seat, the ones it has not, as dashed rings. A square
+  grid draws its square, and a map with no grid a square one grid unit across.
+- **The Judge sees where a lost party is and where it believes it is.**
+  *Where they are* on the Judge tab shows a *True* plate, the hex of the
+  party's hidden true position, and a *Believed* plate, the party token's hex.
+  While they differ the believed plate is dashed and gold and a badge names
+  the direction the truth lies in. *Shift the truth* moves the true position
+  one hex toward any of six directions, or toward a face rolled blind, and the
+  players see nothing move. While an episode is open on a hex map, each drag
+  of the party token moves the true position by the same steps, hex for hex.
+- **The Judge chooses what the party is shown.** *What the party is shown* on
+  the Judge tab offers *The believed hex*, as before, or *Unknown country*: a
+  player's sheet then shows an empty picture frame, names no hex, and says
+  *Unknown country* once where the Country cards stood. The Judge's own sheet
+  shows the same under a gold line, and the section previews a player's
+  sheet. Encounters are thrown as before.
+- **The navigation throws are kept.** *Navigation, quietly* on the Judge tab
+  says whether today's throw is owed, made, or spared by a road or a route,
+  and lists the last ten throws: the day, the hex, the throw against its
+  target and whether the party kept its way. *Throw now* makes the throw by
+  hand and counts as the day's.
+- **A hex's stock says how long ago it was stocked.** The Judge's *Points of
+  interest* section shows *Stocked today*, *Stocked yesterday* or *Stocked N
+  days ago* by the world calendar. Nothing restocks a hex by itself.
 - **Calendar seasons setting.** *Calendar seasons* in the Formation settings
   lists the generator seasons in your calendar's season order, so a calendar
   whose season names the module does not recognise can still drive the sky;
@@ -102,6 +130,26 @@
   encounter table no longer carries into the next unpainted hex, which reads
   the scene's country or the Judge's word instead. The encounter cadence
   follows the territory the party arrives in.
+- **The navigation throw is made at the day's first step off a road, and End
+  day no longer makes it** (RR 275). It is made once a day, the first time the
+  party token is dragged off a road or *Next hex* is pressed there, and is
+  whispered to the Judges as before. A day ends when the calendar's day
+  changes or *End day* is pressed, whichever comes first, so a clock that
+  keeps no calendar still counts its days and a march that runs past midnight
+  owes the new day's throw at its next step. A day spent on a road, a
+  followed river or a known route throws none. A failure opens the lost
+  episode at once, with the true position under the party token; when the
+  Judge is not viewing the party's scene, the card says the episode could not
+  open and offers *Begin the lost episode*, which opens it the same way once
+  the scene is viewed, while *They strayed…* on the Judge tab still asks the
+  face. While the party is lost the day's throw is still made, and a success
+  before the party knows it offers *They realise they are lost* on its card
+  instead of ending anything by itself.
+- **A lost party's encounters are thrown where it really is.** While an
+  episode is open, the encounter throws, their cadence and the table they draw
+  on read the hex of the party's true position, not the party token's, and the
+  Judge's Country section names that table. The players' sheet still reads the
+  hex they believe they are in.
 - **Camp stays on the Wilderness tab for now.** A Camp tab, shown while camp
   time is on, is the redesign's fourth phase; until it lands, camp is a titled
   section after Day, and *End day* stays at the Wilderness tab's head.

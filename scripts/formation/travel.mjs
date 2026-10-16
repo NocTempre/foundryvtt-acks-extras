@@ -30,7 +30,7 @@
  * committed tests; everything that writes goes through `patchFormation`.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
-import { isPrimaryGM } from "../lib/util.mjs";
+import { isPrimaryGM, numOrNull } from "../lib/util.mjs";
 import { patchFormation, getFormation, getFormations, getPartyToken, realMembers, getMemberActor, hasAbility } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { mayAdvanceWorldTime, untilNextDawn, calendarDay, calendarSeason } from "../lib/world-time.mjs";
@@ -104,10 +104,10 @@ import { withHunt } from "./hunt.mjs";
 import { skyFor, skyFrom, readSkyCache, writeSkyCache, priorSky } from "./sky.mjs";
 import { runProvisionDay } from "./provision-day.mjs";
 import { forcedMarchBar, warnForcedMarchBarred, announceBarOverridden } from "./march-bar.mjs";
-import { postNavigationThrow } from "./navigation-card.mjs";
 import { isMode } from "../lib/movement-modes.mjs";
 import { FLIGHT_LOADS } from "./flight.mjs";
 import { lostOf } from "./lost.mjs";
+import { shadowFor } from "./shadow.mjs";
 import { weatherEffects, throwPenalty } from "./weather-effects.mjs";
 
 /**
@@ -349,6 +349,61 @@ export function countryOf(formation) {
 }
 
 /**
+ * What a player's seat is shown of the hex the party stands in, the Judge's
+ * choice (`travel.shown`): `believed`, the party token's hex as the map reads
+ * it, and the default; `unknown`, a blank plate and no country at all.
+ */
+export const SHOWN_KINDS = Object.freeze(["believed", "unknown"]);
+
+/** How many navigation throws `travel.navigation.history` keeps, newest first. */
+export const NAVIGATION_HISTORY = 10;
+
+/** Who made a navigation throw: the day's first step off a road, or the Judge's own press. */
+export const NAVIGATION_BY = Object.freeze(["step", "judge"]);
+
+/** A day key as `journeyDayKey` writes it, or null for anything that is not a non-empty string. */
+const dayKeyOrNull = (v) => (typeof v === "string" && v ? v : null);
+
+/** A whole day count, or null for anything that is not a finite number. */
+const dayCountOrNull = (v) => {
+  const n = numOrNull(v);
+  return n == null ? null : Math.floor(n);
+};
+
+/** One stored throw normalized, or null for anything that is not one. */
+function navigationEntryOf(e) {
+  if (!e || typeof e !== "object") return null;
+  return {
+    day: dayKeyOrNull(e.day),
+    count: dayCountOrNull(e.count),
+    hexLabel: String(e.hexLabel ?? ""),
+    target: numOrNull(e.target),
+    total: numOrNull(e.total),
+    natural: numOrNull(e.natural),
+    success: typeof e.success === "boolean" ? e.success : null,
+    by: NAVIGATION_BY.includes(e.by) ? e.by : NAVIGATION_BY[0],
+  };
+}
+
+/**
+ * The navigation record of a travel subtree, normalized: `thrownOn`, the day
+ * key of the last throw (null when none was made); `lastResult`, that throw;
+ * `history`, the last `NAVIGATION_HISTORY` throws, newest first. A throw is
+ * `{ day, count, hexLabel, target, total, natural, success, by }`: `day` the
+ * key it was claimed under (`journeyDayKey`), `count` the End-day counter it
+ * was made on, which the sheet shows as the log shows its days; `success` is
+ * null for a throw that could not be made (its target unimported).
+ */
+export function navigationOf(travel) {
+  const n = travel?.navigation && typeof travel.navigation === "object" ? travel.navigation : {};
+  return {
+    thrownOn: dayKeyOrNull(n.thrownOn),
+    lastResult: navigationEntryOf(n.lastResult),
+    history: (Array.isArray(n.history) ? n.history : []).map(navigationEntryOf).filter(Boolean).slice(0, NAVIGATION_HISTORY),
+  };
+}
+
+/**
  * The travel subtree with every key but the country's answered: what
  * `travelOf` resolves the country over, and `storedTravelOf` keeps it raw in.
  */
@@ -396,6 +451,10 @@ function travelBase(formation) {
     weatherRuns: { ...(t.weatherRuns ?? {}) },
     dayCount: Number(t.dayCount) || 0,
     lost: lostOf(t),
+    // What a player's seat is shown of the hex the party stands in: the party
+    // token's hex as the map reads it, or nothing at all (`SHOWN_KINDS`).
+    shown: SHOWN_KINDS.includes(t.shown) ? t.shown : SHOWN_KINDS[0],
+    navigation: navigationOf(t),
     // HOW the order moves, which decides which factors it meets at all. Named
     // `movement` rather than `mode`, because `mode` above is already the kind
     // of adventuring (delve / journey / settlement) and the two are
@@ -1005,6 +1064,31 @@ export function seatJourneyHex(tokenDoc, formationId) {
 }
 
 /**
+ * The travel subtree read where the party REALLY is. While a lost episode is
+ * open, in either phase, and its shadow stands on the episode's scene, this
+ * is `travelOf` resolved over the map's reading at the shadow — its hex, its
+ * country and its water — through the Judge's override and the grounded rule
+ * exactly as at the token; otherwise it is `travelOf` itself. The reading is
+ * resolved on the episode's scene, which is where the shadow stands, even
+ * where the party token has since been placed on another. The encounter
+ * column reads this; the sheet's hex and country read `travelOf`, which is the
+ * hex the party believes it stands in. Never written back.
+ */
+export function trueTravelOf(formation) {
+  const t = travelOf(formation);
+  if (!t.lost.phase) return t;
+  const scene = game.scenes?.get(t.lost.sceneId ?? formation?.sceneId) ?? null;
+  const shadow = scene ? shadowFor(scene, formation?.id) : null;
+  if (!shadow) return t;
+  const map = mapReadingAt(scene, tokenCentre(shadow, scene), { at: t.map?.at ?? null });
+  const stored = formation.travel ?? {};
+  const hex = map.i != null && map.j != null
+    ? { ...(stored.hex ?? {}), label: hexLabelFromOffset(map), i: map.i, j: map.j }
+    : stored.hex;
+  return travelOf({ ...formation, sceneId: scene.id, travel: { ...stored, map, hex } });
+}
+
+/**
  * Re-read the map under every journeying party standing on a scene, and cache
  * what changed (`travel.map`): the Judge painted the hex a party stands in,
  * drew a river through it, or set the scene's default country, and the party
@@ -1114,6 +1198,17 @@ export function navigationCompetence(formation) {
 }
 
 /**
+ * What spares a party the navigation throw: `"road"` on a road, the route it
+ * follows (`FOLLOWING_KINDS`) beside one, null in trackless country. `t` is a
+ * `travelOf` result.
+ */
+function routeFollowed(t) {
+  if (t.road && t.road !== "none") return "road";
+  if (t.following && t.following !== "none") return t.following;
+  return null;
+}
+
+/**
  * The day's navigation prospect, before any dice.
  *
  * `throws` is false on a road or a navigable river — a party following an
@@ -1121,16 +1216,15 @@ export function navigationCompetence(formation) {
  * table. Otherwise the target is the terrain's, from the imported
  * `gettingLost` row, and a null target means UNIMPORTED, never "no target".
  *
- * This deliberately stops short of the consequence. What a failure does is the
- * Lost ruling (`docs/formation/DECISIONS.md`, 2026-08-29, "Lost: the players
- * hold the reckoning"): the throw reports, the Judge opens the episode by
- * hand, and a success restores no position. This returns only what is decided
- * before the dice.
+ * This deliberately stops short of the consequence: what a failure does is the
+ * card's (`navigation-card.mjs` opens the episode where the party stands), and
+ * a success restores no position. This returns only what is decided before
+ * the dice.
  */
 export function landNavigationSpec(formation) {
   const t = travelOf(formation);
-  if (t.road && t.road !== "none") return { throws: false, reason: "road" };
-  if (t.following && t.following !== "none") return { throws: false, reason: t.following };
+  const route = routeFollowed(t);
+  if (route) return { throws: false, reason: route };
   const targets = readTable(TRAVEL_DOC, "gettingLost");
   const target = Number(targets?.[t.ground]);
   const competence = navigationCompetence(formation);
@@ -1190,6 +1284,115 @@ export async function rollLandNavigation(formation) {
 }
 
 /**
+ * The day a navigation throw is owed on, as a key: the calendar day the world
+ * clock stands in (empty where the clock keeps no calendar) and the End-day
+ * counter, joined — `"<calendar day>:<counter>"`. A new day begins when
+ * either moves: End day advances the counter whether or not the module may
+ * move the clock, and a clock another hand moves rolls the calendar day
+ * without it. Neither alone would do: a clock the module may not advance
+ * keeps one calendar day for the whole journey, and a counter nobody presses
+ * keeps one day for a clock that runs. `travel` is a `travelOf` or
+ * `storedTravelOf` result.
+ */
+export function journeyDayKey(travel) {
+  const calendar = calendarDay();
+  return `${calendar == null ? "" : calendar}:${Number(travel?.dayCount) || 0}`;
+}
+
+/**
+ * One throw as the record keeps it, from a `rollLandNavigation` result: the
+ * target, the total and the natural die where it was rolled, and `success`
+ * null where it could not be (the target unimported). `day` is the key it was
+ * claimed under and `count` the End-day counter it was made on.
+ */
+export function navigationEntry(result, { day = null, count = null, hexLabel = "", by = "step" } = {}) {
+  const rolled = !!result?.rolled;
+  return navigationEntryOf({
+    day,
+    count,
+    hexLabel,
+    target: result?.target ?? null,
+    total: rolled ? result.total : null,
+    natural: rolled ? result.natural : null,
+    success: rolled ? !!result.success : null,
+    by,
+  });
+}
+
+/**
+ * A navigation record with `entry` thrown: it is the last result, it heads the
+ * history (which keeps `NAVIGATION_HISTORY`), and its day is the day thrown
+ * on. Pure; `navigation` is the record's own, normalized here.
+ */
+export function withNavigationThrow(navigation, entry) {
+  const n = navigationOf({ navigation });
+  const made = navigationEntryOf(entry);
+  if (!made) return n;
+  return {
+    thrownOn: made.day ?? n.thrownOn,
+    lastResult: made,
+    history: [made, ...n.history].slice(0, NAVIGATION_HISTORY),
+  };
+}
+
+/**
+ * Write a navigation throw to the record (`withNavigationThrow`): `by` names
+ * who threw it, `hexLabel` the hex it was thrown in (the party's own by
+ * default), `day` the key it counts for (today's `journeyDayKey` by default)
+ * and `count` the End-day counter it was made on (the record's own by
+ * default). Resolves the entry written, or null when the formation is gone.
+ */
+export async function recordNavigationThrow(formationId, result, { by = "step", hexLabel = null, day = null, count = null } = {}) {
+  let entry = null;
+  await patchFormation(formationId, (record) => {
+    const t = storedTravelOf(record);
+    entry = navigationEntry(result, {
+      day: day ?? journeyDayKey(t),
+      count: count ?? (Number(t.dayCount) || 0),
+      hexLabel: hexLabel ?? t.hex.label,
+      by,
+    });
+    record.travel = { ...t, navigation: withNavigationThrow(t.navigation, entry) };
+  });
+  return entry;
+}
+
+/**
+ * Mark `day` as the day the navigation throw was made, inside the ledger's
+ * lock, so two steps racing for the day's first throw make it once. Resolves
+ * true when this call claimed the day, false when it was claimed already or
+ * the formation is gone.
+ */
+export async function claimNavigationDay(formationId, day) {
+  let claimed = false;
+  await patchFormation(formationId, (record) => {
+    const t = storedTravelOf(record);
+    if (t.navigation.thrownOn === day) return false;
+    record.travel = { ...t, navigation: { ...t.navigation, thrownOn: day } };
+    claimed = true;
+  });
+  return claimed;
+}
+
+/**
+ * When the navigation throw is next owed, as the Judge's tab says it:
+ * `{ state, day, route }`. `state` is `owed` (the day's first step off a road
+ * throws it), `thrown` (today's throw is made), `following` (a road or a
+ * route spares the party; `route` is `routeFollowed`'s answer, with the road's
+ * kind as `road`), or `none` off a journey. `day` is the key asked about:
+ * today's, or the one a step began in, handed in as `day`.
+ */
+export function navigationOwed(formation, { day = null } = {}) {
+  const t = travelOf(formation);
+  if (t.mode !== "journey") return { state: "none", day: null, route: null, road: null };
+  if (day == null) day = journeyDayKey(t);
+  if (t.navigation.thrownOn === day) return { state: "thrown", day, route: null, road: null };
+  const route = routeFollowed(t);
+  if (route) return { state: "following", day, route, road: route === "road" ? t.road : null };
+  return { state: "owed", day, route: null, road: null };
+}
+
+/**
  * The Judge's override group of a submit, merged over the record's: each of
  * the six country keys the form names is set when valid and CLEARED when
  * blank; one it does not name stands. The group is `tv.override`; a key named
@@ -1213,7 +1416,8 @@ function overrideFromForm(current, tv) {
 
 /**
  * The panel's whole form in ONE ledger write: the Judge's overrides, weather
- * flags, the day board, the hex label, the lost note. The form submits itself
+ * flags, the day board, the hex label, the lost note, what a player's seat is
+ * shown (`tv.shown`, one of `SHOWN_KINDS`). The form submits itself
  * entire on every change (submitOnChange), so writing field-by-field would
  * queue a patch per field per keystroke; this applies what the form carries
  * and lets `travelOf` refuse the rest. The six country keys land in
@@ -1293,6 +1497,7 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
     }
     if (typeof tv.hexLabel === "string") next.hex = { ...t.hex, label: tv.hexLabel.trim() };
     if (typeof tv.lostNote === "string") next.lost = { ...next.lost, judgeNote: tv.lostNote };
+    if (SHOWN_KINDS.includes(tv.shown)) next.shown = tv.shown;
     if (tv.day) {
       let day = t.day;
       if (typeof tv.day.kind === "string" && DAY_KINDS[tv.day.kind] && tv.day.kind !== day.kind) {
@@ -1365,7 +1570,7 @@ export function effectiveSeason(travel) {
  * The climate is `t`'s as `travelOf` resolves it — the map's, the scene's or
  * the Judge's — so `t` is a `travelOf` result, never a stored one.
  */
-function skyParams(t, season, day = calendarDay() ?? t.dayCount) {
+function skyParams(t, season, day = journeyDayKey(t)) {
   return { day, climate: t.weather.climate, season };
 }
 
@@ -1531,22 +1736,14 @@ export async function rollWeatherNow(formationId) {
  * advances what the day has not already advanced of a whole day, so hours the
  * march ran earlier are absorbed and never charged twice.
  *
+ * End day makes no navigation throw: the next day's is made at its first step
+ * off a road (`throwDayNavigation`, journey.mjs), keyed on `journeyDayKey`.
+ *
  * @returns the log entry written, or null when the formation is gone
  */
 export async function endDay(formationId, { miles = null, hours = null, hexes = null, notes = "" } = {}) {
   let entry = null;
   let advancedToday = 0;
-  const t0 = travelOf(getFormation(formationId) ?? {});
-  // The day's navigation throw, whispered. Deliberately BEFORE the patch and
-  // deliberately not acted on: RAW hands the stray direction to the Judge, so
-  // the card reports and the Judge begins the episode.
-  if (t0.mode === "journey" && !t0.lost?.active) {
-    try {
-      await postNavigationThrow(getFormation(formationId));
-    } catch (err) {
-      console.error(`${MODULE_ID} | the navigation throw failed; the day still ends`, err);
-    }
-  }
 
   // Feed the order and walk every ladder one step, BEFORE the patch: reading
   // packs and writing bodies is async, and the patch callback is not.

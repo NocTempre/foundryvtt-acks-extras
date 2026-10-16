@@ -10,19 +10,7 @@
       {{#each frame.rails.saves}}{{> "modules/acks-extras/templates/formation/formation-cell.hbs"}}{{/each}}
     </div>
     {{/if}}
-    <div class="acks-extras-party-sheet__plate">
-      {{#if isGM}}
-      <button type="button" class="acks-extras-party-sheet__plate-edit" data-action="editPartyImage"
-              data-tooltip="{{localize 'ACKS-FORMATION.app.editImageHint'}}" aria-label="{{localize 'ACKS-FORMATION.app.editImageHint'}}">
-        {{#if frame.plate.img}}<img src="{{frame.plate.img}}" alt="" inert>{{else}}<i class="fa-solid fa-people-group" inert></i>{{/if}}
-      </button>
-      {{else if frame.plate.img}}
-      <img src="{{frame.plate.img}}" alt="">
-      {{else}}
-      <i class="fa-solid fa-people-group" inert></i>
-      {{/if}}
-      {{#if frame.plate.hex}}<span class="acks-extras-party-sheet__plate-hex acks-nums">{{frame.plate.hex}}</span>{{/if}}
-    </div>
+    {{> "modules/acks-extras/templates/formation/formation-plate.hbs" frame.plate}}
     <div class="acks-extras-party-sheet__rail acks-extras-party-sheet__rail--figures">
       {{#each frame.rails.figures}}{{> "modules/acks-extras/templates/formation/formation-cell.hbs"}}{{/each}}
     </div>

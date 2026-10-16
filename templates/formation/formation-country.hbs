@@ -1,0 +1,16 @@
+{{!-- The country under the party (`buildCountryView`): its cards and the table
+      the encounters draw on; or, for a hex the party is shown nothing of
+      (`unknown`), the one line that says so. The Wilderness tab and the Judge
+      tab's preview of a player's seat both render it. --}}
+{{#if unknown}}
+<p class="acks-extras-country-unknown">{{localize "ACKS-FORMATION.shown.unknownCountry"}}</p>
+{{else}}
+<div class="acks-extras-country-cards">
+  {{#each cards}}
+  {{> "modules/acks-extras/templates/formation/formation-country-card.hbs"}}
+  {{/each}}
+</div>
+{{#if encountersDrawOn}}
+<p class="acks-extras-country-draw">{{localize "ACKS-FORMATION.country.drawOn" table=encountersDrawOn}}</p>
+{{/if}}
+{{/if}}

@@ -19,6 +19,7 @@ import { ENCOUNTERS_DOC, monsterDraw, rarityThrow, rollDice, terrainEncounterDra
 import { readTable } from "../vehicles/vehicle-speed.mjs";
 import { hexKeyOf } from "../battlemap/terrain-paint.mjs";
 import { bracketRow } from "../lib/tables.mjs";
+import { calendarDayOf } from "../lib/world-time.mjs";
 
 /** What a stocked point is: a creature's lair, a terrain find of either list, a unique find, or a point the Judge placed by hand. */
 export const LAIR_KINDS = Object.freeze(["lair", "valuable", "dangerous", "unique", "placed"]);
@@ -204,9 +205,12 @@ export function falseCount({ record, truth, rng = Math.random, tries = FALSE_COU
  * The record as a panel line reads it: whether it is stocked, its count, and
  * whether that count is a ceiling (`upTo`, false when the Judge typed it),
  * the lairs row and dice it came from, how many points it holds and how many
- * of them no formation has found.
+ * of them no formation has found, and `stockedDay`, the calendar day its
+ * `stockedAt` falls in (`calendarDayOf`, the key the journey's day is kept
+ * under) — null when the record has no stamp or `secondsPerDay`, the
+ * calendar's day length, is not given.
  */
-export function stockSummary(record) {
+export function stockSummary(record, { secondsPerDay = null } = {}) {
   const points = record?.points ?? [];
   return {
     stocked: record?.stocked === true,
@@ -216,5 +220,6 @@ export function stockSummary(record) {
     dice: record?.dice ?? null,
     points: points.length,
     unfound: points.filter((p) => !Object.keys(p.found ?? {}).length).length,
+    stockedDay: calendarDayOf(record?.stockedAt ?? null, secondsPerDay),
   };
 }

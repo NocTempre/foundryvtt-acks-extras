@@ -261,6 +261,13 @@ await t("an episode with no marker falls back to the party's own token", () => {
   assert.equal(run.trueHexOf(formation).key, "2:3");
 });
 
+await t("a marker left standing with no episode open is not where the party is", () => {
+  const { formation } = world({ tokens: [token(250, 150), shadowOf("f1", 650, 450)] });
+  const here = run.trueHexOf(formation);
+  assert.equal(here.key, "2:3", "the party's own token, as every other reader of the truth has it");
+  assert.equal(here.astray, false);
+});
+
 await t("a scene without a hex grid keys on the journey's typed label, folded", () => {
   const { scene, formation } = world({ hex: false, label: "C4 (north)." });
   const here = run.trueHexOf(formation);
@@ -723,6 +730,24 @@ await t("the panel view is for the Judge, and says so when there is no map hex o
   assert.deepEqual(view.assessed, { told: 3, trustworthy: true, at: 1000 });
   assert.deepEqual(view.points.map((p) => [p.found, p.foundByAny]), [[true, true], [false, false], [false, false]]);
   assert.equal(view.points[0].kindLabel, "ACKS-FORMATION.hexStock.kinds.lair {}");
+  assert.equal(view.stockedAgo, null, "a clock with no calendar names no day");
+  assert.equal(view.stockedLine, "", "and the panel says nothing of when");
+  // An invented calendar of 100-second days; the stock was stamped at 1000.
+  game.time.calendar = { days: { hoursPerDay: 10, minutesPerHour: 10, secondsPerMinute: 1 } };
+  game.time.components = { hour: 0 };
+  const dated = run.hexStockView(formation);
+  assert.equal(dated.summary.stockedDay, 10, "the calendar day the stock's stamp falls in");
+  assert.equal(dated.stockedAgo, 0, "stocked today");
+  assert.equal(dated.stockedLine, "ACKS-FORMATION.hexStock.stockedToday {}", "and the panel says so");
+  game.time.worldTime = 1199;
+  assert.equal(run.hexStockView(formation).stockedLine, "ACKS-FORMATION.hexStock.stockedYesterday {}", "a day later, to its last second");
+  game.time.worldTime = 1250;
+  const aged = run.hexStockView(formation);
+  assert.equal(aged.stockedAgo, 2, "an age in calendar days, not a day number the sheet's count would contradict");
+  assert.equal(aged.stockedLine, 'ACKS-FORMATION.hexStock.stockedAgo {"days":2}');
+  game.time.worldTime = 1000;
+  delete game.time.calendar;
+  delete game.time.components;
 
   const nowhere = run.hexStockView({ ...formation, sceneId: "gone" });
   assert.equal(nowhere.noScene, true);

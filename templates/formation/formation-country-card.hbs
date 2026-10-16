@@ -1,18 +1,18 @@
 {{!-- One reading of the country under the party (a `buildCountryView` card):
-      its swatch, its name and the value read; on the Judge's seat, the source
-      that answered it, the chip that source earns with the clear that retires
-      the word behind it, and the brush for a hex the map has not painted on
-      the card's layer. --}}
+      its swatch, its name and the value read; on a card built for the Judge
+      (`judge`), the source that answered it, the chip that source earns with
+      the clear that retires the word behind it, and the brush for a hex the
+      map has not painted on the card's layer. --}}
 <div class="acks-extras-country-card" data-key="{{key}}">
   <span class="acks-extras-country-swatch{{#unless swatch}} is-empty{{/unless}}"{{#if swatch}} style="--acks-extras-country-swatch: {{swatch}}"{{/if}} inert></span>
   <div class="acks-extras-country-text">
     <span class="acks-extras-country-label">{{label}}</span>
     <span class="acks-extras-country-value">{{valueLabel}}</span>
-    {{#if @root.isGM}}
+    {{#if judge}}
     <span class="acks-extras-country-source" data-provenance="{{provenance}}">{{provenanceLabel}}</span>
     {{/if}}
   </div>
-  {{#if @root.isGM}}
+  {{#if judge}}
   <div class="acks-extras-country-chips">
     {{#if (eq chip "override")}}
     <span class="acks-extras-country-chip is-override"

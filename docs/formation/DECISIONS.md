@@ -1213,6 +1213,10 @@ marker. The alternative — one token, Judge narrates — was rejected because t
 players read their real position off the screen every morning and the rule
 becomes an annotation.
 
+*Superseded in part by "The party is shown the hex it believes in, and the
+day's throw comes at its first step" (2026-10-16, below): the party token is
+the belief everywhere, and the encounter column reads the shadow.*
+
 **A successful throw does not restore position.** Strict RAW: it tells the
 party it is lost and lets it resume the heading it meant, from wherever it
 actually stands. It does not reveal where it strayed, and there is no kind
@@ -2469,6 +2473,10 @@ printed figures the march still relies on (`MARCH_HOURS`, the forced march's
 factor, the one-hour slot) are named in ROADMAP for the movement-scales pass.
 `formation` `apiVersion` 15, lib `apiVersion` 27.
 
+*Superseded in part by "The party is shown the hex it believes in, and the
+day's throw comes at its first step" (2026-10-16, below): the navigation throw
+at the start of the day, named out of scope under this ruling, is built.*
+
 ### A hex's stock lives on its map, keyed by the cell (2026-10-09)
 
 **Asked.** Where the lairs a hex holds are kept, now that the procedure that
@@ -3202,3 +3210,211 @@ review's failing inputs, each now pinned by a test.
 per press. The moves the token hook passes over (a halt's, a resize's) and
 the arrival on another scene still re-seat nothing (ROADMAP, "The party
 sheet: what the frame leaves").
+
+## 2026-10-16 — The party is shown the hex it believes in, and the day's throw comes at its first step
+
+**Evidence.** Three rulings taken on 2026-10-15 for the redesign's phase 2b,
+recorded as taken. The redesign proposal's §4i drew a navigation throw owed at
+every hex edge, a restock day the Judge sets, and a Judge board on which "the
+token is the truth". The mechanics audit (2026-10-15, row 2.6) found the throw
+made inside `endDay`, after the day's travel, where it could not steer the day
+it priced. The book has no cadence for refilling a hex's lairs; its one
+restocking table is a dungeon's. The code's lost model already stood the party
+token at the belief and the shadow at the truth (*The true position is a
+SHADOW TOKEN*, 2026-08-29), while the encounter column read the token.
+
+**Ruled.**
+- **R1. The navigation throw is made once a calendar day, at the day's first
+  step off a road.** The active GM's client throws it after the spend of the
+  day's first journey step that walked miles with nothing followed
+  (`throwDayNavigation`); **Next hex** is a step too, on the pressing Judge's
+  client. The day is `journeyDayKey`, the sky's key: the calendar day, else
+  the End-day counter. It is claimed inside the ledger's lock, so a second step
+  the same day throws nothing. The record is `travel.navigation = {thrownOn,
+  lastResult, history}`, the history the last ten throws `{day, hexLabel,
+  target, total, natural, success, by}`. End day no longer throws.
+  - **Throw now** on the Judge tab throws by hand and counts as the day's
+    throw (`by: "judge"`). The Judge uses it for the halt after an evasion,
+    which the rules price separately and the module does not automate.
+  - A failure with no episode open opens one at once (`beginEpisode`), the
+    truth and the belief in the party token's hex. Where that is refused, the
+    whispered card says the episode did not open and offers Begin.
+  - While an episode is open the throw is still made. A success while astray
+    offers *They realise they are lost* (`discoverEpisode`) and closes nothing.
+  - The Judge tab's *Navigation, quietly* lists the history and says when the
+    next throw is owed.
+- **R2. A restock stays the Judge's gesture; `stockedAt` becomes a reading.**
+  `stockSummary` gains `stockedDay`, the calendar day of `stockedAt`, null with
+  no stamp or no calendar, and the Judge's Points of interest block says
+  "Stocked day N". There is no restock day and no restocking on the clock;
+  **Restock** stays the dialog with its confirm.
+- **R3. The party token is the belief; the shadow is the truth.**
+  - Every seat's plate, Country cards, strip and band read the party token's
+    hex.
+  - The Judge tab's *Where they are* shows a True plate (the shadow's hex) and
+    a Believed one, dashed and gold while they differ, with a compass badge
+    naming the direction from the belief to the truth.
+  - The encounter column reads the true hex (`trueTravelOf`).
+  - A drag on the active GM's client walks the truth: the shadow moves by the
+    token's displacement snapped to the grid, one `walkAstray` per hex
+    entered, in order.
+  - **Shift the truth** moves the shadow one hex toward one of six directions
+    and leaves the belief where it is.
+  - `travel.shown` is `believed` (the default) or `unknown`. Under `unknown` a
+    player's seat gets a blank plate, one "Unknown country" line and no hex,
+    and the Judge's Wilderness tab shows the same under a gold overline. The
+    Judge tab previews a player's seat through `buildTravelView`'s `asPlayer`
+    branch.
+- **Taken in the build**, each with what it turned down:
+  - `nextHex` owes the day's throw as a drag does. Rejected: the drag alone,
+    under which a journey with no map never throws.
+  - The true position is read in both phases, astray and aware, and a drag
+    walks it in both. Rejected: astray only, which throws an aware party's
+    encounters where it is not and leaves its shadow behind its walk.
+  - With no episode open both plates read the party token. Rejected: the
+    shadow wherever one stands, since a leftover shadow is not the truth.
+  - The pad's centre cell throws a blind face. Rejected: an inert centre, which
+    drops the Begin dialog's blind roll for an episode the throw opened.
+  - The Judge's Encounters line names the true hex's table, a player's the
+    believed hex's. Rejected: one line for both seats, which tells a player
+    where the party is.
+  - Under `unknown` the Judge's frame plate is blank too, and neither seat
+    gets the territory or following chip. Rejected: the drawn plate and the
+    chips on the Judge's frame, a frame no player sees above a tab that says
+    the party is shown nothing.
+  - The throw reads its ground and its route at the believed hex, as R1's
+    test names `travelOf`. Rejected: the true hex's ground, under which one
+    throw would read its route and its target off two hexes.
+  - `stockedDay` is null on a clock with no calendar, and the line counts from
+    one. Rejected: `dayOfWorldTime`'s fallback of 86,400 seconds, a day the
+    journey does not count; without a calendar its day is the End-day counter.
+  - A drawn frame plate is not a button; the image picker stays on the undrawn
+    plate and the rail. Rejected: a drawing that opens a picker for an image
+    it does not show.
+
+**Supersedes** (in part) *A drag on a journey spends miles, and the world
+clock runs with it* (2026-10-09): the navigation throw at the start of the
+day, named out of scope under it (ROADMAP's row carries that list; the
+entry's own text never spelled it). The cause is the proposal's §4i and the
+audit's row 2.6; the entry is seven days old. Also *Lost: the players hold the
+reckoning* (2026-08-29): "the party token never stops being the truth
+internally". The token is the belief everywhere, and the encounter column
+reads the shadow, as the shadow-token entry of the same day ruled for every
+derivation.
+
+**Rejected.**
+- *A throw at every hex crossing* (the proposal's "owed at the edge"): not the
+  book's cadence, and it multiplies the risk by the hexes walked.
+- *The throw at End day*: it cannot steer a day already walked.
+- *Closing the episode on a success*: the success is knowledge of the
+  straying, not of the position.
+- *A restock day, or restocking on the clock*: no page behind it, and a
+  destructive write, finds and search credit wiped, with no gesture.
+- *The Judge moving the party token while the players watch*: the fog and the
+  shadow exist so that the players' token is the lie they hold.
+- *A separate believed marker*: the token is the marker.
+
+**Cost.**
+- The day's first trackless step posts a whispered card mid-march; a day spent
+  on a road posts none.
+- A failure opens the episode only while the Judge views the party's scene;
+  elsewhere the Judge presses Begin on the card.
+- The halt after an evasion is thrown by hand (ROADMAP).
+- The sky under a lost party still reads the believed hex's climate (ROADMAP).
+- The next-hex line on the strip is not built (ROADMAP).
+- `formation` `apiVersion` 18.
+
+## 2026-10-16 — The day is keyed twice, the stock says its age, and the card's Begin is the throw's own opening
+
+**Evidence.** The redesign's phase 2b was reviewed read-only the day it was
+built, against inputs the first live walk had not supplied. Each was run, and
+each found the entry above's own rulings wanting:
+- a march that ran past midnight with the day open owed the next day's throw
+  under R1's calendar key, and on a clock the module does not advance End day
+  never turned the key at all, so a world on a static clock threw once in its
+  life;
+- the stock's "Stocked day N" was the calendar's number, beside a band whose
+  day number is End day's count; on a world where the two run apart one sheet
+  named two days for one;
+- the card's Begin opened a stray dialog asking the face, where the failure
+  that posted the card opens with the truth under the token and no face: one
+  failure gave two episodes by route;
+- `trueHexOf` read a shadow an earlier ending had left standing, while
+  `trueTravelOf` passed it, so the stock and the search went to a hex the
+  encounters did not;
+- two updates of the party token that resolved together each walked the truth
+  from one starting cell, and the second's steps overwrote the first's;
+- a drag across several hexes painted the players' fog once per hex, each
+  paint over the last;
+- the strip counted miles to the next throw at the believed territory's
+  cadence, with the throw itself spent at the true one, and showed the count
+  to a player shown unknown country;
+- the plate kept a background that failed to load and never asked for it
+  again, and kept every background it was ever shown;
+- the two plates on Where they are named their hex to a screen reader and not
+  which plate was which;
+- the day log named the hex on a player's seat shown unknown country;
+- the compass pad on a flat-topped grid laid its diagonals beside the centre
+  instead of at the corners, so north-east sat level with the hex it lies
+  above;
+- a party placed on a hex scene and not yet walked was named no hex on its
+  frame, its strip or its plate, since the record is written by the first
+  drag.
+
+**Ruled.**
+- **R1 amended: the day is keyed on the calendar day and the End-day count
+  together**, `"<calendar day or empty>:<count>"`, read before the step's
+  spend. A new day begins when either turns: End day on any clock, or a march
+  past midnight with the day open, which owes the new day's throw at its next
+  step. Each history entry carries `count`, the End-day count the throw fell
+  in, and the Judge tab's row shows `count + 1`, the band's own number; an
+  entry without one shows a dash.
+- **R2 amended: the Points of interest block says the stock's age** — today,
+  yesterday or N days ago, by the calendar, and nothing with no calendar. The
+  day number is withdrawn.
+- **The card's Begin opens at the belief, as the failure does**
+  (`beginFromCard`): no dialog, the shadow under the party token, and the
+  truth the Judge's to shift from the Judge tab as the party walks on. *They
+  strayed…* on the Judge tab keeps the face.
+- **`trueHexOf` reads the shadow only while an episode is open**, as
+  `trueTravelOf` does; a leftover shadow is the repair tool's.
+- **The movement hook's work is queued per formation**, and a drag walks its
+  hexes through `walkAstrayPath`, one paint after the last step.
+- **The strip's miles to the next throw read the true territory**, and the
+  count is hidden from a player shown unknown country, as the hex is.
+- **The plate keeps the last twelve backgrounds and forgets a failed one**;
+  the True and Believed plates name their kind to a reader before the hex.
+- **The day log names no hex under unknown country**, on either seat.
+- **The frame, the strip and the plate name the cell the party token stands
+  in when the record names no hex** (`standingLabel`); the Judge's hex field
+  keeps the record's label alone.
+
+**Supersedes** (in part) *The party is shown the hex it believes in, and the
+day's throw comes at its first step*, above, of the same day: R1's key and
+R2's line. The new evidence is the review's inputs listed above, none of
+which the first walk supplied; the walk's checks were the inputs the build was
+written against.
+
+**Rejected.**
+- *The calendar day alone as the key*: a clock the module does not advance
+  never turns it.
+- *The End-day count alone* (the key before the calendar ruling of
+  2026-10-15): a march past midnight with the day open reads the old day,
+  and the sky is keyed on the calendar.
+- *A stray dialog on the card's Begin*: the failure it answers opened with no
+  face, and the dialog made one gesture mean two openings.
+- *A day number for the stock*: two numberings of one day on one sheet.
+- *Reading the key after the spend*: a step that spends into the next
+  calendar day would throw for a day it did not begin in.
+
+**Cost.**
+- The claim is per client: two GM clients stepping one party in a day can
+  each throw once (ROADMAP).
+- The plate's crop assumes the background fills the scene rectangle
+  (ROADMAP).
+- A drag the active GM makes while viewing another scene records its faked
+  hexes and paints none until the next walk with the scene viewed (ROADMAP).
+- `history` entries gain `count`; entries the build before this one wrote
+  show a dash for the day.
+- `apiVersion` stays 18: note 18 grows, nothing already released changes
+  shape.

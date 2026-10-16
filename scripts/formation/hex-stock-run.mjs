@@ -18,6 +18,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { makeLoc, gmIds, elementOf, unset } from "../lib/util.mjs";
+import { calendarDayOf, clockReading } from "../lib/world-time.mjs";
 import { hexLabelFromOffset, isHexScene, paintedTerrainAt } from "../battlemap/terrain-paint.mjs";
 import { readTable } from "../vehicles/vehicle-speed.mjs";
 import { getFormation, getPartyScene, hasAbility, realMembers } from "./formation-model.mjs";
@@ -57,16 +58,19 @@ const flagPath = (key) => `flags.${MODULE_ID}.${STOCK_FLAG}.${key}`;
  * The hex the party really stands in: `{ scene, key, label, center, offset,
  * astray }`, or null when there is no scene or no key to file a stock under.
  *
- * On a hex scene the cell comes from the true-position token's centre; on any
- * other scene, or with no token, the key is the journey's typed hex label and
- * `center` and `offset` are null. `astray` is true while a lost episode is
- * walking the party somewhere its marker does not say.
+ * On a hex scene the cell comes from the true-position token's centre — the
+ * shadow's while a lost episode is open, the party token's otherwise, as every
+ * other reader of the truth has it; on any other scene, or with no token, the
+ * key is the journey's typed hex label and `center` and `offset` are null.
+ * `astray` is true while a lost episode is walking the party somewhere its
+ * marker does not say.
  */
 export function trueHexOf(formation) {
   const scene = episodeScene(formation) ?? getPartyScene(formation);
   if (!scene) return null;
-  const astray = lostOf(travelOf(formation)).active;
-  const token = truePositionToken(scene, formation);
+  const lost = lostOf(travelOf(formation));
+  const astray = lost.active;
+  const token = truePositionToken(scene, formation, { open: !!lost.phase });
   if (token && isHexScene(scene)) {
     const gs = scene.grid.size;
     const center = { x: token.x + (token.width * gs) / 2, y: token.y + (token.height * gs) / 2 };
@@ -457,12 +461,25 @@ export function installHexStockCardActions() {
 /**
  * The "This hex" block's view model, or null for a player. `points` carry
  * `found` for THIS formation and `foundByAny` for any; a hex with no scene or
- * no key reads `noScene` and an empty summary.
+ * no key reads `noScene` and an empty summary. The summary's `stockedDay` is
+ * the calendar's (null on a clock that keeps none); `stockedAgo` is how many
+ * calendar days ago that was, counted from today, and `stockedLine` says it
+ * ("Stocked today", "yesterday", "N days ago"). An age, not a day number: the
+ * calendar's day count and the sheet's End-day count are different numbers,
+ * and an age reads the same against either.
  */
 export function hexStockView(formation) {
   if (!game.user?.isGM) return null;
   const here = trueHexOf(formation);
   const record = here ? readStock(here.scene, here.key) : null;
+  const clock = clockReading();
+  const secondsPerDay = clock ? clock.hoursPerDay * clock.secondsPerHour : null;
+  const summary = stockSummary(record, { secondsPerDay });
+  const today = calendarDayOf(game.time?.worldTime, secondsPerDay);
+  const stockedAgo = summary.stocked && summary.stockedDay != null && today != null ? Math.max(0, today - summary.stockedDay) : null;
+  const stockedLine = stockedAgo == null
+    ? ""
+    : stockedAgo === 0 ? loc("hexStock.stockedToday") : stockedAgo === 1 ? loc("hexStock.stockedYesterday") : loc("hexStock.stockedAgo", { days: stockedAgo });
   const points = (record?.points ?? []).map((p) => ({
     id: p.id,
     kind: p.kind,
@@ -478,7 +495,9 @@ export function hexStockView(formation) {
     label: here?.label ?? "",
     noScene: !here,
     astray: here?.astray ?? lostOf(travelOf(formation)).active,
-    summary: stockSummary(record),
+    summary,
+    stockedAgo,
+    stockedLine,
     stocked: record?.stocked === true,
     points,
     unfound: unfoundPoints(record, formation.id).length,

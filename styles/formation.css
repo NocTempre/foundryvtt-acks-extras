@@ -462,6 +462,39 @@
   pointer-events: none;
 }
 
+/* The drawn plate: the canvas fills the frame and the box scales its fixed
+   bitmap. The painter (plate.mjs) reads its colours from these properties, so
+   the drawing follows the palette into dark mode. */
+.acks-extras.acks-extras-party-sheet .acks-extras-plate__canvas {
+  --acks-extras-plate-outline: var(--acks-spot);
+  --acks-extras-plate-neutral: var(--acks-paper-warm);
+  --acks-extras-plate-point: var(--acks-gold);
+  --acks-extras-plate-ink: var(--acks-ink);
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* A hex the party is shown nothing of: the frame, empty. */
+.acks-extras.acks-extras-party-sheet .acks-extras-plate__blank {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The Judge tab's plates stand two abreast beside the pad: the same drawing,
+   a smaller box. */
+.acks-extras.acks-extras-party-sheet .acks-extras-plate:is(.acks-extras-plate--true, .acks-extras-plate--believed, .acks-extras-plate--preview) {
+  --acks-extras-plate: calc(150px * var(--acks-extras-k));
+  font-size: calc(36px * var(--acks-extras-k));
+}
+
+/* The belief while it is not the truth: dashed and gold. */
+.acks-extras.acks-extras-party-sheet .acks-extras-plate.is-differ {
+  border: calc(2px * var(--acks-extras-k)) dashed var(--acks-gold-deep);
+  background: var(--acks-warning-tint);
+}
+
 .acks-extras-party-sheet__reading {
   flex: 1;
   min-width: 0;
@@ -1115,6 +1148,276 @@
   font-size: calc(10.5px * var(--acks-extras-k));
   line-height: 1.3;
   color: var(--acks-ink-soft);
+}
+
+/* The one line a seat reads where the party is shown nothing of its hex. */
+.acks-extras.acks-extras-party-sheet .acks-extras-country-unknown {
+  margin: 0;
+  font-family: var(--acks-font-ui);
+  font-size: calc(13px * var(--acks-extras-k));
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--acks-ink-soft);
+}
+
+/* The Judge's copy of a player's Country, and why it reads nothing. */
+.acks-extras.acks-extras-party-sheet .acks-extras-shown-overline {
+  margin: 0;
+  padding-inline-start: var(--acks-sp-3);
+  border-inline-start: calc(2px * var(--acks-extras-k)) solid var(--acks-gold-deep);
+  font-family: var(--acks-font-display);
+  font-size: calc(9.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--acks-warning-ink);
+}
+
+/* --- The Judge's tab: where they are, what they are shown, the way ---------
+   The two plates side by side with the compass and the pad beside them; the
+   radio tiles beside a player's preview; the navigation line over its
+   history. Every block wraps rather than clips as the window narrows. */
+
+.acks-extras.acks-extras-party-sheet .acks-extras-where {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--acks-sp-5);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-where__plate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras.acks-extras-party-sheet :is(.acks-extras-where__caption, .acks-extras-where__shift, .acks-extras-shown__caption) {
+  margin: 0;
+  font-family: var(--acks-font-display);
+  font-size: calc(9px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-where__caption.is-differ {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-where__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  min-width: 0;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-where__side > p {
+  margin: 0;
+}
+
+/* The compass badge: the way from the belief to the truth, by name. */
+.acks-extras.acks-extras-party-sheet .acks-extras-where__compass {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--acks-sp-2);
+  padding: calc(3px * var(--acks-extras-k)) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-gold-deep);
+  background: var(--acks-warning-tint);
+  color: var(--acks-warning-ink);
+  font-family: var(--acks-font-display);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+/* Shift the truth: the six directions around the hex, three by three. */
+.acks-extras.acks-extras-party-sheet .acks-extras-where__pad {
+  display: grid;
+  grid-template-columns: repeat(3, var(--acks-extras-cell));
+  grid-auto-rows: var(--acks-extras-cell);
+  gap: var(--acks-sp-1);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-where__cell {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-ink-soft);
+  font-family: var(--acks-font-display);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-where__cell.is-empty {
+  border-color: transparent;
+}
+
+.acks-extras.acks-extras-party-sheet button.acks-extras-where__cell {
+  cursor: pointer;
+}
+
+.acks-extras.acks-extras-party-sheet button.acks-extras-where__cell:hover {
+  border-color: var(--acks-spot);
+  color: var(--acks-ink);
+}
+
+.acks-extras.acks-extras-party-sheet button.acks-extras-where__cell:focus-visible {
+  box-shadow: var(--acks-focus-ring);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-shown {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--acks-sp-5);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-shown__tiles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  flex: 1 1 calc(200px * var(--acks-extras-k));
+  min-width: 0;
+}
+
+/* A radio tile: the whole tile labels its radio. */
+.acks-extras.acks-extras-party-sheet .acks-extras-shown__tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "radio label" "radio hint";
+  align-items: center;
+  column-gap: var(--acks-sp-3);
+  row-gap: calc(2px * var(--acks-extras-k));
+  padding: var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  cursor: pointer;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-shown__tile.is-checked {
+  border-color: var(--acks-spot);
+  background: var(--acks-tint);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-shown__tile:focus-within {
+  box-shadow: var(--acks-focus-ring);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-shown__tile input {
+  grid-area: radio;
+  margin: 0;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-shown__label {
+  grid-area: label;
+  font-family: var(--acks-font-ui);
+  font-size: calc(12px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  line-height: 1.25;
+  color: var(--acks-ink);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-shown__hint {
+  grid-area: hint;
+  font-family: var(--acks-font-ui);
+  font-size: calc(10.5px * var(--acks-extras-k));
+  line-height: 1.3;
+  color: var(--acks-ink-soft);
+}
+
+/* A player's seat, previewed: dashed, as everything only the Judge sees is. */
+.acks-extras.acks-extras-party-sheet .acks-extras-shown__preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--acks-sp-3);
+  flex: 1 1 calc(220px * var(--acks-extras-k));
+  min-width: 0;
+  padding: var(--acks-sp-3);
+  border: var(--acks-rule-hair) dashed var(--acks-ink-faint);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-shown__preview > .acks-extras-country-cards {
+  align-self: stretch;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-navigation__owed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-navigation__line {
+  flex: 1 1 calc(200px * var(--acks-extras-k));
+  margin: 0;
+  font-family: var(--acks-font-ui);
+  font-size: calc(12px * var(--acks-extras-k));
+  line-height: 1.3;
+  color: var(--acks-ink);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-navigation__owed > button {
+  flex: none;
+  width: auto;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-navigation__history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-navigation__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--acks-sp-1) var(--acks-sp-3);
+  margin: 0;
+  padding-block-end: var(--acks-sp-1);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  line-height: 1.3;
+  color: var(--acks-ink);
+}
+
+.acks-extras.acks-extras-party-sheet :is(.acks-extras-navigation__day, .acks-extras-navigation__by) {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-navigation__verdict {
+  flex: 1 1 auto;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-navigation__row.is-strayed .acks-extras-navigation__verdict {
+  color: var(--acks-danger-ink);
 }
 
 /* --- Marching order controls & ranks --- */
@@ -2437,6 +2740,13 @@
   margin: var(--acks-sp-2) 0 0;
   font-weight: var(--acks-weight-medium);
   color: var(--acks-ink);
+}
+
+.acks-extras-nav-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+  margin: var(--acks-sp-2) 0 0;
 }
 
 /* The winding tax rides beside the march but never inside it: the road's cost

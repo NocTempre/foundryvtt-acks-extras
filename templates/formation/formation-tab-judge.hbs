@@ -1,7 +1,11 @@
 {{!-- The Judge's tab, a GM seat's only part: the sheet never configures it for
       a player, so nothing in it reaches a player's DOM. The head reads the
-      episode's state; The episode section holds the lost episode's controls,
-      and The Judge's hand the Judge's word on the country over the map's. --}}
+      episode's state. On a journey: Where they are (the true hex and the
+      believed one, drawn, and Shift the truth), The episode (the lost
+      episode's controls), What the party is shown (with a player's seat
+      previewed), Navigation, quietly (when the throw is owed, and the throws
+      made), and The Judge's hand (the Judge's word on the country over the
+      map's). --}}
 <div class="tab acks-extras-party-sheet__panel{{#if tabs.judge.active}} active{{/if}}" data-group="primary" data-tab="judge">
   {{#if formation}}
   <header class="acks-extras-party-sheet__head">
@@ -16,6 +20,47 @@
   </header>
 
   {{#if travel.isJourney}}
+  {{! The truth (the shadow's hex while an episode keeps one, else the party
+      token's) beside the belief (the party token's). The believed plate is
+      dashed and gold while the two differ, and the compass names the way from
+      the belief to the truth. Shift the truth moves the shadow one hex and
+      leaves the belief standing; its middle cell rolls the face blind. }}
+  <section class="acks-extras-party-sheet__section" data-section="where">
+    <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.where"}}</h2>
+    {{#with travel.judge.where as |where|}}
+    <div class="acks-extras-where">
+      <div class="acks-extras-where__plate">
+        {{> "modules/acks-extras/templates/formation/formation-plate.hbs" where.truth}}
+        <p class="acks-extras-where__caption">{{localize "ACKS-FORMATION.where.true"}}</p>
+      </div>
+      <div class="acks-extras-where__plate">
+        {{> "modules/acks-extras/templates/formation/formation-plate.hbs" where.belief}}
+        <p class="acks-extras-where__caption{{#if where.differ}} is-differ{{/if}}">{{localize "ACKS-FORMATION.where.believed"}}</p>
+      </div>
+      <div class="acks-extras-where__side">
+        {{#if where.compass}}
+        <p class="acks-extras-where__compass"><i class="fa-solid fa-compass" inert></i> {{localize "ACKS-FORMATION.where.compassBadge" dir=where.compass.label}}</p>
+        {{else}}
+        <p class="hint">{{localize "ACKS-FORMATION.where.same"}}</p>
+        {{/if}}
+        {{#if where.pad}}
+        <p class="acks-extras-where__shift">{{localize "ACKS-FORMATION.where.shift"}}</p>
+        <div class="acks-extras-where__pad" role="group" aria-label="{{localize 'ACKS-FORMATION.where.shift'}}">
+          {{#each where.pad}}
+          {{#if empty}}
+          <span class="acks-extras-where__cell is-empty" inert></span>
+          {{else}}
+          <button type="button" class="acks-extras-where__cell{{#if roll}} is-roll{{/if}}" data-action="shiftTruth" data-direction="{{direction}}"
+                  aria-label="{{label}}" data-tooltip="{{label}}">{{#if roll}}<i class="fa-solid fa-dice" inert></i>{{else}}{{short}}{{/if}}</button>
+          {{/if}}
+          {{/each}}
+        </div>
+        {{/if}}
+      </div>
+    </div>
+    {{/with}}
+  </section>
+
   <section class="acks-extras-party-sheet__section" data-section="episode">
     <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.episode"}}</h2>
     <div class="acks-extras-formation-lost">
@@ -69,6 +114,63 @@
                placeholder="{{localize 'ACKS-FORMATION.travel.lostNotePlaceholder'}}">
       </div>
     </div>
+  </section>
+
+  {{! What a player's seat is shown of the hex the party believes it stands in:
+      the hex as the map reads it, or nothing. The preview is a player's own
+      rendering of the plate and the country, from the same view. }}
+  <section class="acks-extras-party-sheet__section" data-section="shown">
+    <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.shown"}}</h2>
+    <div class="acks-extras-shown">
+      <div class="acks-extras-shown__tiles" role="radiogroup" aria-label="{{localize 'ACKS-FORMATION.frame.section.shown'}}">
+        {{#each travel.judge.shown}}
+        <label class="acks-extras-shown__tile{{#if checked}} is-checked{{/if}}">
+          <input type="radio" name="travel.shown" value="{{value}}" {{#if checked}}checked{{/if}}>
+          <span class="acks-extras-shown__label">{{label}}</span>
+          <span class="acks-extras-shown__hint">{{hint}}</span>
+        </label>
+        {{/each}}
+      </div>
+      {{#with travel.judge.preview as |preview|}}
+      <div class="acks-extras-shown__preview">
+        <p class="acks-extras-shown__caption">{{localize "ACKS-FORMATION.shown.preview"}}</p>
+        {{> "modules/acks-extras/templates/formation/formation-plate.hbs" preview.plate}}
+        {{#with preview.country}}{{> "modules/acks-extras/templates/formation/formation-country.hbs"}}{{/with}}
+      </div>
+      {{/with}}
+    </div>
+  </section>
+
+  {{! When the day's navigation throw is owed, Throw now for the Judge's own
+      throw (it counts as the day's), and the throws made, newest first. }}
+  <section class="acks-extras-party-sheet__section" data-section="navigation">
+    <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.navigation"}}</h2>
+    {{#with travel.judge.navigation as |nav|}}
+    <div class="acks-extras-navigation">
+      <div class="acks-extras-navigation__owed">
+        <p class="acks-extras-navigation__line" data-state="{{nav.state}}">{{nav.line}}</p>
+        <button type="button" data-action="navigationThrowNow" {{#unless nav.canThrow}}disabled{{/unless}}
+                data-tooltip="{{localize 'ACKS-FORMATION.navigation.throwNowHint'}}">
+          <i class="fa-solid fa-compass" inert></i> {{localize "ACKS-FORMATION.navigation.throwNow"}}
+        </button>
+      </div>
+      {{#if nav.history.length}}
+      <ol class="acks-extras-navigation__history">
+        {{#each nav.history}}
+        <li class="acks-extras-navigation__row{{#if strayed}} is-strayed{{/if}}">
+          <span class="acks-extras-navigation__day acks-nums">{{localize "ACKS-FORMATION.navigation.day" day=day}}</span>
+          <span class="acks-extras-navigation__hex acks-nums">{{hex}}</span>
+          {{#if figures}}<span class="acks-extras-navigation__figures acks-nums">{{figures}}</span>{{/if}}
+          <span class="acks-extras-navigation__verdict">{{verdict}}</span>
+          <span class="acks-extras-navigation__by">{{by}}</span>
+        </li>
+        {{/each}}
+      </ol>
+      {{else}}
+      <p class="hint">{{localize "ACKS-FORMATION.navigation.none"}}</p>
+      {{/if}}
+    </div>
+    {{/with}}
   </section>
 
   {{! One select per country key: blank leaves the map's reading standing. }}

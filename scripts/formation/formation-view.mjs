@@ -39,15 +39,17 @@ import { occupantsOf, draftPullOf } from "../vehicles/occupants.mjs";
 import { stationsFor } from "../vehicles/stations.mjs";
 import { deploymentOf } from "../vehicles/deploy.mjs";
 import { driftSummary } from "./lost.mjs";
-import { shadowsOf } from "./shadow.mjs";
+import { shadowFor, shadowsOf, truePositionToken } from "./shadow.mjs";
 import {
-  travelOf, countryOf, tokenCentre, dayBudget, dayIsSpent, effectiveSeason,
-  DAY_KINDS, ANCILLARY_ACTIVITIES, FOLLOWING_KINDS, ROAD_KINDS, TERRITORY_KEYS,
+  travelOf, trueTravelOf, countryOf, tokenCentre, dayBudget, dayIsSpent, effectiveSeason, navigationOwed,
+  DAY_KINDS, ANCILLARY_ACTIVITIES, FOLLOWING_KINDS, ROAD_KINDS, SHOWN_KINDS, TERRITORY_KEYS,
 } from "./travel.mjs";
+import { episodeScene } from "./lost-episode.mjs";
+import { compassBetween, compassPad } from "./plate.mjs";
 import { cadenceOf } from "./march.mjs";
 import { cadenceMilesFor } from "./encounter-card.mjs";
 import {
-  colorFor, isHexScene, labelFor, layerColorFor, layerLabelFor, layerValueAt, paintableValues,
+  colorFor, hexLabelFromOffset, isHexScene, labelFor, layerColorFor, layerLabelFor, layerValueAt, paintableValues,
 } from "../battlemap/terrain-paint.mjs";
 import { COUNTRY_KEYS } from "../battlemap/country.mjs";
 import { ROAD_TINT, WATER_TINT } from "../battlemap/road-markers.mjs";
@@ -93,7 +95,8 @@ import { flightMultiplier, FLIGHT_LOADS } from "./flight.mjs";
 import { FORAGE_KINDS, forageSpec, huntSpec, standingWaterOf } from "./foraging.mjs";
 import { searchSpec, searchesAvailable } from "./searching.mjs";
 import { weatherEffects, throwPenalty, foragePenalty } from "./weather-effects.mjs";
-import { hexStockView } from "./hex-stock-run.mjs";
+import { hexStockView, readStock } from "./hex-stock-run.mjs";
+import { hexStockKey } from "./hex-stock.mjs";
 
 /**
  * Build the display context shared by the GM formation window and the party
@@ -619,8 +622,9 @@ function journeyClock(t) {
  * Every mode carries the mode picker, the pause state, and the camp's supplies.
  * The delve and the city also carry the turn tracker's four stats (the city
  * keeps the turn clock); a journey carries the speed in miles, the day's walked
- * tally against its budget, the hex, the next throw, the clock and the supplies;
- * a city adds the board's rate, tally and cadence lines.
+ * tally against its budget, the hex (the travel view's, so as the seat is
+ * shown it), the next throw, the clock and the supplies; a city adds the
+ * board's rate, tally and cadence lines.
  *
  * @param {object} formation
  * @param {number} speed  `partySpeed` in feet per turn (dark-free on a journey)
@@ -698,14 +702,19 @@ export function buildStripView(formation, speed, travelView = null) {
     const milesPerHour = Number(readout.milesPerHour) || 0;
     const budget = dayBudget(t, milesPerHour);
     const scene = getPartyScene(formation);
+    // The cadence the engine spends by: the territory where the party REALLY
+    // is (`spendJourneyMiles` reads the same), not the one it believes in.
     const cadence = cadenceOf({
       isHex: scene ? isHexScene(scene) : false,
       milesPerCell: scene ? sceneMilesPerCell(scene) : 0,
-      mileHex: cadenceMilesFor(t.territory),
+      mileHex: cadenceMilesFor(trueTravelOf(formation).territory),
     });
     const left = cadence.by === "miles" ? Math.max(0, cadence.miles - (Number(t.day.cadenceCarry) || 0)) : null;
     let next;
-    if (cadence.by === "grid") next = loc("ACKS-FORMATION.strip.onEnteringHex");
+    // A player shown unknown country is shown no countdown either: the miles
+    // to the next throw are the territory's, and would name it.
+    if (tv.blank && !tv.shownUnknown) next = "";
+    else if (cadence.by === "grid") next = loc("ACKS-FORMATION.strip.onEnteringHex");
     else if (cadence.by === "miles") next = `${tenths(left)} ${loc("ACKS-FORMATION.travel.milesShort")}`;
     else next = loc("ACKS-FORMATION.strip.unpricedCadence");
 
@@ -730,7 +739,9 @@ export function buildStripView(formation, speed, travelView = null) {
     strip.walked = { miles: tenths(t.day.miles), hours: tenths(t.day.hours) };
     strip.budget = { hours: tenths(budget.hours), miles: tenths(budget.miles) };
     strip.spent = dayIsSpent(t.day, budget);
-    strip.hex = { label: t.hex.label, entered: t.day.hexesEntered ?? 0 };
+    // The hex as the seat is shown it: the travel view's, blank while the
+    // Judge shows the party nothing of where it stands.
+    strip.hex = { label: tv.hex ?? "", entered: t.day.hexesEntered ?? 0 };
     strip.cadence = {
       by: cadence.by,
       miles: cadence.miles,
@@ -1136,28 +1147,51 @@ function buildCampView(formation, t, milesPerDay = 0, stock = null) {
  * camp, the hex trace, the GM-only lost state, and the newest slice of the log;
  * inside a city, the board's pickers and place lines. What the strip prints
  * (speed, the walked tally, the clock) is `buildStripView`'s.
+ *
+ * The hex is the one the party BELIEVES it stands in — the party token's —
+ * and `travel.shown` decides what of it a seat is shown, the same on every
+ * seat: the hex drawn on the plate (`plate`), its label (`hex`) and the
+ * country's cards; or, `unknown`, a blank plate, no label and the one
+ * "Unknown country" line (`blank`, and `shownUnknown` on the Judge's copy).
+ * `hexField` keeps the record's own label for the Judge's hex field, so a
+ * blank never submits over it.
+ *
+ * `asPlayer` builds what a player's seat gets: no stock, no Judge's marks on
+ * the cards, none of the Judge tab's context. A Judge's view carries that
+ * context as `judge` (`buildJudgeTravel`), whose preview of a player's
+ * rendering is this function's own `asPlayer` branch.
+ *
+ * @param {object} formation
+ * @param {{asPlayer?: boolean}} [options]  `asPlayer` defaults to the seat's own
  */
-function buildTravelView(formation) {
+export function buildTravelView(formation, { asPlayer = !game.user?.isGM } = {}) {
   const t = travelOf(formation);
   const isJourney = t.mode === "journey";
   const isSettlement = t.mode === "settlement";
+  const blank = isJourney && t.shown === "unknown";
+  const standing = isJourney ? standingLabel(formation, t) : t.hex.label;
   const view = {
     isJourney, isSettlement, mode: t.mode,
     // The bends the day has walked, in hexes. Shown apart from the march so the
     // road's cost and its benefit stay legible as two different things.
     winding: Number(t.day?.winding) || 0,
-    dayCount: t.dayCount, hex: t.hex.label, hexesEntered: t.day?.hexesEntered ?? 0,
+    dayCount: t.dayCount, hex: blank ? "" : standing, hexField: t.hex.label, hexesEntered: t.day?.hexesEntered ?? 0,
+    shown: t.shown,
+    blank,
+    shownUnknown: blank && !asPlayer,
   };
   if (isSettlement) return { ...view, settlement: buildSettlementView(formation, t) };
   if (!isJourney) return view;
+  view.plate = believedPlate(formation, t, { judge: !asPlayer, blank, hexLabel: standing });
   // The Judge's "This hex" block; a player's view carries none of the stock.
-  view.hexStock = hexStockView(formation);
+  view.hexStock = asPlayer ? null : hexStockView(formation);
   view.camp = buildCampView(formation, t, expeditionMiles(formation), view.hexStock);
 
   const opt = (value, label, selected) => ({ value, label, selected });
   // The country as read: four cards, the climate the Sky section reads, and
   // the table the encounters draw on. The band's chips read the two lists.
-  view.country = buildCountryView(formation, t);
+  const country = buildCountryView(formation, t, { judge: !asPlayer });
+  view.country = blank ? { unknown: true, cards: [], climate: country.climate, encountersDrawOn: null } : country;
   view.territories = TERRITORY_KEYS.map((value) =>
     opt(value, game.i18n.localize(`ACKS-FORMATION.travel.territory.${value}`), value === t.territory));
   view.followingOptions = FOLLOWING_KINDS.map((value) =>
@@ -1166,7 +1200,7 @@ function buildTravelView(formation) {
   view.wheels = wheelRefusals(formation, t);
   // The Sky group is the Judge's pickers; a player sees it only for what it
   // already told the table (the chips, the night band, a wagon that cannot roll).
-  view.skyShown = !!game.user?.isGM || !!(view.weather.chips.length || view.weather.night || view.wheels.length);
+  view.skyShown = !asPlayer || !!(view.weather.chips.length || view.weather.night || view.wheels.length);
 
   // How the order moves. The flight fields appear only for a flier, because
   // hours aloft mean nothing to a party on foot and an always-visible field
@@ -1206,14 +1240,17 @@ function buildTravelView(formation) {
     open: !!phase,
     // A shadow standing with no episode open: an earlier ending left it, and
     // the panel's closing buttons still retire it.
-    leftover: !phase && game.user?.isGM ? shadowsOf(formation.id).length > 0 : false,
+    leftover: !phase && !asPlayer ? shadowsOf(formation.id).length > 0 : false,
     judgeNote: t.lost.judgeNote ?? "",
     days: drift?.days ?? 0,
     fakedHexes: drift?.fakedHexes ?? 0,
     hasHex: t.hex?.i != null && t.hex?.j != null,
   };
+  // A party shown unknown country is shown no hex on its past days either:
+  // the log's rows are named by the hex they ended in.
   view.log = t.log.slice(0, 10).map((e) => ({
     ...e,
+    hex: blank ? "" : e.hex,
     kindLabel: game.i18n.localize(DAY_KINDS[e.dayKind]?.label ?? DAY_KINDS.march.label),
     weatherLine: [e.weather?.temperature, e.weather?.precipitation, e.weather?.wind]
       .map((k) => TEMPERATURE_BANDS[k] ?? PRECIPITATION_KINDS[k] ?? WIND_BANDS[k])
@@ -1221,7 +1258,194 @@ function buildTravelView(formation) {
       .map((cfg) => game.i18n.localize(cfg.label))
       .join(" · "),
   }));
+  if (!asPlayer) view.judge = buildJudgeTravel(formation, t);
   return view;
+}
+
+/* -------------------------------------------- */
+/*  The plates and the Judge's tab              */
+/* -------------------------------------------- */
+
+/**
+ * A plate's context: what the plate partial renders (`kind`, `draw`, `blank`,
+ * `hex`, `aria`, `img`, `edit`, `differ`) and what `drawPlate` paints from
+ * (`sceneId`, `center`, `tint`, `points`, `mark`, `judge`). `token` stands in
+ * the hex drawn — the party token for the hex the party believes it stands
+ * in, the shadow for the true one — and the plate draws nothing without it.
+ * The stock's points are this formation's found ones; a Judge's plate also
+ * carries the unfound, which it draws dashed. `blank` is the plate of a hex
+ * the party is shown nothing of: the frame, no drawing and no label.
+ */
+function plateOf(formation, { kind, scene, token, judge = false, blank = false, hexLabel = "", mark = null }) {
+  const img = getPartyActor(formation)?.img ?? null;
+  const base = { kind, judge, blank, img, hex: blank ? "" : hexLabel, draw: false, edit: false, differ: false, aria: "" };
+  if (blank) return { ...base, aria: game.i18n.localize("ACKS-FORMATION.plate.blank") };
+  if (!scene?.grid || !token) return base;
+  // The true and the believed plates stand side by side, so each is named
+  // for what it is before the hex; the frame's plate is the only one of its kind.
+  const named = kind === "true" || kind === "believed" ? game.i18n.localize(`ACKS-FORMATION.where.${kind}`) : null;
+  let aria;
+  if (named) {
+    aria = hexLabel
+      ? game.i18n.format("ACKS-FORMATION.plate.ariaOf", { kind: named, hex: hexLabel })
+      : game.i18n.format("ACKS-FORMATION.plate.ariaOfNoHex", { kind: named });
+  } else {
+    aria = hexLabel ? game.i18n.format("ACKS-FORMATION.plate.aria", { hex: hexLabel }) : game.i18n.localize("ACKS-FORMATION.plate.ariaNoHex");
+  }
+  const center = tokenCentre(token, scene);
+  const hexed = isHexScene(scene);
+  const key = hexed ? hexStockKey({ offset: scene.grid.getOffset(center) }) : hexStockKey({ label: hexLabel });
+  const record = key ? readStock(scene, key) : null;
+  const points = (record?.points ?? [])
+    .map((p) => ({ id: p.id, found: Object.hasOwn(p.found ?? {}, formation.id) }))
+    .filter((p) => p.id != null && (judge || p.found));
+  const painted = hexed ? layerValueAt(scene, center, "terrain") : null;
+  return {
+    ...base,
+    draw: true,
+    sceneId: scene.id,
+    center,
+    tint: painted ? colorFor(painted) : null,
+    points,
+    mark: mark ?? img,
+    aria,
+  };
+}
+
+/** The image a plate marks the party with: its token's, else its actor's. */
+const markOf = (formation) => getPartyToken(formation)?.texture?.src ?? getPartyActor(formation)?.img ?? null;
+
+/**
+ * The label of the hex the party believes it stands in: the record's own
+ * (the trace's, or the Judge's typed one), else the party token's cell read
+ * off a hex scene, so a party placed and not yet walked is still named;
+ * empty where neither answers.
+ */
+function standingLabel(formation, t) {
+  if (t.hex.label) return t.hex.label;
+  const token = getPartyToken(formation);
+  const scene = token?.parent;
+  if (!token || !scene?.grid || !isHexScene(scene)) return "";
+  return hexLabelFromOffset(scene.grid.getOffset(tokenCentre(token, scene)));
+}
+
+/**
+ * The plate of the hex the party believes it stands in: the party token's,
+ * drawn on the frame of every seat while a journey has a token on a scene, or
+ * the blank of a hex the party is shown nothing of. `hexLabel` is the hex's
+ * label as the view names it (`standingLabel`).
+ */
+function believedPlate(formation, t, { judge, blank, hexLabel = t.hex.label }) {
+  const token = getPartyToken(formation);
+  return plateOf(formation, {
+    kind: "frame", scene: token?.parent ?? getPartyScene(formation), token, judge, blank, hexLabel, mark: markOf(formation),
+  });
+}
+
+/** A compass direction's name on the Judge's tab, long or short. */
+const compassName = (dir, { short = false } = {}) =>
+  game.i18n.localize(`ACKS-FORMATION.where.compass.${short ? "short." : ""}${dir}`);
+
+/**
+ * Where they are, for the Judge: the true hex (`truePositionToken` — the
+ * shadow while an episode keeps one, else the party token) and the believed
+ * hex (the party token's), each as a plate, whether they differ, and the
+ * compass direction from the belief to the truth (`compassBetween`, a name of
+ * the six, no distance). With no episode open both are the party token's: a
+ * shadow an earlier ending left standing is not where the party is. `pad` is
+ * the Shift the truth pad, laid out by the grid's orientation (`compassPad`),
+ * while an episode is open and its shadow stands on a hex scene; null
+ * otherwise.
+ */
+function whereView(formation, t) {
+  const open = !!t.lost.phase;
+  const scene = (open ? episodeScene(formation, t.lost) : null) ?? getPartyScene(formation);
+  const party = getPartyToken(formation);
+  const believedToken = party && party.parent?.id === scene?.id ? party : null;
+  const truthToken = (open && scene ? truePositionToken(scene, formation) : null) ?? believedToken;
+  const offsetOf = (token) => (token && scene?.grid ? scene.grid.getOffset(tokenCentre(token, scene)) : null);
+  const hexed = !!scene && isHexScene(scene);
+  const labelOf = (offset, fallback) => (offset && hexed ? hexLabelFromOffset(offset) : fallback);
+  const believedHex = offsetOf(believedToken);
+  const trueHex = offsetOf(truthToken);
+  const believedLabel = labelOf(believedHex, t.hex.label);
+  const trueLabel = labelOf(trueHex, t.hex.label);
+  const differ = !!believedHex && !!trueHex && (believedHex.i !== trueHex.i || believedHex.j !== trueHex.j);
+  const dir = differ && hexed ? compassBetween(scene, believedHex, trueHex) : null;
+  const mark = markOf(formation);
+  const layout = open && hexed && shadowFor(scene, formation.id) ? compassPad(scene) : null;
+  return {
+    open,
+    trueHex: trueLabel,
+    believedHex: believedLabel,
+    differ,
+    compass: dir ? { dir, label: compassName(dir) } : null,
+    truth: plateOf(formation, { kind: "true", scene, token: truthToken, judge: true, hexLabel: trueLabel, mark }),
+    belief: { ...plateOf(formation, { kind: "believed", scene, token: believedToken, judge: true, hexLabel: believedLabel, mark }), differ },
+    pad: layout
+      ? layout.map((cell) => {
+          if (cell == null) return { empty: true };
+          if (cell === "center") return { direction: "roll", short: "", label: game.i18n.localize("ACKS-FORMATION.where.roll"), roll: true };
+          return { direction: cell, short: compassName(cell, { short: true }), label: compassName(cell) };
+        })
+      : null,
+  };
+}
+
+/** The words a route spares the throw by: a road's surface, or what the party follows. */
+function routeLabel(owed) {
+  if (owed.route === "road") return countryLabel("road", owed.road);
+  return countryLabel("following", owed.route);
+}
+
+/**
+ * Navigation, quietly: when the next throw is owed (`navigationOwed`) as one
+ * line, and the record's history, newest first. A row's day is the End-day
+ * count the throw was made on, counted from one as the log and the head count
+ * it; a throw that could not be made — its target unimported — says so in
+ * place of its figures.
+ */
+function navigationView(formation, t) {
+  const owed = navigationOwed(formation);
+  const line = {
+    owed: game.i18n.localize("ACKS-FORMATION.navigation.owed"),
+    thrown: game.i18n.localize("ACKS-FORMATION.navigation.thrown"),
+    following: owed.route ? game.i18n.format("ACKS-FORMATION.navigation.following", { what: routeLabel(owed) }) : "",
+    none: "",
+  }[owed.state];
+  const history = t.navigation.history.map((e) => {
+    const made = e.success != null;
+    return {
+      day: e.count == null ? "—" : e.count + 1,
+      hex: e.hexLabel || "—",
+      figures: made ? game.i18n.format("ACKS-FORMATION.navigation.figures", { total: e.total, target: e.target }) : "",
+      verdict: game.i18n.localize(`ACKS-FORMATION.navigation.verdict.${made ? (e.success ? "kept" : "strayed") : "unmade"}`),
+      strayed: e.success === false,
+      by: game.i18n.localize(`ACKS-FORMATION.navigation.by.${e.by}`),
+    };
+  });
+  return { state: owed.state, line, history, canThrow: owed.state !== "none" };
+}
+
+/**
+ * The Judge tab's context on a journey: what the party is shown (`shown`, the
+ * radio tiles of `SHOWN_KINDS`, and `preview`, a player's plate, hex and
+ * country from `buildTravelView`'s own `asPlayer` branch), where they are
+ * (`whereView`) and the navigation throw (`navigationView`).
+ */
+function buildJudgeTravel(formation, t) {
+  const preview = buildTravelView(formation, { asPlayer: true });
+  return {
+    shown: SHOWN_KINDS.map((value) => ({
+      value,
+      label: game.i18n.localize(`ACKS-FORMATION.shown.${value}`),
+      hint: game.i18n.localize(`ACKS-FORMATION.shown.${value}Hint`),
+      checked: value === t.shown,
+    })),
+    preview: { plate: { ...preview.plate, kind: "preview" }, hex: preview.hex, blank: preview.blank, country: preview.country },
+    where: whereView(formation, t),
+    navigation: navigationView(formation, t),
+  };
 }
 
 /** The country keys the Country section draws as cards, each with the brush layer it is painted on. */
@@ -1304,20 +1528,25 @@ function paintBrushFor(layer, key, t) {
  * map alone says under it (`mapValue`), the chip their difference earns and
  * the action that retires the word behind the chip (`clearAction`).
  * `paintable` offers a Judge the brush for the card's layer where the party's
- * token stands in a hex the map has not painted on it. `encountersDrawOn` names
- * the table the resolved country throws on.
+ * token stands in a hex the map has not painted on it. `judge` is set on each
+ * card a Judge's seat reads, which draws the source, the chips and the brush;
+ * a player's cards carry none of them. `encountersDrawOn` names the table the
+ * encounter throws use: for a Judge the true position's (`trueTravelOf`), for
+ * a player the believed hex's, which is all a party lost without knowing it
+ * could say.
  */
-function buildCountryView(formation, t) {
+function buildCountryView(formation, t, { judge = !!game.user?.isGM } = {}) {
   const { provenance, mapValues } = countryOf(formation);
   const scene = getPartyScene(formation);
   const token = getPartyToken(formation);
-  const centre = game.user?.isGM && scene && token && isHexScene(scene) ? tokenCentre(token, scene) : null;
+  const centre = judge && scene && token && isHexScene(scene) ? tokenCentre(token, scene) : null;
   const card = ({ key, label, layer }) => {
     const value = key === "climate" ? t.weather.climate : t[key];
     const mapValue = mapValues[key] ?? null;
     const paintable = !!layer && !!centre && layerValueAt(scene, centre, layer) == null;
     return {
       key,
+      judge,
       label: game.i18n.localize(label),
       value,
       valueLabel: countryLabel(key, value),
@@ -1333,7 +1562,8 @@ function buildCountryView(formation, t) {
       paintBrush: paintable ? paintBrushFor(layer, key, t) : "",
     };
   };
-  const table = Object.hasOwn(ENCOUNTER_TERRAINS, t.encounterTerrain) ? t.encounterTerrain : encounterTerrainFor(t.ground);
+  const drawn = judge ? trueTravelOf(formation) : t;
+  const table = Object.hasOwn(ENCOUNTER_TERRAINS, drawn.encounterTerrain) ? drawn.encounterTerrain : encounterTerrainFor(drawn.ground);
   return {
     cards: COUNTRY_CARDS.map(card),
     climate: card({ key: "climate", label: "ACKS-FORMATION.travel.weather.climate", layer: "climate" }),

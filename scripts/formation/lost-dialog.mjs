@@ -1,15 +1,19 @@
 /* global game, foundry, ui */
 /**
- * The Judge's controls for a party that has lost its way: the navigation
- * card only reports, so this asks which way the party strayed and offers a
- * blind roll for a Judge who would rather not choose. See
- * docs/formation/MODEL.md, "Lost".
+ * The Judge's controls for a party that has lost its way: the Judge tab's
+ * own opening, which asks which way the party strayed and offers a blind
+ * roll for a Judge who would rather not choose (the navigation card's
+ * failure opens at the belief instead); Shift the truth, one hex toward a
+ * direction or a blind face; and the confirms for the realisation, the
+ * re-anchor and the ending. See docs/formation/MODEL.md, "Lost".
  */
 import { makeLoc } from "../lib/util.mjs";
-import { HEX_FACES, rollStrayFace, travelOf } from "./travel.mjs";
-import { beginEpisode, discoverEpisode, endEpisode, reanchorEpisode } from "./lost-episode.mjs";
+import { isHexScene } from "../battlemap/terrain-paint.mjs";
+import { HEX_FACES, rollStrayFace, tokenCentre, travelOf } from "./travel.mjs";
+import { beginEpisode, discoverEpisode, endEpisode, episodeScene, reanchorEpisode, walkAstray } from "./lost-episode.mjs";
 import { canFake } from "./lost-fog.mjs";
-import { shadowsOf } from "./shadow.mjs";
+import { shadowFor, shadowsOf } from "./shadow.mjs";
+import { neighbourToward } from "./plate.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
 
@@ -39,12 +43,15 @@ function faceChoices() {
  * Ask which way the party wandered, then open the episode.
  *
  * The dialog is the only place the answer can come from, so it does not
- * default: a Judge who wants the dice presses the dice.
+ * default: a Judge who wants the dice presses the dice. An episode already
+ * open, in either phase, asks nothing: opening places the shadow, and a second
+ * opening would move the one that stands.
  */
 export async function askStrayAndBegin(formation) {
   const DialogV2 = foundry.applications?.api?.DialogV2;
   const scene = game.scenes?.get(formation?.sceneId) ?? null;
   const t = travelOf(formation);
+  if (t.lost.phase) return null;
   const here = (t.hex?.i != null && t.hex?.j != null) ? { i: t.hex.i, j: t.hex.j } : null;
   if (!scene || !canFake(scene.id)) {
     ui.notifications?.warn(loc("lost.viewScene"));
@@ -90,6 +97,44 @@ export async function askStrayAndBegin(formation) {
     trueOffset,
     judgeNote: loc("lost.note", { face: face + 1 }),
   });
+}
+
+/**
+ * Shift the truth: the party's true position moves one hex toward
+ * `direction` — a compass name (`HEX_DIRECTIONS`), or `"roll"` for a blind
+ * face off the shadow's hex — and the party token, what they believe, stays.
+ * Only while an episode is open, on a hex scene where the shadow stands. The
+ * step is `walkAstray`'s, so an astray party's believed hex is recorded
+ * against the new truth; an astray party with no hex of its own recorded
+ * moves nothing, since the ledger would key a hex it cannot name.
+ *
+ * @returns {Promise<{to: {i: number, j: number}, face: number|null}|null>}
+ *   the true hex it moved to and the face a roll threw, or null when nothing moved
+ */
+export async function shiftTruth(formation, direction) {
+  if (!game.user?.isGM) return null;
+  const t = travelOf(formation);
+  if (!t.lost.phase) return null;
+  const scene = episodeScene(formation, t.lost);
+  const shadow = scene && isHexScene(scene) ? shadowFor(scene, formation.id) : null;
+  if (!shadow) {
+    ui.notifications?.warn(loc("where.noShadow"));
+    return null;
+  }
+  const believed = t.hex.i != null && t.hex.j != null ? { i: t.hex.i, j: t.hex.j } : null;
+  if (t.lost.phase === "astray" && !believed) {
+    ui.notifications?.warn(loc("lost.needHex"));
+    return null;
+  }
+  const from = scene.grid.getOffset(tokenCentre(shadow, scene));
+  const face = direction === "roll" ? (await rollStrayFace()).face : null;
+  const to = face != null ? strayTo(scene, from, face) : neighbourToward(scene, from, direction);
+  if (!to) {
+    ui.notifications?.warn(loc("lost.noNeighbour"));
+    return null;
+  }
+  await walkAstray(formation, { believedOffset: believed, trueOffset: to });
+  return { to, face };
 }
 
 /** They realise they are lost. Strict RAW: it gives back nothing else. */

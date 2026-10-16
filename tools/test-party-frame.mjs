@@ -330,8 +330,22 @@ const frameOf = (view, isGM, extra = {}) =>
   assert.equal(byKey(frameOf(journeyView(lost), false).reading.chips, "astray"), undefined, "never on a player's seat");
   assert.equal(byKey(frameOf(delveView(lost), true).reading.chips, "astray"), undefined, "and only on a journey");
 
-  assert.deepEqual(gm.plate, { img: "img/party.webp", hex: "K7" });
-  assert.deepEqual(frameOf(delveView(), true).plate, { img: null, hex: "" }, "the hex label is a journey's");
+  const imagePlate = { kind: "frame", draw: false, blank: false, edit: true, differ: false, aria: "" };
+  assert.deepEqual(gm.plate, { ...imagePlate, img: "img/party.webp", hex: "K7" }, "no drawing to show: the party's image, the Judge's to change");
+  assert.deepEqual(frameOf(delveView(), true).plate, { ...imagePlate, img: null, hex: "" }, "the hex label is a journey's");
+  assert.equal(frameOf(journeyView(), false).plate.edit, false, "a player's plate changes nothing");
+
+  // A journey's drawn plate passes through as the view built it; the frame's
+  // copy is never a press, on any seat.
+  const drawn = { kind: "frame", draw: true, blank: false, img: "img/party.webp", hex: "K7", edit: false, differ: false, aria: "A.drawn", sceneId: "S1", center: { x: 50, y: 50 }, points: [], tint: null, mark: null, judge: true };
+  assert.deepEqual(frameOf(journeyView({ travel: { plate: drawn } }), true).plate, drawn);
+  assert.equal(frameOf(delveView({ travel: { plate: drawn } }), true).plate.draw, false, "only a journey draws its hex");
+  // Shown as unknown country: the blank, no hex named, no country chip.
+  const blankPlate = { kind: "frame", draw: false, blank: true, img: "img/party.webp", hex: "", edit: false, differ: false, aria: "A.blank" };
+  const unknown = frameOf(journeyView({ strip: { hex: { label: "" } }, travel: { plate: blankPlate, blank: true } }), true);
+  assert.deepEqual(unknown.plate, blankPlate);
+  assert.ok(!unknown.reading.overline.includes(said("overline.hex", { hex: "K7" })), "the overline names no hex");
+  assert.deepEqual(unknown.reading.chips.map((c) => c.key), ["heads"], "and the reading wears no country chip");
   assert.deepEqual(gm.band, { modeLabel: "M.journey", bar: bandBar(journeyView().strip) });
 
   assert.equal(gm.key.open, false);
@@ -365,7 +379,9 @@ const frameOf = (view, isGM, extra = {}) =>
   const T = (name) => `templates/formation/${name}.hbs`;
   hb.registerHelper("localize", (key, options) =>
     String(key) + (options?.hash && Object.keys(options.hash).length ? JSON.stringify(options.hash) : ""));
-  hb.registerPartial("modules/acks-extras/templates/formation/formation-cell.hbs", hb.compile(fs.readFileSync(T("formation-cell"), "utf8")));
+  for (const name of ["formation-cell", "formation-plate"]) {
+    hb.registerPartial(`modules/acks-extras/templates/formation/${name}.hbs`, hb.compile(fs.readFileSync(T(name), "utf8")));
+  }
   const parts = ["formation-band", "formation-frame", "formation-tabs"].map((name) => hb.compile(fs.readFileSync(T(name), "utf8")));
 
   // The handlers a press may name: SHARED_ACTIONS' keys and the sheet's own,
@@ -462,6 +478,25 @@ const frameOf = (view, isGM, extra = {}) =>
   const hidden = render(journeyView(), false, { panelHidden: true });
   assert.match(hidden, /data-action="togglePanel"[^>]*aria-expanded="false"/);
   assert.ok(hidden.includes(said("chevron.show")));
+
+  // The plate: the party's image is the Judge's press; a drawn hex is a canvas
+  // the sheet paints after the render, named for a screen reader; a hex shown
+  // as unknown is the frame alone.
+  const plateOf = (html) => {
+    const from = html.indexOf("acks-extras-party-sheet__plate ");
+    return html.slice(from, html.indexOf("acks-extras-party-sheet__rail--figures", from));
+  };
+  assert.match(plateOf(render(journeyView(), true)), /data-action="editPartyImage"/, "the Judge presses the image to change it");
+  assert.ok(!plateOf(render(journeyView(), false)).includes("data-action"), "a player's image is a picture");
+  const drawn = { kind: "frame", draw: true, blank: false, img: "img/party.webp", hex: "K7", edit: false, differ: false, aria: "A.drawn" };
+  const drawnPlate = plateOf(render(journeyView({ travel: { plate: drawn } }), true));
+  assert.match(drawnPlate, /<canvas class="acks-extras-plate__canvas" data-plate-kind="frame" role="img" aria-label="A\.drawn">/);
+  assert.ok(!drawnPlate.includes("data-action") && !drawnPlate.includes("<img"), "a drawn plate is no press and no picture");
+  assert.ok(drawnPlate.includes(">K7</span>"), "and keeps its hex label over the drawing");
+  const blank = { kind: "frame", draw: false, blank: true, img: "img/party.webp", hex: "", edit: false, differ: false, aria: "A.blank" };
+  const blankPlate = plateOf(render(journeyView({ strip: { hex: { label: "" } }, travel: { plate: blank, blank: true } }), false));
+  assert.match(blankPlate, /is-blank/);
+  assert.ok(!/<canvas|<img|plate-hex/.test(blankPlate), "an unknown hex: no drawing, no picture, no label");
 }
 
-console.log("test-party-frame: OK (parts and tabs by seat, the bar, hurt count, rails by mode and seat, reading, Key, heads, templates)");
+console.log("test-party-frame: OK (parts and tabs by seat, the bar, hurt count, rails by mode and seat, reading, the plate drawn, blank or pictured, Key, heads, templates)");

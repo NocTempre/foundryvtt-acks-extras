@@ -3,7 +3,9 @@
  * each mode (`buildStripView`), the readout a camp day still prices, the
  * journey's warnings, and the party sheet's parts rendered with plain
  * Handlebars for a Judge and for a player in each mode — where every control
- * the old folds held now lives, once. Invented figures throughout — cells
+ * the old folds held now lives, once — then what a seat is shown of the hex
+ * the party believes it stands in, and the Judge's truth beside the belief
+ * with the compass between them. Invented figures throughout — cells
  * of 7 and 28 miles, a table distance of 7, an exploration speed made up for the
  * rig — so these prove the MACHINERY and never the book.
  *
@@ -430,7 +432,10 @@ const stripOf = (id) => {
     String(key) + (options?.hash && Object.keys(options.hash).length ? JSON.stringify(options.hash) : ""));
   hb.registerHelper("checked", (v) => (v ? "checked" : ""));
   hb.registerHelper("eq", (a, b) => a === b);
-  for (const path of ["formation/formation-strip.hbs", "formation/formation-player-actions.hbs", "formation/formation-cell.hbs", "formation/formation-country-card.hbs", "lib/station-chip.hbs"]) {
+  for (const path of [
+    "formation/formation-strip.hbs", "formation/formation-player-actions.hbs", "formation/formation-cell.hbs", "formation/formation-country-card.hbs",
+    "formation/formation-country.hbs", "formation/formation-plate.hbs", "lib/station-chip.hbs",
+  ]) {
     hb.registerPartial(`modules/acks-extras/templates/${path}`, hb.compile(read(path)));
   }
 
@@ -550,7 +555,7 @@ const stripOf = (id) => {
       'name="travel.exposure.hours"', 'name="travel.camp.steal"', 'name="travel.camp.water"', 'name="travel.camp.sleepInArmour"',
     ],
     judge: [
-      'name="travel.lostNote"', 'data-action="lostBegin"',
+      'name="travel.lostNote"', 'data-action="lostBegin"', 'name="travel.shown"', 'data-action="navigationThrowNow"',
       ...COUNTRY_KEYS.map((key) => `name="travel.override.${key}"`),
     ],
     frame: [
@@ -589,6 +594,11 @@ const stripOf = (id) => {
   assert.ok(sectionOf(gmJourney.mode, "camp").includes('name="travel.exposure.hours"'), "the exposure fields sit in the Camp section");
   assert.ok(!gmJourney.mode.includes('data-section="city"'), "no city section on a journey");
   assert.ok(sectionOf(gmJourney.judge, "episode").includes('data-action="lostBegin"'), "the lost episode is the Judge tab's");
+  const judgeOrder = ["where", "episode", "shown", "navigation", "hand"].map((key) => gmJourney.judge.indexOf(`data-section="${key}"`));
+  assert.ok(judgeOrder.every((at) => at > 0), "the Judge tab holds every section on a journey");
+  assert.deepEqual([...judgeOrder].sort((a, b) => a - b), judgeOrder, "Where they are, The episode, What the party is shown, Navigation, The Judge's hand");
+  assert.ok(sectionOf(gmJourney.judge, "navigation").includes("ACKS-FORMATION.navigation.owed"), "a day's first throw is owed");
+  assert.ok(!gmJourney.judge.includes('data-action="shiftTruth"'), "with no episode open there is no truth to shift");
 
   // The country: the map's reading as cards, and the Judge's word in the hand.
   const country = sectionOf(gmJourney.mode, "country");
@@ -714,6 +724,159 @@ const stripOf = (id) => {
   assert.deepEqual(
     Object.values(cardsOf(told, true)).filter((c) => c.paintable).map((c) => c.key), ["ground"],
     "a layer the map has painted under the token is not offered again");
+
+  // ---- What the party is shown: the believed hex, or unknown country ----
+  const { buildTravelView } = await import("../scripts/formation/formation-view.mjs");
+  const shownScene = makeScene("S.strip.shown", { kind: "hex", miles: TABLE_MILES });
+  const shownToken = makeToken(shownScene, "t.strip.shown");
+  // A day already logged in Q9: the log's rows name their hex too.
+  const logged = { day: 1, hex: "Q9", dayKind: "march", miles: 14, hours: 5, hexes: 2, notes: "", weather: {}, activities: [] };
+  const veiled = makeFormation(shownScene, shownToken, { hex: { label: "Q9", i: 0, j: 0 }, travel: { shown: "unknown", log: [logged] } });
+  const asPlayer = buildTravelView(getFormation(veiled), { asPlayer: true });
+  assert.deepEqual([asPlayer.plate.blank, asPlayer.plate.draw, asPlayer.plate.hex], [true, false, ""], "a blank plate: no drawing, no label");
+  assert.deepEqual([asPlayer.hex, asPlayer.hexField], ["", "Q9"], "no hex named, and the record's own label kept for the Judge's field");
+  assert.deepEqual([asPlayer.country.unknown, asPlayer.country.cards.length, asPlayer.country.encountersDrawOn], [true, 0, null],
+    "no card reads anything, and no table is named");
+  assert.equal(asPlayer.judge, undefined, "a player's view carries nothing of the Judge's tab");
+  assert.equal(asPlayer.hexStock, null);
+  assert.equal(asPlayer.log[0].hex, "", "the log's rows name no hex either");
+  const veiledStrip = buildStripView(getFormation(veiled), partySpeed(getFormation(veiled), { dark: false }), asPlayer);
+  assert.equal(veiledStrip.cadence.next, "", "nor does the strip count miles to the next throw, which would name the territory");
+  const judgeVeiled = buildTravelView(getFormation(veiled), { asPlayer: false });
+  assert.equal(judgeVeiled.log[0].hex, "", "the Judge's own log reads the same");
+  assert.notEqual(buildStripView(getFormation(veiled), partySpeed(getFormation(veiled), { dark: false }), judgeVeiled).cadence.next, "",
+    "while the Judge's strip keeps its count");
+
+  const veiledPlayer = render(veiled, { gm: false });
+  assert.ok(!whole(veiledPlayer).includes("Q9"), "the hex is named nowhere on a player's seat");
+  const veiledCountry = sectionOf(veiledPlayer.mode, "country");
+  assert.equal(count(veiledCountry, "ACKS-FORMATION.shown.unknownCountry"), 1, "Unknown country, once");
+  assert.ok(!veiledCountry.includes("data-key=") && !veiledCountry.includes("ACKS-FORMATION.shown.overline"), "no card, and no Judge's overline");
+  assert.match(veiledPlayer.frame, /acks-extras-plate--frame is-blank/, "the frame's plate is the blank");
+  assert.ok(!veiledPlayer.frame.includes("plate-hex"), "with no label over it");
+  assert.match(veiledPlayer.mode, /ACKS-FORMATION\.travel\.hex<\/span>\s*<span class="value">—/, "the strip's hex tile reads nothing");
+
+  // A party placed on a hex scene and not yet walked: the record names no
+  // hex, so the view reads the token's cell, and the Judge's field stays empty.
+  const unwalked = makeFormation(shownScene, makeToken(shownScene, "t.strip.unwalked", 3 * CELL, 2 * CELL), { hex: { label: "", i: null, j: null } });
+  const placed = buildTravelView(getFormation(unwalked), { asPlayer: true });
+  assert.deepEqual([placed.hex, placed.plate.hex, placed.hexField], ["D3", "D3", ""], "the hex the token stands in, drawn and named; nothing typed");
+  assert.equal(placed.plate.aria, 'ACKS-FORMATION.plate.aria {"hex":"D3"}');
+  const named = makeFormation(shownScene, makeToken(shownScene, "t.strip.named", 3 * CELL, 2 * CELL), { hex: { label: "The ford", i: null, j: null } });
+  assert.equal(buildTravelView(getFormation(named), { asPlayer: true }).hex, "The ford", "a label the Judge typed stands over the cell's");
+
+  const veiledGM = render(veiled, { gm: true });
+  const gmCountry = sectionOf(veiledGM.mode, "country");
+  assert.equal(count(gmCountry, "ACKS-FORMATION.shown.overline"), 1, "the Judge's own tab says why it reads nothing");
+  assert.equal(count(gmCountry, "ACKS-FORMATION.shown.unknownCountry"), 1, "and shows what the player sees");
+  assert.ok(veiledGM.mode.includes('name="travel.hexLabel" value="Q9"'), "the Judge's hex field still holds the record's label");
+  assert.match(veiledGM.frame, /is-blank/, "the Judge's frame shows the player's plate");
+  const shownSection = sectionOf(veiledGM.judge, "shown");
+  assert.ok(shownSection.includes('value="unknown" checked'), "the tile the record holds is checked");
+  assert.ok(shownSection.includes("is-blank") && shownSection.includes("ACKS-FORMATION.shown.unknownCountry"), "the preview is a player's seat");
+
+  settings.formations[veiled].travel.shown = "believed";
+  const openGM = render(veiled, { gm: true });
+  assert.ok(sectionOf(openGM.judge, "shown").includes('value="believed" checked'));
+  const preview = sectionOf(openGM.judge, "shown");
+  assert.ok(preview.includes('data-key="ground"'), "believed: the preview draws the cards");
+  assert.ok(!/acks-extras-country-source|acks-extras-country-chip/.test(preview), "as a player reads them");
+  for (const kind of ["frame", "true", "believed", "preview"]) {
+    assert.equal(count(whole(openGM), `data-plate-kind="${kind}"`), 1, `one ${kind} plate is drawn`);
+  }
+  const openPlayer = render(veiled, { gm: false });
+  assert.equal(count(whole(openPlayer), "<canvas"), 1, "a player's seat draws the frame's plate alone");
+
+  // An episode open and its shadow standing: Shift the truth offers the six
+  // directions and the blind roll, laid out as the grid's rows run.
+  const shade = { id: "t.strip.shown.shadow", x: shownToken.x, y: shownToken.y, width: 1, height: 1, parent: shownScene,
+    getFlag: (_ns, key) => (key === "shadowFor" ? veiled : undefined) };
+  shownScene.tokens.set(shade.id, shade);
+  settings.formations[veiled].travel.lost = { phase: "astray", sceneId: shownScene.id, anchor: { i: 0, j: 0 } };
+  const padded = sectionOf(render(veiled, { gm: true }).judge, "where");
+  assert.deepEqual([...padded.matchAll(/data-action="shiftTruth" data-direction="(\w+)"/g)].map((m) => m[1]),
+    ["nw", "ne", "w", "roll", "e", "sw", "se"], "six directions and the blind roll, each a press");
+  assert.equal(count(padded, "acks-extras-where__cell is-empty"), 2, "the two corners a row grid has no neighbour in stay empty");
+  shownScene.tokens.delete(shade.id);
+  settings.formations[veiled].travel.lost = {};
+}
+
+{
+  // ---- Where they are: the truth, the belief and the compass between ----
+  const { buildTravelView } = await import("../scripts/formation/formation-view.mjs");
+  const R = 50;
+  const W = Math.sqrt(3) * R;
+  /** A regular hex grid of rows, odd rows shoved right: centres, the nearest
+   * cell to a point, and the six cells one hex-width away. */
+  const centre = ({ i, j }) => ({ x: (j + 0.5 + (i % 2 ? 0.5 : 0)) * W, y: R + i * 1.5 * R });
+  const cells = [];
+  for (let i = 0; i < 10; i++) for (let j = 0; j < 10; j++) cells.push({ i, j });
+  const scene = makeScene("S.strip.where", { kind: "hex", miles: TABLE_MILES });
+  Object.assign(scene.grid, {
+    sizeX: W,
+    sizeY: 2 * R,
+    getCenterPoint: centre,
+    getOffset: (p) => {
+      let best = null;
+      for (const c of cells) {
+        const q = centre(c);
+        const d = Math.hypot(q.x - p.x, q.y - p.y);
+        if (!best || d < best.d) best = { c, d };
+      }
+      return { i: best.c.i, j: best.c.j };
+    },
+    getAdjacentOffsets: (o) => cells.filter((c) => {
+      const a = centre(o);
+      const b = centre(c);
+      return Math.abs(Math.hypot(a.x - b.x, a.y - b.y) - W) < 1e-6;
+    }),
+  });
+  const at = (token, offset) => {
+    const c = centre(offset);
+    Object.assign(token, { x: c.x - W / 2, y: c.y - R });
+  };
+  const believed = { i: 4, j: 4 };
+  const party = makeToken(scene, "t.strip.where");
+  at(party, believed);
+  const id = makeFormation(scene, party, { hex: { label: "E5", ...believed } });
+  const shadow = { id: "t.strip.where.shadow", width: 1, height: 1, parent: scene, getFlag: (_ns, key) => (key === "shadowFor" ? id : undefined) };
+  scene.tokens.set(shadow.id, shadow);
+  at(shadow, believed);
+  const whereOf = () => buildTravelView(getFormation(id), { asPlayer: false }).judge.where;
+
+  const closed = whereOf();
+  assert.deepEqual([closed.open, closed.differ, closed.compass, closed.pad], [false, false, null, null], "no episode: one hex, no compass, no pad");
+  assert.equal(closed.trueHex, closed.believedHex, "both read the party token's hex");
+  at(shadow, { i: 2, j: 2 });
+  assert.equal(whereOf().differ, false, "a shadow left standing with no episode open is not the truth");
+
+  settings.formations[id].travel.lost = { phase: "astray", sceneId: scene.id, anchor: { ...believed } };
+  // The six neighbours of an even row on this grid, each with the name the
+  // grid's own geometry gives its direction.
+  const NEIGHBOURS = [
+    [{ i: 4, j: 5 }, "e"], [{ i: 5, j: 4 }, "se"], [{ i: 5, j: 3 }, "sw"],
+    [{ i: 4, j: 3 }, "w"], [{ i: 3, j: 3 }, "nw"], [{ i: 3, j: 4 }, "ne"],
+  ];
+  for (const [offset, dir] of NEIGHBOURS) {
+    at(shadow, offset);
+    const where = whereOf();
+    assert.equal(where.differ, true, `${dir}: the truth is not the belief`);
+    assert.equal(where.compass?.dir, dir, `the shadow one hex ${dir} reads ${dir}`);
+    assert.equal(where.compass.label, `ACKS-FORMATION.where.compass.${dir}`);
+    assert.equal(where.believedHex, "E5", "the belief stays the party token's hex");
+    assert.equal(where.belief.differ, true, "and its plate is marked");
+    assert.equal(where.truth.kind, "true");
+    assert.equal(where.belief.aria, 'ACKS-FORMATION.plate.ariaOf {"kind":"ACKS-FORMATION.where.believed","hex":"E5"}',
+      "each of the two plates is named for what it is, so a reader hears which is which");
+    assert.match(where.truth.aria, /^ACKS-FORMATION\.plate\.ariaOf \{"kind":"ACKS-FORMATION\.where\.true"/);
+  }
+  at(shadow, { i: 4, j: 7 });
+  assert.equal(whereOf().compass.dir, "e", "farther off, the nearest of the six, and no distance");
+  at(shadow, believed);
+  const same = whereOf();
+  assert.deepEqual([same.open, same.differ, same.compass], [true, false, null], "an episode just opened: the same hex");
+  assert.deepEqual(same.pad.map((c) => c.direction ?? null), ["nw", null, "ne", "w", "roll", "e", "sw", null, "se"],
+    "the pad lays the six around the hex as the grid's rows run, the blind roll in the middle");
 }
 
 {
@@ -744,4 +907,4 @@ const stripOf = (id) => {
   unregisterTable("weather");
 }
 
-console.log("test-strip: OK (strip by mode, journey tally and clock, cadence next, pause, camp readout, warnings, the sheet's parts by mode and seat, the country's cards, chips and hand)");
+console.log("test-strip: OK (strip by mode, journey tally and clock, cadence next, pause, camp readout, warnings, the sheet's parts by mode and seat, the country's cards, chips and hand, what the party is shown, where they are and the compass)");

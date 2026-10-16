@@ -86,6 +86,7 @@ const COMMITTED = [
   "test-journey.mjs",
   "test-strip.mjs",
   "test-party-frame.mjs",
+  "test-plate.mjs",
   "test-weather.mjs",
   "test-weather-effects.mjs",
   "test-encounters.mjs",

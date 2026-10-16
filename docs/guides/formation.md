@@ -173,6 +173,14 @@ been given before. Players see the cards. Your seat also shows where each
 answer came from, and a card whose hex the brush has not painted offers
 **Paint this hex**, which opens the brush on that card's layer.
 
+On a journey the party's picture becomes a drawing of the hex the token stands
+in: the scene's own background under it, tinted by the ground painted there,
+the roads and rivers that cross it, the points of interest the party has found
+(on your seat the ones it has not found as well, as dashed rings) and the
+party's mark at its middle. A square grid draws the square; a map with no grid
+draws a square one grid unit across. The drawing is not a button: the picture
+itself is changed from the sheet tools.
+
 Your own word goes in **The Judge's hand**, on the Judge tab: one select for
 each of the six — ground, encounter table, territory, climate, road and
 following — with what the map reads there written beside it. A choice there
@@ -204,9 +212,9 @@ read from your own weather pages by the importer; until they are imported the
 list says the sky is unpriced, and nothing is charged. Each card that pays one
 of these penalties names the weather on its own line.
 
-**End day**, at the head of the Wilderness tab, closes the day: it throws for
-navigation, feeds the order, walks every body's hunger, thirst and exposure
-one step, writes the miles and hours
+**End day**, at the head of the Wilderness tab, closes the day: it feeds the
+order, walks every body's hunger, thirst and exposure one step, writes the
+miles and hours
 actually walked into the log, and moves the calendar to the next dawn. It owes
 an encounter throw for each batch of traps managed and carries the odd traps to
 tomorrow. Two whispered cards follow on a day that has them. **The weather's
@@ -286,7 +294,9 @@ through the encounter chain, so a lair that is a monster is the monster the
 chain would meet. Type a count to override the roll; a terrain with no imported
 row asks for one. The stock is kept on the scene, under the hex, so two parties
 crossing the same hex find the same things and a party that never comes back
-leaves them where they were.
+leaves them where they were. The section names the world-clock day the hex was
+stocked, so an old stock is plain to see. Nothing restocks a hex by itself:
+**Restock** replaces the stock with its finds and its survey, and asks first.
 
 The **Points of interest** section of the Wilderness tab lists each point with
 its kind, whether this party has found it, and
@@ -330,18 +340,76 @@ import lacks, tells you to draw from your book.
 *A terrain encounter's card: the result, each table it led to with its die and
 roll, and the terrain's modifier.*
 
+### The navigation throw
+
+Off the road a party can lose its way, and the day's first step away from one
+decides it. The first time in a day that the party token is dragged off a road,
+or you press **Next hex** there, the navigation throw is made for the order and
+whispered to you; a player's drag sets it off, and the player sees nothing of
+it. A day, for the throw, ends when the calendar's day changes or when you
+press **End day**, whichever comes first, so a clock that keeps no calendar
+still counts its days and a march that runs past midnight owes the new day's
+throw at its next step off the road. A day spent on a road, along a navigable
+river or on a route you have said the party knows owes no throw, and **End
+day** makes none.
+
+The throw is made against your imported figure for the ground the party
+believes it is crossing, with what your import says the order's Navigation and
+Pathfinding are worth; the card shows the throw, its target and the weather
+that weighed on it.
+
+**Navigation, quietly**, on the Judge tab, says where the day stands: owed at
+the day's first step off the road, thrown today, or nothing owed while the
+party follows a road or a route. Beneath it are the last ten throws, newest
+first: the day, the hex, the throw against its target, and whether the party
+kept its way. **Throw now** makes the throw by hand, for one the march does not
+make for you, and counts as the day's.
+
 ### Getting lost
 
-A failed navigation throw is whispered to you, not announced. The party walks
-on believing it is somewhere it is not: the map fills in with the ground they
-*think* they crossed, while you alone see where they really are, on a hidden
-marker that moves with them.
+A failed navigation throw opens the episode at once, whispered to you and not
+announced. A hidden marker, the party's true position, appears under the party
+token, and from then on the two are told apart. The party token is where the
+party *believes* it is, and the map fills in for the players with the ground
+they think they crossed. The marker is where they really are, and only you see
+it; on a hex map every drag moves it by the same steps, hex for hex, from
+wherever it stands. An episode opens only while you are viewing the party's
+scene. When you are not, the card says so and offers **Begin the lost
+episode**, which opens it once you are viewing the scene with nothing asked:
+the marker starts under the party token, and the truth is yours to shift from
+the Judge tab as they walk on. **They strayed…** on the Judge tab opens an
+episode on your own word, and asks for the face they wandered off by or rolls
+it.
 
-When they realise it — because they made a later throw, or because you told
-them — that imagined ground closes back over and the players are told, in as
-many words, that the last few days were not where they thought. They do not
-learn where they actually went. Finding their way back to a known landmark is
-what puts the country they really crossed onto the map, in its right place.
+What happens to a lost party happens where it really is. Its encounters are
+thrown for the marker's hex, by that hex's table and at its cadence, and it
+searches and surveys there (see *This hex*). What the players see is drawn
+where they believe they are.
+
+**Where they are**, on the Judge tab, shows both. The **True** plate is the
+marker's hex and the **Believed** plate the party token's; while they differ,
+the believed plate is dashed and gold, and a badge names the direction the
+truth lies in. **Shift the truth** moves the marker one hex toward any of the
+six directions, or toward a face rolled blind from the middle cell, and the
+players see nothing move: it is how the party comes to stand somewhere other
+than where it believes.
+
+**What the party is shown**, on the same tab, decides what the players' sheet
+says of their position. **The believed hex**, the default, draws and reads the
+hex the party token stands in. **Unknown country** blanks it: the players'
+picture is an empty frame, no hex is named, and the Country section says
+*Unknown country* and nothing more. Your own sheet shows the same under a gold
+line, and the section previews a player's sheet beside the choice. Encounters
+are thrown as before either way.
+
+Each later day's throw is still made, and none of them ends anything by
+itself: a success while they are astray offers **They realise they are lost**
+on its card. When they realise it — that press, or **They realise** on the
+Judge tab because you told them — the imagined ground closes back over and the
+players are told, in as many words, that the last few days were not where they
+thought. They do not learn where they actually went. Finding their way back to
+a known landmark is what puts the country they really crossed onto the map, in
+its right place.
 
 ![](../releases/v8.1.0/formation-lost-aware.png)
 

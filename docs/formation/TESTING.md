@@ -628,14 +628,14 @@ as missing.
 
 ## End day, the whole tick (added with survival and the throw)
 
-End day now does three things, and each can fail independently.
+End day does two things here, and each can fail independently.
 
 1. Journey a formation on `forest`, road `none`, with invented `gettingLost`
    and `navigationBonus` rows registered. `endDay(id, {miles, hexes})`.
-   *Observable:* the day count advances, the log grows, AND a
-   `.acks-extras-nav-card` message appears **whispered** — `msg.whisper` is
-   non-empty. Set the road to `paved` and end another day: no card at all,
-   because a party following a road does not get lost.
+   *Observable:* the day count advances, the log grows, and NO
+   `.acks-extras-nav-card` appears: the navigation throw is made at the day's
+   first step off a road, and End day makes none (*The hex the party is
+   shown*, below, walks the throw).
 2. Seat characters carrying rations and call `runProvisionDay`.
    *Observable:* the pool is the SUM across the order, so two days of food
    carried by one character feeds three mouths at half each, and all three
@@ -781,8 +781,9 @@ with one member, its token placed, `setJourneyMode(id, "journey")`.
    the question is re-armed for the distance just bought.
 5. Walk to the new allowance and answer **Call it a day**.
    *Observable:* a log entry with the figures the panel showed, `dayCount` up
-   one, `hexesEntered` back to 0, the navigation throw whispered, and world
-   time advanced 86400.
+   one, `hexesEntered` back to 0, no navigation card (the throw is the day's
+   first step's), and world time at the next dawn with *Advance the world
+   clock* on, not a flat day.
 6. Reach the offer again and answer **Not yet**.
    *Observable:* the day continues, `hexesEntered` counts PAST the allowance,
    and no further dialog appears. The Wilderness tab's **End day** pill still ends it
@@ -1791,8 +1792,9 @@ registered at WORLD priority for the check and unregistered after.
    the unpriced hint instead, and nothing else changes.
 2. Search an hour. *Observable:* the search card carries the weather line and,
    with a tracker seated, the per-hour tracking line, its figure scaled by the
-   hours already searched today. Survey the hex and End day: the survey card
-   and the navigation card each carry their own weather line.
+   hours already searched today. Survey the hex, and post the navigation
+   throw as *The delve's figures, imported* does (its drive mechanics): the
+   survey card and the navigation card each carry their own weather line.
 3. In the Wilderness tab's Camp section tick *Willing to steal* in civilized
    country.
    *Observable:* the forage targets on the panel lose their territory part.
@@ -1927,18 +1929,20 @@ is connected on the GM seat, which runs every step.
    `navigationCompetence(f())` answers `navigation: true, bonus: nav.either,
    unpriced: false`. Give Scout an `ability` item named Pathfinding
    (`createEmbeddedDocuments`). *Observable:* `pathfinding: true` and
-   `bonus: nav.both`. End day. *Observable:* the whispered
-   `.acks-extras-nav-card` carries the `nav.both` line and no
-   `nav.bonusUnpriced` line.
+   `bonus: nav.both`. Post the throw (drive mechanics). *Observable:* the
+   whispered `.acks-extras-nav-card` carries the `nav.both` line and no
+   `nav.bonusUnpriced` line, and `travel.navigation.history` gained the row.
 
 Drive mechanics: read `game.settings.get("acks-extras", "advanceWorldTime")`
 before step 3. Where it is on, every turn moves the SHARED world clock ten
 minutes and End day jumps it to the next dawn, so on a shared world ask before
-stepping. Step 6's card can be posted without the day: import
+stepping. Step 6's card is posted without a step: import
 `scripts/formation/navigation-card.mjs` in page context and call
-`postNavigationThrow(f())`, the throw End day makes; the report names which
-was walked. Each advance posts one whispered turn card, and an encounter card
-whenever the world's wandering-monster cadence comes round. Track every
+`postNavigationThrow(f(), {by: "judge", begin: async () => null})`, the throw
+**Throw now** makes, with an opener that opens nothing, so a failed throw
+starts no lost episode on a viewed scene. Each advance posts one whispered
+turn card, and an encounter card whenever the world's wandering-monster
+cadence comes round. Track every
 message this seat created during a call (`author` is this user) the moment
 the call resolves, the navigation card's too, with
 `api.track(id, "ChatMessage")`.
@@ -2289,6 +2293,233 @@ and quote its result; unregister the invented `travel` document
 (`acksExtras.lib.tables.unregisterTable`). The country brush is client state:
 close the palette, and if the run left the toolbar's brush armed, press any
 other control.
+
+## The hex the party is shown (added with the redesign's phase 2b)
+
+The plate's drawing, the day's navigation throw at its first step off a road,
+the lost episode it opens, the Judge tab's Where they are, What the party is
+shown and Navigation, quietly, and the stock's day. Every throw, every opening
+and every move of the shadow runs on the ACTIVE GM's client: drive from that
+seat, keep a second GM client off the world, and rig the dice and register the
+invented table there.
+
+Fixtures, each recorded with `api.create`, or `api.track` for what a call, a
+gesture or the feature makes, read back by the id it returns:
+
+- a mile-scale hex scene (*The march in miles*'s first scene; `grid.type` 2,
+  hex rows, at least ten hexes across and six down) created with `active: false` and
+  `ownership.default` OBSERVER, and viewed. Its background is Foundry's own
+  `ui/parchment.jpg`, never book art: confirm it is served
+  (`(await fetch(foundry.utils.getRoute("ui/parchment.jpg"), {method: "HEAD"})).ok`),
+  then set it through the scene's level after creation
+  (`scene.levels.contents[0].update({"background.src": "ui/parchment.jpg"})`,
+  the battlemap recipe's mechanic). A second disposable scene of any grid,
+  also `active: false`, for the Judge to be looking at in step 11;
+- the scene's default country, ground `grassland`:
+  `acksExtras.battlemap.country.writeSceneSetup(scene, {country: {ground: "grassland", territory: X}})`;
+- six hexes picked by offset and read as points with
+  `scene.grid.getCenterPoint({i, j})`: C, where the party starts, two hexes
+  inside the scene's rectangle (`scene.dimensions.sceneRect`, which the
+  padding surrounds) from its left and top; A, B, D and E along C's row, each
+  the east neighbour of the one before; and T, D's south-east neighbour
+  (`(await import("/modules/acks-extras/scripts/formation/plate.mjs")).neighbourToward(scene, D, "se")`);
+- through `acksExtras.battlemap.terrain.paintHexAt(scene, point, value,
+  "terrain")`: hex C painted `grassland` and hex T a second ground (any value
+  `paintableValues("terrain")` lists other than grassland). List
+  `layerRegionsOf(scene, "terrain")` after the painting and track every
+  region id;
+- a paved road from C's centre to A's centre,
+  `scene.createEmbeddedDocuments("Wall", [{c: [Cx, Cy, Ax, Ay], ...acksExtras.battlemap.roads.roadWallData({surface: "paved"})}])`,
+  its id tracked. *Probe:* `acksExtras.battlemap.roads.stepBetweenHexes(scene,
+  C, A).on` is true and `stepBetweenHexes(scene, A, B).on` false;
+- a river no boat can follow, across hex C a quarter of the cell's height
+  above its centre, edge to edge:
+  `{c: [Cx - sizeX / 2, Cy - sizeY / 4, Cx + sizeX / 2, Cy - sizeY / 4], ...acksExtras.battlemap.water.waterWallData({kind: "river", navigable: false})}`
+  (`sizeX`/`sizeY` the grid's), its id tracked. A navigable one would spare
+  the throw on its own;
+- a disposable `acks-extras.party` actor with two disposable members enrolled
+  through the token HUD, one owned by the provisioned Player user, its token
+  placed in hex C and adopted (poll the record for `tokenId`), then
+  `acksExtras.formation.travel.setJourneyMode(id, "journey")`;
+- hex C stocked by hand with two invented points, P found by this formation
+  and Q not:
+  `acksExtras.formation.hexStock.writeStock(scene, hexStockKey({offset: C}), record)`
+  (`hexStockKey` is under `hexStock.pure`), where `record` is `{label: <C's
+  label>, stocked: true, stockedAt: game.time.worldTime, terrain: "grassland",
+  territory: X, count: 2, judgeCount: 2, substitute: false, points: [P, Q],
+  searches: {}, assessments: {}}` and each point is `{id:
+  foundry.utils.randomID(), kind: "placed", name: "Point P", sub: null,
+  rarity: null, creature: null, draw: null, found, placeUuid: null, note:
+  ""}`, P's `found` `{[formationId]: game.time.worldTime}` and Q's `{}`. The
+  stock is a flag on the scene and goes with it;
+- an invented `travel` document registered at priority 30 on the active GM's
+  client: the country recipe's `encounterFrequency` and `gettingLost:
+  {grassland: <a target of your own that a 20 makes>}`, through
+  `acksExtras.lib.tables.registerTable({id: "travel", tables}, {priority: 30})`;
+- *Journey encounter throws* (`travelEncounters`) read and set off for the
+  walk, so no drag posts an encounter card, and restored at teardown.
+
+Drive mechanics. `f = () => acksExtras.formation.getFormation(id)`;
+`T = acksExtras.formation.travel` (`travelOf`, `trueTravelOf`,
+`navigationOwed`, `journeyDayKey`, `tokenCentre`); `shadow =
+acksExtras.formation.shadow`. The sheet's decision is `ctx = await
+party.sheet._prepareContext({})`: `ctx.travel.plate`, `ctx.travel.judge.where`,
+`.shown`, `.preview` and `.navigation`, `ctx.travel.hexStock.stockedLine`,
+`ctx.strip.hex` and `ctx.frame.reading`; finish each step with the real press.
+A drag is `tokenDoc.update({x, y}, {animate: false})` to
+`scene.grid.getTopLeftPoint(offset)`. The movement hook posts the card after
+the update resolves, so poll `game.messages` for up to two seconds for a
+message authored by this seat and newer than the drag, and `api.track(msg.id,
+"ChatMessage")` it the moment it appears; track the cards a press posts the
+same way. A ledger write takes a moment to read back (*Lost*): settle ~1.5 s
+before asserting on `f()`. Rig the d20 through `CONFIG.Dice.randomUniform`,
+saving the original first, and read one `new Roll("1d20")` back after each
+rig (*The hex stock*: `() => 0.975` throws a 1 and `() => 0.025` a 20 on core
+14). An episode opens only on a viewed scene (`scene.view()`, then wait for
+`canvas.scene.id`). The confirm dialogs answer to `button[data-action="yes"|"no"]`;
+open in one evaluate and press in the next. A card renders in every chat pane, so click one of its
+buttons, by `data-formation-id`. A drag after dusk or past the day's hours
+raises the day-end offer (*The march in miles*): answer *later*. A plate
+canvas is painted again as each image arrives, so read its pixels after
+`await party.sheet.render()` and a short settle; `getImageData` works because
+the background and the token art are the world's own origin.
+
+1. **The plate draws hex C.** Open the party sheet on the GM seat.
+   *Observable:* the frame holds `canvas.acks-extras-plate__canvas[data-plate-kind="frame"]`,
+   404 pixels square, the plate holds no `[data-action="editPartyImage"]`, and
+   its `.acks-extras-party-sheet__plate-hex` reads C's label. With `g =
+   plate.plateGeometry(scene, ctx.travel.plate.center, 404, {points:
+   ctx.travel.plate.points})`: `g.kind` "hex" with six vertices, one road
+   (`surface` "paved"), one water line (`kind` "river", `navigable` false), two
+   points; `ctx.travel.plate.tint` is grassland's `TERRAIN_COLORS` entry.
+   Pixels (`getContext("2d").getImageData(x, y, 1, 1).data`): (2, 2), outside
+   the cell, is transparent; most of the non-transparent pixels are opaque,
+   where a plate painted with no background
+   (`plate.paintPlate(document.createElement("canvas"), g, {tint})`) holds the
+   tint alone at alpha 204; P's pixel is the point colour (the canvas's
+   computed `--acks-extras-plate-point`), and on a circle of radius 404 × 0.028
+   round Q some samples are that colour too (the Judge's dashed ring). Where
+   they are shows both plates labelled C, "The truth and the belief are the
+   same hex", and no pad. Points of interest reads *Stocked today*
+   (`.acks-extras-hex-stock-day`), the stock stamped at the clock's own time,
+   and `ctx.travel.hexStock.stockedAgo` is 0. On the Player seat, viewing the
+   scene: the frame
+   plate draws, `ctx.travel.plate.points` lists P alone, P's pixel is the
+   point colour, and no sample round Q is.
+2. **A drag on the road owes nothing.** Drag from C to A.
+   *Observable:* `f().travel.map.road` "paved"; no navigation card;
+   `T.travelOf(f()).navigation` `{thrownOn: null, lastResult: null, history:
+   []}`; `T.navigationOwed(f())` has `state` "following", `route` "road" and
+   `road` "paved", and Navigation, quietly's `.acks-extras-navigation__line`
+   (`data-state="following"`) names the paved road. Press **Throw now**
+   (`[data-action="navigationThrowNow"]`): an info toast that nothing is
+   owed, no card, no history row.
+3. **The day's first step off the road throws, once.** Rig a 1 and drag from
+   A to B.
+   *Observable:* ONE new `.acks-extras-nav-card` (track it), whispered to the
+   GMs alone, its natural 1 failing whatever the bonus, the strayed verdict.
+   `f().travel.navigation.thrownOn` equals `T.journeyDayKey(T.travelOf(f()))`,
+   a string `"<calendar day>:<dayCount>"`, and `history[0]` is `{day:
+   thrownOn, count: f().travel.dayCount, hexLabel: <B's label>, target,
+   total, natural: 1, success: false, by: "step"}` with the card's target and
+   total. Navigation, quietly reads *Thrown today.*; its row reads Day
+   `count + 1`, B, the throw against its target, *Strayed* (`is-strayed`)
+   and *First step*.
+4. **The episode opens.** Same gesture.
+   *Observable:* `lost.phase` "astray", `lost.sceneId` the scene's id,
+   `lost.anchor` B's offset; the card's note says the episode is open, and it
+   carries no button. A hidden token flagged `shadowFor` the formation stands
+   in hex B: `s = shadow.shadowFor(scene, id)`, and `api.track(s.uuid)` at
+   once. The GM seat's band wears the astray chip; the Player seat's does
+   not, and the Player's canvas shows no new token.
+5. **A further drag moves the shadow with the token.** Drag from B to D.
+   *Observable:* no new navigation card (the day's throw is made); the shadow
+   stands in hex D, the token's hex
+   (`scene.grid.getOffset(T.tokenCentre(shadow.shadowFor(scene, id), scene))`);
+   `lost.faked` holds D's key and `lost.observations` the pair `{at: <D's
+   key>, shown: <D's key>}`; Where they are still says one hex, and the pad
+   shows six direction cells round a dice cell.
+6. **Shift the truth.** Press
+   `[data-action="shiftTruth"][data-direction="se"]` on Where they are.
+   *Observable:* the shadow stands in hex T; the party token has not moved;
+   `lost.observations` gained `{at: <T's key>, shown: <D's key>}`; nothing
+   changed on the Player seat.
+7. **The two plates differ, and the encounters follow the truth.**
+   *Observable:* the True plate (`data-plate-kind="true"`) is labelled T's
+   hex, the Believed plate D's, and the believed plate and its caption carry
+   `is-differ` (dashed, gold); the badge (`.acks-extras-where__compass`) reads
+   "The truth lies South-east", and `ctx.travel.judge.where` has `differ`
+   true and `compass.dir` "se". `T.trueTravelOf(f()).ground` is T's painted
+   ground and `T.travelOf(f()).ground` grassland: on the GM seat the
+   Wilderness tab's encounters line (`.acks-extras-country-draw`) names T's
+   table, while the Judge tab's preview of a player's seat names
+   grassland's. Points of interest reads T's label with the astray note.
+   Drag from D to E. *Observable:* the shadow moves one hex east of T and the
+   badge still reads South-east. Press the pad's dice cell
+   (`data-direction="roll"`). *Observable:* a toast names the face the truth
+   moved toward, and the shadow stands one hex from where it was.
+8. **Unknown country, from the Player seat.** On What the party is shown,
+   click the Unknown country tile (`input[name="travel.shown"][value="unknown"]`).
+   *Observable:* `f().travel.shown` "unknown". On the Player seat the frame
+   plate is `.is-blank`, with no canvas and no hex label; `ctx.strip.hex.label`
+   is "" (the strip reads a dash); `ctx.frame.reading.overline` names no hex
+   and its chips carry no territory or following; the Country section holds
+   exactly one `.acks-extras-country-unknown` and no
+   `.acks-extras-country-cards`. On the GM seat the Wilderness tab shows the
+   same beneath `.acks-extras-shown-overline`, the frame plate is blank, the
+   hex field (`input[name="travel.hexLabel"]`) still holds E's label, and the
+   Judge tab's preview (`.acks-extras-shown__preview`) shows the blank plate
+   and the one line. `T.trueTravelOf(f())` is what it was. Click the believed
+   hex tile: every seat draws again.
+9. **They realise they are lost.** Rig a 20 and press **Throw now**.
+   *Observable:* one card (track it), "Thrown true while they are astray", with
+   the **They realise they are lost** button (`.acks-extras-nav-realise`);
+   `history[0]` is by "judge" with step 3's day, `thrownOn` unchanged, and
+   `lost.phase` still astray. Press the card's button (no dialog follows).
+   *Observable:* `lost.phase` "aware", `lost.faked` and `lost.observations`
+   empty, the shadow where it stood, the players told on the Player seat, and
+   Where they are still shows two plates that differ. A second press does
+   nothing.
+10. **The next day, aware.** Press End day (track every card it posts). With
+    *Advance the world clock* off the calendar day stays where it is, and the
+    key still moves with the count.
+    *Observable:* End day posts no navigation card and `thrownOn` is
+    unchanged; Navigation, quietly reads *Owed at the day's first step off the
+    road.* Rig a 1 and press **Next hex** (`[data-action="travelEnterHex"]`)
+    with the hex field as it stands.
+    *Observable:* one card (track it), "They already know they are lost", no
+    button; one shadow, no second; `thrownOn` the new day's key, its count
+    half one up, and `history[0]` by "step". Drag from E to D. *Observable:*
+    no card, and the shadow moved one hex west. With the day open, advance
+    the clock past midnight by hand (`game.time.advance(<seconds to the next
+    calendar day>)`, forward only, the total reported) and drag from D to E.
+    *Observable:* one card (track it): the calendar half of `thrownOn` is the
+    new day's and the count half unchanged, and the shadow stands one hex
+    east.
+11. **The refused opening, and the card's Begin.** Press **They turn back**
+    (`[data-action="lostEnd"]`) and answer yes.
+    *Observable:* `lost.phase` null, no `shadowFor` token on any scene, both
+    plates read the party token's hex, no pad. View the second scene, rig a 1
+    and press **Throw now**.
+    *Observable:* a warning to open the party's scene, and one card (track
+    it) with the strayed verdict, the note that the episode could not be
+    opened and a **Begin the lost episode** button (`.acks-extras-nav-begin`);
+    `lost.phase` still null and no shadow. Press the button there.
+    *Observable:* the same warning, nothing opens, the button stays. View the
+    hex scene again and press it.
+    *Observable:* no dialog; `lost.phase` "astray", a shadow (track it) in the
+    party token's own hex, both plates the same hex and no badge, and the pad
+    shown. Press **They turn back** and answer yes.
+
+Teardown: restore `CONFIG.Dice.randomUniform` to the function saved before
+the first rig; `api.sweepTracked()` — the two scenes with their regions,
+walls, stock and shadows, the party actor and with it the formation, the
+members, every tracked card — and quote its result: the shadows They turn back
+retired, and anything the scenes took with them, are its "could not find".
+Unregister the invented `travel` document
+(`acksExtras.lib.tables.unregisterTable("travel", {priority: 30})`) and
+restore *Journey encounter throws*. The world clock is not set back; report
+how far step 10 moved it.
 
 ## Teardown
 

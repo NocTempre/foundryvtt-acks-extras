@@ -56,7 +56,8 @@ import {
   surveyHex,
   trueHexOf,
 } from "./hex-stock-run.mjs";
-import { askStrayAndBegin, confirmDiscovery, confirmEnd, confirmReanchor } from "./lost-dialog.mjs";
+import { askStrayAndBegin, confirmDiscovery, confirmEnd, confirmReanchor, shiftTruth as moveTruth } from "./lost-dialog.mjs";
+import { postNavigationThrow } from "./navigation-card.mjs";
 import { applyTravelForm, clearDeclaredCountry, setJourneyMode, rollWeatherNow, travelOf, TRAVEL_MODES } from "./travel.mjs";
 import { openCountryBrush, PAINT_LAYERS } from "../battlemap/terrain-paint.mjs";
 import { COUNTRY_KEYS } from "../battlemap/country.mjs";
@@ -348,6 +349,33 @@ export const SHARED_ACTIONS = {
     const formation = gmFormation(this);
     if (!formation) return;
     await confirmEnd(formation);
+    this.render();
+  },
+
+  /**
+   * Shift the truth one hex toward the pressed cell's `data-direction` (a
+   * compass name, or `roll` for a blind face); the party token, what the party
+   * believes, stays. A rolled face is said to the Judge.
+   */
+  async shiftTruth(_event, target) {
+    const formation = gmFormation(this);
+    const direction = target?.dataset?.direction ?? "";
+    if (!formation || !direction) return;
+    const moved = await moveTruth(formation, direction);
+    if (moved?.face != null) ui.notifications?.info(loc("where.rolled", { face: moved.face + 1 }));
+    this.render();
+  },
+
+  /**
+   * Throw the day's navigation by hand. It counts as the day's throw (made
+   * `by: "judge"`), and a failure acts as the step's would; a party on a road
+   * or following a route owes none, so nothing is thrown and the Judge is told.
+   */
+  async navigationThrowNow() {
+    const formation = gmFormation(this);
+    if (!formation || travelOf(formation).mode !== "journey") return;
+    const thrown = await postNavigationThrow(formation, { by: "judge" });
+    if (!thrown?.result?.throws) ui.notifications?.info(loc("navigation.nothingOwed"));
     this.render();
   },
 

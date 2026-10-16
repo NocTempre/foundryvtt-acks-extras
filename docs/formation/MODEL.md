@@ -67,6 +67,9 @@ All paths are under `scripts/formation/` unless noted.
 | `templates/formation/hex-stock-dialog.hbs` | The stocking dialog. |
 | `country-keys.mjs` | The country's vocabularies, keys only (`TERRITORY_KEYS`, `FOLLOWING_KINDS`), in a leaf with no imports, so the battlemap's brush and reader and the travel engine name the same keys without importing one another; `travel.mjs` re-exports both. |
 | `templates/formation/formation-country-card.hbs` | One reading of the country (§The country), the partial the Country and Sky sections draw their cards with. |
+| `templates/formation/formation-country.hbs` | The Country section's body: the cards and the encounters line, or the one line of unknown country (§Lost). |
+| `plate.mjs`, `templates/formation/formation-plate.hbs` | The plate: the pure geometry of the hex a party stands in, its painter, and the compass between two hexes; the partial every plate renders through (§The plate). |
+| `navigation-card.mjs` | The day's navigation throw as a whispered card, the episode a failure opens, and the card's buttons (§The navigation throw). |
 | `../lib/sockets.mjs` | Module-wide socketlib transport: one registration, one channel, a handler registry that throws on a duplicate name, and a pre-ready queue so handlers can register at import time. Not formation-owned. |
 | `module.mjs` | Settings, hooks, scene-control button, `/formation` chat command, feature API. |
 
@@ -166,9 +169,16 @@ names itself by tooltip as well.
 **The reading** beside the rails carries an overline (the mode, and on a
 journey the day, the hex, the clock and the season), chips (the territory and
 what the party follows, on a journey; the heads; Paused; on a GM seat the lost
-compass while the party is astray), then the description. The plate shows the
-party image, with the hex label over it on a journey; on a GM seat it opens
-the image picker. The warnings sit under the art row, on every tab.
+compass while the party is astray), then the description. The hex the
+overline, the strip and the plate name is the record's label, else the cell
+the party token stands in on a hex scene (`standingLabel`), so a party placed
+and not yet walked is named where it stands; the Judge's hex field holds the
+record's label alone. While the party is shown unknown country (§Lost) the
+overline names no hex and neither seat gets the territory or following chip.
+The plate is §The plate's: on a journey it draws the hex the party believes it
+stands in, with the hex label over it; where it draws nothing it shows the
+party image, which on a GM seat opens the image picker. The warnings sit under
+the art row, on every tab.
 
 **The tabs** are named by the mode (`frameTabs`):
 
@@ -180,7 +190,7 @@ the image picker. The warnings sit under the art row, on every tab.
 | Order, Train or Company | Auto-arrange, Frontage, Save order, Load order, Add a blank, Trapbreaking, Skill audit, Disband | the ranks and the train |
 | Kit | none | the lights and spells |
 | Sightings | none | the journey's log; off a journey, a line saying it is kept there |
-| Judge (GM seat, dashed) | the episode's state | The episode: the lost episode's controls and note; The Judge's hand: the six country overrides (§The country); off a journey, a line saying so |
+| Judge (GM seat, dashed) | the episode's state | Where they are: the true and believed plates, the compass and Shift the truth (§Lost); The episode: the lost episode's controls and note; What the party is shown: the two tiles and a player's preview (§Lost); Navigation, quietly (§The navigation throw); The Judge's hand: the six country overrides (§The country); off a journey, a line saying so |
 
 Hunted here is the `travel.settlement.wanted` checkbox itself, drawn as a
 toggle pill; who set it stays a hint in The city. Camp is a titled section of
@@ -587,7 +597,8 @@ hours are walked or the step just taken was after dusk. `journeyNight` reads
 city uses; a world with no calendar reads as day unless the Judge says
 otherwise. **End day** moves the calendar to the next dawn (`untilNextDawn`),
 falling back to a flat day less what the day already advanced, and logs the
-miles and hours actually walked.
+miles and hours actually walked. It makes no navigation throw: the next day's
+is made at its first step off a road (§The navigation throw).
 
 **The encounter cadence is the imported one.** `cadenceOf` reads the
 miles-per-hex figure of the territory the step arrives in (§The country) from
@@ -602,8 +613,9 @@ record patch and before the throw) and then, under the `travelEncounters`
 setting, the hex throw — unless the Encounter Zones under the party say
 otherwise (§The encounters, "Zones on a journey"). **Next hex** is the Judge's override for a journey
 with no map: `nextHex` spends one cadence unit with a typed label through the
-same path, and `enterHex` stays the trace-only writer. `hexContext` is what
-the stocking seam reads (§A hex's stock).
+same path and owes the day's navigation throw as a drag does, and `enterHex`
+stays the trace-only writer. `hexContext`, read at the party's true position
+(§Lost), is what the stocking seam reads (§A hex's stock).
 
 **Pause is live on a journey.** `clock.pausedBy === "judge"` is the Judge's
 own flag, separate from the mode; a paused party's drag re-anchors
@@ -617,20 +629,22 @@ old mode. On a mile-scale scene the party token is one cell square
 **The surface is the Wilderness tab** (§The frame): its head carries the
 journey's own actions, then the strip reads the miles an hour and a day, the
 miles and hours walked against the budget, the hex and how many were entered
-today, when the next throw falls, the clock with day or night and the hours to
-dusk or dawn, and the camp's days of food and water; the delve's turns and the
+today, when the next throw falls (at the cadence of the territory the party
+really stands in, §Lost), the clock with day or night and the hours to dusk or
+dawn, and the camp's days of food and water; the delve's turns and the
 city's rate and tally take the same tiles on their own tabs. Under the strip
 sit titled sections — Country (the map's readings, §The country), Points of
-interest, Movement, Sky, Day, Camp — with the city's pickers in The city, the
-lost episode and the Judge's word on the country on the Judge's tab, and the
-log on Sightings. A player sees the strip and only the sections that carry
+interest, Movement, Sky, Day, Camp — with the city's pickers in The city;
+where the party is, the lost episode, what the party is shown, the navigation
+throw and the Judge's word on the country on the Judge's tab; and the log on
+Sightings. A player sees the strip and only the sections that carry
 what the table already read: the country's cards, the sky's chips and night
 band, the camp's forecast and who is suffering, the log, and in a city the
 places underfoot — never a picker, a reading's source, the day board, or the
 LOST state, which is the Judge's alone. `acksExtras.formation.travel`
-(apiVersion 17) publishes the mode switch, the day board writers, the journey's
-functions, the country's resolution, the pure march arithmetic and the two
-hook names.
+(apiVersion 18) publishes the mode switch, the day board writers, the journey's
+functions, the country's resolution, the navigation record, the pure march
+arithmetic and the two hook names.
 
 **The tracker raises the day's end; the Judge answers it.** `dayIsSpent` is
 asked after every drag, and on the first step that spends the budget or falls
@@ -741,19 +755,22 @@ read at. Three writers keep it current:
   the token cannot see.
 
 While a lost episode is open the token stands on the hex the party believes it
-is in, and the reading is that hex's. A journey the Judge has paused follows
+is in, and the reading is that hex's; the encounter column reads the true
+hex's instead (`trueTravelOf`, §Lost). A journey the Judge has paused follows
 its token the same way (`seatJourneyHex` on each drag) and bills nothing.
 
 **The cadence is the country arrived in.** `spendJourneyMiles` reads the
 encounter cadence from the territory the step arrives in (the stored travel
-with the step applied), because the throws the step owes are thrown there.
+with the step applied, at the party's true position while an episode is
+open), because the throws the step owes are thrown there.
 
 **The sheet shows readings.** The Wilderness tab's Country section holds four
 cards — ground, road, following, territory — and the line naming the table the
 encounters draw on (the resolved encounter terrain, else the ground's own
-table); the Sky section carries the climate as a fifth card on the Judge's
-seat. The section reaches every seat, and a player's cards carry the values
-alone. On the Judge's seat each card names its source and wears the chip its
+table; on the Judge's seat, the true hex's while an episode is open); the Sky
+section carries the climate as a fifth card on the Judge's seat. The section
+reaches every seat, and a player's cards carry the values alone; under unknown
+country it is one line on both seats (§Lost). On the Judge's seat each card names its source and wears the chip its
 provenance earns against the map's own value (`countryChip`):
 
 | Provenance | The map under it | Chip |
@@ -777,6 +794,60 @@ top level, the shape the form had before the hand — with a blank clearing the
 key and an invalid value changing nothing. A held word no longer in its
 vocabulary stays an option, so a submit cannot clear it unasked. A known
 route is a word only the Judge gives: nothing on the map draws one.
+
+## The plate
+
+[plate.mjs](../../scripts/formation/plate.mjs) draws the hex a party stands
+in onto a `<canvas>` inside a plate's box: the frame's plate, and on the Judge
+tab the True and Believed plates and a player's preview.
+
+`plateGeometry(scene, center, size, {points})` is pure and works in the
+plate's own pixels beside the transform from the scene's:
+
+- the cell under the point, fitted to the plate with a margin: the hex from
+  the grid's own vertices; the square on a square grid; a square one scene
+  unit on a side around the point on a gridless scene;
+- the scene's road and water lines that cross the cell's box, clipped to it
+  (`roadWallsOf`, `waterWallsOf`);
+- the stock's points, each placed by a hash of its id at an angle and a
+  distance inside the cell, so a point stands in the same place on every
+  render and every seat;
+- the party's mark at the point, and the scene rectangle the plate shows, for
+  the background's crop.
+
+`paintPlate` paints it in order:
+
+1. the scene's own background, cropped to that rectangle;
+2. the cell tinted by its painted ground's colour (`TERRAIN_COLORS`), a
+   neutral where the cell is unpainted;
+3. the water (a ribbon for a river, a line for a shore) and the roads in their
+   surface's colour;
+4. the cell's outline;
+5. the points: gold dots for this formation's found ones, dashed rings for the
+   Judge's unfound;
+6. the mark: the party token's image (else the party's) in a ring, or the
+   ring alone.
+
+The colours are the stylesheet's `--acks-extras-plate-*` properties.
+`drawPlate` is the sheet's entry. The sheet's render step (`#paintPlates`)
+paints every plate canvas the render put in the page, at once and again as
+each image arrives, blank until then. A background is fetched once per source
+and the last twelve are kept (`IMAGES_KEPT`); a source that fails to load is
+forgotten, so the next render asks for it again. The crop takes the scene's
+background as filling its rectangle, which a background placed or scaled off
+it is not (ROADMAP). Nothing drawn is book art: the background is the
+scene's, which is the Judge's, and every colour is the module's.
+
+The view decides what a plate shows (`plateOf`, formation-view.mjs). A plate
+draws only on a journey whose hex has a token standing in it: the party token
+for the hex the party believes it stands in, the shadow for the true one.
+Otherwise it shows the party image, and on the Judge's frame that image opens
+the picker; a drawn plate is no button. The delve and the city never draw. The
+plates share one partial (`formation-plate.hbs`), told apart by `kind`
+(`frame`, `true`, `believed`, `preview`); the True and Believed plates name
+their kind before the hex in what a reader hears (`plate.ariaOf`), the frame
+and the preview the hex alone. A blank plate, for a party shown unknown
+country (§Lost), is the frame with no drawing and no label.
 
 ## Searching the wild
 
@@ -873,8 +944,9 @@ A hex's lairs are the map's, not a party's: they live on the scene,
 `flags["acks-extras"].hexStock[<key>]`, keyed `i:j` from the grid offset on a
 hex scene and `label:<folded>` from the trace's label elsewhere
 (`hexStockKey`). The hex read is the TRUE one — the lost episode's marker
-when the party is astray (`trueHexOf`) — so a lost party searches the ground
-it stands on, not the hex it believes in. What is per formation is keyed by
+while an episode is open (`trueHexOf`; with none open a marker an earlier
+ending left standing is passed over, as `trueTravelOf` passes it) — so a lost
+party searches the ground it stands on, not the hex it believes in. What is per formation is keyed by
 formation id inside the record: which points it has found, how many searches
 it has to its credit, what its surveyor was told. A write replaces the key
 whole (a forced replacement, never a merge) and a clear is a forced deletion,
@@ -893,6 +965,19 @@ asks; no `lairSubstitution` returns `needsSubstitution`. The record keeps the
 roll, the share, the count, the draw tree of every point, and the Judge's own
 `placed` points added by hand; `stockSummary` reads it back as "up to N",
 because the party learns what it finds.
+
+**The stocked day.** `stockSummary(record, {secondsPerDay})` also reads
+`stockedDay`, the calendar day the record's `stockedAt` falls in
+(`calendarDayOf` at the calendar's own day length, the key the journey's day
+is kept under). It is null where the record carries no stamp or the clock
+keeps no calendar. The Judge's Points of interest block says how long ago
+that was: "Stocked today", "Stocked yesterday" or "Stocked N days ago", from
+`hexStockView`'s `stockedAgo` (today's calendar day less the stocked one,
+never below zero) and `stockedLine`, and nothing where there is no calendar.
+It is an age and not a day number because the band's own day count is End
+day's, not the calendar's, and a second number beside it would contradict it.
+The day is a reading: a restock is the Judge's gesture, and nothing restocks
+on the clock.
 
 A found point can be **made a place**: `placeFromPoint` reuses the
 point-of-interest promotion (`placeTokenAt`, a location actor and its token at
@@ -1110,7 +1195,12 @@ the order they move in:
   closed before anything is credited.
 
 An episode opens on the party's own scene, and only while the Judge is viewing
-it, because the faked reveal can only be drawn where it is seen. The ledger
+it, because the faked reveal can only be drawn where it is seen. A failed
+navigation throw opens one at once (§The navigation throw), with the truth and
+the belief in the hex the party token stands in, and the card's **Begin**
+opens the same way once the Judge views the scene (`beginFromCard`, nothing
+asked); **They strayed…** on the Judge tab stays the Judge's own opening,
+which takes the face the party wandered toward or rolls it. The ledger
 records that scene and its level. From then on every fog write — the revert,
 the credit — goes to that scene and level, wherever the Judge happens to be
 looking. A Judge who re-anchors from another scene is told to open the
@@ -1124,11 +1214,12 @@ it finishes on that client's documents and never deletes one it did not see.
 The ledger's `phase` is `astray` (the party does not know), then `aware` (it
 knows, and still does not know where), then closed. `active` is kept on the
 record as `phase === "astray"` for the readers of the raw travel record: the day
-log's lost mark and the navigation throw's skip.
+log's lost mark.
 
-Three endings, and only one of them gives anything back. **Discovery** (the
-daily throw succeeds) turns the episode aware and tells the party it is lost,
-nothing more. The faked ground closes, the observations go with it, and the
+Three endings, and only one of them gives anything back. **Discovery** (*They
+realise they are lost*, the Judge's press, which the day's throw offers when
+it succeeds while the party is astray) turns the episode aware and tells the
+party it is lost, nothing more. The faked ground closes, the observations go with it, and the
 shadow stays exactly where it is, because the party is still standing there and
 still does not know where that is. **Re-anchor** (it finds its last known
 landmark) is the only transition that credits. The false ground closes first,
@@ -1149,6 +1240,112 @@ closing buttons, which move the party onto it or remove it. The repair tool's
 `formation.shadows` check lists every such marker across the world, with the
 spares and the members whose actor is gone (`formation.members`)
 (docs/lib/MODEL.md, "The repair tool").
+
+**The party token is the belief; the shadow is the truth.** Every seat's
+plate, Country cards, strip and band read the party token's hex, which is
+where the party believes it stands. What happens to the party happens where it
+is: while an episode is open, in either phase, and its shadow stands on the
+episode's scene, `trueTravelOf` ([travel.mjs](../../scripts/formation/travel.mjs))
+resolves the country over the map's reading at the shadow — its hex, its
+country, its water — through the Judge's override and the grounded rule
+exactly as at the token, and the encounter column reads it: the cadence
+(`spendJourneyMiles`), `hexContext` and the hook it feeds, the hex throw and
+End day's throws (`rollDayEncounters`). With no episode open, or no shadow, it
+is `travelOf` itself. The stock and the search read the true hex through
+`trueHexOf` (§A hex's stock).
+
+**The drag walks the truth.** On the active GM's client, while an episode is
+open and its shadow stands on the hex scene the party token walked, a drag
+moves the shadow by the token's own displacement, one step per hex the drag
+entered, before the spend, so the throws the drag owes read the true hex.
+`astrayPath` (pure) takes the grid's direct path between the token's centres
+before and after the drag and moves the truth from the shadow's centre by each
+hex's displacement from the first, which is the token's displacement snapped
+to the grid; `walkTheTruth` hands the pairs to `walkAstrayPath`, which walks
+them in order and paints the faked reveal once, after the last, so a drag
+across several hexes writes the players' fog once. A drag inside one hex walks
+nothing. The hook's work is queued per formation (`onPartyTokenMoved`): two
+updates of the party token that resolve together are walked one after the
+other, the second from where the first left the shadow.
+
+**Shift the truth** (the Judge tab, `shiftTruth` with `data-direction`) moves
+the shadow one hex toward one of the six directions, or a blind face off its
+hex (`roll`, the pad's centre cell), and records the pair through `walkAstray`
+with the belief unchanged. It needs an open episode and a shadow on a hex
+scene; an astray party with no hex of its own recorded moves nothing, since
+the ledger would key a hex it cannot name.
+
+**Where they are**, on the Judge tab, shows two plates (§The plate): True, the
+shadow's hex (`truePositionToken`), and Believed, the party token's. While
+they differ the believed plate is dashed and gold, and a compass badge names
+the hex direction from the belief to the truth (`compassBetween`, one of six
+names from the grid's own centres, no distance). With no episode open both
+read the party token: a shadow an earlier ending left standing is not where
+the party is.
+
+**What the party is shown** is the Judge's choice, `travel.shown`: `believed`
+(the default) or `unknown` (`SHOWN_KINDS`), set by the two tiles on the Judge
+tab and written by `applyTravelForm`. Under `unknown` a player's seat gets a
+blank plate (the frame, no drawing, no label), no hex on the band, the strip
+or the day log's rows, no count of miles to the next throw on the strip, no
+territory or following chip, and one "Unknown country" line where the Country
+cards stood. The Judge's own frame and Wilderness tab show the same under a
+gold overline, "Shown as unknown country", with the strip's count kept, and
+the hex field keeps the record's label. The encounter column is untouched. The section
+previews a player's seat through `buildTravelView`'s own `asPlayer` branch:
+one view, one template.
+
+## The navigation throw
+
+**Once a calendar day, at the day's first step off a road.** `navigationOwed`
+says where today stands: `owed`; `thrown`; `following`, where a road or a
+route the party follows spares it (`landNavigationSpec`'s `throws` false); or
+`none` off a journey. The day is `journeyDayKey`, `"<calendar day>:<End-day
+count>"`: the calendar day the world clock stands in (`calendarDay`, empty on
+a clock that keeps none) joined to the End-day counter, so a new day begins
+when either moves: End day on a clock the module does not advance, or a march
+that runs past midnight with the day open. The key is read before the step's
+spend, so a step that spends into the next calendar day throws for the day it
+began in. A journey drag that spent miles, on the active GM's client, and
+**Next hex**, on the pressing Judge's, call `throwDayNavigation`
+([journey.mjs](../../scripts/formation/journey.mjs)) after the spend: when the
+throw is owed, the day is claimed inside the ledger's lock
+(`claimNavigationDay`), so a second step the same day finds it made, and the
+throw is rolled, recorded and whispered (`postNavigationThrow`). The lock is
+a client's: two GM clients stepping one party in a day can each throw
+(ROADMAP). The ground and the route are read at the hex the party believes it
+stands in. End day throws nothing.
+
+**The record** is `travel.navigation`: `thrownOn`, the day key of the last
+throw; `lastResult`, that throw; and `history`, the last `NAVIGATION_HISTORY`
+(ten), newest first, each `{day, count, hexLabel, target, total, natural,
+success, by}`. `count` is the End-day counter the throw fell in, which the
+Judge tab's row shows as the band's day number (`count + 1`); an entry an
+earlier build wrote has none, and its row shows a dash. `by` is `step` for the
+day's first step and `judge` for the Judge's
+press (`NAVIGATION_BY`); `success` is null for a throw that could not be made,
+its target unimported. `navigationOf` normalizes it, `withNavigationThrow` is
+the pure append and `recordNavigationThrow` the writer.
+
+**The card** is whispered to the Judges
+([navigation-card.mjs](../../scripts/formation/navigation-card.mjs)). A
+failure with no episode open opens one at once where the party token stands
+(`beginEpisode`); where that is refused, because the Judge is not viewing the
+party's scene, the card says so and offers **Begin**, which opens it the same
+way once the scene is viewed (`beginFromCard`), no face asked, since the
+party has walked nowhere yet but where it stands; a party whose hex is
+untraced is told so, and Begin waits for one. While an episode is open the
+throw is still made and opens
+or closes nothing: a success while astray offers **They realise they are
+lost** (`discoverEpisode`), because the success tells the party THAT it
+strayed, not where it is. A press on a card whose moment has passed does
+nothing.
+
+**Navigation, quietly**, on the Judge tab, says when the next throw is owed
+and lists the history, each row's day the band's own number. **Throw now**
+(`navigationThrowNow`) throws by hand and counts as the day's throw (`by:
+"judge"`); a party a road or a route spares owes none, and the Judge is told
+so.
 
 **Following spares the throw.** RAW spares a party that keeps to a navigable
 river, a road or a route it knows from the lost throw (RR ch. 6). A road

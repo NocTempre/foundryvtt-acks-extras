@@ -632,7 +632,7 @@ hb.registerHelper("localize", (key, options) =>
   String(key) + (options?.hash && Object.keys(options.hash).length ? JSON.stringify(options.hash) : ""));
 hb.registerHelper("checked", (v) => (v ? "checked" : ""));
 hb.registerHelper("eq", (a, b) => a === b);
-for (const name of ["formation-strip", "formation-player-actions", "formation-country-card"]) {
+for (const name of ["formation-strip", "formation-player-actions", "formation-country", "formation-country-card"]) {
   hb.registerPartial(`${PREFIX}${name}.hbs`, hb.compile(fs.readFileSync(`templates/formation/${name}.hbs`, "utf8")));
 }
 // The journey's mode tab (Wilderness): the stock of the hex is its Points of

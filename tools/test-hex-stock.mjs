@@ -295,13 +295,22 @@ assert.deepEqual(falseCount({ record: { dice: "garbage" }, truth: 2, rng: lcg })
 
 /* --- the panel summary ----------------------------------------------------- */
 assert.deepEqual(stockSummary(foundA), {
-  stocked: true, count: 3, upTo: false, row: null, dice: null, points: 3, unfound: 2,
+  stocked: true, count: 3, upTo: false, row: null, dice: null, points: 3, unfound: 2, stockedDay: null,
 }, "a typed count is not a ceiling; a point someone found is no longer unfound");
 const rolledSummary = stockSummary(stockHex({ row: "grassland", terrain: "grassland", territory: "unsettled", rng: rig(face(1, 4), face(5, 20), face(5, 100)) }).record);
 assert.equal(rolledSummary.upTo, true, "a rolled count is a ceiling");
 assert.deepEqual([rolledSummary.row, rolledSummary.dice, rolledSummary.count], ["grassland", "1d4", 1]);
-assert.deepEqual(stockSummary(null), { stocked: false, count: 0, upTo: false, row: null, dice: null, points: 0, unfound: 0 });
+assert.deepEqual(stockSummary(null), { stocked: false, count: 0, upTo: false, row: null, dice: null, points: 0, unfound: 0, stockedDay: null });
 assert.equal(stockSummary({ stocked: false }).stocked, false);
+
+/* --- the day a stock was made ---------------------------------------------- */
+const DAY = 7200; // an invented calendar's day, in seconds
+assert.equal(stockSummary({ stocked: true, stockedAt: 3 * DAY + 5 }, { secondsPerDay: DAY }).stockedDay, 3, "the calendar day its stamp falls in");
+assert.equal(stockSummary({ stocked: true, stockedAt: 4 * DAY - 1 }, { secondsPerDay: DAY }).stockedDay, 3, "a day runs to its last second");
+assert.equal(stockSummary({ stocked: true, stockedAt: 0 }, { secondsPerDay: DAY }).stockedDay, 0, "a stock made at the clock's zero is day zero, not unknown");
+assert.equal(stockSummary({ stocked: true, stockedAt: null }, { secondsPerDay: DAY }).stockedDay, null, "no stamp, no day");
+assert.equal(stockSummary({ stocked: true, stockedAt: 3 * DAY }).stockedDay, null, "no calendar's day, no day");
+assert.equal(stockSummary({ stocked: true, stockedAt: 3 * DAY }, { secondsPerDay: 0 }).stockedDay, null, "a day of no length is no calendar");
 
 resetTables();
 console.log("test-hex-stock: all checks passed");

@@ -4,6 +4,7 @@ import { SHARED_ACTIONS, bindMemberDrop, onChangeForm } from "./formation-action
 import { cellBodies, getFormations, getMemberActor, isStackMember, memberHp, partyHeadcount, realMembers } from "./formation-model.mjs";
 import { buildFormationView, buildGMExtras, buildPlayerPanel } from "./formation-view.mjs";
 import { MODE_TEMPLATES, TAB_IDS, buildFrameView, framePartIds, frameTabs } from "./frame-view.mjs";
+import { drawPlate } from "./plate.mjs";
 import { travelOf } from "./travel.mjs";
 import { acksCompatStubs } from "../lib/actor-compat.mjs";
 import { refuseGoods } from "../lib/bundles.mjs";
@@ -160,17 +161,23 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
    */
   static PARTS = {
     band: { template: `${T}/formation-band.hbs` },
-    frame: { template: `${T}/formation-frame.hbs`, templates: [`${T}/formation-cell.hbs`] },
+    frame: { template: `${T}/formation-frame.hbs`, templates: [`${T}/formation-cell.hbs`, `${T}/formation-plate.hbs`] },
     tabs: { template: `${T}/formation-tabs.hbs` },
     mode: {
       template: `${T}/${MODE_TEMPLATES.journey}`,
-      templates: [`${T}/formation-strip.hbs`, `${T}/formation-player-actions.hbs`, `${T}/formation-country-card.hbs`],
+      templates: [
+        `${T}/formation-strip.hbs`, `${T}/formation-player-actions.hbs`, `${T}/formation-country.hbs`, `${T}/formation-country-card.hbs`,
+      ],
       scrollable: [""],
     },
     order: { template: `${T}/formation-tab-order.hbs`, scrollable: [""] },
     kit: { template: `${T}/formation-tab-kit.hbs`, scrollable: [""] },
     sightings: { template: `${T}/formation-tab-sightings.hbs`, scrollable: [""] },
-    judge: { template: `${T}/formation-tab-judge.hbs`, scrollable: [""] },
+    judge: {
+      template: `${T}/formation-tab-judge.hbs`,
+      templates: [`${T}/formation-plate.hbs`, `${T}/formation-country.hbs`, `${T}/formation-country-card.hbs`],
+      scrollable: [""],
+    },
   };
 
   static TABS = {
@@ -402,6 +409,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
       ["parts", () => this.#dropStaleParts()],
       ["drop", () => bindMemberDrop(this)],
       ["stacks", () => this.#markStacks(context)],
+      ["plates", () => this.#paintPlates(context)],
     ];
     for (const [what, step] of steps) {
       try {
@@ -434,6 +442,25 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
           if (ev.target.closest("input, button, a, select, textarea, label")) ev.stopPropagation();
         });
       }
+    }
+  }
+
+  /**
+   * Paint every plate canvas the render drew (`drawPlate`). A canvas names its
+   * plate (`data-plate-kind`): the frame's, the Judge's true and believed
+   * ones, or the preview of a player's; the context holds what each paints.
+   */
+  #paintPlates(context) {
+    const judge = context.travel?.judge;
+    const specs = {
+      frame: context.frame?.plate,
+      true: judge?.where?.truth,
+      believed: judge?.where?.belief,
+      preview: judge?.preview?.plate,
+    };
+    for (const canvasEl of this.element.querySelectorAll("canvas.acks-extras-plate__canvas")) {
+      const spec = specs[canvasEl.dataset.plateKind];
+      if (spec?.draw) drawPlate(canvasEl, spec);
     }
   }
 

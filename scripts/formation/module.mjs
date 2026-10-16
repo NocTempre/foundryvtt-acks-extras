@@ -156,6 +156,7 @@ import {
 import {
   creditSearch, falseCount, hexStockKey, markFound, recordAssessment, stockHex, stockSummary, unfoundPoints,
 } from "./hex-stock.mjs";
+import { installNavigationCardActions } from "./navigation-card.mjs";
 
 /** Open the formation window. */
 function openPartySheet() {
@@ -188,6 +189,7 @@ Hooks.once("init", () => {
   installMonsterLevelRow();
   installIncidentCardActions();
   installHexStockCardActions();
+  installNavigationCardActions();
   installTrapDrop();
   installTrapMarkers();
   // Core's party overview deals XP by its own reckoning; with this module's
@@ -668,8 +670,31 @@ Hooks.once("init", () => {
      * `countryOf`, `mapReadingAt`, `sameReading`, `tokenCentre`,
      * `refreshCountryOn`, `countryRefresher`, `COUNTRY_DEFAULTS` and
      * `countryValueValid`.
+     *
+     * 18 moves the navigation throw to the day's first step off a road and
+     * splits belief from truth. `closeDay` no longer throws for navigation;
+     * `onJourneyTokenMoved` and `nextHex` do, once per journey day, through
+     * `throwDayNavigation`, for the day the step began in. The day is
+     * `journeyDayKey`'s string, `"<calendar day>:<End-day count>"`, new when
+     * either moves. A drag on an open lost episode walks the shadow
+     * (`walkTheTruth`, `astrayPath`, `walkAstrayPath`), and `onPartyTokenMoved`
+     * spends one move at a time per formation. `travel` gains `trueTravelOf`
+     * (the country under the shadow while an episode is open, read on the
+     * episode's scene), `journeyDayKey`, `navigationOf`, `navigationEntry`,
+     * `withNavigationThrow`, `recordNavigationThrow`, `claimNavigationDay`,
+     * `navigationOwed(formation, {day})`, `SHOWN_KINDS`, `NAVIGATION_HISTORY`
+     * and `NAVIGATION_BY`, and the record's `travel.shown` and
+     * `travel.navigation`, whose rows carry `day` (the key) and `count` (the
+     * End-day count). Encounter throws, the cadence and the strip's next-throw
+     * tile read the true hex; `hexContext`, and with it the `hexEntered` and
+     * `searchHourSpent` payloads, now carry the TRUE position's hex and
+     * country, so 15's note that the token stands on the believed hex no
+     * longer holds, and `hexStock.trueHexOf` reads the shadow only while an
+     * episode is open. `hexStock.pure.stockSummary(record, {secondsPerDay})`
+     * adds `stockedDay`, and `hexStockView` says its age as `stockedAgo` and
+     * `stockedLine`.
      */
-    apiVersion: 17,
+    apiVersion: 18,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,
@@ -815,6 +840,8 @@ Hooks.once("init", () => {
         "formation-tab-dungeon",
         "formation-tab-city",
         "formation-strip",
+        "formation-plate",
+        "formation-country",
         "formation-player-actions",
         "formation-tab-order",
         "formation-tab-kit",

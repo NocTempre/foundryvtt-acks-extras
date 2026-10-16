@@ -15,7 +15,7 @@
     </div>
     {{#if isGM}}
     <div class="acks-extras-party-sheet__head-actions">
-      <input type="text" class="acks-extras-party-sheet__head-field" name="travel.hexLabel" value="{{strip.hex.label}}"
+      <input type="text" class="acks-extras-party-sheet__head-field" name="travel.hexLabel" value="{{travel.hexField}}"
              aria-label="{{localize 'ACKS-FORMATION.travel.hex'}}"
              placeholder="{{localize 'ACKS-FORMATION.travel.hexPlaceholder'}}">
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="travelEnterHex"
@@ -37,17 +37,15 @@
   {{> "modules/acks-extras/templates/formation/formation-strip.hbs"}}
 
   {{! The country as the map reads it under the party's token. The Judge's word
-      over it is set in the Judge tab's hand; a card only shows it. }}
+      over it is set in the Judge tab's hand; a card only shows it. Where the
+      party is shown nothing of its hex, every seat reads the one line, and the
+      Judge's carries the overline that says why. }}
   <section class="acks-extras-party-sheet__section" data-section="country">
     <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.country"}}</h2>
-    <div class="acks-extras-country-cards">
-      {{#each travel.country.cards}}
-      {{> "modules/acks-extras/templates/formation/formation-country-card.hbs"}}
-      {{/each}}
-    </div>
-    {{#if travel.country.encountersDrawOn}}
-    <p class="acks-extras-country-draw">{{localize "ACKS-FORMATION.country.drawOn" table=travel.country.encountersDrawOn}}</p>
+    {{#if travel.shownUnknown}}
+    <p class="acks-extras-shown-overline">{{localize "ACKS-FORMATION.shown.overline"}}</p>
     {{/if}}
+    {{#with travel.country}}{{> "modules/acks-extras/templates/formation/formation-country.hbs"}}{{/with}}
   </section>
 
   {{#if isGM}}
@@ -68,6 +66,7 @@
         <span>{{#if hs.summary.upTo}}{{localize "ACKS-FORMATION.hexStock.upTo" count=hs.summary.count}}{{else}}{{hs.summary.count}}{{/if}}</span>
         {{#if hs.summary.row}}<span class="hint">{{localize "ACKS-FORMATION.hexStock.row" row=hs.summary.row}}</span>{{/if}}
         {{#if hs.summary.dice}}<span class="hint">{{localize "ACKS-FORMATION.hexStock.dice" dice=hs.summary.dice}}</span>{{/if}}
+        {{#if hs.stockedLine}}<span class="hint acks-extras-hex-stock-day">{{hs.stockedLine}}</span>{{/if}}
         {{else}}
         <span class="hint">{{localize "ACKS-FORMATION.hexStock.notStocked"}}</span>
         {{/if}}

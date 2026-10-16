@@ -114,9 +114,15 @@ export async function clearOrphanShadows(liveIds) {
   return deleteShadows(orphans);
 }
 
-/** Where a formation REALLY is on a scene: its shadow if one stands, else its own token. */
-export function truePositionToken(scene, formation) {
-  return shadowFor(scene, formation?.id) ?? (scene?.tokens ?? []).find((t) => t.actorId === formation?.actorId) ?? null;
+/**
+ * Where a formation REALLY is on a scene: its shadow while `open` (a lost
+ * episode is running) and one stands, else its own token. A shadow an ended
+ * episode left standing is not where the party is, so a caller that knows
+ * no episode is open passes `open` false and reads the token.
+ */
+export function truePositionToken(scene, formation, { open = true } = {}) {
+  const shadow = open ? shadowFor(scene, formation?.id) : null;
+  return shadow ?? (scene?.tokens ?? []).find((t) => t.actorId === formation?.actorId) ?? null;
 }
 
 /**

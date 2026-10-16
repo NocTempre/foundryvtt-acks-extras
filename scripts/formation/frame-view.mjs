@@ -312,7 +312,8 @@ function sheetCells({ isGM, keyOpen, editing }) {
  * The reading column: an overline of what the view knows (the mode, the day
  * and hex on a journey, the clock, the season), then the chips — the
  * territory and what the party follows on a journey, the heads, the pause,
- * and on a GM seat the lost compass.
+ * and on a GM seat the lost compass. A journey whose party is shown nothing of
+ * where it stands (`travel.blank`) names no hex and wears no country chip.
  */
 function readingOf(view, { isGM, headcount, clockTime }) {
   const strip = view.strip ?? {};
@@ -330,7 +331,7 @@ function readingOf(view, { isGM, headcount, clockTime }) {
     .join(" · ");
 
   const chips = [];
-  if (journey) {
+  if (journey && !travel.blank) {
     const territory = selected(travel.territories);
     if (territory) chips.push({ key: "territory", label: territory.label });
     const following = selected(travel.followingOptions);
@@ -383,6 +384,31 @@ function headsOf(view, { headcount }) {
 }
 
 /**
+ * The frame's plate. On a journey whose party token stands on a scene it is
+ * the hex the party believes it stands in, drawn (`view.travel.plate`), or the
+ * blank of a hex the party is shown nothing of; anywhere else it is the
+ * party's image, which the Judge's seat presses to change, with a journey's
+ * hex label over it.
+ * @returns {{kind: string, draw: boolean, blank: boolean, img: string|null,
+ *   hex: string, edit: boolean, differ: boolean, aria: string}} the plate
+ *   partial's context, with `drawPlate`'s spec beside it when `draw`
+ */
+function framePlate(view, { isGM, mode }) {
+  const drawn = mode === "journey" ? view?.travel?.plate ?? null : null;
+  if (drawn?.draw || drawn?.blank) return { ...drawn, kind: "frame", edit: false, differ: false };
+  return {
+    kind: "frame",
+    draw: false,
+    blank: false,
+    img: view?.partyImg ?? null,
+    hex: mode === "journey" ? view?.strip?.hex?.label || "" : "",
+    edit: !!isGM,
+    differ: false,
+    aria: "",
+  };
+}
+
+/**
  * The frame's whole context, built once per render.
  * @param {object} input
  * @param {object} input.view            `buildFormationView`'s result
@@ -395,6 +421,7 @@ function headsOf(view, { headcount }) {
  * @param {boolean} [input.editing]      the description editor is open
  * @param {boolean} [input.panelHidden]  the viewer hid the panel under the tab row
  * @returns {{mode: string, band: object, plate: object, rails: object, reading: object, key: object, heads: object, panel: object}}
+ *   `plate` is `framePlate`'s
  */
 export function buildFrameView({ view, isGM, headcount = 0, hitPoints = [], clockTime = "", magical = true, keyOpen = false, editing = false, panelHidden = false }) {
   const v = view ?? {};
@@ -409,7 +436,7 @@ export function buildFrameView({ view, isGM, headcount = 0, hitPoints = [], cloc
   return {
     mode,
     band: { modeLabel: strip.modeLabel ?? "", bar: bandBar(strip) },
-    plate: { img: v.partyImg ?? null, hex: mode === "journey" ? strip.hex?.label || "" : "" },
+    plate: framePlate(v, { isGM, mode }),
     rails,
     reading: readingOf(v, { isGM, headcount, clockTime }),
     key: { open: !!keyOpen, ...keyLegend(rails, { isGM }) },

@@ -692,6 +692,17 @@ assert.equal(settings.formations.g3.travel.map, undefined, "and has no country u
   assert.equal(at().day.noSleep, true, "and does not touch the declarations");
   await applyTravelForm("d1", { day: { slot: { 0: "hunt" } } });
   assert.equal(at().day.activities[0], "hunt", "and so does a slot pick");
+
+  // What a player's seat is shown: one of the two kinds, and nothing else.
+  assert.equal(at().shown, "believed", "the believed hex by default");
+  await applyTravelForm("d1", { shown: "unknown" });
+  assert.equal(at().shown, "unknown", "the Judge's tile writes the kind");
+  await applyTravelForm("d1", { shown: "bogus" });
+  assert.equal(at().shown, "unknown", "a kind the module does not know is refused");
+  await applyTravelForm("d1", { ground: "hills" });
+  assert.equal(at().shown, "unknown", "a submit that names no kind leaves it");
+  await applyTravelForm("d1", { shown: "believed" });
+  assert.equal(at().shown, "believed");
 }
 
 /* --- applyTravelForm: the Judge's word on the country -------------------------
@@ -768,4 +779,97 @@ assert.equal(settings.formations.g3.travel.map, undefined, "and has no country u
   unregisterTable("travel"); unregisterTable("weather");
 }
 
-console.log("test-travel: OK (day board, hours budget, defaults, log cap, the trace's reading, the country's resolution and provenance, one field name, movement axis, city stamp, inferred system, mode re-anchor, a journey reads its country, declarations, the Judge's word, sky on the nav throw)");
+/* --- the navigation record: one throw a day, ten kept, none at End day -------- */
+{
+  const {
+    NAVIGATION_HISTORY, claimNavigationDay, endDay, journeyDayKey, navigationEntry, navigationOf, navigationOwed,
+    recordNavigationThrow, withNavigationThrow,
+  } = await import("../scripts/formation/travel.mjs");
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+
+  assert.deepEqual(navigationOf(undefined), { thrownOn: null, lastResult: null, history: [] }, "a party that never threw has thrown nothing");
+  const odd = navigationOf({ navigation: { thrownOn: "4:7", lastResult: "no", history: [null, { day: "2:0", count: 0.9, total: 9, success: "yes", by: "wind" }, 7] } });
+  assert.equal(odd.thrownOn, "4:7", "a day key is kept as the string it was claimed under");
+  assert.equal(navigationOf({ navigation: { thrownOn: 4 } }).thrownOn, null, "a key that is not a string is none");
+  assert.equal(odd.lastResult, null, "a last result that is not a throw is none");
+  assert.deepEqual(odd.history, [{ day: "2:0", count: 0, hexLabel: "", target: null, total: 9, natural: null, success: null, by: "step" }],
+    "a stored row is normalized: a whole count, an unknown thrower is the step's, a success that is not a boolean is unknown");
+
+  const rolled = navigationEntry({ rolled: true, target: 13, total: 9, natural: 9, success: false }, { day: "3:1", count: 1, hexLabel: "C3", by: "judge" });
+  assert.deepEqual(rolled, { day: "3:1", count: 1, hexLabel: "C3", target: 13, total: 9, natural: 9, success: false, by: "judge" });
+  assert.deepEqual(navigationEntry({ rolled: true, target: 13, total: 12, natural: 9, success: false }, { day: "3:1", count: 1 }),
+    { day: "3:1", count: 1, hexLabel: "", target: 13, total: 12, natural: 9, success: false, by: "step" },
+    "the total and the natural die are kept apart: a bonus of three on a nine");
+  assert.deepEqual(navigationEntry({ rolled: false, target: null, missing: "gettingLost" }, { day: "3:1" }),
+    { day: "3:1", count: null, hexLabel: "", target: null, total: null, natural: null, success: null, by: "step" }, "a throw that could not be made says so");
+
+  // The history keeps ten, newest first.
+  let nav = navigationOf({});
+  for (let day = 1; day <= NAVIGATION_HISTORY + 2; day++) nav = withNavigationThrow(nav, { ...rolled, day: `${day}:0` });
+  assert.equal(nav.history.length, NAVIGATION_HISTORY, "the history keeps ten");
+  assert.deepEqual(nav.history.map((e) => e.day), ["12:0", "11:0", "10:0", "9:0", "8:0", "7:0", "6:0", "5:0", "4:0", "3:0"], "newest first, the oldest dropped");
+  assert.equal(nav.thrownOn, "12:0", "the last throw's day is the day thrown on");
+  assert.deepEqual(nav.lastResult, nav.history[0]);
+  assert.deepEqual(withNavigationThrow(nav, null), nav, "a row that is not a throw changes nothing");
+
+  // The writers, through the ledger.
+  settings.formations.n1 = { id: "n1", members: [], travel: { mode: "journey", ground: "hills", dayCount: 6, hex: { label: "C3" } } };
+  assert.equal(journeyDayKey(travelOf(settings.formations.n1)), ":6", "a clock with no calendar keys the day on End day's counter alone");
+  for (let n = 0; n <= NAVIGATION_HISTORY; n++) await recordNavigationThrow("n1", { rolled: true, target: 13, total: 14, natural: 14, success: true }, { day: `${n}:6` });
+  const written = travelOf(settings.formations.n1).navigation;
+  assert.equal(written.history.length, NAVIGATION_HISTORY, "the written history keeps ten");
+  assert.equal(written.history[0].hexLabel, "C3", "a throw is made in the party's own hex by default");
+  assert.equal(written.history[0].count, 6, "and on the record's own End-day count");
+  assert.equal(written.thrownOn, `${NAVIGATION_HISTORY}:6`);
+  await recordNavigationThrow("n1", { rolled: true, target: 13, total: 4, natural: 4, success: false }, { by: "judge" });
+  assert.deepEqual([travelOf(settings.formations.n1).navigation.thrownOn, travelOf(settings.formations.n1).navigation.lastResult.by], [":6", "judge"],
+    "today's key by default, and the Judge's press is named");
+  assert.deepEqual(navigationOwed(settings.formations.n1), { state: "thrown", day: ":6", route: null, road: null }, "today's throw reads made");
+  assert.deepEqual(navigationOwed(settings.formations.n1, { day: ":5" }), { state: "owed", day: ":5", route: null, road: null },
+    "asked about the day a step began in, the answer is that day's");
+  assert.equal(await claimNavigationDay("n1", ":7"), true, "a day not yet thrown is claimed");
+  assert.equal(await claimNavigationDay("n1", ":7"), false, "and only once");
+  assert.equal(await claimNavigationDay("nobody", ":7"), false, "a formation that is gone claims nothing");
+
+  // End day throws nothing: the next day's throw waits for its first step.
+  registerTable({ id: "travel", source: "invented", tables: { gettingLost: { hills: 13 } } }, { priority: PRIORITY.WORLD, source: "test" });
+  Object.assign(settings, { travelLogCap: 120, advanceWorldTime: true, dawnHour: 6, duskHour: 18 });
+  const posted = [];
+  const thrown = [];
+  globalThis.ChatMessage = { create: async (data) => { posted.push(data); return data; } };
+  globalThis.Roll = class {
+    constructor(formula) { thrown.push(formula); }
+    async evaluate() { this.total = 1; this.dice = [{ results: [{ result: 1 }] }]; return this; }
+  };
+  globalThis.game.time = {
+    worldTime: 3 * 86400 + 20 * 3600,
+    calendar: { days: { hoursPerDay: 24, minutesPerHour: 60, secondsPerMinute: 60 } },
+    components: { hour: 20, minute: 0, second: 0 },
+    async advance(seconds) { this.worldTime += seconds; },
+  };
+  settings.formations.n2 = { id: "n2", members: [], travel: { mode: "journey", ground: "hills", hex: { label: "D4" } } };
+  assert.deepEqual(navigationOwed(settings.formations.n2), { state: "owed", day: "3:0", route: null, road: null },
+    "today's throw is owed, under the calendar day and the End-day count together");
+  const entry = await endDay("n2", { miles: 10 });
+  assert.ok(entry, "the day ended");
+  assert.equal(game.time.worldTime, 4 * 86400 + 6 * 3600, "at the next dawn");
+  assert.deepEqual(thrown, [], "End day rolls no navigation throw");
+  assert.deepEqual(posted, [], "and posts no card");
+  assert.deepEqual(travelOf(settings.formations.n2).navigation, { thrownOn: null, lastResult: null, history: [] }, "and records none");
+  assert.deepEqual(navigationOwed(settings.formations.n2), { state: "owed", day: "4:1", route: null, road: null },
+    "the new day's throw is owed at its first step");
+
+  // A clock the module may not move: End day leaves the calendar day where it
+  // is, and the counter alone makes the new day.
+  settings.advanceWorldTime = false;
+  settings.formations.n3 = { id: "n3", members: [], travel: { mode: "journey", ground: "hills", hex: { label: "D4" }, navigation: { thrownOn: "4:0" } } };
+  assert.equal(navigationOwed(settings.formations.n3).state, "thrown", "today's throw is made");
+  await endDay("n3", { miles: 10 });
+  assert.equal(game.time.worldTime, 4 * 86400 + 6 * 3600, "the clock did not move");
+  assert.deepEqual(navigationOwed(settings.formations.n3), { state: "owed", day: "4:1", route: null, road: null },
+    "and the next day's throw is owed all the same");
+  settings.advanceWorldTime = true;
+  unregisterTable("travel");
+}
+
+console.log("test-travel: OK (day board, hours budget, defaults, log cap, the trace's reading, the country's resolution and provenance, one field name, movement axis, city stamp, inferred system, mode re-anchor, a journey reads its country, declarations, the Judge's word, sky on the nav throw, the navigation record, End day throws none)");

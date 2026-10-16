@@ -1,0 +1,23 @@
+{{!-- One plate: the frame's, or one of the Judge tab's (`kind` true, believed
+      or preview). `draw` gives it a canvas that party-actor.mjs paints after
+      the render, finding its plate by `data-plate-kind`; `blank` is the frame
+      of a hex the party is shown nothing of; otherwise the party's image, a
+      button on the seat that may change it. The hex label lies over all
+      three. --}}
+<div class="acks-extras-party-sheet__plate acks-extras-plate acks-extras-plate--{{kind}}{{#if differ}} is-differ{{/if}}{{#if blank}} is-blank{{/if}}">
+  {{#if draw}}
+  <canvas class="acks-extras-plate__canvas" data-plate-kind="{{kind}}" role="img" aria-label="{{aria}}"></canvas>
+  {{else if blank}}
+  <span class="acks-extras-plate__blank" role="img" aria-label="{{aria}}"></span>
+  {{else if edit}}
+  <button type="button" class="acks-extras-party-sheet__plate-edit" data-action="editPartyImage"
+          data-tooltip="{{localize 'ACKS-FORMATION.app.editImageHint'}}" aria-label="{{localize 'ACKS-FORMATION.app.editImageHint'}}">
+    {{#if img}}<img src="{{img}}" alt="" inert>{{else}}<i class="fa-solid fa-people-group" inert></i>{{/if}}
+  </button>
+  {{else if img}}
+  <img src="{{img}}" alt="">
+  {{else}}
+  <i class="fa-solid fa-people-group" inert></i>
+  {{/if}}
+  {{#if hex}}<span class="acks-extras-party-sheet__plate-hex acks-nums">{{hex}}</span>{{/if}}
+</div>

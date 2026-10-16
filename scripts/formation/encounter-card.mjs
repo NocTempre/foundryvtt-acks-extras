@@ -26,7 +26,7 @@ import { makeLoc, gmIds, fractionLabel, numOrNull } from "../lib/util.mjs";
 import { nameKeys } from "../lib/vocab.mjs";
 import { libraryActors } from "../lib/library.mjs";
 import { readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
-import { DAY_SECONDS, travelOf, storedTravelOf, DAY_KINDS } from "./travel.mjs";
+import { DAY_SECONDS, travelOf, trueTravelOf, storedTravelOf, DAY_KINDS } from "./travel.mjs";
 import {
   ENCOUNTER_OUTCOMES,
   ENCOUNTER_TERRAINS,
@@ -188,9 +188,10 @@ function partyHeads(formation) {
  * Run one throw for a journeying formation and post its card. `night` keys
  * the settled-country column shift (a rest through the dark), the activity is
  * the cadence line the card cites, and `hex` (`{label}`) names the hex the
- * throw was made in. The zones under the party's true position supply the
- * throw's target and table (`journeyZones`); a creature step the chain hands
- * to the zone's table is drawn here, quietly, and shown on the same card.
+ * throw was made in. The country is the party's true position's
+ * (`trueTravelOf`), and so are the zones that supply the throw's target and
+ * table (`journeyZones`); a creature step the chain hands to the zone's table
+ * is drawn here, quietly, and shown on the same card.
  *
  * `nights` is the length, in nights, of the period a rest throw stands for
  * (the imported cadence cell's), so the card can say which night it falls on;
@@ -198,7 +199,7 @@ function partyHeads(formation) {
  * with the card's ChatMessage as `chain.message`.
  */
 export async function postEncounterThrow(formation, { activity = "travel", night = false, hex = null, nights = 0, rng = Math.random } = {}) {
-  const t = travelOf(formation);
+  const t = trueTravelOf(formation);
   const terrain = ENCOUNTER_TERRAINS[t.encounterTerrain] ? t.encounterTerrain : encounterTerrainFor(t.ground);
   const zones = journeyZones(formation);
   const chain = runEncounter({
@@ -484,11 +485,12 @@ export async function maybeHexThrow(formation, { night = false, hex = null, acti
  * `per` traps declared (`entry.traps`, else the board's) plus the carry of
  * earlier days, and the remainder is written back to `travel.trapsCarry`. A
  * stated "none" owes nothing and clears the carry. `rng` is the source the
- * throws' dice use.
+ * throws' dice use. The cells are the territory's at the party's true
+ * position (`trueTravelOf`).
  */
 export async function rollDayEncounters(formation, entry, { rng = Math.random } = {}) {
   if (!formation || !encountersOn()) return;
-  const t = travelOf(formation);
+  const t = trueTravelOf(formation);
   if (t.mode !== "journey") return;
   const zone = journeyZones(formation).fields;
   const periods = zone.journeyCadence === "periods";

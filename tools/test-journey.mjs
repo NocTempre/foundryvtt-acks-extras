@@ -3,9 +3,11 @@
  * drag measured in miles on hex, square and gridless scenes, the hours those
  * miles take on the world clock, the cadence units that owe a throw, the
  * Judge's pause, the delve's scale guard, the search hour, the day-end offer
- * and the jump to dawn. Invented figures throughout — cells of 7 and 28 miles,
- * a table distance of 7, an exploration speed made up for the rig — so these
- * prove the MACHINERY and never the book.
+ * and the jump to dawn, the day's navigation throw at its first step off a
+ * road, and the truth a drag walks while the party is lost. Invented figures
+ * throughout — cells of 7 and 28 miles, a table distance of 7, a navigation
+ * target of 12, an exploration speed made up for the rig — so these prove the
+ * MACHINERY and never the book.
  *
  * Run: node tools/test-journey.mjs   (also wired into `npm run validate`).
  */
@@ -81,13 +83,15 @@ globalThis.ChatMessage = {
     return data;
   },
 };
+/** The face every die shows and the total every roll makes: the rig a test sets. */
+let rollFace = 10;
 globalThis.Roll = class {
   constructor(formula) {
     this.formula = formula;
   }
   async evaluate() {
-    this.total = 10;
-    this.dice = [{ results: [{ result: 10 }] }];
+    this.total = rollFace;
+    this.dice = [{ results: [{ result: rollFace }] }];
     return this;
   }
 };
@@ -1283,4 +1287,399 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   registerFrequency();
 }
 
-console.log("test-journey: OK (miles on hex/square/gridless, cadence by grid or miles, clock hours, pause, scale guard, next hex, token size, search hour, day end, dawn, zones: card, true position, entry, periods, the country's reading on the trace, the cadence arrived in, the GM's refresh)");
+/* -------------------------------------------- */
+/*  The day's navigation throw                  */
+/* -------------------------------------------- */
+
+/* Made once a calendar day, on the active GM's client, at the day's first
+ * step off a road. The die is the mock's rigged face against an invented
+ * target; the encounter throws are switched off so the only card a step posts
+ * is the navigation card. */
+const NAV_TARGET = 12;
+/** The 24-hour calendar `setClock` keeps, in seconds. */
+const CALENDAR_DAY = 24 * 3600;
+const today = () => Math.floor(worldClock.worldTime / CALENDAR_DAY);
+/** Six in the morning of the next calendar day: a step's hours stay inside it. */
+const nextMorning = () => {
+  worldClock.worldTime = (today() + 1) * CALENDAR_DAY + 6 * 3600;
+};
+const navCards = (r) => r.chat.filter((m) => String(m.content).includes("nav.title"));
+const navOf = (id) => travelOf(getFormation(id)).navigation;
+/** Every episode a failure asked to open: `[formationId, options]`. */
+const opened = [];
+const opener = async (formation, options) => {
+  opened.push([formation.id, options]);
+  return { began: true };
+};
+/** A drag as the module's hook takes it, with the episode opener stubbed. */
+async function step(token, formationId, x, y, begin = opener) {
+  token.x = x;
+  token.y = y;
+  return observe(() => journey.onJourneyTokenMoved(token, formationId, { begin }));
+}
+/** A journeying party on its own hex scene, on grassland, standing at A1. */
+function trackless(name, travel = {}) {
+  const scene = makeScene(`S.nav.${name}`, { kind: "hex", miles: TABLE_MILES });
+  const token = makeToken(scene, `t.nav.${name}`);
+  const id = makeFormation(scene, token, { travel: { ground: "grassland", ...travel } });
+  return { scene, token, id };
+}
+
+{
+  const { postNavigationThrow, beginFromCard, installNavigationCardActions } = await import("../scripts/formation/navigation-card.mjs");
+  const { navigationOwed, journeyDayKey } = await import("../scripts/formation/travel.mjs");
+  /** Today's key for a formation: the calendar day and its End-day count. */
+  const dayKey = (id) => journeyDayKey(travelOf(getFormation(id)));
+  resetTables();
+  registerTable({ id: "travel", tables: { ...TABLE.tables, gettingLost: { grassland: NAV_TARGET } } },
+    { priority: PRIORITY.WORLD, source: "test" });
+  settings.travelEncounters = false;
+  setClock(12);
+
+  // Only the active GM's client throws.
+  const { token, id } = trackless("day");
+  nextMorning();
+  const elsewhere = await step(token, id, CELL, 0);
+  assert.ok(elsewhere.result.miles > 0, "the step spent its miles");
+  assert.equal(navCards(elsewhere).length, 0, "a client that is not the active GM's throws nothing");
+  assert.equal(navOf(id).thrownOn, null, "and claims no day");
+  game.users.activeGM = { isSelf: true };
+
+  // The day's first step off a road throws, once.
+  rollFace = 15;
+  const first = await step(token, id, 2 * CELL, 0);
+  assert.equal(navCards(first).length, 1, "the day's first step off a road throws");
+  const [card] = navCards(first);
+  assert.deepEqual(card.whisper, ["gm1"], "whispered to the Judge");
+  assert.match(card.content, /nav\.kept/, "a success keeps the way");
+  const thrown = { day: dayKey(id), count: 0, hexLabel: "C1", target: NAV_TARGET, total: 15, natural: 15, success: true, by: "step" };
+  assert.equal(navOf(id).thrownOn, dayKey(id), "the day thrown on is the calendar day with the End-day count");
+  assert.equal(dayKey(id), `${today()}:0`, "which is the clock's day and a count of none");
+  assert.deepEqual(navOf(id).history, [thrown], "the throw is kept, in the hex it was made in, on the count it was made on");
+  assert.deepEqual(navOf(id).lastResult, thrown);
+  assert.equal(navigationOwed(getFormation(id)).state, "thrown");
+  assert.deepEqual(opened, [], "a success opens nothing");
+
+  rollFace = 2;
+  const second = await step(token, id, 3 * CELL, 0);
+  assert.equal(navCards(second).length, 0, "a second step the same day throws nothing");
+  assert.equal(navOf(id).history.length, 1);
+
+  // The next calendar day's first step throws again.
+  nextMorning();
+  rollFace = 15;
+  const next = await step(token, id, 4 * CELL, 0);
+  assert.equal(navCards(next).length, 1, "the next calendar day owes its own throw");
+  assert.equal(navOf(id).thrownOn, dayKey(id), "and thrownOn rolls over to it");
+  assert.deepEqual(navOf(id).history.map((e) => e.day), [dayKey(id), `${today() - 1}:0`], "newest first");
+
+  // A step that crosses midnight counts for the day it began in: the new
+  // day's throw waits for the next step.
+  const night = trackless("night");
+  nextMorning();
+  worldClock.worldTime = today() * CALENDAR_DAY + 23 * 3600 + 30 * 60;
+  const beganIn = dayKey(night.id);
+  rollFace = 15;
+  const crossing = await step(night.token, night.id, 2 * CELL, 0);
+  assert.ok(crossing.seconds > 30 * 60, "the step's hours ran past midnight");
+  assert.equal(dayKey(night.id), `${today()}:0`, "the clock stands in the next day");
+  assert.notEqual(dayKey(night.id), beganIn);
+  assert.equal(navCards(crossing).length, 1, "the step threw");
+  assert.equal(navOf(night.id).thrownOn, beganIn, "for the day it began in");
+  const afterMidnight = await step(night.token, night.id, 3 * CELL, 0);
+  assert.equal(navCards(afterMidnight).length, 1, "and the next step owes the new day's throw");
+  assert.equal(navOf(night.id).thrownOn, dayKey(night.id));
+
+  // A step on a road throws nothing.
+  const road = trackless("road", { override: { road: "paved" } });
+  nextMorning();
+  const paved = await step(road.token, road.id, CELL, 0);
+  assert.equal(navCards(paved).length, 0, "a step on a road throws nothing");
+  assert.equal(navOf(road.id).thrownOn, null, "and claims no day");
+  assert.deepEqual(navigationOwed(getFormation(road.id)), { state: "following", day: dayKey(road.id), route: "road", road: "paved" });
+
+  // A failure opens the episode where the party stands.
+  const lost = trackless("lost");
+  rollFace = 5;
+  const fail = await step(lost.token, lost.id, CELL, 0);
+  assert.deepEqual(opened, [[lost.id, { day: 0, anchor: { i: 0, j: 1 }, trueOffset: { i: 0, j: 1 } }]],
+    "a failure opens the episode, the truth and the belief in the hex the party stands in");
+  const [failed] = navCards(fail);
+  assert.match(failed.content, /nav\.lost/);
+  assert.match(failed.content, /nav\.opened/, "the card says the episode is open");
+  assert.doesNotMatch(failed.content, /acks-extras-nav-begin/, "and offers no Begin");
+  assert.equal(navOf(lost.id).lastResult.success, false);
+  assert.equal(navOf(lost.id).lastResult.natural, 5);
+
+  // A refused opening leaves Begin on the card.
+  const refused = trackless("refused");
+  const declined = await step(refused.token, refused.id, CELL, 0, async () => null);
+  const [offer] = navCards(declined);
+  assert.match(offer.content, /nav\.notOpened/, "the card says the episode did not open");
+  assert.match(offer.content, /acks-extras-nav-begin/, "and offers Begin");
+  assert.doesNotMatch(offer.content, /nav\.noHex/);
+
+  // A party on no traced hex: the card says so, and still offers Begin.
+  const untraced = trackless("untraced");
+  settings.formations[untraced.id].travel.hex = { label: "", i: null, j: null };
+  const sceneWas = untraced.scene.grid.type;
+  untraced.scene.grid.type = CONST.GRID_TYPES.SQUARE;
+  const nowhere = await step(untraced.token, untraced.id, CELL, 0);
+  untraced.scene.grid.type = sceneWas;
+  assert.match(navCards(nowhere)[0].content, /nav\.noHex/, "the card names the missing hex");
+  assert.match(navCards(nowhere)[0].content, /acks-extras-nav-begin/, "and offers Begin for when there is one");
+  assert.equal(opened.length, 1, "nothing asked to open");
+
+  // Begin from the card opens at the belief, exactly as the failure would
+  // have: the shadow on the party's hex, no face chosen.
+  const warned = [];
+  const warnWas = ui.notifications.warn;
+  ui.notifications.warn = (message) => warned.push(String(message));
+  const begun = await beginFromCard(getFormation(refused.id), { begin: opener });
+  assert.deepEqual(begun, { began: true });
+  assert.deepEqual(opened.at(-1), [refused.id, { day: 0, anchor: { i: 0, j: 1 }, trueOffset: { i: 0, j: 1 } }],
+    "the truth and the belief in the hex the party stands in");
+  assert.deepEqual(warned, [], "nothing to warn of");
+  assert.equal(await beginFromCard(getFormation(untraced.id), { begin: opener }), null, "no hex, no opening");
+  assert.ok(warned.some((m) => m.includes("lost.needHex")), "and the Judge is told why");
+  const sealed = trackless("sealed", { lost: { phase: "astray", sceneId: "S.nav.sealed" } });
+  assert.equal(await beginFromCard(getFormation(sealed.id), { begin: opener }), null, "an episode already open: nothing");
+  assert.equal(opened.length, 2, "and nothing asked to open");
+
+  // The card's binding guards the press the same way, and routes it to the real opener.
+  const onWas = Hooks.on;
+  let onRender = null;
+  Hooks.on = (name, fn) => {
+    if (name === "renderChatMessageHTML") onRender = fn;
+  };
+  installNavigationCardActions();
+  Hooks.on = onWas;
+  assert.equal(typeof onRender, "function", "the card's buttons are bound on render");
+  const press = async (formationId) => {
+    const button = { dataset: { formationId }, disabled: false, addEventListener: (_event, fn) => { button.handler = fn; } };
+    onRender(null, { nodeType: 1, querySelectorAll: (selector) => (selector === ".acks-extras-nav-begin" ? [button] : []) });
+    button.handler({ preventDefault() {} });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return button;
+  };
+  warned.length = 0;
+  const pressedSealed = await press(sealed.id);
+  assert.equal(pressedSealed.disabled, false, "a press on a card whose episode has opened since does nothing");
+  assert.deepEqual(warned, [], "and warns of nothing");
+  const pressedRefused = await press(refused.id);
+  assert.ok(warned.some((m) => m.includes("lost.viewScene")), "a press with no episode open reaches the opener, which wants the scene viewed");
+  assert.equal(pressedRefused.disabled, false, "a refused opening leaves the button for another press");
+  ui.notifications.warn = warnWas;
+
+  // A success while astray offers the realisation, and opens nothing.
+  const astray = trackless("astray", { lost: { phase: "astray", sceneId: "S.nav.astray" } });
+  rollFace = 15;
+  const kept = await step(astray.token, astray.id, CELL, 0);
+  const [realise] = navCards(kept);
+  assert.match(realise.content, /nav\.astrayKept/);
+  assert.match(realise.content, /acks-extras-nav-realise/, "a success while astray offers They realise they are lost");
+  assert.equal(opened.length, 2, "and asks to open nothing");
+  const deeper = trackless("deeper", { lost: { phase: "astray", sceneId: "S.nav.deeper" } });
+  rollFace = 5;
+  const strayed = await step(deeper.token, deeper.id, CELL, 0);
+  assert.match(navCards(strayed)[0].content, /nav\.astrayLost/);
+  assert.doesNotMatch(navCards(strayed)[0].content, /acks-extras-nav-(begin|realise)/, "a failure while astray offers nothing");
+  assert.equal(opened.length, 2, "and opens no second episode");
+  rollFace = 15;
+
+  // The Judge's Throw now is the day's throw.
+  const judge = trackless("judge");
+  nextMorning();
+  const pressed = await observe(() => postNavigationThrow(getFormation(judge.id), { by: "judge", begin: opener }));
+  assert.equal(navCards(pressed).length, 1);
+  assert.equal(navOf(judge.id).lastResult.by, "judge");
+  assert.equal(navOf(judge.id).thrownOn, dayKey(judge.id), "a throw by hand counts as the day's");
+  const after = await step(judge.token, judge.id, CELL, 0);
+  assert.equal(navCards(after).length, 0, "so the day's first step owes none");
+
+  // A hex entered by hand is a step too.
+  const byHand = trackless("hand");
+  nextMorning();
+  const named = await observe(() => journey.nextHex(byHand.id, "B1", { begin: opener }));
+  assert.equal(navCards(named).length, 1, "the next hex by hand owes the day's throw");
+  assert.equal(navOf(byHand.id).lastResult.hexLabel, "B1", "thrown in the hex named");
+
+  rollFace = 10;
+  game.users.activeGM = null;
+  settings.travelEncounters = true;
+  resetTables();
+  registerFrequency();
+}
+
+/* -------------------------------------------- */
+/*  A drag walks the truth                      */
+/* -------------------------------------------- */
+
+/* While a lost episode is open the party token is the belief: each hex a drag
+ * enters moves the shadow one step from wherever it stands. The mock lattice
+ * is square cells under a hex grid type; the direct path samples the line. */
+/** Give a mock scene the centre points and the direct path the walk reads. */
+function withLattice(scene) {
+  const grid = scene.grid;
+  grid.getCenterPoint = ({ i, j }) => ({ x: j * CELL + CELL / 2, y: i * CELL + CELL / 2 });
+  grid.getDirectPath = ([a, b]) => {
+    const s = grid.getOffset(a);
+    const e = grid.getOffset(b);
+    const n = Math.max(Math.abs(e.i - s.i), Math.abs(e.j - s.j)) || 1;
+    return Array.from({ length: n + 1 }, (_, k) => ({ i: s.i + Math.round(((e.i - s.i) * k) / n), j: s.j + Math.round(((e.j - s.j) * k) / n) }));
+  };
+  return scene;
+}
+/**
+ * A real lattice of hex rows on a mock scene: pointy-topped cells, every odd
+ * row shoved half a hex right, centres and the nearest cell read off the same
+ * geometry, and a direct path that walks one row at a time.
+ */
+function withHexLattice(scene) {
+  const grid = scene.grid;
+  const R = CELL / 2;
+  const W = Math.sqrt(3) * R;
+  const V = 1.5 * R;
+  grid.getCenterPoint = ({ i, j }) => ({ x: (j + 0.5 + (i % 2 ? 0.5 : 0)) * W, y: R + i * V });
+  grid.getOffset = (p) => {
+    const i = Math.round((p.y - R) / V);
+    return { i, j: Math.round(p.x / W - 0.5 - (i % 2 ? 0.5 : 0)) };
+  };
+  grid.getDirectPath = ([a, b]) => {
+    const s = grid.getOffset(a);
+    const e = grid.getOffset(b);
+    const path = [s];
+    for (let i = s.i + 1; i <= e.i; i++) path.push({ i, j: e.j });
+    return path;
+  };
+  return scene;
+}
+/** A hidden shadow for `formationId` at pixel (x, y), recording every move. */
+function makeShadow(scene, formationId, x, y) {
+  const shadow = makeToken(scene, `${scene.id}.shadow`, x, y);
+  shadow.getFlag = (_ns, key) => (key === "shadowFor" ? formationId : undefined);
+  shadow.moves = [];
+  shadow.update = async (data) => {
+    shadow.moves.push(data);
+    Object.assign(shadow, data);
+    return shadow;
+  };
+  return shadow;
+}
+
+{
+  const { trueTravelOf, journeyDayKey } = await import("../scripts/formation/travel.mjs");
+  const at = (scene, i, j) => scene.grid.getCenterPoint({ i, j });
+
+  // The path, pure.
+  const path = withLattice(makeScene("S.truth.path", { kind: "hex", miles: TABLE_MILES }));
+  assert.deepEqual(journey.astrayPath(path, { from: at(path, 0, 0), to: at(path, 0, 3), truth: at(path, 2, 5) }), [
+    { believed: { i: 0, j: 1 }, truth: { i: 2, j: 6 } },
+    { believed: { i: 0, j: 2 }, truth: { i: 2, j: 7 } },
+    { believed: { i: 0, j: 3 }, truth: { i: 2, j: 8 } },
+  ], "each hex entered moves the truth by that hex's own displacement");
+  assert.deepEqual(journey.astrayPath(path, { from: at(path, 0, 0), to: { x: CELL - 1, y: CELL - 1 }, truth: at(path, 2, 5) }), [],
+    "a drag inside one hex walks nothing");
+  assert.deepEqual(journey.astrayPath(path, { from: at(path, 0, 0), to: at(path, 0, 3) }), [], "with no truth there is nothing to walk");
+  delete path.grid.getDirectPath;
+  assert.deepEqual(journey.astrayPath(path, { from: at(path, 0, 0), to: at(path, 0, 3), truth: at(path, 2, 5) }),
+    [{ believed: { i: 0, j: 3 }, truth: { i: 2, j: 8 } }], "a grid with no direct path walks the drag as one step");
+
+  // The same walk on a real lattice of hex rows: the truth takes the drag's
+  // displacement in pixels, which on a shoved row is not the drag's offset
+  // delta — two rows down from an even row lands a truth on an odd row one
+  // column over, as the map does.
+  const hexed = withHexLattice(makeScene("S.truth.rows", { kind: "hex", miles: TABLE_MILES }));
+  const h = (i, j) => hexed.grid.getCenterPoint({ i, j });
+  assert.deepEqual(journey.astrayPath(hexed, { from: h(0, 0), to: h(2, 0), truth: h(1, 5) }), [
+    { believed: { i: 1, j: 0 }, truth: { i: 2, j: 6 } },
+    { believed: { i: 2, j: 0 }, truth: { i: 3, j: 5 } },
+  ], "on hex rows the truth follows the pixels, not the offsets");
+
+  // An astray drag, through the module's own dispatcher and the real walk.
+  game.users.activeGM = { isSelf: true };
+  const scene = withLattice(makeScene("S.truth.drag", { kind: "hex", miles: TABLE_MILES }));
+  const token = makeToken(scene, "t.truth.drag");
+  const id = makeFormation(scene, token, { travel: { ground: "grassland", lost: { phase: "astray", sceneId: scene.id } } });
+  settings.formations[id].actorId = `a${id}`;
+  const shadow = makeShadow(scene, id, 5 * CELL, 2 * CELL);
+  nextMorning();
+  settings.formations[id].travel.navigation = { thrownOn: journeyDayKey(travelOf(getFormation(id))) };
+  await drag(token, id, 3 * CELL, 0);
+  assert.equal(shadow.moves.length, 3, "the truth walks once per hex the drag entered");
+  assert.deepEqual([shadow.x, shadow.y], [8 * CELL, 2 * CELL], "and ends moved by the token's displacement");
+  const astray = travelOf(getFormation(id));
+  assert.deepEqual([astray.hex.i, astray.hex.j], [0, 3], "the token's hex is the belief");
+  assert.deepEqual(astray.lost.faked, ["0:1", "0:2", "0:3"], "each hex the party believed it entered is recorded");
+  assert.deepEqual(astray.lost.observations, [
+    { at: "2:6", shown: "0:1" }, { at: "2:7", shown: "0:2" }, { at: "2:8", shown: "0:3" },
+  ], "beside where it truly stood");
+  const truth = trueTravelOf(getFormation(id)).hex;
+  assert.deepEqual([truth.label, truth.i, truth.j], ["I3", 2, 8], "the encounter column reads the true hex");
+
+  // The shadow's hex painted, and the party token placed on another scene
+  // mid-episode: the truth is still read where the shadow stands.
+  scene.regions.push({ behaviors: [], getFlag: (_ns, key) => (key === "terrain" ? "hills" : key === "terrainHexes" ? ["2:8"] : undefined) });
+  const underShadow = trueTravelOf(getFormation(id));
+  assert.deepEqual([underShadow.ground, underShadow.provenance.ground], ["hills", "map"], "the painted ground under the shadow");
+  const elsewhere = makeScene("S.truth.elsewhere", { kind: "hex", miles: TABLE_MILES });
+  settings.formations[id].sceneId = elsewhere.id;
+  const away = trueTravelOf(getFormation(id));
+  assert.deepEqual([away.ground, away.provenance.ground, away.hex.label], ["hills", "map", "I3"],
+    "read on the episode's scene, whatever scene the party token was placed on");
+  settings.formations[id].sceneId = scene.id;
+  scene.regions.pop();
+
+  // Two moves at once: the second waits for the first, measures from the
+  // baseline the first wrote, and walks the truth from where the first left
+  // the shadow — not both from the same place.
+  const movesBefore = shadow.moves.length;
+  token.x = 4 * CELL;
+  const firstMove = journey.onPartyTokenMoved(token, id);
+  token.x = 5 * CELL;
+  const secondMove = journey.onPartyTokenMoved(token, id);
+  await Promise.all([firstMove, secondMove]);
+  assert.deepEqual([shadow.x, shadow.y], [10 * CELL, 2 * CELL], "the truth moved by the two hexes the token did, once");
+  assert.equal(shadow.moves.length, movesBefore + 2, "one step per hex entered, none repeated");
+  assert.deepEqual(travelOf(getFormation(id)).lost.faked, ["0:1", "0:2", "0:3", "0:4", "0:5"], "and each hex is recorded once");
+
+  // Aware, the drag still walks the truth, and fakes nothing.
+  settings.formations[id].travel.lost = { phase: "aware", sceneId: scene.id };
+  await drag(token, id, 3 * CELL, CELL);
+  assert.equal(shadow.moves.length, 7, "an aware party's drag walks the truth too: two hexes back and one down");
+  assert.deepEqual([shadow.x, shadow.y], [8 * CELL, 3 * CELL]);
+
+  // Only the active GM's client walks it.
+  game.users.activeGM = null;
+  await drag(token, id, 3 * CELL, 2 * CELL);
+  assert.equal(shadow.moves.length, 7, "a client that is not the active GM's walks nothing");
+  game.users.activeGM = { isSelf: true };
+
+  // The walk itself, with the episode's writer stubbed.
+  const pairs = [];
+  let walks = 0;
+  const walk = async (_formation, steps) => {
+    walks++;
+    pairs.push(...steps);
+  };
+  settings.formations[id].travel.lost = { phase: "astray", sceneId: scene.id };
+  const walked = await journey.walkTheTruth(scene, token, getFormation(id), { from: { x: 0, y: 0 }, to: { x: 2 * CELL, y: CELL }, walk });
+  assert.equal(walked, 2, "a diagonal drag of two hexes walks two");
+  assert.equal(walks, 1, "in one call for the drag");
+  assert.deepEqual(pairs, [
+    { believedOffset: { i: 1, j: 1 }, trueOffset: { i: 4, j: 9 } },
+    { believedOffset: { i: 1, j: 2 }, trueOffset: { i: 4, j: 10 } },
+  ], "its steps once per hex, in order, from where the shadow stands");
+  settings.formations[id].travel.lost = {};
+  assert.equal(await journey.walkTheTruth(scene, token, getFormation(id), { from: { x: 0, y: 0 }, to: { x: CELL, y: 0 }, walk }), 0,
+    "with no episode open the truth is the token");
+  settings.formations[id].travel.lost = { phase: "astray", sceneId: scene.id };
+  scene.tokens.delete(shadow.id);
+  assert.equal(await journey.walkTheTruth(scene, token, getFormation(id), { from: { x: 0, y: 0 }, to: { x: CELL, y: 0 }, walk }), 0,
+    "with no shadow there is nothing to move");
+  assert.equal(pairs.length, 2);
+
+  game.users.activeGM = null;
+}
+
+console.log("test-journey: OK (miles on hex/square/gridless, cadence by grid or miles, clock hours, pause, scale guard, next hex, token size, search hour, day end, dawn, zones: card, true position, entry, periods, the country's reading on the trace, the cadence arrived in, the GM's refresh, the day's navigation throw: once a day, off a road, on the active GM, a failure opens, the Judge's press, the truth a drag walks)");

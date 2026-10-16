@@ -47,12 +47,14 @@ export async function beginEpisode(formation, { day, anchor, trueOffset, judgeNo
 }
 
 /**
- * A day walked astray: the party believes it reached one hex and really
+ * A step walked astray: the party believes it reached one hex and really
  * reached another. The shadow follows the truth, the ledger records the
  * pair as an observation, and the believed hex is uncovered for the players
- * — the ground only.
+ * — the ground only — unless `paint` is false, when the caller paints the
+ * faked hexes itself (`walkAstrayPath`). `faked` is every hex the ledger has
+ * faked so far, this step's included.
  */
-export async function walkAstray(formation, { believedOffset, trueOffset } = {}) {
+export async function walkAstray(formation, { believedOffset, trueOffset, paint = true } = {}) {
   if (!game.user?.isGM) return null;
   const lost = lostOf(travelOf(formation));
   const scene = episodeScene(formation, lost);
@@ -65,8 +67,31 @@ export async function walkAstray(formation, { believedOffset, trueOffset } = {})
     faked = next.faked;
     record.travel = { ...t, lost: next };
   });
-  if (faked.length) await paintFakeReveal(scene.id, faked, lost.level, { complete: lost.fogSnapshotComplete });
+  if (paint && faked.length) await paintFakeReveal(scene.id, faked, lost.level, { complete: lost.fogSnapshotComplete });
   return { faked };
+}
+
+/**
+ * A drag walked astray: each step of `steps` (`walkAstray`'s `{believedOffset,
+ * trueOffset}`), in order, each from the record the one before it wrote, and
+ * the players' fog painted ONCE for the hexes the whole drag faked. A fog
+ * write composites every player's exploration; one per hex would cost a
+ * six-hex drag six of them.
+ *
+ * @returns {Promise<{faked: string[], walked: number}|null>} the faked hexes
+ *   the ledger holds after the walk; null where no step could be walked
+ */
+export async function walkAstrayPath(formation, steps = []) {
+  if (!game.user?.isGM || !steps.length) return null;
+  let last = null;
+  for (const step of steps) {
+    last = await walkAstray(getFormation(formation.id) ?? formation, { ...step, paint: false }) ?? last;
+  }
+  if (!last) return null;
+  const lost = lostOf(travelOf(getFormation(formation.id) ?? formation));
+  const scene = episodeScene(formation, lost);
+  if (scene && last.faked.length) await paintFakeReveal(scene.id, last.faked, lost.level, { complete: lost.fogSnapshotComplete });
+  return { faked: last.faked, walked: steps.length };
 }
 
 /**
