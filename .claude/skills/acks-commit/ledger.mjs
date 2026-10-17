@@ -463,7 +463,8 @@ function besideHeadOf({ lines, owners, born, removed }, places, good, first, plu
  * place the hunk can slide to is read, and the one where the ledger accounts
  * for most of it answers. Where two such places account for it equally and
  * name different writers, the hunk lies at the place of added lines
- * `besideHeadOf` shows, and is nobody's where it shows none.
+ * `besideHeadOf` shows, and is nobody's where it shows none. Its `readings`
+ * then say whom each tied place names.
  *
  * @param {ReturnType<typeof blame>} blamed
  * @param {{newStart: number, plus: string[], minus: string[]}} hunk `newStart`
@@ -472,7 +473,7 @@ function besideHeadOf({ lines, owners, born, removed }, places, good, first, plu
  * @param {{newStart: number, plus: string[]}[]|null} [hunks] Every hunk of
  *   the file's diff, `hunk` among them: a line none of them adds is one git
  *   holds unchanged. Without them no line is known unchanged.
- * @returns {null | {added: string[], removed: string[], slid: number, among: string[], replaced: {owner: string, by: string}[]}}
+ * @returns {null | {added: string[], removed: string[], slid: number, among: string[], replaced: {owner: string, by: string}[], readings?: string[][]}}
  *   One writer per added line and one remover per removed line, in the order
  *   of the place read; `slid` is how many lines that place lies from git's,
  *   and only at 0 do the writers pair with the hunk's own lines. `among`
@@ -482,8 +483,12 @@ function besideHeadOf({ lines, owners, born, removed }, places, good, first, plu
  *   removes and adds: each line put in the removed lines' place that has
  *   since been removed, with its writer (`owner`) and who removed it (`by`).
  *   Where a line the hunk's removers wrote went by another writer, what
- *   stands in the removed lines' place is no longer theirs. null when the
- *   lines the hunk adds are not the lines `blamed` holds there.
+ *   stands in the removed lines' place is no longer theirs. `readings` is
+ *   set only on a hunk given to nobody because its tied places disagree:
+ *   for each place, nearest git's first, everyone it names as writer or
+ *   remover, `NOBODY` and `ORIGIN` included. A writer every reading names
+ *   wrote a line of the hunk wherever it lies. null when the lines the hunk
+ *   adds are not the lines `blamed` holds there.
  */
 export function writersOf(blamed, hunk, hunks = null) {
   const { lines, owners, removed } = blamed;
@@ -529,7 +534,8 @@ export function writersOf(blamed, hunk, hunks = null) {
     const shown = n ? besideHeadOf(blamed, places, good, first, hunk.plus, kept) : null;
     if (shown) return { added: shown.added, removed: [], slid: shown.slid, among: [], replaced: [] };
     const among = new Set(good.flatMap((p) => [...p.added, ...p.removed, ...p.among]));
-    return { added: hunk.plus.map(() => NOBODY), removed: hunk.minus.map(() => NOBODY), slid: 0, among: [...among], replaced: [] };
+    const readings = good.map((p) => [...new Set([...p.added, ...p.removed])]);
+    return { added: hunk.plus.map(() => NOBODY), removed: hunk.minus.map(() => NOBODY), slid: 0, among: [...among], replaced: [], readings };
   }
   // The place is chosen by what the tombstones' text says. Only there, and
   // only where a removal is still nobody's, is it read by when.

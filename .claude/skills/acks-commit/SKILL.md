@@ -5,8 +5,9 @@ description: Commit this session's own change from a working tree other sessions
 
 The rule is `.claude/rules/shared-tree.md`; `commit-own-hunks.mjs`, beside this
 file, carries it out, and its header is the reference for every mode and every
-`change.json` key. The user's "commit" is the go-ahead; a push follows
-TOOLCHAIN §2 unless they said to leave it (`--no-push`).
+`change.json` key. The user's "commit", or any finished piece of the work (a
+fix, a slice, a step) once gated, is the go-ahead to commit. A push waits for the owner's own go-ahead (TOOLCHAIN
+§2), so `land` carries `--no-push` until one is given.
 
 ## 1. Describe the change
 
@@ -28,15 +29,19 @@ Finish the wording first; every edit after the gate costs another gate.
 ## 2. Land
 
 ```bash
-node .claude/skills/acks-commit/commit-own-hunks.mjs land --change <dir>
+node .claude/skills/acks-commit/commit-own-hunks.mjs land --change <dir> --no-push
 ```
 
-One command: record, gate in a scratch clone, commit, push the commit's own
-sha, clean. Run it in the foreground with a 10-minute timeout; a gate longer
-than that runs in the background, and its one completion notice is the wait —
-never a polling loop. It prints one line:
+One command: record, gate in a scratch clone, commit, clean; without
+`--no-push` it also pushes the commit's own sha. Run it in the foreground with
+a 10-minute timeout; a gate longer than that runs in the background, and its
+one completion notice is the wait — never a polling loop. It prints one line:
 
-`landed <sha> pushed; gate: build:packs 2s, validate 153s, test 46s; <dir>/land.log`
+`landed <sha> not pushed (--no-push); gate: build:packs 2s, validate 153s, test 46s; <dir>/land.log`
+
+On the owner's go-ahead to push, a change not landed yet lands without
+`--no-push`. One already landed goes with `git push origin <sha>:refs/heads/main`,
+which sends every local commit beneath it as well; the ask names them.
 
 Report that line, and the modified paths left out as other sessions'. Any
 other exit prints `REFUSED:` with the reason and the log's last lines, and

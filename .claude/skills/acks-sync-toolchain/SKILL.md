@@ -23,9 +23,10 @@ script's header says what each flag and exit status means.
    would change, add `--worktree` (the tree as it stands, every session's
    uncommitted edits included) or `--from <rev>` (one commit). Both are
    previews; neither can be applied.
-2. **Commit and push the template** (TOOLCHAIN §9). `--apply` has nothing
-   else to write: an edit that is committed and not pushed reaches no module,
-   and the run lists it as left out.
+2. **Commit the template, and push it on the owner's go-ahead** (TOOLCHAIN
+   §2, §9). `--apply` has nothing else to write: an edit that is committed
+   and not pushed reaches no module, and the run lists it as left out. Ask
+   once for the template's push and the modules' (step 5).
 3. Apply: `node C:\Proj\acks-module-template\bin\sync-toolchain.mjs --apply`
    - **What is written is the whole branch**, not your change alone. Where
      another session pushed canon since the module was last synced, its files
@@ -52,10 +53,12 @@ script's header says what each flag and exit status means.
      case, fix it in the template skeleton and re-sync everywhere — never fork
      a per-repo copy.
 5. Commit in each changed repo through the `acks-commit` skill
-   (`chore: sync toolchain from acks-module-template`) and push — an unpushed
-   sync leaves the repo's next CI run red against the already-pushed template.
-   The files are a script's, and go into the change as that skill says a
-   script's do.
+   (`chore: sync toolchain from acks-module-template`), and push it under the
+   go-ahead step 2 asked for. Without one it stays local, and the module's
+   next approved push carries it. The files are a script's, and go into the
+   change as that skill says a script's do. `--apply --land` lands each repo
+   it writes through that repo's own `land`, gate included, and pushes it:
+   run it only under that go-ahead.
    A path step 3 reported as `mode` goes under that change's `mode` key as
    `"100755"`, and `--check` then reads the repo level.
 6. Skills sync with everything else (`COPY_DIRS` in the manifest) — there is

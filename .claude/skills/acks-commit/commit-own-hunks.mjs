@@ -47,7 +47,10 @@
  *            `{}` takes the hunks the ledger gives this session. Of a hunk two sessions
  *            wrote it takes this session's lines, where every line has a writer and no
  *            other session removed one. It leaves a hunk where another session's line
- *            stands in place of one this session had written there.
+ *            stands in place of one this session had written there. A hunk that slides
+ *            to places the ledger cannot choose between is taken where each place names
+ *            this change's sessions alone, and refused where each names one of them
+ *            beside another writer.
  *            `own` is tested against a hunk's removed and added lines joined by newlines.
  *            It takes a hunk no record accounts for, and never one holding another
  *            session's line.
@@ -286,8 +289,9 @@ function readLedger(change) {
  * @param {{mine: Set<string>}} ledger The sessions whose hunk it would be:
  *   this change's, or another session's where the hunk is read from its seat.
  * @param {object[]} hunks Every hunk of the file, the one read among them.
- * @returns {null | {whose: "mine"|"peer"|"nobody"|"mixed", peers: string[], mine: number, unknown: number, keep: number[]|null}}
- *   null where no record names the file. `mine` and `unknown` count the
+ * @returns {null | {whose: "mine"|"peer"|"nobody"|"mixed", peers: string[], mine: number, unknown: number, keep: number[]|null, tied?: number}}
+ *   null where no record names the file. `tied` counts the places of a mixed
+ *   hunk that slides where the ledger cannot place it. `mine` and `unknown` count the
  *   hunk's lines this change's sessions wrote or removed and the lines no
  *   record accounts for; `peers` are the other sessions with a line in it,
  *   or among the writers a line given to nobody may belong to.
@@ -309,6 +313,14 @@ function verdictOf(ledger, blamed, hunk, hunks) {
   const isMine = (who) => ledger.mine.has(who);
   const isPeer = (who) => who !== ORIGIN && who !== NOBODY && !isMine(who);
   const peers = [...new Set([...all, ...writers.among].filter(isPeer))].sort();
+  // A tie the ledger cannot place gives every line to nobody. Where every
+  // place names this change's sessions alone, the hunk is this change's
+  // wherever it lies. Where every place names one of them beside another
+  // writer, a line of this change's is in it wherever it lies, and `record`
+  // refuses it rather than leave it.
+  const tie = writers.readings;
+  if (tie?.every((names) => names.every(isMine))) return { whose: "mine", peers: [], mine: all.length, unknown: 0, keep: null };
+  if (tie?.[0].some((who) => isMine(who) && tie.every((names) => names.includes(who)))) return { whose: "mixed", peers, mine: 0, unknown: all.length, keep: null, tied: tie.length };
   const mine = all.filter(isMine).length;
   const unknown = all.filter((who) => !isMine(who) && !isPeer(who)).length;
   const whose = mine === all.length ? "mine" : mine ? "mixed" : peers.length ? "peer" : "nobody";
@@ -335,7 +347,7 @@ function committed(file, content) {
 }
 
 /** The writers of a hunk as the listing names them. */
-const tagOf = (v) => (v ? ` [${[v.mine && "me", ...v.peers.map((s) => `session ${short(s)}`), v.unknown && "no record"].filter(Boolean).join(" + ")}]` : "");
+const tagOf = (v) => (v ? ` [${[(v.mine || v.tied) && "me", ...v.peers.map((s) => `session ${short(s)}`), v.unknown && "no record"].filter(Boolean).join(" + ")}]` : "");
 
 /**
  * The files this change's sessions wrote that change.json does not name: a
@@ -422,6 +434,10 @@ function record({ pin = null } = {}) {
       for (const h of all) {
         const v = read.get(h);
         if (v?.whose !== "mixed" || v.keep) continue;
+        if (v.tied) {
+          const way = v.peers.length ? `landing ${v.peers.map(short).join(", ")}'s lines first can settle where it lies, or it lands under "adopt" where the owner rules it this change's` : 'give the file an "own" pattern to take it on your word';
+          refuse(`${file}: the hunk at -${h.oldStart} (-${h.minus.length} +${h.plus.length}) slides to ${v.tied} places the ledger cannot choose between, and at every one this session wrote a line of it beside ${v.peers.length ? `${v.peers.map(short).join(", ")}'s` : "lines no record accounts for"}; ${way}`);
+        }
         if (v.peers.length) {
           // The hunk is read from each other session's seat: one that divides
           // none of it off there has nothing to land first, and a session
