@@ -2914,6 +2914,162 @@ await scenario("a whole write keeps the member records a patch moved while it wa
   await drain();
 });
 
+/** The party joins `combat`: its token added as a combatant, as core adds it. */
+async function partyJoins(combat) {
+  game.combats.set(combat.id, combat);
+  const stored = onlyFormation();
+  await combat.createEmbeddedDocuments("Combatant", [
+    { tokenId: stored.tokenId, sceneId: scene.id, actorId: stored.actorId, hidden: false },
+  ]);
+  await drain();
+}
+
+/** A combat the party never joined is deleted; returns how many chat cards its end posted. */
+async function anotherCombatEnds() {
+  const other = new CombatMock();
+  game.combats.set(other.id, other);
+  const cards = chat.length;
+  await other.delete();
+  await drain();
+  return chat.length - cards;
+}
+
+await scenario("a combat the party never joined leaves a scout on the party's scene out", async () => {
+  // See docs/formation/DECISIONS.md, "A combat records whom it took over".
+  const { id, actors } = await isolatedParty("Watchful Party", "Lookout", "Warden");
+  const [lookout, warden] = actors;
+  const cell = (actor) => onlyFormation().members.find((m) => m.actorId === actor.id);
+  assert.equal(await deployment.toggleDetachMember(model.getFormation(id), lookout.id), "detached");
+  await drain();
+  const out = cell(lookout).deployedTokenId;
+
+  assert.equal(await anotherCombatEnds(), 0, "another combat's end announces no re-forming");
+  assert.ok(cell(lookout).detached, "the scout is still out on a detach");
+  assert.equal(cell(lookout).deployedTokenId, out, "under the token they went out as");
+  assert.ok(scene.tokens.get(out), "which still stands");
+
+  const combat = new CombatMock();
+  await partyJoins(combat);
+  assert.ok(onlyFormation().combat?.active, "the party deployed for combat");
+  assert.ok(!cell(lookout).detached, "the fight takes the scout over");
+  assert.equal(await anotherCombatEnds(), 0, "another combat's end leaves the party's fight alone");
+  assert.ok(onlyFormation().combat?.active, "the party is still fighting");
+  assert.ok(cell(lookout).deployedTokenId && cell(warden).deployedTokenId, "with everyone on the field");
+
+  await combat.delete();
+  await drain();
+  assert.equal(onlyFormation().combat, null, "the party's own combat re-forms it");
+  assert.ok(!cell(lookout).deployedTokenId && !cell(warden).deployedTokenId, "the scout it took over comes home with the rest");
+
+  assert.equal(await deployment.toggleDetachMember(model.getFormation(id), lookout.id), "detached");
+  await drain();
+  assert.equal(await anotherCombatEnds(), 0, "sent out again, the scout is no combat's");
+  assert.ok(cell(lookout).detached, "and stays out");
+  await model.disband(model.getFormation(id));
+  await drain();
+  for (const actor of actors) await actor.delete();
+  await drain();
+});
+
+await scenario("a member left behind stays where they were left, and the rest of the party fights", async () => {
+  // See docs/formation/DECISIONS.md, "A combat records whom it took over".
+  const { id, actors } = await isolatedParty(
+    "Rearguard Party",
+    { name: "Fallen", type: "monster", system: { hp: { value: 0, max: 8 }, movementacks: { exploration: 120 }, movement: { base: 120 } } },
+    "Fighter",
+  );
+  const [fallen, fighter] = actors;
+  const cell = (actor) => onlyFormation().members.find((m) => m.actorId === actor.id);
+  assert.equal(await deployment.toggleMemberLeft(model.getFormation(id), fallen.id), true);
+  await drain();
+  const body = scene.tokens.get(cell(fallen).deployedTokenId);
+  assert.ok(body, "the casualty lies where the party left them");
+
+  const combat = new CombatMock();
+  await partyJoins(combat);
+  assert.ok(onlyFormation().combat?.active, "the party deployed for combat");
+  assert.ok(combat.combatants.some((c) => c.actorId === fighter.id), "the fighter fights");
+  assert.ok(!combat.combatants.some((c) => c.actorId === fallen.id), "the casualty is no combatant");
+  assert.ok(!cell(fallen).deployedCombatId, "nor the combat's");
+
+  await combat.delete();
+  await drain();
+  assert.equal(onlyFormation().combat, null, "the party re-formed");
+  assert.ok(!cell(fighter).deployedTokenId, "the fighter came home");
+  assert.equal(cell(fallen).deployedTokenId, body.id, "the casualty is still where they were left");
+  assert.ok(scene.tokens.get(body.id) && cell(fallen).left, "their token still lies there, left behind");
+  await model.disband(model.getFormation(id));
+  await drain();
+  for (const actor of actors) await actor.delete();
+  await drain();
+});
+
+await scenario("a combat's takeover outlasts a whole write and the loss of the combat flag", async () => {
+  // See docs/formation/DECISIONS.md, "A combat records whom it took over".
+  const { id, actors } = await isolatedParty("Steadfast Party", "Shield", "Spear");
+  const cell = (actor) => onlyFormation().members.find((m) => m.actorId === actor.id);
+  const copy = model.getFormation(id); // read before the fight
+  const combat = new CombatMock();
+  await partyJoins(combat);
+  assert.ok(onlyFormation().combat?.active, "the party deployed for combat");
+
+  copy.frontage = 2;
+  await model.updateFormation(copy);
+  await drain();
+  assert.equal(onlyFormation().frontage, 2, "the writer's own change landed");
+  for (const actor of actors) assert.equal(cell(actor).deployedCombatId, combat.id, `${actor.name} is still the combat's`);
+  // The flag lost, as a stale whole write has erased it.
+  await model.patchFormation(id, (rec) => {
+    rec.combat = null;
+  });
+  await drain();
+  assert.equal(await anotherCombatEnds(), 0, "another combat's end leaves the fight alone");
+  assert.ok(actors.every((a) => cell(a).deployedTokenId), "with everyone on the field");
+
+  await combat.delete();
+  await drain();
+  assert.ok(actors.every((a) => !cell(a).deployedTokenId), "the combat's own end gathers them");
+  assert.equal(scene.tokens.filter((t) => actors.some((a) => a.id === t.actorId)).length, 0, "no member token is left");
+  await model.disband(model.getFormation(id));
+  await drain();
+  for (const actor of actors) await actor.delete();
+  await drain();
+});
+
+await scenario("a combat deploy from before the takeover was recorded is read as before", async () => {
+  // See docs/formation/DECISIONS.md, "A combat records whom it took over".
+  const { id, actors } = await isolatedParty("Veteran Party", "Elder", "Squire");
+  const cell = (actor) => onlyFormation().members.find((m) => m.actorId === actor.id);
+  const forget = (flagToo) =>
+    model.patchFormation(id, (rec) => {
+      for (const m of rec.members) delete m.deployedCombatId;
+      if (flagToo) rec.combat = null;
+    });
+
+  const combat = new CombatMock();
+  await partyJoins(combat);
+  await forget(false);
+  await drain();
+  assert.equal(await anotherCombatEnds(), 0, "another combat's end leaves the running combat's members alone");
+  assert.ok(actors.every((a) => cell(a).deployedTokenId), "with everyone on the field");
+  await combat.delete();
+  await drain();
+  assert.ok(actors.every((a) => !cell(a).deployedTokenId), "the running combat's end gathers them");
+
+  const second = new CombatMock();
+  await partyJoins(second);
+  await forget(true);
+  await drain();
+  assert.ok((await anotherCombatEnds()) > 0, "with the combat flag lost too, any combat's end re-forms the party");
+  assert.ok(actors.every((a) => !cell(a).deployedTokenId), "and gathers them");
+  await second.delete();
+  await drain();
+  await model.disband(model.getFormation(id));
+  await drain();
+  for (const actor of actors) await actor.delete();
+  await drain();
+});
+
 await scenario("overlapping environment sweeps coalesce instead of racing", async () => {
   // See docs/formation/DECISIONS.md, "Environment sweeps coalesce, and a
   // vanished target is not a fault".

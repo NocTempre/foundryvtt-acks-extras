@@ -1,10 +1,10 @@
+/* global game */
 import { makeLoc } from "../lib/util.mjs";
 import { announce } from "./announce.mjs";
 import { MODULE_ID, ROLES } from "./constants.mjs";
 import {
   formationForToken,
   getFormations,
-  getPartyScene,
   getPartyToken,
   patchDeployments,
   updateFormation,
@@ -25,11 +25,34 @@ import { advanceRounds, storedPosition } from "./turn-engine.mjs";
 const loc = makeLoc("ACKS-FORMATION");
 
 /**
- * A member a combat on the party's scene leaves alone: out on a detach and
- * standing on another scene (`standsElsewhere`). The deploy does not take
- * them over, and no combat's end gathers them.
+ * A member a combat on the party's scene leaves alone: one the party left
+ * behind, or one out on a detach and standing on another scene
+ * (`standsElsewhere`). The deploy does not take them over.
  */
-const outOfTheFight = (formation, member, scene) => !!member?.detached && standsElsewhere(formation, member, scene);
+const outOfTheFight = (formation, member, scene) =>
+  !!member?.left || (!!member?.detached && standsElsewhere(formation, member, scene));
+
+/**
+ * The id of the combat that took this member over (`deployedCombatId`), or
+ * null when none did. A record from before the takeover was kept reads a member
+ * on the map with no detach and no leave as the party's running combat's, or,
+ * with that flag lost too, as one already gone (`""`).
+ */
+function takeoverOf(formation, member) {
+  if (!isMemberDeployed(member)) return null;
+  if (member.deployedCombatId) return member.deployedCombatId;
+  if (member.detached || member.left) return null;
+  return formation.combat?.combatId ?? "";
+}
+
+/**
+ * Does `combat`'s end gather this member? Only one a combat took over: this
+ * one, or one already gone, whose end no client heard.
+ */
+function gatheredBy(formation, member, combat) {
+  const takenBy = takeoverOf(formation, member);
+  return takenBy !== null && (takenBy === combat.id || !game.combats.has(takenBy));
+}
 
 /* -------------------------------------------- */
 /*  Deploy on joining combat                    */
@@ -43,9 +66,13 @@ export async function onPartyCombatantCreated(combatant) {
   const combat = combatant.parent;
 
   // Already deployed (e.g. the party token was re-added): drop the extra
-  // combatant rather than duplicate every member on the field. A detached
-  // member (already a token ahead of the party) does not count as evidence.
-  const alreadyFighting = formation.members.some((m) => isMemberDeployed(m) && !m.detached);
+  // combatant rather than duplicate every member on the field. Only a member
+  // a running combat took over counts; a scout ahead of the party or a member
+  // left behind is on the map for reasons of their own.
+  const alreadyFighting = formation.members.some((m) => {
+    const takenBy = takeoverOf(formation, m);
+    return !!takenBy && game.combats.has(takenBy);
+  });
   if (formation.combat?.active || alreadyFighting) {
     await combatant.delete();
     return;
@@ -58,7 +85,7 @@ export async function onPartyCombatantCreated(combatant) {
   const fighters = formation.members.filter(
     (m) => m && !m.blank && m.actorId && !m.roles?.includes(ROLES.NONCOMBATANT) && !outOfTheFight(formation, m, scene),
   );
-  await deployMembers(formation, { members: fighters });
+  await deployMembers(formation, { members: fighters, combatId: combat.id });
   const onField = fighters.filter(isMemberDeployed);
 
   if (!onField.length) {
@@ -68,9 +95,12 @@ export async function onPartyCombatantCreated(combatant) {
 
   // A detached member is already deployed and already a token: the fight simply
   // takes them over, so combat movement is not held to the one-round leash.
+  // Every member on the field is recorded as this combat's, which is what its
+  // end gathers.
   for (const member of onField) {
     delete member.detached;
     delete member.detach;
+    member.deployedCombatId = combat.id;
   }
   await patchDeployments(formation, onField);
 
@@ -127,9 +157,9 @@ export async function onCombatEnd(combat) {
   const formations = Object.values(getFormations()).filter(
     (f) =>
       (f.combat?.active && f.combat.combatId === combat.id) ||
-      // Deployed member tokens are evidence of an unfinished deploy even when
-      // the combat flag is missing.
-      f.members.some((m) => isMemberDeployed(m) && !outOfTheFight(f, m, getPartyScene(f))),
+      // A member the combat took over is evidence of its deploy even when the
+      // combat flag is missing.
+      f.members.some((m) => gatheredBy(f, m, combat)),
   );
   for (const formation of formations) {
     try {
@@ -146,13 +176,12 @@ async function reform(formation, combat) {
   /* --- Any rounds not yet ticked live feed the clock now --- */
   const rounds = Math.max(0, (combat.round ?? 0) - (formation.combat?.roundsCounted ?? 0));
 
+  // Read while the flag still stands: an old record's takeover is read off it.
+  const takenOver = formation.members.filter((m) => gatheredBy(formation, m, combat));
   formation.combat = null;
   // The fallen come back with the party: assign Carriers, or remove them from
   // the formation to abandon the body where it fell.
-  const scene = getPartyScene(formation);
-  const { fallen, anchor } = await recallMembers(formation, {
-    members: formation.members.filter((m) => !outOfTheFight(formation, m, scene)),
-  });
+  const { fallen, anchor } = await recallMembers(formation, { members: takenOver });
 
   // Re-anchor movement tracking at the reform position before the token moves.
   if (anchor) formation.clock.lastPosition = anchor;

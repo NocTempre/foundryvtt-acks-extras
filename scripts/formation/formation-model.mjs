@@ -266,12 +266,20 @@ export async function patchFormation(id, mutate) {
 
 /**
  * The fields of a member record that say where the member's body is: the
- * token they stand as and its scene, a stack out on the map, a detach and its
- * leash, and the token stashed while they ride inside. Patches move them: a
- * deploy, a recall, a combat taking a scout over, a re-anchor, a move between
- * scenes, a stash's hit points.
+ * token they stand as and its scene, a stack out on the map, the combat that
+ * took them over, a detach and its leash, and the token stashed while they
+ * ride inside. Patches move them: a deploy, a recall, a combat taking members
+ * over, a re-anchor, a move between scenes, a stash's hit points.
  */
-const DEPLOYMENT_FIELDS = ["deployedTokenId", "deployedSceneId", "deployedStack", "detached", "detach", "tokenData"];
+const DEPLOYMENT_FIELDS = [
+  "deployedTokenId",
+  "deployedSceneId",
+  "deployedStack",
+  "deployedCombatId",
+  "detached",
+  "detach",
+  "tokenData",
+];
 
 /** Copy `from`'s deployment onto `to`; a field `from` lacks is removed from `to`. */
 function copyDeployment(from, to) {

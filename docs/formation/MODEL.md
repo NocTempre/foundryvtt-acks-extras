@@ -80,7 +80,7 @@ All paths are under `scripts/formation/` unless noted.
 - **The delve's printed figures** live in the `formation` ruledata document and are read through `formationValue` (`constants.mjs`): the turns an unrested party explores before it is winded (`restInterval`), a carried body's weight and the share of its kit hauled with it (`carriedBodyStone`, `carriedGearShare`), and the swimming throw's five (`swimWaterModifiers` as `{cold, rough}`, stored negative because the throw subtracts a modifier; `swimmingBonus`; `swimSpeedShare`; `sinkFeetPerStone`; `breathRounds`). The importer writes all eight from the Judge's own RR p. 271: [formation-binding.mjs](../../scripts/importer/formation-binding.mjs) reads each out of a short window of the page's prose, pairs the water penalties with the conditions in the order the sentence names them, and leaves a key whose window did not read absent. A reader without its figure says less rather than inventing one: the clock counts turns and asks for no rest, a rescue load and a drowning read as unknown, and a swimming throw that needs a missing figure returns no target and names it in `unknown`.
 - **Marching order** = order of `members[]`. Roles are per-member string arrays.
 - **Member tokens** are stashed as raw `toObject()` snapshots in `members[].tokenData` when the actor joins, and re-created around the party token on removal/disband.
-- **A member's deployment moves only by patch.** `updateFormation` keeps the ledger's `deployedTokenId`, `deployedSceneId`, `deployedStack`, `detached`, `detach` and `tokenData` for every member the ledger also holds, matched by actor, and brings the copy into line (`DEPLOYMENT_FIELDS`, `formation-model.mjs`). A deploy, a recall and a combat taking members over write them through `patchDeployments`; the re-anchor, a move between scenes and the roster's stash write patch them directly.
+- **A member's deployment moves only by patch.** `updateFormation` keeps the ledger's `deployedTokenId`, `deployedSceneId`, `deployedStack`, `deployedCombatId`, `detached`, `detach` and `tokenData` for every member the ledger also holds, matched by actor, and brings the copy into line (`DEPLOYMENT_FIELDS`, `formation-model.mjs`). A deploy, a recall and a combat taking members over write them through `patchDeployments`; the re-anchor, a move between scenes and the roster's stash write patch them directly.
 - **An unlinked member's hit points and death are their own token's.** `memberOwnToken` finds that token: the live one while the member stands on the map, else the stash. `isDown` and `isDead` take the member and read through it (`memberHp`, over lib's `tokenHitPoints` and `tokenHasStatus`), and so do `isIncapacitated` and `isCasualty`. Casualties and the speed they cost, the carried load, who deploys or can detach, who probes or searches for a trap, who rolls a party check or save, and the party sheet's down and dead markers and sight summary all count an unlinked member by the wounds on their own token. A linked member's are the world actor's. `getMemberActor` still returns the world actor, and every other read of an unlinked member inside the party token (items, effects, rolls, lights, rations, experience) goes through it (ROADMAP §3).
 - **A member's token placed from the roster keeps their hit points.** The system's own `TokenDocument#_preCreate` rolls a placed unlinked monster new hit points while its `autoRollMonsterHP` setting is on, which it is by default. So `deployMembers` and `restoreMemberTokens` create with lib's `KEEP_HIT_POINTS_OPTION`, and lib's `preCreateToken` hook, which Foundry runs after `_preCreate`, writes back the stash's own hit points. The same hook keeps a member's token that core moves to another scene (docs/lib/MODEL.md, "The hit-point tool"). A monster placed any other way still rolls. A token that matches its actor stashes its delta as `null`, and the roster's stash write builds the delta before writing into it.
 - The **party token** belongs to a dedicated `monster`-type actor (one per formation) whose `system.movement.base` mirrors the party's exploration speed (min over members' `system.movementacks.exploration`, which the acks system derives from encumbrance). `updateActor`/`create|update|deleteItem` hooks keep it in sync.
@@ -562,12 +562,19 @@ scout is also explicitly *not* treated as "already deployed" when the party
 enters combat — they are exactly who walks into one, and the rest of the party
 must still deploy around them.
 
-A detached member standing on another scene (`standsElsewhere`,
-`deployment.mjs`) is out of the fight (`outOfTheFight`, `combat-bridge.mjs`).
-A combat on the party's scene does not take them over: they keep `detached`
-and their anchor, and get no combatant. No combat's end gathers them either.
-The reform recalls everyone else, and a member out of the fight is no evidence
-of an unfinished deploy.
+A combat records whom it took over: `deployedCombatId`, on every member it
+deployed or took over (`combat-bridge.mjs`). Its end gathers those members and
+no one else (`gatheredBy`), with or without the record's `combat` flag, and
+another combat's end gathers none of them. A member taken over by a combat no
+longer in the world is gathered by any combat's end, since no client heard its
+own. A record from before the field reads a member on the map with no detach
+and no leave as taken over by the party's running combat (`takeoverOf`).
+
+Two members are out of the fight (`outOfTheFight`): one the party left behind,
+and a detached member standing on another scene (`standsElsewhere`,
+`deployment.mjs`). A combat on the party's scene does not take them over: they
+keep `left`, or `detached` and their anchor, and get no combatant, so no
+combat's end gathers them.
 
 ## The journey
 

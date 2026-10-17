@@ -3915,3 +3915,85 @@ marker) is asked where the move put it, on every client.
 - `tokenCenter` (`location/here.mjs`) still reads a token's prepared corner,
   so a deployed member's own token, or a place's, answers where a drawn move
   began. Not audited.
+
+## 2026-10-17 — A combat records whom it took over
+
+**Found.** The two faults *A member on another scene: the recall, a combat,
+and whole writes* (2026-10-17) found and left. The combat code told its own
+deploy from members on the map by `detached` alone. Each fault was reproduced
+by a flows scenario that failed on the code before this entry:
+- any combat's end read a member on the map as an unfinished deploy. Deleting
+  a combat the party never joined recalled a scout detached on the party's
+  scene and posted the re-formed card, and during the party's own fight it
+  re-formed the party ("a combat the party never joined leaves a scout on the
+  party's scene out", "a combat deploy from before the takeover was recorded
+  is read as before");
+- `alreadyFighting` counted any deployed member without `detached`, so a
+  combat joined with a member left behind dropped the party's combatant and
+  deployed no one ("a member left behind stays where they were left, and the
+  rest of the party fights").
+
+**Ruled.**
+- A combat records whom it took over: `deployedCombatId` on each member it
+  deployed or took over. The deploy writes it with the tokens
+  (`deployMembers`, `combatId`), the takeover's patch writes it on a scout it
+  takes over, and the recall clears it. It is a deployment field
+  (`DEPLOYMENT_FIELDS`), so a whole write keeps the ledger's.
+- A combat's end gathers exactly the members taken over by it, or by a
+  combat no longer in the world, whose end no automation client heard
+  (`gatheredBy`, `combat-bridge.mjs`). Such a member is evidence of the deploy
+  without the record's `combat` flag. Besides that flag, the party counts as
+  already fighting only through a member a combat still running took over.
+- A member left behind is out of the fight, as a detached member on another
+  scene is (`outOfTheFight`): no combatant, not taken over, not gathered. The
+  Judge can still add their token to the combat. The user's ruling, from the
+  options "Leave them out" and "Take them over": "Leave them out".
+- A record from before the field is read at load and never rewritten. A
+  member on the map with no detach, no leave and no recorded combat counts as
+  taken over by the party's running combat, or, with the combat flag lost
+  too, by one already gone, which any combat's end gathers, as before
+  (`takeoverOf`). The user's ruling, from the options "Read as before" and
+  "Takes no one": "Read as before".
+- *A member on another scene* stands: a scout on another scene is not taken
+  over, and no combat's end gathers them. What keeps them out of the end is
+  now the record, not `outOfTheFight`.
+- A member the Judge marks left mid-combat was taken over, and the combat's
+  end still gathers them.
+- Pinned offline: the three flows scenarios named above, and "a combat's
+  takeover outlasts a whole write and the loss of the combat flag". Six single
+  edits in a scratch replica each fail the scenario meant to catch them: the
+  field out of `DEPLOYMENT_FIELDS`, a member left behind taken over, the
+  recall keeping the field, no reading of a combat that is gone, the old
+  `alreadyFighting`, and no reading of an old record.
+- Walked live after the fix on core 14.369, one run on the Gamemaster alone
+  on its seat (TESTING, "A combat's takeover", steps 1 to 7). Every observable
+  held. The sweep removed 9, could not find 6 (the walk's three deleted
+  combats, and the three member tokens its reform and recall deleted) and
+  refused none. The console recorder on the primary GM was attached after
+  `ready` and recorded no error during the walk.
+
+**Rejected.**
+- *The takeover listed on `formation.combat`* (moderate). It keeps the
+  combat's state in one place. But `formation.combat` is written whole, and a
+  stale whole write has erased it before (the environment sync's interleave,
+  the reason a combat's end looks past the flag). A member field is kept by
+  `takeStoredDeployments`.
+- *Take them over*, for a member left behind (weak). A casualty becomes a
+  combatant, and the combat's end gathers the body into the party token still
+  marked left behind, since the recall never clears `left`.
+- *Takes no one*, for an old record (weak). A combat running across the
+  upgrade would leave its members on the map for the Judge to form up by hand.
+
+**Cost.**
+- A member whose combat was deleted while no automation client was connected
+  stays on the map until some combat ends, as before. If the party is
+  fighting another combat by then and that member was not taken over again
+  (left behind meanwhile, or a Non-combatant), an unrelated combat's end
+  re-forms the party mid-fight.
+- An old record still reads its takeover from who is on the map: a member
+  taken over before the field and marked left mid-combat stays on the map
+  when that combat ends.
+- A member the deploy places is written twice, with the tokens and in the
+  takeover's patch.
+- The faults were measured before the fix offline only. The live walk ran
+  after it.

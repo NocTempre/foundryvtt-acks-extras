@@ -520,23 +520,6 @@ against its line below.
   `cityTravel.encounters100` when no RollTable is handed in. A Judge can author
   it through the Ruledata Browser's absent row; no import writes it.
 
-## What a combat reads as the party's
-
-A combat's start and end tell the party's own deploy from any member on the
-map by `detached` alone (`combat-bridge.mjs`). Two members that are neither
-read wrong, both run offline in the flows harness and not walked:
-
-- **Any combat's end gathers a scout on the party's scene.** `onCombatEnd`
-  reads a deployed member as an unfinished deploy, so deleting a combat the
-  party never joined recalls a detached scout and posts the re-formed card. A
-  scout on another scene is spared (MODEL, "The leash").
-- **A member left behind stops the deploy.** `alreadyFighting` counts any
-  deployed member without `detached`, so a combat joined with a member left
-  behind drops the party's combatant and deploys no one.
-
-Both need the combat deploy recorded as such (which members a combat took
-over), rather than inferred from who is on the map.
-
 ## The party sheet: what the frame leaves
 
 The frame shipped first (MODEL, "The frame"). The redesign's later phases are

@@ -845,6 +845,70 @@ seat authored, read while the world holds no other seat. `api.track(id,
 "ChatMessage")` each. The tokens the teleports, recalls and the reform
 deleted, and both combats, sweep as missing.
 
+## A combat's takeover (added with the takeover record)
+
+Covers `deployedCombatId` (written by `deployMembers` and the takeover in
+`onPartyCombatantCreated`, cleared by the recall), what a combat's end
+gathers (`gatheredBy`, `combat-bridge.mjs`), the party token re-added to its
+own combat, and a member left behind kept out of the fight
+(`outOfTheFight`). Driven by a script over the capture driver on the
+Gamemaster seat alone; no walk in `tools/live` covers it.
+
+**Fixtures**, each `api.create()`d or `api.track()`ed:
+- Scene A, viewed by the seat.
+- Two `character` actors, the scout and the guard, and a `monster` at 0 hit
+  points, the fallen.
+- A hand-created party actor, and the party token on A, `actorLink: true`.
+
+**Drive mechanics.**
+- The adoption poll, the drop onto the party sheet and the party's combat are
+  as in "A detached member moved between scenes".
+- Press a row's control on the party sheet:
+  `[data-actor-id="<id>"] [data-action="toggleDetach"]` for the scout,
+  `[data-action="toggleLeftBehind"]` for the fallen (a casualty's row carries
+  it). Read `deployedTokenId` back from the record and `api.track()` that
+  token.
+- A combat the party never joins: `api.create("Combat", {scene: <A>})`, then
+  delete it.
+
+1. **Another combat's end leaves a scout out.** Detach the scout, then create
+   and delete a combat the party never joins.
+   **Observable:** the scout keeps `detached` and the same `deployedTokenId`,
+   the token still stands, and the gesture posted no card.
+2. **A member left behind.** Press the fallen's leave-behind control.
+   **Observable:** `left` is true and `deployedTokenId` names a token on A.
+3. **The party joins a combat with a member left behind.** Add the party
+   token to a combat on A. `api.track()` the guard's token.
+   **Observable:** the record's `combat.active` is true. The combat holds a
+   combatant for the guard and for the scout, none for the fallen and none
+   for the party token. The scout's and the guard's `deployedCombatId` is the
+   combat's id, and the scout has no `detached`. The fallen has no
+   `deployedCombatId` and keeps `left` and the same token.
+4. **The party token re-added is dropped.** Add the party token to the same
+   combat again.
+   **Observable:** the combatants are those of step 3.
+5. **Another combat's end leaves the fight alone.** Create and delete another
+   combat on A.
+   **Observable:** `combat.active` is still true, the scout and the guard
+   keep their tokens, and the gesture posted no card.
+6. **The combat's end gathers what it took over.** Delete the party's combat.
+   **Observable:** the record's `combat` is null. The scout and the guard
+   have no `deployedTokenId` or `deployedCombatId`, hold `tokenData`, and no
+   token of theirs stands. The party token is visible. The fallen keeps
+   `left` and their token on A.
+7. **Going back for the fallen.** Press the fallen's control again.
+   **Observable:** `left` is false, `deployedTokenId` is gone, and no token of
+   theirs stands.
+- Unfixed, step 1 recalled the scout and posted the re-formed card, step 3
+  dropped the party's combatant and deployed no one, and step 5 re-formed the
+  party mid-fight. Measured offline only (the flows scenarios named in
+  DECISIONS 2026-10-17, "A combat records whom it took over").
+
+**Teardown.** `api.sweepTracked()`. The detach and the party's combat post
+chat cards: track them as in "A detached member moved between scenes". The
+three combats, and the tokens the reform and the recall deleted, sweep as
+missing.
+
 ## End day, the whole tick (added with survival and the throw)
 
 End day does two things here, and each can fail independently.

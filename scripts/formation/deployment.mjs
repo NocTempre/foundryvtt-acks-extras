@@ -119,9 +119,11 @@ export function standsElsewhere(formation, member, scene) {
  * @param {object[]} members  which members to send out (default: all of them)
  * @param {boolean} [detached] mark these as a deliberate detach rather than a
  *   combat deploy — this is what arms the movement leash
+ * @param {string} [combatId] the combat these go out for, recorded on each
+ *   with their tokens (`deployedCombatId`)
  * @returns {Promise<TokenDocument[]>} the tokens created
  */
-export async function deployMembers(formation, { members = formation.members, detached = false } = {}) {
+export async function deployMembers(formation, { members = formation.members, detached = false, combatId = null } = {}) {
   const partyToken = getPartyToken(formation);
   const scene = partyToken?.parent;
   if (!scene) return [];
@@ -210,6 +212,7 @@ export async function deployMembers(formation, { members = formation.members, de
   }
   // Record the deployed tokens at once so a recall can always gather them,
   // even if whatever the caller does next fails.
+  if (combatId) for (const member of placed) member.deployedCombatId = combatId;
   await patchDeployments(formation, placed);
   return created;
 }
@@ -243,6 +246,7 @@ export async function recallMembers(formation, { members = formation.members } =
     delete member.deployedTokenId;
     delete member.deployedSceneId;
     delete member.deployedStack;
+    delete member.deployedCombatId;
     delete member.detached;
     delete member.detach;
     // The party re-forms where its people actually stood, on its own scene.
