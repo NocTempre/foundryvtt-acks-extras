@@ -210,9 +210,9 @@ export function applyCellPattern(text, pattern = "raw") {
     }
     case "countBand": {
       // A count band as a population or vassal ladder prints it, bare:
-      // "1,025 – 4,095" | "5-7" -> {min, max}; "16,385 or more" | "40+" ->
-      // max null; "8 or fewer" -> min null; a lone "160" -> both. A K or M
-      // scales its figure ("2M – 11.6M"), and a "+" after the upper figure
+      // "2,350 – 7,700" | "12-19" -> {min, max}; "45 or more" | "31+" ->
+      // max null; "3 or fewer" -> min null; a lone "6" -> both. A K or M
+      // scales its figure ("4K – 9.5K"), and a "+" after the upper figure
       // opens the band above it.
       const FIG = "(\\d[\\d,]*(?:\\.\\d+)?)\\s*([km])?(?![a-z])";
       const n = (s, unit) => Math.round(Number(s.replace(/,/g, "")) * ({ k: 1e3, m: 1e6 }[unit?.toLowerCase()] ?? 1));
@@ -227,7 +227,7 @@ export function applyCellPattern(text, pattern = "raw") {
     }
     case "gpRate": {
       // A coin rate per unit as a revenue or expense table prints it:
-      // "3 – 9gp / family" | "4gp/ family" -> {min, max, per}, in gp. A cell
+      // "7 – 11gp / barrel" | "6sp/ cart" -> {min, max, per}, in gp. A cell
       // holding a word instead of a rate is a rate set elsewhere: null.
       const m = t.match(/^(\d[\d,]*(?:\.\d+)?)\s*(?:[–—-]\s*(\d[\d,]*(?:\.\d+)?)\s*)?(gp|sp|cp)\s*\/\s*(.+)$/i);
       if (!m) return null;

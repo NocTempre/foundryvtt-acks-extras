@@ -1,5 +1,63 @@
 # Changelog
 
+## 11.5.1
+
+### Added
+
+- **The official sheet's domain page imports into and exports from a
+  domain.** A Judge's import creates or updates the character's domain and
+  checks the page's totals against it. A player's import keeps the page in
+  the character's notes, and a player's export fills it from that import.
+
+### Fixed
+
+- **The domain tables arrive as values the domain tools can use.** Bands with
+  thousands separators, decimals, the exploding growth die, gp rates, signed
+  lists and fractions came in as text. They now come in as numbers, bands and
+  dice.
+
+- **A move is billed, checked and placed where it put the party.** While the
+  Judge watched the party's scene, every move of the party token was billed
+  one move late: the first cost nothing and each later one paid for the move
+  before it. On the client drawing the token, an un-pause, a mode change or a
+  journey begun mid-move read where that move began, so a delving party that
+  walked into an encounter zone was thrown for at the world's cadence, a
+  drawn move onto an armed trap zone went unchecked, and a journey's entry
+  zone was thrown a move late. The turn clock, the trap check, the zone,
+  district and street reads and the journey now all read the party where the
+  move left it.
+- **A token sent to another scene keeps its place in the party.** A teleport
+  region or a cut and paste between scenes re-creates the token there, and
+  the party token, a member's own token and a group's body all read that as
+  the token gone. Each now follows its successor. A teleport taken while the
+  party's move was still waiting on the clock no longer puts the party back
+  on the scene it left. Recalling a stack brings bodies home from every
+  scene, and a combat takes over only the members standing on its scene.
+- **A body keeps its hit points.** A monster's token moved to another scene,
+  or brought back by undoing its deletion, and a group's or a member's token
+  placed from the roster (detach, deploy, leaving the party, disband) came
+  back with freshly rolled hit points. They now keep the ones they carried.
+  A plain placement or a pasted copy still rolls.
+- **One window runs the Judge's automation.** With the Gamemaster's seat
+  open in two browser windows, a party's move was billed once per window and
+  a request relayed to the Judge ran in each. The ready-time upkeep (sheet
+  sweeps, compendium filing, migrations) ran in every Gamemaster and
+  Assistant GM window. The seat's windows now elect one to do it, and a
+  closing window hands it to the next.
+- **A combat releases only the members it took over.** Another combat's end
+  no longer gathers a scout or disturbs a fight in progress, and a member
+  left behind on another scene no longer stops the party deploying.
+- **A mode switched during a move stays switched.** A journey mode set while
+  the party's move was waiting on the world clock was put back a moment
+  later. A party's record now keeps every change made while a move is in
+  flight.
+- **A description still showing `@PdfText[...]` is repaired wherever it
+  sits:** gear on a character, a class template's copy of an item, a journal
+  page. Import Everything now ends by writing each entry's text in place of
+  the placeholder, from the book open on your seat. Repair This World lists
+  every placeholder under *Book text never brought over*, naming the book to
+  connect for any it cannot fix. Text written beside a placeholder is kept.
+
 ## 11.5.0
 
 ### Added
