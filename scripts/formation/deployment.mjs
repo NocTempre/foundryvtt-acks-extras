@@ -1,4 +1,5 @@
 /* global game, foundry */
+import { KEEP_HIT_POINTS_OPTION } from "../lib/constants.mjs";
 import { deployedBodies } from "../lib/group-logic.mjs";
 import {
   blockOrigin,
@@ -10,7 +11,6 @@ import {
   getPartyToken,
   isDown,
   isStackMember,
-  MEMBER_TOKEN_OPTION,
   patchDeployments,
   patchFormation,
   readFormations,
@@ -165,7 +165,7 @@ export async function deployMembers(formation, { members = formation.members, de
     const tokens = await scene.createEmbeddedDocuments(
       "Token",
       toCreate.map((c) => c.data),
-      { [MEMBER_TOKEN_OPTION]: true },
+      { [KEEP_HIT_POINTS_OPTION]: true },
     );
     tokens.forEach((token, i) => {
       const member = toCreate[i].member;

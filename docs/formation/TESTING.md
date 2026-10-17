@@ -749,6 +749,11 @@ is lib's recipe "The hit-point tool" (docs/lib/TESTING.md).
    of 6, then recall them.
    **Observable:** the Order tab shows the hireling with the dead skull while
    the world actor carries no dead status, and the stash still reads 4.
+7. **Leaving the party puts the stash back on the map.** Press the hireling's
+   remove control on the Order tab (`[data-action="removeMember"]`), and
+   `api.track()` the token of theirs that appears on the scene.
+   **Observable:** that token reads 4 of 6, the stash's figure over the
+   system's roll, and the hireling is gone from the record.
 
 **Teardown.** `api.sweepTracked()`. The party actor dissolves its formation.
 The member tokens that enrolling deleted, and the one the recall deleted, sweep

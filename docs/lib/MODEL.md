@@ -1929,9 +1929,6 @@ for the create (for a teleport, the GM who ran the batch). Where the pending
 delta's hit points no longer match the data's, it writes the data's back
 (`recreatedHitPointsPatch`); a token whose delta held none shows its actor's
 again. A placement and a pasted copy carry no `keepId`, and their roll stands.
-A member the formation places from its roster is a new token with no id to
-keep, and keeps its hit points by the formation's own option
-(docs/formation/MODEL.md, "Data flow").
 
 **A deployed body keeps its record's hit points.** A caller making a new
 token for a creature it already holds creates it with
@@ -1940,4 +1937,6 @@ token's hit points as it keeps a `keepId` create's: `keepsOwnHitPoints`
 (`hp-logic.mjs`) reads either. The group's `deploy` passes it, with each
 token's delta copied from its body's record, so a body arrives with the hit
 points `materializeMembers` rolled for it, or with those its recall folded
-back into the record (GROUPS.md, "The representative individual").
+back into the record (GROUPS.md, "The representative individual"). The
+formation passes it for a member's token placed from its roster, which
+arrives with its stash's hit points (docs/formation/MODEL.md, "Data flow").

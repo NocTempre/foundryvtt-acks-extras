@@ -2295,7 +2295,9 @@ marched on at full speed without carrying or leaving them.
   them, and recalled them at 3. The system's `_preCreate` had rolled the
   placed unlinked monster new hit points, as its `autoRollMonsterHP` setting
   (on by default) does for every placement, and so wiped the wounds this
-  ruling tracks.
+  ruling tracks. (Since 2026-10-17 the option and the hook are lib's:
+  docs/lib/DECISIONS.md, "The formation's roster placement keeps hit points by
+  lib's option".)
 - The stash write builds a `null` delta before writing into it. Foundry
   stashes a token that matches its actor with `delta: null`, as a hireling at
   full health is, and `setProperty` throws on the null. The walk found the

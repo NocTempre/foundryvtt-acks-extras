@@ -77,7 +77,6 @@ import {
   heldLightCount,
   lightsForBearer,
   getPartyToken,
-  MEMBER_TOKEN_OPTION,
   marchingOrder,
   patchFormation,
   pruneFormations,
@@ -85,7 +84,6 @@ import {
   syncPartyActorSpeed,
 } from "./formation-model.mjs";
 import { findDeployedMember, followMemberToken, leashBreach, reanchorDetached } from "./deployment.mjs";
-import { ownHitPointsPatch } from "../lib/hp-logic.mjs";
 import {
   SETTING_TEMPLATES,
   describeResult,
@@ -1275,17 +1273,6 @@ Hooks.on("createActor", (actor) => {
     const formation = await createFormation(actor.name, { actorId: actor.id });
     await actor.setFlag(MODULE_ID, FLAG_FORMATION_ID, formation.id);
   })().catch((err) => console.error(`${MODULE_ID} | party actor adoption failed`, err));
-});
-
-/* A member's token placed from the roster keeps the hit points the formation
- * holds for them. The system's own `_preCreate` runs first and rolls a placed
- * unlinked monster new ones (its `autoRollMonsterHP` setting), which would
- * undo every wound the party carried them with. Only the formation's own
- * placements carry the option, so a monster the Judge places still rolls. */
-Hooks.on("preCreateToken", (tokenDoc, data, options) => {
-  if (!options?.[MEMBER_TOKEN_OPTION]) return;
-  const patch = ownHitPointsPatch(data, game.actors.get(data.actorId));
-  if (patch) tokenDoc.delta?.updateSource(patch);
 });
 
 /* The country under a journeying party is the map's (`travel.map`), and the

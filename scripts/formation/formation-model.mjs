@@ -19,6 +19,7 @@ import {
   SETTING_MARCH_FEET,
 } from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
+import { KEEP_HIT_POINTS_OPTION } from "../lib/constants.mjs";
 import { bodyCount, isGroupActor } from "../lib/group-logic.mjs";
 import { tokenHasStatus, tokenHitPoints } from "../lib/hp-logic.mjs";
 import { monsterExplorationSpeed } from "./monster-traits.mjs";
@@ -931,14 +932,6 @@ async function recallDeployed(formation, members) {
 }
 
 /**
- * The creation option a member's token carries when the formation places it
- * from the roster. The `preCreateToken` hook in module.mjs gives such a token
- * back the hit points the formation holds for the member, over the new ones
- * the system rolls a placed unlinked monster.
- */
-export const MEMBER_TOKEN_OPTION = `${MODULE_ID}.memberToken`;
-
-/**
  * Put stashed member tokens back on the map in one creation call. `grid`
  * restores the marching-order shape; otherwise each token takes the next
  * free square spiralling out from the party. Either way the block is
@@ -981,7 +974,7 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
     return data;
   });
 
-  await scene.createEmbeddedDocuments("Token", toCreate, { [MEMBER_TOKEN_OPTION]: true });
+  await scene.createEmbeddedDocuments("Token", toCreate, { [KEEP_HIT_POINTS_OPTION]: true });
   for (const member of stashed) member.tokenData = null;
   return toCreate.length;
 }

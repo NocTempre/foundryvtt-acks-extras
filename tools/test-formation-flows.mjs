@@ -477,6 +477,7 @@ class SceneMock {
   }
   async createEmbeddedDocuments(type, arr, options = {}) {
     assert.equal(type, "Token");
+    this.lastCreateOptions = options;
     const out = [];
     for (const data of arr) {
       const token = new TokenMock(this, data);
@@ -494,6 +495,8 @@ class SceneMock {
         },
         configurable: true,
       });
+      // An ActorDelta's source, as lib's hook reads it.
+      Object.defineProperty(pending, "_source", { get: () => pending, configurable: true });
       token.delta = pending;
       if (this.rollMonsterHp && !token.actorLink && token.actor?.type === "monster") {
         pending.updateSource({ system: { hp: { value: 1, max: 1 } } });
@@ -646,6 +649,12 @@ game.user = game.users.get("GM1");
 /* -------------------------------------------- */
 
 await import("../scripts/formation/module.mjs");
+// The formation keeps a placed member's hit points through lib's hook, which
+// lib installs at init; this harness does not load lib, so install it here.
+const formationPreCreateHooks = hooks.get("preCreateToken")?.length ?? 0;
+const { installRecreatedHitPoints } = await import("../scripts/lib/hp.mjs");
+const { KEEP_HIT_POINTS_OPTION } = await import("../scripts/lib/constants.mjs");
+installRecreatedHitPoints();
 const model = await import("../scripts/formation/formation-model.mjs");
 const engine = await import("../scripts/formation/turn-engine.mjs");
 const requests = await import("../scripts/formation/player-requests.mjs");
@@ -1120,14 +1129,17 @@ await scenario("a member stashed at full health takes a hit point change, and ke
   assert.equal(m.tokenData.delta.system.hp.value, 2);
 
   // The system rolls every placed unlinked monster new hit points; the
-  // formation's own placement puts the member's back.
+  // formation's own placement puts the member's back, through lib's hook.
+  assert.equal(formationPreCreateHooks, 0, "the formation keeps no preCreateToken hook of its own");
   scene.rollMonsterHp = true;
   try {
     assert.equal(await deployment.toggleDetachMember(onlyFormation(), porter.id), "detached");
+    const detachOptions = scene.lastCreateOptions;
     await drain();
     m = onlyFormation().members.find((x) => x.actorId === porter.id);
     const live = scene.tokens.get(m.deployedTokenId);
     assert.deepEqual(live.delta.system.hp, { value: 2, max: 5 }, "placed with the stash's hit points, not the roll");
+    assert.equal(detachOptions?.[KEEP_HIT_POINTS_OPTION], true, "placed with lib's option");
     const [placed] = await scene.createEmbeddedDocuments("Token", [
       { name: "Porter", actorId: porter.id, actorLink: false, x: 900, y: 500 },
     ]);
@@ -1140,6 +1152,20 @@ await scenario("a member stashed at full health takes a hit point change, and ke
   }
   m = onlyFormation().members.find((x) => x.actorId === porter.id);
   assert.equal(m.tokenData.delta.system.hp.value, 2, "and recalled with them");
+
+  // Leaving the party puts the stashed token back on the map the same way.
+  scene.rollMonsterHp = true;
+  try {
+    await model.removeMember(model.getFormation(onlyFormation().id), porter.id);
+    const restoreOptions = scene.lastCreateOptions;
+    await drain();
+    const restored = scene.tokens.find((t) => t.actorId === porter.id);
+    assert.deepEqual(restored?.delta?.system?.hp, { value: 2, max: 5 }, "restored with the stash's hit points, not the roll");
+    assert.equal(restoreOptions?.[KEEP_HIT_POINTS_OPTION], true, "restored with lib's option");
+    await scene.deleteEmbeddedDocuments("Token", [restored.id]);
+  } finally {
+    scene.rollMonsterHp = false;
+  }
   await porter.delete();
   await drain();
   assert.equal(onlyFormation().members.length, 2, "back to the two");

@@ -4221,8 +4221,41 @@ wrap shows how: a pasted copy's data held 12 of 12 and the roll was 12. For
 option.* The earlier entry's reason no longer holds: it rested on lib's hook
 answering `keepId` alone. The fold edits three formation files that carry
 other sessions' uncommitted changes, so it is left for later (ROADMAP.md, "One
-option keeps a token's own hit points").
+option keeps a token's own hit points"). (Done the same day: "The formation's
+roster placement keeps hit points by lib's option".)
 
 **What it cost.** Nothing rolls a body's hit points again once its record
 holds them. A copy pasted from a deployed body still rolls: it is a new
 creature, and its create carries no option.
+
+### The formation's roster placement keeps hit points by lib's option (2026-10-17)
+
+**Asked.** Fold the formation's `MEMBER_TOKEN_OPTION` into
+`KEEP_HIT_POINTS_OPTION`, which "A deployed body keeps its record's hit
+points" deferred the same day. The user scheduled it for 11.5.1. The new
+evidence is the tree: the three formation files still carry other sessions'
+uncommitted changes, but in hunks apart from the fold's, so it commits alone.
+
+**Ruled.**
+- `deployMembers` and `restoreMemberTokens` create with
+  `KEEP_HIT_POINTS_OPTION`. The formation's option and its own
+  `preCreateToken` hook are removed, so one hook keeps every token's hit
+  points, with one compare against the pending delta.
+- Walked live on core 14.369 with `autoRollMonsterHP` on, from the
+  Gamemaster and from the Assistant Gamemaster, each pressing the party
+  sheet's controls. A hireling recalled at 2 of 6 was detached again and then
+  removed from the party, and each token arrived at 2 of 6 while a wrap of
+  `rollHP` saw the system roll under it. Every create carried
+  `KEEP_HIT_POINTS_OPTION` and not the old option. A plain placement of the
+  same actor still rolled.
+
+**Rejected.**
+- *Lib reading `MEMBER_TOKEN_OPTION` as a third sign.* Lib would name one
+  feature's option, and the formation would keep a second hook doing the same
+  write.
+
+**What it cost.** The formation's hook copied the stash's hit points onto
+every member it placed, rolled or not. Lib's writes only where the pending
+delta no longer matches the data's. Where nothing rolled, a member whose stash
+held no hit points of its own keeps an empty delta and shows its actor's,
+which is what the stash showed.
