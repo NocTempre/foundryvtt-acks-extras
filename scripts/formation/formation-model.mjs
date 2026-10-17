@@ -64,7 +64,24 @@ export const SETTING_FORMATIONS = "formations";
 
 /** Every formation, as a deep copy the caller may mutate before saving it back. */
 export function getFormations() {
-  return foundry.utils.deepClone(readFormations());
+  const all = {};
+  for (const [id, record] of Object.entries(readFormations())) all[id] = handOut(record);
+  return all;
+}
+
+/**
+ * What each handed-out copy was read as, keyed by the copy. `updateFormation`
+ * writes only what a copy changed since then, so a copy carries one only when
+ * it is handed out by the model. A writer's own clone or spread of a copy has
+ * none, and is written whole.
+ */
+const readAs = new WeakMap();
+
+/** A deep copy of a stored record that remembers what it was read as. */
+function handOut(record) {
+  const copy = foundry.utils.deepClone(record);
+  if (copy && typeof copy === "object") readAs.set(copy, foundry.utils.deepClone(record));
+  return copy;
 }
 
 /**
@@ -80,7 +97,7 @@ export function readFormations() {
 
 export function getFormation(id) {
   const record = id ? readFormations()[id] : null;
-  return record ? foundry.utils.deepClone(record) : null;
+  return record ? handOut(record) : null;
 }
 
 /** The formation an actor is a member of, or null. (An actor is in at most one.) */
@@ -89,7 +106,7 @@ export function getFormationForActor(actorId) {
   for (const f of Object.values(readFormations())) {
     // Callers write to what they get back (the equipment sheet lights a torch
     // through it), so the match is copied even though the search is not.
-    if (f?.members?.some((m) => m?.actorId === actorId)) return foundry.utils.deepClone(f);
+    if (f?.members?.some((m) => m?.actorId === actorId)) return handOut(f);
   }
   return null;
 }
@@ -106,7 +123,7 @@ export function formationCarrying(carrier) {
     for (const member of f?.members ?? []) {
       if (member?.blank || !member?.actorId) continue;
       const actor = getMemberActor(member);
-      if (actor && carrierChain(actor).some((c) => c?.uuid === carrier.uuid)) return foundry.utils.deepClone(f);
+      if (actor && carrierChain(actor).some((c) => c?.uuid === carrier.uuid)) return handOut(f);
     }
   }
   return null;
@@ -194,7 +211,7 @@ function enqueueSave(fn) {
  */
 function commit(mutate) {
   return enqueueSave(async () => {
-    const all = getFormations();
+    const all = foundry.utils.deepClone(readFormations());
     const result = await mutate(all);
     if (result === false) return false;
     await game.settings.set(MODULE_ID, SETTING_FORMATIONS, all);
@@ -204,11 +221,13 @@ function commit(mutate) {
 
 /**
  * A whole-record write: refuses a record the ledger no longer holds rather
- * than putting it back. Only `createFormation` inserts. Still writes
- * `formation` whole, so a concurrent change to that record is overwritten;
- * `patchFormation` is what a writer uses to avoid that. See
- * docs/formation/MODEL.md, "Every write goes through one private
- * `commit(mutate)`".
+ * than putting it back. Only `createFormation` inserts. A copy the model
+ * handed out writes only what it changed since it was read (`applyChanges`)
+ * onto the record read inside the lock, so a field a patch moved while the
+ * caller awaited keeps the patch's value unless this copy changed it too; the
+ * copy then counts as read as it was written. A copy with no read on record
+ * is written whole. See docs/formation/MODEL.md, "Every write goes through
+ * one private `commit(mutate)`".
  *
  * The party token's linkage is not the copy's to write: the ledger's
  * `sceneId` and `tokenId` stand over the copy's, and where they name another
@@ -225,11 +244,103 @@ export async function updateFormation(formation) {
   await commit((all) => {
     const stored = all[formation.id];
     if (!stored) return false;
+    const read = readAs.get(formation);
     takeStoredLinkage(formation, stored);
     takeStoredDeployments(formation, stored);
-    all[formation.id] = formation;
+    if (!read) {
+      all[formation.id] = formation;
+      return;
+    }
+    // The read is brought into line as the copy was, so what the line moved in
+    // the copy is not taken for the writer's own change.
+    takeStoredLinkage(read, stored);
+    takeStoredDeployments(read, stored);
+    applyChanges(read, formation, stored);
   });
+  readAs.set(formation, foundry.utils.deepClone(formation));
   return formation;
+}
+
+/** A plain record or sub-record: not a list, not null, not a document. */
+function isPlain(value) {
+  return Object.prototype.toString.call(value) === "[object Object]";
+}
+
+/** Equal as stored: key order is not compared, and an undefined key is an absent one. */
+function sameStored(a, b) {
+  if (a === b) return true;
+  if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((v, i) => sameStored(v, b[i]));
+  if (!isPlain(a) || !isPlain(b)) return false;
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (!sameStored(a[key], b[key])) return false;
+  }
+  return true;
+}
+
+/** A list of records each keyed by a distinct string `id` (lights, spells). */
+function isIdList(value) {
+  if (!Array.isArray(value)) return false;
+  const ids = new Set();
+  for (const el of value) {
+    if (!isPlain(el) || typeof el.id !== "string" || ids.has(el.id)) return false;
+    ids.add(el.id);
+  }
+  return true;
+}
+
+/**
+ * Lay onto `target`, the record read inside the lock, each value `copy`
+ * changed since it was `read`, and return `target`. A value the copy left as
+ * it read it keeps the ledger's.
+ * - Inside a changed sub-record only the changed keys are written, and a key
+ *   the copy dropped is dropped.
+ * - A key both the copy and the ledger gained since the read keeps the
+ *   ledger's value; inside a sub-record, the copy fills only the keys the
+ *   ledger lacks. A copy normalized with defaults gains keys it never set.
+ * - Where the copy edited inside a sub-record or list element the ledger has
+ *   since removed, the removal stands.
+ * - A list of id-keyed records is merged element by element (`mergeIdList`);
+ *   any other list the copy changed is written whole. `members` is one: its
+ *   order is the marching order and its blank cells carry no id.
+ */
+function applyChanges(read, copy, target) {
+  for (const key of new Set([...Object.keys(read), ...Object.keys(copy)])) {
+    const was = read[key];
+    const now = copy[key];
+    if (sameStored(was, now)) continue;
+    const held = target[key];
+    if (now === undefined) delete target[key];
+    else if (was === undefined) {
+      if (held === undefined) target[key] = foundry.utils.deepClone(now);
+      else if (isPlain(now) && isPlain(held)) applyChanges({}, now, held);
+    } else if (isPlain(was) && isPlain(now)) {
+      if (isPlain(held)) applyChanges(was, now, held);
+    } else if (isIdList(was) && isIdList(now)) {
+      if (isIdList(held)) target[key] = mergeIdList(was, now, held);
+    } else target[key] = foundry.utils.deepClone(now);
+  }
+  return target;
+}
+
+/**
+ * An id-keyed list merged element by element: the copy's elements in the
+ * copy's order, each laid onto the ledger's element of the same id
+ * (`applyChanges`), then the elements the ledger gained since the read. An
+ * element the copy removed is removed; one the ledger removed stays removed.
+ */
+function mergeIdList(read, copy, target) {
+  const wasById = new Map(read.map((el) => [el.id, el]));
+  const heldById = new Map(target.map((el) => [el.id, el]));
+  const merged = [];
+  for (const el of copy) {
+    const was = wasById.get(el.id);
+    const held = heldById.get(el.id);
+    if (!was) merged.push(held ? applyChanges({}, el, held) : foundry.utils.deepClone(el));
+    else if (held) merged.push(applyChanges(was, el, held));
+  }
+  const kept = new Set(copy.map((el) => el.id));
+  for (const el of target) if (!wasById.has(el.id) && !kept.has(el.id)) merged.push(el);
+  return merged;
 }
 
 function takeStoredLinkage(formation, stored) {
@@ -261,6 +372,7 @@ export async function patchFormation(id, mutate) {
     return (await mutate(record)) === false ? false : record;
   });
   if (absent) return null;
+  readAs.set(target, foundry.utils.deepClone(target));
   return applied === false ? target : applied;
 }
 
@@ -341,6 +453,7 @@ export async function createFormation(name, { actorId = null } = {}) {
   await commit((all) => {
     all[id] = formation;
   });
+  readAs.set(formation, foundry.utils.deepClone(formation));
   return formation;
 }
 
@@ -784,6 +897,8 @@ export async function ensurePartyToken(formation, scene, x, y) {
   Object.assign(formation, foundry.utils.deepClone(stored ?? getFormation(formation.id) ?? {}));
   formation.sceneId = scene.id;
   formation.tokenId = tokenDoc.id;
+  // The copy now holds the ledger's record, so that is what it was read as.
+  readAs.set(formation, foundry.utils.deepClone(formation));
   await syncPartyActorSpeed(formation);
   return tokenDoc;
 }

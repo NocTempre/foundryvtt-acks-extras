@@ -381,18 +381,21 @@ billed.
    *Observable:* `clock.lastPosition` equals `_source`, and the next 500 px
    move bills 25 ft. A re-anchor on the prepared corner billed the rest of
    the paused move with it.
-6. Move the token 1000 px east and wait for the move's own write: the
-   record's `clock.lastPosition` reads the token's `_source`, about 0.3 s in.
-   While the move is still drawn (checked the same way, before and after the
-   call), switch the mode:
-   `await acksExtras.formation.travel.setJourneyMode(id, "journey")`, then
-   back to `"delve"` once it has landed.
-   *Observable:* the mode is `journey`, and `clock.lastPosition` equals
-   `_source` after the first switch. A switch made in the move's own tick
-   proves nothing: the movement hook's whole write, from a copy read before
-   the switch, lands after it, puts the old mode back, and anchors the
-   baseline itself (DECISIONS 2026-10-17, "Every whole write keeps the party
-   token's linkage", Cost).
+6. Arm an `updateSetting` observer on `acks-extras.formations` that records,
+   per write, the record's `travel.mode`, `clock.lastPosition` and rounds.
+   Move the token 1000 px east and switch the mode in the same tick, while
+   the move is still drawn (checked the same way, before and after the call):
+   `await token.update({ x: token._source.x + 1000 });`
+   `await acksExtras.formation.travel.setJourneyMode(id, "journey")`. Wait
+   ~5 s, then switch back to `"delve"`.
+   *Observable:* the observer sees the switch's write (mode `journey`) before
+   the move's own write, which lands about 0.2 s later from a copy the
+   movement hook read before the switch. A write that bills nothing can land
+   between them, so the move's write is the first whose rounds or carried
+   feet change, not the second write seen. The move's write keeps `journey`,
+   bills 50 ft, and leaves `clock.lastPosition` at `_source`. A whole write
+   from that copy put `delve` back (DECISIONS 2026-10-17, "A whole write
+   carries only what its copy changed").
 
 The recall with no body on the party's scene, the hop to a place the party
 already stands on and the step onto a shadow are pinned offline only

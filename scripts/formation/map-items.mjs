@@ -309,8 +309,11 @@ async function openSession(formation, mapper, scene) {
   // OLDER than saves made since (deploy's combat flag was being erased by
   // exactly this write). Patch the one field onto the fresh record, with the
   // guards re-checked against current reality; never write the stale copy.
+  // A combat taking the party over writes its flag last, after its deploy has
+  // marked the members it took (`deployedCombatId`): they stand for the fight
+  // until the flag lands.
   const patched = await patchFormation(formation.id, (rec) => {
-    if (rec.mapSession || rec.combat?.active) return false;
+    if (rec.mapSession || rec.combat?.active || rec.members?.some((m) => m?.deployedCombatId)) return false;
     rec.mapSession = { itemUuid: item.uuid, sceneId: rec.sceneId };
   });
   if (!patched?.mapSession) return; // world moved on: leave the item inactive

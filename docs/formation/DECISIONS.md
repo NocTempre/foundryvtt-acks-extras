@@ -3684,7 +3684,8 @@ came back naming B.
   goes back to a whole write.
 - Only the linkage is kept. A waiting whole write still overwrites any other
   field a patch changed meanwhile (*The party token's linkage is a patch*,
-  2026-10-09, says who patches).
+  2026-10-09, says who patches). *Superseded by "A whole write carries only
+  what its copy changed" (2026-10-17, below).*
 
 ## 2026-10-17 — A member on another scene: the recall, a combat, and whole writes
 
@@ -3731,7 +3732,8 @@ that failed on the code before this entry:
 - *A three-way merge of each whole write against the copy it read*
   (moderate). It would keep every field a patch moved, not these alone. But
   every copy would have to carry the record it was read from, and a writer
-  that clones its copy and edits the clone has none to give.
+  that clones its copy and edits the clone has none to give. *Superseded by
+  "A whole write carries only what its copy changed" (2026-10-17, below).*
 - *Stay out until home* (moderate): the recall gathers from the party's
   scene only, and the cell stays out while any body stands elsewhere, for the
   Judge to bring back from the group sheet. It folds nothing the formation
@@ -3997,3 +3999,107 @@ by a flows scenario that failed on the code before this entry:
   takeover's patch.
 - The faults were measured before the fix offline only. The live walk ran
   after it.
+
+## 2026-10-17 — A whole write carries only what its copy changed
+
+**Supersedes in part** *A member on another scene: the recall, a combat, and
+whole writes* (2026-10-17, above), whose Rejected list turned down a
+three-way merge of each whole write against the copy it read. It also answers
+the second Cost of *Every whole write keeps the party token's linkage*
+(2026-10-17, above). **New evidence**, since both are hours old: a field
+neither kept set covers was lost on a user path. Measured live on core 14.369
+with the primary GM alone: `setJourneyMode(id, "journey")` was called right
+after a party-token move landed its patch, and about 0.2 s later the movement
+hook's `updateFormation` put `delve` back. The hook reads its copy when the
+move is heard, carries it across the world-clock advance (`advanceRounds`),
+and wrote it whole. An offline scenario that holds that advance across the
+switch failed on the old code at the mode ("a mode change made while a move
+waits on the world clock keeps its mode").
+
+**Ruled.** `updateFormation` writes only what its copy changed since the
+model handed it out. The user's ruling, from the options "Write only what
+changed", "Patch the tick's fields" and "Hold the lock across the move":
+"Write only what changed".
+- Every copy the model hands out is remembered with what it was read as
+  (`readAs`, `formation-model.mjs`): `getFormation`, `getFormations`,
+  `getFormationForActor`, `formationCarrying`, and the record
+  `createFormation`, `patchFormation` and `updateFormation` return. Inside the
+  lock, `applyChanges` lays onto the stored record each value the copy
+  changed since, and every other field keeps the ledger's. After the write
+  the copy counts as read as it was written, so a second write from it
+  carries only what changed after the first.
+- A changed sub-record is written key by key, and a key the copy dropped is
+  dropped. A list of records keyed by `id` (lights, spells) is merged element
+  by element; any other list the copy changed is written whole. `members` is
+  one: its order is the marching order and its blank cells carry no id, so a
+  new order is written whole, each member's deployment kept as before.
+- Where the copy and the ledger both gained a key since the read, the
+  ledger's value stands. A copy normalized with defaults (`storedTravelOf`)
+  gains keys it never set, and a patch's value for one of them is the real
+  one.
+- Where the ledger removed a sub-record or a list element the copy edited
+  inside, the removal stands, as `updateFormation` already refuses a record
+  the ledger no longer holds.
+- The linkage and the deployments are kept as before. The read is brought
+  into line with the ledger as the copy is, so what that moves in the copy is
+  not taken for the writer's own change.
+- A map session opened by the environment sync while a combat takes the party
+  over now survives, where the takeover's whole write used to erase it. The
+  takeover writes its flag last, after the deploy has marked the members it
+  took, so `openSession` (`map-items.mjs`) declines while any member carries
+  `deployedCombatId` (*A combat records whom it took over*, 2026-10-17,
+  above). "Deploy survives the environment-sync interleave" failed under the
+  merge until it did.
+
+**Rejected.**
+- *Patch the tick's fields* (moderate). The movement hook's writes,
+  `advanceRounds`' and the trap's halt would patch a named list: the clock's
+  counters and baseline, the lights and spells burnt, the city board, and
+  what callers leave on the copy for `advanceRounds` to save. It is scoped to
+  the movement chain and leaves every other whole writer exposed, and a field
+  the tick gains later is lost unless it joins the list.
+- *Hold the lock across the move* (weak): the hook reads and writes its copy
+  inside one `commit`. The tick's world-clock advance runs the holed-up day
+  credit and its turns run the map archive, and both can patch the ledger, so
+  either would wait on the lock the hook holds. Every other ledger writer
+  would wait behind the tick's chat cards and table draws.
+
+**Cost.**
+- Last writer wins per field. Where the copy and a patch both changed one
+  field, the copy's value lands; a counter both advanced (`turnsTotal`,
+  `encounterCounter`) loses one side's step.
+- A sub-record the copy replaced outright is still merged key by key, so a key
+  a patch added to it meanwhile survives the replacement.
+- A copy its writer clones or spreads has no read and is written whole, as
+  the earlier entry's objection said. No writer in `scripts/` passes one:
+  each `updateFormation` call there writes a copy one of the readers above
+  handed out, or a parameter its caller took from one. Across every suite
+  `npm test` runs, the whole writes with no read were the harness's own
+  copies (its spreads, and raw reads of the setting). A macro that spreads a
+  copy through the public API writes it whole.
+- Each copy handed out takes a second deep clone.
+- `openSession`'s guard reads `deployedCombatId`, a field *A combat records
+  whom it took over* (2026-10-17, above) introduced.
+- Pinned offline: the two flows scenarios named above, and "deploy survives
+  the environment-sync interleave" for the map session. Nine single edits in
+  memory, the tree untouched, each fail a scenario: the whole write back, no
+  merge by `id`, a removed element brought back, a gained key written over
+  the ledger's, a cleared sub-record brought back, no re-read after a write,
+  the read not brought into line, the map session's guard dropped, and no
+  read handed out by `getFormations`, the party sheet's reader. Three fail
+  nothing. No read on a patch's returned record: no writer in `scripts/`
+  writes one whole. None on `createFormation`'s: its one writer, forming a
+  party from selected tokens, writes the new record next, and a patch lands
+  first only if a hook on the create's own setting write queues one.
+  `ensurePartyToken` keeping its old read: the copy then differs from that
+  read only by the ledger's own values, which a write puts back unchanged
+  unless the ledger moved again in between.
+- Walked live after the fix on core 14.369, one run on the Gamemaster alone
+  on its seat (TESTING, "A move the GM's client is drawing", step 6). The
+  switch was made in the move's own tick, the GM's client drawing the move
+  before and after the call. From the move's call, the switch's write landed
+  at 68 ms and the move's own at 264 ms, still `journey`, billing 50 ft with
+  `clock.lastPosition` at the token's `_source`; no later write put `delve`
+  back. The sweep removed 5, could not find 0 and refused none. The console
+  recorder on the GM was attached after `ready` and recorded no error during
+  the walk.

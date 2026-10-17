@@ -195,6 +195,7 @@ globalThis.CONST = {
   TOKEN_DISPLAY_MODES: { HOVER: 1 },
   TOKEN_DISPOSITIONS: { FRIENDLY: 1 },
   FOG_EXPLORATION_MODES: { DISABLED: 0, INDIVIDUAL: 1, SHARED: 2 }, // matches core v14
+  GRID_TYPES: { GRIDLESS: 0, SQUARE: 1, HEXODDR: 2, HEXEVENR: 3, HEXODDQ: 4, HEXEVENQ: 5 }, // matches core v14
 };
 
 const chat = [];
@@ -2707,6 +2708,147 @@ await scenario("a whole write held on an answer keeps the party token a teleport
 
   await model.disband(model.getFormation(id));
   await drain();
+});
+
+await scenario("a mode change made while a move waits on the world clock keeps its mode", async () => {
+  // See docs/formation/DECISIONS.md, "A whole write carries only what its copy
+  // changed". The step bills a round, and `advanceRounds` carries the record
+  // it read before the step across the world-clock advance. The Judge's switch
+  // patches the record inside that wait: the order a switch made in the move's
+  // own tick produces live.
+  const { id } = await isolatedParty("Switching Party", "Pathfinder");
+  const travel = await import("../scripts/formation/travel.mjs");
+  const roundsOf = (clock) => clock.turnsTotal * 10 + (clock.roundsPartial ?? 0);
+  assert.equal(travel.travelOf(onlyFormation()).mode, "delve", "the party starts in a delve");
+  const party = scene.tokens.get(onlyFormation().tokenId);
+  assert.ok(party, "party token placed");
+
+  const advance = game.time.advance;
+  let open = null;
+  game.time.advance = async (seconds) => {
+    await new Promise((resolve) => (open = resolve));
+    return advance(seconds);
+  };
+  try {
+    const roundsBefore = roundsOf(onlyFormation().clock);
+    // Three squares is fifteen feet: one round at 120' a turn.
+    await party.update({ x: party.x + 3 * scene.grid.size });
+    for (let i = 0; !open && i < 500; i++) await sleep();
+    assert.ok(open, "the move reached the world clock");
+    await travel.setJourneyMode(id, "journey");
+    assert.equal(travel.travelOf(onlyFormation()).mode, "journey", "the switch landed while the move was held");
+
+    open();
+    for (let i = 0; roundsOf(onlyFormation().clock) <= roundsBefore && i < 500; i++) await sleep();
+    await drain();
+    const stored = onlyFormation();
+    assert.ok(roundsOf(stored.clock) > roundsBefore, "the move was billed");
+    assert.equal(travel.travelOf(stored).mode, "journey", "the move's write keeps the mode the switch set");
+    assert.deepEqual(stored.clock.lastPosition, { x: party.x, y: party.y }, "and measures from where the move put the party");
+  } finally {
+    game.time.advance = advance;
+    open?.();
+    await drain();
+    await model.disband(model.getFormation(id));
+    await drain();
+  }
+});
+
+await scenario("a whole write carries only what its copy changed while patches land around it", async () => {
+  // See docs/formation/DECISIONS.md, "A whole write carries only what its copy
+  // changed". Each copy is read, a patch lands, and the copy is written. The
+  // first is taken as the party sheet takes its own (`formationForActor`).
+  const { id, actors } = await isolatedParty("Merging Party", "Lamplighter", "Packer");
+  const [lamplighter, packer] = actors;
+  const travel = await import("../scripts/formation/travel.mjs");
+  const light = (lid, remaining) => ({ id: lid, type: "torch", bearerId: lamplighter.id, remaining, lit: true, shielded: false });
+  const cellOf = (actor) => onlyFormation().members.find((m) => m.actorId === actor.id);
+  try {
+    // Lights: one burnt by the writer, one lit and one put out by a patch.
+    await model.patchFormation(id, (rec) => {
+      rec.lights = [light("burn", 6), light("doused", 4)];
+    });
+    let copy = Object.values(model.getFormations()).find((f) => f.id === id);
+    await model.patchFormation(id, (rec) => {
+      rec.lights = [...rec.lights.filter((l) => l.id !== "doused"), light("lit", 6)];
+    });
+    copy.lights.find((l) => l.id === "burn").remaining = 5;
+    copy.frontage = 2;
+    await model.updateFormation(copy);
+    await drain();
+    let stored = onlyFormation();
+    assert.equal(stored.frontage, 2, "the writer's own change landed");
+    assert.deepEqual(stored.lights.map((l) => [l.id, l.remaining]), [["burn", 5], ["lit", 6]], "the burn landed, the lit light stayed and the doused one stayed out");
+
+    // A copy normalized with defaults gains keys it never set: the ledger's
+    // stand, as the mode change's do here.
+    copy = model.getFormation(id);
+    assert.equal(copy.travel, undefined, "the party has no travel record yet");
+    await travel.setJourneyMode(id, "journey");
+    await model.patchFormation(id, (rec) => {
+      rec.travel = { ...rec.travel, day: { ...(rec.travel.day ?? {}), offered: true } };
+    });
+    copy.travel = travel.storedTravelOf(copy);
+    await model.updateFormation(copy);
+    await drain();
+    stored = onlyFormation();
+    assert.equal(travel.travelOf(stored).mode, "journey", "the mode a patch set stands over the copy's default");
+    assert.equal(stored.travel.day.offered, true, "and so does the day the patch marked");
+
+    // A sub-record the ledger cleared while the copy edited inside it.
+    await model.patchFormation(id, (rec) => {
+      rec.combat = { combatId: "elsewhere", active: false, roundsCounted: 1 };
+    });
+    copy = model.getFormation(id);
+    await model.patchFormation(id, (rec) => {
+      rec.combat = null;
+    });
+    copy.combat.roundsCounted = 2;
+    await model.updateFormation(copy);
+    await drain();
+    assert.equal(onlyFormation().combat, null, "a combat cleared while the writer waited stays cleared");
+
+    // A second write from the same copy carries only what changed since the first.
+    copy = model.getFormation(id);
+    copy.frontage = 3;
+    await model.updateFormation(copy);
+    await model.patchFormation(id, (rec) => {
+      rec.frontage = 1;
+    });
+    copy.name = "Merged Party";
+    await model.updateFormation(copy);
+    await drain();
+    stored = onlyFormation();
+    assert.equal(stored.name, "Merged Party");
+    assert.equal(stored.frontage, 1, "the frontage the first write already carried is not written again");
+
+    // Members: a patch's change to a cell the copy did not touch stands,
+    // beside a detach the deployment patch wrote meanwhile.
+    copy = model.getFormation(id);
+    assert.equal(await deployment.toggleDetachMember(model.getFormation(id), packer.id), "detached");
+    await drain();
+    await model.patchFormation(id, (rec) => {
+      rec.members.find((m) => m.actorId === lamplighter.id).roles = ["mapper"];
+    });
+    copy.frontage = 2;
+    await model.updateFormation(copy);
+    await drain();
+    assert.deepEqual(cellOf(lamplighter).roles, ["mapper"], "a role a patch gave stands");
+    assert.ok(cellOf(packer).detached && cellOf(packer).deployedTokenId, "and so does the detach");
+    assert.equal(await deployment.toggleDetachMember(model.getFormation(id), packer.id), "recalled");
+    await drain();
+
+    // The copy's own new marching order is written.
+    copy = model.getFormation(id);
+    copy.members.reverse();
+    await model.updateFormation(copy);
+    await drain();
+    assert.deepEqual(onlyFormation().members.map((m) => m.actorId), [packer.id, lamplighter.id], "the copy's marching order landed");
+  } finally {
+    await drain();
+    await model.disband(model.getFormation(id));
+    await drain();
+  }
 });
 
 /**
