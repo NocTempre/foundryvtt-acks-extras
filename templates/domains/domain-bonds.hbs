@@ -1,0 +1,25 @@
+<details class="section" open>
+  <summary>{{localize title}} ({{rows.length}})</summary>
+  {{#if rows.length}}
+  <table class="acks-table acks-extras-domain-table">
+    <tbody>
+      {{#each rows}}
+      <tr>
+        <td><input type="text" name="system.{{../array}}.{{index}}.label" value="{{label}}" {{@root.lock}}
+                   aria-label="{{localize 'ACKS-DOMAINS.field.label'}}" /></td>
+        <td><input type="text" name="system.{{../array}}.{{index}}.note" value="{{note}}" {{@root.lock}}
+                   aria-label="{{localize 'ACKS-DOMAINS.field.note'}}" placeholder="{{localize 'ACKS-DOMAINS.field.note'}}" /></td>
+        <td class="row-actions">
+          {{#if @root.canEdit}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="rowDelete" data-array="{{../array}}" data-index="{{index}}" aria-label="{{localize 'ACKS-DOMAINS.sheet.removeRowTitle'}}"><i class="fas fa-xmark"></i></button>{{/if}}
+        </td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{/if}}
+  {{#if canEdit}}
+  <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="rowAdd" data-array="{{array}}">
+    <i class="fas fa-plus"></i> {{localize "ACKS-DOMAINS.sheet.addRow"}}
+  </button>
+  {{/if}}
+</details>

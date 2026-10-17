@@ -1,0 +1,39 @@
+<div class="acks-extras-domain-head">
+  <header class="acks-extras-domain-identity">
+    <img class="acks-extras-domain-profile" src="{{actor.img}}" {{#if canEdit}}data-action="editImage" data-edit="img"{{/if}} alt="{{actor.name}}" />
+    <div class="acks-extras-domain-heading">
+      {{#if canEdit}}
+      <input class="acks-extras-domain-name" name="name" type="text" value="{{actor.name}}"
+             aria-label="{{localize 'ACKS-DOMAINS.field.name'}}" placeholder="{{localize 'ACKS-DOMAINS.sheet.namePlaceholder'}}" />
+      {{else}}
+      <h2 class="acks-extras-domain-name">{{actor.name}}</h2>
+      {{/if}}
+      <div class="acks-extras-domain-tags">
+        {{#if system.title}}<span class="acks-tag">{{system.title}}</span>{{/if}}
+        {{#if classificationLabel}}<span class="acks-tag">{{classificationLabel}}</span>{{/if}}
+        {{#if ruler}}
+        <a class="acks-tag" data-action="openDoc" data-uuid="{{ruler.uuid}}" data-tooltip="{{localize 'ACKS-DOMAINS.field.ruler'}}"><i class="fas fa-crown"></i> {{ruler.name}}</a>
+        {{else if system.rulerName}}
+        <span class="acks-tag" data-tooltip="{{localize 'ACKS-DOMAINS.field.ruler'}}"><i class="fas fa-crown"></i> {{system.rulerName}}</span>
+        {{/if}}
+        {{#if liege}}
+        <a class="acks-tag" data-action="openDoc" data-uuid="{{liege.uuid}}" data-tooltip="{{localize 'ACKS-DOMAINS.field.liege'}}"><i class="fas fa-sitemap"></i> {{liege.name}}</a>
+        {{else if system.liegeName}}
+        <span class="acks-tag" data-tooltip="{{localize 'ACKS-DOMAINS.field.liege'}}"><i class="fas fa-sitemap"></i> {{system.liegeName}}</span>
+        {{/if}}
+        <span class="acks-tag" data-tooltip="{{localize 'ACKS-DOMAINS.sheet.familiesTag'}}">
+          <i class="fas fa-people-group"></i> {{families.peasant}} / {{families.urban}}{{#if families.urbanUnknown}}+{{/if}}
+        </span>
+        <span class="acks-tag" data-tooltip="{{localize 'ACKS-DOMAINS.field.hexes'}}">
+          <i class="fas fa-map"></i> {{hexCount.total}}{{#if hexCount.unknown}}+{{/if}}
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs sheet-tabs" data-group="primary">
+    {{#each tabs}}
+    <a class="{{this.cssClass}}" data-action="tab" data-group="primary" data-tab="{{this.id}}"><i class="{{this.icon}}"></i> {{this.label}}</a>
+    {{/each}}
+  </nav>
+</div>

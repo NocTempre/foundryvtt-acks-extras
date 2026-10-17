@@ -526,6 +526,24 @@ bubbling `change`.
    *Observable:* the hex-only warning, once per stroke, and no region; the
    ground reads the default with `source.ground` "scene", and the unset
    territory and climate read null with a null source.
+9. Register a fourth layer from the console. `registerPaintLayer` is not on
+   the API; take it from the loaded module with `const tp = await
+   import("/modules/acks-extras/scripts/battlemap/terrain-paint.mjs")` (the
+   same instance the module runs), then register a throwaway layer with its
+   own two flags, a `values()` over a variable you hold and a `title`.
+   Keep its returned handle. With the variable empty, open the Country brush.
+   *Observable:* only the three pills show. Fill the variable and re-render
+   the palette (`foundry.applications.instances.get("acks-extras-terrain-palette").render()`):
+   a fourth pill appears under its own title; pressing it lists the values as
+   swatches, grouped where `groups` was given, and a swatch arms the brush on
+   the layer. Click a hex of the hex scene by a real pointer event: one region,
+   flagged with the layer's two flags, `visibility` 1 (2 where `visible` was
+   set), and the other three layers read nothing at that hex; the eraser takes
+   it out again. A second registration of a key already held throws. Call the
+   handle: the pill goes, the brush returns to terrain, and the region stays in
+   the scene, read by nothing (`layerRegionsOf` answers empty for the key; count
+   the scene's regions by the flag to see it). The registration lives in the
+   page alone and goes with a reload.
 
 Teardown: `api.sweepTracked()` — the two scenes take their regions and walls
 with them — and quote its result. The wall preset is client state: arm core's

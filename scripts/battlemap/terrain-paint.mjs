@@ -10,10 +10,11 @@
  * by the battlemap control group's terrain tool, a screen-space pointer
  * catcher (capture.mjs's pattern) turning clicks and drags into cell writes.
  *
- * Terrain is one LAYER of three (`PAINT_LAYERS`): territory and climate are
- * painted the same way into regions of their own, under flags of their own,
- * one value per hex per layer. The terrain names below keep their meaning;
- * each layer-aware form takes a trailing `layer`, "terrain" by default.
+ * Terrain is one LAYER of a registry (`registerPaintLayer`): territory and
+ * climate are painted the same way into regions of their own, under flags of
+ * their own, one value per hex per layer, and a feature adds a layer of its
+ * own by registering it. The terrain names below keep their meaning; each
+ * layer-aware form takes a trailing `layer`, "terrain" by default.
  *
  * See docs/battlemap/DECISIONS.md, "Terrain paints as regions, and the
  * cell key is the identity."
@@ -29,19 +30,86 @@ export const TERRAIN_FLAG = "terrain";
 export const HEXES_FLAG = "terrainHexes";
 
 /**
- * The brush's layers, each a pair of region flags: the value a region paints,
- * and its painted cells as offset keys. A hex holds one value per layer, and a
- * layer's write never touches another's regions: a terrain, a territory and a
- * climate answer different questions about the same hex.
+ * Every registered layer's entry, by key, in registration order. A layer is a
+ * pair of region flags (the value a region paints, and its painted cells as
+ * offset keys) and the functions that say what its brush may lay down. A hex
+ * holds one value per layer, and a layer's write never touches another's
+ * regions: a terrain, a territory and a climate answer different questions
+ * about the same hex.
  */
-export const PAINT_LAYERS = Object.freeze({
-  terrain: Object.freeze({ flag: TERRAIN_FLAG, hexesFlag: HEXES_FLAG }),
-  territory: Object.freeze({ flag: "territory", hexesFlag: "territoryHexes" }),
-  climate: Object.freeze({ flag: "climate", hexesFlag: "climateHexes" }),
+const layers = new Map();
+
+/** The entry of a layer the brush knows, or null. */
+const layerSpec = (layer) => layers.get(layer) ?? null;
+
+/**
+ * The registered layers' region flags, `{flag, hexesFlag}` by layer key: a live
+ * read-only view of the registry, so a layer registered later appears in it. It
+ * answers `Object.keys`, `Object.hasOwn` and a key read as a plain map of the
+ * pairs would; every write is refused, since a layer joins only through
+ * `registerPaintLayer`.
+ */
+export const PAINT_LAYERS = new Proxy({}, {
+  get: (_target, key) => layers.get(key)?.pair,
+  has: (_target, key) => layers.has(key),
+  ownKeys: () => [...layers.keys()],
+  getOwnPropertyDescriptor: (_target, key) => (layers.has(key)
+    ? { value: layers.get(key).pair, writable: false, enumerable: true, configurable: true }
+    : undefined),
+  set: () => false,
+  defineProperty: () => false,
+  deleteProperty: () => false,
+  setPrototypeOf: () => false,
+  preventExtensions: () => false,
 });
 
-/** The flags of a layer the brush knows, or null. */
-const layerSpec = (layer) => (Object.hasOwn(PAINT_LAYERS, layer) ? PAINT_LAYERS[layer] : null);
+/**
+ * Register a layer for the country brush. The key and both flags are the
+ * layer's alone: a key or a flag another layer holds is refused with a throw,
+ * since two layers on one flag would read and erase each other's regions.
+ * @param {object} layer
+ * @param {string} layer.key          the layer's name, as the palette and `openCountryBrush` give it
+ * @param {string} layer.flag         the module flag a region carries to name its value
+ * @param {string} layer.hexesFlag    the module flag holding the painted cells as offset keys
+ * @param {() => string[]} layer.values  every value the brush may lay down now; a layer with none is left out of the palette
+ * @param {(value: string) => string} layer.label  a value's name
+ * @param {(value: string) => string} layer.color  a value's swatch and region colour
+ * @param {boolean} [layer.visible]  whether its regions are drawn for players; the Judge's alone by default
+ * @param {string} [layer.title]  the i18n key of its palette pill, `<LANG_PREFIX>.terrain.layer.<key>` by default
+ * @param {{of: (value: string) => string, label: (group: string) => string}} [layer.groups]
+ *   how its swatches are grouped in the palette, in order of first appearance
+ * @returns {() => void} removes the layer again; the brush returns to terrain if it was on it
+ */
+export function registerPaintLayer({
+  key, flag, hexesFlag, values, label, color, visible = false, title = null, groups = null,
+} = {}) {
+  const refuse = (why) => {
+    throw new Error(`${MODULE_ID} | paint layer "${key}" refused: ${why}`);
+  };
+  for (const [name, text] of Object.entries({ key, flag, hexesFlag })) {
+    if (typeof text !== "string" || !text) refuse(`${name} must be a non-empty string`);
+  }
+  for (const [name, fn] of Object.entries({ values, label, color })) {
+    if (typeof fn !== "function") refuse(`${name} must be a function`);
+  }
+  if (groups && (typeof groups.of !== "function" || typeof groups.label !== "function")) {
+    refuse("groups needs an `of` and a `label` function");
+  }
+  if (layers.has(key)) refuse("registered twice, one layer to a key");
+  if (flag === hexesFlag) refuse("flag and hexesFlag must differ");
+  const held = [...layers.values()].flatMap((l) => [l.flag, l.hexesFlag]);
+  if ([flag, hexesFlag].some((f) => held.includes(f))) refuse("a flag is shared with another layer");
+  const entry = Object.freeze({
+    key, flag, hexesFlag, values, label, color, visible: !!visible, title, groups,
+    pair: Object.freeze({ flag, hexesFlag }),
+  });
+  layers.set(key, entry);
+  return () => {
+    if (layers.get(key) !== entry) return;
+    layers.delete(key);
+    if (terrainPaint.layer === key) terrainPaint.setLayer("terrain");
+  };
+}
 
 /**
  * Terrain kinds the brush refuses even though they are valid terrain: mud
@@ -180,31 +248,57 @@ export function climateColorFor(code) {
   return lighten(base, (kin.indexOf(code) / kin.length) * 0.5);
 }
 
-/** Every value a layer's brush may lay down. */
+/** Every value a layer's brush may lay down: its registered `values()`, or none for a layer the brush does not know. */
 export function paintableValues(layer = "terrain") {
-  if (layer === "territory") return [...TERRITORY_KEYS];
-  if (layer === "climate") return Object.keys(CLIMATES);
-  return layer === "terrain" ? paintableTerrains() : [];
+  return Array.from(layerSpec(layer)?.values() ?? []);
 }
 
-/** A layer value's colour: the terrain palette, the territory table, or the climate's group. */
+/** A layer value's colour, by the layer's registered `color`; a layer the brush does not know takes the terrain palette. */
 export function layerColorFor(key, layer = "terrain") {
-  if (layer === "territory") return TERRITORY_COLORS[key] ?? colorFor(key);
-  if (layer === "climate") return climateColorFor(key);
-  return colorFor(key);
+  return (layerSpec(layer)?.color ?? colorFor)(key);
 }
 
-/**
- * A layer value's label, from the strings the party sheet already names it by
- * (a climate as its code and name, as the sheet's climate select reads).
- */
+/** A layer value's label, by the layer's registered `label`; a layer the brush does not know takes the terrain label. */
 export function layerLabelFor(key, layer = "terrain") {
-  if (layer === "territory") {
-    return TERRITORY_KEYS.includes(key) ? game.i18n.localize(`ACKS-FORMATION.travel.territory.${key}`) : String(key ?? "");
-  }
-  if (layer === "climate") return CLIMATES[key] ? `${key} — ${game.i18n.localize(CLIMATES[key].label)}` : String(key ?? "");
-  return labelFor(key);
+  return (layerSpec(layer)?.label ?? labelFor)(key);
 }
+
+// The three layers the country is read in. Terrain is the map everyone sees;
+// territory and climate are the Judge's bookkeeping, drawn for a GM only. A
+// territory is named by the strings the party sheet already names it by, and a
+// climate by its code and name as the sheet's climate select reads, grouped as
+// that select groups them.
+registerPaintLayer({
+  key: "terrain",
+  flag: TERRAIN_FLAG,
+  hexesFlag: HEXES_FLAG,
+  visible: true,
+  values: paintableTerrains,
+  label: labelFor,
+  color: colorFor,
+});
+
+registerPaintLayer({
+  key: "territory",
+  flag: "territory",
+  hexesFlag: "territoryHexes",
+  values: () => [...TERRITORY_KEYS],
+  label: (key) => (TERRITORY_KEYS.includes(key) ? game.i18n.localize(`ACKS-FORMATION.travel.territory.${key}`) : String(key ?? "")),
+  color: (key) => TERRITORY_COLORS[key] ?? colorFor(key),
+});
+
+registerPaintLayer({
+  key: "climate",
+  flag: "climate",
+  hexesFlag: "climateHexes",
+  values: () => Object.keys(CLIMATES),
+  label: (key) => (CLIMATES[key] ? `${key} — ${game.i18n.localize(CLIMATES[key].label)}` : String(key ?? "")),
+  color: climateColorFor,
+  groups: {
+    of: (key) => CLIMATES[key].group,
+    label: (group) => game.i18n.localize(`ACKS-FORMATION.travel.weather.climateGroup.${group}`),
+  },
+});
 
 /* -------------------------------------------------------------------- */
 /*  Pure cell bookkeeping (committed tests)                             */
@@ -334,9 +428,10 @@ async function eraseHexEverywhere(scene, key, { except = null, layer = "terrain"
 /**
  * Paint the hex containing `point` with a layer's value (or erase it from that
  * layer, when `value` is null). One value per hex per layer; the region is
- * created on first use and tinted. A terrain region is visible to everyone —
- * a hex map's terrain is the map; a territory or a climate is the Judge's
- * bookkeeping, drawn for a GM only.
+ * created on first use and tinted. A region is visible to everyone where its
+ * layer is registered `visible` (a hex map's terrain is the map) and drawn for
+ * a GM only where it is not (a territory or a climate is the Judge's
+ * bookkeeping).
  */
 export async function paintHexAt(scene, point, value, layer = "terrain") {
   const spec = layerSpec(layer);
@@ -357,7 +452,7 @@ export async function paintHexAt(scene, point, value, layer = "terrain") {
   await eraseHexEverywhere(scene, key, { except: region?.id ?? null, layer });
   const shape = hexShapeAt(scene, offset);
   if (!region) {
-    const visibility = layer === "terrain"
+    const visibility = spec.visible
       ? CONST.REGION_VISIBILITY?.ALWAYS ?? 2
       : CONST.REGION_VISIBILITY?.GAMEMASTER ?? 1;
     const [made] = await scene.createEmbeddedDocuments("Region", [
@@ -388,7 +483,7 @@ class TerrainPaintSession {
   /** The brush: a value of the current layer, "erase", or null (disarmed). */
   brush = null;
 
-  /** The layer the brush paints, a key of `PAINT_LAYERS`; this session's own, never stored. */
+  /** The layer the brush paints, a registered layer's key; this session's own, never stored. */
   layer = "terrain";
 
   /**
@@ -532,9 +627,9 @@ const { ApplicationV2, HandlebarsApplicationMixin } = globalThis.foundry?.applic
 };
 
 /**
- * The brush picker: the three layers as pills at its head, then one swatch per
- * value of the chosen layer (a climate's grouped as the party sheet groups
- * them), and the eraser.
+ * The brush picker: the registered layers as pills at its head (a layer with
+ * no value to paint is left out), then one swatch per value of the chosen
+ * layer (grouped where the layer registers groups), and the eraser.
  */
 export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
@@ -561,17 +656,18 @@ export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2)
       active: terrainPaint.brush === key,
     });
     const values = paintableValues(layer);
-    const groups = layer === "climate"
-      ? [...new Set(values.map((k) => CLIMATES[k].group))].map((group) => ({
-        label: game.i18n.localize(`ACKS-FORMATION.travel.weather.climateGroup.${group}`),
-        swatches: values.filter((k) => CLIMATES[k].group === group).map(swatch),
+    const by = layerSpec(layer)?.groups;
+    const groups = by
+      ? [...new Set(values.map((k) => by.of(k)))].map((group) => ({
+        label: by.label(group),
+        swatches: values.filter((k) => by.of(k) === group).map(swatch),
       }))
       : [{ label: null, swatches: values.map(swatch) }];
     return {
-      layers: Object.keys(PAINT_LAYERS).map((key) => ({
-        key,
-        label: game.i18n.localize(`${LANG_PREFIX}.terrain.layer.${key}`),
-        active: key === layer,
+      layers: [...layers.values()].filter((l) => paintableValues(l.key).length).map((l) => ({
+        key: l.key,
+        label: game.i18n.localize(l.title ?? `${LANG_PREFIX}.terrain.layer.${l.key}`),
+        active: l.key === layer,
       })),
       groups,
       erasing: terrainPaint.brush === "erase",

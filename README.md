@@ -6,7 +6,7 @@ Rules automation for the **Adventurer Conqueror King System II** in Foundry VTT:
 classes and the class builder, proficiencies and class powers, equipment and
 fighting styles, exploration formations and overland travel, battlemaps and hex
 terrain, henchmen and hirelings, influence and reactions, factions and standing,
-locations, storage and markets, vehicles and voyages, and the full Monstrous
+domains, locations, storage and markets, vehicles and voyages, and the full Monstrous
 Manual stat block — over
 one set of shared primitives and one rules-table registry — and the importer
 that reads all of it from your own ACKS II PDFs.
@@ -394,6 +394,16 @@ influence roller also fills its social status row from the ranks of the two
 people talking. Adventure books that describe a settlement's organisations import
 them as factions seated in their quarter.
 
+### Domains
+
+The **Domain** actor: a ruler's land, kept as the campaign game keeps it. Its
+territory and peasant families, the settlements and strongholds it holds, the
+structures of its stronghold, the month's revenue and expense lines, its
+morale, and the lieges and vassals around it. This release is the record: every
+figure is the Judge's or an imported adventure's, the sheet adds them up, and a
+line nobody has entered is reported as unset rather than counted as zero. The
+rules tables, the month's turn and territory painted on the map come next.
+
 ### The Full Monster Sheet
 
 An alternate monster sheet carrying the complete structured Monstrous Manual stat
@@ -437,6 +447,7 @@ acksExtras.equipment  acksExtras.markets
 acksExtras.formation  acksExtras.monsters
 acksExtras.battlemap  acksExtras.vehicles
 acksExtras.importer   acksExtras.factions
+acksExtras.domains
 ```
 
 Read it from a hook, not at module top level — features attach during `init`

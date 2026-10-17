@@ -817,3 +817,53 @@ stayed where the Judge last set it.
 - A square or gridless map has no painted layers; its default speaks for the
   whole map.
 
+## 2026-10-17 — The country brush's layers are a registry
+
+**Evidence.** The domains feature's automation wave (ruled 2026-10-17) paints a
+domain's territory as a GM-only layer of the country brush. `PAINT_LAYERS` was
+a frozen map of three, and every function over it named the three by string,
+so a fourth layer meant battlemap naming a feature it must never import.
+Nothing about the three layers changes here: the 2026-10-15 ruling stands.
+
+**Ruled.**
+- **A layer is registered** (`registerPaintLayer`, MODEL "The layer
+  registry"), and the three built-in layers register through the same call.
+  Paint, erase, the reads, the palette and `openCountryBrush` read the
+  registry; none names a layer. A feature registers its own from its own
+  module.
+- **Visibility is the layer's word**, `visible`, and the default is the
+  Judge's alone: a layer drawn for players says so.
+- **The palette needs no layer's name**: a layer carries its own pill title
+  (`title`, defaulting to the key's lang string the three already use) and its
+  own swatch groups (`groups`, which the climate takes over from the branch
+  that named it). A layer with no value to offer has no pill.
+- **Registration refuses, by throwing at the registrant**: a key taken, a flag
+  another layer holds, a missing function. It fails where the mistake is made
+  rather than rebinding silently (`lib/sockets.mjs` rules the same way for a
+  handler name).
+- **`PAINT_LAYERS` stays**, as a live read-only view of the registered flag
+  pairs, so a reader that asks `Object.hasOwn(PAINT_LAYERS, key)` or reads a
+  pair is unchanged.
+- **Registration returns a handle** that removes the layer, as `onChange`
+  returns its unsubscribe in the same file.
+
+**Rejected.**
+- *Battlemap importing the domain layer*: it points the dependency the wrong
+  way, battlemap depending on a feature that sits above it.
+- *A feature writing into `PAINT_LAYERS`*: the frozen map was the guard
+  against two layers on one flag, and a write on the view is refused.
+- *Last registration wins* (`lib/services.mjs`): two layers on one key or
+  flag would read and erase each other's regions with nothing to say so.
+- *Every pill's label from `ACKS-BATTLEMAP.terrain.layer.<key>` alone*: a
+  feature's wording would have to live in battlemap's lang root.
+
+**Cost.**
+- A throw at registration stops the registrant's own init, which is the
+  point and is also loud.
+- A layer registered with no `title` and no lang string of the default key
+  shows the raw key on its pill.
+- A session whose current layer has gone empty shows no active pill and no
+  swatches until another pill is pressed; the pill is hidden, not the layer.
+- Registrations are per client and per load. The regions a layer painted stay
+  in the scene when its feature is absent, and nothing reads them.
+

@@ -28,6 +28,10 @@
  *              district vocabulary through direct imports, and its api is
  *              what the henchmen feature asks for a standing shift at call
  *              time; nothing imports it.
+ *   domains    after factions — its sheet reads the place layer and the
+ *              faction sub-type through direct imports, and it publishes its
+ *              api at init, before location's ready-time prune asks it which
+ *              places are held; nothing imports it.
  *   markets    after location — it consumes lib registries, equipment's gear
  *              grant, henchmen's coin adapter/time/market-class rules, and
  *              location's market subtree; nothing consumes it.
@@ -64,6 +68,7 @@ import "./influence/module.mjs";
 import "./henchmen/module.mjs";
 import "./location/module.mjs";
 import "./factions/module.mjs";
+import "./domains/module.mjs";
 import "./markets/module.mjs";
 import "./monsters/module.mjs";
 import "./battlemap/module.mjs";

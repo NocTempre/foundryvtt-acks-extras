@@ -120,11 +120,12 @@ is the step that activates them.
 other modules store their own data in their own flag namespace on the same
 location actor, and this schema stays minimal.
 
-Until such a module publishes, the "has X" fallback chain in `henchmen/facts.mjs`
-is the contract — owning-module API, then actor flag, then an **inventory marker
-item** whose name declares the fact ("Stronghold: Border Fort", cost = gp value),
-then null so the caller asks the GM. A future module supersedes the markers
-transparently by taking over the first step; nothing else changes.
+The "has X" fallback chain in `henchmen/facts.mjs` is the contract — owning-module
+API, then actor flag, then an **inventory marker item** whose name declares the
+fact ("Stronghold: Border Fort", cost = gp value), then null so the caller asks
+the GM. The `domains` feature's record now exists; taking over the chain's
+first step from it is that feature's wave 3 ([domains/ROADMAP.md](domains/ROADMAP.md)),
+and nothing else in the chain changes.
 
 ---
 

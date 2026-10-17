@@ -96,6 +96,7 @@ const COMMITTED = [
   "test-settlement.mjs",
   "test-poi.mjs",
   "test-factions.mjs",
+  "test-domains.mjs",
   "test-lost.mjs",
   "test-sky.mjs",
   "test-flight.mjs",

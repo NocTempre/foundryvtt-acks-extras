@@ -224,9 +224,9 @@ Hooks.once("ready", () => {
  * place holding nothing, remembering nobody, and being nothing in particular
  * is scaffolding, and scaffolding comes down on its own. A location survives
  * empty when it IS something: a market (any market class or a market subtree),
- * someone's vault, a scene-linked mapped place, a quarter's own place, or a
- * place standing on a map as a token. Setting-gated for worlds that want
- * their empty rooms kept.
+ * someone's vault, a scene-linked mapped place, a quarter's own place, a
+ * place standing on a map as a token, or a place a domain holds. Setting-gated
+ * for worlds that want their empty rooms kept.
  */
 export async function pruneEmptyLocations() {
   if (!game.settings.get(MODULE_ID, PRUNE_SETTING)) return { pruned: 0 };
@@ -245,6 +245,9 @@ export async function pruneEmptyLocations() {
     if (a.getFlag(MODULE_ID, "storage")?.vaultOf) return false;
     if (sceneOfLocation(a) || regionOfLocation(a)) return false;
     if (placed.has(a.id)) return false;
+    // The domains api is on the namespace from `init`; a world without the
+    // feature loaded holds nothing.
+    if (acksExtras.domains?.holdsPlace?.(a.uuid)) return false;
     return true;
   });
   for (const a of doomed) await a.delete();

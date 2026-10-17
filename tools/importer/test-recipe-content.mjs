@@ -1,7 +1,7 @@
 /**
- * LOCAL-ONLY: the table recipes the markets feature and the morale pages read,
- * run against this machine's own books, must return the SHAPE their consumers
- * parse. Every recipe here is
+ * LOCAL-ONLY: the table recipes the markets feature, the morale pages and the
+ * domain month read, run against this machine's own books, must return the
+ * SHAPE their consumers parse. Every recipe here is
  * built from anchor phrases and column geometry, so a printing whose layout
  * drifted from those anchors reads a row short, welds two cells, or drops a
  * value, and each of those degrades to a plausible number downstream. This
@@ -18,7 +18,7 @@ import assert from "node:assert";
 import fs from "node:fs";
 import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
 import { extractTable } from "../../scripts/importer/table-extract.mjs";
-import { locatePageNumber } from "../../scripts/importer/tables-binding.mjs";
+import { locatePageNumber, recipeLocates } from "../../scripts/importer/tables-binding.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { isMissingRow, missingRowKeys } from "../../scripts/lib/tables.mjs";
 import { parseCell } from "../../scripts/markets/rules/availability.mjs";
@@ -41,6 +41,13 @@ const TABLES = {
   morale: ["monsterMorale", "hirelingObedience"],
   // The hiring offer: a result column and the two penalties beside it.
   influence: ["hiringOffer"],
+  // The domain month: every table its procedure runs on.
+  domain: [
+    "strongholdMinimum", "growth", "prestigeImmigration", "revenue", "expenses", "peace",
+    "magistrateShare", "titles", "tribute", "tributeInefficiency", "baseMoraleModifiers",
+    "personalAuthority", "moraleRoll", "moraleLevels", "moraleEffects",
+    "settlementInvestment", "settlementRevenue", "settlementExpenses",
+  ],
 };
 
 const NEEDED = [...new Set(
@@ -230,6 +237,205 @@ for (const id of [
   "mercantile.impactProse", "mercantile.priceShiftProse",
 ]) VERIFY[id] = (out, recipe, fail) => proseKeys(out, recipe, fail);
 
+/* ------------------------------- the domain ------------------------------- */
+
+/** A dice expression `dice` and `diceFormula` return. */
+const DICE = /^\d+d\d+$/;
+/** A gp-per-family rate cell, or a word standing for a rate set elsewhere. */
+const isRateCell = (t) => isText(t) && (/\d[\d,]*\s*gp/i.test(t) || !/\d/.test(t));
+/** A band printed with thousands separators, closed at both ends. */
+const commaBand = (t) => {
+  const m = String(t ?? "").match(/^(\d[\d,]*)\s*[–-]\s*(\d[\d,]*)$/);
+  return m ? { min: Number(m[1].replace(/,/g, "")), max: Number(m[2].replace(/,/g, "")) } : null;
+};
+/** Fraction words a stronghold band's window opens with. */
+const FRACTION = /^(?:one\s+|a\s+)?(?:half|third|quarter|fourth|fifth)\b/;
+
+/** A keyed extraction (no `emit` container): every declared row present and not a placeholder. */
+function keyedRows(out, recipe, fail) {
+  return recipe.rows.flatMap((spec) => {
+    const row = out?.[spec.key];
+    if (row == null) return fail(`row ${spec.key}: absent`) ?? [];
+    if (isMissingRow(row)) return fail(`row ${spec.key}: __missing placeholder`) ?? [];
+    return [{ key: spec.key, row }];
+  });
+}
+
+/** A `valueBlocks` extraction: every block read, and every value it declares present. */
+function blockKeys(out, recipe, fail) {
+  for (const block of recipe.valueBlocks) {
+    const got = out?.[block.id];
+    if (!got) { fail(`block ${block.id}: not read`); continue; }
+    proseKeys(got, block, (msg) => fail(`block ${block.id}: ${msg}`));
+  }
+}
+
+/** A ladder open above: every band bounded below, each next starting one past the last, the top one open. */
+function openLadder(rows, fail) {
+  rows.forEach((r, i) => {
+    const label = r.key ?? i + 1;
+    if (!isNum(r.min)) fail(`row ${label}: band has no finite minimum`);
+    const next = rows[i + 1];
+    if (!next) { if (r.max != null) fail(`row ${label}: top band is not open above`); return; }
+    if (!isNum(r.max)) fail(`row ${label}: band has no finite maximum`);
+    else if (next.min !== r.max + 1) fail(`row ${next.key ?? i + 2}: band does not follow the one before`);
+  });
+}
+
+/** Strictly ascending finite numbers; a failure names the entry as `what` and its place. */
+function ascending(values, what, fail) {
+  values.forEach((v, i) => {
+    if (!isNum(v)) fail(`${what} ${i + 1}: not a finite number`);
+    else if (i && isNum(values[i - 1]) && !(v > values[i - 1])) fail(`${what} ${i + 1}: does not rise past the one before`);
+  });
+}
+
+/** Every declared rate row is text that carries a gp figure or is a word alone. */
+function rateRows(out, recipe, fail) {
+  for (const spec of recipe.rows) if (!isRateCell(out?.[spec.key])) fail(`${spec.key}: neither a gp rate nor a word`);
+}
+
+Object.assign(VERIFY, {
+  "domain.strongholdMinimum": (out, recipe, fail) => {
+    for (const { key, row } of keyedRows(out, recipe, fail)) {
+      const cells = recipe.cellColumns.map((c) => row[c.key]);
+      if (!cells.every((c) => Number.isInteger(c) && c > 0)) fail(`row ${key}: a hex cell is not a positive whole number`);
+      else ascending(cells, `row ${key} hex`, fail);
+    }
+  },
+  "domain.growth": (out, recipe, fail) => {
+    blockKeys(out, recipe, fail);
+    for (const id of ["landValue", "investment"]) if (out?.[id]?.die != null && !DICE.test(out[id].die)) fail(`block ${id}: die is not a dice expression`);
+    const die = out?.limits?.die;
+    if (die != null && !/^\d+d\d+!?$/.test(die)) fail("block limits: die window is not a dice expression with an optional exploding mark");
+    for (const [id, block] of Object.entries(out ?? {})) {
+      for (const [k, v] of Object.entries(block ?? {})) if (isNum(v) && !(v > 0)) fail(`block ${id}: ${k} is not above zero`);
+    }
+  },
+  "domain.prestigeImmigration": (out, recipe, fail) => {
+    const rows = declaredRows(out, recipe, fail);
+    for (const r of rows) if (!DICE.test(r.dice ?? "")) fail(`row ${r.key}: dice is not a dice expression`);
+    openLadder(rows, fail);
+  },
+  "domain.revenue": rateRows,
+  "domain.expenses": rateRows,
+  "domain.settlementExpenses": rateRows,
+  "domain.peace": (out, recipe, fail) => {
+    blockKeys(out, recipe, fail);
+    const s = out?.stronghold ?? {};
+    for (const n of [1, 2, 3]) {
+      if (isNum(s[`band${n}`]) && !(s[`band${n}`] < 0)) fail(`block stronghold: band${n} is not below zero`);
+      if (s[`band${n}Fraction`] !== undefined && !FRACTION.test(s[`band${n}Fraction`])) fail(`block stronghold: band${n}Fraction opens with no fraction word`);
+    }
+    ascending([s.band3, s.band2, s.band1], "block stronghold band (worst first)", fail);
+    for (const k of ["borderlandsTroops", "outlandsTroops1", "outlandsTroops2"]) {
+      if (isNum(s[k]) && !(s[k] > 0)) fail(`block stronghold: ${k} is not above zero`);
+      if (isNum(s[`${k}Gp`]) && !(s[`${k}Gp`] > 0)) fail(`block stronghold: ${k}Gp is not above zero`);
+    }
+    const o = out?.occupation ?? {};
+    if (isNum(o.perMonth) && isNum(o.max) && !(o.max <= o.perMonth && o.perMonth < 0)) fail("block occupation: the cap is not at or below a monthly penalty below zero");
+  },
+  "domain.magistrateShare": (out, recipe, fail) => {
+    const m = String(out?.share ?? "").match(/^(\d+(?:\.\d+)?)\s*%/);
+    if (!m) fail("share: window opens with no percentage");
+    else if (!(Number(m[1]) > 0 && Number(m[1]) < 100)) fail("share: not a share between none and all");
+  },
+  "domain.titles": (out, recipe, fail) => {
+    const rows = keyedRows(out, recipe, fail);
+    for (const { key, row } of rows) {
+      if (!(Number.isInteger(row.personalFamilies) && row.personalFamilies > 0)) fail(`row ${key}: personalFamilies is not a positive whole number`);
+      for (const col of ["domains", "realmFamilies"]) if (!(isText(row[col]) && /\d/.test(row[col]))) fail(`row ${key}: ${col} carries no figure`);
+      if (!(isText(row.title) && /^[a-z][a-z' -]*$/i.test(row.title))) fail(`row ${key}: title is not a word`);
+    }
+    rows.forEach(({ key, row }, i) => {
+      const prev = rows[i - 1]?.row;
+      if (prev && isNum(prev.personalFamilies) && isNum(row.personalFamilies) && row.personalFamilies > prev.personalFamilies) fail(`row ${key}: personalFamilies rises below a higher rank`);
+    });
+  },
+  "domain.tribute": (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    const exp = Number(out?.exponent);
+    if (!(/^\d*\.?\d+$/.test(out?.exponent ?? "") && exp > 0 && exp <= 1)) fail("exponent: window is not a power between none and one");
+    for (const k of ["coefficientGp", "roundingGp"]) if (isNum(out?.[k]) && !(out[k] > 0)) fail(`${k}: not above zero`);
+  },
+  "domain.tributeInefficiency": (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    const mins = [7, 6, 5, 4, 3, 2, 1].map((n) => out?.[`min${n}`]);
+    ascending(mins, "band floor (smallest first)", fail);
+    if (isNum(out?.max8) && isNum(out?.min7) && out.max8 !== out.min7 - 1) fail("max8: the bottom band does not end one below the band above");
+    const shares = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => out?.[`share${n}`]);
+    if (shares.some((v) => isNum(v) && !(v > 0 && v <= 100))) fail("share: a share is not a percentage");
+    ascending(shares, "share (largest band first)", fail);
+  },
+  "domain.baseMoraleModifiers": (out, recipe, fail) => {
+    for (const spec of recipe.rows) if (!/^[-+]\d+(?:\/[-+]\d+)*$/.test(out?.[spec.key] ?? "")) fail(`${spec.key}: not a signed figure or slash list`);
+  },
+  "domain.personalAuthority": (out, recipe, fail) => {
+    const rows = Object.fromEntries(keyedRows(out, recipe, fail).map(({ key, row }) => [key, row.byIncome]));
+    const low = rows.incomeLow ?? [];
+    const high = rows.incomeHigh ?? [];
+    if (low.length !== recipe.marketCells) fail("incomeLow: not one figure per income band");
+    if (high.length !== recipe.marketCells - 2) fail("incomeHigh: not one ceiling per closed band");
+    if (![...low, ...high].every(Number.isInteger)) fail("income header: a band edge is not a whole number");
+    else {
+      if (low[1] !== low[0] + 1) fail("income header: the second band does not follow the first band's ceiling");
+      high.forEach((h, j) => { if (low[j + 2] !== h + 1) fail(`income header: band ${j + 3} does not follow band ${j + 2}`); });
+    }
+    for (const spec of recipe.rows.slice(2)) {
+      const cells = rows[spec.key];
+      if (cells && !(cells.length === recipe.marketCells && cells.every(Number.isInteger))) fail(`row ${spec.key}: not one whole-number modifier per income band`);
+    }
+  },
+  "domain.moraleRoll": (out, recipe, fail) => {
+    blockKeys(out, recipe, fail);
+    const r = out?.result ?? {};
+    bandLadder(r.bands, "block result: bands", fail, 5);
+    if (isNum(r.floor) && isNum(r.ceiling) && !(r.floor < 0 && r.ceiling > 0)) fail("block result: the bounds do not straddle zero");
+    if (isNum(r.naturalLow) && isNum(r.naturalHigh) && !(r.naturalLow < r.naturalHigh)) fail("block result: the natural extremes are out of order");
+    for (const k of ["shift1", "shift2", "shift3", "shift4", "shift5", "naturalLowShift", "naturalHighShift"]) if (isNum(r[k]) && !(r[k] > 0)) fail(`block result: ${k} is not above zero`);
+    for (const [k, v] of Object.entries(out?.monthly ?? {})) if (k.endsWith("Gp") && !(v > 0)) fail(`block monthly: ${k} is not above zero`);
+  },
+  "domain.moraleLevels": (out, recipe, fail) => {
+    const rows = keyedRows(out, recipe, fail);
+    for (const { key, row } of rows) if (!(isText(row.level) && /^[a-z]+$/i.test(row.level))) fail(`row ${key}: level is not one word`);
+    rows.forEach(({ key, row }, i) => {
+      if (!Number.isInteger(row.score)) fail(`row ${key}: score is not a whole number`);
+      else if (i && Number.isInteger(rows[i - 1].row.score) && row.score !== rows[i - 1].row.score + 1) fail(`row ${key}: score does not follow the rung below`);
+    });
+    if (new Set(rows.map(({ row }) => String(row.level).toLowerCase())).size !== rows.length) fail("rows: two rungs share a level");
+  },
+  "domain.moraleEffects": (out, recipe, fail) => {
+    blockKeys(out, recipe, fail);
+    for (const block of recipe.valueBlocks) {
+      for (const v of block.values) {
+        const got = out?.[block.id]?.[v.key];
+        if (got === undefined) continue;
+        if (v.take === "dice" && !DICE.test(got)) fail(`block ${block.id}: ${v.key} is not a dice expression`);
+        if (v.take === "pct" && !(got > 0 && got <= 100)) fail(`block ${block.id}: ${v.key} is not a percentage`);
+        if (v.take === "wordInt" && !(got > 0)) fail(`block ${block.id}: ${v.key} is not a count`);
+      }
+    }
+  },
+  "domain.settlementInvestment": (out, recipe, fail) => {
+    const rows = keyedRows(out, recipe, fail).map(({ row }) => row);
+    if (!rows.every((r) => Number.isInteger(r.investmentGp) && Number.isInteger(r.maxFamilies))) fail("rows: a step is not two whole numbers");
+    ascending(rows.map((r) => r.investmentGp), "step investmentGp", fail);
+    ascending(rows.map((r) => r.maxFamilies), "step maxFamilies", fail);
+  },
+  "domain.settlementRevenue": (out, recipe, fail) => {
+    const rows = keyedRows(out, recipe, fail).map(({ key, row }) => ({ key, ...row, ...(commaBand(row.families) ?? {}) }));
+    for (const r of rows) {
+      if (!commaBand(r.families)) fail(`row ${r.key}: families is not a closed band`);
+      if (!(isNum(r.tradeGp) && r.tradeGp > 0)) fail(`row ${r.key}: tradeGp is not above zero`);
+      if (!Number.isInteger(r.marketClass) || r.marketClass < 1 || r.marketClass > 6) fail(`row ${r.key}: marketClass is not a class numeral`);
+    }
+    rows.forEach((r, i) => {
+      const next = rows[i + 1];
+      if (next && isNum(r.max) && isNum(next.min) && next.min !== r.max + 1) fail(`row ${next.key}: band does not follow the one before`);
+    });
+  },
+});
+
 /* --------------------------------- the run -------------------------------- */
 
 const docs = {};
@@ -249,11 +455,26 @@ for (const [docId, ids] of Object.entries(TABLES)) {
     else {
       try {
         const doc = await open(recipe.book);
-        const page = await locatePageNumber(doc, recipe);
-        if (page == null) fail("page not found");
-        else {
-          const { items } = await pageItems(doc, page);
-          VERIFY[name](extractTable(items, recipe), recipe, fail);
+        if (recipe.valueBlocks) {
+          // Each block searches its own page (`recipeLocates`) and is read
+          // with the recipe's settings over its own values and column, as the
+          // import reads a block.
+          const out = {};
+          for (const { id, args } of recipeLocates(recipe)) {
+            const page = await locatePageNumber(doc, args);
+            if (page == null) { fail(`block ${id}: page not found`); continue; }
+            const block = recipe.valueBlocks.find((b) => b.id === id);
+            const { items } = await pageItems(doc, page);
+            out[id] = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column });
+          }
+          VERIFY[name](out, recipe, fail);
+        } else {
+          const page = await locatePageNumber(doc, recipe);
+          if (page == null) fail("page not found");
+          else {
+            const { items } = await pageItems(doc, page);
+            VERIFY[name](extractTable(items, recipe), recipe, fail);
+          }
         }
       } catch (err) {
         fail(`extraction threw (${err?.constructor?.name ?? "Error"})`);

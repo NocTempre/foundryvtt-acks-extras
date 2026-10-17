@@ -3359,4 +3359,476 @@ export const TABLE_RECIPES = {
       },
     },
   },
+
+  // The domain month's tables: the rates, ladders and modifiers the domains
+  // feature's procedure runs on. Keys are the feature's own vocabulary
+  // (classification, revenue and expense lines) or ordinals in printed order;
+  // every edge, rate and label is read off the page with its row.
+  domain: {
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 338-352" },
+    tables: {
+      // Minimum Stronghold Value (RR 338): a row per classification and a
+      // column per printed hex scale, `hex1` the smallest.
+      strongholdMinimum: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 338,
+        locate: "Minimum Stronghold Value",
+        column: { xMin: 300, xMax: 590 },
+        labelMaxX: 380,
+        startAfter: "lassification",
+        cellPattern: "int",
+        cellColumns: [
+          { key: "hex1", x: 388, row: true },
+          { key: "hex2", x: 441, row: true },
+          { key: "hex3", x: 494, row: true },
+        ],
+        rows: [
+          { key: "civilized", labelRe: "^civilized" },
+          { key: "borderlands", labelRe: "^borderlands" },
+          { key: "outlands", labelRe: "^outlands" },
+        ],
+      },
+      // Population (RR 338-340): the land value die, the immigration an
+      // investment buys and its cap, and the monthly growth throw with the
+      // per-hex limit it runs against. The growth die prints an exploding
+      // mark, which `dice` drops, so it is kept as the window.
+      growth: {
+        shape: "proseValues",
+        book: "rr",
+        valueBlocks: [
+          {
+            id: "landValue",
+            printedPage: 338,
+            locate: "Land Value Simplified",
+            values: [{ key: "die", find: "natural resources. roll", take: "dice", span: 8 }],
+          },
+          {
+            id: "investment",
+            printedPage: 339,
+            locate: "Immigration from Investment",
+            values: [
+              { key: "gpPerDie", find: "for every", take: "gp", span: 12 },
+              { key: "die", find: "the domain will attract", take: "dice", span: 8 },
+              { key: "capFloorGp", find: "monthly revenue or", take: "gp", span: 10 },
+            ],
+          },
+          {
+            id: "limits",
+            printedPage: 340,
+            locate: "Limits of Growth",
+            values: [
+              { key: "die", find: "makes two die rolls of", take: "window", span: 7 },
+              { key: "perFamilies", find: "families in the domain (rounded up)", before: true, take: "int", span: 10 },
+              { key: "outlands", find: "an outlands domain cannot exceed", take: "int", span: 8 },
+              { key: "borderlands", find: "a borderlands domain cannot exceed", take: "int", span: 8 },
+              { key: "civilized", find: "a civilized domain cannot exceed", take: "int", span: 8 },
+              { key: "hexMiles", find: "families per", take: "int", span: 4 },
+            ],
+          },
+        ],
+      },
+      // Immigration from Prestige (RR 340): a population ladder set inside
+      // the column's prose, each band with the dice it adds. Every row's band
+      // rides beside its dice, so no row reaches a bracket lookup without one.
+      prestigeImmigration: {
+        shape: "pairs",
+        book: "rr",
+        printedPage: 340,
+        locate: "Immigration from Prestige",
+        column: { xMin: 170, xMax: 290 },
+        labelMaxX: 235,
+        cellPattern: "diceFormula",
+        valueKey: "dice",
+        rows: Array.from({ length: 6 }, (_, i) => ({ key: `band${i + 1}`, labelRe: "^\\d", labelPattern: "rollBand" })),
+        emit: { container: "rows", keyField: "key" },
+      },
+      // Collecting Revenue (RR 341): each revenue line's per-family rate as
+      // printed — a range, a flat rate, or a word for a rate that varies.
+      revenue: {
+        shape: "pairs",
+        book: "rr",
+        printedPage: 341,
+        locate: "Collecting Revenue",
+        column: { xMin: 180, xMax: 300 },
+        labelMaxX: 240,
+        startAfter: "evenue",
+        cellPattern: "raw",
+        rows: [
+          { key: "land", labelRe: "^land" },
+          { key: "service", labelRe: "^services" },
+          { key: "tax", labelRe: "^taxes" },
+          { key: "tribute", labelRe: "^tribute" },
+        ],
+      },
+      // Paying Expenses (RR 341): each expense line's per-family rate, read
+      // the same way.
+      expenses: {
+        shape: "pairs",
+        book: "rr",
+        printedPage: 341,
+        locate: "Paying Expenses",
+        column: { xMin: 435, xMax: 590 },
+        labelMaxX: 500,
+        startAfter: "Expense",
+        cellPattern: "raw",
+        rows: [
+          { key: "garrison", labelRe: "^garrison" },
+          { key: "liturgy", labelRe: "^liturg" },
+          { key: "upkeep", labelRe: "^mainten" },
+          { key: "tithe", labelRe: "^tithe" },
+          { key: "tribute", labelRe: "^tribute" },
+        ],
+      },
+      // Keeping the Peace (RR 341, 348-349): the garrison each frontier
+      // classification must keep, the three bands of an insufficient
+      // stronghold, the troops that offset a frontier penalty, and the bounds
+      // on occupation and repression. A band's fraction is printed in words,
+      // so it is kept as the window, with the words after it.
+      peace: {
+        shape: "proseValues",
+        book: "rr",
+        valueBlocks: [
+          {
+            id: "garrison",
+            printedPage: 341,
+            locate: "Paying Expenses",
+            values: [
+              { key: "borderlandsGp", find: "borderland domains must maintain garrisons of", take: "gp", span: 10 },
+              { key: "outlandsGp", find: "outlands domains must maintain garrisons of", take: "gp", span: 10 },
+            ],
+          },
+          {
+            id: "stronghold",
+            printedPage: 348,
+            locate: "Personal Authority Table",
+            values: [
+              { key: "band1", find: "modifier to base morale score if the stronghold", before: true, take: "signed", span: 8 },
+              { key: "band1Fraction", find: "if the stronghold value is at least", take: "window", span: 13 },
+              { key: "band2", find: "the minimum, by", take: "signed", span: 6 },
+              { key: "band2Fraction", find: "if at least", take: "window", span: 13 },
+              { key: "band3", find: "the minimum, and by", take: "signed", span: 6 },
+              { key: "band3Fraction", find: "if less than", take: "window", span: 13 },
+              { key: "borderlandsTroops", find: "a borderlands domain gains a", take: "signed", span: 6 },
+              { key: "borderlandsTroopsGp", find: "a borderlands domain gains a", take: "gp", span: 40 },
+              { key: "outlandsTroops1", find: "an outlands domain gains a", take: "signed", span: 6 },
+              { key: "outlandsTroops1Gp", find: "an outlands domain gains a", take: "gp", span: 40 },
+              { key: "outlandsTroops2", find: "garrisoned in the domain, and a", take: "signed", span: 6 },
+              { key: "outlandsTroops2Gp", find: "garrisoned in the domain, and a", take: "gp", span: 30 },
+            ],
+          },
+          {
+            id: "occupation",
+            printedPage: 349,
+            locate: "Domain Morale Modifiers",
+            column: { xMin: 20, xMax: 300 },
+            values: [
+              { key: "perMonth", find: "suffer a cumulative penalty of", take: "signed", span: 6 },
+              { key: "max", find: "to a maximum of", take: "signed", span: 6 },
+              { key: "repressionCap", find: "can never be higher than", take: "int", span: 4 },
+            ],
+          },
+        ],
+      },
+      // Magistrates (RR 342): the share of the expense he oversees that a
+      // magistrate keeps. It prints with a decimal, which no numeric take
+      // reads whole, so it is kept as the window.
+      magistrateShare: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 342,
+        locate: "four types of magistrates",
+        values: [{ key: "share", find: "the magistrate keeps", take: "window", span: 6 }],
+      },
+      // Titles of Nobility (RR 343): a row per rank, highest first — the
+      // personal domain's families, the vassal domains ruled, the realm's
+      // families, and the common title. The first column is set centred, so
+      // its figure is the row's label by its start and its first cell by its
+      // centre. The setting columns beside the common one lie outside
+      // `column` and are never read.
+      titles: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 343,
+        locate: "Titles of Nobility",
+        column: { xMin: 70, xMax: 320 },
+        labelMaxX: 95,
+        anchor: "center",
+        startAfter: "(families)",
+        minCells: 3,
+        cellColumns: [
+          { key: "personalFamilies", x: 95, w: 30, row: true, pattern: "int" },
+          { key: "domains", x: 127, w: 58, row: true },
+          { key: "realmFamilies", x: 187, w: 68, row: true },
+          { key: "title", x: 257, w: 63, row: true },
+        ],
+        rows: Array.from({ length: 7 }, (_, i) => ({ key: `rank${i + 1}`, labelRe: "^\\d[\\d,]*$" })),
+      },
+      // Calculating Precise Tribute (RR 344): the formula's coefficient, its
+      // exponent, and the increment the tribute tables round to. The exponent
+      // is a superscript, so it reads just ahead of the line it sits on, and
+      // prints with a decimal, so it is kept as the window.
+      tribute: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 344,
+        locate: "Calculating Precise Tribute",
+        values: [
+          { key: "exponent", find: "formula to calculate a", take: "window", span: 5 },
+          { key: "coefficientGp", find: "precise tribute:", take: "gp", span: 8 },
+          { key: "roundingGp", find: "nearest increment of", take: "gp", span: 6 },
+        ],
+      },
+      // Tribute Inefficiency (RR 347): a vassal-count ladder, largest first,
+      // each band with the share of tribute received. Its band labels are set
+      // flush right with thousands separators, which no band pattern reads,
+      // so the ladder is read as prose bounded to the grid: each band's first
+      // figure follows the share above it, the top band's floor precedes its
+      // open-above words and the bottom band's ceiling its open-below words.
+      tributeInefficiency: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 347,
+        locate: "Tribute Inefficiency",
+        column: { xMin: 195, xMax: 300 },
+        yMin: 485,
+        yMax: 576,
+        values: [
+          { key: "min1", find: "or more", before: true, take: "int", span: 12 },
+          ...Array.from({ length: 6 }, (_, i) => ({ key: `min${i + 2}`, find: "%", occurrence: i + 1, take: "int", span: 12 })),
+          { key: "max8", find: "or fewer", before: true, take: "int", span: 12 },
+          ...Array.from({ length: 8 }, (_, i) => ({ key: `share${i + 1}`, find: "%", occurrence: i + 1, before: true, take: "int", span: 8 })),
+        ],
+      },
+      // Base Morale (RR 347): the modifier list beside the score, each row's
+      // figure as printed — one signed figure, or a slash list for a row
+      // whose size follows a band the Keeping the Peace prose names. The
+      // personal-authority row prints no figure; it is its own table.
+      baseMoraleModifiers: {
+        shape: "pairs",
+        book: "rr",
+        printedPage: 347,
+        locate: "Base Morale Score",
+        column: { xMin: 325, xMax: 590 },
+        labelMaxX: 470,
+        startAfter: "Modifier",
+        cellPattern: "raw",
+        rows: [
+          { key: "leadership", labelRe: "^leadership" },
+          { key: "neutralRulerChaoticDomain", labelRe: "^neutral ruler,\\s*chaotic" },
+          { key: "lawfulRulerChaoticDomain", labelRe: "^lawful ruler,\\s*chaotic" },
+          { key: "borderlands", labelRe: "classified borderlands" },
+          { key: "borderlandsTroops", labelRe: "troops in borderlands" },
+          { key: "insufficientStronghold", labelRe: "^insufficient" },
+          { key: "partisanRulerNeutralDomain", labelRe: "^lawful/\\s*chaotic ruler" },
+          { key: "neutralRulerLawfulDomain", labelRe: "^neutral ruler,\\s*lawful" },
+          { key: "chaoticRulerLawfulDomain", labelRe: "^chaotic ruler,\\s*lawful" },
+          { key: "outlands", labelRe: "classified outlands" },
+          { key: "outlandsTroops", labelRe: "troops in outlands" },
+        ],
+      },
+      // Personal Authority (RR 348): level rows against income bands across
+      // both columns. The band header is two lines — each band's first figure
+      // (the first band prints its ceiling alone, the last is open) and under
+      // it each closed band's ceiling — and each line is read as a row.
+      personalAuthority: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 348,
+        locate: "Personal Authority Table",
+        column: { xMin: 40, xMax: 590 },
+        labelMaxX: 75,
+        rowTol: 5,
+        marketCells: 15,
+        cellsKey: "byIncome",
+        cellPattern: "intDash",
+        rows: [
+          { key: "incomeLow", labelRe: "^class$" },
+          { key: "incomeHigh", labelRe: "^level$" },
+          ...Array.from({ length: 15 }, (_, level) => ({ key: `level${level}`, labelRe: `^${level}$` })),
+        ],
+      },
+      // Domain Morale (RR 348-349): the monthly result column with each
+      // rung's shift and the score's bounds, the natural extremes, and the
+      // monthly modifier list. The list's wording and its figures sit in the
+      // two halves of one full-width grid, so the page is read in one flow
+      // (`colSplit` past its right edge) and each figure follows its row's
+      // wording, the threshold a row prints inside it.
+      moraleRoll: {
+        shape: "proseValues",
+        book: "rr",
+        colSplit: 600,
+        valueBlocks: [
+          {
+            id: "result",
+            printedPage: 348,
+            locate: "Personal Authority Table",
+            column: { xMin: 300, xMax: 590 },
+            values: [
+              { key: "bands", find: "ie r oll r esult", take: "bandEdges", span: 200 },
+              { key: "shift1", find: "morale reduced by", occurrence: 1, take: "int", span: 4 },
+              { key: "shift2", find: "morale reduced by", occurrence: 2, take: "int", span: 4 },
+              { key: "shift3", find: "morale shifts by", take: "int", span: 4 },
+              { key: "shift4", find: "morale increased by", occurrence: 1, take: "int", span: 4 },
+              { key: "shift5", find: "morale increased by", occurrence: 2, take: "int", span: 4 },
+              { key: "floor", find: "(min", take: "signed", span: 5 },
+              { key: "ceiling", find: "(max", take: "signed", span: 5 },
+              { key: "naturalLow", find: "a natural roll of", occurrence: 1, take: "int", span: 4 },
+              { key: "naturalLowShift", find: "always reduces current morale by", take: "int", span: 4 },
+              { key: "naturalHigh", find: "a natural roll of", occurrence: 2, take: "int", span: 4 },
+              { key: "naturalHighShift", find: "always increases current morale by", take: "int", span: 4 },
+            ],
+          },
+          {
+            id: "monthly",
+            printedPage: 349,
+            locate: "Domain Morale Modifiers",
+            column: { xMin: 70, xMax: 590 },
+            values: [
+              { key: "garrisonShortGp", find: "garrison expenditure below", take: "gp", span: 8 },
+              { key: "garrisonShort", find: "garrison expenditure below", take: "signed", span: 40 },
+              { key: "occupied", find: "invaded and occupied by enemy army", take: "signed", span: 20 },
+              { key: "pillaged", find: "pillaged by enemy army", take: "signed", span: 8 },
+              { key: "repress1Gp", find: "in troops repressing domain this month", occurrence: 1, before: true, take: "gp", span: 12 },
+              { key: "repress1", find: "in troops repressing domain this month", occurrence: 1, take: "signed", span: 8 },
+              { key: "repress2Gp", find: "in troops repressing domain this month", occurrence: 2, before: true, take: "gp", span: 12 },
+              { key: "repress2", find: "in troops repressing domain this month", occurrence: 2, take: "signed", span: 8 },
+              { key: "repressPerGp", find: "additional troops repressing domain this month", take: "signed", span: 8 },
+              { key: "liturgyAboveGp", find: "liturgy expense above", take: "gp", span: 8 },
+              { key: "liturgyAbove", find: "liturgy expense above", take: "signed", span: 30 },
+              { key: "liturgyBelowGp", find: "liturgy expense below", take: "gp", span: 8 },
+              { key: "liturgyBelow", find: "liturgy expense below", take: "signed", span: 30 },
+              { key: "taxAboveGp", find: "axes above", take: "gp", span: 8 },
+              { key: "taxAbove", find: "axes above", take: "signed", span: 30 },
+              { key: "taxBelowGp", find: "axes below", take: "gp", span: 8 },
+              { key: "taxBelow", find: "axes below", take: "signed", span: 30 },
+              { key: "tithesUnpaid", find: "ithes not paid this month", take: "signed", span: 8 },
+              { key: "worshipIntroduced", find: "introduces or maintains worship", take: "signed", span: 50 },
+              { key: "worshipMaintained", find: "uler maintains worship", take: "signed", span: 50 },
+              { key: "administered", find: "uler administers domain", take: "signed", span: 8 },
+            ],
+          },
+        ],
+      },
+      // Effects of Current Morale (RR 350): the nine rungs, lowest first,
+      // each score with the level it is called. The score column is set
+      // centred, so a score is the row's label by its start and its first
+      // cell by its centre.
+      moraleLevels: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 350,
+        locate: "Effects of Current Morale",
+        column: { xMin: 330, xMax: 560 },
+        labelMaxX: 346.2,
+        anchor: "center",
+        cellColumns: [
+          { key: "score", x: 342, w: 14, row: true, pattern: "intDash" },
+          { key: "level", x: 400, w: 160, row: true },
+        ],
+        rows: Array.from({ length: 9 }, (_, i) => ({ key: `rung${i + 1}`, labelRe: "^[-+]?\\d+$" })),
+      },
+      // The rungs' effects (RR 350-351), keyed by rung ordinal, lowest first,
+      // as `moraleLevels` numbers them. A phrase shared by several rungs is
+      // told apart by `occurrence`; the rungs a phrase belongs to, in order,
+      // are named in the key. A rung's bandit ratio is the families that give
+      // up one bandit, which is also the share of income lost.
+      moraleEffects: {
+        shape: "proseValues",
+        book: "rr",
+        valueBlocks: [
+          {
+            id: "lower",
+            printedPage: 350,
+            locate: "Effects of Current Morale",
+            column: { xMin: 295, xMax: 590 },
+            values: [
+              ...[1, 2, 3].map((r, i) => ({ key: `recruitRung${r}`, find: "recruitment tables are at", occurrence: i + 1, take: "signed", span: 6 })),
+              ...[1, 2].map((r, i) => ({ key: `vassalRung${r}`, find: "all vassal loyalty rolls are at", occurrence: i + 1, take: "signed", span: 6 })),
+              ...[1, 2, 3, 4].map((r, i) => ({ key: `lossDiceRung${r}`, find: "an extra", occurrence: i + 1, take: "dice", span: 8 })),
+              { key: "banditsPerFamilyRung1", find: "able-bodied men (", take: "wordInt", span: 6 },
+              ...[2, 3].map((r, i) => ({ key: `familiesPerBanditRung${r}`, find: "bodied man per", occurrence: i + 1, take: "wordInt", span: 8 })),
+              { key: "incomeCutRung3", find: "service income is reduced by", take: "pct", span: 8 },
+              ...[1, 2, 3].map((r, i) => ({ key: `challengerRung${r}`, find: "each month there is a cumulative", occurrence: i + 1, take: "pct", span: 8 })),
+              { key: "challengerAuthority", find: "grant him a personal authority of", take: "signed", span: 6 },
+              ...[4, 5].map((r, i) => ({ key: `levyMoraleRung${r}`, find: "levied from the domain suffer a", occurrence: i + 1, take: "signed", span: 6 })),
+            ],
+          },
+          {
+            id: "upper",
+            printedPage: 351,
+            locate: "Dealing with Bandits",
+            column: { xMin: 20, xMax: 300 },
+            values: [
+              ...[6, 7, 8, 9].map((r, i) => ({ key: `spyRung${r}`, find: "against the domain suffer a", occurrence: i + 1, take: "signed", span: 6 })),
+              ...[6, 7, 8, 9].map((r, i) => ({ key: `growthDiceRung${r}`, find: "the population grows by an extra", occurrence: i + 1, take: "dice", span: 8 })),
+              ...[7, 8, 9].map((r, i) => ({ key: `recruitRung${r}`, find: "recruitment tables are at", occurrence: i + 1, take: "signed", span: 6 })),
+              ...[8, 9].map((r, i) => ({ key: `levyMoraleRung${r}`, find: "levied from the domain gain a", occurrence: i + 1, take: "signed", span: 6 })),
+              ...[8, 9].map((r, i) => ({ key: `vassalRung${r}`, find: "all vassal loyalty rolls are at", occurrence: i + 1, take: "signed", span: 6 })),
+            ],
+          },
+        ],
+      },
+      // Founding Settlements (RR 351): the total investment ladder, each step
+      // with the most families it lets a settlement hold. Its first column is
+      // set centred, read as the titles grid's is.
+      settlementInvestment: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 351,
+        locate: "Founding Settlements",
+        column: { xMin: 420, xMax: 560 },
+        labelMaxX: 440,
+        anchor: "center",
+        startAfter: "(families)",
+        minCells: 1,
+        cellColumns: [
+          { key: "investmentGp", x: 440, w: 40, row: true, pattern: "int" },
+          { key: "maxFamilies", x: 490, w: 70, row: true, pattern: "int" },
+        ],
+        rows: Array.from({ length: 6 }, (_, i) => ({ key: `step${i + 1}`, labelRe: "^[\\d,]+$" })),
+      },
+      // Settlement trade revenue (RR 352): a population ladder, each band with
+      // its per-family trade revenue and the market class it makes. Its band
+      // column is set centred with thousands separators, so the band is kept
+      // as printed; the separate settlement doc's market-class reading of
+      // another page is a different table.
+      settlementRevenue: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 352,
+        locate: "(gp/family)",
+        column: { xMin: 45, xMax: 290 },
+        labelMaxX: 87,
+        anchor: "center",
+        startAfter: "(gp/family)",
+        minCells: 2,
+        cellColumns: [
+          { key: "families", x: 88, w: 50, row: true },
+          { key: "tradeGp", x: 150, w: 50, row: true, pattern: "num" },
+          { key: "marketClass", x: 225, w: 60, row: true, pattern: "romanClass" },
+        ],
+        rows: Array.from({ length: 6 }, (_, i) => ({ key: `band${i + 1}`, labelRe: "^\\d" })),
+      },
+      // Settlement expenses (RR 352): each expense line's per-urban-family
+      // rate as printed.
+      settlementExpenses: {
+        shape: "pairs",
+        book: "rr",
+        printedPage: 352,
+        locate: "Settlement expenses",
+        column: { xMin: 140, xMax: 290 },
+        labelMaxX: 200,
+        startAfter: "Expense",
+        cellPattern: "raw",
+        rows: [
+          { key: "garrison", labelRe: "^garrison" },
+          { key: "liturgy", labelRe: "^liturg" },
+          { key: "tithe", labelRe: "^tithe" },
+          { key: "upkeep", labelRe: "^upkeep" },
+          { key: "tribute", labelRe: "^tribute" },
+        ],
+      },
+    },
+  },
 };

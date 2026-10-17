@@ -13,8 +13,9 @@ from the scene-config row, and dismissed by its own close control.
 ## Country layers
 
 The group's **Country brush** tool arms a brush over hex-gridded scenes
-(`terrain-paint.mjs`) on one of three LAYERS — terrain, territory and climate
-(`PAINT_LAYERS`) — chosen by the pills at the head of its palette window.
+(`terrain-paint.mjs`) on one of its registered LAYERS — the module's three,
+terrain, territory and climate, and any a feature registers (§The layer
+registry) — chosen by the pills at the head of its palette window.
 Clicks and drags paint hex cells into scene REGIONS: one region per value per
 layer per scene, tinted from the module's own palette and flagged with the
 layer's pair — the value (`terrain`, `territory`, `climate`) and the painted
@@ -46,6 +47,30 @@ Each layer's vocabulary is structural:
   and grouped as the sheet's climate select groups them. A climate takes its
   group's colour (`CLIMATE_GROUP_COLORS`) a step lighter for each kin listed
   before it, so two climates of a group still read apart where they meet.
+
+**The layer registry.** No code in the painter names a layer: each is
+registered, and the three above register through the same call at the foot of
+`terrain-paint.mjs`. `registerPaintLayer({key, flag, hexesFlag, values, label,
+color, visible, title, groups})` takes the layer's two region flags;
+`values()`, asked on every read so a vocabulary may come from the world;
+`label(value)` and `color(value)`; `visible`, true where the layer's regions
+are drawn for everyone and otherwise the Judge's alone; an optional `title`,
+the i18n key of the palette pill (`ACKS-BATTLEMAP.terrain.layer.<key>` by
+default); and optional `groups` (`of(value)` and `label(group)`), which fold the
+swatches under group headings in order of first appearance, as the climate's
+do. Paint, erase, the reads (`layerValueAt`, `layerRegionsOf`), `paintableValues`,
+`layerLabelFor`, `layerColorFor`, `openCountryBrush` and the palette all read the
+registry; a key it does not hold paints nothing, reads null and arms on terrain.
+The palette leaves out the pill of a layer whose `values()` is empty. A feature
+registers its layer from its own module, so battlemap imports no feature.
+
+Registration throws, naming the layer, on a key already taken, a flag another
+layer holds (or one flag standing for both of a layer's), a missing function or
+a half-given `groups`. It returns a handle that takes the layer out again; a
+brush on it returns to terrain, and a handle already spent removes nothing.
+`PAINT_LAYERS` is a live read-only view of the registered pairs, `{flag,
+hexesFlag}` by key: it answers `Object.keys`, `Object.hasOwn` and a key read,
+and refuses every write.
 
 `paintedTerrainAt` reads the terrain layer alone in both of its
 vocabularies — the key as painted, the ground it stands on and the encounter
@@ -80,7 +105,7 @@ document, so any client holding the scene can ask; the formation caches its
 answer on the party's record (`docs/formation/MODEL.md`, "The country").
 
 **The brush from a sheet.** `openCountryBrush({layer, brush, by})` arms the
-brush on a layer and opens its palette: the toolbar's tool calls it, and so
+brush on a registered layer and opens its palette: the toolbar's tool calls it, and so
 does a party sheet's paint chip. Closing the palette disarms a brush the
 toolbar did not arm, because nothing else on screen says the canvas is
 captured.
@@ -98,7 +123,7 @@ captured.
 | `assistant-app.mjs` | The window, a VIEW over the session: the setup section, the fit card, scale decisions, the token-size hotbar, and a pinned footer carrying the two apply actions. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
 | `apply.mjs` | Scene writes, one per family: `applyGridCalibration` (square), `applyHexCalibration` (hex), `applyScaleOnly` (no geometry), each one `scene.update`; plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
 | `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, its default country (`sceneCountry`), the family it already uses, and `hexProbe` — a hex's bounding box, measured off a clone rather than restated. |
-| `terrain-paint.mjs` | The country brush: the three paint layers as one region per value keyed by cell, each layer's vocabulary, colours and labels, the reads (`layerValueAt`, `paintedTerrainAt`), the writer `paintHexAt`, and the palette window with its layer pills. |
+| `terrain-paint.mjs` | The country brush: the paint-layer registry (`registerPaintLayer`, with the three built-in layers registered through it) as one region per value keyed by cell, each layer's vocabulary, colours and labels, the reads (`layerValueAt`, `paintedTerrainAt`), the writer `paintHexAt`, and the palette window with its layer pills. |
 | `country.mjs` | `countryAt`, the one reader of the country under a point: the painted layers, the drawn lines and the scene default, and which of them answered each key. |
 | `hex-fit.mjs` | `hexAlignment` — the shift that lays Foundry's lattice over a drawn cell centre, asked of a zero-shift clone. The one owner of lattice alignment. Document methods only. |
 | `../lib/distance-units.mjs` | What one `grid.units` is worth in FEET. Every feet→squares conversion divides by `sceneFeetPerCell`. |

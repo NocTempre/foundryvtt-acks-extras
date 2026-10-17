@@ -1,5 +1,47 @@
 # Changelog
 
+## 11.5.0
+
+### Added
+
+- **The Domain actor.** Actors sidebar → *Create Actor* → *Domain*: a ruler's
+  land as the campaign game keeps it (RR ch. 8 §VIII.3). One sheet holds the
+  whole record — the ruler, title, liege, classification, alignment and
+  morale; the territory, a row per hex or per run of hexes, with its families
+  and land value; the places it holds and the structures of its stronghold;
+  the month's revenue and expense lines, each a rate per peasant or urban
+  family or a flat figure; tribute in and out; the vassals; favors and
+  duties; and notes, with a set for the Judge alone. Every figure is the
+  Judge's or an imported adventure's, and the sheet adds them up: a line
+  nobody has entered is reported as unset, never counted as zero, and the
+  totals say how many they left out. This is the record the adventure
+  imports write into; the rules tables, the month's turn and territory
+  painted on the map come in later releases, without changing what has been
+  entered.
+- **A domain holds places.** Drop a location on a domain's sheet to hold it.
+  A settlement counts its own urban families and market class, read from its
+  market; a place the record names that has no location yet is a row of its
+  own. A place is held by one domain only, and a place inside a held one
+  answers to the same domain. A held place is never taken by the empty-place
+  cleanup.
+- **Lieges and vassals.** Drop a domain on another's sheet to make it a
+  vassal, or on the *Liege* row to make it the liege; a domain cannot answer
+  to one that already answers to it. A vassal with no domain of its own is a
+  summary row — families, hexes, revenue, tribute — and its payments join
+  tribute in. The sheet is the Judge's: a player who can open it reads it and
+  changes nothing.
+- **The domain tables arrive with your rules tables.** Importing the rules
+  tables now also reads the domain month's tables from your own Revised
+  Rulebook (RR 338–352). Nothing reads them yet; they are there for the
+  domain turn.
+
+### Changed
+
+- **The map's paint layers share one registry.** Terrain, territory and
+  climate are registered layers of the Country brush, so a later layer joins
+  the palette without a change to the others. The brush paints and reads as
+  before.
+
 ## 11.4.0
 
 ### Added

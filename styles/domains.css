@@ -1,0 +1,183 @@
+/* The domain sheet. Every selector opens on the sheet's own two classes, because
+   the vendored design system dresses `.acks-ui` fields and tables at the same
+   weight and wins a tie. Type sizes are ramp steps, so the size knob reaches
+   them.
+
+   The scroller is the body PART root (it declares `scrollable: [""]`), so a
+   tab keeps its place across the re-render every change causes, while the
+   identity strip and the tab row hold still above it. */
+
+.acks-extras.acks-extras-domain-sheet.application .window-content {
+  padding: 0;
+  /* Re-take the type from core, which pins a size on `.window-content`. */
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras.acks-extras-domain-sheet.application > .window-header {
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  padding: var(--acks-sp-3) var(--acks-sp-3) 0;
+}
+
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--acks-sp-2) var(--acks-sp-3) var(--acks-sp-3);
+}
+
+/* --- Identity strip ---------------------------------------------------------- */
+
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-identity {
+  display: flex;
+  gap: var(--acks-sp-3);
+  align-items: flex-start;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-profile {
+  flex: 0 0 auto;
+  width: 4.5em;
+  height: 4.5em;
+  object-fit: cover;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  border-radius: var(--acks-radius);
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-profile[data-action] {
+  cursor: pointer;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-1);
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-name {
+  font-size: var(--acks-fs-h3);
+  font-weight: bold;
+  width: 100%;
+  margin: 0;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-1);
+  align-items: center;
+}
+
+/* --- Fields ------------------------------------------------------------------ */
+
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16em), 1fr));
+  gap: var(--acks-sp-1) var(--acks-sp-3);
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-field {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  min-height: 1.8em;
+  min-width: 0;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-field > input,
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-field > select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-label {
+  flex: 0 0 8em;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-hint {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+.acks-extras.acks-extras-domain-sheet .is-missing {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.acks-extras.acks-extras-domain-sheet .is-hidden {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-glance {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--acks-sp-1) var(--acks-sp-3);
+  margin: 0;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-glance dt {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-glance dd {
+  margin: 0;
+}
+
+/* --- Tables ------------------------------------------------------------------- */
+
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-table {
+  width: 100%;
+  table-layout: auto;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-table input[type="text"],
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-table input[type="number"],
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-table select {
+  width: 100%;
+  min-width: 3em;
+}
+/* An auto-layout table squeezes a select to its floor; this one fits the longest role. */
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-table select {
+  min-width: 9em;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-table .row-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-total td {
+  font-weight: bold;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-lines .is-unset td:first-child {
+  color: var(--acks-ink-soft);
+  font-style: italic;
+}
+
+/* --- Vassal rows ---------------------------------------------------------------- */
+
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-vassal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  margin: 0 0 var(--acks-sp-3);
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-hexes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-hexes input[type="number"] {
+  width: 5em;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-hexes input[type="text"] {
+  flex: 1 1 10em;
+  min-width: 0;
+}
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-1);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-notes {
+  min-height: 6em;
+}

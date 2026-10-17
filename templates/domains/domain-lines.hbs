@@ -1,0 +1,58 @@
+<details class="section" open>
+  <summary>{{localize title}}</summary>
+  <table class="acks-table acks-extras-domain-table acks-extras-domain-lines">
+    <thead>
+      <tr>
+        <th>{{localize "ACKS-DOMAINS.field.line"}}</th>
+        <th>{{localize "ACKS-DOMAINS.field.peasantPer"}}</th>
+        <th>{{localize "ACKS-DOMAINS.field.urbanPer"}}</th>
+        <th>{{localize "ACKS-DOMAINS.field.peasantGp"}}</th>
+        <th>{{localize "ACKS-DOMAINS.field.urbanGp"}}</th>
+        <th>{{localize "ACKS-DOMAINS.field.amount"}}</th>
+        <th>{{localize "ACKS-DOMAINS.field.note"}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each lines}}
+      <tr class="{{#unless amount.set}}is-unset{{/unless}}">
+        <td>{{label}}</td>
+        <td><input type="number" step="any" name="{{path}}.peasantPer" value="{{line.peasantPer}}" {{@root.lock}}
+                   aria-label="{{label}}: {{localize 'ACKS-DOMAINS.field.peasantPer'}}" /></td>
+        <td><input type="number" step="any" name="{{path}}.urbanPer" value="{{line.urbanPer}}" {{@root.lock}}
+                   aria-label="{{label}}: {{localize 'ACKS-DOMAINS.field.urbanPer'}}" /></td>
+        <td><input type="number" step="any" name="{{path}}.peasantGp" value="{{line.peasantGp}}" {{@root.lock}}
+                   aria-label="{{label}}: {{localize 'ACKS-DOMAINS.field.peasantGp'}}" /></td>
+        <td><input type="number" step="any" name="{{path}}.urbanGp" value="{{line.urbanGp}}" {{@root.lock}}
+                   aria-label="{{label}}: {{localize 'ACKS-DOMAINS.field.urbanGp'}}" /></td>
+        <td>
+          {{totalShown}}
+          {{#if amount.unknown}}<i class="fas fa-circle-question" data-tooltip="{{localize 'ACKS-DOMAINS.hint.unknownFamilies'}}"></i>{{/if}}
+        </td>
+        <td><input type="text" name="{{path}}.note" value="{{line.note}}" {{@root.lock}}
+                   aria-label="{{label}}: {{localize 'ACKS-DOMAINS.field.note'}}" /></td>
+      </tr>
+      {{/each}}
+      {{#each others}}
+      <tr>
+        <td colspan="5">
+          <input type="text" name="system.{{../othersArray}}.{{index}}.label" value="{{label}}" {{@root.lock}}
+                 aria-label="{{localize 'ACKS-DOMAINS.field.line'}}" placeholder="{{localize 'ACKS-DOMAINS.sheet.otherLine'}}" />
+        </td>
+        <td>
+          <input type="number" step="any" name="system.{{../othersArray}}.{{index}}.gp" value="{{gp}}" {{@root.lock}}
+                 aria-label="{{localize 'ACKS-DOMAINS.field.gp'}}" />
+        </td>
+        <td class="row-actions">
+          {{#if @root.canEdit}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="rowDelete" data-array="{{../othersArray}}" data-index="{{index}}" aria-label="{{localize 'ACKS-DOMAINS.sheet.removeRowTitle'}}"><i class="fas fa-xmark"></i></button>{{/if}}
+        </td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  <p class="acks-extras-domain-hint">{{localize "ACKS-DOMAINS.hint.lines"}}</p>
+  {{#if canEdit}}
+  <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="rowAdd" data-array="{{othersArray}}">
+    <i class="fas fa-plus"></i> {{localize "ACKS-DOMAINS.sheet.addOtherLine"}}
+  </button>
+  {{/if}}
+</details>

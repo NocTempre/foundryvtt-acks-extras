@@ -786,7 +786,7 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
 {
   const {
     PAINT_LAYERS, TERRITORY_COLORS, paintableValues, layerColorFor, layerLabelFor, layerRegionsOf,
-    layerValueAt, paintHexAt,
+    layerValueAt, paintHexAt, registerPaintLayer, terrainPaint, TerrainPaletteApp, openCountryBrush,
   } = await import("../scripts/battlemap/terrain-paint.mjs");
   const { TERRITORY_KEYS } = await import("../scripts/formation/country-keys.mjs");
   const { CLIMATES } = await import("../scripts/formation/weather.mjs");
@@ -902,6 +902,148 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   const square = { ...scene, grid: { ...scene.grid, type: 1 } };
   assert.equal(layerValueAt(square, centre(1, 2), "climate"), null, "a square grid is never painted");
   assert.equal(await paintHexAt(square, centre(3, 3), "outlands", "territory"), false);
+
+  // The registry. A fourth layer joins by registering and nothing else in the
+  // file knows its name; the palette is probed through its context, which is
+  // what the template renders.
+  const builtIns = ["terrain", "territory", "climate"];
+  const palette = () => new TerrainPaletteApp()._prepareContext();
+  const pillKeys = async () => (await palette()).layers.map((p) => p.key);
+
+  assert.deepEqual(await pillKeys(), builtIns, "the palette offers the three layers");
+  assert.deepEqual((await palette()).layers.map((p) => p.label), builtIns.map((k) => `ACKS-BATTLEMAP.terrain.layer.${k}`),
+    "each named by the lang key it has always had");
+  assert.equal((await palette()).groups.length, 1, "terrain is one ungrouped run of swatches");
+  terrainPaint.setLayer("climate");
+  const grouped = await palette();
+  assert.deepEqual(grouped.groups.map((g) => g.label),
+    [...new Set(Object.values(CLIMATES).map((c) => c.group))].map((g) => `ACKS-FORMATION.travel.weather.climateGroup.${g}`),
+    "the climates are grouped as the sheet groups them");
+  assert.equal(grouped.groups.flatMap((g) => g.swatches).length, Object.keys(CLIMATES).length);
+  terrainPaint.setLayer("terrain");
+
+  const demoValues = ["a1", "a2", "b1"];
+  const demoLayer = () => ({
+    key: "demo",
+    flag: "demoKind",
+    hexesFlag: "demoHexes",
+    values: () => demoValues,
+    label: (v) => `demo ${v}`,
+    color: (v) => (v === "a1" ? "#112233" : "#445566"),
+    title: "TEST.demoPill",
+    groups: { of: (v) => v[0], label: (g) => `group ${g}` },
+  });
+  const dispose = registerPaintLayer(demoLayer());
+  let disposeOpen = () => {};
+  let disposeHollow = () => {};
+  try {
+    assert.deepEqual(Object.keys(PAINT_LAYERS), [...builtIns, "demo"], "a registered layer joins the set, last");
+    assert.deepEqual(PAINT_LAYERS.demo, { flag: "demoKind", hexesFlag: "demoHexes" });
+    assert.ok(Object.hasOwn(PAINT_LAYERS, "demo") && "demo" in PAINT_LAYERS);
+    assert.deepEqual(PAINT_LAYERS.terrain, { flag: TERRAIN_FLAG, hexesFlag: HEXES_FLAG }, "the others keep their flags");
+    assert.deepEqual(paintableValues("demo"), demoValues);
+    assert.notEqual(paintableValues("demo"), demoValues, "the brush gets a copy of what the layer offers");
+    assert.equal(layerLabelFor("a1", "demo"), "demo a1");
+    assert.equal(layerColorFor("a1", "demo"), "#112233");
+
+    // It paints, reads and erases as the built-ins do, drawn for a GM only
+    // because it did not say `visible`.
+    assert.equal(await paintHexAt(scene, centre(5, 5), "a1", "demo"), true);
+    assert.equal(layerValueAt(scene, centre(5, 5), "demo"), "a1");
+    assert.equal(layerValueAt(scene, centre(5, 5), "terrain"), null, "and the other layers do not see it");
+    const [region] = layerRegionsOf(scene, "demo");
+    assert.deepEqual(
+      [region.name, region.color, region.visibility, region.getFlag(MODULE_ID, "demoKind"), region.getFlag(MODULE_ID, "demoHexes")],
+      ["demo a1", "#112233", 1, "a1", ["5:5"]],
+      "a region is named, tinted and flagged by its layer's own functions and flags");
+    assert.equal(await paintHexAt(scene, centre(5, 5), "zz", "demo"), false, "a value the layer does not offer is refused");
+    assert.equal(await paintHexAt(scene, centre(5, 5), null, "demo"), true);
+    assert.deepEqual(layerRegionsOf(scene, "demo"), [], "erasing the last cell deletes the region");
+
+    disposeOpen = registerPaintLayer({ ...demoLayer(), key: "open", flag: "openKind", hexesFlag: "openHexes", visible: true });
+    assert.equal(await paintHexAt(scene, centre(5, 6), "a1", "open"), true);
+    assert.deepEqual(layerRegionsOf(scene, "open").map((r) => r.visibility), [2], "a layer that says `visible` is drawn for everyone");
+    assert.equal(await paintHexAt(scene, centre(5, 6), null, "open"), true);
+    disposeOpen();
+
+    // The palette: its pill, its groups, and arming the brush on the layer.
+    const pills = (await palette()).layers;
+    assert.deepEqual(pills.map((p) => p.key), [...builtIns, "demo"]);
+    assert.equal(pills.at(-1).label, "TEST.demoPill", "a layer names its own pill");
+    terrainPaint.setLayer("demo");
+    const shown = await palette();
+    assert.equal(shown.layers.find((p) => p.active).key, "demo");
+    assert.deepEqual(shown.groups.map((g) => [g.label, g.swatches.map((s) => s.key)]),
+      [["group a", ["a1", "a2"]], ["group b", ["b1"]]], "swatches group by the layer's own groups");
+    terrainPaint.setLayer("terrain");
+
+    globalThis.canvas = {};
+    TerrainPaletteApp.prototype.render = function render() { return this; };
+    try {
+      assert.ok(openCountryBrush({ layer: "demo", brush: "b1", by: "sheet" }) instanceof TerrainPaletteApp);
+      assert.deepEqual([terrainPaint.layer, terrainPaint.brush, terrainPaint.armedBy], ["demo", "b1", "sheet"],
+        "the brush opens on any registered layer");
+      terrainPaint.disarm();
+      openCountryBrush({ layer: "nowhere" });
+      assert.equal(terrainPaint.layer, "terrain", "an unregistered layer opens on terrain");
+    } finally {
+      terrainPaint.disarm();
+      delete TerrainPaletteApp.prototype.render;
+      delete globalThis.canvas;
+    }
+
+    // A layer with no value to offer is registered but left out of the palette.
+    let pool = [];
+    disposeHollow = registerPaintLayer({ ...demoLayer(), key: "hollow", flag: "hollowKind", hexesFlag: "hollowHexes", values: () => pool });
+    assert.ok(Object.hasOwn(PAINT_LAYERS, "hollow"));
+    assert.deepEqual(paintableValues("hollow"), []);
+    assert.deepEqual(await pillKeys(), [...builtIns, "demo"], "an empty layer stays hidden");
+    pool = ["a1"];
+    assert.deepEqual(await pillKeys(), [...builtIns, "demo", "hollow"], "and appears once it has a value");
+    disposeHollow();
+
+    // Refusals leave the registry as it was.
+    const plain = { flag: "dupKind", hexesFlag: "dupHexes", values: () => [], label: String, color: () => "#000000" };
+    assert.throws(() => registerPaintLayer({ ...plain, key: "terrain" }), /registered twice/, "a built-in's key is taken");
+    assert.throws(() => registerPaintLayer({ ...plain, key: "demo" }), /registered twice/, "so is a later one's");
+    assert.throws(() => registerPaintLayer({ ...plain, key: "dup", flag: "territory" }), /flag is shared/);
+    assert.throws(() => registerPaintLayer({ ...plain, key: "dup", hexesFlag: "demoKind" }), /flag is shared/,
+      "a flag held in the other role is held all the same");
+    assert.throws(() => registerPaintLayer({ ...plain, key: "dup", hexesFlag: "dupKind" }), /must differ/,
+      "a layer's two flags are two");
+    assert.throws(() => registerPaintLayer({ ...plain, key: "" }), /non-empty/);
+    assert.throws(() => registerPaintLayer(), /non-empty/);
+    assert.throws(() => registerPaintLayer({ ...plain, key: "dup", values: null }), /values must be a function/);
+    assert.throws(() => registerPaintLayer({ ...plain, key: "dup", groups: { of: () => "g" } }), /groups/);
+    assert.deepEqual(Object.keys(PAINT_LAYERS), [...builtIns, "demo"], "a refused layer registers nothing");
+    assert.equal(layerLabelFor("a1", "demo"), "demo a1", "and the first registration still stands");
+
+    // The flag map is a view, not a place to add a layer.
+    assert.throws(() => { PAINT_LAYERS.rogue = { flag: "x", hexesFlag: "y" }; }, TypeError);
+    assert.throws(() => { PAINT_LAYERS.terrain = {}; }, TypeError);
+    assert.throws(() => { delete PAINT_LAYERS.terrain; }, TypeError);
+    assert.throws(() => Object.defineProperty(PAINT_LAYERS, "rogue", { value: {} }), TypeError);
+    assert.equal("rogue" in PAINT_LAYERS, false);
+
+    // Taking a layer back: the brush leaves it, and an old handle cannot take a newer registration.
+    terrainPaint.setLayer("demo");
+    dispose();
+    assert.equal(terrainPaint.layer, "terrain", "a brush on a removed layer returns to terrain");
+    assert.deepEqual(Object.keys(PAINT_LAYERS), builtIns);
+    assert.deepEqual(paintableValues("demo"), [], "a removed layer paints nothing");
+    assert.deepEqual(layerRegionsOf(scene, "demo"), []);
+    const again = registerPaintLayer(demoLayer());
+    dispose();
+    assert.ok(Object.hasOwn(PAINT_LAYERS, "demo"), "a handle that was already spent does nothing");
+    again();
+  } finally {
+    dispose();
+    disposeOpen();
+    disposeHollow();
+    terrainPaint.setLayer("terrain");
+  }
+  assert.deepEqual(Object.keys(PAINT_LAYERS), builtIns, "the set is as it began");
+  assert.deepEqual(await pillKeys(), builtIns);
 }
 
 /* --- the scene's default country --------------------------------------------
