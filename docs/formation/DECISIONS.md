@@ -3835,7 +3835,7 @@ same corner).
   entry's. `tokenPoint` (`zones.mjs`, behind `partyPoint` and
   `truePartyPoint`), which the movement chain asks while a move is drawn, is
   ruled by *The ground under the party is read at the token's stored corner*
-  (2026-10-17).
+  (2026-10-17, below).
 
 ## 2026-10-17 — The ground under the party is read at the token's stored corner
 
