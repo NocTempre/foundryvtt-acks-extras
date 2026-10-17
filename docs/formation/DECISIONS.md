@@ -3681,3 +3681,75 @@ came back naming B.
 - Only the linkage is kept. A waiting whole write still overwrites any other
   field a patch changed meanwhile (*The party token's linkage is a patch*,
   2026-10-09, says who patches).
+
+## 2026-10-17 — A member on another scene: the recall, a combat, and whole writes
+
+**Found.** The three costs of *A member's own token follows core's
+cross-scene move* (2026-10-17, above), each reproduced by a flows scenario
+that failed on the code before this entry:
+- a stack with one body moved to B: the recall left that body standing on B
+  ("a stack recalled with a body on another scene gathers it from there");
+- a combat on A with a scout detached on B: the takeover cleared the scout's
+  `detached` ("a combat on the party's scene leaves a scout on another scene
+  out");
+- the party's own step, a whole write from a copy read before the scout's
+  re-anchor, put the old anchor back ("a whole write keeps the member records
+  a patch moved while it waited").
+
+**Ruled.**
+- The stack recall reads every scene: the group's own `recall` with no
+  scene, as an individual's token is followed to its own. The user's ruling,
+  from the options "Every scene", "Stay out until home" and "Defer": "Every
+  scene".
+- A combat takes over only the members on its scene. A detached member
+  standing on another scene with nothing of theirs on the combat's
+  (`standsElsewhere`, `deployment.mjs`) keeps `detached` and the anchor and
+  gets no combatant. No combat's end gathers them, and they are no evidence of
+  an unfinished deploy (`outOfTheFight`, `combat-bridge.mjs`). The user's
+  ruling, from the options "Leave them out", "Take them over" (the behaviour
+  then) and "Defer": "Leave them out".
+- A member's deployment moves only by patch. `updateFormation` keeps the
+  ledger's `DEPLOYMENT_FIELDS` on every member the ledger also holds, matched
+  by actor (`takeStoredDeployments`), as it keeps the party token's linkage
+  (*Every whole write keeps the party token's linkage*, above). The deploy,
+  the recall and the combat takeover write them through `patchDeployments`.
+  The re-anchor, the follow across scenes and the roster's stash write
+  already patched.
+- Walked live after the fix, twice: the Gamemaster moving the tokens, then
+  the Assistant Gamemaster, with the automation on the Gamemaster's client
+  both times (TESTING, "A detached member moved between scenes", steps 1 to
+  8). Every observable held on both routes. Each route's sweep removed 16,
+  could not find 10 (the tokens the teleports, recalls and reform deleted, and
+  both combats) and refused none. The console recorder on the primary GM was
+  attached after `ready` and recorded no error during either walk.
+
+**Rejected.**
+- *A three-way merge of each whole write against the copy it read*
+  (moderate). It would keep every field a patch moved, not these alone. But
+  every copy would have to carry the record it was read from, and a writer
+  that clones its copy and edits the clone has none to give.
+- *Stay out until home* (moderate): the recall gathers from the party's
+  scene only, and the cell stays out while any body stands elsewhere, for the
+  Judge to bring back from the group sheet. It folds nothing the formation
+  did not place, but a stack and an individual would come home by different
+  rules, and the cell would wait on a gesture made outside the party sheet.
+- *Take them over* (weak). The scout loses the leash and gets no combatant,
+  and the combat's end recalls them from their scene into the party token.
+
+**Cost.**
+- A recall writes twice: a patch for the deployments, then the whole write
+  for the rest.
+- The stack recall gathers every body of the group on every scene, including
+  one the Judge placed from the group sheet on a scene the party never
+  visited.
+- A writer that writes a deployment field whole has it replaced by the
+  ledger's without a warning. The whole-write scenario fails if
+  `updateFormation` stops keeping them.
+- A recall still decides from the copy it is handed. A copy read before a
+  teleport names the old scene, and the recall looks there.
+- The probes for this entry found two older faults, not fixed: any combat's
+  end gathers a scout detached on the party's own scene, and a member left
+  behind stops the combat deploy (ROADMAP, "What a combat reads as the
+  party's").
+- The faults were measured before the fix offline only. The live walks ran
+  after it.

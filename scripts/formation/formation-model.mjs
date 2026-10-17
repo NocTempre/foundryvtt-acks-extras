@@ -215,12 +215,17 @@ function commit(mutate) {
  * an adoption heard while the caller awaited moves the linkage by patch, and
  * only a patch moves it. The copy is brought into line, so a later write from
  * it agrees.
+ *
+ * Nor is a member's deployment (`DEPLOYMENT_FIELDS`): each member the ledger
+ * also holds, matched by actor, keeps the ledger's, and only
+ * `patchDeployments` or a patch moves it.
  */
 export async function updateFormation(formation) {
   await commit((all) => {
     const stored = all[formation.id];
     if (!stored) return false;
     takeStoredLinkage(formation, stored);
+    takeStoredDeployments(formation, stored);
     all[formation.id] = formation;
   });
   return formation;
@@ -256,6 +261,47 @@ export async function patchFormation(id, mutate) {
   });
   if (absent) return null;
   return applied === false ? target : applied;
+}
+
+/**
+ * The fields of a member record that say where the member's body is: the
+ * token they stand as and its scene, a stack out on the map, a detach and its
+ * leash, and the token stashed while they ride inside. Patches move them: a
+ * deploy, a recall, a combat taking a scout over, a re-anchor, a move between
+ * scenes, a stash's hit points.
+ */
+const DEPLOYMENT_FIELDS = ["deployedTokenId", "deployedSceneId", "deployedStack", "detached", "detach", "tokenData"];
+
+/** Copy `from`'s deployment onto `to`; a field `from` lacks is removed from `to`. */
+function copyDeployment(from, to) {
+  for (const key of DEPLOYMENT_FIELDS) {
+    if (from[key] === undefined) delete to[key];
+    else to[key] = foundry.utils.deepClone(from[key]);
+  }
+}
+
+function takeStoredDeployments(formation, stored) {
+  const kept = new Map((stored.members ?? []).filter((m) => m?.actorId).map((m) => [m.actorId, m]));
+  for (const member of formation.members ?? []) {
+    const ledger = member?.actorId ? kept.get(member.actorId) : null;
+    if (ledger) copyDeployment(ledger, member);
+  }
+}
+
+/**
+ * Write the deployment of `members`, records in the copy `formation` that
+ * moved it, onto the ledger's records of the same actors. A member the ledger
+ * no longer holds is skipped.
+ * @returns {Promise<object|null>} the stored record, or null when it is gone
+ */
+export function patchDeployments(formation, members) {
+  const moving = members.filter((m) => m?.actorId);
+  return patchFormation(formation.id, (record) => {
+    for (const member of moving) {
+      const ledger = record.members?.find((m) => m?.actorId === member.actorId);
+      if (ledger) copyDeployment(member, ledger);
+    }
+  });
 }
 
 export async function createFormation(name, { actorId = null } = {}) {

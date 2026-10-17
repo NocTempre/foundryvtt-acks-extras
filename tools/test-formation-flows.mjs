@@ -2501,6 +2501,211 @@ await scenario("a whole write held on an answer keeps the party token a teleport
   await drain();
 });
 
+/**
+ * A party of its own on the dungeon scene, for a scenario that must not leave
+ * the shared one changed: the named members are placed and added, and the
+ * party token is placed with them.
+ */
+async function isolatedParty(name, ...people) {
+  const actors = [];
+  for (const [i, who] of people.entries()) {
+    const actor = typeof who === "string" ? await member(who) : await ActorMock.create(who);
+    await drain();
+    const [token] = await scene.createEmbeddedDocuments("Token", [
+      { name: actor.name, actorId: actor.id, actorLink: false, x: 1000 + i * 100, y: 1000, delta: null },
+    ]);
+    actors.push({ actor, token });
+  }
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation(name);
+  for (const { actor, token } of actors) formation = await model.addMember(formation, actor, token);
+  await drain();
+  return { id: onlyFormation().id, actors: actors.map((a) => a.actor) };
+}
+
+/**
+ * A stack out on the map as lib's `groups.deploy` leaves it: a group actor
+ * whose roster holds one deployed record per body, each body a token carrying
+ * the group, stack and member flags. Built by hand: the placement is lib's,
+ * and tools/test-group-lifecycle.mjs tests it.
+ */
+async function stackStandingOn(name, spots) {
+  const group = await ActorMock.create({
+    name,
+    type: `${MODULE_ID}.group`,
+    system: { stacks: [{ key: "s1", size: { current: spots.length, initial: spots.length }, roster: [] }] },
+  });
+  Object.assign(group.system, {
+    toObject() {
+      return { stacks: foundry.utils.deepClone(this.stacks) };
+    },
+    stackOf(key) {
+      return this.stacks.find((s) => s.key === key) ?? null;
+    },
+  });
+  Object.defineProperty(group.system, "primaryStack", { get: () => group.system.stacks[0] ?? null });
+  for (const [i, { on, x, y }] of spots.entries()) {
+    const key = `m${i + 1}`;
+    const [body] = await on.createEmbeddedDocuments("Token", [
+      { name: `${name} #${i + 1}`, actorId: group.id, actorLink: false, x, y, flags: { [MODULE_ID]: { group: group.uuid, stack: "s1", member: key } } },
+    ]);
+    group.system.stacks[0].roster.push({ key, ordinal: i + 1, state: "deployed", tokenUuid: `Scene.${on.id}.Token.${body.id}`, delta: {}, note: "" });
+  }
+  await drain();
+  return group;
+}
+
+await scenario("a stack recalled with a body on another scene gathers it from there", async () => {
+  // See docs/formation/DECISIONS.md, "A member on another scene: the recall,
+  // a combat, and whole writes".
+  const { id, actors } = await isolatedParty("Stack Party", "Lead");
+  const cellar = new SceneMock("Cellar");
+  game.scenes.set(cellar.id, cellar);
+  const group = await stackStandingOn("Kobolds", [
+    { on: scene, x: 1200, y: 1000 },
+    { on: cellar, x: 300, y: 400 },
+  ]);
+  const bodiesOn = (where) => where.tokens.filter((t) => t.getFlag(MODULE_ID, "group") === group.uuid).length;
+  try {
+    await model.patchFormation(id, (rec) => {
+      rec.members.push({ actorId: group.id, roles: [], tokenData: null, deployedStack: true, detached: true });
+    });
+    await drain();
+    assert.equal(await deployment.toggleDetachMember(model.getFormation(id), group.id), "recalled");
+    await drain();
+    const cell = onlyFormation().members.find((m) => m.actorId === group.id);
+    assert.ok(!cell.deployedStack && !cell.detached, "the cell is back inside the party token");
+    assert.equal(bodiesOn(scene), 0, "no body is left on the party's scene");
+    assert.equal(bodiesOn(cellar), 0, "nor on the scene a body was moved to");
+    assert.deepEqual(group.system.stacks[0].roster.map((m) => m.state), ["materialized", "materialized"], "both bodies folded home");
+  } finally {
+    game.scenes.delete(cellar.id);
+  }
+  await model.disband(model.getFormation(id));
+  await drain();
+  for (const actor of [...actors, group]) await actor.delete();
+  await drain();
+});
+
+await scenario("a combat on the party's scene leaves a scout on another scene out", async () => {
+  // See docs/formation/DECISIONS.md, "A member on another scene: the recall,
+  // a combat, and whole writes".
+  const { id, actors } = await isolatedParty("Split Party", "Ranger", "Guard");
+  const [ranger, guard] = actors;
+  const tower = new SceneMock("Tower");
+  game.scenes.set(tower.id, tower);
+  const scout = () => onlyFormation().members.find((m) => m.actorId === ranger.id);
+  try {
+    assert.equal(await deployment.toggleDetachMember(model.getFormation(id), ranger.id), "detached");
+    await drain();
+    const arrived = await moveAcrossScenes(scene.tokens.get(scout().deployedTokenId), tower, 300, 400);
+    await drain();
+    assert.equal(scout().deployedSceneId, tower.id, "the scout stands on the tower");
+
+    const combat = new CombatMock();
+    game.combats.set(combat.id, combat);
+    await combat.createEmbeddedDocuments("Combatant", [
+      { tokenId: onlyFormation().tokenId, sceneId: scene.id, actorId: onlyFormation().actorId, hidden: false },
+    ]);
+    await drain();
+    assert.ok(onlyFormation().combat?.active, "the party deployed for combat");
+    assert.ok(scout().detached, "the scout is still out on a detach");
+    assert.deepEqual(scout().detach?.anchor, { x: 300, y: 400 }, "on the leash from where they arrived");
+    assert.ok(!combat.combatants.some((c) => c.actorId === ranger.id), "and is no combatant");
+    assert.ok(combat.combatants.some((c) => c.actorId === guard.id), "the guard fights");
+
+    await combat.delete();
+    await drain();
+    const guardCell = onlyFormation().members.find((m) => m.actorId === guard.id);
+    assert.equal(onlyFormation().combat, null, "the party re-formed");
+    assert.ok(!guardCell.deployedTokenId, "the guard came home");
+    assert.equal(scout().deployedSceneId, tower.id, "the scout is still out on the tower");
+    assert.ok(tower.tokens.get(arrived.id), "their token still stands there");
+
+    // Any combat's end reads a member on the map as an unfinished deploy; a
+    // scout on another scene is none.
+    const elsewhere = new CombatMock();
+    game.combats.set(elsewhere.id, elsewhere);
+    const cards = chat.length;
+    await elsewhere.delete();
+    await drain();
+    assert.ok(scout().detached && tower.tokens.get(arrived.id), "another combat's end leaves them out too");
+    assert.equal(chat.length, cards, "and announces no re-forming");
+
+    assert.equal(await deployment.toggleDetachMember(model.getFormation(id), ranger.id), "recalled");
+    await drain();
+    assert.equal(tower.tokens.size, 0, "the recall still reaches the tower");
+  } finally {
+    game.scenes.delete(tower.id);
+  }
+  await model.disband(model.getFormation(id));
+  await drain();
+  for (const actor of actors) await actor.delete();
+  await drain();
+});
+
+await scenario("a whole write keeps the member records a patch moved while it waited", async () => {
+  // See docs/formation/DECISIONS.md, "A member on another scene: the recall,
+  // a combat, and whole writes".
+  const { id, actors } = await isolatedParty("Patient Party", {
+    name: "Pathfinder",
+    type: "monster",
+    system: { hp: { value: 8, max: 8 }, movementacks: { exploration: 120 }, movement: { base: 120 } },
+  });
+  const [finder] = actors;
+  const pass = new SceneMock("Pass");
+  game.scenes.set(pass.id, pass);
+  const scout = () => onlyFormation().members.find((m) => m.actorId === finder.id);
+  try {
+    assert.equal(await deployment.toggleDetachMember(model.getFormation(id), finder.id), "detached");
+    await drain();
+
+    // The party's own step: the re-anchor is a patch, and the clock's write
+    // that follows it carries the record it read before the patch landed.
+    const out = scene.tokens.get(scout().deployedTokenId);
+    await out.update({ x: out.x + 200 });
+    await drain();
+    const party = scene.tokens.get(onlyFormation().tokenId);
+    await party.update({ x: party.x + 300 });
+    await drain();
+    assert.deepEqual(scout().detach?.anchor, { x: out.x, y: out.y }, "the step re-anchors the scout where they stand");
+
+    // A move across scenes heard while a writer waits on an answer.
+    let copy = model.getFormation(id);
+    const arrived = await moveAcrossScenes(out, pass, 300, 400);
+    await drain();
+    assert.equal(scout().deployedSceneId, pass.id, "the move's patch landed while the writer waited");
+    copy.frontage = 2;
+    await model.updateFormation(copy);
+    await drain();
+    assert.equal(onlyFormation().frontage, 2, "the writer's own change landed");
+    assert.equal(scout().deployedSceneId, pass.id, "the record still names the scene the scout arrived on");
+    assert.equal(scout().deployedTokenId, arrived.id, "and the token they arrived as");
+    assert.deepEqual(scout().detach?.anchor, { x: 300, y: 400 }, "and the leash measures from the arrival");
+    const copied = copy.members.find((m) => m.actorId === finder.id);
+    assert.equal(copied.deployedSceneId, pass.id, "the writer's copy is brought into line");
+
+    // A stash written while a writer waits.
+    assert.equal(await deployment.toggleDetachMember(model.getFormation(id), finder.id), "recalled");
+    await drain();
+    copy = model.getFormation(id);
+    const roster = (await import("../scripts/lib/services.mjs")).get("party-roster");
+    const done = await roster.adjustStashedHp(id, finder.id, (hp) => hp.value - 3);
+    assert.deepEqual([done?.before, done?.after], [8, 5], "the stash took the change");
+    copy.frontage = 3;
+    await model.updateFormation(copy);
+    await drain();
+    assert.equal(onlyFormation().frontage, 3);
+    assert.equal(scout().tokenData?.delta?.system?.hp?.value, 5, "the stash keeps the change the writer never read");
+  } finally {
+    game.scenes.delete(pass.id);
+  }
+  await model.disband(model.getFormation(id));
+  await drain();
+  for (const actor of actors) await actor.delete();
+  await drain();
+});
+
 await scenario("overlapping environment sweeps coalesce instead of racing", async () => {
   // See docs/formation/DECISIONS.md, "Environment sweeps coalesce, and a
   // vanished target is not a fault".

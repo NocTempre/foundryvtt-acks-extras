@@ -1,8 +1,15 @@
 import { makeLoc } from "../lib/util.mjs";
 import { announce } from "./announce.mjs";
 import { MODULE_ID, ROLES } from "./constants.mjs";
-import { formationForToken, getFormations, getPartyToken, updateFormation } from "./formation-model.mjs";
-import { deployMembers, deployedTokens, isMemberDeployed, recallMembers } from "./deployment.mjs";
+import {
+  formationForToken,
+  getFormations,
+  getPartyScene,
+  getPartyToken,
+  patchDeployments,
+  updateFormation,
+} from "./formation-model.mjs";
+import { deployMembers, deployedTokens, isMemberDeployed, recallMembers, standsElsewhere } from "./deployment.mjs";
 import { advanceRounds } from "./turn-engine.mjs";
 
 /**
@@ -16,6 +23,13 @@ import { advanceRounds } from "./turn-engine.mjs";
 
 
 const loc = makeLoc("ACKS-FORMATION");
+
+/**
+ * A member a combat on the party's scene leaves alone: out on a detach and
+ * standing on another scene (`standsElsewhere`). The deploy does not take
+ * them over, and no combat's end gathers them.
+ */
+const outOfTheFight = (formation, member, scene) => !!member?.detached && standsElsewhere(formation, member, scene);
 
 /* -------------------------------------------- */
 /*  Deploy on joining combat                    */
@@ -39,9 +53,10 @@ export async function onPartyCombatantCreated(combatant) {
 
   const scene = tokenDoc.parent;
   // Everyone who can fight goes out; non-combatants stay inside the party token.
-  // A member already detached is on the map already and simply joins the fight.
+  // A member already detached is on the map already and simply joins the fight,
+  // unless they stand on another scene.
   const fighters = formation.members.filter(
-    (m) => m && !m.blank && m.actorId && !m.roles?.includes(ROLES.NONCOMBATANT),
+    (m) => m && !m.blank && m.actorId && !m.roles?.includes(ROLES.NONCOMBATANT) && !outOfTheFight(formation, m, scene),
   );
   await deployMembers(formation, { members: fighters });
   const onField = fighters.filter(isMemberDeployed);
@@ -57,7 +72,7 @@ export async function onPartyCombatantCreated(combatant) {
     delete member.detached;
     delete member.detach;
   }
-  await updateFormation(formation);
+  await patchDeployments(formation, onField);
 
   // Every body its own combatant, gathered per member and created in ONE call:
   // a stack of forty rolls forty initiatives at the cost of one document write.
@@ -114,7 +129,7 @@ export async function onCombatEnd(combat) {
       (f.combat?.active && f.combat.combatId === combat.id) ||
       // Deployed member tokens are evidence of an unfinished deploy even when
       // the combat flag is missing.
-      f.members.some(isMemberDeployed),
+      f.members.some((m) => isMemberDeployed(m) && !outOfTheFight(f, m, getPartyScene(f))),
   );
   for (const formation of formations) {
     try {
@@ -134,7 +149,10 @@ async function reform(formation, combat) {
   formation.combat = null;
   // The fallen come back with the party: assign Carriers, or remove them from
   // the formation to abandon the body where it fell.
-  const { fallen, anchor } = await recallMembers(formation);
+  const scene = getPartyScene(formation);
+  const { fallen, anchor } = await recallMembers(formation, {
+    members: formation.members.filter((m) => !outOfTheFight(formation, m, scene)),
+  });
 
   // Re-anchor movement tracking at the reform position before the token moves.
   if (anchor) formation.clock.lastPosition = anchor;

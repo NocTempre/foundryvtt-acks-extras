@@ -11,6 +11,7 @@ import {
   isDown,
   isStackMember,
   MEMBER_TOKEN_OPTION,
+  patchDeployments,
   patchFormation,
   readFormations,
   updateFormation,
@@ -89,6 +90,23 @@ export async function deployedTokens(member, scene) {
 }
 
 /**
+ * Is this member out on another scene than `scene`, with nothing of theirs on
+ * it? An individual whose own token stands elsewhere; a stack whose every body
+ * still on the map does. A member whose token is gone stands nowhere, and is
+ * not elsewhere.
+ */
+export function standsElsewhere(formation, member, scene) {
+  if (!scene || !isMemberDeployed(member)) return false;
+  if (!member.deployedStack) {
+    const token = ownToken(formation, member);
+    return !!token && token.parent?.id !== scene.id;
+  }
+  const actor = getMemberActor(member);
+  if (deployedBodies(actor, [scene]).length) return false;
+  return deployedBodies(actor, [...(game.scenes ?? [])].filter((s) => s.id !== scene.id)).length > 0;
+}
+
+/**
  * Create tokens for `members` around the party token, in marching-order
  * shape. Blanks leave gaps; the down are carried rather than deployed;
  * members already on the map are skipped. A stack goes out as the bodies
@@ -142,6 +160,7 @@ export async function deployMembers(formation, { members = formation.members, de
   if (!toCreate.length && !stacked.length) return [];
 
   const created = [];
+  const placed = [];
   if (toCreate.length) {
     const tokens = await scene.createEmbeddedDocuments(
       "Token",
@@ -150,6 +169,7 @@ export async function deployMembers(formation, { members = formation.members, de
     );
     tokens.forEach((token, i) => {
       const member = toCreate[i].member;
+      placed.push(member);
       member.deployedTokenId = token.id;
       member.deployedSceneId = scene.id;
       if (detached) {
@@ -185,11 +205,12 @@ export async function deployMembers(formation, { members = formation.members, de
     if (created.length > before) {
       member.deployedStack = true;
       if (detached) member.detached = true;
+      placed.push(member);
     }
   }
   // Record the deployed tokens at once so a recall can always gather them,
   // even if whatever the caller does next fails.
-  await updateFormation(formation);
+  await patchDeployments(formation, placed);
   return created;
 }
 
@@ -231,7 +252,9 @@ export async function recallMembers(formation, { members = formation.members } =
       const actor = getMemberActor(member);
       if (!actor) continue; // the stack's sheet is gone; the marker is cleared regardless
       const groups = await groupOps();
-      const { casualties } = await groups.recall(actor, { scene });
+      // Every scene, as an individual's token is followed to its own: core
+      // moves a body to another scene and the roster follows it there.
+      const { casualties } = await groups.recall(actor);
       for (let i = 0; i < casualties; i++) fallen.push(actor.name);
       continue;
     }
@@ -248,6 +271,7 @@ export async function recallMembers(formation, { members = formation.members } =
   // Stash before destroy: the snapshots must be in storage before the canvas
   // tokens are deleted, or a failure loses them. One deletion per scene the
   // tokens stand on.
+  await patchDeployments(formation, formation.members.filter((m) => wanted.has(m)));
   await updateFormation(formation);
   const perScene = new Map();
   for (const token of toDelete) perScene.set(token.parent, [...(perScene.get(token.parent) ?? []), token.id]);

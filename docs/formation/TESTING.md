@@ -691,6 +691,92 @@ is lib's recipe "The hit-point tool" (docs/lib/TESTING.md).
 The member tokens that enrolling deleted, and the one the recall deleted, sweep
 as missing.
 
+## A detached member moved between scenes (added with the member-token fix)
+
+Covers the member `deleteToken` hook in `module.mjs`, `followMemberToken`,
+`deployedSceneId`, the recall of a token on another scene, a combat that
+leaves such a member out (`outOfTheFight`, `combat-bridge.mjs`), and the
+member fields a whole write keeps (`DEPLOYMENT_FIELDS`). Driven by a script
+over the capture driver, from the Gamemaster and from the Assistant
+Gamemaster, each on its own port; no walk in `tools/live` covers it. The
+automation runs on the Gamemaster's client on both routes; the route names
+the seat that moves the tokens. A group body moved on its own is
+docs/lib/TESTING.md, "A group body moved between scenes".
+
+**Fixtures**, each `api.create()`d or `api.track()`ed:
+- Scenes A and B, the arrival and the departure: "A teleport between scenes"
+  below.
+- Two `character` actors, the scout and the guard; a monster with hit
+  points, and an `acks-extras.group` actor given a stack of two of it with
+  `acksExtras.lib.groups.addStack(group, monster, {count: 2})`. `api.track()`
+  the stack's base actor when it is not the monster.
+- A hand-created party actor, and the party token on A away from the
+  departure, `actorLink: true`.
+
+**Drive mechanics.**
+- Poll the party actor's `flags.acks-extras.formationId` until several reads
+  agree. Every Gamemaster window adopts a hand-created party actor, and the
+  flag names whichever wrote last (docs/lib/ROADMAP.md, "One automation
+  client, not one automation user").
+- Drop the scout, the guard and the group on the party sheet, then click the
+  scout's `[data-action="toggleDetach"]`. Read `deployedTokenId` back from
+  the record and `api.track()` that token.
+- A combat: `api.create("Combat", {scene: <A>})`, then
+  `combat.createEmbeddedDocuments("Combatant", [{tokenId, sceneId, actorId}])`
+  with the party token's. Deleting the combat is the combat's end.
+
+1. **The party's step keeps the scout's re-anchor.** Move the scout one
+   square on A, then the party token one square.
+   **Observable:** `detach.anchor` is where the scout now stands.
+2. **The record follows the scout.** From the seat under test, move the
+   scout's token into the departure with `tokenDoc.update({x, y})`. Poll B
+   for a token of the member's actor and `api.track()` it.
+   **Observable:** in `getFormations()[id].members`, the scout's
+   `deployedTokenId` is the arrival's id, `deployedSceneId` is B, `detached`
+   is true, and `detach.anchor` is the arrival's `x`/`y`. The record's own
+   `sceneId` still names A.
+3. **The party's step does not pull the anchor back.** Move the party token
+   one square on A.
+   **Observable:** the anchor is still the scout's position on B.
+4. **A combat on A leaves the scout out.** Add the party token to a combat on
+   A. `api.track()` the guard's token (its `deployedTokenId`) and the stack's
+   bodies (the tokens on A whose `flags.acks-extras.group` is the group's
+   uuid).
+   **Observable:** the record's `combat.active` is true; the scout keeps
+   `detached` and the anchor; the combat holds a combatant for the guard and
+   for each body, and none for the scout.
+5. **The combat's end leaves the scout out.** Delete the combat.
+   **Observable:** the record's `combat` is null, the guard has no
+   `deployedTokenId`, no body of the group stands on A or B, and the scout
+   still stands on B, detached.
+6. **Another combat's end leaves the scout out.** Create a combat on B and
+   delete it.
+   **Observable:** the scout is unchanged, and the gesture posted no card.
+7. **A stack with a body on B is gathered from there.** Press the group's
+   detach control and track its two bodies. Move one into the departure,
+   poll B for the token with that body's `member` flag, and track it. Press
+   the control again.
+   **Observable:** no body of the group stands on A or B, every roster record
+   is `materialized` with an empty `tokenUuid`, and the cell has no
+   `deployedStack`.
+8. **The recall reaches the other scene.** Press the scout's detach control
+   again.
+   **Observable:** `deployedTokenId`, `deployedSceneId` and `detach` are gone,
+   the member holds `tokenData`, and neither scene holds a token of the
+   member's actor.
+- Unfixed, step 2 kept the id with no scene and the anchor on A, and step 8
+  cleared the record and left the token standing on B with nothing stashed.
+  Steps 1, 4, 5 and 7 were measured unfixed offline only (the flows
+  scenarios named in DECISIONS 2026-10-17, "A member on another scene: the
+  recall, a combat, and whole writes").
+
+**Teardown.** `api.sweepTracked()`. The detaches, recalls and the combat
+post chat cards. Read each gesture's cards back right after it: the
+`game.messages` ids that were not there before the gesture and that this
+seat authored, read while the world holds no other seat. `api.track(id,
+"ChatMessage")` each. The tokens the teleports, recalls and the reform
+deleted, and both combats, sweep as missing.
+
 ## End day, the whole tick (added with survival and the throw)
 
 End day does two things here, and each can fail independently.
