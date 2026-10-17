@@ -1,0 +1,9 @@
+{
+  "id": "kind.prose",
+  "role": "composite",
+  "note": "A section of an adventure's own prose (an introduction, a level's notes, a sidebar, a closing encounter) bound as a journal page under its citation. Named Prose <n>, id <book>.prose<n>, anchors by hash; every word is read from the Judge's page at import. A keyed area's text is its place's notes, never a prose row.",
+  "fields": {
+    "name": { "locate": "display" },
+    "description": { "locate": "proseFlow", "type": "blocks" }
+  }
+}

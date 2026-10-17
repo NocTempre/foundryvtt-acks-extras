@@ -1015,18 +1015,24 @@ region needs of them — AX1's tables, AX4's tables and forest zone, AX5's new
 monsters, tables and two zones, AX6's tables and zone (the user's ruling of
 2026-10-09: ACKS II supersedes only where identical, else the more specific
 printing is correct) — and AX2 is unchanged. The underground city stays out
-of scope. What each book still owes, in the order it is worth doing:
+of scope.
 
-- **AX1's own map:** the colour map with its hex numbering, and its p.66
-  sites as places (`sameAs` the region's where they coincide); a
-  search-hour zone for its forest.
-- **Dungeon maps** (AX1, AX2, AX4, AX5, AX6) as scenes with their keyed
-  areas placed, the way the city map is.
+**AX1 whole is in progress** under the rulings of 2026-10-17 (DECISIONS),
+with the build plan in `wip/20261017-ax1-adventure-design.md`: one Adventure
+per book, with AX3's per-map one retired; key spaces of neutral rows; four
+maps and the fort's floor plans joined as scenes; characters from the page;
+later books superseding a shared place. It ships as one minor when AX1
+imports whole.
+
+What each book still owes, in the order it is worth doing:
+
+- **Dungeon maps** (AX2, AX4, AX5, AX6) as scenes with their keyed areas
+  placed, the way AX1's are planned.
 - **Terrain from the render:** painting the region's terrain from the page's
   picture, which a density, orientation and component classifier could not
   do at the page's resolution; the Judge paints it for now.
-- **The region as an Adventure** collecting its map, sites, zones and
-  tables.
+- **The region as an Adventure:** ruled to ride AX3's book Adventure
+  (DECISIONS 2026-10-17), and built with AX1's work.
 - **Military forces** the adventures print, as the factions feature's
   strength grids.
 - **The d100 stocking tables** beyond the ruined-building one, and **AX5's
@@ -1036,9 +1042,28 @@ of scope. What each book still owes, in the order it is worth doing:
 - **Zone results as creature links:** a zone's drawn result naming a monster
   the world holds becomes a link to it.
 - **Adventure links from the sites:** a site that is an adventure's own
-  location (25 to AX4, 27 and 28 to AX1, 44 and 46 to AX5, 52 to AX6) opens
-  that adventure's document.
+  location (25 to AX4, 44 and 46 to AX5, 52 to AX6) opens that adventure's
+  document. AX1's (27 and 28) are planned with AX1's own work.
 - **The reimport dialog's mode line:** a rules-table pick says nothing is
   deleted while the Mode select beneath still reads *Rebuild (delete and
   import again)*; the mode belongs to shelves and books and should fold away
   under a table pick.
+
+## Left out of AX1's minor (ruled 2026-10-17)
+
+- **Walls traced at import** from the Judge's own picture of a dungeon or a
+  plan. Shipping traced vectors would ship the drawn layout, so the maps land
+  with no walls and with vision off.
+- **AX1's domain record (p.28)** waits for the domain sheet. When the sheet
+  exists, the record's market fields could ride the market-record path, but
+  only if the fort is one of a demand grid's markets.
+- **Occupants deployed as tokens.** A room's roster carries count and
+  per-instance hit points as notes. A structured hit-point field, or members
+  as a group actor's deltas (`docs/lib/GROUPS.md`), waits for something that
+  deploys them onto a scene and reads them back.
+- **AX3's people as characters.** They stay monster NPCs. Converting them
+  means re-minting stable ids and re-pointing every organisation and roster
+  slot that names them.
+- **An order for same-year printings.** AX2–AX6 all carry 2018, so
+  `laterBook` cannot order them, and a place two of them print cannot be
+  paired until the register records which came first.

@@ -20,6 +20,10 @@
  * character into it. It is read through its fields, so a copy that is not the
  * fillable form is refused when it is opened, and its shelf journal is shared
  * with every player, whose exports read it too.
+ *
+ * `published` is the copyright year the registered printing carries on its
+ * credits page. It is the only order between books that `laterBook` reads.
+ * Only the ACKS line carries it: a pair never crosses lines.
  */
 
 /**
@@ -34,6 +38,7 @@ export const BOOKS = {
   rr: {
     label: "ACKS II Revised Rulebook",
     short: "RR",
+    published: 2024,
     pages: 553,
     titleRe: /Revised Rulebook/i,
     printedOffset: 2,
@@ -41,6 +46,7 @@ export const BOOKS = {
   jj: {
     label: "ACKS II Judges Journal",
     short: "JJ",
+    published: 2024,
     pages: 489,
     titleRe: /Judges Journal/i,
     printedOffset: 2,
@@ -48,6 +54,7 @@ export const BOOKS = {
   bta: {
     label: "By This Axe: The Cyclopedia of Dwarven Civilization",
     short: "BTA",
+    published: 2022,
     pages: 273,
     titleRe: /By This Axe/i,
     printedOffset: 1,
@@ -55,6 +62,7 @@ export const BOOKS = {
   mm: {
     label: "ACKS II Monstrous Manual",
     short: "MM",
+    published: 2024,
     pages: 441,
     titleRe: /Monstrous Manual/i,
     printedOffset: 2,
@@ -62,6 +70,7 @@ export const BOOKS = {
   tt: {
     label: "ACKS II Treasure Tome",
     short: "TT",
+    published: 2024,
     pages: 346,
     titleRe: /Treasure Tome/i,
     printedOffset: 2,
@@ -73,6 +82,7 @@ export const BOOKS = {
   ax1: {
     label: "AX1 The Sinister Stone of Sakkara",
     short: "AX1",
+    published: 2015,
     pages: 80,
     titleRe: /Sinister Stone of Sakkara/i,
     printedOffset: 1,
@@ -81,6 +91,7 @@ export const BOOKS = {
   ax2: {
     label: "AX2 Secrets of the Nethercity",
     short: "AX2",
+    published: 2018,
     pages: 186,
     titleRe: /Secrets of the Nethercity/i,
     printedOffset: 2,
@@ -89,6 +100,7 @@ export const BOOKS = {
   ax3: {
     label: "AX3 Capital of the Borderlands",
     short: "AX3",
+    published: 2018,
     pages: 226,
     titleRe: /Capital of the Borderlands/i,
     printedOffset: 2,
@@ -97,6 +109,7 @@ export const BOOKS = {
   ax4: {
     label: "AX4 Ruined City of Cyfandir",
     short: "AX4",
+    published: 2018,
     pages: 30,
     titleRe: /Ruined City of Cyfandir/i,
     printedOffset: 2,
@@ -105,6 +118,7 @@ export const BOOKS = {
   ax5: {
     label: "AX5 Eyrie of the Dread Eye",
     short: "AX5",
+    published: 2018,
     pages: 59,
     // The stock filename welds and misspells the title ("EyrireDreadEye");
     // the pattern tolerates both it and the printed form.
@@ -115,6 +129,7 @@ export const BOOKS = {
   ax6: {
     label: "AX6 Sepulcher of the Sorceress-Queen",
     short: "AX6",
+    published: 2018,
     pages: 58,
     titleRe: /Sepulcher of the Sorceress[\s-]*Queen/i,
     printedOffset: 2,
@@ -223,6 +238,7 @@ export const BOOKS = {
   scg: {
     label: "ACKS II System Compatibility Guide",
     short: "SCG",
+    published: 2024,
     pages: 12,
     titleRe: /System Compat/i,
     printedOffset: 4,
@@ -314,3 +330,17 @@ export const bookIsJudges = (bookId) => BOOKS[bookId]?.judge === true;
 
 /** Whether a registry entry is a fillable form rather than a book (`form`). */
 export const bookIsForm = (bookId) => BOOKS[bookId]?.form === true;
+
+/**
+ * The later of two books by the year their printings carry (`published`), or
+ * null when the years tie or either book has none. A tie is never broken by
+ * declaration order: that order is a habit of this file, not a fact of
+ * publication, so a caller that needs an answer has to refuse or fall back on
+ * a rule of its own.
+ */
+export function laterBook(a, b) {
+  const ya = BOOKS[a]?.published;
+  const yb = BOOKS[b]?.published;
+  if (!Number.isInteger(ya) || !Number.isInteger(yb) || ya === yb) return null;
+  return ya > yb ? a : b;
+}

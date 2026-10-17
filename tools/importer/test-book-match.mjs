@@ -1,7 +1,7 @@
 /** Matching picked files to books, and telling a book by its fingerprint. No PDFs, no Foundry. */
 import assert from "node:assert";
 import { matchFilesToBooks } from "../../scripts/importer/book-match.mjs";
-import { BOOKS, identifyBook } from "../../scripts/importer/books.mjs";
+import { BOOKS, identifyBook, laterBook } from "../../scripts/importer/books.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -132,5 +132,29 @@ check("an untitled printing is named by count alone", identifyBook(BOOKS.ax2.pag
 // what keeps edition drift a warning rather than a refusal.
 check("an unknown page count names nobody", identifyBook(9999, "ACKS II Revised Rulebook") === null);
 check("a count collision with a foreign title names nobody", identifyBook(BOOKS.jj.pages, "ACKS II Revised Rulebook") === null);
+
+/* Publication order. A year is carried only by the ACKS line's books, as a
+ * whole year; `laterBook` answers the same whichever way round it is asked,
+ * and on a tie or a missing year it answers nobody rather than falling back to
+ * the order this file declares. */
+{
+  const dated = Object.entries(BOOKS).filter(([, b]) => b.published !== undefined);
+  for (const [id, b] of dated) {
+    check(`${id} carries a whole year`, Number.isInteger(b.published) && b.published > 2000);
+    check(`${id} is an ACKS book, not another line's or a form`, !b.line && !b.form);
+  }
+  for (const [a, ba] of dated) {
+    for (const [b, bb] of dated) {
+      const got = laterBook(a, b);
+      check(`laterBook(${a}, ${b}) is symmetric`, got === laterBook(b, a));
+      if (ba.published === bb.published) check(`a tie names nobody (${a}, ${b})`, got === null);
+      else check(`the later year wins (${a}, ${b})`, got === (ba.published > bb.published ? a : b));
+    }
+  }
+  // The pair the 2026-10-17 ruling was made over.
+  check("AX3 supersedes AX1", laterBook("ax1", "ax3") === "ax3");
+  check("a book with no year names nobody", laterBook("ax1", "qd1") === null);
+  check("an unknown book names nobody", laterBook("ax1", "nope") === null);
+}
 
 console.log(`\ntest-book-match: all ${pass} checks passed`);

@@ -1,0 +1,8 @@
+{
+  "id": "kind.pregen",
+  "role": "composite",
+  "note": "A pre-generated character an adventure prints in full: labelled fields (class and level, scores, hit points, alignment, proficiencies, equipment, spells), read at import. Named PC <n>, id <book>.pc<n>, anchors by hash. Binds to a core character through the same binding as a character npc: the class derivation wins and printed differences are reported.",
+  "fields": {
+    "name": { "locate": "display" }
+  }
+}

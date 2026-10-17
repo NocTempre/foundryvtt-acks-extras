@@ -1,0 +1,264 @@
+/**
+ * Register rules over an adventure's rows that a suite can feed invented rows:
+ * key spaces and parents, the pairing of a place two books print, revisions,
+ * the kinds labelled by ordinal, and the shape of a scene link.
+ * `lint-register.mjs` reports what they return. Each returns a list of
+ * problems, every one opening with the row's id, and never throws.
+ */
+import { laterBook } from "../../scripts/importer/books.mjs";
+
+/** A row id of some book: `ax1.fort9a`. */
+const ROW_ID = /^[a-z][a-z0-9]{1,3}\.[A-Za-z0-9-]+$/;
+const bookOf = (id) => String(id).split(".")[0];
+const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+
+/**
+ * A key number as an adventure prints it before a keyed place: "30.", "36U.",
+ * "20/20U.", or a range, "1-3." or "1–3.". A pointer of the same standing as a
+ * page number.
+ */
+export const KEY_NUMBER = /^[A-Z]?\d+[A-Za-z]?(?:[-–]\d+[A-Za-z]?)?(?:\/[A-Z]?\d+[A-Za-z]?)?\.?$/;
+
+/** A key number without its closing stop, a printed en dash written as a hyphen. */
+export const bareKey = (number) => String(number).replace(/\.$/, "").replace(/–/g, "-");
+
+/**
+ * The id and label a keyed area in a key space is held to. The id is the
+ * space's stem and the key, hyphenated when the stem ends in a digit so that
+ * "l1" and "12" cannot read as "l112"; a slashed key takes its first half, as a
+ * settlement's does. The label is the space's name and the whole key.
+ */
+export function spaceKeyed(space, number) {
+  const key = bareKey(number);
+  const [book, stem] = String(space.id).split(".");
+  const sep = /\d$/.test(stem) ? "-" : "";
+  return { id: `${book}.${stem}${sep}${key.split("/")[0]}`, label: `${space.name} ${key}` };
+}
+
+/**
+ * Key spaces and nesting, over every row at once (`rows`: id -> row).
+ *
+ * A key space is a location row some keyed area names in `meta.space`; it
+ * anchors by hash and sits in no space itself. A row in a space anchors by its
+ * key number, under the id and label `spaceKeyed` derives, or by hash. A
+ * `meta.parent` names a location row of the same book whose space is the
+ * row's own, or is the row's space itself; parents never run in a cycle.
+ */
+export function spaceProblems(rows) {
+  const out = [];
+  const spaces = new Set();
+  for (const r of rows.values()) if (r.meta?.space !== undefined) spaces.add(r.meta.space);
+  // The space a row's children sit in: its own, or itself when it is one.
+  const container = (r) => r.meta?.space ?? (spaces.has(r.id) ? r.id : undefined);
+  const where = (s) => (s === undefined ? "outside every key space" : `in the key space ${s}`);
+
+  for (const id of spaces) {
+    const s = rows.get(id);
+    if (s && s.kind === "kind.location" && s.meta?.space === undefined && s.anchor?.hash === undefined) {
+      out.push(`${id}: a key space anchors by hash on its heading, never by its printed words`);
+    }
+  }
+  for (const r of rows.values()) {
+    const { id, meta = {} } = r;
+    if (meta.space !== undefined) {
+      const s = rows.get(meta.space);
+      if (r.kind !== "kind.location") out.push(`${id}: meta.space belongs on a location row only`);
+      else if (!s) out.push(`${id}: meta.space names ${JSON.stringify(meta.space)}, which no row defines`);
+      else if (s.book !== r.book) out.push(`${id}: meta.space names ${s.id}, a key space of another book`);
+      else if (s.kind !== "kind.location") out.push(`${id}: meta.space names ${s.id}, which is not a location row`);
+      else if (s.meta?.space !== undefined) out.push(`${id}: meta.space names ${s.id}, which is itself in a key space; spaces do not nest`);
+      else if (r.anchor?.number !== undefined) {
+        if (KEY_NUMBER.test(String(r.anchor.number))) {
+          const want = spaceKeyed(s, r.anchor.number);
+          if (r.name !== want.label) out.push(`${id}: a keyed area of ${s.id} is named "${want.label}"; its printed name is read at import`);
+          if (id !== want.id) out.push(`${id}: a keyed area of ${s.id} keyed ${JSON.stringify(r.anchor.number)} has the id "${want.id}"`);
+        }
+      } else if (r.anchor?.hash === undefined) {
+        out.push(`${id}: a row in a key space anchors by its key number or by hash, never by its printed words`);
+      }
+    }
+    if (meta.parent !== undefined) {
+      const p = rows.get(meta.parent);
+      if (r.kind !== "kind.location") out.push(`${id}: meta.parent belongs on a location row only`);
+      else if (!p) out.push(`${id}: meta.parent names ${JSON.stringify(meta.parent)}, which no row defines`);
+      else if (p.id === id) out.push(`${id}: meta.parent names the row itself`);
+      else if (p.book !== r.book) out.push(`${id}: meta.parent names ${p.id}, a row of another book`);
+      else if (p.kind !== "kind.location") out.push(`${id}: meta.parent names ${p.id}, which is not a location row`);
+      else if (meta.space !== container(p)) out.push(`${id}: meta.parent ${p.id} holds rows ${where(container(p))}, and this row is ${where(meta.space)}`);
+    }
+  }
+  // A row on a cycle reports it; a row leading into one is reported through it.
+  for (const r of rows.values()) {
+    const seen = new Set([r.id]);
+    for (let at = r; at?.meta?.parent !== undefined && at.meta.parent !== at.id; at = rows.get(at.meta.parent)) {
+      if (!seen.has(at.meta.parent)) {
+        seen.add(at.meta.parent);
+        continue;
+      }
+      if (at.meta.parent === r.id) out.push(`${r.id}: meta.parent runs in a cycle back to this row`);
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * A place two books print, over every row at once (`rows`: id -> row).
+ *
+ * The pair is declared once, as `meta.sameAs` on the EARLIER book's location
+ * row, naming a row of a later book (`laterBook`) of the same kind and place
+ * role. Declaring it on the earlier side is what keeps it from being declared
+ * from both. Books whose years tie, or that carry none, cannot be paired. Every
+ * pair carries the reviewer's `meta.unique`: the 1-based ordinals of the
+ * earlier printing's paragraphs that the later one lacks, positive and
+ * unrepeated, `[]` for none. A book pairs one row with each later place.
+ */
+export function pairProblems(rows) {
+  const out = [];
+  const claimed = new Map(); // `${book} ${target}` -> first row id
+  for (const r of rows.values()) {
+    const { id, meta = {} } = r;
+    const { sameAs, unique } = meta;
+    if (sameAs === undefined) {
+      if (unique !== undefined) out.push(`${id}: meta.unique belongs beside meta.sameAs`);
+      continue;
+    }
+    if (r.kind !== "kind.location") out.push(`${id}: meta.sameAs pairs places; it belongs on a location row only`);
+    if (typeof sameAs !== "string" || !ROW_ID.test(sameAs)) {
+      out.push(`${id}: meta.sameAs is one row id of another book`);
+      continue;
+    }
+    const other = bookOf(sameAs);
+    if (other === r.book) out.push(`${id}: meta.sameAs pairs with another book's row, never one of ${r.book}`);
+    else {
+      const later = laterBook(r.book, other);
+      if (later === null) out.push(`${id}: no printing year orders ${r.book} and ${other}; a pair between them waits until the register records which came first`);
+      else if (later !== other) out.push(`${id}: meta.sameAs is declared on the earlier book's row, and ${other} is earlier than ${r.book}`);
+    }
+    const t = rows.get(sameAs);
+    if (!t) out.push(`${id}: meta.sameAs names ${sameAs}, which no row defines`);
+    else {
+      if (t.kind !== r.kind) out.push(`${id}: meta.sameAs names ${sameAs}, a row of another kind`);
+      if ((t.meta?.role ?? null) !== (meta.role ?? null)) out.push(`${id}: meta.sameAs names ${sameAs}, a place of another role`);
+    }
+    const key = `${r.book} ${sameAs}`;
+    if (claimed.has(key)) out.push(`${id}: ${sameAs} is already paired with ${claimed.get(key)}; one place is one row per book`);
+    else claimed.set(key, id);
+    if (unique === undefined) out.push(`${id}: a pair carries meta.unique, the reviewer's list of this printing's paragraphs the later one lacks ([] for none)`);
+    else if (!Array.isArray(unique) || !unique.every((n) => Number.isInteger(n) && n > 0)) out.push(`${id}: meta.unique is a list of 1-based paragraph ordinals`);
+    else if (new Set(unique).size !== unique.length) out.push(`${id}: meta.unique repeats an ordinal`);
+  }
+  return out;
+}
+
+/**
+ * Meta keys one row decides alone. `meta.revisedBy` sends a row's import to a
+ * later printing, so it names a row of a book `laterBook` ranks after the
+ * row's own. `meta.actor` binds a person to a core character instead of a
+ * monster and is read off an npc row only, with the one value "character".
+ */
+export function rowMetaProblems(e) {
+  const out = [];
+  const { id = "?", meta = {} } = e;
+  if (meta.revisedBy !== undefined) {
+    const to = meta.revisedBy;
+    if (typeof to !== "string" || !ROW_ID.test(to)) out.push(`${id}: meta.revisedBy is the row id of a later printing`);
+    else if (laterBook(e.book, bookOf(to)) !== bookOf(to)) out.push(`${id}: meta.revisedBy names ${to}, and ${bookOf(to)} is not a later printing than ${e.book}`);
+  }
+  if (meta.actor !== undefined) {
+    if (e.kind !== "kind.npc") out.push(`${id}: meta.actor belongs on an npc row only`);
+    else if (meta.actor !== "character") out.push(`${id}: meta.actor ${JSON.stringify(meta.actor)} is not an actor a person binds to (character)`);
+  }
+  return out;
+}
+
+/**
+ * The kinds that carry no printed word in their label or id: each row is
+ * named `<label> <n>` with the id `<book>.<stem><n>`, and anchors by hash, or
+ * not at all where it is geometry other rows locate.
+ */
+export const ORDINAL_KINDS = Object.freeze({
+  "kind.pregen": { label: "PC", stem: "pc", anchor: "hash" },
+  "kind.prose": { label: "Prose", stem: "prose", anchor: "hash" },
+  "kind.adventureItem": { label: "Item", stem: "item", anchor: "hash" },
+  "kind.sceneLink": { label: "Link", stem: "link", anchor: "none" },
+});
+
+/** A row of an `ORDINAL_KINDS` kind against its label, id and anchor rule. */
+export function ordinalProblems(e, bookId) {
+  const rule = ORDINAL_KINDS[e.kind];
+  if (!rule) return [];
+  const out = [];
+  const id = e.id ?? "?";
+  const n = new RegExp(`^${rule.label} (\\d+)$`).exec(e.name ?? "")?.[1];
+  if (!n) out.push(`${id}: a ${e.kind.slice(5)} row is named "${rule.label} <n>"`);
+  else if (id !== `${bookId}.${rule.stem}${n}`) out.push(`${id}: a row named "${rule.label} ${n}" has the id "${bookId}.${rule.stem}${n}"`);
+  if (rule.anchor === "hash" && e.anchor?.hash === undefined) out.push(`${id}: a ${e.kind.slice(5)} row anchors by hash, never by its printed words`);
+  if (rule.anchor === "none" && e.anchor !== undefined) out.push(`${id}: a ${e.kind.slice(5)} row has no text anchor; its scenes locate it`);
+  return out;
+}
+
+/**
+ * A region's keyed site. A site its page keys by number anchors by that
+ * number (checked with every number-anchored row); a site printed under a
+ * run-in title anchors by hash with `as: "runin"` and is labelled and
+ * identified by its ordinal, `Site <n>` and `<book>.site<n>`.
+ */
+export function siteProblems(e, bookId) {
+  if (e.anchor?.number !== undefined) return [];
+  const id = e.id ?? "?";
+  if (e.anchor?.hash === undefined || e.anchor.as !== "runin") {
+    return [`${id}: a keyed site anchors by its key number, or by hash with as "runin" where its page prints a title, never by its printed words`];
+  }
+  const n = /^Site (\d+)$/.exec(e.name ?? "")?.[1];
+  if (!n) return [`${id}: a site anchored by hash is named "Site <n>"`];
+  return id === `${bookId}.site${n}` ? [] : [`${id}: a site named "Site ${n}" has the id "${bookId}.site${n}"`];
+}
+
+/** The keys a scene link's block, and each of its ends, may carry. */
+const LINK_KEYS = new Set(["mode", "ends", "both", "confirm", "note"]);
+const END_KEYS = new Set(["scene", "box", "level", "note"]);
+/** How a link moves a token: to another scene, or to another level of one. */
+export const LINK_MODES = Object.freeze(["teleport", "level"]);
+
+/**
+ * A scene link's block, against every row (`rows`: id -> row). Each end names
+ * a scene row of any book, a box in that scene's page points, and optionally a
+ * level, a storey ordinal of a scene that has levels. A `level` link joins two
+ * or more levels of one scene. The block names everything by id or number, so
+ * no printed word can ride in it.
+ */
+export function sceneLinkProblems(e, rows) {
+  const out = [];
+  const id = e.id ?? "?";
+  const link = e.link;
+  if (!link || typeof link !== "object") return [`${id}: a scene link needs a "link" block`];
+  for (const k of Object.keys(link)) if (!LINK_KEYS.has(k)) out.push(`${id}: link has an unknown key "${k}"`);
+  if (!LINK_MODES.includes(link.mode)) out.push(`${id}: link.mode ${JSON.stringify(link.mode)} is not a way a link moves a token (${LINK_MODES.join("|")})`);
+  for (const k of ["both", "confirm"]) if (link[k] !== undefined && typeof link[k] !== "boolean") out.push(`${id}: link.${k} is true or false`);
+  if (!Array.isArray(link.ends) || link.ends.length < 2) return [...out, `${id}: link.ends lists two or more ends`];
+  link.ends.forEach((end, i) => {
+    const at = `link.ends[${i}]`;
+    if (!end || typeof end !== "object") return void out.push(`${id}: ${at} is {scene, box, level?}`);
+    for (const k of Object.keys(end)) if (!END_KEYS.has(k)) out.push(`${id}: ${at} has an unknown key "${k}"`);
+    const b = end.box;
+    if (!b || !["x0", "x1", "y0", "y1"].every((k) => isNum(b[k])) || b.x0 >= b.x1 || b.y0 >= b.y1) {
+      out.push(`${id}: ${at}.box is {x0, x1, y0, y1} with x0 < x1 and y0 < y1`);
+    }
+    if (end.level !== undefined && !(Number.isInteger(end.level) && end.level >= 0)) out.push(`${id}: ${at}.level is a storey ordinal, 0 or more`);
+    const scene = typeof end.scene === "string" ? rows.get(end.scene) : undefined;
+    if (typeof end.scene !== "string" || !ROW_ID.test(end.scene)) out.push(`${id}: ${at}.scene is a scene row's id`);
+    else if (scene?.kind !== "kind.scene") out.push(`${id}: ${at}.scene names ${end.scene}, which is no scene row`);
+    else if (end.level !== undefined) {
+      const levels = Array.isArray(scene.scene?.levels) ? scene.scene.levels.map((l) => l?.key) : [];
+      if (!levels.includes(end.level)) out.push(`${id}: ${at}.level ${end.level} is not a level of ${end.scene}`);
+    }
+  });
+  if (link.mode === "level") {
+    const scenes = new Set(link.ends.map((end) => end?.scene));
+    const levels = link.ends.map((end) => end?.level);
+    if (scenes.size !== 1) out.push(`${id}: a level link joins levels of one scene`);
+    if (levels.some((l) => l === undefined) || new Set(levels).size !== levels.length) out.push(`${id}: every end of a level link names a different level`);
+  }
+  return out;
+}

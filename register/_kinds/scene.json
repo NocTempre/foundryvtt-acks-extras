@@ -1,5 +1,5 @@
 {
   "id": "kind.scene",
   "role": "scene",
-  "note": "A printed map stood up as a play surface: GEOMETRY over one page in page points, top-left origin — crop, quarter turns, feet per point (or a grid block of one drawn cell: family, even, box, centre, distance, units, pixels), quarter outlines, keyed places. Everything is named by entry id, never by word. The compiler adds the map image's placement, the anchor a seat's copy is checked against."
+  "note": "A printed map stood up as a play surface: GEOMETRY over one page in page points, top-left origin — crop, quarter turns, feet per point or a grid block (one drawn cell), quarter outlines, keyed places, the travel mode it adopts, the place it is the map of, and storeys as levels of one frame. Named by entry id, never by word; the compiler adds the image placement a seat's copy is checked against."
 }

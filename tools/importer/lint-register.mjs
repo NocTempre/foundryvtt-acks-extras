@@ -15,8 +15,11 @@ import {
   SCENE_ZONE_KIND, ZONE_FIGURES, bandOfSection, gridProblems, recipeContext, recipeProblems, zoneProblems,
 } from "../../scripts/importer/scene-binding.mjs";
 import { regionGroupOf } from "../../scripts/importer/poi-binding.mjs";
-import { ABILITY_CATEGORIES } from "../../scripts/lib/vocab.mjs";
+import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
+import {
+  KEY_NUMBER, ORDINAL_KINDS, bareKey, ordinalProblems, pairProblems, rowMetaProblems, sceneLinkProblems, siteProblems, spaceProblems,
+} from "./register-rules.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REGISTER = path.join(HERE, "..", "..", "register");
@@ -32,9 +35,6 @@ const KIND_ID = /^kind\.[a-z][A-Za-z0-9]*$/;
 const BINDS = new Set(["ability"]);
 const SHAPES = new Set(["open", "descriptor", "keyword", "table"]);
 const OPS = new Set(["expect", "heading", "text", "value", "attacks", "art", "effects", "progression", "rolls", "grid"]);
-// A key number as an adventure prints it before a keyed place: "30.", "36U.",
-// "20/20U.". A pointer of the same standing as a page number.
-const KEY_NUMBER = /^[A-Z]?\d+[A-Za-z]?(?:\/[A-Z]?\d+[A-Za-z]?)?\.?$/;
 // `printKey` output: a 32-bit hash in base 36.
 const PRINT_KEY = /^[0-9a-z]{1,7}$/;
 // The sorts of heading a hash anchor may be sought among: a display heading, a
@@ -140,6 +140,8 @@ const ORG_SERVICES = ["smuggling"];
 const PLACE_ROLES = ["gate"];
 const orgRows = []; // checked against every row once all are read
 const rowShapes = new Map(); // id -> {kind, group}
+const allRows = new Map(); // id -> row, for the rules that hold between rows
+const linkRows = []; // scene links, checked against every row once all are read
 function checkOrganisation(e, id, bookId) {
   orgRows.push({ id, o: e.organisation ?? {} });
   const n = /^Organisation (\d+)$/.exec(e.name ?? "")?.[1];
@@ -340,6 +342,7 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
       if (seenIds.has(id)) err(`duplicate id ${id}`);
       seenIds.add(id);
       rowShapes.set(id, { kind: e.kind, group: e.meta?.group ?? "" });
+      allRows.set(id, e);
       if (!kindIds.has(e.kind)) err(`${id}: unknown kind "${e.kind}"`);
       if (e.book !== bookId) err(`${id}: book "${e.book}" != directory "${bookId}"`);
       if (!Array.isArray(e.pages) || !e.pages.every((p) => Number.isInteger(p) && p > 0)) err(`${id}: pages must be positive ints`);
@@ -350,6 +353,7 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
         if (e.kind !== "kind.location") err(`${id}: meta.role belongs on a location row only`);
         else if (!PLACE_ROLES.includes(e.meta.role)) err(`${id}: meta.role ${JSON.stringify(e.meta.role)} is not a place role (${PLACE_ROLES.join("|")})`);
       }
+      for (const problem of rowMetaProblems(e)) err(problem);
       // An ability-bound kind hands `meta.category` to a CONSTRAINED choice
       // field on the ability model. The runtime clamps a value it does not know
       // to the default and warns on every import and update, so the register is
@@ -401,11 +405,15 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
           for (const problem of gridProblems(grid, crop)) err(`${id}: scene.${problem}`);
           for (const k of Object.keys(grid && typeof grid === "object" ? grid : {})) if (!GRID_KEYS.has(k)) err(`${id}: scene.grid has an unknown key "${k}"`);
         }
+        // The travel mode a map adopts is this module's vocabulary too.
+        if (e.scene?.travel !== undefined && !TRAVEL_MODES.includes(e.scene.travel)) {
+          err(`${id}: scene.travel ${JSON.stringify(e.scene.travel)} is not a travel mode (${TRAVEL_MODES.join("|")})`);
+        }
         const words = [];
         const walk = (v, key, path) => {
           if (typeof v === "string") {
             if (key === "note" || COMPOSITE_ID.test(v) || /^#[0-9a-f]{6}$/i.test(v) || bandOfSection(v)) return;
-            if (path === "scene.grid.family" || path === "scene.grid.units") return;
+            if (path === "scene.grid.family" || path === "scene.grid.units" || path === "scene.travel") return;
             words.push(v);
           } else if (Array.isArray(v)) v.forEach((x) => walk(x, key, path));
           else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, k, `${path}.${k}`);
@@ -431,21 +439,30 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
           }
           zoneRows.push({ id, scene: z.scene, table: z.table });
         }
+      } else if (e.kind === "kind.sceneLink") {
+        // Geometry between scenes, located by them: no text anchor, and a
+        // block checked against every scene row once all are read.
+        for (const problem of ordinalProblems(e, bookId)) err(problem);
+        linkRows.push(e);
       } else {
         // One locator per anchor. `as` is not a second one: it says which sort
         // of heading a hash is to be sought among, because a hash locates a
         // name the row may not spell and so cannot be compared word by word.
         // The compiler searches display headings, run-in lines and statline
         // labels by it and can answer to nothing else; a hash without `as` is
-        // a display heading.
+        // a display heading. Beside a key number `as` can only be "runin": a
+        // key printed at a paragraph's start instead of as a heading.
         const anchorKeys = Object.keys(e.anchor ?? {}).filter((k) => k !== "as");
         if (anchorKeys.length !== 1 || !["display", "runin", "label", "subheading", "number", "hash"].includes(anchorKeys[0])) {
           err(`${id}: anchor must have exactly one of display|runin|label|subheading|number|hash`);
         }
         if (e.anchor?.as !== undefined) {
-          if (e.anchor.hash === undefined) err(`${id}: anchor.as names the sort of heading a hash is sought among — it belongs only beside anchor.hash`);
+          if (e.anchor.number !== undefined) {
+            if (e.anchor.as !== "runin") err(`${id}: beside anchor.number, anchor.as is "runin" or absent`);
+          } else if (e.anchor.hash === undefined) err(`${id}: anchor.as names the sort of heading a hash or key number is sought among — it belongs only beside anchor.hash or anchor.number`);
           else if (!ANCHOR_SORTS.includes(e.anchor.as)) err(`${id}: anchor.as ${JSON.stringify(e.anchor.as)} is not a heading sort the compiler searches (${ANCHOR_SORTS.join("|")})`);
         }
+        if (ORDINAL_KINDS[e.kind]) for (const problem of ordinalProblems(e, bookId)) err(problem);
         // A person the book names is its expression exactly as a place's name
         // is: the row is labelled and identified by its ordinal and anchors by
         // the key of the name's letters, so no printed word of it ships.
@@ -460,14 +477,15 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
         // at import (`printed-name.mjs`), so the row carries neither — a label
         // built from the number, an id built from the number, and no `display`.
         // A region's keyed site is the same pointer under its own label: "Site
-        // <n>", id "<book>.site<n>".
+        // <n>", id "<book>.site<n>". A keyed area of a key space takes its
+        // label and id from the space instead (`spaceProblems`, below).
         const number = e.anchor?.number;
         const region = e.kind === "kind.location" ? regionGroupOf(e.meta?.group) : null;
         const [label, stem] = region?.kind === "site" ? ["Site", "site"] : ["POI", "poi"];
         if (number !== undefined) {
-          if (typeof number !== "string" || !KEY_NUMBER.test(number)) err(`${id}: anchor.number ${JSON.stringify(number)} is not a printed key number like "30." or "20/20U."`);
-          else {
-            const bare = number.replace(/\.$/, "");
+          if (typeof number !== "string" || !KEY_NUMBER.test(number)) err(`${id}: anchor.number ${JSON.stringify(number)} is not a printed key number like "30.", "20/20U." or "1-3."`);
+          else if (e.meta?.space === undefined) {
+            const bare = bareKey(number);
             if (e.name !== `${label} ${bare}`) err(`${id}: a row anchored by number is named "${label} ${bare}" — its printed name is read at import`);
             if (id !== `${bookId}.${stem}${bare.split("/")[0]}`) err(`${id}: a row anchored by number has the id "${bookId}.${stem}${bare.split("/")[0]}"`);
           }
@@ -476,9 +494,7 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
         if (e.kind === "kind.location" && / — Points of Interest$/.test(e.meta?.group ?? "") && number === undefined) {
           err(`${id}: a keyed place in a "— Points of Interest" group anchors by number, never by its printed words`);
         }
-        if (region?.kind === "site" && number === undefined) {
-          err(`${id}: a keyed site in the "Region — Sites" group anchors by number, never by its printed words`);
-        }
+        if (region?.kind === "site") for (const problem of siteProblems(e, bookId)) err(problem);
         if (region?.kind === "overview" && e.anchor?.hash === undefined) {
           err(`${id}: a region's overview in the "Region — Overview" group anchors by hash, never by its printed words`);
         }
@@ -569,6 +585,11 @@ for (const { id, scene, table } of zoneRows) {
   if (table !== undefined && rowShapes.has(table) && rowShapes.get(table).kind !== "kind.rolltable") err(`${id}: zone.table names "${table}", which is not a roll table`);
   else if (table !== undefined && !rowShapes.has(table)) err(`${id}: zone.table names "${table}", which no row defines`);
 }
+
+/* --- between rows: key spaces and parents, pairs across books, scene links --- */
+for (const problem of spaceProblems(allRows)) err(problem);
+for (const problem of pairProblems(allRows)) err(problem);
+for (const e of linkRows) for (const problem of sceneLinkProblems(e, allRows)) err(problem);
 
 /* --- reference registers --- */
 const refsDir = path.join(REGISTER, "_refs");

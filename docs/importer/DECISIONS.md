@@ -886,6 +886,10 @@ changes: no rules words, no page values, no `ruledata/`.
 
 ### Same name, two books: merge unless they differ beyond their source (2026-08-24)
 
+**Amended on a condition (2026-10-17)** by "Later books supersede, by the year
+their printing carries": precedence becomes publication order once a census
+shows that no merge changes its winner.
+
 **Ruled.** Two imports that share a printed name are ONE document unless they
 differ in more than where they came from. Identical-but-for-provenance merges,
 and the higher-precedence book's copy is what the library keeps. Genuinely
@@ -5339,6 +5343,9 @@ city's list out, point the district's own table at another list.
 
 ### A settlement's map is in the library too, as one Adventure (2026-09-30)
 
+**Superseded (2026-10-17)** by "A book is in the library as one Adventure":
+the Adventure is the book's, not the map's, and the per-map kind is retired.
+
 **Ruled (the user's, 2026-09-18: "The importer should create a compendium
 scene as well… An adventure pack would also be appropriate. The point is to
 use the book to setup the city to be playable"; resumed 2026-09-30 as an
@@ -5659,6 +5666,9 @@ re-imports the encounters document; the CHANGELOG says so.
 
 ## 2026-10-09 — Between books, identity follows the newest printing and content the most specific
 
+**Amended (2026-10-17)** by "Later books supersede, by the year their printing
+carries": at the same granularity, the later printing wins.
+
 The adventures reprint things the core books print — a monster, a terrain's
 encounter table, a rumour list — and each other's: AX1's forest lies inside
 the region AX3 maps. The user's ruling: ACKS II supersedes only where the
@@ -5725,6 +5735,8 @@ class from the render (the classifier above).
 has not compiled waits (`zonesWaiting`) and is linked by a later run.
 
 ## 2026-10-09 — A gazetteer site is a place in the region, never a quarter's
+
+**Amended (2026-10-17)** by "A site its page prints by title anchors by hash".
 
 AX3's gazetteer keys fifty-three sites by number across the region. They are
 `kind.location` rows in the `Region — Sites` group, with the region's
@@ -5880,3 +5892,249 @@ build already holds it).
 text. Where a later build words it differently the list reads as empty and
 an aliased path fails the gate again. The ledger's `--free` offers a renamed
 file as unclaimed though an entry spends that picture under its old path.
+
+## 2026-10-17 — A book is in the library as one Adventure
+
+Supersedes "A settlement's map is in the library too, as one Adventure"
+(2026-09-30). The user's ruling: the per-map Adventure "is just a WIP that
+needs fixed", and every adventure book imports whole, AX1 first. The cost the
+per-map form hid is also new: links between one book's maps cannot ride
+per-map containers, and AX3's region map had no container at all.
+
+**Ruled.** A book `BOOKS` marks as the Judge's (`judge: true`) is written to
+its line's Adventure shelf as ONE Adventure, provided it yields at least one
+document the Adventure carries. Books with no adventure in them get none.
+- **Identity.** No register row is needed: the book is the unit. The id is
+  `stableDocId("<book>.book")` and the stamp `{ id: "<book>.book", book,
+  kind: "kind.bookAdventure" }`. The name is the book's `label` and the
+  cover is its first map by page.
+- **Contents.** Every document whose cookbook stamp names the book, and
+  everything those name: every map with its Regions, Levels and tokens; places
+  at every level; organisations, people and characters; the book's own
+  monsters and stat-line occupants; its tables and any table a carried region
+  names; its journals and items. A seat monster on a roster stays a library
+  reference, as a rostered person does. A place another book has taken over
+  ("Later books supersede", below) is carried by reference.
+- **Roots.** Every carried document is a root. A Judge who wants a prune to
+  hold unticks the type on core's import sheet.
+- **When.** Once per book, at the end of Import Everything. The stamp keeps
+  two hashes: one over the assembled sources, one over the stored Adventure
+  as written. Stored content that no longer matches its written hash is the
+  Judge's edit and is kept. Otherwise a changed source hash rewrites it. This
+  closes the stale-Adventure case the 2026-09-30 entry priced.
+- **The hook.** It stays one owner, renamed to fit the job. It steers
+  `kind.bookAdventure` and, permanently, the retired `kind.settlementAdventure`:
+  a per-map Adventure can survive in a shelf no one re-ran, a moved pack or a
+  backup, and unsteered its import falls to core's overwrite.
+- **Retirement.** The first successful book Adventure deletes that book's
+  per-map Adventures from the shelf, names each one, and never runs when the
+  write failed. World documents are untouched.
+
+Kept from 2026-09-30: ids are the world's; the book's documents, never the
+table's; an import fills and never overwrites; the hook is synchronous by
+necessity.
+
+*Rejected:* per-map Adventures beside the book's, which would be two
+containers kept in step by hand; retirement by hand; dropping the legacy
+steering after migration; a modal in the migration (Import Everything never
+stops on one); a register row per book.
+
+*Cost:* the per-map stamp records no write hash, so a Judge's edit to a
+per-map Adventure cannot be told apart and is lost at retirement. The
+documents it named are world documents and stay. A world that never re-runs
+keeps its per-map Adventure, which still imports as a fill. A book Adventure in
+another world still needs its pack moved by hand and the same server for its
+pictures.
+
+## 2026-10-17 — Later books supersede, by the year their printing carries
+
+Amends "Between books, identity follows the newest printing and content the
+most specific" (2026-10-09). It also amends, on a condition, "Same name, two
+books" (2026-08-24), whose precedence is `BOOKS` declaration order. The new
+evidence is the user's correction: "later books supersede", in place of a
+proposed "whichever book imports first".
+
+**The order.** `BOOKS[id].published` is the copyright year the registered
+printing carries on its credits page. That is bibliographic structure,
+shipped on the footing of `label` and `pages`. Read on 2026-10-17: AX1 2015;
+AX2–AX6 2018; By This Axe 2022; RR, JJ, MM, TT and SCG 2024.
+`books.mjs:laterBook(a, b)` returns the later book, or null when the years tie
+or either year is missing.
+
+**A place two books print** is one actor. Its identity and its place-level
+text come from the later printing, whichever book lands first.
+- A pair is declared once, as `meta.sameAs`, on the earlier book's row. It is
+  declared only between rows at the same granularity, and which rows qualify
+  is a reviewer's call made when the row is authored, never by the compile.
+  This is the footing "identical" has in the 2026-10-09 entry.
+- When the later book arrives second, it takes the place over: its id, its
+  book, its read name (only where the Judge has not renamed the place), and
+  the module's text block on the place. Ownership, folder, image, every play
+  field and every byte outside the module's blocks stay. The actor's id never
+  changes, so every pin, link, parent and roster still holds.
+- When the earlier book arrives second, it writes no identity, name or text
+  over the place. It fills only empty fields and joins `merged`.
+- Rows narrower than the place stay under it in both orders: AX1's fort, its
+  buildings and rooms, and the forest zone. Both orders must reach the same
+  world state.
+
+**At the same granularity the later printing wins.** That is the tie-break the
+2026-10-09 entry lacked. That entry's identity rule and its rejection of "the
+newest printing overriding the specific one" both stand: a narrower printing
+is a different row, never a pair.
+
+**Items** keep `BOOKS` order until a census lists every merge `reconcileByName`
+can make and shows that publication order changes no winner. On a tie the
+declaration order stands.
+
+*Rejected:* the first import claiming the place, which makes the result
+depend on import order; declaration order for places, which would put AX1 over
+AX3 although it is a habit of declaration and not a fact of publication; a
+per-row direction (`meta.supersedes`), which can contradict the global order;
+declaration order as a tie-break, which guesses; the PDFs' metadata dates,
+which are the download's (every AX file reads January 2025); rewriting the
+whole notes on takeover, which destroys the Judge's own text.
+
+*Cost:* a year is coarse, and AX2–AX6 tie in 2018. A pair between same-year
+books is refused until the register records which came first. A wrong year
+inverts every takeover between two books, and no gate can tell, so the year is
+checked against the credits page by a reviewer.
+
+## 2026-10-17 — The earlier printing's unique paragraphs follow the later one's
+
+The user's ruling on where an earlier book's place-level text goes when a later
+book takes the place over: "Merge unique information."
+
+**Ruled.** The earlier book's pair row carries `meta.unique`: the 1-based
+ordinals, in compiled prose order, of the paragraphs that hold information the
+later printing lacks. It is indices only, with no words. The place's notes
+hold the later book's block, then the earlier book's block filtered to those
+paragraphs. Each block keeps its own entry stamp and citation, so the Judge
+can see which book every paragraph came from. `unique: []` says the earlier
+printing adds nothing; its block keeps only the citation line, because a
+pointer costs nothing to keep. A paragraph that mixes repeated and unique
+information is kept whole, since a repeat costs less than a loss. Lint
+requires `unique` wherever `sameAs` is set, so every pair carries a
+reviewer's decision.
+
+*Rejected:* similarity matching at import (it drops or repeats sentences
+silently, and no review sees it); keeping all of the earlier text; moving it to
+a journal page (one place's description split across two documents).
+
+*Cost:* each pair costs a reviewer a read of both printings when the row is
+authored.
+
+## 2026-10-17 — A person the page prints in full becomes a character, and the derivation wins
+
+The user's rulings for AX1: the pre-generated party and the nine inhabitants
+become character actors, and "Rederive ACKS II values was correct."
+
+**Ruled.**
+- **Kinds.** A pregen is `kind.pregen`. An inhabitant is a `kind.npc` row
+  carrying `meta.actor: "character"`. Both bind through one character
+  binding, as core `character` actors.
+- **What the binding writes.** It writes the scores, printed hit points,
+  alignment and morale, then binds the class at the printed level and lets the
+  class apply derive saves, throws and the rest.
+- **Differences.** Every printed figure that differs from the derivation is
+  recorded on the actor, in a stamped "as printed" block on its biography,
+  and counted in the step's report.
+- **Gaps.** An unmatched class, proficiency or item is reported, and the
+  character is still made.
+- **Ids.** Each character's id is stable (`stableDocId` of its cookbook id,
+  created with `keepId`). A rebuild is a delete and a create under the same
+  id, so every roster, journal link and Adventure reference survives it.
+  That is what keeps track D's residual effects and rebuild-in-place
+  shelved.
+- **Rebuild and removal.** NPCs stay rebuild-only (2026-09-24). Neither a
+  rebuild nor Remove Imports deletes a character that any non-GM user owns:
+  a pregen handed to a player is that player's.
+- **Ownership.** Judge-only until the Judge hands one over.
+
+AX3's people stay monster NPCs (user, 2026-10-17). Converting them means
+re-minting ids and re-pointing every organisation and roster, and it is on the
+ROADMAP.
+
+*Rejected:* printed figures overriding the derivation, which needs track D's
+residual effects and a rebuild-in-place to keep them current; converting
+AX3's people in the same minor.
+
+*Cost:* AX1 is an ACKS I adventure, so differences and unmatched names are
+expected on most characters, and the Judge reads them from the sheet.
+
+## 2026-10-17 — An adventure's keyed areas live in key spaces, under neutral labels
+
+AX1 numbers its fort's buildings and each dungeon level's rooms from 1 again,
+so a key number is not unique in the book. Its keys are run-in labels at the
+start of a paragraph, not headings.
+
+**Ruled.**
+- **Key spaces.** A key space is an ordinary `kind.location` row: the fort,
+  a level. A keyed area names its space in `meta.space`. Its id is
+  `<book>.<space stem><key>`, with a hyphen when the stem ends in a digit
+  (`ax1.fort9a`, `ax1.l1-12`). Its label is the space's name and the key
+  ("Fort 9a").
+- **Nesting.** The parent is written explicitly in `meta.parent`: the base
+  key for a lettered sub-key, a territory section for a room that has one,
+  else the space. Lint holds it to the same book and the same space, and
+  rejects cycles.
+- **Anchors.** A run-in key anchors by `anchor.number` with `as: "runin"`. A
+  range key ("1-3.") is a key of its own.
+- **Titles.** No keyed area's printed title ships, whether it is a proper name
+  or a common word. The name is read off the Judge's page at import. A
+  per-row common-or-proper judgment has no gate, a register mixing the two is
+  where a leak hides, and shipping the title buys nothing.
+
+*Rejected:* POI groups for key spaces (they parse as a settlement's quarters
+and their unscoped `poi<n>` ids collide); extending `harvest-ose-areas.mjs`
+(it reads display headings and ships titles); shipping common-word titles.
+
+*Cost:* about 220 keyed rows for AX1 alone, harvested by a new tool and
+settled by an author against the page wherever the key sequence has a gap.
+
+## 2026-10-17 — Maps are joined as scenes, and Levels only stack storeys
+
+The user asked for floor plans a party can walk between: "either a composite
+scene with levels and region linking … or multiple scenes that are similarly
+properly connected."
+
+**Ruled.**
+- **Separate scenes.** Each printed map is its own scene, joined to the
+  others by `teleportToken` regions.
+- **Levels.** One scene with a Level per storey is used only where a page
+  prints storeys of one footprint at one scale, joined by `changeLevel`.
+  Anything else is forced: a scene has one grid, and core's v14 Level carries
+  none (`common/documents/level.mjs`). The region's hexes, the fort's
+  template and the plans' squares cannot share a scene.
+- **Link rows.** A link is a row of its own (`kind.sceneLink`), resolved in a
+  pass after every map exists, because a world scene's id is minted at
+  create. Rows sharing an end make one Region offering a choice. An end on a
+  region map asks before it moves a token, so a journey passing through the
+  hex is not diverted.
+- **Travel mode.** A recipe states the travel mode its map adopts.
+- **Walls.** None ship (user, 2026-10-17). A traced layout would ship the
+  drawn map; tracing at import from the Judge's own picture is on the ROADMAP.
+
+*Rejected:* one composite scene (one grid per scene); teleport links between
+storeys (they lose position, and a scene stops being one place's map); writing
+destinations into a map's create (the ids do not exist yet); traced walls in
+the register.
+
+## 2026-10-17 — A site its page prints by title anchors by hash
+
+Amends "A gazetteer site is a place in the region, never a quarter's"
+(2026-10-09). New evidence: AX1 p.66 prints its region's sites under run-in
+titles and no key number, so a site cannot anchor by a number the page never
+prints.
+
+**Ruled.** Such a site anchors by `hash` with `as: "runin"`, under the label
+`Site <n>` and the id `<book>.site<n>` by ordinal. A site its page keys by
+number still anchors by number.
+
+## 2026-10-17 — AX1's domain record and art are not imported
+
+**Ruled (user, 2026-10-17: "wait for new domain sheet").** The p.28 domain
+record is not imported in any form until the domain sheet exists to receive
+it, and AX1's art pages are not imported at all.
+
+*Rejected:* the record as a Judge-only picture page in the meantime.

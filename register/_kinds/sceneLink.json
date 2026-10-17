@@ -1,0 +1,5 @@
+{
+  "id": "kind.sceneLink",
+  "role": "sceneLink",
+  "note": "A way between two scene recipes, possibly two books' maps: each end a scene id, a box in that scene's page points and optionally a level; a mode (teleport between scenes, level within one). Named Link <n>, id <book>.link<n>, no text anchor. Joined after every map exists; ends sharing a box become one region offering a choice; an end on a journey map asks first."
+}
