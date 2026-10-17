@@ -4259,3 +4259,38 @@ every member it placed, rolled or not. Lib's writes only where the pending
 delta no longer matches the data's. Where nothing rolled, a member whose stash
 held no hit points of its own keeps an empty delta and shows its actor's,
 which is what the stash showed.
+
+### A writer gated on `isGM` alone runs in the window that automates (2026-10-17)
+
+**Evidence.** Measured live on core 14.369 with two windows on the
+Gamemaster seat and one on the Assistant Gamemaster seat, all three reloaded
+at once over a world holding stale fixtures. Each window asked for the
+retainer sheet sweep's update and the defence-band migration's, and on a
+deleted rider each asked for the legacy mount cleanup's. The language upgrade
+converted once, in the Assistant's window, and the two Gamemaster windows
+found nothing left to convert: its creates under random ids stood one load's
+timing away from a duplicate.
+
+**Ruled.**
+- The five automatic writers that gated on `game.user.isGM` alone take the
+  election's gates (MODEL.md, "Which window automates"). The `ready` sweeps
+  (the landing-sheet rewrite and the retainer sweep, the compendium filing,
+  the defence-band migration, the language upgrade) wait for
+  `primaryGMSettled()`, and the `deleteActor` mount cleanup reads
+  `isPrimaryGM()`. Measured after: each write asked for once, by the seat's
+  lead, and by neither the other Gamemaster window nor the Assistant's.
+- A function the API also exposes keeps its own `isGM` for a GM's call
+  (`organizeCompendiumFolders`); the gate sits at its `ready` caller.
+
+**Rejected.**
+- *`isActiveGMSeat()` for these sites.* It is true in every window of the
+  seat, so a second Gamemaster window would still write each one again.
+
+**What it cost.**
+- A `ready` sweep runs only in a window that leads its seat at its own load.
+  A lead reloaded beside a second window hands the lead over and follows it
+  (TESTING.md, "Two windows on one GM seat automate once", step 5), so it
+  sweeps nothing until a load where it leads.
+- A view other than the game (`game.view !== "game"`) never joins the
+  election and never settles, so it no longer sweeps. Under `isGM` a GM's
+  window ran the sweeps whatever its view.
