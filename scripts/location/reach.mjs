@@ -170,6 +170,9 @@ function standingSpots(actor, scan) {
   // The one token this member went out under. `deployedStack` records only THAT
   // a cell is out, so it leaves this null and the party token answers.
   const ownBody = member?.deployedTokenId ?? null;
+  // Its scene with it, where the record names one: the id alone also names a
+  // token on a scene duplicated from that one.
+  const ownScene = ownBody ? (member.deployedSceneId ?? null) : null;
   if (formation && !ownBody) {
     const at = partyPoint(formation);
     if (at) return [at];
@@ -184,7 +187,7 @@ function standingSpots(actor, scan) {
       // Once a deploy has given this member a body, that body is the only one
       // that counts: any other token naming the same actor is a leftover, and a
       // leftover stands for nobody.
-      if (ownBody && token.id !== ownBody) continue;
+      if (ownBody && (token.id !== ownBody || (ownScene && sceneId !== ownScene))) continue;
       out.push({ scene, point: tokenCenter(token, gridSize), elevation: token.elevation ?? 0 });
     }
   }

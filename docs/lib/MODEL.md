@@ -685,6 +685,42 @@ handed back permanently. `manageVision` is the world-level off switch. A scene
 the canvas is still drawing is never written to; the `canvasReady` sweep
 re-derives it whole once the draw completes.
 
+## A token moved to another scene
+
+Core v14 has no move between scenes. It re-creates the token on the
+destination and deletes the original, with `replacements: {[oldId]: newUuid}`
+on the delete operation. The `teleportToken` Region behavior does this
+(`RegionDocument#teleportTokens`, one `modifyBatch`), and so does a cut and
+paste between scenes (`PlaceablesLayer#pasteObjects`). The new token keeps the
+old id unless the destination already holds it. Core's own combat reads the
+map (`Combat#_onDeleteTokens`). Only an Assistant GM or above holds
+`TOKEN_CREATE` and `TOKEN_DELETE`, so a player's step into a teleport region
+is carried out by a GM.
+
+The primary GM's `deleteToken` hook receives the map in its options, whether
+its own client ran the batch or it heard another GM's broadcast. Every client
+handles a batch's create before its delete, so the successor already resolves
+inside the hook. `replacementToken(tokenDoc, options)` (`util.mjs`) returns
+it, or null for a deletion that names none.
+
+A record that names a token follows it by these rules:
+
+- **Resolve at the hook.** A token sent out and straight back has deleted its
+  first successor before a write queued behind the first hook runs.
+- **Guard the write on the scene as well as the id.** A kept id names a token
+  on both scenes, and a scene duplicated from either holds its tokens under
+  the same ids.
+- **Follow only the owner's own body.** The successor must carry what made
+  the original the record's: the formation flag, the same actor, the same
+  group and member flags. Anything else is a deletion.
+- **A deletion with no successor stays a deletion,** with whatever the owner
+  does for one.
+
+Three records follow one: the party token (docs/formation/MODEL.md, "Data
+flow"), a formation member's own token (docs/formation/MODEL.md, "Detaching a
+member") and a group's deployed body ([GROUPS.md](GROUPS.md), "A deleted
+body, and a moved one").
+
 ## The item taxonomy: goods, gear, and where it sits
 
 The system's eight Item sub-types share no base. `cost`/`weight6` are hand-spread

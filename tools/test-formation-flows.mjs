@@ -501,14 +501,14 @@ class SceneMock {
     }
     return out;
   }
-  async deleteEmbeddedDocuments(type, ids) {
+  async deleteEmbeddedDocuments(type, ids, options = {}) {
     assert.equal(type, "Token");
     for (const id of ids) {
       const token = this.tokens.get(id);
       if (!token) continue;
       this.tokens.delete(id);
       await sleep();
-      Hooks.call("deleteToken", token);
+      Hooks.call("deleteToken", token, options, "GM1");
     }
   }
 }
@@ -940,6 +940,97 @@ await scenario("a detached scout does not block the party deploying for combat",
   await combat.delete();
   await drain();
   assert.equal(onlyFormation().members.filter((m) => m.deployedTokenId).length, 0, "everyone reformed");
+});
+
+/**
+ * Core's cross-scene move (`RegionDocument#teleportTokens`, a cut and paste
+ * between scenes): the token is created on `to` under its own id, then the
+ * original is deleted with `replacements`, the options as measured live.
+ */
+async function moveAcrossScenes(token, to, x, y) {
+  const from = token.parent;
+  const uuidOf = (t) => `Scene.${t.parent.id}.Token.${t.id}`;
+  const [arrived] = await to.createEmbeddedDocuments("Token", [{ ...token.toObject(), x, y }], { keepId: true });
+  uuidMap.set(uuidOf(arrived), arrived);
+  await from.deleteEmbeddedDocuments("Token", [token.id], {
+    action: "delete",
+    documentName: "Token",
+    parent: from,
+    render: true,
+    replacements: { [token.id]: uuidOf(arrived) },
+  });
+  uuidMap.delete(uuidOf(token));
+  return arrived;
+}
+
+await scenario("a detached scout moved to another scene keeps their record, leash and stash", async () => {
+  // See docs/formation/DECISIONS.md, "A member's own token follows core's
+  // cross-scene move".
+  const alicePos = onlyFormation().members.findIndex((m) => m.actorId === alice.id);
+  assert.equal(await deployment.toggleDetachMember(onlyFormation(), alice.id), "detached");
+  await drain();
+  const out = scene.tokens.get(onlyFormation().members[alicePos].deployedTokenId);
+  assert.equal(onlyFormation().members[alicePos].deployedSceneId, scene.id, "the detach records the scene");
+
+  const farSide = new SceneMock("Far Side");
+  const copy = new SceneMock("Far Side (Copy)");
+  game.scenes.set(farSide.id, farSide);
+  game.scenes.set(copy.id, copy);
+  try {
+    const arrived = await moveAcrossScenes(out, farSide, 300, 400);
+    await drain();
+    let scout = onlyFormation().members[alicePos];
+    assert.equal(arrived.id, out.id, "the token arrived under its own id");
+    assert.equal(scout.deployedSceneId, farSide.id, "the record names the scene it arrived on");
+    assert.equal(scout.deployedTokenId, arrived.id, "and the token it arrived as");
+    assert.ok(scout.detached, "still out on a detach");
+    assert.deepEqual(scout.detach?.anchor, { x: 300, y: 400 }, "the leash measures from where they arrived");
+    assert.equal(deployment.findDeployedMember(arrived)?.member.actorId, alice.id, "the leash finds them there");
+
+    // A scene duplicated from the far side holds a token of the same id.
+    const [twin] = await copy.createEmbeddedDocuments("Token", [arrived.toObject()], { keepId: true });
+    assert.equal(deployment.findDeployedMember(twin), null, "the twin is no one's scout");
+
+    // The scout steps on, and the party catches up on its own scene.
+    await arrived.update({ x: 500, y: 400 });
+    await deployment.reanchorDetached(onlyFormation().id);
+    await drain();
+    assert.deepEqual(onlyFormation().members[alicePos].detach?.anchor, { x: 500, y: 400 }, "re-anchored where the scout stands");
+
+    assert.equal(await deployment.toggleDetachMember(onlyFormation(), alice.id), "recalled");
+    await drain();
+    scout = onlyFormation().members[alicePos];
+    assert.ok(!scout.deployedTokenId && !scout.deployedSceneId, "back inside the party token");
+    assert.equal(farSide.tokens.filter((t) => t.actorId === alice.id).length, 0, "no token left standing on the far side");
+    assert.equal(copy.tokens.size, 1, "the twin was not taken");
+    assert.equal(scout.tokenData?.x, 500, "the stash was taken from the far-side token");
+  } finally {
+    game.scenes.delete(farSide.id);
+    game.scenes.delete(copy.id);
+  }
+});
+
+await scenario("a member deployed before scenes were recorded follows a move off the party's scene", async () => {
+  const alicePos = onlyFormation().members.findIndex((m) => m.actorId === alice.id);
+  await deployment.toggleDetachMember(onlyFormation(), alice.id);
+  await drain();
+  // The record as a deploy wrote it before this shipped: a token id, no scene.
+  await model.patchFormation(onlyFormation().id, (rec) => void delete rec.members[alicePos].deployedSceneId);
+  const out = scene.tokens.get(onlyFormation().members[alicePos].deployedTokenId);
+  const farSide = new SceneMock("Far Side");
+  game.scenes.set(farSide.id, farSide);
+  try {
+    const arrived = await moveAcrossScenes(out, farSide, 300, 400);
+    await drain();
+    const scout = onlyFormation().members[alicePos];
+    assert.equal(scout.deployedSceneId, farSide.id, "taken as standing on the party's scene, and followed");
+    assert.equal(scout.deployedTokenId, arrived.id);
+    await deployment.toggleDetachMember(onlyFormation(), alice.id);
+    await drain();
+    assert.equal(farSide.tokens.size, 0, "recalled from the far side");
+  } finally {
+    game.scenes.delete(farSide.id);
+  }
 });
 
 await scenario("an unlinked member is down by their own token's hit points, stashed or deployed", async () => {
@@ -2032,6 +2123,91 @@ await scenario("turning the party pivots it on the spot and costs no movement", 
     { x: partyToken.x, y: partyToken.y },
     "the clock re-baselined to where the corner now is",
   );
+
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
+await scenario("a party token teleported to another scene stays the party token", async () => {
+  // See docs/formation/DECISIONS.md, "A teleported party token keeps its
+  // party". Core's `RegionDocument#teleportTokens` through `modifyBatch`:
+  // create on the destination under the same id, then delete the original
+  // with `replacements`. The options are the delete hook's as measured live.
+  const traveller = await member("Traveller");
+  await drain();
+  const [tToken] = await scene.createEmbeddedDocuments("Token", [
+    { name: "Traveller", actorId: traveller.id, x: 1000, y: 1000 },
+  ]);
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Teleport Party");
+  formation = await model.addMember(formation, traveller, tToken);
+  await drain();
+  const id = onlyFormation().id;
+  const origin = scene.tokens.get(onlyFormation().tokenId);
+  assert.ok(origin, "party token placed");
+
+  const upstairs = new SceneMock("Upstairs");
+  game.scenes.set(upstairs.id, upstairs);
+  const uuidOf = (token) => `Scene.${token.parent.id}.Token.${token.id}`;
+  const teleport = async (token, to, x, y) => {
+    const from = token.parent;
+    const [arrived] = await to.createEmbeddedDocuments("Token", [{ ...token.toObject(), x, y }], { keepId: true });
+    uuidMap.set(uuidOf(arrived), arrived);
+    await from.deleteEmbeddedDocuments("Token", [token.id], {
+      action: "delete",
+      documentName: "Token",
+      modifiedTime: Date.now(),
+      parent: from,
+      render: true,
+      replacements: { [token.id]: uuidOf(arrived) },
+    });
+    uuidMap.delete(uuidOf(token));
+    return arrived;
+  };
+
+  const arrived = await teleport(origin, upstairs, 300, 400);
+  await drain();
+  let stored = onlyFormation();
+  assert.equal(arrived.id, origin.id, "the token arrived under its own id");
+  assert.equal(stored.sceneId, upstairs.id, "the record names the scene the party arrived on");
+  assert.equal(stored.tokenId, arrived.id, "and the token it arrived as");
+  assert.equal(model.getPartyToken(model.getFormation(id)), arrived, "the party token resolves to the arrival");
+  assert.deepEqual(stored.clock.lastPosition, { x: 300, y: 400 }, "the clock measures from where the party arrived");
+
+  // Down and up again while the ledger is held, so both deletions are heard
+  // before either write runs, and the first leg's arrival is gone by then.
+  let release = null;
+  const held = model.patchFormation(id, async () => {
+    await new Promise((resolve) => (release = resolve));
+    return false;
+  });
+  while (!release) await sleep();
+  const returned = await teleport(await teleport(arrived, scene, 700, 700), upstairs, 500, 500);
+  release();
+  await held;
+  await drain();
+  stored = onlyFormation();
+  assert.equal(stored.sceneId, upstairs.id, "a round trip and out again ends on the last scene");
+  assert.equal(stored.tokenId, returned.id);
+  assert.deepEqual(stored.clock.lastPosition, { x: 500, y: 500 });
+
+  // A token of the same id on a scene the party is not on, as a duplicated
+  // scene holds: deleting it is not deleting the party token.
+  const copy = new SceneMock("Upstairs (Copy)");
+  game.scenes.set(copy.id, copy);
+  const [twin] = await copy.createEmbeddedDocuments("Token", [returned.toObject()], { keepId: true });
+  await copy.deleteEmbeddedDocuments("Token", [twin.id]);
+  await drain();
+  stored = onlyFormation();
+  assert.equal(stored.sceneId, upstairs.id, "the twin's deletion leaves the record on the party's scene");
+  assert.equal(stored.tokenId, returned.id);
+
+  // A deletion that names no replacement still releases the party.
+  await upstairs.deleteEmbeddedDocuments("Token", [returned.id]);
+  await drain();
+  stored = onlyFormation();
+  assert.equal(stored.sceneId, null, "a plain deletion unlinks the scene");
+  assert.equal(stored.tokenId, null, "and the token");
 
   await model.disband(model.getFormation(id));
   await drain();

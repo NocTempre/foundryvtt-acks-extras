@@ -4,6 +4,7 @@ import {
   blockOrigin,
   cellPosition,
   cellPositions,
+  deployedSceneIdOf,
   formationHeading,
   getMemberActor,
   getPartyToken,
@@ -52,10 +53,28 @@ export function isMemberDeployed(member) {
 }
 
 /**
+ * The token an individual member went out under, on whichever scene it now
+ * stands (`deployedSceneIdOf`), or null: gone, or the member is a stack.
+ */
+function ownToken(formation, member) {
+  const id = member?.deployedTokenId;
+  return id ? (game.scenes.get(deployedSceneIdOf(formation, member))?.tokens.get(id) ?? null) : null;
+}
+
+/**
+ * Does this member hold token `tokenId` on scene `sceneId`? Both, never the id
+ * alone: core keeps a token's id when it moves it to another scene, and a
+ * duplicated scene holds the same ids.
+ */
+const holdsToken = (formation, member, tokenId, sceneId) =>
+  !!tokenId && member?.deployedTokenId === tokenId && deployedSceneIdOf(formation, member) === sceneId;
+
+/**
  * Every token on `scene` this member is standing on: one for an individual,
- * one per body for a stack, none for a member inside the party token or
- * already gone. A stack's bodies are found by `deployedBodies`, the read
- * `groups.recall` gathers them by. Enumeration only: nothing here writes.
+ * one per body for a stack, none for a member inside the party token, already
+ * gone, or standing on another scene. A stack's bodies are found by
+ * `deployedBodies`, the read `groups.recall` gathers them by. Enumeration
+ * only: nothing here writes.
  *
  * @param {object} member the formation member record
  * @param {Scene} scene the scene the party is standing on
@@ -64,6 +83,7 @@ export function isMemberDeployed(member) {
 export async function deployedTokens(member, scene) {
   if (!scene || !isMemberDeployed(member)) return [];
   if (member.deployedStack) return deployedBodies(getMemberActor(member), [scene]);
+  if ((member.deployedSceneId ?? scene.id) !== scene.id) return [];
   const token = scene.tokens.get(member.deployedTokenId);
   return token ? [token] : [];
 }
@@ -131,6 +151,7 @@ export async function deployMembers(formation, { members = formation.members, de
     tokens.forEach((token, i) => {
       const member = toCreate[i].member;
       member.deployedTokenId = token.id;
+      member.deployedSceneId = scene.id;
       if (detached) {
         member.detached = true;
         // The leash measures from where they stood when they stepped out.
@@ -194,15 +215,18 @@ export async function recallMembers(formation, { members = formation.members } =
   for (const member of formation.members) {
     if (!wanted.has(member)) continue;
     // Collected while the bodies still stand, before the markers naming them
-    // are cleared below.
-    const bodies = await deployedTokens(member, scene);
+    // are cleared below: a stack's on the party's scene, all the anchor
+    // reads; an individual's on whichever scene their token stands.
+    const bodies = member.deployedStack ? await deployedTokens(member, scene) : [ownToken(formation, member)].filter(Boolean);
     const wasStack = member.deployedStack;
     delete member.deployedTokenId;
+    delete member.deployedSceneId;
     delete member.deployedStack;
     delete member.detached;
     delete member.detach;
-    // The party re-forms where its people actually stood.
-    if (!anchor && bodies.length) anchor = { x: bodies[0].x, y: bodies[0].y };
+    // The party re-forms where its people actually stood, on its own scene.
+    const here = bodies.find((t) => t.parent?.id === scene?.id);
+    if (!anchor && here) anchor = { x: here.x, y: here.y };
     if (wasStack) {
       const actor = getMemberActor(member);
       if (!actor) continue; // the stack's sheet is gone; the marker is cleared regardless
@@ -218,13 +242,16 @@ export async function recallMembers(formation, { members = formation.members } =
     if (typeof hp === "number" && hp <= 0) fallen.push(token.actor?.name ?? token.name);
 
     member.tokenData = token.toObject();
-    toDelete.push(token.id);
+    toDelete.push(token);
   }
 
   // Stash before destroy: the snapshots must be in storage before the canvas
-  // tokens are deleted, or a failure loses them.
+  // tokens are deleted, or a failure loses them. One deletion per scene the
+  // tokens stand on.
   await updateFormation(formation);
-  if (scene && toDelete.length) await scene.deleteEmbeddedDocuments("Token", toDelete);
+  const perScene = new Map();
+  for (const token of toDelete) perScene.set(token.parent, [...(perScene.get(token.parent) ?? []), token.id]);
+  for (const [where, ids] of perScene) await where.deleteEmbeddedDocuments("Token", ids);
   return { fallen, anchor };
 }
 
@@ -288,10 +315,11 @@ export function detachedMembers(formation) {
   return formation.members.filter((m) => m?.detached && m.deployedTokenId);
 }
 
-/** The formation and member owning a deployed token, or null. */
-export function memberForDeployedToken(formations, tokenId) {
+/** The formation and member owning a deployed token (`holdsToken`), or null. */
+export function memberForDeployedToken(formations, tokenDoc) {
+  const sceneId = tokenDoc?.parent?.id;
   for (const formation of formations) {
-    const member = formation.members?.find((m) => m?.deployedTokenId === tokenId);
+    const member = formation.members?.find((m) => holdsToken(formation, m, tokenDoc?.id, sceneId));
     if (member) return { formation, member };
   }
   return null;
@@ -302,8 +330,29 @@ export function memberForDeployedToken(formations, tokenId) {
  * without copying it — what the `preUpdateToken` drag path asks on every
  * step. The result is read-only: it is the stored record itself.
  */
-export function findDeployedMember(tokenId) {
-  return memberForDeployedToken(Object.values(readFormations()), tokenId);
+export function findDeployedMember(tokenDoc) {
+  return memberForDeployedToken(Object.values(readFormations()), tokenDoc);
+}
+
+/**
+ * Core moved a member's own token to another scene (lib's
+ * `replacementToken`): the record follows it, scene and id, and a detached
+ * member's leash anchors where they arrived, since a step through a portal is
+ * not a walk. Decided against the ledger at write time, as every write fired
+ * from a hook is.
+ *
+ * @param {string} formationId
+ * @param {TokenDocument} from the deleted token
+ * @param {TokenDocument} to its replacement, resolved in the hook
+ */
+export function followMemberToken(formationId, from, to) {
+  return patchFormation(formationId, (record) => {
+    const member = record.members?.find((m) => holdsToken(record, m, from.id, from.parent?.id));
+    if (!member) return false;
+    member.deployedTokenId = to.id;
+    member.deployedSceneId = to.parent.id;
+    if (member.detach) member.detach = { anchor: { x: to.x, y: to.y } };
+  });
 }
 
 /* -------------------------------------------- */
@@ -381,10 +430,9 @@ export function leashBreach(member, tokenDoc, target, actor) {
  */
 export async function reanchorDetached(formationId) {
   await patchFormation(formationId, (record) => {
-    const scene = getPartyToken(record)?.parent ?? game.scenes.get(record.sceneId);
     let dirty = false;
     for (const member of detachedMembers(record)) {
-      const token = scene?.tokens.get(member.deployedTokenId);
+      const token = ownToken(record, member);
       if (!token) continue;
       const anchor = member.detach?.anchor;
       if (anchor?.x === token.x && anchor?.y === token.y) continue;

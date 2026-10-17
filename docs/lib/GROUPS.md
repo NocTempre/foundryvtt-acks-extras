@@ -105,6 +105,29 @@ ids. (the equipment feature’s loadout effect is invisible to a group anyway:
 interaction only matters for *deployed members*, which are characters, and is
 the reason the strip exists.)
 
+### A deleted body, and a moved one
+
+A deployed body's token removed by anything other than `recall` (the Judge
+clearing the fallen, core moving it to another scene) is reconciled by the
+primary GM's `deleteToken` hook (`registerGroupCleanup`). The write is keyed
+on the record still naming that token's uuid, which carries its scene, so a
+token under the same id on another scene is not this body. Every deliberate
+route (recall, casualties, detach) clears the uuid first.
+
+- **A deletion that names a successor** carrying the same group and member
+  flags (docs/lib/MODEL.md, "A token moved to another scene") is the body
+  standing somewhere else. The record stays `deployed` under the successor's
+  uuid, its hit points are not read, and the headcount does not move. A later
+  `recall(group)` with no scene gathers it from there.
+- **Any other deletion** folds the body back in, as a recall does, and a body
+  at ≤0 HP is a casualty (`acksLibGroupCasualty`).
+
+The reconciliations run one at a time, each reading what the one before it
+wrote. Run side by side, two bodies deleted in one batch each read the roster
+before the other's write, and one fold is lost. A body sent out and straight
+back is two deletions before the first write lands, and the second one's
+guard is the uuid the first one recorded.
+
 ## Ecology runway — READ only, deliberately unimplemented
 
 `sizeFromEcology(source, context)` is the ONE reader of monster stat-block data
@@ -132,5 +155,11 @@ and left unread.
 
 - Offline: `tools/test-logic.mjs` covers the Foundry-free lifecycle logic
   (ordinals, naming, derived-effect stripping, delta cleaning, ecology read).
+  `tools/test-group-lifecycle.mjs` drives the deletion hook over mocked
+  documents: a moved body, a fallen moved body, a round trip, a plain
+  deletion, a successor that is not the same body, and a twin on another
+  scene.
+- Live: a body moved between scenes is docs/lib/TESTING.md, "A group body
+  moved between scenes".
 - Live: the model registration, sheet, and deploy/recall/detach round-trip need
   the test world (they write tokens and actors) and are a release gate.

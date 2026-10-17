@@ -3324,6 +3324,59 @@ derivation.
 - The next-hex line on the strip is not built (ROADMAP).
 - `formation` `apiVersion` 18.
 
+## 2026-10-17 — A member's own token follows core's cross-scene move
+
+**Found.** A detached member's record named their token by id alone, and
+looked for it on the party's scene. Core moves a token to another scene by
+re-creating it under the same id and deleting the original (docs/lib/MODEL.md,
+"A token moved to another scene"). Walked live on core 14.369 before the fix,
+a scout teleported from A to B:
+- the record kept the id, named no scene, and kept its anchor on A;
+- the party's next step re-anchored nothing;
+- the recall cleared the record and left the token standing on B, with
+  nothing stashed.
+
+**Ruled.**
+- A deploy records `deployedSceneId` beside `deployedTokenId`. The primary
+  GM's `deleteToken` hook hands both to the successor when it is a token of
+  the same actor, by patch, resolved at the hook. This is the party token's
+  ruling above (*A teleported party token keeps its party*) carried to a
+  member, through the same lib helper (`replacementToken`).
+- Every match of a member's own token is guarded on the scene as well as the
+  id: the leash, the re-anchor, the recall, `memberOwnToken` and the reach
+  check. A record from before the field is read as on the party's scene in
+  `deployment.mjs`, and on any scene where only the id was ever kept.
+- A detached member's anchor moves to the arrival. The leash measures how far
+  a member walked from where the party last saw them, and a teleport is no
+  walk.
+- The recall reads each token on its own scene, stashes it, and deletes per
+  scene. The party re-forms only where a body stood on its own scene.
+- `deployedTokens`, which a combat and the environment sync read, stays the
+  party's scene alone.
+- Walked live after the fix from the Gamemaster and the Assistant Gamemaster:
+  the record named B and the arrival, the anchor was the arrival, and the
+  recall stashed the scout and left no token on either scene.
+
+**Rejected.**
+- *Following any replacement.* A token of another actor is not the member,
+  whatever the deleting call names.
+- *Recalling a member whose token went to another scene.* The member is
+  standing somewhere the Judge sent them, and the record can say where.
+- *Keeping the anchor where the member left.* The leash would measure the
+  first step on B from a point on A.
+
+**Cost.**
+- A stack member's bodies follow in the group's roster, but the formation's
+  recall gathers them from the party's scene alone (ROADMAP, "A member on
+  another scene").
+- The re-anchor is a patch, and a whole-record write that read the record
+  before it puts the old anchor back: the party's own step does, measured
+  offline on one scene. A whole write that read the record before a scout's
+  move can put the old scene back the same way (ROADMAP, "A member on
+  another scene").
+- A combat that starts on the party's scene clears `detached` for a scout
+  standing on another one. Read, not walked.
+
 ## 2026-10-16 — The day is keyed twice, the stock says its age, and the card's Begin is the throw's own opening
 
 **Evidence.** The redesign's phase 2b was reviewed read-only the day it was

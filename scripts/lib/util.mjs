@@ -1,4 +1,4 @@
-/* global game, Hooks, foundry */
+/* global game, Hooks, foundry, fromUuidSync */
 /**
  * Tiny cross-feature helpers. Everything here used to exist as N identical
  * copies across the merged features (loc ×11, num ×5, gmIds ×4, …); the
@@ -90,6 +90,20 @@ export const isPrimaryGM = () => game.users.activeGM?.isSelf ?? false;
 
 /** The lib feature's storage surface (attached at import time). */
 export const libStorage = () => globalThis.acksExtras.lib.storage;
+
+/**
+ * The token that replaced `tokenDoc` in the deletion that removed it, or null.
+ * Core moves a token to another scene (a `teleportToken` region, a cut and
+ * paste between scenes) by creating it there and then deleting the original
+ * with `replacements: {[oldId]: newUuid}`, under the same id wherever the new
+ * scene has it free. Read it inside the `deleteToken` hook: the successor is
+ * in its collection then, and a token sent straight back has deleted it before
+ * any write queued behind the hook runs.
+ */
+export function replacementToken(tokenDoc, options) {
+  const uuid = options?.replacements?.[tokenDoc?.id];
+  return uuid ? (fromUuidSync(uuid) ?? null) : null;
+}
 
 /**
  * The `fontScale` setting as a RATIO against the token default — the JS twin

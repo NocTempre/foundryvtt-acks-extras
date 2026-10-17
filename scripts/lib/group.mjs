@@ -27,7 +27,7 @@ import {
   nextOrdinal,
   sizeFromEcology,
 } from "./group-logic.mjs";
-import { isPrimaryGM } from "./util.mjs";
+import { isPrimaryGM, replacementToken } from "./util.mjs";
 
 // Re-export the Foundry-free lifecycle logic so consumers reach it all through
 // `acksLib.groups`, while the pure half stays independently Node-importable.
@@ -211,13 +211,26 @@ export async function reconcileStrandedMembers(group) {
 }
 
 /**
+ * The token a deletion hands a deployed body on to (`replacementToken`: core
+ * moving it to another scene), or null. Only a token still carrying this
+ * body's group and member flags is the same body.
+ */
+function successorBody(tokenDoc, options) {
+  const next = replacementToken(tokenDoc, options);
+  const same = (key) => next?.getFlag?.(MODULE_ID, key) === tokenDoc.getFlag(MODULE_ID, key);
+  return same(GROUP_FLAG) && same(MEMBER_FLAG) ? next : null;
+}
+
+/**
  * A member's token was removed from a scene by something other than a recall
- * (the Judge clearing the fallen off the board). Reconcile the roster with
- * what the canvas now says: fold the body back in, and drop the stack's
- * headcount if it left at ≤0 hp. Keyed on the record still naming THIS token,
+ * (the Judge clearing the fallen off the board, core moving the body to another
+ * scene). Reconcile the roster with what the canvas now says: a body with a
+ * successor is standing there, so its record names the successor; any other is
+ * folded back in, and the stack's headcount drops if it left at ≤0 hp. Keyed
+ * on the record still naming THIS token, whose uuid carries its scene, and
  * which every deliberate route (recall, casualties, detach) clears first.
  */
-async function reconcileDeletedToken(tokenDoc) {
+async function reconcileDeletedToken(tokenDoc, next) {
   const groupUuid = tokenDoc.getFlag(MODULE_ID, GROUP_FLAG);
   const group = groupUuid ? await fromUuid(groupUuid) : null;
   if (!isGroup(group)) return;
@@ -225,11 +238,18 @@ async function reconcileDeletedToken(tokenDoc) {
   const memberKey = tokenDoc.getFlag(MODULE_ID, MEMBER_FLAG);
   const member = group.system.stackOf(stackKey)?.roster.find((m) => m.key === memberKey);
   if (member?.state !== GROUP_STATE.deployed || member.tokenUuid !== tokenDoc.uuid) return;
+  if (next) {
+    await patchMember(group, stackKey, memberKey, (m) => (m.tokenUuid = next.uuid));
+    return;
+  }
   const dead = await foldMembers(group, [
     { stackKey, memberKey, delta: cleanDelta(tokenDoc.delta?.toObject?.() ?? {}), fell: fell(tokenDoc) },
   ]);
   if (dead) Hooks.callAll(GROUP_HOOKS.CASUALTY, group, dead, stackKey);
 }
+
+/** The tail of this client's reconciliations, which run one at a time. */
+let reconciling = Promise.resolve();
 
 /**
  * Keep every stack's roster true to the canvas. One client does the write, so
@@ -237,11 +257,17 @@ async function reconcileDeletedToken(tokenDoc) {
  * actor update.
  */
 export function registerGroupCleanup() {
-  Hooks.on("deleteToken", (tokenDoc) => {
+  Hooks.on("deleteToken", (tokenDoc, options) => {
     if (!isPrimaryGM() || !tokenDoc?.getFlag?.(MODULE_ID, GROUP_FLAG)) return;
-    reconcileDeletedToken(tokenDoc).catch((err) => {
-      console.error(`${MODULE_ID} | group roster reconciliation failed`, err);
-    });
+    // Resolved now, not when the reconciliation's turn comes: a body sent
+    // straight back has deleted its successor by then.
+    const next = successorBody(tokenDoc, options);
+    // In order, each reading what the one before it wrote: a round trip
+    // deletes twice before the first write lands, and the second deletion's
+    // guard is the token the first one recorded.
+    reconciling = reconciling
+      .then(() => reconcileDeletedToken(tokenDoc, next))
+      .catch((err) => console.error(`${MODULE_ID} | group roster reconciliation failed`, err));
   });
 }
 

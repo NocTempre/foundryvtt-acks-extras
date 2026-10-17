@@ -374,6 +374,13 @@ export function partyHeadcount(formation) {
 }
 
 /**
+ * The id of the scene an individual member's own token stands on: the one it
+ * went out on, or the one core's cross-scene move handed it to. A record from
+ * before scenes were recorded names none; its token went out beside the party.
+ */
+export const deployedSceneIdOf = (formation, member) => member?.deployedSceneId ?? formation?.sceneId ?? null;
+
+/**
  * The token holding an unlinked member's own state: the live token while they
  * are deployed, else the token stashed when they formed up. Null for a linked
  * member, and for one who never had a token — their state is the world
@@ -382,7 +389,11 @@ export function partyHeadcount(formation) {
 export function memberOwnToken(member) {
   const id = member?.deployedTokenId;
   if (id) {
-    const scenes = game.scenes?.contents ?? [...(game.scenes ?? [])];
+    // The recorded scene alone: the id also names a token on a scene
+    // duplicated from it. A record that names no scene is looked for on all.
+    const scenes = member.deployedSceneId
+      ? [game.scenes?.get?.(member.deployedSceneId)]
+      : (game.scenes?.contents ?? [...(game.scenes ?? [])]);
     for (const scene of scenes) {
       const token = scene?.tokens?.get?.(id);
       if (token) return token.actorLink ? null : token;

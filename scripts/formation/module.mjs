@@ -1,5 +1,5 @@
 /* global Hooks, game, foundry, canvas, ui, CONFIG, Actor */
-import { elementOf, isPrimaryGM } from "../lib/util.mjs";
+import { elementOf, isPrimaryGM, replacementToken } from "../lib/util.mjs";
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import {
   DEFAULT_PARTY_IMAGE,
@@ -85,7 +85,7 @@ import {
   syncPartyActorSpeed,
   updateFormation,
 } from "./formation-model.mjs";
-import { findDeployedMember, leashBreach, reanchorDetached } from "./deployment.mjs";
+import { findDeployedMember, followMemberToken, leashBreach, reanchorDetached } from "./deployment.mjs";
 import { ownHitPointsPatch } from "../lib/hp-logic.mjs";
 import {
   SETTING_TEMPLATES,
@@ -1014,7 +1014,7 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
  */
 Hooks.on("preUpdateToken", (tokenDoc, changes) => {
   if (!("x" in changes) && !("y" in changes)) return;
-  const found = findDeployedMember(tokenDoc.id);
+  const found = findDeployedMember(tokenDoc);
   if (!found?.member?.detached) return;
   const target = { x: changes.x ?? tokenDoc.x, y: changes.y ?? tokenDoc.y };
   const actor = game.actors.get(found.member.actorId);
@@ -1026,22 +1026,58 @@ Hooks.on("preUpdateToken", (tokenDoc, changes) => {
   if (!game.user.isGM) return false;
 });
 
-/* If the party token is deleted outside of "disband", unlink it so the
- * formation survives and a new token can be placed later. */
-Hooks.on("deleteToken", (tokenDoc) => {
+/**
+ * The token a deletion names as the party token's replacement (lib's
+ * `replacementToken`: core moving it to another scene), or null. Only one
+ * still flagged for the same formation takes the party over.
+ */
+function replacementPartyToken(tokenDoc, options) {
+  const next = replacementToken(tokenDoc, options);
+  const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
+  return next?.getFlag?.(MODULE_ID, FLAG_FORMATION_ID) === formationId ? next : null;
+}
+
+/* A party token deleted outside of "disband" is unlinked, so the formation
+ * survives and a new token can be placed later; one deleted in favour of a
+ * replacement hands the linkage to it. */
+Hooks.on("deleteToken", (tokenDoc, options) => {
   const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   if (!formationId || !isPrimaryGM()) return;
+  // Resolved now, not at write time: a party teleported straight back has
+  // already deleted this replacement by the time the write's turn comes.
+  const next = replacementPartyToken(tokenDoc, options);
   // A patch, not a read-then-write: this fires from an incoming deletion, so
   // the record may be dissolved before the write's turn comes, and a token
   // adopted meanwhile owns the linkage. Both are decided against the ledger as
-  // it is at write time — the guard included.
+  // it is at write time — the guard included. The guard names the scene too:
+  // a token keeps its id across scenes (a teleport, a duplicated scene), so
+  // the id alone also matches a token on a scene the party is not on.
   patchFormation(formationId, (record) => {
-    if (record.tokenId !== tokenDoc.id) return false;
-    record.tokenId = null;
-    record.sceneId = null;
+    if (record.tokenId !== tokenDoc.id || record.sceneId !== tokenDoc.parent?.id) return false;
+    record.tokenId = next?.id ?? null;
+    record.sceneId = next?.parent?.id ?? null;
+    // The clock measures the next step from where the party now stands, not
+    // from where it left on the other scene.
+    if (next) record.clock = { ...(record.clock ?? {}), lastPosition: { x: next.x, y: next.y } };
   })
     .then(() => PartySheet.refreshAll())
-    .catch((err) => console.error(`${MODULE_ID} | unlinking a deleted party token failed`, err));
+    .catch((err) => console.error(`${MODULE_ID} | a deleted party token's linkage could not be updated`, err));
+});
+
+/* A member's own token that core moved to another scene is still theirs: the
+ * record follows the replacement (deployment.mjs, `followMemberToken`). A
+ * token deleted with no replacement leaves the record as it was, for the
+ * recall to find gone. */
+Hooks.on("deleteToken", (tokenDoc, options) => {
+  if (!isPrimaryGM()) return;
+  // Resolved now, as the party token's is.
+  const next = replacementToken(tokenDoc, options);
+  if (!next || next.actorId !== tokenDoc.actorId) return;
+  const found = findDeployedMember(tokenDoc);
+  if (!found) return;
+  followMemberToken(found.formation.id, tokenDoc, next)
+    .then(() => PartySheet.refreshAll())
+    .catch((err) => console.error(`${MODULE_ID} | a member's token moved to another scene could not be followed`, err));
 });
 
 /* -------------------------------------------- */
