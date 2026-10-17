@@ -1,7 +1,9 @@
-/* global game, ui, Roll, ChatMessage */
+/* global game, ui, Roll, ChatMessage, Hooks */
 /**
  * The group hit-point tool's Foundry half: which rows a selection becomes
  * (`resolveTargets`), the writes (`adjustHp`, `restoreHp`) and the report.
+ * Also the hook that keeps a re-created token's own hit points
+ * (`installRecreatedHitPoints`).
  *
  * Damage and healing are written by core's own `applyDamage`. A value set
  * outright, and damage held at 0, are written as an ordinary actor update.
@@ -15,7 +17,7 @@ import { makeLoc } from "./util.mjs";
 import * as services from "./services.mjs";
 import { renderRollCard } from "./roll-card.mjs";
 import { postToJudges, showDice } from "./roll-audience.mjs";
-import { HP_MODE, HP_REASON, hpEligibility, planHpChange } from "./hp-logic.mjs";
+import { HP_MODE, HP_REASON, hpEligibility, keepsOwnHitPoints, planHpChange, recreatedHitPointsPatch } from "./hp-logic.mjs";
 import { deployedBodies, isGroupActor } from "./group-logic.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
@@ -317,4 +319,21 @@ export async function adjustTargets(
   const results = await adjustHp(entries, { mode, floorAtZero });
   if (report) await postHpReport(results, { mode, formula, rolls, visible });
   return results;
+}
+
+/**
+ * A token created again keeps its own hit points (`recreatedHitPointsPatch`),
+ * over the roll the system's `_preCreate` gives every unlinked monster token
+ * it creates: one core creates under its own id, or one a caller makes for a
+ * creature it already holds (`keepsOwnHitPoints`). Registered once, at init.
+ * The hook runs after `_preCreate`, on the client that asked for the create;
+ * for a teleport that is the GM who ran the batch.
+ */
+export function installRecreatedHitPoints() {
+  Hooks.on("preCreateToken", (tokenDoc, data, options) => {
+    // Reading `delta` builds one a token has not made yet, so every other create is left untouched.
+    if (!keepsOwnHitPoints(options)) return;
+    const patch = recreatedHitPointsPatch(data, options, tokenDoc.delta?._source, game.actors.get(data?.actorId));
+    if (patch) tokenDoc.delta?.updateSource(patch);
+  });
 }

@@ -3957,3 +3957,149 @@ from the knob entirely and loses the design's density at the base size.
 **What it cost.** Two custom properties declared on the module's root class
 that the design system also declares on `.acks-ui`; the module's wins by one
 class, which is a dependency on that specificity.
+
+### A body core moves to another scene stays deployed (2026-10-17)
+
+**Asked.** Core v14 moves a token between scenes by re-creating it and
+deleting the original (MODEL.md, "A token moved to another scene"). The
+roster's `deleteToken` hook read every deletion as the body leaving the map.
+Walked live on core 14.369 before the fix, the batch run by the Gamemaster: a
+body teleported to scene B was folded back to `materialized` with an empty
+`tokenUuid` while it stood on B, and a body teleported at 0 HP was recorded
+`dead` and the stack went from 3 to 2.
+
+**Ruled.**
+- The hook reads `options.replacements` through `replacementToken` and
+  resolves the successor before it queues the write. A successor carrying the
+  same group and member flags is the same body: the record keeps `deployed`
+  and takes its uuid. Its hit points are not read, because it has not left
+  the map.
+- The guard stays the record's `tokenUuid`, which already carries the scene.
+- The reconciliations run one at a time on the primary GM's client. A round
+  trip deletes twice before the first write lands, and the second guard is
+  the uuid the first recorded. Offline, the same queue keeps a fold that two
+  deletions in one batch lost when they ran side by side.
+- Walked live after the fix from the Gamemaster and the Assistant Gamemaster:
+  both bodies `deployed` under B's uuids, the stack at 3, and `recall(group)`
+  gathered both from B and left none.
+
+**Rejected.**
+- *Any replacement as the body.* The map is whatever the deleting call names;
+  a token without this body's flags is some other token.
+- *Resolving the successor when the write runs.* A body sent straight back has
+  deleted it by then, and the record would fold.
+
+**What it cost.** Nothing in the roster carries a body's hit points across the
+move, and the system rolls fresh ones on the way in ("A token core creates
+again under its own id keeps its own hit points", 2026-10-17).
+
+### A token core creates again under its own id keeps its own hit points (2026-10-17)
+
+**Asked.** A token moved to another scene arrived with new hit points. Walked
+live on core 14.369 with the system's `autoRollMonsterHP` on, from the
+Gamemaster and from the Assistant Gamemaster: group bodies teleported at 1 of
+13 and 0 of 13 arrived at 5 of 5 and 11 of 11, and the recall counted no
+casualty. An unlinked monster member of a formation teleported at 2 of 6
+arrived at 8 of 8, and its recall stashed 8. A token cut at 1 of 13 and
+pasted on another scene arrived at 7 of 7, and an undone deletion of a token
+at 7 of 7 came back at 10 of 10. This answers the cost recorded in "A body
+core moves to another scene stays deployed" (2026-10-17).
+
+**Evidence.** A `preCreateToken` observer on the client that ran each create.
+The teleport's create inside its `modifyBatch`, the cut and paste's and the
+undo's all carry `keepId: true`, and the undo also `isUndo`. A placement and a
+pasted copy carry neither. The hook's `data` still holds the original's delta
+hit points after `_preCreate` has rolled into the pending document, because
+core builds that document from a clone of the data.
+
+**Ruled.**
+- `keepId` is the sign, read in `preCreateToken`. It is core's own statement
+  that the document is the same one again.
+- The hook writes the data's hit points back only where the pending delta no
+  longer matches them, so it undoes a write made during the create and
+  nothing else. A token whose hit points were its actor's gains no copy of
+  them where nothing rolled.
+- Lib owns it (`installRecreatedHitPoints`, `recreatedHitPointsPatch`), one
+  hook for every token, so a group body, a formation member and a Judge's own
+  token are kept alike.
+- Walked live after the fix from both seats: the bodies arrived at 1 of 13 and
+  0 of 13, and the recall counted one casualty and took the stack from 3 to 2.
+  The member arrived at 2 of 6 and was stashed at 2 of 6. The cut and paste
+  and the undo kept 1 of 13. A pasted copy and a token placed from plain data
+  still rolled.
+
+**Rejected.**
+- *A move told by its original still standing on another scene under the same
+  id.* It misses an undone deletion, and a teleport that took a new id because
+  the destination already held the old one.
+- *Gating on the system's own condition, an unlinked monster with the setting
+  on.* It restates the system's rule here, and is wrong the day that rule
+  changes. Comparing the pending delta with the data says whether anything
+  wrote over it, whatever wrote it.
+- *Turning the setting off around the create, or writing the hit points back
+  after it,* for the reasons the formation gave (docs/formation/DECISIONS.md,
+  "An unlinked member is down by their own token's hit points").
+- *Folding the formation's `MEMBER_TOKEN_OPTION` into this hook.* A roster
+  placement is a new token made from a stash, with no id to keep. The two
+  signals never meet on one create. (Superseded the same day: "A deployed body
+  keeps its record's hit points".)
+
+**What it cost.** An undone deletion keeps its hit points too, which is what
+an undo means. Core's own drop of an actor from the sidebar leaves the delta
+empty, and the system does not roll it at all: measured, the token showed its
+actor's 50 of 50 while one created from plain data rolled. That is unchanged.
+A group body's deploy is a new token with no id to keep, so the system still
+rolled over the hit points its record holds; answered by "A deployed body
+keeps its record's hit points" (2026-10-17).
+
+### A deployed body keeps its record's hit points (2026-10-17)
+
+**Asked.** A group body arrived from `deploy` with hit points the system had
+just rolled, not its record's. Walked live on core 14.369 before the fix, from
+the Gamemaster and from the Assistant Gamemaster: all 16 bodies of 8 deploys
+read a fresh roll, and two bodies recalled at 1 of 13 and 1 of 16 came back at
+12 of 12 and 2 of 2. This answers the cost recorded in "A token core creates
+again under its own id keeps its own hit points" (2026-10-17).
+
+**Evidence.** That entry's observer, and a wrap of the system's `rollHP` on
+the seat that deployed: the system rolled once for every body, and each
+arrival read that roll. Deploy's create carries no `keepId`, because its token
+is new. One earlier deploy's two bodies matched their records with no fix. The
+wrap shows how: a pasted copy's data held 12 of 12 and the roll was 12. For
+2d8, those two bodies' figures (10 and 14) both come up again about once in
+200 deploys. That deploy was not reproduced, so chance is the inferred cause.
+
+**Ruled.**
+- Lib names a token create option, `KEEP_HIT_POINTS_OPTION`, for a caller
+  making a token for a creature it already holds. `keepsOwnHitPoints` reads it
+  beside `keepId`, and the one hook keeps both alike, with the same compare
+  against the pending delta.
+- `deploy` passes it. Each token's delta is its record's, so a fresh body
+  arrives with the hit points `materializeMembers` rolled, and a recalled one
+  with those its recall folded back.
+- Walked live after the fix from both seats: all 16 bodies of 8 deploys read
+  their records, while the wrap still saw one roll per body. The observer saw
+  the option and no `keepId`. The two bodies recalled at 1 of 12 and 1 of 7
+  came back at those figures. A placement from plain data and a copy pasted
+  from a deployed body each read the wrap's roll.
+
+**Rejected.**
+- *Deploy passing `keepId`.* It is core's statement that the document is the
+  same one again, which a deployed token is not, and core acts on it beyond
+  this hook.
+- *Letting the deploy's roll stand, and rolling nothing into a new record.*
+  A body's hit points would change each time it is sent out, and a wounded
+  body would come back whole.
+- *Writing the record's hit points onto the token after the create,* for the
+  reasons the formation gave (docs/formation/DECISIONS.md, "An unlinked member
+  is down by their own token's hit points").
+
+**Deferred.** *Folding the formation's `MEMBER_TOKEN_OPTION` into this
+option.* The earlier entry's reason no longer holds: it rested on lib's hook
+answering `keepId` alone. The fold edits three formation files that carry
+other sessions' uncommitted changes, so it is left for later (ROADMAP.md, "One
+option keeps a token's own hit points").
+
+**What it cost.** Nothing rolls a body's hit points again once its record
+holds them. A copy pasted from a deployed body still rolls: it is a new
+creature, and its create carries no option.

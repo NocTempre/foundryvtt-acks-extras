@@ -1849,3 +1849,29 @@ Wounds** button, which opens the system's own window (`openCoreWindow`).
 through its synthetic actor. For token data kept off the canvas, the delta's
 figures and effects win over the base actor's. Formation's reads of an
 unlinked member go through them (docs/formation/MODEL.md).
+
+**A token core creates again under its own id keeps its own hit points.**
+The system's `TokenDocument#_preCreate` rolls new hit points into the delta
+of every unlinked monster token it creates while its `autoRollMonsterHP`
+setting is on. Core creates with `keepId` only a token that already existed:
+a move to another scene ("A token moved to another scene"), a cut and paste
+between scenes, and an undone deletion. Each create's data is the original's
+`toObject()`, delta included, and `_preCreate` writes to the pending document,
+never to that data. So `installRecreatedHitPoints` (`hp.mjs`) answers
+`preCreateToken`, which core runs after `_preCreate` on the client that asked
+for the create (for a teleport, the GM who ran the batch). Where the pending
+delta's hit points no longer match the data's, it writes the data's back
+(`recreatedHitPointsPatch`); a token whose delta held none shows its actor's
+again. A placement and a pasted copy carry no `keepId`, and their roll stands.
+A member the formation places from its roster is a new token with no id to
+keep, and keeps its hit points by the formation's own option
+(docs/formation/MODEL.md, "Data flow").
+
+**A deployed body keeps its record's hit points.** A caller making a new
+token for a creature it already holds creates it with
+`KEEP_HIT_POINTS_OPTION` (`constants.mjs`), and the same hook keeps that
+token's hit points as it keeps a `keepId` create's: `keepsOwnHitPoints`
+(`hp-logic.mjs`) reads either. The group's `deploy` passes it, with each
+token's delta copied from its body's record, so a body arrives with the hit
+points `materializeMembers` rolled for it, or with those its recall folded
+back into the record (GROUPS.md, "The representative individual").

@@ -6,10 +6,27 @@
  * into a party token's stash through the party roster.
  */
 import assert from "node:assert/strict";
-import { HP_MODE, HP_REASON, hpEligibility, ownHitPointsPatch, planHpChange, tokenHasStatus, tokenHitPoints } from "../scripts/lib/hp-logic.mjs";
-import { GROUP_TYPE, TEMPLATE_TYPE } from "../scripts/lib/constants.mjs";
+import {
+  HP_MODE,
+  HP_REASON,
+  hpEligibility,
+  keepsOwnHitPoints,
+  ownHitPointsPatch,
+  planHpChange,
+  recreatedHitPointsPatch,
+  tokenHasStatus,
+  tokenHitPoints,
+} from "../scripts/lib/hp-logic.mjs";
+import { GROUP_TYPE, KEEP_HIT_POINTS_OPTION, TEMPLATE_TYPE } from "../scripts/lib/constants.mjs";
 import * as services from "../scripts/lib/services.mjs";
-import { adjustHp, isFlatAmount, multiplierLabel, resolveTargets, restoreHp } from "../scripts/lib/hp.mjs";
+import {
+  adjustHp,
+  installRecreatedHitPoints,
+  isFlatAmount,
+  multiplierLabel,
+  resolveTargets,
+  restoreHp,
+} from "../scripts/lib/hp.mjs";
 
 let n = 0;
 const tests = [];
@@ -108,6 +125,98 @@ t("a token re-created from data is patched back to that data's own hit points", 
   assert.equal(ownHitPointsPatch({ actorLink: true, delta: { system: { hp: { value: 2 } } } }, base), null);
   assert.equal(ownHitPointsPatch({ actorLink: false, delta: null }, null), null);
   assert.equal(ownHitPointsPatch(null, base), null);
+});
+
+t("a token core re-creates under its own id gets back the hit points its data carried", () => {
+  const base = { system: { hp: { value: 9, max: 9 } } };
+  const rolled = { system: { hp: { value: 5, max: 5 } } };
+  // A teleport, a cut and paste between scenes and an undone deletion each create with keepId.
+  const moved = { actorLink: false, delta: { system: { hp: { value: 0, max: 13 } } } };
+  assert.deepEqual(recreatedHitPointsPatch(moved, { keepId: true }, rolled, base), { system: { hp: { value: 0, max: 13 } } });
+  // A roll that lands on the carried value still replaced the maximum.
+  const wounded = { actorLink: false, delta: { system: { hp: { value: 5, max: 13 } } } };
+  assert.deepEqual(recreatedHitPointsPatch(wounded, { keepId: true }, rolled, base), { system: { hp: { value: 5, max: 13 } } });
+  // A delta keeps only what differs from the actor, so a maximum it shares is the actor's.
+  const sparse = { actorLink: false, delta: { system: { hp: { value: 2 } } } };
+  const hireling = { system: { hp: { value: 6, max: 6 } } };
+  assert.deepEqual(recreatedHitPointsPatch(sparse, { keepId: true }, rolled, hireling), { system: { hp: { value: 2, max: 6 } } });
+  // A token that matched its actor shows the actor's again.
+  assert.deepEqual(recreatedHitPointsPatch({ actorLink: false, delta: null }, { keepId: true }, rolled, base), {
+    system: { hp: { value: 9, max: 9 } },
+  });
+});
+
+t("a new token, a copy, a linked token and one nothing rolled over keep what the create made", () => {
+  const base = { system: { hp: { value: 9, max: 9 } } };
+  const rolled = { system: { hp: { value: 5, max: 5 } } };
+  const moved = { actorLink: false, delta: { system: { hp: { value: 0, max: 13 } } } };
+  // A placement and a pasted copy are new creatures: no keepId, and the roll stands.
+  assert.equal(recreatedHitPointsPatch(moved, { action: "create" }, rolled, base), null);
+  assert.equal(recreatedHitPointsPatch(moved, undefined, rolled, base), null);
+  assert.equal(recreatedHitPointsPatch({ ...moved, actorLink: true }, { keepId: true }, rolled, base), null);
+  // Nothing wrote over the data's: a token whose hit points were its actor's gains no copy of them.
+  assert.equal(recreatedHitPointsPatch(moved, { keepId: true }, { system: { hp: { value: 0, max: 13 } } }, base), null);
+  assert.equal(recreatedHitPointsPatch({ actorLink: false, delta: null }, { keepId: true }, null, base), null);
+  assert.equal(recreatedHitPointsPatch({ actorLink: false, delta: { system: {} } }, { keepId: true }, { system: {} }, base), null);
+  assert.equal(recreatedHitPointsPatch(null, { keepId: true }, rolled, base), null);
+});
+
+t("a token made for a creature its caller already holds gets back the hit points its data carried", () => {
+  const base = { system: { hp: { value: 9, max: 9 } } };
+  const rolled = { system: { hp: { value: 5, max: 5 } } };
+  const keep = { [KEEP_HIT_POINTS_OPTION]: true };
+  // A group body's record, wounded before it was recalled.
+  const record = { actorLink: false, delta: { system: { hp: { value: 1, max: 12 } } } };
+  assert.deepEqual(recreatedHitPointsPatch(record, keep, rolled, base), { system: { hp: { value: 1, max: 12 } } });
+  assert.equal(recreatedHitPointsPatch(record, { [KEEP_HIT_POINTS_OPTION]: false }, rolled, base), null);
+  assert.equal(recreatedHitPointsPatch(record, keep, { system: { hp: { value: 1, max: 12 } } }, base), null);
+  assert.equal(keepsOwnHitPoints({ keepId: true }), true);
+  assert.equal(keepsOwnHitPoints(keep), true);
+  assert.equal(keepsOwnHitPoints({ keepId: false, [KEEP_HIT_POINTS_OPTION]: false }), false);
+  assert.equal(keepsOwnHitPoints({ action: "create" }), false);
+  assert.equal(keepsOwnHitPoints(undefined), false);
+});
+
+t("the preCreateToken hook writes a re-created token's hit points over the system's roll", () => {
+  const listeners = [];
+  globalThis.Hooks = { on: (name, fn) => listeners.push([name, fn]) };
+  world(actor({ id: "m1", name: "Soldier", hp: { value: 9, max: 9 }, type: "monster" }));
+  installRecreatedHitPoints();
+  let reads = 0;
+  let writes = 0;
+  /** Run the hook on a pending token as `_preCreate` leaves it: its delta holds `pending`, by default a roll. */
+  const create = (data, options, pending = { value: 5, max: 5 }) => {
+    const delta = {
+      _source: { system: { hp: { ...pending } } },
+      updateSource(patch) {
+        writes++;
+        Object.assign(this._source.system.hp, patch.system.hp);
+      },
+    };
+    const tokenDoc = {
+      _source: { delta: null },
+      get delta() {
+        reads++;
+        return delta;
+      },
+    };
+    for (const [name, fn] of listeners) if (name === "preCreateToken") fn(tokenDoc, data, options, "u1");
+    return delta._source.system.hp;
+  };
+  const data = { actorId: "m1", actorLink: false, delta: { system: { hp: { value: 0, max: 13 } } } };
+  // The options of the teleport's create, as core 14.369 passes them inside its batch.
+  assert.deepEqual(create(data, { action: "create", documentName: "Token", dryRun: true, keepId: true }), { value: 0, max: 13 });
+  // A group body deployed from its record.
+  assert.deepEqual(create(data, { action: "create", documentName: "Token", [KEEP_HIT_POINTS_OPTION]: true }), { value: 0, max: 13 });
+  // Nothing rolled over it: no write.
+  writes = 0;
+  assert.deepEqual(create(data, { keepId: true }, { value: 0, max: 13 }), { value: 0, max: 13 });
+  assert.equal(writes, 0);
+  // A new token keeps its roll, and its delta is never read: reading one builds it.
+  reads = 0;
+  assert.deepEqual(create(data, { action: "create", documentName: "Token" }), { value: 5, max: 5 });
+  assert.equal(reads, 0);
+  delete globalThis.Hooks;
 });
 
 t("an unlinked token's statuses lay its delta's effects over the base actor's by id", () => {

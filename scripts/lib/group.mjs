@@ -11,7 +11,7 @@
  * calling client under Foundry's own permission checks; they do not route
  * over a socket — a consumer needing GM-routed writes wraps them.
  */
-import { MODULE_ID } from "./constants.mjs";
+import { KEEP_HIT_POINTS_OPTION, MODULE_ID } from "./constants.mjs";
 import GroupData, { GROUP_CATEGORY, GROUP_STATE } from "./data/group-data.mjs";
 import {
   GROUP_ACTOR_TYPE,
@@ -523,11 +523,11 @@ function defaultPlacer(scene, x, y) {
 
 /**
  * Put `count` members of ONE stack onto a scene as unlinked tokens, each
- * carrying its member delta. Resting records go out first, then pristine
- * bodies materialize on the way (they need a record to hold their token link
- * and rolled HP); stranded records are freed first so a stack that took
- * casualties can march again. One creation call and one roster write however
- * many bodies deploy.
+ * carrying its member delta, hit points included. Resting records go out
+ * first, then pristine bodies materialize on the way (they need a record to
+ * hold their token link and rolled HP); stranded records are freed first so a
+ * stack that took casualties can march again. One creation call and one
+ * roster write however many bodies deploy.
  *
  * @param {Actor} group
  * @param {Scene} scene
@@ -573,7 +573,8 @@ export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, 
     toCreate.push(tokenData);
   }
 
-  const created = await scene.createEmbeddedDocuments("Token", toCreate);
+  // The system rolls every unlinked monster token it creates; the option keeps each record's hit points.
+  const created = await scene.createEmbeddedDocuments("Token", toCreate, { [KEEP_HIT_POINTS_OPTION]: true });
   // Creation preserves order, so the i-th token is the i-th body's.
   await patchStack(group, key, (s) => {
     created.forEach((tokenDoc, i) => {

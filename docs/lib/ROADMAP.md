@@ -90,6 +90,15 @@ An unlinked token is found as a rider, a passenger or a draft animal
   window is open, and restores values without checking whether anything else
   changed them since.
 
+## One option keeps a token's own hit points
+
+A formation's roster placement keeps a member's stashed hit points by an
+option of its own, `MEMBER_TOKEN_OPTION`, answered by a `preCreateToken` hook
+of its own (`scripts/formation/module.mjs`). Lib's hook takes
+`KEEP_HIT_POINTS_OPTION` from any caller (MODEL.md, "The hit-point tool").
+Not built: the formation passing lib's option, and its own option and hook
+removed.
+
 ## Who carries `acks`, and whether that is deliberate
 
 Five surfaces do — the two item sheets (abilities, equipment), the roll editor,

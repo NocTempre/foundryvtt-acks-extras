@@ -45,6 +45,7 @@ const COMMITTED = [
   "test-magic.mjs",
   "test-repair.mjs",
   "test-repair-checks.mjs",
+  "test-group-deploy.mjs",
   "test-hp.mjs",
   "test-group-lifecycle.mjs",
   "test-battlemap.mjs",

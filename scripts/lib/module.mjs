@@ -112,7 +112,7 @@ import * as survival from "./survival.mjs";
 import { danglingRefCheck, fixEach, fixRepairs, registerRepairCheck, repairChecks, scanRepairs } from "./repair.mjs";
 import { registerLibRepairChecks } from "./repair-checks.mjs";
 import { RepairMenu, openRepairTool } from "./apps/repair-app.mjs";
-import { adjustTargets } from "./hp.mjs";
+import { adjustTargets, installRecreatedHitPoints } from "./hp.mjs";
 import { hpEligibility, planHpChange } from "./hp-logic.mjs";
 import { installHpControl, openHpTool } from "./apps/hp-app.mjs";
 
@@ -629,6 +629,8 @@ Hooks.once("init", () => {
 
   // The hit-point tool's button on the Tokens layer, for the GM.
   installHpControl();
+  // A token moved to another scene, or brought back, keeps its own hit points.
+  installRecreatedHitPoints();
 
   // WHOSE DEFAULTS the world opens on — Foundry's, the system's or this
   // module's — for every seat (ui-preset.mjs; docs/lib/MODEL.md's UI preset

@@ -21,6 +21,14 @@ export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
 /** The Item sub-type a variation document is — one way an item differs from its plain self. */
 export const VARIATION_TYPE = `${MODULE_ID}.variation`;
 
+/**
+ * The token create option that keeps the hit points the token's data carries
+ * over the roll the system gives an unlinked monster token as it is created
+ * (hp-logic.mjs, `keepsOwnHitPoints`). A caller making a token for a creature
+ * it already holds passes it.
+ */
+export const KEEP_HIT_POINTS_OPTION = `${MODULE_ID}.keepHitPoints`;
+
 /** The prefix every custom hook this module fires is named under. */
 const NAMESPACE = "acksExtras";
 

@@ -5,7 +5,7 @@
  * token reads find an unlinked token's own hit points and statuses, on a live
  * token or in token data kept off the canvas.
  */
-import { GROUP_TYPE, MODULE_ID, TEMPLATE_TYPE } from "./constants.mjs";
+import { GROUP_TYPE, KEEP_HIT_POINTS_OPTION, MODULE_ID, TEMPLATE_TYPE } from "./constants.mjs";
 
 /** The three things done to hit points. */
 export const HP_MODE = Object.freeze({ damage: "damage", heal: "heal", set: "set" });
@@ -120,6 +120,35 @@ export function ownHitPointsPatch(data, baseActor = null) {
   const hp = tokenHitPoints(data, baseActor);
   if (!hp) return null;
   return { system: { hp: hp.max === null ? { value: hp.value } : { value: hp.value, max: hp.max } } };
+}
+
+/**
+ * Does this token create keep the hit points its data carries? Core passes
+ * `keepId` only for a token that already existed: moved to another scene, cut
+ * and pasted between scenes, or brought back by an undo. A caller making a
+ * token for a creature it already holds passes `KEEP_HIT_POINTS_OPTION`.
+ */
+export function keepsOwnHitPoints(options) {
+  return !!(options?.keepId || options?.[KEEP_HIT_POINTS_OPTION]);
+}
+
+/**
+ * The delta patch that gives a token being created again the hit points its
+ * data carried (`ownHitPointsPatch`), or null. Null for a create that does not
+ * keep them (`keepsOwnHitPoints`), for a linked token, and where the pending
+ * delta's hit points still match the data's, so only a write made during the
+ * create (the system's roll for an unlinked monster) is undone.
+ * @param {object} data the creation data the create was asked for
+ * @param {object} [options] the create operation's options
+ * @param {object} [pendingDelta] the pending token's delta source, after `_preCreate`
+ * @param {object} [baseActor] the actor the token was made from
+ */
+export function recreatedHitPointsPatch(data, options, pendingDelta, baseActor = null) {
+  if (!keepsOwnHitPoints(options) || !data || data.actorLink) return null;
+  const carried = data.delta?.system?.hp;
+  const now = pendingDelta?.system?.hp;
+  if (carried?.value === now?.value && carried?.max === now?.max) return null;
+  return ownHitPointsPatch(data, baseActor);
 }
 
 /** Does an effect's `statuses` (a Set on a document, an array in data) hold `status`? */

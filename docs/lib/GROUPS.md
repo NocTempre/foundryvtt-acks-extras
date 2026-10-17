@@ -83,7 +83,7 @@ the formation feature all read it with no special-casing.
 | `ensureBaseActor(group)` | mint the world Actor the ActorDelta needs (once) |
 | `materializeMember(group)` | pristine body → record; rolls its HP |
 | `applyCasualties(group, n)` | pristine fall first (no record lost), then records → `dead` |
-| `deploy(group, scene, {count})` | spawn unlinked tokens, member delta pre-applied |
+| `deploy(group, scene, {count})` | spawn unlinked tokens, member delta pre-applied, its hit points kept over the system's roll |
 | `recall(group)` | fold `token.delta` back in, drop ≤0-HP bodies, delete tokens |
 | `detach(group, key)` | promote a member to a standalone actor; `size.current--` |
 

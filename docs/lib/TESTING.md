@@ -1328,6 +1328,120 @@ the party token, are formation's recipe "An unlinked member's own hit points"
 **Teardown.** `api.sweepTracked()`. The scene takes every token on it with
 it, the body tokens included, so those sweep as missing.
 
+## A token created again under its own id
+
+Covers `installRecreatedHitPoints` and `recreatedHitPointsPatch` (MODEL.md,
+"The hit-point tool"). Driven by a script over the capture driver, from the
+Gamemaster and from the Assistant Gamemaster, each on its own port; no walk in
+`tools/live` covers it. The system's `autoRollMonsterHP` must be on.
+
+**Fixtures**, each `api.create()`d or `api.track()`ed:
+- Scenes A and B, the arrival and the departure: docs/formation/TESTING.md,
+  "A teleport between scenes".
+- "Soldier", a `monster` with `prototypeToken.actorLink: false`, then
+  `system.hp` written by an update (`hd` 2d8, 9 of 9).
+- A group of Soldiers with two bodies deployed on A: "A group body moved
+  between scenes", below.
+- "Hireling", a `monster` like Soldier at 6 of 6, dropped on a hand-created
+  party actor's sheet, with the party token on A, then detached
+  (docs/formation/TESTING.md, "A detached member moved between scenes"). Track
+  the token the member's `deployedTokenId` names.
+- A loose token of Soldier on A, created from plain data.
+
+**Drive mechanics.**
+- Arm a `preCreateToken` observer on the seat that runs each create. Record
+  `options.keepId`, `options.isUndo`, `data.delta.system.hp`, and
+  `tokenDoc.delta._source.system.hp`. It is registered after lib's hook, so the
+  last figure is what the token will store.
+- Wound each token with `token.actor.update` to a value below a maximum of 13.
+  A roll sets the value and the maximum alike, so it cannot pass for a wound.
+- Read a delta that matched its actor's maximum as sparse: a member wounded to
+  2 of 6 carries only `{value: 2}`.
+- A teleport views the destination for the seat that moved. View A again
+  before cutting there.
+- Cut: control the token, `canvas.tokens.copyObjects({cut: true})`, view B,
+  `canvas.tokens.pasteObjects({x, y})`, whose return is the pasted documents.
+  A copy is the same without `cut`. Undo: delete a token while viewing its
+  scene, then `canvas.tokens.undoHistory()`; it returns the token re-created
+  under the same uuid.
+- Place from plain data, `scene.createEmbeddedDocuments("Token", [{actorId,
+  actorLink: false, x, y}])`. Core's own actor drop (`getTokenDocument`, then
+  `create`) leaves the delta empty, and the system does not roll it at all.
+
+1. **A moved body keeps its wounds.** Wound the two bodies to 1 and 0 of 13
+   and teleport each from the seat under test (the group recipe's steps 1 and
+   2).
+   **Observable:** each arrival reads its body's figures. The observer saw
+   `keepId: true` and the data holding them.
+2. **A moved member keeps its wounds.** Wound the hireling's token to 2 of 6
+   and teleport it, then press its detach control again.
+   **Observable:** the arrival reads 2 of 6, and after the recall the stash's
+   `tokenData.delta.system.hp` reads 2 of 6.
+3. **Cut and paste between scenes.** Wound the loose token to 1 of 13, cut it
+   on A and paste it on B.
+   **Observable:** 1 of 13, with `keepId: true`.
+4. **A copy is a new creature.** Copy the pasted token and paste it on B.
+   **Observable:** no `keepId`, and the copy reads a roll while its data held
+   1 of 13.
+5. **An undone deletion.** Delete the pasted token and undo.
+   **Observable:** 1 of 13, with `keepId` and `isUndo` true.
+6. **A placement rolls.** Place a Soldier on B from plain data.
+   **Observable:** no `keepId`. The data held no hit points and the token
+   reads a roll.
+- Unfixed, every arrival in steps 1, 2, 3 and 5 read a roll, and the recall
+  stashed the member's.
+
+**Teardown.** `api.sweepTracked()`. The originals the teleports and the cut
+deleted, and the arrivals the recalls deleted, sweep as missing. The detach
+and the recall post chat cards: read each card's id back right after the
+gesture that posted it and `api.track(id, "ChatMessage")` it.
+
+## A deployed body's hit points
+
+Covers `KEEP_HIT_POINTS_OPTION` as `deploy` passes it (MODEL.md, "The
+hit-point tool"). Driven by a script over the capture driver, from the
+Gamemaster and from the Assistant Gamemaster, each running every create from
+its own seat; no walk in `tools/live` covers it. The system's
+`autoRollMonsterHP` must be on.
+
+**Fixtures**, each `api.create()`d or `api.track()`ed:
+- Scene A.
+- "Soldier", a `monster` with `prototypeToken.actorLink: false`, then
+  `system.hp` written by an update (`hd` 2d8, 9 of 9).
+- A group with one stack of Soldier, three strong
+  (`acksExtras.lib.groups.addStack(group, soldier, {count: 3})`). The stack's
+  template is Soldier itself, so `deploy` mints no base actor; track
+  `stackOf(key).template.uuid` if it differs.
+- Every token `deploy` returns, a plain placement, and a pasted copy.
+
+**Drive mechanics.**
+- Arm the `preCreateToken` observer of "A token created again under its own
+  id" on the seat that deploys, and wrap the system's
+  `CONFIG.Actor.documentClass.prototype.rollHP` there to record each roll's
+  total. A roll can land on the record's own figures (seen: data 12 of 12,
+  roll 12). Only the wrap tells that from a kept record.
+- A fresh body's record exists only after `deploy` has materialized it, and
+  `deploy` writes no record's delta: read the roster after the deploy.
+- Recall with `acksExtras.lib.groups.recall(group)`. The deployed tokens it
+  deletes sweep as missing.
+
+1. **A fresh deploy.** Deploy two bodies onto A.
+   **Observable:** each arrival reads its record's hit points. The observer
+   saw `acks-extras.keepHitPoints: true` and no `keepId`. The wrap saw one
+   roll per body.
+2. **A wounded body deployed again.** Wound the first body to a value of 1,
+   leaving its maximum, recall the group, then deploy two again.
+   **Observable:** the recall reports no casualty, the record reads 1 of its
+   maximum, and its arrival reads the same. The other body reads its record.
+3. **A placement rolls.** Place a Soldier on A from plain data.
+   **Observable:** no option, and the token reads the wrap's roll.
+4. **A copy rolls.** Control a deployed body on A, `copyObjects()`, then
+   `pasteObjects({x, y})`.
+   **Observable:** no option, and the copy reads the wrap's roll.
+- Unfixed, every arrival in steps 1 and 2 read the wrap's roll.
+
+**Teardown.** `api.sweepTracked()`.
+
 ## A long window title stays on one line
 
 Covers the design system's heading rule (`vendor/acks-design/base.css`,
@@ -2377,6 +2491,53 @@ holding the same effect.
    sheet, the input reads 0 and the tooltip names −1.
 
 **Teardown.** Delete both actors by their tracked ids.
+
+## A group body moved between scenes
+
+Covers the roster's `deleteToken` hook (GROUPS.md, "A deleted body, and a
+moved one") and `replacementToken`. Driven by a script over the capture
+driver, from the Gamemaster and from the Assistant Gamemaster, each on its
+own port; no walk in `tools/live` covers it.
+
+**Fixtures**, each `api.create()`d or `api.track()`ed:
+- Scenes A and B with a departure Region on A that teleports to an arrival on
+  B: docs/formation/TESTING.md, "A teleport between scenes", lists the shapes.
+- A `monster` source with `system.hp.hd` set, and an `acks-extras.group`
+  actor. `groups.addStack(group, source, {count: 3})`, then
+  `groups.deploy(group, A, {stackKey, count: 2, x, y})` away from the
+  departure. Track each token it returns, and the stack's base actor
+  (`group.system.stackOf(key).template.uuid`) when it is not the source.
+- The second body's actor at 0 HP: `token.actor.update({"system.hp.value": 0})`.
+
+**Drive mechanics.**
+- A seat other than the one that deployed hears the tokens over the socket.
+  Before it moves one, wait until `fromUuidSync(uuid)` resolves on that seat.
+- The roster is `group.system.toObject().stacks[].roster`, each record's
+  `state` and `tokenUuid`, beside the stack's `size.current`.
+
+1. **A moved body stays deployed.** From the seat under test, move the first
+   body into the departure with `tokenDoc.update({x, y})`. Poll B for a token
+   whose `flags.acks-extras.member` is the body's member key and
+   `api.track()` it.
+   **Observable:** the record is `deployed` and its `tokenUuid` is the
+   arrival's. `size.current` is 3.
+2. **A fallen body moved is not a casualty.** Move the second body the same
+   way.
+   **Observable:** as step 1, and `size.current` is still 3.
+3. **A recall gathers them from where they stand.** `groups.recall(group)`
+   with no scene.
+   **Observable:** it returns `recalled: 2` and `casualties: 1`, and B holds
+   no token flagged for the group. The fallen body arrived at 0 ("A token
+   created again under its own id", step 1), so its record reads `dead` and
+   `size.current` is 2. The other reads `materialized`.
+- **To see the mechanism:** an observer `deleteToken` hook on the primary GM
+  reads `options.replacements[oldId]` as the arrival's uuid, and
+  `fromUuidSync` of it resolves inside the hook. Unfixed, step 1 left the
+  record `materialized` with an empty `tokenUuid`, and step 2 recorded the
+  body `dead` and the stack at 2.
+
+**Teardown.** `api.sweepTracked()`. The originals on A, and the arrivals the
+recall deleted, sweep as missing.
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.
