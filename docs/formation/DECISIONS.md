@@ -3895,14 +3895,19 @@ marker) is asked where the move put it, on every client.
   corner.
 
 **Cost.**
-- Pinned offline, not walked live. `test-formation-flows.mjs`: a drawn move's
+- Pinned offline and walked live. `test-formation-flows.mjs`: a drawn move's
   turn is thrown for in the zone it ended in (a move along `x`), and a drawn
   move onto an armed trap zone is checked (along `y`). `test-journey.mjs`: a
   drawn move crosses into an `entry` zone that only the corner it ends on is
   inside. The read put back whole, and on each axis alone, fails the checks
-  it should (in memory, the tree untouched). The city's turn, the sheet, the
-  hop's pricing and the location reads share the read and have no check of
-  their own.
+  it should (in memory, the tree untouched). Walked on core 14.369 with the
+  GM's own client drawing each move (TESTING, "A move the GM's client is
+  drawing", steps 7–9): the delve's throw card named the zone, the trap check
+  posted its card for the armed zone, and the journey's own write named the
+  `entry` zone in `clock.zoneIds`, each while the prepared centre was still
+  outside the zone. The city's turn, the sheet, the hop's pricing and the
+  location reads share the read and have no check of their own, offline or
+  live.
 - A drawn move that also changes elevation is answered at the elevation it
   began at.
 - `tokenCenter` (`location/here.mjs`) still reads a token's prepared corner,

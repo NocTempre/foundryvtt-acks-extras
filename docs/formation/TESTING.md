@@ -398,9 +398,47 @@ The recall with no body on the party's scene, the hop to a place the party
 already stands on and the step onto a shadow are pinned offline only
 (DECISIONS 2026-10-17, "A re-anchor reads the party token's stored corner").
 
-Teardown by the run's own ids: `api.sweepTracked()` removes the scenes and
-actors (the party actor dissolves its formation). Track each chat card id as
-it lands.
+Steps 7–9 ask what ground the party stands on while its move is drawn
+(DECISIONS 2026-10-17, "The ground under the party is read at the token's
+stored corner"). Each wants a move that completes a turn, so they run on a
+scene C of their own: as A, with room for one 500 px step south as well, but
+its cell is the formation's `turnDistance` times 1.2, divided by 5 and
+rounded up, read once the member has joined. The party token settles
+smaller there, so take its centre from `_source` (the corner plus half its
+`width`/`height` in pixels) after adoption. Each zone is a Region made
+beside the move, a 400 px square whose near edge stands 250 px past that
+centre, so only the move's far half is inside it. The
+`updateToken` observer proves a move is drawn when it starts, not when the
+ground is read a few hundred milliseconds into the chain: arm a
+`preCreateChatMessage` observer, and an `updateSetting` one on
+`acks-extras.formations`, that records at that moment whether the token is
+still drawn and whether the zone holds its prepared centre and its stored
+one. At core's default speed every read below landed inside the move's
+~0.8 s draw.
+
+7. Add an encounter zone (`acks-extras.encounterZone`, `encounterEvery: 1`)
+   east of the token, view C, and move the token 500 px east.
+   *Observable:* the turn's throw card says `in zone "<the region's name>"`,
+   and when it was created the token was still drawn, with its prepared
+   centre outside the zone and its stored centre inside. The prepared centre
+   is the one the code before the fix asked about.
+8. Create a trap Item (`acks-extras.trap`, `triggerOn: 0`, so it never
+   springs) and a trap zone (`acks-extras.trapZone`, `trapUuid` the item's
+   uuid, `state: "armed"`) south of the token, and move it 500 px south.
+   *Observable:* the check's "The trap is not sprung" card is created while
+   the token is drawn, its prepared centre outside the zone.
+9. `await acksExtras.formation.travel.setJourneyMode(id, "journey")` and wait
+   for it to land (`clock.lastPosition` equals `_source`). Add an encounter
+   zone with `journeyCadence: "entry"` east of the token and move it 500 px
+   east.
+   *Observable:* the move's own record write, the first whose
+   `clock.lastPosition` is the token's `_source`, lands while the token is
+   drawn with its prepared centre outside the zone, and its `clock.zoneIds`
+   names the zone. The day's first step posts a navigation card; track it.
+
+Teardown by the run's own ids: `api.sweepTracked()` removes the scenes, the
+trap Item and the actors (the party actor dissolves its formation). Track
+each chat card id as it lands.
 
 ## Mounts and the train (added with the stations release)
 
