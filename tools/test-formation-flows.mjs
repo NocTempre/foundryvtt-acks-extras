@@ -2323,6 +2323,184 @@ await scenario("a whole-record write never resurrects the record it was holding"
   await drain();
 });
 
+await scenario("a move held on the world clock keeps the party token the teleport handed over", async () => {
+  // See docs/formation/DECISIONS.md, "A clock write never moves the party
+  // token". The step into a teleport region bills rounds, and `advanceRounds`
+  // carries the record it read before the step across the world-clock
+  // advance. Here the advance answers only when told to, so the teleport's
+  // patch lands inside that wait — the order a slow advance produces live.
+  const strider = await member("Strider");
+  await drain();
+  const [sToken] = await scene.createEmbeddedDocuments("Token", [
+    { name: "Strider", actorId: strider.id, x: 1000, y: 1000 },
+  ]);
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Held Party");
+  formation = await model.addMember(formation, strider, sToken);
+  await drain();
+  const id = onlyFormation().id;
+  const origin = scene.tokens.get(onlyFormation().tokenId);
+  assert.ok(origin, "party token placed");
+  const landing = new SceneMock("Landing");
+  game.scenes.set(landing.id, landing);
+  const roundsOf = (clock) => clock.turnsTotal * 10 + (clock.roundsPartial ?? 0);
+
+  const advance = game.time.advance;
+  let open = null;
+  game.time.advance = async (seconds) => {
+    await new Promise((resolve) => (open = resolve));
+    return advance(seconds);
+  };
+  // Three squares is fifteen feet: one round at 120' a turn.
+  const stepHeld = async (token) => {
+    open = null;
+    await token.update({ x: token.x + 3 * token.parent.grid.size });
+    for (let i = 0; !open && i < 500; i++) await sleep();
+    assert.ok(open, "the move reached the world clock");
+  };
+  const billed = async (from) => {
+    for (let i = 0; roundsOf(onlyFormation().clock) <= from && i < 500; i++) await sleep();
+    await drain();
+    assert.ok(roundsOf(onlyFormation().clock) > from, "the move was billed");
+    return onlyFormation();
+  };
+  try {
+    const roundsBefore = roundsOf(onlyFormation().clock);
+    await stepHeld(origin);
+    const [arrived] = await landing.createEmbeddedDocuments("Token", [{ ...origin.toObject(), x: 300, y: 400 }], { keepId: true });
+    const arrivalUuid = `Scene.${landing.id}.Token.${arrived.id}`;
+    uuidMap.set(arrivalUuid, arrived);
+    await scene.deleteEmbeddedDocuments("Token", [origin.id], {
+      action: "delete",
+      documentName: "Token",
+      modifiedTime: Date.now(),
+      parent: scene,
+      render: true,
+      replacements: { [origin.id]: arrivalUuid },
+    });
+    await drain();
+    assert.equal(onlyFormation().sceneId, landing.id, "the teleport's patch landed while the move was held");
+
+    open();
+    let stored = await billed(roundsBefore);
+    assert.equal(stored.sceneId, landing.id, "the record still names the scene the party arrived on");
+    assert.equal(stored.tokenId, arrived.id, "and the token it arrived as");
+    assert.deepEqual(stored.clock.lastPosition, { x: 300, y: 400 }, "and measures from where it arrived");
+    assert.equal(model.getPartyToken(model.getFormation(id)), arrived, "the party token resolves to the arrival");
+
+    // A plain deletion heard during the wait releases the party for good.
+    const roundsThen = roundsOf(stored.clock);
+    await stepHeld(arrived);
+    await landing.deleteEmbeddedDocuments("Token", [arrived.id]);
+    await drain();
+    open();
+    stored = await billed(roundsThen);
+    assert.equal(stored.sceneId, null, "a party token deleted while the move waited stays unlinked");
+    assert.equal(stored.tokenId, null);
+    uuidMap.delete(arrivalUuid);
+  } finally {
+    game.time.advance = advance;
+    open?.();
+  }
+
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
+await scenario("a whole write held on an answer keeps the party token a teleport, a deletion or an adoption handed over", async () => {
+  // See docs/formation/DECISIONS.md, "Every whole write keeps the party
+  // token's linkage". The writer reads its copy, waits on an answer (a
+  // dialog, a server round trip), and writes the copy whole; the linkage
+  // moves by patch while it waits.
+  const guide = await member("Guide");
+  await drain();
+  const [gToken] = await scene.createEmbeddedDocuments("Token", [
+    { name: "Guide", actorId: guide.id, x: 1000, y: 1000 },
+  ]);
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Waiting Party");
+  formation = await model.addMember(formation, guide, gToken);
+  await drain();
+  const id = onlyFormation().id;
+  const origin = scene.tokens.get(onlyFormation().tokenId);
+  assert.ok(origin, "party token placed");
+  const ridge = new SceneMock("Ridge");
+  game.scenes.set(ridge.id, ridge);
+  const arrivalUuid = `Scene.${ridge.id}.Token.${origin.id}`;
+
+  // A teleport heard while the answer is awaited.
+  let copy = model.getFormation(id);
+  copy.clock.lastPosition = { x: origin.x, y: origin.y };
+  const [arrived] = await ridge.createEmbeddedDocuments("Token", [{ ...origin.toObject(), x: 300, y: 400 }], { keepId: true });
+  uuidMap.set(arrivalUuid, arrived);
+  await scene.deleteEmbeddedDocuments("Token", [origin.id], {
+    action: "delete",
+    documentName: "Token",
+    modifiedTime: Date.now(),
+    parent: scene,
+    render: true,
+    replacements: { [origin.id]: arrivalUuid },
+  });
+  await drain();
+  assert.equal(onlyFormation().sceneId, ridge.id, "the teleport's patch landed while the writer waited");
+  copy.stance = { ...(copy.stance ?? {}), pace: "hurried" };
+  await model.updateFormation(copy);
+  await drain();
+  let stored = onlyFormation();
+  assert.equal(stored.stance?.pace, "hurried", "the writer's own change landed");
+  assert.equal(stored.sceneId, ridge.id, "the record still names the scene the party arrived on");
+  assert.equal(stored.tokenId, arrived.id, "and the token it arrived as");
+  assert.deepEqual(stored.clock.lastPosition, { x: 300, y: 400 }, "and measures from where it arrived");
+  assert.equal(copy.sceneId, ridge.id, "the writer's copy is brought into line");
+
+  // A write that names the party token the ledger names sets its own baseline.
+  copy = model.getFormation(id);
+  copy.clock.lastPosition = { x: 320, y: 420 };
+  await model.updateFormation(copy);
+  await drain();
+  assert.deepEqual(onlyFormation().clock.lastPosition, { x: 320, y: 420 }, "an ordinary re-anchor still lands");
+
+  // A plain deletion heard while the answer is awaited.
+  copy = model.getFormation(id);
+  await ridge.deleteEmbeddedDocuments("Token", [arrived.id]);
+  uuidMap.delete(arrivalUuid);
+  await drain();
+  copy.frontage = 2;
+  await model.updateFormation(copy);
+  await drain();
+  stored = onlyFormation();
+  assert.equal(stored.frontage, 2);
+  assert.equal(stored.sceneId, null, "a party token deleted while the writer waited stays unlinked");
+  assert.equal(stored.tokenId, null);
+
+  // The Judge drags the party actor onto a scene by hand while the answer is
+  // awaited: the createToken hook adopts the token, and the write keeps it.
+  copy = model.getFormation(id);
+  const partyActor = model.getPartyActor(copy);
+  assert.ok(partyActor, "the party actor survived the unlink");
+  const [placed] = await scene.createEmbeddedDocuments("Token", [
+    { name: partyActor.name, actorId: partyActor.id, x: 800, y: 900 },
+  ]);
+  await drain();
+  stored = onlyFormation();
+  assert.equal(placed.getFlag(MODULE_ID, "formationId"), id, "the placed token is flagged for the formation");
+  assert.equal(stored.sceneId, scene.id, "a party token placed by hand is adopted");
+  assert.equal(stored.tokenId, placed.id);
+  // The token takes the formation's footprint once adopted, and that resize
+  // re-anchors the clock, so the baseline is where it stands now.
+  assert.deepEqual(stored.clock.lastPosition, { x: placed.x, y: placed.y }, "and measured from where it stands");
+  copy.frontage = 3;
+  await model.updateFormation(copy);
+  await drain();
+  stored = onlyFormation();
+  assert.equal(stored.frontage, 3);
+  assert.equal(stored.tokenId, placed.id, "the adoption survives a write held across it");
+  assert.equal(model.getPartyToken(model.getFormation(id)), placed, "the party token resolves to the placed token");
+
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
 await scenario("overlapping environment sweeps coalesce instead of racing", async () => {
   // See docs/formation/DECISIONS.md, "Environment sweeps coalesce, and a
   // vanished target is not a fault".

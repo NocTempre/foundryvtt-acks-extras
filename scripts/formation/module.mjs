@@ -83,7 +83,6 @@ import {
   pruneFormations,
   removeMembers,
   syncPartyActorSpeed,
-  updateFormation,
 } from "./formation-model.mjs";
 import { findDeployedMember, followMemberToken, leashBreach, reanchorDetached } from "./deployment.mjs";
 import { ownHitPointsPatch } from "../lib/hp-logic.mjs";
@@ -1331,11 +1330,13 @@ Hooks.on("createToken", (tokenDoc) => {
   }
   (async () => {
     await tokenDoc.setFlag(MODULE_ID, FLAG_FORMATION_ID, formation.id);
-    formation.sceneId = tokenDoc.parent.id;
-    formation.tokenId = tokenDoc.id;
-    formation.clock.lastPosition = { x: tokenDoc.x, y: tokenDoc.y };
-    await updateFormation(formation);
-    await syncPartyActorSpeed(formation);
+    // A patch: a whole write keeps the ledger's linkage, so only a patch moves it.
+    const stored = await patchFormation(formation.id, (record) => {
+      record.sceneId = tokenDoc.parent.id;
+      record.tokenId = tokenDoc.id;
+      record.clock = { ...(record.clock ?? {}), lastPosition: { x: tokenDoc.x, y: tokenDoc.y } };
+    });
+    if (stored) await syncPartyActorSpeed(foundry.utils.deepClone(stored));
   })()
     .then(() => adoptSceneSystem(formation.id, tokenDoc.parent))
     .then(arrived)

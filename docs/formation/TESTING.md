@@ -2587,6 +2587,91 @@ Unregister the invented `travel` document
 restore *Journey encounter throws*. The world clock is not set back; report
 how far step 10 moved it.
 
+## A teleport between scenes (added with the teleport fix)
+
+The party follows its token through a `teleportToken` Region to another scene,
+whoever steps in. No walk in `tools/live` covers this section. It is driven
+by a script over the capture driver, one `connect()` per seat on its own port.
+
+**Fixtures**, each `api.create()`d so that the ledger holds it:
+
+- Scenes A and B: `padding: 0`, `grid: {size: 100, distance: 5}`, and
+  `ownership: {default: 2}` so the Player seat can view them.
+- The arrival: a Region on B with one `rectangle` shape and no behavior.
+  Create it first, because the departure names its uuid.
+- The departure: a Region on A whose `behaviors` hold
+  `{type: "teleportToken", system: {destinations: [<arrival uuid>], choice: false, placement: "center"}}`.
+- A character actor as the member. For the player run, grant the Player
+  OWNER on the MEMBER. The party actor's ownership is derived from its
+  members' (`syncPartyActorOwnership`), so a grant made on the party actor
+  itself is rewritten and the player's move is refused.
+- A hand-created `acks-extras.party` actor. Poll its
+  `flags.acks-extras.formationId` for the formation it creates, then drop the
+  member on its sheet (Core drive mechanics).
+- The party token: a token of the party actor on A beside the departure, with
+  `actorLink: true`. Poll the record until `tokenId` names it.
+
+**Steps.** For the player run, wait until the party actor's ownership names
+the Player. On the seat that moves, `await scene.view()` A and wait for
+`canvas.ready`. Then move the party token to a point inside the departure
+with `tokenDoc.update({x, y})`. Core stops the move where the token first
+enters the region and teleports it from there. Poll B for a token flagged
+with the formation's id, and `api.track()` its uuid at once. Walk it from
+each of these seats:
+
+1. The Gamemaster: the primary GM runs the batch itself.
+2. The Assistant Gamemaster: it runs the batch, and the primary GM only hears
+   the broadcast.
+3. The Player: a GM runs the batch, since a player has no `TOKEN_CREATE` in
+   v14. Read which GM from the `createToken` hook's user.
+4. The Gamemaster again, viewing B and moving the party from across A. Nobody
+   renders the token, so there is no animation to wait out, and the move
+   bills rounds. The movement chain's whole-record write then races the
+   teleport's patch (DECISIONS 2026-10-17).
+5. Route 4 with the race forced the wrong way round. Before the move, replace
+   `game.time.advance` on the primary GM's page with a wrapper that awaits a
+   promise the script resolves, then calls the original; hold only the first
+   call. Wait until the wrapper has been entered and the record names B, so
+   the teleport's patch has landed while the chain holds its copy, then
+   resolve it. Restore the method afterwards: it is the prototype's, so
+   `delete game.time.advance`. The chain's write is the formations write after
+   the release whose clock moved. Unfixed, it put scene A back.
+6. Route 5 with the party token placed by hand and a waiting whole write
+   after it. Create the party actor with `prototypeToken: {actorLink: true}`,
+   view A, and dispatch a `DragEvent("drop")` carrying `{type: "Actor", uuid}`
+   on `canvas.app.view` at the client point of a scene point (Core drive
+   mechanics); `api.track()` the token it makes. Before the move, read a copy
+   with `acksExtras.formation.getFormations()[id]` and give it a run-unique
+   key. After the chain's write, pass it to
+   `acksExtras.formation.removeLight(copy, "<an id no light has>")`: a whole
+   write of the copy and nothing else. Start the card scan before the drop,
+   since the fog notice for A posts at placement.
+
+**Observable.**
+
+- The record (`game.settings.get("acks-extras", "formations")[id]`) names B
+  and the arrival's id, and its `clock.lastPosition` is the arrival's `x`/`y`.
+- On the seat that moved, `acksExtras.formation.getPartyToken(record)`
+  resolves to the arrival, and the party sheet renders and names the member.
+- To see the mechanism: on the primary GM, an observer `deleteToken` hook's
+  `options.replacements[oldId]` is the arrival's uuid, and `fromUuidSync` of
+  it resolves there.
+- Step 6: the record names the dropped token once it lands, and the token
+  carries the formation's flag. After the copy's write, the record still
+  names B, the arrival and its position, and carries the copy's key; the copy
+  now names B too. The copy's clock puts back the rounds the chain billed:
+  only the linkage is kept (DECISIONS 2026-10-17, "Every whole write keeps
+  the party token's linkage").
+- Each run posts one card: the fog notice ("no one mapping") for B, which the
+  environment sync posts as the party arrives. While the record lost the
+  party, there was none.
+
+**Teardown.** Run `api.sweepTracked()`. The original token on A shows as
+missing, because the teleport deleted it. The fog card is the module's: read
+its id back from the newest `game.messages` entry right after the move, and
+`api.track(id, "ChatMessage")` it. Then confirm `getFormations()` no longer
+lists the formation.
+
 ## Teardown
 
 `api.sweepTracked()` over the ledger: the scene, the party actor (its

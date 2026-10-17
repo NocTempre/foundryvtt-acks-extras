@@ -208,13 +208,30 @@ function commit(mutate) {
  * `patchFormation` is what a writer uses to avoid that. See
  * docs/formation/MODEL.md, "Every write goes through one private
  * `commit(mutate)`".
+ *
+ * The party token's linkage is not the copy's to write: the ledger's
+ * `sceneId` and `tokenId` stand over the copy's, and where they name another
+ * token, so does the ledger's `clock.lastPosition`. A teleport, a deletion or
+ * an adoption heard while the caller awaited moves the linkage by patch, and
+ * only a patch moves it. The copy is brought into line, so a later write from
+ * it agrees.
  */
 export async function updateFormation(formation) {
   await commit((all) => {
-    if (!(formation.id in all)) return false;
+    const stored = all[formation.id];
+    if (!stored) return false;
+    takeStoredLinkage(formation, stored);
     all[formation.id] = formation;
   });
   return formation;
+}
+
+function takeStoredLinkage(formation, stored) {
+  if (formation.sceneId === stored.sceneId && formation.tokenId === stored.tokenId) return;
+  formation.sceneId = stored.sceneId ?? null;
+  formation.tokenId = stored.tokenId ?? null;
+  // The copy's baseline was measured on the token it named, not this one.
+  formation.clock = { ...(formation.clock ?? {}), lastPosition: stored.clock?.lastPosition ?? null };
 }
 
 /**

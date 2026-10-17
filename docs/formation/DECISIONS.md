@@ -3472,6 +3472,105 @@ written against.
 - `apiVersion` stays 18: note 18 grows, nothing already released changes
   shape.
 
+## 2026-10-17 — A teleported party token keeps its party
+
+**Found.** Core's `teleportToken` Region behavior carries a token to another
+scene by creating it there and deleting the original in one `modifyBatch`
+(`RegionDocument#teleportTokens`). The new token keeps the old id unless the
+destination already holds it. The `deleteToken` hook unlinked the record
+whenever the deleted token's id was the record's, so the formation forgot the
+token it had just arrived as. Walked live on core 14.369 before the fix: with
+the primary GM running the teleport, and with an Assistant GM running it, the
+record ended with `sceneId` and `tokenId` null.
+
+**Ruled.** The hook hands the linkage (`sceneId`, `tokenId`,
+`clock.lastPosition`) to the token the deletion names as the original's
+replacement, when that token still carries the formation's flag, and unlinks
+otherwise. This extends the hook's ruling in *A whole-record write is an
+update, never an insert* (2026-08-20), which stands: it is still a patch,
+guarded at write time.
+- Core puts `replacements: {[oldId]: newUuid}` on the delete operation for
+  this, and its own `Combat._onDeleteTokens` reads it. Measured live: the
+  hook's options carry it (keys `action, documentName, modifiedTime, parent,
+  render, replacements`) on the client that ran the batch and on the primary
+  GM hearing another GM's broadcast. The replacement resolves inside the
+  hook, since a batch's create is handled before its delete.
+- The replacement is resolved when the deletion is heard. A party teleported
+  out and straight back has deleted the first replacement before the first
+  write's turn comes.
+- The guard matches the scene as well as the id. A kept id names a token on
+  both scenes, and a duplicated scene holds its tokens under the original's
+  ids. Deleting either one unlinked the party before.
+- `clock.lastPosition` moves with the token. Otherwise the first step on the
+  new scene is measured from a point on the old one.
+
+**Rejected.**
+- *Matching the arrival by its kept id on `createToken`* (the fallback if the
+  options had not carried the map). The create is heard first, while the
+  record still names the original and the original still exists. The id is
+  not always kept: a destination that holds it gets a new one, and so can a
+  cut-and-paste. And a create cannot tell a teleport from a duplicated scene.
+
+**Cost.**
+- The move that carries the party into the region is billed by the primary
+  GM's movement chain. When it bills rounds, `advanceRounds` writes the record
+  whole after its own server round trips. If that write lands after this
+  patch, it puts back the origin's `sceneId` and `tokenId`. The live walk
+  billed three rounds on a move straight into the region, with no animation
+  to wait out, and the linkage held. That is one run on a local server, not a
+  proof of the order.
+- A cut-and-paste between scenes takes the same path. It was read in core
+  (`PlaceablesLayer#pasteObjects`), not walked.
+
+## 2026-10-17 — A clock write never moves the party token
+
+**Found.** The race the entry above names under Cost, reproduced live on core
+14.369. The primary GM's movement chain reads the record when it hears the
+step into the region, and `advanceRounds` writes that copy whole after the
+world-clock advance and the awaits behind it. With `game.time.advance` held on
+a gate in the primary GM's page, the teleport's patch landed during the hold
+(the record named B, the arrival and its position). The chain's write after
+the gate opened put scene A back, with the point where the token met the
+region as `clock.lastPosition`, and `getPartyToken` resolved nothing. Unheld,
+the advance's round trip has finished first on the walks so far, which is why
+they held. A plain deletion heard in the same wait is undone the same way: the
+write restores the ids of a token that no longer exists.
+
+**Ruled.** `advanceRounds` writes with `updateFormation(formation,
+{keepLinkage: true})`. Inside the save lock, the ledger's `sceneId` and
+`tokenId` stand over the copy's. Where they name another token than the copy
+does, the ledger's `clock.lastPosition` stands too, since the copy's baseline
+was measured on the token the copy named. The rest of the copy is written as
+before, so the step into the region is still billed. The copy is brought into
+line, so the card and the map archive after the write read the current
+linkage.
+- An option on the whole write, not a patch. `advanceRounds` writes most of
+  the record (clock, lights, spells, travel), and a patch that re-applies a
+  whole copy differs from the whole write only in the keys it cannot delete.
+- In `advanceRounds`, not only in the movement branch. Every caller of it (a
+  combat round, a hasty action, lighting a torch, a trap) carries its copy
+  across the same advance.
+- The other whole writes in `onPartyTokenMoved` read the record and queue the
+  write in one synchronous step, so the save queue puts them ahead of any
+  patch the teleport queues later.
+
+**Rejected.**
+- *Every `updateFormation` keeps the ledger's linkage* (moderate). It would
+  close the same window for every whole writer that waits, a dialog's answer
+  included, and it fits *The party token's linkage is a patch* (2026-10-09).
+  But the `createToken` hook's manual adoption (`module.mjs`) moves the
+  linkage through a whole write, and would have to become a patch first.
+- *Re-reading the record once the advance answers* (weak). The wait does not
+  end at the advance: the holed-up credit, a fired encounter and the winded
+  markers all await before the write. Only a read inside the lock closes it.
+
+**Cost.** The option is opt-in, so the whole writes that wait without it stay
+exposed (ROADMAP, "Whole writes that wait").
+
+*Superseded by "Every whole write keeps the party token's linkage"
+(2026-10-17, below): the guard is `updateFormation`'s on every call, and the
+option is gone.*
+
 ## 2026-10-17 — A drawn party token is measured where its move put it
 
 **Found.** The movement chain read the party token's `x`/`y`, and on a client
@@ -3533,3 +3632,52 @@ the turn clock, the journey and the trap check.
   along it. Only the resize was walked: it ran after the drag turned the
   party, waited out the step, and anchored `lastPosition` on the stored
   corner.
+
+## 2026-10-17 — Every whole write keeps the party token's linkage
+
+**Supersedes** *A clock write never moves the party token* (2026-10-17,
+above), on its option. **New evidence**, since that entry is hours old: it
+rejected this ruling at moderate on one cost, that the `createToken` hook's
+manual adoption moved the linkage through a whole write. Enumerating every
+writer of `sceneId` and `tokenId` found that adoption the only one;
+`ensurePartyToken` and the `deleteToken` hook already patched. And the whole
+writes that wait are not hypothetical: the combat hand-off writes after
+creating the members' tokens and combatants, the reform after recalling
+them, and a trap's halt after its token update, each from a copy read before
+the wait. An offline scenario holding a whole write across a teleport, a
+plain deletion and a manual adoption put the old linkage back on the
+opt-in code at its first check.
+
+**Ruled.** `updateFormation` keeps the ledger's linkage on every call: inside
+the save lock, the ledger's `sceneId` and `tokenId` stand over the copy's,
+and where they name another token, so does the ledger's
+`clock.lastPosition` (`takeStoredLinkage`, unchanged). The `keepLinkage`
+option is gone. The linkage moves only by patch, and the manual adoption is
+now one: it writes `sceneId`, `tokenId` and `clock.lastPosition` onto the
+record read inside the lock.
+- The adoption syncs the party actor's speed from the record its patch wrote,
+  not from the copy the hook read when the token was created.
+- A copy that names the token the ledger names writes its own
+  `clock.lastPosition`, so a re-anchor (the Judge's pause, a recall, a trap's
+  halt) still lands.
+
+Walked live on core 14.369, one run on the primary GM alone on its seat
+(TESTING, "A teleport between scenes", steps 5 and 6). The party actor
+dropped on A's canvas was adopted. The move held at the world clock kept B,
+the arrival and its position, and billed three rounds. A whole write after it,
+from a copy read before the move and naming A, kept the same, and the copy
+came back naming B.
+
+**Rejected.**
+- *Keeping the option and adding it caller by caller* (weak). It protects
+  only the callers someone audited, and a whole writer added later is exposed
+  by default.
+
+**Cost.**
+- A whole write cannot move the party token. A writer that means to must
+  patch; one that writes the linkage whole has it replaced by the ledger's
+  without a warning. The offline scenario's adoption step fails if the hook
+  goes back to a whole write.
+- Only the linkage is kept. A waiting whole write still overwrites any other
+  field a patch changed meanwhile (*The party token's linkage is a patch*,
+  2026-10-09, says who patches).
