@@ -548,7 +548,7 @@ const stripOf = (id) => {
     band: ['name="travel.mode"', 'name="name"'],
     mode: [
       'name="travel.hexLabel"', 'data-action="travelEnterHex"', 'data-action="forageDay"', 'data-action="travelEndDay"',
-      'data-action="hexStock"', 'name="camp.present"', 'name="camp.target"',
+      'data-action="hexStock"', 'name="travel.camp.present"', 'name="travel.camp.target"',
       'name="travel.movement.mode"',
       'name="travel.weather.season"', 'data-action="travelWeatherRoll"',
       'name="travel.day.kind"', 'name="travel.hour"', 'name="travel.day.traps"', 'name="travel.day.noSleep"',
@@ -587,8 +587,22 @@ const stripOf = (id) => {
   const order = ["country", "poi", "movement", "sky", "day", "camp"].map((key) => gmJourney.mode.indexOf(`data-section="${key}"`));
   assert.ok(order.every((at) => at > 0), "the Judge sees every section of the Wilderness tab");
   assert.deepEqual([...order].sort((a, b) => a - b), order, "Country, Points of interest, Movement, Sky, Day, then Camp");
-  for (const needle of ['name="camp.present"', 'name="camp.target"', 'data-action="hexStock"']) {
+  for (const needle of ['name="travel.camp.present"', 'name="travel.camp.target"', 'data-action="hexStock"']) {
     assert.ok(sectionOf(gmJourney.mode, "poi").includes(needle), `${needle} sits in Points of interest`);
+  }
+  // The search's answers are drawn from the record, so a choice survives the
+  // re-render its own submit makes; one the hex no longer offers falls back.
+  {
+    const said = makeFormation(scene, token, { travel: { camp: { present: "yes", target: "elsewhere" } } });
+    const poi = sectionOf(render(said, { gm: true }).mode, "poi");
+    assert.ok(/<option value="yes" selected>/.test(poi), "a stored yes is the selected answer");
+    assert.ok(/<option value="elsewhere" selected>/.test(poi), "and the stored target is selected");
+    assert.ok(!/<option value="anything" selected>/.test(poi), "not the default");
+    const stale = makeFormation(scene, token, { travel: { camp: { present: "stock", target: "nope" } } });
+    const poi2 = sectionOf(render(stale, { gm: true }).mode, "poi");
+    assert.ok(!poi2.includes('value="stock"'), "an unstocked hex offers no stock answer");
+    assert.ok(/<option value="no" selected>/.test(poi2), "so a stored stock falls back to no");
+    assert.ok(/<option value="anything" selected>/.test(poi2), "and an unknown target to anything");
   }
   assert.ok(sectionOf(gmJourney.mode, "day").includes('name="travel.hour"'), "the hour select sits in the Day section");
   assert.ok(sectionOf(gmJourney.mode, "camp").includes('name="travel.exposure.hours"'), "the exposure fields sit in the Camp section");
@@ -650,7 +664,7 @@ const stripOf = (id) => {
     "and no word on where a reading came from, nor any chip");
   assert.ok(sectionOf(playerJourney.mode, "camp").includes("ACKS-FORMATION.camp.food"), "the Camp section reaches a player, with the forecast in it");
   assert.ok(!playerHtml.includes("travel.exposure"), "and none of the Judge's exposure fields");
-  assert.ok(!playerHtml.includes('name="camp.present"') && !playerHtml.includes('name="camp.target"'), "nor the search's selects");
+  assert.ok(!playerHtml.includes('name="travel.camp.present"') && !playerHtml.includes('name="travel.camp.target"'), "nor the search's selects");
   assert.ok(!/name="travel\./.test(playerHtml), "no declared field reaches a player");
   assert.ok(!playerHtml.includes('data-tab="judge"'), "and nothing names the Judge's tab");
 

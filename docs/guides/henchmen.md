@@ -25,6 +25,15 @@ themselves off as more important than they are. That is a real option with a
 real cost: if it is discovered later, the loyalty throw takes −1 per level of
 difference.
 
+**A mercantile network searches wider.** An employer holding the Mercantile
+Network power is offered **Search with the mercantile network** on the
+posting, ticked where the market counts as one the holder has visited before
+(RR ch. 2, Mercantile Network). The search fee is the larger market's, and a
+general posting adds whoever a search at the larger class finds beyond the
+town's pool; those candidates are the holder's alone to see and to hire.
+
+![](../releases/v11.4.0/henchmen-network-posting.png)
+
 **No GM needs to be online.** A location defaults to OWNER, so players can post,
 process and hire on their own.
 
@@ -57,6 +66,22 @@ level. A mercenary or specialist with no wage set is offered no bonus.
 *An offer to a specialist whose sheet sets no wage: the signing bonus offers
 None alone.*
 
+**The throw reads its table from your book.** The Reaction to Hiring Offer's
+results, and what each earlier refusal and each slander takes off the roll,
+come from the Revised Rulebook's tables once they are imported (RR 162). Until
+then the hiring page and the dialog say the table is missing and do not roll.
+
+![](../releases/v11.4.0/henchmen-hiring-table.png)
+
+**A bulk row is offered head by head.** Hire on a mercenary or specialist row
+asks how many heads the offer goes to, and each head rolls its own reaction
+(RR 162). Heads that answered alike become a row of their own, so the next
+offer to those who refused carries their penalty and leaves the rest
+untouched. The heads who accept join as one hireling of that count, and the
+signing bonus is paid per head.
+
+![](../releases/v11.4.0/henchmen-bulk-offer.png)
+
 Candidates are plain records until this moment — a Class I market can roll
 hundreds of them, and creating hundreds of actors would be unusable.
 
@@ -71,6 +96,23 @@ history each score is computed from.
 *An employer's roster: who is hired, on what terms. Open a row for that
 hireling's history and the Judge's actions on it — a loyalty or obedience
 throw, a calamity or a penalty on the record, a transfer, a dismissal.*
+
+**A power is worth what your book says.** The henchman limit, a hire's base
+loyalty, the hirelings' morale bonus and the hiring-offer bonuses read the
+value the importer located on each power's page, or an Active Effect the Judge
+gives the power; the module supplies no figure for a power it knows only by
+name. A power held with no value is named where it would apply: on the roster,
+in the henchman-limit refusal, and on the hiring and obedience pages.
+Characters holding powers imported before 11.4.0 refresh them with **Update
+Abilities** at the top of the Items sidebar, with the books open.
+
+![](../releases/v11.4.0/henchmen-powers-values.png)
+
+**The limit starts from the system's Charisma allowance, or not at all.** An
+employer the system gives no allowance, such as a monster leading henchmen,
+shows no limit on its roster, and none is enforced on its hires.
+
+![](../releases/v11.4.0/henchmen-limit-none.png)
 
 **A wage is coin that changes hands.** On payday the employer's coin leaves
 their stores in the order their sheet states

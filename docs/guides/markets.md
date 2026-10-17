@@ -199,6 +199,15 @@ party, or discarded. A market's own Trade tab lists the reports held about
 it. A false assessment is a report with wrong beliefs; only the Judge's copy
 says so.
 
+**A partial assessment leaves the choice to the trader.** A partial result of
+**Assess supply & demand** leaves the report holding a number of picks; its
+owner chooses the goods on the report sheet and learns their modifiers then
+(RR ch. 8, Assessing Supply and Demand). A false result asks the same choice
+and looks the same, but the modifiers it gives are wrong. The assessment card
+links the report.
+
+![](../releases/v11.4.0/markets-partial-assessment.png)
+
 ## Setting-book market profiles
 
 ![](../releases/v9.2.0/markets-setting-profiles.png)
@@ -237,6 +246,17 @@ Ventures run on dedicated days that resolve as game time passes:
 5. **Leave the market** when you are done, or to declare again — the toll
    stays with the gate, what you solicited closes, and any of your party's
    days still queued are withdrawn. Entering again pays a fresh toll.
+
+**A mercantile network counts in a market its holder has visited before.** On
+a venture each solicitation reads the goods of a market class larger or with
+more market impact; the module picks whichever opens more, good by good, and
+the Enter dialog lets the trader choose one for the visit. Tolls and the
+month's prices never move (RR ch. 8, Entering the Market). A market is known
+only from an earlier visit: the days of one stay are one visit, and an entry,
+a hire or a purchase counts. The Judge's switch on the market's Trade tab
+marks it known as well.
+
+![](../releases/v11.4.0/markets-network-enter.png)
 
 The queue under the buttons lists your party's days still to resolve. The
 same trader cannot queue the same day twice; a queued day has a withdraw

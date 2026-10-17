@@ -11,6 +11,9 @@ this file only indexes what this repo has.
 - [GALLERY.md](GALLERY.md) — one row per feature: guide, and the release its
   screenshot came from.
 - [guides/](guides/) — user-facing how-to, one per feature area.
+- [../tools/live/](../tools/live/README.md) — the live walks: the release
+  gate's live half as code, one walk per recipe area, run by
+  `node tools/live/run.mjs`; each `TESTING.md` names its walk.
 
 Per-feature: `abilities`, `battlemap`, `bridge`, `character-sheet`, `classes`,
 `equipment`, `factions`, `formation`, `henchmen`, `importer`, `influence`, `lib`,

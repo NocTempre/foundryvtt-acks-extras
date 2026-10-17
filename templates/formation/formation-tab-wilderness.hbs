@@ -131,13 +131,13 @@
       <label class="acks-extras-formation-camp-present"
              data-tooltip="{{localize 'ACKS-FORMATION.searchRun.presentHint'}}">
         {{localize "ACKS-FORMATION.searchRun.present"}}
-        <select name="camp.present">
+        <select name="travel.camp.present">
           {{#each travel.camp.presentOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
         </select>
       </label>
       <label class="acks-extras-formation-camp-target">
         {{localize "ACKS-FORMATION.searchRun.lookingFor"}}
-        <select name="camp.target">
+        <select name="travel.camp.target">
           {{#each travel.camp.targetOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
         </select>
       </label>

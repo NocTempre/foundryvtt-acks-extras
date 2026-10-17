@@ -22,6 +22,7 @@ import {
   inferredTravelSystem,
   patchSettlement,
   pushLog,
+  rollWeatherNow,
   setJourneyMode,
   storedTravelOf,
   traceStep,
@@ -652,9 +653,10 @@ assert.equal(settings.formations.g3.travel.map, undefined, "and has no country u
   assert.equal(legacy.day.noSleep, true);
   assert.equal(legacy.trapsCarry, 0, "a negative carry reads as none");
   assert.equal(travelOf({ travel: { day: { traps: "x" } } }).day.traps, 0, "and a non-number as none");
-  assert.deepEqual(travelOf({}).camp, { steal: false, water: false, sleepInArmour: false }, "no camp word is all noes");
-  assert.deepEqual(travelOf({ travel: { camp: { steal: 1, water: "", sleepInArmour: true } } }).camp,
-    { steal: true, water: false, sleepInArmour: true });
+  assert.deepEqual(travelOf({}).camp, { steal: false, water: false, sleepInArmour: false, present: null, target: "anything" },
+    "no camp word is all noes, nothing said of the search");
+  assert.deepEqual(travelOf({ travel: { camp: { steal: 1, water: "", sleepInArmour: true, present: "yes", target: "p9" } } }).camp,
+    { steal: true, water: false, sleepInArmour: true, present: "yes", target: "p9" });
   assert.equal(travelOf({}).trapsCarry, 0);
   assert.deepEqual(travelOf({ travel: { weatherRuns: { foggy: 3 } } }).weatherRuns, { foggy: 3 }, "the sky's runs are carried untouched");
   assert.deepEqual(travelOf({}).weatherRuns, {});
@@ -671,11 +673,12 @@ assert.equal(settings.formations.g3.travel.map, undefined, "and has no country u
   const at = () => travelOf(settings.formations.d1);
 
   await applyTravelForm("d1", { camp: { declared: "1", water: "on" } });
-  assert.deepEqual(at().camp, { steal: false, water: true, sleepInArmour: false },
+  assert.deepEqual(at().camp, { steal: false, water: true, sleepInArmour: false, present: null, target: "anything" },
     "an unticked box is absent from the submit, and the group's marker makes it a no");
 
   await applyTravelForm("d1", { ground: "hills" });
-  assert.deepEqual(at().camp, { steal: false, water: true, sleepInArmour: false }, "a submit without the group leaves the camp alone");
+  assert.deepEqual(at().camp, { steal: false, water: true, sleepInArmour: false, present: null, target: "anything" },
+    "a submit without the group leaves the camp alone");
   assert.equal(at().day.traps, 3, "and the day's declarations");
   assert.equal(at().day.noSleep, true);
 
@@ -703,6 +706,45 @@ assert.equal(settings.formations.g3.travel.map, undefined, "and has no country u
   assert.equal(at().shown, "unknown", "a submit that names no kind leaves it");
   await applyTravelForm("d1", { shown: "believed" });
   assert.equal(at().shown, "believed");
+}
+
+/* --- applyTravelForm: the search's answers ride the camp group --------------- */
+{
+  settings.formations.s1 = { id: "s1", travel: { mode: "journey" } };
+  const at = () => travelOf(settings.formations.s1).camp;
+  await applyTravelForm("s1", { camp: { declared: "1", present: "yes", target: "p2" } });
+  assert.equal(at().present, "yes", "the Judge's yes is kept on the record");
+  assert.equal(at().target, "p2", "and so is what the search looks for");
+  await applyTravelForm("s1", { camp: { declared: "1", steal: "on" } });
+  assert.equal(at().present, "yes", "a submit without the selects (a player's) keeps the word");
+  assert.equal(at().target, "p2");
+  assert.equal(at().steal, true, "while the booleans are read as before");
+  await applyTravelForm("s1", { camp: { declared: "1", present: "bogus", target: "" } });
+  assert.equal(at().present, null, "an answer the record does not know reads as nothing said");
+  assert.equal(at().target, "anything", "and an empty target as anything");
+}
+
+/* --- Roll weather files the sky under the day the day change settles ---------- */
+{
+  const savedTime = game.time;
+  const DAY = 24 * 60 * 60;
+  const climate = Object.keys(CLIMATES)[0];
+  game.time = {
+    worldTime: 375 * DAY + 3600,
+    calendar: { days: { hoursPerDay: 24, minutesPerHour: 60, secondsPerMinute: 60 } },
+    components: { hour: 1, minute: 0, second: 0 },
+  };
+  settings.formations.w1 = { id: "w1", travel: { mode: "journey", dayCount: 4, weather: { climate, season: "winter" } } };
+  const sky = (temperature) => ({ ok: true, temperature, temperatureNight: temperature - 5, precipitation: "none", wind: "calm", rolls: [] });
+  settings.skyCache = { [`0|${climate}|winter`]: sky(1), [`375|${climate}|winter`]: sky(7), [`4|${climate}|winter`]: sky(3) };
+  assert.ok(await rollWeatherNow("w1"), "a cached sky is applied");
+  assert.equal(travelOf(settings.formations.w1).weather.temperature, 7, "under the calendar day, never day 0");
+  delete game.time.calendar;
+  delete game.time.components;
+  await rollWeatherNow("w1");
+  assert.equal(travelOf(settings.formations.w1).weather.temperature, 3, "with no calendar, under the End-day counter");
+  delete settings.skyCache;
+  game.time = savedTime;
 }
 
 /* --- applyTravelForm: the Judge's word on the country -------------------------

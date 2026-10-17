@@ -3,6 +3,11 @@
 Format per docs-doctrine: fixtures → steps → observable → teardown. Server
 and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
+The walk that drives this recipe is `tools/live/battlemap.mjs`
+(`node tools/live/run.mjs battlemap`; `tools/live/README.md` is the contract).
+Its header names the sections it covers; a section it does not name is walked
+by hand.
+
 ## Fixtures
 
 - A disposable scene with any gridded battlemap image as background,

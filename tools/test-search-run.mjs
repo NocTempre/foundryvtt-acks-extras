@@ -684,20 +684,20 @@ await t("Points of interest carries the two selects, the stock the default, and 
   const bare = renderParty(formation, { gm: true });
   assert.ok(!bare.includes('<option value="stock"'), "the stock is offered only where there is one");
   assert.match(bare, /<option value="no" selected>/);
-  assert.ok(!/type="checkbox" name="camp\.present"/.test(bare), "the checkbox is gone");
+  assert.ok(!/type="checkbox" name="travel\.camp\.present"/.test(bare), "the checkbox is gone");
 
   const record = await stockHere(formation, 2);
   const html = renderParty(formation, { gm: true });
-  assert.match(html, /<select name="camp\.present">/);
+  assert.match(html, /<select name="travel\.camp\.present">/);
   assert.match(html, /<option value="stock" selected>/);
-  assert.match(html, /<select name="camp\.target">/);
+  assert.match(html, /<select name="travel\.camp\.target">/);
   assert.match(html, /<option value="anything" selected>/);
   assert.match(html, /<option value="elsewhere" >/);
   for (const p of record.points) assert.ok(html.includes(`<option value="${p.id}"`), `${p.name} can be looked for`);
   const poi = html.slice(html.indexOf('data-section="poi"'), html.indexOf('data-section="movement"'));
   assert.ok(poi.length > 0, "the Points of interest section");
-  assert.match(poi, /<select name="camp\.present">/, "the search's selects sit in it");
-  assert.match(poi, /<select name="camp\.target">/);
+  assert.match(poi, /<select name="travel\.camp\.present">/, "the search's selects sit in it");
+  assert.match(poi, /<select name="travel\.camp\.target">/);
   assert.ok(html.includes("QQ Point 1"), "the Judge reads the point names");
   assert.ok(!html.includes("ACKS-FORMATION.hexStock.upTo"), "a count the Judge typed is not a ceiling");
   const rolled = await stockRun.stockFromInputs(formation, { terrain: "grassland", territory: "unsettled", rng: () => 0.5 });

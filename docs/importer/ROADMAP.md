@@ -1038,3 +1038,7 @@ of scope. What each book still owes, in the order it is worth doing:
 - **Adventure links from the sites:** a site that is an adventure's own
   location (25 to AX4, 27 and 28 to AX1, 44 and 46 to AX5, 52 to AX6) opens
   that adventure's document.
+- **The reimport dialog's mode line:** a rules-table pick says nothing is
+  deleted while the Mode select beneath still reads *Rebuild (delete and
+  import again)*; the mode belongs to shelves and books and should fold away
+  under a table pick.

@@ -3,6 +3,10 @@
 Format per docs-doctrine: fixtures → steps → observable → teardown. Server and
 driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
+Of this recipe, `tools/live/markets.mjs` drives the party sheet's entry to the
+hit-point tool (`node tools/live/run.mjs markets`; `tools/live/README.md` is
+the contract); the rest is walked by hand.
+
 `lib` is the shared surface every other feature reads, so a break here shows up
 as ten features breaking. Walk this recipe before the others when several
 report the same symptom.

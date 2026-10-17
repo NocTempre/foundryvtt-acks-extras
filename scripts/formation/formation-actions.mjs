@@ -235,7 +235,11 @@ export const SHARED_ACTIONS = {
     const formation = gmFormation(this);
     if (!formation) return;
     const field = (name) => this.element?.querySelector?.(`[name="${name}"]`)?.value;
-    await runSearchHour(formation, { present: field("camp.present") ?? "no", target: field("camp.target") ?? "anything" });
+    const said = travelOf(formation).camp;
+    await runSearchHour(formation, {
+      present: field("travel.camp.present") ?? said.present ?? "no",
+      target: field("travel.camp.target") ?? said.target,
+    });
     this.render();
   },
 

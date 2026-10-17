@@ -3934,3 +3934,26 @@ shows a figure that differs from the one in force. Only the tooltip and the
 underline say so, the same cost the module's sheet already carries. Values
 that compounded before this are not repaired: the intended base cannot be
 told from a Judge's own entry, so a Judge corrects the field by hand.
+
+### A field's box is re-taken from the type knob (2026-10-16)
+
+**Ruling.** Every module window re-takes core's `--input-height` and the
+design system's `--form-field-height` as base-derived ratios of
+`--acks-extras-k` (`styles/lib.css`), so a select's box scales with the type
+it holds. At the base size neither value moves.
+
+**Evidence.** The party sheet's live walk at type size 18 found 24 selects
+clipping their text: core sizes a field in `rem`, the browser's root size,
+which the type setting never moves, and the vendored design system fixes the
+field height in px for the books' density. The UI layout contract requires
+every type size and every box around it to answer the one knob.
+
+**Rejected.** *Fixing it in the design system alone.* The vendored stylesheet
+is not hand-edited here, and the module's windows were clipping now; the
+design system's own px value is its maintainers' to scale, and the module's
+re-take stands until it does. *`height: auto` on selects.* It frees the box
+from the knob entirely and loses the design's density at the base size.
+
+**What it cost.** Two custom properties declared on the module's root class
+that the design system also declares on `.acks-ui`; the module's wins by one
+class, which is a dependency on that specificity.

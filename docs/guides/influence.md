@@ -46,6 +46,12 @@ Situational modifiers are **toggles**, not silent additions. The roll is offered
 never asserted: you decide what is really in play, and the module does not decide
 for you.
 
+**A proficiency is offered only to a character who holds it.** Diplomacy,
+Intimidation, Seduction and Mystic Aura draw a box on the hiring and market
+assessment pages only for a character holding that proficiency, or a power
+standing in for it, at the value on that character's own item. One with no
+imported value is a field to type, with a badge saying so.
+
 ## Attitudes
 
 An **attitude** item records how somebody feels about somebody else. Roll results
@@ -58,6 +64,16 @@ Any Active Effect keyed `flags.acks-extras.reaction` contributes, with its own
 
 This is shared with hiring: a reaction effect written here also feeds henchmen
 recruitment throws, so it is written once.
+
+The hosted hiring, obedience and loyalty pages also count the employer's
+henchmen powers: the obedience page adds the employer's morale powers, the
+hiring page its hiring effects, and the loyalty page its loyalty-roll effects.
+A power held with no imported value is named in a note on the hiring and
+obedience pages.
+
+![](../releases/v11.4.0/influence-hiring-page.png)
+
+![](../releases/v11.4.0/influence-obedience-powers.png)
 
 An ability is counted once per page. Where the page already offers a proficiency
 as its own checkbox — Diplomacy, Intimidation, Seduction, Mystic Aura, and

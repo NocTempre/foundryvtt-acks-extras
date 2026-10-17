@@ -361,6 +361,12 @@ export const NAVIGATION_HISTORY = 10;
 /** Who made a navigation throw: the day's first step off a road, or the Judge's own press. */
 export const NAVIGATION_BY = Object.freeze(["step", "judge"]);
 
+/** The Judge's answer to "is there anything here" as the record keeps it: the stock's, yes or no; null where nothing was said. */
+const PRESENT_ANSWERS = Object.freeze(["stock", "yes", "no"]);
+const campPresent = (v) => (PRESENT_ANSWERS.includes(v) ? v : null);
+/** What the search looks for: a point's id, `elsewhere`, or `anything` for an empty or missing word. */
+const campTarget = (v) => (typeof v === "string" && v ? v : "anything");
+
 /** A day key as `journeyDayKey` writes it, or null for anything that is not a non-empty string. */
 const dayKeyOrNull = (v) => (typeof v === "string" && v ? v : null);
 
@@ -440,10 +446,14 @@ function travelBase(formation) {
       traps: trapCount(t.day?.traps),
       noSleep: !!t.day?.noSleep,
     },
-    // The camp's declarations, each a plain yes or no: the Judge's word that
+    // The camp's declarations: three plain yes-or-noes (the Judge's word that
     // the party takes what is not its own, that water is at hand, and that the
-    // order sleeps armoured.
-    camp: { steal: !!t.camp?.steal, water: !!t.camp?.water, sleepInArmour: !!t.camp?.sleepInArmour },
+    // order sleeps armoured) and the search's two answers, kept so the selects
+    // re-draw what the Judge chose after the submit a change makes.
+    camp: {
+      steal: !!t.camp?.steal, water: !!t.camp?.water, sleepInArmour: !!t.camp?.sleepInArmour,
+      present: campPresent(t.camp?.present), target: campTarget(t.camp?.target),
+    },
     // Traps declared on a day that did not make a whole batch, carried to the
     // next; and the runs the sky has kept a condition, keyed by condition
     // (written by the night, carried here untouched).
@@ -1524,9 +1534,15 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
       }
       next.day = day;
     }
-    // The camp's declarations, read as a group for the same reason.
+    // The camp's declarations, read as a group for the same reason. The
+    // search's two selects are the Judge's alone and absent from a player's
+    // submit, so each keeps its word when the group arrives without it.
     if (tv.camp) {
-      next.camp = { steal: !!tv.camp.steal, water: !!tv.camp.water, sleepInArmour: !!tv.camp.sleepInArmour };
+      next.camp = {
+        steal: !!tv.camp.steal, water: !!tv.camp.water, sleepInArmour: !!tv.camp.sleepInArmour,
+        present: tv.camp.present === undefined ? campPresent(t.camp?.present) : campPresent(tv.camp.present),
+        target: tv.camp.target === undefined ? campTarget(t.camp?.target) : campTarget(tv.camp.target),
+      };
     }
     record.travel = next;
   });
@@ -1564,13 +1580,22 @@ export function effectiveSeason(travel) {
 }
 
 /**
- * The sky cache key for a party's ground on a day: the calendar day the world
- * clock stands in, or — only where the clock keeps no calendar — the End-day
- * counter. `dayCount` keeps numbering the log; it is not the sky's identity.
- * The climate is `t`'s as `travelOf` resolves it — the map's, the scene's or
- * the Judge's — so `t` is a `travelOf` result, never a stored one.
+ * The day a sky is filed under: the calendar day the world clock stands in,
+ * or — only where the clock keeps no calendar — the End-day counter, which is
+ * what the day change settles under. Never `journeyDayKey`: that is the string
+ * the navigation claim is keyed on, and `skyKey` reads a number.
  */
-function skyParams(t, season, day = journeyDayKey(t)) {
+function skyDayOf(t) {
+  return calendarDay() ?? (Number(t?.dayCount) || 0);
+}
+
+/**
+ * The sky cache key for a party's ground on a day (`skyDayOf`). `dayCount`
+ * keeps numbering the log; it is not the sky's identity. The climate is `t`'s
+ * as `travelOf` resolves it — the map's, the scene's or the Judge's — so `t`
+ * is a `travelOf` result, never a stored one.
+ */
+function skyParams(t, season, day = skyDayOf(t)) {
   return { day, climate: t.weather.climate, season };
 }
 

@@ -3,6 +3,12 @@
 Format per docs-doctrine: fixtures → steps → observable → teardown. Server
 and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
+The walks that drive this recipe are `tools/live/formation-hex.mjs`,
+`tools/live/formation-day.mjs`, `tools/live/formation-steps.mjs` and the
+country part of `tools/live/battlemap.mjs` (`node tools/live/run.mjs <name>`;
+`tools/live/README.md` is the contract). Each walk's header names the sections
+it covers; a section no walk names is walked by hand.
+
 ## Fixtures
 
 - A disposable scene with walls (traps need a wall to arm against).
@@ -343,8 +349,9 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    once with NO `travel` tables registered, once after registering invented
    rows (`acksExtras.lib.tables.registerTable(…, {priority: 20})`).
    *Observable:* without tables the readout carries the `tablesMissing` line
-   and scales by pace alone; with them it lists each factor on its own line
-   (terrain, then a road worth nothing in the rain) and the miles reflect
+   and scales by pace alone; with them the speed cell's tooltip carries the
+   factors joined on one line with ` · ` (terrain, then a road worth nothing
+   in the rain) and the miles reflect
    both the ground and the forced pace; the four ancillary slots read as
    consumed and refuse edits. Step back to Dedicated march: the slots return
    EMPTY, not the forced march's overwrite.
@@ -1511,7 +1518,7 @@ every call is API-level.
 3. `waterModifier("calm")` returns `0`; `waterModifier("rough")` and
    `waterModifier("cold")` return `null`. Calm is the absence of a modifier and
    is structural; the other two are printed and are not.
-4. `swimmingThrow({actor, water: "rough"})` returns `target: null`,
+4. `swimmingThrow({encumbrance: 0, proficient: false, water: "rough"})` returns `target: null`,
    `needed: null`, and `unknown: ["swimWaterModifiers"]` — it **names** the
    figure it lacks. The same call with `water: "calm"` returns `target: 0`,
    `needed: false`, `unknown: []`, because nothing is missing.
@@ -1530,7 +1537,7 @@ every call is API-level.
    ```
 
    Each accessor now returns its fabricated figure, and
-   `swimmingThrow({actor, water: "rough"})` returns `unknown: []` with a
+   `swimmingThrow({encumbrance: 0, proficient: false, water: "rough"})` returns `unknown: []` with a
    `parts` entry `{key: "water.rough", value: -55}` and the target built from
    it. A `parts` array that still lacks the water row means the throw is
    reading the constant it used to hold rather than the document.
@@ -1603,7 +1610,8 @@ the report.
     *Observable:* the strip, the Country cards (values only) and the Camp
     section's forecast; no pickers, no day board, no Judge tab (the Sky section
     shows only when it has chips).
-11. Pick **Delve** in the band's mode select, then drag.
+11. Pick **Delve** in the band's mode select, then drag on a feet-scale scene
+    (the mile-scale journey scene bills nothing in any mode).
     *Observable:* billed from the new anchor — the first turn card falls
     after one exploration move from where the mode changed, not from the
     journey's last position.
@@ -1625,7 +1633,7 @@ sheet: End day at the Wilderness tab's head (`[data-action="travelEndDay"]`),
 the search and the pause on the quick-tools rail
 (`[data-action="searchHour"|"togglePause"]`), the mode select in the band
 (`select[name="travel.mode"]`, dispatch `change`), and the search's
-`select[name="camp.present"]` / `camp.target` at the foot of Points of
+`select[name="travel.camp.present"]` / `travel.camp.target` at the foot of Points of
 interest. Every tab part renders whether or not it is the active tab, so a
 query finds a control on an inactive tab. A scene move is a token delete
 on the old scene, then on the new one
@@ -2068,10 +2076,10 @@ RollTable for Tweaks to pick. Read each seat's
    |---|---|
    | band | `travel.mode`, `name` |
    | Wilderness head | `travel.hexLabel`, `travelEnterHex`, `forageDay`, `travelEndDay` |
-   | Country | no field (the cards are readings); `paintThisHex` on a card whose layer the party's hex has not painted (since phase 2a, below) |
-   | Points of interest | `hexStock`; once stocked `hexAddPoint`, `hexClear` and, while the hex can be surveyed, `hexSurvey`; per point `hexFound`, `hexPlace` (or `openPlace` once placed) and `hexRemovePoint`; `camp.present`, `camp.target` |
+   | Country | no field (the cards are readings); `clearOverride` on a card whose chip reads override; `paintThisHex` on a card whose layer the party's hex has not painted (since phase 2a, below) |
+   | Points of interest | `hexStock`; once stocked `hexAddPoint`, `hexClear` and, while the hex can be surveyed, `hexSurvey`; per point `hexFound`, `hexPlace` (or `openPlace` once placed) and `hexRemovePoint`; `travel.camp.present`, `travel.camp.target` |
    | Movement | `travel.movement.mode`; while flying `travel.movement.hoursAloft`, `travel.movement.dayHours`, `travel.movement.load` |
-   | Sky | `travel.weather.season`, `.auto`, `.fronts`, `.temperature`, `.precipitation`, `.wind`, `.footingMud`, `.footingSnow`; `travelWeatherRoll` |
+   | Sky | `travel.weather.season`, `.auto`, `.fronts`, `.temperature`, `.precipitation`, `.wind`, `.footingMud`, `.footingSnow`; `travelWeatherRoll`; on the climate card, `clearOverride` while climate is overridden and `paintThisHex` where the climate layer is unpainted |
    | Day | `travel.day.kind`, `travel.day.slot.<n>` (one per slot), `travel.hour`, `travel.day.traps`, `travel.day.noSleep` |
    | Camp | `travel.exposure.hours`, `.atHeatSource`, `.wet`; `travel.camp.steal`, `.water`, `.sleepInArmour` |
    | Judge tab, The episode | `lostBegin` (by state `lostDiscover`, `lostReanchor`, `lostEnd`), `travel.lostNote` |
@@ -2086,7 +2094,7 @@ RollTable for Tweaks to pick. Read each seat's
    `.conveyance`.
    *Observable:* each is found exactly once (a point's own controls once per
    point), where the table says. Change one field per section and re-read the
-   record: `travel.override.territory`, `camp.present`, `travel.movement.mode`,
+   record: `travel.override.territory`, `travel.camp.present`, `travel.movement.mode`,
    `travel.weather.temperature`, `travel.hour`, `travel.camp.steal`,
    `travel.lost.judgeNote` and, in a district, `travel.settlement.wanted` each
    take the new value. The Camp section renders after Day, its forecast first;

@@ -1,0 +1,1243 @@
+/**
+ * Live walk, henchmen: henchmen + influence.
+ * STAGE=1: henchmen steps 14 and 15, influence steps 17–19, on the GM seat.
+ * STAGE=2: henchmen steps 10, 12 (player seat) and 13.
+ * Machine values arrive through ./_env.mjs; nothing here names a port, a
+ * world, a seat or a book. Every
+ * figure typed into a fixture is invented; no imported figure is printed by
+ * name.
+ *
+ * Writes outside the fixture ledger, each undone at teardown and reported:
+ *   - an `influence` override layer at priority 30 (unregistered);
+ *   - the GM seat's own client state: the henchmen→influence integration
+ *     swap, the dice rig, the patched notification methods and the wrapped
+ *     ChatMessage.create (all restored);
+ *   - a book connected on the GM seat with remember:false (forgotten with
+ *     the page).
+ */
+import { connect, sleep } from "./_driver.mjs";
+import { seats as machineSeats, PORTS, shotDir, books } from "./_env.mjs";
+
+const MACHINE = machineSeats();
+const browser = MACHINE.browser;
+const origin = MACHINE.origin;
+const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
+const NONCE = "c" + Math.random().toString(36).slice(2, 8);
+const MOD = "acks-extras";
+const STAGE = process.env.STAGE ?? "1";
+const SHOTS = process.env.SHOTS === "1";
+const SHOT_DIR = shotDir();
+const BOOKS = books(["rr","jj"]); // the GM's staged copies, from ACKS_TEST_BOOKS; empty, the walk takes the bookless path
+const POWER_IDS = ["def.prof.leadership", "def.power.bloodOfKings", "def.prof.command", "def.prof.diplomacy", "def.prof.beastFriendship", "def.power.commandOfVoice"];
+// Invented hiring-offer figures for the influence document where the world holds none.
+const INVENTED_OFFER = { bands: [{ max: 2 }, { min: 3, max: 5 }, { min: 6, max: 8 }, { min: 9, max: 11 }, { min: 12 }], refusalPenalty: -1, slanderPenalty: -2 };
+
+const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
+const section = (title) => console.log(`\n== ${title} ==`);
+const checks = [];
+const check = (label, ok, detail) => {
+  checks.push([label, !!ok]);
+  console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail === undefined ? "" : "  " + (typeof detail === "string" ? detail : JSON.stringify(detail))}`);
+};
+const shot = async (seat, slug, selector) => {
+  if (!SHOTS) return null;
+  try {
+    const seen = await seat.eval(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); el?.scrollIntoView({ block: "nearest" }); return !!el; })()`);
+    await sleep(500);
+    const r = await seat.shot(`${SHOT_DIR}/${slug}.png`, selector);
+    note(`shot ${slug}`, { seen, ...r });
+    return r;
+  } catch (err) {
+    note(`shot ${slug} FAILED`, err?.message ?? String(err));
+    return null;
+  }
+};
+
+/* ------------------------------------------------------------------ */
+/*  Page side                                                           */
+/* ------------------------------------------------------------------ */
+
+const P = {
+  census: async (mod) => ({
+    foundry: game.version,
+    system: game.system.version,
+    module: game.modules.get(mod)?.version ?? null,
+    role: game.user.role,
+    userId: game.user.id,
+    activeGMIsSelf: !!game.users.activeGM?.isSelf,
+    worldTime: game.time.worldTime,
+    importer: typeof acksExtras.importer?.connectBookUrl,
+    working: acksExtras.formation?.apiVersion ?? null,
+    influenceApi: acksExtras.influence?.apiVersion ?? null,
+    hasInfluenceDoc: acksExtras.lib.tables.hasDoc("influence"),
+    hasThrows: acksExtras.lib.tables.hasDoc("throws"),
+    character: game.user.character?.id ?? null,
+    canCreateActor: game.user.can("ACTOR_CREATE"),
+  }),
+  docs: async () => Object.fromEntries(["availability", "wages", "people", "rarity", "throws", "influence"].map((id) => [id, acksExtras.lib.tables.hasDoc(id)])),
+
+  install: async () => {
+    const H = (globalThis.__c1 = globalThis.__c1 ?? {});
+    H.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    H.poll = async (fn, { tries = 40, every = 150 } = {}) => {
+      for (let n = 0; n < tries; n++) {
+        const v = await fn();
+        if (v) return v;
+        await H.sleep(every);
+      }
+      return null;
+    };
+    H.root = (app) => (app?.element?.nodeType === 1 ? app.element : app?.element?.[0]) ?? null;
+    H.apps = () => [...foundry.applications.instances.values()];
+    H.appBy = (cls) => H.apps().find((a) => H.root(a)?.classList?.contains(cls)) ?? null;
+    H.influenceApp = () => H.apps().find((a) => a.constructor?.name === "InfluenceApp" || H.root(a)?.classList?.contains("acks-influence-dialog")) ?? null;
+    H.text = (el) => (el?.textContent ?? "").replace(/\s+/g, " ").trim();
+    H.A = acksExtras.henchmen;
+    H.T = acksExtras.lib.tables;
+    const base = "/modules/acks-extras/scripts/";
+    H.m = {
+      CB: await import(base + "importer/cookbook.mjs"),
+      EX: await import(base + "importer/executor.mjs"),
+      HO: await import(base + "henchmen/rules/hiring-offer.mjs"),
+      EV: await import(base + "henchmen/engine/events.mjs"),
+      EF: await import(base + "henchmen/effects.mjs"),
+      LD: await import(base + "location/data/location-data.mjs"),
+      KM: await import(base + "markets/engine/known-market.mjs"),
+      MO: await import(base + "lib/money.mjs"),
+      RC: await import(base + "henchmen/engine/recruitment.mjs"),
+      RD: await import(base + "henchmen/apps/recruit-dialog.mjs"),
+      AV: await import(base + "henchmen/rules/availability.mjs"),
+      HG: await import(base + "henchmen/engine/hire-group.mjs"),
+    };
+    /** Click core's confirm ("yes") whenever it appears, for up to `ms`. */
+    H.autoYes = async (ms = 6000) => {
+      const t0 = Date.now();
+      let n = 0;
+      while (Date.now() - t0 < ms) {
+        const b = document.querySelector('button[data-action="yes"]');
+        if (b) { b.click(); n++; await H.sleep(400); } else await H.sleep(200);
+      }
+      return n;
+    };
+    H.card = (mid) => { const m = game.messages.get(mid); const div = document.createElement("div"); div.innerHTML = m?.flavor ?? ""; return { id: mid, flavor: H.text(div).slice(0, 240), rolls: (m?.rolls ?? []).map((r) => r.total), outcome: m?.flags?.["acks-extras"]?.outcome ?? null }; };
+    H.sheetOf = (locationId) => H.apps().find((x) => x.actor?.id === locationId && H.root(x)?.classList?.contains("acks-extras-location-sheet")) ?? null;
+    if (!H.notesPatched) {
+      H.notes = [];
+      H.orig = {};
+      for (const k of ["info", "warn", "error"]) {
+        H.orig[k] = ui.notifications[k];
+        ui.notifications[k] = function (msg, ...rest) {
+          H.notes.push({ kind: k, text: String(msg) });
+          return H.orig[k].call(this, msg, ...rest);
+        };
+      }
+      H.notesPatched = true;
+    }
+    H.takeNotes = () => H.notes.splice(0);
+    if (!H.chatWrapped) {
+      H.chat = [];
+      H.chatCreate = ChatMessage.create;
+      ChatMessage.create = async function (...args) {
+        const made = await H.chatCreate.apply(this, args);
+        for (const m of Array.isArray(made) ? made : [made]) if (m?.id) H.chat.push(m.id);
+        return made;
+      };
+      H.chatWrapped = true;
+    }
+    H.takeChat = () => H.chat.splice(0);
+    H.rig = (u) => {
+      if (!H.rig0) H.rig0 = CONFIG.Dice.randomUniform;
+      CONFIG.Dice.randomUniform = () => u;
+    };
+    H.unrig = () => { if (H.rig0) CONFIG.Dice.randomUniform = H.rig0; };
+    H.ctxSummary = async (app) => {
+      const c = await app._prepareContext({});
+      const row = (m) => ({ key: m.key ?? null, label: m.label ?? null, value: m.value ?? null, control: m.control ?? m.kind ?? m.inputType ?? null, isUnread: !!m.isUnread, isUnvalued: !!m.isUnvalued, isEffect: !!m.isEffect, isAuto: !!m.isAuto, checked: m.checked ?? null, defaultValue: m.defaultValue ?? null, note: m.note ?? null, raw: /QA |Command|Diplomacy|refusals|Slander/i.test(m.label ?? "") ? JSON.parse(JSON.stringify(m)) : undefined });
+      return {
+        unreadNotice: c.unreadNotice ?? "",
+        groups: (c.groups ?? []).map((g) => ({ group: g.group, mods: (g.mods ?? []).map(row) })),
+        external: (c.externalModifiers ?? []).map((m) => ({ label: m.label, value: m.value ?? null, note: m.note ?? null })),
+        final: c.finalModifier ?? null,
+        firstModKeys: Object.keys(c.groups?.[0]?.mods?.[0] ?? {}),
+        topKeys: Object.keys(c),
+        subject: c.parties?.target?.name ?? null,
+        modeTitle: H.text(H.root(app)?.querySelector(".influence-mode-title")),
+      };
+    };
+    H.throwRows = (el) => [...el.querySelectorAll('[name^="mod."]')].map((i) => {
+      const g = i.closest(".form-group") ?? i.parentElement;
+      return { name: i.getAttribute("name"), type: i.type ?? i.tagName, checked: i.type === "checkbox" ? i.checked : null, value: i.value, disabled: i.disabled, locked: i.hasAttribute("data-locked"), label: H.text(g?.querySelector("label") ?? g).slice(0, 90), hint: (g?.querySelector("label")?.getAttribute("data-tooltip") ?? "") || H.text(g?.querySelector(".hint, .notes, p")).slice(0, 90), step: i.getAttribute("step") };
+    });
+    H.closeAll = async () => {
+      let n = 0;
+      for (const a of H.apps()) { try { await a.close({ force: true }); n++; } catch {} }
+      for (const w of Object.values(ui.windows ?? {})) { try { await w.close({ force: true }); n++; } catch {} }
+      return n;
+    };
+    return true;
+  },
+
+  /** A market on a fixture location, and the Judge's class word. */
+  addMarket: async ({ locationId, classOverride }) => {
+    const H = globalThis.__c1;
+    const loc = game.actors.get(locationId);
+    await loc.update({ "system.market": H.m.LD.emptyMarket() });
+    if (classOverride) await loc.update({ "system.market.marketClassOverride": classOverride });
+    return { hasMarket: !!loc.system.hasMarket, classOverride: loc.system.market?.marketClassOverride ?? null, ownershipDefault: loc.ownership?.default ?? null };
+  },
+
+  /** Connect the staged book on this seat, fired into a global. */
+  connectBook: async ({ id, path }) => {
+    const H = globalThis.__c1;
+    if (H.m.CB.cookbookSessionDoc(id)) return { already: true };
+    const imp = await H.poll(() => (typeof acksExtras.importer?.connectBookUrl === "function" ? acksExtras.importer : null), { tries: 120, every: 500 });
+    if (!imp) return { started: false, error: "no importer api on this seat after 60 s" };
+    globalThis.__c1Book = { done: false };
+    imp.connectBookUrl(id, path, { remember: false, bridge: false })
+      .then(() => { globalThis.__c1Book = { done: true, ok: true }; })
+      .catch((e) => { globalThis.__c1Book = { done: true, ok: false, error: String(e?.message ?? e) }; });
+    return { started: true };
+  },
+  bookState: async ({ id }) => ({ ...globalThis.__c1Book, session: !!globalThis.__c1.m.CB.cookbookSessionDoc(id) }),
+
+  /** Build each power fresh from the cookbook (no world write), kept in a global for embedding. */
+  buildPowers: async ({ ids }) => {
+    const H = globalThis.__c1;
+    const docs = [];
+    const out = [];
+    for (const id of ids) {
+      const found = H.m.CB.cookbookEntry(id);
+      if (!found) { out.push({ id, error: "no entry" }); continue; }
+      const book = found.cb.book?.id ?? found.entry.book;
+      const session = H.m.CB.cookbookSessionDoc(book);
+      if (!session) { out.push({ id, error: `no session for ${book}` }); continue; }
+      try {
+        const node = await H.m.EX.executeEntry(session, found.cb, H.m.CB.cookbookRegisters(), id);
+        const ladders = typeof H.m.CB.laddersForEntry === "function" ? await H.m.CB.laddersForEntry(found.entry, {}) : null;
+        const doc = H.m.CB.bindAbility(found.entry, node, id, ladders ? { ladders } : {});
+        docs.push(doc);
+        const effects = doc?.flags?.["acks-extras"]?.extras?.effects ?? [];
+        out.push({ id, name: doc?.name ?? null, type: doc?.type ?? null, effects: effects.map((e) => ({ type: e.type, target: e.target, value: e.value, condition: e.condition ?? null, tones: e.tones ?? null })), unaudited: !!doc?.flags?.["acks-extras"]?.extras?.unaudited });
+      } catch (e) {
+        out.push({ id, error: String(e?.message ?? e) });
+      }
+    }
+    globalThis.__c1Docs = docs;
+    return out;
+  },
+  embedPowers: async ({ actorId }) => {
+    const actor = game.actors.get(actorId);
+    const made = await actor.createEmbeddedDocuments("Item", globalThis.__c1Docs ?? []);
+    return made.map((i) => ({ id: i.id, name: i.name, type: i.type }));
+  },
+  /** Hand-made abilities: a name and nothing else, or one typed effect each. */
+  handAbilities: async ({ actorId, items }) => {
+    const actor = game.actors.get(actorId);
+    const made = await actor.createEmbeddedDocuments("Item", items.map((it) => ({ name: it.name, type: "ability", ...(it.effects ? { flags: { "acks-extras": { extras: { effects: it.effects } } } } : {}) })));
+    return made.map((i) => ({ id: i.id, name: i.name }));
+  },
+  /** What the module reads off an employer's powers. */
+  powerRead: async ({ actorId }) => {
+    const H = globalThis.__c1;
+    const a = game.actors.get(actorId);
+    const dom = (d) => H.A.effects.collectEffectModifiers(a, d).map((m) => ({ label: m.label, value: m.value, situational: !!m.situational, source: m.source ?? null }));
+    return {
+      chaRetain: a.system?.scores?.cha?.retain ?? null,
+      retainMax: H.A.adapter.getRetainMax(a),
+      retainBonus: dom("retainBonus"),
+      baseLoyalty: dom("baseLoyalty"),
+      hiring: dom("hiring"),
+      moraleBase: dom("moraleBase"),
+      henchmanMorale: dom("henchmanMorale"),
+      marketClass: dom("marketClass"),
+      loyaltyMods: H.m.EV.employerLoyaltyMods(a),
+      unvalued: { retainBonus: H.m.EF.unvaluedPowers(a, "retainBonus"), baseLoyalty: H.m.EF.unvaluedPowers(a, "baseLoyalty"), hiring: H.m.EF.unvaluedPowers(a, "hiring"), henchmanMorale: H.m.EF.unvaluedPowers(a, "henchmanMorale"), marketClass: H.m.EF.unvaluedPowers(a, "marketClass") },
+      items: a.items.map((i) => i.name),
+    };
+  },
+
+  /** Link a hireling through core's own confirm, then enrol it with a wage. */
+  link: async ({ employerId, hirelingId, wage }) => {
+    const H = globalThis.__c1;
+    const employer = game.actors.get(employerId);
+    const hireling = game.actors.get(hirelingId);
+    let how = "addHenchman";
+    if (typeof employer.addHenchman === "function") {
+      const p = employer.addHenchman(hirelingId);
+      const yes = await H.poll(() => document.querySelector('button[data-action="yes"]'), { tries: 40, every: 150 });
+      if (yes) yes.click();
+      await Promise.race([p, H.sleep(8000)]);
+      await H.poll(() => (employer.system.henchmenList ?? []).includes(hirelingId), { tries: 60, every: 200 });
+    } else {
+      how = "update";
+      await employer.update({ "system.henchmenList": [...(employer.system.henchmenList ?? []), hirelingId] });
+      await hireling.update({ "system.retainer.managerid": employerId });
+    }
+    await hireling.update({ "system.retainer.enabled": true, "system.retainer.wage": wage });
+    try { await H.A.enrollNewcomers(employer); } catch (e) { return { how, error: String(e?.message ?? e) }; }
+    return { how, linked: (employer.system.henchmenList ?? []).includes(hirelingId), manager: hireling.system?.retainer?.managerid ?? null, record: !!hireling.getFlag("acks-extras", "record") };
+  },
+
+  /** The roster window and what it says. */
+  roster: async ({ actorId, keep = false, place = false }) => {
+    const H = globalThis.__c1;
+    const actor = game.actors.get(actorId);
+    H.takeNotes();
+    await H.A.openRosterApp(actor);
+    const app = await H.poll(() => { const a = H.appBy("roster-app"); return a && H.root(a)?.querySelector("strong") ? a : null; });
+    if (!app) return { rendered: false, notes: H.takeNotes() };
+    if (place) { await app.setPosition({ left: 16, top: 16 }); await H.sleep(300); }
+    const el = H.root(app);
+    const out = { rendered: true, limit: H.text(el.querySelector("strong")), unvalued: H.text(el.querySelector("[data-unvalued]")) || null, rows: el.querySelectorAll("[data-hireling-id], .roster-row, tr[data-id]").length, retainMax: H.A.adapter.getRetainMax(actor), chaRetain: actor.system?.scores?.cha?.retain ?? null, notes: H.takeNotes() };
+    if (!keep) await app.close({ force: true });
+    return out;
+  },
+
+  /** Hide the influence feature's api on this client (hostsModes() reads it), so the feature's own dialogs open; or put it back. */
+  swapIntegration: async ({ hosts }) => {
+    const H = globalThis.__c1;
+    if (!H.inf) H.inf = acksExtras.influence;
+    acksExtras.influence = hosts ? H.inf : null;
+    return { hostsModes: H.A.integrations.influence.hostsModes(), hostsMoraleModes: H.A.integrations.influence.hostsMoraleModes(), hidden: !acksExtras.influence };
+  },
+
+  /** Import one ruledata document from the connected book, fired into a global. */
+  importDoc: async ({ id }) => {
+    const imp = acksExtras.importer;
+    globalThis.__c1Import = { done: false };
+    imp.cookbookImportTables([id])
+      .then((r) => { globalThis.__c1Import = { done: true, ok: true, imported: (r?.imported ?? []).map((d) => d.docId), missingBooks: r?.missingBooks ?? [] }; })
+      .catch((e) => { globalThis.__c1Import = { done: true, ok: false, error: String(e?.message ?? e) }; });
+    return { started: true };
+  },
+  importState: async ({ id }) => ({ ...globalThis.__c1Import, hasDoc: globalThis.__c1.T.hasDoc(id) }),
+  removeDoc: async ({ id }) => {
+    const svc = (await import("/modules/acks-extras/scripts/lib/services.mjs")).get("ruledata-import");
+    if (!svc?.removeDoc) return { removed: false, reason: "no provider" };
+    await svc.removeDoc(id);
+    return { removed: true, hasDoc: globalThis.__c1.T.hasDoc(id) };
+  },
+
+  /** A monster hired as a henchman of a (monster) employer, through the feature's own call. */
+  hireMonsterFor: async ({ monsterId, employerId }) => {
+    const H = globalThis.__c1;
+    const r = await H.A.hireMonster(game.actors.get(monsterId), game.actors.get(employerId));
+    const emp = game.actors.get(employerId);
+    return { result: r?.error ?? r?.status ?? (r ? "ok" : null), monsterList: emp.system?.monsterHenchmenList ?? null, list: emp.system?.henchmenList ?? null };
+  },
+
+  /** A candidate row written straight into the market. */
+  addCandidate: async ({ locationId, row }) => {
+    const loc = game.actors.get(locationId);
+    const id = foundry.utils.randomID();
+    const rows = [...(loc.system.market?.candidates ?? []).map((c) => (typeof c.toObject === "function" ? c.toObject() : foundry.utils.deepClone(c))), { id, status: "available", refusals: [], ...row }];
+    await loc.update({ "system.market.candidates": rows });
+    return { id, count: loc.system.market.candidates.length };
+  },
+  candidates: async ({ locationId }) => game.actors.get(locationId).system.market.candidates.map((c) => ({ id: c.id, name: c.name, kind: c.kind, status: c.status, quantity: c.quantity ?? null, refusals: (c.refusals ?? []).length, networkFor: c.networkFor || null, level: c.level ?? null })),
+
+  /** The feature's own throw dialog for a hire (integration swapped), read and closed. */
+  recruitOwn: async ({ locationId, candidateId, employerId, keep = false }) => {
+    const H = globalThis.__c1;
+    H.takeNotes();
+    H.A.openRecruitDialog(game.actors.get(locationId), candidateId, game.actors.get(employerId));
+    const app = await H.poll(() => { const a = H.appBy("throw-dialog"); return a && H.root(a)?.querySelector('[name^="mod."]') ? a : null; });
+    const notes = H.takeNotes();
+    if (!app) return { opened: false, notes, influenceOpen: !!H.influenceApp() };
+    const el = H.root(app);
+    const out = { opened: true, title: app.title, rows: H.throwRows(el), notes };
+    if (!keep) await app.close({ force: true });
+    return out;
+  },
+  obedienceOwn: async ({ hirelingId }) => {
+    const H = globalThis.__c1;
+    H.takeNotes();
+    H.A.openObedienceRoll(game.actors.get(hirelingId));
+    const app = await H.poll(() => { const a = H.appBy("throw-dialog"); return a && H.root(a)?.querySelector('[name^="mod."]') ? a : null; });
+    const notes = H.takeNotes();
+    if (!app) return { opened: false, notes, influenceOpen: !!H.influenceApp() };
+    const out = { opened: true, title: app.title, rows: H.throwRows(H.root(app)), notes };
+    await app.close({ force: true });
+    return out;
+  },
+
+  /** An influence-hosted page, opened by the named entry, read from its context. */
+  hosted: async ({ kind, locationId, candidateId, employerId, hirelingId, actorId, ctx, keep = false, place = false }) => {
+    const H = globalThis.__c1;
+    H.takeNotes();
+    for (const a of H.apps()) if (a.constructor?.name === "InfluenceApp") await a.close({ force: true });
+    if (kind === "recruit") H.A.openRecruitDialog(game.actors.get(locationId), candidateId, game.actors.get(employerId));
+    else if (kind === "obedience") H.A.openObedienceRoll(game.actors.get(hirelingId));
+    else if (kind === "loyalty") H.A.openLoyaltyRoll(game.actors.get(hirelingId));
+    else if (kind === "open") acksExtras.influence.open(game.actors.get(actorId), { mode: "hiring", ctx });
+    const app = await H.poll(() => { const a = H.influenceApp(); return a && H.root(a)?.querySelector('[data-action="roll"]') ? a : null; });
+    const notes = H.takeNotes();
+    if (!app) return { opened: false, notes, throwOpen: !!H.appBy("throw-dialog") };
+    if (place) { await app.setPosition({ left: 16, top: 16 }); await H.sleep(300); }
+    const el = H.root(app);
+    const summary = await H.ctxSummary(app);
+    const dom = {
+      notice: H.text(el.querySelector(".influence-unread-notice")) || null,
+      unreadBadges: el.querySelectorAll(".influence-unread-badge").length,
+      typedNumbers: [...el.querySelectorAll('input[type="number"][name^="mod."]')].map((i) => i.getAttribute("name")),
+      modLabels: [...el.querySelectorAll(".influence-mod-label")].map((l) => H.text(l)).slice(0, 40),
+      title: app.title,
+    };
+    const out = { opened: true, ...summary, dom, notes };
+    if (!keep) await app.close({ force: true });
+    return out;
+  },
+  /** Press Roll on the open influence page, under a rig, and read what came of it. */
+  hostedRoll: async ({ u = 0.5 }) => {
+    const H = globalThis.__c1;
+    const app = H.influenceApp();
+    if (!app) return { found: false };
+    H.takeNotes();
+    H.takeChat();
+    let payload = null;
+    const id = Hooks.once("acksExtras.influenceRollComplete", (p) => { payload = { outcome: p?.outcome ?? null, mode: p?.mode ?? null, total: p?.total ?? p?.roll?.total ?? null, keys: Object.keys(p ?? {}) }; });
+    H.rig(u);
+    try {
+      H.root(app).querySelector('[data-action="roll"]').click();
+      await H.sleep(2500);
+    } finally { H.unrig(); }
+    const chat = H.takeChat();
+    const cards = chat.map((mid) => { const m = game.messages.get(mid); return { id: mid, flags: m?.flags?.["acks-extras"] ?? null, text: H.text(Object.assign(document.createElement("div"), { innerHTML: m?.content ?? "" })).slice(0, 160) }; });
+    return { found: true, payload, chat, cards, notes: H.takeNotes(), stillOpen: !!H.influenceApp() };
+  },
+
+  /** Tick (or clear) one checkbox row of the open influence page, by the row's key. */
+  hostedTick: async ({ key, on = true }) => {
+    const H = globalThis.__c1;
+    const app = H.influenceApp();
+    if (!app) return { found: false };
+    const input = H.root(app).querySelector(`input[name="mod.${key}"]`);
+    if (!input) return { found: true, input: false, names: [...H.root(app).querySelectorAll('input[name^="mod."]')].map((i) => i.name).slice(0, 30) };
+    input.checked = !!on;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await H.sleep(400);
+    const again = H.root(H.influenceApp())?.querySelector(`input[name="mod.${key}"]`);
+    return { found: true, input: true, checked: again?.checked ?? null };
+  },
+
+  /** An Active Effect on an actor or on one of its items. */
+  addEffect: async ({ actorId, itemId, key, value, name }) => {
+    const actor = game.actors.get(actorId);
+    const parent = itemId ? actor.items.get(itemId) : actor;
+    const made = await parent.createEmbeddedDocuments("ActiveEffect", [{ name, changes: [{ key, mode: 2, value: String(value) }] }]);
+    return { id: made[0]?.id ?? null, on: itemId ? "item" : "actor" };
+  },
+  removeEffect: async ({ actorId, itemId, effectId }) => {
+    const actor = game.actors.get(actorId);
+    const parent = itemId ? actor.items.get(itemId) : actor;
+    await parent.deleteEmbeddedDocuments("ActiveEffect", [effectId]);
+    return { gone: !parent.effects.get(effectId) };
+  },
+
+  /** The influence document as the hiring code reads it, with an override layer on or off. */
+  overrideInfluence: async ({ on, table }) => {
+    const H = globalThis.__c1;
+    if (on) H.T.registerTable({ id: "influence", tables: { hiringOffer: table } }, { priority: 30, source: "qa-c1" });
+    else H.T.unregisterTable("influence", { priority: 30 });
+    const offer = H.m.HO.hiringOffer();
+    return { hasDoc: H.T.hasDoc("influence"), outcomes: !!offer.outcomes, refusalPenalty: offer.refusalPenalty, slanderPenalty: offer.slanderPenalty, complete: H.m.HO.hiringOfferComplete(offer) };
+  },
+  offerRead: async () => {
+    const H = globalThis.__c1;
+    const offer = H.m.HO.hiringOffer();
+    return { hasDoc: H.T.hasDoc("influence"), outcomes: !!offer.outcomes, bands: offer.outcomes?.outcomes?.length ?? 0, refusalPenalty: offer.refusalPenalty, slanderPenalty: offer.slanderPenalty, complete: H.m.HO.hiringOfferComplete(offer) };
+  },
+
+  /** A peaceful offer to a monster: the feature's own throw dialog, read; rolled when asked. */
+  monsterRecruit: async ({ monsterId, employerId, roll = false, keep = false, place = false, u = 0.5 }) => {
+    const H = globalThis.__c1;
+    H.takeNotes();
+    H.takeChat();
+    H.A.recruitMonster(game.actors.get(monsterId), game.actors.get(employerId));
+    const app = await H.poll(() => { const a = H.appBy("throw-dialog"); return a && H.root(a)?.querySelector('[name^="mod."]') ? a : null; }, { tries: 20 });
+    const notes = H.takeNotes();
+    if (!app) return { opened: false, notes };
+    if (place) { await app.setPosition({ left: 16, top: 16 }); await H.sleep(300); }
+    const el = H.root(app);
+    const out = { opened: true, title: app.title, rows: H.throwRows(el), notes, stepValues: app.context?.stepValues ?? null, info: H.text(el.querySelector(".throw-info, .info, p")).slice(0, 120) };
+    if (roll) {
+      H.rig(u);
+      try {
+        (el.querySelector('button[type="submit"]') ?? el.querySelector("form button")).click();
+        await H.sleep(2500);
+      } finally { H.unrig(); }
+      const chat = H.takeChat();
+      out.chat = chat;
+      out.cards = chat.map((mid) => { const m = game.messages.get(mid); return { id: mid, outcome: m?.flags?.["acks-extras"]?.outcome ?? null, flagKeys: Object.keys(m?.flags?.["acks-extras"] ?? {}), text: H.text(Object.assign(document.createElement("div"), { innerHTML: m?.content ?? "" })).slice(0, 140) }; });
+      out.notesAfter = H.takeNotes();
+      out.stillOpen = !!H.appBy("throw-dialog");
+    } else if (!keep) await app.close({ force: true });
+    return out;
+  },
+
+  /** The world's limit policy; `set` flips it for one check (the original is kept for the restore). */
+  limitPolicy: async ({ set } = {}) => {
+    const H = globalThis.__c1;
+    const before = game.settings.get("acks-extras", "enforceHenchmanLimit");
+    if (set && set !== before) { if (H.policy0 === undefined) H.policy0 = before; await game.settings.set("acks-extras", "enforceHenchmanLimit", set); }
+    return { before, now: game.settings.get("acks-extras", "enforceHenchmanLimit") };
+  },
+  limitPolicyRestore: async () => {
+    const H = globalThis.__c1 ?? {};
+    if (H.policy0 === undefined) return { restored: false, reason: "never changed" };
+    await game.settings.set("acks-extras", "enforceHenchmanLimit", H.policy0);
+    const now = game.settings.get("acks-extras", "enforceHenchmanLimit");
+    const out = { restored: now === H.policy0, now };
+    delete H.policy0;
+    return out;
+  },
+
+  /** Submit the open throw dialog under a rig (with a misc adjustment typed); the notes and cards it raised, and the employer's new hirelings. */
+  ownRoll: async ({ u = 0.02, misc = null, employerId }) => {
+    const H = globalThis.__c1;
+    const app = H.appBy("throw-dialog");
+    if (!app) return { found: false };
+    const employer = game.actors.get(employerId);
+    const before = new Set(employer?.system?.henchmenList ?? []);
+    const el = H.root(app);
+    if (misc != null) { const m = el.querySelector('input[name="mod.misc"]'); if (m) { m.value = String(misc); m.dispatchEvent(new Event("input", { bubbles: true })); m.dispatchEvent(new Event("change", { bubbles: true })); } }
+    H.takeNotes(); H.takeChat();
+    H.rig(u);
+    try {
+      (el.querySelector('button[type="submit"]') ?? el.querySelector("form button")).click();
+      await H.sleep(600);
+    } finally { H.unrig(); }
+    const yes = await H.autoYes(6000);
+    await H.poll(() => (H.notes.some((n) => /Leadership/.test(n.text)) ? true : null), { tries: 30, every: 250 });
+    await H.sleep(800);
+    const chat = H.takeChat();
+    const newIds = (game.actors.get(employerId)?.system?.henchmenList ?? []).filter((id) => !before.has(id));
+    return { found: true, confirms: yes, notes: H.takeNotes(), chat, cards: chat.map(H.card), newIds, stillOpen: !!H.appBy("throw-dialog") };
+  },
+
+  /** Give a user ownership of an actor (from the GM seat). */
+  own: async ({ actorId, userId, level = 3 }) => { const a = game.actors.get(actorId); await a.update({ ownership: { ...a.ownership, [userId]: level } }); return { ownership: a.ownership }; },
+
+  /** Coin on an actor: mint some, and read what it can spend. */
+  reloadDocs: async () => {
+    const svc = (await import("/modules/acks-extras/scripts/lib/services.mjs")).get("ruledata-import");
+    if (svc?.reload) await svc.reload();
+    return { reloaded: !!svc?.reload, hasInfluence: globalThis.__c1.T.hasDoc("influence") };
+  },
+  settingRead: async ({ key }) => ({ key, value: game.settings.get("acks-extras", key) }),
+  processNow: async ({ locationId }) => { const r = await globalThis.__c1.m.RC.processLocation(game.actors.get(locationId)); return { changed: !!r?.changed, arrived: r?.arrived ?? null }; },
+  coin: async ({ actorId, mint = 0 }) => {
+    const H = globalThis.__c1;
+    const a = game.actors.get(actorId);
+    if (mint) await H.m.MO.mintCoin(a, mint);
+    return { gp: H.m.MO.spendableGp(a) };
+  },
+
+  /** The location sheet on this seat, on a tab; the candidate rows that tab draws. */
+  sheetRows: async ({ locationId, tab }) => {
+    const H = globalThis.__c1;
+    const loc = game.actors.get(locationId);
+    await loc.sheet.render(true);
+    const app = await H.poll(() => { const a = H.sheetOf(locationId); return a && H.root(a)?.querySelector("nav.tabs") ? a : null; }, { tries: 60, every: 200 });
+    if (!app) return { opened: false };
+    const el = H.root(app);
+    const nav = el.querySelector(`nav.tabs a[data-tab="${tab}"]`);
+    if (nav) { nav.click(); await H.sleep(500); }
+    const sec = H.root(H.sheetOf(locationId))?.querySelector(`section[data-tab="${tab}"]`);
+    const rows = [...(sec?.querySelectorAll("tr[data-candidate-id]") ?? [])].map((tr) => ({ id: tr.dataset.candidateId, text: H.text(tr).slice(0, 80), recruit: !!tr.querySelector('a[data-action="recruit"]') }));
+    return { opened: true, tabFound: !!nav, tabs: [...el.querySelectorAll("nav.tabs a[data-tab]")].map((a) => a.dataset.tab), rows, hireGroup: !!sec?.querySelector('[data-action="hireGroup"]') };
+  },
+
+  /** Press Hire as Group on the open sheet's Mercenaries tab, answer the employer prompt, take `count` of a troop row, press Hire the unit — or, where the seat's own character would be picked, read the dialog, close it, and call the engine for the employer. */
+  hireGroup: async ({ locationId, employerId, candidateId, count, direct = false }) => {
+    const H = globalThis.__c1;
+    const loc = game.actors.get(locationId);
+    const employer = game.actors.get(employerId);
+    const groupsBefore = new Set(game.actors.filter((a) => a.type === "acks-extras.group").map((a) => a.id));
+    const actorsBefore = new Set(game.actors.map((a) => a.id));
+    const pick = (o) => (o ? { level: o.system?.details?.level ?? null, cls: o.system?.details?.class ?? null, hd: o.system?.hp?.hd ?? null, str: o.system?.scores?.str?.value ?? null, items: (o.items ?? []).length } : null);
+    H.takeNotes(); H.takeChat();
+    const btn = H.root(H.sheetOf(locationId))?.querySelector('section[data-tab="mercenaries"] [data-action="hireGroup"]');
+    if (!btn) return { pressed: false };
+    btn.click();
+    const first = await H.poll(() => document.querySelector('.application.dialog select[name="employerId"], .application.dialog input[name^="q_"]'), { tries: 40, every: 200 });
+    let employerPrompt = false;
+    if (first?.matches('select[name="employerId"]')) {
+      employerPrompt = true;
+      first.value = employerId; first.dispatchEvent(new Event("change", { bubbles: true }));
+      first.closest(".application").querySelector('button[data-action="ok"]').click();
+    }
+    const q = await H.poll(() => document.querySelector(`.application.dialog input[name="q_${candidateId}"]`), { tries: 40, every: 200 });
+    if (!q) return { pressed: true, employerPrompt, groupDialog: false, notes: H.takeNotes() };
+    const root = q.closest(".application");
+    const forLine = H.text(root.querySelector(".acks-henchmen-hire-group p"));
+    const cells = [...root.querySelectorAll('input[name^="q_"]')].map((i) => ({ name: i.name, cap: i.dataset.cap, max: i.max }));
+    const officer = !!root.querySelector('select[name="officer"]');
+    let how = "dialog";
+    if (direct) {
+      how = "engine";
+      const dlg = H.apps().find((a) => H.root(a) === root);
+      if (dlg) await dlg.close({ force: true }); else root.querySelector('[data-action="close"]')?.click();
+      await H.sleep(300);
+      await H.m.HG.hireAsGroup(loc, employer, { troops: [{ candidateId, quantity: count }] });
+    } else {
+      q.value = String(count); q.dispatchEvent(new Event("input", { bubbles: true }));
+      const okBtn = [...root.querySelectorAll("button")].find((b) => /Hire the unit/.test(H.text(b))) ?? root.querySelector('button[data-action="ok"]');
+      okBtn.click();
+    }
+    const group = await H.poll(() => game.actors.find((a) => a.type === "acks-extras.group" && !groupsBefore.has(a.id) && a.system?.unit?.employerUuid === employer.uuid && (a.system.stacks ?? []).length) ?? null, { tries: 60, every: 300 });
+    await H.sleep(1000);
+    const stacks = (group?.system?.stacks ?? []).map((st) => ({ key: st.key, count: st.size?.current ?? null, label: st.template?.label ?? null, uuid: st.template?.uuid ?? null, snap: pick(st.template?.snapshot) }));
+    const protoDoc = stacks[0]?.uuid ? await fromUuid(stacks[0].uuid).catch(() => null) : null;
+    const proto = protoDoc ? { id: protoDoc.id, ...pick(protoDoc.toObject()), items: protoDoc.items.size } : null;
+    const rows = (loc.system.candidates ?? []).map((c) => ({ id: c.id, name: c.name, status: c.status, quantity: c.quantity ?? null }));
+    const newActors = game.actors.filter((a) => !actorsBefore.has(a.id)).map((a) => ({ id: a.id, type: a.type, name: a.name }));
+    return { pressed: true, how, employerPrompt, forLine, cells, officer, group: group ? { id: group.id, name: group.name } : null, stacks, proto, rows, newActors, chat: H.takeChat(), notes: H.takeNotes() };
+  },
+
+  /** Press a row's Hire button on the open sheet's Specialists tab (or call the API naming the employer), answer the heads prompt, and read the hosted page. */
+  bulkOffer: async ({ locationId, candidateId, employerId, heads, viaApi = false }) => {
+    const H = globalThis.__c1;
+    const loc = game.actors.get(locationId);
+    H.takeNotes();
+    for (const a of H.apps()) if (a.constructor?.name === "InfluenceApp") await a.close({ force: true });
+    if (viaApi) H.A.openRecruitDialog(loc, candidateId, game.actors.get(employerId));
+    else {
+      const a = H.root(H.sheetOf(locationId))?.querySelector(`section[data-tab="specialists"] tr[data-candidate-id="${candidateId}"] a[data-action="recruit"]`);
+      if (!a) return { pressed: false, notes: H.takeNotes() };
+      a.click();
+    }
+    const first = await H.poll(() => document.querySelector('.application.dialog select[name="employerId"], .application.dialog input[name="heads"]'), { tries: 40, every: 200 });
+    let employerPrompt = false;
+    if (first?.matches('select[name="employerId"]')) { employerPrompt = true; first.value = employerId; first.dispatchEvent(new Event("change", { bubbles: true })); first.closest(".application").querySelector('button[data-action="ok"]').click(); }
+    const input = await H.poll(() => document.querySelector('.application.dialog input[name="heads"]'), { tries: 40, every: 200 });
+    if (!input) return { pressed: true, employerPrompt, headsPrompt: null, notes: H.takeNotes(), influenceOpen: !!H.influenceApp() };
+    const prompt = { title: H.text(input.closest(".application").querySelector(".window-title")), max: input.max, def: input.value };
+    input.value = String(heads); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.closest(".application").querySelector('button[data-action="ok"]').click();
+    const app = await H.poll(() => { const a = H.influenceApp(); return a && H.root(a)?.querySelector('[data-action="roll"]') ? a : null; }, { tries: 60, every: 200 });
+    if (!app) return { pressed: true, employerPrompt, headsPrompt: prompt, opened: false, notes: H.takeNotes() };
+    const ctx = await H.ctxSummary(app);
+    const bonus = H.root(app).querySelector('select[name="mod.signingBonus"]');
+    const options = bonus ? [...bonus.options].map((o) => ({ value: o.value, label: o.textContent.trim() })) : [];
+    return { pressed: true, employerPrompt, headsPrompt: prompt, opened: true, subject: ctx.subject, title: app.title, options, notes: H.takeNotes() };
+  },
+
+  /** Choose a signing-bonus tier on the open hosted page and Roll under a cycling rig; wait for the heads card and the hire. */
+  bulkRoll: async ({ tier = null, seq, waitFor = 5 }) => {
+    const H = globalThis.__c1;
+    const app = H.influenceApp();
+    if (!app) return { found: false };
+    const el = H.root(app);
+    const bonus = el.querySelector('select[name="mod.signingBonus"]');
+    if (bonus && tier != null) { bonus.value = String(tier); bonus.dispatchEvent(new Event("change", { bubbles: true })); await H.sleep(300); }
+    H.takeNotes(); H.takeChat();
+    let payload = null;
+    Hooks.once("acksExtras.influenceRollComplete", (p) => { payload = { outcome: p?.outcome ?? null, natural: p?.natural ?? null, total: p?.total ?? null, heads: p?.context?.heads ?? null }; });
+    let i = 0;
+    if (!H.rig0) H.rig0 = CONFIG.Dice.randomUniform;
+    CONFIG.Dice.randomUniform = () => seq[i++ % seq.length];
+    try {
+      (H.root(H.influenceApp()) ?? el).querySelector('[data-action="roll"]').click();
+      await H.poll(() => (H.chat.some((mid) => (game.messages.get(mid)?.rolls?.length ?? 0) >= waitFor) ? true : null), { tries: 60, every: 250 });
+    } finally { H.unrig(); }
+    const yes = await H.autoYes(8000);
+    await H.sleep(1500);
+    const chat = H.takeChat();
+    return { found: true, payload, draws: i, confirms: yes, chat, cards: chat.map(H.card), notes: H.takeNotes(), stillOpen: !!H.influenceApp() };
+  },
+
+  /** The rows of one bulk name on a market, the slander count, and the queue. */
+  rowsOf: async ({ locationId, name, employerId }) => {
+    const loc = game.actors.get(locationId);
+    const emp = game.actors.get(employerId);
+    const rows = (loc.system.candidates ?? []).filter((c) => c.name === name).map((c) => ({ id: c.id, status: c.status, quantity: c.quantity ?? null, refusals: (c.refusals ?? []).map((r) => ({ employer: r.employerUuid === emp?.uuid, result: r.result })) }));
+    return { rows, slander: (loc.system.market?.slander ?? []).length, pending: (loc.system.market?.pendingHires ?? []).length };
+  },
+  hiredOf: async ({ employerId }) => ({ actors: game.actors.filter((a) => a.type === "character" && a.system?.retainer?.managerid === employerId).map((a) => ({ id: a.id, name: a.name, quantity: a.system.retainer.quantity ?? null, loyalty: a.system.retainer.loyalty ?? null, category: a.system.retainer.category ?? null })) }),
+  materialize: async ({ locationId }) => { await globalThis.__c1.m.RD.materializePendingHires(game.actors.get(locationId)); return { pending: (game.actors.get(locationId).system.market?.pendingHires ?? []).length }; },
+  /** Bring a chat card into view for a shot. */
+  showCard: async ({ id, frame = "content" }) => {
+    try { ui.sidebar.changeTab?.("chat", "primary"); } catch {}
+    try { ui.sidebar.expand?.(); } catch {}
+    await globalThis.__c1.sleep(400);
+    // The "card" frame is always a staged copy: a plate of the whole card keeps the flavor line, and the copy is what loses the whisper list and the stamp.
+    let el = frame === "card" ? null : document.querySelector(`[data-message-id="${id}"]`);
+    let staged = false;
+    if (!el) {
+      const m = game.messages.get(id);
+      if (!m) return { found: false, message: false };
+      const html = await (typeof m.renderHTML === "function" ? m.renderHTML() : m.getHTML());
+      el = html?.[0] ?? html;
+      el.dataset.qaStaged = "1";
+      // A world's user names never enter a plate: the whisper list names them, and the stamp dates the shot.
+      if (frame === "card") for (const n of el.querySelectorAll(".whisper-to, .message-metadata")) n.remove();
+      let log = null;
+      {
+        const box = document.createElement("section");
+        box.id = "qa-card-stage";
+        box.className = "chat-sidebar sidebar-tab active";
+        box.style.cssText = "position:fixed;left:16px;top:16px;width:340px;z-index:9999;padding:8px;background:var(--color-cool-5,#1b1b1b)";
+        log = document.createElement("ol");
+        log.className = "chat-log";
+        box.append(log);
+        document.body.append(box);
+      }
+      log.append(el);
+      el.style.display = "";
+      staged = true;
+    }
+    el?.scrollIntoView({ block: "center" });
+    await globalThis.__c1.sleep(400);
+    return { found: !staged, staged, content: !!el?.querySelector(".message-content") };
+  },
+  unstageCard: async () => {
+    const n = document.querySelectorAll("[data-qa-staged]").length;
+    for (const el of document.querySelectorAll("[data-qa-staged]")) el.remove();
+    document.getElementById("qa-card-stage")?.remove();
+    return { removed: n };
+  },
+
+  /** An ability item carrying one typed modifier row, and what the henchmen feature reads off it. */
+  addTypedPower: async ({ actorId, name, target, flat, condition }) => {
+    const H = globalThis.__c1;
+    const a = game.actors.get(actorId);
+    const made = await a.createEmbeddedDocuments("Item", [{ name, type: "ability", flags: { "acks-extras": { extras: { effects: [{ type: "modifier", target, value: { kind: "flat", flat }, condition }] } } } }]);
+    return { id: made[0]?.id ?? null, has: H.m.EF.hasEffectFlag(a, target), mods: H.m.EF.collectEffectModifiers(a, target).map((m) => ({ value: m.value, situational: !!m.situational })) };
+  },
+  known: async ({ actorId, locationId, known }) => {
+    const r = await acksExtras.markets.setMarketKnown(game.actors.get(actorId), game.actors.get(locationId), known);
+    return { ...r, knownTo: !!acksExtras.markets.marketKnownTo(game.actors.get(locationId), game.actors.get(actorId)) };
+  },
+  /** Open the posting dialog (or use the open one), pick an employer, and read the network row. */
+  postingOpen: async ({ locationId, employerId, place = false }) => {
+    const H = globalThis.__c1;
+    H.takeNotes();
+    let app = H.appBy("posting-dialog");
+    if (!app) { H.A.openPostingDialog(game.actors.get(locationId)); app = await H.poll(() => { const a = H.appBy("posting-dialog"); return a && H.root(a)?.querySelector('select[name="employerId"]') ? a : null; }, { tries: 40, every: 200 }); }
+    if (!app) return { opened: false, notes: H.takeNotes() };
+    if (place) { await app.setPosition({ left: 16, top: 16 }); await H.sleep(200); }
+    const el = H.root(app);
+    const sel = el.querySelector('select[name="employerId"]');
+    sel.value = employerId; sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await H.sleep(250);
+    const field = el.querySelector("[data-network-field]"), box = el.querySelector('input[name="network"]'), status = el.querySelector("p[data-network-status]");
+    return { opened: true, employerFound: sel.value === employerId, optionNetwork: sel.selectedOptions[0]?.dataset.network ?? null, fieldShown: !!field && field.style.display !== "none", checked: box?.checked ?? null, status: status && status.style.display !== "none" ? H.text(status) : "", notes: H.takeNotes() };
+  },
+  /** Submit the open posting dialog with a kind and the network box as named; the notes and the fee card. */
+  postingSubmit: async ({ kind, network }) => {
+    const H = globalThis.__c1;
+    const app = H.appBy("posting-dialog");
+    if (!app) return { found: false };
+    const el = H.root(app);
+    const kindSel = el.querySelector('select[name="kind"]'); kindSel.value = kind; kindSel.dispatchEvent(new Event("change", { bubbles: true }));
+    const box = el.querySelector('input[name="network"]'); if (box) { box.checked = !!network; box.dispatchEvent(new Event("change", { bubbles: true })); }
+    H.takeNotes(); H.takeChat();
+    (el.querySelector('button[type="submit"]') ?? el.querySelector("form button")).click();
+    await H.poll(() => (H.notes.length ? true : null), { tries: 80, every: 250 });
+    await H.sleep(1500);
+    const chat = H.takeChat();
+    return { found: true, notes: H.takeNotes(), chat, cards: chat.map(H.card), stillOpen: !!H.appBy("posting-dialog") };
+  },
+  /** The market's postings, network rolls and candidates as they stand; the fee card's formula is compared with a class's and never printed. */
+  marketRead: async ({ locationId, employerId, feeCardFlavor = "", feeClass = null }) => {
+    const H = globalThis.__c1;
+    const loc = game.actors.get(locationId);
+    const m = loc.system.market;
+    const emp = game.actors.get(employerId);
+    const postings = (m.postings ?? []).map((p) => ({ id: p.id, status: p.status, segment: p.segment, network: !!p.network, totalAvailable: p.totalAvailable, employer: p.employerUuid === emp?.uuid, fees: (p.feesPaid ?? []).length }));
+    const networkRolls = (m.networkRolls ?? []).map((r) => ({ employer: r.employerUuid === emp?.uuid, segment: r.segment, month: r.monthStartTime === m.monthAnchorTime, marketClass: r.marketClass, total: r.total }));
+    const marketRolls = (m.marketRolls ?? []).map((r) => ({ segment: r.segment, total: r.total }));
+    const candidates = (loc.system.candidates ?? []).map((c) => ({ id: c.id, segment: c.segment, status: c.status, networkFor: c.networkFor === emp?.uuid ? "employer" : (c.networkFor || null) }));
+    const feeMatches = {};
+    for (const mc of [1, 2, 3, 4, 5, 6]) { try { feeMatches[mc] = feeCardFlavor.includes(`(${H.m.AV.searchFeeFormula(mc)} gp)`); } catch (e) { feeMatches[mc] = String(e?.message ?? e); } }
+    return { marketClass: loc.system.marketClass, effective: H.m.RC.effectiveMarketClass(loc, emp), anchor: m.monthAnchorTime ?? null, postings, networkRolls, marketRolls, candidates, feeMatches, feeClass };
+  },
+  closePosting: async ({ locationId, postingId }) => {
+    const r = await globalThis.__c1.m.RC.closePosting(game.actors.get(locationId), postingId);
+    return { result: r ?? null, status: (game.actors.get(locationId).system.market.postings ?? []).find((p) => p.id === postingId)?.status ?? null };
+  },
+  recruitWarn: async ({ locationId, candidateId, employerId }) => {
+    const H = globalThis.__c1;
+    H.takeNotes();
+    for (const a of H.apps()) if (a.constructor?.name === "InfluenceApp") await a.close({ force: true });
+    const synced = await H.poll(() => game.actors.get(locationId)?.system?.candidates?.find((c) => c.id === candidateId)?.status === "available" || null, { tries: 50, every: 200 });
+    H.takeNotes();
+    await H.A.openRecruitDialog(game.actors.get(locationId), candidateId, game.actors.get(employerId));
+    await H.sleep(1000);
+    return { synced: !!synced, notes: H.takeNotes(), influenceOpen: !!H.influenceApp(), throwOpen: !!H.appBy("throw-dialog") };
+  },
+
+  closeAll: async () => globalThis.__c1.closeAll(),
+  restore: async () => {
+    const H = globalThis.__c1 ?? {};
+    const out = {};
+    if (H.inf) { acksExtras.influence = H.inf; out.influenceApi = "restored"; }
+    try { H.T?.unregisterTable("influence", { priority: 30 }); out.override = "unregistered"; } catch (e) { out.override = String(e?.message ?? e); }
+    if (H.unrig) { H.unrig(); out.dice = "restored"; }
+    if (H.chatWrapped) { ChatMessage.create = H.chatCreate; H.chatWrapped = false; out.chat = "restored"; }
+    if (H.notesPatched) { for (const k of Object.keys(H.orig)) ui.notifications[k] = H.orig[k]; H.notesPatched = false; out.notes = "restored"; }
+    return out;
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/*  Driver side                                                         */
+/* ------------------------------------------------------------------ */
+
+async function run(api, fn, ...args) {
+  const text = await api.eval(`(${fn.toString()})(...${JSON.stringify(args)}).then((v) => JSON.stringify(v === undefined ? null : v))`);
+  return JSON.parse(text);
+}
+
+async function ready(api, label, seconds = 240) {
+  const t0 = Date.now();
+  for (;;) {
+    let ok = false;
+    try {
+      ok = await api.eval(`typeof game !== "undefined" && game.ready === true && !!globalThis.acksExtras?.henchmen?.openRosterApp && !!globalThis.acksExtras?.influence?.open && !!globalThis.acksExtras?.lib?.tables`);
+    } catch { ok = false; }
+    if (ok) return Math.round((Date.now() - t0) / 1000);
+    if (Date.now() - t0 > seconds * 1000) throw new Error(`${label}: not ready after ${seconds}s`);
+    await sleep(1000);
+  }
+}
+
+const seats = {};
+async function seat(key) {
+  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
+  seats[key] = api;
+  note(`${key} ready after (s)`, await ready(api, key));
+  return api;
+}
+
+const byLabel = (rows, re) => rows.filter((r) => re.test(r.label ?? ""));
+const modsOf = (ctx) => (ctx.groups ?? []).flatMap((g) => g.mods.map((m) => ({ ...m, group: g.group })));
+
+let gm = null;
+try {
+  section("seats");
+  gm = await seat("gm");
+  const census = await run(gm, P.census, MOD);
+  note("gm census", census);
+  check("the GM seat is the active GM, the page runs the working tree (formation apiVersion 18) and the influence page hosts (apiVersion ≥ 6)", census.activeGMIsSelf && census.role === 4 && census.working === 18 && census.influenceApi >= 6, { role: census.role, manifest: census.module, working: census.working, influenceApi: census.influenceApi });
+  if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
+  note("install", await run(gm, P.install));
+
+  section("the books, connected on the GM seat");
+  const states = {};
+  for (const book of BOOKS) {
+    note(`book ${book.id}`, await run(gm, P.connectBook, book));
+    let state = null;
+    for (let n = 0; n < 150; n++) { state = await run(gm, P.bookState, { id: book.id }); if (state.done || state.session) break; await sleep(2000); }
+    note(`book ${book.id} state`, state);
+    states[book.id] = state;
+  }
+  let invented = false;
+  let importedDoc = false;
+  const ensureOffer = async () => {
+    const off0 = await run(gm, P.offerRead);
+    note("offer as the world reads it", off0);
+    if (off0.complete) return off0;
+    if (!off0.hasDoc) {
+      note("import influence from the book", await run(gm, P.importDoc, { id: "influence" }));
+      let st = null;
+      for (let n = 0; n < 120; n++) { st = await run(gm, P.importState, { id: "influence" }); if (st.done) break; await sleep(2000); }
+      note("import state", st);
+      importedDoc = !!st?.ok && st.hasDoc;
+      globalThis.__c1ImportedDoc = importedDoc;
+      check("changed: the Reaction to Hiring Offer's table arrives with the influence document imported from the book, complete", importedDoc && (await run(gm, P.offerRead)).complete, { st, offer: await run(gm, P.offerRead) });
+    }
+    if (!(await run(gm, P.offerRead)).complete) {
+      note("no complete hiring table from the world or the book: invented figures registered at priority 30", await run(gm, P.overrideInfluence, { on: true, table: INVENTED_OFFER }));
+      invented = true;
+    }
+    return run(gm, P.offerRead);
+  };
+
+  if (STAGE === "1") {
+    section("fixtures (stage 1): the hall, employers A and B, a hireling each, a monster, a monster employer");
+    const hall = await gm.create("Actor", { name: `QA Hiring Hall ${NONCE}`, type: "acks-extras.location" });
+    note("market", await run(gm, P.addMarket, { locationId: hall.id, classOverride: 4 }));
+    const A = await gm.create("Actor", { name: `QA Employer A ${NONCE}`, type: "character", system: { scores: { cha: { value: 16 } }, details: { level: 5 } }, items: [] });
+    const B = await gm.create("Actor", { name: `QA Employer B ${NONCE}`, type: "character", system: { scores: { cha: { value: 3 } }, details: { level: 3 } }, items: [] });
+    const hA = await gm.create("Actor", { name: `QA Hireling of A ${NONCE}`, type: "character", items: [] });
+    const hB = await gm.create("Actor", { name: `QA Hireling of B ${NONCE}`, type: "character", items: [] });
+    const hM = await gm.create("Actor", { name: `QA Hireling of the beast ${NONCE}`, type: "character", items: [] });
+    const M = await gm.create("Actor", { name: `QA Beast ${NONCE}`, type: "monster", system: { hp: { hd: "2d8" } } });
+    const ME = await gm.create("Actor", { name: `QA Beast employer ${NONCE}`, type: "monster", system: { hp: { hd: "4d8" } } });
+
+    // Employer A: the six powers built fresh from the book, or typed by hand where the book will not open here.
+    section("14. the powers, built fresh from the book on this seat");
+    let fresh = false;
+    let built = [];
+    if (Object.values(states).every((st) => st?.session)) {
+      built = await run(gm, P.buildPowers, { ids: POWER_IDS });
+      note("built", built);
+      fresh = built.length === POWER_IDS.length && built.every((b) => !b.error && b.name);
+    }
+    check("14: the six powers build fresh from the book, each a document with its located effects", fresh, built.map((b) => ({ id: b.id, name: b.name ?? null, error: b.error ?? null, effects: b.effects?.length ?? 0 })));
+    if (fresh) note("embedded on A", await run(gm, P.embedPowers, { actorId: A.id }));
+    else {
+      note("FALLBACK: hand-typed effects on A (the page-built half is NOT checked)", await run(gm, P.handAbilities, { actorId: A.id, items: [
+        { name: "Leadership", effects: [{ type: "modifier", target: "retainBonus", value: 2 }] },
+        { name: "Blood of Kings", effects: [{ type: "modifier", target: "retainBonus", value: 1 }, { type: "modifier", target: "baseLoyalty", value: 1 }] },
+        { name: "Command", effects: [{ type: "modifier", target: "moraleBase", value: 1 }] },
+        { name: "Diplomacy", effects: [{ type: "modifier", target: "hiring", value: 1, tones: ["diplomacy"] }] },
+        { name: "Beast Friendship", effects: [{ type: "modifier", target: "hiring", value: 1, vsKinds: ["animal"] }] },
+        { name: "Command of Voice", effects: [{ type: "modifier", target: "hiring", value: 1 }] },
+      ] }));
+    }
+    note("B's hand-made powers", await run(gm, P.handAbilities, { actorId: B.id, items: [{ name: "Leadership" }, { name: "Command" }, { name: "Diplomacy" }] }));
+    const readA = await run(gm, P.powerRead, { actorId: A.id });
+    const readB = await run(gm, P.powerRead, { actorId: B.id });
+    note("A reads", readA);
+    note("B reads", readB);
+    const sumRetain = readA.retainBonus.reduce((s, m) => s + m.value, 0);
+    check("14: A's retainBonus effects are read (two powers) and its limit is the Charisma allowance plus them; no power of the limit or loyalty domains is unvalued", readA.retainBonus.length === 2 && readA.chaRetain != null && readA.retainMax === readA.chaRetain + sumRetain && readA.unvalued.retainBonus.length === 0 && readA.unvalued.baseLoyalty.length === 0, { chaRetain: readA.chaRetain, retainMax: readA.retainMax, sumRetain, unvalued: readA.unvalued });
+    check("14: employerLoyaltyMods(A).baseLoyaltyBonus is the baseLoyalty power's value", readA.baseLoyalty.length === 1 && readA.loyaltyMods.baseLoyaltyBonus === readA.baseLoyalty[0].value, { baseLoyalty: readA.baseLoyalty, loyaltyMods: readA.loyaltyMods });
+    check("14: B's three powers are held by name only: no modifier, each named as unvalued in its domain", readB.retainBonus.length === 0 && readB.unvalued.retainBonus.includes("Leadership") && readB.unvalued.henchmanMorale.includes("Command") && readB.unvalued.hiring.includes("Diplomacy"), readB.unvalued);
+
+    section("links: a hireling for A, for B and for the beast");
+    note("link A", await run(gm, P.link, { employerId: A.id, hirelingId: hA.id, wage: 5 }));
+    note("link B", await run(gm, P.link, { employerId: B.id, hirelingId: hB.id, wage: 5 }));
+    note("link beast employer (core's own call)", await run(gm, P.link, { employerId: ME.id, hirelingId: hM.id, wage: 5 }));
+    const M2 = await gm.create("Actor", { name: `QA Beast hireling ${NONCE}`, type: "monster", system: { hp: { hd: "1d8" } } });
+    note("a monster hired by the beast employer", await run(gm, P.hireMonsterFor, { monsterId: M2.id, employerId: ME.id }));
+
+    section("14. the rosters");
+    const rosterA = await run(gm, P.roster, { actorId: A.id });
+    note("roster A", rosterA);
+    check("14: A's roster shows its count against the limit the powers make, with no unvalued note", rosterA.rendered && rosterA.limit === `1 / ${readA.retainMax}` && !rosterA.unvalued, { limit: rosterA.limit, unvalued: rosterA.unvalued });
+    const rosterB = await run(gm, P.roster, { actorId: B.id, keep: true, place: true });
+    note("roster B", rosterB);
+    check("14: B's roster reads 1 / 1 and its note names Leadership", rosterB.rendered && rosterB.limit === "1 / 1" && /Leadership/.test(rosterB.unvalued ?? ""), { limit: rosterB.limit, unvalued: rosterB.unvalued });
+    await shot(gm, "henchmen-powers-values", ".application.roster-app");
+    note("closed", await run(gm, P.closeAll));
+    const rosterM = await run(gm, P.roster, { actorId: ME.id, keep: true, place: true });
+    note("roster of the beast employer", rosterM);
+    check("changed: a monster employer the system gives no allowance shows no limit (count / —) and getRetainMax is null", rosterM.rendered && rosterM.retainMax === null && /^\d+ \/ —$/.test(rosterM.limit), { limit: rosterM.limit, retainMax: rosterM.retainMax, chaRetain: rosterM.chaRetain, rows: rosterM.rows });
+    await shot(gm, "henchmen-limit-none", ".application.roster-app");
+    note("closed", await run(gm, P.closeAll));
+
+    await ensureOffer();
+
+    section("14. the feature's own hiring dialog (integration swapped) for A and for B");
+    const cand1 = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: `QA Candidate one ${NONCE}`, kind: "henchman", level: 1, segment: "henchman:1", wageGp: 10 } });
+    const cand2 = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: `QA Candidate two ${NONCE}`, kind: "henchman", level: 1, segment: "henchman:1", wageGp: 10 } });
+    note("swap", await run(gm, P.swapIntegration, { hosts: false }));
+    const ownA = await run(gm, P.recruitOwn, { locationId: hall.id, candidateId: cand1.id, employerId: A.id });
+    note("A's own dialog", ownA);
+    const dip = byLabel(ownA.rows ?? [], /Diplomacy/), beast = byLabel(ownA.rows ?? [], /Beast Friendship/), voice = byLabel(ownA.rows ?? [], /Command of Voice/);
+    check("14: A's hiring dialog offers Diplomacy (a tone), Beast Friendship (a kind) and Command of Voice unticked", ownA.opened && dip.length === 1 && beast.length === 1 && voice.length === 1 && [dip, beast, voice].every((r) => r[0].type === "checkbox" && r[0].checked === false && !r[0].locked), { dip, beast, voice });
+    const ownB = await run(gm, P.recruitOwn, { locationId: hall.id, candidateId: cand2.id, employerId: B.id, keep: true });
+    note("B's own dialog", ownB);
+    const dipB = byLabel(ownB.rows ?? [], /Diplomacy/);
+    check("14: B's dialog shows Diplomacy locked at no value with the no-value hint", ownB.opened && dipB.length === 1 && dipB[0].locked && /no value imported/i.test(dipB[0].hint), { dipB });
+    const policy = await run(gm, P.limitPolicy, { set: "warn" });
+    note("the world's henchman-limit policy (the warning fires under warn or block; set to warn for this check and restored at once)", policy);
+    const rollB = await run(gm, P.ownRoll, { u: 0.02, misc: 10, employerId: B.id });
+    note("B's offer, carried to a hire", rollB);
+    for (const id of rollB.chat ?? []) gm.track(id, "ChatMessage");
+    for (const id of rollB.newIds ?? []) gm.track(id, "Actor");
+    check("14: B's recruit, carried to an accepted offer, warns of the limit naming Leadership", rollB.found && rollB.notes.some((n) => /Leadership/.test(n.text) && /henchmen/.test(n.text)), { notes: rollB.notes, cards: rollB.cards, newIds: rollB.newIds });
+    note("policy restored", await run(gm, P.limitPolicyRestore));
+
+    section("14. the obedience fallback, then the hosted page again");
+    const obA = await run(gm, P.obedienceOwn, { hirelingId: hA.id });
+    note("A's hireling, own dialog", obA);
+    const cmdA = byLabel(obA.rows ?? [], /^Command\b|Command \(/);
+    check("14: A's hireling's own obedience dialog shows Command unticked at its located value", obA.opened && cmdA.length === 1 && cmdA[0].type === "checkbox" && cmdA[0].checked === false && !cmdA[0].locked, { cmdA, located: readA.henchmanMorale });
+    const obB = await run(gm, P.obedienceOwn, { hirelingId: hB.id });
+    note("B's hireling, own dialog", obB);
+    const cmdB = byLabel(obB.rows ?? [], /^Command\b|Command \(/);
+    check("14: B's hireling's own obedience dialog shows Command locked at no value", obB.opened && cmdB.length === 1 && cmdB[0].locked, cmdB);
+    note("restore integration", await run(gm, P.swapIntegration, { hosts: true }));
+    const hostedObA = await run(gm, P.hosted, { kind: "obedience", hirelingId: hA.id, keep: true, place: true });
+    note("A's hireling, hosted", { opened: hostedObA.opened, title: hostedObA.dom?.title, groups: hostedObA.groups?.map((g) => ({ group: g.group, mods: g.mods.map((m) => [m.label, m.value, m.checked, m.isUnvalued]) })), external: hostedObA.external, notice: hostedObA.dom?.notice, firstModKeys: hostedObA.firstModKeys });
+    const hostedCmdA = modsOf(hostedObA).filter((m) => /Command/.test(m.label ?? ""));
+    await shot(gm, "influence-obedience-powers", ".application.acks-influence-dialog");
+    note("tick Command", await run(gm, P.hostedTick, { key: hostedCmdA[0]?.key ?? "", on: true }));
+    const rObA = await run(gm, P.hostedRoll, { u: 0.5 });
+    note("obedience roll (Command ticked)", rObA);
+    for (const id of rObA.chat ?? []) gm.track(id, "ChatMessage");
+    const cmdActive = (rObA.cards?.[0]?.flags?.rollResult?.activeModifiers ?? []).find((a) => /^Command\b/.test(a.label ?? ""));
+    check("15: with the integration back, the obedience page opens on A's hireling offering Command unticked, and ticked it adds the located value to the roll", hostedObA.opened && hostedCmdA.length === 1 && hostedCmdA[0].isEffect && hostedCmdA[0].checked !== true && cmdActive?.value === readA.henchmanMorale[0]?.value, { hostedCmdA: hostedCmdA.map((m) => [m.label, m.checked, m.isEffect]), cmdActive, located: readA.henchmanMorale });
+    note("closed", await run(gm, P.closeAll));
+    const hostedObB = await run(gm, P.hosted, { kind: "obedience", hirelingId: hB.id });
+    note("B's hireling, hosted", { opened: hostedObB.opened, external: hostedObB.external, mods: modsOf(hostedObB).map((m) => [m.label, m.value]) });
+    check("15: B's hireling's obedience page names Command in a note and adds nothing for it", hostedObB.opened && hostedObB.external.some((e) => /Command/.test(e.label ?? "") && e.note === true && !(Number(e.value) > 0)) && !modsOf(hostedObB).some((m) => /^Command\b/.test(m.label ?? "")), { external: hostedObB.external });
+
+    section("15. the hosted hiring page: B's hiring effect, the note, Diplomacy's box");
+    const cov = await run(gm, P.handAbilities, { actorId: B.id, items: [{ name: "Command of Voice" }] });
+    const ae = await run(gm, P.addEffect, { actorId: B.id, itemId: cov[0].id, key: "flags.acks-extras.hiring", value: 3, name: `QA voice ${NONCE}` });
+    note("AE on Command of Voice", ae);
+    const cand3 = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: `QA Candidate three ${NONCE}`, kind: "henchman", level: 1, segment: "henchman:1", wageGp: 10 } });
+    const hostB1 = await run(gm, P.hosted, { kind: "recruit", locationId: hall.id, candidateId: cand3.id, employerId: B.id });
+    note("B's hosted hiring page", { opened: hostB1.opened, notes: hostB1.notes, external: hostB1.external, groups: hostB1.groups?.map((g) => ({ group: g.group, mods: g.mods.map((m) => [m.label, m.value, m.isUnvalued, m.control]) })) });
+    const powers1 = (hostB1.groups ?? []).filter((g) => /powers/i.test(g.group ?? "")).flatMap((g) => g.mods);
+    const voiceRows = modsOf(hostB1).filter((m) => /QA voice|Command of Voice/.test(m.label ?? ""));
+    const dipRow1 = modsOf(hostB1).find((m) => /Diplomacy/.test(m.label ?? ""));
+    const figureOf = (m) => { const r = m?.raw ?? {}; if (r.checked === true && typeof r.contribution === "number") return r.contribution; for (const k of ["amount", "modifier", "effectValue", "bonus", "figure", "defaultValue", "value"]) if (typeof r[k] === "number") return r[k]; const t = String(r.valueLabel ?? r.hint ?? r.label ?? ""); const mm = t.match(/[+−-]\s?(\d+)/); return mm ? Number(mm[1]) : null; };
+    note("voice row raw", voiceRows[0]?.raw ?? null);
+    check("15: the Powers group holds B's hiring effect at its figure, once; no note names Command of Voice; Diplomacy is a typed box with the no-value badge and no note", hostB1.opened && voiceRows.length === 1 && voiceRows[0].isEffect && figureOf(voiceRows[0]) === 3 && powers1.some((m) => /QA voice/.test(m.label ?? "")) && !hostB1.external.some((e) => /Command of Voice/.test(e.label ?? "")) && !!dipRow1 && dipRow1.isUnvalued && !hostB1.external.some((e) => /Diplomacy/.test(e.label ?? "")), { voiceFigure: figureOf(voiceRows[0]), dipRow1: { label: dipRow1?.label, isUnvalued: dipRow1?.isUnvalued }, external: hostB1.external, powers: powers1.map((m) => m.label) });
+    note("AE removed", await run(gm, P.removeEffect, { actorId: B.id, itemId: cov[0].id, effectId: ae.id }));
+    const hostB2 = await run(gm, P.hosted, { kind: "recruit", locationId: hall.id, candidateId: cand3.id, employerId: B.id });
+    check("15: with the effect gone the note names Command of Voice and the row is gone", hostB2.opened && hostB2.external.some((e) => /Command of Voice/.test(e.label ?? "")) && !modsOf(hostB2).some((m) => /QA voice|Command of Voice/.test(m.label ?? "")), { external: hostB2.external });
+    const aeA = await run(gm, P.addEffect, { actorId: A.id, key: "flags.acks-extras.loyaltyRoll", value: 2, name: `QA loyal ${NONCE}` });
+    const loyal = await run(gm, P.hosted, { kind: "loyalty", hirelingId: hA.id });
+    note("A's hireling, loyalty page", { opened: loyal.opened, mods: modsOf(loyal).map((m) => [m.label, m.value]) });
+    const loyalRow = modsOf(loyal).find((m) => /QA loyal/.test(m.label ?? ""));
+    note("loyal row raw", loyalRow?.raw ?? null);
+    check("15: the loyalty page offers A's loyalty-roll effect as a row at its figure", loyal.opened && !!loyalRow && loyalRow.isEffect && figureOf(loyalRow) === 2, { mods: modsOf(loyal).map((m) => [m.label, m.value]), figure: figureOf(loyalRow) });
+    note("A's loyalty AE kept on the fixture (swept with it)", aeA);
+
+    section("15 / influence 17–18. the hiring table: the throw dialog's steppers, the card's band, and the table missing");
+    await ensureOffer();
+    const offer1 = await run(gm, P.offerRead);
+    check("the hiring table is complete (the world's own, or invented figures registered in this client)", offer1.complete && offer1.bands === 5, offer1);
+    const mr = await run(gm, P.monsterRecruit, { monsterId: M.id, employerId: A.id, keep: true, place: true });
+    note("monster recruit", { opened: mr.opened, title: mr.title, stepValues: mr.stepValues, notes: mr.notes, rows: mr.rows?.map((r) => [r.name, r.type, r.value, r.step, r.label]) });
+    const refRow = (mr.rows ?? []).find((r) => r.name === "mod.previousRefusals"), slRow = (mr.rows ?? []).find((r) => r.name === "mod.slander");
+    check("15: the throw dialog opens for the peaceful offer with refusal and slander steppers carrying the table's figure per step", mr.opened && !!refRow && !!slRow && mr.stepValues?.previousRefusals === offer1.refusalPenalty && mr.stepValues?.slander === offer1.slanderPenalty, { refRow, slRow, stepValues: mr.stepValues });
+    await shot(gm, "henchmen-hiring-table", ".application.throw-dialog");
+    const mrRoll = await run(gm, P.monsterRecruit, { monsterId: M.id, employerId: A.id, roll: true, u: 0.5 });
+    note("monster recruit rolled", { cards: mrRoll.cards, notes: mrRoll.notesAfter, stillOpen: mrRoll.stillOpen });
+    for (const id of mrRoll.chat ?? []) gm.track(id, "ChatMessage");
+    check("15: the card names the imported band in flags.acks-extras.outcome", (mrRoll.cards ?? []).some((c) => typeof c.outcome === "string" && c.outcome), mrRoll.cards);
+    note("closed", await run(gm, P.closeAll));
+    note("table hidden (override with no bands)", await run(gm, P.overrideInfluence, { on: true, table: { bands: null, refusalPenalty: null, slanderPenalty: null } }));
+    const mrGone = await run(gm, P.monsterRecruit, { monsterId: M.id, employerId: A.id });
+    note("monster recruit without the table", mrGone);
+    check("15: with the table unread the warning names it and no dialog opens", !mrGone.opened && mrGone.notes.some((n) => n.kind === "warn"), mrGone.notes);
+
+    section("influence 17. the hosted hiring page with no table");
+    const ctx = { previousRefusals: 2, slanderCount: 1, signingBonusOptions: [{ label: "—", value: 0 }] };
+    const p17 = await run(gm, P.hosted, { kind: "open", actorId: A.id, ctx, keep: true });
+    note("page 17", { opened: p17.opened, notice: p17.dom?.notice, unreadBadges: p17.dom?.unreadBadges, typed: p17.dom?.typedNumbers, mods: modsOf(p17).map((m) => [m.label, m.value, m.isUnread, m.control]) });
+    const countRows17 = modsOf(p17).filter((m) => /refus|slander/i.test(m.label ?? ""));
+    check("17: both count rows are badged typed fields and the notice names the page", p17.opened && countRows17.length === 2 && countRows17.every((m) => m.isUnread) && !!p17.dom?.notice, { countRows17, notice: p17.dom?.notice });
+    const r17 = await run(gm, P.hostedRoll, { u: 0.5 });
+    note("roll 17", r17);
+    check("17: the roll warns that the table is not imported and posts no card", r17.found && r17.notes.some((n) => n.kind === "warn") && r17.chat.length === 0, { notes: r17.notes, chat: r17.chat });
+    note("closed", await run(gm, P.closeAll));
+
+    section("influence 18. the page with the table read");
+    note("override lifted", await run(gm, P.overrideInfluence, { on: false }));
+    if (invented) note("invented figures registered again", await run(gm, P.overrideInfluence, { on: true, table: INVENTED_OFFER }));
+    const offer2 = await run(gm, P.offerRead);
+    const p18 = await run(gm, P.hosted, { kind: "open", actorId: A.id, ctx, keep: true });
+    note("page 18", { opened: p18.opened, notice: p18.dom?.notice, unreadBadges: p18.dom?.unreadBadges, mods: modsOf(p18).map((m) => [m.label, m.value, m.isUnread, m.control]), final: p18.final });
+    const countRows18 = modsOf(p18).filter((m) => /refus|slander/i.test(m.label ?? ""));
+    const eachOf = (m) => { const mm = String(m.label ?? "").match(/\(([+−-]?\s?\d+) each\)/); return mm ? Number(mm[1].replace("−", "-").replace(/\s/g, "")) : null; };
+    const refRow18 = countRows18.find((m) => /refus/i.test(m.label)), slRow18 = countRows18.find((m) => /slander/i.test(m.label));
+    check("18: no badge and no notice; each count row shows its count and the figure each count adds", p18.opened && !p18.dom?.notice && countRows18.length === 2 && countRows18.every((m) => !m.isUnread) && Number(refRow18?.value) === 2 && Number(slRow18?.value) === 1 && eachOf(refRow18) === offer2.refusalPenalty && eachOf(slRow18) === offer2.slanderPenalty, { rows: countRows18.map((m) => [m.label, m.value]), figures: [offer2.refusalPenalty, offer2.slanderPenalty] });
+    const r18 = await run(gm, P.hostedRoll, { u: 0.5 });
+    note("roll 18", r18);
+    for (const id of r18.chat ?? []) gm.track(id, "ChatMessage");
+    const active18 = r18.cards?.[0]?.flags?.rollResult?.activeModifiers ?? [];
+    const prod = (re) => active18.find((a) => re.test(a.label ?? ""))?.value ?? null;
+    check("18: Roll posts a card whose refusal and slander lines carry count × figure, and the roll-complete payload names a band key", r18.found && r18.chat.length >= 1 && typeof r18.payload?.outcome === "string" && r18.payload.outcome && prod(/refus/i) === 2 * offer2.refusalPenalty && prod(/slander/i) === 1 * offer2.slanderPenalty, { payload: r18.payload, active18 });
+    note("closed", await run(gm, P.closeAll));
+
+    section("influence 19. one page per fixture actor");
+    const C = await gm.create("Actor", { name: `QA Employer C ${NONCE}`, type: "character", system: { scores: { cha: { value: 10 } } }, items: [] });
+    const pA = await run(gm, P.hosted, { kind: "open", actorId: A.id, ctx, keep: true, place: true });
+    const profA = modsOf(pA).filter((m) => /Diplomacy|Intimidation|Seduction|Mystic Aura/.test(m.label ?? ""));
+    note("A's page proficiency rows", profA.map((m) => [m.label, m.value, m.isUnvalued, m.control]));
+    const dipBuilt = built.find((b) => /Diplomacy/.test(b.name ?? ""))?.effects?.find((e) => e.target === "reaction")?.value;
+    const dipFigure = typeof dipBuilt === "number" ? dipBuilt : (dipBuilt?.flat ?? null);
+    note("A's Diplomacy row raw", profA[0]?.raw ?? null);
+    check("19: A's page draws one Diplomacy box worth its item's figure, with the figure in its label, and no other proficiency box", pA.opened && profA.length === 1 && /Diplomacy/.test(profA[0].label) && !profA[0].isUnvalued && dipFigure != null && (profA[0].value === dipFigure || figureOf(profA[0]) === dipFigure) && new RegExp(`[+−-]\\s?${Math.abs(dipFigure)}`).test(profA[0].label), { row: { label: profA[0]?.label, value: profA[0]?.value, isUnvalued: profA[0]?.isUnvalued }, dipFigure });
+    await shot(gm, "influence-hiring-page", ".application.acks-influence-dialog");
+    note("closed", await run(gm, P.closeAll));
+    const pB = await run(gm, P.hosted, { kind: "open", actorId: B.id, ctx });
+    const profB = modsOf(pB).filter((m) => /Diplomacy|Intimidation|Seduction|Mystic Aura/.test(m.label ?? ""));
+    check("19: B's hand-made Diplomacy draws a typed field with the no-value badge", pB.opened && profB.length === 1 && /Diplomacy/.test(profB[0].label) && profB[0].isUnvalued, profB.map((m) => [m.label, m.value, m.isUnvalued, m.control]));
+    const pC = await run(gm, P.hosted, { kind: "open", actorId: C.id, ctx });
+    const profC = modsOf(pC).filter((m) => /Diplomacy|Intimidation|Seduction|Mystic Aura/.test(m.label ?? ""));
+    check("19: the actor holding nothing draws no proficiency box", pC.opened && profC.length === 0, profC);
+    note("closed", await run(gm, P.closeAll));
+  }
+
+  if (STAGE === "2") {
+    section("fixtures (stage 2)");
+    const player = await seat("player");
+    const pc = await run(player, P.census, MOD);
+    note("player census", pc);
+    note("install (player)", await run(player, P.install));
+    note("rules documents the world holds", await run(gm, P.docs));
+    const hall = await gm.create("Actor", { name: `QA Muster Hall ${NONCE}`, type: "acks-extras.location" });
+    note("market", await run(gm, P.addMarket, { locationId: hall.id, classOverride: 4 }));
+    const A = await gm.create("Actor", { name: `QA Captain ${NONCE}`, type: "character", system: { scores: { cha: { value: 13 } }, details: { level: 5 } }, items: [] });
+    const Pp = await gm.create("Actor", { name: `QA Paymaster ${NONCE}`, type: "character", ownership: { default: 0, [pc.userId]: 3 }, system: { scores: { cha: { value: 13 } }, details: { level: 4 } }, items: [] });
+    note("paymaster owned by the player seat", await run(gm, P.own, { actorId: Pp.id, userId: pc.userId }));
+
+    section("10. Hire as Group from the Mercenaries tab");
+    const troop = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: `QA Spearmen ${NONCE}`, kind: "mercenary", troopType: "lightInfantry", segment: "mercenary:lightInfantry", level: 1, classKey: "fighter", hitDice: "1d8", attributes: { str: 13, int: 9, wil: 10, dex: 11, con: 12, cha: 8 }, wageGp: 6, quantity: 10 } });
+    const sheetM = await run(gm, P.sheetRows, { locationId: hall.id, tab: "mercenaries" });
+    note("sheet (mercenaries)", sheetM);
+    const direct = !!census.character;
+    if (direct) note("the GM seat has an assigned character, which the dialog would pick: the dialog is read and closed, and the engine is called for the captain", census.character);
+    const hg = await run(gm, P.hireGroup, { locationId: hall.id, employerId: A.id, candidateId: troop.id, count: 4, direct });
+    note("hire as group", hg);
+    for (const a of hg.newActors ?? []) gm.track(a.id, "Actor");
+    for (const id of hg.chat ?? []) gm.track(id, "ChatMessage");
+    const rowsAfter = hg.rows ?? [];
+    const orig = rowsAfter.find((r) => r.id === troop.id), hiredRow = rowsAfter.find((r) => r.id !== troop.id && r.name === `QA Spearmen ${NONCE}` && r.status === "hired");
+    check("10: the dialog opens for the employer with the troop row capped at the market's count", hg.pressed && hg.cells?.some((c) => c.name === `q_${troop.id}` && String(c.cap) === "10") && (direct || hg.employerPrompt || !!census.character === false), { employerPrompt: hg.employerPrompt, forLine: hg.forLine, cells: hg.cells, how: hg.how });
+    check("10: a group named for the employer holds one stack of the count taken", !!hg.group && hg.group.name === `${A.name}'s Company` && hg.stacks?.length === 1 && hg.stacks[0].count === 4, { group: hg.group, stacks: hg.stacks?.map((st) => [st.label, st.count]) });
+    check("10: the troop row keeps its id with the heads not taken, available; a new row of the count taken reads hired", orig?.status === "available" && orig?.quantity === 6 && !!hiredRow && hiredRow.quantity === 4, { orig, hiredRow });
+    check("10: the stack's snapshot and the prototype it names carry the candidate's level, class, hit die and scores, and the prototype holds no items", hg.stacks?.[0]?.snap?.level === 1 && hg.stacks[0].snap.cls === "fighter" && hg.stacks[0].snap.hd === "1d8" && hg.stacks[0].snap.str === 13 && hg.proto?.level === 1 && hg.proto?.cls === "fighter" && hg.proto?.hd === "1d8" && hg.proto?.str === 13 && hg.proto?.items === 0, { snap: hg.stacks?.[0]?.snap, proto: hg.proto });
+    note("closed", await run(gm, P.closeAll));
+
+    await ensureOffer();
+    note("player mirrors the world's documents", await run(player, P.reloadDocs));
+    note("offer as the player reads it", await run(player, P.offerRead));
+
+    section("12. an offer to part of a bulk row, head by head (player seat)");
+    const porters = `QA Porters ${NONCE}`;
+    const spec = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: porters, kind: "specialist", specialistType: "laborer", segment: "specialist:laborer", level: 0, wageGp: 3, quantity: 20 } });
+    note("coin for the paymaster", await run(gm, P.coin, { actorId: Pp.id, mint: 400 }));
+    const purse0 = (await run(gm, P.coin, { actorId: Pp.id })).gp;
+    const before12 = await run(gm, P.rowsOf, { locationId: hall.id, name: porters, employerId: Pp.id });
+    const sheetS = await run(player, P.sheetRows, { locationId: hall.id, tab: "specialists" });
+    note("sheet (specialists, player)", sheetS);
+    const rowShown = sheetS.rows.some((r) => r.id === spec.id);
+    const visibility = await run(gm, P.settingRead, { key: "playerMarketVisibility" });
+    const viaApi = !!pc.character || !rowShown;
+    if (pc.character) note("the player seat has an assigned character, which the sheet's button would pick: openRecruitDialog is called naming the paymaster", pc.character);
+    if (!rowShown) note("the player's sheet lists a shared row only under an active posting the seat owns that covers its segment, and none covers it: openRecruitDialog is called as the row's Recruit button calls it, naming the paymaster", { visibility: visibility.value, rows: sheetS.rows.length });
+    const offer = await run(player, P.bulkOffer, { locationId: hall.id, candidateId: spec.id, employerId: Pp.id, heads: 6, viaApi });
+    note("offer", offer);
+    check("12: the heads prompt opens for the bulk row at its quantity, and the page's subject reads the row's name ×6", !!offer.headsPrompt && String(offer.headsPrompt.max) === "20" && offer.opened && offer.subject === `${porters} ×6`, { prompt: offer.headsPrompt, subject: offer.subject, pressed: offer.pressed });
+    const tiers = (offer.options ?? []).filter((o) => o.value !== "0");
+    const tier1 = tiers[0] ?? null;
+    const tierGp = tier1 ? Number((tier1.label.match(/^(\d+(?:\.\d+)?)/) ?? [])[1]) : null;
+    note("signing tiers offered", { count: tiers.length, tier1: tier1 ? { value: tier1.value, gp: tierGp } : null });
+    const SEQ = [0.01, 0.01, 0.99, 0.99, 0.5, 0.5, 0.2, 0.4, 0.8, 0.6, 0.1, 0.3];
+    const roll = await run(player, P.bulkRoll, { tier: tier1?.value ?? null, seq: SEQ, waitFor: 5 });
+    note("roll", roll);
+    for (const id of roll.chat ?? []) gm.track(id, "ChatMessage");
+    const headsCard = (roll.cards ?? []).find((c) => c.rolls.length === 5) ?? null;
+    const tallyOf = (flavor) => { const out = {}; const tail = String(flavor ?? "").split(":").slice(1).join(":"); for (const part of tail.split("·")) { const m = part.trim().match(/^(\d+)\s+(.+)$/); if (!m) continue; const n = Number(m[1]), label = m[2]; const key = /slander/i.test(label) ? "refuseSlander" : /élan|elan/i.test(label) ? "acceptElan" : /try/i.test(label) ? "tryAgain" : /accept/i.test(label) ? "accept" : /refuse/i.test(label) ? "refuse" : label; out[key] = (out[key] ?? 0) + n; } return out; };
+    const tally = headsCard ? tallyOf(headsCard.flavor) : {};
+    const tallySum = Object.values(tally).reduce((a, b) => a + b, 0);
+    check("12: one chat card shows five further hiring rolls and a tally whose counts sum to 6", !!headsCard && tallySum === 6, { card: headsCard, tally });
+    await sleep(3000);
+    let after12 = await run(gm, P.rowsOf, { locationId: hall.id, name: porters, employerId: Pp.id });
+    if (after12.pending > 0) { note("hires queued (the seat could not create actors): materialized on the GM seat", await run(gm, P.materialize, { locationId: hall.id })); after12 = await run(gm, P.rowsOf, { locationId: hall.id, name: porters, employerId: Pp.id }); }
+    const hired12 = await run(gm, P.hiredOf, { employerId: Pp.id });
+    for (const a of hired12.actors) gm.track(a.id, "Actor");
+    note("rows after", after12);
+    note("hired", hired12);
+    const origRow = after12.rows.find((r) => r.id === spec.id);
+    const split = after12.rows.filter((r) => r.id !== spec.id);
+    const rowFor = (o) => split.find((r) => r.quantity === tally[o] && (o === "refuseSlander" ? r.status === "slandered" : o === "accept" || o === "acceptElan" ? r.status === "hired" : r.refusals.some((x) => x.employer && x.result === o)));
+    const outcomesSeen = Object.keys(tally).filter((o) => tally[o] > 0);
+    check("12: the row keeps its id at 14; each outcome that occurred is a row of its own carrying that many heads, a refusal naming the employer on a refusing row, and slandered on a slander row", origRow?.quantity === 14 && origRow?.status === "available" && outcomesSeen.length >= 2 && outcomesSeen.every((o) => !!rowFor(o)), { origRow, split, tally });
+    check("12: the location's slander gains one entry per slandering head", after12.slander - before12.slander === (tally.refuseSlander ?? 0), { before: before12.slander, after: after12.slander, slandered: tally.refuseSlander ?? 0 });
+    const acc = hired12.actors.find((a) => a.quantity === (tally.accept ?? -1)), elan = hired12.actors.find((a) => a.quantity === (tally.acceptElan ?? -1) && a !== acc);
+    check("12: the accepting heads are one actor whose retainer.quantity is the accept count (an élan group a second, one loyalty higher)", (tally.accept ? !!acc : true) && (tally.acceptElan ? !!elan : true) && hired12.actors.length === (tally.accept ? 1 : 0) + (tally.acceptElan ? 1 : 0) && (acc && elan ? elan.loyalty === acc.loyalty + 1 : true), { actors: hired12.actors, tally });
+    const purse1 = (await run(gm, P.coin, { actorId: Pp.id })).gp;
+    const headsHired = (tally.accept ?? 0) + (tally.acceptElan ?? 0);
+    if (tier1) check("12: the employer paid the signing bonus once per head hired", Math.abs((purse0 - purse1) - tierGp * headsHired) < 0.01, { purse0, purse1, tierGp, headsHired });
+    else note("no signing tiers offered (the wages table is not in the world): the bonus-per-head observable is not checked", { purse0, purse1 });
+    if (headsCard) { note("show card", await run(gm, P.showCard, { id: headsCard.id, frame: "card" })); await shot(gm, "henchmen-bulk-offer", '[data-qa-staged="1"]'); note("unstaged", await run(gm, P.unstageCard)); }
+    note("closed (player)", await run(player, P.closeAll));
+    const offer2 = await run(player, P.bulkOffer, { locationId: hall.id, candidateId: spec.id, employerId: Pp.id, heads: 14, viaApi });
+    note("offer to the remainder", { prompt: offer2.headsPrompt, subject: offer2.subject, opened: offer2.opened });
+    const roll2 = await run(player, P.bulkRoll, { tier: null, seq: [0.5, 0.5, 0.3, 0.7], waitFor: 13 });
+    note("roll 2", { payload: roll2.payload, cards: roll2.cards?.length, draws: roll2.draws });
+    for (const id of roll2.chat ?? []) gm.track(id, "ChatMessage");
+    await sleep(3000);
+    let after14 = await run(gm, P.rowsOf, { locationId: hall.id, name: porters, employerId: Pp.id });
+    if (after14.pending > 0) { note("materialized", await run(gm, P.materialize, { locationId: hall.id })); after14 = await run(gm, P.rowsOf, { locationId: hall.id, name: porters, employerId: Pp.id }); }
+    const hired14 = await run(gm, P.hiredOf, { employerId: Pp.id });
+    for (const a of hired14.actors) gm.track(a.id, "Actor");
+    check("12: offered all 14 of the remainder, no row carries the old id", offer2.opened && offer2.subject === `${porters} ×14` && !after14.rows.some((r) => r.id === spec.id) && after14.rows.reduce((n, r) => n + (r.quantity ?? 0), 0) === 20, { rows: after14.rows });
+    note("closed (player)", await run(player, P.closeAll));
+    note("closed", await run(gm, P.closeAll));
+
+    section("13. a posting with a mercantile network");
+    const hall2 = await gm.create("Actor", { name: `QA Exchange Town ${NONCE}`, type: "acks-extras.location" });
+    note("market 2", await run(gm, P.addMarket, { locationId: hall2.id, classOverride: 5 }));
+    const N = await gm.create("Actor", { name: `QA Factor ${NONCE}`, type: "character", system: { scores: { cha: { value: 12 } }, details: { level: 4 } }, items: [] });
+    const S = await gm.create("Actor", { name: `QA Second ${NONCE}`, type: "character", ownership: { default: 0, [pc.userId]: 3 }, system: { details: { level: 2 } }, items: [] });
+    note("second owned by the player seat", await run(gm, P.own, { actorId: S.id, userId: pc.userId }));
+    note("network power on the factor", await run(gm, P.addTypedPower, { actorId: N.id, name: "Mercantile Network", target: "marketClass", flat: 2, condition: "in a market entered before" }));
+    note("coin for the factor", await run(gm, P.coin, { actorId: N.id, mint: 300 }));
+    note("coin for the captain", await run(gm, P.coin, { actorId: A.id, mint: 300 }));
+    note("known", await run(gm, P.known, { actorId: N.id, locationId: hall2.id, known: true }));
+    const pN = await run(gm, P.postingOpen, { locationId: hall2.id, employerId: N.id, place: true });
+    note("posting dialog, factor", pN);
+    check("13: the network row shows for the holder, ticked, with the counted note", pN.opened && pN.employerFound && pN.fieldShown && pN.checked === true && /^Counted here for /.test(pN.status), pN);
+    await shot(gm, "henchmen-network-posting", ".application.posting-dialog");
+    const pA = await run(gm, P.postingOpen, { locationId: hall2.id, employerId: A.id });
+    check("13: picking an employer without the power hides the row", pA.opened && pA.employerFound && !pA.fieldShown, pA);
+    note("posting dialog, factor again", await run(gm, P.postingOpen, { locationId: hall2.id, employerId: N.id }));
+    const post1 = await run(gm, P.postingSubmit, { kind: "henchmanGeneral", network: true });
+    note("post 1", { notes: post1.notes, cards: post1.cards?.map((c) => ({ rolls: c.rolls.length, fee: /search fee/i.test(c.flavor) })), stillOpen: post1.stillOpen });
+    for (const id of post1.chat ?? []) gm.track(id, "ChatMessage");
+    const fee1 = (post1.cards ?? []).find((c) => /search fee/i.test(c.flavor))?.flavor ?? "";
+    const m1 = await run(gm, P.marketRead, { locationId: hall2.id, employerId: N.id, feeCardFlavor: fee1, feeClass: 3 });
+    note("market after post 1", { marketClass: m1.marketClass, effective: m1.effective, postings: m1.postings, networkRolls: m1.networkRolls, marketRolls: m1.marketRolls, candidates: m1.candidates.length, networkCands: m1.candidates.filter((c) => c.networkFor === "employer").length, feeMatches: m1.feeMatches });
+    const nr = m1.networkRolls.filter((r) => r.employer && r.month && /^henchman:/.test(r.segment));
+    const henchLevels = m1.marketRolls.filter((r) => /^henchman:/.test(r.segment));
+    check("13: networkRolls holds one row per henchman level for the employer at the month anchor, each at class 3", m1.effective === 3 && henchLevels.length > 0 && nr.length === henchLevels.length && nr.every((r) => r.marketClass === 3), { nr, levels: henchLevels.length, effective: m1.effective });
+    const netCands = m1.candidates.filter((c) => c.networkFor === "employer");
+    const excess = nr.reduce((sum, r) => sum + Math.max(0, r.total - (henchLevels.find((h) => h.segment === r.segment)?.total ?? 0)), 0);
+    check("13: every candidate the network added carries networkFor the employer, and no candidate names anyone else", m1.candidates.every((c) => !c.networkFor || c.networkFor === "employer") && netCands.length === excess, { netCands: netCands.length, excess, foreign: m1.candidates.filter((c) => c.networkFor && c.networkFor !== "employer").length });
+    const posting1 = m1.postings.find((p) => p.employer && p.network);
+    const townTotal = henchLevels.reduce((sum, r) => sum + r.total, 0);
+    check("13: the posting's totalAvailable is the town's henchman total plus, per level, the network roll's excess", !!posting1 && posting1.totalAvailable === townTotal + excess, { totalAvailable: posting1?.totalAvailable, townTotal, excess });
+    check("13: the fee card's formula is the class-3 fee", m1.feeMatches[3] === true && m1.feeMatches[5] !== true, { feeMatches: m1.feeMatches, cardSeen: !!fee1 });
+    const sheetP = await run(player, P.sheetRows, { locationId: hall2.id, tab: "henchmen" });
+    const netIds = netCands.map((c) => c.id);
+    check("13: from a seat owning only a second character none of the network rows show", sheetP.opened && netIds.length > 0 && !sheetP.rows.some((r) => netIds.includes(r.id)), { rows: sheetP.rows.length, netIds: netIds.length, tabFound: sheetP.tabFound });
+    let netAvail = netCands.filter((c) => c.status === "available").map((c) => c.id);
+    if (!netAvail.length) {
+      note("no network find has arrived yet: the location's due-processing is run now on the GM seat", await run(gm, P.processNow, { locationId: hall2.id }));
+      const m1b = await run(gm, P.marketRead, { locationId: hall2.id, employerId: N.id, feeCardFlavor: fee1, feeClass: 3 });
+      netAvail = m1b.candidates.filter((c) => c.networkFor === "employer" && c.status === "available").map((c) => c.id);
+      note("network finds by status", m1b.candidates.filter((c) => c.networkFor === "employer").map((c) => c.status));
+    }
+    const rw = netAvail.length ? await run(player, P.recruitWarn, { locationId: hall2.id, candidateId: netAvail[0], employerId: S.id }) : { notes: [], skipped: true, influenceOpen: false, throwOpen: false };
+    check("13: openRecruitDialog for the second character warns that only the network's holder can hire, before any roll", rw.notes.some((n) => /Only the character whose mercantile network/.test(n.text)) && !rw.influenceOpen && !rw.throwOpen, rw);
+    note("closed (player)", await run(player, P.closeAll));
+    note("close posting", await run(gm, P.closePosting, { locationId: hall2.id, postingId: posting1?.id }));
+    await run(gm, P.postingOpen, { locationId: hall2.id, employerId: N.id });
+    const post2 = await run(gm, P.postingSubmit, { kind: "henchmanGeneral", network: true });
+    note("post 2", { notes: post2.notes });
+    for (const id of post2.chat ?? []) gm.track(id, "ChatMessage");
+    const m2 = await run(gm, P.marketRead, { locationId: hall2.id, employerId: N.id });
+    check("13: closing the posting and posting again adds no network roll and no candidate", m2.networkRolls.length === m1.networkRolls.length && m2.candidates.length === m1.candidates.length && m2.postings.length === m1.postings.length + 1, { networkRolls: [m1.networkRolls.length, m2.networkRolls.length], candidates: [m1.candidates.length, m2.candidates.length], postings: m2.postings.map((p) => [p.segment, p.status, p.network]) });
+    await run(gm, P.postingOpen, { locationId: hall2.id, employerId: N.id });
+    const post3 = await run(gm, P.postingSubmit, { kind: "mercenary", network: false });
+    note("post 3", { notes: post3.notes });
+    for (const id of post3.chat ?? []) gm.track(id, "ChatMessage");
+    const fee3 = (post3.cards ?? []).find((c) => /search fee/i.test(c.flavor))?.flavor ?? "";
+    const m3 = await run(gm, P.marketRead, { locationId: hall2.id, employerId: N.id, feeCardFlavor: fee3, feeClass: 5 });
+    const merc = m3.postings.find((p) => /^mercenary/.test(p.segment ?? ""));
+    check("13: a mercenary search with the box unticked rolls no network and pays the class-5 fee", !!merc && merc.network === false && m3.networkRolls.length === m2.networkRolls.length && m3.feeMatches[5] === true && m3.feeMatches[3] !== true, { merc, feeMatches: m3.feeMatches, networkRolls: [m2.networkRolls.length, m3.networkRolls.length] });
+    note("closed", await run(gm, P.closeAll));
+  }
+} catch (err) {
+  console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
+} finally {
+  section("teardown");
+  try { if (gm) note("closed windows", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }
+  try { if (gm) note("restored", await run(gm, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
+  try { if (gm) note("limit policy", await run(gm, P.limitPolicyRestore)); } catch (err) { console.error("limitPolicyRestore:", err?.message ?? err); }
+  try { if (seats.player) { note("closed windows (player)", await run(seats.player, P.closeAll)); note("restored (player)", await run(seats.player, P.restore)); } } catch (err) { console.error("restore player:", err?.message ?? err); }
+  try { if (gm && globalThis.__c1ImportedDoc) note("influence document removed", await run(gm, P.removeDoc, { id: "influence" })); } catch (err) { console.error("removeDoc:", err?.message ?? err); }
+  for (const [key, api] of Object.entries(seats)) {
+    try { note(`sweep (${key})`, await api.sweepTracked()); } catch (err) { console.error(`sweep ${key}:`, err?.message ?? err); }
+    try { await api.close(); } catch {}
+  }
+  section("summary");
+  for (const [label, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"}  ${label}`);
+  const passed = checks.filter(([, ok]) => ok).length;
+  console.log(`${passed}/${checks.length} checks passed`);
+  process.exitCode = passed === checks.length ? 0 : 1;
+}

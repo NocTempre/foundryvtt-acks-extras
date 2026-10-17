@@ -3,11 +3,11 @@
 A **formation** is the party as one thing: a marching order, one token on the
 map, one exploration clock, and party-wide checks that resolve every member.
 
-![](../releases/v4.0.0/formation-party-sheet.png)
+![](../releases/v11.4.0/formation-frame.png)
 
-*The party sheet: the exploration clock with its carry-over, the party's saves
-and rolls, the warnings it is under, the marching order with its role chips, and
-the light sources burning down.*
+*The party sheet in a dungeon: the mode and the rest bar in the title bar, the
+party's picture between the rails of saves, figures and quick tools, the
+warnings it is under, and the Dungeon tab's own actions at its head.*
 
 ## Build one
 
@@ -56,6 +56,11 @@ The tabs are named by the mode. The first is **Dungeon**, **Wilderness** or
 leaves the frame, and the sheet remembers that for you, party by party. Each
 tab scrolls on its own and keeps its place, and the whole window follows the
 type size setting.
+
+![](../releases/v11.4.0/formation-tabs-by-mode.png)
+
+*In a city: the City tab first, with Hunted here at its head, then Company,
+Kit, Sightings and the Judge's dashed tab.*
 
 A player's sheet is the same frame without your parts: no saves, no quick
 tools, the Key alone among the sheet tools, and no Judge tab. Hit points and
@@ -173,6 +178,18 @@ been given before. Players see the cards. Your seat also shows where each
 answer came from, and a card whose hex the brush has not painted offers
 **Paint this hex**, which opens the brush on that card's layer.
 
+![](../releases/v11.4.0/formation-country-cards.png)
+
+*The Country section on your seat: a ground your word overrides, with its
+chip and clear; a road given where the map says nothing, with its pen mark; a
+river read off the map; and a territory from the scene's default, offering
+Paint this hex.*
+
+![](../releases/v11.4.0/formation-country-unpainted.png)
+
+*After a drag from a painted hex into one nobody painted: the cards read the
+scene's own country, not the paint the party left behind.*
+
 On a journey the party's picture becomes a drawing of the hex the token stands
 in: the scene's own background under it, tinted by the ground painted there,
 the roads and rivers that cross it, the points of interest the party has found
@@ -180,6 +197,12 @@ the roads and rivers that cross it, the points of interest the party has found
 party's mark at its middle. A square grid draws the square; a map with no grid
 draws a square one grid unit across. The drawing is not a button: the picture
 itself is changed from the sheet tools.
+
+![](../releases/v11.4.0/formation-plate.png)
+
+*The sheet on a journey: the hex drawn in the picture frame, with the road
+and the river that cross it, the point the party has found and the one it has
+not; the Country cards beneath, each saying what answered it.*
 
 Your own word goes in **The Judge's hand**, on the Judge tab: one select for
 each of the six — ground, encounter table, territory, climate, road and
@@ -190,6 +213,11 @@ has nothing to say, yours or one the sheet held from before, wears a pen mark
 with a clear of its own. A ground you give takes the encounter table with it,
 unless you name a table too. A route the party already knows is yours to
 declare there, because nothing on the map draws one.
+
+![](../releases/v11.4.0/formation-judges-hand.png)
+
+*The Judge's hand: a ground and a road given, each with its clear, and under
+every select what the map reads there.*
 
 **Movement**, yours alone, holds **Moving by** — on foot, mounted, by vehicle,
 flying, or by vessel — which decides which of everything else the party
@@ -203,6 +231,16 @@ imported figure), and
 the hour's own word, the world clock's or yours. An hour given to travel adds
 an hour to the day's march. The Day section also takes two declarations of your
 own: how many **traps** the order managed today, and **No sleep tonight**.
+
+The sky's season is read from the world calendar where it can be: the
+**Calendar seasons** setting, in the module settings, lists the generator's
+seasons in your calendar's own order, for a calendar whose season names the
+module does not know; left blank, the names are matched. While the calendar
+answers, the Sky section's season select shows its season and is locked.
+
+![](../releases/v11.4.0/formation-calendar-seasons.png)
+
+*The Calendar seasons setting and its hint.*
 
 Under the sky's chips a list says what today's weather does: the penalty on a
 search, a survey, the navigation throw and a tracker's hours, on foraging for
@@ -248,6 +286,11 @@ Food and water are **pooled** — one member's rations feed the whole order —
 and dealt by a policy you choose in the module settings: evenly, so everyone
 goes equally short, or by triage, so as many as possible eat properly. The
 strip shows the days of food and water to the players too.
+
+![](../releases/v11.4.0/formation-camp-section.png)
+
+*The Camp section: the days of food and water, the hours in the weather with
+At a fire and Got wet, and the three declarations.*
 
 Only the suffering are listed. Someone who is hungry, thirsty, hypothermic or
 losing Constitution appears with what it has cost them; the well-fed do not,
@@ -297,6 +340,12 @@ crossing the same hex find the same things and a party that never comes back
 leaves them where they were. The section names the world-clock day the hex was
 stocked, so an old stock is plain to see. Nothing restocks a hex by itself:
 **Restock** replaces the stock with its finds and its survey, and asks first.
+
+![](../releases/v11.4.0/formation-hex-stock-age.png)
+
+*The Points of interest section: the hex, its count and the day it was
+stocked; each point with Found, Make it a place and Remove; and the search
+row beneath.*
 
 The **Points of interest** section of the Wilderness tab lists each point with
 its kind, whether this party has found it, and
@@ -358,12 +407,22 @@ believes it is crossing, with what your import says the order's Navigation and
 Pathfinding are worth; the card shows the throw, its target and the weather
 that weighed on it.
 
+![](../releases/v11.4.0/formation-navigation-card.png)
+
+*The throw's card, whispered to the Judge: the ground, the throw against its
+target, the verdict, and the episode it opened.*
+
 **Navigation, quietly**, on the Judge tab, says where the day stands: owed at
 the day's first step off the road, thrown today, or nothing owed while the
 party follows a road or a route. Beneath it are the last ten throws, newest
 first: the day, the hex, the throw against its target, and whether the party
 kept its way. **Throw now** makes the throw by hand, for one the march does not
 make for you, and counts as the day's.
+
+![](../releases/v11.4.0/formation-navigation-quietly.png)
+
+*Navigation, quietly: where the day stands, Throw now, and the last throws
+with their day, hex, throw against its target and verdict.*
 
 ### Getting lost
 
@@ -386,6 +445,12 @@ thrown for the marker's hex, by that hex's table and at its cadence, and it
 searches and surveys there (see *This hex*). What the players see is drawn
 where they believe they are.
 
+![](../releases/v11.4.0/formation-true-encounters.png)
+
+*A lost party's Country section on the Judge's seat: the cards read the
+believed hex, and the encounters line names the table of the hex they really
+stand in.*
+
 **Where they are**, on the Judge tab, shows both. The **True** plate is the
 marker's hex and the **Believed** plate the party token's; while they differ,
 the believed plate is dashed and gold, and a badge names the direction the
@@ -394,6 +459,11 @@ six directions, or toward a face rolled blind from the middle cell, and the
 players see nothing move: it is how the party comes to stand somewhere other
 than where it believes.
 
+![](../releases/v11.4.0/formation-where-they-are.png)
+
+*Where they are: the True and Believed plates, the badge naming where the
+truth lies, and the Shift the truth pad.*
+
 **What the party is shown**, on the same tab, decides what the players' sheet
 says of their position. **The believed hex**, the default, draws and reads the
 hex the party token stands in. **Unknown country** blanks it: the players'
@@ -401,6 +471,11 @@ picture is an empty frame, no hex is named, and the Country section says
 *Unknown country* and nothing more. Your own sheet shows the same under a gold
 line, and the section previews a player's sheet beside the choice. Encounters
 are thrown as before either way.
+
+![](../releases/v11.4.0/formation-shown-unknown.png)
+
+*What the party is shown, with Unknown country chosen, and the preview of a
+player's seat beside it.*
 
 Each later day's throw is still made, and none of them ends anything by
 itself: a success while they are astray offers **They realise they are lost**
@@ -411,7 +486,10 @@ thought. They do not learn where they actually went. Finding their way back to
 a known landmark is what puts the country they really crossed onto the map, in
 its right place.
 
-![](../releases/v8.1.0/formation-lost-aware.png)
+![](../releases/v11.4.0/formation-lost-aware.png)
+
+*The episode once they know it: the days since they strayed, the two ways
+out, and the field for where they actually are.*
 
 From then on the Judge's tab offers the two ways out. **They find the
 landmark** credits the ground they really crossed, and can step the party token
@@ -461,7 +539,13 @@ is the way out, at the price of each group answering for its own encounters.
 
 Somewhere the party is **holed up** is the one place its own movement cannot
 report, so a stay is counted off the calendar: advance world time however you
-like and each whole day is thrown for once.
+like and each whole day is thrown for once. A day that does not pass quietly
+draws what found the party through the lists a street turn reads (the hunted
+list, the quarter's, the zone's, the map's city list, then the world's table),
+and the stay card lists it under that day's own *Day* row. Nothing is marked on
+the map and the card offers no *Make it a place*: the party was indoors.
+
+![](../releases/v11.4.0/formation-stay-days.png)
 
 ### Streets, and quarters
 
@@ -752,9 +836,12 @@ penalty (JJ p. 238).
 ## Doors
 
 A door on the map opens its own window: what it is built of, how many spikes are
-in it, and the three things a party does to one that will not open.
+in it, and the three things a party does to one that will not open. The
+construction and the Judge's two marks, *Evil* and *Lock jammed*, are written
+to the door the moment they are set, for the Judge's record and for anything
+that reads the door's state; the marks change no figure in the window.
 
-![](../releases/v4.2.0/formation-door.png)
+![](../releases/v11.4.0/formation-door-marks.png)
 
 *Two spikes hammered in, the heave broken into its parts — Strength against the
 spikes, and the number it needs — and what battering it down with an axe would
@@ -765,9 +852,14 @@ cost in turns.*
 - **Bash it open** is the throw, itemized before you take it: who is heaving,
   whether a second pair of shoulders is on it, a crowbar, how far from man-sized
   the heaver is, and the Judge's own modifier. The number it needs is shown, and
-  so is every part of what you have.
+  so is every part of what you have. A botched heave rebounds on the heaver:
+  the card carries the damage line, reported and not applied, as a trap's card
+  does.
 - **Batter it down** is the slow certainty instead — the window says how many
-  turns an axe wants, and you spend them.
+  turns an axe wants for that construction, and a construction an axe cannot
+  beat says so where the button would be. The turns are charged to the clock
+  of the formation holding the basher, and the notice names them; a basher no
+  formation holds spends nothing.
 
 ## Dealing out experience
 

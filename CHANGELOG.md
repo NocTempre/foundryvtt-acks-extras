@@ -210,6 +210,19 @@
 
 ### Fixed
 
+- **Roll weather files its sky under the day.** The on-demand roll keyed its
+  sky on day 0, so the next day's fronts never found it and a later press in
+  the same climate and season could hand back the first day's sky. It now
+  keys on the calendar day, or on the End-day count where the clock keeps no
+  calendar, as the day change does.
+- **The search's answers stay chosen.** *Something here* and *Looking for* in
+  the Points of interest section fell back to their defaults on the re-render
+  a change makes, so an hour's search could never run with *yes*. Both are
+  now kept on the party and drawn from it; an answer the hex no longer offers
+  falls back.
+- **Field boxes follow the type size.** A select's box was sized by the
+  browser's root type, so a raised type size clipped the text inside it.
+  Every field box in the module's windows now scales with the setting.
 - **The door dialog's construction choice takes effect.** The construction
   was shown and never written, so every door read as the standard one. The
   choice is now written to the door, the axe figure follows it, and a

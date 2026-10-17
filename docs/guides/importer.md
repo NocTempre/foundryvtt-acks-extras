@@ -301,7 +301,14 @@ The rules tables arrive with **Import Everything**. To read them again on
 their own, pick **Rules tables** in **Reimport One Shelf**: they are re-read in
 place, and nothing is deleted. They materialize as Foundry documents in your
 world. In ACKS Extras, those register into the shared tables registry and the
-henchmen and location features read them.
+henchmen and location features read them. The pick is every table at once, or
+one table's own entry beneath it, so the formation's figures or the travel
+tables can be read again on their own.
+
+![](../releases/v11.4.0/importer-rules-tables-formation.png)
+
+*Reimport One Shelf with the rules tables open: every table, or one table's
+own entry — here the formation figures alone.*
 
 **(Re)import Individual Entries** lists every rules-table document under
 *Rules tables*, ticked when your world holds its import, with the printed pages

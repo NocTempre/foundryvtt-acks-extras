@@ -3,6 +3,10 @@
 Format per docs-doctrine: fixtures → steps → observable → teardown. Server and
 driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
+Of this recipe, `tools/live/markets.mjs` drives the market ledger's one length
+through the monthly row (`node tools/live/run.mjs markets`;
+`tools/live/README.md` is the contract); the rest is walked by hand.
+
 ## Fixtures
 
 - A disposable `acks-extras.location` actor.

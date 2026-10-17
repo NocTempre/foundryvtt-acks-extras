@@ -850,3 +850,20 @@ release existed so a player could leave coin at a place mid-journey.
 character and the place, where the character stands and what it has pinned
 decide nothing. Seen live: the same pair answered `notYours` once that Judge
 was taken off the place.
+
+## One length for the market ledger, and a hire is stamped to its employer (2026-10-15)
+
+The market ledger is written by markets (capped at 300 rows) and by henchmen
+(capped at 100), and henchmen appends a month-roll row to every market each
+month, so every market's ledger was cut to 100 rows at least monthly,
+whatever markets kept. The ledger is now also the evidence a known market is
+read from (markets DECISIONS, "A market is known from an earlier day").
+
+Ruled: one cap, `MARKET_LOG_CAP`, owned here beside the field, and every
+writer appends through `appendMarketLog`. Henchmen's search postings, hires,
+reserved hires and directed replacements carry the employer's `actorUuid`; a
+month roll and a GM placement stay unstamped, since they are nobody's
+dealing.
+
+Rejected: two caps (the shorter one decides for both); a separate visits
+store (the ledger and the venture rows already hold every dated sign).

@@ -1088,20 +1088,26 @@ function buildCampView(formation, t, milesPerDay = 0, stock = null) {
 
   // The Judge's two search answers. The stock is offered only where the hex
   // holds one, and is then the default; the point list is the unfound ones.
+  // The record's word is selected where the hex still offers it, so the
+  // choice survives the re-render its own submit makes; one it no longer
+  // offers (the stock of an unstocked hex, a point since found) falls back.
   const presentOptions = [];
   const targetOptions = [];
   if (stock) {
-    const answer = stock.stocked ? "stock" : "no";
+    const said = t.camp.present;
+    const answer = said && (said !== "stock" || stock.stocked) ? said : (stock.stocked ? "stock" : "no");
     for (const value of ["stock", "yes", "no"]) {
       if (value === "stock" && !stock.stocked) continue;
       presentOptions.push({
         value, label: game.i18n.localize(`ACKS-FORMATION.searchRun.presentOptions.${value}`), selected: value === answer,
       });
     }
+    const unfound = stock.points.filter((p) => !p.found);
+    const wanted = ["anything", "elsewhere", ...unfound.map((p) => p.id)].includes(t.camp.target) ? t.camp.target : "anything";
     targetOptions.push(
-      { value: "anything", label: game.i18n.localize("ACKS-FORMATION.searchRun.lookingAnything"), selected: true },
-      ...stock.points.filter((p) => !p.found).map((p) => ({ value: p.id, label: p.name || p.kindLabel, selected: false })),
-      { value: "elsewhere", label: game.i18n.localize("ACKS-FORMATION.searchRun.lookingElsewhere"), selected: false },
+      { value: "anything", label: game.i18n.localize("ACKS-FORMATION.searchRun.lookingAnything"), selected: wanted === "anything" },
+      ...unfound.map((p) => ({ value: p.id, label: p.name || p.kindLabel, selected: wanted === p.id })),
+      { value: "elsewhere", label: game.i18n.localize("ACKS-FORMATION.searchRun.lookingElsewhere"), selected: wanted === "elsewhere" },
     );
   }
 

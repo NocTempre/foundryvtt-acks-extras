@@ -3,6 +3,11 @@
 Format per docs-doctrine: fixtures → steps → observable → teardown. Server and
 driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
+The walk that drives this recipe is `tools/live/henchmen.mjs`, in two stages
+(`STAGE=1` and `STAGE=2` before `node tools/live/run.mjs henchmen`;
+`tools/live/README.md` is the contract). Its header names the steps it covers;
+a step it does not name is walked by hand.
+
 ## Fixtures
 
 - A disposable `character` actor as the employer.

@@ -10,6 +10,10 @@ needs, the steps that exercise it, and the observable that proves each one.
 geometry with no Foundry at all. They gate the arithmetic; only a live run
 gates that anything reaches a document.
 
+Of these recipes, `tools/live/formation-day.mjs` drives Reimport One Shelf's
+rules tables (`node tools/live/run.mjs formation-day`; `tools/live/README.md`
+is the contract); the rest is walked by hand.
+
 ## The Books window
 
 ### Fixtures
@@ -710,8 +714,10 @@ what refused.
 **Reimport One Shelf (GM)** — `acksExtras.importer.cookbookReimportShelf()`.
 
 1. Open it. *Observable:* a **Rules tables** group below the shelves and books,
-   holding one option that says it re-reads in place and deletes nothing.
-2. Choose it, with the rulebook open on this seat. *Observable:* no removal
+   holding an **Every rules table** option and then one **`<key>` only**
+   option per rules table, each saying it re-reads in place and deletes
+   nothing.
+2. Choose **Every rules table**, with the rulebook open on this seat. *Observable:* no removal
    confirm; the progress bar reads the rules tables from the books; afterwards
    `acksLib.tables.getDoc("weather")` answers and no shelf lost a document.
    On a shared world the re-read rewrites a store every session reads; the

@@ -903,7 +903,11 @@ reads whether an unfound point for this formation stands in the true hex's
 record, or `yes` / `no`, the Judge's own word, under which the stock is
 neither read nor written. **Looking for** narrows the throw to one unfound
 point — the specific-place penalty applies — or to `elsewhere`, a search for
-what is not there. A find with one candidate is marked found for this
+what is not there. Both answers are kept on the record (`camp.present`,
+`camp.target`) by the sheet's submit and selected from it on render, so a
+choice survives the re-render its own change makes; one the hex no longer
+offers — the stock of an unstocked hex, a point since found — falls back to
+the default. A find with one candidate is marked found for this
 formation; with several, the whispered card lists them and the Judge marks
 one. Every throw that beats the target credits a search to this formation,
 empty hexes included, and the credit feeds the surveyor's target. From the air

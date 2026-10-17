@@ -15,3 +15,6 @@
 4. **Gallery row.** The feature area is new, so `docs/GALLERY.md` gains a row
    at the first release that ships a screenshot — the sync fails on a row
    whose PNG does not exist yet, so the row and the shot land together.
+5. **The wall sheet's road row at its default width.** At the sheet's 480 px
+   the surface select cuts its *Not a road* label short; the row's three
+   controls want a width each, or a second line.

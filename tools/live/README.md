@@ -1,0 +1,45 @@
+# Live walks
+
+The live half of the release gate, as code. `tools/release-preflight.mjs` names
+the `docs/<feature>/TESTING.md` recipes for every surface changed since the
+last tag; a walk here drives a recipe's sections against the running test world
+and prints PASS or FAIL for each observable the recipe names. The rules a walk
+obeys are `.claude/rules/live-testing.md`; this file is only what a walk is and
+how one is run. Nothing under `tools/` ships, and the IP scan reads it like the
+rest of the directory.
+
+## Running
+
+The machine's values arrive as environment variables, from its
+`TEST_ENVIRONMENT.md` (LOCAL-ONLY); `_env.mjs` lists them. Then:
+
+```bash
+node tools/live/run.mjs
+```
+
+runs every walk, and `node tools/live/run.mjs markets henchmen` runs the named
+ones in that order. A walk takes both seats, so one runs at a time, and a peer
+session's run is waited for: the runner refuses to start while a browser
+already answers on either seat's port, because a second driver would attach to
+the first walk's browser and drive the same world beside it. The runner writes
+each walk's whole output to a
+log under `aia-tmp/live/` (ignored) and shows only the headings and the verdict
+lines on the console: a log can hold figures the world imported from a book, so
+it is read and never quoted. `SHOTS=1` makes a walk take its release plates into
+`docs/releases/v<version>/`; a walk with stages takes `STAGE`, and a walk
+that takes a plan reads `WALK_PLAN` (a JSON file; the walk's header gives its
+shape).
+
+## A walk
+
+- imports the driver from `./_driver.mjs` and its seats and paths from
+  `./_env.mjs`, and names no path, port, world, user or book of its own;
+- creates what it needs and sweeps it by id (`api.create`, `api.track`,
+  `api.sweepTracked`), and restores in a `finally` any setting it flipped;
+- invents its fixtures, compares an imported figure in page and prints a
+  boolean, and never prints a book's words;
+- prints `== <section> ==` per recipe section, `PASS  <observable>  <detail>`
+  or `FAIL  <observable>  <detail>` per check and `WALK ERROR:` on a throw,
+  and exits non-zero on any FAIL;
+- lists in its header the recipe sections it covers, and the recipe points
+  back at it by name.

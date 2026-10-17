@@ -163,10 +163,20 @@ painting over replaces it; a hex can be a forest, borderlands and a climate at
 once. The eraser clears the hex on the pill you are on and leaves the other two
 alone. Territory and climate are drawn for you alone.
 
+![](../releases/v11.4.0/battlemap-country-brush.png)
+
+*The Country brush on its Territory pill: one swatch per territory, and the
+eraser.*
+
 A hex nobody painted reads as the scene's own country. The Battlemap window
 has **Ground here**, **Territory here** and **Climate here** for it — for a map
 that is one country throughout, or that is not a hex map at all — and each is
 saved the moment you pick it.
+
+![](../releases/v11.4.0/battlemap-scene-country.png)
+
+*The Battlemap window with the scene's own ground, territory and climate set
+under the party system.*
 
 A journeying party reads all of it: the hex it stands in answers the ground its
 speed, road and foraging are priced on, the table its encounters draw from,
@@ -191,6 +201,11 @@ it**, and the line's name. A river starts out one a boat can follow; a
 coastline does not. While you are on the Walls or Battlemap controls the lines
 are drawn over the map for you — a river solid, a line no boat can follow
 dashed — and players see none of it.
+
+![](../releases/v11.4.0/battlemap-water-lines.png)
+
+*A wall drawn with the River preset: every restriction None, the road row
+empty, and the water row naming a river a boat can follow.*
 
 A party standing on a river a boat can follow is following it, and the party
 sheet says so without being told. A party travelling by vessel over any water
