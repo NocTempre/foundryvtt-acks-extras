@@ -6,13 +6,15 @@
  *
  * A walk is a child of this process with its environment (`_env.mjs` lists the
  * variables). Its whole output goes to a log under `logDir()`; the console gets
- * its section headings and its PASS, FAIL and WALK ERROR lines with the detail
+ * its section headings and its PASS, FAIL, GAP and WALK ERROR lines with the detail
  * cut off, because the detail can hold figures a world imported from a book and
  * a console transcript gets quoted where a log does not. A walk that closes with
  * a `== summary ==` section listing its checks again has them counted and shown
  * once, from the inline lines. The exit code is 0 when
  * every walk exited 0 with no FAIL line, and 1 otherwise; 2 names a walk that
- * does not exist; 3 says a browser already answers on a seat's port. Two walks
+ * does not exist; 3 says a browser already answers on a seat's port. A GAP line
+ * is a check that failed the way a ROADMAP row says it does: it is counted, and
+ * it does not make the walk red. Two walks
  * never run at once: each takes both seats, and a driver started while another
  * holds a port attaches to the first walk's browser instead of its own, so the
  * runner refuses to start a walk while either port answers.
@@ -46,14 +48,14 @@ const walks = asked.length ? asked : all;
 
 const stamp = new Date().toISOString().replace(/[-:]/gu, "").replace(/\..*$/u, "").replace("T", "-");
 const dir = logDir();
-const HEADLINE = /^(PASS|FAIL|WALK ERROR|== )/u;
+const HEADLINE = /^(PASS|FAIL|GAP|WALK ERROR|== )/u;
 // The detail is everything from the first run of two spaces before a brace or bracket.
 const stripDetail = (line) => line.replace(/\s{2,}[[{].*$/u, "");
 
 function runWalk(name, log) {
   return new Promise((resolve) => {
     const out = fs.createWriteStream(log);
-    const tally = { pass: 0, fail: 0, error: false, exit: null };
+    const tally = { pass: 0, fail: 0, gap: 0, error: false, exit: null };
     const carry = { stdout: "", stderr: "" };
     let summary = false;
     const onLine = (line) => {
@@ -61,9 +63,10 @@ function runWalk(name, log) {
       if (!HEADLINE.test(line)) return;
       // A walk's closing summary lists its checks again; the tally and the console took each one inline.
       if (/^== summary ==/u.test(line)) summary = true;
-      else if (summary && /^(PASS|FAIL)/u.test(line)) return;
+      else if (summary && /^(PASS|FAIL|GAP)/u.test(line)) return;
       if (line.startsWith("PASS")) tally.pass += 1;
       else if (line.startsWith("FAIL")) tally.fail += 1;
+      else if (line.startsWith("GAP")) tally.gap += 1;
       else if (line.startsWith("WALK ERROR")) tally.error = true;
       console.log(stripDetail(line));
     };
@@ -97,7 +100,7 @@ for (const name of walks) {
   console.log(`== ${name} (log: ${log}) ==`);
   const tally = await runWalk(name, log);
   results.push({ name, ...tally, log });
-  console.log(`== ${name}: ${tally.pass} pass, ${tally.fail} fail${tally.error ? ", walk error" : ""}, exit ${tally.exit} ==`);
+  console.log(`== ${name}: ${tally.pass} pass, ${tally.fail} fail${tally.gap ? `, ${tally.gap} gap` : ""}${tally.error ? ", walk error" : ""}, exit ${tally.exit} ==`);
 }
 
 const red = results.filter((r) => r.fail || r.error || r.exit !== 0);

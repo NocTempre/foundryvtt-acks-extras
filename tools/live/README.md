@@ -41,5 +41,10 @@ shape).
 - prints `== <section> ==` per recipe section, `PASS  <observable>  <detail>`
   or `FAIL  <observable>  <detail>` per check and `WALK ERROR:` on a throw,
   and exits non-zero on any FAIL;
+- prints `GAP   <observable> (ROADMAP: <row>)  <detail>` instead of FAIL where
+  a check fails showing the signature of a gap its feature's `ROADMAP.md` row
+  names. The runner counts a GAP and does not fail on it. A failure without
+  that signature is still a FAIL, and once the row is built the check passes
+  and the GAP comes out with it;
 - lists in its header the recipe sections it covers, and the recipe points
   back at it by name.

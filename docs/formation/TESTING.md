@@ -2258,7 +2258,9 @@ never set it back.
 
 1. Advance a minute from the GM seat so each formation is stamped.
    *Observable:* `settledDay` equals the calendar day on every formation,
-   the footing's `runs` and the cache have not moved.
+   the footing's `runs` and the cache have not moved. Read the footing
+   through `travelOf`: a formation with none stored reads the fresh footing,
+   and its first stamp writes it.
 2. `game.time.advance(<one calendar day in seconds>)`. *Observable:* both
    journeying formations hold an identical `travel.weather.rolls`, each
    footing's `runs` moved by one for the finished day's bands, `settledDay` is
@@ -2403,8 +2405,11 @@ RollTable for Tweaks to pick. Read each seat's
    viewport is narrower), the cell `32 × base/14` (32, then 41.1), the bar
    `26 × base/14` (26, then 33.4), k 1 and 1.2857. At 18 the band sits inside
    its header (its bottom above the header's), every tab scrolls at its own
-   part root and no other element gains an overflow it lacked at 14, and a
-   tab keeps its scroll across a field change (shorten the window first,
+   part root while it is the active one (an inactive panel is not a
+   scroller, so make each active to read it) and no other element gains an
+   overflow it lacked at 14, and a
+   tab keeps its scroll across a field change (ROADMAP, "The Wilderness
+   tab's scroll across a field change", for where it does not; shorten the window first,
    `sheet.setPosition({height: 520})`: at a tall viewport the frame grows to
    fit its content and no part scrolls; then scroll the Wilderness tab down,
    change a select, read `scrollTop` again). In that short window the window
