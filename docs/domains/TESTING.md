@@ -118,6 +118,9 @@ Every one disposable, tracked by id as it is made.
     body scrolls to its last control and the tabs stay in view. Raise the
     type-size setting and open a fresh copy of the sheet. *Observable:* the
     body and the header both take the new size.
+13. **The official sheet's domain page.** Walked with the official sheet,
+    not by `tools/live/domains.mjs`: `docs/character-sheet/TESTING.md`, "The
+    official sheet (PDF)", steps 3–5a, 11 and 13.
 
 ## Teardown
 

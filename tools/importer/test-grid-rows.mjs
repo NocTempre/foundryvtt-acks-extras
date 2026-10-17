@@ -1,11 +1,13 @@
 /**
  * `gridRows` bounds and wrapped cells on invented page runs: optional specs,
- * `stopAt`, a y-bounded column, and `wrapRows`. No page is read; the runs
- * are laid out the way the printed tables set them (a label column, result
- * text beside it, some results over two lines with the label on either).
+ * `stopAt`, a y-bounded column, `wrapRows`, and an unlabelled header row with
+ * its own cell pattern. No page is read; the runs are laid out the way the
+ * printed tables set them (a label column, result text beside it, some
+ * results over two lines with the label on either). Also the band, rate and
+ * list cell patterns, on invented cells.
  */
 import assert from "node:assert";
-import { extractTable } from "../../scripts/importer/table-extract.mjs";
+import { applyCellPattern, extractTable } from "../../scripts/importer/table-extract.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -68,5 +70,41 @@ check("a label set between its lines takes both, top to bottom", out.b2.name ===
 check("a line past the last row's tolerance is not taken", out.b3.name === "qq last.");
 out = extractTable(wrapped, recipe({ startAfter: "(1d4)" }));
 check("without wrapRows a continuation is dropped", out.b1.name === "qq first half");
+
+/* --- an unlabelled header row, and a row's own cell pattern ------------------ */
+// A header of column scales printed with nothing under the label column,
+// then body rows of whole numbers.
+const scaled = [
+  run("qq kind", 10, 80), run("2.5-qq span", 50, 92), run("9-qq span", 100, 92),
+  run("qq north", 10, 104), run("7,100qq", 50, 104), run("44,000qq", 100, 104),
+  run("qq south", 10, 116), run("8,200qq", 50, 116), run("51,000qq", 100, 116),
+];
+const scales = {
+  startAfter: "qq kind",
+  cellPattern: "int",
+  cellColumns: [{ key: "c1", x: 50, row: true }, { key: "c2", x: 100, row: true }],
+  rows: [{ key: "span", unlabelled: true, cellPattern: "num" }, { key: "north", labelRe: "^qq north" }, { key: "south", labelRe: "^qq south" }],
+};
+out = extractTable(scaled, recipe(scales));
+check("an unlabelled spec claims the header row with its own pattern", out.span.c1 === 2.5 && out.span.c2 === 9);
+check("the body under it reads the recipe's pattern", out.north.c1 === 7100 && out.south.c2 === 51000);
+out = extractTable(scaled.slice(3), recipe({ ...scales, startAfter: undefined }));
+check("an unlabelled spec never claims a labelled row", out.span.__missing === true && out.north.c1 === 7100);
+
+/* --- the band, rate and list cell patterns ----------------------------------- */
+const band = (t) => JSON.stringify(applyCellPattern(t, "countBand"));
+check("a comma band reads both ends", band("2,300 – 7,700") === '{"min":2300,"max":7700}');
+check("a hyphen band reads the same", band("12-19") === '{"min":12,"max":19}');
+check("or more opens a band above", band("45 or more") === '{"min":45,"max":null}' && band("31+") === '{"min":31,"max":null}');
+check("or fewer opens a band below", band("3 or fewer") === '{"min":null,"max":3}');
+check("a lone figure is a band of one", band("6") === '{"min":6,"max":6}');
+check("K and M scale a figure, and a + after the top opens it", band("4K – 9.5K") === '{"min":4000,"max":9500}' && band("1.5M – 3M+") === '{"min":1500000,"max":null}');
+check("a word is no band", applyCellPattern("several", "countBand") === null);
+const rate = (t) => JSON.stringify(applyCellPattern(t, "gpRate"));
+check("a ranged rate reads both ends and its unit", rate("7 – 11gp / barrel") === '{"min":7,"max":11,"per":"barrel"}');
+check("one rate is both ends, silver read as gp", rate("6sp/ cart") === '{"min":0.6,"max":0.6,"per":"cart"}');
+check("a word for a rate is null", applyCellPattern("Ask", "gpRate") === null);
+check("a signed list reads each figure", JSON.stringify(applyCellPattern("+2/+4", "signedList")) === "[2,4]" && JSON.stringify(applyCellPattern("−5", "signedList")) === "[-5]");
+check("a list with a word in it is no list", applyCellPattern("+2/some", "signedList") === null);
 
 console.log(`test-grid-rows: all ${pass} checks passed`);

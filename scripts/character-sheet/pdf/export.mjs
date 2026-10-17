@@ -1,18 +1,21 @@
-/* global game, foundry */
+/* global game, foundry, fromUuidSync */
 /**
  * A character written into the Judge's own blank copy of the official form.
  *
  * Every box the character has a field for is read off the prepared actor, so
  * the sheet shows what is in force — Active Effects included — and not the
- * stored base. A box the character keeps no field for (the domain page, the
- * tick grids, birthplace, a weapon's initiative bonus) comes back from the
- * last import's record, so a sheet that went in comes out holding what it
- * held; so do the names it listed that the world could not answer. A table
- * with more rows than the form prints is cut, and the export names what was
- * left off.
+ * stored base. A box the character keeps no field for (the tick grids,
+ * birthplace, a weapon's initiative bonus) comes back from the last import's
+ * record, so a sheet that went in comes out holding what it held; so do the
+ * names it listed that the world could not answer. The domain page is the
+ * character's domain where the Judge exports and one answers
+ * (`sheetDomain`), and the record's otherwise. A table with more rows than
+ * the form prints is cut, and the export names what was left off.
  */
 import { MODULE_ID } from "../../lib/constants.mjs";
 import { ITEM_TYPE, slug } from "../../lib/vocab.mjs";
+import { figure, normalizeDomain } from "../../domains/domain-logic.mjs";
+import { allDomains, domainsRuledBy, familiesOf, isDomain, ledgerFor, vassalsOf } from "../../domains/domains.mjs";
 import { cookbookId } from "../../lib/library.mjs";
 import { isAdventuring } from "../../classes/grants.mjs";
 import { rollsOf, throwText } from "../../abilities/ability-rolls.mjs";
@@ -26,6 +29,7 @@ import { signedText } from "./parse.mjs";
 import { ADVENTURING_KEYS, COIN_KEYS, GEAR_PLACES, MOVE_KEYS, SAVE_BOOK_KEYS, SCORE_KEYS, SHEET_ROWS, buildPlan } from "./plan.mjs";
 import { coinsHeld, nameSlug } from "./match.mjs";
 import { FORM_KEYS, fillForm, readForm } from "./form.mjs";
+import { domainPageValues } from "./domain-page.mjs";
 
 const finite = (n) => n !== null && n !== undefined && n !== "" && Number.isFinite(Number(n));
 const numText = (n) => (finite(n) ? String(Number(n)) : "");
@@ -141,6 +145,44 @@ export function recordedFields(actor) {
   return foundry.utils.flattenObject(actor.getFlag(MODULE_ID, RECORD_FLAG)?.fields ?? {});
 }
 
+/** The document a uuid names, or null; never throws on a uuid into an unloaded compendium. */
+function docOf(uuid) {
+  try {
+    return uuid ? (fromUuidSync(uuid) ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The domain a character's domain page answers to: the one the last import
+ * wrote, else the one the character rules under the page's name, else a
+ * domain of that name nobody rules, else — for a page naming none — the only
+ * domain the character rules. Null where none answers.
+ * @param {Actor|null} actor
+ * @param {{name?: string}} [page] the page's domain name
+ */
+export function sheetDomain(actor, { name = "" } = {}) {
+  const written = docOf(actor?.getFlag?.(MODULE_ID, RECORD_FLAG)?.domain?.uuid);
+  if (isDomain(written)) return written;
+  const ruled = actor ? domainsRuledBy(actor) : [];
+  if (name) return ruled.find((d) => slug(d.name) === slug(name)) ?? allDomains().find((d) => !d.system.rulerUuid && slug(d.name) === slug(name)) ?? null;
+  return ruled.length === 1 ? ruled[0] : null;
+}
+
+/** The domain page's boxes for `domain`, read off its record and the world's sums over it. */
+function domainValues(actor, domain, record) {
+  const rulerOf = (d) => d.system.rulerName || docOf(d.system.rulerUuid)?.name || "";
+  return domainPageValues(normalizeDomain(domain.toObject().system), {
+    name: domain.name,
+    rulerName: domain.system.rulerUuid === actor.uuid ? actor.name : rulerOf(domain),
+    families: familiesOf(domain),
+    ledger: ledgerFor(domain),
+    vassalDomains: vassalsOf(domain).map((d) => ({ name: d.name, rulerName: rulerOf(d), tributeGp: figure(d.system.tributeGp) })),
+    recorded: record,
+  });
+}
+
 /** The proficiency box an ability entry of the plan was read from, by its kind. */
 const BOX_OF_KIND = Object.freeze({ class: "classProf", general: "generalProf", feature: "features" });
 
@@ -188,9 +230,18 @@ export function sheetValues(actor) {
     if (value === undefined || value === null || value === "") return;
     if (FORM_KEYS[key]) values[key] = value;
   };
+  // The domain is the Judge's record; a player's export keeps the page the
+  // last import read.
+  const domain = game.user?.isGM ? sheetDomain(actor, { name: record["domain.name"] }) : null;
   // What only the record holds: the boxes the character keeps no field for.
   for (const [key, value] of Object.entries(record)) {
+    if (domain && key.startsWith("domain.")) continue;
     if (/^(domain|tick|magic|formula)\./.test(key) || ["birthplace", "size", "gender", "gems", "classProfGained", "hitDie"].includes(key)) set(key, value);
+  }
+  if (domain) {
+    const page = domainValues(actor, domain, record);
+    for (const [key, value] of Object.entries(page.values)) set(key, value);
+    overflow.push(...page.overflow);
   }
 
   const details = sys.details ?? {};

@@ -39,7 +39,11 @@ import { LANG, PDF_RECORD_FLAG as RECORD_FLAG } from "../constants.mjs";
 import { saveLabel } from "../snapshot.mjs";
 import { filledValues } from "./form.mjs";
 import { diceText, numbers } from "./parse.mjs";
-import { weaponThrow } from "./export.mjs";
+import { sheetDomain, weaponThrow } from "./export.mjs";
+import { domainChecks, domainPagePlan, domainUpdate } from "./domain-page.mjs";
+import { DOMAIN_TYPE } from "../../domains/constants.mjs";
+import { normalizeDomain } from "../../domains/domain-logic.mjs";
+import { familiesOf, ledgerFor, placeFamilies, vassalsOf } from "../../domains/domains.mjs";
 import { ADVENTURING_KEYS, COIN_KEYS, MOVE_KEYS, SAVE_BOOK_KEYS, SCORE_KEYS, buildPlan } from "./plan.mjs";
 import { COIN_METALS, coinsHeld, isCoinOf, matchAbility, matchClass, matchHenchman, matchLanguage, matchSpell, ownedCopies, ownedNamed } from "./match.mjs";
 import { notesBlock, replaceNotesBlock } from "./notes.mjs";
@@ -80,9 +84,11 @@ export function fieldLabel(key) {
  * A `checks` row carries `keep: {path, value}` where the sheet's value may
  * still be written over the class's, by the reader's choice, and `effect`
  * where an Active Effect holds the value and writing it would double it.
+ * `domain` says where the domain page went: `{outcome, name, uuid}`, null for
+ * a sheet whose page is blank.
  */
 function newReport(actor) {
-  return { actor, created: false, written: [], checks: [], unmatched: [], notes: [], henchmen: [], granted: [] };
+  return { actor, created: false, written: [], checks: [], unmatched: [], notes: [], henchmen: [], granted: [], domain: null };
 }
 
 /* -------------------------------------------- */
@@ -529,6 +535,80 @@ async function landHenchmen(employer, henchmen, report, { createHenchmen = false
 }
 
 /* -------------------------------------------- */
+/*  The domain page                              */
+/* -------------------------------------------- */
+
+/** A domain page label: a line or a classification in the domain's words, any other box in this module's. */
+function domainLabel(key, data = {}) {
+  if (key.startsWith("line.") || key.startsWith("classification.")) return game.i18n.format(`ACKS-DOMAINS.${key}`, data);
+  return loc(`pdf.domain.${key}`, data);
+}
+
+/**
+ * Can this seat write the domain page into a domain? The domain is the
+ * Judge's record, and the sub-type must be registered, which takes a world
+ * relaunch after the module first adds it.
+ * @returns {"ok"|"judgeOnly"|"noType"}
+ */
+export function domainWritable() {
+  if (!game.user?.isGM) return "judgeOnly";
+  return game.documentTypes?.Actor?.includes(DOMAIN_TYPE) ? "ok" : "noType";
+}
+
+/**
+ * Write the domain page into the domain the character rules (`sheetDomain`),
+ * making one where none answers. What the page says that the domain keeps no
+ * field for goes to a notes block on the domain, replaced on the next import;
+ * what the domain works out for itself is checked. Where the page is not
+ * written, it stays in the character's notes and this returns null.
+ * @param {{uuid: string, notes: string}|null} previous the last import's domain, from the record
+ * @returns {Promise<{uuid: string, notes: string}|null>} the domain written, and the block in its notes
+ */
+async function landDomain(character, plan, report, { writeDomain, previous }) {
+  if (!Object.keys(plan.domain).length) return null;
+  const page = domainPagePlan(plan.domain);
+  const outcome = (key, doc = null) => {
+    report.domain = { outcome: key, name: doc?.name ?? page.name, uuid: doc?.uuid ?? "" };
+  };
+  const writable = domainWritable();
+  if (!writeDomain || writable !== "ok") {
+    outcome(writeDomain ? writable : "notes");
+    return null;
+  }
+  let domain = sheetDomain(character, { name: page.name });
+  let created = false;
+  if (!domain) {
+    domain = await Actor.create({ name: page.name || game.i18n.localize("ACKS-DOMAINS.sheet.unnamed"), type: DOMAIN_TYPE }, { renderSheet: false });
+    if (!domain) {
+      outcome("createFailed");
+      return null;
+    }
+    created = true;
+  }
+  const current = domain.toObject().system;
+  const { system, notes, unplaced } = domainUpdate(page, current, {
+    rulerUuid: character.uuid,
+    rulerName: character.name,
+    vassalNames: vassalsOf(domain).map((d) => d.name),
+    placeFamilies,
+    makeId: () => foundry.utils.randomID(),
+    label: domainLabel,
+  });
+  const block = notesBlock({ rows: notes });
+  system.notes = replaceNotesBlock(current.notes ?? "", previous?.uuid === domain.uuid ? previous.notes : "", block);
+  await domain.update(page.name && page.name !== domain.name ? { name: page.name, system } : { system });
+  const checks = domainChecks(page, {
+    record: normalizeDomain(domain.toObject().system),
+    families: familiesOf(domain),
+    ledger: ledgerFor(domain),
+    unplaced,
+  }, { label: domainLabel });
+  for (const c of checks) report.checks.push({ ...c, label: loc("pdf.domain.checkLabel", { domain: domain.name, field: c.label }) });
+  outcome(created ? "created" : "updated", domain);
+  return { uuid: domain.uuid, notes: block };
+}
+
+/* -------------------------------------------- */
 /*  The import                                   */
 /* -------------------------------------------- */
 
@@ -538,9 +618,10 @@ async function landHenchmen(employer, henchmen, report, { createHenchmen = false
  * @param {Actor|null} [options.actor] the character to update; null makes one (needs `ACTOR_CREATE`)
  * @param {Record<string, string|boolean>} options.values what the form holds (`readForm`)
  * @param {boolean} [options.createHenchmen] make and enroll henchmen the roster lacks
- * @returns {Promise<object>} the report: `{actor, created, written, checks, unmatched, notes, henchmen, granted}`
+ * @param {boolean} [options.writeDomain] write the domain page into a domain, where the seat may
+ * @returns {Promise<object>} the report: `{actor, created, written, checks, unmatched, notes, henchmen, granted, domain}`
  */
-export async function importSheet({ actor = null, values, createHenchmen = false } = {}) {
+export async function importSheet({ actor = null, values, createHenchmen = false, writeDomain = true } = {}) {
   await whenReady();
   const plan = buildPlan(values);
   let target = actor;
@@ -580,9 +661,11 @@ export async function importSheet({ actor = null, values, createHenchmen = false
   const unanswered = report.unmatched.filter((u) => u.kind !== "className").map(({ kind, name, box }) => (box ? { kind, name, box } : { kind, name }));
 
   await landHenchmen(target, plan.henchmen, report, { createHenchmen });
+  const record = target.getFlag(MODULE_ID, RECORD_FLAG) ?? {};
+  const landed = await landDomain(target, plan, report, { writeDomain, previous: record.domain ?? null });
   const rows = [...report.unmatched.map((u) => ({ label: loc(`pdf.unmatched.${u.kind}`), text: u.name })), ...unmodelledNotes(plan), ...report.notes];
-  const block = notesBlock({ rows, domain: plan.domain });
-  const previous = target.getFlag(MODULE_ID, RECORD_FLAG)?.notes ?? "";
+  const block = notesBlock({ rows, domain: landed ? {} : plan.domain });
+  const previous = record.notes ?? "";
   // The record is replaced whole, so a box this sheet leaves empty does not
   // keep the last sheet's value. An update expands dotted keys, so the boxes
   // are stored expanded and read back flat (`recordedFields`).
@@ -593,6 +676,9 @@ export async function importSheet({ actor = null, values, createHenchmen = false
       fields: foundry.utils.expandObject(filledValues(values)),
       unmatched: unanswered,
       notes: block,
+      // The domain the page went into, kept past an import that did not
+      // write one so the next that does replaces its block.
+      domain: landed ?? record.domain ?? null,
     }),
   });
   // What a character was handed is a record, in the place chargen and a class

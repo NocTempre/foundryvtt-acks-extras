@@ -66,7 +66,7 @@ const isText = (v) => typeof v === "string" && v.trim() !== "";
 const isNone = (t) => /^(?:-|—|–|n\/?a)$/i.test(String(t).trim());
 
 /** `take` micro-patterns whose value is one finite number. */
-const NUMERIC_TAKES = new Set(["int", "signedInt", "signed", "wordInt", "roman", "times", "pct", "sp", "gp"]);
+const NUMERIC_TAKES = new Set(["int", "signedInt", "signed", "wordInt", "roman", "times", "pct", "sp", "gp", "num", "fractionWord"]);
 
 /**
  * Rows of a `{rows:[…]}` extraction against the recipe's declared row list:
@@ -241,15 +241,15 @@ for (const id of [
 
 /** A dice expression `dice` and `diceFormula` return. */
 const DICE = /^\d+d\d+$/;
-/** A gp-per-family rate cell, or a word standing for a rate set elsewhere. */
-const isRateCell = (t) => isText(t) && (/\d[\d,]*\s*gp/i.test(t) || !/\d/.test(t));
-/** A band printed with thousands separators, closed at both ends. */
-const commaBand = (t) => {
-  const m = String(t ?? "").match(/^(\d[\d,]*)\s*[–-]\s*(\d[\d,]*)$/);
-  return m ? { min: Number(m[1].replace(/,/g, "")), max: Number(m[2].replace(/,/g, "")) } : null;
-};
-/** Fraction words a stronghold band's window opens with. */
-const FRACTION = /^(?:one\s+|a\s+)?(?:half|third|quarter|fourth|fifth)\b/;
+/** A `gpRate` cell: a positive range in gp per a named unit. */
+const isRate = (v) => isNum(v?.min) && isNum(v?.max) && v.min > 0 && v.max >= v.min && isText(v.per);
+/** A `countBand` closed at both ends, or open on the side the options name. */
+function isCountBand(b, { openAbove = false, openBelow = false } = {}) {
+  if (!b || typeof b !== "object") return false;
+  const lowOk = openBelow ? b.min === null : isNum(b.min) && b.min >= 0;
+  const highOk = openAbove ? b.max === null : isNum(b.max) && (!isNum(b.min) || b.max >= b.min);
+  return lowOk && highOk;
+}
 
 /** A keyed extraction (no `emit` container): every declared row present and not a placeholder. */
 function keyedRows(out, recipe, fail) {
@@ -290,16 +290,44 @@ function ascending(values, what, fail) {
   });
 }
 
-/** Every declared rate row is text that carries a gp figure or is a word alone. */
+/**
+ * Every declared rate row read: a rate, or null for a word in its cell. At
+ * least one row is a rate, and every rate is per the same unit — a column
+ * misbound to prose reads a null or a stray unit, never a full set of rates.
+ */
 function rateRows(out, recipe, fail) {
-  for (const spec of recipe.rows) if (!isRateCell(out?.[spec.key])) fail(`${spec.key}: neither a gp rate nor a word`);
+  const rates = [];
+  for (const spec of recipe.rows) {
+    const v = out?.[spec.key];
+    if (v === undefined) fail(`${spec.key}: absent`);
+    else if (v !== null && !isRate(v)) fail(`${spec.key}: neither a gp rate nor a word`);
+    else if (v) rates.push(v);
+  }
+  if (!rates.length) fail("rows: no row reads a rate");
+  if (new Set(rates.map((r) => r.per)).size > 1) fail("rows: the rates are per different units");
+}
+
+/**
+ * A ladder largest first: the top band open above, the bottom one open below,
+ * each band ending one below the floor of the band above it.
+ */
+function descendingLadder(rows, fail) {
+  rows.forEach((r, i) => {
+    const label = r.key ?? i + 1;
+    const top = i === 0;
+    const bottom = i === rows.length - 1;
+    if (!isCountBand(r, { openAbove: top, openBelow: bottom })) fail(`row ${label}: not a band${top ? " open above" : bottom ? " open below" : ""}`);
+    else if (!top && isNum(rows[i - 1].min) && r.max !== rows[i - 1].min - 1) fail(`row ${label}: band does not end below the one above`);
+  });
 }
 
 Object.assign(VERIFY, {
   "domain.strongholdMinimum": (out, recipe, fail) => {
     for (const { key, row } of keyedRows(out, recipe, fail)) {
       const cells = recipe.cellColumns.map((c) => row[c.key]);
-      if (!cells.every((c) => Number.isInteger(c) && c > 0)) fail(`row ${key}: a hex cell is not a positive whole number`);
+      // The header row is each column's hex across, in miles; the body rows are gp.
+      const whole = key !== "hexMiles";
+      if (!cells.every((c) => isNum(c) && c > 0 && (!whole || Number.isInteger(c)))) fail(`row ${key}: a hex cell is not a positive ${whole ? "whole " : ""}number`);
       else ascending(cells, `row ${key} hex`, fail);
     }
   },
@@ -307,7 +335,7 @@ Object.assign(VERIFY, {
     blockKeys(out, recipe, fail);
     for (const id of ["landValue", "investment"]) if (out?.[id]?.die != null && !DICE.test(out[id].die)) fail(`block ${id}: die is not a dice expression`);
     const die = out?.limits?.die;
-    if (die != null && !/^\d+d\d+!?$/.test(die)) fail("block limits: die window is not a dice expression with an optional exploding mark");
+    if (die != null && !/^\d+d\d+x?$/.test(die)) fail("block limits: die is not a roll formula");
     for (const [id, block] of Object.entries(out ?? {})) {
       for (const [k, v] of Object.entries(block ?? {})) if (isNum(v) && !(v > 0)) fail(`block ${id}: ${k} is not above zero`);
     }
@@ -325,9 +353,13 @@ Object.assign(VERIFY, {
     const s = out?.stronghold ?? {};
     for (const n of [1, 2, 3]) {
       if (isNum(s[`band${n}`]) && !(s[`band${n}`] < 0)) fail(`block stronghold: band${n} is not below zero`);
-      if (s[`band${n}Fraction`] !== undefined && !FRACTION.test(s[`band${n}Fraction`])) fail(`block stronghold: band${n}Fraction opens with no fraction word`);
+      const f = s[`band${n}Fraction`];
+      if (f !== undefined && !(isNum(f) && f > 0 && f < 1)) fail(`block stronghold: band${n}Fraction is not a share between none and all`);
     }
     ascending([s.band3, s.band2, s.band1], "block stronghold band (worst first)", fail);
+    if ([1, 2, 3].every((n) => isNum(s[`band${n}Fraction`])) && !(s.band1Fraction > s.band2Fraction && s.band2Fraction >= s.band3Fraction)) {
+      fail("block stronghold: the fractions do not fall as the band worsens");
+    }
     for (const k of ["borderlandsTroops", "outlandsTroops1", "outlandsTroops2"]) {
       if (isNum(s[k]) && !(s[k] > 0)) fail(`block stronghold: ${k} is not above zero`);
       if (isNum(s[`${k}Gp`]) && !(s[`${k}Gp`] > 0)) fail(`block stronghold: ${k}Gp is not above zero`);
@@ -336,39 +368,45 @@ Object.assign(VERIFY, {
     if (isNum(o.perMonth) && isNum(o.max) && !(o.max <= o.perMonth && o.perMonth < 0)) fail("block occupation: the cap is not at or below a monthly penalty below zero");
   },
   "domain.magistrateShare": (out, recipe, fail) => {
-    const m = String(out?.share ?? "").match(/^(\d+(?:\.\d+)?)\s*%/);
-    if (!m) fail("share: window opens with no percentage");
-    else if (!(Number(m[1]) > 0 && Number(m[1]) < 100)) fail("share: not a share between none and all");
+    proseKeys(out, recipe, fail);
+    if (out?.share !== undefined && !(isNum(out.share) && out.share > 0 && out.share < 100)) fail("share: not a percentage between none and all");
   },
   "domain.titles": (out, recipe, fail) => {
     const rows = keyedRows(out, recipe, fail);
     for (const { key, row } of rows) {
       if (!(Number.isInteger(row.personalFamilies) && row.personalFamilies > 0)) fail(`row ${key}: personalFamilies is not a positive whole number`);
-      for (const col of ["domains", "realmFamilies"]) if (!(isText(row[col]) && /\d/.test(row[col]))) fail(`row ${key}: ${col} carries no figure`);
+      for (const col of ["domains", "realmFamilies"]) {
+        if (!(isCountBand(row[col]) || isCountBand(row[col], { openAbove: true })) || !(row[col].min > 0)) fail(`row ${key}: ${col} is not a band of counts`);
+      }
       if (!(isText(row.title) && /^[a-z][a-z' -]*$/i.test(row.title))) fail(`row ${key}: title is not a word`);
     }
     rows.forEach(({ key, row }, i) => {
       const prev = rows[i - 1]?.row;
-      if (prev && isNum(prev.personalFamilies) && isNum(row.personalFamilies) && row.personalFamilies > prev.personalFamilies) fail(`row ${key}: personalFamilies rises below a higher rank`);
+      if (!prev) return;
+      if (isNum(prev.personalFamilies) && isNum(row.personalFamilies) && row.personalFamilies > prev.personalFamilies) fail(`row ${key}: personalFamilies rises below a higher rank`);
+      for (const col of ["domains", "realmFamilies"]) {
+        if (isNum(prev[col]?.min) && isNum(row[col]?.min) && !(row[col].min < prev[col].min)) fail(`row ${key}: ${col} does not fall below a higher rank`);
+      }
     });
   },
   "domain.tribute": (out, recipe, fail) => {
     proseKeys(out, recipe, fail);
-    const exp = Number(out?.exponent);
-    if (!(/^\d*\.?\d+$/.test(out?.exponent ?? "") && exp > 0 && exp <= 1)) fail("exponent: window is not a power between none and one");
+    if (out?.exponent !== undefined && !(isNum(out.exponent) && out.exponent > 0 && out.exponent <= 1)) fail("exponent: not a power between none and one");
     for (const k of ["coefficientGp", "roundingGp"]) if (isNum(out?.[k]) && !(out[k] > 0)) fail(`${k}: not above zero`);
   },
   "domain.tributeInefficiency": (out, recipe, fail) => {
-    proseKeys(out, recipe, fail);
-    const mins = [7, 6, 5, 4, 3, 2, 1].map((n) => out?.[`min${n}`]);
-    ascending(mins, "band floor (smallest first)", fail);
-    if (isNum(out?.max8) && isNum(out?.min7) && out.max8 !== out.min7 - 1) fail("max8: the bottom band does not end one below the band above");
-    const shares = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => out?.[`share${n}`]);
+    const rows = declaredRows(out, recipe, fail);
+    descendingLadder(rows, fail);
+    const shares = rows.map((r) => r.sharePct);
     if (shares.some((v) => isNum(v) && !(v > 0 && v <= 100))) fail("share: a share is not a percentage");
     ascending(shares, "share (largest band first)", fail);
   },
   "domain.baseMoraleModifiers": (out, recipe, fail) => {
-    for (const spec of recipe.rows) if (!/^[-+]\d+(?:\/[-+]\d+)*$/.test(out?.[spec.key] ?? "")) fail(`${spec.key}: not a signed figure or slash list`);
+    for (const spec of recipe.rows) {
+      const list = out?.[spec.key];
+      if (!(Array.isArray(list) && list.length && list.every(Number.isInteger))) fail(`${spec.key}: not a list of whole-number modifiers`);
+      else if (new Set(list.map(Math.sign)).size > 1) fail(`${spec.key}: a list mixes bonuses and penalties`);
+    }
   },
   "domain.personalAuthority": (out, recipe, fail) => {
     const rows = Object.fromEntries(keyedRows(out, recipe, fail).map(({ key, row }) => [key, row.byIncome]));
@@ -423,9 +461,9 @@ Object.assign(VERIFY, {
     ascending(rows.map((r) => r.maxFamilies), "step maxFamilies", fail);
   },
   "domain.settlementRevenue": (out, recipe, fail) => {
-    const rows = keyedRows(out, recipe, fail).map(({ key, row }) => ({ key, ...row, ...(commaBand(row.families) ?? {}) }));
+    const rows = keyedRows(out, recipe, fail).map(({ key, row }) => ({ key, ...row, ...(row.families ?? {}) }));
     for (const r of rows) {
-      if (!commaBand(r.families)) fail(`row ${r.key}: families is not a closed band`);
+      if (!isCountBand(r.families)) fail(`row ${r.key}: families is not a closed band`);
       if (!(isNum(r.tradeGp) && r.tradeGp > 0)) fail(`row ${r.key}: tradeGp is not above zero`);
       if (!Number.isInteger(r.marketClass) || r.marketClass < 1 || r.marketClass > 6) fail(`row ${r.key}: marketClass is not a class numeral`);
     }

@@ -678,7 +678,7 @@ next read was right again.
 **What it cost.** A reader importing a house-ruled character presses Keep
 once per value the class disagrees with, once per character.
 
-### What has no field is one notes block, replaced on re-import (2026-10-15)
+### What has no field is one notes block, replaced on re-import (2026-10-15) — the domain page SUPERSEDED 2026-10-17, below
 
 **Ruled.** Unmatched names, the domain page and everything else with no
 field become one block in the character's notes. The record holds the exact
@@ -776,3 +776,44 @@ at that moment.
 
 **What it cost.** A walk that drives the window by id finds the second
 new-character window at `-new-2`.
+
+### The domain page goes into a domain, by the Judge (2026-10-17)
+
+Supersedes the domain page's half of "What has no field is one notes block"
+(2026-10-15). **New evidence:** that ruling had no domain to write into. The
+domain record shipped in 11.5.0 (`docs/domains/MODEL.md`), and on
+2026-10-17 the owner asked for the domain page's import and export.
+
+**Ruled.**
+- An import writes the page into an `acks-extras.domain` actor, found by the
+  record, then the character's domains by name, then an unruled domain of
+  that name, then the character's only domain; else it makes one. The reader
+  can untick the box and keep the page in the notes.
+- Only a GM seat writes it, and only a GM seat's export reads it. A player's
+  import and export keep the page in the character's notes and record, as
+  before.
+- A revenue or expense row lands on the side its families column matches,
+  and a row matching neither is not written.
+- What the domain sums for itself is checked, never written. The boxes it
+  keeps no field for go into the domain's notes, not the character's.
+
+**Rejected.**
+- *A player's seat writing the domain.* The wave-1 domain is the Judge's
+  ("The wave-1 sheet is the Judge's", `docs/domains/DECISIONS.md`), and a
+  hand-kept player sheet would overwrite the Judge's record.
+- *An observer's export reading the domain.* The record holds land values a
+  player is not shown, and one rule both ways is simpler to state and test.
+- *Guessing a side for an unmatched row* (the peasants', say). A rate on the
+  wrong families is a wrong month shown as a right one; an unset line is
+  shown as unset.
+- *Writing the derived boxes* (families, hexes, totals) as figures. The
+  domain sums them from its rows, so they are checks, as the character's
+  derived values are ("A disagreement is a check, never a write").
+- *The no-field boxes in the character's notes.* They describe the domain,
+  and two characters' imports touching one domain would scatter them.
+
+**What it cost.** A line whose families match no count arrives as a note for
+the Judge to set. The location, growth and loss, investments, authority,
+morale effects and each hex's revenue come back on export only from the last
+import's record. A world not relaunched since the domain type arrived keeps
+the page in the notes.

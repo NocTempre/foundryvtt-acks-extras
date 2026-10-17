@@ -1,13 +1,16 @@
 /* global game */
 /**
  * The block an import writes into the character's notes: everything the sheet
- * said that the character has no field for, and the domain page as tables.
- * The exact block is kept in the import's record, so a second import replaces
- * the first one's block instead of stacking another beside it; a block the
- * reader has since edited no longer matches and the new one is appended.
+ * said that the character has no field for, and the domain page as tables
+ * where it was not written into a domain. A domain's own block is built here
+ * too, from rows alone. The exact block is kept in the import's record, so a
+ * second import replaces the first one's block instead of stacking another
+ * beside it; a block the reader has since edited no longer matches and the
+ * new one is appended.
  */
 import { makeLoc } from "../../lib/util.mjs";
 import { LANG } from "../constants.mjs";
+import { REGION_KEYS } from "./domain-page.mjs";
 
 const loc = makeLoc(LANG);
 
@@ -51,7 +54,7 @@ function domainHtml(domain) {
     if (tabled(key)) continue;
     const [, field, n] = /^domain\.(\w+)(?:\.(\w+))?$/.exec(key) ?? [];
     if (!field) continue;
-    const label = field === "region" ? loc("pdf.domain.region", { n: Number(n) + 1 }) : loc(`pdf.domain.${n ? `${field}.${n}` : field}`);
+    const label = field === "region" ? game.i18n.format(`ACKS-DOMAINS.classification.${REGION_KEYS[Number(n)]}`, {}) : loc(`pdf.domain.${n ? `${field}.${n}` : field}`);
     parts.push(`<p><strong>${escape(label)}:</strong> ${cell(value)}</p>`);
   }
   for (const table of Object.keys(DOMAIN_TABLES)) {

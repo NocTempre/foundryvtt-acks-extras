@@ -24,6 +24,12 @@
       {{localize "ACKS-CHARACTER.pdf.import.createHenchmen"}}
     </label>
     {{/if}}
+    {{#if preview.canWriteDomain}}
+    <label class="acks-extras-sheetpdf-check">
+      <input type="checkbox" name="writeDomain" {{checked writeDomain}} {{disabled busy}}>
+      {{localize "ACKS-CHARACTER.pdf.import.writeDomain"}}
+    </label>
+    {{/if}}
     {{/if}}
   </fieldset>
 
@@ -86,6 +92,14 @@
       </li>
       {{/each}}
     </ul>
+    {{/if}}
+
+    {{#if report.domain}}
+    <h4>{{localize "ACKS-CHARACTER.pdf.report.domain"}}</h4>
+    <p>
+      {{#if report.domain.uuid}}<button type="button" class="acks-extras-sheetpdf-link" data-action="openActor" data-uuid="{{report.domain.uuid}}">{{report.domain.name}}</button>{{else}}{{report.domain.name}}{{/if}}
+      — {{report.domain.outcome}}
+    </p>
     {{/if}}
 
     {{#if report.granted}}

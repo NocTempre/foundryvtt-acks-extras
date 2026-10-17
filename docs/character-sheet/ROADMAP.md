@@ -57,8 +57,13 @@ the code, not missing from it; the rulings behind the built half are
   attack and damage lines from the record. Working them out from the
   henchman's own weapons and movement, as the character's are, would keep
   them current.
-- **The domain page as data.** It lands in the notes as tables. A domain
-  feature could take the hexes, structures and vassals as documents.
+- **The domain page's lines whose families match no count.** They import
+  as notes and the Judge sets them on the domain. A families figure that is
+  part of one side has no shape in the record's lines yet.
+- **The domain page for a player.** Import and export read and write the
+  domain only for the Judge; a player's export carries the page the last
+  import read. Opening it to the ruler's player waits on the domain's own
+  player write gate (`docs/domains/ROADMAP.md`, wave 3).
 - **A weapon's initiative bonus** has no field on the character; it rides
   the record and the notes.
 

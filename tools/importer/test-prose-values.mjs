@@ -9,7 +9,8 @@
  *
  * Also the reading of a modifier list: the `signed` take, which reads only a
  * figure carrying its sign, and `label: true`, which lifts the row's own
- * wording from between the row edges either side of the anchor.
+ * wording from between the row edges either side of the anchor. And the
+ * `num`, `rollFormula` and `fractionWord` takes.
  */
 import assert from "node:assert";
 import { extractTable } from "../../scripts/importer/table-extract.mjs";
@@ -105,5 +106,32 @@ check("a figure with no row edge before it keeps its value and takes no label", 
 
 const unsigned = read(["The gate stands 7 high."], [{ key: "gate", find: "the gate stands", take: "signed" }]);
 check("a bare number is not a signed figure", !("gate" in unsigned));
+
+/* --- decimals, a die as Foundry rolls it, and a share in words --------------- */
+
+const forms = read(
+  [
+    "The weaver keeps 7.25% of the bolt, and the dyer 1,250.5 coins over 0.4 of a season.",
+    "Each spring the orchard throws 2d8! for its yield, and the hives 1d6.",
+    "A wall at least two thirds its height holds; one at a quarter falls; at half it sags.",
+  ],
+  [
+    { key: "keeps", find: "the weaver keeps", take: "num", span: 8 },
+    { key: "dyer", find: "the dyer", take: "num", span: 10 },
+    { key: "season", find: "coins over", take: "num", span: 5 },
+    { key: "seasonBefore", find: "of a season", before: true, take: "num", span: 30 },
+    { key: "orchard", find: "the orchard throws", take: "rollFormula", span: 6 },
+    { key: "hives", find: "the hives", take: "rollFormula", span: 5 },
+    { key: "orchardDice", find: "the orchard throws", take: "dice", span: 6 },
+    { key: "holds", find: "at least", take: "fractionWord", span: 15 },
+    { key: "falls", find: "one at", take: "fractionWord", span: 10 },
+    { key: "sags", find: "falls; at", take: "fractionWord", span: 6 },
+  ],
+);
+check("a decimal reads whole, with or without separators", forms.keeps === 7.25 && forms.dyer === 1250.5 && forms.season === 0.4);
+check("a before-window decimal is the last figure behind the anchor", forms.seasonBefore === 0.4);
+check("an exploding mark is Foundry's x; a plain die stays plain", forms.orchard === "2d8x" && forms.hives === "1d6");
+check("dice still reads past the mark", forms.orchardDice === "2d8");
+check("a share in words is its fraction", forms.holds === 2 / 3 && forms.falls === 0.25 && forms.sags === 0.5);
 
 console.log(`test-prose-values: ${pass} checks passed.`);

@@ -9,9 +9,9 @@ everything the rest of the module does with an actor works on it unchanged.
 This is the **record**: every field a printed domain record fills, in its
 final shape, a plain sheet that edits it, and the sums read off what it states.
 Nothing here derives a figure the record does not hold — a line nobody has
-entered is unset, not zero. The stylized sheet and the automation (the rules
-tables, the derivations, the month, territory painted on the map) are
-[ROADMAP.md](ROADMAP.md); why it is shaped this way is
+entered is unset, not zero. The rules tables are read but not yet used. The
+stylized sheet and the automation (the derivations, the month, territory
+painted on the map) are [ROADMAP.md](ROADMAP.md); why it is shaped this way is
 [DECISIONS.md](DECISIONS.md); the live recipe is [TESTING.md](TESTING.md).
 
 | File | Owns |
@@ -180,6 +180,39 @@ listing a released vassal and a deleted settlement's families.
 
 The sheet scrolls at its body part root, which keeps its place across the
 re-render every edit makes.
+
+## The official sheet's domain page
+
+The character sheet's PDF import writes the official sheet's domain page into
+the character's domain, and its export writes a domain back onto the page,
+both for the Judge alone: `docs/character-sheet/MODEL.md`, "The official
+sheet (PDF)".
+
+## The rules tables
+
+The month's tables arrive through the importer from the Judge's own book, as
+the recipes of the `domain` ruledata document
+(`scripts/importer/table-recipes.mjs`, each with its printed page). Nothing
+reads them yet; wave 3 does ([ROADMAP.md](ROADMAP.md)). Each is stored in the
+shape its reader takes, so no reader parses a cell:
+
+- a count band (families, realm families, vassals, a tribute inefficiency
+  band) as `{min, max}`, an open end null (`countBand`: thousands commas,
+  `K` and `M`, "or more", "or fewer", a trailing `+`);
+- a rate per family as `{min, max, per}` in gp, a printed range kept whole,
+  silver and copper converted (`gpRate`); a row printing a word instead is
+  null;
+- a list of signed modifiers as integers (`signedList`);
+- a share written in words as a fraction (`fractionWord`), a decimal as a
+  number (`num`), and a die as Foundry rolls it, with an exploding mark as
+  `x` (`rollFormula`);
+- the stronghold minimum's header row, the hex size each column is for, as
+  the row `hexMiles` (a row spec that is `unlabelled` and carries its own
+  `cellPattern`).
+
+`tools/importer/test-recipe-content.mjs` holds each table to its shape on the
+seat's book; `test-grid-rows.mjs` and `test-prose-values.mjs` pin the
+patterns and takes on invented text.
 
 ## The api
 

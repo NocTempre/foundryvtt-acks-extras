@@ -1,9 +1,10 @@
 /* global foundry, game, ui, fromUuid, Hooks */
 /**
  * The official-sheet window: read a filled copy of the official character
- * sheet onto a character, or into a new one, see what the import wrote and
- * what disagreed with it, and write a character into a blank copy of the
- * form. One window per character, and one for a new character.
+ * sheet onto a character, or into a new one, and its domain page into the
+ * character's domain; see what the import wrote and what disagreed with it;
+ * and write a character into a blank copy of the form. One window per
+ * character, and one for a new character.
  *
  * The file is read the moment it is picked, and the window shows what it
  * will match before anything is written. An export writes into the official
@@ -19,8 +20,9 @@ import { LANG, MODULE_ID } from "../constants.mjs";
 import { readForm } from "./form.mjs";
 import { buildPlan } from "./plan.mjs";
 import { matchAbility, matchClass, matchHenchman, matchLanguage, matchSpell } from "./match.mjs";
-import { importSheet, keepSheetValue } from "./apply.mjs";
-import { exportSheet, saveExport } from "./export.mjs";
+import { domainWritable, importSheet, keepSheetValue } from "./apply.mjs";
+import { exportSheet, saveExport, sheetDomain } from "./export.mjs";
+import { clean } from "./parse.mjs";
 import { SHEET_BOOK, blankSheet } from "./blank.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
@@ -56,9 +58,22 @@ async function withPdf(bytes, use) {
 /** A share of the form's fields, as a percentage for a message. */
 const percent = (share) => Math.round((Number(share) || 0) * 100);
 
+/** Where an import would write the domain page, and whether the reader may choose. */
+function domainTarget(plan, actor) {
+  const writable = domainWritable();
+  if (writable !== "ok") return { text: loc(writable === "judgeOnly" ? "pdf.preview.domainJudgeOnly" : "pdf.preview.domainNoType"), choice: false };
+  const name = clean(plan.domain["domain.name"]);
+  const found = sheetDomain(actor, { name });
+  return {
+    text: found ? loc("pdf.preview.domainUpdates", { name: found.name }) : loc("pdf.preview.domainCreates", { name: name || game.i18n.localize("ACKS-DOMAINS.sheet.unnamed") }),
+    choice: true,
+  };
+}
+
 /**
  * What an import of these values will do, before it does it: the class, how
- * much of each list the world has, and the henchmen the roster holds.
+ * much of each list the world has, the henchmen the roster holds, and the
+ * domain the domain page goes into.
  */
 async function previewOf(values, actor) {
   await whenReady();
@@ -85,8 +100,9 @@ async function previewOf(values, actor) {
   if (spells.total) rows.push({ label: loc("pdf.preview.spells"), ...matched(spells) });
   if (plan.gear.length || plan.weapons.length) rows.push({ label: loc("pdf.preview.gear"), text: loc("pdf.preview.lines", { count: plan.gear.length + plan.weapons.length }) });
   if (plan.henchmen.length) rows.push({ label: loc("pdf.preview.henchmen"), text: loc("pdf.preview.henchmenCount", { roster: onRoster, other: others }) });
-  if (Object.keys(plan.domain).length) rows.push({ label: loc("pdf.preview.domain"), text: loc("pdf.preview.toNotes") });
-  return { rows, canCreateHenchmen: others > 0 && game.user.can("ACTOR_CREATE") };
+  const domain = Object.keys(plan.domain).length ? domainTarget(plan, actor) : null;
+  if (domain) rows.push({ label: loc("pdf.preview.domain"), text: domain.text });
+  return { rows, canCreateHenchmen: others > 0 && game.user.can("ACTOR_CREATE"), canWriteDomain: !!domain?.choice };
 }
 
 /** The official-sheet window. */
@@ -118,6 +134,7 @@ export class SheetPdfApp extends HandlebarsApplicationMixin(ApplicationV2) {
   #readError = "";
   #preview = null;
   #createHenchmen = false;
+  #writeDomain = true;
   /** The last import's report, and which of its checks were since kept. */
   #report = null;
   #kept = new Set();
@@ -156,6 +173,7 @@ export class SheetPdfApp extends HandlebarsApplicationMixin(ApplicationV2) {
       readError: this.#readError,
       preview: this.#preview,
       createHenchmen: this.#createHenchmen,
+      writeDomain: this.#writeDomain,
       report: report && {
         heading: loc(report.created ? "pdf.report.created" : "pdf.report.updated", { name: report.actor.name }),
         uuid: report.actor.uuid,
@@ -165,6 +183,11 @@ export class SheetPdfApp extends HandlebarsApplicationMixin(ApplicationV2) {
         checks: report.checks.map((c, index) => ({ ...c, index, canKeep: !!c.keep && !this.#kept.has(index), kept: this.#kept.has(index) })),
         unmatched: report.unmatched.map((u) => ({ kind: loc(`pdf.unmatched.${u.kind}`), name: u.name })),
         henchmen: report.henchmen.map((h) => ({ ...h, outcome: loc(`pdf.henchOutcome.${h.outcome}`) })),
+        domain: report.domain && {
+          ...report.domain,
+          name: report.domain.name || loc("pdf.preview.domain"),
+          outcome: loc(`pdf.domainOutcome.${report.domain.outcome}`),
+        },
       },
       canExport: !!actor?.isOwner,
       sheetOpen,
@@ -198,12 +221,16 @@ export class SheetPdfApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return this.#windowKey;
   }
 
-  /** A control changed: a file was picked, or the henchmen opt-in toggled. */
+  /** A control changed: a file was picked, or an opt-in toggled. */
   async #onChange(event) {
     const el = event.target;
     if (!el?.matches?.("input")) return;
     if (el.name === "createHenchmen") {
       this.#createHenchmen = el.checked;
+      return;
+    }
+    if (el.name === "writeDomain") {
+      this.#writeDomain = el.checked;
       return;
     }
     const file = el.name === "importFile" ? el.files?.[0] : null;
@@ -242,7 +269,7 @@ export class SheetPdfApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.#busy = true;
     await this.render({ parts: ["footer"] });
     try {
-      this.#report = await importSheet({ actor: this.#actor, values: this.#read.values, createHenchmen: this.#createHenchmen });
+      this.#report = await importSheet({ actor: this.#actor, values: this.#read.values, createHenchmen: this.#createHenchmen, writeDomain: this.#writeDomain });
       this.#kept.clear();
       this.#actor = this.#report.actor;
       // The new-character window now belongs to the character it made, so

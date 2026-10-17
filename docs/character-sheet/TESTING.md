@@ -356,8 +356,13 @@ back.
   backpack (one with a count), a sword in the main hand, a shield in the off
   hand, armour, a dagger at the belt, one hidden item; two weapon rows, one
   the world lacks, one with an initiative bonus; a spell the world holds and
-  a ritual it lacks; ticks; a domain row; and one henchman slot naming no
-  roster member.
+  a ritual it lacks; ticks; one henchman slot naming no roster member; and
+  the domain page: a name no world domain carries, one region tick, two
+  structures (one written with a count, "Tower ×2"), two hex rows with
+  revenue, peasant and urban families, a land line whose families are the
+  peasant count, a line whose families are both counts together, one whose
+  families match neither, an other-revenue row, tribute paid, a vassal row,
+  and the location.
 - The PDFs in a Data folder of the run's own, so the page can fetch them.
 - For the player pass, a `character` the Player seat owns
   (`api.create("Actor", {…, ownership: {[playerId]: 3}})`).
@@ -405,6 +410,13 @@ back.
   not raised as a toast.
 - The window's state is `await app._prepareContext({})`: `sheetOpen`,
   `cannotExport`, `sheetNote`.
+- **The domain page needs the domain sub-type registered**:
+  `game.documentTypes.Actor.includes("acks-extras.domain")`. A world launched
+  before the type arrived keeps the page in the notes, and the preview says
+  so; relaunch it first (ask whoever is seated).
+- A domain the import makes is the report's link: `report.domain.uuid` on the
+  window's `_prepareContext`. Track it by that uuid the moment the import
+  resolves.
 
 **Steps** (an Assistant GM seat unless named).
 1. Press *Import sheet* in the Actors directory. *Observable:* the window
@@ -412,26 +424,41 @@ back.
 2. Pick the flattened PDF. *Observable:* the error names the file and 0% of
    the fields; Import stays disabled.
 3. Pick the filled copy. *Observable:* the preview names the class and
-   level, counts what the world holds per list, and offers the henchmen box.
-   Tick it and press Import.
+   level, counts what the world holds per list, offers the henchmen box, and
+   reads *A new domain:* with the page's name beside a ticked domain box.
+   Tick the henchmen box and press Import.
 4. Read the report and the character. *Observable:* the class is bound at
    the level; the class's saves and attack throw are checks with *Keep*; the
    unknown names are under *Not found*. The sword is in the main hand, the
    shield in the off hand, the armour on the body, and the backpack on the
    back holds its three lines with their counts. The dagger is carried, not
    drawn, and no AC check appears. The coin rows hold each box's count. The
-   notes carry one block with the domain table. The henchman is created and
-   on the roster. `recordedFields(actor)` (`pdf/export.mjs`) returns every
-   filled box under its dotted key, and the flag's `unmatched` lists the
-   four unknown names. One chat message lists what was added. The done
-   notice names the character, and no error is raised; the preview now reads
-   *Writes to* the character and counts the henchman on the roster.
+   character's notes carry one block and no domain table. The henchman is
+   created and on the roster. `recordedFields(actor)` (`pdf/export.mjs`)
+   returns every filled box under its dotted key, and the flag's `unmatched`
+   lists the four unknown names. One chat message lists what was added. The
+   done notice names the character, and no error is raised; the preview now
+   reads *Writes to* the character and counts the henchman on the roster.
 4a. With that window open, press *Import sheet* again. *Observable:* a second
     window opens as `-new-2` beside the first, which keeps its report. The
     character's own *Official sheet (PDF)* brings the first forward.
+4b. Open the domain from the report's Domain link. *Observable:* the
+    domain's ruler is the character; the region is its classification; the
+    counted structure has that count and its capacity per unit; each hex row
+    carries its number, land value and families; one unnamed settlement
+    holds the urban families; the land line is a peasant rate, the
+    both-counts line a rate on both sides, and the unmatched line is unset;
+    the other revenue, tribute paid and the vassal row are there. Its notes
+    carry one block with the location and the revenue by hex. The report's
+    checks list, under the domain's name, the unmatched line (not written)
+    and tribute paid with no liege.
 5. Pick the same file again and import. *Observable:* nothing is added, no
    check says an item is not worn there, the notes still hold one block,
-   and `importedAt` moved.
+   and `importedAt` moved. The report reads the domain *updated*; it gains no
+   row and its notes still hold one block.
+5a. Untick the domain box and import again. *Observable:* the report says
+    the page was kept in the character's notes, which now carry the domain
+    tables; the domain is unchanged, and the record still names it.
 6. Delete one packed item, add an Active Effect raising STR by 1, and import
    again. *Observable:* the deleted item lands again in the backpack; STR is
    a check carrying the effect mark and no Keep, and the stored STR is
@@ -452,16 +479,23 @@ back.
     re-rendered with Export enabled.
 11. Press Export; capture the download. *Observable:* the note says it was
     written and counts the items listed under Backpack. Read back in Node,
-    the file is the form. It carries the domain row, the ticks, the weapon's
-    initiative, the dagger at the belt, the hidden item under hidden, and the
-    unknown proficiency, feature, language and ritual in their boxes.
+    the file is the form. It carries the ticks, the weapon's initiative, the
+    dagger at the belt, the hidden item under hidden, and the unknown
+    proficiency, feature, language and ritual in their boxes. Its domain page
+    is the domain's: the counted structure as "name ×count", the hex numbers
+    with the record's revenue beside them, each written line as rate,
+    families and total, the vassal, and the location from the record. Change
+    a land value on the domain and export again: the page shows the new
+    figure.
 12. Shrink the window to about 320 px tall. *Observable:* the body scrolls,
     the footer's Import stays in view, and every input has a label.
 13. As the Player seat: the owned character's window menu carries *Official
     sheet (PDF)*, and the Actors directory has no *Import sheet*. The sheet
     opens from the server at join. Import the filled copy. *Observable:*
-    there is no henchmen box, and the henchman goes to the notes. Export
-    works from the server's sheet.
+    there is no henchmen box, and the henchman goes to the notes. The
+    preview's domain row says the page is kept in the notes and there is no
+    domain box; the domain is unchanged. Export works from the server's
+    sheet, and its domain page is the one this import read.
 14. As GM, set the sheet journal's default ownership to None, then join a
     fresh Player seat. *Observable:* the sheet is not open there and Export
     is disabled. Give the local band's input the colour blank. *Observable:*
@@ -469,7 +503,8 @@ back.
     the form holding the character.
 
 **Teardown.** Sweep by the run's ledger: the imported character, the
-henchman it created, the player's character, the sheet's shelf journal
+henchman it created, the domain it created, the player's character, the
+sheet's shelf journal
 (tracked by the id read back once it appears), and every chat message the
 imports posted (found by speaker, tracked by id). Remove
 `acks-extras-books/sheet.pdf` from the Data directory by that path. Delete

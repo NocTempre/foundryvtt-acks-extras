@@ -345,8 +345,9 @@ the mix in one place.
 ## The official sheet (PDF)
 
 `scripts/character-sheet/pdf/` reads a filled copy of the official fillable
-character sheet onto a character and writes a character into the Judge's own
-blank copy. Both directions use one field table and one record.
+character sheet onto a character, and its domain page into the character's
+domain, and writes a character into the Judge's own blank copy. Both
+directions use one field table and one record.
 
 **Where it opens.** A character's window menu carries *Official sheet (PDF)*
 for an owner (`getHeaderControlsActorSheetV2`). The Actors directory carries *Import sheet* for a seat with
@@ -411,16 +412,60 @@ what was added, what to check and what was not found.
   (`enrollHenchman`) when the reader ticks *Create the henchmen the roster
   does not hold* and the seat may create characters; otherwise it goes into
   the notes whole.
+- **The domain page** (`domain-page.mjs`) goes into an `acks-extras.domain`
+  actor (`docs/domains/MODEL.md`) on a GM seat, while *Write the domain page
+  into the character's domain* is ticked. The domain is the one the last
+  import wrote, else the one the character rules under the page's name, else
+  a domain of that name nobody rules, else — for a page naming none — the
+  only one the character rules (`sheetDomain`); with none, a new domain is
+  made, created bare and then written. `domainUpdate` writes what the domain
+  keeps a field for, matching rows before adding any, so a re-import adds
+  nothing:
+  - the name, the ruler (the character, and the page's ruler as the name),
+    the region as the classification, morale, tribute paid, and the lord's
+    favors and duties;
+  - structures by name, with a count only where the name was written with
+    one; the page's capacity is the row's, stored per unit;
+  - hex rows by number, as hex labels where every word of the number carries
+    a digit and as a label otherwise, revealed. A page listing no hex gives
+    its hexes and peasant families as one tract, written only into an empty
+    territory or into that same tract;
+  - urban families onto the one settlement no map holds and nobody named, or
+    a new one where the domain holds no settlement;
+  - each revenue and expense row onto the side its families column matches:
+    the peasant count, the urban count, or both. A blank column is the
+    peasants' where there are no urban families. A rate sets that side's rate
+    and clears its flat figure; a total alone on one side is its flat figure.
+    A row matching neither is not written, is a check, and goes to the notes.
+    The fifth income row is an other-revenue line by its label;
+  - vassal rows by domain name, the page's name as their ruler. The page's
+    tax is all the vassal pays, so the row keeps its extra tax apart. A row
+    naming a vassal domain actor is that actor's and is skipped.
+
+  What the domain works out for itself — families, hexes, the stronghold's
+  capacity and value, each line's total, tribute in, the month's total — is
+  checked against the written domain (`domainChecks`) and listed with the
+  character's checks under the domain's name; a sum over rows some of which
+  give no figure reads "at least", a month over unset lines "over the lines
+  set". The boxes the domain keeps no field for, and each hex's revenue, are
+  a notes block in the domain's `system.notes`, replaced on re-import as the
+  character's is. A player's seat, an unticked box, a world that has not been
+  relaunched since the domain type arrived, and a create that fails keep the
+  page in the character's notes as tables. The report says where the page
+  went, with the domain as a link.
 - **The notes block.** Whatever has no field — unmatched names, the domain
-  page as tables, tick grids, gems, birthplace, magic facilities, a weapon's
-  initiative — is one block in `system.details.notes` (`notes.mjs`). The
-  record keeps the exact block, so a re-import replaces it; once the reader
-  edits it, it no longer matches and the next block is appended.
+  page as tables where it was not written into a domain, tick grids, gems,
+  birthplace, magic facilities, a weapon's initiative — is one block in
+  `system.details.notes` (`notes.mjs`). The record keeps the exact block, so
+  a re-import replaces it; once the reader edits it, it no longer matches and
+  the next block is appended.
 - **The record** is `flags.acks-extras.sheetPdf`:
-  `{importedAt, fields, unmatched, notes}`. `fields` is every filled box as
-  read, stored expanded (an update expands dotted keys) and read back flat by
-  `recordedFields`. `unmatched` lists the names in the character's own boxes
-  that the world could not answer. Each import replaces the record whole.
+  `{importedAt, fields, unmatched, notes, domain}`. `fields` is every filled
+  box as read, stored expanded (an update expands dotted keys) and read back
+  flat by `recordedFields`. `unmatched` lists the names in the character's
+  own boxes that the world could not answer. `domain` is `{uuid, notes}`: the
+  domain the page went into and the block written into its notes, carried
+  past an import that wrote none. Each import replaces the record whole.
 - A chat message lists what the import added, as chargen does.
 
 Re-importing the same file onto the same character adds nothing, writes
@@ -429,9 +474,16 @@ lands again.
 
 **The export** (`export.mjs`). `sheetValues` reads the prepared character,
 so the sheet shows what is in force, effects included. Boxes the character
-keeps no field for come back from the record: the domain page, tick grids,
-magic facilities, birthplace, size, gender, gems, a weapon's initiative and a
-henchman's movement and attack lines. So do the names the record lists as
+keeps no field for come back from the record: tick grids, magic facilities,
+birthplace, size, gender, gems, a weapon's initiative and a henchman's
+movement and attack lines. The domain page comes back from the record too,
+unless the Judge exports and `sheetDomain` finds a domain. Then the page is
+the domain's (`domainPageValues`), written the way the import reads it back:
+a line set on one side as that side's rate over its families, a line set on
+both as one shared rate or its total alone; the month's total only when no
+line is unset; vassal actors before vassal rows. The record supplies only the
+boxes the domain keeps no field for, and each hex's revenue by its number.
+The page prints no row for other expenses, so they are named as left off. So do the names the record lists as
 unmatched — a homebrew proficiency, a language, a ritual, a coin box in a
 world with no coin — in the boxes the sheet had them in. A name the world
 could answer and the reader deleted since stays deleted. Gear is gathered by

@@ -208,6 +208,39 @@ export function applyCellPattern(text, pattern = "raw") {
       const open = t.match(/\((\d[\d,]*)\s*\+\)/);
       return open ? { min: Number(open[1].replace(/,/g, "")), max: null } : null;
     }
+    case "countBand": {
+      // A count band as a population or vassal ladder prints it, bare:
+      // "1,025 – 4,095" | "5-7" -> {min, max}; "16,385 or more" | "40+" ->
+      // max null; "8 or fewer" -> min null; a lone "160" -> both. A K or M
+      // scales its figure ("2M – 11.6M"), and a "+" after the upper figure
+      // opens the band above it.
+      const FIG = "(\\d[\\d,]*(?:\\.\\d+)?)\\s*([km])?(?![a-z])";
+      const n = (s, unit) => Math.round(Number(s.replace(/,/g, "")) * ({ k: 1e3, m: 1e6 }[unit?.toLowerCase()] ?? 1));
+      const range = t.match(new RegExp(`^${FIG}\\s*[–—-]\\s*${FIG}\\s*(\\+)?`, "i"));
+      if (range) return { min: n(range[1], range[2]), max: range[5] ? null : n(range[3], range[4]) };
+      const more = t.match(new RegExp(`^${FIG}\\s*(?:\\+|or\\s+(?:more|greater|higher|above))`, "i"));
+      if (more) return { min: n(more[1], more[2]), max: null };
+      const fewer = t.match(new RegExp(`^${FIG}\\s*or\\s+(?:fewer|less|lower|below)`, "i"));
+      if (fewer) return { min: null, max: n(fewer[1], fewer[2]) };
+      const single = t.match(new RegExp(`^${FIG}$`, "i"));
+      return single ? { min: n(single[1], single[2]), max: n(single[1], single[2]) } : null;
+    }
+    case "gpRate": {
+      // A coin rate per unit as a revenue or expense table prints it:
+      // "3 – 9gp / family" | "4gp/ family" -> {min, max, per}, in gp. A cell
+      // holding a word instead of a rate is a rate set elsewhere: null.
+      const m = t.match(/^(\d[\d,]*(?:\.\d+)?)\s*(?:[–—-]\s*(\d[\d,]*(?:\.\d+)?)\s*)?(gp|sp|cp)\s*\/\s*(.+)$/i);
+      if (!m) return null;
+      const scale = { gp: 1, sp: 0.1, cp: 0.01 }[m[3].toLowerCase()];
+      const gp = (s) => Math.round(Number(s.replace(/,/g, "")) * scale * 100) / 100;
+      return { min: gp(m[1]), max: gp(m[2] ?? m[1]), per: m[4].trim().replace(/\s+/g, " ").toLowerCase() };
+    }
+    case "signedList": {
+      // A modifier cell of one figure, or one per band its row names,
+      // slash-separated: "+1" -> [1]; "-1/-2/-3" -> [-1, -2, -3].
+      const parts = t.replace(/[−–—]/g, "-").split("/").map((s) => s.trim());
+      return parts.every((s) => /^[-+]?\d+$/.test(s)) ? parts.map(Number) : null;
+    }
     default:
       return t;
   }
@@ -292,7 +325,9 @@ function wrapLines(rows, claims, recipe, start, end) {
  * matches, scanning downward from the previous claim. `stopAt` ends the grid
  * above the first row holding its marker, and `column.yMin`/`yMax` bound it
  * on the page like `xMin`/`xMax`. `wrapRows` reads cells printed over several
- * lines (see `wrapLines`).
+ * lines (see `wrapLines`). A row spec's own `cellPattern` reads every cell of
+ * that row, over its columns' and the recipe's: a header row prints its
+ * column scales in another notation than the body under it.
  */
 export function extractGridRows(items, recipe) {
   const { xMin = 0, xMax = Infinity, yMin = -Infinity, yMax = Infinity } = recipe.column ?? {};
@@ -318,10 +353,14 @@ export function extractGridRows(items, recipe) {
     if (idx >= 0) end = idx;
   }
   const claims = recipe.rows.map((spec) => {
-    const re = new RegExp(spec.labelRe, "i");
+    // `unlabelled`: a row printed with nothing in the label column — a header
+    // of column scales over the body — claims the next row whose label zone
+    // is empty and which carries a cell.
+    const re = spec.unlabelled ? null : new RegExp(spec.labelRe, "i");
     for (let i = cursor; i < end; i++) {
       const label = joinRuns(rows[i].items.filter((it) => it.x < recipe.labelMaxX));
-      if (label && re.test(label)) {
+      const hit = re ? !!label && re.test(label) : !label && rows[i].items.some((it) => it.x >= recipe.labelMaxX);
+      if (hit) {
         // minCells: a prose line can echo a row label (JJ repeats tier names
         // in running text) — a real grid row must actually carry its cells.
         if (recipe.minCells) {
@@ -417,7 +456,7 @@ export function extractGridRows(items, recipe) {
         if (!prev || best.d < prev.d) pointCands[best.col.key] = { col: best.col, d: best.d, run };
       }
       for (const { col, run } of Object.values(pointCands)) {
-        const v = applyCellPattern(run.str, col.pattern ?? recipe.cellPattern ?? "intDash");
+        const v = applyCellPattern(run.str, spec.cellPattern ?? col.pattern ?? recipe.cellPattern ?? "intDash");
         if (v == null && recipe.omitNullCells && !col.row) continue;
         if (col.row) row[col.key] = v;
         else obj[col.key] = v;
@@ -440,7 +479,7 @@ export function extractGridRows(items, recipe) {
           byLine.get(line).push(run);
         }
         const joined = [...byLine.keys()].sort((a, b) => a - b).map((line) => joinLine(byLine.get(line))).join(" ").trim();
-        const v = applyCellPattern(joined, col.pattern ?? "raw");
+        const v = applyCellPattern(joined, spec.cellPattern ?? col.pattern ?? "raw");
         if (col.row) row[col.key] = v;
         else obj[col.key] = v;
       }
@@ -451,7 +490,7 @@ export function extractGridRows(items, recipe) {
       // race columns emit only the races the book prices.
       const obj = {};
       recipe.cellKeys.forEach((k, i) => {
-        const v = applyCellPattern(cells[i] ?? "", recipe.cellPattern ?? "int");
+        const v = applyCellPattern(cells[i] ?? "", spec.cellPattern ?? recipe.cellPattern ?? "int");
         if (v == null && recipe.omitNullCells) return;
         obj[k] = v;
       });
@@ -465,7 +504,7 @@ export function extractGridRows(items, recipe) {
       // leading columns (container, price…) before it and trailing after.
       const lead = recipe.leading ?? [];
       const marketN = recipe.marketCells ?? cells.length - lead.length - (recipe.trailing?.length ?? 0);
-      const market = cells.slice(lead.length, lead.length + marketN).map((c) => applyCellPattern(c, recipe.cellPattern ?? "dashNull"));
+      const market = cells.slice(lead.length, lead.length + marketN).map((c) => applyCellPattern(c, spec.cellPattern ?? recipe.cellPattern ?? "dashNull"));
       row = { [recipe.cellsKey ?? "byMarketClass"]: market };
       lead.forEach((lspec, i) => {
         const raw = cells[i];
@@ -897,6 +936,27 @@ function takeProse(window, take) {
       const m = window.match(/\d+d\d+/);
       return m ? m[0] : undefined;
     }
+    case "rollFormula": {
+      // A die as Foundry rolls it: a printed exploding mark ("1d10!") is
+      // Foundry's `x` modifier, which `dice` reads past.
+      const m = window.match(/(\d*)d(\d+)(\s*!)?/);
+      return m ? `${m[1] || 1}d${m[2]}${m[3] ? "x" : ""}` : undefined;
+    }
+    case "num": {
+      // A figure that may carry a decimal point as well as thousands
+      // separators: "12.5%" -> 12.5; "0.6" -> 0.6.
+      const m = window.match(/-?\d[\d,]*(?:\.\d+)?|-?\.\d+/);
+      return m ? num(m[0]) : undefined;
+    }
+    case "fractionWord": {
+      // A share written in words: "half", "one quarter", "a third", "two
+      // thirds" -> 0.5, 0.25, 1/3, 2/3.
+      const m = window.match(/\b(?:(a|an|one|two|three|four|five)\s+)?(half|halves|thirds?|quarters?|fourths?|fifths?|sixths?|eighths?|tenths?)\b/);
+      if (!m) return undefined;
+      const den = { half: 2, halve: 2, third: 3, quarter: 4, fourth: 4, fifth: 5, sixth: 6, eighth: 8, tenth: 10 }[m[2].replace(/s$/, "")];
+      const top = !m[1] || /^(a|an|one)$/.test(m[1]) ? 1 : WORD_INTS[m[1]];
+      return top / den;
+    }
     case "band": {
       const m = window.match(/(\d+)\s*[-–]\s*(\d+)/);
       return m ? [Number(m[1]), Number(m[2])] : undefined;
@@ -1050,7 +1110,7 @@ export function extractProseValues(items, recipe) {
     if (v.before && val !== undefined) {
       // before-windows want the LAST match, not the first
       let last;
-      const re = { pct: /(\d+)\s*%/g, gp: /(-?[\d,]+)\s*gp/g, int: /-?\d[\d,]*/g, signedInt: /[-+]\s?\d+/g, signed: /[-+]\s?\d+/g }[v.take ?? "int"];
+      const re = { pct: /(\d+)\s*%/g, gp: /(-?[\d,]+)\s*gp/g, int: /-?\d[\d,]*/g, num: /-?\d[\d,]*(?:\.\d+)?/g, signedInt: /[-+]\s?\d+/g, signed: /[-+]\s?\d+/g }[v.take ?? "int"];
       if (re) {
         for (const m of window.matchAll(re)) last = m[1] ?? m[0];
         if (last !== undefined) val = Number(String(last).replace(/[,\s]/g, ""));

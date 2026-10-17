@@ -134,7 +134,7 @@ export async function release(domain, placeUuid) {
 }
 
 /** A placed settlement's urban families, off its place's market; null where nobody has entered them. */
-function placeFamilies(uuid) {
+export function placeFamilies(uuid) {
   const families = docOf(uuid)?.system?.market?.urbanFamilies;
   return families === undefined ? null : families;
 }

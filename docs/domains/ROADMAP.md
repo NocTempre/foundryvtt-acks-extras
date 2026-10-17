@@ -26,13 +26,10 @@ Work that is designed but absent, deliberately. How the feature behaves now is
 
 ## Wave 3 — the automation
 
-- **The rules tables** as recipes of a `domain` ruledata document, each with
-  its printed page: revenue and expenses, the stronghold minimum, peace and
-  growth, prestige immigration, the morale levels, effects and roll, the base
-  morale modifiers and personal authority, titles, tribute and its
-  inefficiency, the settlement revenue, expense and investment tables, the
-  magistrates' share; the favors-and-duties chart as a roll table. A missing
-  table degrades to "not run", and the Judge can type the figure.
+- **The favors-and-duties chart** as a roll table. The other rules tables
+  are read already ([MODEL.md](MODEL.md), "The rules tables"); what wave 3
+  adds is their use, where a table the Judge's books did not yield degrades
+  to "not run" and the Judge can type the figure.
 - **The derivations**, pure and with every table passed in: families across a
   realm, land revenue from land value and improvement, tribute in from the
   vassals' last month, base morale and its parts, the stronghold minimum and
@@ -64,7 +61,6 @@ Work that is designed but absent, deliberately. How the feature behaves now is
 - Call to arms and scutage.
 - Senates, hijinks and syndicates.
 - Ending the month across a whole realm at once, or on a calendar trigger.
-- The character sheet PDF's domain page written as a domain.
 - The party sheet naming its domain.
 - A garrison troop roster (a record's troop table stays in the notes).
 - Prune survival for an organisation's seat.
