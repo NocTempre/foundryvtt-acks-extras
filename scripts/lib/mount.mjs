@@ -18,6 +18,7 @@ import { MODULE_ID, ANIMAL_TYPE } from "./constants.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 import { isGoods, isCurrency } from "./item-model.mjs";
 import { attachmentOf, attachedTo, attach, detach } from "./attachment.mjs";
+import { isPrimaryGM } from "./util.mjs";
 
 /** Legacy flag keys. Both ends stored the OTHER actor's uuid; read-only now. */
 export const MOUNT_FLAG = "mount";
@@ -196,7 +197,7 @@ export async function unseat(mount) {
  */
 export function registerMountCleanup() {
   Hooks.on("deleteActor", async (actor) => {
-    if (!game.user?.isGM) return; // one client does the write, not all of them
+    if (!isPrimaryGM()) return; // the window that automates writes, not every GM window
     try {
       const riderUuid = actor?.getFlag?.(MODULE_ID, RIDER_FLAG);
       const rider = resolveActorSync(riderUuid);

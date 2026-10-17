@@ -26,7 +26,8 @@ monster** hirelings alike with no dependency on the henchmen feature:
 - `preCreateActor` — an actor born as a retainer gets the flag in its creation source.
 - `updateActor` — a plain actor flipped into service adopts the card (drop-as-henchman,
   hires that set the flag). Only the originating client writes, once.
-- `ready` GM sweep — existing retainers with no explicit sheet choice adopt the card.
+- `ready` sweep, in the window that runs the world's automation (MODEL.md, "Which
+  window automates") — existing retainers with no explicit sheet choice adopt the card.
 
 It only ever **sets** the flag when unset — a hand-picked sheet is never clobbered, and
 dismissing a hireling does not revert it. PCs and wild monsters

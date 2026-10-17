@@ -2,13 +2,15 @@
 /**
  * Converts a world's pre-migration languages — abilities minted by the
  * taxonomy import, and bare names inside a carrier's `entries` flag — onto
- * one `language` document per tongue. Runs at `ready`, GM-only, idempotent,
- * creating every replacement before removing what it replaces. See
- * docs/classes/MODEL.md, the language-migration paragraph.
+ * one `language` document per tongue. Runs at `ready` in the window that runs
+ * the world's automation, idempotent, creating every replacement before
+ * removing what it replaces. See docs/classes/MODEL.md, the language-migration
+ * paragraph.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { SLOT_FLAG, LANGUAGE_TYPE, ensureLanguage, slotsOf } from "./languages.mjs";
 import { libraryItems, cookbookId, whenReady } from "../lib/library.mjs";
+import { primaryGMSettled } from "../lib/util.mjs";
 
 /** The taxonomy import's id prefix — an ability carrying it is a language. */
 const IMPORTED_PREFIX = "def.language.";
@@ -100,8 +102,10 @@ async function convertActor(actor) {
 }
 
 /**
- * Sweep the world once. GM-only — it writes documents on other people's
- * characters, and every seat running it would race every other.
+ * Sweep the world once. GM-only, since it writes documents on other people's
+ * characters. Its caller runs it in one window: it creates under random ids,
+ * so a second window reading the same stale state would mint every
+ * replacement again.
  */
 export async function migrateLanguages() {
   if (!game.user?.isGM) return { world: 0, actors: 0, languages: 0 };
@@ -119,16 +123,16 @@ export async function migrateLanguages() {
   return { world, actors, languages };
 }
 
-/** Run the sweep once the world is up. */
+/** Run the sweep once the world is up, in the window that automates. */
 export function installLanguageMigration() {
   Hooks.once("ready", () => {
     // This sweep WRITES by asking the library what exists; a shelf still
     // warming reads as absent, so a language in a cold pack would be minted
     // again beside itself.
-    whenReady()
-      .then(() => migrateLanguages())
+    Promise.all([whenReady(), primaryGMSettled()])
+      .then(([, primary]) => (primary ? migrateLanguages() : null))
       .then((r) => {
-        if (r.world || r.languages) {
+        if (r?.world || r?.languages) {
           console.log(
             `${MODULE_ID} | languages now use the system's own type: ${r.world} in the world, ` +
               `${r.languages} on ${r.actors} character(s)`,

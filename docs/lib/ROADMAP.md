@@ -148,27 +148,6 @@ once per window and nothing replays them. A queue kept by one window (the
 formation's movement queue) does not move with the lead either. Not built: a
 new lead reconciling what a gap could have dropped, writer by writer.
 
-## Writers gated on `isGM` alone run once per GM user
-
-The seat's election picks among the active GM's windows. A writer that gates
-on `game.user.isGM` alone runs in every window of every GM user, Assistant
-GMs included. Six run on an automatic trigger:
-
-- `module.mjs`, at `ready`: the `core.sheetClasses` rewrite, and a retainer's
-  `flags.core.sheetClass`.
-- `compendium-folders.mjs`, at `ready`: packs filed into folders. It only
-  fills.
-- `monsters/module.mjs`, at `ready`: `migrateDefenseBands`, which only writes
-  an old shape.
-- `classes/language-migration.mjs`, at `ready`: language items created or
-  updated. Its own comment warns of duplicates on a cold pack, so this one is
-  likely harmful.
-- `mount.mjs`, on `deleteActor`: the rider's and mount's flags unset.
-
-Core's own automation, such as Active Effect expiry and the teleport
-behaviour, runs in every window too. Not built: each writer that is not its
-user's own act moved onto `isPrimaryGM`, the language migration first.
-
 ## What the conditions do not do yet
 
 The catalogue lists every condition of RR 507-515 and the states of a round

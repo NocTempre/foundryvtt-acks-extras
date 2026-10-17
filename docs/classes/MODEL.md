@@ -729,8 +729,9 @@ spent. The picker and drop live in
 clearing a slot deletes the document the slot bought.
 
 [language-migration.mjs](../../scripts/classes/language-migration.mjs) converts
-worlds written the old way at `ready` — GM-only, idempotent, and creating every
-replacement before removing what it replaced.
+worlds written the old way at `ready`, in the one window that runs the world's
+automation (docs/lib/MODEL.md, "Which window automates"): idempotent, and
+creating every replacement before removing what it replaced.
 
 Which languages exist is never shipped: they arrive through the importer from
 the GM's own books, or a Judge writes their own. Telling Polyglot about those

@@ -720,6 +720,60 @@ dropped on its sheet and its token on the scene (docs/formation/TESTING.md,
 windows' ledgers tracked into it first, quoted. Then confirm from any seat
 that the formations setting no longer holds the run's record.
 
+## A load's sweeps run in one window
+
+Covers the gates at the `ready` sweeps and at the legacy mount cleanup: the
+retainer sheet sweep and the monster landing-sheet rewrite (`module.mjs`), the
+compendium filing (`compendium-folders.mjs`), the defence-band migration
+(`monsters/module.mjs`), the language upgrade
+(`classes/language-migration.mjs`), and `mount.mjs`'s `deleteActor` cleanup.
+Walked on core 14.369 with the capture driver: three browsers, about 3
+minutes.
+
+**Windows.** A and B on the active GM's seat, C on the Assistant GM's seat.
+The boot recorder and the `Hooks.call` tally are the previous section's. The
+recorder's script runs before Foundry's, so it polls for `Hooks` and wraps it
+when it appears (3.4 to 4.5 s into the load, measured). Key the tally on the
+hook and the document's id, or its name for a create.
+
+**Fixtures**, all through A's ledger:
+- a world `ability` stamped `flags.acks-extras.cookbook.id =
+  "def.language.fixture-<random>"` (docs/classes/TESTING.md, "The language
+  upgrade");
+- a `monster` whose `flags.acks-extras.extras.defenses.immunities.effects` is
+  a string;
+- a `character` created with `system.retainer.enabled: true`, then
+  `unsetFlag("core", "sheetClass")`. Its create pins the card, and an update
+  that leaves the retainer flag alone does not pin it again;
+- a `character` rider and a `monster` steed paired by the legacy flags:
+  `flags.acks-extras.mount` on the rider names the steed's uuid, and
+  `flags.acks-extras.rider` on the steed names the rider's.
+
+**Steps.**
+1. **One window sweeps.** Install the recorder in all three windows, then
+   `Page.reload` all three at once. Reloading one of two GM windows hands the
+   lead to the other, and the reloaded window follows, so neither sweeps on
+   that load: reload every window, or a lone one.
+   **Observable:** one `language` item carries the fixture's id and the
+   `ability` is gone, the band's `effects` is an array with the string kept
+   in its note, and the retainer carries `flags.core.sheetClass`. The lead's
+   tally alone holds the `preCreateItem`, the fixture's `preDeleteItem` and
+   both actors' `preUpdateActor`. The other GM window's tally and the
+   Assistant's hold none of them, and no recorder caught an error.
+2. **One cleanup per deletion.** Delete the rider from the GM window that
+   does not lead.
+   **Observable:** the steed's `rider` flag is gone, and only the lead's tally
+   holds the steed's `preUpdateActor`.
+
+The landing-sheet rewrite needs a `core.sheetClasses` pin naming
+`acks-extras.FullMonsterSheet`, and the compendium filing a pack with no
+folder. Both are world settings a shared test world's other sessions rely on,
+so these two stay offline here.
+
+**Teardown.** Track the `language` item by the id read back through the
+fixture's cookbook id, then `api.sweepTracked()` from A, quoted. It reports
+the rider and the retired `ability` missing.
+
 ## A dropped bundle arrives as its goods
 
 Covers `bundles.mjs` (`unpackBundle`, `deliverItems`), the character sheet's

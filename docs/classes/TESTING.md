@@ -822,8 +822,10 @@ spoken by the fixture: `api.track` every `game.messages` entry whose
 
 `language-migration.mjs` retypes a world's imported language abilities to the
 system's `language` type, and turns each character's recorded tongue names into
-documents. It runs once per GM load and does nothing when there is nothing to
-convert, which is why a broken branch in it can go unnoticed for releases. A
+documents. It runs when the window that runs the world's automation loads
+(docs/lib/MODEL.md, "Which window automates"), and does nothing when there is
+nothing to convert, which is why a broken branch in it can go unnoticed for
+releases. A
 world that is already upgraded never reaches that branch, so build the
 pre-upgrade shape on purpose.
 
@@ -839,7 +841,10 @@ reports counts and not ids.
 3. Reload the GM seat (`location.reload()`). The trigger is the `ready` hook.
    A dynamic `import()` of the module in an already-loaded page returns the
    instance that page loaded, so it runs whatever code was on disk at the last
-   load, not the working tree's.
+   load, not the working tree's. With a second window open on the GM seat,
+   reload every window at once, or the reloaded one follows the other and
+   nothing converts (docs/lib/TESTING.md, "A load's sweeps run in one
+   window", which also proves one window converts).
 4. After `whenReady()`, read back the world items carrying the fixture's id.
 
 **Observable.** The console logs

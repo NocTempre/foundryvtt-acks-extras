@@ -16,7 +16,7 @@ import { createFullMonsterSheet } from "./monster-sheet.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { registerItemAnnotations } from "./item-annotations.mjs";
 import * as config from "./config.mjs";
-import { elementOf } from "../lib/util.mjs";
+import { elementOf, primaryGMSettled } from "../lib/util.mjs";
 
 /** The dynamically-created sheet class (base is resolved at init). */
 let FullMonsterSheet = null;
@@ -139,10 +139,13 @@ Hooks.once("ready", () => {
   }
   console.log(`${MODULE_ID} | Full Monster sheet registered for ${sheetTypes.join("/")} (default for ${animalType ?? "none"}).`);
 
-  // One-time GM sweep: shape-gated on a band whose `effects` is still a STRING,
-  // so it cannot fire twice. See docs/monsters/DECISIONS.md, "Defence bands
-  // adopt the shared shape; capacity answers once".
-  if (game.user.isGM) migrateDefenseBands().catch((err) => console.error(`${MODULE_ID} | defence-band migration failed`, err));
+  // One-time sweep in the window that automates: shape-gated on a band whose
+  // `effects` is still a STRING, so a later load finds nothing to do. See
+  // docs/monsters/DECISIONS.md, "Defence bands adopt the shared shape; capacity
+  // answers once".
+  primaryGMSettled()
+    .then((primary) => primary && migrateDefenseBands())
+    .catch((err) => console.error(`${MODULE_ID} | defence-band migration failed`, err));
 });
 
 /** Parse one legacy free-prose effects string into the closed sets. */

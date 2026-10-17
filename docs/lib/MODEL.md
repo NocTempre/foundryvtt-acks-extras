@@ -124,7 +124,7 @@ Two strengths:
 
 | | `organizeCompendiumFolders()` | `restoreCompendiumLibrary()` |
 | --- | --- | --- |
-| When | every load, GM only | the *Restore the Compendium Library (GM)* macro |
+| When | every load, in the window that automates ("Which window automates"); or a GM's API call | the *Restore the Compendium Library (GM)* macro |
 | Claims | a pack with no folder, or one naming a folder that is gone | every ACKS pack |
 | Per-pack config | untouched | reset to the package's defaults — sort, lock and ownership grants dropped |
 | Empty folders | never made, never removed | the ones it empties, and any empty shelf inside this module's own tree |

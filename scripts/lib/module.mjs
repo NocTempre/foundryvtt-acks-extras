@@ -849,10 +849,11 @@ Hooks.once("ready", () => {
   // File any compendium that has no folder, or names one that is gone — the
   // system's into the system's own declared tree, this module's into this
   // module's. A slot that resolves is a Judge's arrangement and is left; the
-  // macro is what overrules (compendium-folders.mjs).
-  organizeCompendiumFolders().catch((err) =>
-    console.error(`${MODULE_ID} | filing the ACKS compendiums failed`, err),
-  );
+  // macro is what overrules (compendium-folders.mjs). The window that automates
+  // files them: a second would make each missing folder again.
+  primaryGMSettled()
+    .then((primary) => primary && organizeCompendiumFolders())
+    .catch((err) => console.error(`${MODULE_ID} | filing the ACKS compendiums failed`, err));
 
   // `body.acks-lib-sheet-theme` is the marker that ACKS surfaces are themed
   // (docs/lib/MODEL.md's theming section); it stays a class so these rules
@@ -969,32 +970,34 @@ Hooks.once("ready", () => {
   });
   console.log(`${MODULE_ID} | FollowerCardSheet registered (character; default for monster).`);
 
-  // One-time GM sweep, migrating a world's OWN former default (see
-  // docs/lib/DECISIONS.md, "The monster type default migrates its own former
-  // pin, once (2026-09-22)"). Rewrites only the one exact string this
-  // module's own past registration wrote.
-  if (game.user.isGM) {
-    const stored = game.settings.get("core", "sheetClasses") ?? {};
-    if (stored?.Actor?.monster === `${MODULE_ID}.FullMonsterSheet`) {
-      const next = foundry.utils.deepClone(stored);
-      next.Actor.monster = FOLLOWER_SHEET_KEY;
-      game.settings
-        .set("core", "sheetClasses", next)
-        .then(() => console.log(`${MODULE_ID} | monsters now open on the Follower Card; expand for the full block.`))
-        .catch((err) => console.error(`${MODULE_ID} | monster landing-sheet migration failed`, err));
-    }
-  }
+  // Two one-time sweeps, in the window that automates.
+  primaryGMSettled()
+    .then((primary) => {
+      if (!primary) return;
+      // A world's OWN former default migrates (see docs/lib/DECISIONS.md, "The
+      // monster type default migrates its own former pin, once (2026-09-22)").
+      // Rewrites only the one exact string this module's own past
+      // registration wrote.
+      const stored = game.settings.get("core", "sheetClasses") ?? {};
+      if (stored?.Actor?.monster === `${MODULE_ID}.FullMonsterSheet`) {
+        const next = foundry.utils.deepClone(stored);
+        next.Actor.monster = FOLLOWER_SHEET_KEY;
+        game.settings
+          .set("core", "sheetClasses", next)
+          .then(() => console.log(`${MODULE_ID} | monsters now open on the Follower Card; expand for the full block.`))
+          .catch((err) => console.error(`${MODULE_ID} | monster landing-sheet migration failed`, err));
+      }
 
-  // One-time GM sweep: existing retainers with no explicit sheet choice adopt
-  // the card (docs/lib/FOLLOWER-CARD.md's "Default-for-retainers" section).
-  if (game.user.isGM) {
-    const updates = game.actors
-      .filter((a) => FOLLOWER_TYPES.has(a.type) && a.system?.retainer?.enabled && !a.getFlag("core", "sheetClass"))
-      .map((a) => ({ _id: a.id, "flags.core.sheetClass": FOLLOWER_SHEET_KEY }));
-    if (updates.length) {
-      Actor.updateDocuments(updates).catch((err) => console.error(`${MODULE_ID} | follower-card sweep failed`, err));
-    }
-  }
+      // Existing retainers with no explicit sheet choice adopt the card
+      // (docs/lib/FOLLOWER-CARD.md's "Default-for-retainers" section).
+      const updates = game.actors
+        .filter((a) => FOLLOWER_TYPES.has(a.type) && a.system?.retainer?.enabled && !a.getFlag("core", "sheetClass"))
+        .map((a) => ({ _id: a.id, "flags.core.sheetClass": FOLLOWER_SHEET_KEY }));
+      if (updates.length) {
+        Actor.updateDocuments(updates).catch((err) => console.error(`${MODULE_ID} | follower-card sweep failed`, err));
+      }
+    })
+    .catch((err) => console.error(`${MODULE_ID} | the ready-time sheet sweeps failed`, err));
 });
 
 /* -------------------------------------------- */
