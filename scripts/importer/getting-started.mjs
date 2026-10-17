@@ -54,7 +54,9 @@ export const gettingStartedDismissed = () => !!game.settings.get(MODULE_ID, SETT
  *                   the creatures they are keyed to. Only books this seat has
  *                   open, and silent when that is none of them;
  *  7. journals + roll tables — reference the creatures imported in 4;
- *  8. rules tables — last (they warn by themselves if the provider is absent).
+ *  8. rules tables — they warn by themselves if the provider is absent;
+ *  9. placeholders — book text an earlier version left as a tag, wherever a
+ *                   copy carried it, read from the books this seat has open.
  *
  * A step missing from this list is a step a GM can only reach by hunting for
  * its macro — which is how the class import came to be run by hand, repeatedly.
@@ -124,6 +126,12 @@ const GM_STEPS = [
   // and wires in the lists, so it follows all three.
   ["stepScenes", (api) => api.cookbookImportScenes()],
   ["stepTables", (api) => api.cookbookImportTables()],
+  // Import steps over a document it already holds, the repair passes walk the
+  // library, and only the abilities pass walks a character. A placeholder on
+  // any other copy — gear on a character, a template's skin, which carries no
+  // importer flag at all — is reached only by looking for the placeholder
+  // itself, so the chain closes on that.
+  ["stepLegacyText", (api) => api.resolveLegacyText()],
 ];
 
 /**

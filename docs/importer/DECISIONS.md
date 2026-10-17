@@ -6138,3 +6138,32 @@ record is not imported in any form until the domain sheet exists to receive
 it, and AX1's art pages are not imported at all.
 
 *Rejected:* the record as a Judge-only picture page in the meantime.
+
+## 2026-10-17 — A placeholder is found by what it is, not by whose flag it carries
+
+Extends "Importing again refreshes what it did not create" (2026-09-02). New
+evidence: a field report of `@PdfText[def.equip.herbComfrey]{RR p.145}` on a
+character's herbs, and more like it. Every repair this module had found its
+documents by the importer's flag, in the library — and only the abilities pass
+walked a character. A template package's gear is a skin (`buildGearData`): a
+copy of the library item, description included, with the importer's flag
+stripped so it cannot answer for the definition. A skin copied while its base
+still held a placeholder kept it, and no gesture a user had could reach it.
+Equipment and every other kind on a character were unreachable the same way.
+
+**Ruled.** The tag names its own entry, so a pass finds tags by what they are:
+every string of every document the world and its compendia hold, embedded
+documents included. It replaces each tag with a fresh read of the entry it
+names, in the shape an import writes today, under the entry's current page
+reference (the tag's own may predate 4.3.2's page fix). Only the tag goes; a
+Judge's writing beside it stays, so no ownership question arises. A tag whose
+book is not open on the seat, or whose entry the library no longer has, is
+left as it is and reported with what it needs. It is a check in Repair This
+World (`importer.legacyText`), where each finding is listed and the rescan
+judges the fix, and Import Everything closes on the same fix.
+
+*Rejected:* resolving tags at render again. That is the per-seat resolution the
+2026-08-24 ruling retired, kept alive to display copies a single write fixes.
+*Rejected:* copying the library document's description over each copy. It
+reaches only copies that kept a flag naming their base, and a library item can
+hold a placeholder itself.

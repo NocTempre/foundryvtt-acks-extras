@@ -1548,6 +1548,40 @@ async function repairFromEntry(doc, id, build, policy) {
 }
 
 /**
+ * Whether this seat can read `fullId` now, asked before anything is read:
+ * `{ok, name}`, or a `reason` — `no-entry` when the cookbook does not know the
+ * id, `book-closed` (with `book`, the label of the book to connect) when its
+ * book is not open here. `name` is the entry's own name, or the bare id.
+ */
+export function entryReadable(fullId) {
+  const found = cookbookEntry(fullId);
+  if (!found) return { ok: false, reason: "no-entry", name: splitId(fullId).id };
+  const name = found.entry?.name ?? found.id;
+  const bookId = bookOf(found);
+  if (!ctx?.sessionDocs?.get(bookId)) return { ok: false, reason: "book-closed", book: bookLabel(bookId), name };
+  return { ok: true, name };
+}
+
+/**
+ * One entry read fresh, as the materialized book text an import writes today.
+ * A `#section` on `fullId` keeps that section's paragraphs; `cited` false
+ * leaves the page reference off. The reference is the entry's current one,
+ * never one stored beside an older copy. Resolves to `{html}`, or to a
+ * `reason` nothing was written for: `entryReadable`'s, or `no-match` when the
+ * page no longer matches.
+ */
+export async function freshEntryText(fullId, { cited = true } = {}) {
+  const readable = entryReadable(fullId);
+  if (!readable.ok) return { reason: readable.reason };
+  const found = cookbookEntry(fullId);
+  const session = ctx.sessionDocs.get(bookOf(found));
+  const node = await executeEntry(session.doc, found.cb, data.registers, found.id).catch(() => null);
+  if (!node?.ok) return { reason: "no-match" };
+  const section = splitId(fullId).section ?? "";
+  return { html: entryText(node, found.id, cited ? (found.entry.cite ?? "") : "", { section }) };
+}
+
+/**
  * How each refill run repairs instead of rebuilding: given the cookbook ids it
  * may touch and a tally (`repairTally`) to count into, it writes every held
  * document over where it stands and imports the ids the world lacks. A run

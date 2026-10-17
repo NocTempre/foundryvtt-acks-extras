@@ -89,6 +89,7 @@ import {
 } from "./cookbook.mjs";
 import { registerGettingStartedSettings, runImportEverything, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
 import { registerOseSourceSetting } from "./ose-source.mjs";
+import { registerLegacyTextCheck, resolveLegacyText } from "./legacy-text.mjs";
 import { registerOseSourceDialog, oseBrowseDialog, oseCalibrateDialog, oseConvertAll } from "./ose-app.mjs";
 import { oseManualDialog } from "./ose-manual.mjs";
 import { importOseBook, importOseAreas, importAuthoredOse, authoredOseBooks, oseEntryRows, importOseEntries } from "./ose-book.mjs";
@@ -2833,6 +2834,7 @@ Hooks.once("init", () => {
   // read once and emptied (`migrateShelfSetting`); nothing else touches it.
   game.settings.register(MODULE_ID, SETTING_SHELF, { scope: "world", config: false, type: Object, default: {} });
   registerGettingStartedSettings();
+  registerLegacyTextCheck();
   // An Adventure the map step wrote imports as a fill, never an overwrite.
   registerSettlementAdventureHooks();
   setWorker(`modules/${MODULE_ID}/vendor/pdfjs/pdf.worker.mjs`);
@@ -2885,6 +2887,8 @@ Hooks.once("ready", async () => {
     /** The whole import chain, in dependency order — the "Import Everything" control. */
     importEverything: () => runImportEverything(),
     importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
+    /** Book-text placeholders an earlier version left, replaced where this seat can read their books. */
+    resolveLegacyText,
     importWeapons, importArmor,
     importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
     gettingStarted: () => openBooksDialog({ firstRun: true }),

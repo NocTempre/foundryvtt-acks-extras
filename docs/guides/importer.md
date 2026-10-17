@@ -435,12 +435,15 @@ id, its name and your description, and takes the fresh reading.
 written by a version that stored a placeholder and resolved it while you looked
 at it; the text is materialized into the document itself now, and nothing
 renders the placeholder any more. Importing again does not clear it — import
-creates documents and steps over the ones you already have. Connect the book and
-run **Import Everything**, which now refreshes what it did not create; the same
-repair reaches abilities living on a character, where *Delete Everything
-Imported* does not look. A description you have written in yourself is left
-alone, so if a placeholder sits beside your own words, clear the placeholder and
-run it again.
+creates documents and steps over the ones you already have. Connect the book the
+placeholder names and run **Import Everything**: its last step finds every
+placeholder in the world and its compendia — gear on a character, a class
+template's copy of an item, a journal page — and writes the entry's text in its
+place. Anything you wrote beside a placeholder stays where it is. To see each one
+first, open the repair tool (Configure Settings → *ACKS II — Extras* → *Repair
+this world*) and scan *Book text never brought over*: it lists every placeholder,
+says which book to connect for any it cannot fix on your seat, and fixes the ones
+you tick.
 
 **The page an item cites is two pages past the entry.** Fixed in 4.3.2: a
 citation now names the number printed on the page, where before it named the

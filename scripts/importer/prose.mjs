@@ -29,9 +29,13 @@ export const CITE_LINK_CLASS = "acks-extras-importer-cite-link";
 /** A materialized book table — rows the page printed, headed by authored words. */
 export const BOOK_TABLE_CLASS = "acks-extras-importer-table";
 
-/** Matches a stamped block, and the legacy `@PdfText` tag it replaced. */
+/**
+ * Matches a stamped block, and the legacy `@PdfText` tag it replaced. A tag
+ * captures its paragraph's opening, the entry id (with any `#section`), the
+ * page reference, and its paragraph's closing.
+ */
 const BOOK_TEXT_BLOCK = /<div\b[^>]*\bdata-acks-entry=[^>]*>[\s\S]*?<\/div>/gi;
-const LEGACY_TAG = /(?:<p>\s*)?@PdfText\[[^\]]*\](?:\{[^}]*\})?(?:\s*<\/p>)?/gi;
+const LEGACY_TAG = /(<p>\s*)?@PdfText\[([^\]]*)\](?:\{([^}]*)\})?(\s*<\/p>)?/gi;
 
 /** Extracted text is never markup. */
 export const escapeText = (value) =>
@@ -158,3 +162,26 @@ export const entryTable = (node, id, cite, columns = []) =>
  * text, and both are this module's writing.
  */
 export const stripBookText = (html) => String(html ?? "").replace(BOOK_TEXT_BLOCK, " ").replace(LEGACY_TAG, " ");
+
+/**
+ * The legacy `@PdfText` tags in a stored string, in order.
+ *
+ * @returns {{id: string, cited: boolean}[]} `id` keeps any `#section`;
+ *   `cited` is whether the tag carried a page reference
+ */
+export const legacyTags = (html) =>
+  [...String(html ?? "").matchAll(LEGACY_TAG)].map((m) => ({ id: m[2].trim(), cited: m[3] !== undefined }));
+
+/**
+ * The same string with each legacy tag replaced by `replace(tag)`, a tag as
+ * `legacyTags` lists it; a null answer keeps that tag. A tag that is a whole
+ * paragraph gives up its paragraph to the replacement, which is a block of its
+ * own; one inside a paragraph leaves the paragraph's markup standing. Every
+ * other character of the string is kept, so writing beside a tag survives.
+ */
+export const replaceLegacyTags = (html, replace) =>
+  String(html ?? "").replace(LEGACY_TAG, (whole, open, id, cite, close) => {
+    const block = replace({ id: id.trim(), cited: cite !== undefined });
+    if (block == null) return whole;
+    return `${open && !close ? open : ""}${block}${close && !open ? close : ""}`;
+  });

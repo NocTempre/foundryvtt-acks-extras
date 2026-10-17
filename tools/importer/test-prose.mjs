@@ -10,7 +10,7 @@
  * repairing anything again. The live world cannot gate the third — proving it
  * there means running the update pass over every ability a world holds.
  */
-import { bookText, bookTable, entryText, entryTable, nodeParagraphs, nodeTablePairs, nodeText, stripBookText, escapeText } from "../../scripts/importer/prose.mjs";
+import { bookText, bookTable, entryText, entryTable, nodeParagraphs, nodeTablePairs, nodeText, stripBookText, escapeText, legacyTags, replaceLegacyTags } from "../../scripts/importer/prose.mjs";
 import { parseCite } from "../../scripts/importer/books.mjs";
 
 let failed = 0;
@@ -96,6 +96,21 @@ ok("a PoC citation names the PDF page itself", JSON.stringify(parseCite("MM PDF 
 ok("case and spacing do not matter", parseCite("rr p 5")?.book === "rr");
 eq("a reference to no known book names nobody", parseCite("XYZ p.4"), null);
 eq("prose is not a reference", parseCite("See page 4 of the book"), null);
+
+/* --- the legacy tag, read and replaced --- */
+const legacy = "<p>@PdfText[def.equip.herbComfrey]{RR p.145}</p>";
+eq("a tag names its entry", JSON.stringify(legacyTags(legacy)), JSON.stringify([{ id: "def.equip.herbComfrey", cited: true }]));
+eq("a section stays on the id, and a bare tag is uncited", JSON.stringify(legacyTags("@PdfText[mm.ghoul#combat]")), JSON.stringify([{ id: "mm.ghoul#combat", cited: false }]));
+eq("no tag, nothing listed", legacyTags("<p>A Judge's note.</p>").length, 0);
+eq("every tag is listed, in order", legacyTags("<p>@PdfText[a.b]{X p.1}</p><p>@PdfText[c.d]{X p.2}</p>").map((t) => t.id).join(" "), "a.b c.d");
+const block = '<div data-acks-entry="x">TEXT</div>';
+eq("a whole-paragraph tag gives its paragraph to the block", replaceLegacyTags(legacy, () => block), block);
+eq("writing beside the tag survives", replaceLegacyTags(`<p>Mine.</p>${legacy}<p>Also mine.</p>`, () => block), `<p>Mine.</p>${block}<p>Also mine.</p>`);
+eq("a tag inside a paragraph leaves its markup standing", replaceLegacyTags("<p>See @PdfText[a.b]{X p.1}</p>", () => "B"), "<p>See B</p>");
+eq("a tag opening a paragraph keeps the opening", replaceLegacyTags("<p>@PdfText[a.b] and more</p>", () => "B"), "<p>B and more</p>");
+eq("a null answer keeps the tag", replaceLegacyTags(legacy, () => null), legacy);
+eq("the answer is asked per tag", replaceLegacyTags("@PdfText[a.b]{X} @PdfText[c.d]", (t) => (t.id === "a.b" ? "A" : null)), "A @PdfText[c.d]");
+eq("the strip still takes a tag whole", stripBookText(legacy).trim(), "");
 
 if (failed) { console.error(`\ntest-prose: ${failed} failure(s)`); process.exit(1); }
 console.log("test-prose: all checks passed");

@@ -1844,6 +1844,7 @@ it does not.
 | `formation.members` | A marching-order member whose actor is gone | Drops the member, with the lights it bore and the spells it cast |
 | `formation.shadows` | A true-position marker with no party, on a party no longer lost, or beside the one its episode keeps on its own scene; a marker only on another scene; a lost party with none | Deletes the first three. A marker from a closed episode also names the Lost section of the party's sheet, which can move the party onto it instead. The last two are report-only and point there. |
 | `equipment.railClothing` | An item whose base type and clothing subtype disagree, and an `armor` document declared clothing | Writes the missing half, with the base type winning, or unsets the declaration on the `armor` document |
+| `importer.legacyText` | A legacy `@PdfText` placeholder in any document the world or a world compendium holds, embedded documents included. Unfixable when the entry's book is not open on the seat, the cookbook lacks the entry, or the compendium is locked, and the finding says which | Writes a fresh read of each named entry in place of its tag, leaving the rest of the field (importer `legacy-text.mjs`). Import Everything's last step runs the same fix |
 
 
 ## The hit-point tool

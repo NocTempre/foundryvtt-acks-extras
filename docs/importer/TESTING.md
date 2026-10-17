@@ -1061,11 +1061,37 @@ cannot read the book than from the one that imported it. Flags are stored in
     everywhere, not just in its prose. Reconnect the book, run it again, and
     confirm both flags now repair. This is invisible on a seat that happens to
     have every book open.
+11. **A placeholder on a copy no repair walks.** Build the pre-upgrade shapes
+    on purpose — the test world holds none. A character carrying: a template
+    skin (`flags["acks-extras"].skin.base` set, no `cookbook` flag) whose
+    description is exactly `<p>@PdfText[def.equip.herbComfrey]{RR p.145}</p>`;
+    an item with a paragraph of your own before an RR tag; an item tagged with
+    an MM entry; an item tagged with an id the cookbook lacks; and an uncited
+    tag (`@PdfText[<id>]`, no braces) in its own biography. Beside it, a loose
+    world item holding a tag in its description and in a module flag that is
+    an ARRAY, and a journal page holding one. A seat opens every shelved book
+    on load, so close MM by `api.forgetBooks()` then
+    `api.connectBookUrl("rr", …, { remember: false })`. Open Repair This World
+    (`acksExtras.lib.repair.open({ only: ["importer.legacyText"] })`) and press
+    its Scan, then select every fixable finding and Fix selected. In a
+    backgrounded pane a coordinate click times out; `element.click()` on the
+    button runs the same action handler. *Observable:* exactly the fixtures are
+    listed, the MM one says to connect the Monstrous Manual and the unknown id
+    says the library has no entry, and neither offers a checkbox; after the fix
+    the panel reports each fixed and those two still listed. Read back: each
+    fixed field holds a block stamped with its entry and no `@PdfText`; the
+    cite is the entry's CURRENT reference, not the tag's p.145; your own
+    paragraph is still first; the uncited tag got no cite line; the array kept
+    its other element. Then reconnect MM and call
+    `api.resolveLegacyText()` — Import Everything's closing step — and confirm
+    the MM item is fixed and the unknown id is counted as left. The fix posts a
+    whispered report naming the fixtures: delete it by the fixture ids it
+    contains, with them.
 
 ### Teardown
 
-11. Delete the folder and everything created, and the hand-made fixtures from
-    steps 8 and 9.
+12. Delete the folder and everything created, and the hand-made fixtures from
+    steps 8, 9 and 11.
 
 ## A citation opens the shelved page
 
