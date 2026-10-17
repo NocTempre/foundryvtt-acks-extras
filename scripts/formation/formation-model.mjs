@@ -882,12 +882,12 @@ export async function ensurePartyToken(formation, scene, x, y) {
   delete tokenData._id;
   foundry.utils.setProperty(tokenData, `flags.${MODULE_ID}.${FLAG_FORMATION_ID}`, formation.id);
   const [tokenDoc] = await scene.createEmbeddedDocuments("Token", [tokenData]);
-  // A PATCH, never the caller's whole copy. The createToken hook adopts the
-  // scene's travel system while the create resolves, and its write is queued
-  // ahead of this one; a whole-record write here carried the mode read before
-  // the adoption back over it, and a party placed on a wilderness map stayed
-  // a delve. The caller's copy then takes the ledger's record, so what it
-  // writes next carries the adoption too.
+  // A PATCH: `updateFormation` keeps the ledger's linkage over a copy's, so
+  // only a patch sets `sceneId` and `tokenId`, with the baseline measured on
+  // that token. The createToken hook's adoption of the scene's travel system
+  // is queued ahead of this write and stands. The caller's copy then takes
+  // the ledger's record, so it holds the adoption and the linkage, and what it
+  // writes next carries only what it changes after this.
   const stored = await patchFormation(formation.id, (record) => {
     record.sceneId = scene.id;
     record.tokenId = tokenDoc.id;
@@ -921,12 +921,12 @@ export async function syncPartyActorSpeed(formation) {
   // The actor is the source of truth for identity: renaming the party actor
   // (like any other actor) renames the formation, never the reverse.
   //
-  // PATCH, not a whole-record write. This runs from the updateActor /
-  // create|update|deleteItem hooks, whose `formation` copy was read when the
-  // hook fired and may already be stale — and since 0.24 a light change makes
-  // acks-equipment refresh the bearer's loadout, so those hooks now fire
-  // constantly. A whole-record write here would revert whatever the in-flight
-  // turn or light mutation had just saved.
+  // A PATCH of the name alone. The party token's adoption (`module.mjs`)
+  // hands over a deep clone with no read on record, which a whole write would
+  // write whole over whatever a turn or a light saved meanwhile. From any
+  // other copy, among them the updateActor and item hooks' copies read when
+  // the hook fired, a whole write would also save whatever else its caller
+  // changed and has not written.
   if (actor.name !== formation.name) {
     formation.name = actor.name;
     await patchFormation(formation.id, (rec) => {

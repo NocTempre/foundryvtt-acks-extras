@@ -452,9 +452,10 @@ export function leashBreach(member, tokenDoc, target, actor) {
 /**
  * The party moved: every detached member may range a fresh round from
  * wherever they now stand. Goes through `patchFormation`, not
- * `updateFormation`, because this fires from the same `updateToken` hook as
- * the clock's own movement processing and a whole-record write from a stale
- * copy would race it.
+ * `updateFormation`: a member's `detach` is one of the deployment fields a
+ * whole write keeps at the ledger's value, so only a patch moves the anchor.
+ * The patch reads each member's token inside the lock and declines when no
+ * anchor moved.
  */
 export async function reanchorDetached(formationId) {
   await patchFormation(formationId, (record) => {

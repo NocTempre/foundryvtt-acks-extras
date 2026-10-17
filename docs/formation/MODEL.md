@@ -1579,9 +1579,11 @@ dragged a year forward does not roll a year of dice in one frame; what is not
 charged is not forgiven, the stamp stays behind by the remainder, and the next
 advance charges the next stretch until the debt drains. The card says how much
 is still catching up. `advanceRounds` settles that credit itself, immediately
-after the world-time advance it makes and before it ticks, because it saves
-its own copy of the record whole at the end and would otherwise write the
-pre-advance board back over a credit that landed in between. A party that
+after the world-time advance it makes and before it ticks, and takes the
+credited board into the copy it ticks on. Its write at the end carries only
+what that copy changed, and a turn moves neither the days nor the stamp, so the
+credit would stand without the take-back; with it, the turn ticks on and
+reports the board the record holds. A party that
 walks back out into the street starts a fresh stay. A stationary party owes
 nothing at the turn tick
 at all — neither the street's throw, which counted by both clocks would come

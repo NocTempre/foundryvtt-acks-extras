@@ -435,11 +435,13 @@ export async function advanceRounds(formation, rounds, { resting = false, reason
     await game.time.advance((TURN_SECONDS / ROUNDS_PER_TURN) * rounds);
     // Settle what that advance owes BEFORE this call ticks, and take the
     // result back into the clone. The holed-up day credit rides the world
-    // clock and writes the stored record; this function saves its own copy
-    // whole at the end, so a credit landing in between is written back over
-    // and the stay silently loses the day it was just charged for. The credit
-    // is serialised at its own module, so this await settles the hook watcher's
-    // answer to the SAME advance as well, and the read below sees one credit.
+    // clock and patches the stored board (its days and the stay's stamp). The
+    // write at the end carries only what this copy changed, and a turn moves
+    // neither, so the credit stands either way; taking it back makes the board
+    // the turn ticks on, and the one this call reports, the board the record
+    // holds. The credit is serialised at its own module, so this await settles
+    // the hook watcher's answer to the SAME advance as well, and the read below
+    // sees one credit.
     await creditHoledUpDays();
     const stored = getFormation(formation.id)?.travel?.settlement;
     if (stored) {

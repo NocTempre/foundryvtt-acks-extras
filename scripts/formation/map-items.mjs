@@ -378,8 +378,8 @@ export async function archiveSession(formation, { warn = false } = {}) {
   const item = await fromUuid(session.itemUuid);
   if (!item) {
     // The working map left the party (traded, deleted): the session dies with
-    // it. Patch, not whole-record write — this can run from the stale-copy
-    // environment sync.
+    // it. A patch of the one field: the caller's copy can hold changes it has
+    // not written, which a whole write would save with this one.
     formation.mapSession = null;
     await patchFormation(formation.id, (rec) => {
       rec.mapSession = null;

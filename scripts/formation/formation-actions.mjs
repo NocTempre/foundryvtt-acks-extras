@@ -1045,8 +1045,9 @@ export async function onChangeForm(event, form, formData) {
   }
   if (changed) await updateFormation(formation);
   // The travel fields ride the same form and write through their own
-  // TARGETED patch, applied after any whole-record write above so the stale
-  // copy cannot clobber what the patch lays down.
+  // TARGETED patches. The whole write above carries only the fields this
+  // handler set on the copy, none of them travel, so it leaves what the
+  // patches lay down alone in either order.
   if (game.user.isGM && data.travel) {
     // The band's mode picker rides this submit: a select reports its change
     // here, where an action (which fires on click) would read the old value.
