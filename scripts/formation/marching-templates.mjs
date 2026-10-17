@@ -353,11 +353,16 @@ export async function formUp(formation, template) {
   const out = formation.members.filter((m) => isMemberDeployed(m));
   let fallen = [];
   if (out.length) {
+    // Loaded late: the turn engine's graph declares classes over core's at
+    // import, and this module also loads where core does not.
+    const { storedPosition } = await import("./turn-engine.mjs");
     const recall = await recallMembers(formation, { members: out });
     fallen = recall.fallen;
     const partyToken = getPartyToken(formation);
     if (recall.anchor) formation.clock.lastPosition = recall.anchor;
-    else if (partyToken) formation.clock.lastPosition = { x: partyToken.x, y: partyToken.y };
+    // At the stored corner: a move this client is still drawing has its
+    // prepared corner part way along.
+    else if (partyToken) formation.clock.lastPosition = storedPosition(partyToken);
     await updateFormation(formation);
     if (partyToken) await partyToken.update({ hidden: false, ...(recall.anchor ?? {}) });
   }

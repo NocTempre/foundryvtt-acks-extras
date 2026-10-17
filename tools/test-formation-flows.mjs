@@ -403,9 +403,15 @@ class TokenMock {
    * Core's update, and on a client drawing the token (`rendered`) its draw of
    * a move: core runs the tween's first frame inside the update, so the hook
    * and every await it starts read the corner the token is leaving, until
-   * `endTween` lands it.
+   * `endTween` lands it. A write that changes nothing stored is dropped before
+   * it is sent (`ClientDatabaseBackend`), so no hook fires and a drawn move
+   * keeps drawing; an unanimated write ends one (`Token#stopAnimation`).
    */
   async update(changes, options = {}) {
+    const stored = (k) => (this.#tween && k in this.#tween ? this.#tween[k] : this[k]);
+    const unchanged = ([k, v]) => !k.includes(".") && (v === null || typeof v !== "object") && stored(k) === v;
+    if (Object.entries(changes).every(unchanged)) return this;
+    if (options.animate === false) this.endTween();
     const from = { x: this.x, y: this.y };
     for (const [k, v] of Object.entries(changes)) setProp(this, k, v);
     if (this.rendered && options.animate !== false && ("x" in changes || "y" in changes)) {
@@ -2065,6 +2071,182 @@ await scenario("a move the primary GM's client is drawing is billed, and trap-ch
 
   await model.disband(model.getFormation(id));
   await drain();
+});
+
+/**
+ * A formation of one walker on `on`, its party token drawn by this client
+ * (`rendered`), as the primary GM's client draws it while viewing the scene.
+ * @returns {Promise<{id: string, walker: object, partyToken: TokenMock,
+ *   step: number, turnRounds: number}>} `step` is one exploration move in
+ *   pixels, `turnRounds` what the clock bills for it.
+ */
+async function drawnParty(name, on = scene) {
+  const walker = await member(name);
+  await drain();
+  const [own] = await on.createEmbeddedDocuments("Token", [{ name, actorId: walker.id, x: 1000, y: 1000 }]);
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation(`${name} Party`);
+  formation = await model.addMember(formation, walker, own);
+  await drain();
+  const id = onlyFormation().id;
+  const partyToken = on.tokens.get(onlyFormation().tokenId);
+  assert.ok(partyToken, "party token placed");
+  partyToken.rendered = true;
+  const speed = model.partySpeed(model.getFormation(id));
+  const squares = Math.round(speed / on.grid.distance);
+  return { id, walker, partyToken, step: squares * on.grid.size, turnRounds: Math.floor((squares * on.grid.distance * 10) / speed) };
+}
+
+/** Land the drawn move, stop drawing, and disband. */
+async function dismissDrawn({ id, partyToken }) {
+  partyToken.endTween();
+  partyToken.rendered = false;
+  const formation = model.getFormation(id);
+  if (formation) await model.disband(formation);
+  await drain();
+}
+
+const clockRounds = (clock) => clock.turnsTotal * 10 + (clock.roundsPartial ?? 0);
+
+await scenario("the Judge's un-pause re-anchors the clock where a drawn move put the party", async () => {
+  // See docs/formation/DECISIONS.md, "A re-anchor reads the party token's
+  // stored corner". The move made while paused is not billed after it.
+  const { SHARED_ACTIONS } = await import("../scripts/formation/formation-actions.mjs");
+  const party = await drawnParty("Paused");
+  const { id, partyToken, step } = party;
+  // The party sheet's own action, on the sheet's copy of the record.
+  const togglePause = () => SHARED_ACTIONS.togglePause.call({ formation: model.getFormation(id), render() {} });
+  try {
+    await togglePause();
+    await drain();
+    assert.equal(onlyFormation().clock.paused, true, "the Judge paused the clock");
+    const start = { x: partyToken.x, y: partyToken.y };
+    const end = { x: start.x + step, y: start.y };
+    const before = clockRounds(onlyFormation().clock);
+    await partyToken.update({ x: end.x });
+    await drain();
+    assert.deepEqual({ x: partyToken.x, y: partyToken.y }, start, "the drawing still stands where the move began");
+
+    await togglePause();
+    await drain();
+    const clock = onlyFormation().clock;
+    assert.equal(clock.paused, false, "and un-paused it while the move was drawn");
+    assert.deepEqual(clock.lastPosition, end, "the clock is re-anchored where the move put the party");
+
+    partyToken.endTween();
+    await partyToken.update({ x: end.x + step });
+    await drain();
+    assert.equal(clockRounds(onlyFormation().clock) - before, party.turnRounds, "only the move after the pause is billed");
+  } finally {
+    await dismissDrawn(party);
+  }
+});
+
+await scenario("a form-up with no one to gather on the party's scene re-anchors where a drawn move put the party", async () => {
+  // See docs/formation/DECISIONS.md, "A re-anchor reads the party token's
+  // stored corner". With no body to re-form on, the party re-forms where its
+  // token stands.
+  const { captureOrder, formUp } = await import("../scripts/formation/marching-templates.mjs");
+  const party = await drawnParty("Gathered");
+  const { id, walker, partyToken, step } = party;
+  try {
+    assert.equal(await deployment.toggleDetachMember(model.getFormation(id), walker.id), "detached");
+    await drain();
+    const scout = onlyFormation().members.find((m) => m.actorId === walker.id);
+    await scene.deleteEmbeddedDocuments("Token", [scout.deployedTokenId]);
+    await drain();
+
+    const end = { x: partyToken.x + step, y: partyToken.y };
+    await partyToken.update({ x: end.x });
+    await drain();
+    const formation = model.getFormation(id);
+    const result = await formUp(formation, captureOrder(formation));
+    await drain();
+    assert.equal(result?.recalled, 1, "the scout was gathered in");
+    assert.deepEqual(onlyFormation().clock.lastPosition, end, "the clock is re-anchored where the move put the party");
+  } finally {
+    await dismissDrawn(party);
+  }
+});
+
+await scenario("a combat that ends with no one to gather re-anchors where a drawn move put the party", async () => {
+  // See docs/formation/DECISIONS.md, "A re-anchor reads the party token's
+  // stored corner". A move of the party token during the fight is not billed,
+  // and the party re-forms where the token stands.
+  const party = await drawnParty("Fought");
+  const { walker, partyToken, step } = party;
+  const combat = new CombatMock();
+  game.combats.set(combat.id, combat);
+  try {
+    await combat.createEmbeddedDocuments("Combatant", [
+      { tokenId: partyToken.id, sceneId: scene.id, actorId: onlyFormation().actorId, hidden: false },
+    ]);
+    await drain();
+    const fighter = onlyFormation().members.find((m) => m.actorId === walker.id);
+    assert.ok(onlyFormation().combat?.active && fighter.deployedTokenId, "the party deployed for the fight");
+    await scene.deleteEmbeddedDocuments("Token", [fighter.deployedTokenId]);
+    await drain();
+
+    const end = { x: partyToken.x + step, y: partyToken.y };
+    await partyToken.update({ x: end.x });
+    await drain();
+    await combat.delete();
+    await drain();
+    assert.equal(onlyFormation().combat, null, "the party re-formed");
+    assert.deepEqual(onlyFormation().clock.lastPosition, end, "the clock is re-anchored where the move put the party");
+  } finally {
+    game.combats.delete(combat.id);
+    await dismissDrawn(party);
+  }
+});
+
+await scenario("a hop to the place the party already stands on re-anchors where the drawn move put it", async () => {
+  // See docs/formation/DECISIONS.md, "A re-anchor reads the party token's
+  // stored corner". The hop's own write changes nothing, so core drops it and
+  // the move that brought the party there is still being drawn.
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { SETTLEMENT_DOC, SETTLEMENT_PACES } = await import("../scripts/formation/settlement.mjs");
+  const { DISTRICT_TYPE } = await import("../scripts/formation/district-find.mjs");
+  const { LOCATION_TYPE } = await import("../scripts/location/constants.mjs");
+  const { travelToPlace } = await import("../scripts/formation/poi.mjs");
+  // Invented figure: a hop inside one quarter costs nothing, at any pace.
+  const free = Object.fromEntries(Object.keys(SETTLEMENT_PACES).map((pace) => [pace, 0]));
+  registerTable(
+    { id: SETTLEMENT_DOC, source: "invented", tables: { districtTravel: { same: free } } },
+    { priority: PRIORITY.WORLD, source: "test" },
+  );
+  const quarter = new SceneMock("Quarter");
+  game.scenes.set(quarter.id, quarter);
+  const party = await drawnParty("Hopping", quarter);
+  const { id, partyToken, step } = party;
+  const inn = await ActorMock.create({ name: "Inn", type: LOCATION_TYPE });
+  try {
+    // One quarter under the whole map, drawn after the party arrived, so the
+    // arrival adopted nothing from it.
+    quarter.regions.set("quarter", { id: "quarter", behaviors: [{ type: DISTRICT_TYPE, disabled: false }], testPoint: () => true });
+    const gs = quarter.grid.size;
+    const [place] = await quarter.createEmbeddedDocuments("Token", [
+      { name: "Inn", actorId: inn.id, x: partyToken.x + step, y: partyToken.y },
+    ]);
+    const hop = {
+      x: Math.round(place.x + (place.width * gs) / 2 - (partyToken.width * gs) / 2),
+      y: Math.round(place.y + (place.height * gs) / 2 - (partyToken.height * gs) / 2),
+    };
+    const start = { x: partyToken.x, y: partyToken.y };
+    await partyToken.update({ x: hop.x, y: hop.y });
+    await drain();
+    assert.deepEqual({ x: partyToken.x, y: partyToken.y }, start, "the drawing still stands where the move began");
+
+    const result = await travelToPlace(id, place.id);
+    await drain();
+    assert.equal(result.moved, true, `the hop was made (${result.reason ?? "no refusal"})`);
+    assert.deepEqual(onlyFormation().clock.lastPosition, hop, "the clock is re-anchored where the party stands");
+  } finally {
+    unregisterTable(SETTLEMENT_DOC, { priority: PRIORITY.WORLD });
+    await dismissDrawn(party);
+    game.actors.delete(inn.id);
+    game.scenes.delete(quarter.id);
+  }
 });
 
 await scenario("turning the party pivots it on the spot and costs no movement", async () => {

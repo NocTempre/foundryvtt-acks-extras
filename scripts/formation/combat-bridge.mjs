@@ -10,7 +10,7 @@ import {
   updateFormation,
 } from "./formation-model.mjs";
 import { deployMembers, deployedTokens, isMemberDeployed, recallMembers, standsElsewhere } from "./deployment.mjs";
-import { advanceRounds } from "./turn-engine.mjs";
+import { advanceRounds, storedPosition } from "./turn-engine.mjs";
 
 /**
  * Combat integration (runs on the primary GM client): adding the party token
@@ -156,7 +156,9 @@ async function reform(formation, combat) {
 
   // Re-anchor movement tracking at the reform position before the token moves.
   if (anchor) formation.clock.lastPosition = anchor;
-  else if (partyToken) formation.clock.lastPosition = { x: partyToken.x, y: partyToken.y };
+  // At the stored corner: a move this client is still drawing has its
+  // prepared corner part way along.
+  else if (partyToken) formation.clock.lastPosition = storedPosition(partyToken);
   await updateFormation(formation);
 
   if (partyToken) {

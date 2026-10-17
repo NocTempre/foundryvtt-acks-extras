@@ -251,12 +251,10 @@ export async function travelToPlace(formationId, tokenId) {
   const cost = poiTravelTurns(figures, relation, pace);
   if (cost.turns == null) return { moved: false, reason: cost.missing, relation };
 
-  if (cost.turns > 0) {
-    // Loaded late: the turn engine imports the city tick, which will import
-    // the marker drop above, and a static edge here would close that loop.
-    const { advanceTurns } = await import("./turn-engine.mjs");
-    await advanceTurns(formation, cost.turns, { reason: "action" });
-  }
+  // Loaded late: the turn engine imports the city tick, which will import the
+  // marker drop above, and a static edge here would close that loop.
+  const { advanceTurns, storedPosition } = await import("./turn-engine.mjs");
+  if (cost.turns > 0) await advanceTurns(formation, cost.turns, { reason: "action" });
   // Re-read after the tick: it wrote the record, and may have resized the token.
   const after = getFormation(formationId);
   const party = after ? partyPoint(after)?.token : null;
@@ -267,8 +265,11 @@ export async function travelToPlace(formationId, tokenId) {
   const x = Math.round(to.x - (party.width * gs) / 2);
   const y = Math.round(to.y - (party.height * gs) / 2);
   await party.update({ x, y }, { animate: false, [TRAVEL_OPTION]: true });
+  // The stored corner: core drops a write that changes nothing, so a party
+  // already standing on the place keeps drawing the move that brought it.
+  const corner = storedPosition(party);
   await patchFormation(formationId, (rec) => {
-    rec.clock = { ...(rec.clock ?? {}), lastPosition: { x: party.x, y: party.y } };
+    rec.clock = { ...(rec.clock ?? {}), lastPosition: corner };
   });
   return { moved: true, turns: cost.turns, relation, place: target.name };
 }

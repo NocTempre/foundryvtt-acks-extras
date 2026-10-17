@@ -622,6 +622,12 @@ export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
   return patchFormation(formationId, (record) => {
     const t = storedTravelOf(record);
     const token = getPartyToken(record);
+    // Where the party stands is the token's stored corner, as `storedPosition`
+    // (turn-engine.mjs) reads it: a move this client is still drawing has its
+    // prepared corner part way along. Read here, not imported: the turn engine
+    // reaches this module, and the patch is synchronous.
+    const stored = token ? (token._source ?? token) : null;
+    const corner = stored ? { x: stored.x, y: stored.y, width: token.width, height: token.height } : null;
     record.travel = {
       ...t,
       mode,
@@ -632,14 +638,14 @@ export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
       // A journey begun where the party's token stands reads the country under
       // it now, not at its first step.
       ...(mode === "journey" && token?.parent
-        ? { map: mapReadingAt(token.parent, tokenCentre(token), { at: game.time?.worldTime ?? null }) }
+        ? { map: mapReadingAt(token.parent, tokenCentre(corner, token.parent), { at: game.time?.worldTime ?? null }) }
         : {}),
     };
     record.clock = {
       ...(record.clock ?? {}),
       paused: false,
       pausedBy: null,
-      ...(token ? { lastPosition: { x: token.x, y: token.y } } : {}),
+      ...(corner ? { lastPosition: { x: corner.x, y: corner.y } } : {}),
     };
   });
 }

@@ -3631,7 +3631,9 @@ the turn clock, the journey and the trap check.
   made while the party token is still drawing a move takes a corner part way
   along it. Only the resize was walked: it ran after the drag turned the
   party, waited out the step, and anchored `lastPosition` on the stored
-  corner.
+  corner. *Superseded in part by "A re-anchor reads the party token's
+  stored corner" (2026-10-17, below): every one of these but the trap's
+  halt and the resize now reads the stored corner.*
 
 ## 2026-10-17 — Every whole write keeps the party token's linkage
 
@@ -3753,3 +3755,84 @@ that failed on the code before this entry:
   party's").
 - The faults were measured before the fix offline only. The live walks ran
   after it.
+
+## 2026-10-17 — A re-anchor reads the party token's stored corner
+
+**Found.** *A drawn party token is measured where its move put it* (above)
+left the baseline writes outside the movement hook on the prepared `x`/`y`.
+Each was read against core 14.369 for whether it can meet a move the client
+is still drawing. Core draws a move at `CONFIG.Token.movement.defaultSpeed`,
+6 spaces a second, so a long drag draws for seconds.
+- The Judge's pause, a mode change (`setJourneyMode`), and a recall that
+  finds no body on the party's scene (`reform` at a combat's end, `formUp`)
+  re-anchor wherever the token stands when they run. One made while a move is
+  drawn takes a corner part way along it. An un-pause anchored there bills
+  the rest of the paused move with the next one, and a journey begun there
+  also read its country there.
+- The hop to a point of interest and the lost party's step onto its shadow
+  read after their own `animate: false` write. Such a write ends a drawn move
+  (`Token#_onUpdate`, `stopAnimation({reset: false})`), so the read is
+  normally at rest. But core drops a write whose diff against the source is
+  empty (`ClientDatabaseBackend`, `options.diff`), and the move keeps drawing.
+  A party already standing on the place, or on its shadow, sends exactly that
+  write.
+- A trap's halt reads after its own unanimated write as well, and that write
+  moves the token: the halt stands short of the line the move crossed, and the
+  move ended past it.
+
+Read from core and the code, and pinned offline. Walked live on core 14.369
+for the two a click makes, two runs on the primary GM alone on its seat,
+viewing the party's scene. The un-pause was pressed with the token's
+prepared `x` still at a 500 px move's start on both sides of the press: it
+anchored `clock.lastPosition` on `_source`, the paused move billed nothing,
+and the next 500 px move billed 25 ft. The switch to a journey, made after
+the move's own write while the move was still drawn, anchored on `_source`
+too.
+
+**Ruled.** Every re-anchor that can meet a drawn move takes the stored corner
+(`storedPosition`): the pause (`formation-actions.mjs`), `setJourneyMode` (its
+baseline and the journey's first map reading), both recall fallbacks
+(`combat-bridge.mjs`, `marching-templates.mjs`), the hop (`poi.mjs`) and the
+step onto the shadow (`lost-episode.mjs`, which seats the journey's hex at the
+same corner).
+- `travel.mjs` reads `_source` itself. The turn engine reaches it through the
+  city tick, so a static import would close a loop, and the read sits inside a
+  synchronous patch. `poi.mjs` takes the helper from its late import of the
+  turn engine. `formUp` imports it late too, because `marching-templates.mjs`
+  also loads where core does not.
+- The hop and the step read the corner once, when their write resolves.
+- The trap's halt keeps its prepared read. Its write is empty only for a move
+  of 4 px or less (the clearance) that ends exactly on the line, and the read
+  is then off by at most those 4 px.
+
+**Rejected.**
+- *The corner the hop or the step sends* (moderate). It equals the stored
+  corner whether core lands the write or drops it, and needs no read. It
+  would make two expressions of where the party stands where the hook already
+  uses one.
+- *Leaving the click-driven re-anchors on the prepared read, a click inside a
+  move's draw being rare* (weak). A long drag draws for seconds, and the
+  stored read costs nothing.
+
+**Cost.**
+- Pinned offline, against a TokenMock that now models two more of core's
+  behaviours: a write that changes nothing is dropped before it is sent, and
+  an unanimated write ends a drawn move. Each read put back on the prepared
+  value fails its own check (`test-formation-flows.mjs`: the pause, the
+  form-up, the combat's end, the hop; `test-journey.mjs`: the mode change's
+  baseline and country, the step's baseline and hex). TESTING, "A move the
+  GM's client is drawing", walks the pause and the mode change live; the
+  recalls, the hop and the step are offline only.
+- A mode switch made in the move's own tick loses to the movement hook. The
+  hook's whole write, from a copy read before the switch, lands after the
+  switch's patch, so the mode goes back and the baseline is the hook's.
+  Seen live in both runs: the mode read back as it was before the switch. The
+  second run recorded the ledger's writes, and the hook's landed about 0.2 s
+  after the switch's. That is the cost *Every whole write keeps the party
+  token's linkage* names (only the linkage is kept), and not one this entry
+  changes.
+- Reads of where the party stands that are not baselines are not this
+  entry's. `tokenPoint` (`zones.mjs`, behind `partyPoint` and
+  `truePartyPoint`), which the movement chain asks while a move is drawn, is
+  ruled by *The ground under the party is read at the token's stored corner*
+  (2026-10-17).

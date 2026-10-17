@@ -372,6 +372,30 @@ billed.
    Turned east by the drag, the party is resized a moment later: a second,
    unanimated write moves the corner and bills nothing, and `lastPosition`
    follows it to the token's new `_source`.
+5. Pause from the party sheet's pause tool (`data-action="togglePause"`),
+   move the token 500 px east, and press the same tool again while the move
+   is still drawn. At core's default `CONFIG.Token.movement.defaultSpeed` (6
+   spaces a second) a 500 px move draws for under a second, so read
+   `token.x !== token._source.x` just before the press to prove it was.
+   *Observable:* `clock.lastPosition` equals `_source`, and the next 500 px
+   move bills 25 ft. A re-anchor on the prepared corner billed the rest of
+   the paused move with it.
+6. Move the token 1000 px east and wait for the move's own write: the
+   record's `clock.lastPosition` reads the token's `_source`, about 0.3 s in.
+   While the move is still drawn (checked the same way, before and after the
+   call), switch the mode:
+   `await acksExtras.formation.travel.setJourneyMode(id, "journey")`, then
+   back to `"delve"` once it has landed.
+   *Observable:* the mode is `journey`, and `clock.lastPosition` equals
+   `_source` after the first switch. A switch made in the move's own tick
+   proves nothing: the movement hook's whole write, from a copy read before
+   the switch, lands after it, puts the old mode back, and anchors the
+   baseline itself (DECISIONS 2026-10-17, "Every whole write keeps the party
+   token's linkage", Cost).
+
+The recall with no body on the party's scene, the hop to a place the party
+already stands on and the step onto a shadow are pinned offline only
+(DECISIONS 2026-10-17, "A re-anchor reads the party token's stored corner").
 
 Teardown by the run's own ids: `api.sweepTracked()` removes the scenes and
 actors (the party actor dissolves its formation). Track each chat card id as

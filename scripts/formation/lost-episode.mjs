@@ -12,6 +12,7 @@ import { seatJourneyHex, storedTravelOf, travelOf } from "./travel.mjs";
 import { beginLost, walkBelieving, discoverLost, reanchorLost, endLost, lostOf, driftSummary } from "./lost.mjs";
 import { placeShadow, clearShadows, shadowFor, TRUTH_MOVE_OPTION } from "./shadow.mjs";
 import { snapshotFog, restoreFog, paintFakeReveal, announceDiscovery, canFake } from "./lost-fog.mjs";
+import { storedPosition } from "./turn-engine.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
 
@@ -131,10 +132,13 @@ async function moveToShadow(formation, scene) {
   const x = Math.round(cx - (party.width * gs) / 2);
   const y = Math.round(cy - (party.height * gs) / 2);
   await party.update({ x, y }, { animate: false, [TRUTH_MOVE_OPTION]: true });
+  // The stored corner: core drops a write that changes nothing, so a party
+  // already standing on its shadow keeps drawing the move that brought it.
+  const at = storedPosition(party);
   await patchFormation(formation.id, (rec) => {
-    rec.clock = { ...(rec.clock ?? {}), lastPosition: { x: party.x, y: party.y } };
+    rec.clock = { ...(rec.clock ?? {}), lastPosition: at };
   });
-  await seatJourneyHex(party, formation.id);
+  await seatJourneyHex(party, formation.id, at);
   return true;
 }
 

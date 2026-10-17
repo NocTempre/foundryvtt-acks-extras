@@ -516,6 +516,44 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   const t = getFormation(pausedId).travel;
   assert.deepEqual(getFormation(pausedId).clock.lastPosition, { x: 3 * CELL, y: 0 }, "a paused journey's baseline follows the stored corner");
   assert.deepEqual([t.hex.i, t.hex.j, t.map.i, t.map.j], [0, 3, 0, 3], "and so do its hex and reading");
+
+  // A re-anchor reads the stored corner too. See docs/formation/DECISIONS.md,
+  // "A re-anchor reads the party token's stored corner".
+  const { setJourneyMode } = await import("../scripts/formation/travel.mjs");
+  const { reanchorEpisode } = await import("../scripts/formation/lost-episode.mjs");
+
+  const entering = makeScene("S.drawn.mode", { kind: "hex", miles: 7 });
+  const arriving = drawn(makeToken(entering, "t.drawn.mode"), 2 * CELL, 0);
+  const modeId = makeFormation(entering, arriving, { mode: "delve" });
+  await setJourneyMode(modeId, "journey", { sceneId: entering.id });
+  const entered = getFormation(modeId);
+  assert.deepEqual(entered.clock.lastPosition, { x: 2 * CELL, y: 0 }, "a mode change re-anchors the clock where the move put the party");
+  assert.deepEqual([entered.travel.map.i, entered.travel.map.j], [0, 2], "and a journey begun reads its country there");
+
+  // The step onto the shadow changes nothing stored, so core drops it and the
+  // move that brought the party there is still being drawn.
+  const astray = makeScene("S.drawn.truth", { kind: "hex", miles: 7 });
+  astray.deleteEmbeddedDocuments = async (_type, ids) => ids.forEach((id) => astray.tokens.delete(id));
+  const walker = drawn(makeToken(astray, "t.drawn.truth"), 3 * CELL, 0);
+  walker.update = async (data) => {
+    if (Object.entries(data).every(([k, v]) => walker._source[k] === v)) return walker;
+    walker._source = { ...walker._source, ...data };
+    return Object.assign(walker, walker._source);
+  };
+  const truthId = makeFormation(astray, walker);
+  const shadow = makeToken(astray, "t.drawn.truth.shadow", 3 * CELL, 0);
+  shadow.getFlag = (_ns, key) => (key === "shadowFor" ? truthId : undefined);
+  // Retiring the shadow walks every scene, as core's collection iterates.
+  game.scenes[Symbol.iterator] = () => scenes.values();
+  try {
+    const stepped = await reanchorEpisode(getFormation(truthId));
+    assert.equal(stepped?.moved, true, "the party stepped onto its shadow");
+  } finally {
+    delete game.scenes[Symbol.iterator];
+  }
+  const seated = getFormation(truthId);
+  assert.deepEqual(seated.clock.lastPosition, { x: 3 * CELL, y: 0 }, "the step re-anchors the clock where the party stands");
+  assert.deepEqual([seated.travel.hex.i, seated.travel.hex.j], [0, 3], "and seats the hex it stands in");
 }
 
 // On a hex grid a paused drag seats the hex it lands in as well as its reading.

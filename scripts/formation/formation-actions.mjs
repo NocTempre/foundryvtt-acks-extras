@@ -77,6 +77,7 @@ import {
   removeLight,
   removeSpell,
   rollPartySave,
+  storedPosition,
   toggleLight,
   toggleShield,
 } from "./turn-engine.mjs";
@@ -860,9 +861,11 @@ export const SHARED_ACTIONS = {
     formation.clock.paused = !was;
     // Who paused it is recorded.
     formation.clock.pausedBy = formation.clock.paused ? "judge" : null;
-    // Re-anchor the tracker so distance covered while paused is not counted.
+    // Re-anchor the tracker so distance covered while paused is not counted,
+    // at the stored corner: a move this client is still drawing has its
+    // prepared corner part way along.
     const token = getPartyToken(formation);
-    if (token) formation.clock.lastPosition = { x: token.x, y: token.y };
+    if (token) formation.clock.lastPosition = storedPosition(token);
     await updateFormation(formation);
     this.render();
   },
