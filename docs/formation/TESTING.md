@@ -782,10 +782,9 @@ docs/lib/TESTING.md, "A group body moved between scenes".
   departure, `actorLink: true`.
 
 **Drive mechanics.**
-- Poll the party actor's `flags.acks-extras.formationId` until several reads
-  agree. Every Gamemaster window adopts a hand-created party actor, and the
-  flag names whichever wrote last (docs/lib/ROADMAP.md, "One automation
-  client, not one automation user").
+- Poll the party actor's `flags.acks-extras.formationId` until it is set. The
+  window that automates adopts a hand-created party actor, and no other
+  (docs/lib/MODEL.md, "Which window automates").
 - Drop the scout, the guard and the group on the party sheet, then click the
   scout's `[data-action="toggleDetach"]`. Read `deployedTokenId` back from
   the record and `api.track()` that token.

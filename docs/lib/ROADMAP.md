@@ -120,23 +120,6 @@ What that needs: a split between the sweep (geometry only, every scene) and the
 active scene (which may test line of sight), plus a decision about which answer a
 token on an undrawn scene should carry in the meantime.
 
-## One automation client, not one automation user
-
-`isPrimaryGM` elects a USER, `game.users.activeGM`, so a Judge with the world
-open in two windows runs every primary-GM hook twice. Compare-before-write
-hooks shrug that off; a write racing a delete does not. T-0184's console error
-at load was one window's party-ownership write landing on an actor the other
-window had just deleted. The conditions' turn lift (`status-effects.mjs`) is
-one more: the statuses come off once and the second window logs a missing
-effect for each. The formation's `createActor` adoption is another: measured
-live on 2026-10-17, a hand-created party actor got a formation record from
-each Gamemaster window, and the party's flag named whichever wrote last. The fix is electing one CLIENT. Core gives two windows
-of one user no way to agree, so it needs a handshake of the module's own over
-its socket, and a live two-window run proving the loser stays quiet. The
-equipment loadout effect no longer waits on it: its create is refused for the
-second window (docs/equipment/DECISIONS.md, "One loadout effect per actor,
-whoever writes it (2026-10-15)").
-
 ## Events no window handled during a hand-over
 
 A seat's lead that crashes, loses its network or sleeps leaves the seat with
