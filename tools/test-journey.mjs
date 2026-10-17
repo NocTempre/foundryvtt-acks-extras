@@ -480,6 +480,44 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   assert.equal(legacy.result.miles, 7, "a legacy paused flag reads as unpaused in journey mode");
 }
 
+/* -------------------------------------------- */
+/*  A move the active GM's client is drawing    */
+/* -------------------------------------------- */
+
+// Core animates the prepared corner from where the move began; the stored
+// corner (`_source`) holds where it put the party. See docs/formation/
+// DECISIONS.md, "A drawn party token is measured where its move put it".
+{
+  const drawn = (token, x, y) => {
+    token._source = { x, y };
+    return token;
+  };
+
+  const scene = makeScene("S.drawn", { kind: "hex", miles: 7 });
+  const token = drawn(makeToken(scene, "t.drawn"), CELL, 0);
+  const id = makeFormation(scene, token);
+  const r = await observe(() => journey.onPartyTokenMoved(token, id));
+  assert.equal(r.result.miles, 7, "a drawn move is measured to where it put the party");
+  assert.deepEqual(r.hooks[0]?.hex, { i: 0, j: 1, label: "B1" }, "and the hex it entered is read there");
+  assert.deepEqual(getFormation(id).clock.lastPosition, { x: CELL, y: 0 }, "the next move is measured from there");
+
+  // Two moves heard at once: each is measured to its own destination, read
+  // when it was heard, though the second has written over the token by the
+  // time the first's turn comes.
+  const first = journey.onPartyTokenMoved(drawn(token, 2 * CELL, 0), id);
+  const second = journey.onPartyTokenMoved(drawn(token, 3 * CELL, 0), id);
+  const [a, b] = await Promise.all([first, second]);
+  assert.deepEqual([a.miles, b.miles], [7, 7], "two queued moves each spend their own hex");
+
+  const paused = makeScene("S.drawn.pause", { kind: "hex", miles: 7 });
+  const still = drawn(makeToken(paused, "t.drawn.pause"), 3 * CELL, 0);
+  const pausedId = makeFormation(paused, still, { clock: { paused: true, pausedBy: "judge" } });
+  await observe(() => journey.onPartyTokenMoved(still, pausedId));
+  const t = getFormation(pausedId).travel;
+  assert.deepEqual(getFormation(pausedId).clock.lastPosition, { x: 3 * CELL, y: 0 }, "a paused journey's baseline follows the stored corner");
+  assert.deepEqual([t.hex.i, t.hex.j, t.map.i, t.map.j], [0, 3, 0, 3], "and so do its hex and reading");
+}
+
 // On a hex grid a paused drag seats the hex it lands in as well as its reading.
 {
   const scene = makeScene("S.pause.hex", { kind: "hex", miles: 7 });

@@ -1053,12 +1053,15 @@ export function autoEnterHex(formationId, step = {}) {
  * — stepped onto its true position — so the hex and the map's reading of it
  * change and nothing is counted: no hex entered, no road step. Off a hex grid
  * there is no hex to name, and only the reading is written. A formation not
- * on a journey changes nothing.
+ * on a journey changes nothing. `at` is the corner to read at; a caller
+ * hearing a move passes the stored one (`storedPosition`), since a drawn
+ * token's own `x`/`y` lag it.
  */
-export function seatJourneyHex(tokenDoc, formationId) {
+export function seatJourneyHex(tokenDoc, formationId, at = tokenDoc) {
   const scene = tokenDoc?.parent;
   if (!scene) return Promise.resolve(null);
-  const reading = mapReadingAt(scene, tokenCentre(tokenDoc, scene), { at: game.time?.worldTime ?? null });
+  const corner = { x: at.x, y: at.y, width: tokenDoc.width, height: tokenDoc.height };
+  const reading = mapReadingAt(scene, tokenCentre(corner, scene), { at: game.time?.worldTime ?? null });
   const hexed = reading.i != null && reading.j != null;
   return patchFormation(formationId, (record) => {
     const t = storedTravelOf(record);

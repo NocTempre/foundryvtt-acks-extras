@@ -107,6 +107,23 @@ it covers; a section no walk names is walked by hand.
   outside its own ledger. Teardown is by the run's own ids
   (`.claude/rules/live-testing.md`, step 4); a walk that died before its
   sweep has its ids in its log — re-track them and `sweepTracked()`.
+- **Hold the Gamemaster seat alone.** Every client joined on it runs the
+  automation (MODEL, §Movement → turns), so a second one, whether a peer's
+  walk or an idle pane, races your record writes: a move billed twice, a
+  write lost. `game.users.filter(u => u.active)` lists the seat once however
+  many clients hold it. The server's debug log names each authentication
+  (TEST_ENVIRONMENT).
+- **Drag a token with trusted mouse input**, CDP `Input.dispatchMouseEvent`
+  on the driver's page. `Token#_canDrag` refuses unless the token is
+  controlled and `game.activeTool === "select"`
+  (`ui.controls.activate({ control: "tokens", tool: "select" })`). Core starts
+  the drag on the first move 10 px past the press and cancels it at a 500 ms
+  long press. A press that stalls the page past that cancels the drag: the
+  overdue timer runs before the queued moves, and the stalled frame's
+  `ticker.elapsedMS` throttles the moves after it. The first press on a token
+  can be such a stall (TEST_ENVIRONMENT), so click the token once and pause
+  before the press that drags. Then step about 12 px, then 10 px every 20 ms, and
+  release at the end.
 
 ## Steps
 
@@ -318,6 +335,47 @@ it covers; a section no walk names is walked by hand.
     the actors (the party actor dissolves its formation); track each chat card
     id as it lands. No world document outside that ledger is touched: the
     survival flag lives on the disposable actors and goes with them.
+
+## A move the GM's client is drawing (added with the stored-position fix)
+
+The clock, the journey and the trap check measure a move to where it put the
+party, on the client that animates the token as well (DECISIONS 2026-10-17).
+No walk in `tools/live/` names this section.
+
+Fixtures: two disposable scenes A and B (`active: false`, `padding: 0`, a
+100 px grid of 5 ft, wide enough for four 500 px steps east), a disposable
+character, a party actor with the character joined by drop, and the party
+token on A at (500, 500) with `actorLink: true`. Hold the Gamemaster seat
+alone (Core drive mechanics). Arm an `updateToken` observer that records, per
+move, `changes.x`, `tokenDoc.x`, `tokenDoc._source.x` and
+`options._movement[id].destination.x`. It is an observer and never a delete
+list.
+
+Each step moves the token 500 px (25 ft) east and waits ~5 s. Compare the
+record's `clock` before and after: rounds times a round's share of the
+formation's `turnDistance`, plus the change in `carryFeet`, is the distance
+billed.
+
+1. View A and `await token.update({ x: token._source.x + 500 })`.
+   *Observable:* the hook saw `tokenDoc.x` at the start and `_source.x` at the
+   destination, so the GM's client is drawing the move (the condition under
+   test). 25 ft is billed, and `clock.lastPosition` equals the token's
+   `_source`.
+2. Do it again, still viewing A.
+   *Observable:* 25 ft again. The code before the fix billed each drawn move
+   one move late: 0 at step 1, then step 1's 25 ft here.
+3. View B, then move the token on A.
+   *Observable:* 25 ft. This is the control: nothing draws the token, so the
+   hook's `tokenDoc.x` already equals the destination.
+4. View A and drag the token with a real gesture (Core drive mechanics).
+   *Observable:* as step 1, and the hook's `_movement` method is `dragging`.
+   Turned east by the drag, the party is resized a moment later: a second,
+   unanimated write moves the corner and bills nothing, and `lastPosition`
+   follows it to the token's new `_source`.
+
+Teardown by the run's own ids: `api.sweepTracked()` removes the scenes and
+actors (the party actor dissolves its formation). Track each chat card id as
+it lands.
 
 ## Mounts and the train (added with the stations release)
 

@@ -365,6 +365,8 @@ class ActorMock {
 globalThis.Actor = ActorMock;
 
 class TokenMock {
+  /** The corner a move this client is still drawing will land on; null when none is. */
+  #tween = null;
   constructor(scene, data) {
     this.parent = scene;
     this.id = data._id ?? uid("tok");
@@ -380,6 +382,10 @@ class TokenMock {
   get actor() {
     return game.actors.get(this.actorId) ?? null;
   }
+  /** Core's stored data. While a move is drawn, the prepared `x`/`y` lag it. */
+  get _source() {
+    return this.#tween ?? this;
+  }
   getFlag(ns, key) {
     return this.flags?.[ns]?.[key];
   }
@@ -393,11 +399,28 @@ class TokenMock {
     const { parent, ...rest } = this;
     return foundry.utils.deepClone({ ...rest, _id: this.id });
   }
+  /**
+   * Core's update, and on a client drawing the token (`rendered`) its draw of
+   * a move: core runs the tween's first frame inside the update, so the hook
+   * and every await it starts read the corner the token is leaving, until
+   * `endTween` lands it.
+   */
   async update(changes, options = {}) {
+    const from = { x: this.x, y: this.y };
     for (const [k, v] of Object.entries(changes)) setProp(this, k, v);
+    if (this.rendered && options.animate !== false && ("x" in changes || "y" in changes)) {
+      this.#tween = { x: this.x, y: this.y };
+      Object.assign(this, from);
+    }
     await sleep();
     Hooks.call("updateToken", this, changes, options, "GM1");
     return this;
+  }
+  /** The drawn move lands: the prepared corner reaches the stored one. */
+  endTween() {
+    if (!this.#tween) return;
+    Object.assign(this, this.#tween);
+    this.#tween = null;
   }
   /**
    * Core's `TokenDocument#resize`, modelled rather than stubbed: it holds the
@@ -1872,6 +1895,82 @@ await scenario("moving the party token advances the clock", async () => {
   const worldSeconds = game.time.advanced.reduce((a, b) => a + b, 0);
   console.log(`      [probe] world clock +${worldSeconds}s`);
   assert.equal(worldSeconds, (roundsAfter - roundsBefore) * 60, "world clock moved a minute per round");
+
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
+await scenario("a move the primary GM's client is drawing is billed, and trap-checked, where it put the party", async () => {
+  // See docs/formation/DECISIONS.md, "A drawn party token is measured where
+  // its move put it".
+  const walker = await member("Drawn");
+  await drain();
+  const [wToken] = await scene.createEmbeddedDocuments("Token", [
+    { name: "Drawn", actorId: walker.id, x: 1000, y: 1000 },
+  ]);
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Drawn Party");
+  formation = await model.addMember(formation, walker, wToken);
+  await drain();
+  const id = onlyFormation().id;
+  const partyToken = scene.tokens.get(onlyFormation().tokenId);
+  assert.ok(partyToken, "party token placed");
+
+  const speed = model.partySpeed(model.getFormation(id));
+  const gs = scene.grid.size;
+  const squares = Math.round(speed / scene.grid.distance);
+  const turnFeet = squares * scene.grid.distance;
+  const roundsFor = (feet) => Math.floor((feet * 10) / speed);
+  const start = { x: partyToken.x, y: partyToken.y };
+  const end = { x: start.x + squares * gs, y: start.y };
+  const roundsOf = (c) => c.turnsTotal * 10 + (c.roundsPartial ?? 0);
+  const roundsBefore = roundsOf(onlyFormation().clock);
+
+  // An armed trap wall across the middle of the move. The trap check meets a
+  // wall by crossing it, so it asks for the wall's trap only when the path it
+  // is handed spans the wall; the trap answers nothing, and the check ends.
+  const trapUuid = "Item.drawnMoveTrap";
+  const cx = start.x + (partyToken.width * gs) / 2 + (squares * gs) / 2;
+  const cy = start.y + (partyToken.height * gs) / 2;
+  const wall = {
+    id: "drawnMoveWall",
+    uuid: `Scene.${scene.id}.Wall.drawnMoveWall`,
+    c: [cx, cy - 2 * gs, cx, cy + 2 * gs],
+    flags: { [MODULE_ID]: { trap: { trapUuid, state: "armed" } } },
+  };
+  const asked = [];
+  const lookUp = globalThis.fromUuid;
+  globalThis.fromUuid = async (u) => {
+    if (u === trapUuid) asked.push(u);
+    return lookUp(u);
+  };
+  scene.walls = [wall];
+  try {
+    // The primary GM is viewing the scene, so its client draws the move.
+    partyToken.rendered = true;
+    await partyToken.update({ x: end.x });
+    await drain();
+    assert.deepEqual({ x: partyToken.x, y: partyToken.y }, start, "the drawing still stands where the move began");
+
+    const clock = onlyFormation().clock;
+    console.log(`      [probe] rounds ${roundsBefore} -> ${roundsOf(clock)} while the move is drawn`);
+    assert.equal(roundsOf(clock) - roundsBefore, roundsFor(turnFeet), "the move is billed while it is drawn");
+    assert.deepEqual(clock.lastPosition, end, "and the next move is measured from where this one put the party");
+    assert.ok(asked.length > 0, "the trap check was handed the path the move walked, across the wall");
+
+    // The tween lands, and the next move bills its own distance and no more.
+    partyToken.endTween();
+    scene.walls = [];
+    await partyToken.update({ x: end.x + squares * gs });
+    await drain();
+    partyToken.endTween();
+    assert.equal(roundsOf(onlyFormation().clock) - roundsBefore, roundsFor(2 * turnFeet), "two moves, each billed once");
+  } finally {
+    globalThis.fromUuid = lookUp;
+    delete scene.walls;
+    partyToken.endTween();
+    partyToken.rendered = false;
+  }
 
   await model.disband(model.getFormation(id));
   await drain();

@@ -605,16 +605,30 @@ export function turnDistance(formation, scene) {
 }
 
 /**
- * A token's centre, optionally at a corner position it is not standing in.
+ * Where a token's last update put its top-left corner. On a client that draws
+ * the token, core animates the prepared `x`/`y` toward a move's destination
+ * and runs the first frame inside the update itself, so an `updateToken` hook
+ * reads the corner the token is leaving, and later reads catch the tween part
+ * way. `_source` holds the destination throughout; on a client that does not
+ * draw the token the two agree.
+ * @returns {{x: number, y: number}}
+ */
+export function storedPosition(tokenDoc) {
+  const source = tokenDoc._source ?? tokenDoc;
+  return { x: source.x, y: source.y };
+}
+
+/**
+ * A token's centre with its corner at `at`.
  *
  * A token's `x`/`y` is its top-LEFT corner, which is the wrong point to ask
  * which street it is on: a four-square wagon's corner can sit a block from the
- * street its middle is on. `at` moves the same offset to an earlier corner, so
- * both ends of a move are measured from the same part of the token.
+ * street its middle is on. The corner-to-centre offset is read off the token
+ * and moved to `at`, so both ends of a move are measured from the same part of
+ * the token wherever its drawing stands.
  */
-function centreOf(tokenDoc, at = null) {
+function centreOf(tokenDoc, at) {
   const centre = tokenDoc.getCenterPoint?.() ?? { x: tokenDoc.x, y: tokenDoc.y };
-  if (!at) return centre;
   return { x: at.x + (centre.x - tokenDoc.x), y: at.y + (centre.y - tokenDoc.y) };
 }
 
@@ -623,10 +637,11 @@ function centreOf(tokenDoc, at = null) {
  * distance to feet, accumulate it, and mark off turns each time a full
  * exploration move's (or, in a city, a pace's blocks) worth of distance is
  * spent. Straight-line distance between the last processed position and the
- * new one (waypoint drags are approximated). A journeying formation never
- * reaches here: `journey.mjs` dispatches on the mode and owns its movement.
+ * new one (waypoint drags are approximated). `to` is the corner the move put
+ * the token at (`storedPosition`). A journeying formation never reaches here:
+ * `journey.mjs` dispatches on the mode and owns its movement.
  */
-export async function onPartyTokenMoved(tokenDoc, formationId) {
+export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPosition(tokenDoc)) {
   const formation = getFormation(formationId);
   if (!formation) return;
   if (formation.clock.paused) return;
@@ -639,7 +654,7 @@ export async function onPartyTokenMoved(tokenDoc, formationId) {
   // billed here; the baseline follows the token and the Judge is told once per
   // arrival on the scene.
   if (isExpeditionScale(scene)) {
-    formation.clock.lastPosition = { x: tokenDoc.x, y: tokenDoc.y };
+    formation.clock.lastPosition = { x: to.x, y: to.y };
     const tell = formation.clock.scaleWarned !== scene.id;
     if (tell) formation.clock.scaleWarned = scene.id;
     await updateFormation(formation);
@@ -656,10 +671,10 @@ export async function onPartyTokenMoved(tokenDoc, formationId) {
     return;
   }
   if (formation.clock.scaleWarned) formation.clock.scaleWarned = null;
-  const last = formation.clock.lastPosition ?? { x: tokenDoc.x, y: tokenDoc.y };
-  const dx = tokenDoc.x - last.x;
-  const dy = tokenDoc.y - last.y;
-  formation.clock.lastPosition = { x: tokenDoc.x, y: tokenDoc.y };
+  const last = formation.clock.lastPosition ?? { x: to.x, y: to.y };
+  const dx = to.x - last.x;
+  const dy = to.y - last.y;
+  formation.clock.lastPosition = { x: to.x, y: to.y };
   if (!dx && !dy) return;
 
   // FEET, through the scene's own units — not `grid.distance` raw. A map drawn
@@ -673,7 +688,7 @@ export async function onPartyTokenMoved(tokenDoc, formationId) {
   // No roads, or neither end on one, falls back to the straight line and the
   // panel says which happened.
   const measured = formation.travel?.mode === "settlement"
-    ? roadDistance(scene, centreOf(tokenDoc, last), centreOf(tokenDoc))
+    ? roadDistance(scene, centreOf(tokenDoc, last), centreOf(tokenDoc, to))
     : null;
   const feet = measured?.feet ?? straight;
   if (formation.travel?.mode === "settlement" && formation.travel.settlement) {

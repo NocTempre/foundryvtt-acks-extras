@@ -111,7 +111,7 @@ import { registerRequestSocket, requestPartyAction } from "./player-requests.mjs
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
 import { RESIZE_OPTION, syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
 import { SHADOW_FLAG, TRUTH_MOVE_OPTION, clearOrphanShadows } from "./shadow.mjs";
-import { addLight, advanceRounds, advanceTurns, removeLight, toggleLight, toggleShield } from "./turn-engine.mjs";
+import { addLight, advanceRounds, advanceTurns, removeLight, storedPosition, toggleLight, toggleShield } from "./turn-engine.mjs";
 import { onPartyTokenMoved } from "./journey.mjs";
 import * as journey from "./journey.mjs";
 import * as travel from "./travel.mjs";
@@ -976,15 +976,19 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
 
   // Where the party came FROM, read before the clock consumes it: a trap wall
   // is met by CROSSING it, so the check needs the path and not just the
-  // destination. `onPartyTokenMoved` overwrites `clock.lastPosition`.
+  // destination. `onPartyTokenMoved` overwrites `clock.lastPosition`. Where it
+  // went TO is the stored position, read once here for the clock and the trap
+  // check alike: on a client drawing the token, `tokenDoc.x`/`y` are the
+  // move's animation, which starts at the corner the party is leaving.
   const before = getFormation(formationId)?.clock?.lastPosition;
   const from = before ? { x: before.x, y: before.y } : null;
+  const to = storedPosition(tokenDoc);
 
-  onPartyTokenMoved(tokenDoc, formationId)
+  onPartyTokenMoved(tokenDoc, formationId, to)
     .then(() => {
       const formation = getFormation(formationId);
       if (!formation) return null;
-      return runTrapCheck(formation, { from, to: { x: tokenDoc.x, y: tokenDoc.y } });
+      return runTrapCheck(formation, { from, to });
     })
     // A journey's tracker counts miles and hours; when the day's march has
     // been walked off, or the party marches on after dusk, the Judge is asked

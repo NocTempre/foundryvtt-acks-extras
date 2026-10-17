@@ -3418,3 +3418,65 @@ written against.
   show a dash for the day.
 - `apiVersion` stays 18: note 18 grows, nothing already released changes
   shape.
+
+## 2026-10-17 — A drawn party token is measured where its move put it
+
+**Found.** The movement chain read the party token's `x`/`y`, and on a client
+that draws the token those are the move's animation, not its result. Core
+merges each frame of a token's tween into the document's prepared fields
+(`Token#animate`), and `CanvasAnimation.animate` runs the first frame inside
+the update, before the `updateToken` hook fires. `_source` holds the
+destination throughout. So the primary GM, viewing the scene it moved the
+party on, read the corner the move began at. Walked live on core 14.369, the
+primary GM alone on its seat, 25 ft a move:
+
+| move | GM's client | billed | `clock.lastPosition` after |
+|---|---|---|---|
+| 1 | draws the token | 0 | the move's start |
+| 2 | draws the token | 25 ft, move 1's | move 1's end |
+| 3 | on another scene | 50 ft, moves 2 and 3 | move 3's end |
+
+Walked again on the fix with the same fixtures: each of the three bills its
+own 25 ft with `clock.lastPosition` at its own end, and so does a fourth
+move made by a real mouse drag on the viewed scene (`_movement` method
+`dragging`).
+
+A Judge dragging the party across the map in front of them was billed one move
+late, and the last move of a stretch was billed only when the party next
+moved. The trap check was handed the same value as its `to`, so the
+path it tested for a crossed wall was the previous move's. The journey read
+its hex and the map's reading at the move's start. The hook's own observer
+showed `tokenDoc.x` at the start, and `_source.x` and
+`options._movement[id].destination.x` at the destination, on every drawn move.
+
+**Ruled.** Where a move put the party is the token's stored corner
+(`storedPosition`, `turn-engine.mjs`). The hook reads it once and hands it to
+the turn clock, the journey and the trap check.
+- `_source`, because it is what the update wrote whatever the client draws.
+  Core holds its own region tests to the same rule: `testInsideRegion` and
+  `segmentizeRegionMovementPath` are documented to read `x`, `y`, `elevation`,
+  `width`, `height` and `shape` from the source and never the prepared values.
+- The journey's queue keeps the corner read when the move was heard. When a
+  queued move's turn comes, a later move has already written its own
+  destination over the token's source.
+- The journey's map point is core's centre at that corner
+  (`TokenDocument#getCenterPoint`), where it was the placeable's drawn centre
+  on a client that draws the token and a rectangle's centre elsewhere.
+  `seatJourneyHex` takes its corner from the caller.
+
+**Rejected.**
+- *The update's `changes`.* They carry `x` only when `x` changed, so a move
+  along one axis still needs the stored value for the other.
+- *Core's movement data* (`options._movement[id].destination`). It agreed with
+  `_source` on every measured move, but only a movement update carries it.
+- *Waiting out `movementAnimationPromise` before reading.* It delays the bill
+  by the animation, and a move landing meanwhile changes what the wait reads.
+
+**Cost.**
+- The other baseline writes (the Judge's pause, a mode change, a combat
+  recall, a walk to a point of interest, a trap's halt, a resize) still read
+  the prepared `x`/`y`. Each reads at rest or after an unanimated write. One
+  made while the party token is still drawing a move takes a corner part way
+  along it. Only the resize was walked: it ran after the drag turned the
+  party, waited out the step, and anchored `lastPosition` on the stored
+  corner.

@@ -45,6 +45,7 @@ import {
   onPartyTokenMoved as onTurnClockTokenMoved,
   postNotesCard,
   snapshotRunningEffects,
+  storedPosition,
 } from "./turn-engine.mjs";
 import { DISTANCE_UNITS, feetPerUnit, sceneMilesPerCell } from "../lib/distance-units.mjs";
 import { clockReading, mayAdvanceWorldTime } from "../lib/world-time.mjs";
@@ -63,12 +64,14 @@ const moveQueues = new Map();
  * first is still spending waits for it, so it measures from the baseline the
  * first wrote and walks the truth from where the first left the shadow;
  * handled at once, both would measure from the same baseline and walk the
- * shadow twice. Resolves with the engine's own answer; a move that throws
- * rejects without holding the next.
+ * shadow twice. `to` is where this move put the token (`storedPosition`),
+ * read when the move is heard: by the time a queued move's turn comes, a later
+ * move has written its own destination over the token's. Resolves with the
+ * engine's own answer; a move that throws rejects without holding the next.
  */
-export async function onPartyTokenMoved(tokenDoc, formationId) {
+export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPosition(tokenDoc)) {
   const prior = moveQueues.get(formationId) ?? Promise.resolve();
-  const next = prior.then(() => dispatchPartyTokenMoved(tokenDoc, formationId));
+  const next = prior.then(() => dispatchPartyTokenMoved(tokenDoc, formationId, to));
   const settled = next.then(() => undefined, () => undefined);
   moveQueues.set(formationId, settled);
   settled.then(() => {
@@ -82,20 +85,20 @@ export async function onPartyTokenMoved(tokenDoc, formationId) {
  * "judge"`) bills nothing and follows the token; any other journey spends
  * miles; every other mode keeps the turn clock.
  */
-async function dispatchPartyTokenMoved(tokenDoc, formationId) {
+async function dispatchPartyTokenMoved(tokenDoc, formationId, to) {
   const formation = getFormation(formationId);
   if (!formation) return null;
-  if (travelOf(formation).mode !== "journey") return onTurnClockTokenMoved(tokenDoc, formationId);
+  if (travelOf(formation).mode !== "journey") return onTurnClockTokenMoved(tokenDoc, formationId, to);
   if (formation.clock?.pausedBy === "judge") {
     await patchFormation(formationId, (record) => {
-      record.clock = { ...(record.clock ?? {}), lastPosition: { x: tokenDoc.x, y: tokenDoc.y } };
+      record.clock = { ...(record.clock ?? {}), lastPosition: { x: to.x, y: to.y } };
     });
     // The hex and the reading follow the token too, so what the party stands
     // on when the pause lifts is what it reads, with nothing billed.
-    await seatJourneyHex(tokenDoc, formationId);
+    await seatJourneyHex(tokenDoc, formationId, to);
     return null;
   }
-  return onJourneyTokenMoved(tokenDoc, formationId);
+  return onJourneyTokenMoved(tokenDoc, formationId, { to });
 }
 
 /**
@@ -159,16 +162,17 @@ function cadenceFor(territory, scene) {
  * the active GM's client only, for the day the step BEGAN in: the key is read
  * before the spend moves the clock, so a march that crosses midnight owes
  * the new day's throw at its next step, not at the step that crossed. `begin`
- * is the episode opener a failed throw calls, `beginEpisode`'s shape.
+ * is the episode opener a failed throw calls, `beginEpisode`'s shape; `to` is
+ * where the move put the token (`storedPosition`).
  */
-export async function onJourneyTokenMoved(tokenDoc, formationId, { begin = beginEpisode } = {}) {
+export async function onJourneyTokenMoved(tokenDoc, formationId, { begin = beginEpisode, to = storedPosition(tokenDoc) } = {}) {
   const scene = tokenDoc?.parent;
   const formation = getFormation(formationId);
   if (!scene || !formation) return null;
-  const here = { x: tokenDoc.x, y: tokenDoc.y };
+  const here = { x: to.x, y: to.y };
   const from = formation.clock?.lastPosition ?? here;
   const { miles, spaces } = journeyMeasure(scene, from, here);
-  const point = tokenDoc.object?.center ?? tokenCentre(tokenDoc, scene);
+  const point = tokenDoc.getCenterPoint?.(here) ?? tokenCentre({ ...here, width: tokenDoc.width, height: tokenDoc.height }, scene);
   const map = mapReadingAt(scene, point, { at: game.time?.worldTime ?? null });
   const day = journeyDayKey(travelOf(formation));
 
