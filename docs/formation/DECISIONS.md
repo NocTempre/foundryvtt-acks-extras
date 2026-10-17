@@ -3836,3 +3836,75 @@ same corner).
   `truePartyPoint`), which the movement chain asks while a move is drawn, is
   ruled by *The ground under the party is read at the token's stored corner*
   (2026-10-17).
+
+## 2026-10-17 — The ground under the party is read at the token's stored corner
+
+**Found.** `tokenPoint` (`zones.mjs`), behind `partyPoint` and
+`truePartyPoint`, read the party token's prepared `x`/`y`, which on a client
+drawing the token are the move's animation (*A drawn party token is measured
+where its move put it*, 2026-10-17, above). *A re-anchor reads the party
+token's stored corner* (2026-10-17, above) left these reads to this entry.
+Every caller was read against core 14.369 for whether it can run while the
+primary GM's client still draws a move. Four run in the movement hook's own
+chain:
+- the delve's turn: `onTurnCompleted` asks `findEncounterZone` for the throw's
+  cadence, target and table;
+- the city's turn: `cityTurnCompleted` asks `streetUnder`, `findEncounterZone`
+  and `findDistrict`, and the hunt asks `findDistrict` again;
+- the trap check: `livePlacement` asks `findTrapZone` when the path crossed no
+  trap wall. The path already came from the stored corner; a zone has no line
+  to cross, and was looked for where the move began;
+- the journey: `spendJourneyMiles` asks `journeyZones` for the zone crossing
+  and its cadence, the throws it owes ask again (`postEncounterThrow`), and so
+  does the marker a terrain encounter leaves (`markTerrainEncounter`).
+
+The rest are read on a render or a click that a draw can overlap: the party
+sheet's settlement view, which re-renders on every record write, the chain's
+own included; the hop's district pricing (`travelToPlace`); the place under
+the party and the reach scan (`location/`); the district's reaction figure;
+the manual throws. `drawnOver`'s city list, `poiTargets` and the hop's re-read
+take only the scene or the token.
+
+So a delving party that walked into an encounter zone had its turn thrown for
+at the world's cadence, a drawn move onto an armed trap zone went unchecked,
+and a journey that crossed into an `entry` zone threw per unit and made the
+zone's entry throw a move late. Read in the code and pinned offline; not
+walked.
+
+**Ruled.** `tokenPoint` reads the token's stored corner (`_source`), so every
+question of the ground under the party (zone, district, street, place,
+marker) is asked where the move put it, on every client.
+- One read, at the seam. `partyPoint` is one expression of where the party
+  stands so that the zone, the district and the street cannot disagree, and
+  no caller wants the drawn corner: none of them draws at the token.
+- Inline rather than through `storedPosition`. The turn engine reaches
+  `zones.mjs` through the encounter zone, so the import would close a loop.
+- Width, height and elevation stay prepared. Core tweens only the fields an
+  update changes, and the party's resize writes unanimated (`scene-sync.mjs`).
+
+**Rejected.**
+- *The stored corner where the hook's chain asks, the prepared one elsewhere*
+  (weak). While a move is drawn, the sheet's settlement view and the city's
+  turn would name different districts, which `partyPoint`'s one expression
+  exists to prevent.
+- *Width, height and elevation from `_source` as well, as core's
+  `testInsideRegion` reads them* (moderate). It is core's own rule for a
+  region test. Of the three, only elevation can tween on a party move, and
+  only on one that changes it. Reading them stored also needs every offline
+  token mock to carry a whole source, where the journey suite's carry a
+  corner.
+
+**Cost.**
+- Pinned offline, not walked live. `test-formation-flows.mjs`: a drawn move's
+  turn is thrown for in the zone it ended in (a move along `x`), and a drawn
+  move onto an armed trap zone is checked (along `y`). `test-journey.mjs`: a
+  drawn move crosses into an `entry` zone that only the corner it ends on is
+  inside. The read put back whole, and on each axis alone, fails the checks
+  it should (in memory, the tree untouched). The city's turn, the sheet, the
+  hop's pricing and the location reads share the read and have no check of
+  their own.
+- A drawn move that also changes elevation is answered at the elevation it
+  began at.
+- `tokenCenter` (`location/here.mjs`) still reads a token's prepared corner,
+  so a deployed member's own token, or a place's, answers where a drawn move
+  began. Not audited.

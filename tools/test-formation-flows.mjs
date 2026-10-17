@@ -2977,6 +2977,90 @@ await scenario("a city block walked on a metre map costs exactly one turn", asyn
   }
 });
 
+await scenario("a drawn move's turn is thrown for in the encounter zone the move put the party in", async () => {
+  // See docs/formation/DECISIONS.md, "The ground under the party is read at
+  // the token's stored corner". The turn the move completes is thrown for in
+  // the move's own hook chain, while this client is still drawing it.
+  const party = await drawnParty("Lairward");
+  const { partyToken, step } = party;
+  const gs = scene.grid.size;
+  const start = { x: partyToken.x, y: partyToken.y };
+  // The zone covers the far half of the move, so the corner the move began at
+  // stands outside it. Its cadence throws every turn; the world's does not.
+  const edge = start.x + (partyToken.width * gs) / 2 + step / 2;
+  const lair = {
+    id: uid("reg"),
+    name: "Drawn Lair",
+    elevation: {},
+    testPoint: ({ x }) => x >= edge,
+    behaviors: [{
+      type: "acks-extras.encounterZone",
+      disabled: false,
+      system: { tableUuid: "", encounterEvery: 1, encounterTarget: 0, dungeonLevel: 0 },
+    }],
+  };
+  scene.regions.set(lair.id, lair);
+  const turnsBefore = onlyFormation().clock.turnsTotal;
+  const from = chat.length;
+  try {
+    await partyToken.update({ x: start.x + step });
+    await drain();
+    assert.deepEqual({ x: partyToken.x, y: partyToken.y }, start, "the drawing still stands where the move began");
+    assert.ok(onlyFormation().clock.turnsTotal > turnsBefore, "the move completed a turn");
+    const thrown = chat.slice(from).filter((m) => String(m.flavor ?? "").includes("chat.inZone"));
+    assert.equal(thrown.length, 1, "the turn was thrown for in the zone");
+    assert.match(thrown[0].flavor, /Drawn Lair/, "and the card names it");
+  } finally {
+    scene.regions.delete(lair.id);
+    await dismissDrawn(party);
+  }
+});
+
+await scenario("a drawn move into an armed trap zone is trap-checked where it put the party", async () => {
+  // See docs/formation/DECISIONS.md, "The ground under the party is read at
+  // the token's stored corner". A zone has no line to cross: the check finds
+  // it by where the party stands, and asks in the move's own hook chain.
+  const { TRAP_ZONE_TYPE } = await import("../scripts/formation/constants.mjs");
+  const party = await drawnParty("Snared");
+  const { partyToken, step } = party;
+  const gs = scene.grid.size;
+  const start = { x: partyToken.x, y: partyToken.y };
+  // Down the map, over the far half of the move. The trap answers nothing, so
+  // the check asks for it and ends.
+  const edge = start.y + (partyToken.height * gs) / 2 + step / 2;
+  const trapUuid = "Item.drawnZoneTrap";
+  const pitId = uid("reg");
+  const pit = {
+    id: pitId,
+    name: "Drawn Pit",
+    elevation: {},
+    testPoint: ({ y }) => y >= edge,
+    behaviors: [{
+      type: TRAP_ZONE_TYPE,
+      disabled: false,
+      uuid: `Scene.${scene.id}.Region.${pitId}.RegionBehavior.trap`,
+      system: { trapUuid, state: "armed" },
+    }],
+  };
+  const asked = [];
+  const lookUp = globalThis.fromUuid;
+  globalThis.fromUuid = async (u) => {
+    if (u === trapUuid) asked.push(u);
+    return lookUp(u);
+  };
+  scene.regions.set(pit.id, pit);
+  try {
+    await partyToken.update({ y: start.y + step });
+    await drain();
+    assert.deepEqual({ x: partyToken.x, y: partyToken.y }, start, "the drawing still stands where the move began");
+    assert.ok(asked.length > 0, "the trap check found the zone the move ended in");
+  } finally {
+    globalThis.fromUuid = lookUp;
+    scene.regions.delete(pit.id);
+    await dismissDrawn(party);
+  }
+});
+
 await scenario("the settlement readout states a walking turn at every map unit", async () => {
   // The panel prints the turn's rate beside the scene's unit, so the SAME
   // distance is a big number on a foot map and a fraction of one on a mile map.

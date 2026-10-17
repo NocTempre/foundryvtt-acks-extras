@@ -991,6 +991,22 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   assert.equal(back.cards.length, 1, "a second crossing in throws again");
 }
 
+// A move the active GM's client is drawing crosses into the zone it ends in.
+// See docs/formation/DECISIONS.md, "The ground under the party is read at the
+// token's stored corner".
+{
+  const scene = makeScene("S.zone.drawn", { kind: "hex", miles: 7 });
+  const token = makeToken(scene, "t.zone.drawn");
+  const id = makeFormation(scene, token);
+  // Inside only at the corner the move ends on: neither of its coordinates
+  // alone, with the other at the start, reaches the zone.
+  const moor = makeZone(scene, "Moor", { x: CELL, y: CELL, width: 8 * CELL, height: 8 * CELL }, { journeyCadence: "entry" });
+  token._source = { x: CELL, y: CELL };
+  const r = await observe(() => journey.onPartyTokenMoved(token, id));
+  assert.equal(r.result.zoneEntered, true, "a drawn move crosses into the zone where it put the party");
+  assert.deepEqual(getFormation(id).clock.zoneIds, [moor.id], "and the record keeps it");
+}
+
 // A periods cadence throws nothing per unit; End Day throws the zone's counts.
 {
   const scene = makeScene("S.zone.periods", { kind: "hex", miles: 7 });

@@ -255,15 +255,22 @@ export function partyPoint(formation) {
   return token ? tokenPoint(token) : null;
 }
 
-/** A token's centre on its own scene, in `partyPoint`'s shape; null for a token on no scene. */
+/**
+ * A token's centre on its own scene, in `partyPoint`'s shape; null for a token
+ * on no scene. The corner is the stored one (`_source`, as `storedPosition` in
+ * turn-engine.mjs reads it; that module reaches this one, so the read is
+ * inline): on a client that draws the token, the prepared `x`/`y` are a move's
+ * animation, and the movement chain asks where the party stands while it plays.
+ */
 function tokenPoint(token) {
   const scene = token.parent;
   if (!scene?.grid) return null;
   const gs = scene.grid.size;
+  const { x, y } = token._source ?? token;
   return {
     scene,
     token,
-    point: { x: token.x + (token.width * gs) / 2, y: token.y + (token.height * gs) / 2 },
+    point: { x: x + (token.width * gs) / 2, y: y + (token.height * gs) / 2 },
     elevation: token.elevation ?? 0,
   };
 }
