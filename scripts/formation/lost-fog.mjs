@@ -120,7 +120,7 @@ export function announceDiscovery(payload = {}) {
 
 /** Register the player-side handler. Called once, beside the fog handler. */
 export function registerLostSocket() {
-  registerHandler("lostDiscovered", showDiscovery);
+  registerHandler("lostDiscovered", showDiscovery, { broadcast: true });
 }
 
 /**

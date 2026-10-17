@@ -1733,7 +1733,9 @@ training in place") was the same race.
 
 **Rejected.**
 
-- Electing one connection (docs/lib/ROADMAP.md, "One automation client, not
+- *Superseded 2026-10-17 by docs/lib/DECISIONS.md, "One automation client
+  per seat, chosen by the last relayed claim"; the fixed id stands.*
+  Electing one connection (docs/lib/ROADMAP.md, "One automation client, not
   one automation user"). Core reports presence per user, so the windows of one
   user cannot see each other leave. An elected window that closes would leave
   no writer until a heartbeat of the module's own noticed, and a backgrounded

@@ -39,7 +39,7 @@ import { bindCardListeners, registerCardAction } from "./chat/cards.mjs";
 
 import { registerEventEngine, installWagePayment, openLoyaltyRoll, openObedienceRoll, recordCalamity, payWagesFor, wageBill, enrollNewcomers, forgiveWageDebts, setPermanentCompensated, allEmployers, effectiveLoyaltyFor, effectiveMoraleFor } from "./engine/events.mjs";
 import { openRosterApp } from "./apps/roster-app.mjs";
-import { elementOf, ownsSheet } from "../lib/util.mjs";
+import { elementOf, ownsSheet, primaryGMSettled } from "../lib/util.mjs";
 import { installHirelingsGrid } from "./apps/hirelings-grid.mjs";
 import { recruitMonster, hireMonster, validateMonsterRecruit } from "./engine/monster.mjs";
 import { openFollowersDialog } from "./apps/followers-dialog.mjs";
@@ -200,14 +200,19 @@ Hooks.once("ready", () => {
 
   if (getSetting("autoRepairReferences")) sweepAtReady();
 
+  // The ready-time writers below run on the one window that automates, once
+  // this window knows whether that is itself.
+  const primary = primaryGMSettled();
+
   // Adopt pre-existing henchmen the moment the module can see them, not on
   // the first time-advance: their wage clocks start from install day, so the
   // first prompt they ever appear in is an honest one month from now.
-  if (game.user === game.users.activeGM) {
+  primary.then((yes) => {
+    if (!yes) return;
     (async () => {
       for (const employer of allEmployers()) await enrollNewcomers(employer);
     })().catch((err) => console.error(`${MODULE_ID} | adopting pre-existing hirelings failed`, err));
-  }
+  });
 
   // Book tables are imported per-world, not shipped. If some documents have
   // not been imported yet, tell the GM once and name them. The question is
@@ -223,15 +228,17 @@ Hooks.once("ready", () => {
 
   // Hires accepted while no seat could create actors (players hiring with
   // no GM online) — materialize their queued actors now.
-  if (game.user === game.users.activeGM) {
+  primary.then((yes) => {
+    if (!yes) return;
     for (const location of game.actors.filter((a) => a.type === LOCATION_TYPE)) {
       materializePendingHires(location).catch((err) => console.error(`${MODULE_ID} | pending-hire sweep failed`, err));
     }
-  }
+  });
 
   // Location schema migration (GM): old-shape postings/candidates predate the
   // shared-market model and cannot be converted, so they are cleared instead.
-  if (game.user === game.users.activeGM) {
+  primary.then((yes) => {
+    if (!yes) return;
     for (const location of game.actors.filter((a) => a.type === LOCATION_TYPE)) {
       if ((location.system.schemaVersion ?? 1) >= SCHEMA_VERSION) continue;
       // A place with no market has no subtree to clear, and writing one would
@@ -252,7 +259,7 @@ Hooks.once("ready", () => {
         })
         .catch((err) => console.error(`${MODULE_ID} | migration failed for ${location.name}`, err));
     }
-  }
+  });
 
   // GM-side due-processing whenever world time moves (posting aging, arrival
   // tranches, weekly fees, month rollover). Idempotent per posting.

@@ -24,7 +24,7 @@
  * `march.mjs` (the arithmetic); nothing below it imports it.
  */
 import { TURN_SECONDS } from "./constants.mjs";
-import { isPrimaryGM } from "../lib/util.mjs";
+import { isActiveGMSeat } from "../lib/util.mjs";
 import { getFormation, getPartyScene, partySpeed, patchFormation } from "./formation-model.mjs";
 import {
   claimNavigationDay, journeyDayKey, mapReadingAt, navigationOwed, sameReading, seatJourneyHex, storedTravelOf, tokenCentre,
@@ -66,12 +66,16 @@ const moveQueues = new Map();
  * handled at once, both would measure from the same baseline and walk the
  * shadow twice. `to` is where this move put the token (`storedPosition`),
  * read when the move is heard: by the time a queued move's turn comes, a later
- * move has written its own destination over the token's. Resolves with the
- * engine's own answer; a move that throws rejects without holding the next.
+ * move has written its own destination over the token's. `primary` is whether
+ * this window does the move's GM-side half (the navigation throw, the truth's
+ * walk), read when the move is heard too, since the seat's lead can change
+ * while a move waits: the caller's seat by default, which the movement hook
+ * has already narrowed to the elected window. Resolves with the engine's own
+ * answer; a move that throws rejects without holding the next.
  */
-export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPosition(tokenDoc)) {
+export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPosition(tokenDoc), { primary = isActiveGMSeat() } = {}) {
   const prior = moveQueues.get(formationId) ?? Promise.resolve();
-  const next = prior.then(() => dispatchPartyTokenMoved(tokenDoc, formationId, to));
+  const next = prior.then(() => dispatchPartyTokenMoved(tokenDoc, formationId, to, primary));
   const settled = next.then(() => undefined, () => undefined);
   moveQueues.set(formationId, settled);
   settled.then(() => {
@@ -85,7 +89,7 @@ export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPositi
  * "judge"`) bills nothing and follows the token; any other journey spends
  * miles; every other mode keeps the turn clock.
  */
-async function dispatchPartyTokenMoved(tokenDoc, formationId, to) {
+async function dispatchPartyTokenMoved(tokenDoc, formationId, to, primary) {
   const formation = getFormation(formationId);
   if (!formation) return null;
   if (travelOf(formation).mode !== "journey") return onTurnClockTokenMoved(tokenDoc, formationId, to);
@@ -98,7 +102,7 @@ async function dispatchPartyTokenMoved(tokenDoc, formationId, to) {
     await seatJourneyHex(tokenDoc, formationId, to);
     return null;
   }
-  return onJourneyTokenMoved(tokenDoc, formationId, { to });
+  return onJourneyTokenMoved(tokenDoc, formationId, { to, primary });
 }
 
 /**
@@ -159,13 +163,14 @@ function cadenceFor(territory, scene) {
  * On a hex grid with a lost episode open, the truth walks the drag first
  * (`walkTheTruth`). A drag that spent miles then owes the day's navigation
  * throw when it is the day's first step off a road (`throwDayNavigation`), on
- * the active GM's client only, for the day the step BEGAN in: the key is read
- * before the spend moves the clock, so a march that crosses midnight owes
- * the new day's throw at its next step, not at the step that crossed. `begin`
- * is the episode opener a failed throw calls, `beginEpisode`'s shape; `to` is
- * where the move put the token (`storedPosition`).
+ * the window that runs the automation only (`primary`, read once by the
+ * caller), for the day the step BEGAN in: the key is read before the spend
+ * moves the clock, so a march that crosses midnight owes the new day's throw
+ * at its next step, not at the step that crossed. `begin` is the episode
+ * opener a failed throw calls, `beginEpisode`'s shape; `to` is where the move
+ * put the token (`storedPosition`).
  */
-export async function onJourneyTokenMoved(tokenDoc, formationId, { begin = beginEpisode, to = storedPosition(tokenDoc) } = {}) {
+export async function onJourneyTokenMoved(tokenDoc, formationId, { begin = beginEpisode, to = storedPosition(tokenDoc), primary = isActiveGMSeat() } = {}) {
   const scene = tokenDoc?.parent;
   const formation = getFormation(formationId);
   if (!scene || !formation) return null;
@@ -177,17 +182,17 @@ export async function onJourneyTokenMoved(tokenDoc, formationId, { begin = begin
   const day = journeyDayKey(travelOf(formation));
 
   const spent = isHexScene(scene)
-    ? await stepOnHexes(scene, tokenDoc, formation, { from, here, point, map, miles, spaces })
+    ? await stepOnHexes(scene, tokenDoc, formation, { from, here, point, map, miles, spaces, primary })
     : await spendJourneyMiles(formationId, miles, { scene, reading: map, anchor: here, crossings: spaces });
-  if (spent?.miles > 0 && isPrimaryGM()) await throwDayNavigation(formationId, { begin, day });
+  if (spent?.miles > 0 && primary) await throwDayNavigation(formationId, { begin, day });
   return spent;
 }
 
 /**
  * A drag on a hex grid: the hex trace, the truth walked when an episode is
- * open, then the spend.
+ * open (on the window that runs the automation), then the spend.
  */
-async function stepOnHexes(scene, tokenDoc, formation, { from, here, point, map, miles, spaces }) {
+async function stepOnHexes(scene, tokenDoc, formation, { from, here, point, map, miles, spaces, primary }) {
   const formationId = formation.id;
   const offset = scene.grid.getOffset(point);
   // Which road, if any, this STEP followed. Only asked when a network exists:
@@ -207,7 +212,7 @@ async function stepOnHexes(scene, tokenDoc, formation, { from, here, point, map,
     if (step.on) winding = step.winding ?? 1;
   }
   const trace = { label: hexLabelFromOffset(offset), i: offset.i, j: offset.j, map, road, winding };
-  if (isPrimaryGM()) await walkTheTruth(scene, tokenDoc, formation, { from, to: here });
+  if (primary) await walkTheTruth(scene, tokenDoc, formation, { from, to: here });
   return spendJourneyMiles(formationId, miles, { scene, trace, anchor: here, crossings: spaces });
 }
 

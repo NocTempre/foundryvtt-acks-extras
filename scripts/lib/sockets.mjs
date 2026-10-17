@@ -4,12 +4,17 @@
  * handler registry that throws on a duplicate name (the collision has no
  * other tripwire), and one native fallback channel. socketlib is a `requires`
  * in module.json, so the fallback is belt-and-suspenders; only fire-and-forget
- * actions can use it — a result-bearing call needs the socketlib path.
+ * actions can use it — a result-bearing call needs the socketlib path. The
+ * channel also carries the seat election (`automation-client.mjs`), which
+ * decides which window of the GM's seat answers a relayed request.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { automationSettled, isLeadClient, joinSeatElection } from "./automation-client.mjs";
+import { isPrimaryGM } from "./util.mjs";
 
 const CHANNEL = `module.${MODULE_ID}`;
 const handlers = new Map();
+const broadcasts = new Set();
 let socket = null;
 
 /** The socketlib socket, or null before `socketlib.ready` / without socketlib. */
@@ -47,10 +52,24 @@ export function runRelayed(fn, senderId, args) {
  */
 export const judgeDeclares = (requestUserId = null) => !requestUserId && !!game.user?.isGM;
 
-/** socketlib binds `this.socketdata.userId` to the attested sender, locally too. */
-const viaSocketlib = (fn) =>
+/**
+ * What a window that does not lead its seat answers a relayed request with: a
+ * promise that never settles, so socketlib sends nothing and the requester
+ * takes the lead's answer. Never a throw, which socketlib would send back.
+ */
+const unanswered = () => new Promise(() => {});
+
+/**
+ * socketlib binds `this.socketdata.userId` to the attested sender, locally too.
+ * A request another window sent runs on the window its seat elected; one still
+ * joining waits to learn whether that is itself. A call this window made, and a
+ * broadcast, run here.
+ */
+const viaSocketlib = (name, fn) =>
   function relayed(...args) {
-    return runRelayed(fn, this?.socketdata?.userId, args);
+    const senderId = this?.socketdata?.userId;
+    if (broadcasts.has(name) || senderId === game.user?.id) return runRelayed(fn, senderId, args);
+    return automationSettled().then(() => (isLeadClient() ? runRelayed(fn, senderId, args) : unanswered()));
   };
 
 /**
@@ -60,22 +79,23 @@ const viaSocketlib = (fn) =>
  * reaches the handler through `runRelayed`.
  * @param {string} name  Unique handler name.
  * @param {Function} fn  Handler; its return value reaches socketlib callers.
+ * @param {{broadcast?: boolean}} [o]  `broadcast` for a handler sent to every
+ *   window (`executeForEveryone` / `executeForOthers`), which every window
+ *   runs; a request runs on the GM seat's elected window alone.
  */
-export function registerHandler(name, fn) {
+export function registerHandler(name, fn, { broadcast = false } = {}) {
   if (handlers.has(name)) {
     throw new Error(`${MODULE_ID} | socket handler "${name}" registered twice — one module, one handler namespace`);
   }
   handlers.set(name, fn);
-  if (socket) socket.register(name, viaSocketlib(fn));
+  if (broadcast) broadcasts.add(name);
+  if (socket) socket.register(name, viaSocketlib(name, fn));
 }
 
 Hooks.once("socketlib.ready", () => {
   socket = socketlib.registerModule(MODULE_ID);
-  for (const [name, fn] of handlers) socket.register(name, viaSocketlib(fn));
+  for (const [name, fn] of handlers) socket.register(name, viaSocketlib(name, fn));
 });
-
-/** First active GM — the one client that executes relayed mutations. */
-const firstActiveGm = () => game.users.activeGM ?? game.users.find((u) => u.isGM && u.active) ?? null;
 
 /**
  * Run an action on the active GM's client (runs locally when we ARE the GM).
@@ -88,7 +108,7 @@ export async function executeAsGM(action, payload) {
     if (handler) return handler(payload);
     return;
   }
-  if (!firstActiveGm()) {
+  if (!game.users.activeGM) {
     ui.notifications.warn(game.i18n.localize("ACKS-LIB.socket.noGm"));
     return;
   }
@@ -96,14 +116,22 @@ export async function executeAsGM(action, payload) {
   game.socket.emit(CHANNEL, { action, payload });
 }
 
+// This window joins its seat's election on the module's channel. At `ready`,
+// not before: the events a page receives while it loads are replayed to it
+// just before `ready`, and a window that led before then would answer for
+// events the seat's lead already handled.
+Hooks.once("ready", () => joinSeatElection({ channel: CHANNEL }));
+
 // Native-channel fallback listener: wired only when socketlib never came up.
 // A context with neither socketlib nor a native socket is headless. The
 // server passes the sender's id as the second argument.
 Hooks.once("ready", () => {
   if (socket || typeof game.socket?.on !== "function") return;
   game.socket.on(CHANNEL, async ({ action, payload } = {}, senderId) => {
-    // Only the first active GM executes, so multiple GMs don't double-run.
-    if (game.user !== firstActiveGm()) return;
+    // One window runs a request: the active GM's elected one.
+    if (!action) return;
+    await automationSettled();
+    if (!isPrimaryGM()) return;
     const handler = handlers.get(action);
     if (!handler) return;
     try {

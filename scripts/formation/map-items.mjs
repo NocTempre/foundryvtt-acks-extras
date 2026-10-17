@@ -567,7 +567,7 @@ async function reloadFog(sceneId) {
   canvas.perception.initialize();
 }
 
-/** Register the fog-reload handler with socketlib. */
+/** Register the fog-reload handler with socketlib: every window reloads its own fog. */
 export function registerMapSocket() {
-  registerHandler("reloadFog", reloadFog);
+  registerHandler("reloadFog", reloadFog, { broadcast: true });
 }

@@ -94,7 +94,7 @@ import { oseManualDialog } from "./ose-manual.mjs";
 import { importOseBook, importOseAreas, importAuthoredOse, authoredOseBooks, oseEntryRows, importOseEntries } from "./ose-book.mjs";
 import { acksExtras } from "../namespace.mjs";
 import * as services from "../lib/services.mjs";
-import { isPrimaryGM } from "../lib/util.mjs";
+import { primaryGMSettled } from "../lib/util.mjs";
 import { getDoc } from "../lib/tables.mjs";
 import { LEGACY_ID, LEGACY_LOCAL_KEYS, LEGACY_SHELF_DIR, LEGACY_ART_DIR, legacyImporterActive } from "./legacy.mjs";
 import { migrateLegacyScope } from "./migrate.mjs";
@@ -516,7 +516,7 @@ async function shelfPut(bookId, record) {
 async function migrateShelfSetting() {
   const legacy = game.settings.get(MODULE_ID, SETTING_SHELF) ?? {};
   const entries = Object.entries(legacy);
-  if (!entries.length || !isPrimaryGM()) return 0;
+  if (!entries.length || !(await primaryGMSettled())) return 0;
   let moved = 0;
   for (const [bookId, record] of entries) {
     if (!BOOKS[bookId] || !record?.path) {

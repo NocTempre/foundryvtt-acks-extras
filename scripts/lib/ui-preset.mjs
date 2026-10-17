@@ -23,7 +23,7 @@
  * preset changes.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { makeLoc, isPrimaryGM } from "./util.mjs";
+import { makeLoc, isPrimaryGM, primaryGMSettled } from "./util.mjs";
 import { UI_PRESET, RUNG, presetLook, chooseDefault, declaredDefaults, withoutLadderPins } from "./ui-preset-logic.mjs";
 
 export { UI_PRESET, presetLook };
@@ -188,8 +188,8 @@ export function registerUiPresetSettings({ onLookChange } = {}) {
  * asks again at the next launch.
  */
 export async function promptUiPreset() {
-  if (!isPrimaryGM()) return;
   if (game.settings.get(MODULE_ID, PROMPTED_SETTING)) return;
+  if (!(await primaryGMSettled())) return;
   const current = uiPreset();
   const options = [UI_PRESET.foundry, UI_PRESET.core, UI_PRESET.extras].map((value) => ({
     value,

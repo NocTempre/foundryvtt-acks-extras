@@ -10,6 +10,7 @@
  * mechanics and why the wrap lives here rather than in lib/.
  */
 import { MODULE_ID, FLAG_MONSTER_LIST } from "./constants.mjs";
+import { isPrimaryGM, primaryGMSettled } from "../lib/util.mjs";
 
 /** Ids already reported by the render guard, so the console stays readable. */
 const _warned = new Set();
@@ -149,7 +150,7 @@ export function installWageGuard() {
 /** Prune every reference to an actor as it is deleted (GM only). */
 export function registerDeletionCleanup() {
   Hooks.on("deleteActor", async (actor) => {
-    if (game.user !== game.users.activeGM) return;
+    if (!isPrimaryGM()) return;
     const id = actor.id;
     for (const other of game.actors.contents) {
       const inList = Array.isArray(other.system?.henchmenList) && other.system.henchmenList.includes(id);
@@ -173,7 +174,7 @@ export function registerDeletionCleanup() {
 
 /** One-time world sweep at ready (GM only, opt-out via setting). */
 export async function sweepAtReady() {
-  if (game.user !== game.users.activeGM) return;
+  if (!(await primaryGMSettled())) return;
   const { repaired } = await repairWorld();
   if (!repaired.length) return;
   console.warn(`${MODULE_ID} | repaired dangling references on ${repaired.length} actor(s)`, repaired.map(describeRepair));

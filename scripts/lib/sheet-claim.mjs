@@ -9,7 +9,7 @@
  * See docs/lib/MODEL.md, "The UI preset: whose defaults the world opens on".
  */
 import { MODULE_ID } from "./constants.mjs";
-import { isPrimaryGM } from "./util.mjs";
+import { primaryGMSettled } from "./util.mjs";
 
 /** The document collections whose sub-types this module defines. */
 const DOCUMENT_NAMES = ["Actor", "Item"];
@@ -79,7 +79,7 @@ export function reclaimSubtypeSheets() {
  * @returns {Promise<string[]>} The pins removed, as `Document.type → sheet id`.
  */
 export async function clearForeignSheetPins() {
-  if (!isPrimaryGM()) return [];
+  if (!(await primaryGMSettled())) return [];
   const stored = game.settings.get("core", "sheetClasses") ?? {};
   const next = foundry.utils.deepClone(stored);
   const cleared = [];

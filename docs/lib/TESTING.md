@@ -624,6 +624,102 @@ with the handler's return value, so every refusal below can be read directly.
 **Teardown.** `api.sweepTracked()` for the actors. The formation is disbanded
 from its sheet, which is its own delete.
 
+## Two windows on one GM seat automate once
+
+Covers the seat election (`automation-client-logic.mjs`,
+`automation-client.mjs`), the relay gate in `sockets.mjs`, and the gates at
+their callers (MODEL.md, "Which window automates").
+`tools/test-automation-client.mjs` is the offline half. It cannot see the
+server's real relay order, a real unload or a crashed page. Walked on core
+14.369 with the capture driver: three browsers, about 5 minutes.
+
+**Hold.** The active GM's seat, alone, and no world relaunch. Any other
+window on that seat is a third voter, and one still running code from before
+the election doubles every write with nothing in a census to show it. Count
+the seat's joins in the server's debug log before and after
+(TEST_ENVIRONMENT). A reload reuses its session and logs no join.
+
+**Windows.**
+- A and B, two driver browsers joined on the active GM's seat. Each is its
+  own profile, so crashing one leaves the other.
+- P, a third driver browser on a player seat.
+
+**Fixtures**, each `api.create()`d or `api.track()`ed: a scene with a 100 px
+grid of 5 ft, a `character` P owns, and a party actor with that character
+dropped on its sheet and its token on the scene (docs/formation/TESTING.md,
+"Fixtures").
+
+**Drive mechanics.**
+- The driver exposes no DevTools session of its own. Attach a second client
+  to its browser's debug port (`/json/version`, then `Target.attachToTarget`
+  with `flatten` on the `/game` page). Through it,
+  `Page.addScriptToEvaluateOnNewDocument` installs a boot recorder, a
+  `Page.reload` lets it watch a whole load, and `Page.crash` kills the page
+  with no unload.
+- Read a window's view with `(await
+  import("/modules/acks-extras/scripts/lib/automation-client.mjs")).automationCensus()`.
+  The URL is the one the module loaded, so this is the live instance. A
+  `null` in a game window means a second copy loaded.
+- Count the writes a window starts by wrapping `Hooks.call` and tallying
+  names that begin `preCreate`, `preUpdate` or `preDelete`. Core calls a
+  document's pre-hooks only on the client that asks for the write. Leave out
+  `preUpdateToken` in the window that moves the token. A bill that advances
+  the clock makes the lead write about 80 actor updates (the clock's
+  watchers); the follower's tally stays 0.
+- Count relayed calls on `socketlib.modules.get("acks-extras").functions`,
+  the map of each window's registered wrappers, by wrapping an entry. Every
+  GM window enters a request there; the follower's wrapper declines it, so
+  the follower's write tally is the proof.
+- Move with `tokenDoc.update({x: tokenDoc._source.x + 500})`: 25 ft on that
+  grid. Read a bill off the record's `clock` (`turnsTotal`, `roundsPartial`
+  and `carryFeet`, at `turnDistance` feet per turn).
+- A reloaded page is a new window with a new id. Its `hello` does not read as
+  the lead returning, so with no `bye` the old lead is replaced only by a
+  ping or by the new page's own claim after the join wait.
+- Nothing on a page can be read after it unloads. Record unload-time state
+  in `localStorage`, which survives the reload: the transport's `readyState`
+  and `writable`, and the engine's `writeBuffer` length, beside each seat
+  emit.
+- Time a takeover in a foreground wait, and log the measured seconds.
+- The sweep reports the party token `failed`, with "does not exist": the
+  party's deletion takes its token. The scene's removal proves it gone.
+
+**Steps.**
+1. **The seat settles.** Open A and wait 4 s, then open B and wait 4 s.
+   **Observable:** both censuses name the same `lead`, exactly one reads
+   `isLead: true`, and both read `settled: true`. Neither boot recorder
+   caught a throw.
+2. **One adoption.** Create the party actor in the window that does not lead.
+   **Observable:** the formations setting gains one record, and the party's
+   `flags.acks-extras.formationId` names it on the first read and still names
+   it 5 s later. The lead's tally holds the adoption, and the follower's
+   holds only its own `preCreateActor`.
+3. **One bill per move.** Move the party token three times in the window
+   that does not lead.
+   **Observable:** the clock bills 75 ft, and `clock.lastPosition` is the
+   last destination. The lead wrote, and the follower's tally is 0.
+4. **One relayed request.** P toggles a role its character holds, through
+   `executeAsGM("partyRequest", {formationId, type: "role", payload:
+   {actorId, role: "scout"}})`. A toggle run twice ends where it began.
+   **Observable:** P's promise resolves, the member gains `scout`, and one
+   declaration card is posted. Only the lead wrote. Then P sends
+   `executeForEveryone("reloadFog", sceneId)` with A and B viewing the scene:
+   `canvas.fog.load` runs in both.
+5. **A closing lead hands over.** `location.reload()` the lead, by script in
+   that window.
+   **Observable:** the other window reads `isLead: true` within 5 s, through
+   the `bye` (0.07 to 4 s measured), before the reloaded page has loaded. The
+   reloaded window then follows it, its boot recorder holds no error, and the
+   next move bills once, written by the new lead.
+6. **A crashed lead is replaced.** Read the census, then `Page.crash` the
+   window that leads.
+   **Observable:** the survivor leads within 20 s, a ping and its wait (6 to
+   9.5 s measured), and the next move bills once.
+
+**Teardown.** `api.sweepTracked()` from a window still alive, with the other
+windows' ledgers tracked into it first, quoted. Then confirm from any seat
+that the formations setting no longer holds the run's record.
+
 ## A dropped bundle arrives as its goods
 
 Covers `bundles.mjs` (`unpackBundle`, `deliverItems`), the character sheet's

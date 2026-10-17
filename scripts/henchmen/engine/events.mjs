@@ -14,6 +14,7 @@
  * whisper offers [Pay] / [Mark missed]; missed wages are calamities (RR 166).
  */
 import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST } from "../constants.mjs";
+import { isPrimaryGM } from "../../lib/util.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey } from "../rules/loyalty.mjs";
 import { henchmanWage, mercenaryWage } from "../rules/wages.mjs";
@@ -737,7 +738,7 @@ function isManagedHireling(actor) {
 }
 
 async function onUpdateActor(actor, changes) {
-  if (game.user !== game.users.activeGM) return;
+  if (!isPrimaryGM()) return;
   if (!isManagedHireling(actor)) return;
 
   // --- Calamity: hp crossing to ≤ 0 (guarded against healing yo-yos) ---

@@ -41,6 +41,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const COMMITTED = [
   "test-side-by-side.mjs",
   "test-lib.mjs",
+  "test-automation-client.mjs",
   "test-window-title.mjs",
   "test-magic.mjs",
   "test-repair.mjs",

@@ -16,6 +16,7 @@
  * hirelings are logged into their HenchmanRecord.
  */
 import { MODULE_ID, EFFECT_DOMAINS } from "../constants.mjs";
+import { isPrimaryGM } from "../../lib/util.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { offeredRows, unvaluedNoteRows } from "../effects.mjs";
@@ -209,7 +210,7 @@ export function registerInfluenceIntegration() {
       // --- Core-tone rolls against managed hirelings: log them ---
       const target = payload?.target;
       if (!target || !adapter.isRetainer(target)) return;
-      if (game.user !== game.users.activeGM) return;
+      if (!isPrimaryGM()) return;
       await HenchmanRecord.logEvent(target, {
         type: "adjustment",
         note: game.i18n.format("ACKS-HENCHMEN.influence.rollNote", {

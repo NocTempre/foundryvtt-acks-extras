@@ -30,7 +30,7 @@
  */
 
 import { MODULE_ID } from "./constants.mjs";
-import { isPrimaryGM, unset } from "./util.mjs";
+import { isActiveGMSeat, isPrimaryGM, unset } from "./util.mjs";
 import { hasNightVision, senseProfile } from "./senses.mjs";
 import { DETECTION_MODES } from "./perception.mjs";
 import { bearerLights, brightestLightReaching, emittedLight } from "./light.mjs";
@@ -331,7 +331,8 @@ export async function syncNightVisionTokens(scene) {
  */
 export async function migrateWorldVision({ reclaim = false } = {}) {
   const report = { ran: false, scenes: 0, tokens: 0, reclaimed: 0, written: 0, released: 0 };
-  if (!isPrimaryGM() || !enabled()) return report;
+  // The Judge's own act, in the window they asked from.
+  if (!isActiveGMSeat() || !enabled()) return report;
   report.ran = true;
 
   const isReleased = (t) => !!t.getFlag(MODULE_ID, FLAG_VISION)?.released;

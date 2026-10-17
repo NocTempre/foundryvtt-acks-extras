@@ -48,7 +48,8 @@ import {
   storageFlagOf,
 } from "./storage-logic.mjs";
 import { isContainer, isGoods, isShutAway } from "./item-model.mjs";
-import { gmIds } from "./util.mjs";
+import { gmIds, isPrimaryGM } from "./util.mjs";
+import { isLeadClient } from "./automation-client.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
 import { coinCount, coinOrderOf, readStoreKey } from "./money-logic.mjs";
 
@@ -625,13 +626,13 @@ export function registerStorageCleanup() {
       if (game.system?.id !== "acks") return;
       if (!isProvider(doc)) return;
 
-      // ONE client does the work. Every GM sees this hook, and unlike the mount
-      // cleanup (idempotent flag unsets) this one creates documents — running it
-      // on three GM screens would hand out three copies of everything.
-      const gm = game.users?.activeGM;
-      if (gm) {
-        if (!gm.isSelf) return;
-      } else if (userId !== game.user?.id) return;
+      // ONE window does the work. Every GM window sees this hook, and unlike the
+      // mount cleanup (idempotent flag unsets) this one creates documents —
+      // running it on three GM screens would hand out three copies of
+      // everything. With no GM online, the deleting user's elected window.
+      if (game.users?.activeGM) {
+        if (!isPrimaryGM()) return;
+      } else if (userId !== game.user?.id || !isLeadClient()) return;
 
       const goods = doc.items.filter((i) => !!storageFlagOf(i) && isGoods(i));
       if (!goods.length) return;

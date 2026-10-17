@@ -107,12 +107,13 @@ it covers; a section no walk names is walked by hand.
   outside its own ledger. Teardown is by the run's own ids
   (`.claude/rules/live-testing.md`, step 4); a walk that died before its
   sweep has its ids in its log — re-track them and `sweepTracked()`.
-- **Hold the Gamemaster seat alone.** Every client joined on it runs the
-  automation (MODEL, §Movement → turns), so a second one, whether a peer's
-  walk or an idle pane, races your record writes: a move billed twice, a
-  write lost. `game.users.filter(u => u.active)` lists the seat once however
-  many clients hold it. The server's debug log names each authentication
-  (TEST_ENVIRONMENT).
+- **Hold the Gamemaster seat alone.** The seat's windows elect one to run the
+  automation (docs/lib/MODEL.md, "Which window automates"). A second one,
+  whether a peer's walk or an idle pane, may be the window that bills your
+  moves, and one still running code from before the election bills them
+  again: a move billed twice, a write lost. `game.users.filter(u =>
+  u.active)` lists the seat once however many clients hold it. The server's
+  debug log names each authentication (TEST_ENVIRONMENT).
 - **Drag a token with trusted mouse input**, CDP `Input.dispatchMouseEvent`
   on the driver's page. `Token#_canDrag` refuses unless the token is
   controlled and `game.activeTool === "select"`

@@ -1172,8 +1172,9 @@ shut.
 **Watching the clock is the other half, and it is shared too.**
 `onWorldTimeAdvanced` registers a callback on the one GM client responsible for
 acting on a change — henchmen's downtime processing and formation's holed-up
-city stays both ride it. The "am I the active GM" test is what stops a two-GM
-table processing the same day twice, so there is exactly one copy of it;
+city stays both ride it. `isPrimaryGM()` ("Which window automates") is what
+stops a two-GM table, or a Judge with the world open twice, processing the
+same day twice, so there is exactly one copy of the test;
 `henchmen/time.mjs`'s `onTimeAdvanced` is a name its engine kept, delegating
 here. Callbacks are idempotent by contract — the hook fires for a calendar the
 Judge dragged as readily as for a rest — so each keeps its own watermark.
@@ -1222,6 +1223,71 @@ the hole the wrapper exists to close.
 
 A handler called on the GM's own seat (`executeAsGM` when the caller is a GM)
 runs without the wrapper: the seat is its own authority.
+
+Which of the active GM's windows answers a relayed call is its seat's
+election, which rides this channel too (next section).
+
+## Which window automates
+
+The world's GM-side automation runs in one browser window: a hook that writes
+a document, a relayed request, a clock watcher, a sweep at `ready`.
+`game.users.activeGM` names a user, and one user can have the world open in
+several windows, each hearing every hook. So the active GM's seat elects one
+of its windows (`automation-client-logic.mjs`, wired by
+`automation-client.mjs`), and `isPrimaryGM()` (`util.mjs`) is true there
+alone. The ruling and what it cost: [DECISIONS.md](DECISIONS.md), "One
+automation client per seat, chosen by the last relayed claim".
+
+The windows talk on `module.acks-extras`, each message sent with
+`recipients: [own user id]`. The server delivers it to every window of that
+user, the sender's own included, in the order it handles messages, which is
+the order every document event reaches those windows in. Each window's id is
+minted at page load.
+
+- **Joining.** A window joins at `ready` and again on every reconnect. Events
+  a loading page receives are replayed to it just before `ready`. It says
+  `hello` and knows no lead until a `claim` or an answer names one. It claims
+  when nothing answers within 3 s.
+- **Leading.** The lead is the window the last relayed `claim` names. Every
+  window applies a claim when the server relays it back, so for any event the
+  seat's windows agree which claim came before it, and at most one believes it
+  leads when it reads that event. Only a claim changes the lead.
+- **Watching.** The lead answers `hello` and `ping` with `here` from its
+  message handler, and runs no timer. A follower pings every 15 s and claims
+  when 5 s pass without a `here` from the window it believes leads.
+- **Leaving.** A closing lead sends `bye`, and a follower hearing it claims.
+  socket.io closes the transport from a `beforeunload` listener of its own,
+  added before any module loaded, and a window runs its listeners in the
+  order they were added. So the `bye` goes out from the transport's own
+  `close`, wrapped on each connection as it opens, and a `beforeunload`
+  listener covers a socket that does not close on unload. The `bye` moves
+  nothing itself, so a cancelled unload leaves the lead in place. A dropped
+  connection
+  ends the window's lead at once, and it sends nothing until it rejoins. A
+  `hello` from the window a follower believes leads means that window
+  rejoined, so the follower claims.
+- **Outside it.** A window that is not the game view (`game.view !== "game"`)
+  never joins and never leads. A context with no socket, such as an offline
+  suite, leads.
+
+Three gates read the election, all in `util.mjs`:
+
+| Gate | Guards |
+| --- | --- |
+| `isPrimaryGM()` | What a hook, a relayed request or a timer starts. Read once at the trigger and passed down the chain: the answer can change between two reads. |
+| `primaryGMSettled()` | What `ready` or `canvasReady` starts. A window still joining answers `isPrimaryGM()` false, so this waits for its first answer. |
+| `isActiveGMSeat()` | An act the window's own user asked for, such as a macro or an API call. One window made it, and a follower refusing it would refuse the Judge. |
+
+`sockets.mjs` gates relayed calls itself. A request (socketlib's
+`executeAsGM`, the native fallback) runs on the seat's lead, and a window
+still joining waits to learn whether it leads. A follower's handler returns a
+promise that never settles, so socketlib sends no answer and the requester
+takes the lead's. A handler registered with `{broadcast: true}` runs in every
+window, and so does a call a window makes to itself.
+
+`automationCensus()` (`automation-client.mjs`) reports what one window
+believes, `{selfId, lead, joined, isLead, settled}`, for a live check
+([TESTING.md](TESTING.md)).
 
 ## Effects the module maintains
 

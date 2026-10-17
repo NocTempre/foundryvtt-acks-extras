@@ -32,7 +32,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { LEGACY_ID } from "./legacy.mjs";
-import { isPrimaryGM } from "../lib/util.mjs";
+import { primaryGMSettled } from "../lib/util.mjs";
 
 /** World setting: the document-side pass has completed for this world. */
 export const SETTING_MIGRATED = "importerScopeMigrated";
@@ -210,7 +210,7 @@ export async function migrateLegacyScope() {
   game.settings.register(MODULE_ID, SETTING_MIGRATED, { scope: "world", config: false, type: Boolean, default: false });
   await migrateClientSettings();
   if (game.settings.get(MODULE_ID, SETTING_MIGRATED)) return;
-  if (!isPrimaryGM()) return;
+  if (!(await primaryGMSettled())) return;
 
   const report = { documents: 0, packs: 0, settings: 0, macros: 0 };
   try {

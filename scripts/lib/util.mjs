@@ -7,6 +7,7 @@
  */
 
 import { MODULE_ID } from "./constants.mjs";
+import { automationSettled, isLeadClient } from "./automation-client.mjs";
 
 /**
  * The forced deletion of the key it is assigned to: `{key: unset()}` in an
@@ -83,10 +84,27 @@ export const judgesAndOwners = (doc) => [
 ];
 
 /**
- * True on every client joined as the active GM responsible for automation: one
- * per world, unless that GM has the world open in more than one window.
+ * True on every window of the active GM's seat: the gate for an act this
+ * window's own user asked for (a macro, an API call), which one window made by
+ * construction. What a hook, a socket or a timer starts is `isPrimaryGM`'s.
  */
-export const isPrimaryGM = () => game.users.activeGM?.isSelf ?? false;
+export const isActiveGMSeat = () => game.users.activeGM?.isSelf ?? false;
+
+/**
+ * True on the one window that runs the world's GM-side automation: a window of
+ * the active GM's seat, and the one that seat elected (`isLeadClient`), so a
+ * Judge with the world open twice runs it once. Read it once, at the trigger,
+ * and pass the answer down a chain: it can change between two reads.
+ */
+export const isPrimaryGM = () => isActiveGMSeat() && isLeadClient();
+
+/**
+ * `isPrimaryGM()` once this window knows who leads its seat: what work a local
+ * trigger starts (`ready`, `canvasReady`) awaits, since a window still joining
+ * answers false.
+ * @returns {Promise<boolean>}
+ */
+export const primaryGMSettled = () => automationSettled().then(() => isPrimaryGM());
 
 /** The lib feature's storage surface (attached at import time). */
 export const libStorage = () => globalThis.acksExtras.lib.storage;

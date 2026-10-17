@@ -5,7 +5,7 @@
  * point.
  */
 import { MODULE_ID, REPORT_TYPE } from "./constants.mjs";
-import { isPrimaryGM } from "../lib/util.mjs";
+import { primaryGMSettled } from "../lib/util.mjs";
 import MarketReportData from "./data/report-data.mjs";
 import { registerReportSheet } from "./apps/report-sheet.mjs";
 import { migrateDmKnowledge } from "./engine/trade-objects.mjs";
@@ -23,8 +23,8 @@ Hooks.once("init", () => {
   }
 });
 
-Hooks.once("ready", () => {
-  if (!isPrimaryGM()) return;
+Hooks.once("ready", async () => {
+  if (!(await primaryGMSettled())) return;
   // The server reads `documentTypes` at world launch: a world that has not been
   // relaunched since the sub-type arrived cannot create one, so the move waits.
   if (!game.documentTypes?.Item?.includes(REPORT_TYPE)) {

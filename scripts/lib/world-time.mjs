@@ -22,6 +22,7 @@
  * counter.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { isPrimaryGM } from "./util.mjs";
 
 /** World setting gating every `game.time.advance` this module performs. */
 export const SETTING_ADVANCE_WORLD_TIME = "advanceWorldTime";
@@ -177,13 +178,13 @@ export function untilNextDawn() {
 }
 
 /**
- * Register a callback fired when world time moves forward, on the one GM
- * client that is responsible for acting on it.
+ * Register a callback fired when world time moves forward, on the one window
+ * that runs the automation (`isPrimaryGM`).
  *
  * Every feature that reacts to the calendar shares this registrar rather than
- * guarding a hook of its own: the "am I the active GM" test is what stops a
- * two-GM table processing the same day twice, and one copy of it is the only
- * way it stays one answer. Callbacks must be idempotent — each keeps its own
+ * guarding a hook of its own: the gate is what stops a two-GM table, or a
+ * Judge with two windows open, processing the same day twice, and one copy of
+ * it is the only way it stays one answer. Callbacks must be idempotent — each keeps its own
  * watermark, because the hook also fires for a clock the Judge dragged.
  *
  * @param {(worldTime: number, dt: number) => void} callback  seconds, and the
@@ -191,7 +192,7 @@ export function untilNextDawn() {
  */
 export function onWorldTimeAdvanced(callback) {
   Hooks.on("updateWorldTime", (worldTime, dt) => {
-    if (!game.users.activeGM || game.user !== game.users.activeGM) return;
+    if (!isPrimaryGM()) return;
     if (dt <= 0) return;
     callback(Math.floor(worldTime), dt);
   });

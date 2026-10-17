@@ -15,6 +15,8 @@ import { getLoadout, VIOLATION, heldHandsClause } from "./loadout.mjs";
 import { syncLoadoutEffect } from "./effects.mjs";
 import { isEquippable } from "../lib/item-model.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
+import { isPrimaryGM } from "../lib/util.mjs";
+import { isLeadClient } from "../lib/automation-client.mjs";
 
 /**
  * Is this an equip-state change on a wearable item of a character?
@@ -34,13 +36,14 @@ function mode() {
 }
 
 /**
- * Exactly one client performs loadout WRITES (auto-unequip, effect sync) to
+ * Exactly one window performs loadout WRITES (auto-unequip, effect sync) to
  * avoid duplicate effects on actors owned by both a player and the GM: the
- * active GM if one is online, else the actor's owner. See ROADMAP.md.
+ * active GM's elected window if one is online, else an owner's elected window.
+ * Several owners can each pass the second, which the fixed effect id absorbs.
  */
 export function primaryResponder(actor) {
-  if (game.users.activeGM) return game.users.activeGM.isSelf;
-  return !!actor?.isOwner;
+  if (game.users.activeGM) return isPrimaryGM();
+  return !!actor?.isOwner && isLeadClient();
 }
 
 /**

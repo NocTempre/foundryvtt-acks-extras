@@ -301,7 +301,3 @@ export async function delHenchman(employer, hirelingId) {
 /* ------------------------------ misc ------------------------------ */
 
 export { gmIds };
-
-export function firstActiveGm() {
-  return game.users.activeGM ?? game.users.find((u) => u.isGM && u.active) ?? null;
-}

@@ -18,6 +18,7 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "./constants.mjs";
+import { primaryGMSettled } from "../lib/util.mjs";
 
 /** World setting: empty, unremarkable locations self-clean at ready. */
 const PRUNE_SETTING = "pruneEmptyLocations";
@@ -212,11 +213,13 @@ Hooks.once("ready", () => {
   };
 
   if (game.system?.id !== "acks") return;
-  // One client sweeps: it creates actors and moves coin. Elected the same way
-  // the library elects its deletion fallback.
-  if (!game.users.activeGM?.isSelf) return;
-  runVaultSweep().catch((err) => console.error(`${MODULE_ID} | vault sweep failed`, err));
-  pruneEmptyLocations().catch((err) => console.error(`${MODULE_ID} | empty-location prune failed`, err));
+  // One window sweeps: it creates actors and moves coin. It waits to learn
+  // whether it is the elected one, like every ready-time writer.
+  primaryGMSettled().then((primary) => {
+    if (!primary) return;
+    runVaultSweep().catch((err) => console.error(`${MODULE_ID} | vault sweep failed`, err));
+    pruneEmptyLocations().catch((err) => console.error(`${MODULE_ID} | empty-location prune failed`, err));
+  });
 });
 
 /**

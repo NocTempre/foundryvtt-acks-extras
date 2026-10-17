@@ -27,7 +27,7 @@
 import { acksExtras } from "../namespace.mjs";
 import * as movementScales from "./movement-scales.mjs";
 import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE } from "./constants.mjs";
-import { elementOf, isPrimaryGM } from "./util.mjs";
+import { elementOf, isPrimaryGM, primaryGMSettled } from "./util.mjs";
 import { registerUiPresetSettings, promptUiPreset, effectiveLook, refreshSheetDefaults } from "./ui-preset.mjs";
 import * as vocab from "./vocab.mjs";
 import * as wallGeometry from "./wall-geometry.mjs";
@@ -1034,10 +1034,15 @@ Hooks.on("updateActor", (actor, changes) => {
   syncActorTokens(actor).catch((err) => console.warn(`${MODULE_ID} | actor sense sync failed`, err));
 });
 
-/* Catch up a scene the GM was not on when any of the above happened. */
+/* Catch up a scene the GM was not on when any of the above happened. The first
+ * draw comes before this window has joined its seat's election, so the sweep
+ * waits to learn whether this window automates. */
 Hooks.on("canvasReady", (canvas) => {
   if (game.system?.id !== "acks") return;
-  syncSceneTokens(canvas?.scene).catch((err) => console.error(`${MODULE_ID} | scene sense sync failed`, err));
+  const scene = canvas?.scene;
+  primaryGMSettled()
+    .then((primary) => primary && syncSceneTokens(scene))
+    .catch((err) => console.error(`${MODULE_ID} | scene sense sync failed`, err));
 });
 
 // Night Vision's reach depends on a light nobody's sheet tracks, so these

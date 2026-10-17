@@ -3892,6 +3892,129 @@ is found by its riders, but nothing frees them when the token is deleted
 seat as on both GM seats, for a scene created with the default ownership. A
 scene a player's client does not hold was not tried.
 
+### One automation client per seat, chosen by the last relayed claim (2026-10-17)
+
+**Evidence.**
+- Measured live on core 14.369: with a second client joined on the
+  Gamemaster seat, the formation's `updateToken` billing charged one move
+  twice and lost a formation-ledger write, and a hand-created party actor was
+  adopted by each Gamemaster client, giving two formation records and a flag
+  naming the later one. These are increments, whole-ledger writes and creates
+  under random ids. A fixed id makes only a single document's create harmless.
+- Read in socketlib 1.1.4 (`_handleRequest`): a `ONE_GM` request runs wherever
+  `game.users.activeGM?.isSelf`, so every relayed handler runs once in each
+  window of the GM seat, and the requester takes whichever answer comes first.
+- Read in Foundry 14.369's server (`handleCustomSocket`): a module message
+  sent with `recipients: [userId]` is emitted to every socket of that user, the
+  sender's own included, in the order the server handles messages. A document
+  event's response to its requester and its broadcast go out in one step. The
+  windows of one seat therefore have an order to agree on that no timer
+  decides. The rejection this supersedes weighed a heartbeat lease.
+- Core elects no client: `getDesignatedUser` picks a user, and `User#query`
+  is emitted to every socket of its recipient.
+- Per-writer defences had been built twice (docs/henchmen/DECISIONS.md,
+  "Exactly-once hiring under duplicate socket delivery (2026-07-22)"; the
+  equipment loadout's fixed id), and about twenty automatic writers across
+  formation, lib, henchmen, location, markets and the importer are harmed by a
+  second run.
+
+**Ruled.**
+- Each window joins its seat's election at `ready`, on `module.acks-extras`,
+  addressed to its own user. The seat's lead is the window the last relayed
+  `claim` names. Every window applies a claim in the one handler that reads it
+  (the claimant receives its own back), so for any event the server
+  broadcasts, the seat's windows agree which claim came before it. Only a
+  claim changes the lead; an answer to a `hello` or a `ping` counts as the
+  lead alive only when it comes from the window believed to lead.
+- No timer decides who leads; timers decide how soon a missing lead is
+  replaced. A joining window claims when no lead answers its `hello` within 3
+  s. A follower pings every 15 s and claims when the lead has not answered
+  within 5 s. The lead keeps no timer and answers from its message handler, so
+  a backgrounded tab's throttled timers cannot unseat it. A spurious claim
+  moves the lead and never makes two.
+- A closing lead sends `bye` from `beforeunload`, and a follower hearing it
+  claims at once. `bye` changes nothing by itself, so a cancelled unload needs
+  no repair. socket.io's own `beforeunload` listener (`closeOnBeforeunload`)
+  closes the transport, and the page's first connection added it before any
+  module loaded. Measured live on Edge 154 against socket.io 4.8.3: the window
+  ran it first even against a capture-phase listener, and the `bye` stayed in
+  the buffer of the closed transport. A reload was then noticed only by a ping
+  or by the new page's own claim, 7 to 20 s later. So the `bye` is sent from
+  the transport's own `close`, wrapped on each connection's transport as it
+  opens; the listener stays for a socket that does not close on unload.
+  Measured after the fix: the follower heard the `bye` and led 0.07 to 4 s
+  after the reload began.
+- A window whose socket dropped stops leading, sends nothing while
+  disconnected (socket.io would deliver it late, on stale state), and joins
+  again on reconnecting. A `hello` from the window believed to lead means the
+  seat is vacant, and a follower claims.
+- `isPrimaryGM()` is `activeGM?.isSelf && isLeadClient()`. Work a local
+  trigger starts (`ready`, `canvasReady`) waits for the window to settle. A
+  gate is read once at the trigger and passed down a chain, never read again
+  mid-chain. A context with no socket listener (the offline suites) leads.
+- An act the window's own user asked for (a macro, an API call) is gated on
+  the seat alone (`isActiveGMSeat`): one window made it, and refusing it in a
+  window that does not lead would refuse the Judge.
+- A relayed request runs on the seat's lead alone. Elsewhere its handler
+  returns a promise that never settles, and never throws, which socketlib
+  would send back as the answer. A handler registered for a broadcast
+  (`reloadFog`, `lostDiscovered`) is not gated.
+- Every inline `activeGM` gate moves onto the helper; an owner fallback is
+  `isOwner && isLeadClient()`. A repo test fails on a new inline one.
+- Equipment's fixed loadout id and henchmen's persisted claim stay. They
+  cover a window still running code from before this until it reloads, owner
+  fallbacks across several users, and a hand-over.
+
+**Rejected.**
+- *Web Locks.* They elect among one browser's tabs, and the case is a second
+  device.
+- *A claim stored in a document or a setting.* Every claim would be a
+  database write broadcast to every client, and a player cannot write a world
+  setting.
+- *Per-writer idempotency alone*, as equipment did. It reaches a single
+  create and not increments, whole-ledger writes, creates under random ids,
+  chat cards or relayed mutations.
+- *Gating the whole socketlib wrapper.* A follower would skip the broadcast
+  handlers and keep stale fog.
+- *Moving socket.io's unload listener behind the election's.* The only
+  handle on it is a private field, and the build Foundry serves
+  (`scripts/socket.io.min.js`) mangles that field's name. It would also have
+  moved the close behind every listener added in between, Foundry's own
+  included.
+
+**Supersedes** the rejection of "Electing one connection" in
+docs/equipment/DECISIONS.md, "One loadout effect per actor, whoever writes it
+(2026-10-15)", answering its three objections. Presence is per user in core's
+API, and per socket on the module's own channel. A closing lead says `bye`,
+so only a crash leaves the seat with no writer, for at most 20 s. The lead
+keeps no timer, and a follower's throttled timer only replaces a dead lead
+later.
+
+**What it cost.**
+- A lead that crashes, loses its network or sleeps leaves its seat with no
+  automation for up to 20 s, longer while the follower's tab is throttled. An
+  event in that gap, or between a claim's send and its relay once the old lead
+  is gone, is handled by nobody ([ROADMAP.md](ROADMAP.md)).
+- A window alone on its seat handles nothing for 3 s after `ready`; the
+  events replayed from its load used to be its own.
+- Queues kept per window do not move with a hand-over. A lead replaced while
+  its movement queue holds moves can leave the new lead measuring from a
+  baseline not yet written. A hand-over is rare, which is why the timers are
+  generous.
+- A tab that thaws before the server drops its socket handles its backlog from
+  before the takeover (inferred).
+- A compendium document's hooks fire after awaited I/O, so their place in the
+  order is not guaranteed; a gated handler acts on world documents.
+- `canvasReady` work follows the lead window's scene.
+- The `bye` rides socket.io's transport `close`, which is that library's
+  method and not this module's. Every close of the transport says it, a
+  dropped connection's included, where a `bye` changes nothing harmful. A
+  socket.io whose transport has no `close` loses the `bye`, and the ping still
+  replaces the lead.
+- Core's own automation (Active Effect expiry, the teleport behaviour) still
+  runs in every window, and the writers gated on `isGM` alone run once per GM
+  user. Both are outside this ruling ([ROADMAP.md](ROADMAP.md)).
+
 ### The system's sheets show the stored value of a field an effect changes (2026-10-15)
 
 **Asked.** A Judge reported that the Equipment Loadout's Avoid Surprise

@@ -114,6 +114,7 @@ import { addLight, advanceRounds, advanceTurns, removeLight, storedPosition, tog
 import { onPartyTokenMoved } from "./journey.mjs";
 import * as journey from "./journey.mjs";
 import * as travel from "./travel.mjs";
+import { primaryGMSettled } from "../lib/util.mjs";
 import * as weather from "./weather.mjs";
 import * as settlement from "./settlement.mjs";
 import * as lost from "./lost.mjs";
@@ -883,7 +884,9 @@ Hooks.once("ready", () => {
     // An incident's marker lasts a stated number of turns of the same clock.
     expireTransientNotes().catch((err) => console.error(`${MODULE_ID} | incident marker expiry failed`, err));
   });
-  if (isPrimaryGM()) {
+  // The startup sync waits to learn whether this window automates.
+  primaryGMSettled().then((primary) => {
+    if (!primary) return;
     // Prune dead records FIRST (formations whose party actor is gone — the
     // phantom source), then sync the environments of what remains.
     pruneFormations()
@@ -898,7 +901,7 @@ Hooks.once("ready", () => {
       // silent.
       .then(() => travel.claimUnstampedSettlements())
       .catch((err) => console.error(`${MODULE_ID} | startup sync failed`, err));
-  }
+  });
 });
 
 /* -------------------------------------------- */

@@ -14,9 +14,6 @@ verification, not as drive-by edits:
 - **`classLevel`/`abilityMod` bypasses.** ~25 inline reads with drifting
   fallbacks (`?? 0` vs `?? 1` vs `Math.max(1, …)`) — each replacement must
   decide which fallback was load-bearing.
-- **GM detection.** `firstActiveGm` exists twice (sockets.mjs and henchmen's
-  adapter, byte-identical) plus ~11 inline `activeGM` checks; validate warns
-  on new ones.
 - **`collectEffectModifiers` merge.** equipment and henchmen export same-named
   same-shape collectors over `lib/effect-scan.mjs`; the divergence is
   documented as deliberate in effect-scan's header — merging needs that
@@ -148,6 +145,38 @@ its socket, and a live two-window run proving the loser stays quiet. The
 equipment loadout effect no longer waits on it: its create is refused for the
 second window (docs/equipment/DECISIONS.md, "One loadout effect per actor,
 whoever writes it (2026-10-15)").
+
+## Events no window handled during a hand-over
+
+A seat's lead that crashes, loses its network or sleeps leaves the seat with
+no automation until a follower claims (MODEL.md, "Which window automates").
+That takes up to 20 s, and longer while the follower's tab is throttled. An
+event in that gap is handled by no window. So is one the server relays
+between a claim's send and its relay once the old lead is gone. Hooks fire
+once per window and nothing replays them. A queue kept by one window (the
+formation's movement queue) does not move with the lead either. Not built: a
+new lead reconciling what a gap could have dropped, writer by writer.
+
+## Writers gated on `isGM` alone run once per GM user
+
+The seat's election picks among the active GM's windows. A writer that gates
+on `game.user.isGM` alone runs in every window of every GM user, Assistant
+GMs included. Six run on an automatic trigger:
+
+- `module.mjs`, at `ready`: the `core.sheetClasses` rewrite, and a retainer's
+  `flags.core.sheetClass`.
+- `compendium-folders.mjs`, at `ready`: packs filed into folders. It only
+  fills.
+- `monsters/module.mjs`, at `ready`: `migrateDefenseBands`, which only writes
+  an old shape.
+- `classes/language-migration.mjs`, at `ready`: language items created or
+  updated. Its own comment warns of duplicates on a cold pack, so this one is
+  likely harmful.
+- `mount.mjs`, on `deleteActor`: the rider's and mount's flags unset.
+
+Core's own automation, such as Active Effect expiry and the teleport
+behaviour, runs in every window too. Not built: each writer that is not its
+user's own act moved onto `isPrimaryGM`, the language migration first.
 
 ## What the conditions do not do yet
 
