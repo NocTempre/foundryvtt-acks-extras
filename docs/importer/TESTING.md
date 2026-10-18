@@ -304,6 +304,18 @@ A `noMatch` names a recipe whose page moved; `misses` names a register token a
 recipe read but could not place. Art is skipped unless you pass `{art: true}` —
 with it, a single Monstrous Manual creature can take fifteen seconds.
 
+An adventure audits the same way. With AX1 connected,
+`{ books: ["ax1"] }` returns `ok: 233, noMatch: 0, threw: 0` in about two
+seconds: its keyed areas, its ten inhabitants and its tables. Its
+`withMisses: 77` are rooms whose quick-stat creature is no token of the
+shipped `creature` register (`register creature: unknown token`). A miss
+still yields the name the page prints, which the room's journal page sets
+on its creature line, so the count is no failure. AX3 reads `ok: 265` with
+one such miss.
+The audit's runs go through the live executor, so a reading-order or
+stat-line change in `executor.mjs` shows here before any document is
+written.
+
 `acksExtras.importer.lastAudit()` reads a running pass, which is how a long one is
 watched rather than waited on blindly.
 
