@@ -133,7 +133,9 @@ row, a `type: "item"` on A with `system.cost` and
     the control is reachable. *Observable:* the entry dialog opens (the
     seat's own vehicles, and an other-cargo number), and confirming with no
     vehicle ticked and other cargo 0 posts a pending `enter` action on M
-    through the relay.
+    through the relay. Before entry the player's toolbar carries no
+    merchandise picker; once entered, the picker sits captioned before
+    Solicit (the network walk checks both).
 
 **Not reachable on a shared world with the GM seat online:** the "not sent"
 relay warning (it needs no GM connected), a venture day refused for a missing

@@ -230,8 +230,10 @@ Ventures run on dedicated days that resolve as game time passes:
 
 1. **Enter the market** — declare cargo capacity, vehicles included
    ([Taking it to market](vehicles.md#taking-it-to-market)); the gate takes
-   its toll and your market impact is fixed from the imported baselines
-   (RR 371).
+   its toll on that capacity, loaded or empty, and your market impact is
+   fixed from the imported baselines (RR 371). The tariff on merchandise
+   brought in to sell is not charged by the module yet; the Judge settles
+   it at the table.
 2. **Assess supply & demand** — opens the influence page against the
    market: your Charisma, a tone proficiency, a bribe (RR 287) and your
    reaction effects set the Judge's throw against the imported bands, which

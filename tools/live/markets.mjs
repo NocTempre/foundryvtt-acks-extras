@@ -300,6 +300,8 @@ const P = {
       classLine: H.text(sec?.querySelector("p.acks-extras-markets-class")),
       knownButton: H.text(sec?.querySelector('[data-action="toggleKnownMarket"]')),
       categories: [...(sec?.querySelectorAll("[data-venture-category] option") ?? [])].map((o) => o.value),
+      picker: (() => { const s = sec?.querySelector("[data-venture-category]"); return { present: !!s, captioned: !!s?.labels?.length && !!H.text(s.labels[0]).length }; })(),
+      enterButton: !!sec?.querySelector('[data-action="ventureEnter"]'),
       partyBlock: H.text(sec?.querySelector("details.acks-extras-markets-parties")),
       ventureStatus: H.text(sec?.querySelector(".acks-extras-markets-ventures p.hint")),
     };
@@ -717,10 +719,13 @@ try {
 
   section("the network walk");
   const n1 = await run(player, P.tradeTab, { locationId: M5.id, traderId: V.id });
-  note("trade tab at M5 as V", { classLine: n1.classLine, hasX: n1.categories.includes(keys.X), hasY: n1.categories.includes(keys.Y) });
+  note("trade tab at M5 as V", { classLine: n1.classLine, picker: n1.picker, enterButton: n1.enterButton });
+  check("N0: before entry the player's toolbar offers Enter and no merchandise picker", n1.enterButton && !n1.picker.present, { picker: n1.picker, enterButton: n1.enterButton });
   const ne1 = await run(player, P.ventureEnterUI, { locationId: M5.id, other: ch3.baseline });
   note("enter M5 (step 1)", { networkText: ne1.networkText, modes: ne1.modes, action: ne1.action, notes: ne1.notes });
   const na1 = await advance(M5.id, ne1.action?.id);
+  const n1e = await run(player, P.tradeTab, { locationId: M5.id, traderId: V.id });
+  check("N0: once entered the player's merchandise picker is captioned and lists the goods", n1e.picker.present && n1e.picker.captioned && !n1e.enterButton && n1e.categories.includes(keys.X) && n1e.categories.includes(keys.Y), { picker: n1e.picker, enterButton: n1e.enterButton });
   let nv1 = await run(gm, P.ventureRead, { locationId: M5.id, actorId: V.id });
   note("venture at M5", nv1);
   const s1 = await run(player, P.ventureApi, { locationId: M5.id, kind: "solicit", actorId: V.id, category: keys.X });

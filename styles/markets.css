@@ -13,6 +13,13 @@
   flex-wrap: wrap;
 }
 
+/* The merchandise picker, captioned beside the controls that read it. */
+.acks-extras-markets-category {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .acks-extras-markets-demand {
   display: flex;
   gap: 0.35rem;

@@ -151,14 +151,20 @@
       <i class="fas fa-door-open"></i> {{localize "ACKS-MARKETS.ventures.enter"}}
     </button>
     {{/unless}}
-    <select data-venture-category>
-      {{#each merchOptions}}<option value="{{key}}">{{label}}</option>{{/each}}
-    </select>
     {{#if venture.entered}}
     <button type="button" class="acks-location-btn" data-action="ventureAssess"
             data-tooltip="{{localize 'ACKS-MARKETS.ventures.assessHint'}}">
       <i class="fas fa-magnifying-glass-chart"></i> {{localize "ACKS-MARKETS.ventures.assess"}}
     </button>
+    {{/if}}
+    {{#if ventureCategoryShown}}
+    <label class="acks-extras-markets-category">{{localize "ACKS-MARKETS.ventures.category"}}
+      <select data-venture-category>
+        {{#each merchOptions}}<option value="{{key}}">{{label}}</option>{{/each}}
+      </select>
+    </label>
+    {{/if}}
+    {{#if venture.entered}}
     <button type="button" class="acks-location-btn" data-action="ventureSolicit"
             data-tooltip="{{localize 'ACKS-MARKETS.ventures.solicitHint'}}">
       <i class="fas fa-bullhorn"></i> {{localize "ACKS-MARKETS.ventures.solicit"}}

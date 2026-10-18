@@ -526,3 +526,25 @@ member made.
 Cost: a world that has not re-imported the class powers has no impact
 option until it does or until the Judge gives the power an Active Effect,
 and the dialog says so. Supersedes the 2026-09-30 entry's "Not built" bullet.
+
+## 2026-10-17 — The toll is on capacity, loaded or empty; the goods charge is the tariff, not built
+
+A field report asked whether the entry toll is figured on the party's total
+capacity or on the stone it declares for sale, expecting an empty wagon to
+pay less than a loaded one, and said the entry still asked for a goods type.
+
+Ruled: the toll stays on capacity. RR ch. 8 (Entering the Market) prices the
+toll per stone of the transport's capacity, and its worked example prices a
+caravan's capacity without naming its load; the 2026-09-30 entry already
+rejected counting free room. What the rule charges on goods is the tariff on
+merchandise brought in to sell, which is a separate charge at the same gate
+and is unbuilt (ROADMAP, venture logistics). The hint that said "declared
+cargo" read as goods and now says capacity, loaded or empty.
+
+The goods type was the merchandise picker, rendered beside Enter before
+entry where no control on a player's seat reads it. It is rendered where
+Solicit or the Judge's Set demand is offered, and captioned.
+
+Rejected: building the tariff in the hotfix (a new charge, read off the
+loads aboard and the imported tariff cell, is a minor's surface); a toll on
+the stone declared for sale (not the rule).

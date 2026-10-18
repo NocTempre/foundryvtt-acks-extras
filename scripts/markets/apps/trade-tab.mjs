@@ -338,6 +338,9 @@ export async function prepareTradeTab(sheet, context) {
   // Venture state for the acting trader's party, and its queue.
   const monthStart = marketMonthStart(t);
   context.venture = partyId ? (ventureOf(location, partyId, monthStart) ?? null) : null;
+  // The merchandise picker is the input of Solicit (shown once entered) and of the
+  // Judge's Set demand; where neither is offered it is not rendered.
+  context.ventureCategoryShown = !!context.venture?.entered || isGM;
   // The vehicles the party entered with, named on its status line.
   context.ventureVehicles = ventureVehicles(context.venture).map((v) => v.name).join(", ");
   context.ventureActions = (goods.actions ?? [])
