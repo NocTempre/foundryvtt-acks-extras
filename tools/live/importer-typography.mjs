@@ -110,16 +110,18 @@ const P = {
     return { ...globalThis.__btBook, open: !!H.CB.cookbookSessionDoc(id), notes: H.notes.slice() };
   },
   line: async ({ book }) => globalThis.__bt.CB.lineOf(book),
-  /** The world's shelves and the folders on the line's shelves, before and after. */
+  /** The world's shelves, the line's own by type, and the folders on the line's shelves, before and after. */
   shelves: async ({ line }) => {
     const H = globalThis.__bt;
     const packs = game.packs.filter((p) => p.metadata.packageType === "world").map((p) => p.collection);
     const folders = {};
+    const lined = {};
     for (const type of ["Item", "Actor", "RollTable", "JournalEntry", "Adventure"]) {
       const pack = H.LIB.findLibraryPack(type, line);
+      lined[type] = pack?.collection ?? null;
       if (pack) folders[pack.collection] = pack.folders.map((f) => f.uuid);
     }
-    return { packs, folders };
+    return { packs, lined, folders };
   },
   /** Where a document stands: its pack's line, and whether that line is the Judge's. */
   shelfOf: async ({ uuid }) => {
@@ -345,14 +347,19 @@ try {
   section("seats and the book");
   gm = await seat("gm");
   note("install (gm)", await run(gm, P.install));
-  // The shelf census comes BEFORE the first presence check: `importedActorFor`
-  // mints the line's Actor shelf on its way to reading it, and a pack minted
-  // here is this run's to delete.
+  // The shelf census brackets the GM census: a presence check (`importedActorFor`)
+  // reads, and the world's packs before and after it are the proof. The line's
+  // Actor shelf has to be absent beforehand for the proof to say anything — it
+  // is the pack a presence check once minted on its way to reading it.
   const line = await run(gm, P.line, { book: BOOK });
   const before = await run(gm, P.shelves, { line });
-  note("shelves before", { packs: before.packs.length, line, folders: Object.fromEntries(Object.entries(before.folders).map(([c, f]) => [c, f.length])) });
+  note("shelves before", { packs: before.packs.length, line, lined: before.lined, folders: Object.fromEntries(Object.entries(before.folders).map(([c, f]) => [c, f.length])) });
   let census = await run(gm, P.census, { book: BOOK, ids: IDS });
   note("gm census", census);
+  const afterCensus = await run(gm, P.shelves, { line });
+  const minted = afterCensus.packs.filter((c) => !before.packs.includes(c));
+  check("the line's Actor shelf is not in the world before the census", before.lined.Actor === null, { lined: before.lined });
+  check("the GM census opens no pack", !minted.length && afterCensus.packs.length === before.packs.length, { minted, packs: afterCensus.packs.length });
   check("the GM seat is a GM, the book is registered with a typography and the scoped import api is present", census.isGM && census.registered && census.typography && census.api, { bodyPt: census.bodyPt });
   const heldBefore = Object.entries(census.held).filter(([, u]) => u).map(([id]) => id);
   check("the world holds nothing under the book's ids before the run", !heldBefore.length, heldBefore);
@@ -392,6 +399,7 @@ try {
     for (const uuid of uuids.filter((u) => !(before.folders[collection] ?? []).includes(u))) gm.track(uuid, "Folder");
   }
   note("shelves opened by this run", openedPacks);
+  check("2: the import, not the census, opened the line's Actor shelf", !!after.lined.Actor && openedPacks.includes(after.lined.Actor), { actor: after.lined.Actor, opened: openedPacks });
 
   check("2: five class powers imported, none already present", powers.result?.made === IDS.powers.length && powers.result?.reused === 0 && IDS.powers.length === 5, powers.result);
   check("2: three classes imported", (classes.result?.docs ?? []).length === IDS.classes.length && IDS.classes.length === 3, { made: (classes.result?.docs ?? []).length });

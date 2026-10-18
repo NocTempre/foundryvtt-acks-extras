@@ -2449,10 +2449,12 @@ untagged seat would read every line as a heading and import nothing.
 8. `api.track` every id the imports' results list — the class documents, the
    monster and powers read back by id, the scenes' `created` uuids and the
    Adventure's — then `api.sweepTracked()`; quote what it removed, could not
-   find and refused. A shelf the run opened is deleted once empty — census
-   the world's packs BEFORE the first presence check, since
-   `importedActorFor` mints the line's Actor shelf on its way to reading it.
-   The book opened with `{ remember: false }` closes on reload.
+   find and refused. A shelf the run opened is deleted once empty — the
+   world's packs are read before the first presence check and again after
+   it, and the two lists are equal: a presence check (`importedActorFor`)
+   reads, and the line's Actor shelf, absent beforehand, is opened by the
+   import and by nothing earlier. The book opened with `{ remember: false }`
+   closes on reload.
 
 `tools/live/importer-typography.mjs` walks it; step 1's Books-window line,
 step 6's Books-window row and the boot check it leaves to the reader. The

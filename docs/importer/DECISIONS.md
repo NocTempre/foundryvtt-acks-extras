@@ -6736,3 +6736,44 @@ and 11, so the render, not the tracer, had moved. On it:
 - The other door stands 0.3 cell from its drawn line.
 - A notch half a cell wide stays in the passage's wall where the patch met
   it at the crop's edge.
+
+## 2026-10-18 — A presence check reads; only an import opens a shelf
+
+Amends "One dedup rule for every importer: ask the shelf you write to, and
+claim before you build" on the actor side, and the typography walk's census
+order of the same day.
+
+**Evidence.** `importedActor` asked `packFor` for the id's own shelf, to
+read that shelf before the others. `packFor` is the WRITER's door: it opens
+the pack it is asked for when the world has none. So the first "already
+imported?" question about an actor of a line — the walks' census, an
+importer's dedup gate, the OSE book's group check — left the line's Actor
+shelf in the world as an empty pack. Live, on the catgirl's walk run before
+any import, the census left `…--the-osr-catgirl--actor` behind and, once the
+book was a Judge's, `…--judge--actor`; the walk was then reordered to read
+its pack census before its first presence check, which deleted the pack it
+had caused rather than stopping it being made.
+
+**Ruled.**
+- **A presence check never opens a shelf.** `importedActor` finds the own
+  shelf through `findLibraryPack`, which answers null for a shelf the world
+  lacks, and reads the others through `ourPacksOfType`; `packFor` is for the
+  writers alone. The own shelf still answers first when it exists, so a
+  creature re-shelved by a release that changed its line is found on
+  whichever shelf holds it.
+- **Pinned twice.** Offline, `test-imported-index` asks for an actor of a
+  lined book in a world with no shelf and counts calls to the pack minter:
+  zero, and the answer null; the same test holds the own shelf answering
+  first. Live, the typography walk reads the world's packs before and after
+  its GM census and fails on any difference, and holds that the line's Actor
+  shelf is absent before the census and among the packs the IMPORT opened.
+- The other presence checks already read: `importedItem` through the item
+  index, `importedTable` and `importedIdsOfType` through `ourPacksOfType`,
+  and the adventure writer through `findLibraryPack` before it opens.
+
+*Rejected:* keeping the walk's reorder as the fix. A walk that deletes the
+pack its census minted proves the walk tidies, not that the module reads; a
+Judge's own "import this?" click would still have minted it.
+
+*Cost:* a world that already holds an empty lined Actor pack from an
+earlier census keeps it; nothing here deletes a pack.

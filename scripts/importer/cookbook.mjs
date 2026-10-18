@@ -811,7 +811,9 @@ const sidebarImports = (type) => {
  * cannot be opened. A null line is the ACKS library's own pack. The cached
  * answer is confirmed against `game.packs` before it is handed out — a pack
  * can go away under a running session (deleted, or swept by Remove Imports on
- * another seat) — and re-resolving simply creates the pack again.
+ * another seat) — and re-resolving simply creates the pack again. Writers
+ * only: a presence check reads its shelves through `ourPacksOfType` or
+ * `findLibraryPack`, which open nothing.
  */
 async function packFor(type, line = null) {
   const cacheKey = `${type}|${line ?? ""}`;
@@ -1179,6 +1181,11 @@ const importedItem = async (id) => {
  * The world answers first, copies included, so a scene's places link to one
  * another; `copies: false` asks for the library's own document, which is what
  * an "already imported?" check needs (`isWorldCopy`).
+ *
+ * A read, never a write: the own shelf is FOUND (`findLibraryPack`), never
+ * opened through `packFor`, which mints the pack it is asked for. A presence
+ * check runs before any import — a census, an "already imported?" gate — and
+ * a world it ran in must hold exactly the packs it held before.
  */
 async function importedActor(id, { copies = true } = {}) {
   const world = game.actors.find((a) => a.getFlag(MODULE_ID, "cookbook")?.id === id && (copies || !isWorldCopy(a)));
@@ -1186,8 +1193,9 @@ async function importedActor(id, { copies = true } = {}) {
   // Its OWN shelf first — that is where `createDoc` put it — then the others.
   // A creature re-shelved by a release that changed its line is still found,
   // which is what keeps a Judge from importing a second copy of it.
-  const own = await packFor("Actor", lineOf(bookOfCookbookId(id)));
-  const collections = ourPacksOfType("Actor").sort((a, b) => (a.collection === own ? -1 : b.collection === own ? 1 : 0));
+  const own = findLibraryPack("Actor", lineOf(bookOfCookbookId(id)));
+  const others = ourPacksOfType("Actor").filter((p) => p !== own);
+  const collections = own ? [own, ...others] : others;
   for (const collection of collections) {
     // The cookbook flag is not a default index field — ask for it, exactly as
     // importedIdSet does, or the row is there and the match never fires.
