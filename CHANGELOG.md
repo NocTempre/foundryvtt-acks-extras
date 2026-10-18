@@ -1,5 +1,53 @@
 # Changelog
 
+## 11.6.0
+
+### Added
+
+- **An adventure book lands in the library as one Adventure.** Import
+  Everything ends by writing each open Judge's book to its line's Adventure
+  shelf: every document the book's import made, every map it lays out, and
+  the zones over those maps, in the world's folders. A Judge's own edits to
+  the Adventure are kept on later runs. An Adventure whose sources changed is
+  rebuilt, and the rest is left alone. A book's per-map Adventures from
+  earlier versions are retired once its Adventure stands. The Books window
+  shows each open adventure book's census.
+- **A dungeon map can be walled at import from the Judge's own page.** The
+  map step traces the page's plan into walls, doors, secret doors, terrain
+  and invisible walls. A short list of corrections rides with each recipe and
+  never ships the plan. A walled scene turns token vision on. AX1's two
+  dungeon levels are the first walled maps. A map already in the world is
+  never re-traced.
+- **AX1 is read as an adventure.** Its fort and both dungeon levels import
+  as keyed areas under neutral labels, each carrying its printed name from
+  the Judge's copy. A room's quick-stat lines are read as its occupants.
+- **AX1's inhabitants become characters.** Each person the book prints in
+  full is a core character on the Judge's shelf. Its class is bound at the
+  printed level through the official sheet's import, and it gets its scores,
+  hit points, alignment, proficiencies, spells, gear and coin. The biography
+  keeps the line as printed, a line for each figure the ACKS II class derives
+  differently, and a line for each name the library could not answer. Older
+  names are read through the shipped conversions. A character keeps its id
+  across a rebuild, and a rebuild or Remove Imports never deletes one a player
+  owns.
+- **A community supplement with its own typography joins the shelf.** The
+  importer reads a book set with ligature glyphs and labels in its own
+  style. Its race tiers, a beastman, three classes and two tavern plans
+  import.
+
+### Fixed
+
+- **Entering a market no longer looks as if it asks for a goods type.** The
+  merchandise picker now sits with Solicit and the Judge's Set demand, which
+  read it. The market entry toll's hints say it is figured on cargo
+  capacity, whether the party is loaded or empty.
+- **The Wilderness tab keeps its scroll across a field change in a short
+  window.**
+- **A census of a fresh world opens no empty shelf.** Asking whether a
+  line's actor was already imported left an empty Actor compendium behind.
+- **A key range is no longer read as the number its digits spell.** "1-3"
+  and "13" were the same key to the importer.
+
 ## 11.5.1
 
 ### Added

@@ -384,17 +384,55 @@ started** run's maps step. Run it after the points of interest and
 organisations steps: the map stands on their places, and hands each
 organisation the quarters it controls.
 
-The same step keeps a copy in your library as an **Adventure**, on the book's
-Adventure shelf. Open it and click **Import** to set the city up again: it
-adds what your world is missing — the map, its places, the book's
-organisations, the people they name and the lists the map rolls on — and
-changes nothing your world already holds. To put a place back as the book has
-it, delete it and import again. The Adventure is kept by this world; its
-places arrive hidden and the map is not activated.
+### A dungeon map's walls
 
-![](../releases/v11.0.0/importer-adventure.png)
+Some adventure maps are walled as they import. The maps step reads the plan
+off your own copy of the page and draws its walls, doors, secret doors,
+terrain walls and invisible walls (which stop movement and let sight through,
+like bars). The scene turns token vision on, so a token sees its room and
+nothing past the walls. A map already in your world is never re-drawn; to
+draw it again, delete the scene and run the step again.
 
-*The map's Adventure in the library, from beneath its picture of the map: what it carries, and the note that importing adds only what a world is missing.*
+### An adventure book, as one Adventure
+
+The last step of **Import Everything** keeps each open adventure book in your
+library as one **Adventure**, on the book's Adventure shelf. It carries every
+document the book's import made, every map, and the zones laid over those
+maps, filed in the world's folders. Open it and click **Import** to set the
+adventure up again in another world. Import adds what that world is missing
+and changes nothing it already holds. To put a document back as the book has
+it, delete it and import again.
+
+Your edits to the Adventure are kept. A later run rebuilds it only when what
+it carries has changed and you have not edited it since. A book's per-map
+Adventures from earlier versions are retired once its Adventure stands.
+
+![](../releases/v11.6.0/importer-adventure.png)
+
+*An adventure book's Adventure in the library, from beneath its title and map: what it carries, counted, and the Import button.*
+
+The Books window shows each open adventure book's count of what its Adventure
+holds, under the book's row in **Open this session**.
+
+![](../releases/v11.6.0/importer-census.png)
+
+### People an adventure prints in full
+
+Where an adventure prints a person's full stat line (class and level, scores,
+proficiencies, spells and gear), the import makes that person a **character**
+on the Judge's shelf, never a monster. The class is bound at the printed level
+by the same import as the official character sheet's, so saves, attack throw
+and spell slots are the ACKS II class's. Older names are read as their ACKS II
+replacements. The biography keeps the line **as printed**, followed by a line
+for each figure the class gives differently and a line for each name your
+library could not match.
+
+A rebuild of the entry keeps the character's id, so links to it hold. A
+rebuild, or **Remove Imports**, never deletes a character that a player owns.
+
+![](../releases/v11.6.0/importer-character.png)
+
+*An adventure's inhabitant as a character: the class bound at the printed level, and its saves and throws the class's own.*
 
 ### Common problems
 

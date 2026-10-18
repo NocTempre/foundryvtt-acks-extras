@@ -258,7 +258,7 @@ only from an earlier visit: the days of one stay are one visit, and an entry,
 a hire or a purchase counts. The Judge's switch on the market's Trade tab
 marks it known as well.
 
-![](../releases/v11.4.0/markets-network-enter.png)
+![](../releases/v11.6.0/markets-network-enter.png)
 
 The queue under the buttons lists your party's days still to resolve. The
 same trader cannot queue the same day twice; a queued day has a withdraw
