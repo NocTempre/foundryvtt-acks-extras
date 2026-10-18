@@ -133,7 +133,9 @@ tolerating the era's missing commas; unrecognized segments degrade to
 `extra[]`, absent keys are absent, never a throw. Additive, 2026-10-17: a bare
 `D` opening a clause is damage where no `Dmg` is printed, and `hp` reads a
 list of figures, one per creature, as `hpList`, with `each` as `hpEach` and a
-trailing parenthetical as `hpNote`), `countParen` (additive, 2026-10-17: the
+trailing parenthetical as `hpNote`. Additive, 2026-10-18: a `Repertoire:`
+segment reads as `repertoire`, joined by every segment after it that opens
+with an ordinal, since a semicolon closes each spell level), `countParen` (additive, 2026-10-17: the
 count a quick-stat label prints in its last parentheses — a whole number as
 an integer, other text holding a digit as printed, else null).
 

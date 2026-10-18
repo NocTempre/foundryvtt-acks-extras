@@ -1077,6 +1077,10 @@ What each book still owes, in the order it is worth doing:
   per-instance hit points as notes. A structured hit-point field, or members
   as a group actor's deltas (`docs/lib/GROUPS.md`), waits for something that
   deploys them onto a scene and reads them back.
+- **A character's class awards.** A character from the page is bound without
+  `grantAwards`, so it holds its class's powers only where its stat line
+  names them. A choice award needs an answer the page does not give; the
+  fixed awards and Adventuring could land without one.
 - **AX3's people as characters.** They stay monster NPCs. Converting them
   means re-minting stable ids and re-pointing every organisation and roster
   slot that names them.

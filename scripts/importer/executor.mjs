@@ -1220,20 +1220,32 @@ function applyPattern(raw, instr, registers, misses) {
  * per creature ("hp 5, 4, 3") read as `hpList`, with `hp` the first of them
  * and a closing parenthetical as `hpNote`. A printed minus sign (U+2212) reads
  * as the hyphen-minus; `text` keeps what the page printed.
+ *
+ * A repertoire runs on over the semicolons that close its spell levels: every
+ * segment after it that opens with an ordinal ("3rd-…") joins `repertoire`.
  */
 export function parseStatline(text) {
   const out = { text };
   const segments = text.replace(/−/g, "-").split(/;/).map((s) => s.trim()).filter(Boolean);
   const rest = [];
+  let inRepertoire = false;
   for (const seg of segments) {
-    const labeled = /^(Proficiencies|Equipment|Class Abilities|Abilities|Spells(?:\s+\w+)?|Arcane Spells|Divine Spells)\s*:\s*(.*)$/i.exec(seg);
+    if (inRepertoire && /^\d+(?:st|nd|rd|th)/i.test(seg)) {
+      out.repertoire += `; ${seg}`;
+      continue;
+    }
+    inRepertoire = false;
+    const labeled = /^(Proficiencies|Equipment|Class Abilities|Abilities|Repertoire|Spells(?:\s+\w+)?|Arcane Spells|Divine Spells)\s*:\s*(.*)$/i.exec(seg);
     if (labeled) {
       const key = labeled[1].toLowerCase();
       const body = labeled[2].trim();
       if (key === "proficiencies") out.proficiencies = splitTop(body).map((t) => t.trim());
       else if (key === "equipment") out.equipment = body;
       else if (key === "class abilities" || key === "abilities") out.classAbilities = body;
-      else out.spells = ((out.spells ? out.spells + "; " : "") + `${labeled[1]}: ${body}`).trim();
+      else if (key === "repertoire") {
+        out.repertoire = body;
+        inRepertoire = true;
+      } else out.spells = ((out.spells ? out.spells + "; " : "") + `${labeled[1]}: ${body}`).trim();
       continue;
     }
     // Ability-score segment: pairs like "Str 13, Int 18, ..." (any subset).

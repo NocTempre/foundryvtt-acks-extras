@@ -69,8 +69,9 @@ import { libraryPackLabel, judgeLine, findLibraryPack, cookbookId } from "../lib
 import { ensureLibraryPack } from "../lib/library-target.mjs";
 import {
   ADVENTURE_TYPE, BOOK_ADVENTURE_KIND, adventureCookbookId, bookAdventureCookbookId, bookAdventureId, withWorldIds,
-  adventureRefs, linkFields, seatsLeft, adventureFolderSources, sourcesHashOf, bookAdventureState, legacyAdventuresOf,
+  adventureRefs, linkFields, seatsLeft, adventureFolderSources, sourcesHashOf, bookAdventureState, legacyAdventuresOf, stableDocId,
 } from "./adventure-binding.mjs";
+import { ALIGN_WORD, sheetValuesFromStatline, asPrintedBlock, playerOwned } from "./character-binding.mjs";
 import { ensureSceneThumb } from "./book-adventure.mjs";
 import { nameKeys, ABILITY_CATEGORIES } from "../lib/vocab.mjs";
 import { materializeTemplates, TEMPLATE_PART } from "../classes/template-packages.mjs";
@@ -2121,6 +2122,14 @@ const claimsEntry = (doc, id) => {
 };
 
 /**
+ * A character a player owns, which neither a rebuild nor Remove Imports
+ * deletes: a character handed to a player is that player's.
+ */
+const playersCharacter = (doc) =>
+  doc?.documentName === "Actor" && doc.type === "character" &&
+  playerOwned(doc.ownership, { isPlayer: (uid) => game.users.get(uid)?.isGM === false, owner: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER });
+
+/**
  * Which entry ids this world already holds something for.
  *
  * Every dot-ancestor of a claim is recorded beside the claim itself, so a
@@ -2300,7 +2309,7 @@ async function runEntryReimport(all, { mode = "drop" } = {}) {
     const src = ENTRY_SOURCES.find((s) => s.key === key);
     if (!src?.type) continue; // a source that is not documents has nothing to delete
     for (const doc of docs[src.type]) {
-      if (doc.flags?.[MODULE_ID]?.templatePart) continue;
+      if (doc.flags?.[MODULE_ID]?.templatePart || playersCharacter(doc)) continue;
       if (ids.some((id) => claimsEntry(doc, id))) doomed[src.type].push(doc);
     }
   }
@@ -2368,7 +2377,7 @@ export async function cookbookRemoveImports() {
   const templatePart = (d) => !!d.flags?.[MODULE_ID]?.templatePart;
   const mine = (d) => !!d.getFlag(MODULE_ID, "cookbook") || templatePart(d);
   const groups = [
-    ["Actor", game.actors.filter(mine)],
+    ["Actor", game.actors.filter((d) => mine(d) && !playersCharacter(d))],
     ["Item", game.items.filter(mine)],
     ["JournalEntry", game.journal.filter(mine)],
     ["RollTable", game.tables.filter(mine)],
@@ -2399,11 +2408,13 @@ export async function cookbookRemoveImports() {
     ...(packed ? [`${packed} in ${ourPacks.length} compendium(s)`] : []),
     ...(materialized ? [`${materialized} materialized rules-table document(s)`] : []),
   ].join(", ");
+  const kept = game.actors.filter((d) => mine(d) && playersCharacter(d)).length;
   const ok = await foundry.applications.api.DialogV2.confirm({
     window: { title: "ACKS Extras — Remove Imports" },
     classes: ["acks-ui", "acks-extras-importer-dialog"],
     content: `<p>Delete <strong>${total}</strong> imported document(s): ${lines}?</p>
-      <p class="notes">Only documents this module imported are removed. Extracted art files stay on disk and are reused by the next import.</p>`,
+      <p class="notes">Only documents this module imported are removed. Extracted art files stay on disk and are reused by the next import.</p>
+      ${kept ? `<p class="notes">${kept} imported character(s) a player owns stay.</p>` : ""}`,
   });
   if (!ok) return null;
   for (const [type, docs] of groups) {
@@ -3286,7 +3297,6 @@ export async function refillMonster(actor, { whole = false } = {}) {
 const ACTOR_KINDS = new Set(["kind.monster", "kind.monsterLegacy", "kind.npc", "kind.monsterTemplate", "kind.monsterFamily"]);
 /** kinds an actor-import flow may enumerate (unknown/absent kind = MM-era monster). */
 const actorKindOf = (e) => !e.kind || ACTOR_KINDS.has(e.kind);
-const ALIGN_WORD = { L: "Lawful", N: "Neutral", C: "Chaotic" };
 
 /**
  * Defer-to-newest: an adventure entry reprinted in a book this seat has OPEN
@@ -3402,8 +3412,12 @@ async function importAdventureActor(bookId, id, folderId) {
     return null;
   }
   const kind = found.entry.kind;
+  if (found.entry.meta?.actor === "character") {
+    const character = await importCharacter(bookId, id, folderId, node, found);
+    await adventureActorArt(character, session, id, found, node);
+    return character;
+  }
   const bound = kind === "kind.npc" ? bindNpc(node) : bindLegacyMonster(node);
-  const artInstr = found.entry.fields?.art ?? null;
   const sl = bound.statline;
   const classLine = sl?.class ? `<p><em>${sl.class.name} ${sl.class.level}${sl.class.note ? ` (${sl.class.note})` : ""}</em></p>` : "";
   bound.system.details = {
@@ -3442,11 +3456,19 @@ async function importAdventureActor(bookId, id, folderId) {
       },
     },
   });
-  // Same art path as the MM import: the compiled entry names ITS illustration
-  // (associated by placement inside the entry's claimed region), and the seat
-  // extracts + uploads it. A shipped placement BOX needs no runtime XObject
-  // resolution (the AX books' art never registers on page.objs), so the box
-  // alone is enough to proceed.
+  await adventureActorArt(actor, session, id, found, node);
+  return actor;
+}
+
+/**
+ * Same art path as the MM import: the compiled entry names ITS illustration
+ * (associated by placement inside the entry's claimed region), and the seat
+ * extracts + uploads it. A shipped placement BOX needs no runtime XObject
+ * resolution (the AX books' art never registers on page.objs), so the box
+ * alone is enough to proceed.
+ */
+async function adventureActorArt(actor, session, id, found, node) {
+  const artInstr = found.entry.fields?.art ?? null;
   if (actor && artInstr && (artInstr.box || node.fields.art) && ctx.importArtForPage) {
     await ctx.importArtForPage(actor, session.doc, {
       id,
@@ -3455,6 +3477,79 @@ async function importAdventureActor(bookId, id, folderId) {
       box: artInstr.box ?? null,
     });
   }
+}
+
+/**
+ * The library's name for a printed one, by kind: a class or spell the library
+ * answers keeps its name, else the conversion table's rename; a proficiency
+ * resolves through the ability index, whose aliases carry the older names.
+ */
+function libraryNameFor({ matchClass, matchSpell }) {
+  const nameIndex = abilityNameIndex();
+  const present = new Set(loadedAbilityIndex().keys());
+  const renamed = (name, category) => {
+    const conv = convertName(data.registers, name);
+    return conv?.status === "renamed" && conv.category === category && conv.to ? conv.to : name;
+  };
+  return (kind, name) => {
+    if (kind === "class") return matchClass(name) ? name : renamed(name, "class");
+    if (kind === "spell") return matchSpell(name) ? name : renamed(name, "spell");
+    const guess = idForName(nameIndex, name, present);
+    return (guess && cookbookEntry(guess.id)?.entry?.name) || name;
+  };
+}
+
+/**
+ * A person the page prints in full, as a core character (DECISIONS
+ * 2026-10-17, "A person the page prints in full becomes a character, and the
+ * derivation wins"). The shell takes the entry's stable id, so a rebuild keeps
+ * every reference to it; the sheet import binds the class at the printed level
+ * and writes the scores, hit points and alignment; morale is written here, to
+ * the system's bounds; and the biography carries the page's prose, then the
+ * stamped "as printed" block with every figure the class works out differently
+ * and every name the library could not answer. Owned by the Judges alone.
+ */
+async function importCharacter(bookId, id, folderId, node, found) {
+  const sl = node.fields.statline ?? {};
+  const kind = found.entry.kind;
+  const _id = stableDocId(id);
+  const shell = {
+    _id,
+    name: printedNameOf(node, found.entry.name),
+    type: "character",
+    folder: folderId,
+    ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
+    flags: { [MODULE_ID]: { cookbook: { id, book: bookId, kind } } },
+  };
+  // A document already standing under the stable id is this entry's from an
+  // earlier run; making another under it is a duplicate-id throw.
+  const { pack } = await packOptsFor("Actor", lineOfData(shell));
+  if ((pack ? game.packs.get(pack)?.index.has(_id) : game.actors.has(_id))) {
+    console.warn(`${MODULE_ID} | ${id}: a character already stands under its id — skipped.`);
+    return null;
+  }
+  const actor = await createDoc(Actor, shell, { keepId: true });
+  if (!actor) return null;
+  // Loaded on use: the sheet import's tree registers hooks as it loads, and
+  // this module is also loaded where no Foundry runs.
+  const [{ importSheet }, matchers] = await Promise.all([import("../character-sheet/pdf/apply.mjs"), import("../character-sheet/pdf/match.mjs")]);
+  const { values, morale, unplaced } = sheetValuesFromStatline(sl, { rename: libraryNameFor(matchers) });
+  const report = await importSheet({ actor, values, writeDomain: false, record: false });
+  const moraleField = actor.system.schema?.getField?.("details.morale");
+  const missing = [...report.unmatched, ...unplaced];
+  const words = {
+    heading: game.i18n.localize(`${LANG_PREFIX}.character.asPrinted`),
+    differs: (d) => game.i18n.format(`${LANG_PREFIX}.character.differs`, { printed: d.sheet, inForce: d.inForce }),
+  };
+  const rows = [
+    ...missing.map((u) => ({ label: game.i18n.localize(`${LANG_PREFIX}.character.missing`), text: u.name })),
+    ...report.noted,
+  ];
+  await actor.update({
+    "system.details.biography": entryText(node, id, found.entry.cite) + asPrintedBlock({ id, statline: sl.text, differences: report.checks, rows }, words),
+    ...(Number.isInteger(morale) && moraleField ? { "system.details.morale": Math.clamp(morale, moraleField.min, moraleField.max) } : {}),
+    [`flags.${MODULE_ID}.printed`]: { differences: report.checks.length, missing: missing.length },
+  });
   return actor;
 }
 

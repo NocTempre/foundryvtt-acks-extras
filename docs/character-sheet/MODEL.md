@@ -467,6 +467,10 @@ what was added, what to check and what was not found.
   domain the page went into and the block written into its notes, carried
   past an import that wrote none. Each import replaces the record whole.
 - A chat message lists what the import added, as chargen does.
+- `record: false` leaves the notes block, the record and the chat message to
+  the caller, and hands the notes rows back as `report.noted` beside the
+  unmatched names. The importer's characters from a page take it
+  (`docs/importer/MODEL.md`, "A person the page prints in full").
 
 Re-importing the same file onto the same character adds nothing, writes
 only what changed, and replaces its own notes block. An item deleted since

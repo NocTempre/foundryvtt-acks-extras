@@ -45,6 +45,20 @@ await t("a movement clause closed by a semicolon is still movement", () => {
   assert.equal(parseStatline("MV 120’, AC 4, HD 2, hp 9; MV 30’").mv, "120’", "the core clause's MV wins over a later bare one");
 });
 
+/* ---------------- repertoire ---------------- */
+
+await t("a repertoire runs on over the semicolons closing its levels", () => {
+  const s = parseStatline("Mage 4; Str 9, Int 15, Wis 11, Dex 12, Con 10, Cha 8; MV 90’, AC 0, HD 4, hp 9, #AT 1, D 1d4; Spells: 2 1st, 1 2nd; Repertoire: 1st-glimmer, brass hand, 2ndfog lamp; 3rd-ember wheel; Equipment: wand, 5gp");
+  assert.equal(s.repertoire, "1st-glimmer, brass hand, 2ndfog lamp; 3rd-ember wheel");
+  assert.equal(s.spells, "Spells: 2 1st, 1 2nd");
+  assert.equal(s.equipment, "wand, 5gp", "the run-on stops at the next labelled segment");
+  assert.equal(s.extra, undefined);
+});
+
+await t("an ordinal segment with no repertoire before it stays extra", () => {
+  assert.deepEqual(parseStatline("MV 90’, AC 4, HD 2, hp 9; 3rd-ember wheel").extra, ["3rd-ember wheel"]);
+});
+
 /* ---------------- hit points ---------------- */
 
 await t("one hit-point figure is hp, and each is still marked", () => {

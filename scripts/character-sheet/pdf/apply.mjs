@@ -619,9 +619,12 @@ async function landDomain(character, plan, report, { writeDomain, previous }) {
  * @param {Record<string, string|boolean>} options.values what the form holds (`readForm`)
  * @param {boolean} [options.createHenchmen] make and enroll henchmen the roster lacks
  * @param {boolean} [options.writeDomain] write the domain page into a domain, where the seat may
- * @returns {Promise<object>} the report: `{actor, created, written, checks, unmatched, notes, henchmen, granted, domain}`
+ * @param {boolean} [options.record] write the notes block, the import record and the chat card;
+ *   false leaves all three to the caller, which reads the notes rows off `report.noted`
+ * @returns {Promise<object>} the report: `{actor, created, written, checks, unmatched, notes, henchmen, granted, domain}`,
+ *   with `noted` (the notes rows besides the unmatched) when `record` is false
  */
-export async function importSheet({ actor = null, values, createHenchmen = false, writeDomain = true } = {}) {
+export async function importSheet({ actor = null, values, createHenchmen = false, writeDomain = true, record = true } = {}) {
   await whenReady();
   const plan = buildPlan(values);
   let target = actor;
@@ -661,11 +664,15 @@ export async function importSheet({ actor = null, values, createHenchmen = false
   const unanswered = report.unmatched.filter((u) => u.kind !== "className").map(({ kind, name, box }) => (box ? { kind, name, box } : { kind, name }));
 
   await landHenchmen(target, plan.henchmen, report, { createHenchmen });
-  const record = target.getFlag(MODULE_ID, RECORD_FLAG) ?? {};
-  const landed = await landDomain(target, plan, report, { writeDomain, previous: record.domain ?? null });
+  const held = target.getFlag(MODULE_ID, RECORD_FLAG) ?? {};
+  const landed = await landDomain(target, plan, report, { writeDomain, previous: held.domain ?? null });
+  if (!record) {
+    report.noted = [...unmodelledNotes(plan), ...report.notes];
+    return report;
+  }
   const rows = [...report.unmatched.map((u) => ({ label: loc(`pdf.unmatched.${u.kind}`), text: u.name })), ...unmodelledNotes(plan), ...report.notes];
   const block = notesBlock({ rows, domain: landed ? {} : plan.domain });
-  const previous = record.notes ?? "";
+  const previous = held.notes ?? "";
   // The record is replaced whole, so a box this sheet leaves empty does not
   // keep the last sheet's value. An update expands dotted keys, so the boxes
   // are stored expanded and read back flat (`recordedFields`).
@@ -678,7 +685,7 @@ export async function importSheet({ actor = null, values, createHenchmen = false
       notes: block,
       // The domain the page went into, kept past an import that did not
       // write one so the next that does replaces its block.
-      domain: landed ?? record.domain ?? null,
+      domain: landed ?? held.domain ?? null,
     }),
   });
   // What a character was handed is a record, in the place chargen and a class

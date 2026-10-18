@@ -13,9 +13,10 @@ gates that anything reaches a document.
 Of these recipes, `tools/live/formation-day.mjs` drives Reimport One Shelf's
 rules tables (`node tools/live/run.mjs formation-day`) and
 `tools/live/importer-adventure.mjs` drives "A book lands in the library as one
-Adventure" and `tools/live/importer-typography.mjs` drives "A community book,
-read through its declared typography" (`tools/live/README.md` is the
-contract); the rest is walked by hand.
+Adventure", `tools/live/importer-characters.mjs` drives "A person the page
+prints in full becomes a character" and `tools/live/importer-typography.mjs`
+drives "A community book, read through its declared typography"
+(`tools/live/README.md` is the contract); the rest is walked by hand.
 
 ## The Books window
 
@@ -2069,6 +2070,68 @@ above.
    (`pageSweep`).
 3. Delete a shelf `created.packs` names, only if its index is empty.
 4. Quote the sweep result.
+
+## A person the page prints in full becomes a character
+
+The rows are AX1's `kind.npc` rows carrying `meta.actor: "character"`, and
+`acksExtras.importer.cookbookImportIds(ids)` imports them. The walk needs the
+GM seat with AX1 connected and the library holding the classes the lines
+print. Step 3 also needs the Player seat.
+`tools/live/importer-characters.mjs` walks steps 1 to 3.
+
+What a scripted walk meets:
+
+- The import's count says how many it made, not which. Read each character
+  back under `stableDocId(<cookbook id>)` from every world Actor shelf, and
+  track that uuid.
+- A rebuild keeps the id, so the tracked uuid covers the rebuilt document
+  too. Tell the two apart by `_stats.createdTime`; wait a second before the
+  rebuild so the times can differ.
+- The rebuild is the entry picker's (`cookbookReimportEntries()`), two
+  DialogV2 windows. Tick `input[name="sel"][value="Monsters|<id>"]`, press
+  the prompt's `ok`, then the confirm's `yes`. The promise the picker
+  returned resolves once the rebuild's import is done.
+- An imported figure is compared with the page in page context, against
+  `executeEntry` on the open book. Print booleans, never the figures.
+
+### Fixtures
+
+Read first, write nothing: every world Actor shelf and the world, for a
+document under any row's stable id. Where one stands and this run did not
+make it, stop: it is another session's.
+
+- The rebuild's fixture is a world `character` claiming the first row's
+  entry (`flags.acks-extras.cookbook: {id, book: "ax1", kind: "kind.npc"}`),
+  with OWNER for the Player seat's user. Make it with `api.create`.
+
+### Steps
+
+1. Import every character row.
+   *Observable:* the count is the row count, and each stands under its
+   stable id. Each is a `character` carrying its entry's stamp. Each has its
+   class bound at the printed level. Its scores, hit points and alignment
+   are the page's. Its morale is the page's, clamped to the schema's bounds.
+   Its saves are what `classUpdateData` derives. Its biography holds one
+   `.acks-extras-importer-as-printed` block, stamped with the entry id, with
+   at least `1 + differences + missing` lines (`flags.acks-extras.printed`).
+   Its ownership is the Judges' alone. No chat card was posted, and a
+   `createActor` observer saw no actor beyond these.
+2. Rebuild the first row through the entry picker.
+   *Observable:* a document stands under the same id with a later
+   `createdTime`. The player-owned fixture still exists.
+3. Join as the Player seat.
+   *Observable:* the shelf holding the characters is not visible in the
+   Compendium tab.
+
+Remove Imports' guard is not walked: it deletes every session's imports.
+`playerOwned` is pinned offline (`test-character-binding.mjs`), and the
+filter beside it is read in the code.
+
+### Teardown
+
+1. Run `api.sweepTracked()`: the characters and the fixture.
+2. Delete a shelf this run opened, only if its index is empty.
+3. Quote the sweep result.
 
 ## The city-travel recipe assembles the business prose
 

@@ -317,6 +317,51 @@ column keys `c<n>`, ids of this book's organisations, a revenue column that is
 not a counted one and only on a single-owner grid. `verify-cookbook` passes a
 strength grid on its heading and its level rows plus the total.
 
+## A person the page prints in full
+
+A `kind.npc` row carrying `meta.actor: "character"` imports as a core
+`character` (`importCharacter`); every other `kind.npc` row is a monster actor
+(`bindNpc`). The ruling is DECISIONS 2026-10-17, "A person the page prints in
+full becomes a character, and the derivation wins".
+
+- **Its id.** The character is made on the library shelf under
+  `stableDocId(<cookbook id>)`, with `keepId`, so a rebuild (a delete, then a
+  create) keeps every roster, link and Adventure reference to it. Where a
+  document already stands under that id the import skips the row and says so
+  on the console.
+- **The sheet's boxes.** `sheetValuesFromStatline` (`character-binding.mjs`)
+  reads the parsed line into the official sheet's form keys, and the sheet
+  import (`character-sheet/pdf/apply.mjs:importSheet`, with `record: false`)
+  does the rest: it binds the class at the printed level, writes the scores,
+  hit points and alignment, grants the proficiencies and the repertoire, and
+  lands the gear and the coin. With a class bound, a figure the class works
+  out (saves, throws, spell slots) is compared rather than written, and each
+  disagreement is a check. The armour the AC bracket names and the equipment
+  are worn, each piece in the slot its item asks for; the weapons the attack
+  and damage brackets name go to the weapons table without dice, since the
+  printed damage carries the bonuses. The line's XP is the defeat award and
+  is not written, and the save code is left to the class. Morale is written
+  here, clamped to the system's own bounds.
+- **Its names.** Every class, proficiency and spell name passes through
+  `libraryNameFor` first: a class or spell the library answers keeps its
+  name, else the conversion table's rename of that category
+  (`registers.tables.conversion`); a proficiency resolves through the ability
+  index, whose aliases carry older printings' names. A name nothing answers
+  is reported, and the character is still made.
+- **What the page printed.** The biography holds the entry's prose
+  (`entryText`), then the "as printed" block (`asPrintedBlock`): the stat line
+  as printed, a line per check, a line per name the library could not answer,
+  and the sheet import's notes rows. The block is stamped `data-acks-entry`
+  like book text, so `stripBookText` takes it with the rest of the import's
+  writing. `flags["acks-extras"].printed` counts `{differences, missing}`.
+- **Who owns it.** The Judges alone (`ownership.default` NONE), and the import
+  posts no chat card. A class with an elected damage bonus asks the Judge
+  during the import, as a class apply does anywhere.
+- **What a rebuild and Remove Imports leave.** A `character` a player owns —
+  a non-GM user, or the default level, at OWNER — is never deleted by the
+  entry picker's rebuild or by Remove Imports (`playersCharacter`); Remove
+  Imports' confirm says how many stay.
+
 ## City travel and trade
 
 The city-travel recipe (`cityTravel` tables, AX3 p. 56) includes two optional

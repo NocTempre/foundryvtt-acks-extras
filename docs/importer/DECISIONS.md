@@ -6839,3 +6839,46 @@ Judge's own "import this?" click would still have minted it.
 
 *Cost:* a world that already holds an empty lined Actor pack from an
 earlier census keeps it; nothing here deletes a pack.
+
+## 2026-10-18 — A character from the page is bound by the sheet import, and its older names ride the renames already shipped
+
+How "A person the page prints in full becomes a character, and the derivation
+wins" (2026-10-17) is built.
+
+**Ruled.**
+- **The sheet import binds it.** The importer reads the parsed stat line into
+  the official sheet's boxes (`sheetValuesFromStatline`) and hands them to
+  `importSheet`, which already binds a class by name at a level, grants
+  proficiencies, gear, coin and spells, compares what the class derives
+  instead of writing it, and reports what the world cannot answer. The
+  importer makes the shell under the stable id first and writes morale and
+  the biography after. `importSheet` gained `record: false`, which leaves its
+  notes block, its import record and its chat card to the caller.
+- **Older names ride the two renames already shipped.** A class or spell the
+  library does not answer is retried under the conversion table's rename of
+  its category; a proficiency resolves through the ability index, whose
+  aliases carry older printings' names. Nothing is fuzzy-matched.
+- **The block quotes the line.** The "as printed" block opens with the stat
+  line itself, so the save code, the defeat award, the damage and the
+  leadership figures are on the sheet without a field of their own; then a
+  line per check and per name the library could not answer.
+- **The guard is the character's.** Rebuild and Remove Imports skip a
+  `character` a player owns, and nothing else, as the 2026-10-17 ruling says.
+
+*Rejected:*
+- **A character binder of its own** (`characterActorData`). It would be a
+  second writer of the sheet's fields, and would need its own class bind,
+  grants and checks.
+- **A register of replacement pairs** (an ACKS I name's `printKey` to an
+  ACKS II cookbook id). Live, the nine AX1 characters missed two names in
+  all, both spells: the conversion table marks one absent from ACKS II, and
+  renames the other to a spell the library does not hold. A register would
+  be a third rename mechanism beside the two that answered the rest, and
+  would answer neither of those.
+
+*Cost:*
+- The sheet bounds what lands: 20 proficiency rows, 7 weapons, 8 spells a
+  level. What it has no row for is listed as not in the library.
+- The bind takes no class awards (`grantAwards`). A choice award needs an
+  answer the page does not give, so a character from the page holds its
+  class's powers only where its line names them.
