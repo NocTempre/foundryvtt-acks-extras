@@ -33,7 +33,7 @@
           { "edge": [5, 39, "w"], "is": "door" },
           { "cell": [37, 22], "is": "floor" },
           { "cell": [37, 23], "is": "floor" },
-          { "edge": [37, 27, "w"], "is": "door" },
+          { "edge": [37, 27, "w"], "is": "wall" },
           { "cell": [24, 1], "is": "floor" },
           { "cell": [25, 1], "is": "floor" },
           { "cell": [26, 1], "is": "floor" },

@@ -6882,3 +6882,54 @@ wins" (2026-10-17) is built.
 - The bind takes no class awards (`grantAwards`). A choice award needs an
   answer the page does not give, so a character from the page holds its
   class's powers only where its line names them.
+
+## 2026-10-18 — A thin wall between two rocks is a wall, a symbol in a niche is no door, and a spiral stair is walled along its circle
+
+Amends two entries of this day. From "A recipe is checked on the importer's
+own render, never on a plate" it amends the open throat's cell door. From "A
+double door is two leaves meeting at its bar, and a correction may be a drawn
+line" it amends the spiral stair's walls and both maps' counts.
+
+**New evidence.** The user looked at the sheets again before any push:
+- "Missed a slanted wall": the p55 throat between rooms 16 and 18, where
+  the cell door stood, is closed by a thin wall. It is drawn as two parallel
+  lines aslant between the two rocks.
+- "Not a door": the edge door behind the corridor niche by p38's room 36.
+  The niche holds a drawn symbol.
+- "Nitpick on a rock": a rock in p55's room 8 is under 0.3 of a cell, so the
+  cleanup floors it. It stood unwalled beside two walled rocks.
+- "a stair": room 18's stair box was walled only where the outline met it.
+- "The wall around the circle stair could be cleaned up": the spiral
+  stair's floor cell stood walled as a square box.
+
+**Ruled.**
+- **A thin wall drawn between rocks is a wall line**, not a door. The cell
+  door goes.
+- **A symbol in a niche stands in front of a wall.** p38's edge behind the
+  niche asserts a wall.
+- **A rock the cleanup floors, where the plan draws a rock, is walled by
+  lines around its outline.** Room 8's takes five.
+- **A spiral stair keeps its floor cell.** Four open edges take the square.
+  Five lines follow the circle on the rock side, from where the outline meets
+  it to where the outline leaves it. The stair stays open where its drawing
+  opens.
+- **Room 18's stair takes three edges along both long sides.** Its narrow,
+  lower end is the mouth on this level, and its wide end stands against the
+  rock.
+- **p55 takes 64 corrections, weighing 64 of a cap of 80.** The importer's
+  render reads 13 doors and one invisible wall, and refuses no point.
+- **p38 keeps 50 corrections, weighing 53 of 95,** and reads 64 doors.
+
+*Rejected:*
+- **A lower floor for the cleanup's rock blobs.** It would change every
+  contour plan's islands to wall one rock, and labels' rings and symbols are
+  what that floor drops.
+- **An open cell for the spiral stair in place of its floor cell.** It would
+  cut the outline wherever it crosses the cell, so the ends the arc must meet
+  would move with the render.
+
+*Cost:*
+- p55 has 16 weight of its cap left.
+- The wall behind p38's niche stands on the lattice, a sixth of a cell
+  behind the drawn back.
+- The arc is five chords of the drawn circle.
