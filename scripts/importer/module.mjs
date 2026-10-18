@@ -33,7 +33,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, ACTOR_TYPE, DEFAULT_IMG } from "./constants.mjs";
 import { bookText, CITE_CLASS, CITE_LINK_CLASS } from "./prose.mjs";
-import { BOOKS, bookIsForm, fingerprintWarning, identifyBook, parseCite } from "./books.mjs";
+import { BOOKS, bookIsForm, bookIsJudges, fingerprintWarning, identifyBook, parseCite } from "./books.mjs";
 import { matchFilesToBooks } from "./book-match.mjs";
 import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
@@ -86,6 +86,7 @@ import {
   importWeapons, importArmor,
   importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
   cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportMarketProfiles, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
+  cookbookImportAdventures, bookCensus,
 } from "./cookbook.mjs";
 import { registerGettingStartedSettings, runImportEverything, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
 import { registerOseSourceSetting } from "./ose-source.mjs";
@@ -99,7 +100,7 @@ import { primaryGMSettled } from "../lib/util.mjs";
 import { getDoc } from "../lib/tables.mjs";
 import { LEGACY_ID, LEGACY_LOCAL_KEYS, LEGACY_SHELF_DIR, LEGACY_ART_DIR, legacyImporterActive } from "./legacy.mjs";
 import { migrateLegacyScope } from "./migrate.mjs";
-import { registerSettlementAdventureHooks } from "./settlement-adventure.mjs";
+import { registerBookAdventureHooks } from "./book-adventure.mjs";
 
 const SETTING_DYNAMIC = "dynamicRecipes";
 const SETTING_REFRESH_CACHE = "refreshCacheSeconds";
@@ -1741,6 +1742,21 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
     if (record?.kind === "url") return L("reconnectUrlFailed", { where: esc(record.url) });
     return L("reconnectHandle", { where: esc(describeLocation(record)) });
   };
+  // What the library holds of each open adventure book's Adventure. The
+  // shelf is the Judge's, so only a GM row says.
+  const census = new Map();
+  if (isGM) {
+    for (const id of Object.keys(BOOKS)) {
+      if (sessionDocs.has(id) && bookIsJudges(id)) census.set(id, await bookCensus(id).catch(() => null));
+    }
+  }
+  const adventureLine = (id) => {
+    const held = census.get(id);
+    if (!held) return "";
+    const said = held.adventure?.contents ? L("booksAdventure", held.adventure.contents) : L(held.adventure ? "booksAdventureHeld" : "booksAdventureNone");
+    const legacy = held.legacy ? ` ${L("booksAdventureLegacy", { n: held.legacy })}` : "";
+    return `<p class="notes" data-adventure="${esc(id)}">${said}${legacy}</p>`;
+  };
   const row = (id, book) => {
     const record = records.get(id);
     const scope = scopeOf(id) || L("booksNoScope");
@@ -1753,6 +1769,7 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
       return `<div class="acks-extras-importer-reconnect-row acks-extras-importer-reconnect-done" data-row="${esc(id)}">
         <div class="acks-extras-importer-reconnect-head"><strong>${esc(book.label)}</strong>${stage}</div>
         <p class="notes" data-status="${esc(id)}">${bookIsForm(id) ? L("booksOpenForm") : L("booksOpen", { scope })}${where}</p>
+        ${adventureLine(id)}
       </div>`;
     }
     return `<div class="acks-extras-importer-reconnect-row" data-row="${esc(id)}">
@@ -2835,8 +2852,8 @@ Hooks.once("init", () => {
   game.settings.register(MODULE_ID, SETTING_SHELF, { scope: "world", config: false, type: Object, default: {} });
   registerGettingStartedSettings();
   registerLegacyTextCheck();
-  // An Adventure the map step wrote imports as a fill, never an overwrite.
-  registerSettlementAdventureHooks();
+  // An Adventure the importer wrote imports as a fill, never an overwrite.
+  registerBookAdventureHooks();
   setWorker(`modules/${MODULE_ID}/vendor/pdfjs/pdf.worker.mjs`);
   setWasmUrl(`modules/${MODULE_ID}/vendor/pdfjs/wasm/`);
 });
@@ -2884,6 +2901,7 @@ Hooks.once("ready", async () => {
     cookbookImportTables,
     cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportMarketProfiles, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit,
     cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
+    cookbookImportAdventures, bookCensus,
     /** The whole import chain, in dependency order — the "Import Everything" control. */
     importEverything: () => runImportEverything(),
     importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,

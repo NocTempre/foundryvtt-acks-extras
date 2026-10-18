@@ -6167,3 +6167,89 @@ judges the fix, and Import Everything closes on the same fix.
 *Rejected:* copying the library document's description over each copy. It
 reaches only copies that kept a flag naming their base, and a library item can
 hold a placeholder itself.
+
+## 2026-10-17 — An ACKS I adventure binds to ACKS II, replacements included
+
+**Ruled (user, 2026-10-17: "AX modules use ACKS II versions and especially
+replacements where relevant").** Every class, proficiency, spell, item and
+monster an AX book names binds to the ACKS II document the library holds,
+never to an ACKS I version of it.
+- **Same name.** A thing ACKS II prints under the name the AX book uses is
+  that thing ("Between books, identity follows the newest printing",
+  2026-10-09): a monster links to its ACKS II entry, and a character's class
+  and abilities are ACKS II's ("A person the page prints in full becomes a
+  character").
+- **Another name.** Where ACKS II replaced the thing under another name (a
+  renamed or reworked class, spell, proficiency, item or monster), the AX
+  book's name binds to the replacement. The pair is registered, never guessed
+  at import: a reviewer authors it as the ACKS II document's cookbook id,
+  keyed so that no name the IP doctrine withholds ships (`printKey` of the
+  ACKS I name). The System Compatibility Guide is read first wherever it
+  prints the conversion.
+- **Neither.** A name with no ACKS II document and no registered replacement
+  is reported, and the document is still made. Nothing is invented.
+
+Amends the AX1 design's "ACKS I names on ACKS II classes: reported, never
+invented": a name is now reported only where no replacement is registered.
+
+*Rejected:* fuzzy name matching at import, which picks a wrong document
+silently; keeping an ACKS I version beside its ACKS II replacement.
+
+*Cost:* each replacement pair costs a reviewer a read of both books, and a
+pair nobody registered reads as a gap until someone does.
+
+## 2026-10-17 — How a book's Adventure is assembled and kept current
+
+Amends "A book is in the library as one Adventure" (2026-10-17) on two
+points. Each names what that ruling did not know.
+
+- **An edit is told by the stored document's modified time, not by a second
+  hash.** *New evidence:* a probe that ran core's own data models under Node
+  showed that a stored source gains every field a later data model adds as
+  soon as it is loaded. A hash over the stored Adventure therefore drifts on
+  the first core or system update, and every Adventure would read as the
+  Judge's. Instead, the stamp records `writtenAt`: the document's modified
+  time, read back after the write and recorded by a second update. A modified
+  time more than `WRITE_SLACK_MS` past it is an edit. Only the hash over the
+  assembled sources remains, taken without any `_stats`.
+- **Every document is a root, and the library keeps what the world does not
+  need.** *New evidence:* in the world the Adventure was assembled in,
+  roots-for-all creates a world copy of every library person, list, journal
+  and item next to the copy that everything already names. That is the
+  breakage the 2026-09-30 fill exists to prevent. So a person, a list, a
+  journal, an item, or a place no carried map shows stays in the library
+  when the library holds it, and anything that names it points there. A
+  world whose library lacks them creates them all. Pregenerated characters
+  are left to their own slice.
+
+Mechanics, with no ruling reversed:
+- The maps are built by the map step's own code: a grid recipe's plan
+  through `gridScenePlan` on an unsaved scene, and the picture cut at the
+  plan's scale. A region's map and a settlement's are built alike.
+- A zone is carried as the world scene holds it, with the list it rolls on.
+  It is another book's row laid over the map, and only a held map has one.
+- Folders mirror where the world files each document now: a library
+  document with a world twin is filed as its twin is, so an import into the
+  same world finds its folders held. The world folder's id is used where one
+  matches. This replaces the fixed per-map folder set.
+- An import is refused while any library shelf is cold. A cold shelf reads
+  every library document as missing.
+- A map whose page does not match its recipe fails its whole book, and the
+  error names the map. The alternative is an Adventure that silently lacks
+  the map.
+
+*Rejected:* a hash over the stored content (above); shelving decided per
+document at assembly, which would make the stored Adventure depend on the
+library it was built beside.
+
+*Cost:*
+- Any write to the stored Adventure past the slack reads as the Judge's,
+  including a write that is not theirs (a migration over every compendium
+  document). Such an Adventure is kept until someone deletes it.
+- A link from a list, a journal or an item to a carried document stays a
+  library link: `adventureRefs` has no slot for those documents.
+- The map step leaves a map whose quarters are not imported yet waiting
+  (`unready`). The Adventure has no such wait, so a half-imported book's map
+  is built with empty seats, or fails the book if its build throws. Run as
+  the chain's last step, the adventures step meets this only when a book's
+  earlier steps failed.

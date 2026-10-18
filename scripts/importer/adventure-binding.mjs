@@ -1,16 +1,16 @@
 /**
- * A settlement's map as one Adventure: the half that is arithmetic over plain
+ * A Judge's book as one Adventure: the half that is arithmetic over plain
  * sources.
  *
- * The map step writes one Adventure per map to its line's Adventure shelf,
- * beside the world's own map (`cookbook.mjs` `ensureSettlementAdventure`), and
- * core's import of it is steered (`settlement-adventure.mjs`). What both need
- * without Foundry is here: ids derived from a seed, the reference slots a
- * carried document has, those references rewritten, the world scene's ids laid
- * over a map rebuilt from its recipe, the link fields a map implies, and which
- * of an Adventure's documents an import creates. See
- * docs/importer/DECISIONS.md, "A settlement's map is in the library too, as
- * one Adventure".
+ * The adventures step writes one Adventure per book to its line's Adventure
+ * shelf (`cookbook.mjs` `ensureBookAdventure`), and core's import of it is
+ * steered (`book-adventure.mjs`). What both need without Foundry is here: ids
+ * derived from a seed, the reference slots a carried document has, those
+ * references rewritten, the world scene's ids laid over a map rebuilt from its
+ * recipe, the link fields a map implies, the folders the documents are filed
+ * in, whether a stored Adventure is current, and which of an Adventure's
+ * documents an import creates. See docs/importer/DECISIONS.md, "A book is in
+ * the library as one Adventure".
  */
 import { MODULE_ID } from "./constants.mjs";
 import { hash36 } from "./printed-name.mjs";
@@ -21,15 +21,29 @@ import { controlledRegions } from "./faction-binding.mjs";
 /** The document type the shelf holds. */
 export const ADVENTURE_TYPE = "Adventure";
 
-/** The cookbook kind a settlement Adventure carries: the one thing the import hooks key on. */
-export const ADVENTURE_KIND = "kind.settlementAdventure";
+/** The cookbook kind a book's Adventure carries. */
+export const BOOK_ADVENTURE_KIND = "kind.bookAdventure";
 
-/** A settlement Adventure's cookbook id: its map's, so the book stays the first segment. */
+/**
+ * The cookbook kind the retired per-map Adventure carried. Still steered: a
+ * copy can outlive its retirement in a shelf no one re-ran, a moved pack or a
+ * backup, and its import must fill like any other.
+ */
+export const SETTLEMENT_ADVENTURE_KIND = "kind.settlementAdventure";
+
+/** Every kind the import hooks steer; any other Adventure imports as core imports it. */
+export const ADVENTURE_KINDS = Object.freeze([BOOK_ADVENTURE_KIND, SETTLEMENT_ADVENTURE_KIND]);
+
+/**
+ * The seed a map's parts take their ids from where the world lacks them, and
+ * the cookbook id the retired per-map Adventure was stamped with. The map's
+ * own id stays the first segment, so the book stays first.
+ */
 export const adventureCookbookId = (recipeId) => `${recipeId}.adventure`;
 
 /**
  * A document id derived from a seed: the same seed gives the same id in every
- * world, so a map's Adventure keeps one id across rebuilds, and a region the
+ * world, so a book's Adventure keeps one id across rebuilds, and a region the
  * world scene lacks takes the same id each time it is built.
  */
 export function stableDocId(seed) {
@@ -37,8 +51,14 @@ export function stableDocId(seed) {
   return (part("a") + part("b") + part("c")).slice(0, 16);
 }
 
-/** The Adventure id for one map. */
+/** The retired per-map Adventure's id for one map. */
 export const settlementAdventureId = (recipeId) => stableDocId(adventureCookbookId(recipeId));
+
+/** A book's Adventure's cookbook id: the book is the unit, so no register row names it. */
+export const bookAdventureCookbookId = (book) => `${book}.book`;
+
+/** A book's Adventure's id. */
+export const bookAdventureId = (book) => stableDocId(bookAdventureCookbookId(book));
 
 /** Actor fields holding one uuid. */
 const ACTOR_UUIDS = ["parentUuid", "seatUuid", "leaderUuid", "sceneUuid", "regionUuid"];
@@ -49,8 +69,6 @@ const ACTOR_ROWS = [
   ["members", ["uuid", "ownerUuid"]],
   ["roster", ["uuid", "ownerUuid"]],
 ];
-/** The slots that name a person: a leader, a member, an occupant. Never who placed a row. */
-const PERSON_SLOTS = new Set(["leaderUuid", "members.uuid", "roster.uuid"]);
 /** A District behaviour's list fields. */
 const BEHAVIOR_TABLES = ["tableUuid", "wantedTableUuid", "specialTableUuid"];
 
@@ -112,10 +130,6 @@ export function refsOf(type, data) {
   }
   return out;
 }
-
-/** The uuids an actor source names in the slots that hold people. */
-export const peopleNamed = (data) =>
-  slotsOf("Actor", data).filter(([, , , slot]) => PERSON_SLOTS.has(slot)).map(([holder, key]) => holder[key]);
 
 /**
  * A copy of `data` with every reference slot, and its folder, rewritten
@@ -193,7 +207,8 @@ const actorIdOf = (uuid) => /^Actor\.([A-Za-z0-9]{16})$/.exec(String(uuid ?? "")
  * city's `sceneUuid`, each quarter's `regionUuid` (the region whose link flag
  * names it), and each of the book's organisations' `controls`, from its flag's
  * quarter ids through `controlledRegions`, as the map step computes them. A
- * quarter with no region gives no control. `actors` are not changed.
+ * quarter with no region gives no control; a control on another map is kept,
+ * so a book's maps are linked one after another. `actors` are not changed.
  * @param {object} scene the Adventure's scene, with its ids
  * @param {object[]} actors the carried actor sources
  * @param {string} book the book id whose organisations are given quarters
@@ -216,7 +231,8 @@ export function linkFields(scene, actors, book) {
   for (const actor of out) {
     const flag = actor.flags?.[MODULE_ID]?.cookbook;
     if (actor.type !== FACTION_TYPE || flag?.book !== book || !flag?.controls?.length) continue;
-    actor.system = { ...actor.system, controls: controlledRegions([], flag.controls, regionOf, () => true) ?? [] };
+    const elsewhere = (actor.system?.controls ?? []).filter((uuid) => !String(uuid).startsWith(`${sceneUuid}.`));
+    actor.system = { ...actor.system, controls: controlledRegions(elsewhere, flag.controls, regionOf, () => true) ?? elsewhere };
   }
   return out;
 }
@@ -238,9 +254,11 @@ export function seatsLeft(actors) {
  * anything the importer did not stamp (a Judge's own addition), all of which
  * core would have created too. Nothing else in the Adventure names an
  * organisation, so one a Judge deleted could not be put back any other way.
+ * In a book's Adventure (`every`) every document but a folder is a root.
  */
-export function isRoot(type, data) {
+export function isRoot(type, data, every = false) {
   if (type === "Folder") return false;
+  if (every) return true;
   if (type !== "Actor" && type !== "RollTable") return true;
   if (!data?.flags?.[MODULE_ID]?.cookbook) return true;
   return type === "Actor" && data.type === FACTION_TYPE;
@@ -248,12 +266,13 @@ export function isRoot(type, data) {
 
 /**
  * A kind of document the world may keep in its library rather than hold:
- * a list, or an actor that is neither a place nor an organisation (a person).
- * A place and an organisation must be world documents, because a map's links
- * and tokens need them to be.
+ * a list, a journal, an item, or an actor that is neither a place nor an
+ * organisation (a person, a creature). A place and an organisation must be
+ * world documents, because a map's links and tokens need them to be.
  */
 export const isShelvedKind = (type, data) =>
-  type === "RollTable" || (type === "Actor" && data?.type !== LOCATION_TYPE && data?.type !== FACTION_TYPE);
+  type === "RollTable" || type === "JournalEntry" || type === "Item" ||
+  (type === "Actor" && data?.type !== LOCATION_TYPE && data?.type !== FACTION_TYPE);
 
 /** An Adventure's folders, each after its parent. */
 function parentFirst(folders) {
@@ -288,34 +307,41 @@ function parentFirst(folders) {
  * Every document the Adventure carries is sorted first. HELD: the world has
  * it by id, or has its twin (the same cookbook id under another id; for a
  * folder the same type, name and parent). SHELVED: a shelved kind
- * (`isShelvedKind`) this world's library holds. Otherwise ABSENT. A twin and a
- * shelved document are pointed at where they are. Of the absent ones, an
- * import creates the roots (`isRoot`), whatever a held document's WORLD
- * version names, and whatever a created one names, until nothing new is named;
- * and a folder only when something created sits in it or below it. Only what
- * core scoped into the import (`included`) is created, and a folder that is
- * neither held nor created is dropped from what is. Nothing held is written to.
+ * (`isShelvedKind`) this world's library holds; in a book's Adventure, a place
+ * no carried map names is one too, since nothing needs it in the world.
+ * Otherwise ABSENT. A twin and a shelved document are pointed at where they
+ * are. Of the absent ones, an import creates the roots (`isRoot`), whatever a
+ * held document's WORLD version names, and whatever a created one names, until
+ * nothing new is named; and a folder only when something created sits in it or
+ * below it. Only what core scoped into the import (`included`) is created, and
+ * a folder that is neither held nor created is dropped from what is. Nothing
+ * held is written to.
  *
  * @param {object} p
  * @param {Record<string, object[]>} p.content the whole Adventure's sources by document name, in content order
+ * @param {boolean} [p.book] a book's Adventure: every document is a root, and a place off every map may stay shelved
  * @param {Set<string>} p.included `Type.<id>` keys core scoped into this import
  * @param {(type: string, id: string) => boolean} p.has the world holds this id
  * @param {(type: string, data: object, parentId?: string|null) => string|null} p.twinOf the world's id for the same
  *   document under another id; a folder is asked with its parent's world id
- * @param {(type: string, data: object) => string|null} p.shelfOf the library uuid of a shelved-kind document, or null
+ * @param {(type: string, data: object) => string|null} p.shelfOf the library uuid of the document, or null; asked
+ *   only of a document that may stay shelved
  * @param {(type: string, id: string) => Iterable<string>} p.worldRefs `refsOf` the world's own version of a held document
  * @param {(scene: object, worldId: string) => Map<string, string>} p.regionsOf each of the Adventure scene's region
  *   uuids that differs in the world scene, mapped to the world's, or to "" where the world scene has none
  * @returns {{create: Record<string, object[]>, redirect: Map<string, string>, added: number, held: number,
  *   shelved: number, skipped: number, heldScenes: string[]}}
  */
-export function fillPlan({ content, included, has, twinOf, shelfOf, worldRefs, regionsOf }) {
+export function fillPlan({ content, book = false, included, has, twinOf, shelfOf, worldRefs, regionsOf }) {
   const redirect = new Map();
   const state = new Map();
   const source = new Map();
   const heldScenes = [];
   let held = 0;
   let shelved = 0;
+  const onMap = new Set(book ? (content.Scene ?? []).flatMap((s) => [...refsOf("Scene", s)]) : []);
+  const shelvable = (type, data) =>
+    isShelvedKind(type, data) || (book && type === "Actor" && data?.type === LOCATION_TYPE && !onMap.has(`Actor.${data._id}`));
 
   const folders = content.Folder ?? [];
   const ours = new Set(folders.map((f) => f._id));
@@ -353,7 +379,7 @@ export function fillPlan({ content, included, has, twinOf, shelfOf, worldRefs, r
         }
         continue;
       }
-      const lib = isShelvedKind(type, data) ? shelfOf(type, data) : null;
+      const lib = shelvable(type, data) ? shelfOf(type, data) : null;
       if (lib) {
         state.set(key, "shelved");
         redirect.set(key, lib);
@@ -371,7 +397,7 @@ export function fillPlan({ content, included, has, twinOf, shelfOf, worldRefs, r
     wanted.add(key);
     queue.push(key);
   };
-  for (const [key, { type, data }] of source) if (isRoot(type, data)) want(key);
+  for (const [key, { type, data }] of source) if (isRoot(type, data, book)) want(key);
   for (const [key, { type }] of source) {
     if (type === "Folder" || state.get(key) !== "held") continue;
     const worldId = (redirect.get(key) ?? key).slice(type.length + 1);
@@ -426,3 +452,81 @@ export function applyFill(toCreate, toUpdate, create) {
     else delete toCreate[type];
   }
 }
+
+/**
+ * The folders a book's Adventure files its documents in: one per type and
+ * path, each the world's own where the world has a folder of that type, name
+ * and parent, else an id derived from the seed, so an import files every
+ * document where the step that made it did. Answers with the sources, each
+ * after its parent, and the id of a path's last folder (null for no path).
+ * @param {[string, string[]][]} paths each document type and its folder names, outermost first
+ * @param {(type: string, name: string, parentId: string|null) => string|null} worldFolderOf the world folder's id, or null
+ * @param {string} seed the Adventure's cookbook id
+ * @returns {{sources: object[], idOf: (type: string, names?: string[]) => string|null}}
+ */
+export function adventureFolderSources(paths, worldFolderOf, seed) {
+  const sources = [];
+  const byPath = new Map();
+  const keyOf = (type, names) => `${type}:${JSON.stringify(names)}`;
+  for (const [type, names] of paths) {
+    let parent = null;
+    for (let i = 0; i < names.length; i++) {
+      const key = keyOf(type, names.slice(0, i + 1));
+      if (!byPath.has(key)) {
+        const parentId = parent?._id ?? null;
+        const source = {
+          _id: worldFolderOf(type, names[i], parentId) ?? stableDocId(`${seed}|folder|${key}`),
+          name: names[i], type, folder: parentId, sorting: "a",
+          flags: { [MODULE_ID]: { cookbook: { id: `folder.${type}.${names[i]}` } } },
+        };
+        byPath.set(key, source);
+        sources.push(source);
+      }
+      parent = byPath.get(key);
+    }
+  }
+  return { sources, idOf: (type, names = []) => (names.length ? (byPath.get(keyOf(type, names))?._id ?? null) : null) };
+}
+
+/** A copy with every `_stats` removed, at any depth: what a write stamps says nothing about content. */
+export function withoutStats(value) {
+  if (Array.isArray(value)) return value.map(withoutStats);
+  if (!value || typeof value !== "object") return value;
+  const out = {};
+  for (const [key, v] of Object.entries(value)) if (key !== "_stats") out[key] = withoutStats(v);
+  return out;
+}
+
+/** The hash a book's Adventure records of what it was assembled from. */
+export const sourcesHashOf = (source) => hash36(JSON.stringify(withoutStats(source)));
+
+/**
+ * How long after its write a book's Adventure may still be moved by the write
+ * itself: the stamp records the write's time in a second write, which moves
+ * the document's own modified time once more.
+ */
+export const WRITE_SLACK_MS = 60_000;
+
+/**
+ * What a run does with a book's Adventure. ABSENT: the shelf lacks it, so it
+ * is written. EDITED: its own modified time is past the write the stamp
+ * records (`writtenAt`), so it is the Judge's and kept. STALE: the stamp's
+ * `sourcesHash` differs from the one just assembled, so it is rebuilt. HELD
+ * otherwise. A stamp without `writtenAt` reads as unedited.
+ * @param {{stamp?: object|null, modifiedTime?: number|null, sourcesHash: string}} p
+ *   `stamp` null when the shelf lacks the Adventure
+ * @returns {"absent"|"edited"|"stale"|"held"}
+ */
+export function bookAdventureState({ stamp = null, modifiedTime = null, sourcesHash }) {
+  if (!stamp) return "absent";
+  const at = Number(stamp.writtenAt);
+  if (Number.isFinite(at) && at > 0 && Number(modifiedTime) - at > WRITE_SLACK_MS) return "edited";
+  return stamp.sourcesHash === sourcesHash ? "held" : "stale";
+}
+
+/** One book's retired per-map Adventures among a shelf's index rows, read with the cookbook flag. */
+export const legacyAdventuresOf = (rows, book) =>
+  [...(rows ?? [])].filter((r) => {
+    const flag = r?.flags?.[MODULE_ID]?.cookbook;
+    return flag?.kind === SETTLEMENT_ADVENTURE_KIND && flag.book === book;
+  });

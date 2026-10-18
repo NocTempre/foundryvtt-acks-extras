@@ -579,7 +579,8 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   const token = map.tokens.map((t) => t)[0];
   const [px, py] = plan.frame.toScene(200, 180);
   ok("a site token stands on its point, picture corner included", near(token.x + (0.5 * GRID.pixels) / 2, dims.sceneX + px, 1) && near(token.y + (0.5 * GRID.pixels) / 2, dims.sceneY + py, 1));
-  check("a region map writes no Adventure", [first.adventures, first.adventuresHeld, first.adventuresFailed], [0, 0, 0]);
+  // The adventures step writes the book's Adventure; the map step counts none.
+  check("the map step writes no Adventure", Object.keys(first).filter((key) => /adventure/i.test(key)), []);
 
   check("zones laid and waiting", [first.zones, first.zonesHeld, first.zonesWaiting, first.zonesRefused], [3, 0, 1, 0]);
   const zoneOf = (scene, zoneId) => scene.regions.find((r) => r.getFlag(MODULE_ID, "cookbook")?.zone === zoneId);

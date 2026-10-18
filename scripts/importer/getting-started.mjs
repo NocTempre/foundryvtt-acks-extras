@@ -56,7 +56,9 @@ export const gettingStartedDismissed = () => !!game.settings.get(MODULE_ID, SETT
  *  7. journals + roll tables — reference the creatures imported in 4;
  *  8. rules tables — they warn by themselves if the provider is absent;
  *  9. placeholders — book text an earlier version left as a tag, wherever a
- *                   copy carried it, read from the books this seat has open.
+ *                   copy carried it, read from the books this seat has open;
+ * 10. adventures  — each open adventure book as one Adventure on its line's
+ *                   shelf, carrying what every step above made of it.
  *
  * A step missing from this list is a step a GM can only reach by hunting for
  * its macro — which is how the class import came to be run by hand, repeatedly.
@@ -132,6 +134,9 @@ const GM_STEPS = [
   // importer flag at all — is reached only by looking for the placeholder
   // itself, so the chain closes on that.
   ["stepLegacyText", (api) => api.resolveLegacyText()],
+  // A book's Adventure is a copy of what the world holds of it, so it is
+  // written last, once nothing above has more to add or to bring over.
+  ["stepAdventures", (api) => api.cookbookImportAdventures()],
 ];
 
 /**

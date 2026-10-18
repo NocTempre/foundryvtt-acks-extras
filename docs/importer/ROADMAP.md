@@ -963,13 +963,15 @@ A map imported before the organisations step hands no quarters until the map
 is deleted and imported again (DECISIONS, 2026-09-17, Cost). Wanted: the
 organisations step claims quarters from a held map.
 
-## A settlement Adventure after the book changes
+## A book Adventure's lists, journals and items link to the library
 
-A reimported book is not reflected in the map's Adventure until the Adventure
-is deleted and the map step re-run (DECISIONS, 2026-09-30, Cost). Wanted: the
-map step compares carried sources and rebuilds when stale.
+A carried list's rows, a journal's links and an item's references keep the
+library uuids they were written with, though the Adventure carries what they
+name (DECISIONS, 2026-10-17, "How a book's Adventure is assembled", Cost).
+Wanted: `adventureRefs` slots for a table result's document, a journal page's
+`@UUID` links and an item's references.
 
-## A settlement Adventure in another world
+## A book's Adventure in another world
 
 A world compendium is world-scoped, so a second world needs the pack moved by
 hand, and its picture needs the same server. Wanted: an export path that
@@ -1031,8 +1033,6 @@ What each book still owes, in the order it is worth doing:
 - **Terrain from the render:** painting the region's terrain from the page's
   picture, which a density, orientation and component classifier could not
   do at the page's resolution; the Judge paints it for now.
-- **The region as an Adventure:** ruled to ride AX3's book Adventure
-  (DECISIONS 2026-10-17), and built with AX1's work.
 - **Military forces** the adventures print, as the factions feature's
   strength grids.
 - **The d100 stocking tables** beyond the ruined-building one, and **AX5's

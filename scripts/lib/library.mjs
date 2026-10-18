@@ -162,6 +162,12 @@ export const warmLibrary = () => Promise.all(LIBRARY_TYPES.map(loadPack));
 export const whenReady = () => warmLibrary();
 
 /**
+ * Whether any shelf holds rows not yet instantiated, so that a synchronous
+ * read below would answer with less than the library holds.
+ */
+export const libraryCold = () => LIBRARY_TYPES.some((type) => libraryPacks(type).some(isCold));
+
+/**
  * Every library document of a type — the sidebar's, then every shelf's.
  * Synchronous by design (see the file header): a cold shelf starts loading in
  * the background and answers with what is in hand. A caller that CANNOT

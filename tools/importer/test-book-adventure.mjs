@@ -1,25 +1,31 @@
 /**
- * A settlement's Adventure: ids, references, and what an import creates.
+ * A book's Adventure: ids, references, folders, staleness, and what an import
+ * creates.
  *
- * What this guards is a city a Judge would otherwise meet broken: an import
+ * What this guards is a book a Judge would otherwise meet broken: an import
  * that overwrites a played place with the book's, a library person copied
  * into the world beside the one every organisation already names, a quarter
  * handed to a region that is not there, a map restored under a new id so that
- * nothing pointing at it resolves. None of it shows in a green compile.
+ * nothing pointing at it resolves, a Judge's edit to the Adventure written
+ * over by the next run. None of it shows in a green compile.
  *
- * The Adventure here is invented: one map, two quarters, three places, two
- * organisations, three people and two lists, under made-up ids. No book text,
- * no printed name, no printed figure. The foot of the file pins the shapes the
- * Foundry half depends on and cannot be exercised offline: the import hook
- * stays synchronous, and both map paths reach the Adventure.
+ * The Adventure here is invented: one map, two quarters, four places, two
+ * organisations, three people, two lists, a journal and an item, under
+ * made-up ids. No book text, no printed name, no printed figure. The foot of
+ * the file pins the shapes the Foundry half depends on and cannot be
+ * exercised offline: the import hook stays synchronous and refuses a cold
+ * library, the map step writes no Adventure, and the adventures step closes
+ * the import chain.
  */
 import { readFileSync } from "node:fs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import { LOCATION_TYPE } from "../../scripts/location/constants.mjs";
 import { FACTION_TYPE } from "../../scripts/factions/constants.mjs";
 import {
-  ADVENTURE_KIND, adventureCookbookId, stableDocId, settlementAdventureId, refsOf, peopleNamed, adventureRefs,
-  withWorldIds, linkFields, seatsLeft, isRoot, isShelvedKind, fillPlan, includedKeys, applyFill,
+  ADVENTURE_KINDS, BOOK_ADVENTURE_KIND, SETTLEMENT_ADVENTURE_KIND, adventureCookbookId, stableDocId,
+  settlementAdventureId, bookAdventureCookbookId, bookAdventureId, refsOf, adventureRefs, withWorldIds, linkFields,
+  seatsLeft, isRoot, isShelvedKind, fillPlan, includedKeys, applyFill, adventureFolderSources, withoutStats,
+  sourcesHashOf, WRITE_SLACK_MS, bookAdventureState, legacyAdventuresOf,
 } from "../../scripts/importer/adventure-binding.mjs";
 
 let failed = 0;
@@ -42,12 +48,14 @@ const ok = (name, cond, detail = "") => {
 const id16 = (tag) => tag.padEnd(16, "0");
 const LIB = "Compendium.world.zz-lib.Actor";
 const LIBT = "Compendium.world.zz-tables.RollTable";
+const LIBJ = "Compendium.world.zz-journals.JournalEntry";
+const LIBI = "Compendium.world.zz-items.Item";
 const PERSON_KIND = "kind.npc";
 const stamp = (id, kind, extra = {}) => ({ [MODULE_ID]: { cookbook: { id, book: "zz", kind, ...extra } } });
 
 const I = Object.fromEntries(
-  ["city", "q1", "q2", "p1", "p2", "p3", "f1", "f2", "n1", "n2", "n3", "t1", "t2", "s", "r1", "r2", "b1", "b2",
-    "tk1", "tk2", "tk3", "fs", "fa", "fp", "ff", "fn", "fu", "ft"].map((k) => [k, id16(k)]),
+  ["city", "q1", "q2", "p1", "p2", "p3", "p4", "f1", "f2", "n1", "n2", "n3", "t1", "t2", "j1", "i1", "s", "s2", "r1", "r2",
+    "b1", "b2", "rx", "tk1", "tk2", "tk3", "fs", "fa", "fp", "ff", "fn", "fu", "ft"].map((k) => [k, id16(k)]),
 );
 const place = (k, extra = {}) => ({
   _id: I[k], type: LOCATION_TYPE, name: `Place ${k}`, folder: I.fp, flags: stamp(`zz.${k}`, "kind.poi"),
@@ -64,8 +72,11 @@ const faction = (k, sys) => ({
 const table = (k) => ({ _id: I[k], name: `List ${k}`, folder: I.ft, flags: stamp(`zz.${k}`, "kind.rolltable"), results: [] });
 const folder = (k, type, name, parent = null) => ({ _id: I[k], type, name, folder: parent, flags: {} });
 
-/** The invented Adventure, in core's content order (actors, scenes, tables, folders). */
-function adventure() {
+/**
+ * The invented Adventure, in core's content order. `book` adds what a book's
+ * Adventure carries beside the map: a place no map shows, a journal, an item.
+ */
+function adventure({ book = false } = {}) {
   return {
     Actor: [
       place("city", { sceneUuid: `Scene.${I.s}` }),
@@ -74,6 +85,7 @@ function adventure() {
       place("p1", { parentUuid: `Actor.${I.q1}`, roster: [{ uuid: `Actor.${I.n1}`, ownerUuid: "" }] }),
       place("p2", { parentUuid: `Actor.${I.q2}` }),
       place("p3", { parentUuid: `Actor.${I.q2}` }),
+      ...(book ? [place("p4")] : []),
       faction("f1", {
         flag: { controls: ["zz.q1"] },
         system: {
@@ -109,6 +121,10 @@ function adventure() {
       tokens: [{ _id: I.tk1, actorId: I.p1 }, { _id: I.tk2, actorId: I.p2 }, { _id: I.tk3, actorId: I.p3 }],
     }],
     RollTable: [table("t1"), table("t2")],
+    ...(book ? {
+      JournalEntry: [{ _id: I.j1, name: "Journal j1", folder: null, flags: stamp("zz.j1", "kind.journal"), pages: [] }],
+      Item: [{ _id: I.i1, name: "Item i1", type: "item", folder: null, flags: stamp("zz.i1", "kind.item"), system: {} }],
+    } : {}),
     Folder: [
       folder("fs", "Scene", "ZZ"), folder("fa", "Actor", "ZZ"), folder("fp", "Actor", "Places", I.fa),
       folder("ff", "Actor", "Factions", I.fa), folder("fn", "Actor", "People", I.fa),
@@ -119,6 +135,7 @@ function adventure() {
 const keysOf = (content) => new Set(Object.entries(content).flatMap(([t, docs]) => docs.map((d) => `${t}.${d._id}`)));
 const created = (plan) => Object.entries(plan.create).flatMap(([t, docs]) => docs.map((d) => `${t}.${d._id}`)).sort();
 const k = (type, tag) => `${type}.${I[tag]}`;
+const LIB_OF = { RollTable: LIBT, JournalEntry: LIBJ, Item: LIBI };
 
 /**
  * A world, as the fill asks about it. `held` are keys the world has by id;
@@ -132,9 +149,9 @@ function world({ held = [], twins = {}, shelved = [], worldDocs = {}, regions = 
   return {
     has: (type, id) => has.has(`${type}.${id}`),
     twinOf: (type, data) => twins[`${type}.${data._id}`] ?? null,
-    shelfOf: (type, data) => (lib.has(`${type}.${data._id}`) ? `${type === "RollTable" ? LIBT : LIB}.${data._id}` : null),
+    shelfOf: (type, data) => (lib.has(`${type}.${data._id}`) ? `${LIB_OF[type] ?? LIB}.${data._id}` : null),
     worldRefs: (type, id) => {
-      const doc = worldDocs[`${type}.${id}`] ?? Object.values(adventure()).flat().find((d) => d._id === id);
+      const doc = worldDocs[`${type}.${id}`] ?? Object.values(adventure({ book: true })).flat().find((d) => d._id === id);
       return doc ? refsOf(type, doc) : [];
     },
     regionsOf: () => new Map(Object.entries(regions)),
@@ -155,9 +172,13 @@ const sourceWorld = (drop = []) => ({
   check("a derived id is the same every time", stableDocId("zz.map.adventure"), a);
   const many = new Set(Array.from({ length: 10000 }, (_, i) => stableDocId(`seed-${i}`)));
   check("ten thousand seeds, ten thousand ids", many.size, 10000);
-  check("the Adventure's cookbook id keeps the book first", adventureCookbookId("zz.map"), "zz.map.adventure");
-  check("the Adventure's id is its cookbook id's", settlementAdventureId("zz.map"), a);
-  check("the kind is a cookbook kind", ADVENTURE_KIND.startsWith("kind."), true);
+  check("a map's seed keeps the book first", adventureCookbookId("zz.map"), "zz.map.adventure");
+  check("the retired per-map id is still its seed's", settlementAdventureId("zz.map"), a);
+  check("a book's Adventure keeps the book first", bookAdventureCookbookId("zz"), "zz.book");
+  check("a book's Adventure's id is its cookbook id's", bookAdventureId("zz"), stableDocId("zz.book"));
+  ok("two books, two Adventures", bookAdventureId("zz") !== bookAdventureId("yy"));
+  check("both kinds are steered, the retired one included", ADVENTURE_KINDS, [BOOK_ADVENTURE_KIND, SETTLEMENT_ADVENTURE_KIND]);
+  ok("the kinds are cookbook kinds", ADVENTURE_KINDS.every((x) => x.startsWith("kind.")));
 }
 
 // --- references ----------------------------------------------------------------------
@@ -172,9 +193,7 @@ const sourceWorld = (drop = []) => ({
       k("RollTable", "t1"), k("RollTable", "t2")].sort());
   const libOnly = { ...f1, system: { ...f1.system, leaderUuid: `${LIB}.${I.n1}`, members: [{ uuid: `${LIB}.${I.n2}` }] } };
   ok("a library person is not a reference an import creates", !refsOf("Actor", libOnly).has(k("Actor", "n1")));
-  const placed = { ...p1, system: { ...p1.system, roster: [{ uuid: `Actor.${I.n1}`, ownerUuid: `Actor.${id16("pc")}` }] } };
-  check("people are leaders, members and occupants, never who placed a row", peopleNamed(placed), [`Actor.${I.n1}`]);
-  check("a faction's people", peopleNamed(f1), [`Actor.${I.n1}`, `Actor.${I.n2}`]);
+  check("a place's occupant is a reference", [...refsOf("Actor", p1)].includes(k("Actor", "n1")), true);
 
   const before = JSON.stringify(f1);
   const moved = adventureRefs("Actor", f1, new Map([
@@ -193,6 +212,10 @@ const sourceWorld = (drop = []) => ({
   check("a token follows a world twin and ignores a library one", tokens.tokens.map((t) => t.actorId), [id16("p1w"), I.p2, I.p3]);
   const regionMoved = adventureRefs("Scene", scene, new Map([[`RollTable.${I.t2}`, `${LIBT}.${I.t2}`]]));
   check("a quarter's list points at the library", regionMoved.regions[0].behaviors[0].system.specialTableUuid, `${LIBT}.${I.t2}`);
+  // A zone's list is a behaviour's `tableUuid`, carried in world form like the rest.
+  const zoned = { ...scene, regions: [{ _id: id16("rz"), flags: {}, behaviors: [{ type: "zone", system: { tableUuid: `${LIBT}.${I.t1}` } }] }] };
+  const zoneMoved = adventureRefs("Scene", zoned, new Map([[`${LIBT}.${I.t1}`, `RollTable.${I.t1}`]]));
+  check("a zone's list is carried in world form", zoneMoved.regions[0].behaviors[0].system.tableUuid, `RollTable.${I.t1}`);
 }
 
 // --- the world's ids over a rebuilt map ----------------------------------------------------
@@ -244,11 +267,19 @@ const sourceWorld = (drop = []) => ({
   const noRegion = { ...a.Scene[0], regions: [a.Scene[0].regions[1]] };
   check("a quarter with no region gives no control", linkFields(noRegion, bare, "zz").find((x) => x._id === I.f1).system.controls, []);
   check("the actors are not changed", JSON.stringify(bare), before);
+
+  // A book has several maps, linked one after another over the same actors.
+  const onOther = `Scene.${I.s2}.Region.${I.rx}`;
+  const stale = `Scene.${I.s}.Region.${id16("rold")}`;
+  const held = bare.map((x) => (x._id === I.f1 ? { ...x, system: { ...x.system, controls: [onOther, stale] } } : x));
+  const chained = linkFields(a.Scene[0], held, "zz").find((x) => x._id === I.f1).system.controls;
+  check("a region of another map stays controlled; one of this map is drawn again", chained, [onOther, `Scene.${I.s}.Region.${I.r1}`]);
+
   const left = [faction("f1", { system: { seatUuid: `${LIB}.${id16("far")}`, holdings: [{ uuid: `${LIB}.${id16("h1")}` }, { uuid: `Actor.${I.p1}` }] } })];
-  check("seats and holdings off the map are counted", seatsLeft(left), 2);
+  check("seats and holdings off the maps are counted", seatsLeft(left), 2);
 }
 
-// --- what an import creates -------------------------------------------------------------------
+// --- what an import creates: the retired per-map Adventure ------------------------------------
 {
   const content = adventure();
   const all = keysOf(content);
@@ -316,10 +347,50 @@ const sourceWorld = (drop = []) => ({
     isRoot("Scene", content.Scene[0]), isRoot("Actor", content.Actor[6]), isRoot("Actor", { type: "monster" }),
     isRoot("Actor", content.Actor[0]), isRoot("RollTable", content.RollTable[0]), isRoot("Folder", content.Folder[0]),
   ], [true, true, true, false, false, false]);
-  check("shelved kinds: a person and a list, never a place or an organisation", [
+  check("in a book's Adventure every document but a folder is a root", [
+    isRoot("Actor", content.Actor[0], true), isRoot("RollTable", content.RollTable[0], true),
+    isRoot("Actor", content.Actor[8], true), isRoot("Folder", content.Folder[0], true),
+  ], [true, true, true, false]);
+  check("shelved kinds: a person, a list, a journal, an item; never a place or an organisation", [
     isShelvedKind("Actor", content.Actor[8]), isShelvedKind("RollTable", content.RollTable[0]),
+    isShelvedKind("JournalEntry", {}), isShelvedKind("Item", { type: "item" }),
     isShelvedKind("Actor", content.Actor[0]), isShelvedKind("Actor", content.Actor[6]),
-  ], [true, true, false, false]);
+  ], [true, true, true, true, false, false]);
+}
+
+// --- what an import creates: a book's Adventure ------------------------------------------------
+{
+  const content = adventure({ book: true });
+  const all = keysOf(content);
+  const plan = (w, included = all) => fillPlan({ content, book: true, included, ...world(w) });
+  const libraryHolds = ["n1", "n2", "n3"].map((t) => k("Actor", t))
+    .concat([k("RollTable", "t1"), k("RollTable", "t2"), k("JournalEntry", "j1"), k("Item", "i1"), k("Actor", "p4")]);
+
+  const empty = plan({});
+  check("a world and a library with nothing: every document, and every folder something sits in", created(empty),
+    [...all].filter((x) => x !== k("Folder", "fu")).sort());
+
+  const fresh = plan({ shelved: libraryHolds });
+  check("a fresh world: the maps, the places on them and the organisations; the library keeps the rest", created(fresh), [
+    k("Scene", "s"), ...ALL_ACTORS, k("Folder", "fs"), k("Folder", "fa"), k("Folder", "fp"), k("Folder", "ff"),
+  ].sort());
+  check("what stays in the library is counted", fresh.shelved, libraryHolds.length);
+  const occupied = fresh.create.Actor.find((x) => x._id === I.p1);
+  check("an occupant the library keeps is pointed at there", occupied.system.roster[0].uuid, `${LIB}.${I.n1}`);
+
+  const noLibraryPlace = plan({ shelved: libraryHolds.filter((x) => x !== k("Actor", "p4")) });
+  ok("a place no map shows is created when the library lacks it", created(noLibraryPlace).includes(k("Actor", "p4")));
+
+  const onMap = adventure({ book: true });
+  onMap.Scene[0].tokens.push({ _id: id16("tk4"), actorId: I.p4 });
+  const placed = fillPlan({ content: onMap, book: true, included: keysOf(onMap), ...world({ shelved: libraryHolds }) });
+  ok("a place a carried map shows is created, though the library holds it", created(placed).includes(k("Actor", "p4")));
+
+  const built = plan({ ...sourceWorld(), shelved: libraryHolds });
+  check("the world that built it: nothing to add", [built.added, created(built)], [0, []]);
+
+  const journalGone = plan({ ...sourceWorld(), shelved: libraryHolds.filter((x) => x !== k("JournalEntry", "j1")) });
+  check("a journal the library lacks comes back on its own", created(journalGone), [k("JournalEntry", "j1")]);
 }
 
 // --- core's lists, narrowed in place ----------------------------------------------------------
@@ -336,6 +407,48 @@ const sourceWorld = (drop = []) => ({
   check("each type holds only the fill", toCreate.Actor, [{ _id: "b" }]);
 }
 
+// --- folders --------------------------------------------------------------------------------
+{
+  const worldId = id16("wzz");
+  const worldFolderOf = (type, name, parent) => (type === "Actor" && name === "ZZ" && parent === null ? worldId : null);
+  const paths = [["Actor", ["ZZ", "Places"]], ["Actor", ["ZZ", "Factions"]], ["Scene", ["ZZ"]], ["Actor", ["ZZ", "Places"]]];
+  const f = adventureFolderSources(paths, worldFolderOf, "zz.book");
+  check("one folder per type and path", f.sources.map((x) => `${x.type}:${x.name}`), ["Actor:ZZ", "Actor:Places", "Actor:Factions", "Scene:ZZ"]);
+  check("a folder the world has keeps its id", f.idOf("Actor", ["ZZ"]), worldId);
+  check("its children sit in it", f.sources.filter((x) => x.folder === worldId).map((x) => x.name), ["Places", "Factions"]);
+  ok("one name under two types is two folders", f.idOf("Scene", ["ZZ"]) !== f.idOf("Actor", ["ZZ"]));
+  check("no path, no folder", f.idOf("Actor", []), null);
+  const again = adventureFolderSources(paths, () => null, "zz.book");
+  check("a folder the world lacks takes the same id every time", again.idOf("Actor", ["ZZ", "Places"]),
+    adventureFolderSources(paths, () => null, "zz.book").idOf("Actor", ["ZZ", "Places"]));
+  ok("and a different one for another book", again.idOf("Actor", ["ZZ", "Places"]) !== adventureFolderSources(paths, () => null, "yy.book").idOf("Actor", ["ZZ", "Places"]));
+}
+
+// --- staleness and the Judge's edits --------------------------------------------------------------
+{
+  const a = { _id: "x", actors: [{ _id: "a", name: "A", _stats: { modifiedTime: 1 } }], _stats: { createdTime: 2 } };
+  const b = { _id: "x", actors: [{ _id: "a", name: "A", _stats: { modifiedTime: 9 } }], _stats: { createdTime: 7 } };
+  check("what a write stamps is not content", withoutStats(a), { _id: "x", actors: [{ _id: "a", name: "A" }] });
+  check("so it does not move the hash", sourcesHashOf(a), sourcesHashOf(b));
+  ok("content does", sourcesHashOf(a) !== sourcesHashOf({ ...a, actors: [{ _id: "a", name: "B" }] }));
+
+  const at = 1_000_000;
+  check("no stored Adventure: written", bookAdventureState({ stamp: null, sourcesHash: "h" }), "absent");
+  check("as written, same sources: held", bookAdventureState({ stamp: { sourcesHash: "h", writtenAt: at }, modifiedTime: at, sourcesHash: "h" }), "held");
+  check("as written, new sources: rebuilt", bookAdventureState({ stamp: { sourcesHash: "h", writtenAt: at }, modifiedTime: at, sourcesHash: "g" }), "stale");
+  check("the stamp's own write is inside the slack", bookAdventureState({ stamp: { sourcesHash: "h", writtenAt: at }, modifiedTime: at + WRITE_SLACK_MS, sourcesHash: "g" }), "stale");
+  check("modified after the write: the Judge's, whatever the sources", bookAdventureState({ stamp: { sourcesHash: "h", writtenAt: at }, modifiedTime: at + WRITE_SLACK_MS + 1, sourcesHash: "g" }), "edited");
+  check("a stamp with no write time reads as unedited", bookAdventureState({ stamp: { sourcesHash: "h" }, modifiedTime: at * 9, sourcesHash: "h" }), "held");
+
+  const rows = [
+    { _id: "1", flags: stamp("zz.map.adventure", SETTLEMENT_ADVENTURE_KIND) },
+    { _id: "2", flags: stamp("zz.book", BOOK_ADVENTURE_KIND) },
+    { _id: "3", flags: { [MODULE_ID]: { cookbook: { id: "yy.map.adventure", book: "yy", kind: SETTLEMENT_ADVENTURE_KIND } } } },
+    { _id: "4", flags: {} },
+  ];
+  check("a book's retired per-map Adventures, and nothing else", legacyAdventuresOf(rows, "zz").map((r) => r._id), ["1"]);
+}
+
 // --- shapes the Foundry half depends on -----------------------------------------------------
 {
   const read = (rel) => readFileSync(new URL(`../../${rel}`, import.meta.url), "utf8");
@@ -346,7 +459,7 @@ const sourceWorld = (drop = []) => ({
     const end = src.indexOf("\n}\n", at);
     return src.slice(at, end < 0 ? undefined : end + 2);
   };
-  const steer = read("scripts/importer/settlement-adventure.mjs");
+  const steer = read("scripts/importer/book-adventure.mjs");
   for (const decl of ["function steerImport(", "function fillImport(", "function worldLookups("]) {
     const text = body(steer, decl);
     ok(`${decl} is still the name of what this pins`, text.length > 0);
@@ -354,34 +467,50 @@ const sourceWorld = (drop = []) => ({
     // and sends the import into its overwrite.
     ok(`${decl} never awaits`, !/\basync\b|\bawait\b|\.then\(/.test(text), decl);
   }
-  ok("the import hook cancels on failure", /catch \(err\) \{[\s\S]*?return false;/.test(body(steer, "function steerImport(")));
+  const steerBody = body(steer, "function steerImport(");
+  ok("the import hook cancels on failure", /catch \(err\) \{[\s\S]*?return false;/.test(steerBody));
+  // A cold shelf answers every library lookup with nothing.
+  ok("a cold library cancels the import before the fill", /if \(libraryCold\(\)\) \{[\s\S]*?return false;/.test(steerBody) &&
+    steerBody.indexOf("libraryCold()") < steerBody.indexOf("fillImport("));
   ok("both hooks are registered", steer.includes('Hooks.on("preImportAdventure", steerImport)') && steer.includes('Hooks.on("importAdventure", afterImport)'));
+  ok("a book's Adventure fills as one", /book = kindOf\(adventure\) === BOOK_ADVENTURE_KIND/.test(body(steer, "function fillImport(")));
 
   const cookbook = read("scripts/importer/cookbook.mjs");
   const scene = body(cookbook, "async function importScene(");
-  check("both a held and a made map reach their Adventure", scene.split("ensureSettlementAdventure(").length - 1, 2);
-  ok("the made map is built by the same code as the Adventure's", scene.includes("mapCreateData(") && !scene.includes("districtRegionData("));
-  ok("a failed Adventure is counted, never thrown at the map", /catch \(err\) \{\s*counts\.adventuresFailed\+\+/.test(body(cookbook, "async function ensureSettlementAdventure(")));
+  ok("the map step writes no Adventure", scene.length > 0 && !/Adventure/.test(scene));
+  ok("the made map is built by mapCreateData", scene.includes("mapCreateData(") && !scene.includes("districtRegionData("));
+  const source = body(cookbook, "async function bookAdventureSource(");
+  ok("the Adventure's maps are built by the same code, on the same plan", ["mapCreateData(", "gridScenePlan(", "withWorldIds("].every((s) => source.includes(s)));
+  const ensure = body(cookbook, "async function ensureBookAdventure(");
+  ok("a failed Adventure is counted, never thrown at the run", /catch \(err\) \{\s*counts\.failed\+\+/.test(ensure));
+  const tryPart = ensure.slice(0, ensure.indexOf("} catch"));
+  ok("the retired Adventures go only once the book's stands", tryPart.indexOf("retireMapAdventures(") > tryPart.indexOf("writeAdventure("));
+  ok("a write records its own time", /writtenAt/.test(tryPart));
 
   const binding = read("scripts/importer/adventure-binding.mjs");
   ok("the binding stays Foundry-free", !/\bgame\.|\bfoundry\.|\bHooks\./.test(binding));
 
   const boot = read("scripts/importer/module.mjs");
   const guard = boot.indexOf("legacyImporterActive()) {");
-  const hooks = boot.indexOf("registerSettlementAdventureHooks();");
+  const hooks = boot.indexOf("registerBookAdventureHooks();");
   ok("the import hooks register after the legacy guard", guard > 0 && hooks > guard);
 
+  const steps = read("scripts/importer/getting-started.mjs");
+  const chain = steps.slice(steps.indexOf("const GM_STEPS = ["), steps.indexOf("\n];", steps.indexOf("const GM_STEPS = [")));
+  check("the import chain closes on the adventures step", [...chain.matchAll(/\["(step\w+)"/g)].at(-1)?.[1], "stepAdventures");
+
   const lang = JSON.parse(read("lang/en.json"));
-  for (const key of ["caption", "intro", "contents", "fillRule", "resetRule", "seatsLeft", "filled", "nothingToAdd", "fillFailed"]) {
-    ok(`lang has ACKS-IMPORTER.adventure.${key}`, typeof lang[`ACKS-IMPORTER.adventure.${key}`] === "string");
-  }
-  for (const key of ["Made", "Rebuilt", "Held", "Failed"]) {
-    ok(`lang has ACKS-IMPORTER.ui.scenesAdventure${key}`, typeof lang[`ACKS-IMPORTER.ui.scenesAdventure${key}`] === "string");
-  }
+  const keys = [
+    ...["caption", "intro", "contents", "fillRule", "resetRule", "seatsLeft", "filled", "nothingToAdd", "fillFailed", "libraryLoading"]
+      .map((x) => `adventure.${x}`),
+    ...["Written", "Rebuilt", "Kept", "Held", "Empty", "Retired", "Failed"].map((x) => `ui.adventures${x}`),
+    "ui.progressAdventures", "gs.stepAdventures", "ui.booksAdventure", "ui.booksAdventureHeld", "ui.booksAdventureNone", "ui.booksAdventureLegacy",
+  ];
+  for (const key of keys) ok(`lang has ACKS-IMPORTER.${key}`, typeof lang[`ACKS-IMPORTER.${key}`] === "string");
 }
 
 if (failed) {
-  console.error(`\nsettlement-adventure: ${failed} failure(s)`);
+  console.error(`\nbook-adventure: ${failed} failure(s)`);
   process.exit(1);
 }
-console.error("settlement-adventure: OK");
+console.error("book-adventure: OK");

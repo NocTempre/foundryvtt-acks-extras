@@ -15,11 +15,9 @@ invent**:
 
 The map step (`cookbookImportScenes`) makes a WORLD scene from a scene recipe
 and brings the places and organisations it stands on into the world
-(`bringAcross`, `worldCopySource`). It then writes one Adventure per map to the
-line's Adventure shelf (`ensureSettlementAdventure`): library sources, world
-ids, world-form references (`adventure-binding.mjs`). A made map rewrites it;
-a held map writes it only when absent. The scene's creation data is built by
-one function for both (`mapCreateData`), over the world's documents for the
+(`bringAcross`, `worldCopySource`). It writes no Adventure; the adventures
+step does (see "A book as one Adventure"). The scene's creation data is built
+by one function for both (`mapCreateData`), over the world's documents for the
 map and over temporary stand-ins for the Adventure. What the city's list and
 each quarter's special list add after dark is read from the imported list's
 own rows and die (`listAfterDark`) and written where the settlement layer
@@ -32,12 +30,54 @@ where it was never stated (null). A rebuilt roll-table shelf mints new ids,
 which is what leaves a map naming lists that no longer exist. What the Judge
 drew, moved or typed is not read; the step's summary counts the writes.
 
+## A book as one Adventure
+
+The adventures step (`cookbookImportAdventures`, last in the import chain)
+writes one Adventure per open Judge's book to its line's Adventure shelf
+(`ensureBookAdventure`), under `bookAdventureId(book)` and the kind
+`kind.bookAdventure`. `bookAdventureSource` assembles it:
+
+- every Actor, RollTable, JournalEntry and Item whose stamp names the book
+  (`bookDocuments`): the library's copy under the id of its world twin where
+  the world holds one, else the world's own, the only source there is;
+- every map of the book, by page, rebuilt from its recipe over stand-ins for
+  those documents (`mapCreateData`, a grid recipe through `gridScenePlan` as
+  the map step builds it), under the world scene's ids (`withWorldIds`), with
+  each zone another book laid over the held world scene carried as the world
+  holds it;
+- the lists a map or zone rolls on that the book does not print;
+- the folders the world files each document in now, a library document under
+  its twin's when it has one (`adventureFolderSources`), under the world
+  folder's id where the world has that type, name and parent.
+
+An actor's and a map's references to carried documents are rewritten to world
+form (`adventureRefs`); a list's, a journal's and an item's are carried as they
+stand. The maps' links are laid one map after another (`linkFields`), and an
+organisation keeps the regions it controls on the other maps.
+
+The stamp counts what it carries (`contents`), and records `sourcesHash`
+(`sourcesHashOf`, the source without any `_stats`) and `writtenAt`, the stored
+document's modified time read back after the write. Each run decides by
+`bookAdventureState`: a shelf without it writes it; a modified time more than
+`WRITE_SLACK_MS` past `writtenAt` is a Judge's edit and is kept; a changed
+hash rebuilds it; anything else is held. Once the book's Adventure stands, the
+retired per-map Adventures of the same book on the same shelf
+(`kind.settlementAdventure`, `legacyAdventuresOf`) are deleted and named in
+the step's summary. A run that fails writes nothing and retires nothing. The
+Books window reads each open Judge's book's census off the shelf's index
+(`bookCensus`).
+
 Core's `Adventure#import` is steered, not replaced. For an Adventure whose
-`flags.acks-extras.cookbook.kind` is `kind.settlementAdventure`, a
-`preImportAdventure` hook (`settlement-adventure.mjs`) empties `toUpdate` and
-narrows `toCreate` to the fill (`fillPlan`), synchronously; `importAdventure`
-then mirrors the created scene's links and draws its thumbnail. The patch
-lives here and not in `lib/` because only this feature builds these
+`flags.acks-extras.cookbook.kind` is one of `ADVENTURE_KINDS` (a book's, and
+the retired per-map one, which a backup or an unrun shelf can still hold), a
+`preImportAdventure` hook (`book-adventure.mjs`) refuses while any library
+shelf is cold (`libraryCold`), since a cold shelf reads every library document
+as missing; otherwise it empties `toUpdate` and narrows `toCreate` to the fill
+(`fillPlan`), synchronously. In a book's Adventure every document is a root,
+and a person, a list, a journal, an item, or a place no carried map shows
+stays in the library when the library holds it. `importAdventure` then
+mirrors the links of every created or held map and draws its thumbnail. The
+patch lives here and not in `lib/` because only this feature builds these
 Adventures; every other Adventure passes through untouched. One owner:
 nothing else in the family hooks either.
 
@@ -89,9 +129,9 @@ lattice and shift to `sceneData`, and keeps the scale in the scene's cookbook
 flag (`pixelsPerPoint`) for the zones laid later. A recipe with a grid and no
 quarters is a REGION's map (`mapIds`): the map is the region's place
 (`regionPlaceId`), each placed site stands on the place its text was written to
-(`regionSiteClaim`), there are no quarters to hand to organisations, and no
-Adventure is written; the picture's thumbnail and the places' scene links are
-written as for a settlement. A region map whose book prints region rows waits
+(`regionSiteClaim`), and there are no quarters to hand to organisations; the
+picture's thumbnail and the places' scene links are written as for a
+settlement, and the book's Adventure carries the map like any other. A region map whose book prints region rows waits
 (`unready`) until the region's place has been imported. Without a grid,
 `mapCreateData` builds a settlement map's data and no part of the grid path
 reaches it; `test-region-import` pins that data byte for byte.

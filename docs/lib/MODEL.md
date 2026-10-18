@@ -1317,7 +1317,7 @@ Three areas where the floor reads as the only gate:
   The rest of its load writes this browser's own storage (the old prose
   cache purged, the refresh bridge's sweep, heartbeat and bytes) or opens
   books into this window, so it runs in every window. The
-  adventure hooks (`settlement-adventure.mjs`) run in the window that
+  adventure hooks (`book-adventure.mjs`) run in the window that
   imported, where core calls `importAdventure`.
 
 ## Effects the module maintains

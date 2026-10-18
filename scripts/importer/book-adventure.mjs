@@ -1,19 +1,25 @@
 /* global game, Hooks, ui, console, foundry */
 /**
- * A settlement Adventure's import, steered: an import adds what this world is
+ * A book's Adventure's import, steered: an import adds what this world is
  * missing and writes to nothing it holds. Core's own import runs; this only
- * narrows what it was handed, and only for an Adventure carrying
- * `ADVENTURE_KIND`. Every other Adventure imports as core imports it. The
- * arithmetic is `adventure-binding.mjs`; the map step that writes the
- * Adventure is `cookbook.mjs` (`ensureSettlementAdventure`).
+ * narrows what it was handed, and only for an Adventure carrying one of
+ * `ADVENTURE_KINDS`: a book's, or a retired per-map one that outlived its
+ * retirement. Every other Adventure imports as core imports it. The
+ * arithmetic is `adventure-binding.mjs`; the step that writes the Adventure is
+ * `cookbook.mjs` (`ensureBookAdventure`).
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
-import { byCookbookId, cookbookId } from "../lib/library.mjs";
-import { ADVENTURE_TYPE, ADVENTURE_KIND, fillPlan, includedKeys, applyFill, refsOf, isShelvedKind } from "./adventure-binding.mjs";
+import { byCookbookId, cookbookId, libraryCold, warmLibrary } from "../lib/library.mjs";
+import {
+  ADVENTURE_TYPE, ADVENTURE_KINDS, BOOK_ADVENTURE_KIND, fillPlan, includedKeys, applyFill, refsOf,
+} from "./adventure-binding.mjs";
 
-/** Whether this Adventure is one the map step wrote. */
-export const isSettlementAdventure = (adventure) => adventure?.flags?.[MODULE_ID]?.cookbook?.kind === ADVENTURE_KIND;
+/** The cookbook kind an Adventure carries, or "". */
+const kindOf = (adventure) => String(adventure?.flags?.[MODULE_ID]?.cookbook?.kind ?? "");
+
+/** Whether this Adventure is one the importer wrote, of a kind the hooks steer. */
+export const isCookbookAdventure = (adventure) => ADVENTURE_KINDS.includes(kindOf(adventure));
 
 /**
  * A directory card with no picture reads as a scene that failed. Core draws
@@ -29,16 +35,19 @@ export async function ensureSceneThumb(scene) {
 /** Each import's fill report, keyed by the options object core hands to both hooks. */
 const reports = new WeakMap();
 
+/** The world collections an Adventure's documents are twinned in. */
+const TWIN_TYPES = ["Actor", "Scene", "RollTable", "JournalEntry", "Item"];
+
 /**
  * This world, as the fill asks about it. Twins are indexed once per import,
- * by cookbook id, over the three collections an Adventure carries; a folder's
- * twin is found by type, name and parent. A shelved kind (a person, a list) is
- * looked up in the warmed library, synchronously.
+ * by cookbook id, over the collections an Adventure carries; a folder's twin
+ * is found by type, name and parent. A library document is looked up in the
+ * warmed library, synchronously.
  */
 function worldLookups() {
   const twins = new Map();
-  for (const [type, collection] of [["Actor", game.actors], ["Scene", game.scenes], ["RollTable", game.tables]]) {
-    for (const doc of collection) {
+  for (const type of TWIN_TYPES) {
+    for (const doc of game.collections.get(type) ?? []) {
       const id = cookbookId(doc);
       if (!id || doc.flags?.[MODULE_ID]?.templatePart) continue;
       const key = `${type}|${id}`;
@@ -53,7 +62,7 @@ function worldLookups() {
       }
       return twins.get(`${type}|${cookbookId(data)}`) ?? null;
     },
-    shelfOf: (type, data) => (isShelvedKind(type, data) ? (byCookbookId(type, cookbookId(data))?.uuid ?? null) : null),
+    shelfOf: (type, data) => byCookbookId(type, cookbookId(data))?.uuid ?? null,
     worldRefs: (type, id) => {
       const doc = game.collections.get(type)?.get(id);
       return doc ? refsOf(type, doc.toObject()) : [];
@@ -82,15 +91,23 @@ function fillImport(adventure, toCreate, toUpdate) {
   for (const [field, cls] of Object.entries(foundry.utils.getDocumentClass(ADVENTURE_TYPE).contentFields)) {
     if (src[field]?.length) content[cls.documentName] = src[field];
   }
-  const plan = fillPlan({ content, included: includedKeys(toCreate, toUpdate), ...worldLookups() });
+  const book = kindOf(adventure) === BOOK_ADVENTURE_KIND;
+  const plan = fillPlan({ content, book, included: includedKeys(toCreate, toUpdate), ...worldLookups() });
   applyFill(toCreate, toUpdate, plan.create);
   return plan;
 }
 
 /** `preImportAdventure`: narrow the import to the fill, or cancel it. Never async. */
 function steerImport(adventure, options, toCreate, toUpdate) {
-  if (!isSettlementAdventure(adventure)) return;
+  if (!isCookbookAdventure(adventure)) return;
   const say = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.adventure.${key}`, { name: adventure.name, ...data });
+  // A cold shelf answers the library lookups with nothing, which would read
+  // every library document as missing and create a world twin of each.
+  if (libraryCold()) {
+    warmLibrary();
+    ui.notifications.warn(say("libraryLoading"));
+    return false;
+  }
   try {
     const report = fillImport(adventure, toCreate, toUpdate);
     if (!report.added) {
@@ -130,14 +147,14 @@ function afterImport(adventure, options, created) {
     }
     ui.notifications.info(
       game.i18n.format(`${LANG_PREFIX}.adventure.filled`, {
-        name: adventure.name, added: report.added, held: report.held, skipped: report.skipped,
+        name: adventure.name, added: report.added, held: report.held, shelved: report.shelved, skipped: report.skipped,
       }),
     );
   })().catch((err) => console.error(`${MODULE_ID} | ${adventure.name}: links after import`, err));
 }
 
 /** Register both import hooks; called once, after the legacy-importer guard. */
-export function registerSettlementAdventureHooks() {
+export function registerBookAdventureHooks() {
   Hooks.on("preImportAdventure", steerImport);
   Hooks.on("importAdventure", afterImport);
 }
