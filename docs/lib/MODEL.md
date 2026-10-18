@@ -1289,6 +1289,37 @@ window, and so does a call a window makes to itself.
 believes, `{selfId, lead, joined, isLead, settled}`, for a live check
 ([TESTING.md](TESTING.md)).
 
+### Where a bare `isGM` sits behind a gate
+
+A writer that keeps `game.user.isGM` as a permission floor is reached either
+by a user's own gesture or from a trigger that has already read the election.
+Three areas where the floor reads as the only gate:
+
+- **The lost episode** (formation MODEL.md, "Lost"). `lost-episode.mjs`, the
+  fog it paints (`lost-fog.mjs`) and its markers (`shadow.mjs`) have three
+  automatic triggers. The party token's `updateToken` reads `isPrimaryGM()`
+  before `onPartyTokenMoved` walks the truth (`walkTheTruth` →
+  `walkAstrayPath`) and makes the day's throw (`throwDayNavigation` →
+  `postNavigationThrow`, whose failure opens an episode through
+  `beginEpisode`). `deleteActor` reads it before `dissolveFormation` clears
+  the markers, and `ready` awaits `primaryGMSettled()` before
+  `clearOrphanShadows`. The `reloadFog` and `lostDiscovered` broadcasts write
+  no document. Every other entry is a Judge's press: the lost dialog, the
+  navigation card's buttons, `navigationThrowNow`, `travelEnterHex`.
+- **The party sheet's form and drops** (`formation-actions.mjs`).
+  `onChangeForm` is the sheet's submit handler, run by a change its user made;
+  the sheet does not submit on close. `anchorMap`, `saveFogMap` and
+  `onDropMember` are a press and a drop. A player's declaration goes through
+  `executeAsGM`, which `sockets.mjs` runs on the lead.
+- **The importer's `ready`** (`scripts/importer/module.mjs`). Its world writes
+  are the legacy-scope migration (`migrateLegacyScope`) and the shelf's move
+  into journals (`migrateShelfSetting`), each behind `primaryGMSettled()`.
+  The rest of its load writes this browser's own storage (the old prose
+  cache purged, the refresh bridge's sweep, heartbeat and bytes) or opens
+  books into this window, so it runs in every window. The
+  adventure hooks (`settlement-adventure.mjs`) run in the window that
+  imported, where core calls `importAdventure`.
+
 ## Effects the module maintains
 
 Two effects on a character are machinery rather than notes: the class's combat
