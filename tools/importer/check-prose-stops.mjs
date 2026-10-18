@@ -11,7 +11,7 @@
  * The test is a clause-boundary comparison across the box's bottom edge. A
  * description is asked the question only when the answer is decidable: there
  * must be a body line immediately below the box, in the same column and x band,
- * that no other entry has claimed. Where the next line belongs to a neighbour,
+ * set no smaller than the passage, that no other entry has claimed. Where the next line belongs to a neighbour,
  * or the column simply ends, the geometry says nothing about whether the
  * passage continued, and the entry gets NO VERDICT rather than a guess. That is
  * why the pass line reports how many descriptions reached a discrimination
@@ -79,6 +79,7 @@ const walkBoxes = (node, page, out) => {
   if (!node || typeof node !== "object") return;
   const p = node.page ?? page;
   if (node.box?.x0 != null) out.push({ ...node.box, page: p });
+  if (Array.isArray(node.boxes)) for (const b of node.boxes) if (b?.x0 != null) out.push({ ...b, page: p });
   for (const v of Object.values(node)) {
     if (Array.isArray(v)) for (const x of v) walkBoxes(x, p, out);
     else if (v && typeof v === "object") walkBoxes(v, p, out);
@@ -95,7 +96,8 @@ for (const f of fs.readdirSync(COOKBOOK).sort()) {
     for (const b of every) claim(book, b.page, b, id);
     const d = e.fields?.description;
     if (e.aliasOf || d?.op !== "text" || !d.paras?.length) continue;
-    const boxes = d.paras.map((p) => ({ ...p.box, page: p.page ?? d.page }));
+    // A paragraph read through `boxes` ends in its lowest one.
+    const boxes = d.paras.flatMap((p) => (p.boxes ?? [p.box]).map((b) => ({ ...b, page: p.page ?? d.page })));
     const last = boxes.reduce((a, b) => (b.page > a.page || (b.page === a.page && b.y1 > a.y1) ? b : a));
     entries.push({ id, book, last });
   }
@@ -132,13 +134,18 @@ for (const book of [...new Set(entries.map((e) => e.book))].sort()) {
     const inBand = (i) => i.x >= last.x0 - X_SLACK && i.x <= last.x1 + X_SLACK;
     // The passage's own last line: the runs sitting on the box's bottom edge.
     const mine = body.filter((i) => i.y > last.y1 - 12 && i.y <= last.y1 + 1 && inBand(i));
-    const below = body.filter((i) => i.y > last.y1 + 1 && inBand(i)).sort((a, b) => a.y - b.y);
     if (!mine.length) continue;
-    if (!below.length || below[0].y - last.y1 > NEXT_MAX_GAP) {
+    // The next line is the first one set no smaller than the passage: a
+    // sidebar, a table or a stat block set in under the box in smaller type is
+    // not the passage going on, and a heading below it still stops it.
+    const size = Math.max(...mine.map((i) => i.h));
+    const below = body.filter((i) => i.y > last.y1 + 1 && inBand(i)).sort((a, b) => a.y - b.y);
+    const first = below.find((i) => i.h >= size - 0.6);
+    if (!first || first.y - last.y1 > NEXT_MAX_GAP) {
       noNext++;
       continue;
     }
-    const nextY = below[0].y;
+    const nextY = first.y;
     const nextLine = below.filter((i) => Math.abs(i.y - nextY) < 3).sort((a, b) => a.x - b.x);
     const taken = (claims.get(book)?.get(last.page) ?? []).some(
       (c) =>

@@ -85,7 +85,7 @@ mechanically; every judgment already happened at compile time.
 | op | inputs | output | semantics |
 |---|---|---|---|
 | `expect` | `box`, `text` | ok/mismatch | integrity check: the runs in `box` start with `text` (short label). Used for names/anchors; a mismatch marks the entry unresolvable this session (stub), never an error. |
-| `text` | `paras: [ { box, section?, dropText?, fixes?, continues? } … ]` | `[{section?, text}]` | assemble prose: for each para box, take items in reading order (y, then x), join, apply `fixes`/`dropText`. Paragraph boundaries AND section labels (`combat`, `ecology`, …) were computed offline from the book's own run-in headings; `@PdfText[id#section]` tags resolve section-scoped prose. A box that opens in lower case after one that closed without terminal punctuation is joined to it (a column or page turn); `continues` *(additive, 2026-09-17)* is the compiler saying the same of a box that opens with a capital, which the letter test cannot. |
+| `text` | `paras: [ { box \| boxes, section?, dropText?, fixes?, continues? } … ]` | `[{section?, text}]` | assemble prose: for each para box, take items in reading order (y, then x), join, apply `fixes`/`dropText`. Paragraph boundaries AND section labels (`combat`, `ecology`, …) were computed offline from the book's own run-in headings; `@PdfText[id#section]` tags resolve section-scoped prose. A box that opens in lower case after one that closed without terminal punctuation is joined to it (a column or page turn); `continues` *(additive, 2026-09-17)* is the compiler saying the same of a box that opens with a capital, which the letter test cannot. A paragraph read through `boxes` *(additive, 2026-10-18)* takes the runs of every box as one paragraph: a sidebar set across the gutter shares the prose's lines, so the lines beside it are boxed one by one and its runs fall outside them all. |
 | `value` | `box`, `pattern`, `table?`, `split?` | typed value(s) | join the runs in `box`, apply `pattern` (below); if `split`, divide first and apply per segment; if `table`, map each token through `tables[table]` → `{text, key, ref?}` (miss ⇒ `{text}` only). |
 | `attacks` | `attacksBox`, `damageBox`, `glyphTable`, `colors?`, `colorTable?` | attack **modes** | parse Attacks + Damage live; both split on top-level `" or "` into aligned MODES (alternatives like "1 weapon OR 2 claws + bite"); within a mode, damage segments zip 1:1 with expanded attack names (stemmed to natural-weapon keys). Per segment: glyph → damage type via `glyphTable`; quality from the shipped per-segment **color annotation** (`colors[i]` over global segment order, e.g. `"#ff2e17"`) mapped through `colorTable`. Output: `{ text, throw, alternatives, modes:[{ count, throw, segments:[{name,naturalWeapon,damage,damageType,quality}] }] }`. |
 | `art` | `select: {minW,minH,maxW,maxRatio}`, `name?` | image pointer | pick the page's illustration by the shipped criteria (or exact XObject `name`); the binding decides upload/usage. The image itself is seat-extracted. |
@@ -130,7 +130,12 @@ segments classified by leading token into class / ability scores /
 Proficiencies / Equipment / Class Abilities / Spells, the core clause read by
 keyword — `MV, AC, HD, hp, #AT (weapon n+), Dmg, Save/SV, ML, AL, XP` —
 tolerating the era's missing commas; unrecognized segments degrade to
-`extra[]`, absent keys are absent, never a throw).
+`extra[]`, absent keys are absent, never a throw. Additive, 2026-10-17: a bare
+`D` opening a clause is damage where no `Dmg` is printed, and `hp` reads a
+list of figures, one per creature, as `hpList`, with `each` as `hpEach` and a
+trailing parenthetical as `hpNote`), `countParen` (additive, 2026-10-17: the
+count a quick-stat label prints in its last parentheses — a whole number as
+an integer, other text holding a digit as printed, else null).
 
 **Value configs** (shipped per instruction, mechanical): `stripRoll` (drop a
 trailing "N+" roll target before lookup), `stripColon` (drop a trailing ":"),

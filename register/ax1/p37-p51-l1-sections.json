@@ -1,0 +1,101 @@
+[
+  {
+    "id": "ax1.l1-area1",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 1 Area 1",
+    "anchor": {
+      "hash": "l3qnx8"
+    },
+    "pages": [
+      37
+    ],
+    "meta": {
+      "space": "ax1.l1",
+      "parent": "ax1.l1"
+    }
+  },
+  {
+    "id": "ax1.l1-area2",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 1 Area 2",
+    "anchor": {
+      "hash": "whvnov"
+    },
+    "pages": [
+      42
+    ],
+    "meta": {
+      "space": "ax1.l1",
+      "parent": "ax1.l1"
+    }
+  },
+  {
+    "id": "ax1.l1-area3",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 1 Area 3",
+    "anchor": {
+      "hash": "1fsjizd"
+    },
+    "pages": [
+      43
+    ],
+    "meta": {
+      "space": "ax1.l1",
+      "parent": "ax1.l1"
+    }
+  },
+  {
+    "id": "ax1.l1-area4",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 1 Area 4",
+    "anchor": {
+      "hash": "psuw9r"
+    },
+    "pages": [
+      45,
+      46
+    ],
+    "meta": {
+      "space": "ax1.l1",
+      "parent": "ax1.l1"
+    }
+  },
+  {
+    "id": "ax1.l1-area5",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 1 Area 5",
+    "anchor": {
+      "hash": "ligvkn"
+    },
+    "pages": [
+      46,
+      47,
+      48
+    ],
+    "meta": {
+      "space": "ax1.l1",
+      "parent": "ax1.l1"
+    }
+  },
+  {
+    "id": "ax1.l1-area6",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 1 Area 6",
+    "anchor": {
+      "hash": "girnnk"
+    },
+    "pages": [
+      51
+    ],
+    "meta": {
+      "space": "ax1.l1",
+      "parent": "ax1.l1"
+    }
+  }
+]

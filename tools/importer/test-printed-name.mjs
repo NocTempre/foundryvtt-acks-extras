@@ -68,6 +68,10 @@ await t("a range is not the number its digits spell", () => {
   assert.ok(opensWithNumber("4c-f. Cells:", "4c-f."), "a range of lettered rooms");
   assert.ok(opensWithNumber("4c-f: Cells:", "4c-f."), "a colon printed for the stop is punctuation");
   assert.ok(!opensWithNumber("4c. Cell:", "4c-f."));
+  assert.ok(opensWithNumber("4c - f. Cells:", "4c-f."), "a range printed with spaces is the same range");
+  assert.ok(!opensWithNumber("4c - f. Cells:", "4c."), "and is not its first room");
+  assert.ok(!opensWithNumber("3.5 feet down", "3."), "a decimal is no key");
+  assert.ok(opensWithNumber("3 - The Lamp Room", "3."), "a dash before words is the key's own");
 });
 
 await t("a key number comes off a heading, a range included", () => {

@@ -1,0 +1,673 @@
+[
+  {
+    "id": "ax1.l2-1",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 1",
+    "anchor": {
+      "number": "1.",
+      "as": "runin"
+    },
+    "pages": [
+      56
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-2",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 2",
+    "anchor": {
+      "number": "2.",
+      "as": "runin"
+    },
+    "pages": [
+      56
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-3",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 3",
+    "anchor": {
+      "number": "3.",
+      "as": "runin"
+    },
+    "pages": [
+      56
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-4",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 4",
+    "anchor": {
+      "number": "4.",
+      "as": "runin"
+    },
+    "pages": [
+      56
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-5",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 5",
+    "anchor": {
+      "number": "5.",
+      "as": "runin"
+    },
+    "pages": [
+      56
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-6",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 6",
+    "anchor": {
+      "number": "6.",
+      "as": "runin"
+    },
+    "pages": [
+      56
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-7",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 7",
+    "anchor": {
+      "number": "7.",
+      "as": "runin"
+    },
+    "pages": [
+      56
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-8",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 8",
+    "anchor": {
+      "number": "8.",
+      "as": "runin"
+    },
+    "pages": [
+      56,
+      57,
+      58
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-9",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 9",
+    "anchor": {
+      "number": "9.",
+      "as": "runin"
+    },
+    "pages": [
+      58
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-10",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 10",
+    "anchor": {
+      "number": "10.",
+      "as": "runin"
+    },
+    "pages": [
+      58
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-11",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 11",
+    "anchor": {
+      "number": "11.",
+      "as": "runin"
+    },
+    "pages": [
+      58
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-12",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 12",
+    "anchor": {
+      "number": "12.",
+      "as": "runin"
+    },
+    "pages": [
+      58
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-13",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 13",
+    "anchor": {
+      "number": "13.",
+      "as": "runin"
+    },
+    "pages": [
+      58
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-14",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 14",
+    "anchor": {
+      "number": "14.",
+      "as": "runin"
+    },
+    "pages": [
+      58
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-15",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 15",
+    "anchor": {
+      "number": "15.",
+      "as": "runin"
+    },
+    "pages": [
+      58
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-16",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 16",
+    "anchor": {
+      "number": "16.",
+      "as": "runin"
+    },
+    "pages": [
+      58,
+      59,
+      60
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-17",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 17",
+    "anchor": {
+      "number": "17.",
+      "as": "runin"
+    },
+    "pages": [
+      60
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-18",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 18",
+    "anchor": {
+      "number": "18.",
+      "as": "runin"
+    },
+    "pages": [
+      60
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-19",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 19",
+    "anchor": {
+      "number": "19.",
+      "as": "runin"
+    },
+    "pages": [
+      60
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-20",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 20",
+    "anchor": {
+      "number": "20.",
+      "as": "runin"
+    },
+    "pages": [
+      60,
+      61
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-21",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 21",
+    "anchor": {
+      "number": "21.",
+      "as": "runin"
+    },
+    "pages": [
+      61
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-22",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 22",
+    "anchor": {
+      "number": "22.",
+      "as": "runin"
+    },
+    "pages": [
+      61
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-23",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 23",
+    "anchor": {
+      "number": "23.",
+      "as": "runin"
+    },
+    "pages": [
+      61
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-24",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 24",
+    "anchor": {
+      "number": "24.",
+      "as": "runin"
+    },
+    "pages": [
+      61
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-25",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 25",
+    "anchor": {
+      "number": "25.",
+      "as": "runin"
+    },
+    "pages": [
+      61,
+      62
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-26",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 26",
+    "anchor": {
+      "number": "26.",
+      "as": "runin"
+    },
+    "pages": [
+      62
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-27",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 27",
+    "anchor": {
+      "number": "27.",
+      "as": "runin"
+    },
+    "pages": [
+      62
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-28",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 28",
+    "anchor": {
+      "number": "28.",
+      "as": "runin"
+    },
+    "pages": [
+      62
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-29",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 29",
+    "anchor": {
+      "number": "29.",
+      "as": "runin"
+    },
+    "pages": [
+      62
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-30",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 30",
+    "anchor": {
+      "number": "30.",
+      "as": "runin"
+    },
+    "pages": [
+      62
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-31",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 31",
+    "anchor": {
+      "number": "31.",
+      "as": "runin"
+    },
+    "pages": [
+      62,
+      63
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-32",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 32",
+    "anchor": {
+      "number": "32.",
+      "as": "runin"
+    },
+    "pages": [
+      63
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-33",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 33",
+    "anchor": {
+      "number": "33.",
+      "as": "runin"
+    },
+    "pages": [
+      63
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-34",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 34",
+    "anchor": {
+      "number": "34.",
+      "as": "runin"
+    },
+    "pages": [
+      63
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-35",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 35",
+    "anchor": {
+      "number": "35.",
+      "as": "runin"
+    },
+    "pages": [
+      63
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-36",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 36",
+    "anchor": {
+      "number": "36.",
+      "as": "runin"
+    },
+    "pages": [
+      63
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-37",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 37",
+    "anchor": {
+      "number": "37.",
+      "as": "runin"
+    },
+    "pages": [
+      63,
+      64
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-38",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 38",
+    "anchor": {
+      "number": "38.",
+      "as": "runin"
+    },
+    "pages": [
+      64
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  },
+  {
+    "id": "ax1.l2-39",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2 39",
+    "anchor": {
+      "number": "39.",
+      "as": "runin"
+    },
+    "pages": [
+      64
+    ],
+    "meta": {
+      "space": "ax1.l2",
+      "parent": "ax1.l2"
+    }
+  }
+]

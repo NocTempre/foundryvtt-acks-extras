@@ -331,6 +331,50 @@ heading printed in the running-head band (AX1 p.37), `x0` for a page whose
 column starts inside the default margin (AX1's even pages, at x 28). The
 override reaches the anchor, the hash candidates and the flow's stop alike.
 
+## A book's page bands
+
+A book whose every page the AX defaults misplace is listed in the compiler's
+`AX_BOOK_BANDS`, and each page read for it carries the book's bands
+(`useAxBands`), in place of the defaults above: the running-head and folio
+bands, the left margin a heading may hang to, the smallest heading that stops
+a flow, the type size of its asides, the last column's right margin, the
+column starts of its even and odd pages, and the line gap that opens a
+paragraph and ends a stat block. On a book with a column grid a page's
+columns are the grid's for its side of the spread, never detected, and a
+column reaches to where the next one starts. A run set in the aside size is
+read by no keyed area's prose, key line or stat block, and a paragraph whose
+lines an aside shares is read through `boxes`, one per line beside it, so the
+aside's runs fall outside every box. AX1 is the book listed; its measured
+bands are the table's docstring.
+
+## A run-in keyed area
+
+A keyed area whose key opens its first paragraph (`anchor: {number, as:
+"runin"}`) is found among its page's key lines (`axKeyLines`): body-size
+lines that open with a key token ("9.", "9a.", "2-3.", "11c-l.", spaced or
+not, closed by a full stop or a colon) in a face other than the page's body
+face. The heading is the line's leading runs in the key's face, through a
+short run of another face the key's face resumes after (a ligature has a font
+of its own), and it closes with a colon, on that line or the next. The row's
+name is a `heading` op boxed from the first run's origin to the last's and
+checked by its key, and the flow starts on the key's own line with the
+heading's runs dropped. A row in a key space stops where a sibling's key line
+stands in its column: the compiler opens every row of the space first and
+hands each flow its siblings' lines. Each quick-stat label in the area's
+prose becomes an occupant — `occupants.<i>.name` (a creature lookup, also
+written as `creatures.<i>`), `.count` (`countParen`) and `.stats`
+(`statline`) — the first two read through a box around the label run's
+origin, the stats through the label's block, which ends at the book's
+paragraph gap.
+
+A space's rows are written by `tools/importer/harvest-runin-keys.mjs`, which
+walks the space's pages in reading order, writes one row per key under the
+id and label the space derives, gives each its pages through the next key's,
+and nests a lettered key under its number, else under the section heading
+before it, else under the space. It prints the gaps in the key sequence, a
+key found twice and a key line with no colon, which it writes no row for; a
+gap is settled by an author against the page.
+
 ## A roll table's rows
 
 `kind.rolltable` compiles to `fields.rows`, one text paragraph per row under

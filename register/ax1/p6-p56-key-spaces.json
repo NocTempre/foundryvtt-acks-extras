@@ -1,0 +1,61 @@
+[
+  {
+    "id": "ax1.fort",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Fort",
+    "anchor": {
+      "hash": "jjqxu8"
+    },
+    "pages": [
+      6,
+      7,
+      8,
+      9
+    ],
+    "assists": {
+      "headingLines": {
+        "minH": 13
+      }
+    }
+  },
+  {
+    "id": "ax1.l1",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 1",
+    "anchor": {
+      "hash": "k5fjjj"
+    },
+    "pages": [
+      36,
+      37
+    ],
+    "assists": {
+      "headingWrap": 40,
+      "headingLines": {
+        "minH": 20
+      }
+    }
+  },
+  {
+    "id": "ax1.l2",
+    "kind": "kind.location",
+    "book": "ax1",
+    "name": "Level 2",
+    "anchor": {
+      "hash": "yhmj7f"
+    },
+    "pages": [
+      54,
+      55,
+      56
+    ],
+    "assists": {
+      "headingWrap": 40,
+      "headingLines": {
+        "minH": 20
+      }
+    }
+  }
+]

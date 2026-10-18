@@ -54,8 +54,14 @@ const keyFold = (s) =>
   String(s ?? "").normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase()
     .replace(/[‐‑‒–—]/gu, "-").replace(/[^a-z0-9/-]/g, "").replace(/^[-/]+|[-/]+$/g, "");
 
-/** Whether a heading's first token IS this key number — "36." is not "36U.", "3." is not "30." and "1-3." is not "13.". */
-export const opensWithNumber = (text, number) => !!keyFold(number) && keyFold(firstToken(text)) === keyFold(number);
+/** A key number at the head of a heading, closed by its stop and a space: "30. ", "20/20U. ", and "4c - f. " spaced. */
+const KEY_HEAD = /^\s*([A-Z]?\d+[A-Za-z]?(?:\s*[-–/]\s*[A-Z]?\d*[A-Za-z]?)*)\s*[.:](?=\s|$)/u;
+
+/** The key a heading opens with: its key number where one stands closed by its stop, else its first token. */
+export const leadingKey = (text) => KEY_HEAD.exec(String(text ?? ""))?.[1] ?? firstToken(text);
+
+/** Whether a heading opens with this key number — "36." is not "36U.", "3." is not "30." and "1-3." is not "13.". */
+export const opensWithNumber = (text, number) => !!keyFold(number) && keyFold(leadingKey(text)) === keyFold(number);
 
 /**
  * A keyed heading without its key number: what a body of people is called when

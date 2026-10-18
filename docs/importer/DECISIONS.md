@@ -6398,3 +6398,38 @@ traced, and it needs a form the ruling lacked:
 
 *Cost:* the passage test can also refuse a real door drawn against a rock
 face. Such a door is asserted on its cell, which costs a correction.
+
+## 2026-10-18 — A book's page geometry is the book's, and an aside is no room's prose
+
+AX1's rooms are the first rows read on AX1's pages at scale, and three of
+the AX defaults misread them. Column detection found one column on a page a
+map is set into, so p.41's prose went to the wrong room and the harvester
+sorted its keys out of reading order. The paragraph rule, tuned on AX3, opens
+a paragraph above 1.6 line pitches; AX1 opens one at 17 to 19 points on a 12
+point pitch, so one stat block ran on through the next two rooms. And the
+9pt sidebars and tables AX1 sets across the gutter were read into the prose
+beside them, since the executor reads every run in a box.
+
+**Ruled.**
+- **Bands are per book.** A book's page geometry lives in the compiler's
+  `AX_BOOK_BANDS`, keyed by book, never in each row's assists.
+- **AX1 reads on a fixed grid.** Its columns are the grid of its even and
+  odd pages. Every other book still detects its columns.
+- **An aside is no room's prose.** A run in a book's aside size is read by
+  no keyed area. AX1's sidebars become journals of their own in S7 and are
+  unclaimed until then.
+- **AX1's tables lose their doubled text.** Two of AX1's tables had read
+  their own grid as a description, and a wandering-monster detail had taken
+  in a sidebar's words. The bands correct both. Nothing has shipped them.
+
+*Rejected:*
+- **Columns as row assists.** About two hundred rows would each carry the
+  same grid, and the harvester would still order keys by detection.
+- **Retuning `detectColumns`.** Every book's compile shares it, and every
+  cookbook would move under the drift gate.
+- **Dropping aside runs by `fixes.drop`.** A box's join fixes are computed
+  with the aside's runs among the prose's, so dropping one also drops the
+  space after the prose run before it.
+
+*Cost:* the bands measure one printing, and they live in code. A printing
+with other margins needs its own entry.

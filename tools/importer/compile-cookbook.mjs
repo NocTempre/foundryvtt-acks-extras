@@ -22,7 +22,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { openBook, pageItems, listHeadings, detectColumns, colOf, glyphColorRuns, pageArtPlacements } from "../../scripts/importer/extract.mjs";
+import { openBook, pageItems as extractPageItems, listHeadings, detectColumns, colOf, glyphColorRuns, pageArtPlacements } from "../../scripts/importer/extract.mjs";
 import { runsIn, joinRuns, attackModel } from "../../scripts/importer/executor.mjs";
 import { rowsByY, slugLabel } from "../../scripts/importer/table-extract.mjs";
 import { BOOKS, citeFor, fingerprintWarning } from "../../scripts/importer/books.mjs";
@@ -1683,6 +1683,53 @@ const AX_TOP_BAND = 60; // running heads sit at ~y40
 // Folios print at ~y757 on a 792pt page — 35pt up, above extract.mjs's 32pt
 // footer filter — so they reach the item list and must be skipped here.
 const AX_FOOT_Y = 750;
+/**
+ * Page bands for an AX book the defaults above misplace: `topBand` (running
+ * heads sit above it), `footY` (folios sit below it), `headX0` (the left
+ * margin a heading may hang to), `headMinH` (the smallest heading that stops
+ * a flow), `asideH` (the type size, low and high, of the sidebars and tables
+ * set into the prose, which no room's prose reads), `rightEdge` (the last
+ * column's right margin from the page's edge), `columns` (the column starts
+ * of the book's even and odd pages, where detection misreads a page a map is
+ * set into) and `paraGap` (the line gap, in points, that opens a paragraph
+ * or ends a stat block).
+ *
+ * AX1 sets 10pt prose from y43 to y756 under a running head at y25, in two
+ * columns mirrored across the spread, out to 22pt from the edge, on a 12pt
+ * pitch with 17–19pt between paragraphs; it hangs headings at x28, sets its
+ * sidebars and tables at 9pt under 12pt heads and its keyed sections at 14pt.
+ * A book listed here has its bands on every page the compiler reads
+ * (`useAxBands`).
+ */
+const AX_BOOK_BANDS = Object.freeze({
+  ax1: Object.freeze({
+    topBand: 35, footY: 765, headX0: 20, headMinH: 13, asideH: Object.freeze([8.5, 9.5]), rightEdge: 22, paraGap: 15,
+    columns: Object.freeze({ even: Object.freeze([30, 310]), odd: Object.freeze([40, 320]) }),
+  }),
+});
+const axTop = (pd) => pd?.axBands?.topBand ?? AX_TOP_BAND;
+const axFoot = (pd) => pd?.axBands?.footY ?? AX_FOOT_Y;
+const axRight = (pd) => pd.width - (pd.axBands?.rightEdge ?? 40);
+/** Whether a run is body type a room's prose can read: body-size, and not set in the book's aside band. */
+const axBody = (pd, it) => {
+  if (it.h > AX_BODY_MAX_H) return false;
+  const aside = pd?.axBands?.asideH;
+  return !aside || it.h < aside[0] || it.h > aside[1];
+};
+
+/** Mark an opened book with its AX page bands, where `AX_BOOK_BANDS` lists it. */
+export function useAxBands(doc, bookId) {
+  if (AX_BOOK_BANDS[bookId]) doc.axBands = AX_BOOK_BANDS[bookId];
+  return doc;
+}
+
+/** A page's items, carrying its book's AX bands, and its number for them, when the book has them. */
+async function pageItems(doc, page) {
+  const pd = await extractPageItems(doc, page);
+  if (doc?.axBands && pd && !pd.axBands) Object.assign(pd, { axBands: doc.axBands, axPage: page });
+  return pd;
+}
+export { pageItems as axPageItems };
 // AX2's inline paragraph icons render as literal [TAG] text runs; each starts
 // a section that persists until the next tag (the MM run-in model). AX3 has
 // none. Observed vocabulary, from a whole-book scan:
@@ -1715,19 +1762,20 @@ const axFold = (s) => s.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().r
  * AX3 prints heading-size chapter banners down the outer margins; they are
  * furniture, not headings, so the margin bands are excluded here. `geom` is a
  * row's `assists.headingLines`, for a book whose headings the defaults miss:
- * `minH` (the smallest run height that is a heading, default AX_HEAD_MIN_H),
- * `caps` (a heading reads as capitals, for body-size small-caps headings),
- * `topY` (the band of running heads, default AX_TOP_BAND - 5) and `x0` (the
- * left margin, default 30). */
+ * `minH` (the smallest run height that is a heading, default the book's
+ * `headMinH`, else AX_HEAD_MIN_H), `caps` (a heading reads as capitals, for
+ * body-size small-caps headings), `topY` (the band of running heads, default
+ * the page's top band - 5) and `x0` (the left margin, default the book's
+ * `headX0`, else 30). */
 function axHeadingLines(pd, geom = {}) {
-  const minH = geom.minH ?? AX_HEAD_MIN_H;
-  const topY = geom.topY ?? AX_TOP_BAND - 5;
-  const leftX = geom.x0 ?? 30;
+  const minH = geom.minH ?? pd.axBands?.headMinH ?? AX_HEAD_MIN_H;
+  const topY = geom.topY ?? axTop(pd) - 5;
+  const leftX = geom.x0 ?? pd.axBands?.headX0 ?? 30;
   // y > 55: running heads print at y~40 in heading type and MUST NOT anchor or
   // stop anything. x-bands drop the AX3 margin banners (x~22 / x~590); real
   // hanging headings start at x~33.8.
   const heads = pd.items.filter(
-    (it) => it.h >= minH && it.y > topY && it.y < AX_FOOT_Y && it.x >= leftX && it.x <= pd.width - 30,
+    (it) => it.h >= minH && it.y > topY && it.y < axFoot(pd) && it.x >= leftX && it.x <= pd.width - 30,
   );
   // Two columns often print headings at the SAME y ("12U." beside "14U."); a
   // y-cluster alone would merge them into one phantom line, so split each
@@ -1775,7 +1823,8 @@ function readsAsCapitals(text) {
 const AX_LONE_HYPHEN = /^[-‐‑]\s*$/u;
 
 /**
- * Column starts for an AX page: assists win, else detection, else full width.
+ * Column starts for an AX page: assists win, else the book's grid for the
+ * page's side of the spread, else detection, else full width.
  *
  * Hanging hyphens take no part in the detection. They all start at one x — the
  * column's right edge — so on a page that breaks many words they outvote a real
@@ -1783,12 +1832,14 @@ const AX_LONE_HYPHEN = /^[-‐‑]\s*$/u;
  * the prose box short of them: the hyphen went unclaimed and the word it broke
  * was joined with a space.
  */
-function axColumns(pd, assists = {}) {
+export function axColumns(pd, assists = {}) {
   if (assists.columns) return assists.columns;
   if (assists.fullWidth) {
-    const body = pd.items.filter((it) => it.h <= AX_BODY_MAX_H && it.y > AX_TOP_BAND && it.y < AX_FOOT_Y);
+    const body = pd.items.filter((it) => axBody(pd, it) && it.y > axTop(pd) && it.y < axFoot(pd));
     return [body.length ? Math.min(...body.map((i) => i.x)) : 50];
   }
+  const grid = pd.axBands?.columns;
+  if (grid && pd.axPage != null) return [...grid[pd.axPage % 2 ? "odd" : "even"]];
   const cols = detectColumns(pd.items.filter((it) => !AX_LONE_HYPHEN.test(it.str)));
   return cols.length ? cols : [50];
 }
@@ -1822,19 +1873,31 @@ function axAnchor(pd, cols, entry, assists) {
     }
     if (!line) throw new Error(`heading "${want}" not found on p.${entry.pages[0]}`);
   }
-  return { ...axAnchorFrom(pd, cols, line, lines), matched };
+  return { ...axAnchorFrom(pd, cols, line, lines, assists?.headingWrap), matched };
 }
 
-/** A heading line as an anchor: its column, and the lines set under it that belong to it. */
-function axAnchorFrom(pd, cols, line, lines = axHeadingLines(pd)) {
+/**
+ * A heading line as an anchor: its column, and the lines set under it that
+ * belong to it. A line of the heading follows the one above within 22 points.
+ * A row whose title steps further, as one set in 28pt type does, gives the
+ * step as `wrapGap` (its `assists.headingWrap`), and then only a line of the
+ * title's own size joins it: the section heading set under such a title stands
+ * as near as its second line.
+ */
+function axAnchorFrom(pd, cols, line, lines = axHeadingLines(pd), wrapGap) {
   const col = axColOf(line.x0, cols);
+  const size = (l) => Math.max(...l.items.map((i) => i.h));
+  const joins = (l, endY) => (wrapGap == null ? l.y - endY <= 22 : l.y - endY <= wrapGap && Math.abs(size(l) - size(line)) <= 1);
   // Absorb a wrapped second heading line directly below (AX3 sets long keys on
   // two 12pt lines).
   let endY = line.y;
+  let x0 = line.x0;
   let x1 = line.x1;
   for (const l of lines.filter((l) => axColOf(l.x0, cols) === col && l.y > line.y + 2).sort((a, b) => a.y - b.y)) {
-    if (l.y - endY <= 22 && !/^[A-Z]?\d+[A-Za-z]?\./.test(l.text)) {
+    if (joins(l, endY) && !/^[A-Z]?\d+[A-Za-z]?\./.test(l.text)) {
       endY = l.y;
+      // A centred title's second line can start left of its first.
+      if (wrapGap != null) x0 = Math.min(x0, l.x0);
       x1 = Math.max(x1, l.x1);
     } else break;
   }
@@ -1842,14 +1905,14 @@ function axAnchorFrom(pd, cols, line, lines = axHeadingLines(pd)) {
   // heading (AX2 sets it beside the heading when it fits, below when not).
   const dateLine = toLines(
     pd.items.filter(
-      (it) => it.h <= AX_BODY_MAX_H && axColOf(it.x, cols) === col && it.y > endY + 2 && it.y < endY + 20,
+      (it) => axBody(pd, it) && axColOf(it.x, cols) === col && it.y > endY + 2 && it.y < endY + 20,
     ),
   )[0];
   if (dateLine) {
     const txt = collapse(dateLine.items.map((i) => i.str).join(" "));
     if (/^\([^)]{1,24}\)$/.test(txt)) endY = dateLine.y;
   }
-  return { line, col, endY, x1 };
+  return { line, col, endY, x0, x1 };
 }
 
 /**
@@ -1889,12 +1952,12 @@ async function axFlow(doc, entry, assists, start, exclude = new Set(), opts = {}
     // happens to hold its first run.
     const nearest = (x) => cols.reduce((best, c, i) => (Math.abs(c - x) < Math.abs(cols[best] - x) ? i : best), 0);
     const placed = stops
-      .filter((s) => s.page === page && s.y > yMin && s.y < AX_FOOT_Y && nearest(s.x0) === col)
+      .filter((s) => s.page === page && s.y > yMin && s.y < axFoot(pd) && nearest(s.x0) === col)
       .map((s) => s.y);
     const keyed = [];
     if (stopKeys.size) {
       const colItems = pd.items.filter(
-        (it) => it.h <= AX_BODY_MAX_H && it.x >= colX0 && it.x <= colX1 && it.y > yMin && it.y < AX_FOOT_Y,
+        (it) => axBody(pd, it) && it.x >= colX0 && it.x <= colX1 && it.y > yMin && it.y < axFoot(pd),
       );
       const hit = toLines(colItems).find((ln) =>
         stopKeys.has(printKey([...ln.items].sort((p, q) => p.x - q.x).map((i) => i.str).join(""))),
@@ -1905,23 +1968,26 @@ async function axFlow(doc, entry, assists, start, exclude = new Set(), opts = {}
   };
   for (let guard = 0; guard < 24; guard++) {
     const x0 = cols[col] - AX_HANG - 2;
-    const x1 = cols[col + 1] ? cols[col + 1] - AX_HANG - 3 : pd.width - 40;
+    // On a book's fixed grid a column reaches to where the next one starts, so
+    // a line's last run set past the measure belongs to the line it ends.
+    const x1 = cols[col + 1] ? cols[col + 1] - AX_HANG - (pd.axBands?.columns ? 2.01 : 3) : axRight(pd);
     const stopHead = axHeadingLines(pd, assists.headingLines)
       .filter((l) => axColOf(l.x0, cols) === col && l.y > fromY + 2)
       .sort((a, b) => a.y - b.y)[0];
     const sibY = siblingStop(x0, x1, fromY + 2);
+    const foot = axFoot(pd);
     const stopY = Math.min(
-      stopHead ? stopHead.y - 4 : AX_FOOT_Y,
-      sibY != null ? sibY - 4 : AX_FOOT_Y,
-      assists.descStopY ?? AX_FOOT_Y,
-      opts.stopYOnce ?? AX_FOOT_Y,
-      AX_FOOT_Y,
+      stopHead ? stopHead.y - 4 : foot,
+      sibY != null ? sibY - 4 : foot,
+      assists.descStopY ?? foot,
+      opts.stopYOnce ?? foot,
+      foot,
     );
     const items = pd.items.filter(
       (it) =>
-        it.h <= AX_BODY_MAX_H && !exclude.has(it) && !boxedOut(it) &&
+        axBody(pd, it) && !exclude.has(it) && !boxedOut(it) &&
         it.x >= x0 && it.x <= x1 && it.y > fromY && it.y < stopY &&
-        it.y > AX_TOP_BAND,
+        it.y > axTop(pd),
     );
     if (items.length) segs.push({ page, pd, x0, x1, items });
     if (stopHead || sibY != null || assists.descStopY || opts.stopYOnce) return segs;
@@ -1932,7 +1998,7 @@ async function axFlow(doc, entry, assists, start, exclude = new Set(), opts = {}
     // No stop in this column: continue in the next column, else overleaf.
     if (col + 1 < cols.length) {
       col += 1;
-      fromY = AX_TOP_BAND;
+      fromY = axTop(pd);
       continue;
     }
     if (page + 1 > doc.numPages || page + 1 > maxPage) return segs;
@@ -1943,10 +2009,43 @@ async function axFlow(doc, entry, assists, start, exclude = new Set(), opts = {}
     // (with an optional per-page override for pathological layouts).
     cols = axColumns(pd, { columns: assists.flowColumns?.[String(page)] });
     col = 0;
-    fromY = AX_TOP_BAND;
+    fromY = axTop(pd);
   }
   return segs;
 }
+
+/**
+ * The boxes a paragraph is read through when a sidebar is set into its lines,
+ * else null. The executor reads every run in a box, and an aside set across
+ * the gutter shares the prose's baselines, so the paragraph is boxed line by
+ * line: a line beside the aside spans its own runs only, the others the
+ * column, and each line's band meets the next one's halfway between them.
+ */
+function axAsideBoxes(pd, lines, box) {
+  const aside = pd.items.filter(
+    (it) => it.h <= AX_BODY_MAX_H && !axBody(pd, it) && it.x >= box.x0 && it.x <= box.x1 && it.y >= box.y0 && it.y <= box.y1,
+  );
+  if (!aside.length) return null;
+  const boxes = [];
+  lines.forEach((ln, i) => {
+    const y0 = i ? (lines[i - 1].y + ln.y) / 2 : box.y0;
+    const y1 = i < lines.length - 1 ? (ln.y + lines[i + 1].y) / 2 - 0.01 : box.y1;
+    const beside = aside.some((a) => a.y >= y0 && a.y <= y1);
+    const xs = ln.items.map((it) => it.x);
+    const b = beside ? { x0: Math.min(...xs) - 1, x1: Math.max(...xs) + 1, y0, y1 } : { x0: box.x0, x1: box.x1, y0, y1 };
+    const last = boxes[boxes.length - 1];
+    if (!beside && last && !last.beside) last.y1 = y1;
+    else boxes.push({ ...b, beside });
+  });
+  return boxes.map(({ beside: _b, ...b }) => b);
+}
+
+/** The bounding box of an op read through `box` or `boxes`. */
+const axBoundsOf = (op) =>
+  op.box ?? {
+    x0: Math.min(...op.boxes.map((b) => b.x0)), x1: Math.max(...op.boxes.map((b) => b.x1)),
+    y0: Math.min(...op.boxes.map((b) => b.y0)), y1: Math.max(...op.boxes.map((b) => b.y1)),
+  };
 
 /**
  * Paragraphs from flow segments, with per-para pages, icon-tag sections, and
@@ -1968,29 +2067,28 @@ function axParas(segs, anchorPage, opts = {}) {
     const gaps = [];
     for (let i = 1; i < lines.length; i++) gaps.push(lines[i].y - lines[i - 1].y);
     const median = gaps.length ? [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)] : 12;
+    const paraGap = seg.pd?.axBands?.paraGap;
+    const opens = (gap) => (paraGap != null ? gap >= paraGap : gap > median * 1.6);
     const groups = [[lines[0]]];
     for (let i = 1; i < lines.length; i++) {
       const gap = lines[i].y - lines[i - 1].y;
       const xJump = Math.abs(lines[i].x0 - lines[i - 1].x0) > 50;
-      if (gap > median * 1.6 || (xJump && gap > median * 0.8)) groups.push([]);
+      if (opens(gap) || (xJump && gap > median * 0.8)) groups.push([]);
       groups[groups.length - 1].push(lines[i]);
     }
     for (const g of groups) {
       const first = g[0].items[0];
       const tag = opts.iconTags && AX_TAG_RE.test(first.str.trim()) ? AX_FIRST_TAG.exec(first.str) : null;
       if (tag) section = AX_ICON_SECTIONS[tag[1]] ?? tag[1].toLowerCase();
-      const para = {
-        box: {
-          x0: seg.x0,
-          x1: seg.x1,
-          y0: g[0].y - 3,
-          y1: g[g.length - 1].y + 3,
-        },
-      };
+      const box = { x0: seg.x0, x1: seg.x1, y0: g[0].y - 3, y1: g[g.length - 1].y + 3 };
+      const boxes = axAsideBoxes(seg.pd, g, box);
+      const para = boxes ? { boxes } : { box };
       if (seg.page !== anchorPage) para.page = seg.page;
       if (section) para.section = section;
-      const drop = tag ? new Set([first]) : null;
-      withFixes(para, seg.pd, drop);
+      // `opts.dropRuns` are runs another field claims inside these boxes: a
+      // run-in key's heading, set on the first line of the prose it opens.
+      const drop = new Set([...(tag ? [first] : []), ...g.flatMap((l) => l.items).filter((it) => opts.dropRuns?.has(it))]);
+      withFixes(para, seg.pd, drop.size ? drop : null);
       paras.push(para);
       // Quick-stat blocks: an indented "Name:" label opening a stat clause.
       // Checked per LINE, not per paragraph group — the y-gap segmentation may
@@ -2001,7 +2099,9 @@ function axParas(segs, anchorPage, opts = {}) {
           const label = g[li].items[0];
           // A merged label run ("Oren Vale: Venturer 10; …" in one run)
           // makes an unusable lookup token — those blocks belong to npc
-          // entries; only clean short labels emit creature lookups.
+          // entries; only clean short labels emit creature lookups. A run-in
+          // key's heading closes with a colon too, and is never a label.
+          if (opts.dropRuns?.has(label)) continue;
           if (!/:$/.test(label.str.trim()) || label.str.trim().length > 40) continue;
           const tail = g.slice(li).map((l) => l.items.map((i) => i.str).join(" ")).join(" ");
           if (/\b(MV|AC|HD|hp)\s*-?\d/.test(tail.slice(0, 160))) {
@@ -2051,7 +2151,7 @@ async function axPickArt(doc, fields, extraBoxes = [], assists = {}) {
     boxes.get(page).push(box);
   };
   for (const instr of Object.values(fields)) {
-    if (instr.op === "text") for (const p of instr.paras ?? []) add(p.page ?? instr.page, p.box);
+    if (instr.op === "text") for (const p of instr.paras ?? []) for (const b of p.boxes ?? [p.box]) add(p.page ?? instr.page, b);
     else if (instr.box) add(instr.page, instr.box);
   }
   for (const e of extraBoxes) add(e.page, e.box);
@@ -2125,8 +2225,8 @@ function axResidue(entryId, pd, page, fields) {
   }
   const residual = pd.items.filter((it) => !claimed.has(it));
   const skips = [];
-  if (residual.some((it) => it.y < AX_TOP_BAND)) skips.push({ x0: 0, x1: pd.width, y0: 0, y1: AX_TOP_BAND, reason: "running-head" });
-  if (residual.some((it) => it.y > AX_FOOT_Y)) skips.push({ x0: 0, x1: pd.width, y0: AX_FOOT_Y, y1: pd.height, reason: "folio" });
+  if (residual.some((it) => it.y < axTop(pd))) skips.push({ x0: 0, x1: pd.width, y0: 0, y1: axTop(pd), reason: "running-head" });
+  if (residual.some((it) => it.y > axFoot(pd))) skips.push({ x0: 0, x1: pd.width, y0: axFoot(pd), y1: pd.height, reason: "folio" });
   if (residual.some((it) => it.x < 34)) skips.push({ x0: 0, x1: 34, y0: 0, y1: pd.height, reason: "margin-furniture" });
   if (residual.some((it) => it.x > pd.width - 34)) skips.push({ x0: pd.width - 34, x1: pd.width, y0: 0, y1: pd.height, reason: "margin-furniture" });
   return skips;
@@ -2137,7 +2237,7 @@ function axRuninLines(pd, cols) {
   const out = [];
   for (let c = 0; c < cols.length; c++) {
     const colItems = pd.items.filter(
-      (it) => it.h <= AX_BODY_MAX_H && axColOf(it.x, cols) === c && it.y > AX_TOP_BAND && it.y < AX_FOOT_Y,
+      (it) => axBody(pd, it) && axColOf(it.x, cols) === c && it.y > axTop(pd) && it.y < axFoot(pd),
     );
     for (const ln of toLines(colItems)) {
       const items = [...ln.items].sort((x, y) => x.x - y.x);
@@ -2146,6 +2246,115 @@ function axRuninLines(pd, cols) {
     }
   }
   return out;
+}
+
+/**
+ * The key token a run-in keyed area opens with: "9.", "9a.", "2-3.", "11c-l.",
+ * a range printed with spaces, "11c - l.", or any of them closed by a colon
+ * where the page printed one for the stop.
+ */
+const AX_RUNIN_KEY = /^\s*(\d+(?:[A-Za-z]\s*[-–]\s*[A-Za-z]|[A-Za-z]?(?:\s*[-–]\s*\d+[A-Za-z]?)?))\s*([.:])/;
+
+/**
+ * Every line of a page that opens a run-in keyed area: a body-size line that
+ * opens with a key token, in a face other than the page's body face (the face
+ * that sets the most characters). Its heading, `head`, is the line's leading
+ * runs in the key's face, through any short run of another face that the key's
+ * face resumes after (a ligature is set from a font of its own). `colon` is
+ * true when the heading closes with a colon, or when the key's stop was a
+ * colon and the heading closes where the prose's face begins. A heading the
+ * line breaks continues at the head of the next line of its column, in the
+ * same face, and `wrap` holds that line and its runs. `key` is the token with
+ * any space in it taken out, and `stop` the character that closed it.
+ * @returns {{line: object, col: number, key: string, stop: string, head: object[], colon: boolean, wrap: {line: object, head: object[]}|null}[]}
+ */
+export function axKeyLines(pd, cols) {
+  const lines = axRuninLines(pd, cols);
+  const chars = new Map();
+  for (const it of pd.items) if (axBody(pd, it)) chars.set(it.alias, (chars.get(it.alias) ?? 0) + it.str.length);
+  const bodyFace = [...chars].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const headOf = (items, face) => {
+    let end = -1;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].alias === face) end = i;
+      else if (items[i].alias === bodyFace || items[i].str.trim().length > 3 || items[i + 1]?.alias !== face) break;
+    }
+    return items.slice(0, end + 1);
+  };
+  const closes = (runs) => /:\s*$/.test(runs.map((r) => r.str).join(""));
+  const out = [];
+  for (const { line, col } of lines) {
+    const m = AX_RUNIN_KEY.exec(line.items.map((i) => i.str).join(""));
+    const face = line.items[0].alias;
+    if (!m || face === bodyFace) continue;
+    const head = headOf(line.items, face);
+    let wrap = null;
+    if (!closes(head) && head.length === line.items.length) {
+      const next = lines
+        .filter((l) => l.col === col && l.line.y > line.y + 6 && l.line.y < line.y + 18)
+        .sort((p, q) => p.line.y - q.line.y)[0];
+      const more = next ? headOf(next.line.items, face) : [];
+      if (more.length && closes(more)) wrap = { line: next.line, head: more };
+    }
+    const colon = closes(head) || !!wrap || (m[2] === ":" && head.length < line.items.length);
+    out.push({ line, col, key: m[1].replace(/\s+/g, ""), stop: m[2], head, colon, wrap });
+  }
+  return out;
+}
+
+/**
+ * The anchor of a row keyed by a run-in number (`anchor: {number, as:
+ * "runin"}`): the one key line of its page that opens with the number. The
+ * heading is boxed by its runs' ORIGINS, the first run's to the last's, so the
+ * prose set on after the colon stays out of it; a heading the line breaks is
+ * read in two parts. The flow starts on the key's own line, so `endY` sits
+ * above it, and `head` names the heading's runs for the prose to drop.
+ */
+function axOpenRuninKey(entry, page, pd, cols) {
+  const number = String(entry.anchor.number);
+  const hits = axKeyLines(pd, cols).filter((k) => opensWithNumber(k.key, number));
+  if (hits.length !== 1) throw new Error(`${hits.length} run-in keys numbered "${number}" on p.${page}`);
+  const k = hits[0];
+  if (!k.colon) throw new Error(`run-in key "${number}" on p.${page} sets no colon after its heading`);
+  const boxOf = (line, head) => ({ x0: line.x0 - 3, x1: head[head.length - 1].x + 2, y0: line.y - 5, y1: line.y + 4 });
+  const name = k.wrap
+    ? { op: "heading", page, parts: [withFixes({ box: boxOf(k.line, k.head) }, pd), withFixes({ box: boxOf(k.wrap.line, k.wrap.head) }, pd)], number }
+    : withFixes({ op: "heading", page, box: boxOf(k.line, k.head), number }, pd);
+  const read = (name.parts ?? [name])
+    .map((p) => joinRuns(runsIn(pd, p), p.fixes))
+    .join(" ")
+    .replace(/[-]/g, "").replace(/\s+/g, " ").trim();
+  if (!opensWithNumber(read, number) || !(/:$/.test(read) || k.stop === ":")) throw new Error(`heading box for run-in key "${number}" on p.${page} reads other text`);
+  const head = new Set([...k.head, ...(k.wrap?.head ?? [])]);
+  return { line: k.line, col: k.col, endY: k.line.y - 6, x1: k.head[k.head.length - 1].x, head, name };
+}
+
+/**
+ * The box an anchor's name is read through: from the line's start over the
+ * heading's lines, and across to the column's right edge, so a same-line
+ * "(3000 BE)" date suffix (body-size, not part of the heading runs) is claimed
+ * with it. A run-in line's box stays inside the 12pt line pitch: at -8 it
+ * caught the tail of the paragraph above, which was read first.
+ */
+function axNameBox(pd, cols, a, runin) {
+  const colX1 = cols[a.col + 1] ? cols[a.col + 1] - AX_HANG - 3 : axRight(pd);
+  return { x0: Math.min(a.line.x0, a.x0 ?? a.line.x0) - 3, x1: Math.max(a.x1 + 3, colX1), y0: a.line.y - (runin ? 5 : 14), y1: a.endY + (runin ? 4 : 5) };
+}
+
+/**
+ * Every display heading of a page with the key `anchor.hash` would find it by:
+ * the print key of what its name box reads, under a row's `assists` as
+ * `axOpen` applies them. For authoring a row anchored by hash; it prints no
+ * word of a heading.
+ * @returns {{y: number, x0: number, col: number, endY: number, hash: string}[]}
+ */
+export function axHeadingKeys(pd, assists = {}) {
+  const cols = axColumns(pd, assists);
+  const lines = axHeadingLines(pd, assists.headingLines);
+  return lines.map((line) => {
+    const a = axAnchorFrom(pd, cols, line, lines, assists.headingWrap);
+    return { y: line.y, x0: line.x0, col: a.col, endY: a.endY, hash: printKey(joinRuns(runsIn(pd, { box: axNameBox(pd, cols, a, false) }))) };
+  });
 }
 
 /** Shared skeleton: anchor + name check + flowed prose paragraphs. Anchors
@@ -2160,7 +2369,7 @@ function axRuninLines(pd, cols) {
  * and the one whose box READS BACK to the key is the anchor, so what is located
  * here is by construction what the executor checks. `anchor.display` /
  * `anchor.runin` compare words, for the headings that are nobody's name. */
-async function axOpen(doc, entry) {
+export async function axOpen(doc, entry) {
   const assists = entry.assists ?? {};
   const page = entry.pages[0];
   const pd = await pageItems(doc, page);
@@ -2171,33 +2380,18 @@ async function axOpen(doc, entry) {
   // to compare against, so its name is a `heading`: checked by that, and read
   // for the binding.
   const numbered = !hash && entry.anchor?.number != null;
-  const nameOf = (a, check) => {
-    // The box spans to the column's right edge so a same-line "(3000 BE)" date
-    // suffix (body-size, not part of the heading runs) is claimed with it.
-    const colX1 = cols[a.col + 1] ? cols[a.col + 1] - AX_HANG - 3 : pd.width - 40;
-    return withFixes(
-      {
-        op: hash || numbered ? "heading" : "expect", page,
-        box: {
-          x0: a.line.x0 - 3,
-          x1: Math.max(a.x1 + 3, colX1),
-          // Runin boxes must stay INSIDE the 12pt line pitch — at -8 the box
-          // caught the tail of the paragraph above and the expect read that
-          // line first.
-          y0: a.line.y - (runin ? 5 : 14),
-          y1: a.endY + (runin ? 4 : 5),
-        },
-        ...check,
-      },
-      pd,
-    );
-  };
+  if (numbered && entry.anchor.as === "runin") {
+    const { name, ...a } = axOpenRuninKey(entry, page, pd, cols);
+    return { assists, page, pd, cols, a, name };
+  }
+  const nameOf = (a, check) =>
+    withFixes({ op: hash || numbered ? "heading" : "expect", page, box: axNameBox(pd, cols, a, runin), ...check }, pd);
   const readOf = (instr) => joinRuns(runsIn(pd, instr), instr.fixes);
   let a = null;
   let name = null;
   if (hash) {
     const lines = axHeadingLines(pd, assists.headingLines);
-    const candidates = runin ? axRuninLines(pd, cols) : lines.map((line) => axAnchorFrom(pd, cols, line, lines));
+    const candidates = runin ? axRuninLines(pd, cols) : lines.map((line) => axAnchorFrom(pd, cols, line, lines, assists.headingWrap));
     for (const c of candidates) {
       const instr = nameOf(c, { hash });
       const read = readOf(instr);
@@ -2253,30 +2447,54 @@ async function axOpen(doc, entry) {
  * kind.location — a keyed area / point of interest. Prose (with icon-tag
  * sections) plus one creature-name lookup per embedded quick-stat label, so
  * the binding can link the ACKS II entry the seat owns (defer-to-newest).
+ *
+ * A row of a key space (`meta.space`), or a space itself, stops its prose
+ * where the next keyed row of the same space opens (`bookCtx.keyedStops`), and
+ * reads each quick-stat block it holds as an occupant: `occupants.<i>.name`
+ * (the creature lookup), `.count` (the label's count) and `.stats` (the block,
+ * label dropped). Its labels are boxed by their origin, since its book sets the
+ * block on straight after the colon; `creatures.<i>` stays beside them.
  */
-async function compileLocation(doc, entry, kindRow) {
+async function compileLocation(doc, entry, kindRow, bookCtx) {
   const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
   const fields = { name };
+  const container = entry.meta?.space ?? (bookCtx?.spaces?.has(entry.id) ? entry.id : undefined);
+  const stops = container === undefined ? [] : (bookCtx?.keyedStops ?? []).filter((s) => s.container === container && s.id !== entry.id);
   const segs = await axFlow(
     doc, entry, assists,
     { page, pd, cols, col: a.col, endY: a.endY },
     new Set(),
-    { stopKeys: assists.stopKeys ?? [] },
+    { stopKeys: assists.stopKeys ?? [], ...(stops.length ? { stops } : {}) },
   );
-  const { paras, statlines } = axParas(segs, page, { iconTags: entry.book === "ax2", statlines: true });
+  const { paras, statlines } = axParas(segs, page, {
+    iconTags: entry.book === "ax2", statlines: true, ...(a.head ? { dropRuns: a.head } : {}),
+  });
   if (!paras.length) throw new Error(`no body paragraphs under "${entry.name}" p.${page}`);
   fields.description = { op: "text", page, paras };
-  statlines.forEach((s, i) => {
-    fields[`creatures.${i}`] = {
-      op: "value",
-      page: s.page,
-      pattern: "raw",
-      table: "creature",
-      stripColon: true,
-      stripParen: true, // "Skeletons (12):" -> "Skeletons"
-      box: { x0: s.label.x - 2, x1: s.label.x + (s.label.w ?? 40) + 2, y0: s.label.y - 4, y1: s.label.y + 4 },
-    };
-  });
+  if (container !== undefined) {
+    statlines.forEach((s, i) => {
+      const labelBox = { x0: s.label.x - 2, x1: s.label.x + 2, y0: s.label.y - 2.5, y1: s.label.y + 2.5 };
+      const lookup = { op: "value", page: s.page, pattern: "raw", table: "creature", stripColon: true, stripParen: true, box: labelBox };
+      fields[`creatures.${i}`] = lookup;
+      fields[`occupants.${i}.name`] = { ...lookup };
+      fields[`occupants.${i}.count`] = { op: "value", page: s.page, pattern: "countParen", stripColon: true, box: { ...labelBox } };
+      const { x0: px0, x1: px1 } = axBoundsOf(s.para);
+      const block = axStatCluster(s.pd, s.label, px0, px1);
+      fields[`occupants.${i}.stats`] = withFixes({ op: "value", page: s.page, pattern: "statline", box: block.box }, s.pd, new Set([s.label]));
+    });
+  } else {
+    statlines.forEach((s, i) => {
+      fields[`creatures.${i}`] = {
+        op: "value",
+        page: s.page,
+        pattern: "raw",
+        table: "creature",
+        stripColon: true,
+        stripParen: true, // "Skeletons (12):" -> "Skeletons"
+        box: { x0: s.label.x - 2, x1: s.label.x + (s.label.w ?? 40) + 2, y0: s.label.y - 4, y1: s.label.y + 4 },
+      };
+    });
+  }
   const out = {
     kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
     ...(entry.meta ? { meta: entry.meta } : {}), fields,
@@ -2305,7 +2523,7 @@ function axLabelRun(spd, entry, assists, statPage) {
   const key = assists.statLabelKey ?? (entry.anchor?.as === "label" ? entry.anchor.hash : null);
   if (key != null) {
     const want = String(key);
-    const body = spd.items.filter((it) => it.y > AX_TOP_BAND);
+    const body = spd.items.filter((it) => it.y > axTop(spd));
     // A label closes with its colon, which the key cannot see: without asking
     // for it, the same name set as a run of its own in the prose would answer.
     const whole = body.find((it) => /:\s*$/.test(it.str) && printKey(it.str) === want);
@@ -2321,13 +2539,38 @@ function axLabelRun(spd, entry, assists, statPage) {
   // text), since dropText only removes whole runs.
   const label = assists.statLabel ?? `${entry.name}:`;
   const exact = spd.items.find((it) => collapse(it.str) === label);
-  const merged = exact ? null : spd.items.find((it) => collapse(it.str).startsWith(label) && it.y > AX_TOP_BAND);
+  const merged = exact ? null : spd.items.find((it) => collapse(it.str).startsWith(label) && it.y > axTop(spd));
   const loose = exact || merged ? null : spd.items.find(
     (it) => /:$/.test(it.str.trim()) && collapse(it.str).toLowerCase().startsWith(label.replace(/:$/, "").toLowerCase()),
   );
   const labelRun = exact ?? merged ?? loose;
   if (!labelRun) throw new Error(`statline label "${label}" not found on p.${statPage}`);
   return { labelRun, merged: !!merged, labelLength: label.length, label };
+}
+
+/**
+ * A quick-stat block: the label's line and the lines under it within the
+ * column band `x0..x1`, for as long as they keep the label's indent (to 8
+ * points left of it) and the line pitch (no gap over 19 points).
+ * @returns {{items: Set<object>, box: {x0: number, x1: number, y0: number, y1: number}}}
+ */
+function axStatCluster(pd, labelRun, x0, x1) {
+  const lines = toLines(
+    pd.items.filter((it) => axBody(pd, it) && it.x >= x0 && it.x <= x1 && it.y >= labelRun.y - 2 && it.y < axFoot(pd)),
+  ).map((ln) => ({ y: ln.y, x0: Math.min(...ln.items.map((i) => i.x)), items: ln.items }));
+  const paraGap = pd.axBands?.paraGap;
+  const cluster = [lines[0]];
+  for (let i = 1; i < lines.length; i++) {
+    const gap = lines[i].y - lines[i - 1].y;
+    if ((paraGap != null ? gap >= paraGap : gap > 19) || lines[i].x0 < labelRun.x - 8) break;
+    cluster.push(lines[i]);
+  }
+  const items = cluster.flatMap((l) => l.items);
+  const sx1 = Math.max(...items.map((i) => i.x + (i.w ?? 0)));
+  return {
+    items: new Set(items),
+    box: { x0: labelRun.x - 3, x1: sx1 + 3, y0: cluster[0].y - 4, y1: cluster[cluster.length - 1].y + 4 },
+  };
 }
 
 /**
@@ -2369,20 +2612,8 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
   const scols = assists.statColumns ?? (statPage === page ? cols : axColumns(spd, assists));
   const sCol = colOf(labelRun.x, scols);
   const sColX0 = scols[sCol] - 5;
-  const sColX1 = scols[sCol + 1] ? scols[sCol + 1] - 6 : spd.width - 40;
-  const lines = toLines(
-    spd.items.filter(
-      (it) => it.h <= AX_BODY_MAX_H && it.x >= sColX0 && it.x <= sColX1 && it.y >= labelRun.y - 2 && it.y < AX_FOOT_Y,
-    ),
-  ).map((ln) => ({ y: ln.y, x0: Math.min(...ln.items.map((i) => i.x)), items: ln.items }));
-  const cluster = [lines[0]];
-  for (let i = 1; i < lines.length; i++) {
-    const gap = lines[i].y - lines[i - 1].y;
-    if (gap > 19 || lines[i].x0 < labelRun.x - 8) break;
-    cluster.push(lines[i]);
-  }
-  const clusterItems = new Set(cluster.flatMap((l) => l.items));
-  const sx1 = Math.max(...cluster.flatMap((l) => l.items.map((i) => i.x + (i.w ?? 0))));
+  const sColX1 = scols[sCol + 1] ? scols[sCol + 1] - 6 : axRight(spd);
+  const { items: clusterItems, box: blockBox } = axStatCluster(spd, labelRun, sColX0, sColX1);
   // The label is claimed with the block and is no part of the clause. A row
   // that spells it drops the run by its text; one that may not drops it by its
   // ORDINAL. A label the printer merged with the clause loses its leading
@@ -2391,7 +2622,7 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
     {
       op: "value", page: statPage, pattern: "statline",
       ...(merged || label == null ? {} : { dropText: collapse(labelRun.str) }),
-      box: { x0: labelRun.x - 3, x1: sx1 + 3, y0: cluster[0].y - 4, y1: cluster[cluster.length - 1].y + 4 },
+      box: blockBox,
     },
     spd,
     !merged && label == null ? new Set([labelRun]) : null,
@@ -2413,7 +2644,7 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
     const nameRe = new RegExp(collapse(nameWords).split(" ").map(axFold).filter(Boolean).join(".*"));
     const ownName = toLines(
       spd.items.filter(
-        (it) => it.h <= AX_BODY_MAX_H && it.x >= sColX0 && it.x <= sColX1 && it.y > AX_TOP_BAND && it.y < labelRun.y - 2,
+        (it) => axBody(spd, it) && it.x >= sColX0 && it.x <= sColX1 && it.y > axTop(spd) && it.y < labelRun.y - 2,
       ),
     ).find((ln) => {
       const runs = [...ln.items].sort((p, q) => p.x - q.x).map((i) => i.str);
@@ -2711,7 +2942,8 @@ export function rollTableDetails(pages, details, rowParas, page, entryId) {
     if (!items.length) throw new Error(`${entryId}: details region ${ri + 1} on p.${region.page} holds no text`);
     const rowRuns = new Set(rowParas.filter((p) => pageOf(p) === region.page).flatMap((p) => runsIn(pd, p)));
     if (items.some((it) => rowRuns.has(it))) throw new Error(`${entryId}: details region ${ri + 1} on p.${region.page} overlaps the table's rows`);
-    const { paras } = axParas([{ page: region.page, pd, x0: region.x0, x1: region.x1, items }], page);
+    const prose = items.filter((it) => it.h > AX_BODY_MAX_H || axBody(pd, it));
+    const { paras } = axParas([{ page: region.page, pd, x0: region.x0, x1: region.x1, items: prose }], page);
     for (const built of paras) {
       // Every line is read as a possible opener, in order, so a column set
       // without a gap between its entries still splits at each one. A
@@ -2745,12 +2977,14 @@ export function rollTableDetails(pages, details, rowParas, page, entryId) {
         const foot = seg.lines[seg.lines.length - 1].y;
         const prev = segs[si - 1]?.lines.at(-1).y;
         const next = segs[si + 1]?.lines[0].y;
-        const box = {
-          x0: built.box.x0, x1: built.box.x1,
-          y0: prev == null ? built.box.y0 : top - Math.min(4, (top - prev) / 2 - 0.5),
-          y1: next == null ? built.box.y1 : foot + Math.min(4, (next - foot) / 2 - 0.5),
-        };
-        const para = { box, ...(built.page ? { page: built.page } : {}), section: seg.block, detail: true };
+        const bounds = axBoundsOf(built);
+        const y0 = prev == null ? bounds.y0 : top - Math.min(4, (top - prev) / 2 - 0.5);
+        const y1 = next == null ? bounds.y1 : foot + Math.min(4, (next - foot) / 2 - 0.5);
+        // A paragraph boxed around an aside keeps its line boxes, cut to the band.
+        const read = built.boxes
+          ? { boxes: built.boxes.map((b) => ({ ...b, y0: Math.max(b.y0, y0), y1: Math.min(b.y1, y1) })).filter((b) => b.y0 <= b.y1) }
+          : { box: { x0: bounds.x0, x1: bounds.x1, y0, y1 } };
+        const para = { ...read, ...(built.page ? { page: built.page } : {}), section: seg.block, detail: true };
         const { drop, strip } = seg.hit;
         blocks.get(seg.block).push(withFixes(para, pd, drop.size ? drop : null, strip.size ? strip : null));
       });
@@ -2939,7 +3173,7 @@ async function compileLegacyMonster(doc, entry, kindRow) {
   const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
   const fields = { name };
   const colX0 = cols[a.col] - AX_HANG - 2;
-  const colX1 = cols[a.col + 1] ? cols[a.col + 1] - AX_HANG - 3 : pd.width - 40;
+  const colX1 = cols[a.col + 1] ? cols[a.col + 1] - AX_HANG - 3 : axRight(pd);
   // Some variant blocks span the FULL page width above two-column prose (the
   // eight-variant animal mummies): the block machinery then reads the whole
   // width while the prose flow keeps the page's real columns.
@@ -2954,9 +3188,9 @@ async function compileLegacyMonster(doc, entry, kindRow) {
   // prints eight variants as two four-column blocks); assists.statBlockY pins
   // this entry to its block's y-band.
   const blockLo = assists.statBlockY?.[0] ?? a.endY;
-  const blockHi = assists.statBlockY?.[1] ?? AX_FOOT_Y;
+  const blockHi = assists.statBlockY?.[1] ?? axFoot(pd);
   const labels = pd.items
-    .filter((it) => it.h <= AX_BODY_MAX_H && it.x >= colX0 && it.x <= bX1 && it.y > blockLo && it.y < blockHi && labelRe.test(collapse(it.str)))
+    .filter((it) => axBody(pd, it) && it.x >= colX0 && it.x <= bX1 && it.y > blockLo && it.y < blockHi && labelRe.test(collapse(it.str)))
     .sort((x, y) => x.y - y.y);
   if (!labels.length) throw new Error(`no legacy stat labels under "${entry.name}" p.${page}`);
   const blockY0 = labels[0].y;
@@ -2965,7 +3199,7 @@ async function compileLegacyMonster(doc, entry, kindRow) {
   // Variant headers sit between the heading (or block band top) and the first
   // label row.
   const variantRuns = toLines(
-    pd.items.filter((it) => it.h <= AX_BODY_MAX_H && it.x >= colX0 && it.x <= bX1 && it.y > (assists.statBlockY ? blockLo : a.endY + 2) && it.y < blockY0 - 3),
+    pd.items.filter((it) => axBody(pd, it) && it.x >= colX0 && it.x <= bX1 && it.y > (assists.statBlockY ? blockLo : a.endY + 2) && it.y < blockY0 - 3),
   ).flatMap((ln) => ln.items).sort((x, y) => x.x - y.x);
   // A label the kind does not list leaves its row inside the header band, and
   // the variant bands are then cut on that row's values: name it instead.
@@ -3123,7 +3357,7 @@ async function compileOrganisation(doc, entry, compiled) {
   const rangeOf = (c) => ({ x0: cols[c] - AX_HANG - 2, x1: cols[c + 1] ? cols[c + 1] - AX_HANG - 3 : pd.width - 36 });
   const bodyOf = (c) => {
     const { x0, x1 } = rangeOf(c);
-    return pd.items.filter((it) => it.h <= AX_BODY_MAX_H && it.x >= x0 && it.x <= x1 && it.y > AX_TOP_BAND && it.y < AX_FOOT_Y);
+    return pd.items.filter((it) => axBody(pd, it) && it.x >= x0 && it.x <= x1 && it.y > axTop(pd) && it.y < axFoot(pd));
   };
   const isWord = (it) => !AX_LONE_HYPHEN.test(it.str);
 
@@ -3184,7 +3418,7 @@ async function compileOrganisation(doc, entry, compiled) {
     };
     const column = parasOf(found.col);
     const y = found.parts[0].run.y;
-    const at = column.findIndex((p) => y >= p.box.y0 && y <= p.box.y1);
+    const at = column.findIndex((p) => y >= axBoundsOf(p).y0 && y <= axBoundsOf(p).y1);
     if (at < 0) throw new Error(`no paragraph on p.${page} holds the name`);
     const take = Math.max(1, Number(assists.paras) || 1);
     const paras = column.slice(at, at + take);
@@ -5449,6 +5683,7 @@ async function main() {
       continue;
     }
     const { doc, numPages, title } = await openBook(fs.readFileSync(file));
+    useAxBands(doc, bookId);
     const fw = fingerprintWarning(bookId, numPages, title);
     if (fw) warn(fw);
 
@@ -5471,8 +5706,23 @@ async function main() {
       const opened = await axOpen(doc, e).catch(() => null);
       if (opened) npcStops.push({ id: e.id, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
     }
+    // Where each place of a key space opens, and the space it is in: a keyed
+    // area's prose ends where the next place of its space opens, by run-in key
+    // or by heading, and a space's own prose ends at its first (see
+    // compileLocation).
+    const spaces = new Set(list.map((e) => e.meta?.space).filter((s) => s !== undefined));
+    const keyedStops = [];
+    for (const e of list) {
+      if (e.kind !== "kind.location" || (e.status && e.status !== "active")) continue;
+      const container = e.meta?.space ?? (spaces.has(e.id) ? e.id : undefined);
+      if (container === undefined) continue;
+      const opened = await axOpen(doc, e).catch(() => null);
+      if (opened) keyedStops.push({ id: e.id, container, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
+    }
     const bookCtx = {
       npcStops,
+      spaces,
+      keyedStops,
       // The template compiler reads the monster kind's stat-row map so a
       // template page's FIXED rows ("Type: Monstrosity") bind like any
       // monster's; the "varies by …" rows fail their patterns and stay raw.
