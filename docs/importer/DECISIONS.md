@@ -6904,7 +6904,8 @@ line" it amends the spiral stair's walls and both maps' counts.
 
 **Ruled.**
 - **A thin wall drawn between rocks is a wall line**, not a door. The cell
-  door goes.
+  door goes. *(Superseded the same day by "The slanted pair between rooms 16
+  and 18 is a door": it is an aslant door line.)*
 - **A symbol in a niche stands in front of a wall.** p38's edge behind the
   niche asserts a wall.
 - **A rock the cleanup floors, where the plan draws a rock, is walled by
@@ -6933,3 +6934,21 @@ line" it amends the spiral stair's walls and both maps' counts.
 - The wall behind p38's niche stands on the lattice, a sixth of a cell
   behind the drawn back.
 - The arc is five chords of the drawn circle.
+
+## 2026-10-18 — The slanted pair between rooms 16 and 18 is a door
+
+Supersedes the thin-wall rule of the entry above; its other rules stand.
+
+**New evidence.** The user marked the two parallel lines aslant between p55's
+rocks at rooms 16 and 18 and said "This was a door". The earlier "Missed a
+slanted wall" was about the door's slant. It was misread as a wall.
+
+**Ruled.**
+- **The pair is a door line along its centre, aslant.** It closes against
+  the outline as a traced door does. Closed, it seals 16 from 18; open, it
+  joins them.
+- **p55 keeps 64 corrections, weighing 64 of 80,** and reads 14 doors and
+  one invisible wall.
+
+*Cost:* none beyond any line's. Its points are read off the importer's
+render.

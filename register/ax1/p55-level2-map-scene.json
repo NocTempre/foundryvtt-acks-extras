@@ -6,7 +6,7 @@
     "name": "Level 2 Map",
     "pages": [55],
     "scene": {
-      "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is ACKS's dungeon square (JJ ch. 8). Walls trace the floor's edge. Corrections drop rock patches, marks and 2 water lines by a point, floor throat cells, solidify a pale patch, wall 3 stairs, a slanted wall and a rock, assert five doors (three as lines), make a dotted line invisible.",
+      "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is ACKS's dungeon square (JJ ch. 8). Walls trace the floor's edge. Corrections drop rock patches, marks and 2 water lines by a point, floor throat cells, solidify a pale patch, wall 3 stairs and a rock, assert six doors (four as lines), make a dotted line invisible.",
       "crop": { "x": 36.48, "y": 36.48, "w": 539.04, "h": 719.52 },
       "grid": {
         "family": "square",
@@ -62,7 +62,7 @@
           { "edge": [12, 13, "w"], "is": "wall" },
           { "edge": [11, 12, "n"], "is": "wall" },
           { "edge": [11, 12, "w"], "is": "wall" },
-          { "line": [489.41, 153.26, 492.55, 163.17], "is": "wall" },
+          { "line": [490.4, 156.42, 491.84, 160.92], "is": "door" },
           { "edge": [32, 6, "n"], "is": "wall" },
           { "edge": [32, 7, "n"], "is": "wall" },
           { "edge": [33, 7, "n"], "is": "wall" },
