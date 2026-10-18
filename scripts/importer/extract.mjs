@@ -778,6 +778,45 @@ export async function extractPageMap(doc, pageNo, crop, frame, matrix) {
 }
 
 /**
+ * Render a CROP of a page to gray for a wall trace (browser only): one byte
+ * per pixel, top-left first, at `scale` pixels to the page point and never
+ * turned, so a pixel maps back to a page point by the crop's corner and the
+ * scale alone. Rendered with the print intent and raced against a timeout,
+ * as the map picture is (`extractPageMap`).
+ *
+ * @param {{x: number, y: number, w: number, h: number}} crop the recipe's crop, in page points
+ * @returns {Promise<{gray: Uint8Array, width: number, height: number}|null>}
+ */
+export async function extractPageGray(doc, pageNo, crop, scale) {
+  if (typeof document === "undefined") return null;
+  const page = await doc.getPage(pageNo);
+  const vp = page.getViewport({ scale, offsetX: -crop.x * scale, offsetY: -crop.y * scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(crop.w * scale);
+  canvas.height = Math.round(crop.h * scale);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const task = page.render({ canvasContext: ctx, viewport: vp, intent: "print" });
+  const done = await Promise.race([
+    task.promise.then(() => true),
+    new Promise((r) => setTimeout(() => r(false), 90000)),
+  ]);
+  if (!done) {
+    try {
+      task.cancel();
+    } catch {
+      /* already settled */
+    }
+    return null;
+  }
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const gray = new Uint8Array(canvas.width * canvas.height);
+  for (let i = 0, j = 0; i < gray.length; i++, j += 4) gray[i] = (data[j] * 299 + data[j + 1] * 587 + data[j + 2] * 114 + 500) / 1000;
+  return { gray, width: canvas.width, height: canvas.height };
+}
+
+/**
  * Extract the page illustration as a PNG blob (browser only — needs canvas).
  * Handles pdf.js bitmap images and raw RGB/RGBA/gray data.
  */

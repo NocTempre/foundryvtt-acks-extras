@@ -136,6 +136,41 @@ settlement, and the book's Adventure carries the map like any other. A region ma
 `mapCreateData` builds a settlement map's data and no part of the grid path
 reaches it; `test-region-import` pins that data byte for byte.
 
+### A map's walls, traced from the page
+
+A recipe with a square `grid` may carry a `walls` block, read by
+`wall-trace.mjs` (its header says how each mode reads a plan):
+
+- `mode` — `grid`, `contour` or `stroke` (`WALL_MODES`).
+- `threshold` — the gray level, 1 to 254, the trace cuts the plan at.
+- `corrections` — assertions on the recipe's lattice (`wallLattice`: cell
+  `[0, 0]` is the first whole drawn cell at the crop's top-left):
+  `{cell: [c, r], is}`, `{edge: [c, r, "n"|"w"], is}`, or
+  `{at: [x, y], drop: "island"}` in page points. Which states a cell may take
+  depends on the mode (`CELL_STATES`). `stroke` takes only `open`.
+- `note` — the compiler strips it.
+
+`wallsProblems` checks the block wherever `recipeProblems` runs, in the
+register lint and in the compiler. It refuses corrections past
+`correctionCap`, which is `CORRECTION_SHARE` of the lattice's cells, so a
+recipe that needs more never compiles.
+
+The map step traces after the picture is uploaded and before the one create.
+`traceSceneWalls` (`module.mjs`) renders the crop of the seat's page to gray
+at `TRACE_PITCH` pixels per drawn cell (`extractPageGray`, print intent on
+white). That render is separate from the picture, so the trace reads the same
+plan at any picture size. `traceWalls` returns segments in page points with
+core's door type, and a digest the console logs. `wallSources` carries the
+segments through the placed frame the tokens use, rounds them to whole pixels,
+and drops zero-length ones. They ride the scene's create (`sceneData`), and a
+walled scene turns on token vision under global light. A trace that cannot run
+leaves the map without walls and counts it (`wallsFailed`). A held map is
+never re-traced.
+
+The book's Adventure traces each walled map again over its stand-ins.
+`withWorldIds` gives each wall the id of the held world wall with the same
+coordinates and door type, else a stable id from the seed.
+
 ### A zone over a map
 
 A `kind.sceneZone` row (`register/_kinds/sceneZone.json`) lays one book's

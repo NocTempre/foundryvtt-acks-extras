@@ -15,6 +15,7 @@ import {
   SCENE_ZONE_KIND, ZONE_FIGURES, bandOfSection, gridProblems, recipeContext, recipeProblems, zoneProblems,
 } from "../../scripts/importer/scene-binding.mjs";
 import { regionGroupOf } from "../../scripts/importer/poi-binding.mjs";
+import { wallsProblems } from "../../scripts/importer/wall-trace.mjs";
 import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
@@ -45,6 +46,9 @@ const PATTERNS = new Set(["raw", "statValue", "int", "dice", "countWord", "throw
 // The keys a scene recipe's `grid` block and a zone row's `zone` block may carry.
 const GRID_KEYS = new Set(["family", "even", "box", "centre", "distance", "units", "pixels", "note"]);
 const ZONE_KEYS = new Set(["scene", "table", "outline", "cadence", ...ZONE_FIGURES.map((f) => f.at), "note"]);
+// The strings a `walls` block may hold: the tracer's own vocabulary, its shape
+// held by `wallsProblems`, never a printed word.
+const WALL_WORDS = new Set(["scene.walls.mode", "scene.walls.corrections.is", "scene.walls.corrections.edge", "scene.walls.corrections.drop"]);
 const zoneRows = []; // checked against every row once all are read
 // Grid cell patterns come from table-extract's applyCellPattern library (plus
 // "glyphs", the executor's PUA-char damage-mark map).
@@ -409,11 +413,19 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
         if (e.scene?.travel !== undefined && !TRAVEL_MODES.includes(e.scene.travel)) {
           err(`${id}: scene.travel ${JSON.stringify(e.scene.travel)} is not a travel mode (${TRAVEL_MODES.join("|")})`);
         }
+        // A walls block is checked here, before compile, so a row over the
+        // corrections cap fails at the lint and not at the compiler.
+        if (e.scene?.walls !== undefined) {
+          const c = e.scene.crop;
+          const cropOk = c && ["x", "y", "w", "h"].every((k) => typeof c[k] === "number");
+          if (cropOk) for (const problem of wallsProblems(e.scene.walls, e.scene)) err(`${id}: scene.${problem}`);
+        }
         const words = [];
         const walk = (v, key, path) => {
           if (typeof v === "string") {
             if (key === "note" || COMPOSITE_ID.test(v) || /^#[0-9a-f]{6}$/i.test(v) || bandOfSection(v)) return;
             if (path === "scene.grid.family" || path === "scene.grid.units" || path === "scene.travel") return;
+            if (WALL_WORDS.has(path)) return;
             words.push(v);
           } else if (Array.isArray(v)) v.forEach((x) => walk(x, key, path));
           else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, k, `${path}.${k}`);

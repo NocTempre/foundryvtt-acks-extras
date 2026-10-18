@@ -4317,7 +4317,9 @@ crop, the quarter turns that stand it upright, the feet one point is worth,
 each quarter's outline and colour, the point each keyed place stands at, and
 the city's list and each quarter's list by id. Geometry and ids, measured off
 the page once by the author and baked into the row — the user ruled a generic
-map tool out of scope and the working-out in. The scale is a MEASUREMENT: the
+map tool out of scope and the working-out in (*the out-of-scope clause is
+superseded by 2026-10-17, "Walls are traced at import from the Judge's own
+page"*). The scale is a MEASUREMENT: the
 printed scale bar's length in points against the feet it states, so the scene
 is a pixel to the foot and every figure the settlement layer reads off it is
 in the book's own unit. What the city's list adds after dark and the stretch
@@ -6114,6 +6116,8 @@ properly connected."
 - **Travel mode.** A recipe states the travel mode its map adopts.
 - **Walls.** None ship (user, 2026-10-17). A traced layout would ship the
   drawn map; tracing at import from the Judge's own picture is on the ROADMAP.
+  *Superseded the same day by "Walls are traced at import from the Judge's
+  own page": none ship still, and the trace lands in AX1's minor.*
 
 *Rejected:* one composite scene (one grid per scene); teleport links between
 storeys (they lose position, and a scene stops being one place's map); writing
@@ -6253,3 +6257,90 @@ library it was built beside.
   is built with empty seats, or fails the book if its build throws. Run as
   the chain's last step, the adventures step meets this only when a book's
   earlier steps failed.
+
+## 2026-10-17 — Walls are traced at import from the Judge's own page
+
+Supersedes two earlier passages:
+- the **Walls** bullet of "Maps are joined as scenes" (earlier the same
+  day);
+- the clause of "A printed map is a recipe of geometry over its page"
+  (2026-09-17) that ruled a generic map tool out of scope.
+
+Both entries' rejections of shipping the picture or a tracing of it still
+stand, the "traced walls in the register" rejection included.
+
+**New evidence.** The same-day reversal rests on three findings:
+- **Every AX map is a raster.** A probe of pdf.js's operator list found
+  every AX1 and AX3 map page to be a single placed raster with no vector
+  layer, so pixels are all there is to read.
+- **The trace works on AX1's first dungeon level (PDF p38).** A tracer run
+  gave 688 walls, 62 of them doors, enclosing one connected floor. The
+  result held at 50 and at 100 pixels to the square, and across gray
+  thresholds from 150 to 170.
+- **Few corrections are needed.** About 2–4% of the plan's cells needed a
+  hand correction.
+
+On that evidence the user ruled to trace at import with a 5% correction
+cap: "Don't even bother with the cipher." On timing: "walls traced at
+import land in AX1's minor, reversing the no-walls answer."
+
+**Ruled.**
+- **A recipe may carry `walls`.** The block holds three things:
+  - `mode`, one of three:
+    - `grid`: rock and floor on the drawn squares, with doors in the throats;
+    - `contour`: the floor's outline, for caves;
+    - `stroke`: light wall strokes on a dark floor;
+  - the gray `threshold` the mode cuts at;
+  - the `corrections`.
+
+  The lattice is the recipe's own `grid`, which is measured geometry
+  already (2026-10-09). The trace runs at import, over the crop of the
+  Judge's own page, and no traced geometry ships.
+- **A correction is a sparse, absolute assertion** on that lattice. Each
+  one does one of three things:
+  - marks a cell as floor or rock;
+  - marks a one-cell throat as a door, a secret door or open;
+  - marks a cell's edge as a wall, a door, a secret door or open.
+
+  A further kind drops the island found at a page point. A correction names
+  a cell, an edge or a point, never a segment or a polyline, because a list
+  of segments is a tracing.
+- **The cap.** A recipe's corrections number at most 5% of the lattice
+  cells its crop spans. `recipeProblems` checks this, so the compiler, the
+  lint and the verifier all refuse a row over the cap. A plan that needs
+  more stays wall-less and is listed on the ROADMAP. The cap is the line
+  between correcting a trace and shipping one.
+- **The walls ride the map's one create** with the picture, the regions and
+  the tokens. The book's Adventure carries them too.
+- **A map with walls has token vision on, under global light.** Walls exist
+  to block sight and movement, and with sight off a plan draws them as
+  lines only. Global light keeps the plan readable while the walls cut line
+  of sight. A map without walls keeps the 2026-09-17 settings.
+- **The trace renders its own grayscale copy of the crop**, at a fixed
+  pitch in pixels per cell. It does not depend on the picture's cache or
+  scale. Its points are carried through the same `toScene` as the
+  picture's, so the walls and the picture turn by one rule.
+- **The hatched-wall plans stay wall-less** (AX1 p10, p11 and p14), because
+  every mode failed on them. They are listed on the ROADMAP. The streets and
+  gates of AX3's city map stay shelved, since this ruling covers plan walls
+  only.
+
+*Rejected:*
+- **The book cipher**, which ships the tracing encrypted under a key read
+  off the page's line initials. It still ships the whole tracing, which
+  needs a change to the template's doctrine, and the user dropped it.
+- **Estimating the lattice at import.** Autocorrelation locked onto a
+  harmonic on the cave plan, so the pitch is the recipe's measurement.
+- **Tracing the uploaded picture.** A held picture is served from the art
+  cache without a render, and a grid recipe's picture is several times the
+  pixels a trace needs.
+- **Corrections as segments.** A list of segments is a tracing.
+
+*Cost:*
+- A walled map's crop is rendered a second time on each import, and the
+  trace runs on the main thread while it does.
+- A renderer that draws the page differently can move a wall by a pixel or
+  flip a marginal cell. The threshold band is the margin, and the live gate
+  quotes the counts.
+- Corrections are authored by eye against a local overlay of the book's
+  page. That overlay never enters a repository.

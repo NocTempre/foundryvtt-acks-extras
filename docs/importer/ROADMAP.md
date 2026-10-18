@@ -1022,7 +1022,8 @@ of scope.
 **AX1 whole is in progress** under the rulings of 2026-10-17 (DECISIONS),
 with the build plan in `wip/20261017-ax1-adventure-design.md`: one Adventure
 per book, with AX3's per-map one retired; key spaces of neutral rows; four
-maps and the fort's floor plans joined as scenes; characters from the page;
+maps and the fort's floor plans joined as scenes, with walls traced at import
+on the plans a tracer mode reads; characters from the page;
 later books superseding a shared place. It ships as one minor when AX1
 imports whole.
 
@@ -1051,9 +1052,13 @@ What each book still owes, in the order it is worth doing:
 
 ## Left out of AX1's minor (ruled 2026-10-17)
 
-- **Walls traced at import** from the Judge's own picture of a dungeon or a
-  plan. Shipping traced vectors would ship the drawn layout, so the maps land
-  with no walls and with vision off.
+- **Walls on the hatched plans** (AX1 p10, p11, p14). The importer traces
+  walls on AX1's other plans (DECISIONS 2026-10-17, "Walls are traced at
+  import from the Judge's own page"). These three draw their walls as
+  hatching, which every tracer mode reads as floor, so they land wall-less
+  until a mode reads hatching.
+- **Walls on AX3's plans.** The building plans have no tracer run yet. The
+  city map's streets and gates stay shelved.
 - **AX1's domain record (p.28)** waits for the domain sheet. When the sheet
   exists, the record's market fields could ride the market-record path, but
   only if the fort is one of a demand grid's markets.

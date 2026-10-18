@@ -2257,5 +2257,176 @@
         "reason": "running-head"
       }
     ]
+  },
+  "scenes": {
+    "ax1.level1Map": {
+      "kind": "kind.scene",
+      "name": "Level 1 Map",
+      "cite": "AX1 p.37",
+      "pages": [
+        38
+      ],
+      "scene": {
+        "page": 38,
+        "placement": {
+          "x": 0,
+          "y": 0,
+          "w": 612,
+          "h": 792
+        },
+        "crop": {
+          "x": 40.8,
+          "y": 82,
+          "w": 531.4,
+          "h": 672.8
+        },
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 13.4876,
+            "h": 13.4983
+          },
+          "centre": [
+            298.74,
+            425.07
+          ],
+          "distance": 10,
+          "units": "ft",
+          "pixels": 70
+        },
+        "walls": {
+          "mode": "grid",
+          "threshold": 155,
+          "corrections": [
+            {
+              "cell": [
+                5,
+                12
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                7,
+                11
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                7,
+                12
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                10,
+                11
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                10,
+                12
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                12,
+                12
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                13,
+                12
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                15,
+                16
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                33,
+                5
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                34,
+                5
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                2,
+                14
+              ],
+              "is": "door"
+            },
+            {
+              "cell": [
+                32,
+                41
+              ],
+              "is": "door"
+            },
+            {
+              "cell": [
+                32,
+                42
+              ],
+              "is": "door"
+            },
+            {
+              "cell": [
+                21,
+                0
+              ],
+              "is": "secret"
+            },
+            {
+              "cell": [
+                0,
+                15
+              ],
+              "is": "secret"
+            },
+            {
+              "cell": [
+                0,
+                18
+              ],
+              "is": "secret"
+            },
+            {
+              "cell": [
+                1,
+                29
+              ],
+              "is": "secret"
+            },
+            {
+              "cell": [
+                1,
+                32
+              ],
+              "is": "secret"
+            }
+          ]
+        }
+      }
+    }
   }
 }

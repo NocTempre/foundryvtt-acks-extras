@@ -160,9 +160,10 @@ const placeOfRegion = (region) => region?.flags?.[MODULE_ID]?.cookbook?.place ??
 /**
  * A map rebuilt from its recipe, given the ids the world's own copy of it
  * carries: the scene's, each region's (matched by the quarter it is drawn
- * for), each behaviour's (by type, inside its region) and each token's (by the
- * actor it stands for). What the world copy lacks takes an id derived from the
- * seed, the same on every rebuild. Neither input is changed.
+ * for), each behaviour's (by type, inside its region), each token's (by the
+ * actor it stands for) and each wall's (by its coordinates and door type).
+ * What the world copy lacks takes an id derived from the seed, the same on
+ * every rebuild. Neither input is changed.
  * @param {object} scene the rebuilt scene's source, without ids
  * @param {object|null} held the world scene's `toObject()`
  * @param {string} seed the Adventure's cookbook id
@@ -195,6 +196,14 @@ export function withWorldIds(scene, held, seed) {
     const twin = (held?.tokens ?? []).find((t) => !takenTokens.has(t._id) && t.actorId === token.actorId);
     if (twin) takenTokens.add(twin._id);
     token._id = twin?._id ?? stableDocId(`${seed}|token|${token.actorId}|${nth(`token|${token.actorId}`)}`);
+  }
+  const wallKey = (wall) => `${(wall?.c ?? []).join(",")}|${Number(wall?.door) || 0}`;
+  const takenWalls = new Set();
+  for (const wall of Array.isArray(out.walls) ? out.walls : []) {
+    const key = wallKey(wall);
+    const twin = (held?.walls ?? []).find((w) => !takenWalls.has(w._id) && wallKey(w) === key);
+    if (twin) takenWalls.add(twin._id);
+    wall._id = twin?._id ?? stableDocId(`${seed}|wall|${key}|${nth(`wall|${key}`)}`);
   }
   return out;
 }

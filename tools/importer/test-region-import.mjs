@@ -194,6 +194,7 @@ class MockScene {
       this.regions.set(region.id, region);
     }
     this.tokens = new Coll((data.tokens ?? []).map((t) => [id16("tk"), t]));
+    this.walls = new Coll((data.walls ?? []).map((w) => [id16("wl"), w]));
   }
   getFlag(scope, key) {
     return getFlag.call(this, scope, key);

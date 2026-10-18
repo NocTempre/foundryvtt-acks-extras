@@ -37,8 +37,9 @@ import { BOOKS, bookIsForm, bookIsJudges, fingerprintWarning, identifyBook, pars
 import { matchFilesToBooks } from "./book-match.mjs";
 import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
-import { openBook, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageMap, listHeadings, setWorker, setWasmUrl } from "./extract.mjs";
+import { openBook, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, setWorker, setWasmUrl } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
+import { TRACE_PITCH, traceWalls } from "./wall-trace.mjs";
 import { extractStatPairs } from "./stats.mjs";
 import { mapPairs } from "./stats-map.mjs";
 import { createDocFor } from "./poc.mjs";
@@ -2622,6 +2623,33 @@ async function uploadSceneMap(doc, id, recipe, { pixelsPerPoint } = {}) {
   return { path: res.path, width: art.width, height: art.height };
 }
 
+/**
+ * Trace a scene recipe's walls off the Judge's own page: the crop rendered to
+ * gray at `TRACE_PITCH` pixels to the drawn cell, read by `traceWalls`.
+ * Returns `{walls, digest}` with the walls in page points, or null when the
+ * render failed or the trace threw. A map whose walls failed is still made,
+ * wall-less, because the walls are an addition to the map and not its
+ * condition. Rendered apart from the picture: a held picture comes from the
+ * art cache with no render, and a picture's scale is several times the
+ * pixels a trace needs.
+ */
+async function traceSceneWalls(doc, id, recipe) {
+  const scale = TRACE_PITCH / Number(recipe.grid?.box?.w);
+  try {
+    const image = await extractPageGray(doc, recipe.page, recipe.crop, scale);
+    if (!image) {
+      console.warn(`${MODULE_ID} | map ${id}: its walls could not be rendered; the map is made without them.`);
+      return null;
+    }
+    const traced = traceWalls(image, recipe, scale);
+    console.log(`${MODULE_ID} | map ${id}: walls traced`, traced.digest);
+    return traced;
+  } catch (err) {
+    console.warn(`${MODULE_ID} | map ${id}: its walls could not be traced; the map is made without them.`, err);
+    return null;
+  }
+}
+
 async function importArt(actor, doc, recipe) {
   try {
     const up = await uploadPageArt(doc, recipe);
@@ -2883,7 +2911,7 @@ Hooks.once("ready", async () => {
   // setting gets a journal per book, once, before the restore below reads it.
   await migrateShelfSetting();
 
-  initCookbook({ sessionDocs, importArtForPage: importArt, uploadPageArt, cachedArt, uploadSceneMap });
+  initCookbook({ sessionDocs, importArtForPage: importArt, uploadPageArt, cachedArt, uploadSceneMap, traceSceneWalls });
   registerAbilityDirectoryButtons();
   await loadCookbook();
   const api = {

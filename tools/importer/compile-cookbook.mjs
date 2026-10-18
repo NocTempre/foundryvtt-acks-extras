@@ -3324,6 +3324,10 @@ const AX_COMPILERS = {
 async function compileScene(doc, entry, compiled) {
   const page = entry.pages[0];
   const { note: _note, ...recipe } = entry.scene ?? {};
+  if (recipe.walls && typeof recipe.walls === "object") {
+    const { note: _wallsNote, ...walls } = recipe.walls;
+    recipe.walls = walls;
+  }
   const problems = recipeProblems(recipe, recipeContext(compiled));
   if (problems.length) throw new Error(`scene recipe: ${problems.join("; ")}`);
   const placement = placementHolding(await pageArtPlacements(doc, page), recipe.crop);

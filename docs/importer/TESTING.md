@@ -2174,6 +2174,103 @@ a mocked lattice; only a live run proves core's grid answers the same way.
    document's `_stats.modifiedTime` before the run and again after, and
    quote the count that changed (zero), by kind.
 
+## A map's traced walls
+
+A recipe's `walls` block is traced from the seat's own page at import (MODEL,
+"A map's walls, traced from the page"). `tools/importer/test-wall-trace.mjs`
+proves the tracer on synthetic plans. Only a live run proves three things: the
+render reads the real page, the walls land on Foundry's lattice, and they
+block what walls block.
+
+### Fixtures
+
+1. A GM-level seat. When the Gamemaster seat is taken, the Assistant
+   Gamemaster creates scenes and walls (core's default `ASSISTANT`).
+2. The walled recipe's book connected
+   (`connectBookUrl(<book>, "acks-test-books/<book>.pdf", { remember: false })`).
+   No world scene may be flagged with the recipe's id.
+3. A record of what is already there. A pane seat often has every staged book
+   open from remembered locations (`api.bookOpen(id)`), so the map step walks
+   every open book's recipes and zones. Snapshot each flagged scene's and
+   actor's `_stats.modifiedTime` before the run.
+4. A console recorder installed before the run: wrap `console.warn`,
+   `console.error` and the `acks-extras` logs into a global. The pane's own
+   buffer drops the oldest messages.
+
+### Steps
+
+1. `const c = await api.cookbookImportScenes()`. Fire it into a global and
+   read it back in a later call: the pane throttles long awaits. Then
+   `api.track` (or note by hand) `c.created.scenes` and `c.created.folders`.
+   *Observable:*
+   - the console logged one `walls traced` digest for the map, with
+     `regions: 1` on a grid plan, meaning one connected floor;
+   - `c.walls` equals the digest's `walls + doors + secret`, and
+     `c.wallsFailed` is 0;
+   - the scene's `walls` count the same, split by `door` 0, 1 and 2 as the
+     digest splits them;
+   - every wall's senses are 20/20/20/20 and its `levels` empty;
+   - `tokenVision` is true and global light is enabled.
+
+   Compare the digest with an offline run of the same recipe on the plate. A
+   different count means the render differs, not the tracer.
+2. The walls lie on the lattice. Core's square grid lines run at multiples of
+   `grid.size` from the CANVAS origin; `sceneX`/`sceneY` is the shift that
+   moves the picture under them, not the lines. On a grid plan:
+   - every plain wall's endpoints are within the plate's aspect drift (a pixel
+     or two) of a multiple of `grid.size`;
+   - each door spans its passage cell across the middle, so its endpoints sit
+     at half a cell on one axis and on the side walls' lines.
+3. The walls block. View the scene on this client only (`scene.view()`; it
+   stays inactive for everyone else), then probe with
+   `CONFIG.Canvas.polygonBackends[type].testCollision(a, b, { type, mode: "any" })`,
+   where `a` and `b` are 20 px either side of a wall's midpoint along its
+   normal.
+   *Observable:*
+   - `move`, `sight` and `sound` collide across a sample of plain walls, and
+     `move` and `sight` across closed doors and secret doors;
+   - `polygonBackends.sight.create(point, { type: "sight" })` from inside a
+     room covers a small share of the scene's area.
+4. A door opens by the real gesture: click its control on the canvas.
+   *Observable:* `ds` goes 0 → 1, and `move` and `sight` no longer collide
+   across it. A second click closes it and they collide again.
+
+   In the pane, the screenshot frame maps onto an emulated viewport unevenly
+   (an 800x600 frame over 1400x900 measured x 1.75, y 1.5). Arm a
+   capture-phase `pointerdown` listener to read where a click lands, then aim.
+   Pan the door clear of the pause banner first.
+5. Sight, seen. The pane composites no frame after a pan, so take pictures
+   through the capture driver on a free GM-level seat. In its page, hide
+   `#interface` and `#pause`, activate the walls layer, and shoot `#board`.
+   Then create a fixture actor with `prototypeToken.sight.enabled`, put its
+   token in a room, and control it: a GM controlling a token sees only what
+   it sees.
+   *Observable:*
+   - the walls run along the drawn edges;
+   - the token sees its room and nothing past the walls.
+
+   These frames show the Judge's page: keep them local, never in the repo.
+6. Run the map step again.
+   *Observable:* the map counts as already held; `walls` is 0; its wall count
+   and `modifiedTime` are unchanged. A held map is never re-traced.
+7. Delete the scene (it is yours) and run the step again.
+   *Observable:* a new scene with the same wall split; the picture is reused
+   from the importer's art folder.
+
+The book's Adventure carries the walls under the world scene's ids
+(`withWorldIds`). That is pinned offline. A live walk of it is "A book lands
+in the library as one Adventure". On a seat with peers' books open, that
+step rewrites their Adventures, so leave it to that walk.
+
+### Teardown
+
+1. Delete by your own ids, newest first, with `pageSweep`'s expression: the
+   scenes (their walls go with them), then the folder the run made, then any
+   driver fixtures through `api.sweepTracked()`.
+2. Re-read the flagged documents' `modifiedTime`, and quote the count that
+   changed (zero) and the sweep result.
+3. Log the pane out, so the seat is free for the next session.
+
 ## The region's adventures: their tables and monsters
 
 The adventure books' tables, legacy stat-block monsters and encounter zones

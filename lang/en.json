@@ -6936,6 +6936,8 @@
   "ACKS-IMPORTER.ui.booksAdventureNone": "Not in the library as an Adventure yet; Import Everything writes it.",
   "ACKS-IMPORTER.ui.booksAdventureLegacy": "{n} per-map Adventure(s) from an earlier version are still on its shelf; writing the book's Adventure retires them.",
   "ACKS-IMPORTER.ui.scenesGridRefused": "{n} map(s) refused (its drawn cell could not be fitted to a Foundry cell)",
+  "ACKS-IMPORTER.ui.scenesWalls": "{n} wall(s) traced from your page",
+  "ACKS-IMPORTER.ui.scenesWallsFailed": "{n} map(s) made without their walls (the trace could not run; the console says why)",
   "ACKS-IMPORTER.ui.sceneZone": "Zone {n} ({book})",
   "ACKS-IMPORTER.ui.scenesZonesMade": "{n} encounter zone(s) laid over their maps",
   "ACKS-IMPORTER.ui.scenesZonesHeld": "{n} encounter zone(s) already on their maps",

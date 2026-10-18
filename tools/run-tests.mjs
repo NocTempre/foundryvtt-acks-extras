@@ -155,6 +155,7 @@ const COMMITTED = [
   "importer/test-faction-binding.mjs",
   "importer/test-strength-grid.mjs",
   "importer/test-scene-binding.mjs",
+  "importer/test-wall-trace.mjs",
   "importer/test-book-adventure.mjs",
   "importer/test-region-import.mjs",
   "importer/test-refresh.mjs",

@@ -36,7 +36,7 @@ import {
 import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
 import {
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
-  isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData,
+  isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, wallSources,
 } from "./scene-binding.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
@@ -4344,7 +4344,7 @@ export async function cookbookImportScenes() {
   // say what happened, and the uuids are what a caller can undo it by.
   const counts = {
     made: 0, already: 0, repaired: 0, refused: 0, unready: 0, copied: 0, missing: 0, regions: 0, tokens: 0, controlled: 0,
-    gridRefused: 0, zones: 0, zonesHeld: 0, zonesWaiting: 0, zonesRefused: 0,
+    gridRefused: 0, zones: 0, zonesHeld: 0, zonesWaiting: 0, zonesRefused: 0, walls: 0, wallsFailed: 0,
     created: { scenes: [], actors: [], folders: [], regions: [] },
   };
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressScenes`), jobs.length * SCENE_STEPS + zoneJobs.length);
@@ -4377,6 +4377,8 @@ export async function cookbookImportScenes() {
     `${counts.made} map(s) created`,
     counts.already ? `${counts.already} already held` : "",
     said("scenesGridRefused", counts.gridRefused),
+    said("scenesWalls", counts.walls),
+    said("scenesWallsFailed", counts.wallsFailed),
     said("scenesZonesMade", counts.zones),
     said("scenesZonesHeld", counts.zonesHeld),
     said("scenesZonesWaiting", counts.zonesWaiting),
@@ -4390,7 +4392,7 @@ export async function cookbookImportScenes() {
     counts.refused ? `${counts.refused} refused (the page did not match the cookbook, or would not render)` : "",
   ].filter(Boolean);
   const landed = counts.made || counts.already || counts.zones || counts.zonesHeld;
-  const say = landed && !counts.gridRefused ? "info" : "warn";
+  const say = landed && !counts.gridRefused && !counts.wallsFailed ? "info" : "warn";
   ui.notifications[say](`${MODULE_ID} | maps: ${parts.join(", ")}.`);
   return counts;
 }
@@ -4535,8 +4537,10 @@ export function gridScenePlan(recipe, scene) {
  * @param {(cookbookId: string) => Promise<{uuid: string, results: object[], formula: string}|null>} p.tableOf
  * @param {{mapPlaceId: string, districtIds: string[], placeIds: string[]}} p.ids `mapIds`
  * @param {object|null} [p.grid] `gridScenePlan` of a grid recipe
+ * @param {{c: number[], door: number}[]|null} [p.walls] traced walls in page
+ *   points (`traceWalls`), carried through the same placed frame as the rest
  */
-export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, folderId, fallbackName, grid = null }) {
+export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, folderId, fallbackName, grid = null, walls = null }) {
   const list = recipe.incidents?.table ? await tableOf(recipe.incidents.table) : null;
   const incidents = list
     ? {
@@ -4566,19 +4570,20 @@ export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, 
     tokens.push((await actor.getTokenDocument({ ...placeTokenAt(spot.at, frame), hidden: true })).toObject());
   }
   const level = { id: Scene.metadata.defaultLevelId, name: game.i18n.localize(foundry.documents.Level.metadata.label) };
+  const wallData = wallSources(walls, frame);
   if (!grid) {
     return sceneData({
       id, book: bookId, name: city?.name ?? fallbackName, recipe, src, incidents, folderId,
       locationUuid: city?.uuid ?? "",
       level,
-      regions, tokens,
+      regions, tokens, walls: wallData,
     });
   }
   const made = sceneData({
     id, book: bookId, name: city?.name ?? fallbackName, recipe, src, incidents, folderId,
     locationUuid: city?.uuid ?? "",
     level,
-    regions, tokens,
+    regions, tokens, walls: wallData,
     grid: recipe.grid, pixelsPerPoint: grid.pixelsPerPoint, shiftX: grid.shiftX, shiftY: grid.shiftY,
   });
   made.flags[MODULE_ID].cookbook.pixelsPerPoint = grid.pixelsPerPoint;
@@ -4717,6 +4722,8 @@ async function importScene({ bookId, id, row }, counts, tick) {
   tick();
   const up = await ctx.uploadSceneMap(doc, id, recipe, { pixelsPerPoint: grid?.pixelsPerPoint });
   if (!up) return void counts.refused++;
+  const traced = recipe.walls ? await ctx.traceSceneWalls(doc, id, recipe) : null;
+  if (recipe.walls && !traced) counts.wallsFailed++;
 
   tick();
   const world = await bringAcross(bookId, plan, counts.created);
@@ -4727,13 +4734,14 @@ async function importScene({ bookId, id, row }, counts, tick) {
   // are the only thing that has to wait for the documents they name.
   const scene = await Scene.create(await mapCreateData({
     bookId, id, recipe, ids, actors: world.actors, tableOf: importedTable, src: up.path, folderId: folder?.id ?? null,
-    fallbackName: row.name, grid,
+    fallbackName: row.name, grid, walls: traced?.walls ?? null,
   }));
   if (!scene) return void counts.refused++;
   counts.made++;
   counts.created.scenes.push(scene.uuid);
   counts.regions += scene.regions.size;
   counts.tokens += scene.tokens.size;
+  counts.walls += scene.walls.size;
   await mirrorCreatedLinks(scene);
   if (!region) counts.controlled += await claimControlledQuarters(bookId, scene, recipe, ids.districtIds);
   await ensureSceneThumb(scene);
@@ -5107,9 +5115,10 @@ async function bookAdventureSource(bookId) {
     const picture = await sceneMapPath(bookId, id, recipe, grid?.pixelsPerPoint);
     cover ??= picture;
     const held = heldMapOf(id);
+    const traced = recipe.walls ? await ctx.traceSceneWalls(ctx.sessionDocs.get(bookId).doc, id, recipe) : null;
     const built = await mapCreateData({
       bookId, id, recipe, ids: mapIds(bookId, recipe), actors: standIns, tableOf, src: picture, folderId: null,
-      fallbackName: row.name, grid,
+      fallbackName: row.name, grid, walls: traced?.walls ?? null,
     });
     const scene = withWorldIds(built, held?.toObject() ?? null, adventureCookbookId(id));
     scene.thumb = null;

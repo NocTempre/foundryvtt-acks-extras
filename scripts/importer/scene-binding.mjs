@@ -11,7 +11,10 @@
  *
  * A recipe may also carry a `grid`: one drawn cell's lattice, box and centre,
  * measured off the page like the rest, and what one cell spans. Such a map is
- * built on a Foundry grid whose cells are the drawn ones. A zone row
+ * built on a Foundry grid whose cells are the drawn ones. A square grid's
+ * recipe may carry `walls`, which name how to trace the plan's walls off the
+ * Judge's page at import (`wall-trace.mjs`); the walls themselves never ship.
+ * A zone row
  * (`kind.sceneZone`) lays one book's rule over another book's recipe as an
  * outline on the target page.
  *
@@ -27,6 +30,7 @@ import { isPoiEntry, isRegionSite, poiGroupOf } from "./poi-binding.mjs";
 import { hash36 } from "./printed-name.mjs";
 import { gridTypeFor } from "../battlemap/constants.mjs";
 import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
+import { wallsProblems } from "./wall-trace.mjs";
 
 /** The register kind a scene recipe is filed under. */
 export const SCENE_KIND = "kind.scene";
@@ -334,7 +338,8 @@ export function gridProblems(grid, crop = null) {
  * table and a place drawn over its neighbour would be priced as the
  * neighbour's; a map with no quarters has none to check. A place is a keyed
  * point of interest or a region site. `feetPerPoint` is required only of a
- * recipe with no `grid`.
+ * recipe with no `grid`. A `walls` block is held to `wallsProblems`, the
+ * corrections cap included.
  *
  * @param {object} recipe the row's `scene` block
  * @param {Record<string, {kind?: string, meta?: object, sections?: string[]}>} entries
@@ -350,6 +355,7 @@ export function recipeProblems(recipe, entries = {}) {
   if (recipe?.turn !== undefined && ![0, 1, 2, 3].includes(recipe.turn)) out.push("turn must be 0, 1, 2 or 3 quarter turns");
   if (recipe?.blockFeet !== undefined && !(recipe.blockFeet > 0)) out.push("blockFeet must be a positive number when given");
   if (out.length) return out;
+  if (recipe.walls !== undefined) out.push(...wallsProblems(recipe.walls, recipe));
 
   const inCrop = inCropOf(crop);
   const quarterOf = (id) => poiGroupOf(entries[id]?.meta?.group)?.district ?? null;
@@ -414,8 +420,10 @@ export function recipeProblems(recipe, entries = {}) {
  * family at the grid's cell size, distance and units, the shift that lays it
  * over the drawn cells, and is set up for journey travel; the picture is
  * scaled by `pixelsPerPoint` (`gridScale` of the grid unless the caller
- * measured one live). Sight and fog are off either way, because a printed map
- * is a plan the party reads and not a place its tokens see from. It is kept
+ * measured one live). Sight and fog are off, because a printed map is a plan
+ * the party reads and not a place its tokens see from — except on a map with
+ * walls, which turns token vision on under global light: walls exist to cut
+ * sight and movement, and with sight off they are lines only. It is kept
  * out of the navigation bar: a map that arrives with a book is for the Judge
  * to put in front of a table, not something a running session finds added to
  * its bar.
@@ -425,9 +433,9 @@ export function recipeProblems(recipe, entries = {}) {
  * is stripped from creation data before core's own carry-over reads it.
  * `active` is stated, because core activates a scene that does not say when
  * the world has none active — and an activated scene is drawn at once, under
- * whatever is still being written to it. And the quarters and places ride in
- * the same create, already linked, so there is no second write for a draw to
- * race.
+ * whatever is still being written to it. And the quarters, places and walls
+ * ride in the same create, already linked, so there is no second write for a
+ * draw to race.
  *
  * @param {object} p
  * @param {string} p.id cookbook id of the recipe
@@ -446,10 +454,11 @@ export function recipeProblems(recipe, entries = {}) {
  * @param {number} [p.shiftY]
  * @param {string|null} [p.mapSystem] the travel system the map declares;
  *   `journey` for a grid recipe and `settlement` otherwise when not given
+ * @param {object[]} [p.walls] `wallSources` rows, already in scene pixels
  */
 export function sceneData({
   id, book, name, recipe, src, incidents = null, folderId = null, locationUuid = "", level = { id: "defaultLevel0000", name: "Level" },
-  regions = [], tokens = [], grid = recipe?.grid ?? null, pixelsPerPoint = null, shiftX = 0, shiftY = 0, mapSystem = null,
+  regions = [], tokens = [], grid = recipe?.grid ?? null, pixelsPerPoint = null, shiftX = 0, shiftY = 0, mapSystem = null, walls = [],
 }) {
   const frame = grid ? sceneFrame({ ...recipe, grid }, { pixelsPerPoint: pixelsPerPoint ?? gridScale({ grid }) }) : sceneFrame(recipe);
   return {
@@ -474,10 +483,12 @@ export function sceneData({
         shiftY: Number(shiftY) || 0,
       }
       : { grid: { type: 0, size: GRID_PIXELS, distance: GRID_PIXELS, units: "ft" } }),
-    tokenVision: false,
+    tokenVision: walls.length > 0,
     fog: { mode: 0 },
+    ...(walls.length ? { environment: { globalLight: { enabled: true } } } : {}),
     regions,
     tokens: tokens.map((token) => ({ ...token, level: level.id })),
+    walls,
     flags: {
       [MODULE_ID]: {
         cookbook: { id, book, kind: SCENE_KIND },
@@ -537,6 +548,29 @@ export function districtRegionData(district, frame, {
     }],
     flags: { [MODULE_ID]: { cookbook: { place: district.place }, ...(locationUuid ? { [SCENE_LINK_FLAG]: locationUuid } : {}) } },
   };
+}
+
+/**
+ * Wall data for traced walls: each segment's page points carried through the
+ * frame and rounded to whole pixels, as core's wall coordinates must be. A
+ * segment the rounding collapses to a point is dropped. Sight, light, sound
+ * and movement take core's defaults, so every wall blocks all four; the door
+ * type is the trace's.
+ *
+ * @param {{c: number[], door: number}[]} walls `traceWalls` output, in page points
+ * @param {object} frame the frame the map's picture is placed by
+ * @returns {{c: number[], door: number}[]}
+ */
+export function wallSources(walls, frame) {
+  const out = [];
+  for (const { c, door } of walls ?? []) {
+    const [x0, y0] = frame.toScene(c[0], c[1]);
+    const [x1, y1] = frame.toScene(c[2], c[3]);
+    const seg = [Math.round(x0), Math.round(y0), Math.round(x1), Math.round(y1)];
+    if (seg[0] === seg[2] && seg[1] === seg[3]) continue;
+    out.push({ c: seg, door: Number(door) || 0 });
+  }
+  return out;
 }
 
 /**
