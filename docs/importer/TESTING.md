@@ -2411,11 +2411,11 @@ untagged seat would read every line as a heading and import nothing.
    maximum level, prime requisite, requirements, a proficiency list of whole
    names (no pair welded at a line turn) and a description running the whole
    spread — a `def.` id names no book, so it files beside BTA's classes, not
-   on the line's shelf; the line's Actor shelf ("ACKS Cookbook — The OSR
-   Catgirl — Actor") holds one monster actor with AC, HD, movement, three
-   attacks with a weapon alternative, morale, saves, alignment, treasure
-   type, XP, vision, a proficiency list, a sectioned description and two
-   spoils.
+   on the line's shelf; the line's Judge Actor shelf ("ACKS Cookbook — The
+   OSR Catgirl — Judge — Actor", closed to every player seat as it is made)
+   holds one monster actor with AC, HD, movement, three attacks with a weapon
+   alternative, morale, saves, alignment, treasure type, XP, vision, a
+   proficiency list, a sectioned description and two spoils.
 3. Open the monster. *Observable:* the description's sections read in page
    order across the page turn — the Combat section's last paragraph is whole,
    not cut at the column foot — and Spoils lists two components with weight,
@@ -2423,14 +2423,34 @@ untagged seat would read every line as a heading and import nothing.
 4. Open a class item. *Observable:* the list's names the register knows are
    resolved and the rest stay as text; the description opens each passage
    with the spread's own run-in label.
+5. The maps step, scoped to the book:
+   `acksExtras.importer.cookbookImportScenes({ books: ["cat"] })`.
+   *Observable:* two maps created, none refused; each is a world Scene in a
+   folder named for the book, gridless, off the navigation bar, its picture
+   cut from the page and uploaded under the art directory, no token and no
+   wall on it. The uploaded pictures stay in the data directory after the
+   sweep — name them.
+6. The adventures step, scoped the same way:
+   `acksExtras.importer.cookbookImportAdventures({ books: ["cat"] })`.
+   *Observable:* one Adventure written, for this book alone, on the line's
+   Judge Adventure shelf, carrying the two maps and the monster; the GM's
+   Books window row for the book now reads its contents. The class item
+   stands on the library's own Item shelf and the monster on the Judge Actor
+   shelf — `lineOfPack(doc.pack)` on each.
+7. Join as the **Player** seat. *Observable:* no compendium of the line is
+   visible to it, and the library's own Item shelf is, with the five powers
+   and three classes in its index.
 ### Teardown
 
-5. `api.track` every id the import's result lists, then `api.sweepTracked()`;
-   quote what it removed, could not find and refused. A shelf the line's
-   first import opened is deleted once empty. The book opened with
-   `{ remember: false }` closes on reload.
+8. `api.track` every id the imports' results list — the class documents, the
+   monster and powers read back by id, the scenes' `created` uuids and the
+   Adventure's — then `api.sweepTracked()`; quote what it removed, could not
+   find and refused. A shelf the run opened is deleted once empty — census
+   the world's packs BEFORE the first presence check, since
+   `importedActorFor` mints the line's Actor shelf on its way to reading it.
+   The book opened with `{ remember: false }` closes on reload.
 
-`tools/live/importer-typography.mjs` walks it; step 1's Books-window line and
-the boot check it leaves to the reader. The seat reopens the world's shelved
-books after ready, so a step with no scope would write every one of them;
-the walk runs only the scoped steps.
+`tools/live/importer-typography.mjs` walks it; step 1's Books-window line,
+step 6's Books-window row and the boot check it leaves to the reader. The
+seat reopens the world's shelved books after ready, so a step with no scope
+would write every one of them; the walk runs only the scoped steps.

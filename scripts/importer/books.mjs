@@ -11,9 +11,13 @@
  * book declaring none goes to the ACKS ones. Only books from outside the ACKS
  * library carry it — the ACKS line is the default, not a name in this file.
  *
- * `judge` marks a book written for the Judge alone — an adventure, a
- * gazetteer: its keyed places, people, organisations and lists are shelved
- * where no player seat can open them (`lineOf` in `cookbook.mjs`).
+ * `judge` marks a book whose own rows are the Judge's — an adventure, a
+ * gazetteer, a supplement that prints a keyed place: every document its ids
+ * name (its places, people, organisations, lists, maps, monsters and its
+ * Adventure) is shelved where no player seat can open them (`lineOf` in
+ * `cookbook.mjs`). What such a book contributes to the library's own lists —
+ * a class, a power, a proficiency — carries a `def.` id, names no book, and
+ * stays on the open shelf; a mixed book is marked by its Judge's half.
  *
  * `form` marks a fillable form rather than a book: nothing imports from it,
  * and what connecting it unlocks is the official-sheet export, which writes a
@@ -242,6 +246,7 @@ export const BOOKS = {
     short: "CAT",
     pages: 32,
     titleRe: /OSR\s*Catgirl/i,
+    judge: true,
     printedOffset: 4,
     typography: {
       bodyPt: 12,

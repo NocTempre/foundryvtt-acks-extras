@@ -643,5 +643,55 @@
         }
       }
     }
+  },
+  "scenes": {
+    "cat.tavernMap1": {
+      "kind": "kind.scene",
+      "name": "Tavern Ground Floor Map",
+      "cite": "CAT p.24",
+      "pages": [
+        28
+      ],
+      "scene": {
+        "page": 28,
+        "placement": {
+          "x": 36,
+          "y": 36,
+          "w": 540,
+          "h": 540
+        },
+        "crop": {
+          "x": 36,
+          "y": 36,
+          "w": 540,
+          "h": 540
+        },
+        "feetPerPoint": 0.306
+      }
+    },
+    "cat.tavernMap2": {
+      "kind": "kind.scene",
+      "name": "Tavern Upper Floor Map",
+      "cite": "CAT p.25",
+      "pages": [
+        29
+      ],
+      "scene": {
+        "page": 29,
+        "placement": {
+          "x": 36,
+          "y": 36.05,
+          "w": 540,
+          "h": 559.85
+        },
+        "crop": {
+          "x": 36,
+          "y": 36,
+          "w": 540,
+          "h": 559.85
+        },
+        "feetPerPoint": 0.306
+      }
+    }
   }
 }

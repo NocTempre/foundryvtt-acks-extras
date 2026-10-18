@@ -1,15 +1,19 @@
 /**
  * A Judge's book is shelved where no player seat can open it.
  *
- * Four things this guards. The Judge's line is a LABEL shape, so every reader
+ * Five things this guards. The Judge's line is a LABEL shape, so every reader
  * that takes a shelf's line off its label has to get the same line back, and a
  * shelf of that line has to be recognised by the label alone. A shelf is closed
  * when it is MADE and never afterwards, so a Judge who opens one keeps it open.
  * The library restore is the one pass that overrules that: it closes a Judge's
  * shelf again, and files only a shelf that is not already as it would leave
- * it. And the registry is held to the data: a shipped book whose cookbook
- * carries keyed places, people, organisations or a map is a Judge's book, so
- * the next adventure added cannot land on the table's shelf by omission.
+ * it. The registry is held to the data: a shipped book whose cookbook carries
+ * keyed places, people, organisations or a map is a Judge's book, so the next
+ * adventure added cannot land on the table's shelf by omission. And the flag
+ * reaches exactly the book's own ids: a content row (`def.`) files on the
+ * library's open shelf whichever book printed it, and every row of a book's
+ * own file carries the book's prefix, so a mixed book's Judge's half closes
+ * and its player's half does not.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -181,6 +185,30 @@ for (const file of fs.readdirSync(path.join(ROOT, "cookbook")).filter((n) => n.e
 check("every shipped book with keyed places, people, organisations or a map is a Judge's book", owed, []);
 ok("a rules book is not", !bookIsJudges("rr") && !bookIsJudges("mm") && !bookIsJudges("nothing"));
 ok("a Judge's book keeps its series", Object.keys(BOOKS).filter(bookIsJudges).every((id) => judgeLine(bookLine(id)).endsWith("Judge")));
+
+/* ---------------- the flag reaches the book's own ids and no others ---------------- */
+
+const { lineOf, bookOfCookbookId } = await import("../scripts/importer/cookbook.mjs");
+const index = JSON.parse(fs.readFileSync(path.join(ROOT, "cookbook", "index.json"), "utf8"));
+const linedRows = [];
+let fromJudges = 0;
+for (const file of index.content) {
+  const cb = JSON.parse(fs.readFileSync(path.join(ROOT, "cookbook", `${file}.json`), "utf8"));
+  for (const [id, e] of Object.entries(cb.entries ?? {})) {
+    if (bookIsJudges(e?.book)) fromJudges++;
+    if (lineOf(bookOfCookbookId(id)) !== null) linedRows.push(id);
+  }
+}
+check("a content row files on the library's own shelf whichever book printed it", linedRows, []);
+ok("and at least one content row comes from a Judge's book, so that is tested", fromJudges > 0);
+const strayed = [];
+for (const book of index.books) {
+  const cb = JSON.parse(fs.readFileSync(path.join(ROOT, "cookbook", `${book}.json`), "utf8"));
+  for (const id of Object.keys(cb.entries ?? {})) if (!id.startsWith(`${book}.`)) strayed.push(id);
+}
+check("every row of a book's own file carries the book's prefix, so the flag reaches it", strayed, []);
+const mixed = index.books.find((b) => bookIsJudges(b) && bookLine(b));
+ok("a lined Judge's book's own ids take its series' Judge line", !!mixed && lineOf(mixed) === judgeLine(bookLine(mixed)), mixed ?? "no lined Judge's book shipped");
 
 if (failed) {
   console.error(`${failed} check(s) failed`);

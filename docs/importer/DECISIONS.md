@@ -6461,6 +6461,74 @@ class.
 
 *Cost:* one assist on one row.
 
+## 2026-10-18 — A mixed book is a Judge's book by its Judge's half; its player's half never took the flag
+
+The catgirl's first cut (the entry below) withdrew the tavern's two floor
+plans on the reading that `judge: true` closes every shelf of a book — the
+classes and the race with the keeper and the rooms — and that a book with a
+player's half and a Judge's half needs a line for each. The reading was
+wrong, and the evidence was in the cut itself: the walk's own sweep filed the
+classes and powers on the library's open Item shelf and only the monster on
+the line's (commit 093ea20, TESTING). `lineOf` names a book off an id's
+prefix or its `book` flag; a class, a power or a proficiency carries a `def.`
+id and a flag of `{id, cite}` with no book, so no book's flag reaches it. Run
+under Node with `BOOKS.cat.judge = true`, every `def.` id still resolves to
+no line and only the `cat.` ids move, to the series' Judge line.
+
+**Ruled.**
+- **`cat` is a Judge's book.** The flag marks a book whose OWN rows are the
+  Judge's; what the book contributes to the library's lists never files by
+  book, so it stays open. The two floor plans go back as compiled. The keeper
+  and the rooms wait on readers (ROADMAP) and join the book's Adventure when
+  they land.
+- **One book, one line.** No second line, no second id. The registry's
+  `judge` paragraph and `lineOf`'s docstring state the reach, and
+  `test-judge-shelf` pins it: every content row files unlined whichever book
+  printed it, every row of a book's own file carries the book's prefix, and a
+  lined Judge's book's ids take its series' Judge line.
+- **The scenes and Adventure steps take a `books` scope,** as the item steps
+  take `only`: the live walk runs them on the one book it opened, on a seat
+  that holds every shelved book open.
+- **The compendia reference prints a series' Judge line as the pattern,**
+  never the series' name (docs/DECISIONS.md §21): the first lined map book
+  would otherwise have put a publisher's title on the page.
+
+*Rejected:*
+- **Routing by kind** — keyed places, people, organisations, maps and the
+  Adventure to the Judge line for every book, the rest by flag. It keeps a
+  mixed book's monsters open and buys nothing else. It reverses "the shelf is
+  derived from the document's own cookbook flag" for the journals and tables
+  that carry no kind, and about fifteen `lineOf(bookId)` sites — every Places
+  and Factions folder, the journal pack, the census, the Adventure filter —
+  must agree with the document's line, or a folder of one pack is handed to a
+  write into another; the file is under a peer's edit. It is the design for
+  the day a book's own row has to stay open, and not before.
+- **A second book id for the Judge's half.** Two rows with one fingerprint
+  give `identifyBook` two hits and it names neither, so the wrong-book
+  refusal is lost for both; `matchFilesToBooks` hands a file to one id; the
+  typography, the shelf journal and the byte cache double; and 2026-10-17
+  made the book the unit of its Adventure.
+- **Leaving mixed books out.** The tavern never ships, and the roadmap keeps
+  a premise the code contradicts.
+
+*Cost:* the catfolk beastman files on the line's "— Judge — Actor" shelf,
+closed to players, where the Monstrous Manual's monsters are open. A later
+per-book row of this book — an essay, an item written per book — closes with
+it, and that is the signal to build the kind routing. `cat` is the first
+Judge's book with rows in the content files, so this is the first run of that
+path. The Books window gains the book's Adventure line. Nothing shipped the
+first cut, so nothing migrates; a dev world that imported it keeps its
+open-line monster, and `importedActor` searches every shelf, so the beastman
+is not imported twice. Each plan counts the book's own place — a settlement
+row this book never prints — as a place not yet imported: a number on the
+maps step's notice, with nothing refused. Live (2026-10-18, the typography
+walk, 26 checks): both plans stood up gridless and off the navigation bar,
+the Adventure carried them with the monster on the series' Judge Adventure
+shelf, the Player seat saw neither Judge shelf and saw the eight items on the
+library's own, and the sweep removed 13 documents with none missing or
+refused; the walk's presence census had been minting the line's Actor shelf
+before its shelf census ran, and now counts it as its own.
+
 ## 2026-10-18 — A community book joins the shelf, and a book's typography is declared beside its fingerprint
 
 The user asked for *The OSR Catgirl: Nine Lives of Adventure* (Contentronix,
@@ -6522,6 +6590,8 @@ arrives from the Judge's own copy.
   half and a Judge's half wants two, and that is a ruling the tavern's keeper
   and rooms need as much as its plans do. The rows are withdrawn with the
   rest of the tavern (ROADMAP).
+  **Superseded (2026-10-18)** by "A mixed book is a Judge's book by its
+  Judge's half": the flag never reached the classes, and the plans ship.
 
 *Cost:* `BOOKS` is runtime code now carrying a per-book fact the compiler also
 reads. The 2026-10-09 ruling rejected that for facts only the compiler reads;

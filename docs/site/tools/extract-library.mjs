@@ -119,7 +119,7 @@ function mapBooks(books) {
  *   brief, `untyped` each brief whose type the code keeps no compendium for.
  */
 export async function extractLibrary() {
-  const { libraryPackLabel, judgeLine, JUDGE_SHELF_OWNERSHIP } = await import(new URL(`../../../${LIBRARY}`, import.meta.url));
+  const { libraryPackLabel, judgeLine, isJudgeLine, JUDGE_SHELF_OWNERSHIP } = await import(new URL(`../../../${LIBRARY}`, import.meta.url));
   const { BOOKS: books, bookLine, bookIsJudges } = await import(new URL(`../../../${BOOKS}`, import.meta.url));
   const manifest = JSON.parse(read("module.json"));
 
@@ -137,7 +137,11 @@ export async function extractLibrary() {
 
   const adventure = literal(ADVENTURE, "ADVENTURE_TYPE");
   const libraryTypes = literalList(LIBRARY, "LIBRARY_TYPES");
-  const adventureLines = [...new Set(mapBooks(books).map(lineOf))];
+  // A map book of a series would print the series' name here, which is the
+  // book's (docs/DECISIONS.md §21); its line is shown as the pattern a series
+  // takes.
+  const asPattern = (line) => (!line || line === judgeLine() ? line : isJudgeLine(line) ? judgeLine(SERIES) : SERIES);
+  const adventureLines = [...new Set(mapBooks(books).map(lineOf).map(asPattern))];
   const itemShelves = mapValues(COOKBOOK, "ITEM_SHELF");
 
   const shelves = [

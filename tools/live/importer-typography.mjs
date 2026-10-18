@@ -1,20 +1,22 @@
 /**
  * Live walk, importer-typography: a community book read through its declared
  * typography. Walks docs/importer/TESTING.md, "A community book, read through
- * its declared typography", steps 1–5 on the book `cat`; step 1's Books-window
+ * its declared typography", steps 1–8 on the book `cat`; step 1's Books-window
  * line and its boot check are not driven here. Machine values arrive
  * through ./_env.mjs, the book through ACKS_TEST_BOOKS ("cat"). Nothing is
  * invented: every document is the import's own, found by the cookbook id the
  * run imported and tracked, and swept by uuid. A check prints ids, counts and
  * booleans, never a book's words.
  *
- * Steps 3–5 open nothing: each reads the created document's data, which is what
- * its sheet renders, and the sheet templates are the core system's.
+ * Steps 3–6 open nothing: each reads the created document's data, which is what
+ * its sheet renders, and the sheet templates are the core system's. Step 7
+ * joins as the Player seat and reads which shelves that seat can see.
  *
- * The imports are scoped to the book's own ids (`importClasses({only})`,
- * `cookbookImportAbilities({only})`, `cookbookImportIds`): the seat reopens the
- * world's shelved books after ready, and a step with no scope would write every
- * one of them.
+ * The imports are scoped to the book (`importClasses({only})`,
+ * `cookbookImportAbilities({only})`, `cookbookImportIds`,
+ * `cookbookImportScenes({books})`, `cookbookImportAdventures({books})`): the
+ * seat reopens the world's shelved books after ready, and a step with no scope
+ * would write every one of them.
  *
  * Writes outside the fixture ledger, each reported:
  *   - the book connected on the GM seat with remember:false;
@@ -22,7 +24,9 @@
  *     (put back at teardown);
  *   - the shelves the line's first import opens (packs) and the folders filed
  *     in them: a pack this run opened is deleted at teardown once empty, and a
- *     folder this run added to a pack it found is tracked and swept.
+ *     folder this run added to a pack it found is tracked and swept;
+ *   - each map's picture, which the scenes step uploads under the world's
+ *     data directory and the sweep does not reach; its path is logged.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -76,14 +80,16 @@ const P = {
     const held = {};
     for (const id of ids.items) held[id] = (await H.CB.importedItemFor(id))?.uuid ?? null;
     for (const id of ids.actors) held[id] = (await H.CB.importedActorFor(id))?.uuid ?? null;
+    for (const id of ids.scenes ?? []) held[id] = game.scenes.find((s) => s.getFlag("acks-extras", "cookbook")?.id === id)?.uuid ?? null;
     return {
       module: game.modules.get("acks-extras")?.version ?? null,
       isGM: game.user.isGM,
       registered: !!row,
+      judge: !!row?.judge,
       typography: !!row?.typography,
       bodyPt: row?.typography?.bodyPt ?? null,
       label: row?.label ?? null,
-      api: ["importClasses", "cookbookImportAbilities", "cookbookImportIds", "cookbookImportScenes"].every((k) => typeof acksExtras.importer?.[k] === "function"),
+      api: ["importClasses", "cookbookImportAbilities", "cookbookImportIds", "cookbookImportScenes", "cookbookImportAdventures"].every((k) => typeof acksExtras.importer?.[k] === "function"),
       open: !!H.CB.cookbookSessionDoc(book),
       openBooks: Object.keys(H.BK.BOOKS).filter((b) => H.CB.cookbookSessionDoc(b)),
       held,
@@ -109,11 +115,64 @@ const P = {
     const H = globalThis.__bt;
     const packs = game.packs.filter((p) => p.metadata.packageType === "world").map((p) => p.collection);
     const folders = {};
-    for (const type of ["Item", "Actor", "RollTable"]) {
+    for (const type of ["Item", "Actor", "RollTable", "JournalEntry", "Adventure"]) {
       const pack = H.LIB.findLibraryPack(type, line);
       if (pack) folders[pack.collection] = pack.folders.map((f) => f.uuid);
     }
     return { packs, folders };
+  },
+  /** Where a document stands: its pack's line, and whether that line is the Judge's. */
+  shelfOf: async ({ uuid }) => {
+    const H = globalThis.__bt;
+    const doc = await fromUuid(uuid);
+    if (!doc) return null;
+    const line = doc.pack ? H.LIB.lineOfPack(doc.pack) : undefined;
+    return { pack: doc.pack ?? null, line: line ?? null, judge: !!doc.pack && H.LIB.isJudgeLine(line) };
+  },
+  /** A map the scenes step made: its picture, its lattice, its navigation flag and its walls. */
+  scene: async ({ uuid }) => {
+    const doc = await fromUuid(uuid);
+    if (!doc) return null;
+    const src = doc.background?.src ?? "";
+    return {
+      picture: !!src, pictureDir: src.includes("/") ? src.slice(0, src.lastIndexOf("/")) : null,
+      width: doc.width ?? null, height: doc.height ?? null, gridless: doc.grid?.type === 0,
+      navigation: !!doc.navigation, walls: doc.walls.size, tokens: doc.tokens.size, regions: doc.regions.size,
+      folder: !!doc.folder, book: doc.getFlag("acks-extras", "cookbook")?.book ?? null,
+    };
+  },
+  /** The book's Adventure: what it carries, by count, and the stamp it is written under. */
+  adventure: async ({ uuid }) => {
+    const doc = await fromUuid(uuid);
+    if (!doc) return null;
+    const stamp = doc.getFlag("acks-extras", "cookbook") ?? {};
+    return {
+      scenes: doc.scenes.size, actors: doc.actors.size, journal: doc.journal.size, tables: doc.tables.size, folders: doc.folders.size,
+      book: stamp.book ?? null, kind: stamp.kind ?? null, contents: stamp.contents ?? null,
+    };
+  },
+  /** What THIS seat can see of the line's shelves and of the library's own Item shelf. */
+  seatView: async ({ line, ids }) => {
+    const H = globalThis.__bt;
+    const level = (pack) => pack.getUserLevel(game.user);
+    const observer = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
+    const lined = game.packs
+      .filter((p) => p.metadata.packageType === "world" && H.LIB.isLibraryPack?.(p.collection) !== false && H.LIB.lineOfPack(p.collection) === line)
+      .map((p) => ({ collection: p.collection, type: p.documentName, visible: p.visible, level: level(p) }));
+    const items = H.LIB.findLibraryPack("Item", null);
+    let classesSeen = 0;
+    if (items && items.visible) {
+      const index = await items.getIndex({ fields: ["flags.acks-extras.cookbook.id"] });
+      const want = new Set(ids.items);
+      for (const row of index) if (want.has(row.flags?.["acks-extras"]?.cookbook?.id)) classesSeen++;
+    }
+    return {
+      isGM: game.user.isGM, role: game.user.role,
+      lined, anyLinedVisible: lined.some((p) => p.visible || p.level >= observer),
+      libraryItems: items ? { collection: items.collection, visible: items.visible, level: level(items) } : null,
+      classesSeen, classesWanted: ids.items.length,
+      scenesSeen: (ids.scenes ?? []).filter((id) => game.scenes.find((s) => s.getFlag("acks-extras", "cookbook")?.id === id)).length,
+    };
   },
   /** One import step, started; `stepState` reads its outcome. `fn` names the api method, `args` its call. */
   step: async ({ fn, args }) => {
@@ -251,11 +310,12 @@ async function seat(key) {
 
 /** The book's ids, read off the shipped cookbook so the walk follows a recompile. */
 function bookIds(book) {
-  const ids = { items: [], actors: [], classes: [], powers: [] };
+  const ids = { items: [], actors: [], classes: [], powers: [], scenes: [] };
   const dir = path.join(ROOT, "cookbook");
   for (const f of fs.readdirSync(dir)) {
     if (!f.endsWith(".json") || f === "registers.json") continue;
     const cb = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+    if (cb.book?.id === book) for (const [id, row] of Object.entries(cb.scenes ?? {})) if (row?.kind === "kind.scene") ids.scenes.push(id);
     for (const [id, e] of Object.entries(cb.entries ?? {})) {
       if ((e.book ?? cb.book?.id) !== book) continue;
       if (e.kind === "kind.class") { ids.classes.push(id); ids.items.push(id); }
@@ -285,6 +345,12 @@ try {
   section("seats and the book");
   gm = await seat("gm");
   note("install (gm)", await run(gm, P.install));
+  // The shelf census comes BEFORE the first presence check: `importedActorFor`
+  // mints the line's Actor shelf on its way to reading it, and a pack minted
+  // here is this run's to delete.
+  const line = await run(gm, P.line, { book: BOOK });
+  const before = await run(gm, P.shelves, { line });
+  note("shelves before", { packs: before.packs.length, line, folders: Object.fromEntries(Object.entries(before.folders).map(([c, f]) => [c, f.length])) });
   let census = await run(gm, P.census, { book: BOOK, ids: IDS });
   note("gm census", census);
   check("the GM seat is a GM, the book is registered with a typography and the scoped import api is present", census.isGM && census.registered && census.typography && census.api, { bodyPt: census.bodyPt });
@@ -308,10 +374,6 @@ try {
   const opened = connectNotes.find((n) => n.kind === "info" && n.text.includes(census.label) && /\bopen\b/.test(n.text));
   check("1: the open is announced by the book's label", !!opened, { count: opened ? (/(\d+) entr/.exec(opened.text)?.[1] ?? null) : null, notes: connectNotes.map((n) => n.kind) });
   if (!census.open) throw new Error("stopped before the imports");
-
-  const line = await run(gm, P.line, { book: BOOK });
-  const before = await run(gm, P.shelves, { line });
-  note("shelves before", { packs: before.packs.length, line, folders: Object.fromEntries(Object.entries(before.folders).map(([c, f]) => [c, f.length])) });
 
   section("2. import the book");
   const powers = await runStep("2: abilities (powers)", "cookbookImportAbilities", { only: IDS.powers });
@@ -359,11 +421,52 @@ try {
   check("4: the list resolves names the register knows and keeps the rest as text, none welded at a line turn", classShapes.every((c) => c && c.resolved > 0 && !c.unresolved.some(welded)), classShapes.map((c) => c && { resolved: c.resolved, unresolved: c.unresolved.length, welded: c.unresolved.filter(welded).length }));
   check("4: each description runs the whole spread, with passages opened by run-in labels", classShapes.every((c) => c && c.paragraphs >= 9 && c.runIn >= 1), classShapes.map((c) => c && { paragraphs: c.paragraphs, runIn: c.runIn }));
   check("4: the declared chassis is fighter/fighter", classShapes.every((c) => c && c.chassis[0] === "fighter" && c.chassis[1] === "fighter"));
+
+  section("5. the tavern's plans");
+  const scenesStep = await runStep("5: scenes", "cookbookImportScenes", { books: [BOOK] });
+  const made = scenesStep.result?.created ?? {};
+  for (const uuid of made.scenes ?? []) gm.track(uuid, "Scene");
+  for (const uuid of made.actors ?? []) gm.track(uuid, "Actor");
+  for (const uuid of made.folders ?? []) gm.track(uuid, "Folder");
+  const sc = scenesStep.result ?? {};
+  check("5: two maps created, none refused, none already held", sc.made === IDS.scenes.length && IDS.scenes.length === 2 && sc.refused === 0 && sc.already === 0 && sc.gridRefused === 0, { made: sc.made, refused: sc.refused, already: sc.already, gridRefused: sc.gridRefused, created: (made.scenes ?? []).length });
+  const sceneShapes = [];
+  for (const uuid of made.scenes ?? []) sceneShapes.push(await run(gm, P.scene, { uuid }));
+  note("scenes", sceneShapes);
+  check("5: each map is a gridless world scene with its picture, off the navigation bar, in the book's folder, with no token and no wall", sceneShapes.length === 2 && sceneShapes.every((s) => s && s.picture && s.gridless && !s.navigation && s.folder && s.width > 0 && s.height > 0 && s.tokens === 0 && s.walls === 0 && s.book === BOOK));
+  note("map pictures left under (outside the ledger)", [...new Set(sceneShapes.map((s) => s?.pictureDir))]);
+
+  section("6. the book's Adventure");
+  const adv = await runStep("6: adventures", "cookbookImportAdventures", { books: [BOOK] });
+  for (const uuid of adv.result?.created?.adventures ?? []) gm.track(uuid, "Adventure");
+  const later = await run(gm, P.shelves, { line });
+  for (const c of later.packs.filter((c) => !before.packs.includes(c) && !openedPacks.includes(c))) openedPacks.push(c);
+  note("shelves opened by the adventure step", adv.result?.created?.packs ?? []);
+  const ad = adv.result ?? {};
+  check("6: one Adventure written, for this book alone, nothing failed", ad.written === 1 && ad.failed === 0 && Object.keys(ad.books ?? {}).length === 1 && (ad.created?.adventures ?? []).length === 1, { written: ad.written, kept: ad.kept, empty: ad.empty, failed: ad.failed, books: Object.keys(ad.books ?? {}) });
+  const advUuid = ad.created?.adventures?.[0] ?? null;
+  const a = advUuid ? await run(gm, P.adventure, { uuid: advUuid }) : null;
+  note("adventure", a);
+  check("6: it carries the two maps and the monster under the book's stamp", !!a && a.scenes === 2 && a.actors >= 1 && a.book === BOOK);
+  const advShelf = advUuid ? await run(gm, P.shelfOf, { uuid: advUuid }) : null;
+  const monsterShelf = held[monsterId] ? await run(gm, P.shelfOf, { uuid: held[monsterId] }) : null;
+  const classShelf = classes.result?.docs?.[0] ? await run(gm, P.shelfOf, { uuid: classes.result.docs[0] }) : null;
+  note("where they stand", { adventure: advShelf, monster: monsterShelf, class: classShelf });
+  check("6: the Adventure and the monster stand on the line's Judge shelves, the class on the library's own", !!advShelf?.judge && !!monsterShelf?.judge && !!classShelf?.pack && classShelf.line === null);
+
+  section("7. the Player seat");
+  const player = await seat("player");
+  note("install (player)", await run(player, P.install));
+  const view = await run(player, P.seatView, { line, ids: IDS });
+  note("player view", view);
+  check("7: the seat is a player", view.isGM === false);
+  check("7: no shelf of the line is open to it", !view.anyLinedVisible, { linedPacksSeen: view.lined.length, gmSaw: Object.keys(later.folders).length });
+  check("7: the library's own Item shelf is, with the book's classes and powers in it", !!view.libraryItems?.visible && view.classesSeen === view.classesWanted && view.classesWanted === 8, { seen: view.classesSeen, wanted: view.classesWanted });
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);
 } finally {
-  section("5. teardown");
+  section("8. teardown");
   try { if (gm) note("closed windows", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }
   try { if (gm) note("restored (gm)", await run(gm, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
   try {

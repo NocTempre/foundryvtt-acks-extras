@@ -114,8 +114,12 @@ const UNLINED_LINE = "Your Books";
  *
  * The one function every write (`packFor`, `ensureFolderPath`) and every
  * presence check (`importedActor`, `importedIdsOfType`) derives the
- * destination from. A book written for the Judge alone resolves to its
- * series' JUDGE line (`judgeLine`), whose packs no player seat can open.
+ * destination from. A Judge's book (`judge` in the registry) resolves to its
+ * series' JUDGE line (`judgeLine`), whose packs no player seat can open. Only
+ * an id that names the book reaches here with it: a `def.` id names no book
+ * (`bookOfCookbookId`), so a class, a power or a proficiency a Judge's book
+ * contributes files on the library's own open shelf whatever its source's
+ * flag says.
  */
 export function lineOf(bookId) {
   if (!bookId) return null;
@@ -4322,10 +4326,13 @@ const SCENE_STEPS = 4;
  *
  * Zones follow the maps (`ensureZone`): each open book's zone rows are laid
  * over whichever map they name, made this run or held from an earlier one.
+ * `books` narrows the run to the open books it names; without it every open
+ * book's maps are built.
  */
-export async function cookbookImportScenes() {
+export async function cookbookImportScenes({ books = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates scenes).`);
-  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
+  const wanted = books ? new Set(books) : null;
+  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!wanted || wanted.has(b)));
   const jobs = [];
   const zoneJobs = [];
   for (const bookId of openBooks) {
@@ -4856,13 +4863,15 @@ async function ensureZone({ bookId, id, row }, counts) {
  * shelf as ONE Adventure (`ensureBookAdventure`), after every step that makes
  * what it carries. A book not open here is skipped: its maps' pictures are
  * checked against their pages. See docs/importer/DECISIONS.md, "A book is in
- * the library as one Adventure".
+ * the library as one Adventure". `books` narrows the run to the open books
+ * it names.
  * @returns {Promise<object|undefined>} the counts, with `created` naming each
  *   Adventure and shelf this run made, and `retired` each per-map Adventure it deleted
  */
-export async function cookbookImportAdventures() {
+export async function cookbookImportAdventures({ books: only = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (writes the library).`);
-  const books = Object.keys(BOOKS).filter((b) => bookIsJudges(b) && ctx.sessionDocs.has(b) && data.books.has(b));
+  const wanted = only ? new Set(only) : null;
+  const books = Object.keys(BOOKS).filter((b) => bookIsJudges(b) && ctx.sessionDocs.has(b) && data.books.has(b) && (!wanted || wanted.has(b)));
   const counts = {
     written: 0, rebuilt: 0, kept: 0, held: 0, empty: 0, failed: 0,
     books: {}, retired: [], created: { adventures: [], packs: [] },

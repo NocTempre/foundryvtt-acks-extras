@@ -1086,22 +1086,23 @@ What each book still owes, in the order it is worth doing:
 
 ## The OSR Catgirl: what the first cut leaves
 
-The `cat` cookbook ships the race's five tiers, the catfolk beastman and the
-three classes (DECISIONS 2026-10-18). Left, each waiting on a ruling, a kind
-or a reader rather than on authoring:
+The `cat` cookbook ships the race's five tiers, the catfolk beastman, the
+three classes and the tavern's two floor plans as gridless scenes in the
+book's Adventure (DECISIONS 2026-10-18, both entries). Left, each waiting on
+a kind or a reader rather than on authoring:
 
-- **The tavern's two floor plans (p28–29).** Two kind.scene rows read them
-  gridless and were withdrawn: a book that ships a map is a Judge's book, and
-  that closes every shelf of the book to players, the classes and the race
-  included. A book with a player's half and a Judge's half needs a line for
-  each — a registry ruling, after which the rows go back as they were.
 - **The tavern's keeper (p30).** Her block is set as spaced paragraphs under
   the name, the prose beside it; a kind.npc row read three of its lines. She
   is a character actor once the AX1 character kind takes a declared block —
   hash anchor `1eg1f2n`, label "HP:".
 - **The tavern's keyed rooms (p27–30, 1–11)** and the links between its two
-  floors: kind.location rows over the two plans, once those ship and that
-  path reads a book outside AX1's bands.
+  floors: kind.location rows over the two plans, once that path reads a book
+  outside AX1's bands. They join the Adventure the plans already stand in.
+- **Routing a shelf by kind.** A Judge's book's own rows all close; the day
+  one of this book's has to stay open to players — an essay, an item written
+  per book rather than as `def.equip` — the destination moves from the book's
+  flag to the row's kind (the rejected design in DECISIONS 2026-10-18, "A
+  mixed book"). Not before: it re-points every folder site in the importer.
 - **The ten items (p24–26)**: kind.adventureItem, in flight for AX1. Their
   print keys are computed (`ob672d`, `u459j2`, `42aw5e`, `6lwxw9` among them)
   so the rows anchor by hash.

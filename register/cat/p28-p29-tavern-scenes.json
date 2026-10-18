@@ -1,0 +1,26 @@
+[
+  {
+    "id": "cat.tavernMap1",
+    "kind": "kind.scene",
+    "book": "cat",
+    "name": "Tavern Ground Floor Map",
+    "pages": [28],
+    "scene": {
+      "note": "Page points, top-left origin: the crop is the plate's placement on the page (a 1650px render on a 540pt square). No scale bar is printed; the render's furniture reads as 50px to a 5ft tile (a bed one tile long, a long table under two), so the plate spans 165ft and a point is 0.306ft. Keyed rooms 1-6 are printed on the plate; none is a place row yet.",
+      "crop": { "x": 36, "y": 36, "w": 540, "h": 540 },
+      "feetPerPoint": 0.306
+    }
+  },
+  {
+    "id": "cat.tavernMap2",
+    "kind": "kind.scene",
+    "book": "cat",
+    "name": "Tavern Upper Floor Map",
+    "pages": [29],
+    "scene": {
+      "note": "Same plate and scale as the ground floor, one storey up (keyed rooms 7-11): the render is 1650px by 1710px on the same 540pt width, so the crop is taller and the point is still 0.306ft.",
+      "crop": { "x": 36, "y": 36, "w": 540, "h": 559.85 },
+      "feetPerPoint": 0.306
+    }
+  }
+]
