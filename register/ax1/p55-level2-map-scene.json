@@ -1,0 +1,53 @@
+[
+  {
+    "id": "ax1.level2Map",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Level 2 Map",
+    "pages": [55],
+    "scene": {
+      "note": "Page points, top-left origin: the crop is the plan inside the frame; the grid block is one drawn square; the distance is ACKS's dungeon square (JJ ch. 8). Walls trace the floor's outline. Corrections drop rock patches and drawn features (ring, stair, stars) by a point, floor a stair's and a symbol's cells, assert three slanted doors, and drop two water lines read as doors.",
+      "crop": { "x": 36.48, "y": 36.48, "w": 539.04, "h": 719.52 },
+      "grid": {
+        "family": "square",
+        "box": { "w": 15.0108, "h": 15.012 },
+        "centre": [312.07, 388.31],
+        "distance": 10,
+        "units": "ft",
+        "pixels": 70
+      },
+      "walls": {
+        "mode": "contour",
+        "threshold": 140,
+        "corrections": [
+          { "at": [150.86, 40.98], "drop": "island" },
+          { "at": [553.75, 98.62], "drop": "island" },
+          { "at": [147.56, 81.51], "drop": "island" },
+          { "at": [108.83, 107.33], "drop": "island" },
+          { "at": [488, 136.45], "drop": "island" },
+          { "at": [503.32, 174.28], "drop": "island" },
+          { "at": [528.23, 237.32], "drop": "island" },
+          { "at": [459.18, 282.36], "drop": "island" },
+          { "at": [499.41, 625.8], "drop": "island" },
+          { "at": [517.73, 682.24], "drop": "island" },
+          { "at": [568.46, 676.84], "drop": "island" },
+          { "at": [64.4, 675.04], "drop": "island" },
+          { "at": [64.1, 737.18], "drop": "island" },
+          { "at": [95.92, 751.89], "drop": "island" },
+          { "at": [214.51, 244.83], "drop": "island" },
+          { "at": [217.51, 416.55], "drop": "island" },
+          { "at": [305.47, 305.47], "drop": "island" },
+          { "at": [306.37, 367.92], "drop": "island" },
+          { "cell": [32, 6], "is": "floor" },
+          { "cell": [33, 6], "is": "floor" },
+          { "cell": [27, 38], "is": "floor" },
+          { "cell": [7, 23], "is": "door" },
+          { "cell": [10, 21], "is": "door" },
+          { "cell": [29, 7], "is": "door" },
+          { "at": [491.9, 255], "drop": "door" },
+          { "at": [492.3, 258.3], "drop": "door" }
+        ]
+      }
+    }
+  }
+]
