@@ -2408,11 +2408,14 @@ RollTable for Tweaks to pick. Read each seat's
    part root while it is the active one (an inactive panel is not a
    scroller, so make each active to read it) and no other element gains an
    overflow it lacked at 14, and a
-   tab keeps its scroll across a field change (ROADMAP, "The Wilderness
-   tab's scroll across a field change", for where it does not; shorten the window first,
+   tab keeps its scroll across a field change (shorten the window first,
    `sheet.setPosition({height: 520})`: at a tall viewport the frame grows to
    fit its content and no part scrolls; then scroll the Wilderness tab down,
-   change a select, read `scrollTop` again). In that short window the window
+   change a select, read `scrollTop` and the first block in view's offset
+   again: both within 2 px). Walk it on the party step 3 filled: a party
+   whose text above the view does not re-wrap when the panel narrows holds
+   its scroll whether the band takes layout in the content box or not
+   (DECISIONS 2026-10-17, "A band in the content box takes no layout"). In that short window the window
    content's `clientHeight` stays under the frame's and only the part's
    `scrollHeight` exceeds its box: content taller than the frame is cut off
    with no scrollbar to say so. The re-render re-fits the height to auto

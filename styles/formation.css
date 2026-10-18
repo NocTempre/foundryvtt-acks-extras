@@ -165,6 +165,15 @@
   gap: calc(10px * var(--acks-extras-k));
 }
 
+/* Core appends each render's fresh band to the content box, where it stays
+   until the sheet moves it into the header. There it takes no layout: a band
+   that takes height in a short window overflows the content box, whose
+   scrollbar narrows the panel, and the panel's restored scroll is then set
+   against a wrap the finished render does not have. */
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__content > .acks-extras-party-sheet__band {
+  display: none;
+}
+
 .acks-extras.acks-extras-party-sheet.application > .window-header .acks-extras-party-sheet__crest {
   flex: none;
   display: grid;

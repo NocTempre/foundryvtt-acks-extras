@@ -125,7 +125,9 @@ not configure. The `mode` part's template follows the travel mode
 inactive or hidden tab still submits.
 
 **The band** is moved into the window header after each render, as the
-character sheet's is. The crest (the party image, else a group glyph) opens
+character sheet's is. Core renders it into the content box first, where it
+takes no layout, so the tab's restored scroll is set at the panel's finished
+width (DECISIONS 2026-10-17). The crest (the party image, else a group glyph) opens
 the Order tab. Beside it the mode word is the Judge's mode select and a
 player's plain text; the name is the Judge's field and a player's text. The
 bar is a reading with no action, so a press on it drags the window

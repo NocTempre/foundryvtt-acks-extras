@@ -4103,3 +4103,79 @@ changed", "Patch the tick's fields" and "Hold the lock across the move":
   back. The sweep removed 5, could not find 0 and refused none. The console
   recorder on the GM was attached after `ready` and recorded no error during
   the walk.
+
+## 2026-10-17 — A band in the content box takes no layout
+
+Closes the ROADMAP row *The Wilderness tab's scroll across a field change*
+(`formation-day`, frame step 6 and its re-check). **Measured** live on core
+14.369, on the party frame steps 1–3 leave: type size 18, the window at
+`setPosition({height: 520})`, the Wilderness part scrolled to 748, then
+`travel.weather.wind` changed. Each step of the render was wrapped, and every
+write to the part's `scrollTop` was traced with its caller:
+- Core's `_replaceHTML` looks for a part's prior element in the content box.
+  The band's is in the window header, so core appends the fresh band to the
+  end of the content box, and the sheet moves it into the header only in
+  `_onRender`.
+- In the 520-high window the Wilderness panel has 72 px and can shrink only to
+  its own padding (36 px), so the band does not fit beside it. The content box
+  overflows (460 of 454), and its `overflow-y: auto` shows a 12 px scrollbar.
+  The panel narrows from 1169 to 1159 px, the text above the view re-wraps,
+  and the part's `scrollHeight` grows from 1567 to 1579.
+- Core's scroll restore (`_syncPartState`) writes 748 into that layout. The
+  block at the top of the view then stands 75 px below the part's top, where
+  it stood at 62.
+- The band's move ends the overflow and undoes the re-wrap. The browser's
+  scroll anchoring holds the block where the narrow layout put it, so
+  `scrollTop` drops to 736 and the block stands at 74. Neither the auto-height
+  re-fit after it (`setPosition({height: "auto"})`) nor the change's second
+  render moved anything.
+
+It needed both a panel shorter than the band plus its padding and text above
+the view that wraps differently at a scrollbar's width less. That is why some
+parties showed it and others did not. A party built bare on the same scene
+(two members, journeying) overflowed the same way and held at 662, because
+nothing in it re-wrapped. The re-check's 751 → 718 was not instrumented; the
+fix's walk below holds it.
+
+**Ruled.** A band still inside the content box is `display: none`
+(styles/formation.css, "The frame: the band"). Until the sheet moves it, it
+takes no layout, so the content box never overflows during the render and the
+restore lands at the panel's finished width. `#moveBandIntoHeader` finds a
+hidden band as it found a shown one. The rule was injected on the same party
+first: 748 was kept across both renders, the block stood at 62 throughout and
+the content box at 454 of 454. The same held with the select focused before
+the change, as a user's change leaves it; core's `_syncPartState` then focuses
+the new select before it restores the scroll.
+
+**Rejected.**
+- `overflow-anchor: none` on the panel. It turns off scroll anchoring for the
+  panel wherever content above the view really changes height, and it leaves
+  the transient overflow, so anything measured during the render (the restore,
+  a focus's scroll into view) still meets the wrong width.
+- `scrollbar-gutter: stable` on the content box. The width then never
+  changes, but every window gives up a gutter's width of panel, all the time.
+- A second scroll restore after the move. It writes the scroll twice and
+  repeats the restore core already does.
+- Rendering the band straight into the header from an override of
+  `_replaceHTML`. Core keeps its part records (`#parts`, the part listeners)
+  privately, and a band handled beside them would go unrecorded.
+
+**Cost.** Between core's replace and the move, the header holds the previous
+band and the content box holds the new one, hidden. A render whose
+`_onRender` never runs leaves the new band hidden there, with the previous one
+still in the header. The character sheet and the item sheet move their bands
+the same way, but their content boxes are `overflow: visible`, so a band
+there brings no scrollbar (read, not walked).
+
+- Walked after the fix: `node tools/live/run.mjs formation-day` with the
+  `frame`, `journey` and `daychange` sections. On the frame steps' party,
+  748 → 748 with the part at 1567, its client 72 → 382. On the re-check's
+  hex-scene journey party, 751 → 751 with the anchor block at 66 → 66. On the
+  third read's party, 704 → 704 at 52 → 52. All three now PASS; the walk's
+  two GAP lines for this row became checks. The run's other FAIL, day change
+  step 8's encounter card with no sight lines, and its one console error (a
+  fixture the run did not create, processed on the GM client) fall after a
+  peer session joined as Assistant Gamemaster and Trusted Player, 46 s after
+  the run's census; the change here touches neither. The sweep removed 34,
+  could not find 5 (member tokens their enrolment had removed) and refused
+  none.

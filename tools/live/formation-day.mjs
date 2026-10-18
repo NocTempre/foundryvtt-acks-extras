@@ -45,7 +45,6 @@ const gapCheck = (label, row, ok, shows, detail) => {
   console.log(`GAP   ${label} (ROADMAP: ${row})${detail === undefined ? "" : "  " + (typeof detail === "string" ? detail : JSON.stringify(detail))}`);
 };
 const UNOWNED_PACE = "A player's pace with an unowned member";
-const SCROLL_ACROSS_CHANGE = "The Wilderness tab's scroll across a field change";
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /* ------------------------------------------------------------------ */
@@ -2490,7 +2489,7 @@ async function frame(gm, player, census) {
   const ss = await page(gm, P.frameShortScroll, { partyId: party.id });
   note("short window", ss);
   check("step 6: in the 520-high window the content box stays under the frame and only the Wilderness part's scrollHeight exceeds its box", ss.short.wcClient < ss.short.frameH && ss.short.wcScroll <= ss.short.wcClient + 1 && ss.short.partScroll > ss.short.partClient, ss.short);
-  gapCheck("step 6: the Wilderness tab keeps its scroll across a field change while it still overflows after the re-fit", SCROLL_ACROSS_CHANGE, ss.after.stillOverflows ? ss.kept : true, ss.after.stillOverflows, { scrolled: ss.scrolled, after: ss.after, kept: ss.kept, field: ss.field });
+  check("step 6: the Wilderness tab keeps its scroll across a field change while it still overflows after the re-fit", ss.after.stillOverflows ? ss.kept : true, { scrolled: ss.scrolled, after: ss.after, kept: ss.kept, field: ss.field });
   const nar18 = await page(gm, P.frameNarrow, { partyId: party.id });
   note("narrowed at 18", nar18);
   check("step 6: narrowed toward the 640px floor, no control is cut off without a scroller to reach it (at 14 and at 18)", nar14.cut.length === 0 && nar18.cut.length === 0, { at14: { width: nar14.width, minWidth: nar14.minWidth, cut: nar14.cut, clipped: nar14.clippedCount }, at18: { width: nar18.width, minWidth: nar18.minWidth, cut: nar18.cut, clipped: nar18.clippedCount } });
@@ -2702,7 +2701,7 @@ async function journey(gm, player, census) {
   check("frame step 6 re-check: no select gains at 18 a vertical overflow it lacked at 14", gained.length === 0, gained.map(sk));
   const sc = await page(gm, P.f6Scroll, { partyId: party.id });
   note("scroll across a field change at 18", sc);
-  gapCheck("frame step 6 re-check: across a field change in the 520-high Wilderness tab, the content in view stays put (the anchor block's offset within 2 px)", SCROLL_ACROSS_CHANGE, sc.anchorHeld || !sc.stillOverflows, !sc.clampedToMax && sc.sectionsChanged.length === 0, sc);
+  check("frame step 6 re-check: across a field change in the 520-high Wilderness tab, the content in view stays put (the anchor block's offset within 2 px)", sc.anchorHeld || !sc.stillOverflows, sc);
   note("fontScale back to 14", await page(gm, P.setSetting, { mod: MOD, key: "fontScale", value: 14 }));
   trackMsgs(gm, await page(gm, P.messages, { t0 }), "journey, all");
 }
