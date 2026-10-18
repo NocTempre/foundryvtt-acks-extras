@@ -30114,9 +30114,9 @@
         },
         "crop": {
           "x": 40.8,
-          "y": 82,
+          "y": 80,
           "w": 531.4,
-          "h": 672.8
+          "h": 676.5
         },
         "grid": {
           "family": "square",
@@ -30134,89 +30134,54 @@
         },
         "walls": {
           "mode": "grid",
-          "threshold": 155,
+          "threshold": 95,
           "corrections": [
             {
               "cell": [
-                5,
-                12
+                21,
+                1
               ],
-              "is": "floor"
+              "is": "secret"
             },
             {
               "cell": [
-                7,
-                11
-              ],
-              "is": "floor"
-            },
-            {
-              "cell": [
-                7,
-                12
-              ],
-              "is": "floor"
-            },
-            {
-              "cell": [
-                10,
-                11
-              ],
-              "is": "floor"
-            },
-            {
-              "cell": [
-                10,
-                12
-              ],
-              "is": "floor"
-            },
-            {
-              "cell": [
-                12,
-                12
-              ],
-              "is": "floor"
-            },
-            {
-              "cell": [
-                13,
-                12
-              ],
-              "is": "floor"
-            },
-            {
-              "cell": [
-                15,
+                0,
                 16
               ],
-              "is": "floor"
+              "is": "secret"
             },
             {
               "cell": [
-                33,
-                5
+                0,
+                19
               ],
-              "is": "floor"
+              "is": "secret"
             },
             {
               "cell": [
-                34,
-                5
+                1,
+                30
               ],
-              "is": "floor"
+              "is": "secret"
+            },
+            {
+              "cell": [
+                1,
+                33
+              ],
+              "is": "secret"
             },
             {
               "cell": [
                 2,
-                14
+                15
               ],
               "is": "door"
             },
             {
               "cell": [
-                32,
-                41
+                27,
+                12
               ],
               "is": "door"
             },
@@ -30229,38 +30194,289 @@
             },
             {
               "cell": [
-                21,
-                0
+                32,
+                43
               ],
-              "is": "secret"
+              "is": "door"
             },
             {
               "cell": [
-                0,
-                15
+                5,
+                39
               ],
-              "is": "secret"
+              "is": "open"
+            },
+            {
+              "edge": [
+                5,
+                39,
+                "w"
+              ],
+              "is": "door"
             },
             {
               "cell": [
-                0,
+                37,
+                22
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                37,
+                23
+              ],
+              "is": "floor"
+            },
+            {
+              "edge": [
+                37,
+                27,
+                "w"
+              ],
+              "is": "door"
+            },
+            {
+              "cell": [
+                24,
+                1
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                25,
+                1
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                26,
+                1
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                27,
+                1
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                28,
+                1
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                29,
+                1
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                30,
+                1
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                31,
+                1
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                32,
+                1
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                18,
+                44
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                20,
+                44
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                37,
+                35
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                37,
+                36
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                37,
+                39
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                37,
+                40
+              ],
+              "is": "open"
+            },
+            {
+              "cell": [
+                6,
+                48
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                7,
+                48
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                9,
+                48
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                10,
+                49
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                11,
+                49
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                12,
+                49
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                28,
+                49
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                33,
+                48
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                34,
+                48
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                35,
+                48
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                36,
+                48
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                37,
+                48
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                37,
+                47
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                26,
+                11
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                30,
+                22
+              ],
+              "is": "floor"
+            },
+            {
+              "cell": [
+                3,
                 18
               ],
-              "is": "secret"
+              "is": "floor"
             },
             {
-              "cell": [
-                1,
-                29
+              "box": [
+                4,
+                5,
+                14,
+                15
               ],
-              "is": "secret"
+              "is": "terrain"
             },
             {
-              "cell": [
-                1,
-                32
+              "edge": [
+                8,
+                15,
+                "n"
               ],
-              "is": "secret"
+              "is": "open"
+            },
+            {
+              "edge": [
+                9,
+                15,
+                "n"
+              ],
+              "is": "open"
             }
           ]
         }
