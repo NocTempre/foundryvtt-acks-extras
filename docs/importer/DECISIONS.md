@@ -6344,3 +6344,57 @@ import land in AX1's minor, reversing the no-walls answer."
   quotes the counts.
 - Corrections are authored by eye against a local overlay of the book's
   page. That overlay never enters a repository.
+
+## 2026-10-17 — What AX1's cave level taught the contour trace
+
+Amends "Walls are traced at import from the Judge's own page" (the same
+day), which gave a correction four forms: a cell, a throat, an edge and an
+island's point.
+
+**New evidence.** AX1's cave level (PDF p55) is the first contour plan
+traced, and it needs a form the ruling lacked:
+- **Light marks read as doors.** Contour reads a door as a light bar closed
+  at both ends. On p55 a light sliver between a rock edge and a grid line,
+  and the wave bars drawn on water, passed that test.
+- **No ruled form removes one alone.** In contour a door lies where its bar
+  is drawn, off the lattice. A cell asserted `open` cuts every segment that
+  crosses the cell, the outline's walls beside the door with it. An edge
+  cuts only segments that run along a lattice line, which a drawn door does
+  not.
+
+**Ruled.**
+- **A drawn door must stand in a passage.** Contour keeps a door only when
+  there is floor beyond both of its long sides. A sliver against a rock
+  edge has rock on one side and is not read.
+- **A point correction may drop a door**, in contour mode only:
+  `{at, drop: "door"}` removes the drawn door nearest the point, within
+  half a cell. A point with no door that near drops nothing. It counts
+  toward the 5% cap like every other correction, and it names a point, not
+  a segment.
+- **A point never flips the plan.** An island point that lands on the
+  largest component of its value, the plan's floor or the rock framing it,
+  is refused and counted (`islandsRefused`). On p55, 10 gray levels either
+  side of the recipe's cut, 2 and then 3 of its 16 island points landed on a
+  main component, and the trace returned the crop's border and nothing
+  else. With the guard those points are refused and the plan stands. A
+  refusal on a live import says the render drifted.
+- **A contour door reaches its walls.** Simplifying and snapping move the
+  outline off the drawn jambs. On p55, 4 of 13 doors stopped 0.15 to 1.65
+  points short of the outline, a gap that sight passes. A door end on the
+  floor side of the outline now reaches along the door's line to the
+  nearest wall within a quarter cell, and crosses it slightly, so rounding
+  to whole scene pixels cannot reopen the gap.
+- **A star drawn on the floor is floor.** The user ruled a star "not a wall
+  but an item in the room of importance"; stars, rings and stairs drawn on a
+  plan are dropped as islands, or made floor on their cells.
+
+*Rejected:*
+- **A door test strict enough to need no drop.** A water bar and a narrow
+  door have the same shape at the pitch the trace runs at, so a stricter
+  test loses real doors.
+- **Narrowing a cell's `open` to doors in contour.** It would give one form
+  two meanings by mode, and a cell `open` is also how a contour plan cuts a
+  wall that should not be there.
+
+*Cost:* the passage test can also refuse a real door drawn against a rock
+face. Such a door is asserted on its cell, which costs a correction.

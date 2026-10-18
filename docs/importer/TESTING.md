@@ -2209,7 +2209,10 @@ block what walls block.
    `api.track` (or note by hand) `c.created.scenes` and `c.created.folders`.
    *Observable:*
    - the console logged one `walls traced` digest for the map, with
-     `regions: 1` on a grid plan, meaning one connected floor;
+     `regions: 1` on a grid plan, meaning one connected floor. A contour
+     plan's digest quotes `loops`, `islandsDropped` and `doorsDropped`;
+     `islandsRefused: 0` is the pass, and a refusal means the render drifted
+     from the plate the recipe was authored on;
    - `c.walls` equals the digest's `walls + doors + secret`, and
      `c.wallsFailed` is 0;
    - the scene's `walls` count the same, split by `door` 0, 1 and 2 as the

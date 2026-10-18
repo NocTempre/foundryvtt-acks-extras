@@ -146,8 +146,12 @@ A recipe with a square `grid` may carry a `walls` block, read by
 - `corrections` — assertions on the recipe's lattice (`wallLattice`: cell
   `[0, 0]` is the first whole drawn cell at the crop's top-left):
   `{cell: [c, r], is}`, `{edge: [c, r, "n"|"w"], is}`, or
-  `{at: [x, y], drop: "island"}` in page points. Which states a cell may take
-  depends on the mode (`CELL_STATES`). `stroke` takes only `open`.
+  `{at: [x, y], drop: "island"|"door"}` in page points. Which states a cell
+  may take depends on the mode (`CELL_STATES`). `stroke` takes only `open`.
+  Only `contour` drops a door by its point (`AT_DROPS`): the drawn door
+  nearest the point, within half a cell. An island point on the plan's
+  floor or on the rock framing it, the largest component of its value, is
+  refused (`islandsRefused` in the digest).
 - `note` — the compiler strips it.
 
 `wallsProblems` checks the block wherever `recipeProblems` runs, in the
@@ -160,7 +164,9 @@ The map step traces after the picture is uploaded and before the one create.
 at `TRACE_PITCH` pixels per drawn cell (`extractPageGray`, print intent on
 white). That render is separate from the picture, so the trace reads the same
 plan at any picture size. `traceWalls` returns segments in page points with
-core's door type, and a digest the console logs. `wallSources` carries the
+core's door type, and a digest the console logs. In `contour` mode a door end
+left on the floor side of the outline is carried to the nearest wall within a
+quarter cell, and just past it (`closeDoor`). `wallSources` carries the
 segments through the placed frame the tokens use, rounds them to whole pixels,
 and drops zero-length ones. They ride the scene's create (`sceneData`), and a
 walled scene turns on token vision under global light. A trace that cannot run

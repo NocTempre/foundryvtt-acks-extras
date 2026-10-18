@@ -8,8 +8,8 @@
  * pixels to the drawn cell and hands it here. What comes back is wall
  * segments in page points, which the scene carries through the same frame as
  * its picture. No traced geometry ships: a correction is an assertion about
- * one cell, one cell edge or one island, and the cap keeps them a small share
- * of the plan.
+ * one cell, one cell edge, one island or one drawn door, and the cap keeps
+ * them a small share of the plan.
  *
  * Three modes, for three ways a plan is drawn:
  * - `grid`: dark rock and light floor on the drawn squares. Each cell is
@@ -44,6 +44,17 @@ const CELL_STATES = Object.freeze({
 });
 const EDGE_STATES = Object.freeze(["wall", "door", "secret", "open"]);
 const EDGE_SIDES = Object.freeze(["n", "w"]);
+
+/**
+ * What a point correction may drop, per mode. Only contour reads drawn doors
+ * as free segments off the lattice, where a cell asserted open would cut the
+ * walls beside one too, so only contour drops a door by its point.
+ */
+const AT_DROPS = Object.freeze({
+  grid: ["island"],
+  contour: ["island", "door"],
+  stroke: ["island"],
+});
 
 /** Core's `WALL_DOOR_TYPES`, spelled out because this file loads without Foundry. */
 const DOOR = Object.freeze({ none: 0, door: 1, secret: 2 });
@@ -138,7 +149,8 @@ export function wallsProblems(walls, recipe) {
       const crop = recipe.crop;
       if (!Array.isArray(k.at) || k.at.length !== 2 || !k.at.every(isNum)) return void out.push(`${where}.at must be [x, y]`);
       if (k.at[0] < crop.x || k.at[1] < crop.y || k.at[0] > crop.x + crop.w || k.at[1] > crop.y + crop.h) out.push(`${where}.at lies outside the crop`);
-      if (k.drop !== "island") out.push(`${where}.drop must be "island"`);
+      const drops = AT_DROPS[walls.mode] ?? ["island"];
+      if (!drops.includes(k.drop)) out.push(`${where}.drop must be ${drops.map((v) => `"${v}"`).join(" or ")} in ${walls.mode} mode`);
     }
     const key = correctionKey(k);
     if (seen.has(key)) out.push(`${where} asserts ${key} a second time`);
@@ -236,7 +248,10 @@ function rockMask(gray, w, h, threshold, pitch) {
  * label's ring, a symbol, rubble) becomes floor, and a floor island under one
  * cell (speckle, lettering) becomes rock. Outside the crop is rock, so a room
  * the crop cuts through is still a room. Then each `drop: "island"`
- * correction flips the component at its point.
+ * correction flips the component at its point, never the largest component
+ * of its value: that is the plan's floor or the rock framing it, and flipping
+ * either inverts the plan. Returns how many points dropped an island and how
+ * many were refused.
  */
 function cleanRock(rock, w, h, pitch, islands) {
   const sq = pitch * pitch;
@@ -252,9 +267,18 @@ function cleanRock(rock, w, h, pitch, islands) {
     for (const c of comps) if (c.area < sq) kill[c.id] = 1;
     for (let i = 0; i < rock.length; i++) if (!rock[i] && kill[lab[i]]) rock[i] = 1;
   }
-  let dropped = 0;
-  for (const [x, y] of islands) if (flipComponentAt(rock, w, h, x, y)) dropped++;
-  return dropped;
+  let dropped = 0, refused = 0;
+  for (const [px, py] of islands) {
+    const x = Math.round(px), y = Math.round(py);
+    if (x < 0 || y < 0 || x >= w || y >= h) continue;
+    // Labelled again for every point, because an island an earlier point
+    // flipped has joined whatever surrounded it.
+    const { lab, comps } = components(rock, w, h, rock[y * w + x]);
+    const largest = comps.reduce((a, b) => (b.area > a.area ? b : a));
+    if (lab[y * w + x] === largest.id) refused++;
+    else if (flipComponentAt(rock, w, h, x, y)) dropped++;
+  }
+  return { dropped, refused };
 }
 
 /** Douglas–Peucker over an open polyline of `[x, y]` points. */
@@ -298,12 +322,78 @@ function readCorrections(list, crop, scale) {
   const cells = new Map();
   const edges = new Map();
   const islands = [];
+  const doorDrops = [];
   for (const k of list ?? []) {
     if (k.cell) cells.set(`${k.cell[0]},${k.cell[1]}`, k.is);
     else if (k.edge) edges.set(`${k.edge[0]},${k.edge[1]},${k.edge[2]}`, k.is);
-    else if (k.at) islands.push([(k.at[0] - crop.x) * scale, (k.at[1] - crop.y) * scale]);
+    else if (k.at) (k.drop === "door" ? doorDrops : islands).push([(k.at[0] - crop.x) * scale, (k.at[1] - crop.y) * scale]);
   }
-  return { cells, edges, islands };
+  return { cells, edges, islands, doorDrops };
+}
+
+/** How far a point lies from a segment. */
+function pointToSegment(px, py, [ax, ay, bx, by]) {
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2)) : 0;
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+/** How far along a ray from `p` in unit direction `u` it meets segment `c`, or null. */
+function rayToSegment(p, u, [x1, y1, x2, y2]) {
+  const ex = x2 - x1, ey = y2 - y1;
+  const den = u[0] * ey - u[1] * ex;
+  if (Math.abs(den) < 1e-12) return null;
+  const t = ((x1 - p[0]) * ey - (y1 - p[1]) * ex) / den;
+  const s = ((x1 - p[0]) * u[1] - (y1 - p[1]) * u[0]) / den;
+  return t >= 0 && s >= 0 && s < 1 ? t : null;
+}
+
+/**
+ * Rays a point casts to tell inside a closed outline from outside, skewed off
+ * the axes so none runs along a snapped wall or through its corners.
+ */
+const PARITY_RAYS = Object.freeze([[1, 0.0137], [-1, 0.0213], [0.0171, 1], [0.0119, -1], [0.7071, 0.7171]].map(([x, y]) => [x / Math.hypot(x, y), y / Math.hypot(x, y)]));
+
+/** Whether `p` lies inside the closed loops `segs` draw: most rays cross them an odd number of times. */
+function insideLoops(p, segs) {
+  let odd = 0;
+  for (const u of PARITY_RAYS) {
+    let n = 0;
+    for (const { c } of segs) if (rayToSegment(p, u, c) !== null) n++;
+    odd += n % 2;
+  }
+  return odd > PARITY_RAYS.length / 2;
+}
+
+/**
+ * A door whose end lies on the floor side of the outline reaches along its
+ * line to the nearest wall within `reach`, so the passage it stands in is
+ * closed to sight as well as to movement. A closed end crosses its wall by
+ * `margin`, so rounding to whole scene pixels cannot reopen a hairline.
+ */
+function closeDoor(door, outline, reach, margin) {
+  const [ax, ay, bx, by] = door.c;
+  const len = Math.hypot(bx - ax, by - ay);
+  if (!len) return door;
+  const u = [(bx - ax) / len, (by - ay) / len];
+  const nearest = (p, dir) => {
+    let near = Infinity;
+    for (const { c } of outline) {
+      const t = rayToSegment(p, dir, c);
+      if (t !== null && t < near) near = t;
+    }
+    return near;
+  };
+  const extend = (p, dir) => {
+    const step = insideLoops(p, outline)
+      ? (nearest(p, dir) <= reach ? nearest(p, dir) + margin : 0)
+      : Math.max(0, margin - nearest(p, [-dir[0], -dir[1]]));
+    return [p[0] + dir[0] * step, p[1] + dir[1] * step];
+  };
+  const a = extend([ax, ay], [-u[0], -u[1]]);
+  const b = extend([bx, by], u);
+  return { ...door, c: [a[0], a[1], b[0], b[1]] };
 }
 
 /** A door type from an asserted state. */
@@ -517,7 +607,7 @@ function throatKind(gray, w, ringMask, L, i, j, ns) {
 /** grid mode: cells classed by floor share, walls on cell edges, doors in throats. */
 function traceGrid(gray, w, h, threshold, L, corr) {
   const rock = rockMask(gray, w, h, threshold, L.pitch);
-  const dropped = cleanRock(rock, w, h, L.pitch, corr.islands);
+  const isl = cleanRock(rock, w, h, L.pitch, corr.islands);
   const { cols: nx, rows: ny } = L;
   const floorCell = new Uint8Array(nx * ny);
   for (let j = 0; j < ny; j++) {
@@ -676,7 +766,7 @@ function traceGrid(gray, w, h, threshold, L, corr) {
     walls,
     digest: {
       cells: nx * ny, floorCells, regions: sizes.length, largestRegion: sizes.length ? Math.max(...sizes) : 0,
-      throats: kinds, labels: rings.length, islandsDropped: dropped, cellFixes, unplaced,
+      throats: kinds, labels: rings.length, islandsDropped: isl.dropped, islandsRefused: isl.refused, cellFixes, unplaced,
     },
   };
 }
@@ -745,7 +835,9 @@ function floorLoops(rock, w, h) {
 
 /**
  * The doors a contour plan draws: a light rectangle about a third to one
- * cell long, standing on floor, with rock within a quarter cell of both ends.
+ * cell long, standing on floor, with rock within a quarter cell of both ends
+ * and floor beyond both long sides. A door stands in a passage; a light
+ * sliver between a rock edge and a grid line has rock on one side.
  */
 function contourDoors(gray, rock, w, h, pitch) {
   const light = new Uint8Array(w * h);
@@ -772,7 +864,9 @@ function contourDoors(gray, rock, w, h, pitch) {
         endB ||= rockAt(cx, c.maxy + d);
       }
     }
-    if (endA && endB) doors.push({ c: horiz ? [c.minx, cy, c.maxx + 1, cy] : [cx, c.miny, cx, c.maxy + 1], door: DOOR.door });
+    const side = Math.round(short / 2 + 0.3 * pitch);
+    const passage = horiz ? !rockAt(cx, cy - side) && !rockAt(cx, cy + side) : !rockAt(cx - side, cy) && !rockAt(cx + side, cy);
+    if (endA && endB && passage) doors.push({ c: horiz ? [c.minx, cy, c.maxx + 1, cy] : [cx, c.miny, cx, c.maxy + 1], door: DOOR.door });
   }
   return doors;
 }
@@ -780,7 +874,7 @@ function contourDoors(gray, rock, w, h, pitch) {
 /** contour mode: walls on the floor's own outline, snapped to grid lines where they run along one. */
 function traceContour(gray, w, h, threshold, L, corr) {
   const rock = rockMask(gray, w, h, threshold, L.pitch);
-  const dropped = cleanRock(rock, w, h, L.pitch, corr.islands);
+  const isl = cleanRock(rock, w, h, L.pitch, corr.islands);
   let cellFixes = 0;
   for (const [key, state] of corr.cells) {
     if (state !== "floor" && state !== "solid") continue;
@@ -821,6 +915,25 @@ function traceContour(gray, w, h, threshold, L, corr) {
     .filter(({ c }) => Math.hypot(c[2] - c[0], c[3] - c[1]) >= 1);
   walls.push(...contourDoors(gray, rock, w, h, L.pitch));
 
+  // A dropped door is the drawn door nearest the correction's point, within
+  // half a cell; a point with none that near drops nothing.
+  let doorsDropped = 0;
+  for (const [px, py] of corr.doorDrops) {
+    let best = -1;
+    let near = 0.5 * L.pitch;
+    walls.forEach((s, k) => {
+      if (!s.door) return;
+      const d = pointToSegment(px, py, s.c);
+      if (d <= near) {
+        near = d;
+        best = k;
+      }
+    });
+    if (best < 0) continue;
+    walls.splice(best, 1);
+    doorsDropped++;
+  }
+
   // A door asserted on a cell lies across it, perpendicular to the axis whose
   // two neighbours hold more floor.
   let unplaced = 0;
@@ -847,10 +960,15 @@ function traceContour(gray, w, h, threshold, L, corr) {
     const cx = x0 + L.ppx / 2, cy = y0 + L.ppy / 2;
     walls.push({ c: ns ? [x0, cy, x1, cy] : [cx, y0, cx, y1], door: doorOf(state) });
   }
+  // Simplifying and snapping move the outline off the drawn jambs, so a door
+  // can stop short of its wall; it is closed against the outline before any
+  // cell or edge correction opens a loop.
+  const outline = walls.filter((s) => !s.door);
+  walls = walls.map((s) => (s.door ? closeDoor(s, outline, 0.25 * L.pitch, 0.02 * L.pitch) : s));
   walls = correctSegments(walls, L, corr);
   return {
     walls,
-    digest: { cells: L.cols * L.rows, loops, islandsDropped: dropped, cellFixes, unplaced },
+    digest: { cells: L.cols * L.rows, loops, islandsDropped: isl.dropped, islandsRefused: isl.refused, doorsDropped, cellFixes, unplaced },
   };
 }
 
@@ -932,10 +1050,16 @@ function traceStroke(gray, w, h, threshold, L, corr) {
     for (const c of comps) if (Math.max(c.maxx - c.minx, c.maxy - c.miny) < 0.9 * pitch) kill[c.id] = 1;
     for (let i = 0; i < thick.length; i++) if (thick[i] && kill[lab[i]]) thick[i] = 0;
   }
-  let dropped = 0;
-  for (const [x, y] of corr.islands) {
-    const q = Math.round(y) * w + Math.round(x);
-    if (thick[q] && flipComponentAt(thick, w, h, x, y)) dropped++;
+  // A dropped mark is never the largest stroke network, which is the plan
+  // itself. Dropping a mark only erases it, so one labelling serves every point.
+  let dropped = 0, refused = 0;
+  const strokes = components(thick, w, h, 1);
+  const largest = strokes.comps.reduce((a, b) => (b.area > a.area ? b : a), { id: -1, area: 0 });
+  for (const [px, py] of corr.islands) {
+    const x = Math.round(px), y = Math.round(py);
+    if (x < 0 || y < 0 || x >= w || y >= h || !thick[y * w + x]) continue;
+    if (strokes.lab[y * w + x] === largest.id) refused++;
+    else if (flipComponentAt(thick, w, h, x, y)) dropped++;
   }
   const sk = thin(thick, w, h);
   const nb = (q) => {
@@ -981,7 +1105,7 @@ function traceStroke(gray, w, h, threshold, L, corr) {
     for (let i = 0; i + 1 < poly.length; i++) walls.push({ c: [...poly[i], ...poly[i + 1]], door: DOOR.none });
   }
   walls = correctSegments(walls, L, corr);
-  return { walls, digest: { cells: L.cols * L.rows, paths: paths.length, islandsDropped: dropped } };
+  return { walls, digest: { cells: L.cols * L.rows, paths: paths.length, islandsDropped: dropped, islandsRefused: refused } };
 }
 
 /* ---------------------------------------------------------------------------

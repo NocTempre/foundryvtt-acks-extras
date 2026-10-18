@@ -118,6 +118,9 @@ ok("stroke mode asserts no floor", wallsProblems({ mode: "stroke", threshold: 20
 ok("a cell asserted twice is refused", wallsProblems({ ...fine, corrections: [{ cell: [1, 1], is: "floor" }, { cell: [1, 1], is: "solid" }] }, recipeOf(fine)).some((p) => /second time/.test(p)));
 ok("a correction names one target", wallsProblems({ ...fine, corrections: [{ cell: [1, 1], edge: [1, 1, "n"], is: "open" }] }, recipeOf(fine)).some((p) => /exactly one/.test(p)));
 ok("an island point must be inside the crop", wallsProblems({ ...fine, corrections: [{ at: [0, 0], drop: "island" }] }, recipeOf(fine)).some((p) => /outside the crop/.test(p)));
+const dropDoor = [{ at: [crop.x + 5, crop.y + 5], drop: "door" }];
+ok("grid mode drops no door by its point", wallsProblems({ ...fine, corrections: dropDoor }, recipeOf(fine)).some((p) => /drop must be "island" in grid mode/.test(p)));
+check("contour mode drops a door by its point", wallsProblems({ mode: "contour", threshold: 160, corrections: dropDoor }, recipeOf(fine)), []);
 ok("recipeProblems carries the walls checks", recipeProblems({ ...recipeOf({ ...fine, mode: "hatch" }) }).some((p) => /walls.mode/.test(p)));
 
 /* ---------------- grid mode ---------------- */
@@ -144,6 +147,12 @@ const fixed = traceWalls(plan, recipeOf({
 }), scale);
 check("grid: a cell asserted solid leaves the floor", fixed.digest.floorCells, floorMap.size - 1 - 4);
 check("grid: the dropped island leaves one region", fixed.digest.regions, 1);
+check("grid: the island's point is dropped, not refused", [fixed.digest.islandsDropped, fixed.digest.islandsRefused], [1, 0]);
+for (const [what, at] of [["the plan's floor", [4.5, 4.5]], ["the rock framing it", [0.5, 0.5]]]) {
+  const kept = traceWalls(plan, recipeOf({ ...fine, corrections: [{ at: [crop.x + at[0] * CELL, crop.y + at[1] * CELL], drop: "island" }] }), scale);
+  check(`grid: a point on ${what} is refused and the plan stands`,
+    [kept.digest.islandsDropped, kept.digest.islandsRefused, kept.digest.floorCells, kept.walls.length], [0, 1, d.floorCells, traced.walls.length]);
+}
 check("grid: an open throat asserted secret is a secret door", fixed.digest.secret, 1);
 check("grid: an edge asserted a door is one, on the edge", fixed.walls.filter((s) => s.door === 1).map((s) => s.c).sort((a, b) => a[0] - b[0])[0], [crop.x + 2 * CELL, crop.y + 2 * CELL, crop.x + 3 * CELL, crop.y + 2 * CELL]);
 const opened = traceWalls(plan, recipeOf({ ...fine, corrections: [{ edge: [2, 2, "n"], is: "open" }, { cell: [8, 4], is: "open" }] }), scale);
@@ -187,6 +196,61 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   const sides = snapped.walls.filter(({ c }) => Math.hypot(c[2] - c[0], c[3] - c[1]) > CELL);
   check("contour: the room's four sides are traced", sides.length, 4);
   ok("contour: a side near a grid line is snapped onto it", sides.every(({ c }) => (c[0] === c[2] && onLine(c[0], crop.x)) || (c[1] === c[3] && onLine(c[1], crop.y))));
+
+  // A floor island holding a rock blob: once the island is dropped, the blob
+  // is part of the rock framing the plan, so a second point on it is refused.
+  const islanded = canvas(50);
+  islanded.cells(2, 2, 8, 6, 250);
+  islanded.cells(12, 3, 14, 5, 250);
+  islanded.rect(12.8 * TRACE_PITCH, 3.8 * TRACE_PITCH, 13.6 * TRACE_PITCH, 4.6 * TRACE_PITCH, 50);
+  const roomOnly = canvas(50);
+  roomOnly.cells(2, 2, 8, 6, 250);
+  const both = traceWalls(islanded, recipeOf({ mode: "contour", threshold: 160, corrections: [
+    { at: [crop.x + 12.3 * CELL, crop.y + 3.3 * CELL], drop: "island" },
+    { at: [crop.x + 13.2 * CELL, crop.y + 4.2 * CELL], drop: "island" },
+  ] }), scale);
+  check("contour: a blob an earlier drop joined to the framing rock is refused",
+    [both.digest.islandsDropped, both.digest.islandsRefused, wallLength(both.walls).toFixed(6)],
+    [1, 1, wallLength(traceWalls(roomOnly, recipeOf({ mode: "contour", threshold: 160 }), scale).walls).toFixed(6)]);
+}
+
+{
+  // A door drawn across a corridor between two rooms, and a light sliver
+  // between a room's west wall and a grid line beside it, closed at both ends
+  // by rock: both are light rectangles with rock at their ends, and only the
+  // door has floor beyond both long sides.
+  // Drawn once as described and once mirrored across the diagonal, so a door
+  // across a corridor running either way is read.
+  const P = TRACE_PITCH;
+  const drawPlan = (flip) => {
+    const p = canvas(50);
+    const R = (x0, y0, x1, y1, v) => (flip ? p.rect(y0, x0, y1, x1, v) : p.rect(x0, y0, x1, y1, v));
+    const C = (c0, r0, c1, r1, v) => R(c0 * P, r0 * P, (c1 + 1) * P, (r1 + 1) * P, v);
+    C(3, 3, 8, 6, 250);
+    C(3, 4, 3, 4, 50);
+    R(3.2 * P, 3 * P, 3.2 * P + 1, 4 * P, 110);
+    C(9, 5, 11, 5, 250);
+    C(12, 3, 15, 7, 250);
+    R(10.35 * P, 5 * P, 10.4 * P, 6 * P, 0);
+    R(10.6 * P, 5 * P, 10.65 * P, 6 * P, 0);
+    return p;
+  };
+  const plan = drawPlan(false);
+  const rec = { mode: "contour", threshold: 160 };
+  const out = traceWalls(plan, recipeOf(rec), scale);
+  const doorsOf = (o) => o.walls.filter((s) => s.door).map((s) => [((s.c[0] + s.c[2]) / 2 - crop.x) / CELL, ((s.c[1] + s.c[3]) / 2 - crop.y) / CELL]);
+  const found = doorsOf(out);
+  ok("contour: the door in the corridor is read, the sliver beside the wall is not",
+    found.length === 1 && Math.abs(found[0][0] - 10.5) < 0.1 && Math.abs(found[0][1] - 5.5) < 0.1, JSON.stringify(found));
+  const across = doorsOf(traceWalls(drawPlan(true), recipeOf(rec), scale));
+  ok("contour: mirrored, the door is still read and the sliver still is not",
+    across.length === 1 && Math.abs(across[0][0] - 5.5) < 0.1 && Math.abs(across[0][1] - 10.5) < 0.1, JSON.stringify(across));
+  // The point lies nearer the corridor's wall than the door; the door goes.
+  const dropped = traceWalls(plan, recipeOf({ ...rec, corrections: [{ at: [crop.x + 10.8 * CELL, crop.y + 5.05 * CELL], drop: "door" }] }), scale);
+  check("contour: a door dropped by a point near it is gone", [doorsOf(dropped).length, dropped.digest.doorsDropped], [0, 1]);
+  check("contour: dropping a door cuts no wall", wallLength(dropped.walls), wallLength(out.walls));
+  const missed = traceWalls(plan, recipeOf({ ...rec, corrections: [{ at: [crop.x + 13.5 * CELL, crop.y + 4.5 * CELL], drop: "door" }] }), scale);
+  check("contour: a point with no door within half a cell drops nothing", [doorsOf(missed).length, missed.digest.doorsDropped], [1, 0]);
 }
 
 /* ---------------- stroke mode ---------------- */
@@ -221,8 +285,14 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
 
   const gap = traceWalls(house, recipeOf({ ...rec, corrections: [{ cell: [7, 3], is: "open" }] }), scale);
   ok("stroke: a cell asserted open cuts the wall crossing it", wallLength(gap.walls) < len - 0.5 * CELL);
-  const islandDropped = traceWalls(house, recipeOf({ ...rec, corrections: [{ at: [crop.x + 3 * CELL, crop.y + 6 * CELL], drop: "island" }] }), scale);
-  check("stroke: dropping the outline's island drops every wall", islandDropped.walls.length, 0);
+  const outlineKept = traceWalls(house, recipeOf({ ...rec, corrections: [{ at: [crop.x + 3 * CELL, crop.y + 6 * CELL], drop: "island" }] }), scale);
+  check("stroke: a point on the outline is refused, for the outline is the plan",
+    [outlineKept.digest.islandsRefused, outlineKept.walls.length], [1, out.walls.length]);
+  line(5, 12, 9, 12); // a separate stroke, long enough to trace
+  const fenced = wallLength(traceWalls(house, recipeOf(rec), scale).walls);
+  ok("stroke: a separate stroke traces as walls", fenced > len + 3 * CELL, `${fenced.toFixed(1)} vs ${len.toFixed(1)}`);
+  const markDropped = traceWalls(house, recipeOf({ ...rec, corrections: [{ at: [crop.x + 7 * CELL, crop.y + 12 * CELL], drop: "island" }] }), scale);
+  check("stroke: a point on the separate stroke drops it alone", [markDropped.digest.islandsDropped, wallLength(markDropped.walls).toFixed(6)], [1, len.toFixed(6)]);
 }
 
 /* ---------------- refusals ---------------- */
