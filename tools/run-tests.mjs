@@ -119,6 +119,7 @@ const COMMITTED = [
   "importer/test-prose.mjs",
   "importer/test-book-match.mjs",
   "importer/test-executor.mjs",
+  "importer/test-typography.mjs",
   "importer/test-hit-dice.mjs",
   "importer/test-equipment-binding.mjs",
   "importer/test-weapon-tables.mjs",

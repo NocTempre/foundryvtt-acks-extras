@@ -55,7 +55,7 @@ if (!ids.length) {
 const docs = new Map();
 async function docFor(bookId) {
   if (!docs.has(bookId)) {
-    const { doc } = await openBook(fs.readFileSync(FILES[bookId]));
+    const { doc } = await openBook(fs.readFileSync(FILES[bookId]), { book: bookId });
     docs.set(bookId, doc);
   }
   return docs.get(bookId);

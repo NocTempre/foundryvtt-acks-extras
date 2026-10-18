@@ -1072,3 +1072,32 @@ What each book still owes, in the order it is worth doing:
 - **An order for same-year printings.** AX2–AX6 all carry 2018, so
   `laterBook` cannot order them, and a place two of them print cannot be
   paired until the register records which came first.
+
+## The OSR Catgirl: what the first cut leaves
+
+The `cat` cookbook ships the race's five tiers, the catfolk beastman and the
+three classes (DECISIONS 2026-10-18). Left, each waiting on a ruling, a kind
+or a reader rather than on authoring:
+
+- **The tavern's two floor plans (p28–29).** Two kind.scene rows read them
+  gridless and were withdrawn: a book that ships a map is a Judge's book, and
+  that closes every shelf of the book to players, the classes and the race
+  included. A book with a player's half and a Judge's half needs a line for
+  each — a registry ruling, after which the rows go back as they were.
+- **The tavern's keeper (p30).** Her block is set as spaced paragraphs under
+  the name, the prose beside it; a kind.npc row read three of its lines. She
+  is a character actor once the AX1 character kind takes a declared block —
+  hash anchor `1eg1f2n`, label "HP:".
+- **The tavern's keyed rooms (p27–30, 1–11)** and the links between its two
+  floors: kind.location rows over the two plans, once those ship and that
+  path reads a book outside AX1's bands.
+- **The ten items (p24–26)**: kind.adventureItem, in flight for AX1. Their
+  print keys are computed (`ob672d`, `u459j2`, `42aw5e`, `6lwxw9` among them)
+  so the rows anchor by hash.
+- **The essays (p4–6, p10, p31–32) and the tavern's prose (p27)**: kind.prose.
+- **The classes' progression tables.** Two spreads print them as images; the
+  third's saves-and-attack table is text (p21, the page foot). Until a table
+  is read the Judge finishes the ladder; the chassis carries the fighter
+  progressions each spread names.
+- **A race document.** The five tiers ship as class powers under one group; a
+  kind for a race as a document would hold them together.

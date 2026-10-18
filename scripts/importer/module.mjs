@@ -37,7 +37,7 @@ import { BOOKS, bookIsForm, bookIsJudges, fingerprintWarning, identifyBook, pars
 import { matchFilesToBooks } from "./book-match.mjs";
 import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
-import { openBook, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, setWorker, setWasmUrl } from "./extract.mjs";
+import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, setWorker, setWasmUrl } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
 import { TRACE_PITCH, traceWalls } from "./wall-trace.mjs";
 import { extractStatPairs } from "./stats.mjs";
@@ -1048,6 +1048,10 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
     }
     const warning = fingerprintWarning(bookId, numPages, title);
     if (warning && !silent) ui.notifications.warn(`${MODULE_ID} | ${warning}`);
+    // Tagged before anything reads a page of it: the compiler tags its copy
+    // the same way, and a page read without the tag is read on the wrong
+    // size ladder and with the book's ligatures still encoded.
+    useTypography(doc, bookId);
     sessionDocs.set(bookId, { doc, title });
     Hooks.callAll("acksExtras.bookOpened", bookId);
     // Only once the book actually opened: a file that failed the read is not

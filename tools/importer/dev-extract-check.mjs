@@ -29,7 +29,7 @@ for (const [id, file] of Object.entries(FILES)) {
     console.log(`SKIP book ${id}: ${file} not found`);
     continue;
   }
-  const { doc, numPages, title } = await openBook(fs.readFileSync(file));
+  const { doc, numPages, title } = await openBook(fs.readFileSync(file), { book: id });
   const warn = fingerprintWarning(id, numPages, title);
   console.log(`book ${id}: ${numPages}pp "${title}"${warn ? ` — WARN ${warn}` : " — fingerprint OK"}`);
   docs[id] = doc;

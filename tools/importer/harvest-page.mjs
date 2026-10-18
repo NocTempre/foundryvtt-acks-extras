@@ -106,7 +106,7 @@ async function main() {
   const start = parseInt(startArg, 10);
   const end = endArg ? parseInt(endArg, 10) : start;
 
-  const { doc, numPages, title } = await openBook(fs.readFileSync(file));
+  const { doc, numPages, title } = await openBook(fs.readFileSync(file), { book });
   doc._acksBookId = book;
   const warn = fingerprintWarning(book, numPages, title);
   if (warn) console.error(`WARN ${warn}`);

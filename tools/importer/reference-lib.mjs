@@ -28,6 +28,9 @@ export const LIB_AX = "C:\\Proj\\acks-reference\\AX";
  */
 export const LIB_OSE = "C:\\Proj\\ose-reference";
 
+/** Community titles written for ACKS, on the ACKS shelf beside the core books. */
+export const LIB_COMMUNITY = "C:\\Proj\\acks-reference\\Community";
+
 /** Book id -> the exact printing the register's page numbers were read from. */
 export const FILES = {
   rr: `${LIB}\\ACKSII_Revised_Rulebook_DIGITAL_FINAL_r10_2nd_Printing.pdf`,
@@ -65,6 +68,7 @@ export const OSE_FILES = {
   pc1: `${LIB_OSE}\\Planar Compass\\Planar Compass Issue 1\\PlanarCompass1v1-4.pdf`,
   pc2: `${LIB_OSE}\\Planar Compass\\Planar Compass Issue 2\\PlanarCompass2v2.pdf`,
   pc3: `${LIB_OSE}\\Planar Compass\\Planar Compass Issue 3\\PlanarCompass3_v2_Screen.pdf`,
+  cat: `${LIB_COMMUNITY}\\The OSR Catgirl_ Nine Lives of Adventure\\The_OSR_Catgirl.pdf`,
 };
 
 /**

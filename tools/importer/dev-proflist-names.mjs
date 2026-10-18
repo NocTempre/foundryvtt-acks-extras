@@ -35,7 +35,7 @@ const nameKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const splitList = (s) => String(s ?? "").split(/,(?![^(]*\))/).map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean);
 
 for (const [id, e] of entries.filter(([id, e]) => e.kind === "kind.class" && e.fields?.profList && id.includes(only))) {
-  const { doc } = await openBook(fs.readFileSync(FILES[e.book]));
+  const { doc } = await openBook(fs.readFileSync(FILES[e.book]), { book: e.book });
   const node = await executeEntry(doc, e.__cb, registers, id).catch(() => null);
   const text = String(node?.fields?.profList ?? "").replace(/^.*?Proficiency\s*List:\s*/i, "");
   console.log(`\n=== ${id}  (box ${JSON.stringify(e.fields.profList.box)}) ===`);

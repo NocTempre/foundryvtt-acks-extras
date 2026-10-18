@@ -142,7 +142,7 @@ async function main() {
         .sort(([, [, a]], [, [, b]]) => (a.audited ? 1 : 0) - (b.audited ? 1 : 0))
         .map(([id]) => id);
 
-  const { doc } = await openBook(fs.readFileSync(FILES[bookArg]));
+  const { doc } = await openBook(fs.readFileSync(FILES[bookArg]), { book: bookArg });
   const pageCache = new Map();
   const pageOf = async (p) => {
     if (!pageCache.has(p)) {

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "def.power.catgirl0",
+    "icon": "icons/creatures/mammals/humanoid-cat-skulking-teal.webp",
+    "kind": "kind.power",
+    "book": "cat",
+    "name": "Catgirl 0",
+    "anchor": { "runin": "Catgirl 0:" },
+    "pages": [8],
+    "meta": { "category": "classPower", "group": "Catgirl racial value" },
+    "assists": { "columns": [40, 320] }
+  },
+  {
+    "id": "def.power.catgirl1",
+    "icon": "icons/magic/nature/wolf-paw-glow-small-teal-blue.webp",
+    "kind": "kind.power",
+    "book": "cat",
+    "name": "Catgirl 1",
+    "anchor": { "runin": "Catgirl 1:" },
+    "pages": [8],
+    "meta": { "category": "classPower", "group": "Catgirl racial value" },
+    "assists": { "columns": [40, 320] }
+  },
+  {
+    "id": "def.power.catgirl2",
+    "icon": "icons/magic/nature/wolf-paw-glow-teal-blue.webp",
+    "kind": "kind.power",
+    "book": "cat",
+    "name": "Catgirl 2",
+    "anchor": { "runin": "Catgirl 2:" },
+    "pages": [8],
+    "meta": { "category": "classPower", "group": "Catgirl racial value" },
+    "assists": { "columns": [40, 320] }
+  },
+  {
+    "id": "def.power.catgirl3",
+    "icon": "icons/magic/lightning/claws-unarmed-strike-teal.webp",
+    "kind": "kind.power",
+    "book": "cat",
+    "name": "Catgirl 3",
+    "anchor": { "runin": "Catgirl 3:" },
+    "pages": [8, 9],
+    "meta": { "category": "classPower", "group": "Catgirl racial value" },
+    "assists": { "columns": [40, 320] }
+  },
+  {
+    "id": "def.power.catgirl4",
+    "icon": "icons/creatures/mammals/humanoid-fox-cat-archer.webp",
+    "kind": "kind.power",
+    "book": "cat",
+    "name": "Catgirl 4",
+    "anchor": { "runin": "Catgirl 4:" },
+    "pages": [9],
+    "meta": { "category": "classPower", "group": "Catgirl racial value" },
+    "assists": { "columns": [40, 320] }
+  }
+]

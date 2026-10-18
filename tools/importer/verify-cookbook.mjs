@@ -93,7 +93,7 @@ for (const file of bookFiles) {
     console.log(`SKIP book ${bookId}: reference PDF not found`);
     continue;
   }
-  const { doc, numPages, title } = await openBook(fs.readFileSync(pdf));
+  const { doc, numPages, title } = await openBook(fs.readFileSync(pdf), { book: bookId });
   const fw = fingerprintWarning(bookId, numPages, title);
   console.log(`book ${bookId}: ${numPages}pp "${title}"${fw ? ` — WARN ${fw}` : " — fingerprint OK"}`);
 

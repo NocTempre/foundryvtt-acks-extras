@@ -3297,6 +3297,298 @@
         }
       }
     },
+    "def.power.catgirl0": {
+      "id": "def.power.catgirl0",
+      "kind": "kind.power",
+      "name": "Catgirl 0",
+      "book": "cat",
+      "cite": "CAT p.4",
+      "pages": [
+        8
+      ],
+      "meta": {
+        "category": "classPower",
+        "group": "Catgirl racial value"
+      },
+      "icon": "icons/creatures/mammals/humanoid-cat-skulking-teal.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 8,
+          "box": {
+            "x0": 34,
+            "x1": 78.62,
+            "y0": 59.32000700000003,
+            "y1": 68.32000700000003
+          },
+          "text": "Catgirl 0:"
+        },
+        "description": {
+          "op": "text",
+          "page": 8,
+          "paras": [
+            {
+              "box": {
+                "x0": 35,
+                "x1": 314,
+                "y0": 61.32000700000003,
+                "y1": 84.384007
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.power.catgirl1": {
+      "id": "def.power.catgirl1",
+      "kind": "kind.power",
+      "name": "Catgirl 1",
+      "book": "cat",
+      "cite": "CAT p.4",
+      "pages": [
+        8
+      ],
+      "meta": {
+        "category": "classPower",
+        "group": "Catgirl racial value"
+      },
+      "icon": "icons/magic/nature/wolf-paw-glow-small-teal-blue.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 8,
+          "box": {
+            "x0": 33.99960399999996,
+            "x1": 78.61960399999997,
+            "y0": 315.4500069999999,
+            "y1": 324.4500069999999
+          },
+          "text": "Catgirl 1:"
+        },
+        "description": {
+          "op": "text",
+          "page": 8,
+          "paras": [
+            {
+              "box": {
+                "x0": 35,
+                "x1": 314,
+                "y0": 317.4500069999999,
+                "y1": 352.7300069999999
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.power.catgirl2": {
+      "id": "def.power.catgirl2",
+      "kind": "kind.power",
+      "name": "Catgirl 2",
+      "book": "cat",
+      "cite": "CAT p.4",
+      "pages": [
+        8
+      ],
+      "meta": {
+        "category": "classPower",
+        "group": "Catgirl racial value"
+      },
+      "icon": "icons/magic/nature/wolf-paw-glow-teal-blue.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 8,
+          "box": {
+            "x0": 33.999603999999934,
+            "x1": 78.61960399999994,
+            "y0": 681.6204069999997,
+            "y1": 690.6204069999997
+          },
+          "text": "Catgirl 2:"
+        },
+        "description": {
+          "op": "text",
+          "page": 8,
+          "paras": [
+            {
+              "box": {
+                "x0": 35,
+                "x1": 314,
+                "y0": 683.6204069999997,
+                "y1": 718.9208069999996
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.power.catgirl3": {
+      "id": "def.power.catgirl3",
+      "kind": "kind.power",
+      "name": "Catgirl 3",
+      "book": "cat",
+      "cite": "CAT p.4",
+      "pages": [
+        8,
+        9
+      ],
+      "meta": {
+        "category": "classPower",
+        "group": "Catgirl racial value"
+      },
+      "icon": "icons/magic/lightning/claws-unarmed-strike-teal.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 8,
+          "box": {
+            "x0": 322.070404,
+            "x1": 366.690404,
+            "y0": 471.9516069999992,
+            "y1": 480.9516069999992
+          },
+          "text": "Catgirl 3:"
+        },
+        "description": {
+          "op": "text",
+          "page": 8,
+          "paras": [
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 473.9516069999992,
+                "y1": 513.7916069999992
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.power.catgirl4": {
+      "id": "def.power.catgirl4",
+      "kind": "kind.power",
+      "name": "Catgirl 4",
+      "book": "cat",
+      "cite": "CAT p.5",
+      "pages": [
+        9
+      ],
+      "meta": {
+        "category": "classPower",
+        "group": "Catgirl racial value"
+      },
+      "icon": "icons/creatures/mammals/humanoid-fox-cat-archer.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 9,
+          "box": {
+            "x0": 33.99960400000002,
+            "x1": 78.61960400000002,
+            "y0": 202.86002399999995,
+            "y1": 211.86002399999995
+          },
+          "text": "Catgirl 4:"
+        },
+        "description": {
+          "op": "text",
+          "page": 9,
+          "paras": [
+            {
+              "box": {
+                "x0": 35,
+                "x1": 314,
+                "y0": 204.86002399999995,
+                "y1": 525.4304239999997
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  19,
+                  20,
+                  21,
+                  22,
+                  23,
+                  24,
+                  25,
+                  26,
+                  27,
+                  28,
+                  29,
+                  30,
+                  31,
+                  32,
+                  33,
+                  34,
+                  35
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
     "def.power.abominableMutation": {
       "id": "def.power.abominableMutation",
       "kind": "kind.power",

@@ -68,7 +68,7 @@ for (const [cb, id, entry] of classes) {
   const book = entry.book;
   if (!docs[book]) {
     if (!FILES[book] || !fs.existsSync(FILES[book])) { console.log(`SKIP ${entry.name}: no ${book} in the library`); continue; }
-    docs[book] = (await openBook(fs.readFileSync(FILES[book]))).doc;
+    docs[book] = (await openBook(fs.readFileSync(FILES[book]), { book })).doc;
   }
   const reg = declared.get(id);
   const runin = reg?.class?.training?.runin ?? null;

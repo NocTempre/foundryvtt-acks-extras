@@ -1,0 +1,17 @@
+[
+  {
+    "id": "cat.catfolkBeastman",
+    "kind": "kind.monster",
+    "book": "cat",
+    "name": "Catfolk Beastman",
+    "pages": [11, 12],
+    "anchor": { "label": "Type:" },
+    "assists": {
+      "proseColumn": 1,
+      "labelAliases": { "AC": "Armor Class", "HD": "Hit Dice" },
+      "spoilsPage": 12,
+      "pageColumns": { "12": [40, 320] },
+      "continuation": [{ "page": 12, "col": 0 }]
+    }
+  }
+]

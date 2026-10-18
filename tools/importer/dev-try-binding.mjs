@@ -45,7 +45,7 @@ if (!BINDERS[docId]) {
 
 const books = new Map();
 async function bookFor(id) {
-  if (!books.has(id)) books.set(id, await openBook(fs.readFileSync(FILES[id])));
+  if (!books.has(id)) books.set(id, await openBook(fs.readFileSync(FILES[id]), { book: id }));
   return books.get(id);
 }
 

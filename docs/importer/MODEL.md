@@ -347,6 +347,33 @@ lines an aside shares is read through `boxes`, one per line beside it, so the
 aside's runs fall outside every box. AX1 is the book listed; its measured
 bands are the table's docstring.
 
+## A book's typography
+
+A book set off the family's ladder declares how its text layer prints beside
+its fingerprint in `BOOKS` (`typography`): the body size its heights are
+scaled from (`bodyPt`, onto the family's 9.5), the code points its ligatures
+and bullets print as (`glyphs`), whether each ligature is a run of its own
+(`ligatureRuns`) and whether a label's colon is set with the value
+(`labelColon`), and the page measures its readers take in place of their
+defaults — `leading`, `paraGap`, `bodyTop`, and `wrapAlign` ("top" where a
+stat label sits on its value's first line). `useTypography` tags a document
+opened by its id, in the compiler and at the seat alike, and `pageItems`
+applies the declaration to every page read from it: heights scaled, glyphs
+put back, touching ligature runs rejoined to their word, a leading colon moved
+onto the label before it; the declaration rides with the page as
+`typography`. An untagged document is read as before. A book set on the
+ladder declares nothing.
+
+A spread whose title is art has no display heading: `anchor.label` names the
+body-size run-in it anchors on instead; the executor's expect reads that
+label and the document takes the register row's name. A passage that runs
+past its first column is authored as `assists.continuation` — columns in
+reading order, each read from the body top to its first display heading, a
+stop label or its own `y1` — with `assists.pageColumns` where a page's columns
+must be stated and `assists.proseColumn` where a monster's prose sits beside
+its block; a proficiency list that turns a column names it
+(`profList.continues`).
+
 ## A run-in keyed area
 
 A keyed area whose key opens its first paragraph (`anchor: {number, as:

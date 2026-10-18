@@ -36,7 +36,7 @@ if (!file || !fs.existsSync(file)) {
   process.exit(2);
 }
 
-const { doc, numPages, title } = await openBook(fs.readFileSync(file));
+const { doc, numPages, title } = await openBook(fs.readFileSync(file), { book });
 
 async function pageOf(dest) {
   try {

@@ -99,7 +99,7 @@ let missing = 0;
 
 for (const [id, e] of classes) {
   if (!FILES[e.book]) continue;
-  if (!books.has(e.book)) books.set(e.book, (await openBook(fs.readFileSync(FILES[e.book]))).doc);
+  if (!books.has(e.book)) books.set(e.book, (await openBook(fs.readFileSync(FILES[e.book]), { book: e.book })).doc);
   const doc = books.get(e.book);
 
   const known = new Set();

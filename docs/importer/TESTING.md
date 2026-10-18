@@ -13,8 +13,9 @@ gates that anything reaches a document.
 Of these recipes, `tools/live/formation-day.mjs` drives Reimport One Shelf's
 rules tables (`node tools/live/run.mjs formation-day`) and
 `tools/live/importer-adventure.mjs` drives "A book lands in the library as one
-Adventure" (`tools/live/README.md` is the contract); the rest is walked by
-hand.
+Adventure" and `tools/live/importer-typography.mjs` drives "A community book,
+read through its declared typography" (`tools/live/README.md` is the
+contract); the rest is walked by hand.
 
 ## The Books window
 
@@ -2375,3 +2376,52 @@ holding the text a reader expects.
 9. `api.sweepTracked()` for the tables and actors; quote what it removed,
    what it could not find and what refused. A book opened with
    `{ remember: false }` is closed by a reload.
+
+## A community book, read through its declared typography
+
+`cat` is set off the family's ladder (MODEL, "A book's typography"). This
+walk proves the tagged read reaches the seat, not only the compiler: an
+untagged seat would read every line as a heading and import nothing.
+
+### Fixtures
+
+- The book staged as `acks-test-books/cat.pdf` on the server
+  (TEST_ENVIRONMENT.md, "Staged files"), connected with
+  `acksExtras.importer.connectBookUrl("cat", "acks-test-books/cat.pdf", { remember: false })`.
+- Nothing else: every document below is created by the import and swept by
+  its id.
+
+### Steps
+
+1. Connect the book. *Observable:* the open is announced by the book's label
+   and a count of what imports from it; the Books window lists it as open
+   this session; `init`, `setup` and `ready` threw nothing beforehand.
+2. Import the book: the abilities step for its powers, the classes step for
+   its classes and the id import for its monster, each scoped to the book's
+   ids. (Import Everything runs the same steps over every open book.)
+   *Observable:* shelves "ACKS Cookbook —
+   The OSR Catgirl — …" hold five class-power items (Catgirl 0–4, one
+   paragraph each); one monster actor with AC, HD, movement, three attacks
+   with a weapon alternative, morale, saves, alignment, treasure type, XP,
+   vision, a proficiency list, a sectioned description and two spoils; three
+   class items with hit die, maximum level, prime requisite, requirements, a
+   proficiency list of whole names (no pair welded at a line turn) and a
+   description running the whole spread.
+3. Open the monster. *Observable:* the description's sections read in page
+   order across the page turn — the Combat section's last paragraph is whole,
+   not cut at the column foot — and Spoils lists two components with weight,
+   value and effects.
+4. Open a class item. *Observable:* the list's names the register knows are
+   resolved and the rest stay as text; the description opens each passage
+   with the spread's own run-in label.
+### Teardown
+
+5. `api.track` every id the import's result lists, then `api.sweepTracked()`;
+   quote what it removed, could not find and refused. A shelf the line's
+   first import opened is deleted once empty. The book opened with
+   `{ remember: false }` closes on reload.
+
+`tools/live/importer-typography.mjs` walks it; step 1's Books-window line and
+the boot check it leaves to the reader. The seat reopens the world's shelved
+books after ready, so a step with no scope would write every one of them;
+the walk runs only the scoped steps.

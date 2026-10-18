@@ -117,7 +117,7 @@ const cache = new Map();
 for (const book of [...new Set(entries.map((e) => e.book))].sort()) {
   const file = ALL[book];
   if (!file || !fs.existsSync(file)) continue;
-  const { doc } = await openBook(fs.readFileSync(file));
+  const { doc } = await openBook(fs.readFileSync(file), { book });
   for (const e of entries.filter((x) => x.book === book)) {
     const { last } = e;
     if (!(last.page >= 1 && last.page <= doc.numPages)) continue;

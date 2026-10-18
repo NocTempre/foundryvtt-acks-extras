@@ -29,6 +29,7 @@ import { BOOKS, citeFor, fingerprintWarning } from "../../scripts/importer/books
 import { SCENE_ZONE_KIND, ZONE_FIGURES, placementHolding, recipeContext, recipeProblems, zoneProblems } from "../../scripts/importer/scene-binding.mjs";
 import { caseCarriesNothing, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
 import { FILES, OSE_FILES } from "./reference-lib.mjs";
+import { useTypography } from "../../scripts/importer/extract.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -655,20 +656,69 @@ function withFixes(instr, pd, dropSet, stripMap) {
   return instr;
 }
 
-/** Paragraph boxes from body lines: break where the line gap opens up. */
-function paragraphBoxes(lines, x0, x1) {
+/**
+ * Paragraph boxes from body lines: break where the line gap opens up — past
+ * `gapMin` where the book declares its paragraph gap, else past 1.6× the
+ * median pitch (a book whose gap is under that ratio never splits without it).
+ */
+function paragraphBoxes(lines, x0, x1, gapMin = null) {
   if (!lines.length) return [];
   const gaps = [];
   for (let i = 1; i < lines.length; i++) gaps.push(lines[i].y - lines[i - 1].y);
   const median = gaps.length ? [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)] : 12;
+  const opens = gapMin != null ? (g) => g >= gapMin : (g) => g > median * 1.6;
   const paras = [[lines[0]]];
   for (let i = 1; i < lines.length; i++) {
-    if (lines[i].y - lines[i - 1].y > median * 1.6) paras.push([]);
+    if (opens(lines[i].y - lines[i - 1].y)) paras.push([]);
     paras[paras.length - 1].push(lines[i]);
   }
   return paras.map((ls) => ({
     box: { x0, x1, y0: ls[0].y - 3, y1: ls[ls.length - 1].y + 3 },
   }));
+}
+
+/**
+ * The columns a passage turns onto, as the body runs of each.
+ * `assists.continuation` lists them in reading order ({page, col, y1?}); each
+ * is read from the body top to the column's first display heading, to a stop
+ * run (`stopRuns`: a label such as "Spoils" opening another block in the
+ * column), or to its own `y1` where a printed table closes the column, less
+ * any `exclude` box on that page (another field's claim there). A page the
+ * detector reads as one column when its second is short declares its columns
+ * in `assists.pageColumns`. A column holding no body run warns and yields
+ * nothing.
+ * @returns {Promise<{page: number, pd: object, x0: number, x1: number, items: object[]}[]>}
+ */
+async function continuationColumns(doc, entryId, assists, { exclude = [], stopRuns = [] } = {}) {
+  const out = [];
+  for (const c of assists.continuation ?? []) {
+    const cpd = await pageItems(doc, c.page);
+    const ccols = assists.pageColumns?.[c.page] ?? detectColumns(cpd.items);
+    const cx = ccols[c.col];
+    if (cx === undefined) {
+      warn(`${entryId}: continuation p.${c.page} has no column ${c.col}`);
+      continue;
+    }
+    const nx = ccols[c.col + 1];
+    const x0 = cx - 5;
+    const x1 = nx ? nx - 6 : cpd.width;
+    const top = cpd.typography?.bodyTop ?? MM_BODY_TOP;
+    const inCol = (it) => it.x >= x0 && it.x <= x1 && it.y > top;
+    const firstY = (its) => its.map((it) => it.y).sort((a, b) => a - b)[0];
+    const headY = firstY(cpd.items.filter((it) => it.h >= HEADING_MIN_H && inCol(it)));
+    const stopY = firstY(cpd.items.filter((it) => it.h < HEADING_MIN_H && inCol(it) && stopRuns.includes(it.str.trim())));
+    const end = Math.min(headY != null ? headY - 4 : Infinity, stopY != null ? stopY - 3 : Infinity, c.y1 ?? Infinity, cpd.height);
+    const ex = exclude.filter((b) => b.page === c.page);
+    const items = cpd.items.filter(
+      (it) => it.h < HEADING_MIN_H && inCol(it) && it.y < end && it.str.trim() && !ex.some((b) => inBoxRaw(it, b.box)),
+    );
+    if (!items.length) {
+      warn(`${entryId}: continuation p.${c.page} column ${c.col} holds no body run`);
+      continue;
+    }
+    out.push({ page: c.page, pd: cpd, x0, x1, items });
+  }
+  return out;
 }
 
 /* -------------------------------------------- */
@@ -687,47 +737,63 @@ const camel = (s) =>
 async function compileMonster(doc, entry, kindRow, glyphChars) {
   // Per-entry ASSISTS (docs/importer/RECIPES.md): chef-authored one-off directions the
   // compiler honors before its own heuristics. Supported: anchor (exact
-  // display text), statPage, spoilsPage, noSpoils, noArt, descStopHeading.
+  // display text), statPage, spoilsPage, noSpoils, noArt, descStopHeading,
+  // columns, proseColumn, labelAliases, pageColumns, continuation.
   const assists = entry.assists ?? {};
   const page = entry.pages[0];
   const pd = await pageItems(doc, page);
-  const cols = detectColumns(pd.items);
+  const cols = assists.columns ?? detectColumns(pd.items);
 
   const anchors = listHeadings(pd).filter((a) => a.mode === "display");
-  // Fallback ladder for outline titles that differ from the printed heading
-  // (parent/variant pages: "Statue, Animated Bronze" prints as "BRONZE" under
-  // a "STATUE, ANIMATED" parent; "(Overview)" suffixes never print). Try the
-  // full title, then without parentheticals, then progressively shorter word
-  // tails. The string that MATCHES becomes the shipped expect text.
-  const candidates = [];
-  if (assists.anchor) candidates.push(assists.anchor);
-  candidates.push(entry.anchor.display);
-  const noParen = entry.anchor.display.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
-  if (noParen && noParen !== entry.anchor.display) candidates.push(noParen);
-  const words = noParen.replace(/,/g, "").split(/\s+/).filter(Boolean);
-  for (let i = 1; i < words.length; i++) candidates.push(words.slice(i).join(" "));
+  // A spread whose name is set as art has no display heading to anchor on.
+  // `anchor.label` names a body-size run-in on the page instead — the stat
+  // block's first label — and the entry anchors there: the expect text is the
+  // label, and the document's name is the register row's.
+  const label = entry.anchor?.label ?? null;
   let anchor = null;
-  let matchedText = entry.anchor.display;
-  for (const c of candidates) {
-    anchor = anchors.find((a) => a.text.toLowerCase().startsWith(c.toLowerCase()));
-    if (anchor) {
-      matchedText = c;
-      break;
+  let matchedText = label ?? entry.anchor.display;
+  if (label) {
+    anchor = listHeadings(pd).find((a) => a.mode === "runin" && a.text === label) ?? null;
+    if (!anchor) throw new Error(`anchor label "${label}" not found on p.${page}`);
+  } else {
+    // Fallback ladder for outline titles that differ from the printed heading
+    // (parent/variant pages: "Statue, Animated Bronze" prints as "BRONZE" under
+    // a "STATUE, ANIMATED" parent; "(Overview)" suffixes never print). Try the
+    // full title, then without parentheticals, then progressively shorter word
+    // tails. The string that MATCHES becomes the shipped expect text.
+    const candidates = [];
+    if (assists.anchor) candidates.push(assists.anchor);
+    candidates.push(entry.anchor.display);
+    const noParen = entry.anchor.display.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+    if (noParen && noParen !== entry.anchor.display) candidates.push(noParen);
+    const words = noParen.replace(/,/g, "").split(/\s+/).filter(Boolean);
+    for (let i = 1; i < words.length; i++) candidates.push(words.slice(i).join(" "));
+    for (const c of candidates) {
+      anchor = anchors.find((a) => a.text.toLowerCase().startsWith(c.toLowerCase()));
+      if (anchor) {
+        matchedText = c;
+        break;
+      }
     }
+    if (!anchor) throw new Error(`display anchor "${entry.anchor.display}" not found on p.${page}`);
+    if (matchedText !== entry.anchor.display) console.error(`NOTE ${entry.id}: anchored via fallback "${matchedText}"`);
   }
-  if (!anchor) throw new Error(`display anchor "${entry.anchor.display}" not found on p.${page}`);
-  if (matchedText !== entry.anchor.display) console.error(`NOTE ${entry.id}: anchored via fallback "${matchedText}"`);
 
-  const colX = cols[anchor.col];
-  const nextX = cols[anchor.col + 1];
+  // The description's column: the anchor's, unless the spread sets its prose
+  // beside the stat block and `assists.proseColumn` says which column that is.
+  const proseCol = assists.proseColumn ?? anchor.col;
+  const colX = cols[proseCol];
+  const nextX = cols[proseCol + 1];
   const proseBox = { x0: colX - 5, x1: nextX ? nextX - 6 : pd.width };
+  const paraGap = pd.typography?.paraGap;
+  const bodyTop = pd.typography?.bodyTop ?? MM_BODY_TOP;
   // Long names WRAP onto a second display line ("FAERIE, BROWNIE" /
   // "(BOGGART)") — absorb same-column display lines within one heading
   // line-height into the anchor block instead of treating them as the next
   // monster's heading (which would empty the description region).
   let anchorEndY = anchor.y;
   const laterHeads = [];
-  for (const h of anchors.filter((a) => a.col === anchor.col && a.y > anchor.y + 2).sort((a, b) => a.y - b.y)) {
+  for (const h of anchors.filter((a) => a.col === proseCol && a.y > anchor.y + 2).sort((a, b) => a.y - b.y)) {
     if (h.y - anchorEndY <= 26) anchorEndY = h.y;
     else laterHeads.push(h);
   }
@@ -741,7 +807,7 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
     // sub-headings — "Lycanthropic Forms" is part of the entry, not the start
     // of something else — so this column runs to the foot of the page and the
     // named heading bounds the column it actually sits in.
-    else if (assists.descColumns > 1 && anchors.some((a) => a.col > anchor.col && wanted(a))) {
+    else if (assists.descColumns > 1 && anchors.some((a) => a.col > proseCol && wanted(a))) {
       stopY = pd.height;
     } else {
       warn(`${entry.id}: assists.descStopHeading "${assists.descStopHeading}" not found`);
@@ -763,9 +829,13 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
   const descItems = proseItems.filter((it) => it.y < descEnd);
 
   const fields = {};
+  // A label anchor's box is the label's own line in its own column; a display
+  // anchor's spans the heading block over the prose.
   fields.name = {
     op: "expect", page,
-    box: { x0: proseBox.x0, x1: proseBox.x1, y0: anchor.y - 16, y1: anchorEndY + 6 },
+    box: label
+      ? { x0: cols[anchor.col] - 5, x1: cols[anchor.col + 1] ? cols[anchor.col + 1] - 6 : pd.width, y0: anchor.y - 6, y1: anchor.y + 6 }
+      : { x0: proseBox.x0, x1: proseBox.x1, y0: anchor.y - 16, y1: anchorEndY + 6 },
     text: matchedText,
   };
   // Description SECTIONS: the MM prints run-in section labels as their own
@@ -780,17 +850,22 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
   const sectionAnchors = descItems
     .filter((it) => SECTION_LABELS[it.str.trim()])
     .sort((a, b) => a.y - b.y);
-  const classify = (paras, labels) => {
+  // A paragraph in a further column with no label above it carries NO section:
+  // it continues the flow from the column before, and the executor joins a
+  // box that opens mid-sentence onto the one before it only when the box
+  // claims no section of its own.
+  const classify = (paras, labels, { inherit = false } = {}) => {
     for (const p of paras) {
       const above = [...labels].reverse().find((a) => a.y <= p.box.y0 + 8);
-      p.section = above ? SECTION_LABELS[above.str.trim()] : "appearance";
+      if (above) p.section = SECTION_LABELS[above.str.trim()];
+      else if (!inherit) p.section = "appearance";
       const owns = labels.find((a) => a.y >= p.box.y0 && a.y <= p.box.y1);
       if (owns) p.dropText = owns.str.trim();
     }
     return paras;
   };
   const descParas = classify(
-    paragraphBoxes(toLines(descItems), proseBox.x0, proseBox.x1).map((p) => withFixes(p, pd)),
+    paragraphBoxes(toLines(descItems), proseBox.x0, proseBox.x1, paraGap).map((p) => withFixes(p, pd)),
     sectionAnchors,
   );
 
@@ -802,16 +877,24 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
   // a chef named one.
   const spill = Math.max(1, assists.descColumns ?? 1) - 1;
   for (let k = 1; k <= spill; k++) {
-    const cx = cols[anchor.col + k];
+    const cx = cols[proseCol + k];
     if (cx === undefined) break;
-    const nx = cols[anchor.col + k + 1];
+    const nx = cols[proseCol + k + 1];
     const x0 = cx - 5;
     const x1 = nx ? nx - 6 : pd.width;
-    const head = anchors.filter((a) => a.col === anchor.col + k).sort((a, b) => a.y - b.y)[0];
-    const items = bodyIn(pd, x0, x1, MM_BODY_TOP, head ? head.y - 4 : pd.height);
+    const head = anchors.filter((a) => a.col === proseCol + k).sort((a, b) => a.y - b.y)[0];
+    const items = bodyIn(pd, x0, x1, bodyTop, head ? head.y - 4 : pd.height);
     if (!items.length) continue;
     const labels = items.filter((it) => SECTION_LABELS[it.str.trim()]).sort((a, b) => a.y - b.y);
-    descParas.push(...classify(paragraphBoxes(toLines(items), x0, x1).map((p) => withFixes(p, pd)), labels));
+    descParas.push(...classify(paragraphBoxes(toLines(items), x0, x1, paraGap).map((p) => withFixes(p, pd)), labels));
+  }
+  // A description that turns the page: each column `assists.continuation`
+  // names is read whole, short of a "Spoils" block sharing the column, and
+  // its paragraphs carry their own page.
+  for (const c of await continuationColumns(doc, entry.id, assists, { stopRuns: ["Spoils"] })) {
+    const labels = c.items.filter((it) => SECTION_LABELS[it.str.trim()]).sort((a, b) => a.y - b.y);
+    const paras = paragraphBoxes(toLines(c.items), c.x0, c.x1, c.pd.typography?.paraGap).map((p) => ({ ...withFixes(p, c.pd), page: c.page }));
+    descParas.push(...classify(paras, labels, { inherit: true }));
   }
   if (!sectionAnchors.length && descParas.length > 2) {
     console.error(`NOTE ${entry.id}: no section labels in description (${descParas.length} paras) — agent classification candidate`);
@@ -867,7 +950,7 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
   if (!spoilsAnchor && !assists.noSpoils && (statPd !== pd || assists.spoilsPage)) {
     const spPd = assists.spoilsPage ? await pageItems(doc, assists.spoilsPage) : statPd;
     const spPage = assists.spoilsPage ?? statPage;
-    const spCols = assists.spoilsPage ? detectColumns(spPd.items) : statCols;
+    const spCols = assists.spoilsPage ? (assists.pageColumns?.[assists.spoilsPage] ?? detectColumns(spPd.items)) : statCols;
     const sp2 = spPd.items.find((it) => it.h < HEADING_MIN_H && it.str.trim() === "Spoils");
     if (sp2) {
       const spCol = colOf(sp2.x, spCols);
@@ -928,12 +1011,18 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
   // p298: Attacks value line y=396.7 vs label y=401.2). Assign each row the
   // band bounded by the MIDPOINTS to its neighbouring labels — this captures
   // lines above and below the label and cleanly separates adjacent fields.
+  // A book that sets the label on a wrapped value's FIRST line instead
+  // (`typography.wrapAlign: "top"`) bands each row from its label's line to
+  // the next label's: the midpoint band would hand a value's second line to
+  // the row below it.
+  const topAligned = statPd.typography?.wrapAlign === "top";
   statLabels.forEach((label, i) => {
     const labelText = label.str.trim();
     const name = labelText.slice(0, -1);
     const prevY = i > 0 ? statLabels[i - 1].y : label.y - 12;
-    const y0 = (prevY + label.y) / 2;
-    const y1 = i + 1 < statLabels.length ? (label.y + statLabels[i + 1].y) / 2 : statEnd;
+    const next = i + 1 < statLabels.length ? statLabels[i + 1].y : null;
+    const y0 = topAligned ? label.y - 4 : (prevY + label.y) / 2;
+    const y1 = topAligned ? (next != null ? next - 4 : statEnd) : next != null ? (label.y + next) / 2 : statEnd;
     const box = { x0: statX0, x1: statX1, y0, y1 };
     const base = { op: "value", page: statPage, box, dropText: labelText };
 
@@ -950,7 +1039,9 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
       fields[`stats.speed${cap(camel(kind))}`] = withFixes({ ...base, pattern: speedCfg.pattern }, statPd, dividerItems);
       return;
     }
-    const row = rows[name];
+    // A book's own label for a row ("AC" for Armor Class) maps through
+    // `assists.labelAliases`; the printed label is still what the box drops.
+    const row = rows[assists.labelAliases?.[name] ?? name];
     if (row) {
       fields[`stats.${row.field}`] = withFixes({
         ...base,
@@ -3664,16 +3755,23 @@ async function compileClass(doc, entry, kindRow) {
   /* --- anchor / name --- */
   // Folded on both sides: a heading's glyph runs may join with no spaces at
   // all ("DWarVenDelVer"), which a space-sensitive compare never matches.
+  // A spread whose title is set as art anchors on its first header label
+  // instead (`anchor.label`, a body-size run-in): the expect text is the
+  // label, and the class is named by the register row.
+  const assists = entry.assists ?? {};
+  const anchorLabel = entry.anchor?.label ?? null;
   const anchors = listHeadings(pd).filter((a) => a.mode === "display");
-  const anchor = anchors.find((a) => fold(a.text).startsWith(fold(entry.anchor.display)));
-  if (!anchor) throw new Error(`display anchor "${entry.anchor.display}" not found on p.${page}`);
+  const anchor = anchorLabel
+    ? listHeadings(pd).find((a) => a.mode === "runin" && a.text === anchorLabel)
+    : anchors.find((a) => fold(a.text).startsWith(fold(entry.anchor.display)));
+  if (!anchor) throw new Error(`${anchorLabel ? "anchor label" : "display anchor"} "${anchorLabel ?? entry.anchor.display}" not found on p.${page}`);
   const colX = cols[anchor.col];
   const nextX = cols[anchor.col + 1];
   const colRight = nextX ? nextX - 6 : pd.width;
   fields.name = {
     op: "expect", page,
-    box: { x0: colX - 5, x1: colRight, y0: anchor.y - 16, y1: anchor.y + 6 },
-    text: entry.anchor.display,
+    box: { x0: colX - 5, x1: colRight, y0: anchor.y - (anchorLabel ? 6 : 16), y1: anchor.y + 6 },
+    text: anchorLabel ?? entry.anchor.display,
   };
 
   /* --- tables located by their printed titles --- */
@@ -4141,7 +4239,7 @@ async function compileClass(doc, entry, kindRow) {
     ["requirements", ["Requirements:"], "raw"],
   ];
   const headerWindow = pd.items.filter(
-    (i) => colOf(i.x, cols) === anchor.col && i.y > anchor.y && i.y < anchor.y + 100,
+    (i) => colOf(i.x, cols) === anchor.col && i.y > anchor.y - 2 && i.y < anchor.y + 100,
   );
   for (const [key, labels, pattern] of HEADER_FIELDS) {
     let it = null;
@@ -4161,7 +4259,9 @@ async function compileClass(doc, entry, kindRow) {
     // a fixed reach beats detectColumns here, which sees phantom columns on
     // pages whose progression table is full-width.
     const overlapping = tableEdges.filter((e) => e.page === page && it.y >= e.y0 - 12 && it.y <= e.y1 + 4);
-    const bulletRight = Math.min(it.x + 150, pd.width, ...overlapping.map((e) => e.x0 - 12));
+    // A label-anchored spread sets no table beside its header, and its values
+    // run to the column's edge.
+    const bulletRight = Math.min(anchorLabel ? colRight : it.x + 150, pd.width, ...overlapping.map((e) => e.x0 - 12));
     fields[key] = {
       op: "value", page,
       box: { x0: colX - 5, x1: bulletRight, y0: it.y - 3, y1: it.y + 6 },
@@ -4219,8 +4319,10 @@ async function compileClass(doc, entry, kindRow) {
         .sort((a, b) => a.y - b.y);
       let stopY = ppd.height;
       let prevY = labelIt.y;
+      // The list ends where its lines stop coming at the book's own pitch.
+      const listPitch = (ppd.typography?.leading ?? 10) + 6;
       for (const i of below) {
-        if (i.y - prevY > 16) {
+        if (i.y - prevY > listPitch) {
           stopY = prevY + 8;
           break;
         }
@@ -4251,12 +4353,45 @@ async function compileClass(doc, entry, kindRow) {
             .map((i) => i.str.trim()),
         ),
       ];
-      fields.profList = {
+      const boxes = [{ x0: cx0, x1: cx1, y0: labelIt.y - 3, y1: Math.min(stopY, spec.profList.y1 ?? ppd.height, ppd.height) }];
+      // A list that turns a column (`continues: {page, col}`, the label's own
+      // page) ends in that column's opening block: from the body top to the
+      // first break in the list's pitch.
+      const cont = spec.profList.continues;
+      if (cont && cont.page !== pPage) {
+        warn(`${entry.id}: proficiency-list continuation must sit on the label's page p.${pPage}`);
+      } else if (cont) {
+        const ccols = assists.pageColumns?.[cont.page] ?? pcols;
+        const tx0 = ccols[cont.col] - 6;
+        const tx1 = ccols[cont.col + 1] ? ccols[cont.col + 1] - 6 : ppd.width;
+        const top = ppd.typography?.bodyTop ?? MM_BODY_TOP;
+        let end = null;
+        for (const i of ppd.items
+          .filter((i) => i.x >= tx0 && i.x <= tx1 && i.y > top && i.h < HEADING_MIN_H && i.str.trim())
+          .sort((a, b) => a.y - b.y)) {
+          if (end != null && i.y - end > listPitch) break;
+          end = i.y;
+        }
+        if (end == null) warn(`${entry.id}: proficiency-list continuation p.${cont.page} column ${cont.col} holds no line`);
+        else boxes.push({ x0: tx0, x1: tx1, y0: top, y1: end + 8 });
+      }
+      // Through `withFixes`: a list whose lines carry no trailing space welds
+      // a name broken over a line turn ("Fighting" + "Style Specialization")
+      // unless the turn ships as a join.
+      const listInstr = {
         op: "value", page: pPage,
-        box: { x0: cx0, x1: cx1, y0: labelIt.y - 3, y1: Math.min(stopY, spec.profList.y1 ?? ppd.height, ppd.height) },
+        ...(boxes.length > 1 ? { boxes } : { box: boxes[0] }),
         pattern: "raw",
         dropText: [spec.profList.label, ...tabs],
       };
+      // A label set in the first name's run cannot be dropped without the
+      // name; it ships as a count of characters to skip off that run.
+      const strip = new Map();
+      for (const r of runsIn(ppd, listInstr)) {
+        const at = r.str.indexOf(spec.profList.label);
+        if (at >= 0 && r.str.trim().length > spec.profList.label.length) strip.set(r, at + spec.profList.label.length);
+      }
+      fields.profList = withFixes(listInstr, ppd, null, strip.size ? strip : null);
     }
   }
 
@@ -4265,11 +4400,13 @@ async function compileClass(doc, entry, kindRow) {
          import materializes into the document it creates --- */
   {
     const stopHeadings = ["Combat Characteristics", "Starting Class Powers", "Class Proficiencies"];
-    // Below the four header bullets (they end ~50px under the anchor), above
-    // the first section heading — heading runs are display-size, so the stop
-    // search must not pre-filter on body height.
+    // Below the four header bullets (they end ~50px under the anchor, or lower
+    // where a spread sets them at a wider pitch — the lowest one found says),
+    // above the first section heading — heading runs are display-size, so the
+    // stop search must not pre-filter on body height.
+    const bulletsEnd = Math.max(anchor.y + 55, ...HEADER_FIELDS.map(([k]) => fields[k]?.box.y1 ?? 0));
     const colAll = pd.items
-      .filter((i) => colOf(i.x, cols) === anchor.col && i.y > anchor.y + 55 && i.str.trim())
+      .filter((i) => colOf(i.x, cols) === anchor.col && i.y > bulletsEnd && i.str.trim())
       .sort((a, b) => a.y - b.y || a.x - b.x);
     // A section heading is set in small caps, which reaches extraction
     // shattered into fragments ("CO", "mbat"), so its NAME exists only once the
@@ -4303,7 +4440,8 @@ async function compileClass(doc, entry, kindRow) {
     // run set in another face beside it, so the grid alongside the paragraph
     // stays out.
     const edge = proseEdge(pd, cols, anchor.col, null);
-    const yStop = (Number.isFinite(stopY) ? stopY : anchor.y + 300) - 3;
+    // A label-anchored spread has no section headings: its intro is the column.
+    const yStop = (Number.isFinite(stopY) ? stopY : anchorLabel ? pd.height : anchor.y + 300) - 3;
     // A candidate line holds a word: the stat block opens each of its lines
     // with a one-character control run on the edge (RR p94, U+008D), which
     // `trim` does not blank and which is not a line. The intro is then the
@@ -4315,7 +4453,11 @@ async function compileClass(doc, entry, kindRow) {
     const face = dominantAlias({ items: cands });
     const intro = cands.filter((i) => i.alias === face);
     if (intro.length >= 3) {
-      const y0 = intro[0].y - 6;
+      // A label-anchored intro opens on the bullets' heels, its first line run
+      // in behind a label ("Lore:") off the prose edge: the box starts at the
+      // column's first body line after the bullets, not at the first edge line.
+      const firstBody = anchorLabel ? colAll.find((i) => i.h < HEADING_MIN_H && i.y < yStop) : null;
+      const y0 = Math.min(intro[0].y, firstBody?.y ?? Infinity) - 6;
       const y1 = intro[intro.length - 1].y + 6;
       const inBand = (i) => i.y > y0 && i.y < y1;
       const right = Math.max(...colAll.filter((i) => inBand(i) && i.alias === face).map((i) => i.x + (i.w ?? 0))) + 4;
@@ -4349,6 +4491,21 @@ async function compileClass(doc, entry, kindRow) {
       fields.description = { op: "text", page, paras: [withFixes(para, pd, foreign.size ? foreign : null, null)] };
     } else {
       warn(`${entry.id}: intro prose not captured (${intro.length} line(s) before the first section)`);
+    }
+  }
+
+  /* --- the passage's further columns, where a spread's prose runs past its
+         first column (`assists.continuation`): paragraph boxes on their own
+         pages, less the proficiency list where it shares a column --- */
+  {
+    const exclude = (fields.profList?.boxes ?? (fields.profList ? [fields.profList.box] : [])).map((box) => ({ page: fields.profList.page, box }));
+    const more = [];
+    for (const c of await continuationColumns(doc, entry.id, assists, { exclude })) {
+      more.push(...paragraphBoxes(toLines(c.items), c.x0, c.x1, c.pd.typography?.paraGap).map((p) => ({ ...withFixes(p, c.pd), page: c.page })));
+    }
+    if (more.length) {
+      if (fields.description) fields.description.paras.push(...more);
+      else fields.description = { op: "text", page, paras: more };
     }
   }
 
@@ -5722,6 +5879,10 @@ async function main() {
     useAxBands(doc, bookId);
     const fw = fingerprintWarning(bookId, numPages, title);
     if (fw) warn(fw);
+    // Before the first page is read: a book declaring its typography is read
+    // on the engine's size ladder with its ligatures put back, as the seat
+    // reads it.
+    useTypography(doc, bookId);
 
     const out = {
       schema: "acks-cookbook/2",

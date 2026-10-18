@@ -54,7 +54,7 @@ for (const [id, e] of classes) {
   const book = e.book;
   if (!books.has(book)) {
     if (!FILES[book]) continue;
-    books.set(book, (await openBook(fs.readFileSync(FILES[book]))).doc);
+    books.set(book, (await openBook(fs.readFileSync(FILES[book]), { book })).doc);
   }
   const node = await executeEntry(books.get(book), e.__cb, registers, id).catch(() => null);
   const text = String(node?.fields?.profList ?? "").replace(/^.*?Proficiency\s*List:\s*/i, "");

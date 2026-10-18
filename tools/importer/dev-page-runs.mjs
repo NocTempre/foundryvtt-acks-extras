@@ -13,10 +13,10 @@
  */
 import fs from "node:fs";
 import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
-import { FILES } from "./reference-lib.mjs";
+import { FILES, OSE_FILES } from "./reference-lib.mjs";
 
 const [book, pageArg, needle] = process.argv.slice(2);
-const { doc } = await openBook(fs.readFileSync(FILES[book]));
+const { doc } = await openBook(fs.readFileSync(FILES[book] ?? OSE_FILES[book]), { book });
 const { items } = await pageItems(doc, Number(pageArg));
 
 const rows = new Map();

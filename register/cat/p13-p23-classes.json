@@ -1,0 +1,77 @@
+[
+  {
+    "id": "def.class.catgirlOathkeeper",
+    "icon": "icons/equipment/shield/kite-decorative-steel-claws.webp",
+    "kind": "kind.class",
+    "book": "cat",
+    "name": "Catgirl Oathkeeper",
+    "pages": [13, 14, 15, 16],
+    "anchor": { "label": "Prime Requisite:" },
+    "meta": { "category": "class" },
+    "class": {
+      "key": "catgirlOathkeeper",
+      "chassis": { "saves": "fighter", "attack": "fighter" },
+      "profList": { "page": 16, "label": "Her proficiency list is:", "continues": { "page": 16, "col": 1 } }
+    },
+    "assists": {
+      "pageColumns": { "16": [40, 320] },
+      "continuation": [
+        { "page": 13, "col": 1 },
+        { "page": 14, "col": 0 },
+        { "page": 14, "col": 1 },
+        { "page": 15, "col": 0 },
+        { "page": 15, "col": 1 },
+        { "page": 16, "col": 0 }
+      ]
+    }
+  },
+  {
+    "id": "def.class.catgirlRaider",
+    "icon": "icons/equipment/shield/round-wooden-axe-brown.webp",
+    "kind": "kind.class",
+    "book": "cat",
+    "name": "Catgirl Raider",
+    "pages": [17, 18, 19],
+    "anchor": { "label": "Prime Requisite:" },
+    "meta": { "category": "class" },
+    "class": {
+      "key": "catgirlRaider",
+      "chassis": { "saves": "fighter", "attack": "fighter" },
+      "profList": { "page": 19, "label": "Her proficiency list is:" }
+    },
+    "assists": {
+      "pageColumns": { "19": [40] },
+      "continuation": [
+        { "page": 17, "col": 1 },
+        { "page": 18, "col": 0 },
+        { "page": 18, "col": 1 },
+        { "page": 19, "col": 0 }
+      ]
+    }
+  },
+  {
+    "id": "def.class.catgirlRevelmistress",
+    "icon": "icons/equipment/shield/heater-embossed-gold.webp",
+    "kind": "kind.class",
+    "book": "cat",
+    "name": "Catgirl Revelmistress",
+    "pages": [20, 21, 22, 23],
+    "anchor": { "label": "Prime Requisite:" },
+    "meta": { "category": "class" },
+    "class": {
+      "key": "catgirlRevelmistress",
+      "chassis": { "saves": "fighter", "attack": "fighter" },
+      "profList": { "page": 23, "label": "Her proficiency list is:" }
+    },
+    "assists": {
+      "continuation": [
+        { "page": 20, "col": 1 },
+        { "page": 21, "col": 0, "y1": 615 },
+        { "page": 21, "col": 1, "y1": 615 },
+        { "page": 22, "col": 0 },
+        { "page": 22, "col": 1 },
+        { "page": 23, "col": 0 }
+      ]
+    }
+  }
+]

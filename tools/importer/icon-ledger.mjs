@@ -46,7 +46,10 @@ export const FAMILIES = {
   "kind.proficiency": { look: "ACKS pictogram (white on black)", allow: ["systems/acks/assets/icons/"] },
   "kind.combatProficiency": { look: "ACKS pictogram (white on black)", allow: ["systems/acks/assets/icons/"] },
   "kind.skill": { look: "ACKS pictogram (white on black)", allow: ["systems/acks/assets/icons/"] },
-  "kind.class": { look: "heraldic banner", allow: ["icons/sundries/flags/"] },
+  // Core paints 31 banners and the 31 ACKS and BTA classes hold them all; a
+  // class past those bears a core heraldic shield. Core only: a class item's
+  // img has no second picture to fall back on when an optional pack is absent.
+  "kind.class": { look: "heraldic banner or shield", allow: ["icons/sundries/flags/", "icons/equipment/shield/"] },
   // A class power is an effect, a knack, or a stronghold, so its register is
   // wider than the others'. It also reaches into the ACKS tree for the one
   // case where a power and a printed proficiency are the SAME ability under

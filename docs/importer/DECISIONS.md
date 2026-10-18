@@ -6460,3 +6460,85 @@ class.
 - **A second statline field.** The character binding reads one block.
 
 *Cost:* one assist on one row.
+
+## 2026-10-18 — A community book joins the shelf, and a book's typography is declared beside its fingerprint
+
+The user asked for *The OSR Catgirl: Nine Lives of Adventure* (Contentronix,
+an ACKS-compatible community supplement) to be imported like the ACKS books.
+The 2026-08-19 ruling names the third-party titles that get shipped
+cookbooks; this request extends that list by one title on the same terms:
+the cookbook carries boxes, anchors and citations, and every word and number
+arrives from the Judge's own copy.
+
+**Ruled.**
+- **The title is `cat` in `BOOKS`,** fingerprinted by page count and a title
+  pattern — the file carries no metadata title.
+- **A book's typography is a declared input, beside its fingerprint.** The
+  book is a word-processor export: body at 12pt where the family's books set
+  9.5, five ligatures encoded as Latin Extended-B letters and a bullet as a
+  private-use point, each ligature a run of its own, and every label's colon
+  set in the value's run. `BOOKS.cat.typography` declares those (`bodyPt`,
+  `glyphs`, `ligatureRuns`, `labelColon`) with the page measures its readers
+  take (`leading`, `paraGap`, `bodyTop`, `wrapAlign`); `pageItems` applies
+  them to a document tagged by `useTypography`, so the compiler and the seat
+  read one book identically. Heights scale to the ladder; x and y stay in
+  page points. An untagged document is read byte for byte as before.
+- **A spread whose title is art anchors on a label.** `anchor.label` names a
+  body-size run-in — the stat block's first label, the class header's first
+  bullet; the expect text is that label and the document is named by the
+  register row. kind.monster and kind.class take it.
+- **A passage that leaves its page is authored, never detected.**
+  `assists.continuation` lists the columns in reading order
+  (`{page, col, y1?}`); `assists.pageColumns` states a page's columns where
+  the detector reads one; `assists.proseColumn` says where a monster's prose
+  sits when it is beside the block; `assists.labelAliases` maps a book's own
+  labels onto the rows; a proficiency list that turns a column names the
+  column (`profList.continues`). A continuation paragraph with no label above
+  it carries no section, so the executor joins a box opening mid-sentence onto
+  the box before it across the page turn.
+- **What ships first.** The race's five tiers (kind.power), the catfolk
+  beastman (kind.monster) and the three classes (kind.class, chassis
+  fighter/fighter as each spread states; progression tables unread, since two
+  of the three are images). The tavern — its two floor plans, its keeper and
+  its keyed rooms — the ten items and the essays wait (ROADMAP).
+
+*Rejected:*
+- **Per-document size floors threaded through the compiler.** About seventy
+  sites in a file a peer is editing and twenty more outside it, for a floor
+  the ladder already expresses — and a floor cannot put a ligature back.
+- **A better column detector.** The tagged read moves no threshold, and an
+  untagged book is unchanged; the column ruling stands.
+- **The keeper as kind.npc now.** Her block is set as spaced paragraphs under
+  the name with the prose beside it; the cluster reader stops at the first
+  gap and the flow takes the rest of the block for prose. A provisional row
+  compiled clean and read back three lines of the block.
+- **Splitting the book's paragraphs by ratio.** Its gap is 1.4× its pitch,
+  under the 1.6 the median split needs; the gap is declared, not re-derived.
+- **The tavern's two floor plans in this cut.** Two kind.scene rows compiled
+  and materialized gridless, and `test-judge-shelf` refused them: a book that
+  ships a map is a Judge's book, and a Judge's book's every shelf is closed to
+  players — which would close the classes and the race, the half of this book
+  a player opens. The registry gives a book one line; a book with a player's
+  half and a Judge's half wants two, and that is a ruling the tavern's keeper
+  and rooms need as much as its plans do. The rows are withdrawn with the
+  rest of the tavern (ROADMAP).
+
+*Cost:* `BOOKS` is runtime code now carrying a per-book fact the compiler also
+reads. The 2026-10-09 ruling rejected that for facts only the compiler reads;
+these the seat reads too — the `heading` op hashes the mapped letters and
+`stripPrefix` counts them. Size assists written for a typography book are in
+scaled points. `SPOIL_RE` admits "st." beside "st". The glyph keys are spelt
+as escapes (2026-10-14). The private-use bullet maps onto U+2022 on purpose:
+the executor's `clean` strips the private-use range, so an unmapped bullet
+would vanish from imported prose where the book's other bullet (U+25CF)
+already reaches it. The proficiency list of every shipped class now goes
+through `withFixes`, so the 31 earlier class recipes gain `joinSpace`
+ordinals at their line turns: the list each materializes is the same once
+whitespace is folded, which is how its names are matched, and the
+descriptions are byte for byte what they were. The icon ledger's class
+register widens to core's heraldic shields: core paints 31 banners and the 31
+shipped classes hold every one, and a class item's img has no fallback
+picture, so the optional game-icons banners were not an answer (an ability's
+`iconNiche` has one; a class has only `icon`). The book's list label is set
+in the first name's run, so the class
+list ships a `stripPrefix` count for it, the way a run-in heading does.

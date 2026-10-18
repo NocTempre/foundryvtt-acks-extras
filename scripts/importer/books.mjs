@@ -230,6 +230,33 @@ export const BOOKS = {
     titleRe: /Planar\s*Compass\s*3/i,
     judge: true,
   },
+  // An ACKS-compatible community title, authored like the OSE ones. The
+  // printing carries no metadata title, so the fingerprint gates on the page
+  // count; the pattern matches the stock filename. Set in 12pt body type from
+  // a word processor: `typography` reads it on the engine's size ladder and
+  // puts back the five ligatures (ti, tt, tf, tti, ft) its text layer encodes
+  // as Latin Extended-B letters, and the Symbol-font bullet its lists use.
+  cat: {
+    label: "The OSR Catgirl: Nine Lives of Adventure",
+    line: "The OSR Catgirl",
+    short: "CAT",
+    pages: 32,
+    titleRe: /OSR\s*Catgirl/i,
+    printedOffset: 4,
+    typography: {
+      bodyPt: 12,
+      // Page points, not scaled: the baseline pitch of body type, the smallest
+      // gap that opens a paragraph, and the y above which nothing is body.
+      leading: 18,
+      paraGap: 22,
+      bodyTop: 40,
+      // A stat label sits on the first line of its value, never centred on it.
+      wrapAlign: "top",
+      glyphs: { "\u019F": "ti", "\u01A9": "tt", "\u019E": "tf", "\u01AB": "tti", "\u014C": "ft", "\uF0B7": "\u2022" },
+      ligatureRuns: true,
+      labelColon: true,
+    },
+  },
   // The conversion instrument. It unlocks the OSE import path: the constants
   // that turn a foreign stat block into ACKS II values are printed here, so
   // they are read from the reader's own copy rather than shipped. The metadata

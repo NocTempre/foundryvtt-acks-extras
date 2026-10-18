@@ -9,8 +9,10 @@
  * Nothing here persists — callers receive plain strings and decide caching.
  */
 import { getDocument, GlobalWorkerOptions, OPS } from "../../vendor/pdfjs/pdf.mjs";
+import { BOOKS } from "./books.mjs";
 
 const HEADING_MIN_H = 12; // display headings are >=14pt; body is 9-10pt
+const FAMILY_BODY_PT = 9.5; // the body size every size test in the engine is calibrated to
 const FOOTER_BAND = 32; // pt from page bottom: the stop for a document too short to profile
 const FOOTER_ZONE_SHARE = 0.05; // the strip furniture can live in, as a share of trim height
 const FOOTER_LINE_RUNS = 4; // a folio or running foot is a few runs wide; a line of type is many
@@ -32,11 +34,12 @@ const COL_MIN_MEASURE = 0.5; // a rescued column's median line against the page'
 
 // Spoil component: "name (W st, Ngp, effects…)" where W = "2", "2 3/6", or
 // "4/6" — the whole-stone part is OPTIONAL (fractional-only weights are
-// common), and the effects group is paren-aware so an effect list containing
-// its own parentheses still captures whole. Shared with executor.mjs, which
-// imports it from here rather than the reverse to avoid a cycle (executor.mjs
-// already imports pageItems/pageArtInfo from this module).
-export const SPOIL_RE = /([A-Za-z][A-Za-z' -]*?)\s*\((?:(\d+)\s*)?(?:(\d)\/6\s*)?st,\s*([\d,]+)\s*gp(?:,\s*((?:[^()]|\([^)]*\))+?))?\)/g;
+// common), the stone unit may close with a period ("st.,"), and the effects
+// group is paren-aware so an effect list containing its own parentheses still
+// captures whole. Shared with executor.mjs, which imports it from here rather
+// than the reverse to avoid a cycle (executor.mjs already imports
+// pageItems/pageArtInfo from this module).
+export const SPOIL_RE = /([A-Za-z][A-Za-z' -]*?)\s*\((?:(\d+)\s*)?(?:(\d)\/6\s*)?st\.?,\s*([\d,]+)\s*gp(?:,\s*((?:[^()]|\([^)]*\))+?))?\)/g;
 
 export function setWorker(url) {
   GlobalWorkerOptions.workerSrc = url;
@@ -54,7 +57,13 @@ export function setWasmUrl(url) {
   WASM_URL = url;
 }
 
-export async function openBook(data) {
+/**
+ * Open a PDF. `book` names the registry row the file is being read as, so the
+ * document carries that book's declared typography (`useTypography`) from its
+ * first page read; a caller that learns the book only after opening tags it
+ * itself.
+ */
+export async function openBook(data, { book = null } = {}) {
   const doc = await getDocument({
     data: new Uint8Array(data),
     useSystemFonts: true,
@@ -65,6 +74,7 @@ export async function openBook(data) {
     ...(WASM_URL ? { wasmUrl: WASM_URL } : {}),
   }).promise;
   const meta = await doc.getMetadata().catch(() => null);
+  if (book) useTypography(doc, book);
   return { doc, numPages: doc.numPages, title: meta?.info?.Title ?? "" };
 }
 
@@ -214,6 +224,32 @@ async function footerProfile(doc) {
   return job;
 }
 
+/**
+ * Mark an opened document with its book's declared typography (`typography`
+ * on the registry row), where the row declares one. Every size test in the
+ * engine — the heading floor, the body ceilings, the superscript band — is
+ * calibrated to the family's 9–10pt body, so a book set at another size is
+ * read on that ladder: `bodyPt` scales every run's height by
+ * `FAMILY_BODY_PT / bodyPt` before any test sees it. `glyphs` maps the code
+ * points a book's text layer prints for its ligatures to the letters they
+ * stand for, run by run, before any pattern reads them. Both apply in
+ * `pageItems`, so the compiler and the runtime read one book identically;
+ * the compiler and the seat each call this once, when they open a book by
+ * its id. A document carrying no declaration is untouched.
+ */
+export function useTypography(doc, bookId) {
+  const typography = BOOKS[bookId]?.typography;
+  if (typography) doc.acksTypography = typography;
+  return doc;
+}
+
+/** A run's text with its book's ligature code points put back as letters. */
+function mapGlyphs(str, glyphs) {
+  let out = "";
+  for (const ch of str) out += glyphs[ch] ?? ch;
+  return out;
+}
+
 /** All positioned text items of a page (top-origin y), furniture filtered. */
 export async function pageItems(doc, pageNo) {
   const page = await doc.getPage(pageNo);
@@ -224,6 +260,9 @@ export async function pageItems(doc, pageNo) {
   const zone = footerZone(vp.height);
   const lines = footerLines(pageNo, runs, zone);
   const profiled = profile.parity[pageNo % 2];
+  const typography = doc.acksTypography ?? null;
+  const glyphs = typography?.glyphs ?? null;
+  const hScale = typography?.bodyPt > 0 ? FAMILY_BODY_PT / typography.bodyPt : 1;
   const items = runs
     .filter((it) => {
       // The DTRPG stamp carries a buyer's name and order number and is not set
@@ -241,15 +280,84 @@ export async function pageItems(doc, pageNo) {
       return !(profile.keys.has(key) && lines.get(key) <= FOOTER_LINE_RUNS);
     })
     .map((it) => ({
-      str: it.str,
+      str: glyphs ? mapGlyphs(it.str, glyphs) : it.str,
       x: it.transform[4],
       y: vp.height - it.transform[5],
       w: it.width,
-      h: it.height,
+      h: it.height * hScale,
       alias: it.fontName,
       sp: it.spaceBefore === true,
+      // A run that is nothing but a ligature, for `fuseRuns`: the book's own
+      // glyph code points, or a standard ligature pdf.js already spelt out.
+      ...(glyphs && it.str && (LIGATURES.has(it.str) || [...it.str].every((ch) => /^[a-z]+$/.test(glyphs[ch] ?? "")))
+        ? { lig: true }
+        : {}),
     }));
-  return { items, width: vp.width, height: vp.height };
+  return {
+    items: typography ? fuseRuns(items, typography) : items,
+    width: vp.width,
+    height: vp.height,
+    // The book's declared measures ride with the page for the readers that
+    // need them (paragraph gap, leading, body top); absent where none is.
+    ...(typography ? { typography } : {}),
+  };
+}
+
+/** The standard ligatures a text layer sets as a run of their own. */
+const LIGATURES = new Set(["fi", "fl", "ff", "ffi", "ffl"]);
+
+/**
+ * Two run shapes a book's text layer may set, put back the way a reader sees
+ * the line. `ligatureRuns`: the layer sets each ligature as a run of its own
+ * ("A" "tt" "acks"), so a word arrives in pieces and no per-run test finds
+ * it; a ligature run rejoins the run it touches on either side, unless a word
+ * space opens between them. `labelColon`: a label's colon is set with the
+ * value ("Type" ": Humanoid"), so no label ends in one; the colon moves onto
+ * the touching run before it. Touching is a gap under 1.5pt on one baseline.
+ * Items keep their order; a run absorbed into another, or left empty, goes.
+ */
+function fuseRuns(items, { ligatureRuns = false, labelColon = false } = {}) {
+  const strip = ({ lig: _lig, ...it }) => it;
+  if (!ligatureRuns && !labelColon) return items.map(strip);
+  const TOUCH = 1.5;
+  const gone = new Set();
+  const lines = [];
+  for (const it of [...items].sort((a, b) => a.y - b.y || a.x - b.x)) {
+    const ln = lines[lines.length - 1];
+    if (ln && Math.abs(ln[0].y - it.y) <= 0.8) ln.push(it);
+    else lines.push([it]);
+  }
+  for (const line of lines) {
+    let prev = line[0];
+    let ligEnd = !!prev.lig;
+    for (let i = 1; i < line.length; i++) {
+      const cur = line[i];
+      const gap = cur.x - (prev.x + (prev.w ?? 0));
+      const touching = Math.abs(gap) < TOUCH;
+      if (ligatureRuns && touching && !cur.sp && (cur.lig || ligEnd)) {
+        prev.str += cur.str;
+        prev.w = cur.x + (cur.w ?? 0) - prev.x;
+        ligEnd = !!cur.lig;
+        gone.add(cur);
+        continue;
+      }
+      if (labelColon && touching && cur.str.startsWith(":") && prev.str.trim() && !/:$/.test(prev.str)) {
+        const cw = (cur.w ?? 0) / cur.str.length;
+        prev.str += ":";
+        prev.w = (prev.w ?? 0) + cw;
+        cur.str = cur.str.slice(1);
+        cur.x += cw;
+        cur.w = (cur.w ?? 0) - cw;
+        if (!cur.str) {
+          gone.add(cur);
+          continue;
+        }
+      }
+      prev = cur;
+      ligEnd = !!cur.lig;
+    }
+  }
+  return items.filter((it) => !gone.has(it)).map(strip);
 }
 
 /**

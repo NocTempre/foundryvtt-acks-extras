@@ -30,7 +30,7 @@ own book at runtime), `cookbook.mjs` + `recipes.mjs`/`table-recipes.mjs`
 | Audit | `audit-dump` (per-entry package for chefs), `audit-transcription`, `verify-cookbook`, `check-cookbook-drift`, `verify-against-compendium`, `lint-register`, `ledger-init` |
 | Debug | `find-anchor`, `probe-table`, `dump-entry` |
 | Gates | `check-prose-boxes` (a definition's prose must come from its own column), `test-*.mjs` executor suite, `test-cookbook-coherence`, `ip-scan` |
-| Ship | `compile-cookbook` (register → shipped cookbook; per-book typography dispatch lives here) |
+| Ship | `compile-cookbook` (register → shipped cookbook; per-book body ceilings live here — a book's text-layer typography is declared in `scripts/importer/books.mjs` and applied by `pageItems`) |
 
 **The oracle:** `C:\Proj\acks-reference\WIKI-SNAPSHOT\` validates extracted
 *structure* (column counts, row boundaries) — order and caveats in the synced
@@ -92,3 +92,8 @@ DECISIONS.md. Rows are never deleted; a superseded row says so.
 | An NPC statline stops at the column's foot and loses the clauses printed at the next column's top | The block is its label's column's contiguous lines | `assists.statRunsOn` per entry: the run-on at the next column's top is a second box, read after the first — DECISIONS.md 2026-10-18 |
 | A row whose statline label is matched by key finds no label | The printer set the label in several runs of its line | The keyed search tries every stretch of one line's runs up to a colon, and drops those runs by ordinal — `axLabelRun` in `compile-cookbook.mjs` |
 | A proficiency token's specialty has no opening bracket | The book's own text layer omits the character; no box can restore it | `rebracket` when `resolveAbilities` reads the token — DECISIONS.md 2026-09-23 |
+| Every line of a book reads as a heading and no page has columns | The body is set above `HEADING_MIN_H` — a 12pt word-processor export against the 9.5pt family ladder | `BOOKS.<id>.typography.bodyPt`, applied in `pageItems` — DECISIONS.md 2026-10-18 |
+| Words carry stray capitals, or arrive in three runs | The text layer encodes ligatures as Latin Extended-B code points, each ligature a run of its own | `typography.glyphs` and `ligatureRuns` (`fuseRuns` in `extract.mjs`) |
+| No stat label ends in a colon, so no stat column is found and no run-in anchors | The colon is set in the value's run | `typography.labelColon` moves it onto the label |
+| A wrapped value's second line lands in the row below it | The label sits on the value's first line, not centred on it as the MM sets it | `typography.wrapAlign: "top"` bands rows label to label |
+| A list welds a name broken over a line turn | The list's lines end with no trailing space and the box shipped no joins | `profList` goes through `withFixes` |

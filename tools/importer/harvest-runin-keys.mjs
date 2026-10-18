@@ -58,7 +58,7 @@ if (!fs.existsSync(FILES[BOOK])) {
   console.error(`harvest-runin-keys: ${BOOK} is not on this machine — skipped.`);
   process.exit(0);
 }
-const { doc } = await openBook(fs.readFileSync(FILES[BOOK]));
+const { doc } = await openBook(fs.readFileSync(FILES[BOOK]), { book: BOOK });
 useAxBands(doc, BOOK);
 
 /* ---------------- headings: the hash a display heading is found by ---------------- */
