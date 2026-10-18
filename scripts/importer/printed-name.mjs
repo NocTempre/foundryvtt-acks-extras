@@ -44,8 +44,18 @@ export function printKey(text) {
 /** The first run of non-space characters: where a keyed heading prints its number. */
 export const firstToken = (text) => /^\s*(\S+)/.exec(String(text ?? ""))?.[1] ?? "";
 
-/** Whether a heading's first token IS this key number — "36." is not "36U." and "3." is not "30.". */
-export const opensWithNumber = (text, number) => !!foldLabel(number) && foldLabel(firstToken(text)) === foldLabel(number);
+/**
+ * A key number reduced the way `foldLabel` reduces a label, except that a dash
+ * or a slash between its parts is kept, as "-" or "/": "1-3." and "13." are two
+ * keys, and so are "1/2" and "12". Any printed dash folds to the hyphen, and
+ * the stop that closes the key, a full stop or a colon, is dropped.
+ */
+const keyFold = (s) =>
+  String(s ?? "").normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase()
+    .replace(/[‐‑‒–—]/gu, "-").replace(/[^a-z0-9/-]/g, "").replace(/^[-/]+|[-/]+$/g, "");
+
+/** Whether a heading's first token IS this key number — "36." is not "36U.", "3." is not "30." and "1-3." is not "13.". */
+export const opensWithNumber = (text, number) => !!keyFold(number) && keyFold(firstToken(text)) === keyFold(number);
 
 /**
  * A keyed heading without its key number: what a body of people is called when
@@ -53,7 +63,8 @@ export const opensWithNumber = (text, number) => !!foldLabel(number) && foldLabe
  * "Hall of the Wardens" is who meets there). A text that opens with no key
  * number is returned as it came.
  */
-export const withoutKeyNumber = (text) => String(text ?? "").replace(/^\s*[A-Z]?\d+[A-Za-z]?(?:\/[A-Z]?\d+[A-Za-z]?)?\.\s+/u, "").trim();
+export const withoutKeyNumber = (text) =>
+  String(text ?? "").replace(/^\s*[A-Z]?\d+(?:[A-Za-z][-–][A-Za-z]|[A-Za-z]?(?:[-–]\d+[A-Za-z]?)?)(?:\/[A-Z]?\d+[A-Za-z]?)?\.\s+/u, "").trim();
 
 /** Words a title sets in lower case when they are not its first. */
 const SMALL_WORDS = new Set(["a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "the", "to", "with"]);

@@ -1180,6 +1180,15 @@ function applyPattern(raw, instr, registers, misses) {
     }
     case "statline":
       return parseStatline(text);
+    case "countParen": {
+      // How many a quick-stat label says there are: its closing parenthetical,
+      // "(12)", "(2d6)" or "(1d3 or 1)". A whole number is a number; anything
+      // else with a digit in it is kept as printed; no digit is no count.
+      const m = /\(([^()]*)\)\s*$/.exec(text);
+      const count = m ? m[1].replace(/\s+/g, " ").trim() : "";
+      if (!/\d/.test(count)) return null;
+      return /^\d+$/.test(count) ? parseInt(count, 10) : count;
+    }
     default:
       return text; // unknown pattern: degrade to raw text, never throw
   }
@@ -1196,10 +1205,15 @@ function applyPattern(raw, instr, registers, misses) {
  * by their leading token, unrecognized segments kept verbatim in `extra`.
  * Which box holds the block (and the name label dropped via dropText) was
  * decided at compile time. Missing keys are simply absent — never a throw.
+ *
+ * Damage is keyed "Dmg" or a bare "D" opening a clause. Hit points printed one
+ * per creature ("hp 5, 4, 3") read as `hpList`, with `hp` the first of them
+ * and a closing parenthetical as `hpNote`. A printed minus sign (U+2212) reads
+ * as the hyphen-minus; `text` keeps what the page printed.
  */
 export function parseStatline(text) {
   const out = { text };
-  const segments = text.split(/;/).map((s) => s.trim()).filter(Boolean);
+  const segments = text.replace(/−/g, "-").split(/;/).map((s) => s.trim()).filter(Boolean);
   const rest = [];
   for (const seg of segments) {
     const labeled = /^(Proficiencies|Equipment|Class Abilities|Abilities|Spells(?:\s+\w+)?|Arcane Spells|Divine Spells)\s*:\s*(.*)$/i.exec(seg);
@@ -1229,12 +1243,15 @@ export function parseStatline(text) {
         out.ac = parseInt(ac[0], 10);
         if (ac[1]) out.acNote = ac[1].trim();
       }
-      const hd = grab(/\bHD\s*([\d]+(?:[+-][\d]+)?\**)/i);
+      const hd = grab(/\bHD\s*((?:\d+|½)(?:[+-]\d+)?\**)/i);
       if (hd) out.hd = hd[0].trim();
-      const hp = grab(/\bhp\s*(\d+)\s*(each)?/i);
+      const hp = grab(/\bhp\s*(\d+(?:\s*,\s*\d+)*)\s*(each)?\s*(?:\(([^)]*)\))?/i);
       if (hp) {
-        out.hp = parseInt(hp[0], 10);
+        const list = hp[0].split(/\s*,\s*/).map((n) => parseInt(n, 10));
+        out.hp = list[0];
+        if (list.length > 1) out.hpList = list;
         if (hp[1]) out.hpEach = true;
+        if (hp[2]?.trim()) out.hpNote = hp[2].trim();
       }
       const at = grab(/#AT\s*([^,;(]+?)\s*(?:\(([^)]*?)\s*(\d+)\+\s*\)|\(([^)]*)\))?(?=,|$)/i);
       if (at) {
@@ -1243,7 +1260,7 @@ export function parseStatline(text) {
         if (weapon) out.atk.text = weapon.trim();
         if (at[2]) out.atk.throw = parseInt(at[2], 10);
       }
-      const dmg = grab(/\bDmg\s*(.+?)(?=,\s*(?:Save|SV)\b|;|$)/i);
+      const dmg = grab(/\bDmg\s*(.+?)(?=,\s*(?:Save|SV)\b|;|$)/i) ?? grab(/(?:^|,\s*)D\s+(.+?)(?=,\s*(?:Save|SV)\b|;|$)/);
       if (dmg) out.dmg = dmg[0].trim();
       const sv = grab(/\b(?:Save|SV)\s*([A-Z]+)\s*(\d+)?\s*(?:\(([^)]*)\))?/);
       if (sv) {

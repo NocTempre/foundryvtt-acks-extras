@@ -13,8 +13,8 @@ const loc = (id, extra = {}) => ({ id, book: id.split(".")[0], kind: "kind.locat
 
 /* --- key numbers: ranges and run-in keys are keys of their own --- */
 
-for (const k of ["30.", "36U.", "20/20U.", "1-3.", "1–3.", "9a.", "12", "19r."]) check(`"${k}" is a key number`, KEY_NUMBER.test(k));
-for (const k of ["1-.", "-3.", "1--3.", "a1.", "1-3-5.", "30 ."]) check(`"${k}" is not a key number`, !KEY_NUMBER.test(k));
+for (const k of ["30.", "36U.", "20/20U.", "1-3.", "1–3.", "9a.", "12", "19r.", "11c-l.", "11m–p."]) check(`"${k}" is a key number`, KEY_NUMBER.test(k));
+for (const k of ["1-.", "-3.", "1--3.", "a1.", "1-3-5.", "30 .", "1-a.", "11c-.", "11c-l-p."]) check(`"${k}" is not a key number`, !KEY_NUMBER.test(k));
 check("a printed en dash is written as a hyphen", bareKey("1–3.") === "1-3");
 check("the closing stop is dropped", bareKey("9a.") === "9a");
 
@@ -25,6 +25,7 @@ const level1 = loc("ax1.l1", { name: "Level 1" });
 check("a stem ending in a letter takes no hyphen", spaceKeyed(fort, "9a.").id === "ax1.fort9a");
 check("a stem ending in a digit takes a hyphen", spaceKeyed(level1, "12.").id === "ax1.l1-12");
 check("a range keeps its hyphen in the id", spaceKeyed(fort, "1–3.").id === "ax1.fort1-3");
+check("a range of lettered rooms keeps its hyphen in the id", spaceKeyed(fort, "11c-l.").id === "ax1.fort11c-l");
 check("the label is the space's name and the key", spaceKeyed(level1, "12.").label === "Level 1 12");
 
 const keyed = (id, name, number, meta) => loc(id, { name, anchor: { number, as: "runin" }, meta });

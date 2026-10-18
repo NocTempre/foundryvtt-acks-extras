@@ -14,10 +14,10 @@ const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 
 /**
  * A key number as an adventure prints it before a keyed place: "30.", "36U.",
- * "20/20U.", or a range, "1-3." or "1–3.". A pointer of the same standing as a
- * page number.
+ * "20/20U.", a range, "1-3." or "1–3.", or a range of a key's lettered rooms,
+ * "11c-l.". A pointer of the same standing as a page number.
  */
-export const KEY_NUMBER = /^[A-Z]?\d+[A-Za-z]?(?:[-–]\d+[A-Za-z]?)?(?:\/[A-Z]?\d+[A-Za-z]?)?\.?$/;
+export const KEY_NUMBER = /^[A-Z]?\d+(?:[A-Za-z][-–][A-Za-z]|[A-Za-z]?(?:[-–]\d+[A-Za-z]?)?)(?:\/[A-Z]?\d+[A-Za-z]?)?\.?$/;
 
 /** A key number without its closing stop, a printed en dash written as a hyphen. */
 export const bareKey = (number) => String(number).replace(/\.$/, "").replace(/–/g, "-");

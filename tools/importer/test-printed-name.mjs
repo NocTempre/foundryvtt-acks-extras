@@ -17,7 +17,7 @@
  * Usage: node tools/importer/test-printed-name.mjs
  */
 import assert from "node:assert/strict";
-import { foldLabel, hash36, printKey, firstToken, opensWithNumber, titleCaseHeading, printedNameOf } from "../../scripts/importer/printed-name.mjs";
+import { foldLabel, hash36, printKey, firstToken, opensWithNumber, titleCaseHeading, printedNameOf, withoutKeyNumber } from "../../scripts/importer/printed-name.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
 import { pictureKey } from "../../scripts/importer/scene-binding.mjs";
 
@@ -57,6 +57,24 @@ await t("a key number compares whole", () => {
   assert.ok(!opensWithNumber("36U. VAULT", "36."), "36 is not 36U");
   assert.ok(opensWithNumber("20/20U. ARENA / CELLARS", "20/20U."));
   assert.ok(!opensWithNumber("SALT GATE", ""), "no number finds nothing");
+});
+
+await t("a range is not the number its digits spell", () => {
+  assert.ok(opensWithNumber("1-3. Store Rooms:", "1-3."));
+  assert.ok(!opensWithNumber("13. Store Rooms:", "1-3."), "1-3 is not 13");
+  assert.ok(!opensWithNumber("1-3. Store Rooms:", "13."), "13 is not 1-3");
+  assert.ok(opensWithNumber("1–3. Store Rooms:", "1-3."), "a printed en dash is the hyphen");
+  assert.ok(!opensWithNumber("12. Cellar", "1/2."), "1/2 is not 12");
+  assert.ok(opensWithNumber("4c-f. Cells:", "4c-f."), "a range of lettered rooms");
+  assert.ok(opensWithNumber("4c-f: Cells:", "4c-f."), "a colon printed for the stop is punctuation");
+  assert.ok(!opensWithNumber("4c. Cell:", "4c-f."));
+});
+
+await t("a key number comes off a heading, a range included", () => {
+  assert.equal(withoutKeyNumber("22. Lamp Hall"), "Lamp Hall");
+  assert.equal(withoutKeyNumber("1-3. Store Rooms"), "Store Rooms");
+  assert.equal(withoutKeyNumber("4c-f. Cells"), "Cells");
+  assert.equal(withoutKeyNumber("Store Rooms"), "Store Rooms");
 });
 
 /* ---------------- a heading in capitals, as a name ---------------- */

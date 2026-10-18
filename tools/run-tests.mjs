@@ -160,6 +160,7 @@ const COMMITTED = [
   "importer/test-region-import.mjs",
   "importer/test-refresh.mjs",
   "importer/test-register-rules.mjs",
+  "importer/test-ax-statline.mjs",
   "../discord/test/config.test.mjs",
   "../discord/test/format.test.mjs",
   "../discord/test/seat.test.mjs",
