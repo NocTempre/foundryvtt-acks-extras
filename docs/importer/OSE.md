@@ -83,6 +83,15 @@ never seen, and asking is the only honest way to find out. A source that names
 none goes to a shared shelf with the rest of the Judge's own books, as does a
 block typed in with no source at all.
 
+A registered source's line is the typed one, or the shared shelf's, and never
+a Judge line (`lineOf` in `cookbook.mjs`): `judge` is a shipped book's flag in
+`books.mjs`, and a registered source never produces a keyed area —
+`importOseAreas` reads only a shipped cookbook (`cookbookBookFile`), so for an
+`ose.*` id it reports that no recipes ship and writes nothing. What a
+registered adventure does produce, its creatures, files on a shelf a player
+seat can open, where a shipped adventure's close with its book (DECISIONS,
+"A mixed book is a Judge's book by its Judge's half").
+
 The line is derived from the document's own cookbook id, which is what makes it
 safe: the same function answers for the write and for the "have I imported this
 already?" read, so a creature can never be filed on one shelf and looked for on
