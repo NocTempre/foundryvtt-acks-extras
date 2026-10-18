@@ -6,8 +6,11 @@
  * is read and nothing printed is reproduced. What this guards is what a Judge
  * would meet as a dungeon whose rooms do not join: a lattice read a cell off,
  * a throat's door read as open, an asserted door that a traced wall still
- * runs through, a correction cap that lets a tracing ship as corrections, and
- * walls that land in the scene a frame away from the picture under them.
+ * runs through, a correction cap that lets a tracing ship as corrections, a
+ * double door read as one, a secret door standing in one mouth of its cell, a
+ * wall the crop's own edge draws across a room, a raised structure a token
+ * walks through, and walls that land in the scene a frame away from the
+ * picture under them.
  */
 import {
   CORRECTION_SHARE, TRACE_PITCH, WALL_MODES, correctionCap, traceWalls, wallLattice, wallsProblems,
@@ -88,7 +91,9 @@ const boundaryEdges = (floor) => {
   }
   return n;
 };
-const wallLength = (walls) => walls.filter((s) => !s.door).reduce((sum, s) => sum + Math.hypot(s.c[2] - s.c[0], s.c[3] - s.c[1]), 0);
+const lengthOf = (walls) => walls.reduce((sum, s) => sum + Math.hypot(s.c[2] - s.c[0], s.c[3] - s.c[1]), 0);
+const wallLength = (walls) => lengthOf(walls.filter((s) => !s.door && !s.terrain));
+const near = (a, b, tol = 1e-6) => a.length === b.length && a.every((v, k) => Math.abs(v - b[k]) < tol);
 
 /* ---------------- the lattice and the checks ---------------- */
 
@@ -123,6 +128,20 @@ ok("grid mode drops no door by its point", wallsProblems({ ...fine, corrections:
 check("contour mode drops a door by its point", wallsProblems({ mode: "contour", threshold: 160, corrections: dropDoor }, recipeOf(fine)), []);
 ok("recipeProblems carries the walls checks", recipeProblems({ ...recipeOf({ ...fine, mode: "hatch" }) }).some((p) => /walls.mode/.test(p)));
 
+const boxOf = (box, is = "terrain") => ({ ...fine, corrections: [{ box, is }] });
+check("a terrain box holds", wallsProblems(boxOf([2, 2, 6, 6]), recipeOf(fine)), []);
+check("a box may close on the lattice's last lines", wallsProblems(boxOf([0, 0, 20, 15]), recipeOf(fine)), []);
+ok("a box must run from a line to a later one", wallsProblems(boxOf([6, 2, 6, 6]), recipeOf(fine)).some((p) => /later one/.test(p)));
+ok("a box past the lattice is refused", wallsProblems(boxOf([2, 2, 21, 6]), recipeOf(fine)).some((p) => /later one/.test(p)));
+ok("a box names four lattice lines", wallsProblems(boxOf([2, 2, 6]), recipeOf(fine)).some((p) => /box must be/.test(p)));
+ok("a box is terrain", wallsProblems(boxOf([2, 2, 6, 6], "wall"), recipeOf(fine)).some((p) => /for a box/.test(p)));
+// Three boxes weigh twelve; with three cells the list sits at the cap of 15.
+const heavy = [[1, 1, 3, 3], [5, 1, 7, 3], [9, 1, 11, 3]].map((box) => ({ box, is: "terrain" }))
+  .concat([0, 1, 2].map((c) => ({ cell: [c, 10], is: "floor" })));
+check("boxes weigh four against the cap", wallsProblems({ ...fine, corrections: heavy }, recipeOf(fine)), []);
+ok("a box past the cap is refused by its weight", wallsProblems({ ...fine, corrections: [...heavy, { cell: [3, 10], is: "floor" }] }, recipeOf(fine))
+  .some((p) => /weigh 16 \(a box 4\), over the cap of 15/.test(p)));
+
 /* ---------------- grid mode ---------------- */
 
 const traced = traceWalls(plan, recipeOf(fine), scale);
@@ -153,7 +172,8 @@ for (const [what, at] of [["the plan's floor", [4.5, 4.5]], ["the rock framing i
   check(`grid: a point on ${what} is refused and the plan stands`,
     [kept.digest.islandsDropped, kept.digest.islandsRefused, kept.digest.floorCells, kept.walls.length], [0, 1, d.floorCells, traced.walls.length]);
 }
-check("grid: an open throat asserted secret is a secret door", fixed.digest.secret, 1);
+check("grid: an open throat asserted secret is a secret door on each of its mouths", fixed.walls.filter((s) => s.door === 2).map((s) => s.c),
+  [[crop.x + 7 * CELL, crop.y + 4 * CELL, crop.x + 7 * CELL, crop.y + 5 * CELL], [crop.x + 8 * CELL, crop.y + 4 * CELL, crop.x + 8 * CELL, crop.y + 5 * CELL]]);
 check("grid: an edge asserted a door is one, on the edge", fixed.walls.filter((s) => s.door === 1).map((s) => s.c).sort((a, b) => a[0] - b[0])[0], [crop.x + 2 * CELL, crop.y + 2 * CELL, crop.x + 3 * CELL, crop.y + 2 * CELL]);
 const opened = traceWalls(plan, recipeOf({ ...fine, corrections: [{ edge: [2, 2, "n"], is: "open" }, { cell: [8, 4], is: "open" }] }), scale);
 ok("grid: an edge asserted open loses its wall", Math.abs(wallLength(opened.walls) - (boundaryEdges(floorMap) - 1) * CELL) < 1e-6);
@@ -170,6 +190,95 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   check("grid: a door drawn inside a rock band is found and joins the rooms", [drawn.digest.doors, drawn.digest.regions], [1, 1]);
   const flankOpened = traceWalls(band, recipeOf({ ...fine, corrections: [{ cell: [3, 5], is: "floor" }] }), scale);
   check("grid: a drawn door whose flank is asserted floor is no door", [flankOpened.digest.doors, flankOpened.digest.regions], [0, 1]);
+}
+
+{
+  // The corridor's door box split by a bar across its middle is a double
+  // door: a door on each of the box's long lines. A bar at the box's end,
+  // where its lines close, splits nothing.
+  const mid = 8.5 * TRACE_PITCH;
+  const split = dungeon();
+  split.rect(mid - 6, 4.5 * TRACE_PITCH, mid + 6, 4.5 * TRACE_PITCH + 2, 0);
+  const out = traceWalls(split, recipeOf(fine), scale);
+  const doors = out.walls.filter((s) => s.door === 1).map((s) => s.c);
+  ok("grid: a split box is a door on each long line, the cell's whole width",
+    out.digest.splitBoxes === 1 && doors.length === 2
+      && near(doors[0], [crop.x + (mid - 6) / scale, crop.y + 4 * CELL, crop.x + (mid - 6) / scale, crop.y + 5 * CELL])
+      && near(doors[1], [crop.x + (mid + 5) / scale, crop.y + 4 * CELL, crop.x + (mid + 5) / scale, crop.y + 5 * CELL]), JSON.stringify(doors));
+  const capped = dungeon();
+  capped.rect(mid - 6, 4 * TRACE_PITCH + 12, mid + 6, 4 * TRACE_PITCH + 14, 0);
+  const one = traceWalls(capped, recipeOf(fine), scale);
+  check("grid: a bar near a box's end is no split", [one.digest.splitBoxes, one.digest.doors], [0, 1]);
+  // A box drawn half the passage long, asserted a door: its closed end lies
+  // mid-opening with the box's lines on one side only.
+  const short = canvas(60);
+  for (const [c0, r0, c1, r1] of [[2, 2, 6, 6], [7, 4, 9, 4], [10, 3, 15, 9]]) short.cells(c0, r0, c1, r1, 255);
+  for (const dx of [-6, 5]) short.rect(mid + dx, 4 * TRACE_PITCH + 2, mid + dx + 1, 4.5 * TRACE_PITCH, 0);
+  short.rect(mid - 6, 4.5 * TRACE_PITCH, mid + 6, 4.5 * TRACE_PITCH + 2, 0);
+  const closed = traceWalls(short, recipeOf({ ...fine, corrections: [{ cell: [8, 4], is: "door" }] }), scale);
+  check("grid: a box's closed end mid-opening is no split", [closed.digest.splitBoxes, closed.digest.doors], [0, 1]);
+}
+
+{
+  // Two cells of a rock band opened and asserted doors are one opening; the
+  // box across both, split on the cells' shared line, is a door on each long
+  // line the opening's whole length. Unsplit, each cell has its own door.
+  const P = TRACE_PITCH;
+  const pair = canvas(60);
+  pair.cells(2, 2, 6, 4, 255);
+  pair.cells(2, 6, 6, 8, 255);
+  pair.cells(3, 5, 4, 5, 255);
+  for (const y of [5.3 * P, 5.7 * P]) pair.rect(3 * P + 3, y, 5 * P - 3, y + 2, 0);
+  for (const x of [3 * P + 3, 5 * P - 5]) pair.rect(x, 5.3 * P, x + 2, 5.7 * P + 2, 0);
+  const asserted = recipeOf({ ...fine, corrections: [{ cell: [3, 5], is: "door" }, { cell: [4, 5], is: "door" }] });
+  const unsplit = traceWalls(pair, asserted, scale).walls.filter((s) => s.door).map((s) => s.c);
+  check("grid: an unsplit box over two asserted cells is a door across each", unsplit,
+    [[crop.x + 3 * CELL, crop.y + 5.5 * CELL, crop.x + 4 * CELL, crop.y + 5.5 * CELL], [crop.x + 4 * CELL, crop.y + 5.5 * CELL, crop.x + 5 * CELL, crop.y + 5.5 * CELL]]);
+  pair.rect(4 * P - 1, 5.3 * P, 4 * P + 1, 5.7 * P + 2, 0);
+  const out = traceWalls(pair, asserted, scale);
+  const doors = out.walls.filter((s) => s.door).map((s) => s.c);
+  ok("grid: a box split on two cells' shared line is a door on each long line across both",
+    out.digest.splitBoxes === 1 && doors.length === 2
+      && near(doors[0], [crop.x + 3 * CELL, crop.y + 265.5 / scale, crop.x + 5 * CELL, crop.y + 265.5 / scale])
+      && near(doors[1], [crop.x + 3 * CELL, crop.y + 285.5 / scale, crop.x + 5 * CELL, crop.y + 285.5 / scale]), JSON.stringify(doors));
+}
+
+{
+  // A terrain box stands where no traced wall does: inside a room it is four
+  // sides of terrain; an edge asserted open cuts one side; along a room's
+  // wall the wall stays.
+  const terrainOf = (o) => o.walls.filter((s) => s.terrain);
+  const inside = traceWalls(plan, recipeOf({ ...fine, corrections: [{ box: [11, 4, 14, 7], is: "terrain" }] }), scale);
+  check("grid: a terrain box in a room is its four sides, apart from the walls",
+    [inside.digest.terrain, lengthOf(terrainOf(inside)), inside.digest.walls, wallLength(inside.walls)], [4, 12 * CELL, d.walls, wallLength(traced.walls)]);
+  const ramp = traceWalls(plan, recipeOf({ ...fine, corrections: [{ box: [11, 4, 14, 7], is: "terrain" }, { edge: [12, 7, "n"], is: "open" }] }), scale);
+  check("grid: an edge asserted open cuts a box side", [ramp.digest.terrain, lengthOf(terrainOf(ramp))], [5, 11 * CELL]);
+  const along = traceWalls(plan, recipeOf({ ...fine, corrections: [{ box: [10, 3, 12, 5], is: "terrain" }] }), scale);
+  check("grid: a box side along a traced wall stays a wall", [lengthOf(terrainOf(along)), wallLength(along.walls)], [5 * CELL, wallLength(traced.walls)]);
+}
+
+{
+  // The crop's partial strip past the lattice decides a border wall. The
+  // crop starts 0.7 cell before the lattice's first column and 0.15 cell
+  // above its first row, and ends 0.3 cell past its last column and 0.85
+  // cell below its last row.
+  const P = TRACE_PITCH;
+  const crop2 = { x: 33, y: 38.5, w: 200, h: 150 };
+  const ox = (40 - crop2.x) * scale, oy = (40 - crop2.y) * scale;
+  const edged = canvas(60);
+  const at = (c0, r0, c1, r1, v) => edged.rect(ox + c0 * P, oy + r0 * P, ox + (c1 + 1) * P, oy + (r1 + 1) * P, v);
+  at(0, 3, 3, 6, 255);
+  at(6, 0, 9, 2, 255);
+  at(12, 11, 15, 13, 255);
+  edged.rect(ox + 12 * P, oy + 14 * P, ox + 16 * P, H, 255);
+  at(16, 6, 18, 8, 255);
+  const out = traceWalls(edged, { page: 1, crop: crop2, grid, walls: fine }, scale);
+  const on = (pred) => out.walls.filter(({ c }) => pred(c)).map(({ c }) => c);
+  check("grid: a room against a deep rock strip is walled on the border",
+    [on((c) => c[0] === c[2] && Math.abs(c[0] - 40) < 1e-6), on((c) => c[0] === c[2] && Math.abs(c[0] - 230) < 1e-6)].map((l) => l.map((c) => c.map((v) => +v.toFixed(6)))),
+    [[[40, 70, 40, 110]], [[230, 100, 230, 130]]]);
+  check("grid: a strip under a quarter cell, or of floor, walls nothing",
+    [on((c) => c[1] === c[3] && Math.abs(c[1] - 40) < 1e-6).length, on((c) => c[1] === c[3] && Math.abs(c[1] - 180) < 1e-6).length], [0, 0]);
 }
 
 /* ---------------- contour mode ---------------- */
@@ -253,6 +362,31 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   check("contour: a point with no door within half a cell drops nothing", [doorsOf(missed).length, missed.digest.doorsDropped], [1, 0]);
 }
 
+{
+  // Two rooms joined by a two-cell corridor.
+  const pair = canvas(50);
+  pair.cells(2, 3, 6, 7, 250);
+  pair.cells(7, 5, 8, 5, 250);
+  pair.cells(9, 3, 13, 7, 250);
+  const rec = { mode: "contour", threshold: 160 };
+  const hid = traceWalls(pair, recipeOf({ ...rec, corrections: [{ cell: [7, 5], is: "secret" }] }), scale);
+  const mids = hid.walls.filter((s) => s.door === 2).map(({ c }) => [((c[0] + c[2]) / 2 - crop.x) / CELL, ((c[1] + c[3]) / 2 - crop.y) / CELL]);
+  ok("contour: a secret asserted on a cell stands on both its mouths",
+    mids.length === 2 && near(mids.map((m) => m[0]).sort(), [7, 8], 0.05) && mids.every((m) => Math.abs(m[1] - 5.5) < 0.05), JSON.stringify(mids));
+
+  const boxed = traceWalls(pair, recipeOf({ ...rec, corrections: [{ box: [9, 3, 12, 6], is: "terrain" }, { edge: [10, 6, "n"], is: "open" }] }), scale);
+  const terrain = boxed.walls.filter((s) => s.terrain);
+  check("contour: a terrain box's sides survive an edge cut as terrain", [boxed.digest.terrain, lengthOf(terrain).toFixed(6)], [5, (11 * CELL).toFixed(6)]);
+
+  // The crop's own edge is no wall: a room running off the crop is walled on
+  // its other three sides only.
+  const edge = canvas(50);
+  edge.cells(0, 3, 5, 7, 250);
+  const cut = traceWalls(edge, recipeOf(rec), scale);
+  ok("contour: no wall runs along the crop's edge", !cut.walls.some(({ c }) => c[0] === crop.x && c[2] === crop.x));
+  check("contour: a room the crop cuts keeps its other three sides", cut.walls.filter(({ c }) => Math.hypot(c[2] - c[0], c[3] - c[1]) > CELL).length, 3);
+}
+
 /* ---------------- stroke mode ---------------- */
 
 {
@@ -293,6 +427,8 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   ok("stroke: a separate stroke traces as walls", fenced > len + 3 * CELL, `${fenced.toFixed(1)} vs ${len.toFixed(1)}`);
   const markDropped = traceWalls(house, recipeOf({ ...rec, corrections: [{ at: [crop.x + 7 * CELL, crop.y + 12 * CELL], drop: "island" }] }), scale);
   check("stroke: a point on the separate stroke drops it alone", [markDropped.digest.islandsDropped, wallLength(markDropped.walls).toFixed(6)], [1, len.toFixed(6)]);
+  const raised = traceWalls(house, recipeOf({ ...rec, corrections: [{ box: [5, 5, 8, 8], is: "terrain" }] }), scale);
+  check("stroke: a terrain box is its four sides", [raised.digest.terrain, lengthOf(raised.walls.filter((s) => s.terrain))], [4, 12 * CELL]);
 }
 
 /* ---------------- refusals ---------------- */
@@ -321,6 +457,9 @@ ok("a render of the wrong size is not traced", /stated size/.test(threw));
   const frame = sceneFrame(recipe, { pixelsPerPoint: 10 });
   const rows = wallSources([{ c: [crop.x + crop.w, crop.y, crop.x + crop.w, crop.y + CELL], door: 2 }, { c: [crop.x, crop.y, crop.x + 0.01, crop.y], door: 0 }], frame);
   check("walls are carried through the picture's frame and rounded", rows, [{ c: [0, 0, 100, 0], door: 2 }]);
+  check("a terrain wall carries core's terrain senses and no door",
+    wallSources([{ c: [crop.x + crop.w, crop.y, crop.x + crop.w, crop.y + CELL], door: 0, terrain: true }], frame),
+    [{ c: [0, 0, 100, 0], door: 0, light: 10, sight: 10, sound: 10, move: 20 }]);
 
   const level = { id: "levelAAAAAAAAAAA", name: "Level" };
   const walled = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, walls: rows, pixelsPerPoint: 10 });

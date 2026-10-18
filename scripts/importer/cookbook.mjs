@@ -4537,7 +4537,7 @@ export function gridScenePlan(recipe, scene) {
  * @param {(cookbookId: string) => Promise<{uuid: string, results: object[], formula: string}|null>} p.tableOf
  * @param {{mapPlaceId: string, districtIds: string[], placeIds: string[]}} p.ids `mapIds`
  * @param {object|null} [p.grid] `gridScenePlan` of a grid recipe
- * @param {{c: number[], door: number}[]|null} [p.walls] traced walls in page
+ * @param {{c: number[], door: number, terrain?: true}[]|null} [p.walls] traced walls in page
  *   points (`traceWalls`), carried through the same placed frame as the rest
  */
 export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, folderId, fallbackName, grid = null, walls = null }) {

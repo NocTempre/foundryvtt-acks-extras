@@ -1059,6 +1059,17 @@ What each book still owes, in the order it is worth doing:
   until a mode reads hatching.
 - **Walls on AX3's plans.** The building plans have no tracer run yet. The
   city map's streets and gates stay shelved.
+- **Label rings found on door boxes.** `labelRings` can find a ring on a door
+  box and mask its ink, so the throat reads open. On AX1 p38 at its recipe's
+  threshold this happens to two doors, and each is asserted as a correction.
+  Whether it happens depends on how the box falls on the render's pixels. A
+  ring test that keeps every real label and refuses a box would free those
+  corrections; loosening the ring's dark share dropped real labels.
+- **A door asserted on a rock cell in `contour`.** The cell stays rock, so
+  the outline still walls both its mouths and the door, or a secret door's
+  two halves, sits on a wall. Opening the cell as `floor` does reshaped AX1
+  p55's outline around its three asserted door cells, whose doors already
+  stand in their passages, so an asserted cell is left as traced.
 - **AX1's domain record (p.28)** waits for the domain sheet. When the sheet
   exists, the record's market fields could ride the market-record path, but
   only if the fort is one of a demand grid's markets.

@@ -8,8 +8,8 @@
  * pixels to the drawn cell and hands it here. What comes back is wall
  * segments in page points, which the scene carries through the same frame as
  * its picture. No traced geometry ships: a correction is an assertion about
- * one cell, one cell edge, one island or one drawn door, and the cap keeps
- * them a small share of the plan.
+ * one cell, one cell edge, one island, one drawn door or one box of terrain,
+ * and the cap keeps them a small share of the plan.
  *
  * Three modes, for three ways a plan is drawn:
  * - `grid`: dark rock and light floor on the drawn squares. Each cell is
@@ -46,6 +46,15 @@ const EDGE_STATES = Object.freeze(["wall", "door", "secret", "open"]);
 const EDGE_SIDES = Object.freeze(["n", "w"]);
 
 /**
+ * What a box may assert: walls on the four lattice lines it names, of a kind
+ * a token cannot cross and a sense passes one of, such as a raised structure
+ * in a room.
+ * A box weighs `BOX_WEIGHT` against the cap, one for each side.
+ */
+const BOX_STATES = Object.freeze(["terrain"]);
+const BOX_WEIGHT = 4;
+
+/**
  * What a point correction may drop, per mode. Only contour reads drawn doors
  * as free segments off the lattice, where a cell asserted open would cut the
  * walls beside one too, so only contour drops a door by its point.
@@ -58,6 +67,9 @@ const AT_DROPS = Object.freeze({
 
 /** Core's `WALL_DOOR_TYPES`, spelled out because this file loads without Foundry. */
 const DOOR = Object.freeze({ none: 0, door: 1, secret: 2 });
+
+/** What a grid-mode cell edge holds. */
+const EDGE = Object.freeze({ open: 0, wall: 1, door: 2, secret: 3, terrain: 4 });
 
 /** A pixel darker than this is ink: a label's ring, a door's outline, a symbol. */
 const INK = 128;
@@ -97,15 +109,16 @@ export function wallLattice(recipe) {
 /** How many corrections a lattice allows: `CORRECTION_SHARE` of its cells, rounded down. */
 export const correctionCap = (lattice) => Math.floor(CORRECTION_SHARE * (lattice?.cols ?? 0) * (lattice?.rows ?? 0));
 
-/** One correction's identity, so a cell, an edge or an island is asserted once. */
-const correctionKey = (k) => (k.cell ? `cell:${k.cell.join(",")}` : k.edge ? `edge:${k.edge.join(",")}` : `at:${(k.at ?? []).join(",")}`);
+/** One correction's identity, so a cell, an edge, an island or a box is asserted once. */
+const correctionKey = (k) => (k.cell ? `cell:${k.cell.join(",")}` : k.edge ? `edge:${k.edge.join(",")}` : k.box ? `box:${k.box.join(",")}` : `at:${(k.at ?? []).join(",")}`);
 
 /**
  * Everything wrong with a recipe's `walls` block, as sentences prefixed
  * `walls`; empty when it holds together. The recipe must carry a square grid,
  * because the corrections are read on its lattice. Corrections are checked
- * against that lattice and the cap, so a row that needs more corrections than
- * `CORRECTION_SHARE` of its cells is refused wherever `recipeProblems` runs.
+ * against that lattice and the cap, so a row whose corrections weigh more
+ * than `CORRECTION_SHARE` of its cells is refused wherever `recipeProblems`
+ * runs; each correction weighs one, a box `BOX_WEIGHT`.
  */
 export function wallsProblems(walls, recipe) {
   if (!walls || typeof walls !== "object" || Array.isArray(walls)) return ["walls must be an object"];
@@ -119,16 +132,17 @@ export function wallsProblems(walls, recipe) {
   const list = walls.corrections ?? [];
   if (!Array.isArray(list)) return [...out, "walls.corrections must be a list"];
   const cap = correctionCap(lattice);
-  if (list.length > cap) {
-    out.push(`walls.corrections number ${list.length}, over the cap of ${cap} (${CORRECTION_SHARE * 100}% of ${lattice.cols}x${lattice.rows} cells); a plan that needs more is left wall-less`);
+  const weight = list.reduce((n, k) => n + (k?.box !== undefined ? BOX_WEIGHT : 1), 0);
+  if (weight > cap) {
+    out.push(`walls.corrections weigh ${weight} (a box ${BOX_WEIGHT}), over the cap of ${cap} (${CORRECTION_SHARE * 100}% of ${lattice.cols}x${lattice.rows} cells); a plan that needs more is left wall-less`);
   }
   const cellStates = CELL_STATES[walls.mode] ?? [];
   const seen = new Set();
   list.forEach((k, i) => {
     const where = `walls.corrections[${i}]`;
     if (!k || typeof k !== "object" || Array.isArray(k)) return void out.push(`${where} must be an object`);
-    const forms = ["cell", "edge", "at"].filter((f) => k[f] !== undefined);
-    if (forms.length !== 1) return void out.push(`${where} names exactly one of cell, edge or at`);
+    const forms = ["cell", "edge", "at", "box"].filter((f) => k[f] !== undefined);
+    if (forms.length !== 1) return void out.push(`${where} names exactly one of cell, edge, at or box`);
     const allowed = forms[0] === "at" ? ["at", "drop"] : [forms[0], "is"];
     for (const key of Object.keys(k)) if (!allowed.includes(key)) out.push(`${where} has an unknown key "${key}"`);
     if (k.cell !== undefined) {
@@ -145,6 +159,13 @@ export function wallsProblems(walls, recipe) {
       const maxR = side === "n" ? lattice.rows : lattice.rows - 1;
       if (c < 0 || r < 0 || c > maxC || r > maxR) out.push(`${where}.edge [${c}, ${r}, "${side}"] lies outside the lattice`);
       if (!EDGE_STATES.includes(k.is)) out.push(`${where}.is must be ${EDGE_STATES.join(", ")} for an edge`);
+    } else if (k.box !== undefined) {
+      const [c0, r0, c1, r1] = Array.isArray(k.box) ? k.box : [];
+      if (!Array.isArray(k.box) || k.box.length !== 4 || !k.box.every(isInt)) return void out.push(`${where}.box must be [column, row, column, row]`);
+      if (c0 < 0 || r0 < 0 || c1 > lattice.cols || r1 > lattice.rows || c0 >= c1 || r0 >= r1) {
+        out.push(`${where}.box [${k.box.join(", ")}] must run from a lattice line to a later one, inside the ${lattice.cols}x${lattice.rows} lattice`);
+      }
+      if (!BOX_STATES.includes(k.is)) out.push(`${where}.is must be ${BOX_STATES.join(", ")} for a box`);
     } else {
       const crop = recipe.crop;
       if (!Array.isArray(k.at) || k.at.length !== 2 || !k.at.every(isNum)) return void out.push(`${where}.at must be [x, y]`);
@@ -323,13 +344,21 @@ function readCorrections(list, crop, scale) {
   const edges = new Map();
   const islands = [];
   const doorDrops = [];
+  const boxes = [];
   for (const k of list ?? []) {
     if (k.cell) cells.set(`${k.cell[0]},${k.cell[1]}`, k.is);
     else if (k.edge) edges.set(`${k.edge[0]},${k.edge[1]},${k.edge[2]}`, k.is);
+    else if (k.box) boxes.push(k.box);
     else if (k.at) (k.drop === "door" ? doorDrops : islands).push([(k.at[0] - crop.x) * scale, (k.at[1] - crop.y) * scale]);
   }
-  return { cells, edges, islands, doorDrops };
+  return { cells, edges, islands, doorDrops, boxes };
 }
+
+/** The four sides of each terrain box, on the lattice lines it names. */
+const boxSides = (L, boxes) => boxes.flatMap(([c0, r0, c1, r1]) => {
+  const x0 = L.cellX(c0), y0 = L.cellY(r0), x1 = L.cellX(c1), y1 = L.cellY(r1);
+  return [[x0, y0, x1, y0], [x1, y0, x1, y1], [x0, y1, x1, y1], [x0, y0, x0, y1]].map((c) => ({ c, door: DOOR.none, terrain: true }));
+});
 
 /** How far a point lies from a segment. */
 function pointToSegment(px, py, [ax, ay, bx, by]) {
@@ -401,27 +430,27 @@ const doorOf = (state) => (state === "secret" ? DOOR.secret : state === "door" ?
 
 /**
  * A segment with the part inside a box cut out (Liang–Barsky): none, one or
- * two pieces, each a little longer than nothing.
+ * two pieces, each a little longer than nothing and of the segment's kind.
  */
-function cutBox({ c, door }, x0, y0, x1, y1) {
-  const [ax, ay, bx, by] = c;
+function cutBox(s, x0, y0, x1, y1) {
+  const [ax, ay, bx, by] = s.c;
   const dx = bx - ax, dy = by - ay;
   let t0 = 0, t1 = 1;
   for (const [p, q] of [[-dx, ax - x0], [dx, x1 - ax], [-dy, ay - y0], [dy, y1 - ay]]) {
     if (p === 0) {
-      if (q < 0) return [{ c, door }];
+      if (q < 0) return [s];
       continue;
     }
     const t = q / p;
     if (p < 0) t0 = Math.max(t0, t);
     else t1 = Math.min(t1, t);
-    if (t0 > t1) return [{ c, door }];
+    if (t0 > t1) return [s];
   }
   const at = (t) => [ax + dx * t, ay + dy * t];
   const out = [];
-  if (t0 > 1e-6) out.push({ c: [ax, ay, ...at(t0)], door });
-  if (t1 < 1 - 1e-6) out.push({ c: [...at(t1), bx, by], door });
-  return out.filter((s) => Math.hypot(s.c[2] - s.c[0], s.c[3] - s.c[1]) >= 1);
+  if (t0 > 1e-6) out.push({ ...s, c: [ax, ay, ...at(t0)] });
+  if (t1 < 1 - 1e-6) out.push({ ...s, c: [...at(t1), bx, by] });
+  return out.filter((p) => Math.hypot(p.c[2] - p.c[0], p.c[3] - p.c[1]) >= 1);
 }
 
 /**
@@ -561,15 +590,18 @@ function drawnDoorInRock(gray, w, L, i, j, ns) {
 }
 
 /**
- * How a one-cell throat reads: `open`, a `door` (an outline: two runs of ink
- * across the gap) or a `symbol` (one run: a portcullis, a bar). The lines
- * scanned run across the gap, each read along the passage a quarter cell
- * past both cell edges; the grid line hugging a cell edge is dark on nearly
- * every scan line and is dropped, and a label's masked ink is never read.
+ * The ink across an opening `n` cells long on a wall line, from cell
+ * `(i, j)`, its passage running north–south when `ns`. Each scan line runs
+ * across the gap and is read along the passage a quarter cell past both cell
+ * edges, as runs of ink; the scan lines stop 0.15 cell short of the opening's
+ * ends. The grid line hugging a cell edge is dark on nearly every scan line
+ * and is dropped, and a label's masked ink is never read.
+ * @returns {{lines: {u: number, runs: number[][]}[], start: number, len: number, ink: (u: number, v: number) => boolean}}
+ *   `start` and `len` place the opening along the wall line, in render pixels
  */
-function throatKind(gray, w, ringMask, L, i, j, ns) {
-  const x0 = Math.round(L.cellX(i)), x1 = Math.round(L.cellX(i + 1));
-  const y0 = Math.round(L.cellY(j)), y1 = Math.round(L.cellY(j + 1));
+function scanGap(gray, w, ringMask, L, i, j, ns, n = 1) {
+  const x0 = Math.round(L.cellX(i)), x1 = Math.round(L.cellX(i + (ns ? n : 1)));
+  const y0 = Math.round(L.cellY(j)), y1 = Math.round(L.cellY(j + (ns ? 1 : n)));
   const h = gray.length / w;
   const m = Math.round(0.15 * L.pitch), reach = Math.round(0.25 * L.pitch), hug = Math.max(2, Math.round(0.08 * L.pitch));
   const lo = ns ? x0 + m : y0 + m, hi = ns ? x1 - m : y1 - m;
@@ -583,25 +615,79 @@ function throatKind(gray, w, ringMask, L, i, j, ns) {
   const persist = new Set();
   for (let v = a0; v < a1; v++) {
     if (Math.abs(v - e0) > hug && Math.abs(v - e1) > hug) continue;
-    let n = 0;
-    for (let u = lo; u < hi; u++) if (at(u, v)) n++;
-    if (n / (hi - lo) >= 0.85) persist.add(v);
+    let k = 0;
+    for (let u = lo; u < hi; u++) if (at(u, v)) k++;
+    if (k / (hi - lo) >= 0.85) persist.add(v);
   }
-  let spanned = 0, doubled = 0, lines = 0;
+  const ink = (u, v) => !persist.has(v) && at(u, v);
+  const lines = [];
   for (let u = lo; u < hi; u++) {
-    lines++;
-    let runs = 0, inRun = false;
-    for (let v = a0; v < a1; v++) {
-      const d = !persist.has(v) && at(u, v);
-      if (d && !inRun) runs++;
-      inRun = d;
+    const runs = [];
+    let from = -1;
+    for (let v = a0; v <= a1; v++) {
+      const d = v < a1 && ink(u, v);
+      if (d && from < 0) from = v;
+      if (!d && from >= 0) {
+        runs.push([from, v - 1]);
+        from = -1;
+      }
     }
-    if (runs) spanned++;
-    if (runs >= 2) doubled++;
+    lines.push({ u, runs });
   }
-  const span = lines ? spanned / lines : 0;
+  const start = ns ? x0 : y0;
+  return { lines, start, len: (ns ? x1 : y1) - start, ink };
+}
+
+/**
+ * How a one-cell throat reads: `open`, a `door` (an outline: two runs of ink
+ * across the gap) or a `symbol` (one run: a portcullis, a bar).
+ */
+function throatKind(gray, w, ringMask, L, i, j, ns) {
+  const { lines } = scanGap(gray, w, ringMask, L, i, j, ns);
+  const spanned = lines.filter((l) => l.runs.length).length;
+  const doubled = lines.filter((l) => l.runs.length >= 2).length;
+  const span = lines.length ? spanned / lines.length : 0;
   const dbl = spanned ? doubled / spanned : 0;
   return span < 0.75 ? "open" : dbl >= 0.45 ? "door" : "symbol";
+}
+
+/**
+ * Where a door box split by a bar draws its two long lines, as render-pixel
+ * positions along the passage; null for any other glyph. Most scan lines
+ * across a box cross its two long lines; a scan line on the bar finds the gap
+ * between them inked through. A bar counts only in the middle of the opening
+ * and with the box's two lines on both sides of it within a fifth of a cell,
+ * so the end of a box, where its lines close against the rock, is no bar.
+ */
+function splitBox(gray, w, ringMask, L, i, j, ns, n) {
+  const { lines, start, len, ink } = scanGap(gray, w, ringMask, L, i, j, ns, n);
+  const two = lines.filter((l) => l.runs.length === 2);
+  if (two.length < 3) return null;
+  const median = (a) => [...a].sort((p, q) => p - q)[a.length >> 1];
+  const line0 = median(two.map((l) => (l.runs[0][0] + l.runs[0][1]) / 2));
+  const line1 = median(two.map((l) => (l.runs[1][0] + l.runs[1][1]) / 2));
+  const in0 = median(two.map((l) => l.runs[0][1]));
+  const in1 = median(two.map((l) => l.runs[1][0]));
+  if (in1 - in0 < 2) return null;
+  const rows = lines.map(({ u, runs }) => {
+    let k = 0;
+    for (let v = in0 + 1; v < in1; v++) if (ink(u, v)) k++;
+    return { u, bar: k / (in1 - in0 - 1) >= 0.8, two: runs.length === 2 };
+  });
+  const flank = Math.round(0.2 * L.pitch), gap = Math.max(1, Math.round(0.03 * L.pitch));
+  const boxed = (u0, u1) => {
+    const near = rows.filter((r) => r.u >= u0 && r.u <= u1);
+    return near.length > 0 && near.filter((r) => r.two).length >= 0.6 * near.length;
+  };
+  for (let k = 0; k < rows.length; k++) {
+    if (!rows[k].bar) continue;
+    let e = k;
+    while (e + 1 < rows.length && rows[e + 1].bar) e++;
+    const middle = ((rows[k].u + rows[e].u) / 2 - start) / len;
+    if (middle >= 0.3 && middle <= 0.7 && boxed(rows[k].u - flank, rows[k].u - gap) && boxed(rows[e].u + gap, rows[e].u + flank)) return [line0, line1];
+    k = e;
+  }
+  return null;
 }
 
 /** grid mode: cells classed by floor share, walls on cell edges, doors in throats. */
@@ -694,50 +780,111 @@ function traceGrid(gray, w, h, threshold, L, corr) {
   // horizontal edge (i, j, "n") divides (i, j-1) from (i, j).
   const vEdge = new Uint8Array((nx + 1) * ny);
   const hEdge = new Uint8Array(nx * (ny + 1));
-  const WALL = 1;
-  for (let j = 0; j < ny; j++) for (let i = 0; i <= nx; i++) if (isFloor(i - 1, j) !== isFloor(i, j)) vEdge[j * (nx + 1) + i] = WALL;
-  for (let j = 0; j <= ny; j++) for (let i = 0; i < nx; i++) if (isFloor(i, j - 1) !== isFloor(i, j)) hEdge[j * nx + i] = WALL;
-  const edgeState = { wall: WALL, door: 2, secret: 3, open: 0 };
-  for (const [key, state] of corr.edges) {
-    const [si, sj, side] = key.split(",");
-    const i = Number(si), j = Number(sj);
-    if (side === "w") vEdge[j * (nx + 1) + i] = edgeState[state];
-    else hEdge[j * nx + i] = edgeState[state];
-  }
-
-  const walls = [];
-  for (let i = 0; i <= nx; i++) {
-    let run = null;
-    for (let j = 0; j <= ny; j++) {
-      const s = j < ny ? vEdge[j * (nx + 1) + i] : 0;
-      if (s === WALL && run === null) run = j;
-      if (s !== WALL && run !== null) {
-        walls.push({ c: [L.cellX(i), L.cellY(run), L.cellX(i), L.cellY(j)], door: DOOR.none });
-        run = null;
-      }
-      if (s > WALL) walls.push({ c: [L.cellX(i), L.cellY(j), L.cellX(i), L.cellY(j + 1)], door: s === 3 ? DOOR.secret : DOOR.door });
+  // Past the lattice's border lies the crop's partial strip. A floor cell on
+  // the border is walled there only where that strip is a quarter cell deep
+  // or more and mostly rock: a shallower strip is no evidence of a wall, and
+  // floor running into it is a room the crop cuts, which the crop's own edge
+  // does not close.
+  const pastWall = (x0, y0, x1, y1) => {
+    x0 = Math.max(0, Math.round(x0));
+    y0 = Math.max(0, Math.round(y0));
+    x1 = Math.min(w, Math.round(x1));
+    y1 = Math.min(h, Math.round(y1));
+    if (Math.min(x1 - x0, y1 - y0) < 0.25 * L.pitch) return false;
+    let r = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) r += rock[y * w + x];
+    return r >= 0.5 * (x1 - x0) * (y1 - y0);
+  };
+  for (let j = 0; j < ny; j++) {
+    for (let i = 0; i <= nx; i++) {
+      const wall = i === 0 ? isFloor(0, j) && pastWall(0, L.cellY(j), L.cellX(0), L.cellY(j + 1))
+        : i === nx ? isFloor(nx - 1, j) && pastWall(L.cellX(nx), L.cellY(j), w, L.cellY(j + 1))
+          : isFloor(i - 1, j) !== isFloor(i, j);
+      if (wall) vEdge[j * (nx + 1) + i] = EDGE.wall;
     }
   }
   for (let j = 0; j <= ny; j++) {
-    let run = null;
-    for (let i = 0; i <= nx; i++) {
-      const s = i < nx ? hEdge[j * nx + i] : 0;
-      if (s === WALL && run === null) run = i;
-      if (s !== WALL && run !== null) {
-        walls.push({ c: [L.cellX(run), L.cellY(j), L.cellX(i), L.cellY(j)], door: DOOR.none });
-        run = null;
-      }
-      if (s > WALL) walls.push({ c: [L.cellX(i), L.cellY(j), L.cellX(i + 1), L.cellY(j)], door: s === 3 ? DOOR.secret : DOOR.door });
+    for (let i = 0; i < nx; i++) {
+      const wall = j === 0 ? isFloor(i, 0) && pastWall(L.cellX(i), 0, L.cellX(i + 1), L.cellY(0))
+        : j === ny ? isFloor(i, ny - 1) && pastWall(L.cellX(i), L.cellY(ny), L.cellX(i + 1), h)
+          : isFloor(i, j - 1) !== isFloor(i, j);
+      if (wall) hEdge[j * nx + i] = EDGE.wall;
     }
   }
+  // A terrain box's side stands wherever no traced wall does; an edge
+  // correction then overrides either.
+  for (const [c0, r0, c1, r1] of corr.boxes) {
+    for (let i = c0; i < c1; i++) for (const j of [r0, r1]) hEdge[j * nx + i] ||= EDGE.terrain;
+    for (let j = r0; j < r1; j++) for (const i of [c0, c1]) vEdge[j * (nx + 1) + i] ||= EDGE.terrain;
+  }
+  for (const [key, state] of corr.edges) {
+    const [si, sj, side] = key.split(",");
+    const i = Number(si), j = Number(sj);
+    if (side === "w") vEdge[j * (nx + 1) + i] = EDGE[state];
+    else hEdge[j * nx + i] = EDGE[state];
+  }
+
+  // Along one lattice line, a run of wall edges joins into one segment and a
+  // run of terrain into another; each door edge is a segment of its own.
+  const walls = [];
+  const kindOf = (s) => (s === EDGE.terrain ? { door: DOOR.none, terrain: true } : { door: s === EDGE.secret ? DOOR.secret : s === EDGE.door ? DOOR.door : DOOR.none });
+  const runLine = (count, stateAt, seg) => {
+    let from = null, kind = EDGE.open;
+    for (let k = 0; k <= count; k++) {
+      const s = k < count ? stateAt(k) : EDGE.open;
+      if (from !== null && s !== kind) {
+        walls.push({ c: seg(from, k), ...kindOf(kind) });
+        from = null;
+      }
+      if ((s === EDGE.wall || s === EDGE.terrain) && from === null) {
+        from = k;
+        kind = s;
+      }
+      if (s === EDGE.door || s === EDGE.secret) walls.push({ c: seg(k, k + 1), ...kindOf(s) });
+    }
+  };
+  for (let i = 0; i <= nx; i++) runLine(ny, (j) => vEdge[j * (nx + 1) + i], (a, b) => [L.cellX(i), L.cellY(a), L.cellX(i), L.cellY(b)]);
+  for (let j = 0; j <= ny; j++) runLine(nx, (i) => hEdge[j * nx + i], (a, b) => [L.cellX(a), L.cellY(j), L.cellX(b), L.cellY(j)]);
+
+  // An opening is a run of door cells along one wall line, which only
+  // asserted cells form, for a traced throat has rock on both flanks. A door
+  // box split by a bar is a door on each of its long lines, the opening's
+  // whole length; any other door stands across each cell's middle. A secret
+  // door stands on both mouths of its cell, so the wall reads whole from
+  // either side.
   const kinds = { door: 0, symbol: 0, secret: 0, open: 0 };
+  let splitBoxes = 0;
+  const doorAt = (i, j, ns) => {
+    const t = passages.get(`${i},${j}`);
+    return !!t && t.kind === "door" && t.ns === ns;
+  };
+  const middleDoor = (i, j, ns) => {
+    const cx = L.cellX(i) + L.ppx / 2, cy = L.cellY(j) + L.ppy / 2;
+    walls.push({ c: ns ? [L.cellX(i), cy, L.cellX(i + 1), cy] : [cx, L.cellY(j), cx, L.cellY(j + 1)], door: DOOR.door });
+  };
   for (const t of passages.values()) {
     kinds[t.kind] = (kinds[t.kind] ?? 0) + 1;
     if (t.kind === "open") continue;
-    // A door across the cell's middle, perpendicular to the passage.
-    const cx = L.cellX(t.i) + L.ppx / 2, cy = L.cellY(t.j) + L.ppy / 2;
-    const c = t.ns ? [L.cellX(t.i), cy, L.cellX(t.i + 1), cy] : [cx, L.cellY(t.j), cx, L.cellY(t.j + 1)];
-    walls.push({ c, door: t.kind === "secret" ? DOOR.secret : DOOR.door });
+    const x0 = L.cellX(t.i), y0 = L.cellY(t.j), x1 = L.cellX(t.i + 1), y1 = L.cellY(t.j + 1);
+    if (t.kind === "secret") {
+      for (const c of t.ns ? [[x0, y0, x1, y0], [x0, y1, x1, y1]] : [[x0, y0, x0, y1], [x1, y0, x1, y1]]) walls.push({ c, door: DOOR.secret });
+      continue;
+    }
+    if (t.kind !== "door") {
+      middleDoor(t.i, t.j, t.ns);
+      continue;
+    }
+    if (t.ns ? doorAt(t.i - 1, t.j, true) : doorAt(t.i, t.j - 1, false)) continue;
+    let n = 1;
+    while (t.ns ? doorAt(t.i + n, t.j, true) : doorAt(t.i, t.j + n, false)) n++;
+    const lines = splitBox(gray, w, ringMask, L, t.i, t.j, t.ns, n);
+    if (lines) {
+      splitBoxes++;
+      const a = t.ns ? x0 : y0, b = t.ns ? L.cellX(t.i + n) : L.cellY(t.j + n);
+      for (const v of lines) walls.push({ c: t.ns ? [a, v, b, v] : [v, a, v, b], door: DOOR.door });
+    } else {
+      for (let k = 0; k < n; k++) middleDoor(t.ns ? t.i + k : t.i, t.ns ? t.j : t.j + k, t.ns);
+    }
   }
 
   // Floor regions, joined through their doors (a door cell is a floor cell).
@@ -766,7 +913,7 @@ function traceGrid(gray, w, h, threshold, L, corr) {
     walls,
     digest: {
       cells: nx * ny, floorCells, regions: sizes.length, largestRegion: sizes.length ? Math.max(...sizes) : 0,
-      throats: kinds, labels: rings.length, islandsDropped: isl.dropped, islandsRefused: isl.refused, cellFixes, unplaced,
+      throats: kinds, splitBoxes, labels: rings.length, islandsDropped: isl.dropped, islandsRefused: isl.refused, cellFixes, unplaced,
     },
   };
 }
@@ -888,6 +1035,11 @@ function traceContour(gray, w, h, threshold, L, corr) {
   const eps = Math.max(1.5, 0.045 * L.pitch);
   const segs = [];
   let loops = 0;
+  // The crop's own edge is no wall: an outline running along the render's
+  // border is floor the crop cuts. Simplifying can drop the corner where the
+  // outline leaves the border, so a segment runs along it when both its ends
+  // lie within the simplifying tolerance of one edge.
+  const onBorder = ([ax, ay], [bx, by]) => Math.max(ax, bx) <= eps || Math.min(ax, bx) >= w - eps || Math.max(ay, by) <= eps || Math.min(ay, by) >= h - eps;
   for (const loop of floorLoops(rock, w, h)) {
     if (loop.length < 2 * L.pitch) continue;
     loops++;
@@ -899,7 +1051,7 @@ function traceContour(gray, w, h, threshold, L, corr) {
     const a = simplify(loop.slice(0, far + 1), eps);
     const b = simplify(loop.slice(far).concat([loop[0]]), eps);
     const poly = a.concat(b.slice(1));
-    for (let i = 0; i + 1 < poly.length; i++) segs.push([...poly[i], ...poly[i + 1]]);
+    for (let i = 0; i + 1 < poly.length; i++) if (!onBorder(poly[i], poly[i + 1])) segs.push([...poly[i], ...poly[i + 1]]);
   }
   const tol = 0.12 * L.pitch;
   const snapX = (x) => {
@@ -935,7 +1087,8 @@ function traceContour(gray, w, h, threshold, L, corr) {
   }
 
   // A door asserted on a cell lies across it, perpendicular to the axis whose
-  // two neighbours hold more floor.
+  // two neighbours hold more floor; a secret door lies on both mouths of the
+  // cell instead, so the wall reads whole from either side.
   let unplaced = 0;
   const floorShare = (i, j) => {
     let f = 0, n = 0;
@@ -958,14 +1111,17 @@ function traceContour(gray, w, h, threshold, L, corr) {
     const inCell = ({ c }) => c[0] >= x0 && c[0] <= x1 && c[2] >= x0 && c[2] <= x1 && c[1] >= y0 && c[1] <= y1 && c[3] >= y0 && c[3] <= y1;
     walls = walls.filter((s) => !(s.door && inCell(s)));
     const cx = x0 + L.ppx / 2, cy = y0 + L.ppy / 2;
-    walls.push({ c: ns ? [x0, cy, x1, cy] : [cx, y0, cx, y1], door: doorOf(state) });
+    const across = state === "secret"
+      ? (ns ? [[x0, y0, x1, y0], [x0, y1, x1, y1]] : [[x0, y0, x0, y1], [x1, y0, x1, y1]])
+      : [ns ? [x0, cy, x1, cy] : [cx, y0, cx, y1]];
+    for (const c of across) walls.push({ c, door: doorOf(state) });
   }
   // Simplifying and snapping move the outline off the drawn jambs, so a door
   // can stop short of its wall; it is closed against the outline before any
   // cell or edge correction opens a loop.
   const outline = walls.filter((s) => !s.door);
   walls = walls.map((s) => (s.door ? closeDoor(s, outline, 0.25 * L.pitch, 0.02 * L.pitch) : s));
-  walls = correctSegments(walls, L, corr);
+  walls = correctSegments([...walls, ...boxSides(L, corr.boxes)], L, corr);
   return {
     walls,
     digest: { cells: L.cols * L.rows, loops, islandsDropped: isl.dropped, islandsRefused: isl.refused, doorsDropped, cellFixes, unplaced },
@@ -1104,7 +1260,7 @@ function traceStroke(gray, w, h, threshold, L, corr) {
     const poly = simplify(p, eps);
     for (let i = 0; i + 1 < poly.length; i++) walls.push({ c: [...poly[i], ...poly[i + 1]], door: DOOR.none });
   }
-  walls = correctSegments(walls, L, corr);
+  walls = correctSegments([...walls, ...boxSides(L, corr.boxes)], L, corr);
   return { walls, digest: { cells: L.cols * L.rows, paths: paths.length, islandsDropped: dropped, islandsRefused: refused } };
 }
 
@@ -1119,14 +1275,14 @@ function traceStroke(gray, w, h, threshold, L, corr) {
  * of gray per pixel, top-left first. The recipe's `walls` block says the mode,
  * the threshold and the corrections; its `grid` gives the lattice. Walls come
  * back in page points, unrounded, with Foundry's door type (0 none, 1 door,
- * 2 secret); the digest counts what the trace found, for the import's report
- * and the live gate. Throws on a recipe `wallsProblems` refuses or a render
- * too large to sum.
+ * 2 secret), and a terrain box's sides marked `terrain`; the digest counts
+ * what the trace found, for the import's report and the live gate. Throws on
+ * a recipe `wallsProblems` refuses or a render too large to sum.
  *
  * @param {{gray: Uint8Array|Uint8ClampedArray, width: number, height: number}} image
  * @param {object} recipe a compiled scene recipe carrying `walls`
  * @param {number} scale render pixels per page point
- * @returns {{walls: {c: number[], door: number}[], digest: object}}
+ * @returns {{walls: {c: number[], door: number, terrain?: true}[], digest: object}}
  */
 export function traceWalls(image, recipe, scale) {
   const problems = wallsProblems(recipe?.walls, recipe);
@@ -1141,18 +1297,19 @@ export function traceWalls(image, recipe, scale) {
   const { walls, digest } = run(gray, w, h, threshold, L, corr);
   const toPage = (v, origin) => origin + v / scale;
   const out = [];
-  for (const { c, door } of walls) {
+  for (const { c, door, terrain } of walls) {
     const seg = [toPage(c[0], recipe.crop.x), toPage(c[1], recipe.crop.y), toPage(c[2], recipe.crop.x), toPage(c[3], recipe.crop.y)];
-    if (Math.hypot(seg[2] - seg[0], seg[3] - seg[1]) > 0) out.push({ c: seg, door });
+    if (Math.hypot(seg[2] - seg[0], seg[3] - seg[1]) > 0) out.push(terrain ? { c: seg, door, terrain: true } : { c: seg, door });
   }
   return {
     walls: out,
     digest: {
       mode,
       ...digest,
-      walls: out.filter((s) => !s.door).length,
+      walls: out.filter((s) => !s.door && !s.terrain).length,
       doors: out.filter((s) => s.door === DOOR.door).length,
       secret: out.filter((s) => s.door === DOOR.secret).length,
+      terrain: out.filter((s) => s.terrain).length,
       corrections: (corrections ?? []).length,
     },
   };

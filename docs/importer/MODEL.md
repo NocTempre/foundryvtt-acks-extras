@@ -145,7 +145,8 @@ A recipe with a square `grid` may carry a `walls` block, read by
 - `threshold` — the gray level, 1 to 254, the trace cuts the plan at.
 - `corrections` — assertions on the recipe's lattice (`wallLattice`: cell
   `[0, 0]` is the first whole drawn cell at the crop's top-left):
-  `{cell: [c, r], is}`, `{edge: [c, r, "n"|"w"], is}`, or
+  `{cell: [c, r], is}`, `{edge: [c, r, "n"|"w"], is}`,
+  `{box: [c0, r0, c1, r1], is: "terrain"}` on lattice lines, or
   `{at: [x, y], drop: "island"|"door"}` in page points. Which states a cell
   may take depends on the mode (`CELL_STATES`). `stroke` takes only `open`.
   Only `contour` drops a door by its point (`AT_DROPS`): the drawn door
@@ -155,9 +156,27 @@ A recipe with a square `grid` may carry a `walls` block, read by
 - `note` — the compiler strips it.
 
 `wallsProblems` checks the block wherever `recipeProblems` runs, in the
-register lint and in the compiler. It refuses corrections past
-`correctionCap`, which is `CORRECTION_SHARE` of the lattice's cells, so a
-recipe that needs more never compiles.
+register lint and in the compiler. It refuses corrections that weigh more
+than `correctionCap`, which is `CORRECTION_SHARE` of the lattice's cells, so
+a recipe that needs more never compiles. A correction weighs one and a box
+`BOX_WEIGHT`.
+
+What every mode does with a plan:
+- **The crop's own edge is no wall.** In `grid`, a floor cell on the
+  lattice's border is walled there only where the crop's strip beyond the
+  lattice is a quarter cell deep or more and mostly rock. In `contour`, an
+  outline segment running along the render's border is dropped.
+- **A secret door stands on both mouths of its cell**, so the wall reads
+  whole from either side; `secret` in the digest counts both.
+- **A terrain box's four sides** stand where no traced wall does (`grid`) or
+  beside the outline (`contour`, `stroke`). An edge correction overrides a
+  side, so an edge asserted `open` is a gap in it. `terrain` in the digest
+  counts the sides' segments.
+- **A door box split by a bar is a double door** (`grid`): a door on each of
+  its two drawn long lines, the opening's whole width (`splitBoxes` in the
+  digest). An opening is a run of asserted door cells along one wall line,
+  so a box over two cells, split on their shared line, is read once. Any
+  other door stands across each cell's middle.
 
 The map step traces after the picture is uploaded and before the one create.
 `traceSceneWalls` (`module.mjs`) renders the crop of the seat's page to gray
@@ -168,10 +187,12 @@ core's door type, and a digest the console logs. In `contour` mode a door end
 left on the floor side of the outline is carried to the nearest wall within a
 quarter cell, and just past it (`closeDoor`). `wallSources` carries the
 segments through the placed frame the tokens use, rounds them to whole pixels,
-and drops zero-length ones. They ride the scene's create (`sceneData`), and a
-walled scene turns on token vision under global light. A trace that cannot run
-leaves the map without walls and counts it (`wallsFailed`). A held map is
-never re-traced.
+and drops zero-length ones. A terrain segment takes core's Terrain wall
+senses (`TERRAIN_SENSES`): it blocks movement, and a sense stops at the
+second terrain wall it crosses. The walls ride the scene's create
+(`sceneData`), and a walled scene turns on token vision under global light. A
+trace that cannot run leaves the map without walls and counts it
+(`wallsFailed`). A held map is never re-traced.
 
 The book's Adventure traces each walled map again over its stand-ins.
 `withWorldIds` gives each wall the id of the held world wall with the same

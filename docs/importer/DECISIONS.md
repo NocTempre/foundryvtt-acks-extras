@@ -6542,3 +6542,79 @@ picture, so the optional game-icons banners were not an answer (an ability's
 `iconNiche` has one; a class has only `icon`). The book's list label is set
 in the first name's run, so the class
 list ships a `stripPrefix` count for it, the way a run-in heading does.
+
+## 2026-10-18 — A secret door stands on both mouths, a split box is a double door, and the crop's edge walls nothing
+
+Amends "Walls are traced at import from the Judge's own page" (2026-10-17).
+That trace stood a secret door across its cell's middle, read every door box
+as one door, and walled the crop's edge like any other edge.
+
+**New evidence.** The user reviewed indexed overlays of AX1's first level
+(PDF p38) cell by cell and marked what the trace got wrong:
+- **A secret door across a cell's middle leaves a wall.** "A secret door
+  like 1-5 needs secret doors on both sides. A wall in the middle wont
+  work." Asked whether that held for p38 alone: "I was talking about other
+  pages too."
+- **A door box split by a bar is two doors.** For a double door the trace
+  missed the user chose "Doors on both lines", and for the rule "Every split
+  box". p38 draws six, one of them across two cells, and the trace read each
+  as one door.
+- **The crop's edge drew straight walls across rooms.** Room 1's bottom and
+  room 56's top were cut by a line where the crop ended, not the plan.
+- **Rubble is floor, and a raised structure is not.** The marked rubble had
+  traced as rock, and "the pyramid needs at least terrain walls, it's not
+  simply walk through."
+- **On authoring:** "don't be afraid to recipe something knowing the answer.
+  Not everything has to import, the recipe just has to be useless without
+  the book to protect the IP."
+
+**Ruled**, for every plan:
+- **A secret door stands on both mouths of its cell**, in `grid` and
+  `contour`, so the wall reads whole from either side.
+- **Every split box is a double door**: a door on each of its drawn long
+  lines, the opening's whole width. A bar counts only between the box's
+  long lines, in the middle of the opening, with the box's lines on both
+  sides of it, so a box's closed end is no bar. A plain box stays one door
+  across the cell's middle.
+- **The crop's own edge is no wall.**
+  - In `grid`, a floor cell on the lattice's border is walled there only
+    where the crop's strip beyond the lattice is a quarter cell deep or more
+    and mostly rock.
+  - In `contour`, an outline segment along the render's border is dropped.
+    On p55 that drops 4 segments and changes nothing else; each was a
+    closure across a passage that runs off the plate's edge.
+- **A correction may be a box of terrain**, `{box: [c0, r0, c1, r1], is:
+  "terrain"}` on lattice lines. Its four sides take core's Terrain wall
+  senses: they block movement, and sight stops at the second terrain wall it
+  crosses. A box weighs 4 against the cap, one per side, as four edge
+  corrections would. An edge correction overrides a side, which keeps a
+  stair onto the structure open.
+- **Rubble drawn in a room is floor.** Where the trace reads it as rock, its
+  cells are asserted `floor`.
+- **p38's recipe:**
+  - the crop reaches up to the row of rock above the first rooms and down to
+    the page's frame, two more lattice rows, one at each end;
+  - the threshold falls from 155 to 95, which reads 1253 floor cells against
+    1228 on the same lattice, and the counts hold at 85 and 105;
+  - 48 corrections weigh 51 of a cap of 95;
+  - the trace finds one floor region, 6 split boxes, and the structure's box
+    with its stair open.
+- **The user inspects every dungeon map before a push.**
+
+*Rejected:*
+- **Reading a split per cell.** A box across two asserted cells is split on
+  their shared line, which neither cell's scan sees whole. The opening is
+  read as one run of door cells.
+- **Weighing a box by its perimeter.** p38's box would weigh 40 of 95. A
+  side is one assertion, as an edge is.
+- **Loosening the label-ring test** to stop it masking two of p38's door
+  boxes. It dropped real labels, so the two doors are asserted (ROADMAP).
+- **Opening a contour cell asserted a door.** It reshaped p55's outline
+  around its three asserted door cells, whose doors already stand in their
+  passages (ROADMAP).
+
+*Cost:*
+- A Judge opens a secret passage as two doors.
+- A token inside a terrain box sees out over its sides, and one outside
+  sees in.
+- A passage that runs off the plate's edge is left open there.
