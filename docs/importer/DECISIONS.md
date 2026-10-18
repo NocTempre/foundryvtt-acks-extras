@@ -6515,7 +6515,7 @@ arrives from the Judge's own copy.
 - **Splitting the book's paragraphs by ratio.** Its gap is 1.4× its pitch,
   under the 1.6 the median split needs; the gap is declared, not re-derived.
 - **The tavern's two floor plans in this cut.** Two kind.scene rows compiled
-  and materialized gridless, and `test-judge-shelf` refused them: a book that
+  gridless (never run on a seat), and `test-judge-shelf` refused them: a book that
   ships a map is a Judge's book, and a Judge's book's every shelf is closed to
   players — which would close the classes and the race, the half of this book
   a player opens. The registry gives a book one line; a book with a player's

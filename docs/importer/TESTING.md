@@ -2399,14 +2399,16 @@ untagged seat would read every line as a heading and import nothing.
 2. Import the book: the abilities step for its powers, the classes step for
    its classes and the id import for its monster, each scoped to the book's
    ids. (Import Everything runs the same steps over every open book.)
-   *Observable:* shelves "ACKS Cookbook —
-   The OSR Catgirl — …" hold five class-power items (Catgirl 0–4, one
-   paragraph each); one monster actor with AC, HD, movement, three attacks
-   with a weapon alternative, morale, saves, alignment, treasure type, XP,
-   vision, a proficiency list, a sectioned description and two spoils; three
-   class items with hit die, maximum level, prime requisite, requirements, a
-   proficiency list of whole names (no pair welded at a line turn) and a
-   description running the whole spread.
+   *Observable:* the library's own Item shelf holds five class-power items
+   (Catgirl 0–4, one paragraph each) and three class items with hit die,
+   maximum level, prime requisite, requirements, a proficiency list of whole
+   names (no pair welded at a line turn) and a description running the whole
+   spread — a `def.` id names no book, so it files beside BTA's classes, not
+   on the line's shelf; the line's Actor shelf ("ACKS Cookbook — The OSR
+   Catgirl — Actor") holds one monster actor with AC, HD, movement, three
+   attacks with a weapon alternative, morale, saves, alignment, treasure
+   type, XP, vision, a proficiency list, a sectioned description and two
+   spoils.
 3. Open the monster. *Observable:* the description's sections read in page
    order across the page turn — the Combat section's last paragraph is whole,
    not cut at the column foot — and Spoils lists two components with weight,
