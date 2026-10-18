@@ -2213,7 +2213,7 @@ block what walls block.
      `regions: 1` on a grid plan, meaning one connected floor. A contour
      plan's digest quotes `loops`, `islandsDropped` and `doorsDropped`;
      `islandsRefused: 0` is the pass, and a refusal means the render drifted
-     from the plate the recipe was authored on;
+     from the one the recipe was read on;
    - `c.walls` equals the digest's `walls + doors + secret + terrain`, and
      `c.wallsFailed` is 0;
    - the scene's `walls` count the same, split by `door` 0, 1 and 2 and by
@@ -2222,8 +2222,12 @@ block what walls block.
      wall's light, sight and sound 10 and move 20, and every `levels` empty;
    - `tokenVision` is true and global light is enabled.
 
-   Compare the digest with an offline run of the same recipe on the plate. A
-   different count means the render differs, not the tracer.
+   Compare the digest with an offline run of the same recipe on a
+   reproduction of the importer's render: pdf.js' legacy build on
+   @napi-rs/canvas, print intent, a white ground, Rec. 601 gray, scaled to
+   `TRACE_PITCH` pixels per grid box. It meets the live counts within a wall
+   or two, and a plate render does not (DECISIONS 2026-10-18). A count that
+   differs from the reproduction's means the render moved, not the tracer.
 2. The walls lie on the lattice. Core's square grid lines run at multiples of
    `grid.size` from the CANVAS origin; `sceneX`/`sceneY` is the shift that
    moves the picture under them, not the lines. On a grid plan:

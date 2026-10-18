@@ -6688,3 +6688,51 @@ as one door, and walled the crop's edge like any other edge.
 - A token inside a terrain box sees out over its sides, and one outside
   sees in.
 - A passage that runs off the plate's edge is left open there.
+
+## 2026-10-18 — A recipe is checked on the importer's own render, never on a plate
+
+Amends "What AX1's cave level taught the contour trace" (2026-10-17), whose
+26 corrections for p55 were read off a local plate render resampled to the
+lattice.
+
+**New evidence.** The live import of p55 traced 11 doors where the plate
+traced 13, and refused one island point. The importer renders the page with
+pdf.js (print intent, white ground, Rec. 601 gray, `TRACE_PITCH` pixels per
+grid box). A reproduction of that render under Node (pdf.js' legacy build on
+@napi-rs/canvas) traced 1496 walls and 11 doors against the live run's 1497
+and 11, so the render, not the tracer, had moved. On it:
+- one door's throat closes into rock, so its room and its passage are two
+  outlines that meet at a point;
+- another throat stays open past its drawn door;
+- a pale patch of rock texture at the crop's right edge reaches a passage
+  along the edge, so it is the plan's floor, which an island drop never
+  flips.
+
+**Ruled.**
+- **A recipe's corrections are read and checked on a reproduction of the
+  importer's render.** A plate is a different rasterizer and resample, and a
+  throat or a pale patch reads differently on each.
+- **p55 takes 37 corrections, weighing 37 of a cap of 80:**
+  - the refused point goes;
+  - two cells floor the closed throat and an edge asserts its door;
+  - the open throat's door is a cell door;
+  - five solid cells make the patch rock;
+  - three open edges take the wall left along the crop's edge, where the
+    patch ran past the lattice's last column.
+- **The trace reads 13 doors and refuses no point** on the importer's render.
+  On the plate it reads the same.
+
+*Rejected:*
+- **Another threshold.** With the 26 corrections on the importer's render,
+  every threshold from 125 to 170 that was tried refuses 1 to 7 points and
+  reads 10 or 11 doors.
+- **Running cell corrections before island drops,** so one solid cell could
+  cut the patch free and the old point drop it. It changes what every
+  recipe's corrections mean, to save a few corrections on one plan.
+
+*Cost:*
+- The closed throat's door spans its corridor's whole cell.
+- Its room gains a sixth of a cell beside the throat.
+- The other door stands 0.3 cell from its drawn line.
+- A notch half a cell wide stays in the passage's wall where the patch met
+  it at the crop's edge.
