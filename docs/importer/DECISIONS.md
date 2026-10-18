@@ -6433,3 +6433,30 @@ beside them, since the executor reads every run in a box.
 
 *Cost:* the bands measure one printing, and they live in code. A printing
 with other margins needs its own entry.
+
+## 2026-10-18 — AX1 prints ten inhabitants, and a stat block may run on into the next column
+
+The 2026-10-17 ruling names nine inhabitants. The page sets ten blocks under
+display headings. Nine carry ability scores and a class level; the tenth
+carries a monster's line, with hit dice and attacks and neither scores nor a
+class.
+
+**Ruled.**
+- **Ten rows, nine characters.** `ax1.npc1`–`ax1.npc10` in reading order.
+  The nine are `meta.actor: "character"` under the 2026-10-17 ruling.
+  `ax1.npc2` binds a monster actor, as AX3's people do.
+- **A block the column's foot cuts takes its run-on.** `assists.statRunsOn`
+  reads the next column's top as a second box. The executor reads `boxes` in
+  the order listed, each box in reading order. A read of their union by y had
+  put the run-on first. AX1's 27 paragraphs already read through `boxes` read
+  the same runs, in the same order.
+- **A split label is still the label.** A label set in several runs of its
+  line is matched across them. A movement clause closed by a semicolon is
+  read as movement.
+
+*Rejected:*
+- **Detecting the run-on.** A block that ends at the foot is shaped like one
+  that runs on, and a room's occupants would take in the next column's prose.
+- **A second statline field.** The character binding reads one block.
+
+*Cost:* one assist on one row.

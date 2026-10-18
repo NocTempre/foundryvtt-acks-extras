@@ -2514,9 +2514,14 @@ async function compileLocation(doc, entry, kindRow, bookCtx) {
  * the colon and opens with the label's words. A row that may not spell it
  * carries the label's print key (`assists.statLabelKey`, else the key it is
  * anchored by): the run whose letters fold to the key, or the run whose letters
- * UP TO A COLON do — the merged shape, whose label ends at that colon.
+ * UP TO A COLON do — the merged shape, whose label ends at that colon — or,
+ * where the printer split the label, a stretch of one line's runs up to a
+ * colon. A split label's runs are dropped by ordinal (`drop`), and the
+ * colon's run loses its leading characters by count where the clause follows
+ * in it (`strip`).
  *
- * @returns {{labelRun: object, merged: boolean, labelLength: number, label: string|null}}
+ * @returns {{labelRun: object, merged: boolean, labelLength: number, label: string|null,
+ *   drop?: Set<object>, strip?: Map<object, number>}}
  *   `labelLength` counts a merged label's characters; `label` is null for a keyed row
  */
 function axLabelRun(spd, entry, assists, statPage) {
@@ -2531,6 +2536,25 @@ function axLabelRun(spd, entry, assists, statPage) {
     for (const it of body) {
       for (let i = it.str.indexOf(":"); i >= 0; i = it.str.indexOf(":", i + 1)) {
         if (printKey(it.str.slice(0, i)) === want) return { labelRun: it, merged: true, labelLength: i + 1, label: null };
+      }
+    }
+    // A line spans both columns, so a split label may open anywhere in it: the
+    // runs from `s` up to the colon in run `r` are tried for every pair.
+    for (const ln of toLines(body)) {
+      const runs = [...ln.items].sort((p, q) => p.x - q.x);
+      for (let r = 1; r < runs.length; r++) {
+        const c = runs[r].str.indexOf(":");
+        if (c < 0) continue;
+        for (let s = r - 1; s >= 0; s--) {
+          const letters = runs.slice(s, r).map((it) => it.str).join("") + runs[r].str.slice(0, c);
+          if (printKey(letters) !== want) continue;
+          const tail = runs[r].str.slice(c + 1).trim() !== "";
+          return {
+            labelRun: runs[s], merged: false, labelLength: 0, label: null,
+            drop: new Set(runs.slice(s, tail ? r : r + 1)),
+            strip: tail ? new Map([[runs[r], c + 1]]) : null,
+          };
+        }
       }
     }
     throw new Error(`no run on p.${statPage} answers to the statline label's key`);
@@ -2601,7 +2625,7 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
 
   const statPage = assists.statlineAt ?? page;
   const spd = statPage === page ? pd : await pageItems(doc, statPage);
-  const { labelRun, merged, labelLength, label } = axLabelRun(spd, entry, assists, statPage);
+  const { labelRun, merged, labelLength, label, drop, strip } = axLabelRun(spd, entry, assists, statPage);
   // The block: contiguous lines at (or right of) the label's indent, WITHIN the
   // label's own column — same-y items of the neighbouring column must not join
   // the cluster or break it. Where detection misreads the statline's page,
@@ -2614,19 +2638,31 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
   const sColX0 = scols[sCol] - 5;
   const sColX1 = scols[sCol + 1] ? scols[sCol + 1] - 6 : axRight(spd);
   const { items: clusterItems, box: blockBox } = axStatCluster(spd, labelRun, sColX0, sColX1);
+  // A block the column's foot cuts (`assists.statRunsOn`) runs on at the top of
+  // the next column, and is read there as a second box after the first.
+  let runOn = null;
+  if (assists.statRunsOn) {
+    const nx0 = scols[sCol + 1];
+    if (nx0 == null) throw new Error(`statRunsOn, but the block's column is the last on p.${statPage}`);
+    const nx1 = scols[sCol + 2] ? scols[sCol + 2] - 6 : axRight(spd);
+    const top = toLines(spd.items.filter((it) => axBody(spd, it) && it.str.trim() && it.x >= nx0 - 5 && it.x <= nx1 && it.y > axTop(spd)))[0];
+    if (!top) throw new Error(`statRunsOn, but the next column on p.${statPage} is empty`);
+    runOn = axStatCluster(spd, [...top.items].sort((p, q) => p.x - q.x)[0], nx0 - 5, nx1);
+    for (const it of runOn.items) clusterItems.add(it);
+  }
   // The label is claimed with the block and is no part of the clause. A row
   // that spells it drops the run by its text; one that may not drops it by its
   // ORDINAL. A label the printer merged with the clause loses its leading
-  // characters by COUNT either way.
+  // characters by COUNT either way; a split one names its own runs.
   fields.statline = withFixes(
     {
       op: "value", page: statPage, pattern: "statline",
       ...(merged || label == null ? {} : { dropText: collapse(labelRun.str) }),
-      box: blockBox,
+      ...(runOn ? { boxes: [blockBox, runOn.box] } : { box: blockBox }),
     },
     spd,
-    !merged && label == null ? new Set([labelRun]) : null,
-    merged ? new Map([[labelRun, labelLength]]) : null,
+    drop ?? (!merged && label == null ? new Set([labelRun]) : null),
+    strip ?? (merged ? new Map([[labelRun, labelLength]]) : null),
   );
 
   if (!opened) {

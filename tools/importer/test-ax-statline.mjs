@@ -34,6 +34,17 @@ await t("a D inside a word or a code is not damage", () => {
   assert.equal(parseStatline("MV 90’, AC 4, HD 2, hp 9, #AT 1, Save D2, ML 0").dmg, undefined);
 });
 
+/* ---------------- movement ---------------- */
+
+await t("a movement clause closed by a semicolon is still movement", () => {
+  const s = parseStatline("Mage 2; Str 9, Int 15, Wis 11, Dex 12, Con 10, Cha 8; MV 90; AC 7, HD 2, hp 6, #AT 1, D 1d4");
+  assert.equal(s.mv, "90");
+  assert.equal(s.ac, 7);
+  assert.equal(s.abilities.cha, 8);
+  assert.ok(!(s.extra ?? []).some((e) => /MV/.test(e)), "the clause is not left over as extra");
+  assert.equal(parseStatline("MV 120’, AC 4, HD 2, hp 9; MV 30’").mv, "120’", "the core clause's MV wins over a later bare one");
+});
+
 /* ---------------- hit points ---------------- */
 
 await t("one hit-point figure is hp, and each is still marked", () => {

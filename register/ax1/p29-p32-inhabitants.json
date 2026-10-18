@@ -1,0 +1,186 @@
+[
+  {
+    "id": "ax1.npc1",
+    "kind": "kind.npc",
+    "book": "ax1",
+    "name": "NPC 1",
+    "anchor": {
+      "hash": "dxjg5v"
+    },
+    "pages": [
+      29
+    ],
+    "meta": {
+      "actor": "character"
+    },
+    "assists": {
+      "statLabelKey": "dxjg5v"
+    }
+  },
+  {
+    "id": "ax1.npc2",
+    "kind": "kind.npc",
+    "book": "ax1",
+    "name": "NPC 2",
+    "anchor": {
+      "hash": "1hfjbef"
+    },
+    "pages": [
+      29
+    ],
+    "assists": {
+      "statLabelKey": "1hfjbef"
+    }
+  },
+  {
+    "id": "ax1.npc3",
+    "kind": "kind.npc",
+    "book": "ax1",
+    "name": "NPC 3",
+    "anchor": {
+      "hash": "3g8qu5"
+    },
+    "pages": [
+      29,
+      30
+    ],
+    "meta": {
+      "actor": "character"
+    },
+    "assists": {
+      "statLabelKey": "3g8qu5",
+      "statlineAt": 30
+    }
+  },
+  {
+    "id": "ax1.npc4",
+    "kind": "kind.npc",
+    "book": "ax1",
+    "name": "NPC 4",
+    "anchor": {
+      "hash": "zbwrpt"
+    },
+    "pages": [
+      30
+    ],
+    "meta": {
+      "actor": "character"
+    },
+    "assists": {
+      "statLabelKey": "zbwrpt",
+      "statRunsOn": true
+    }
+  },
+  {
+    "id": "ax1.npc5",
+    "kind": "kind.npc",
+    "book": "ax1",
+    "name": "NPC 5",
+    "anchor": {
+      "hash": "l3ru8k"
+    },
+    "pages": [
+      30
+    ],
+    "meta": {
+      "actor": "character"
+    },
+    "assists": {
+      "statLabelKey": "l3ru8k"
+    }
+  },
+  {
+    "id": "ax1.npc6",
+    "kind": "kind.npc",
+    "book": "ax1",
+    "name": "NPC 6",
+    "anchor": {
+      "hash": "f13weq"
+    },
+    "pages": [
+      30,
+      31
+    ],
+    "meta": {
+      "actor": "character"
+    },
+    "assists": {
+      "statLabelKey": "mq8sap",
+      "statlineAt": 31
+    }
+  },
+  {
+    "id": "ax1.npc7",
+    "kind": "kind.npc",
+    "book": "ax1",
+    "name": "NPC 7",
+    "anchor": {
+      "hash": "1vxggt0"
+    },
+    "pages": [
+      31
+    ],
+    "meta": {
+      "actor": "character"
+    },
+    "assists": {
+      "statLabelKey": "1vxggt0"
+    }
+  },
+  {
+    "id": "ax1.npc8",
+    "kind": "kind.npc",
+    "book": "ax1",
+    "name": "NPC 8",
+    "anchor": {
+      "hash": "1iq6klj"
+    },
+    "pages": [
+      31
+    ],
+    "meta": {
+      "actor": "character"
+    },
+    "assists": {
+      "statLabelKey": "1iq6klj"
+    }
+  },
+  {
+    "id": "ax1.npc9",
+    "kind": "kind.npc",
+    "book": "ax1",
+    "name": "NPC 9",
+    "anchor": {
+      "hash": "bikmc3"
+    },
+    "pages": [
+      31,
+      32
+    ],
+    "meta": {
+      "actor": "character"
+    },
+    "assists": {
+      "statLabelKey": "bikmc3",
+      "statlineAt": 32
+    }
+  },
+  {
+    "id": "ax1.npc10",
+    "kind": "kind.npc",
+    "book": "ax1",
+    "name": "NPC 10",
+    "anchor": {
+      "hash": "xaudah"
+    },
+    "pages": [
+      32
+    ],
+    "meta": {
+      "actor": "character"
+    },
+    "assists": {
+      "statLabelKey": "xaudah"
+    }
+  }
+]

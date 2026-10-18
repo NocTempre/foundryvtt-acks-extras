@@ -5,8 +5,9 @@
  * under the id and label `spaceKeyed` derives from the key, and reads the
  * area's printed name off the page by that key; the cookbook ships no word of
  * it. An area's quick-stat lines become occupants, each read from its label's
- * origin. No two areas' prose boxes meet on a page, which is how a stop that
- * failed to fire shows in the compiled data.
+ * origin. The inhabitants are read by key the same way, each with its prose and
+ * one quick-stat block. No two areas' or inhabitants' boxes meet on a page,
+ * which is how a stop that failed to fire shows in the compiled data.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -155,15 +156,53 @@ t("an occupant is read by its quick-stat label: a creature, a count and its stat
   assert.deepEqual(wrong, []);
 });
 
+/* ---------------- inhabitants ---------------- */
+
+const people = Object.entries(entries).filter(([, e]) => e.kind === "kind.npc");
+
+t("the book's 10 inhabitants are NPC 1 to NPC 10, read off the page by key", () => {
+  assert.deepEqual(people.map(([id]) => id).sort(), Array.from({ length: 10 }, (_, i) => `ax1.npc${i + 1}`).sort());
+  const wrong = people.filter(([id, e]) => {
+    const name = e.fields?.name;
+    return e.name !== `NPC ${id.slice(7)}` || name?.op !== "heading" || !/^[0-9a-z]+$/.test(name.hash ?? "") ||
+      [name, ...(name.parts ?? [])].some((p) => "text" in p || "display" in p);
+  });
+  assert.deepEqual(wrong.map(([id]) => id), []);
+});
+
+t("nine inhabitants are characters; the one whose block is a monster's is not", () => {
+  assert.deepEqual(people.filter(([, e]) => e.meta?.actor !== "character").map(([id]) => id), ["ax1.npc2"]);
+});
+
+t("every inhabitant has prose and one quick-stat block", () => {
+  const wrong = people.filter(([, e]) => {
+    const { description: d, statline: s } = e.fields;
+    return d?.op !== "text" || !d.paras?.length || s?.op !== "value" || s.pattern !== "statline" || !(s.box || s.boxes?.length);
+  });
+  assert.deepEqual(wrong.map(([id]) => id), []);
+});
+
+t("a block the column's foot cuts reads its run-on from the next column's top, after its first part", () => {
+  const runOn = people.filter(([, e]) => e.fields.statline.boxes);
+  assert.deepEqual(runOn.map(([id]) => id), ["ax1.npc4"]);
+  const [first, more] = runOn[0][1].fields.statline.boxes;
+  assert.ok(more.x0 > first.x1 && more.y1 < first.y0, "the second box is the next column's top");
+});
+
 /* ---------------- prose boxes ---------------- */
 
-t("no two areas' prose boxes meet on a page", () => {
+t("no two areas' or inhabitants' boxes meet on a page", () => {
   const boxes = [];
   for (const space of SPACES) {
     for (const [id, e] of [[space.id, entries[space.id]], ...inSpace(space.id)]) {
       const d = e.fields.description;
       for (const p of d?.paras ?? []) for (const b of p.boxes ?? [p.box]) boxes.push({ id, page: p.page ?? d.page, b });
     }
+  }
+  for (const [id, e] of people) {
+    const { description: d, statline: s } = e.fields;
+    for (const p of d.paras) for (const b of p.boxes ?? [p.box]) boxes.push({ id, page: p.page ?? d.page, b });
+    for (const b of s.boxes ?? [s.box]) boxes.push({ id, page: s.page, b });
   }
   const meet = [];
   for (let i = 0; i < boxes.length; i++) {

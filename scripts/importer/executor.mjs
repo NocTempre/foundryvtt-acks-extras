@@ -46,14 +46,24 @@ const glyphWords = (s, registers) => {
 const inBox = (it, box) => it.x >= box.x0 && it.x <= box.x1 && it.y >= box.y0 && it.y <= box.y1;
 
 /**
- * Runs inside the instruction's box(es), in reading order (y, then x). ALL
- * matching runs are returned (and claimed by the caller); dropText removal
- * happens at join time so fix ordinals and claims stay stable. Exported for
- * the compiler, which must enumerate identically when computing fixes.
+ * Runs inside the instruction's box(es), in reading order (y, then x) within
+ * each box, the boxes in the order listed: a block that runs on at the top of
+ * the next column follows its own first part. A run on an edge two boxes share
+ * is read once, in the first. ALL matching runs are returned (and claimed by
+ * the caller); dropText removal happens at join time so fix ordinals and
+ * claims stay stable. Exported for the compiler, which must enumerate
+ * identically when computing fixes.
  */
 export function runsIn(pageData, instr) {
   const boxes = instr.boxes ?? (instr.box ? [instr.box] : []);
-  return orderRuns(pageData.items.filter((it) => boxes.some((b) => inBox(it, b))));
+  const seen = new Set();
+  const out = [];
+  for (const b of boxes) {
+    const inThis = pageData.items.filter((it) => !seen.has(it) && inBox(it, b));
+    for (const it of inThis) seen.add(it);
+    out.push(...orderRuns(inThis));
+  }
+  return out;
 }
 
 /**
@@ -1231,6 +1241,12 @@ export function parseStatline(text) {
       for (const m of seg.matchAll(/\b(Str|Int|Wis|Dex|Con|Cha)\s+(\d+)/gi)) {
         (out.abilities ??= {})[m[1].toLowerCase()] = parseInt(m[2], 10);
       }
+      continue;
+    }
+    // A movement clause the printer closed with a semicolon stands alone.
+    const bareMv = /^MV\s*([^,;]+)$/i.exec(seg);
+    if (bareMv && out.mv === undefined) {
+      out.mv = bareMv[1].trim();
       continue;
     }
     // Core stat clause: identified by hp/#AT/AC keywords, read by key.
