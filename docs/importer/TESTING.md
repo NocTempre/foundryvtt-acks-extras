@@ -11,8 +11,10 @@ geometry with no Foundry at all. They gate the arithmetic; only a live run
 gates that anything reaches a document.
 
 Of these recipes, `tools/live/formation-day.mjs` drives Reimport One Shelf's
-rules tables (`node tools/live/run.mjs formation-day`; `tools/live/README.md`
-is the contract); the rest is walked by hand.
+rules tables (`node tools/live/run.mjs formation-day`) and
+`tools/live/importer-adventure.mjs` drives "A book lands in the library as one
+Adventure" (`tools/live/README.md` is the contract); the rest is walked by
+hand.
 
 ## The Books window
 
@@ -1939,6 +1941,18 @@ connected and the map step already run, so the world holds AX3's maps. Step 9
 also needs the Player seat. The Adventure sheet's own **Import** button is
 the real trigger for steps 6 to 8. A scripted `adventure.import()` proves the
 hook and not the sheet, so script it only to read back.
+`tools/live/importer-adventure.mjs` walks it.
+
+What a scripted walk meets:
+
+- The step writes every open Judge book, AX3 among them. After `ready` the
+  GM seat reopens the books it remembers one at a time. Let the open set
+  settle before reading anything, read the shelf of every Judge book (open
+  or not) before step 1, and judge each run by AX3's outcome alone.
+- The sheet that opens is core's V1 `AdventureImporter`. Its `element` is a
+  jQuery wrapper, so find the Import button under `element[0]`.
+- A document the import brings back can arrive with the Folder it is filed
+  in. That Folder is in the import's own result too, so track both.
 
 ### Fixtures
 
