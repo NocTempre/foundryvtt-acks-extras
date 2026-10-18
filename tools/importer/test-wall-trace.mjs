@@ -142,6 +142,16 @@ check("boxes weigh four against the cap", wallsProblems({ ...fine, corrections: 
 ok("a box past the cap is refused by its weight", wallsProblems({ ...fine, corrections: [...heavy, { cell: [3, 10], is: "floor" }] }, recipeOf(fine))
   .some((p) => /weigh 16 \(a box 4\), over the cap of 15/.test(p)));
 
+const lineOf = (line, is = "door", mode = "grid") => ({ mode, threshold: 160, corrections: [{ line, is }] });
+const slant = [crop.x + 5, crop.y + 5, crop.x + 25, crop.y + 15];
+check("a line between two points in the crop holds", wallsProblems(lineOf(slant), recipeOf(fine)), []);
+check("a line asserts in stroke mode too", wallsProblems(lineOf(slant, "invisible", "stroke"), recipeOf(fine)), []);
+ok("a line's ends must lie inside the crop", wallsProblems(lineOf([0, 0, crop.x + 5, crop.y + 5]), recipeOf(fine)).some((p) => /end outside the crop/.test(p)));
+ok("a line has length", wallsProblems(lineOf([crop.x + 5, crop.y + 5, crop.x + 5, crop.y + 5]), recipeOf(fine)).some((p) => /no length/.test(p)));
+ok("a line names two points", wallsProblems(lineOf([crop.x + 5, crop.y + 5, crop.x + 25]), recipeOf(fine)).some((p) => /line must be/.test(p)));
+ok("a line is never asserted open", wallsProblems(lineOf(slant, "open"), recipeOf(fine)).some((p) => /for a line/.test(p)));
+ok("a line asserted twice is refused", wallsProblems({ ...fine, corrections: [{ line: slant, is: "door" }, { line: slant, is: "wall" }] }, recipeOf(fine)).some((p) => /second time/.test(p)));
+
 /* ---------------- grid mode ---------------- */
 
 const traced = traceWalls(plan, recipeOf(fine), scale);
@@ -180,6 +190,24 @@ ok("grid: an edge asserted open loses its wall", Math.abs(wallLength(opened.wall
 check("grid: a door asserted open is gone", opened.digest.doors, 0);
 
 {
+  // A line is laid last: a door line replaces the traced door within half a
+  // cell of it and lies aslant where it was drawn; the other kinds stand as
+  // asserted, and a door line far from any traced door replaces none.
+  const aslant = [crop.x + 8.2 * CELL, crop.y + 4 * CELL, crop.x + 8.8 * CELL, crop.y + 5 * CELL];
+  const down = (x) => [crop.x + x * CELL, crop.y + 3 * CELL, crop.x + x * CELL, crop.y + 9 * CELL];
+  const lined = traceWalls(plan, recipeOf({ ...fine, corrections: [
+    { line: aslant, is: "door" }, { line: down(12), is: "invisible" }, { line: down(13), is: "terrain" }, { line: down(14), is: "wall" },
+  ] }), scale);
+  const lineDoors = lined.walls.filter((s) => s.door);
+  ok("grid: a door line replaces the traced door and lies where it was drawn",
+    lined.digest.doorsReplaced === 1 && lineDoors.length === 1 && near(lineDoors[0].c, aslant, 1e-9), JSON.stringify(lineDoors));
+  check("grid: an invisible, a terrain and a wall line each stand as asserted",
+    [lined.digest.invisible, lined.digest.terrain, lined.digest.walls - d.walls, lined.walls.find((s) => s.invisible).door], [1, 1, 1, 0]);
+  const apart = traceWalls(plan, recipeOf({ ...fine, corrections: [{ line: [crop.x + 13 * CELL, crop.y + 5 * CELL, crop.x + 14 * CELL, crop.y + 5 * CELL], is: "door" }] }), scale);
+  check("grid: a door line far from the traced door replaces none", [apart.digest.doorsReplaced, apart.digest.doors], [0, 2]);
+}
+
+{
   // Two rooms either side of a one-cell rock band, a door drawn inside the
   // band: the band reads as rock, and the drawn door makes its cell a door.
   const band = canvas(60);
@@ -194,17 +222,19 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
 
 {
   // The corridor's door box split by a bar across its middle is a double
-  // door: a door on each of the box's long lines. A bar at the box's end,
-  // where its lines close, splits nothing.
+  // door: two leaves on the box's centre line, meeting at the bar. A bar at
+  // the box's end, where its lines close, splits nothing.
   const mid = 8.5 * TRACE_PITCH;
   const split = dungeon();
   split.rect(mid - 6, 4.5 * TRACE_PITCH, mid + 6, 4.5 * TRACE_PITCH + 2, 0);
   const out = traceWalls(split, recipeOf(fine), scale);
   const doors = out.walls.filter((s) => s.door === 1).map((s) => s.c);
-  ok("grid: a split box is a door on each long line, the cell's whole width",
+  // The long lines are drawn at mid - 6 and mid + 5, the bar on render rows 225 and 226.
+  const x = crop.x + (mid - 0.5) / scale, bar = crop.y + 225.5 / scale;
+  ok("grid: a split box is two leaves on its centre line meeting at the bar, the cell's whole width",
     out.digest.splitBoxes === 1 && doors.length === 2
-      && near(doors[0], [crop.x + (mid - 6) / scale, crop.y + 4 * CELL, crop.x + (mid - 6) / scale, crop.y + 5 * CELL])
-      && near(doors[1], [crop.x + (mid + 5) / scale, crop.y + 4 * CELL, crop.x + (mid + 5) / scale, crop.y + 5 * CELL]), JSON.stringify(doors));
+      && near(doors[0], [x, crop.y + 4 * CELL, x, bar])
+      && near(doors[1], [x, bar, x, crop.y + 5 * CELL]), JSON.stringify(doors));
   const capped = dungeon();
   capped.rect(mid - 6, 4 * TRACE_PITCH + 12, mid + 6, 4 * TRACE_PITCH + 14, 0);
   const one = traceWalls(capped, recipeOf(fine), scale);
@@ -221,8 +251,9 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
 
 {
   // Two cells of a rock band opened and asserted doors are one opening; the
-  // box across both, split on the cells' shared line, is a door on each long
-  // line the opening's whole length. Unsplit, each cell has its own door.
+  // box across both, split on the cells' shared line, is two leaves on its
+  // centre line, each from an end of the opening to the bar. Unsplit, each
+  // cell has its own door.
   const P = TRACE_PITCH;
   const pair = canvas(60);
   pair.cells(2, 2, 6, 4, 255);
@@ -237,10 +268,12 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   pair.rect(4 * P - 1, 5.3 * P, 4 * P + 1, 5.7 * P + 2, 0);
   const out = traceWalls(pair, asserted, scale);
   const doors = out.walls.filter((s) => s.door).map((s) => s.c);
-  ok("grid: a box split on two cells' shared line is a door on each long line across both",
+  // The long lines' centres are render rows 265.5 and 285.5, the bar columns 199 and 200.
+  const y = crop.y + 275.5 / scale, bar = crop.x + 199.5 / scale;
+  ok("grid: a box split on two cells' shared line is two leaves meeting at the bar across both",
     out.digest.splitBoxes === 1 && doors.length === 2
-      && near(doors[0], [crop.x + 3 * CELL, crop.y + 265.5 / scale, crop.x + 5 * CELL, crop.y + 265.5 / scale])
-      && near(doors[1], [crop.x + 3 * CELL, crop.y + 285.5 / scale, crop.x + 5 * CELL, crop.y + 285.5 / scale]), JSON.stringify(doors));
+      && near(doors[0], [crop.x + 3 * CELL, y, bar, y])
+      && near(doors[1], [bar, y, crop.x + 5 * CELL, y]), JSON.stringify(doors));
 }
 
 {
@@ -360,6 +393,12 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   check("contour: dropping a door cuts no wall", wallLength(dropped.walls), wallLength(out.walls));
   const missed = traceWalls(plan, recipeOf({ ...rec, corrections: [{ at: [crop.x + 13.5 * CELL, crop.y + 4.5 * CELL], drop: "door" }] }), scale);
   check("contour: a point with no door within half a cell drops nothing", [doorsOf(missed).length, missed.digest.doorsDropped], [1, 0]);
+  // A door line drawn aslant between the door's two strokes, short of the
+  // corridor's walls, replaces the traced door and reaches both walls.
+  const aslant = traceWalls(plan, recipeOf({ ...rec, corrections: [{ line: [crop.x + 10.45 * CELL, crop.y + 5.15 * CELL, crop.x + 10.55 * CELL, crop.y + 5.85 * CELL], is: "door" }] }), scale);
+  const leaf = aslant.walls.filter((s) => s.door).map((s) => [(s.c[1] - crop.y) / CELL, (s.c[3] - crop.y) / CELL]);
+  ok("contour: a door line short of its walls replaces the traced door and closes against both",
+    aslant.digest.doorsReplaced === 1 && leaf.length === 1 && leaf[0][0] > 4.95 && leaf[0][0] < 5 && leaf[0][1] > 6 && leaf[0][1] < 6.05, JSON.stringify(leaf));
 }
 
 {
@@ -460,6 +499,9 @@ ok("a render of the wrong size is not traced", /stated size/.test(threw));
   check("a terrain wall carries core's terrain senses and no door",
     wallSources([{ c: [crop.x + crop.w, crop.y, crop.x + crop.w, crop.y + CELL], door: 0, terrain: true }], frame),
     [{ c: [0, 0, 100, 0], door: 0, light: 10, sight: 10, sound: 10, move: 20 }]);
+  check("an invisible wall carries core's invisible senses and no door",
+    wallSources([{ c: [crop.x + crop.w, crop.y, crop.x + crop.w, crop.y + CELL], door: 0, invisible: true }], frame),
+    [{ c: [0, 0, 100, 0], door: 0, light: 0, sight: 0, sound: 0, move: 20 }]);
 
   const level = { id: "levelAAAAAAAAAAA", name: "Level" };
   const walled = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, walls: rows, pixelsPerPoint: 10 });

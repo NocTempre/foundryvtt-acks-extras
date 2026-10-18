@@ -6645,7 +6645,9 @@ as one door, and walled the crop's edge like any other edge.
   lines, the opening's whole width. A bar counts only between the box's
   long lines, in the middle of the opening, with the box's lines on both
   sides of it, so a box's closed end is no bar. A plain box stays one door
-  across the cell's middle.
+  across the cell's middle. *(Superseded the same day by "A double door is
+  two leaves meeting at its bar, and a correction may be a drawn line": the
+  two doors are two leaves on the box's centre line.)*
 - **The crop's own edge is no wall.**
   - In `grid`, a floor cell on the lattice's border is walled there only
     where the crop's strip beyond the lattice is a quarter cell deep or more
@@ -6688,6 +6690,66 @@ as one door, and walled the crop's edge like any other edge.
 - A token inside a terrain box sees out over its sides, and one outside
   sees in.
 - A passage that runs off the plate's edge is left open there.
+
+## 2026-10-18 — A double door is two leaves meeting at its bar, and a correction may be a drawn line
+
+Supersedes the split-box rule of the entry above; its other rules stand.
+
+**New evidence.** The user reviewed the sheets drawn on the importer's
+render:
+- "double doors are a two lines that meet at the middle, not double layered
+  doors", with five of p38's boxes marked and "there are a few more". The
+  earlier answer "Doors on both lines" had been read as a door on each long
+  line; the drawing is two leaves side by side along the wall.
+- "two angled doors are off": two p55 doors asserted on cells stood square
+  to the lattice across passages that run aslant.
+- "missing wall around stairs": p38 room 53's stair and p55 room 1's stair
+  box traced with no walls.
+- "missing tiny door": a door box where a p55 corridor narrows into a room;
+  the throat stays open and reads no door.
+- A dotted line between two caves (AX1 p. 62). The user confirmed it from
+  the book: "Iron bars is a wall you can see through but not walk though."
+
+**Ruled.**
+- **A split box is two leaves on its centre line, meeting at its bar**, each
+  from one end of the opening. The bar test is unchanged.
+- **A correction may be a line**, `{line: [x0, y0, x1, y1], is}` in page
+  points, weighing one. In every mode it asserts `wall`, `door`, `secret`,
+  `terrain` or `invisible`, and it is laid last: a door or secret line
+  replaces every traced door within half a cell of it, and in `contour`
+  closes against the outline as a traced door does.
+- **`invisible` is core's Invisible wall**: movement NORMAL; light, sight and
+  sound NONE. A barred opening is one.
+- **A stair is walled along its sides and open at its mouth.** A drawn
+  stair's lines narrow toward its lower end, and the mouth is the end a
+  walker steps on (AX1 pp. 46, 56 agree for both stairs). p38's stair takes
+  two edges along its north side. p55's box takes eight: every side and the
+  divider between its flights, except the mouth of the flight that opens on
+  the room.
+- **The wheel beside the barred cave is its spiral stair** (AX1 p. 62). It
+  keeps its floor cell, walled into the rock and open to the cave where its
+  drawing opens.
+- **p55 takes 47 corrections, weighing 47 of a cap of 80.** The two cell
+  doors become lines aslant on their drawn boxes; the tiny door is a line
+  across its box; the dotted line is an invisible line; the stair box takes
+  its eight edges. The importer's render reads 14 doors and one invisible
+  wall, and refuses no point.
+- **p38 takes 50 corrections, weighing 53 of 95.** Its six split boxes read
+  as twelve leaves.
+
+*Rejected:*
+- **Terrain for the bars.** Sight would stop at a second terrain wall behind
+  them.
+- **A box state of `wall` for the stair box.** Its mouth needs an open edge
+  either way, and eight edges assert the drawing without a new state.
+- **A line in lattice units.** A point correction already takes page points,
+  and a line is for what lies off the lattice.
+
+*Cost:*
+- A line's points are read off the importer's render, so a render that moves
+  shifts the drawn box under it, as with any point correction. Closing covers
+  a short line in `contour`; elsewhere the review sheets catch the drift.
+- A Judge opens a double door as two doors.
 
 ## 2026-10-18 — A recipe is checked on the importer's own render, never on a plate
 

@@ -558,25 +558,33 @@ export function districtRegionData(district, frame, {
 const TERRAIN_SENSES = Object.freeze({ light: 10, sight: 10, sound: 10, move: 20 });
 
 /**
+ * The senses an invisible wall carries: core's Invisible wall tool, light,
+ * sight and sound NONE and movement NORMAL, spelled as numbers for the same
+ * reason.
+ */
+const INVISIBLE_SENSES = Object.freeze({ light: 0, sight: 0, sound: 0, move: 20 });
+
+/**
  * Wall data for traced walls: each segment's page points carried through the
  * frame and rounded to whole pixels, as core's wall coordinates must be. A
  * segment the rounding collapses to a point is dropped. A plain wall takes
  * core's defaults, so it blocks all four senses; a `terrain` segment takes
  * `TERRAIN_SENSES`, so it blocks movement and only the second wall a sense
- * crosses. The door type is the trace's.
+ * crosses; an `invisible` segment takes `INVISIBLE_SENSES`, so it blocks
+ * movement alone. The door type is the trace's.
  *
- * @param {{c: number[], door: number, terrain?: boolean}[]} walls `traceWalls` output, in page points
+ * @param {{c: number[], door: number, terrain?: boolean, invisible?: boolean}[]} walls `traceWalls` output, in page points
  * @param {object} frame the frame the map's picture is placed by
  * @returns {{c: number[], door: number}[]}
  */
 export function wallSources(walls, frame) {
   const out = [];
-  for (const { c, door, terrain } of walls ?? []) {
+  for (const { c, door, terrain, invisible } of walls ?? []) {
     const [x0, y0] = frame.toScene(c[0], c[1]);
     const [x1, y1] = frame.toScene(c[2], c[3]);
     const seg = [Math.round(x0), Math.round(y0), Math.round(x1), Math.round(y1)];
     if (seg[0] === seg[2] && seg[1] === seg[3]) continue;
-    out.push(terrain ? { c: seg, door: 0, ...TERRAIN_SENSES } : { c: seg, door: Number(door) || 0 });
+    out.push(terrain ? { c: seg, door: 0, ...TERRAIN_SENSES } : invisible ? { c: seg, door: 0, ...INVISIBLE_SENSES } : { c: seg, door: Number(door) || 0 });
   }
   return out;
 }

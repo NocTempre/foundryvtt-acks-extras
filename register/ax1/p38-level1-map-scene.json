@@ -67,7 +67,9 @@
           { "cell": [3, 18], "is": "floor" },
           { "box": [4, 5, 14, 15], "is": "terrain" },
           { "edge": [8, 15, "n"], "is": "open" },
-          { "edge": [9, 15, "n"], "is": "open" }
+          { "edge": [9, 15, "n"], "is": "open" },
+          { "edge": [33, 6, "n"], "is": "wall" },
+          { "edge": [34, 6, "n"], "is": "wall" }
         ]
       }
     }

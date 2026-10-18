@@ -147,8 +147,11 @@ A recipe with a square `grid` may carry a `walls` block, read by
   `[0, 0]` is the first whole drawn cell at the crop's top-left):
   `{cell: [c, r], is}`, `{edge: [c, r, "n"|"w"], is}`,
   `{box: [c0, r0, c1, r1], is: "terrain"}` on lattice lines, or
-  `{at: [x, y], drop: "island"|"door"}` in page points. Which states a cell
-  may take depends on the mode (`CELL_STATES`). `stroke` takes only `open`.
+  `{at: [x, y], drop: "island"|"door"}` and `{line: [x0, y0, x1, y1], is}`
+  in page points. Which states a cell may take depends on the mode
+  (`CELL_STATES`). `stroke` takes only `open`. A line takes the same states
+  in every mode (`LINE_STATES`): `wall`, `door`, `secret`, `terrain`, or
+  `invisible`, a wall that blocks movement and no sense.
   Only `contour` drops a door by its point (`AT_DROPS`): the drawn door
   nearest the point, within half a cell. An island point on the plan's
   floor or on the rock framing it, the largest component of its value, is
@@ -172,11 +175,16 @@ What every mode does with a plan:
   beside the outline (`contour`, `stroke`). An edge correction overrides a
   side, so an edge asserted `open` is a gap in it. `terrain` in the digest
   counts the sides' segments.
-- **A door box split by a bar is a double door** (`grid`): a door on each of
-  its two drawn long lines, the opening's whole width (`splitBoxes` in the
-  digest). An opening is a run of asserted door cells along one wall line,
-  so a box over two cells, split on their shared line, is read once. Any
-  other door stands across each cell's middle.
+- **A door box split by a bar is a double door** (`grid`): two leaves on the
+  box's centre line, one from each end of the opening to the bar
+  (`splitBoxes` in the digest). An opening is a run of asserted door cells
+  along one wall line, so a box over two cells, split on their shared line,
+  is read once. Any other door stands across each cell's middle.
+- **A line is laid last.** A door or secret line replaces every traced door
+  whose middle lies within half a cell of it (`doorsReplaced` in the
+  digest), and in `contour` closes against the outline like a traced door.
+  Every line then stands as the kind it asserts; `invisible` in the digest
+  counts the invisible ones.
 
 The map step traces after the picture is uploaded and before the one create.
 `traceSceneWalls` (`module.mjs`) renders the crop of the seat's page to gray
@@ -189,7 +197,8 @@ quarter cell, and just past it (`closeDoor`). `wallSources` carries the
 segments through the placed frame the tokens use, rounds them to whole pixels,
 and drops zero-length ones. A terrain segment takes core's Terrain wall
 senses (`TERRAIN_SENSES`): it blocks movement, and a sense stops at the
-second terrain wall it crosses. The walls ride the scene's create
+second terrain wall it crosses. An invisible segment takes core's Invisible
+wall senses (`INVISIBLE_SENSES`): it blocks movement alone. The walls ride the scene's create
 (`sceneData`), and a walled scene turns on token vision under global light. A
 trace that cannot run leaves the map without walls and counts it
 (`wallsFailed`). A held map is never re-traced.

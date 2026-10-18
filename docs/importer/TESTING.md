@@ -2226,12 +2226,13 @@ block what walls block.
      plan's digest quotes `loops`, `islandsDropped` and `doorsDropped`;
      `islandsRefused: 0` is the pass, and a refusal means the render drifted
      from the one the recipe was read on;
-   - `c.walls` equals the digest's `walls + doors + secret + terrain`, and
-     `c.wallsFailed` is 0;
+   - `c.walls` equals the digest's `walls + doors + secret + terrain +
+     invisible`, and `c.wallsFailed` is 0;
    - the scene's `walls` count the same, split by `door` 0, 1 and 2 and by
-     terrain as the digest splits them;
+     terrain and invisible as the digest splits them;
    - every plain wall's and door's senses are 20/20/20/20, every terrain
-     wall's light, sight and sound 10 and move 20, and every `levels` empty;
+     wall's light, sight and sound 10 and move 20, every invisible wall's
+     light, sight and sound 0 and move 20, and every `levels` empty;
    - `tokenVision` is true and global light is enabled.
 
    Compare the digest with an offline run of the same recipe on a
@@ -2247,8 +2248,8 @@ block what walls block.
      or two) of a multiple of `grid.size`;
    - each door spans its passage cell across the middle, so its endpoints sit
      at half a cell on one axis and on the side walls' lines;
-   - a split box's two doors run along its drawn long lines, the opening's
-     whole width, one pair per `splitBoxes` in the digest;
+   - a split box is two leaves on its centre line that meet at its bar and
+     together span the opening, one pair per `splitBoxes` in the digest;
    - each secret door is a pair, one on each mouth of its cell, both on
      lattice lines.
 3. The walls block. View the scene on this client only (`scene.view()`; it
@@ -2261,6 +2262,7 @@ block what walls block.
      `move` and `sight` across closed doors and secret doors;
    - across one side of a terrain box `move` collides and `sight` does not;
      from outside, across the box to its far side, `sight` collides;
+   - across an invisible wall `move` collides, and `sight` and `sound` do not;
    - `polygonBackends.sight.create(point, { type: "sight" })` from inside a
      room covers a small share of the scene's area.
 4. A door opens by the real gesture: click its control on the canvas.
