@@ -190,6 +190,46 @@ const P = {
     const doc = await pack.getDocument(H.AB.bookAdventureId(book));
     return H.AB.withoutStats(doc.toObject());
   },
+  /** Every open Judge book's stored Adventure, kept page-side for `movedSince`. */
+  snapshot: async ({ books }) => {
+    const H = globalThis.__ba;
+    H.snap = {};
+    for (const book of books) {
+      const pack = H.LIB.findLibraryPack("Adventure", H.CB.lineOf(book));
+      const id = H.AB.bookAdventureId(book);
+      if (!pack?.index.has(id)) continue;
+      const [doc] = await pack.getDocuments({ _id: id });
+      if (doc) H.snap[book] = H.AB.withoutStats(doc.toObject());
+    }
+    return Object.keys(H.snap).length;
+  },
+  /**
+   * The key paths of a book's stored Adventure that moved since `snapshot`,
+   * to three levels, an embedded document named by its id: what a rebuild
+   * nothing asked for changed, without its values.
+   */
+  movedSince: async ({ book }) => {
+    const H = globalThis.__ba;
+    const before = H.snap?.[book];
+    const pack = H.LIB.findLibraryPack("Adventure", H.CB.lineOf(book));
+    const [doc] = before && pack ? await pack.getDocuments({ _id: H.AB.bookAdventureId(book) }) : [];
+    if (!before || !doc) return null;
+    const after = H.AB.withoutStats(doc.toObject());
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const paths = [];
+    const walk = (a, b, at, depth) => {
+      if (same(a, b)) return;
+      if (depth === 3 || !a || !b || typeof a !== "object" || typeof b !== "object") return paths.push(at);
+      if (Array.isArray(a) && Array.isArray(b) && [...a, ...b].every((e) => e?._id)) {
+        const ids = new Set([...a, ...b].map((e) => e._id));
+        for (const id of ids) walk(a.find((e) => e._id === id), b.find((e) => e._id === id), `${at}[${id}]`, depth + 1);
+        return;
+      }
+      for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) walk(a[key], b[key], at ? `${at}.${key}` : key, depth + 1);
+    };
+    walk(before, after, "", 0);
+    return paths.slice(0, 24);
+  },
   editAdventure: async ({ book }) => {
     const H = globalThis.__ba;
     const pack = H.LIB.findLibraryPack("Adventure", H.CB.lineOf(book));
@@ -356,6 +396,16 @@ async function runStep(label) {
   return c;
 }
 /** One import through the sheet: what it created is tracked from its own result; the observer only proves nothing else was made. */
+/** A run of the step after a snapshot of every open book's Adventure, naming what moved in any other book it rebuilt. */
+async function runWatched(label, books) {
+  await run(gm, P.snapshot, { books });
+  const c = await runStep(label);
+  for (const [book, outcome] of Object.entries(c.books ?? {})) {
+    if (book === BOOK || outcome !== "rebuilt") continue;
+    note(`${label}: ${book} rebuilt although the walk changed nothing of it; key paths that moved`, await run(gm, P.movedSince, { book }));
+  }
+  return c;
+}
 async function importOnce(label) {
   const click = await run(gm, P.importViaSheet, { book: BOOK });
   check(`${label}: the sheet's Import button is pressed`, click.clicked, click);
@@ -437,7 +487,7 @@ try {
 
   section("3. a second run holds it");
   const src1 = await run(gm, P.storedSource, { book: BOOK });
-  const c3 = await runStep("run 2");
+  const c3 = await runWatched("run 2", census.judges);
   const s3 = await run(gm, P.stored, { book: BOOK, fixtureItemId: item.id });
   // Scoped to the book: another Judge book the seat opened since run 1 is
   // written by this run, which is that book's first write and not this one's.
@@ -455,7 +505,7 @@ try {
 
   section("4. a changed source rebuilds it");
   note("rename", await run(gm, P.renameItem, { id: item.id, name: `QA carried item ${NONCE} renamed` }));
-  const c4 = await runStep("run 3");
+  const c4 = await runWatched("run 3", census.judges);
   const s4 = await run(gm, P.stored, { book: BOOK, fixtureItemId: item.id });
   check("4: rebuilt under the same id, carrying the new name", c4.books?.[BOOK] === "rebuilt" && s4.uuid === s1.uuid && s4.fixtureItem === `QA carried item ${NONCE} renamed`, { outcome: c4.books?.[BOOK], name: s4.fixtureItem });
 
@@ -482,7 +532,7 @@ try {
   note("waiting out the write slack (s)", Math.round(wait / 1000));
   if (wait) await sleep(wait);
   note("edit (scripted update, standing in for the sheet's save)", await run(gm, P.editAdventure, { book: BOOK }));
-  const c5 = await runStep("run 4");
+  const c5 = await runWatched("run 4", census.judges);
   check("5: kept", c5.books?.[BOOK] === "kept", c5.books);
   note("delete the Adventure", await run(gm, P.deleteAdventure, { book: BOOK }));
   const c5b = await runStep("run 5");

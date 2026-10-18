@@ -1950,7 +1950,12 @@ What a scripted walk meets:
   settle before reading anything, read the shelf of every Judge book (open
   or not) before step 1, and judge each run by AX3's outcome alone.
 - The sheet that opens is core's V1 `AdventureImporter`. Its `element` is a
-  jQuery wrapper, so find the Import button under `element[0]`.
+  jQuery wrapper, so find the Import button under `element[0]`. Check
+  whether `element.querySelector` exists before indexing: a V2 sheet's
+  element is the `<form>` itself, and its `[0]` is the form's first control.
+- A run that should hold, but rebuilds another book, prints the key paths
+  that moved in that book's Adventure. That is how an assembly that is not
+  stable from one run to the next shows up.
 - A document the import brings back can arrive with the Folder it is filed
   in. That Folder is in the import's own result too, so track both.
 
