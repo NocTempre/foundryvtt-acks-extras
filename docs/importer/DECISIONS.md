@@ -6991,7 +6991,7 @@ but adding the missing items for now."
 
 **Rejected.**
 
-- *Reading the figures into fields now* (the bracers' attack and damage
+- *Reading the figures into fields now* (a worn item's attack and damage
   bonus as weapon fields, the cost as `system.cost`). Each item prints its
   figures in a different clause of its paragraph, and a binding that reads
   one shape reads the next wrongly; the kind's note says the upgrade is in
