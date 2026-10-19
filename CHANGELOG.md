@@ -1,5 +1,30 @@
 # Changelog
 
+## 11.6.1
+
+### Added
+
+- **An item an adventure book introduces imports as an item.** Each one is a
+  core item named from the Judge's own page, with its paragraph as the
+  description and the page reference last. It is filed under the book's
+  folder and carried by the book's Adventure. Import Everything runs the step
+  after the roll tables.
+
+### Fixed
+
+- **A party on a wilderness map travels, whatever order the map was set up
+  in.** A party token placed on a new scene before its grid was set to mile
+  cells stayed in Delve. Every drag after that billed nothing and rolled no
+  encounter or navigation throw. Setting a map's grid distance or units now
+  counts as the party arriving there, so the map's scale picks the mode. A
+  Delve picked by hand stays put when only the grid's look changes. The
+  guide's Common problems section says what to do for a party left in Delve
+  some other way.
+- **AX1's cave level is walled as its page draws it.** The slanted pair
+  between rooms 16 and 18 is a door set aslant. Room 18's stair, a small
+  rock and the spiral stair's circle are walled. The niche by room 36 is no
+  longer a door.
+
 ## 11.6.0
 
 ### Added
