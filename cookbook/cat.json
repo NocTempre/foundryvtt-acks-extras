@@ -642,6 +642,462 @@
           }
         }
       }
+    },
+    "cat.item1": {
+      "kind": "kind.adventureItem",
+      "name": "Item 1",
+      "cite": "CAT p.20",
+      "pages": [
+        24
+      ],
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 24,
+          "box": {
+            "x0": 33,
+            "x1": 305,
+            "y0": 272.369995,
+            "y1": 281.369995
+          },
+          "hash": "ob672d"
+        },
+        "description": {
+          "op": "text",
+          "page": 24,
+          "paras": [
+            {
+              "box": {
+                "x0": 26,
+                "x1": 305,
+                "y0": 291.28999500000003,
+                "y1": 365.2099950000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "cat.item2": {
+      "kind": "kind.adventureItem",
+      "name": "Item 2",
+      "cite": "CAT p.20",
+      "pages": [
+        24
+      ],
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 24,
+          "box": {
+            "x0": 33,
+            "x1": 305,
+            "y0": 571.9403950000001,
+            "y1": 580.9403950000001
+          },
+          "hash": "p0ys3f"
+        },
+        "description": {
+          "op": "text",
+          "page": 24,
+          "paras": [
+            {
+              "box": {
+                "x0": 26,
+                "x1": 305,
+                "y0": 590.9803950000002,
+                "y1": 664.7803950000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "cat.item3": {
+      "kind": "kind.adventureItem",
+      "name": "Item 3",
+      "cite": "CAT p.20",
+      "pages": [
+        24
+      ],
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 24,
+          "box": {
+            "x0": 321.0696,
+            "x1": 572,
+            "y0": 282.9299950000001,
+            "y1": 291.9299950000001
+          },
+          "hash": "u459j2"
+        },
+        "description": {
+          "op": "text",
+          "page": 24,
+          "paras": [
+            {
+              "box": {
+                "x0": 306,
+                "x1": 572,
+                "y0": 301.8499950000001,
+                "y1": 375.76999500000016
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "cat.item4": {
+      "kind": "kind.adventureItem",
+      "name": "Item 4",
+      "cite": "CAT p.20",
+      "pages": [
+        24
+      ],
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 24,
+          "box": {
+            "x0": 321.06960000000004,
+            "x1": 572,
+            "y0": 607.9403950000001,
+            "y1": 616.9403950000001
+          },
+          "hash": "5u3w0k"
+        },
+        "description": {
+          "op": "text",
+          "page": 24,
+          "paras": [
+            {
+              "box": {
+                "x0": 306,
+                "x1": 572,
+                "y0": 626.8603950000002,
+                "y1": 751.6807950000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "cat.item5": {
+      "kind": "kind.adventureItem",
+      "name": "Item 5",
+      "cite": "CAT p.21",
+      "pages": [
+        25
+      ],
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 25,
+          "box": {
+            "x0": 33,
+            "x1": 305,
+            "y0": 234.92999299999997,
+            "y1": 243.92999299999997
+          },
+          "hash": "1pnpa6g"
+        },
+        "description": {
+          "op": "text",
+          "page": 25,
+          "paras": [
+            {
+              "box": {
+                "x0": 26,
+                "x1": 305,
+                "y0": 253.96999299999993,
+                "y1": 310.8499929999999
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "cat.item6": {
+      "kind": "kind.adventureItem",
+      "name": "Item 6",
+      "cite": "CAT p.21",
+      "pages": [
+        25
+      ],
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 25,
+          "box": {
+            "x0": 32.99999999999997,
+            "x1": 305,
+            "y0": 543.2603929999999,
+            "y1": 552.2603929999999
+          },
+          "hash": "16t3dq4"
+        },
+        "description": {
+          "op": "text",
+          "page": 25,
+          "paras": [
+            {
+              "box": {
+                "x0": 26,
+                "x1": 305,
+                "y0": 562.3003929999999,
+                "y1": 720.9607929999999
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "cat.item7": {
+      "kind": "kind.adventureItem",
+      "name": "Item 7",
+      "cite": "CAT p.21",
+      "pages": [
+        25
+      ],
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 25,
+          "box": {
+            "x0": 321.0695999999999,
+            "x1": 572,
+            "y0": 234.69119299999988,
+            "y1": 243.69119299999988
+          },
+          "hash": "1ufyolb"
+        },
+        "description": {
+          "op": "text",
+          "page": 25,
+          "paras": [
+            {
+              "box": {
+                "x0": 306,
+                "x1": 572,
+                "y0": 253.61119299999984,
+                "y1": 310.49119299999984
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "cat.item8": {
+      "kind": "kind.adventureItem",
+      "name": "Item 8",
+      "cite": "CAT p.21",
+      "pages": [
+        25
+      ],
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 25,
+          "box": {
+            "x0": 321.0695999999999,
+            "x1": 572,
+            "y0": 543.0215929999998,
+            "y1": 552.0215929999998
+          },
+          "hash": "1lyp77x"
+        },
+        "description": {
+          "op": "text",
+          "page": 25,
+          "paras": [
+            {
+              "box": {
+                "x0": 306,
+                "x1": 572,
+                "y0": 561.9415929999998,
+                "y1": 618.8215929999998
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "cat.item9": {
+      "kind": "kind.adventureItem",
+      "name": "Item 9",
+      "cite": "CAT p.22",
+      "pages": [
+        26
+      ],
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 26,
+          "box": {
+            "x0": 33,
+            "x1": 572,
+            "y0": 234.69000200000005,
+            "y1": 243.69000200000005
+          },
+          "hash": "42aw5e"
+        },
+        "description": {
+          "op": "text",
+          "page": 26,
+          "paras": [
+            {
+              "box": {
+                "x0": 26,
+                "x1": 572,
+                "y0": 253.610002,
+                "y1": 395.3504020000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  7,
+                  8
+                ],
+                "mergeHyphen": [
+                  6
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "cat.item10": {
+      "kind": "kind.adventureItem",
+      "name": "Item 10",
+      "cite": "CAT p.22",
+      "pages": [
+        26
+      ],
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 26,
+          "box": {
+            "x0": 33,
+            "x1": 572,
+            "y0": 627.860402,
+            "y1": 636.860402
+          },
+          "hash": "6lwxw9"
+        },
+        "description": {
+          "op": "text",
+          "page": 26,
+          "paras": [
+            {
+              "box": {
+                "x0": 26,
+                "x1": 572,
+                "y0": 646.7804020000001,
+                "y1": 754.6808020000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              }
+            }
+          ]
+        }
+      }
     }
   },
   "scenes": {

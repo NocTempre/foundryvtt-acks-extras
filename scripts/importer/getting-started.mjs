@@ -124,6 +124,8 @@ const GM_STEPS = [
   // the merchandise catalogue the goods step built.
   ["stepMarkets", (api) => api.cookbookImportMarketProfiles()],
   ["stepRollTables", (api) => api.cookbookImportRollTables()],
+  // An item a book introduces stands on nothing above it.
+  ["stepAdventureItems", (api) => api.cookbookImportAdventureItems()],
   // A map stands on the places, names the organisations seated in its quarters
   // and wires in the lists, so it follows all three.
   ["stepScenes", (api) => api.cookbookImportScenes()],

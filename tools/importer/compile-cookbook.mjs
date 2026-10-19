@@ -1791,12 +1791,17 @@ const AX_FOOT_Y = 750;
  * sidebars and tables at 9pt under 12pt heads and its keyed sections at 14pt.
  * A book listed here has its bands on every page the compiler reads
  * (`useAxBands`).
+ *
+ * The community book `cat` sets body type down to y752 above a folio the
+ * page reader's footer filter already drops, so only its foot differs from
+ * the defaults: at AX_FOOT_Y an item's last line is read as a folio.
  */
 const AX_BOOK_BANDS = Object.freeze({
   ax1: Object.freeze({
     topBand: 35, footY: 765, headX0: 20, headMinH: 13, asideH: Object.freeze([8.5, 9.5]), rightEdge: 22, paraGap: 15,
     columns: Object.freeze({ even: Object.freeze([30, 310]), odd: Object.freeze([40, 320]) }),
   }),
+  cat: Object.freeze({ footY: 760 }),
 });
 const axTop = (pd) => pd?.axBands?.topBand ?? AX_TOP_BAND;
 const axFoot = (pd) => pd?.axBands?.footY ?? AX_FOOT_Y;
@@ -3658,7 +3663,28 @@ async function compileMarketRecord(doc, entry) {
   return { id: entry.id, kind: entry.kind, name: entry.name, book: entry.book, cite: citeFor(entry.book, page), pages: entry.pages, ...(entry.meta ? { meta: entry.meta } : {}), fields };
 }
 
+/**
+ * kind.adventureItem — a heading and the prose under it, to the next heading.
+ * Nothing in the body is parsed: what an item prints beside its description
+ * (a bonus, a cost, a crafting time) stays in the paragraphs until a binding
+ * reads it, so the row ships its name and its description and nothing else.
+ */
+async function compileAdventureItem(doc, entry, kindRow, bookCtx) {
+  const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
+  // Items stack under body-size names with no display heading between them,
+  // so a sibling's name line ends this one's prose (`bookCtx.itemStops`).
+  const stops = (bookCtx?.itemStops ?? []).filter((s) => s.id !== entry.id);
+  const segs = await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: a.endY }, new Set(), { stopKeys: assists.stopKeys ?? [], stops });
+  const { paras } = axParas(segs, page, a.head ? { dropRuns: a.head } : {});
+  if (!paras.length) throw new Error(`no body paragraphs under "${entry.name}" p.${page}`);
+  return {
+    kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
+    ...(entry.meta ? { meta: entry.meta } : {}), fields: { name, description: { op: "text", page, paras } },
+  };
+}
+
 const AX_COMPILERS = {
+  "kind.adventureItem": compileAdventureItem,
   "kind.location": compileLocation,
   "kind.marketGrid": (doc, entry, kindRow) => compileVehicleTable(doc, entry, kindRow),
   "kind.marketRecord": compileMarketRecord,
@@ -5916,10 +5942,19 @@ async function main() {
       const opened = await axOpen(doc, e).catch(() => null);
       if (opened) keyedStops.push({ id: e.id, container, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
     }
+    // Where each of the book's items opens, for the same reason (see
+    // compileAdventureItem).
+    const itemStops = [];
+    for (const e of list) {
+      if (e.kind !== "kind.adventureItem" || (e.status && e.status !== "active")) continue;
+      const opened = await axOpen(doc, e).catch(() => null);
+      if (opened) itemStops.push({ id: e.id, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
+    }
     const bookCtx = {
       npcStops,
       spaces,
       keyedStops,
+      itemStops,
       // The template compiler reads the monster kind's stat-row map so a
       // template page's FIXED rows ("Type: Monstrosity") bind like any
       // monster's; the "varies by …" rows fail their patterns and stay raw.

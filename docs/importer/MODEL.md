@@ -317,6 +317,19 @@ column keys `c<n>`, ids of this book's organisations, a revenue column that is
 not a counted one and only on a single-owner grid. `verify-cookbook` passes a
 strength grid on its heading and its level rows plus the total.
 
+## An item a book introduces
+
+A `kind.adventureItem` row (`register/_kinds/adventureItem.json`) is a
+body-size name line and the prose under it, to the next item's name line
+(`compileAdventureItem`; the book's item lines are the compiler's
+`itemStops`). The items step (`cookbookImportAdventureItems`) makes each a
+core `item` named from the page, its description the prose with the page
+reference last, filed under the book's folder in its line's Item pack, and
+claimed by its cookbook id like every item. Nothing beside the prose is
+read: a bonus, a cost or a crafting time the page prints stays in the
+description. The ruling is DECISIONS 2026-10-19, "An item a book introduces
+is a core item read whole".
+
 ## A person the page prints in full
 
 A `kind.npc` row carrying `meta.actor: "character"` imports as a core

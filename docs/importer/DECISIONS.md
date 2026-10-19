@@ -6952,3 +6952,60 @@ slanted wall" was about the door's slant. It was misread as a wall.
 
 *Cost:* none beyond any line's. Its points are read off the importer's
 render.
+
+## 2026-10-19 — An item a book introduces is a core item read whole
+
+The catgirl prints ten items on three pages; the first cut (2026-10-18)
+left them because the kind was in flight for AX1 and no book had a row of
+it. The user asked for them this session, and only them: "Fix nothing else
+but adding the missing items for now."
+
+**Ruled.**
+
+- **A `kind.adventureItem` row anchors as a run-in line.** The book sets
+  an item's name in body type, bold in neither face, so no display heading
+  exists to find; the row carries `anchor: { hash, as: "runin" }` and the
+  compiler's run-in candidates are every body-size line of the column. The
+  heading detector sees nothing on those pages, which is the test that
+  decided it, not the book's look.
+- **A sibling's name line ends the prose.** With no display heading between
+  items, `compileAdventureItem` passes the book's other item lines as
+  `stops` (`bookCtx.itemStops`, built as `npcStops` is), so item 2's column
+  foot does not run into item 3's heading at the top of the next column,
+  and item 9 stops where item 10 opens.
+- **The book's foot is 760, not 750.** The last item's cost line sits at
+  y752, above the folio the page reader's footer filter drops; at the AX
+  default it read as a folio and the description lost its last line. `cat`
+  joins `AX_BOOK_BANDS` with only its foot set.
+- **The binding is name and description, nothing else.** A core `item`,
+  named from the page, its description the item's one printed paragraph with
+  the page reference last; `cost`, `weight` and `quantity` take the type's
+  resting values. It is filed under the book's folder, "Items", in the
+  line's Item pack, so a Judge's book's items close with its other rows,
+  and it is claimed by cookbook id like every item, so a second run reports
+  "already present".
+- **One step, scoped like the maps.** `cookbookImportAdventureItems({ books })`
+  runs after the roll tables in Import Everything and is quiet when no open
+  book prints an item. The Adventure, written last, carries the items as it
+  carries every Item of the book.
+
+**Rejected.**
+
+- *Reading the figures into fields now* (the bracers' attack and damage
+  bonus as weapon fields, the cost as `system.cost`). Each item prints its
+  figures in a different clause of its paragraph, and a binding that reads
+  one shape reads the next wrongly; the kind's note says the upgrade is in
+  place, when a magic-item binding exists.
+- *Breaking the paragraph before the cost line.* The page sets the cost on
+  the paragraph's own pitch with no gap, so it is one printed paragraph, and
+  the description is the page's.
+- *Authoring the stops per row* (`assists.stopKeys` naming the next item's
+  hash). It is the same list the register already holds; deriving it keeps
+  the rows to an anchor and a page.
+
+*Cost:* the Judge applies an item's bonus by hand until a binding reads it.
+The live record: the typography walk, extended, ten items made on the
+first run, none refused; each a core item of one paragraph with a page
+reference, standing on the line's Judge Item shelf, which the import and
+not the census opened; the Adventure carrying ten items; the Player seat
+seeing no shelf of the line.

@@ -1091,9 +1091,10 @@ What each book still owes, in the order it is worth doing:
 ## The OSR Catgirl: what the first cut leaves
 
 The `cat` cookbook ships the race's five tiers, the catfolk beastman, the
-three classes and the tavern's two floor plans as gridless scenes in the
-book's Adventure (DECISIONS 2026-10-18, both entries). Left, each waiting on
-a kind or a reader rather than on authoring:
+three classes, the tavern's two floor plans as gridless scenes in the
+book's Adventure (DECISIONS 2026-10-18, both entries) and the ten items the
+book introduces, as core items read whole (DECISIONS 2026-10-19). Left, each
+waiting on a kind or a reader rather than on authoring:
 
 - **The tavern's keeper (p30).** Her block is set as spaced paragraphs under
   the name, the prose beside it; a kind.npc row read three of its lines. She
@@ -1107,9 +1108,9 @@ a kind or a reader rather than on authoring:
   per book rather than as `def.equip` — the destination moves from the book's
   flag to the row's kind (the rejected design in DECISIONS 2026-10-18, "A
   mixed book"). Not before: it re-points every folder site in the importer.
-- **The ten items (p24–26)**: kind.adventureItem, in flight for AX1. Their
-  print keys are computed (`ob672d`, `u459j2`, `42aw5e`, `6lwxw9` among them)
-  so the rows anchor by hash.
+- **The items' figures (p24–26).** Each item ships as a core item with its
+  prose; the bonus, cost and crafting time it prints stay in the description
+  until a magic-item binding reads them into fields.
 - **The essays (p4–6, p10, p31–32) and the tavern's prose (p27)**: kind.prose.
 - **The classes' progression tables.** Two spreads print them as images; the
   third's saves-and-attack table is text (p21, the page foot). Until a table

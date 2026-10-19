@@ -2485,9 +2485,16 @@ untagged seat would read every line as a heading and import nothing.
    and a count of what imports from it; the Books window lists it as open
    this session; `init`, `setup` and `ready` threw nothing beforehand.
 2. Import the book: the abilities step for its powers, the classes step for
-   its classes and the id import for its monster, each scoped to the book's
-   ids. (Import Everything runs the same steps over every open book.)
-   *Observable:* the library's own Item shelf holds five class-power items
+   its classes, the id import for its monster and the items step
+   (`acksExtras.importer.cookbookImportAdventureItems({ books: ["cat"] })`)
+   for the ten items it introduces, each scoped to the book. (Import
+   Everything runs the same steps over every open book.)
+   *Observable:* the items step reports ten imported, none already present,
+   none refused, and the line's Judge Item shelf ("ACKS Cookbook — The OSR
+   Catgirl — Judge — Item"), absent before the step, holds ten core items in
+   the book's folder under "Items", each named from the page, with one
+   paragraph of description closed by a page reference; the library's own
+   Item shelf holds five class-power items
    (Catgirl 0–4, one paragraph each) and three class items with hit die,
    maximum level, prime requisite, requirements, a proficiency list of whole
    names (no pair welded at a line turn) and a description running the whole
@@ -2514,18 +2521,20 @@ untagged seat would read every line as a heading and import nothing.
 6. The adventures step, scoped the same way:
    `acksExtras.importer.cookbookImportAdventures({ books: ["cat"] })`.
    *Observable:* one Adventure written, for this book alone, on the line's
-   Judge Adventure shelf, carrying the two maps and the monster; the GM's
-   Books window row for the book now reads its contents. The class item
-   stands on the library's own Item shelf and the monster on the Judge Actor
-   shelf — `lineOfPack(doc.pack)` on each.
+   Judge Adventure shelf, carrying the two maps, the monster and the ten
+   items; the GM's Books window row for the book now reads its contents. The
+   class item stands on the library's own Item shelf, the monster on the
+   Judge Actor shelf and an item on the Judge Item shelf —
+   `lineOfPack(doc.pack)` on each.
 7. Join as the **Player** seat. *Observable:* no compendium of the line is
    visible to it, and the library's own Item shelf is, with the five powers
    and three classes in its index.
 ### Teardown
 
 8. `api.track` every id the imports' results list — the class documents, the
-   monster and powers read back by id, the scenes' `created` uuids and the
-   Adventure's — then `api.sweepTracked()`; quote what it removed, could not
+   monster and powers read back by id, the items' and the scenes' `created`
+   uuids and the Adventure's — then `api.sweepTracked()`; quote what it
+   removed, could not
    find and refused. A shelf the run opened is deleted once empty — the
    world's packs are read before the first presence check and again after
    it, and the two lists are equal: a presence check (`importedActorFor`)

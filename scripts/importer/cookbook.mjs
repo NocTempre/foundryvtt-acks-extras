@@ -4410,6 +4410,75 @@ async function bringAcross(bookId, plan, created) {
   return { actors, copied };
 }
 
+/**
+ * Items a book introduces (`kind.adventureItem`): each becomes a core item
+ * whose name and description are the page's own, filed under the book's
+ * folder in its line's Item pack. Only the row's prose is read; what an item
+ * prints beside its description stays in it until a binding reads it.
+ * `books` narrows the run to the open books it names; without it every open
+ * book's items are imported. Quiet when no open book prints any, since the
+ * step runs in every Import Everything.
+ * @returns {Promise<{made: number, already: number, refused: number, created: {items: string[]}}>}
+ */
+export async function cookbookImportAdventureItems({ books = null } = {}) {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
+  const wanted = books ? new Set(books) : null;
+  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!wanted || wanted.has(b)));
+  const jobs = [];
+  for (const bookId of openBooks) {
+    for (const [id, entry] of Object.entries(data.books.get(bookId).entries ?? {})) {
+      if (entry.kind === "kind.adventureItem") jobs.push({ bookId, id, entry });
+    }
+  }
+  const counts = { made: 0, already: 0, refused: 0, created: { items: [] } };
+  if (!jobs.length) return counts;
+  const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressAdventureItems`), jobs.length);
+  try {
+    for (const { bookId, id, entry } of jobs) {
+      bar.step(entry.name);
+      if (await importedItem(id)) {
+        counts.already++;
+        continue;
+      }
+      const doc = await claimImport(id, () => importAdventureItem(bookId, id, entry)).catch((err) => {
+        console.error(`${MODULE_ID} | item ${id} failed`, err);
+        return null;
+      });
+      if (doc) {
+        counts.made++;
+        counts.created.items.push(doc.uuid);
+      } else counts.refused++;
+    }
+  } finally {
+    bar.finish();
+  }
+  ui.notifications[counts.refused ? "warn" : "info"](
+    `${MODULE_ID} | items: ${counts.made} imported, ${counts.already} already present${counts.refused ? `, ${counts.refused} refused (the page did not match the cookbook)` : ""}.`,
+  );
+  return counts;
+}
+
+/** One book item, built from its page: a core item carrying the printed name and the prose under it. */
+async function importAdventureItem(bookId, id, entry) {
+  const found = cookbookEntry(id);
+  const session = ctx.sessionDocs.get(bookId);
+  const node = await executeEntry(session.doc, found.cb, data.registers, id);
+  if (!node.ok) {
+    ui.notifications.warn(`${MODULE_ID} | ${entry.name}: page did not match the cookbook (different printing?) — skipped.`);
+    return null;
+  }
+  const folder = (await targetFolder("Item", bookId, "Items"))?.id ?? null;
+  return createDoc(Item, {
+    // The row ships an ordinal label; the item is named from the page.
+    name: printedNameOf(node, entry.name),
+    type: "item",
+    img: DEFAULT_IMG.ITEM,
+    folder,
+    system: { description: entryText(node, id, entry.cite), subtype: "item", quantity: { value: 1, max: 0 }, cost: 0, weight: 0, weight6: 0 },
+    flags: { [MODULE_ID]: { cookbook: { id, book: bookId, kind: entry.kind, cite: entry.cite } } },
+  });
+}
+
 /** How many times one map steps its bar: the anchor, the plan, the picture, the scene. */
 const SCENE_STEPS = 4;
 
