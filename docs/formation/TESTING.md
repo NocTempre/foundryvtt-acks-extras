@@ -1898,6 +1898,13 @@ the report.
 13. On the journey scene, **Pause**, then drag a hex.
     *Observable:* nothing billed, no card; `clock.pausedBy` is `judge`;
     un-pause and drag → billed from the paused position.
+14. Create a further hex scene at core's default scale (feet), place a second
+    party's token on it, then set its grid to the first scene's mile cell
+    (`scene.update({"grid.distance": …, "grid.units": "mi"})`).
+    *Observable:* the party's `travel.mode` turns from `delve` to `journey`
+    with the scale notice, and one hex drag bills miles and posts an encounter
+    card and the day's navigation card. Set the grid back to feet → no switch;
+    pick Delve in the band, then change only `grid.size` → still `delve`.
 
 Read the strip's context with `await party.sheet._prepareContext({})` →
 `strip`; finish with one real drag.

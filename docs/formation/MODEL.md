@@ -584,8 +584,9 @@ A formation is in one of two MODES (three with the city, below), and **a SCENE
 may name which one applies on it**: the battlemap setup tool writes
 `mapSystem` into the scene's own record, and `adoptSceneSystem`
 ([travel.mjs](../../scripts/formation/travel.mjs)) switches a formation to it
-when its party token lands there and when the declaration changes underneath
-it. A scene that declares nothing is read from what it shows
+when its party token lands there, when the declaration changes underneath it,
+and when the scene's grid distance or units change (`sceneScaleChanged`), the
+two things the map's scale is read from. A scene that declares nothing is read from what it shows
 (`inferredTravelSystem`, §Movement → turns): a mile-scale cell is a journey
 map, a district a city, and a map with neither changes nothing — a party
 mid-march crossing an unlabelled feet-scale map keeps its march. The

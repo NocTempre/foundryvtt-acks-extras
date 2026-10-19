@@ -4179,3 +4179,50 @@ there brings no scrollbar (read, not walked).
   the run's census; the change here touches neither. The sweep removed 34,
   could not find 5 (member tokens their enrolment had removed) and refused
   none.
+
+## 2026-10-19 — A map's scale changing under a party is an arrival
+
+**Found.** Reported: a party travelling a wilderness map rolled no navigation,
+no encounter and no evasion. Reproduced live on 11.6.0: a party token placed
+on a new hex scene at core's default scale (feet) stays in Delve, and the scene
+is then set to six-mile cells. `adoptSceneSystem` ran only when a party token
+landed and when the battlemap declaration changed, so the scale the map now
+showed was never read for the party already standing on it. Every drag after
+that ran the turn engine, which on a mile-scale map bills nothing and whispers
+the scale once per arrival: no miles, no clock, no card, and silence after the
+first drag. A sibling of *The party token's linkage is a patch, so the scene's
+adoption stands* (2026-10-09), which lost the adoption to a write race; this
+one never asked.
+
+**Ruled.** The `updateScene` hook that re-adopts on a declaration change also
+re-adopts when the update touches the grid's distance or units
+(`sceneScaleChanged`, travel.mjs), the two things `isExpeditionScale` reads.
+`adoptSceneSystem` is unchanged: a scale that now says nothing (back to feet)
+switches nothing, and a mode that already matches is left alone. Hotfix: no
+migration, no setting, no new surface. `apiVersion` stays 18: the namespace
+gains a pure predicate and nothing released changes shape.
+
+**Rejected.**
+- Any change under `grid`. A cell's pixel size, colour or style says nothing
+  about the scale, and re-adopting there would undo a Judge's own Delve pick
+  on every redraw of the grid.
+- Adopting from the turn engine's scale guard on the next drag. It would also
+  overrule a Delve the Judge picked in the band on an undeclared mile-scale
+  map, which the guard deliberately respects; the guide's Common problems
+  entry answers that route and a party left in Delve by an older build.
+- Adopting at `ready` for every party on an undeclared mile-scale map: the
+  same overruling, once per load.
+
+**Cost.** A Judge who picked Delve on an undeclared mile-scale map and then
+edits its distance or units is switched to the map's system, with the notice,
+as a battlemap declaration change already does. A party left in Delve by any
+other route still bills nothing until the Judge picks Journey in the band or
+re-places the token.
+
+- Walked: a hex scene at the default scale with a party placed on it, then set
+  to six-mile cells. Before the fix two hex drags billed 0 miles, 0 turns and
+  0 s, with one scale whisper. After it, the re-grid switched the party to
+  Wilderness with the scale notice, and one drag billed 4.5 mi and 1.5 h and
+  posted one encounter card (evasion target on it) and one navigation card.
+  Back to feet and a pixel-size change switched nothing, and a Delve picked by
+  hand survived a pixel-size change.

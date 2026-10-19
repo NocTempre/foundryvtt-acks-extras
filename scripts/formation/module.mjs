@@ -1357,9 +1357,11 @@ function adoptSceneSystem(formationId, scene) {
 }
 
 /* A scene's declared system changing is the same event as arriving on it, for
- * every party already standing there. */
+ * every party already standing there; so is its scale changing, which is what
+ * an undeclared map's system is read from. */
 Hooks.on("updateScene", (scene, changes) => {
-  if (!isPrimaryGM() || !foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.battlemap`)) return;
+  if (!isPrimaryGM()) return;
+  if (!foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.battlemap`) && !travel.sceneScaleChanged(changes)) return;
   for (const formation of Object.values(getFormations())) {
     if (formation.sceneId === scene.id) adoptSceneSystem(formation.id, scene);
   }

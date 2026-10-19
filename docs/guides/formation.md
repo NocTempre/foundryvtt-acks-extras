@@ -149,7 +149,8 @@ picked from the selector beside the party's name in the title bar, and a map
 you have set up as a wilderness or a city map
 picks it for you when the party token lands there — as does a map whose cells
 are a mile or more across, which is read as wilderness unless you have said
-otherwise.
+otherwise. Setting a map's grid distance or units after the party is already
+on it counts as landing there.
 
 Every number behind this section is printed in your books and arrives through
 **the importer**. Until you have imported them the strip still works, and says
@@ -1176,6 +1177,14 @@ only itself. Check the console for which step failed.
 
 **A phantom party keeps coming back.** Records whose party actor was deleted are
 pruned at world load. If one survives, its actor still exists somewhere.
+
+**The party crosses a wilderness map and nothing is rolled.** No miles, no
+encounter card, no navigation card: the party is still in Delve, which counts
+turns and bills nothing on a map whose cells are a mile or more across (you
+are told so once, in a whisper). Pick **Journey** in the selector beside the
+party's name, or set the map up as a wilderness map. The encounter card prints
+the party's evasion target but does not roll it; surprise, and whether the
+party may evade, are settled by the system's Surprise Matrix when combat starts.
 
 **Saves look wrong.** The party does not save — `rollPartySave` reads each
 member's own saves.

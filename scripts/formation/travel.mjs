@@ -758,6 +758,16 @@ export function inferredTravelSystem(scene) {
 }
 
 /**
+ * Whether a scene update's `changes` touch what `isExpeditionScale` reads — the
+ * grid's distance or its units — so the scale the map shows may have changed.
+ * A grid's size in pixels, colour or style says nothing about the scale.
+ */
+export function sceneScaleChanged(changes) {
+  const grid = changes?.grid;
+  return !!grid && typeof grid === "object" && ("distance" in grid || "units" in grid);
+}
+
+/**
  * Take the travel system the SCENE calls for (`inferredTravelSystem`) — a
  * dungeon map runs the turn clock, a wilderness map runs the day, a
  * settlement crosses in blocks.

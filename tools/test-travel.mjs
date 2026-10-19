@@ -23,6 +23,7 @@ import {
   patchSettlement,
   pushLog,
   rollWeatherNow,
+  sceneScaleChanged,
   setJourneyMode,
   storedTravelOf,
   traceStep,
@@ -570,6 +571,16 @@ assert.deepEqual(inferredTravelSystem(null), { system: null, source: null }, "no
 const disabledDistrict = mapScene();
 disabledDistrict.regions = [{ behaviors: [{ type: DISTRICT_TYPE, disabled: true }] }];
 assert.equal(inferredTravelSystem(disabledDistrict).system, null, "a disabled district is no evidence");
+
+// A scene update re-reads the map's system when it touches what the scale is
+// read from, and only then.
+assert.equal(sceneScaleChanged({ grid: { distance: 6 } }), true, "a new cell distance can change the scale");
+assert.equal(sceneScaleChanged({ grid: { units: "mi" } }), true, "so can new units");
+assert.equal(sceneScaleChanged({ grid: { distance: 6, units: "mi" } }), true, "and both together");
+assert.equal(sceneScaleChanged({ grid: { size: 150 } }), false, "a cell's size in pixels says nothing about the scale");
+assert.equal(sceneScaleChanged({ grid: { color: "#000000", alpha: 0.5 } }), false, "nor does its drawing");
+assert.equal(sceneScaleChanged({ name: "Renamed" }), false, "an update that leaves the grid alone changes nothing");
+assert.equal(sceneScaleChanged(null), false, "no changes at all is no change");
 
 settings.formations.g1 = { id: "g1", travel: { mode: "delve" } };
 assert.deepEqual(await adoptSceneSystem("g1", mapScene({ id: "Scene.shire", distance: 7, units: "mi" })),
