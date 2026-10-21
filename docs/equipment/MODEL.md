@@ -22,6 +22,12 @@ enums; local-only, never in the repo).
   (`scripts/equipment/roll-wrap.mjs`, the rows computed in `attack-mods.mjs`)
   and holds one libWrapper registration of its own, `computeEncumbrance`; a
   second registration against the same target fails `tools/validate-extra.mjs`.
+- **The non-proficient package's figures are imported.** `attack-mods.mjs`
+  reads the throw a non-proficient character fights with and the further
+  penalty a character of no level takes from the equipment document's
+  `zeroLevelAttackThrow` and `nonProficientUse` tables (`NON_PROFICIENT_TABLES`,
+  declared through `expectTables`); until the Judge's import supplies a figure
+  the row it sizes is left off and only the cancelled attribute bonus applies.
 - **Single responder.** Loadout writes (auto-unequip, effect sync) run for one
   user — the active GM if online, else the actor owner
   (`enforce.primaryResponder`) — and each client serialises its own

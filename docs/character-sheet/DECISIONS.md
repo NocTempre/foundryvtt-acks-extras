@@ -817,3 +817,19 @@ the Judge to set. The location, growth and loss, investments, authority,
 morale effects and each hex's revenue come back on export only from the last
 import's record. A world not relaunched since the domain type arrived keeps
 the page in the notes.
+
+## 2026-10-21 — Fate points answer to the system's Heroic Fate setting
+
+**Ruled.** Every fate-point surface of the sheet — the art row's tag, the
+tags prompt's field and the Effects tab's resource row with its spend and
+award — reads the system's `heroicFate` world setting (`heroicFateOn`,
+`tabs/effects.mjs`) and is left out while it is off; the adjust action
+refuses as well, so a stale button writes nothing. The system's 14.1.0 sheet
+gates its own fate points on the same setting, and a world that plays
+without Heroic Fate should see none on either sheet.
+
+**Rejected.** *A setting of the module's own.* Two switches for one optional
+rule would disagree the first time a Judge flipped one.
+
+**What it cost.** A character's stored fate points are kept, not cleared,
+while the setting is off; turning it back on shows them again.

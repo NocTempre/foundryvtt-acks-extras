@@ -36,17 +36,36 @@ import { classifyWeapon, canOneHand } from "./profiles.mjs";
 import { isWeaponProficient } from "./proficiency.mjs";
 import { hasEffectFlag, collectStringFlags } from "./effects.mjs";
 import { maneuverMods, MANEUVERS, overlayEnabled as maneuverOverlayEnabled } from "./overlays/maneuvers.mjs";
+import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { hasDoc, getDoc } from "../lib/tables.mjs";
 
 /** Sizes eligible for Weapon Finesse (RR 121). */
 const FINESSE_SIZES = [SIZE.TINY, SIZE.SMALL, SIZE.MEDIUM];
 
 /**
- * The attack throw a character fights with while non-proficiently equipped
- * (RR 15): the throw of a character with no class. A character whose own
- * throw is no better loses nothing to it.
+ * The tables of the equipment document the non-proficient package reads
+ * (RR 15): the throw of a character of no level, which the book prints by
+ * hit dice, and the further penalty such a character takes instead.
  */
-export const UNTRAINED_ATTACK_THROW = 11;
+export const NON_PROFICIENT_TABLES = Object.freeze({ attackThrow: "zeroLevelAttackThrow", penalty: "nonProficientUse" });
+
+/**
+ * The figures of the non-proficient package as the Judge's import holds
+ * them; a figure not yet imported is null and the row it sizes is left off.
+ * @returns {{attackThrow: number|null, zeroLevelPenalty: number|null}}
+ */
+export function nonProficientFigures() {
+  const tables = hasDoc(RULEDATA_DOC) ? (getDoc(RULEDATA_DOC)?.tables ?? {}) : {};
+  const read = (table, key) => {
+    const v = Number(tables[table]?.[key]);
+    return Number.isFinite(v) ? v : null;
+  };
+  return {
+    attackThrow: read(NON_PROFICIENT_TABLES.attackThrow, "attackThrow"),
+    zeroLevelPenalty: read(NON_PROFICIENT_TABLES.penalty, "zeroLevelPenalty"),
+  };
+}
 
 /** The system's kinds of attack and damage modes, as its `ATTACK_TYPE` and `DAMAGE_MODE` spell them. */
 export const ATTACK_TYPE = Object.freeze({ melee: "melee", missile: "missile", thrown: "thrown" });
@@ -113,11 +132,16 @@ export function attackThrowRows(actor, item, attackType, { maneuver = null } = {
   const rows = [];
   if (c.nonProficient) {
     const level = num(actor.system?.details?.level ?? 1);
+    const figures = nonProficientFigures();
     let penalty = 0;
-    // 1st level and up attacks with the untrained throw; a character with no
-    // level already fights with it and takes a further −1 instead.
-    if (level >= 1) penalty += num(actor.system?.attack?.throw ?? 10) - UNTRAINED_ATTACK_THROW;
-    else penalty -= 1;
+    // 1st level and up attacks with the throw of a character of no level; one
+    // with no level already fights with it and takes the further penalty
+    // instead. Each figure applies once imported and never before.
+    if (level >= 1) {
+      if (figures.attackThrow != null) penalty += num(actor.system?.attack?.throw ?? 10) - figures.attackThrow;
+    } else if (figures.zeroLevelPenalty != null) {
+      penalty += figures.zeroLevelPenalty;
+    }
     // No attribute BONUS on the throw, whatever the level: a penalty is not a
     // bonus and still applies, so only a positive modifier is cancelled. The
     // system adds STR to a melee throw and DEX to the others.

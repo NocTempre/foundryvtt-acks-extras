@@ -1161,7 +1161,6 @@ export const TABLE_RECIPES = {
         values: [
           { key: "falteringAll", find: "faltering creature suffers a", take: "window", span: 40 },
           { key: "fatiguedAll", find: "fatigued creature suffers a", take: "window", span: 40 },
-          { key: "flankedAgainst", find: "against flanked creatures", take: "window", span: 30 },
         ],
       },
       hiddenProse: {
@@ -1218,16 +1217,6 @@ export const TABLE_RECIPES = {
         values: [
           { key: "shrunkAttack", find: "such that it suffers", take: "window", span: 40 },
           { key: "shrunkDamageFactor", find: "melee attack throws, deals", take: "window", span: 40 },
-        ],
-      },
-      subjacentProse: {
-        shape: "proseValues",
-        book: "rr",
-        printedPage: 514,
-        locate: "Subjacent",
-        column: { xMin: 40, xMax: 300 },
-        values: [
-          { key: "subjacentAgainst", find: "subjacent creatures gain a", take: "window", span: 30 },
         ],
       },
       vulnerableProse: {
@@ -1978,8 +1967,31 @@ export const TABLE_RECIPES = {
     },
   },
   equipment: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 160" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 15, 160; JJ 252" },
     tables: {
+      // Non-proficient use (RR 15, the sidebar): the further penalty a
+      // character of no level takes while equipped with what their class
+      // cannot use. The sidebar names the throw everyone else fights with by
+      // its level and prints no figure; that figure is `zeroLevelAttackThrow`
+      // below. `equipment/attack-mods.mjs` applies both and leaves the throw
+      // alone until they are imported.
+      nonProficientUse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 15,
+        locate: "unusable by their class",
+        values: [{ key: "zeroLevelPenalty", find: "suffer an additional", take: "signed" }],
+      },
+      // The attack throw of a character of no level (JJ 252): the page states
+      // that a 0th-level character's throw follows its hit dice and prints the
+      // figure in its worked example, beside the hit dice it follows from.
+      zeroLevelAttackThrow: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 252,
+        locate: "calculated by HD",
+        values: [{ key: "attackThrow", find: "HD 1/2, attack throw", take: "int" }],
+      },
       scavengedPiercingSlashing: scavengedGrid({
         locate: "Piercing/Slashing Weapons",
         column: { xMin: 40, xMax: 300 },

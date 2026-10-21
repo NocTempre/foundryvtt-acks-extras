@@ -1785,3 +1785,35 @@ the untrained throw read against the actor's `attack.throw`, so a character
 whose throw is no better loses nothing to it where the old model always
 charged the base-bonus difference. A splash weapon thrown still takes no
 Strength, through the same no-damage-bonus row filter as the torch.
+
+## 2026-10-21 — The non-proficient package's figures are imported
+
+**Ruled.** The two figures the package applies — the attack throw a
+non-proficient character of 1st level or higher fights with, and the further
+penalty a character of no level takes instead — are read from the equipment
+document's `zeroLevelAttackThrow` and `nonProficientUse` tables
+(`attack-mods.mjs` `nonProficientFigures`), materialized by the importer from
+the Judge's own books: the Revised Rulebook's sidebar (RR 15) prints the
+penalty, and the Judges Journal's page on 0th-level characters (JJ 252)
+prints the throw, in the worked example beside the rule that a 0th-level
+character's throw follows its hit dice. Until a figure is imported the row it
+sizes is left off; the cancelled attribute bonus, which is procedure and not
+a printed value, applies from the start. The module constant that carried
+the throw (`UNTRAINED_ATTACK_THROW`) is gone, and the tables are declared
+through `expectTables` so the import names them while they are missing.
+
+**Rejected.**
+- *Keeping the constant.* The 2026-10-20 attack-seam ruling flagged it for
+  the IP review as a printed figure; the owner's ruling is that a value in
+  extras is fixed, not waived.
+- *Reading the Monstrous Manual's attack-throw-by-hit-dice grid.* The
+  sidebar says "0th level fighters", the Judges Journal says such a
+  character's throw follows its hit dice, and the grid's row for it would be
+  the module's inference; the Journal's example states the throw outright.
+- *A sample figure in the test fixtures.* The tests register invented sizes
+  and assert the arithmetic; no printed value is written into a tracked file.
+
+**What it cost.** A world that has not run *Reimport One Shelf* with the
+rulebook and the Journal open loses the throw replacement until it does: a
+non-proficient attack is degraded by the cancelled attribute bonus alone, and
+the import's missing-table notice names the two tables.

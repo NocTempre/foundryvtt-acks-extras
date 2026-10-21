@@ -25,6 +25,18 @@ Requires the ACKS II system 14.1.0 or later.
   Blast and Implements saves are read and written under their new names
   everywhere — the character sheet, the Follower Card, the loadout effect,
   the class apply, the PDF export and the importer.
+- **The flank and the subjacent target are chosen in the system's attack
+  dialog.** The Flanked and Subjacent statuses still mark a token and no
+  longer add a row of their own, so a direction picked in the dialog is never
+  counted twice.
+- **Fate points follow the system's Heroic Fate setting.** With it off, the
+  character sheet's art tags, its tags prompt and the Effects tab's resource
+  row leave fate points out.
+- **The non-proficient package reads its figures from the Judge's books.**
+  The throw a non-proficient character fights with and the further penalty a
+  0th-level character takes arrive with the rulebook's equipment tables
+  (RR 15 and the Judges Journal's 0th-level characters); until they are
+  imported only the cancelled attribute bonus degrades the attack.
 
 ### Fixed
 

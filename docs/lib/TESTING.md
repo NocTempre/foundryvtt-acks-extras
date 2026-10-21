@@ -1106,10 +1106,15 @@ interaction.
    Modifier**) and none from the module; the outcome's modifiers hold the
    system's labels alone, and `acksExtras.lib.attack.inFlight(actor)` is null
    afterwards.
-2. **The non-proficient package is one row.** Attack with the battle axe.
-   **Observable:** the card lists **Non-proficient** once, at the character's
-   throw less the untrained throw, less the STR bonus; `system.attack.throw`
-   reads as stored afterwards.
+2. **The non-proficient package is one row.** Attack with the battle axe,
+   first with no equipment tables imported, then after the Books window's
+   *Reimport One Shelf* has materialized the rulebook's `equipment` document
+   (`acksExtras.lib.tables.getDoc("equipment").tables` lists
+   `zeroLevelAttackThrow` and `nonProficientUse`).
+   **Observable:** the card lists **Non-proficient** once each time — the
+   cancelled STR bonus alone before the import, and the character's throw
+   less the imported throw of a character of no level, less the STR bonus,
+   after it; `system.attack.throw` reads as stored afterwards.
 3. **The grip is a damage mode.** With the sword alone in hand, open the
    system's dialog (no `skipDialog`).
    **Observable:** the damage mode opens on the alternate (the sword's 1d8);
@@ -2233,8 +2238,9 @@ The morale page's condition rows are influence's own recipe.
    and Flanked Hero; a Prone Goblin as a Charging Hero; a Paralyzed Goblin in
    melee; a Hidden Goblin with the missile weapon. Then target the Goblin
    token and call `hero.targetAttack(…)`.
-   **Observable:** a "Vulnerable (target)" term; a Flanked term and a
-   Disordered term with its sign reversed; the attacker's and the target's
+   **Observable:** a "Vulnerable (target)" term; a Disordered term with its
+   sign reversed and no Flanked term (the flank is the system dialog's
+   direction choice); the attacker's and the target's
    terms on one throw; `ctx.autoHit` naming Helpless and the card reading an
    automatic hit; a warning that the attack cannot be made, with no term. The
    targeted roll's card line names the target's term.

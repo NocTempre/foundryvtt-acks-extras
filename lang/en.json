@@ -7280,6 +7280,7 @@
   "ACKS-CHARACTER.tools.editDescription": "Edit the description",
   "ACKS-CHARACTER.tools.changeArt": "Change the portrait",
   "ACKS-CHARACTER.tools.editTags": "Edit alignment, title, age and fate points",
+  "ACKS-CHARACTER.tools.editTagsNoFate": "Edit alignment, title and age",
   "ACKS-CHARACTER.tools.ownership": "Ownership",
   "ACKS-CHARACTER.tools.source": "Where this character came from",
   "ACKS-CHARACTER.tools.tweaks": "Tweaks",

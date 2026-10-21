@@ -40,7 +40,6 @@ const VALUES = {
   enlarged: { attack: 4 },
   faltering: { all: -6 },
   fatigued: { all: -2 },
-  flanked: { against: 4 },
   hidden: { against: -8 },
   hungry: { all: -3 },
   incapacitated: { speedFactor: 0.7 },
@@ -51,7 +50,6 @@ const VALUES = {
   restrained: { perCause: -5 },
   shaken: { all: -2 },
   shrunk: { attack: -3, damageFactor: 0.25 },
-  subjacent: { against: 2 },
   vulnerable: { against: 9 },
   webbed: { perCause: -4 },
 };
@@ -233,15 +231,21 @@ ok("the target's own Armor Class row arrives sign-reversed on the attacker's thr
 });
 
 ok("both sides stack on one throw", () => {
-  const math = attack(["charging"], ["flanked", "disordered"]);
-  assert.equal(math.terms.reduce((sum, t) => sum + t.value, 0), 6 + 4 + 3);
+  const math = attack(["charging"], ["clambering", "disordered"]);
+  assert.equal(math.terms.reduce((sum, t) => sum + t.value, 0), 6 + 5 + 3);
 });
 
 ok("a superseded row stands down", () => {
-  assert.equal(termOf(attack([], ["flanked"]), "flanked").value, 4);
-  const both = attack([], ["flanked", "prone"]);
-  assert.equal(termOf(both, "flanked"), undefined);
-  assert.equal(termOf(both, "vulnerable").value, 9);
+  assert.equal(termOf(attack([], ["covered"], "missile"), "covered").value, -3);
+  const both = attack([], ["covered", "coveredGreater"], "missile");
+  assert.equal(termOf(both, "covered"), undefined);
+  assert.equal(termOf(both, "coveredGreater").value, -7);
+});
+
+ok("a flank and a subjacent target carry no row: the system's attack dialog prices both", () => {
+  assert.deepEqual(attack([], ["flanked"]).terms, []);
+  assert.deepEqual(attack([], ["subjacent"]).terms, []);
+  assert.deepEqual(attack([], ["flanked", "subjacent"]).unpriced, []);
 });
 
 ok("a hidden target shrugs off what cannot be aimed, and is harder to strike", () => {

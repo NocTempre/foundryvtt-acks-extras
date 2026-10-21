@@ -128,7 +128,7 @@ eq("a non-string window is skipped", rows({ [rawKey("hungry", "all")]: 4 }).hung
 const signs = rows({
   [rawKey("disordered", "ac")]: "reduced by 6.",
   [rawKey("berserk", "ac")]: "-2 penalty to AC",
-  [rawKey("flanked", "against")]: "gain a +8 bonus",
+  [rawKey("vulnerable", "against")]: "gain a +8 bonus",
   [rawKey("hidden", "against")]: "-5 penalty",
   [rawKey("restrained", "perCause")]: "-3 penalty for each",
   [rawKey("defending", "melee")]: ", whoever it shelters gains a +6 ac against",
@@ -137,7 +137,7 @@ const signs = rows({
 });
 eq("an AC reduced by a figure is that figure negated", signs.disordered.ac, -6);
 eq("a penalty to AC is signed as written", signs.berserk.ac, -2);
-eq("a bonus to attackers is positive", signs.flanked.against, 8);
+eq("a bonus to attackers is positive", signs.vulnerable.against, 8);
 eq("a penalty on attackers is negative", signs.hidden.against, -5);
 eq("a per-cause penalty is negative", signs.restrained.perCause, -3);
 eq("a bonus to AC against one kind of attack is positive", signs.defending.melee, 6);

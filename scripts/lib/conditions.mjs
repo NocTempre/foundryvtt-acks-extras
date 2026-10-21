@@ -203,10 +203,10 @@ export const CONDITIONS = Object.freeze({
       row("save", "all", { per: "stack" }), row("damage", "all", { per: "stack" }),
     ],
   },
-  flanked: {
-    label: "Flanked", img: "icons/svg/target.svg",
-    mods: [row("attack", "against", { side: "against", unless: "vulnerable" })],
-  },
+  // The bonus for attacking a flanked creature is the system's own: the attack
+  // dialog's direction choice carries it, so the status marks the state and
+  // puts no row of its own on the throw.
+  flanked: { label: "Flanked", img: "icons/svg/target.svg" },
   forgetful: { label: "Forgetful", img: "icons/svg/light-off.svg" },
   frightened: { label: "Frightened", img: "icons/svg/terror.svg", forbids: ["attack", "cast", "speak"] },
   frostbitten: { label: "Frostbitten", img: "icons/svg/ice-aura.svg" },
@@ -278,9 +278,9 @@ export const CONDITIONS = Object.freeze({
     forbids: ["forceMarch", "naturalHealing"],
   },
   stuck: { label: "Stuck", img: "icons/svg/cave.svg", implies: ["vulnerable"], forbids: ["attack", "cast", "move"] },
-  subjacent: {
-    label: "Subjacent", img: "icons/svg/mountain.svg", mods: [row("attack", "against", { side: "against" })],
-  },
+  // A subjacent target's modifier is the attack dialog's own checkbox, as the
+  // flank's bonus is its direction choice.
+  subjacent: { label: "Subjacent", img: "icons/svg/mountain.svg" },
   surprised: {
     label: "Surprised", img: "systems/acks/assets/icons/surprised.svg", implies: ["vulnerable"],
     forbids: ["act"],

@@ -38,7 +38,7 @@ export const PRODUCES = Object.freeze({
       "defendProse", "counterchargeProse", "coverMissileProse", "coverBlastProse",
       "berserkProse", "blessedProse", "deafenedProse", "disorderedProse", "enlargedProse",
       "falteringProse", "hiddenProse", "hungryProse", "proneProse", "restrainedProse",
-      "shrunkProse", "subjacentProse", "vulnerableProse",
+      "shrunkProse", "vulnerableProse",
     ],
   },
 });

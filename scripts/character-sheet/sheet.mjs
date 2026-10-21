@@ -32,7 +32,7 @@ import { buildMagicTab } from "./tabs/magic.mjs";
 import { buildTraderTab, bindTraderTab, traderTabShown, TRADER_TAB_ACTIONS } from "../markets/apps/trader-tab.mjs";
 import { buildFollowersTab, wageLineKey } from "./tabs/followers.mjs";
 import { buildNotesTab } from "./tabs/notes.mjs";
-import { buildEffectsTab } from "./tabs/effects.mjs";
+import { buildEffectsTab, heroicFateOn } from "./tabs/effects.mjs";
 import { openCoreWindow } from "../lib/core-windows.mjs";
 import { drawItem, sheatheItem, wearItem, removeItem, prepareTorch } from "../equipment/actions.mjs";
 import { placeItem } from "../equipment/placement.mjs";
@@ -359,7 +359,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
         actor.system?.details?.alignment ? String(actor.system.details.alignment) : null,
         loc("art.level", { n: snap.cls.level }),
         loc("art.age", { n: num(actor.system?.details?.age) }),
-        loc("art.fate", { n: num(actor.system?.details?.fatepoints) }),
+        heroicFateOn() ? loc("art.fate", { n: num(actor.system?.details?.fatepoints) }) : null,
       ].filter(Boolean),
     };
 
@@ -381,7 +381,10 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       art,
       pins: this.#pinBar(rolls, panels.effects),
       panels,
-      sheetTools: frame.rails.tools.map((t) => ({ ...t, title: loc(`tools.${t.key}`) })),
+      sheetTools: frame.rails.tools.map((t) => ({
+        ...t,
+        title: loc(t.key === "editTags" && !heroicFateOn() ? "tools.editTagsNoFate" : `tools.${t.key}`),
+      })),
     });
   }
 
@@ -976,7 +979,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       field("alignment", game.i18n.localize("ACKS.details.alignment"), d.alignment),
       field("title", game.i18n.localize("ACKS.details.title"), d.title),
       field("age", game.i18n.localize("ACKS.details.age"), d.age, "number"),
-      field("fatepoints", game.i18n.localize("ACKS.details.fate"), d.fatepoints, "number"),
+      heroicFateOn() ? field("fatepoints", game.i18n.localize("ACKS.details.fate"), d.fatepoints, "number") : "",
     ].join("");
     const result = await Dialog.prompt({
       classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
@@ -986,7 +989,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
         label: loc("tags.save"),
         callback: (_ev, button) => {
           const f = button.form.elements;
-          return { alignment: f.alignment.value, title: f.title.value, age: f.age.valueAsNumber, fatepoints: f.fatepoints.valueAsNumber };
+          return { alignment: f.alignment.value, title: f.title.value, age: f.age.valueAsNumber, fatepoints: f.fatepoints?.valueAsNumber ?? NaN };
         },
       },
       rejectClose: false,
@@ -1410,6 +1413,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   }
 
   static async #onFateAdjust(event, target) {
+    if (!heroicFateOn()) return;
     const delta = num(target.dataset.delta);
     const cur = num(this.actor.system?.details?.fatepoints);
     await this.actor.update({ "system.details.fatepoints": Math.max(0, cur + delta) });

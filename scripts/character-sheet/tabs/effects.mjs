@@ -16,6 +16,19 @@ import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { CHANGE, changeType } from "../../lib/effect-scan.mjs";
 
 const loc = makeLoc(LANG);
+
+/**
+ * Whether the world plays with fate points: the system's own Heroic Fate
+ * setting, read the same way its sheet reads it. Every fate-point surface of
+ * this sheet answers to it.
+ */
+export function heroicFateOn() {
+  try {
+    return game.settings.get("acks", "heroicFate") !== false;
+  } catch {
+    return true;
+  }
+}
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
 /**
@@ -132,7 +145,9 @@ export function buildEffectsTab(actor) {
     { key: "rations", name: loc("effects.res.rations"), icon: "fa-solid fa-bread-slice", count: stacks(/ration/i), line: loc("effects.res.rationsLine") },
     { key: "oil", name: loc("effects.res.oil"), icon: "fa-solid fa-flask", count: stacks(/\boil\b/i, /military/i), line: loc("effects.res.oilLine") },
     { key: "torches", name: loc("effects.res.torches"), icon: "fa-solid fa-fire-flame-curved", count: stacks(/torch/i), line: loc("effects.res.torchesLine") },
-    { key: "fate", name: game.i18n.localize("ACKS.details.fate"), icon: "fa-solid fa-star", count: num(actor.system?.details?.fatepoints), line: loc("effects.res.fateLine"), adjustable: true },
+    ...(heroicFateOn()
+      ? [{ key: "fate", name: game.i18n.localize("ACKS.details.fate"), icon: "fa-solid fa-star", count: num(actor.system?.details?.fatepoints), line: loc("effects.res.fateLine"), adjustable: true }]
+      : []),
   ].map((r) => ({ ...r, pinned: pins.has(`res:${r.key}`), id: `res:${r.key}` }));
   const pools = poolState(actor);
   if (pools.length) {

@@ -1704,7 +1704,9 @@ are the same throw, and a term carries the condition's name where a moved AC
 would not. A condition the attacker carries can also `expose` its target, and
 a row marked `when: "source"` reaches only the opponent that imposed the
 condition (matched on the effect's `origin`); an effect that names no origin
-reaches everyone.
+reaches everyone. The flank and a subjacent target are choices the system's
+attack dialog prices itself (its direction and its subjacent box), so the
+**Flanked** and **Subjacent** statuses mark the state and carry no row.
 
 **Where each roll takes it.**
 

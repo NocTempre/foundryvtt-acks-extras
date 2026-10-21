@@ -4386,4 +4386,37 @@ Active Effect's change keys.
 - The non-proficient package reads the untrained throw as a module constant
   (`equipment/attack-mods.mjs` `UNTRAINED_ATTACK_THROW`), a printed figure
   carried over from the deleted model and flagged for the IP review.
+  (Superseded 2026-10-21: the figure is imported — `docs/equipment/DECISIONS.md`,
+  "The non-proficient package's figures are imported".)
 - A world's old attack cards keep the shape they were posted with.
+
+## 2026-10-21 — The flank and the subjacent target are the system dialog's choices
+
+*Ruled:* the **Flanked** and **Subjacent** conditions keep their catalogue
+entries (label, image, the palette) and carry no attack row. The system's
+14.1.0 attack dialog prices both itself — a direction (front, flank or rear,
+backstab) and a subjacent-target box — on every throw, so the module's rows
+would count the same bonus a second time whenever the Judge marked the token
+and the attacker chose the direction, which is the natural way to use both.
+
+*Evidence:* core `throw/attack-throw-builder.mjs` adds the direction's and
+the subjacent modifier to every attack it builds, before it asks the models
+for their rows, and the contributors the seam runs cannot see the dialog's
+choice to stand down. The new evidence since the 2026-10-20 ruling that
+moved the module's modifiers onto the system's rows is the dialog itself,
+read in full for the overlap pass.
+
+*Rejected:*
+- *Dropping the row only when the attacker picked a direction.* The modifier
+  ask runs with the attack's kind alone; the direction is known only once the
+  dialog has returned, after the rows are built.
+- *Removing the two statuses.* A token marked Flanked still tells the table
+  what the Judge saw; the status is a state, and the system's dialog prices
+  it.
+
+*Cost:* a Judge who relied on the status alone to price a flank now picks the
+direction in the dialog. The recipe windows that read the two figures off
+the page go with the rows (the assembler reads only the slots a row names,
+and a window nobody reads fails its binding test); a world that imported the
+conditions document before this keeps the two raw keys, and nothing reads
+them.

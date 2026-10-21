@@ -26,7 +26,9 @@ import { registerMountedOverlay } from "./overlays/mounted.mjs";
 import { isWearable } from "../lib/item-model.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { registerManagedEffect, managedDelete } from "../lib/managed-effects.mjs";
+import { expectTables } from "../lib/tables.mjs";
 import { registerEquipmentRepairChecks } from "./repair-checks.mjs";
+import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 
 
 Hooks.once("init", () => {
@@ -40,6 +42,11 @@ Hooks.once("init", () => {
   // A garment declared on either half is declared on both, in the same write.
   registerClothingDeclaration();
   registerEquipmentRepairChecks();
+  // The non-proficient package's figures are imported; the import names
+  // these tables as missing until the Judge's books supply them. The ids are
+  // `attack-mods.mjs` NON_PROFICIENT_TABLES, written as literals because the
+  // producers gate reads this call from source.
+  expectTables(RULEDATA_DOC, ["zeroLevelAttackThrow", "nonProficientUse"]);
 
   // The variation Item sub-type. Wrapped because a throw in `init` leaves the
   // rest of the hook dead, and everything above this line has to survive a

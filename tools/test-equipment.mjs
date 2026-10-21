@@ -253,45 +253,56 @@ let a = rollActor([swordItem, armor("Shield", "shield", { id: "sh" })], { flags:
 check("proficient, trained, no finesse → no per-attack rows", attackThrowRows(a, swordItem, "melee").length === 0);
 
 // --- RAW non-proficient use (RR p. 15): the full package ---------------------
-// A 4th-level character whose own throw is 8, STR +2, non-proficient weapon:
-// attacks with the untrained throw (8 → 11 is −3) and no attribute bonus
-// (−2) = −5.
+// The package's two figures are imported (the equipment document's
+// `zeroLevelAttackThrow` and `nonProficientUse` tables); the sizes below are
+// INVENTED. Before the import only the structural half applies: the
+// attribute bonus is cancelled and the throw is left alone.
 const sysL4 = { details: { level: 4 }, attack: { throw: 8 }, scores: { str: { mod: 2 }, dex: { mod: 1 } } };
 a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: sysL4 });
 let rows = attackThrowRows(a, swordItem, "melee");
-check("non-prof weapon, L4 throw 8 STR+2 → attacks with the untrained throw (−5)", sumRows(rows) === -5);
-// The package is its own labelled row, so the roll reads "−5 Non-proficient"
+check("unimported: the attribute bonus is cancelled and the throw is left alone (−2)", rows.length === 1 && sumRows(rows) === -2);
+const { registerTable, unregisterTable, PRIORITY } = await import(new URL("../lib/tables.mjs", S));
+const FIGURES = { id: "equipment", tables: { zeroLevelAttackThrow: { attackThrow: 12 }, nonProficientUse: { zeroLevelPenalty: -2 } } };
+registerTable(FIGURES, { priority: PRIORITY.WORLD, source: "test" });
+
+// A 4th-level character whose own throw is 8, STR +2, non-proficient weapon:
+// attacks with the imported throw (8 → 12 is −4) and no attribute bonus
+// (−2) = −6.
+rows = attackThrowRows(a, swordItem, "melee");
+check("non-prof weapon, L4 throw 8 STR+2 → attacks with the imported throw (−6)", sumRows(rows) === -6);
+// The package is its own labelled row, so the roll reads "−6 Non-proficient"
 // and never as a penalty the weapon carries.
-check("the package is named as one row of its own", rows.length === 1 && rows[0].label === "Non-proficient" && rows[0].value === -5);
+check("the package is named as one row of its own", rows.length === 1 && rows[0].label === "Non-proficient" && rows[0].value === -6);
 
 // Weapon and style BOTH untrained: one package, never two.
 a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single" }, system: sysL4 });
 rows = attackThrowRows(a, swordItem, "melee");
-check("weapon+style both untrained → one package, not two", rows.length === 1 && sumRows(rows) === -5);
+check("weapon+style both untrained → one package, not two", rows.length === 1 && sumRows(rows) === -6);
 
 // Attribute PENALTIES are not bonuses and still apply.
 a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: { details: { level: 1 }, attack: { throw: 10 }, scores: { str: { mod: -1 }, dex: { mod: 0 } } } });
-check("attribute penalty kept: only the throw is replaced (−1)", sumRows(attackThrowRows(a, swordItem, "melee")) === -1);
+check("attribute penalty kept: only the throw is replaced (−2)", sumRows(attackThrowRows(a, swordItem, "melee")) === -2);
 
-// 0th-level characters still fight as 0th level, at an additional −1.
-a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: { details: { level: 0 }, attack: { throw: 11 }, scores: { str: { mod: 0 }, dex: { mod: 0 } } } });
-check("0th-level non-proficient → additional −1 only", sumRows(attackThrowRows(a, swordItem, "melee")) === -1);
+// 0th-level characters still fight as 0th level, at the imported further penalty.
+a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: { details: { level: 0 }, attack: { throw: 12 }, scores: { str: { mod: 0 }, dex: { mod: 0 } } } });
+check("0th-level non-proficient → the further penalty only (−2)", sumRows(attackThrowRows(a, swordItem, "melee")) === -2);
 
 // Missile attacks strip the DEX bonus instead of STR.
 const bowItem = weapon("Long Bow", { missile: true, melee: false, id: "lb" });
 a = rollActor([bowItem], { flags: { weaponProficiency: "axe", styles: "single,missile" }, system: { details: { level: 1 }, attack: { throw: 10 }, scores: { str: { mod: 3 }, dex: { mod: 2 } } } });
-check("missile: DEX bonus stripped (−1 throw, −2 dex = −3)", sumRows(attackThrowRows(a, bowItem, "missile")) === -3);
+check("missile: DEX bonus stripped (−2 throw, −2 dex = −4)", sumRows(attackThrowRows(a, bowItem, "missile")) === -4);
 
 // Unusable ARMOUR degrades attacks made even with a PROFICIENT weapon —
 // the trigger is the equipped state, not the weapon in hand.
 const sysL1 = { details: { level: 1 }, attack: { throw: 10 }, scores: { str: { mod: 1 }, dex: { mod: 1 } } };
 a = rollActor([swordItem, armor("Plate", "heavy", { id: "pl" })], { flags: { armorMax: "light", styles: "single,twoHanded" }, system: sysL1 });
-check("unusable armour degrades proficient-weapon attacks (−2)", sumRows(attackThrowRows(a, swordItem, "melee")) === -2);
+check("unusable armour degrades proficient-weapon attacks (−3)", sumRows(attackThrowRows(a, swordItem, "melee")) === -3);
 
 // Weapon Finesse is inert while non-proficiently equipped: no attribute
 // grants any bonus, so there is nothing to swap in.
 a = rollActor([swordItem, armor("Plate", "heavy", { id: "pl" })], { flags: { armorMax: "light", styles: "single,twoHanded" }, effects: [marker("finesse", "1")], system: { details: { level: 1 }, attack: { throw: 10 }, scores: { str: { mod: 1 }, dex: { mod: 3 } } } });
-check("Weapon Finesse inert while non-proficiently equipped", sumRows(attackThrowRows(a, swordItem, "melee")) === -2);
+check("Weapon Finesse inert while non-proficiently equipped", sumRows(attackThrowRows(a, swordItem, "melee")) === -3);
+unregisterTable(FIGURES.id, { priority: PRIORITY.WORLD });
 
 // Loadout: the state + full-package advisory violation, and the AC half —
 // "no bonus on ... armor class from attributes" (bonuses only; penalties stay).

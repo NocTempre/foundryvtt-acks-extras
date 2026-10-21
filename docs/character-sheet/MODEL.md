@@ -36,7 +36,8 @@ title bar. XP is typed on the Class tab.
 
 **The art row** carries the two rails around the portrait, the prose column
 (the biography, enriched; the class and alignment as an overline; alignment,
-level, age and fate points as tags) and, for an owner, the sheet-tools rail:
+level, age and — while the system's Heroic Fate setting is on — fate points
+as tags) and, for an owner, the sheet-tools rail:
 description, portrait, tags, ownership, source (a Judge), Tweaks.
 
 **Left rail**: Influence (the influence feature's roller), then the five
@@ -287,7 +288,8 @@ die; what the module manages (the managed effects, locked, each with an open
 control — except the training effect, whose control goes to the Stats tab,
 the one editor of what it holds); the
 resources — rations, oil, torches from the stacks on Equipment, fate points
-with spend and award, and a caster's pools — each with a star; and the
+with spend and award while Heroic Fate is on, and a caster's pools — each
+with a star; and the
 modifiers in force with toggle, edit, delete and an add control. An effect's
 timer row and a modifier's row drag as the effect (core's sheet drag, by the
 row's `data-effect-id`); a light's row does not.
