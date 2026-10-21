@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 11.7.0
 
 Requires the ACKS II system 14.1.0 or later.
 

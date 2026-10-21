@@ -246,6 +246,14 @@ the rest.
 With enforcement on (the default), a character wielding a weapon with no
 Class-Training fighting-style item reads as non-proficient and takes the RR p. 15
 package — attacks as a 0th-level fighter, no attribute bonus to attack or AC.
+The package is a row on the system's own attack card, beside the system's
+attribute row, so the throw's formula and every term in it read on one card.
+
+![](../releases/v11.7.0/equipment-attack-card.png)
+
+*The system's attack card for a battle axe the character is not trained in:
+the STR Modifier row the system adds and the Non-proficient row this module
+adds, summed in the formula above them.*
 
 Weapon and armour lists stay **permissive** when absent: no list means
 proficient, so an unconfigured character is not punished. It is the *style* that
