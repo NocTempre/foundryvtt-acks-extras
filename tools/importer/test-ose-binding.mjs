@@ -84,7 +84,7 @@ ok("converted imports are not marked unconverted", ose.unconverted === false);
 /* --- stage A leaves the arithmetic axes for later ------------------------- */
 
 const stageA = build(FULL, null);
-ok("stage A has no armour class", stageA.system.aac === undefined);
+ok("stage A has no armour class", stageA.system.ac === undefined);
 ok("stage A is marked unconverted", stageA.flags["acks-extras"].ose.unconverted === true);
 // ...but everything that needed no arithmetic still arrives, including extras.
 check("stage A still carries the extras", stageA.flags["acks-extras"].extras.hd, { count: 2, asterisks: 2 });

@@ -230,7 +230,7 @@ const P = {
       return { field, paragraphs: paras.length, lastEndsSentence: /[.!?)"”]$/.test(last) };
     });
     return {
-      aac: s.aac?.value ?? null, hd: s.hp?.hd ?? null, movement: s.movement?.base ?? null,
+      ac: s.ac?.value ?? null, hd: s.hp?.hd ?? null, movement: s.movement?.base ?? null,
       morale: s.details?.morale ?? null, xp: s.details?.xp ?? null, alignment: !!s.details?.alignment, treasure: !!s.details?.treasure?.type,
       saves: Object.keys(s.saves ?? {}).length, vision: (x.vision ?? []).length, types: (x.types ?? []).length,
       weapons: weapons.length, modes,
@@ -426,7 +426,7 @@ try {
   const monsterId = IDS.actors[0];
   const m = held[monsterId] ? await run(gm, P.monster, { uuid: held[monsterId] }) : null;
   note("monster", m);
-  check("3: AC, HD, movement, morale, XP, alignment, treasure, saves, vision and type landed", !!m && m.aac != null && !!m.hd && m.movement > 0 && m.morale != null && m.xp != null && m.alignment && m.treasure && m.saves > 0 && m.vision > 0 && m.types > 0);
+  check("3: AC, HD, movement, morale, XP, alignment, treasure, saves, vision and type landed", !!m && m.ac != null && !!m.hd && m.movement > 0 && m.morale != null && m.xp != null && m.alignment && m.treasure && m.saves > 0 && m.vision > 0 && m.types > 0);
   check("3: three natural attacks in the first mode and the weapon alternative as a second", !!m && m.modes.length === 2 && m.modes[0] === 3 && m.modes[1] === 1, m && { weapons: m.weapons, modes: m.modes });
   check("3: a proficiency list rides as embedded abilities", !!m && m.abilities > 0, m && { abilities: m.abilities });
   check("3: two spoils, each with a value, a weight and effects", !!m && m.spoils.length === 2 && m.spoils.every((s) => s.cost > 0 && s.weight6 != null && s.effects > 0), m && m.spoils);

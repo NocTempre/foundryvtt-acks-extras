@@ -73,11 +73,15 @@ import { registerStorageCleanup, registerStorageRelay, DELETE_POLICY_SETTING } f
 import { registerGroupCleanup } from "./group.mjs";
 import { FollowerCardSheet } from "./apps/follower-card-sheet.mjs";
 import { followerCardContext, renderFollowerCard, FOLLOWER_CARD_TEMPLATE } from "./follower-card.mjs";
-import * as attackLogic from "./attack-logic.mjs";
 import * as damageType from "./damage-type.mjs";
-import { installAttackRollPatch, wrapRollAttack, PRE_ATTACK_HOOK, POST_ATTACK_HOOK } from "./patches/attack-roll.mjs";
-import { drawQuietly, installMathReveal, ROLL_MATH, ROLL_MATH_SETTING } from "./roll-audience.mjs";
-import { installAttackDisplayPatch } from "./patches/attack-display.mjs";
+import {
+  installAttackThrowPatch,
+  addAttackContributor,
+  attackInFlight,
+  PRE_ATTACK_HOOK,
+  POST_ATTACK_HOOK,
+} from "./patches/attack-throw.mjs";
+import { drawQuietly } from "./roll-audience.mjs";
 import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
 import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
@@ -354,15 +358,15 @@ const localImpl = Object.freeze({
     SHEET_KEY: FOLLOWER_SHEET_KEY,
   },
   /**
-   * The corrected attack model (patches/attack-roll.mjs): throw as a MOVING TARGET,
-   * bonuses as an AUDITABLE term stack. `PRE_ATTACK_HOOK` fires with the mutable
-   * ctx (terms / throwTarget / targetAc) — the seam for effect replacer/dedup logic.
+   * The attack seam (patches/attack-throw.mjs) over the system's own attack
+   * throw. `PRE_ATTACK_HOOK` fires with the attack's mutable context as it
+   * begins, `POST_ATTACK_HOOK` with the system's outcome once it has resolved;
+   * `addContributor` registers an object answering the throw's questions
+   * (`attack`, `damage`, `attackTypes`, `damageModes`, `damageFormula`) with
+   * the attack's context in hand; `inFlight(actor)` is that context, or null
+   * outside an attack.
    */
-  attack: { ...attackLogic, PRE_ATTACK_HOOK, POST_ATTACK_HOOK },
-  // Compose a wrapper around the patched rollAttack: libWrapper lets many
-  // packages wrap one method but forbids one package registering twice, and
-  // every feature here is the same package.
-  wrapRollAttack,
+  attack: { PRE_ATTACK_HOOK, POST_ATTACK_HOOK, addContributor: addAttackContributor, inFlight: attackInFlight },
   /**
    * Conditions (conditions.mjs): the catalogue the token palette is built
    * from, and what a creature's conditions do to an attack (`attackMath`, both
@@ -463,37 +467,6 @@ Hooks.once("init", () => {
   foundry.applications.handlebars
     .loadTemplates([FOLLOWER_CARD_TEMPLATE, `modules/${MODULE_ID}/templates/lib/station-chip.hbs`, COIN_ORDER_TEMPLATE])
     .catch((err) => console.warn(`${MODULE_ID} | lib template preload skipped`, err));
-
-  // The attack-roll core patch (patches/attack-roll.mjs; docs/lib/DECISIONS.md,
-  // "2026-08-18 — One owner for the attack roll, and one seam for future
-  // modifiers"). requiresReload: the method is patched once at ready.
-  game.settings.register(MODULE_ID, "attackRollPatch", {
-    name: `${LANG_PREFIX}.settings.attackRollPatch.name`,
-    hint: `${LANG_PREFIX}.settings.attackRollPatch.hint`,
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-    requiresReload: true,
-  });
-
-  // Who reads that attack card's math (roll-audience.mjs; docs/lib/DECISIONS.md,
-  // "Public results, private math"). Read as each card is posted, so a change
-  // takes effect on the next attack with no reload. The Reveal filter is a
-  // render hook: installed here, before the chat log first draws.
-  game.settings.register(MODULE_ID, ROLL_MATH_SETTING, {
-    name: `${LANG_PREFIX}.settings.rollMath.name`,
-    hint: `${LANG_PREFIX}.settings.rollMath.hint`,
-    scope: "world",
-    config: true,
-    type: String,
-    choices: {
-      [ROLL_MATH.owners]: `${LANG_PREFIX}.settings.rollMath.owners`,
-      [ROLL_MATH.everyone]: `${LANG_PREFIX}.settings.rollMath.everyone`,
-    },
-    default: ROLL_MATH.owners,
-  });
-  installMathReveal();
 
   // The Surprise Matrix's results on one card (patches/surprise-card.mjs; docs/lib/DECISIONS.md,
   // "2026-08-11 — Surprise results consolidate onto one card"). Read at click
@@ -873,17 +846,14 @@ Hooks.once("ready", () => {
 
   if (game.system?.id !== "acks") return;
 
-  // Own the attack roll (throw = target, bonuses = auditable stack); see
-  // docs/lib/DECISIONS.md, "2026-08-18 — One owner for the attack roll, and
-  // one seam for future modifiers". At ready: the system's Actor class is
-  // final here.
-  const useAttackModel = game.settings.get(MODULE_ID, "attackRollPatch");
-  installAttackRollPatch(useAttackModel);
-  if (useAttackModel) installAttackDisplayPatch();
+  // The attack seam over the system's own throw; see docs/lib/DECISIONS.md,
+  // "The attack seam rides the system's labelled modifiers". At ready: the
+  // system's Actor class and data models are final here.
+  installAttackThrowPatch();
 
-  // Conditions on every roll they reach. After the attack patch: with the
-  // remodeled roll off, this registers into the chain that install carries.
-  installConditionRolls({ remodeledAttack: useAttackModel });
+  // Conditions on every roll they reach; the attack half registers into the
+  // seam installed above.
+  installConditionRolls();
 
   // The consolidated surprise card; see docs/lib/DECISIONS.md, "2026-08-11 —
   // Surprise results consolidate onto one card".

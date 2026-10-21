@@ -4,8 +4,8 @@
  * Gated by the `overlayScavenged` world setting.
  *
  * Reuse first: every RAW result is expressible in fields core already has —
- * "-N damage" is a damage-string modifier, "-N to attacks" is `system.bonus`,
- * "+N stone encumbrance" is `weight6`, "-N AC" is `aac.value`. So this is a
+ * "-N damage" is a damage-formula modifier, "-N to attacks" is `bonus.attack`,
+ * "+N stone encumbrance" is `weight6`, "-N AC" is `ac.value`. So this is a
  * table plus a planner that returns core-field updates; there is no runtime
  * layer and nothing to intercept.
  *
@@ -18,6 +18,7 @@ import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS } from "../constants.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { bracketRow } from "../../lib/tables.mjs";
+import { attackBonusOf, damageFormulaOf } from "../properties.mjs";
 
 /** d20 → condition. `reroll` means roll twice more and apply both (19-20). */
 export const SCAVENGED_TABLES = Object.freeze({
@@ -228,14 +229,14 @@ export function needsReroll(tableKey, roll) {
 export function toItemUpdates(item, cond) {
   const updates = {};
   if (item.type === ITEM_TYPE.weapon) {
-    if (cond.attack) updates["system.bonus"] = Number(item.system?.bonus ?? 0) + cond.attack;
+    if (cond.attack) updates["system.bonus.attack"] = attackBonusOf(item) + cond.attack;
     if (cond.damage) {
-      const base = String(item.system?.damage ?? "1d6");
-      updates["system.damage"] = `${base}${cond.damage}`; // e.g. "1d6" + "-1"
+      const base = damageFormulaOf(item) || "1d6";
+      updates["system.damage.base.formula"] = `${base}${cond.damage}`; // e.g. "1d6" + "-1"
     }
   }
   if (item.type === ITEM_TYPE.armor && cond.ac) {
-    updates["system.aac.value"] = Math.max(0, Number(item.system?.aac?.value ?? 0) + cond.ac);
+    updates["system.ac.value"] = Math.max(0, Number(item.system?.ac?.value ?? 0) + cond.ac);
   }
   if (cond.encumbrance) {
     updates["system.weight6"] = Math.max(0, Number(item.system?.weight6 ?? 0) + cond.encumbrance * 6);

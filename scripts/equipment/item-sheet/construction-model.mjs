@@ -18,7 +18,7 @@
  * believes rather than from nothing; the strip's Auto chip is the one control
  * that clears a declaration.
  */
-import { SLOT, WEAR_SLOT_ORDER, slug } from "../../lib/vocab.mjs";
+import { SLOT, WEAR_SLOT_ORDER } from "../../lib/vocab.mjs";
 
 /** The three states a chip can be in. */
 export const CHIP = Object.freeze({ ON: "on", AUTO: "auto", OFF: "off" });
@@ -29,8 +29,8 @@ export const HAND_SLOTS = Object.freeze([SLOT.mainHand, SLOT.offHand, SLOT.bothH
 /** The two grips a strip offers; `versatile` is both lit. */
 export const GRIP_CHIPS = Object.freeze(["1h", "2h"]);
 
-/** Core's weapon tags that mirror a boolean field of the same name. */
-export const TAG_FIELDS = Object.freeze(["melee", "missile", "slow"]);
+/** The weapon's uses that are a boolean field of the system's own, beside its `special` properties. */
+export const FIELD_QUALITIES = Object.freeze(["melee", "missile"]);
 
 /**
  * The chips of one strip.
@@ -95,67 +95,43 @@ export function nextGrips({ declared, inferred }, key) {
 }
 
 /**
- * One core tag on an item, as stored (`{title, value}`), matched against a
- * registry entry by any of its three spellings — the key, the label, or the
- * raw registry string — so a tag core's own sheet wrote, one this panel wrote
- * and one typed by hand all read as the same quality.
+ * A weapon's qualities as chips: its two uses, which are boolean fields of
+ * the system's, and its special properties, which live under `special`. Each
+ * is on when the item's field says so.
+ * @param {{key: string, label: string}[]} registry the qualities offered, uses first
+ * @param {object} fields the item's `system`
  */
-const tagMatches = (tag, entry) => {
-  const spellings = new Set([entry.key, entry.label, entry.raw].map(slug).filter(Boolean));
-  return [tag?.title, tag?.value].some((t) => {
-    const s = slug(t);
-    return !!s && spellings.has(s);
-  });
-};
-
-/**
- * Core's registered weapon tags as chips. Three of them mirror a boolean
- * field and read THAT, since the field is what the attack reads; the rest are
- * on when the tag is stored.
- * @param {{key: string, label: string, raw: string}[]} registry
- * @param {{title?: string, value?: string}[]} stored `system.tags`
- * @param {object} fields the item's `system`, for the mirrored booleans
- */
-export function qualityChips(registry, stored, fields = {}) {
+export function qualityChips(registry, fields = {}) {
   return registry.map((entry) => ({
     key: entry.key,
     label: entry.label,
-    on: TAG_FIELDS.includes(entry.key) ? !!fields[entry.key] : stored.some((t) => tagMatches(t, entry)),
+    on: FIELD_QUALITIES.includes(entry.key) ? !!fields[entry.key] : !!fields.special?.[entry.key],
   }));
 }
 
 /**
- * The `system` update one click on a quality writes: the tag list with that
- * quality added or removed, and the boolean it mirrors where it has one. The
- * stored value is the raw registry string, which is what core's own tag icons
- * match on; the title is the label a reader sees.
+ * The `system` update one click on a quality writes: the use's own field, or
+ * the special property's. Null for a key the registry does not offer.
  */
-export function nextQuality(registry, stored, key, on) {
-  const entry = registry.find((e) => e.key === key);
-  if (!entry) return null;
-  const tags = stored.filter((t) => !tagMatches(t, entry));
-  if (on) tags.push({ title: entry.label, value: entry.raw });
-  const update = { tags };
-  if (TAG_FIELDS.includes(key)) update[key] = on;
-  return update;
+export function nextQuality(registry, key, on) {
+  if (!registry.some((e) => e.key === key)) return null;
+  return FIELD_QUALITIES.includes(key) ? { [key]: on } : { special: { [key]: on } };
 }
 
-/** The stored tags no registry entry names — the free text, as displayed. */
-export function otherTags(registry, stored) {
-  return stored
-    .filter((t) => !registry.some((entry) => tagMatches(t, entry)))
-    .map((t) => t.title || t.value)
-    .filter(Boolean);
+/** The item's custom tags as displayed: the system's own set, in its order. */
+export function otherTags(customTags) {
+  return [...(customTags ?? [])].map((t) => String(t ?? "").trim()).filter(Boolean);
 }
 
-/** The tag list with a free-text tag added, or null when there is nothing to add. */
-export function withTag(stored, text) {
+/** The custom tags with one added, or null when there is nothing to add. */
+export function withTag(customTags, text) {
   const title = String(text ?? "").trim();
-  if (!title || stored.some((t) => (t.title || t.value) === title)) return null;
-  return [...stored, { title, value: title }];
+  const stored = otherTags(customTags);
+  if (!title || stored.includes(title)) return null;
+  return [...stored, title];
 }
 
-/** The tag list without the tag displayed as `text`. */
-export function withoutTag(stored, text) {
-  return stored.filter((t) => (t.title || t.value) !== text);
+/** The custom tags without the one displayed as `text`. */
+export function withoutTag(customTags, text) {
+  return otherTags(customTags).filter((t) => t !== text);
 }

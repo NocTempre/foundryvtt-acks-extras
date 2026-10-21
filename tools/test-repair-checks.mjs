@@ -13,7 +13,7 @@
  * titles, names and counts are this file's inventions.
  */
 import assert from "node:assert/strict";
-import { fixCheck, getRepairCheck, scanCheck } from "../scripts/lib/repair-logic.mjs";
+import { fixCheck, getRepairCheck, repairChecks, scanCheck } from "../scripts/lib/repair-logic.mjs";
 import { registerLibRepairChecks } from "../scripts/lib/repair-checks.mjs";
 
 let n = 0;
@@ -415,6 +415,23 @@ t("every scene with a broken stock is mended by its own update", async () => {
   assert.deepEqual(found.map((f) => f.key), ["Scene.s1", "Scene.s2"]);
   await fixCheck(HEX_STOCK, found);
   assert.deepEqual([a.updates.length, b.updates.length], [1, 1]);
+});
+
+t("a legacy change key with no counterpart is listed unfixable, and `only` takes one id as a string", async () => {
+  world();
+  const fx = (name, key) => ({ uuid: `Actor.a1.ActiveEffect.${name}`, name, changes: [{ key, mode: 2, value: "1" }] });
+  game.actors = new Coll({}, [{ name: "Legacy", uuid: "Actor.a1", effects: [fx("ac", "system.aac.mod"), fx("surprise", "system.surprise.mod")], items: [] }]);
+  const LEGACY = getRepairCheck("lib.legacyEffectKeys");
+  const found = (await scanCheck(LEGACY)).findings;
+  assert.deepEqual(
+    found.map((f) => [f.key, f.fixable, f.reason != null]),
+    [
+      ["effect:Actor.a1.ActiveEffect.ac", true, false],
+      ["effect:Actor.a1.ActiveEffect.surprise", false, true],
+    ],
+  );
+  assert.deepEqual(repairChecks({ only: "lib.legacyEffectKeys" }).map((c) => c.id), ["lib.legacyEffectKeys"]);
+  assert.deepEqual(repairChecks({ only: ["lib.legacyEffectKeys"] }).map((c) => c.id), ["lib.legacyEffectKeys"]);
 });
 
 for (const [name, fn] of tests) {

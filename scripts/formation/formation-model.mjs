@@ -1567,7 +1567,7 @@ export async function autoArrange(formation) {
     const roles = member.roles ?? [];
     const equipped = [...items].filter((i) => i.type === ITEM_TYPE.weapon && i.system?.equipped);
     const caster = [...items].some((i) => i.type === ITEM_TYPE.spell);
-    const ac = Number(actor?.system?.aac?.value ?? actor?.system?.aac ?? 0);
+    const ac = Number(actor?.system?.ac?.value ?? 0);
 
     // Pools: front-capable, back-capable, utility (middle).
     let pool;

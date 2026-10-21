@@ -1,5 +1,48 @@
 # Changelog
 
+## Unreleased
+
+Requires the ACKS II system 14.1.0 or later.
+
+### Changed
+
+- **The attack throw is the system's, and the module's modifiers are rows on
+  its card.** The system now lists every modifier of an attack by name in its
+  own dialog and card. A condition in play, a weapon the character is not
+  proficient with, Weapon Finesse, a Follower Card override and a special
+  manoeuvre's penalty each appear there as their own row, and ammunition is
+  spent once the throw resolves. The module no longer posts an attack card of
+  its own, so the *Attack roll* and *Attack card math* settings are gone and
+  the card's math is shown as the system shows it.
+- **The two-handed grip is the system's second damage die.** A medium weapon
+  held in both hands opens the attack dialog on the two-handed die; the item
+  sheet's 1H and 2H rows each open on their own.
+- **Weapon qualities are the system's own.** The item sheet's Qualities strip
+  reads and writes the system's melee, missile and special-property fields,
+  and Other tags are its custom tags. Imported weapons carry their
+  two-handed die as the system's alternate damage.
+- **Field names follow the system**: Armor Class, the attack throw and the
+  Blast and Implements saves are read and written under their new names
+  everywhere — the character sheet, the Follower Card, the loadout effect,
+  the class apply, the PDF export and the importer.
+
+### Fixed
+
+- **An Active Effect written under an old field name is repaired.** The
+  system renames stored values but not an effect's change keys, so an effect
+  on the old Armor Class, attack or save paths stopped applying. The repair
+  window's new check lists each such effect and rewrites its keys; a key with
+  no counterpart is reported.
+- **A trap saved against the Blast save still resolves.** A trap stored
+  under the old key reads under the new one.
+- **`acksExtras.lib.repair.scan({only})` takes one check id as a string.** A
+  bare id used to be spread into its letters and match no check.
+
+### Removed
+
+- The *Attack roll* and *Attack card math* world settings, and the module's
+  own attack card with its secret math section.
+
 ## 11.6.1
 
 ### Added

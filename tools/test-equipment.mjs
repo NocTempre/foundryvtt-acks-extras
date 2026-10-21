@@ -70,7 +70,6 @@ const { buildLoadoutChanges } = await import(new URL("effects.mjs", S));
 const { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, classifyGrantToken } = await import(new URL("proficiency.mjs", S));
 const { buildMacros } = await import(new URL("../tools/pack-data/equipment.mjs", import.meta.url));
 const { MASTERWORK } = await import(new URL("config.mjs", S));
-const { computeAttackMods } = await import(new URL("roll-wrap.mjs", S));
 const { readiedWeaponData, prepareTorch, unarmedStrikeData, masterworkTiersFor, addToDamage, setMasterwork, scavengeItem, clearScavenged, rollScavengedD20s, setShieldVariant } = await import(new URL("actions.mjs", S));
 const { cycleStrap, strapOf } = await import(new URL("overlays/shield-variants.mjs", S));
 const { disguiseItem, revealItem, isDisguised } = await import(new URL("actions.mjs", S));
@@ -84,7 +83,12 @@ const weapon = (name, over = {}) => ({
   type: "weapon",
   // cost + weight6 mirror the system's ItemPhysicalTemplate — every real
   // weapon/armor/item carries them, which is what itemModel.isPhysical tests.
-  system: { equipped: over.equipped ?? true, cost: over.cost ?? 0, weight6: over.w6 ?? 0, damage: over.damage ?? "1d6", melee: over.melee, missile: over.missile, tags: over.tags ?? [] },
+  system: {
+    equipped: over.equipped ?? true, cost: over.cost ?? 0, weight6: over.w6 ?? 0,
+    damage: { base: { formula: over.damage ?? "1d6" }, alternate: { formula: over.alternate ?? "" } },
+    bonus: { attack: 0, damage: 0 }, melee: over.melee, missile: over.missile,
+    customTags: over.tags ?? [], special: over.special ?? {},
+  },
   getFlag: (_m, k) => (over.flags ?? {})[k],
   effects: [],
 });
@@ -92,7 +96,7 @@ const armor = (name, type, over = {}) => ({
   id: over.id ?? name.replace(/\W/g, ""),
   name,
   type: "armor",
-  system: { equipped: over.equipped ?? true, type, aac: { value: over.ac ?? 0 }, cost: over.cost ?? 0, weight6: over.w6 ?? 0 },
+  system: { equipped: over.equipped ?? true, type, ac: { value: over.ac ?? 0 }, cost: over.cost ?? 0, weight6: over.w6 ?? 0 },
   getFlag: (_m, k) => (over.flags ?? {})[k],
   effects: [],
 });
@@ -173,7 +177,7 @@ const specActor = actor([weapon("Sword", { melee: true, id: "sw" }), armor("Shie
 const specLo = getLoadout(specActor);
 check("spec actor → weaponShield active", specLo.activeStyle === "weaponShield" && specLo.styleProficient);
 const changes = buildLoadoutChanges(specActor, specLo);
-const ac = changes.find((c) => c.key === "system.aac.mod");
+const ac = changes.find((c) => c.key === "system.ac.mod");
 check("W&S spec → +1 aac.mod with string type 'add'", ac && Number(ac.value) === 1 && ac.type === "add");
 
 // --- Phase 2: proficiency resolution -----------------------------------------
@@ -231,7 +235,10 @@ check("a profile that parses to no tokens stays permissive", isWeaponProficient(
 const ID = /^[A-Za-z0-9]{16}$/;
 
 // --- Phase 3: per-attack roll modifiers --------------------------------------
-// Actors here need items.get(id); extend the mock minimally.
+// The rows this feature adds to the system's attack throw and damage roll
+// through the lib's attack seam. Actors here need items.get(id); extend the
+// mock minimally.
+const { attackThrowRows, damageRows, damageModesFor, damageFormulaFor, attackTypesFor } = await import(new URL("attack-mods.mjs", S));
 const rollActor = (items, over = {}) => {
   const a = actor(items, over);
   a.items = Object.assign(items.slice(), { get: (id) => items.find((i) => i.id === id) });
@@ -239,122 +246,123 @@ const rollActor = (items, over = {}) => {
   return a;
 };
 const swordItem = weapon("Sword", { melee: true, id: "sw" });
-const attData = (item) => ({ item: { _id: item.id, name: item.name, system: { bonus: 0, damage: "1d6" } }, roll: {} });
+const sumRows = (rows) => rows.reduce((n, r) => n + Number(r.value), 0);
 
-// Proficient + trained style, one-handed with a shield → no per-attack mods.
+// Proficient + trained style, one-handed with a shield → no per-attack rows.
 let a = rollActor([swordItem, armor("Shield", "shield", { id: "sh" })], { flags: { styles: "weaponShield" }, system: { scores: { str: { mod: 1 }, dex: { mod: 1 } } } });
-check("proficient, trained, no finesse → no per-attack mods", computeAttackMods(a, attData(swordItem), { type: "melee" }) === null);
+check("proficient, trained, no finesse → no per-attack rows", attackThrowRows(a, swordItem, "melee").length === 0);
 
 // --- RAW non-proficient use (RR p. 15): the full package ---------------------
-// 4th-level character (bba +2), STR +2, non-proficient weapon: attacks as a
-// 0th-level fighter (bba −1 → delta −3) with no attribute bonus (−2) = −5.
-const sysL4 = { details: { level: 4 }, thac0: { bba: 2 }, scores: { str: { mod: 2 }, dex: { mod: 1 } } };
+// A 4th-level character whose own throw is 8, STR +2, non-proficient weapon:
+// attacks with the untrained throw (8 → 11 is −3) and no attribute bonus
+// (−2) = −5.
+const sysL4 = { details: { level: 4 }, attack: { throw: 8 }, scores: { str: { mod: 2 }, dex: { mod: 1 } } };
 a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: sysL4 });
-let m = computeAttackMods(a, attData(swordItem), { type: "melee" });
-check("non-prof weapon, L4 bba+2 STR+2 → attacks as 0th-level fighter (−5)", m && m.bonusDelta === -5);
-// The package is its own labelled term, so the roll reads "−5 Non-proficient"
+let rows = attackThrowRows(a, swordItem, "melee");
+check("non-prof weapon, L4 throw 8 STR+2 → attacks with the untrained throw (−5)", sumRows(rows) === -5);
+// The package is its own labelled row, so the roll reads "−5 Non-proficient"
 // and never as a penalty the weapon carries.
-check("the package is named as one term of its own", m.terms.length === 1 && m.terms[0].key === "nonProficient" && m.terms[0].value === -5 && m.terms[0].label === "Non-proficient");
+check("the package is named as one row of its own", rows.length === 1 && rows[0].label === "Non-proficient" && rows[0].value === -5);
 
 // Weapon and style BOTH untrained: one package, never two.
 a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single" }, system: sysL4 });
-m = computeAttackMods(a, attData(swordItem), { type: "melee" });
-check("weapon+style both untrained → one package, not two", m.bonusDelta === -5);
-check("…and named once", m.terms.length === 1 && m.terms[0].value === -5);
+rows = attackThrowRows(a, swordItem, "melee");
+check("weapon+style both untrained → one package, not two", rows.length === 1 && sumRows(rows) === -5);
 
 // Attribute PENALTIES are not bonuses and still apply.
-a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: { details: { level: 1 }, thac0: { bba: 0 }, scores: { str: { mod: -1 }, dex: { mod: 0 } } } });
-m = computeAttackMods(a, attData(swordItem), { type: "melee" });
-check("attribute penalty kept: only bba replaced (−1)", m.bonusDelta === -1);
+a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: { details: { level: 1 }, attack: { throw: 10 }, scores: { str: { mod: -1 }, dex: { mod: 0 } } } });
+check("attribute penalty kept: only the throw is replaced (−1)", sumRows(attackThrowRows(a, swordItem, "melee")) === -1);
 
 // 0th-level characters still fight as 0th level, at an additional −1.
-a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: { details: { level: 0 }, thac0: { bba: -1 }, scores: { str: { mod: 0 }, dex: { mod: 0 } } } });
-m = computeAttackMods(a, attData(swordItem), { type: "melee" });
-check("0th-level non-proficient → additional −1 only", m.bonusDelta === -1);
+a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: { details: { level: 0 }, attack: { throw: 11 }, scores: { str: { mod: 0 }, dex: { mod: 0 } } } });
+check("0th-level non-proficient → additional −1 only", sumRows(attackThrowRows(a, swordItem, "melee")) === -1);
 
 // Missile attacks strip the DEX bonus instead of STR.
 const bowItem = weapon("Long Bow", { missile: true, melee: false, id: "lb" });
-a = rollActor([bowItem], { flags: { weaponProficiency: "axe", styles: "single,missile" }, system: { details: { level: 1 }, thac0: { bba: 0 }, scores: { str: { mod: 3 }, dex: { mod: 2 } } } });
-m = computeAttackMods(a, attData(bowItem), { type: "missile" });
-check("missile: DEX bonus stripped (−1 bba, −2 dex = −3)", m.bonusDelta === -3);
+a = rollActor([bowItem], { flags: { weaponProficiency: "axe", styles: "single,missile" }, system: { details: { level: 1 }, attack: { throw: 10 }, scores: { str: { mod: 3 }, dex: { mod: 2 } } } });
+check("missile: DEX bonus stripped (−1 throw, −2 dex = −3)", sumRows(attackThrowRows(a, bowItem, "missile")) === -3);
 
 // Unusable ARMOUR degrades attacks made even with a PROFICIENT weapon —
 // the trigger is the equipped state, not the weapon in hand.
-const sysL1 = { details: { level: 1 }, thac0: { bba: 0 }, scores: { str: { mod: 1 }, dex: { mod: 1 } } };
+const sysL1 = { details: { level: 1 }, attack: { throw: 10 }, scores: { str: { mod: 1 }, dex: { mod: 1 } } };
 a = rollActor([swordItem, armor("Plate", "heavy", { id: "pl" })], { flags: { armorMax: "light", styles: "single,twoHanded" }, system: sysL1 });
-m = computeAttackMods(a, attData(swordItem), { type: "melee" });
-check("unusable armour degrades proficient-weapon attacks (−2)", m && m.bonusDelta === -2);
+check("unusable armour degrades proficient-weapon attacks (−2)", sumRows(attackThrowRows(a, swordItem, "melee")) === -2);
 
 // Weapon Finesse is inert while non-proficiently equipped: no attribute
 // grants any bonus, so there is nothing to swap in.
-a = rollActor([swordItem, armor("Plate", "heavy", { id: "pl" })], { flags: { armorMax: "light", styles: "single,twoHanded" }, effects: [marker("finesse", "1")], system: { details: { level: 1 }, thac0: { bba: 0 }, scores: { str: { mod: 1 }, dex: { mod: 3 } } } });
-m = computeAttackMods(a, attData(swordItem), { type: "melee" });
-check("Weapon Finesse inert while non-proficiently equipped", m.bonusDelta === -2);
+a = rollActor([swordItem, armor("Plate", "heavy", { id: "pl" })], { flags: { armorMax: "light", styles: "single,twoHanded" }, effects: [marker("finesse", "1")], system: { details: { level: 1 }, attack: { throw: 10 }, scores: { str: { mod: 1 }, dex: { mod: 3 } } } });
+check("Weapon Finesse inert while non-proficiently equipped", sumRows(attackThrowRows(a, swordItem, "melee")) === -2);
 
 // Loadout: the state + full-package advisory violation, and the AC half —
 // "no bonus on ... armor class from attributes" (bonuses only; penalties stay).
 const npUse = actor([weapon("Battle Axe", { melee: true, id: "ax" })], { flags: { weaponProficiency: "swordDagger", styles: "single,twoHanded" }, system: { scores: { dex: { mod: 2 } }, details: { level: 3 } } });
 const npUseLo = getLoadout(npUse);
 check("nonProficientUse state + advisory violation, still legal", npUseLo.nonProficientUse === true && npUseLo.violations.some((v) => v.type === VIOLATION.NON_PROFICIENT_USE && v.advisory) && npUseLo.legal);
-const npAcSum = buildLoadoutChanges(npUse, npUseLo).filter((c) => c.key === "system.aac.mod").reduce((s, c) => s + Number(c.value), 0);
+const npAcSum = buildLoadoutChanges(npUse, npUseLo).filter((c) => c.key === "system.ac.mod").reduce((s, c) => s + Number(c.value), 0);
 check("no attribute bonus to AC while non-proficient (DEX +2 cancelled)", npAcSum === -2);
 const npDexPen = actor([weapon("Battle Axe", { melee: true, id: "ax" })], { flags: { weaponProficiency: "swordDagger", styles: "single,twoHanded" }, system: { scores: { dex: { mod: -2 } }, details: { level: 3 } } });
-check("DEX penalty to AC is kept (penalties are not bonuses)", buildLoadoutChanges(npDexPen, getLoadout(npDexPen)).filter((c) => c.key === "system.aac.mod").reduce((s, c) => s + Number(c.value), 0) === 0);
+check("DEX penalty to AC is kept (penalties are not bonuses)", buildLoadoutChanges(npDexPen, getLoadout(npDexPen)).filter((c) => c.key === "system.ac.mod").reduce((s, c) => s + Number(c.value), 0) === 0);
 const profLo = getLoadout(actor([weapon("Sword", { melee: true, id: "sw" })], { flags: { styles: "single,twoHanded" }, system: { scores: { dex: { mod: 2 } }, details: { level: 3 } } }));
 check("fully proficient loadout → no nonProficientUse state", profLo.nonProficientUse === false && !profLo.violations.some((v) => v.type === VIOLATION.NON_PROFICIENT_USE));
 
 // Weapon Finesse swaps STR (+1) for DEX (+3) → net +2.
 a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("finesse", "1")], system: { scores: { str: { mod: 1 }, dex: { mod: 3 } } } });
-m = computeAttackMods(a, attData(swordItem), { type: "melee" });
-check("Weapon Finesse → +(dex−str) = +2", m && m.bonusDelta === 2);
-check("Weapon Finesse is named as an attribute swap, so the roll shows DEX in STR's place",
-  m.terms.some((t) => t.key === "ability" && t.ability === "dex" && t.value === 2));
-check("Weapon Finesse does not apply to missile attacks", computeAttackMods(a, attData(swordItem), { type: "missile" })?.bonusDelta !== 2);
+rows = attackThrowRows(a, swordItem, "melee");
+check("Weapon Finesse → +(dex−str) = +2", sumRows(rows) === 2);
+check("Weapon Finesse is named as its own row, so the roll shows the swap", rows.length === 1 && rows[0].label === "Weapon Finesse" && rows[0].value === 2);
+check("Weapon Finesse does not apply to missile attacks", attackThrowRows(a, swordItem, "missile").length === 0);
 
-// Lone medium sword is wielded two-handed → damage upsized 1d6 → 1d8.
-check("two-handed grip upsizes damage to 1d8", m.damage === "1d8");
+// Lone medium sword is wielded two-handed → the two-handed die is the system's
+// ALTERNATE damage mode, offered first; the alternate the item leaves blank
+// reads the table's 1d8.
+check("two-handed grip offers the alternate mode first", damageModesFor(a, swordItem, "melee", ["base"]).join() === "alternate,base");
+check("the alternate the item leaves blank is the table's two-handed die", damageFormulaFor(swordItem, "alternate", "") === "1d8" && damageFormulaFor(swordItem, "base", "1d6") === "1d6");
+check("an alternate the item states is left alone", damageFormulaFor(swordItem, "alternate", "1d10") === "1d10");
+check("a one-handed grip still offers the alternate, after the base",
+  damageModesFor(rollActor([swordItem, armor("Shield", "shield", { id: "sh" })], { flags: { styles: "weaponShield" } }), swordItem, "melee", ["base"]).join() === "base,alternate");
+check("a caller's asked-for mode goes first", damageModesFor(a, swordItem, "melee", ["base"], "base").join() === "base,alternate");
+check("a missile attack offers no grip", damageModesFor(a, swordItem, "missile", ["base"]).join() === "base");
 
 /* --- Strength of Faith: WIS in place of STR on damage ---------------------- */
 //
-// Core pushes str.mod onto the damage parts, so the wrap contributes the
-// DIFFERENCE. It composes with the two-handed upsize because the upsize has
-// already chosen the die by the time the substitution folds its number in.
+// The system puts STR on the damage roll itself, so this feature contributes
+// the DIFFERENCE as a row of its own, on every roll STR modifies.
+const strRow = (n) => [{ label: "Strength", value: n }];
 const faith = { scores: { str: { mod: 1 }, wis: { mod: 3 } } };
 a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("damageAttribute", "wis")], system: faith });
-m = computeAttackMods(a, attData(swordItem), { type: "melee" });
-check("WIS (+3) replaces STR (+1) on melee damage → +2 on the upsized die", m?.damage === "1d8 + 2");
-check("the substitution is named in the roll's notes", m.notes.some((n) => /WIS instead of STR/.test(n)));
-check("the substitution carries the uncorrected die, so the roll can show WIS in STR's place",
-  m.damageAbility?.attribute === "wis" && m.damageAbility?.base === "1d8");
+rows = damageRows(a, swordItem, "melee", strRow(1));
+check("WIS (+3) replaces STR (+1) on melee damage → a +2 row beside STR's", rows.length === 2 && rows[1].value === 2);
+check("the substitution is named in the roll", /WIS/.test(rows[1].label));
+check("a thrown weapon's damage takes the substitution too", damageRows(a, swordItem, "thrown", strRow(1)).length === 2);
+check("a missile shot, which STR never modifies, takes none", damageRows(a, swordItem, "missile", []).length === 0);
 
-// Equal modifiers cancel to nothing — no note, no phantom "+0".
+// Equal modifiers cancel to nothing — no row, no phantom "+0".
 a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("damageAttribute", "wis")], system: { scores: { str: { mod: 2 }, wis: { mod: 2 } } } });
-check("an equal substitute changes no damage", !/[+-]/.test(computeAttackMods(a, attData(swordItem), { type: "melee" })?.damage ?? ""));
+check("an equal substitute changes no damage", damageRows(a, swordItem, "melee", strRow(2)).length === 1);
 
 // A WORSE substitute still applies: the rule is a replacement, not a bonus.
 a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("damageAttribute", "wis")], system: { scores: { str: { mod: 2 }, wis: { mod: 0 } } } });
-check("a weaker substitute still replaces STR", computeAttackMods(a, attData(swordItem), { type: "melee" })?.damage === "1d8 - 2");
+check("a weaker substitute still replaces STR", sumRows(damageRows(a, swordItem, "melee", strRow(2))) === 0);
 
 // An attribute the actor does not carry is a typo in somebody's ability, not a
 // substitution: leave Strength alone rather than swap in a zero.
 a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("damageAttribute", "cha")], system: faith });
-check("an attribute the actor lacks leaves STR alone", computeAttackMods(a, attData(swordItem), { type: "melee" })?.damage === "1d8");
+check("an attribute the actor lacks leaves STR alone", damageRows(a, swordItem, "melee", strRow(1)).length === 1);
 
-// A torch takes no damage bonus at all, so there is nothing to substitute for.
+// A torch takes no damage bonus at all: the body's bonuses are left off its die.
 const torchItem = weapon("Torch", { melee: true, id: "to", damage: "1d4" });
 a = rollActor([torchItem], { flags: { styles: "single,twoHanded" }, effects: [marker("damageAttribute", "wis")], system: faith });
-check("a no-damage-bonus weapon gains nothing from the substitution",
-  !/\+/.test(computeAttackMods(a, attData(torchItem), { type: "melee" })?.damage ?? ""));
+check("a no-damage-bonus weapon gains nothing from the substitution or from STR", damageRows(a, torchItem, "melee", strRow(1)).length === 0);
 
-// A large weapon has no 1H/2H split → no damage override.
+// A large weapon has no 1H/2H split → no alternate mode.
 const greatItem = weapon("Two-Handed Sword", { melee: true, id: "gs" });
 a = rollActor([greatItem], { flags: { styles: "single,twoHanded" }, system: { scores: { str: { mod: 1 }, dex: { mod: 1 } } } });
-check("large weapon → no damage upsize", (computeAttackMods(a, attData(greatItem), { type: "melee" })?.damage ?? null) === null);
+check("large weapon → no alternate damage mode", damageModesFor(a, greatItem, "melee", ["base"]).join() === "base");
 
 // Dual-wield base +1 is loadout-level (belongs in the effect, not the wrap).
 const dualLo = getLoadout(actor([weapon("Sword", { melee: true, id: "x" }), weapon("Dagger", { melee: true, id: "y" })], { flags: { styles: "dual" } }));
 const dualChanges = buildLoadoutChanges(actor([], { flags: { styles: "dual" } }), dualLo);
-check("dual style → +1 melee attack in the loadout effect", dualChanges.some((c) => c.key === "system.thac0.mod.melee" && Number(c.value) === 1));
+check("dual style → +1 melee attack in the loadout effect", dualChanges.some((c) => c.key === "system.attack.mod.melee" && Number(c.value) === 1));
 
 // The overlays and the effect model are the mechanics under test below,
 // exercised against constructed items rather than a shipped content pack.
@@ -375,7 +383,7 @@ const wsActor = (items, spec = true) =>
 SETTINGS_STATE.overlayShieldVariants = false;
 let lo2 = getLoadout(wsActor([weapon("Sword", { melee: true, id: "s1" }), shieldItem("Buckler", "buckler")], false));
 let ch2 = buildLoadoutChanges(wsActor([], false), lo2);
-check("overlay off → no shield AC correction", !ch2.some((c) => c.key === "system.aac.mod" && Number(c.value) < 0));
+check("overlay off → no shield AC correction", !ch2.some((c) => c.key === "system.ac.mod" && Number(c.value) < 0));
 check("overlay off → strapped shield still costs a hand", lo2.handsUsed === 2);
 
 SETTINGS_STATE.overlayShieldVariants = true;
@@ -383,11 +391,11 @@ SETTINGS_STATE.overlayShieldVariants = true;
 const noSpec = wsActor([weapon("Sword", { melee: true, id: "s2" }), shieldItem("Buckler", "buckler")], false);
 lo2 = getLoadout(noSpec);
 ch2 = buildLoadoutChanges(noSpec, lo2);
-const acDelta = ch2.filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+const acDelta = ch2.filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("buckler without spec → −1 cancels core's shield AC", acDelta === -1);
 // Buckler WITH Specialization: core's +1 stands, plus the spec's own +1.
 const withSpec = wsActor([weapon("Sword", { melee: true, id: "s3" }), shieldItem("Buckler", "buckler")], true);
-const acDelta2 = buildLoadoutChanges(withSpec, getLoadout(withSpec)).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+const acDelta2 = buildLoadoutChanges(withSpec, getLoadout(withSpec)).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("buckler with spec → +1 (spec), core's shield AC kept", acDelta2 === 1);
 
 // A shield strapped on the BACK costs no hand, forms no Weapon & Shield style,
@@ -397,14 +405,14 @@ const backLo = getLoadout(backAct);
 check("back-strapped shield costs no hand", backLo.handShields.length === 0);
 check("back-strapped shield → lone sword still wielded two-handed", backLo.weapons[0].wieldTwoHanded === true);
 check("back-strapped shield → style is not weaponShield", backLo.activeStyle !== "weaponShield");
-const backAC = buildLoadoutChanges(backAct, backLo).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+const backAC = buildLoadoutChanges(backAct, backLo).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("back-strapped shield → ordinary AC cancelled (rear-only is situational)", backAC === -1);
 
 // A phalanx shield in hand behaves normally (+1 core, +1 spec).
 const phal = wsActor([weapon("Sword", { melee: true, id: "s5" }), shieldItem("Phalanx Shield", "phalanx")], true);
 const phalLo = getLoadout(phal);
 check("phalanx in hand → weaponShield style, costs a hand", phalLo.activeStyle === "weaponShield" && phalLo.handsUsed === 2);
-const phalAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+const phalAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("phalanx on foot → core's shield AC stands", phalAC === 1);
 
 // MOUNTED: a phalanx shield cannot be used from horseback (config `noMount`),
@@ -412,17 +420,17 @@ check("phalanx on foot → core's shield AC stands", phalAC === 1);
 // the way the runtime reaches it — through globalThis.acksExtras.lib.
 const priorLib = globalThis.acksExtras.lib;
 globalThis.acksExtras.lib = { mount: { isMounted: (a) => a?.id === phal.id } };
-const phalMountedAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+const phalMountedAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("phalanx MOUNTED → ordinary AC cancelled (RAW: unusable from horseback)", phalMountedAC === 0);
 
 // The rule must be specific to the phalanx: a kite shield is FOR horseback.
 const kite = wsActor([weapon("Sword", { melee: true, id: "s6" }), shieldItem("Kite Shield", "kite")], true);
-const kiteMountedAC = buildLoadoutChanges(kite, getLoadout(kite)).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+const kiteMountedAC = buildLoadoutChanges(kite, getLoadout(kite)).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("kite MOUNTED → unaffected, still grants AC", kiteMountedAC === 1);
 
 // Without acks-lib nothing mounted fires, so behaviour is exactly as before.
 globalThis.acksExtras.lib = undefined;
-const phalNoLibAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+const phalNoLibAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("no acks-lib → mounted rules dormant, phalanx AC stands", phalNoLibAC === 1);
 globalThis.acksExtras.lib = priorLib;
 
@@ -434,18 +442,18 @@ const noStyle = actor([weapon("Sword", { melee: true, id: "s7" }), armor("Shield
 const noStyleLo = getLoadout(noStyle);
 check("shield without the style → shieldStyled false, advisory raised",
   noStyleLo.shieldStyled === false && noStyleLo.violations.some((v) => v.type === VIOLATION.SHIELD_NO_STYLE && v.advisory));
-const noStyleAC = buildLoadoutChanges(noStyle, noStyleLo).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+const noStyleAC = buildLoadoutChanges(noStyle, noStyleLo).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("shield without the style → −1 cancels core's shield AC", noStyleAC === -1);
 const styled = wsActor([weapon("Sword", { melee: true, id: "s8" }), armor("Shield", "shield", { ac: 1, id: "sh8" })], false);
 const styledLo = getLoadout(styled);
 check("shield with the style → shieldStyled, core's shield AC stands untouched",
   styledLo.shieldStyled === true && !styledLo.violations.some((v) => v.type === VIOLATION.SHIELD_NO_STYLE)
-  && !buildLoadoutChanges(styled, styledLo).some((c) => c.key === "system.aac.mod"));
+  && !buildLoadoutChanges(styled, styledLo).some((c) => c.key === "system.ac.mod"));
 const noStyleBuckler = actor([weapon("Sword", { melee: true, id: "s9" }), shieldItem("Buckler", "buckler")], { flags: { styles: "single" } });
-const noStyleBucklerAC = buildLoadoutChanges(noStyleBuckler, getLoadout(noStyleBuckler)).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+const noStyleBucklerAC = buildLoadoutChanges(noStyleBuckler, getLoadout(noStyleBuckler)).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("buckler without style or spec → −1 once, never −2", noStyleBucklerAC === -1);
 const bigShield = actor([weapon("Sword", { melee: true, id: "s10" }), armor("Tower Shield", "shield", { ac: 2, id: "sh10" })], { flags: { styles: "single" } });
-const bigShieldAC = buildLoadoutChanges(bigShield, getLoadout(bigShield)).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+const bigShieldAC = buildLoadoutChanges(bigShield, getLoadout(bigShield)).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("the cut is the shield's own value, whatever it is", bigShieldAC === -2);
 check("no shield in hand → nothing to cut", getLoadout(actor([weapon("Sword", { melee: true, id: "s11" })], { flags: { styles: "single" } })).shieldStyled === true);
 
@@ -690,7 +698,7 @@ check("harness ignores up to 1 stone (only 3/6 available -> -3)", encumbranceDel
 const manySmalls = Array.from({ length: 10 }, (_, i) => gear(`Item ${i}`, 1, { id: `s${i}` }));
 check("harness caps its relief at exactly 1 stone", encumbranceDelta6(withItems([harness, ...manySmalls])) === -6);
 check("harness cannot secure heavy items", encumbranceDelta6(withItems([harness, gear("Anvil", 12, { id: "an" })])) === 0);
-const plateArm = { id: "pl", name: "Plate", type: "armor", system: { cost: 0, equipped: true, type: "heavy", aac: { value: 6 }, weight6: 36 }, getFlag: () => undefined, effects: [] };
+const plateArm = { id: "pl", name: "Plate", type: "armor", system: { cost: 0, equipped: true, type: "heavy", ac: { value: 6 }, weight6: 36 }, getFlag: () => undefined, effects: [] };
 check("harness gives nothing over heavy armour", encumbranceDelta6(withItems([harness, plateArm, ...smalls])) === 0);
 // A light weapon hangs from the harness like any other small piece; a large
 // one is heavy gear. A thrown weapon has left the body and is not relieved twice.
@@ -829,7 +837,7 @@ check("explicit material flag beats the guess", materialOf(gear("Odd Thing", 1, 
 // The Judges Journal's own worked example: Andravus at -18 hp from a fireball
 // risks 3 stone; fire cannot touch his metal flasks of holy water or his coins,
 // so those are skipped rather than consuming the budget.
-const jjShield = { id: "sh", name: "Shield", type: "armor", system: { cost: 0, equipped: true, type: "shield", aac: { value: 1 }, weight6: 6 }, getFlag: (_m, k) => ({ material: "wood" }[k]), effects: [] };
+const jjShield = { id: "sh", name: "Shield", type: "armor", system: { cost: 0, equipped: true, type: "shield", ac: { value: 1 }, weight6: 6 }, getFlag: (_m, k) => ({ material: "wood" }[k]), effects: [] };
 const jjSpear = gear("Spear", 6, { id: "sp", type: "weapon", flags: { material: "wood" } });
 const jjHolyWater = gear("Holy Water", 1, { id: "hw", flags: { material: "metal" } });
 const jjOil = gear("Oil, Military", 1, { id: "oil" });
@@ -873,9 +881,9 @@ check("attack penalty capped at -5", stacked.attack === SCAVENGED_CAPS.attack);
 
 // Reuse first: results become updates to fields CORE already owns.
 const upd = toItemUpdates(weapon("Sword", { melee: true, damage: "1d6" }), accumulate("piercingSlashing", [7]));
-check("-1 damage becomes a core damage string '1d6-1'", upd["system.damage"] === "1d6-1");
+check("-1 damage becomes a core damage string '1d6-1'", upd["system.damage.base.formula"] === "1d6-1");
 const updA = toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulate("armourEquipment", [11]));
-check("-1 AC becomes a core aac.value", updA["system.aac.value"] === 5);
+check("-1 AC becomes a core aac.value", updA["system.ac.value"] === 5);
 const updE = toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulate("armourEquipment", [3]));
 check("+1 stone becomes core weight6 (+6 units)", updE["system.weight6"] === 6);
 check("breaks/cannotSneak recorded as a flag for the Judge", toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulate("armourEquipment", [7]))["flags.acks-extras.scavenged"].cannotSneak === true);
@@ -990,7 +998,7 @@ check("re-naming renames the item and unlocks one rung", (() => { const u = N.re
 check("level-up advances exactly one rung", N.advanceOnLevelUp(hammer({ rec: { unlocked: 2 } }))["flags.acks-extras.named.unlocked"] === 3);
 check("a fully unlocked item does not advance further", N.advanceOnLevelUp(hammer({ rec: { unlocked: 6 } })) === null);
 check("a revealed item does not advance (already full)", N.advanceOnLevelUp(hammer({ rec: { revealed: true } })) === null);
-check("unlocked bonuses map onto core fields", (() => { const u = N.toItemUpdates(hammer({ rec: { unlocked: 6 } }), { bonus: 0, damage: "1d6" }); return u["system.bonus"] === 3 && u["system.damage"] === "1d6+3"; })());
+check("unlocked bonuses map onto core fields", (() => { const u = N.toItemUpdates(hammer({ rec: { unlocked: 6 } }), { bonus: 0, damage: "1d6" }); return u["system.bonus.attack"] === 3 && u["system.damage.base.formula"] === "1d6+3"; })());
 SETTINGS_STATE.overlayNamed = false;
 
 
@@ -1004,14 +1012,14 @@ const basedHammer = (unlocked, equipped = true) => ({
   effects: [],
 });
 const reapplied = N.applyUpdates(basedHammer(6));
-check("re-applying recomputes from base, never compounds", reapplied["system.bonus"] === 3 && reapplied["system.damage"] === "1d6+3");
+check("re-applying recomputes from base, never compounds", reapplied["system.bonus.attack"] === 3 && reapplied["system.damage.base.formula"] === "1d6+3");
 check("captureBase records the mundane stats", (() => { const b = N.captureBase({ system: { bonus: 1, damage: "1d8", weight6: 6 } }); return b.bonus === 1 && b.damage === "1d8" && b.weight6 === 6; })());
 check("renameUpdates captures the base on first naming", N.renameUpdates(hammer({ rec: { unlocked: 0 } }), "Orcbiter", 1)["flags.acks-extras.named.base"] !== undefined);
 
 // A level-up advances only WIELDED named items, one rung, restating bonuses.
 const adv = N.advanceWieldedOnLevelUp({ items: [basedHammer(2)], system: { details: { level: 4 } } });
 check("level-up advances a wielded named item one rung", adv.length === 1 && adv[0].updates["flags.acks-extras.named.unlocked"] === 3);
-check("advancement restates bonuses from base (3 rungs = +2 dmg, +1 hit)", adv[0].updates["system.damage"] === "1d6+2" && adv[0].updates["system.bonus"] === 1);
+check("advancement restates bonuses from base (3 rungs = +2 dmg, +1 hit)", adv[0].updates["system.damage.base.formula"] === "1d6+2" && adv[0].updates["system.bonus.attack"] === 1);
 check("an unwielded named item does not advance", N.advanceWieldedOnLevelUp({ items: [basedHammer(2, false)], system: { details: { level: 4 } } }).length === 0);
 SETTINGS_STATE.overlayNamed = false;
 
@@ -1371,12 +1379,8 @@ check("kill switch reports the style trained", freed.styleProficient);
 check("kill switch raises no proficiency violations",
   !freed.violations.some((v) => ["weaponNotProficient", "armorNotProficient", "styleNotProficient", "nonProficientUse"].includes(v.type)));
 // The attack package is what actually hurt a PC — prove it is gone.
-const freedMods = computeAttackMods(
-  { ...freed, ...unconfigured(), type: "character", system: { details: { level: 5 }, thac0: { bba: 3 }, scores: { str: { mod: 2 } } } },
-  { item: { _id: "hb", system: { bonus: 0 } } },
-  { type: "melee" },
-);
-check("kill switch removes the attack degradation", !freedMods || freedMods.bonusDelta === 0);
+const freedActor = { ...freed, ...unconfigured(), type: "character", system: { details: { level: 5 }, attack: { throw: 7 }, scores: { str: { mod: 2 } } } };
+check("kill switch removes the attack degradation", attackThrowRows(freedActor, freedActor.items.get("hb"), "melee").length === 0);
 
 // Equip limits are NOT proficiency — they must survive the kill switch.
 const overloaded2 = withItems([weapon("Sword", { melee: true, id: "s1" }), weapon("Axe", { melee: true, id: "s2" }), weapon("Mace", { melee: true, id: "s3" })]);
@@ -1610,7 +1614,7 @@ check("a melee sword has no ammo pattern", launcherAmmoPattern(weapon("Sword", {
 // A mutable mock item that records updates/flags (ammo consumption writes them).
 const trackItem = (name, over = {}) => {
   const flags = { ...(over.flags ?? {}) };
-  const sys = { equipped: over.equipped ?? true, melee: over.melee, missile: over.missile, quantity: over.quantity, tags: over.tags ?? [] };
+  const sys = { equipped: over.equipped ?? true, melee: over.melee, missile: over.missile, quantity: over.quantity, customTags: [], special: over.special ?? {} };
   return {
     id: over.id ?? name.replace(/\W/g, ""), name, type: "weapon", system: sys,
     getFlag: (_m, k) => flags[k],
@@ -1673,7 +1677,7 @@ await consumeForAttack(archer, ammoBow, classifyWeapon(ammoBow), { type: "melee"
 check("a melee attack spends no ammo", ammoQuiver._sys.quantity.value === 19);
 
 // A single thrown weapon is MARKED thrown (not destroyed), unequipped.
-const axe = trackItem("Hand Axe", { melee: true, missile: true, tags: [{ title: "Thrown", value: "Thrown" }] });
+const axe = trackItem("Hand Axe", { melee: true, missile: true, special: { thrown: true } });
 const thrower = withItems([axe]);
 await consumeForAttack(thrower, axe, classifyWeapon(axe), { type: "missile" });
 check("a single thrown weapon is marked thrown-away", isThrownAway(axe));
@@ -1681,7 +1685,7 @@ check("a thrown weapon is unequipped", axe._sys.equipped === false);
 check("a thrown weapon is NOT destroyed", !!thrower.items.find((i) => i.id === axe.id));
 
 // A stackable thrown weapon decrements instead of being marked.
-const ammoDarts = trackItem("Darts", { melee: true, missile: true, quantity: { value: 5 }, tags: [{ title: "Thrown", value: "Thrown" }] });
+const ammoDarts = trackItem("Darts", { melee: true, missile: true, quantity: { value: 5 }, special: { thrown: true } });
 await consumeForAttack(withItems([ammoDarts]), ammoDarts, classifyWeapon(ammoDarts), { type: "missile" });
 check("a stackable thrown weapon decrements", ammoDarts._sys.quantity.value === 4);
 check("a stackable thrown weapon is not marked thrown-away", !isThrownAway(ammoDarts));
@@ -1795,50 +1799,49 @@ check("torch classifies as a 1d4 weapon", torchProfile.damage === "1d4");
 check("torch is flagged no-damage-bonus", torchProfile.special?.includes("noDamageBonus"));
 check("torch is throwable", torchProfile.thrown === true);
 
-// A strong character bashing with a torch: the STR damage bonus is stripped.
+// A strong character bashing with a torch: the body's damage bonuses are
+// left off the die.
 const strongTorch = withItems([weapon("Torch", { melee: true, id: "tor1", damage: "1d4" })]);
-strongTorch.system = { scores: { str: { mod: 2 } }, damage: { mod: { melee: 1 } }, details: { level: 1 }, thac0: { bba: 0 } };
-const tmods = computeAttackMods(strongTorch, { item: { _id: "tor1", system: { damage: "1d4", bonus: 0 } } }, { type: "melee" });
-check("torch strips the +3 melee damage bonus", tmods && /1d4 - 3/.test(tmods.damage));
+strongTorch.system = { scores: { str: { mod: 2 } }, damage: { mod: { melee: 1 } }, details: { level: 1 }, attack: { throw: 10 } };
+check("torch strips the melee damage bonuses", damageRows(strongTorch, strongTorch.items.get("tor1"), "melee", [{ label: "Strength", value: 2 }, { label: "Melee", value: 1 }]).length === 0);
 // A WEAK character keeps the penalty (it is not a bonus).
 const weakTorch = withItems([weapon("Torch", { melee: true, id: "tor2", damage: "1d4" })]);
-weakTorch.system = { scores: { str: { mod: -1 } }, damage: { mod: { melee: 0 } }, details: { level: 1 }, thac0: { bba: 0 } };
-const wmods = computeAttackMods(weakTorch, { item: { _id: "tor2", system: { damage: "1d4", bonus: 0 } }, }, { type: "melee" });
-check("torch keeps a STR penalty (not a bonus)", !wmods || !/1d4 -/.test(wmods.damage ?? "1d4"));
+weakTorch.system = { scores: { str: { mod: -1 } }, damage: { mod: { melee: 0 } }, details: { level: 1 }, attack: { throw: 10 } };
+check("torch keeps a STR penalty (not a bonus)", damageRows(weakTorch, weakTorch.items.get("tor2"), "melee", [{ label: "Strength", value: -1 }]).length === 1);
 
 /* ---------------------------------------------------------------------- */
-/*  #2 Thrown weapons add STR to damage in missile mode (RR p298)          */
+/*  #2 Thrown weapons: the throw is offered, and STR on it is the system's  */
 /* ---------------------------------------------------------------------- */
 
 const axeThrower = withItems([weapon("Hand Axe", { melee: true, missile: true, id: "ha1", damage: "1d6" })]);
-axeThrower.system = { scores: { str: { mod: 2 } }, damage: { mod: { missile: 0 } }, details: { level: 1 }, thac0: { bba: 0 } };
-const axeMissile = computeAttackMods(axeThrower, { item: { _id: "ha1", system: { damage: "1d6", bonus: 0 } } }, { type: "missile" });
-check("thrown axe adds STR to damage when hurled", axeMissile && /1d6 \+ 2/.test(axeMissile.damage));
-const axeMelee = computeAttackMods(axeThrower, { item: { _id: "ha1", system: { damage: "1d6", bonus: 0 } } }, { type: "melee" });
-check("thrown axe swung in melee is untouched (core already adds STR)", !axeMelee || !/\+ 2/.test(axeMelee.damage ?? ""));
+axeThrower.system = { scores: { str: { mod: 2 } }, damage: { mod: { missile: 0 } }, details: { level: 1 }, attack: { throw: 10 } };
+const thrownAxe = axeThrower.items.get("ha1");
+check("a hand axe offers the thrown attack beside its own", attackTypesFor(thrownAxe, ["melee", "missile"]).join() === "melee,missile,thrown");
+check("a weapon that already offers the throw is not offered it twice", attackTypesFor(thrownAxe, ["melee", "thrown"]).join() === "melee,thrown");
+check("a sword offers no throw", attackTypesFor(swordItem, ["melee"]).join() === "melee");
+check("a hurled axe's STR is the system's; this feature adds no row", damageRows(axeThrower, thrownAxe, "thrown", [{ label: "Strength", value: 2 }]).length === 1);
 const oilThrower = withItems([weapon("Military Oil", { missile: true, id: "mo1", damage: "1d8" })]);
-oilThrower.system = { scores: { str: { mod: 3 } }, damage: { mod: { missile: 0 } }, details: { level: 1 }, thac0: { bba: 0 } };
-const oilMods = computeAttackMods(oilThrower, { item: { _id: "mo1", system: { damage: "1d8", bonus: 0 } } }, { type: "missile" });
-check("thrown splash oil gains no STR to damage (RAW exclusion)", !oilMods || !/1d8 \+/.test(oilMods.damage ?? ""));
+oilThrower.system = { scores: { str: { mod: 3 } }, damage: { mod: { missile: 0 } }, details: { level: 1 }, attack: { throw: 10 } };
+check("thrown splash oil gains no STR to damage (RAW exclusion)", damageRows(oilThrower, oilThrower.items.get("mo1"), "thrown", [{ label: "Strength", value: 3 }]).length === 0);
 
 /* ---------------------------------------------------------------------- */
 /*  #1 Torch: ready one from the stack into a wielded 1d4 light-weapon      */
 /* ---------------------------------------------------------------------- */
 
 const readied = readiedWeaponData({ name: "Torch", img: "t.png", system: { cost: 1, weight6: 1 } });
-check("readied torch is a 1d4 weapon, melee AND thrown, light", readied.type === "weapon" && readied.system.damage === "1d4" && readied.system.melee && readied.system.missile && readied.flags["acks-extras"].light);
+check("readied torch is a 1d4 weapon, melee AND thrown, light", readied.type === "weapon" && readied.system.damage.base.formula === "1d4" && readied.system.melee && readied.system.missile && readied.flags["acks-extras"].light);
 check("readied torch carries no quantity (a single wielded torch)", readied.system.quantity === undefined);
 check("readiedWeaponData ignores non-preparable gear", readiedWeaponData({ name: "Sword" }) === null && readiedWeaponData({ name: "Lantern" }) === null);
 // Core's own compendium stack is named "Torches (6)": it readies as the
 // table's torch, under the torch's name so the readied weapon classifies as one.
 const coreStack = readiedWeaponData({ name: "Torches (6)", img: "t.png", system: { cost: 1, weight6: 1, quantity: { value: 6 } } });
-check("core's torch stack readies under the torch's own name", coreStack?.type === "weapon" && coreStack.system.damage === "1d4" && coreStack.name === "Torch" && coreStack.flags["acks-extras"].light);
+check("core's torch stack readies under the torch's own name", coreStack?.type === "weapon" && coreStack.system.damage.base.formula === "1d4" && coreStack.name === "Torch" && coreStack.flags["acks-extras"].light);
 
 const created = [];
 const torchActor = { createEmbeddedDocuments: async (_t, arr) => { created.push(...arr); return arr.map((d, i) => ({ ...d, id: "new" + i })); } };
 const stack = { name: "Torch", img: "t.png", system: { quantity: { value: 3 }, cost: 1, weight6: 1 }, deleted: false, getFlag: () => undefined, async update(u) { if (u["system.quantity.value"] != null) this.system.quantity.value = u["system.quantity.value"]; }, async delete() { this.deleted = true; } };
 const madeTorch = await prepareTorch(torchActor, stack);
-check("prepareTorch creates a weapon-torch", madeTorch && madeTorch.type === "weapon" && madeTorch.system.damage === "1d4");
+check("prepareTorch creates a weapon-torch", madeTorch && madeTorch.type === "weapon" && madeTorch.system.damage.base.formula === "1d4");
 check("prepareTorch decrements the stack (3 → 2), keeps it", stack.system.quantity.value === 2 && stack.deleted === false);
 const lastTorch = { name: "Torch", img: "t.png", system: { quantity: { value: 1 } }, deleted: false, getFlag: () => undefined, async update(u) { this.system.quantity.value = u["system.quantity.value"]; }, async delete() { this.deleted = true; } };
 await prepareTorch(torchActor, lastTorch);
@@ -1857,7 +1860,7 @@ check("prepareTorch {draw} readies a torch and draws it", inHand?.name === "Torc
 /* ---------------------------------------------------------------------- */
 
 const unarmed = unarmedStrikeData();
-check("unarmed strike is 1d3 melee-only", unarmed.system.damage === "1d3" && unarmed.system.melee === true && unarmed.system.missile === false);
+check("unarmed strike is 1d3 melee-only", unarmed.system.damage.base.formula === "1d3" && unarmed.system.melee === true && unarmed.system.missile === false);
 
 /* ---------------------------------------------------------------------- */
 /*  #4 Masterwork (RR p159): stamped onto core fields, reversible          */
@@ -1870,7 +1873,11 @@ const mockDoc = (type, sys = {}) => ({
   type,
   name: sys.name ?? "Sword",
   img: sys.img ?? "icons/svg/item-bag.svg",
-  system: { bonus: sys.bonus ?? 0, damage: sys.damage, aac: { value: sys.aac ?? 0 }, weight6: sys.weight6 ?? 0, cost: sys.cost ?? 0, description: sys.description ?? "", tags: [], type: sys.armorType },
+  system: {
+    bonus: { attack: sys.bonus ?? 0, damage: 0 },
+    damage: { base: { formula: sys.damage }, alternate: { formula: "" } },
+    ac: { value: sys.aac ?? 0 }, weight6: sys.weight6 ?? 0, cost: sys.cost ?? 0, description: sys.description ?? "", customTags: [], special: {}, type: sys.armorType,
+  },
   _flags: {},
   getFlag(_m, k) { return this._flags[k]; },
   async setFlag(_m, k, v) { this._flags[k] = v; },
@@ -1893,18 +1900,18 @@ const mockDoc = (type, sys = {}) => ({
 
 const mkWeapon = mockDoc("weapon", { bonus: 0, damage: "1d6", weight6: 6 });
 await setMasterwork(mkWeapon, "weaponBoth");
-check("masterwork +1/+1 stamps both bonus and damage", mkWeapon.system.bonus === 1 && /1d6 \+ 1/.test(mkWeapon.system.damage));
+check("masterwork +1/+1 stamps both bonus and damage", mkWeapon.system.bonus.attack === 1 && /1d6 \+ 1/.test(mkWeapon.system.damage.base.formula));
 check("masterwork records the tier; the baseline is the shared `pristine` flag", mkWeapon._flags.masterwork?.tier === "weaponBoth" && mkWeapon._flags.pristine?.damage === "1d6");
 await setMasterwork(mkWeapon, "weaponToHit");
-check("switching tiers restarts from base (never compounds the die)", mkWeapon.system.bonus === 1 && mkWeapon.system.damage === "1d6");
+check("switching tiers restarts from base (never compounds the die)", mkWeapon.system.bonus.attack === 1 && mkWeapon.system.damage.base.formula === "1d6");
 await setMasterwork(mkWeapon, "none");
-check("masterwork None restores the base exactly and clears both flags", mkWeapon.system.bonus === 0 && mkWeapon.system.damage === "1d6" && mkWeapon._flags.masterwork === undefined && mkWeapon._flags.pristine === undefined);
+check("masterwork None restores the base exactly and clears both flags", mkWeapon.system.bonus.attack === 0 && mkWeapon.system.damage.base.formula === "1d6" && mkWeapon._flags.masterwork === undefined && mkWeapon._flags.pristine === undefined);
 
 const mkArmor = mockDoc("armor", { aac: 4, weight6: 30 });
 await setMasterwork(mkArmor, "armorLight");
-check("masterwork −1 stone reduces weight6 by 6", mkArmor.system.weight6 === 24 && mkArmor.system.aac.value === 4);
+check("masterwork −1 stone reduces weight6 by 6", mkArmor.system.weight6 === 24 && mkArmor.system.ac.value === 4);
 await setMasterwork(mkArmor, "armorAC");
-check("masterwork +1 AC raises aac from base, restores weight", mkArmor.system.aac.value === 5 && mkArmor.system.weight6 === 30);
+check("masterwork +1 AC raises aac from base, restores weight", mkArmor.system.ac.value === 5 && mkArmor.system.weight6 === 30);
 
 /* ---------------------------------------------------------------------- */
 /*  #5 Shield strap cycle — free a hand by slinging (overlay on)           */
@@ -1933,39 +1940,39 @@ check("scavenge single non-reroll result = one d20", JSON.stringify(rollScavenge
 // is normalised ("1d6 - 1") and the snapshot lives under `pristine`.
 const scWeapon = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0 });
 await scavengeItem(scWeapon, { roll: () => 7 }); // "Blade rusty" → -1 damage
-check("scavenge stamps -1 damage onto a weapon", scWeapon.system.damage === "1d6 - 1");
+check("scavenge stamps -1 damage onto a weapon", scWeapon.system.damage.base.formula === "1d6 - 1");
 check("scavenge captures ONE pristine baseline", scWeapon._flags.pristine?.damage === "1d6");
 await clearScavenged(scWeapon);
-check("clearScavenged restores pristine damage, clears both flags", scWeapon.system.damage === "1d6" && scWeapon._flags.scavenged === undefined && scWeapon._flags.pristine === undefined);
+check("clearScavenged restores pristine damage, clears both flags", scWeapon.system.damage.base.formula === "1d6" && scWeapon._flags.scavenged === undefined && scWeapon._flags.pristine === undefined);
 
 // Re-rolling never compounds (always recomputed from pristine).
 await scavengeItem(scWeapon, { roll: () => 7 });
 await scavengeItem(scWeapon, { roll: () => 3 }); // "Blade dented" → -1 damage (from pristine, not -2)
-check("re-scavenge starts from pristine (no compounding)", scWeapon.system.damage === "1d6 - 1");
+check("re-scavenge starts from pristine (no compounding)", scWeapon.system.damage.base.formula === "1d6 - 1");
 await clearScavenged(scWeapon);
 
 // Armour scavenge: -1 AC + a break flag for the Judge.
 const scArmor = mockDoc("armor", { name: "Plate", aac: 6, weight6: 36, armorType: "heavy" });
 await scavengeItem(scArmor, { roll: () => 13 }); // "Dented/rotting" → -1 AC, breaks
-check("scavenge stamps -1 AC on armour + records break flag", scArmor.system.aac.value === 5 && scArmor._flags.scavenged?.breaks === true);
+check("scavenge stamps -1 AC on armour + records break flag", scArmor.system.ac.value === 5 && scArmor._flags.scavenged?.breaks === true);
 
 /* --- LAYERING: masterwork + scavenged must coexist and unwind cleanly ----- */
 // A single baseline, never a per-layer snapshot: two layers snapshotting their
 // own "base" would let clearing one restore the other's delta as if pristine.
 const both = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0, weight6: 6 });
 await setMasterwork(both, "weaponBoth"); // +1 hit, +1 damage
-check("masterwork alone: +1 hit / 1d6 + 1", both.system.bonus === 1 && both.system.damage === "1d6 + 1");
+check("masterwork alone: +1 hit / 1d6 + 1", both.system.bonus.attack === 1 && both.system.damage.base.formula === "1d6 + 1");
 await scavengeItem(both, { roll: () => 7 }); // rusty: -1 damage
-check("masterwork + scavenged cancel numerically to 1d6 (not '1d6 + 1-1')", both.system.damage === "1d6" && both.system.bonus === 1);
+check("masterwork + scavenged cancel numerically to 1d6 (not '1d6 + 1-1')", both.system.damage.base.formula === "1d6" && both.system.bonus.attack === 1);
 await clearScavenged(both);
-check("clearing the condition leaves masterwork intact", both.system.damage === "1d6 + 1" && both.system.bonus === 1);
+check("clearing the condition leaves masterwork intact", both.system.damage.base.formula === "1d6 + 1" && both.system.bonus.attack === 1);
 await scavengeItem(both, { roll: () => 11 }); // off balance: -1 attack
-check("scavenged attack penalty stacks onto the masterwork bonus (net 0)", both.system.bonus === 0);
+check("scavenged attack penalty stacks onto the masterwork bonus (net 0)", both.system.bonus.attack === 0);
 await setMasterwork(both, "none");
-check("clearing masterwork keeps the condition's -1 attack", both.system.bonus === -1 && !!both._flags.scavenged);
+check("clearing masterwork keeps the condition's -1 attack", both.system.bonus.attack === -1 && !!both._flags.scavenged);
 await clearScavenged(both);
 check("clearing the LAST layer restores the item exactly + drops the baseline",
-  both.system.bonus === 0 && both.system.damage === "1d6" && both.system.weight6 === 6 && both._flags.pristine === undefined);
+  both.system.bonus.attack === 0 && both.system.damage.base.formula === "1d6" && both.system.weight6 === 6 && both._flags.pristine === undefined);
 
 // A field typed onto a layered item moves the baseline, so the next layer
 // change keeps it (the item sheet routes a typed layered field through here).
@@ -1976,9 +1983,9 @@ const typedDamage = baseForTyped("damage", "1d8 + 1", deltasOf(typed));
 check("a typed damage backs the layers' delta out of the baseline", typedDamage === "1d8");
 typed._flags.pristine = { ...typed._flags.pristine, damage: typedDamage, bonus: baseForTyped("bonus", 3, deltasOf(typed)) };
 await recomputeItemFields(typed);
-check("the recompute writes back exactly what was typed", typed.system.damage === "1d8 + 1" && typed.system.bonus === 3);
+check("the recompute writes back exactly what was typed", typed.system.damage.base.formula === "1d8 + 1" && typed.system.bonus.attack === 3);
 await setMasterwork(typed, "none");
-check("a later layer change keeps the typed values", typed.system.damage === "1d8" && typed.system.bonus === 2);
+check("a later layer change keeps the typed values", typed.system.damage.base.formula === "1d8" && typed.system.bonus.attack === 2);
 check("a blank damage stays blank; a number that is not one is refused",
   baseForTyped("damage", " ", { damage: 1 }) === "" && baseForTyped("bonus", "x", { bonus: 1 }) === null);
 
@@ -1995,7 +2002,7 @@ check("clearing every layer restores the original price", priced.system.cost ===
 const { layerSummary } = await import(new URL("properties.mjs", S));
 const p3 = mockDoc("armor", { name: "Plate", aac: 6, cost: 60, weight6: 36 });
 await setMasterwork(p3, "armorAC"); // +1 AC, +650gp
-check("armour masterwork: +1 AC and +650gp both land", p3.system.aac.value === 7 && p3.system.cost === 710);
+check("armour masterwork: +1 AC and +650gp both land", p3.system.ac.value === 7 && p3.system.cost === 710);
 check("layerSummary states the new price so the sheet can explain it", /710gp \(was 60gp\)/.test(layerSummary(p3)));
 
 // Shield variant: make any shield a buckler, and clear back to standard.
@@ -2132,10 +2139,10 @@ check("setMaterial(auto) clears the flag → falls back to the guess", matItem._
 
 const magic = mockDoc("weapon", { name: "Flametongue", cost: 5000, damage: "1d6+2" });
 await disguiseItem(magic, { name: "Old Sword", cost: 7, damage: "1d6" });
-check("disguise shows the apparent name/value/damage", magic.name === "Old Sword" && magic.system.cost === 7 && magic.system.damage === "1d6");
+check("disguise shows the apparent name/value/damage", magic.name === "Old Sword" && magic.system.cost === 7 && magic.system.damage.base.formula === "1d6");
 check("disguise keeps the true identity hidden in a flag", isDisguised(magic) && magic._flags.disguise.true.name === "Flametongue" && magic._flags.disguise.true.cost === 5000);
 await revealItem(magic);
-check("reveal restores the true item + clears the disguise", magic.name === "Flametongue" && magic.system.cost === 5000 && magic.system.damage === "1d6+2" && !isDisguised(magic));
+check("reveal restores the true item + clears the disguise", magic.name === "Flametongue" && magic.system.cost === 5000 && magic.system.damage.base.formula === "1d6+2" && !isDisguised(magic));
 
 /* ---------------------------------------------------------------------- */
 /*  The Judge's override: granting gear, and clearing hands to hold it     */

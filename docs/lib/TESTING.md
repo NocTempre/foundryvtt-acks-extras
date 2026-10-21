@@ -105,10 +105,13 @@ report the same symptom.
    `meetsQuantity` of it is true at 4 and false at 3, `scaleQuantity(it, 3)`
    is 12, and `quantity("none")` is null. Pure functions: an in-page eval
    after `ready` proves only that the live namespace carries them.
-7. Attack patch: with the `attackRollPatch` setting on, roll an attack.
-   *Observable:* the patched path runs; turn the setting off and the system's
-   own path returns. An inert setting is a bug.
-   Set the chat's roll mode to *Private GM Roll* and roll again.
+7. Attack seam: roll an attack from a character sheet with a weapon the
+   character is not proficient in, and `Hooks.on("acksLibPostAttackRoll",
+   (actor, ctx, outcome) => …)` armed. *Observable:* the system's own attack
+   card carries a **Non-proficient** row among the throw's modifiers, the
+   hook fires once with the system's outcome, and `acksExtras.lib.attack.inFlight(actor)`
+   is null again afterwards. Set the chat's roll mode to *Private GM Roll* and
+   roll an ability throw.
    *Observable:* the dialog's mode select opens on that mode, not on *Public*,
    and pressing Roll without touching it posts a whispered card. Back on
    *Public*, with Dice So Nice active, roll from the GM seat while a player
@@ -1069,61 +1072,77 @@ them, and deleting Coin Scene takes the tokens. The Bank and the vault each
 post a "was destroyed" card as they go (drive notes); track those and sweep
 again. Confirm the world setting reads what it read before step 17.
 
-## The attack card: a public result, private math
+## The attack seam: rows on the system's card
 
-Covers `patches/attack-roll.mjs`'s outcome/math split, `roll-audience.mjs`
-`mathSection` and `installMathReveal`, the `rollMath` setting, and the damage
-stub the system's apply-damage reads. **Run it from real player seats**: a GM
-owns every actor, so a GM seat sees every secret section and passes every step
-falsely.
+Covers `patches/attack-throw.mjs` — the wrapper on `makeAttackThrow`, on the
+actor model's `getAttackThrowModifiers`/`getDamageModifiers` and on the
+weapon's `getAttackTypes`/`getDamageModes`/`getDamageFormula` — and the three
+contributors that ride it: the conditions' math (`status-effects.mjs`), the
+equipment feature's rows (`equipment/attack-mods.mjs`) and the Follower
+Card's overrides (`apps/follower-card-sheet.mjs`).
 
 **Fixtures (as GM, each id recorded with `api.track`):**
-- "Math Hero", a `character` the Player seat owns, with a melee weapon.
-- "Math Beast", a `monster` only the GM owns, with an attack.
-- A scene holding a token of each, viewed on every seat.
+- "Seam Hero", a `character` the Player seat owns, 2nd level, STR 16, with a
+  sword, a battle axe and a hand axe, proficient in swords only
+  (`flags.acks-extras.weaponProficiency` = `swordDagger`, styles
+  `single,twoHanded`).
+- "Seam Goblin", a `monster` with one attack, placed as a token and targeted.
+- "Seam Guard", a `monster` with a sword item, for the Follower Card.
+- A scene holding a token of each.
 
-Seat A is the Player seat; seat B is a second player seat that owns neither
-actor. Read what a seat was given with
-`game.messages.get(id).renderHTML()` there, and look for
-`section.secret` / `.acks-extras-roll-math` in the result.
+Drive mechanics: arm
+`Hooks.on("acksLibPostAttackRoll", (actor, ctx, outcome) => (window.__seam ??= []).push({ctx, outcome}))`
+on the seat that rolls; `outcome.result.attack.modifiers` carries the throw's
+rows as `{label, value}`, `outcome.attackRoll.formula` the sum, and
+`outcome.damageRoll` the damage. Contributors answer the system's modifier ask
+directly, so `ctx.terms` holds only what a caller passed in (the Follower
+Card's overrides) and is empty for every other attack. `skipDialog: true`
+skips the system's dialog; step 3 keeps it, which is the recipe's one real UI
+interaction.
 
-Drive mechanics: a capture profile opens with the sidebar collapsed, so call
-`ui.sidebar.toggleExpanded()` on each seat before reading its chat log. Read
-`revealable` off the `secret-block` in the log's own element for the message
-(`[data-message-id="<id>"] secret-block`). A player seat targets with
-`canvas.tokens.get(id).setTarget(true, {releaseOthers: true})`; the card
-carries the damage stub only on a hit, so attack until one lands.
-
-1. **The owner rolls.** On seat A, attack with Math Hero's weapon; enter 2 in
-   the dialog and roll.
-   **Observable:** seat B's card shows the outcome word and the damage total
-   (on a hit) and holds no `section.secret`. Seat A's card holds the math — the
-   throw, the terms, the dice — inside a `secret-block` whose Reveal button is
-   offered (`block.revealable === true`).
-2. **Reveal.** Seat A presses Reveal.
-   **Observable:** seat B's card now shows the math.
-3. **A monster attacks.** On the GM seat, attack with Math Beast.
-   **Observable:** seats A and B see the outcome and damage total only; the GM
-   seat sees the math with Reveal offered.
-4. **The GM rolls for the Player's character.** On the GM seat, attack with
-   Math Hero.
-   **Observable:** seat A sees the math with NO Reveal (`revealable === false`:
-   A owns the speaker but did not post), seat B sees none.
-5. **Apply damage from the stub.** On seat A, apply a hit's damage from a card
-   posted by step 3 to Math Hero's token with the system's chat-card control.
-   The scene must be active on seat A and the token controlled
-   (`token.control({releaseOthers: true})`): the system applies damage to the
-   controlled tokens.
-   **Observable:** Math Hero's `system.hp.value` drops by the card's damage
-   total.
-6. **Everyone.** As GM, set *Attack card math* to Everyone and repeat step 3.
-   **Observable:** seat B's card shows the math with no secret section.
-   Set it back to the attacker's owners.
-7. **Dice So Nice.** On seat A, stand a stub in:
-   `game.dice3d = {showForRoll: (...a) => (window.__dsn ??= []).push(a)}`, and
-   attack publicly.
-   **Observable:** each call's fourth argument is `null` (every seat), not `[]`.
-   Delete the stub.
+1. **A proficient attack adds no row.** On seat A,
+   `actor.makeAttackThrow({item: sword, attackType: "melee", skipDialog: true})`.
+   **Observable:** the card's throw lists the system's own rows (**STR
+   Modifier**) and none from the module; the outcome's modifiers hold the
+   system's labels alone, and `acksExtras.lib.attack.inFlight(actor)` is null
+   afterwards.
+2. **The non-proficient package is one row.** Attack with the battle axe.
+   **Observable:** the card lists **Non-proficient** once, at the character's
+   throw less the untrained throw, less the STR bonus; `system.attack.throw`
+   reads as stored afterwards.
+3. **The grip is a damage mode.** With the sword alone in hand, open the
+   system's dialog (no `skipDialog`).
+   **Observable:** the damage mode opens on the alternate (the sword's 1d8);
+   choosing the base rolls 1d6. From the item sheet, the 1H and 2H rows each
+   open on their own mode.
+4. **A condition's row.** Mark Seam Goblin Defending on the palette and attack
+   it with the sword.
+   **Observable:** the card carries the defence's row under the condition's
+   name (**Defending (target)**), signed against the attacker, and the throw's
+   target reads as the system's 10 + AC. No notice is raised: the row sits on
+   the card itself, and the conditions' notice is for a shift a card cannot
+   show.
+5. **A thrown weapon is its own kind.** Equip the hand axe and read
+   `item.system.getAttackTypes()`.
+   **Observable:** `["melee", "thrown"]` — the throw comes from the weapon's
+   profile where the item declares none, and `missile` appears only where the
+   item declares it. Attack with
+   `attackType: "thrown"`: the axe is marked thrown
+   (`flags.acks-extras.thrownAway`) and the post hook fired once.
+6. **The Follower Card's overrides are rows.** Open Seam Guard's Follower
+   Card, set the attack bonus override three above the shown bonus and a
+   target override, and roll the attack from the card.
+   **Observable:** the card's throw carries one row for the bonus override's
+   difference and one for the target's, labelled as overrides; the actor's
+   fields are unchanged.
+7. **A player seat.** Repeat step 2 from seat A, as the owner.
+   **Observable:** the same rows; the throw runs on the player's own client.
+8. **Legacy effect keys.** Create an effect on Seam Hero with the change
+   `system.aac.mod` +1 and run the `lib.legacyEffectKeys` check from the
+   repair window.
+   **Observable:** the finding names the effect; Fix rewrites the key to
+   `system.ac.mod` and `system.ac.value` climbs by one. An effect on
+   `system.surprise.mod` is reported with no fix offered.
 
 **Teardown.** `api.sweepTracked()`; delete the chat messages the steps posted
 by the ids read back from `game.messages`, and the scene.
@@ -2042,8 +2061,8 @@ and `api.sweepTracked()`.
 
 Covers `conditions.mjs`, `status-effects.mjs`, the palette's arrangement
 (`status-palette.mjs`) and its editor (`apps/status-palette-app.mjs`), the
-attack roll's damage terms, damage factor and waived throw
-(`patches/attack-roll.mjs`), the surprise shim (`patches/surprise-card.mjs`),
+attack throw's condition rows and the damage factor and waived throw it is
+told of (`patches/attack-throw.mjs`), the surprise shim (`patches/surprise-card.mjs`),
 the `lib.statusIds` repair check, and the importer's `conditions` document.
 The morale page's condition rows are influence's own recipe.
 
@@ -2091,21 +2110,18 @@ The morale page's condition rows are influence's own recipe.
   `vision: ["blind"]` and nothing else reads as having shadowy senses; a sense
   listed under `otherSenses` with an unknown type gives it none, and a check on
   it then passes for the wrong reason.
-- **Core's own attack roll without touching the world's setting.** The lib
-  reads `attackRollPatch` once, at `ready`. Open a second DevTools socket on
-  the driver's page (`/json/list` on its debugging port,
-  `webSocketDebuggerUrl`), send `Page.addScriptToEvaluateOnNewDocument` with a
-  script that waits for `game.settings` and answers false for that one key,
-  then `location.reload()`. The console line "remodeled attack roll off"
-  confirms the branch. `Hooks.events.acksLibPreAttackRoll` is empty there, so
-  read the throw from the Roll `rollAttack` resolves to: `formula`, and
-  `data.roll.dmg` for the damage parts.
+- **Read an attack's rows from the system's own outcome.** Arm
+  `Hooks.on("acksLibPostAttackRoll", (actor, ctx, outcome) => …)` and roll
+  with `actor.makeAttackThrow({item, attackType: "melee", skipDialog: true})`:
+  `outcome.attackRoll` is the throw rolled, its terms the rows the card
+  names, and `outcome.damageRoll` the damage; `ctx.conditions[attackType]`
+  is the condition math the contributor read for that kind.
 - **Fire the import into a global** and poll it
   (`TEST_ENVIRONMENT.md`, chained waits):
   `cookbookImportTables(["conditions"])` reads one document in seconds.
 - **Roll a save under the system's own key.** Read the keys from
-  `CONFIG.Actor.dataModels.character.schema.fields.saves.fields`: the released
-  system rolls Blast as `breath`. A roll under a key the actor does not have
+  `CONFIG.Actor.dataModels.character.schema.fields.saves.fields` (`blast`,
+  `implements` since acks 14.1.0). A roll under a key the actor does not have
   proves nothing about the throw it was meant to be.
 - **Start a fixture combat with `combat.update({round: 1, turn: 0})`.** The
   system's `startCombat` opens the Surprise Matrix and leaves the round at 0,
@@ -2277,14 +2293,14 @@ The morale page's condition rows are influence's own recipe.
     lifting either brings all four back; Slumbering does it with only
     `slumbering` among the creature's statuses. Hidden turns the lightless
     reading false and hides Hero, and lifting it restores both.
-13. **Core's own attack roll.** Reload with the setting's read stubbed (drive
-    notes) and attack as in steps 3 and 4.
-    **Observable:** the throw's formula carries the summed figure in place of
-    the base attack bonus, and the damage parts carry the damage row; a
-    notification names each term, the target's marked as the target's;
-    `system.thac0.bba` and `system.damage.mod` read as stored afterwards; a
-    scaled damage roll and a waived throw are each told as something the
-    system's roll cannot carry; a ruled-out attack warns and rolls.
+13. **The rows on the system's card.** Attack as in steps 3 and 4 with the
+    post-attack hook armed (drive notes).
+    **Observable:** the system's attack card lists each condition's row under
+    its own name, the target's beside the attacker's, and its damage roll
+    carries the damage row; `system.attack.mod` and `system.damage.mod` read
+    as stored afterwards; a scaled damage roll and a waived throw are each
+    told in a notification as something the throw cannot carry; a ruled-out
+    attack warns and rolls.
 14. **The states of a round on a roll.** With the invented figures: attack a
     Defending Hero as Goblin, and a Defending Goblin with Hero's missile
     weapon; a Goblin Defending with a Shield with the missile weapon, the

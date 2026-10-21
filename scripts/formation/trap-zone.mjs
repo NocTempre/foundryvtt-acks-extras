@@ -722,7 +722,7 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
         emphasis: made ? "success" : "failure",
       });
     } else if (plan.resolution === RESOLUTIONS.attack) {
-      const ac = Number(actor.system?.aac?.value) || 0;
+      const ac = Number(actor.system?.ac?.value) || 0;
       // The ACKS attack throw: 1d20 + modifiers against the throw value plus
       // the target's AC. A crude trap's penalty is already in `attackModifier`.
       const needed = plan.attackThrow + ac;

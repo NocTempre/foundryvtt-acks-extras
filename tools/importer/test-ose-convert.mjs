@@ -66,32 +66,32 @@ check("no bounds gaps", gapFor(noBounds, "morale").reason, "no-bounds");
 
 /* --- armour class: two routes that must agree ---------------------------- */
 
-check("ac from both progressions", run("AC 3 [16], HD 1").system.aac, { value: 6 });
-check("ac unarmoured", run("AC 9 [10], HD 1").system.aac, { value: 0 });
-check("ac negative descending", run("AC -4 [23], HD 1").system.aac, { value: 13 });
-check("ac descending only", run("AC 3, HD 1").system.aac, { value: 6 });
+check("ac from both progressions", run("AC 3 [16], HD 1").system.ac, { value: 6 });
+check("ac unarmoured", run("AC 9 [10], HD 1").system.ac, { value: 0 });
+check("ac negative descending", run("AC -4 [23], HD 1").system.ac, { value: 13 });
+check("ac descending only", run("AC 3, HD 1").system.ac, { value: 6 });
 
 // A sheared extraction disagrees with itself; that must produce nothing.
 const shear = run("AC 3 [19], HD 1");
-ok("disagreement writes no armour class", shear.system.aac === undefined);
+ok("disagreement writes no armour class", shear.system.ac === undefined);
 check("disagreement gaps", gapFor(shear, "ac").reason, "progressions-disagree");
 
 /* --- attack throw -------------------------------------------------------- */
 
-check("attack throw from the bracket", run("AC 5 [14], THAC0 18 [+1]").system.thac0, { throw: 10 });
-check("attack throw of a normal man", run("AC 9 [10], THAC0 19 [0]").system.thac0, { throw: 11 });
+check("attack throw from the bracket", run("AC 5 [14], THAC0 18 [+1]").system.attack, { throw: 10 });
+check("attack throw of a normal man", run("AC 9 [10], THAC0 19 [0]").system.attack, { throw: 11 });
 
 // Without the bracket the guide prints no rule, and OSE's own identity is not
 // one this importer may apply.
 const bareThac0 = run("AC 5 [14], THAC0 18");
-ok("bare THAC0 writes nothing", bareThac0.system.thac0 === undefined);
+ok("bare THAC0 writes nothing", bareThac0.system.attack === undefined);
 check("bare THAC0 gaps", gapFor(bareThac0, "thac0").reason, "no-attack-bonus-printed");
 
 /* --- Stage A: no guide connected ----------------------------------------- */
 
 const stageA = run("AC 3 [16], HD 2 (9hp), THAC0 18 [+1], MV 120 (40), SV D11 W12 P10 B14 S13 (2), ML 7, AL Lawful", null);
-ok("stage A writes no armour class", stageA.system.aac === undefined);
-ok("stage A writes no attack throw", stageA.system.thac0 === undefined);
+ok("stage A writes no armour class", stageA.system.ac === undefined);
+ok("stage A writes no attack throw", stageA.system.attack === undefined);
 check("stage A ac gap", gapFor(stageA, "ac").reason, "needs-guide");
 check("stage A thac0 gap", gapFor(stageA, "thac0").reason, "needs-guide");
 // Everything that needs no arithmetic still lands.
@@ -179,7 +179,7 @@ ok("wilderness is left unset", na.system.details.appearing.w === undefined);
 
 const items = run("AC 5 [14], Att 2 × claw (1d4) or 1 × bite (1d8)").items;
 check("one item per mode", items.map((i) => i.name), ["Claw", "Bite"]);
-check("damage carries over", items.map((i) => i.system.damage), ["1d4", "1d8"]);
+check("damage carries over", items.map((i) => i.system.damage.base.formula), ["1d4", "1d8"]);
 
 /* --- lineage ------------------------------------------------------------- */
 
@@ -216,8 +216,8 @@ ok(
   const actor = { flags: { "acks-extras": { ose: rec } } };
 
   const first = reconversionFor(actor, K, BOUNDS);
-  ok("stage B fills the armour class", first?.["system.aac.value"] === 6, JSON.stringify(first));
-  ok("stage B fills the attack throw", first?.["system.thac0.throw"] === 10, JSON.stringify(first));
+  ok("stage B fills the armour class", first?.["system.ac.value"] === 6, JSON.stringify(first));
+  ok("stage B fills the attack throw", first?.["system.attack.throw"] === 10, JSON.stringify(first));
 
   const done = { flags: { "acks-extras": { ose: { ...rec, unconverted: false, constants: K } } } };
   ok("a second pass does nothing", reconversionFor(done, K, BOUNDS) === null);
@@ -283,11 +283,11 @@ try {
   const line = "Level 2 AC 12 HP 2d8 (9) Saves D12 R13 H14 B15 S16 Att 2 hooves (+1, 1d4) Speed 80 Morale 7 XP 35";
   const dw = convertOse(parseOseStatline(line, DOLMENWOOD).fields, K, { lineage: "dolmenwood", moraleBounds: BOUNDS });
   const os = convertOse(parseOseStatline(line, DOLMENWOOD).fields, K, { lineage: "ose", moraleBounds: BOUNDS });
-  check("a bare ac converts by the ASCENDING route under Dolmenwood", dw.system.aac, { value: 12 - K.acAscending });
-  check("and by the descending route under OSE", os.system.aac, { value: K.acDescending - 12 });
-  ok("which are not the same answer", dw.system.aac.value !== os.system.aac.value);
+  check("a bare ac converts by the ASCENDING route under Dolmenwood", dw.system.ac, { value: 12 - K.acAscending });
+  check("and by the descending route under OSE", os.system.ac, { value: K.acDescending - 12 });
+  ok("which are not the same answer", dw.system.ac.value !== os.system.ac.value);
 
-  check("the attack bonus printed inside the attack reaches the throw", dw.system.thac0, { throw: K.attackThrow - 1 });
+  check("the attack bonus printed inside the attack reaches the throw", dw.system.attack, { throw: K.attackThrow - 1 });
   check("morale still maps through the endpoints", dw.system.details.morale, 7 - 8);
   check("the speed label lands on the base movement", dw.system.movement.base, 80);
   // The die is transcribed, never assumed: "HP 1d4" must not be rolled on a d8

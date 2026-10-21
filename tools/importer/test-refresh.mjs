@@ -164,12 +164,12 @@ check("a build that carries rows writes them", spellRows.update.flags[M].spell.e
 const spellLost = refreshPlan({ ...spellSource, flags: { [M]: {} } }, spellBuilt, REPAIR.spell);
 check("nothing stored, nothing kept", spellLost.update.flags[M].spell.effects.length === 0);
 const thrown = refreshPlan(
-  { type: "weapon", system: { melee: true, missile: true, damage: "1d4" } },
-  { type: "weapon", system: { melee: true, missile: false, damage: "1d6" } },
+  { type: "weapon", system: { melee: true, missile: true, damage: { base: { formula: "1d4" } } } },
+  { type: "weapon", system: { melee: true, missile: false, damage: { base: { formula: "1d6" } } } },
   REPAIR.equipment,
 );
 check("a weapon keeps its melee and missile", !("melee" in thrown.update.system) && !("missile" in thrown.update.system));
-check("and takes its damage", thrown.update.system.damage === "1d6");
+check("and takes its damage", thrown.update.system.damage.base.formula === "1d6");
 check("a read value is", gear.update.system.cost === 6);
 check("an equipment marker is the binder's", gear.update.flags[M].light === true);
 check("only the listed flags are written", !("minted" in gear.update.flags[M]));

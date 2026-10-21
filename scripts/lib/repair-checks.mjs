@@ -14,6 +14,7 @@ import { bundleRows, isPurchaseBundle, unpackStage } from "./bundles-logic.mjs";
 import { ATTACH_FLAG, ATTACH_ROLES, attachmentOf } from "./attachment.mjs";
 import { MOUNT_FLAG, RIDER_FLAG } from "./mount.mjs";
 import { resolveActorSync } from "./storage.mjs";
+import { isLegacyChangeKey, migrateChangeKey } from "./actor-compat.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 const key = (name) => `${LANG_PREFIX}.repair.check.${name}`;
@@ -97,6 +98,28 @@ function residueOn(doc, label, out) {
     const fxScopes = OLD_MODULES.filter((s) => fx.flags?.[s] !== undefined);
     if (fxScopes.length) out.push({ key: `flags:${fx.uuid}`, uuid: fx.uuid, name: fxLabel, detail: loc("repair.check.mergeResidue.flags", { scopes: fxScopes.join(", ") }) });
   }
+}
+
+/** Every effect a world actor or its items carry, labelled as the findings print them. */
+function* actorEffects() {
+  for (const actor of worldActors()) {
+    for (const fx of actor.effects ?? []) yield [fx, `${actor.name} → ${fx.name}`];
+    for (const item of actor.items ?? []) {
+      for (const fx of item.effects ?? []) yield [fx, `${actor.name} → ${item.name} → ${fx.name}`];
+    }
+  }
+  for (const item of game.items ?? []) {
+    for (const fx of item.effects ?? []) yield [fx, `${item.name} → ${fx.name}`];
+  }
+}
+
+/** Rewrite an effect's changes from the system's earlier field names; a key with no counterpart stays. */
+async function rewriteLegacyChanges(fx) {
+  const changes = (fx.changes ?? []).map((c) => {
+    const key = migrateChangeKey(c.key);
+    return key ? { ...c, key } : c;
+  });
+  await fx.update({ changes });
 }
 
 /** Registers lib's checks. Called once, at `init`. */
@@ -187,6 +210,33 @@ export function registerLibRepairChecks() {
       return out;
     },
     fix: (findings) => fixEach(findings, async (f) => (await fromUuid(f.uuid))?.unsetFlag(MODULE_ID, f.flag)),
+  });
+
+  registerRepairCheck({
+    id: "lib.legacyEffectKeys",
+    label: key("legacyEffectKeys.label"),
+    hint: key("legacyEffectKeys.hint"),
+    order: 35,
+    scan: () => {
+      const out = [];
+      for (const [fx, label] of actorEffects()) {
+        const legacy = (fx.changes ?? []).map((c) => String(c.key ?? "")).filter(isLegacyChangeKey);
+        if (!legacy.length) continue;
+        const fixable = legacy.filter((k) => migrateChangeKey(k));
+        const stuck = legacy.filter((k) => !migrateChangeKey(k));
+        out.push({
+          key: `effect:${fx.uuid}`,
+          uuid: fx.uuid,
+          name: label,
+          detail: loc("repair.check.legacyEffectKeys.detail", { keys: legacy.join(", ") }),
+          // A finding with nothing to rewrite is listed only: it declares
+          // itself unfixable, or the window offers a Fix that reports failure.
+          ...(fixable.length ? {} : { fixable: false, reason: loc("repair.check.legacyEffectKeys.noCounterpart", { keys: stuck.join(", ") }) }),
+        });
+      }
+      return out;
+    },
+    fix: (findings) => fixEach(findings, async (f) => rewriteLegacyChanges(await fromUuid(f.uuid))),
   });
 
   registerRepairCheck({

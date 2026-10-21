@@ -113,7 +113,8 @@ function typeShortOf(item, baseType) {
 /** Human-readable tags: the variations, the qualities, the base type. */
 function tagsOf(item, { gm }) {
   const out = [];
-  for (const t of item.system?.tags ?? []) if (t?.title || t?.value) out.push(t.title || t.value);
+  for (const [key, on] of Object.entries(item.system?.special ?? {})) if (on) out.push(game.i18n.localize(`ACKS.weapon.label.${key}`));
+  for (const t of item.system?.customTags ?? []) if (String(t ?? "").trim()) out.push(String(t).trim());
   for (const v of variationItemsOf(item)) if (gm || !v.system?.hidden) out.push(v.name);
   const tier = masterworkTierOf(item);
   if (tier && tier !== "none") out.push(game.i18n.localize("ACKS-EQUIPMENT.props.masterwork"));
@@ -275,8 +276,10 @@ function recordOf(item) {
       // qualities, and the Construction panel's Qualities strip writes the
       // field and the tag together (`construction-model.mjs` TAG_FIELDS).
       return [
-        { name: "system.damage", label: loc("itemSheet.field.damage"), type: "text", value: sys.damage ?? "", width: "sm" },
-        { name: "system.bonus", label: loc("itemSheet.field.bonus"), type: "number", value: sys.bonus ?? 0, width: "xs" },
+        { name: "system.damage.base.formula", label: loc("itemSheet.field.damage"), type: "text", value: sys.damage?.base?.formula ?? "", width: "sm" },
+        { name: "system.damage.alternate.formula", label: loc("itemSheet.field.damageAlternate"), type: "text", value: sys.damage?.alternate?.formula ?? "", width: "sm" },
+        { name: "system.bonus.attack", label: loc("itemSheet.field.bonus"), type: "number", value: sys.bonus?.attack ?? 0, width: "xs" },
+        { name: "system.bonus.damage", label: loc("itemSheet.field.damageBonus"), type: "number", value: sys.bonus?.damage ?? 0, width: "xs" },
         { name: "system.range.short", label: loc("itemSheet.field.rangeShort"), type: "number", value: sys.range?.short ?? 0, width: "xs" },
         { name: "system.range.medium", label: loc("itemSheet.field.rangeMedium"), type: "number", value: sys.range?.medium ?? 0, width: "xs" },
         { name: "system.range.long", label: loc("itemSheet.field.rangeLong"), type: "number", value: sys.range?.long ?? 0, width: "xs" },
@@ -284,13 +287,12 @@ function recordOf(item) {
       ];
     case ITEM_TYPE.armor:
       return [
-        { name: "system.aac.value", label: loc("itemSheet.field.ac"), type: "number", value: sys.aac?.value ?? 0, width: "xs" },
+        { name: "system.ac.value", label: loc("itemSheet.field.ac"), type: "number", value: sys.ac?.value ?? 0, width: "xs" },
         { name: "system.type", label: loc("itemSheet.field.armorType"), type: "select", value: sys.type ?? "", choices: opt(CONFIG.ACKS?.armor) },
       ];
     case ITEM_TYPE.item:
       return [
         { name: "system.quantity.value", label: loc("itemSheet.field.quantity"), type: "number", value: sys.quantity?.value ?? 1, width: "xs" },
-        { name: "system.quantity.max", label: loc("itemSheet.field.quantityMax"), type: "number", value: sys.quantity?.max ?? 0, width: "xs" },
         // Silent at 1 on a single item — the ordinary case, and asking every
         // crowbar how big its bundle is would be noise. It appears wherever a
         // bundle can mean something: on a STACK, or on anything that already
@@ -326,7 +328,7 @@ function conditionOf(item, container) {
   if (!physical && !sc && !material && !destroyed && !lockish) return null;
   const deltas = layerDeltas(item, { scavenged: null });
   const base = pristineOf(item);
-  const acNow = item.type === ITEM_TYPE.armor ? Number(item.system?.aac?.value ?? 0) : null;
+  const acNow = item.type === ITEM_TYPE.armor ? Number(item.system?.ac?.value ?? 0) : null;
   const acFull = item.type === ITEM_TYPE.armor ? Math.max(0, Number(base.ac ?? 0) + deltas.ac) : null;
   const qty = item.system?.quantity;
   return {

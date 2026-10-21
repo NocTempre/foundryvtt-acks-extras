@@ -48,7 +48,7 @@ export const num = (opts = {}) => new (F().NumberField)({ required: false, nulla
 export const str = (opts = {}) => new (F().StringField)({ required: false, blank: true, initial: "", ...opts });
 export const bool = (initial = false) => new (F().BooleanField)({ initial });
 // A REQUIRED integer that always holds a value — the counterpart to `num` for
-// fields the system writes concrete integers into (stub thac0/initiative,
+// fields the system writes concrete integers into (stub attack/initiative,
 // counts, indices). acks-henchmen defined this verbatim in two data files; it
 // belongs here beside num/str.
 export const int = (initial = 0, opts = {}) =>

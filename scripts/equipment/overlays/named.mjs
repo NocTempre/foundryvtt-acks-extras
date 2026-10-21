@@ -20,11 +20,12 @@
  * unlocking to levels of experience earned while wielding.
  *
  * Reuse first: unlocked points are applied to fields core already owns
- * (system.bonus, the damage string, aac.value, weight6) — same as masterwork.
+ * (bonus.attack, the base damage formula, ac.value, weight6) — same as masterwork.
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
+import { attackBonusOf, damageFormulaOf } from "../properties.mjs";
 
 /** Bonus categories a named item can unlock (JJ p. 399). */
 export const NAMED_CATEGORIES = Object.freeze({
@@ -160,9 +161,10 @@ export function resolveGuess(item, actor, spoken) {
  */
 export function captureBase(item) {
   return {
-    bonus: Number(item.system?.bonus ?? 0),
-    damage: String(item.system?.damage ?? "1d6"),
-    aac: Number(item.system?.aac?.value ?? 0),
+    bonus: attackBonusOf(item),
+    damage: damageFormulaOf(item) || "1d6",
+    // The record's key predates the system's `ac`; the stored shape stays.
+    aac: Number(item.system?.ac?.value ?? 0),
     weight6: Number(item.system?.weight6 ?? 0),
   };
 }
@@ -243,11 +245,11 @@ export function toItemUpdates(item, base = {}) {
   const b = unlockedBonuses(item);
   const updates = {};
   if (item.type === ITEM_TYPE.weapon) {
-    if (b.hit) updates["system.bonus"] = Number(base.bonus ?? item.system?.bonus ?? 0) + b.hit;
-    if (b.damage) updates["system.damage"] = `${base.damage ?? item.system?.damage ?? "1d6"}+${b.damage}`;
+    if (b.hit) updates["system.bonus.attack"] = Number(base.bonus ?? attackBonusOf(item)) + b.hit;
+    if (b.damage) updates["system.damage.base.formula"] = `${base.damage ?? damageFormulaOf(item) ?? "1d6"}+${b.damage}`;
   }
   if (item.type === ITEM_TYPE.armor && b.ac) {
-    updates["system.aac.value"] = Number(base.aac ?? item.system?.aac?.value ?? 0) + b.ac;
+    updates["system.ac.value"] = Number(base.aac ?? item.system?.ac?.value ?? 0) + b.ac;
   }
   if (b.encumbrance) {
     updates["system.weight6"] = Math.max(0, Number(base.weight6 ?? item.system?.weight6 ?? 0) - b.encumbrance * 6);

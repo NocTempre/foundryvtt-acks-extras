@@ -30,7 +30,7 @@
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS } from "../constants.mjs";
-import { POST_ATTACK_HOOK } from "../../lib/patches/attack-roll.mjs";
+import { POST_ATTACK_HOOK } from "../../lib/patches/attack-throw.mjs";
 import { mountOf, riderOf } from "../../lib/mount.mjs";
 import { abilityRank } from "../../lib/capabilities.mjs";
 import { gmIds, isPrimaryGM, numOrNull } from "../../lib/util.mjs";

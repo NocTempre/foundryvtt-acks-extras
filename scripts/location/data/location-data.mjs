@@ -399,7 +399,7 @@ export class LocationData extends foundry.abstract.TypeDataModel {
     return {
       // --- acks system compatibility stubs -------------------------------
       // AcksActor.prepareDerivedData runs for EVERY actor type and touches
-      // isNew / thac0 / initiative / movement / saves.implements|wand
+      // isNew / attack / initiative / movement / saves
       // unguarded; without them every location update logs a failed-data-
       // preparation error. ONE definition of that set now lives in acks-lib
       // (its setup sweep reads these world-wide, so it is a family concern, not

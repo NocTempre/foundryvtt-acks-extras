@@ -332,17 +332,24 @@ export function bindWeaponRow(row, id, cite) {
   const cost = costGp(c.cost);
   const modes = damageModes(row);
   const primary = modes.find((m) => m.damage) ?? null;
+  const twoHanded = modes.find((m) => m.grip === "two-handed" && m.damage) ?? null;
   const system = {
     description: bookText([], cite, { id, book: WEAPON_TABLE.book, page: WEAPON_TABLE.page }),
+    // The quality words travel as legacy `tags`: the system's weapon model reads
+    // that list when it builds the item and settles each word into its `special`
+    // property, its damage type or a custom tag. The vocabulary is the system's;
+    // this binder keeps no second copy of it.
     tags,
     melee,
     missile,
+    bonus: { attack: 0, damage: 0 },
     equipped: false,
   };
-  // Core's single `damage` field holds the PRIMARY die (one-handed melee, or
-  // the missile die), so the item stays rollable in the base system; the full
-  // set of modes lives structurally in the module flag below.
-  if (primary?.damage) system.damage = primary.damage;
+  // The PRIMARY die (one-handed melee, or the missile die) is the base damage,
+  // and a versatile row's second die is the system's ALTERNATE, so both grips
+  // roll in the base system; the full set of modes lives structurally in the
+  // module flag below.
+  if (primary?.damage) system.damage = { base: { formula: primary.damage }, alternate: { formula: twoHanded?.damage ?? "" } };
   if (weight6 != null) system.weight6 = weight6;
   if (cost != null) system.cost = cost;
   const range = { short: rangeFt(c.short), medium: rangeFt(c.med), long: rangeFt(c.long) };

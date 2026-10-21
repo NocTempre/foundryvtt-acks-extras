@@ -1748,3 +1748,40 @@ refused create, and of a delete or update that the other window overtook. The
 module swallows those refusals, but core logs them first. A window still
 running code from before this ruling creates under a random id until it
 reloads.
+
+### The equipment feature answers the system's attack throw as rows (2026-10-20)
+
+Recorded with the move to acks 14.1.0; the lib's ruling of the same day
+("The attack seam rides the system's labelled modifiers") is the frame.
+
+**Ruled.** The per-weapon modifiers that `computeAttackMods` folded into a
+throwaway item's bonus are rows the system's own card names, answered through
+the lib's attack seam. `attack-mods.mjs` is pure — the non-proficient package,
+Weapon Finesse, the damage-attribute substitution, a weapon that takes no
+damage bonus, a manoeuvre's penalty — and `roll-wrap.mjs` registers it as the
+seam's contributor and spends ammunition on the post-attack hook. The
+two-handed die of a medium weapon is the system's ALTERNATE damage mode:
+offered where the weapon table prints one and put first when the loadout
+holds the weapon in both hands; the item sheet's 2H row asks for it by name
+(`options.acksLib.damageMode`). A weapon's qualities are the system's
+`special.*` fields and its `customTags`; the Construction strip reads and
+writes those, and the registry's `{title, value}` tags are no longer stored.
+The loadout effect's keys are `system.ac.mod` and `system.attack.mod.*`; the
+pristine, named and scavenged layers write `system.bonus.attack`,
+`system.damage.base.formula` and `system.ac.value`. The importer's weapon
+binder writes the system's damage shape and hands the table's quality words
+to the system's own tag migration, which owns that vocabulary.
+
+**Rejected.**
+- *Deriving the two-handed die from the one-handed one when the item stores
+  an alternate.* The system's field holds it; the table's die is read only
+  where the field is blank.
+- *A STR row on a thrown attack.* The system's own damage modifiers give STR
+  to a `thrown` attack; the feature adds the kind where the weapon table
+  knows the throw and the item declares none, and nothing else.
+
+**What it cost.** The non-proficient throw replaces the character's own with
+the untrained throw read against the actor's `attack.throw`, so a character
+whose throw is no better loses nothing to it where the old model always
+charged the base-bonus difference. A splash weapon thrown still takes no
+Strength, through the same no-damage-bonus row filter as the torch.

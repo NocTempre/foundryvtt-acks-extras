@@ -67,7 +67,7 @@ const shapeOfValue = (v) => {
   return "leaf";
 };
 
-const COMPAT = ["isNew", "thac0", "initiative", "movement", "saves", "schemaVersion"];
+const COMPAT = ["isNew", "attack", "ac", "initiative", "movement", "saves", "schemaVersion", "_schemaVersion"];
 const modelKeys = Object.keys(schema).filter((k) => !COMPAT.includes(k)).sort();
 assert.deepEqual(modelKeys, Object.keys(blankDomain()).sort(), "the model and the normaliser hold the same top-level keys");
 for (const side of ["revenue", "expenses"]) {

@@ -1033,6 +1033,9 @@ whatever the system forgets next is covered without another patch.
 
 ### The attack roll delegates its audience to core, and offers four modes (2026-08-05)
 
+**Superseded (2026-10-20)** by "The attack seam rides the system's labelled
+modifiers": the module no longer rolls or posts the attack.
+
 `core.rollMode` and `CONFIG.Dice.rollModes` are deprecated in v14 and removed in
 v16, and the remodeled attack roll used both. The trap is that the replacement
 changed the values, not just the accessor: `core.messageMode` yields
@@ -1537,6 +1540,10 @@ the hook it listens on simply never fires.
 
 ## 2026-08-18 — One owner for the attack roll, and one seam for future modifiers
 
+**Superseded (2026-10-20)** by "The attack seam rides the system's labelled
+modifiers": the roll is the system's again; the one seam stands, on its
+labelled modifiers.
+
 Recorded from the 2026-07-31 ruling (memory archive). lib owns
 `AcksActor#rollAttack` (`patches/attack-roll.mjs`, libWrapper OVERRIDE when
 present; pure math in `attack-logic.mjs`; world setting `attackRollPatch`
@@ -1916,6 +1923,10 @@ rewritten value no longer matches, so the sweep cannot fire twice.
 
 ### The attack, surprise and initiative patches install unconditionally; only presentation follows the setting (2026-09-22)
 
+**Superseded in part (2026-10-20)** by "The attack seam rides the system's
+labelled modifiers": the attack half has no setting left; the surprise and
+initiative halves stand.
+
 Recorded from the ready-hook install comments in `scripts/lib/module.mjs`.
 
 **Ruled.** The attack-roll, surprise-card and initiative-card patches
@@ -2072,6 +2083,10 @@ a place for genuinely decorative dimming (a placeholder portrait, a disabled
 control) — never for text or a state's structural carrier.
 
 ### Animal saves mirror the released system's schema, not its dev branch (2026-09-22)
+
+**Superseded (2026-10-20)** by "The attack seam rides the system's labelled
+modifiers": acks 14.1.0 released the rename, and the keys are `blast` and
+`implements`. The rule stands; the schema it mirrors moved.
 
 Recorded from the comment on `savingThrowFields` in `scripts/lib/actor-compat.mjs`.
 
@@ -2326,6 +2341,10 @@ A throw that succeeds low adds the field to its dice, so a positive entry makes
 it harder; the field's hint says so on those throws.
 
 ### Public results, private math (2026-09-23)
+
+**Superseded (2026-10-20)** by "The attack seam rides the system's labelled
+modifiers": the attack card is the system's, and its math is shown as the
+system shows it. The Judge-only audience of the module's own cards stands.
 
 **Ruled.** This module's attack card tells every reader whether the attack hit
 and how much damage it does. The throw, the bonuses, the target's Armor Class
@@ -4294,3 +4313,77 @@ timing away from a duplicate.
 - A view other than the game (`game.view !== "game"`) never joins the
   election and never settles, so it no longer sweeps. Under `isGM` a GM's
   window ran the sweeps whatever its view.
+
+### The attack seam rides the system's labelled modifiers (2026-10-20)
+
+Recorded with the move to acks 14.1.0. Supersedes "One owner for the attack
+roll, and one seam for future modifiers" (2026-08-18), "The attack roll
+delegates its audience to core" (2026-08-05), the attack half of "The attack,
+surprise and initiative patches install unconditionally" (2026-09-22),
+"Animal saves mirror the released system's schema" (2026-09-22) and "Public
+results, private math" (2026-09-23). The new evidence is the release itself.
+
+**What changed under the module.** The system's attack is now
+`AcksActor#makeAttackThrow({item, attackType, skipDialog})`, which builds the
+throw from the actor model's `getAttackThrowModifiers(attackType)` and
+`getDamageModifiers(attackType)` — labelled `{label, value}` rows — and the
+weapon's `getAttackTypes()`, `getDamageModes(attackType)` and
+`getDamageFormula(mode)`, resolves it, rolls the damage and posts its own
+card. `rollAttack`, `targetAttack`, `rollWeapon` and `Item#show` are gone;
+so are `thac0` (now `attack.{throw, mod}`), `aac` (now `ac.{value, mod}`),
+`surprise.mod`, `exploration`, the `breath`/`wand` save keys (`blast`,
+`implements`), an item's `quantity.max`, and a weapon's `tags`, string
+`damage` and numeric `bonus` (`customTags` + `special.*`,
+`damage.base|alternate.{formula, types, extraordinary}`,
+`bonus.{attack, damage}`). The system migrates stored documents but not an
+Active Effect's change keys.
+
+**Ruled.**
+- The lib owns no attack roll. `patches/attack-roll.mjs`,
+  `attack-logic.mjs`, `patches/attack-display.mjs`, the `attackRollPatch`
+  and `rollMath` settings and `roll-audience.mjs`'s math section are
+  deleted. The system's card is the attack card.
+- One seam, `patches/attack-throw.mjs`: a WRAPPER on `makeAttackThrow` that
+  holds a per-actor context for the call, and wrappers on the actor model's
+  two modifier methods and the weapon's three mode methods, each asking the
+  registered contributors in turn (`lib.attack.addContributor`). A
+  contributor answers `attack(ctx, type, rows)`, `damage(ctx, type, rows)`,
+  `attackTypes(item, types)`, `damageModes(item, type, modes)` and
+  `damageFormula(item, mode, formula)`, returning the list; one that throws
+  is logged and skipped. `PRE_ATTACK_HOOK` and `POST_ATTACK_HOOK` keep their
+  names: the first fires with the context before the throw is built, the
+  second with the system's outcome.
+- A caller carries what the system's call cannot in `options.acksLib`
+  (`terms`, `damageTerms`, `damageMode`, `maneuver`). A wanted damage mode
+  is honoured by listing it FIRST: the system opens on the first mode and
+  takes no mode option.
+- The conditions' attack math, the equipment feature's per-weapon rows and
+  the Follower Card's overrides travel as rows the system's own card names.
+  What a throw cannot carry — a scaled damage roll, a waived throw — is told
+  in a notification and applied by hand.
+- The module's own actor models (`AnimalData`, `GroupData`, `TemplateData`)
+  answer the two modifier methods through the same seam, so a creature of
+  the module's rolls under the same contributors.
+- Effect change keys the system does not rewrite are repaired by the
+  `lib.legacyEffectKeys` check (`actor-compat.mjs` `migrateChangeKey`); a
+  key with no counterpart (`surprise.mod`, `exploration.*`) is reported and
+  left.
+- The save keys follow the release: `blast` and `implements` everywhere,
+  with `saveKindOf` reading an older key off a stored effect or trap.
+
+**Rejected.**
+- *Keeping the remodeled roll as an OVERRIDE of `makeAttackThrow`.* The
+  system now builds, resolves and posts the throw in one method with its own
+  dialog and labelled card; an override would re-own all of it to keep a
+  card the system's matches in substance.
+- *A second wrapper per feature.* One owner per wrapped core method stands;
+  features register contributors.
+
+**What it cost.**
+- The secret math section is gone: the system's card shows its math to
+  every reader. `postToJudges` still carries the module's own Judge-only
+  cards.
+- The non-proficient package reads the untrained throw as a module constant
+  (`equipment/attack-mods.mjs` `UNTRAINED_ATTACK_THROW`), a printed figure
+  carried over from the deleted model and flagged for the IP review.
+- A world's old attack cards keep the shape they were posted with.

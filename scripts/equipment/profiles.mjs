@@ -4,7 +4,7 @@
  * used by the Loadout model and roll wrapper.
  *
  * Source order (reuse → override → lookup → default):
- *   1. core weapon data (`system.melee/missile`, `system.tags`)
+ *   1. core weapon data (`system.melee/missile`, `system.special.*`, `system.customTags`)
  *   2. per-item overrides `flags.acks-extras.{size,hands,style,handy,thrown,damageType}`
  *   3. the RAW table row the item is identified as (`weaponIdentity`)
  *   4. default: medium melee, one-handed
@@ -24,7 +24,7 @@ import {
 } from "./config.mjs";
 import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
 import { SLOT, slug, nameKeys, ITEM_TYPE } from "../lib/vocab.mjs";
-import { splitDamage, joinDamage } from "./properties.mjs";
+import { splitDamage, joinDamage, damageFormulaOf } from "./properties.mjs";
 
 /* -------------------------------------------- */
 /*  Armour classification                        */
@@ -155,10 +155,20 @@ export function perStoneStated(item) {
   return count > 0 && stones > 0 ? count / stones : null;
 }
 
-/** Collect the lowercased tag tokens on a core weapon (title or value). */
+/**
+ * Collect the lowercased tag tokens on a core weapon: its custom tags, the
+ * special properties it declares, and the `{title, value}` tags an item made
+ * before the system's weapon schema carried either.
+ */
 function tagTokens(item) {
   const out = new Set();
-  for (const tag of item.system?.tags ?? []) {
+  const sys = item.system ?? {};
+  for (const tag of sys.customTags ?? []) {
+    const t = slug(tag);
+    if (t) out.add(t);
+  }
+  for (const [key, on] of Object.entries(sys.special ?? {})) if (on) out.add(slug(key));
+  for (const tag of Array.isArray(sys.tags) ? sys.tags : []) {
     for (const field of [tag?.title, tag?.value]) {
       const t = slug(field);
       if (t) out.add(t);
@@ -166,6 +176,9 @@ function tagTokens(item) {
   }
   return out;
 }
+
+/** The system's weapon sizes that name a size of the table's; `na` names none. */
+const CORE_SIZES = Object.freeze({ tiny: SIZE.TINY, small: SIZE.SMALL, medium: SIZE.MEDIUM, large: SIZE.LARGE });
 
 /** A module flag read off a live document or a plain data object alike. */
 function mflag(item, key) {
@@ -322,10 +335,9 @@ export function equipmentClass(name) {
     const w = WEAPONS[key];
     const special = w.special ?? [];
     // A THROWN melee weapon is usable as a missile too (RR p. 296), so it
-    // imports with BOTH melee and missile set — which is exactly what makes core
-    // present its melee-vs-thrown range selector (item.mjs rollWeapon gates on
-    // `system.missile && system.melee`). A pure-thrown missile (dart, oil) is
-    // already missile-only.
+    // imports with BOTH melee and missile set, and the system offers each as
+    // its own kind of attack. A pure-thrown missile (dart, oil) is already
+    // missile-only.
     const missile = !!(w.missile || w.thrown);
     const base = {
       damage: w.damage || "",
@@ -404,21 +416,25 @@ export function classifyWeapon(item) {
   const handyTag = tags.has("handy");
   const thrownTag = tags.has("thrown") || tags.has("throw");
 
-  // (2) overrides win
+  // (2) overrides win; the item's own declared size and special properties
+  // come before the table's row, and a property the item leaves off is no
+  // declaration — the row still answers it.
   const sizeOverride = flag(ITEM_FLAGS.SIZE);
-  const size = sizeOverride ?? base?.size ?? (twoHandedTag ? SIZE.LARGE : SIZE.MEDIUM);
-  const damage = item.system?.damage || base?.damage || "1d6";
+  const coreSize = CORE_SIZES[item.system?.size] ?? null;
+  const size = sizeOverride ?? coreSize ?? base?.size ?? (twoHandedTag ? SIZE.LARGE : SIZE.MEDIUM);
+  const damage = damageFormulaOf(item) || base?.damage || "1d6";
+  const alternate = item.system?.damage?.alternate?.formula?.trim?.() || null;
 
   const profile = {
     key,
     size,
     melee,
     missile,
-    thrown: flag(ITEM_FLAGS.THROWN) ?? base?.thrown ?? thrownTag ?? false,
-    handy: flag(ITEM_FLAGS.HANDY) ?? base?.handy ?? handyTag ?? false,
+    thrown: flag(ITEM_FLAGS.THROWN) ?? (item.system?.special?.thrown || undefined) ?? base?.thrown ?? thrownTag ?? false,
+    handy: flag(ITEM_FLAGS.HANDY) ?? (item.system?.special?.handy || undefined) ?? base?.handy ?? handyTag ?? false,
     twoHandedForced: base?.twoHandedForced ?? (twoHandedTag && !base) ?? false,
     damage,
-    damage2h: twoHandedDamage(damage, base),
+    damage2h: alternate ?? twoHandedDamage(damage, base),
     type: flag(ITEM_FLAGS.DAMAGE_TYPE) ?? base?.type ?? "",
     // The declared class outranks the row's, and an unknown value is no
     // declaration at all — a hand-edited flag degrades to the row, never to a

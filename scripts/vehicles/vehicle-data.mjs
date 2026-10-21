@@ -139,7 +139,7 @@ export default class VehicleData extends TypeDataModel {
 
     return {
       // The acks system's prepareDerivedData runs for EVERY actor type and
-      // touches isNew / thac0 / initiative / movement / saves unguarded, so a
+      // touches isNew / attack / initiative / movement / saves unguarded, so a
       // sub-type without them logs a failed-data-preparation error on every
       // update. The family keeps ONE definition of that set in lib; the values
       // are meaningless for a wagon.

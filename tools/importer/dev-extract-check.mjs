@@ -70,20 +70,20 @@ for (const recipe of STAT_RECIPES) {
   const { system, extras, applied, unmapped } = res;
   console.log(`STATS ${recipe.id}: ${pairs.length} rows -> ${applied.length} mapped, ${res.items.length} items [${applied.join(", ")}]`);
   console.log(
-    `      ac=${system.aac?.value} hd=${system.hp?.hd} hp=${system.hp?.max} save.death=${system.saves?.death?.value} morale=${system.details?.morale} xp=${system.details?.xp} align=${system.details?.alignment} treasure=${JSON.stringify(system.details?.treasure)} move=${system.movement?.base} appearing.w=${system.details?.appearing?.w} attacks=${JSON.stringify(system.attacks)}`,
+    `      ac=${system.ac?.value} hd=${system.hp?.hd} hp=${system.hp?.max} save.death=${system.saves?.death?.value} morale=${system.details?.morale} xp=${system.details?.xp} align=${system.details?.alignment} treasure=${JSON.stringify(system.details?.treasure)} move=${system.movement?.base} appearing.w=${system.details?.appearing?.w} attacks=${JSON.stringify(system.attacks)}`,
   );
   console.log(
     `      extras: types=${JSON.stringify(extras.types)} subtype=${JSON.stringify(extras.subtype)} size=${extras.size} mass=${extras.mass?.stone}st hd=${JSON.stringify(extras.hd)} saveAs=${JSON.stringify(extras.saveAs)} speeds=${JSON.stringify(extras.speeds)} vision=${JSON.stringify(extras.vision)}@${extras.lightlessRange} load=${extras.load?.normal} lair=${extras.encounter?.lairChance}%`,
   );
   const wf = (i) => {
     const f = i.flags?.["acks-monsters"] ?? {};
-    const bits = [i.system.damage ?? ""];
+    const bits = [i.system.damage?.base?.formula ?? i.system.damage ?? ""];
     if (f.damageType) bits.push(f.damageType);
     if (f.naturalWeapon) bits.push(`nw:${f.naturalWeapon}`);
     if (f.extraordinary) bits.push("EXTRA");
     return `${i.type}:${i.name}(${bits.filter(Boolean).join(" ")})`;
   };
-  console.log(`      throw=${system.thac0?.throw} items=${res.items.map(wf).join(" ")}`);
+  console.log(`      throw=${system.attack?.throw} items=${res.items.map(wf).join(" ")}`);
   if (unmapped.length) console.log(`      unmapped (stored raw): ${unmapped.join(", ")}`);
   const spoils = extractSpoils(await pageItems(doc, recipe.page));
   const art = pickArt(await pageArtInfo(doc, recipe.page));

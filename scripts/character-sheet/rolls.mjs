@@ -73,7 +73,7 @@ export function rollInventory(actor) {
     ],
   });
 
-  const T = num(sys.thac0?.throw, 10);
+  const T = num(sys.attack?.throw, 10);
   const melee = bestAttackBonus(actor, "melee");
   const missile = bestAttackBonus(actor, "missile");
   const loadout = getLoadout(actor);
@@ -90,7 +90,7 @@ export function rollInventory(actor) {
     const state = weaponState(actor, item, loadout);
     for (const mode of modes) {
       const missileMode = mode.id === "atk:missile";
-      const bonus = (missileMode ? missile.total : melee.total) + num(item.system?.bonus);
+      const bonus = (missileMode ? missile.total : melee.total) + num(item.system?.bonus?.attack);
       const suffix = mode.id === "atk:melee2h" ? loc("rolls.mode.twoHanded") : missileMode && item.system?.melee ? loc("rolls.mode.thrown") : "";
       attackRows.push(
         row(`wpn:${item.id}:${mode.id}`, suffix ? `${item.name}, ${suffix}` : item.name, `${T}+ · ${signed(bonus)}`, {
@@ -202,7 +202,7 @@ export async function rollById(actor, id, { event } = {}) {
       return true;
     case "atk":
       // Core's own attack boxes: the character's throw with no weapon named.
-      await actor.targetAttack({ actor, roll: {} }, a, { type: a, skipDialog: skipDialogFor(event) });
+      await actor.makeAttackThrow({ attackType: a, skipDialog: skipDialogFor(event) });
       return true;
     case "init": {
       const combatant = game.combat?.combatants?.find((c) => c.actorId === actor.id) ?? null;
@@ -233,7 +233,7 @@ export async function rollById(actor, id, { event } = {}) {
     case "post": {
       const item = actor.items.get(a);
       if (!item) return false;
-      await item.show();
+      await item.showChatCard();
       return true;
     }
     default:

@@ -6,8 +6,9 @@
  * Core models no maneuvers at all, so this is genuinely new rules code rather
  * than a correction to core behaviour. It stays a pure calculator plus a macro:
  * it computes the attack penalty and the target's saving-throw modifier, then
- * hands the actual attack to core's own rollAttack (through the same throwaway
- * plain-item copy the roll wrapper uses). Nothing about core's roll is replaced.
+ * hands the actual attack to the system's own attack throw, the manoeuvre
+ * declared through `options.acksLib.maneuver` and its penalty riding the
+ * throw as a labelled row. Nothing about core's roll is replaced.
  *
  * RAW inputs that stack:
  *   - base penalty: −4 (sunder is −4 against staffs/spears/polearms, −6 otherwise)

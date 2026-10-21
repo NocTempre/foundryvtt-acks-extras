@@ -1456,7 +1456,8 @@ this card is Name and Total — initiative has no verdict to render. The
 ## The roll dialog
 
 `scripts/lib/roll-dialog.mjs` is the one dialog a roll this module makes asks
-through: the attack card and every ability throw. It shows the formula, a
+through: every ability throw (the attack throw is the system's, with the
+system's dialog). It shows the formula, a
 situational modifier (whole numbers), and the message's visibility, opening on
 the chat's own mode. Where the visibility is not the roller's to choose — an
 ability the system marks blind — the dialog states the mode instead of offering
@@ -1520,20 +1521,24 @@ override uses. An ability item's throws are not reached: their visibility is
 the ability's own `system.blindroll`
 ([abilities MODEL](../abilities/MODEL.md)).
 
-**An attack card's math** — the throw, the bonuses, the target's Armor Class
-and both dice boxes — is wrapped by `mathSection(html)` in Foundry's own secret
-section, unless the `rollMath` world setting is `everyone`. `ChatMessage#renderHTML`
-enriches the content with `secrets` true only for the speaking actor's owners
-and the GMs, so every other reader gets the card without the section; the
-outcome word and a total-only damage box stay outside it, and the system's
-apply-damage reads that box. The section carries only `class` and `id`
-because Foundry's reveal toggle matches and rewrites the opening tag with those
-two alone; the styling sits on the inner `.acks-extras-roll-math`. Kept
-sections render as a `secret-block` with a Reveal button, which rewrites the
-message so every reader sees the math; `installMathReveal` sets `revealable`
-only for the message's author and the GMs, since a Reveal from anyone else
-fails on update permission. Rulings: DECISIONS, "Public results, private math"
-and "A Judge-only card attaches no rolls".
+**An attack card is the system's.** The module posts no attack card of its
+own. `patches/attack-throw.mjs` wraps the system's `makeAttackThrow` and the
+modifier and mode methods it reads (the actor model's
+`getAttackThrowModifiers`/`getDamageModifiers`, the weapon's
+`getAttackTypes`/`getDamageModes`/`getDamageFormula`), and every modifier this
+module adds — a condition's figure, the equipment feature's per-weapon rows, a
+Follower Card override — is a labelled row the system's dialog and card
+already show. Contributors register through `lib.attack.addContributor` and
+answer `attack`, `damage`, `attackTypes`, `damageModes` and `damageFormula`,
+each returning the list it was given with its own entries added; a
+contributor that throws is logged and skipped. A caller passes what the
+system's call cannot carry in `options.acksLib` — `terms`, `damageTerms`, a
+wanted `damageMode` (honoured by listing it first, since the system opens on
+the first mode), a `maneuver` — and `PRE_ATTACK_HOOK` / `POST_ATTACK_HOOK`
+fire around the throw with the per-attack context, which
+`lib.attack.inFlight(actor)` answers while the throw runs. Rulings: DECISIONS,
+"The attack seam rides the system's labelled modifiers" and "A Judge-only
+card attaches no rolls".
 
 ## Movement modes
 
@@ -1705,9 +1710,8 @@ reaches everyone.
 
 | Roll | Seam | How the figure rides |
 |---|---|---|
-| Attack, remodeled roll | `PRE_ATTACK_HOOK` | Labelled terms on `ctx.terms`, target-side ones marked; damage rows on `ctx.damageTerms`, a scaled roll on `ctx.damageFactor`, a waived throw on `ctx.autoHit` |
-| Attack, core's roll | `wrapRollAttack` | `thac0.bba` and `damage.mod.<type>` shifted across core's read; told in a notification, since core's card names no term |
-| Saving throw | wrap of `rollSave` | `saves.<save>.value` shifted; the save rolled is passed to the math, for the rows that name theirs, under the conditions' name for it (`saveKindOf` in `actor-compat.mjs`: the released schema rolls Blast as `breath`) |
+| Attack | a contributor on the attack seam (`patches/attack-throw.mjs`) | Labelled rows added to the system's own attack-throw and damage modifiers, so its card names each condition; a scaled damage roll and a waived throw, which the throw cannot carry, are told in a notification |
+| Saving throw | wrap of `rollSave` | `saves.<save>.value` shifted; the save rolled is passed to the math, for the rows that name theirs, under the conditions' name for it (`saveKindOf` in `actor-compat.mjs` reads an older `breath`/`wand` key as its current one) |
 | Adventuring throw | `withAdventuringConditions`, called by the throw's own wrapper (`patches/adventuring-roll.mjs`) | `adventuring.<key>` shifted |
 | Proficiency throw | `withModifiers` in abilities' `ability-rolls.mjs` | Folded into the target every surface shows |
 | Morale | `withMoraleConditions`, called by the morale roll's own wrapper (`patches/morale-roll.mjs`) | `details.morale` shifted |

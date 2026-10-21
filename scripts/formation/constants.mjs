@@ -93,11 +93,11 @@ export const ROLE_HINTS = Object.freeze({
 });
 
 /**
- * ACKS II saving throw keys (system: actor.system.saves[key].value). `breath`
- * is correct for the released system. See docs/formation/DECISIONS.md, "Save
- * keys track the RELEASED system, never the dev branch".
+ * ACKS II saving throw keys (system: actor.system.saves[key].value), as the
+ * released system spells them. See docs/formation/DECISIONS.md, "Save keys
+ * track the RELEASED system, never the dev branch".
  */
-export const SAVE_KEYS = Object.freeze(["paralysis", "death", "breath", "implements", "spell"]);
+export const SAVE_KEYS = Object.freeze(["paralysis", "death", "blast", "implements", "spell"]);
 
 /** Combat rounds per dungeon turn for time-keeping (RR p. 263). */
 export const ROUNDS_PER_TURN = 10;

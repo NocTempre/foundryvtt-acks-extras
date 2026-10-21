@@ -166,7 +166,7 @@
         "id": "acks",
         "type": "system",
         "compatibility": {
-          "minimum": "14"
+          "minimum": "14.1.0"
         }
       }
     ],

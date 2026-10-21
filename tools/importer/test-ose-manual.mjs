@@ -63,7 +63,7 @@ ok("and leaves nothing over", round.extra.length === 0, JSON.stringify(round.ext
     moraleBounds: BOUNDS,
   });
   check("and it reaches the actor", data.system.details.morale, 1);
-  check("as does the corrected armour class", data.system.aac.value, 4);
+  check("as does the corrected armour class", data.system.ac.value, 4);
 }
 
 /* --- typed from nothing --------------------------------------------------- */

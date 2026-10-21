@@ -155,10 +155,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    character and, on it, a copy of an imported class power whose Mechanics tab
    lists an Armor Class modifier row. *Observable:* that fieldset's legend
    reads *Imported mechanics* with the hint under it, and the character's
-   `system.aac.value` does not include the row. Under *Effects* press
-   **+ New Effect** and add a change `system.aac.mod`, type Add, value 1 — a
+   `system.ac.value` does not include the row. Under *Effects* press
+   **+ New Effect** and add a change `system.ac.mod`, type Add, value 1 — a
    real click through the system's effect sheet. *Observable:* the actor's
-   `system.aac.value` (re-read from `fromUuid`) moves by one, and disabling the
+   `system.ac.value` (re-read from `fromUuid`) moves by one, and disabling the
    effect moves it back.
 
 15. **The roll dialog, from every surface.** Fixture: the character from the

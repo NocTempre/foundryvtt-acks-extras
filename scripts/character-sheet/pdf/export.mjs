@@ -61,10 +61,10 @@ const CARRIED_PLACES = new Set(["hidden", "backpack", "sack", "pouch"]);
 
 /** The attack throw a weapon is rolled at: the character's throw less the weapon's bonus. */
 export function weaponThrow(actor, item) {
-  const T = Number(actor.system?.thac0?.throw);
-  if (!finite(actor.system?.thac0?.throw)) return null;
+  const T = Number(actor.system?.attack?.throw);
+  if (!finite(actor.system?.attack?.throw)) return null;
   const missileOnly = !!item.system?.missile && !item.system?.melee;
-  const bonus = bestAttackBonus(actor, missileOnly ? "missile" : "melee").total + (Number(item.system?.bonus) || 0);
+  const bonus = bestAttackBonus(actor, missileOnly ? "missile" : "melee").total + (Number(item.system?.bonus?.attack) || 0);
   return T - bonus;
 }
 
@@ -270,8 +270,8 @@ export function sheetValues(actor) {
     if (recordedMods.some((m) => m && m !== recordedMods[0])) set(`saveMod.${s}`, record[`saveMod.${s}`]);
     else if (saveMod) set(`saveMod.${s}`, signedText(saveMod));
   }
-  if (finite(sys.thac0?.throw)) for (let n = 0; n <= 10; n++) set(`attack.${n}`, throwOf(Number(sys.thac0.throw) + n));
-  const ac = sys.aac ?? {};
+  if (finite(sys.attack?.throw)) for (let n = 0; n <= 10; n++) set(`attack.${n}`, throwOf(Number(sys.attack.throw) + n));
+  const ac = sys.ac ?? {};
   set("ac.shield", numText(ac.value));
   set("ac.armour", finite(ac.value) ? numText(Number(ac.value) - (Number(ac.shield) || 0)) : "");
   set("ac.naked", numText(ac.naked));
@@ -358,7 +358,7 @@ export function sheetValues(actor) {
     set(k("level"), numText(hs.details?.level));
     set(k("xp"), numText(hs.details?.xp?.value));
     set(k("alignment"), hs.details?.alignment);
-    set(k("ac"), numText(hs.aac?.value));
+    set(k("ac"), numText(hs.ac?.value));
     const hp = hs.hp ?? {};
     set(k("hp"), finite(hp.value) && finite(hp.max) && Number(hp.value) !== Number(hp.max) ? `${hp.value}/${hp.max}` : numText(hp.value));
     for (const s of SCORE_KEYS) {

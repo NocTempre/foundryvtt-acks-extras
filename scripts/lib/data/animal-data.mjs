@@ -5,15 +5,18 @@
  * docs/lib/MODEL.md, "What a mount knows about itself".
  *
  * This sub-type's combat block uses the SAME FIELD PATHS as the system's own
- * monster (`hp`, `aac`, `thac0`, `movement`, `saves`, `details.morale`, …),
+ * monster (`hp`, `ac`, `attack`, `movement`, `saves`, `details.morale`, …),
  * declared here rather than imported since a released system ships one
  * bundled `acks.mjs`, not its individual data-model files. Initials are
- * copied from the system's templates — see actor-compat.mjs.
+ * copied from the system's templates — see actor-compat.mjs. The attack
+ * throw asks the data model for its modifiers, so the two answers a monster
+ * gives (`getAttackThrowModifiers`, `getDamageModifiers`) are given here too.
  *
  * What it adds beyond a monster is the shop-and-stable half: what the animal
  * can CARRY, whether it can be RIDDEN, and how well it is trained.
  */
-import { savingThrowFields } from "../actor-compat.mjs";
+import { creatureAttackModifiers, migrateLegacyCombatSource, savingThrowFields } from "../actor-compat.mjs";
+import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
 
 /** How an animal was trained (RR Animal Training). Display strings are i18n keys. */
 export const ANIMAL_TRAINING = Object.freeze({
@@ -43,7 +46,7 @@ export default class AnimalData extends foundry.abstract.TypeDataModel {
         max: new NumberField({ required: true, initial: 4 }),
         bhr: new StringField({ required: true, initial: "1d3", blank: false }),
       }),
-      aac: new SchemaField({
+      ac: new SchemaField({
         value: new NumberField({ initial: 0 }),
         mod: new NumberField({ initial: 0 }),
       }),
@@ -53,9 +56,7 @@ export default class AnimalData extends foundry.abstract.TypeDataModel {
           melee: new NumberField({ initial: 0 }),
         }),
       }),
-      thac0: new SchemaField({
-        value: new NumberField({ initial: 19 }),
-        bba: new NumberField({ initial: 0 }),
+      attack: new SchemaField({
         throw: new NumberField({ required: true, initial: 10 }),
         mod: new SchemaField({
           missile: new NumberField({ initial: 0 }),
@@ -79,7 +80,6 @@ export default class AnimalData extends foundry.abstract.TypeDataModel {
       // Exact monster paths — the sheet binds inputs to `surpriseothers` and
       // `avoidsurprise`, so a subset would silently drop those on save.
       surprise: new SchemaField({
-        mod: new NumberField({ initial: 0 }),
         surpriseothers: new NumberField({ initial: 0 }),
         avoidsurprise: new NumberField({ initial: 0 }),
       }),
@@ -159,12 +159,26 @@ export default class AnimalData extends foundry.abstract.TypeDataModel {
   }
 
   /**
-   * Derived: the same two values the system computes for its own actors, so an
-   * animal is not the one actor on the table with an empty attack bonus.
+   * Derived: the encounter speed the system computes for its own actors, so
+   * an animal is not the one actor on the table without one.
    * @override
    */
   prepareDerivedData() {
-    this.thac0.bba = 10 - (this.thac0.throw ?? 10);
     this.movement.encounter = Math.floor((this.movement.base ?? 0) / 3);
+  }
+
+  /** The attack throw's modifiers from this animal: its Tweaks adjustment for the attack's kind, then the attack seam's. */
+  getAttackThrowModifiers(attackType) {
+    return attackThrowModifiersFor(this, attackType, creatureAttackModifiers(this, attackType).attack);
+  }
+
+  /** The damage roll's modifiers from this animal: its Tweaks adjustment for the attack's kind, then the attack seam's. */
+  getDamageModifiers(attackType) {
+    return damageModifiersFor(this, attackType, creatureAttackModifiers(this, attackType).damage);
+  }
+
+  /** A source stored under the system's earlier field names is read onto the current ones. */
+  static migrateData(source) {
+    return super.migrateData(migrateLegacyCombatSource(source));
   }
 }

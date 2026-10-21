@@ -1,22 +1,25 @@
 /* global foundry, game */
 /**
  * System compatibility stubs for module-provided actor sub-types, and the
- * family's one owner of the BOOK↔RELEASED saving-throw key mapping (the
+ * family's one owner of the BOOK↔SYSTEM saving-throw key mapping (the
  * builders and repair pass at the bottom of this file).
  *
  * The acks system's `AcksActor` document class runs for EVERY actor, and a few
  * of its methods touch fields unguarded (the rest bail on `type !== "character"`):
  *
- *  - `computeAAB`               — `thac0.bba = 10 - thac0.throw`
  *  - `computeAdditionnalData`   — `initiative.value`, `movement.encounter`
  *                                 (derived from `movement.base`)
  *  - `AcksActor.create`         — seeds `system.isNew`
- *  - the setup-time `updateWeightsLanguages` sweep, whose `updateImplements()`
- *    reads `system.saves.implements` / `.wand` on every actor in the world.
+ *  - the attack throw           — `attack.throw`, `ac.value` on the target, and
+ *                                 `getAttackThrowModifiers` / `getDamageModifiers`
+ *                                 on the attacker's data model
+ *  - the migration runner       — stamps `_schemaVersion` on every actor it
+ *                                 visits; a model that does not declare the
+ *                                 field drops the stamp and is visited again at
+ *                                 every launch.
  *
  * Any actor sub-type a module registers must carry these fields whether or not
- * they mean anything for it. `saves` values are 0 rather than -1, so the
- * system's own implements/wand migration reads them as already applied.
+ * they mean anything for it.
  *
  * See docs/lib/API.md, "`acksCompatStubs()` / `savingThrowFields()`".
  */
@@ -30,19 +33,27 @@ const int = (initial) => new (F().NumberField)({ required: true, integer: true, 
  * The fields the system touches on every actor.
  *
  * Spread into a sub-type's `defineSchema()`. A sub-type that has a REAL value
- * for one of these (an animal genuinely has movement and saving throws) should
+ * for one of these (an animal genuinely has movement and an Armor Class) should
  * spread this first and then declare its own — later keys win, so the stub is
  * only ever a floor.
  *
  * @returns {object} schema fields
  */
 export function acksCompatStubs() {
-  const { BooleanField, SchemaField } = F();
+  const { BooleanField, NumberField, SchemaField } = F();
   return {
+    _schemaVersion: new NumberField({ required: true, initial: 0, integer: true, min: 0 }),
     isNew: new BooleanField({ initial: false }),
-    thac0: new SchemaField({
+    attack: new SchemaField({
       throw: int(10),
-      bba: int(0),
+      mod: new SchemaField({
+        missile: int(0),
+        melee: int(0),
+      }),
+    }),
+    ac: new SchemaField({
+      value: int(0),
+      mod: int(0),
     }),
     initiative: new SchemaField({
       value: int(0),
@@ -51,10 +62,6 @@ export function acksCompatStubs() {
     movement: new SchemaField({
       base: int(0),
       encounter: int(0),
-    }),
-    saves: new SchemaField({
-      implements: new SchemaField({ value: int(0) }),
-      wand: new SchemaField({ value: int(0) }),
     }),
   };
 }
@@ -71,56 +78,131 @@ export function acksCompatStubs() {
  */
 export function savingThrowFields() {
   const { NumberField, SchemaField } = F();
-  // Keys and initials mirror the RELEASED system's saving-throw schema, not
-  // its dev-branch `blast` rename — the monster sheet reads `saves.breath`
-  // and `saves.wand`. See docs/lib/DECISIONS.md, "Animal saves mirror the
-  // released system's schema, not its dev branch".
   const save = (initial) => new SchemaField({ value: new NumberField({ required: true, initial }) });
   return {
     saves: new SchemaField({
       paralysis: save(13),
       death: save(14),
-      breath: save(15),
+      blast: save(15),
       implements: save(16),
       spell: save(17),
-      wand: save(16),
     }),
     save: new SchemaField({ mod: new NumberField({ initial: 0 }) }),
   };
 }
 
+/**
+ * The attack-throw and damage modifiers a creature data model answers the
+ * system's attack throw with: its Tweaks adjustment for the attack's kind, as
+ * `CharacterData` and `MonsterData` answer it. Missile and thrown attacks take
+ * the missile adjustment.
+ *
+ * @param {object} system  a data model carrying `attack.mod` and `damage.mod`
+ * @param {string} attackType  `melee`, `missile` or `thrown`
+ * @returns {{attack: Array<{label: string, value: number}>, damage: Array<{label: string, value: number}>}}
+ */
+export function creatureAttackModifiers(system, attackType) {
+  const missile = attackType === "missile" || attackType === "thrown";
+  const side = missile ? "missile" : "melee";
+  const L = (key) => (game?.i18n?.localize ? game.i18n.localize(key) : key);
+  return {
+    attack: [{ label: L(missile ? "ACKS.MissileBonus" : "ACKS.MeleeBonus"), value: Number(system?.attack?.mod?.[side] ?? 0) }],
+    damage: [{ label: L(missile ? "ACKS.MissileDamageBonus" : "ACKS.MeleeDamageBonus"), value: Number(system?.damage?.mod?.[side] ?? 0) }],
+  };
+}
+
+/**
+ * Carry a creature's stored source from the fields the system used to name
+ * onto the ones it names now: `thac0.throw` → `attack.throw`, `thac0.mod` →
+ * `attack.mod`, `aac` → `ac`, and the saves `breath` → `blast`, `wand` →
+ * `implements`. Idempotent: a source already on the new names is left as it
+ * is, and a value already present under the new name is never overwritten.
+ * Called from a module data model's `migrateData`.
+ */
+export function migrateLegacyCombatSource(source) {
+  if (!source || typeof source !== "object") return source;
+  const thac0 = source.thac0;
+  if (thac0 && typeof thac0 === "object") {
+    source.attack ??= {};
+    if (source.attack.throw == null && thac0.throw != null) source.attack.throw = thac0.throw;
+    if (thac0.mod && typeof thac0.mod === "object") {
+      source.attack.mod ??= {};
+      for (const side of ["melee", "missile"]) {
+        if (source.attack.mod[side] == null && thac0.mod[side] != null) source.attack.mod[side] = thac0.mod[side];
+      }
+    }
+  }
+  const aac = source.aac;
+  if (aac && typeof aac === "object") {
+    source.ac ??= {};
+    for (const key of ["value", "mod"]) if (source.ac[key] == null && aac[key] != null) source.ac[key] = aac[key];
+  }
+  const saves = source.saves;
+  if (saves && typeof saves === "object") {
+    for (const [from, to] of Object.entries(LEGACY_SAVE_KEYS)) {
+      if (saves[from] && typeof saves[from] === "object" && saves[to]?.value == null && saves[from].value != null) {
+        saves[to] = { ...(saves[to] ?? {}), value: saves[from].value };
+      }
+    }
+  }
+  return source;
+}
+
 /* ------------------------------------------------------------------ */
-/*  Book ↔ released save keys: the write layer                         */
+/*  Book ↔ system save keys: the write layer                           */
 /* ------------------------------------------------------------------ */
 
 /**
- * The BOOK's five save names → the RELEASED system's actor keys. ACKS II
- * prints Blast where the released schema still says `breath`, and Spells
- * where it says `spell`; `wand` has no book column (wands folded into
- * Implements) and is deliberately not written. When the system releases its
- * breath→blast rename, this map is the one place that changes.
+ * The BOOK's five save names → the system's actor keys. ACKS II prints
+ * Spells where the schema says `spell`; the other four share their name.
  */
 export const BOOK_TO_RELEASED_SAVES = Object.freeze({
   paralysis: "paralysis",
   death: "death",
-  blast: "breath",
+  blast: "blast",
   implements: "implements",
   spells: "spell",
 });
 
-/** Every save key the released actor schema carries. */
-export const RELEASED_SAVE_KEYS = Object.freeze(["paralysis", "death", "breath", "implements", "spell", "wand"]);
-
-/* The released keys whose throw the conditions name otherwise. */
-const RELEASED_SAVE_KINDS = Object.freeze({ breath: "blast", wand: "implements" });
+/** Every save key the system's actor schema carries. */
+export const RELEASED_SAVE_KEYS = Object.freeze(["paralysis", "death", "blast", "implements", "spell"]);
 
 /**
- * The saving throw a system save key rolls, as the conditions name it
- * (`conditions.mjs` `SAVE_KINDS`): the released schema's `breath` is the Blast
- * throw and its `wand` an Implements throw. Any other key answers itself, so
- * a schema that stores Blast as `blast` reads the same.
+ * The keys an earlier system schema spelled otherwise, and the key each is
+ * now. Blast was stored as `breath`; wands folded into Implements.
  */
-export const saveKindOf = (systemKey) => RELEASED_SAVE_KINDS[systemKey] ?? systemKey;
+export const LEGACY_SAVE_KEYS = Object.freeze({ breath: "blast", wand: "implements" });
+// The saving throw a save key rolls, as the conditions name it (`conditions.mjs`
+// `SAVE_KINDS`): a current key answers itself, and an earlier schema's `breath`
+// or `wand` reaches the Blast or Implements rows, so a stored effect or a world
+// not yet migrated still lands on the right throw.
+export const saveKindOf = (systemKey) => LEGACY_SAVE_KEYS[systemKey] ?? systemKey;
+/**
+ * An Active Effect change key under the system's earlier field names, and the
+ * key it is now. The system's own migration rewrites stored values and not
+ * effect changes, so a key here reaches nothing until it is rewritten.
+ */
+const LEGACY_CHANGE_KEYS = Object.freeze({
+  "system.aac.value": "system.ac.value",
+  "system.aac.mod": "system.ac.mod",
+  "system.thac0.throw": "system.attack.throw",
+  "system.thac0.mod.melee": "system.attack.mod.melee",
+  "system.thac0.mod.missile": "system.attack.mod.missile",
+  "system.saves.breath.value": "system.saves.blast.value",
+  "system.saves.wand.value": "system.saves.implements.value",
+});
+
+/** The earlier field roots an effect change key can start with. */
+const LEGACY_CHANGE_ROOTS = ["system.aac.", "system.thac0.", "system.saves.breath", "system.saves.wand", "system.surprise.mod", "system.exploration."];
+
+/** Whether a change key names a field the system no longer has. */
+export const isLegacyChangeKey = (key) => LEGACY_CHANGE_ROOTS.some((root) => String(key ?? "").startsWith(root));
+
+/**
+ * The current key for an earlier one, or null where the field has no
+ * counterpart (a derived base attack bonus, a surprise adjustment).
+ */
+export const migrateChangeKey = (key) => LEGACY_CHANGE_KEYS[String(key ?? "")] ?? null;
 
 /**
  * Update paths for one set of book-vocabulary save values. Null/undefined
@@ -128,28 +210,28 @@ export const saveKindOf = (systemKey) => RELEASED_SAVE_KINDS[systemKey] ?? syste
  * actor), so the result is always safe to spread into a larger update.
  *
  * @param {object} book - `{paralysis, death, blast, implements, spells}`
- * @returns {object} `{"system.saves.<releasedKey>.value": number, …}`
+ * @returns {object} `{"system.saves.<systemKey>.value": number, …}`
  */
 export function savesUpdateData(book = {}) {
   const update = {};
-  for (const [bookKey, releasedKey] of Object.entries(BOOK_TO_RELEASED_SAVES)) {
+  for (const [bookKey, systemKey] of Object.entries(BOOK_TO_RELEASED_SAVES)) {
     const value = book[bookKey];
     if (typeof value === "number" && Number.isFinite(value)) {
-      update[`system.saves.${releasedKey}.value`] = value;
+      update[`system.saves.${systemKey}.value`] = value;
     }
   }
   return update;
 }
 
-/* Aliases a dangling reference may carry: the book/dev-branch names for keys
- * the released schema spells differently. `wand` stays: it is released. */
-const SAVE_KEY_ALIASES = Object.freeze({ blast: "breath", spells: "spell" });
+/* Aliases a dangling reference may carry: the earlier schema's names, and
+ * the book's plural. */
+const SAVE_KEY_ALIASES = Object.freeze({ ...LEGACY_SAVE_KEYS, spells: "spell" });
 
 /**
- * Find (and optionally fix) references to save keys the released schema does
- * not carry: stray `system.saves.blast` data on actors (dev-schema drift),
- * ability items whose `system.save` names a book key, and Active Effects
- * whose change keys target an aliased save path.
+ * Find (and optionally fix) references to save keys the system's schema does
+ * not carry: stray `system.saves.breath` / `.wand` data on actors (an earlier
+ * schema), ability items whose `system.save` names such a key, and Active
+ * Effects whose change keys target an aliased save path.
  *
  * Dry-run by default: returns the report without writing. With
  * `{dryRun: false}` (GM only) each finding is repaired in place and the
@@ -194,7 +276,7 @@ export async function repairSaveReferences({ dryRun = true } = {}) {
   };
 
   for (const actor of game.actors ?? []) {
-    // Stray dev-schema keys in the stored source (a schema field would have
+    // Stray earlier-schema keys in the stored source (a schema field would have
     // filtered them; these survive only as loose data on older worlds).
     const savesSource = actor._source?.system?.saves ?? {};
     for (const [key, alias] of Object.entries(SAVE_KEY_ALIASES)) {

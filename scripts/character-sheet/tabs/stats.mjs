@@ -189,14 +189,14 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
     hp: { value: num(stored.hp?.value), max: num(stored.hp?.max) },
     hd: String(stored.hp?.hd ?? ""),
     ac: [
-      { icon: "fa-solid fa-shield-halved", label: loc("vitals.acShield"), value: num(sys.aac?.value), shown: num(sys.aac?.shield) > 0 },
-      { icon: "fa-solid fa-shirt", label: loc("vitals.acArmour"), value: num(sys.aac?.value) - num(sys.aac?.shield), shown: true },
-      { icon: "fa-regular fa-square", label: loc("vitals.acNaked"), value: num(sys.aac?.naked), shown: true },
+      { icon: "fa-solid fa-shield-halved", label: loc("vitals.acShield"), value: num(sys.ac?.value), shown: num(sys.ac?.shield) > 0 },
+      { icon: "fa-solid fa-shirt", label: loc("vitals.acArmour"), value: num(sys.ac?.value) - num(sys.ac?.shield), shown: true },
+      { icon: "fa-regular fa-square", label: loc("vitals.acNaked"), value: num(sys.ac?.naked), shown: true },
     ].filter((r) => r.shown),
-    acMod: num(stored.aac?.mod),
+    acMod: num(stored.ac?.mod),
     cleaves: num(stored.fight?.cleaves),
     mortalWounds: num(stored.fight?.mortalwounds),
-    attackThrow: num(stored.thac0?.throw, 10),
+    attackThrow: num(stored.attack?.throw, 10),
   };
 
   const throws = {

@@ -44,7 +44,7 @@ function changeGlyph(change) {
   }
 }
 
-/** A one-line reading of an effect's changes: `aac.mod +1 · save.mod −1 · …`. */
+/** A one-line reading of an effect's changes: `ac.mod +1 · save.mod −1 · …`. */
 function changesLine(effect) {
   return (effect.changes ?? [])
     .slice(0, 4)

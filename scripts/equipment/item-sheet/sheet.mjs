@@ -266,7 +266,7 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
   }
 
   /** The document fields the layers recompute, by the snapshot key each is computed from. */
-  static #LAYERED = { "system.bonus": "bonus", "system.damage": "damage", "system.aac.value": "ac", "system.weight6": "weight6" };
+  static #LAYERED = { "system.bonus.attack": "bonus", "system.damage.base.formula": "damage", "system.ac.value": "ac", "system.weight6": "weight6" };
 
   /**
    * With layers applied, a field they write is recomputed from the snapshot on
@@ -456,8 +456,8 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
           img: dropped.img,
           cost: dropped.system?.cost,
           description: dropped.system?.description ?? "",
-          damage: dropped.system?.damage,
-          ac: dropped.system?.aac?.value,
+          damage: dropped.system?.damage?.base?.formula,
+          ac: dropped.system?.ac?.value,
         });
         return this.render();
       }
@@ -680,9 +680,8 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
     const item = this.item;
     const base = named.baseOf(item);
     await item.update({
-      "system.bonus": base.bonus,
-      ...(item.type === ITEM_TYPE.weapon ? { "system.damage": base.damage } : {}),
-      ...(item.type === ITEM_TYPE.armor ? { "system.aac.value": base.aac } : {}),
+      ...(item.type === ITEM_TYPE.weapon ? { "system.bonus.attack": base.bonus, "system.damage.base.formula": base.damage } : {}),
+      ...(item.type === ITEM_TYPE.armor ? { "system.ac.value": base.aac } : {}),
       "system.weight6": base.weight6,
     });
     await item.unsetFlag(MODULE_ID, ITEM_FLAGS.NAMED);

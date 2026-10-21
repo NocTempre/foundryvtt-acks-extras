@@ -253,7 +253,7 @@ export function snapshotFrame(actor) {
     },
     xp: { value: num(sys.details?.xp?.value), next: threshold ?? num(sys.details?.xp?.next), bonus: num(sys.details?.xp?.bonus) },
     hp: { value: num(sys.hp?.value), max: num(sys.hp?.max) },
-    ac: { value: num(sys.aac?.value), shield: num(sys.aac?.shield), naked: num(sys.aac?.naked) },
+    ac: { value: num(sys.ac?.value), shield: num(sys.ac?.shield), naked: num(sys.ac?.naked) },
     acMode: sheetFlag(actor).acMode ?? "shield",
     move: {
       modes: Object.fromEntries(Object.entries(sys.movementacks ?? {}).map(([k, v]) => [k, num(v)])),

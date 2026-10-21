@@ -16,6 +16,8 @@
 import { LANG } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { classifyWeapon, canOneHand, isTwoHandedOnly } from "../profiles.mjs";
+import { attackBonusOf, damageFormulaOf } from "../properties.mjs";
+import { skipDialogFor } from "../../lib/roll-dialog.mjs";
 import { MANEUVERS, overlayEnabled as maneuverOverlayEnabled, trickeryFor } from "../overlays/maneuvers.mjs";
 import { isSpellbook, spellbookSpells } from "../spellbook.mjs";
 import { containerOf, isLocked } from "../containers.mjs";
@@ -55,8 +57,8 @@ export function rollGroups(item, actor = rollerFor(item)) {
     const profile = classifyWeapon(item);
     const glyph = damageGlyphOf(item);
     const typeLabel = damageTypeOf(item) ? damageTypeLabel(damageTypeOf(item)) : "";
-    const damage = item.system?.damage || profile.damage || "1d6";
-    const bonus = Number(item.system?.bonus ?? 0);
+    const damage = damageFormulaOf(item) || profile.damage || "1d6";
+    const bonus = attackBonusOf(item);
     const rows = [];
     const mods = [];
     if (actor?.type === ACTOR_TYPE.character && !isWeaponProficient(actor, profile)) mods.push(loc("itemSheet.rolls.mod.nonProficient"));
@@ -185,20 +187,13 @@ export function rollGroups(item, actor = rollerFor(item)) {
 /** Every row id, in document order — what the pin store is bounded by. */
 export const rollIds = (groups) => groups.flatMap((g) => g.rows.map((r) => r.id));
 
-/** Core's throwaway attack data for an item. */
-function attackData(item, actor) {
-  return {
-    item: item.toObject(),
-    actor: actor.toObject(),
-    roll: { save: item.system?.save, target: null },
-  };
-}
-
 /**
- * Make one roll by id. Attacks go through core's own targeting pipeline with
- * the mode forced; a manoeuvre is an attack with the manoeuvre declared, which
- * the attack wrapper folds into the bonus stack; the lock rows call the lock
- * actions. Returns false when the id names nothing rollable.
+ * Make one roll by id. Attacks go through the system's own attack throw with
+ * the kind chosen: a hurled row is the system's "thrown" where the weapon
+ * offers it, the two-handed row opens on the ALTERNATE damage mode, and a
+ * manoeuvre is a melee attack with the manoeuvre declared, which the
+ * equipment contributor puts on the throw as its own row. The lock rows call
+ * the lock actions. Returns false when the id names nothing rollable.
  */
 export async function rollById(item, id, { event } = {}) {
   const actor = rollerFor(item);
@@ -207,24 +202,20 @@ export async function rollById(item, id, { event } = {}) {
     return false;
   }
   const [kind, key] = String(id).split(":");
+  const skipDialog = skipDialogFor(event);
   if (kind === "atk") {
-    const type = actor.type !== ACTOR_TYPE.character ? "attack" : key === "missile" ? "missile" : "melee";
-    const data = attackData(item, actor);
-    // A two-handed grip deals the larger die: hand core the upsized string.
-    if (key === "melee2h") data.item.system.damage = classifyWeapon(item).damage2h ?? data.item.system.damage;
-    await actor.targetAttack(data, type, { event });
+    const types = item.system?.getAttackTypes?.() ?? [];
+    const attackType =
+      key === "missile"
+        ? (types.includes("missile") ? "missile" : types.includes("thrown") ? "thrown" : "missile")
+        : "melee";
+    const acksLib = key === "melee2h" ? { damageMode: "alternate" } : key === "melee" ? { damageMode: "base" } : {};
+    await actor.makeAttackThrow({ item, attackType, skipDialog, acksLib });
     return true;
   }
   if (kind === "man") {
     if (!MANEUVERS[key]) return false;
-    const data = attackData(item, actor);
-    // Core's targetAttack drops every option but the type, so the manoeuvre is
-    // declared on the direct call, one roll per target as core would make.
-    const targets = game.user?.targets?.size ? [...game.user.targets.values()] : [null];
-    for (const t of targets) {
-      data.roll.target = t;
-      await actor.rollAttack(data, { type: "melee", maneuver: key });
-    }
+    await actor.makeAttackThrow({ item, attackType: "melee", skipDialog, acksLib: { maneuver: key } });
     return true;
   }
   if (kind === "lock") {

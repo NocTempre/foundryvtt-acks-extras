@@ -62,14 +62,14 @@ ok("and so does a range with only one end printed", bonusSteps({ ascendingBonus:
   check("each step takes the hit points printed for it", first.merge.hp.value, 13);
   check("including the last", last.merge.hp.value, 36);
   check("and rolls the dice its own step names", last.merge.hp.hd, "8d8");
-  check("the throw at the bottom of the range", first.merge.thac0.throw, K.attackThrow - 2);
-  check("and at the top", last.merge.thac0.throw, K.attackThrow - 7);
+  check("the throw at the bottom of the range", first.merge.attack.throw, K.attackThrow - 2);
+  check("and at the top", last.merge.attack.throw, K.attackThrow - 7);
 
   // The base must not carry the weakest step's figures, or every generated
   // creature inherits them underneath its own.
   ok("hit points are not on the fixed base", t.system.base.merge.hp === undefined);
-  ok("nor is the attack throw", t.system.base.merge.thac0 === undefined);
-  ok("but what does not vary is", t.system.base.merge.aac !== undefined, JSON.stringify(t.system.base.merge));
+  ok("nor is the attack throw", t.system.base.merge.attack === undefined);
+  ok("but what does not vary is", t.system.base.merge.ac !== undefined, JSON.stringify(t.system.base.merge));
   check("morale still maps through the endpoints", t.system.base.merge.details.morale, 9 - 8);
 }
 
@@ -77,7 +77,7 @@ ok("and so does a range with only one end printed", bonusSteps({ ascendingBonus:
   // Without the guide the throw is a gap, exactly as for a single creature —
   // the range must not become a reason to invent one.
   const t = oseTemplateDataFromFields({ name: "T", fields: parseOseStatline(RANGED).fields, constants: null, moraleBounds: BOUNDS });
-  ok("no guide, no throws", t.system.axes[0].options.every((o) => o.merge.thac0 === undefined));
+  ok("no guide, no throws", t.system.axes[0].options.every((o) => o.merge.attack === undefined));
   ok("but the hit points still arrive", t.system.axes[0].options[0].merge.hp.value === 13);
   ok("and the actor says it is unconverted", t.flags["acks-extras"].ose.unconverted === true);
 }
@@ -102,7 +102,7 @@ ok("and so does a range with only one end printed", bonusSteps({ ascendingBonus:
     constants: K,
     moraleBounds: BOUNDS,
   });
-  ok("an uneven range grants no throws", t.system.axes[0].options.every((o) => o.merge.thac0 === undefined));
+  ok("an uneven range grants no throws", t.system.axes[0].options.every((o) => o.merge.attack === undefined));
   ok("and says why", t.flags["acks-extras"].ose.gaps.some((g) => g.reason === "range-does-not-divide-evenly"));
 }
 

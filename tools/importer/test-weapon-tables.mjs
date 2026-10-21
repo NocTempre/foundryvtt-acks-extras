@@ -41,7 +41,8 @@ check("Composite Bow has a range", (bowItem?.system.range?.short ?? 0) > 0);
 
 // Side-tab bleed must not corrupt the axe rows.
 const axeItem = byName["battle axe"] && bindWeaponRow(byName["battle axe"], "x", "y");
-check("Battle Axe melee with a die", axeItem?.system.melee === true && /\dd\d/.test(axeItem.system.damage ?? ""));
+check("Battle Axe melee with a die", axeItem?.system.melee === true && /\dd\d/.test(axeItem.system.damage?.base?.formula ?? ""));
+check("Battle Axe's two-handed die is the system's alternate damage", /\dd\d/.test(axeItem?.system.damage?.alternate?.formula ?? ""));
 
 // Every bound item is the core weapon shape, and every value row got a die.
 const weaponRows = rows.filter((r) => !r.ammunition);
@@ -50,7 +51,7 @@ for (const r of weaponRows) {
   const it = bindWeaponRow(r, "def.weapon.x", "cite");
   assert.ok(it.type === "weapon" && it.name, `bound weapon shape: ${r.name}`);
   assert.ok(Array.isArray(it.system.tags), `tags array: ${r.name}`);
-  if (/\dd\d/.test(it.system.damage ?? "")) withDie++;
+  if (/\dd\d/.test(it.system.damage?.base?.formula ?? "")) withDie++;
 }
 pass++;
 check(`most weapons carry a damage die (${withDie}/${weaponRows.length})`, withDie >= weaponRows.length - 8);
@@ -108,7 +109,7 @@ check("missile modes are never two-handed", handModes.every((m) => !(m.attack ==
 console.log(`\nExtracted weapons (${weaponRows.length}):`);
 for (const r of weaponRows) {
   const it = bindWeaponRow(r, "x", "y");
-  console.log(`  ${r.name.padEnd(22)} dmg=${it.system.damage ?? "-"} enc6=${it.system.weight6 ?? "-"} cost=${it.system.cost ?? "-"} ${it.system.missile ? "[missile]" : it.system.melee ? "[melee]" : ""} ${it.system.tags.map((t) => t.title).join("/")}`);
+  console.log(`  ${r.name.padEnd(22)} dmg=${it.system.damage?.base?.formula ?? "-"} enc6=${it.system.weight6 ?? "-"} cost=${it.system.cost ?? "-"} ${it.system.missile ? "[missile]" : it.system.melee ? "[melee]" : ""} ${it.system.tags.map((t) => t.title).join("/")}`);
 }
 console.log(`\nExtracted ammunition (${ammoRows.length}):`);
 for (const r of ammoRows) {

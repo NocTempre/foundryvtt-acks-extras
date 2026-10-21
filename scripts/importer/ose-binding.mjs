@@ -270,8 +270,8 @@ export function reconversionFor(actor, constants, moraleBounds) {
   const converted = convertOse(rec.parsed, constants, { lineage: rec.lineage ?? "ose", moraleBounds });
   const update = {};
   // Only the axes the guide unlocks; everything else already landed.
-  if (converted.system.aac) update["system.aac.value"] = converted.system.aac.value;
-  if (converted.system.thac0) update["system.thac0.throw"] = converted.system.thac0.throw;
+  if (converted.system.ac) update["system.ac.value"] = converted.system.ac.value;
+  if (converted.system.attack) update["system.attack.throw"] = converted.system.attack.throw;
   if (!Object.keys(update).length) return null;
   update[`flags.${MODULE_ID}.ose.conversions`] = converted.conversions;
   update[`flags.${MODULE_ID}.ose.gaps`] = converted.gaps;

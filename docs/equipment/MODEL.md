@@ -11,16 +11,17 @@ enums; local-only, never in the repo).
   core item/actor data and writes only its own flags plus one managed Active
   Effect that targets real core `system.*.mod` fields.
 - **Reuse core fields.** Always-on modifiers are written into the fields core
-  already sums (`system.aac.mod`, `system.initiative.mod`,
-  `system.thac0.mod.melee/missile`, `system.damage.mod.melee`) so
-  `computeAC`/`rollAttack` consume them with no patch.
-- **One owner per wrapped core method.** `rollAttack` is owned by
-  `scripts/lib/patches/attack-roll.mjs`, which remodels it as target-vs-bonus-stack
-  and fires a pre-roll hook carrying the mutable term stack — that hook is the seam
-  for per-attack modifiers that cannot be static. This feature's own libWrapper
-  registration is `computeEncumbrance` and nothing else
-  (`scripts/equipment/roll-wrap.mjs`); a second registration against the same
-  target fails `tools/validate-extra.mjs`.
+  already sums (`system.ac.mod`, `system.initiative.mod`,
+  `system.attack.mod.melee/missile`, `system.damage.mod.melee`) so the
+  system's AC and attack throw consume them with no patch.
+- **One owner per wrapped core method.** The system's attack throw
+  (`AcksActor#makeAttackThrow` and the modifier and mode methods it reads) is
+  wrapped once, by `scripts/lib/patches/attack-throw.mjs`, which asks every
+  registered contributor for its labelled rows — that seam is where per-attack
+  modifiers that cannot be static go. This feature registers a contributor
+  (`scripts/equipment/roll-wrap.mjs`, the rows computed in `attack-mods.mjs`)
+  and holds one libWrapper registration of its own, `computeEncumbrance`; a
+  second registration against the same target fails `tools/validate-extra.mjs`.
 - **Single responder.** Loadout writes (auto-unequip, effect sync) run for one
   user — the active GM if online, else the actor owner
   (`enforce.primaryResponder`) — and each client serialises its own
@@ -192,7 +193,7 @@ with the grip as the header's note; the character sheet folds the place
 
 Core's `computeAC` adds the last equipped shield's AC unconditionally. Two
 rules say a shield grants nothing, and both are applied through the loadout
-effect's one `system.aac.mod` change: the JJ shield-variant overlay
+effect's one `system.ac.mod` change: the JJ shield-variant overlay
 (`shieldACCorrection` — a buckler without Specialization, a shield strapped on
 the back, a phalanx shield mounted) and the fighting styles (RR ch. 3 — no
 Weapon & Shield style, no benefit from a shield). The Loadout carries the
@@ -384,10 +385,12 @@ documents in the same collection and re-renders, debounced; `_onClose`
 detaches them.
 
 **Rolls are never invented.** `rolls.mjs` gathers a weapon's attack modes
-(core's own pipeline, mode forced), the manoeuvre overlay (an attack with
-`options.maneuver`, which `roll-wrap.mjs` folds into the bonus stack), a spell
-book's formulae (listed, not rollable) and the lock rows (`locks.mjs`). A row
-gets a Roll button only where a real path exists.
+(the system's own throw, its kind of attack named and the two-handed row
+asking for the ALTERNATE damage mode first through `options.acksLib`), the
+manoeuvre overlay (an attack with `options.acksLib.maneuver`, whose penalty
+the contributor adds as a row), a spell book's formulae (listed, not rollable)
+and the lock rows (`locks.mjs`). A row gets a Roll button only where a real
+path exists.
 
 **Gating.** A player sees a disguised item as the document is — the disguise
 WRITES the apparent fields — so the sheet adds nothing for them; a Judge sees
@@ -415,11 +418,13 @@ select for every registered single answer, with *Auto (guess)* first wherever
 the module infers; a strip of toggles for every registered set, showing every
 option, with a declared option solid, an inferred one dashed and an *Auto*
 chip that returns the set to inference; and *Other tags* for free text. The
-strips are grips, the core weapon tags of `CONFIG.ACKS.tags` as Qualities,
+strips are grips, the system's weapon qualities as Qualities (its `melee` and
+`missile` booleans and every key of its `special` field, each read from and
+written to that field; *Other tags* is its `customTags` set),
 and the `WEAR_SLOT_ORDER` places as Worn at, where a weapon's hand places are
 locked and no place lit while declared is `gear.slots = []`. The Class select
 is the character sheet's `CATEGORY_TOKENS` vocabulary and writes
-`flags.acks-extras.category`. A quality writes core's `{title, value}` tag and,
+`flags.acks-extras.category`. A quality writes the system's own field and,
 for melee/missile/slow, the boolean field beside it; a stored tag is matched
 by the slug of its key, label or raw value, since core's registry reads as lang
 keys in source and as localized words in a running world. The markets feature's magic panel mounts under Appearance for

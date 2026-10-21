@@ -102,7 +102,7 @@ export function classUpdateData(actor, classItem, level, { election = null } = {
   else missing.push("saves");
 
   const attack = attackBandAt(classItem, clamped);
-  if (attack?.throw != null) update["system.thac0.throw"] = attack.throw;
+  if (attack?.throw != null) update["system.attack.throw"] = attack.throw;
   else missing.push("attack");
 
   const cleaves = resolveLevelValue(sys.cleaves, clamped);

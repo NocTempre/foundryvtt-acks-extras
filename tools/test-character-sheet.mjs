@@ -249,14 +249,14 @@ const throwing = (target, ...keys) => {
 };
 const change = (key, type, value, priority = null) => throwing({ key, type, value: String(value), priority }, "mode");
 const withEffects = (...effects) => ({
-  _source: { system: { save: { mod: 0 }, saves: { paralysis: { value: 13 }, death: { value: 14 }, breath: { value: 15 }, implements: { value: 16 }, spell: { value: 17 } } } },
+  _source: { system: { save: { mod: 0 }, saves: { paralysis: { value: 13 }, death: { value: 14 }, blast: { value: 15 }, implements: { value: 16 }, spell: { value: 17 } } } },
   appliedEffects: effects.map((e) => ({ disabled: false, ...e })),
 });
 test("an add on the all-save modifier colours every save; a subtraction reads negative; a lowered target reads as help", () => {
   const mods = saveModifiers(withEffects(
     { changes: [change("system.save.mod", "add", 2)] },
     { changes: [change("system.save.mod", "subtract", 1)] },
-    { changes: [change("system.saves.breath.value", "add", -1)] },
+    { changes: [change("system.saves.blast.value", "add", -1)] },
   ));
   assert.deepEqual(mods, { paralysis: 1, death: 1, blast: 2, implements: 1, spell: 1 });
 });
@@ -384,10 +384,10 @@ test("the spanning row lists what both hands hold first and is full past two thi
 
 console.log("character sheet: the editable fields");
 test("an editable field renders the stored value, so an effect's addition is never written back as the base", () => {
-  const actor = { _source: { system: { aac: { mod: 0 }, surprise: { avoidsurprise: 0 } } }, system: { aac: { mod: 1 }, surprise: { avoidsurprise: 1 } } };
-  assert.equal(storedSystem(actor).aac.mod, 0);
+  const actor = { _source: { system: { ac: { mod: 0 }, surprise: { avoidsurprise: 0 } } }, system: { ac: { mod: 1 }, surprise: { avoidsurprise: 1 } } };
+  assert.equal(storedSystem(actor).ac.mod, 0);
   assert.equal(storedSystem(actor).surprise.avoidsurprise, 0);
-  assert.equal(storedSystem({ system: { aac: { mod: 2 } } }).aac.mod, 2);
+  assert.equal(storedSystem({ system: { ac: { mod: 2 } } }).ac.mod, 2);
   assert.deepEqual(storedSystem(null), {});
 });
 

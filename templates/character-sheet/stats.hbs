@@ -131,7 +131,7 @@
         <div class="acks-extras-character-sheet__fact">
           <i class="fa-solid fa-shield-halved acks-extras-character-sheet__fact-icon" inert></i>
           <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.ArmorClassBonus"}}</span>
-          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.aac.mod" value="{{st.vitals.acMod}}" {{disabled (not @root.editable)}}>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.ac.mod" value="{{st.vitals.acMod}}" {{disabled (not @root.editable)}}>
         </div>
         <div class="acks-extras-character-sheet__fact">
           <i class="fa-solid fa-hand-fist acks-extras-character-sheet__fact-icon" inert></i>
@@ -152,7 +152,7 @@
         <div class="acks-extras-character-sheet__fact">
           <i class="fa-solid fa-crosshairs acks-extras-character-sheet__fact-icon" inert></i>
           <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.ABShort"}}</span>
-          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.thac0.throw" value="{{st.vitals.attackThrow}}" {{disabled (not @root.editable)}}>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.attack.throw" value="{{st.vitals.attackThrow}}" {{disabled (not @root.editable)}}>
         </div>
         {{#each st.throws.saves}}
         <div class="acks-extras-character-sheet__fact">

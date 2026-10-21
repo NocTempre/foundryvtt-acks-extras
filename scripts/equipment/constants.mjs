@@ -153,7 +153,7 @@ export const SETTINGS = Object.freeze({
   // model of the same facts, and this module's flags are absent on characters
   // built with it. See proficiency.mjs enforcementActive().
   PROFICIENCY_ENFORCEMENT: "proficiencyEnforcement",
-  ROLL_AUTOMATION: "rollAutomation", // wrap rollAttack/rollWeapon
+  ROLL_AUTOMATION: "rollAutomation", // the per-weapon rows on the system's attack throw
   AMMO_TRACKING: "ammoTracking", // consume ammunition / mark thrown weapons on a missile attack
   DEFAULT_HAND_BUDGET: "defaultHandBudget",
   // Optional-rule overlays (RAW, off unless core-default).

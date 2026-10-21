@@ -75,7 +75,7 @@ function armorType(category, name) {
   return "light";
 }
 
-/** AC cell → aac.value. "+1"/"1".."6" → N; "-"/blank → 0. */
+/** AC cell → ac.value. "+1"/"1".."6" → N; "-"/blank → 0. */
 function acValue(ac) {
   const m = String(ac ?? "").match(/[+-]?\d+/);
   const n = m ? Number(m[0]) : 0;
@@ -181,7 +181,7 @@ export function bindArmorRow(row, id, cite) {
   const isSpiked = /spiked/i.test(row.name);
   const system = {
     description: bookText([], cite, { id, book: ARMOR_TABLE.book, page: ARMOR_TABLE.page }),
-    aac: { value: acValue(c.ac) },
+    ac: { value: acValue(c.ac) },
     type,
     equipped: false,
   };

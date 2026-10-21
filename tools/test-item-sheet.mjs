@@ -340,32 +340,27 @@ test("grips: versatile is both lit, and both off hands the question back to the 
   assert.equal(nextGrips({ declared: "2h", inferred: "1h" }, "2h"), null, "a weapon nobody can hold is not an answer");
 });
 const registry = [
-  { key: "melee", raw: "ACKS.items.Melee", label: "Melee" },
-  { key: "twohanded", raw: "ACKS.items.TwoHanded", label: "Two-handed" },
-  { key: "brace", raw: "ACKS.items.Brace", label: "Brace" },
+  { key: "melee", label: "Melee" },
+  { key: "missile", label: "Missile" },
+  { key: "thrown", label: "Thrown" },
 ];
-const stored = [{ title: "Two-Handed", value: "Two-Handed" }, { title: "Melee", value: "Melee" }, { title: "Iron", value: "Iron" }];
-test("a quality reads the field where one exists and the stored tag otherwise, in any spelling", () => {
-  const chips = qualityChips(registry, stored, { melee: false });
-  assert.deepEqual(chips.map((c) => [c.key, c.on]), [["melee", false], ["twohanded", true], ["brace", false]]);
-  assert.equal(qualityChips(registry, [], { melee: true })[0].on, true, "the field wins over a missing tag");
-  assert.equal(qualityChips(registry, [{ title: "Brace", value: "ACKS.items.Brace" }])[2].on, true, "core's own spelling reads too");
-  assert.deepEqual(otherTags(registry, stored), ["Iron"]);
+const fields = { melee: true, missile: false, special: { thrown: true, slow: false }, customTags: ["Iron", " Family heirloom "] };
+test("a quality reads the system's own field: a use from its boolean, a property from special", () => {
+  const chips = qualityChips(registry, fields);
+  assert.deepEqual(chips.map((c) => [c.key, c.on]), [["melee", true], ["missile", false], ["thrown", true]]);
+  assert.deepEqual(qualityChips(registry, {}).map((c) => c.on), [false, false, false], "nothing stored is off, not an error");
+  assert.deepEqual(otherTags(fields.customTags), ["Iron", "Family heirloom"]);
 });
-test("a quality click writes the tag in core's spelling and the field it mirrors", () => {
-  const on = nextQuality(registry, stored, "melee", true);
-  assert.deepEqual(on.tags, [{ title: "Two-Handed", value: "Two-Handed" }, { title: "Iron", value: "Iron" }, { title: "Melee", value: "ACKS.items.Melee" }]);
-  assert.equal(on.melee, true);
-  const off = nextQuality(registry, stored, "twohanded", false);
-  assert.deepEqual(off.tags.map((t) => t.title), ["Melee", "Iron"]);
-  assert.ok(!("twohanded" in off), "no field to mirror");
-  assert.equal(nextQuality(registry, stored, "bogus", true), null);
+test("a quality click writes the field it reads", () => {
+  assert.deepEqual(nextQuality(registry, "melee", false), { melee: false });
+  assert.deepEqual(nextQuality(registry, "thrown", true), { special: { thrown: true } });
+  assert.equal(nextQuality(registry, "bogus", true), null);
 });
 test("free-text tags add once and remove by their text", () => {
-  assert.equal(withTag(stored, " Iron "), null, "already there");
-  assert.equal(withTag(stored, "  "), null);
-  assert.deepEqual(withTag(stored, "Family heirloom").at(-1), { title: "Family heirloom", value: "Family heirloom" });
-  assert.deepEqual(withoutTag(stored, "Iron").map((t) => t.title), ["Two-Handed", "Melee"]);
+  assert.equal(withTag(fields.customTags, " Iron "), null, "already there");
+  assert.equal(withTag(fields.customTags, "  "), null);
+  assert.deepEqual(withTag(fields.customTags, "Dented"), ["Iron", "Family heirloom", "Dented"]);
+  assert.deepEqual(withoutTag(fields.customTags, "Iron"), ["Family heirloom"]);
 });
 
 console.log("item sheet: accept kinds");

@@ -184,7 +184,7 @@ function summary(actor) {
   return {
     ...brief(actor),
     hp: { value: num(sys.hp?.value), max: num(sys.hp?.max) },
-    ac: { value: num(sys.aac?.value), shield: num(sys.aac?.shield), naked: num(sys.aac?.naked) },
+    ac: { value: num(sys.ac?.value), shield: num(sys.ac?.shield), naked: num(sys.ac?.naked) },
     saves: plain(sys.saves) ?? {},
     coinGp,
     ...(snap ?? {}),

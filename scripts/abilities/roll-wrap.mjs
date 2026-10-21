@@ -32,7 +32,7 @@ async function onRollFormula(wrapped, options = {}) {
   if (this.type !== ABILITY_TYPE) return wrapped(options);
 
   const rolls = rollsOf(this);
-  if (!rolls.length) return this.show();
+  if (!rolls.length) return this.showChatCard();
 
   return rollAbility(this, options.key, { event: options.event, skipDialog: options.skipDialog });
 }

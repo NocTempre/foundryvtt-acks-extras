@@ -1,5 +1,6 @@
 /* global foundry */
 import { SAVE_KEYS } from "../constants.mjs";
+import { saveKindOf } from "../../lib/actor-compat.mjs";
 import {
   ON_SUCCESS,
   RESOLUTIONS,
@@ -20,6 +21,16 @@ import {
  * the wall only place it".
  */
 export default class TrapData extends foundry.abstract.TypeDataModel {
+  /**
+   * A trap saved under a save key the system has since renamed is read under
+   * the current one, so the stored value passes the field's choices and the
+   * resolve path finds the save on the victim.
+   */
+  static migrateData(source) {
+    if (typeof source?.saveKey === "string" && source.saveKey) source.saveKey = saveKindOf(source.saveKey);
+    return super.migrateData(source);
+  }
+
   static defineSchema() {
     // Resolved here rather than at module scope: `TRAP_ITEM_TYPE` above is
     // imported by Foundry-free code (and by the offline tests), and a
@@ -97,7 +108,7 @@ export default class TrapData extends foundry.abstract.TypeDataModel {
         initial: ON_SUCCESS.half,
         choices: Object.values(ON_SUCCESS),
       }),
-      /** Which save it allows. `breath` is the Blast save in the released system. */
+      /** Which save it allows, under the system's current key; `migrateData` renames a stored legacy key. */
       saveKey: new fields.StringField({ required: false, blank: true, initial: "", choices: ["", ...SAVE_KEYS] }),
       /**
        * The attack throw for a fighter of this trap's level, stored rather

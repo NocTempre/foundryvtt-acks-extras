@@ -35,7 +35,7 @@ other VTTs) while cookbooks stay valid.
   core's import of that Adventure to what the world lacks
   ([MODEL.md](MODEL.md), "A settlement's map").
 - **Field mapping:** executor output → `system.*` paths (the successor of
-  `scripts/stats-map.mjs`). E.g. `stats.armorClass` → `system.aac.value`,
+  `scripts/stats-map.mjs`). E.g. `stats.armorClass` → `system.ac.value`,
   save class+level → the saves LUT, attacks → weapon Items with
   `flags.acks-extras.*` (damageType/naturalWeapon/extraordinary from the
   executor's `{key, ref}` triples and glyphColor result).

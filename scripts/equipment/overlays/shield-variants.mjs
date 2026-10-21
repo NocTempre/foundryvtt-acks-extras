@@ -13,9 +13,9 @@
  *  2. A **buckler** grants its AC *only* to a character with Fighting Style
  *     Specialization (Weapon & Shield). Others gain nothing at all.
  *
- * Core's computeAC adds any equipped shield's `aac.value` unconditionally, so
+ * Core's AC computation adds any equipped shield's `ac.value` unconditionally, so
  * where RAW says the shield gives nothing we contribute a negative correction to
- * `system.aac.mod` — cancelling core's bonus rather than fighting it.
+ * `system.ac.mod` — cancelling core's bonus rather than fighting it.
  *
  * MOUNTED. A phalanx shield cannot be used from horseback, which is a flat RAW
  * fact rather than a situational one — so now that acks-lib records who is
@@ -123,8 +123,8 @@ export function grantsOrdinaryAC(item, hasShieldSpec, actor = null) {
 }
 
 /**
- * Correction for `system.aac.mod` that reconciles core's unconditional shield
- * bonus with RAW. Core adds the LAST equipped shield's aac.value; if RAW says
+ * Correction for `system.ac.mod` that reconciles core's unconditional shield
+ * bonus with RAW. Core adds the LAST equipped shield's ac.value; if RAW says
  * that shield grants nothing ordinary, cancel it.
  * @returns {number} 0 or a negative correction
  */
@@ -134,7 +134,7 @@ export function shieldACCorrection(loadout, hasShieldSpec, actor = null) {
   if (!shields.length) return 0;
   const counted = shields[shields.length - 1]; // matches core's last-wins pick
   if (grantsOrdinaryAC(counted, hasShieldSpec, actor)) return 0;
-  return -Number(counted.system?.aac?.value ?? 0);
+  return -Number(counted.system?.ac?.value ?? 0);
 }
 
 /**

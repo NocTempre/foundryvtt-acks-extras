@@ -1059,7 +1059,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   }
 
   static #onItemShow(event, target) {
-    this.#itemOf(target)?.show?.();
+    this.#itemOf(target)?.showChatCard?.();
   }
 
   static async #onItemCreate(event, target) {
@@ -1315,7 +1315,8 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   static #onSpellCast(event, target) {
     const item = this.#itemOf(target);
     if (!item) return;
-    item.spendSpell?.({ skipDialog: skipDialogFor(event) });
+    // The system's `use` on a spell counts the casting and shows its card.
+    item.use?.({ skipDialog: skipDialogFor(event) });
   }
 
   static async #onSpellReset() {

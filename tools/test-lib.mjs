@@ -9,7 +9,6 @@ import vm from "node:vm";
 import * as vocab from "../scripts/lib/vocab.mjs";
 import { cleanDelta, isDerivedEffect, memberName, migrateGroupSource, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
-import { attackTerms, termTotal, resolveAttack, legacyCoreResolves } from "../scripts/lib/attack-logic.mjs";
 import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet, abilityModifiers } from "../scripts/lib/effect-scan.mjs";
 import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, rungOrder, withoutLadderPins } from "../scripts/lib/ui-preset-logic.mjs";
 import {
@@ -54,7 +53,7 @@ import { brightestLightReaching, emittedLight } from "../scripts/lib/light.mjs";
 import { sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
-import { drawForJudges, drawQuietly, mathIsPrivate, mathSection, postToJudges } from "../scripts/lib/roll-audience.mjs";
+import { drawForJudges, drawQuietly, postToJudges } from "../scripts/lib/roll-audience.mjs";
 import { elementOf, gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
 import { clientPages, keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "../scripts/lib/client-pins.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../scripts/lib/sheet-rows.mjs";
@@ -1049,56 +1048,6 @@ t("resolveActor merges axis rows then N-D cells, composes the name", () => {
   // {base} in a nameFormat resolves to the dropped actor's name.
   const mod = { output: { nameFormat: "{base}, Vampire Thrall" }, axes: [] };
   assert.equal(resolveActor(mod, {}, { baseName: "Bob the Fighter" }).name, "Bob the Fighter, Vampire Thrall");
-});
-
-t("attackTerms: stable keys, zero terms dropped, monster gets weapon only", () => {
-  assert.deepEqual(attackTerms({ type: "melee", abilityMod: 2, attackMod: 0, itemBonus: 1 }), [
-    { key: "ability", value: 2 },
-    { key: "weapon", value: 1 },
-  ]);
-  assert.deepEqual(attackTerms({ type: "attack", abilityMod: 3, attackMod: 2, itemBonus: 1 }), [
-    { key: "weapon", value: 1 },
-  ]);
-  assert.equal(termTotal(attackTerms({ type: "missile", abilityMod: -1, attackMod: 2 })), 1);
-});
-
-t("resolveAttack: throw is the target, bonuses add to the die (acHit math)", () => {
-  // Throw 8+, die 11, +4 bonuses → total 15, hits AC 7; vs AC 4 that's a hit.
-  const r = resolveAttack({ die: 11, bonus: 4, throwTarget: 8, targetAc: 4 });
-  assert.equal(r.acHit, 7);
-  assert.equal(r.effectiveTarget, 12);
-  assert.ok(r.isSuccess);
-  // Same roll vs AC 8 misses — the target moved, the roll didn't.
-  assert.ok(resolveAttack({ die: 11, bonus: 4, throwTarget: 8, targetAc: 8 }).isFailure);
-  // Moving the THROW (class/level) moves the target: throw 4+ now hits AC 8.
-  assert.ok(resolveAttack({ die: 11, bonus: 4, throwTarget: 4, targetAc: 8 }).isSuccess);
-});
-
-t("resolveAttack: die specials — nat 1 misses, nat 20 hits, unless exploding", () => {
-  assert.ok(resolveAttack({ die: 1, bonus: 20, throwTarget: 10, targetAc: 0 }).isFumble);
-  assert.ok(resolveAttack({ die: 20, bonus: -20, throwTarget: 10, targetAc: 9 }).isCritical);
-  // Exploding 20s: no auto-results — the raw math decides.
-  assert.ok(resolveAttack({ die: 1, bonus: 20, throwTarget: 10, targetAc: 0, exploding: true }).isSuccess);
-  assert.ok(resolveAttack({ die: 20, bonus: -20, throwTarget: 10, targetAc: 9, exploding: true }).isFailure);
-});
-
-t("resolveAttack: full parity with core's folded resolution (both rules)", () => {
-  let checked = 0;
-  for (const exploding of [false, true]) {
-    for (let die = 1; die <= 20; die++) {
-      for (let bonus = -3; bonus <= 5; bonus++) {
-        for (let throwTarget = 3; throwTarget <= 11; throwTarget++) {
-          for (let targetAc = 0; targetAc <= 9; targetAc += 3) {
-            const ours = resolveAttack({ die, bonus, throwTarget, targetAc, exploding }).isSuccess;
-            const core = legacyCoreResolves({ die, bonus, throwTarget, targetAc, exploding });
-            assert.equal(ours, core, `die ${die} bonus ${bonus} throw ${throwTarget} AC ${targetAc} hfh ${exploding}`);
-            checked++;
-          }
-        }
-      }
-    }
-  }
-  assert.ok(checked > 12000, `swept ${checked} cases`);
 });
 
 /* -------------------------------------------- */
@@ -2380,23 +2329,6 @@ t("auditLine prints the audit with a true minus sign", () =>
     assert.equal(auditLine(roll), "Natural 14 + 2 (Situational) − 3 = 13");
     assert.equal(auditLine({ terms: [d20(9)], total: 9 }), "");
   }));
-
-t("mathSection hides an attack card's math in a secret section unless the world shows it to everyone", () => {
-  let value = "owners";
-  let asked = null;
-  const settings = { get: (ns, key) => { asked = `${ns}.${key}`; return value; } };
-  withGlobals({ game: { settings }, foundry: { utils: { randomID: () => "abc123" } } }, () => {
-    assert.equal(mathIsPrivate(), true);
-    assert.equal(asked, "acks-extras.rollMath");
-    assert.equal(mathSection("<p>m</p>"), '<section class="secret" id="abc123"><div class="acks-extras-roll-math"><p>m</p></div></section>');
-    value = "everyone";
-    assert.equal(mathIsPrivate(), false);
-    assert.equal(mathSection("<p>m</p>"), "<p>m</p>");
-    assert.equal(mathSection(""), "");
-    settings.get = () => { throw new Error("not registered"); };
-    assert.equal(mathIsPrivate(), true, "before settings exist the math stays private");
-  });
-});
 
 t("judgesAndOwners: every GM, then each other user who owns the document", () => {
   const users = [{ id: "g1", isGM: true }, { id: "p1", isGM: false }, { id: "p2", isGM: false }];

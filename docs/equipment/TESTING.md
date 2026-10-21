@@ -52,9 +52,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   damage roll looks unfixed; `type: "add"` reaches it. A boolean domain
   (`finesse`) fires on the key alone, whatever the type — which is why one
   half of a fixture works and the other does not. Roll with
-  `actor.rollAttack({item: weapon.toObject(), roll: {}}, {type: "melee",
-  skipDialog: true})`; the damage box renders only on a hit, so loop until
-  one lands and read both `.dice-formula` elements.
+  `actor.makeAttackThrow({item: weapon, attackType: "melee", skipDialog: true})`
+  and read the rows from the `acksLibPostAttackRoll` hook's outcome
+  (`outcome.attackRoll`, `outcome.damageRoll`); the damage box renders only on
+  a hit, so loop until one lands to read it on the card.
 - **The shipped macros read the canvas selection**, not an actor argument.
   `macro.execute({actor})` runs without throwing and does nothing visible;
   place a token and control it first.
@@ -100,7 +101,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    (`flags.acks-extras.styles` = `single`), draw a sword and a shield.
    *Observable:* `getLoadout(actor).shieldStyled` is false with the
    `shieldNoStyle` advisory; the managed loadout effect carries
-   `system.aac.mod` at minus the shield's AC, and `system.aac.value` reads
+   `system.ac.mod` at minus the shield's AC, and `system.ac.value` reads
    as it did without the shield. Add `weaponShield` to the styles flag:
    the advisory and the change go, and the value climbs by the shield's AC.
    Add a Specialization marker (`styleProficient` = `weaponShield:spec`):
@@ -112,16 +113,16 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    *Weapon & Shield* on its Mechanics tab — the ability sheet's own checkbox,
    a real click, not a flag write. *Observable:* with no equip toggle and no
    reload, the managed loadout effect gains the specialization's change and
-   `system.aac.value` climbs; untick it and the value falls back. Read the
+   `system.ac.value` climbs; untick it and the value falls back. Read the
    actor from `fromUuid` after each, not the open sheet's document.
-3d. The penalty is named: with proficiency enforcement `on` and the
-   attack-roll setting on, attack from the character sheet with a weapon the
-   character is not proficient in. *Observable:* the roll dialog's formula and
-   the chat roll's tooltip carry a term labelled **Non-proficient**, apart from
-   the weapon's own term, which carries only the weapon's bonus;
-   `computeAttackMods(actor, {item})` returns that one term in `terms`. With
-   the attack-roll setting off (a reload), the same attack totals the same —
-   core's roll reads the package folded into the item's bonus.
+3d. The penalty is named: with proficiency enforcement `on`, attack from the
+   character sheet with a weapon the character is not proficient in.
+   *Observable:* the system's attack dialog and its card carry a row labelled
+   **Non-proficient**, apart from the weapon's own row, which carries only the
+   weapon's bonus; `attackThrowRows(actor, item, "melee")`
+   (`scripts/equipment/attack-mods.mjs`) returns that one row. Roll the same
+   weapon from the item sheet's 2H row: the dialog opens on the two-handed
+   die (the system's alternate damage mode first).
 4. Containers: declare capacity on the sack, `storeIn` the weapon, then
    `takeOut`.
    *Observable:* `contentsOf(sack)` lists it, `encumbranceDelta6` changes, and
@@ -261,10 +262,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    axe offers either; click *Two-handed* → `grips === "1h"` (One-handed
    solid, Two-handed ghost); click *Two-handed* again → `versatile`, both
    solid; click *One-handed* → `2h`; click *Two-handed* → both off, the flag
-   gone, both dashed again. Qualities: one chip per `CONFIG.ACKS.tags`
-   entry, *Melee* lit from the field; click *Slow* → `system.slow` true and
-   `system.tags` gains a `{title, value}` entry whose value is the registry's
-   own word for it (`Slow` in a running world); click again → both gone. Other tags: type a word, Enter → `system.tags` gains it; its ×
+   gone, both dashed again. Qualities: one chip for *Melee*, one for
+   *Missile* and one per key of the system's `special` field, each lit from
+   its field; click *Slow* → `system.special.slow` true; click again → false.
+   Other tags: type a word, Enter → `system.customTags` gains it; its ×
    removes it. Worn at: every `WEAR_SLOT_ORDER` place in the rail's order,
    Main Hand / Off Hand / Both Hands solid and locked (tooltip says why), no
    other lit; click *Belt* → `gear.slots` holds the three hands and `belt`;
@@ -689,7 +690,7 @@ of them. The effect must still be one document.
 
 1. From seat A, apply Thief to the Fighter, then wait 3 s.
    *Observable:* in both pages, exactly one loadout effect, `_id`
-   `acksExtLoadout00`, `system.aac.mod -1`, AC 4. Each page shows at most one
+   `acksExtLoadout00`, `system.ac.mod -1`, AC 4. Each page shows at most one
    local preCreate.
 2. From seat B, unequip the shield and equip it again, then wait 3 s.
    *Observable:* still one loadout effect under that id, AC 4.

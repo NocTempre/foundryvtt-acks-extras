@@ -706,8 +706,8 @@ path); everything shared is here. One owner per wrapped core method —
 
 ### `acksCompatStubs()` / `savingThrowFields()`
 
-`AcksActor` runs for every actor and touches `isNew`, `thac0`, `initiative`,
-`movement` and `saves.implements`/`.wand` unguarded — the setup-time
+`AcksActor` runs for every actor and touches `isNew`, `attack`, `initiative`,
+`movement` and `saves` unguarded — the setup-time
 `updateWeightsLanguages` sweep reads them on *every actor in the world*, so one
 module actor with an incomplete schema aborts the system's own ready work.
 
@@ -722,7 +722,7 @@ field paths and initials as the system's own `SavingThrowsTemplate`.
 ### `acks-extras.animal` — the animal/monster bridge
 
 An animal is a monster you can also buy, load and ride. `AnimalData` mirrors the
-monster's field paths (`hp`, `aac`, `thac0`, `movement`, `saves`,
+monster's field paths (`hp`, `ac`, `attack`, `movement`, `saves`,
 `details.morale`) **on purpose**, so anything already reading a monster reads an
 animal unchanged, and adds the shop-and-stable half under `system.animal`:
 `species`, `training`, `capacity6`, `unencumbered6`, `mountable`, `cost`.

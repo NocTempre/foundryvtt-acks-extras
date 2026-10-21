@@ -104,6 +104,24 @@ function withMod(dice, mod) {
  * the flag — asking only the flag hides exactly the monsters whose spells the
  * table needs to see. Either is enough.
  */
+/**
+ * The attack bonus the card shows for a kind of attack: an ability mod and the
+ * Tweaks adjustment paired with it, both of a body with scores. A creature
+ * shows its bare throw. The weapon's own bonus is the weapon's row to state.
+ */
+export function shownAttackBonus(actor, type) {
+  if (!actorProvides(actor, "scores")) return 0;
+  const sys = actor?.system ?? {};
+  return type === "missile"
+    ? num(sys.scores?.dex?.mod) + num(sys.attack?.mod?.missile)
+    : num(sys.scores?.str?.mod) + num(sys.attack?.mod?.melee);
+}
+
+/** The damage bonus the card shows for a kind of attack: the Tweaks adjustment for its side. */
+export function shownDamageBonus(actor, type) {
+  return num(actor?.system?.damage?.mod?.[type === "missile" ? "missile" : "melee"]);
+}
+
 export function isSpellcaster(actor) {
   if (actor?.system?.spells?.enabled) return true;
   return (actor?.items?.contents ?? []).some((i) => i.type === ITEM_TYPE.spell);
@@ -204,12 +222,12 @@ export async function followerCardContext(actor, { editable = false, interactive
     alignment: sys.details?.alignment ?? "",
     klass: hasClass ? (sys.details?.class ?? "") : typeLabel(actor),
     klassPath: hasClass ? "system.details.class" : null,
-    ac: overrides.ac != null ? num(overrides.ac) : num(sys.aac?.value),
+    ac: overrides.ac != null ? num(overrides.ac) : num(sys.ac?.value),
     acOverridden: overrides.ac != null,
     hp: { value: num(sys.hp?.value), max: num(sys.hp?.max) },
     morale: num(sys.details?.morale),
     loyalty: num(sys.retainer?.loyalty),
-    attackThrow: num(sys.thac0?.throw, 10),
+    attackThrow: num(sys.attack?.throw, 10),
     powers,
     equipment,
     purse: purse?.shown ? purse : null,
@@ -299,18 +317,11 @@ export async function followerCardContext(actor, { editable = false, interactive
   }
 
   // ATTACKS — one row per option the body has. Target vs bonus stays
-  // distinct, the same model attack-logic.mjs uses; see docs/lib/DECISIONS.md,
-  // "One owner for the attack roll, and one seam for future modifiers".
-  const throwTarget = num(sys.thac0?.throw, 10);
-  const bonusFor = (type) =>
-    // What rides here is an ability mod and the attack adjustment paired with it,
-    // and both belong to a body with scores. A creature shows its bare throw.
-    !hasScores
-      ? 0
-      : type === "missile"
-        ? num(sys.scores?.dex?.mod) + num(sys.thac0?.mod?.missile)
-        : num(sys.scores?.str?.mod) + num(sys.thac0?.mod?.melee);
-  const dmgModFor = (type) => num(sys.damage?.mod?.[type]);
+  // distinct, as the system's attack throw states them: the throw is the
+  // number to meet, the modifiers are what the die carries.
+  const throwTarget = num(sys.attack?.throw, 10);
+  const bonusFor = (type) => shownAttackBonus(actor, type);
+  const dmgModFor = (type) => shownDamageBonus(actor, type);
 
   const equippedWeapons = weapons.filter((w) => w.system?.equipped);
   if (!hasScores && !equippedWeapons.length) {

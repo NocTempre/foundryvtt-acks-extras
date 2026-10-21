@@ -2,8 +2,9 @@
 /**
  * Ammunition consumption + thrown-weapon state. See docs/equipment/DECISIONS.md,
  * "Ammunition does what RAW says and no more (2026-07-24)" for the scope
- * ruling. Called as a fire-and-forget side effect after the core roll in the
- * rollAttack wrap; never blocks or fails the roll.
+ * ruling. Called as a fire-and-forget side effect once the system's attack
+ * throw has resolved (the lib's post-attack hook); never blocks or fails the
+ * roll.
  */
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "./constants.mjs";
 import { WEAPON_CATEGORY } from "./config.mjs";
@@ -88,9 +89,8 @@ export async function recoverThrown(actor) {
  * @param {Item} item      the weapon rolled
  * @param {object} profile classifyWeapon(item)
  * @param {{type?:string}} options  options.type: "melee" | "missile" | "attack" —
- *   core's NPC/monster roll path (item.mjs#rollWeapon) always sends "attack"
- *   regardless of how the weapon was actually used, since it never runs the
- *   character-only missile/melee split.
+ *   a thrown attack arrives as "missile"; "attack" is a caller that does not
+ *   know how the weapon was used, and the weapon's own flags decide.
  */
 export async function consumeForAttack(actor, item, profile, options = {}) {
   if (!game.settings.get(MODULE_ID, SETTINGS.AMMO_TRACKING)) return;

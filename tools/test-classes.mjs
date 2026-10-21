@@ -1847,14 +1847,14 @@ test("a level typed by hand carries its class row, up or down", () => {
     assert.equal(raised.system.details.xp.next, 400);
     assert.equal(raised.system.hp.hd, "3d6");
     assert.equal(raised.system.saves.death.value, 12);
-    assert.equal(raised.system.thac0.throw, 9);
+    assert.equal(raised.system.attack.throw, 9);
     assert.equal(flagOf(raised).appliedLevel, 3);
     assert.equal(flagOf(raised).applied.system.saves.death.value, 12, "the next apply reads the row as its own");
     assert.equal(raised.system.hp.max, undefined, "a typed raise rolls nothing");
     const lowered = { system: { details: { level: 2 } } };
     guardLevelWrite(boundAt(4, 900), lowered, {});
     assert.equal(lowered.system.details.title, "Rank 2");
-    assert.equal(lowered.system.thac0.throw, 10);
+    assert.equal(lowered.system.attack.throw, 10);
     assert.equal(flagOf(lowered).appliedLevel, 2);
   });
 });

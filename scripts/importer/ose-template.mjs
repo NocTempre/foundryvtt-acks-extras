@@ -188,7 +188,7 @@ export function oseTemplateDataFromFields({
   // member's figures under its own.
   // The saves go under the names this schema really has BEFORE they are frozen
   // into the base, or every creature the generator stamps loses one of them.
-  const { hp: _hp, thac0: _thac0, ...baseSystem } = withSchemaSaveNames(converted.system);
+  const { hp: _hp, attack: _attack, ...baseSystem } = withSchemaSaveNames(converted.system);
 
   const bonuses = bonusSteps(fields.thac0, hd.count, hd.countMax);
   const options = [];
@@ -199,7 +199,7 @@ export function oseTemplateDataFromFields({
       merge.hp.value = points;
       merge.hp.max = points;
     }
-    if (constants && bonuses) merge.thac0 = { throw: constants.attackThrow - bonuses[i] };
+    if (constants && bonuses) merge.attack = { throw: constants.attackThrow - bonuses[i] };
     options.push({
       key: String(n),
       label: `${n} HD`,

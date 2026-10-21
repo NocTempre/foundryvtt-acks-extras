@@ -88,8 +88,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    `docs/location/TESTING.md` step 5).
 4. `applyClass(actor, cls, {level: 3, confirm: false})`.
    *Observable:* the returned `update` names every field it wrote, and on the
-   actor: `system.saves.breath.value` carries the band's `blast` number,
-   `system.saves.spell.value` its `spells` number, `system.thac0.throw` the
+   actor: `system.saves.blast.value` carries the band's `blast` number,
+   `system.saves.spell.value` its `spells` number, `system.attack.throw` the
    attack band's throw, and `system.details.{level,title,xp.next}` the level
    row. `registry.classForActor(actor)` now names the class.
 5. Level-up and chargen: `openLevelUp(actor)` and `reopenChargen(actor)`.
@@ -342,7 +342,7 @@ character does not own the class document. Assert on the ACTOR.
    Run it once with the saves and attack throw left as the class sets them,
    and once with them hand-edited first, so the apply writes real changes.
    *Observable:* no create, update or delete hook fires for any ActiveEffect
-   on the actor. `system.aac.value` reads the same immediately and 2 s
+   on the actor. `system.ac.value` reads the same immediately and 2 s
    later. The training effect keeps its id.
 5. On that Fighter, apply Thief (no Weapon & Shield), then Fighter again.
    *Observable:* each apply is ONE `updateActiveEffect` on the same training

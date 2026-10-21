@@ -143,7 +143,7 @@ export function mapPairs(pairs) {
   /* --- core system --- */
 
   const ac = take("Armor Class");
-  if (ac && /^\d+/.test(ac)) system.aac = { value: parseInt(ac, 10) };
+  if (ac && /^\d+/.test(ac)) system.ac = { value: parseInt(ac, 10) };
 
   const hd = take("Hit Dice");
   if (hd) {
@@ -163,8 +163,6 @@ export function mapPairs(pairs) {
     const level = abbr === "NH" ? 0 : parseInt(m?.[2] ?? "0", 10) || 0;
     const row = savesForLevel(level);
     system.saves = Object.fromEntries(Object.entries(row).map(([k, v]) => [k, { value: v }]));
-    system.saves.breath = { value: row.blast };
-    system.saves.wand = { value: row.implements };
     extras.saveAs = { class: SAVE_CLASS_BY_ABBR[abbr] ?? "fighter", level };
   }
 
@@ -253,7 +251,7 @@ export function mapPairs(pairs) {
   const damage = clean(damageRaw);
   if (attacks) {
     const throwMatch = /(\d+)\+/.exec(attacks);
-    if (throwMatch) system.thac0 = { throw: parseInt(throwMatch[1], 10) };
+    if (throwMatch) system.attack = { throw: parseInt(throwMatch[1], 10) };
     system.attacks = [attacks, damage].filter(Boolean).join(" — ");
     // Split RAW segments so each keeps its damage-type icon glyph.
     const segments = (damageRaw ?? "").split("/").map((s) => s.trim()).filter((s) => /\d*d\d+/.test(s));

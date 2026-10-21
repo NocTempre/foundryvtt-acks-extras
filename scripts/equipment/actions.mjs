@@ -16,8 +16,9 @@ import {
   tableFor, accumulate, needsReroll, SCAVENGED_TABLES,
   importedTable, importedNeedsReroll, accumulateImported, importedRow, rowToEffects,
 } from "./overlays/scavenged.mjs";
-import { recomputeItemFields, withFlatDelta } from "./properties.mjs";
+import { recomputeItemFields, withFlatDelta, damageFormulaOf } from "./properties.mjs";
 import { unset } from "../lib/util.mjs";
+import { skipDialogFor } from "../lib/roll-dialog.mjs";
 
 function notify(key, data) {
   const full = `ACKS-EQUIPMENT.action.${key}`;
@@ -52,10 +53,10 @@ export function readiedWeaponData(item) {
     type: "weapon",
     img: item.img,
     system: {
-      damage: klass.damage || "1d4",
+      damage: { base: { formula: klass.damage || "1d4" } },
       melee: klass.melee ?? true,
       missile: klass.missile ?? true,
-      bonus: 0,
+      bonus: { attack: 0, damage: 0 },
       equipped: false,
       cost: Number(item.system?.cost ?? 0),
       weight: Number(item.system?.weight ?? 0),
@@ -114,22 +115,25 @@ export function unarmedStrikeData() {
       : "Unarmed Strike",
     type: "weapon",
     img: "icons/skills/melee/unarmed-punch-fist.webp",
-    system: { damage: "1d3", melee: true, missile: false, bonus: 0, equipped: false },
+    system: { damage: { base: { formula: "1d3" } }, melee: true, missile: false, bonus: { attack: 0, damage: 0 }, equipped: false },
   };
 }
 
 /**
  * Make an unarmed attack: build an UNSAVED weapon on the actor and run it
- * through core's own rollWeapon pipeline (targets, attack throw, damage). No
- * document is persisted — the item exists only for the roll — and because it has
- * no id, the attack-roll wrapper's per-item modifiers cleanly skip it.
+ * through the system's own attack throw (targets, throw, damage). No document
+ * is persisted — the item exists only for the roll — and because it has no
+ * id, the per-weapon modifiers that read the loadout cleanly skip it.
+ *
+ * @param {Actor} actor
+ * @param {{event?: Event, skipDialog?: boolean}} [options]
  */
 export function rollUnarmed(actor, options = {}) {
   if (!actor) return null;
   const cls = CONFIG?.Item?.documentClass;
   if (!cls) return null;
   const weapon = new cls(unarmedStrikeData(), { parent: actor });
-  return weapon.rollWeapon(options);
+  return actor.makeAttackThrow({ item: weapon, attackType: "melee", skipDialog: options.skipDialog ?? skipDialogFor(options.event) });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -475,15 +479,15 @@ export async function disguiseItem(item, apparent = {}) {
     name: item.name,
     img: item.img,
     cost: Number(item.system?.cost ?? 0),
-    damage: item.system?.damage ?? "",
-    ac: Number(item.system?.aac?.value ?? 0),
+    damage: damageFormulaOf(item),
+    ac: Number(item.system?.ac?.value ?? 0),
     description: item.system?.description ?? "",
   };
   const update = { name: apparent.name ?? truth.name };
   if (apparent.img) update.img = apparent.img;
   if (apparent.cost != null && apparent.cost !== "") update["system.cost"] = Number(apparent.cost);
-  if (item.type === ITEM_TYPE.weapon && apparent.damage != null && apparent.damage !== "") update["system.damage"] = apparent.damage;
-  if (item.type === ITEM_TYPE.armor && apparent.ac != null && apparent.ac !== "") update["system.aac.value"] = Number(apparent.ac);
+  if (item.type === ITEM_TYPE.weapon && apparent.damage != null && apparent.damage !== "") update["system.damage.base.formula"] = apparent.damage;
+  if (item.type === ITEM_TYPE.armor && apparent.ac != null && apparent.ac !== "") update["system.ac.value"] = Number(apparent.ac);
   if (apparent.description != null) update["system.description"] = apparent.description;
   await item.update?.(update);
   await item.setFlag?.(MODULE_ID, ITEM_FLAGS.DISGUISE, { true: truth, apparent });
@@ -506,8 +510,8 @@ export async function revealItem(item) {
   const update = { name: t.name };
   if (ap.img) update.img = t.img;
   if (ap.cost != null && ap.cost !== "") update["system.cost"] = t.cost;
-  if (item.type === ITEM_TYPE.weapon && ap.damage != null && ap.damage !== "") update["system.damage"] = t.damage;
-  if (item.type === ITEM_TYPE.armor && ap.ac != null && ap.ac !== "") update["system.aac.value"] = t.ac;
+  if (item.type === ITEM_TYPE.weapon && ap.damage != null && ap.damage !== "") update["system.damage.base.formula"] = t.damage;
+  if (item.type === ITEM_TYPE.armor && ap.ac != null && ap.ac !== "") update["system.ac.value"] = t.ac;
   if (ap.description != null) update["system.description"] = t.description;
   await item.update?.(update);
   await item.unsetFlag?.(MODULE_ID, ITEM_FLAGS.DISGUISE);

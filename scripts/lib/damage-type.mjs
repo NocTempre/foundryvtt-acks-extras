@@ -2,17 +2,19 @@
 /**
  * Damage typing for weapons, and the attack options an actor actually has.
  *
- * Core weapon Items carry no damage type at all, and the equipment feature
- * only stamps `flags.acks-extras.damageType` when its annotate macro has run,
- * so this resolves the type LIVE through that feature's own classifier — every
- * profiled weapon is typed with no annotation step and no second copy of the
- * data.
+ * A core weapon Item types its base damage itself (`system.damage.base.types`,
+ * a set the sheet edits), but an older or hand-made weapon leaves the set
+ * empty, and the equipment feature only stamps `flags.acks-extras.damageType`
+ * when its annotate macro has run, so this falls through to that feature's own
+ * classifier — every profiled weapon is typed with no annotation step and no
+ * second copy of the data.
  *
  * Resolution order, most explicit first:
  *   1. `flags.acks-extras.damageTypeOverride` — a hand-set override (ad-hoc weapons)
- *   2. `flags.acks-extras.damageType`         — the stamped classifier value
- *   3. equipment's live `classifyWeapon(item).type`
- *   4. null — genuinely unknown; the UI shows a neutral icon rather than guessing
+ *   2. `system.damage.base.types`             — the weapon's own first type
+ *   3. `flags.acks-extras.damageType`         — the stamped classifier value
+ *   4. equipment's live `classifyWeapon(item).type`
+ *   5. null — genuinely unknown; the UI shows a neutral icon rather than guessing
  *
  * The override key stays spelled `damageTypeOverride`, distinct from
  * `damageType`, so it can never collapse into the value it overrides. See
@@ -75,6 +77,22 @@ export const damageGlyphOf = (item) => DAMAGE_GLYPHS[damageTypeOf(item)] ?? null
 /** The equipment feature's API, once it has attached itself. */
 const equipmentApi = () => globalThis.acksExtras?.equipment ?? game.modules?.get(MODULE_ID)?.api?.equipment ?? null;
 
+/** The system's key for a weapon whose damage type is the weapon's own; the vocabulary spells it `varies`. */
+const CORE_VARIES = "variesByWeapon";
+
+/**
+ * The type a weapon's own base damage states, or null. A weapon typed with
+ * several keeps its first named one; a weapon typed only as varying is
+ * `varies`.
+ */
+export function ownDamageType(item) {
+  const types = item?.system?.damage?.base?.types;
+  const list = types ? Array.from(types) : [];
+  const first = list.find((t) => t !== CORE_VARIES) ?? list[0] ?? null;
+  const key = first === CORE_VARIES ? "varies" : first;
+  return key && DAMAGE_TYPES[key] ? key : null;
+}
+
 /**
  * The damage type of a weapon item, or null when unknown.
  * @param {Item} item
@@ -84,6 +102,8 @@ export function damageTypeOf(item) {
   if (!item) return null;
   const own = item.getFlag?.(MODULE_ID, "damageTypeOverride");
   if (own && DAMAGE_TYPES[own]) return own;
+  const stated = ownDamageType(item);
+  if (stated) return stated;
   const stamped = item.getFlag?.(MODULE_ID, "damageType");
   if (stamped && DAMAGE_TYPES[stamped]) return stamped;
   try {
@@ -124,10 +144,10 @@ export async function setDamageType(item, type) {
  * The attack options an actor actually has right now.
  *
  * Built from EQUIPPED weapons: a melee weapon yields a melee option, a missile
- * weapon a ranged one, and a thrown melee weapon yields BOTH (it is a real
- * choice at the table). With nothing equipped, the only options are unarmed and
- * improvised — including an improvised throw — which is exactly what a body with
- * empty hands can do.
+ * weapon a ranged one, and a weapon that can be thrown yields BOTH (it is a
+ * real choice at the table). With nothing equipped, the only options are
+ * unarmed and improvised — including an improvised throw — which is exactly
+ * what a body with empty hands can do.
  *
  * @returns {Array<{key,label,type,itemId,damageType,icon,damage,at}>}
  */
@@ -138,9 +158,9 @@ export function attackOptionsFor(actor) {
   for (const w of weapons) {
     const damageType = damageTypeOf(w);
     const icon = DAMAGE_TYPE_ICONS[damageType] ?? UNTYPED_ICON;
-    const base = { label: w.name, itemId: w.id, damageType, icon, damage: w.system?.damage || "", at: 1 };
+    const base = { label: w.name, itemId: w.id, damageType, icon, damage: w.system?.damage?.base?.formula || "", at: 1 };
     if (w.system?.melee) options.push({ ...base, key: `${w.id}:melee`, type: "melee" });
-    if (w.system?.missile) options.push({ ...base, key: `${w.id}:missile`, type: "missile" });
+    if (w.system?.missile || w.system?.special?.thrown) options.push({ ...base, key: `${w.id}:missile`, type: "missile" });
     // A weapon flagged neither (data gap) still rolls as its sheet type.
     if (!w.system?.melee && !w.system?.missile) options.push({ ...base, key: `${w.id}:melee`, type: "melee" });
   }

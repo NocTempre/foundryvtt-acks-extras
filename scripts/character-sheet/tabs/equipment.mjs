@@ -40,8 +40,8 @@ const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallb
 /** What a row says under its name: damage for a weapon, AC for armour, worth for coin, weight for goods. */
 function lineOf(item) {
   const parts = [];
-  if (item.type === ITEM_TYPE.weapon) parts.push(item.system?.damage ?? "");
-  if (item.type === ITEM_TYPE.armor) parts.push(`AC ${num(item.system?.aac?.value)}`);
+  if (item.type === ITEM_TYPE.weapon) parts.push(item.system?.damage?.base?.formula ?? "");
+  if (item.type === ITEM_TYPE.armor) parts.push(`AC ${num(item.system?.ac?.value)}`);
   if (isCurrency(item)) parts.push(gpLabel(coinTotalGC([item])));
   // `weight6Of` already weighs the whole stack (it reads the bundle size, and
   // a coin's count against how many make a stone).

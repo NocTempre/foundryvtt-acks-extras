@@ -24,7 +24,7 @@ import { saveKindOf } from "./actor-compat.mjs";
 import { getMonsterExtras } from "./senses.mjs";
 import { STATUS_HIDDEN, STATUS_RUNNING } from "./perception.mjs";
 import { fixEach, registerRepairCheck, worldActors } from "./repair.mjs";
-import { PRE_ATTACK_HOOK, wrapRollAttack } from "./patches/attack-roll.mjs";
+import { addAttackContributor } from "./patches/attack-throw.mjs";
 import {
   CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, STACKS_FLAG,
   attackMath, rollMath, speedMath, subjectOf, endingAt, endingAtTurn, giverOf, lostTo,
@@ -69,7 +69,6 @@ const LEGACY_STATUS_IDS = Object.freeze({
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.conditionRoll.${key}`, data);
 const nameOf = (id) => game.i18n.localize(conditionNameKey(id));
 const signed = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n)}`;
-const sum = (parts) => parts.reduce((total, p) => total + p.value, 0);
 
 /* -------------------------------------------- */
 /*  The palette                                  */
@@ -270,11 +269,13 @@ export async function setConditionStacks(actor, id, n) {
 /*  Reading a roll's parties                     */
 /* -------------------------------------------- */
 
-/** How an attack is made, from the roll type and the weapon's own two flags. */
+/**
+ * How an attack is made: the system's own kind (melee, missile, thrown) as
+ * the throw was asked with, else what the weapon's two flags say.
+ */
 function attackKind(item, type) {
+  if (type === "melee" || type === "missile" || type === "thrown") return type;
   const sys = item?.system ?? {};
-  if (type === "missile") return sys.melee ? "thrown" : "missile";
-  if (type === "melee") return "melee";
   return sys.missile && !sys.melee ? "missile" : "melee";
 }
 
@@ -355,29 +356,50 @@ function reportAttackBars(actor, targetName, math) {
 }
 
 /**
- * The remodeled roll's listener: each figure becomes a labelled term on the
- * attacker's stack, the damage rows and factor ride the context, and an attack
- * that needs no throw is marked with the condition that waives it.
+ * The conditions' reading of the attack in flight, for one kind of attack.
+ * Read once per attack and kind — the dialog's preview asks again on every
+ * keystroke — and told to the table the first time: the bars, the rows that
+ * wait on a circumstance, and what the system's throw has no place for (a
+ * scaled damage roll, a waived throw), which is applied by hand.
  */
-function onPreAttack(actor, ctx) {
-  let math;
+function conditionsOf(ctx, attackType) {
+  ctx.conditions ??= {};
+  if (attackType in ctx.conditions) return ctx.conditions[attackType];
+  let math = null;
   try {
-    math = attackConditions(actor, ctx.targetActor, ctx.item, ctx.type);
+    math = attackConditions(ctx.actor, ctx.targetActor, ctx.item, attackType);
   } catch (err) {
     console.error(`${MODULE_ID} | conditions could not read an attack; it rolls without them`, err);
-    return;
   }
-  if (!math) return;
-  for (const part of math.terms) {
-    ctx.terms.push({ key: `condition.${part.side}.${part.condition}`, value: part.value, label: termLabel(part) });
+  ctx.conditions[attackType] = math;
+  if (math && !ctx.conditionsTold) {
+    ctx.conditionsTold = true;
+    reportAttackBars(ctx.actor, ctx.targetName, math);
+    reportPending(ctx.actor.name, math.pending);
+    reportUnpriced(math.unpriced);
+    const unplaced = [...math.damageFactorBy, ...(math.autoHit ? [math.autoHit] : [])];
+    if (unplaced.length) ui.notifications?.warn(loc("notice.unplaced", { name: ctx.actor.name, conditions: list(unplaced) }));
   }
-  for (const part of math.damage) ctx.damageTerms.push({ value: part.value, label: nameOf(part.condition) });
-  ctx.damageFactor *= math.damageFactor;
-  if (math.autoHit) ctx.autoHit = nameOf(math.autoHit);
-  reportAttackBars(actor, ctx.targetName, math);
-  reportPending(actor.name, math.pending);
-  reportUnpriced(math.unpriced);
+  return math;
 }
+
+/**
+ * The attack seam's contributor: each figure is a labelled modifier on the
+ * attacker's throw (the target's rows marked as the target's) or on the
+ * damage roll.
+ */
+const conditionContributor = {
+  attack(ctx, attackType, modifiers) {
+    const math = conditionsOf(ctx, attackType);
+    if (!math) return modifiers;
+    return [...modifiers, ...math.terms.map((part) => ({ label: termLabel(part), value: part.value }))];
+  },
+  damage(ctx, attackType, modifiers) {
+    const math = conditionsOf(ctx, attackType);
+    if (!math) return modifiers;
+    return [...modifiers, ...math.damage.map((part) => ({ label: nameOf(part.condition), value: part.value }))];
+  },
+};
 
 /** Hold `delta` on `cell[key]` while `run` reads it, then put the field back. */
 function withShift(cell, key, delta, run) {
@@ -389,35 +411,6 @@ function withShift(cell, key, delta, run) {
   } finally {
     cell[key] = was;
   }
-}
-
-/**
- * Core's own attack roll, when the remodeled one is off. Core reads its base
- * attack bonus and its damage adjustment into the formula before it awaits
- * anything, so the figures ride those two fields across that read. Core's
- * card names no term, so what was applied is told beside it.
- */
-function coreRollAttack(wrapped, attData, options = {}) {
-  const type = options.type ?? "melee";
-  let math = null;
-  try {
-    math = attackConditions(this, attData?.roll?.target?.actor ?? null, attData?.item, type);
-  } catch (err) {
-    console.error(`${MODULE_ID} | conditions could not read an attack; it rolls without them`, err);
-  }
-  if (!math) return wrapped(attData, options);
-  reportAttackBars(this, attData?.roll?.target?.name, math);
-  reportPending(this.name, math.pending);
-  reportUnpriced(math.unpriced);
-  reportApplied(this.name, "attack", math.terms);
-  reportApplied(this.name, "damage", math.damage);
-  // Core's roll has no place for a scaled damage roll or a waived throw.
-  const unplaced = [...math.damageFactorBy, ...(math.autoHit ? [math.autoHit] : [])];
-  if (unplaced.length) ui.notifications?.warn(loc("notice.unplaced", { name: this.name, conditions: list(unplaced) }));
-  const sys = this.system;
-  return withShift(sys.thac0, "bba", sum(math.terms), () =>
-    withShift(sys.damage?.mod, type, sum(math.damage), () => wrapped(attData, options)),
-  );
 }
 
 /* -------------------------------------------- */
@@ -811,15 +804,12 @@ function wrapActorMethod(name, wrapper) {
 
 /**
  * Put the conditions on every roll they reach. At `ready`: the system's actor
- * class is final there.
- *
- * @param {object} opts
- * @param {boolean} opts.remodeledAttack whether the remodeled attack roll is
- *   installed; when it is not, core's roll carries the figures instead.
+ * class is final there. The attack throw is reached through the attack seam
+ * (`patches/attack-throw.mjs`), which carries the figures as labelled
+ * modifiers on the system's own throw.
  */
-export function installConditionRolls({ remodeledAttack = true } = {}) {
-  if (remodeledAttack) Hooks.on(PRE_ATTACK_HOOK, onPreAttack);
-  else wrapRollAttack(coreRollAttack);
+export function installConditionRolls() {
+  addAttackContributor(conditionContributor);
   wrapActorMethod("rollSave", onRollSave);
   wrapActorMethod("_calculateMovement", onCalculateMovement);
 

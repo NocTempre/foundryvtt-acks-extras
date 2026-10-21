@@ -4,11 +4,11 @@
  * `monster` schema does not carry. It is a standalone in-memory DataModel
  * persisted at `actor.flags["acks-extras"].extras`, NOT a document sub-type:
  * this lets us reuse the system's own `monster` actor (and its henchman /
- * hp / aac / saves / details fields) while still getting DataModel defaults,
+ * hp / ac / saves / details fields) while still getting DataModel defaults,
  * `choices` validation, and — crucially — nullable numerics so that a blank
  * field is stored as `null` (unspecified) and is never confused with a real 0.
  *
- * Anything the core monster already stores (hp, aac, saves, details.morale,
+ * Anything the core monster already stores (hp, ac, saves, details.morale,
  * details.xp, details.alignment, details.appearing, details.treasure,
  * retainer.*) is READ FROM `actor.system` and is deliberately absent here.
  */

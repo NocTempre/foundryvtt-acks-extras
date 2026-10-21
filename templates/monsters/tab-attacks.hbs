@@ -18,7 +18,7 @@
             <div class="item__pattern" data-action="changePattern" style="--pattern-color: {{item.system.pattern}};" data-tooltip="{{localize 'ACKS.items.pattern'}}"></div>
             <div class="item__icon item-usable" data-action="itemUse"><img src="{{item.img}}" alt="{{item.name}}" class="item__image"/></div>
             <div class="item__text"><a data-action="toggleSummary">{{item.name}}</a></div>
-            <div class="acksm-dmg-tag">{{item.system.damage}}</div>
+            <div class="acksm-dmg-tag">{{item.system.damage.base.formula}}</div>
             <div class="item__attack-count">
               <input class="item-input small" type="number" data-name="system.counter.value" data-kind="item" value="{{item.system.counter.value}}" data-dtype="Number" data-tooltip="{{localize 'ACKS.items.roundAttacks'}}"/>
               <span>/</span>

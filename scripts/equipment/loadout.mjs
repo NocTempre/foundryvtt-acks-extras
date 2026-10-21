@@ -141,7 +141,7 @@ export function specializedStyles(actor) {
  *
  * Those buttons are a quick roll for play that has not modelled its equipment
  * in Foundry — base attack throw plus the stat, the two numbers a table needs
- * off the cuff. Deliberately NOT `system.thac0.mod` (where the current loadout
+ * off the cuff. Deliberately NOT `system.attack.mod` (where the current loadout
  * and any magic item deposit their results), NOT a weapon's own bonus, and NOT
  * a style bonus: every one of those is a situational term the weapon's own roll
  * applies exactly, and folding them into a summary makes the summary disagree

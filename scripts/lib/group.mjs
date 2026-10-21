@@ -281,9 +281,9 @@ function representativeMirror(source) {
   const sys = source.system ?? {};
   const mirror = {};
   if (sys.hp) mirror["system.hp"] = { hd: sys.hp.hd, value: sys.hp.value, max: sys.hp.max, bhr: sys.hp.bhr };
-  if (sys.aac) mirror["system.aac"] = { value: sys.aac.value ?? 0, mod: sys.aac.mod ?? 0 };
+  if (sys.ac) mirror["system.ac"] = { value: sys.ac.value ?? 0, mod: sys.ac.mod ?? 0 };
   if (sys.saves) mirror["system.saves"] = foundry.utils.deepClone(sys.saves);
-  if (sys.thac0?.throw != null) mirror["system.thac0.throw"] = sys.thac0.throw;
+  if (sys.attack?.throw != null) mirror["system.attack.throw"] = sys.attack.throw;
   if (sys.movement?.base != null) mirror["system.movement.base"] = sys.movement.base;
   if (sys.details?.alignment) mirror["system.details.alignment"] = sys.details.alignment;
   if (sys.details?.morale != null) mirror["system.details.morale"] = sys.details.morale;

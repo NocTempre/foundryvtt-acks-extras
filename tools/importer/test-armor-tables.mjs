@@ -22,20 +22,20 @@ check(`matched every canonical armour row (${rows.length}/${ARMOR_NAMES.length})
 
 const plate = byName["plate armor"] && bindArmorRow(byName["plate armor"], "def.armor.plateArmor", "RR p. 130");
 check("Plate Armor is heavy", plate?.system.type === "heavy");
-check("Plate Armor AC 6", plate?.system.aac.value === 6);
+check("Plate Armor AC 6", plate?.system.ac.value === 6);
 check("Plate Armor has a cost", Number.isFinite(plate?.system.cost));
 
 const chain = byName["chain mail armor"] && bindArmorRow(byName["chain mail armor"], "x", "y");
 check("Chain Mail is medium (not core's 'light' bug)", chain?.system.type === "medium");
-check("Chain Mail AC 4", chain?.system.aac.value === 4);
+check("Chain Mail AC 4", chain?.system.ac.value === 4);
 
 const shield = byName["shield"] && bindArmorRow(byName["shield"], "x", "y");
 check("Shield type is shield", shield?.system.type === "shield");
-check("Shield grants +1 AC", shield?.system.aac.value === 1);
+check("Shield grants +1 AC", shield?.system.ac.value === 1);
 
 const helm = byName["helmet, heavy"] && bindArmorRow(byName["helmet, heavy"], "x", "y");
 check("Heavy Helmet flagged as helmet", helm?.flags["acks-extras"].armor.helmet === true);
-check("Heavy Helmet grants no AC (RAW)", helm?.system.aac.value === 0);
+check("Heavy Helmet grants no AC (RAW)", helm?.system.ac.value === 0);
 
 const barding = byName["barding, plate"] && bindArmorRow(byName["barding, plate"], "x", "y");
 check("Plate Barding flagged as barding", barding?.flags["acks-extras"].armor.barding === true);
@@ -49,13 +49,13 @@ check("Spiked Barding is a modifier, not a base suit", spiked?.flags["acks-extra
 // Every bound item is the core armour shape.
 for (const r of rows) {
   const it = bindArmorRow(r, "x", "y");
-  assert.ok(it.type === "armor" && it.name && typeof it.system.aac.value === "number", `armour shape: ${r.name}`);
+  assert.ok(it.type === "armor" && it.name && typeof it.system.ac.value === "number", `armour shape: ${r.name}`);
 }
 pass++;
 
 console.log(`\nExtracted armour (${rows.length}):`);
 for (const r of rows) {
   const it = bindArmorRow(r, "x", "y");
-  console.log(`  ${r.name.padEnd(22)} type=${it.system.type.padEnd(10)} AC=${it.system.aac.value} enc6=${it.system.weight6 ?? "-"} cost=${it.system.cost ?? "-"}`);
+  console.log(`  ${r.name.padEnd(22)} type=${it.system.type.padEnd(10)} AC=${it.system.ac.value} enc6=${it.system.weight6 ?? "-"} cost=${it.system.cost ?? "-"}`);
 }
 console.log(`\ntest-armor-tables: all ${pass} checks passed`);

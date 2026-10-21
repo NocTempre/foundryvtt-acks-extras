@@ -28,7 +28,7 @@ function fieldLabel(key) {
   const s = /^system\.spells\.(\d+)\.max$/.exec(key);
   if (s) return loc("class.spellsAt", { n: s[1] });
   const labels = {
-    "system.thac0.throw": game.i18n.localize("ACKS.ABShort"),
+    "system.attack.throw": game.i18n.localize("ACKS.ABShort"),
     "system.hp.hd": game.i18n.localize("ACKS.HitDice"),
     "system.fight.cleaves": game.i18n.localize("ACKS.Cleaves"),
     "system.details.title": game.i18n.localize("ACKS.details.title"),

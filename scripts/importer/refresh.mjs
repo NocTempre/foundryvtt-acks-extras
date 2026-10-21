@@ -72,7 +72,7 @@ export function handWrittenProse(html) {
  * entry claimed to fill".
  */
 export const REFILL_STAT_PATHS = Object.freeze([
-  "aac.value",
+  "ac.value",
   "hp.hd",
   "hp.value",
   "hp.max",
@@ -88,7 +88,7 @@ export const REFILL_STAT_PATHS = Object.freeze([
   "details.appearing.d",
   "details.appearing.w",
   "movement.base",
-  "thac0.throw",
+  "attack.throw",
   "attacks",
 ]);
 

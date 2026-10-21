@@ -10,7 +10,8 @@
  * stack, a mixed unit (10 swordsmen beside 10 spearmen) is two, each with its
  * own base actor and its own sparse roster.
  */
-import { acksCompatStubs, savingThrowFields } from "../actor-compat.mjs";
+import { acksCompatStubs, creatureAttackModifiers, migrateLegacyCombatSource, savingThrowFields } from "../actor-compat.mjs";
+import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
 import { migrateGroupSource, platoonCapacity } from "../group-logic.mjs";
 
 /** A roster member's lifecycle. Records only ever exist for non-pristine bodies. */
@@ -141,9 +142,11 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         max: new NumberField({ required: true, initial: 4 }),
         bhr: new StringField({ required: true, initial: "1d3", blank: false }),
       }),
-      aac: new SchemaField({
-        value: new NumberField({ initial: 0 }),
-        mod: new NumberField({ initial: 0 }),
+      damage: new SchemaField({
+        mod: new SchemaField({
+          missile: new NumberField({ initial: 0 }),
+          melee: new NumberField({ initial: 0 }),
+        }),
       }),
       details: new SchemaField({
         biography: new StringField({ blank: true, initial: "" }),
@@ -158,24 +161,34 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
    * v0 → v1: a single-stack group carried `template`/`size`/`roster` at the top
    * level. Fold them into `stacks[0]` (a fixed key so the migration is stable
    * across the reloads before it is next saved). The representative block
-   * (hp/aac/saves/details) stayed at the top level and needs no move — it still
-   * mirrors what is now the first stack.
+   * (hp/ac/saves/details) stayed at the top level and needs no move — it still
+   * mirrors what is now the first stack. A source stored under the system's
+   * earlier combat field names is read onto the current ones first.
    * @override
    */
   static migrateData(source) {
     migrateGroupSource(source);
+    migrateLegacyCombatSource(source);
     return super.migrateData(source);
   }
 
   /**
-   * The same two values the system derives for every actor, so a group is not
-   * the one token on the table with an empty attack bonus or encounter speed.
-   * Mirrors AnimalData.prepareDerivedData exactly.
+   * The encounter speed the system derives for every actor, so a group is not
+   * the one token on the table without one. Mirrors AnimalData.prepareDerivedData.
    * @override
    */
   prepareDerivedData() {
-    this.thac0.bba = 10 - (this.thac0.throw ?? 10);
     this.movement.encounter = Math.floor((this.movement.base ?? 0) / 3);
+  }
+
+  /** The attack throw's modifiers from the representative body: its Tweaks adjustment for the attack's kind, then the attack seam's. */
+  getAttackThrowModifiers(attackType) {
+    return attackThrowModifiersFor(this, attackType, creatureAttackModifiers(this, attackType).attack);
+  }
+
+  /** The damage roll's modifiers from the representative body: its Tweaks adjustment for the attack's kind, then the attack seam's. */
+  getDamageModifiers(attackType) {
+    return damageModifiersFor(this, attackType, creatureAttackModifiers(this, attackType).damage);
   }
 
   /* -------------------------------------------- */

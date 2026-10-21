@@ -414,6 +414,11 @@ over with a second socket round-trip.
 
 ### Save keys track the RELEASED system, never the dev branch
 
+**Superseded (2026-10-20):** acks 14.1.0 released the rename. `SAVE_KEYS` are
+`blast` and `implements`, and a trap stored under `breath` is read under the
+current key by `trap-data.mjs`'s `migrateData` (through the lib's
+`saveKindOf`). The rule stands; the key flipped when the release landed.
+
 `breath` is correct for acks 14.0.1: a fresh character's schema is
 `[paralysis, death, breath, implements, spell, wand]`, and `ACKS.saves.blast.long`
 does not exist. The system's dev branch renames `breath` → `blast`.
@@ -428,7 +433,7 @@ would break every world that is not running it.
 
 The formation record holds the state; the party actor exists so the party can
 have a token. Its schema is the compatibility stub every non-character sub-type
-needs, so the acks system's unguarded per-actor compute (`isNew`, `thac0`,
+needs, so the acks system's unguarded per-actor compute (`isNew`, `attack`,
 initiative, movement, `saves.implements|wand`) does not error on it. That stub has
 one home: the lib subsystem's `acksCompatStubs()`.
 

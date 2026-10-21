@@ -73,7 +73,7 @@ import {
 } from "./adventure-binding.mjs";
 import { ALIGN_WORD, sheetValuesFromStatline, asPrintedBlock, playerOwned } from "./character-binding.mjs";
 import { ensureSceneThumb } from "./book-adventure.mjs";
-import { nameKeys, ABILITY_CATEGORIES } from "../lib/vocab.mjs";
+import { nameKeys, ABILITY_CATEGORIES, DAMAGE_TYPES } from "../lib/vocab.mjs";
 import { materializeTemplates, TEMPLATE_PART } from "../classes/template-packages.mjs";
 import { CLASS_TYPE, RACE_TYPE } from "../classes/constants.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
@@ -497,7 +497,7 @@ const TOKEN_SIZE = {
 export function bindStatsScalars(s) {
   const system = {};
 
-  if (Number.isInteger(s.armorClass)) system.aac = { value: s.armorClass };
+  if (Number.isInteger(s.armorClass)) system.ac = { value: s.armorClass };
 
   // A fraction of a die rolls a smaller die (a ½ rating is 1d4), which is what
   // lets a sub-1-HD animal read back as one — the familiar rule's whole test.
@@ -513,8 +513,6 @@ export function bindStatsScalars(s) {
     const level = sv[1] === "NH" ? 0 : parseInt(sv[2] ?? "0", 10) || 0;
     const row = savesForLevel(level);
     system.saves = Object.fromEntries(Object.entries(row).map(([k, v]) => [k, { value: v }]));
-    system.saves.breath = { value: row.blast };
-    system.saves.wand = { value: row.implements };
   }
 
   // "N/A" morale (mindless undead) is not 0 (=always flees): leave it unset and
@@ -591,7 +589,7 @@ export function bindMonster(node) {
 
   const atk = f.attacks;
   if (atk) {
-    if (atk.throw != null) system.thac0 = { throw: atk.throw };
+    if (atk.throw != null) system.attack = { throw: atk.throw };
     if (atk.text) system.attacks = atk.text;
   }
 
@@ -617,8 +615,10 @@ export function bindMonster(node) {
           },
         },
         system: {
-          description: "", damage: seg.damage, bonus: 0, melee: true, missile: false, equipped: mi === 0,
-          pattern: "transparent", tags: [], counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
+          description: "",
+          damage: weaponDamage(seg.damage, seg.damageType?.key, seg.quality === "extraordinary"),
+          bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: mi === 0,
+          pattern: "transparent", counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
         },
       });
     }
@@ -2570,6 +2570,42 @@ const intFrom = (v) => {
   return m ? parseInt(m[0].replace(/,/g, ""), 10) : null;
 };
 
+/** The system's key for a weapon whose damage type is the weapon's own; the extract spells it `varies`. */
+const CORE_VARIES_BY_WEAPON = "variesByWeapon";
+
+/**
+ * Does the running system's weapon schema accept this damage-type key? Read
+ * from the field's own choices, so a key the system dropped is never written
+ * into a Set that would refuse the whole item; with no schema to ask (offline),
+ * the module's own vocabulary answers.
+ */
+function systemKnowsDamageType(key) {
+  let choices = null;
+  try {
+    choices = CONFIG?.Item?.dataModels?.weapon?.schema?.getField?.("damage.base.types")?.element?.choices ?? null;
+    if (typeof choices === "function") choices = choices();
+  } catch {
+    choices = null;
+  }
+  if (!choices) return key === CORE_VARIES_BY_WEAPON || key in DAMAGE_TYPES;
+  return Array.isArray(choices) ? choices.includes(key) : key in choices;
+}
+
+/**
+ * A weapon's `system.damage` in the system's shape: the printed die as the
+ * base formula, the extract's damage-type key as the base type where the
+ * system knows the key, and the extraordinary mark where the page coloured it.
+ * The stamped `damageType` flag still carries the key for the module's own
+ * reading whether or not the system took it.
+ */
+function weaponDamage(formula, typeKey = null, extraordinary = false) {
+  const key = typeKey === "varies" ? CORE_VARIES_BY_WEAPON : typeKey;
+  const base = { formula: formula ?? "" };
+  if (key && systemKnowsDamageType(key)) base.types = [key];
+  if (extraordinary) base.extraordinary = true;
+  return { base };
+}
+
 /** One weapon-item payload, the same shape bindMonster embeds. */
 const weaponPayload = (name, damage, { naturalWeapon = null, damageType = null, attackMode = 0 } = {}) => ({
   name,
@@ -2583,8 +2619,8 @@ const weaponPayload = (name, damage, { naturalWeapon = null, damageType = null, 
     },
   },
   system: {
-    description: "", damage, bonus: 0, melee: true, missile: false, equipped: attackMode === 0,
-    pattern: "transparent", tags: [], counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
+    description: "", damage: weaponDamage(damage, damageType), bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: attackMode === 0,
+    pattern: "transparent", counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
   },
 });
 
@@ -2670,8 +2706,8 @@ export function templateOption(ax, row, cells, { id, cite, sectionText, spellSou
   // HD-derived ladder; with neither, the generated actor keeps defaults.
   const printedThrow = /(-?\d+)\s*\+/.exec(String(cells.attacks ?? ""))?.[1];
   const hdCount = parseInt(String(hitDice ?? ""), 10);
-  if (printedThrow != null) system.thac0 = { throw: parseInt(printedThrow, 10) };
-  else if (Number.isInteger(hdCount)) system.thac0 = { throw: monsterThrowForHd(hdCount) };
+  if (printedThrow != null) system.attack = { throw: parseInt(printedThrow, 10) };
+  else if (Number.isInteger(hdCount)) system.attack = { throw: monsterThrowForHd(hdCount) };
 
   if (cells.attacks) system.attacks = [cells.attacks, cells.damage].filter(Boolean).join(" — ");
 
@@ -2750,9 +2786,9 @@ const proseLeaderRoles = ({ options, memberText, axes, cells, out }) => {
       const bio = option.merge?.details?.biography ?? "";
       const notes = [note, dmg ? `${dmg} damage bonus` : ""].filter(Boolean);
       return {
-        aac: { value: parseInt(ac, 10) },
+        ac: { value: parseInt(ac, 10) },
         hp: { hd: `${hdInt}d8${bonus}`, value: parseInt(hp, 10), max: parseInt(hp, 10) },
-        thac0: { throw: monsterThrowForHd(hdInt) },
+        attack: { throw: monsterThrowForHd(hdInt) },
         ...(notes.length ? { details: { biography: `${bio}<p><em>${notes.join("; ")}</em></p>` } } : {}),
       };
     };
@@ -2767,7 +2803,7 @@ const proseLeaderRoles = ({ options, memberText, axes, cells, out }) => {
           role === "drudgeWhelp"
             ? {
                 movement: { base: parseInt(m[1], 10) },
-                aac: { value: parseInt(m[2], 10) },
+                ac: { value: parseInt(m[2], 10) },
                 hp: { hd: "1d8", value: parseInt(m[3], 10), max: parseInt(m[3], 10) },
                 details: {
                   morale: parseInt(m[4], 10),
@@ -3332,8 +3368,8 @@ function bindLegacyMonster(node) {
         type: "weapon",
         img: DEFAULT_IMG.ATTACK,
         system: {
-          description: "", damage: dmg, bonus: 0, melee: true, missile: false, equipped: true,
-          pattern: "transparent", tags: [], counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
+          description: "", damage: weaponDamage(dmg), bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: true,
+          pattern: "transparent", counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
         },
       },
     ];
@@ -3350,7 +3386,7 @@ function bindLegacyMonster(node) {
 function bindNpc(node) {
   const sl = node.fields.statline ?? {};
   const system = {};
-  if (Number.isInteger(sl.ac)) system.aac = { value: sl.ac };
+  if (Number.isInteger(sl.ac)) system.ac = { value: sl.ac };
   if (Number.isInteger(sl.hp)) {
     const hdCount = parseInt(String(sl.hd ?? sl.class?.level ?? 1), 10) || 1;
     system.hp = { value: sl.hp, max: sl.hp, hd: `${hdCount}d8` };
@@ -3360,8 +3396,6 @@ function bindNpc(node) {
   const level = sl.save?.level ?? sl.class?.level ?? 0;
   const row = savesForLevel(level);
   system.saves = Object.fromEntries(Object.entries(row).map(([k, v]) => [k, { value: v }]));
-  system.saves.breath = { value: row.blast };
-  system.saves.wand = { value: row.implements };
   system.details = {
     ...(typeof sl.ml === "number" ? { morale: Math.max(-6, Math.min(4, sl.ml)) } : {}),
     ...(sl.xp != null ? { xp: sl.xp } : {}),
@@ -3369,7 +3403,7 @@ function bindNpc(node) {
   };
   const mv = /(\d+)/.exec(String(sl.mv ?? ""));
   if (mv) system.movement = { base: parseInt(mv[1], 10) };
-  if (sl.atk?.throw != null) system.thac0 = { throw: sl.atk.throw };
+  if (sl.atk?.throw != null) system.attack = { throw: sl.atk.throw };
   if (sl.atk) system.attacks = [sl.atk.count, sl.atk.text ? `(${sl.atk.text})` : "", sl.dmg ? `— ${sl.dmg}` : ""].filter(Boolean).join(" ");
   const items = [];
   if (sl.atk?.text) {
@@ -3378,8 +3412,8 @@ function bindNpc(node) {
       type: "weapon",
       img: DEFAULT_IMG.ATTACK,
       system: {
-        description: "", damage: diceOf(sl.dmg) || "", bonus: 0, melee: true, missile: false, equipped: true,
-        pattern: "transparent", tags: [], counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
+        description: "", damage: weaponDamage(diceOf(sl.dmg) || ""), bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: true,
+        pattern: "transparent", counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
       },
     });
   }
@@ -8900,8 +8934,8 @@ export function bindEquipment(entry, node, id) {
     // for gear the weapons table never listed (a torch's 1d4 is a rule, not a
     // table cell). melee/missile likewise.
     const damage = f.damage ?? (klass?.damage || undefined);
-    if (damage) typed.damage = damage;
-    if (Number.isFinite(f.bonus)) typed.bonus = f.bonus;
+    if (damage) typed.damage = weaponDamage(damage);
+    if (Number.isFinite(f.bonus)) typed.bonus = { attack: f.bonus, damage: 0 };
     const melee = typeof f.melee === "boolean" ? f.melee : klass?.melee;
     const missile = typeof f.missile === "boolean" ? f.missile : klass?.missile;
     if (typeof melee === "boolean") typed.melee = melee;
@@ -8912,7 +8946,8 @@ export function bindEquipment(entry, node, id) {
     // it burns out on its timer (acks-formation). A supply of torches is a
     // stackable `item`, which keeps its quantity and decrements when lit.
   } else if (type === "armor") {
-    if (Number.isFinite(f.aac)) typed.aac = { value: f.aac };
+    // The recipe's field is still spelled `aac`; the system's is `ac`.
+    if (Number.isFinite(f.aac)) typed.ac = { value: f.aac };
     // The system's armour `type` choices are unarmored/veryLight/light/medium/
     // heavy/shield. A shield entry is that type by definition; anything else
     // waits for the page to say so rather than being guessed from its weight.

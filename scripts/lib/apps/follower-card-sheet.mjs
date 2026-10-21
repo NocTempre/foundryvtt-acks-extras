@@ -17,7 +17,8 @@
  */
 import { toNum as num, unset } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
-import { actorProvides, followerCardContext, FOLLOWER_CARD_TEMPLATE } from "../follower-card.mjs";
+import { actorProvides, followerCardContext, shownAttackBonus, shownDamageBonus, FOLLOWER_CARD_TEMPLATE } from "../follower-card.mjs";
+import { ITEM_TYPE } from "../vocab.mjs";
 import { skipDialogFor } from "../roll-dialog.mjs";
 import { SECRET_ADVENTURING, rollSecretAdventuring } from "../patches/adventuring-roll.mjs";
 import { promptDivide } from "../stack-prompt.mjs";
@@ -55,10 +56,10 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     await promptDivide(this.actor.items.get(target.dataset.stackId));
   }
 
-  /** Post a power or spell to chat via the system's own `show()`, which
-   * obeys the seat's roll mode. */
+  /** Post a power or spell to chat via the system's own card, which obeys
+   * the seat's roll mode. */
   static #onShowItem(event, target) {
-    this.actor.items.get(target.dataset.itemId)?.show?.();
+    this.actor.items.get(target.dataset.itemId)?.showChatCard?.();
   }
 
   static #onOpenFull() {
@@ -205,14 +206,14 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     const ov = this.actor.getFlag(MODULE_ID, "fcOverrides") ?? {};
     const upd = {};
     if (ov.ac != null) {
-      // Core recomputes `aac.value` on a body with ability scores, so the
-      // difference goes into `aac.mod` instead; a scoreless model stores it as typed.
+      // Core recomputes `ac.value` on a body with ability scores, so the
+      // difference goes into `ac.mod` instead; a scoreless model stores it as typed.
       if (actorProvides(this.actor, "scores")) {
         const sys = this.actor.system;
-        const base = num(sys.aac?.value) - num(sys.aac?.mod);
-        upd["system.aac.mod"] = num(ov.ac) - base;
+        const base = num(sys.ac?.value) - num(sys.ac?.mod);
+        upd["system.ac.mod"] = num(ov.ac) - base;
       } else {
-        upd["system.aac.value"] = num(ov.ac);
+        upd["system.ac.value"] = num(ov.ac);
       }
     }
     // Speed bakes onto whichever rate the model declares. `enc` has no base
@@ -233,8 +234,8 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       if (!item) continue;
       const u = { _id: item.id };
       if (o.label) u.name = o.label;
-      if (o.damage != null) u["system.damage"] = o.damage;
-      if (o.bonus != null) u["system.bonus"] = num(o.bonus);
+      if (o.damage != null) u["system.damage.base.formula"] = o.damage;
+      if (o.bonus != null) u["system.bonus.attack"] = num(o.bonus);
       if (Object.keys(u).length > 1) itemUpdates.push(u);
     }
     if (itemUpdates.length) await this.actor.updateEmbeddedDocuments("Item", itemUpdates);
@@ -269,48 +270,80 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     }
   }
 
-  /** Roll a proficiency/power the way the system does (formula, else show). */
+  /** Roll a proficiency/power the way the system does (formula, else its card). */
   static #onRollProficiency(event, target) {
     const item = this.actor.items.get(target.dataset.itemId);
     if (!item) return;
     if (item.system?.roll) item.rollFormula?.({ event });
-    else item.show?.();
+    else item.showChatCard?.();
   }
 
   /**
-   * Roll one attack option. A row backed by an equipped weapon rolls THAT weapon
-   * (so its damage die and bonus ride along); unarmed / improvised / a monster's
-   * natural attack roll bare, as core does with no item.
+   * Roll one attack option through the system's attack throw. A row backed by
+   * an equipped weapon rolls THAT weapon (so its damage die and bonus ride
+   * along); unarmed / improvised / a monster's natural attack roll bare, as
+   * the system does with no item. A card-only override travels as labelled
+   * modifiers on the throw (`acksLib.terms`), so the card the system posts
+   * shows the override as a row rather than a changed base.
    */
   static #onRollAttack(event, target) {
-    const type = target.dataset.attack || "melee";
-    const itemId = target.dataset.itemId;
+    const side = target.dataset.attack === "missile" ? "missile" : "melee";
     const key = target.closest("[data-attack-key]")?.dataset.attackKey;
-    const skip = skipDialogFor(event);
     const ov = key ? ((this.actor.getFlag(MODULE_ID, "fcOverrides") ?? {}).attacks ?? {})[key] : null;
-    const item = itemId ? this.actor.items.get(itemId) : null;
+    const stored = target.dataset.itemId ? this.actor.items.get(target.dataset.itemId) : null;
+    const item = this.#attackItem(stored, ov, side, target.textContent.trim());
+    // A bare row rolls as the row says; a weapon rolls the kind it offers on
+    // that side (a hurled hand axe is the system's "thrown").
+    const types = item ? (item.system?.getAttackTypes?.() ?? []) : [side];
+    const attackType =
+      side === "missile"
+        ? (types.includes("missile") ? "missile" : types.includes("thrown") ? "thrown" : undefined)
+        : (types.includes("melee") ? "melee" : undefined);
+    this.actor.makeAttackThrow?.({
+      item,
+      attackType,
+      skipDialog: skipDialogFor(event),
+      acksLib: this.#overrideRows(ov, side),
+    });
+  }
 
-    // Build the throwaway item object core's roll reads (name / damage / bonus),
-    // patched with any per-attack override — a row with no item still gets one so
-    // an ad-hoc attack can carry its own name and damage die.
-    let payload = item ? item.toObject() : null;
-    if (ov || !item) {
-      const base = payload ?? { name: target.textContent.trim(), system: { damage: "", bonus: 0 } };
-      payload = foundry.utils.deepClone(base);
-      payload.system ??= {};
-      if (ov?.label) payload.name = ov.label;
-      if (ov?.damage != null) payload.system.damage = ov.damage;
-      if (ov?.damageBonus != null) payload.system.damageBonus = num(ov.damageBonus);
-      if (!payload.system.damage) delete payload.system.damage;
-    }
-    const attData = { actor: this.actor, roll: { save: item?.system?.save, target: null } };
-    if (payload?.system?.damage || item) attData.item = payload;
-    // On attData, not options: core's targetAttack rebuilds options as
-    // {type, skipDialog} and would drop it.
-    if (ov && (ov.target != null || ov.bonus != null)) {
-      attData.acksLibOverride = { target: ov.target, bonus: ov.bonus };
-    }
-    this.actor.targetAttack?.(attData, type, { type, skipDialog: skip });
+  /**
+   * The item the throw rolls: the stored weapon as it is; a copy of it with
+   * the override's name or damage die; an unsaved weapon for a row with no
+   * item that carries an override die; nothing for a bare row.
+   */
+  #attackItem(stored, ov, side, fallbackName) {
+    const patch = {};
+    if (ov?.label) patch.name = ov.label;
+    if (ov?.damage != null) patch["system.damage.base.formula"] = String(ov.damage);
+    // The copy keeps the stored weapon's id, so what hangs off the attack
+    // having happened (ammunition spent) still finds the real item.
+    if (stored) return Object.keys(patch).length ? stored.clone(patch, { keepId: true }) : stored;
+    if (!patch["system.damage.base.formula"]) return null;
+    return new CONFIG.Item.documentClass(
+      {
+        name: patch.name ?? fallbackName,
+        type: ITEM_TYPE.weapon,
+        system: { damage: { base: { formula: patch["system.damage.base.formula"] } }, melee: side === "melee", missile: side === "missile" },
+      },
+      { parent: this.actor },
+    );
+  }
+
+  /**
+   * An override's target, bonus and damage bonus as modifier rows against what
+   * the card shows: a lower target is so much more on the die, a replaced
+   * bonus is its difference from the shown one.
+   */
+  #overrideRows(ov, side) {
+    if (!ov) return undefined;
+    const label = game.i18n.localize("ACKS-LIB.attack.override");
+    const terms = [];
+    const damageTerms = [];
+    if (ov.target != null) terms.push({ label, value: num(this.actor.system?.attack?.throw, 10) - num(ov.target) });
+    if (ov.bonus != null) terms.push({ label, value: num(ov.bonus) - shownAttackBonus(this.actor, side) });
+    if (ov.damageBonus != null) damageTerms.push({ label, value: num(ov.damageBonus) - shownDamageBonus(this.actor, side) });
+    return { terms, damageTerms };
   }
 
   /** Roll an adventuring throw, honouring a card-only override target if set. */
@@ -340,7 +373,11 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
 
   static async #onAddAttack() {
     await this.actor.createEmbeddedDocuments("Item", [
-      { name: game.i18n.localize("ACKS-LIB.followerCard.newAttack"), type: "weapon", system: { equipped: true, damage: "1d6", melee: true } },
+      {
+        name: game.i18n.localize("ACKS-LIB.followerCard.newAttack"),
+        type: ITEM_TYPE.weapon,
+        system: { equipped: true, damage: { base: { formula: "1d6" } }, melee: true },
+      },
     ]);
   }
 

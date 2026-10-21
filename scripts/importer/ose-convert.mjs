@@ -195,7 +195,7 @@ export function convertOse(parsed, constants, opts = {}) {
       } else {
         const value = viaDescending ?? viaAscending;
         if (value == null) gap("ac", null, "unreadable");
-        else system.aac = { value: took("ac", f.ac.descending, "guide", value, "SCG p.2") };
+        else system.ac = { value: took("ac", f.ac.descending, "guide", value, "SCG p.2") };
       }
     }
   }
@@ -249,7 +249,7 @@ export function convertOse(parsed, constants, opts = {}) {
   const attBonus = f.thac0 ? null : (f.att?.modes ?? []).map((m) => m.bonus).find(Number.isFinite);
   if (Number.isFinite(attBonus)) {
     if (!constants) gap("thac0", attBonus, "needs-guide");
-    else system.thac0 = { throw: took("thac0", attBonus, "guide", constants.attackThrow - attBonus, "SCG p.2") };
+    else system.attack = { throw: took("thac0", attBonus, "guide", constants.attackThrow - attBonus, "SCG p.2") };
   } else if (f.thac0?.note) {
     gap("thac0", f.thac0.note, "not-a-number");
   } else if (f.thac0) {
@@ -258,7 +258,7 @@ export function convertOse(parsed, constants, opts = {}) {
     } else if (!constants) {
       gap("thac0", f.thac0.ascendingBonus, "needs-guide");
     } else {
-      system.thac0 = {
+      system.attack = {
         throw: took("thac0", f.thac0.ascendingBonus, "guide", constants.attackThrow - f.thac0.ascendingBonus, "SCG p.2"),
       };
     }
@@ -396,13 +396,12 @@ export function convertOse(parsed, constants, opts = {}) {
       img: DEFAULT_IMG.ATTACK,
       system: {
         description: "",
-        damage: mode.damage ?? "",
-        bonus: 0,
+        damage: { base: { formula: mode.damage ?? "" } },
+        bonus: { attack: 0, damage: 0 },
         melee: true,
         missile: false,
         equipped: true,
         pattern: "transparent",
-        tags: [],
         counter: { value: mode.count ?? 1, max: mode.count ?? 1 },
         cost: 0,
         weight: 0,

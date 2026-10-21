@@ -61,11 +61,17 @@ function el(tag, className, text) {
 const escape = (s) => foundry.utils.escapeHTML?.(String(s)) ?? String(s);
 
 /**
- * Core's registered weapon tags, read at build time: the key, the label a
- * reader sees, and the raw registry string core's own tag icons match on.
+ * The qualities a weapon's strip offers: its two uses, then every special
+ * property the system's weapon schema declares, each with the label the
+ * system's own sheet gives it.
  */
-function tagRegistry() {
-  return Object.entries(CONFIG.ACKS?.tags ?? {}).map(([key, raw]) => ({ key, raw, label: game.i18n.localize(raw) }));
+function qualityRegistry(item) {
+  const uses = [
+    { key: "melee", label: game.i18n.localize("ACKS.items.Melee") },
+    { key: "missile", label: game.i18n.localize("ACKS.items.Missile") },
+  ];
+  const special = Object.keys(item.system?.special ?? {}).map((key) => ({ key, label: game.i18n.localize(`ACKS.weapon.label.${key}`) }));
+  return [...uses, ...special];
 }
 
 /** Chat card summarising a scavenged roll (d20s + the mechanical condition). */
@@ -236,32 +242,32 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     }));
     note(loc(grips.declared ? "props.gripsNote" : "props.gripsAuto", { grips: game.i18n.localize(`ACKS-EQUIPMENT.grip.${grips.declared ?? grips.inferred}`) }));
 
-    // QUALITIES — core's registered weapon tags, every one offered. Three of
-    // them are the booleans the attack reads (melee, missile, slow), so the
-    // chip writes the field and the tag together.
-    const registry = tagRegistry();
-    const stored = item.system?.tags ?? [];
+    // QUALITIES — the weapon's two uses and the system's special properties,
+    // every one offered; a chip writes the field the attack reads.
+    const registry = qualityRegistry(item);
+    const stored = item.system?.customTags ?? [];
     const qualities = el("div", "acks-tag-group acks-extras-item-sheet__prop-strip");
-    for (const q of qualityChips(registry, stored, item.system)) {
+    for (const q of qualityChips(registry, item.system)) {
       qualities.append(chip({
         label: q.label,
         state: q.on ? CHIP.ON : CHIP.OFF,
         tooltip: loc("props.qualitiesHint"),
-        handler: () => item.update({ system: nextQuality(registry, stored, q.key, !q.on) }),
+        handler: () => item.update({ system: nextQuality(registry, q.key, !q.on) }),
       }));
     }
     row("ACKS-EQUIPMENT.props.qualities", qualities);
 
-    // OTHER TAGS — free text, and only for what no quality above names.
+    // OTHER TAGS — the system's custom tags: free text, for what no quality
+    // above names.
     const others = el("div", "acks-tag-group acks-extras-item-sheet__prop-strip");
-    for (const text of otherTags(registry, stored)) {
+    for (const text of otherTags(stored)) {
       const tag = el("span", "acks-tag", text);
       if (editing) {
         const x = el("button", "acks-extras-item-sheet__tag-x");
         x.type = "button";
         x.innerHTML = '<i class="fa-solid fa-xmark" inert></i>';
         x.dataset.tooltip = loc("props.removeTag");
-        onClick(x, () => item.update({ "system.tags": withoutTag(stored, text) }));
+        onClick(x, () => item.update({ "system.customTags": withoutTag(stored, text) }));
         tag.append(x);
       }
       others.append(tag);
@@ -273,7 +279,7 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     add.disabled = !editing;
     onChange(add, () => {
       const next = withTag(stored, add.value);
-      if (next) return item.update({ "system.tags": next });
+      if (next) return item.update({ "system.customTags": next });
       add.value = "";
     });
     others.append(add);

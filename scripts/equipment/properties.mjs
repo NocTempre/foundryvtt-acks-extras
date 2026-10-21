@@ -3,8 +3,8 @@
  * ITEM PROPERTY LAYERS — one baseline, recomputed.
  *
  * Masterwork (RR p159) and a scavenged condition (RR p160) both express
- * themselves in the SAME core fields: `system.bonus`, the damage string,
- * `system.aac.value`, `system.weight6`. Each used to stamp those fields and
+ * themselves in the SAME core fields: `system.bonus.attack`, the base damage
+ * formula, `system.ac.value`, `system.weight6`. Each used to stamp those fields and
  * snapshot its own "base" to restore later — which is wrong the moment both are
  * present: clearing one restores a baseline that already contains the other's
  * delta, leaving residue (a "pristine" item still reading 1d6-1) or silently
@@ -63,13 +63,29 @@ export function withFlatDelta(damage, delta) {
   return joinDamage(die, flat + (delta ?? 0));
 }
 
+/**
+ * The die a weapon item deals: the system's base damage formula, or the
+ * damage string an item made before the system's weapon schema carried one.
+ */
+export function damageFormulaOf(item) {
+  const damage = item?.system?.damage;
+  if (typeof damage === "string") return damage;
+  return damage?.base?.formula ?? "";
+}
+
+/** A weapon's attack bonus: the system's field, or the bare number an item made before the split carried. */
+export function attackBonusOf(item) {
+  const bonus = item?.system?.bonus;
+  return Number((typeof bonus === "object" && bonus !== null ? bonus.attack : bonus) ?? 0);
+}
+
 /** The item's unmodified values — the stored snapshot, else the item as it is. */
 export function pristineOf(item) {
   return (
     item?.getFlag?.(MODULE_ID, PRISTINE) ?? {
-      bonus: Number(item?.system?.bonus ?? 0),
-      damage: item?.system?.damage ?? "",
-      ac: Number(item?.system?.aac?.value ?? 0),
+      bonus: attackBonusOf(item),
+      damage: damageFormulaOf(item),
+      ac: Number(item?.system?.ac?.value ?? 0),
       weight6: Number(item?.system?.weight6 ?? 0),
       cost: Number(item?.system?.cost ?? 0),
     }
@@ -158,9 +174,11 @@ export async function recomputeItemFields(item, overrides = {}) {
   const update = {};
   if (!anyLayer) {
     // Nothing left: restore exactly, then forget the baseline.
-    update["system.bonus"] = base.bonus;
-    if (item.type === ITEM_TYPE.weapon) update["system.damage"] = base.damage;
-    if (item.type === ITEM_TYPE.armor) update["system.aac.value"] = base.ac;
+    if (item.type === ITEM_TYPE.weapon) {
+      update["system.bonus.attack"] = base.bonus;
+      update["system.damage.base.formula"] = base.damage;
+    }
+    if (item.type === ITEM_TYPE.armor) update["system.ac.value"] = base.ac;
     update["system.weight6"] = base.weight6;
     if (base.cost != null) update["system.cost"] = base.cost;
     await item.update?.(update);
@@ -169,9 +187,11 @@ export async function recomputeItemFields(item, overrides = {}) {
   }
 
   const d = layerDeltas(item, { masterwork, scavenged, silvered });
-  update["system.bonus"] = base.bonus + d.bonus;
-  if (item.type === ITEM_TYPE.weapon) update["system.damage"] = withFlatDelta(base.damage, d.damage);
-  if (item.type === ITEM_TYPE.armor) update["system.aac.value"] = Math.max(0, base.ac + d.ac);
+  if (item.type === ITEM_TYPE.weapon) {
+    update["system.bonus.attack"] = base.bonus + d.bonus;
+    update["system.damage.base.formula"] = withFlatDelta(base.damage, d.damage);
+  }
+  if (item.type === ITEM_TYPE.armor) update["system.ac.value"] = Math.max(0, base.ac + d.ac);
   update["system.weight6"] = Math.max(0, base.weight6 + d.weight6);
   // Price follows the layers: plating first, surcharge second, resale fraction
   // last. Rounded to a hundredth so a 67% of 3gp reads 2.01, not a float tail.

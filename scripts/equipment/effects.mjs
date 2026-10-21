@@ -7,9 +7,9 @@
  * on `ability`/`weapon`/`armor` items (mirrors acks-henchmen). The collector
  * below reads them. The loadout AE translates the applicable ones — plus the
  * fighting-style-conditional Specialization bonuses — into changes on the real
- * core fields (`system.aac.mod`, `system.initiative.mod`, `system.thac0.mod.*`,
- * `system.damage.mod.melee`) so core's own computeAC/rollAttack consume them
- * with zero patching.
+ * core fields (`system.ac.mod`, `system.initiative.mod`, `system.attack.mod.*`,
+ * `system.damage.mod.melee`) so core's own AC computation and attack throw
+ * consume them with zero patching.
  */
 import { EFFECT_PREFIX, MODULE_ID, EFFECT_DOMAINS, LOADOUT_EFFECT_NAME, LOADOUT_EFFECT_FLAG, LOADOUT_EFFECT_ID } from "./constants.mjs";
 import { STYLE_SPEC_BONUS, STYLE, DUAL_WIELD_ATTACK_BONUS } from "./config.mjs";
@@ -109,47 +109,47 @@ export function buildLoadoutChanges(actor, loadout) {
   // the shield can't take it (strapped on the back/front rather than in hand).
   if (loadout.activeStyle && spec.has(loadout.activeStyle.toLowerCase()) && specApplies(loadout)) {
     const bonus = STYLE_SPEC_BONUS[loadout.activeStyle] ?? {};
-    add("system.aac.mod", bonus.ac);
+    add("system.ac.mod", bonus.ac);
     add("system.initiative.mod", bonus.init);
-    add("system.thac0.mod.melee", bonus.attackMelee);
-    add("system.thac0.mod.missile", bonus.attackMissile);
+    add("system.attack.mod.melee", bonus.attackMelee);
+    add("system.attack.mod.missile", bonus.attackMissile);
     add("system.damage.mod.melee", bonus.damageMelee);
   }
 
   // Base dual-weapon bonus (RR p.296): independent of Specialization, which
   // adds its own bonus above. Untrained use still takes the non-proficiency
-  // penalty, applied per-weapon in roll-wrap.mjs.
-  if (loadout.activeStyle === STYLE.DUAL) add("system.thac0.mod.melee", DUAL_WIELD_ATTACK_BONUS);
+  // penalty, applied per-weapon in attack-mods.mjs.
+  if (loadout.activeStyle === STYLE.DUAL) add("system.attack.mod.melee", DUAL_WIELD_ATTACK_BONUS);
 
   // Flat always-on init (Combat Reflexes) and AC domains that are NOT style-gated.
   add("system.initiative.mod", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_INIT));
-  add("system.thac0.mod.melee", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_ATTACK_MELEE));
-  add("system.thac0.mod.missile", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_ATTACK_MISSILE));
+  add("system.attack.mod.melee", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_ATTACK_MELEE));
+  add("system.attack.mod.missile", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_ATTACK_MISSILE));
   // The one outlet for this domain — an ability, a hand-made Active Effect
   // (see docs/equipment/DECISIONS.md, "The melee-damage domain had no
   // outlet (2026-09-22)").
   add("system.damage.mod.melee", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_DAMAGE_MELEE));
-  add("system.aac.mod", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_AC));
+  add("system.ac.mod", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_AC));
 
   // Conditional AC (Swashbuckling / Blade-Dancing) and conditional initiative
   // (Graceful Fighting), both computed in the loadout because both turn on how
   // heavily the character is currently dressed.
-  add("system.aac.mod", loadout.condAC ?? 0);
+  add("system.ac.mod", loadout.condAC ?? 0);
   add("system.initiative.mod", loadout.condInit ?? 0);
 
   // Non-proficient use (RR p. 15): bonuses only — an attribute PENALTY
   // still applies, so cancel max(0, dex.mod).
   if (loadout.nonProficientUse) {
-    add("system.aac.mod", -Math.max(0, Number(actor.system?.scores?.dex?.mod ?? 0)));
+    add("system.ac.mod", -Math.max(0, Number(actor.system?.scores?.dex?.mod ?? 0)));
   }
 
-  // Core's computeAC adds the last equipped shield's AC unconditionally; two
-  // rules can say it grants nothing (see docs/equipment/MODEL.md, "The
+  // Core's AC computation adds the last equipped shield's AC unconditionally;
+  // two rules can say it grants nothing (see docs/equipment/MODEL.md, "The
   // shield and its style").
   const variantCut = shieldACCorrection(loadout, spec.has(STYLE.WEAPON_SHIELD.toLowerCase()), actor);
   const lastShield = loadout.shields?.[loadout.shields.length - 1] ?? null;
-  const styleCut = loadout.shieldStyled === false && lastShield ? -Number(lastShield.system?.aac?.value ?? 0) : 0;
-  add("system.aac.mod", Math.min(variantCut, styleCut));
+  const styleCut = loadout.shieldStyled === false && lastShield ? -Number(lastShield.system?.ac?.value ?? 0) : 0;
+  add("system.ac.mod", Math.min(variantCut, styleCut));
 
   // Enclosing (heavy) helmet (RR p.140): affects the field the surprise
   // matrix reads (system.surprise.avoidsurprise). Listening is a proficiency

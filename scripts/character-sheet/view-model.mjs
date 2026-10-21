@@ -12,7 +12,7 @@
  * Shape of the snapshot (see `snapshot.mjs` for the reads behind each field):
  *   xp        {value, next, bonus}
  *   hp        {value, max}
- *   ac        {value, shield, naked}           (the system's aac fields)
+ *   ac        {value, shield, naked}           (the system's ac fields)
  *   move      {modes: {key: number}, pct, breakpoints: {low, mid, high}, slowed}
  *   grip      {weapons: [{name, twoHanded, canTwoHand}], shieldInHand, cleaves}
  *   light     {lit: {type, remaining, turns, reach} | null, ambient: "day"|"dark"|null,

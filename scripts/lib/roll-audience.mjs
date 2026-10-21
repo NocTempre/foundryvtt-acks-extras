@@ -1,66 +1,16 @@
-/* global game, foundry, ChatMessage, Hooks */
+/* global game, ChatMessage, Hooks */
 /**
  * Who sees which part of a roll this module posts: the card meant for the
- * Judges alone, the one Dice So Nice call, and the attack card's private math.
+ * Judges alone, and the one Dice So Nice call.
  *
  * Foundry shows every seat a whispered message that carries rolls, as a
  * "privately rolled some dice" placeholder naming the roller. A card meant for
  * the Judges alone therefore never attaches its rolls: the dice are written
  * into its content where Foundry would have drawn them, and Dice So Nice is
  * shown to the Judges explicitly.
- *
- * The math section is Foundry's own secret section. `ChatMessage#renderHTML`
- * keeps it for the owners of the speaking actor and for the GMs, strips it for
- * every other reader, and gives the kept block a Reveal button that writes the
- * section open for everyone. See docs/lib/DECISIONS.md, "Public results,
- * private math".
  */
 import { MODULE_ID } from "./constants.mjs";
 import { gmIds } from "./util.mjs";
-
-/** The world setting choosing who reads an attack card's math. */
-export const ROLL_MATH_SETTING = "rollMath";
-
-/** Its values: the speaking actor's owners and the GMs, or every reader. */
-export const ROLL_MATH = Object.freeze({ owners: "owners", everyone: "everyone" });
-
-/** The class the math's inner wrapper carries; the section itself may carry only `class` and `id`. */
-const MATH_CLASS = "acks-extras-roll-math";
-
-/** Is an attack card's math private? True unless the world chose everyone, or before settings exist. */
-export function mathIsPrivate() {
-  try {
-    return game.settings.get(MODULE_ID, ROLL_MATH_SETTING) !== ROLL_MATH.everyone;
-  } catch {
-    return true;
-  }
-}
-
-/**
- * Wrap a card's math so only the speaking actor's owners and the GMs read it,
- * or return it bare when the world shows it to everyone. The section carries
- * only `class` and `id` because Foundry's reveal toggle matches and rewrites
- * the opening tag with those two alone; styling goes on the inner div.
- */
-export function mathSection(html) {
-  if (!html) return "";
-  if (!mathIsPrivate()) return html;
-  return `<section class="secret" id="${foundry.utils.randomID()}"><div class="${MATH_CLASS}">${html}</div></section>`;
-}
-
-/**
- * Offer a math section's Reveal only to the message's author and the GMs.
- * Revealing rewrites the message, which an owner who did not post it has no
- * right to do, so the button would fail for them.
- */
-export function installMathReveal() {
-  Hooks.on("renderChatMessageHTML", (message, html) => {
-    for (const block of html?.querySelectorAll?.("secret-block") ?? []) {
-      if (!block.querySelector(`.${MATH_CLASS}`)) continue;
-      block.revealable = !!(message.isAuthor || game.user.isGM);
-    }
-  });
-}
 
 /**
  * Show rolls through Dice So Nice, when it is active. `whisper` limits who

@@ -164,22 +164,17 @@ export function monsterSystem({
     _schemaVersion: SV,
     isNew: false,
     hp: { hd: hpFormula, value: hp, max: hp, bhr: "1d3" },
-    aac: { value: ac, mod: 0 },
-    thac0: { value: 19, bba: 0, throw: 10, mod: { missile: 0, melee: 0 } },
+    ac: { value: ac, mod: 0 },
+    attack: { throw: 10, mod: { missile: 0, melee: 0 } },
     damage: { mod: { missile: 0, melee: 0 } },
     movement: { base: 120, mod: 0, value: "" },
     initiative: { value: 0, mod: 0 },
-    surprise: { mod: 0, surpriseothers: 0, avoidsurprise: 0 },
-    // Both key spellings are written — a system release renamed breath/wand to
-    // blast/implements — and whichever the running schema lacks is harmlessly
-    // dropped on load.
+    surprise: { surpriseothers: 0, avoidsurprise: 0 },
     saves: {
       paralysis: { value: saves.paralysis },
       death: { value: saves.death },
       blast: { value: saves.blast },
-      breath: { value: saves.blast },
       implements: { value: saves.implements },
-      wand: { value: saves.implements },
       spell: { value: saves.spell },
     },
     save: { mod: 0 },

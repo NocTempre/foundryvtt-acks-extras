@@ -50,10 +50,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - **Rail menus are DOM, not applications**: the movement, grip and light cells
   append `.acks-extras-character-sheet__menu` to their rail; a pointerdown
   outside closes it.
-- **The released system stores Blast as `breath`** (and carries a `wand` save
-  the book folded into Implements). The sheet reads and writes through the
-  lib's `BOOK_TO_RELEASED_SAVES`; assert against `system.saves.breath`, not
-  `.blast`, and roll through `rollById(actor, "save:blast")`.
+- **The system's save keys are `blast` and `implements`** (acks 14.1.0; the
+  lib's `saveKindOf` still reads a `breath`/`wand` key off an older effect).
+  Assert against `system.saves.blast`, and roll through
+  `rollById(actor, "save:blast")`.
 - **An effect's duration is `{value, units}` and its start is `start`**:
   `duration.rounds`/`turns`/`seconds` and `duration.combat` are Foundry 14
   shims that log once per session — create with `duration: {value, units}`,
@@ -513,7 +513,7 @@ stray export.
 
 ## A field an effect changes
 
-**Fixtures.** A disposable `character` with `system.aac.mod` and
+**Fixtures.** A disposable `character` with `system.ac.mod` and
 `system.surprise.avoidsurprise` at 0, carrying one Active Effect that ADDs 1
 to both paths (`ActiveEffect.create` on the actor with two `changes` rows,
 mode `ADD`).
@@ -523,7 +523,7 @@ mode `ADD`).
    inputs.
 2. Edit an UNRELATED field — HP current — and let the sheet submit; repeat
    once more.
-3. Read `actor._source.system.aac.mod` and `actor.system.aac.mod` after each
+3. Read `actor._source.system.ac.mod` and `actor.system.ac.mod` after each
    submit.
 4. Edit the AC-modifier input itself to 3 and submit.
 

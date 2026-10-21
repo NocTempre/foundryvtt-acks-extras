@@ -51,7 +51,7 @@ import { notesBlock, replaceNotesBlock } from "./notes.mjs";
 const loc = makeLoc(LANG);
 
 /** The update paths a bound class writes; with a class bound the sheet's copy is checked, not written. */
-const CLASS_PATHS = new Set(["system.details.title", "system.details.xp.next", "system.hp.hd", "system.thac0.throw", "system.fight.cleaves"]);
+const CLASS_PATHS = new Set(["system.details.title", "system.details.xp.next", "system.hp.hd", "system.attack.throw", "system.fight.cleaves"]);
 const isClassPath = (path) => CLASS_PATHS.has(path) || path.startsWith("system.saves.") || /^system\.spells\.\d\.max$/.test(path);
 
 /** Where each sheet place puts what it lists; `worn` asks the item first. */
@@ -336,7 +336,7 @@ function plainWrites(plan, { bound }) {
     if (path) add(`save.${s}`, path, value, `${value}+`);
   }
   add("saveMod", "system.save.mod", sharedSaveMod(plan));
-  if (finite(plan.attack[0])) add("attack.0", "system.thac0.throw", plan.attack[0], `${plan.attack[0]}+`);
+  if (finite(plan.attack[0])) add("attack.0", "system.attack.throw", plan.attack[0], `${plan.attack[0]}+`);
   add("surprise", "system.surprise.surpriseothers", plan.surprise);
   add("avoidSurprise", "system.surprise.avoidsurprise", plan.avoidSurprise);
   for (const a of ADVENTURING_KEYS) if (finite(plan.adventuring[a])) add(`adventuring.${a}`, `system.adventuring.${a}`, plan.adventuring[a], `${plan.adventuring[a]}+`);
@@ -383,9 +383,9 @@ function verify(actor, plan, report) {
     report.checks.push({ label: fieldLabel(key), sheet: String(sheet), inForce: String(inForce) });
   };
   for (const s of SCORE_KEYS) check(`scoreMod.${s}`, plan.scoreMods[s], sys.scores?.[s]?.mod);
-  const T = Number(sys.thac0?.throw);
-  for (let n = 1; n <= 10; n++) check(`attack.${n}`, plan.attack[n], finite(sys.thac0?.throw) ? T + n : null);
-  const ac = sys.aac ?? {};
+  const T = Number(sys.attack?.throw);
+  for (let n = 1; n <= 10; n++) check(`attack.${n}`, plan.attack[n], finite(sys.attack?.throw) ? T + n : null);
+  const ac = sys.ac ?? {};
   check("ac.shield", plan.ac.shield, ac.value);
   check("ac.armour", plan.ac.armour, finite(ac.value) ? Number(ac.value) - (Number(ac.shield) || 0) : null);
   check("ac.naked", plan.ac.naked, ac.naked);
@@ -484,8 +484,8 @@ async function fillHenchman(hench, h, report) {
   await landGear(hench, h.equipment.map((g) => ({ ...g, place: "loose" })), sub);
   report.unmatched.push(...sub.unmatched.map((u) => ({ ...u, name: `${u.name} (${hench.name})` })));
   report.granted.push(...sub.granted.map((g) => `${g} (${hench.name})`));
-  if (finite(h.ac) && finite(hench.system?.aac?.value) && Number(hench.system.aac.value) !== h.ac) {
-    report.checks.push({ label: loc("pdf.field.henchAc", { name: hench.name }), sheet: String(h.ac), inForce: String(hench.system.aac.value) });
+  if (finite(h.ac) && finite(hench.system?.ac?.value) && Number(hench.system.ac.value) !== h.ac) {
+    report.checks.push({ label: loc("pdf.field.henchAc", { name: hench.name }), sheet: String(h.ac), inForce: String(hench.system.ac.value) });
   }
   const rest = Object.entries(h.rest).filter(([, t]) => t);
   if (rest.length) report.notes.push({ label: hench.name, text: rest.map(([k, t]) => `${loc(`pdf.field.hench.${k}`)}: ${t}`).join("; ") });

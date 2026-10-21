@@ -8,7 +8,8 @@
  * derived-from-a-dropped-base > rolled per the book's own dice. All
  * book-derived values live in WORLD data; the module ships only structure.
  */
-import { acksCompatStubs, savingThrowFields } from "../actor-compat.mjs";
+import { acksCompatStubs, migrateLegacyCombatSource, savingThrowFields } from "../actor-compat.mjs";
+import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
 
 export default class TemplateData extends foundry.abstract.TypeDataModel {
   /** Array paths, so FormDataExtended round-trips arrays (system convention). */
@@ -123,10 +124,24 @@ export default class TemplateData extends foundry.abstract.TypeDataModel {
     };
   }
 
-  /** Same two derived values the system computes for every actor. */
+  /** The encounter speed the system computes for every actor. */
   prepareDerivedData() {
-    this.thac0.bba = 10 - (this.thac0.throw ?? 10);
     this.movement.encounter = Math.floor((this.movement.base ?? 0) / 3);
+  }
+
+  /** A template has no modifiers of its own; the attack seam's answer is the whole answer. */
+  getAttackThrowModifiers(attackType) {
+    return attackThrowModifiersFor(this, attackType, []);
+  }
+
+  /** A template has no modifiers of its own; the attack seam's answer is the whole answer. */
+  getDamageModifiers(attackType) {
+    return damageModifiersFor(this, attackType, []);
+  }
+
+  /** A source stored under the system's earlier field names is read onto the current ones. */
+  static migrateData(source) {
+    return super.migrateData(migrateLegacyCombatSource(source));
   }
 
   /** A template with no materialized options yet (bookless seat) — the sheet

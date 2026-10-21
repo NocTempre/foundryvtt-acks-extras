@@ -61,10 +61,11 @@ export const getRepairCheck = (id) => _checks.get(id) ?? null;
 
 /**
  * Every check whose `requires` holds, by feature, then order, then id.
- * `only` limits the list to those ids.
+ * `only` limits the list to those ids: a list of them, or one id as a string
+ * (a string is never spread into its characters).
  */
 export function repairChecks({ only = null } = {}) {
-  const wanted = only ? new Set(only) : null;
+  const wanted = only ? new Set(typeof only === "string" ? [only] : only) : null;
   return [..._checks.values()]
     .filter((c) => !wanted || wanted.has(c.id))
     .filter((c) => {

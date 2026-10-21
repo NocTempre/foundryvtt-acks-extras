@@ -17,7 +17,7 @@ Open any **ability** item. Beyond core's fields:
   in a separate tab. The imported rows describe the ability; the module applies
   only some of them. To make an ability change a number on the sheet — Armor
   Class, a save — give the character's copy an Active Effect: **+ New Effect**
-  under *Effects*, then a change with key `system.aac.mod` (Armor Class), type
+  under *Effects*, then a change with key `system.ac.mod` (Armor Class), type
   **Add**, and the value the ability grants.
 - **Rolls** — every throw the ability makes.
 - **Selections** — the picks a proficiency of this category can take.

@@ -12,7 +12,7 @@
  * class document is a valid homebrew starting point, never an error.
  *
  * Save bands store the BOOK's vocabulary (`blast`, `spells`); the released
- * system's actor keys (`breath`, `spell`) are the write layer's concern —
+ * system's actor keys (`blast`, `spell`) are the write layer's concern —
  * see lib/actor-compat.mjs `savesUpdateData`.
  */
 import { num, str, int, bool, html, choice, choiceSet, refList, levelValueField, spellRefField } from "../lib/fields.mjs";
