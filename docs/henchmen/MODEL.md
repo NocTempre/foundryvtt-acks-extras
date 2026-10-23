@@ -141,6 +141,17 @@ for it, and the roster shows the limit as unknown. `checkHenchmanLimit`'s
 `why` (`acks-adapter.mjs > retainGap`) says which gap it is, the actor's own
 first, and the roster tooltip names it.
 
+The highest henchman level an employer may seek
+(`rules/wages.mjs > maxHenchmanLevel`) is the imported ladder
+(`wages.employerLevelCap`, RR 168): rungs of employer levels, each with the
+level it allows, the last open above and rising by its `perLevel` for each
+level past its floor. A domain ruler may seek any level below their own,
+whatever the ladder says. The posting dialog judges a leveled henchman search
+against the level the candidates believe the employer to be, the presented
+one where a level is presented, and refuses a search above the cap. Where
+the world holds no rung for that level the cap is null and nothing is
+refused.
+
 ## 4. The Active Effect contract (data-driven modifiers)
 
 **Mechanics live on proficiency/power Items as Active Effect changes — never

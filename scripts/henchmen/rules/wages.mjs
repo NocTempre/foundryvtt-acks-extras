@@ -50,14 +50,23 @@ export function henchmanLimitBase() {
   return Number.isInteger(base) && base >= 0 ? base : null;
 }
 
-/** Max hireable henchman level for an employer level (RR 168). */
+/**
+ * Max hireable henchman level for an employer level (RR 168), or null where
+ * the imported ladder holds no rung for it. A domain ruler may hire any level
+ * below their own. Everyone else reads the ladder's rung for their level; the
+ * open top rung rises by its `perLevel` for each level past its floor, and
+ * without one it answers only at the floor.
+ */
 export function maxHenchmanLevel(employerLevel, isDomainRuler = false) {
   if (isDomainRuler) return Math.max(0, employerLevel - 1);
-  if (employerLevel >= 7) return 4 + (employerLevel - 7);
-  const rows = optTable("wages", "employerLevelCap")?.rows;
-  if (!rows) return Math.max(0, employerLevel - 1); // uncapped-ish until imported
-  const row = rows.find((r) => r.employerLevel === employerLevel);
-  return row ? row.maxHenchmanLevel : 0;
+  const rungs = optTable("wages", "employerLevelCap")?.rungs;
+  const rung = (Array.isArray(rungs) ? rungs : []).find(
+    (r) => Number.isInteger(r?.min) && Number.isInteger(r?.cap) && employerLevel >= r.min && (r.max === null || employerLevel <= r.max)
+  );
+  if (!rung) return null;
+  if (rung.max !== null) return rung.cap;
+  if (Number.isInteger(rung.perLevel)) return rung.cap + (employerLevel - rung.min) * rung.perLevel;
+  return employerLevel === rung.min ? rung.cap : null;
 }
 
 /**

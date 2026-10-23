@@ -175,11 +175,12 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     if (presented != null) spec.presentedLevel = presented;
 
     // Employer level cap (RR 168) for leveled henchman searches — judged
-    // against the level the candidates BELIEVE the employer to be.
+    // against the level the candidates BELIEVE the employer to be. A cap the
+    // world has not imported refuses nothing.
     if (employer && (kind === "henchman" || kind === "henchmanByClass") && (spec.level ?? 0) > 0) {
       const believedLevel = presented ?? adapter.getLevel(employer);
       const cap = maxHenchmanLevel(believedLevel, !!data.domainRuler);
-      if (spec.level > cap) {
+      if (cap !== null && spec.level > cap) {
         ui.notifications.error(
           game.i18n.format("ACKS-HENCHMEN.posting.levelCapError", {
             employer: employer.name,

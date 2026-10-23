@@ -245,6 +245,68 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   });
 }
 
+// ---- the employer-level cap: the imported ladder, the ruler's bound, an unread rung ----
+// The ladder and every word but the recipe's anchor are invented.
+{
+  const { maxHenchmanLevel } = await import(new URL("../scripts/henchmen/rules/wages.mjs", import.meta.url));
+  const { extractTable } = await import(new URL("../scripts/importer/table-extract.mjs", import.meta.url));
+  const { TABLE_RECIPES } = await import(new URL("../scripts/importer/table-recipes.mjs", import.meta.url));
+  const withCap = (table, fn) => {
+    const saved = globalThis.acksExtras;
+    try {
+      globalThis.acksExtras = { lib: { tables: { hasDoc: (doc) => doc === "wages" && table !== undefined, getTable: (doc, id) => (id === "employerLevelCap" ? table : null) } } };
+      fn();
+    } finally {
+      globalThis.acksExtras = saved;
+    }
+  };
+  const recipe = TABLE_RECIPES.wages.tables.employerLevelCap;
+  const anchor = recipe.values[0].find;
+  const page = (lines) => lines.map((str, i) => ({ x: 320, y: 100 + i * 12, str }));
+  // Superscript suffixes sort as words of their own, a rung-shaped sentence
+  // before the ladder breaks its run, and a parenthesis after it holds a figure.
+  const read = extractTable(page([
+    "A 9 level badger can hire 3 level cousins.",
+    "nd th st A 2 level badger can only hire 1 level cousins.",
+    "A 3 or 4 level badger rd th can hire 1 or 2 level cousins.",
+    "A 5 level badger th can hire cousins of up to 3 level.",
+    "A 6 level or higher badger can hire cousins of up to 5 level, plus two cousin levels per badger level above 6.",
+    "(Cousins above 5 level are rarely for hire, but 2 setts hold them.)",
+    `${anchor[0].toUpperCase()}${anchor.slice(1)}, a warden badger can hire any cousin below.`,
+  ]), recipe);
+  assert.deepStrictEqual(read, { rungs: [
+    { min: 2, max: 2, cap: 1 },
+    { min: 3, max: 4, cap: 2 },
+    { min: 5, max: 5, cap: 3 },
+    { min: 6, max: null, cap: 5, perLevel: 2 },
+  ] }, "the recipe reads the last unbroken ladder up to its open rung");
+  const inline = extractTable(page([
+    "A 2nd level badger can only hire 1st level cousins. A 3rd level or higher badger can hire cousins of up to 2nd level, plus one cousin level per badger level above 3rd.",
+    `${anchor}.`,
+  ]), recipe);
+  assert.deepStrictEqual(inline.rungs, [{ min: 2, max: 2, cap: 1 }, { min: 3, max: null, cap: 2, perLevel: 1 }], "an ordinal printed inline is read the same");
+
+  withCap(read, () => {
+    assert.strictEqual(maxHenchmanLevel(2), 1, "a one-level rung");
+    assert.strictEqual(maxHenchmanLevel(4), 2, "the top of a spanned rung");
+    assert.strictEqual(maxHenchmanLevel(6), 5, "the open rung's floor");
+    assert.strictEqual(maxHenchmanLevel(8), 9, "the open rung rises by its perLevel");
+    assert.strictEqual(maxHenchmanLevel(1), null, "a level below the ladder has no rung");
+    assert.strictEqual(maxHenchmanLevel(8, true), 7, "a domain ruler reads any level below their own");
+    assert.strictEqual(maxHenchmanLevel(0, true), 0, "and never below zero");
+  });
+  withCap({ rungs: [{ min: 6, max: null, cap: 5 }] }, () => {
+    assert.strictEqual(maxHenchmanLevel(6), 5, "an open rung with no rise answers at its floor");
+    assert.strictEqual(maxHenchmanLevel(7), null, "and nowhere above it");
+  });
+  for (const [table, label] of [[undefined, "nothing imported"], [{}, "a table with no rungs"], [{ rungs: [{ min: "2", max: 2, cap: 1 }] }, "a rung read as text"]]) {
+    withCap(table, () => {
+      assert.strictEqual(maxHenchmanLevel(4), null, `${label}: no cap`);
+      assert.strictEqual(maxHenchmanLevel(4, true), 3, `${label}: the ruler's bound still holds`);
+    });
+  }
+}
+
 // ---- what a network posting reaches, and what its holder's roll adds ----
 {
   const { postingSegments, networkSupplement } = await import(new URL("../scripts/henchmen/rules/availability.mjs", import.meta.url));

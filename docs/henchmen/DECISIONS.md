@@ -827,3 +827,31 @@ computed inside a sheet's display context
 **What it cost.** A world that imported its Rules tables before 11.8.0 has
 no limit until the Judge runs **Rules tables** in **Reimport One Shelf**.
 A monster employer still has none (ROADMAP).
+
+### The employer-level cap is imported, and an unread rung refuses nothing (2026-10-23)
+
+**Ruled.**
+- *The ladder is printed and arrives through the importer.* Every figure in
+  it is read off RR 168: each rung's employer levels, the henchman level it
+  allows, the floor of the open top rung and its rise per level. The `wages`
+  recipe's `employerLevelCap` table reads them on the `proseValues` path
+  with a `levelLadder` take. `maxHenchmanLevel` had held the top rung's floor
+  and allowance as literals, beside a read of a table no recipe wrote; the
+  literals are gone and the read is fed.
+- *The domain ruler's bound stays in code.* Any level below their own is a
+  relation, and no figure in it is printed.
+- *An unread rung refuses nothing.* Where the world holds no rung for a
+  level, the cap is null and the posting dialog lets the search through, as
+  an unknown henchman limit admits (the entry above).
+
+**Rejected.**
+- *The ruler's bound for everyone until import.* That was the old read's
+  fallback below the top rung: a rule standing in for a printed ladder, and
+  looser than the ladder at every rung.
+- *A table of exact levels.* The `rows` the old read expected cannot hold an
+  open rung, which is why the literals stood beside it.
+
+**What it cost.** No world refuses a leveled search by the employer's level
+until the Judge imports the Rules tables; before, every employer from the
+top rung's floor up was refused above it whatever the world held. A world
+that imported before this change is named in the missing-tables notice.

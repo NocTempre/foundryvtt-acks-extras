@@ -41,7 +41,6 @@ const WAIVERS = {
   "influence.henchmanWage": { roadmap: "docs/influence/ROADMAP.md", find: "Two influence tables have no producer" },
   followers: { roadmap: "docs/henchmen/ROADMAP.md", find: "Followers ruledata has no producer" },
   "wages.mercenaryOfficers": { roadmap: "docs/henchmen/ROADMAP.md", find: "`wages.mercenaryOfficers`" },
-  "wages.employerLevelCap": { roadmap: "docs/henchmen/ROADMAP.md", find: "`wages.employerLevelCap`" },
   "people.classRegistry": { roadmap: "docs/henchmen/ROADMAP.md", find: "`people.classRegistry`" },
   variations: { roadmap: "docs/equipment/ROADMAP.md", find: "Variation ruledata has no producer" },
   economy: { roadmap: "docs/markets/ROADMAP.md", find: "Economy ruledata has no producer" },

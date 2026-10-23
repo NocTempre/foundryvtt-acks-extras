@@ -1,7 +1,7 @@
 /**
  * Live walk, henchmen: henchmen + influence.
  * STAGE=1: henchmen steps 14 and 15, influence steps 17–19, on the GM seat.
- * STAGE=2: henchmen steps 10, 12 (player seat) and 13.
+ * STAGE=2: henchmen steps 10, 12 (player seat), 13 and 3a.
  * Machine values arrive through ./_env.mjs; nothing here names a port, a
  * world, a seat or a book. Every
  * figure typed into a fixture is invented; no imported figure is printed by
@@ -12,7 +12,8 @@
  *   - a `wages` override layer at priority 30 holding the henchman limit's
  *     base, read off the connected book through the shipped recipe, or
  *     invented where no book opens, and only where the world holds none
- *     (unregistered);
+ *     (unregistered); in stage 2, the employer-level cap's ladder, sourced
+ *     the same way;
  *   - the GM seat's own client state: the henchmen→influence integration
  *     swap, the dice rig, the patched notification methods and the wrapped
  *     ChatMessage.create (all restored);
@@ -37,6 +38,8 @@ const POWER_IDS = ["def.prof.leadership", "def.power.bloodOfKings", "def.prof.co
 const INVENTED_OFFER = { bands: [{ max: 2 }, { min: 3, max: 5 }, { min: 6, max: 8 }, { min: 9, max: 11 }, { min: 12 }], refusalPenalty: -1, slanderPenalty: -2 };
 // An invented henchman-limit base for the wages document where neither the world nor a book supplies one.
 const INVENTED_LIMIT = { base: 9 };
+// An invented employer-level ladder, likewise.
+const INVENTED_CAP = { rungs: [{ min: 1, max: 2, cap: 1 }, { min: 3, max: 5, cap: 2 }, { min: 6, max: null, cap: 3, perLevel: 1 }] };
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -506,6 +509,109 @@ const P = {
     if (on) H.T.registerTable({ id: "wages", tables: { henchmanLimit: H.limitTable } }, { priority: 30, source: "qa-c1" });
     else H.T.unregisterTable("wages", { priority: 30 });
     return { known: H.m.WG.henchmanLimitBase() !== null };
+  },
+  /** The employer-level cap as this client reads it: whether any level has one, and whether the world's own layer holds the ladder. */
+  capRead: async () => {
+    const H = globalThis.__c1;
+    const world = H.T.getLayer?.("wages", H.T.PRIORITY?.WORLD ?? 20)?.tables?.employerLevelCap ?? null;
+    let known = false;
+    for (let l = 0; l <= 30 && !known; l++) known = H.m.WG.maxHenchmanLevel(l) !== null;
+    return { known, worldHolds: Array.isArray(world?.rungs) };
+  },
+  /** The employer-level ladder read off the connected book through the shipped recipe and kept for `overrideCap`; nothing is registered or written. */
+  capFromBook: async () => {
+    const H = globalThis.__c1;
+    const base = "/modules/acks-extras/scripts/importer/";
+    const { TABLE_RECIPES } = await import(base + "table-recipes.mjs");
+    const { locatePageNumber } = await import(base + "tables-binding.mjs");
+    const { extractTable } = await import(base + "table-extract.mjs");
+    const { pageItems } = await import(base + "extract.mjs");
+    const recipe = TABLE_RECIPES.wages.tables.employerLevelCap;
+    const doc = H.m.CB.cookbookSessionDoc(recipe.book);
+    if (!doc) return { read: false, reason: "book not connected" };
+    const p = await locatePageNumber(doc, recipe);
+    if (p == null) return { read: false, reason: "page not found" };
+    const { items } = await pageItems(doc, p);
+    const table = extractTable(items, recipe);
+    if (!Array.isArray(table?.rungs) || table.rungs.at(-1)?.max !== null) return { read: false, reason: "no ladder ending in an open rung", keys: Object.keys(table ?? {}) };
+    H.capTable = table;
+    return { read: true };
+  },
+  /**
+   * The ladder on or off in the priority-30 `wages` layer, which also holds
+   * the limit's base where this walk registered one; on, `table` or the
+   * ladder last read off the book.
+   */
+  overrideCap: async ({ on, table }) => {
+    const H = globalThis.__c1;
+    if (table) H.capTable = table;
+    const tables = { ...(H.limitTable ? { henchmanLimit: H.limitTable } : {}), ...(on && H.capTable ? { employerLevelCap: H.capTable } : {}) };
+    if (Object.keys(tables).length) H.T.registerTable({ id: "wages", tables }, { priority: 30, source: "qa-c1" });
+    else H.T.unregisterTable("wages", { priority: 30 });
+    let known = false;
+    for (let l = 0; l <= 30 && !known; l++) known = H.m.WG.maxHenchmanLevel(l) !== null;
+    return { known };
+  },
+  /**
+   * The levels the cap step types, chosen in page against the ladder this
+   * client reads and the open posting dialog's level options: a presented
+   * level whose cap is at least one, below the highest option and below a
+   * domain ruler's bound, and the open rung's floor plus one. They are typed
+   * into the dialog and never printed.
+   */
+  capPlan: async () => {
+    const H = globalThis.__c1;
+    const cap = (l, ruler = false) => H.m.WG.maxHenchmanLevel(l, ruler);
+    const el = H.root(H.appBy("posting-dialog"));
+    const options = [...(el?.querySelectorAll('select[name="level"] option') ?? [])].map((o) => o.value).filter((v) => v !== "").map(Number);
+    const top = options.length ? Math.max(...options) : null;
+    let presented = null;
+    for (let l = 1; l <= 30 && presented === null && top !== null; l++) {
+      const c = cap(l);
+      if (c !== null && c >= 1 && c < top && c + 1 <= cap(l, true)) presented = l;
+    }
+    const open = (H.T.getDoc("wages")?.tables?.employerLevelCap?.rungs ?? []).find((r) => r?.max === null);
+    const above = open ? open.min + 1 : null;
+    return {
+      presented,
+      at: presented === null ? null : cap(presented),
+      top,
+      above,
+      openRises: !!open && Number.isInteger(open.perLevel) && cap(above) === open.cap + open.perLevel,
+      openAdmitsTop: above !== null && cap(above) !== null && top <= cap(above),
+    };
+  },
+  /**
+   * Submit the open posting dialog as a henchman search at `level`, presenting
+   * `presented` and ticking Domain ruler as named. Whether a posting landed,
+   * whether the error raised is the level-cap one at `cap`, and the chat made.
+   */
+  postingLeveled: async ({ locationId, employerId, level, presented, ruler = false, cap = null }) => {
+    const H = globalThis.__c1;
+    const app = H.appBy("posting-dialog");
+    if (!app) return { found: false };
+    const el = H.root(app);
+    const count = () => (game.actors.get(locationId).system.market?.postings ?? []).length;
+    const before = count();
+    const set = (sel, v) => {
+      const f = el.querySelector(sel);
+      if (!f) return false;
+      if (f.type === "checkbox") f.checked = !!v;
+      else f.value = String(v);
+      f.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    };
+    set('select[name="kind"]', "henchman");
+    await H.sleep(150);
+    const fields = { level: set('select[name="level"]', level), presented: set('input[name="presentedLevel"]', presented), ruler: set('input[name="domainRuler"]', ruler) };
+    set('input[name="network"]', false);
+    H.takeNotes(); H.takeChat();
+    (el.querySelector('button[type="submit"]') ?? el.querySelector("form button")).click();
+    await H.poll(() => (H.notes.length ? true : null), { tries: 80, every: 250 });
+    await H.sleep(1000);
+    const notes = H.takeNotes();
+    const capText = cap === null ? null : game.i18n.format("ACKS-HENCHMEN.posting.levelCapError", { employer: game.actors.get(employerId)?.name, level, cap });
+    return { found: true, fields, landed: count() === before + 1, capError: notes.some((n) => n.kind === "error" && n.text === capText), noteKinds: notes.map((n) => n.kind), chat: H.takeChat() };
   },
   /** Pin an employer's limit at `to` through the manual flag; returns what the limit then reads. */
   pinLimit: async ({ actorId, to }) => {
@@ -1330,6 +1436,58 @@ try {
     const m3 = await run(gm, P.marketRead, { locationId: hall2.id, employerId: N.id, feeCardFlavor: fee3, feeClass: 5 });
     const merc = m3.postings.find((p) => /^mercenary/.test(p.segment ?? ""));
     check("13: a mercenary search with the box unticked rolls no network and pays the class-5 fee", !!merc && merc.network === false && m3.networkRolls.length === m2.networkRolls.length && m3.feeMatches[5] === true && m3.feeMatches[3] !== true, { merc, feeMatches: m3.feeMatches, networkRolls: [m2.networkRolls.length, m3.networkRolls.length] });
+    note("closed", await run(gm, P.closeAll));
+
+    // The ladder: the world's import where it holds one, else the book's read
+    // through the shipped recipe, else an invented one; the last two stand
+    // only in this client's memory. The levels typed are chosen in page and
+    // never printed.
+    section("3a. the employer-level cap on a leveled search");
+    const c0 = await run(gm, P.capRead);
+    note("employer-level cap as the world reads it", c0);
+    let capSource = c0.known ? (c0.worldHolds ? "world" : "layer") : null;
+    if (!capSource) {
+      const fromBook = await run(gm, P.capFromBook);
+      note("the ladder read off the book", fromBook);
+      if (fromBook.read) capSource = "book";
+      else note("no ladder from the world or the book: an invented one", (capSource = "invented"));
+      note("registered at priority 30", await run(gm, P.overrideCap, { on: true, table: capSource === "invented" ? INVENTED_CAP : undefined }));
+    }
+    check("changed: the employer-level cap stands, from the world's import or read off the book through the shipped recipe", capSource === "world" || capSource === "book", { capSource });
+    note("more coin for the captain", await run(gm, P.coin, { actorId: A.id, mint: 500 }));
+    const leveled = async (label, args) => {
+      await run(gm, P.postingOpen, { locationId: hall2.id, employerId: A.id });
+      const r = await run(gm, P.postingLeveled, { locationId: hall2.id, employerId: A.id, ...args });
+      for (const id of r.chat ?? []) gm.track(id, "ChatMessage");
+      const seen = { fields: r.fields, landed: r.landed, capError: r.capError, notes: r.noteKinds };
+      note(label, seen);
+      return { ...r, seen };
+    };
+    await run(gm, P.postingOpen, { locationId: hall2.id, employerId: A.id });
+    const plan = await run(gm, P.capPlan);
+    const planned = plan.presented !== null;
+    check("3a: the ladder holds a presented level whose cap the dialog's options exceed, and the open rung rises by its perLevel", planned && plan.openRises, { planned, openRises: plan.openRises });
+    if (planned) {
+      const atCap = await leveled("at the cap", { level: plan.at, presented: plan.presented, cap: plan.at });
+      check("3a: a leveled search at the presented level's cap lands", atCap.landed && !atCap.capError, atCap.seen);
+      const over = await leveled("one above the cap", { level: plan.at + 1, presented: plan.presented, cap: plan.at });
+      check("3a: one level above the cap is refused, and the dialog's error names the cap", !over.landed && over.capError, over.seen);
+      const ruler = await leveled("one above the cap, as a domain ruler", { level: plan.at + 1, presented: plan.presented, ruler: true, cap: plan.at });
+      check("3a: the same search for a domain ruler lands", ruler.landed && !ruler.capError, ruler.seen);
+      const open = await leveled("past the open rung's floor, the highest option", { level: plan.top, presented: plan.above });
+      check("3a: past the open rung's floor the highest level option lands", plan.openAdmitsTop && open.landed && !open.capError, { openAdmitsTop: plan.openAdmitsTop, ...open.seen });
+      if (capSource === "world") note("the world holds the ladder: the unread case would need its import unregistered, and is not checked live");
+      else {
+        note("the ladder unregistered", await run(gm, P.overrideCap, { on: false }));
+        // The ruler's search holds that segment; a second active one for the
+        // same employer is refused as a duplicate, so it is taken down first.
+        const held = (await run(gm, P.marketRead, { locationId: hall2.id, employerId: A.id })).postings.find((p) => p.employer && p.status === "active" && p.segment === `henchman:${plan.at + 1}`);
+        note("the ruler's search taken down", { found: !!held, status: held ? (await run(gm, P.closePosting, { locationId: hall2.id, postingId: held.id })).status : null });
+        const unread = await leveled("one above the cap, no ladder", { level: plan.at + 1, presented: plan.presented, cap: plan.at });
+        const none = await run(gm, P.capRead);
+        check("3a: with no ladder no level has a cap, and the search above it lands", !none.known && unread.landed && !unread.capError, { known: none.known, ...unread.seen });
+      }
+    }
     note("closed", await run(gm, P.closeAll));
   }
 } catch (err) {

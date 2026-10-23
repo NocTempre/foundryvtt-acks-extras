@@ -42,7 +42,8 @@ const TABLES = {
   // The hiring offer: a result column and the two penalties beside it.
   influence: ["hiringOffer"],
   // The henchman limit's base: one figure the roster counts every hire against.
-  wages: ["henchmanLimit"],
+  // The employer-level cap: the ladder a leveled henchman search is judged on.
+  wages: ["henchmanLimit", "employerLevelCap"],
   // The domain month: every table its procedure runs on.
   domain: [
     "strongholdMinimum", "growth", "prestigeImmigration", "revenue", "expenses", "peace",
@@ -237,6 +238,24 @@ VERIFY["influence.hiringOffer"] = (out, recipe, fail) => {
 VERIFY["wages.henchmanLimit"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.base) && !(Number.isInteger(out.base) && out.base > 0)) fail("base: not a positive whole number");
+};
+// The employer-level cap: rungs of whole levels, each starting one above the
+// last, the allowances never falling, and only the last open, rising by a
+// positive whole number per level.
+VERIFY["wages.employerLevelCap"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  const rungs = out?.rungs;
+  if (!Array.isArray(rungs) || rungs.length < 2) return fail("rungs: fewer than two");
+  const whole = (v) => Number.isInteger(v) && v >= 0;
+  rungs.forEach((r, i) => {
+    const last = i === rungs.length - 1;
+    if (!whole(r.min) || !whole(r.cap)) fail(`rung ${i}: min or cap not a whole number`);
+    if (last ? r.max !== null : !(whole(r.max) && r.max >= r.min)) fail(`rung ${i}: ${last ? "not open above" : "max not a whole number at or above min"}`);
+    if (i && r.min !== rungs[i - 1].max + 1) fail(`rung ${i}: does not start one above the last`);
+    if (i && r.cap < rungs[i - 1].cap) fail(`rung ${i}: allows less than the rung below`);
+  });
+  const top = rungs.at(-1);
+  if (!(Number.isInteger(top?.perLevel) && top.perLevel > 0)) fail("open rung: perLevel not a positive whole number");
 };
 // Prose tables with nothing beyond declared keys and finite numbers.
 for (const id of [

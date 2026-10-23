@@ -116,6 +116,22 @@ a step it does not name is walked by hand.
 3. `openPostingDialog(employer)` and post a notice at the location.
    *Observable:* `location.system.market.postings` gains the notice; advancing
    the market a week produces candidates in `market.candidates`.
+3a. The employer-level cap on a leveled search. Where the world's `wages`
+   holds no `employerLevelCap`, read `TABLE_RECIPES.wages.tables.employerLevelCap`
+   off the connected book as step 4a reads the limit's base, and register it
+   at priority 30 in this client only. The dialog's **Level** options stop
+   below most rungs' caps, so drive the cap by **Presented level**: on the
+   posting dialog, with a disposable employer, present a level whose rung
+   allows less than the highest option and submit a **henchman** search at
+   the cap and one above it, then the above-cap search again with **Domain
+   ruler** ticked. Then present the open rung's floor plus one and submit the
+   highest option.
+   *Observable:* the search at the cap lands in `market.postings`; the one
+   above it does not, and the dialog's error names the cap; the ruler's search
+   and the open rung's land. With the table unregistered,
+   `maxHenchmanLevel(level)` is null and the above-cap search lands; take the
+   ruler's search down first, since a second active search of one segment for
+   one employer is refused as a duplicate, which reads as the cap refusing.
 4. `openRecruitDialog(location, candidateId)` for one of those candidates and
    hire them.
    *Observable:* the candidate's status leaves `available`, and the hire

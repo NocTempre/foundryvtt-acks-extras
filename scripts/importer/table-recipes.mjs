@@ -2155,6 +2155,18 @@ export const TABLE_RECIPES = {
   wages: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 108, 162-171" },
     tables: {
+      // The henchman levels an employer's level allows (RR 168 prose): one
+      // rung per sentence, the last open above with its rise per level. Read
+      // back from the digit-free clause that follows the ladder, because the
+      // superscript ordinals sort into the sentences around their figures.
+      employerLevelCap: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 168,
+        locate: "foregoing notwithstanding",
+        locateBare: true,
+        values: [{ key: "rungs", find: "foregoing notwithstanding", before: true, span: 700, take: "levelLadder", split: "hire" }],
+      },
       henchmanWageByLevel: {
         shape: "pairs",
         book: "rr",

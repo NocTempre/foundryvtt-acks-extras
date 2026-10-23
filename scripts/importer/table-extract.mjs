@@ -861,9 +861,47 @@ const WORD_INTS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7
 const NON_COLOUR =
   /^(?:the|with|of|in|a|an|and|or|either|usually|sometimes|seen|colou?r(?:ed|ation)?|shaped?|set|deep|deep-set|large|small|round|round-shaped|oval|almond|almond-shaped|wide|narrow|open|straight|wavy|curly|tightly curled|curled|ringlets?|ringleted|glossy|thick|fine|very deep set|men|women)$/i;
 
-function takeProse(window, take) {
+/**
+ * A level ladder written as sentences, one rung each (`take: "levelLadder"`).
+ * The figures before `split` are the rung's levels, one or the two ends of a
+ * span, and an "or higher" leaves it open above; the largest figure in the
+ * clause after `split` is what the rung allows. Only figures are read, so a
+ * superscript ordinal suffix, which reaches the text layer as a word of its
+ * own wherever its run sorts, is passed over. Rungs are kept only while each
+ * starts one level above the last, so a rung-shaped sentence in the prose
+ * before the ladder never joins it, and the open rung ends the ladder; its
+ * `perLevel` is the figure between a "plus" and a "per" after the clause.
+ * Undefined when no rung is read.
+ * @returns {{min: number, max: number|null, cap: number, perLevel?: number}[]|undefined}
+ */
+function levelLadder(window, split) {
+  const ints = (s) => [...s.matchAll(/\d+/g)].map((m) => Number(m[0]));
+  let rungs = [];
+  for (const sentence of window.split(".")) {
+    const at = split ? sentence.indexOf(split) : -1;
+    if (at < 0) continue;
+    const levels = ints(sentence.slice(0, at));
+    const [clause, ...after] = sentence.slice(at + split.length).split(",");
+    const allows = ints(clause);
+    if (!levels.length || !allows.length) continue;
+    const open = /\bor\s*(?:higher|more|greater)\b/.test(sentence.slice(0, at));
+    const rung = { min: levels[0], max: open ? null : levels.at(-1), cap: Math.max(...allows) };
+    if (rungs.length && rung.min !== rungs.at(-1).max + 1) rungs = [];
+    if (open) {
+      const rise = after.join(",").match(/\bplus\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b.*?\bper\b/);
+      if (rise) rung.perLevel = WORD_INTS[rise[1]] ?? Number(rise[1]);
+    }
+    rungs.push(rung);
+    if (open) break;
+  }
+  return rungs.length ? rungs : undefined;
+}
+
+function takeProse(window, take, spec = {}) {
   const num = (s) => Number(s.replace(/,/g, ""));
   switch (take) {
+    case "levelLadder":
+      return levelLadder(window, spec.split);
     case "int": {
       const m = window.match(/-?\d[\d,]*/);
       return m ? num(m[0]) : undefined;
@@ -1106,7 +1144,7 @@ export function extractProseValues(items, recipe) {
     if (idx < 0) continue; // absent, not undefined: page-span merges keep earlier pages' captures
     const span = v.span ?? 90;
     const window = v.before ? text.slice(Math.max(0, idx - span), idx) : text.slice(idx + find.length, idx + find.length + span);
-    let val = takeProse(window, v.take ?? "int");
+    let val = takeProse(window, v.take ?? "int", v);
     if (v.before && val !== undefined) {
       // before-windows want the LAST match, not the first
       let last;
