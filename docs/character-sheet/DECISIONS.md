@@ -839,8 +839,8 @@ while the setting is off; turning it back on shows them again.
 **Ruled.** The Morale field (Stats, in the Throws column) and the Morale roll
 (Rolls) show on a character that `carriesMorale` (view-model.mjs): a serving
 hireling, or a character no player owns — the Judge's NPC built as a
-character. A player's character shows neither, since the book has the
-player decide whether to fight or flee (RR ch. 6, Morale). A hireling's Rolls
+character. A player's character shows neither: it makes no morale roll
+(RR ch. 6, Morale). A hireling's Rolls
 row stays in the Retainer group beside Loyalty; an NPC's sits in a group of
 its own. The Retainer block on Stats keeps Wage and Loyalty.
 

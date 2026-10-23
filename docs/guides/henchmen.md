@@ -153,11 +153,12 @@ the hireling's card listing the coin they hold.*
 *The same tab with nothing due: what the payroll costs a month and the days
 before the next wage, and no Pay wages button until then.*
 
-**A hireling's coin is theirs to arrange.** Their card lists each coin row;
-a row holding more than one carries the scissors, which divide a pile off to
-hand over, and **Gather coin** folds matching rows back into one. Once they
-have more than one place to keep coin, the card offers the same **Pay from**
-and **Receive into** choices a character has.
+**A hireling's coin is theirs to arrange.** On a full sheet it is arranged as
+any character's is. On the Follower Card, each coin row is listed; a row
+holding more than one carries the scissors, which divide a pile off to hand
+over, and **Gather coin** folds matching rows back into one. Once they have
+more than one place to keep coin, the card offers the same **Pay from** and
+**Receive into** choices a character has.
 
 ![](../releases/v10.1.0/lib-follower-card.png)
 
