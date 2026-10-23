@@ -330,10 +330,10 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   const levelMorale = TABLE_RECIPES.wages.tables.levelMorale;
   const [leaves, , reaches] = levelMorale.values.map((v) => v.find);
   const read = extractTable(page([
-    "Badgers keep a sett score of +3, and 2 cousins may add to it:",
-    `th A lasting +2 bonus to sett score when a 6${leaves} seventh burrow (or a second sett).`,
-    `A lasting +3 bonus to sett score when a badger rd gains his 9 ${reaches}.`,
-    "A lasting -1 penalty for a badger who lost 4 setts.",
+    "Badger census: setts +3, cousins 2, and the burrow notes follow.",
+    `th Burrow note one: +2 for any 6${leaves} seventh tunnel.`,
+    `Burrow note two: +3 once rd the 9 ${reaches} is dug.`,
+    "Burrow note three: -1 after 4 floods.",
   ]), levelMorale);
   assert.deepStrictEqual(read, { fromLevel: 6, fromBonus: 2, reachLevel: 9, reachBonus: 3 }, "the recipe reads each item's level and bonus");
   withTables({ wages: { levelMorale: read } }, () => {

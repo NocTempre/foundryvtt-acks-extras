@@ -45,7 +45,7 @@ const INVENTED_LIMIT = { base: 9 };
 const INVENTED_CAP = { rungs: [{ min: 1, max: 2, cap: 1 }, { min: 3, max: 5, cap: 2 }, { min: 6, max: null, cap: 3, perLevel: 1 }] };
 // An invented apparent-level figure and level-gain morale table, likewise.
 const INVENTED_APPARENT = { perLevel: -3 };
-const INVENTED_LEVEL_MORALE = { fromLevel: 0, fromBonus: 2, reachLevel: 3, reachBonus: 1 };
+const INVENTED_LEVEL_MORALE = { fromLevel: 1, fromBonus: 2, reachLevel: 4, reachBonus: 3 };
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -1102,6 +1102,8 @@ const P = {
     await app.close({ force: true });
     return out;
   },
+  /** The levels of the level-gain morale rungs this client reads, lowest first. */
+  rungLevels: async () => globalThis.__c1.m.WG.levelMoraleRungs().map((r) => r.level),
   /**
    * A level gain written as a sheet edit writes it, then what the watcher
    * recorded: whether each morale entry it added is a rung the gain crossed,
@@ -1523,17 +1525,21 @@ try {
     note("apparent-level layer lifted", await run(gm, P.layerTable, { doc: "influence", id: "apparentLevel", table: null }));
 
     section("16. the level-gain morale bonuses, unread then read");
-    const z0 = await gm.create("Actor", { name: `QA Novice unread ${NONCE}`, type: "character", system: { details: { level: 0 }, retainer: { category: "henchman" } }, items: [] });
-    note("link the unread novice to A", await run(gm, P.link, { employerId: A.id, hirelingId: z0.id, wage: 5 }));
-    note("unread", await run(gm, P.layerTable, { doc: "wages", id: "levelMorale", table: printed0.levelKnown ? {} : null }));
-    const g0 = await run(gm, P.gainLevel, { hirelingId: z0.id, to: 1 });
-    for (const id of g0.chat ?? []) gm.track(id, "ChatMessage");
-    note("level gain, unread", g0);
-    check("16: unread, a level gain records no morale bonus and its card says the bonuses are not imported", g0.gained && g0.recorded && g0.entries === 0 && g0.unreadCard && !g0.plainCard, g0);
+    // The rungs stand first so each novice can start one level below the first
+    // rung, and the gain made while unread lands on it; then they are shadowed.
     const rungs = await standFor("wages", "levelMorale", printed0.levelWorld, INVENTED_LEVEL_MORALE);
     note("the level-gain rungs stand", rungs);
     check("changed: the level-gain morale rungs stand, from the world's import or read off the book through the shipped recipe", rungs.layer.levelKnown && (rungs.source === "world" || rungs.source === "book"), { source: rungs.source });
-    const z1 = await gm.create("Actor", { name: `QA Novice read ${NONCE}`, type: "character", system: { details: { level: 0 }, retainer: { category: "henchman" } }, items: [] });
+    const [first, second] = await run(gm, P.rungLevels);
+    const z0 = await gm.create("Actor", { name: `QA Novice unread ${NONCE}`, type: "character", system: { details: { level: first - 1 }, retainer: { category: "henchman" } }, items: [] });
+    note("link the unread novice to A", await run(gm, P.link, { employerId: A.id, hirelingId: z0.id, wage: 5 }));
+    note("unread", await run(gm, P.layerTable, { doc: "wages", id: "levelMorale", table: {} }));
+    const g0 = await run(gm, P.gainLevel, { hirelingId: z0.id, to: first });
+    for (const id of g0.chat ?? []) gm.track(id, "ChatMessage");
+    note("level gain onto the first rung, unread", g0);
+    check("16: unread, a level gain onto the first rung records no morale bonus and its card says the bonuses are not imported", g0.gained && g0.recorded && g0.entries === 0 && g0.unreadCard && !g0.plainCard, g0);
+    note("read again", await run(gm, P.layerTable, { doc: "wages", id: "levelMorale", table: rungs.source === "world" ? null : rungs.source === "book" ? { fromBook: true } : INVENTED_LEVEL_MORALE }));
+    const z1 = await gm.create("Actor", { name: `QA Novice read ${NONCE}`, type: "character", system: { details: { level: first - 1 }, retainer: { category: "henchman" } }, items: [] });
     note("link the read novice to A", await run(gm, P.link, { employerId: A.id, hirelingId: z1.id, wage: 5 }));
     const g1 = await run(gm, P.gainLevel, { hirelingId: z1.id, to: "rung0" });
     for (const id of g1.chat ?? []) gm.track(id, "ChatMessage");
@@ -1546,10 +1552,10 @@ try {
     const led = await run(gm, P.ledgerShown, { employerId: A.id, hirelingId: z1.id });
     note("roster ledger", led);
     check("16: the roster's ledger shows both as level gains on the morale track, each note naming a rung's level", led.rendered && led.shown === 2 && led.notesMatch, led);
-    const g3 = await run(gm, P.gainLevel, { hirelingId: z0.id, to: 2 });
+    const g3 = await run(gm, P.gainLevel, { hirelingId: z0.id, to: first + 1 });
     for (const id of g3.chat ?? []) gm.track(id, "ChatMessage");
     note("the unread novice's next gain", g3);
-    check("16: a gain recorded while unread is not made up later: the unread novice's next gain records only the rungs it crosses itself", g3.gained && g3.recorded && g3.entries === g3.want && g3.match, g3);
+    check("16: a gain recorded while unread is not made up later: the unread novice's next gain records only the rungs it crosses itself", g3.gained && g3.recorded && g3.entries === (second === first + 1 ? 1 : 0) && g3.entries === g3.want && g3.match, g3);
     note("level-gain layer lifted", await run(gm, P.layerTable, { doc: "wages", id: "levelMorale", table: null }));
     note("closed", await run(gm, P.closeAll));
   }

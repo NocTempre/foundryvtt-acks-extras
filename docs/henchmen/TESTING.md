@@ -475,7 +475,8 @@ a step it does not name is walked by hand.
     `TABLE_RECIPES.wages.tables.levelMorale`) into that layer. Fixtures: on
     employer A from step 14, a henchman linked through core's confirm whose
     record's `terms.claimedEmployerLevel` is A's level + 2, and two
-    `character` actors created at `system.details.level: 0` with
+    `character` actors created one level below the first rung that stands
+    (`levelMoraleRungs()` with the table read) with
     `system.retainer.category: "henchman"`, each linked the same way. A level
     gain is `actor.update({"system.details.level": n})`, the update a sheet
     edit makes; the watcher runs on the primary GM's client, so the seat that
@@ -492,15 +493,16 @@ a step it does not name is walked by hand.
       *Observable:* the throw dialog's apparent-level stepper reads 2; unread,
       `context.stepValues` holds no figure for it and the info line names the
       count; read, the step is the figure and there is no info line.
-    - Raise the first level-0 actor to 1 while unread; read, raise the second
-      to the first rung's level and then the second rung's, open the roster,
-      and raise the first to 2.
+    - Raise the first actor onto the first rung while unread; read, raise the
+      second onto the first rung and then the second, open the roster, and
+      raise the first one level more.
       *Observable:* unread, the record gains no morale entry and the card says
       the bonuses are not imported. Read, each gain adds one
       `morale.permanents` entry at its rung's bonus, reason `levelGain`, its
       note the rung's level, under the plain card, and the roster's ledger
-      shows both on the morale track. The first actor's gain to 2 adds no
-      entry: the rung it crossed while unread is not made up.
+      shows both on the morale track. The first actor's last gain adds no
+      entry for the first rung: the rung it crossed while unread is not made
+      up.
       Walked by `tools/live/henchmen.mjs` stage 1, section 16.
 
 The reference repair's check in the repair tool (`henchmen.references`) is
