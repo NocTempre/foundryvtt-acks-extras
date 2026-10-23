@@ -29,6 +29,7 @@ import * as movementScales from "./movement-scales.mjs";
 import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE } from "./constants.mjs";
 import { elementOf, isPrimaryGM, primaryGMSettled } from "./util.mjs";
 import { registerUiPresetSettings, promptUiPreset, effectiveLook, refreshSheetDefaults } from "./ui-preset.mjs";
+import { retainerCardsToRelease } from "./ui-preset-logic.mjs";
 import * as vocab from "./vocab.mjs";
 import * as wallGeometry from "./wall-geometry.mjs";
 import * as wallLayers from "./wall-layers.mjs";
@@ -124,12 +125,15 @@ import { installHpControl, openHpTool } from "./apps/hp-app.mjs";
 export { ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE };
 
 /**
- * The Follower Card is the per-instance default sheet for RETAINERS (hirelings) of
- * these types — keyed on the core `system.retainer.enabled` flag, so one rule
- * covers character AND monster hirelings without depending on acks-henchmen.
+ * The actor types whose face can be flipped to the Follower Card per instance
+ * (`setFollowerSheet`, the directory menu). Nothing flips one on its own: a
+ * hireling opens on its type's sheet like anyone else.
  */
 const FOLLOWER_TYPES = new Set([vocab.ACTOR_TYPE.character, vocab.ACTOR_TYPE.monster]);
 const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
+
+/** The world setting recording that the cards once set on hire were released. */
+const CARD_RELEASE_SETTING = "retainerCardsReleased";
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
@@ -459,6 +463,14 @@ Hooks.once("init", () => {
     icon: "fa-solid fa-table-cells",
     type: StatusPaletteMenu,
     restricted: true,
+  });
+
+  // Read by the ready sweep below, which releases the cards once and sets it.
+  game.settings.register(MODULE_ID, CARD_RELEASE_SETTING, {
+    scope: "world",
+    config: false,
+    type: Boolean,
+    default: false,
   });
 
   // Warm the Follower Card template so the hirelings-tab grid (rendered by
@@ -923,8 +935,8 @@ Hooks.once("ready", () => {
   console.log(`${MODULE_ID} | ${TEMPLATE_TYPE} sheet registered.`);
 
   // The Follower Card for a CHARACTER is an alternative, never the type
-  // default — a PC keeps their own sheet. It becomes the per-instance default
-  // for retainers via flags.core.sheetClass (see the hooks below).
+  // default — a PC and a hireling alike keep the type's sheet until someone
+  // picks the card (`setFollowerSheet`).
   foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, FollowerCardSheet, {
     types: ["character"],
     makeDefault: false,
@@ -959,14 +971,18 @@ Hooks.once("ready", () => {
           .catch((err) => console.error(`${MODULE_ID} | monster landing-sheet migration failed`, err));
       }
 
-      // Existing retainers with no explicit sheet choice adopt the card
-      // (docs/lib/FOLLOWER-CARD.md's "Default-for-retainers" section).
-      const updates = game.actors
-        .filter((a) => FOLLOWER_TYPES.has(a.type) && a.system?.retainer?.enabled && !a.getFlag("core", "sheetClass"))
-        .map((a) => ({ _id: a.id, "flags.core.sheetClass": FOLLOWER_SHEET_KEY }));
-      if (updates.length) {
-        Actor.updateDocuments(updates).catch((err) => console.error(`${MODULE_ID} | follower-card sweep failed`, err));
-      }
+      // The cards this module once set on every hire are released, once, so a
+      // serving hireling opens on its type's sheet (docs/lib/DECISIONS.md, "A
+      // hireling opens on its type's sheet; the card is picked (2026-10-22)").
+      // Only once: a card on a hireling after this run is someone's pick.
+      if (game.settings.get(MODULE_ID, CARD_RELEASE_SETTING)) return;
+      const ids = retainerCardsToRelease(game.actors, FOLLOWER_TYPES, FOLLOWER_SHEET_KEY);
+      const unset = foundry.data.operators.ForcedDeletion.create();
+      const updates = ids.map((_id) => ({ _id, flags: { core: { sheetClass: unset } } }));
+      (updates.length ? Actor.updateDocuments(updates) : Promise.resolve())
+        .then(() => game.settings.set(MODULE_ID, CARD_RELEASE_SETTING, true))
+        .then(() => ids.length && console.log(`${MODULE_ID} | ${ids.length} hireling(s) released from the Follower Card to their type's sheet.`))
+        .catch((err) => console.error(`${MODULE_ID} | releasing hirelings from the Follower Card failed`, err));
     })
     .catch((err) => console.error(`${MODULE_ID} | the ready-time sheet sweeps failed`, err));
 });
@@ -1041,27 +1057,6 @@ Hooks.on("updateToken", (tokenDoc, changes) => {
   // satisfied.
   if (!("x" in changes || "y" in changes || "light" in changes || "hidden" in changes)) return;
   relightNightVision(tokenDoc?.parent);
-});
-
-// Retainers default to the Follower Card, keyed on the core retainer flag
-// (docs/lib/FOLLOWER-CARD.md's "Default-for-retainers" section). preCreate
-// catches actors born as retainers; updateActor below catches a plain actor
-// flipped into service.
-Hooks.on("preCreateActor", (doc, data) => {
-  if (game.system?.id !== "acks") return;
-  if (!FOLLOWER_TYPES.has(doc.type)) return;
-  if (!foundry.utils.getProperty(data ?? {}, "system.retainer.enabled")) return;
-  if (foundry.utils.getProperty(data ?? {}, "flags.core.sheetClass")) return;
-  doc.updateSource({ "flags.core.sheetClass": FOLLOWER_SHEET_KEY });
-});
-
-Hooks.on("updateActor", (actor, changes, options, userId) => {
-  if (userId !== game.userId) return; // only the originating client writes, once
-  if (game.system?.id !== "acks") return;
-  if (!FOLLOWER_TYPES.has(actor.type)) return;
-  if (foundry.utils.getProperty(changes, "system.retainer.enabled") !== true) return;
-  if (actor.getFlag("core", "sheetClass")) return;
-  actor.update({ "flags.core.sheetClass": FOLLOWER_SHEET_KEY });
 });
 
 /**

@@ -186,6 +186,12 @@
           <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.HealingRate"}}</span>
           <input class="acks-input acks-extras-character-sheet__fact-input is-wide" type="text" name="system.hp.bhr" value="{{st.throws.healingRate}}" {{disabled (not @root.editable)}}>
         </div>
+        {{#if st.throws.morale}}
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.details.morale"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.details.morale" value="{{st.throws.morale.value}}" {{disabled (not @root.editable)}}>
+        </div>
+        {{/if}}
       </div>
       {{#if st.retainer}}
       <div>
@@ -193,10 +199,6 @@
         <div class="acks-extras-character-sheet__fact">
           <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.RetainerWage"}}</span>
           <input class="acks-input acks-extras-character-sheet__fact-input is-wide" type="text" name="system.retainer.wage" value="{{st.retainer.wage}}" {{disabled (not @root.editable)}}>
-        </div>
-        <div class="acks-extras-character-sheet__fact">
-          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.details.morale"}}</span>
-          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.details.morale" value="{{st.retainer.morale}}" {{disabled (not @root.editable)}}>
         </div>
         <div class="acks-extras-character-sheet__fact">
           <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.Loyalty"}}</span>

@@ -10,7 +10,7 @@ import * as vocab from "../scripts/lib/vocab.mjs";
 import { cleanDelta, isDerivedEffect, memberName, migrateGroupSource, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
 import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet, abilityModifiers } from "../scripts/lib/effect-scan.mjs";
-import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, rungOrder, withoutLadderPins } from "../scripts/lib/ui-preset-logic.mjs";
+import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, retainerCardsToRelease, rungOrder, withoutLadderPins } from "../scripts/lib/ui-preset-logic.mjs";
 import {
   buildTransferPayload,
   coinTotalGC,
@@ -2179,6 +2179,23 @@ t("withoutLadderPins drops the pins naming a ladder sheet, keeps a stranger's, a
   assert.equal(stored.Actor.character, "acks-extras.AcksCharacterSheet");
   assert.deepEqual(withoutLadderPins({ Actor: { character: "other.Sheet" } }, rungOf, ["Actor", "Item"]), { stored: { Actor: { character: "other.Sheet" } }, unpinned: false });
   assert.deepEqual(withoutLadderPins(undefined, rungOf, ["Actor"]), { stored: {}, unpinned: false });
+});
+
+t("retainerCardsToRelease lists a serving hireling on the card and no other actor", () => {
+  const card = "acks-extras.FollowerCardSheet";
+  const types = new Set(["character", "monster"]);
+  const actor = (id, type, enabled, sheetClass) => ({ id, type, system: { retainer: { enabled } }, flags: sheetClass ? { core: { sheetClass } } : {} });
+  const actors = [
+    actor("hench", "character", true, card),
+    actor("merc", "monster", true, card),
+    actor("own", "character", true, "acks.AcksActorSheetCharacter"),
+    actor("unset", "character", true, null),
+    actor("pc", "character", false, card),
+    actor("party", "acks-extras.party", true, card),
+  ];
+  assert.deepEqual(retainerCardsToRelease(actors, types, card), ["hench", "merc"]);
+  assert.deepEqual(retainerCardsToRelease(new Map(actors.map((a) => [a.id, a])).values(), types, card), ["hench", "merc"]);
+  assert.deepEqual(retainerCardsToRelease(undefined, types, card), []);
 });
 
 t("chooseDefault falls through to a rung with a sheet, keeps a rung's own choice, stands down for a stranger", () => {

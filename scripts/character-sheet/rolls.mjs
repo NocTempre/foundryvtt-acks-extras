@@ -21,7 +21,7 @@
  */
 import { LANG, SAVE_KEYS, ADVENTURING_KEYS } from "./constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
-import { signed } from "./view-model.mjs";
+import { carriesMorale, signed } from "./view-model.mjs";
 import { rollGroups as itemRollGroups, rollById as itemRollById } from "../equipment/item-sheet/rolls.mjs";
 import { rollUnarmed } from "../equipment/actions.mjs";
 import { bestAttackBonus, getLoadout } from "../equipment/loadout.mjs";
@@ -149,15 +149,15 @@ export function rollInventory(actor) {
     .map((item) => row(`post:${item.id}`, item.name, "", { post: true, pinned: !!item.system?.favorite, item: item.id }));
   if (postRows.length) groups.push({ key: "post", name: loc("rolls.group.post"), rows: postRows });
 
+  const morale = () => row("morale", game.i18n.localize("ACKS.details.morale"), signed(num(sys.details?.morale)));
   if (sys.retainer?.enabled) {
     groups.push({
       key: "retainer",
       name: loc("rolls.group.retainer"),
-      rows: [
-        row("morale", game.i18n.localize("ACKS.details.morale"), signed(num(sys.details?.morale))),
-        row("loyalty", game.i18n.localize("ACKS.Loyalty"), signed(num(sys.retainer?.loyalty))),
-      ],
+      rows: [morale(), row("loyalty", game.i18n.localize("ACKS.Loyalty"), signed(num(sys.retainer?.loyalty)))],
     });
+  } else if (carriesMorale(actor)) {
+    groups.push({ key: "morale", name: game.i18n.localize("ACKS.details.morale"), rows: [morale()] });
   }
 
   return { groups, ids: groups.flatMap((g) => g.rows.map((r) => r.id)) };

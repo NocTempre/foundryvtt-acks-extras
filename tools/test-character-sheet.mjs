@@ -13,7 +13,7 @@
 import assert from "node:assert";
 import {
   xpBar, hpCell, acCell, nextAcMode, slowedTone, moveCell, gripCell, lightCell, saveCells, partyCell, tabList, resolveTab,
-  effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands, storedSystem,
+  effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands, storedSystem, carriesMorale,
 } from "../scripts/character-sheet/view-model.mjs";
 import { CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, TAB_ORDER } from "../scripts/character-sheet/constants.mjs";
 
@@ -389,6 +389,13 @@ test("an editable field renders the stored value, so an effect's addition is nev
   assert.equal(storedSystem(actor).surprise.avoidsurprise, 0);
   assert.equal(storedSystem({ system: { ac: { mod: 2 } } }).ac.mod, 2);
   assert.deepEqual(storedSystem(null), {});
+});
+test("morale is carried by a serving hireling and by a character no player owns, never by a player's", () => {
+  assert.equal(carriesMorale({ system: { retainer: { enabled: true } }, hasPlayerOwner: true }), true);
+  assert.equal(carriesMorale({ system: { retainer: { enabled: false } }, hasPlayerOwner: false }), true);
+  assert.equal(carriesMorale({ system: { retainer: { enabled: false } }, hasPlayerOwner: true }), false);
+  assert.equal(carriesMorale({ system: {} }), false);
+  assert.equal(carriesMorale(null), false);
 });
 
 console.log(`character sheet: ${passed} passed`);

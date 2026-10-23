@@ -193,6 +193,10 @@ keeping coin under Kept elsewhere.*
 What is not a throw: the attributes, the training, movement by mode, vision
 light by light, the vitals, and the throw targets that Rolls reads.
 
+**Morale** is one of those targets on a hireling and on a character no player
+owns — an NPC the Judge built as a character — and Rolls lists its roll. A
+player's own character has none (RR ch. 6, Morale).
+
 Every field you can type into holds the figure you typed — the stored value,
 never the sum an effect makes of it. Where an effect changes a field (a
 proficiency, an item, an effect written by hand) the field is marked, and

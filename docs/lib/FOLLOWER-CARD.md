@@ -15,31 +15,33 @@ Hirelings stay core `character`/`monster` actors — a distinct actor type is *n
 viable, because core gates every character derivation (ability mods, AC, encumbrance,
 attack throws, rolls) on the literal type string `"character"`, and core is a
 read-only reference. So a henchman genuinely *is* a `character` with an employer;
-`system.retainer.enabled` already models that, and the card is made its **per-instance
-default** via `flags.core.sheetClass` rather than a new type.
+`system.retainer.enabled` already models that, and the card is an actor's sheet
+per instance via `flags.core.sheetClass` rather than a new type.
 
-## Default-for-retainers
+## Who opens on the card
 
-Keyed purely on the core `system.retainer.enabled` flag, so it covers **character and
-monster** hirelings alike with no dependency on the henchmen feature:
+- **A monster** — wild or hired — opens on the card: it is the monster type's
+  default unless the world's preset picks the system's sheets, and the
+  extended block opens behind it.
+- **A character** — a PC or a hireling alike — opens on the character type's
+  sheet, which the world's preset decides. The card is an alternative a user
+  picks per actor, through any of the routes below; nothing picks it on its
+  own. Picking it writes `flags.core.sheetClass`, which outranks the preset.
+- **The one-time release.** Hirelings used to adopt the card on hire, and a
+  world that upgrades holds those flags. The `ready` sweep in the window that
+  automates (MODEL.md, "Which window automates") drops the card flag from every
+  serving character or monster hireling (`retainerCardsToRelease`,
+  `ui-preset-logic.mjs`) and records `retainerCardsReleased`, so it runs once
+  per world; a card picked after it stays. A dismissed hireling is not in
+  service and keeps its card.
 
-- `preCreateActor` — an actor born as a retainer gets the flag in its creation source.
-- `updateActor` — a plain actor flipped into service adopts the card (drop-as-henchman,
-  hires that set the flag). Only the originating client writes, once.
-- `ready` sweep, in the window that runs the world's automation (MODEL.md, "Which
-  window automates") — existing retainers with no explicit sheet choice adopt the card.
-
-It only ever **sets** the flag when unset — a hand-picked sheet is never clobbered, and
-dismissing a hireling does not revert it. PCs and wild monsters
-(`retainer.enabled = false`) are untouched.
-
-**Getting out of the card** (everything the card omits — items, effects, deep
+**Switching an actor's face** (everything the card omits — items, effects, deep
 monster stats — lives on the full sheet):
 
 - the **Expand / details** header button and a labelled **Full sheet** footer
   link on the card sheet open the full sheet for the session;
 - **right-click the actor in the directory** → *Use full sheet* / *Use
-  Follower Card sheet* switches the persistent default (the same
+  Follower Card sheet* switches the actor's sheet for good (the same
   `flags.core.sheetClass` core's Sheet Configuration writes);
 - the henchmen feature’s Roster app has **Cards for all / Full sheets for all** bulk
   buttons, built on `acksLib.followerCard.setSheet(actor, useCard)`.

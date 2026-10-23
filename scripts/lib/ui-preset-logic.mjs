@@ -98,3 +98,22 @@ export function declaredDefaults(sheets) {
   for (const s of sheets) if (s.default && s.rung) out[s.rung] = s.id;
   return out;
 }
+
+/**
+ * The ids of the serving hirelings whose `core.sheetClass` names the Follower
+ * Card — the card this module once set on every hire — among actors of
+ * `types`. A card on an actor not in service, or any other sheet, is listed
+ * neither. Reads `flags` as plain source, so it takes documents or objects.
+ * @param {Iterable<{id: string, type: string, system?: object, flags?: object}>} actors
+ * @param {Set<string>} types
+ * @param {string} cardKey the card's registered sheet id
+ * @returns {string[]}
+ */
+export function retainerCardsToRelease(actors, types, cardKey) {
+  const ids = [];
+  for (const a of actors ?? []) {
+    if (!types.has(a?.type) || a.system?.retainer?.enabled !== true) continue;
+    if (a.flags?.core?.sheetClass === cardKey) ids.push(a.id);
+  }
+  return ids;
+}

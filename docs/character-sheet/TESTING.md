@@ -186,6 +186,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 6. Stats tab. *Observable:* an attribute edit submits and the modifier
    follows; the weapon buckets open to weapons; the hit dice roll asks first
    and writes a new maximum; the throw fields submit.
+6a. Morale, on three characters: the hireling, a disposable `character` no
+   player owns (default ownership NONE, no player OWNER), and one the Player
+   seat owns. Read `actor.hasPlayerOwner` on each first — the predicate keys
+   on it. *Observable:* the first two show a Morale field at the foot of the
+   Throws column and a Morale row on Rolls (the hireling's in the Retainer
+   group beside Loyalty, the NPC's in a Morale group); the player's shows
+   neither. Type a value into the NPC's field: `system.details.morale` holds
+   it, and pressing its Rolls row posts a morale throw carrying it. The
+   hireling's Retainer block on Stats holds Wage and Loyalty only.
 7. Class tab. *Observable:* with a bound class the preview lists the next
    row's deltas; raising XP to the threshold turns the band and the tab gold
    and shows the Level up button, which opens the classes wizard.

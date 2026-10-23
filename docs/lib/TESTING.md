@@ -148,6 +148,20 @@ report the same symptom.
    system's character sheet opens, not this module's; flip `default` back and
    the module's opens. A card whose type has no other default still opens this
    module's full sheet. A reload undoes the flip either way.
+9b. No card on hire, and the one-time release. Make a `character` and set
+   `system.retainer.enabled: true` on it, once at create and once by update
+   on a second one. *Observable:* neither carries `flags.core.sheetClass` and
+   both open on the character type's default. For the release, build the
+   pre-upgrade shape: two serving hirelings (a character and a monster) and
+   one non-serving character, each given
+   `flags.core.sheetClass = "acks-extras.FollowerCardSheet"`. List the world's
+   serving hirelings on the card first — the sweep releases every one, so a
+   peer's fixture in that list means waiting. Then
+   `game.settings.set("acks-extras", "retainerCardsReleased", false)` and
+   reload the window that automates (the REAL ready is the trigger).
+   *Observable:* the two hirelings lose the flag and the console logs the
+   count; the non-serving one keeps its card; the setting reads `true`.
+   Re-pick the card on one hireling and reload again: it keeps it.
 9a. Design-canvas geometry survives a ratio it cannot read. On an open character
    sheet, `element.classList.remove("acks-extras")` — the one class that
    publishes `--acks-extras-k`.

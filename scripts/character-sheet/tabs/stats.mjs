@@ -21,7 +21,7 @@ import { trainingSourceName, trainingProvenance, editedSlots, classTraining, has
 import { LIGHT_SOURCES } from "../../lib/light.mjs";
 import { senseProfile, VISION_MODES } from "../../lib/senses.mjs";
 import { ATTRIBUTES } from "../../lib/vocab.mjs";
-import { signed, storedSystem } from "../view-model.mjs";
+import { carriesMorale, signed, storedSystem } from "../view-model.mjs";
 import { saveSystemKey, saveLabel } from "../snapshot.mjs";
 
 const loc = makeLoc(LANG);
@@ -208,12 +208,12 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
     surpriseOthers: num(stored.surprise?.surpriseothers),
     avoidSurprise: num(stored.surprise?.avoidsurprise),
     healingRate: String(stored.hp?.bhr ?? ""),
+    morale: carriesMorale(actor) ? { value: num(stored.details?.morale) } : null,
   };
 
   const retainer = sys.retainer?.enabled
     ? {
         wage: String(stored.retainer?.wage ?? ""),
-        morale: num(stored.details?.morale),
         loyalty: num(stored.retainer?.loyalty),
         category: String(sys.retainer.category ?? ""),
         employer: actor.getManagerName?.() ?? "",

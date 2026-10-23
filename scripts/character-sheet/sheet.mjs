@@ -392,7 +392,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   #rollColumns(groups) {
     const by = Object.fromEntries(groups.map((g) => [g.key, g]));
     return [
-      [by.saves, by.initiative, by.retainer].filter(Boolean),
+      [by.saves, by.initiative, by.retainer, by.morale].filter(Boolean),
       [by.attack, by.recovery].filter(Boolean),
       [by.adventuring, by.proficiencies, by.post].filter(Boolean),
     ];

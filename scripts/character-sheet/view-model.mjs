@@ -42,6 +42,13 @@ export const signed = (n) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`);
  */
 export const storedSystem = (actor) => actor?._source?.system ?? actor?.system ?? {};
 
+/**
+ * Whether the character carries a morale score: a serving hireling, or one no
+ * player owns — the Judge's own NPC. A player's character makes no morale roll
+ * (RR ch. 6, Morale), so its sheet shows none.
+ */
+export const carriesMorale = (actor) => actor?.system?.retainer?.enabled === true || actor?.hasPlayerOwner === false;
+
 /* -------------------------------------------- */
 /*  The band                                     */
 /* -------------------------------------------- */

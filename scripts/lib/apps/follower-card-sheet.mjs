@@ -2,8 +2,8 @@
 /**
  * FollowerCardSheet — the compact "Follower Card" as an actor's own sheet.
  *
- * Registered at `ready` in module.mjs: the default sheet for `monster`, an
- * alternative for `character`, and the per-instance default for retainers.
+ * Registered at `ready` in module.mjs: the default sheet for `monster`, and an
+ * alternative for `character` that an actor takes only when someone picks it.
  * See docs/lib/FOLLOWER-CARD.md and docs/lib/DECISIONS.md, "A monster's type
  * default is the Follower Card, met before it is read up on".
  *

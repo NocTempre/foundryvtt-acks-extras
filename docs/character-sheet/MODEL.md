@@ -116,7 +116,7 @@ XP bar is full. The chevron before the strip folds the sheet.
 
 **Rolls** (`rolls.mjs`) lists every throw with its target in three columns:
 saves, initiative and the two surprise throws (plus morale and loyalty for a
-retainer); the two attack boxes, every weapon's modes (from the item sheet's
+retainer, and morale for a character no player owns); the two attack boxes, every weapon's modes (from the item sheet's
 own roll rows, wielded first and ringed), the unarmed strike when nothing is
 held, and the healing rate; the adventuring throws and every other ability's
 throws (the abilities feature's roller, one row per throw). The Adventuring
@@ -241,8 +241,8 @@ vitals (HP current over full, the hit dice with a roll that writes a new full
 total after confirming, AC with and without the shield and unarmoured, the AC
 modifier, cleaves, mortal wounds), and the throw targets — attack throw,
 saves, the save modifier, adventuring throws, initiative modifier, surprise
-modifiers, healing rate — which is the pen for what Rolls shows. A retainer
-gets its wage, morale and loyalty fields. Every field the tab can write holds
+modifiers, healing rate, and morale where the character `carriesMorale` — which
+is the pen for what Rolls shows. A retainer gets its wage and loyalty fields. Every field the tab can write holds
 the STORED value (`storedSystem` in view-model.mjs — `actor._source.system`),
 never the prepared one an Active Effect has already added to; the AC
 breakdown, the initiative display and every other read-only figure stay on

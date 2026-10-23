@@ -1941,6 +1941,10 @@ handler when off, so toggling either takes effect immediately with no reload.
 
 ### A monster's type default is the Follower Card, met before it is read up on (2026-09-22)
 
+**Superseded in part (2026-10-22)** by "A hireling opens on its type's sheet;
+the card is picked": the per-instance card for hirelings is gone; the
+monster's type default stands.
+
 Recorded from the FollowerCardSheet registration comments in `scripts/lib/module.mjs`.
 
 **Ruled.** A monster's type default is the Follower Card, with the extended
@@ -4420,3 +4424,43 @@ the page go with the rows (the assembler reads only the slots a row names,
 and a window nobody reads fails its binding test); a world that imported the
 conditions document before this keeps the two raw keys, and nothing reads
 them.
+
+### A hireling opens on its type's sheet; the card is picked (2026-10-22)
+
+Supersedes the character half of "A monster's type default is the Follower
+Card, met before it is read up on" (2026-09-22). The new evidence: a Judge
+who wanted hirelings on the full sheet found every one moved to the card,
+with no setting to say otherwise; and the card the module wrote is a
+`core.sheetClass` flag, which outranks the world's preset — so a world on
+the system's sheets still opened its hirelings on the card, against what
+the preset promises (`ui-preset.mjs` names that flag a Judge's explicit act,
+and this one was not).
+
+**Ruled.**
+- Nothing sets the card on a hireling. The `preCreateActor` and
+  `updateActor` writes and the ready-time adoption sweep are gone; a hireling
+  opens on its type's sheet like any actor of the type, which the preset
+  decides. The card stays one pick away: the directory's *Use Follower Card
+  sheet*, the Roster's *Cards for all*, core's Sheet Configuration.
+- A world that upgrades is released once. In the window that automates, the
+  ready sweep drops `core.sheetClass` from every serving character or monster
+  hireling whose flag names the card, then sets the hidden world setting
+  `retainerCardsReleased`, so the sweep never runs again and a card picked
+  after it is kept.
+- The monster type default is unchanged: a monster, hired or wild, still
+  opens on the card unless the preset picks the system's sheets.
+
+**Rejected.**
+- *A world setting for the old behaviour.* The owner chose the release over
+  a knob; the card is already a per-actor choice with three routes to it.
+- *Keeping the flags and fixing only new hires.* A world that adopted the
+  module before this would keep every hireling it already had on the card,
+  which is exactly what was reported.
+- *A DataModel `migrateData`.* The flag is not system data, and the
+  character model is the system's, so the release is a startup sweep like
+  the monster pin migration above it.
+
+**Cost.** The release cannot tell a card the module set from one a user
+picked — both are the same flag — so a hireling someone had put on the card
+on purpose opens on the full sheet after the upgrade, one right-click from
+returning. A dismissed hireling is not in service and keeps its card.

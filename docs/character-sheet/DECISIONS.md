@@ -833,3 +833,22 @@ rule would disagree the first time a Judge flipped one.
 
 **What it cost.** A character's stored fate points are kept, not cleared,
 while the setting is off; turning it back on shows them again.
+
+## 2026-10-22 — Morale is the Judge's characters', hired or not
+
+**Ruled.** The Morale field (Stats, in the Throws column) and the Morale roll
+(Rolls) show on a character that `carriesMorale` (view-model.mjs): a serving
+hireling, or a character no player owns — the Judge's NPC built as a
+character. A player's character shows neither, since the book has the
+player decide whether to fight or flee (RR ch. 6, Morale). A hireling's Rolls
+row stays in the Retainer group beside Loyalty; an NPC's sits in a group of
+its own. The Retainer block on Stats keeps Wage and Loyalty.
+
+**Rejected.** *Morale on every character.* A PC carries no morale score, and
+a field that rolls nothing the rules use reads as one it should.
+*Hirelings only, as the system's sheet has it.* A Judge running NPCs as
+characters had no sheet that showed their morale but the Follower Card.
+
+**What it cost.** Ownership decides, so a character a GM has not yet handed
+to its player shows Morale until it is; the system's own character sheet
+still shows morale for hirelings only.

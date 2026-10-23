@@ -97,6 +97,14 @@ history each score is computed from.
 hireling's history and the Judge's actions on it — a loyalty or obedience
 throw, a calamity or a penalty on the record, a transfer, a dismissal.*
 
+**A hireling opens on the same sheet as any character.** The compact Follower
+Card is there if you want it: right-click the hireling in the Actors
+directory and choose **Use Follower Card sheet** (**Use full sheet** turns it
+back), or press **Cards for all** on the roster to give the whole retinue the
+card at once (**Full sheets for all** undoes it). With the module's sheets, a
+monster opens on the card whether hired or not, with the full stat block
+behind its **Full sheet** link.
+
 **A power is worth what your book says.** The henchman limit, a hire's base
 loyalty, the hirelings' morale bonus and the hiring-offer bonuses read the
 value the importer located on each power's page, or an Active Effect the Judge
