@@ -1,6 +1,69 @@
 # Changelog
 
-## Unreleased
+## 11.8.0
+
+### Added
+
+- **A vassal row becomes a domain.** On a domain's *Realm* tab, *Make a
+  domain* turns a vassal row into a domain of its own, answering to this one:
+  its ruler, its tribute with any additional tax, its hexes and peasant
+  families as a tract, and the figures a domain keeps no field for written
+  into its notes. The row goes; the liege's tribute in is what it was.
+- **Found a settlement.** On a domain's *Holdings* tab, *Found a settlement*
+  makes a location with a market and holds it at once, as a settlement.
+- **A place names its domain.** A location's sheet says which domain holds it,
+  or which held place around it answers to one.
+
+### Changed
+
+- **The domain sheet wears the character sheet's frame.** The heraldry, the
+  title, the name and morale stand in the window's header; beneath them the
+  ruler and the liege are chips that take a drop or open a chooser, the
+  classification and alignment are tags, and the land's and the month's
+  figures are a rail of cells, each opening the tab it is kept on. A count
+  with rows nobody counted reads as a floor (`70+`), and a month over a
+  partial ledger marks its cells. The tabs are pills, and the *Ledger* has a
+  *Treasury* row standing empty until the domain keeps one.
+- **A domain's or an organisation's token is a marker.** Like a place's, it
+  never counts as a scene's occupant, keeps the size it was drawn at on the
+  battle map, is left alone by the senses and lights sync, and never joins a
+  party. A domain dropped on a place's or an organisation's sheet is refused
+  with a warning.
+- **A hireling opens on its type's sheet.** Hiring no longer sets the
+  Follower Card as a hireling's own sheet, so a world on the system's sheets
+  opens its hirelings there too. The card is a choice: right-click the
+  hireling in the Actors directory and choose *Use Follower Card sheet*, or
+  press *Cards for all* on the roster. A world that upgrades is released
+  once: the hirelings the card was set on by hire return to their type's
+  sheet, and a card picked after that stays. A monster still opens on the
+  card with the module's sheets.
+- **A character no player owns shows morale.** An NPC built as a character
+  carries the Morale field on Stats and its roll on Rolls, as a hireling
+  does; a player's own character shows neither (RR ch. 6, Morale).
+- **A community book's classes and powers stand on its own shelf.** Imported
+  from a book outside the ACKS library, they file on that book's series
+  shelf, which every seat can open, rather than beside the Judge's half of
+  the book, and they merge into no ACKS II compendium. A world that imported
+  such a book before keeps its classes where they are.
+- **A book's passages are journal pages.** The journals step (*Import
+  Everything*, or `cookbookImportJournals` scoped to a book) reads a book's
+  essays and other prose whole — the introduction, the race's history, the
+  cultures, the design and conversion notes, the tavern's text — as pages
+  of a journal per group
+  on the book's Judge JournalEntry shelf, each paragraph as the page sets it
+  and a page reference last. The step reports what it created, and the
+  paragraph breaks and page tops of a book that declares its typography are
+  read from that declaration.
+- **A person a book writes out becomes a character.** A page that sets a
+  person as labelled lines — class and level, scores, hit points, armour
+  class, saves, attack, damage, proficiencies by kind, abilities, inventory —
+  under a display name imports as a core character like a quick-stat line
+  does: the class bound at the printed level, the scores and hit points
+  written, class and general proficiencies in their own rows with the throws
+  the page prints, the inventory worn and the coin counted, the paragraph
+  about the person as the biography with the as-printed block after it. An
+  attack routine stays text rather than becoming a weapon, and a coin closed
+  by a note in brackets is still counted.
 
 ### Fixed
 
@@ -19,6 +82,15 @@
   before, they imported as one item of quantity one and the first shot emptied
   it. Rebuild the Weapons shelf (*Reimport One Shelf → Weapons*) to refresh a
   world's compendium; copies already on characters keep the old shape.
+- **The henchman limit counts again.** On system 14.1.0, which no longer
+  keeps a Charisma allowance of henchmen, every employer's limit read as
+  unknown from 11.7.0 on, and no hire was refused or warned under any
+  *Henchman limit enforcement* setting. The limit is now your book's base figure
+  (RR 168), imported with the Rules tables, plus the employer's Charisma
+  modifier and its powers. A world that imported its Rules tables before
+  runs *Reimport One Shelf → Rules tables* once; until then the Judge's
+  missing-tables notice names the wages document, and the roster's tooltip
+  says the base is missing.
 
 ## 11.7.0
 

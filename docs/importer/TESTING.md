@@ -2003,7 +2003,16 @@ Read first, write nothing:
 Note any row with `kind.bookAdventure` and `book: "ax3"`, and any with
 `kind.settlementAdventure`. The step writes over the first and deletes the
 second. When the shelf holds either and this run did not make it, get its
-owner's go-ahead before step 1.
+owner's go-ahead before step 1 (the walk's `SHELF_OK=1`). Then:
+
+- Keep every Adventure id the shelves hold before the run. Step 5 deletes the
+  owner's AX3 Adventure, and the step writes it again under the same id and
+  lists it in `created.adventures`. Never track an id from that set.
+- Step 1 reads `rebuilt` rather than `written`: the carried fixture makes the
+  owner's Adventure stale.
+- After the sweep, run the step once more. The owner's Adventure still
+  carries the swept fixture Item, and that run rebuilds it from the world as
+  it stands. Track and sweep anything that run writes afresh.
 
 **The pre-upgrade shape.** Where the shelf holds no per-map Adventure of
 AX3, make one. The shape is the stamp the per-map step wrote (`git show
@@ -2102,6 +2111,11 @@ What a scripted walk meets:
 - The import's count says how many it made, not which. Read each character
   back under `stableDocId(<cookbook id>)` from every world Actor shelf, and
   track that uuid.
+- The import also supplies, on demand, every ability definition a character
+  needs that the library lacks. It reports none of them. Take the library's
+  ability ids before the import; afterwards, every id a made character embeds
+  that was not among them is one it supplied. Read each back under its id,
+  and track it.
 - A rebuild keeps the id, so the tracked uuid covers the rebuilt document
   too. Tell the two apart by `_stats.createdTime`; wait a second before the
   rebuild so the times can differ.
@@ -2116,7 +2130,11 @@ What a scripted walk meets:
 
 Read first, write nothing: every world Actor shelf and the world, for a
 document under any row's stable id. Where one stands and this run did not
-make it, stop: it is another session's.
+make it, stop: it is another session's. The one exception is a library its
+owner imported and handed over (the walk's `REBUILD_OK=1`), holding every
+row once. Step 1 then rebuilds all of them through the entry picker, ticking
+every row. Each keeps its id, so read each one's `_stats.createdTime` before
+and after, and track none of them.
 
 - The rebuild's fixture is a world `character` claiming the first row's
   entry (`flags.acks-extras.cookbook: {id, book: "ax1", kind: "kind.npc"}`),
@@ -2496,6 +2514,16 @@ untagged seat would read every line as a heading and import nothing.
   `acksExtras.importer.connectBookUrl("cat", "acks-test-books/cat.pdf", { remember: false })`.
 - Nothing else: every document below is created by the import and swept by
   its id.
+- A world whose owner already imported part of the book (the walk's
+  `HELD_OK=1`) runs the same steps. A class or power imported while the book
+  was closed holds no text and no hit die, only what the cookbook entry
+  carries, so rebuild every held one through the entry picker
+  (`Classes|<id>`, `Abilities|<id>`) once the book is open. Each comes back on
+  the shelf it stood on under a new document id, so read it again by its
+  entry id. The steps then skip a held class and reuse a held power, so take each
+  count as the absent ones. Read the classes' shapes off the uuids held under
+  their ids, not off the step's result. Track only what was absent before
+  the run.
 
 ### Steps
 

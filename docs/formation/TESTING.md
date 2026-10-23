@@ -2291,10 +2291,12 @@ never set it back.
    again and the declared season stands.
 7. Open the party sheet from the player seat. *Observable:* the sky shows,
    with no controls.
-8. Post an encounter throw on a hex scene with a terrain picked. *Observable:*
-   the card's two sight lines (who saw whom) and, on the created message,
-   `flags["acks-extras"].encounter` carrying the card's facts; track the
-   message by id the moment the call resolves.
+8. Post an encounter throw on a hex scene with a terrain picked, until one
+   meets a creature: only a creature throw rolls the distance the sight lines
+   are read from, and a terrain find prints neither. *Observable:* the card's
+   two sight lines (who saw whom) and, on the created message,
+   `flags["acks-extras"].encounter` carrying the card's facts; track every
+   message by id the moment its call resolves.
 
 Drive mechanics: the watcher runs on the active GM's client and acts only on
 a forward step, so advance from that seat. A formation that was not stamped

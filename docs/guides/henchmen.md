@@ -114,13 +114,16 @@ in the henchman-limit refusal, and on the hiring and obedience pages.
 Characters holding powers imported before 11.4.0 refresh them with **Update
 Abilities** at the top of the Items sidebar, with the books open.
 
-![](../releases/v11.4.0/henchmen-powers-values.png)
+![](../releases/v11.8.0/henchmen-powers-values.png)
 
-**The limit starts from the system's Charisma allowance, or not at all.** An
-employer the system gives no allowance, such as a monster leading henchmen,
+**The limit starts from your book's figure and the employer's Charisma, or
+not at all.** The base arrives with the Rules tables. A world that imported
+them before 11.8.0 runs **Rules tables** in **Reimport One Shelf** (ACKS Extras
+Macros) once; until then no limit is counted, and the roster's tooltip says
+so. An employer with no Charisma score, such as a monster leading henchmen,
 shows no limit on its roster, and none is enforced on its hires.
 
-![](../releases/v11.4.0/henchmen-limit-none.png)
+![](../releases/v11.8.0/henchmen-limit-none.png)
 
 **A wage is coin that changes hands.** On payday the employer's coin leaves
 their stores in the order their sheet states

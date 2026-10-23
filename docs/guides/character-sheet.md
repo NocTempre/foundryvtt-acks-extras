@@ -197,6 +197,10 @@ light by light, the vitals, and the throw targets that Rolls reads.
 owns — an NPC the Judge built as a character — and Rolls lists its roll. A
 player's own character has none (RR ch. 6, Morale).
 
+![](../releases/v11.8.0/character-sheet-morale.png)
+
+*A hireling's Stats tab: Morale closes the throw targets, with the wage and loyalty it serves for beneath.*
+
 Every field you can type into holds the figure you typed — the stored value,
 never the sum an effect makes of it. Where an effect changes a field (a
 proficiency, an item, an effect written by hand) the field is marked, and

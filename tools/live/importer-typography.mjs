@@ -12,12 +12,25 @@
  * its sheet renders, and the sheet templates are the core system's. Step 7
  * joins as the Player seat and reads which shelves that seat can see.
  *
+ * With SHOTS=1 the run takes three release plates into docs/releases/v<version>/:
+ * a journal's page list (never a page) and the keeper's sheet on Stats once
+ * the Judge's imports are done, and the Player seat's compendium tab, popped
+ * out, opened to the series' open Item shelf.
+ *
  * The imports are scoped to the book (`importClasses({only})`,
  * `cookbookImportAbilities({only})`, `cookbookImportIds`,
  * `cookbookImportAdventureItems({books})`, `cookbookImportScenes({books})`,
  * `cookbookImportAdventures({books})`): the
  * seat reopens the world's shelved books after ready, and a step with no scope
  * would write every one of them.
+ *
+ * The run expects a world that holds nothing under the book's ids. With
+ * HELD_OK=1, the library owner's go-ahead, a document already standing under
+ * one of them is the owner's: a held class or power is first rebuilt from the
+ * open book through the entry picker, under its id, so the shapes read are
+ * the book's and not whatever the owner's import could make without it; the
+ * steps then skip or reuse it as they do for any world, and it is never
+ * tracked, so the sweep leaves it where it stood.
  *
  * Writes outside the fixture ledger, each reported:
  *   - the book connected on the GM seat with remember:false;
@@ -32,7 +45,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
-import { seats as machineSeats, PORTS, books, ROOT } from "./_env.mjs";
+import { seats as machineSeats, PORTS, books, ROOT, shotDir } from "./_env.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -45,6 +58,7 @@ const BOOK = "cat";
 // lines.
 const PROSE_PARAS = "Conversion notes:5 Cultures:20 Design notes:7 Generic class:4 Introduction:7 Race:5 Tavern:6";
 const BOOKS = books([BOOK]);
+const HELD_OK = process.env.HELD_OK === "1";
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -55,6 +69,21 @@ const check = (label, ok, detail) => {
 };
 /** A name whose line turn was welded reads lower-case straight into upper-case ("FightingStyle"). */
 const welded = (name) => /[a-z][A-Z]/.test(String(name ?? ""));
+const SHOTS = process.env.SHOTS === "1";
+/** One release plate: `frame.keep` is the window `compose` leaves open, `frame.sel` what is shot (the window when absent). */
+const plate = async (seat, slug, frame) => {
+  if (!SHOTS || !frame?.keep) return null;
+  try {
+    await seat.compose(frame.keep);
+    await sleep(500);
+    const r = await seat.shot(`${shotDir()}/${slug}.png`, frame.sel ?? frame.keep);
+    note(`shot ${slug}`, r);
+    return r;
+  } catch (err) {
+    note(`shot ${slug} FAILED`, err?.message ?? String(err));
+    return null;
+  }
+};
 
 /* ------------------------------------------------------------------ */
 /*  Page side                                                           */
@@ -160,6 +189,48 @@ const P = {
     });
     return { name: doc.name, pack: doc.pack ?? null, line, judge: !!doc.pack && H.LIB.isJudgeLine(line), folder: doc.folder?.name ?? null, pages };
   },
+  /** A journal's sheet opened at the corner, for a plate: its window's `#id`, and its page list as what is shot. */
+  journalToc: async ({ uuid }) => {
+    const app = (await fromUuid(uuid)).sheet;
+    await app.render({ force: true });
+    for (let i = 0; i < 50 && !app.element?.querySelector(".journal-sidebar"); i++) await new Promise((r) => setTimeout(r, 100));
+    app.setPosition({ left: 16, top: 16 });
+    await new Promise((r) => setTimeout(r, 400));
+    return { keep: `#${app.id}`, sel: `#${app.id} .journal-sidebar`, toc: !!app.element.querySelector(".journal-sidebar") };
+  },
+  /** A character's sheet opened on its Stats tab at the corner, for a plate: its window's `#id` and its sheet class. */
+  sheetOnStats: async ({ uuid }) => {
+    const app = (await fromUuid(uuid)).sheet;
+    await app.render({ force: true });
+    for (let i = 0; i < 50 && !app.element?.querySelector(".window-content"); i++) await new Promise((r) => setTimeout(r, 100));
+    if (app.element.querySelector('[data-group="primary"][data-tab="stats"]')) app.changeTab("stats", "primary");
+    app.setPosition({ left: 16, top: 16 });
+    await new Promise((r) => setTimeout(r, 400));
+    return { keep: `#${app.id}`, sheet: app.constructor.name };
+  },
+  /** The compendium tab popped out at the corner, every folder around one pack opened, for a plate: the popout's `#id`. */
+  shelfPopout: async ({ collection }) => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const app = await ui.compendium.renderPopout();
+    const row = () => app.element?.querySelector(`[data-pack="${collection}"]`);
+    for (let i = 0; i < 50 && !row(); i++) await wait(100);
+    const ids = [];
+    for (let li = row()?.parentElement?.closest("li.folder"); li; li = li.parentElement?.closest("li.folder")) ids.unshift(li.dataset.folderId);
+    for (const id of ids) {
+      const li = app.element.querySelector(`li.folder[data-folder-id="${id}"]`);
+      if (li && !li.classList.contains("expanded")) { li.querySelector(":scope > .folder-header")?.click(); await wait(200); }
+    }
+    // A world pack's footer names the world; a plate never carries it.
+    let unnamed = 0;
+    for (const li of app.element.querySelectorAll("li.compendium[data-pack]")) {
+      if (game.packs.get(li.dataset.pack)?.metadata.packageType !== "world") continue;
+      const footer = li.querySelector(".compendium-footer");
+      if (footer) { footer.style.visibility = "hidden"; unnamed++; }
+    }
+    app.setPosition({ left: 16, top: 16, height: 640 });
+    await wait(400);
+    return { keep: `#${app.id}`, shown: !!row()?.checkVisibility?.(), folders: ids.length, unnamed };
+  },
   /** A map the scenes step made: its picture, its lattice, its navigation flag and its walls. */
   scene: async ({ uuid }) => {
     const doc = await fromUuid(uuid);
@@ -222,6 +293,40 @@ const P = {
     return { started: true };
   },
   stepState: async () => ({ ...globalThis.__btStep, notes: globalThis.__bt.notes.slice() }),
+  /** Run the entry picker over `picks` (`[key, id]` pairs), answer its confirm, and resolve when its refill is done. */
+  rebuild: async ({ picks }) => {
+    const find = (pred) => [...foundry.applications.instances.values()].find((a) => a instanceof foundry.applications.api.DialogV2 && a.rendered && pred(a));
+    const wait = async (pred, tries = 120) => {
+      for (let n = 0; n < tries; n++) {
+        const a = find(pred);
+        if (a) return a;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      return null;
+    };
+    globalThis.__btRebuild = { done: false };
+    acksExtras.importer.cookbookReimportEntries()
+      .then((r) => { globalThis.__btRebuild = { done: true, result: r ?? null }; })
+      .catch((e) => { globalThis.__btRebuild = { done: true, error: String(e?.message ?? e) }; });
+    const picker = await wait((a) => !!a.element?.querySelector(".acks-extras-importer-mon-list"));
+    if (!picker) return { picker: false };
+    const boxes = picks.map(([key, id]) => picker.element.querySelector(`input[name="sel"][value="${key}|${id}"]`));
+    const absent = picks.filter((_, i) => !boxes[i]).map(([key, id]) => `${key}|${id}`);
+    if (absent.length) return { picker: true, row: false, absent };
+    for (const box of boxes) box.checked = true;
+    picker.element.querySelector('button[data-action="ok"]')?.click();
+    const confirm = await wait((a) => a !== picker && !!a.element?.querySelector('button[data-action="yes"]'));
+    if (!confirm) return { picker: true, row: true, confirm: false };
+    confirm.element.querySelector('button[data-action="yes"]').click();
+    return { picker: true, row: true, confirm: true };
+  },
+  rebuildState: async () => globalThis.__btRebuild,
+  /** Each document's creation time, by uuid. */
+  created: async ({ uuids }) => {
+    const out = {};
+    for (const u of uuids) out[u] = (await fromUuid(u))?._stats?.createdTime ?? null;
+    return out;
+  },
   /** The uuid the world now holds under each id — the import's own documents, read back by the ids it was given. */
   heldNow: async ({ ids }) => {
     const H = globalThis.__bt;
@@ -417,7 +522,7 @@ try {
   const before = await run(gm, P.shelves, { line, open });
   note("shelves before", { packs: before.packs.length, line, open, lined: before.lined, openItems: before.open.Item, folders: Object.fromEntries(Object.entries(before.folders).map(([c, f]) => [c, f.length])) });
   check("the book's content files on its series' open line, apart from its Judge line", !!open && open !== line && !open.endsWith("Judge"), { line, open });
-  check("the open line's Item shelf is not in the world before the run", before.open.Item === null, { open: before.open });
+  check(HELD_OK ? "the open line's Item shelf is read as it stands (HELD_OK=1: the owner's)" : "the open line's Item shelf is not in the world before the run", HELD_OK || before.open.Item === null, { open: before.open });
   let census = await run(gm, P.census, { book: BOOK, ids: IDS });
   note("gm census", census);
   const afterCensus = await run(gm, P.shelves, { line });
@@ -426,8 +531,12 @@ try {
   check("the GM census opens no pack", !minted.length && afterCensus.packs.length === before.packs.length, { minted, packs: afterCensus.packs.length });
   check("the GM seat is a GM, the book is registered with a typography and the scoped import api is present", census.isGM && census.registered && census.typography && census.api, { bodyPt: census.bodyPt });
   const heldBefore = Object.entries(census.held).filter(([, u]) => u).map(([id]) => id);
-  check("the world holds nothing under the book's ids before the run", !heldBefore.length, heldBefore);
-  if (!census.isGM || !census.registered || !census.api || heldBefore.length) throw new Error("preconditions not met");
+  // A document standing before the run is never this run's to track.
+  const theirs = new Set(Object.values(census.held).filter(Boolean));
+  const mine = (uuid) => !!uuid && !theirs.has(uuid);
+  const heldOf = (ids) => ids.filter((id) => census.held[id]).length;
+  check(HELD_OK ? "what the world holds under the book's ids is the owner's (HELD_OK=1: never tracked)" : "the world holds nothing under the book's ids before the run", HELD_OK || !heldBefore.length, heldBefore);
+  if (!census.isGM || !census.registered || !census.api || (heldBefore.length && !HELD_OK)) throw new Error("preconditions not met");
 
   section("1. connect the book");
   let connectNotes = [];
@@ -446,6 +555,29 @@ try {
   check("1: the open is announced by the book's label", !!opened, { count: opened ? (/(\d+) entr/.exec(opened.text)?.[1] ?? null) : null, notes: connectNotes.map((n) => n.kind) });
   if (!census.open) throw new Error("stopped before the imports");
 
+  const heldItems = [...IDS.powers, ...IDS.classes].filter((id) => census.held[id]);
+  if (HELD_OK && heldItems.length) {
+    section("1a. the owner's classes and powers, rebuilt from the open book");
+    const was = heldItems.map((id) => census.held[id]);
+    const t0 = await run(gm, P.created, { uuids: was });
+    await sleep(1100); // a rebuilt document's creation time must be able to differ
+    const picks = heldItems.map((id) => [IDS.classes.includes(id) ? "Classes" : "Abilities", id]);
+    const drove = await run(gm, P.rebuild, { picks });
+    check("1a: the entry picker lists every held class and power, and its confirm is answered", drove.picker && drove.row && drove.confirm, drove);
+    const rb = await poll(gm, P.rebuildState, undefined, { tries: 150 });
+    if (rb?.error) throw new Error(`the rebuild threw: ${rb.error}`);
+    const now = await run(gm, P.heldNow, { ids: { items: heldItems } });
+    // Whatever stands under a held id now is still the owner's.
+    for (const id of heldItems) if (now[id]) theirs.add(now[id]);
+    const t1 = await run(gm, P.created, { uuids: heldItems.map((id) => now[id]).filter(Boolean) });
+    // A rebuild deletes and creates, so the document id is new; the pack is the shelf.
+    const packOf = (uuid) => uuid?.split(".").slice(0, -2).join(".") ?? null;
+    const kept = heldItems.filter((id) => now[id] && packOf(now[id]) === packOf(census.held[id]));
+    const rebuilt = kept.filter((id) => t1[now[id]] > t0[census.held[id]]);
+    check("1a: each is rebuilt on the shelf it stood on (the owner's, never tracked)", kept.length === heldItems.length && rebuilt.length === heldItems.length,
+      { held: heldItems.length, kept: kept.length, rebuilt: rebuilt.length });
+  }
+
   section("2. import the book");
   const powers = await runStep("2: abilities (powers)", "cookbookImportAbilities", { only: IDS.powers });
   const classes = await runStep("2: classes", "importClasses", { only: IDS.classes });
@@ -462,11 +594,13 @@ try {
   // Track everything the run made: the classes, the items and the journals
   // from their own results, the rest read back by the ids this run imported,
   // which the census proved absent beforehand.
-  for (const uuid of classes.result?.docs ?? []) gm.track(uuid, "Item");
-  for (const uuid of items.result?.created?.items ?? []) gm.track(uuid, "Item");
-  for (const uuid of journals.result?.created?.journals ?? []) gm.track(uuid, "JournalEntry");
-  const held = await run(gm, P.heldNow, { ids: { items: IDS.powers, actors: [...IDS.actors, ...IDS.characters] } });
-  for (const [id, uuid] of Object.entries(held)) if (uuid) gm.track(uuid, IDS.actors.includes(id) || IDS.characters.includes(id) ? "Actor" : "Item");
+  for (const uuid of classes.result?.docs ?? []) if (mine(uuid)) gm.track(uuid, "Item");
+  for (const uuid of items.result?.created?.items ?? []) if (mine(uuid)) gm.track(uuid, "Item");
+  for (const uuid of journals.result?.created?.journals ?? []) if (mine(uuid)) gm.track(uuid, "JournalEntry");
+  const held = await run(gm, P.heldNow, { ids: { items: [...IDS.powers, ...IDS.classes], actors: [...IDS.actors, ...IDS.characters] } });
+  // The classes are tracked from the step's own result above.
+  for (const [id, uuid] of Object.entries(held)) if (mine(uuid) && !IDS.classes.includes(id)) gm.track(uuid, IDS.actors.includes(id) || IDS.characters.includes(id) ? "Actor" : "Item");
+  const classUuids = IDS.classes.map((id) => held[id]).filter(Boolean);
   const after = await run(gm, P.shelves, { line, open });
   for (const c of after.packs.filter((c) => !before.packs.includes(c))) openedPacks.push(c);
   for (const [collection, uuids] of Object.entries(after.folders)) {
@@ -476,14 +610,16 @@ try {
   note("shelves opened by this run", openedPacks);
   check("2: the import, not the census, opened the line's Actor shelf", !!after.lined.Actor && openedPacks.includes(after.lined.Actor), { actor: after.lined.Actor, opened: openedPacks });
 
-  check("2: five class powers imported, none already present", powers.result?.made === IDS.powers.length && powers.result?.reused === 0 && IDS.powers.length === 5, powers.result);
-  check("2: three classes imported", (classes.result?.docs ?? []).length === IDS.classes.length && IDS.classes.length === 3, { made: (classes.result?.docs ?? []).length });
+  check("2: five class powers imported, any already held reused", powers.result?.made === IDS.powers.length - heldOf(IDS.powers) && powers.result?.reused === heldOf(IDS.powers) && IDS.powers.length === 5, { ...powers.result, held: heldOf(IDS.powers) });
+  check("2: three classes imported, any already held skipped, and all three stand", (classes.result?.docs ?? []).length === IDS.classes.length - heldOf(IDS.classes) && classUuids.length === 3 && IDS.classes.length === 3, { made: (classes.result?.docs ?? []).length, held: heldOf(IDS.classes), stand: classUuids.length });
   check("2: one monster imported", monsters.result?.value === 1 && IDS.actors.length === 1, monsters.result);
   check("2: the person the page prints in full imported, one", keeper.result?.value === 1 && IDS.characters.length === 1, keeper.result);
   const it = items.result ?? {};
   check("2: ten items imported, none already present, none refused", it.made === IDS.adventureItems.length && IDS.adventureItems.length === 10 && it.already === 0 && it.refused === 0, it);
   check("2: the import, not the census, opened the line's Item shelf", !!after.lined.Item && openedPacks.includes(after.lined.Item), { item: after.lined.Item });
-  check("2: the classes and powers opened the series' open Item shelf, apart from the Judge's", !!after.open.Item && openedPacks.includes(after.open.Item) && after.open.Item !== after.lined.Item, { open: after.open.Item, judge: after.lined.Item });
+  check("2: the classes and powers stand on the series' open Item shelf, opened by the import or the owner's own, apart from the Judge's",
+    !!after.open.Item && (openedPacks.includes(after.open.Item) || (HELD_OK && after.open.Item === before.open.Item)) && after.open.Item !== after.lined.Item,
+    { open: after.open.Item, judge: after.lined.Item, opened: openedPacks.includes(after.open.Item) });
   const itemShapes = [];
   for (const uuid of it.created?.items ?? []) itemShapes.push(await run(gm, P.power, { uuid }));
   check("2: each item is a core item of one paragraph with a page reference", itemShapes.length === 10 && itemShapes.every((p) => p && p.type === "item" && p.paragraphs === 1 && p.cite), itemShapes.map((p) => p && { type: p.type, paragraphs: p.paragraphs, chars: p.chars }));
@@ -535,7 +671,7 @@ try {
 
   section("4. the classes");
   const classShapes = [];
-  for (const uuid of classes.result?.docs ?? []) classShapes.push(await run(gm, P.classItem, { uuid }));
+  for (const uuid of classUuids) classShapes.push(await run(gm, P.classItem, { uuid }));
   note("classes", classShapes);
   check("4: each class carries its hit die, maximum level, prime requisite and requirements", classShapes.length === 3 && classShapes.every((c) => c && c.hitDie && c.maximumLevel > 0 && c.keyAttributes > 0 && c.requirements > 0));
   check("4: the list resolves names the register knows and keeps the rest as text, none welded at a line turn", classShapes.every((c) => c && c.resolved > 0 && !c.unresolved.some(welded)), classShapes.map((c) => c && { resolved: c.resolved, unresolved: c.unresolved.length, welded: c.unresolved.filter(welded).length }));
@@ -571,13 +707,24 @@ try {
   const advShelf = advUuid ? await run(gm, P.shelfOf, { uuid: advUuid }) : null;
   const monsterShelf = held[monsterId] ? await run(gm, P.shelfOf, { uuid: held[monsterId] }) : null;
   const keeperShelf = held[keeperId] ? await run(gm, P.shelfOf, { uuid: held[keeperId] }) : null;
-  const classShelf = classes.result?.docs?.[0] ? await run(gm, P.shelfOf, { uuid: classes.result.docs[0] }) : null;
+  const classShelf = classUuids[0] ? await run(gm, P.shelfOf, { uuid: classUuids[0] }) : null;
   const itemShelf = it.created?.items?.[0] ? await run(gm, P.shelfOf, { uuid: it.created.items[0] }) : null;
   note("where they stand", { adventure: advShelf, monster: monsterShelf, keeper: keeperShelf, item: itemShelf, class: classShelf });
   check("6: the Adventure, the monster, the keeper and the items stand on the line's Judge shelves, the class on the series' open Item shelf", !!advShelf?.judge && !!monsterShelf?.judge && !!keeperShelf?.judge && !!itemShelf?.judge && !!classShelf?.pack && classShelf.line === open && !classShelf.judge);
-  const classFolder = classes.result?.docs?.[0] ? await run(gm, P.folderOf, { uuid: classes.result.docs[0] }) : null;
+  const classFolder = classUuids[0] ? await run(gm, P.folderOf, { uuid: classUuids[0] }) : null;
   note("the class's folder", classFolder);
   check("6: the class is filed in its shelf folder inside the same pack, not dropped at the root", !!classFolder?.folder && classFolder.folderPack === classFolder.pack, classFolder);
+  if (SHOTS && journalShapes.length) {
+    const most = journalShapes.reduce((m, j, i) => ((j?.pages?.length ?? 0) > (journalShapes[m]?.pages?.length ?? 0) ? i : m), 0);
+    const frame = await run(gm, P.journalToc, { uuid: jr.created.journals[most] });
+    note("plate journal", frame);
+    await plate(gm, "importer-journals", frame);
+  }
+  if (SHOTS && held[IDS.characters[0]]) {
+    const frame = await run(gm, P.sheetOnStats, { uuid: held[IDS.characters[0]] });
+    note("plate character", frame);
+    await plate(gm, "importer-character-writeup", frame);
+  }
 
   section("7. the Player seat");
   const player = await seat("player");
@@ -587,6 +734,11 @@ try {
   check("7: the seat is a player", view.isGM === false);
   check("7: no shelf of the Judge line is open to it", !view.anyLinedVisible, { linedPacksSeen: view.lined.length, gmSaw: Object.keys(later.folders).length });
   check("7: the series' open Item shelf is, with the book's classes and powers in it", !!view.openItems?.visible && view.openItems.line === open && view.classesSeen === view.classesWanted && view.classesWanted === 8, { seen: view.classesSeen, wanted: view.classesWanted, shelf: view.openItems });
+  if (SHOTS && view.openItems?.collection) {
+    const frame = await run(player, P.shelfPopout, { collection: view.openItems.collection });
+    note("plate shelf", frame);
+    await plate(player, "importer-open-shelf", frame);
+  }
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

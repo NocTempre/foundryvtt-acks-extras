@@ -23,7 +23,11 @@
  *   - the per-map Adventures the step retires. The walk stops before the step
  *     when any Judge book's shelf, open or not, holds a book or per-map
  *     Adventure it did not make; SHELF_OK=1 is that shelf's owner's go-ahead
- *     to run over it;
+ *     to run over it. An Adventure standing before the run is the owner's and
+ *     is never tracked, even where step 5 deletes it and the step writes it
+ *     again under its id; once the sweep has taken the run's fixture Item,
+ *     the step runs once more, so the owner's AX3 Adventure is left rebuilt
+ *     from the world as it stands, carrying nothing of the run;
  *   - every document an import creates, read from that import's own
  *     `importAdventure` result and tracked.
  */
@@ -384,13 +388,17 @@ async function seat(key) {
 
 let gm = null;
 const createdPacks = [];
-/** One run of the adventures step: the counts, its outcome for the book, and every Adventure it wrote tracked. */
+/** The ids of every Adventure on a Judge shelf before the run: the owner's, never tracked. */
+const stoodBefore = new Set();
+/** Whether the book's own Adventure was among them. */
+let ownersBook = false;
+/** One run of the adventures step: the counts, its outcome for the book, and every Adventure it wrote that did not stand before tracked. */
 async function runStep(label) {
   await run(gm, P.step);
   const st = await poll(gm, P.stepState, undefined);
   if (st.error) throw new Error(`${label}: the step threw: ${st.error}`);
   const c = st.counts ?? {};
-  for (const uuid of c.created?.adventures ?? []) gm.track(uuid, "Adventure");
+  for (const uuid of c.created?.adventures ?? []) if (!stoodBefore.has(uuid.split(".").pop())) gm.track(uuid, "Adventure");
   for (const collection of c.created?.packs ?? []) createdPacks.push(collection);
   note(`${label}`, { books: c.books, written: c.written, rebuilt: c.rebuilt, kept: c.kept, held: c.held, failed: c.failed, retired: (c.retired ?? []).map((r) => r.uuid), notes: st.notes });
   return c;
@@ -455,6 +463,9 @@ try {
     check("the shelves hold no Adventure of a Judge book that this run did not make (SHELF_OK=1 is the owner's go-ahead)", false, theirs);
     throw new Error("stopped before the step: a shelf holds Adventures this run did not make");
   }
+  for (const s of Object.values(before)) for (const r of s.rows) stoodBefore.add(r.id);
+  ownersBook = (before[BOOK]?.rows ?? []).some((r) => r.kind === "kind.bookAdventure" && r.book === BOOK);
+  note("the book's own Adventure stood before the run (the owner's; rebuilt, never tracked)", ownersBook);
 
   section("fixtures");
   const item = await gm.create("Item", { name: `QA carried item ${NONCE}`, type: "item", flags: { "acks-extras": { cookbook: { id: `${BOOK}.fixture~${NONCE}`, book: BOOK } } } });
@@ -469,7 +480,8 @@ try {
 
   section("1. the step writes the book's Adventure and retires the per-map one");
   const c1 = await runStep("run 1");
-  check("1: the book's Adventure is written", c1.books?.[BOOK] === "written", c1.books);
+  // The fixture Item is carried, so an Adventure that stood is stale and rebuilt.
+  check(ownersBook ? "1: the owner's Adventure of the book is rebuilt for the carried fixture" : "1: the book's Adventure is written", c1.books?.[BOOK] === (ownersBook ? "rebuilt" : "written"), c1.books);
   if (legacy) check("1: the per-map fixture is retired and named", (c1.retired ?? []).some((r) => r.uuid === legacy.uuid && !!r.name), (c1.retired ?? []).map((r) => r.uuid));
   const after1 = await run(gm, P.shelves, { judges: [BOOK] });
   check("1: the shelf holds the book's Adventure and no per-map one of the book", after1[BOOK].rows.some((r) => r.kind === "kind.bookAdventure") &&
@@ -565,6 +577,17 @@ try {
     const sw = gm ? await gm.sweepTracked() : null;
     if (sw) note("sweep (gm)", { removed: sw.removed.map((e) => e.uuid), missing: sw.missing.map((e) => e.uuid), failed: sw.failed.map((e) => ({ uuid: e.uuid, error: e.error })) });
   } catch (err) { console.error("sweep gm:", err?.message ?? err); }
+  // The owner's Adventure still carries the swept fixture Item: one more run
+  // rebuilds it from the world as it now stands. Any other book's Adventure
+  // that run writes afresh is this run's, tracked and swept at once.
+  if (gm && ownersBook) {
+    try {
+      const ct = await runStep("teardown run");
+      note("the owner's Adventure, rebuilt without the run's fixture", { outcome: ct.books?.[BOOK] ?? null, failed: ct.failed ?? null });
+      const sw2 = await gm.sweepTracked();
+      note("sweep after the teardown run (gm)", { removed: sw2.removed.map((e) => e.uuid), missing: sw2.missing.map((e) => e.uuid), failed: sw2.failed.map((e) => ({ uuid: e.uuid, error: e.error })) });
+    } catch (err) { console.error("teardown run:", err?.message ?? err); }
+  }
   for (const collection of createdPacks) {
     try { note(`shelf ${collection} this run opened`, await run(gm, P.packEmpty, { collection })); } catch (err) { console.error("packEmpty:", err?.message ?? err); }
   }

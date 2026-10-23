@@ -254,6 +254,19 @@ book prints. Compare the stat block before assuming a typo.
 
 *Where everything lands: a set of compendiums per SERIES, so another game's creatures never share a shelf with the ACKS ones.*
 
+### A community book's own shelf
+
+A book from outside the ACKS II line files its classes and powers on its own
+series' Item shelf, in its folder under *From your books*. Every seat can open
+that shelf. The rest of the book (its monsters, people, items, journals and
+Adventure) stays on the Judge's shelves. Nothing from it merges into an
+ACKS II compendium. A world that imported such a book before keeps its
+classes where they are.
+
+![](../releases/v11.8.0/importer-open-shelf.png)
+
+*A player's Compendium sidebar: the community book's open Item shelf in its own folder, and none of the book's Judge shelves.*
+
 ### Cross-book merging
 
 The same conceptual family imported from a second book gains that book's new
@@ -393,6 +406,18 @@ like bars). The scene turns token vision on, so a token sees its room and
 nothing past the walls. A map already in your world is never re-drawn; to
 draw it again, delete the scene and run the step again.
 
+### A book's passages, as journal pages
+
+A book's essays and other passages import whole, as pages of a journal on
+the book's Judge JournalEntry shelf, one journal for each group the cookbook
+files them under. Each page is titled by what the passage is, keeps its
+paragraphs as the page sets them, and ends with its page reference.
+**Import Everything** runs the step.
+
+![](../releases/v11.8.0/importer-journals.png)
+
+*A journal of a book's passages, by its page list: one page a passage.*
+
 ### An adventure book, as one Adventure
 
 The last step of **Import Everything** keeps each open adventure book in your
@@ -427,10 +452,21 @@ replacements. The biography keeps the line **as printed**, followed by a line
 for each figure the class gives differently and a line for each name your
 library could not match.
 
+A person a book writes out as labelled lines under a display name (class and
+level, scores, hit points, proficiencies by kind, abilities, inventory) is
+made a character the same way. Class and general proficiencies go in their
+own rows, the inventory is worn and the coin counted, and the paragraph about
+the person is the biography, before the as-printed block. A proficiency your
+library lacks is imported from your open books first.
+
+![](../releases/v11.8.0/importer-character-writeup.png)
+
+*A person written out as labelled lines, as a character on its Stats tab.*
+
 A rebuild of the entry keeps the character's id, so links to it hold. A
 rebuild, or **Remove Imports**, never deletes a character that a player owns.
 
-![](../releases/v11.6.0/importer-character.png)
+![](../releases/v11.8.0/importer-character.png)
 
 *An adventure's inhabitant as a character: the class bound at the printed level, and its saves and throws the class's own.*
 

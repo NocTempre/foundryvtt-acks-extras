@@ -23,6 +23,15 @@ whole of the minimum: identity, and what it sits inside.
   captive. These are references to real actors, so a deleted actor leaves a
   struck-through row rather than vanishing.
 
+A place a domain holds names that domain beneath who is here. A place inside
+a held one names the domain that holds the place around it. Which places a
+domain holds is kept on the domain's own sheet
+([Holdings](domains.md#holdings)).
+
+![](../releases/v11.8.0/location-domain.png)
+
+*A town a domain holds, naming the domain on its Contents tab.*
+
 A place also keeps a private record beside its shared one, which only the Judge
 can read.
 

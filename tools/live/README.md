@@ -28,7 +28,10 @@ lines on the console: a log can hold figures the world imported from a book, so
 it is read and never quoted. `SHOTS=1` makes a walk take its release plates into
 `docs/releases/v<version>/`; a walk with stages takes `STAGE`, and a walk
 that takes a plan reads `WALK_PLAN` (a JSON file; the walk's header gives its
-shape).
+shape). A walk that stops on documents it did not make takes a flag that is
+their owner's go-ahead to run over them (`SHELF_OK`, `REBUILD_OK`,
+`HELD_OK`; the walk's header says what each permits); set one only on the
+owner's word.
 
 ## A walk
 

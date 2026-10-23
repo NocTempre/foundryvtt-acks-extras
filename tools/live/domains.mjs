@@ -12,9 +12,14 @@
  *     prune deletes every empty place in the WORLD, so step 8 runs it only
  *     when every empty place the world holds is one this run made, and is
  *     reported not run otherwise.
+ *
+ * With SHOTS=1 the walk takes the domains guide's plates where the record it
+ * built shows each surface: the Ledger after step 4, the Realm with a vassal
+ * in step 5, the Overview and the Holdings after step 6, and the held place's
+ * Domain line in step 9.
  */
 import { connect, sleep } from "./_driver.mjs";
-import { seats as machineSeats, PORTS } from "./_env.mjs";
+import { seats as machineSeats, PORTS, shotDir } from "./_env.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -34,6 +39,22 @@ const check = (label, ok, detail) => {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail === undefined ? "" : "  " + (typeof detail === "string" ? detail : JSON.stringify(detail))}`);
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const SHOTS = process.env.SHOTS === "1";
+/** One plate of one sheet: the sheet alone in the frame, on the tab named, clipped to its window. */
+const plate = async (seat, slug, { id, tab = null }) => {
+  if (!SHOTS) return null;
+  try {
+    const sel = await run(seat, P.framed, { id, tab });
+    await seat.compose(sel);
+    await sleep(500);
+    const r = await seat.shot(`${shotDir()}/${slug}.png`, sel);
+    note(`shot ${slug}`, r);
+    return r;
+  } catch (err) {
+    note(`shot ${slug} FAILED`, err?.message ?? String(err));
+    return null;
+  }
+};
 
 /* ------------------------------------------------------------------ */
 /*  The record, and what it sums to by hand                             */
@@ -314,6 +335,18 @@ const P = {
   },
 
   /** The text of one element on any actor's sheet. */
+  /** Open an actor's sheet fresh at its own size, on the tab named; the selector of its window. */
+  framed: async ({ id, tab }) => {
+    const H = globalThis.__dm;
+    const doc = game.actors.get(id);
+    const app = doc.type === "acks-extras.domain" ? await H.sheet(id, { fresh: true }) : await H.openSheet(id);
+    if (tab) await H.tab(app, tab);
+    app.setPosition({ left: 60, top: 40 });
+    app.bringToFront?.();
+    await H.sleep(400);
+    return `#${H.root(app).id}`;
+  },
+
   sheetText: async ({ id, selector }) => {
     const H = globalThis.__dm;
     const app = await H.openSheet(id);
@@ -633,8 +666,16 @@ try {
   section("4. a place is held, once");
   await run(gm, P.dropOn, { id: D1.id, tab: "holdings", uuid: S.uuid });
   await run(gm, P.dropOn, { id: D1.id, tab: "holdings", uuid: K.uuid });
-  const s4 = await run(gm, P.system, { id: D1.id });
-  const held = Object.fromEntries(s4.holdings.filter((h) => h.uuid).map((h) => [h.uuid, h.role]));
+  // Each drop's write lands on the server's time, not the drop's sleep: read
+  // until both are held or ten seconds pass.
+  let s4 = null;
+  let held = {};
+  for (let n = 0; n < 20; n++) {
+    s4 = await run(gm, P.system, { id: D1.id });
+    held = Object.fromEntries(s4.holdings.filter((h) => h.uuid).map((h) => [h.uuid, h.role]));
+    if (held[S.uuid] && held[K.uuid]) break;
+    await sleep(500);
+  }
   const r4 = await run(gm, P.read, { id: D1.id });
   check("4: the settlement is held as a settlement and the stronghold place as other", held[S.uuid] === "settlement" && held[K.uuid] === "other", held);
   check("4: the urban families include the place's own, on the rail and in the api", r4.families.urban === 50 + 75 && r4.rails.urban === 125, { families: r4.families, rail: r4.rails.urban });
@@ -644,6 +685,7 @@ try {
   const s4b = await run(gm, P.system, { id: D2.id });
   check("4: a second domain is refused the place, with a warning naming the first", s4b.holdings.length === 0 && n4b.notes.some((n) => n.kind === "warn" && n.text.includes(`Domain 1 ${NONCE}`)), { holdings: s4b.holdings.length, notes: n4b.notes });
   note("errors (4)", { first: n4.errors, second: n4b.errors });
+  await plate(gm, "domains", { id: D1.id, tab: "ledger" });
 
   section("5. the realm");
   await run(gm, P.dropOn, { id: D1.id, tab: "realm", uuid: D2.uuid });
@@ -653,6 +695,7 @@ try {
   const tIn = await run(gm, P.ask, { fn: "ledgerFor", args: [`@${D1.id}`] });
   check("5: a domain dropped on the Realm tab becomes the vassal, listed among the vassal domains", v5.parentUuid === D1.uuid && Object.values(l5.count)[0] === 1, { parentUuid: v5.parentUuid, listed: l5.count });
   check("5: the vassal's tribute joins tribute in, and the revenue rises by exactly it", tIn.tributeIn.total === 80 + 40 && tIn.tributeIn.count === 2 && r5.api.revenue === r4.api.revenue + 40, { tributeIn: tIn.tributeIn, before: r4.api.revenue, after: r5.api.revenue });
+  await plate(gm, "domains-realm", { id: D1.id, tab: "realm" });
   await run(gm, P.take);
   await run(gm, P.dropOn, { id: D1.id, tab: "overview", uuid: D2.uuid, zone: "liege" });
   const n5 = await run(gm, P.take);
@@ -676,6 +719,8 @@ try {
   const n6 = await run(gm, P.take);
   const s6b = await run(gm, P.system, { id: D1.id });
   check("6: an organisation is refused as a ruler", s6b.rulerUuid === R.uuid && n6.notes.some((n) => n.kind === "warn"), { rulerUuid: s6b.rulerUuid, notes: n6.notes });
+  await plate(gm, "domains-overview", { id: D1.id, tab: "overview" });
+  await plate(gm, "domains-holdings", { id: D1.id, tab: "holdings" });
 
   section("7. goods are refused");
   await run(gm, P.dropOn, { id: D1.id, tab: "overview", uuid: W.uuid, type: "Item" });
@@ -707,6 +752,7 @@ try {
   const line9s = await run(gm, P.sheetText, { id: S.id, selector: ".acks-extras-place-domain" });
   const line9i = await run(gm, P.sheetText, { id: inner.id, selector: ".acks-extras-place-domain" });
   check("9: the held place's sheet names its domain, holding it", line9s.found && line9s.text.includes(`Domain 1 ${NONCE}`) && line9s.text.includes("holds this place"), line9s);
+  await plate(gm, "location-domain", { id: S.id });
   check("9: the inner place's sheet names the domain and the place around it that is held", line9i.found && line9i.text.includes(`Domain 1 ${NONCE}`) && line9i.text.includes(`Town 2 ${NONCE}`), line9i);
   // The prune took the control, so the place no domain holds is made here.
   const free = await mk("Place 4", LOCATION);

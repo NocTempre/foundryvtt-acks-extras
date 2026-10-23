@@ -20,7 +20,7 @@ and changes nothing.
 
 ## The frame
 
-![](../releases/v11.5.0/domains-overview.png)
+![](../releases/v11.8.0/domains-overview.png)
 
 The top of the sheet stays put whichever tab is open.
 
@@ -56,7 +56,7 @@ lets players who can read the sheet see that row's land value.
 
 ## Holdings
 
-![](../releases/v11.5.0/domains-holdings.png)
+![](../releases/v11.8.0/domains-holdings.png)
 
 Drag a location onto the sheet to hold it. A place stays where it is; the
 domain lists it, and the place's own sheet names the domain.
@@ -79,7 +79,7 @@ row's whole cost. Their costs add up to the stronghold value.
 
 ## Ledger
 
-![](../releases/v11.5.0/domains.png)
+![](../releases/v11.8.0/domains.png)
 
 Each revenue and expense line takes a rate **per peasant family** and **per
 urban family**, or a flat **gp** figure for either side; a gp figure wins over
@@ -95,7 +95,7 @@ count only what is set and say how many lines they left out. The
 
 ## Realm
 
-![](../releases/v11.5.0/domains-realm.png)
+![](../releases/v11.8.0/domains-realm.png)
 
 - **Vassal domains** are domains whose liege is this one. Drag a domain onto
   this sheet anywhere but the Liege to make it a vassal; the button beside

@@ -10,7 +10,14 @@
  *   - the book connected on the GM seat with remember:false;
  *   - every inhabitant the import makes, found under its stable id and
  *     tracked; the walk stops before the import when any of those ids already
- *     names a document, since that document is not this run's;
+ *     names a document, since that document is not this run's. With
+ *     REBUILD_OK=1, the library owner's go-ahead, a world whose library holds
+ *     every inhabitant has them all rebuilt in place through the entry picker
+ *     instead, and none is tracked: each keeps its id, so the owner's library
+ *     stands as it was, rebuilt from the page;
+ *   - every ability definition the import supplies on demand: an id a made
+ *     character embeds that the library did not hold before the import, read
+ *     back under that id and tracked;
  *   - one world character claiming an inhabitant's entry and owned by the
  *     player seat, made with `api.create`;
  *   - the rebuild of that inhabitant, driven through the entry picker's own
@@ -19,9 +26,12 @@
  *   - a shelf the import opens (deleted at teardown when empty).
  * Two create hooks observe the run, never sweep it: one proves the import
  * posts no chat card, the other that it made no actor beyond its own.
+ *
+ * With SHOTS=1 the run takes the release plate: an inhabitant's sheet on its
+ * Stats tab, after the rebuild, into docs/releases/v<version>/.
  */
 import { connect, sleep } from "./_driver.mjs";
-import { seats as machineSeats, PORTS, books } from "./_env.mjs";
+import { seats as machineSeats, PORTS, books, shotDir } from "./_env.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -30,6 +40,7 @@ const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
 const NONCE = "c" + Math.random().toString(36).slice(2, 8);
 const BOOK = "ax1";
 const BOOKS = books([BOOK]);
+const REBUILD_OK = process.env.REBUILD_OK === "1";
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -37,6 +48,21 @@ const checks = [];
 const check = (label, ok, detail) => {
   checks.push([label, !!ok]);
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail === undefined ? "" : "  " + (typeof detail === "string" ? detail : JSON.stringify(detail))}`);
+};
+const SHOTS = process.env.SHOTS === "1";
+/** One release plate: `frame.keep` is the window `compose` leaves open, `frame.sel` what is shot (the window when absent). */
+const plate = async (seat, slug, frame) => {
+  if (!SHOTS || !frame?.keep) return null;
+  try {
+    await seat.compose(frame.keep);
+    await sleep(500);
+    const r = await seat.shot(`${shotDir()}/${slug}.png`, frame.sel ?? frame.keep);
+    note(`shot ${slug}`, r);
+    return r;
+  } catch (err) {
+    note(`shot ${slug} FAILED`, err?.message ?? String(err));
+    return null;
+  }
 };
 
 /* ------------------------------------------------------------------ */
@@ -100,6 +126,31 @@ const P = {
     return out;
   },
   actorPacks: async () => game.packs.filter((p) => p.documentName === "Actor" && p.metadata.packageType === "world").map((p) => p.collection),
+  /** The cookbook ids of every ability definition the library holds. */
+  libraryAbilityIds: async () => {
+    const H = globalThis.__ic;
+    return H.LIB.libraryItems().filter((i) => i.type === "ability").map((i) => i.flags?.["acks-extras"]?.cookbook?.id).filter(Boolean);
+  },
+  /**
+   * The definitions the import supplied on demand: each ability a made
+   * character embeds whose cookbook id the library did not hold before,
+   * read back under that id.
+   */
+  onDemand: async ({ uuids, before }) => {
+    const H = globalThis.__ic;
+    const had = new Set(before);
+    const ids = new Set();
+    for (const uuid of uuids) {
+      const actor = await fromUuid(uuid);
+      for (const i of actor?.items ?? []) {
+        const id = i.type === "ability" ? i.flags?.["acks-extras"]?.cookbook?.id : null;
+        if (id && !had.has(id)) ids.add(id);
+      }
+    }
+    const held = {};
+    for (const id of ids) held[id] = (await H.CB.importedItemFor(id))?.uuid ?? null;
+    return held;
+  },
   observe: async () => {
     const H = globalThis.__ic;
     H.seen = { chat: 0, actors: [] };
@@ -176,8 +227,8 @@ const P = {
   },
   /** The player seat's user id, by the name the machine gives the seat; never printed. */
   playerId: async ({ name }) => game.users.getName(name)?.id ?? null,
-  /** Run the entry picker for one entry, answer its confirm, and resolve when its refill is done. */
-  rebuild: async ({ key, id }) => {
+  /** Run the entry picker for the entries `ids`, answer its confirm, and resolve when its refill is done. */
+  rebuild: async ({ key, ids }) => {
     const find = (pred) => [...foundry.applications.instances.values()].find((a) => a instanceof foundry.applications.api.DialogV2 && a.rendered && pred(a));
     const wait = async (pred, tries = 120) => {
       for (let n = 0; n < tries; n++) {
@@ -193,9 +244,10 @@ const P = {
       .catch((e) => { globalThis.__icRebuild = { done: true, error: String(e?.message ?? e) }; });
     const picker = await wait((a) => !!a.element?.querySelector(".acks-extras-importer-mon-list"));
     if (!picker) return { picker: false };
-    const box = picker.element.querySelector(`input[name="sel"][value="${key}|${id}"]`);
-    if (!box) return { picker: true, row: false };
-    box.checked = true;
+    const boxes = ids.map((id) => picker.element.querySelector(`input[name="sel"][value="${key}|${id}"]`));
+    const absent = ids.filter((_, i) => !boxes[i]);
+    if (absent.length) return { picker: true, row: false, absent };
+    for (const box of boxes) box.checked = true;
     picker.element.querySelector('button[data-action="ok"]')?.click();
     const confirm = await wait((a) => a !== picker && !!a.element?.querySelector('button[data-action="yes"]'));
     if (!confirm) return { picker: true, row: true, confirm: false };
@@ -212,6 +264,16 @@ const P = {
     return actor ? { uuid: actor.uuid, created: actor._stats?.createdTime ?? null } : null;
   },
   exists: async ({ uuid }) => !!(await fromUuid(uuid)),
+  /** A character's sheet opened on its Stats tab at the corner, for a plate: its window's `#id` and its sheet class. */
+  sheetOnStats: async ({ uuid }) => {
+    const app = (await fromUuid(uuid)).sheet;
+    await app.render({ force: true });
+    for (let i = 0; i < 50 && !app.element?.querySelector(".window-content"); i++) await new Promise((r) => setTimeout(r, 100));
+    if (app.element.querySelector('[data-group="primary"][data-tab="stats"]')) app.changeTab("stats", "primary");
+    app.setPosition({ left: 16, top: 16 });
+    await new Promise((r) => setTimeout(r, 400));
+    return { keep: `#${app.id}`, sheet: app.constructor.name };
+  },
   closeAll: async () => {
     let n = 0;
     for (const a of foundry.applications.instances?.values() ?? []) {
@@ -293,23 +355,48 @@ try {
   if (!census.isGM || !census.open || !ids.length) throw new Error("preconditions not met");
   note("printed classes the library answers", `${census.classesAnswered} of ${ids.length}`);
 
-  section("nothing stands under the inhabitants' ids");
+  section("what stands under the inhabitants' ids");
   const standing = await run(gm, P.standing, { ids });
-  check("no document stands under any inhabitant's stable id", !standing.length, standing);
-  if (standing.length) throw new Error("stopped before the import: a document this run did not make stands under an inhabitant's id");
+  // The library holds every inhabitant once, or none: a partial or doubled
+  // set is nobody's known state, and neither path below answers for it.
+  const library = REBUILD_OK && standing.length === ids.length && new Set(standing.map((s) => s.id)).size === ids.length;
+  check(library ? "the owner's library holds every inhabitant once (REBUILD_OK=1: rebuilt in place, never swept)" : "no document stands under any inhabitant's stable id",
+    library || !standing.length, standing.map((s) => s.uuid));
+  if (standing.length && !library) throw new Error("stopped before the import: a document this run did not make stands under an inhabitant's id");
 
-  section("1. each inhabitant is made a character");
+  section(library ? "1. each inhabitant is rebuilt a character, in place" : "1. each inhabitant is made a character");
   const packsBefore = await run(gm, P.actorPacks);
+  const abilitiesBefore = await run(gm, P.libraryAbilityIds);
+  const stampsBefore = library ? Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await run(gm, P.stamp, { id })]))) : null;
+  if (library) await sleep(1100); // a rebuilt document's creation time must be able to differ
   await run(gm, P.observe);
-  await run(gm, P.importIds, { ids });
-  const imp = await poll(gm, P.importState, undefined, { tries: 450 });
+  let imp = null;
+  if (library) {
+    const drove = await run(gm, P.rebuild, { key: "Monsters", ids });
+    check("1: the entry picker lists every inhabitant, and its confirm is answered", drove.picker && drove.row && drove.confirm, drove);
+    imp = await poll(gm, P.rebuildState, undefined, { tries: 450 });
+  } else {
+    await run(gm, P.importIds, { ids });
+    imp = await poll(gm, P.importState, undefined, { tries: 450 });
+  }
   const seen = await run(gm, P.unobserve);
-  if (imp?.error) throw new Error(`the import threw: ${imp.error}`);
+  if (imp?.error) throw new Error(`the ${library ? "rebuild" : "import"} threw: ${imp.error}`);
   for (const c of (await run(gm, P.actorPacks)).filter((c) => !packsBefore.includes(c))) createdPacks.push(c);
   const made = await run(gm, P.standing, { ids });
-  for (const m of made) gm.track(m.uuid, "Actor");
-  note("import", { counted: imp?.count ?? null, made: made.map((m) => m.uuid) });
-  check("1: the import counts every inhabitant, and each stands under its stable id", imp?.count === ids.length && made.length === ids.length, { counted: imp?.count, made: made.length });
+  if (!library) for (const m of made) gm.track(m.uuid, "Actor");
+  note(library ? "rebuild (the owner's, not tracked)" : "import", { counted: imp?.count ?? null, made: made.map((m) => m.uuid) });
+  const supplied = await run(gm, P.onDemand, { uuids: made.map((m) => m.uuid), before: abilitiesBefore });
+  for (const uuid of Object.values(supplied)) if (uuid) gm.track(uuid, "Item");
+  note("definitions the import supplied on demand (tracked)", supplied);
+  if (library) {
+    const stampsAfter = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await run(gm, P.stamp, { id })])));
+    const kept = ids.filter((id) => stampsAfter[id] && stampsAfter[id].uuid === stampsBefore[id]?.uuid);
+    const rebuilt = kept.filter((id) => stampsAfter[id].created !== stampsBefore[id]?.created);
+    check("1: every inhabitant is rebuilt, each under the id it stood under", made.length === ids.length && kept.length === ids.length && rebuilt.length === ids.length,
+      { made: made.length, kept: kept.length, rebuilt: rebuilt.length });
+  } else {
+    check("1: the import counts every inhabitant, and each stands under its stable id", imp?.count === ids.length && made.length === ids.length, { counted: imp?.count, made: made.length });
+  }
   const rows = await run(gm, P.verify, { book: BOOK, ids });
   check("1: each is a character carrying its entry's stamp, under its stable id", all(rows, "made") && all(rows, "character"), failing(rows, "character"));
   check("1: each has its class bound at the printed level", all(rows, "classBound"), failing(rows, "classBound"));
@@ -338,7 +425,7 @@ try {
   });
   note("fixture", { uuid: owned.uuid });
   await sleep(1100); // a rebuilt document's creation time must be able to differ
-  const drove = await run(gm, P.rebuild, { key: "Monsters", id: target });
+  const drove = await run(gm, P.rebuild, { key: "Monsters", ids: [target] });
   check("2: the entry picker and its confirm are answered", drove.picker && drove.row && drove.confirm, drove);
   const rb = await poll(gm, P.rebuildState, undefined, { tries: 150 });
   if (rb?.error) throw new Error(`the rebuild threw: ${rb.error}`);
@@ -347,6 +434,12 @@ try {
     { same: after?.uuid === before?.uuid, rebuilt: after?.created !== before?.created });
   check("2: the player's character claiming the same entry is not deleted", await run(gm, P.exists, { uuid: owned.uuid }));
   note("closed (gm)", await run(gm, P.closeAll));
+  if (SHOTS && made[0]) {
+    const frame = await run(gm, P.sheetOnStats, { uuid: made[0].uuid });
+    note("plate sheet", frame);
+    await plate(gm, "importer-character", frame);
+    note("closed (gm)", await run(gm, P.closeAll));
+  }
 
   section("3. the player seat");
   const player = await seat("player");

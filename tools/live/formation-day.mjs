@@ -1528,8 +1528,8 @@ const P = {
     };
   },
 
-  /** The encounter tool pressed until a throw finds something (forced through the card's own rng only if six presses find nothing); the card's sight lines and its flag read. Names and figures stay out of the result. */
-  jEncounter: async ({ partyId, fid, presses = 6 }) => {
+  /** The encounter tool pressed until a throw meets a creature (forced through the card's own rng only if twelve presses meet none); the card's sight lines and its flag read. A terrain find prints no distance and no sight lines, so it never stops the presses. Names and figures stay out of the result. */
+  jEncounter: async ({ partyId, fid, presses = 12 }) => {
     const H = globalThis.__a1;
     const app = game.actors.get(partyId).sheet;
     const lines = {
@@ -1545,7 +1545,7 @@ const P = {
       for (const m of got ?? []) {
         messages.push({ id: m.id, uuid: m.uuid, whisper: m.whisper, alias: m.alias, mine: true });
         outcomes.push(m.encounter.outcome === "none" ? "none" : "found");
-        if (m.encounter.outcome !== "none" && !hit) { hit = m; forced = v; }
+        if (typeof m.encounter.distance === "number" && !hit) { hit = m; forced = v; }
       }
     };
     for (let n = 0; n < presses && !hit; n++) {
