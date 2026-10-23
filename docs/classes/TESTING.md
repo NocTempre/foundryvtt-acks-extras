@@ -878,10 +878,15 @@ They come from core and appear on any 0th-level create.
    close the settle dialog instead (`close({animate: false})`). *Nothing is
    deleted or flagged, and only the picker's own grant card is posted.*
 
-**Not reached by this walk.** A Player seat's view, where the control is
-absent and `openLevelUp` says the Judge chooses: the seat was taken by a
-peer's walk. A PDF character-sheet import, which reaches the same
-`applyClass` call as step 1.
+10. As GM, create a player-owned 0th-level character already past its
+    threshold (a GM seat cannot test this: `levelUpReady` reads `isGM`). Log
+    out, join as Player, and render both sheets. *The Class tab shows the
+    band and its note but no `[data-action="levelUp"]`, core's sheet has no
+    `.acks-extras-classes-levelup`, and `openLevelUp` toasts that the Judge
+    chooses and opens no picker.* Rejoin as GM to sweep.
+
+**Not reached by this walk.** A PDF character-sheet import, which reaches the
+same `applyClass` call as step 1.
 
 **Teardown.** Track the cards the picker and the settle post (spoken by the
 fixtures), then sweep the run's own ids.
