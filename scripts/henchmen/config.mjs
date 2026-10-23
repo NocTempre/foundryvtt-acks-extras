@@ -67,8 +67,13 @@ export const LOYALTY_REASONS = Object.freeze({
   other: "ACKS-HENCHMEN.loyaltyReason.other",
 });
 
-/** Reasons for permanent MORALE adjustments (RR 166). */
+/**
+ * Reasons for permanent MORALE adjustments (RR 166). A level-gain entry's note
+ * names the level; `firstLevel` and `fifthLevel` are read only, from entries
+ * recorded before the levels were imported.
+ */
 export const MORALE_REASONS = Object.freeze({
+  levelGain: "ACKS-HENCHMEN.moraleReason.levelGain",
   firstLevel: "ACKS-HENCHMEN.moraleReason.firstLevel",
   fifthLevel: "ACKS-HENCHMEN.moraleReason.fifthLevel",
   other: "ACKS-HENCHMEN.moraleReason.other",

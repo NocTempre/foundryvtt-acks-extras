@@ -466,7 +466,9 @@ const TONE_PROFICIENCY_ROWS = Object.freeze([
  * its result rungs worst first and the page supplies their edges, and its
  * `ladder` / `printed` / `printedFactor` rows take their figures from the same
  * table (`modeRows` in printed.mjs), read from the `printedDoc` document
- * (`morale` when unnamed). `cite` is the page a notice points at.
+ * (`morale` when unnamed). A row naming its own `printed` / `printedDoc`
+ * reads that table instead, on a mode that names none or another. `cite` is
+ * the page a notice points at.
  * `postsWithoutBands` lets such a page roll with no result column read; any
  * other page refuses.
  *
@@ -546,7 +548,11 @@ export const EXTERNAL_MODES = Object.freeze({
         group: "ACKS-INFLUENCE.mode.loyalty.scores",
         mods: [
           { key: "effectiveLoyalty", type: "signed", label: "ACKS-INFLUENCE.mode.loyalty.effective", auto: "ctx:effectiveLoyalty" },
-          { key: "apparentLevelDiff", type: "factor", factor: -1, label: "ACKS-INFLUENCE.mode.loyalty.apparentLevel", auto: "ctx:apparentLevelDiff" },
+          // The page's one printed figure (RR 168), owed per level counted.
+          {
+            key: "apparentLevelDiff", type: "printedFactor", printed: "apparentLevel", printedDoc: INFLUENCE_DOC, figure: "perLevel",
+            label: "ACKS-INFLUENCE.mode.loyalty.apparentLevel", auto: "ctx:apparentLevelDiff",
+          },
           { key: "judgeAdj", type: "signed", label: "ACKS-INFLUENCE.mode.loyalty.judgeAdj" },
         ],
       },

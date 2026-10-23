@@ -51,6 +51,33 @@ export function henchmanLimitBase() {
 }
 
 /**
+ * The permanent morale bonuses a level gain earns (RR 166), as rungs
+ * `{level, bonus}` keyed by the level whose reaching earns each. The imported
+ * `levelMorale` table names one rung by the level a hireling leaves and one by
+ * the level reached. A rung with a blank or non-integer figure is unread and
+ * left out, so nothing imported is no rung.
+ * @returns {{level: number, bonus: number}[]}
+ */
+export function levelMoraleRungs() {
+  const t = optTable("wages", "levelMorale");
+  const level = (v) => Number.isInteger(v) && v >= 0;
+  const rungs = [];
+  if (level(t?.fromLevel) && Number.isInteger(t?.fromBonus)) rungs.push({ level: t.fromLevel + 1, bonus: t.fromBonus });
+  if (level(t?.reachLevel) && Number.isInteger(t?.reachBonus)) rungs.push({ level: t.reachLevel, bonus: t.reachBonus });
+  return rungs;
+}
+
+/**
+ * The rungs a level gain from `known` to `level` crosses, or null while no
+ * rung is imported, which a caller tells apart from a gain that crosses none.
+ * @returns {{level: number, bonus: number}[]|null}
+ */
+export function levelMoraleBumps(known, level) {
+  const rungs = levelMoraleRungs();
+  return rungs.length ? rungs.filter((r) => known < r.level && level >= r.level) : null;
+}
+
+/**
  * Max hireable henchman level for an employer level (RR 168), or null where
  * the imported ladder holds no rung for it. A domain ruler may hire any level
  * below their own. Everyone else reads the ladder's rung for their level; the

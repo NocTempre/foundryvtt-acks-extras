@@ -7,6 +7,18 @@
  * Employer-derived pieces (CHA, effect bonuses) are computed at read time so
  * transfers between employers recalculate automatically (RR 163).
  */
+import { optTable } from "./tables.mjs";
+
+/**
+ * The Hireling Loyalty roll's figure per level of apparent difference
+ * (RR 168), read from the Judge's imported `influence.apparentLevel` table,
+ * the one the influence-hosted loyalty page reads. Null until imported; a
+ * blank or non-integer figure is unread.
+ */
+export function apparentLevelPenalty() {
+  const perLevel = optTable("influence", "apparentLevel")?.perLevel;
+  return Number.isInteger(perLevel) ? perLevel : null;
+}
 
 /** Clamp a loyalty/morale score to the ACKS -4..+4 range. */
 export function clampScore(v) {

@@ -878,3 +878,46 @@ that imported before this change is named in the missing-tables notice.
 that has not, the dialog lists no henchman level, and the month roll passes
 over henchmen where it used to throw at the first level it could not read,
 which stopped the roll for every segment after it.
+
+### The level-gain morale bonuses and the apparent-level figure are imported (2026-10-23)
+
+**Ruled.**
+- *Both level-gain bonuses are printed: each trigger level and each bonus.*
+  RR 166 lists two permanent morale bonuses a level gain earns. The watcher
+  held both bonuses and the level each fires at as literals, and the ledger
+  labels named the levels. The `wages` recipe's `levelMorale` table now
+  reads all four figures, and `levelMoraleRungs` reads the table. That a
+  level gain can earn a permanent bonus, and that one is recorded per rung
+  crossed, is procedure and stays in code. The new labels name no level;
+  the entry's note does.
+- *The first bonus's level is read too.* The page keys it on a hireling
+  leaving 0th level, which could be read as the level system's edge rather
+  than a figure chosen off it. It is a printed number all the same, and the
+  doctrine's margin is the point. The recipe reads the level left, and the
+  rung is the one above it.
+- *Unread, no bonus is recorded and the card says so.* An admitting limit or
+  cap waits harmlessly for an import, but a permanent bonus missed is not
+  made up when the table arrives: the watcher acts once, on the gain. So the
+  level-gain card names the gap when it happens, and the missing-tables
+  notice names the table.
+- *The apparent-level figure is the influence document's.* The throw's
+  stepper (`throws-data.mjs`) carried the per-level figure as
+  `valuePerStep`; `openLoyaltyRoll` now hands in the figure the hosted page
+  reads (docs/influence/DECISIONS.md, "The loyalty page's apparent-level
+  figure is read from a table its row names"). Unread, its info line names
+  the count, since the stepper still shows a count that adds nothing.
+
+**Rejected.**
+- *Reading the first bonus from `baseMorale`.* That table already read it
+  and nothing consumed it. One table for both rungs keeps their four figures
+  together, and a new table is what puts a world imported before this change
+  in the missing-tables notice; a new key on an expected table would not. The
+  key left `baseMorale`.
+- *Recording the missed bonuses when the table arrives.* A level gain leaves
+  no trace of the rungs it crossed beyond the counter, and rebuilding them
+  from it would guess at gains the Judge has since adjusted.
+
+**What it cost.** Until the Judge imports the Rules tables, a level gain
+records no morale bonus, and a henchman's loyalty roll types the
+apparent-level penalty by hand. Ledger entries recorded before this change
+no longer name their level.

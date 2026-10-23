@@ -2214,10 +2214,9 @@ export const TABLE_RECIPES = {
         ],
       },
       // Hireling base morale by role (RR ~166, all prose): specialists
-      // default, the named exception groups, spellcaster minimum, the
-      // first-level permanent bonus, and the crusader/bladedancer follower
-      // score. Which specialist TYPE keys map to which group is consumer
-      // code (type-key glue), not page data.
+      // default, the named exception groups, spellcaster minimum, and the
+      // crusader/bladedancer follower score. Which specialist TYPE keys map to
+      // which group is consumer code (type-key glue), not page data.
       baseMorale: {
         shape: "proseValues",
         book: "rr",
@@ -2230,8 +2229,27 @@ export const TABLE_RECIPES = {
           { key: "navigatorsCaptainsScouts", find: "captains, and scouts have morale", take: "signedInt" },
           { key: "marshalsMastersOfficers", find: "mercenary officers have morale", take: "signedInt" },
           { key: "spellcasterMinimum", find: "their minimum morale score is", take: "signedInt" },
-          { key: "firstLevelBonus", find: "bonus to morale score when a 0", before: true, span: 24, take: "signedInt" },
           { key: "followerCrusaderBladedancer", find: "followers have a morale score of", take: "signedInt" },
+        ],
+      },
+      // The permanent morale bonuses a level gain earns (RR 166 prose), two
+      // list items after the base scores. Each item is found by a clause only
+      // it prints, with no digit of its own: the level and the bonus are the
+      // figures before it, the bonus the last signed one, the level the last
+      // bare one. The first item names the level a hireling leaves, the second
+      // the level they reach. A superscript ordinal suffix reaches the text
+      // layer as a word of its own wherever its run sorts, and is passed over.
+      levelMorale: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 166,
+        locate: "but rowers and sailors have morale",
+        locateBare: true,
+        values: [
+          { key: "fromLevel", find: "-level hireling gains his", before: true, span: 12, take: "int" },
+          { key: "fromBonus", find: "-level hireling gains his", before: true, span: 60, take: "signed" },
+          { key: "reachLevel", find: "experience level or hd", before: true, span: 12, take: "int" },
+          { key: "reachBonus", find: "experience level or hd", before: true, span: 80, take: "signed" },
         ],
       },
       // Mercenary-officer base loyalty (RR ~171 prose).
@@ -3379,8 +3397,19 @@ export const TABLE_RECIPES = {
   // prose beside it, one per slander in the town and one per earlier refusal
   // of the party.
   influence: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 162" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 162, 168" },
     tables: {
+      // The Hireling Loyalty roll's penalty per level an employer is found to
+      // have overstated (RR 168 prose): the signed figure before the clause
+      // that names what it counts, which no other page prints.
+      apparentLevel: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 168,
+        locate: "per apparent difference in level",
+        locateBare: true,
+        values: [{ key: "perLevel", find: "per apparent difference in level", before: true, span: 12, take: "signed" }],
+      },
       hiringOffer: {
         shape: "proseValues",
         book: "rr",

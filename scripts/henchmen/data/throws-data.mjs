@@ -2,8 +2,9 @@
  * Social-roll AUTOMATION config — this module's own, not an imported book
  * table. Maps the universal ACKS 2d6 outcome ladder onto this module's own
  * effect enums (`refuseSlander`, `tryAgain`, `acceptElan`…) and derive keys
- * (`chaMod`, `effectiveLoyalty`…). The hiring throw is the exception: its
- * result column and per-count figures are printed, and arrive by import (see
+ * (`chaMod`, `effectiveLoyalty`…). The hiring throw's result column and
+ * per-count figures, and the loyalty throw's per-level apparent-difference
+ * figure, are printed and arrive by import: an opener hands them in (see
  * `reactionToHiring` below). Ships at SAMPLE priority: a content catalog or
  * world import may still override it by the `throws` doc id.
  *
@@ -117,7 +118,8 @@ export const THROWS_DATA = {
           label: "ACKS-HENCHMEN.mod.effectiveLoyalty", hint: "ACKS-HENCHMEN.mod.effectiveLoyaltyHint",
         },
         {
-          id: "apparentLevelDiff", kind: "auto", control: "stepper", valuePerStep: -1,
+          // Counts levels; the opener hands in what each is worth (RR 168).
+          id: "apparentLevelDiff", kind: "auto", control: "stepper",
           min: 0, max: 13, derive: "apparentLevelDiff",
           label: "ACKS-HENCHMEN.mod.apparentLevelDiff", hint: "ACKS-HENCHMEN.mod.apparentLevelDiffHint",
         },

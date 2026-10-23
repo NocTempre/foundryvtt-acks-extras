@@ -1,6 +1,6 @@
 /**
  * Live walk, henchmen: henchmen + influence.
- * STAGE=1: henchmen steps 14 and 15, influence steps 17–19, on the GM seat.
+ * STAGE=1: henchmen steps 14, 15 and 16, influence steps 17–20, on the GM seat.
  * STAGE=2: henchmen steps 10, 12 (player seat), 13, 3b and 3a.
  * Machine values arrive through ./_env.mjs; nothing here names a port, a
  * world, a seat or a book. Every
@@ -8,12 +8,15 @@
  * name.
  *
  * Writes outside the fixture ledger, each undone at teardown and reported:
- *   - an `influence` override layer at priority 30 (unregistered);
+ *   - an `influence` override layer at priority 30 (unregistered); in
+ *     stage 1 it also holds the apparent-level figure, first as an empty
+ *     table that shadows the world's, then sourced as the limit's base is;
  *   - a `wages` override layer at priority 30 holding the henchman limit's
  *     base, read off the connected book through the shipped recipe, or
  *     invented where no book opens, and only where the world holds none
- *     (unregistered); in stage 2, the employer-level cap's ladder, sourced
- *     the same way;
+ *     (unregistered); in stage 1, the level-gain morale table, shadowed and
+ *     then sourced the same way; in stage 2, the employer-level cap's
+ *     ladder, sourced the same way;
  *   - the GM seat's own client state: the henchmen→influence integration
  *     swap, the dice rig, the patched notification methods and the wrapped
  *     ChatMessage.create (all restored);
@@ -40,6 +43,9 @@ const INVENTED_OFFER = { bands: [{ max: 2 }, { min: 3, max: 5 }, { min: 6, max: 
 const INVENTED_LIMIT = { base: 9 };
 // An invented employer-level ladder, likewise.
 const INVENTED_CAP = { rungs: [{ min: 1, max: 2, cap: 1 }, { min: 3, max: 5, cap: 2 }, { min: 6, max: null, cap: 3, perLevel: 1 }] };
+// An invented apparent-level figure and level-gain morale table, likewise.
+const INVENTED_APPARENT = { perLevel: -3 };
+const INVENTED_LEVEL_MORALE = { fromLevel: 0, fromBonus: 2, reachLevel: 3, reachBonus: 1 };
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -118,6 +124,7 @@ const P = {
       AV: await import(base + "henchmen/rules/availability.mjs"),
       HG: await import(base + "henchmen/engine/hire-group.mjs"),
       WG: await import(base + "henchmen/rules/wages.mjs"),
+      LY: await import(base + "henchmen/rules/loyalty.mjs"),
     };
     /** Click core's confirm ("yes") whenever it appears, for up to `ms`. */
     H.autoYes = async (ms = 6000) => {
@@ -966,6 +973,188 @@ const P = {
     return { synced: !!synced, notes: H.takeNotes(), influenceOpen: !!H.influenceApp(), throwOpen: !!H.appBy("throw-dialog") };
   },
 
+  /** Whether this client reads the apparent-level figure and the level-gain morale rungs, and whether the world's own layer holds each. */
+  printedRead: async () => {
+    const H = globalThis.__c1;
+    const W = H.T.PRIORITY?.WORLD ?? 20;
+    return {
+      apparentKnown: H.m.LY.apparentLevelPenalty() !== null,
+      apparentWorld: Number.isInteger(H.T.getLayer?.("influence", W)?.tables?.apparentLevel?.perLevel),
+      levelKnown: H.m.WG.levelMoraleRungs().length > 0,
+      levelWorld: !!H.T.getLayer?.("wages", W)?.tables?.levelMorale,
+    };
+  },
+  /** One shipped recipe's table read off the connected book and kept in page; nothing is registered or written. */
+  recipeFromBook: async ({ doc, id }) => {
+    const H = globalThis.__c1;
+    const base = "/modules/acks-extras/scripts/importer/";
+    const { TABLE_RECIPES } = await import(base + "table-recipes.mjs");
+    const { locatePageNumber } = await import(base + "tables-binding.mjs");
+    const { extractTable } = await import(base + "table-extract.mjs");
+    const { pageItems } = await import(base + "extract.mjs");
+    const recipe = TABLE_RECIPES[doc].tables[id];
+    const book = H.m.CB.cookbookSessionDoc(recipe.book);
+    if (!book) return { read: false, reason: "book not connected" };
+    const p = await locatePageNumber(book, recipe);
+    if (p == null) return { read: false, reason: "page not found" };
+    const { items } = await pageItems(book, p);
+    const table = extractTable(items, recipe);
+    const keys = recipe.values.map((v) => v.key);
+    if (!keys.every((k) => Number.isInteger(table?.[k]))) return { read: false, reason: "a figure is missing", keys: Object.keys(table ?? {}) };
+    (H.fromBook ??= {})[`${doc}.${id}`] = table;
+    return { read: true };
+  },
+  /**
+   * One table of a document's priority-30 layer, keeping whatever else the
+   * walk holds there: `table` null takes it out, `{}` shadows the world's,
+   * `{fromBook: true}` is the table last read off the book.
+   */
+  layerTable: async ({ doc, id, table }) => {
+    const H = globalThis.__c1;
+    const { [id]: _drop, ...rest } = H.T.getLayer(doc, 30)?.tables ?? {};
+    const put = table?.fromBook ? H.fromBook?.[`${doc}.${id}`] : table;
+    const tables = put == null ? rest : { ...rest, [id]: put };
+    if (Object.keys(tables).length) H.T.registerTable({ id: doc, tables }, { priority: 30, source: "qa-c1" });
+    else H.T.unregisterTable(doc, { priority: 30 });
+    return { apparentKnown: H.m.LY.apparentLevelPenalty() !== null, levelKnown: H.m.WG.levelMoraleRungs().length > 0 };
+  },
+  /** The employer level a hireling was told at hire: the employer's own plus `over`. */
+  claimLevel: async ({ hirelingId, employerId, over }) => {
+    const H = globalThis.__c1;
+    const actor = game.actors.get(hirelingId);
+    const rec = actor.getFlag("acks-extras", "record") ?? {};
+    const claimed = H.A.adapter.getLevel(game.actors.get(employerId)) + over;
+    await actor.setFlag("acks-extras", "record", { ...rec, terms: { ...(rec.terms ?? {}), claimedEmployerLevel: claimed } });
+    return { written: actor.getFlag("acks-extras", "record")?.terms?.claimedEmployerLevel === claimed };
+  },
+  /**
+   * The hosted loyalty page for a hireling, its apparent-level row read from
+   * `_prepareContext`, and with `roll` pressed under a rig: whether the row is
+   * typed by hand, whether its label is the bare field name, whether it counts
+   * `count` levels and adds count × the figure this client reads, and the
+   * notice and badges the page draws; rolled, whether the result is one of the
+   * page's bands and the roll-complete payload's line for the row. Booleans
+   * and counts only.
+   */
+  loyaltyRow: async ({ hirelingId, count, roll = false, u = 0.025 }) => {
+    const H = globalThis.__c1;
+    for (const a of H.apps()) if (a.constructor?.name === "InfluenceApp") await a.close({ force: true });
+    H.takeNotes();
+    H.takeChat();
+    H.A.openLoyaltyRoll(game.actors.get(hirelingId));
+    const app = await H.poll(() => { const a = H.influenceApp(); return a && H.root(a)?.querySelector('[data-action="roll"]') ? a : null; });
+    if (!app) return { opened: false, notes: H.takeNotes(), throwOpen: !!H.appBy("throw-dialog") };
+    const c = await app._prepareContext({});
+    const mod = (c.groups ?? []).flatMap((g) => g.mods ?? []).find((m) => m.key === "apparentLevelDiff");
+    const perLevel = H.m.LY.apparentLevelPenalty();
+    const bare = game.i18n.localize("ACKS-INFLUENCE.mode.loyalty.apparentLevel");
+    const el = H.root(app);
+    const out = {
+      opened: true,
+      found: !!mod,
+      unread: !!mod?.isUnread,
+      labelBare: mod?.label === bare,
+      counted: Number(mod?.value) === count,
+      contributes: perLevel !== null && mod?.contribution === count * perLevel,
+      notice: !!H.text(el.querySelector(".influence-unread-notice")),
+      badges: el.querySelectorAll(".influence-unread-badge").length,
+    };
+    if (roll) {
+      let parts = null;
+      let outcome = null;
+      Hooks.once("acksExtras.influenceRollComplete", (p) => { parts = p?.parts ?? []; outcome = p?.outcome ?? null; });
+      H.rig(u);
+      try {
+        el.querySelector('[data-action="roll"]').click();
+        await H.poll(() => parts !== null || null, { tries: 40, every: 150 });
+        await H.sleep(800);
+      } finally { H.unrig(); }
+      const part = (parts ?? []).find((p) => p.label === bare);
+      out.rolled = parts !== null;
+      out.bandKey = ["hostility", "resignation", "grudging", "loyal", "fanatic"].includes(outcome);
+      out.partShown = !!part;
+      out.partOk = perLevel !== null && part?.value === count * perLevel;
+    }
+    out.chat = H.takeChat();
+    out.notes = H.takeNotes();
+    for (const a of H.apps()) if (a.constructor?.name === "InfluenceApp") await a.close({ force: true });
+    return out;
+  },
+  /** The feature's own loyalty throw (integration swapped): whether it counts `count` levels, takes the figure this client reads per level, and names the count when the figure is unread. */
+  loyaltyOwn: async ({ hirelingId, count }) => {
+    const H = globalThis.__c1;
+    H.takeNotes();
+    H.A.openLoyaltyRoll(game.actors.get(hirelingId));
+    const app = await H.poll(() => { const a = H.appBy("throw-dialog"); return a && H.root(a)?.querySelector('[name^="mod."]') ? a : null; });
+    if (!app) return { opened: false, notes: H.takeNotes(), influenceOpen: !!H.influenceApp() };
+    const el = H.root(app);
+    const perLevel = H.m.LY.apparentLevelPenalty();
+    const step = app.context?.stepValues?.apparentLevelDiff;
+    const info = H.text(el.querySelector(".throw-info"));
+    const out = {
+      opened: true,
+      counted: Number(el.querySelector('[name="mod.apparentLevelDiff"]')?.value) === count,
+      stepIsFigure: perLevel === null ? step === undefined : step === perLevel,
+      info: info.length > 0,
+      infoNamesGap: info === game.i18n.format("ACKS-HENCHMEN.throwUi.apparentLevelUnread", { count }),
+      notes: H.takeNotes(),
+    };
+    await app.close({ force: true });
+    return out;
+  },
+  /**
+   * A level gain written as a sheet edit writes it, then what the watcher
+   * recorded: whether each morale entry it added is a rung the gain crossed,
+   * at that rung's bonus with the level in its note, and which card body
+   * posted. `to` is a level, or the index of a rung this client reads.
+   */
+  gainLevel: async ({ hirelingId, to }) => {
+    const H = globalThis.__c1;
+    const actor = game.actors.get(hirelingId);
+    const rec0 = actor.getFlag("acks-extras", "record") ?? {};
+    const gained0 = rec0.counters?.levelsGainedInService ?? 0;
+    const known = (rec0.counters?.startLevel ?? 0) + gained0;
+    const before = (rec0.morale?.permanents ?? []).length;
+    const rungs = H.m.WG.levelMoraleRungs();
+    const level = typeof to === "number" ? to : rungs[Number(String(to).replace("rung", ""))]?.level;
+    if (!Number.isInteger(level)) return { gained: false, reason: "no rung to reach" };
+    H.takeChat();
+    await actor.update({ "system.details.level": level });
+    const rec = await H.poll(() => { const r = game.actors.get(hirelingId).getFlag("acks-extras", "record"); return (r?.counters?.levelsGainedInService ?? 0) > gained0 ? r : null; }, { tries: 60, every: 150 });
+    await H.poll(() => H.chat.length > 0 || null, { tries: 40, every: 150 });
+    await H.sleep(300);
+    const chat = H.takeChat();
+    const added = (rec?.morale?.permanents ?? []).slice(before);
+    const want = rungs.filter((r) => known < r.level && level >= r.level);
+    const noteOf = (l) => game.i18n.format("ACKS-HENCHMEN.moraleReason.levelNote", { level: l });
+    const textOf = (mid) => H.text(Object.assign(document.createElement("div"), { innerHTML: game.messages.get(mid)?.content ?? "" }));
+    const body = (key) => game.i18n.format(key, { name: actor.name, level });
+    return {
+      gained: true,
+      recorded: !!rec,
+      entries: added.length,
+      want: want.length,
+      match: added.length === want.length && want.every((r, i) => added[i].delta === r.bonus && added[i].reason === "levelGain" && added[i].note === noteOf(r.level) && added[i].compensated === false),
+      unreadCard: chat.some((m) => textOf(m).includes(body("ACKS-HENCHMEN.card.levelGainBodyUnread"))),
+      plainCard: chat.some((m) => textOf(m).includes(body("ACKS-HENCHMEN.card.levelGainBody"))),
+      chat,
+    };
+  },
+  /** The roster's ledger for one hireling: how many morale rows read as a level gain, and whether each note names a rung this client reads. */
+  ledgerShown: async ({ employerId, hirelingId }) => {
+    const H = globalThis.__c1;
+    await H.A.openRosterApp(game.actors.get(employerId));
+    const app = await H.poll(() => { const a = H.appBy("roster-app"); return a && H.root(a)?.querySelector(`[data-actor-id="${hirelingId}"]`) ? a : null; });
+    if (!app) return { rendered: false };
+    const rows = [...H.root(app).querySelectorAll(`[data-actor-id="${hirelingId}"] table.loyalty-ledger tr`)].map((tr) => [...tr.querySelectorAll("td")].map((td) => H.text(td)));
+    const track = game.i18n.localize("ACKS-HENCHMEN.ledger.track.morale");
+    const reason = game.i18n.localize("ACKS-HENCHMEN.moraleReason.levelGain");
+    const notes = H.m.WG.levelMoraleRungs().map((r) => game.i18n.format("ACKS-HENCHMEN.moraleReason.levelNote", { level: r.level }));
+    const shown = rows.filter((c) => c[0] === track && c[2] === reason);
+    await app.close({ force: true });
+    return { rendered: true, shown: shown.length, notesMatch: shown.every((c) => notes.includes(c[3])) };
+  },
+
   closeAll: async () => globalThis.__c1.closeAll(),
   restore: async () => {
     const H = globalThis.__c1 ?? {};
@@ -1290,6 +1479,78 @@ try {
     const pC = await run(gm, P.hosted, { kind: "open", actorId: C.id, ctx });
     const profC = modsOf(pC).filter((m) => /Diplomacy|Intimidation|Seduction|Mystic Aura/.test(m.label ?? ""));
     check("19: the actor holding nothing draws no proficiency box", pC.opened && profC.length === 0, profC);
+    note("closed", await run(gm, P.closeAll));
+
+    // Each figure stands from the world's import where it holds one, else read
+    // off the book through the shipped recipe, else invented; the last two only
+    // in this client's priority-30 layer. Unread is that layer shadowing it.
+    const printed0 = await run(gm, P.printedRead);
+    note("the apparent-level figure and the level-gain rungs as the world reads them", printed0);
+    const standFor = async (doc, id, worldKnown, invented) => {
+      if (worldKnown) return { source: "world", layer: await run(gm, P.layerTable, { doc, id, table: null }) };
+      const fromBook = await run(gm, P.recipeFromBook, { doc, id });
+      note(`${doc}.${id} read off the book`, fromBook);
+      const layer = await run(gm, P.layerTable, { doc, id, table: fromBook.read ? { fromBook: true } : invented });
+      return { source: fromBook.read ? "book" : "invented", layer };
+    };
+
+    section("16 / influence 20. the loyalty roll's apparent-level figure, unread then read");
+    const hD = await gm.create("Actor", { name: `QA Doubter ${NONCE}`, type: "character", system: { retainer: { category: "henchman" } }, items: [] });
+    note("link the doubter to A", await run(gm, P.link, { employerId: A.id, hirelingId: hD.id, wage: 5 }));
+    note("told A's level plus two", await run(gm, P.claimLevel, { hirelingId: hD.id, employerId: A.id, over: 2 }));
+    note("unread", await run(gm, P.layerTable, { doc: "influence", id: "apparentLevel", table: printed0.apparentKnown ? {} : null }));
+    const l20a = await run(gm, P.loyaltyRow, { hirelingId: hD.id, count: 2, roll: true });
+    for (const id of l20a.chat ?? []) gm.track(id, "ChatMessage");
+    note("loyalty page, unread", l20a);
+    check("16: unread, the apparent-level row is a typed field with the unread badge under its bare name, the page shows no notice, and it rolls to one of its own bands with no line for the row", l20a.opened && l20a.found && l20a.unread && l20a.labelBare && l20a.badges >= 1 && !l20a.notice && l20a.rolled && l20a.bandKey && !l20a.partShown, l20a);
+    note("integration hidden", await run(gm, P.swapIntegration, { hosts: false }));
+    const o20a = await run(gm, P.loyaltyOwn, { hirelingId: hD.id, count: 2 });
+    note("the feature's own loyalty throw, unread", o20a);
+    check("16: unread, the fallback throw counts the two levels, takes no per-level figure, and its info line names the count", o20a.opened && o20a.counted && o20a.stepIsFigure && o20a.infoNamesGap, o20a);
+    note("integration back", await run(gm, P.swapIntegration, { hosts: true }));
+    const apparent = await standFor("influence", "apparentLevel", printed0.apparentWorld, INVENTED_APPARENT);
+    note("the apparent-level figure stands", apparent);
+    check("changed: the apparent-level figure stands, from the world's import or read off the book through the shipped recipe", apparent.layer.apparentKnown && (apparent.source === "world" || apparent.source === "book"), { source: apparent.source });
+    const l20b = await run(gm, P.loyaltyRow, { hirelingId: hD.id, count: 2, roll: true });
+    for (const id of l20b.chat ?? []) gm.track(id, "ChatMessage");
+    note("loyalty page, read", l20b);
+    check("16: read, the row counts the two levels and adds two times the figure, the figure beside its name and no badge, and the roll's payload carries that line", l20b.opened && l20b.found && !l20b.unread && !l20b.labelBare && l20b.counted && l20b.contributes && l20b.badges === 0 && !l20b.notice && l20b.rolled && l20b.bandKey && l20b.partOk, l20b);
+    note("integration hidden", await run(gm, P.swapIntegration, { hosts: false }));
+    const o20b = await run(gm, P.loyaltyOwn, { hirelingId: hD.id, count: 2 });
+    note("the feature's own loyalty throw, read", o20b);
+    check("16: read, the fallback throw's stepper takes the figure per level and shows no info line", o20b.opened && o20b.counted && o20b.stepIsFigure && !o20b.info, o20b);
+    note("integration back", await run(gm, P.swapIntegration, { hosts: true }));
+    note("apparent-level layer lifted", await run(gm, P.layerTable, { doc: "influence", id: "apparentLevel", table: null }));
+
+    section("16. the level-gain morale bonuses, unread then read");
+    const z0 = await gm.create("Actor", { name: `QA Novice unread ${NONCE}`, type: "character", system: { details: { level: 0 }, retainer: { category: "henchman" } }, items: [] });
+    note("link the unread novice to A", await run(gm, P.link, { employerId: A.id, hirelingId: z0.id, wage: 5 }));
+    note("unread", await run(gm, P.layerTable, { doc: "wages", id: "levelMorale", table: printed0.levelKnown ? {} : null }));
+    const g0 = await run(gm, P.gainLevel, { hirelingId: z0.id, to: 1 });
+    for (const id of g0.chat ?? []) gm.track(id, "ChatMessage");
+    note("level gain, unread", g0);
+    check("16: unread, a level gain records no morale bonus and its card says the bonuses are not imported", g0.gained && g0.recorded && g0.entries === 0 && g0.unreadCard && !g0.plainCard, g0);
+    const rungs = await standFor("wages", "levelMorale", printed0.levelWorld, INVENTED_LEVEL_MORALE);
+    note("the level-gain rungs stand", rungs);
+    check("changed: the level-gain morale rungs stand, from the world's import or read off the book through the shipped recipe", rungs.layer.levelKnown && (rungs.source === "world" || rungs.source === "book"), { source: rungs.source });
+    const z1 = await gm.create("Actor", { name: `QA Novice read ${NONCE}`, type: "character", system: { details: { level: 0 }, retainer: { category: "henchman" } }, items: [] });
+    note("link the read novice to A", await run(gm, P.link, { employerId: A.id, hirelingId: z1.id, wage: 5 }));
+    const g1 = await run(gm, P.gainLevel, { hirelingId: z1.id, to: "rung0" });
+    for (const id of g1.chat ?? []) gm.track(id, "ChatMessage");
+    note("level gain onto the first rung", g1);
+    check("16: read, reaching the first rung records one morale entry at its bonus, its note naming the level, under the plain card", g1.gained && g1.recorded && g1.want === 1 && g1.entries === 1 && g1.match && g1.plainCard && !g1.unreadCard, g1);
+    const g2 = await run(gm, P.gainLevel, { hirelingId: z1.id, to: "rung1" });
+    for (const id of g2.chat ?? []) gm.track(id, "ChatMessage");
+    note("level gain onto the second rung", g2);
+    check("16: read, reaching the second rung records the second entry the same way", g2.gained && g2.recorded && g2.want === 1 && g2.entries === 1 && g2.match && g2.plainCard, g2);
+    const led = await run(gm, P.ledgerShown, { employerId: A.id, hirelingId: z1.id });
+    note("roster ledger", led);
+    check("16: the roster's ledger shows both as level gains on the morale track, each note naming a rung's level", led.rendered && led.shown === 2 && led.notesMatch, led);
+    const g3 = await run(gm, P.gainLevel, { hirelingId: z0.id, to: 2 });
+    for (const id of g3.chat ?? []) gm.track(id, "ChatMessage");
+    note("the unread novice's next gain", g3);
+    check("16: a gain recorded while unread is not made up later: the unread novice's next gain records only the rungs it crosses itself", g3.gained && g3.recorded && g3.entries === g3.want && g3.match, g3);
+    note("level-gain layer lifted", await run(gm, P.layerTable, { doc: "wages", id: "levelMorale", table: null }));
     note("closed", await run(gm, P.closeAll));
   }
 

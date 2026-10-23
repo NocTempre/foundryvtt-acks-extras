@@ -99,6 +99,17 @@ document's `hiringOffer`, which the `influence` recipe fills. The henchmen
 feature's own hiring throw reads that same table (`docs/henchmen/MODEL.md`
 §2, "The hiring figures").
 
+A row may name a table of its own in the same two keys, and reads it in place
+of the mode's. The `loyalty` page (RR 166) is the case: its result column is
+the mode's own `bands`, so the mode names no table, and its one printed figure,
+the apparent-level row's per-level figure (RR 168), is a `printedFactor` naming
+the `influence` document's `apparentLevel`. The row counts the levels its
+opener hands in (`ctx.apparentLevelDiff`). Read, the count is owed that figure
+each; unread, the row is a typed field with the *unread* badge, and the page
+shows no notice, since its column is not waiting on an import. The henchmen
+feature's fallback loyalty throw reads the same figure
+(`docs/henchmen/MODEL.md` §3).
+
 `modeRows` (`printed.mjs`) turns the declared rows into the rows the dialog
 draws, against what the world holds:
 
@@ -110,8 +121,9 @@ draws, against what the world holds:
 
 A ladder stores the **position** of the chosen rung, not its figure, so two
 rungs that print one figure stay two options and a rung printing zero is not
-the blank. A row left as a typed field carries an *unread* badge, and the page
-says once, above its rows, that its table has not been imported. The label of
+the blank. A row left as a typed field carries an *unread* badge, and a page
+naming a table says once, above its rows, that its table has not been
+imported. The label of
 every row names the field and cites its page; the wording of a rung is the
 reader's own page and exists in no file of this repo.
 

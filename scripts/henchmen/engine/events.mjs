@@ -16,8 +16,8 @@
 import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST } from "../constants.mjs";
 import { isPrimaryGM } from "../../lib/util.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
-import { effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey } from "../rules/loyalty.mjs";
-import { henchmanWage, mercenaryWage } from "../rules/wages.mjs";
+import { effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey, apparentLevelPenalty } from "../rules/loyalty.mjs";
+import { henchmanWage, mercenaryWage, levelMoraleBumps } from "../rules/wages.mjs";
 import { FLAG_GROUP_PAY } from "./hire-group.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
 import { collectEffectModifiers, sumEffectModifiers, toDialogModifiers, hasEffectFlag, unvaluedDialogModifiers } from "../effects.mjs";
@@ -162,10 +162,11 @@ export function openLoyaltyRoll(actor, opts = {}) {
   const employer = adapter.getManager(actor);
 
   // RR 168 presented-level lie: once a henchman has cause to doubt, the roll
-  // takes −1 per level of difference between what was CLAIMED at hire and
-  // the truth — auto-applied, GM-overridable like every derived value. Only
-  // a henchman weighs the employer's level (RR ch. 4), so a mercenary or
-  // specialist told the same lie by the same posting takes none.
+  // counts the levels between what was CLAIMED at hire and the truth, each
+  // worth the imported per-level figure — auto-applied, GM-overridable like
+  // every derived value. Only a henchman weighs the employer's level (RR ch.
+  // 4), so a mercenary or specialist told the same lie by the same posting
+  // counts none.
   const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
   const claimed = record.terms?.claimedEmployerLevel;
   const henchman = adapter.getRetainer(actor).category === "henchman";
@@ -192,10 +193,18 @@ export function openLoyaltyRoll(actor, opts = {}) {
   }
 
   const dynamicModifiers = employer ? toDialogModifiers(collectEffectModifiers(employer, "loyaltyRoll")) : [];
+  // The stepper counts the levels; what each is worth is the import's. Unread,
+  // the count adds nothing, so a count above zero is named for the Judge.
+  const perLevel = apparentLevelPenalty();
   openThrowDialog("hirelingLoyalty", {
     title: opts.title ?? `${actor.name}${opts.reason ? ` (${opts.reason})` : ""}`,
     actor,
     derived: { effectiveLoyalty: effectiveLoyaltyFor(actor), apparentLevelDiff },
+    stepValues: perLevel === null ? {} : { apparentLevelDiff: perLevel },
+    infoText:
+      perLevel === null && apparentLevelDiff > 0
+        ? game.i18n.format("ACKS-HENCHMEN.throwUi.apparentLevelUnread", { count: apparentLevelDiff })
+        : "",
     dynamicModifiers,
     onResolve: (result) => applyLoyaltyOutcome(actor, { outcome: result.outcome, total: result.total, note: opts.reason ?? "" }),
   });
@@ -772,16 +781,23 @@ async function onUpdateActor(actor, changes) {
         levelsGainedInService: (record.counters?.levelsGainedInService ?? 0) + (newLevel - known),
       };
       let morale = record.morale ?? { base: 0, permanents: [] };
-      // Permanent morale bumps: 0th → first level, and reaching 5th (RR 166).
-      const bumps = [];
-      if (known === 0 && newLevel >= 1) bumps.push({ time: now(), delta: 1, reason: "firstLevel", note: "", compensated: false });
-      if (known < 5 && newLevel >= 5) bumps.push({ time: now(), delta: 1, reason: "fifthLevel", note: "", compensated: false });
+      // Permanent morale bumps at the levels the imported table names (RR
+      // 166), each entry noting the level that earned it. Unread, none is
+      // recorded and the card says so.
+      const crossed = levelMoraleBumps(known, newLevel);
+      const bumps = (crossed ?? []).map(({ level, bonus }) => ({
+        time: now(),
+        delta: bonus,
+        reason: "levelGain",
+        note: game.i18n.format("ACKS-HENCHMEN.moraleReason.levelNote", { level }),
+        compensated: false,
+      }));
       if (bumps.length) morale = { ...morale, permanents: [...(morale.permanents ?? []), ...bumps] };
       await actor.setFlag(MODULE_ID, FLAG_RECORD, { ...record, counters, morale });
       await addLoyaltyPermanent(actor, newLevel - known, "levelGain");
       await postEventCard({
         titleKey: "ACKS-HENCHMEN.card.levelGainTitle",
-        bodyKey: "ACKS-HENCHMEN.card.levelGainBody",
+        bodyKey: crossed === null ? "ACKS-HENCHMEN.card.levelGainBodyUnread" : "ACKS-HENCHMEN.card.levelGainBody",
         data: { name: actor.name, level: newLevel },
         buttons: [
           { action: "rollLoyaltySecret", label: "ACKS-HENCHMEN.card.rollLoyalty", icon: "fas fa-user-secret", payload: { actorUuid: actor.uuid, reason: game.i18n.localize("ACKS-HENCHMEN.loyaltyReason.levelGain") } },

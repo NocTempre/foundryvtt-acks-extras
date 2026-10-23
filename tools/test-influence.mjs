@@ -439,6 +439,57 @@ t("a read hiring page owes each count the page's figure, under the mode's rung n
   resetTables();
 });
 
+/* --- the loyalty page: one printed figure on a page whose result column is not --- */
+
+t("the loyalty page names its one printed figure's table on the row and ships no figure for it", () => {
+  const mode = EXTERNAL_MODES.loyalty;
+  assert.equal(mode.printed, undefined, "the page names no table of its own");
+  const declared = mode.groups.flatMap((g) => g.mods).find((m) => m.key === "apparentLevelDiff");
+  assert.deepEqual(
+    { type: declared.type, printed: declared.printed, printedDoc: declared.printedDoc, factor: declared.factor, auto: declared.auto },
+    { type: "printedFactor", printed: "apparentLevel", printedDoc: INFLUENCE_DOC, factor: undefined, auto: "ctx:apparentLevelDiff" },
+  );
+});
+
+t("an unread loyalty figure is typed by hand and leaves the page's other rows alone", () => {
+  resetTables();
+  const mode = EXTERNAL_MODES.loyalty;
+  const declared = mode.groups.flatMap((g) => g.mods).find((m) => m.key === "apparentLevelDiff");
+  assert.deepEqual(rowOf(mode, "apparentLevelDiff"), { key: "apparentLevelDiff", label: declared.label, type: "signed", unread: true });
+  assert.equal(rowOf(mode, "effectiveLoyalty").auto, "ctx:effectiveLoyalty", "a row with no printed figure passes through");
+  // A hiring import is another table of the same document.
+  registerTable(INVENTED_HIRING, { priority: PRIORITY.WORLD });
+  assert.equal(rowOf(mode, "apparentLevelDiff").unread, true);
+  resetTables();
+});
+
+t("a read loyalty figure is owed once per level counted", () => {
+  resetTables();
+  registerTable({ id: INFLUENCE_DOC, tables: { apparentLevel: { perLevel: -5 } } }, { priority: PRIORITY.WORLD });
+  const row = rowOf(EXTERNAL_MODES.loyalty, "apparentLevelDiff");
+  assert.deepEqual(
+    { type: row.type, factor: row.factor, auto: row.auto, showFigure: row.showFigure },
+    { type: "factor", factor: -5, auto: "ctx:apparentLevelDiff", showFigure: true },
+  );
+  resetTables();
+});
+
+t("a row naming its own table reads it, beside rows reading the mode's", () => {
+  resetTables();
+  registerTable({ id: MORALE_DOC, tables: { pageTable: { figure: 2 } } }, { priority: PRIORITY.WORLD });
+  registerTable({ id: INFLUENCE_DOC, tables: { rowTable: { figure: -4 } } }, { priority: PRIORITY.WORLD });
+  const mode = {
+    printed: "pageTable",
+    groups: [{ group: "g", mods: [
+      { key: "fromPage", type: "printed", figure: "figure", label: "a" },
+      { key: "fromRow", type: "printedFactor", printed: "rowTable", printedDoc: INFLUENCE_DOC, figure: "figure", label: "b" },
+    ] }],
+  };
+  assert.equal(rowOf(mode, "fromPage").value, 2, "the mode's table, in the morale document");
+  assert.equal(rowOf(mode, "fromRow").factor, -4, "the row's own table, in its own document");
+  resetTables();
+});
+
 /** A roller's effect rows as the hiring page reads them: Active Effects, then the abilities model. */
 const rollerRows = (roller) => [...getEffectReactionMods(roller), ...getAbilityReactionMods(roller, itemsWithReactionEffects(roller))];
 const heldRow = (held, key) => held.groups.flatMap((g) => g.mods).find((m) => m.key === key);

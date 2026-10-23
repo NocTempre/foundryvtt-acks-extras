@@ -40,10 +40,12 @@ const TABLES = {
   // list each, every modifier with the wording of its own row.
   morale: ["monsterMorale", "hirelingObedience"],
   // The hiring offer: a result column and the two penalties beside it.
-  influence: ["hiringOffer"],
+  // The loyalty roll's figure per level of apparent difference.
+  influence: ["hiringOffer", "apparentLevel"],
   // The henchman limit's base: one figure the roster counts every hire against.
   // The employer-level cap: the ladder a leveled henchman search is judged on.
-  wages: ["henchmanLimit", "employerLevelCap"],
+  // The level-gain morale bonuses: two levels and the bonus each earns.
+  wages: ["henchmanLimit", "employerLevelCap", "levelMorale"],
   // The domain month: every table its procedure runs on.
   domain: [
     "strongholdMinimum", "growth", "prestigeImmigration", "revenue", "expenses", "peace",
@@ -233,6 +235,22 @@ VERIFY["influence.hiringOffer"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   for (const key of ["slanderPenalty", "refusalPenalty"]) if (isNum(out?.[key]) && !(out[key] < 0)) fail(`${key}: not below zero`);
   bandLadder(out?.bands, "bands", fail, 5);
+};
+// The loyalty roll's apparent-level figure: multiplied by a count of levels,
+// so a whole number below zero the reader accepts as it stands.
+VERIFY["influence.apparentLevel"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.perLevel) && !(Number.isInteger(out.perLevel) && out.perLevel < 0)) fail("perLevel: not a whole number below zero");
+};
+// The level-gain morale bonuses: whole levels, the rung the first names (one
+// above the level left) below the one the second reaches, and each bonus a
+// positive whole number, so the reader keeps both rungs.
+VERIFY["wages.levelMorale"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  const whole = (v) => Number.isInteger(v) && v >= 0;
+  for (const key of ["fromLevel", "reachLevel"]) if (isNum(out?.[key]) && !whole(out[key])) fail(`${key}: not a whole number`);
+  for (const key of ["fromBonus", "reachBonus"]) if (isNum(out?.[key]) && !(Number.isInteger(out[key]) && out[key] > 0)) fail(`${key}: not a positive whole number`);
+  if (whole(out?.fromLevel) && whole(out?.reachLevel) && !(out.fromLevel + 1 < out.reachLevel)) fail("reachLevel: not above the first rung");
 };
 // The henchman limit's base: a whole number the reader accepts as it stands.
 VERIFY["wages.henchmanLimit"] = (out, recipe, fail) => {

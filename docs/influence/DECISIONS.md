@@ -513,3 +513,36 @@ beside it, refuse to roll until the Judge re-imports the Revised Rulebook's
 tables. A character holding a tone proficiency whose import located no value
 types the figure off the page. The three tone pages still offer their
 proficiency boxes at a shipped figure ([ROADMAP.md](ROADMAP.md) §3).
+
+### The loyalty page's apparent-level figure is read from a table its row names (2026-10-23)
+
+**Ruled.**
+- *The figure is printed and arrives through the importer.* What each level
+  of apparent difference costs the Hireling Loyalty roll is read off RR 168
+  into the `influence` document's `apparentLevel` table, by the `influence`
+  recipe. The row held it as a `factor` literal, and its label stated it too;
+  both are gone, and the figure is shown beside the label once read, as on
+  every printed row.
+- *The row names its table; the mode does not.* `modeRows` reads a row's own
+  `printed` / `printedDoc` before the mode's. A mode naming a table means its
+  result column is that table's: the page reads its bands from it, refuses to
+  roll without them unless it posts without bands, and shows the
+  waiting-on-import notice. The loyalty page's column is its own `bands`, so
+  none of that applies to it, and one printed figure on it does not make it a
+  printed page.
+- *Unread, the row is typed by hand.* It carries the *unread* badge, as every
+  unread printed row does; the page shows no notice, because nothing else on
+  it waits on an import.
+
+**Rejected.**
+- *Naming the table on the mode.* The page's bands, its unread notice and its
+  refusal to roll all key on the mode's table; each would have needed a
+  second condition to keep reading the mode's own column.
+- *The figure in the henchmen feature's `wages` document.* This page is its
+  reader, and the hiring page beside it already reads the `influence`
+  document; the henchmen feature reads the figure from there, as it does the
+  hiring figures.
+
+**What it cost.** Until the Judge imports the Revised Rulebook's tables, a
+henchman's loyalty roll types the apparent-level penalty by hand. A world that
+imported before this change is named in the missing-tables notice.

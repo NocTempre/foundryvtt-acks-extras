@@ -223,6 +223,20 @@ Steps:
     holding nothing draws no proficiency box at all. The same holds on the
     markets feature's assessment page.
 
+## The loyalty page
+
+The page opens from the henchmen feature's `openLoyaltyRoll` on a henchman
+whose record claims a higher employer level; the fixtures, the unread and
+read layers and the drive are docs/henchmen/TESTING.md step 16.
+
+20. Open the page with the `influence` document's `apparentLevel` unread,
+    then read, and press **Roll** each time.
+    *Observable:* unread, the apparent-level row is a typed field with the
+    unread badge and the page shows no notice, since its result column is
+    its own; the roll names a band. Read, the row shows the figure each level
+    adds and contributes the count times it, and the roll-complete payload's
+    `parts` carry that line.
+
 ## Teardown
 
 Delete the influencer, the target, and every `acks-extras.attitude` item the

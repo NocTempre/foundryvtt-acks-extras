@@ -467,6 +467,41 @@ a step it does not name is walked by hand.
       *Observable:* the throw dialog's refusal and slander steppers show the
       page's figure per step and the card names the imported band; with the
       document gone, the warning names the table and no dialog opens.
+16. The apparent-level figure and the level-gain morale bonuses, each first
+    unread and then read. Unread is a priority-30 layer holding an empty
+    table where the world's import holds one; read is the world's own, or
+    the table read off the connected book through the shipped recipe
+    (`TABLE_RECIPES.influence.tables.apparentLevel`,
+    `TABLE_RECIPES.wages.tables.levelMorale`) into that layer. Fixtures: on
+    employer A from step 14, a henchman linked through core's confirm whose
+    record's `terms.claimedEmployerLevel` is A's level + 2, and two
+    `character` actors created at `system.details.level: 0` with
+    `system.retainer.category: "henchman"`, each linked the same way. A level
+    gain is `actor.update({"system.details.level": n})`, the update a sheet
+    edit makes; the watcher runs on the primary GM's client, so the seat that
+    writes the layer must be the active GM.
+    - `openLoyaltyRoll(henchman)`, read the `InfluenceApp`'s
+      `_prepareContext({})`, and press **Roll** under a dice rig.
+      *Observable:* unread, the apparent-level row is a typed field with the
+      unread badge under its bare name, the page shows no notice, and the roll
+      names one of the page's bands with no line for the row in the
+      roll-complete payload's `parts`. Read, the row's value is 2, its
+      contribution two times the figure, the figure is beside its name, and
+      the payload's line for it carries that contribution.
+    - The same with the integration swapped (step 14's `ns`).
+      *Observable:* the throw dialog's apparent-level stepper reads 2; unread,
+      `context.stepValues` holds no figure for it and the info line names the
+      count; read, the step is the figure and there is no info line.
+    - Raise the first level-0 actor to 1 while unread; read, raise the second
+      to the first rung's level and then the second rung's, open the roster,
+      and raise the first to 2.
+      *Observable:* unread, the record gains no morale entry and the card says
+      the bonuses are not imported. Read, each gain adds one
+      `morale.permanents` entry at its rung's bonus, reason `levelGain`, its
+      note the rung's level, under the plain card, and the roster's ledger
+      shows both on the morale track. The first actor's gain to 2 adds no
+      entry: the rung it crossed while unread is not made up.
+      Walked by `tools/live/henchmen.mjs` stage 1, section 16.
 
 The reference repair's check in the repair tool (`henchmen.references`) is
 walked in docs/lib/TESTING.md, "The repair tool".

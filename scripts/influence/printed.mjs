@@ -49,6 +49,10 @@ export function printedLabel(tableId, key, docId = MORALE_DOC) {
  *    of something. Read, it becomes a `factor` of that figure, keeping the
  *    row's `auto` count.
  *
+ * A row reads the mode's table unless it names its own in `printed` and
+ * `printedDoc`, as a page whose result column is not printed does for the one
+ * figure that is.
+ *
  * Any of them, unread, becomes a `signed` field flagged `unread`: the Judge
  * types the figure off their own page. Every other row passes through
  * untouched, and a group keeps the keys it declared beside its rows.
@@ -56,10 +60,10 @@ export function printedLabel(tableId, key, docId = MORALE_DOC) {
  * @returns {Array<{group: string, mods: object[]}>}
  */
 export function modeRows(mode) {
-  const tableId = mode?.printed;
-  const docId = mode?.printedDoc ?? MORALE_DOC;
   const unread = (mod) => ({ key: mod.key, label: mod.label, type: "signed", unread: true });
   const row = (mod) => {
+    const tableId = mod.printed ?? mode?.printed;
+    const docId = mod.printedDoc ?? mode?.printedDoc ?? MORALE_DOC;
     if (mod.type === "ladder") {
       const rungs = (mod.rungs ?? [])
         .map((key) => ({ figure: printedFigure(tableId, key, docId), printedLabel: printedLabel(tableId, key, docId) }))

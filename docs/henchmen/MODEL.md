@@ -160,6 +160,28 @@ one where a level is presented, and refuses a search above the cap. Where
 the world holds no rung for that level the cap is null and nothing is
 refused.
 
+A level gain in service (`engine/events.mjs`, the actor-update watcher on the
+primary GM) earns the permanent morale bonuses of the imported
+`wages.levelMorale` table (RR 166). `rules/wages.mjs > levelMoraleRungs`
+reads it as rungs `{level, bonus}`: the page names one by the level a
+hireling leaves, which keys the rung one above it, and one by the level
+reached. `levelMoraleBumps` gives the rungs a gain from the record's known
+level crosses, and the watcher appends one `morale.permanents` entry per
+rung, reason `levelGain`, its note naming the level. With no rung imported
+it is null: no entry is recorded and the level-gain card says the bonuses
+are not imported. A gain made then is not made up by a later import. Entries
+recorded before the levels were imported carry reason `firstLevel` or
+`fifthLevel` and read as the same level-gain label.
+
+The Hireling Loyalty roll counts a henchman's levels of apparent difference,
+the employer level claimed at hire (`terms.claimedEmployerLevel`) less the
+employer's own (RR 168). What each level costs is the `influence` document's
+imported `apparentLevel.perLevel`. The influence-hosted page reads it
+(`docs/influence/MODEL.md`, "Printed pages"), and so does this feature's own
+throw: `openLoyaltyRoll` hands `rules/loyalty.mjs > apparentLevelPenalty`
+in as the stepper's per-step figure. Unread, the throw takes no figure for
+the count and its info line names the count for the Judge to add by hand.
+
 ## 4. The Active Effect contract (data-driven modifiers)
 
 **Mechanics live on proficiency/power Items as Active Effect changes — never

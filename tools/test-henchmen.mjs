@@ -307,6 +307,76 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
+// ---- the level-gain morale bonuses and the apparent-level figure: imported, never shipped ----
+// Every figure and every word but the recipes' anchors are invented.
+{
+  const { levelMoraleRungs, levelMoraleBumps } = await import(new URL("../scripts/henchmen/rules/wages.mjs", import.meta.url));
+  const { apparentLevelPenalty } = await import(new URL("../scripts/henchmen/rules/loyalty.mjs", import.meta.url));
+  const { extractTable } = await import(new URL("../scripts/importer/table-extract.mjs", import.meta.url));
+  const { TABLE_RECIPES } = await import(new URL("../scripts/importer/table-recipes.mjs", import.meta.url));
+  const withTables = (docs, fn) => {
+    const saved = globalThis.acksExtras;
+    try {
+      globalThis.acksExtras = { lib: { tables: { hasDoc: (doc) => docs[doc] !== undefined, getTable: (doc, id) => docs[doc]?.[id] ?? null } } };
+      fn();
+    } finally {
+      globalThis.acksExtras = saved;
+    }
+  };
+  const page = (lines) => lines.map((str, i) => ({ x: 320, y: 100 + i * 12, str }));
+
+  // The first item names the level left, the second the level reached, and a
+  // superscript suffix sorts in as a word of its own.
+  const levelMorale = TABLE_RECIPES.wages.tables.levelMorale;
+  const [leaves, , reaches] = levelMorale.values.map((v) => v.find);
+  const read = extractTable(page([
+    "Badgers keep a sett score of +3, and 2 cousins may add to it:",
+    `th A lasting +2 bonus to sett score when a 6${leaves} seventh burrow (or a second sett).`,
+    `A lasting +3 bonus to sett score when a badger rd gains his 9 ${reaches}.`,
+    "A lasting -1 penalty for a badger who lost 4 setts.",
+  ]), levelMorale);
+  assert.deepStrictEqual(read, { fromLevel: 6, fromBonus: 2, reachLevel: 9, reachBonus: 3 }, "the recipe reads each item's level and bonus");
+  withTables({ wages: { levelMorale: read } }, () => {
+    assert.deepStrictEqual(levelMoraleRungs(), [{ level: 7, bonus: 2 }, { level: 9, bonus: 3 }], "the level left keys the rung one above it");
+    assert.deepStrictEqual(levelMoraleBumps(6, 7), [{ level: 7, bonus: 2 }], "a gain onto a rung earns it");
+    assert.deepStrictEqual(levelMoraleBumps(5, 10), [{ level: 7, bonus: 2 }, { level: 9, bonus: 3 }], "a gain past both earns both");
+    assert.deepStrictEqual(levelMoraleBumps(7, 8), [], "a gain that crosses no rung earns none, and is not unread");
+    assert.deepStrictEqual(levelMoraleBumps(9, 12), [], "nor does one starting on the top rung");
+  });
+  withTables({ wages: { levelMorale: { reachLevel: 3, reachBonus: -2 } } }, () => {
+    assert.deepStrictEqual(levelMoraleBumps(0, 3), [{ level: 3, bonus: -2 }], "one rung read is kept alone, and a negative figure is a figure");
+  });
+  for (const [docs, label] of [
+    [{}, "nothing imported"],
+    [{ wages: { levelMorale: {} } }, "an empty table"],
+    [{ wages: { levelMorale: { fromLevel: "6", fromBonus: 2, reachLevel: 9, reachBonus: 1.5 } } }, "a level read as text and a fractional bonus"],
+    [{ wages: { levelMorale: { fromLevel: -1, fromBonus: 2, reachLevel: 9, reachBonus: null } } }, "a negative level and a blank bonus"],
+  ]) {
+    withTables(docs, () => {
+      assert.deepStrictEqual(levelMoraleRungs(), [], `${label}: no rung`);
+      assert.strictEqual(levelMoraleBumps(0, 20), null, `${label}: unread, not a gain that earns nothing`);
+    });
+  }
+
+  const apparentLevel = TABLE_RECIPES.influence.tables.apparentLevel;
+  const figure = extractTable(page([`A badger with 4 setts rolls at -3 ${apparentLevel.values[0].find}, and 2 cousins watch.`]), apparentLevel);
+  assert.deepStrictEqual(figure, { perLevel: -3 }, "the recipe reads the signed figure before its clause");
+  withTables({ influence: { apparentLevel: figure } }, () => {
+    assert.strictEqual(apparentLevelPenalty(), -3, "the reader takes what the recipe extracts");
+  });
+  withTables({ influence: { apparentLevel: { perLevel: 0 } } }, () => {
+    assert.strictEqual(apparentLevelPenalty(), 0, "zero is a figure");
+  });
+  for (const [docs, label] of [[{}, "nothing imported"], [{ influence: { apparentLevel: {} } }, "an empty table"], [{ influence: { apparentLevel: { perLevel: "-3" } } }, "a figure read as text"], [{ influence: { apparentLevel: { perLevel: -0.5 } } }, "a fractional figure"]]) {
+    withTables(docs, () => assert.strictEqual(apparentLevelPenalty(), null, `${label}: no figure`));
+  }
+
+  // The fallback throw carries no figure of its own for the count.
+  const { THROWS_DATA } = await import(new URL("../scripts/henchmen/data/throws-data.mjs", import.meta.url));
+  const row = THROWS_DATA.throws.hirelingLoyalty.modifiers.find((m) => m.id === "apparentLevelDiff");
+  assert.strictEqual(row.valuePerStep, undefined, "the opener hands in what each level is worth");
+}
+
 // ---- what a network posting reaches, and what its holder's roll adds ----
 {
   const { postingSegments, networkSupplement, henchmanLevels } = await import(new URL("../scripts/henchmen/rules/availability.mjs", import.meta.url));
