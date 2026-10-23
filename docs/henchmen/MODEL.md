@@ -131,11 +131,15 @@ Employer-side flags: `monsterHenchmenList[]` (monster roster — core
 `addHenchman` accepts only characters), `retainBonus` (manual extra slots),
 `apparent {monthlySpendGp, lastCheckTime}`.
 
-The henchman limit (`acks-adapter.mjs > getRetainMax`) is core's derived
-Charisma allowance (`system.scores.cha.retain`), plus the typed `retainBonus`
-effects, plus that manual flag. An employer whose system data carries no
-allowance, which is every actor but a character, has no limit: `max` is null,
-no hire is refused or warned for it, and the roster shows the limit as unknown.
+The henchman limit (`acks-adapter.mjs > getRetainMax`) is the imported base
+(`wages.henchmanLimit`, RR 168, read by `rules/wages.mjs > henchmanLimitBase`)
+plus the employer's Charisma modifier (`system.scores.cha.mod`), plus the
+typed `retainBonus` effects, plus that manual flag. An employer with no
+Charisma score (every actor but a character), or a world that has not
+imported the base, has no limit: `max` is null, no hire is refused or warned
+for it, and the roster shows the limit as unknown. `checkHenchmanLimit`'s
+`why` (`acks-adapter.mjs > retainGap`) says which gap it is, the actor's own
+first, and the roster tooltip names it.
 
 ## 4. The Active Effect contract (data-driven modifiers)
 

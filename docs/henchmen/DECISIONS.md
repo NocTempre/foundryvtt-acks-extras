@@ -715,6 +715,9 @@ before, now appears there unticked on every hiring roll.
 
 ### The henchman limit rests on core's Charisma allowance or on nothing (2026-10-16)
 
+*Superseded 2026-10-23 by "The henchman limit's base is imported, and
+Charisma adds to it" below.*
+
 `acks-adapter.mjs > getRetainBase` read core's `system.scores.cha.retain`,
 and where that was absent or zero it built the allowance itself from the
 Charisma modifier with the book's own formula. That formula is a printed value
@@ -782,3 +785,45 @@ Rulebook's tables.
 **What it cost.** An upgraded world cannot roll a hiring offer, hosted or
 not, until the Judge re-imports the Revised Rulebook's tables. A peaceful
 monster offer still opens this feature's own dialog, not the hosted page.
+
+### The henchman limit's base is imported, and Charisma adds to it (2026-10-23)
+
+Supersedes "The henchman limit rests on core's Charisma allowance or on
+nothing" (2026-10-16).
+
+**New evidence.** Core 14.1.0 no longer derives `system.scores.cha.retain`
+(core commit 19d73f9), and its m5 migration deletes the field from stored
+actors. The earlier ruling read that field as the whole allowance, so since
+extras 11.7.0 every employer on that core has had no limit at all: `max`
+null, every hire admitted under every `enforceHenchmanLimit` mode, the roster
+reading `count / —`. Core's only remaining figure for the allowance is
+computed inside a sheet's display context
+(`CharacterModifiersInfo._prepareContext`), a render path and not a source.
+
+**Ruled.**
+- *The base is a printed value and arrives through the importer.* The
+  `wages` recipe's `henchmanLimit` table reads the one figure the Revised
+  Rulebook prints for it (RR 168), beside `baseLoyalty`, on the
+  `proseValues` path a printed figure takes (importer DECISIONS 2026-08-29,
+  "A printed floor and a printed rate are read, not shipped").
+  `rules/wages.mjs > henchmanLimitBase` returns it, or null for a blank or
+  non-integer figure; nothing stands in for it.
+- *Charisma adds to the base.* `getRetainBase` is the base plus the
+  employer's Charisma modifier (`system.scores.cha.mod`, which core still
+  derives). `getRetainMax` adds the typed `retainBonus` effects and the
+  manual flag, as before.
+- *An unknown limit still admits.* With no Charisma score (a monster) or no
+  imported base, the limit is null and never enforced. `checkHenchmanLimit`
+  returns `why` (`"charisma"` or `"import"`), and the roster tooltip names
+  the actor's own gap first, since an import never closes it.
+
+**Rejected.**
+- *Reading core's display context.* It is a render-time computation core can
+  move or drop without notice.
+- *A shipped default base.* That is the printed value held in code.
+- *Writing the field core removed.* The module does not write the system's
+  derived data.
+
+**What it cost.** A world that imported its Rules tables before 11.8.0 has
+no limit until the Judge runs **Rules tables** in **Reimport One Shelf**.
+A monster employer still has none (ROADMAP).

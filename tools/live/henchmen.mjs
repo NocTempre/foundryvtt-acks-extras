@@ -9,6 +9,10 @@
  *
  * Writes outside the fixture ledger, each undone at teardown and reported:
  *   - an `influence` override layer at priority 30 (unregistered);
+ *   - a `wages` override layer at priority 30 holding the henchman limit's
+ *     base, read off the connected book through the shipped recipe, or
+ *     invented where no book opens, and only where the world holds none
+ *     (unregistered);
  *   - the GM seat's own client state: the henchmen→influence integration
  *     swap, the dice rig, the patched notification methods and the wrapped
  *     ChatMessage.create (all restored);
@@ -31,6 +35,8 @@ const BOOKS = books(["rr","jj"]); // the GM's staged copies, from ACKS_TEST_BOOK
 const POWER_IDS = ["def.prof.leadership", "def.power.bloodOfKings", "def.prof.command", "def.prof.diplomacy", "def.prof.beastFriendship", "def.power.commandOfVoice"];
 // Invented hiring-offer figures for the influence document where the world holds none.
 const INVENTED_OFFER = { bands: [{ max: 2 }, { min: 3, max: 5 }, { min: 6, max: 8 }, { min: 9, max: 11 }, { min: 12 }], refusalPenalty: -1, slanderPenalty: -2 };
+// An invented henchman-limit base for the wages document where neither the world nor a book supplies one.
+const INVENTED_LIMIT = { base: 9 };
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -108,6 +114,7 @@ const P = {
       RD: await import(base + "henchmen/apps/recruit-dialog.mjs"),
       AV: await import(base + "henchmen/rules/availability.mjs"),
       HG: await import(base + "henchmen/engine/hire-group.mjs"),
+      WG: await import(base + "henchmen/rules/wages.mjs"),
     };
     /** Click core's confirm ("yes") whenever it appears, for up to `ms`. */
     H.autoYes = async (ms = 6000) => {
@@ -241,8 +248,13 @@ const P = {
     const H = globalThis.__c1;
     const a = game.actors.get(actorId);
     const dom = (d) => H.A.effects.collectEffectModifiers(a, d).map((m) => ({ label: m.label, value: m.value, situational: !!m.situational, source: m.source ?? null }));
+    const limitBase = H.m.WG.henchmanLimitBase();
+    const chaMod = a.system?.scores?.cha?.mod ?? null;
+    const retainBase = H.A.adapter.getRetainBase(a);
     return {
-      chaRetain: a.system?.scores?.cha?.retain ?? null,
+      chaMod,
+      retainBase,
+      baseAgrees: limitBase !== null && typeof chaMod === "number" && retainBase === limitBase + chaMod,
       retainMax: H.A.adapter.getRetainMax(a),
       retainBonus: dom("retainBonus"),
       baseLoyalty: dom("baseLoyalty"),
@@ -279,6 +291,22 @@ const P = {
   },
 
   /** The roster window and what it says. */
+  /** Open an actor's sheet as its type opens it, on the Stats tab where the sheet has one; its window's selector and whether Morale shows. */
+  sheetOnStats: async ({ actorId }) => {
+    const H = globalThis.__c1;
+    const app = game.actors.get(actorId).sheet;
+    await app.render({ force: true });
+    await H.poll(() => H.root(app)?.querySelector(".window-content"));
+    if (H.root(app).querySelector('[data-group="primary"][data-tab="stats"]')) app.changeTab("stats", "primary");
+    await app.setPosition({ left: 16, top: 16 });
+    await H.sleep(400);
+    const el = H.root(app);
+    // The Throws column, Morale in it, stands below the fold of a full-height sheet.
+    el.querySelector('input[name="system.details.morale"]')?.closest(".acks-extras-character-sheet__fact")?.parentElement?.scrollIntoView({ block: "start" });
+    await H.sleep(300);
+    return { sel: `#${el.id}`, sheet: app.constructor.name, morale: !!el.querySelector('input[name="system.details.morale"]') };
+  },
+
   roster: async ({ actorId, keep = false, place = false }) => {
     const H = globalThis.__c1;
     const actor = game.actors.get(actorId);
@@ -288,7 +316,10 @@ const P = {
     if (!app) return { rendered: false, notes: H.takeNotes() };
     if (place) { await app.setPosition({ left: 16, top: 16 }); await H.sleep(300); }
     const el = H.root(app);
-    const out = { rendered: true, limit: H.text(el.querySelector("strong")), unvalued: H.text(el.querySelector("[data-unvalued]")) || null, rows: el.querySelectorAll("[data-hireling-id], .roster-row, tr[data-id]").length, retainMax: H.A.adapter.getRetainMax(actor), chaRetain: actor.system?.scores?.cha?.retain ?? null, notes: H.takeNotes() };
+    const tip = el.querySelector(".limit-meter")?.dataset?.tooltip ?? "";
+    const hintOf = (key) => tip === game.i18n.localize(key);
+    const hint = ["limitHint", "limitUnknown", "limitNotImported"].find((k) => hintOf(`ACKS-HENCHMEN.roster.${k}`)) ?? null;
+    const out = { rendered: true, limit: H.text(el.querySelector("strong")), hint, unvalued: H.text(el.querySelector("[data-unvalued]")) || null, rows: el.querySelectorAll("[data-hireling-id], .roster-row, tr[data-id]").length, retainMax: H.A.adapter.getRetainMax(actor), gap: H.A.adapter.retainGap(actor), notes: H.takeNotes() };
     if (!keep) await app.close({ force: true });
     return out;
   },
@@ -441,6 +472,50 @@ const P = {
     else H.T.unregisterTable("influence", { priority: 30 });
     const offer = H.m.HO.hiringOffer();
     return { hasDoc: H.T.hasDoc("influence"), outcomes: !!offer.outcomes, refusalPenalty: offer.refusalPenalty, slanderPenalty: offer.slanderPenalty, complete: H.m.HO.hiringOfferComplete(offer) };
+  },
+  /** The henchman limit's base as this client reads it: whether one stands, and whether the world's own layer holds it. */
+  limitRead: async () => {
+    const H = globalThis.__c1;
+    const world = H.T.getLayer?.("wages", H.T.PRIORITY?.WORLD ?? 20)?.tables?.henchmanLimit ?? null;
+    return { known: H.m.WG.henchmanLimitBase() !== null, worldHolds: Number.isInteger(world?.base) };
+  },
+  /** The limit's base read off the connected book through the shipped recipe and registered at priority 30; nothing is written to the world. */
+  limitFromBook: async () => {
+    const H = globalThis.__c1;
+    const base = "/modules/acks-extras/scripts/importer/";
+    const { TABLE_RECIPES } = await import(base + "table-recipes.mjs");
+    const { locatePageNumber } = await import(base + "tables-binding.mjs");
+    const { extractTable } = await import(base + "table-extract.mjs");
+    const { pageItems } = await import(base + "extract.mjs");
+    const recipe = TABLE_RECIPES.wages.tables.henchmanLimit;
+    const doc = H.m.CB.cookbookSessionDoc(recipe.book);
+    if (!doc) return { read: false, reason: "book not connected" };
+    const p = await locatePageNumber(doc, recipe);
+    if (p == null) return { read: false, reason: "page not found" };
+    const { items } = await pageItems(doc, p);
+    const table = extractTable(items, recipe);
+    if (!Number.isInteger(table?.base)) return { read: false, reason: "no whole figure after the anchor", keys: Object.keys(table ?? {}) };
+    H.limitTable = table;
+    H.T.registerTable({ id: "wages", tables: { henchmanLimit: table } }, { priority: 30, source: "qa-c1" });
+    return { read: true, known: H.m.WG.henchmanLimitBase() !== null };
+  },
+  /** The priority-30 limit layer on or off; on, `table` or the one last read off the book. */
+  overrideLimit: async ({ on, table }) => {
+    const H = globalThis.__c1;
+    if (table) H.limitTable = table;
+    if (on) H.T.registerTable({ id: "wages", tables: { henchmanLimit: H.limitTable } }, { priority: 30, source: "qa-c1" });
+    else H.T.unregisterTable("wages", { priority: 30 });
+    return { known: H.m.WG.henchmanLimitBase() !== null };
+  },
+  /** Pin an employer's limit at `to` through the manual flag; returns what the limit then reads. */
+  pinLimit: async ({ actorId, to }) => {
+    const H = globalThis.__c1;
+    const a = game.actors.get(actorId);
+    const max = H.A.adapter.getRetainMax(a);
+    if (max === null) return { pinned: false, retainMax: null };
+    const flag = Number(a.getFlag("acks-extras", "retainBonus") ?? 0);
+    await a.setFlag("acks-extras", "retainBonus", flag + (to - max));
+    return { pinned: true, retainMax: H.A.adapter.getRetainMax(a) };
   },
   offerRead: async () => {
     const H = globalThis.__c1;
@@ -774,6 +849,7 @@ const P = {
     const out = {};
     if (H.inf) { acksExtras.influence = H.inf; out.influenceApi = "restored"; }
     try { H.T?.unregisterTable("influence", { priority: 30 }); out.override = "unregistered"; } catch (e) { out.override = String(e?.message ?? e); }
+    try { H.T?.unregisterTable("wages", { priority: 30 }); out.limitOverride = "unregistered"; } catch (e) { out.limitOverride = String(e?.message ?? e); }
     if (H.unrig) { H.unrig(); out.dice = "restored"; }
     if (H.chatWrapped) { ChatMessage.create = H.chatCreate; H.chatWrapped = false; out.chat = "restored"; }
     if (H.notesPatched) { for (const k of Object.keys(H.orig)) ui.notifications[k] = H.orig[k]; H.notesPatched = false; out.notes = "restored"; }
@@ -854,6 +930,20 @@ try {
     }
     return run(gm, P.offerRead);
   };
+  // The limit's base: the world's import where it holds one, else the book's
+  // figure read through the shipped recipe, else an invented one; the last two
+  // stand only in this client's memory.
+  let limitSource = null;
+  const ensureLimit = async () => {
+    const l0 = await run(gm, P.limitRead);
+    note("henchman limit base as the world reads it", l0);
+    if (l0.known) return (limitSource = l0.worldHolds ? "world" : "layer");
+    const fromBook = await run(gm, P.limitFromBook);
+    note("the limit's base read off the book, registered at priority 30", fromBook);
+    if (fromBook.read && fromBook.known) return (limitSource = "book");
+    note("no limit base from the world or the book: an invented one registered at priority 30", await run(gm, P.overrideLimit, { on: true, table: INVENTED_LIMIT }));
+    return (limitSource = "invented");
+  };
 
   if (STAGE === "1") {
     section("fixtures (stage 1): the hall, employers A and B, a hireling each, a monster, a monster employer");
@@ -866,6 +956,10 @@ try {
     const hM = await gm.create("Actor", { name: `QA Hireling of the beast ${NONCE}`, type: "character", items: [] });
     const M = await gm.create("Actor", { name: `QA Beast ${NONCE}`, type: "monster", system: { hp: { hd: "2d8" } } });
     const ME = await gm.create("Actor", { name: `QA Beast employer ${NONCE}`, type: "monster", system: { hp: { hd: "4d8" } } });
+
+    section("14. the henchman limit's base");
+    await ensureLimit();
+    check("changed: the henchman limit's base stands, from the world's import or read off the book through the shipped recipe", limitSource === "world" || limitSource === "book", { limitSource });
 
     // Employer A: the six powers built fresh from the book, or typed by hand where the book will not open here.
     section("14. the powers, built fresh from the book on this seat");
@@ -894,7 +988,7 @@ try {
     note("A reads", readA);
     note("B reads", readB);
     const sumRetain = readA.retainBonus.reduce((s, m) => s + m.value, 0);
-    check("14: A's retainBonus effects are read (two powers) and its limit is the Charisma allowance plus them; no power of the limit or loyalty domains is unvalued", readA.retainBonus.length === 2 && readA.chaRetain != null && readA.retainMax === readA.chaRetain + sumRetain && readA.unvalued.retainBonus.length === 0 && readA.unvalued.baseLoyalty.length === 0, { chaRetain: readA.chaRetain, retainMax: readA.retainMax, sumRetain, unvalued: readA.unvalued });
+    check("14: A's retainBonus effects are read (two powers) and its limit is the imported base plus its Charisma modifier plus them; no power of the limit or loyalty domains is unvalued", readA.retainBonus.length === 2 && readA.baseAgrees && readA.retainMax === readA.retainBase + sumRetain && readA.unvalued.retainBonus.length === 0 && readA.unvalued.baseLoyalty.length === 0, { chaMod: readA.chaMod, baseAgrees: readA.baseAgrees, retainMax: readA.retainMax, sumRetain, unvalued: readA.unvalued });
     check("14: employerLoyaltyMods(A).baseLoyaltyBonus is the baseLoyalty power's value", readA.baseLoyalty.length === 1 && readA.loyaltyMods.baseLoyaltyBonus === readA.baseLoyalty[0].value, { baseLoyalty: readA.baseLoyalty, loyaltyMods: readA.loyaltyMods });
     check("14: B's three powers are held by name only: no modifier, each named as unvalued in its domain", readB.retainBonus.length === 0 && readB.unvalued.retainBonus.includes("Leadership") && readB.unvalued.henchmanMorale.includes("Command") && readB.unvalued.hiring.includes("Diplomacy"), readB.unvalued);
 
@@ -902,13 +996,29 @@ try {
     note("link A", await run(gm, P.link, { employerId: A.id, hirelingId: hA.id, wage: 5 }));
     note("link B", await run(gm, P.link, { employerId: B.id, hirelingId: hB.id, wage: 5 }));
     note("link beast employer (core's own call)", await run(gm, P.link, { employerId: ME.id, hirelingId: hM.id, wage: 5 }));
+    if (SHOTS) {
+      const sheetA = await run(gm, P.sheetOnStats, { actorId: hA.id });
+      note("A's hireling opens on", sheetA);
+      await gm.compose(sheetA.sel);
+      await shot(gm, "character-sheet-morale", sheetA.sel);
+      note("closed", await run(gm, P.closeAll));
+    }
     const M2 = await gm.create("Actor", { name: `QA Beast hireling ${NONCE}`, type: "monster", system: { hp: { hd: "1d8" } } });
     note("a monster hired by the beast employer", await run(gm, P.hireMonsterFor, { monsterId: M2.id, employerId: ME.id }));
 
     section("14. the rosters");
+    // B's Charisma is the fixture's, its base the book's: the manual flag pins its limit at one, so its one link fills it.
+    note("B's limit pinned at one", await run(gm, P.pinLimit, { actorId: B.id, to: 1 }));
     const rosterA = await run(gm, P.roster, { actorId: A.id });
     note("roster A", rosterA);
-    check("14: A's roster shows its count against the limit the powers make, with no unvalued note", rosterA.rendered && rosterA.limit === `1 / ${readA.retainMax}` && !rosterA.unvalued, { limit: rosterA.limit, unvalued: rosterA.unvalued });
+    check("14: A's roster shows its count against the limit the powers make, with no unvalued note", rosterA.rendered && rosterA.limit === `1 / ${readA.retainMax}` && rosterA.hint === "limitHint" && !rosterA.unvalued, { limit: rosterA.limit, hint: rosterA.hint, unvalued: rosterA.unvalued });
+    if (limitSource === "book" || limitSource === "invented") {
+      note("the limit layer off", await run(gm, P.overrideLimit, { on: false }));
+      const rosterX = await run(gm, P.roster, { actorId: A.id });
+      note("roster A, no base", rosterX);
+      check("changed: with no imported base, A's roster shows no limit (count / —) and its tooltip asks for the Rules tables", rosterX.rendered && /^1 \/ —$/.test(rosterX.limit) && rosterX.gap === "import" && rosterX.hint === "limitNotImported", { limit: rosterX.limit, gap: rosterX.gap, hint: rosterX.hint });
+      note("the limit layer back on", await run(gm, P.overrideLimit, { on: true }));
+    }
     const rosterB = await run(gm, P.roster, { actorId: B.id, keep: true, place: true });
     note("roster B", rosterB);
     check("14: B's roster reads 1 / 1 and its note names Leadership", rosterB.rendered && rosterB.limit === "1 / 1" && /Leadership/.test(rosterB.unvalued ?? ""), { limit: rosterB.limit, unvalued: rosterB.unvalued });
@@ -916,7 +1026,7 @@ try {
     note("closed", await run(gm, P.closeAll));
     const rosterM = await run(gm, P.roster, { actorId: ME.id, keep: true, place: true });
     note("roster of the beast employer", rosterM);
-    check("changed: a monster employer the system gives no allowance shows no limit (count / —) and getRetainMax is null", rosterM.rendered && rosterM.retainMax === null && /^\d+ \/ —$/.test(rosterM.limit), { limit: rosterM.limit, retainMax: rosterM.retainMax, chaRetain: rosterM.chaRetain, rows: rosterM.rows });
+    check("changed: a monster employer, with no Charisma score, shows no limit (count / —), getRetainMax is null and its tooltip names its own gap", rosterM.rendered && rosterM.retainMax === null && /^\d+ \/ —$/.test(rosterM.limit) && rosterM.gap === "charisma" && rosterM.hint === "limitUnknown", { limit: rosterM.limit, retainMax: rosterM.retainMax, gap: rosterM.gap, hint: rosterM.hint, rows: rosterM.rows });
     await shot(gm, "henchmen-limit-none", ".application.roster-app");
     note("closed", await run(gm, P.closeAll));
 

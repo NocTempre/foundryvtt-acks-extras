@@ -120,7 +120,12 @@ a step it does not name is walked by hand.
    hire them.
    *Observable:* the candidate's status leaves `available`, and the hire
    appears on the employer's roster.
-4a. The henchman limit on a special hire. Bring a disposable employer to its
+4a. The henchman limit on a special hire. The limit needs its base: where
+   `rules/wages.mjs > henchmanLimitBase()` is null, read
+   `TABLE_RECIPES.wages.tables.henchmanLimit` off the connected book
+   (`locatePageNumber`, `pageItems`, `extractTable`) and register the result
+   as `wages` at priority 30 in this client only; unregister it at teardown.
+   Bring a disposable employer to its
    limit without enrolling a crowd: write its `flags.acks-extras.retainBonus`
    to `1 - adapter.getRetainMax(employer)` and link one henchman. Register a
    plain `character` with `addSpecialHire(location, actor)` and call
@@ -384,14 +389,22 @@ a step it does not name is walked by hand.
     Open the roster for each employer, then `recruitMonster(monster,
     employer)` from `engine/monster.mjs`.
     *Observable:*
-    - **Employer A's roster:** the max is the Charisma limit plus the two
+    - **Employer A's roster:** the max is the imported base (registered as in
+      step 4a) plus A's Charisma modifier plus the two
       `retainBonus` values on the embedded copies'
       `flags.acks-extras.extras.effects`; read the values there, never off
       the page. `employerLoyaltyMods(A).baseLoyaltyBonus` is Blood of Kings'
       `baseLoyalty` value. No `[data-unvalued]` note shows.
+    - **A's roster with the base unregistered:** it reads `1 / —`,
+      `adapter.retainGap(A)` is `"import"`, and the `.limit-meter` tooltip is
+      `ACKS-HENCHMEN.roster.limitNotImported`. Register the base again.
     - **Employer A's hiring dialog:** Diplomacy (its tone), Beast Friendship
       (`animal`) and Command of Voice (unaudited) are unticked.
-    - **Employer B's roster:** it reads `1 / 1` and the note names Leadership.
+    - **Employer B's roster:** with its limit pinned at one through the
+      manual flag (its Charisma is the fixture's, its base the book's), it
+      reads `1 / 1` and the note names Leadership.
+    - **A monster employer's roster:** `count / —`, `retainGap` `"charisma"`,
+      tooltip `ACKS-HENCHMEN.roster.limitUnknown`.
     - **Employer B's recruit:** the limit warning names Leadership, and its
       dialog shows Diplomacy locked at no value with the "No value imported"
       hint.

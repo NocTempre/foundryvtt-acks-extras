@@ -1,6 +1,6 @@
 <div class="roster-body">
   <header class="roster-header">
-    <div class="limit-meter {{#if limit.over}}over{{/if}}" data-tooltip="{{#if limit.unknown}}{{localize 'ACKS-HENCHMEN.roster.limitUnknown'}}{{else}}{{localize 'ACKS-HENCHMEN.roster.limitHint'}}{{/if}}">
+    <div class="limit-meter {{#if limit.over}}over{{/if}}" data-tooltip="{{localize limit.hint}}">
       <i class="fas fa-users"></i>
       {{localize "ACKS-HENCHMEN.roster.limit"}}: <strong>{{limit.count}} / {{#if limit.unknown}}—{{else}}{{limit.max}}{{/if}}</strong>
     </div>

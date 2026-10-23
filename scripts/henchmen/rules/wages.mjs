@@ -40,6 +40,16 @@ export function specialistMorale(specialistType) {
   return t.specialistDefault ?? 0;
 }
 
+/**
+ * The henchman limit's imported base, before the Charisma modifier and the
+ * powers (RR 168), or null until the Rules tables are imported. A blank or
+ * non-integer figure is unread, never zero.
+ */
+export function henchmanLimitBase() {
+  const base = optTable("wages", "henchmanLimit")?.base;
+  return Number.isInteger(base) && base >= 0 ? base : null;
+}
+
 /** Max hireable henchman level for an employer level (RR 168). */
 export function maxHenchmanLevel(employerLevel, isDomainRuler = false) {
   if (isDomainRuler) return Math.max(0, employerLevel - 1);

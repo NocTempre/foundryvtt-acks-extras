@@ -126,7 +126,12 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const limit = checkHenchmanLimit(employer);
     context.employer = employer;
     context.isGM = game.user.isGM;
-    context.limit = { ...limit, over: !limit.ok, unknown: limit.max === null };
+    context.limit = {
+      ...limit,
+      over: !limit.ok,
+      unknown: limit.max === null,
+      hint: limit.why === "import" ? "ACKS-HENCHMEN.roster.limitNotImported" : limit.why === "charisma" ? "ACKS-HENCHMEN.roster.limitUnknown" : "ACKS-HENCHMEN.roster.limitHint",
+    };
     const mods = employerLoyaltyMods(employer);
     context.employerMods = {
       cha: mods.chaLoyalty,

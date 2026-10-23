@@ -2231,6 +2231,17 @@ export const TABLE_RECIPES = {
         locateBare: true,
         values: [{ key: "mercenaryOfficers", find: "officers have a base loyalty of", take: "signedInt" }],
       },
+      // The henchman limit's base (RR 168 prose), before the Charisma modifier
+      // and the powers that raise it: one integer after a clause that no other
+      // page of the book prints and that carries no digit of its own.
+      henchmanLimit: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 168,
+        locate: "may hire at most",
+        locateBare: true,
+        values: [{ key: "base", find: "may hire at most", take: "int", span: 12 }],
+      },
       mercenaryWages: {
         shape: "gridRows",
         book: "rr",

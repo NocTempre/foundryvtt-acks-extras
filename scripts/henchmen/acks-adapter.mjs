@@ -10,6 +10,7 @@
  */
 import { MODULE_ID, FLAG_RETAIN_BONUS } from "./constants.mjs";
 import { sumEffectModifiers } from "./effects.mjs";
+import { henchmanLimitBase } from "./rules/wages.mjs";
 // Generic actor reads (ability mod, class level, HD parse) live once in the
 // lib subsystem — the influence feature reads the same schema. `monsterHd`'s
 // union also covers the "1/2"-HD form. Henchman-specific reads (retainer,
@@ -25,26 +26,44 @@ import { acksExtras } from "../namespace.mjs";
 
 export const getChaMod = (actor) => abilityMod(actor, "cha");
 
-/** Core derives cha.loyalty = cha.mod (actor.mjs:1027) but never uses it. */
+/** The Charisma modifier as the loyalty modifier; a core that still derives `cha.loyalty` is read first. */
 export function getChaLoyalty(actor) {
   return Number(actor?.system?.scores?.cha?.loyalty ?? getChaMod(actor));
 }
 
-/**
- * Core's own Charisma allowance of henchmen (`system.scores.cha.retain`, which
- * core derives for characters alone), or null where the actor carries none.
- * Core's figure is taken as it stands, zero included; nothing stands in for an
- * absent one.
- */
-export function getRetainBase(actor) {
-  const retain = actor?.system?.scores?.cha?.retain;
-  return typeof retain === "number" && Number.isFinite(retain) ? retain : null;
+/** The Charisma score's modifier, or null where the actor has no Charisma score (a monster). */
+function chaScoreMod(actor) {
+  const mod = actor?.system?.scores?.cha?.mod;
+  return typeof mod === "number" && Number.isFinite(mod) ? mod : null;
 }
 
 /**
- * The most henchmen `actor` may lead: core's Charisma allowance + the typed
- * `retainBonus` effects + the manual flag. Null where core gives no allowance,
- * and an unknown limit is never enforced.
+ * The henchman allowance before powers: the imported base plus the actor's
+ * Charisma modifier. Null where the actor has no Charisma score (a monster)
+ * or the world has not imported the base; nothing stands in for either.
+ */
+export function getRetainBase(actor) {
+  const mod = chaScoreMod(actor);
+  if (mod === null) return null;
+  const base = henchmanLimitBase();
+  return base === null ? null : base + mod;
+}
+
+/**
+ * Why `getRetainBase` is null for `actor`: "charisma" where it has no
+ * Charisma score, "import" where the world has not imported the base, null
+ * where it holds a figure. The actor's own gap is named first, since an
+ * import never closes it.
+ */
+export function retainGap(actor) {
+  if (chaScoreMod(actor) === null) return "charisma";
+  return henchmanLimitBase() === null ? "import" : null;
+}
+
+/**
+ * The most henchmen `actor` may lead: `getRetainBase` + the typed
+ * `retainBonus` effects + the manual flag. Null where the base is, and an
+ * unknown limit is never enforced.
  */
 export function getRetainMax(actor) {
   const base = getRetainBase(actor);

@@ -45,10 +45,11 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   typed effect would take (an override, or an upgrade to the figure) wants a
   ruling before the locator.
 - **A Judge cannot give a non-character employer a henchman limit.** The limit
-  starts from core's Charisma allowance, which core derives for characters
-  alone, so a monster leading henchmen has none, and the manual `retainBonus`
-  flag only adds to a base ([DECISIONS.md](DECISIONS.md), 2026-10-16). A
-  Judge-set base, from a flag or an Active Effect, would close the gap.
+  is the imported base plus a Charisma modifier, and a monster carries no
+  Charisma score, so a monster leading henchmen has none, and the manual
+  `retainBonus` flag only adds to a limit that exists
+  ([DECISIONS.md](DECISIONS.md), 2026-10-23). A Judge-set Charisma modifier
+  or limit, from a flag or an Active Effect, would close the gap.
 - **Four reads have nothing to feed them.** `tools/validate-producers.mjs`
   waives each against this entry until a recipe writes it or the read goes:
   - **Followers ruledata has no producer.** The followers dialog reads a

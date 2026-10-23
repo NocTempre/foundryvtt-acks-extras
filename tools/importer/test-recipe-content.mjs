@@ -41,6 +41,8 @@ const TABLES = {
   morale: ["monsterMorale", "hirelingObedience"],
   // The hiring offer: a result column and the two penalties beside it.
   influence: ["hiringOffer"],
+  // The henchman limit's base: one figure the roster counts every hire against.
+  wages: ["henchmanLimit"],
   // The domain month: every table its procedure runs on.
   domain: [
     "strongholdMinimum", "growth", "prestigeImmigration", "revenue", "expenses", "peace",
@@ -230,6 +232,11 @@ VERIFY["influence.hiringOffer"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   for (const key of ["slanderPenalty", "refusalPenalty"]) if (isNum(out?.[key]) && !(out[key] < 0)) fail(`${key}: not below zero`);
   bandLadder(out?.bands, "bands", fail, 5);
+};
+// The henchman limit's base: a whole number the reader accepts as it stands.
+VERIFY["wages.henchmanLimit"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.base) && !(Number.isInteger(out.base) && out.base > 0)) fail("base: not a positive whole number");
 };
 // Prose tables with nothing beyond declared keys and finite numbers.
 for (const id of [

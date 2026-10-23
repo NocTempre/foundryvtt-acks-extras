@@ -256,10 +256,11 @@ export async function enrollHenchman(employer, actor, { loyalty = null, morale =
 /**
  * Henchman-limit check for an employer: `adapter.getRetainMax` against core
  * henchmenList + our monster roster, minus record.special.noSlot members
- * (follower companions). `max` is null where core gives the employer no
- * Charisma allowance, and such an employer is always `ok`. `unvalued` names
- * the limit powers held with no imported value.
- * @returns {{count:number, max:number|null, ok:boolean, unvalued: string[]}}
+ * (follower companions). `max` is null where the employer has no Charisma
+ * score or the world has not imported the limit's base, `why` says which
+ * ("charisma" | "import", null with a figure), and such an employer is always
+ * `ok`. `unvalued` names the limit powers held with no imported value.
+ * @returns {{count:number, max:number|null, why:"charisma"|"import"|null, ok:boolean, unvalued: string[]}}
  */
 export function checkHenchmanLimit(employer) {
   const max = adapter.getRetainMax(employer);
@@ -276,7 +277,7 @@ export function checkHenchmanLimit(employer) {
     if (record?.special?.noSlot) continue;
     count += 1;
   }
-  return { count, max, ok: max === null || count < max, unvalued: unvaluedPowers(employer, "retainBonus") };
+  return { count, max, why: adapter.retainGap(employer), ok: max === null || count < max, unvalued: unvaluedPowers(employer, "retainBonus") };
 }
 
 /** The over-the-limit notice for `limit`, naming any limit power that holds no imported value. */

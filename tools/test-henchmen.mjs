@@ -188,11 +188,11 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
-// ---- the henchman limit: core's Charisma allowance or none, never a formula ----
-// The allowances below are authored for the test; none is a page's. Each
-// fixture carries a Charisma mod, so a figure built from it fails here.
+// ---- the henchman limit: the imported base plus Charisma, or none ----
+// The bases below are authored for the test; none is a page's. A `retain`
+// on a fixture is a field core no longer derives, and is never read.
 {
-  const { getRetainBase, getRetainMax } = await import(new URL("../scripts/henchmen/acks-adapter.mjs", import.meta.url));
+  const { getRetainBase, getRetainMax, retainGap } = await import(new URL("../scripts/henchmen/acks-adapter.mjs", import.meta.url));
   const leads = { id: "l", type: "ability", name: "Leadership", effects: [], flags: { "acks-extras": { extras: { effects: [{ type: "modifier", target: "retainBonus", value: { kind: "flat", flat: 2 } }] } } } };
   const employer = (cha, { bonus, items = [] } = {}) => ({
     items,
@@ -201,15 +201,48 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     system: { scores: cha ? { cha } : {} },
     getFlag: (scope, key) => (scope === "acks-extras" && key === "retainBonus" ? bonus : undefined),
   });
-  assert.strictEqual(getRetainBase(employer({ mod: 1, retain: 6 })), 6, "core's allowance is read as it stands");
-  assert.strictEqual(getRetainMax(employer({ mod: 1, retain: 6 }, { bonus: 1, items: [leads] })), 9, "a power and the manual flag add to it");
-  assert.strictEqual(getRetainBase(employer({ mod: 2, retain: 0 })), 0, "a zero from core is core's figure, not a gap");
-  assert.strictEqual(getRetainMax(employer({ mod: 2, retain: 0 })), 0, "and limits as one");
-  assert.strictEqual(getRetainBase(employer({ mod: 2 })), null, "a Charisma mod without core's allowance yields no figure");
-  assert.strictEqual(getRetainBase(employer({ mod: 2, retain: null })), null, "a null allowance is not a zero");
-  assert.strictEqual(getRetainMax(employer({ mod: 2 }, { bonus: 3, items: [leads] })), null, "and no limit, whatever the powers add");
-  assert.strictEqual(getRetainMax(employer(null)), null, "an actor with no Charisma score has no limit");
-  assert.strictEqual(getRetainMax({ system: {} }), null, "nor one with no scores at all");
+  const withBase = (limit, fn) => {
+    const saved = globalThis.acksExtras;
+    try {
+      globalThis.acksExtras = { lib: { tables: { hasDoc: (doc) => doc === "wages" && limit !== undefined, getTable: (doc, id) => (id === "henchmanLimit" ? limit : null) } } };
+      fn();
+    } finally {
+      globalThis.acksExtras = saved;
+    }
+  };
+  withBase({ base: 9 }, () => {
+    assert.strictEqual(getRetainBase(employer({ mod: 1 })), 10, "the imported base plus the Charisma modifier");
+    assert.strictEqual(getRetainBase(employer({ mod: -2 })), 7, "a negative modifier subtracts");
+    assert.strictEqual(getRetainBase(employer({ mod: 1, retain: 40 })), 10, "a retain field is not read");
+    assert.strictEqual(getRetainMax(employer({ mod: 1 }, { bonus: 1, items: [leads] })), 13, "a power and the manual flag add to it");
+    assert.strictEqual(getRetainMax(employer(null)), null, "an actor with no Charisma score has no limit");
+    assert.strictEqual(getRetainMax({ system: {} }), null, "nor one with no scores at all");
+    assert.strictEqual(getRetainBase(employer({ mod: "1" })), null, "a modifier that is not a number is no score");
+    assert.strictEqual(retainGap(employer(null)), "charisma", "the gap is the actor's");
+    assert.strictEqual(retainGap(employer({ mod: 0 })), null, "a figure leaves no gap");
+  });
+  withBase({ base: 0 }, () => {
+    assert.strictEqual(getRetainBase(employer({ mod: 2 })), 2, "a zero base is a figure, not a gap");
+  });
+  for (const [limit, label] of [[undefined, "nothing imported"], [{}, "a table with no base"], [{ base: null }, "a blank base"], [{ base: 4.5 }, "a fractional base"], [{ base: -1 }, "a negative base"], [{ base: "9" }, "a base read as text"]]) {
+    withBase(limit, () => {
+      assert.strictEqual(getRetainBase(employer({ mod: 1 })), null, `${label} yields no figure`);
+      assert.strictEqual(getRetainMax(employer({ mod: 1 }, { bonus: 3, items: [leads] })), null, `${label}: no limit, whatever the powers add`);
+      assert.strictEqual(retainGap(employer({ mod: 1 })), "import", `${label}: the gap is the import`);
+      assert.strictEqual(retainGap(employer(null)), "charisma", `${label}: an actor with no Charisma score names its own gap first`);
+    });
+  }
+
+  // The recipe's key is the reader's, and the figure it reads is the one after
+  // its anchor. Every word but the anchor is invented.
+  const { extractTable } = await import(new URL("../scripts/importer/table-extract.mjs", import.meta.url));
+  const { TABLE_RECIPES } = await import(new URL("../scripts/importer/table-recipes.mjs", import.meta.url));
+  const recipe = TABLE_RECIPES.wages.tables.henchmanLimit;
+  const page = (lines) => lines.map((str, i) => ({ x: 320, y: 100 + i * 12, str }));
+  const read = extractTable(page(["A badger with 3 setts and 2 cousins", `${recipe.locate} 11 henchmen, give or take a badger.`]), recipe);
+  withBase(read, () => {
+    assert.strictEqual(getRetainBase(employer({ mod: 0 })), 11, "the reader takes what the recipe extracts");
+  });
 }
 
 // ---- what a network posting reaches, and what its holder's roll adds ----
