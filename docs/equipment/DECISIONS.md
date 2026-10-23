@@ -1769,8 +1769,11 @@ writes those, and the registry's `{title, value}` tags are no longer stored.
 The loadout effect's keys are `system.ac.mod` and `system.attack.mod.*`; the
 pristine, named and scavenged layers write `system.bonus.attack`,
 `system.damage.base.formula` and `system.ac.value`. The importer's weapon
-binder writes the system's damage shape and hands the table's quality words
-to the system's own tag migration, which owns that vocabulary.
+binder writes the system's damage shape ~~and hands the table's quality words
+to the system's own tag migration, which owns that vocabulary~~ — **superseded
+2026-10-22, importer DECISIONS *An imported weapon is written in the system's
+own fields*: the migration lights no key the source lacks, so the binder
+writes `special`, `size` and the count itself.**
 
 **Rejected.**
 - *Deriving the two-handed die from the one-handed one when the item stores

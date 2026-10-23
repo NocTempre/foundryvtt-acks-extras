@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Imported weapons are the system's own shape.** A weapon imported from the
+  Rulebook's table now carries the size the page prints before its use and
+  its Special words as the system's special properties — Thrown, Handy, Slow,
+  Impact, Long, Mounted, Silver, Entangling, Incapacitating, Flexible, and
+  Cleave with its limit and its Strength rider — so the system's own attack
+  dialog offers a medium weapon its two-handed grip and a thrown weapon its
+  throw, and the item sheet's Qualities strip lights them. Before, every
+  imported weapon was unsized with its words filed as custom tags, and only
+  the module's own seam made the grips and throws appear. The net, whose row
+  prints no die, no longer rolls one. The lance's three qualities are read.
+- **An imported quiver is twenty arrows.** "Quiver, 20 Arrows" and "Case, 20
+  Bolts" import with the printed count as their quantity, so a shot takes one;
+  before, they imported as one item of quantity one and the first shot emptied
+  it. Rebuild the Weapons shelf (*Reimport One Shelf → Weapons*) to refresh a
+  world's compendium; copies already on characters keep the old shape.
+
 ## 11.7.0
 
 Requires the ACKS II system 14.1.0 or later.

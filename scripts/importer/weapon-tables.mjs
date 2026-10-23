@@ -53,7 +53,10 @@ export const WEAPON_TABLE = Object.freeze({
     { key: "med", x: 353, tol: 13 },
     { key: "long", x: 389, tol: 13 },
     { key: "cost", x: 424, tol: 13 }, // "50gp"
-    { key: "special", x: 468, w: 130 }, // "cleave 2, Handy, Slow"
+    // The Special cell is centered too: a three-word cell starts further left
+    // (the lance's at x463) than a two-word one (x496), so the window opens
+    // just past the cost band and runs to the page's right edge.
+    { key: "special", x: 440, w: 158 }, // "cleave 2, Handy, Slow"
   ],
 });
 
@@ -176,6 +179,7 @@ export function extractValueRows(items, recipe = WEAPON_TABLE) {
     const melee = /melee/i.test(typeSignal);
     const missile = /missile/i.test(typeSignal);
     const ammunition = /ammunition/i.test(typeSignal);
+    const size = sizeOf(typeSignal);
     // A real row carries a die, a PRICE, or a melee/missile type. The column
     // HEADER row ("type/damage/…/cost/Special") otherwise sneaks through because
     // its "cost" cell is a non-empty string — so require the cost to look like a
@@ -183,9 +187,27 @@ export function extractValueRows(items, recipe = WEAPON_TABLE) {
     const hasDie = /\dd\d/i.test(cells.damage ?? "");
     const hasPrice = /\d|gp/i.test(cells.cost ?? "");
     if (!hasDie && !hasPrice && !(melee || missile || ammunition)) continue;
-    out.push({ label, melee, missile, ammunition, cells });
+    out.push({ label, melee, missile, ammunition, size, cells });
   }
   return out;
+}
+
+/**
+ * The weapon size the type cell prints before its use — "Medium Melee",
+ * "Sm. Melee/Missile" — as the system's own size key, or null where the cell
+ * prints none (a missile weapon, ammunition). The page abbreviates two of the
+ * four, the text layer drops a small-caps first letter and welds the word
+ * onto the name before it, so each word is matched by its tail and by the
+ * use word that follows it, never by a boundary before it.
+ * @returns {"tiny"|"small"|"medium"|"large"|null}
+ */
+export function sizeOf(typeSignal) {
+  const s = String(typeSignal ?? "");
+  if (/t?iny\s*melee/i.test(s)) return "tiny";
+  if (/(s?mall|sm\.?)\s*melee/i.test(s)) return "small";
+  if (/(m?edium|med\.?)\s*melee/i.test(s)) return "medium";
+  if (/l?arge\s*melee/i.test(s)) return "large";
+  return null;
 }
 
 /**
@@ -206,7 +228,7 @@ export function extractWeapons(items, recipe = WEAPON_TABLE, names = WEAPON_NAME
     if (i < 0) continue; // this weapon's row was not found on the seat's page
     used.add(i);
     const r = valueRows[i];
-    out.push({ name: spec.name, label: r.label, melee: r.melee, missile: r.missile, ammunition: r.ammunition, cells: r.cells });
+    out.push({ name: spec.name, label: r.label, melee: r.melee, missile: r.missile, ammunition: r.ammunition, size: r.size ?? null, cells: r.cells });
   }
   return out;
 }
@@ -265,13 +287,50 @@ function rangeFt(v) {
   return m ? Number(m[1]) : null;
 }
 
-/** Split the "Special" cell into core-shaped tag objects. */
-function qualityTags(special) {
+/** The words of the "Special" cell, one per printed quality; a dash is no word. */
+function qualityWords(special) {
   return String(special ?? "")
     .split(/,|;/)
     .map((s) => s.trim())
-    .filter((s) => s && s !== "-")
-    .map((title) => ({ title, value: title }));
+    .filter((s) => s && s !== "-" && s !== "—");
+}
+
+/**
+ * The special-property keys the system's weapon schema declares, read from
+ * the running system so the vocabulary is never copied here. Offline, where
+ * no system is loaded, every word is accepted and the schema's own clean
+ * settles it.
+ * @returns {Set<string>|null} null where no schema is reachable
+ */
+function systemSpecialKeys() {
+  const fields = globalThis.CONFIG?.Item?.dataModels?.weapon?.schema?.getField?.("special")?.fields;
+  return fields ? new Set(Object.keys(fields)) : null;
+}
+
+/**
+ * Settle the "Special" cell into the system's own fields: each word that
+ * names a special property lights it; a cleave word carries its limit and
+ * whether Strength adds to it; a word the schema has no property for is kept
+ * as a custom tag, so nothing printed is lost.
+ * @returns {{special: object, cleaveLimit?: object, customTags: string[]}}
+ */
+export function settleQualities(specialCell) {
+  const known = systemSpecialKeys();
+  const special = {};
+  const customTags = [];
+  let cleaveLimit = null;
+  for (const word of qualityWords(specialCell)) {
+    const cleave = word.match(/^cleave\s*(\d+)?\s*(\+\s*str(?:ength)?\s*(?:mod(?:ifier)?)?)?$/i);
+    if (cleave) {
+      special.cleave = true;
+      cleaveLimit = { ...(cleave[1] ? { numeric: Number(cleave[1]) } : {}), addStrMod: !!cleave[2] };
+      continue;
+    }
+    const key = word.toLowerCase().replace(/[^a-z]/g, "");
+    if (key && (known ? known.has(key) : /^[a-z]+$/i.test(word))) special[key] = true;
+    else customTags.push(word);
+  }
+  return { special, ...(cleaveLimit ? { cleaveLimit } : {}), customTags };
 }
 
 /**
@@ -325,31 +384,36 @@ export function bindWeaponRow(row, id, cite) {
   const c = row.cells ?? {};
   const melee = !!row.melee;
   const missile = !!row.missile;
-  const tags = qualityTags(c.special);
-  if (melee) tags.unshift({ title: "Melee", value: "Melee" });
-  if (missile) tags.unshift({ title: "Missile", value: "Missile" });
   const weight6 = encToWeight6(c.enc);
   const cost = costGp(c.cost);
   const modes = damageModes(row);
   const primary = modes.find((m) => m.damage) ?? null;
   const twoHanded = modes.find((m) => m.grip === "two-handed" && m.damage) ?? null;
+  // The qualities are written as the system's own fields. The system's tag
+  // migration lights a special property only where the key already stands in
+  // the source, so a word handed over as a legacy tag reaches nothing.
+  const { special, cleaveLimit, customTags } = settleQualities(c.special);
   const system = {
     description: bookText([], cite, { id, book: WEAPON_TABLE.book, page: WEAPON_TABLE.page }),
-    // The quality words travel as legacy `tags`: the system's weapon model reads
-    // that list when it builds the item and settles each word into its `special`
-    // property, its damage type or a custom tag. The vocabulary is the system's;
-    // this binder keeps no second copy of it.
-    tags,
     melee,
     missile,
+    special,
+    ...(cleaveLimit ? { cleaveLimit } : {}),
+    ...(customTags.length ? { customTags } : {}),
     bonus: { attack: 0, damage: 0 },
     equipped: false,
   };
+  // The size the type cell prints is the system's own: a medium melee weapon
+  // is the one the system offers a two-handed grip to.
+  if (row.size) system.size = row.size;
   // The PRIMARY die (one-handed melee, or the missile die) is the base damage,
   // and a versatile row's second die is the system's ALTERNATE, so both grips
   // roll in the base system; the full set of modes lives structurally in the
-  // module flag below.
-  if (primary?.damage) system.damage = { base: { formula: primary.damage }, alternate: { formula: twoHanded?.damage ?? "" } };
+  // module flag below. A row that prints no die (a net) writes both blank:
+  // the system's default formula is a die, and a blank is what rolls nothing.
+  system.damage = primary?.damage
+    ? { base: { formula: primary.damage }, alternate: { formula: twoHanded?.damage ?? "" } }
+    : { base: { formula: "" }, alternate: { formula: "" } };
   if (weight6 != null) system.weight6 = weight6;
   if (cost != null) system.cost = cost;
   const range = { short: rangeFt(c.short), medium: rangeFt(c.med), long: rangeFt(c.long) };
@@ -402,15 +466,15 @@ export function ammoLoad(row) {
  * family already expects — `isAmmoItem` and `canBeSilvered` both read an
  * `item`.
  *
- * Two shapes, because the grid prints two:
+ * Either shape is a STACK whose quantity is the printed count, which is what
+ * the ammunition tracker spends one of per shot. The two differ in what the
+ * printed encumbrance covers:
  *
- *  - A **loaded device** — a case, a quiver — is the carrying device, and its
- *    load is recorded on the `ammo` flag rather than minted here. The catalogue
- *    holds one document per priced row, which is what lets a class template
- *    copy the row the way it copies every other piece of gear; the stack itself
- *    is materialized when the device reaches an actor and can be put inside it.
- *    It carries the printed encumbrance WHOLE, so what a bundle weighs does not
- *    drift as it is spent — RR counts a bundle as one item however full it is.
+ *  - A **loaded device** — a case, a quiver — is sold packed, so the quiver IS
+ *    the arrows: the count is its quantity and the printed encumbrance is the
+ *    bundle's, carried WHOLE so what it weighs does not drift as it is spent.
+ *    The equipment root stamps the bundle size (`gear.per`) that makes the
+ *    weight count once, the way it does for the system's own quiver.
  *  - A **bare stack** — the silver arrow, the sling stones — has no device to
  *    carry that weight, so the printed encumbrance is divided across the units
  *    it was printed for and quantity multiplies it back. `weight6` is a plain
@@ -431,7 +495,7 @@ export function bindAmmoRow(row, id, cite, { device = false } = {}) {
   const system = {
     description: bookText([], cite, { id, book: WEAPON_TABLE.book, page: WEAPON_TABLE.page }),
     subtype: "item",
-    quantity: { value: device ? 1 : count, max: 0 },
+    quantity: { value: count, max: 0 },
   };
   if (printed6 != null) system.weight6 = device || count <= 1 ? printed6 : printed6 / count;
   if (cost != null) system.cost = cost;
@@ -444,10 +508,7 @@ export function bindAmmoRow(row, id, cite, { device = false } = {}) {
       [MODULE_ID]: {
         cookbook: { id, cite },
         minted: true,
-        // What the page called this row, and what it said the row holds. The
-        // equipment root reads `ammo` to fill the device when it is granted.
         ammunition: true,
-        ...(device && load ? { ammo: { load: load.count, of: load.of } } : {}),
       },
     },
   };

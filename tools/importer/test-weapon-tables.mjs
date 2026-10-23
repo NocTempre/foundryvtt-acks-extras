@@ -44,13 +44,28 @@ const axeItem = byName["battle axe"] && bindWeaponRow(byName["battle axe"], "x",
 check("Battle Axe melee with a die", axeItem?.system.melee === true && /\dd\d/.test(axeItem.system.damage?.base?.formula ?? ""));
 check("Battle Axe's two-handed die is the system's alternate damage", /\dd\d/.test(axeItem?.system.damage?.alternate?.formula ?? ""));
 
+// The size the type cell prints is the system's own, through its abbreviations.
+const bound = (n) => byName[n] && bindWeaponRow(byName[n], "x", "y");
+check("a medium melee weapon is sized medium", bound("sword")?.system.size === "medium");
+check("an abbreviated medium is read", bound("spear")?.system.size === "medium");
+check("tiny, small and large are read", bound("dagger")?.system.size === "tiny" && bound("hand axe")?.system.size === "small" && bound("great axe")?.system.size === "large");
+check("a missile weapon prints no size and gets none", bound("long bow")?.system.size === undefined);
+
+// The Special cell lands as the system's own properties, never as legacy tags.
+check("a thrown weapon lights the system's thrown property", bound("dagger")?.system.special.thrown === true);
+check("the crossbow's three qualities light", (() => { const s = bound("crossbow")?.system; return s?.special.cleave === true && s?.special.handy === true && s?.special.slow === true && s?.cleaveLimit?.numeric === 2 && s?.cleaveLimit?.addStrMod === false; })());
+check("the bow's cleave reads its Strength rider", bound("long bow")?.system.cleaveLimit?.addStrMod === true && bound("long bow")?.system.cleaveLimit?.numeric === 3);
+check("a three-word Special cell that starts left of the others is read whole", bound("lance")?.system.special.mounted === true && bound("lance")?.system.special.impact === true && bound("lance")?.system.special.long === true);
+check("a weapon with no quality keeps an empty special object and no custom tag", Object.keys(bound("club")?.system.special ?? { x: 1 }).length === 0 && bound("club")?.system.customTags === undefined);
+check("the net prints no die and writes a blank formula", bound("net")?.system.damage.base.formula === "" && bound("net")?.system.damage.alternate.formula === "");
+
 // Every bound item is the core weapon shape, and every value row got a die.
 const weaponRows = rows.filter((r) => !r.ammunition);
 let withDie = 0;
 for (const r of weaponRows) {
   const it = bindWeaponRow(r, "def.weapon.x", "cite");
   assert.ok(it.type === "weapon" && it.name, `bound weapon shape: ${r.name}`);
-  assert.ok(Array.isArray(it.system.tags), `tags array: ${r.name}`);
+  assert.ok(it.system.tags === undefined && typeof it.system.special === "object", `the system's own fields, no legacy tags: ${r.name}`);
   if (/\dd\d/.test(it.system.damage?.base?.formula ?? "")) withDie++;
 }
 pass++;
@@ -69,12 +84,12 @@ const boltRow = ammoRows.find((r) => /bolts/i.test(r.name));
 check("the printed load is read off the label", ammoLoad(boltRow)?.count === 20);
 check("and so is what it is a load of", /bolts/i.test(ammoLoad(boltRow)?.of ?? ""));
 
-// A loaded device: inventory, one of it, the load on the flag, printed weight whole.
+// A loaded device: inventory, its load as its quantity, printed weight whole.
 const caseItem = bindAmmoRow(boltRow, "def.weapon.case20Bolts", "cite", { device: true });
 check("a loaded device is inventory, not a weapon", caseItem.type === "item");
 check("it carries no damage die", caseItem.system.damage === undefined);
-check("there is one of it", caseItem.system.quantity.value === 1);
-check("its load rides on the flag", caseItem.flags["acks-extras"].ammo?.load === 20);
+check("its load is its quantity", caseItem.system.quantity.value === 20);
+check("and nothing rides on a load flag", caseItem.flags["acks-extras"].ammo === undefined);
 check("and it carries the printed encumbrance whole",
   caseItem.system.weight6 === bindWeaponRow(boltRow, "x", "y").system.weight6);
 
@@ -86,7 +101,6 @@ if (stoneRow) {
   check("a bare stack counts its units", stack.system.quantity.value === load.count);
   check("and quantity × weight6 is the printed encumbrance",
     Math.abs(stack.system.quantity.value * (stack.system.weight6 ?? 0) - bindWeaponRow(stoneRow, "x", "y").system.weight6) < 1e-9);
-  check("a bare stack carries no load flag", stack.flags["acks-extras"].ammo === undefined);
 }
 
 // Multiple roll types — the capture the compendium lacked.
@@ -109,7 +123,7 @@ check("missile modes are never two-handed", handModes.every((m) => !(m.attack ==
 console.log(`\nExtracted weapons (${weaponRows.length}):`);
 for (const r of weaponRows) {
   const it = bindWeaponRow(r, "x", "y");
-  console.log(`  ${r.name.padEnd(22)} dmg=${it.system.damage?.base?.formula ?? "-"} enc6=${it.system.weight6 ?? "-"} cost=${it.system.cost ?? "-"} ${it.system.missile ? "[missile]" : it.system.melee ? "[melee]" : ""} ${it.system.tags.map((t) => t.title).join("/")}`);
+  console.log(`  ${r.name.padEnd(22)} ${(it.system.size ?? "-").padEnd(6)} dmg=${(it.system.damage?.base?.formula || "-").padEnd(4)}/${(it.system.damage?.alternate?.formula || "-").padEnd(4)} enc6=${it.system.weight6 ?? "-"} cost=${it.system.cost ?? "-"} ${it.system.missile && it.system.melee ? "[melee/missile]" : it.system.missile ? "[missile]" : it.system.melee ? "[melee]" : ""} ${Object.keys(it.system.special).join("/")}${it.system.cleaveLimit ? ` cleave=${it.system.cleaveLimit.numeric ?? "?"}${it.system.cleaveLimit.addStrMod ? "+STR" : ""}` : ""}${it.system.customTags ? ` tags=${it.system.customTags.join("|")}` : ""}`);
 }
 console.log(`\nExtracted ammunition (${ammoRows.length}):`);
 for (const r of ammoRows) {

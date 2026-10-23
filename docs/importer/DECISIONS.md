@@ -3134,11 +3134,12 @@ acks-extras both read an `item` — so this removes a divergence rather than
 creating one.
 
 **Two shapes, because the grid prints two.** A row whose printed name names a
-carrying device is that device, and its load rides on the `ammo` flag to be
-minted when the device reaches an actor; a row that is bare units is a stack of
+carrying device is that device, ~~and its load rides on the `ammo` flag to be
+minted when the device reaches an actor~~; a row that is bare units is a stack of
 them. Whether a name is a device is the equipment root's question — it owns the
 gear profiles that answer it — so it is asked at import rather than restated
-here.
+here. **Superseded 2026-10-22 — see *An imported weapon is written in the
+system's own fields*: nothing ever read the flag, so the device is its load.**
 
 **The catalogue holds ONE document per priced row.** Minting the case and its
 bolts as two catalogue documents was rejected: RR sells the pair as one priced
@@ -7009,3 +7010,63 @@ first run, none refused; each a core item of one paragraph with a page
 reference, standing on the line's Judge Item shelf, which the import and
 not the census opened; the Adventure carrying ten items; the Player seat
 seeing no shelf of the line.
+
+## 2026-10-22 — An imported weapon is written in the system's own fields, and a quiver is its arrows
+
+The ruling of 2026-10-21 (equipment DECISIONS, *The attack seam rides the
+system's labelled modifiers*) had the weapon binder hand the table's quality
+words to the system's tag migration as legacy `tags`. The new evidence is the
+rebuilt Weapons shelf read back on 14.1.0 the day after that release: every
+imported weapon's `special` properties were false save `cleave`, and every
+word stood in `customTags` instead. The system's migration lights
+`special.<word>` only where that key already stands in the source, and the
+binder wrote no `special` object; the cleave word alone takes a path that
+writes unconditionally. The same read showed every weapon sized `na`, so the
+system's own dialog — which offers the two-handed grip to a medium melee
+weapon and nothing else — offered none; the grips and the thrown attack had
+worked in the live walk only because the equipment feature's seam answers
+them from its own name-keyed table. The net, whose row prints a dash, carried
+the system's default die in both grips. And the quiver imported as one item
+of quantity one with its twenty on an `ammo` flag that nothing in the module
+reads: a bow's first shot took the quiver from one to none.
+
+**Ruled.** The binder writes the fields the system's dialog reads:
+
+- **`size`** from the type cell, which prints it before the use ("Medium
+  Melee", "Sm. Melee/Missile"). The text layer abbreviates, drops a small-caps
+  first letter and welds the word onto the name, so each size is matched by
+  its tail and the use word after it, never by a boundary before it. A row
+  that prints no size — every missile weapon, ammunition — leaves the field
+  at the system's default.
+- **`special.*`** from the Special cell, one property per word, with the
+  keys read from the system's weapon schema at import so the vocabulary is
+  never copied; a cleave word carries its limit and its Strength rider into
+  `cleaveLimit`; a word the schema has no property for is kept in
+  `customTags`. Legacy `tags` are no longer written.
+- **A blank formula** in both grips where the row prints no die.
+- **Quantity is the printed count** on every ammunition row, device or bare
+  stack; the device keeps the printed encumbrance whole and the equipment
+  root's `per` makes it weigh once. The `ammo` flag is gone.
+- The Special window opens just past the cost band: the cell is centered, so
+  the lance's three words started left of where the two-word window began
+  and the row imported with none.
+
+**Rejected.**
+- *Keeping the legacy tags and adding an all-false `special` object so the
+  migration lights them.* It would work today and would hang the import on a
+  migration path the system keeps for old worlds; the field is the system's
+  and the binder can write it.
+- *Filling the device from its flag when it reaches an actor.* Nothing was
+  built to read the flag in two months, the guide already says the count on
+  the row is what you have, and the system's own quiver is one item of
+  quantity twenty.
+- *Sizing from the equipment feature's weapon table.* The page prints the
+  size; a table of sizes is content the import reads, not a figure to ship.
+
+*Cost:* a world imported before this holds weapons sized `na` with their
+words in custom tags, and quivers of one. **Reimport One Shelf → Weapons**
+rebuilds the compendium; a copy already on a character is the Judge's item
+and keeps the old shape until it is replaced from the shelf. The offline
+record is `tools/importer/test-weapon-binding.mjs` on invented rows and
+`test-weapon-tables.mjs` on the page, where every row now reads as the
+table prints it.

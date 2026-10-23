@@ -880,19 +880,37 @@ await Item.create({name:"Case, 20 Bolts", type:"weapon", system:{damage:"1d6", w
    other row is still `weapon`. The one-liner:
 
    ```
-   game.items.filter(i => i.getFlag("acks-extras","ammunition")).map(i => `${i.name} [${i.type}] ×${i.system.quantity?.value} enc6=${i.system.weight6} ${JSON.stringify(i.getFlag("acks-extras","ammo") ?? null)}`)
+   game.items.filter(i => i.getFlag("acks-extras","ammunition")).map(i => `${i.name} [${i.type}] ×${i.system.quantity?.value} enc6=${i.system.weight6} per=${i.getFlag("acks-extras","gear")?.per ?? "-"}`)
    ```
 
-   Four rows, all `[item]`. The case and the quiver read `×1` with an `ammo`
-   flag naming their load; the sling stones read `×30` with none. A run where
-   any of them is `[weapon]` means the type column was not read and the rows
-   fell back — which is silent on a sheet except for a damage die nobody can
-   explain.
+   Four rows, all `[item]`. The case and the quiver read `×20` with `per=20`,
+   the sling stones `×30`, the silver arrow `×1`. A run where any of them is
+   `[weapon]` means the type column was not read and the rows fell back —
+   which is silent on a sheet except for a damage die nobody can explain.
 2. Check the arithmetic the page states, not the one the sheet renders.
-   *Observable:* `quantity × weight6` equals the printed encumbrance for every
-   one of the four — 1 for the case, the quiver and the stones, 0 for the
-   silver arrow. A stack whose per-unit weight was rounded to an integer shows
-   here as 0, and as a character who can carry thirty stones for free.
+   *Observable:* for the bare stacks `quantity × weight6` equals the printed
+   encumbrance — 1 for the stones, 0 for the silver arrow; the case and the
+   quiver carry the printed 1 whole as `weight6`, and `per` is what makes the
+   bundle weigh once on a character. A stack whose per-unit weight was rounded
+   to an integer shows here as 0, and as a character who can carry thirty
+   stones for free.
+2b. The weapons are the system's own shape. *Observable:* the one-liner
+
+   ```
+   game.items.filter(i => i.type === "weapon" && i.getFlag("acks-extras","cookbook")?.id?.startsWith("def.weapon.")).map(i => `${i.name} ${i.system.size} ${Object.entries(i.system.special).filter(([,v]) => v).map(([k]) => k).join("+") || "-"} ${i.system.damage.base.formula || "-"}/${i.system.damage.alternate.formula || "-"} tags=${[...i.system.customTags].join("|") || "-"}`)
+   ```
+
+   reads the table as the page prints it: Sword `medium - 1d6/1d8`, Dagger
+   `tiny thrown 1d4/-`, Crossbow `na cleave+handy+slow 1d6/-` with
+   `cleaveLimit.numeric` 2, Long Bow's `cleaveLimit.addStrMod` true, Lance
+   `large impact+long+mounted`, Net `medium entangling+thrown -/-`, and no
+   custom tag on any of them. Then put the Sword, the Dagger and the Net on a
+   character with the **Roll automation** setting *off* and press the
+   system's own attack button on each: the Sword's dialog offers One-Handed
+   and Two-Handed and its preview reads 1d8 on the second; the Dagger's
+   offers Thrown with range bands; the Net's rolls no damage. Put a Long Bow
+   and the quiver on the same character and shoot once: the quiver reads
+   `×19`.
 3. Put the case on a character and open the sheet.
    *Observable:* it is filed as gear, not under Weapons; it carries no damage
    die and offers no attack; and it rides on the belt, free to draw from — the
