@@ -20,6 +20,7 @@
  */
 import { MODULE_ID, LANG, SHEET_CLASS, SHEET_FLAG, FOLD_FLAG, TRAINING_VIEW_FLAG, SUMMON_FLAG, MOVE_MODES, TAB_ORDER } from "./constants.mjs";
 import { makeLoc, libStorage, atTypeScale } from "../lib/util.mjs";
+import { FRAME_CLASS } from "../lib/frame.mjs";
 import { snapshotFrame, sheetFlag, saveLabel, partyOf, summonerOf, henchmanIds, currentScene } from "./snapshot.mjs";
 import { buildFrameModel, nextAcMode, togglePin } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
@@ -104,11 +105,11 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     // is not a part — and ApplicationV2 restores scroll per part, so the body's
     // `scrollable: [""]` below would stop working. A sheet whose fields submit
     // on change needs the retention; the scroller lives in styles/character-sheet.css.
-    classes: ["acks-ui", "acks-extras", SHEET_CLASS],
+    classes: ["acks-ui", "acks-extras", FRAME_CLASS, SHEET_CLASS],
     position: { width: 900, height: "auto" },
     tag: "form",
     form: { submitOnChange: true, closeOnSubmit: false },
-    window: { resizable: true, contentClasses: [`${SHEET_CLASS}__content`] },
+    window: { resizable: true, contentClasses: [`${FRAME_CLASS}__content`] },
     actions: {
       fold: AcksCharacterSheet.#onFold,
       goTab: AcksCharacterSheet.#onGoTab,
@@ -629,18 +630,18 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
    * marked; a click picks, a click anywhere else closes.
    */
   #openMenu(anchor, items, onPick) {
-    this.element.querySelector(`.${SHEET_CLASS}__menu`)?.remove();
+    this.element.querySelector(`.${FRAME_CLASS}__menu`)?.remove();
     const menu = document.createElement("div");
-    menu.className = `${SHEET_CLASS}__menu`;
+    menu.className = `${FRAME_CLASS}__menu`;
     menu.innerHTML = items
       .map(
         (it, i) =>
-          `<button type="button" class="${SHEET_CLASS}__menu-item${it.on ? " is-on" : ""}" data-menu-index="${i}"${it.disabled ? " disabled" : ""}>` +
+          `<button type="button" class="${FRAME_CLASS}__menu-item${it.on ? " is-on" : ""}" data-menu-index="${i}"${it.disabled ? " disabled" : ""}>` +
           `${it.icon ? `<i class="${it.icon}" inert></i>` : it.img ? `<img src="${it.img}" alt="" inert>` : ""}<span>${foundry.utils.escapeHTML(it.label)}</span>` +
           `${it.value != null ? `<b>${foundry.utils.escapeHTML(String(it.value))}</b>` : ""}</button>`,
       )
       .join("");
-    const rail = anchor.closest(`.${SHEET_CLASS}__rail`) ?? anchor.parentElement;
+    const rail = anchor.closest(`.${FRAME_CLASS}__rail`) ?? anchor.parentElement;
     rail.style.position = "relative";
     menu.style.top = `${anchor.offsetTop}px`;
     rail.append(menu);

@@ -1,104 +1,104 @@
 {{!-- Equipment: the Load bar as the header's underline, places on the left,
       loose gear on the right, stowed containers and what is kept elsewhere. --}}
 {{#with panels.equipment as |eq|}}
-<div class="acks-extras-character-sheet__stack">
+<div class="acks-extras-frame__stack">
   <div>
-    <div class="acks-extras-character-sheet__rule is-bar">
-      <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.load"}}</span>
-      <span class="acks-extras-character-sheet__badge">
-        <span class="acks-extras-character-sheet__badge-k">{{localize "ACKS-CHARACTER.equipment.hands"}}</span>
-        <span class="acks-extras-character-sheet__badge-v acks-nums">{{eq.hands.used}} / {{eq.hands.budget}}</span>
-        <span class="acks-extras-character-sheet__badge-k">{{eq.hands.style}}</span>
-        {{#if eq.hands.clause}}<span class="acks-extras-character-sheet__badge-k">{{eq.hands.clause}}</span>{{/if}}
+    <div class="acks-extras-frame__rule is-bar">
+      <span class="acks-extras-frame__rule-title">{{localize "ACKS-CHARACTER.equipment.load"}}</span>
+      <span class="acks-extras-frame__badge">
+        <span class="acks-extras-frame__badge-k">{{localize "ACKS-CHARACTER.equipment.hands"}}</span>
+        <span class="acks-extras-frame__badge-v acks-nums">{{eq.hands.used}} / {{eq.hands.budget}}</span>
+        <span class="acks-extras-frame__badge-k">{{eq.hands.style}}</span>
+        {{#if eq.hands.clause}}<span class="acks-extras-frame__badge-k">{{eq.hands.clause}}</span>{{/if}}
       </span>
       {{#if eq.hands.untrained}}<span class="acks-tag acks-tag--danger">{{localize "ACKS-EQUIPMENT.wear.untrained"}}</span>{{/if}}
       {{#if eq.editable}}
-      <button type="button" class="acks-extras-character-sheet__chip" data-action="annotateAll" data-tooltip="{{localize 'ACKS-EQUIPMENT.container.annotateAll'}}">
+      <button type="button" class="acks-extras-frame__chip" data-action="annotateAll" data-tooltip="{{localize 'ACKS-EQUIPMENT.container.annotateAll'}}">
         <i class="fa-solid fa-tags" inert></i>{{localize "ACKS-CHARACTER.equipment.annotate"}}
       </button>
       {{/if}}
-      <span class="acks-extras-character-sheet__rule-note acks-nums">{{eq.load.label}} · {{eq.load.state}}</span>
+      <span class="acks-extras-frame__rule-note acks-nums">{{eq.load.label}} · {{eq.load.state}}</span>
     </div>
-    <div class="acks-extras-character-sheet__bar is-thin{{#if eq.load.tone}} is-{{eq.load.tone}}{{/if}}"{{#if eq.load.hint}} data-tooltip="{{eq.load.hint}}"{{/if}}><i style="width: {{eq.load.pct}}%"></i>{{#if eq.load.phantom}}<s style="left: {{eq.load.pct}}%; width: {{eq.load.phantom}}%"></s>{{/if}}{{#each eq.load.ticks}}<u style="left: {{this}}%"></u>{{/each}}</div>
+    <div class="acks-extras-frame__bar is-thin{{#if eq.load.tone}} is-{{eq.load.tone}}{{/if}}"{{#if eq.load.hint}} data-tooltip="{{eq.load.hint}}"{{/if}}><i style="width: {{eq.load.pct}}%"></i>{{#if eq.load.phantom}}<s style="left: {{eq.load.pct}}%; width: {{eq.load.phantom}}%"></s>{{/if}}{{#each eq.load.ticks}}<u style="left: {{this}}%"></u>{{/each}}</div>
   </div>
 
-  <div class="acks-extras-character-sheet__cols is-2">
-    <div class="acks-extras-character-sheet__col">
-      <div class="acks-extras-character-sheet__rule">
-        <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.worn"}}</span>
-        <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.equipment.wornNote"}}</span>
+  <div class="acks-extras-frame__cols is-2">
+    <div class="acks-extras-frame__col">
+      <div class="acks-extras-frame__rule">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-CHARACTER.equipment.worn"}}</span>
+        <span class="acks-extras-frame__rule-note">{{localize "ACKS-CHARACTER.equipment.wornNote"}}</span>
       </div>
       {{#each eq.places as |place|}}
-      <div class="acks-extras-character-sheet__slot{{#if place.empty}} is-empty{{/if}}{{#if place.full}} is-full{{/if}}{{#if place.span}} is-span{{/if}}" data-drop="slot:{{place.key}}">
+      <div class="acks-extras-frame__slot{{#if place.empty}} is-empty{{/if}}{{#if place.full}} is-full{{/if}}{{#if place.span}} is-span{{/if}}" data-drop="slot:{{place.key}}">
         {{#if place.span}}
-        <span class="acks-extras-character-sheet__where is-span" data-tooltip="{{place.label}}">{{#each place.span}}<span class="acks-extras-character-sheet__where-hand"><i class="{{icon}}" inert></i><span class="acks-extras-character-sheet__where-label">{{label}}</span></span>{{/each}}</span>
+        <span class="acks-extras-frame__where is-span" data-tooltip="{{place.label}}">{{#each place.span}}<span class="acks-extras-frame__where-hand"><i class="{{icon}}" inert></i><span class="acks-extras-frame__where-label">{{label}}</span></span>{{/each}}</span>
         {{else}}
-        <span class="acks-extras-character-sheet__where" data-tooltip="{{place.label}}"><i class="{{place.icon}}" inert></i><span class="acks-extras-character-sheet__where-label">{{place.label}}</span></span>
+        <span class="acks-extras-frame__where" data-tooltip="{{place.label}}"><i class="{{place.icon}}" inert></i><span class="acks-extras-frame__where-label">{{place.label}}</span></span>
         {{/if}}
-        <div class="acks-extras-character-sheet__slot-body">
+        <div class="acks-extras-frame__slot-body">
           {{#if place.empty}}
-          <span class="acks-extras-character-sheet__drop">{{place.hint}}</span>
+          <span class="acks-extras-frame__drop">{{place.hint}}</span>
           {{else}}
           {{#each place.rows}}{{> "modules/acks-extras/templates/character-sheet/gear-row.hbs" this}}{{/each}}
           {{/if}}
         </div>
-        {{#if place.capacity}}<span class="acks-extras-character-sheet__slot-cap acks-nums"{{#if place.capacityHint}} data-tooltip="{{place.capacityHint}}"{{/if}}>{{place.capacity}}</span>{{/if}}
+        {{#if place.capacity}}<span class="acks-extras-frame__slot-cap acks-nums"{{#if place.capacityHint}} data-tooltip="{{place.capacityHint}}"{{/if}}>{{place.capacity}}</span>{{/if}}
       </div>
       {{/each}}
     </div>
 
-    <div class="acks-extras-character-sheet__col" data-drop="loose">
-      <div class="acks-extras-character-sheet__rule">
-        <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.carried"}}</span>
-        <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.equipment.carriedNote" n=eq.carriedCount}}</span>
+    <div class="acks-extras-frame__col" data-drop="loose">
+      <div class="acks-extras-frame__rule">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-CHARACTER.equipment.carried"}}</span>
+        <span class="acks-extras-frame__rule-note">{{localize "ACKS-CHARACTER.equipment.carriedNote" n=eq.carriedCount}}</span>
       </div>
       {{#if eq.unarmed}}
-      <div class="acks-extras-character-sheet__row">
-        <span class="acks-extras-character-sheet__row-text"><span class="acks-extras-character-sheet__row-label">{{localize "ACKS-EQUIPMENT.action.unarmed"}}</span><span class="acks-extras-character-sheet__row-line">{{localize "ACKS-CHARACTER.rolls.state.unarmed"}}</span></span>
-        <button type="button" class="acks-extras-character-sheet__mini" data-action="roll" data-roll="unarmed" data-tooltip="{{localize 'ACKS-EQUIPMENT.action.unarmedHint'}}"><i class="fa-solid fa-dice-d20" inert></i></button>
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-text"><span class="acks-extras-frame__row-label">{{localize "ACKS-EQUIPMENT.action.unarmed"}}</span><span class="acks-extras-frame__row-line">{{localize "ACKS-CHARACTER.rolls.state.unarmed"}}</span></span>
+        <button type="button" class="acks-extras-frame__mini" data-action="roll" data-roll="unarmed" data-tooltip="{{localize 'ACKS-EQUIPMENT.action.unarmedHint'}}"><i class="fa-solid fa-dice-d20" inert></i></button>
       </div>
       {{/if}}
       {{#each eq.carried as |kind|}}
-      <div class="acks-extras-character-sheet__subhead"><span>{{kind.label}}</span>{{#if kind.note}}<span class="acks-extras-character-sheet__subhead-note">{{kind.note}}</span>{{/if}}</div>
+      <div class="acks-extras-frame__subhead"><span>{{kind.label}}</span>{{#if kind.note}}<span class="acks-extras-frame__subhead-note">{{kind.note}}</span>{{/if}}</div>
       {{#each kind.rows}}{{> "modules/acks-extras/templates/character-sheet/gear-row.hbs" this}}{{/each}}
       {{/each}}
-      {{#unless eq.carriedCount}}<div class="acks-extras-character-sheet__hint">{{localize "ACKS-CHARACTER.equipment.nothingLoose"}}</div>{{/unless}}
+      {{#unless eq.carriedCount}}<div class="acks-extras-frame__hint">{{localize "ACKS-CHARACTER.equipment.nothingLoose"}}</div>{{/unless}}
       {{#if eq.editable}}
-      <div class="acks-extras-character-sheet__actions">
-        <button type="button" class="acks-extras-character-sheet__chip" data-action="itemCreate" data-type="weapon"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS.items.Weapons"}}</button>
-        <button type="button" class="acks-extras-character-sheet__chip" data-action="itemCreate" data-type="armor"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS.items.Armors"}}</button>
-        <button type="button" class="acks-extras-character-sheet__chip" data-action="itemCreate" data-type="item"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CHARACTER.equipment.gear"}}</button>
-        <button type="button" class="acks-extras-character-sheet__chip" data-action="itemCreate" data-type="money"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CHARACTER.equipment.coin"}}</button>
+      <div class="acks-extras-frame__actions">
+        <button type="button" class="acks-extras-frame__chip" data-action="itemCreate" data-type="weapon"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS.items.Weapons"}}</button>
+        <button type="button" class="acks-extras-frame__chip" data-action="itemCreate" data-type="armor"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS.items.Armors"}}</button>
+        <button type="button" class="acks-extras-frame__chip" data-action="itemCreate" data-type="item"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CHARACTER.equipment.gear"}}</button>
+        <button type="button" class="acks-extras-frame__chip" data-action="itemCreate" data-type="money"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CHARACTER.equipment.coin"}}</button>
       </div>
       {{/if}}
 
       {{#if eq.purse}}
-      <div class="acks-extras-character-sheet__rule is-spaced">
-        <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.purse"}}</span>
-        <span class="acks-extras-character-sheet__rule-note acks-nums">{{eq.purse.note}}</span>
+      <div class="acks-extras-frame__rule is-spaced">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-CHARACTER.equipment.purse"}}</span>
+        <span class="acks-extras-frame__rule-note acks-nums">{{eq.purse.note}}</span>
       </div>
       {{> "modules/acks-extras/templates/lib/coin-order.hbs" eq.purse}}
       {{/if}}
 
       {{#if eq.companions.length}}
-      <div class="acks-extras-character-sheet__rule is-spaced">
-        <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-EQUIPMENT.companion.section"}}</span>
-        <span class="acks-extras-character-sheet__rule-note">{{eq.companionsNote}}</span>
+      <div class="acks-extras-frame__rule is-spaced">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-EQUIPMENT.companion.section"}}</span>
+        <span class="acks-extras-frame__rule-note">{{eq.companionsNote}}</span>
       </div>
       {{#each eq.companions as |slot|}}
-      <div class="acks-extras-character-sheet__row is-companion" data-ability-id="{{slot.abilityId}}" data-slot="{{slot.index}}">
-        <img class="acks-extras-character-sheet__gear-img" src="{{slot.img}}" alt="" inert>
-        <span class="acks-extras-character-sheet__row-text">
-          {{#if slot.empty}}<span class="acks-extras-character-sheet__gear-name is-empty">{{localize "ACKS-EQUIPMENT.companion.empty"}}</span>{{else}}<a class="acks-extras-character-sheet__gear-name" data-action="companionOpen">{{slot.name}}</a>{{/if}}
-          <span class="acks-extras-character-sheet__row-line">{{slot.via}}</span>
+      <div class="acks-extras-frame__row is-companion" data-ability-id="{{slot.abilityId}}" data-slot="{{slot.index}}">
+        <img class="acks-extras-frame__gear-img" src="{{slot.img}}" alt="" inert>
+        <span class="acks-extras-frame__row-text">
+          {{#if slot.empty}}<span class="acks-extras-frame__gear-name is-empty">{{localize "ACKS-EQUIPMENT.companion.empty"}}</span>{{else}}<a class="acks-extras-frame__gear-name" data-action="companionOpen">{{slot.name}}</a>{{/if}}
+          <span class="acks-extras-frame__row-line">{{slot.via}}</span>
         </span>
         {{#if eq.editable}}
-        <span class="acks-extras-character-sheet__ctls"><span class="acks-extras-character-sheet__grp">
+        <span class="acks-extras-frame__ctls"><span class="acks-extras-frame__grp">
           {{#if slot.empty}}
-          <button type="button" class="acks-extras-character-sheet__ctl" data-action="companionChoose" data-tooltip="{{localize 'ACKS-EQUIPMENT.companion.choose'}}"><i class="fa-solid fa-plus" inert></i></button>
+          <button type="button" class="acks-extras-frame__ctl" data-action="companionChoose" data-tooltip="{{localize 'ACKS-EQUIPMENT.companion.choose'}}"><i class="fa-solid fa-plus" inert></i></button>
           {{else}}
-          <button type="button" class="acks-extras-character-sheet__ctl" data-action="companionOpen" data-tooltip="{{localize 'ACKS-EQUIPMENT.companion.open'}}"><i class="fa-solid fa-paw" inert></i></button>
-          <button type="button" class="acks-extras-character-sheet__ctl" data-action="companionRelease" data-tooltip="{{localize 'ACKS-EQUIPMENT.companion.release'}}"><i class="fa-solid fa-link-slash" inert></i></button>
+          <button type="button" class="acks-extras-frame__ctl" data-action="companionOpen" data-tooltip="{{localize 'ACKS-EQUIPMENT.companion.open'}}"><i class="fa-solid fa-paw" inert></i></button>
+          <button type="button" class="acks-extras-frame__ctl" data-action="companionRelease" data-tooltip="{{localize 'ACKS-EQUIPMENT.companion.release'}}"><i class="fa-solid fa-link-slash" inert></i></button>
           {{/if}}
         </span></span>
         {{/if}}
@@ -106,58 +106,58 @@
       {{/each}}
       {{/if}}
 
-      <div class="acks-extras-character-sheet__rule is-spaced" data-mount-drop>
-        <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.mount"}}</span>
-        <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.equipment.mountNote"}}</span>
+      <div class="acks-extras-frame__rule is-spaced" data-mount-drop>
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-CHARACTER.equipment.mount"}}</span>
+        <span class="acks-extras-frame__rule-note">{{localize "ACKS-CHARACTER.equipment.mountNote"}}</span>
       </div>
       {{#if eq.mount}}
-      <div class="acks-extras-character-sheet__row is-mount" data-mount-drop>
-        <img class="acks-extras-character-sheet__gear-img" src="{{eq.mount.img}}" alt="" inert>
-        <span class="acks-extras-character-sheet__row-text">
-          <a class="acks-extras-character-sheet__gear-name" data-action="mountOpen">{{eq.mount.name}}</a>
-          <span class="acks-extras-character-sheet__row-line acks-nums">{{eq.mount.line}}</span>
+      <div class="acks-extras-frame__row is-mount" data-mount-drop>
+        <img class="acks-extras-frame__gear-img" src="{{eq.mount.img}}" alt="" inert>
+        <span class="acks-extras-frame__row-text">
+          <a class="acks-extras-frame__gear-name" data-action="mountOpen">{{eq.mount.name}}</a>
+          <span class="acks-extras-frame__row-line acks-nums">{{eq.mount.line}}</span>
         </span>
         {{#if eq.editable}}
-        <span class="acks-extras-character-sheet__ctls"><span class="acks-extras-character-sheet__grp">
-          <button type="button" class="acks-extras-character-sheet__ctl" data-action="mountDismount" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.dismount'}}"><i class="fa-solid fa-person-walking" inert></i></button>
-          <button type="button" class="acks-extras-character-sheet__ctl" data-action="mountOpen" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.openMount'}}"><i class="fa-solid fa-chevron-right" inert></i></button>
+        <span class="acks-extras-frame__ctls"><span class="acks-extras-frame__grp">
+          <button type="button" class="acks-extras-frame__ctl" data-action="mountDismount" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.dismount'}}"><i class="fa-solid fa-person-walking" inert></i></button>
+          <button type="button" class="acks-extras-frame__ctl" data-action="mountOpen" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.openMount'}}"><i class="fa-solid fa-chevron-right" inert></i></button>
         </span></span>
         {{/if}}
       </div>
       {{else}}
-      <div class="acks-extras-character-sheet__hint" data-mount-drop>{{localize "ACKS-CHARACTER.equipment.onFoot"}}</div>
+      <div class="acks-extras-frame__hint" data-mount-drop>{{localize "ACKS-CHARACTER.equipment.onFoot"}}</div>
       {{/if}}
 
-      <div class="acks-extras-character-sheet__rule is-spaced">
-        <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.stowed"}}</span>
-        <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.equipment.stowedNote"}}</span>
+      <div class="acks-extras-frame__rule is-spaced">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-CHARACTER.equipment.stowed"}}</span>
+        <span class="acks-extras-frame__rule-note">{{localize "ACKS-CHARACTER.equipment.stowedNote"}}</span>
       </div>
       {{#each eq.stowed}}{{> "modules/acks-extras/templates/character-sheet/gear-row.hbs" this}}{{/each}}
-      {{#unless eq.stowed.length}}<div class="acks-extras-character-sheet__hint">{{#if eq.hasContainers}}{{localize "ACKS-CHARACTER.equipment.allWorn"}}{{else}}{{localize "ACKS-EQUIPMENT.wear.noContainers"}}{{/if}}</div>{{/unless}}
+      {{#unless eq.stowed.length}}<div class="acks-extras-frame__hint">{{#if eq.hasContainers}}{{localize "ACKS-CHARACTER.equipment.allWorn"}}{{else}}{{localize "ACKS-EQUIPMENT.wear.noContainers"}}{{/if}}</div>{{/unless}}
 
-      <div class="acks-extras-character-sheet__rule is-spaced">
-        <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.elsewhere"}}</span>
-        <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.equipment.elsewhereNote"}}</span>
+      <div class="acks-extras-frame__rule is-spaced">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-CHARACTER.equipment.elsewhere"}}</span>
+        <span class="acks-extras-frame__rule-note">{{localize "ACKS-CHARACTER.equipment.elsewhereNote"}}</span>
       </div>
       {{#each eq.elsewhere as |place|}}
-      <div class="acks-extras-character-sheet__row is-place" data-place-uuid="{{place.uuid}}">
-        <img class="acks-extras-character-sheet__gear-img" src="{{place.img}}" alt="" inert>
-        <span class="acks-extras-character-sheet__row-text">
-          <a class="acks-extras-character-sheet__gear-name" data-action="placeOpen">{{#if place.isVault}}<i class="fa-solid fa-vault" inert></i> {{/if}}{{place.name}}</a>
-          <span class="acks-extras-character-sheet__row-line acks-nums">{{localize "ACKS-CHARACTER.equipment.placeLine" n=place.count gp=place.coinGC}}{{#unless place.canReach}} · {{place.reachReason}}{{/unless}}</span>
+      <div class="acks-extras-frame__row is-place" data-place-uuid="{{place.uuid}}">
+        <img class="acks-extras-frame__gear-img" src="{{place.img}}" alt="" inert>
+        <span class="acks-extras-frame__row-text">
+          <a class="acks-extras-frame__gear-name" data-action="placeOpen">{{#if place.isVault}}<i class="fa-solid fa-vault" inert></i> {{/if}}{{place.name}}</a>
+          <span class="acks-extras-frame__row-line acks-nums">{{localize "ACKS-CHARACTER.equipment.placeLine" n=place.count gp=place.coinGC}}{{#unless place.canReach}} · {{place.reachReason}}{{/unless}}</span>
         </span>
         {{#if place.pinned}}<span class="acks-tag acks-tag--ghost">{{localize "ACKS-CHARACTER.equipment.pinned"}}</span>{{/if}}
         {{#if eq.editable}}
-        <span class="acks-extras-character-sheet__ctls"><span class="acks-extras-character-sheet__grp">
-          {{#if place.canReach}}<button type="button" class="acks-extras-character-sheet__ctl" data-action="placeDeposit" data-tooltip="{{localize 'ACKS-LOCATION.storage.deposit'}}"><i class="fa-solid fa-down-long" inert></i></button>{{/if}}
-          {{#if place.canRetrieve}}<button type="button" class="acks-extras-character-sheet__ctl" data-action="placeRetrieveAll" data-tooltip="{{localize 'ACKS-LOCATION.storage.retrieveAll'}}"><i class="fa-solid fa-up-long" inert></i></button>{{/if}}
-          <button type="button" class="acks-extras-character-sheet__ctl{{#if place.pinned}} is-on{{/if}}" data-action="placePin" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.pinPlace'}}"><i class="fa-solid fa-thumbtack" inert></i></button>
-          <button type="button" class="acks-extras-character-sheet__ctl" data-action="placeOpen" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.openPlace'}}"><i class="fa-solid fa-chevron-right" inert></i></button>
+        <span class="acks-extras-frame__ctls"><span class="acks-extras-frame__grp">
+          {{#if place.canReach}}<button type="button" class="acks-extras-frame__ctl" data-action="placeDeposit" data-tooltip="{{localize 'ACKS-LOCATION.storage.deposit'}}"><i class="fa-solid fa-down-long" inert></i></button>{{/if}}
+          {{#if place.canRetrieve}}<button type="button" class="acks-extras-frame__ctl" data-action="placeRetrieveAll" data-tooltip="{{localize 'ACKS-LOCATION.storage.retrieveAll'}}"><i class="fa-solid fa-up-long" inert></i></button>{{/if}}
+          <button type="button" class="acks-extras-frame__ctl{{#if place.pinned}} is-on{{/if}}" data-action="placePin" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.pinPlace'}}"><i class="fa-solid fa-thumbtack" inert></i></button>
+          <button type="button" class="acks-extras-frame__ctl" data-action="placeOpen" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.openPlace'}}"><i class="fa-solid fa-chevron-right" inert></i></button>
         </span></span>
         {{/if}}
       </div>
       {{/each}}
-      {{#unless eq.elsewhere.length}}<div class="acks-extras-character-sheet__hint">{{localize "ACKS-CHARACTER.equipment.nowhere"}}</div>{{/unless}}
+      {{#unless eq.elsewhere.length}}<div class="acks-extras-frame__hint">{{localize "ACKS-CHARACTER.equipment.nowhere"}}</div>{{/unless}}
     </div>
   </div>
 </div>

@@ -48,7 +48,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   `acksExtras.characterSheet.snapshotFrame(actor)` and `buildFrameModel(snap)`
   give the rail decisions alone.
 - **Rail menus are DOM, not applications**: the movement, grip and light cells
-  append `.acks-extras-character-sheet__menu` to their rail; a pointerdown
+  append `.acks-extras-frame__menu` to their rail; a pointerdown
   outside closes it.
 - **The system's save keys are `blast` and `implements`** (acks 14.1.0; the
   lib's `saveKindOf` still reads a `breath`/`wand` key off an older effect).

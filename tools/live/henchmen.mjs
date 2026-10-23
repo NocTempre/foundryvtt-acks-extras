@@ -312,7 +312,7 @@ const P = {
     await H.sleep(400);
     const el = H.root(app);
     // The Throws column, Morale in it, stands below the fold of a full-height sheet.
-    el.querySelector('input[name="system.details.morale"]')?.closest(".acks-extras-character-sheet__fact")?.parentElement?.scrollIntoView({ block: "start" });
+    el.querySelector('input[name="system.details.morale"]')?.closest(".acks-extras-frame__fact")?.parentElement?.scrollIntoView({ block: "start" });
     await H.sleep(300);
     return { sel: `#${el.id}`, sheet: app.constructor.name, morale: !!el.querySelector('input[name="system.details.morale"]') };
   },

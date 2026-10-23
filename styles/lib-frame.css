@@ -1,0 +1,1822 @@
+/* ACKS II — the sheet frame (lib).
+ *
+ * The vocabulary every sheet on the frame draws with — the character sheet,
+ * the Full Monster sheet, the Follower Card and the roster (scripts/lib/frame.mjs
+ * is the index). Every colour is an
+ * --acks-* token read bare and every face comes off the design system, so a
+ * dark seat and the `core` look both follow. The geometry is the design
+ * canvas's: a 900px window, 32px rail cells six tall, a 202px portrait, a
+ * 38/40px rail either side and a 32px tools rail — stated once here as custom
+ * properties on the root, at the token's default type size.
+ *
+ * Those figures are a SPECIFICATION, not a fixed size: every px in this file
+ * is multiplied by --acks-extras-k (published on `.acks-extras` in lib.css),
+ * the ratio between the type knob and that default, so raising the knob scales
+ * the drawing rather than growing text inside boxes that stay put. A px
+ * literal that survives in this file is therefore one of exactly two things —
+ * a STROKE (0 and 1px: rules, keylines, the 1x1 box hiding core's title) or a
+ * FLOOR (the frame's min-width) — and that is the rule to read a diff against.
+ *
+ * The title band is this module's own part, moved into Foundry's
+ * `.window-header` at render, exactly as the item sheet does it.
+ *
+ * Six tones, one meaning each: pos/neg/warn/ts/gold/hi. See
+ * docs/character-sheet/DECISIONS.md, "The design canvas is the
+ * specification", and docs/character-sheet/MODEL.md § "The magic tone" for
+ * `--acks-extras-magic`'s mix.
+ */
+
+.acks-extras-frame {
+  /* The space ramp, re-declared scaled. The vendor publishes --acks-sp-* as
+   * literals at :root, so a declaration here simply wins for this subtree —
+   * the same move `[data-acks-density]` makes in the token file. Without it
+   * every gap and pad written as a token would hold still while the figures
+   * around them grew, which is the one way a proportional scale can still
+   * come apart. Only the steps this sheet uses are re-declared. */
+  --acks-sp-1: calc(2px * var(--acks-extras-k));
+  --acks-sp-2: calc(4px * var(--acks-extras-k));
+  --acks-sp-3: calc(6px * var(--acks-extras-k));
+  --acks-sp-4: calc(8px * var(--acks-extras-k));
+  --acks-sp-5: calc(12px * var(--acks-extras-k));
+  --acks-extras-cell: calc(32px * var(--acks-extras-k));
+  --acks-extras-rail-left: calc(38px * var(--acks-extras-k));
+  --acks-extras-rail-right: calc(40px * var(--acks-extras-k));
+  --acks-extras-rail-tools: calc(32px * var(--acks-extras-k));
+  --acks-extras-art: calc(202px * var(--acks-extras-k));
+  --acks-extras-fill: 0%;
+  --acks-extras-magic: color-mix(in srgb, var(--acks-burgundy) 45%, var(--acks-ink) 55%);
+  --acks-extras-magic-ink: color-mix(in srgb, var(--acks-spot) 55%, var(--acks-ink) 45%);
+  --acks-extras-magic-tint: color-mix(in srgb, var(--acks-extras-magic) 12%, var(--acks-paper-pure));
+  /* Neither figure carries the ratio: `width` is shadowed by core's inline
+   * write from the sheet's own `position` (the scaled opening width is
+   * applied in sheet.mjs instead); `min-width` is a literal floor. See
+   * docs/character-sheet/DECISIONS.md, "The canvas figures are a
+   * specification, scaled by a ratio". */
+  width: 900px;
+  min-width: 640px;
+  /* GEOMETRY ONLY: ground, ink and frame are the `.acks-ui` dress's. */
+}
+
+/* The folded card: the band, the portrait, the rails and the pin bar. */
+.acks-extras-frame.is-folded {
+  min-width: 380px;
+}
+
+/* --- Window chrome: the band IS the header. ------------------------------ */
+
+.acks-extras-frame.application > .window-header {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  /* The basis, not the height: core pins the header with `flex: 0 0 36px` off
+   * its own --header-height, and a flex-basis outranks `height: auto` on a flex
+   * item. Without this the band is cut off at both edges — it is taller than
+   * core's chrome by design, and the header clips what overflows it. */
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+  padding: 0 var(--acks-sp-2) 0 0;
+  background: transparent;
+  border-block-end: var(--acks-rule) solid var(--acks-spot);
+  color: var(--acks-ink);
+  /* As on the content below, and for the same reason: core sizes its own
+   * chrome, and the band lives inside that chrome rather than in the form. */
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-frame.application > .window-header .window-icon,
+.acks-extras-frame.application > .window-header .window-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.acks-extras-frame.application > .window-header .header-control {
+  flex: none;
+  inline-size: calc(26px * var(--acks-extras-k));
+  min-height: calc(26px * var(--acks-extras-k));
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-frame.application > .window-header .header-control:hover {
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+}
+
+.acks-extras-frame.application .acks-extras-frame__content {
+  padding: 0;
+  overflow: visible;
+  /* Re-take the type from core. `.window-content` carries a font-size of its
+   * own, and it is the element every panel inherits from, so the size set on
+   * the frame never reaches the body without this — the knob moved the window
+   * and nothing inside it. */
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-frame__scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 85vh;
+  overflow: auto;
+  container-type: inline-size;
+}
+
+/* --- Title band ----------------------------------------------------------- */
+
+.acks-extras-frame__band {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-3) var(--acks-sp-3);
+}
+
+.acks-extras-frame__glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(24px * var(--acks-extras-k));
+  height: calc(24px * var(--acks-extras-k));
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: calc(15px * var(--acks-extras-k));
+  cursor: pointer;
+}
+
+.acks-extras-frame__glyph img {
+  width: calc(22px * var(--acks-extras-k));
+  height: calc(22px * var(--acks-extras-k));
+  border: none;
+  object-fit: contain;
+}
+
+.acks-extras-frame__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-3);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-ink);
+  padding: 0 var(--acks-sp-1);
+}
+
+.acks-extras-frame__rank {
+  flex: none;
+  font-family: var(--acks-font-display);
+  font-size: calc(10.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+  white-space: nowrap;
+}
+
+.acks-extras-frame .acks-extras-frame__name {
+  flex: 1;
+  min-width: 6ch;
+  border: none;
+  font-family: var(--acks-font-display);
+  font-weight: var(--acks-weight-bold);
+  font-size: calc(19px * var(--acks-extras-k));
+  letter-spacing: 0.03em;
+  padding-block: var(--acks-sp-1);
+  min-height: 0;
+  text-overflow: ellipsis;
+}
+
+.acks-extras-frame__band.is-folded .acks-extras-frame__name {
+  font-size: calc(15px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__band.is-folded .acks-extras-frame__rank {
+  font-size: calc(9.5px * var(--acks-extras-k));
+}
+
+/* The XP bar: burgundy toward the threshold, gold and labelled at it. */
+.acks-extras-frame__xp {
+  position: relative;
+  flex: none;
+  width: calc(176px * var(--acks-extras-k));
+  height: calc(26px * var(--acks-extras-k));
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  overflow: hidden;
+  /* A reading in the header: no cursor of its own, a press drags the window. */
+  user-select: none;
+}
+
+.acks-extras-frame__xp-fill {
+  display: block;
+  height: 100%;
+  width: var(--acks-extras-fill);
+  background: var(--acks-burgundy);
+}
+
+.acks-extras-frame__xp > b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--acks-font-display);
+  font-size: calc(9.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--acks-ink);
+  text-shadow: 0 0 calc(2px * var(--acks-extras-k)) var(--acks-paper), 0 0 calc(3px * var(--acks-extras-k)) var(--acks-paper), 0 0 calc(4px * var(--acks-extras-k)) var(--acks-paper);
+}
+
+.acks-extras-frame__xp.is-full {
+  border-color: var(--acks-gold-deep);
+}
+
+.acks-extras-frame__xp.is-full .acks-extras-frame__xp-fill {
+  background: var(--acks-gold);
+}
+
+/* --- Art row -------------------------------------------------------------- */
+
+.acks-extras-frame__art-row {
+  display: flex;
+  align-items: flex-start;
+  padding: var(--acks-sp-5);
+}
+
+.acks-extras-frame__rail {
+  position: relative;
+  display: grid;
+  grid-template-rows: repeat(6, var(--acks-extras-cell));
+  gap: calc(2px * var(--acks-extras-k));
+  flex: none;
+  align-content: start;
+}
+
+.acks-extras-frame__rail--left {
+  width: var(--acks-extras-rail-left);
+}
+
+.acks-extras-frame__rail--right {
+  width: var(--acks-extras-rail-right);
+  margin-inline-start: calc(5px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__rail--tools {
+  width: var(--acks-extras-rail-tools);
+  margin-inline-start: var(--acks-sp-3);
+}
+
+.acks-extras-frame__art {
+  position: relative;
+  flex: none;
+  width: var(--acks-extras-art);
+  height: var(--acks-extras-art);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  border-inline-start: none;
+  background: var(--acks-tint);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.acks-extras-frame__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: none;
+}
+
+.acks-extras-frame__img[data-action] {
+  cursor: pointer;
+}
+
+.acks-extras-frame__prose {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: var(--acks-sp-4);
+  align-items: stretch;
+  padding-inline-start: calc(14px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__prose-body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: var(--acks-sp-3);
+  align-content: start;
+}
+
+.acks-extras-frame__overline {
+  font-family: var(--acks-font-ui);
+  font-size: calc(10px * var(--acks-extras-k));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+  line-height: 1.2;
+}
+
+.acks-extras-frame__description {
+  font-family: var(--acks-font-body);
+  font-size: calc(13.5px * var(--acks-extras-k));
+  line-height: 1.45;
+  color: var(--acks-ink);
+  max-height: calc(130px * var(--acks-extras-k));
+  overflow: auto;
+}
+
+.acks-extras-frame__description > :first-child {
+  margin-block-start: 0;
+}
+
+.acks-extras-frame__description > :last-child {
+  margin-block-end: 0;
+}
+
+.acks-extras-frame__editor {
+  --min-height: 6rem;
+}
+
+.acks-extras-frame__prose .acks-tag {
+  font-size: calc(10px * var(--acks-extras-k));
+}
+
+/* --- Rail cells ----------------------------------------------------------- */
+
+.acks-extras-frame__cell {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1px;
+  height: var(--acks-extras-cell);
+  min-height: 0;
+  width: 100%;
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  background: linear-gradient(to top, var(--acks-tint-2) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+  color: var(--acks-ink);
+  font-family: var(--acks-font-display);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.acks-extras-frame__cell:disabled {
+  cursor: default;
+}
+
+.acks-extras-frame__cell:hover:not(:disabled) {
+  border-color: var(--acks-spot);
+}
+
+.acks-extras-frame__cell-glyph {
+  font-size: calc(13px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__cell-glyph.is-big {
+  font-size: calc(18px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__cell-img {
+  width: calc(16px * var(--acks-extras-k));
+  height: calc(16px * var(--acks-extras-k));
+  border: none;
+  object-fit: contain;
+}
+
+.acks-extras-frame__cell-sub {
+  font-family: var(--acks-font-ui);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-frame__cell-corner {
+  position: absolute;
+  inset-inline-end: 1px;
+  inset-block-end: 1px;
+  font-size: calc(8px * var(--acks-extras-k));
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-frame__cell-count {
+  position: absolute;
+  inset-inline-start: 1px;
+  inset-block-start: 1px;
+  min-width: calc(10px * var(--acks-extras-k));
+  height: calc(10px * var(--acks-extras-k));
+  padding: 0 calc(2px * var(--acks-extras-k));
+  display: grid;
+  place-items: center;
+  background: var(--acks-spot);
+  color: var(--acks-on-burgundy);
+  font-family: var(--acks-font-ui);
+  font-size: calc(8px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+}
+
+/* A figure set inside its glyph: the heart holds the HP, the shield the AC. */
+.acks-extras-frame__in {
+  position: relative;
+  display: grid;
+  place-items: center;
+  line-height: 0;
+}
+
+.acks-extras-frame__in > i {
+  font-size: calc(24px * var(--acks-extras-k));
+  color: var(--acks-tint-2);
+  -webkit-text-stroke: 1px var(--acks-ink);
+}
+
+.acks-extras-frame__in > b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  line-height: 1;
+  color: var(--acks-ink);
+}
+
+.acks-extras-frame__in.is-dash {
+  width: calc(24px * var(--acks-extras-k));
+  height: calc(24px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) dashed var(--acks-ink-faint);
+}
+
+/* Two hands, open or clenched; joined on one haft for a two-handed weapon. */
+.acks-extras-frame__hands {
+  display: flex;
+  gap: calc(4px * var(--acks-extras-k));
+  font-size: calc(12px * var(--acks-extras-k));
+  line-height: 1;
+}
+
+.acks-extras-frame__hands.is-joined {
+  gap: 0;
+}
+
+.acks-extras-frame__hands.is-joined > i:first-child {
+  transform: scaleX(-1);
+}
+
+/* Cell tones. */
+.acks-extras-frame__cell.is-btn {
+  color: var(--acks-spot);
+  border-color: var(--acks-spot);
+  background: var(--acks-tint);
+}
+
+.acks-extras-frame__cell.is-icon {
+  color: var(--acks-spot);
+  border-color: var(--acks-spot);
+  background: transparent;
+  font-size: calc(13px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__cell.is-pad {
+  border: var(--acks-rule-hair) dashed var(--acks-ink-faint);
+  background: transparent;
+  opacity: 0.55;
+}
+
+.acks-extras-frame__cell.is-on::after {
+  content: "";
+  position: absolute;
+  inset-block-start: calc(2px * var(--acks-extras-k));
+  inset-inline-end: calc(2px * var(--acks-extras-k));
+  width: calc(5px * var(--acks-extras-k));
+  height: calc(5px * var(--acks-extras-k));
+  background: var(--acks-spot);
+  transform: rotate(45deg);
+}
+
+.acks-extras-frame__cell.is-hi {
+  border-color: var(--acks-spot);
+  background: var(--acks-tint-2);
+  color: var(--acks-spot);
+}
+
+.acks-extras-frame__cell.is-hi .acks-extras-frame__cell-sub {
+  color: var(--acks-spot);
+}
+
+.acks-extras-frame__cell.is-full {
+  border-color: var(--acks-burgundy);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-frame__cell.is-full .acks-extras-frame__cell-sub {
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-frame__cell.is-warn {
+  border-color: var(--acks-warning);
+  background: var(--acks-warning-tint);
+}
+
+.acks-extras-frame__cell.is-warn .acks-extras-frame__cell-sub {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-frame__cell.is-bad {
+  border-color: var(--acks-danger);
+  background: var(--acks-danger-tint);
+}
+
+.acks-extras-frame__cell.is-bad .acks-extras-frame__cell-sub,
+.acks-extras-frame__cell.is-bad .acks-extras-frame__in > b {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-frame__cell.is-pos {
+  border-color: var(--acks-success);
+  background: linear-gradient(to top, var(--acks-success-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-frame__cell.is-pos .acks-extras-frame__cell-sub {
+  color: var(--acks-success-ink);
+}
+
+.acks-extras-frame__cell.is-neg {
+  border-color: var(--acks-danger);
+  background: linear-gradient(to top, var(--acks-danger-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-frame__cell.is-neg .acks-extras-frame__cell-sub {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-frame__cell.is-tm {
+  border-color: var(--acks-warning);
+  background: linear-gradient(to top, var(--acks-warning-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-frame__cell.is-tm .acks-extras-frame__cell-sub {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-frame__cell.is-ts {
+  border-color: var(--acks-extras-magic);
+  background: linear-gradient(to top, var(--acks-extras-magic-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-frame__cell.is-ts .acks-extras-frame__cell-sub {
+  color: var(--acks-extras-magic-ink);
+}
+
+.acks-extras-frame__cell.is-split {
+  border-color: var(--acks-danger);
+  background: linear-gradient(135deg, var(--acks-success-tint) 0 50%, var(--acks-danger-tint) 50% 100%);
+}
+
+/* The rail menu: one row per option, the current one marked. */
+.acks-extras-frame__menu {
+  position: absolute;
+  inset-inline-start: calc(100% + calc(4px * var(--acks-extras-k)));
+  z-index: 5;
+  display: grid;
+  min-width: calc(170px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-paper-pure);
+  box-shadow: 0 calc(2px * var(--acks-extras-k)) 0 var(--acks-tint-2);
+}
+
+.acks-extras-frame__rail--left .acks-extras-frame__menu {
+  inset-inline-start: calc(100% + calc(4px * var(--acks-extras-k)));
+}
+
+.acks-extras-frame__menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: calc(5px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k));
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+  background: transparent;
+  color: var(--acks-ink);
+  font-family: var(--acks-font-ui);
+  font-size: calc(12px * var(--acks-extras-k));
+  text-align: start;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.acks-extras-frame__menu-item:last-child {
+  border-block-end: none;
+}
+
+.acks-extras-frame__menu-item:hover:not(:disabled) {
+  background: var(--acks-tint);
+}
+
+.acks-extras-frame__menu-item.is-on {
+  background: var(--acks-tint);
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-frame__menu-item > i {
+  width: calc(14px * var(--acks-extras-k));
+  color: var(--acks-spot);
+}
+
+.acks-extras-frame__menu-item > img {
+  width: calc(16px * var(--acks-extras-k));
+  height: calc(16px * var(--acks-extras-k));
+  border: none;
+}
+
+.acks-extras-frame__menu-item > span {
+  flex: 1;
+}
+
+.acks-extras-frame__menu-item > b {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* --- Tabs and panels ------------------------------------------------------ */
+
+.acks-extras-frame__tabs {
+  flex-wrap: wrap;
+  margin: 0 var(--acks-sp-5);
+}
+
+.acks-extras-frame__tabs .acks-tab {
+  font-size: calc(10.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.07em;
+  padding: var(--acks-sp-3) var(--acks-sp-5);
+  display: inline-flex;
+  align-items: center;
+}
+
+.acks-extras-frame__tabs .acks-tab.active {
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-frame__tabs .acks-tab.is-dyn {
+  border-color: var(--acks-gold-deep);
+  color: var(--acks-gold-deep);
+  background: var(--acks-gold-tint);
+}
+
+.acks-extras-frame__tabs .acks-tab.is-dyn.active {
+  background: var(--acks-gold);
+  color: var(--acks-ink);
+}
+
+.acks-extras-frame__tabs .acks-extras-frame__fold {
+  padding: var(--acks-sp-3) calc(7px * var(--acks-extras-k));
+  background: transparent;
+}
+
+.acks-extras-frame__tab-count {
+  font-family: var(--acks-font-ui);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-body);
+  opacity: 0.75;
+  margin-inline-start: var(--acks-sp-2);
+}
+
+.acks-extras-frame__tab-pending {
+  display: inline-grid;
+  place-items: center;
+  min-width: calc(14px * var(--acks-extras-k));
+  height: calc(14px * var(--acks-extras-k));
+  padding: 0 calc(3px * var(--acks-extras-k));
+  margin-inline-start: calc(5px * var(--acks-extras-k));
+  background: var(--acks-gold);
+  color: var(--acks-ink);
+  font-family: var(--acks-font-ui);
+  font-size: calc(9.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+}
+
+.acks-extras-frame__panel {
+  display: none;
+  padding: var(--acks-sp-4) var(--acks-sp-5) var(--acks-sp-5);
+}
+
+.acks-extras-frame__panel.active {
+  display: block;
+}
+
+.acks-extras-frame__stack {
+  display: grid;
+  gap: var(--acks-sp-4);
+}
+
+.acks-extras-frame__cols {
+  display: grid;
+  gap: var(--acks-sp-4) calc(26px * var(--acks-extras-k));
+  align-items: start;
+}
+
+.acks-extras-frame__cols.is-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.acks-extras-frame__cols.is-2.is-wide-left {
+  grid-template-columns: 1.2fr 1fr;
+}
+
+.acks-extras-frame__cols.is-3 {
+  grid-template-columns: 1fr 1.15fr 1fr;
+}
+
+.acks-extras-frame__col {
+  min-width: 0;
+}
+
+.acks-extras-frame__group {
+  display: grid;
+  gap: 0;
+}
+
+.acks-extras-frame__group + .acks-extras-frame__group {
+  margin-block-start: var(--acks-sp-5);
+}
+
+.acks-extras-frame__group.is-hidden {
+  display: none;
+}
+
+.acks-extras-frame__intro,
+.acks-extras-frame__hint {
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  color: var(--acks-ink-soft);
+  padding-block: var(--acks-sp-2);
+}
+
+/* A rule: the group heading, underlined in spot. */
+.acks-extras-frame__rule {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3);
+  padding-block-end: calc(3px * var(--acks-extras-k));
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+.acks-extras-frame__rule.is-bar {
+  border-block-end: none;
+  padding-block-end: 0;
+  align-items: center;
+}
+
+.acks-extras-frame__rule.is-spaced {
+  margin-block-start: var(--acks-sp-5);
+}
+
+.acks-extras-frame__rule-title {
+  font-family: var(--acks-font-display);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--acks-spot);
+}
+
+.acks-extras-frame__rule-note {
+  margin-inline-start: auto;
+  font-family: var(--acks-font-ui);
+  font-size: calc(10px * var(--acks-extras-k));
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-frame__subhead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-3) 0 calc(2px * var(--acks-extras-k));
+  font-family: var(--acks-font-display);
+  font-size: calc(9.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-frame__subhead-note {
+  margin-inline-start: auto;
+  font-family: var(--acks-font-ui);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A row: label over line, a value, an action — underlined in tint. */
+.acks-extras-frame__row {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding-block: calc(5px * var(--acks-extras-k));
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-frame__row.is-bare {
+  border-block-end: none;
+  padding-block: calc(2px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__row.is-head {
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+  padding-block-end: var(--acks-sp-3);
+}
+
+.acks-extras-frame__row.is-roll {
+  cursor: pointer;
+}
+
+.acks-extras-frame__row.is-roll:hover {
+  background: var(--acks-tint);
+}
+
+.acks-extras-frame__row.is-disabled {
+  opacity: 0.6;
+}
+
+.acks-extras-frame__row-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.acks-extras-frame__row-label {
+  font-family: var(--acks-font-ui);
+  font-size: calc(13px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+}
+
+.acks-extras-frame__row-label.is-big {
+  font-size: calc(13.5px * var(--acks-extras-k));
+  cursor: pointer;
+}
+
+.acks-extras-frame__row-line {
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-frame__row-name {
+  font-family: var(--acks-font-ui);
+  font-size: calc(12.5px * var(--acks-extras-k));
+  color: var(--acks-ink);
+}
+
+a.acks-extras-frame__row-name:hover,
+a.acks-extras-frame__gear-name:hover {
+  color: var(--acks-spot);
+}
+
+.acks-extras-frame__row-value {
+  font-family: var(--acks-font-ui);
+  font-size: calc(12.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  min-width: calc(30px * var(--acks-extras-k));
+  text-align: end;
+}
+
+/* The pin: a 16px box that holds a lozenge when the roll is on the card. */
+.acks-extras-frame__pin {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(16px * var(--acks-extras-k));
+  height: calc(16px * var(--acks-extras-k));
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  background: none;
+  cursor: pointer;
+}
+
+.acks-extras-frame__pin.is-on::before {
+  content: "";
+  width: calc(7px * var(--acks-extras-k));
+  height: calc(7px * var(--acks-extras-k));
+  background: var(--acks-spot);
+  transform: rotate(45deg);
+}
+
+/* The roll button and the mini d20. */
+.acks-extras-frame__roll {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5px * var(--acks-extras-k));
+  padding: calc(3px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+  font-family: var(--acks-font-display);
+  font-size: calc(9px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.acks-extras-frame__mini {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: calc(18px * var(--acks-extras-k));
+  height: calc(18px * var(--acks-extras-k));
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+  font-size: calc(10px * var(--acks-extras-k));
+  cursor: pointer;
+}
+
+/* A row that posts a card rather than rolling: outlined, not filled. */
+.acks-extras-frame__mini.is-post {
+  background: transparent;
+  color: var(--acks-spot);
+}
+
+.acks-extras-frame__mini.is-eq,
+.acks-extras-frame__row.is-eq .acks-extras-frame__roll {
+  box-shadow: 0 0 0 1px var(--acks-paper), 0 0 0 calc(3px * var(--acks-extras-k)) var(--acks-spot);
+}
+
+/* Chips, badges, tags. */
+.acks-extras-frame__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4px * var(--acks-extras-k));
+  padding: calc(3px * var(--acks-extras-k)) calc(6px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: transparent;
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: calc(9px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.acks-extras-frame__chip:hover {
+  background: var(--acks-tint);
+}
+
+.acks-extras-frame__chip.is-gold {
+  border-color: var(--acks-gold-deep);
+  color: var(--acks-gold-deep);
+  background: var(--acks-gold-tint);
+}
+
+.acks-extras-frame__badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--acks-sp-2);
+  padding: calc(2px * var(--acks-extras-k)) calc(6px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  white-space: nowrap;
+}
+
+.acks-extras-frame__badge-k {
+  font-family: var(--acks-font-display);
+  font-size: calc(9px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-frame__badge-v {
+  font-family: var(--acks-font-ui);
+  font-size: calc(11.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+}
+
+.acks-extras-frame__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+  padding-block: var(--acks-sp-3);
+}
+
+/* Bars. The thin one is a header's underline: fill, breakpoint ticks, no frame. */
+.acks-extras-frame__bar {
+  position: relative;
+  height: calc(18px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  background: var(--acks-neutral);
+  overflow: hidden;
+}
+
+.acks-extras-frame__bar > i {
+  display: block;
+  height: 100%;
+  background: var(--acks-burgundy);
+}
+
+.acks-extras-frame__bar.is-thin {
+  height: calc(7px * var(--acks-extras-k));
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+}
+
+.acks-extras-frame__bar.is-thin > u {
+  position: absolute;
+  inset-block: 0;
+  width: 1px;
+  background: var(--acks-spot);
+}
+
+/* The phantom: what is carried beyond what is counted. Dashed and unfilled —
+   the relief a carrying rule grants is the gap between the fill and this cap.
+   Spot-coloured like the ticks, in both themes, whatever tone the fill has. */
+.acks-extras-frame__bar.is-thin > s {
+  position: absolute;
+  inset-block: 0;
+  box-sizing: border-box;
+  background: none;
+  border: var(--acks-rule-hair) dashed var(--acks-spot);
+  border-inline-start: none;
+  text-decoration: none;
+}
+
+.acks-extras-frame__bar.is-warn { border-block-end-color: var(--acks-warning); }
+.acks-extras-frame__bar.is-warn > i { background: var(--acks-warning); }
+.acks-extras-frame__bar.is-bad,
+.acks-extras-frame__bar.is-neg { border-block-end-color: var(--acks-danger); }
+.acks-extras-frame__bar.is-bad > i,
+.acks-extras-frame__bar.is-neg > i { background: var(--acks-danger); }
+.acks-extras-frame__bar.is-pos { border-block-end-color: var(--acks-success); }
+.acks-extras-frame__bar.is-pos > i { background: var(--acks-success); }
+.acks-extras-frame__bar.is-tm { border-block-end-color: var(--acks-warning); }
+.acks-extras-frame__bar.is-tm > i { background: var(--acks-warning); }
+.acks-extras-frame__bar.is-ts { border-block-end-color: var(--acks-extras-magic); }
+.acks-extras-frame__bar.is-ts > i { background: var(--acks-extras-magic); }
+
+/* --- Equipment ------------------------------------------------------------ */
+
+.acks-extras-frame__slot {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--acks-sp-3);
+  min-height: calc(34px * var(--acks-extras-k));
+  padding: calc(3px * var(--acks-extras-k)) 0;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-frame__slot.is-empty {
+  min-height: calc(26px * var(--acks-extras-k));
+  align-items: center;
+}
+
+/* Over capacity. Its own marker: `is-over` is the drag state on every drop
+   zone, and a place wears both. */
+.acks-extras-frame__slot.is-full {
+  background: var(--acks-danger-tint);
+}
+
+/* A weapon in both hands spans the two hand places: their labels stack behind
+   one bracket and share the one row. */
+.acks-extras-frame__where.is-span {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(2px * var(--acks-extras-k));
+  padding-block-start: calc(4px * var(--acks-extras-k));
+  padding-inline-start: calc(6px * var(--acks-extras-k));
+  border-inline-start: calc(2px * var(--acks-extras-k)) solid var(--acks-spot);
+}
+
+.acks-extras-frame__where-hand {
+  display: flex;
+  align-items: center;
+  gap: calc(5px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__where {
+  display: flex;
+  align-items: center;
+  gap: calc(5px * var(--acks-extras-k));
+  width: calc(92px * var(--acks-extras-k));
+  flex: none;
+  padding-block-start: calc(6px * var(--acks-extras-k));
+  font-family: var(--acks-font-ui);
+  font-size: calc(11.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-spot);
+}
+
+.acks-extras-frame__slot.is-empty .acks-extras-frame__where {
+  padding-block-start: 0;
+  color: var(--acks-ink-faint);
+}
+
+.acks-extras-frame__where > i {
+  width: calc(14px * var(--acks-extras-k));
+  text-align: center;
+  font-size: calc(12px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__slot-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.acks-extras-frame__slot-cap {
+  flex: none;
+  padding-block-start: calc(6px * var(--acks-extras-k));
+  font-family: var(--acks-font-ui);
+  font-size: calc(10px * var(--acks-extras-k));
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-frame__drop {
+  display: flex;
+  align-items: center;
+  height: calc(20px * var(--acks-extras-k));
+  padding: 0 calc(6px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) dashed var(--acks-ink-faint);
+  opacity: 0.5;
+  font-family: var(--acks-font-ui);
+  font-size: calc(10px * var(--acks-extras-k));
+  letter-spacing: 0.04em;
+  color: var(--acks-ink-soft);
+}
+
+[data-drop].is-over > .acks-extras-frame__drop,
+[data-drop].is-over > .acks-extras-frame__slot-body > .acks-extras-frame__drop {
+  opacity: 1;
+  border-color: var(--acks-spot);
+}
+
+.acks-extras-frame__gear {
+  padding-block: calc(3px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__gear + .acks-extras-frame__gear {
+  border-block-start: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-frame__gear.is-container.is-over,
+.acks-extras-frame__gear.is-container[data-drop].is-over {
+  background: var(--acks-tint);
+}
+
+.acks-extras-frame__gear-main {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-frame__gear-img {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(24px * var(--acks-extras-k));
+  height: calc(24px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  background: var(--acks-tint);
+  object-fit: cover;
+  font-size: calc(12px * var(--acks-extras-k));
+  color: var(--acks-ink);
+}
+
+.acks-extras-frame__gear-img.is-big {
+  width: calc(32px * var(--acks-extras-k));
+  height: calc(32px * var(--acks-extras-k));
+  font-size: calc(16px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__gear-img.is-big > img {
+  width: 100%;
+  height: 100%;
+  border: none;
+  object-fit: contain;
+}
+
+.acks-extras-frame__gear-img.is-dashed {
+  border-style: dashed;
+  background: transparent;
+}
+
+.acks-extras-frame__gear-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.acks-extras-frame__gear-name {
+  font-family: var(--acks-font-ui);
+  font-size: calc(12.5px * var(--acks-extras-k));
+  color: var(--acks-ink);
+  cursor: pointer;
+}
+
+.acks-extras-frame__gear.is-wielded .acks-extras-frame__gear-name {
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-frame__gear-line {
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-frame__gear-head {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: calc(2px * var(--acks-extras-k)) 0 calc(2px * var(--acks-extras-k)) calc(32px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__gear-head .acks-extras-frame__ctls {
+  margin-inline-start: auto;
+}
+
+.acks-extras-frame__contents {
+  padding-inline-start: calc(32px * var(--acks-extras-k));
+}
+
+/* Row controls: three groups with a hairline between. */
+.acks-extras-frame__ctls {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: calc(3px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__grp {
+  display: flex;
+  align-items: center;
+  gap: calc(3px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__grp + .acks-extras-frame__grp {
+  margin-inline-start: calc(4px * var(--acks-extras-k));
+  padding-inline-start: calc(6px * var(--acks-extras-k));
+  border-inline-start: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-frame__ctl {
+  display: inline-grid;
+  place-items: center;
+  width: calc(18px * var(--acks-extras-k));
+  height: calc(18px * var(--acks-extras-k));
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: calc(11px * var(--acks-extras-k));
+  cursor: pointer;
+}
+
+.acks-extras-frame__ctl:hover:not(:disabled) {
+  background: var(--acks-tint);
+}
+
+.acks-extras-frame__ctl.is-on {
+  color: var(--acks-gold-deep);
+}
+
+.acks-extras-frame__ctl.is-locked {
+  color: var(--acks-ink-faint);
+  cursor: default;
+}
+
+.acks-extras-frame__ctl.is-blocked {
+  color: var(--acks-danger-ink);
+}
+
+/* --- Stats ---------------------------------------------------------------- */
+
+.acks-extras-frame__attrs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) auto;
+  gap: var(--acks-sp-3);
+  align-items: stretch;
+}
+
+.acks-extras-frame .acks-attribute-value.acks-extras-frame__score.acks-extras-frame__score {
+  width: 100%;
+  min-height: 0;
+  padding: var(--acks-sp-3) var(--acks-sp-2) var(--acks-sp-1);
+  border: none;
+  background: transparent;
+  text-align: center;
+}
+
+.acks-extras-frame__attrs-tools {
+  display: grid;
+  gap: var(--acks-sp-2);
+  align-content: center;
+}
+
+.acks-extras-frame__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(4px * var(--acks-extras-k));
+  padding: var(--acks-sp-3) 0 var(--acks-sp-2);
+}
+
+.acks-extras-frame__pills.is-inline {
+  display: inline-flex;
+  padding: 0;
+}
+
+.acks-extras-frame__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(4px * var(--acks-extras-k));
+  min-width: calc(30px * var(--acks-extras-k));
+  height: calc(24px * var(--acks-extras-k));
+  padding: 0 calc(8px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  background: transparent;
+  color: var(--acks-ink-faint);
+  font-family: var(--acks-font-display);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  cursor: default;
+}
+
+button.acks-extras-frame__pill:not(:disabled) {
+  cursor: pointer;
+}
+
+.acks-extras-frame__pill.is-on {
+  border-color: var(--acks-spot);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-frame__pill.is-gold {
+  border-color: var(--acks-gold-deep);
+  background: var(--acks-gold);
+  color: var(--acks-ink);
+}
+
+.acks-extras-frame__pill.is-unset {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.acks-extras-frame__pill.is-weapon {
+  height: calc(20px * var(--acks-extras-k));
+  padding: 0 calc(6px * var(--acks-extras-k));
+  font-family: var(--acks-font-ui);
+  font-size: calc(10.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.acks-extras-frame__pill.is-filter {
+  height: calc(22px * var(--acks-extras-k));
+  font-family: var(--acks-font-ui);
+  font-size: calc(10.5px * var(--acks-extras-k));
+  letter-spacing: 0.06em;
+}
+
+.acks-extras-frame__pill-n {
+  opacity: 0.7;
+  font-weight: var(--acks-weight-body);
+}
+
+.acks-extras-frame__bucket {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(4px * var(--acks-extras-k));
+  padding: calc(3px * var(--acks-extras-k)) 0;
+}
+
+.acks-extras-frame__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(4px * var(--acks-extras-k));
+}
+
+/* Facts: an icon, a label, a value or a write-on field. */
+.acks-extras-frame__fact {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding-block: calc(3px * var(--acks-extras-k));
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-frame__fact-icon {
+  width: calc(16px * var(--acks-extras-k));
+  text-align: center;
+  color: var(--acks-spot);
+  font-size: calc(12px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__fact-label {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--acks-font-ui);
+  font-size: calc(12px * var(--acks-extras-k));
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-frame__fact-note {
+  font-size: calc(10.5px * var(--acks-extras-k));
+  color: var(--acks-ink-faint);
+}
+
+.acks-extras-frame__fact-value {
+  font-family: var(--acks-font-ui);
+  font-size: calc(12.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+}
+
+.acks-extras-frame__fact-unit {
+  width: 5.5em;
+  font-family: var(--acks-font-ui);
+  font-size: calc(10.5px * var(--acks-extras-k));
+  color: var(--acks-ink-faint);
+}
+
+.acks-extras-frame__fact-of {
+  color: var(--acks-ink-soft);
+}
+
+/* The design system's field rule sets `width: 100%` at three classes deep,
+   and its sheet is applied AFTER this one, so a tie goes against these
+   fields; the write-on fields sit one class heavier than that rule. */
+.acks-extras-frame .acks-input.acks-extras-frame__fact-input.acks-extras-frame__fact-input {
+  flex: none;
+  width: 5ch;
+  min-height: 0;
+  height: calc(22px * var(--acks-extras-k));
+  padding: 1px calc(4px * var(--acks-extras-k));
+  font-size: calc(12.5px * var(--acks-extras-k));
+  text-align: center;
+}
+
+.acks-extras-frame .acks-input.acks-extras-frame__fact-input.acks-extras-frame__fact-input.is-wide {
+  width: 9ch;
+}
+
+.acks-extras-frame .acks-input.acks-extras-frame__fact-input.acks-extras-frame__fact-input.is-xs {
+  width: 4ch;
+}
+
+/* A field an active effect changes: the input keeps the stored value and the
+   effect's result rides in its tooltip. The rule is doubled to outrank the
+   design system's own control rules on the tie. */
+.acks-extras-frame .acks-input.acks-extras-frame__fact-input.acks-extras-frame__fact-input.is-overridden,
+.acks-extras-frame .acks-attribute-value.acks-extras-frame__score.acks-extras-frame__score.is-overridden {
+  box-shadow: inset 0 calc(-2px * var(--acks-extras-k)) 0 var(--acks-spot);
+}
+
+.acks-extras-frame select.acks-input.acks-extras-frame__fact-input.acks-extras-frame__fact-input {
+  width: auto;
+  min-width: 12ch;
+  text-align: start;
+}
+
+.acks-extras-frame__note.is-box {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: calc(6px * var(--acks-extras-k)) calc(10px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  font-family: var(--acks-font-ui);
+  font-size: calc(11.5px * var(--acks-extras-k));
+  color: var(--acks-ink);
+}
+
+.acks-extras-frame__note.is-box > i {
+  color: var(--acks-spot);
+}
+
+.acks-extras-frame__note.is-box > span {
+  flex: 1;
+}
+
+.acks-extras-frame__note.is-box > .acks-tag {
+  cursor: pointer;
+}
+
+/* --- Class ---------------------------------------------------------------- */
+
+.acks-extras-frame__gold-band {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding: calc(8px * var(--acks-extras-k)) calc(10px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-gold-deep);
+  background: var(--acks-gold-tint);
+  color: var(--acks-gold-deep);
+}
+
+.acks-extras-frame__gold-title {
+  font-family: var(--acks-font-display);
+  font-size: calc(11px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.acks-extras-frame__delta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-3);
+  padding-block: calc(4px * var(--acks-extras-k));
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+  font-family: var(--acks-font-ui);
+  font-size: calc(12px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__delta-label {
+  flex: 1;
+}
+
+.acks-extras-frame__delta-from {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-frame__delta > i {
+  font-size: calc(9px * var(--acks-extras-k));
+  color: var(--acks-spot);
+}
+
+.acks-extras-frame__delta-to {
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-frame__levelup {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-5);
+  padding-block-start: var(--acks-sp-3);
+  border-block-start: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+.acks-extras-frame__gold-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6px * var(--acks-extras-k));
+  min-height: calc(34px * var(--acks-extras-k));
+  padding: calc(8px * var(--acks-extras-k)) calc(20px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-gold-deep);
+  background: var(--acks-gold);
+  color: var(--acks-ink);
+  font-family: var(--acks-font-display);
+  font-size: calc(13px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* --- Followers ------------------------------------------------------------ */
+
+.acks-extras-frame__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(300px * var(--acks-extras-k)), 1fr));
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3) 0;
+}
+
+.acks-extras-frame__card {
+  position: relative;
+  min-width: 0;
+}
+
+.acks-extras-frame__card-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: calc(3px * var(--acks-extras-k));
+  padding-block-end: calc(2px * var(--acks-extras-k));
+}
+
+/* --- Effects -------------------------------------------------------------- */
+
+.acks-extras-frame__timer {
+  padding-block: calc(3px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__timer.is-disabled {
+  opacity: 0.6;
+}
+
+/* --- Folded --------------------------------------------------------------- */
+
+.acks-extras-frame__art-row.is-folded {
+  padding-block-end: var(--acks-sp-3);
+}
+
+.acks-extras-frame__foldbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(4px * var(--acks-extras-k));
+  margin: 0 var(--acks-sp-5);
+  padding: 0 0 var(--acks-sp-5);
+}
+
+.acks-extras-frame__foldbar .acks-extras-frame__cell.is-fold {
+  width: calc(26px * var(--acks-extras-k));
+  height: calc(24px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__pinchip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6px * var(--acks-extras-k));
+  padding: calc(5px * var(--acks-extras-k)) calc(9px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: linear-gradient(to right, var(--acks-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+button.acks-extras-frame__pinchip {
+  cursor: pointer;
+}
+
+.acks-extras-frame__pinchip.is-roll {
+  background: transparent;
+}
+
+.acks-extras-frame__pinchip.is-eq {
+  box-shadow: 0 0 0 1px var(--acks-paper), 0 0 0 calc(3px * var(--acks-extras-k)) var(--acks-spot);
+}
+
+.acks-extras-frame__pinchip > i {
+  font-size: calc(11px * var(--acks-extras-k));
+}
+
+.acks-extras-frame__pinchip > img {
+  width: calc(12px * var(--acks-extras-k));
+  height: calc(12px * var(--acks-extras-k));
+  border: none;
+}
+
+.acks-extras-frame__pinchip > b {
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--acks-ink);
+}
+
+.acks-extras-frame__pinchip.is-tm {
+  border-color: var(--acks-warning);
+  color: var(--acks-warning-ink);
+  background: linear-gradient(to right, var(--acks-warning-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-frame__pinchip.is-ts {
+  border-color: var(--acks-extras-magic);
+  color: var(--acks-extras-magic-ink);
+  background: linear-gradient(to right, var(--acks-extras-magic-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-frame__pinchip.is-pos {
+  border-color: var(--acks-success);
+  color: var(--acks-success-ink);
+  background: linear-gradient(to right, var(--acks-success-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-frame__pinchip.is-neg {
+  border-color: var(--acks-danger);
+  color: var(--acks-danger-ink);
+  background: linear-gradient(to right, var(--acks-danger-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+/* --- Narrow: at the core width the place column collapses to its icon. -----
+ * The thresholds are `em`, and that is the whole point: a container query
+ * resolves font-relative units against the query container's OWN computed
+ * size, which here descends from the sheet's `--acks-fs-body`. So 60em is 840px
+ * at the default and widens with the type knob — the row collapses when the
+ * DRAWING outgrows the frame, not when the frame passes a fixed pixel count.
+ * Written in px these would fire late by exactly the knob's ratio, leaving a
+ * wide place column on a row that no longer fits. A var() is not available
+ * here (a query condition takes no custom properties), which is why this is
+ * the one place the ratio is spent rather than applied. */
+
+@container (max-width: 60em) {
+  .acks-extras-frame__where {
+    width: calc(22px * var(--acks-extras-k));
+  }
+
+  .acks-extras-frame__where-label {
+    display: none;
+  }
+
+  .acks-extras-frame__cols.is-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@container (max-width: 50em) {
+  .acks-extras-frame__cols.is-2,
+  .acks-extras-frame__cols.is-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .acks-extras-frame__prose {
+    display: none;
+  }
+}
+
+/* --- Stats: training ------------------------------------------------------ */
+
+/* The view cycle, the pencil and Reset, on one line under the rule. */
+.acks-extras-frame__training-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(4px * var(--acks-extras-k));
+  padding-block: var(--acks-sp-2) 0;
+}
+
+.acks-extras-frame__chip.is-on {
+  border-color: var(--acks-gold-deep);
+  color: var(--acks-gold-deep);
+}
+
+.acks-extras-frame__hint.is-editing {
+  color: var(--acks-gold-deep);
+}
+
+/* A pill a hand moved off what the class prints wears a dot at its corner. */
+.acks-extras-frame__pill {
+  position: relative;
+}
+
+.acks-extras-frame__pill.is-edited::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: calc(7px * var(--acks-extras-k));
+  height: calc(7px * var(--acks-extras-k));
+  border-radius: 50%;
+  background: var(--acks-gold-deep);
+  box-shadow: 0 0 0 1px var(--acks-tint-2);
+}
+
+/* A group some but not all of whose weapons are trained. */
+.acks-extras-frame__pill.is-partial {
+  border-style: dashed;
+  border-color: var(--acks-spot);
+  color: var(--acks-spot);
+}
+
+/* Lit by a source this editor cannot withdraw: it answers with the reason, not the mouse. */
+button.acks-extras-frame__pill.is-locked:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+/* A companion slot with no creature in it says so, in soft ink. */
+.acks-extras-frame__gear-name.is-empty {
+  color: var(--acks-ink-soft);
+  font-style: italic;
+}
+

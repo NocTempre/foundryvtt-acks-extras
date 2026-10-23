@@ -74,7 +74,7 @@ a step it does not name is walked by hand.
   `flags.acks-extras.groupPay.lastPaidTime` the same way.
 - **The two Pay wages controls are different elements.** On this module's
   sheet it is the chip `[data-action="payWages"]` in the Followers tab's rule,
-  beside `.acks-extras-character-sheet__rule-note`. On the system's sheet
+  beside `.acks-extras-frame__rule-note`. On the system's sheet
   (opened as docs/lib/TESTING.md, "Coin", describes) it is
   `.tab[data-tab="hirelings"] [data-action="payWages"]`.
 - **A payday's hook fires on the seat that ran it.** Listen for
@@ -229,7 +229,7 @@ a step it does not name is walked by hand.
    same way: alone on the payroll it sets the days, beside a hireling the
    nearer of the two does, and with the unit's month due the line reads the
    wages due beside the chip. Read the line as
-   `[data-tab="followers"] .acks-extras-character-sheet__rule-note`: other
+   `[data-tab="followers"] .acks-extras-frame__rule-note`: other
    tabs draw rule notes of their own, and the sheet's first is not this one.
 5b-ii. The line under a clock that moves. The world's clock is shared, so
    move the seat's own reading of it: with five days left on the wage clock

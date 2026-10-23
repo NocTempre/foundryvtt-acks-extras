@@ -21,6 +21,7 @@
     "styles/lib.css",
     "vendor/acks-design/acks-design.css",
     "styles/lib-sheet-theme.css",
+    "styles/lib-frame.css",
     "styles/lib-follower-card.css",
     "styles/abilities.css",
     "styles/battlemap.css",
