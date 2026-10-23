@@ -309,12 +309,26 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
 
 // ---- what a network posting reaches, and what its holder's roll adds ----
 {
-  const { postingSegments, networkSupplement } = await import(new URL("../scripts/henchmen/rules/availability.mjs", import.meta.url));
-  assert.deepStrictEqual(
-    postingSegments("henchman:*"),
-    ["henchman:0", "henchman:1", "henchman:2", "henchman:3", "henchman:4"],
-    "the general henchman post reaches every henchman level"
-  );
+  const { postingSegments, networkSupplement, henchmanLevels } = await import(new URL("../scripts/henchmen/rules/availability.mjs", import.meta.url));
+  // The levels are the imported rows', and these rows are invented.
+  const withRows = (rows, fn) => {
+    const saved = globalThis.acksExtras;
+    try {
+      const table = rows === undefined ? null : { rows };
+      globalThis.acksExtras = { lib: { tables: { hasDoc: (doc) => doc === "availability" && !!table, getTable: (doc, id) => (id === "henchmanAvailability" ? table : null) } } };
+      fn();
+    } finally {
+      globalThis.acksExtras = saved;
+    }
+  };
+  withRows([{ level: 6 }, { level: 1 }, { level: 3, __missing: true }, { level: "2" }, { level: 1 }, { level: -1 }], () => {
+    assert.deepStrictEqual(henchmanLevels(), [1, 6], "the imported rows' whole levels, lowest first, once each, an unread row left out");
+    assert.deepStrictEqual(postingSegments("henchman:*"), ["henchman:1", "henchman:6"], "the general henchman post reaches every listed level");
+  });
+  withRows(undefined, () => {
+    assert.deepStrictEqual(henchmanLevels(), [], "nothing imported lists no level");
+    assert.deepStrictEqual(postingSegments("henchman:*"), [], "and the general post reaches no segment");
+  });
   assert.deepStrictEqual(postingSegments("specialist:x"), ["specialist:x"], "any other post reaches its own segment");
   assert.deepStrictEqual(postingSegments(""), [], "a directed search reaches no shared segment");
   assert.strictEqual(networkSupplement(9, 4), 5, "the holder gets what their roll finds beyond the town's");

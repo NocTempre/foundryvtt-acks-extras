@@ -1,7 +1,7 @@
 /**
  * Live walk, henchmen: henchmen + influence.
  * STAGE=1: henchmen steps 14 and 15, influence steps 17–19, on the GM seat.
- * STAGE=2: henchmen steps 10, 12 (player seat), 13 and 3a.
+ * STAGE=2: henchmen steps 10, 12 (player seat), 13, 3b and 3a.
  * Machine values arrive through ./_env.mjs; nothing here names a port, a
  * world, a seat or a book. Every
  * figure typed into a fixture is invented; no imported figure is printed by
@@ -509,6 +509,23 @@ const P = {
     if (on) H.T.registerTable({ id: "wages", tables: { henchmanLimit: H.limitTable } }, { priority: 30, source: "qa-c1" });
     else H.T.unregisterTable("wages", { priority: 30 });
     return { known: H.m.WG.henchmanLimitBase() !== null };
+  },
+  /**
+   * Whether the open posting dialog's level options, the location's month-roll
+   * henchman segments and a general posting's segments each name exactly the
+   * levels of the availability rows this client reads. Booleans only.
+   */
+  levelsRead: async ({ locationId }) => {
+    const H = globalThis.__c1;
+    const rows = H.T.getDoc("availability")?.tables?.henchmanAvailability?.rows ?? [];
+    const want = [...new Set(rows.filter((r) => r?.__missing !== true && Number.isInteger(r?.level)).map((r) => r.level))].sort((a, b) => a - b).join(",");
+    const el = H.root(H.appBy("posting-dialog"));
+    const kind = el?.querySelector('select[name="kind"]');
+    if (kind) { kind.value = "henchman"; kind.dispatchEvent(new Event("change", { bubbles: true })); await H.sleep(150); }
+    const options = [...(el?.querySelectorAll('select[name="level"] option') ?? [])].filter((o) => o.value !== "").map((o) => Number(o.value)).join(",");
+    const rolled = [...new Set((game.actors.get(locationId).system.market?.marketRolls ?? []).map((r) => r.segment).filter((s) => /^henchman:\d+$/.test(s)).map((s) => Number(s.split(":")[1])))].sort((a, b) => a - b).join(",");
+    const reached = H.m.AV.postingSegments("henchman:*").map((s) => Number(s.split(":")[1])).join(",");
+    return { rows: rows.length > 0, options: !!el && options === want, rolled: rolled === want, reached: reached === want };
   },
   /** The employer-level cap as this client reads it: whether any level has one, and whether the world's own layer holds the ladder. */
   capRead: async () => {
@@ -1436,6 +1453,12 @@ try {
     const m3 = await run(gm, P.marketRead, { locationId: hall2.id, employerId: N.id, feeCardFlavor: fee3, feeClass: 5 });
     const merc = m3.postings.find((p) => /^mercenary/.test(p.segment ?? ""));
     check("13: a mercenary search with the box unticked rolls no network and pays the class-5 fee", !!merc && merc.network === false && m3.networkRolls.length === m2.networkRolls.length && m3.feeMatches[5] === true && m3.feeMatches[3] !== true, { merc, feeMatches: m3.feeMatches, networkRolls: [m2.networkRolls.length, m3.networkRolls.length] });
+    note("closed", await run(gm, P.closeAll));
+
+    section("3b. the market's henchman levels are the availability table's");
+    await run(gm, P.postingOpen, { locationId: hall2.id, employerId: A.id });
+    const lv = await run(gm, P.levelsRead, { locationId: hall2.id });
+    check("3b: the dialog's level options, the month roll's henchman segments and a general posting's reach each name exactly the imported rows' levels", lv.rows && lv.options && lv.rolled && lv.reached, lv);
     note("closed", await run(gm, P.closeAll));
 
     // The ladder: the world's import where it holds one, else the book's read

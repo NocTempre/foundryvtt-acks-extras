@@ -9,6 +9,7 @@ import { MODULE_ID } from "../constants.mjs";
 import { getTable, optTable } from "../rules/tables.mjs";
 import { createPosting, PRIVATE_KINDS } from "../engine/recruitment.mjs";
 import { maxHenchmanLevel } from "../rules/wages.mjs";
+import { henchmanLevels } from "../rules/availability.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { executeAsGM } from "../../lib/sockets.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
@@ -53,7 +54,7 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
         .filter((a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && mayUse(a))
         .map(row);
     }
-    context.levels = [0, 1, 2, 3, 4].map((l) => ({ level: l }));
+    context.levels = henchmanLevels().map((l) => ({ level: l }));
     context.mercTypes = (optTable("availability", "mercenaryAvailability")?.rows ?? []).map((r) => ({
       id: r.type,
       label: game.i18n.localize(`ACKS-HENCHMEN.troop.${r.type}`),

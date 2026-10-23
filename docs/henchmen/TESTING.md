@@ -132,6 +132,13 @@ a step it does not name is walked by hand.
    `maxHenchmanLevel(level)` is null and the above-cap search lands; take the
    ruler's search down first, since a second active search of one segment for
    one employer is refused as a duplicate, which reads as the cap refusing.
+3b. The market's henchman levels, with the `availability` tables imported and
+   a month rolled at the location (step 3 rolls one).
+   *Observable:* the posting dialog's **Level** options for a **henchman**
+   search, the location's `market.marketRolls` henchman segments and
+   `postingSegments("henchman:*")` each name exactly the levels of the
+   world's `availability.henchmanAvailability` rows. Compare in page and
+   report the match, never the levels.
 4. `openRecruitDialog(location, candidateId)` for one of those candidates and
    hire them.
    *Observable:* the candidate's status leaves `available`, and the hire

@@ -60,6 +60,14 @@ default `{scope:"all"}`. The read side — "where am I slandered" — is
 `acksHenchmen.slanderedAt({employerUuid, characterUuid})`, a scan over
 location actors, not a second store.
 
+**Henchman levels.** The levels a market stocks are the ones the imported
+`availability.henchmanAvailability` rows list (`rules/availability.mjs >
+henchmanLevels`), lowest first, a row the import could not read left out:
+the month roll's henchman segments (`allSegmentSpecs`), the segments a
+general henchman posting reaches (`postingSegments`) and the posting
+dialog's **Level** options all read it. Until the table is imported the list
+is empty, as the mercenary and specialist lists beside it are.
+
 **Bulk rows.** Mercenaries, and specialists whose largest market counts them
 by a multiple, arrive as one candidate row per week with a `quantity`
 (`isMassSpec`, `engine/recruitment.mjs`). An offer names how many of the row

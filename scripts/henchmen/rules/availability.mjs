@@ -3,6 +3,7 @@
  * an injected async roller so Node tests stay deterministic.
  */
 import { getTable, optTable, bracketRow } from "./tables.mjs";
+import { isMissingRow } from "../../lib/tables.mjs";
 import { rollAvailability, arrivalSplit } from "./dice.mjs";
 import { RARITY_TIERS } from "../config.mjs";
 
@@ -186,11 +187,22 @@ export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.r
 }
 
 /**
+ * The henchman levels the imported availability table lists, lowest first:
+ * the levels a market stocks and a search can name. A row the import could
+ * not read lists nothing, and the list is empty until the table is imported.
+ */
+export function henchmanLevels() {
+  const rows = optTable("availability", "henchmanAvailability")?.rows ?? [];
+  const levels = rows.filter((r) => !isMissingRow(r) && Number.isInteger(r?.level) && r.level >= 0).map((r) => r.level);
+  return [...new Set(levels)].sort((a, b) => a - b);
+}
+
+/**
  * The shared-pool segments one posting reaches: the general henchman post
- * covers every henchman level, any other post its own segment.
+ * covers every level `henchmanLevels` lists, any other post its own segment.
  */
 export function postingSegments(segment) {
-  if (segment === "henchman:*") return [0, 1, 2, 3, 4].map((level) => `henchman:${level}`);
+  if (segment === "henchman:*") return henchmanLevels().map((level) => `henchman:${level}`);
   return segment ? [segment] : [];
 }
 

@@ -855,3 +855,26 @@ A monster employer still has none (ROADMAP).
 until the Judge imports the Rules tables; before, every employer from the
 top rung's floor up was refused above it whatever the world held. A world
 that imported before this change is named in the missing-tables notice.
+
+### The market's henchman levels are the availability table's rows (2026-10-23)
+
+**Ruled.**
+- *The highest level for hire is printed, and the imported rows carry it.*
+  RR 168 says how high a henchman the market offers, and the availability
+  table (RR 164) prints one row per level up to it. The month roll's
+  segments, a general posting's reach and the posting dialog's **Level**
+  options each held the run of levels as a literal; all three now read the
+  rows' levels (`henchmanLevels`), lowest first, and skip a row the import
+  could not read.
+- *Nothing imported lists no level.* The list is empty until the table
+  arrives, as the mercenary and specialist lists beside it have always
+  been; the missing-tables notice already names the table.
+
+**Rejected.**
+- *A stated empty state in the dialog.* Its troop and specialist lists show
+  none either, and without the table no search could roll a pool anyway.
+
+**What it cost.** Nothing for a world that has imported the table. In one
+that has not, the dialog lists no henchman level, and the month roll passes
+over henchmen where it used to throw at the first level it could not read,
+which stopped the roll for every segment after it.

@@ -33,6 +33,7 @@ import {
   clampMarketClass,
   postingSegments,
   networkSupplement,
+  henchmanLevels,
 } from "../rules/availability.mjs";
 import { parseAvailability } from "../rules/dice.mjs";
 import { rollClassFromDistribution, rollRandomLevel, rollProficiencyLevel } from "../rules/candidates.mjs";
@@ -413,13 +414,13 @@ async function buildCandidates({ location, spec, total, marketClass, segment, pr
 /* ------------------------- shared pools ------------------------- */
 
 /**
- * Every generic spec this location's market carries: henchmen of each level,
- * every mercenary troop type (camel troops only in desert realms), every
- * specialist type.
+ * Every generic spec this location's market carries: henchmen of each level
+ * the availability table lists, every mercenary troop type (camel troops only
+ * in desert realms), every specialist type.
  */
 export function allSegmentSpecs(location) {
   const specs = [];
-  for (let level = 0; level <= 4; level++) specs.push({ kind: "henchman", level });
+  for (const level of henchmanLevels()) specs.push({ kind: "henchman", level });
   for (const row of optTable("availability", "mercenaryAvailability")?.rows ?? []) {
     if (row.desert && !location.system.market?.desertRealm) continue;
     specs.push({ kind: "mercenary", troopType: row.type });
