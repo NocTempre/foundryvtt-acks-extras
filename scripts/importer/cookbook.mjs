@@ -3635,8 +3635,16 @@ async function importCharacter(bookId, id, folderId, node, found) {
   return actor;
 }
 
-/** The kinds that bind to a journal page: a keyed room, and a setting-detail table. */
-const JOURNAL_KINDS = new Set(["kind.location", "kind.settingTable"]);
+/** The kinds that bind to a journal page: a keyed room, a setting-detail table, and a passage read whole. */
+const JOURNAL_KINDS = new Set(["kind.location", "kind.settingTable", "kind.prose"]);
+
+/**
+ * A page's title. A keyed room and a table are named by their row; a passage
+ * ships no name of its own — its page prints a title as a picture, and the
+ * book's words are not the module's — so its row names the page by what the
+ * passage IS (`meta.title`: an introduction, a tavern, conversion notes).
+ */
+const journalPageName = (e) => (e.kind === "kind.prose" ? (e.meta?.title ?? e.name) : e.name);
 
 /**
  * A page-bound entry. A keyed place of a settlement's quarter, and a region's
@@ -3651,12 +3659,16 @@ const journalBound = (e) => JOURNAL_KINDS.has(e.kind) && !isPoiEntry(e) && !isRe
  * location's page body is the room's own text + creature names (the
  * seat-extracted creature lookups, deferring to the ACKS II entry when the
  * register maps one); a setting table's is the printed rows laid out as a
- * table under the register's header words. Pages update in place on
- * re-import, so coverage grows without duplicating.
+ * table under the register's header words; a passage's is its paragraphs.
+ * Pages update in place on re-import, so coverage grows without duplicating.
+ * `books` scopes the run to those book ids; a seat that holds every shelved
+ * book open otherwise writes them all. `created.journals` lists the uuids of
+ * the journals this run made.
  */
-export async function cookbookImportJournals() {
+export async function cookbookImportJournals({ books = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates journals).`);
-  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
+  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!books || books.includes(b)));
+  const created = { journals: [] };
   let made = 0;
   let updated = 0;
   let refused = 0;
@@ -3701,6 +3713,7 @@ export async function cookbookImportJournals() {
             folder: folder.id,
             flags: { [MODULE_ID]: { cookbook: { book: bookId, group } } },
           });
+          if (journal?.uuid) created.journals.push(journal.uuid);
         }
         list.sort((a, b) => (a[1].pages[0] - b[1].pages[0]) || a[0].localeCompare(b[0]));
         let sort = 0;
@@ -3738,7 +3751,7 @@ export async function cookbookImportJournals() {
           } else {
             await journal.createEmbeddedDocuments("JournalEntryPage", [
               {
-                name: e.name,
+                name: journalPageName(e),
                 type: "text",
                 sort,
                 text: { content, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML },
@@ -3758,12 +3771,12 @@ export async function cookbookImportJournals() {
   // not read, not an empty book — say so instead of asking for a connection the
   // reader already made.
   if (!made && !updated && refused)
-    return ui.notifications.warn(`${MODULE_ID} | location journals: ${refused} page(s) did not match the cookbook (different printing?) — none written.`);
-  if (!made && !updated) return ui.notifications.warn(`${MODULE_ID} | no location entries in any open book — connect AX2/AX3 first.`);
+    return ui.notifications.warn(`${MODULE_ID} | journals: ${refused} page(s) did not match the cookbook (different printing?) — none written.`);
+  if (!made && !updated) return ui.notifications.warn(`${MODULE_ID} | no journal pages in any open book — connect a book with keyed rooms, setting tables or passages.`);
   ui.notifications.info(
-    `${MODULE_ID} | location journals: ${made} page(s) created, ${updated} refreshed${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}, in "${packLabel("JournalEntry")}".`,
+    `${MODULE_ID} | journals: ${made} page(s) created, ${updated} refreshed${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}, on each book's JournalEntry shelf.`,
   );
-  return { made, updated, refused };
+  return { made, updated, refused, created };
 }
 
 /**

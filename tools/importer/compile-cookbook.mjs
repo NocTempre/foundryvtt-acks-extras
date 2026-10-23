@@ -1803,7 +1803,11 @@ const AX_BOOK_BANDS = Object.freeze({
   }),
   cat: Object.freeze({ footY: 760 }),
 });
-const axTop = (pd) => pd?.axBands?.topBand ?? AX_TOP_BAND;
+// A book's declared typography (`bodyTop`, `paraGap` in the registry) answers
+// where its bands say nothing: the measures are the page's, whichever reader
+// asks, and a community book declares them there rather than in a band row.
+const axTop = (pd) => pd?.axBands?.topBand ?? pd?.typography?.bodyTop ?? AX_TOP_BAND;
+const axParaGap = (pd) => pd?.axBands?.paraGap ?? pd?.typography?.paraGap;
 const axFoot = (pd) => pd?.axBands?.footY ?? AX_FOOT_Y;
 const axRight = (pd) => pd.width - (pd.axBands?.rightEdge ?? 40);
 /** Whether a run is body type a room's prose can read: body-size, and not set in the book's aside band. */
@@ -2163,7 +2167,7 @@ function axParas(segs, anchorPage, opts = {}) {
     const gaps = [];
     for (let i = 1; i < lines.length; i++) gaps.push(lines[i].y - lines[i - 1].y);
     const median = gaps.length ? [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)] : 12;
-    const paraGap = seg.pd?.axBands?.paraGap;
+    const paraGap = axParaGap(seg.pd);
     const opens = (gap) => (paraGap != null ? gap >= paraGap : gap > median * 1.6);
     const groups = [[lines[0]]];
     for (let i = 1; i < lines.length; i++) {
@@ -2678,7 +2682,7 @@ function axStatCluster(pd, labelRun, x0, x1) {
   const lines = toLines(
     pd.items.filter((it) => axBody(pd, it) && it.x >= x0 && it.x <= x1 && it.y >= labelRun.y - 2 && it.y < axFoot(pd)),
   ).map((ln) => ({ y: ln.y, x0: Math.min(...ln.items.map((i) => i.x)), items: ln.items }));
-  const paraGap = pd.axBands?.paraGap;
+  const paraGap = axParaGap(pd);
   const cluster = [lines[0]];
   for (let i = 1; i < lines.length; i++) {
     const gap = lines[i].y - lines[i - 1].y;
@@ -3683,8 +3687,33 @@ async function compileAdventureItem(doc, entry, kindRow, bookCtx) {
   };
 }
 
+/**
+ * kind.prose — a passage read whole: an essay, a tavern's text, a page of
+ * notes. The row anchors by hash on the passage's FIRST line (`as: "runin"`):
+ * the chapter title over such a page is set as a picture the heading detector
+ * cannot read, so the first line of body is the one line the row can prove it
+ * found. The flow starts ON that line rather than under it, since the line is
+ * the passage's and not a name's, and nothing in the body is parsed: the page
+ * prints paragraphs and paragraphs are what ship. A sibling passage's first
+ * line ends this one's flow (`bookCtx.proseStops`), as an item's does.
+ */
+async function compileProse(doc, entry, kindRow, bookCtx) {
+  const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
+  const stops = (bookCtx?.proseStops ?? []).filter((s) => s.id !== entry.id);
+  // `axFlow` reads from `endY + 2` down, so the anchor line's own y has to
+  // clear it by less than a line pitch: the line above stays out.
+  const segs = await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: a.line.y - 3 }, new Set(), { stopKeys: assists.stopKeys ?? [], stops });
+  const { paras } = axParas(segs, page);
+  if (!paras.length) throw new Error(`no paragraphs from "${entry.name}" p.${page}`);
+  return {
+    kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
+    ...(entry.meta ? { meta: entry.meta } : {}), fields: { name, description: { op: "text", page, paras } },
+  };
+}
+
 const AX_COMPILERS = {
   "kind.adventureItem": compileAdventureItem,
+  "kind.prose": compileProse,
   "kind.location": compileLocation,
   "kind.marketGrid": (doc, entry, kindRow) => compileVehicleTable(doc, entry, kindRow),
   "kind.marketRecord": compileMarketRecord,
@@ -5950,11 +5979,20 @@ async function main() {
       const opened = await axOpen(doc, e).catch(() => null);
       if (opened) itemStops.push({ id: e.id, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
     }
+    // Where each of the book's passages opens, for the same reason (see
+    // compileProse).
+    const proseStops = [];
+    for (const e of list) {
+      if (e.kind !== "kind.prose" || (e.status && e.status !== "active")) continue;
+      const opened = await axOpen(doc, e).catch(() => null);
+      if (opened) proseStops.push({ id: e.id, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
+    }
     const bookCtx = {
       npcStops,
       spaces,
       keyedStops,
       itemStops,
+      proseStops,
       // The template compiler reads the monster kind's stat-row map so a
       // template page's FIXED rows ("Type: Monstrosity") bind like any
       // monster's; the "varies by …" rows fail their patterns and stay raw.

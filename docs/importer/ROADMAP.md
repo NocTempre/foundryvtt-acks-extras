@@ -1100,9 +1100,12 @@ waiting on a kind or a reader rather than on authoring:
   the name, the prose beside it; a kind.npc row read three of its lines. She
   is a character actor once the AX1 character kind takes a declared block —
   hash anchor `1eg1f2n`, label "HP:".
-- **The tavern's keyed rooms (p27–30, 1–11)** and the links between its two
-  floors: kind.location rows over the two plans, once that path reads a book
-  outside AX1's bands. They join the Adventure the plans already stand in.
+- **The tavern's keyed rooms (p27, 1–11)** and the links between its two
+  floors. The tavern's text is a journal page with its room numbers inline
+  (kind.prose, DECISIONS 2026-10-23); kind.location rows over the two plans
+  would give each room a place of its own, once that path reads a key set
+  inside a paragraph rather than at a heading. They join the Adventure the
+  plans already stand in.
 - **Routing a shelf by kind.** A Judge's book's own rows all close; the day
   one of this book's has to stay open to players — an essay, an item written
   per book rather than as `def.equip` — the destination moves from the book's
@@ -1111,10 +1114,15 @@ waiting on a kind or a reader rather than on authoring:
 - **The items' figures (p24–26).** Each item ships as a core item with its
   prose; the bonus, cost and crafting time it prints stay in the description
   until a magic-item binding reads them into fields.
-- **The essays (p4–6, p10, p31–32) and the tavern's prose (p27)**: kind.prose.
 - **The classes' progression tables.** Two spreads print them as images; the
   third's saves-and-attack table is text (p21, the page foot). Until a table
   is read the Judge finishes the ladder; the chassis carries the fighter
   progressions each spread names.
 - **A race document.** The five tiers ship as class powers under one group; a
   kind for a race as a document would hold them together.
+- **A book's journals in its Adventure.** The Essays and the Tavern stand on
+  the Judge's JournalEntry shelf and the book's Adventure carries none of
+  them: `bookDocuments` takes a document whose stamp names a row, and a
+  journal's names its group (its pages carry the rows). True of every book's
+  journals, a keyed-room journal included; the fix is a stamp or a second
+  gather, decided for the family rather than per book.

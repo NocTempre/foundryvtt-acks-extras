@@ -1,0 +1,8 @@
+[
+  {"id":"cat.prose1","kind":"kind.prose","book":"cat","name":"Prose 1","anchor":{"hash":"11y6o2y","as":"runin"},"pages":[4],"meta":{"group":"Essays","title":"Introduction"},"assists":{"columns":[40]}},
+  {"id":"cat.prose2","kind":"kind.prose","book":"cat","name":"Prose 2","anchor":{"hash":"1lkh4o0","as":"runin"},"pages":[5,6],"meta":{"group":"Essays","title":"Cultures"},"assists":{"columns":[40,320],"flowColumns":{"6":[40,320]}}},
+  {"id":"cat.prose3","kind":"kind.prose","book":"cat","name":"Prose 3","anchor":{"hash":"5u1l9p","as":"runin"},"pages":[10],"meta":{"group":"Essays","title":"Design notes"},"assists":{"columns":[40,320]}},
+  {"id":"cat.prose4","kind":"kind.prose","book":"cat","name":"Prose 4","anchor":{"hash":"1ls51zw","as":"runin"},"pages":[27],"meta":{"group":"Tavern","title":"Tavern"},"assists":{"columns":[40,320]}},
+  {"id":"cat.prose5","kind":"kind.prose","book":"cat","name":"Prose 5","anchor":{"hash":"toc5a2","as":"runin"},"pages":[31],"meta":{"group":"Essays","title":"Generic class"},"assists":{"columns":[40,320]}},
+  {"id":"cat.prose6","kind":"kind.prose","book":"cat","name":"Prose 6","anchor":{"hash":"122chmi","as":"runin"},"pages":[32],"meta":{"group":"Essays","title":"Conversion notes"},"assists":{"columns":[40]}}
+]

@@ -529,7 +529,7 @@ await MockActor.create({ name: "zz", type: LOCATION_TYPE, system: { notes: "", p
   check("a region map waits for its places", [early.made, early.unready, game.scenes.size], [0, 1, 0]);
   let threw = null;
   await cookbookImportJournals().catch((err) => (threw = err));
-  ok("region rows are no journal pages", !threw && notices.at(-1)?.[1]?.includes("no location entries"), String(threw ?? notices.at(-1)?.[1]));
+  ok("region rows are no journal pages", !threw && notices.at(-1)?.[1]?.includes("no journal pages"), String(threw ?? notices.at(-1)?.[1]));
 
   const before = pack.docs.size;
   const out = await cookbookImportPoiPlaces();

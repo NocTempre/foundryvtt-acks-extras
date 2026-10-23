@@ -2503,11 +2503,19 @@ untagged seat would read every line as a heading and import nothing.
    and a count of what imports from it; the Books window lists it as open
    this session; `init`, `setup` and `ready` threw nothing beforehand.
 2. Import the book: the abilities step for its powers, the classes step for
-   its classes, the id import for its monster and the items step
+   its classes, the id import for its monster, the items step
    (`acksExtras.importer.cookbookImportAdventureItems({ books: ["cat"] })`)
-   for the ten items it introduces, each scoped to the book. (Import
-   Everything runs the same steps over every open book.)
-   *Observable:* the items step reports ten imported, none already present,
+   for the ten items it introduces and the journals step
+   (`acksExtras.importer.cookbookImportJournals({ books: ["cat"] })`) for
+   its six passages, each scoped to the book. (Import Everything runs the
+   same steps over every open book.)
+   *Observable:* the journals step reports six pages made, none refused, and
+   two journals created on the line's Judge JournalEntry shelf, named by
+   group ("Essays", "Tavern"), each page titled by what its passage is
+   (Introduction, Cultures, Design notes, Generic class, Conversion notes;
+   Tavern) and holding the page's paragraphs — the first lines of a page's
+   top, the bullets and the two-column order included — closed by a page
+   reference; the items step reports ten imported, none already present,
    none refused, and the line's Judge Item shelf ("ACKS Cookbook — The OSR
    Catgirl — Judge — Item"), absent before the step, holds ten core items in
    the book's folder under "Items", each named from the page, with one
@@ -2554,8 +2562,9 @@ untagged seat would read every line as a heading and import nothing.
 ### Teardown
 
 8. `api.track` every id the imports' results list — the class documents, the
-   monster and powers read back by id, the items' and the scenes' `created`
-   uuids and the Adventure's — then `api.sweepTracked()`; quote what it
+   monster and powers read back by id, the items', the journals' and the
+   scenes' `created` uuids and the Adventure's — then `api.sweepTracked()`;
+   quote what it
    removed, could not
    find and refused. A shelf the run opened is deleted once empty — the
    world's packs are read before the first presence check and again after

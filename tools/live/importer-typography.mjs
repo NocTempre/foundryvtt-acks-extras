@@ -39,6 +39,11 @@ const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
 const BOOK = "cat";
+// Each passage's page title with the paragraphs its page prints, as the seat
+// materializes them (read against the page by hand on 2026-10-23): a short
+// count is a passage cut at a column or a page, a long one a list read as
+// lines.
+const PROSE_PARAS = "Conversion notes:5 Cultures:20 Design notes:7 Generic class:4 Introduction:7 Tavern:6";
 const BOOKS = books([BOOK]);
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
@@ -142,6 +147,18 @@ const P = {
     if (!doc) return null;
     const line = doc.pack ? H.LIB.lineOfPack(doc.pack) : undefined;
     return { pack: doc.pack ?? null, line: line ?? null, judge: !!doc.pack && H.LIB.isJudgeLine(line) };
+  },
+  /** A journal the journals step made: its name, its shelf, and each page's title, paragraph count and page reference. */
+  journal: async ({ uuid }) => {
+    const H = globalThis.__bt;
+    const doc = await fromUuid(uuid);
+    if (!doc) return null;
+    const line = doc.pack ? H.LIB.lineOfPack(doc.pack) : null;
+    const pages = doc.pages.contents.map((p) => {
+      const html = String(p.text?.content ?? "");
+      return { name: p.name, paragraphs: (html.match(/<p>/g) ?? []).length, cite: /<p class=/.test(html), chars: html.replace(/<[^>]*>/g, "").length };
+    });
+    return { name: doc.name, pack: doc.pack ?? null, line, judge: !!doc.pack && H.LIB.isJudgeLine(line), folder: doc.folder?.name ?? null, pages };
   },
   /** A map the scenes step made: its picture, its lattice, its navigation flag and its walls. */
   scene: async ({ uuid }) => {
@@ -326,7 +343,8 @@ async function seat(key) {
 function bookIds(book) {
   // `items` is what the Player seat is owed on the series' open Item shelf;
   // the book's own items (`adventureItems`) stand on its Judge shelf instead.
-  const ids = { items: [], actors: [], classes: [], powers: [], scenes: [], adventureItems: [] };
+  // `prose` maps each passage's id to the title its page takes.
+  const ids = { items: [], actors: [], classes: [], powers: [], scenes: [], adventureItems: [], prose: {} };
   const dir = path.join(ROOT, "cookbook");
   for (const f of fs.readdirSync(dir)) {
     if (!f.endsWith(".json") || f === "registers.json") continue;
@@ -338,6 +356,7 @@ function bookIds(book) {
       else if (e.kind === "kind.power") { ids.powers.push(id); ids.items.push(id); }
       else if (e.kind === "kind.monster") ids.actors.push(id);
       else if (e.kind === "kind.adventureItem") ids.adventureItems.push(id);
+      else if (e.kind === "kind.prose") ids.prose[id] = e.meta?.title ?? e.name;
     }
   }
   return ids;
@@ -405,11 +424,13 @@ try {
   const classes = await runStep("2: classes", "importClasses", { only: IDS.classes });
   const monsters = await runStep("2: monsters", "cookbookImportIds", IDS.actors);
   const items = await runStep("2: items", "cookbookImportAdventureItems", { books: [BOOK] });
-  // Track everything the run made: the classes and the items from their own
-  // results, the rest read back by the ids this run imported, which the
-  // census proved absent beforehand.
+  const journals = await runStep("2: journals", "cookbookImportJournals", { books: [BOOK] });
+  // Track everything the run made: the classes, the items and the journals
+  // from their own results, the rest read back by the ids this run imported,
+  // which the census proved absent beforehand.
   for (const uuid of classes.result?.docs ?? []) gm.track(uuid, "Item");
   for (const uuid of items.result?.created?.items ?? []) gm.track(uuid, "Item");
+  for (const uuid of journals.result?.created?.journals ?? []) gm.track(uuid, "JournalEntry");
   const held = await run(gm, P.heldNow, { ids: { items: IDS.powers, actors: IDS.actors } });
   for (const [id, uuid] of Object.entries(held)) if (uuid) gm.track(uuid, IDS.actors.includes(id) ? "Actor" : "Item");
   const after = await run(gm, P.shelves, { line, open });
@@ -431,7 +452,17 @@ try {
   const itemShapes = [];
   for (const uuid of it.created?.items ?? []) itemShapes.push(await run(gm, P.power, { uuid }));
   check("2: each item is a core item of one paragraph with a page reference", itemShapes.length === 10 && itemShapes.every((p) => p && p.type === "item" && p.paragraphs === 1 && p.cite), itemShapes.map((p) => p && { type: p.type, paragraphs: p.paragraphs, chars: p.chars }));
-  const stepErrors = [powers, classes, monsters, items].flatMap((s) => s.notes.filter((n) => n.kind === "error" || n.kind === "warn"));
+  const jr = journals.result ?? {};
+  const proseIds = Object.keys(IDS.prose);
+  check("2: six passages written as pages, none refused, two journals made", jr.made === proseIds.length && proseIds.length === 6 && jr.refused === 0 && (jr.created?.journals ?? []).length === 2, jr);
+  const journalShapes = [];
+  for (const uuid of jr.created?.journals ?? []) journalShapes.push(await run(gm, P.journal, { uuid }));
+  note("journals", journalShapes);
+  const pages = journalShapes.flatMap((j) => j?.pages ?? []);
+  check("2: the journals are named by group and stand on the line's Judge JournalEntry shelf", journalShapes.length === 2 && journalShapes.every((j) => j && j.judge && j.line === line) && journalShapes.map((j) => j.name).sort().join("|") === "Essays|Tavern", journalShapes.map((j) => j && { name: j.name, line: j.line }));
+  check("2: each page is titled by what the passage is, holds its paragraphs and closes with a page reference", pages.length === 6 && pages.every((p) => p.paragraphs >= 1 && p.cite && Object.values(IDS.prose).includes(p.name)), pages.map((p) => ({ name: p.name, paragraphs: p.paragraphs, cite: p.cite })));
+  check("2: the passages read whole — their paragraph counts are the page's", pages.map((p) => `${p.name}:${p.paragraphs}`).sort().join(" ") === PROSE_PARAS, pages.map((p) => `${p.name}:${p.paragraphs}`).sort().join(" "));
+  const stepErrors = [powers, classes, monsters, items, journals].flatMap((s) => s.notes.filter((n) => n.kind === "error" || n.kind === "warn"));
   check("2: no step warned or erred", !stepErrors.length, stepErrors.map((n) => n.kind));
   const powerShapes = [];
   for (const id of IDS.powers) powerShapes.push(held[id] ? await run(gm, P.power, { uuid: held[id] }) : null);

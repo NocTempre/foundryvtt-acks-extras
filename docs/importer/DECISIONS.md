@@ -7138,3 +7138,58 @@ classes stay open on the shelf above or on the series' own. `test-judge-shelf`
 pins the new reach: no content row on a Judge's line, a lined book's content
 on its series' line, an unlined book's on the library's, the book's own ids on
 the Judge's. The live record is the typography walk's steps 2, 6 and 7.
+
+## 2026-10-23 — A passage is a journal page under a functional title
+
+The catgirl prints six passages no kind read: an introduction, a two-page
+survey of cultures with faction and hook lists, a design essay, the tavern's
+text with its room numbers inline, a generic class for other systems, and
+conversion notes. The register has carried `kind.prose` since the ordinal
+kinds were declared, with no compiler and no binding behind it. The user's
+2026-10-23 instruction was the whole book.
+
+**Ruled.**
+- **A passage anchors on its first body line, by hash.** The chapter titles
+  over these pages are pictures; the heading detector finds nothing on any of
+  them. The first line of body is the one line the row can prove it found,
+  so the row carries its print key with `as: "runin"`, and `compileProse`
+  flows from that line rather than under it — the line is the passage's,
+  not a name's. The executor's heading check holds the page to the key as it
+  does an item's name.
+- **The page's title is what the passage IS.** A printed chapter title is the
+  book's words whether or not it was set as a picture, so the row names the
+  page by function (`meta.title`: Introduction, Cultures, Design notes,
+  Tavern, Generic class, Conversion notes) and the journal by group (Essays,
+  Tavern). The test is whether the word does its job as a common one.
+- **The AX readers take the book's declared page measures.** `axParas`,
+  `axStatCluster` and `axTop` read `paraGap` and `bodyTop` off the page's
+  `typography` where the book's band row says nothing. Before this the
+  declaration reached the class and monster readers only: the AX readers
+  opened a paragraph at 1.6 times the median pitch, which the catgirl's
+  25-point paragraph gap never clears, and started a continuation page at
+  the default band, which dropped the first line of every column set from
+  the book's declared top. The shipped items, classes, powers and monster
+  compile byte-identical under the change; only the passages differ.
+- **A generic class for other systems is a passage, not a class.** Its
+  chassis table is read as two paragraphs, its labelled abilities as the
+  page sets them (one tight paragraph, 17-point pitch throughout). A class
+  item for it would carry a progression the book prints as a picture and
+  figures the text says to adjust per system.
+- **The journals step takes a `books` scope and reports what it created,**
+  as the item and scene steps do, so the live walk writes the one book it
+  opened and sweeps by uuid.
+
+*Rejected:*
+- **A page per list.** The faction and hook lists are set at body pitch
+  with no gap between bullets, so each list is one paragraph of bullets; a
+  reader that split them would be splitting on a glyph.
+- **The room numbers as keyed areas** in this cut. The keys are set inside
+  paragraphs, not at headings, and the keyed-area path reads a heading or a
+  run-in key line; the shape is on the ROADMAP.
+
+*Cost:* a passage carries the book's prefix, so it files on the Judge line —
+the Essays and the Tavern are invisible to a player seat, including the
+introduction and the conversion notes written for players. The 2026-10-18
+Cost paragraph named exactly this as the signal for routing by kind; it still
+is, and it is still not built. The live record is the typography walk's step
+2 (two journals, six pages, paragraph counts read against the page by hand).

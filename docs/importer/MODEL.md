@@ -37,9 +37,11 @@ writes one Adventure per open Judge's book to its line's Adventure shelf
 (`ensureBookAdventure`), under `bookAdventureId(book)` and the kind
 `kind.bookAdventure`. `bookAdventureSource` assembles it:
 
-- every Actor, RollTable, JournalEntry and Item whose stamp names the book
+- every Actor, RollTable and Item whose stamp names the book and a row
   (`bookDocuments`): the library's copy under the id of its world twin where
-  the world holds one, else the world's own, the only source there is;
+  the world holds one, else the world's own, the only source there is. A
+  journal's stamp names its group and its pages name the rows, so no journal
+  rides (ROADMAP, "A book's journals in its Adventure");
 - every map of the book, by page, rebuilt from its recipe over stand-ins for
   those documents (`mapCreateData`, a grid recipe through `gridScenePlan` as
   the map step builds it), under the world scene's ids (`withWorldIds`), with
@@ -329,6 +331,24 @@ claimed by its cookbook id like every item. Nothing beside the prose is
 read: a bonus, a cost or a crafting time the page prints stays in the
 description. The ruling is DECISIONS 2026-10-19, "An item a book introduces
 is a core item read whole".
+
+## A passage read whole
+
+A `kind.prose` row is an essay, a tavern's text, a page of notes: prose the
+book prints under a title set as a picture, which the heading detector cannot
+read. The row anchors by hash on the passage's first body line (`anchor: {hash,
+as: "runin"}`), the one line it can prove it found, and `compileProse` flows
+from that line — on it, not under it — down the column, across the page and
+over the leaf to the last page the row names, ending where a sibling passage
+opens (`proseStops`). Nothing in the body is parsed; the paragraphs ship as
+the page sets them, opened by the book's declared `paraGap`, from its declared
+`bodyTop` down. The journals step binds each as a page of the JournalEntry
+its `meta.group` names, titled by what the passage IS (`meta.title`: an
+introduction, a tavern, conversion notes), its body the paragraphs with the
+page reference last. A key the passage prints inline — a tavern's room
+numbers — stays in the text; the keyed-room shape is `kind.location`. The
+ruling is DECISIONS 2026-10-23, "A passage is a journal page under a
+functional title".
 
 ## A person the page prints in full
 
