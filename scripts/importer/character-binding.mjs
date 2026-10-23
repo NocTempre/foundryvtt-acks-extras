@@ -54,7 +54,8 @@ function renamedAbility(token, rename) {
 }
 
 /**
- * The sheet's boxes for one parsed quick-stat line (`parseStatline`).
+ * The sheet's boxes for one parsed quick-stat line (`parseStatline`) or
+ * write-up (`parseWriteup`).
  *
  * The armour the AC bracket names and the equipment list are worn, so each
  * piece takes the slot its item asks for; coin goes to the coin boxes; the
@@ -86,18 +87,37 @@ export function sheetValuesFromStatline(sl, { rename = (kind, name) => name } = 
   set("move.exploration", /(\d+)/.exec(String(sl.mv ?? ""))?.[1] ?? null);
   set("attack.0", sl.atk?.throw);
 
-  const profs = (sl.proficiencies ?? []).map((p) => renamedAbility(p, rename)).filter(Boolean);
-  const boxes = [
-    ...Array.from({ length: SHEET_ROWS.generalProf }, (_, i) => `generalProf.${i}.name`),
-    ...Array.from({ length: SHEET_ROWS.classProf }, (_, i) => `classProf.${i}.name`),
-  ];
-  profs.forEach((p, i) => (boxes[i] ? set(boxes[i], p) : unplaced.push({ kind: "proficiency", name: p })));
+  // A token's throw bracket ("(11+)") is the row's throw box; the name drops it.
+  const profOf = (token) => {
+    const name = renamedAbility(token, rename);
+    return name ? { name, throw: /\((\d+)\s*\+\)/.exec(token)?.[1] ?? null } : null;
+  };
+  const generalBoxes = Array.from({ length: SHEET_ROWS.generalProf }, (_, i) => `generalProf.${i}`);
+  const classBoxes = Array.from({ length: SHEET_ROWS.classProf }, (_, i) => `classProf.${i}`);
+  const fill = (list, boxes) => {
+    const over = [];
+    list.forEach((p, i) => {
+      if (!boxes[i]) return void over.push(p);
+      set(`${boxes[i]}.name`, p.name);
+      if (p.throw) set(`${boxes[i]}.throw`, `${p.throw}+`);
+    });
+    return over;
+  };
+  const general = (sl.proficiencies ?? []).map(profOf).filter(Boolean);
+  // A write-up splits its proficiencies by kind, and each kind fills its own
+  // rows; a quick-stat line does not, so its one list fills the general rows
+  // and runs on into the class rows.
+  const over = sl.classProficiencies
+    ? [...fill((sl.classProficiencies ?? []).map(profOf).filter(Boolean), classBoxes), ...fill(general, generalBoxes)]
+    : fill(general, [...generalBoxes, ...classBoxes]);
+  over.forEach((p) => unplaced.push({ kind: "proficiency", name: p.name }));
 
   const worn = splitOutside(sl.acNote ?? "", /[,&]/).filter((p) => /[a-z]/i.test(p));
   const coins = {};
   // A thousands comma is part of its number, not a list's separator.
   for (const piece of splitOutside(String(sl.equipment ?? "").replace(/(\d),(?=\d{3}(?!\d))/g, "$1"), /[,;]/)) {
-    const coin = COIN_RE.exec(piece);
+    // A coin's closing bracket is a note about it ("(banked)"), not a piece of gear.
+    const coin = COIN_RE.exec(piece.replace(/\s*\([^()]*\)\s*$/, "").trim());
     if (coin) {
       const box = coin[2].toLowerCase();
       coins[box] = (coins[box] ?? 0) + Number(coin[1].replace(/,/g, ""));

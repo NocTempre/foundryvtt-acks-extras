@@ -367,7 +367,9 @@ full becomes a character, and the derivation wins".
   import (`character-sheet/pdf/apply.mjs:importSheet`, with `record: false`)
   does the rest: it binds the class at the printed level, writes the scores,
   hit points and alignment, grants the proficiencies and the repertoire, and
-  lands the gear and the coin. With a class bound, a figure the class works
+  lands the gear and the coin. The sheet import grants what the library
+  holds, so the proficiency tokens go through `resolveAbilities` first, which
+  imports from the cookbook any definition the library lacks. With a class bound, a figure the class works
   out (saves, throws, spell slots) is compared rather than written, and each
   disagreement is a check. The armour the AC bracket names and the equipment
   are worn, each piece in the slot its item asks for; the weapons the attack
@@ -381,6 +383,21 @@ full becomes a character, and the derivation wins".
   (`registers.tables.conversion`); a proficiency resolves through the ability
   index, whose aliases carry older printings' names. A name nothing answers
   is reported, and the character is still made.
+- **Its shape on the page.** A quick-stat line is one `statline` op
+  (`parseStatline`). A person the book spends a page on is written out as
+  labelled lines under a display name — the class line and the scores, then
+  "HP:", "AC:", the saves, the attack, the proficiencies by kind, the
+  abilities, the inventory — and ships as one `writeup` op
+  (`compileWriteup`, on a `kind.npc` row carrying `assists.writeup`):
+  `parseWriteup` reads it by its labels into the same shape, so the binding
+  above serves both. The block runs to the label that opens prose about the
+  person (`writeup.proseLabelKey`, the label's print key), and that prose is
+  the description. A write-up names its proficiencies by kind, so each kind
+  fills its own rows and a token's throw bracket is the row's throw; a
+  quick-stat line's one list fills the general rows and runs on into the
+  class rows. The attack's routine stays text, never a weapon's name. The
+  ruling is DECISIONS 2026-10-23, "A person written out is read by her
+  labels".
 - **What the page printed.** The biography holds the entry's prose
   (`entryText`), then the "as printed" block (`asPrintedBlock`): the stat line
   as printed, a line per check, a line per name the library could not answer,

@@ -43,7 +43,7 @@ const BOOK = "cat";
 // materializes them (read against the page by hand on 2026-10-23): a short
 // count is a passage cut at a column or a page, a long one a list read as
 // lines.
-const PROSE_PARAS = "Conversion notes:5 Cultures:20 Design notes:7 Generic class:4 Introduction:7 Tavern:6";
+const PROSE_PARAS = "Conversion notes:5 Cultures:20 Design notes:7 Generic class:4 Introduction:7 Race:5 Tavern:6";
 const BOOKS = books([BOOK]);
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
@@ -267,6 +267,31 @@ const P = {
       sections,
     };
   },
+  /** The cookbook ids of every ability definition the library holds now — the census a later read of the same ids is compared against. */
+  libraryAbilityIds: async () => {
+    const H = globalThis.__bt;
+    if (H.LIB.whenReady) await H.LIB.whenReady();
+    return H.LIB.libraryItems().filter((i) => i.type === "ability").map((i) => i.flags?.["acks-extras"]?.cookbook?.id).filter(Boolean);
+  },
+  /** A person the page prints in full, as a character: the class binding, the written boxes, the proficiencies, the gear and coin, and the biography's two parts. */
+  character: async ({ uuid }) => {
+    const doc = await fromUuid(uuid);
+    if (!doc) return null;
+    const s = doc.system ?? {};
+    const M = await import("/modules/acks-extras/scripts/character-sheet/pdf/match.mjs");
+    const bio = String(s.details?.biography ?? "");
+    return {
+      type: doc.type, namedFromPage: !/^NPC \d+$/.test(doc.name), ownership: doc.ownership?.default ?? null,
+      className: s.details?.class ?? "", classBound: !!M.matchClass(s.details?.class), level: s.details?.level ?? null,
+      scores: Object.values(s.scores ?? {}).filter((v) => Number(v?.value) > 0).length, hp: [s.hp?.value ?? null, s.hp?.max ?? null],
+      abilities: doc.items.filter((i) => i.type === "ability").length,
+      abilityIds: doc.items.filter((i) => i.type === "ability").map((i) => i.flags?.["acks-extras"]?.cookbook?.id).filter(Boolean),
+      gear: doc.items.filter((i) => ["item", "armor", "weapon"].includes(i.type)).length, gp: M.coinsHeld(doc, "gp"),
+      // Bare `<p>` is a printed paragraph; the page reference and the as-printed block are classed.
+      prose: (bio.match(/<p>/g) ?? []).length, cite: /<p class=/.test(bio), asPrinted: bio.includes("acks-extras-importer-as-printed"),
+      printed: doc.flags?.["acks-extras"]?.printed ?? null,
+    };
+  },
   /** A class item: its header fields, its list's resolution and its description's run-in labels. */
   classItem: async ({ uuid }) => {
     const doc = await fromUuid(uuid);
@@ -344,7 +369,8 @@ function bookIds(book) {
   // `items` is what the Player seat is owed on the series' open Item shelf;
   // the book's own items (`adventureItems`) stand on its Judge shelf instead.
   // `prose` maps each passage's id to the title its page takes.
-  const ids = { items: [], actors: [], classes: [], powers: [], scenes: [], adventureItems: [], prose: {} };
+  // `characters` are the people the book prints in full (an npc row bound as a character).
+  const ids = { items: [], actors: [], characters: [], classes: [], powers: [], scenes: [], adventureItems: [], prose: {} };
   const dir = path.join(ROOT, "cookbook");
   for (const f of fs.readdirSync(dir)) {
     if (!f.endsWith(".json") || f === "registers.json") continue;
@@ -355,6 +381,7 @@ function bookIds(book) {
       if (e.kind === "kind.class") { ids.classes.push(id); ids.items.push(id); }
       else if (e.kind === "kind.power") { ids.powers.push(id); ids.items.push(id); }
       else if (e.kind === "kind.monster") ids.actors.push(id);
+      else if (e.kind === "kind.npc" && e.meta?.actor === "character") ids.characters.push(id);
       else if (e.kind === "kind.adventureItem") ids.adventureItems.push(id);
       else if (e.kind === "kind.prose") ids.prose[id] = e.meta?.title ?? e.name;
     }
@@ -376,7 +403,7 @@ async function runStep(label, fn, args) {
 
 try {
   const IDS = bookIds(BOOK);
-  note("ids from the cookbook", { classes: IDS.classes.length, powers: IDS.powers.length, monsters: IDS.actors.length, items: IDS.adventureItems.length });
+  note("ids from the cookbook", { classes: IDS.classes.length, powers: IDS.powers.length, monsters: IDS.actors.length, characters: IDS.characters.length, items: IDS.adventureItems.length });
 
   section("seats and the book");
   gm = await seat("gm");
@@ -422,6 +449,13 @@ try {
   section("2. import the book");
   const powers = await runStep("2: abilities (powers)", "cookbookImportAbilities", { only: IDS.powers });
   const classes = await runStep("2: classes", "importClasses", { only: IDS.classes });
+  // The person binds her class at import, so she follows the classes. Her
+  // proficiencies are definitions the import supplies on demand from the
+  // library's books, so the ids the library holds are read before the step:
+  // a definition she carries afterwards under an id absent beforehand is this
+  // run's, and is swept with the rest (step 3).
+  const abilityIdsBefore = new Set(await run(gm, P.libraryAbilityIds));
+  const keeper = await runStep("2: character", "cookbookImportIds", IDS.characters);
   const monsters = await runStep("2: monsters", "cookbookImportIds", IDS.actors);
   const items = await runStep("2: items", "cookbookImportAdventureItems", { books: [BOOK] });
   const journals = await runStep("2: journals", "cookbookImportJournals", { books: [BOOK] });
@@ -431,8 +465,8 @@ try {
   for (const uuid of classes.result?.docs ?? []) gm.track(uuid, "Item");
   for (const uuid of items.result?.created?.items ?? []) gm.track(uuid, "Item");
   for (const uuid of journals.result?.created?.journals ?? []) gm.track(uuid, "JournalEntry");
-  const held = await run(gm, P.heldNow, { ids: { items: IDS.powers, actors: IDS.actors } });
-  for (const [id, uuid] of Object.entries(held)) if (uuid) gm.track(uuid, IDS.actors.includes(id) ? "Actor" : "Item");
+  const held = await run(gm, P.heldNow, { ids: { items: IDS.powers, actors: [...IDS.actors, ...IDS.characters] } });
+  for (const [id, uuid] of Object.entries(held)) if (uuid) gm.track(uuid, IDS.actors.includes(id) || IDS.characters.includes(id) ? "Actor" : "Item");
   const after = await run(gm, P.shelves, { line, open });
   for (const c of after.packs.filter((c) => !before.packs.includes(c))) openedPacks.push(c);
   for (const [collection, uuids] of Object.entries(after.folders)) {
@@ -445,6 +479,7 @@ try {
   check("2: five class powers imported, none already present", powers.result?.made === IDS.powers.length && powers.result?.reused === 0 && IDS.powers.length === 5, powers.result);
   check("2: three classes imported", (classes.result?.docs ?? []).length === IDS.classes.length && IDS.classes.length === 3, { made: (classes.result?.docs ?? []).length });
   check("2: one monster imported", monsters.result?.value === 1 && IDS.actors.length === 1, monsters.result);
+  check("2: the person the page prints in full imported, one", keeper.result?.value === 1 && IDS.characters.length === 1, keeper.result);
   const it = items.result ?? {};
   check("2: ten items imported, none already present, none refused", it.made === IDS.adventureItems.length && IDS.adventureItems.length === 10 && it.already === 0 && it.refused === 0, it);
   check("2: the import, not the census, opened the line's Item shelf", !!after.lined.Item && openedPacks.includes(after.lined.Item), { item: after.lined.Item });
@@ -454,16 +489,22 @@ try {
   check("2: each item is a core item of one paragraph with a page reference", itemShapes.length === 10 && itemShapes.every((p) => p && p.type === "item" && p.paragraphs === 1 && p.cite), itemShapes.map((p) => p && { type: p.type, paragraphs: p.paragraphs, chars: p.chars }));
   const jr = journals.result ?? {};
   const proseIds = Object.keys(IDS.prose);
-  check("2: six passages written as pages, none refused, two journals made", jr.made === proseIds.length && proseIds.length === 6 && jr.refused === 0 && (jr.created?.journals ?? []).length === 2, jr);
+  check("2: seven passages written as pages, none refused, two journals made", jr.made === proseIds.length && proseIds.length === 7 && jr.refused === 0 && (jr.created?.journals ?? []).length === 2, jr);
   const journalShapes = [];
   for (const uuid of jr.created?.journals ?? []) journalShapes.push(await run(gm, P.journal, { uuid }));
   note("journals", journalShapes);
   const pages = journalShapes.flatMap((j) => j?.pages ?? []);
   check("2: the journals are named by group and stand on the line's Judge JournalEntry shelf", journalShapes.length === 2 && journalShapes.every((j) => j && j.judge && j.line === line) && journalShapes.map((j) => j.name).sort().join("|") === "Essays|Tavern", journalShapes.map((j) => j && { name: j.name, line: j.line }));
-  check("2: each page is titled by what the passage is, holds its paragraphs and closes with a page reference", pages.length === 6 && pages.every((p) => p.paragraphs >= 1 && p.cite && Object.values(IDS.prose).includes(p.name)), pages.map((p) => ({ name: p.name, paragraphs: p.paragraphs, cite: p.cite })));
+  check("2: each page is titled by what the passage is, holds its paragraphs and closes with a page reference", pages.length === 7 && pages.every((p) => p.paragraphs >= 1 && p.cite && Object.values(IDS.prose).includes(p.name)), pages.map((p) => ({ name: p.name, paragraphs: p.paragraphs, cite: p.cite })));
   check("2: the passages read whole — their paragraph counts are the page's", pages.map((p) => `${p.name}:${p.paragraphs}`).sort().join(" ") === PROSE_PARAS, pages.map((p) => `${p.name}:${p.paragraphs}`).sort().join(" "));
+  // The book prints its classes' progression tables as pictures, so binding
+  // the keeper's class warns that it has no rows yet; that one warning is the
+  // page's, and the only one the character step may raise.
+  const progressionWarn = (n) => n.kind === "warn" && /no progression rows/.test(n.text);
+  const keeperNoise = keeper.notes.filter((n) => n.kind === "error" || n.kind === "warn");
+  check("2: the character step warns of the class's missing progression (its tables are pictures) and of nothing else", keeperNoise.length === 1 && progressionWarn(keeperNoise[0]), keeperNoise.map((n) => n.kind));
   const stepErrors = [powers, classes, monsters, items, journals].flatMap((s) => s.notes.filter((n) => n.kind === "error" || n.kind === "warn"));
-  check("2: no step warned or erred", !stepErrors.length, stepErrors.map((n) => n.kind));
+  check("2: no other step warned or erred", !stepErrors.length, stepErrors.map((n) => n.kind));
   const powerShapes = [];
   for (const id of IDS.powers) powerShapes.push(held[id] ? await run(gm, P.power, { uuid: held[id] }) : null);
   check("2: each power is one paragraph with a page reference", powerShapes.every((p) => p && p.paragraphs === 1 && p.cite), powerShapes.map((p) => p && { type: p.type, paragraphs: p.paragraphs, chars: p.chars }));
@@ -478,6 +519,19 @@ try {
   check("3: two spoils, each with a value, a weight and effects", !!m && m.spoils.length === 2 && m.spoils.every((s) => s.cost > 0 && s.weight6 != null && s.effects > 0), m && m.spoils);
   const combat = m?.sections.find((s) => s.field === "combat");
   check("3: the prose is sectioned, and the Combat section's last paragraph is whole across the page turn", !!m && m.sections.length >= 3 && !!combat && combat.lastEndsSentence, m && m.sections);
+
+  const keeperId = IDS.characters[0];
+  const k = held[keeperId] ? await run(gm, P.character, { uuid: held[keeperId] }) : null;
+  note("character", k);
+  const onDemand = (k?.abilityIds ?? []).filter((id) => !abilityIdsBefore.has(id));
+  const onDemandHeld = onDemand.length ? await run(gm, P.heldNow, { ids: { items: onDemand } }) : {};
+  for (const uuid of Object.values(onDemandHeld)) if (uuid) gm.track(uuid, "Item");
+  note("definitions the character step imported on demand (tracked)", onDemandHeld);
+  check("3: the person the page prints in full is a character, named from the page, owned by the Judges alone", !!k && k.type === "character" && k.namedFromPage && k.ownership === 0, k && { type: k.type, namedFromPage: k.namedFromPage, ownership: k.ownership });
+  check("3: her class is a class the library answers, bound at the printed level, with the scores and hit points written", !!k && k.classBound && k.level > 0 && k.scores === 6 && k.hp[1] > 0 && k.hp[0] === k.hp[1], k && { className: k.className, classBound: k.classBound, level: k.level, scores: k.scores, hp: k.hp });
+  check("3: the proficiencies the library answers ride as embedded abilities, and the rest are counted as printed", !!k && k.abilities >= 1 && Number.isInteger(k.printed?.missing), k && { abilities: k.abilities, printed: k.printed });
+  check("3: the inventory is worn and the coin is counted", !!k && k.gear >= 1 && k.gp > 0, k && { gear: k.gear, gp: k.gp > 0 });
+  check("3: the biography is the page's paragraph about her house with its page reference, then the as-printed block", !!k && k.prose >= 1 && k.cite && k.asPrinted, k && { prose: k.prose, cite: k.cite, asPrinted: k.asPrinted });
 
   section("4. the classes");
   const classShapes = [];
@@ -513,13 +567,14 @@ try {
   const advUuid = ad.created?.adventures?.[0] ?? null;
   const a = advUuid ? await run(gm, P.adventure, { uuid: advUuid }) : null;
   note("adventure", a);
-  check("6: it carries the two maps, the monster and the ten items under the book's stamp", !!a && a.scenes === 2 && a.actors >= 1 && a.items === 10 && a.book === BOOK, a && { scenes: a.scenes, actors: a.actors, items: a.items });
+  check("6: it carries the two maps, the monster, the keeper and the ten items under the book's stamp", !!a && a.scenes === 2 && a.actors === 2 && a.items === 10 && a.book === BOOK, a && { scenes: a.scenes, actors: a.actors, items: a.items });
   const advShelf = advUuid ? await run(gm, P.shelfOf, { uuid: advUuid }) : null;
   const monsterShelf = held[monsterId] ? await run(gm, P.shelfOf, { uuid: held[monsterId] }) : null;
+  const keeperShelf = held[keeperId] ? await run(gm, P.shelfOf, { uuid: held[keeperId] }) : null;
   const classShelf = classes.result?.docs?.[0] ? await run(gm, P.shelfOf, { uuid: classes.result.docs[0] }) : null;
   const itemShelf = it.created?.items?.[0] ? await run(gm, P.shelfOf, { uuid: it.created.items[0] }) : null;
-  note("where they stand", { adventure: advShelf, monster: monsterShelf, item: itemShelf, class: classShelf });
-  check("6: the Adventure, the monster and the items stand on the line's Judge shelves, the class on the series' open Item shelf", !!advShelf?.judge && !!monsterShelf?.judge && !!itemShelf?.judge && !!classShelf?.pack && classShelf.line === open && !classShelf.judge);
+  note("where they stand", { adventure: advShelf, monster: monsterShelf, keeper: keeperShelf, item: itemShelf, class: classShelf });
+  check("6: the Adventure, the monster, the keeper and the items stand on the line's Judge shelves, the class on the series' open Item shelf", !!advShelf?.judge && !!monsterShelf?.judge && !!keeperShelf?.judge && !!itemShelf?.judge && !!classShelf?.pack && classShelf.line === open && !classShelf.judge);
   const classFolder = classes.result?.docs?.[0] ? await run(gm, P.folderOf, { uuid: classes.result.docs[0] }) : null;
   note("the class's folder", classFolder);
   check("6: the class is filed in its shelf folder inside the same pack, not dropped at the root", !!classFolder?.folder && classFolder.folderPack === classFolder.pack, classFolder);

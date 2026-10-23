@@ -6585,6 +6585,9 @@ arrives from the Judge's own copy.
   the name with the prose beside it; the cluster reader stops at the first
   gap and the flow takes the rest of the block for prose. A provisional row
   compiled clean and read back three lines of the block.
+  **Superseded (2026-10-23)** by "A person written out is read by her
+  labels": the block is not a cluster, so a reader of its own takes it whole,
+  to the label that opens the prose.
 - **Splitting the book's paragraphs by ratio.** Its gap is 1.4× its pitch,
   under the 1.6 the median split needs; the gap is declared, not re-derived.
 - **The tavern's two floor plans in this cut.** Two kind.scene rows compiled
@@ -7141,10 +7144,13 @@ the Judge's. The live record is the typography walk's steps 2, 6 and 7.
 
 ## 2026-10-23 — A passage is a journal page under a functional title
 
-The catgirl prints six passages no kind read: an introduction, a two-page
-survey of cultures with faction and hook lists, a design essay, the tavern's
-text with its room numbers inline, a generic class for other systems, and
-conversion notes. The register has carried `kind.prose` since the ordinal
+The catgirl prints seven passages no kind read: an introduction, the race's
+own history under its requirement line, a two-page survey of cultures with
+faction and hook lists, a design essay, the tavern's text with its room
+numbers inline, a generic class for other systems, and conversion notes.
+(The race's page joined the same day as the six the entry was written for;
+its requirement line stays out of the passage, being a race document's
+field — ROADMAP, "A race document".) The register has carried `kind.prose` since the ordinal
 kinds were declared, with no compiler and no binding behind it. The user's
 2026-10-23 instruction was the whole book.
 
@@ -7193,3 +7199,65 @@ introduction and the conversion notes written for players. The 2026-10-18
 Cost paragraph named exactly this as the signal for routing by kind; it still
 is, and it is still not built. The live record is the typography walk's step
 2 (two journals, six pages, paragraph counts read against the page by hand).
+
+## 2026-10-23 — A person written out is read by her labels
+
+The catgirl spends a page on the tavern's keeper: a display name, then her
+class line and scores, then labelled lines — hit points, armour class,
+saves, attack, damage, proficiencies by kind, racial and class abilities,
+inventory — set a group at a time with the page's paragraph gap between the
+groups, and a last label opening a paragraph about her house that turns the
+column. The 2026-10-18 entry rejected reading her as `kind.npc` then: the
+cluster reader stops at the first gap. The AX1 adventure design names the
+same shape for its pregens and calls for a compiler that emits one value op
+per labelled field.
+
+**Ruled.**
+- **One op, read by its labels at import.** `compileWriteup` takes the block
+  whole — from the first line under the name to the label that opens the
+  prose (`writeup.proseLabelKey`, a print key, so the register spells no
+  label) or to the column's foot — as ONE value op in a `writeup` pattern,
+  and `parseWriteup` splits it by its labels into `parseStatline`'s shape.
+  One op rather than one per field because the fields' NAMES are the page's
+  labels, which the reader knows as a sheet's vocabulary and the register
+  need not spell per row; and the same shape because `importCharacter` and
+  `sheetValuesFromStatline` then serve both without a second binding.
+- **A known label is found at its own first word.** A generic "capitalised
+  words then a colon" rule took the last token of every list with the label
+  that followed it ("… Swashbuckling General Proficiencies:"). Known labels
+  are an alternation matched at their own start; an unknown label is one
+  capitalised word, and keeps its clause as text.
+- **Proficiencies by kind fill their own rows.** A write-up names its class
+  and general lists; each fills its own rows on the sheet, a token's throw
+  bracket is the row's throw, and a "(G)"/"(C)" marker on a token outranks
+  the label it stands under. A quick-stat line's one list fills the general
+  rows and runs on, as before.
+- **An attack routine is not a weapon.** A routine ("claw/claw at N+") gives
+  the throw and stays text; the weapons table takes only what a damage
+  bracket names. A coin whose clause closes with a note in brackets is still
+  coin.
+- **A character's proficiencies are supplied before they are granted.** The
+  sheet import grants what the library holds, and a Judge's library need not
+  hold the Rulebook's proficiencies when a book names them; `importCharacter`
+  resolves the tokens through the shared tiers first (`resolveAbilities`, as
+  a monster's list is), which imports the definitions the cookbook can
+  supply, then the sheet import embeds them. Every character the importer
+  makes gets this, the AX adventures' included; what nothing supplies is
+  still reported as unmatched.
+- **The anchor is the display name, by hash.** The name line is set above
+  body size, so it is a heading to the opener (`as: "display"`); the row
+  ships "NPC 1" and the page supplies the name.
+
+*Rejected:*
+- **A `kind.pregen` compiler per labelled field** for this book. The keeper
+  is an inhabitant with prose of her own, which `kind.npc` with
+  `meta.actor: "character"` already binds; the pregen kind's step, folder
+  and ownership hand-out are AX1's to build, and a write-up op is what its
+  compiler will emit too.
+- **Her racial and class abilities as embedded powers.** The class binding
+  grants what the class grants at her level; the page's lists ride in the
+  as-printed block, where the Judge reads them against the sheet.
+
+*Cost:* `lint-register` learns the pattern; the kind file for `kind.npc`
+still declares `statline`, and the op's own `pattern` is what the executor
+runs. The live record is the typography walk's steps 2, 3 and 6.

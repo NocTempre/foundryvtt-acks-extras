@@ -3616,6 +3616,10 @@ async function importCharacter(bookId, id, folderId, node, found) {
   // this module is also loaded where no Foundry runs.
   const [{ importSheet }, matchers] = await Promise.all([import("../character-sheet/pdf/apply.mjs"), import("../character-sheet/pdf/match.mjs")]);
   const { values, morale, unplaced } = sheetValuesFromStatline(sl, { rename: libraryNameFor(matchers) });
+  // The sheet import grants what the library holds, so a proficiency the
+  // cookbook can supply is imported first, through the tiers a monster's list
+  // resolves by; what nothing supplies is reported below as unmatched.
+  await resolveAbilities([...(sl.proficiencies ?? []), ...(sl.classProficiencies ?? [])]);
   const report = await importSheet({ actor, values, writeDomain: false, record: false });
   const moraleField = actor.system.schema?.getField?.("details.morale");
   const missing = [...report.unmatched, ...unplaced];

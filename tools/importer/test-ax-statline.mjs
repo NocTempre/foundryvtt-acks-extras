@@ -4,7 +4,7 @@
  * invented: no PDFs, no Foundry.
  */
 import assert from "node:assert/strict";
-import { executeEntry, parseStatline } from "../../scripts/importer/executor.mjs";
+import { executeEntry, parseStatline, parseWriteup } from "../../scripts/importer/executor.mjs";
 
 let n = 0;
 const t = (name, fn) => Promise.resolve(fn()).then(() => {
@@ -134,6 +134,58 @@ await t("a label's count: dice and choices are kept as printed", async () => {
 await t("a label with no count, or no digit in it, has none", async () => {
   assert.equal(await countAt(160), null);
   assert.equal(await countAt(180), null);
+});
+
+/* ---------------- a write-up ---------------- */
+
+const WRITEUP =
+  "Lampwright 5 STR 14 INT 9 WIL 10 DEX 12 CON 13 CHA 11 HP: 23 AC: 6 (scale +1) Saves: Paralysis 11+, Death 10+ Attack: Claw/Claw at 7+ Damage: 1d3/1d3 Class Proficiencies: Kiln Lore, Ropecraft (11+) General Proficiencies: Adventuring (G), Steady Hand (glaive), Ledger Craft (C) Inventory: oilskin coat, 3 candles, 1,200 gp (banked) Staff: two apprentices";
+
+await t("a write-up's head is the class line and the scores", () => {
+  const w = parseWriteup(WRITEUP);
+  assert.deepEqual(w.class, { name: "Lampwright", level: 5 });
+  assert.deepEqual(w.abilities, { str: 14, int: 9, wis: 10, dex: 12, con: 13, cha: 11 });
+  assert.equal(w.text, WRITEUP);
+});
+
+await t("each label's clause runs to the next label", () => {
+  const w = parseWriteup(WRITEUP);
+  assert.equal(w.hp, 23);
+  assert.equal(w.ac, 6);
+  assert.equal(w.acNote, "scale +1");
+  assert.equal(w.saves, "Paralysis 11+, Death 10+");
+  assert.equal(w.atk.throw, 7);
+  assert.equal(w.atk.routine, "Claw/Claw at 7+");
+  assert.equal(w.atk.text, undefined, "a routine is not a weapon's name");
+  assert.equal(w.dmg, "1d3/1d3");
+  assert.equal(w.equipment, "oilskin coat, 3 candles, 1,200 gp (banked)");
+});
+
+await t("the proficiencies split by kind, and a token's own marker outranks its label", () => {
+  const w = parseWriteup(WRITEUP);
+  assert.deepEqual(w.classProficiencies, ["Kiln Lore", "Ropecraft (11+)", "Ledger Craft"]);
+  assert.deepEqual(w.proficiencies, ["Adventuring", "Steady Hand (glaive)"]);
+});
+
+await t("a label the reader does not know keeps its clause under extra", () => {
+  assert.deepEqual(parseWriteup(WRITEUP).extra, ["Staff: two apprentices"]);
+});
+
+await t("a known label is found at its own first word, not from the list token before it", () => {
+  const w = parseWriteup("Lampwright 5 Class Proficiencies: Kiln Lore, Swordplay General Proficiencies: Adventuring Racial Abilities: Keen Nose, Soft Tread Class Abilities: Barter");
+  assert.deepEqual(w.classProficiencies, ["Kiln Lore", "Swordplay"]);
+  assert.deepEqual(w.proficiencies, ["Adventuring"]);
+  assert.equal(w.racialAbilities, "Keen Nose, Soft Tread");
+  assert.equal(w.classAbilities, "Barter");
+  assert.equal(w.extra, undefined);
+});
+
+await t("a write-up with no labels is a class line and scores, and nothing missing throws", () => {
+  const w = parseWriteup("Lampwright 2 Str 9 Dex 12");
+  assert.deepEqual(w.class, { name: "Lampwright", level: 2 });
+  assert.deepEqual(w.abilities, { str: 9, dex: 12 });
+  assert.equal(w.hp, undefined);
+  assert.equal(w.proficiencies, undefined);
 });
 
 console.log(`\nax-statline: ${n} checks OK`);

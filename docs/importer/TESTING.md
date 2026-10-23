@@ -2503,17 +2503,19 @@ untagged seat would read every line as a heading and import nothing.
    and a count of what imports from it; the Books window lists it as open
    this session; `init`, `setup` and `ready` threw nothing beforehand.
 2. Import the book: the abilities step for its powers, the classes step for
-   its classes, the id import for its monster, the items step
+   its classes, the id import for its monster and — after the classes, since
+   she binds hers at import — for the person it prints in full
+   (`acksExtras.importer.cookbookImportIds(["cat.npc1"])`), the items step
    (`acksExtras.importer.cookbookImportAdventureItems({ books: ["cat"] })`)
    for the ten items it introduces and the journals step
    (`acksExtras.importer.cookbookImportJournals({ books: ["cat"] })`) for
-   its six passages, each scoped to the book. (Import Everything runs the
+   its seven passages, each scoped to the book. (Import Everything runs the
    same steps over every open book.)
-   *Observable:* the journals step reports six pages made, none refused, and
-   two journals created on the line's Judge JournalEntry shelf, named by
+   *Observable:* the journals step reports seven pages made, none refused,
+   and two journals created on the line's Judge JournalEntry shelf, named by
    group ("Essays", "Tavern"), each page titled by what its passage is
-   (Introduction, Cultures, Design notes, Generic class, Conversion notes;
-   Tavern) and holding the page's paragraphs — the first lines of a page's
+   (Introduction, Race, Cultures, Design notes, Generic class, Conversion
+   notes; Tavern) and holding the page's paragraphs — the first lines of a page's
    top, the bullets and the two-column order included — closed by a page
    reference; the items step reports ten imported, none already present,
    none refused, and the line's Judge Item shelf ("ACKS Cookbook — The OSR
@@ -2537,7 +2539,19 @@ untagged seat would read every line as a heading and import nothing.
 3. Open the monster. *Observable:* the description's sections read in page
    order across the page turn — the Combat section's last paragraph is whole,
    not cut at the column foot — and Spoils lists two components with weight,
-   value and effects.
+   value and effects. Open the keeper. *Observable:* her import step warned
+   once, that her class has no progression rows yet (the book prints its
+   classes' tables as pictures), and of nothing else; a core character on
+   the Judge Actor shelf under "NPCs", named from the page and owned by
+   nobody,
+   her class one of the book's three (bound, so the class's title, throws
+   and saves are derived) at the printed level, her six scores and hit
+   points written, her proficiencies embedded as abilities where the library
+   answers the name — class ones with the throw the page prints — and the
+   rest counted on the sheet's as-printed block, her inventory worn and her
+   gold counted; the biography opens with the page's paragraph about her
+   house, closed by its page reference, then the as-printed block with every
+   figure the class works out differently.
 4. Open a class item. *Observable:* the list's names the register knows are
    resolved and the rest stay as text; the description opens each passage
    with the spread's own run-in label.
@@ -2551,19 +2565,22 @@ untagged seat would read every line as a heading and import nothing.
 6. The adventures step, scoped the same way:
    `acksExtras.importer.cookbookImportAdventures({ books: ["cat"] })`.
    *Observable:* one Adventure written, for this book alone, on the line's
-   Judge Adventure shelf, carrying the two maps, the monster and the ten
-   items and none of the classes or powers; the GM's Books window row for
-   the book now reads its contents. The class item stands on the series'
-   open Item shelf, the monster on the Judge Actor shelf and an item on the
-   Judge Item shelf — `lineOfPack(doc.pack)` on each.
+   Judge Adventure shelf, carrying the two maps, the monster, the keeper and
+   the ten items and none of the classes or powers; the GM's Books window row
+   for the book now reads its contents. The class item stands on the series'
+   open Item shelf, the monster and the keeper on the Judge Actor shelf and
+   an item on the Judge Item shelf — `lineOfPack(doc.pack)` on each.
 7. Join as the **Player** seat. *Observable:* no compendium of the Judge
    line is visible to it, and the series' open Item shelf is, with the five
    powers and three classes in its index.
 ### Teardown
 
 8. `api.track` every id the imports' results list — the class documents, the
-   monster and powers read back by id, the items', the journals' and the
-   scenes' `created` uuids and the Adventure's — then `api.sweepTracked()`;
+   monster, the keeper and powers read back by id, the items', the journals'
+   and the scenes' `created` uuids and the Adventure's, and every ability
+   definition the keeper carries under an id the library did not hold before
+   her step (her proficiencies are supplied on demand from the library's
+   books) — then `api.sweepTracked()`;
    quote what it
    removed, could not
    find and refused. A shelf the run opened is deleted once empty — the

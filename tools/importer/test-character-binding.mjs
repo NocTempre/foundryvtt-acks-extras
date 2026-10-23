@@ -5,7 +5,7 @@
  * (`buildPlan`), so a box this binding fills is one the sheet import reads.
  */
 import assert from "node:assert/strict";
-import { parseStatline } from "../../scripts/importer/executor.mjs";
+import { parseStatline, parseWriteup } from "../../scripts/importer/executor.mjs";
 import { stripBookText } from "../../scripts/importer/prose.mjs";
 import { buildPlan } from "../../scripts/character-sheet/pdf/plan.mjs";
 import { sheetValuesFromStatline, asPrintedBlock, playerOwned, AS_PRINTED_CLASS } from "../../scripts/importer/character-binding.mjs";
@@ -157,6 +157,35 @@ await t("a player's ownership is what protects a character; a Judge's is not", (
   assert.equal(playerOwned({ default: 0, player1: 2 }, { isPlayer, owner: OWNER }), false, "observer or limited is not ownership");
   assert.equal(playerOwned({ default: 3 }, { isPlayer, owner: OWNER }), true, "everyone owning it includes every player");
   assert.equal(playerOwned(undefined, { isPlayer, owner: OWNER }), false);
+});
+
+/* ---------------- a write-up ---------------- */
+
+const WRITEUP =
+  "Lampwright 5 STR 14 INT 9 WIS 10 DEX 12 CON 13 CHA 11 HP: 23 AC: 6 Attack: Claw/Claw at 7+ Damage: 1d3/1d3 Class Proficiencies: Kiln Lore, Ropecraft (11+) General Proficiencies: Adventuring, Steady Hand (glaive) Inventory: oilskin coat, 3 candles, 1,200 gp (banked)";
+
+await t("a write-up's proficiencies fill the rows of their own kind, with their throws", () => {
+  const plan = buildPlan(sheetValuesFromStatline(parseWriteup(WRITEUP)).values);
+  assert.deepEqual(
+    plan.abilities.map(({ kind, name, selection, throwText }) => [kind, name, selection, throwText]),
+    [
+      ["class", "Kiln Lore", null, ""],
+      ["class", "Ropecraft", null, "11+"],
+      ["general", "Adventuring", null, ""],
+      ["general", "Steady Hand", "glaive", ""],
+    ],
+  );
+  assert.equal(plan.attack[0], 7);
+  assert.deepEqual(plan.weapons, [], "an attack routine is not a weapon");
+});
+
+await t("a coin with a closing note is still coin", () => {
+  const plan = buildPlan(sheetValuesFromStatline(parseWriteup(WRITEUP)).values);
+  assert.equal(plan.coins.gp.count, 1200);
+  assert.deepEqual(plan.gear.map(({ place, qty, name }) => [place, qty, name]), [
+    ["worn", 1, "oilskin coat"],
+    ["worn", 3, "candles"],
+  ]);
 });
 
 console.log(`\ncharacter-binding: ${n} checks OK`);

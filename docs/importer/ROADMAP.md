@@ -1092,14 +1092,12 @@ What each book still owes, in the order it is worth doing:
 
 The `cat` cookbook ships the race's five tiers, the catfolk beastman, the
 three classes, the tavern's two floor plans as gridless scenes in the
-book's Adventure (DECISIONS 2026-10-18, both entries) and the ten items the
-book introduces, as core items read whole (DECISIONS 2026-10-19). Left, each
-waiting on a kind or a reader rather than on authoring:
+book's Adventure (DECISIONS 2026-10-18, both entries), the ten items the
+book introduces, as core items read whole (DECISIONS 2026-10-19), its six
+passages as journal pages and its keeper as a character (DECISIONS
+2026-10-23, both entries). Left, each waiting on a kind or a reader rather
+than on authoring:
 
-- **The tavern's keeper (p30).** Her block is set as spaced paragraphs under
-  the name, the prose beside it; a kind.npc row read three of its lines. She
-  is a character actor once the AX1 character kind takes a declared block —
-  hash anchor `1eg1f2n`, label "HP:".
 - **The tavern's keyed rooms (p27, 1–11)** and the links between its two
   floors. The tavern's text is a journal page with its room numbers inline
   (kind.prose, DECISIONS 2026-10-23); kind.location rows over the two plans
@@ -1118,8 +1116,13 @@ waiting on a kind or a reader rather than on authoring:
   third's saves-and-attack table is text (p21, the page foot). Until a table
   is read the Judge finishes the ladder; the chassis carries the fighter
   progressions each spread names.
-- **A race document.** The five tiers ship as class powers under one group; a
-  kind for a race as a document would hold them together.
+- **A race document.** The five tiers ship as class powers under one group
+  and the race's history as a journal page; a kind for a race as a document
+  (`acks-extras.race`, which the class builder already lists) would hold
+  them together: the requirement line (p7) as its minimum attributes, each
+  tier's cost line as a value with the tier's power, the history as its
+  description. A content kind end to end — row, compiler, binding — rather
+  than a row for a kind that exists.
 - **A book's journals in its Adventure.** The Essays and the Tavern stand on
   the Judge's JournalEntry shelf and the book's Adventure carries none of
   them: `bookDocuments` takes a document whose stamp names a row, and a

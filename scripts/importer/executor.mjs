@@ -1190,6 +1190,8 @@ function applyPattern(raw, instr, registers, misses) {
     }
     case "statline":
       return parseStatline(text);
+    case "writeup":
+      return parseWriteup(text);
     case "countParen": {
       // How many a quick-stat label says there are: its closing parenthetical,
       // "(12)", "(2d6)" or "(1d3 or 1)". A whole number is a number; anything
@@ -1317,6 +1319,99 @@ export function parseStatline(text) {
     rest.push(seg);
   }
   if (rest.length) out.extra = rest;
+  return out;
+}
+
+/**
+ * A write-up's label, closed by a colon and a space, at the head or after one:
+ * a label the reader knows, of one word or two, or one capitalised word it
+ * does not. A known label is matched at its own first word, never from a
+ * capitalised word before it (a list's last token), and an unknown label of
+ * two words is not a label at all — a generic two-word match took the token
+ * before every "Class Abilities" with it. Every label opens a clause: the
+ * known ones read into fields, the rest keep their text.
+ */
+const WRITEUP_LABEL =
+  /(?:^|\s)(HP|Hit Points|AC|Armou?r Class|Saves?|Saving Throws|Attacks?|Attack Throw|Damage|Class Proficiencies|General Proficiencies|Proficiencies|Racial Abilities|Class Abilities|Abilities|Inventory|Equipment|Spells|Repertoire|Languages|Alignment|Movement|MV|XP|[A-Z][a-z]+):\s+/g;
+
+/** A score key as a write-up may abbreviate it; the sheet's keys are `parseStatline`'s. */
+const WRITEUP_SCORE = { str: "str", int: "int", wis: "wis", wil: "wis", dex: "dex", con: "con", cha: "cha" };
+
+/**
+ * `writeup` pattern: a person written out as labelled lines rather than one
+ * quick-stat line — the shape a book gives a person it spends a page on. The
+ * head, before the first label, is the class line ("<class> <level>") and
+ * the scores; every label then opens a clause that runs to the next. It reads
+ * into `parseStatline`'s shape, so one binding serves both: the class, the
+ * scores, hit points, armour class with its bracket, the attack's throw (its
+ * routine kept as text, never as a weapon's name), the damage, the inventory
+ * as `equipment`, and the proficiencies as two lists — `proficiencies` (the
+ * general ones) and `classProficiencies` — where a token marked "(G)" or "(C)"
+ * joins the list its marker names, marker dropped, whatever label it stood
+ * under. Saves and abilities stay text; a one-word label this reader does not
+ * know keeps its clause, labelled, under `extra`. Missing labels are absent,
+ * never a throw; `text` keeps what the page printed.
+ */
+export function parseWriteup(text) {
+  const out = { text };
+  const t = String(text ?? "").replace(/−/g, "-").replace(/\s+/g, " ").trim();
+  const marks = [...t.matchAll(WRITEUP_LABEL)];
+  const head = (marks.length ? t.slice(0, marks[0].index) : t).trim();
+  const scoreRe = /\b(Str|Int|Wis|Wil|Dex|Con|Cha)\s+(\d+)/gi;
+  for (const m of head.matchAll(scoreRe)) (out.abilities ??= {})[WRITEUP_SCORE[m[1].toLowerCase()]] = parseInt(m[2], 10);
+  const firstScore = head.search(/\b(Str|Int|Wis|Wil|Dex|Con|Cha)\s+\d+/i);
+  const classText = (firstScore >= 0 ? head.slice(0, firstScore) : head).replace(/\*+/g, "").replace(/[,;]\s*$/, "").trim();
+  const cls = /^([A-Za-z][A-Za-z' -]*?)\s+(\d+)$/.exec(classText);
+  if (cls) out.class = { name: cls[1].trim(), level: parseInt(cls[2], 10) };
+  else if (classText) out.extra = [classText];
+  const general = [];
+  const klass = [];
+  // A token's own marker outranks the label it stands under.
+  const sortProfs = (body, into) => {
+    for (const token of splitTop(body)) {
+      const mark = /\s*\(\s*([GC])\s*\)\s*$/i.exec(token);
+      const bare = mark ? token.slice(0, mark.index).trim() : token;
+      if (!bare) continue;
+      (mark ? (mark[1].toUpperCase() === "G" ? general : klass) : into).push(bare);
+    }
+  };
+  marks.forEach((m, i) => {
+    const key = m[1].toLowerCase().replace(/\s+/g, " ");
+    const body = t.slice(m.index + m[0].length, marks[i + 1]?.index ?? t.length).trim();
+    if (key === "hp" || key === "hit points") {
+      const hp = /^(\d+)\s*(?:\(([^)]*)\))?/.exec(body);
+      if (hp) {
+        out.hp = parseInt(hp[1], 10);
+        if (hp[2]?.trim()) out.hpNote = hp[2].trim();
+      }
+    } else if (key === "ac" || /^armou?r class$/.test(key)) {
+      const ac = /^(-?\d+)\s*(?:\(([^)]*)\))?/.exec(body);
+      if (ac) {
+        out.ac = parseInt(ac[1], 10);
+        if (ac[2]?.trim()) out.acNote = ac[2].trim();
+      }
+    } else if (/^saves?$/.test(key) || key === "saving throws") out.saves = body;
+    else if (/^attacks?$/.test(key)) {
+      const th = /(\d+)\s*\+/.exec(body);
+      out.atk = { routine: body, ...(th ? { throw: parseInt(th[1], 10) } : {}) };
+    } else if (key === "damage") out.dmg = body;
+    else if (key === "class proficiencies") sortProfs(body, klass);
+    else if (key === "general proficiencies" || key === "proficiencies") sortProfs(body, general);
+    else if (key === "racial abilities") out.racialAbilities = body;
+    else if (key === "class abilities" || key === "abilities") out.classAbilities = body;
+    else if (key === "inventory" || key === "equipment") out.equipment = body;
+    else if (key === "spells") out.spells = body;
+    else if (key === "repertoire") out.repertoire = body;
+    else if (key === "languages") out.languages = body;
+    else if (key === "alignment") out.al = body;
+    else if (key === "movement" || key === "mv") out.mv = body;
+    else if (key === "xp") out.xp = parseInt(body.replace(/,/g, ""), 10);
+    else (out.extra ??= []).push(`${m[1]}: ${body}`);
+  });
+  if (general.length || klass.length) {
+    out.proficiencies = general;
+    out.classProficiencies = klass;
+  }
   return out;
 }
 

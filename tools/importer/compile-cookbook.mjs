@@ -2698,13 +2698,64 @@ function axStatCluster(pd, labelRun, x0, x1) {
 }
 
 /**
+ * kind.npc written out (`assists.writeup`): a person the book spends a page
+ * on, set as labelled lines under a display name rather than as one quick-stat
+ * line. The block runs from the first line under the name to the foot of its
+ * column, or to the line whose label answers `writeup.proseLabelKey` — a label
+ * that opens prose ABOUT the person (a household, a history) rather than a
+ * field of the sheet — and ships as ONE value op in the `writeup` pattern,
+ * which reads it by its labels at import. Runs set below the block's own size
+ * (an ordinal's superscript) are dropped from it. The prose from that label
+ * flows on as the description, column to column, as any entry's does. The
+ * gaps between the block's groups are the page's paragraph gap, which is why
+ * the cluster reader cannot take it: it stops at the first.
+ */
+async function compileWriteup(doc, entry, bookCtx) {
+  const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
+  const w = assists.writeup;
+  const colX0 = cols[a.col] - 5;
+  const colX1 = cols[a.col + 1] ? cols[a.col + 1] - 6 : axRight(pd);
+  const lines = toLines(pd.items.filter((it) => it.str.trim() && it.x >= colX0 && it.x <= colX1 && it.y > a.endY + 2 && it.y < axFoot(pd)))
+    .map((ln) => ({ y: ln.y, x0: Math.min(...ln.items.map((i) => i.x)), items: [...ln.items].sort((p, q) => p.x - q.x) }));
+  const labelKey = w?.proseLabelKey != null ? String(w.proseLabelKey) : null;
+  const opensProse = (ln) => {
+    const c = ln.items[0].str.indexOf(":");
+    return c > 0 && printKey(ln.items[0].str.slice(0, c)) === labelKey;
+  };
+  const cut = labelKey ? lines.findIndex(opensProse) : -1;
+  if (labelKey && cut < 0) throw new Error(`no label on p.${page} answers to writeup.proseLabelKey`);
+  const block = cut >= 0 ? lines.slice(0, cut) : lines;
+  if (!block.length) throw new Error(`no labelled lines under the name on p.${page}`);
+  const items = block.flatMap((l) => l.items);
+  const hs = items.map((i) => i.h).sort((p, q) => p - q);
+  const bodyH = hs[Math.floor(hs.length / 2)];
+  const small = new Set(items.filter((it) => it.h < bodyH * 0.75));
+  const x1 = Math.max(...items.map((i) => i.x + (i.w ?? 0)));
+  const box = { x0: block[0].x0 - 3, x1: x1 + 3, y0: block[0].y - 4, y1: block[block.length - 1].y + 4 };
+  const fields = { name, statline: withFixes({ op: "value", page, pattern: "writeup", box }, pd, small.size ? small : null, null) };
+  if (cut >= 0) {
+    // `axFlow` reads from `endY + 2` down, so the label line's own y clears it
+    // by less than a line pitch and the block's last line stays out.
+    const segs = await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: lines[cut].y - 3 }, new Set(items), { stopKeys: assists.stopKeys ?? [] });
+    const { paras } = axParas(segs, page);
+    if (paras.length) fields.description = { op: "text", page, paras };
+  }
+  return {
+    kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
+    ...(entry.meta ? { meta: entry.meta } : {}), fields,
+  };
+}
+
+/**
  * kind.npc — prose plus ONE quick-stat block parsed by the statline pattern.
  * The block may sit on a different page than the prose (quick vs full
  * presentation); assists.statlineAt names it, assists.statLabel overrides the
- * label text when it differs from "<name>:".
+ * label text when it differs from "<name>:". A row written out as labelled
+ * lines (`assists.writeup`) is `compileWriteup`'s.
  */
 async function compileNpc(doc, entry, kindRow, bookCtx) {
   const assists = entry.assists ?? {};
+  if (assists.writeup) return compileWriteup(doc, entry, bookCtx);
   const page = entry.pages[0];
   // anchorAtStatline: roster blocks with no printed intro of their own (a
   // school's named veterans) anchor on the statline label itself — the name
