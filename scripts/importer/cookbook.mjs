@@ -116,11 +116,10 @@ const UNLINED_LINE = "Your Books";
  * The one function every write (`packFor`, `ensureFolderPath`) and every
  * presence check (`importedActor`, `importedIdsOfType`) derives the
  * destination from. A Judge's book (`judge` in the registry) resolves to its
- * series' JUDGE line (`judgeLine`), whose packs no player seat can open. Only
- * an id that names the book reaches here with it: a `def.` id names no book
- * (`bookOfCookbookId`), so a class, a power or a proficiency a Judge's book
- * contributes files on the library's own open shelf whatever its source's
- * flag says.
+ * series' JUDGE line (`judgeLine`), whose packs no player seat can open. This
+ * is the line of a book's OWN rows; what a book contributes to the library's
+ * lists — a class, a power, a proficiency, under a `def.` id — files by
+ * `lineOfClaim`, which keeps the series and drops the Judge's half.
  */
 export function lineOf(bookId) {
   if (!bookId) return null;
@@ -145,11 +144,41 @@ export function bookOfCookbookId(id, book = null) {
   return oseSourceLabel(source) ? source : "ose";
 }
 
+/**
+ * Whether a cookbook id is a CONTENT row — a class, a power, a proficiency, a
+ * spell, a piece of equipment: the `def.` namespace, which every book's
+ * contribution to the library's lists shares. Such an id names no book of its
+ * own (`bookOfCookbookId`); the entry's `book` does.
+ */
+export const isContentId = (id) => String(id ?? "").startsWith("def.");
+
+/**
+ * The line ONE claim files on: a cookbook id with the book its entry names.
+ *
+ * A book's own rows (`<book>.*`) take the book's line as `lineOf` gives it,
+ * the Judge's where the book is the Judge's. A content row takes its book's
+ * SERIES line and never the Judge's: a class is a thing a player picks, so a
+ * series' classes and powers stand on the series' open Item shelf, and a book
+ * of the ACKS library — which has no series — files them on the library's
+ * own. Every write and every folder derives its shelf from this, so the two
+ * cannot disagree about where a content row belongs.
+ */
+export function lineOfClaim(id, book = null) {
+  const bookId = bookOfCookbookId(id, book);
+  return isContentId(id) ? bookLine(bookId) : lineOf(bookId);
+}
+
+/**
+ * The `book` half of a content row's stamp — present only when the entry
+ * names one, so a stamp never carries the key with nothing in it.
+ */
+const bookStamp = (book) => (book ? { book: String(book) } : {});
+
 /** The line a document being created belongs to, read off the flag it carries. */
 const lineOfData = (data) => {
   const flag = data?.flags?.[MODULE_ID]?.cookbook;
   if (!flag) return null;
-  return lineOf(bookOfCookbookId(flag.id, flag.book));
+  return lineOfClaim(flag.id, flag.book);
 };
 
 /**
@@ -874,8 +903,27 @@ const packOpts = async (type, line = null) => {
  * look. See docs/importer/DECISIONS.md, "The shelf is derived from the
  * document's own cookbook flag, not passed in."
  */
-export const createDoc = async (cls, data, { line = null, ...opts } = {}) =>
-  remembered(await cls.create(data, { ...opts, ...(await packOpts(cls.documentName, lineOfData(data) ?? line)) }));
+export const createDoc = async (cls, data, { line = null, ...opts } = {}) => {
+  const packOptions = await packOpts(cls.documentName, lineOfData(data) ?? line);
+  warnStrayFolder(cls.documentName, data, packOptions.pack ?? null);
+  return remembered(await cls.create(data, { ...opts, ...packOptions }));
+};
+
+/**
+ * A folder handed to a write into another pack is dropped by core without a
+ * word, and the document lands at the pack's root. The folder rule and the
+ * shelf rule read the same claim, so this fires only when one of them was
+ * given a different book than the other — which is the one way a routing
+ * change breaks silently.
+ */
+function warnStrayFolder(type, data, pack) {
+  const folderId = data?.folder;
+  if (!folderId) return;
+  const holder = ourPacksOfType(type).find((p) => p.folders?.get?.(folderId));
+  const where = holder?.collection ?? (game.folders?.get(folderId) ? "world" : null);
+  if (!where || where === (pack ?? "world")) return;
+  console.warn(`${MODULE_ID} | ${data?.flags?.[MODULE_ID]?.cookbook?.id ?? data?.name}: folder is in ${where}, the write goes to ${pack ?? "world"} — the folder is dropped.`);
+}
 
 /**
  * Teach the dedup index about a document the moment it exists. Keyed off the
@@ -1381,7 +1429,7 @@ function actorFolderFor(id, found = cookbookEntry(id), opts = {}) {
   // The Animals shelf is cross-book, but not cross-LINE: it is built in
   // whichever pack this entry's own book writes to, because the folder and the
   // document have to end up in the same compendium.
-  if (isAnimalEntry(found?.entry)) return ensureFolderPath("Actor", ["Animals"], lineOf(bookOf(found)));
+  if (isAnimalEntry(found?.entry)) return ensureFolderPath("Actor", ["Animals"], lineOfClaim(id, bookOf(found)));
   return targetFolder("Actor", bookOf(found), actorGroupOf(found, id, opts));
 }
 
@@ -5213,9 +5261,12 @@ const worldFolderOf = (type, name, parentId) =>
  * @returns {Promise<{type: string, doc: object, filed: object, id: string, uuids: string[], worldOnly: boolean}[]>}
  */
 async function bookDocuments(bookId) {
+  // A content row stamped with the book is the library's, not the book's
+  // bundle: a series' classes stand on its open shelf for a player to pick,
+  // and the Adventure carries the Judge's half alone.
   const ofBook = (flags) => {
     const flag = flags?.[MODULE_ID]?.cookbook;
-    return !!flag?.id && !flags[MODULE_ID].templatePart && bookOfCookbookId(flag.id, flag.book) === bookId;
+    return !!flag?.id && !isContentId(flag.id) && !flags[MODULE_ID].templatePart && bookOfCookbookId(flag.id, flag.book) === bookId;
   };
   const out = [];
   for (const type of BOOK_DOC_TYPES) {
@@ -5594,7 +5645,7 @@ export function bindAbility(entry, node, id, opts = {}) {
       ...(gate.length ? { requirements: gate.map(capabilityLabel).join(", ").slice(0, 120) } : {}),
     },
     flags: {
-      [MODULE_ID]: { cookbook: { id, cite }, minted: true, extras },
+      [MODULE_ID]: { cookbook: { id, cite, ...bookStamp(entry.book) }, minted: true, extras },
     },
   };
 }
@@ -5732,11 +5783,14 @@ function itemShelfPath(id) {
  * item importer asks this and none builds its own path. The shelf comes from
  * the id's first two segments alone, so callers whose ids have no register
  * entry (languages, read from the seat's own book) still land on their shelf.
+ * The PACK the shelf is built in is the claim's line (`lineOfClaim`): the
+ * book the entry names, or the one given, so a series' "Classes" folder is
+ * made in the series' Item pack, where the class is written.
  * See docs/importer/DECISIONS.md, "Organize is deleted, because destination
  * has one author".
  */
-export async function ensureItemFolder(id = null) {
-  return ensureFolderPath("Item", itemShelfPath(id));
+export async function ensureItemFolder(id = null, book = bookOf(cookbookEntry(id))) {
+  return ensureFolderPath("Item", itemShelfPath(id), lineOfClaim(id, book));
 }
 
 /** Create every item shelf (and equipment sub-shelf) before parallel imports. */
@@ -6013,7 +6067,7 @@ async function reconcileByName(data, id, bookId) {
     const otherBook = other.getFlag(MODULE_ID, "cookbook")?.book ?? bookOf(cookbookEntry(otherId));
     // Never across LINES.
     // See docs/importer/DECISIONS.md, "Reconciling is a claim about one game's library".
-    if (lineOf(bookOfCookbookId(otherId, otherBook)) !== lineOf(bookOfCookbookId(id, bookId))) continue;
+    if (lineOfClaim(otherId, otherBook) !== lineOfClaim(id, bookId)) continue;
     if (sameMaterial(other, data)) {
       // The same item, printed twice. Keep the higher-precedence copy and teach
       // it this id; if THIS book outranks the one already imported, the kept
@@ -7204,7 +7258,7 @@ export function bindClass(
     ...(training ? { effects: [trainingEffect(entry, training)] } : {}),
     flags: {
       [MODULE_ID]: {
-        cookbook: { id, cite },
+        cookbook: { id, cite, ...bookStamp(entry.book) },
         // Which race these tongues belong to — declared, or the runin's own
         // subject. Kept so a sibling can lend its list to a class whose page
         // does not parse, and so the race document is brought in step.
@@ -8438,7 +8492,7 @@ export function bindVariation(entry, node, id) {
     ...(entry.icon ? { img: entry.icon } : {}),
     // The stamp Remove ALL Imports finds documents by; without it a world could
     // import these and never get them back out.
-    flags: { [MODULE_ID]: { cookbook: { id, cite } } },
+    flags: { [MODULE_ID]: { cookbook: { id, cite, ...bookStamp(entry.book) } } },
     system: {
       key: meta.key ?? "",
       kind: meta.variationKind ?? "",
@@ -8581,7 +8635,7 @@ export function bindTrap(entry, node, id) {
     ...(entry.icon ? { img: entry.icon } : {}),
     // The stamp Remove ALL Imports finds documents by; without it a world could
     // import these and never get them back out.
-    flags: { [MODULE_ID]: { cookbook: { id, cite } } },
+    flags: { [MODULE_ID]: { cookbook: { id, cite, ...bookStamp(entry.book) } } },
     system: {
       source: { book: entry.book ?? "jj", cite, ref: id },
       // The passage that precedes the first tier is the trap's description;
@@ -8676,7 +8730,7 @@ export function bindSpell(entry, node, id) {
     ...(entry.icon ? { img: entry.icon } : {}),
     // The stamp Remove ALL Imports finds documents by; without it a world could
     // import these and never get them back out.
-    flags: { [MODULE_ID]: { cookbook: { id, cite }, [FLAG_SPELL]: extras } },
+    flags: { [MODULE_ID]: { cookbook: { id, cite, ...bookStamp(entry.book) }, [FLAG_SPELL]: extras } },
     system: {
       ...coreFieldsFrom(extras),
       description: bookText(paras, cite, { id, book: entry.book, page: entry.pages?.[0] }),
@@ -8979,7 +9033,7 @@ export function bindEquipment(entry, node, id) {
     flags: {
       [MODULE_ID]: {
         // Our own provenance: bookkeeping for re-import, update and prune.
-        cookbook: { id, cite, unaudited: !entry.audited },
+        cookbook: { id, cite, unaudited: !entry.audited, ...bookStamp(entry.book) },
         minted: true,
         // These markers are equipment's, not ours — it writes the SAME markers
         // in this scope (the light when it readies a torch, in
@@ -9133,7 +9187,7 @@ export function bindAnimal(entry, node, id, { ridable = null } = {}) {
     },
     flags: {
       [MODULE_ID]: {
-        cookbook: { id, cite, unaudited: !entry.audited },
+        cookbook: { id, cite, unaudited: !entry.audited, ...bookStamp(entry.book) },
         minted: true,
         // A creature's carrying capacity has ONE live store — the one
         // `capacity6()` reads and the monster sheet edits — so the loads read

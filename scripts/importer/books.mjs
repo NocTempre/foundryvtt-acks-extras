@@ -16,8 +16,10 @@
  * name (its places, people, organisations, lists, maps, monsters and its
  * Adventure) is shelved where no player seat can open them (`lineOf` in
  * `cookbook.mjs`). What such a book contributes to the library's own lists —
- * a class, a power, a proficiency — carries a `def.` id, names no book, and
- * stays on the open shelf; a mixed book is marked by its Judge's half.
+ * a class, a power, a proficiency — carries a `def.` id and files on its
+ * line's OPEN shelf (`lineOfClaim`): the series' own for a book with a
+ * `line`, the ACKS library's for one without; a mixed book is marked by its
+ * Judge's half.
  *
  * `form` marks a fillable form rather than a book: nothing imports from it,
  * and what connecting it unlocks is the official-sheet export, which writes a

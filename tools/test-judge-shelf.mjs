@@ -10,10 +10,11 @@
  * it. The registry is held to the data: a shipped book whose cookbook carries
  * keyed places, people, organisations or a map is a Judge's book, so the next
  * adventure added cannot land on the table's shelf by omission. And the flag
- * reaches exactly the book's own ids: a content row (`def.`) files on the
- * library's open shelf whichever book printed it, and every row of a book's
- * own file carries the book's prefix, so a mixed book's Judge's half closes
- * and its player's half does not.
+ * reaches exactly the book's own ids: a content row (`def.`) files on its
+ * book's OPEN line — the series' shelf for a lined book, the library's own
+ * for an unlined one, never a Judge's — and every row of a book's own file
+ * carries the book's prefix, so a mixed book's Judge's half closes and its
+ * player's half does not.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -188,19 +189,33 @@ ok("a Judge's book keeps its series", Object.keys(BOOKS).filter(bookIsJudges).ev
 
 /* ---------------- the flag reaches the book's own ids and no others ---------------- */
 
-const { lineOf, bookOfCookbookId } = await import("../scripts/importer/cookbook.mjs");
+const { lineOf, lineOfClaim, bookOfCookbookId, isContentId } = await import("../scripts/importer/cookbook.mjs");
 const index = JSON.parse(fs.readFileSync(path.join(ROOT, "cookbook", "index.json"), "utf8"));
-const linedRows = [];
+const strayedContent = [];
+const closedContent = [];
+const unlinedOfSeries = [];
 let fromJudges = 0;
+let fromLined = 0;
 for (const file of index.content) {
   const cb = JSON.parse(fs.readFileSync(path.join(ROOT, "cookbook", `${file}.json`), "utf8"));
   for (const [id, e] of Object.entries(cb.entries ?? {})) {
+    if (!isContentId(id)) strayedContent.push(id);
     if (bookIsJudges(e?.book)) fromJudges++;
-    if (lineOf(bookOfCookbookId(id)) !== null) linedRows.push(id);
+    const line = lineOfClaim(id, e?.book);
+    if (isJudgeLine(line)) closedContent.push(id);
+    if (bookLine(e?.book)) {
+      fromLined++;
+      if (line !== bookLine(e.book)) unlinedOfSeries.push(id);
+    } else if (line !== null) unlinedOfSeries.push(id);
   }
 }
-check("a content row files on the library's own shelf whichever book printed it", linedRows, []);
+check("every content row carries the content prefix, so the claim rule reaches it", strayedContent, []);
+check("no content row files on a Judge's shelf whichever book printed it", closedContent, []);
+check("a content row files on its book's series' open shelf, or the library's own where the book has no series", unlinedOfSeries, []);
 ok("and at least one content row comes from a Judge's book, so that is tested", fromJudges > 0);
+ok("and at least one from a lined book, so the series' shelf is tested", fromLined > 0);
+check("a content row with no book named files on the library's own shelf", lineOfClaim("def.class.nobody"), null);
+check("a book's own row keeps the book's line as lineOf gives it", lineOfClaim("rr.nothing"), lineOf("rr"));
 const strayed = [];
 for (const book of index.books) {
   const cb = JSON.parse(fs.readFileSync(path.join(ROOT, "cookbook", `${book}.json`), "utf8"));
@@ -209,6 +224,7 @@ for (const book of index.books) {
 check("every row of a book's own file carries the book's prefix, so the flag reaches it", strayed, []);
 const mixed = index.books.find((b) => bookIsJudges(b) && bookLine(b));
 ok("a lined Judge's book's own ids take its series' Judge line", !!mixed && lineOf(mixed) === judgeLine(bookLine(mixed)), mixed ?? "no lined Judge's book shipped");
+ok("and the same book's content rows take the series' open line", !!mixed && lineOfClaim(`${mixed}.room1`, null) === judgeLine(bookLine(mixed)) && lineOfClaim("def.class.anyone", mixed) === bookLine(mixed), mixed ?? "no lined Judge's book shipped");
 
 if (failed) {
   console.error(`${failed} check(s) failed`);

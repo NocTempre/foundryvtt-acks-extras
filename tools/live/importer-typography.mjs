@@ -111,8 +111,10 @@ const P = {
     return { ...globalThis.__btBook, open: !!H.CB.cookbookSessionDoc(id), notes: H.notes.slice() };
   },
   line: async ({ book }) => globalThis.__bt.CB.lineOf(book),
-  /** The world's shelves, the line's own by type, and the folders on the line's shelves, before and after. */
-  shelves: async ({ line }) => {
+  /** The line the book's CONTENT rows file on — its series' open shelf, read by the rule the writes use. */
+  openLine: async ({ book }) => globalThis.__bt.CB.lineOfClaim("def.class.probe", book),
+  /** The world's shelves, the line's own by type and the open line's Item shelf, with the folders on each, before and after. */
+  shelves: async ({ line, open }) => {
     const H = globalThis.__bt;
     const packs = game.packs.filter((p) => p.metadata.packageType === "world").map((p) => p.collection);
     const folders = {};
@@ -122,7 +124,16 @@ const P = {
       lined[type] = pack?.collection ?? null;
       if (pack) folders[pack.collection] = pack.folders.map((f) => f.uuid);
     }
-    return { packs, lined, folders };
+    const openItems = H.LIB.findLibraryPack("Item", open);
+    if (openItems) folders[openItems.collection] = openItems.folders.map((f) => f.uuid);
+    return { packs, lined, open: { Item: openItems?.collection ?? null }, folders };
+  },
+  /** A document's folder and the pack that folder is in — a folder from another pack is dropped by core, and the document lands at the root. */
+  folderOf: async ({ uuid }) => {
+    const doc = await fromUuid(uuid);
+    if (!doc) return null;
+    const folder = doc.folder ?? null;
+    return { pack: doc.pack ?? null, folder: folder?.name ?? null, folderPack: folder?.pack ?? null, parent: folder?.folder?.name ?? null };
   },
   /** Where a document stands: its pack's line, and whether that line is the Judge's. */
   shelfOf: async ({ uuid }) => {
@@ -154,15 +165,15 @@ const P = {
       book: stamp.book ?? null, kind: stamp.kind ?? null, contents: stamp.contents ?? null,
     };
   },
-  /** What THIS seat can see of the line's shelves and of the library's own Item shelf. */
-  seatView: async ({ line, ids }) => {
+  /** What THIS seat can see of the line's Judge shelves and of the open Item shelf the book's content files on. */
+  seatView: async ({ line, open, ids }) => {
     const H = globalThis.__bt;
     const level = (pack) => pack.getUserLevel(game.user);
     const observer = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
     const lined = game.packs
       .filter((p) => p.metadata.packageType === "world" && H.LIB.isLibraryPack?.(p.collection) !== false && H.LIB.lineOfPack(p.collection) === line)
       .map((p) => ({ collection: p.collection, type: p.documentName, visible: p.visible, level: level(p) }));
-    const items = H.LIB.findLibraryPack("Item", null);
+    const items = H.LIB.findLibraryPack("Item", open);
     let classesSeen = 0;
     if (items && items.visible) {
       const index = await items.getIndex({ fields: ["flags.acks-extras.cookbook.id"] });
@@ -172,7 +183,7 @@ const P = {
     return {
       isGM: game.user.isGM, role: game.user.role,
       lined, anyLinedVisible: lined.some((p) => p.visible || p.level >= observer),
-      libraryItems: items ? { collection: items.collection, visible: items.visible, level: level(items) } : null,
+      openItems: items ? { collection: items.collection, line: H.LIB.lineOfPack(items.collection), visible: items.visible, level: level(items) } : null,
       classesSeen, classesWanted: ids.items.length,
       scenesSeen: (ids.scenes ?? []).filter((id) => game.scenes.find((s) => s.getFlag("acks-extras", "cookbook")?.id === id)).length,
     };
@@ -313,8 +324,8 @@ async function seat(key) {
 
 /** The book's ids, read off the shipped cookbook so the walk follows a recompile. */
 function bookIds(book) {
-  // `items` is what the Player seat is owed on the library's own shelf; the
-  // book's own items (`adventureItems`) stand on its Judge shelf instead.
+  // `items` is what the Player seat is owed on the series' open Item shelf;
+  // the book's own items (`adventureItems`) stand on its Judge shelf instead.
   const ids = { items: [], actors: [], classes: [], powers: [], scenes: [], adventureItems: [] };
   const dir = path.join(ROOT, "cookbook");
   for (const f of fs.readdirSync(dir)) {
@@ -356,8 +367,11 @@ try {
   // Actor shelf has to be absent beforehand for the proof to say anything — it
   // is the pack a presence check once minted on its way to reading it.
   const line = await run(gm, P.line, { book: BOOK });
-  const before = await run(gm, P.shelves, { line });
-  note("shelves before", { packs: before.packs.length, line, lined: before.lined, folders: Object.fromEntries(Object.entries(before.folders).map(([c, f]) => [c, f.length])) });
+  const open = await run(gm, P.openLine, { book: BOOK });
+  const before = await run(gm, P.shelves, { line, open });
+  note("shelves before", { packs: before.packs.length, line, open, lined: before.lined, openItems: before.open.Item, folders: Object.fromEntries(Object.entries(before.folders).map(([c, f]) => [c, f.length])) });
+  check("the book's content files on its series' open line, apart from its Judge line", !!open && open !== line && !open.endsWith("Judge"), { line, open });
+  check("the open line's Item shelf is not in the world before the run", before.open.Item === null, { open: before.open });
   let census = await run(gm, P.census, { book: BOOK, ids: IDS });
   note("gm census", census);
   const afterCensus = await run(gm, P.shelves, { line });
@@ -398,7 +412,7 @@ try {
   for (const uuid of items.result?.created?.items ?? []) gm.track(uuid, "Item");
   const held = await run(gm, P.heldNow, { ids: { items: IDS.powers, actors: IDS.actors } });
   for (const [id, uuid] of Object.entries(held)) if (uuid) gm.track(uuid, IDS.actors.includes(id) ? "Actor" : "Item");
-  const after = await run(gm, P.shelves, { line });
+  const after = await run(gm, P.shelves, { line, open });
   for (const c of after.packs.filter((c) => !before.packs.includes(c))) openedPacks.push(c);
   for (const [collection, uuids] of Object.entries(after.folders)) {
     if (openedPacks.includes(collection)) continue; // goes with the pack
@@ -413,6 +427,7 @@ try {
   const it = items.result ?? {};
   check("2: ten items imported, none already present, none refused", it.made === IDS.adventureItems.length && IDS.adventureItems.length === 10 && it.already === 0 && it.refused === 0, it);
   check("2: the import, not the census, opened the line's Item shelf", !!after.lined.Item && openedPacks.includes(after.lined.Item), { item: after.lined.Item });
+  check("2: the classes and powers opened the series' open Item shelf, apart from the Judge's", !!after.open.Item && openedPacks.includes(after.open.Item) && after.open.Item !== after.lined.Item, { open: after.open.Item, judge: after.lined.Item });
   const itemShapes = [];
   for (const uuid of it.created?.items ?? []) itemShapes.push(await run(gm, P.power, { uuid }));
   check("2: each item is a core item of one paragraph with a page reference", itemShapes.length === 10 && itemShapes.every((p) => p && p.type === "item" && p.paragraphs === 1 && p.cite), itemShapes.map((p) => p && { type: p.type, paragraphs: p.paragraphs, chars: p.chars }));
@@ -459,7 +474,7 @@ try {
   section("6. the book's Adventure");
   const adv = await runStep("6: adventures", "cookbookImportAdventures", { books: [BOOK] });
   for (const uuid of adv.result?.created?.adventures ?? []) gm.track(uuid, "Adventure");
-  const later = await run(gm, P.shelves, { line });
+  const later = await run(gm, P.shelves, { line, open });
   for (const c of later.packs.filter((c) => !before.packs.includes(c) && !openedPacks.includes(c))) openedPacks.push(c);
   note("shelves opened by the adventure step", adv.result?.created?.packs ?? []);
   const ad = adv.result ?? {};
@@ -473,16 +488,19 @@ try {
   const classShelf = classes.result?.docs?.[0] ? await run(gm, P.shelfOf, { uuid: classes.result.docs[0] }) : null;
   const itemShelf = it.created?.items?.[0] ? await run(gm, P.shelfOf, { uuid: it.created.items[0] }) : null;
   note("where they stand", { adventure: advShelf, monster: monsterShelf, item: itemShelf, class: classShelf });
-  check("6: the Adventure, the monster and the items stand on the line's Judge shelves, the class on the library's own", !!advShelf?.judge && !!monsterShelf?.judge && !!itemShelf?.judge && !!classShelf?.pack && classShelf.line === null);
+  check("6: the Adventure, the monster and the items stand on the line's Judge shelves, the class on the series' open Item shelf", !!advShelf?.judge && !!monsterShelf?.judge && !!itemShelf?.judge && !!classShelf?.pack && classShelf.line === open && !classShelf.judge);
+  const classFolder = classes.result?.docs?.[0] ? await run(gm, P.folderOf, { uuid: classes.result.docs[0] }) : null;
+  note("the class's folder", classFolder);
+  check("6: the class is filed in its shelf folder inside the same pack, not dropped at the root", !!classFolder?.folder && classFolder.folderPack === classFolder.pack, classFolder);
 
   section("7. the Player seat");
   const player = await seat("player");
   note("install (player)", await run(player, P.install));
-  const view = await run(player, P.seatView, { line, ids: IDS });
+  const view = await run(player, P.seatView, { line, open, ids: IDS });
   note("player view", view);
   check("7: the seat is a player", view.isGM === false);
-  check("7: no shelf of the line is open to it", !view.anyLinedVisible, { linedPacksSeen: view.lined.length, gmSaw: Object.keys(later.folders).length });
-  check("7: the library's own Item shelf is, with the book's classes and powers in it", !!view.libraryItems?.visible && view.classesSeen === view.classesWanted && view.classesWanted === 8, { seen: view.classesSeen, wanted: view.classesWanted });
+  check("7: no shelf of the Judge line is open to it", !view.anyLinedVisible, { linedPacksSeen: view.lined.length, gmSaw: Object.keys(later.folders).length });
+  check("7: the series' open Item shelf is, with the book's classes and powers in it", !!view.openItems?.visible && view.openItems.line === open && view.classesSeen === view.classesWanted && view.classesWanted === 8, { seen: view.classesSeen, wanted: view.classesWanted, shelf: view.openItems });
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

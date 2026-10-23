@@ -2511,13 +2511,17 @@ untagged seat would read every line as a heading and import nothing.
    none refused, and the line's Judge Item shelf ("ACKS Cookbook — The OSR
    Catgirl — Judge — Item"), absent before the step, holds ten core items in
    the book's folder under "Items", each named from the page, with one
-   paragraph of description closed by a page reference; the library's own
-   Item shelf holds five class-power items
+   paragraph of description closed by a page reference; the series' OPEN Item
+   shelf ("ACKS Cookbook — The OSR Catgirl — Item"), absent before the run
+   and opened by the classes and powers steps, holds five class-power items
    (Catgirl 0–4, one paragraph each) and three class items with hit die,
    maximum level, prime requisite, requirements, a proficiency list of whole
    names (no pair welded at a line turn) and a description running the whole
-   spread — a `def.` id names no book, so it files beside BTA's classes, not
-   on the line's shelf; the line's Judge Actor shelf ("ACKS Cookbook — The
+   spread — a content row files on its book's series' open line
+   (`lineOfClaim`), never the Judge's, and each is filed in its shelf folder
+   ("Classes", "Class Powers") inside that pack, not dropped at the root;
+   the library's own Item shelf gains nothing from this book; the line's
+   Judge Actor shelf ("ACKS Cookbook — The
    OSR Catgirl — Judge — Actor", closed to every player seat as it is made)
    holds one monster actor with AC, HD, movement, three attacks with a weapon
    alternative, morale, saves, alignment, treasure type, XP, vision, a
@@ -2540,13 +2544,13 @@ untagged seat would read every line as a heading and import nothing.
    `acksExtras.importer.cookbookImportAdventures({ books: ["cat"] })`.
    *Observable:* one Adventure written, for this book alone, on the line's
    Judge Adventure shelf, carrying the two maps, the monster and the ten
-   items; the GM's Books window row for the book now reads its contents. The
-   class item stands on the library's own Item shelf, the monster on the
-   Judge Actor shelf and an item on the Judge Item shelf —
-   `lineOfPack(doc.pack)` on each.
-7. Join as the **Player** seat. *Observable:* no compendium of the line is
-   visible to it, and the library's own Item shelf is, with the five powers
-   and three classes in its index.
+   items and none of the classes or powers; the GM's Books window row for
+   the book now reads its contents. The class item stands on the series'
+   open Item shelf, the monster on the Judge Actor shelf and an item on the
+   Judge Item shelf — `lineOfPack(doc.pack)` on each.
+7. Join as the **Player** seat. *Observable:* no compendium of the Judge
+   line is visible to it, and the series' open Item shelf is, with the five
+   powers and three classes in its index.
 ### Teardown
 
 8. `api.track` every id the imports' results list — the class documents, the

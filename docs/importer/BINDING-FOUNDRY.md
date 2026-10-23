@@ -78,10 +78,12 @@ other VTTs) while cookbooks stay valid.
 
   Decided at creation time by ONE rule per document type (`actorFolderFor`,
   `ensureItemFolder`) — never by a later pass — and the SHELF is derived from
-  the document's own cookbook flag by `lineOf`, so every presence check reads
-  the destination from the same input the write did. Reads span every pack
-  (`ourPacksOfType`); only writes pick one. The rulings and what they replaced:
-  [DECISIONS.md](DECISIONS.md) 2026-08-24 and 2026-08-25.
+  the document's own cookbook flag by `lineOfClaim` (a book's own row takes
+  the book's line, a content row its book's open series line), so every
+  presence check reads the destination from the same input the write did.
+  Reads span every pack (`ourPacksOfType`); only writes pick one. The rulings
+  and what they replaced: [DECISIONS.md](DECISIONS.md) 2026-08-24,
+  2026-08-25 and 2026-10-23.
 
 ## Contract with the executor
 

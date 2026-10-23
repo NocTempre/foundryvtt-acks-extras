@@ -195,7 +195,7 @@ function renderCompendia(packs, library) {
     "Two kinds of book fill compendiums of the same types under a longer name:",
     "",
     `- **A book whose own rows are the Judge's**, an adventure, a gazetteer or a supplement with a keyed place: ${code(library.judge.label)}, and so on for each type. ` +
-      "What such a book adds to the lists above, a class or a power, stays on the shelf above." +
+      "What such a book adds to the lists above, a class or a power, stays open: on the shelf above for a book of the ACKS library, on its series' own shelf for a book of another series." +
       (library.judge.closed ? " No player seat can see these compendiums or open a document in them." : ""),
     `- **Another game's book**: ${code(library.series.label)}, named for the series it belongs to, or ` +
       `${code(library.series.unnamed)} when it was registered with none. Where both apply the name carries both: ${code(library.series.judge)}.`,

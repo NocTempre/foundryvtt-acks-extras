@@ -6464,6 +6464,10 @@ class.
 
 ## 2026-10-18 — A mixed book is a Judge's book by its Judge's half; its player's half never took the flag
 
+*Superseded in part, 2026-10-23 ("A book's content stands on its own open
+shelf"): the Judge's-half ruling and the one-book-one-line ruling stand; the
+reach of a content row — "files unlined whichever book printed it" — does not.*
+
 The catgirl's first cut (the entry below) withdrew the tavern's two floor
 plans on the reading that `judge: true` closes every shelf of a book — the
 classes and the race with the keeper and the rooms — and that a book with a
@@ -7070,3 +7074,67 @@ and keeps the old shape until it is replaced from the shelf. The offline
 record is `tools/importer/test-weapon-binding.mjs` on invented rows and
 `test-weapon-tables.mjs` on the page, where every row now reads as the
 table prints it.
+
+## 2026-10-23 — A book's content stands on its own open shelf
+
+The 2026-10-18 entry above ruled that a content row — a class, a power, a
+proficiency under a `def.` id — files on the ACKS library's own shelf
+whichever book printed it, and the catgirl's three classes and five powers
+went there, beside the ACKS line's classes, while its monster, maps, items and
+Adventure went to the series' Judge shelves. The user ruled on 2026-10-19,
+with the first cut in front of them, that everything a community book prints
+lands on its own shelf and merges into no ACKS II compendium; the item cut
+that followed was scoped to the ten items alone, and this entry lands the
+rest of that ruling. That is the new evidence the 7-day rule asks for: the
+2026-10-18 entry decided the reach of a content row without it.
+
+**Ruled.**
+- **A content row files on its book's SERIES line, open, never the Judge's**
+  (`lineOfClaim`): a book of another series shelves its classes and powers
+  on "ACKS Cookbook — <series> — Item", which every seat can open, because a
+  class is a thing a player picks; a book of the ACKS library has no series,
+  so its content files on the library's own shelf as before. A book's own
+  rows keep `lineOf` — the Judge's line for a Judge's book — unchanged.
+- **The stamp carries the book.** A content document's cookbook flag is
+  `{id, cite, book}` where the entry names a book; the id alone cannot say
+  which series, so the flag does, and `lineOfData` reads it. Every content
+  binder in `cookbook.mjs` stamps it; the merchandise rows and the languages
+  do not, because no book is in scope there and both are the library's.
+- **The folder is built in the pack the write goes to.** `ensureItemFolder`
+  takes the claim's line, so a series' "Classes" and "Class Powers" folders
+  are made in the series' Item pack. `createDoc` warns when a folder stands
+  in another pack than the destination: core drops such a folder without a
+  word and the document lands at the root, which is the one way this routing
+  fails silently.
+- **A content row is not the book's bundle.** `bookDocuments` leaves content
+  ids out whatever book the stamp names, so a series' Adventure carries the
+  Judge's half alone and the Books window counts the same contents as before.
+- **This book only.** No other shipped book has both a line and content rows,
+  so nothing else moves. A world that imported the catgirl before this holds
+  its classes on the library's shelf; every presence check reads every pack,
+  so a re-run imports nothing twice and moves nothing. Reimport One Shelf
+  rebuilds the library shelf; the classes it leaves behind are deleted by
+  hand or by Remove All Imports.
+
+*Rejected:*
+- **Routing by kind** stays rejected on the 2026-10-18 grounds; this entry
+  routes by NAMESPACE, which the id already carries, and touches no folder
+  site that reads `lineOf(bookId)` for a book's own rows.
+- **Closing the content with the book.** A class on a Judge's shelf is a
+  class no player can pick, which is what the book printed it for.
+- **A migration pass** for worlds holding the first cut's classes. Nothing
+  shipped them under a release that advertised the shelf, and the presence
+  index spans every shelf, so the cost of leaving them is a second copy only
+  where a Judge imports the book again after deleting one by hand.
+
+*Cost:* the series now has TWO lines in the world — "The OSR Catgirl" with an
+Item shelf a player can open, and "The OSR Catgirl — Judge" with the Actor,
+Item, Scene, Journal and Adventure shelves closed. A row of this book written
+per book — an essay, a tavern, a keeper — files on the Judge line and is
+invisible to players; the 2026-10-18 Cost paragraph named that as the signal
+for kind routing, and it still is. `extract-library.mjs` pins `lineOf`'s body
+by string and is untouched; the site's compendia page says a Judge's book's
+classes stay open on the shelf above or on the series' own. `test-judge-shelf`
+pins the new reach: no content row on a Judge's line, a lined book's content
+on its series' line, an unlined book's on the library's, the book's own ids on
+the Judge's. The live record is the typography walk's steps 2, 6 and 7.
