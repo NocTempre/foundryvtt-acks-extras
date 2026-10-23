@@ -1473,9 +1473,9 @@ t("isStacked / stackMemberName", () => {
 /* ------------------------------------------------------------------ */
 
 t("migrateLocationSource: a real market is folded in and kept", () => {
-  const src = { region: "Aura", postings: [{ id: "p" }], candidates: [], settlementAlignment: "lawful" };
+  const src = { region: "Brackenford", postings: [{ id: "p" }], candidates: [], settlementAlignment: "lawful" };
   const out = migrateLocationSource(src);
-  assert.equal(out.region, "Aura"); // identity stays where it was
+  assert.equal(out.region, "Brackenford"); // identity stays where it was
   assert.deepEqual(out.market.postings, [{ id: "p" }]);
   assert.equal(out.market.settlementAlignment, "lawful");
   assert.equal("postings" in out, false); // moved, not copied
