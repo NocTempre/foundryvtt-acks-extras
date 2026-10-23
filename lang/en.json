@@ -4236,7 +4236,7 @@
   "ACKS-HENCHMEN.recruit.headsHint": "Each one offered answers for themselves, and those who accept are hired together.",
   "ACKS-HENCHMEN.recruit.headsName": "{name} ×{n}",
   "ACKS-HENCHMEN.recruit.headsCard": "{employer}'s offer to {n} × {name}, each answering for themselves: {tally}",
-  "ACKS-HENCHMEN.hire.limitReached": "{name} already leads {count} of {max} henchmen — hiring more will cost an existing henchman (RR 168).",
+  "ACKS-HENCHMEN.hire.limitReached": "{name} leads {count} henchmen against a limit of {max} (RR 168).",
   "ACKS-HENCHMEN.hire.limitUnvalued": "The limit leaves out {powers}, held with no imported value.",
   "ACKS-HENCHMEN.hire.signingBonusReason": "Signing bonus for {name}",
   "ACKS-HENCHMEN.hire.hiredChat": "<strong>{name}</strong> enters the service of <strong>{employer}</strong> at {wage} gp/month plus a half share of treasure.",
