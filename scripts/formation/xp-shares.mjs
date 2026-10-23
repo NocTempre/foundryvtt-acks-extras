@@ -18,6 +18,9 @@
 import { MODULE_ID } from "./constants.mjs";
 import { getMemberActor, realMembers } from "./formation-model.mjs";
 import { withXpBonus } from "../classes/xp-bonus.mjs";
+import { earnsExperience, hirelingKind, UNSHARED_BASES } from "../lib/actor-read.mjs";
+
+export { hirelingKind, UNSHARED_BASES };
 
 /** No key-attribute adjustment: the default for a division with no reader. */
 const NO_BONUS = Object.freeze({ bonus: 0, source: null });
@@ -36,25 +39,6 @@ const recordOf = (actor) => actor?.getFlag?.(MODULE_ID, "record") ?? null;
  */
 export const SYSTEM_FULL_SHARE = 100;
 
-/** Wage bases that mean "paid in coin, not in experience" (RR ch. 8). */
-export const UNSHARED_BASES = Object.freeze(["mercenary", "specialist"]);
-
-/**
- * Which kind of hireling `actor` is — `henchman`, `mercenary` or `specialist`
- * — or null when nobody hired them. While they serve, the system's retainer
- * category answers: it is what their sheet shows and what core sorts its
- * Hirelings tab by, and a hireling enrolled by hand carries nothing else. A
- * record whose hireling has left service answers from how they were paid.
- */
-export function hirelingKind(actor) {
-  const retainer = actor?.system?.retainer;
-  if (retainer?.enabled) return retainer.category || "henchman";
-  const record = recordOf(actor);
-  if (!record) return null;
-  const basis = record.terms?.wageBasis;
-  return UNSHARED_BASES.includes(basis) ? basis : "henchman";
-}
-
 /**
  * Why a participant takes the share they take. Returned rather than assumed so
  * the dialog can show its working — a Judge dividing 4,000 XP should be able
@@ -66,6 +50,7 @@ export const SHARE_REASON = Object.freeze({
   mercenary: "mercenary", // paid in wages
   notAPerson: "notAPerson", // a wagon, a mule, a summoned thing
   noShare: "noShare", // a share explicitly set to zero
+  npc: "npc", // no player owns them and nobody hired them
 });
 
 /**
@@ -97,7 +82,11 @@ export function shareFor(actor) {
   // charmed ogre both land here.
   if (actor.type !== "character") return { share: 0, reason: SHARE_REASON.notAPerson };
 
-  // A character nobody hired is a player character and takes a full share,
+  // Experience is tracked for player characters and henchmen only; an NPC
+  // marching beside the party is the Judge's, at whatever level they set.
+  if (!earnsExperience(actor)) return { share: 0, reason: SHARE_REASON.npc };
+
+  // A character a player owns and nobody hired takes a full share,
   // scaled by whatever their own sheet says — the system's
   // `details.xp.share`, read as the percentage it is.
   const own = Number(actor.system?.details?.xp?.share);

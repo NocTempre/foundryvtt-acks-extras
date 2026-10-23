@@ -47,7 +47,7 @@ sibling modules) — never the import path for this module's own features.
 
 | File | Owns |
 | --- | --- |
-| `actor-read.mjs` | `abilityMod` / `classLevel` / `monsterHd` / `monsterHitDice` / `hitDiceOrLevel` — graceful-degradation reads of the system schema. Never inline these. |
+| `actor-read.mjs` | `abilityMod` / `classLevel` / `monsterHd` / `monsterHitDice` / `hitDiceOrLevel` — graceful-degradation reads of the system schema. Never inline these. `hirelingKind` (henchman, mercenary, specialist or null) and `earnsExperience` (a henchman, or a character a player owns) — who is a hireling of which kind, and whose experience is tracked. |
 | `actor-compat.mjs` | `acksCompatStubs()` every actor sub-type must spread, + the one BOOK↔RELEASED saving-throw key mapping. |
 | `item-model.mjs` | The shared item baseline: `isPhysical` / `isEquippable` / `weight6Of` / wear slots, and the stack: `stackCountOf`, `divideStack` / `joinStacks`. Currency is `isCurrency`, weighed by how many make a stone (`perStoneOf`, `sumWeight6`). |
 | `capabilities.mjs` | "Does this actor hold an ability that provides X?" — name ∪ `kw:` token matching, and `abilityRank` (a proficiency taken thrice is three items). |

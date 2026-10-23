@@ -3,6 +3,49 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-10-23 — experience follows a set level, is tracked for PCs and henchmen, and 0th level has a gate
+
+**Reported (user):** "When an NPC is set at a level through import or GM, the
+xp does not move to the correct level. I think XP tracking should be a PC and
+henchmen thing in general. Furthermore the level 0 to level 1 gate needs
+built", then that the gate "invokes rerolling stats, trading out general profs
+for adventuring and other details. Check and follow RAW".
+
+**Experience follows the level.** Amends both 2026-10-15 entries below; neither
+moved experience. `followLevel` folded in the class row and left `xp.value`,
+and `applyClass` moved it only under `rebuildVitals`, which the picker passes
+and the sheet importer's bind does not. Both now move it into the new level's
+band (`xpForLevel`), raised or lowered; a figure the write carries wins.
+Lowering moves it too, reversing the offline pin "lowering is not an award":
+a character lowered from 4th to 2nd keeping 4th's experience stands past 3rd's
+threshold, so the ready notice and the level-up control return at once.
+*Cost:* a level lowered by mistake and typed back keeps the reduced figure.
+
+**Tracked for player characters and henchmen** (the user's ruling).
+`earnsExperience` gates the cap, the ready notice, the level-up control and a
+Deal XP share (reason `npc`). *Cost:* a character the Judge builds for a player
+has none of them until a player owns it.
+
+**0th level has a gate.** The RAW reads are RR ch. 6 (the flat figure), JJ
+ch. 9 (by proficiency count, with a figure for a count nobody knows) and RR
+ch. 3 (the implicit general slots in the limit), each imported.
+
+- *Hit points are rerolled, and attributes are not* (the user's ruling, from
+  the books' text). The picker's bind keeps the better maximum.
+- *General proficiencies past the limit are counted and marked* (the user's
+  ruling): the Judge ticks the ones to erode, the sheet tags them, and the
+  Judge removes one a month. The monthly removal is ROADMAP.
+- *The control is the Judge's*, since the Judge chooses the class. It opens
+  the existing picker at 1st, not a second wizard.
+- *Experience is kept across the boundary.* 1st's floor is no step up from a
+  figure the character already holds.
+- *A 0th-level gain is not capped.* The gate has no second threshold to cap
+  against.
+
+**Rejected:** rerolling attributes, which the books do not do at this advance;
+deleting the eroding proficiencies at the bind, which skips the books' month
+at a time.
+
 ## 2026-10-15 — a level set by hand carries its class row
 
 **Found** while auditing level-up safety, beside the entry below. A level

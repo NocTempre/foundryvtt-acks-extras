@@ -3,8 +3,9 @@
  * Applying a class document to a character: one batched update carrying the
  * printed values for the character's level — saves and attack throw (via the
  * released-key write layer), title, XP-to-next, hit-dice formula, cleaves,
- * and the vancian slot grid — and, when the level is being SET rather than
- * earned, the abilities that level owes.
+ * and the vancian slot grid; experience moved into the level's band when the
+ * level moves; and, when the level is being SET rather than earned, the
+ * abilities that level owes.
  *
  * Never silent: `applyClass` shows what it is about to change (old → new) and
  * marks fields whose current value differs from what the LAST apply wrote —
@@ -24,6 +25,9 @@ import { adventuringDoc, awardsThrough, grantAbility, grantAdventuring, ownsRef,
 import { closesRung, grantableRefs, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
 
 export { normalizeHd };
+
+/** Where a character's experience is stored. */
+export const XP_PATH = "system.details.xp.value";
 
 /** The vancian slot row for `level`: exact rung, else the highest below it. */
 function slotRowAt(tradition, level) {
@@ -299,21 +303,38 @@ export async function applyClass(
   }
   const { update, level: clamped, missing } = classUpdateData(actor, classItem, targetLevel, { election });
 
-  // Setting a level by hand leaves hit points and experience describing a
-  // character no longer held; the picker and chargen ask for a rebuild, since
-  // neither rolls hit dice of its own. The level-up wizard never does — it
-  // has already rolled the one die it means to add.
+  // A 0th-level character stands at 0, which the class rows read as 1st.
+  const heldLevel = Number(actor.system?.details?.level);
+  const fromZero = heldLevel === 0;
+  const previousLevel = Math.max(1, heldLevel || 1);
+
+  // Experience follows a level that moves, whichever surface moves it, so the
+  // two never disagree: the picker, chargen, a sheet import binding a printed
+  // level. The wizard's climb already holds the threshold, and moves nothing.
+  const xp = xpForLevel(classItem, clamped, previousLevel, actor.system?.details?.xp?.value);
+  if (xp != null) update[XP_PATH] = xp;
+
+  // Setting a level by hand leaves hit points describing a character no
+  // longer held; the picker and chargen ask for a rebuild, since neither rolls
+  // hit dice of its own. The level-up wizard never does — it has already
+  // rolled the one die it means to add.
   let hpSteps = null;
   if (rebuildVitals) {
-    const previousLevel = Math.max(1, Number(actor.system?.details?.level) || 1);
     const built = await rebuildHitPoints(actor, classItem, clamped);
     hpSteps = built.steps;
-    update["system.hp.max"] = built.max;
-    // A rebuilt maximum with the old current value beside it reads as a wound
-    // nobody took, so a fresh build arrives whole.
-    update["system.hp.value"] = built.max;
-    const xp = xpForLevel(classItem, clamped, previousLevel);
-    if (xp != null) update["system.details.xp.value"] = xp;
+    if (fromZero) {
+      // Leaving 0th level keeps the higher of the new total and one over the
+      // old maximum (RR ch. 6; JJ ch. 9), and wounds carried stay carried.
+      const oldMax = Number(actor.system?.hp?.max) || 0;
+      const max = Math.max(built.max, oldMax + 1);
+      update["system.hp.max"] = max;
+      update["system.hp.value"] = Math.min(max, (Number(actor.system?.hp?.value) || 0) + max - oldMax);
+    } else {
+      update["system.hp.max"] = built.max;
+      // A rebuilt maximum with the old current value beside it reads as a
+      // wound nobody took, so a fresh build arrives whole.
+      update["system.hp.value"] = built.max;
+    }
   }
 
   // The stored ledger's dotted paths expanded into nested objects on write,
@@ -495,8 +516,10 @@ export async function applyClass(
       .map(([key]) => key),
     ...answered,
   ];
+  // Experience is not the class's: every award moves it, so a ledger entry
+  // would mark it hand-edited on the next apply.
   const applied = {};
-  for (const [path, value] of Object.entries(update)) applied[path] = value;
+  for (const [path, value] of Object.entries(update)) if (path !== XP_PATH) applied[path] = value;
   await actor.update({
     ...update,
     [`flags.${MODULE_ID}.${FLAG_CLASSES}`]: {

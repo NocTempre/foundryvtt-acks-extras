@@ -10,6 +10,7 @@ import { makeLoc } from "../../lib/util.mjs";
 import { abilityBucket, racialRefsOf, ABILITY_BUCKETS } from "../../classes/sheet-tabs.mjs";
 import { FLAG_PENDING_CHOICE } from "../../classes/constants.mjs";
 import { isLanguageSlots, freeSlots, filledLanguages } from "../../classes/languages.mjs";
+import { FLAG_ERODES } from "../../classes/zero-level.mjs";
 import { rollsOf, keyOf, throwText, labelOf } from "../../abilities/ability-rolls.mjs";
 import { isProfileAbility } from "../../lib/proficiency-strip.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
@@ -42,6 +43,7 @@ export function buildAbilitiesTab(actor, { filter = "all" } = {}) {
       throws: rolls.map((r, i) => ({ id: `abl:${item.id}:${keyOf(r, i)}`, label: rolls.length > 1 ? r.label || labelOf(r) || "" : "", value: throwText(r, actor, item) })),
       favorite: !!item.system?.favorite,
       profile: isProfileAbility(item),
+      erodes: !!item.getFlag(MODULE_ID, FLAG_ERODES),
       hidden: filter !== "all" && filter !== cat,
       editable: actor.isOwner,
     });

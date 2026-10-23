@@ -662,7 +662,9 @@ Constitution lost. The rendered section carries no raw lang keys.
 
 Fixtures: the party actor with two characters enrolled, plus a disposable
 monster actor carrying a henchman record (`flags.acks-extras.record` with
-`terms.xpShare`) enrolled beside them.
+`terms.xpShare`) enrolled beside them. Give each character an owner seat that
+is a player's (`ownership: {[playerId]: 3}`): a character no player owns and
+nobody hired is an NPC, and takes no share.
 
 1. As the GM, open the party sheet.
    *Observable:* the experience cell among the quick tools
@@ -699,6 +701,10 @@ monster actor carrying a henchman record (`flags.acks-extras.record` with
    *Observable:* both times, the mercenary and the specialist take 0 with the
    reason `mercenary` and the henchman takes 0.5, never a full share. A
    `divideXp` over all four lists the two in `excluded`.
+6. Enrol a third `character` with no player owner and no retainer.
+   *Observable:* `shareFor` gives it 0 with the reason `npc`, and Deal XP lists
+   it among those left out; giving a player seat ownership of it restores a
+   full share.
 
 ## An unlinked member's own hit points (added with the hit-point tool)
 

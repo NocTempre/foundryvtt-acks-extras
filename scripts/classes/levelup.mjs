@@ -18,15 +18,27 @@
  * core's experience award, Deal XP, the API. It caps a gain at one level
  * (RR ch. 6, experience from adventuring) and makes a lowered level reopen
  * what the climbs above it closed.
+ *
+ * Experience is tracked for player characters and henchmen
+ * (`earnsExperience`): the cap, the ready notice and the sheet's level-up
+ * control are theirs. An NPC's level is whatever the Judge sets, and its
+ * experience only follows that level.
+ *
+ * A 0th-level character has no class to climb, so its threshold is the
+ * 0th-level gate's (`zero-level.mjs`), its ready notice says the Judge picks
+ * the class, and its level-up control is the Judge's and opens the class
+ * picker at 1st.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, classForActorAsync, findByRef } from "./registry.mjs";
-import { applyClass, classUpdateData } from "./apply.mjs";
-import { normalizeHd, parseHd, rollHitDice } from "./hitpoints.mjs";
+import { applyClass, classUpdateData, XP_PATH } from "./apply.mjs";
+import { normalizeHd, parseHd, rollHitDice, xpForLevel } from "./hitpoints.mjs";
 import { awardKeyLevel, awardsAt, grantAbility } from "./grants.mjs";
 import { closesRung, grantableRefs, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
+import { isZeroLevel, readyForFirst, zeroLevelXp } from "./zero-level.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { elementOf } from "../lib/util.mjs";
+import { earnsExperience } from "../lib/actor-read.mjs";
 
 export const HP_MODE_SETTING = "levelUpHpMode";
 
@@ -79,6 +91,18 @@ const climbing = new Set();
  * level moved while it was open writes nothing.
  */
 export async function openLevelUp(actor) {
+  if (isZeroLevel(actor)) {
+    // The Judge chooses the class a 0th-level character advances into.
+    if (!game.user?.isGM) {
+      ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.zero.judgeChooses`, { name: actor.name }));
+      return;
+    }
+    // Loaded on demand: the picker is an application, and this file is read
+    // by surfaces that never open one.
+    const { openClassPicker } = await import("./assign-app.mjs");
+    await openClassPicker(actor);
+    return;
+  }
   if (climbing.has(actor.uuid)) return;
   climbing.add(actor.uuid);
   try {
@@ -232,11 +256,15 @@ async function runLevelUp(actor) {
  *
  * - **A gain stops at one level.** Experience raised by a write that leaves
  *   the level where it is stops at `xpCeiling` of the level held, and the
- *   writer is told what was kept off. A write that also sets the level (the
- *   picker, chargen, a sheet import) sets the experience that goes with it,
- *   and `uncappedXp()` exempts a write whose experience is not an award.
+ *   writer is told what was kept off — for a character whose experience is
+ *   tracked. A write that also sets the level (the picker, chargen, a sheet
+ *   import) sets the experience that goes with it, and `uncappedXp()` exempts
+ *   a write whose experience is not an award.
  * - **A level set by hand carries its class row** (`followLevel`), raised or
- *   lowered. An apply's own write (it records `appliedLevel`) already does.
+ *   lowered, and the experience moves into the new level's band. An apply's
+ *   own write (it records `appliedLevel`) already does both.
+ * - **A 0th-level character** gets the gate's threshold as its next one on
+ *   every experience write, and nothing else here.
  * - **A lowered level reopens what the climbs above it closed.** Rung keys
  *   above the new level leave `awardsTaken`, so the next climb asks them again
  *   (an option still held is offered first, and answering with it grants
@@ -254,6 +282,14 @@ export function guardLevelWrite(actor, changes, options) {
   const writtenLevel = getProperty(changes, "system.details.level");
   const writtenXp = getProperty(changes, "system.details.xp.value");
   if (writtenLevel === undefined && writtenXp === undefined) return;
+  // A 0th-level character's next threshold is the gate's, written beside the
+  // experience it is read against. A write that moves the level off 0th is
+  // the class picker's, and goes on below.
+  if (isZeroLevel(actor) && (writtenLevel === undefined || sameValue(writtenLevel, 0))) {
+    const need = writtenXp !== undefined && earnsExperience(actor) ? zeroLevelXp(actor) : null;
+    if (need != null) setProperty(changes, "system.details.xp.next", need);
+    return;
+  }
   const classItem = classForActor(actor);
   if (!classItem) return;
   const held = levelOf(actor);
@@ -262,7 +298,7 @@ export function guardLevelWrite(actor, changes, options) {
   const flagPath = `flags.${MODULE_ID}.${FLAG_CLASSES}`;
   const flag = actor.getFlag(MODULE_ID, FLAG_CLASSES) ?? {};
 
-  if (writtenXp !== undefined && level === held && !options?.[MODULE_ID]?.[UNCAPPED_XP]) {
+  if (writtenXp !== undefined && level === held && earnsExperience(actor) && !options?.[MODULE_ID]?.[UNCAPPED_XP]) {
     const before = Number(actor.system?.details?.xp?.value) || 0;
     const { value, lost } = capXpGain(before, Number(writtenXp) || 0, xpCeiling(classItem.system, held));
     if (lost) {
@@ -300,12 +336,13 @@ const sameValue = (written, held) => String(written ?? "") === String(held ?? ""
 /**
  * Fold the bound class's row for `level` into a write that sets the level by
  * hand: saves, attack throw, title, XP to next, hit dice, cleaves, the damage
- * bonus under the character's standing election, and the slot grid. The
- * typed level and the class name stay as written. A path the write sets to a
- * value other than the held one keeps it, while a value a form merely
- * submitted gives way. What is folded in joins the applied ledger, so the
- * next apply does not mark it as a hand edit. Hit points and abilities are
- * not touched: the wizard and the picker roll and grant them.
+ * bonus under the character's standing election, and the slot grid; and the
+ * experience, moved into the new level's band (`xpForLevel`). The typed level
+ * and the class name stay as written. A path the write sets to a value other
+ * than the held one keeps it, while a value a form merely submitted gives
+ * way. What is folded in joins the applied ledger, experience excepted, so
+ * the next apply does not mark it as a hand edit. Hit points and abilities
+ * are not touched: the wizard and the picker roll and grant them.
  */
 function followLevel(actor, classItem, changes, level) {
   const { getProperty, setProperty } = foundry.utils;
@@ -314,21 +351,34 @@ function followLevel(actor, classItem, changes, level) {
   const standing = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.damageBonus;
   const election = standing?.class === classKey ? standing.applies : null;
   const { update, level: rowLevel } = classUpdateData(actor, classItem, level, { election });
-  for (const [path, value] of Object.entries(update)) {
-    if (path === "system.details.level" || path === "system.details.class") continue;
+  const own = (path) => {
     const written = getProperty(changes, path);
-    if (written !== undefined && !sameValue(written, getProperty(actor, path))) continue;
+    return written !== undefined && !sameValue(written, getProperty(actor, path));
+  };
+  for (const [path, value] of Object.entries(update)) {
+    if (path === "system.details.level" || path === "system.details.class" || own(path)) continue;
     setProperty(changes, path, value);
     setProperty(changes, `${flagPath}.applied.${path}`, value);
   }
   setProperty(changes, `${flagPath}.appliedLevel`, rowLevel);
+  if (own(XP_PATH)) return;
+  const xp = xpForLevel(classItem, rowLevel, levelOf(actor), actor.system?.details?.xp?.value);
+  if (xp != null) setProperty(changes, XP_PATH, xp);
 }
 
-/** Notify (once per level) when a character's XP reaches its threshold. */
+/** Notify (once per level) when a tracked character's XP reaches its threshold. */
 function onActorUpdate(actor, changes, _options, userId) {
   if (userId !== game.userId) return;
-  if (!(actor instanceof Actor) || actor.type !== ACTOR_TYPE.character) return;
-  if (foundry.utils.getProperty(changes, "system.details.xp.value") === undefined) return;
+  if (!(actor instanceof Actor) || !earnsExperience(actor)) return;
+  if (foundry.utils.getProperty(changes, XP_PATH) === undefined) return;
+  if (isZeroLevel(actor)) {
+    const flag = actor.getFlag(MODULE_ID, FLAG_CLASSES) ?? {};
+    if (readyForFirst(actor) && flag.notifiedLevel !== 0) {
+      ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.zero.ready`, { name: actor.name }));
+      actor.update({ [`flags.${MODULE_ID}.${FLAG_CLASSES}.notifiedLevel`]: 0 });
+    }
+    return;
+  }
   const classItem = classForActor(actor);
   if (!classItem) return;
   const level = Math.max(1, Number(actor.system?.details?.level) || 1);
@@ -342,22 +392,29 @@ function onActorUpdate(actor, changes, _options, userId) {
   }
 }
 
+/** Is the level-up control this user's to press: a tracked character with the experience for the next level? */
+export function levelUpReady(actor) {
+  if (!earnsExperience(actor) || !actor.isOwner) return false;
+  // Leaving 0th level is the Judge's: they choose the class.
+  if (isZeroLevel(actor)) return !!game.user?.isGM && readyForFirst(actor);
+  const classItem = classForActor(actor);
+  if (!classItem) return false;
+  const threshold = classItem.system.nextXp(levelOf(actor));
+  return threshold != null && (Number(actor.system?.details?.xp?.value) || 0) >= threshold;
+}
+
 /** Inject the level-up control beside the class picker when XP qualifies. */
 function onRenderCharacterSheet(app, element) {
   const root = elementOf(element);
   if (!root) return;
   const doc = app.document;
-  if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character || !doc.isOwner) return;
+  if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character) return;
   const pick = root.querySelector(".acks-extras-classes-pick");
   if (!pick || pick.parentElement.querySelector(".acks-extras-classes-levelup")) return;
-  const classItem = classForActor(doc);
-  if (!classItem) return;
-  const level = Math.max(1, Number(doc.system?.details?.level) || 1);
-  const threshold = classItem.system.nextXp(level);
-  if (threshold == null || (Number(doc.system?.details?.xp?.value) || 0) < threshold) return;
+  if (!levelUpReady(doc)) return;
   const btn = document.createElement("a");
   btn.className = "acks-extras-classes-levelup";
-  btn.dataset.tooltip = game.i18n.localize(`${LANG_PREFIX}.levelup.tooltip`);
+  btn.dataset.tooltip = game.i18n.localize(isZeroLevel(doc) ? `${LANG_PREFIX}.zero.tooltip` : `${LANG_PREFIX}.levelup.tooltip`);
   btn.innerHTML = '<i class="fa-solid fa-arrow-up-right-dots"></i>';
   btn.addEventListener("click", (event) => {
     event.preventDefault();

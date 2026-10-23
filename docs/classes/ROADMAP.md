@@ -122,6 +122,16 @@ own decision, and not as a side effect of whatever comes next.
   a crash. One stub-aware read in lib, awaited where a surface builds from
   the answer, would close them together.
 
+## Deferred with the 2026-10-23 0th-level gate
+
+- **Erosion on the calendar.** A marked proficiency is removed by the Judge;
+  nothing watches world time to remove one a month, and the mark's `since` is
+  read by nothing yet.
+- **An unmark control.** A mark set in error comes off only by deleting the
+  item or clearing its flag by API.
+- **A cap on a 0th-level gain.** The gate has one threshold, so nothing stops
+  a single award from carrying a 0th-level character past 1st's band.
+
 ## Readers that take an index entry for a document
 
 `materializeTemplates` loads a row's bundle and the class's table before it

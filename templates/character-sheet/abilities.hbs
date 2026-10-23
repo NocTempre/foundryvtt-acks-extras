@@ -41,6 +41,7 @@
           {{#if row.line}}<span class="acks-extras-character-sheet__row-line">{{row.line}}</span>{{/if}}
         </span>
         {{#if row.profile}}<span class="acks-tag acks-tag--ghost">{{localize "ACKS-CHARACTER.abilities.training"}}</span>{{/if}}
+        {{#if row.erodes}}<span class="acks-tag acks-tag--ghost" data-tooltip="{{localize 'ACKS-CLASSES.zero.erodesHint'}}">{{localize "ACKS-CLASSES.zero.erodes"}}</span>{{/if}}
         <span class="acks-extras-character-sheet__ctls">
           {{#if row.throws.length}}
           <span class="acks-extras-character-sheet__grp">

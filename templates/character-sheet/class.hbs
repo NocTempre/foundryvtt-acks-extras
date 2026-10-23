@@ -23,7 +23,7 @@
   <div class="acks-extras-character-sheet__gold-band">
     <i class="fa-solid fa-arrow-up-right-dots" inert></i>
     <span class="acks-extras-character-sheet__gold-title">{{localize "ACKS-CHARACTER.class.advances" n=c.nextLevel}}</span>
-    <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.class.advancesNote"}}</span>
+    <span class="acks-extras-character-sheet__rule-note">{{#if c.zero}}{{localize "ACKS-CHARACTER.class.advancesZeroNote"}}{{else}}{{localize "ACKS-CHARACTER.class.advancesNote"}}{{/if}}</span>
   </div>
   {{/if}}
 
@@ -90,8 +90,8 @@
 
   {{#if c.full}}
   <div class="acks-extras-character-sheet__levelup">
-    {{#if c.editable}}<button type="button" class="acks-extras-character-sheet__gold-btn" data-action="levelUp"><i class="fa-solid fa-check" inert></i>{{localize "ACKS-CHARACTER.class.levelUp"}}</button>{{/if}}
-    <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.class.levelUpNote"}}</span>
+    {{#if c.canLevelUp}}<button type="button" class="acks-extras-character-sheet__gold-btn" data-action="levelUp"><i class="fa-solid fa-check" inert></i>{{#if c.zero}}{{localize "ACKS-CHARACTER.class.chooseClass"}}{{else}}{{localize "ACKS-CHARACTER.class.levelUp"}}{{/if}}</button>{{/if}}
+    <span class="acks-extras-character-sheet__rule-note">{{#if c.zero}}{{localize "ACKS-CHARACTER.class.levelUpZeroNote"}}{{else}}{{localize "ACKS-CHARACTER.class.levelUpNote"}}{{/if}}</span>
   </div>
   {{/if}}
 </div>

@@ -818,6 +818,74 @@ needs a player with a fund; it is pinned offline in `tools/test-classes.mjs`.
 spoken by the fixture: `api.track` every `game.messages` entry whose
 `speaker.actor` is one of the run's own actor ids before the sweep.
 
+## Experience follows a set level; tracking; leaving 0th level
+
+**Before.** Import the `experience` tables with RR and JJ connected
+(`acksExtras.importer.connectBookUrl(id, path, {remember: false})` for each,
+then `cookbookImportTables(["experience"])`). The doc's tables must then hold
+`zeroLevelXp` and `implicitSlots`. `acksExtras.importer` is assigned a moment
+after `ready`; a script run at once finds it undefined.
+
+**Fixtures (Assistant GM seat; every id recorded).** Three `character`s:
+- an NPC: no `ownership` given, so no player owns it;
+- a PC: `ownership: {default: 0, [playerId]: 3}`;
+- a 0th-level character, player-owned: `system.details.level: 0`, Intellect
+  10, a few hit points, and `items` copied from the cookbook pack with
+  `toObject()` (drop `_id`). Take several general proficiencies, one class
+  proficiency the class to be bound does not list, and the ability the
+  class's 1st-level fixed award grants. Read each item's bucket with
+  `abilityBucket` from `scripts/classes/sheet-tabs.mjs` before choosing.
+
+Creating a 0th-level character logs six "You must provide an _id" rejections
+from the acks system's `computeBHR`, which writes from `prepareDerivedData`.
+They come from core and appear on any 0th-level create.
+
+**Steps → observable.**
+1. `applyClass(npc, cls, {level: 4, confirm: false})`, the sheet importer's
+   bind. *Experience reads 4th's threshold.*
+2. Type the NPC's level down on the module sheet's Class tab
+   (`input[name="system.details.level"]`, bubbling `change`). *Experience
+   reads one short of the next level's threshold, and the row follows.* An
+   `update` that sets the level and an in-band figure together keeps the
+   figure.
+3. `npc.getExperience(n)` far past two thresholds. *Stored whole; no toast and
+   no ready notice. `levelUpReady(npc)` is false.*
+   `acksExtras.formation.xp.shareFor(npc)` gives `{share: 0, reason: "npc"}`;
+   the PC's is a full share.
+4. Bind the PC at 1st, then `getExperience` far past 3rd. *Capped one short
+   of 3rd with the toast, and the ready notice for 2nd.*
+5. On the 0th-level character, `getExperience` below the threshold, then past
+   it. *`xp.next` reads the imported threshold for the proficiencies held. The
+   ready notice comes once, on the second award, and `notifiedLevel` is 0.*
+6. Open the module sheet's Class tab as GM. *The band reads "Advances to
+   level 1" and the control reads "Choose class" (`data-action="levelUp"`).*
+   Click it. *The class picker opens at 1st.* Answer each `rung-*` select (one
+   `change` at a time: the window re-renders on each), then click its submit
+   button. *Level 1; the maximum is the larger of the rebuilt one and one more
+   than the old, and current hit points rise by the same amount; experience
+   unchanged; Adventuring and the rung picks granted.*
+7. The settle dialog opens (`select[name^="settle-"]`, each labelled by
+   `aria-label`). *First answers: the fixed award's ability replaced, the
+   unlisted class proficiency lost, the rest kept. The header counts the
+   general proficiencies against the limit.* Mark some *erodes*, change a kept
+   one to *replaced*, press `button[data-action="ok"]`. *The lost one and the
+   Judge-replaced one are deleted, the award's own copy stays, the marked ones
+   carry `flags["acks-extras"].erodes.since`, and a chat card lists all three
+   kinds.*
+8. Render both sheets. *An "Eroding" tag on each marked row: the module
+   sheet's Abilities tab, and core's (`.acks-extras-classes-erodes`).*
+9. A second 0th-level character, through `openClassPicker` and its submit;
+   close the settle dialog instead (`close({animate: false})`). *Nothing is
+   deleted or flagged, and only the picker's own grant card is posted.*
+
+**Not reached by this walk.** A Player seat's view, where the control is
+absent and `openLevelUp` says the Judge chooses: the seat was taken by a
+peer's walk. A PDF character-sheet import, which reaches the same
+`applyClass` call as step 1.
+
+**Teardown.** Track the cards the picker and the settle post (spoken by the
+fixtures), then sweep the run's own ids.
+
 ## The language upgrade
 
 `language-migration.mjs` retypes a world's imported language abilities to the

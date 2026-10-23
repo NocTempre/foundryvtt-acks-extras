@@ -4,11 +4,13 @@
  *
  * Read the system's character/monster schema and fall back to 0 when a field
  * is absent. Pure reads, no writes; Foundry-free (they touch only the plain
- * `system` object), so offline tooling can import them too.
+ * `system` object and the document's own flag and ownership answers), so
+ * offline tooling can import them too.
  */
 
 /** An ability-score modifier ("cha", "wis", …), 0 when absent. */
 import { ACTOR_TYPE } from "./vocab.mjs";
+import { MODULE_ID } from "./constants.mjs";
 export const abilityMod = (actor, key) => Number(actor?.system?.scores?.[key]?.mod ?? 0);
 
 /** A character's class level, 0 when absent. */
@@ -70,3 +72,38 @@ export function hdFormula({ count, dieType, bonus } = {}) {
  */
 export const hitDiceOrLevel = (actor) =>
   actor?.type === ACTOR_TYPE.character ? classLevel(actor) : monsterHd(actor);
+
+/** Wage bases that mean "paid in coin, not in experience" (RR ch. 8). */
+export const UNSHARED_BASES = Object.freeze(["mercenary", "specialist"]);
+
+/**
+ * Which kind of hireling `actor` is — `henchman`, `mercenary` or `specialist`
+ * — or null when nobody hired them. While they serve, the system's retainer
+ * category answers: it is what their sheet shows and what core sorts its
+ * Hirelings tab by, and a hireling enrolled by hand carries nothing else. A
+ * henchmen record whose hireling has left service answers from how they were
+ * paid.
+ */
+export function hirelingKind(actor) {
+  const retainer = actor?.system?.retainer;
+  if (retainer?.enabled) return retainer.category || "henchman";
+  const record = actor?.getFlag?.(MODULE_ID, "record");
+  if (!record) return null;
+  const basis = record.terms?.wageBasis;
+  return UNSHARED_BASES.includes(basis) ? basis : "henchman";
+}
+
+/**
+ * Whether a character's experience is tracked: a henchman's is, and so is
+ * the experience of a character nobody hired that a player owns. Mercenaries
+ * and specialists are paid in coin, and a character no player owns and nobody
+ * hired is an NPC, whose level is whatever the Judge sets it to. Ownership is
+ * read only where Foundry states it, so a document that carries no
+ * `hasPlayerOwner` counts as a player's.
+ */
+export function earnsExperience(actor) {
+  if (actor?.type !== ACTOR_TYPE.character) return false;
+  const kind = hirelingKind(actor);
+  if (kind) return kind === "henchman";
+  return actor.hasPlayerOwner !== false;
+}

@@ -151,6 +151,13 @@ recorded (RR ch. 6, experience from adventuring). Setting the level at the same
 time (the picker) sets the experience with it, and a successor started from the
 player's legacy fund keeps all of theirs, climbing one press at a time.
 
+**Experience is tracked for player characters and henchmen.** The limit above,
+the "ready to level" notice, the level-up arrow and a share of dealt experience
+belong to a character a player owns, or to a henchman. A character no player
+owns and nobody hired is an NPC: their level is whatever you set, and their
+experience follows it. A character you build for a player counts as an NPC
+until you give the player ownership.
+
 **Lowering a level undoes what the climbs above it settled.** Type a lower level
 and the choices those levels asked are asked again at the next level-up — what
 the character still holds is listed first, and answering with it grants nothing
@@ -161,9 +168,32 @@ delete them by hand if the lost level should take them.
 **A typed level brings its class row with it.** Change the level on either
 sheet, up or down, and the saves, attack throw, title, experience to next
 level, hit dice, cleaves, damage bonus and spell slots change to that level's
-row in the same save. A typed raise rolls no hit points and grants nothing new:
-use the level-up arrow to climb, or the class picker to set a level together
-with everything it owes.
+row in the same save. The experience moves with it: up to the new level's
+threshold, or down to one short of the next level's, unless it already sits
+between the two. The same happens when an import or the class picker sets the
+level, but a figure the import reads from the sheet wins. A typed raise rolls
+no hit points and grants nothing new: use the level-up arrow to climb, or the
+class picker to set a level together with everything it owes.
+
+**Leaving 0th level** (RR ch. 6; JJ ch. 9). A character whose level is 0 (a
+level-0 hire, say) shows the experience 1st level needs once the experience
+tables are imported, and the Class tab says when it is reached. The Judge
+chooses the class, so the arrow is the Judge's: it opens the class picker at
+1st. Applying keeps the better hit points, grants Adventuring and the class's
+1st-level awards, and leaves the experience alone. A dialog then asks what
+becomes of each proficiency the character held:
+
+- *Kept*.
+- *Replaced by a class power*. A proficiency the new class grants as a power is
+  offered this first, and stays on the sheet as that power. One you mark
+  replaced yourself, covered by a different power, is removed.
+- *Lost*. A class proficiency the new class does not list is offered this first.
+- *Erodes*. The dialog counts the general proficiencies held against the 1st-level
+  limit. Mark the ones past it: each shows an **Eroding** tag on both sheets
+  until you remove it as time passes.
+
+Closing the dialog changes nothing. A chat card lists what was replaced, lost
+and marked.
 
 Casters get a per-tradition slot strip under the class field — click a pip to
 spend, click a spent pip to refund, the bed icon to rest. The Nobiran's

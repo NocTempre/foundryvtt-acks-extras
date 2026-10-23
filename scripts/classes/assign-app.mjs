@@ -15,6 +15,7 @@ import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs"
 import { answeredByTemplate, grantableRefs, isGranted, rungLabel, rungOptions } from "./picks.mjs";
 import { templateGrantKeys } from "./template-packages.mjs";
 import { unmetRequirements } from "./stat-page.mjs";
+import { heldProficiencies, isZeroLevel, settleAdvance } from "./zero-level.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { whenReady } from "../lib/library.mjs";
 
@@ -273,6 +274,9 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const cls = this.#classItem;
     if (!cls) return;
     const template = (cls.system?.templates ?? []).find((t) => t.rollMin === this.binding.templateMin) ?? null;
+    // A character leaving 0th level settles the proficiencies they held once
+    // the class lands, so what they held is read before it does.
+    const fromZero = isZeroLevel(this.actor) ? heldProficiencies(this.actor) : null;
     // The questions were asked HERE, so the apply is told the answers rather
     // than asked to collect them a second time in a dialog of its own.
     const applied = await applyClass(this.actor, cls, {
@@ -299,6 +303,7 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const stray = [];
       for (const ref of bonus) await grantAbility(this.actor, ref, stray);
     }
+    if (fromZero) await settleAdvance(this.actor, cls, fromZero);
     ui.notifications?.info(loc("assign.done", { name: this.actor.name, class: cls.name, level: this.binding.level }));
   }
 }

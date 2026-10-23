@@ -66,6 +66,11 @@ const dismissed = (terms) => ({
 assert.equal(shareFor(dismissed({ wageBasis: "mercenary" })).reason, SHARE_REASON.mercenary);
 assert.equal(shareFor(dismissed({})).reason, SHARE_REASON.henchman);
 
+/* --- an NPC's experience is not tracked --------------------------------- */
+assert.deepEqual(shareFor(pc("Innkeeper", 100, { hasPlayerOwner: false })), { share: 0, reason: SHARE_REASON.npc },
+  "a character no player owns and nobody hired takes no share");
+assert.equal(shareFor(pc("Owned", 100, { hasPlayerOwner: true })).share, 1);
+
 /* --- things that are not people ----------------------------------------- */
 assert.equal(shareFor(beast("Wagon", "acks-extras.vehicle")).reason, SHARE_REASON.notAPerson);
 assert.equal(shareFor(beast("Mule", "acks-extras.animal")).share, 0);

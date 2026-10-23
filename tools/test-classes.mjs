@@ -1720,7 +1720,7 @@ const GUARD_CLASS = {
   system: {
     ...SCHEDULE,
     key: "probe",
-    levelRow: (n) => ({ title: `Rank ${n}`, hd: `${n}d6` }),
+    levelRow: (n) => ({ title: `Rank ${n}`, hd: `${n}d6`, xp: ({ 1: 0, 2: 100, 3: 200, 4: 400, 5: 800 })[n] }),
     saves: [
       { minLevel: 1, maxLevel: 2, paralysis: 15, death: 14, blast: 16, implements: 15, spells: 17 },
       { minLevel: 3, maxLevel: 5, paralysis: 13, death: 12, blast: 14, implements: 13, spells: 15 },
@@ -1799,8 +1799,8 @@ test("lowering a level reopens the rungs above it and puts back the maximum a cl
     assert.equal(typed.system.hp.max, 9);
     assert.equal(typed.system.hp.value, 9, "current hit points are capped beneath the restored maximum");
     assert.deepEqual(flagOf(typed).hpAt, [{ level: 1, max: 6 }, { level: 2, max: 9 }]);
-    // Experience is left as it was; lowering is not an award.
-    assert.equal(typed.system.details.xp.value, undefined);
+    // Experience past the lowered level's band drops to one short of the next.
+    assert.equal(typed.system.details.xp.value, 199);
     // A sheet submits every field: the maximum it already holds rides along
     // unchanged and must not read as a rebuilt one.
     const submitted = { system: { details: { level: 2, xp: { value: 900 } }, hp: { max: 14, value: 10 } } };
@@ -1856,6 +1856,35 @@ test("a level typed by hand carries its class row, up or down", () => {
     assert.equal(lowered.system.details.title, "Rank 2");
     assert.equal(lowered.system.attack.throw, 10);
     assert.equal(flagOf(lowered).appliedLevel, 2);
+  });
+});
+
+test("a level set by hand carries experience into its band, and a written figure wins", () => {
+  guarded(() => {
+    const raised = { system: { details: { level: 3 } } };
+    guardLevelWrite(boundAt(1, 0), raised, {});
+    assert.equal(raised.system.details.xp.value, 200, "a raise lifts experience to the new level's floor");
+    const inBand = { system: { details: { level: 3 } } };
+    guardLevelWrite(boundAt(1, 250), inBand, {});
+    assert.equal(inBand.system.details.xp?.value, undefined, "experience already in the band stays");
+    const written = { system: { details: { level: 3, xp: { value: 50 } } } };
+    guardLevelWrite(boundAt(1, 0), written, {});
+    assert.equal(written.system.details.xp.value, 50, "a figure the write carries is the writer's");
+    const npc = { system: { details: { level: 4 } } };
+    guardLevelWrite({ ...boundAt(1, 0), hasPlayerOwner: false }, npc, {});
+    assert.equal(npc.system.details.xp.value, 400, "an NPC's experience follows its level too");
+  });
+});
+
+test("experience is capped only for those who earn it", () => {
+  guarded(() => {
+    const npc = { system: { details: { xp: { value: 5000 } } } };
+    guardLevelWrite({ ...boundAt(1, 0), hasPlayerOwner: false }, npc, {});
+    assert.equal(npc.system.details.xp.value, 5000, "a character nobody owns or hired is not capped");
+    const zero = { system: { details: { xp: { value: 5000 } } } };
+    guardLevelWrite(boundAt(0, 0), zero, {});
+    assert.equal(zero.system.details.xp.value, 5000, "a 0th-level character has no class schedule to cap against");
+    assert.equal(toasts.length, 0);
   });
 });
 

@@ -3289,10 +3289,11 @@ export const TABLE_RECIPES = {
   },
 
   // The Key Attribute table (RR ch. 1): score bands and the experience
-  // adjustment each earns. Raw reads only; experience-binding.mjs assembles
+  // adjustment each earns; then the experience figures RR ch. 3 and ch. 6 and
+  // JJ ch. 9 print in prose. Raw reads only; experience-binding.mjs assembles
   // the `experience` document acks-extras declares.
   experience: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 14, 311, 313" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 14, 101, 311, 313; JJ 259" },
     tables: {
       keyAttributeRaw: {
         shape: "gridRows",
@@ -3332,6 +3333,40 @@ export const TABLE_RECIPES = {
         printedPage: 313,
         locate: "reputable bank",
         values: [{ key: "fee", find: "which will charge a total of", take: "pct", span: 40 }],
+      },
+      // What a 0th-level character needs to reach 1st: the RR's flat figure
+      // (ch. 6, 0th Level Characters and Experience from Adventuring), and the
+      // JJ's refinement by proficiency count with its figure for a count
+      // nobody knows (ch. 9, Advancement to 1st Level).
+      zeroLevelProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 313,
+        locate: "advances to become",
+        values: [{ key: "xp", find: "level character earns", take: "int", span: 16 }],
+      },
+      zeroLevelAdvance: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 259,
+        locate: "Advancement to",
+        values: [
+          { key: "base", find: "is equal to (", take: "int", span: 8 },
+          { key: "perProficiency", find: "number of proficiencies)", take: "int", span: 12 },
+          // An ordinal's superscript run sorts into the middle of this phrase,
+          // so the anchor stops short of it and the window reads past it.
+          { key: "assumed", find: "assume he", take: "int", span: 24 },
+        ],
+      },
+      // The implicit general slots time and training fill (RR ch. 3), part of
+      // the general limit an advancing 0th-level character's proficiencies
+      // are held against.
+      implicitSlotsProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 101,
+        locate: "implicit",
+        values: [{ key: "slots", find: "all characters have", take: "wordInt", span: 16 }],
       },
     },
   },

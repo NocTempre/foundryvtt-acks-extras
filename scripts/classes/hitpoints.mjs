@@ -92,19 +92,23 @@ export async function rebuildHitPoints(actor, classItem, level, { dieMinimum = f
 }
 
 /**
- * Where a character's experience should sit once their level is set by hand.
+ * Where a character's experience should sit once their level is set by hand,
+ * or null where it already agrees with the level and stays.
  *
- * Raising a level drops them at the FLOOR of the new band; lowering puts them
- * at its top, one short of the level above. Either way the smallest move that
- * makes experience and level agree — a character promoted to 5th has just
- * earned 5th, and one corrected back down to 3rd has not lost the 3rd level
- * they had. Null when the class prints no number to move to, in which case
- * experience is left alone.
+ * Experience short of the new level's threshold rises to it — a character
+ * promoted to 5th has just earned 5th. Experience past the next threshold
+ * after a LOWERED level drops to one short of it — one corrected back down to
+ * 3rd has not lost the 3rd level they had. Experience past the band after a
+ * RAISED level stays: it is climbs not yet taken, as a successor's start from
+ * the legacy fund is. Null too where the class prints no number to move to.
  */
-export function xpForLevel(classItem, level, previousLevel) {
+export function xpForLevel(classItem, level, previousLevel, xp = 0) {
   const sys = classItem.system;
   if (level === previousLevel) return null;
-  if (level > previousLevel) return sys.levelRow(level)?.xp ?? null;
+  const held = Number(xp) || 0;
+  const floor = sys.levelRow(level)?.xp;
+  if (Number.isFinite(floor) && held < floor) return floor;
+  if (level > previousLevel) return null;
   const above = sys.nextXp(level);
-  return above == null ? null : Math.max(0, above - 1);
+  return above != null && held >= above ? Math.max(0, above - 1) : null;
 }

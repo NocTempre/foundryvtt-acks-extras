@@ -1,7 +1,8 @@
 /**
- * Experience assembly: the raw RR ch. 1 Key Attribute read and the RR ch. 6
- * reserve, funeral and bank percentages → the engine-shaped `experience`
- * ruledata tables acks-extras declares.
+ * Experience assembly: the raw RR ch. 1 Key Attribute read, the RR ch. 6
+ * reserve, funeral and bank percentages, what 0th level takes to leave (RR
+ * ch. 6, JJ ch. 9) and the implicit general slots (RR ch. 3) → the
+ * engine-shaped `experience` ruledata tables acks-extras declares.
  *
  * The Key Attribute page prints score bands beside a percentage adjustment;
  * the band edges and the percentages are printed values, read here from the
@@ -29,6 +30,8 @@ export const PRODUCES = Object.freeze({
     reserveRate: "reserveProse",
     funeralRate: "funeralProse",
     bankFee: "bankProse",
+    zeroLevelXp: ["zeroLevelProse", "zeroLevelAdvance"],
+    implicitSlots: "implicitSlotsProse",
   },
 });
 
@@ -42,8 +45,10 @@ export function parseAdjustment(text) {
 
 /**
  * The engine tables from the raw ones: `keyAttributeXp` as `[{min, max,
- * bonus}]`, and `reserveRate`, `funeralRate`, `bankFee` as percentages. A row
- * or figure the extractor could not read is left out rather than guessed.
+ * bonus}]`; `reserveRate`, `funeralRate`, `bankFee` as percentages;
+ * `zeroLevelXp` as `{assumed?, base?, perProficiency?}`; `implicitSlots` as a
+ * count. A row or figure the extractor could not read is left out rather than
+ * guessed.
  * Pure — the committed tests feed it invented reads.
  */
 export function assembleExperienceTables(raw = {}) {
@@ -62,6 +67,18 @@ export function assembleExperienceTables(raw = {}) {
   if (funeral != null) out.funeralRate = funeral;
   const fee = pct(raw.bankProse?.fee);
   if (fee != null) out.bankFee = fee;
+  // What 0th level takes to leave: the Judges Journal's figures where it was
+  // read, and the Rulebook's flat figure standing in for an unknown count
+  // where it was not. The formula is kept only whole.
+  const count = (v) => (Number.isFinite(v) && v >= 0 ? v : null);
+  const advance = raw.zeroLevelAdvance ?? {};
+  const assumed = count(advance.assumed) ?? count(raw.zeroLevelProse?.xp);
+  const base = count(advance.base);
+  const perProficiency = count(advance.perProficiency);
+  const formula = base != null && perProficiency != null ? { base, perProficiency } : {};
+  if (assumed != null || formula.base != null) out.zeroLevelXp = { ...(assumed != null ? { assumed } : {}), ...formula };
+  const slots = count(raw.implicitSlotsProse?.slots);
+  if (slots != null) out.implicitSlots = slots;
   return out;
 }
 

@@ -17,7 +17,7 @@ export const EXPERIENCE_DOC = "experience";
 
 /** Declare what is read — here and by `legacy.mjs` — so import UX can name the gap. */
 export function registerXpBonusExpectations() {
-  expectTables(EXPERIENCE_DOC, ["keyAttributeXp", "reserveRate", "funeralRate", "bankFee"]);
+  expectTables(EXPERIENCE_DOC, ["keyAttributeXp", "reserveRate", "funeralRate", "bankFee", "zeroLevelXp", "implicitSlots"]);
 }
 
 /** The imported band rows, or null where no book has been read. */

@@ -113,6 +113,24 @@ function wireBar(app, root, doc, kind, isKind, catOf) {
   apply(active);
 }
 
+/**
+ * Tag each proficiency marked to erode (`zero-level.mjs`) beside its name on
+ * the system's sheet, once per row. A row without the system's name cell is
+ * another sheet's, which draws its own tag.
+ */
+function markEroding(root, doc) {
+  for (const row of root.querySelectorAll("[data-item-id]")) {
+    if (!doc.items.get(row.dataset.itemId)?.flags?.[MODULE_ID]?.erodes) continue;
+    const name = row.querySelector(".item__text");
+    if (!name || name.querySelector(".acks-extras-classes-erodes")) continue;
+    const tag = document.createElement("span");
+    tag.className = "acks-tag acks-tag--ghost acks-extras-classes-erodes";
+    tag.dataset.tooltip = game.i18n.localize(`${LANG_PREFIX}.zero.erodesHint`);
+    tag.textContent = game.i18n.localize(`${LANG_PREFIX}.zero.erodes`);
+    name.append(" ", tag);
+  }
+}
+
 function onRenderCharacterSheet(app, element) {
   const root = elementOf(element);
   if (!root) return;
@@ -121,6 +139,7 @@ function onRenderCharacterSheet(app, element) {
   const racialRefs = racialRefsOf(doc);
   wireBar(app, root, doc, "abilities", (it) => it.type === ITEM_TYPE.ability, (it) => categorize(it, racialRefs));
   wireBar(app, root, doc, "spells", (it) => it.type === ITEM_TYPE.spell, (it) => String(it.system?.class || "other").toLowerCase());
+  markEroding(root, doc);
 }
 
 /** Register the category-tab render hook (called once from classes/module.mjs). */

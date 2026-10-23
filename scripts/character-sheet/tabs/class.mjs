@@ -4,7 +4,8 @@
  * XP pair, and — while the XP bar is full — what the next level brings,
  * previewed from the same `classUpdateData` the level-up writes with, so the
  * preview and the write cannot disagree. Nothing here writes; the Level up
- * button opens the wizard.
+ * button opens the wizard, or for a 0th-level character the class picker.
+ * The level-up band shows only for a character whose experience is tracked.
  */
 import { LANG, MODULE_ID } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
@@ -15,6 +16,9 @@ import { pathGroups, chosenOption, actorPaths, groupLabel } from "../../classes/
 import { FLAG_CLASSES } from "../../classes/constants.mjs";
 import { xpBar, storedSystem } from "../view-model.mjs";
 import { xpBonusFor } from "../../classes/xp-bonus.mjs";
+import { isZeroLevel, readyForFirst, zeroLevelXp } from "../../classes/zero-level.mjs";
+import { levelUpReady } from "../../classes/levelup.mjs";
+import { earnsExperience } from "../../lib/actor-read.mjs";
 import { playerOf, ledgerOf } from "../../classes/legacy.mjs";
 import { legacyTotals } from "../../classes/legacy-logic.mjs";
 
@@ -87,9 +91,13 @@ export function buildClassTab(actor) {
   // The inputs render `stored`; the level the tab reasons about is `sys`'s.
   const stored = storedSystem(actor);
   const classItem = classForActor(actor);
-  const level = Math.max(1, num(sys.details?.level, 1));
-  const threshold = classItem ? classItem.system.nextXp?.(level) : null;
+  // A 0th-level character's threshold is the gate's, and the Judge's to act on.
+  const zero = isZeroLevel(actor);
+  const level = zero ? 0 : Math.max(1, num(sys.details?.level, 1));
+  const threshold = zero ? zeroLevelXp(actor) : classItem ? classItem.system.nextXp?.(level) : null;
   const xp = xpBar({ value: sys.details?.xp?.value, next: threshold ?? sys.details?.xp?.next });
+  // Only a player character's or a henchman's experience is tracked.
+  const tracked = earnsExperience(actor);
   const out = {
     bound: !!classItem,
     className: classItem?.name ?? String(sys.details?.class ?? ""),
@@ -100,7 +108,9 @@ export function buildClassTab(actor) {
     title: String(sys.details?.title ?? ""),
     maxLevel: classItem?.system?.maximumLevel ?? null,
     xp: { ...xp, bonus: bonusNote(actor), share: num(sys.details?.xp?.share, 100), valueField: num(stored.details?.xp?.value), nextField: num(stored.details?.xp?.next) },
-    full: xp.full && !!classItem,
+    full: tracked && (zero ? readyForFirst(actor) : xp.full && !!classItem),
+    canLevelUp: levelUpReady(actor),
+    zero,
     atCap: !!classItem && level >= (classItem.system?.maximumLevel || 14),
     nextLevel: level + 1,
     preview: null,

@@ -332,6 +332,13 @@ single rung a level-up climbs, `grantAbility` writes one item, deduped by ref)
 the rung it climbed, so neither passes the flag and neither has the whole
 ladder handed over underneath it.
 
+**Experience follows the level.** An apply that changes the level moves the
+experience into the new level's band (`xpForLevel`, `hitpoints.mjs`): up to the
+new level's threshold where it stood below it, down to one short of the next
+level's where it stood past that. A figure already inside the band stays. The
+sheet importer binds the class first and writes the experience the sheet prints
+after, so a printed figure wins.
+
 **Answers travel by key, not by position.** `applyClass` takes `{answers}` —
 award key → the ref chosen for it — so a surface that asked the questions
 itself hands them over instead of having them asked again in a confirm dialog;
@@ -535,7 +542,57 @@ restores the recorded maximum for the new level. Abilities stay on the sheet.
 A level set by any write other than an apply, raised or lowered, carries the
 class row for the new level (`followLevel`): the fields `applyClass` writes,
 recorded in the applied ledger, except any the write sets to a value of its
-own. It rolls no hit points and grants nothing.
+own. Its experience moves into the new level's band as an apply's does, unless
+the write sets a figure of its own. It rolls no hit points and grants nothing.
+
+**Experience is tracked for player characters and henchmen.**
+`earnsExperience` (`lib/actor-read.mjs`) answers it: a hireling by its kind (a
+henchman's is tracked, a mercenary's or specialist's is not), and any other
+character when a player owns it. The cap, the ready notice, the level-up
+control and a Deal XP share belong to a tracked character. An NPC's experience
+only follows its level. Ownership is read where Foundry states it, so a
+character the Judge builds for a player counts as an NPC until a player owns
+it.
+
+## Leaving 0th level
+
+A character whose level is written as 0 has no class to climb (RR ch. 6, 0th
+Level Characters and Experience from Adventuring; JJ ch. 9, Advancement to 1st
+Level). Core starts every character at 1st, so only a level written as 0
+counts; the henchmen market's level-0 hires are the usual source.
+`zero-level-logic.mjs` is the arithmetic, Foundry-free; `zero-level.mjs` reads
+the actor and writes.
+
+- **The threshold is imported** (`experience.zeroLevelXp`: `base`,
+  `perProficiency`, `assumed`, assembled by `experience-binding.mjs`). It is
+  the per-proficiency figure times how far the proficiencies held fall short
+  of the base, or the assumed figure where the character holds none or the
+  formula was not read. The guard writes it to `system.details.xp.next` beside
+  every experience write, so both sheets show it. A 0th-level gain is not
+  capped, having no class schedule to cap against.
+- **The notice and the control.** A tracked character reaching the threshold
+  gets the ready notice once (`notifiedLevel` 0). The level-up control shows
+  to the Judge only, because the Judge chooses the class, and it opens the
+  class picker at 1st. `openLevelUp` called for a player tells them so.
+- **The advance is the picker's bind at 1st.** `applyClass` from 0th keeps the
+  better hit points: the maximum is the larger of the one rebuilt for 1st and
+  one more than the old, and current hit points rise by what the maximum
+  gained. Attributes are not rerolled. Adventuring and the class's 1st-level
+  awards are granted as for any set level, and the experience stays.
+- **The proficiencies held are settled once the bind lands** (`settleAdvance`).
+  One dialog row per proficiency held before the bind, each with a first
+  answer from `settleProficiencies`. It is *replaced* where a power the class
+  grants through 1st shares its ref or folded name; the held item is deleted
+  unless it is itself that power. It is *lost* where it is a class proficiency
+  the new class does not list. Every other one is *kept*. The Judge may change
+  any answer, *erodes* included. The dialog opens with the general limit (the
+  class's general picks through 1st, the Intellect bonus, and the imported
+  `experience.implicitSlots`, RR ch. 3) and how many held general
+  proficiencies stand past it. Dismissing it writes nothing; a chat card lists
+  what was replaced, lost and marked.
+- **Eroding is a mark**: `flags["acks-extras"].erodes = {since}` on the item,
+  shown as a tag on its row on both sheets. Removing one a month is the
+  Judge's; nothing deletes a marked proficiency.
 
 ## Chargen
 
