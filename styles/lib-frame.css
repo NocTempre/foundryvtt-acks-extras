@@ -246,6 +246,12 @@
   background: var(--acks-gold);
 }
 
+/* A reading in the bar's place with no fill behind it — a creature's Hit
+   Dice, a hireling's wage — in the same box, on the plain tint. */
+.acks-extras-frame__xp.is-reading {
+  border-color: var(--acks-ink);
+}
+
 /* --- Art row -------------------------------------------------------------- */
 
 .acks-extras-frame__art-row {

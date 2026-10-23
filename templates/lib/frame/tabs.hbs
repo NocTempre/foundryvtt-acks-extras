@@ -1,0 +1,13 @@
+{{!-- The tab strip: the fold chevron, then one button a tab. Context:
+      tabsLabel; foldTitle; frame.tabs [{key, label, active, dyn, n, p, pTitle}]. --}}
+<nav class="acks-tabs tabs acks-extras-frame__tabs" data-group="primary" aria-label="{{tabsLabel}}">
+  <button type="button" class="acks-tab acks-extras-frame__fold" data-action="fold" data-tooltip="{{foldTitle}}">
+    <i class="fa-solid fa-chevron-down" inert></i>
+  </button>
+  {{#each frame.tabs}}
+  <button type="button" class="acks-tab{{#if active}} active{{/if}}{{#if dyn}} is-dyn{{/if}}" data-action="tab" data-group="primary" data-tab="{{key}}"
+          aria-selected="{{#if active}}true{{else}}false{{/if}}">
+    {{label}}{{#if n}}<span class="acks-extras-frame__tab-count acks-nums">{{n}}</span>{{/if}}{{#if p}}<span class="acks-extras-frame__tab-pending acks-nums" data-tooltip="{{pTitle}}">{{p}}</span>{{/if}}
+  </button>
+  {{/each}}
+</nav>

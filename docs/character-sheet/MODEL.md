@@ -23,16 +23,17 @@ actions, the drops, the rail menus, the window chrome.
 
 ## The frame
 
-**The band is the window header.** The title band renders as its own part
-and `_onRender` moves it into Foundry's `.window-header` — the same mechanics
-as the item sheet. It carries the class glyph (the bound class document's
-image, else a mortarboard), the level title before the name, the name field,
-and the XP bar: burgundy toward the threshold, gold and labelled *Level up*
-at it. The threshold is the bound class document's next-level XP, else the
-sheet's own `xp.next` field; with neither the bar stays empty. The bar is a
-reading, not a control — a plain element with no action, so a press on it
-falls through to the window header and drags the sheet like the rest of the
-title bar. XP is typed on the Class tab.
+The sheet is drawn on the lib's frame — the band in the header, the rails,
+the fold, the pins, the read-only seat and the rail menus are
+docs/lib/MODEL.md, "The sheet frame". What the character's band and rails
+show is this feature's.
+
+**The band** carries the class glyph (the bound class document's image, else
+a mortarboard; a click goes to Class), the level title before the name, the
+name field, and the XP bar: burgundy toward the threshold, gold and labelled
+*Level up* at it. The threshold is the bound class document's next-level XP,
+else the sheet's own `xp.next` field; with neither the bar stays empty. XP is
+typed on the Class tab.
 
 **The art row** carries the two rails around the portrait, the prose column
 (the biography, enriched; the class and alignment as an overline; alignment,
@@ -296,24 +297,18 @@ row's `data-effect-id`); a light's row does not.
 
 ## The fold and the pins
 
-The fold hides everything but the band (compact, no XP bar), the portrait and
-the rails, narrows the window to the card once the root carries `is-folded`
-(the open sheet's minimum width would otherwise clamp it), and puts a bar
-under the art row: the unfold chevron, then the starred rolls as quiet roll
-chips (the wielded one ringed; a post row's chip carries the eye), the starred timers as filling chips, the
-starred counts with their number. The fold state is a user flag keyed by
-actor id, written as an explicit true or false because `setFlag` merges; the
-pins are the actor's sheet flag for rolls no item owns and for timers and
-resources, and an item's own `system.favorite` for its rolls.
+The folded card's bar holds the starred rolls as quiet roll chips (the
+wielded one ringed; a post row's chip carries the eye), the starred timers as
+filling chips, and the starred counts with their number. A roll no item owns,
+a timer and a resource pin on the actor's sheet flag; an item's rolls pin
+through the item's own `system.favorite`.
 
 ## Read-only seats
 
-DocumentSheetV2 disables every form control on a sheet the viewer cannot
-edit. The sheet re-enables its view-only actions afterwards — the fold, the
-tab strip, the rail menus, a roll (as the system's own sheet lets an observer
-roll), and anything that opens another window — so an observer can fold,
-browse and roll, while every write control stays disabled and every owner
-control is not rendered at all.
+Beside the frame's fold and tab change, the sheet keeps live for an observer
+the rail menus, a roll (as the system's own sheet lets an observer roll), and
+anything that opens another window; every owner control is not rendered at
+all.
 
 ## What the injectors do here
 

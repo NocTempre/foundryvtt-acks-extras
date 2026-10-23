@@ -1,0 +1,35 @@
+{{!-- The title band: rendered as a part, then moved into the window header by
+      the frame so Foundry's drag handle and buttons stay where they are.
+      Context: band {glyph: {img, icon, action, attrs, title}, rank, rankTitle,
+      name, editable, folded, chips: [{action, attrs, icon, label, title, tone}],
+      bar: {pct, full, label, title} | null, reading: {label, title} | null}.
+      The bar and the reading are readings, not controls: no button and no
+      action, so a press on either falls through to the header and drags. --}}
+{{#with band as |b|}}
+<div class="acks-extras-frame__band{{#if b.folded}} is-folded{{/if}}">
+  <button type="button" class="acks-extras-frame__glyph" {{#if b.glyph.action}}data-action="{{b.glyph.action}}"{{/if}} {{{b.glyph.attrs}}} data-tooltip="{{b.glyph.title}}">
+    {{#if b.glyph.img}}<img src="{{b.glyph.img}}" alt="" inert>{{else}}<i class="{{b.glyph.icon}}" inert></i>{{/if}}
+  </button>
+  <div class="acks-extras-frame__title">
+    {{#if b.rank}}<span class="acks-extras-frame__rank" data-tooltip="{{b.rankTitle}}">{{b.rank}}</span>{{/if}}
+    <input class="acks-input acks-input--line acks-extras-frame__name" type="text" name="name" value="{{b.name}}" {{disabled (not b.editable)}}>
+  </div>
+  {{#unless b.folded}}
+  {{#each b.chips}}
+  <button type="button" class="acks-extras-frame__chip{{#if tone}} is-{{tone}}{{/if}}" data-action="{{action}}" {{{attrs}}} data-tooltip="{{title}}">
+    {{#if icon}}<i class="{{icon}}" inert></i>{{/if}}{{label}}
+  </button>
+  {{/each}}
+  {{#if b.bar}}
+  <div class="acks-extras-frame__xp{{#if b.bar.full}} is-full{{/if}}" data-tooltip="{{b.bar.title}}" style="--acks-extras-fill: {{b.bar.pct}}%">
+    <i class="acks-extras-frame__xp-fill"></i>
+    <b class="acks-nums">{{b.bar.label}}</b>
+  </div>
+  {{else if b.reading}}
+  <div class="acks-extras-frame__xp is-reading" data-tooltip="{{b.reading.title}}">
+    <b class="acks-nums">{{b.reading.label}}</b>
+  </div>
+  {{/if}}
+  {{/unless}}
+</div>
+{{/with}}

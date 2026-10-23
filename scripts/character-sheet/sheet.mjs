@@ -10,19 +10,20 @@
  *   sheet.mjs                   binds the decisions to Foundry — the form, the
  *                               actions, the drops, the menus, the window chrome
  *
- * The window chrome is merged into the sheet's own first row exactly as the
- * item sheet does it: the band part renders into the window content and is
- * then MOVED into Foundry's `.window-header`, so the header stays the drag
- * handle and keeps its buttons while the band's name field lives in the form.
+ * The window chrome, the fold, the rail menus and the pins are the lib
+ * frame's (`lib/frame.mjs`): the band part renders into the window content
+ * and is then MOVED into Foundry's `.window-header`, so the header stays the
+ * drag handle and keeps its buttons while the band's name field lives in the
+ * form.
  *
  * Registered at ready as the default for `character` (module.mjs); the
  * system's own sheet stays registered and Sheet Config switches back.
  */
-import { MODULE_ID, LANG, SHEET_CLASS, SHEET_FLAG, FOLD_FLAG, TRAINING_VIEW_FLAG, SUMMON_FLAG, MOVE_MODES, TAB_ORDER } from "./constants.mjs";
-import { makeLoc, libStorage, atTypeScale } from "../lib/util.mjs";
-import { FRAME_CLASS } from "../lib/frame.mjs";
+import { MODULE_ID, LANG, SHEET_CLASS, SHEET_FLAG, TRAINING_VIEW_FLAG, SUMMON_FLAG, MOVE_MODES, TAB_ORDER } from "./constants.mjs";
+import { makeLoc, libStorage } from "../lib/util.mjs";
+import { FRAME_CLASS, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
 import { snapshotFrame, sheetFlag, saveLabel, partyOf, summonerOf, henchmanIds, currentScene } from "./snapshot.mjs";
-import { buildFrameModel, nextAcMode, togglePin } from "./view-model.mjs";
+import { buildFrameModel, nextAcMode } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
 import { buildEquipmentTab } from "./tabs/equipment.mjs";
 import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilities/companions.mjs";
@@ -71,9 +72,9 @@ const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
 const T = `modules/${MODULE_ID}/templates/character-sheet`;
-/** Every template the body includes as a partial, preloaded at init. */
+/** Every template the body includes as a partial, preloaded at init; the frame's own are the lib's. */
 export const CHARACTER_SHEET_TEMPLATES = Object.freeze([
-  "band", "body", "rails", "cell", "folded", "rolls", "abilities", "equipment", "gear-row", "stats", "class", "magic", "followers", "notes", "effects",
+  "body", "rolls", "abilities", "equipment", "gear-row", "stats", "class", "magic", "followers", "notes", "effects",
 ].map((n) => `${T}/${n}.hbs`));
 
 const loc = makeLoc(LANG);
@@ -82,37 +83,26 @@ const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallb
 /** The token fields the party cell reads (`partyOf`); an update touching none of them leaves it as it was. */
 const PARTY_TOKEN_KEYS = Object.freeze(["actorId", "actorLink", "name", "texture", "delta"]);
 
-/**
- * Actions that only LOOK — fold, switch a tab, open a menu or another window,
- * make a roll as the system's own sheet lets an observer — and so stay live
- * on a sheet the viewer cannot edit. DocumentSheetV2 disables every form
- * control on a read-only sheet; these are re-enabled after it does.
- */
-const VIEW_ACTIONS = new Set([
-  "fold", "goTab", "roll", "moveMenu", "cycleAc", "abilityFilter", "toggleBucket", "trainingView", "formation", "partyMenu", "influence",
-  "placeOpen", "companionOpen", "mountOpen", "itemEdit", "hirelingShow", "relationshipOpen", "classOpen", "effectEdit", "source", "tab",
-]);
-
 /** A movement figure in its mode's unit: feet for the round and turn scales, miles for the day. */
 const moveFigure = (modeKey, value) => (MOVE_MODES.find((m) => m.key === modeKey)?.unit === "perDay" ? `${value} mi` : `${value}′`);
 const enrich = (html, actor) =>
   foundry.applications.ux.TextEditor.implementation.enrichHTML(html ?? "", { relativeTo: actor, secrets: actor.isOwner });
+/** `data-*` attributes for a cell or the band's glyph, rendered raw by the partial. */
+const attr = (o) => Object.entries(o).map(([k, v]) => `data-${k}="${foundry.utils.escapeHTML(String(v))}"`).join(" ");
 
-export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
   static DEFAULT_OPTIONS = {
     // no-scroll: this sheet scrolls at its PART root, not at `.window-content`.
     // The shared contract would move the scroller onto `.window-content`, which
     // is not a part — and ApplicationV2 restores scroll per part, so the body's
     // `scrollable: [""]` below would stop working. A sheet whose fields submit
-    // on change needs the retention; the scroller lives in styles/character-sheet.css.
+    // on change needs the retention; the scroller lives in styles/lib-frame.css.
     classes: ["acks-ui", "acks-extras", FRAME_CLASS, SHEET_CLASS],
     position: { width: 900, height: "auto" },
     tag: "form",
     form: { submitOnChange: true, closeOnSubmit: false },
     window: { resizable: true, contentClasses: [`${FRAME_CLASS}__content`] },
     actions: {
-      fold: AcksCharacterSheet.#onFold,
-      goTab: AcksCharacterSheet.#onGoTab,
       roll: AcksCharacterSheet.#onRoll,
       pinRoll: AcksCharacterSheet.#onPinRoll,
       pinItem: AcksCharacterSheet.#onPinItem,
@@ -195,24 +185,21 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     },
   };
 
+  /**
+   * Actions that only LOOK — open a menu or another window, make a roll as
+   * the system's own sheet lets an observer — beside the frame's fold and
+   * tab change, and so stay live on a sheet the viewer cannot edit.
+   */
+  static VIEW_ACTIONS = new Set([
+    ...FRAME_VIEW_ACTIONS,
+    "roll", "moveMenu", "cycleAc", "abilityFilter", "toggleBucket", "trainingView", "formation", "partyMenu", "influence",
+    "placeOpen", "companionOpen", "mountOpen", "itemEdit", "hirelingShow", "relationshipOpen", "classOpen", "effectEdit", "source",
+  ]);
+
   static PARTS = {
-    band: { template: `${T}/band.hbs` },
+    band: { template: `modules/${MODULE_ID}/templates/lib/frame/band.hbs` },
     body: { template: `${T}/body.hbs`, scrollable: [""] },
   };
-
-  /**
-   * Open at the canvas width for the seat's type size. `DEFAULT_OPTIONS` is
-   * evaluated before settings exist, so the scale is applied here at
-   * construction instead; core clamps the result to the viewport. `min-width`
-   * does not follow (styles/character-sheet.css) — see
-   * docs/character-sheet/DECISIONS.md, "The canvas figures are a
-   * specification, scaled by a ratio".
-   */
-  _initializeApplicationOptions(options) {
-    const opts = super._initializeApplicationOptions(options);
-    if (opts.position?.width) opts.position.width = atTypeScale(opts.position.width);
-    return opts;
-  }
 
   tabGroups = { primary: "rolls" };
 
@@ -235,11 +222,6 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   /* -------------------------------------------- */
   /*  State                                        */
   /* -------------------------------------------- */
-
-  /** Is this sheet folded for the viewing user? */
-  get folded() {
-    return !!game.user.getFlag(MODULE_ID, FOLD_FLAG)?.[this.actor.id];
-  }
 
   /** The hirelings, summons, places and mount this sheet shows off other documents. */
   #related() {
@@ -352,9 +334,12 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     const bio = String(actor.system?.details?.biography ?? "");
     const art = {
       img: actor.img,
+      alt: actor.name,
+      changeTitle: loc("tools.changeArt"),
       overline: [snap.cls.name, actor.system?.details?.alignment].filter(Boolean).join(" · "),
       prose: await enrich(bio, actor),
       proseSource: bio,
+      proseField: "system.details.biography",
       editing: this.#ui.editingBio,
       tags: [
         actor.system?.details?.alignment ? String(actor.system.details.alignment) : null,
@@ -371,14 +356,25 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       folded,
       frame,
       cells: this.#railCells(frame),
-      cls: snap.cls,
       band: {
-        xpLabel: frame.xp.full
-          ? loc("band.levelUp", { xp: frame.xp.value })
-          : frame.xp.next ? loc("band.xp", { xp: frame.xp.value, next: frame.xp.next }) : loc("band.xpOnly", { xp: frame.xp.value }),
-        xpTitle: loc("band.xpTitle"),
+        glyph: { img: snap.cls.img, icon: "fa-solid fa-graduation-cap", action: "goTab", attrs: attr({ tab: "class" }), title: snap.cls.name },
+        rank: snap.cls.title,
         rankTitle: loc("band.rankTitle"),
+        name: actor.name,
+        editable,
+        folded,
+        chips: [],
+        bar: {
+          pct: frame.xp.pct,
+          full: frame.xp.full,
+          title: loc("band.xpTitle"),
+          label: frame.xp.full
+            ? loc("band.levelUp", { xp: frame.xp.value })
+            : frame.xp.next ? loc("band.xp", { xp: frame.xp.value, next: frame.xp.next }) : loc("band.xpOnly", { xp: frame.xp.value }),
+        },
       },
+      foldTitle: frame.rails.foldTitle,
+      tabsLabel: loc("tabsLabel"),
       art,
       pins: this.#pinBar(rolls, panels.effects),
       panels,
@@ -442,7 +438,6 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
    */
   #railCells(frame) {
     const r = frame.rails;
-    const attr = (o) => Object.entries(o).map(([k, v]) => `data-${k}="${foundry.utils.escapeHTML(String(v))}"`).join(" ");
     const HAND = { open: "fa-solid fa-hand", fist: "fa-solid fa-hand-fist", shield: "fa-solid fa-shield-halved" };
     const left = [
       { key: "influence", action: "influence", cls: "is-btn", icon: "fa-solid fa-comments", title: r.influenceTitle },
@@ -497,10 +492,11 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   #pinBar(rolls, effects) {
     const rows = rolls.groups.flatMap((g) => g.rows).filter((r) => r.pinned);
     return {
-      rolls: rows.map((r) => ({ id: r.id, label: r.label, value: r.value, eq: r.eq, post: !!r.post })),
+      rolls: rows.map((r) => ({ id: r.id, label: r.label, value: r.value, eq: r.eq, post: !!r.post, title: r.post ? loc("rolls.post") : r.value })),
       timers: effects.timers.filter((t) => t.pinned).map((t) => ({ id: t.id, label: t.name, pct: t.pct, tone: t.tone, icon: t.icon ?? null, img: t.img ?? null })),
       resources: effects.resources.filter((r) => r.pinned).map((r) => ({ id: r.id, label: r.name, count: r.count, icon: r.icon })),
       any: rows.length + effects.timers.filter((t) => t.pinned).length + effects.resources.filter((r) => r.pinned).length > 0,
+      emptyLabel: loc("fold.noPins"),
     };
   }
 
@@ -508,33 +504,17 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   /*  Render                                       */
   /* -------------------------------------------- */
 
-  /** @override */
+  /** The frame's pass first (the fold, the band), then this sheet's own bindings. */
   async _onRender(context, options) {
     await super._onRender(context, options);
-    // The folded card may shrink below the open sheet's floor.
-    this.element.classList.toggle("is-folded", !!context.folded);
-    this.#sizeForFold(!!context.folded);
-    if (!this.isEditable) {
-      for (const button of this.element.querySelectorAll("button[data-action]")) {
-        if (VIEW_ACTIONS.has(button.dataset.action)) button.disabled = false;
-      }
-    }
-    const steps = [
-      ["band", () => this.#moveBandIntoHeader()],
+    this._renderSteps([
       ["casting", () => this.#mountCasting()],
       ["trader", () => bindTraderTab(this)],
       ["drops", () => this.#markDropZones()],
       ["itemInputs", () => this.#bindItemInputs()],
       ["paths", () => this.#bindPathSelects()],
       ["overrides", () => this.#markOverriddenInputs()],
-    ];
-    for (const [what, step] of steps) {
-      try {
-        step();
-      } catch (err) {
-        console.error(`${MODULE_ID} | character sheet: ${what} failed`, err);
-      }
-    }
+    ]);
   }
 
   /**
@@ -549,25 +529,6 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       if (!foundry.utils.hasProperty(overrides, input.name)) continue;
       input.classList.add("is-overridden");
       input.dataset.tooltip = loc("stats.effectiveTip", { value: String(foundry.utils.getProperty(this.actor, input.name) ?? "") });
-    }
-  }
-
-  /** The title band is the window header (see the item sheet for the mechanics). */
-  #moveBandIntoHeader() {
-    const header = this.element.querySelector(":scope > .window-header");
-    const bands = [...this.element.querySelectorAll('[data-application-part="band"]')];
-    const band = bands.find((b) => b.parentElement !== header) ?? bands[0];
-    if (!header || !band) return;
-    for (const stale of bands) if (stale !== band) stale.remove();
-    const controls = header.querySelector("button[data-action=toggleControls]");
-    if (band.parentElement !== header) header.insertBefore(band, controls ?? null);
-    if (!band.dataset.guarded) {
-      band.dataset.guarded = "1";
-      for (const type of ["pointerdown", "dblclick"]) {
-        band.addEventListener(type, (ev) => {
-          if (ev.target.closest("input, button, a, select, textarea, label")) ev.stopPropagation();
-        });
-      }
     }
   }
 
@@ -623,44 +584,6 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   #effectOf(target) {
     const id = target?.closest?.("[data-effect-id]")?.dataset.effectId;
     return id ? this.actor.effects.get(id) : null;
-  }
-
-  /**
-   * A small menu under a rail cell: one row per option, the current one
-   * marked; a click picks, a click anywhere else closes.
-   */
-  #openMenu(anchor, items, onPick) {
-    this.element.querySelector(`.${FRAME_CLASS}__menu`)?.remove();
-    const menu = document.createElement("div");
-    menu.className = `${FRAME_CLASS}__menu`;
-    menu.innerHTML = items
-      .map(
-        (it, i) =>
-          `<button type="button" class="${FRAME_CLASS}__menu-item${it.on ? " is-on" : ""}" data-menu-index="${i}"${it.disabled ? " disabled" : ""}>` +
-          `${it.icon ? `<i class="${it.icon}" inert></i>` : it.img ? `<img src="${it.img}" alt="" inert>` : ""}<span>${foundry.utils.escapeHTML(it.label)}</span>` +
-          `${it.value != null ? `<b>${foundry.utils.escapeHTML(String(it.value))}</b>` : ""}</button>`,
-      )
-      .join("");
-    const rail = anchor.closest(`.${FRAME_CLASS}__rail`) ?? anchor.parentElement;
-    rail.style.position = "relative";
-    menu.style.top = `${anchor.offsetTop}px`;
-    rail.append(menu);
-    const close = () => {
-      menu.remove();
-      document.removeEventListener("pointerdown", onOutside, true);
-    };
-    const onOutside = (ev) => {
-      if (!menu.contains(ev.target)) close();
-    };
-    setTimeout(() => document.addEventListener("pointerdown", onOutside, true), 0);
-    menu.addEventListener("click", (ev) => {
-      const btn = ev.target.closest("[data-menu-index]");
-      if (!btn) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      close();
-      Promise.resolve(onPick(items[Number(btn.dataset.menuIndex)])).catch((err) => console.error(`${MODULE_ID} | menu pick failed`, err));
-    });
   }
 
   /* -------------------------------------------- */
@@ -746,36 +669,6 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   /*  Actions — the frame                          */
   /* -------------------------------------------- */
 
-  /**
-   * The flag is written as an explicit true or false per actor: `setFlag`
-   * MERGES an object, so a key deleted from a copy would survive the write.
-   */
-  static async #onFold() {
-    const next = !this.folded;
-    await game.user.setFlag(MODULE_ID, FOLD_FLAG, { [this.actor.id]: next });
-    this.render();
-  }
-
-  /** The fold state the window was last sized for. */
-  #foldedWas = null;
-
-  /**
-   * Size the window to its state: the card narrows, the open sheet widens
-   * back. Done after render, once the root carries `is-folded`, because the
-   * open sheet's minimum width would otherwise clamp the card's.
-   */
-  #sizeForFold(folded) {
-    if (this.#foldedWas === folded) return;
-    this.#foldedWas = folded;
-    this.setPosition({ width: atTypeScale(folded ? 400 : 900), height: "auto" });
-  }
-
-  static #onGoTab(event, target) {
-    const tab = target.dataset.tab;
-    if (this.folded) return;
-    if (this.element.querySelector(`.tabs [data-group="primary"][data-tab="${tab}"]`)) this.changeTab(tab, "primary");
-  }
-
   static async #onRoll(event, target) {
     const id = target.dataset.roll;
     if (!id) return;
@@ -797,18 +690,11 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       if (item && "favorite" in (item.system ?? {})) await item.update({ "system.favorite": !item.system.favorite });
       return;
     }
-    await this.#togglePinId(id);
+    await this._togglePinId(id);
   }
 
   static async #onPinItem(event, target) {
-    await this.#togglePinId(target.dataset.pin);
-  }
-
-  async #togglePinId(id) {
-    if (!id) return;
-    const flag = foundry.utils.deepClone(sheetFlag(this.actor));
-    flag.pins = togglePin(flag.pins, id);
-    await this.actor.setFlag(MODULE_ID, SHEET_FLAG, flag);
+    await this._togglePinId(target.dataset.pin);
   }
 
   static #onInfluence() {
@@ -837,7 +723,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       value: moveFigure(m.key, num(modes[m.key])),
       on: this.#ui.moveMode === m.key,
     }));
-    this.#openMenu(target, items, (pick) => {
+    this._frameMenu(target, items, (pick) => {
       this.#ui.moveMode = pick.key;
       this.render();
     });
@@ -857,7 +743,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       items.push({ item, kind: "grip", icon: "fa-solid fa-hands", label: loc("grip.cycle", { name: item?.name ?? "" }), value: game.i18n.localize(`ACKS-EQUIPMENT.grip.${w.grip}`) });
     }
     if (!items.length) items.push({ kind: "none", icon: "fa-solid fa-hand", label: loc("grip.nothing"), disabled: true });
-    this.#openMenu(target, items, async (pick) => {
+    this._frameMenu(target, items, async (pick) => {
       if (pick.kind === "draw") await drawItem(pick.item);
       else if (pick.kind === "sheathe") await sheatheItem(pick.item);
       else if (pick.kind === "grip") await cycleGrip(pick.item);
@@ -886,7 +772,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       }
     }
     if (!items.length) items.push({ kind: "none", icon: "fa-solid fa-moon", label: loc("light.nothing"), disabled: true });
-    this.#openMenu(target, items, async (pick) => {
+    this._frameMenu(target, items, async (pick) => {
       if (pick.kind === "ready") await prepareTorch(this.actor, pick.item);
       else if (pick.kind === "light") await declareLightAction(this.actor, "light", { lightType: pick.lightType, bearerId: this.actor.id });
       else if (pick.kind === "lightToggle") await declareLightAction(this.actor, "lightToggle", { lightId: pick.lightId });
@@ -927,7 +813,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       if (!this.actor.system?.retainer?.enabled) items.push({ kind: "roster", icon: "fa-solid fa-people-group", label: loc("followers.roster") });
     }
     items.push({ kind: "tab", icon: "fa-solid fa-users", label: loc("tab.followers") });
-    this.#openMenu(target, items, async (pick) => {
+    this._frameMenu(target, items, async (pick) => {
       switch (pick.kind) {
         case "token": {
           const doc = scene?.tokens.get(pick.tokenId);

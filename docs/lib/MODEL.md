@@ -423,6 +423,69 @@ record whether or not the value changed, and an untested write would answer
 its own record without end. `applyClientPins()` calls it, so a page comes
 under watch as core lists it. Nothing of core's is wrapped.
 
+## The sheet frame
+
+Every actor sheet this module draws has one shape, stated once:
+`scripts/lib/frame.mjs` (the Foundry half), `scripts/lib/frame-model.mjs`
+(the decisions, on plain data), `templates/lib/frame/` (the partials) and
+`styles/lib-frame.css` (every rule, hung off `acks-extras-frame` and its
+`__` members). A sheet on the frame extends `FrameMixin`, adds the frame's
+root class beside its own identity class, and renders two parts: a `band`
+from the frame's band partial, and a body of its own that includes the
+frame's `rails`, `folded` and `tabs` partials. What each sheet SHOWS in the
+band and the rails is that sheet's model to decide
+(docs/character-sheet/MODEL.md, "The frame"); what follows is the mechanics
+every one of them shares.
+
+**The band is the window header.** The band renders as its own part and the
+mixin's `_onRender` moves it into Foundry's `.window-header` through
+`header-band.mjs`, so the header stays the drag handle and keeps its buttons
+while the band's name field lives in the form. The band carries a glyph
+button, a rank before the name, the name field, chips, and in the bar's place
+either a filling bar (the character's XP) or a plain reading (`is-reading`).
+The bar and the reading are readings, not controls: no action, so a press on
+either falls through to the header and drags the window.
+
+**The art row** is the two rails around the portrait, the prose column and,
+for an owner, the sheet-tools rail. A rail cell is one object the cell
+partial draws — `{key, action, attrs, cls, fill, title, icon, big, img,
+inside, hands, joined, sub, corner, count, disabled}` — so a sheet decides a
+cell's reading in its model and its glyph and action in its context, and
+never writes cell markup. `attrs` is rendered raw: a sheet builds it through
+one escaping helper.
+
+**The fold** hides everything but the band (compact, with no bar), the
+portrait and the rails, and puts the pin bar under the art row. The fold
+state is a user flag (`FOLD_FLAG`) keyed by document id, written as an
+explicit true or false because `setFlag` merges; a viewing preference lives
+with the viewer, so an observer seat can fold a sheet it cannot edit. The
+window is resized after render, once the root carries `is-folded`, to the
+sheet's `FRAME_WIDTHS` at the seat's type size (`atTypeScale`); the open
+sheet's minimum width would otherwise clamp the card's.
+
+**The pins** are the document's sheet flag (`SHEET_FLAG`): `pins`, the roll,
+timer and resource ids starred for the folded bar, and `acMode`, the AC
+reading the rail cell states. The document's own data, so owner-written;
+`_togglePinId` stars or unstars one id.
+
+**Read-only seats.** DocumentSheetV2 disables every form control on a sheet
+the viewer cannot edit. The mixin re-enables the actions its `VIEW_ACTIONS`
+names afterwards — the frame's fold and tab change, and whatever the sheet
+lists beside them: a menu, a roll, a window opened — so an observer can
+fold, browse and roll while every write control stays disabled.
+
+**The menu under a rail cell** (`_frameMenu`) is one row per option, the
+current one marked; a click picks, a click anywhere else closes. It is built
+by the anchor's own document, so a sheet first rendered in a detached
+browser window gets a menu of that window's.
+
+**The type knob.** Every length in the stylesheet is a canvas figure times
+`--acks-extras-k`, the ratio of the seat's base size to the canvas's
+(`.claude/rules/ui-layout.md`, "A base-derived ratio"); the window's opening
+widths take the same ratio in JS. The frame scrolls at its body part's root,
+not at `.window-content`, because a sheet whose fields submit on change
+needs scroll retention and only a part has it.
+
 ## Label association
 
 Every rendered window binds its captions to their controls. `a11y.mjs`'s

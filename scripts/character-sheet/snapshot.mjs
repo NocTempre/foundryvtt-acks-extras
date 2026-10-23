@@ -10,7 +10,8 @@
  * a second reading of the same flag. The tab panels read through their own
  * builders under `tabs/`.
  */
-import { MODULE_ID, SHEET_FLAG, SUMMON_FLAG, CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, CLOCK_MARKS } from "./constants.mjs";
+import { MODULE_ID, SUMMON_FLAG, CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, CLOCK_MARKS } from "./constants.mjs";
+import { sheetFlag } from "../lib/frame-model.mjs";
 import { netNumericChange } from "../lib/effect-scan.mjs";
 import { rollMath, subjectOf } from "../lib/conditions.mjs";
 import { FLAG_RECORD } from "../henchmen/constants.mjs";
@@ -30,7 +31,7 @@ import { ACTOR_TYPE } from "../lib/vocab.mjs";
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
 /** The sheet's own actor flag, always an object. */
-export const sheetFlag = (actor) => actor?.getFlag?.(MODULE_ID, SHEET_FLAG) ?? {};
+export { sheetFlag };
 
 /**
  * The key the RELEASED system stores a save under, from the sheet's book

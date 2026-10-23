@@ -1,11 +1,13 @@
 {{!-- The folded card's bottom row: the unfold chevron, then the starred rolls,
-      timers and counts. --}}
+      timers and counts. Context: foldTitle; pins {rolls: [{id, label, value,
+      eq, post, title}], timers: [{label, pct, tone, icon, img}], resources:
+      [{label, count, icon}], any, emptyLabel}. --}}
 <div class="acks-extras-frame__foldbar">
-  <button type="button" class="acks-extras-frame__cell is-btn is-fold" data-action="fold" data-tooltip="{{frame.rails.foldTitle}}">
+  <button type="button" class="acks-extras-frame__cell is-btn is-fold" data-action="fold" data-tooltip="{{foldTitle}}">
     <i class="fa-solid fa-chevron-right" inert></i>
   </button>
   {{#each pins.rolls}}
-  <button type="button" class="acks-extras-frame__pinchip is-roll{{#if eq}} is-eq{{/if}}" data-action="roll" data-roll="{{id}}" data-tooltip="{{#if post}}{{localize 'ACKS-CHARACTER.rolls.post'}}{{else}}{{value}}{{/if}}">
+  <button type="button" class="acks-extras-frame__pinchip is-roll{{#if eq}} is-eq{{/if}}" data-action="roll" data-roll="{{id}}" data-tooltip="{{title}}">
     <i class="fa-solid {{#if post}}fa-eye{{else}}fa-dice-d20{{/if}}" inert></i><span>{{label}}</span>
   </button>
   {{/each}}
@@ -19,5 +21,5 @@
     <i class="{{icon}}" inert></i><span>{{label}}</span><b class="acks-nums">{{count}}</b>
   </span>
   {{/each}}
-  {{#unless pins.any}}<span class="acks-extras-frame__hint">{{localize "ACKS-CHARACTER.fold.noPins"}}</span>{{/unless}}
+  {{#unless pins.any}}<span class="acks-extras-frame__hint">{{pins.emptyLabel}}</span>{{/unless}}
 </div>

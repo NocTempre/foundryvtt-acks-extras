@@ -74,6 +74,7 @@ import { registerStorageCleanup, registerStorageRelay, DELETE_POLICY_SETTING } f
 import { registerGroupCleanup } from "./group.mjs";
 import { FollowerCardSheet } from "./apps/follower-card-sheet.mjs";
 import { followerCardContext, renderFollowerCard, FOLLOWER_CARD_TEMPLATE } from "./follower-card.mjs";
+import { FRAME_TEMPLATES } from "./frame.mjs";
 import * as damageType from "./damage-type.mjs";
 import {
   installAttackThrowPatch,
@@ -475,10 +476,10 @@ Hooks.once("init", () => {
 
   // Warm the Follower Card template so the hirelings-tab grid (rendered by
   // acks-henchmen, cross-module) has no fetch miss on first paint — and the
-  // station chip and the coin-order block, which other sheets include as
-  // partials by path.
+  // station chip, the coin-order block and the sheet frame's partials, which
+  // other sheets include as partials by path.
   foundry.applications.handlebars
-    .loadTemplates([FOLLOWER_CARD_TEMPLATE, `modules/${MODULE_ID}/templates/lib/station-chip.hbs`, COIN_ORDER_TEMPLATE])
+    .loadTemplates([FOLLOWER_CARD_TEMPLATE, `modules/${MODULE_ID}/templates/lib/station-chip.hbs`, COIN_ORDER_TEMPLATE, ...FRAME_TEMPLATES])
     .catch((err) => console.warn(`${MODULE_ID} | lib template preload skipped`, err));
 
   // The Surprise Matrix's results on one card (patches/surprise-card.mjs; docs/lib/DECISIONS.md,

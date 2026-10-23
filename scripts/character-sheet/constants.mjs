@@ -10,12 +10,8 @@ export const LANG = "ACKS-CHARACTER";
 /** The sheet's own class on the application root; injectors gate on it via `ownsSheet`. */
 export const SHEET_CLASS = "acks-extras-character-sheet";
 
-/**
- * Actor flag holding what the sheet keeps ON the character: `pins` (roll,
- * timer and resource ids starred for the folded bar) and `acMode` (which AC
- * the rail cell states). Character data, so it is owner-written.
- */
-export const SHEET_FLAG = "sheet";
+/** The frame's flags, saves, movement modes and AC readings are the lib's (`lib/frame-model.mjs`). */
+export { SHEET_FLAG, FOLD_FLAG, SAVE_KEYS, SAVE_ICONS, MOVE_MODES, AC_MODES } from "../lib/frame-model.mjs";
 
 /**
  * Actor flag recording the last official-sheet import: `importedAt`, `fields`
@@ -25,47 +21,14 @@ export const SHEET_FLAG = "sheet";
  */
 export const PDF_RECORD_FLAG = "sheetPdf";
 
-/**
- * User flag holding the fold state per actor id. A viewing preference lives
- * with the viewer: an observer seat can fold a sheet it cannot edit.
- */
-export const FOLD_FLAG = "sheetFold";
 /** User flag: which organisation the Stats tab's weapon list is regrouped by — a viewing preference, so the viewer's. */
 export const TRAINING_VIEW_FLAG = "trainingView";
 
 /** The tab keys, in the one order they ever appear. */
 export const TAB_ORDER = Object.freeze(["rolls", "abilities", "equipment", "stats", "class", "magic", "trade", "followers", "notes", "effects"]);
 
-/** The five saving throws, in the printed order, keyed as the released system stores them. */
-export const SAVE_KEYS = Object.freeze(["paralysis", "death", "blast", "implements", "spell"]);
-
-/** The glyph each save cell wears (Font Awesome, per DECISIONS "the rails draw Foundry's icons"). */
-export const SAVE_ICONS = Object.freeze({
-  paralysis: "fa-solid fa-snowflake",
-  death: "fa-solid fa-skull",
-  blast: "fa-solid fa-burst",
-  implements: "fa-solid fa-wand-magic",
-  spell: "fa-solid fa-hat-wizard",
-});
-
 /** The mark each duration unit wears on a clock, keyed as Foundry names the unit. */
 export const CLOCK_MARKS = Object.freeze({ rounds: "r", turns: "t", seconds: "s", minutes: "m", hours: "h", days: "d", months: "mo", years: "y" });
-
-/**
- * The six movement modes the system derives, each with the glyph its rail
- * cell and its Stats row wear and the unit its figure is read in.
- */
-export const MOVE_MODES = Object.freeze([
-  { key: "exploration", icon: "fa-solid fa-map", unit: "perTurn" },
-  { key: "combat", icon: "fa-solid fa-crosshairs", unit: "perRound" },
-  { key: "chargerun", icon: "fa-solid fa-person-running", unit: "perRound" },
-  { key: "expedition", icon: "fa-solid fa-person-hiking", unit: "perDay" },
-  { key: "stealth", icon: "fa-solid fa-user-ninja", unit: "perRound" },
-  { key: "climb", icon: "fa-solid fa-mountain", unit: "perRound" },
-]);
-
-/** The three readings of the AC cell, in cycle order. */
-export const AC_MODES = Object.freeze(["shield", "armour", "none"]);
 
 /** The adventuring throws the system stores, in the printed order. */
 export const ADVENTURING_KEYS = Object.freeze(["dungeonbashing", "climb", "listening", "searching", "trapbreaking"]);

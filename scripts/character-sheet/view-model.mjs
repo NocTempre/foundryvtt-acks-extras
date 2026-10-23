@@ -3,6 +3,12 @@
  * rails, the tab strip and the folded bar show, and the Equipment tab's Load
  * bar and hand places, made once, on plain data, with no Foundry in reach.
  *
+ * The frame's own decisions — the bar, the heart, the AC readings, the
+ * movement cell, the save cells, the party cell, the surviving tab, the pins
+ * and the load bar — are `lib/frame-model.mjs`, re-exported here; this file
+ * adds the cells only a character has (the grip, the light), the tab list,
+ * the hands on the body map and the whole frame.
+ *
  * `snapshot.mjs` reads the actor into the snapshot shape this file consumes;
  * `sheet.mjs` hands the result to the templates. Keeping the decisions here
  * means the XP bar's gold state, the HP fill, the grip glyphs, the light cell's
@@ -25,14 +31,12 @@
  *   caster, trader (set by the sheet), pending, followers, timers, hasClass, unansweredPaths
  *   pins      string[]
  */
-import { SAVE_KEYS, SAVE_ICONS, MOVE_MODES, AC_MODES, LIGHT_ICONS, TAB_ORDER, TOOL_CELLS } from "./constants.mjs";
+import { LIGHT_ICONS, TAB_ORDER, TOOL_CELLS } from "./constants.mjs";
+import { num, clampPct, xpBar, hpCell, acCell, moveCell, partyCell, saveCells, resolveTab } from "../lib/frame-model.mjs";
 
-/** How many rail cells a side: the design's six. */
-export const RAIL_ROWS = 6;
-
-const clampPct = (n) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
-const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
-export const signed = (n) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`);
+export {
+  RAIL_ROWS, signed, xpBar, hpCell, nextAcMode, acCell, slowedTone, moveCell, partyCell, saveCells, resolveTab, effectivePins, togglePin, loadBar,
+} from "../lib/frame-model.mjs";
 
 /**
  * The system data an EDITABLE field renders: the stored source, never the
@@ -50,71 +54,8 @@ export const storedSystem = (actor) => actor?._source?.system ?? actor?.system ?
 export const carriesMorale = (actor) => actor?.system?.retainer?.enabled === true || actor?.hasPlayerOwner === false;
 
 /* -------------------------------------------- */
-/*  The band                                     */
-/* -------------------------------------------- */
-
-/**
- * The XP bar: how full, what it says, and whether it has gone gold.
- * "Full" is the value reaching the threshold; a character with no threshold
- * (no class row, no next-level XP recorded) shows an empty bar and never goes
- * gold, because there is nothing to advance to.
- */
-export function xpBar({ value, next }) {
-  const v = Math.max(0, num(value));
-  const n = num(next);
-  if (n <= 0) return { pct: 0, full: false, value: v, next: null };
-  return { pct: clampPct((v / n) * 100), full: v >= n, value: v, next: n };
-}
-
-/* -------------------------------------------- */
 /*  The right rail                               */
 /* -------------------------------------------- */
-
-/** The heart: current total inside, fill as the fraction, red at zero. */
-export function hpCell({ value, max }) {
-  const v = num(value);
-  const m = Math.max(0, num(max));
-  const pct = m > 0 ? clampPct((Math.max(0, v) / m) * 100) : 0;
-  return { n: v, pct, zero: v <= 0, on: m > 0 && v >= m, tone: v <= 0 ? "bad" : null };
-}
-
-/** The next reading in the AC cycle: shield → without → unarmoured. */
-export function nextAcMode(mode) {
-  const i = AC_MODES.indexOf(mode);
-  return AC_MODES[(i + 1) % AC_MODES.length];
-}
-
-/**
- * The AC cell: the number inside the glyph for the reading in force. A
- * character with no shield equipped has no "with the shield" reading, so
- * the shield mode collapses onto the armour one.
- */
-export function acCell({ value, shield, naked }, mode = "shield") {
-  const withShield = num(value);
-  const shieldPart = num(shield);
-  const bare = num(naked);
-  const has = shieldPart > 0;
-  const m = mode === "shield" && !has ? "armour" : mode;
-  const n = m === "none" ? bare : m === "armour" ? withShield - shieldPart : withShield;
-  return { mode: m, n, hasShield: has };
-}
-
-/** The tone the load puts on the movement cell: amber slowed, red badly so. */
-export function slowedTone(pct, breakpoints) {
-  const p = num(pct);
-  const high = num(breakpoints?.high, 100);
-  const low = num(breakpoints?.low, 0);
-  if (p > high) return "bad";
-  if (p > low) return "warn";
-  return null;
-}
-
-/** The movement cell: the mode's glyph and figure, coloured when the load slows you. */
-export function moveCell({ modes, pct, breakpoints }, modeKey = "exploration") {
-  const mode = MOVE_MODES.find((m) => m.key === modeKey) ?? MOVE_MODES[0];
-  const value = num(modes?.[mode.key]);
-  return { key: mode.key, icon: mode.icon, unit: mode.unit, value, tone: slowedTone(pct, breakpoints) };
-}
 
 /**
  * The grip cell: two hands, each open (free) or clenched (holding), joined on
@@ -162,70 +103,6 @@ export function lightCell({ lit = null, ambient = null, sense = null, blinded = 
   return { key: "dark", icon: LIGHT_ICONS.dark, sub: "0′", tone: "bad", pct: null };
 }
 
-/**
- * The party cell: who of this character's own party is on the scene. The
- * figure is the henchmen present, with an asterisk per summon present
- * (`1**` is one henchman and two summons). It promotes to the formation when
- * the character marches in one whose party token is on the scene, and then
- * counts the formation's members present. Red while any henchman is
- * suffering a calamity. With no party and no formation the cell is a pad.
- * @param {object} party {formation: {name, onScene, membersOnScene}|null,
- *   henchmen: [{onScene}], summons: [{}] (those on the scene), calamity: number}
- */
-export function partyCell({ formation = null, henchmen = [], summons = [], calamity = 0 } = {}) {
-  const tone = num(calamity) > 0 ? "neg" : null;
-  if (formation?.onScene) {
-    const n = num(formation.membersOnScene);
-    return { mode: "formation", icon: "fa-solid fa-people-line", sub: n ? String(n) : "", tone, pad: false, calamity: num(calamity) };
-  }
-  const hOn = henchmen.filter((h) => h.onScene).length;
-  const sOn = summons.length;
-  if (!henchmen.length && !sOn) {
-    return { mode: "none", icon: "fa-solid fa-people-group", sub: "", tone, pad: true, calamity: num(calamity) };
-  }
-  return { mode: "party", icon: "fa-solid fa-people-group", sub: `${hOn}${"*".repeat(sOn)}`, tone, pad: false, calamity: num(calamity), hOn, sOn };
-}
-
-/* -------------------------------------------- */
-/*  The left rail                                */
-/* -------------------------------------------- */
-
-/**
- * The five save cells. A condition riding on a save takes over the cell —
- * its clock, its fill, the save's glyph in the corner and a count when
- * several share it. A modifier in force on the save colours the cell with the
- * signed number, green helping, red hurting, split when both apply.
- */
-export function saveCells({ saves = {}, riders = [], saveMods = {} }) {
-  return SAVE_KEYS.map((key) => {
-    const target = num(saves[key]);
-    const mine = riders.filter((r) => r.save === key);
-    const mod = num(saveMods[key]);
-    const cell = { key, icon: SAVE_ICONS[key], target, tone: null, pct: null, sub: "", corner: null, count: 0, riders: mine };
-    if (mine.length) {
-      const first = mine[0];
-      const total = num(first.total);
-      cell.tone = "neg";
-      cell.pct = total > 0 && first.remaining != null ? clampPct((num(first.remaining) / total) * 100) : 100;
-      cell.sub = first.clock ?? "";
-      cell.riderIcon = first.icon ?? null;
-      cell.corner = SAVE_ICONS[key];
-      cell.count = mine.length > 1 ? mine.length : 0;
-      if (mod > 0) {
-        cell.tone = "split";
-        cell.sub = [signed(mod), first.clock].filter(Boolean).join(" ");
-      }
-      return cell;
-    }
-    if (mod) {
-      cell.tone = mod > 0 ? "pos" : "warn";
-      cell.sub = signed(mod);
-      cell.pct = null;
-    }
-    return cell;
-  });
-}
-
 /* -------------------------------------------- */
 /*  The tab strip                                */
 /* -------------------------------------------- */
@@ -251,59 +128,9 @@ export function tabList({ caster = false, trader = false, pending = 0, followers
   });
 }
 
-/** Which tab survives when the current one disappears. */
-export function resolveTab(active, available) {
-  return available.includes(active) ? active : available[0] ?? null;
-}
-
-/* -------------------------------------------- */
-/*  Pins                                         */
-/* -------------------------------------------- */
-
-/** The pins the actor carries, bounded to ids that still name something. */
-export function effectivePins(pins, available) {
-  const have = new Set(available);
-  return (Array.isArray(pins) ? pins : []).filter((id) => have.has(id));
-}
-
-/** Toggle one pin; order of pinning is the order of the bar. */
-export function togglePin(pins, id) {
-  const cur = Array.isArray(pins) ? [...pins] : [];
-  const at = cur.indexOf(id);
-  if (at !== -1) cur.splice(at, 1);
-  else cur.push(id);
-  return cur;
-}
-
 /* -------------------------------------------- */
 /*  The Equipment tab                            */
 /* -------------------------------------------- */
-
-/**
- * The Load bar's two readings on one track: the burden the character moves
- * under, filled, and what they actually carry, as a dashed phantom running
- * on from the fill to where the true weight falls. The gap is what the
- * carrying rules are worth — a harness, a slung bow, the clothes on their
- * back — drawn so a figure lighter than the kit adds up to reads as a rule
- * working, not a miscount. No phantom when the two agree or a correction
- * runs the other way; past the maximum the phantom stops at the end of the
- * track and `capped` says it did.
- * @param {object} enc {value6, true6, max6, pct, breakpoints} in sixths
- * @returns {{pct:number, phantom:number, capped:boolean, eased6:number, ticks:number[]}}
- *   widths in percent of the track; `eased6` the sixths that do not weigh
- */
-export function loadBar({ value6, true6, max6, pct, breakpoints }) {
-  const m = num(max6);
-  const counted = m > 0 ? clampPct((num(value6) / m) * 100) : clampPct(pct);
-  const carried = m > 0 ? clampPct((num(true6) / m) * 100) : counted;
-  return {
-    pct: counted,
-    phantom: Math.max(0, carried - counted),
-    capped: m > 0 && num(true6) > m,
-    eased6: Math.max(0, num(true6) - num(value6)),
-    ticks: [breakpoints?.low, breakpoints?.mid, breakpoints?.high].map((n) => num(n)).filter((n) => n > 0 && n < 100),
-  };
-}
 
 /**
  * The hands on the body map. A weapon held in both hands has no place of its
